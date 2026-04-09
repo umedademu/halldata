@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 
 from bs4 import BeautifulSoup
 
-from data_persistence import HistoryPersistenceService, build_machine_daily_records
+from data_persistence import HistoryPersistenceService, build_machine_daily_records, normalize_store_url
 from main import matches_day_tail
 from minrepo_scraper import FetchProgress, MinRepoScraper, normalize_text, parse_date_range_input
 
@@ -248,8 +248,46 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(
                 loaded_stores,
                 [
-                    {"store_name": "MJアリーナ箱崎店", "store_url": "https://example.com/a"},
-                    {"store_name": "ABCホール", "store_url": "https://example.com/b"},
+                    {"store_name": "MJアリーナ箱崎店", "store_url": "https://example.com/a/"},
+                    {"store_name": "ABCホール", "store_url": "https://example.com/b/"},
+                ],
+            )
+
+    def test_normalize_store_url_unifies_percent_case(self) -> None:
+        self.assertEqual(
+            normalize_store_url("https://min-repo.com/tag/mj%e5%a4%a9%e7%a5%9eiii/"),
+            "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/",
+        )
+
+    def test_save_registered_stores_deduplicates_normalized_url(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            captured_stores: list[dict[str, str]] = []
+
+            def fake_save_registered_stores_to_supabase(stores: list[dict[str, str]]) -> int:
+                captured_stores.extend(stores)
+                return len(stores)
+
+            service._save_registered_stores_to_supabase = fake_save_registered_stores_to_supabase  # type: ignore[method-assign]
+
+            summary = service.save_registered_stores(
+                [
+                    {"store_name": "GOGOアリーナ天神", "store_url": "https://min-repo.com/tag/mj%e5%a4%a9%e7%a5%9eiii/"},
+                    {"store_name": "GOGOアリーナ天神", "store_url": "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/"},
+                ]
+            )
+            loaded_stores = service.load_registered_stores()
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(summary.local_store_count, 1)
+            self.assertEqual(len(captured_stores), 1)
+            self.assertEqual(
+                loaded_stores,
+                [
+                    {
+                        "store_name": "GOGOアリーナ天神",
+                        "store_url": "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/",
+                    }
                 ],
             )
 

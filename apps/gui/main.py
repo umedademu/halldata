@@ -15,6 +15,7 @@ from data_persistence import (
     PersistenceSummary,
     RegisteredStoresPersistenceSummary,
     SavedMachineTargetsSummary,
+    normalize_store_url,
 )
 from minrepo_scraper import (
     FetchProgress,
@@ -385,9 +386,9 @@ class MinRepoApp:
             messagebox.showwarning("入力不正", "店舗URLは http:// または https:// から入力してください。")
             return
 
-        normalized_url = store_url.rstrip("/")
+        normalized_url = normalize_store_url(store_url)
         for registered_store in self.registered_stores:
-            if registered_store.url.rstrip("/") == normalized_url:
+            if normalize_store_url(registered_store.url) == normalized_url:
                 messagebox.showwarning("重複", "同じURLがすでに登録されています。")
                 return
 
@@ -1072,14 +1073,14 @@ class MinRepoApp:
 
     def _apply_registered_store(self, store_name: str, store_url: str) -> None:
         normalized_name = normalize_text(store_name)
-        normalized_url = store_url.rstrip("/")
+        normalized_url = normalize_store_url(store_url)
         for registered_store in self.registered_stores:
-            if normalize_text(registered_store.name) == normalized_name or registered_store.url.rstrip("/") == normalized_url:
+            if normalize_text(registered_store.name) == normalized_name or normalize_store_url(registered_store.url) == normalized_url:
                 messagebox.showwarning("重複", "同じ店舗名またはURLがすでに登録されています。")
                 self.register_store_status_var.set("登録済みの店舗です")
                 return
 
-        self.registered_stores.append(RegisteredStore(name=store_name, url=store_url))
+        self.registered_stores.append(RegisteredStore(name=store_name, url=normalized_url))
         self.register_store_url_var.set("")
         self._refresh_registered_store_table()
         self._refresh_store_selector()

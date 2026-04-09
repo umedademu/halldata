@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import re
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 import requests
 
@@ -58,6 +58,21 @@ class SavedMachineTargetsSummary:
     @property
     def has_errors(self) -> bool:
         return bool(self.messages)
+
+
+def normalize_store_url(value: str) -> str:
+    text = str(value).strip()
+    if not text:
+        return ""
+
+    parts = urlsplit(text)
+    normalized_scheme = parts.scheme.lower()
+    normalized_netloc = parts.netloc.lower()
+    normalized_path = quote(unquote(parts.path or "/"), safe="/-_.~")
+    if normalized_path != "/":
+        normalized_path = normalized_path.rstrip("/") + "/"
+
+    return urlunsplit((normalized_scheme, normalized_netloc, normalized_path, parts.query, ""))
 
 
 def build_machine_daily_records(history_result: MachineHistoryResult) -> list[dict[str, Any]]:
@@ -194,7 +209,7 @@ class HistoryPersistenceService:
             "saved_at": datetime.now().astimezone().isoformat(timespec="seconds"),
             "store": {
                 "store_name": history_result.store_name,
-                "store_url": history_result.store_url,
+                "store_url": normalize_store_url(history_result.store_url),
             },
             "period": {
                 "start_date": history_result.start_date,
@@ -251,7 +266,7 @@ class HistoryPersistenceService:
         if not store_dir.exists():
             return set()
 
-        normalized_store_url = store_url.rstrip("/")
+        normalized_store_url = normalize_store_url(store_url)
         saved_targets: set[tuple[str, str]] = set()
 
         for file_path in store_dir.glob("*.json"):
@@ -263,7 +278,7 @@ class HistoryPersistenceService:
             if not isinstance(store_payload, dict):
                 continue
 
-            saved_store_url = str(store_payload.get("store_url", "")).strip().rstrip("/")
+            saved_store_url = normalize_store_url(str(store_payload.get("store_url", "")).strip())
             if saved_store_url and saved_store_url != normalized_store_url:
                 continue
 
@@ -294,7 +309,7 @@ class HistoryPersistenceService:
 
         store_payload = {
             "store_name": snapshot["store"]["store_name"],
-            "store_url": snapshot["store"]["store_url"],
+            "store_url": normalize_store_url(snapshot["store"]["store_url"]),
             "updated_at": now_text,
         }
         store_id = self._upsert_store(session, supabase_url, stores_table, store_payload)
@@ -335,7 +350,7 @@ class HistoryPersistenceService:
         payloads = [
             {
                 "store_name": store["store_name"],
-                "store_url": store["store_url"],
+                "store_url": normalize_store_url(store["store_url"]),
                 "updated_at": now_text,
             }
             for store in stores
@@ -367,7 +382,7 @@ class HistoryPersistenceService:
             return set()
 
         session = self._create_supabase_session(schema)
-        store_id = self._find_store_id(session, supabase_url, stores_table, store_url)
+        store_id = self._find_store_id(session, supabase_url, stores_table, normalize_store_url(store_url))
         if not store_id:
             return set()
 
@@ -417,6 +432,13 @@ class HistoryPersistenceService:
         stores_table: str,
         store_payload: dict[str, Any],
     ) -> str:
+        normalized_store_url = normalize_store_url(str(store_payload.get("store_url", "")))
+        existing_store_id = self._find_store_id(session, supabase_url, stores_table, normalized_store_url)
+        if existing_store_id:
+            return existing_store_id
+
+        store_payload = dict(store_payload)
+        store_payload["store_url"] = normalized_store_url
         endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(stores_table, safe='')}?on_conflict=store_url&select=id"
         response = session.post(
             endpoint,
@@ -478,11 +500,11 @@ class HistoryPersistenceService:
                 continue
 
             store_name = str(store.get("store_name", store.get("name", ""))).strip()
-            store_url = str(store.get("store_url", store.get("url", ""))).strip()
+            store_url = normalize_store_url(str(store.get("store_url", store.get("url", ""))).strip())
             if not store_name or not store_url:
                 continue
 
-            dedupe_key = (normalize_text(store_name), store_url.rstrip("/"))
+            dedupe_key = (store_url,)
             if dedupe_key in seen_keys:
                 continue
             seen_keys.add(dedupe_key)
