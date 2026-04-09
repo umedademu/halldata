@@ -3,9 +3,11 @@ from __future__ import annotations
 import unittest
 from datetime import datetime
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from bs4 import BeautifulSoup
 
+from data_persistence import HistoryPersistenceService, build_machine_daily_records
 from main import matches_day_tail
 from minrepo_scraper import MinRepoScraper, parse_date_range_input
 
@@ -116,6 +118,54 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual([page.target_date for page in result.date_pages], ["2026-04-07", "2026-04-08"])
         self.assertEqual([dataset.target_date for dataset in result.datasets], ["2026-04-07", "2026-04-08"])
         self.assertTrue(all(dataset.machine_name == "ネオアイムジャグラーEX" for dataset in result.datasets))
+
+    def test_build_machine_daily_records_from_history_result(self) -> None:
+        scraper = FixtureScraper()
+        history_result = scraper.fetch_machine_history_datasets(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-07 ～ 2026-04-08",
+            machine_names=["ネオアイムジャグラーEX"],
+        )
+
+        records = build_machine_daily_records(history_result)
+
+        self.assertEqual(len(records), 80)
+        self.assertEqual(
+            records[0],
+            {
+                "target_date": "2026-04-07",
+                "slot_number": "687",
+                "machine_name": "ネオアイムジャグラーEX",
+                "difference_value": -562,
+                "games_count": 5931,
+                "payout_rate": 96.8,
+                "bb_count": 22,
+                "rb_count": 14,
+                "combined_ratio_text": "1/165",
+                "bb_ratio_text": "1/270",
+                "rb_ratio_text": "1/424",
+            },
+        )
+
+    def test_save_history_result_writes_local_file(self) -> None:
+        scraper = FixtureScraper()
+        history_result = scraper.fetch_machine_history_datasets(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-07 ～ 2026-04-08",
+            machine_names=["ネオアイムジャグラーEX"],
+        )
+
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            service._save_to_supabase = lambda snapshot: len(snapshot["records"])  # type: ignore[method-assign]
+
+            summary = service.save_history_result(history_result)
+
+            self.assertFalse(summary.has_errors)
+            self.assertTrue(summary.supabase_saved)
+            self.assertEqual(summary.supabase_record_count, 80)
+            self.assertIsNotNone(summary.local_file_path)
+            self.assertTrue(Path(summary.local_file_path).exists())
 
     def test_find_date_pages_handles_year_rollover_without_year_label(self) -> None:
         scraper = MinRepoScraper()

@@ -10,6 +10,7 @@ from tkinter import messagebox, ttk
 from typing import Callable
 from urllib.parse import urlparse
 
+from data_persistence import HistoryPersistenceService, PersistenceSummary
 from minrepo_scraper import (
     MachineDataset,
     MachineEntry,
@@ -59,6 +60,7 @@ class MinRepoApp:
         self.default_font = tkfont.nametofont("TkDefaultFont")
 
         self.scraper = MinRepoScraper()
+        self.persistence_service = HistoryPersistenceService()
         self.result_queue: queue.Queue[tuple[str, object]] = queue.Queue()
         self.current_results: list[MachineDataset] = []
         self.current_history_result: MachineHistoryResult | None = None
@@ -405,7 +407,8 @@ class MinRepoApp:
                 target_date_input=target_date_input,
                 machine_names=machine_names,
             )
-            self.result_queue.put(("fetch_success", result))
+            save_summary = self.persistence_service.save_history_result(result)
+            self.result_queue.put(("fetch_success", (result, save_summary)))
         except Exception as exc:  # noqa: BLE001
             self.result_queue.put(("fetch_error", exc))
 
@@ -460,6 +463,15 @@ class MinRepoApp:
             return
 
         history_result = payload
+        save_summary: PersistenceSummary | None = None
+        if (
+            isinstance(payload, tuple)
+            and len(payload) == 2
+            and isinstance(payload[0], MachineHistoryResult)
+            and isinstance(payload[1], PersistenceSummary)
+        ):
+            history_result = payload[0]
+            save_summary = payload[1]
         if not isinstance(history_result, MachineHistoryResult):
             self.status_var.set("失敗")
             self.summary_var.set("不明な結果")
@@ -469,13 +481,18 @@ class MinRepoApp:
         self.current_history_result = history_result
         self.current_results = history_result.datasets
         self._populate_comparison_table(history_result)
-        total_rows = sum(len(result.rows) for result in history_result.datasets)
         store_name = history_result.store_name
-        self.status_var.set("完了")
+        if save_summary is not None and save_summary.has_errors:
+            self.status_var.set("完了（保存に注意）")
+        else:
+            self.status_var.set("完了")
         self.summary_var.set(
             f"{store_name} / {history_result.start_date} ～ {history_result.end_date} / "
-            f"{len(self._selected_machine_names())}機種 / {len(history_result.date_pages)}日"
+            f"{len(self._selected_machine_names())}機種 / {len(history_result.date_pages)}日 / "
+            f"{self._save_status_text(save_summary)}"
         )
+        if save_summary is not None and save_summary.has_errors:
+            messagebox.showwarning("自動保存", "\n\n".join(save_summary.messages))
 
     def _apply_machine_list(self, machine_list: MachineListResult) -> None:
         self.current_machine_list = machine_list
@@ -1198,6 +1215,20 @@ class MinRepoApp:
         self.comparison_fixed_body_canvas.yview_moveto(target_y / body_height if body_height else 0.0)
         self.comparison_body_canvas.yview_moveto(target_y / body_height if body_height else 0.0)
         self._update_comparison_y_scrollbar()
+
+    def _save_status_text(self, save_summary: PersistenceSummary | None) -> str:
+        if save_summary is None:
+            return "保存情報なし"
+
+        saved_targets: list[str] = []
+        if save_summary.local_file_path:
+            saved_targets.append("ローカル")
+        if save_summary.supabase_saved:
+            saved_targets.append("Supabase")
+
+        if not saved_targets:
+            return "保存失敗"
+        return "保存:" + "+".join(saved_targets)
 
     def _sort_records(
         self,
