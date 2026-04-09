@@ -202,6 +202,9 @@ class MinRepoApp:
 
         self.comparison_body_canvas = tk.Canvas(self.comparison_frame, highlightthickness=0)
         self.comparison_body_canvas.grid(row=2, column=1, sticky="nsew")
+        self.comparison_fixed_body_canvas.configure(yscrollincrement=self._comparison_body_row_height())
+        self.comparison_body_canvas.configure(yscrollincrement=self._comparison_body_row_height())
+        self.comparison_body_canvas.configure(yscrollcommand=self._on_comparison_yview_changed)
 
         y_scroll = ttk.Scrollbar(self.comparison_frame, orient="vertical", command=self._scroll_comparison_y)
         y_scroll.grid(row=2, column=2, sticky="ns")
@@ -616,15 +619,14 @@ class MinRepoApp:
         self._refresh_comparison_table(preserve_scroll=False)
 
     def _refresh_comparison_table(self, preserve_scroll: bool = True) -> None:
-        x_position = self.comparison_body_canvas.xview()[0] if preserve_scroll else 0.0
-        y_position = self.comparison_body_canvas.yview()[0] if preserve_scroll else 0.0
+        x_position = self.comparison_body_canvas.canvasx(0) if preserve_scroll else 0.0
+        y_position = self.comparison_body_canvas.canvasy(0) if preserve_scroll else 0.0
         self.comparison_display_rows = self._sorted_comparison_rows()
         self._clear_comparison_table(reset_view=not preserve_scroll)
         self._draw_comparison_headers()
         self._draw_comparison_body()
         self._update_comparison_scrollregion()
-        if preserve_scroll:
-            self._restore_comparison_view(x_position, y_position)
+        self._restore_comparison_view(x_position if preserve_scroll else 0.0, y_position if preserve_scroll else 0.0)
 
     def _draw_comparison_headers(self) -> None:
         date_width = self._comparison_width("日付")
@@ -827,11 +829,6 @@ class MinRepoApp:
         self.comparison_fixed_body_canvas.delete("all")
         self.comparison_body_canvas.delete("all")
         self.comparison_header_click_regions = []
-        if reset_view:
-            self.comparison_fixed_body_canvas.yview_moveto(0)
-            self.comparison_body_canvas.yview_moveto(0)
-            self.comparison_header_canvas.xview_moveto(0)
-            self.comparison_body_canvas.xview_moveto(0)
         self.comparison_fixed_header_canvas.configure(scrollregion=(0, 0, 0, 0))
         self.comparison_fixed_body_canvas.configure(scrollregion=(0, 0, 0, 0))
         self.comparison_header_canvas.configure(scrollregion=(0, 0, 0, 0))
@@ -1145,15 +1142,28 @@ class MinRepoApp:
         self.comparison_body_canvas.configure(scrollregion=(0, 0, body_width, body_height))
         self._update_comparison_y_scrollbar()
 
+    def _on_comparison_yview_changed(self, first: str, last: str) -> None:
+        self.comparison_y_scrollbar.set(float(first), float(last))
+
     def _update_comparison_y_scrollbar(self) -> None:
         first, last = self.comparison_body_canvas.yview()
         self.comparison_y_scrollbar.set(first, last)
 
     def _restore_comparison_view(self, x_position: float, y_position: float) -> None:
-        self.comparison_header_canvas.xview_moveto(x_position)
-        self.comparison_body_canvas.xview_moveto(x_position)
-        self.comparison_fixed_body_canvas.yview_moveto(y_position)
-        self.comparison_body_canvas.yview_moveto(y_position)
+        body_width = max(1, self._comparison_body_total_width())
+        body_height = max(1, len(self.comparison_display_rows) * self._comparison_body_row_height())
+        visible_width = max(1, self.comparison_body_canvas.winfo_width())
+        visible_height = max(1, self.comparison_body_canvas.winfo_height())
+
+        max_x = max(0, body_width - visible_width)
+        max_y = max(0, body_height - visible_height)
+        target_x = min(max(0.0, x_position), float(max_x))
+        target_y = min(max(0.0, y_position), float(max_y))
+
+        self.comparison_header_canvas.xview_moveto(target_x / body_width if body_width else 0.0)
+        self.comparison_body_canvas.xview_moveto(target_x / body_width if body_width else 0.0)
+        self.comparison_fixed_body_canvas.yview_moveto(target_y / body_height if body_height else 0.0)
+        self.comparison_body_canvas.yview_moveto(target_y / body_height if body_height else 0.0)
         self._update_comparison_y_scrollbar()
 
     def _sort_records(
