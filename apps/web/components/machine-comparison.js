@@ -6,6 +6,7 @@ import {
   formatSignedNumber,
   valueToneClass,
 } from "../lib/format";
+import { CsvExportButton } from "./csv-export-button";
 
 const METRICS = [
   { key: "difference_value", label: "差枚", render: formatSignedNumber, tone: true },
@@ -36,6 +37,12 @@ export function MachineComparison({ machineName, slotNumbers, dateRows }) {
             <p className="sectionLabel">台データ比較</p>
             <h2 className="tablePanelTitle">{machineName}</h2>
           </div>
+          <CsvExportButton
+            machineName={machineName}
+            slotNumbers={slotNumbers}
+            dateRows={dateRows}
+            metrics={METRICS}
+          />
         </div>
         <div className="tableScroller">
           <table className="matrixTable">
