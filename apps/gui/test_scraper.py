@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 
 from data_persistence import HistoryPersistenceService, build_machine_daily_records
 from main import matches_day_tail
-from minrepo_scraper import FetchProgress, MinRepoScraper, parse_date_range_input
+from minrepo_scraper import FetchProgress, MinRepoScraper, normalize_text, parse_date_range_input
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -118,6 +118,51 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual([page.target_date for page in result.date_pages], ["2026-04-07", "2026-04-08"])
         self.assertEqual([dataset.target_date for dataset in result.datasets], ["2026-04-07", "2026-04-08"])
         self.assertTrue(all(dataset.machine_name == "ネオアイムジャグラーEX" for dataset in result.datasets))
+        self.assertEqual(result.skipped_targets, [])
+
+    def test_fetch_machine_history_skips_saved_targets(self) -> None:
+        scraper = FixtureScraper()
+        result = scraper.fetch_machine_history_datasets(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-07 ～ 2026-04-08",
+            machine_names=["ネオアイムジャグラーEX"],
+            skip_targets={("2026-04-07", normalize_text("ネオアイムジャグラーEX"))},
+        )
+
+        self.assertEqual([page.target_date for page in result.date_pages], ["2026-04-07", "2026-04-08"])
+        self.assertEqual([dataset.target_date for dataset in result.datasets], ["2026-04-08"])
+        self.assertEqual(result.skipped_targets, [("2026-04-07", "ネオアイムジャグラーEX")])
+
+    def test_prepare_machine_history_context_from_saved_html(self) -> None:
+        scraper = FixtureScraper()
+        context = scraper.prepare_machine_history_context(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-07 ～ 2026-04-08",
+        )
+
+        self.assertEqual(context.store_name, "MJアリーナ箱崎店")
+        self.assertEqual(context.start_date, "2026-04-07")
+        self.assertEqual(context.end_date, "2026-04-08")
+        self.assertEqual([page.target_date for page in context.date_pages], ["2026-04-07", "2026-04-08"])
+
+    def test_fetch_machine_history_for_date_page_from_saved_html(self) -> None:
+        scraper = FixtureScraper()
+        context = scraper.prepare_machine_history_context(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-07 ～ 2026-04-08",
+        )
+
+        day_result = scraper.fetch_machine_history_for_date_page(
+            context=context,
+            date_page=context.date_pages[0],
+            machine_names=["ネオアイムジャグラーEX"],
+        )
+
+        self.assertEqual(day_result.start_date, "2026-04-07")
+        self.assertEqual(day_result.end_date, "2026-04-07")
+        self.assertEqual([page.target_date for page in day_result.date_pages], ["2026-04-07"])
+        self.assertEqual([dataset.target_date for dataset in day_result.datasets], ["2026-04-07"])
+        self.assertEqual(day_result.skipped_targets, [])
 
     def test_fetch_machine_history_progress_from_saved_html(self) -> None:
         scraper = FixtureScraper()
@@ -206,6 +251,37 @@ class MinRepoScraperTests(unittest.TestCase):
                     {"store_name": "MJアリーナ箱崎店", "store_url": "https://example.com/a"},
                     {"store_name": "ABCホール", "store_url": "https://example.com/b"},
                 ],
+            )
+
+    def test_find_saved_machine_targets_uses_local_snapshot(self) -> None:
+        scraper = FixtureScraper()
+        history_result = scraper.fetch_machine_history_datasets(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-07 ～ 2026-04-08",
+            machine_names=["ネオアイムジャグラーEX"],
+        )
+
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            service._save_to_supabase = lambda snapshot: len(snapshot["records"])  # type: ignore[method-assign]
+            service._find_saved_machine_targets_from_supabase = lambda **kwargs: set()  # type: ignore[method-assign]
+
+            service.save_history_result(history_result)
+            summary = service.find_saved_machine_targets(
+                store_name="MJアリーナ箱崎店",
+                store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+                start_date="2026-04-07",
+                end_date="2026-04-08",
+                machine_names=["ネオアイムジャグラーEX", "マイジャグラー"],
+            )
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(
+                summary.saved_targets,
+                {
+                    ("2026-04-07", normalize_text("ネオアイムジャグラーEX")),
+                    ("2026-04-08", normalize_text("ネオアイムジャグラーEX")),
+                },
             )
 
     def test_find_date_pages_handles_year_rollover_without_year_label(self) -> None:

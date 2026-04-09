@@ -50,6 +50,16 @@ class RegisteredStoresPersistenceSummary:
         return bool(self.messages)
 
 
+@dataclass
+class SavedMachineTargetsSummary:
+    saved_targets: set[tuple[str, str]] = field(default_factory=set)
+    messages: list[str] = field(default_factory=list)
+
+    @property
+    def has_errors(self) -> bool:
+        return bool(self.messages)
+
+
 def build_machine_daily_records(history_result: MachineHistoryResult) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
 
@@ -100,6 +110,46 @@ class HistoryPersistenceService:
             summary.supabase_record_count = supabase_count
         except Exception as exc:  # noqa: BLE001
             summary.messages.append(f"Supabase 保存に失敗しました。\n{exc}")
+
+        return summary
+
+    def find_saved_machine_targets(
+        self,
+        store_name: str,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+        machine_names: list[str],
+    ) -> SavedMachineTargetsSummary:
+        target_machine_names = {normalize_text(machine_name) for machine_name in machine_names if machine_name.strip()}
+        summary = SavedMachineTargetsSummary()
+        if not target_machine_names:
+            return summary
+
+        try:
+            summary.saved_targets.update(
+                self._find_saved_machine_targets_local(
+                    store_name=store_name,
+                    store_url=store_url,
+                    start_date=start_date,
+                    end_date=end_date,
+                    target_machine_names=target_machine_names,
+                )
+            )
+        except Exception as exc:  # noqa: BLE001
+            summary.messages.append(f"ローカルの取得済み確認に失敗しました。\n{exc}")
+
+        try:
+            summary.saved_targets.update(
+                self._find_saved_machine_targets_from_supabase(
+                    store_url=store_url,
+                    start_date=start_date,
+                    end_date=end_date,
+                    target_machine_names=target_machine_names,
+                )
+            )
+        except Exception as exc:  # noqa: BLE001
+            summary.messages.append(f"Supabase の取得済み確認に失敗しました。\n{exc}")
 
         return summary
 
@@ -162,12 +212,7 @@ class HistoryPersistenceService:
         }
 
     def _save_local_snapshot(self, snapshot: dict[str, Any]) -> Path:
-        settings = self._load_settings()
-        local_dir_text = settings.get("SUPABASE_LOCAL_SAVE_DIR") or settings.get("LOCAL_SAVE_DIR")
-        local_dir = Path(local_dir_text) if local_dir_text else DEFAULT_LOCAL_SAVE_DIR
-        if not local_dir.is_absolute():
-            local_dir = self.root_dir / local_dir
-
+        local_dir = self._local_save_dir()
         store_name = str(snapshot["store"]["store_name"])
         store_dir = local_dir / _sanitize_file_name(store_name)
         store_dir.mkdir(parents=True, exist_ok=True)
@@ -190,6 +235,57 @@ class HistoryPersistenceService:
         }
         file_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         return file_path
+
+    def _find_saved_machine_targets_local(
+        self,
+        store_name: str,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+        target_machine_names: set[str],
+    ) -> set[tuple[str, str]]:
+        if not target_machine_names:
+            return set()
+
+        store_dir = self._local_save_dir() / _sanitize_file_name(store_name)
+        if not store_dir.exists():
+            return set()
+
+        normalized_store_url = store_url.rstrip("/")
+        saved_targets: set[tuple[str, str]] = set()
+
+        for file_path in store_dir.glob("*.json"):
+            payload = json.loads(file_path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                continue
+
+            store_payload = payload.get("store", {})
+            if not isinstance(store_payload, dict):
+                continue
+
+            saved_store_url = str(store_payload.get("store_url", "")).strip().rstrip("/")
+            if saved_store_url and saved_store_url != normalized_store_url:
+                continue
+
+            records = payload.get("records", [])
+            if not isinstance(records, list):
+                continue
+
+            for record in records:
+                if not isinstance(record, dict):
+                    continue
+
+                target_date = str(record.get("target_date", "")).strip()
+                machine_name = normalize_text(str(record.get("machine_name", "")).strip())
+                if not target_date or not machine_name:
+                    continue
+                if target_date < start_date or target_date > end_date:
+                    continue
+                if machine_name not in target_machine_names:
+                    continue
+                saved_targets.add((target_date, machine_name))
+
+        return saved_targets
 
     def _save_to_supabase(self, snapshot: dict[str, Any]) -> int:
         supabase_url, _, schema, stores_table, results_table = self._supabase_config()
@@ -255,6 +351,65 @@ class HistoryPersistenceService:
             response.raise_for_status()
         return len(payloads)
 
+    def _find_saved_machine_targets_from_supabase(
+        self,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+        target_machine_names: set[str],
+    ) -> set[tuple[str, str]]:
+        if not target_machine_names:
+            return set()
+
+        try:
+            supabase_url, _, schema, stores_table, results_table = self._supabase_config()
+        except RuntimeError:
+            return set()
+
+        session = self._create_supabase_session(schema)
+        store_id = self._find_store_id(session, supabase_url, stores_table, store_url)
+        if not store_id:
+            return set()
+
+        saved_targets: set[tuple[str, str]] = set()
+        offset = 0
+        page_size = 1000
+        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(results_table, safe='')}"
+
+        while True:
+            response = session.get(
+                endpoint,
+                params={
+                    "select": "target_date,machine_name",
+                    "store_id": f"eq.{store_id}",
+                    "target_date": [f"gte.{start_date}", f"lte.{end_date}"],
+                    "order": "target_date.asc",
+                    "limit": str(page_size),
+                    "offset": str(offset),
+                },
+                timeout=30,
+            )
+            response.raise_for_status()
+            rows = response.json()
+            if not rows:
+                break
+
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+
+                target_date = str(row.get("target_date", "")).strip()
+                machine_name = normalize_text(str(row.get("machine_name", "")).strip())
+                if not target_date or machine_name not in target_machine_names:
+                    continue
+                saved_targets.add((target_date, machine_name))
+
+            if len(rows) < page_size:
+                break
+            offset += page_size
+
+        return saved_targets
+
     def _upsert_store(
         self,
         session: requests.Session,
@@ -274,6 +429,37 @@ class HistoryPersistenceService:
         if not body or "id" not in body[0]:
             raise RuntimeError("Supabase 側で店舗IDを取得できませんでした。")
         return str(body[0]["id"])
+
+    def _find_store_id(
+        self,
+        session: requests.Session,
+        supabase_url: str,
+        stores_table: str,
+        store_url: str,
+    ) -> str | None:
+        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(stores_table, safe='')}"
+        response = session.get(
+            endpoint,
+            params={
+                "select": "id",
+                "store_url": f"eq.{store_url}",
+                "limit": "1",
+            },
+            timeout=30,
+        )
+        response.raise_for_status()
+        body = response.json()
+        if not body:
+            return None
+        return str(body[0].get("id") or "")
+
+    def _local_save_dir(self) -> Path:
+        settings = self._load_settings()
+        local_dir_text = settings.get("SUPABASE_LOCAL_SAVE_DIR") or settings.get("LOCAL_SAVE_DIR")
+        local_dir = Path(local_dir_text) if local_dir_text else DEFAULT_LOCAL_SAVE_DIR
+        if not local_dir.is_absolute():
+            local_dir = self.root_dir / local_dir
+        return local_dir
 
     def _registered_stores_file_path(self) -> Path:
         settings = self._load_settings()

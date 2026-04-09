@@ -14,6 +14,7 @@ from data_persistence import (
     HistoryPersistenceService,
     PersistenceSummary,
     RegisteredStoresPersistenceSummary,
+    SavedMachineTargetsSummary,
 )
 from minrepo_scraper import (
     FetchProgress,
@@ -294,8 +295,8 @@ class MinRepoApp:
         ttk.Label(
             guide,
             text=(
-                "ここでは店舗URLを入れて店舗名を自動取得し、仮登録できます。"
-                "今はこのアプリ内だけの一覧で、あとで保存先をつなぎ込める形です。"
+                "ここでは店舗URLを入れて店舗名を自動取得し、一覧へ登録できます。"
+                "登録した店舗一覧は local_data と Supabase に保存されます。"
             ),
             wraplength=900,
             justify="left",
@@ -424,7 +425,12 @@ class MinRepoApp:
         self._begin_fetch_progress("対象期間を確認中...")
         self.status_var.set("取得中...")
         self.summary_var.set(f"{len(machine_names)}機種を期間取得中")
-        self._start_worker(self._worker_fetch, self.store_url_var.get(), self.target_date_var.get(), machine_names)
+        self._start_worker(
+            self._worker_fetch,
+            self.store_url_var.get(),
+            self.target_date_var.get(),
+            machine_names,
+        )
 
     def _start_worker(self, target: object, *args: object) -> None:
         self.is_busy = True
@@ -451,17 +457,76 @@ class MinRepoApp:
         machine_names: list[str],
     ) -> None:
         try:
-            def progress_callback(progress: FetchProgress) -> None:
-                self.result_queue.put(("fetch_progress", progress))
-
-            result = self.scraper.fetch_machine_history_datasets(
+            start_date, end_date = parse_date_range_input(target_date_input)
+            context = self.scraper.prepare_machine_history_context(store_url, target_date_input)
+            saved_targets_summary = self.persistence_service.find_saved_machine_targets(
+                store_name=context.store_name,
                 store_url=store_url,
-                target_date_input=target_date_input,
+                start_date=start_date.strftime("%Y-%m-%d"),
+                end_date=end_date.strftime("%Y-%m-%d"),
                 machine_names=machine_names,
-                progress_callback=progress_callback,
             )
-            save_summary = self.persistence_service.save_history_result(result)
-            self.result_queue.put(("fetch_success", (result, save_summary)))
+            total_steps = max(1, len(context.date_pages) * (len(machine_names) + 2) + 1)
+            current_step = 0
+            self.result_queue.put(
+                (
+                    "fetch_progress",
+                    FetchProgress(
+                        current_step=current_step,
+                        total_steps=total_steps,
+                        message=f"{len(context.date_pages)}日分の取得を準備中",
+                    ),
+                )
+            )
+
+            def step_callback(message: str) -> None:
+                nonlocal current_step
+                current_step += 1
+                self.result_queue.put(
+                    (
+                        "fetch_progress",
+                        FetchProgress(
+                            current_step=current_step,
+                            total_steps=total_steps,
+                            message=message,
+                        ),
+                    )
+                )
+
+            datasets: list[MachineDataset] = []
+            skipped_targets: list[tuple[str, str]] = []
+            save_summary: PersistenceSummary | None = None
+
+            for date_index, date_page in enumerate(context.date_pages, start=1):
+                day_result = self.scraper.fetch_machine_history_for_date_page(
+                    context=context,
+                    date_page=date_page,
+                    machine_names=machine_names,
+                    skip_targets=saved_targets_summary.saved_targets,
+                    step_callback=step_callback,
+                    date_index=date_index,
+                    total_dates=len(context.date_pages),
+                )
+                datasets.extend(day_result.datasets)
+                skipped_targets.extend(day_result.skipped_targets)
+
+                if day_result.datasets:
+                    step_callback(f"{date_page.target_date} の保存中")
+                    day_save_summary = self.persistence_service.save_history_result(day_result)
+                    save_summary = self._merge_persistence_summary(save_summary, day_save_summary)
+                else:
+                    step_callback(f"{date_page.target_date} は保存対象なし")
+
+            result = MachineHistoryResult(
+                store_name=context.store_name,
+                store_url=context.store_url,
+                start_date=context.start_date,
+                end_date=context.end_date,
+                date_pages=context.date_pages,
+                datasets=datasets,
+                skipped_targets=skipped_targets,
+            )
+            self.result_queue.put(("fetch_success", (result, save_summary, saved_targets_summary)))
         except Exception as exc:  # noqa: BLE001
             self.result_queue.put(("fetch_error", exc))
 
@@ -525,14 +590,17 @@ class MinRepoApp:
 
         history_result = payload
         save_summary: PersistenceSummary | None = None
+        saved_targets_summary = SavedMachineTargetsSummary()
         if (
             isinstance(payload, tuple)
-            and len(payload) == 2
+            and len(payload) == 3
             and isinstance(payload[0], MachineHistoryResult)
-            and isinstance(payload[1], PersistenceSummary)
+            and (isinstance(payload[1], PersistenceSummary) or payload[1] is None)
+            and isinstance(payload[2], SavedMachineTargetsSummary)
         ):
             history_result = payload[0]
             save_summary = payload[1]
+            saved_targets_summary = payload[2]
         if not isinstance(history_result, MachineHistoryResult):
             self._finish_fetch_progress(success=False, message="取得失敗")
             self.status_var.set("失敗")
@@ -554,17 +622,24 @@ class MinRepoApp:
         )
         if save_summary is not None and save_summary.has_errors:
             self.status_var.set("完了（保存に注意）")
+        elif not history_result.datasets and history_result.skipped_targets:
+            self.status_var.set("完了（取得済みをスキップ）")
         else:
             self.status_var.set("完了")
+        skipped_count = len(history_result.skipped_targets)
         self.summary_var.set(
             f"{store_name} / {history_result.start_date} ～ {history_result.end_date} / "
             f"{len(self._selected_machine_names())}機種 / {len(history_result.date_pages)}日 / "
             f"{self._save_status_text(save_summary)}"
+            f"{f' / スキップ{skipped_count}件' if skipped_count else ''}"
             f"{' / 表表示省略' if self.skip_comparison_display_var.get() else ''}"
         )
         self._update_button_states()
+        warning_messages = list(saved_targets_summary.messages)
         if save_summary is not None and save_summary.has_errors:
-            messagebox.showwarning("自動保存", "\n\n".join(save_summary.messages))
+            warning_messages.extend(save_summary.messages)
+        if warning_messages:
+            messagebox.showwarning("自動処理", "\n\n".join(warning_messages))
 
     def _apply_machine_list(self, machine_list: MachineListResult) -> None:
         self.current_machine_list = machine_list
@@ -1375,7 +1450,7 @@ class MinRepoApp:
 
     def _save_status_text(self, save_summary: PersistenceSummary | None) -> str:
         if save_summary is None:
-            return "保存情報なし"
+            return "保存なし"
 
         saved_targets: list[str] = []
         if save_summary.local_file_path:
@@ -1386,6 +1461,28 @@ class MinRepoApp:
         if not saved_targets:
             return "保存失敗"
         return "保存:" + "+".join(saved_targets)
+
+    def _merge_persistence_summary(
+        self,
+        current_summary: PersistenceSummary | None,
+        day_summary: PersistenceSummary,
+    ) -> PersistenceSummary:
+        if current_summary is None:
+            return PersistenceSummary(
+                local_file_path=day_summary.local_file_path,
+                local_record_count=day_summary.local_record_count,
+                supabase_saved=day_summary.supabase_saved,
+                supabase_record_count=day_summary.supabase_record_count,
+                messages=list(day_summary.messages),
+            )
+
+        if day_summary.local_file_path:
+            current_summary.local_file_path = day_summary.local_file_path
+        current_summary.local_record_count += day_summary.local_record_count
+        current_summary.supabase_saved = current_summary.supabase_saved or day_summary.supabase_saved
+        current_summary.supabase_record_count += day_summary.supabase_record_count
+        current_summary.messages.extend(day_summary.messages)
+        return current_summary
 
     def _sort_records(
         self,

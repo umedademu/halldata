@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable, List
 from urllib.parse import urljoin
@@ -74,6 +74,16 @@ class MachineHistoryResult:
     end_date: str
     date_pages: List[StoreDatePage]
     datasets: List[MachineDataset]
+    skipped_targets: List[tuple[str, str]] = field(default_factory=list)
+
+
+@dataclass
+class MachineHistoryContext:
+    store_name: str
+    store_url: str
+    start_date: str
+    end_date: str
+    date_pages: List[StoreDatePage]
 
 
 @dataclass
@@ -164,61 +174,40 @@ class MinRepoScraper:
         store_url: str,
         target_date_input: str,
         machine_names: List[str],
+        skip_targets: set[tuple[str, str]] | None = None,
         progress_callback: Callable[[FetchProgress], None] | None = None,
     ) -> MachineHistoryResult:
-        store_name, store_soup = self._load_store_page(store_url)
-        start_date, end_date = parse_date_range_input(target_date_input)
-        date_pages = self.find_date_pages_in_range(store_soup, store_url, target_date_input)
+        context = self.prepare_machine_history_context(store_url, target_date_input)
         datasets: List[MachineDataset] = []
-        total_steps = max(1, len(date_pages) * (len(machine_names) + 1) + 1)
+        skipped_targets: List[tuple[str, str]] = []
+        normalized_skip_targets = skip_targets or set()
+        total_steps = max(1, len(context.date_pages) * (len(machine_names) + 1) + 1)
         current_step = 0
 
         self._notify_progress(
             progress_callback,
             current_step,
             total_steps,
-            f"{len(date_pages)}日分の取得を準備中",
+            f"{len(context.date_pages)}日分の取得を準備中",
         )
 
-        for date_index, date_page in enumerate(date_pages, start=1):
-            date_html = self.fetch_html(date_page.date_url)
-            date_soup = BeautifulSoup(date_html, "html.parser")
-            machine_entries = self.extract_machine_entries(date_soup, date_page.date_url)
-            machine_list = MachineListResult(
-                store_name=store_name,
-                store_url=store_url,
-                target_date=date_page.target_date,
-                date_url=date_page.date_url,
-                machine_entries=machine_entries,
-            )
+        def step_callback(message: str) -> None:
+            nonlocal current_step
             current_step += 1
-            self._notify_progress(
-                progress_callback,
-                current_step,
-                total_steps,
-                f"{date_index}/{len(date_pages)}日目の機種一覧を確認中",
-            )
+            self._notify_progress(progress_callback, current_step, total_steps, message)
 
-            for machine_index, machine_name in enumerate(machine_names, start=1):
-                try:
-                    machine_entry = self.find_machine_entry(machine_entries, machine_name)
-                except ScraperError:
-                    current_step += 1
-                    self._notify_progress(
-                        progress_callback,
-                        current_step,
-                        total_steps,
-                        f"{date_page.target_date} の {machine_index}/{len(machine_names)}機種目は見つかりませんでした",
-                    )
-                    continue
-                datasets.append(self.fetch_machine_dataset_from_entry(machine_list, machine_entry))
-                current_step += 1
-                self._notify_progress(
-                    progress_callback,
-                    current_step,
-                    total_steps,
-                    f"{date_page.target_date} の {machine_index}/{len(machine_names)}機種目を取得中",
-                )
+        for date_index, date_page in enumerate(context.date_pages, start=1):
+            day_result = self.fetch_machine_history_for_date_page(
+                context=context,
+                date_page=date_page,
+                machine_names=machine_names,
+                skip_targets=normalized_skip_targets,
+                step_callback=step_callback,
+                date_index=date_index,
+                total_dates=len(context.date_pages),
+            )
+            datasets.extend(day_result.datasets)
+            skipped_targets.extend(day_result.skipped_targets)
 
         self._notify_progress(
             progress_callback,
@@ -228,12 +217,89 @@ class MinRepoScraper:
         )
 
         return MachineHistoryResult(
+            store_name=context.store_name,
+            store_url=context.store_url,
+            start_date=context.start_date,
+            end_date=context.end_date,
+            date_pages=context.date_pages,
+            datasets=datasets,
+            skipped_targets=skipped_targets,
+        )
+
+    def prepare_machine_history_context(
+        self,
+        store_url: str,
+        target_date_input: str,
+    ) -> MachineHistoryContext:
+        store_name, store_soup = self._load_store_page(store_url)
+        start_date, end_date = parse_date_range_input(target_date_input)
+        date_pages = self.find_date_pages_in_range(store_soup, store_url, target_date_input)
+        return MachineHistoryContext(
             store_name=store_name,
             store_url=store_url,
             start_date=start_date.strftime("%Y-%m-%d"),
             end_date=end_date.strftime("%Y-%m-%d"),
             date_pages=date_pages,
+        )
+
+    def fetch_machine_history_for_date_page(
+        self,
+        context: MachineHistoryContext,
+        date_page: StoreDatePage,
+        machine_names: List[str],
+        skip_targets: set[tuple[str, str]] | None = None,
+        step_callback: Callable[[str], None] | None = None,
+        date_index: int | None = None,
+        total_dates: int | None = None,
+    ) -> MachineHistoryResult:
+        date_html = self.fetch_html(date_page.date_url)
+        date_soup = BeautifulSoup(date_html, "html.parser")
+        machine_entries = self.extract_machine_entries(date_soup, date_page.date_url)
+        machine_list = MachineListResult(
+            store_name=context.store_name,
+            store_url=context.store_url,
+            target_date=date_page.target_date,
+            date_url=date_page.date_url,
+            machine_entries=machine_entries,
+        )
+
+        day_prefix = ""
+        if date_index is not None and total_dates is not None:
+            day_prefix = f"{date_index}/{total_dates}日目 "
+
+        if step_callback is not None:
+            step_callback(f"{day_prefix}機種一覧を確認中")
+
+        datasets: List[MachineDataset] = []
+        skipped_targets_for_day: List[tuple[str, str]] = []
+        normalized_skip_targets = skip_targets or set()
+
+        for machine_index, machine_name in enumerate(machine_names, start=1):
+            if (date_page.target_date, normalize_text(machine_name)) in normalized_skip_targets:
+                skipped_targets_for_day.append((date_page.target_date, machine_name))
+                if step_callback is not None:
+                    step_callback(f"{date_page.target_date} の {machine_index}/{len(machine_names)}機種目は取得済みのためスキップ")
+                continue
+
+            try:
+                machine_entry = self.find_machine_entry(machine_entries, machine_name)
+            except ScraperError:
+                if step_callback is not None:
+                    step_callback(f"{date_page.target_date} の {machine_index}/{len(machine_names)}機種目は見つかりませんでした")
+                continue
+
+            datasets.append(self.fetch_machine_dataset_from_entry(machine_list, machine_entry))
+            if step_callback is not None:
+                step_callback(f"{date_page.target_date} の {machine_index}/{len(machine_names)}機種目を取得中")
+
+        return MachineHistoryResult(
+            store_name=context.store_name,
+            store_url=context.store_url,
+            start_date=date_page.target_date,
+            end_date=date_page.target_date,
+            date_pages=[date_page],
             datasets=datasets,
+            skipped_targets=skipped_targets_for_day,
         )
 
     def fetch_machine_datasets(
