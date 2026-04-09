@@ -58,6 +58,7 @@ class MinRepoApp:
         ]
         self.is_busy = False
 
+        self.selected_store_var = tk.StringVar(value=DEFAULT_STORE_NAME)
         self.store_url_var = tk.StringVar(value=DEFAULT_STORE_URL)
         self.target_date_var = tk.StringVar(value=DEFAULT_TARGET_DATE)
         self.machine_list_var = tk.StringVar(value="機種一覧: 未読込")
@@ -95,7 +96,9 @@ class MinRepoApp:
         form.columnconfigure(1, weight=1)
 
         ttk.Label(form, text="対象店舗").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=4)
-        ttk.Label(form, text=DEFAULT_STORE_NAME).grid(row=0, column=1, sticky="w", pady=4)
+        self.store_selector = ttk.Combobox(form, textvariable=self.selected_store_var, state="readonly")
+        self.store_selector.grid(row=0, column=1, sticky="w", pady=4)
+        self.store_selector.bind("<<ComboboxSelected>>", self._on_selected_store_changed)
 
         ttk.Label(form, text="店舗URL").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=4)
         self.store_url_entry = ttk.Entry(form, textvariable=self.store_url_var, state="readonly")
@@ -179,6 +182,7 @@ class MinRepoApp:
         self.tree.configure(xscrollcommand=x_scroll.set)
 
         self._build_register_tab(register_tab)
+        self._refresh_store_selector()
 
     def _configure_machine_tree(self) -> None:
         for column in MACHINE_COLUMNS:
@@ -593,6 +597,33 @@ class MinRepoApp:
                 values=(registered_store.name, registered_store.url),
             )
 
+    def _refresh_store_selector(self) -> None:
+        store_names = [registered_store.name for registered_store in self.registered_stores]
+        self.store_selector.configure(values=store_names)
+
+        selected_store = self._find_registered_store(self.selected_store_var.get())
+        if selected_store is None and self.registered_stores:
+            selected_store = self.registered_stores[0]
+            self.selected_store_var.set(selected_store.name)
+
+        if selected_store is not None:
+            self.store_url_var.set(selected_store.url)
+
+    def _find_registered_store(self, store_name: str) -> RegisteredStore | None:
+        normalized_name = normalize_text(store_name)
+        for registered_store in self.registered_stores:
+            if normalize_text(registered_store.name) == normalized_name:
+                return registered_store
+        return None
+
+    def _on_selected_store_changed(self, _: tk.Event[tk.Misc]) -> None:
+        selected_store = self._find_registered_store(self.selected_store_var.get())
+        if selected_store is None:
+            return
+
+        self.store_url_var.set(selected_store.url)
+        self._reset_fetch_display_for_store_change()
+
     def _apply_registered_store(self, store_name: str, store_url: str) -> None:
         normalized_name = normalize_text(store_name)
         normalized_url = store_url.rstrip("/")
@@ -606,6 +637,7 @@ class MinRepoApp:
         self.register_store_url_var.set("")
         self.register_store_status_var.set(f"{store_name} を仮登録しました")
         self._refresh_registered_store_table()
+        self._refresh_store_selector()
 
     def _clear_machine_list(self, message: str = "機種一覧: 未読込") -> None:
         self.current_machine_list = None
@@ -614,6 +646,15 @@ class MinRepoApp:
         self.machine_list_var.set(message)
         self._update_machine_headings()
         self._update_button_states()
+
+    def _reset_fetch_display_for_store_change(self) -> None:
+        self._clear_machine_list("機種一覧: 未読込")
+        self.current_results = []
+        self.data_rows = []
+        self.data_columns = []
+        self._clear_table()
+        self.summary_var.set("未取得")
+        self.status_var.set("待機中")
 
     def _refresh_machine_list_summary(self) -> None:
         if self.current_machine_list is None:
@@ -770,6 +811,7 @@ class MinRepoApp:
         self.select_all_button.configure(state="disabled" if self.is_busy or not has_machine_list else "normal")
         self.clear_selection_button.configure(state="disabled" if self.is_busy or not has_machine_list else "normal")
         self.target_date_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.store_selector.configure(state="disabled" if self.is_busy else "readonly")
         self.register_store_button.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_url_entry.configure(state="disabled" if self.is_busy else "normal")
 
