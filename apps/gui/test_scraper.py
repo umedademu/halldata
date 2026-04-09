@@ -32,6 +32,19 @@ class FixtureScraper(MinRepoScraper):
 
 
 class MinRepoScraperTests(unittest.TestCase):
+    def test_fetch_machine_list_from_saved_html(self) -> None:
+        scraper = FixtureScraper()
+        result = scraper.fetch_machine_list(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-08",
+        )
+
+        self.assertEqual(result.store_name, "MJアリーナ箱崎店")
+        self.assertEqual(result.target_date, "2026-04-08")
+        self.assertGreater(len(result.machine_entries), 10)
+        self.assertIn("ネオアイムジャグラーEX", [machine.name for machine in result.machine_entries])
+        self.assertIn("パチスロ 転生したら剣でした", [machine.name for machine in result.machine_entries])
+
     def test_fetch_machine_dataset_from_saved_html(self) -> None:
         scraper = FixtureScraper()
         result = scraper.fetch_machine_dataset(

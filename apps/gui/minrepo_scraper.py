@@ -26,6 +26,22 @@ class ScraperError(RuntimeError):
 
 
 @dataclass
+class MachineEntry:
+    name: str
+    url: str
+    section_name: str
+
+
+@dataclass
+class MachineListResult:
+    store_name: str
+    store_url: str
+    target_date: str
+    date_url: str
+    machine_entries: List[MachineEntry]
+
+
+@dataclass
 class MachineDataset:
     store_name: str
     store_url: str
@@ -67,19 +83,45 @@ class MinRepoScraper:
         target_date_input: str,
         machine_name: str,
     ) -> MachineDataset:
-        target_date = parse_date_input(target_date_input)
-        target_date_label = format_minrepo_date(target_date)
+        machine_list = self.fetch_machine_list(store_url, target_date_input)
+        machine_entry = self.find_machine_entry(machine_list.machine_entries, machine_name)
+        return self.fetch_machine_dataset_from_entry(machine_list, machine_entry)
 
-        store_html = self.fetch_html(store_url)
-        store_soup = BeautifulSoup(store_html, "html.parser")
-        store_name = self.extract_store_name(store_soup)
-        date_url = self.find_date_url(store_soup, store_url, target_date_label)
+    def fetch_machine_list(
+        self,
+        store_url: str,
+        target_date_input: str,
+    ) -> MachineListResult:
+        store_name, target_date, date_url, date_soup = self._load_date_page(store_url, target_date_input)
+        machine_entries = self.extract_machine_entries(date_soup, date_url)
 
-        date_html = self.fetch_html(date_url)
-        date_soup = BeautifulSoup(date_html, "html.parser")
-        machine_url = self.find_machine_url(date_soup, date_url, machine_name)
+        return MachineListResult(
+            store_name=store_name,
+            store_url=store_url,
+            target_date=target_date.strftime("%Y-%m-%d"),
+            date_url=date_url,
+            machine_entries=machine_entries,
+        )
 
-        machine_html = self.fetch_html(machine_url)
+    def fetch_machine_datasets(
+        self,
+        machine_list: MachineListResult,
+        machine_names: List[str],
+    ) -> List[MachineDataset]:
+        datasets: List[MachineDataset] = []
+
+        for machine_name in machine_names:
+            machine_entry = self.find_machine_entry(machine_list.machine_entries, machine_name)
+            datasets.append(self.fetch_machine_dataset_from_entry(machine_list, machine_entry))
+
+        return datasets
+
+    def fetch_machine_dataset_from_entry(
+        self,
+        machine_list: MachineListResult,
+        machine_entry: MachineEntry,
+    ) -> MachineDataset:
+        machine_html = self.fetch_html(machine_entry.url)
         machine_soup = BeautifulSoup(machine_html, "html.parser")
         columns, rows = self.extract_machine_table(machine_soup)
 
@@ -87,12 +129,12 @@ class MinRepoScraper:
             raise ScraperError("台データが見つかりませんでした。")
 
         return MachineDataset(
-            store_name=store_name,
-            store_url=store_url,
-            target_date=target_date.strftime("%Y-%m-%d"),
-            date_url=date_url,
-            machine_name=machine_name,
-            machine_url=machine_url,
+            store_name=machine_list.store_name,
+            store_url=machine_list.store_url,
+            target_date=machine_list.target_date,
+            date_url=machine_list.date_url,
+            machine_name=machine_entry.name,
+            machine_url=machine_entry.url,
             columns=columns,
             rows=rows,
         )
@@ -124,6 +166,23 @@ class MinRepoScraper:
             raise ScraperError("店舗名が見つかりませんでした。")
         return heading.get_text(strip=True)
 
+    def _load_date_page(
+        self,
+        store_url: str,
+        target_date_input: str,
+    ) -> tuple[str, datetime, str, BeautifulSoup]:
+        target_date = parse_date_input(target_date_input)
+        target_date_label = format_minrepo_date(target_date)
+
+        store_html = self.fetch_html(store_url)
+        store_soup = BeautifulSoup(store_html, "html.parser")
+        store_name = self.extract_store_name(store_soup)
+        date_url = self.find_date_url(store_soup, store_url, target_date_label)
+
+        date_html = self.fetch_html(date_url)
+        date_soup = BeautifulSoup(date_html, "html.parser")
+        return store_name, target_date, date_url, date_soup
+
     def find_date_url(
         self,
         soup: BeautifulSoup,
@@ -143,19 +202,70 @@ class MinRepoScraper:
         base_url: str,
         machine_name: str,
     ) -> str:
+        machine_entries = self.extract_machine_entries(soup, base_url)
+        machine_entry = self.find_machine_entry(machine_entries, machine_name)
+        return machine_entry.url
+
+    def find_machine_entry(
+        self,
+        machine_entries: List[MachineEntry],
+        machine_name: str,
+    ) -> MachineEntry:
         target = normalize_text(machine_name)
-        for link in soup.select("table.kishu._2dai td a"):
-            if normalize_text(link.get_text(strip=True)) == target:
-                href = link.get("href")
-                if href:
-                    return urljoin(base_url, href)
+        for machine_entry in machine_entries:
+            if normalize_text(machine_entry.name) == target:
+                return machine_entry
         raise ScraperError(f"{machine_name} の機種ページが見つかりませんでした。")
 
+    def extract_machine_entries(
+        self,
+        soup: BeautifulSoup,
+        base_url: str,
+    ) -> List[MachineEntry]:
+        machine_entries: List[MachineEntry] = []
+        seen_names: set[str] = set()
+
+        for tab_content in soup.select("div.tab_content"):
+            heading = tab_content.find("h2")
+            heading_text = heading.get_text(strip=True) if heading else ""
+
+            if "機種別データ" in heading_text:
+                section_name = "機種別"
+            elif "バラエティ" in heading_text:
+                section_name = "バラエティ"
+            else:
+                continue
+
+            table = tab_content.find("table")
+            if not table:
+                continue
+
+            for link in table.select("td:first-child a"):
+                href = link.get("href")
+                if not href:
+                    continue
+
+                name = link.get_text(" ", strip=True)
+                normalized_name = normalize_text(name)
+                if normalized_name in seen_names:
+                    continue
+
+                machine_entries.append(
+                    MachineEntry(
+                        name=name,
+                        url=urljoin(base_url, href),
+                        section_name=section_name,
+                    )
+                )
+                seen_names.add(normalized_name)
+
+        if not machine_entries:
+            raise ScraperError("機種一覧が見つかりませんでした。")
+
+        return machine_entries
+
     def extract_machine_table(self, soup: BeautifulSoup) -> tuple[List[str], List[List[str]]]:
-        heading = self._find_data_list_heading(soup)
-        table = heading.find_next("table")
-        if not table:
-            raise ScraperError("機種別のデータ一覧テーブルが見つかりませんでした。")
+        table = self._find_machine_data_table(soup)
 
         header_row = table.find("tr")
         if not header_row:
@@ -182,8 +292,24 @@ class MinRepoScraper:
 
         return columns, rows
 
-    def _find_data_list_heading(self, soup: BeautifulSoup) -> Tag:
+    def _find_machine_data_table(self, soup: BeautifulSoup) -> Tag:
+        heading = self._find_data_list_heading(soup)
+        if heading:
+            table = heading.find_next("table")
+            if table:
+                return table
+
+        for table in soup.find_all("table"):
+            headers = [cell.get_text(strip=True) for cell in table.find_all("th")]
+            header_set = set(headers)
+
+            if {"差枚", "G数", "出率"}.issubset(header_set) and ("台番" in header_set or "機種" in header_set):
+                return table
+
+        raise ScraperError("機種別のデータ一覧テーブルが見つかりませんでした。")
+
+    def _find_data_list_heading(self, soup: BeautifulSoup) -> Tag | None:
         for heading in soup.find_all("h2"):
             if "データ一覧" in heading.get_text(strip=True):
                 return heading
-        raise ScraperError("データ一覧セクションが見つかりませんでした。")
+        return None
