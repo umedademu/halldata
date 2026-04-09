@@ -19,6 +19,32 @@ const METRICS = [
   { key: "rb_ratio_text", label: "RB率", render: formatRatio },
 ];
 
+function buildCsvRows(slotNumbers, dateRows) {
+  const headerRow1 = ["日付"];
+  const headerRow2 = [""];
+
+  for (const slotNumber of slotNumbers) {
+    for (let i = 0; i < METRICS.length; i++) {
+      headerRow1.push(i === 0 ? `${slotNumber}番台` : "");
+      headerRow2.push(METRICS[i].label);
+    }
+  }
+
+  const dataRows = dateRows.map((row) => {
+    const cells = [row.date];
+    for (const slotNumber of slotNumbers) {
+      const record = row.recordsBySlot[slotNumber] ?? null;
+      for (const metric of METRICS) {
+        const value = record?.[metric.key];
+        cells.push(metric.render(value));
+      }
+    }
+    return cells;
+  });
+
+  return [headerRow1, headerRow2, ...dataRows];
+}
+
 export function MachineComparison({ machineName, slotNumbers, dateRows }) {
   if (dateRows.length === 0) {
     return (
@@ -28,6 +54,8 @@ export function MachineComparison({ machineName, slotNumbers, dateRows }) {
       </section>
     );
   }
+
+  const csvRows = buildCsvRows(slotNumbers, dateRows);
 
   return (
     <>
@@ -39,9 +67,7 @@ export function MachineComparison({ machineName, slotNumbers, dateRows }) {
           </div>
           <CsvExportButton
             machineName={machineName}
-            slotNumbers={slotNumbers}
-            dateRows={dateRows}
-            metrics={METRICS}
+            csvRows={csvRows}
           />
         </div>
         <div className="tableScroller">

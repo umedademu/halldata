@@ -4,39 +4,16 @@ import { useCallback } from "react";
 
 /**
  * 台データ比較の表をCSVとしてダウンロードするボタン。
+ * サーバー側で組み立て済みの文字列二次元配列を受け取る。
  *
- * @param {{ machineName: string, slotNumbers: number[], dateRows: object[], metrics: { key: string, label: string, render: (v: any) => string }[] }} props
+ * @param {{ machineName: string, csvRows: string[][] }} props
  */
-export function CsvExportButton({ machineName, slotNumbers, dateRows, metrics }) {
+export function CsvExportButton({ machineName, csvRows }) {
   const handleExport = useCallback(() => {
-    const headerRow1 = ["日付"];
-    const headerRow2 = [""];
-
-    for (const slotNumber of slotNumbers) {
-      for (let i = 0; i < metrics.length; i++) {
-        headerRow1.push(i === 0 ? `${slotNumber}番台` : "");
-        headerRow2.push(metrics[i].label);
-      }
-    }
-
-    const dataRows = dateRows.map((row) => {
-      const cells = [row.date];
-      for (const slotNumber of slotNumbers) {
-        const record = row.recordsBySlot[slotNumber] ?? null;
-        for (const metric of metrics) {
-          const value = record?.[metric.key];
-          cells.push(metric.render(value));
-        }
-      }
-      return cells;
-    });
-
-    const allRows = [headerRow1, headerRow2, ...dataRows];
-
     const bom = "\uFEFF";
     const csvText =
       bom +
-      allRows
+      csvRows
         .map((row) =>
           row
             .map((cell) => {
@@ -61,7 +38,7 @@ export function CsvExportButton({ machineName, slotNumbers, dateRows, metrics })
 
     document.body.removeChild(anchor);
     URL.revokeObjectURL(url);
-  }, [machineName, slotNumbers, dateRows, metrics]);
+  }, [machineName, csvRows]);
 
   return (
     <button
