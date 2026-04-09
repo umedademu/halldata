@@ -15,19 +15,22 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function MachineDetailPage({ params, searchParams }) {
-  const machineName = readRouteSegment(params.machineName);
-  const dayTail = parseDayTail(searchParams?.dayTail);
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
+  const storeId = resolvedParams.storeId;
+  const machineName = readRouteSegment(resolvedParams.machineName);
+  const dayTail = parseDayTail(resolvedSearchParams?.dayTail);
   let detail;
 
   try {
-    detail = await getMachineDetail(params.storeId, machineName);
+    detail = await getMachineDetail(storeId, machineName);
   } catch (error) {
     return (
       <main className="pageStack">
         <Breadcrumbs
           items={[
             { label: "店舗一覧", href: "/" },
-            { label: "機種一覧", href: `/stores/${params.storeId}` },
+            { label: "機種一覧", href: `/stores/${storeId}` },
             { label: machineName },
           ]}
         />

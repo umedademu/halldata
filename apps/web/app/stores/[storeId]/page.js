@@ -15,10 +15,11 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function StoreDetailPage({ params }) {
+  const { storeId } = await params;
   let storeDetail;
 
   try {
-    storeDetail = await getStoreDetail(params.storeId);
+    storeDetail = await getStoreDetail(storeId);
   } catch (error) {
     return (
       <main className="pageStack">
