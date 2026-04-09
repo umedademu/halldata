@@ -22,7 +22,9 @@ DEFAULT_STORE_NAME = "MJアリーナ箱崎店"
 DEFAULT_STORE_URL = "https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/"
 DEFAULT_TARGET_DATE = "2026-04-08"
 DEFAULT_MACHINE_NAME = "ネオアイムジャグラーEX"
-MACHINE_COLUMNS = ("選択", "機種名", "台数", "平均差枚", "平均G数", "勝率", "出率")
+CHECK_ON = "☑"
+CHECK_OFF = "☐"
+MACHINE_COLUMNS = ("チェック", "機種名", "台数", "平均差枚", "平均G数", "勝率", "出率")
 
 
 class MinRepoApp:
@@ -295,7 +297,7 @@ class MinRepoApp:
                 "end",
                 iid=machine_key,
                 values=(
-                    "○" if machine_key in self.selected_machine_keys else "",
+                    CHECK_ON if machine_key in self.selected_machine_keys else CHECK_OFF,
                     machine_entry.name,
                     machine_entry.machine_count,
                     machine_entry.average_difference,
@@ -332,7 +334,7 @@ class MinRepoApp:
     def _machine_value(self, machine_entry: MachineEntry, column: str) -> str | int:
         machine_key = normalize_text(machine_entry.name)
         values: dict[str, str | int] = {
-            "選択": 1 if machine_key in self.selected_machine_keys else 0,
+            "チェック": 1 if machine_key in self.selected_machine_keys else 0,
             "機種名": machine_entry.name,
             "台数": machine_entry.machine_count,
             "平均差枚": machine_entry.average_difference,
@@ -358,7 +360,8 @@ class MinRepoApp:
             return None
 
         item_id = self.machine_tree.identify_row(event.y)
-        if item_id:
+        column_id = self.machine_tree.identify_column(event.x)
+        if item_id and column_id == "#1":
             self._toggle_machine_selection(item_id)
             return "break"
         return None
@@ -379,7 +382,7 @@ class MinRepoApp:
             self._refresh_machine_marks()
 
     def _refresh_machine_marks(self) -> None:
-        if self.machine_sort_column == "選択":
+        if self.machine_sort_column == "チェック":
             self._refresh_machine_table()
             self._refresh_machine_list_summary()
             return
@@ -388,7 +391,7 @@ class MinRepoApp:
             values = list(self.machine_tree.item(item_id, "values"))
             if not values:
                 continue
-            values[0] = "○" if item_id in self.selected_machine_keys else ""
+            values[0] = CHECK_ON if item_id in self.selected_machine_keys else CHECK_OFF
             self.machine_tree.item(item_id, values=values)
         self._refresh_machine_list_summary()
 
@@ -538,7 +541,7 @@ class MinRepoApp:
 
     def _machine_column_width(self, column: str) -> int:
         widths = {
-            "選択": 70,
+            "チェック": 80,
             "機種名": 340,
             "台数": 80,
             "平均差枚": 100,
