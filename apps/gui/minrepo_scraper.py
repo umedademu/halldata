@@ -12,6 +12,8 @@ from bs4 import BeautifulSoup, Tag
 
 WEEKDAYS_JP = "月火水木金土日"
 INLINE_COOKIE_PATTERN = re.compile(r"\$\.cookie\('([^']+)', '([^']+)'")
+DATE_RANGE_PATTERN = re.compile(r"\s*[～〜~]\s*")
+STORE_DATE_PATTERN = re.compile(r"^(?:(\d{4})/)?(\d{1,2})/(\d{1,2})")
 DEFAULT_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -58,6 +60,22 @@ class MachineDataset:
     rows: List[List[str]]
 
 
+@dataclass
+class StoreDatePage:
+    target_date: str
+    date_url: str
+
+
+@dataclass
+class MachineHistoryResult:
+    store_name: str
+    store_url: str
+    start_date: str
+    end_date: str
+    date_pages: List[StoreDatePage]
+    datasets: List[MachineDataset]
+
+
 def parse_date_input(value: str) -> datetime:
     text = value.strip()
     for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y%m%d"):
@@ -66,6 +84,27 @@ def parse_date_input(value: str) -> datetime:
         except ValueError:
             continue
     raise ScraperError("日付は YYYY-MM-DD 形式で入力してください。")
+
+
+def parse_date_range_input(value: str) -> tuple[datetime, datetime]:
+    text = value.strip()
+    if not text:
+        raise ScraperError("期間は YYYY-MM-DD ～ YYYY-MM-DD 形式で入力してください。")
+
+    parts = [part.strip() for part in DATE_RANGE_PATTERN.split(text) if part.strip()]
+    if len(parts) == 1:
+        start_date = parse_date_input(parts[0])
+        return start_date, start_date
+
+    if len(parts) != 2:
+        raise ScraperError("期間は YYYY-MM-DD ～ YYYY-MM-DD 形式で入力してください。")
+
+    start_date = parse_date_input(parts[0])
+    end_date = parse_date_input(parts[1])
+    if start_date > end_date:
+        raise ScraperError("期間の開始日は終了日以前で入力してください。")
+
+    return start_date, end_date
 
 
 def format_minrepo_date(date_value: datetime) -> str:
@@ -111,6 +150,45 @@ class MinRepoScraper:
             target_date=target_date.strftime("%Y-%m-%d"),
             date_url=date_url,
             machine_entries=machine_entries,
+        )
+
+    def fetch_machine_history_datasets(
+        self,
+        store_url: str,
+        target_date_input: str,
+        machine_names: List[str],
+    ) -> MachineHistoryResult:
+        store_name, store_soup = self._load_store_page(store_url)
+        start_date, end_date = parse_date_range_input(target_date_input)
+        date_pages = self.find_date_pages_in_range(store_soup, store_url, target_date_input)
+        datasets: List[MachineDataset] = []
+
+        for date_page in date_pages:
+            date_html = self.fetch_html(date_page.date_url)
+            date_soup = BeautifulSoup(date_html, "html.parser")
+            machine_entries = self.extract_machine_entries(date_soup, date_page.date_url)
+            machine_list = MachineListResult(
+                store_name=store_name,
+                store_url=store_url,
+                target_date=date_page.target_date,
+                date_url=date_page.date_url,
+                machine_entries=machine_entries,
+            )
+
+            for machine_name in machine_names:
+                try:
+                    machine_entry = self.find_machine_entry(machine_entries, machine_name)
+                except ScraperError:
+                    continue
+                datasets.append(self.fetch_machine_dataset_from_entry(machine_list, machine_entry))
+
+        return MachineHistoryResult(
+            store_name=store_name,
+            store_url=store_url,
+            start_date=start_date.strftime("%Y-%m-%d"),
+            end_date=end_date.strftime("%Y-%m-%d"),
+            date_pages=date_pages,
+            datasets=datasets,
         )
 
     def fetch_machine_datasets(
@@ -181,30 +259,53 @@ class MinRepoScraper:
         store_url: str,
         target_date_input: str,
     ) -> tuple[str, datetime, str, BeautifulSoup]:
-        target_date = parse_date_input(target_date_input)
-        target_date_label = format_minrepo_date(target_date)
-
-        store_html = self.fetch_html(store_url)
-        store_soup = BeautifulSoup(store_html, "html.parser")
-        store_name = self.extract_store_name(store_soup)
-        date_url = self.find_date_url(store_soup, store_url, target_date_label)
+        _, target_date = parse_date_range_input(target_date_input)
+        store_name, store_soup = self._load_store_page(store_url)
+        date_url = self.find_date_url(store_soup, store_url, target_date)
 
         date_html = self.fetch_html(date_url)
         date_soup = BeautifulSoup(date_html, "html.parser")
         return store_name, target_date, date_url, date_soup
 
+    def _load_store_page(
+        self,
+        store_url: str,
+    ) -> tuple[str, BeautifulSoup]:
+        store_html = self.fetch_html(store_url)
+        store_soup = BeautifulSoup(store_html, "html.parser")
+        store_name = self.extract_store_name(store_soup)
+        return store_name, store_soup
+
+    def find_date_pages_in_range(
+        self,
+        soup: BeautifulSoup,
+        base_url: str,
+        target_date_input: str,
+    ) -> List[StoreDatePage]:
+        start_date, end_date = parse_date_range_input(target_date_input)
+        date_pages = [
+            date_page
+            for date_page in self._collect_store_date_pages(soup, base_url)
+            if start_date.strftime("%Y-%m-%d") <= date_page.target_date <= end_date.strftime("%Y-%m-%d")
+        ]
+
+        if not date_pages:
+            raise ScraperError("指定期間の日付ページが見つかりませんでした。")
+
+        date_pages.sort(key=lambda date_page: date_page.target_date)
+        return date_pages
+
     def find_date_url(
         self,
         soup: BeautifulSoup,
         base_url: str,
-        target_date_label: str,
+        target_date: datetime,
     ) -> str:
-        for link in soup.select("div.table_wrap table tr td:first-child a"):
-            if link.get_text(strip=True) == target_date_label:
-                href = link.get("href")
-                if href:
-                    return urljoin(base_url, href)
-        raise ScraperError(f"{target_date_label} の日付ページが見つかりませんでした。")
+        for date_page in self._collect_store_date_pages(soup, base_url):
+            if date_page.target_date == target_date.strftime("%Y-%m-%d"):
+                return date_page.date_url
+
+        raise ScraperError(f"{target_date.strftime('%Y-%m-%d')} の日付ページが見つかりませんでした。")
 
     def find_machine_url(
         self,
@@ -361,3 +462,65 @@ class MinRepoScraper:
             if "データ一覧" in heading.get_text(strip=True):
                 return heading
         return None
+
+    def _extract_store_page_year(self, soup: BeautifulSoup) -> int:
+        time_tag = soup.find("time", class_="date")
+        if time_tag:
+            match = re.search(r"(\d{4})年", time_tag.get_text(strip=True))
+            if match:
+                return int(match.group(1))
+        return datetime.now().year
+
+    def _collect_store_date_pages(
+        self,
+        soup: BeautifulSoup,
+        base_url: str,
+    ) -> List[StoreDatePage]:
+        fallback_year = self._extract_store_page_year(soup)
+        current_year = fallback_year
+        previous_month: int | None = None
+        date_pages: List[StoreDatePage] = []
+
+        for link in soup.select("div.table_wrap table tr td:first-child a"):
+            label = link.get_text(strip=True)
+            match = STORE_DATE_PATTERN.match(label)
+            if not match:
+                continue
+
+            explicit_year = match.group(1)
+            month = int(match.group(2))
+            day = int(match.group(3))
+            if explicit_year:
+                current_year = int(explicit_year)
+            elif previous_month is not None and month > previous_month:
+                current_year -= 1
+
+            href = link.get("href")
+            if not href:
+                previous_month = month
+                continue
+
+            parsed_date = datetime(current_year, month, day)
+            date_pages.append(
+                StoreDatePage(
+                    target_date=parsed_date.strftime("%Y-%m-%d"),
+                    date_url=urljoin(base_url, href),
+                )
+            )
+            previous_month = month
+
+        return date_pages
+
+    def _parse_store_date_label(
+        self,
+        label: str,
+        fallback_year: int,
+    ) -> datetime | None:
+        match = STORE_DATE_PATTERN.match(label)
+        if not match:
+            return None
+
+        year = int(match.group(1)) if match.group(1) else fallback_year
+        month = int(match.group(2))
+        day = int(match.group(3))
+        return datetime(year, month, day)

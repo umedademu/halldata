@@ -12,22 +12,24 @@ from urllib.parse import urlparse
 from minrepo_scraper import (
     MachineDataset,
     MachineEntry,
+    MachineHistoryResult,
     MachineListResult,
     MinRepoScraper,
     ScraperError,
     normalize_text,
-    parse_date_input,
+    parse_date_range_input,
 )
 
 
 DEFAULT_STORE_NAME = "MJアリーナ箱崎店"
 DEFAULT_STORE_URL = "https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/"
-DEFAULT_TARGET_DATE = "2026-04-08"
+DEFAULT_TARGET_DATE = "2026-04-08 ～ 2026-04-08"
 DEFAULT_MACHINE_NAME = "ネオアイムジャグラーEX"
 CHECK_ON = "☑"
 CHECK_OFF = "☐"
 MACHINE_COLUMNS = ("チェック", "機種名", "台数", "平均差枚", "平均G数", "勝率", "出率")
 REGISTERED_STORE_COLUMNS = ("店舗名", "URL")
+COMPARISON_SUBCOLUMNS = ("機種名", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率")
 
 
 @dataclass
@@ -45,14 +47,15 @@ class MinRepoApp:
         self.scraper = MinRepoScraper()
         self.result_queue: queue.Queue[tuple[str, object]] = queue.Queue()
         self.current_results: list[MachineDataset] = []
+        self.current_history_result: MachineHistoryResult | None = None
         self.current_machine_list: MachineListResult | None = None
         self.selected_machine_keys: set[str] = set()
         self.machine_sort_column = "台数"
         self.machine_sort_descending = True
-        self.data_sort_column: str | None = None
-        self.data_sort_descending = False
-        self.data_columns: list[str] = []
-        self.data_rows: list[dict[str, str]] = []
+        self.comparison_sort_key = "日付"
+        self.comparison_sort_descending = False
+        self.comparison_slot_numbers: list[str] = []
+        self.comparison_rows: list[dict[str, str]] = []
         self.registered_stores: list[RegisteredStore] = [
             RegisteredStore(name=DEFAULT_STORE_NAME, url=DEFAULT_STORE_URL)
         ]
@@ -104,8 +107,8 @@ class MinRepoApp:
         self.store_url_entry = ttk.Entry(form, textvariable=self.store_url_var, state="readonly")
         self.store_url_entry.grid(row=1, column=1, sticky="ew", pady=4)
 
-        ttk.Label(form, text="対象日").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=4)
-        self.target_date_entry = ttk.Entry(form, textvariable=self.target_date_var, width=20)
+        ttk.Label(form, text="対象期間").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.target_date_entry = ttk.Entry(form, textvariable=self.target_date_var, width=30)
         self.target_date_entry.grid(row=2, column=1, sticky="w", pady=4)
 
         button_row = ttk.Frame(form)
@@ -165,21 +168,33 @@ class MinRepoApp:
         ttk.Label(info, text="概要").grid(row=0, column=2, sticky="w")
         ttk.Label(info, textvariable=self.summary_var).grid(row=0, column=3, sticky="w", padx=(8, 0))
 
-        table_frame = ttk.LabelFrame(fetch_tab, text="台データ", padding=8)
+        table_frame = ttk.LabelFrame(fetch_tab, text="台データ比較", padding=8)
         table_frame.grid(row=3, column=0, sticky="nsew")
         table_frame.columnconfigure(0, weight=1)
-        table_frame.rowconfigure(0, weight=1)
+        table_frame.rowconfigure(1, weight=1)
 
-        self.tree = ttk.Treeview(table_frame, show="headings")
-        self.tree.grid(row=0, column=0, sticky="nsew")
+        self.comparison_header_canvas = tk.Canvas(table_frame, height=54, highlightthickness=0)
+        self.comparison_header_canvas.grid(row=0, column=0, sticky="ew")
 
-        y_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
-        y_scroll.grid(row=0, column=1, sticky="ns")
-        self.tree.configure(yscrollcommand=y_scroll.set)
+        self.comparison_body_canvas = tk.Canvas(table_frame, highlightthickness=0)
+        self.comparison_body_canvas.grid(row=1, column=0, sticky="nsew")
 
-        x_scroll = ttk.Scrollbar(table_frame, orient="horizontal", command=self.tree.xview)
-        x_scroll.grid(row=1, column=0, sticky="ew")
-        self.tree.configure(xscrollcommand=x_scroll.set)
+        y_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=self.comparison_body_canvas.yview)
+        y_scroll.grid(row=1, column=1, sticky="ns")
+        self.comparison_body_canvas.configure(yscrollcommand=y_scroll.set)
+
+        x_scroll = ttk.Scrollbar(table_frame, orient="horizontal", command=self._scroll_comparison_x)
+        x_scroll.grid(row=2, column=0, sticky="ew")
+        self.comparison_body_canvas.configure(xscrollcommand=x_scroll.set)
+        self.comparison_x_scrollbar = x_scroll
+
+        self.comparison_header_inner = ttk.Frame(self.comparison_header_canvas)
+        self.comparison_body_inner = ttk.Frame(self.comparison_body_canvas)
+        self.comparison_header_window = self.comparison_header_canvas.create_window((0, 0), window=self.comparison_header_inner, anchor="nw")
+        self.comparison_body_window = self.comparison_body_canvas.create_window((0, 0), window=self.comparison_body_inner, anchor="nw")
+
+        self.comparison_header_inner.bind("<Configure>", self._on_comparison_header_configure)
+        self.comparison_body_inner.bind("<Configure>", self._on_comparison_body_configure)
 
         self._build_register_tab(register_tab)
         self._refresh_store_selector()
@@ -197,7 +212,7 @@ class MinRepoApp:
         ttk.Label(
             guide,
             text=(
-                "ここでは店舗名とURLを仮登録できます。"
+                "ここでは店舗URLを入れて店舗名を自動取得し、仮登録できます。"
                 "今はこのアプリ内だけの一覧で、あとで保存先をつなぎ込める形です。"
             ),
             wraplength=900,
@@ -248,11 +263,12 @@ class MinRepoApp:
     def load_machine_list(self) -> None:
         self._clear_machine_list("機種一覧: 読込中")
         self.current_results = []
-        self.data_rows = []
-        self.data_columns = []
-        self._clear_table()
+        self.current_history_result = None
+        self.comparison_rows = []
+        self.comparison_slot_numbers = []
+        self._clear_comparison_table()
         self.status_var.set("機種一覧取得中...")
-        self.summary_var.set("対象日の機種を確認中")
+        self.summary_var.set("期間の終了日を基準に機種を確認中")
         self._start_worker(self._worker_load_machine_list)
 
     def register_store(self) -> None:
@@ -297,12 +313,13 @@ class MinRepoApp:
             return
 
         self.current_results = []
-        self.data_rows = []
-        self.data_columns = []
-        self._clear_table()
+        self.current_history_result = None
+        self.comparison_rows = []
+        self.comparison_slot_numbers = []
+        self._clear_comparison_table()
         self.status_var.set("取得中...")
-        self.summary_var.set(f"{len(machine_names)}機種を取得中")
-        self._start_worker(self._worker_fetch, machine_list, machine_names)
+        self.summary_var.set(f"{len(machine_names)}機種を期間取得中")
+        self._start_worker(self._worker_fetch, self.store_url_var.get(), self.target_date_var.get(), machine_names)
 
     def _start_worker(self, target: object, *args: object) -> None:
         self.is_busy = True
@@ -324,12 +341,14 @@ class MinRepoApp:
 
     def _worker_fetch(
         self,
-        machine_list: MachineListResult,
+        store_url: str,
+        target_date_input: str,
         machine_names: list[str],
     ) -> None:
         try:
-            result = self.scraper.fetch_machine_datasets(
-                machine_list=machine_list,
+            result = self.scraper.fetch_machine_history_datasets(
+                store_url=store_url,
+                target_date_input=target_date_input,
                 machine_names=machine_names,
             )
             self.result_queue.put(("fetch_success", result))
@@ -386,20 +405,23 @@ class MinRepoApp:
             self._show_error(payload)
             return
 
-        results = payload
-        if not isinstance(results, list) or not all(isinstance(result, MachineDataset) for result in results):
+        history_result = payload
+        if not isinstance(history_result, MachineHistoryResult):
             self.status_var.set("失敗")
             self.summary_var.set("不明な結果")
             messagebox.showerror("エラー", "取得結果の形式が不正です。")
             return
 
-        self.current_results = results
-        self._populate_table(results)
-        total_rows = sum(len(result.rows) for result in results)
-        target_date = results[0].target_date if results else self.target_date_var.get().strip()
-        store_name = results[0].store_name if results else DEFAULT_STORE_NAME
+        self.current_history_result = history_result
+        self.current_results = history_result.datasets
+        self._populate_comparison_table(history_result)
+        total_rows = sum(len(result.rows) for result in history_result.datasets)
+        store_name = history_result.store_name
         self.status_var.set("完了")
-        self.summary_var.set(f"{store_name} / {target_date} / {len(results)}機種 / {total_rows}行")
+        self.summary_var.set(
+            f"{store_name} / {history_result.start_date} ～ {history_result.end_date} / "
+            f"{len(self._selected_machine_names())}機種 / {len(history_result.date_pages)}日"
+        )
 
     def _apply_machine_list(self, machine_list: MachineListResult) -> None:
         self.current_machine_list = machine_list
@@ -530,62 +552,188 @@ class MinRepoApp:
             self.machine_tree.item(item_id, values=values)
         self._refresh_machine_list_summary()
 
-    def _populate_table(self, results: list[MachineDataset]) -> None:
-        self.data_columns = self._build_table_columns(results)
-        self.data_rows = []
-        self.data_sort_column = None
-        self.data_sort_descending = False
+    def _populate_comparison_table(self, history_result: MachineHistoryResult) -> None:
+        self.comparison_sort_key = "日付"
+        self.comparison_sort_descending = False
+        self.comparison_slot_numbers = []
+        self.comparison_rows = []
 
-        for result in results:
+        row_map_by_date: dict[str, dict[str, str]] = {
+            date_page.target_date: {"日付": date_page.target_date}
+            for date_page in history_result.date_pages
+        }
+        slot_numbers: set[str] = set()
+
+        for result in history_result.datasets:
             source_columns = [column for column in result.columns if not self._is_machine_name_column(column)]
-
             for row in result.rows:
-                row_values = self._filter_machine_name_values(result.columns, row)
-                row_map = dict(zip(source_columns, row_values, strict=False))
-                record = {column: "" for column in self.data_columns}
-                record["機種名"] = result.machine_name
-                for column, value in row_map.items():
-                    record[column] = value
-                self.data_rows.append(record)
+                values = self._filter_machine_name_values(result.columns, row)
+                machine_row = dict(zip(source_columns, values, strict=False))
+                slot_number = machine_row.get("台番", "")
+                if not slot_number:
+                    continue
 
-        self._refresh_data_table()
+                slot_numbers.add(slot_number)
+                target_row = row_map_by_date.setdefault(result.target_date, {"日付": result.target_date})
+                for subcolumn in COMPARISON_SUBCOLUMNS:
+                    key = self._comparison_key(slot_number, subcolumn)
+                    if subcolumn == "機種名":
+                        target_row[key] = result.machine_name
+                    elif subcolumn in machine_row:
+                        target_row[key] = machine_row[subcolumn]
 
-    def _refresh_data_table(self) -> None:
-        self._clear_table()
-        self.tree["columns"] = self.data_columns
+        self.comparison_slot_numbers = sorted(slot_numbers, key=self._slot_sort_key)
+        self.comparison_rows = [row_map_by_date[date_page.target_date] for date_page in history_result.date_pages]
+        self._refresh_comparison_table()
 
-        for column in self.data_columns:
-            heading_text = self._heading_text(column, self.data_sort_column, self.data_sort_descending)
-            self.tree.heading(column, text=heading_text, command=lambda current=column: self._sort_data_table(current))
-            self.tree.column(
-                column,
-                width=self._column_width(column),
-                minwidth=80,
-                anchor=self._column_anchor(column),
+    def _refresh_comparison_table(self) -> None:
+        self._clear_comparison_table()
+        self._build_comparison_headers()
+
+        rows = self._sorted_comparison_rows()
+        if not rows:
+            return
+
+        for row_index, row in enumerate(rows):
+            row_background = "#ffffff" if row_index % 2 == 0 else "#f7f7f7"
+            self._create_body_cell(
+                row_index=row_index,
+                column_index=0,
+                text=row.get("日付", ""),
+                width=self._comparison_width("日付"),
+                background=row_background,
+                anchor="center",
             )
 
-        rows = self.data_rows
-        if self.data_sort_column:
-            rows = self._sort_records(
-                self.data_rows,
-                value_getter=lambda row: row.get(self.data_sort_column or "", ""),
-                descending=self.data_sort_descending,
+            for slot_index, slot_number in enumerate(self.comparison_slot_numbers):
+                start_column = 1 + slot_index * len(COMPARISON_SUBCOLUMNS)
+                for subcolumn_index, subcolumn in enumerate(COMPARISON_SUBCOLUMNS):
+                    self._create_body_cell(
+                        row_index=row_index,
+                        column_index=start_column + subcolumn_index,
+                        text=row.get(self._comparison_key(slot_number, subcolumn), ""),
+                        width=self._comparison_width(subcolumn),
+                        background=row_background,
+                        anchor="center" if subcolumn != "機種名" else "w",
+                    )
+
+        self._update_comparison_scrollregion()
+
+    def _build_comparison_headers(self) -> None:
+        date_header = self._create_header_cell(
+            text=self._heading_text("日付", self.comparison_sort_key, self.comparison_sort_descending),
+            width=self._comparison_width("日付"),
+            row=0,
+            column=0,
+            rowspan=2,
+            anchor="center",
+            command=lambda: self._sort_comparison_table("日付"),
+        )
+        date_header.grid_configure(sticky="nsew")
+
+        for slot_index, slot_number in enumerate(self.comparison_slot_numbers):
+            start_column = 1 + slot_index * len(COMPARISON_SUBCOLUMNS)
+            group_label = self._create_header_cell(
+                text=slot_number,
+                width=sum(self._comparison_width(subcolumn) for subcolumn in COMPARISON_SUBCOLUMNS),
+                row=0,
+                column=start_column,
+                columnspan=len(COMPARISON_SUBCOLUMNS),
+                anchor="center",
+                command=None,
             )
+            group_label.grid_configure(sticky="nsew")
 
-        for row in rows:
-            self.tree.insert("", "end", values=[row.get(column, "") for column in self.data_columns])
+            for subcolumn_index, subcolumn in enumerate(COMPARISON_SUBCOLUMNS):
+                header = self._create_header_cell(
+                    text=self._heading_text(subcolumn, self._comparison_key(slot_number, subcolumn), self.comparison_sort_descending)
+                    if self.comparison_sort_key == self._comparison_key(slot_number, subcolumn)
+                    else subcolumn,
+                    width=self._comparison_width(subcolumn),
+                    row=1,
+                    column=start_column + subcolumn_index,
+                    anchor="center",
+                    command=lambda current=self._comparison_key(slot_number, subcolumn): self._sort_comparison_table(current),
+                )
+                header.grid_configure(sticky="nsew")
 
-    def _sort_data_table(self, column: str) -> None:
-        if self.data_sort_column == column:
-            self.data_sort_descending = not self.data_sort_descending
+        total_columns = 1 + len(self.comparison_slot_numbers) * len(COMPARISON_SUBCOLUMNS)
+        for column_index in range(total_columns):
+            self.comparison_header_inner.grid_columnconfigure(column_index, weight=0)
+            self.comparison_body_inner.grid_columnconfigure(column_index, weight=0)
+
+    def _create_header_cell(
+        self,
+        text: str,
+        width: int,
+        row: int,
+        column: int,
+        anchor: str,
+        command: Callable[[], None] | None,
+        rowspan: int = 1,
+        columnspan: int = 1,
+    ) -> tk.Label:
+        label = tk.Label(
+            self.comparison_header_inner,
+            text=text,
+            width=width,
+            relief="solid",
+            borderwidth=1,
+            background="#eaeaea",
+            anchor=anchor,
+            padx=4,
+            pady=4,
+        )
+        label.grid(row=row, column=column, rowspan=rowspan, columnspan=columnspan, sticky="nsew")
+        if command is not None:
+            label.configure(cursor="hand2")
+            label.bind("<Button-1>", lambda _event: command())
+        return label
+
+    def _create_body_cell(
+        self,
+        row_index: int,
+        column_index: int,
+        text: str,
+        width: int,
+        background: str,
+        anchor: str,
+    ) -> None:
+        label = tk.Label(
+            self.comparison_body_inner,
+            text=text,
+            width=width,
+            relief="solid",
+            borderwidth=1,
+            background=background,
+            anchor=anchor,
+            padx=4,
+            pady=3,
+        )
+        label.grid(row=row_index, column=column_index, sticky="nsew")
+
+    def _sort_comparison_table(self, key: str) -> None:
+        if self.comparison_sort_key == key:
+            self.comparison_sort_descending = not self.comparison_sort_descending
         else:
-            self.data_sort_column = column
-            self.data_sort_descending = False
-        self._refresh_data_table()
+            self.comparison_sort_key = key
+            self.comparison_sort_descending = False
+        self._refresh_comparison_table()
 
-    def _clear_table(self) -> None:
-        self.tree.delete(*self.tree.get_children())
-        self.tree["columns"] = ()
+    def _sorted_comparison_rows(self) -> list[dict[str, str]]:
+        return self._sort_records(
+            self.comparison_rows,
+            value_getter=lambda row: row.get(self.comparison_sort_key, ""),
+            descending=self.comparison_sort_descending,
+        )
+
+    def _clear_comparison_table(self) -> None:
+        for child in self.comparison_header_inner.winfo_children():
+            child.destroy()
+        for child in self.comparison_body_inner.winfo_children():
+            child.destroy()
+        self.comparison_header_canvas.configure(scrollregion=(0, 0, 0, 0))
+        self.comparison_body_canvas.configure(scrollregion=(0, 0, 0, 0))
 
     def _refresh_registered_store_table(self) -> None:
         self.registered_store_tree.delete(*self.registered_store_tree.get_children())
@@ -650,9 +798,10 @@ class MinRepoApp:
     def _reset_fetch_display_for_store_change(self) -> None:
         self._clear_machine_list("機種一覧: 未読込")
         self.current_results = []
-        self.data_rows = []
-        self.data_columns = []
-        self._clear_table()
+        self.current_history_result = None
+        self.comparison_rows = []
+        self.comparison_slot_numbers = []
+        self._clear_comparison_table()
         self.summary_var.set("未取得")
         self.status_var.set("待機中")
 
@@ -678,14 +827,15 @@ class MinRepoApp:
 
     def _machine_list_matches_inputs(self, machine_list: MachineListResult) -> bool:
         try:
-            current_target_date = parse_date_input(self.target_date_var.get()).strftime("%Y-%m-%d")
+            _, current_target_date = parse_date_range_input(self.target_date_var.get())
+            current_target_date_text = current_target_date.strftime("%Y-%m-%d")
         except ScraperError as exc:
             self._show_error(exc)
             return False
 
         current_store_url = self.store_url_var.get().strip()
-        if machine_list.store_url != current_store_url or machine_list.target_date != current_target_date:
-            messagebox.showwarning("再読込が必要", "対象日を変更した場合は、機種一覧をもう一度読み込んでください。")
+        if machine_list.store_url != current_store_url or machine_list.target_date != current_target_date_text:
+            messagebox.showwarning("再読込が必要", "対象店舗または期間を変更した場合は、機種一覧をもう一度読み込んでください。")
             return False
 
         return True
@@ -750,10 +900,54 @@ class MinRepoApp:
     def _column_anchor(self, column: str) -> str:
         return "w" if column == "機種名" else "center"
 
+    def _comparison_key(self, slot_number: str, subcolumn: str) -> str:
+        return f"{slot_number}|{subcolumn}"
+
+    def _comparison_width(self, column: str) -> int:
+        widths = {
+            "日付": 12,
+            "機種名": 16,
+            "差枚": 10,
+            "G数": 10,
+            "出率": 10,
+            "BB": 8,
+            "RB": 8,
+            "合成": 10,
+            "BB率": 10,
+            "RB率": 10,
+        }
+        return widths.get(column, 10)
+
+    def _slot_sort_key(self, slot_number: str) -> tuple[int, int | str]:
+        normalized = slot_number.replace(",", "").strip()
+        if normalized.isdigit():
+            return (0, int(normalized))
+        return (1, normalize_text(slot_number))
+
     def _heading_text(self, column: str, current_column: str | None, descending: bool) -> str:
         if column != current_column:
             return column
         return f"{column} {'▼' if descending else '▲'}"
+
+    def _scroll_comparison_x(self, *args: str) -> None:
+        self.comparison_header_canvas.xview(*args)
+        self.comparison_body_canvas.xview(*args)
+
+    def _on_comparison_header_configure(self, _: tk.Event[tk.Misc]) -> None:
+        self._update_comparison_scrollregion()
+
+    def _on_comparison_body_configure(self, _: tk.Event[tk.Misc]) -> None:
+        self._update_comparison_scrollregion()
+
+    def _update_comparison_scrollregion(self) -> None:
+        self.comparison_header_canvas.update_idletasks()
+        self.comparison_body_canvas.update_idletasks()
+        header_box = self.comparison_header_canvas.bbox("all")
+        body_box = self.comparison_body_canvas.bbox("all")
+        if header_box:
+            self.comparison_header_canvas.configure(scrollregion=header_box)
+        if body_box:
+            self.comparison_body_canvas.configure(scrollregion=body_box)
 
     def _sort_records(
         self,
