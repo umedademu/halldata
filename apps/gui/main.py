@@ -31,6 +31,18 @@ CHECK_OFF = "☐"
 MACHINE_COLUMNS = ("チェック", "機種名", "台数", "平均差枚", "平均G数", "勝率", "出率")
 REGISTERED_STORE_COLUMNS = ("店舗名", "URL")
 COMPARISON_SUBCOLUMNS = ("機種名", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率")
+COMPARISON_DAY_TAIL_OPTIONS = ("全て", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
+
+
+def matches_day_tail(date_text: str, day_tail: str) -> bool:
+    if day_tail == "全て":
+        return True
+
+    match = re.fullmatch(r"\d{4}-\d{2}-(\d{2})", date_text.strip())
+    if match is None:
+        return False
+
+    return match.group(1).endswith(day_tail)
 
 
 @dataclass
@@ -74,6 +86,7 @@ class MinRepoApp:
         self.machine_list_var = tk.StringVar(value="機種一覧: 未読込")
         self.status_var = tk.StringVar(value="待機中")
         self.summary_var = tk.StringVar(value="未取得")
+        self.comparison_day_tail_var = tk.StringVar(value="全て")
         self.register_store_url_var = tk.StringVar()
         self.register_store_status_var = tk.StringVar(value="未登録")
 
@@ -184,12 +197,24 @@ class MinRepoApp:
         comparison_actions.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 8))
         comparison_actions.columnconfigure(0, weight=1)
 
+        ttk.Label(comparison_actions, text="日付末尾").grid(row=0, column=0, sticky="w")
+
+        self.comparison_day_tail_selector = ttk.Combobox(
+            comparison_actions,
+            textvariable=self.comparison_day_tail_var,
+            values=COMPARISON_DAY_TAIL_OPTIONS,
+            state="readonly",
+            width=5,
+        )
+        self.comparison_day_tail_selector.grid(row=0, column=1, sticky="w", padx=(8, 0))
+        self.comparison_day_tail_selector.bind("<<ComboboxSelected>>", self._on_comparison_day_tail_changed)
+
         self.comparison_focus_button = ttk.Button(
             comparison_actions,
             text="台データ表を広く表示",
             command=self.toggle_comparison_focus,
         )
-        self.comparison_focus_button.grid(row=0, column=1, sticky="e")
+        self.comparison_focus_button.grid(row=0, column=2, sticky="e")
 
         self.comparison_fixed_header_canvas = tk.Canvas(self.comparison_frame, width=1, height=54, highlightthickness=0)
         self.comparison_fixed_header_canvas.grid(row=1, column=0, sticky="nsw")
@@ -810,6 +835,9 @@ class MinRepoApp:
             self.comparison_sort_descending = False
         self._refresh_comparison_table()
 
+    def _on_comparison_day_tail_changed(self, _: tk.Event[tk.Misc]) -> None:
+        self._refresh_comparison_table(preserve_scroll=False)
+
     def _select_comparison_date(self, target_date: str) -> None:
         if not target_date:
             return
@@ -817,8 +845,13 @@ class MinRepoApp:
         self._refresh_comparison_table()
 
     def _sorted_comparison_rows(self) -> list[dict[str, str]]:
+        filtered_rows = [
+            row
+            for row in self.comparison_rows
+            if matches_day_tail(row.get("日付", ""), self.comparison_day_tail_var.get())
+        ]
         return self._sort_records(
-            self.comparison_rows,
+            filtered_rows,
             value_getter=lambda row: row.get(self.comparison_sort_key, ""),
             descending=self.comparison_sort_descending,
         )
@@ -1223,6 +1256,7 @@ class MinRepoApp:
         self.clear_selection_button.configure(state="disabled" if self.is_busy or not has_machine_list else "normal")
         self.target_date_entry.configure(state="disabled" if self.is_busy else "normal")
         self.store_selector.configure(state="disabled" if self.is_busy else "readonly")
+        self.comparison_day_tail_selector.configure(state="disabled" if self.is_busy else "readonly")
         self.register_store_button.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_url_entry.configure(state="disabled" if self.is_busy else "normal")
 

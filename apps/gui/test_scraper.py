@@ -6,6 +6,7 @@ from pathlib import Path
 
 from bs4 import BeautifulSoup
 
+from main import matches_day_tail
 from minrepo_scraper import MinRepoScraper, parse_date_range_input
 
 
@@ -35,6 +36,13 @@ class FixtureScraper(MinRepoScraper):
 
 
 class MinRepoScraperTests(unittest.TestCase):
+    def test_matches_day_tail(self) -> None:
+        self.assertTrue(matches_day_tail("2026-03-07", "7"))
+        self.assertTrue(matches_day_tail("2026-03-17", "7"))
+        self.assertTrue(matches_day_tail("2026-04-07", "7"))
+        self.assertFalse(matches_day_tail("2026-03-08", "7"))
+        self.assertTrue(matches_day_tail("2026-03-08", "全て"))
+
     def test_parse_date_range_input(self) -> None:
         start_date, end_date = parse_date_range_input("2025-12-30 ～ 2026-04-08")
 
