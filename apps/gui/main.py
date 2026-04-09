@@ -56,6 +56,7 @@ class MinRepoApp:
         self.comparison_sort_descending = False
         self.comparison_slot_numbers: list[str] = []
         self.comparison_rows: list[dict[str, str]] = []
+        self.comparison_selected_date: str | None = None
         self.comparison_focus_mode = False
         self.registered_stores: list[RegisteredStore] = [
             RegisteredStore(name=DEFAULT_STORE_NAME, url=DEFAULT_STORE_URL)
@@ -292,6 +293,7 @@ class MinRepoApp:
         self.current_history_result = None
         self.comparison_rows = []
         self.comparison_slot_numbers = []
+        self.comparison_selected_date = None
         self._clear_comparison_table()
         self.status_var.set("機種一覧取得中...")
         self.summary_var.set("期間の終了日を基準に機種を確認中")
@@ -342,6 +344,7 @@ class MinRepoApp:
         self.current_history_result = None
         self.comparison_rows = []
         self.comparison_slot_numbers = []
+        self.comparison_selected_date = None
         self._clear_comparison_table()
         self.status_var.set("取得中...")
         self.summary_var.set(f"{len(machine_names)}機種を期間取得中")
@@ -610,10 +613,15 @@ class MinRepoApp:
 
         self.comparison_slot_numbers = sorted(slot_numbers, key=self._slot_sort_key)
         self.comparison_rows = [row_map_by_date[date_page.target_date] for date_page in history_result.date_pages]
-        self._refresh_comparison_table()
+        available_dates = {row.get("日付", "") for row in self.comparison_rows}
+        if self.comparison_selected_date not in available_dates:
+            self.comparison_selected_date = None
+        self._refresh_comparison_table(preserve_scroll=False)
 
-    def _refresh_comparison_table(self) -> None:
-        self._clear_comparison_table()
+    def _refresh_comparison_table(self, preserve_scroll: bool = True) -> None:
+        x_position = self.comparison_body_canvas.xview()[0] if preserve_scroll else 0.0
+        y_position = self.comparison_body_canvas.yview()[0] if preserve_scroll else 0.0
+        self._clear_comparison_table(reset_view=not preserve_scroll)
         self._build_comparison_headers()
 
         rows = self._sorted_comparison_rows()
@@ -621,15 +629,17 @@ class MinRepoApp:
             return
 
         for row_index, row in enumerate(rows):
-            row_background = "#ffffff" if row_index % 2 == 0 else "#f7f7f7"
+            row_date = row.get("日付", "")
+            row_background = self._comparison_row_background(row_index, row_date)
             self._create_body_cell(
                 parent=self.comparison_fixed_body_inner,
                 row_index=row_index,
                 column_index=0,
-                text=row.get("日付", ""),
+                text=row_date,
                 width=self._comparison_width("日付"),
                 background=row_background,
                 anchor="center",
+                command=lambda current_date=row_date: self._select_comparison_date(current_date),
             )
 
             for slot_index, slot_number in enumerate(self.comparison_slot_numbers):
@@ -646,6 +656,8 @@ class MinRepoApp:
                     )
 
         self._update_comparison_scrollregion()
+        if preserve_scroll:
+            self._restore_comparison_view(x_position, y_position)
 
     def _build_comparison_headers(self) -> None:
         date_header = self._create_header_cell(
@@ -733,6 +745,7 @@ class MinRepoApp:
         width: int,
         background: str,
         anchor: str,
+        command: Callable[[], None] | None = None,
     ) -> None:
         label = tk.Label(
             parent,
@@ -746,6 +759,9 @@ class MinRepoApp:
             pady=3,
         )
         label.grid(row=row_index, column=column_index, sticky="nsew")
+        if command is not None:
+            label.configure(cursor="hand2")
+            label.bind("<Button-1>", lambda _event: command())
 
     def _sort_comparison_table(self, key: str) -> None:
         if self.comparison_sort_key == key:
@@ -755,6 +771,12 @@ class MinRepoApp:
             self.comparison_sort_descending = False
         self._refresh_comparison_table()
 
+    def _select_comparison_date(self, target_date: str) -> None:
+        if not target_date:
+            return
+        self.comparison_selected_date = target_date
+        self._refresh_comparison_table()
+
     def _sorted_comparison_rows(self) -> list[dict[str, str]]:
         return self._sort_records(
             self.comparison_rows,
@@ -762,7 +784,7 @@ class MinRepoApp:
             descending=self.comparison_sort_descending,
         )
 
-    def _clear_comparison_table(self) -> None:
+    def _clear_comparison_table(self, reset_view: bool = True) -> None:
         for child in self.comparison_fixed_header_inner.winfo_children():
             child.destroy()
         for child in self.comparison_header_inner.winfo_children():
@@ -771,14 +793,16 @@ class MinRepoApp:
             child.destroy()
         for child in self.comparison_body_inner.winfo_children():
             child.destroy()
-        self.comparison_fixed_body_canvas.yview_moveto(0)
-        self.comparison_body_canvas.yview_moveto(0)
-        self.comparison_header_canvas.xview_moveto(0)
-        self.comparison_body_canvas.xview_moveto(0)
+        if reset_view:
+            self.comparison_fixed_body_canvas.yview_moveto(0)
+            self.comparison_body_canvas.yview_moveto(0)
+            self.comparison_header_canvas.xview_moveto(0)
+            self.comparison_body_canvas.xview_moveto(0)
         self.comparison_fixed_body_canvas.configure(scrollregion=(0, 0, 0, 0))
         self.comparison_header_canvas.configure(scrollregion=(0, 0, 0, 0))
         self.comparison_body_canvas.configure(scrollregion=(0, 0, 0, 0))
-        self.comparison_y_scrollbar.set(0, 1)
+        if reset_view:
+            self.comparison_y_scrollbar.set(0, 1)
 
     def _refresh_registered_store_table(self) -> None:
         self.registered_store_tree.delete(*self.registered_store_tree.get_children())
@@ -866,6 +890,7 @@ class MinRepoApp:
         self.current_history_result = None
         self.comparison_rows = []
         self.comparison_slot_numbers = []
+        self.comparison_selected_date = None
         self._clear_comparison_table()
         self.summary_var.set("未取得")
         self.status_var.set("待機中")
@@ -983,6 +1008,11 @@ class MinRepoApp:
         }
         return widths.get(column, 10)
 
+    def _comparison_row_background(self, row_index: int, row_date: str) -> str:
+        if row_date and row_date == self.comparison_selected_date:
+            return "#fff2a8"
+        return "#ffffff" if row_index % 2 == 0 else "#f7f7f7"
+
     def _slot_sort_key(self, slot_number: str) -> tuple[int, int | str]:
         normalized = slot_number.replace(",", "").strip()
         if normalized.isdigit():
@@ -1047,6 +1077,13 @@ class MinRepoApp:
     def _update_comparison_y_scrollbar(self) -> None:
         first, last = self.comparison_body_canvas.yview()
         self.comparison_y_scrollbar.set(first, last)
+
+    def _restore_comparison_view(self, x_position: float, y_position: float) -> None:
+        self.comparison_header_canvas.xview_moveto(x_position)
+        self.comparison_body_canvas.xview_moveto(x_position)
+        self.comparison_fixed_body_canvas.yview_moveto(y_position)
+        self.comparison_body_canvas.yview_moveto(y_position)
+        self._update_comparison_y_scrollbar()
 
     def _sort_records(
         self,
