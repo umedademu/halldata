@@ -30,6 +30,7 @@ class MachineEntry:
     name: str
     url: str
     section_name: str
+    machine_count: int
 
 
 @dataclass
@@ -240,7 +241,15 @@ class MinRepoScraper:
             if not table:
                 continue
 
-            for link in table.select("td:first-child a"):
+            for row in table.find_all("tr"):
+                cells = row.find_all("td")
+                if not cells:
+                    continue
+
+                link = cells[0].find("a")
+                if link is None:
+                    continue
+
                 href = link.get("href")
                 if not href:
                     continue
@@ -250,11 +259,13 @@ class MinRepoScraper:
                 if normalized_name in seen_names:
                     continue
 
+                machine_count = self._extract_machine_count(row, section_name)
                 machine_entries.append(
                     MachineEntry(
                         name=name,
                         url=urljoin(base_url, href),
                         section_name=section_name,
+                        machine_count=machine_count,
                     )
                 )
                 seen_names.add(normalized_name)
@@ -263,6 +274,16 @@ class MinRepoScraper:
             raise ScraperError("機種一覧が見つかりませんでした。")
 
         return machine_entries
+
+    def _extract_machine_count(self, row: Tag, section_name: str) -> int:
+        if section_name == "バラエティ":
+            return 1
+
+        count_text = row.get("data-count", "").strip()
+        if count_text.isdigit():
+            return int(count_text)
+
+        return 0
 
     def extract_machine_table(self, soup: BeautifulSoup) -> tuple[List[str], List[List[str]]]:
         table = self._find_machine_data_table(soup)

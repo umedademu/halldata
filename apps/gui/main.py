@@ -7,6 +7,7 @@ from tkinter import messagebox, ttk
 
 from minrepo_scraper import (
     MachineDataset,
+    MachineEntry,
     MachineListResult,
     MinRepoScraper,
     ScraperError,
@@ -19,6 +20,8 @@ DEFAULT_STORE_NAME = "MJアリーナ箱崎店"
 DEFAULT_STORE_URL = "https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/"
 DEFAULT_TARGET_DATE = "2026-04-08"
 DEFAULT_MACHINE_NAME = "ネオアイムジャグラーEX"
+SORT_DESCENDING = "台数が多い順"
+SORT_ASCENDING = "台数が少ない順"
 
 
 class MinRepoApp:
@@ -37,6 +40,7 @@ class MinRepoApp:
         self.store_url_var = tk.StringVar(value=DEFAULT_STORE_URL)
         self.target_date_var = tk.StringVar(value=DEFAULT_TARGET_DATE)
         self.machine_list_var = tk.StringVar(value="機種一覧: 未読込")
+        self.machine_sort_var = tk.StringVar(value=SORT_DESCENDING)
         self.status_var = tk.StringVar(value="待機中")
         self.summary_var = tk.StringVar(value="未取得")
 
@@ -84,11 +88,22 @@ class MinRepoApp:
 
         ttk.Label(machine_actions, textvariable=self.machine_list_var).grid(row=0, column=0, sticky="w")
 
+        ttk.Label(machine_actions, text="並び").grid(row=0, column=1, sticky="e", padx=(8, 4))
+        self.machine_sort_box = ttk.Combobox(
+            machine_actions,
+            textvariable=self.machine_sort_var,
+            values=(SORT_DESCENDING, SORT_ASCENDING),
+            state="readonly",
+            width=16,
+        )
+        self.machine_sort_box.grid(row=0, column=2, sticky="e")
+        self.machine_sort_box.bind("<<ComboboxSelected>>", self._on_sort_changed)
+
         self.select_all_button = ttk.Button(machine_actions, text="全選択", command=self.select_all_machines)
-        self.select_all_button.grid(row=0, column=1, sticky="e", padx=(8, 0))
+        self.select_all_button.grid(row=0, column=3, sticky="e", padx=(8, 0))
 
         self.clear_selection_button = ttk.Button(machine_actions, text="全解除", command=self.clear_machine_selection)
-        self.clear_selection_button.grid(row=0, column=2, sticky="e", padx=(8, 0))
+        self.clear_selection_button.grid(row=0, column=4, sticky="e", padx=(8, 0))
 
         self.machine_canvas = tk.Canvas(machine_frame, height=220, highlightthickness=0)
         self.machine_canvas.grid(row=1, column=0, sticky="nsew")
@@ -245,20 +260,25 @@ class MinRepoApp:
         )
 
     def _build_machine_checkboxes(self, machine_list: MachineListResult) -> None:
+        previous_states = {
+            machine_key: variable.get()
+            for machine_key, variable in self.machine_vars.items()
+        }
+
         for child in self.machine_inner.winfo_children():
             child.destroy()
 
         self.machine_vars = {}
         default_name = normalize_text(DEFAULT_MACHINE_NAME)
 
-        for row_index, machine_entry in enumerate(machine_list.machine_entries):
+        for row_index, machine_entry in enumerate(self._sorted_machine_entries(machine_list.machine_entries)):
             machine_key = normalize_text(machine_entry.name)
-            variable = tk.BooleanVar(value=machine_key == default_name)
+            variable = tk.BooleanVar(value=previous_states.get(machine_key, machine_key == default_name))
             self.machine_vars[machine_key] = variable
 
             checkbutton = ttk.Checkbutton(
                 self.machine_inner,
-                text=machine_entry.name,
+                text=self._machine_label(machine_entry),
                 variable=variable,
                 command=self._on_machine_selection_changed,
             )
@@ -317,6 +337,14 @@ class MinRepoApp:
                 machine_names.append(machine_entry.name)
         return machine_names
 
+    def _sorted_machine_entries(self, machine_entries: list[MachineEntry]) -> list[MachineEntry]:
+        if self.machine_sort_var.get() == SORT_ASCENDING:
+            return sorted(machine_entries, key=lambda machine_entry: (machine_entry.machine_count, machine_entry.name))
+        return sorted(machine_entries, key=lambda machine_entry: (-machine_entry.machine_count, machine_entry.name))
+
+    def _machine_label(self, machine_entry: MachineEntry) -> str:
+        return f"{machine_entry.name} ({machine_entry.machine_count}台)"
+
     def _machine_list_matches_inputs(self, machine_list: MachineListResult) -> bool:
         try:
             current_target_date = parse_date_input(self.target_date_var.get()).strftime("%Y-%m-%d")
@@ -342,6 +370,12 @@ class MinRepoApp:
         self._refresh_machine_list_summary()
 
     def _on_machine_selection_changed(self) -> None:
+        self._refresh_machine_list_summary()
+
+    def _on_sort_changed(self, _: tk.Event[tk.Misc]) -> None:
+        if self.current_machine_list is None:
+            return
+        self._build_machine_checkboxes(self.current_machine_list)
         self._refresh_machine_list_summary()
 
     def _build_table_columns(self, results: list[MachineDataset]) -> list[str]:
@@ -386,6 +420,7 @@ class MinRepoApp:
         self.select_all_button.configure(state="disabled" if self.is_busy or not has_machine_list else "normal")
         self.clear_selection_button.configure(state="disabled" if self.is_busy or not has_machine_list else "normal")
         self.target_date_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.machine_sort_box.configure(state="disabled" if self.is_busy or not has_machine_list else "readonly")
 
         checkbox_state = "disabled" if self.is_busy else "normal"
         for child in self.machine_inner.winfo_children():

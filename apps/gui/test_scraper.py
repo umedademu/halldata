@@ -44,6 +44,9 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertGreater(len(result.machine_entries), 10)
         self.assertIn("ネオアイムジャグラーEX", [machine.name for machine in result.machine_entries])
         self.assertIn("パチスロ 転生したら剣でした", [machine.name for machine in result.machine_entries])
+        machine_counts = {machine.name: machine.machine_count for machine in result.machine_entries}
+        self.assertEqual(machine_counts["ネオアイムジャグラーEX"], 40)
+        self.assertEqual(machine_counts["パチスロ 転生したら剣でした"], 1)
 
     def test_fetch_machine_dataset_from_saved_html(self) -> None:
         scraper = FixtureScraper()
