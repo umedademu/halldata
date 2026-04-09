@@ -91,6 +91,7 @@ class MinRepoApp:
         self.summary_var = tk.StringVar(value="未取得")
         self.fetch_progress_value_var = tk.DoubleVar(value=0.0)
         self.fetch_progress_text_var = tk.StringVar(value="未開始")
+        self.skip_comparison_display_var = tk.BooleanVar(value=False)
         self.comparison_day_tail_var = tk.StringVar(value="全て")
         self.register_store_url_var = tk.StringVar()
         self.register_store_status_var = tk.StringVar(value="未登録")
@@ -147,6 +148,14 @@ class MinRepoApp:
 
         self.fetch_button = ttk.Button(button_row, text="取得", command=self.fetch_data)
         self.fetch_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
+
+        self.skip_comparison_display_button = ttk.Checkbutton(
+            button_row,
+            text="取得後に台データ表を表示しない",
+            variable=self.skip_comparison_display_var,
+            command=self._on_skip_comparison_display_changed,
+        )
+        self.skip_comparison_display_button.grid(row=0, column=2, sticky="w", padx=(12, 0))
 
         self.machine_frame = ttk.LabelFrame(self.fetch_tab, text="機種一覧", padding=8)
         self.machine_frame.grid(row=1, column=0, sticky="nsew", pady=(12, 0))
@@ -511,7 +520,11 @@ class MinRepoApp:
 
         self.current_history_result = history_result
         self.current_results = history_result.datasets
-        self._populate_comparison_table(history_result)
+        if self.skip_comparison_display_var.get():
+            self._clear_comparison_table()
+            self._apply_comparison_focus_mode()
+        else:
+            self._populate_comparison_table(history_result)
         store_name = history_result.store_name
         self._finish_fetch_progress(
             success=True,
@@ -525,7 +538,9 @@ class MinRepoApp:
             f"{store_name} / {history_result.start_date} ～ {history_result.end_date} / "
             f"{len(self._selected_machine_names())}機種 / {len(history_result.date_pages)}日 / "
             f"{self._save_status_text(save_summary)}"
+            f"{' / 表表示省略' if self.skip_comparison_display_var.get() else ''}"
         )
+        self._update_button_states()
         if save_summary is not None and save_summary.has_errors:
             messagebox.showwarning("自動保存", "\n\n".join(save_summary.messages))
 
@@ -982,10 +997,23 @@ class MinRepoApp:
         self._update_button_states()
 
     def toggle_comparison_focus(self) -> None:
+        if self.skip_comparison_display_var.get():
+            return
         self.comparison_focus_mode = not self.comparison_focus_mode
         self._apply_comparison_focus_mode()
 
     def _apply_comparison_focus_mode(self) -> None:
+        if self.skip_comparison_display_var.get():
+            self.fetch_form.grid()
+            self.machine_frame.grid()
+            self.fetch_info.grid()
+            self.comparison_frame.grid_remove()
+            self.fetch_tab.rowconfigure(1, weight=1)
+            self.fetch_tab.rowconfigure(3, weight=0)
+            self.comparison_focus_button.configure(text="台データ表を広く表示")
+            return
+
+        self.comparison_frame.grid()
         if self.comparison_focus_mode:
             self.fetch_form.grid_remove()
             self.machine_frame.grid_remove()
@@ -1001,6 +1029,16 @@ class MinRepoApp:
             self.fetch_tab.rowconfigure(3, weight=2)
             self.comparison_focus_button.configure(text="台データ表を広く表示")
 
+    def _on_skip_comparison_display_changed(self) -> None:
+        if self.skip_comparison_display_var.get():
+            self.comparison_focus_mode = False
+            self._clear_comparison_table()
+        elif self.current_history_result is not None:
+            self._populate_comparison_table(self.current_history_result)
+
+        self._apply_comparison_focus_mode()
+        self._update_button_states()
+
     def _reset_fetch_display_for_store_change(self) -> None:
         self._clear_machine_list("機種一覧: 未読込")
         self.current_results = []
@@ -1013,6 +1051,8 @@ class MinRepoApp:
         self.summary_var.set("未取得")
         self.status_var.set("待機中")
         self._reset_fetch_progress()
+        self._apply_comparison_focus_mode()
+        self._update_button_states()
 
     def _begin_fetch_progress(self, message: str) -> None:
         self.fetch_progress_current = 0
@@ -1359,6 +1399,7 @@ class MinRepoApp:
     def _update_button_states(self) -> None:
         has_machine_list = self.current_machine_list is not None
         has_selection = bool(self._selected_machine_names())
+        has_comparison_data = self.current_history_result is not None and not self.skip_comparison_display_var.get()
 
         self.load_machine_button.configure(state="disabled" if self.is_busy else "normal")
         self.fetch_button.configure(state="disabled" if self.is_busy or not has_selection else "normal")
@@ -1366,7 +1407,9 @@ class MinRepoApp:
         self.clear_selection_button.configure(state="disabled" if self.is_busy or not has_machine_list else "normal")
         self.target_date_entry.configure(state="disabled" if self.is_busy else "normal")
         self.store_selector.configure(state="disabled" if self.is_busy else "readonly")
-        self.comparison_day_tail_selector.configure(state="disabled" if self.is_busy else "readonly")
+        self.comparison_day_tail_selector.configure(state="readonly" if not self.is_busy and has_comparison_data else "disabled")
+        self.comparison_focus_button.configure(state="normal" if not self.is_busy and has_comparison_data else "disabled")
+        self.skip_comparison_display_button.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_button.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_url_entry.configure(state="disabled" if self.is_busy else "normal")
 
