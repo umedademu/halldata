@@ -20,13 +20,36 @@ const percentFormatter = new Intl.NumberFormat("ja-JP", {
   minimumFractionDigits: 0,
 });
 
-function toDate(value) {
-  return value ? new Date(`${value}T00:00:00+09:00`) : null;
+function normalizeDateText(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/u);
+  if (!match) {
+    return null;
+  }
+
+  return `${match[1]}-${match[2]}-${match[3]}`;
 }
 
 export function formatCompactDate(value) {
-  const date = toDate(value);
-  return date ? compactDateFormatter.format(date).replaceAll("/", "-") : "-";
+  const normalized = normalizeDateText(value);
+  if (normalized) {
+    return normalized;
+  }
+
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "-" : compactDateFormatter.format(date).replaceAll("/", "-");
 }
 
 export function formatPeriod(startDate, endDate) {
