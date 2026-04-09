@@ -1,0 +1,20 @@
+
+<!-- saved from url=(0128)https://min-repo.com/3028962/?kishu=%E3%83%8D%E3%82%AA%E3%82%A2%E3%82%A4%E3%83%A0%E3%82%B8%E3%83%A3%E3%82%B0%E3%83%A9%E3%83%BCEX -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><script async="" src="./apstag.js.ダウンロード"></script><script>
+  !function(a9,a,p,s,t,A,g){if(a[a9])return;function q(c,r){a[a9]._Q.push([c,r])}a[a9]={init:function(){q("i",arguments)},fetchBids:function(){q("f",arguments)},setDisplayBids:function(){},targetingKeys:function(){return[]},_Q:[]};A=p.createElement(s);A.async=!0;A.src=t;g=p.getElementsByTagName(s)[0];g.parentNode.insertBefore(A,g)}("apstag",window,document,"script","//c.amazon-adsystem.com/aax2/apstag.js");
+
+  function requestBids(apsConfig, bidConfig) {
+    apstag.init(apsConfig);
+    apstag.fetchBids(
+      bidConfig,
+      function (bids) {
+        window.parent.postMessage({type:'CptExApsBidsEnd',bids: bids}, "*");
+      }
+    );
+  }
+
+  window.addEventListener("message", function(ev) {
+    if (ev.data?.type !== 'CptExApsRequest') return;
+    requestBids(ev.data?.apsConfig, ev.data?.bidConfig);
+  });
+</script><script src="./bb49897c-6ae0-4d48-8db0-c4531321096f" type="text/javascript" async="async"></script><script src="./pubcid.min.js.ダウンロード"></script><script src="./id5-api.js.ダウンロード"></script></head><body></body></html>

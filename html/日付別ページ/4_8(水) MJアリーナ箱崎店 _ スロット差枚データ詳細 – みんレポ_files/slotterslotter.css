@@ -1,0 +1,556 @@
+@charset "UTF-8";
+
+.goudou {
+	color: #fff;
+	display: inline-block;
+	background-color: #d0a739;
+	background-image: linear-gradient(to top left, #F7DE05, #DA8E00, #EDAC06, #F7DE05, #ECB802, #DAAF08, #B67B03);
+	padding: 0 3px;
+	border-radius: 4px;
+	text-shadow: 0px 1px 1px #414141, 0px -1px 1px #414141;
+	box-shadow: 1px 1px 1px #000;
+	font-size: 12px;
+}
+
+.syuzai_type {
+	display: inline-block;
+    color: #fff;
+    padding: 2px 2px;
+    line-height: 1;
+    text-shadow: 1px 1px 1px #3d0000;
+    box-shadow: 1px 1px 1px #000;
+}
+.sloslo {
+	background: linear-gradient(#0098be, #0098be, #0098be,#0098be, #0098be,#93e6ef, #5fcbdf, #0098be, #0098be);
+}
+.pachipachi {
+	background: linear-gradient(#91262a,#A71C24,#c2101c, #c50e1b, #d70616,#e30113,#e00214,#e00214,#f17807, #ef7307,#E9430D,#c2101c,#c2101c,#a71c24 ,#91262a);
+}
+.slopachi {
+	background: linear-gradient(to right,#0098be,#0098be,#0098be,#0098be,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+.curororaiten {
+	background: linear-gradient(-45deg,violet,indigo,blue,green,yellow,orange,red,red );
+	/* レインボー修正対応 */
+	background: linear-gradient(-45deg, #00c700, #00c700, #00c700, blue, blue, red, red, red);
+}
+.awardjushou {
+	background-image: linear-gradient(to top left, #F7DE05, #DA8E00, #EDAC06, #F7DE05, #ECB802, #DAAF08, #B67B03);
+}
+.nominate {
+	background-image: linear-gradient(to top left, #E8E8E8, #757575, #9E9E9E, #E8E8E8, #9E9E9E, #9E9E9E, #757575);
+}
+.surpriseslo {
+	background: linear-gradient(to right,#d600af,#d600af,#d600af,#d600af,#0098be,#0098be,#0098be,#0098be);
+}
+.adlibslo {
+	background: linear-gradient(to right, #e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08, #B67B03,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be);
+	text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+}
+.jointslo {
+	text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #000000;
+	background: linear-gradient(to right,#757575,#9E9E9E, #9E9E9E, #E8E8E8, #9E9E9E, #9E9E9E, #757575,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be);
+}
+.richanopacahi {
+    background: linear-gradient(to right,#9108ff,#9108ff,#9108ff,#9108ff,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+.richanoslo {
+    background: linear-gradient(to right,#9108ff,#9108ff,#9108ff,#9108ff,#0098be,#0098be,#0098be,#0098be);
+}
+.richanoslopachi {
+    background: linear-gradient(to right,#9108ff,#9108ff,#9108ff,#9108ff,#9108ff,#9108ff,#9108ff,#9108ff,#0098be,#0098be,#0098be,#0098be,#0098be,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+.maximumslo {
+	background: linear-gradient(to left, #e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08, #B67B03,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c);
+	text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+}
+.adlibpachi {
+	background: linear-gradient(to right, #e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08, #B67B03,#c2101c,#c2101c,#C2101D,#c2101c,#c2101c,#c2101c);
+	text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+}
+.adlibslopachi {
+	background: linear-gradient(to right, #e2cb00,#e2cb00,#e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08, #B67B03,#0098be,#0098be,#0098be,#0098be,#c2101c,#c2101c,#c2101c,#c2101c);
+	text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+}
+.adlibslopachi2 {
+	background: linear-gradient(to right, #e2cb00,#e2cb00,#e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08, #B67B03,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c);
+	text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+}
+.gunmaslopachi {
+	background: linear-gradient(to right, #e2cb00,#e2cb00,#e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08, #B67B03,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c);
+	text-shadow: 1px 1px 1px #000, -1px -1px 2px #000;
+}
+.common{
+	background: linear-gradient(#e77300, #e77300, #e77300,#e77300, #e77300,#ffc182, #fc8e1f, #ff9428, #e77300);
+}
+.impactslo {
+	background: linear-gradient(to left, #e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08, #B67B03,#1d68e2,#1d68e2,#1d68e2,#1d68e2,#1d68e2,#1d68e2);
+	text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+}
+.kokominslo {
+    background: linear-gradient(to right,#d54461,#d54461,#d54461,#d54461,#0098be,#0098be,#0098be,#0098be);
+}
+.kokominpachi {
+    background: linear-gradient(to right,#d54461,#d54461,#d54461,#d54461,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+.kokominslopachi {
+    background: linear-gradient(to right,#d54461,#d54461,#d54461,#d54461,#0098be,#0098be,#0098be,#c2101c,#c2101c,#c2101c);
+}
+.hikarunslo {
+	text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+    background: linear-gradient(to right,#e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08,#B67B03,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be);
+}
+.zzslo {
+	background: linear-gradient(to right,#049f1c,#049f1c,#049f1c,#049f1c,#049f1c,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be);
+}
+.zzpachi {
+	background: linear-gradient(to right,#049f1c,#049f1c,#049f1c,#049f1c,#049f1c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+.zzslopachi {
+	background: linear-gradient(to right,#049f1c,#049f1c,#049f1c,#0098be,#0098be,#0098be,#0098be,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+.premiumpachi {
+	background: linear-gradient(to right,#d600af,#d600af,#d600af,#d600af,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+.tripleslopachi {
+	background: linear-gradient(to right,#9E9E9E,#9E9E9E, #dbd5d5, #9E9E9E, #9E9E9E, #757575,#0098be,#0098be,#0098be,#0098be,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+
+.makotoslo {
+    text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+	background: linear-gradient(to right,#e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08,#B67B03,#0098be,#0098be,#0098be,#0098be,#0098be);
+}
+.makotopachi {
+    text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+	background: linear-gradient(to right,#e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08,#B67B03,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+
+.greatslo {
+	background: linear-gradient(#0098be, #0098be, #0098be,#0098be, #0098be,#93e6ef, #5fcbdf, #0098be, #0098be);
+}
+
+.greatslo > span {
+	color: #ff0000;
+}
+
+.greatslo > div {
+	display: inline;
+	color: #ff0000;
+}
+
+.greatpachi {
+	background: linear-gradient(#91262a,#A71C24,#c2101c, #c50e1b, #d70616,#e30113,#e00214,#e00214,#f17807, #ef7307,#E9430D,#c2101c,#c2101c,#a71c24 ,#91262a);
+}
+
+.greatpachi > div {
+	display: inline;
+	color: #00e0ff;
+}
+
+
+.greatslopachi {
+	background: linear-gradient(to right,#0098be,#0098be,#0098be,#0098be,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+
+.greatslopachi > div {
+	display: inline;
+	color: #ff0000;
+}
+
+.lets > div {
+	display: inline;
+}
+
+.lets > div:nth-child(1) {
+	color: #fff206;
+}
+.lets > div:nth-child(2) {
+	color: #01dd05;
+}
+.lets > div:nth-child(3) {
+    color: #ff81ff;
+}
+.lets > div:nth-child(4) {
+    color: #88f5ff;
+}
+
+.lets > span > div {
+	display: inline;
+}
+
+.lets > span > div:nth-child(1) {
+	color: #fff206;
+}
+.lets > span > div:nth-child(2) {
+	color: #01dd05;
+}
+.lets > span > div:nth-child(3) {
+    color: #ff81ff;
+}
+.lets > span > div:nth-child(4) {
+    color: #88f5ff;
+}
+
+.dengekislo {
+    text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+    /*background: linear-gradient(to right,#e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08,#B67B03,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be);*/
+	background: linear-gradient(to right,#ffff00, #ffff00, #ffff00, #ffff00, #ffff00,#ffff00,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be);
+}
+
+.dengekislo > div {
+	display: inline;
+	color: #000;
+	text-shadow: none;
+}
+
+.uraletsslo {
+    background-color: #282828;
+}
+
+.uraletsslo > div {
+	display: inline;
+	color: #50dcff;
+}
+
+.uraletsslopachi {
+    background-color: #282828;
+}
+
+.uraletsslopachi > div {
+	display: inline;
+}
+
+.uraletsslopachi > div:nth-child(1) {
+	color: #50dcff;
+}
+.uraletsslopachi > div:nth-child(2) {
+	color: #fa525e;
+}
+
+.yuslopachi {
+    background: linear-gradient(to right,#0098be,#0098be,#0098be,#0098be,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+
+.vivaslo {
+	background: linear-gradient(to right,#fe02fe,#fe02fe,#fe02fe,#fe02fe,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be)
+}
+
+.curoroslo {
+	text-shadow: 1px 1px 1px #000000, -1px -1px 2px #000000;
+	background: linear-gradient(-45deg,violet,indigo,blue,green,yellow,orange,red,red );
+	/* レインボー修正対応 */
+	background: linear-gradient(-45deg, #00c700, #00c700, #00c700, blue, blue, red, red, red);
+}
+
+.elevenpachi {
+    text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+    background: linear-gradient(to right, #757575, #9E9E9E, #E8E8E8, #9E9E9E, #9E9E9E, #757575, #757575,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+
+.nineslo {
+    background: linear-gradient(to right,#901ec1,#901ec1,#901ec1,#901ec1,#901ec1,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be);
+}
+.ninepachi {
+    background: linear-gradient(to right,#901ec1,#901ec1,#901ec1,#901ec1,#901ec1,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+.nineslopachi {
+    background: linear-gradient(to right,#901ec1,#901ec1,#901ec1,#901ec1,#901ec1,#0098be,#0098be,#0098be,#0098be,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+
+.anniversaryslo {
+    background: linear-gradient(-45deg,#e2cb00,#e2cb00,#e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08, #B67B03,violet,blue,green,yellow,orange,red,red,red,red );
+	/* レインボー修正対応 */
+	background: linear-gradient(-45deg,#e2cb00,#e2cb00,#e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08, #B67B03, #00c700, #00c700, blue, blue, blue, red, red, red);
+    text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+}
+
+.kingslopachi {
+	background: linear-gradient(to right,#e2cb00, #F7DE05, #ECB802, #DAAF08,#0098be,#0098be,#0098be,#0098be,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+
+.kingslo {
+	text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+    background: linear-gradient(to right,#e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08,#B67B03,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be);
+}
+
+.kingpachi {
+	text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+    background: linear-gradient(to right,#e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08,#B67B03,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+
+.animalslo {
+	background: linear-gradient(to right,#008414,#008414,#008414,#0098be,#0098be,#0098be,#0098be);
+}
+
+.animalpachi {
+	background: linear-gradient(to right,#008414,#008414,#008414,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+
+.paparazzislo {
+	background: linear-gradient(to left,#0098be,#0098be,#0098be,#0098be,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+
+.homerunslo {
+    background: linear-gradient(to right,#ff5a7e,#ff5a7e,#ff5a7e,#ff5a7e,#0098be,#0098be,#0098be,#0098be);
+}
+
+.rainbow {
+	color: #fff;
+	display: inline-block;
+	background: linear-gradient(-45deg,violet,indigo,blue,green,yellow,orange,red,red );
+	/* レインボー修正対応 */
+	background: linear-gradient(-45deg, #00c700, #00c700, #00c700, blue, blue, red, red, red);
+	padding: 0 3px;
+	border-radius: 4px;
+	text-shadow: 0px 1px 1px #414141, 0px -1px 1px #414141;
+	box-shadow: 1px 1px 1px #000;
+}
+
+
+.maskss {
+	background-color: #e224f2;
+}
+
+.maskm {
+	background-color: #f2511a;
+}
+
+.masksp {
+    background: linear-gradient(to right,#4cd6eb,#4cd6eb,#4cd6eb,#4cd6eb,#4cd6eb,#d40506,#d40506,#d40506,#d40506,#d40506);
+}
+
+.masks {
+	background-color: #4cd6eb;
+}
+
+.maskh {
+    background-color: #e5b100;
+}
+
+.maskpp {
+    background-color: #f01eb7;
+}
+
+.maskp {
+    background-color: #d40506;
+}
+.maskad {
+    background: linear-gradient(to left, #e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08, #B67B03);
+}
+
+
+.bg_rainbow {
+	display: inline-block;
+	color: #fff;
+	padding: 2px 2px;
+	line-height: 1;
+	text-shadow: 1px 1px 1px #3d0000;
+	box-shadow: 1px 1px 1px #000;
+	background: linear-gradient(-45deg,violet,indigo,blue,green,yellow,orange,red,red );
+	/* レインボー修正対応 */
+	background: linear-gradient(-45deg, #00c700, #00c700, #00c700, blue, blue, red, red, red);
+}
+.bg_gold {
+	display: inline-block;
+	color: #fff;
+	padding: 2px 2px;
+	line-height: 1;
+	text-shadow: 1px 1px 1px #3d0000;
+	box-shadow: 1px 1px 1px #000;
+	background-image: linear-gradient(to top left, #F7DE05, #DA8E00, #EDAC06, #F7DE05, #ECB802, #DAAF08, #B67B03);
+}
+.bg_silver {
+	display: inline-block;
+	color: #fff;
+	padding: 2px 2px;
+	line-height: 1;
+	text-shadow: 1px 1px 1px #3d0000;
+	box-shadow: 1px 1px 1px #000;
+	background-image: linear-gradient(to top left, #E8E8E8, #757575, #9E9E9E, #E8E8E8, #9E9E9E, #9E9E9E, #757575);
+}
+
+.bg_gold_maru {
+	color: #fff;
+	display: inline-block;
+	background-color: #d0a739;
+	background-image: linear-gradient(to top left, #F7DE05, #DA8E00, #EDAC06, #F7DE05, #ECB802, #DAAF08, #B67B03);
+	padding: 0 3px;
+	border-radius: 4px;
+	text-shadow: 0px 1px 1px #414141, 0px -1px 1px #414141;
+	box-shadow: 1px 1px 1px #000;
+	font-size: 12px;
+}
+
+.bg_gold_maru > .goudou {
+    padding: 0;
+    box-shadow: none;
+}
+
+.bg_red_maru {
+	color: #fff;
+	display: inline-block;
+	background-color: #ff0000;
+	padding: 0 3px;
+	border-radius: 4px;
+	text-shadow: 1px 1px 1px #3d0000;
+	box-shadow: 1px 1px 1px #000;
+	font-size: 12px;
+}
+
+.bg_red_maru > .hatsu {
+    padding: 0;
+    box-shadow: none;
+}
+
+.bg_red {
+	display: inline-block;
+	color: #fff;
+	padding: 2px 2px;
+	line-height: 1;
+	text-shadow: 1px 1px 1px #3d0000;
+	box-shadow: 1px 1px 1px #000;
+	background-image: linear-gradient(to top left, #ef7307, #91262a, #91262a, #ef7307, #E9430D, #c2101c, #91262a);
+}
+
+.raiunslo {
+	background: linear-gradient(to right,#c2101c,#c2101c,#c2101c,#c2101c,#000,#000,#000,#000);
+	font-family: "游明朝", YuMincho, "Hiragino Mincho ProN W3", "ヒラギノ明朝 ProN W3", "Hiragino Mincho ProN", "HG明朝E", "ＭＳ Ｐ明朝", "ＭＳ 明朝", "Sawarabi Mincho", serif;
+}
+
+.landmarkslo {
+	background: linear-gradient(to right,#ec5e0a,#ec5e0a,#ec5e0a,#ec5e0a,#0098be,#0098be,#0098be,#0098be);
+}
+
+.ra_sv {
+	background: linear-gradient(-45deg, #E8E8E8, #757575, #9E9E9E, #E8E8E8, #9E9E9E, #757575, violet, blue, green, yellow, orange, red, red);
+	/* レインボー修正対応 */
+	background: linear-gradient(-45deg, #E8E8E8, #757575, #9E9E9E, #E8E8E8, #9E9E9E, #757575, #00c700, #00c700, blue, blue, blue, red, red, red);
+	text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+}
+
+
+@media only screen and (min-width : 641px){
+	.syuzai_br_sp {
+		display: none;
+	}
+}
+
+
+.bg_white {
+	display: inline-block;
+	color: #000;
+	padding: 2px 2px;
+	line-height: 1;
+	background: #fff;
+	border: 1px solid;
+	text-shadow: none;
+}
+
+.bg_blue {
+	display: inline-block;
+	color: #fff;
+	padding: 2px 2px;
+	line-height: 1;
+	text-shadow: 1px 1px 1px #3d0000;
+	box-shadow: 1px 1px 1px #000;
+	background: #5151ff;
+}
+
+.bg_green {
+	display: inline-block;
+	color: #fff;
+	padding: 2px 2px;
+	line-height: 1;
+	text-shadow: 1px 1px 1px #3d0000;
+	box-shadow: 1px 1px 1px #000;
+	background: green;
+}
+
+.anshin {
+	display: inline-block;
+	padding: 2px 2px;
+	line-height: 1;
+	text-shadow: 1px 1px 1px #3d0000;
+	color: #fff97a;
+	border: 1px solid #000;
+	background-color: #009946;
+}
+
+.goldsilver {
+	text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+	background: linear-gradient(to right, #e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08, #B67B03, #b9b7b7, #757575, #9E9E9E, #dfdfdf, #9E9E9D, #757575);
+}
+
+.ra_purple {
+	background: linear-gradient(-45deg, #d600af, #d600af, #d600af, #d600af, #d600af, #d600af, violet, blue, green, yellow, orange, red, red);
+	/* レインボー修正対応 */
+	background: linear-gradient(-45deg, #d600af, #d600af, #d600af, #d600af, #d600af, #d600af, #d600af, #d600af, #00c700, #00c700, blue, blue, blue, red, red, red);
+	text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+}
+
+.red_sv {
+	text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+	background: linear-gradient(to right, #b9b7b7, #757575, #9E9E9E, #dfdfdf, #9E9E9D, #757575,#c2101c, #c2101c, #c2101c, #c2101c, #c2101c, #c2101c);
+}
+
+.silverblue {
+    text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+    background: linear-gradient(to right, #b9b7b7, #757575, #9E9E9E, #dfdfdf, #9E9E9D, #757575, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be);
+}
+
+.allstar1 {
+	background: linear-gradient(to right, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #ff0000, #ff0000, #0000ff, #0000ff, #00c700, #00c700);
+}
+
+.allstar2 {
+	background: linear-gradient(to right, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #ff0000, #ff0000, #ff0000, #0000ff, #0000ff, #0000ff, #00c700, #00c700, #00c700);
+}
+
+.ra_blue {
+	background: linear-gradient(-45deg, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, violet, blue, green, yellow, orange, red, red, red, red);
+	/* レインボー修正対応 */
+	background: linear-gradient(-45deg, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #00c700, #00c700, blue, blue, blue, red, red, red, red);
+	text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+}
+
+.ra_red {
+	background: linear-gradient(-45deg, #c2101c, #c2101c, #c2101c, #c2101c, #c2101c, #c2101c, #c2101c, #c2101c, violet, blue, green, yellow, orange, red, red, red, red);
+	/* レインボー修正対応 */
+	background: linear-gradient(-45deg, #c2101c, #c2101c, #c2101c, #c2101c, #c2101c, #c2101c, #c2101c, #c2101c, #00c700, #00c700, blue, blue, blue, red, red, red, red);
+	text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+}
+
+#main-contents .surpriseslo_table .ra_blue_title {
+	background: linear-gradient(-45deg, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, violet, blue, green, yellow, orange, red, red, red, red);
+	/* レインボー修正対応 */
+	background: linear-gradient(-45deg, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be, #00c700, #00c700, blue, blue, blue, red, red, red, red);
+}
+
+#main-contents .surpriseslo_table .ra_blue_title th {
+    background: transparent;
+    text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+}
+
+.gold_blue_red {
+    text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+    background: linear-gradient(to right,#e2cb00,#f1d800,#F7DE05,#ECB802,#DAAF08,#B67B03,#0098be,#0098be,#0098be,#0098be,#0098be,#0098be,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c,#c2101c);
+}
+
+.lb_blue {
+	text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+	background: linear-gradient(to right, #9abbfd, #9abbfd, #9abbfd, #9abbfd, #9abbfd, #9abbfd, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be);
+}
+
+.gray_blue {
+    text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+    background: linear-gradient(to right, #646464, #646464, #646464, #646464, #646464, #646464, #0098be, #0098be, #0098be, #0098be, #0098be, #0098be);
+}
+
+.gold_ra {
+    background: linear-gradient(-45deg, #00c700, #00c700, #00c700, blue, blue, red, red, #e2cb00, #e2cb00, #e2cb00, #f1d800, #F7DE05, #ECB802, #DAAF08, #B67B03);
+    text-shadow: 1px 1px 1px #3d0000, -1px -1px 2px #5d5d5d;
+}
+
+.orange_blue {
+    background: linear-gradient(to right, #f29200, #f29200, #f29200, #f29200, #f29200, #0098be, #0098be, #0098be, #0098be, #0098be);
+}

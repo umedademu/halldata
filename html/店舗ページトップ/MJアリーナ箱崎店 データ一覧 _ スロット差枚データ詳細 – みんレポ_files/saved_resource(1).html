@@ -1,0 +1,20 @@
+
+<!-- saved from url=(0091)https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/ -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><script async="" src="./apstag.js.ダウンロード"></script><script>
+  !function(a9,a,p,s,t,A,g){if(a[a9])return;function q(c,r){a[a9]._Q.push([c,r])}a[a9]={init:function(){q("i",arguments)},fetchBids:function(){q("f",arguments)},setDisplayBids:function(){},targetingKeys:function(){return[]},_Q:[]};A=p.createElement(s);A.async=!0;A.src=t;g=p.getElementsByTagName(s)[0];g.parentNode.insertBefore(A,g)}("apstag",window,document,"script","//c.amazon-adsystem.com/aax2/apstag.js");
+
+  function requestBids(apsConfig, bidConfig) {
+    apstag.init(apsConfig);
+    apstag.fetchBids(
+      bidConfig,
+      function (bids) {
+        window.parent.postMessage({type:'CptExApsBidsEnd',bids: bids}, "*");
+      }
+    );
+  }
+
+  window.addEventListener("message", function(ev) {
+    if (ev.data?.type !== 'CptExApsRequest') return;
+    requestBids(ev.data?.apsConfig, ev.data?.bidConfig);
+  });
+</script><script src="./bb49897c-6ae0-4d48-8db0-c4531321096f" type="text/javascript" async="async"></script><script src="./pubcid.min.js.ダウンロード"></script><script src="./id5-api.js.ダウンロード"></script></head><body></body></html>
