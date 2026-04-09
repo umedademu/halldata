@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import queue
 import re
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import Callable
+from urllib.parse import urlparse
 
 from minrepo_scraper import (
     MachineDataset,
@@ -25,6 +27,13 @@ DEFAULT_MACHINE_NAME = "ネオアイムジャグラーEX"
 CHECK_ON = "☑"
 CHECK_OFF = "☐"
 MACHINE_COLUMNS = ("チェック", "機種名", "台数", "平均差枚", "平均G数", "勝率", "出率")
+REGISTERED_STORE_COLUMNS = ("店舗名", "URL")
+
+
+@dataclass
+class RegisteredStore:
+    name: str
+    url: str
 
 
 class MinRepoApp:
@@ -44,6 +53,9 @@ class MinRepoApp:
         self.data_sort_descending = False
         self.data_columns: list[str] = []
         self.data_rows: list[dict[str, str]] = []
+        self.registered_stores: list[RegisteredStore] = [
+            RegisteredStore(name=DEFAULT_STORE_NAME, url=DEFAULT_STORE_URL)
+        ]
         self.is_busy = False
 
         self.store_url_var = tk.StringVar(value=DEFAULT_STORE_URL)
@@ -51,18 +63,34 @@ class MinRepoApp:
         self.machine_list_var = tk.StringVar(value="機種一覧: 未読込")
         self.status_var = tk.StringVar(value="待機中")
         self.summary_var = tk.StringVar(value="未取得")
+        self.register_store_url_var = tk.StringVar()
+        self.register_store_status_var = tk.StringVar(value="未登録")
 
         self._build_ui()
         self._update_button_states()
+        self._refresh_registered_store_table()
 
     def _build_ui(self) -> None:
         container = ttk.Frame(self.root, padding=16)
         container.pack(fill="both", expand=True)
         container.columnconfigure(0, weight=1)
-        container.rowconfigure(1, weight=1)
-        container.rowconfigure(3, weight=2)
+        container.rowconfigure(0, weight=1)
 
-        form = ttk.LabelFrame(container, text="取得条件", padding=12)
+        notebook = ttk.Notebook(container)
+        notebook.grid(row=0, column=0, sticky="nsew")
+
+        fetch_tab = ttk.Frame(notebook, padding=12)
+        fetch_tab.columnconfigure(0, weight=1)
+        fetch_tab.rowconfigure(1, weight=1)
+        fetch_tab.rowconfigure(3, weight=2)
+        notebook.add(fetch_tab, text="データ取得")
+
+        register_tab = ttk.Frame(notebook, padding=12)
+        register_tab.columnconfigure(0, weight=1)
+        register_tab.rowconfigure(1, weight=1)
+        notebook.add(register_tab, text="登録店舗")
+
+        form = ttk.LabelFrame(fetch_tab, text="取得条件", padding=12)
         form.grid(row=0, column=0, sticky="ew")
         form.columnconfigure(1, weight=1)
 
@@ -86,7 +114,7 @@ class MinRepoApp:
         self.fetch_button = ttk.Button(button_row, text="取得", command=self.fetch_data)
         self.fetch_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
 
-        machine_frame = ttk.LabelFrame(container, text="機種一覧", padding=8)
+        machine_frame = ttk.LabelFrame(fetch_tab, text="機種一覧", padding=8)
         machine_frame.grid(row=1, column=0, sticky="nsew", pady=(12, 0))
         machine_frame.columnconfigure(0, weight=1)
         machine_frame.rowconfigure(1, weight=1)
@@ -124,7 +152,7 @@ class MinRepoApp:
         self.machine_tree.bind("<Double-1>", self._on_machine_tree_double_click)
         self.machine_tree.bind("<space>", self._on_machine_tree_space)
 
-        info = ttk.Frame(container, padding=(0, 12, 0, 12))
+        info = ttk.Frame(fetch_tab, padding=(0, 12, 0, 12))
         info.grid(row=2, column=0, sticky="ew")
         info.columnconfigure(1, weight=1)
         info.columnconfigure(3, weight=1)
@@ -134,7 +162,7 @@ class MinRepoApp:
         ttk.Label(info, text="概要").grid(row=0, column=2, sticky="w")
         ttk.Label(info, textvariable=self.summary_var).grid(row=0, column=3, sticky="w", padx=(8, 0))
 
-        table_frame = ttk.LabelFrame(container, text="台データ", padding=8)
+        table_frame = ttk.LabelFrame(fetch_tab, text="台データ", padding=8)
         table_frame.grid(row=3, column=0, sticky="nsew")
         table_frame.columnconfigure(0, weight=1)
         table_frame.rowconfigure(0, weight=1)
@@ -150,10 +178,68 @@ class MinRepoApp:
         x_scroll.grid(row=1, column=0, sticky="ew")
         self.tree.configure(xscrollcommand=x_scroll.set)
 
+        self._build_register_tab(register_tab)
+
     def _configure_machine_tree(self) -> None:
         for column in MACHINE_COLUMNS:
             self.machine_tree.heading(column, text=column, command=lambda current=column: self._sort_machine_table(current))
             self.machine_tree.column(column, width=self._machine_column_width(column), minwidth=80, anchor=self._column_anchor(column))
+
+    def _build_register_tab(self, register_tab: ttk.Frame) -> None:
+        guide = ttk.LabelFrame(register_tab, text="案内", padding=12)
+        guide.grid(row=0, column=0, sticky="ew")
+        guide.columnconfigure(0, weight=1)
+
+        ttk.Label(
+            guide,
+            text=(
+                "ここでは店舗名とURLを仮登録できます。"
+                "今はこのアプリ内だけの一覧で、あとで保存先をつなぎ込める形です。"
+            ),
+            wraplength=900,
+            justify="left",
+        ).grid(row=0, column=0, sticky="w")
+
+        form = ttk.LabelFrame(register_tab, text="店舗を登録", padding=12)
+        form.grid(row=1, column=0, sticky="nsew", pady=(12, 0))
+        form.columnconfigure(1, weight=1)
+        form.rowconfigure(2, weight=1)
+
+        ttk.Label(form, text="店舗URL").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.register_store_url_entry = ttk.Entry(form, textvariable=self.register_store_url_var)
+        self.register_store_url_entry.grid(row=0, column=1, sticky="ew", pady=4)
+
+        action_row = ttk.Frame(form)
+        action_row.grid(row=1, column=1, sticky="w", pady=(8, 8))
+        self.register_store_button = ttk.Button(action_row, text="登録する", command=self.register_store)
+        self.register_store_button.grid(row=0, column=0, sticky="w")
+
+        ttk.Label(action_row, textvariable=self.register_store_status_var).grid(row=0, column=1, sticky="w", padx=(12, 0))
+
+        table_frame = ttk.LabelFrame(form, text="登録済み一覧", padding=8)
+        table_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
+        table_frame.columnconfigure(0, weight=1)
+        table_frame.rowconfigure(0, weight=1)
+
+        self.registered_store_tree = ttk.Treeview(table_frame, columns=REGISTERED_STORE_COLUMNS, show="headings")
+        self.registered_store_tree.grid(row=0, column=0, sticky="nsew")
+
+        for column in REGISTERED_STORE_COLUMNS:
+            self.registered_store_tree.heading(column, text=column)
+            self.registered_store_tree.column(
+                column,
+                width=220 if column == "店舗名" else 760,
+                minwidth=120,
+                anchor="w",
+            )
+
+        y_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=self.registered_store_tree.yview)
+        y_scroll.grid(row=0, column=1, sticky="ns")
+        self.registered_store_tree.configure(yscrollcommand=y_scroll.set)
+
+        x_scroll = ttk.Scrollbar(table_frame, orient="horizontal", command=self.registered_store_tree.xview)
+        x_scroll.grid(row=1, column=0, sticky="ew")
+        self.registered_store_tree.configure(xscrollcommand=x_scroll.set)
 
     def load_machine_list(self) -> None:
         self._clear_machine_list("機種一覧: 読込中")
@@ -164,6 +250,33 @@ class MinRepoApp:
         self.status_var.set("機種一覧取得中...")
         self.summary_var.set("対象日の機種を確認中")
         self._start_worker(self._worker_load_machine_list)
+
+    def register_store(self) -> None:
+        store_url = self.register_store_url_var.get().strip()
+
+        if not store_url:
+            messagebox.showwarning("入力不足", "店舗URLを入力してください。")
+            return
+
+        if not self._is_valid_url(store_url):
+            messagebox.showwarning("入力不正", "店舗URLは http:// または https:// から入力してください。")
+            return
+
+        normalized_url = store_url.rstrip("/")
+        for registered_store in self.registered_stores:
+            if registered_store.url.rstrip("/") == normalized_url:
+                messagebox.showwarning("重複", "同じURLがすでに登録されています。")
+                return
+
+        self.register_store_status_var.set("店舗名を取得中...")
+        self._start_worker(self._worker_register_store, store_url)
+
+    def _worker_register_store(self, store_url: str) -> None:
+        try:
+            store_name = self.scraper.fetch_store_name(store_url)
+            self.result_queue.put(("register_store_success", (store_name, store_url)))
+        except Exception as exc:  # noqa: BLE001
+            self.result_queue.put(("register_store_error", exc))
 
     def fetch_data(self) -> None:
         machine_list = self.current_machine_list
@@ -243,6 +356,24 @@ class MinRepoApp:
                 messagebox.showerror("エラー", "機種一覧の形式が不正です。")
                 return
             self._apply_machine_list(payload)
+            return
+
+        if kind == "register_store_error":
+            self.register_store_status_var.set("店舗登録に失敗しました")
+            self._show_error(payload)
+            return
+
+        if kind == "register_store_success":
+            if (
+                not isinstance(payload, tuple)
+                or len(payload) != 2
+                or not isinstance(payload[0], str)
+                or not isinstance(payload[1], str)
+            ):
+                messagebox.showerror("エラー", "登録店舗の形式が不正です。")
+                return
+            store_name, store_url = payload
+            self._apply_registered_store(store_name, store_url)
             return
 
         if kind == "fetch_error":
@@ -452,6 +583,30 @@ class MinRepoApp:
         self.tree.delete(*self.tree.get_children())
         self.tree["columns"] = ()
 
+    def _refresh_registered_store_table(self) -> None:
+        self.registered_store_tree.delete(*self.registered_store_tree.get_children())
+        for index, registered_store in enumerate(self.registered_stores):
+            self.registered_store_tree.insert(
+                "",
+                "end",
+                iid=f"registered_store_{index}",
+                values=(registered_store.name, registered_store.url),
+            )
+
+    def _apply_registered_store(self, store_name: str, store_url: str) -> None:
+        normalized_name = normalize_text(store_name)
+        normalized_url = store_url.rstrip("/")
+        for registered_store in self.registered_stores:
+            if normalize_text(registered_store.name) == normalized_name or registered_store.url.rstrip("/") == normalized_url:
+                messagebox.showwarning("重複", "同じ店舗名またはURLがすでに登録されています。")
+                self.register_store_status_var.set("登録済みの店舗です")
+                return
+
+        self.registered_stores.append(RegisteredStore(name=store_name, url=store_url))
+        self.register_store_url_var.set("")
+        self.register_store_status_var.set(f"{store_name} を仮登録しました")
+        self._refresh_registered_store_table()
+
     def _clear_machine_list(self, message: str = "機種一覧: 未読込") -> None:
         self.current_machine_list = None
         self.selected_machine_keys = set()
@@ -581,6 +736,10 @@ class MinRepoApp:
     def _is_blank_value(self, value: object) -> bool:
         return str(value).strip() in {"", "-"}
 
+    def _is_valid_url(self, value: str) -> bool:
+        parsed = urlparse(value)
+        return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
     def _sortable_value(self, value: object) -> tuple[int, float | str]:
         text = str(value).strip()
         if text in {"", "-"}:
@@ -611,6 +770,8 @@ class MinRepoApp:
         self.select_all_button.configure(state="disabled" if self.is_busy or not has_machine_list else "normal")
         self.clear_selection_button.configure(state="disabled" if self.is_busy or not has_machine_list else "normal")
         self.target_date_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.register_store_button.configure(state="disabled" if self.is_busy else "normal")
+        self.register_store_url_entry.configure(state="disabled" if self.is_busy else "normal")
 
     def _show_error(self, exc: object) -> None:
         if isinstance(exc, ScraperError):

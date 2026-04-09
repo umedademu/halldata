@@ -82,6 +82,11 @@ class MinRepoScraper:
         self.session = requests.Session()
         self.session.headers.update(DEFAULT_HEADERS)
 
+    def fetch_store_name(self, store_url: str) -> str:
+        store_html = self.fetch_html(store_url)
+        store_soup = BeautifulSoup(store_html, "html.parser")
+        return self.extract_store_name(store_soup)
+
     def fetch_machine_dataset(
         self,
         store_url: str,

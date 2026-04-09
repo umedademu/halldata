@@ -32,6 +32,14 @@ class FixtureScraper(MinRepoScraper):
 
 
 class MinRepoScraperTests(unittest.TestCase):
+    def test_fetch_store_name_from_saved_html(self) -> None:
+        scraper = FixtureScraper()
+        result = scraper.fetch_store_name(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+        )
+
+        self.assertEqual(result, "MJアリーナ箱崎店")
+
     def test_fetch_machine_list_from_saved_html(self) -> None:
         scraper = FixtureScraper()
         result = scraper.fetch_machine_list(
