@@ -45,8 +45,19 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertIn("ネオアイムジャグラーEX", [machine.name for machine in result.machine_entries])
         self.assertIn("パチスロ 転生したら剣でした", [machine.name for machine in result.machine_entries])
         machine_counts = {machine.name: machine.machine_count for machine in result.machine_entries}
+        machine_summaries = {
+            machine.name: (
+                machine.average_difference,
+                machine.average_games,
+                machine.win_rate,
+                machine.payout_rate,
+            )
+            for machine in result.machine_entries
+        }
         self.assertEqual(machine_counts["ネオアイムジャグラーEX"], 40)
         self.assertEqual(machine_counts["パチスロ 転生したら剣でした"], 1)
+        self.assertEqual(machine_summaries["ネオアイムジャグラーEX"], ("227", "3,907", "21/40", "101.9%"))
+        self.assertEqual(machine_summaries["パチスロ 転生したら剣でした"], ("613", "389", "-", "152.5%"))
 
     def test_fetch_machine_dataset_from_saved_html(self) -> None:
         scraper = FixtureScraper()

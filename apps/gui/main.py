@@ -270,19 +270,14 @@ class MinRepoApp:
 
         self.machine_vars = {}
         default_name = normalize_text(DEFAULT_MACHINE_NAME)
+        self._build_machine_list_header()
 
-        for row_index, machine_entry in enumerate(self._sorted_machine_entries(machine_list.machine_entries)):
+        for row_index, machine_entry in enumerate(self._sorted_machine_entries(machine_list.machine_entries), start=1):
             machine_key = normalize_text(machine_entry.name)
             variable = tk.BooleanVar(value=previous_states.get(machine_key, machine_key == default_name))
             self.machine_vars[machine_key] = variable
 
-            checkbutton = ttk.Checkbutton(
-                self.machine_inner,
-                text=self._machine_label(machine_entry),
-                variable=variable,
-                command=self._on_machine_selection_changed,
-            )
-            checkbutton.grid(row=row_index, column=0, sticky="w", padx=4, pady=2)
+            self._build_machine_list_row(row_index, machine_entry, variable)
 
     def _populate_table(self, results: list[MachineDataset]) -> None:
         columns = self._build_table_columns(results)
@@ -342,8 +337,44 @@ class MinRepoApp:
             return sorted(machine_entries, key=lambda machine_entry: (machine_entry.machine_count, machine_entry.name))
         return sorted(machine_entries, key=lambda machine_entry: (-machine_entry.machine_count, machine_entry.name))
 
-    def _machine_label(self, machine_entry: MachineEntry) -> str:
-        return f"{machine_entry.name} ({machine_entry.machine_count}台)"
+    def _build_machine_list_header(self) -> None:
+        headers = ["機種名", "台数", "平均差枚", "平均G数", "勝率", "出率"]
+        widths = [36, 8, 12, 12, 10, 10]
+
+        for column_index, (header_text, width) in enumerate(zip(headers, widths, strict=False)):
+            anchor = "w" if column_index == 0 else "center"
+            label = ttk.Label(self.machine_inner, text=header_text, width=width, anchor=anchor)
+            label.grid(row=0, column=column_index, sticky="ew", padx=4, pady=(0, 4))
+
+        for column_index in range(len(headers)):
+            self.machine_inner.columnconfigure(column_index, weight=1 if column_index == 0 else 0)
+
+    def _build_machine_list_row(
+        self,
+        row_index: int,
+        machine_entry: MachineEntry,
+        variable: tk.BooleanVar,
+    ) -> None:
+        checkbutton = ttk.Checkbutton(
+            self.machine_inner,
+            text=machine_entry.name,
+            variable=variable,
+            command=self._on_machine_selection_changed,
+        )
+        checkbutton.grid(row=row_index, column=0, sticky="w", padx=4, pady=2)
+
+        row_values = [
+            f"{machine_entry.machine_count}台",
+            machine_entry.average_difference,
+            machine_entry.average_games,
+            machine_entry.win_rate,
+            machine_entry.payout_rate,
+        ]
+        widths = [8, 12, 12, 10, 10]
+
+        for column_offset, (value, width) in enumerate(zip(row_values, widths, strict=False), start=1):
+            label = ttk.Label(self.machine_inner, text=value, width=width, anchor="center")
+            label.grid(row=row_index, column=column_offset, sticky="ew", padx=4, pady=2)
 
     def _machine_list_matches_inputs(self, machine_list: MachineListResult) -> bool:
         try:
@@ -424,7 +455,8 @@ class MinRepoApp:
 
         checkbox_state = "disabled" if self.is_busy else "normal"
         for child in self.machine_inner.winfo_children():
-            child.configure(state=checkbox_state)
+            if child.winfo_class() == "TCheckbutton":
+                child.configure(state=checkbox_state)
 
     def _on_machine_list_configure(self, _: tk.Event[tk.Misc]) -> None:
         self.machine_canvas.configure(scrollregion=self.machine_canvas.bbox("all"))

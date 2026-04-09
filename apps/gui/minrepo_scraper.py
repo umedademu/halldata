@@ -31,6 +31,10 @@ class MachineEntry:
     url: str
     section_name: str
     machine_count: int
+    average_difference: str
+    average_games: str
+    win_rate: str
+    payout_rate: str
 
 
 @dataclass
@@ -260,12 +264,17 @@ class MinRepoScraper:
                     continue
 
                 machine_count = self._extract_machine_count(row, section_name)
+                average_difference, average_games, win_rate, payout_rate = self._extract_machine_summary(row, section_name)
                 machine_entries.append(
                     MachineEntry(
                         name=name,
                         url=urljoin(base_url, href),
                         section_name=section_name,
                         machine_count=machine_count,
+                        average_difference=average_difference,
+                        average_games=average_games,
+                        win_rate=win_rate,
+                        payout_rate=payout_rate,
                     )
                 )
                 seen_names.add(normalized_name)
@@ -284,6 +293,19 @@ class MinRepoScraper:
             return int(count_text)
 
         return 0
+
+    def _extract_machine_summary(self, row: Tag, section_name: str) -> tuple[str, str, str, str]:
+        cells = [cell.get_text(strip=True) for cell in row.find_all("td")]
+
+        if section_name == "バラエティ":
+            if len(cells) < 5:
+                return "-", "-", "-", "-"
+            return cells[2], cells[3], "-", cells[4]
+
+        if len(cells) < 5:
+            return "-", "-", "-", "-"
+
+        return cells[1], cells[2], cells[3], cells[4]
 
     def extract_machine_table(self, soup: BeautifulSoup) -> tuple[List[str], List[List[str]]]:
         table = self._find_machine_data_table(soup)
