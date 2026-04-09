@@ -185,13 +185,13 @@ class MinRepoApp:
         )
         self.comparison_focus_button.grid(row=0, column=1, sticky="e")
 
-        self.comparison_fixed_header = ttk.Frame(self.comparison_frame)
+        self.comparison_fixed_header = ttk.Frame(self.comparison_frame, width=1)
         self.comparison_fixed_header.grid(row=1, column=0, sticky="nsw")
 
         self.comparison_header_canvas = tk.Canvas(self.comparison_frame, height=54, highlightthickness=0)
         self.comparison_header_canvas.grid(row=1, column=1, sticky="ew")
 
-        self.comparison_fixed_body_canvas = tk.Canvas(self.comparison_frame, highlightthickness=0)
+        self.comparison_fixed_body_canvas = tk.Canvas(self.comparison_frame, width=1, highlightthickness=0)
         self.comparison_fixed_body_canvas.grid(row=2, column=0, sticky="nsw")
 
         self.comparison_body_canvas = tk.Canvas(self.comparison_frame, highlightthickness=0)
@@ -1023,9 +1023,16 @@ class MinRepoApp:
         self._update_comparison_scrollregion()
 
     def _update_comparison_scrollregion(self) -> None:
+        self.comparison_fixed_header_inner.update_idletasks()
         self.comparison_fixed_body_canvas.update_idletasks()
         self.comparison_header_canvas.update_idletasks()
         self.comparison_body_canvas.update_idletasks()
+        fixed_width = max(
+            self.comparison_fixed_header_inner.winfo_reqwidth(),
+            self.comparison_fixed_body_inner.winfo_reqwidth(),
+        )
+        if fixed_width > 0:
+            self.comparison_fixed_body_canvas.configure(width=fixed_width)
         fixed_body_box = self.comparison_fixed_body_canvas.bbox("all")
         header_box = self.comparison_header_canvas.bbox("all")
         body_box = self.comparison_body_canvas.bbox("all")
