@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List
+from typing import Callable, List
 from urllib.parse import urljoin
 
 import requests
@@ -74,6 +74,13 @@ class MachineHistoryResult:
     end_date: str
     date_pages: List[StoreDatePage]
     datasets: List[MachineDataset]
+
+
+@dataclass
+class FetchProgress:
+    current_step: int
+    total_steps: int
+    message: str
 
 
 def parse_date_input(value: str) -> datetime:
@@ -157,13 +164,23 @@ class MinRepoScraper:
         store_url: str,
         target_date_input: str,
         machine_names: List[str],
+        progress_callback: Callable[[FetchProgress], None] | None = None,
     ) -> MachineHistoryResult:
         store_name, store_soup = self._load_store_page(store_url)
         start_date, end_date = parse_date_range_input(target_date_input)
         date_pages = self.find_date_pages_in_range(store_soup, store_url, target_date_input)
         datasets: List[MachineDataset] = []
+        total_steps = max(1, len(date_pages) * (len(machine_names) + 1) + 1)
+        current_step = 0
 
-        for date_page in date_pages:
+        self._notify_progress(
+            progress_callback,
+            current_step,
+            total_steps,
+            f"{len(date_pages)}日分の取得を準備中",
+        )
+
+        for date_index, date_page in enumerate(date_pages, start=1):
             date_html = self.fetch_html(date_page.date_url)
             date_soup = BeautifulSoup(date_html, "html.parser")
             machine_entries = self.extract_machine_entries(date_soup, date_page.date_url)
@@ -174,13 +191,41 @@ class MinRepoScraper:
                 date_url=date_page.date_url,
                 machine_entries=machine_entries,
             )
+            current_step += 1
+            self._notify_progress(
+                progress_callback,
+                current_step,
+                total_steps,
+                f"{date_index}/{len(date_pages)}日目の機種一覧を確認中",
+            )
 
-            for machine_name in machine_names:
+            for machine_index, machine_name in enumerate(machine_names, start=1):
                 try:
                     machine_entry = self.find_machine_entry(machine_entries, machine_name)
                 except ScraperError:
+                    current_step += 1
+                    self._notify_progress(
+                        progress_callback,
+                        current_step,
+                        total_steps,
+                        f"{date_page.target_date} の {machine_index}/{len(machine_names)}機種目は見つかりませんでした",
+                    )
                     continue
                 datasets.append(self.fetch_machine_dataset_from_entry(machine_list, machine_entry))
+                current_step += 1
+                self._notify_progress(
+                    progress_callback,
+                    current_step,
+                    total_steps,
+                    f"{date_page.target_date} の {machine_index}/{len(machine_names)}機種目を取得中",
+                )
+
+        self._notify_progress(
+            progress_callback,
+            max(0, total_steps - 1),
+            total_steps,
+            "台データの取得完了、自動保存中",
+        )
 
         return MachineHistoryResult(
             store_name=store_name,
@@ -247,6 +292,24 @@ class MinRepoScraper:
             self.session.cookies.set(name, value, domain=".min-repo.com", path="/")
             changed = True
         return changed
+
+    def _notify_progress(
+        self,
+        progress_callback: Callable[[FetchProgress], None] | None,
+        current_step: int,
+        total_steps: int,
+        message: str,
+    ) -> None:
+        if progress_callback is None:
+            return
+
+        progress_callback(
+            FetchProgress(
+                current_step=current_step,
+                total_steps=max(1, total_steps),
+                message=message,
+            )
+        )
 
     def extract_store_name(self, soup: BeautifulSoup) -> str:
         heading = soup.find("h1")

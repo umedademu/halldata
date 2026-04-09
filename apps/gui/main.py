@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 from data_persistence import HistoryPersistenceService, PersistenceSummary
 from minrepo_scraper import (
+    FetchProgress,
     MachineDataset,
     MachineEntry,
     MachineHistoryResult,
@@ -88,11 +89,16 @@ class MinRepoApp:
         self.machine_list_var = tk.StringVar(value="機種一覧: 未読込")
         self.status_var = tk.StringVar(value="待機中")
         self.summary_var = tk.StringVar(value="未取得")
+        self.fetch_progress_value_var = tk.DoubleVar(value=0.0)
+        self.fetch_progress_text_var = tk.StringVar(value="未開始")
         self.comparison_day_tail_var = tk.StringVar(value="全て")
         self.register_store_url_var = tk.StringVar()
         self.register_store_status_var = tk.StringVar(value="未登録")
+        self.fetch_progress_current = 0
+        self.fetch_progress_total = 0
 
         self._build_ui()
+        self._reset_fetch_progress()
         self._update_button_states()
         self._refresh_registered_store_table()
 
@@ -189,6 +195,16 @@ class MinRepoApp:
         ttk.Label(self.fetch_info, textvariable=self.status_var).grid(row=0, column=1, sticky="w", padx=(8, 24))
         ttk.Label(self.fetch_info, text="概要").grid(row=0, column=2, sticky="w")
         ttk.Label(self.fetch_info, textvariable=self.summary_var).grid(row=0, column=3, sticky="w", padx=(8, 0))
+
+        ttk.Label(self.fetch_info, text="進捗").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        self.fetch_progress_bar = ttk.Progressbar(
+            self.fetch_info,
+            variable=self.fetch_progress_value_var,
+            maximum=100,
+            mode="determinate",
+        )
+        self.fetch_progress_bar.grid(row=1, column=1, columnspan=2, sticky="ew", padx=(8, 12), pady=(8, 0))
+        ttk.Label(self.fetch_info, textvariable=self.fetch_progress_text_var).grid(row=1, column=3, sticky="w", pady=(8, 0))
 
         self.comparison_frame = ttk.LabelFrame(self.fetch_tab, text="台データ比較", padding=8)
         self.comparison_frame.grid(row=3, column=0, sticky="nsew")
@@ -321,6 +337,7 @@ class MinRepoApp:
         self.comparison_display_rows = []
         self.comparison_selected_date = None
         self._clear_comparison_table()
+        self._reset_fetch_progress()
         self.status_var.set("機種一覧取得中...")
         self.summary_var.set("期間の終了日を基準に機種を確認中")
         self._start_worker(self._worker_load_machine_list)
@@ -373,6 +390,7 @@ class MinRepoApp:
         self.comparison_display_rows = []
         self.comparison_selected_date = None
         self._clear_comparison_table()
+        self._begin_fetch_progress("対象期間を確認中...")
         self.status_var.set("取得中...")
         self.summary_var.set(f"{len(machine_names)}機種を期間取得中")
         self._start_worker(self._worker_fetch, self.store_url_var.get(), self.target_date_var.get(), machine_names)
@@ -402,10 +420,14 @@ class MinRepoApp:
         machine_names: list[str],
     ) -> None:
         try:
+            def progress_callback(progress: FetchProgress) -> None:
+                self.result_queue.put(("fetch_progress", progress))
+
             result = self.scraper.fetch_machine_history_datasets(
                 store_url=store_url,
                 target_date_input=target_date_input,
                 machine_names=machine_names,
+                progress_callback=progress_callback,
             )
             save_summary = self.persistence_service.save_history_result(result)
             self.result_queue.put(("fetch_success", (result, save_summary)))
@@ -416,6 +438,13 @@ class MinRepoApp:
         try:
             kind, payload = self.result_queue.get_nowait()
         except queue.Empty:
+            if self.is_busy:
+                self.root.after(100, self._poll_queue)
+            return
+
+        if kind == "fetch_progress":
+            if isinstance(payload, FetchProgress):
+                self._apply_fetch_progress(payload)
             if self.is_busy:
                 self.root.after(100, self._poll_queue)
             return
@@ -457,6 +486,7 @@ class MinRepoApp:
             return
 
         if kind == "fetch_error":
+            self._finish_fetch_progress(success=False, message="取得失敗")
             self.status_var.set("失敗")
             self.summary_var.set("取得できませんでした")
             self._show_error(payload)
@@ -473,6 +503,7 @@ class MinRepoApp:
             history_result = payload[0]
             save_summary = payload[1]
         if not isinstance(history_result, MachineHistoryResult):
+            self._finish_fetch_progress(success=False, message="取得失敗")
             self.status_var.set("失敗")
             self.summary_var.set("不明な結果")
             messagebox.showerror("エラー", "取得結果の形式が不正です。")
@@ -482,6 +513,10 @@ class MinRepoApp:
         self.current_results = history_result.datasets
         self._populate_comparison_table(history_result)
         store_name = history_result.store_name
+        self._finish_fetch_progress(
+            success=True,
+            message="取得完了（保存に注意）" if save_summary is not None and save_summary.has_errors else "取得完了",
+        )
         if save_summary is not None and save_summary.has_errors:
             self.status_var.set("完了（保存に注意）")
         else:
@@ -977,6 +1012,50 @@ class MinRepoApp:
         self._clear_comparison_table()
         self.summary_var.set("未取得")
         self.status_var.set("待機中")
+        self._reset_fetch_progress()
+
+    def _begin_fetch_progress(self, message: str) -> None:
+        self.fetch_progress_current = 0
+        self.fetch_progress_total = 0
+        self.fetch_progress_bar.stop()
+        self.fetch_progress_bar.configure(mode="indeterminate", maximum=100)
+        self.fetch_progress_value_var.set(0.0)
+        self.fetch_progress_text_var.set(message)
+        self.fetch_progress_bar.start(12)
+
+    def _apply_fetch_progress(self, progress: FetchProgress) -> None:
+        total_steps = max(1, progress.total_steps)
+        current_step = min(max(0, progress.current_step), total_steps)
+        self.fetch_progress_current = current_step
+        self.fetch_progress_total = total_steps
+        self.fetch_progress_bar.stop()
+        self.fetch_progress_bar.configure(mode="determinate", maximum=100)
+        self.fetch_progress_value_var.set(current_step * 100 / total_steps)
+        self.fetch_progress_text_var.set(f"{current_step}/{total_steps} {progress.message}")
+
+    def _finish_fetch_progress(self, success: bool, message: str) -> None:
+        self.fetch_progress_bar.stop()
+        self.fetch_progress_bar.configure(mode="determinate", maximum=100)
+        if success:
+            total_steps = self.fetch_progress_total or 1
+            self.fetch_progress_current = total_steps
+            self.fetch_progress_total = total_steps
+            self.fetch_progress_value_var.set(100.0)
+            self.fetch_progress_text_var.set(f"{total_steps}/{total_steps} {message}")
+            return
+
+        self.fetch_progress_current = 0
+        self.fetch_progress_total = 0
+        self.fetch_progress_value_var.set(0.0)
+        self.fetch_progress_text_var.set(message)
+
+    def _reset_fetch_progress(self) -> None:
+        self.fetch_progress_bar.stop()
+        self.fetch_progress_bar.configure(mode="determinate", maximum=100)
+        self.fetch_progress_current = 0
+        self.fetch_progress_total = 0
+        self.fetch_progress_value_var.set(0.0)
+        self.fetch_progress_text_var.set("未開始")
 
     def _refresh_machine_list_summary(self) -> None:
         if self.current_machine_list is None:

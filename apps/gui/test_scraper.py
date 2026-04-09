@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 
 from data_persistence import HistoryPersistenceService, build_machine_daily_records
 from main import matches_day_tail
-from minrepo_scraper import MinRepoScraper, parse_date_range_input
+from minrepo_scraper import FetchProgress, MinRepoScraper, parse_date_range_input
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -118,6 +118,23 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual([page.target_date for page in result.date_pages], ["2026-04-07", "2026-04-08"])
         self.assertEqual([dataset.target_date for dataset in result.datasets], ["2026-04-07", "2026-04-08"])
         self.assertTrue(all(dataset.machine_name == "ネオアイムジャグラーEX" for dataset in result.datasets))
+
+    def test_fetch_machine_history_progress_from_saved_html(self) -> None:
+        scraper = FixtureScraper()
+        progress_updates: list[FetchProgress] = []
+
+        scraper.fetch_machine_history_datasets(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-07 ～ 2026-04-08",
+            machine_names=["ネオアイムジャグラーEX"],
+            progress_callback=progress_updates.append,
+        )
+
+        self.assertGreaterEqual(len(progress_updates), 5)
+        self.assertEqual(progress_updates[0].current_step, 0)
+        self.assertEqual(progress_updates[0].total_steps, 5)
+        self.assertEqual(progress_updates[-1].current_step, 4)
+        self.assertIn("自動保存中", progress_updates[-1].message)
 
     def test_build_machine_daily_records_from_history_result(self) -> None:
         scraper = FixtureScraper()
