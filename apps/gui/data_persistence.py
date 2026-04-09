@@ -16,6 +16,7 @@ from minrepo_scraper import MachineHistoryResult, normalize_text
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_LOCAL_SAVE_DIR = ROOT_DIR / "local_data"
+DEFAULT_REGISTERED_STORES_FILE = DEFAULT_LOCAL_SAVE_DIR / "registered_stores.json"
 DEFAULT_SCHEMA = "public"
 DEFAULT_STORES_TABLE = "stores"
 DEFAULT_RESULTS_TABLE = "machine_daily_results"
@@ -29,6 +30,19 @@ class PersistenceSummary:
     local_record_count: int = 0
     supabase_saved: bool = False
     supabase_record_count: int = 0
+    messages: list[str] = field(default_factory=list)
+
+    @property
+    def has_errors(self) -> bool:
+        return bool(self.messages)
+
+
+@dataclass
+class RegisteredStoresPersistenceSummary:
+    local_file_path: str | None = None
+    local_store_count: int = 0
+    supabase_saved: bool = False
+    supabase_store_count: int = 0
     messages: list[str] = field(default_factory=list)
 
     @property
@@ -89,6 +103,41 @@ class HistoryPersistenceService:
 
         return summary
 
+    def load_registered_stores(self) -> list[dict[str, str]]:
+        file_path = self._registered_stores_file_path()
+        if not file_path.exists():
+            return []
+
+        payload = json.loads(file_path.read_text(encoding="utf-8"))
+        if isinstance(payload, dict):
+            raw_stores = payload.get("stores", [])
+        else:
+            raw_stores = payload
+
+        if not isinstance(raw_stores, list):
+            raise RuntimeError("登録店舗ファイルの形式が不正です。")
+
+        return self._normalize_registered_stores(raw_stores)
+
+    def save_registered_stores(self, stores: list[dict[str, str]]) -> RegisteredStoresPersistenceSummary:
+        normalized_stores = self._normalize_registered_stores(stores)
+        summary = RegisteredStoresPersistenceSummary(local_store_count=len(normalized_stores))
+
+        try:
+            local_path = self._save_registered_stores_local(normalized_stores)
+            summary.local_file_path = str(local_path)
+        except Exception as exc:  # noqa: BLE001
+            summary.messages.append(f"登録店舗のローカル保存に失敗しました。\n{exc}")
+
+        try:
+            saved_count = self._save_registered_stores_to_supabase(normalized_stores)
+            summary.supabase_saved = True
+            summary.supabase_store_count = saved_count
+        except Exception as exc:  # noqa: BLE001
+            summary.messages.append(f"登録店舗の Supabase 保存に失敗しました。\n{exc}")
+
+        return summary
+
     def _build_local_snapshot(self, history_result: MachineHistoryResult) -> dict[str, Any]:
         records = build_machine_daily_records(history_result)
         return {
@@ -132,32 +181,20 @@ class HistoryPersistenceService:
         file_path.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
         return file_path
 
+    def _save_registered_stores_local(self, stores: list[dict[str, str]]) -> Path:
+        file_path = self._registered_stores_file_path()
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "saved_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "stores": stores,
+        }
+        file_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        return file_path
+
     def _save_to_supabase(self, snapshot: dict[str, Any]) -> int:
-        settings = self._load_settings()
-        supabase_url = settings.get("SUPABASE_URL", "").strip()
-        supabase_key = (
-            settings.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
-            or settings.get("SUPABASE_SECRET_KEY", "").strip()
-        )
-        if not supabase_url or not supabase_key:
-            raise RuntimeError("env.local に SUPABASE_URL と SUPABASE_SERVICE_ROLE_KEY を設定してください。")
-
-        schema = settings.get("SUPABASE_SCHEMA", DEFAULT_SCHEMA).strip() or DEFAULT_SCHEMA
-        stores_table = settings.get("SUPABASE_STORES_TABLE", DEFAULT_STORES_TABLE).strip() or DEFAULT_STORES_TABLE
-        results_table = settings.get("SUPABASE_MACHINE_RESULTS_TABLE", DEFAULT_RESULTS_TABLE).strip() or DEFAULT_RESULTS_TABLE
+        supabase_url, _, schema, stores_table, results_table = self._supabase_config()
         now_text = datetime.now().astimezone().isoformat(timespec="seconds")
-
-        session = requests.Session()
-        session.headers.update(
-            {
-                "apikey": supabase_key,
-                "Authorization": f"Bearer {supabase_key}",
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "Accept-Profile": schema,
-                "Content-Profile": schema,
-            }
-        )
+        session = self._create_supabase_session(schema)
 
         store_payload = {
             "store_name": snapshot["store"]["store_name"],
@@ -192,6 +229,32 @@ class HistoryPersistenceService:
 
         return len(result_payloads)
 
+    def _save_registered_stores_to_supabase(self, stores: list[dict[str, str]]) -> int:
+        if not stores:
+            return 0
+
+        supabase_url, _, schema, stores_table, _ = self._supabase_config()
+        session = self._create_supabase_session(schema)
+        now_text = datetime.now().astimezone().isoformat(timespec="seconds")
+        payloads = [
+            {
+                "store_name": store["store_name"],
+                "store_url": store["store_url"],
+                "updated_at": now_text,
+            }
+            for store in stores
+        ]
+        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(stores_table, safe='')}?on_conflict=store_url"
+        for payload_chunk in _chunk_items(payloads, 500):
+            response = session.post(
+                endpoint,
+                headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
+                json=payload_chunk,
+                timeout=30,
+            )
+            response.raise_for_status()
+        return len(payloads)
+
     def _upsert_store(
         self,
         session: requests.Session,
@@ -211,6 +274,70 @@ class HistoryPersistenceService:
         if not body or "id" not in body[0]:
             raise RuntimeError("Supabase 側で店舗IDを取得できませんでした。")
         return str(body[0]["id"])
+
+    def _registered_stores_file_path(self) -> Path:
+        settings = self._load_settings()
+        file_text = settings.get("REGISTERED_STORES_FILE") or settings.get("SUPABASE_REGISTERED_STORES_FILE")
+        file_path = Path(file_text) if file_text else DEFAULT_REGISTERED_STORES_FILE
+        if not file_path.is_absolute():
+            file_path = self.root_dir / file_path
+        return file_path
+
+    def _normalize_registered_stores(self, stores: list[dict[str, Any]]) -> list[dict[str, str]]:
+        normalized_stores: list[dict[str, str]] = []
+        seen_keys: set[tuple[str, str]] = set()
+
+        for store in stores:
+            if not isinstance(store, dict):
+                continue
+
+            store_name = str(store.get("store_name", store.get("name", ""))).strip()
+            store_url = str(store.get("store_url", store.get("url", ""))).strip()
+            if not store_name or not store_url:
+                continue
+
+            dedupe_key = (normalize_text(store_name), store_url.rstrip("/"))
+            if dedupe_key in seen_keys:
+                continue
+            seen_keys.add(dedupe_key)
+            normalized_stores.append(
+                {
+                    "store_name": store_name,
+                    "store_url": store_url,
+                }
+            )
+
+        return normalized_stores
+
+    def _supabase_config(self) -> tuple[str, str, str, str, str]:
+        settings = self._load_settings()
+        supabase_url = settings.get("SUPABASE_URL", "").strip()
+        supabase_key = (
+            settings.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+            or settings.get("SUPABASE_SECRET_KEY", "").strip()
+        )
+        if not supabase_url or not supabase_key:
+            raise RuntimeError("env.local に SUPABASE_URL と SUPABASE_SERVICE_ROLE_KEY を設定してください。")
+
+        schema = settings.get("SUPABASE_SCHEMA", DEFAULT_SCHEMA).strip() or DEFAULT_SCHEMA
+        stores_table = settings.get("SUPABASE_STORES_TABLE", DEFAULT_STORES_TABLE).strip() or DEFAULT_STORES_TABLE
+        results_table = settings.get("SUPABASE_MACHINE_RESULTS_TABLE", DEFAULT_RESULTS_TABLE).strip() or DEFAULT_RESULTS_TABLE
+        return supabase_url, supabase_key, schema, stores_table, results_table
+
+    def _create_supabase_session(self, schema: str) -> requests.Session:
+        _, supabase_key, _, _, _ = self._supabase_config()
+        session = requests.Session()
+        session.headers.update(
+            {
+                "apikey": supabase_key,
+                "Authorization": f"Bearer {supabase_key}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Accept-Profile": schema,
+                "Content-Profile": schema,
+            }
+        )
+        return session
 
     def _load_settings(self) -> dict[str, str]:
         settings = dict(os.environ)

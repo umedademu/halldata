@@ -10,7 +10,11 @@ from tkinter import messagebox, ttk
 from typing import Callable
 from urllib.parse import urlparse
 
-from data_persistence import HistoryPersistenceService, PersistenceSummary
+from data_persistence import (
+    HistoryPersistenceService,
+    PersistenceSummary,
+    RegisteredStoresPersistenceSummary,
+)
 from minrepo_scraper import (
     FetchProgress,
     MachineDataset,
@@ -78,9 +82,8 @@ class MinRepoApp:
         self.comparison_focus_mode = False
         self.comparison_header_click_regions: list[tuple[int, int, int, int, str]] = []
         self.comparison_text_cache: dict[tuple[str, int], str] = {}
-        self.registered_stores: list[RegisteredStore] = [
-            RegisteredStore(name=DEFAULT_STORE_NAME, url=DEFAULT_STORE_URL)
-        ]
+        self.startup_store_warning: str | None = None
+        self.registered_stores: list[RegisteredStore] = self._load_registered_stores_on_startup()
         self.is_busy = False
 
         self.selected_store_var = tk.StringVar(value=DEFAULT_STORE_NAME)
@@ -102,6 +105,8 @@ class MinRepoApp:
         self._reset_fetch_progress()
         self._update_button_states()
         self._refresh_registered_store_table()
+        if self.startup_store_warning:
+            self.root.after(100, lambda: messagebox.showwarning("登録店舗", self.startup_store_warning))
 
     def _build_ui(self) -> None:
         container = ttk.Frame(self.root, padding=16)
@@ -336,6 +341,23 @@ class MinRepoApp:
         x_scroll = ttk.Scrollbar(table_frame, orient="horizontal", command=self.registered_store_tree.xview)
         x_scroll.grid(row=1, column=0, sticky="ew")
         self.registered_store_tree.configure(xscrollcommand=x_scroll.set)
+
+    def _load_registered_stores_on_startup(self) -> list[RegisteredStore]:
+        default_stores = [RegisteredStore(name=DEFAULT_STORE_NAME, url=DEFAULT_STORE_URL)]
+
+        try:
+            saved_stores = self.persistence_service.load_registered_stores()
+        except Exception as exc:  # noqa: BLE001
+            self.startup_store_warning = f"登録店舗の読込に失敗したため、初期店舗だけを表示します。\n{exc}"
+            return default_stores
+
+        registered_stores = [
+            RegisteredStore(name=store["store_name"], url=store["store_url"])
+            for store in saved_stores
+        ]
+        if not registered_stores:
+            return default_stores
+        return registered_stores
 
     def load_machine_list(self) -> None:
         self._clear_machine_list("機種一覧: 読込中")
@@ -984,9 +1006,25 @@ class MinRepoApp:
 
         self.registered_stores.append(RegisteredStore(name=store_name, url=store_url))
         self.register_store_url_var.set("")
-        self.register_store_status_var.set(f"{store_name} を仮登録しました")
         self._refresh_registered_store_table()
         self._refresh_store_selector()
+        save_summary = self._persist_registered_stores()
+        if save_summary.has_errors:
+            self.register_store_status_var.set(f"{store_name} を登録しました（保存に注意）")
+            messagebox.showwarning("登録店舗", "\n\n".join(save_summary.messages))
+            return
+
+        self.register_store_status_var.set(f"{store_name} を登録しました")
+
+    def _persist_registered_stores(self) -> RegisteredStoresPersistenceSummary:
+        store_payloads = [
+            {
+                "store_name": registered_store.name,
+                "store_url": registered_store.url,
+            }
+            for registered_store in self.registered_stores
+        ]
+        return self.persistence_service.save_registered_stores(store_payloads)
 
     def _clear_machine_list(self, message: str = "機種一覧: 未読込") -> None:
         self.current_machine_list = None

@@ -184,6 +184,30 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertIsNotNone(summary.local_file_path)
             self.assertTrue(Path(summary.local_file_path).exists())
 
+    def test_save_and_load_registered_stores(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            service._save_registered_stores_to_supabase = lambda stores: len(stores)  # type: ignore[method-assign]
+
+            summary = service.save_registered_stores(
+                [
+                    {"store_name": "MJアリーナ箱崎店", "store_url": "https://example.com/a"},
+                    {"store_name": "ABCホール", "store_url": "https://example.com/b"},
+                ]
+            )
+            loaded_stores = service.load_registered_stores()
+
+            self.assertFalse(summary.has_errors)
+            self.assertTrue(summary.supabase_saved)
+            self.assertEqual(summary.supabase_store_count, 2)
+            self.assertEqual(
+                loaded_stores,
+                [
+                    {"store_name": "MJアリーナ箱崎店", "store_url": "https://example.com/a"},
+                    {"store_name": "ABCホール", "store_url": "https://example.com/b"},
+                ],
+            )
+
     def test_find_date_pages_handles_year_rollover_without_year_label(self) -> None:
         scraper = MinRepoScraper()
         soup = BeautifulSoup(
