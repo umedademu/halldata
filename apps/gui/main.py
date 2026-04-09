@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import queue
+import re
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
+from typing import Callable
 
 from minrepo_scraper import (
     MachineDataset,
@@ -20,27 +22,31 @@ DEFAULT_STORE_NAME = "MJアリーナ箱崎店"
 DEFAULT_STORE_URL = "https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/"
 DEFAULT_TARGET_DATE = "2026-04-08"
 DEFAULT_MACHINE_NAME = "ネオアイムジャグラーEX"
-SORT_DESCENDING = "台数が多い順"
-SORT_ASCENDING = "台数が少ない順"
+MACHINE_COLUMNS = ("選択", "機種名", "台数", "平均差枚", "平均G数", "勝率", "出率")
 
 
 class MinRepoApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("Halldata Prototype")
-        self.root.geometry("1280x860")
+        self.root.geometry("1320x900")
 
         self.scraper = MinRepoScraper()
         self.result_queue: queue.Queue[tuple[str, object]] = queue.Queue()
         self.current_results: list[MachineDataset] = []
         self.current_machine_list: MachineListResult | None = None
-        self.machine_vars: dict[str, tk.BooleanVar] = {}
+        self.selected_machine_keys: set[str] = set()
+        self.machine_sort_column = "台数"
+        self.machine_sort_descending = True
+        self.data_sort_column: str | None = None
+        self.data_sort_descending = False
+        self.data_columns: list[str] = []
+        self.data_rows: list[dict[str, str]] = []
         self.is_busy = False
 
         self.store_url_var = tk.StringVar(value=DEFAULT_STORE_URL)
         self.target_date_var = tk.StringVar(value=DEFAULT_TARGET_DATE)
         self.machine_list_var = tk.StringVar(value="機種一覧: 未読込")
-        self.machine_sort_var = tk.StringVar(value=SORT_DESCENDING)
         self.status_var = tk.StringVar(value="待機中")
         self.summary_var = tk.StringVar(value="未取得")
 
@@ -51,7 +57,8 @@ class MinRepoApp:
         container = ttk.Frame(self.root, padding=16)
         container.pack(fill="both", expand=True)
         container.columnconfigure(0, weight=1)
-        container.rowconfigure(3, weight=1)
+        container.rowconfigure(1, weight=1)
+        container.rowconfigure(3, weight=2)
 
         form = ttk.LabelFrame(container, text="取得条件", padding=12)
         form.grid(row=0, column=0, sticky="ew")
@@ -77,7 +84,7 @@ class MinRepoApp:
         self.fetch_button = ttk.Button(button_row, text="取得", command=self.fetch_data)
         self.fetch_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
 
-        machine_frame = ttk.LabelFrame(container, text="機種選択", padding=8)
+        machine_frame = ttk.LabelFrame(container, text="機種一覧", padding=8)
         machine_frame.grid(row=1, column=0, sticky="nsew", pady=(12, 0))
         machine_frame.columnconfigure(0, weight=1)
         machine_frame.rowconfigure(1, weight=1)
@@ -88,34 +95,32 @@ class MinRepoApp:
 
         ttk.Label(machine_actions, textvariable=self.machine_list_var).grid(row=0, column=0, sticky="w")
 
-        ttk.Label(machine_actions, text="並び").grid(row=0, column=1, sticky="e", padx=(8, 4))
-        self.machine_sort_box = ttk.Combobox(
-            machine_actions,
-            textvariable=self.machine_sort_var,
-            values=(SORT_DESCENDING, SORT_ASCENDING),
-            state="readonly",
-            width=16,
-        )
-        self.machine_sort_box.grid(row=0, column=2, sticky="e")
-        self.machine_sort_box.bind("<<ComboboxSelected>>", self._on_sort_changed)
-
         self.select_all_button = ttk.Button(machine_actions, text="全選択", command=self.select_all_machines)
-        self.select_all_button.grid(row=0, column=3, sticky="e", padx=(8, 0))
+        self.select_all_button.grid(row=0, column=1, sticky="e", padx=(8, 0))
 
         self.clear_selection_button = ttk.Button(machine_actions, text="全解除", command=self.clear_machine_selection)
-        self.clear_selection_button.grid(row=0, column=4, sticky="e", padx=(8, 0))
+        self.clear_selection_button.grid(row=0, column=2, sticky="e", padx=(8, 0))
 
-        self.machine_canvas = tk.Canvas(machine_frame, height=220, highlightthickness=0)
-        self.machine_canvas.grid(row=1, column=0, sticky="nsew")
+        machine_table_frame = ttk.Frame(machine_frame)
+        machine_table_frame.grid(row=1, column=0, sticky="nsew")
+        machine_table_frame.columnconfigure(0, weight=1)
+        machine_table_frame.rowconfigure(0, weight=1)
 
-        machine_scroll = ttk.Scrollbar(machine_frame, orient="vertical", command=self.machine_canvas.yview)
-        machine_scroll.grid(row=1, column=1, sticky="ns")
-        self.machine_canvas.configure(yscrollcommand=machine_scroll.set)
+        self.machine_tree = ttk.Treeview(machine_table_frame, columns=MACHINE_COLUMNS, show="headings", selectmode="extended")
+        self.machine_tree.grid(row=0, column=0, sticky="nsew")
 
-        self.machine_inner = ttk.Frame(self.machine_canvas)
-        self.machine_window = self.machine_canvas.create_window((0, 0), window=self.machine_inner, anchor="nw")
-        self.machine_inner.bind("<Configure>", self._on_machine_list_configure)
-        self.machine_canvas.bind("<Configure>", self._on_machine_canvas_configure)
+        machine_y_scroll = ttk.Scrollbar(machine_table_frame, orient="vertical", command=self.machine_tree.yview)
+        machine_y_scroll.grid(row=0, column=1, sticky="ns")
+        self.machine_tree.configure(yscrollcommand=machine_y_scroll.set)
+
+        machine_x_scroll = ttk.Scrollbar(machine_table_frame, orient="horizontal", command=self.machine_tree.xview)
+        machine_x_scroll.grid(row=1, column=0, sticky="ew")
+        self.machine_tree.configure(xscrollcommand=machine_x_scroll.set)
+        self._configure_machine_tree()
+
+        self.machine_tree.bind("<ButtonRelease-1>", self._on_machine_tree_click)
+        self.machine_tree.bind("<Double-1>", self._on_machine_tree_double_click)
+        self.machine_tree.bind("<space>", self._on_machine_tree_space)
 
         info = ttk.Frame(container, padding=(0, 12, 0, 12))
         info.grid(row=2, column=0, sticky="ew")
@@ -143,9 +148,16 @@ class MinRepoApp:
         x_scroll.grid(row=1, column=0, sticky="ew")
         self.tree.configure(xscrollcommand=x_scroll.set)
 
+    def _configure_machine_tree(self) -> None:
+        for column in MACHINE_COLUMNS:
+            self.machine_tree.heading(column, text=column, command=lambda current=column: self._sort_machine_table(current))
+            self.machine_tree.column(column, width=self._machine_column_width(column), minwidth=80, anchor=self._column_anchor(column))
+
     def load_machine_list(self) -> None:
         self._clear_machine_list("機種一覧: 読込中")
         self.current_results = []
+        self.data_rows = []
+        self.data_columns = []
         self._clear_table()
         self.status_var.set("機種一覧取得中...")
         self.summary_var.set("対象日の機種を確認中")
@@ -166,6 +178,8 @@ class MinRepoApp:
             return
 
         self.current_results = []
+        self.data_rows = []
+        self.data_columns = []
         self._clear_table()
         self.status_var.set("取得中...")
         self.summary_var.set(f"{len(machine_names)}機種を取得中")
@@ -252,52 +266,184 @@ class MinRepoApp:
 
     def _apply_machine_list(self, machine_list: MachineListResult) -> None:
         self.current_machine_list = machine_list
-        self._build_machine_checkboxes(machine_list)
+        self.selected_machine_keys = set()
+        default_key = normalize_text(DEFAULT_MACHINE_NAME)
+        if any(normalize_text(machine.name) == default_key for machine in machine_list.machine_entries):
+            self.selected_machine_keys.add(default_key)
+
+        self.machine_sort_column = "台数"
+        self.machine_sort_descending = True
+        self._refresh_machine_table()
         self._refresh_machine_list_summary()
         self.status_var.set("機種一覧読込完了")
         self.summary_var.set(
             f"{machine_list.store_name} / {machine_list.target_date} / {len(machine_list.machine_entries)}機種"
         )
 
-    def _build_machine_checkboxes(self, machine_list: MachineListResult) -> None:
-        previous_states = {
-            machine_key: variable.get()
-            for machine_key, variable in self.machine_vars.items()
-        }
+    def _refresh_machine_table(self) -> None:
+        self.machine_tree.delete(*self.machine_tree.get_children())
+        self._update_machine_headings()
 
-        for child in self.machine_inner.winfo_children():
-            child.destroy()
+        machine_list = self.current_machine_list
+        if machine_list is None:
+            return
 
-        self.machine_vars = {}
-        default_name = normalize_text(DEFAULT_MACHINE_NAME)
-        self._build_machine_list_header()
-
-        for row_index, machine_entry in enumerate(self._sorted_machine_entries(machine_list.machine_entries), start=1):
+        for machine_entry in self._sorted_machine_entries(machine_list.machine_entries):
             machine_key = normalize_text(machine_entry.name)
-            variable = tk.BooleanVar(value=previous_states.get(machine_key, machine_key == default_name))
-            self.machine_vars[machine_key] = variable
+            self.machine_tree.insert(
+                "",
+                "end",
+                iid=machine_key,
+                values=(
+                    "○" if machine_key in self.selected_machine_keys else "",
+                    machine_entry.name,
+                    machine_entry.machine_count,
+                    machine_entry.average_difference,
+                    machine_entry.average_games,
+                    machine_entry.win_rate,
+                    machine_entry.payout_rate,
+                ),
+            )
 
-            self._build_machine_list_row(row_index, machine_entry, variable)
+    def _sort_machine_table(self, column: str) -> None:
+        if self.current_machine_list is None:
+            return
+
+        if self.machine_sort_column == column:
+            self.machine_sort_descending = not self.machine_sort_descending
+        else:
+            self.machine_sort_column = column
+            self.machine_sort_descending = False
+
+        self._refresh_machine_table()
+
+    def _update_machine_headings(self) -> None:
+        for column in MACHINE_COLUMNS:
+            heading_text = self._heading_text(column, self.machine_sort_column, self.machine_sort_descending)
+            self.machine_tree.heading(column, text=heading_text, command=lambda current=column: self._sort_machine_table(current))
+
+    def _sorted_machine_entries(self, machine_entries: list[MachineEntry]) -> list[MachineEntry]:
+        return self._sort_records(
+            machine_entries,
+            value_getter=lambda machine_entry: self._machine_value(machine_entry, self.machine_sort_column),
+            descending=self.machine_sort_descending,
+        )
+
+    def _machine_value(self, machine_entry: MachineEntry, column: str) -> str | int:
+        machine_key = normalize_text(machine_entry.name)
+        values: dict[str, str | int] = {
+            "選択": 1 if machine_key in self.selected_machine_keys else 0,
+            "機種名": machine_entry.name,
+            "台数": machine_entry.machine_count,
+            "平均差枚": machine_entry.average_difference,
+            "平均G数": machine_entry.average_games,
+            "勝率": machine_entry.win_rate,
+            "出率": machine_entry.payout_rate,
+        }
+        return values.get(column, "")
+
+    def _on_machine_tree_click(self, event: tk.Event[tk.Misc]) -> str | None:
+        if self.machine_tree.identify("region", event.x, event.y) != "cell":
+            return None
+
+        item_id = self.machine_tree.identify_row(event.y)
+        column_id = self.machine_tree.identify_column(event.x)
+        if item_id and column_id == "#1":
+            self._toggle_machine_selection(item_id)
+            return "break"
+        return None
+
+    def _on_machine_tree_double_click(self, event: tk.Event[tk.Misc]) -> str | None:
+        if self.machine_tree.identify("region", event.x, event.y) != "cell":
+            return None
+
+        item_id = self.machine_tree.identify_row(event.y)
+        if item_id:
+            self._toggle_machine_selection(item_id)
+            return "break"
+        return None
+
+    def _on_machine_tree_space(self, _: tk.Event[tk.Misc]) -> str:
+        for item_id in self.machine_tree.selection():
+            self._toggle_machine_selection(item_id, refresh=False)
+        self._refresh_machine_marks()
+        return "break"
+
+    def _toggle_machine_selection(self, item_id: str, refresh: bool = True) -> None:
+        if item_id in self.selected_machine_keys:
+            self.selected_machine_keys.remove(item_id)
+        else:
+            self.selected_machine_keys.add(item_id)
+
+        if refresh:
+            self._refresh_machine_marks()
+
+    def _refresh_machine_marks(self) -> None:
+        if self.machine_sort_column == "選択":
+            self._refresh_machine_table()
+            self._refresh_machine_list_summary()
+            return
+
+        for item_id in self.machine_tree.get_children():
+            values = list(self.machine_tree.item(item_id, "values"))
+            if not values:
+                continue
+            values[0] = "○" if item_id in self.selected_machine_keys else ""
+            self.machine_tree.item(item_id, values=values)
+        self._refresh_machine_list_summary()
 
     def _populate_table(self, results: list[MachineDataset]) -> None:
-        columns = self._build_table_columns(results)
-        self.tree["columns"] = columns
-        for column in columns:
-            self.tree.heading(column, text=column)
-            self.tree.column(
-                column,
-                width=self._column_width(column),
-                minwidth=80,
-                anchor="w" if column == "機種名" else "center",
-            )
+        self.data_columns = self._build_table_columns(results)
+        self.data_rows = []
+        self.data_sort_column = None
+        self.data_sort_descending = False
 
         for result in results:
             source_columns = [column for column in result.columns if not self._is_machine_name_column(column)]
 
             for row in result.rows:
-                row_map = dict(zip(source_columns, self._filter_machine_name_values(result.columns, row), strict=False))
-                values = [result.machine_name if column == "機種名" else row_map.get(column, "") for column in columns]
-                self.tree.insert("", "end", values=values)
+                row_values = self._filter_machine_name_values(result.columns, row)
+                row_map = dict(zip(source_columns, row_values, strict=False))
+                record = {column: "" for column in self.data_columns}
+                record["機種名"] = result.machine_name
+                for column, value in row_map.items():
+                    record[column] = value
+                self.data_rows.append(record)
+
+        self._refresh_data_table()
+
+    def _refresh_data_table(self) -> None:
+        self._clear_table()
+        self.tree["columns"] = self.data_columns
+
+        for column in self.data_columns:
+            heading_text = self._heading_text(column, self.data_sort_column, self.data_sort_descending)
+            self.tree.heading(column, text=heading_text, command=lambda current=column: self._sort_data_table(current))
+            self.tree.column(
+                column,
+                width=self._column_width(column),
+                minwidth=80,
+                anchor=self._column_anchor(column),
+            )
+
+        rows = self.data_rows
+        if self.data_sort_column:
+            rows = self._sort_records(
+                self.data_rows,
+                value_getter=lambda row: row.get(self.data_sort_column or "", ""),
+                descending=self.data_sort_descending,
+            )
+
+        for row in rows:
+            self.tree.insert("", "end", values=[row.get(column, "") for column in self.data_columns])
+
+    def _sort_data_table(self, column: str) -> None:
+        if self.data_sort_column == column:
+            self.data_sort_descending = not self.data_sort_descending
+        else:
+            self.data_sort_column = column
+            self.data_sort_descending = False
+        self._refresh_data_table()
 
     def _clear_table(self) -> None:
         self.tree.delete(*self.tree.get_children())
@@ -305,10 +451,10 @@ class MinRepoApp:
 
     def _clear_machine_list(self, message: str = "機種一覧: 未読込") -> None:
         self.current_machine_list = None
-        self.machine_vars = {}
-        for child in self.machine_inner.winfo_children():
-            child.destroy()
+        self.selected_machine_keys = set()
+        self.machine_tree.delete(*self.machine_tree.get_children())
         self.machine_list_var.set(message)
+        self._update_machine_headings()
         self._update_button_states()
 
     def _refresh_machine_list_summary(self) -> None:
@@ -327,54 +473,9 @@ class MinRepoApp:
         machine_names: list[str] = []
         for machine_entry in self.current_machine_list.machine_entries:
             machine_key = normalize_text(machine_entry.name)
-            variable = self.machine_vars.get(machine_key)
-            if variable and variable.get():
+            if machine_key in self.selected_machine_keys:
                 machine_names.append(machine_entry.name)
         return machine_names
-
-    def _sorted_machine_entries(self, machine_entries: list[MachineEntry]) -> list[MachineEntry]:
-        if self.machine_sort_var.get() == SORT_ASCENDING:
-            return sorted(machine_entries, key=lambda machine_entry: (machine_entry.machine_count, machine_entry.name))
-        return sorted(machine_entries, key=lambda machine_entry: (-machine_entry.machine_count, machine_entry.name))
-
-    def _build_machine_list_header(self) -> None:
-        headers = ["機種名", "台数", "平均差枚", "平均G数", "勝率", "出率"]
-        widths = [36, 8, 12, 12, 10, 10]
-
-        for column_index, (header_text, width) in enumerate(zip(headers, widths, strict=False)):
-            anchor = "w" if column_index == 0 else "center"
-            label = ttk.Label(self.machine_inner, text=header_text, width=width, anchor=anchor)
-            label.grid(row=0, column=column_index, sticky="ew", padx=4, pady=(0, 4))
-
-        for column_index in range(len(headers)):
-            self.machine_inner.columnconfigure(column_index, weight=1 if column_index == 0 else 0)
-
-    def _build_machine_list_row(
-        self,
-        row_index: int,
-        machine_entry: MachineEntry,
-        variable: tk.BooleanVar,
-    ) -> None:
-        checkbutton = ttk.Checkbutton(
-            self.machine_inner,
-            text=machine_entry.name,
-            variable=variable,
-            command=self._on_machine_selection_changed,
-        )
-        checkbutton.grid(row=row_index, column=0, sticky="w", padx=4, pady=2)
-
-        row_values = [
-            f"{machine_entry.machine_count}台",
-            machine_entry.average_difference,
-            machine_entry.average_games,
-            machine_entry.win_rate,
-            machine_entry.payout_rate,
-        ]
-        widths = [8, 12, 12, 10, 10]
-
-        for column_offset, (value, width) in enumerate(zip(row_values, widths, strict=False), start=1):
-            label = ttk.Label(self.machine_inner, text=value, width=width, anchor="center")
-            label.grid(row=row_index, column=column_offset, sticky="ew", padx=4, pady=2)
 
     def _machine_list_matches_inputs(self, machine_list: MachineListResult) -> bool:
         try:
@@ -391,23 +492,16 @@ class MinRepoApp:
         return True
 
     def select_all_machines(self) -> None:
-        for variable in self.machine_vars.values():
-            variable.set(True)
-        self._refresh_machine_list_summary()
+        machine_list = self.current_machine_list
+        if machine_list is None:
+            return
+
+        self.selected_machine_keys = {normalize_text(machine.name) for machine in machine_list.machine_entries}
+        self._refresh_machine_marks()
 
     def clear_machine_selection(self) -> None:
-        for variable in self.machine_vars.values():
-            variable.set(False)
-        self._refresh_machine_list_summary()
-
-    def _on_machine_selection_changed(self) -> None:
-        self._refresh_machine_list_summary()
-
-    def _on_sort_changed(self, _: tk.Event[tk.Misc]) -> None:
-        if self.current_machine_list is None:
-            return
-        self._build_machine_checkboxes(self.current_machine_list)
-        self._refresh_machine_list_summary()
+        self.selected_machine_keys.clear()
+        self._refresh_machine_marks()
 
     def _build_table_columns(self, results: list[MachineDataset]) -> list[str]:
         columns = ["機種名"]
@@ -442,8 +536,71 @@ class MinRepoApp:
             return 100
         return 120
 
+    def _machine_column_width(self, column: str) -> int:
+        widths = {
+            "選択": 70,
+            "機種名": 340,
+            "台数": 80,
+            "平均差枚": 100,
+            "平均G数": 100,
+            "勝率": 100,
+            "出率": 100,
+        }
+        return widths.get(column, 100)
+
+    def _column_anchor(self, column: str) -> str:
+        return "w" if column == "機種名" else "center"
+
+    def _heading_text(self, column: str, current_column: str | None, descending: bool) -> str:
+        if column != current_column:
+            return column
+        return f"{column} {'▼' if descending else '▲'}"
+
+    def _sort_records(
+        self,
+        records: list[object],
+        value_getter: Callable[[object], object],
+        descending: bool,
+    ) -> list[object]:
+        filled_records: list[object] = []
+        blank_records: list[object] = []
+
+        for record in records:
+            value = value_getter(record)
+            if self._is_blank_value(value):
+                blank_records.append(record)
+            else:
+                filled_records.append(record)
+
+        filled_records.sort(key=lambda record: self._sortable_value(value_getter(record)), reverse=descending)
+        return filled_records + blank_records
+
+    def _is_blank_value(self, value: object) -> bool:
+        return str(value).strip() in {"", "-"}
+
+    def _sortable_value(self, value: object) -> tuple[int, float | str]:
+        text = str(value).strip()
+        if text in {"", "-"}:
+            return (2, "")
+
+        if isinstance(value, int):
+            return (0, float(value))
+
+        normalized = text.replace(",", "").replace("台", "").replace("%", "")
+        if re.fullmatch(r"-?\d+(?:\.\d+)?", normalized):
+            return (0, float(normalized))
+
+        ratio_match = re.fullmatch(r"(-?\d+(?:\.\d+)?)/(-?\d+(?:\.\d+)?)", text.replace(",", ""))
+        if ratio_match:
+            numerator = float(ratio_match.group(1))
+            denominator = float(ratio_match.group(2))
+            if denominator != 0:
+                return (0, numerator / denominator)
+
+        return (1, normalize_text(text))
+
     def _update_button_states(self) -> None:
-        has_machine_list = self.current_machine_list is not None and bool(self.machine_vars)
+        has_machine_list = self.current_machine_list is not None
         has_selection = bool(self._selected_machine_names())
 
         self.load_machine_button.configure(state="disabled" if self.is_busy else "normal")
@@ -451,18 +608,6 @@ class MinRepoApp:
         self.select_all_button.configure(state="disabled" if self.is_busy or not has_machine_list else "normal")
         self.clear_selection_button.configure(state="disabled" if self.is_busy or not has_machine_list else "normal")
         self.target_date_entry.configure(state="disabled" if self.is_busy else "normal")
-        self.machine_sort_box.configure(state="disabled" if self.is_busy or not has_machine_list else "readonly")
-
-        checkbox_state = "disabled" if self.is_busy else "normal"
-        for child in self.machine_inner.winfo_children():
-            if child.winfo_class() == "TCheckbutton":
-                child.configure(state=checkbox_state)
-
-    def _on_machine_list_configure(self, _: tk.Event[tk.Misc]) -> None:
-        self.machine_canvas.configure(scrollregion=self.machine_canvas.bbox("all"))
-
-    def _on_machine_canvas_configure(self, event: tk.Event[tk.Misc]) -> None:
-        self.machine_canvas.itemconfigure(self.machine_window, width=event.width)
 
     def _show_error(self, exc: object) -> None:
         if isinstance(exc, ScraperError):
