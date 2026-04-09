@@ -56,6 +56,7 @@ class MinRepoApp:
         self.comparison_sort_descending = False
         self.comparison_slot_numbers: list[str] = []
         self.comparison_rows: list[dict[str, str]] = []
+        self.comparison_focus_mode = False
         self.registered_stores: list[RegisteredStore] = [
             RegisteredStore(name=DEFAULT_STORE_NAME, url=DEFAULT_STORE_URL)
         ]
@@ -83,35 +84,35 @@ class MinRepoApp:
         notebook = ttk.Notebook(container)
         notebook.grid(row=0, column=0, sticky="nsew")
 
-        fetch_tab = ttk.Frame(notebook, padding=12)
-        fetch_tab.columnconfigure(0, weight=1)
-        fetch_tab.rowconfigure(1, weight=1)
-        fetch_tab.rowconfigure(3, weight=2)
-        notebook.add(fetch_tab, text="データ取得")
+        self.fetch_tab = ttk.Frame(notebook, padding=12)
+        self.fetch_tab.columnconfigure(0, weight=1)
+        self.fetch_tab.rowconfigure(1, weight=1)
+        self.fetch_tab.rowconfigure(3, weight=2)
+        notebook.add(self.fetch_tab, text="データ取得")
 
         register_tab = ttk.Frame(notebook, padding=12)
         register_tab.columnconfigure(0, weight=1)
         register_tab.rowconfigure(1, weight=1)
         notebook.add(register_tab, text="登録店舗")
 
-        form = ttk.LabelFrame(fetch_tab, text="取得条件", padding=12)
-        form.grid(row=0, column=0, sticky="ew")
-        form.columnconfigure(1, weight=1)
+        self.fetch_form = ttk.LabelFrame(self.fetch_tab, text="取得条件", padding=12)
+        self.fetch_form.grid(row=0, column=0, sticky="ew")
+        self.fetch_form.columnconfigure(1, weight=1)
 
-        ttk.Label(form, text="対象店舗").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=4)
-        self.store_selector = ttk.Combobox(form, textvariable=self.selected_store_var, state="readonly")
+        ttk.Label(self.fetch_form, text="対象店舗").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.store_selector = ttk.Combobox(self.fetch_form, textvariable=self.selected_store_var, state="readonly")
         self.store_selector.grid(row=0, column=1, sticky="w", pady=4)
         self.store_selector.bind("<<ComboboxSelected>>", self._on_selected_store_changed)
 
-        ttk.Label(form, text="店舗URL").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=4)
-        self.store_url_entry = ttk.Entry(form, textvariable=self.store_url_var, state="readonly")
+        ttk.Label(self.fetch_form, text="店舗URL").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.store_url_entry = ttk.Entry(self.fetch_form, textvariable=self.store_url_var, state="readonly")
         self.store_url_entry.grid(row=1, column=1, sticky="ew", pady=4)
 
-        ttk.Label(form, text="対象期間").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=4)
-        self.target_date_entry = ttk.Entry(form, textvariable=self.target_date_var, width=30)
+        ttk.Label(self.fetch_form, text="対象期間").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.target_date_entry = ttk.Entry(self.fetch_form, textvariable=self.target_date_var, width=30)
         self.target_date_entry.grid(row=2, column=1, sticky="w", pady=4)
 
-        button_row = ttk.Frame(form)
+        button_row = ttk.Frame(self.fetch_form)
         button_row.grid(row=3, column=1, sticky="w", pady=(8, 0))
 
         self.load_machine_button = ttk.Button(button_row, text="機種一覧を読み込む", command=self.load_machine_list)
@@ -120,12 +121,12 @@ class MinRepoApp:
         self.fetch_button = ttk.Button(button_row, text="取得", command=self.fetch_data)
         self.fetch_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
 
-        machine_frame = ttk.LabelFrame(fetch_tab, text="機種一覧", padding=8)
-        machine_frame.grid(row=1, column=0, sticky="nsew", pady=(12, 0))
-        machine_frame.columnconfigure(0, weight=1)
-        machine_frame.rowconfigure(1, weight=1)
+        self.machine_frame = ttk.LabelFrame(self.fetch_tab, text="機種一覧", padding=8)
+        self.machine_frame.grid(row=1, column=0, sticky="nsew", pady=(12, 0))
+        self.machine_frame.columnconfigure(0, weight=1)
+        self.machine_frame.rowconfigure(1, weight=1)
 
-        machine_actions = ttk.Frame(machine_frame)
+        machine_actions = ttk.Frame(self.machine_frame)
         machine_actions.grid(row=0, column=0, sticky="ew", pady=(0, 8))
         machine_actions.columnconfigure(0, weight=1)
 
@@ -137,7 +138,7 @@ class MinRepoApp:
         self.clear_selection_button = ttk.Button(machine_actions, text="全解除", command=self.clear_machine_selection)
         self.clear_selection_button.grid(row=0, column=2, sticky="e", padx=(8, 0))
 
-        machine_table_frame = ttk.Frame(machine_frame)
+        machine_table_frame = ttk.Frame(self.machine_frame)
         machine_table_frame.grid(row=1, column=0, sticky="nsew")
         machine_table_frame.columnconfigure(0, weight=1)
         machine_table_frame.rowconfigure(0, weight=1)
@@ -158,39 +159,50 @@ class MinRepoApp:
         self.machine_tree.bind("<Double-1>", self._on_machine_tree_double_click)
         self.machine_tree.bind("<space>", self._on_machine_tree_space)
 
-        info = ttk.Frame(fetch_tab, padding=(0, 12, 0, 12))
-        info.grid(row=2, column=0, sticky="ew")
-        info.columnconfigure(1, weight=1)
-        info.columnconfigure(3, weight=1)
+        self.fetch_info = ttk.Frame(self.fetch_tab, padding=(0, 12, 0, 12))
+        self.fetch_info.grid(row=2, column=0, sticky="ew")
+        self.fetch_info.columnconfigure(1, weight=1)
+        self.fetch_info.columnconfigure(3, weight=1)
 
-        ttk.Label(info, text="状態").grid(row=0, column=0, sticky="w")
-        ttk.Label(info, textvariable=self.status_var).grid(row=0, column=1, sticky="w", padx=(8, 24))
-        ttk.Label(info, text="概要").grid(row=0, column=2, sticky="w")
-        ttk.Label(info, textvariable=self.summary_var).grid(row=0, column=3, sticky="w", padx=(8, 0))
+        ttk.Label(self.fetch_info, text="状態").grid(row=0, column=0, sticky="w")
+        ttk.Label(self.fetch_info, textvariable=self.status_var).grid(row=0, column=1, sticky="w", padx=(8, 24))
+        ttk.Label(self.fetch_info, text="概要").grid(row=0, column=2, sticky="w")
+        ttk.Label(self.fetch_info, textvariable=self.summary_var).grid(row=0, column=3, sticky="w", padx=(8, 0))
 
-        table_frame = ttk.LabelFrame(fetch_tab, text="台データ比較", padding=8)
-        table_frame.grid(row=3, column=0, sticky="nsew")
-        table_frame.columnconfigure(1, weight=1)
-        table_frame.rowconfigure(1, weight=1)
+        self.comparison_frame = ttk.LabelFrame(self.fetch_tab, text="台データ比較", padding=8)
+        self.comparison_frame.grid(row=3, column=0, sticky="nsew")
+        self.comparison_frame.columnconfigure(1, weight=1)
+        self.comparison_frame.rowconfigure(2, weight=1)
 
-        self.comparison_fixed_header = ttk.Frame(table_frame)
-        self.comparison_fixed_header.grid(row=0, column=0, sticky="nsw")
+        comparison_actions = ttk.Frame(self.comparison_frame)
+        comparison_actions.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 8))
+        comparison_actions.columnconfigure(0, weight=1)
 
-        self.comparison_header_canvas = tk.Canvas(table_frame, height=54, highlightthickness=0)
-        self.comparison_header_canvas.grid(row=0, column=1, sticky="ew")
+        self.comparison_focus_button = ttk.Button(
+            comparison_actions,
+            text="台データ表を広く表示",
+            command=self.toggle_comparison_focus,
+        )
+        self.comparison_focus_button.grid(row=0, column=1, sticky="e")
 
-        self.comparison_fixed_body_canvas = tk.Canvas(table_frame, highlightthickness=0)
-        self.comparison_fixed_body_canvas.grid(row=1, column=0, sticky="nsw")
+        self.comparison_fixed_header = ttk.Frame(self.comparison_frame)
+        self.comparison_fixed_header.grid(row=1, column=0, sticky="nsw")
 
-        self.comparison_body_canvas = tk.Canvas(table_frame, highlightthickness=0)
-        self.comparison_body_canvas.grid(row=1, column=1, sticky="nsew")
+        self.comparison_header_canvas = tk.Canvas(self.comparison_frame, height=54, highlightthickness=0)
+        self.comparison_header_canvas.grid(row=1, column=1, sticky="ew")
 
-        y_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=self._scroll_comparison_y)
-        y_scroll.grid(row=1, column=2, sticky="ns")
+        self.comparison_fixed_body_canvas = tk.Canvas(self.comparison_frame, highlightthickness=0)
+        self.comparison_fixed_body_canvas.grid(row=2, column=0, sticky="nsw")
+
+        self.comparison_body_canvas = tk.Canvas(self.comparison_frame, highlightthickness=0)
+        self.comparison_body_canvas.grid(row=2, column=1, sticky="nsew")
+
+        y_scroll = ttk.Scrollbar(self.comparison_frame, orient="vertical", command=self._scroll_comparison_y)
+        y_scroll.grid(row=2, column=2, sticky="ns")
         self.comparison_y_scrollbar = y_scroll
 
-        x_scroll = ttk.Scrollbar(table_frame, orient="horizontal", command=self._scroll_comparison_x)
-        x_scroll.grid(row=2, column=1, sticky="ew")
+        x_scroll = ttk.Scrollbar(self.comparison_frame, orient="horizontal", command=self._scroll_comparison_x)
+        x_scroll.grid(row=3, column=1, sticky="ew")
         self.comparison_body_canvas.configure(xscrollcommand=x_scroll.set)
         self.comparison_x_scrollbar = x_scroll
 
@@ -827,6 +839,26 @@ class MinRepoApp:
         self.machine_list_var.set(message)
         self._update_machine_headings()
         self._update_button_states()
+
+    def toggle_comparison_focus(self) -> None:
+        self.comparison_focus_mode = not self.comparison_focus_mode
+        self._apply_comparison_focus_mode()
+
+    def _apply_comparison_focus_mode(self) -> None:
+        if self.comparison_focus_mode:
+            self.fetch_form.grid_remove()
+            self.machine_frame.grid_remove()
+            self.fetch_info.grid_remove()
+            self.fetch_tab.rowconfigure(1, weight=0)
+            self.fetch_tab.rowconfigure(3, weight=1)
+            self.comparison_focus_button.configure(text="元に戻す")
+        else:
+            self.fetch_form.grid()
+            self.machine_frame.grid()
+            self.fetch_info.grid()
+            self.fetch_tab.rowconfigure(1, weight=1)
+            self.fetch_tab.rowconfigure(3, weight=2)
+            self.comparison_focus_button.configure(text="台データ表を広く表示")
 
     def _reset_fetch_display_for_store_change(self) -> None:
         self._clear_machine_list("機種一覧: 未読込")
