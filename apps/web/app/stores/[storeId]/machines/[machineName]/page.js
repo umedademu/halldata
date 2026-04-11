@@ -15,10 +15,7 @@ import {
   formatPeriod,
   formatSignedNumber,
 } from "../../../../../lib/format";
-import {
-  NEO_IM_JUGGLER_EX_RATE_TABLE,
-  isNeoImJugglerExName,
-} from "../../../../../lib/neoim-juggler";
+import { getSettingEstimateDefinition } from "../../../../../lib/setting-estimates";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +52,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
     notFound();
   }
 
-  const shouldShowNeoImJugglerRates = isNeoImJugglerExName(machineName);
+  const settingEstimateDefinition = getSettingEstimateDefinition(machineName);
 
   return (
     <main className="pageStack">
@@ -134,12 +131,12 @@ export default async function MachineDetailPage({ params, searchParams }) {
         </article>
       </section>
 
-      {shouldShowNeoImJugglerRates ? (
+      {settingEstimateDefinition ? (
         <section className="tablePanel">
           <div className="tablePanelHeader">
             <div>
               <p className="sectionLabel">設定推測</p>
-              <h2 className="tablePanelTitle">ネオアイムジャグラーEX 確率</h2>
+              <h2 className="tablePanelTitle">{settingEstimateDefinition.displayName} 確率</h2>
             </div>
           </div>
           <div className="tableScroller directoryScroller">
@@ -153,7 +150,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
                 </tr>
               </thead>
               <tbody>
-                {NEO_IM_JUGGLER_EX_RATE_TABLE.map((row) => (
+                {settingEstimateDefinition.rateTable.map((row) => (
                   <tr key={row.setting}>
                     <th scope="row">{row.setting}</th>
                     <td>{row.bb}</td>

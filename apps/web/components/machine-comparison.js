@@ -15,11 +15,11 @@ import {
 } from "../lib/format";
 import { createEventFilters, matchesEventFilters } from "../lib/event-filters";
 import {
-  calculateNeoImJugglerSettingEstimate,
-  formatNeoImJugglerSettingAverage,
-  formatNeoImJugglerSettingBreakdown,
-  isNeoImJugglerExName,
-} from "../lib/neoim-juggler";
+  calculateSettingEstimate,
+  formatSettingEstimateAverage,
+  formatSettingEstimateBreakdown,
+  getSettingEstimateDefinition,
+} from "../lib/setting-estimates";
 import { CsvExportButton } from "./csv-export-button";
 
 const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, value) => value);
@@ -33,30 +33,42 @@ const DEFAULT_VISIBLE_METRIC_KEYS = [
 ];
 const MATRIX_DATE_COLUMN_WIDTH_REM = 4.8;
 const MATRIX_SLOT_WIDTH_REM = 16;
-const neoImJugglerEstimateCache = new WeakMap();
+const settingEstimateCache = new WeakMap();
 
-function getNeoImJugglerSettingEstimate(record) {
+function getSettingEstimate(definition, record) {
   if (!record) {
     return null;
   }
-  if (neoImJugglerEstimateCache.has(record)) {
-    return neoImJugglerEstimateCache.get(record);
+  if (!settingEstimateCache.has(record)) {
+    settingEstimateCache.set(record, new Map());
   }
-  const estimate = calculateNeoImJugglerSettingEstimate(record);
-  neoImJugglerEstimateCache.set(record, estimate);
+  const recordCache = settingEstimateCache.get(record);
+  if (recordCache.has(definition.key)) {
+    return recordCache.get(definition.key);
+  }
+  const estimate = calculateSettingEstimate(definition, record);
+  recordCache.set(definition.key, estimate);
   return estimate;
 }
 
-function renderNeoImJugglerSetting(_value, record) {
-  return formatNeoImJugglerSettingAverage(getNeoImJugglerSettingEstimate(record));
+function createSettingEstimateMetric(definition) {
+  const renderSettingEstimate = (_value, record) =>
+    formatSettingEstimateAverage(getSettingEstimate(definition, record));
+  const titleSettingEstimate = (_value, record) =>
+    formatSettingEstimateBreakdown(getSettingEstimate(definition, record));
+
+  return {
+    key: "setting_estimate",
+    label: "設定",
+    render: renderSettingEstimate,
+    csvRender: renderSettingEstimate,
+    title: titleSettingEstimate,
+    columnClass: "matrixColumnNarrow",
+  };
 }
 
-function titleNeoImJugglerSetting(_value, record) {
-  return formatNeoImJugglerSettingBreakdown(getNeoImJugglerSettingEstimate(record));
-}
-
-function getNeoImJugglerHighlightClass(record) {
-  const estimate = getNeoImJugglerSettingEstimate(record);
+function getSettingEstimateHighlightClass(definition, record) {
+  const estimate = getSettingEstimate(definition, record);
   if (!estimate) {
     return "";
   }
@@ -112,23 +124,18 @@ const COMMON_METRICS = [
   { key: "combined_ratio_text", label: "合成", render: formatRatio, columnClass: "matrixColumnWide" },
 ];
 
-const NEO_IM_JUGGLER_SETTING_METRIC = {
-  key: "setting_estimate",
-  label: "設定",
-  render: renderNeoImJugglerSetting,
-  csvRender: renderNeoImJugglerSetting,
-  title: titleNeoImJugglerSetting,
-  columnClass: "matrixColumnNarrow",
-};
-
 const RATIO_METRICS = [
   { key: "bb_ratio_text", label: "BB率", render: formatRatio, columnClass: "matrixColumnWide" },
   { key: "rb_ratio_text", label: "RB率", render: formatRatio, columnClass: "matrixColumnWide" },
 ];
 
-function getMetrics(machineName) {
-  if (isNeoImJugglerExName(machineName)) {
-    return [...COMMON_METRICS, NEO_IM_JUGGLER_SETTING_METRIC, ...RATIO_METRICS];
+function getMetrics(settingEstimateDefinition) {
+  if (settingEstimateDefinition) {
+    return [
+      ...COMMON_METRICS,
+      createSettingEstimateMetric(settingEstimateDefinition),
+      ...RATIO_METRICS,
+    ];
   }
   return [...COMMON_METRICS, ...RATIO_METRICS];
 }
@@ -164,18 +171,18 @@ const MatrixRow = memo(function MatrixRow({
   slotNumbers,
   visibleMetrics,
   isHighlighted,
-  canHighlightSettings,
+  settingEstimateDefinition,
 }) {
   return (
     <tr className={isHighlighted ? "matrixRowHighlighted" : ""}>
       <th className="dateCell">{formatShortDate(row.date)}</th>
       {slotNumbers.flatMap((slotNumber, slotIndex) => {
         const record = row.recordsBySlot[slotNumber] ?? null;
-        const settingHighlightClass = canHighlightSettings
-          ? getNeoImJugglerHighlightClass(record)
+        const settingHighlightClass = settingEstimateDefinition
+          ? getSettingEstimateHighlightClass(settingEstimateDefinition, record)
           : "";
-        const settingTitle = canHighlightSettings
-          ? formatNeoImJugglerSettingBreakdown(getNeoImJugglerSettingEstimate(record))
+        const settingTitle = settingEstimateDefinition
+          ? formatSettingEstimateBreakdown(getSettingEstimate(settingEstimateDefinition, record))
           : "";
         const isLastSlot = slotIndex === slotNumbers.length - 1;
 
@@ -216,11 +223,11 @@ export function MachineComparison({
   const [eventDisplayMode, setEventDisplayMode] = useState(initialEventDisplayMode);
   const [visibleMetricKeys, setVisibleMetricKeys] = useState(DEFAULT_VISIBLE_METRIC_KEYS);
   const [isPending, startTransition] = useTransition();
-  const metrics = useMemo(() => getMetrics(machineName), [machineName]);
-  const canHighlightSettings = useMemo(
-    () => metrics.some((metric) => metric.key === "setting_estimate"),
-    [metrics],
+  const settingEstimateDefinition = useMemo(
+    () => getSettingEstimateDefinition(machineName),
+    [machineName],
   );
+  const metrics = useMemo(() => getMetrics(settingEstimateDefinition), [settingEstimateDefinition]);
 
   const visibleMetrics = useMemo(
     () => metrics.filter((metric) => visibleMetricKeys.includes(metric.key)),
@@ -415,7 +422,7 @@ export function MachineComparison({
         dateRows={visibleRows}
         visibleMetrics={visibleMetrics}
         highlightedDateSet={highlightedDateSet}
-        canHighlightSettings={canHighlightSettings}
+        settingEstimateDefinition={settingEstimateDefinition}
         csvRows={csvRows}
         tableStyle={tableStyle}
       />
@@ -429,7 +436,7 @@ function MachineComparisonTable({
   dateRows,
   visibleMetrics,
   highlightedDateSet,
-  canHighlightSettings,
+  settingEstimateDefinition,
   csvRows,
   tableStyle,
 }) {
@@ -507,7 +514,7 @@ function MachineComparisonTable({
                 slotNumbers={slotNumbers}
                 visibleMetrics={visibleMetrics}
                 isHighlighted={highlightedDateSet.has(row.date)}
-                canHighlightSettings={canHighlightSettings}
+                settingEstimateDefinition={settingEstimateDefinition}
               />
             ))}
           </tbody>

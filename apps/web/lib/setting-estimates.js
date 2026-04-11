@@ -1,4 +1,40 @@
-export const NEO_IM_JUGGLER_EX_DISPLAY_NAME = "ネオアイムジャグラーEX";
+const SETTING_ESTIMATE_DEFINITIONS = [
+  {
+    key: "neoim-juggler-ex",
+    displayName: "ネオアイムジャグラーEX",
+    matchNames: ["ネオアイムジャグラーEX"],
+    settings: [
+      { setting: 1, label: "設定1", bbText: "1/273.1", rbText: "1/439.8" },
+      { setting: 2, label: "設定2", bbText: "1/269.7", rbText: "1/399.6" },
+      { setting: 3, label: "設定3", bbText: "1/269.7", rbText: "1/331.0" },
+      { setting: 4, label: "設定4", bbText: "1/259.0", rbText: "1/315.1" },
+      { setting: 5, label: "設定5", bbText: "1/259.0", rbText: "1/255.0" },
+      { setting: 6, label: "設定6", bbText: "1/255.0", rbText: "1/255.0" },
+    ],
+  },
+  {
+    key: "sumaslo-hanabi",
+    displayName: "スマスロ ハナビ",
+    matchNames: ["スマスロ ハナビ", "ハナビBH"],
+    settings: [
+      { setting: 1, label: "設定1", bbText: "1/312.1", rbText: "1/385.5" },
+      { setting: 2, label: "設定2", bbText: "1/303.4", rbText: "1/368.2" },
+      { setting: 5, label: "設定5", bbText: "1/292.6", rbText: "1/348.6" },
+      { setting: 6, label: "設定6", bbText: "1/277.7", rbText: "1/324.4" },
+    ],
+  },
+  {
+    key: "shin-hanabi",
+    displayName: "新ハナビ",
+    matchNames: ["新ハナビ"],
+    settings: [
+      { setting: 1, label: "設定1", bbText: "1/277.7", rbText: "1/356.2" },
+      { setting: 2, label: "設定2", bbText: "1/268.6", rbText: "1/331.0" },
+      { setting: 5, label: "設定5", bbText: "1/256.0", rbText: "1/306.2" },
+      { setting: 6, label: "設定6", bbText: "1/248.2", rbText: "1/280.1" },
+    ],
+  },
+];
 
 function parseRateText(value) {
   const denominator = Number(String(value).replace("1/", ""));
@@ -10,10 +46,11 @@ function parseRateText(value) {
 
 function formatDenominator(value) {
   const rounded = Math.round(value * 100) / 100;
-  if (Number.isInteger(rounded)) {
-    return rounded.toFixed(1);
+  const text = rounded.toFixed(2).replace(/0$/u, "");
+  if (text.endsWith(".")) {
+    return `${text}0`;
   }
-  return rounded.toFixed(2);
+  return text;
 }
 
 function formatRateFromProbability(probability) {
@@ -37,33 +74,6 @@ function formatProbabilityValue(probability) {
   return "0%";
 }
 
-const settingRateSeeds = [
-  { setting: 1, label: "設定1", bbText: "1/273.1", rbText: "1/439.8" },
-  { setting: 2, label: "設定2", bbText: "1/269.7", rbText: "1/399.6" },
-  { setting: 3, label: "設定3", bbText: "1/269.7", rbText: "1/331.0" },
-  { setting: 4, label: "設定4", bbText: "1/259.0", rbText: "1/315.1" },
-  { setting: 5, label: "設定5", bbText: "1/259.0", rbText: "1/255.0" },
-  { setting: 6, label: "設定6", bbText: "1/255.0", rbText: "1/255.0" },
-];
-
-export const NEO_IM_JUGGLER_EX_SETTING_RATES = settingRateSeeds.map((row) => {
-  const bb = parseRateText(row.bbText);
-  const rb = parseRateText(row.rbText);
-  return {
-    ...row,
-    bb,
-    rb,
-    combined: bb + rb,
-  };
-});
-
-export const NEO_IM_JUGGLER_EX_RATE_TABLE = NEO_IM_JUGGLER_EX_SETTING_RATES.map((row) => ({
-  setting: row.label,
-  bb: row.bbText,
-  rb: row.rbText,
-  combined: formatRateFromProbability(row.combined),
-}));
-
 function normalizeMachineName(value) {
   return String(value ?? "")
     .normalize("NFKC")
@@ -71,8 +81,40 @@ function normalizeMachineName(value) {
     .toUpperCase();
 }
 
-export function isNeoImJugglerExName(machineName) {
-  return normalizeMachineName(machineName).includes(normalizeMachineName(NEO_IM_JUGGLER_EX_DISPLAY_NAME));
+function buildDefinition(definition) {
+  const settingRates = definition.settings.map((row) => {
+    const bb = parseRateText(row.bbText);
+    const rb = parseRateText(row.rbText);
+    return {
+      ...row,
+      bb,
+      rb,
+      combined: bb + rb,
+    };
+  });
+
+  return {
+    ...definition,
+    normalizedMatchNames: [definition.displayName, ...definition.matchNames].map(normalizeMachineName),
+    settingRates,
+    rateTable: settingRates.map((row) => ({
+      setting: row.label,
+      bb: row.bbText,
+      rb: row.rbText,
+      combined: formatRateFromProbability(row.combined),
+    })),
+  };
+}
+
+const settingEstimateDefinitions = SETTING_ESTIMATE_DEFINITIONS.map(buildDefinition);
+
+export function getSettingEstimateDefinition(machineName) {
+  const normalizedMachineName = normalizeMachineName(machineName);
+  return (
+    settingEstimateDefinitions.find((definition) =>
+      definition.normalizedMatchNames.some((matchName) => normalizedMachineName.includes(matchName)),
+    ) ?? null
+  );
 }
 
 function readNumber(value) {
@@ -124,12 +166,13 @@ function calculateLogBinomialProbability(successCount, totalCount, probability) 
   );
 }
 
-export function calculateNeoImJugglerSettingEstimate(record) {
+export function calculateSettingEstimate(definition, record) {
   const games = readNumber(record?.games_count);
   const bbCount = readNumber(record?.bb_count);
   const rbCount = readNumber(record?.rb_count);
 
   if (
+    !definition ||
     !Number.isInteger(games) ||
     games <= 0 ||
     !isValidCount(bbCount, games) ||
@@ -138,7 +181,7 @@ export function calculateNeoImJugglerSettingEstimate(record) {
     return null;
   }
 
-  const logRows = NEO_IM_JUGGLER_EX_SETTING_RATES.map((row) => ({
+  const logRows = definition.settingRates.map((row) => ({
     setting: row.setting,
     label: row.label,
     logValue:
@@ -177,17 +220,17 @@ export function calculateNeoImJugglerSettingEstimate(record) {
   };
 }
 
-export function formatNeoImJugglerSettingAverage(estimate) {
+export function formatSettingEstimateAverage(estimate) {
   return estimate ? estimate.average.toFixed(2) : "-";
 }
 
-export function formatNeoImJugglerSettingBreakdown(estimate) {
+export function formatSettingEstimateBreakdown(estimate) {
   if (!estimate) {
     return "";
   }
 
   return [
-    `推測設定: ${formatNeoImJugglerSettingAverage(estimate)}`,
+    `推測設定: ${formatSettingEstimateAverage(estimate)}`,
     ...estimate.probabilities.map((row) => `${row.label}: ${formatProbabilityValue(row.probability)}`),
   ].join("\n");
 }
