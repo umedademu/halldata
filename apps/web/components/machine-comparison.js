@@ -35,7 +35,6 @@ const METRICS = [
     label: "差枚",
     render: formatNarrowSignedNumber,
     csvRender: formatSignedNumber,
-    tone: true,
     columnClass: "matrixColumnWide",
   },
   {

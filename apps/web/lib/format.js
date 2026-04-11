@@ -163,11 +163,11 @@ export function valueToneClass(metricKey, value) {
     return "";
   }
 
-  if (metricKey === "difference_value" || metricKey === "payout_rate") {
-    if (numericValue > 0 || (metricKey === "payout_rate" && numericValue > 100)) {
+  if (metricKey === "payout_rate") {
+    if (numericValue > 100) {
       return "valuePositive";
     }
-    if (numericValue < 0 || (metricKey === "payout_rate" && numericValue < 100)) {
+    if (numericValue < 100) {
       return "valueNegative";
     }
   }
