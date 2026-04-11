@@ -26,7 +26,7 @@ const DEFAULT_VISIBLE_METRIC_KEYS = [
   "bb_ratio_text",
   "rb_ratio_text",
 ];
-const MATRIX_DATE_COLUMN_WIDTH_REM = 3.2;
+const MATRIX_DATE_COLUMN_WIDTH_REM = 4.8;
 const MATRIX_SLOT_WIDTH_REM = 16;
 
 const METRICS = [
@@ -163,6 +163,7 @@ export function MachineComparison({
     const visibleMetricCount = Math.max(visibleMetrics.length, 1);
     const cellFontSize = Math.min(0.96, Math.max(0.64, 1.08 - visibleMetricCount * 0.06));
     const headerFontSize = Math.min(0.88, Math.max(0.62, cellFontSize - 0.04));
+    const dateFontSize = Math.min(0.8, cellFontSize);
 
     return {
       "--matrix-date-column-width": `${MATRIX_DATE_COLUMN_WIDTH_REM}rem`,
@@ -170,6 +171,7 @@ export function MachineComparison({
       "--matrix-table-width": `${MATRIX_DATE_COLUMN_WIDTH_REM + slotNumbers.length * MATRIX_SLOT_WIDTH_REM}rem`,
       "--matrix-cell-font-size": `${cellFontSize}rem`,
       "--matrix-header-font-size": `${headerFontSize}rem`,
+      "--matrix-date-font-size": `${dateFontSize}rem`,
     };
   }, [slotNumbers.length, visibleMetrics.length]);
 

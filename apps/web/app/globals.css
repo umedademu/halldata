@@ -655,6 +655,7 @@ a {
 }
 
 .dateCell {
+  font-size: var(--matrix-date-font-size, 0.8rem);
   font-weight: 800;
 }
 
