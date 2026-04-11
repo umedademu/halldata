@@ -450,6 +450,11 @@ export function parseEventFilters(searchParams) {
   };
 }
 
+export function parseEventDisplayMode(searchParams) {
+  const mode = splitSearchParamValue(searchParams?.eventMode)[0];
+  return mode === "highlight" ? "highlight" : "filter";
+}
+
 export function matchesEventFilters(date, filters) {
   if (!filters.isActive) {
     return true;

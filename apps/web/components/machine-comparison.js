@@ -45,7 +45,7 @@ function buildCsvRows(slotNumbers, dateRows) {
   return [headerRow1, headerRow2, ...dataRows];
 }
 
-export function MachineComparison({ machineName, slotNumbers, dateRows }) {
+export function MachineComparison({ machineName, slotNumbers, dateRows, highlightedDates = [] }) {
   if (dateRows.length === 0) {
     return (
       <section className="statusPanel">
@@ -56,6 +56,7 @@ export function MachineComparison({ machineName, slotNumbers, dateRows }) {
   }
 
   const csvRows = buildCsvRows(slotNumbers, dateRows);
+  const highlightedDateSet = new Set(highlightedDates);
 
   return (
     <section className="tablePanel">
@@ -94,7 +95,7 @@ export function MachineComparison({ machineName, slotNumbers, dateRows }) {
           </thead>
           <tbody>
             {dateRows.map((row) => (
-              <tr key={row.date}>
+              <tr key={row.date} className={highlightedDateSet.has(row.date) ? "matrixRowHighlighted" : ""}>
                 <th className="dateCell">{formatCompactDate(row.date)}</th>
                 {slotNumbers.flatMap((slotNumber) =>
                   METRICS.map((metric) => {

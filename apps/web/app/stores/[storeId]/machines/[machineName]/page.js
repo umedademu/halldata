@@ -6,6 +6,7 @@ import { MachineComparison } from "../../../../../components/machine-comparison"
 import {
   getMachineDetail,
   matchesEventFilters,
+  parseEventDisplayMode,
   parseEventFilters,
   readRouteSegment,
 } from "../../../../../lib/data";
@@ -25,6 +26,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
   const storeId = resolvedParams.storeId;
   const machineName = readRouteSegment(resolvedParams.machineName);
   const eventFilters = parseEventFilters(resolvedSearchParams);
+  const eventDisplayMode = parseEventDisplayMode(resolvedSearchParams);
   let detail;
 
   try {
@@ -51,13 +53,20 @@ export default async function MachineDetailPage({ params, searchParams }) {
     notFound();
   }
 
-  const visibleRows = detail.dateRows.filter((row) => matchesEventFilters(row.date, eventFilters));
+  const visibleRows =
+    eventDisplayMode === "highlight"
+      ? detail.dateRows
+      : detail.dateRows.filter((row) => matchesEventFilters(row.date, eventFilters));
+  const highlightedDates =
+    eventDisplayMode === "highlight" && eventFilters.isActive
+      ? detail.dateRows.filter((row) => matchesEventFilters(row.date, eventFilters)).map((row) => row.date)
+      : [];
   const machinePath = `/stores/${detail.store.id}/machines/${encodeURIComponent(machineName)}`;
-  const buildFilterHref = ({ dayTail = null, zoro = null } = {}) => {
-    const nextDayTails = new Set(eventFilters.dayTails);
-    const nextZoro = zoro === null ? eventFilters.zoro : zoro;
+  const buildFilterHref = ({ dayTail = null, zoro = null, mode = eventDisplayMode, clear = false } = {}) => {
+    const nextDayTails = clear ? new Set() : new Set(eventFilters.dayTails);
+    const nextZoro = clear ? false : zoro === null ? eventFilters.zoro : zoro;
 
-    if (dayTail !== null) {
+    if (!clear && dayTail !== null) {
       if (nextDayTails.has(dayTail)) {
         nextDayTails.delete(dayTail);
       } else {
@@ -72,6 +81,9 @@ export default async function MachineDetailPage({ params, searchParams }) {
     }
     if (nextZoro) {
       query.set("zoro", "1");
+    }
+    if (mode === "highlight") {
+      query.set("eventMode", "highlight");
     }
 
     const queryText = query.toString();
@@ -159,33 +171,53 @@ export default async function MachineDetailPage({ params, searchParams }) {
 
       <section className="filterPanel">
         <div>
-          <p className="sectionLabel">日付の末尾で絞る</p>
+          <p className="sectionLabel">日付の末尾を選ぶ</p>
           <p className="filterLead">
-            イベント日だけを見たい時は、日付の末尾やゾロ目を複数選んで切り替えます。
+            イベント日を絞り込むか、全日を表示したまま該当日だけを強調できます。
           </p>
         </div>
-        <div className="dayFilterRow">
-          <Link
-            href={machinePath}
-            className={`dayFilterChip ${eventFilters.isActive ? "" : "dayFilterChipActive"}`}
-          >
-            すべて
-          </Link>
-          {Array.from({ length: 10 }, (_, value) => (
+        <div className="filterControlGroup">
+          <p className="filterControlLabel">表示方法</p>
+          <div className="dayFilterRow">
             <Link
-              key={value}
-              href={buildFilterHref({ dayTail: value })}
-              className={`dayFilterChip ${eventFilters.dayTails.includes(value) ? "dayFilterChipActive" : ""}`}
+              href={buildFilterHref({ mode: "filter" })}
+              className={`dayFilterChip ${eventDisplayMode === "filter" ? "dayFilterChipActive" : ""}`}
             >
-              末尾{value}
+              絞り込む
             </Link>
-          ))}
-          <Link
-            href={buildFilterHref({ zoro: !eventFilters.zoro })}
-            className={`dayFilterChip ${eventFilters.zoro ? "dayFilterChipActive" : ""}`}
-          >
-            ゾロ目
-          </Link>
+            <Link
+              href={buildFilterHref({ mode: "highlight" })}
+              className={`dayFilterChip ${eventDisplayMode === "highlight" ? "dayFilterChipActive" : ""}`}
+            >
+              強調する
+            </Link>
+          </div>
+        </div>
+        <div className="filterControlGroup">
+          <p className="filterControlLabel">日付</p>
+          <div className="dayFilterRow">
+            <Link
+              href={buildFilterHref({ clear: true })}
+              className={`dayFilterChip ${eventFilters.isActive ? "" : "dayFilterChipActive"}`}
+            >
+              すべて
+            </Link>
+            {Array.from({ length: 10 }, (_, value) => (
+              <Link
+                key={value}
+                href={buildFilterHref({ dayTail: value })}
+                className={`dayFilterChip ${eventFilters.dayTails.includes(value) ? "dayFilterChipActive" : ""}`}
+              >
+                末尾{value}
+              </Link>
+            ))}
+            <Link
+              href={buildFilterHref({ zoro: !eventFilters.zoro })}
+              className={`dayFilterChip ${eventFilters.zoro ? "dayFilterChipActive" : ""}`}
+            >
+              ゾロ目
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -193,6 +225,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
         machineName={machineName}
         slotNumbers={detail.slotNumbers}
         dateRows={visibleRows}
+        highlightedDates={highlightedDates}
       />
     </main>
   );
