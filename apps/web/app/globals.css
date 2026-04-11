@@ -522,73 +522,6 @@ a {
   font-weight: 800;
 }
 
-.mobileOnly {
-  display: none;
-}
-
-.mobileStack {
-  display: grid;
-  gap: 14px;
-}
-
-.dayCard {
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background:
-    linear-gradient(180deg, rgba(255, 251, 244, 0.96), rgba(255, 246, 228, 0.92)),
-    var(--panel);
-  box-shadow: 0 18px 36px rgba(89, 41, 11, 0.1);
-}
-
-.dayCardHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.dayCardTitle {
-  margin: 0;
-  font-size: 1.08rem;
-}
-
-.slotCardGrid {
-  display: grid;
-  gap: 12px;
-}
-
-.slotCard {
-  padding: 14px;
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.68);
-  border: 1px solid rgba(64, 30, 7, 0.08);
-}
-
-.slotCardTitle {
-  margin: 0 0 12px;
-  font-size: 1rem;
-}
-
-.metricList {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 12px;
-  margin: 0;
-}
-
-.metricList dt {
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-
-.metricList dd {
-  margin: 4px 0 0;
-  font-weight: 800;
-}
-
 .statusPanel {
   padding: 24px;
 }
@@ -635,14 +568,6 @@ a {
   .machineCard .statsGrid,
   .statsGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .desktopOnly {
-    display: none;
-  }
-
-  .mobileOnly {
-    display: block;
   }
 
   .summaryStrip {

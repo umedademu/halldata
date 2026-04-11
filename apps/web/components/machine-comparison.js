@@ -58,96 +58,61 @@ export function MachineComparison({ machineName, slotNumbers, dateRows }) {
   const csvRows = buildCsvRows(slotNumbers, dateRows);
 
   return (
-    <>
-      <section className="tablePanel desktopOnly">
-        <div className="tablePanelHeader">
-          <div>
-            <p className="sectionLabel">台データ比較</p>
-            <h2 className="tablePanelTitle">{machineName}</h2>
-          </div>
-          <CsvExportButton
-            machineName={machineName}
-            csvRows={csvRows}
-          />
+    <section className="tablePanel">
+      <div className="tablePanelHeader">
+        <div>
+          <p className="sectionLabel">台データ比較</p>
+          <h2 className="tablePanelTitle">{machineName}</h2>
         </div>
-        <div className="tableScroller">
-          <table className="matrixTable">
-            <thead>
-              <tr>
-                <th rowSpan={2} className="dateHeaderCell">
-                  日付
+        <CsvExportButton
+          machineName={machineName}
+          csvRows={csvRows}
+        />
+      </div>
+      <div className="tableScroller">
+        <table className="matrixTable">
+          <thead>
+            <tr>
+              <th rowSpan={2} className="dateHeaderCell">
+                日付
+              </th>
+              {slotNumbers.map((slotNumber) => (
+                <th key={slotNumber} colSpan={METRICS.length} className="slotHeader">
+                  {slotNumber}番台
                 </th>
-                {slotNumbers.map((slotNumber) => (
-                  <th key={slotNumber} colSpan={METRICS.length} className="slotHeader">
-                    {slotNumber}番台
+              ))}
+            </tr>
+            <tr>
+              {slotNumbers.flatMap((slotNumber) =>
+                METRICS.map((metric) => (
+                  <th key={`${slotNumber}-${metric.key}`} className="metricHeader">
+                    {metric.label}
                   </th>
-                ))}
-              </tr>
-              <tr>
+                )),
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {dateRows.map((row) => (
+              <tr key={row.date}>
+                <th className="dateCell">{formatCompactDate(row.date)}</th>
                 {slotNumbers.flatMap((slotNumber) =>
-                  METRICS.map((metric) => (
-                    <th key={`${slotNumber}-${metric.key}`} className="metricHeader">
-                      {metric.label}
-                    </th>
-                  )),
+                  METRICS.map((metric) => {
+                    const record = row.recordsBySlot[slotNumber] ?? null;
+                    const value = record?.[metric.key];
+                    const toneClass = metric.tone ? valueToneClass(metric.key, value) : "";
+                    return (
+                      <td key={`${row.date}-${slotNumber}-${metric.key}`} className={toneClass}>
+                        {metric.render(value)}
+                      </td>
+                    );
+                  }),
                 )}
               </tr>
-            </thead>
-            <tbody>
-              {dateRows.map((row) => (
-                <tr key={row.date}>
-                  <th className="dateCell">{formatCompactDate(row.date)}</th>
-                  {slotNumbers.flatMap((slotNumber) =>
-                    METRICS.map((metric) => {
-                      const record = row.recordsBySlot[slotNumber] ?? null;
-                      const value = record?.[metric.key];
-                      const toneClass = metric.tone ? valueToneClass(metric.key, value) : "";
-                      return (
-                        <td key={`${row.date}-${slotNumber}-${metric.key}`} className={toneClass}>
-                          {metric.render(value)}
-                        </td>
-                      );
-                    }),
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="mobileOnly mobileStack">
-        {dateRows.map((row) => (
-          <article key={row.date} className="dayCard">
-            <div className="dayCardHead">
-              <h2 className="dayCardTitle">{formatCompactDate(row.date)}</h2>
-              <span className="cardBadge">{slotNumbers.length}台</span>
-            </div>
-            <div className="slotCardGrid">
-              {slotNumbers.map((slotNumber) => {
-                const record = row.recordsBySlot[slotNumber] ?? null;
-                return (
-                  <section key={`${row.date}-${slotNumber}`} className="slotCard">
-                    <h3 className="slotCardTitle">{slotNumber}番台</h3>
-                    <dl className="metricList">
-                      {METRICS.map((metric) => {
-                        const value = record?.[metric.key];
-                        const toneClass = metric.tone ? valueToneClass(metric.key, value) : "";
-                        return (
-                          <div key={`${row.date}-${slotNumber}-${metric.key}`}>
-                            <dt>{metric.label}</dt>
-                            <dd className={toneClass}>{metric.render(value)}</dd>
-                          </div>
-                        );
-                      })}
-                    </dl>
-                  </section>
-                );
-              })}
-            </div>
-          </article>
-        ))}
-      </section>
-    </>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
