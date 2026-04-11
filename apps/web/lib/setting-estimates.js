@@ -15,7 +15,7 @@ const SETTING_ESTIMATE_DEFINITIONS = [
   {
     key: "sumaslo-hanabi",
     displayName: "スマスロ ハナビ",
-    matchNames: ["スマスロ ハナビ", "ハナビBH"],
+    matchNames: ["スマスロ ハナビ"],
     settings: [
       { setting: 1, label: "設定1", bbText: "1/312.1", rbText: "1/385.5" },
       { setting: 2, label: "設定2", bbText: "1/303.4", rbText: "1/368.2" },
