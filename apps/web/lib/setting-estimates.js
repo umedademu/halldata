@@ -108,6 +108,19 @@ const SETTING_ESTIMATE_DEFINITIONS = [
       { setting: 6, label: "設定6", bbText: "1/226.0", rbText: "1/256.0" },
     ],
   },
+  {
+    key: "gogo-juggler",
+    displayName: "ゴーゴージャグラー",
+    matchNames: ["ゴーゴージャグラー"],
+    settings: [
+      { setting: 1, label: "設定1", bbText: "1/259.0", rbText: "1/354.2" },
+      { setting: 2, label: "設定2", bbText: "1/258.0", rbText: "1/332.7" },
+      { setting: 3, label: "設定3", bbText: "1/257.0", rbText: "1/306.2" },
+      { setting: 4, label: "設定4", bbText: "1/254.0", rbText: "1/268.6" },
+      { setting: 5, label: "設定5", bbText: "1/247.3", rbText: "1/247.3" },
+      { setting: 6, label: "設定6", bbText: "1/234.9", rbText: "1/234.9" },
+    ],
+  },
 ];
 
 function parseRateText(value) {
