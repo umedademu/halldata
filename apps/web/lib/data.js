@@ -125,6 +125,9 @@ function buildQuery(params) {
 
 async function fetchAllRowsUncached(tableName, params) {
   const { baseUrl, serviceKey, schema } = await getSupabaseConfig();
+  const requestedLimit = Number(params.limit);
+  const hasRequestedLimit = Number.isInteger(requestedLimit) && requestedLimit > 0;
+  const pageSize = hasRequestedLimit ? Math.min(requestedLimit, PAGE_SIZE) : PAGE_SIZE;
   const headers = {
     apikey: serviceKey,
     Authorization: `Bearer ${serviceKey}`,
@@ -138,7 +141,7 @@ async function fetchAllRowsUncached(tableName, params) {
   while (true) {
     const query = buildQuery({
       ...params,
-      limit: PAGE_SIZE,
+      limit: pageSize,
       offset,
     });
 
@@ -157,13 +160,13 @@ async function fetchAllRowsUncached(tableName, params) {
     const chunk = await response.json();
     rows.push(...chunk);
 
-    if (chunk.length < PAGE_SIZE) {
+    if (chunk.length < pageSize || (hasRequestedLimit && rows.length >= requestedLimit)) {
       break;
     }
-    offset += PAGE_SIZE;
+    offset += pageSize;
   }
 
-  return rows;
+  return hasRequestedLimit ? rows.slice(0, requestedLimit) : rows;
 }
 
 async function fetchAllRows(tableName, params) {
@@ -227,33 +230,23 @@ function compareSlotNumbers(left, right) {
   return String(left).localeCompare(String(right), "ja");
 }
 
-function buildStoreSummary(store, rows) {
+function buildStoreLatestDaySummary(store, latestDate, rows) {
   const machineNames = new Set();
-  const slotNumbers = new Set();
-  const dates = new Set();
 
   for (const row of rows) {
     machineNames.add(row.machine_name);
-    slotNumbers.add(row.slot_number);
-    dates.add(row.target_date);
   }
-
-  const sortedDates = [...dates].sort((left, right) => right.localeCompare(left));
 
   return {
     id: store.id,
     storeName: store.store_name,
     storeUrl: store.store_url,
     machineCount: machineNames.size,
-    slotCount: slotNumbers.size,
-    dayCount: dates.size,
-    recordCount: rows.length,
-    startDate: sortedDates.at(-1) ?? null,
-    endDate: sortedDates[0] ?? null,
+    latestDate,
   };
 }
 
-function buildMachineSummaries(rows) {
+function buildLatestDayMachineSummaries(rows) {
   const buckets = new Map();
 
   for (const row of rows) {
@@ -261,46 +254,27 @@ function buildMachineSummaries(rows) {
     if (!buckets.has(key)) {
       buckets.set(key, {
         machineName: row.machine_name,
-        dates: new Set(),
         slots: new Set(),
         rows: [],
-        latestDate: null,
+        latestDate: row.target_date,
       });
     }
 
     const bucket = buckets.get(key);
     bucket.rows.push(row);
-    bucket.dates.add(row.target_date);
     bucket.slots.add(row.slot_number);
-    if (!bucket.latestDate || row.target_date > bucket.latestDate) {
-      bucket.latestDate = row.target_date;
-    }
   }
 
   return [...buckets.values()]
-    .map((bucket) => {
-      const dates = [...bucket.dates].sort((left, right) => right.localeCompare(left));
-      const latestRows = bucket.rows.filter((row) => row.target_date === bucket.latestDate);
-
-      return {
-        machineName: bucket.machineName,
-        slotCount: bucket.slots.size,
-        dayCount: bucket.dates.size,
-        recordCount: bucket.rows.length,
-        startDate: dates.at(-1) ?? null,
-        endDate: dates[0] ?? null,
-        latestDate: bucket.latestDate,
-        latestAverageDifference: average(latestRows.map((row) => row.difference_value)),
-        latestAverageGames: average(latestRows.map((row) => row.games_count)),
-        latestAveragePayout: average(latestRows.map((row) => row.payout_rate)),
-      };
-    })
-    .sort((left, right) => {
-      if (left.latestDate !== right.latestDate) {
-        return String(right.latestDate).localeCompare(String(left.latestDate), "ja");
-      }
-      return left.machineName.localeCompare(right.machineName, "ja");
-    });
+    .map((bucket) => ({
+      machineName: bucket.machineName,
+      slotCount: bucket.slots.size,
+      latestDate: bucket.latestDate,
+      latestAverageDifference: average(bucket.rows.map((row) => row.difference_value)),
+      latestAverageGames: average(bucket.rows.map((row) => row.games_count)),
+      latestAveragePayout: average(bucket.rows.map((row) => row.payout_rate)),
+    }))
+    .sort((left, right) => left.machineName.localeCompare(right.machineName, "ja"));
 }
 
 function buildMachineDetail(rows) {
@@ -357,44 +331,34 @@ function buildMachineDetail(rows) {
   };
 }
 
-export const getStoreSummaries = cache(async function getStoreSummaries() {
-  const { storesTable, resultsTable } = await getSupabaseConfig();
-  const [stores, results] = await Promise.all([
-    fetchAllRows(storesTable, {
-      select: "id,store_name,store_url",
-      order: "store_name.asc",
-    }),
-    fetchAllRows(resultsTable, {
-      select: "store_id,machine_name,target_date,slot_number",
-      order: "target_date.desc",
-    }),
-  ]);
-
-  const groupedResults = new Map();
-  for (const row of results) {
-    if (!groupedResults.has(row.store_id)) {
-      groupedResults.set(row.store_id, []);
-    }
-    groupedResults.get(row.store_id).push(row);
-  }
+export const getStoreList = cache(async function getStoreList() {
+  const { storesTable } = await getSupabaseConfig();
+  const stores = await fetchAllRows(storesTable, {
+    select: "id,store_name,store_url",
+    order: "store_name.asc",
+  });
 
   return stores
-    .map((store) => buildStoreSummary(store, groupedResults.get(store.id) ?? []))
+    .map((store) => ({
+      id: store.id,
+      storeName: store.store_name,
+      storeUrl: store.store_url,
+    }))
     .sort((left, right) => left.storeName.localeCompare(right.storeName, "ja"));
 });
 
 export const getStoreDetail = cache(async function getStoreDetail(storeId) {
   const { storesTable, resultsTable } = await getSupabaseConfig();
-  const [stores, rows] = await Promise.all([
+  const [stores, latestRows] = await Promise.all([
     fetchAllRows(storesTable, {
       select: "id,store_name,store_url",
       id: `eq.${storeId}`,
     }),
     fetchAllRows(resultsTable, {
-      select:
-        "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate",
+      select: "target_date",
       store_id: `eq.${storeId}`,
-      order: "target_date.desc,slot_number.asc",
+      order: "target_date.desc",
+      limit: 1,
     }),
   ]);
 
@@ -403,14 +367,25 @@ export const getStoreDetail = cache(async function getStoreDetail(storeId) {
     return null;
   }
 
+  const latestDate = latestRows[0]?.target_date ?? null;
+  const rows = latestDate
+    ? await fetchAllRows(resultsTable, {
+        select:
+          "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate",
+        store_id: `eq.${storeId}`,
+        target_date: `eq.${latestDate}`,
+        order: "machine_name.asc,slot_number.asc",
+      })
+    : [];
+
   return {
     store: {
       id: store.id,
       storeName: store.store_name,
       storeUrl: store.store_url,
     },
-    summary: buildStoreSummary(store, rows),
-    machines: buildMachineSummaries(rows),
+    summary: buildStoreLatestDaySummary(store, latestDate, rows),
+    machines: buildLatestDayMachineSummaries(rows),
   };
 });
 

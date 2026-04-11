@@ -1,18 +1,12 @@
 import Link from "next/link";
 
-import { getStoreSummaries } from "../lib/data";
-import { formatCompactDate, formatNumber, formatPeriod } from "../lib/format";
+import { getStoreList } from "../lib/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function StoresPage() {
   try {
-    const stores = await getStoreSummaries();
-    const latestDate = stores.reduce(
-      (currentLatest, store) =>
-        !currentLatest || (store.endDate && store.endDate > currentLatest) ? store.endDate : currentLatest,
-      null,
-    );
+    const stores = await getStoreList();
 
     return (
       <main className="pageStack">
@@ -23,18 +17,6 @@ export default async function StoresPage() {
             <p className="leadText">
               保存済みの店舗データから、機種一覧と台データ比較へ順番に進めます。
             </p>
-          </div>
-          <div className="heroMeta">
-            <div className="metaCard">
-              <span className="metaLabel">登録店舗</span>
-              <strong className="metaValue">{formatNumber(stores.length)}</strong>
-            </div>
-            <div className="metaCard">
-              <span className="metaLabel">最新日</span>
-              <strong className="metaValue">
-                {latestDate ? formatCompactDate(latestDate) : "-"}
-              </strong>
-            </div>
           </div>
         </section>
 
@@ -59,13 +41,6 @@ export default async function StoresPage() {
                 <thead>
                   <tr>
                     <th className="directoryNameHeader">店舗</th>
-                    <th>期間</th>
-                    <th>最新日</th>
-                    <th>機種数</th>
-                    <th>台番数</th>
-                    <th>日数</th>
-                    <th>記録件数</th>
-                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -76,17 +51,6 @@ export default async function StoresPage() {
                           {store.storeName}
                         </Link>
                       </th>
-                      <td>{formatPeriod(store.startDate, store.endDate)}</td>
-                      <td>{store.endDate ? formatCompactDate(store.endDate) : "-"}</td>
-                      <td>{formatNumber(store.machineCount)}</td>
-                      <td>{formatNumber(store.slotCount)}</td>
-                      <td>{formatNumber(store.dayCount)}</td>
-                      <td>{formatNumber(store.recordCount)}</td>
-                      <td>
-                        <Link href={`/stores/${store.id}`} className="tableActionLink">
-                          機種一覧
-                        </Link>
-                      </td>
                     </tr>
                   ))}
                 </tbody>

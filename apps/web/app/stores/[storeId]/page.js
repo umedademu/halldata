@@ -8,7 +8,6 @@ import {
   formatCompactDate,
   formatNumber,
   formatPercent,
-  formatPeriod,
   formatSignedNumber,
 } from "../../../lib/format";
 
@@ -52,17 +51,19 @@ export default async function StoreDetailPage({ params }) {
           <p className="eyebrow">Machine Directory</p>
           <h1 className="pageTitle">{store.storeName}</h1>
           <p className="leadText">
-            機種ごとに、最新日の平均値と保存済みの記録期間を見ながら台データページへ進めます。
+            店舗内の最新日に記録がある機種だけを軽く表示し、機種名から台データページへ進めます。
           </p>
         </div>
         <div className="heroMeta heroMetaWide">
           <div className="metaCard">
-            <span className="metaLabel">機種数</span>
+            <span className="metaLabel">最新日の機種数</span>
             <strong className="metaValue">{formatNumber(summary.machineCount)}</strong>
           </div>
           <div className="metaCard">
-            <span className="metaLabel">期間</span>
-            <strong className="metaValue">{formatPeriod(summary.startDate, summary.endDate)}</strong>
+            <span className="metaLabel">最新日</span>
+            <strong className="metaValue">
+              {summary.latestDate ? formatCompactDate(summary.latestDate) : "-"}
+            </strong>
           </div>
           <div className="metaCard">
             <span className="metaLabel">元ページ</span>
@@ -91,15 +92,11 @@ export default async function StoreDetailPage({ params }) {
               <thead>
                 <tr>
                   <th className="directoryNameHeader">機種</th>
-                  <th>期間</th>
                   <th>最新日</th>
                   <th>台数</th>
-                  <th>日数</th>
                   <th>平均差枚</th>
                   <th>平均G数</th>
                   <th>平均出率</th>
-                  <th>記録件数</th>
-                  <th>操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -113,19 +110,11 @@ export default async function StoreDetailPage({ params }) {
                           {machine.machineName}
                         </Link>
                       </th>
-                      <td>{formatPeriod(machine.startDate, machine.endDate)}</td>
                       <td>{machine.latestDate ? formatCompactDate(machine.latestDate) : "-"}</td>
                       <td>{formatNumber(machine.slotCount)}</td>
-                      <td>{formatNumber(machine.dayCount)}</td>
                       <td>{formatSignedNumber(machine.latestAverageDifference)}</td>
                       <td>{formatAverageGames(machine.latestAverageGames)}</td>
                       <td>{formatPercent(machine.latestAveragePayout)}</td>
-                      <td>{formatNumber(machine.recordCount)}</td>
-                      <td>
-                        <Link href={machineHref} className="tableActionLink">
-                          台データ
-                        </Link>
-                      </td>
                     </tr>
                   );
                 })}
