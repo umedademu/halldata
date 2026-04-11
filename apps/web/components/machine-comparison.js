@@ -55,16 +55,19 @@ function titleNeoImJugglerSetting(_value, record) {
   return formatNeoImJugglerSettingBreakdown(getNeoImJugglerSettingEstimate(record));
 }
 
-function classNeoImJugglerSetting(_value, record) {
+function getNeoImJugglerHighlightClass(record) {
   const estimate = getNeoImJugglerSettingEstimate(record);
   if (!estimate) {
     return "";
   }
   if (estimate.average >= 5) {
-    return "settingEstimateVeryHigh";
+    return "settingEstimateLevel3";
+  }
+  if (estimate.average >= 4.5) {
+    return "settingEstimateLevel2";
   }
   if (estimate.average >= 4) {
-    return "settingEstimateHigh";
+    return "settingEstimateLevel1";
   }
   return "";
 }
@@ -115,7 +118,6 @@ const NEO_IM_JUGGLER_SETTING_METRIC = {
   render: renderNeoImJugglerSetting,
   csvRender: renderNeoImJugglerSetting,
   title: titleNeoImJugglerSetting,
-  cellClass: classNeoImJugglerSetting,
   columnClass: "matrixColumnNarrow",
 };
 
@@ -157,17 +159,26 @@ function buildCsvRows(slotNumbers, dateRows, metrics) {
   return [headerRow1, headerRow2, ...dataRows];
 }
 
-const MatrixRow = memo(function MatrixRow({ row, slotNumbers, visibleMetrics, isHighlighted }) {
+const MatrixRow = memo(function MatrixRow({
+  row,
+  slotNumbers,
+  visibleMetrics,
+  isHighlighted,
+  canHighlightSettings,
+}) {
   return (
     <tr className={isHighlighted ? "matrixRowHighlighted" : ""}>
       <th className="dateCell">{formatShortDate(row.date)}</th>
-      {slotNumbers.flatMap((slotNumber) =>
-        visibleMetrics.map((metric) => {
-          const record = row.recordsBySlot[slotNumber] ?? null;
+      {slotNumbers.flatMap((slotNumber) => {
+        const record = row.recordsBySlot[slotNumber] ?? null;
+        const settingHighlightClass = canHighlightSettings
+          ? getNeoImJugglerHighlightClass(record)
+          : "";
+
+        return visibleMetrics.map((metric) => {
           const value = record?.[metric.key];
           const toneClass = metric.tone ? valueToneClass(metric.key, value) : "";
-          const cellClass = metric.cellClass ? metric.cellClass(value, record) : "";
-          const className = [toneClass, cellClass].filter(Boolean).join(" ");
+          const className = [toneClass, settingHighlightClass].filter(Boolean).join(" ");
           const title = metric.title ? metric.title(value, record) : "";
           return (
             <td
@@ -178,8 +189,8 @@ const MatrixRow = memo(function MatrixRow({ row, slotNumbers, visibleMetrics, is
               {metric.render(value, record)}
             </td>
           );
-        }),
-      )}
+        });
+      })}
     </tr>
   );
 });
@@ -198,6 +209,10 @@ export function MachineComparison({
   const [visibleMetricKeys, setVisibleMetricKeys] = useState(DEFAULT_VISIBLE_METRIC_KEYS);
   const [isPending, startTransition] = useTransition();
   const metrics = useMemo(() => getMetrics(machineName), [machineName]);
+  const canHighlightSettings = useMemo(
+    () => metrics.some((metric) => metric.key === "setting_estimate"),
+    [metrics],
+  );
 
   const visibleMetrics = useMemo(
     () => metrics.filter((metric) => visibleMetricKeys.includes(metric.key)),
@@ -392,6 +407,7 @@ export function MachineComparison({
         dateRows={visibleRows}
         visibleMetrics={visibleMetrics}
         highlightedDateSet={highlightedDateSet}
+        canHighlightSettings={canHighlightSettings}
         csvRows={csvRows}
         tableStyle={tableStyle}
       />
@@ -405,6 +421,7 @@ function MachineComparisonTable({
   dateRows,
   visibleMetrics,
   highlightedDateSet,
+  canHighlightSettings,
   csvRows,
   tableStyle,
 }) {
@@ -468,6 +485,7 @@ function MachineComparisonTable({
                 slotNumbers={slotNumbers}
                 visibleMetrics={visibleMetrics}
                 isHighlighted={highlightedDateSet.has(row.date)}
+                canHighlightSettings={canHighlightSettings}
               />
             ))}
           </tbody>
