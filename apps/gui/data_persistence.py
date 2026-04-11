@@ -525,7 +525,7 @@ class HistoryPersistenceService:
             or settings.get("SUPABASE_SECRET_KEY", "").strip()
         )
         if not supabase_url or not supabase_key:
-            raise RuntimeError("env.local に SUPABASE_URL と SUPABASE_SERVICE_ROLE_KEY を設定してください。")
+            raise RuntimeError(".env.local に SUPABASE_URL と SUPABASE_SERVICE_ROLE_KEY を設定してください。")
 
         schema = settings.get("SUPABASE_SCHEMA", DEFAULT_SCHEMA).strip() or DEFAULT_SCHEMA
         stores_table = settings.get("SUPABASE_STORES_TABLE", DEFAULT_STORES_TABLE).strip() or DEFAULT_STORES_TABLE
@@ -549,25 +549,25 @@ class HistoryPersistenceService:
 
     def _load_settings(self) -> dict[str, str]:
         settings = dict(os.environ)
-        env_path = self.root_dir / "env.local"
-        if not env_path.exists():
-            return settings
-
-        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
-            line = raw_line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if line.startswith("export "):
-                line = line[7:].strip()
-            if "=" not in line:
+        for env_path in (self.root_dir / "env.local", self.root_dir / ".env.local"):
+            if not env_path.exists():
                 continue
 
-            name, value = line.split("=", 1)
-            name = name.strip()
-            value = value.strip()
-            if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-                value = value[1:-1]
-            settings[name] = value
+            for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+                line = raw_line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if line.startswith("export "):
+                    line = line[7:].strip()
+                if "=" not in line:
+                    continue
+
+                name, value = line.split("=", 1)
+                name = name.strip()
+                value = value.strip()
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+                    value = value[1:-1]
+                settings[name] = value
 
         return settings
 

@@ -10,6 +10,11 @@ from tkinter import messagebox, ttk
 from typing import Callable
 from urllib.parse import urlparse
 
+try:
+    import winsound
+except ImportError:  # pragma: no cover
+    winsound = None
+
 from data_persistence import (
     HistoryPersistenceService,
     PersistenceSummary,
@@ -33,7 +38,6 @@ from minrepo_scraper import (
 DEFAULT_STORE_NAME = "MJアリーナ箱崎店"
 DEFAULT_STORE_URL = "https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/"
 DEFAULT_TARGET_DATE = "2026-04-08 ～ 2026-04-08"
-DEFAULT_MACHINE_NAME = "ネオアイムジャグラーEX"
 CHECK_ON = "☑"
 CHECK_OFF = "☐"
 MACHINE_COLUMNS = ("チェック", "機種名", "台数", "平均差枚", "平均G数", "勝率", "出率")
@@ -97,6 +101,7 @@ class MinRepoApp:
         self.fetch_progress_value_var = tk.DoubleVar(value=0.0)
         self.fetch_progress_text_var = tk.StringVar(value="未開始")
         self.skip_comparison_display_var = tk.BooleanVar(value=False)
+        self.notify_fetch_complete_var = tk.BooleanVar(value=True)
         self.comparison_day_tail_var = tk.StringVar(value="全て")
         self.register_store_url_var = tk.StringVar()
         self.register_store_status_var = tk.StringVar(value="未登録")
@@ -163,6 +168,13 @@ class MinRepoApp:
             command=self._on_skip_comparison_display_changed,
         )
         self.skip_comparison_display_button.grid(row=0, column=2, sticky="w", padx=(12, 0))
+
+        self.notify_fetch_complete_button = ttk.Checkbutton(
+            button_row,
+            text="取得完了時に音を鳴らす",
+            variable=self.notify_fetch_complete_var,
+        )
+        self.notify_fetch_complete_button.grid(row=0, column=3, sticky="w", padx=(12, 0))
 
         self.machine_frame = ttk.LabelFrame(self.fetch_tab, text="機種一覧", padding=8)
         self.machine_frame.grid(row=1, column=0, sticky="nsew", pady=(12, 0))
@@ -636,6 +648,7 @@ class MinRepoApp:
             f"{' / 表表示省略' if self.skip_comparison_display_var.get() else ''}"
         )
         self._update_button_states()
+        self._notify_fetch_complete()
         warning_messages = list(saved_targets_summary.messages)
         if save_summary is not None and save_summary.has_errors:
             warning_messages.extend(save_summary.messages)
@@ -644,10 +657,7 @@ class MinRepoApp:
 
     def _apply_machine_list(self, machine_list: MachineListResult) -> None:
         self.current_machine_list = machine_list
-        self.selected_machine_keys = set()
-        default_key = normalize_text(DEFAULT_MACHINE_NAME)
-        if any(normalize_text(machine.name) == default_key for machine in machine_list.machine_entries):
-            self.selected_machine_keys.add(default_key)
+        self.selected_machine_keys = {normalize_text(machine.name) for machine in machine_list.machine_entries}
 
         self.machine_sort_column = "台数"
         self.machine_sort_descending = True
@@ -1211,6 +1221,22 @@ class MinRepoApp:
         self.fetch_progress_value_var.set(0.0)
         self.fetch_progress_text_var.set("未開始")
 
+    def _notify_fetch_complete(self) -> None:
+        if not self.notify_fetch_complete_var.get():
+            return
+
+        if winsound is not None:
+            try:
+                winsound.MessageBeep(winsound.MB_ICONASTERISK)
+                return
+            except RuntimeError:
+                pass
+
+        try:
+            self.root.bell()
+        except tk.TclError:
+            pass
+
     def _refresh_machine_list_summary(self) -> None:
         if self.current_machine_list is None:
             self.machine_list_var.set("機種一覧: 未読込")
@@ -1546,6 +1572,7 @@ class MinRepoApp:
         self.comparison_day_tail_selector.configure(state="readonly" if not self.is_busy and has_comparison_data else "disabled")
         self.comparison_focus_button.configure(state="normal" if not self.is_busy and has_comparison_data else "disabled")
         self.skip_comparison_display_button.configure(state="disabled" if self.is_busy else "normal")
+        self.notify_fetch_complete_button.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_button.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_url_entry.configure(state="disabled" if self.is_busy else "normal")
 

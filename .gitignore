@@ -1,4 +1,5 @@
 html/
+.env.local
 env.local
 local_data/
 apps/web/node_modules/

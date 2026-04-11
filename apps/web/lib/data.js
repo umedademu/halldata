@@ -27,8 +27,9 @@ async function readFallbackSettings() {
 
     const currentDirectory = pathModule.dirname(urlModule.fileURLToPath(import.meta.url));
     const envCandidates = [
-      pathModule.resolve(currentDirectory, "../.env.local"),
       pathModule.resolve(currentDirectory, "../../../env.local"),
+      pathModule.resolve(currentDirectory, "../../../.env.local"),
+      pathModule.resolve(currentDirectory, "../.env.local"),
     ];
 
     for (const candidate of envCandidates) {
@@ -78,7 +79,7 @@ async function getSupabaseConfig() {
 
   if (!supabaseUrl || !supabaseKey) {
     throw new Error(
-      "Supabase の接続情報が見つかりません。apps/web の環境変数、またはルートの env.local を確認してください。",
+      "Supabase の接続情報が見つかりません。apps/web の環境変数、またはルートの .env.local を確認してください。",
     );
   }
 
@@ -402,13 +403,62 @@ export function readRouteSegment(value) {
   }
 }
 
-export function parseDayTail(value) {
+function splitSearchParamValue(value) {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => splitSearchParamValue(item));
+  }
   if (value === undefined || value === null || value === "") {
-    return null;
+    return [];
   }
-  const numericValue = Number(value);
-  if (!Number.isInteger(numericValue) || numericValue < 0 || numericValue > 9) {
-    return null;
+  return String(value)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseDayTailValues(value) {
+  const dayTails = new Set();
+  for (const item of splitSearchParamValue(value)) {
+    const numericValue = Number(item);
+    if (Number.isInteger(numericValue) && numericValue >= 0 && numericValue <= 9) {
+      dayTails.add(numericValue);
+    }
   }
-  return numericValue;
+  return [...dayTails].sort((left, right) => left - right);
+}
+
+function parseFlagValue(value) {
+  return splitSearchParamValue(value).some((item) => item === "1" || item === "true");
+}
+
+function isZoromeDate(date) {
+  const match = String(date).match(/^\d{4}-(\d{2})-(\d{2})$/u);
+  if (!match) {
+    return false;
+  }
+  return Number(match[1]) === Number(match[2]);
+}
+
+export function parseEventFilters(searchParams) {
+  const dayTails = parseDayTailValues(searchParams?.dayTail);
+  const zoro = parseFlagValue(searchParams?.zoro);
+
+  return {
+    dayTails,
+    zoro,
+    isActive: dayTails.length > 0 || zoro,
+  };
+}
+
+export function matchesEventFilters(date, filters) {
+  if (!filters.isActive) {
+    return true;
+  }
+
+  const dayTail = Number(String(date).slice(-1));
+  if (filters.dayTails.includes(dayTail)) {
+    return true;
+  }
+
+  return filters.zoro && isZoromeDate(date);
 }
