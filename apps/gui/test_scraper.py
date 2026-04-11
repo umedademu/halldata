@@ -232,7 +232,16 @@ class MinRepoScraperTests(unittest.TestCase):
     def test_save_and_load_registered_stores(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            service._save_registered_stores_to_supabase = lambda stores: len(stores)  # type: ignore[method-assign]
+            stored_stores: list[dict[str, str]] = []
+
+            def fake_save_registered_stores_to_supabase(stores: list[dict[str, str]]) -> int:
+                stored_stores[:] = list(stores)
+                return len(stores)
+
+            service._save_registered_stores_to_supabase = fake_save_registered_stores_to_supabase  # type: ignore[method-assign]
+            service._load_registered_stores_from_supabase = (  # type: ignore[method-assign]
+                lambda: service._normalize_registered_stores(stored_stores)
+            )
 
             summary = service.save_registered_stores(
                 [
@@ -245,6 +254,7 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertFalse(summary.has_errors)
             self.assertTrue(summary.supabase_saved)
             self.assertEqual(summary.supabase_store_count, 2)
+            self.assertFalse((Path(temp_dir) / "local_data" / "registered_stores.json").exists())
             self.assertEqual(
                 loaded_stores,
                 [
@@ -269,6 +279,9 @@ class MinRepoScraperTests(unittest.TestCase):
                 return len(stores)
 
             service._save_registered_stores_to_supabase = fake_save_registered_stores_to_supabase  # type: ignore[method-assign]
+            service._load_registered_stores_from_supabase = (  # type: ignore[method-assign]
+                lambda: service._normalize_registered_stores(captured_stores)
+            )
 
             summary = service.save_registered_stores(
                 [
@@ -279,7 +292,6 @@ class MinRepoScraperTests(unittest.TestCase):
             loaded_stores = service.load_registered_stores()
 
             self.assertFalse(summary.has_errors)
-            self.assertEqual(summary.local_store_count, 1)
             self.assertEqual(len(captured_stores), 1)
             self.assertEqual(
                 loaded_stores,

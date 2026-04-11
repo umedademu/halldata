@@ -16,7 +16,6 @@ from minrepo_scraper import MachineHistoryResult, normalize_text
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_LOCAL_SAVE_DIR = ROOT_DIR / "local_data"
-DEFAULT_REGISTERED_STORES_FILE = DEFAULT_LOCAL_SAVE_DIR / "registered_stores.json"
 DEFAULT_SCHEMA = "public"
 DEFAULT_STORES_TABLE = "stores"
 DEFAULT_RESULTS_TABLE = "machine_daily_results"
@@ -39,8 +38,6 @@ class PersistenceSummary:
 
 @dataclass
 class RegisteredStoresPersistenceSummary:
-    local_file_path: str | None = None
-    local_store_count: int = 0
     supabase_saved: bool = False
     supabase_store_count: int = 0
     messages: list[str] = field(default_factory=list)
@@ -169,30 +166,11 @@ class HistoryPersistenceService:
         return summary
 
     def load_registered_stores(self) -> list[dict[str, str]]:
-        file_path = self._registered_stores_file_path()
-        if not file_path.exists():
-            return []
-
-        payload = json.loads(file_path.read_text(encoding="utf-8"))
-        if isinstance(payload, dict):
-            raw_stores = payload.get("stores", [])
-        else:
-            raw_stores = payload
-
-        if not isinstance(raw_stores, list):
-            raise RuntimeError("登録店舗ファイルの形式が不正です。")
-
-        return self._normalize_registered_stores(raw_stores)
+        return self._load_registered_stores_from_supabase()
 
     def save_registered_stores(self, stores: list[dict[str, str]]) -> RegisteredStoresPersistenceSummary:
         normalized_stores = self._normalize_registered_stores(stores)
-        summary = RegisteredStoresPersistenceSummary(local_store_count=len(normalized_stores))
-
-        try:
-            local_path = self._save_registered_stores_local(normalized_stores)
-            summary.local_file_path = str(local_path)
-        except Exception as exc:  # noqa: BLE001
-            summary.messages.append(f"登録店舗のローカル保存に失敗しました。\n{exc}")
+        summary = RegisteredStoresPersistenceSummary()
 
         try:
             saved_count = self._save_registered_stores_to_supabase(normalized_stores)
@@ -239,16 +217,6 @@ class HistoryPersistenceService:
         )
         file_path = store_dir / file_name
         file_path.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
-        return file_path
-
-    def _save_registered_stores_local(self, stores: list[dict[str, str]]) -> Path:
-        file_path = self._registered_stores_file_path()
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "saved_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-            "stores": stores,
-        }
-        file_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         return file_path
 
     def _find_saved_machine_targets_local(
@@ -366,6 +334,36 @@ class HistoryPersistenceService:
             response.raise_for_status()
         return len(payloads)
 
+    def _load_registered_stores_from_supabase(self) -> list[dict[str, str]]:
+        supabase_url, _, schema, stores_table, _ = self._supabase_config()
+        session = self._create_supabase_session(schema)
+        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(stores_table, safe='')}"
+        rows: list[dict[str, Any]] = []
+        offset = 0
+        page_size = 1000
+
+        while True:
+            response = session.get(
+                endpoint,
+                params={
+                    "select": "store_name,store_url",
+                    "order": "store_name.asc",
+                    "limit": str(page_size),
+                    "offset": str(offset),
+                },
+                timeout=30,
+            )
+            response.raise_for_status()
+            chunk = response.json()
+            if not chunk:
+                break
+            rows.extend(chunk)
+            if len(chunk) < page_size:
+                break
+            offset += page_size
+
+        return self._normalize_registered_stores(rows)
+
     def _find_saved_machine_targets_from_supabase(
         self,
         store_url: str,
@@ -482,14 +480,6 @@ class HistoryPersistenceService:
         if not local_dir.is_absolute():
             local_dir = self.root_dir / local_dir
         return local_dir
-
-    def _registered_stores_file_path(self) -> Path:
-        settings = self._load_settings()
-        file_text = settings.get("REGISTERED_STORES_FILE") or settings.get("SUPABASE_REGISTERED_STORES_FILE")
-        file_path = Path(file_text) if file_text else DEFAULT_REGISTERED_STORES_FILE
-        if not file_path.is_absolute():
-            file_path = self.root_dir / file_path
-        return file_path
 
     def _normalize_registered_stores(self, stores: list[dict[str, Any]]) -> list[dict[str, str]]:
         normalized_stores: list[dict[str, str]] = []

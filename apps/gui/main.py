@@ -309,7 +309,7 @@ class MinRepoApp:
             guide,
             text=(
                 "ここでは店舗URLを入れて店舗名を自動取得し、一覧へ登録できます。"
-                "登録した店舗一覧は local_data と Supabase に保存されます。"
+                "登録した店舗一覧は Supabase に保存されます。"
             ),
             wraplength=900,
             justify="left",
