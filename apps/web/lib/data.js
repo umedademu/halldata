@@ -274,7 +274,12 @@ function buildLatestDayMachineSummaries(rows) {
       latestAverageGames: average(bucket.rows.map((row) => row.games_count)),
       latestAveragePayout: average(bucket.rows.map((row) => row.payout_rate)),
     }))
-    .sort((left, right) => left.machineName.localeCompare(right.machineName, "ja"));
+    .sort((left, right) => {
+      if (left.slotCount !== right.slotCount) {
+        return right.slotCount - left.slotCount;
+      }
+      return left.machineName.localeCompare(right.machineName, "ja");
+    });
 }
 
 function buildMachineDetail(rows) {
