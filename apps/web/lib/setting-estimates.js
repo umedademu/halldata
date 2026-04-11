@@ -1,8 +1,8 @@
 const SETTING_ESTIMATE_DEFINITIONS = [
   {
     key: "neoim-juggler-ex",
-    displayName: "ネオアイムジャグラーEX",
-    matchNames: ["ネオアイムジャグラーEX"],
+    displayName: "アイムジャグラーEX",
+    matchNames: ["アイムジャグラーEX"],
     settings: [
       { setting: 1, label: "設定1", bbText: "1/273.1", rbText: "1/439.8" },
       { setting: 2, label: "設定2", bbText: "1/269.7", rbText: "1/399.6" },
