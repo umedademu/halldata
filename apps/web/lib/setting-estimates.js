@@ -212,6 +212,53 @@ function readNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+export function getSettingEstimateScoreRange(definition) {
+  const settings = definition?.settingRates
+    ?.map((row) => row.setting)
+    .filter((value) => Number.isFinite(value));
+
+  if (!settings || settings.length === 0) {
+    return {
+      minSetting: 1,
+      maxSetting: 6,
+    };
+  }
+
+  return {
+    minSetting: Math.min(...settings),
+    maxSetting: Math.max(...settings),
+  };
+}
+
+export function calculateGameCountEstimate(definition, record, options = {}) {
+  const games = readNumber(record?.games_count);
+  if (!definition || !Number.isFinite(games) || games < 0) {
+    return null;
+  }
+
+  const rawMinGames = readNumber(options.minGames) ?? 6000;
+  const rawMaxGames = readNumber(options.maxGames) ?? 9000;
+  const minGames = Math.max(0, rawMinGames);
+  const maxGames = Math.max(minGames + 1, rawMaxGames);
+  const exponent = Math.max(0.1, readNumber(options.gameExponent ?? options.exponent) ?? 2);
+  const { minSetting, maxSetting } = getSettingEstimateScoreRange(definition);
+  const progress = clamp((games - minGames) / (maxGames - minGames), 0, 1);
+  const curvedProgress = Math.pow(progress, exponent);
+
+  return {
+    average: minSetting + (maxSetting - minSetting) * curvedProgress,
+    games,
+    progress,
+    minGames,
+    maxGames,
+    exponent,
+  };
+}
+
 function isValidCount(value, base) {
   return Number.isInteger(value) && value >= 0 && value <= base;
 }
@@ -307,8 +354,12 @@ export function calculateSettingEstimate(definition, record) {
   };
 }
 
+export function formatSettingEstimateScore(value) {
+  return Number.isFinite(value) ? value.toFixed(2) : "-";
+}
+
 export function formatSettingEstimateAverage(estimate) {
-  return estimate ? estimate.average.toFixed(2) : "-";
+  return estimate ? formatSettingEstimateScore(estimate.average) : "-";
 }
 
 export function formatSettingEstimateBreakdown(estimate) {

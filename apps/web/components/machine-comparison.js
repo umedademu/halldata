@@ -15,9 +15,12 @@ import {
 } from "../lib/format";
 import { createEventFilters, matchesEventFilters } from "../lib/event-filters";
 import {
+  calculateGameCountEstimate,
   calculateSettingEstimate,
   formatSettingEstimateAverage,
   formatSettingEstimateBreakdown,
+  formatSettingEstimateScore,
+  getSettingEstimateScoreRange,
   getSettingEstimateDefinition,
 } from "../lib/setting-estimates";
 import { CsvExportButton } from "./csv-export-button";
@@ -33,6 +36,10 @@ const DEFAULT_VISIBLE_METRIC_KEYS = [
 ];
 const MATRIX_DATE_COLUMN_WIDTH_REM = 4.8;
 const MATRIX_SLOT_WIDTH_REM = 16;
+const DEFAULT_GAME_MIN_GAMES = 6000;
+const DEFAULT_GAME_MAX_GAMES = 9000;
+const DEFAULT_GAME_EXPONENT = 2;
+const COMPARISON_SCORE_EPSILON = 0.000000001;
 const settingEstimateCache = new WeakMap();
 
 function getSettingEstimate(definition, record) {
@@ -51,11 +58,241 @@ function getSettingEstimate(definition, record) {
   return estimate;
 }
 
-function createSettingEstimateMetric(definition) {
+function createDefaultEstimateOptions(slotCount) {
+  const isSmallMachine = slotCount <= 8;
+
+  return {
+    dataWeight: isSmallMachine ? 20 : 80,
+    gameEnabled: true,
+    gameWeight: isSmallMachine ? 40 : 20,
+    comparisonEnabled: isSmallMachine,
+    comparisonWeight: isSmallMachine ? 40 : 0,
+    minGames: DEFAULT_GAME_MIN_GAMES,
+    maxGames: DEFAULT_GAME_MAX_GAMES,
+    gameExponent: DEFAULT_GAME_EXPONENT,
+  };
+}
+
+function readWeight(value) {
+  const weight = Number(value);
+  return Number.isFinite(weight) ? Math.max(0, weight) : 0;
+}
+
+function formatWeight(value) {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function isSpecialEventDate(date, eventFilters) {
+  return Boolean(eventFilters?.isActive) && matchesEventFilters(date, eventFilters);
+}
+
+function buildWeightedAverage(parts) {
+  const activeParts = parts.filter(
+    (part) => part && Number.isFinite(part.score) && readWeight(part.weight) > 0,
+  );
+  const totalWeight = activeParts.reduce((sum, part) => sum + readWeight(part.weight), 0);
+
+  if (totalWeight <= 0) {
+    return null;
+  }
+
+  return {
+    average:
+      activeParts.reduce((sum, part) => sum + part.score * readWeight(part.weight), 0) /
+      totalWeight,
+    parts: activeParts,
+    totalWeight,
+  };
+}
+
+function calculateComparisonBaseScore(definition, record, options) {
+  const dataEstimate = getSettingEstimate(definition, record);
+  const gameEstimate = options.gameEnabled
+    ? calculateGameCountEstimate(definition, record, options)
+    : null;
+  const weighted = buildWeightedAverage([
+    dataEstimate
+      ? {
+          score: dataEstimate.average,
+          weight: options.dataWeight,
+        }
+      : null,
+    gameEstimate
+      ? {
+          score: gameEstimate.average,
+          weight: options.gameWeight,
+        }
+      : null,
+  ]);
+
+  return weighted?.average ?? null;
+}
+
+function buildComparisonEstimateMap(definition, slotNumbers, dateRows, eventFilters, options) {
+  const comparisonEstimateMap = new WeakMap();
+
+  if (!definition || !options.comparisonEnabled || readWeight(options.comparisonWeight) <= 0) {
+    return comparisonEstimateMap;
+  }
+
+  const { minSetting, maxSetting } = getSettingEstimateScoreRange(definition);
+
+  for (const row of dateRows) {
+    if (!isSpecialEventDate(row.date, eventFilters)) {
+      continue;
+    }
+
+    const candidates = slotNumbers
+      .map((slotNumber) => ({
+        slotNumber,
+        record: row.recordsBySlot[slotNumber] ?? null,
+      }))
+      .filter((candidate) => candidate.record)
+      .map((candidate) => ({
+        ...candidate,
+        baseScore: calculateComparisonBaseScore(definition, candidate.record, options),
+      }))
+      .filter((candidate) => Number.isFinite(candidate.baseScore))
+      .sort((left, right) => {
+        if (Math.abs(right.baseScore - left.baseScore) > COMPARISON_SCORE_EPSILON) {
+          return right.baseScore - left.baseScore;
+        }
+        return String(left.slotNumber).localeCompare(String(right.slotNumber), "ja");
+      });
+
+    const total = candidates.length;
+    if (total === 0) {
+      continue;
+    }
+
+    let index = 0;
+    while (index < total) {
+      let endIndex = index + 1;
+      while (
+        endIndex < total &&
+        Math.abs(candidates[endIndex].baseScore - candidates[index].baseScore) <=
+          COMPARISON_SCORE_EPSILON
+      ) {
+        endIndex += 1;
+      }
+
+      const averageIndex = (index + endIndex - 1) / 2;
+      const score =
+        total === 1
+          ? maxSetting
+          : maxSetting - ((maxSetting - minSetting) * averageIndex) / (total - 1);
+
+      for (let candidateIndex = index; candidateIndex < endIndex; candidateIndex += 1) {
+        comparisonEstimateMap.set(candidates[candidateIndex].record, {
+          average: score,
+          rank: index + 1,
+          total,
+          baseScore: candidates[candidateIndex].baseScore,
+        });
+      }
+
+      index = endIndex;
+    }
+  }
+
+  return comparisonEstimateMap;
+}
+
+function buildCompositeSettingEstimate(definition, record, comparisonEstimateMap, options) {
+  if (!definition || !record) {
+    return null;
+  }
+
+  const dataEstimate = getSettingEstimate(definition, record);
+  const gameEstimate = options.gameEnabled
+    ? calculateGameCountEstimate(definition, record, options)
+    : null;
+  const comparisonEstimate = options.comparisonEnabled
+    ? comparisonEstimateMap.get(record) ?? null
+    : null;
+  const weighted = buildWeightedAverage([
+    dataEstimate
+      ? {
+          key: "data",
+          label: "データ推測",
+          score: dataEstimate.average,
+          weight: options.dataWeight,
+        }
+      : null,
+    gameEstimate
+      ? {
+          key: "games",
+          label: "G数推測",
+          score: gameEstimate.average,
+          weight: options.gameWeight,
+          detail: `${Math.round(gameEstimate.games)}G`,
+        }
+      : null,
+    comparisonEstimate
+      ? {
+          key: "comparison",
+          label: "比較推測",
+          score: comparisonEstimate.average,
+          weight: options.comparisonWeight,
+          detail: `特定日内 ${comparisonEstimate.rank}/${comparisonEstimate.total}位`,
+        }
+      : null,
+  ]);
+
+  if (!weighted) {
+    return null;
+  }
+
+  return {
+    average: weighted.average,
+    parts: weighted.parts,
+    totalWeight: weighted.totalWeight,
+    dataEstimate,
+    gameEstimate,
+    comparisonEstimate,
+  };
+}
+
+function formatCompositeSettingEstimateBreakdown(estimate) {
+  if (!estimate) {
+    return "";
+  }
+
+  const lines = [`推測設定: ${formatSettingEstimateScore(estimate.average)}`];
+
+  if (estimate.parts.length > 0) {
+    lines.push(
+      ...estimate.parts.map((part) => {
+        const detail = part.detail ? ` / ${part.detail}` : "";
+        return `${part.label}: ${formatSettingEstimateScore(part.score)} / 重み${formatWeight(
+          readWeight(part.weight),
+        )}%${detail}`;
+      }),
+    );
+  }
+
+  if (estimate.totalWeight !== 100) {
+    lines.push(`計算重み合計: ${formatWeight(estimate.totalWeight)}%`);
+  }
+
+  if (estimate.dataEstimate) {
+    const dataBreakdown = formatSettingEstimateBreakdown(estimate.dataEstimate)
+      .split("\n")
+      .slice(1);
+    if (dataBreakdown.length > 0) {
+      lines.push("データ推測の割合:", ...dataBreakdown);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function createSettingEstimateMetric(getCompositeSettingEstimate) {
   const renderSettingEstimate = (_value, record) =>
-    formatSettingEstimateAverage(getSettingEstimate(definition, record));
+    formatSettingEstimateAverage(getCompositeSettingEstimate(record));
   const titleSettingEstimate = (_value, record) =>
-    formatSettingEstimateBreakdown(getSettingEstimate(definition, record));
+    formatCompositeSettingEstimateBreakdown(getCompositeSettingEstimate(record));
 
   return {
     key: "setting_estimate",
@@ -67,8 +304,7 @@ function createSettingEstimateMetric(definition) {
   };
 }
 
-function getSettingEstimateHighlightClass(definition, record) {
-  const estimate = getSettingEstimate(definition, record);
+function getSettingEstimateHighlightClass(estimate) {
   if (!estimate) {
     return "";
   }
@@ -129,11 +365,11 @@ const RATIO_METRICS = [
   { key: "rb_ratio_text", label: "RB率", render: formatRatio, columnClass: "matrixColumnWide" },
 ];
 
-function getMetrics(settingEstimateDefinition) {
+function getMetrics(settingEstimateDefinition, getCompositeSettingEstimate) {
   if (settingEstimateDefinition) {
     return [
       ...COMMON_METRICS,
-      createSettingEstimateMetric(settingEstimateDefinition),
+      createSettingEstimateMetric(getCompositeSettingEstimate),
       ...RATIO_METRICS,
     ];
   }
@@ -166,24 +402,191 @@ function buildCsvRows(slotNumbers, dateRows, metrics) {
   return [headerRow1, headerRow2, ...dataRows];
 }
 
+function calculateActiveWeightTotal(options) {
+  return (
+    readWeight(options.dataWeight) +
+    (options.gameEnabled ? readWeight(options.gameWeight) : 0) +
+    (options.comparisonEnabled ? readWeight(options.comparisonWeight) : 0)
+  );
+}
+
+function EstimateNumberField({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  disabled = false,
+  suffix = "",
+  onChange,
+}) {
+  return (
+    <label className="estimateField">
+      <span>{label}</span>
+      <span className="estimateInputWrap">
+        <input
+          type="number"
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          disabled={disabled}
+          onChange={(event) => {
+            const nextValue = event.target.value;
+            onChange(nextValue === "" ? "" : Number(nextValue));
+          }}
+        />
+        {suffix ? <span className="estimateInputSuffix">{suffix}</span> : null}
+      </span>
+    </label>
+  );
+}
+
+function SettingEstimateControls({ options, onChange }) {
+  const activeWeightTotal = calculateActiveWeightTotal(options);
+  const isWeightTotalValid = Math.abs(activeWeightTotal - 100) < 0.001;
+
+  const updateOption = (key, value) => {
+    onChange({ [key]: value });
+  };
+
+  return (
+    <div className="estimateControlGrid">
+      <div className="estimateControlHeader">
+        <div>
+          <p className="filterControlLabel">設定推測の比重</p>
+          <p className="estimateHelpText">
+            有効な項目だけを使い、合計が100%でない場合は比率として補正します。
+          </p>
+        </div>
+        <p
+          className={`estimateWeightTotal ${
+            isWeightTotalValid ? "" : "estimateWeightTotalWarn"
+          }`}
+        >
+          合計 {formatWeight(activeWeightTotal)}%
+        </p>
+      </div>
+
+      <div className="estimateMethodRow">
+        <div className="estimateMethodHeader">
+          <div>
+            <p className="estimateMethodTitle">データ推測</p>
+            <p className="estimateHelpText">BBとRBから出す既存の推測です。</p>
+          </div>
+        </div>
+        <div className="estimateFields">
+          <EstimateNumberField
+            label="重み"
+            value={options.dataWeight}
+            min={0}
+            max={100}
+            suffix="%"
+            onChange={(value) => updateOption("dataWeight", value)}
+          />
+        </div>
+      </div>
+
+      <div className="estimateMethodRow">
+        <div className="estimateMethodHeader">
+          <label className={`estimateToggle ${options.gameEnabled ? "estimateToggleActive" : ""}`}>
+            <input
+              type="checkbox"
+              checked={options.gameEnabled}
+              onChange={(event) => updateOption("gameEnabled", event.target.checked)}
+            />
+            <span>G数による推測</span>
+          </label>
+          <p className="estimateHelpText">最低G数から最大G数まで、指数に合わせて評価します。</p>
+        </div>
+        <div className="estimateFields">
+          <EstimateNumberField
+            label="重み"
+            value={options.gameWeight}
+            min={0}
+            max={100}
+            disabled={!options.gameEnabled}
+            suffix="%"
+            onChange={(value) => updateOption("gameWeight", value)}
+          />
+          <EstimateNumberField
+            label="最低G数"
+            value={options.minGames}
+            min={0}
+            disabled={!options.gameEnabled}
+            suffix="G"
+            onChange={(value) => updateOption("minGames", value)}
+          />
+          <EstimateNumberField
+            label="最大G数"
+            value={options.maxGames}
+            min={1}
+            disabled={!options.gameEnabled}
+            suffix="G"
+            onChange={(value) => updateOption("maxGames", value)}
+          />
+          <EstimateNumberField
+            label="指数"
+            value={options.gameExponent}
+            min={0.1}
+            step={0.1}
+            disabled={!options.gameEnabled}
+            onChange={(value) => updateOption("gameExponent", value)}
+          />
+        </div>
+      </div>
+
+      <div className="estimateMethodRow">
+        <div className="estimateMethodHeader">
+          <label
+            className={`estimateToggle ${
+              options.comparisonEnabled ? "estimateToggleActive" : ""
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={options.comparisonEnabled}
+              onChange={(event) => updateOption("comparisonEnabled", event.target.checked)}
+            />
+            <span>特定日6あり</span>
+          </label>
+          <p className="estimateHelpText">特定日行だけ、その機種内の相対順位を加えます。</p>
+        </div>
+        <div className="estimateFields">
+          <EstimateNumberField
+            label="重み"
+            value={options.comparisonWeight}
+            min={0}
+            max={100}
+            disabled={!options.comparisonEnabled}
+            suffix="%"
+            onChange={(value) => updateOption("comparisonWeight", value)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const MatrixRow = memo(function MatrixRow({
   row,
   slotNumbers,
   visibleMetrics,
   isHighlighted,
   settingEstimateDefinition,
+  getCompositeSettingEstimate,
 }) {
   return (
     <tr className={isHighlighted ? "matrixRowHighlighted" : ""}>
       <th className="dateCell">{formatShortDate(row.date)}</th>
       {slotNumbers.flatMap((slotNumber, slotIndex) => {
         const record = row.recordsBySlot[slotNumber] ?? null;
-        const settingHighlightClass = settingEstimateDefinition
-          ? getSettingEstimateHighlightClass(settingEstimateDefinition, record)
-          : "";
-        const settingTitle = settingEstimateDefinition
-          ? formatSettingEstimateBreakdown(getSettingEstimate(settingEstimateDefinition, record))
-          : "";
+        const settingEstimate =
+          settingEstimateDefinition && getCompositeSettingEstimate
+            ? getCompositeSettingEstimate(record)
+            : null;
+        const settingHighlightClass = getSettingEstimateHighlightClass(settingEstimate);
+        const settingTitle = formatCompositeSettingEstimateBreakdown(settingEstimate);
         const isLastSlot = slotIndex === slotNumbers.length - 1;
 
         return visibleMetrics.map((metric, metricIndex) => {
@@ -223,12 +626,39 @@ export function MachineComparison({
   );
   const [eventDisplayMode, setEventDisplayMode] = useState(initialEventDisplayMode);
   const [visibleMetricKeys, setVisibleMetricKeys] = useState(DEFAULT_VISIBLE_METRIC_KEYS);
+  const [estimateOptions, setEstimateOptions] = useState(() =>
+    createDefaultEstimateOptions(slotNumbers.length),
+  );
   const [isPending, startTransition] = useTransition();
   const settingEstimateDefinition = useMemo(
     () => getSettingEstimateDefinition(machineName),
     [machineName],
   );
-  const metrics = useMemo(() => getMetrics(settingEstimateDefinition), [settingEstimateDefinition]);
+  const comparisonEstimateMap = useMemo(
+    () =>
+      buildComparisonEstimateMap(
+        settingEstimateDefinition,
+        slotNumbers,
+        dateRows,
+        eventFilters,
+        estimateOptions,
+      ),
+    [dateRows, estimateOptions, eventFilters, settingEstimateDefinition, slotNumbers],
+  );
+  const getCompositeSettingEstimate = useCallback(
+    (record) =>
+      buildCompositeSettingEstimate(
+        settingEstimateDefinition,
+        record,
+        comparisonEstimateMap,
+        estimateOptions,
+      ),
+    [comparisonEstimateMap, estimateOptions, settingEstimateDefinition],
+  );
+  const metrics = useMemo(
+    () => getMetrics(settingEstimateDefinition, getCompositeSettingEstimate),
+    [getCompositeSettingEstimate, settingEstimateDefinition],
+  );
 
   const visibleMetrics = useMemo(
     () => metrics.filter((metric) => visibleMetricKeys.includes(metric.key)),
@@ -346,6 +776,13 @@ export function MachineComparison({
     });
   };
 
+  const updateEstimateOptions = useCallback((changes) => {
+    setEstimateOptions((currentOptions) => ({
+      ...currentOptions,
+      ...changes,
+    }));
+  }, []);
+
   const displayCountText = isPending
     ? "切り替え中"
     : `表示 ${visibleRows.length} / ${dateRows.length}`;
@@ -439,6 +876,14 @@ export function MachineComparison({
             })}
           </div>
         </div>
+        {settingEstimateDefinition ? (
+          <div className="filterControlGroup">
+            <SettingEstimateControls
+              options={estimateOptions}
+              onChange={updateEstimateOptions}
+            />
+          </div>
+        ) : null}
       </section>
 
       <MachineComparisonTable
@@ -448,6 +893,7 @@ export function MachineComparison({
         visibleMetrics={visibleMetrics}
         highlightedDateSet={highlightedDateSet}
         settingEstimateDefinition={settingEstimateDefinition}
+        getCompositeSettingEstimate={getCompositeSettingEstimate}
         csvRows={csvRows}
         tableStyle={tableStyle}
       />
@@ -462,6 +908,7 @@ function MachineComparisonTable({
   visibleMetrics,
   highlightedDateSet,
   settingEstimateDefinition,
+  getCompositeSettingEstimate,
   csvRows,
   tableStyle,
 }) {
@@ -540,6 +987,7 @@ function MachineComparisonTable({
                 visibleMetrics={visibleMetrics}
                 isHighlighted={highlightedDateSet.has(row.date)}
                 settingEstimateDefinition={settingEstimateDefinition}
+                getCompositeSettingEstimate={getCompositeSettingEstimate}
               />
             ))}
           </tbody>

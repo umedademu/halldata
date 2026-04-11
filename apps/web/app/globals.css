@@ -446,6 +446,138 @@ a {
   color: var(--accent-strong);
 }
 
+.estimateControlGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.estimateControlHeader,
+.estimateMethodHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.estimateControlHeader {
+  flex-wrap: wrap;
+}
+
+.estimateMethodRow {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(64, 30, 7, 0.12);
+}
+
+.estimateMethodTitle,
+.estimateHelpText,
+.estimateWeightTotal {
+  margin: 0;
+}
+
+.estimateMethodTitle {
+  font-weight: 800;
+}
+
+.estimateHelpText {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.estimateWeightTotal {
+  width: fit-content;
+  padding: 6px 10px;
+  border: 1px solid rgba(13, 125, 87, 0.22);
+  border-radius: 8px;
+  background: rgba(13, 125, 87, 0.08);
+  color: var(--positive);
+  font-size: 0.84rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.estimateWeightTotalWarn {
+  border-color: rgba(193, 68, 46, 0.24);
+  background: rgba(193, 68, 46, 0.08);
+  color: var(--negative);
+}
+
+.estimateToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 2.4rem;
+  padding: 8px 12px;
+  border: 1px solid rgba(64, 30, 7, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--muted);
+  font-size: 0.94rem;
+  font-weight: 800;
+  cursor: pointer;
+  user-select: none;
+}
+
+.estimateToggle input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--accent-strong);
+}
+
+.estimateToggleActive {
+  border-color: rgba(185, 65, 39, 0.4);
+  background: rgba(185, 65, 39, 0.12);
+  color: var(--accent-strong);
+}
+
+.estimateFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.8rem, 1fr));
+  gap: 10px;
+}
+
+.estimateField {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.estimateInputWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.estimateInputWrap input {
+  width: 100%;
+  min-width: 0;
+  height: 2.4rem;
+  padding: 6px 9px;
+  border: 1px solid rgba(64, 30, 7, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.96rem;
+  font-weight: 800;
+}
+
+.estimateInputWrap input:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.estimateInputSuffix {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
 .tablePanel {
   padding: 18px 18px 20px;
 }
@@ -842,5 +974,13 @@ a {
   .metricToggleChip {
     padding: 8px 10px;
     font-size: 0.9rem;
+  }
+
+  .estimateMethodHeader {
+    display: grid;
+  }
+
+  .estimateFields {
+    grid-template-columns: 1fr;
   }
 }
