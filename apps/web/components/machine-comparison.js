@@ -1,22 +1,57 @@
 import {
   formatAverageGames,
-  formatCompactDate,
+  formatNarrowInteger,
+  formatNarrowPercent,
+  formatNarrowSignedNumber,
   formatPercent,
   formatRatio,
+  formatShortDate,
   formatSignedNumber,
   valueToneClass,
 } from "../lib/format";
 import { CsvExportButton } from "./csv-export-button";
 
 const METRICS = [
-  { key: "difference_value", label: "差枚", render: formatSignedNumber, tone: true },
-  { key: "games_count", label: "G数", render: formatAverageGames },
-  { key: "payout_rate", label: "出率", render: formatPercent, tone: true },
-  { key: "bb_count", label: "BB", render: formatAverageGames },
-  { key: "rb_count", label: "RB", render: formatAverageGames },
-  { key: "combined_ratio_text", label: "合成", render: formatRatio },
-  { key: "bb_ratio_text", label: "BB率", render: formatRatio },
-  { key: "rb_ratio_text", label: "RB率", render: formatRatio },
+  {
+    key: "difference_value",
+    label: "差枚",
+    render: formatNarrowSignedNumber,
+    csvRender: formatSignedNumber,
+    tone: true,
+    columnClass: "matrixColumnWide",
+  },
+  {
+    key: "games_count",
+    label: "G数",
+    render: formatNarrowInteger,
+    csvRender: formatAverageGames,
+    columnClass: "matrixColumnMedium",
+  },
+  {
+    key: "payout_rate",
+    label: "出率",
+    render: formatNarrowPercent,
+    csvRender: formatPercent,
+    tone: true,
+    columnClass: "matrixColumnWide",
+  },
+  {
+    key: "bb_count",
+    label: "BB",
+    render: formatNarrowInteger,
+    csvRender: formatAverageGames,
+    columnClass: "matrixColumnNarrow",
+  },
+  {
+    key: "rb_count",
+    label: "RB",
+    render: formatNarrowInteger,
+    csvRender: formatAverageGames,
+    columnClass: "matrixColumnNarrow",
+  },
+  { key: "combined_ratio_text", label: "合成", render: formatRatio, columnClass: "matrixColumnWide" },
+  { key: "bb_ratio_text", label: "BB率", render: formatRatio, columnClass: "matrixColumnWide" },
+  { key: "rb_ratio_text", label: "RB率", render: formatRatio, columnClass: "matrixColumnWide" },
 ];
 
 function buildCsvRows(slotNumbers, dateRows) {
@@ -36,7 +71,7 @@ function buildCsvRows(slotNumbers, dateRows) {
       const record = row.recordsBySlot[slotNumber] ?? null;
       for (const metric of METRICS) {
         const value = record?.[metric.key];
-        cells.push(metric.render(value));
+        cells.push((metric.csvRender ?? metric.render)(value));
       }
     }
     return cells;
@@ -59,7 +94,7 @@ export function MachineComparison({ machineName, slotNumbers, dateRows, highligh
   const highlightedDateSet = new Set(highlightedDates);
 
   return (
-    <section className="tablePanel">
+    <section className="tablePanel matrixPanel">
       <div className="tablePanelHeader">
         <div>
           <p className="sectionLabel">台データ比較</p>
@@ -70,8 +105,16 @@ export function MachineComparison({ machineName, slotNumbers, dateRows, highligh
           csvRows={csvRows}
         />
       </div>
-      <div className="tableScroller">
+      <div className="tableScroller matrixScroller">
         <table className="matrixTable">
+          <colgroup>
+            <col className="matrixDateColumn" />
+            {slotNumbers.flatMap((slotNumber) =>
+              METRICS.map((metric) => (
+                <col key={`${slotNumber}-${metric.key}`} className={metric.columnClass} />
+              )),
+            )}
+          </colgroup>
           <thead>
             <tr>
               <th rowSpan={2} className="dateHeaderCell">
@@ -96,7 +139,7 @@ export function MachineComparison({ machineName, slotNumbers, dateRows, highligh
           <tbody>
             {dateRows.map((row) => (
               <tr key={row.date} className={highlightedDateSet.has(row.date) ? "matrixRowHighlighted" : ""}>
-                <th className="dateCell">{formatCompactDate(row.date)}</th>
+                <th className="dateCell">{formatShortDate(row.date)}</th>
                 {slotNumbers.flatMap((slotNumber) =>
                   METRICS.map((metric) => {
                     const record = row.recordsBySlot[slotNumber] ?? null;

@@ -418,6 +418,10 @@ a {
   padding: 18px 18px 20px;
 }
 
+.matrixPanel {
+  padding: 14px 12px 14px;
+}
+
 .tablePanelHeader {
   display: flex;
   align-items: center;
@@ -466,6 +470,10 @@ a {
   border: 1px solid var(--line);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.72);
+}
+
+.matrixScroller {
+  border-radius: 12px;
 }
 
 .directoryTable {
@@ -555,8 +563,27 @@ a {
 .matrixTable {
   width: max-content;
   min-width: 100%;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.matrixDateColumn {
+  width: 3.2rem;
+}
+
+.matrixColumnWide {
+  width: 2.16rem;
+}
+
+.matrixColumnMedium {
+  width: 1.82rem;
+}
+
+.matrixColumnNarrow {
+  width: 1.38rem;
 }
 
 .matrixTable thead th {
@@ -567,22 +594,28 @@ a {
 
 .matrixTable th,
 .matrixTable td {
-  padding: 12px 10px;
+  overflow: hidden;
+  padding: 6px 1px;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   text-align: center;
-  font-size: 0.88rem;
+  font-size: 0.64rem;
+  line-height: 1.25;
   white-space: nowrap;
 }
 
 .slotHeader {
-  min-width: 7.2rem;
-  font-size: 0.95rem;
+  min-width: 0;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  font-size: 0.66rem;
 }
 
 .metricHeader {
-  min-width: 5.4rem;
+  min-width: 0;
   color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 800;
 }
 
 .dateHeaderCell,
@@ -590,7 +623,9 @@ a {
   position: sticky;
   left: 0;
   z-index: 2;
-  min-width: 8.4rem;
+  width: 3.2rem;
+  min-width: 3.2rem;
+  max-width: 3.2rem;
   background:
     linear-gradient(180deg, rgba(255, 250, 239, 0.98), rgba(253, 241, 210, 0.96));
 }
@@ -674,6 +709,10 @@ a {
     padding: 20px;
   }
 
+  .matrixPanel {
+    padding: 12px 8px 12px;
+  }
+
   .pageTitle {
     font-size: clamp(2rem, 12vw, 3.2rem);
   }
@@ -704,6 +743,10 @@ a {
 
   .tablePanel {
     padding: 16px;
+  }
+
+  .matrixPanel {
+    padding: 10px 6px;
   }
 
   .directoryTable th,
