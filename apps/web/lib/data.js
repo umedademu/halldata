@@ -1,5 +1,7 @@
 import { cache } from "react";
 
+import { createEventFilters } from "./event-filters";
+
 const PAGE_SIZE = 1000;
 const DEFAULT_FETCH_CACHE_TTL_MS = 60 * 1000;
 
@@ -121,6 +123,22 @@ function buildQuery(params) {
     query.set(key, String(value));
   }
   return query;
+}
+
+function clearRowsCache() {
+  globalThis.__halldataRowsCache?.clear();
+}
+
+function normalizeEventDayTails(value) {
+  const sourceValues = Array.isArray(value) ? value : [];
+  return [...new Set(sourceValues)]
+    .map((item) => Number(item))
+    .filter((item) => Number.isInteger(item) && item >= 0 && item <= 9)
+    .sort((left, right) => left - right);
+}
+
+function buildEventFiltersFromStore(store) {
+  return createEventFilters(normalizeEventDayTails(store?.event_day_tails), Boolean(store?.event_zoro));
 }
 
 async function fetchAllRowsUncached(tableName, params) {
@@ -398,7 +416,7 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
   const { storesTable, resultsTable } = await getSupabaseConfig();
   const [stores, rows] = await Promise.all([
     fetchAllRows(storesTable, {
-      select: "id,store_name,store_url",
+      select: "id,store_name,store_url,event_day_tails,event_zoro",
       id: `eq.${storeId}`,
     }),
     fetchAllRows(resultsTable, {
@@ -422,6 +440,7 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
       id: store.id,
       storeName: store.store_name,
       storeUrl: store.store_url,
+      eventFilters: buildEventFiltersFromStore(store),
     },
     machineName,
     slotNumbers: detail.slotNumbers,
@@ -429,6 +448,40 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
     summary: detail.summary,
   };
 });
+
+export async function updateStoreEventSettings(storeId, eventSettings) {
+  const dayTails = normalizeEventDayTails(eventSettings?.dayTails);
+  const zoro = Boolean(eventSettings?.zoro);
+  const { baseUrl, serviceKey, schema, storesTable } = await getSupabaseConfig();
+  const response = await fetch(
+    `${baseUrl}/rest/v1/${encodeURIComponent(storesTable)}?id=eq.${encodeURIComponent(storeId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "Accept-Profile": schema,
+        "Content-Profile": schema,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        event_day_tails: dayTails,
+        event_zoro: zoro,
+        updated_at: new Date().toISOString(),
+      }),
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Supabase への特定日保存に失敗しました。(${response.status})`);
+  }
+
+  clearRowsCache();
+  return createEventFilters(dayTails, zoro);
+}
 
 export function readRouteSegment(value) {
   if (typeof value !== "string") {

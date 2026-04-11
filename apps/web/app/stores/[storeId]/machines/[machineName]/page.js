@@ -19,6 +19,11 @@ import { getSettingEstimateDefinition } from "../../../../../lib/setting-estimat
 
 export const dynamic = "force-dynamic";
 
+function hasSearchParamValue(searchParams, key) {
+  const value = searchParams?.[key];
+  return Array.isArray(value) ? value.length > 0 : value !== undefined;
+}
+
 export default async function MachineDetailPage({ params, searchParams }) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
@@ -26,6 +31,9 @@ export default async function MachineDetailPage({ params, searchParams }) {
   const machineName = readRouteSegment(resolvedParams.machineName);
   const eventFilters = parseEventFilters(resolvedSearchParams);
   const eventDisplayMode = parseEventDisplayMode(resolvedSearchParams);
+  const hasEventFilterSearchParams =
+    hasSearchParamValue(resolvedSearchParams, "dayTail") ||
+    hasSearchParamValue(resolvedSearchParams, "zoro");
   let detail;
 
   try {
@@ -53,6 +61,9 @@ export default async function MachineDetailPage({ params, searchParams }) {
   }
 
   const settingEstimateDefinition = getSettingEstimateDefinition(machineName);
+  const initialEventFilters = hasEventFilterSearchParams
+    ? eventFilters
+    : detail.store.eventFilters;
 
   return (
     <main className="pageStack">
@@ -165,10 +176,11 @@ export default async function MachineDetailPage({ params, searchParams }) {
       ) : null}
 
       <MachineComparison
+        storeId={detail.store.id}
         machineName={machineName}
         slotNumbers={detail.slotNumbers}
         dateRows={detail.dateRows}
-        initialEventFilters={eventFilters}
+        initialEventFilters={initialEventFilters}
         initialEventDisplayMode={eventDisplayMode}
       />
     </main>

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo, useState, useTransition } from "react";
+import { memo, useCallback, useMemo, useState, useTransition } from "react";
 
 import {
   formatAverageGames,
@@ -211,6 +211,7 @@ const MatrixRow = memo(function MatrixRow({
 });
 
 export function MachineComparison({
+  storeId,
   machineName,
   slotNumbers,
   dateRows,
@@ -278,9 +279,29 @@ export function MachineComparison({
     });
   };
 
+  const saveEventFilters = useCallback(
+    (nextFilters) => {
+      if (!storeId) {
+        return;
+      }
+
+      fetch(`/api/stores/${encodeURIComponent(storeId)}/event-settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dayTails: nextFilters.dayTails,
+          zoro: nextFilters.zoro,
+        }),
+      }).catch(() => {});
+    },
+    [storeId],
+  );
+
   const clearFilters = () => {
     startTransition(() => {
-      setEventFilters(createEventFilters());
+      const nextFilters = createEventFilters();
+      setEventFilters(nextFilters);
+      saveEventFilters(nextFilters);
     });
   };
 
@@ -290,16 +311,20 @@ export function MachineComparison({
         const nextDayTails = currentFilters.dayTails.includes(dayTail)
           ? currentFilters.dayTails.filter((value) => value !== dayTail)
           : [...currentFilters.dayTails, dayTail];
-        return createEventFilters(nextDayTails, currentFilters.zoro);
+        const nextFilters = createEventFilters(nextDayTails, currentFilters.zoro);
+        saveEventFilters(nextFilters);
+        return nextFilters;
       });
     });
   };
 
   const toggleZoro = () => {
     startTransition(() => {
-      setEventFilters((currentFilters) =>
-        createEventFilters(currentFilters.dayTails, !currentFilters.zoro),
-      );
+      setEventFilters((currentFilters) => {
+        const nextFilters = createEventFilters(currentFilters.dayTails, !currentFilters.zoro);
+        saveEventFilters(nextFilters);
+        return nextFilters;
+      });
     });
   };
 
@@ -357,7 +382,7 @@ export function MachineComparison({
           </div>
         </div>
         <div className="filterControlGroup">
-          <p className="filterControlLabel">日付</p>
+          <p className="filterControlLabel">特定日</p>
           <div className="dayFilterRow">
             <button
               type="button"
