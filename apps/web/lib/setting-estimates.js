@@ -34,6 +34,80 @@ const SETTING_ESTIMATE_DEFINITIONS = [
       { setting: 6, label: "設定6", bbText: "1/248.2", rbText: "1/280.1" },
     ],
   },
+  {
+    key: "sumaslo-thunder-v",
+    displayName: "スマスロ サンダーV",
+    matchNames: ["スマスロ サンダーV", "LサンダーV"],
+    settings: [
+      { setting: 1, label: "設定1", bbText: "1/277.7", rbText: "1/434.0" },
+      { setting: 2, label: "設定2", bbText: "1/275.4", rbText: "1/394.8" },
+      { setting: 5, label: "設定5", bbText: "1/270.8", rbText: "1/344.9" },
+      { setting: 6, label: "設定6", bbText: "1/264.3", rbText: "1/313.6" },
+    ],
+  },
+  {
+    key: "versus-revise",
+    displayName: "バーサスリヴァイズ",
+    matchNames: ["バーサスリヴァイズ", "バーサス リヴァイズ"],
+    settings: [
+      { setting: 1, label: "設定1", bbText: "1/292.6", rbText: "1/374.5" },
+      { setting: 2, label: "設定2", bbText: "1/284.9", rbText: "1/341.3" },
+      { setting: 5, label: "設定5", bbText: "1/275.4", rbText: "1/319.7" },
+      { setting: 6, label: "設定6", bbText: "1/264.3", rbText: "1/292.6" },
+    ],
+  },
+  {
+    key: "hanahana-houou",
+    displayName: "ハナハナホウオウ",
+    matchNames: ["ハナハナホウオウ"],
+    settings: [
+      { setting: 1, label: "設定1", bbText: "1/297", rbText: "1/496" },
+      { setting: 2, label: "設定2", bbText: "1/284", rbText: "1/458" },
+      { setting: 3, label: "設定3", bbText: "1/273", rbText: "1/425" },
+      { setting: 4, label: "設定4", bbText: "1/262", rbText: "1/397" },
+      { setting: 5, label: "設定5", bbText: "1/249", rbText: "1/366" },
+      { setting: 6, label: "設定6", bbText: "1/236", rbText: "1/337" },
+    ],
+  },
+  {
+    key: "funky-juggler-2",
+    displayName: "ファンキージャグラー2",
+    matchNames: ["ファンキージャグラー2"],
+    settings: [
+      { setting: 1, label: "設定1", bbText: "1/266.4", rbText: "1/439.8" },
+      { setting: 2, label: "設定2", bbText: "1/259.0", rbText: "1/407.1" },
+      { setting: 3, label: "設定3", bbText: "1/256.0", rbText: "1/366.1" },
+      { setting: 4, label: "設定4", bbText: "1/249.2", rbText: "1/322.8" },
+      { setting: 5, label: "設定5", bbText: "1/240.1", rbText: "1/299.3" },
+      { setting: 6, label: "設定6", bbText: "1/219.9", rbText: "1/262.1" },
+    ],
+  },
+  {
+    key: "my-juggler-v",
+    displayName: "マイジャグラーV",
+    matchNames: ["マイジャグラー"],
+    settings: [
+      { setting: 1, label: "設定1", bbText: "1/273.1", rbText: "1/409.6" },
+      { setting: 2, label: "設定2", bbText: "1/270.8", rbText: "1/385.5" },
+      { setting: 3, label: "設定3", bbText: "1/266.4", rbText: "1/336.1" },
+      { setting: 4, label: "設定4", bbText: "1/254.0", rbText: "1/290.0" },
+      { setting: 5, label: "設定5", bbText: "1/240.1", rbText: "1/268.6" },
+      { setting: 6, label: "設定6", bbText: "1/229.1", rbText: "1/229.1" },
+    ],
+  },
+  {
+    key: "happy-juggler-v",
+    displayName: "ハッピージャグラーV",
+    matchNames: ["ハッピージャグラー"],
+    settings: [
+      { setting: 1, label: "設定1", bbText: "1/273.1", rbText: "1/397.2" },
+      { setting: 2, label: "設定2", bbText: "1/270.8", rbText: "1/362.1" },
+      { setting: 3, label: "設定3", bbText: "1/263.2", rbText: "1/332.7" },
+      { setting: 4, label: "設定4", bbText: "1/254.0", rbText: "1/300.6" },
+      { setting: 5, label: "設定5", bbText: "1/239.2", rbText: "1/273.1" },
+      { setting: 6, label: "設定6", bbText: "1/226.0", rbText: "1/256.0" },
+    ],
+  },
 ];
 
 function parseRateText(value) {
