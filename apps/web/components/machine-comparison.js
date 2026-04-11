@@ -17,6 +17,17 @@ import { createEventFilters, matchesEventFilters } from "../lib/event-filters";
 import { CsvExportButton } from "./csv-export-button";
 
 const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, value) => value);
+const DEFAULT_VISIBLE_METRIC_KEYS = [
+  "difference_value",
+  "games_count",
+  "bb_count",
+  "rb_count",
+  "combined_ratio_text",
+  "bb_ratio_text",
+  "rb_ratio_text",
+];
+const MATRIX_DATE_COLUMN_WIDTH_REM = 3.2;
+const MATRIX_SLOT_WIDTH_REM = 16;
 
 const METRICS = [
   {
@@ -61,14 +72,14 @@ const METRICS = [
   { key: "rb_ratio_text", label: "RB率", render: formatRatio, columnClass: "matrixColumnWide" },
 ];
 
-function buildCsvRows(slotNumbers, dateRows) {
+function buildCsvRows(slotNumbers, dateRows, metrics) {
   const headerRow1 = ["日付"];
   const headerRow2 = [""];
 
   for (const slotNumber of slotNumbers) {
-    for (let i = 0; i < METRICS.length; i++) {
+    for (let i = 0; i < metrics.length; i++) {
       headerRow1.push(i === 0 ? `${slotNumber}番台` : "");
-      headerRow2.push(METRICS[i].label);
+      headerRow2.push(metrics[i].label);
     }
   }
 
@@ -76,7 +87,7 @@ function buildCsvRows(slotNumbers, dateRows) {
     const cells = [row.date];
     for (const slotNumber of slotNumbers) {
       const record = row.recordsBySlot[slotNumber] ?? null;
-      for (const metric of METRICS) {
+      for (const metric of metrics) {
         const value = record?.[metric.key];
         cells.push((metric.csvRender ?? metric.render)(value));
       }
@@ -87,12 +98,12 @@ function buildCsvRows(slotNumbers, dateRows) {
   return [headerRow1, headerRow2, ...dataRows];
 }
 
-const MatrixRow = memo(function MatrixRow({ row, slotNumbers, isHighlighted }) {
+const MatrixRow = memo(function MatrixRow({ row, slotNumbers, visibleMetrics, isHighlighted }) {
   return (
     <tr className={isHighlighted ? "matrixRowHighlighted" : ""}>
       <th className="dateCell">{formatShortDate(row.date)}</th>
       {slotNumbers.flatMap((slotNumber) =>
-        METRICS.map((metric) => {
+        visibleMetrics.map((metric) => {
           const record = row.recordsBySlot[slotNumber] ?? null;
           const value = record?.[metric.key];
           const toneClass = metric.tone ? valueToneClass(metric.key, value) : "";
@@ -118,7 +129,13 @@ export function MachineComparison({
     createEventFilters(initialEventFilters?.dayTails ?? [], initialEventFilters?.zoro ?? false),
   );
   const [eventDisplayMode, setEventDisplayMode] = useState(initialEventDisplayMode);
+  const [visibleMetricKeys, setVisibleMetricKeys] = useState(DEFAULT_VISIBLE_METRIC_KEYS);
   const [isPending, startTransition] = useTransition();
+
+  const visibleMetrics = useMemo(
+    () => METRICS.filter((metric) => visibleMetricKeys.includes(metric.key)),
+    [visibleMetricKeys],
+  );
 
   const visibleRows = useMemo(() => {
     if (eventDisplayMode === "highlight") {
@@ -137,7 +154,24 @@ export function MachineComparison({
     );
   }, [dateRows, eventDisplayMode, eventFilters]);
 
-  const csvRows = useMemo(() => buildCsvRows(slotNumbers, visibleRows), [slotNumbers, visibleRows]);
+  const csvRows = useMemo(
+    () => buildCsvRows(slotNumbers, visibleRows, visibleMetrics),
+    [slotNumbers, visibleRows, visibleMetrics],
+  );
+
+  const tableStyle = useMemo(() => {
+    const visibleMetricCount = Math.max(visibleMetrics.length, 1);
+    const cellFontSize = Math.min(0.96, Math.max(0.64, 1.08 - visibleMetricCount * 0.06));
+    const headerFontSize = Math.min(0.88, Math.max(0.62, cellFontSize - 0.04));
+
+    return {
+      "--matrix-date-column-width": `${MATRIX_DATE_COLUMN_WIDTH_REM}rem`,
+      "--matrix-metric-column-width": `${MATRIX_SLOT_WIDTH_REM / visibleMetricCount}rem`,
+      "--matrix-table-width": `${MATRIX_DATE_COLUMN_WIDTH_REM + slotNumbers.length * MATRIX_SLOT_WIDTH_REM}rem`,
+      "--matrix-cell-font-size": `${cellFontSize}rem`,
+      "--matrix-header-font-size": `${headerFontSize}rem`,
+    };
+  }, [slotNumbers.length, visibleMetrics.length]);
 
   const updateDisplayMode = (mode) => {
     startTransition(() => {
@@ -167,6 +201,22 @@ export function MachineComparison({
       setEventFilters((currentFilters) =>
         createEventFilters(currentFilters.dayTails, !currentFilters.zoro),
       );
+    });
+  };
+
+  const toggleMetric = (metricKey) => {
+    setVisibleMetricKeys((currentKeys) => {
+      const currentSet = new Set(currentKeys);
+      if (currentSet.has(metricKey)) {
+        if (currentSet.size === 1) {
+          return currentKeys;
+        }
+        currentSet.delete(metricKey);
+      } else {
+        currentSet.add(metricKey);
+      }
+
+      return METRICS.filter((metric) => currentSet.has(metric.key)).map((metric) => metric.key);
     });
   };
 
@@ -239,20 +289,54 @@ export function MachineComparison({
             </button>
           </div>
         </div>
+        <div className="filterControlGroup">
+          <p className="filterControlLabel">表示する列</p>
+          <div className="metricToggleRow">
+            {METRICS.map((metric) => {
+              const isChecked = visibleMetricKeys.includes(metric.key);
+              const isLastVisible = isChecked && visibleMetricKeys.length === 1;
+
+              return (
+                <label
+                  key={metric.key}
+                  className={`metricToggleChip ${isChecked ? "metricToggleChipActive" : ""}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    disabled={isLastVisible}
+                    onChange={() => toggleMetric(metric.key)}
+                  />
+                  <span>{metric.label}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
       </section>
 
       <MachineComparisonTable
         machineName={machineName}
         slotNumbers={slotNumbers}
         dateRows={visibleRows}
+        visibleMetrics={visibleMetrics}
         highlightedDateSet={highlightedDateSet}
         csvRows={csvRows}
+        tableStyle={tableStyle}
       />
     </>
   );
 }
 
-function MachineComparisonTable({ machineName, slotNumbers, dateRows, highlightedDateSet, csvRows }) {
+function MachineComparisonTable({
+  machineName,
+  slotNumbers,
+  dateRows,
+  visibleMetrics,
+  highlightedDateSet,
+  csvRows,
+  tableStyle,
+}) {
   if (dateRows.length === 0) {
     return (
       <section className="statusPanel">
@@ -275,12 +359,12 @@ function MachineComparisonTable({ machineName, slotNumbers, dateRows, highlighte
         />
       </div>
       <div className="tableScroller matrixScroller">
-        <table className="matrixTable">
+        <table className="matrixTable" style={tableStyle}>
           <colgroup>
             <col className="matrixDateColumn" />
             {slotNumbers.flatMap((slotNumber) =>
-              METRICS.map((metric) => (
-                <col key={`${slotNumber}-${metric.key}`} className={metric.columnClass} />
+              visibleMetrics.map((metric) => (
+                <col key={`${slotNumber}-${metric.key}`} className="matrixMetricColumn" />
               )),
             )}
           </colgroup>
@@ -290,14 +374,14 @@ function MachineComparisonTable({ machineName, slotNumbers, dateRows, highlighte
                 日付
               </th>
               {slotNumbers.map((slotNumber) => (
-                <th key={slotNumber} colSpan={METRICS.length} className="slotHeader">
+                <th key={slotNumber} colSpan={visibleMetrics.length} className="slotHeader">
                   {slotNumber}番台
                 </th>
               ))}
             </tr>
             <tr>
               {slotNumbers.flatMap((slotNumber) =>
-                METRICS.map((metric) => (
+                visibleMetrics.map((metric) => (
                   <th key={`${slotNumber}-${metric.key}`} className="metricHeader">
                     {metric.label}
                   </th>
@@ -311,6 +395,7 @@ function MachineComparisonTable({ machineName, slotNumbers, dateRows, highlighte
                 key={row.date}
                 row={row}
                 slotNumbers={slotNumbers}
+                visibleMetrics={visibleMetrics}
                 isHighlighted={highlightedDateSet.has(row.date)}
               />
             ))}

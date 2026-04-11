@@ -406,6 +406,46 @@ a {
   color: var(--accent-strong);
 }
 
+.metricToggleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.metricToggleChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 2.4rem;
+  padding: 8px 12px;
+  border: 1px solid rgba(64, 30, 7, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--muted);
+  font-size: 0.94rem;
+  font-weight: 800;
+  cursor: pointer;
+  user-select: none;
+}
+
+.metricToggleChip input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--accent-strong);
+}
+
+.metricToggleChip:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.metricToggleChipActive {
+  border-color: rgba(185, 65, 39, 0.4);
+  background: rgba(185, 65, 39, 0.12);
+  color: var(--accent-strong);
+}
+
 .tablePanel {
   padding: 18px 18px 20px;
 }
@@ -553,8 +593,8 @@ a {
 }
 
 .matrixTable {
-  width: max-content;
-  min-width: 100%;
+  width: var(--matrix-table-width, max-content);
+  min-width: var(--matrix-table-width, 100%);
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
@@ -563,19 +603,11 @@ a {
 }
 
 .matrixDateColumn {
-  width: 3.2rem;
+  width: var(--matrix-date-column-width, 3.2rem);
 }
 
-.matrixColumnWide {
-  width: 2.16rem;
-}
-
-.matrixColumnMedium {
-  width: 1.82rem;
-}
-
-.matrixColumnNarrow {
-  width: 1.38rem;
+.matrixMetricColumn {
+  width: var(--matrix-metric-column-width, 2rem);
 }
 
 .matrixTable thead th {
@@ -591,7 +623,7 @@ a {
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   text-align: center;
-  font-size: 0.64rem;
+  font-size: var(--matrix-cell-font-size, 0.64rem);
   line-height: 1.25;
   white-space: nowrap;
 }
@@ -600,13 +632,13 @@ a {
   min-width: 0;
   padding-top: 7px;
   padding-bottom: 7px;
-  font-size: 0.66rem;
+  font-size: var(--matrix-header-font-size, 0.66rem);
 }
 
 .metricHeader {
   min-width: 0;
   color: var(--muted);
-  font-size: 0.62rem;
+  font-size: var(--matrix-header-font-size, 0.62rem);
   font-weight: 800;
 }
 
@@ -615,9 +647,9 @@ a {
   position: sticky;
   left: 0;
   z-index: 2;
-  width: 3.2rem;
-  min-width: 3.2rem;
-  max-width: 3.2rem;
+  width: var(--matrix-date-column-width, 3.2rem);
+  min-width: var(--matrix-date-column-width, 3.2rem);
+  max-width: var(--matrix-date-column-width, 3.2rem);
   background:
     linear-gradient(180deg, rgba(255, 250, 239, 0.98), rgba(253, 241, 210, 0.96));
 }
@@ -756,8 +788,17 @@ a {
     gap: 8px;
   }
 
+  .metricToggleRow {
+    gap: 8px;
+  }
+
   .dayFilterChip {
     padding: 9px 12px;
     font-size: 0.92rem;
+  }
+
+  .metricToggleChip {
+    padding: 8px 10px;
+    font-size: 0.9rem;
   }
 }
