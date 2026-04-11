@@ -52,7 +52,7 @@ export function parseEventFilters(searchParams) {
 
 export function parseEventDisplayMode(searchParams) {
   const mode = splitSearchParamValue(searchParams?.eventMode)[0];
-  return mode === "highlight" ? "highlight" : "filter";
+  return mode === "filter" ? "filter" : "highlight";
 }
 
 export function matchesEventFilters(date, filters) {

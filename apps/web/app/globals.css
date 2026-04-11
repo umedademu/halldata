@@ -695,6 +695,32 @@ a {
   font-weight: 800;
 }
 
+.settingEstimateHigh {
+  color: #0b6d5c;
+  font-weight: 900;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.settingEstimateVeryHigh {
+  color: #9f1239;
+  font-weight: 900;
+  text-decoration-line: underline;
+  text-decoration-style: double;
+  text-decoration-thickness: 1.4px;
+  text-underline-offset: 2px;
+}
+
+.neoSpecTable {
+  width: 100%;
+}
+
+.neoSpecTable th,
+.neoSpecTable td {
+  text-align: center;
+}
+
 .statusPanel {
   padding: 24px;
 }

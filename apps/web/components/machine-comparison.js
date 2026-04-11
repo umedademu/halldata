@@ -14,6 +14,12 @@ import {
   valueToneClass,
 } from "../lib/format";
 import { createEventFilters, matchesEventFilters } from "../lib/event-filters";
+import {
+  calculateNeoImJugglerSettingEstimate,
+  formatNeoImJugglerSettingAverage,
+  formatNeoImJugglerSettingBreakdown,
+  isNeoImJugglerExName,
+} from "../lib/neoim-juggler";
 import { CsvExportButton } from "./csv-export-button";
 
 const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, value) => value);
@@ -23,13 +29,47 @@ const DEFAULT_VISIBLE_METRIC_KEYS = [
   "bb_count",
   "rb_count",
   "combined_ratio_text",
-  "bb_ratio_text",
-  "rb_ratio_text",
+  "setting_estimate",
 ];
 const MATRIX_DATE_COLUMN_WIDTH_REM = 4.8;
 const MATRIX_SLOT_WIDTH_REM = 16;
+const neoImJugglerEstimateCache = new WeakMap();
 
-const METRICS = [
+function getNeoImJugglerSettingEstimate(record) {
+  if (!record) {
+    return null;
+  }
+  if (neoImJugglerEstimateCache.has(record)) {
+    return neoImJugglerEstimateCache.get(record);
+  }
+  const estimate = calculateNeoImJugglerSettingEstimate(record);
+  neoImJugglerEstimateCache.set(record, estimate);
+  return estimate;
+}
+
+function renderNeoImJugglerSetting(_value, record) {
+  return formatNeoImJugglerSettingAverage(getNeoImJugglerSettingEstimate(record));
+}
+
+function titleNeoImJugglerSetting(_value, record) {
+  return formatNeoImJugglerSettingBreakdown(getNeoImJugglerSettingEstimate(record));
+}
+
+function classNeoImJugglerSetting(_value, record) {
+  const estimate = getNeoImJugglerSettingEstimate(record);
+  if (!estimate) {
+    return "";
+  }
+  if (estimate.average >= 5) {
+    return "settingEstimateVeryHigh";
+  }
+  if (estimate.average >= 4) {
+    return "settingEstimateHigh";
+  }
+  return "";
+}
+
+const COMMON_METRICS = [
   {
     key: "difference_value",
     label: "差枚",
@@ -67,9 +107,29 @@ const METRICS = [
     columnClass: "matrixColumnNarrow",
   },
   { key: "combined_ratio_text", label: "合成", render: formatRatio, columnClass: "matrixColumnWide" },
+];
+
+const NEO_IM_JUGGLER_SETTING_METRIC = {
+  key: "setting_estimate",
+  label: "設定",
+  render: renderNeoImJugglerSetting,
+  csvRender: renderNeoImJugglerSetting,
+  title: titleNeoImJugglerSetting,
+  cellClass: classNeoImJugglerSetting,
+  columnClass: "matrixColumnNarrow",
+};
+
+const RATIO_METRICS = [
   { key: "bb_ratio_text", label: "BB率", render: formatRatio, columnClass: "matrixColumnWide" },
   { key: "rb_ratio_text", label: "RB率", render: formatRatio, columnClass: "matrixColumnWide" },
 ];
+
+function getMetrics(machineName) {
+  if (isNeoImJugglerExName(machineName)) {
+    return [...COMMON_METRICS, NEO_IM_JUGGLER_SETTING_METRIC, ...RATIO_METRICS];
+  }
+  return [...COMMON_METRICS, ...RATIO_METRICS];
+}
 
 function buildCsvRows(slotNumbers, dateRows, metrics) {
   const headerRow1 = ["日付"];
@@ -88,7 +148,7 @@ function buildCsvRows(slotNumbers, dateRows, metrics) {
       const record = row.recordsBySlot[slotNumber] ?? null;
       for (const metric of metrics) {
         const value = record?.[metric.key];
-        cells.push((metric.csvRender ?? metric.render)(value));
+        cells.push((metric.csvRender ?? metric.render)(value, record));
       }
     }
     return cells;
@@ -106,9 +166,16 @@ const MatrixRow = memo(function MatrixRow({ row, slotNumbers, visibleMetrics, is
           const record = row.recordsBySlot[slotNumber] ?? null;
           const value = record?.[metric.key];
           const toneClass = metric.tone ? valueToneClass(metric.key, value) : "";
+          const cellClass = metric.cellClass ? metric.cellClass(value, record) : "";
+          const className = [toneClass, cellClass].filter(Boolean).join(" ");
+          const title = metric.title ? metric.title(value, record) : "";
           return (
-            <td key={`${row.date}-${slotNumber}-${metric.key}`} className={toneClass}>
-              {metric.render(value)}
+            <td
+              key={`${row.date}-${slotNumber}-${metric.key}`}
+              className={className || undefined}
+              title={title || undefined}
+            >
+              {metric.render(value, record)}
             </td>
           );
         }),
@@ -122,7 +189,7 @@ export function MachineComparison({
   slotNumbers,
   dateRows,
   initialEventFilters,
-  initialEventDisplayMode = "filter",
+  initialEventDisplayMode = "highlight",
 }) {
   const [eventFilters, setEventFilters] = useState(() =>
     createEventFilters(initialEventFilters?.dayTails ?? [], initialEventFilters?.zoro ?? false),
@@ -130,10 +197,11 @@ export function MachineComparison({
   const [eventDisplayMode, setEventDisplayMode] = useState(initialEventDisplayMode);
   const [visibleMetricKeys, setVisibleMetricKeys] = useState(DEFAULT_VISIBLE_METRIC_KEYS);
   const [isPending, startTransition] = useTransition();
+  const metrics = useMemo(() => getMetrics(machineName), [machineName]);
 
   const visibleMetrics = useMemo(
-    () => METRICS.filter((metric) => visibleMetricKeys.includes(metric.key)),
-    [visibleMetricKeys],
+    () => metrics.filter((metric) => visibleMetricKeys.includes(metric.key)),
+    [metrics, visibleMetricKeys],
   );
 
   const visibleRows = useMemo(() => {
@@ -208,8 +276,10 @@ export function MachineComparison({
   const toggleMetric = (metricKey) => {
     setVisibleMetricKeys((currentKeys) => {
       const currentSet = new Set(currentKeys);
+      const currentVisibleCount = metrics.filter((metric) => currentSet.has(metric.key)).length;
+
       if (currentSet.has(metricKey)) {
-        if (currentSet.size === 1) {
+        if (currentVisibleCount === 1) {
           return currentKeys;
         }
         currentSet.delete(metricKey);
@@ -217,7 +287,7 @@ export function MachineComparison({
         currentSet.add(metricKey);
       }
 
-      return METRICS.filter((metric) => currentSet.has(metric.key)).map((metric) => metric.key);
+      return metrics.filter((metric) => currentSet.has(metric.key)).map((metric) => metric.key);
     });
   };
 
@@ -240,19 +310,19 @@ export function MachineComparison({
           <div className="dayFilterRow">
             <button
               type="button"
-              onClick={() => updateDisplayMode("filter")}
-              className={`dayFilterChip ${eventDisplayMode === "filter" ? "dayFilterChipActive" : ""}`}
-              aria-pressed={eventDisplayMode === "filter"}
-            >
-              絞り込む
-            </button>
-            <button
-              type="button"
               onClick={() => updateDisplayMode("highlight")}
               className={`dayFilterChip ${eventDisplayMode === "highlight" ? "dayFilterChipActive" : ""}`}
               aria-pressed={eventDisplayMode === "highlight"}
             >
-              強調する
+              強調
+            </button>
+            <button
+              type="button"
+              onClick={() => updateDisplayMode("filter")}
+              className={`dayFilterChip ${eventDisplayMode === "filter" ? "dayFilterChipActive" : ""}`}
+              aria-pressed={eventDisplayMode === "filter"}
+            >
+              絞込
             </button>
           </div>
         </div>
@@ -293,9 +363,9 @@ export function MachineComparison({
         <div className="filterControlGroup">
           <p className="filterControlLabel">表示する列</p>
           <div className="metricToggleRow">
-            {METRICS.map((metric) => {
+            {metrics.map((metric) => {
               const isChecked = visibleMetricKeys.includes(metric.key);
-              const isLastVisible = isChecked && visibleMetricKeys.length === 1;
+              const isLastVisible = isChecked && visibleMetrics.length === 1;
 
               return (
                 <label

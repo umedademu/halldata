@@ -15,6 +15,10 @@ import {
   formatPeriod,
   formatSignedNumber,
 } from "../../../../../lib/format";
+import {
+  NEO_IM_JUGGLER_EX_RATE_TABLE,
+  isNeoImJugglerExName,
+} from "../../../../../lib/neoim-juggler";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +54,8 @@ export default async function MachineDetailPage({ params, searchParams }) {
   if (!detail) {
     notFound();
   }
+
+  const shouldShowNeoImJugglerRates = isNeoImJugglerExName(machineName);
 
   return (
     <main className="pageStack">
@@ -127,6 +133,39 @@ export default async function MachineDetailPage({ params, searchParams }) {
           </strong>
         </article>
       </section>
+
+      {shouldShowNeoImJugglerRates ? (
+        <section className="tablePanel">
+          <div className="tablePanelHeader">
+            <div>
+              <p className="sectionLabel">設定推測</p>
+              <h2 className="tablePanelTitle">ネオアイムジャグラーEX 確率</h2>
+            </div>
+          </div>
+          <div className="tableScroller directoryScroller">
+            <table className="directoryTable neoSpecTable">
+              <thead>
+                <tr>
+                  <th>設定</th>
+                  <th>BIG確率</th>
+                  <th>REG確率</th>
+                  <th>合成確率</th>
+                </tr>
+              </thead>
+              <tbody>
+                {NEO_IM_JUGGLER_EX_RATE_TABLE.map((row) => (
+                  <tr key={row.setting}>
+                    <th scope="row">{row.setting}</th>
+                    <td>{row.bb}</td>
+                    <td>{row.rb}</td>
+                    <td>{row.combined}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
 
       <MachineComparison
         machineName={machineName}
