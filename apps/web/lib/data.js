@@ -1,8 +1,28 @@
 import { cache } from "react";
 
 const PAGE_SIZE = 1000;
+const DEFAULT_FETCH_CACHE_TTL_MS = 60 * 1000;
 
 let cachedFileSettingsPromise = null;
+
+function getFetchCacheTtlMs() {
+  const value = Number(process.env.HALLDATA_FETCH_CACHE_TTL_MS);
+  return Number.isFinite(value) && value >= 0 ? value : DEFAULT_FETCH_CACHE_TTL_MS;
+}
+
+function getRowsCache() {
+  if (!globalThis.__halldataRowsCache) {
+    globalThis.__halldataRowsCache = new Map();
+  }
+  return globalThis.__halldataRowsCache;
+}
+
+function buildFetchCacheKey(tableName, params) {
+  return JSON.stringify({
+    tableName,
+    params: Object.entries(params).sort(([left], [right]) => left.localeCompare(right)),
+  });
+}
 
 async function readFallbackSettings() {
   if (cachedFileSettingsPromise !== null) {
@@ -103,7 +123,7 @@ function buildQuery(params) {
   return query;
 }
 
-async function fetchAllRows(tableName, params) {
+async function fetchAllRowsUncached(tableName, params) {
   const { baseUrl, serviceKey, schema } = await getSupabaseConfig();
   const headers = {
     apikey: serviceKey,
@@ -144,6 +164,45 @@ async function fetchAllRows(tableName, params) {
   }
 
   return rows;
+}
+
+async function fetchAllRows(tableName, params) {
+  const cacheTtlMs = getFetchCacheTtlMs();
+  if (cacheTtlMs === 0) {
+    return fetchAllRowsUncached(tableName, params);
+  }
+
+  const cacheKey = buildFetchCacheKey(tableName, params);
+  const rowsCache = getRowsCache();
+  const cachedEntry = rowsCache.get(cacheKey);
+  const now = Date.now();
+
+  if (cachedEntry?.rows && cachedEntry.expiresAt > now) {
+    return cachedEntry.rows;
+  }
+  if (cachedEntry?.promise && cachedEntry.expiresAt > now) {
+    return cachedEntry.promise;
+  }
+
+  const promise = fetchAllRowsUncached(tableName, params)
+    .then((rows) => {
+      rowsCache.set(cacheKey, {
+        rows,
+        expiresAt: Date.now() + cacheTtlMs,
+      });
+      return rows;
+    })
+    .catch((error) => {
+      rowsCache.delete(cacheKey);
+      throw error;
+    });
+
+  rowsCache.set(cacheKey, {
+    promise,
+    expiresAt: now + cacheTtlMs,
+  });
+
+  return promise;
 }
 
 function average(values) {
@@ -403,67 +462,4 @@ export function readRouteSegment(value) {
   }
 }
 
-function splitSearchParamValue(value) {
-  if (Array.isArray(value)) {
-    return value.flatMap((item) => splitSearchParamValue(item));
-  }
-  if (value === undefined || value === null || value === "") {
-    return [];
-  }
-  return String(value)
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function parseDayTailValues(value) {
-  const dayTails = new Set();
-  for (const item of splitSearchParamValue(value)) {
-    const numericValue = Number(item);
-    if (Number.isInteger(numericValue) && numericValue >= 0 && numericValue <= 9) {
-      dayTails.add(numericValue);
-    }
-  }
-  return [...dayTails].sort((left, right) => left - right);
-}
-
-function parseFlagValue(value) {
-  return splitSearchParamValue(value).some((item) => item === "1" || item === "true");
-}
-
-function isZoromeDate(date) {
-  const match = String(date).match(/^\d{4}-(\d{2})-(\d{2})$/u);
-  if (!match) {
-    return false;
-  }
-  return Number(match[1]) === Number(match[2]);
-}
-
-export function parseEventFilters(searchParams) {
-  const dayTails = parseDayTailValues(searchParams?.dayTail);
-  const zoro = parseFlagValue(searchParams?.zoro);
-
-  return {
-    dayTails,
-    zoro,
-    isActive: dayTails.length > 0 || zoro,
-  };
-}
-
-export function parseEventDisplayMode(searchParams) {
-  const mode = splitSearchParamValue(searchParams?.eventMode)[0];
-  return mode === "highlight" ? "highlight" : "filter";
-}
-
-export function matchesEventFilters(date, filters) {
-  if (!filters.isActive) {
-    return true;
-  }
-
-  const dayTail = Number(String(date).slice(-1));
-  if (filters.dayTails.includes(dayTail)) {
-    return true;
-  }
-
-  return filters.zoro && isZoromeDate(date);
-}
+export { matchesEventFilters, parseEventDisplayMode, parseEventFilters } from "./event-filters";

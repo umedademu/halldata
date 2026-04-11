@@ -1,3 +1,7 @@
+"use client";
+
+import { memo, useMemo, useState, useTransition } from "react";
+
 import {
   formatAverageGames,
   formatNarrowInteger,
@@ -9,7 +13,10 @@ import {
   formatSignedNumber,
   valueToneClass,
 } from "../lib/format";
+import { createEventFilters, matchesEventFilters } from "../lib/event-filters";
 import { CsvExportButton } from "./csv-export-button";
+
+const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, value) => value);
 
 const METRICS = [
   {
@@ -80,7 +87,172 @@ function buildCsvRows(slotNumbers, dateRows) {
   return [headerRow1, headerRow2, ...dataRows];
 }
 
-export function MachineComparison({ machineName, slotNumbers, dateRows, highlightedDates = [] }) {
+const MatrixRow = memo(function MatrixRow({ row, slotNumbers, isHighlighted }) {
+  return (
+    <tr className={isHighlighted ? "matrixRowHighlighted" : ""}>
+      <th className="dateCell">{formatShortDate(row.date)}</th>
+      {slotNumbers.flatMap((slotNumber) =>
+        METRICS.map((metric) => {
+          const record = row.recordsBySlot[slotNumber] ?? null;
+          const value = record?.[metric.key];
+          const toneClass = metric.tone ? valueToneClass(metric.key, value) : "";
+          return (
+            <td key={`${row.date}-${slotNumber}-${metric.key}`} className={toneClass}>
+              {metric.render(value)}
+            </td>
+          );
+        }),
+      )}
+    </tr>
+  );
+});
+
+export function MachineComparison({
+  machineName,
+  slotNumbers,
+  dateRows,
+  initialEventFilters,
+  initialEventDisplayMode = "filter",
+}) {
+  const [eventFilters, setEventFilters] = useState(() =>
+    createEventFilters(initialEventFilters?.dayTails ?? [], initialEventFilters?.zoro ?? false),
+  );
+  const [eventDisplayMode, setEventDisplayMode] = useState(initialEventDisplayMode);
+  const [isPending, startTransition] = useTransition();
+
+  const visibleRows = useMemo(() => {
+    if (eventDisplayMode === "highlight") {
+      return dateRows;
+    }
+    return dateRows.filter((row) => matchesEventFilters(row.date, eventFilters));
+  }, [dateRows, eventDisplayMode, eventFilters]);
+
+  const highlightedDateSet = useMemo(() => {
+    if (eventDisplayMode !== "highlight" || !eventFilters.isActive) {
+      return new Set();
+    }
+
+    return new Set(
+      dateRows.filter((row) => matchesEventFilters(row.date, eventFilters)).map((row) => row.date),
+    );
+  }, [dateRows, eventDisplayMode, eventFilters]);
+
+  const csvRows = useMemo(() => buildCsvRows(slotNumbers, visibleRows), [slotNumbers, visibleRows]);
+
+  const updateDisplayMode = (mode) => {
+    startTransition(() => {
+      setEventDisplayMode(mode);
+    });
+  };
+
+  const clearFilters = () => {
+    startTransition(() => {
+      setEventFilters(createEventFilters());
+    });
+  };
+
+  const toggleDayTail = (dayTail) => {
+    startTransition(() => {
+      setEventFilters((currentFilters) => {
+        const nextDayTails = currentFilters.dayTails.includes(dayTail)
+          ? currentFilters.dayTails.filter((value) => value !== dayTail)
+          : [...currentFilters.dayTails, dayTail];
+        return createEventFilters(nextDayTails, currentFilters.zoro);
+      });
+    });
+  };
+
+  const toggleZoro = () => {
+    startTransition(() => {
+      setEventFilters((currentFilters) =>
+        createEventFilters(currentFilters.dayTails, !currentFilters.zoro),
+      );
+    });
+  };
+
+  const displayCountText = isPending
+    ? "切り替え中"
+    : `表示 ${visibleRows.length} / ${dateRows.length}`;
+
+  return (
+    <>
+      <section className="filterPanel">
+        <div>
+          <p className="sectionLabel">日付の末尾を選ぶ</p>
+          <p className="filterLead">
+            イベント日を絞り込むか、全日を表示したまま該当日だけを強調できます。
+          </p>
+        </div>
+        <div className="filterPanelStatus">{displayCountText}</div>
+        <div className="filterControlGroup">
+          <p className="filterControlLabel">表示方法</p>
+          <div className="dayFilterRow">
+            <button
+              type="button"
+              onClick={() => updateDisplayMode("filter")}
+              className={`dayFilterChip ${eventDisplayMode === "filter" ? "dayFilterChipActive" : ""}`}
+              aria-pressed={eventDisplayMode === "filter"}
+            >
+              絞り込む
+            </button>
+            <button
+              type="button"
+              onClick={() => updateDisplayMode("highlight")}
+              className={`dayFilterChip ${eventDisplayMode === "highlight" ? "dayFilterChipActive" : ""}`}
+              aria-pressed={eventDisplayMode === "highlight"}
+            >
+              強調する
+            </button>
+          </div>
+        </div>
+        <div className="filterControlGroup">
+          <p className="filterControlLabel">日付</p>
+          <div className="dayFilterRow">
+            <button
+              type="button"
+              onClick={clearFilters}
+              className={`dayFilterChip ${eventFilters.isActive ? "" : "dayFilterChipActive"}`}
+              aria-pressed={!eventFilters.isActive}
+            >
+              すべて
+            </button>
+            {DAY_TAIL_OPTIONS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => toggleDayTail(value)}
+                className={`dayFilterChip ${
+                  eventFilters.dayTails.includes(value) ? "dayFilterChipActive" : ""
+                }`}
+                aria-pressed={eventFilters.dayTails.includes(value)}
+              >
+                末尾{value}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={toggleZoro}
+              className={`dayFilterChip ${eventFilters.zoro ? "dayFilterChipActive" : ""}`}
+              aria-pressed={eventFilters.zoro}
+            >
+              ゾロ目
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <MachineComparisonTable
+        machineName={machineName}
+        slotNumbers={slotNumbers}
+        dateRows={visibleRows}
+        highlightedDateSet={highlightedDateSet}
+        csvRows={csvRows}
+      />
+    </>
+  );
+}
+
+function MachineComparisonTable({ machineName, slotNumbers, dateRows, highlightedDateSet, csvRows }) {
   if (dateRows.length === 0) {
     return (
       <section className="statusPanel">
@@ -89,9 +261,6 @@ export function MachineComparison({ machineName, slotNumbers, dateRows, highligh
       </section>
     );
   }
-
-  const csvRows = buildCsvRows(slotNumbers, dateRows);
-  const highlightedDateSet = new Set(highlightedDates);
 
   return (
     <section className="tablePanel matrixPanel">
@@ -138,21 +307,12 @@ export function MachineComparison({ machineName, slotNumbers, dateRows, highligh
           </thead>
           <tbody>
             {dateRows.map((row) => (
-              <tr key={row.date} className={highlightedDateSet.has(row.date) ? "matrixRowHighlighted" : ""}>
-                <th className="dateCell">{formatShortDate(row.date)}</th>
-                {slotNumbers.flatMap((slotNumber) =>
-                  METRICS.map((metric) => {
-                    const record = row.recordsBySlot[slotNumber] ?? null;
-                    const value = record?.[metric.key];
-                    const toneClass = metric.tone ? valueToneClass(metric.key, value) : "";
-                    return (
-                      <td key={`${row.date}-${slotNumber}-${metric.key}`} className={toneClass}>
-                        {metric.render(value)}
-                      </td>
-                    );
-                  }),
-                )}
-              </tr>
+              <MatrixRow
+                key={row.date}
+                row={row}
+                slotNumbers={slotNumbers}
+                isHighlighted={highlightedDateSet.has(row.date)}
+              />
             ))}
           </tbody>
         </table>

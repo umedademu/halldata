@@ -1,7 +1,7 @@
 :root {
   --bg: #f3ead8;
   --bg-deep: #e8d4ae;
-  --panel: rgba(255, 250, 240, 0.86);
+  --panel: rgba(255, 250, 240, 0.98);
   --panel-strong: rgba(255, 248, 232, 0.96);
   --line: rgba(64, 30, 7, 0.14);
   --line-strong: rgba(64, 30, 7, 0.28);
@@ -18,8 +18,8 @@
   --radius-lg: 22px;
   --radius-md: 16px;
   --radius-sm: 12px;
-  --font-display: "Bebas Neue", sans-serif;
-  --font-body: "Noto Sans JP", sans-serif;
+  --font-display: "Arial Narrow", "Yu Gothic", "Meiryo", sans-serif;
+  --font-body: "Yu Gothic", "Meiryo", sans-serif;
 }
 
 * {
@@ -27,7 +27,7 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
 }
 
 body {
@@ -46,8 +46,7 @@ a {
   text-decoration: none;
 }
 
-.backgroundVeil,
-.backgroundBurst {
+.backgroundVeil {
   pointer-events: none;
   position: fixed;
   inset: 0;
@@ -60,26 +59,6 @@ a {
   background-size: 24px 24px;
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.48), transparent 88%);
   opacity: 0.34;
-}
-
-.backgroundBurst {
-  width: 34rem;
-  height: 34rem;
-  border-radius: 999px;
-  filter: blur(100px);
-  opacity: 0.24;
-}
-
-.backgroundBurstLeft {
-  background: rgba(214, 168, 74, 0.85);
-  top: -8rem;
-  left: -10rem;
-}
-
-.backgroundBurstRight {
-  background: rgba(185, 65, 39, 0.55);
-  right: -10rem;
-  top: 8rem;
 }
 
 .appShell {
@@ -101,7 +80,7 @@ a {
 .tablePanel,
 .summaryCard,
 .linkCard {
-  animation: riseIn 0.55s ease both;
+  animation: none;
 }
 
 .heroPanel,
@@ -114,7 +93,6 @@ a {
   border-radius: var(--radius-xl);
   background: var(--panel);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(12px);
 }
 
 .heroPanel {
@@ -371,6 +349,17 @@ a {
   padding: 22px 24px;
 }
 
+.filterPanelStatus {
+  width: fit-content;
+  padding: 6px 10px;
+  border: 1px solid rgba(64, 30, 7, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
 .sectionLabel {
   margin: 0;
 }
@@ -405,7 +394,10 @@ a {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.7);
   color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 1rem;
   font-weight: 700;
+  cursor: pointer;
 }
 
 .dayFilterChipActive {
