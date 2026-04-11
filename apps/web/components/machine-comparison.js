@@ -174,12 +174,15 @@ const MatrixRow = memo(function MatrixRow({
         const settingHighlightClass = canHighlightSettings
           ? getNeoImJugglerHighlightClass(record)
           : "";
+        const settingTitle = canHighlightSettings
+          ? formatNeoImJugglerSettingBreakdown(getNeoImJugglerSettingEstimate(record))
+          : "";
 
         return visibleMetrics.map((metric) => {
           const value = record?.[metric.key];
           const toneClass = metric.tone ? valueToneClass(metric.key, value) : "";
           const className = [toneClass, settingHighlightClass].filter(Boolean).join(" ");
-          const title = metric.title ? metric.title(value, record) : "";
+          const title = settingTitle || (metric.title ? metric.title(value, record) : "");
           return (
             <td
               key={`${row.date}-${slotNumber}-${metric.key}`}
