@@ -169,7 +169,7 @@ const MatrixRow = memo(function MatrixRow({
   return (
     <tr className={isHighlighted ? "matrixRowHighlighted" : ""}>
       <th className="dateCell">{formatShortDate(row.date)}</th>
-      {slotNumbers.flatMap((slotNumber) => {
+      {slotNumbers.flatMap((slotNumber, slotIndex) => {
         const record = row.recordsBySlot[slotNumber] ?? null;
         const settingHighlightClass = canHighlightSettings
           ? getNeoImJugglerHighlightClass(record)
@@ -177,11 +177,16 @@ const MatrixRow = memo(function MatrixRow({
         const settingTitle = canHighlightSettings
           ? formatNeoImJugglerSettingBreakdown(getNeoImJugglerSettingEstimate(record))
           : "";
+        const isLastSlot = slotIndex === slotNumbers.length - 1;
 
-        return visibleMetrics.map((metric) => {
+        return visibleMetrics.map((metric, metricIndex) => {
           const value = record?.[metric.key];
           const toneClass = metric.tone ? valueToneClass(metric.key, value) : "";
-          const className = [toneClass, settingHighlightClass].filter(Boolean).join(" ");
+          const boundaryClass =
+            !isLastSlot && metricIndex === visibleMetrics.length - 1 ? "slotGroupBoundary" : "";
+          const className = [toneClass, settingHighlightClass, boundaryClass]
+            .filter(Boolean)
+            .join(" ");
           const title = settingTitle || (metric.title ? metric.title(value, record) : "");
           return (
             <td
@@ -464,16 +469,30 @@ function MachineComparisonTable({
               <th rowSpan={2} className="dateHeaderCell">
                 日付
               </th>
-              {slotNumbers.map((slotNumber) => (
-                <th key={slotNumber} colSpan={visibleMetrics.length} className="slotHeader">
+              {slotNumbers.map((slotNumber, slotIndex) => (
+                <th
+                  key={slotNumber}
+                  colSpan={visibleMetrics.length}
+                  className={`slotHeader ${
+                    slotIndex === slotNumbers.length - 1 ? "" : "slotGroupBoundary"
+                  }`}
+                >
                   {slotNumber}番台
                 </th>
               ))}
             </tr>
             <tr>
-              {slotNumbers.flatMap((slotNumber) =>
-                visibleMetrics.map((metric) => (
-                  <th key={`${slotNumber}-${metric.key}`} className="metricHeader">
+              {slotNumbers.flatMap((slotNumber, slotIndex) =>
+                visibleMetrics.map((metric, metricIndex) => (
+                  <th
+                    key={`${slotNumber}-${metric.key}`}
+                    className={`metricHeader ${
+                      slotIndex !== slotNumbers.length - 1 &&
+                      metricIndex === visibleMetrics.length - 1
+                        ? "slotGroupBoundary"
+                        : ""
+                    }`}
+                  >
                     {metric.label}
                   </th>
                 )),

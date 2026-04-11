@@ -628,6 +628,11 @@ a {
   white-space: nowrap;
 }
 
+.matrixTable th.slotGroupBoundary,
+.matrixTable td.slotGroupBoundary {
+  border-right: 2px solid var(--line-strong);
+}
+
 .slotHeader {
   min-width: 0;
   padding-top: 7px;
