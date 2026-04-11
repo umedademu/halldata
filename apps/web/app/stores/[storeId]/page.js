@@ -79,51 +79,59 @@ export default async function StoreDetailPage({ params }) {
           <p>GUIアプリ側でこの店舗の台データを取得すると、ここに機種一覧が並びます。</p>
         </section>
       ) : (
-        <section className="cardsGrid">
-          {machines.map((machine) => (
-            <Link
-              key={machine.machineName}
-              href={`/stores/${store.id}/machines/${encodeURIComponent(machine.machineName)}`}
-              className="linkCard machineCard"
-            >
-              <div className="cardGlow" />
-              <div className="cardTop">
-                <span className="cardBadge">Machine</span>
-                <span className="cardDate">
-                  最新 {machine.latestDate ? formatCompactDate(machine.latestDate) : "-"}
-                </span>
-              </div>
-              <h2 className="cardTitle">{machine.machineName}</h2>
-              <p className="cardLead">{formatPeriod(machine.startDate, machine.endDate)}</p>
-              <dl className="statsGrid">
-                <div>
-                  <dt>台数</dt>
-                  <dd>{formatNumber(machine.slotCount)}</dd>
-                </div>
-                <div>
-                  <dt>日数</dt>
-                  <dd>{formatNumber(machine.dayCount)}</dd>
-                </div>
-                <div>
-                  <dt>平均差枚</dt>
-                  <dd>{formatSignedNumber(machine.latestAverageDifference)}</dd>
-                </div>
-                <div>
-                  <dt>平均G数</dt>
-                  <dd>{formatAverageGames(machine.latestAverageGames)}</dd>
-                </div>
-                <div>
-                  <dt>平均出率</dt>
-                  <dd>{formatPercent(machine.latestAveragePayout)}</dd>
-                </div>
-                <div>
-                  <dt>記録件数</dt>
-                  <dd>{formatNumber(machine.recordCount)}</dd>
-                </div>
-              </dl>
-              <span className="cardAction">台データを見る</span>
-            </Link>
-          ))}
+        <section className="tablePanel directoryPanel">
+          <div className="tablePanelHeader">
+            <div>
+              <p className="sectionLabel">機種一覧</p>
+              <h2 className="tablePanelTitle">{store.storeName}</h2>
+            </div>
+          </div>
+          <div className="tableScroller directoryScroller">
+            <table className="directoryTable">
+              <thead>
+                <tr>
+                  <th className="directoryNameHeader">機種</th>
+                  <th>期間</th>
+                  <th>最新日</th>
+                  <th>台数</th>
+                  <th>日数</th>
+                  <th>平均差枚</th>
+                  <th>平均G数</th>
+                  <th>平均出率</th>
+                  <th>記録件数</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {machines.map((machine) => {
+                  const machineHref = `/stores/${store.id}/machines/${encodeURIComponent(machine.machineName)}`;
+
+                  return (
+                    <tr key={machine.machineName}>
+                      <th className="directoryNameCell">
+                        <Link href={machineHref} className="directoryPrimaryLink">
+                          {machine.machineName}
+                        </Link>
+                      </th>
+                      <td>{formatPeriod(machine.startDate, machine.endDate)}</td>
+                      <td>{machine.latestDate ? formatCompactDate(machine.latestDate) : "-"}</td>
+                      <td>{formatNumber(machine.slotCount)}</td>
+                      <td>{formatNumber(machine.dayCount)}</td>
+                      <td>{formatSignedNumber(machine.latestAverageDifference)}</td>
+                      <td>{formatAverageGames(machine.latestAverageGames)}</td>
+                      <td>{formatPercent(machine.latestAveragePayout)}</td>
+                      <td>{formatNumber(machine.recordCount)}</td>
+                      <td>
+                        <Link href={machineHref} className="tableActionLink">
+                          台データ
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
     </main>

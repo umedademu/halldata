@@ -468,6 +468,90 @@ a {
   background: rgba(255, 255, 255, 0.72);
 }
 
+.directoryTable {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.directoryTable th,
+.directoryTable td {
+  padding: 13px 14px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.directoryTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(255, 249, 235, 0.98), rgba(249, 235, 202, 0.96));
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.directoryTable tbody tr:nth-child(odd) td,
+.directoryTable tbody tr:nth-child(odd) th {
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.directoryTable tbody tr:hover td,
+.directoryTable tbody tr:hover th {
+  background: rgba(214, 168, 74, 0.18);
+}
+
+.directoryNameHeader,
+.directoryNameCell {
+  position: sticky;
+  left: 0;
+  min-width: 13rem;
+  max-width: 18rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.directoryNameHeader {
+  z-index: 3;
+}
+
+.directoryTable tbody .directoryNameCell {
+  z-index: 2;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 239, 0.98), rgba(253, 241, 210, 0.96));
+}
+
+.directoryTable tbody tr:nth-child(odd) .directoryNameCell {
+  background:
+    linear-gradient(180deg, rgba(255, 249, 236, 0.98), rgba(251, 236, 200, 0.96));
+}
+
+.directoryTable tbody tr:hover .directoryNameCell {
+  background:
+    linear-gradient(180deg, rgba(255, 238, 176, 0.98), rgba(245, 205, 105, 0.88));
+}
+
+.directoryPrimaryLink {
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+
+.tableActionLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 7px 10px;
+  border: 1px solid rgba(185, 65, 39, 0.3);
+  border-radius: 8px;
+  background: rgba(185, 65, 39, 0.1);
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+
 .matrixTable {
   width: max-content;
   min-width: 100%;
@@ -620,6 +704,17 @@ a {
 
   .tablePanel {
     padding: 16px;
+  }
+
+  .directoryTable th,
+  .directoryTable td {
+    padding: 11px 12px;
+  }
+
+  .directoryNameHeader,
+  .directoryNameCell {
+    min-width: 11rem;
+    max-width: 13rem;
   }
 
   .dayFilterRow {

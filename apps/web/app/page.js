@@ -47,39 +47,51 @@ export default async function StoresPage() {
             </p>
           </section>
         ) : (
-          <section className="cardsGrid">
-            {stores.map((store) => (
-              <Link key={store.id} href={`/stores/${store.id}`} className="linkCard">
-                <div className="cardGlow" />
-                <div className="cardTop">
-                  <span className="cardBadge">Store</span>
-                  <span className="cardDate">
-                    最新 {store.endDate ? formatCompactDate(store.endDate) : "-"}
-                  </span>
-                </div>
-                <h2 className="cardTitle">{store.storeName}</h2>
-                <p className="cardLead">{formatPeriod(store.startDate, store.endDate)}</p>
-                <dl className="statsGrid">
-                  <div>
-                    <dt>機種数</dt>
-                    <dd>{formatNumber(store.machineCount)}</dd>
-                  </div>
-                  <div>
-                    <dt>台番数</dt>
-                    <dd>{formatNumber(store.slotCount)}</dd>
-                  </div>
-                  <div>
-                    <dt>記録件数</dt>
-                    <dd>{formatNumber(store.recordCount)}</dd>
-                  </div>
-                  <div>
-                    <dt>日数</dt>
-                    <dd>{formatNumber(store.dayCount)}</dd>
-                  </div>
-                </dl>
-                <span className="cardAction">機種一覧を見る</span>
-              </Link>
-            ))}
+          <section className="tablePanel directoryPanel">
+            <div className="tablePanelHeader">
+              <div>
+                <p className="sectionLabel">店舗一覧</p>
+                <h2 className="tablePanelTitle">保存済み店舗</h2>
+              </div>
+            </div>
+            <div className="tableScroller directoryScroller">
+              <table className="directoryTable">
+                <thead>
+                  <tr>
+                    <th className="directoryNameHeader">店舗</th>
+                    <th>期間</th>
+                    <th>最新日</th>
+                    <th>機種数</th>
+                    <th>台番数</th>
+                    <th>日数</th>
+                    <th>記録件数</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stores.map((store) => (
+                    <tr key={store.id}>
+                      <th className="directoryNameCell">
+                        <Link href={`/stores/${store.id}`} className="directoryPrimaryLink">
+                          {store.storeName}
+                        </Link>
+                      </th>
+                      <td>{formatPeriod(store.startDate, store.endDate)}</td>
+                      <td>{store.endDate ? formatCompactDate(store.endDate) : "-"}</td>
+                      <td>{formatNumber(store.machineCount)}</td>
+                      <td>{formatNumber(store.slotCount)}</td>
+                      <td>{formatNumber(store.dayCount)}</td>
+                      <td>{formatNumber(store.recordCount)}</td>
+                      <td>
+                        <Link href={`/stores/${store.id}`} className="tableActionLink">
+                          機種一覧
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         )}
       </main>
