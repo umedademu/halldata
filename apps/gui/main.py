@@ -73,6 +73,10 @@ class RegisteredStore:
     url: str
 
 
+class FetchCancelled(Exception):
+    pass
+
+
 @dataclass
 class StoreFetchResult:
     history_result: MachineHistoryResult
@@ -90,6 +94,7 @@ class StoreFetchFailure:
 class FetchManyResult:
     results: list[StoreFetchResult]
     failures: list[StoreFetchFailure]
+    cancelled: bool = False
 
 
 class MinRepoApp:
@@ -120,6 +125,8 @@ class MinRepoApp:
             for registered_store in self.registered_stores
         }
         self.is_busy = False
+        self.active_operation_kind = ""
+        self.fetch_cancel_event = threading.Event()
 
         self.target_date_var = tk.StringVar(value=DEFAULT_RECENT_DAYS)
         self.status_var = tk.StringVar(value="待機中")
@@ -175,20 +182,23 @@ class MinRepoApp:
         self.fetch_button = ttk.Button(button_row, text="取得", command=self.fetch_data)
         self.fetch_button.grid(row=0, column=0, sticky="w")
 
+        self.cancel_fetch_button = ttk.Button(button_row, text="中止", command=self.cancel_fetch)
+        self.cancel_fetch_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
+
         self.skip_comparison_display_button = ttk.Checkbutton(
             button_row,
             text="取得後に台データ表を表示しない",
             variable=self.skip_comparison_display_var,
             command=self._on_skip_comparison_display_changed,
         )
-        self.skip_comparison_display_button.grid(row=0, column=1, sticky="w", padx=(12, 0))
+        self.skip_comparison_display_button.grid(row=0, column=2, sticky="w", padx=(12, 0))
 
         self.notify_fetch_complete_button = ttk.Checkbutton(
             button_row,
             text="取得完了時に音を鳴らす",
             variable=self.notify_fetch_complete_var,
         )
-        self.notify_fetch_complete_button.grid(row=0, column=2, sticky="w", padx=(12, 0))
+        self.notify_fetch_complete_button.grid(row=0, column=3, sticky="w", padx=(12, 0))
 
         self.fetch_info = ttk.Frame(self.fetch_tab, padding=(0, 12, 0, 12))
         self.fetch_info.grid(row=1, column=0, sticky="ew")
@@ -412,19 +422,35 @@ class MinRepoApp:
         self._begin_fetch_progress("対象期間を確認中...")
         self.status_var.set("取得中...")
         self.summary_var.set(f"{len(target_stores)}店舗を期間取得中")
+        self.fetch_cancel_event.clear()
         self._start_worker(
             self._worker_fetch_many,
             target_stores,
             target_date_input,
+            operation_kind="fetch",
         )
 
-    def _start_worker(self, target: object, *args: object) -> None:
+    def cancel_fetch(self) -> None:
+        if not self.is_busy or self.active_operation_kind != "fetch":
+            return
+
+        self.fetch_cancel_event.set()
+        self.status_var.set("中止中...")
+        self.fetch_progress_text_var.set("現在の処理が区切れたら中止します")
+        self._update_button_states()
+
+    def _start_worker(self, target: object, *args: object, operation_kind: str = "general") -> None:
         self.is_busy = True
+        self.active_operation_kind = operation_kind
         self._update_button_states()
 
         worker = threading.Thread(target=target, args=args, daemon=True)
         worker.start()
         self.root.after(100, self._poll_queue)
+
+    def _raise_if_fetch_cancelled(self) -> None:
+        if self.fetch_cancel_event.is_set():
+            raise FetchCancelled
 
     def _worker_fetch_many(
         self,
@@ -434,8 +460,13 @@ class MinRepoApp:
         results: list[StoreFetchResult] = []
         failures: list[StoreFetchFailure] = []
         total_stores = len(target_stores)
+        cancelled = False
 
         for store_index, registered_store in enumerate(target_stores, start=1):
+            if self.fetch_cancel_event.is_set():
+                cancelled = True
+                break
+
             try:
                 results.append(
                     self._fetch_single_store(
@@ -445,6 +476,9 @@ class MinRepoApp:
                         total_stores=total_stores,
                     )
                 )
+            except FetchCancelled:
+                cancelled = True
+                break
             except Exception as exc:  # noqa: BLE001
                 failures.append(StoreFetchFailure(store=registered_store, error=exc))
                 self.result_queue.put(
@@ -458,12 +492,19 @@ class MinRepoApp:
                     )
                 )
 
+        if self.fetch_cancel_event.is_set():
+            cancelled = True
+
+        if cancelled and not results:
+            self.result_queue.put(("fetch_cancelled", None))
+            return
+
         if not results and failures:
             failure_lines = "\n".join(f"{failure.store.name}: {failure.error}" for failure in failures)
             self.result_queue.put(("fetch_error", ScraperError(f"選択した店舗を取得できませんでした。\n{failure_lines}")))
             return
 
-        self.result_queue.put(("fetch_many_success", FetchManyResult(results=results, failures=failures)))
+        self.result_queue.put(("fetch_many_success", FetchManyResult(results=results, failures=failures, cancelled=cancelled)))
 
     def _fetch_single_store(
         self,
@@ -472,15 +513,18 @@ class MinRepoApp:
         store_index: int,
         total_stores: int,
     ) -> StoreFetchResult:
+        self._raise_if_fetch_cancelled()
         store_url = registered_store.url
         store_label = f"{store_index}/{total_stores} {registered_store.name}"
         context = self.scraper.prepare_machine_history_context(store_url, target_date_input)
+        self._raise_if_fetch_cancelled()
         saved_full_day_summary = self.persistence_service.find_saved_full_day_dates(
             store_name=context.store_name,
             store_url=store_url,
             start_date=context.start_date,
             end_date=context.end_date,
         )
+        self._raise_if_fetch_cancelled()
         skipped_dates = [
             date_page.target_date
             for date_page in context.date_pages
@@ -510,6 +554,7 @@ class MinRepoApp:
 
         def step_callback(message: str) -> None:
             nonlocal current_step, total_steps
+            self._raise_if_fetch_cancelled()
             current_step += 1
             total_steps = max(total_steps, current_step)
             self.result_queue.put(
@@ -528,6 +573,10 @@ class MinRepoApp:
         save_summary: PersistenceSummary | None = None
 
         for date_index, date_page in enumerate(pending_date_pages, start=1):
+            if self.fetch_cancel_event.is_set():
+                if datasets or save_summary is not None:
+                    break
+                raise FetchCancelled
             day_result = self.scraper.fetch_all_machine_history_for_date_page(
                 context=context,
                 date_page=date_page,
@@ -539,6 +588,7 @@ class MinRepoApp:
             skipped_targets.extend(day_result.skipped_targets)
 
             if day_result.datasets:
+                self._raise_if_fetch_cancelled()
                 step_callback(f"{date_page.target_date} の保存中")
                 day_save_summary = self.persistence_service.save_history_result(day_result, full_day=True)
                 save_summary = self._merge_persistence_summary(save_summary, day_save_summary)
@@ -576,7 +626,11 @@ class MinRepoApp:
                 self.root.after(100, self._poll_queue)
             return
 
+        operation_kind = self.active_operation_kind
         self.is_busy = False
+        self.active_operation_kind = ""
+        if operation_kind == "fetch":
+            self.fetch_cancel_event.clear()
         self._update_button_states()
 
         if kind == "register_store_error":
@@ -602,6 +656,12 @@ class MinRepoApp:
             self.status_var.set("失敗")
             self.summary_var.set("取得できませんでした")
             self._show_error(payload)
+            return
+
+        if kind == "fetch_cancelled":
+            self._finish_fetch_progress(success=False, message="中止しました")
+            self.status_var.set("中止")
+            self.summary_var.set("取得を中止しました")
             return
 
         if kind == "fetch_many_success":
@@ -693,11 +753,15 @@ class MinRepoApp:
             for store_result in fetch_many_result.results
         )
 
-        self._finish_fetch_progress(
-            success=True,
-            message="取得完了（保存に注意）" if has_save_errors else "取得完了",
-        )
-        if fetch_many_result.failures:
+        if fetch_many_result.cancelled:
+            finish_message = "中止しました（保存に注意）" if has_save_errors else "中止しました"
+        else:
+            finish_message = "取得完了（保存に注意）" if has_save_errors else "取得完了"
+
+        self._finish_fetch_progress(success=True, message=finish_message)
+        if fetch_many_result.cancelled:
+            self.status_var.set("中止（一部取得済み）")
+        elif fetch_many_result.failures:
             self.status_var.set("完了（一部失敗）")
         elif has_save_errors:
             self.status_var.set("完了（保存に注意）")
@@ -708,7 +772,8 @@ class MinRepoApp:
 
         self.summary_var.set(self._fetch_many_summary_text(fetch_many_result))
         self._update_button_states()
-        self._notify_fetch_complete()
+        if not fetch_many_result.cancelled:
+            self._notify_fetch_complete()
 
         warning_messages: list[str] = []
         for store_result in fetch_many_result.results:
@@ -744,13 +809,14 @@ class MinRepoApp:
             for store_result in fetch_many_result.results
         )
         failed_text = f" / 失敗{len(fetch_many_result.failures)}店舗" if fetch_many_result.failures else ""
+        cancelled_text = " / 中止" if fetch_many_result.cancelled else ""
         display_text = (
             " / 表表示省略"
             if self.skip_comparison_display_var.get()
             else f" / 表表示は{last_history_result.store_name}"
         )
         return (
-            f"{len(fetch_many_result.results)}店舗完了{failed_text} / "
+            f"{len(fetch_many_result.results)}店舗完了{failed_text}{cancelled_text} / "
             f"{first_history_result.start_date} ～ {first_history_result.end_date} / "
             f"{fetched_machine_count}機種 / {fetched_day_count}日取得 / "
             f"{self._many_save_status_text(fetch_many_result.results)}"
@@ -1537,6 +1603,12 @@ class MinRepoApp:
         has_comparison_data = self.current_history_result is not None and not self.skip_comparison_display_var.get()
 
         self.fetch_button.configure(state="disabled" if self.is_busy else "normal")
+        can_cancel_fetch = (
+            self.is_busy
+            and self.active_operation_kind == "fetch"
+            and not self.fetch_cancel_event.is_set()
+        )
+        self.cancel_fetch_button.configure(state="normal" if can_cancel_fetch else "disabled")
         self.target_date_entry.configure(state="disabled" if self.is_busy else "normal")
         self.comparison_day_tail_selector.configure(state="readonly" if not self.is_busy and has_comparison_data else "disabled")
         self.comparison_focus_button.configure(state="normal" if not self.is_busy and has_comparison_data else "disabled")
