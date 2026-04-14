@@ -548,6 +548,16 @@ class HistoryPersistenceService:
         normalized_store_url = normalize_store_url(str(store_payload.get("store_url", "")))
         existing_store_id = self._find_store_id(session, supabase_url, stores_table, normalized_store_url)
         if existing_store_id:
+            store_payload = dict(store_payload)
+            store_payload["store_url"] = normalized_store_url
+            endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(stores_table, safe='')}?id=eq.{quote(existing_store_id, safe='')}"
+            response = session.patch(
+                endpoint,
+                headers={"Prefer": "return=minimal"},
+                json=store_payload,
+                timeout=30,
+            )
+            response.raise_for_status()
             return existing_store_id
 
         store_payload = dict(store_payload)
@@ -606,7 +616,7 @@ class HistoryPersistenceService:
 
             store_name = str(store.get("store_name", store.get("name", ""))).strip()
             store_url = normalize_store_url(str(store.get("store_url", store.get("url", ""))).strip())
-            if not store_name or not store_url:
+            if not store_url:
                 continue
 
             dedupe_key = (store_url,)

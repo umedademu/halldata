@@ -109,6 +109,12 @@ class FetchManyResult:
     cancelled: bool = False
 
 
+@dataclass
+class StoreRefreshResult:
+    registered_stores: list[RegisteredStore]
+    save_summary: RegisteredStoresPersistenceSummary | None = None
+
+
 class MinRepoApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
@@ -605,24 +611,56 @@ class MinRepoApp:
 
     def _worker_refresh_registered_stores(self) -> None:
         try:
-            registered_stores = self._load_latest_registered_stores()
-            self.result_queue.put(("refresh_registered_stores_success", registered_stores))
+            refresh_result = self._load_and_complete_registered_stores()
+            self.result_queue.put(("refresh_registered_stores_success", refresh_result))
         except Exception as exc:  # noqa: BLE001
             self.result_queue.put(("refresh_registered_stores_error", exc))
 
     def _worker_scheduled_fetch(self, target_date_input: str) -> None:
         try:
-            registered_stores = self._load_latest_registered_stores()
+            refresh_result = self._load_and_complete_registered_stores()
             self._raise_if_fetch_cancelled()
-            fetch_many_result = self._run_fetch_many(registered_stores, target_date_input)
+            fetch_many_result = self._run_fetch_many(refresh_result.registered_stores, target_date_input)
             if fetch_many_result.cancelled and not fetch_many_result.results:
                 self.result_queue.put(("fetch_cancelled", None))
                 return
-            self.result_queue.put(("scheduled_fetch_many_success", (registered_stores, fetch_many_result)))
+            self.result_queue.put(("scheduled_fetch_many_success", (refresh_result, fetch_many_result)))
         except FetchCancelled:
             self.result_queue.put(("fetch_cancelled", None))
         except Exception as exc:  # noqa: BLE001
             self.result_queue.put(("fetch_error", exc))
+
+    def _load_and_complete_registered_stores(self) -> StoreRefreshResult:
+        registered_stores = self._load_latest_registered_stores()
+        completed_stores: list[RegisteredStore] = []
+        save_summary: RegisteredStoresPersistenceSummary | None = None
+        changed = False
+        messages: list[str] = []
+
+        for registered_store in registered_stores:
+            if registered_store.name.strip():
+                completed_stores.append(registered_store)
+                continue
+
+            try:
+                store_name = self.scraper.fetch_store_name(registered_store.url)
+            except Exception as exc:  # noqa: BLE001
+                messages.append(f"{registered_store.url} の店舗名取得に失敗しました。\n{exc}")
+                completed_stores.append(registered_store)
+                continue
+
+            completed_stores.append(RegisteredStore(name=store_name, url=registered_store.url))
+            changed = True
+
+        if changed:
+            save_summary = self._persist_registered_store_list(completed_stores)
+        elif messages:
+            save_summary = RegisteredStoresPersistenceSummary(messages=list(messages))
+
+        if save_summary is not None and changed:
+            save_summary.messages.extend(messages)
+
+        return StoreRefreshResult(registered_stores=completed_stores, save_summary=save_summary)
 
     def register_store(self) -> None:
         store_url = self.register_store_url_var.get().strip()
@@ -775,7 +813,7 @@ class MinRepoApp:
     ) -> StoreFetchResult:
         self._raise_if_fetch_cancelled()
         store_url = registered_store.url
-        store_label = f"{store_index}/{total_stores} {registered_store.name}"
+        store_label = f"{store_index}/{total_stores} {self._registered_store_display_name(registered_store)}"
         context = self.scraper.prepare_machine_history_context(store_url, target_date_input)
         self._raise_if_fetch_cancelled()
         saved_full_day_summary = self.persistence_service.find_saved_full_day_dates(
@@ -917,12 +955,14 @@ class MinRepoApp:
             return
 
         if kind == "refresh_registered_stores_success":
-            if not self._is_registered_store_list(payload):
+            if not isinstance(payload, StoreRefreshResult):
                 self.register_store_status_var.set("登録店舗の更新に失敗しました")
                 messagebox.showerror("登録店舗", "登録店舗の形式が不正です。")
                 return
-            self._replace_registered_stores(payload, select_all=False)
-            self.register_store_status_var.set(f"{len(payload)}店舗を読み込みました")
+            self._replace_registered_stores(payload.registered_stores, select_all=False)
+            self.register_store_status_var.set(f"{len(payload.registered_stores)}店舗を読み込みました")
+            if payload.save_summary is not None and payload.save_summary.has_errors:
+                messagebox.showwarning("登録店舗", "\n\n".join(payload.save_summary.messages))
             return
 
         if kind == "fetch_error":
@@ -956,7 +996,7 @@ class MinRepoApp:
             if (
                 not isinstance(payload, tuple)
                 or len(payload) != 2
-                or not self._is_registered_store_list(payload[0])
+                or not isinstance(payload[0], StoreRefreshResult)
                 or not isinstance(payload[1], FetchManyResult)
             ):
                 self._finish_fetch_progress(success=False, message="取得失敗")
@@ -965,9 +1005,11 @@ class MinRepoApp:
                 self.schedule_status_var.set("定期実行に失敗しました")
                 messagebox.showerror("エラー", "定期実行の結果形式が不正です。")
                 return
-            registered_stores, fetch_many_result = payload
-            self._replace_registered_stores(registered_stores, select_all=True, reset_fetch_display=False)
+            refresh_result, fetch_many_result = payload
+            self._replace_registered_stores(refresh_result.registered_stores, select_all=True, reset_fetch_display=False)
             self._apply_fetch_many_result(fetch_many_result)
+            if refresh_result.save_summary is not None and refresh_result.save_summary.has_errors:
+                messagebox.showwarning("登録店舗", "\n\n".join(refresh_result.save_summary.messages))
             if fetch_many_result.cancelled:
                 self.schedule_status_var.set("定期実行を中止しました")
             else:
@@ -1428,13 +1470,10 @@ class MinRepoApp:
                 iid=f"registered_store_{index}",
                 values=(
                     self._registered_store_target_marker(registered_store),
-                    registered_store.name,
+                    self._registered_store_display_name(registered_store),
                     registered_store.url,
                 ),
             )
-
-    def _is_registered_store_list(self, value: object) -> bool:
-        return isinstance(value, list) and all(isinstance(store, RegisteredStore) for store in value)
 
     def _replace_registered_stores(
         self,
@@ -1469,6 +1508,9 @@ class MinRepoApp:
 
     def _registered_store_target_marker(self, registered_store: RegisteredStore) -> str:
         return "☑" if normalize_store_url(registered_store.url) in self.selected_store_urls else "☐"
+
+    def _registered_store_display_name(self, registered_store: RegisteredStore) -> str:
+        return registered_store.name.strip() or "（店舗名未取得）"
 
     def _selected_registered_stores(self) -> list[RegisteredStore]:
         return [
@@ -1552,12 +1594,15 @@ class MinRepoApp:
         self.register_store_status_var.set(f"{store_name} を登録しました")
 
     def _persist_registered_stores(self) -> RegisteredStoresPersistenceSummary:
+        return self._persist_registered_store_list(self.registered_stores)
+
+    def _persist_registered_store_list(self, registered_stores: list[RegisteredStore]) -> RegisteredStoresPersistenceSummary:
         store_payloads = [
             {
                 "store_name": registered_store.name,
                 "store_url": registered_store.url,
             }
-            for registered_store in self.registered_stores
+            for registered_store in registered_stores
         ]
         return self.persistence_service.save_registered_stores(store_payloads)
 

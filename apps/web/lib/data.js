@@ -125,6 +125,30 @@ function buildQuery(params) {
   return query;
 }
 
+function normalizeStoreUrl(value) {
+  const text = String(value ?? "").trim();
+  if (!text) {
+    throw new Error("店舗URLを入力してください。");
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(text);
+  } catch {
+    throw new Error("店舗URLは http:// または https:// から入力してください。");
+  }
+
+  if (!["http:", "https:"].includes(parsedUrl.protocol) || !parsedUrl.hostname) {
+    throw new Error("店舗URLは http:// または https:// から入力してください。");
+  }
+
+  if (parsedUrl.pathname !== "/") {
+    parsedUrl.pathname = parsedUrl.pathname.replace(/\/+$/u, "") + "/";
+  }
+  parsedUrl.hash = "";
+  return parsedUrl.toString();
+}
+
 function clearRowsCache() {
   globalThis.__halldataRowsCache?.clear();
 }
@@ -364,11 +388,91 @@ export const getStoreList = cache(async function getStoreList() {
   return stores
     .map((store) => ({
       id: store.id,
-      storeName: store.store_name,
+      storeName: store.store_name ?? "",
       storeUrl: store.store_url,
+      isPendingRegistration: !String(store.store_name ?? "").trim(),
     }))
-    .sort((left, right) => left.storeName.localeCompare(right.storeName, "ja"));
+    .sort((left, right) => {
+      if (left.isPendingRegistration !== right.isPendingRegistration) {
+        return left.isPendingRegistration ? 1 : -1;
+      }
+      const leftLabel = left.isPendingRegistration ? left.storeUrl : left.storeName;
+      const rightLabel = right.isPendingRegistration ? right.storeUrl : right.storeName;
+      return leftLabel.localeCompare(rightLabel, "ja");
+    });
 });
+
+export async function registerPendingStoreUrl(storeUrl) {
+  const normalizedStoreUrl = normalizeStoreUrl(storeUrl);
+  const { baseUrl, serviceKey, schema, storesTable } = await getSupabaseConfig();
+  const headers = {
+    apikey: serviceKey,
+    Authorization: `Bearer ${serviceKey}`,
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    "Accept-Profile": schema,
+    "Content-Profile": schema,
+  };
+
+  const existingQuery = buildQuery({
+    select: "id",
+    store_url: `eq.${normalizedStoreUrl}`,
+    limit: 1,
+  });
+  const existingResponse = await fetch(
+    `${baseUrl}/rest/v1/${encodeURIComponent(storesTable)}?${existingQuery.toString()}`,
+    {
+      headers,
+      cache: "no-store",
+    },
+  );
+
+  if (!existingResponse.ok) {
+    throw new Error(`登録済みURLの確認に失敗しました。(${existingResponse.status})`);
+  }
+
+  const existingStores = await existingResponse.json();
+  if (existingStores.length > 0) {
+    return { status: "exists", storeUrl: normalizedStoreUrl };
+  }
+
+  const insertStore = async (payload) => {
+    const response = await fetch(
+      `${baseUrl}/rest/v1/${encodeURIComponent(storesTable)}?select=id`,
+      {
+        method: "POST",
+        headers: {
+          ...headers,
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify([payload]),
+        cache: "no-store",
+      },
+    );
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(`店舗URLの登録に失敗しました。(${response.status}) ${errorText}`.trim());
+    }
+    return response.json();
+  };
+
+  const nowText = new Date().toISOString();
+  try {
+    await insertStore({
+      store_url: normalizedStoreUrl,
+      updated_at: nowText,
+    });
+  } catch {
+    await insertStore({
+      store_name: "",
+      store_url: normalizedStoreUrl,
+      updated_at: nowText,
+    });
+  }
+
+  clearRowsCache();
+  return { status: "created", storeUrl: normalizedStoreUrl };
+}
 
 export const getStoreDetail = cache(async function getStoreDetail(storeId) {
   const { storesTable, resultsTable } = await getSupabaseConfig();
