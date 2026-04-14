@@ -385,7 +385,7 @@ class MinRepoApp:
         )
 
     def _hide_to_resident(self) -> None:
-        self.root.iconify()
+        self.root.withdraw()
         self.status_var.set("常駐中")
 
     def _build_register_tab(self, register_tab: ttk.Frame) -> None:
