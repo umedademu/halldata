@@ -127,8 +127,13 @@ class MinRepoApp:
         self.is_busy = False
         self.active_operation_kind = ""
         self.fetch_cancel_event = threading.Event()
+        self.scheduled_fetch_hour: int | None = None
+        self.scheduled_last_run_date: str | None = None
+        self.scheduled_pending_date: str | None = None
 
         self.target_date_var = tk.StringVar(value=DEFAULT_RECENT_DAYS)
+        self.schedule_hour_var = tk.StringVar()
+        self.schedule_status_var = tk.StringVar(value="定期実行なし")
         self.status_var = tk.StringVar(value="待機中")
         self.summary_var = tk.StringVar(value="未取得")
         self.fetch_progress_value_var = tk.DoubleVar(value=0.0)
@@ -145,6 +150,8 @@ class MinRepoApp:
         self._reset_fetch_progress()
         self._update_button_states()
         self._refresh_registered_store_table()
+        self.root.protocol("WM_DELETE_WINDOW", self._hide_to_resident)
+        self._schedule_timer_tick()
         if self.startup_store_warning:
             self.root.after(100, lambda: messagebox.showwarning("登録店舗", self.startup_store_warning))
 
@@ -199,6 +206,18 @@ class MinRepoApp:
             variable=self.notify_fetch_complete_var,
         )
         self.notify_fetch_complete_button.grid(row=0, column=3, sticky="w", padx=(12, 0))
+
+        schedule_row = ttk.Frame(self.fetch_form)
+        schedule_row.grid(row=2, column=1, sticky="w", pady=(8, 0))
+        ttk.Label(schedule_row, text="毎日").grid(row=0, column=0, sticky="w")
+        self.schedule_hour_entry = ttk.Entry(schedule_row, textvariable=self.schedule_hour_var, width=4)
+        self.schedule_hour_entry.grid(row=0, column=1, sticky="w", padx=(6, 4))
+        ttk.Label(schedule_row, text="時に実行").grid(row=0, column=2, sticky="w")
+        self.apply_schedule_button = ttk.Button(schedule_row, text="設定", command=self.apply_daily_schedule)
+        self.apply_schedule_button.grid(row=0, column=3, sticky="w", padx=(8, 0))
+        self.clear_schedule_button = ttk.Button(schedule_row, text="解除", command=self.clear_daily_schedule)
+        self.clear_schedule_button.grid(row=0, column=4, sticky="w", padx=(8, 0))
+        ttk.Label(schedule_row, textvariable=self.schedule_status_var).grid(row=0, column=5, sticky="w", padx=(12, 0))
 
         self.fetch_info = ttk.Frame(self.fetch_tab, padding=(0, 12, 0, 12))
         self.fetch_info.grid(row=1, column=0, sticky="ew")
@@ -280,6 +299,95 @@ class MinRepoApp:
 
         self._build_register_tab(register_tab)
 
+    def apply_daily_schedule(self) -> None:
+        try:
+            scheduled_hour = self._parse_schedule_hour()
+        except ScraperError as exc:
+            messagebox.showwarning("入力不正", str(exc))
+            return
+
+        self.scheduled_fetch_hour = scheduled_hour
+        self.scheduled_last_run_date = None
+        self.scheduled_pending_date = None
+        self.schedule_status_var.set(f"毎日 {scheduled_hour} 時に実行")
+
+    def clear_daily_schedule(self) -> None:
+        self.scheduled_fetch_hour = None
+        self.scheduled_last_run_date = None
+        self.scheduled_pending_date = None
+        self.schedule_status_var.set("定期実行なし")
+
+    def _parse_schedule_hour(self) -> int:
+        text = self.schedule_hour_var.get().strip()
+        if not re.fullmatch(r"\d{1,2}", text):
+            raise ScraperError("定期実行の時刻は 0 から 23 の整数で入力してください。")
+
+        scheduled_hour = int(text)
+        if not 0 <= scheduled_hour <= 23:
+            raise ScraperError("定期実行の時刻は 0 から 23 の整数で入力してください。")
+
+        return scheduled_hour
+
+    def _schedule_timer_tick(self) -> None:
+        self._run_scheduled_fetch_if_due()
+        self.root.after(30_000, self._schedule_timer_tick)
+
+    def _run_scheduled_fetch_if_due(self) -> None:
+        if self.scheduled_fetch_hour is None:
+            return
+
+        now = datetime.now(JST)
+        today_text = now.date().isoformat()
+        if self.scheduled_pending_date is not None:
+            if self.is_busy:
+                self.schedule_status_var.set(f"{self.scheduled_pending_date} の定期実行を待機中")
+                return
+            self.scheduled_last_run_date = self.scheduled_pending_date
+            self.scheduled_pending_date = None
+            self._start_scheduled_fetch()
+            return
+
+        if now.hour != self.scheduled_fetch_hour or self.scheduled_last_run_date == today_text:
+            return
+
+        if self.is_busy:
+            self.scheduled_pending_date = today_text
+            self.schedule_status_var.set(f"本日 {self.scheduled_fetch_hour} 時の定期実行を待機中")
+            return
+
+        self.scheduled_last_run_date = today_text
+        self._start_scheduled_fetch()
+
+    def _start_scheduled_fetch(self) -> None:
+        try:
+            target_date_input = self._target_date_input_from_recent_days()
+        except ScraperError as exc:
+            self.schedule_status_var.set("定期実行を開始できません")
+            self._show_error(exc)
+            return
+
+        self.current_results = []
+        self.current_history_result = None
+        self.comparison_rows = []
+        self.comparison_slot_numbers = []
+        self.comparison_display_rows = []
+        self.comparison_selected_date = None
+        self._clear_comparison_table()
+        self._begin_fetch_progress("定期実行: 登録店舗を更新中...")
+        self.status_var.set("定期実行中...")
+        self.summary_var.set("登録店舗を更新してから取得します")
+        self.schedule_status_var.set("定期実行中")
+        self.fetch_cancel_event.clear()
+        self._start_worker(
+            self._worker_scheduled_fetch,
+            target_date_input,
+            operation_kind="scheduled_fetch",
+        )
+
+    def _hide_to_resident(self) -> None:
+        self.root.iconify()
+        self.status_var.set("常駐中")
+
     def _build_register_tab(self, register_tab: ttk.Frame) -> None:
         guide = ttk.LabelFrame(register_tab, text="案内", padding=12)
         guide.grid(row=0, column=0, sticky="ew")
@@ -331,6 +439,12 @@ class MinRepoApp:
             command=self._clear_registered_store_selection,
         )
         self.clear_store_selection_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
+        self.refresh_registered_stores_button = ttk.Button(
+            target_action_row,
+            text="最新に更新",
+            command=self.refresh_registered_stores,
+        )
+        self.refresh_registered_stores_button.grid(row=0, column=2, sticky="w", padx=(8, 0))
 
         self.registered_store_tree = ttk.Treeview(table_frame, columns=REGISTERED_STORE_COLUMNS, show="headings")
         self.registered_store_tree.grid(row=1, column=0, sticky="nsew")
@@ -357,21 +471,52 @@ class MinRepoApp:
         self.registered_store_tree.configure(xscrollcommand=x_scroll.set)
 
     def _load_registered_stores_on_startup(self) -> list[RegisteredStore]:
-        default_stores = [RegisteredStore(name=DEFAULT_STORE_NAME, url=DEFAULT_STORE_URL)]
-
         try:
-            saved_stores = self.persistence_service.load_registered_stores()
+            return self._load_latest_registered_stores()
         except Exception as exc:  # noqa: BLE001
             self.startup_store_warning = f"登録店舗の読込に失敗したため、初期店舗だけを表示します。\n{exc}"
-            return default_stores
+            return self._default_registered_stores()
 
+    def _default_registered_stores(self) -> list[RegisteredStore]:
+        return [RegisteredStore(name=DEFAULT_STORE_NAME, url=DEFAULT_STORE_URL)]
+
+    def _load_latest_registered_stores(self) -> list[RegisteredStore]:
+        saved_stores = self.persistence_service.load_registered_stores()
         registered_stores = [
             RegisteredStore(name=store["store_name"], url=store["store_url"])
             for store in saved_stores
         ]
         if not registered_stores:
-            return default_stores
+            return self._default_registered_stores()
         return registered_stores
+
+    def refresh_registered_stores(self) -> None:
+        if self.is_busy:
+            return
+
+        self.register_store_status_var.set("登録店舗を更新中...")
+        self._start_worker(self._worker_refresh_registered_stores, operation_kind="refresh_stores")
+
+    def _worker_refresh_registered_stores(self) -> None:
+        try:
+            registered_stores = self._load_latest_registered_stores()
+            self.result_queue.put(("refresh_registered_stores_success", registered_stores))
+        except Exception as exc:  # noqa: BLE001
+            self.result_queue.put(("refresh_registered_stores_error", exc))
+
+    def _worker_scheduled_fetch(self, target_date_input: str) -> None:
+        try:
+            registered_stores = self._load_latest_registered_stores()
+            self._raise_if_fetch_cancelled()
+            fetch_many_result = self._run_fetch_many(registered_stores, target_date_input)
+            if fetch_many_result.cancelled and not fetch_many_result.results:
+                self.result_queue.put(("fetch_cancelled", None))
+                return
+            self.result_queue.put(("scheduled_fetch_many_success", (registered_stores, fetch_many_result)))
+        except FetchCancelled:
+            self.result_queue.put(("fetch_cancelled", None))
+        except Exception as exc:  # noqa: BLE001
+            self.result_queue.put(("fetch_error", exc))
 
     def register_store(self) -> None:
         store_url = self.register_store_url_var.get().strip()
@@ -431,7 +576,7 @@ class MinRepoApp:
         )
 
     def cancel_fetch(self) -> None:
-        if not self.is_busy or self.active_operation_kind != "fetch":
+        if not self.is_busy or self.active_operation_kind not in {"fetch", "scheduled_fetch"}:
             return
 
         self.fetch_cancel_event.set()
@@ -457,6 +602,20 @@ class MinRepoApp:
         target_stores: list[RegisteredStore],
         target_date_input: str,
     ) -> None:
+        try:
+            fetch_many_result = self._run_fetch_many(target_stores, target_date_input)
+            if fetch_many_result.cancelled and not fetch_many_result.results:
+                self.result_queue.put(("fetch_cancelled", None))
+                return
+            self.result_queue.put(("fetch_many_success", fetch_many_result))
+        except Exception as exc:  # noqa: BLE001
+            self.result_queue.put(("fetch_error", exc))
+
+    def _run_fetch_many(
+        self,
+        target_stores: list[RegisteredStore],
+        target_date_input: str,
+    ) -> FetchManyResult:
         results: list[StoreFetchResult] = []
         failures: list[StoreFetchFailure] = []
         total_stores = len(target_stores)
@@ -495,16 +654,11 @@ class MinRepoApp:
         if self.fetch_cancel_event.is_set():
             cancelled = True
 
-        if cancelled and not results:
-            self.result_queue.put(("fetch_cancelled", None))
-            return
-
         if not results and failures:
             failure_lines = "\n".join(f"{failure.store.name}: {failure.error}" for failure in failures)
-            self.result_queue.put(("fetch_error", ScraperError(f"選択した店舗を取得できませんでした。\n{failure_lines}")))
-            return
+            raise ScraperError(f"選択した店舗を取得できませんでした。\n{failure_lines}")
 
-        self.result_queue.put(("fetch_many_success", FetchManyResult(results=results, failures=failures, cancelled=cancelled)))
+        return FetchManyResult(results=results, failures=failures, cancelled=cancelled)
 
     def _fetch_single_store(
         self,
@@ -629,7 +783,7 @@ class MinRepoApp:
         operation_kind = self.active_operation_kind
         self.is_busy = False
         self.active_operation_kind = ""
-        if operation_kind == "fetch":
+        if operation_kind in {"fetch", "scheduled_fetch"}:
             self.fetch_cancel_event.clear()
         self._update_button_states()
 
@@ -651,10 +805,26 @@ class MinRepoApp:
             self._apply_registered_store(store_name, store_url)
             return
 
+        if kind == "refresh_registered_stores_error":
+            self.register_store_status_var.set("登録店舗の更新に失敗しました")
+            messagebox.showerror("登録店舗", f"登録店舗の更新に失敗しました。\n{payload}")
+            return
+
+        if kind == "refresh_registered_stores_success":
+            if not self._is_registered_store_list(payload):
+                self.register_store_status_var.set("登録店舗の更新に失敗しました")
+                messagebox.showerror("登録店舗", "登録店舗の形式が不正です。")
+                return
+            self._replace_registered_stores(payload, select_all=False)
+            self.register_store_status_var.set(f"{len(payload)}店舗を読み込みました")
+            return
+
         if kind == "fetch_error":
             self._finish_fetch_progress(success=False, message="取得失敗")
             self.status_var.set("失敗")
             self.summary_var.set("取得できませんでした")
+            if operation_kind == "scheduled_fetch":
+                self.schedule_status_var.set("定期実行に失敗しました")
             self._show_error(payload)
             return
 
@@ -662,6 +832,8 @@ class MinRepoApp:
             self._finish_fetch_progress(success=False, message="中止しました")
             self.status_var.set("中止")
             self.summary_var.set("取得を中止しました")
+            if operation_kind == "scheduled_fetch":
+                self.schedule_status_var.set("定期実行を中止しました")
             return
 
         if kind == "fetch_many_success":
@@ -672,6 +844,28 @@ class MinRepoApp:
                 messagebox.showerror("エラー", "取得結果の形式が不正です。")
                 return
             self._apply_fetch_many_result(payload)
+            return
+
+        if kind == "scheduled_fetch_many_success":
+            if (
+                not isinstance(payload, tuple)
+                or len(payload) != 2
+                or not self._is_registered_store_list(payload[0])
+                or not isinstance(payload[1], FetchManyResult)
+            ):
+                self._finish_fetch_progress(success=False, message="取得失敗")
+                self.status_var.set("失敗")
+                self.summary_var.set("不明な結果")
+                self.schedule_status_var.set("定期実行に失敗しました")
+                messagebox.showerror("エラー", "定期実行の結果形式が不正です。")
+                return
+            registered_stores, fetch_many_result = payload
+            self._replace_registered_stores(registered_stores, select_all=True, reset_fetch_display=False)
+            self._apply_fetch_many_result(fetch_many_result)
+            if fetch_many_result.cancelled:
+                self.schedule_status_var.set("定期実行を中止しました")
+            else:
+                self.schedule_status_var.set(f"定期実行完了: 毎日 {self.scheduled_fetch_hour} 時")
             return
 
         history_result = payload
@@ -1132,6 +1326,40 @@ class MinRepoApp:
                     registered_store.url,
                 ),
             )
+
+    def _is_registered_store_list(self, value: object) -> bool:
+        return isinstance(value, list) and all(isinstance(store, RegisteredStore) for store in value)
+
+    def _replace_registered_stores(
+        self,
+        registered_stores: list[RegisteredStore],
+        select_all: bool,
+        reset_fetch_display: bool = True,
+    ) -> None:
+        previous_urls = {
+            normalize_store_url(registered_store.url)
+            for registered_store in self.registered_stores
+        }
+        previous_selected_urls = set(self.selected_store_urls)
+        next_urls = {
+            normalize_store_url(registered_store.url)
+            for registered_store in registered_stores
+        }
+
+        self.registered_stores = registered_stores
+        if select_all:
+            self.selected_store_urls = next_urls
+        else:
+            new_urls = next_urls - previous_urls
+            self.selected_store_urls = {
+                store_url
+                for store_url in next_urls
+                if store_url in previous_selected_urls or store_url in new_urls
+            }
+
+        self._refresh_registered_store_table()
+        if reset_fetch_display:
+            self._reset_fetch_display_for_store_change()
 
     def _registered_store_target_marker(self, registered_store: RegisteredStore) -> str:
         return "☑" if normalize_store_url(registered_store.url) in self.selected_store_urls else "☐"
@@ -1605,11 +1833,14 @@ class MinRepoApp:
         self.fetch_button.configure(state="disabled" if self.is_busy else "normal")
         can_cancel_fetch = (
             self.is_busy
-            and self.active_operation_kind == "fetch"
+            and self.active_operation_kind in {"fetch", "scheduled_fetch"}
             and not self.fetch_cancel_event.is_set()
         )
         self.cancel_fetch_button.configure(state="normal" if can_cancel_fetch else "disabled")
         self.target_date_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.schedule_hour_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.apply_schedule_button.configure(state="disabled" if self.is_busy else "normal")
+        self.clear_schedule_button.configure(state="disabled" if self.is_busy else "normal")
         self.comparison_day_tail_selector.configure(state="readonly" if not self.is_busy and has_comparison_data else "disabled")
         self.comparison_focus_button.configure(state="normal" if not self.is_busy and has_comparison_data else "disabled")
         self.skip_comparison_display_button.configure(state="disabled" if self.is_busy else "normal")
@@ -1618,6 +1849,7 @@ class MinRepoApp:
         self.register_store_url_entry.configure(state="disabled" if self.is_busy else "normal")
         self.select_all_stores_button.configure(state="disabled" if self.is_busy else "normal")
         self.clear_store_selection_button.configure(state="disabled" if self.is_busy else "normal")
+        self.refresh_registered_stores_button.configure(state="disabled" if self.is_busy else "normal")
 
     def _show_error(self, exc: object) -> None:
         if isinstance(exc, ScraperError):
