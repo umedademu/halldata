@@ -58,38 +58,6 @@ export default async function StoresPage({ searchParams }) {
           </div>
         </section>
 
-        <section className="tablePanel storeReservePanel">
-          <div className="tablePanelHeader">
-            <div>
-              <p className="sectionLabel">登録予約</p>
-              <h2 className="tablePanelTitle">店舗URLを追加</h2>
-            </div>
-          </div>
-          <form action={registerStoreReservation} className="storeReserveForm">
-            <label className="storeReserveField">
-              <span>店舗URL</span>
-              <input
-                className="storeReserveInput"
-                name="storeUrl"
-                type="url"
-                placeholder="https://min-repo.com/tag/..."
-                required
-              />
-            </label>
-            <button className="storeReserveButton" type="submit">
-              登録待ちに追加
-            </button>
-          </form>
-          <p className="storeReserveHelp">
-            店舗名はここでは取得せず、GUIアプリの更新または定期取得で補完します。
-          </p>
-          {registrationNotice ? (
-            <p className={`storeReserveNotice storeReserveNotice-${registrationNotice.kind}`}>
-              {registrationNotice.text}
-            </p>
-          ) : null}
-        </section>
-
         {pendingStores.length > 0 ? (
           <section className="tablePanel directoryPanel">
             <div className="tablePanelHeader">
@@ -156,6 +124,38 @@ export default async function StoresPage({ searchParams }) {
             </div>
           </section>
         )}
+
+        <section className="tablePanel storeReservePanel">
+          <div className="tablePanelHeader">
+            <div>
+              <p className="sectionLabel">登録予約</p>
+              <h2 className="tablePanelTitle">店舗URLを追加</h2>
+            </div>
+          </div>
+          <form action={registerStoreReservation} className="storeReserveForm">
+            <label className="storeReserveField">
+              <span>店舗URL</span>
+              <input
+                className="storeReserveInput"
+                name="storeUrl"
+                type="url"
+                placeholder="https://min-repo.com/tag/..."
+                required
+              />
+            </label>
+            <button className="storeReserveButton" type="submit">
+              登録待ちに追加
+            </button>
+          </form>
+          <p className="storeReserveHelp">
+            店舗名はここでは取得せず、GUIアプリの更新または定期取得で補完します。
+          </p>
+          {registrationNotice ? (
+            <p className={`storeReserveNotice storeReserveNotice-${registrationNotice.kind}`}>
+              {registrationNotice.text}
+            </p>
+          ) : null}
+        </section>
       </main>
     );
   } catch (error) {
