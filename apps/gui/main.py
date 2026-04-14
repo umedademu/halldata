@@ -26,9 +26,7 @@ from data_persistence import (
 from minrepo_scraper import (
     FetchProgress,
     MachineDataset,
-    MachineEntry,
     MachineHistoryResult,
-    MachineListResult,
     MinRepoScraper,
     ScraperError,
     normalize_text,
@@ -39,7 +37,6 @@ DEFAULT_STORE_NAME = "MJアリーナ箱崎店"
 DEFAULT_STORE_URL = "https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/"
 DEFAULT_RECENT_DAYS = "90"
 JST = timezone(timedelta(hours=9))
-MACHINE_COLUMNS = ("機種名", "台数", "平均差枚", "平均G数", "勝率", "出率")
 REGISTERED_STORE_COLUMNS = ("店舗名", "URL")
 COMPARISON_SUBCOLUMNS = ("機種名", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率")
 COMPARISON_DAY_TAIL_OPTIONS = ("全て", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
@@ -88,9 +85,6 @@ class MinRepoApp:
         self.result_queue: queue.Queue[tuple[str, object]] = queue.Queue()
         self.current_results: list[MachineDataset] = []
         self.current_history_result: MachineHistoryResult | None = None
-        self.current_machine_list: MachineListResult | None = None
-        self.machine_sort_column = "台数"
-        self.machine_sort_descending = True
         self.comparison_sort_key = "日付"
         self.comparison_sort_descending = False
         self.comparison_slot_numbers: list[str] = []
@@ -107,7 +101,6 @@ class MinRepoApp:
         self.selected_store_var = tk.StringVar(value=DEFAULT_STORE_NAME)
         self.store_url_var = tk.StringVar(value=DEFAULT_STORE_URL)
         self.target_date_var = tk.StringVar(value=DEFAULT_RECENT_DAYS)
-        self.machine_list_var = tk.StringVar(value="機種一覧: 未読込")
         self.status_var = tk.StringVar(value="待機中")
         self.summary_var = tk.StringVar(value="未取得")
         self.fetch_progress_value_var = tk.DoubleVar(value=0.0)
@@ -138,8 +131,7 @@ class MinRepoApp:
 
         self.fetch_tab = ttk.Frame(notebook, padding=12)
         self.fetch_tab.columnconfigure(0, weight=1)
-        self.fetch_tab.rowconfigure(1, weight=1)
-        self.fetch_tab.rowconfigure(3, weight=2)
+        self.fetch_tab.rowconfigure(2, weight=1)
         notebook.add(self.fetch_tab, text="データ取得")
 
         register_tab = ttk.Frame(notebook, padding=12)
@@ -168,11 +160,8 @@ class MinRepoApp:
         button_row = ttk.Frame(self.fetch_form)
         button_row.grid(row=3, column=1, sticky="w", pady=(8, 0))
 
-        self.load_machine_button = ttk.Button(button_row, text="機種一覧を読み込む", command=self.load_machine_list)
-        self.load_machine_button.grid(row=0, column=0, sticky="w")
-
         self.fetch_button = ttk.Button(button_row, text="取得", command=self.fetch_data)
-        self.fetch_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
+        self.fetch_button.grid(row=0, column=0, sticky="w")
 
         self.skip_comparison_display_button = ttk.Checkbutton(
             button_row,
@@ -180,45 +169,17 @@ class MinRepoApp:
             variable=self.skip_comparison_display_var,
             command=self._on_skip_comparison_display_changed,
         )
-        self.skip_comparison_display_button.grid(row=0, column=2, sticky="w", padx=(12, 0))
+        self.skip_comparison_display_button.grid(row=0, column=1, sticky="w", padx=(12, 0))
 
         self.notify_fetch_complete_button = ttk.Checkbutton(
             button_row,
             text="取得完了時に音を鳴らす",
             variable=self.notify_fetch_complete_var,
         )
-        self.notify_fetch_complete_button.grid(row=0, column=3, sticky="w", padx=(12, 0))
-
-        self.machine_frame = ttk.LabelFrame(self.fetch_tab, text="機種一覧", padding=8)
-        self.machine_frame.grid(row=1, column=0, sticky="nsew", pady=(12, 0))
-        self.machine_frame.columnconfigure(0, weight=1)
-        self.machine_frame.rowconfigure(1, weight=1)
-
-        machine_actions = ttk.Frame(self.machine_frame)
-        machine_actions.grid(row=0, column=0, sticky="ew", pady=(0, 8))
-        machine_actions.columnconfigure(0, weight=1)
-
-        ttk.Label(machine_actions, textvariable=self.machine_list_var).grid(row=0, column=0, sticky="w")
-
-        machine_table_frame = ttk.Frame(self.machine_frame)
-        machine_table_frame.grid(row=1, column=0, sticky="nsew")
-        machine_table_frame.columnconfigure(0, weight=1)
-        machine_table_frame.rowconfigure(0, weight=1)
-
-        self.machine_tree = ttk.Treeview(machine_table_frame, columns=MACHINE_COLUMNS, show="headings", selectmode="extended")
-        self.machine_tree.grid(row=0, column=0, sticky="nsew")
-
-        machine_y_scroll = ttk.Scrollbar(machine_table_frame, orient="vertical", command=self.machine_tree.yview)
-        machine_y_scroll.grid(row=0, column=1, sticky="ns")
-        self.machine_tree.configure(yscrollcommand=machine_y_scroll.set)
-
-        machine_x_scroll = ttk.Scrollbar(machine_table_frame, orient="horizontal", command=self.machine_tree.xview)
-        machine_x_scroll.grid(row=1, column=0, sticky="ew")
-        self.machine_tree.configure(xscrollcommand=machine_x_scroll.set)
-        self._configure_machine_tree()
+        self.notify_fetch_complete_button.grid(row=0, column=2, sticky="w", padx=(12, 0))
 
         self.fetch_info = ttk.Frame(self.fetch_tab, padding=(0, 12, 0, 12))
-        self.fetch_info.grid(row=2, column=0, sticky="ew")
+        self.fetch_info.grid(row=1, column=0, sticky="ew")
         self.fetch_info.columnconfigure(1, weight=1)
         self.fetch_info.columnconfigure(3, weight=1)
 
@@ -238,7 +199,7 @@ class MinRepoApp:
         ttk.Label(self.fetch_info, textvariable=self.fetch_progress_text_var).grid(row=1, column=3, sticky="w", pady=(8, 0))
 
         self.comparison_frame = ttk.LabelFrame(self.fetch_tab, text="台データ比較", padding=8)
-        self.comparison_frame.grid(row=3, column=0, sticky="nsew")
+        self.comparison_frame.grid(row=2, column=0, sticky="nsew")
         self.comparison_frame.columnconfigure(1, weight=1)
         self.comparison_frame.rowconfigure(2, weight=1)
 
@@ -297,11 +258,6 @@ class MinRepoApp:
 
         self._build_register_tab(register_tab)
         self._refresh_store_selector()
-
-    def _configure_machine_tree(self) -> None:
-        for column in MACHINE_COLUMNS:
-            self.machine_tree.heading(column, text=column, command=lambda current=column: self._sort_machine_table(current))
-            self.machine_tree.column(column, width=self._machine_column_width(column), minwidth=80, anchor=self._column_anchor(column))
 
     def _build_register_tab(self, register_tab: ttk.Frame) -> None:
         guide = ttk.LabelFrame(register_tab, text="案内", padding=12)
@@ -376,26 +332,6 @@ class MinRepoApp:
             return default_stores
         return registered_stores
 
-    def load_machine_list(self) -> None:
-        try:
-            target_date_input = self._target_date_input_from_recent_days()
-        except ScraperError as exc:
-            self._show_error(exc)
-            return
-
-        self._clear_machine_list("機種一覧: 読込中")
-        self.current_results = []
-        self.current_history_result = None
-        self.comparison_rows = []
-        self.comparison_slot_numbers = []
-        self.comparison_display_rows = []
-        self.comparison_selected_date = None
-        self._clear_comparison_table()
-        self._reset_fetch_progress()
-        self.status_var.set("機種一覧取得中...")
-        self.summary_var.set(f"{target_date_input} の最新日を基準に機種を確認中")
-        self._start_worker(self._worker_load_machine_list, target_date_input)
-
     def register_store(self) -> None:
         store_url = self.register_store_url_var.get().strip()
 
@@ -453,16 +389,6 @@ class MinRepoApp:
         worker = threading.Thread(target=target, args=args, daemon=True)
         worker.start()
         self.root.after(100, self._poll_queue)
-
-    def _worker_load_machine_list(self, target_date_input: str) -> None:
-        try:
-            result = self.scraper.fetch_machine_list(
-                store_url=self.store_url_var.get(),
-                target_date_input=target_date_input,
-            )
-            self.result_queue.put(("machine_list_success", result))
-        except Exception as exc:  # noqa: BLE001
-            self.result_queue.put(("machine_list_error", exc))
 
     def _worker_fetch(
         self,
@@ -572,21 +498,6 @@ class MinRepoApp:
         self.is_busy = False
         self._update_button_states()
 
-        if kind == "machine_list_error":
-            self.status_var.set("失敗")
-            self.summary_var.set("機種一覧を取得できませんでした")
-            self._show_error(payload)
-            return
-
-        if kind == "machine_list_success":
-            if not isinstance(payload, MachineListResult):
-                self.status_var.set("失敗")
-                self.summary_var.set("不明な結果")
-                messagebox.showerror("エラー", "機種一覧の形式が不正です。")
-                return
-            self._apply_machine_list(payload)
-            return
-
         if kind == "register_store_error":
             self.register_store_status_var.set("店舗登録に失敗しました")
             self._show_error(payload)
@@ -668,77 +579,6 @@ class MinRepoApp:
             warning_messages.extend(save_summary.messages)
         if warning_messages:
             messagebox.showwarning("自動処理", "\n\n".join(warning_messages))
-
-    def _apply_machine_list(self, machine_list: MachineListResult) -> None:
-        self.current_machine_list = machine_list
-
-        self.machine_sort_column = "台数"
-        self.machine_sort_descending = True
-        self._refresh_machine_table()
-        self._refresh_machine_list_summary()
-        self.status_var.set("機種一覧読込完了")
-        self.summary_var.set(
-            f"{machine_list.store_name} / {machine_list.target_date} / {len(machine_list.machine_entries)}機種"
-        )
-
-    def _refresh_machine_table(self) -> None:
-        self.machine_tree.delete(*self.machine_tree.get_children())
-        self._update_machine_headings()
-
-        machine_list = self.current_machine_list
-        if machine_list is None:
-            return
-
-        for machine_entry in self._sorted_machine_entries(machine_list.machine_entries):
-            machine_key = normalize_text(machine_entry.name)
-            self.machine_tree.insert(
-                "",
-                "end",
-                iid=machine_key,
-                values=(
-                    machine_entry.name,
-                    machine_entry.machine_count,
-                    machine_entry.average_difference,
-                    machine_entry.average_games,
-                    machine_entry.win_rate,
-                    machine_entry.payout_rate,
-                ),
-            )
-
-    def _sort_machine_table(self, column: str) -> None:
-        if self.current_machine_list is None:
-            return
-
-        if self.machine_sort_column == column:
-            self.machine_sort_descending = not self.machine_sort_descending
-        else:
-            self.machine_sort_column = column
-            self.machine_sort_descending = False
-
-        self._refresh_machine_table()
-
-    def _update_machine_headings(self) -> None:
-        for column in MACHINE_COLUMNS:
-            heading_text = self._heading_text(column, self.machine_sort_column, self.machine_sort_descending)
-            self.machine_tree.heading(column, text=heading_text, command=lambda current=column: self._sort_machine_table(current))
-
-    def _sorted_machine_entries(self, machine_entries: list[MachineEntry]) -> list[MachineEntry]:
-        return self._sort_records(
-            machine_entries,
-            value_getter=lambda machine_entry: self._machine_value(machine_entry, self.machine_sort_column),
-            descending=self.machine_sort_descending,
-        )
-
-    def _machine_value(self, machine_entry: MachineEntry, column: str) -> str | int:
-        values: dict[str, str | int] = {
-            "機種名": machine_entry.name,
-            "台数": machine_entry.machine_count,
-            "平均差枚": machine_entry.average_difference,
-            "平均G数": machine_entry.average_games,
-            "勝率": machine_entry.win_rate,
-            "出率": machine_entry.payout_rate,
-        }
-        return values.get(column, "")
 
     def _populate_comparison_table(self, history_result: MachineHistoryResult) -> None:
         self.comparison_sort_key = "日付"
@@ -1071,13 +911,6 @@ class MinRepoApp:
         ]
         return self.persistence_service.save_registered_stores(store_payloads)
 
-    def _clear_machine_list(self, message: str = "機種一覧: 未読込") -> None:
-        self.current_machine_list = None
-        self.machine_tree.delete(*self.machine_tree.get_children())
-        self.machine_list_var.set(message)
-        self._update_machine_headings()
-        self._update_button_states()
-
     def toggle_comparison_focus(self) -> None:
         if self.skip_comparison_display_var.get():
             return
@@ -1087,28 +920,22 @@ class MinRepoApp:
     def _apply_comparison_focus_mode(self) -> None:
         if self.skip_comparison_display_var.get():
             self.fetch_form.grid()
-            self.machine_frame.grid()
             self.fetch_info.grid()
             self.comparison_frame.grid_remove()
-            self.fetch_tab.rowconfigure(1, weight=1)
-            self.fetch_tab.rowconfigure(3, weight=0)
+            self.fetch_tab.rowconfigure(2, weight=0)
             self.comparison_focus_button.configure(text="台データ表を広く表示")
             return
 
         self.comparison_frame.grid()
         if self.comparison_focus_mode:
             self.fetch_form.grid_remove()
-            self.machine_frame.grid_remove()
             self.fetch_info.grid_remove()
-            self.fetch_tab.rowconfigure(1, weight=0)
-            self.fetch_tab.rowconfigure(3, weight=1)
+            self.fetch_tab.rowconfigure(2, weight=1)
             self.comparison_focus_button.configure(text="元に戻す")
         else:
             self.fetch_form.grid()
-            self.machine_frame.grid()
             self.fetch_info.grid()
-            self.fetch_tab.rowconfigure(1, weight=1)
-            self.fetch_tab.rowconfigure(3, weight=2)
+            self.fetch_tab.rowconfigure(2, weight=1)
             self.comparison_focus_button.configure(text="台データ表を広く表示")
 
     def _on_skip_comparison_display_changed(self) -> None:
@@ -1122,7 +949,6 @@ class MinRepoApp:
         self._update_button_states()
 
     def _reset_fetch_display_for_store_change(self) -> None:
-        self._clear_machine_list("機種一覧: 未読込")
         self.current_results = []
         self.current_history_result = None
         self.comparison_rows = []
@@ -1195,14 +1021,6 @@ class MinRepoApp:
         except tk.TclError:
             pass
 
-    def _refresh_machine_list_summary(self) -> None:
-        if self.current_machine_list is None:
-            self.machine_list_var.set("機種一覧: 未読込")
-        else:
-            machine_count = len(self.current_machine_list.machine_entries)
-            self.machine_list_var.set(f"機種一覧: {machine_count}件 / 全機種取得")
-        self._update_button_states()
-
     def _target_date_input_from_recent_days(self) -> str:
         return build_recent_date_range_input(self.target_date_var.get())
 
@@ -1238,21 +1056,6 @@ class MinRepoApp:
         if column in {"G数", "出率", "合成", "BB率", "RB率"}:
             return 100
         return 120
-
-    def _machine_column_width(self, column: str) -> int:
-        widths = {
-            "チェック": 80,
-            "機種名": 340,
-            "台数": 80,
-            "平均差枚": 100,
-            "平均G数": 100,
-            "勝率": 100,
-            "出率": 100,
-        }
-        return widths.get(column, 100)
-
-    def _column_anchor(self, column: str) -> str:
-        return "w" if column == "機種名" else "center"
 
     def _comparison_key(self, slot_number: str, subcolumn: str) -> str:
         return f"{slot_number}|{subcolumn}"
@@ -1483,7 +1286,6 @@ class MinRepoApp:
     def _update_button_states(self) -> None:
         has_comparison_data = self.current_history_result is not None and not self.skip_comparison_display_var.get()
 
-        self.load_machine_button.configure(state="disabled" if self.is_busy else "normal")
         self.fetch_button.configure(state="disabled" if self.is_busy else "normal")
         self.target_date_entry.configure(state="disabled" if self.is_busy else "normal")
         self.store_selector.configure(state="disabled" if self.is_busy else "readonly")
