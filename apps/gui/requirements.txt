@@ -1,2 +1,4 @@
 beautifulsoup4>=4.13,<5
+Pillow>=10,<12
+pystray>=0.19,<1
 requests>=2.31,<3

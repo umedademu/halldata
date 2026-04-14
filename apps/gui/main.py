@@ -16,6 +16,14 @@ try:
 except ImportError:  # pragma: no cover
     winsound = None
 
+try:
+    import pystray
+    from PIL import Image, ImageDraw
+except ImportError:  # pragma: no cover
+    pystray = None
+    Image = None
+    ImageDraw = None
+
 from data_persistence import (
     HistoryPersistenceService,
     PersistenceSummary,
@@ -130,6 +138,8 @@ class MinRepoApp:
         self.scheduled_fetch_hour: int | None = None
         self.scheduled_last_run_date: str | None = None
         self.scheduled_pending_date: str | None = None
+        self.tray_icon: object | None = None
+        self.tray_thread: threading.Thread | None = None
 
         self.target_date_var = tk.StringVar(value=DEFAULT_RECENT_DAYS)
         self.schedule_hour_var = tk.StringVar()
@@ -385,8 +395,70 @@ class MinRepoApp:
         )
 
     def _hide_to_resident(self) -> None:
+        if not self._ensure_tray_icon():
+            messagebox.showwarning(
+                "常駐",
+                "常駐アイコンを表示できません。requirements.txt の内容を入れ直してください。",
+            )
+            return
+
         self.root.withdraw()
-        self.status_var.set("常駐中")
+        if not self.is_busy:
+            self.status_var.set("常駐中")
+
+    def _ensure_tray_icon(self) -> bool:
+        if self.tray_icon is not None:
+            return True
+
+        if pystray is None or Image is None or ImageDraw is None:
+            return False
+
+        try:
+            icon_image = self._create_tray_icon_image()
+            self.tray_icon = pystray.Icon(
+                "halldata",
+                icon_image,
+                "Halldata",
+                menu=pystray.Menu(
+                    pystray.MenuItem("表示", self._on_tray_show, default=True),
+                    pystray.MenuItem("終了", self._on_tray_exit),
+                ),
+            )
+            self.tray_thread = threading.Thread(target=self.tray_icon.run, daemon=True)
+            self.tray_thread.start()
+            return True
+        except Exception as exc:  # noqa: BLE001
+            self.tray_icon = None
+            self.tray_thread = None
+            messagebox.showwarning("常駐", f"常駐アイコンを表示できませんでした。\n{exc}")
+            return False
+
+    def _create_tray_icon_image(self) -> object:
+        image = Image.new("RGBA", (64, 64), (255, 255, 255, 0))
+        draw = ImageDraw.Draw(image)
+        draw.rectangle((8, 8, 56, 56), fill=(48, 126, 204, 255))
+        draw.rectangle((14, 14, 50, 50), outline=(255, 255, 255, 255), width=4)
+        draw.text((24, 22), "H", fill=(255, 255, 255, 255))
+        return image
+
+    def _on_tray_show(self, *_: object) -> None:
+        self.root.after(0, self._show_from_tray)
+
+    def _show_from_tray(self) -> None:
+        self.root.deiconify()
+        self.root.lift()
+        self.root.focus_force()
+        if self.status_var.get() == "常駐中":
+            self.status_var.set("待機中")
+
+    def _on_tray_exit(self, *_: object) -> None:
+        self.root.after(0, self._quit_from_tray)
+
+    def _quit_from_tray(self) -> None:
+        if self.tray_icon is not None:
+            self.tray_icon.stop()
+            self.tray_icon = None
+        self.root.destroy()
 
     def _build_register_tab(self, register_tab: ttk.Frame) -> None:
         guide = ttk.LabelFrame(register_tab, text="案内", padding=12)
