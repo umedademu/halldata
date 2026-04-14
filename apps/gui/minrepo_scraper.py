@@ -232,13 +232,14 @@ class MinRepoScraper:
         target_date_input: str,
     ) -> MachineHistoryContext:
         store_name, store_soup = self._load_store_page(store_url)
-        start_date, end_date = parse_date_range_input(target_date_input)
         date_pages = self.find_date_pages_in_range(store_soup, store_url, target_date_input)
+        start_date = date_pages[0].target_date
+        end_date = date_pages[-1].target_date
         return MachineHistoryContext(
             store_name=store_name,
             store_url=store_url,
-            start_date=start_date.strftime("%Y-%m-%d"),
-            end_date=end_date.strftime("%Y-%m-%d"),
+            start_date=start_date,
+            end_date=end_date,
             date_pages=date_pages,
         )
 
@@ -390,11 +391,13 @@ class MinRepoScraper:
     ) -> tuple[str, datetime, str, BeautifulSoup]:
         _, target_date = parse_date_range_input(target_date_input)
         store_name, store_soup = self._load_store_page(store_url)
-        date_url = self.find_date_url(store_soup, store_url, target_date)
+        date_page = self.find_latest_date_page_on_or_before(store_soup, store_url, target_date)
+        date_url = date_page.date_url
+        actual_target_date = parse_date_input(date_page.target_date)
 
         date_html = self.fetch_html(date_url)
         date_soup = BeautifulSoup(date_html, "html.parser")
-        return store_name, target_date, date_url, date_soup
+        return store_name, actual_target_date, date_url, date_soup
 
     def _load_store_page(
         self,
@@ -419,10 +422,34 @@ class MinRepoScraper:
         ]
 
         if not date_pages:
-            raise ScraperError("指定期間の日付ページが見つかりませんでした。")
+            fallback_date_page = self.find_latest_date_page_on_or_before(soup, base_url, end_date)
+            date_pages = [fallback_date_page]
 
         date_pages.sort(key=lambda date_page: date_page.target_date)
         return date_pages
+
+    def find_latest_date_page_on_or_before(
+        self,
+        soup: BeautifulSoup,
+        base_url: str,
+        target_date: datetime,
+        min_date: datetime | None = None,
+    ) -> StoreDatePage:
+        target_date_text = target_date.strftime("%Y-%m-%d")
+        min_date_text = min_date.strftime("%Y-%m-%d") if min_date is not None else None
+        date_pages = [
+            date_page
+            for date_page in self._collect_store_date_pages(soup, base_url)
+            if date_page.target_date <= target_date_text
+            and (min_date_text is None or date_page.target_date >= min_date_text)
+        ]
+
+        if not date_pages:
+            if min_date_text is None:
+                raise ScraperError(f"{target_date_text} 以前の日付ページが見つかりませんでした。")
+            raise ScraperError(f"{min_date_text} ～ {target_date_text} の日付ページが見つかりませんでした。")
+
+        return max(date_pages, key=lambda date_page: date_page.target_date)
 
     def find_date_url(
         self,
@@ -430,11 +457,7 @@ class MinRepoScraper:
         base_url: str,
         target_date: datetime,
     ) -> str:
-        for date_page in self._collect_store_date_pages(soup, base_url):
-            if date_page.target_date == target_date.strftime("%Y-%m-%d"):
-                return date_page.date_url
-
-        raise ScraperError(f"{target_date.strftime('%Y-%m-%d')} の日付ページが見つかりませんでした。")
+        return self.find_latest_date_page_on_or_before(soup, base_url, target_date).date_url
 
     def find_machine_url(
         self,

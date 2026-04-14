@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from bs4 import BeautifulSoup
 
 from data_persistence import HistoryPersistenceService, build_machine_daily_records, normalize_store_url
-from main import matches_day_tail
+from main import build_recent_date_range_input, matches_day_tail
 from minrepo_scraper import FetchProgress, MinRepoScraper, normalize_text, parse_date_range_input
 
 
@@ -51,6 +51,11 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(start_date, datetime(2025, 12, 30))
         self.assertEqual(end_date, datetime(2026, 4, 8))
 
+    def test_build_recent_date_range_input_uses_jst_today(self) -> None:
+        result = build_recent_date_range_input("90", datetime(2026, 4, 14, 0, 30, tzinfo=timezone.utc))
+
+        self.assertEqual(result, "2026-01-15 ～ 2026-04-14")
+
     def test_fetch_store_name_from_saved_html(self) -> None:
         scraper = FixtureScraper()
         result = scraper.fetch_store_name(
@@ -85,6 +90,15 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(machine_counts["パチスロ 転生したら剣でした"], 1)
         self.assertEqual(machine_summaries["ネオアイムジャグラーEX"], ("227", "3,907", "21/40", "101.9%"))
         self.assertEqual(machine_summaries["パチスロ 転生したら剣でした"], ("613", "389", "-", "152.5%"))
+
+    def test_fetch_machine_list_uses_latest_available_date(self) -> None:
+        scraper = FixtureScraper()
+        result = scraper.fetch_machine_list(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-09",
+        )
+
+        self.assertEqual(result.target_date, "2026-04-08")
 
     def test_fetch_machine_dataset_from_saved_html(self) -> None:
         scraper = FixtureScraper()
@@ -365,6 +379,33 @@ class MinRepoScraperTests(unittest.TestCase):
             [page.target_date for page in result],
             ["2025-12-30", "2025-12-31", "2026-01-01", "2026-01-02"],
         )
+
+    def test_find_date_pages_falls_back_to_latest_before_end_date(self) -> None:
+        scraper = MinRepoScraper()
+        soup = BeautifulSoup(
+            """
+            <html>
+              <body>
+                <time class="date">2026年4月14日</time>
+                <div class="table_wrap">
+                  <table>
+                    <tr><td><a href="/a">4/13(月)</a></td></tr>
+                    <tr><td><a href="/b">4/12(日)</a></td></tr>
+                  </table>
+                </div>
+              </body>
+            </html>
+            """,
+            "html.parser",
+        )
+
+        result = scraper.find_date_pages_in_range(
+            soup=soup,
+            base_url="https://example.com/tag/store/",
+            target_date_input="2026-04-14",
+        )
+
+        self.assertEqual([page.target_date for page in result], ["2026-04-13"])
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 import queue
 import re
 import threading
@@ -37,13 +38,28 @@ from minrepo_scraper import (
 
 DEFAULT_STORE_NAME = "MJアリーナ箱崎店"
 DEFAULT_STORE_URL = "https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/"
-DEFAULT_TARGET_DATE = "2026-04-08 ～ 2026-04-08"
+DEFAULT_RECENT_DAYS = "90"
+JST = timezone(timedelta(hours=9))
 CHECK_ON = "☑"
 CHECK_OFF = "☐"
 MACHINE_COLUMNS = ("チェック", "機種名", "台数", "平均差枚", "平均G数", "勝率", "出率")
 REGISTERED_STORE_COLUMNS = ("店舗名", "URL")
 COMPARISON_SUBCOLUMNS = ("機種名", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率")
 COMPARISON_DAY_TAIL_OPTIONS = ("全て", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
+
+
+def build_recent_date_range_input(value: str, today: datetime | None = None) -> str:
+    text = value.strip()
+    if not re.fullmatch(r"\d+", text):
+        raise ScraperError("直近日数は 1 以上の整数で入力してください。")
+
+    recent_days = int(text)
+    if recent_days <= 0:
+        raise ScraperError("直近日数は 1 以上の整数で入力してください。")
+
+    today_date = (today or datetime.now(JST)).astimezone(JST).date()
+    start_date = today_date - timedelta(days=recent_days - 1)
+    return f"{start_date.strftime('%Y-%m-%d')} ～ {today_date.strftime('%Y-%m-%d')}"
 
 
 def matches_day_tail(date_text: str, day_tail: str) -> bool:
@@ -94,7 +110,7 @@ class MinRepoApp:
 
         self.selected_store_var = tk.StringVar(value=DEFAULT_STORE_NAME)
         self.store_url_var = tk.StringVar(value=DEFAULT_STORE_URL)
-        self.target_date_var = tk.StringVar(value=DEFAULT_TARGET_DATE)
+        self.target_date_var = tk.StringVar(value=DEFAULT_RECENT_DAYS)
         self.machine_list_var = tk.StringVar(value="機種一覧: 未読込")
         self.status_var = tk.StringVar(value="待機中")
         self.summary_var = tk.StringVar(value="未取得")
@@ -148,9 +164,10 @@ class MinRepoApp:
         self.store_url_entry = ttk.Entry(self.fetch_form, textvariable=self.store_url_var, state="readonly")
         self.store_url_entry.grid(row=1, column=1, sticky="ew", pady=4)
 
-        ttk.Label(self.fetch_form, text="対象期間").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=4)
-        self.target_date_entry = ttk.Entry(self.fetch_form, textvariable=self.target_date_var, width=30)
+        ttk.Label(self.fetch_form, text="直近日数").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.target_date_entry = ttk.Entry(self.fetch_form, textvariable=self.target_date_var, width=8)
         self.target_date_entry.grid(row=2, column=1, sticky="w", pady=4)
+        ttk.Label(self.fetch_form, text="日（日本時間の今日まで）").grid(row=2, column=1, sticky="w", padx=(72, 0), pady=4)
 
         button_row = ttk.Frame(self.fetch_form)
         button_row.grid(row=3, column=1, sticky="w", pady=(8, 0))
@@ -374,6 +391,12 @@ class MinRepoApp:
         return registered_stores
 
     def load_machine_list(self) -> None:
+        try:
+            target_date_input = self._target_date_input_from_recent_days()
+        except ScraperError as exc:
+            self._show_error(exc)
+            return
+
         self._clear_machine_list("機種一覧: 読込中")
         self.current_results = []
         self.current_history_result = None
@@ -384,8 +407,8 @@ class MinRepoApp:
         self._clear_comparison_table()
         self._reset_fetch_progress()
         self.status_var.set("機種一覧取得中...")
-        self.summary_var.set("期間の終了日を基準に機種を確認中")
-        self._start_worker(self._worker_load_machine_list)
+        self.summary_var.set(f"{target_date_input} の最新日を基準に機種を確認中")
+        self._start_worker(self._worker_load_machine_list, target_date_input)
 
     def register_store(self) -> None:
         store_url = self.register_store_url_var.get().strip()
@@ -420,7 +443,13 @@ class MinRepoApp:
             messagebox.showwarning("機種未選択", "先に機種一覧を読み込んでください。")
             return
 
-        if not self._machine_list_matches_inputs(machine_list):
+        try:
+            target_date_input = self._target_date_input_from_recent_days()
+        except ScraperError as exc:
+            self._show_error(exc)
+            return
+
+        if not self._machine_list_matches_inputs(machine_list, target_date_input):
             return
 
         machine_names = self._selected_machine_names()
@@ -441,7 +470,7 @@ class MinRepoApp:
         self._start_worker(
             self._worker_fetch,
             self.store_url_var.get(),
-            self.target_date_var.get(),
+            target_date_input,
             machine_names,
         )
 
@@ -453,11 +482,11 @@ class MinRepoApp:
         worker.start()
         self.root.after(100, self._poll_queue)
 
-    def _worker_load_machine_list(self) -> None:
+    def _worker_load_machine_list(self, target_date_input: str) -> None:
         try:
             result = self.scraper.fetch_machine_list(
                 store_url=self.store_url_var.get(),
-                target_date_input=self.target_date_var.get(),
+                target_date_input=target_date_input,
             )
             self.result_queue.put(("machine_list_success", result))
         except Exception as exc:  # noqa: BLE001
@@ -1257,17 +1286,25 @@ class MinRepoApp:
                 machine_names.append(machine_entry.name)
         return machine_names
 
-    def _machine_list_matches_inputs(self, machine_list: MachineListResult) -> bool:
+    def _target_date_input_from_recent_days(self) -> str:
+        return build_recent_date_range_input(self.target_date_var.get())
+
+    def _machine_list_matches_inputs(self, machine_list: MachineListResult, target_date_input: str) -> bool:
         try:
-            _, current_target_date = parse_date_range_input(self.target_date_var.get())
+            current_start_date, current_target_date = parse_date_range_input(target_date_input)
+            current_start_date_text = current_start_date.strftime("%Y-%m-%d")
             current_target_date_text = current_target_date.strftime("%Y-%m-%d")
         except ScraperError as exc:
             self._show_error(exc)
             return False
 
         current_store_url = self.store_url_var.get().strip()
-        if machine_list.store_url != current_store_url or machine_list.target_date != current_target_date_text:
-            messagebox.showwarning("再読込が必要", "対象店舗または期間を変更した場合は、機種一覧をもう一度読み込んでください。")
+        if (
+            machine_list.store_url != current_store_url
+            or machine_list.target_date < current_start_date_text
+            or machine_list.target_date > current_target_date_text
+        ):
+            messagebox.showwarning("再読込が必要", "対象店舗または直近日数を変更した場合は、機種一覧をもう一度読み込んでください。")
             return False
 
         return True
