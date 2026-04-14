@@ -75,6 +75,7 @@ class MachineHistoryResult:
     date_pages: List[StoreDatePage]
     datasets: List[MachineDataset]
     skipped_targets: List[tuple[str, str]] = field(default_factory=list)
+    skipped_dates: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -301,6 +302,47 @@ class MinRepoScraper:
             date_pages=[date_page],
             datasets=datasets,
             skipped_targets=skipped_targets_for_day,
+        )
+
+    def fetch_all_machine_history_for_date_page(
+        self,
+        context: MachineHistoryContext,
+        date_page: StoreDatePage,
+        step_callback: Callable[[str], None] | None = None,
+        date_index: int | None = None,
+        total_dates: int | None = None,
+    ) -> MachineHistoryResult:
+        date_html = self.fetch_html(date_page.date_url)
+        date_soup = BeautifulSoup(date_html, "html.parser")
+        machine_entries = self.extract_machine_entries(date_soup, date_page.date_url)
+        machine_list = MachineListResult(
+            store_name=context.store_name,
+            store_url=context.store_url,
+            target_date=date_page.target_date,
+            date_url=date_page.date_url,
+            machine_entries=machine_entries,
+        )
+
+        day_prefix = ""
+        if date_index is not None and total_dates is not None:
+            day_prefix = f"{date_index}/{total_dates}日目 "
+
+        if step_callback is not None:
+            step_callback(f"{day_prefix}全機種一覧を確認中")
+
+        datasets: List[MachineDataset] = []
+        for machine_index, machine_entry in enumerate(machine_entries, start=1):
+            datasets.append(self.fetch_machine_dataset_from_entry(machine_list, machine_entry))
+            if step_callback is not None:
+                step_callback(f"{date_page.target_date} の {machine_index}/{len(machine_entries)}機種目を取得中")
+
+        return MachineHistoryResult(
+            store_name=context.store_name,
+            store_url=context.store_url,
+            start_date=date_page.target_date,
+            end_date=date_page.target_date,
+            date_pages=[date_page],
+            datasets=datasets,
         )
 
     def fetch_machine_datasets(

@@ -20,7 +20,7 @@ from data_persistence import (
     HistoryPersistenceService,
     PersistenceSummary,
     RegisteredStoresPersistenceSummary,
-    SavedMachineTargetsSummary,
+    SavedFullDayDatesSummary,
     normalize_store_url,
 )
 from minrepo_scraper import (
@@ -32,7 +32,6 @@ from minrepo_scraper import (
     MinRepoScraper,
     ScraperError,
     normalize_text,
-    parse_date_range_input,
 )
 
 
@@ -40,9 +39,7 @@ DEFAULT_STORE_NAME = "MJアリーナ箱崎店"
 DEFAULT_STORE_URL = "https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/"
 DEFAULT_RECENT_DAYS = "90"
 JST = timezone(timedelta(hours=9))
-CHECK_ON = "☑"
-CHECK_OFF = "☐"
-MACHINE_COLUMNS = ("チェック", "機種名", "台数", "平均差枚", "平均G数", "勝率", "出率")
+MACHINE_COLUMNS = ("機種名", "台数", "平均差枚", "平均G数", "勝率", "出率")
 REGISTERED_STORE_COLUMNS = ("店舗名", "URL")
 COMPARISON_SUBCOLUMNS = ("機種名", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率")
 COMPARISON_DAY_TAIL_OPTIONS = ("全て", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
@@ -92,7 +89,6 @@ class MinRepoApp:
         self.current_results: list[MachineDataset] = []
         self.current_history_result: MachineHistoryResult | None = None
         self.current_machine_list: MachineListResult | None = None
-        self.selected_machine_keys: set[str] = set()
         self.machine_sort_column = "台数"
         self.machine_sort_descending = True
         self.comparison_sort_key = "日付"
@@ -204,12 +200,6 @@ class MinRepoApp:
 
         ttk.Label(machine_actions, textvariable=self.machine_list_var).grid(row=0, column=0, sticky="w")
 
-        self.select_all_button = ttk.Button(machine_actions, text="全選択", command=self.select_all_machines)
-        self.select_all_button.grid(row=0, column=1, sticky="e", padx=(8, 0))
-
-        self.clear_selection_button = ttk.Button(machine_actions, text="全解除", command=self.clear_machine_selection)
-        self.clear_selection_button.grid(row=0, column=2, sticky="e", padx=(8, 0))
-
         machine_table_frame = ttk.Frame(self.machine_frame)
         machine_table_frame.grid(row=1, column=0, sticky="nsew")
         machine_table_frame.columnconfigure(0, weight=1)
@@ -226,10 +216,6 @@ class MinRepoApp:
         machine_x_scroll.grid(row=1, column=0, sticky="ew")
         self.machine_tree.configure(xscrollcommand=machine_x_scroll.set)
         self._configure_machine_tree()
-
-        self.machine_tree.bind("<ButtonRelease-1>", self._on_machine_tree_click)
-        self.machine_tree.bind("<Double-1>", self._on_machine_tree_double_click)
-        self.machine_tree.bind("<space>", self._on_machine_tree_space)
 
         self.fetch_info = ttk.Frame(self.fetch_tab, padding=(0, 12, 0, 12))
         self.fetch_info.grid(row=2, column=0, sticky="ew")
@@ -438,23 +424,10 @@ class MinRepoApp:
             self.result_queue.put(("register_store_error", exc))
 
     def fetch_data(self) -> None:
-        machine_list = self.current_machine_list
-        if machine_list is None:
-            messagebox.showwarning("機種未選択", "先に機種一覧を読み込んでください。")
-            return
-
         try:
             target_date_input = self._target_date_input_from_recent_days()
         except ScraperError as exc:
             self._show_error(exc)
-            return
-
-        if not self._machine_list_matches_inputs(machine_list, target_date_input):
-            return
-
-        machine_names = self._selected_machine_names()
-        if not machine_names:
-            messagebox.showwarning("機種未選択", "取得したい機種を1つ以上選択してください。")
             return
 
         self.current_results = []
@@ -466,12 +439,11 @@ class MinRepoApp:
         self._clear_comparison_table()
         self._begin_fetch_progress("対象期間を確認中...")
         self.status_var.set("取得中...")
-        self.summary_var.set(f"{len(machine_names)}機種を期間取得中")
+        self.summary_var.set("全機種を期間取得中")
         self._start_worker(
             self._worker_fetch,
             self.store_url_var.get(),
             target_date_input,
-            machine_names,
         )
 
     def _start_worker(self, target: object, *args: object) -> None:
@@ -496,19 +468,26 @@ class MinRepoApp:
         self,
         store_url: str,
         target_date_input: str,
-        machine_names: list[str],
     ) -> None:
         try:
-            start_date, end_date = parse_date_range_input(target_date_input)
             context = self.scraper.prepare_machine_history_context(store_url, target_date_input)
-            saved_targets_summary = self.persistence_service.find_saved_machine_targets(
+            saved_full_day_summary = self.persistence_service.find_saved_full_day_dates(
                 store_name=context.store_name,
                 store_url=store_url,
-                start_date=start_date.strftime("%Y-%m-%d"),
-                end_date=end_date.strftime("%Y-%m-%d"),
-                machine_names=machine_names,
+                start_date=context.start_date,
+                end_date=context.end_date,
             )
-            total_steps = max(1, len(context.date_pages) * (len(machine_names) + 2) + 1)
+            skipped_dates = [
+                date_page.target_date
+                for date_page in context.date_pages
+                if date_page.target_date in saved_full_day_summary.saved_dates
+            ]
+            pending_date_pages = [
+                date_page
+                for date_page in context.date_pages
+                if date_page.target_date not in saved_full_day_summary.saved_dates
+            ]
+            total_steps = max(1, len(pending_date_pages) * 2 + 1)
             current_step = 0
             self.result_queue.put(
                 (
@@ -516,14 +495,18 @@ class MinRepoApp:
                     FetchProgress(
                         current_step=current_step,
                         total_steps=total_steps,
-                        message=f"{len(context.date_pages)}日分の取得を準備中",
+                        message=(
+                            f"{len(context.date_pages)}日分のうち"
+                            f"{len(skipped_dates)}日を日付ごとスキップ"
+                        ),
                     ),
                 )
             )
 
             def step_callback(message: str) -> None:
-                nonlocal current_step
+                nonlocal current_step, total_steps
                 current_step += 1
+                total_steps = max(total_steps, current_step)
                 self.result_queue.put(
                     (
                         "fetch_progress",
@@ -539,22 +522,20 @@ class MinRepoApp:
             skipped_targets: list[tuple[str, str]] = []
             save_summary: PersistenceSummary | None = None
 
-            for date_index, date_page in enumerate(context.date_pages, start=1):
-                day_result = self.scraper.fetch_machine_history_for_date_page(
+            for date_index, date_page in enumerate(pending_date_pages, start=1):
+                day_result = self.scraper.fetch_all_machine_history_for_date_page(
                     context=context,
                     date_page=date_page,
-                    machine_names=machine_names,
-                    skip_targets=saved_targets_summary.saved_targets,
                     step_callback=step_callback,
                     date_index=date_index,
-                    total_dates=len(context.date_pages),
+                    total_dates=len(pending_date_pages),
                 )
                 datasets.extend(day_result.datasets)
                 skipped_targets.extend(day_result.skipped_targets)
 
                 if day_result.datasets:
                     step_callback(f"{date_page.target_date} の保存中")
-                    day_save_summary = self.persistence_service.save_history_result(day_result)
+                    day_save_summary = self.persistence_service.save_history_result(day_result, full_day=True)
                     save_summary = self._merge_persistence_summary(save_summary, day_save_summary)
                 else:
                     step_callback(f"{date_page.target_date} は保存対象なし")
@@ -564,11 +545,12 @@ class MinRepoApp:
                 store_url=context.store_url,
                 start_date=context.start_date,
                 end_date=context.end_date,
-                date_pages=context.date_pages,
+                date_pages=pending_date_pages,
                 datasets=datasets,
                 skipped_targets=skipped_targets,
+                skipped_dates=skipped_dates,
             )
-            self.result_queue.put(("fetch_success", (result, save_summary, saved_targets_summary)))
+            self.result_queue.put(("fetch_success", (result, save_summary, saved_full_day_summary)))
         except Exception as exc:  # noqa: BLE001
             self.result_queue.put(("fetch_error", exc))
 
@@ -632,17 +614,17 @@ class MinRepoApp:
 
         history_result = payload
         save_summary: PersistenceSummary | None = None
-        saved_targets_summary = SavedMachineTargetsSummary()
+        saved_full_day_summary = SavedFullDayDatesSummary()
         if (
             isinstance(payload, tuple)
             and len(payload) == 3
             and isinstance(payload[0], MachineHistoryResult)
             and (isinstance(payload[1], PersistenceSummary) or payload[1] is None)
-            and isinstance(payload[2], SavedMachineTargetsSummary)
+            and isinstance(payload[2], SavedFullDayDatesSummary)
         ):
             history_result = payload[0]
             save_summary = payload[1]
-            saved_targets_summary = payload[2]
+            saved_full_day_summary = payload[2]
         if not isinstance(history_result, MachineHistoryResult):
             self._finish_fetch_progress(success=False, message="取得失敗")
             self.status_var.set("失敗")
@@ -664,21 +646,24 @@ class MinRepoApp:
         )
         if save_summary is not None and save_summary.has_errors:
             self.status_var.set("完了（保存に注意）")
-        elif not history_result.datasets and history_result.skipped_targets:
+        elif not history_result.datasets and (history_result.skipped_targets or history_result.skipped_dates):
             self.status_var.set("完了（取得済みをスキップ）")
         else:
             self.status_var.set("完了")
         skipped_count = len(history_result.skipped_targets)
+        skipped_date_count = len(history_result.skipped_dates)
+        fetched_machine_count = len({dataset.machine_name for dataset in history_result.datasets})
         self.summary_var.set(
             f"{store_name} / {history_result.start_date} ～ {history_result.end_date} / "
-            f"{len(self._selected_machine_names())}機種 / {len(history_result.date_pages)}日 / "
+            f"{fetched_machine_count}機種 / {len(history_result.date_pages)}日取得 / "
             f"{self._save_status_text(save_summary)}"
+            f"{f' / 日付スキップ{skipped_date_count}日' if skipped_date_count else ''}"
             f"{f' / スキップ{skipped_count}件' if skipped_count else ''}"
             f"{' / 表表示省略' if self.skip_comparison_display_var.get() else ''}"
         )
         self._update_button_states()
         self._notify_fetch_complete()
-        warning_messages = list(saved_targets_summary.messages)
+        warning_messages = list(saved_full_day_summary.messages)
         if save_summary is not None and save_summary.has_errors:
             warning_messages.extend(save_summary.messages)
         if warning_messages:
@@ -686,7 +671,6 @@ class MinRepoApp:
 
     def _apply_machine_list(self, machine_list: MachineListResult) -> None:
         self.current_machine_list = machine_list
-        self.selected_machine_keys = {normalize_text(machine.name) for machine in machine_list.machine_entries}
 
         self.machine_sort_column = "台数"
         self.machine_sort_descending = True
@@ -712,7 +696,6 @@ class MinRepoApp:
                 "end",
                 iid=machine_key,
                 values=(
-                    CHECK_ON if machine_key in self.selected_machine_keys else CHECK_OFF,
                     machine_entry.name,
                     machine_entry.machine_count,
                     machine_entry.average_difference,
@@ -747,9 +730,7 @@ class MinRepoApp:
         )
 
     def _machine_value(self, machine_entry: MachineEntry, column: str) -> str | int:
-        machine_key = normalize_text(machine_entry.name)
         values: dict[str, str | int] = {
-            "チェック": 1 if machine_key in self.selected_machine_keys else 0,
             "機種名": machine_entry.name,
             "台数": machine_entry.machine_count,
             "平均差枚": machine_entry.average_difference,
@@ -758,57 +739,6 @@ class MinRepoApp:
             "出率": machine_entry.payout_rate,
         }
         return values.get(column, "")
-
-    def _on_machine_tree_click(self, event: tk.Event[tk.Misc]) -> str | None:
-        if self.machine_tree.identify("region", event.x, event.y) != "cell":
-            return None
-
-        item_id = self.machine_tree.identify_row(event.y)
-        column_id = self.machine_tree.identify_column(event.x)
-        if item_id and column_id == "#1":
-            self._toggle_machine_selection(item_id)
-            return "break"
-        return None
-
-    def _on_machine_tree_double_click(self, event: tk.Event[tk.Misc]) -> str | None:
-        if self.machine_tree.identify("region", event.x, event.y) != "cell":
-            return None
-
-        item_id = self.machine_tree.identify_row(event.y)
-        column_id = self.machine_tree.identify_column(event.x)
-        if item_id and column_id == "#1":
-            self._toggle_machine_selection(item_id)
-            return "break"
-        return None
-
-    def _on_machine_tree_space(self, _: tk.Event[tk.Misc]) -> str:
-        for item_id in self.machine_tree.selection():
-            self._toggle_machine_selection(item_id, refresh=False)
-        self._refresh_machine_marks()
-        return "break"
-
-    def _toggle_machine_selection(self, item_id: str, refresh: bool = True) -> None:
-        if item_id in self.selected_machine_keys:
-            self.selected_machine_keys.remove(item_id)
-        else:
-            self.selected_machine_keys.add(item_id)
-
-        if refresh:
-            self._refresh_machine_marks()
-
-    def _refresh_machine_marks(self) -> None:
-        if self.machine_sort_column == "チェック":
-            self._refresh_machine_table()
-            self._refresh_machine_list_summary()
-            return
-
-        for item_id in self.machine_tree.get_children():
-            values = list(self.machine_tree.item(item_id, "values"))
-            if not values:
-                continue
-            values[0] = CHECK_ON if item_id in self.selected_machine_keys else CHECK_OFF
-            self.machine_tree.item(item_id, values=values)
-        self._refresh_machine_list_summary()
 
     def _populate_comparison_table(self, history_result: MachineHistoryResult) -> None:
         self.comparison_sort_key = "日付"
@@ -1143,7 +1073,6 @@ class MinRepoApp:
 
     def _clear_machine_list(self, message: str = "機種一覧: 未読込") -> None:
         self.current_machine_list = None
-        self.selected_machine_keys = set()
         self.machine_tree.delete(*self.machine_tree.get_children())
         self.machine_list_var.set(message)
         self._update_machine_headings()
@@ -1271,55 +1200,11 @@ class MinRepoApp:
             self.machine_list_var.set("機種一覧: 未読込")
         else:
             machine_count = len(self.current_machine_list.machine_entries)
-            selected_count = len(self._selected_machine_names())
-            self.machine_list_var.set(f"機種一覧: {machine_count}件 / 選択: {selected_count}件")
+            self.machine_list_var.set(f"機種一覧: {machine_count}件 / 全機種取得")
         self._update_button_states()
-
-    def _selected_machine_names(self) -> list[str]:
-        if self.current_machine_list is None:
-            return []
-
-        machine_names: list[str] = []
-        for machine_entry in self.current_machine_list.machine_entries:
-            machine_key = normalize_text(machine_entry.name)
-            if machine_key in self.selected_machine_keys:
-                machine_names.append(machine_entry.name)
-        return machine_names
 
     def _target_date_input_from_recent_days(self) -> str:
         return build_recent_date_range_input(self.target_date_var.get())
-
-    def _machine_list_matches_inputs(self, machine_list: MachineListResult, target_date_input: str) -> bool:
-        try:
-            current_start_date, current_target_date = parse_date_range_input(target_date_input)
-            current_start_date_text = current_start_date.strftime("%Y-%m-%d")
-            current_target_date_text = current_target_date.strftime("%Y-%m-%d")
-        except ScraperError as exc:
-            self._show_error(exc)
-            return False
-
-        current_store_url = self.store_url_var.get().strip()
-        if (
-            machine_list.store_url != current_store_url
-            or machine_list.target_date < current_start_date_text
-            or machine_list.target_date > current_target_date_text
-        ):
-            messagebox.showwarning("再読込が必要", "対象店舗または直近日数を変更した場合は、機種一覧をもう一度読み込んでください。")
-            return False
-
-        return True
-
-    def select_all_machines(self) -> None:
-        machine_list = self.current_machine_list
-        if machine_list is None:
-            return
-
-        self.selected_machine_keys = {normalize_text(machine.name) for machine in machine_list.machine_entries}
-        self._refresh_machine_marks()
-
-    def clear_machine_selection(self) -> None:
-        self.selected_machine_keys.clear()
-        self._refresh_machine_marks()
 
     def _build_table_columns(self, results: list[MachineDataset]) -> list[str]:
         columns = ["機種名"]
@@ -1596,14 +1481,10 @@ class MinRepoApp:
         return (1, normalize_text(text))
 
     def _update_button_states(self) -> None:
-        has_machine_list = self.current_machine_list is not None
-        has_selection = bool(self._selected_machine_names())
         has_comparison_data = self.current_history_result is not None and not self.skip_comparison_display_var.get()
 
         self.load_machine_button.configure(state="disabled" if self.is_busy else "normal")
-        self.fetch_button.configure(state="disabled" if self.is_busy or not has_selection else "normal")
-        self.select_all_button.configure(state="disabled" if self.is_busy or not has_machine_list else "normal")
-        self.clear_selection_button.configure(state="disabled" if self.is_busy or not has_machine_list else "normal")
+        self.fetch_button.configure(state="disabled" if self.is_busy else "normal")
         self.target_date_entry.configure(state="disabled" if self.is_busy else "normal")
         self.store_selector.configure(state="disabled" if self.is_busy else "readonly")
         self.comparison_day_tail_selector.configure(state="readonly" if not self.is_busy and has_comparison_data else "disabled")

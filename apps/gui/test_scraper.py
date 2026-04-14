@@ -178,6 +178,23 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual([dataset.target_date for dataset in day_result.datasets], ["2026-04-07"])
         self.assertEqual(day_result.skipped_targets, [])
 
+    def test_fetch_all_machine_history_for_date_page_from_saved_html(self) -> None:
+        scraper = FixtureScraper()
+        context = scraper.prepare_machine_history_context(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-07 ～ 2026-04-08",
+        )
+
+        day_result = scraper.fetch_all_machine_history_for_date_page(
+            context=context,
+            date_page=context.date_pages[0],
+        )
+
+        self.assertEqual(day_result.start_date, "2026-04-07")
+        self.assertEqual(day_result.end_date, "2026-04-07")
+        self.assertEqual([page.target_date for page in day_result.date_pages], ["2026-04-07"])
+        self.assertGreater(len({dataset.machine_name for dataset in day_result.datasets}), 10)
+
     def test_fetch_machine_history_progress_from_saved_html(self) -> None:
         scraper = FixtureScraper()
         progress_updates: list[FetchProgress] = []
@@ -242,6 +259,32 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(summary.supabase_record_count, 80)
             self.assertIsNotNone(summary.local_file_path)
             self.assertTrue(Path(summary.local_file_path).exists())
+
+    def test_save_history_result_marks_full_day_index(self) -> None:
+        scraper = FixtureScraper()
+        context = scraper.prepare_machine_history_context(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-07 ～ 2026-04-08",
+        )
+        history_result = scraper.fetch_all_machine_history_for_date_page(
+            context=context,
+            date_page=context.date_pages[0],
+        )
+
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            service._save_to_supabase = lambda snapshot: len(snapshot["records"])  # type: ignore[method-assign]
+
+            summary = service.save_history_result(history_result, full_day=True)
+            saved_dates_summary = service.find_saved_full_day_dates(
+                store_name="MJアリーナ箱崎店",
+                store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+                start_date="2026-04-07",
+                end_date="2026-04-08",
+            )
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(saved_dates_summary.saved_dates, {"2026-04-07"})
 
     def test_save_and_load_registered_stores(self) -> None:
         with TemporaryDirectory() as temp_dir:

@@ -57,6 +57,16 @@ class SavedMachineTargetsSummary:
         return bool(self.messages)
 
 
+@dataclass
+class SavedFullDayDatesSummary:
+    saved_dates: set[str] = field(default_factory=set)
+    messages: list[str] = field(default_factory=list)
+
+    @property
+    def has_errors(self) -> bool:
+        return bool(self.messages)
+
+
 def normalize_store_url(value: str) -> str:
     text = str(value).strip()
     if not text:
@@ -106,13 +116,15 @@ class HistoryPersistenceService:
     def __init__(self, root_dir: Path | None = None) -> None:
         self.root_dir = root_dir or ROOT_DIR
 
-    def save_history_result(self, history_result: MachineHistoryResult) -> PersistenceSummary:
+    def save_history_result(self, history_result: MachineHistoryResult, full_day: bool = False) -> PersistenceSummary:
         snapshot = self._build_local_snapshot(history_result)
         summary = PersistenceSummary(local_record_count=len(snapshot["records"]))
 
         try:
             local_path = self._save_local_snapshot(snapshot)
             summary.local_file_path = str(local_path)
+            if full_day:
+                self._mark_full_day_saved(snapshot, local_path)
         except Exception as exc:  # noqa: BLE001
             summary.messages.append(f"ローカル保存に失敗しました。\n{exc}")
 
@@ -123,6 +135,27 @@ class HistoryPersistenceService:
         except Exception as exc:  # noqa: BLE001
             summary.messages.append(f"Supabase 保存に失敗しました。\n{exc}")
 
+        return summary
+
+    def find_saved_full_day_dates(
+        self,
+        store_name: str,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+    ) -> SavedFullDayDatesSummary:
+        summary = SavedFullDayDatesSummary()
+        try:
+            summary.saved_dates.update(
+                self._find_saved_full_day_dates_local(
+                    store_name=store_name,
+                    store_url=store_url,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+            )
+        except Exception as exc:  # noqa: BLE001
+            summary.messages.append(f"ローカルの全機種取得済み確認に失敗しました。\n{exc}")
         return summary
 
     def find_saved_machine_targets(
@@ -218,6 +251,88 @@ class HistoryPersistenceService:
         file_path = store_dir / file_name
         file_path.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
         return file_path
+
+    def _mark_full_day_saved(self, snapshot: dict[str, Any], local_path: Path) -> None:
+        store = snapshot.get("store", {})
+        if not isinstance(store, dict):
+            return
+
+        store_name = str(store.get("store_name", "")).strip()
+        if not store_name:
+            return
+
+        index_path = self._full_day_index_path(store_name)
+        index_payload = self._load_full_day_index(index_path)
+        index_payload["store"] = {
+            "store_name": store_name,
+            "store_url": normalize_store_url(str(store.get("store_url", ""))),
+        }
+        full_day_dates = index_payload.setdefault("full_day_dates", {})
+        if not isinstance(full_day_dates, dict):
+            full_day_dates = {}
+            index_payload["full_day_dates"] = full_day_dates
+
+        now_text = datetime.now().astimezone().isoformat(timespec="seconds")
+        machine_names = snapshot.get("machine_names", [])
+        records = snapshot.get("records", [])
+        for date_page in snapshot.get("date_pages", []):
+            if not isinstance(date_page, dict):
+                continue
+            target_date = str(date_page.get("target_date", "")).strip()
+            if not target_date:
+                continue
+            full_day_dates[target_date] = {
+                "saved_at": now_text,
+                "machine_count": len(machine_names) if isinstance(machine_names, list) else 0,
+                "record_count": len(records) if isinstance(records, list) else 0,
+                "local_file_path": str(local_path),
+            }
+
+        index_path.parent.mkdir(parents=True, exist_ok=True)
+        index_path.write_text(json.dumps(index_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def _find_saved_full_day_dates_local(
+        self,
+        store_name: str,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+    ) -> set[str]:
+        index_path = self._full_day_index_path(store_name)
+        if not index_path.exists():
+            return set()
+
+        payload = self._load_full_day_index(index_path)
+        store_payload = payload.get("store", {})
+        if isinstance(store_payload, dict):
+            saved_store_url = normalize_store_url(str(store_payload.get("store_url", "")).strip())
+            if saved_store_url and saved_store_url != normalize_store_url(store_url):
+                return set()
+
+        full_day_dates = payload.get("full_day_dates", {})
+        if not isinstance(full_day_dates, dict):
+            return set()
+
+        return {
+            target_date
+            for target_date in full_day_dates
+            if start_date <= target_date <= end_date
+        }
+
+    def _full_day_index_path(self, store_name: str) -> Path:
+        return self._local_save_dir() / _sanitize_file_name(store_name) / "_full_day_index.json"
+
+    def _load_full_day_index(self, index_path: Path) -> dict[str, Any]:
+        if not index_path.exists():
+            return {"version": 1, "store": {}, "full_day_dates": {}}
+
+        payload = json.loads(index_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            return {"version": 1, "store": {}, "full_day_dates": {}}
+        payload.setdefault("version", 1)
+        payload.setdefault("store", {})
+        payload.setdefault("full_day_dates", {})
+        return payload
 
     def _find_saved_machine_targets_local(
         self,
