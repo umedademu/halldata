@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import json
+from pathlib import Path
 import queue
 import re
 import threading
@@ -44,6 +46,8 @@ from minrepo_scraper import (
 DEFAULT_STORE_NAME = "MJアリーナ箱崎店"
 DEFAULT_STORE_URL = "https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/"
 DEFAULT_RECENT_DAYS = "90"
+DEFAULT_SCHEDULE_HOUR = 2
+GUI_SETTINGS_FILE_NAME = "gui_settings.json"
 JST = timezone(timedelta(hours=9))
 REGISTERED_STORE_COLUMNS = ("取得対象", "店舗名", "URL")
 COMPARISON_SUBCOLUMNS = ("機種名", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率")
@@ -135,15 +139,15 @@ class MinRepoApp:
         self.is_busy = False
         self.active_operation_kind = ""
         self.fetch_cancel_event = threading.Event()
-        self.scheduled_fetch_hour: int | None = None
+        self.scheduled_fetch_hour: int | None = self._load_saved_schedule_hour()
         self.scheduled_last_run_date: str | None = None
         self.scheduled_pending_date: str | None = None
         self.tray_icon: object | None = None
         self.tray_thread: threading.Thread | None = None
 
         self.target_date_var = tk.StringVar(value=DEFAULT_RECENT_DAYS)
-        self.schedule_hour_var = tk.StringVar()
-        self.schedule_status_var = tk.StringVar(value="定期実行なし")
+        self.schedule_hour_var = tk.StringVar(value=str(self.scheduled_fetch_hour))
+        self.schedule_status_var = tk.StringVar(value=f"毎日 {self.scheduled_fetch_hour} 時に実行")
         self.status_var = tk.StringVar(value="待機中")
         self.summary_var = tk.StringVar(value="未取得")
         self.fetch_progress_value_var = tk.DoubleVar(value=0.0)
@@ -319,6 +323,10 @@ class MinRepoApp:
         self.scheduled_fetch_hour = scheduled_hour
         self.scheduled_last_run_date = None
         self.scheduled_pending_date = None
+        try:
+            self._save_schedule_hour(scheduled_hour)
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showwarning("設定保存", f"定期実行の時刻保存に失敗しました。\n{exc}")
         self.schedule_status_var.set(f"毎日 {scheduled_hour} 時に実行")
 
     def clear_daily_schedule(self) -> None:
@@ -337,6 +345,32 @@ class MinRepoApp:
             raise ScraperError("定期実行の時刻は 0 から 23 の整数で入力してください。")
 
         return scheduled_hour
+
+    def _settings_file_path(self) -> Path:
+        return self.persistence_service.root_dir / "local_data" / GUI_SETTINGS_FILE_NAME
+
+    def _load_saved_schedule_hour(self) -> int:
+        settings_path = self._settings_file_path()
+        if not settings_path.exists():
+            return DEFAULT_SCHEDULE_HOUR
+
+        try:
+            payload = json.loads(settings_path.read_text(encoding="utf-8"))
+            scheduled_hour = int(payload.get("scheduled_fetch_hour", DEFAULT_SCHEDULE_HOUR))
+        except Exception:  # noqa: BLE001
+            return DEFAULT_SCHEDULE_HOUR
+
+        if not 0 <= scheduled_hour <= 23:
+            return DEFAULT_SCHEDULE_HOUR
+        return scheduled_hour
+
+    def _save_schedule_hour(self, scheduled_hour: int) -> None:
+        settings_path = self._settings_file_path()
+        settings_path.parent.mkdir(parents=True, exist_ok=True)
+        settings_path.write_text(
+            json.dumps({"scheduled_fetch_hour": scheduled_hour}, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
 
     def _schedule_timer_tick(self) -> None:
         self._run_scheduled_fetch_if_due()
