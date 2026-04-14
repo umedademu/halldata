@@ -37,7 +37,7 @@ DEFAULT_STORE_NAME = "MJアリーナ箱崎店"
 DEFAULT_STORE_URL = "https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/"
 DEFAULT_RECENT_DAYS = "90"
 JST = timezone(timedelta(hours=9))
-REGISTERED_STORE_COLUMNS = ("店舗名", "URL")
+REGISTERED_STORE_COLUMNS = ("取得対象", "店舗名", "URL")
 COMPARISON_SUBCOLUMNS = ("機種名", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率")
 COMPARISON_DAY_TAIL_OPTIONS = ("全て", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
 
@@ -73,6 +73,25 @@ class RegisteredStore:
     url: str
 
 
+@dataclass
+class StoreFetchResult:
+    history_result: MachineHistoryResult
+    save_summary: PersistenceSummary | None
+    saved_full_day_summary: SavedFullDayDatesSummary
+
+
+@dataclass
+class StoreFetchFailure:
+    store: RegisteredStore
+    error: Exception
+
+
+@dataclass
+class FetchManyResult:
+    results: list[StoreFetchResult]
+    failures: list[StoreFetchFailure]
+
+
 class MinRepoApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
@@ -96,16 +115,18 @@ class MinRepoApp:
         self.comparison_text_cache: dict[tuple[str, int], str] = {}
         self.startup_store_warning: str | None = None
         self.registered_stores: list[RegisteredStore] = self._load_registered_stores_on_startup()
+        self.selected_store_urls: set[str] = {
+            normalize_store_url(registered_store.url)
+            for registered_store in self.registered_stores
+        }
         self.is_busy = False
 
-        self.selected_store_var = tk.StringVar(value=DEFAULT_STORE_NAME)
-        self.store_url_var = tk.StringVar(value=DEFAULT_STORE_URL)
         self.target_date_var = tk.StringVar(value=DEFAULT_RECENT_DAYS)
         self.status_var = tk.StringVar(value="待機中")
         self.summary_var = tk.StringVar(value="未取得")
         self.fetch_progress_value_var = tk.DoubleVar(value=0.0)
         self.fetch_progress_text_var = tk.StringVar(value="未開始")
-        self.skip_comparison_display_var = tk.BooleanVar(value=False)
+        self.skip_comparison_display_var = tk.BooleanVar(value=True)
         self.notify_fetch_complete_var = tk.BooleanVar(value=True)
         self.comparison_day_tail_var = tk.StringVar(value="全て")
         self.register_store_url_var = tk.StringVar()
@@ -143,22 +164,13 @@ class MinRepoApp:
         self.fetch_form.grid(row=0, column=0, sticky="ew")
         self.fetch_form.columnconfigure(1, weight=1)
 
-        ttk.Label(self.fetch_form, text="対象店舗").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=4)
-        self.store_selector = ttk.Combobox(self.fetch_form, textvariable=self.selected_store_var, state="readonly")
-        self.store_selector.grid(row=0, column=1, sticky="w", pady=4)
-        self.store_selector.bind("<<ComboboxSelected>>", self._on_selected_store_changed)
-
-        ttk.Label(self.fetch_form, text="店舗URL").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=4)
-        self.store_url_entry = ttk.Entry(self.fetch_form, textvariable=self.store_url_var, state="readonly")
-        self.store_url_entry.grid(row=1, column=1, sticky="ew", pady=4)
-
-        ttk.Label(self.fetch_form, text="直近日数").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=4)
+        ttk.Label(self.fetch_form, text="直近日数").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=4)
         self.target_date_entry = ttk.Entry(self.fetch_form, textvariable=self.target_date_var, width=8)
-        self.target_date_entry.grid(row=2, column=1, sticky="w", pady=4)
-        ttk.Label(self.fetch_form, text="日（日本時間の今日まで）").grid(row=2, column=1, sticky="w", padx=(72, 0), pady=4)
+        self.target_date_entry.grid(row=0, column=1, sticky="w", pady=4)
+        ttk.Label(self.fetch_form, text="日（日本時間の今日まで）").grid(row=0, column=1, sticky="w", padx=(72, 0), pady=4)
 
         button_row = ttk.Frame(self.fetch_form)
-        button_row.grid(row=3, column=1, sticky="w", pady=(8, 0))
+        button_row.grid(row=1, column=1, sticky="w", pady=(8, 0))
 
         self.fetch_button = ttk.Button(button_row, text="取得", command=self.fetch_data)
         self.fetch_button.grid(row=0, column=0, sticky="w")
@@ -257,7 +269,6 @@ class MinRepoApp:
         self.comparison_body_canvas.bind("<MouseWheel>", self._on_comparison_mousewheel)
 
         self._build_register_tab(register_tab)
-        self._refresh_store_selector()
 
     def _build_register_tab(self, register_tab: ttk.Frame) -> None:
         guide = ttk.LabelFrame(register_tab, text="案内", padding=12)
@@ -268,6 +279,7 @@ class MinRepoApp:
             guide,
             text=(
                 "ここでは店舗URLを入れて店舗名を自動取得し、一覧へ登録できます。"
+                "取得対象のチェックが入っている店舗を、データ取得タブの取得ボタンで順番に取得します。"
                 "登録した店舗一覧は Supabase に保存されます。"
             ),
             wraplength=900,
@@ -293,26 +305,45 @@ class MinRepoApp:
         table_frame = ttk.LabelFrame(form, text="登録済み一覧", padding=8)
         table_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
         table_frame.columnconfigure(0, weight=1)
-        table_frame.rowconfigure(0, weight=1)
+        table_frame.rowconfigure(1, weight=1)
+
+        target_action_row = ttk.Frame(table_frame)
+        target_action_row.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
+        self.select_all_stores_button = ttk.Button(
+            target_action_row,
+            text="全て取得対象にする",
+            command=self._select_all_registered_stores,
+        )
+        self.select_all_stores_button.grid(row=0, column=0, sticky="w")
+        self.clear_store_selection_button = ttk.Button(
+            target_action_row,
+            text="取得対象を全て外す",
+            command=self._clear_registered_store_selection,
+        )
+        self.clear_store_selection_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
 
         self.registered_store_tree = ttk.Treeview(table_frame, columns=REGISTERED_STORE_COLUMNS, show="headings")
-        self.registered_store_tree.grid(row=0, column=0, sticky="nsew")
+        self.registered_store_tree.grid(row=1, column=0, sticky="nsew")
 
         for column in REGISTERED_STORE_COLUMNS:
             self.registered_store_tree.heading(column, text=column)
+            if column == "取得対象":
+                self.registered_store_tree.column(column, width=80, minwidth=80, anchor="center")
+                continue
             self.registered_store_tree.column(
                 column,
                 width=220 if column == "店舗名" else 760,
                 minwidth=120,
                 anchor="w",
             )
+        self.registered_store_tree.bind("<Button-1>", self._on_registered_store_tree_click)
 
         y_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=self.registered_store_tree.yview)
-        y_scroll.grid(row=0, column=1, sticky="ns")
+        y_scroll.grid(row=1, column=1, sticky="ns")
         self.registered_store_tree.configure(yscrollcommand=y_scroll.set)
 
         x_scroll = ttk.Scrollbar(table_frame, orient="horizontal", command=self.registered_store_tree.xview)
-        x_scroll.grid(row=1, column=0, sticky="ew")
+        x_scroll.grid(row=2, column=0, sticky="ew")
         self.registered_store_tree.configure(xscrollcommand=x_scroll.set)
 
     def _load_registered_stores_on_startup(self) -> list[RegisteredStore]:
@@ -366,6 +397,11 @@ class MinRepoApp:
             self._show_error(exc)
             return
 
+        target_stores = self._selected_registered_stores()
+        if not target_stores:
+            messagebox.showwarning("入力不足", "登録店舗タブで取得対象にする店舗を1つ以上選んでください。")
+            return
+
         self.current_results = []
         self.current_history_result = None
         self.comparison_rows = []
@@ -375,10 +411,10 @@ class MinRepoApp:
         self._clear_comparison_table()
         self._begin_fetch_progress("対象期間を確認中...")
         self.status_var.set("取得中...")
-        self.summary_var.set("全機種を期間取得中")
+        self.summary_var.set(f"{len(target_stores)}店舗を期間取得中")
         self._start_worker(
-            self._worker_fetch,
-            self.store_url_var.get(),
+            self._worker_fetch_many,
+            target_stores,
             target_date_input,
         )
 
@@ -390,95 +426,140 @@ class MinRepoApp:
         worker.start()
         self.root.after(100, self._poll_queue)
 
-    def _worker_fetch(
+    def _worker_fetch_many(
         self,
-        store_url: str,
+        target_stores: list[RegisteredStore],
         target_date_input: str,
     ) -> None:
-        try:
-            context = self.scraper.prepare_machine_history_context(store_url, target_date_input)
-            saved_full_day_summary = self.persistence_service.find_saved_full_day_dates(
-                store_name=context.store_name,
-                store_url=store_url,
-                start_date=context.start_date,
-                end_date=context.end_date,
+        results: list[StoreFetchResult] = []
+        failures: list[StoreFetchFailure] = []
+        total_stores = len(target_stores)
+
+        for store_index, registered_store in enumerate(target_stores, start=1):
+            try:
+                results.append(
+                    self._fetch_single_store(
+                        registered_store=registered_store,
+                        target_date_input=target_date_input,
+                        store_index=store_index,
+                        total_stores=total_stores,
+                    )
+                )
+            except Exception as exc:  # noqa: BLE001
+                failures.append(StoreFetchFailure(store=registered_store, error=exc))
+                self.result_queue.put(
+                    (
+                        "fetch_progress",
+                        FetchProgress(
+                            current_step=1,
+                            total_steps=1,
+                            message=f"{store_index}/{total_stores} {registered_store.name} は取得失敗",
+                        ),
+                    )
+                )
+
+        if not results and failures:
+            failure_lines = "\n".join(f"{failure.store.name}: {failure.error}" for failure in failures)
+            self.result_queue.put(("fetch_error", ScraperError(f"選択した店舗を取得できませんでした。\n{failure_lines}")))
+            return
+
+        self.result_queue.put(("fetch_many_success", FetchManyResult(results=results, failures=failures)))
+
+    def _fetch_single_store(
+        self,
+        registered_store: RegisteredStore,
+        target_date_input: str,
+        store_index: int,
+        total_stores: int,
+    ) -> StoreFetchResult:
+        store_url = registered_store.url
+        store_label = f"{store_index}/{total_stores} {registered_store.name}"
+        context = self.scraper.prepare_machine_history_context(store_url, target_date_input)
+        saved_full_day_summary = self.persistence_service.find_saved_full_day_dates(
+            store_name=context.store_name,
+            store_url=store_url,
+            start_date=context.start_date,
+            end_date=context.end_date,
+        )
+        skipped_dates = [
+            date_page.target_date
+            for date_page in context.date_pages
+            if date_page.target_date in saved_full_day_summary.saved_dates
+        ]
+        pending_date_pages = [
+            date_page
+            for date_page in context.date_pages
+            if date_page.target_date not in saved_full_day_summary.saved_dates
+        ]
+        total_steps = max(1, len(pending_date_pages) * 2 + 1)
+        current_step = 0
+        self.result_queue.put(
+            (
+                "fetch_progress",
+                FetchProgress(
+                    current_step=current_step,
+                    total_steps=total_steps,
+                    message=(
+                        f"{store_label}: "
+                        f"{len(context.date_pages)}日分のうち"
+                        f"{len(skipped_dates)}日を日付ごとスキップ"
+                    ),
+                ),
             )
-            skipped_dates = [
-                date_page.target_date
-                for date_page in context.date_pages
-                if date_page.target_date in saved_full_day_summary.saved_dates
-            ]
-            pending_date_pages = [
-                date_page
-                for date_page in context.date_pages
-                if date_page.target_date not in saved_full_day_summary.saved_dates
-            ]
-            total_steps = max(1, len(pending_date_pages) * 2 + 1)
-            current_step = 0
+        )
+
+        def step_callback(message: str) -> None:
+            nonlocal current_step, total_steps
+            current_step += 1
+            total_steps = max(total_steps, current_step)
             self.result_queue.put(
                 (
                     "fetch_progress",
                     FetchProgress(
                         current_step=current_step,
                         total_steps=total_steps,
-                        message=(
-                            f"{len(context.date_pages)}日分のうち"
-                            f"{len(skipped_dates)}日を日付ごとスキップ"
-                        ),
+                        message=f"{store_label}: {message}",
                     ),
                 )
             )
 
-            def step_callback(message: str) -> None:
-                nonlocal current_step, total_steps
-                current_step += 1
-                total_steps = max(total_steps, current_step)
-                self.result_queue.put(
-                    (
-                        "fetch_progress",
-                        FetchProgress(
-                            current_step=current_step,
-                            total_steps=total_steps,
-                            message=message,
-                        ),
-                    )
-                )
+        datasets: list[MachineDataset] = []
+        skipped_targets: list[tuple[str, str]] = []
+        save_summary: PersistenceSummary | None = None
 
-            datasets: list[MachineDataset] = []
-            skipped_targets: list[tuple[str, str]] = []
-            save_summary: PersistenceSummary | None = None
-
-            for date_index, date_page in enumerate(pending_date_pages, start=1):
-                day_result = self.scraper.fetch_all_machine_history_for_date_page(
-                    context=context,
-                    date_page=date_page,
-                    step_callback=step_callback,
-                    date_index=date_index,
-                    total_dates=len(pending_date_pages),
-                )
-                datasets.extend(day_result.datasets)
-                skipped_targets.extend(day_result.skipped_targets)
-
-                if day_result.datasets:
-                    step_callback(f"{date_page.target_date} の保存中")
-                    day_save_summary = self.persistence_service.save_history_result(day_result, full_day=True)
-                    save_summary = self._merge_persistence_summary(save_summary, day_save_summary)
-                else:
-                    step_callback(f"{date_page.target_date} は保存対象なし")
-
-            result = MachineHistoryResult(
-                store_name=context.store_name,
-                store_url=context.store_url,
-                start_date=context.start_date,
-                end_date=context.end_date,
-                date_pages=pending_date_pages,
-                datasets=datasets,
-                skipped_targets=skipped_targets,
-                skipped_dates=skipped_dates,
+        for date_index, date_page in enumerate(pending_date_pages, start=1):
+            day_result = self.scraper.fetch_all_machine_history_for_date_page(
+                context=context,
+                date_page=date_page,
+                step_callback=step_callback,
+                date_index=date_index,
+                total_dates=len(pending_date_pages),
             )
-            self.result_queue.put(("fetch_success", (result, save_summary, saved_full_day_summary)))
-        except Exception as exc:  # noqa: BLE001
-            self.result_queue.put(("fetch_error", exc))
+            datasets.extend(day_result.datasets)
+            skipped_targets.extend(day_result.skipped_targets)
+
+            if day_result.datasets:
+                step_callback(f"{date_page.target_date} の保存中")
+                day_save_summary = self.persistence_service.save_history_result(day_result, full_day=True)
+                save_summary = self._merge_persistence_summary(save_summary, day_save_summary)
+            else:
+                step_callback(f"{date_page.target_date} は保存対象なし")
+
+        result = MachineHistoryResult(
+            store_name=context.store_name,
+            store_url=context.store_url,
+            start_date=context.start_date,
+            end_date=context.end_date,
+            date_pages=pending_date_pages,
+            datasets=datasets,
+            skipped_targets=skipped_targets,
+            skipped_dates=skipped_dates,
+        )
+        return StoreFetchResult(
+            history_result=result,
+            save_summary=save_summary,
+            saved_full_day_summary=saved_full_day_summary,
+        )
 
     def _poll_queue(self) -> None:
         try:
@@ -521,6 +602,16 @@ class MinRepoApp:
             self.status_var.set("失敗")
             self.summary_var.set("取得できませんでした")
             self._show_error(payload)
+            return
+
+        if kind == "fetch_many_success":
+            if not isinstance(payload, FetchManyResult) or not payload.results:
+                self._finish_fetch_progress(success=False, message="取得失敗")
+                self.status_var.set("失敗")
+                self.summary_var.set("不明な結果")
+                messagebox.showerror("エラー", "取得結果の形式が不正です。")
+                return
+            self._apply_fetch_many_result(payload)
             return
 
         history_result = payload
@@ -579,6 +670,125 @@ class MinRepoApp:
             warning_messages.extend(save_summary.messages)
         if warning_messages:
             messagebox.showwarning("自動処理", "\n\n".join(warning_messages))
+
+    def _apply_fetch_many_result(self, fetch_many_result: FetchManyResult) -> None:
+        last_store_result = fetch_many_result.results[-1]
+        history_result = last_store_result.history_result
+
+        self.current_history_result = history_result
+        self.current_results = history_result.datasets
+        if self.skip_comparison_display_var.get():
+            self._clear_comparison_table()
+            self._apply_comparison_focus_mode()
+        else:
+            self._populate_comparison_table(history_result)
+
+        has_save_errors = any(
+            store_result.save_summary is not None and store_result.save_summary.has_errors
+            for store_result in fetch_many_result.results
+        )
+        all_skipped = all(
+            not store_result.history_result.datasets
+            and (store_result.history_result.skipped_targets or store_result.history_result.skipped_dates)
+            for store_result in fetch_many_result.results
+        )
+
+        self._finish_fetch_progress(
+            success=True,
+            message="取得完了（保存に注意）" if has_save_errors else "取得完了",
+        )
+        if fetch_many_result.failures:
+            self.status_var.set("完了（一部失敗）")
+        elif has_save_errors:
+            self.status_var.set("完了（保存に注意）")
+        elif all_skipped:
+            self.status_var.set("完了（取得済みをスキップ）")
+        else:
+            self.status_var.set("完了")
+
+        self.summary_var.set(self._fetch_many_summary_text(fetch_many_result))
+        self._update_button_states()
+        self._notify_fetch_complete()
+
+        warning_messages: list[str] = []
+        for store_result in fetch_many_result.results:
+            warning_messages.extend(store_result.saved_full_day_summary.messages)
+            if store_result.save_summary is not None and store_result.save_summary.has_errors:
+                warning_messages.extend(store_result.save_summary.messages)
+        for failure in fetch_many_result.failures:
+            warning_messages.append(f"{failure.store.name} の取得に失敗しました。\n{failure.error}")
+        if warning_messages:
+            messagebox.showwarning("自動処理", "\n\n".join(warning_messages))
+
+    def _fetch_many_summary_text(self, fetch_many_result: FetchManyResult) -> str:
+        if len(fetch_many_result.results) == 1 and not fetch_many_result.failures:
+            store_result = fetch_many_result.results[0]
+            return self._single_fetch_summary_text(store_result.history_result, store_result.save_summary)
+
+        first_history_result = fetch_many_result.results[0].history_result
+        last_history_result = fetch_many_result.results[-1].history_result
+        fetched_machine_count = sum(
+            len({dataset.machine_name for dataset in store_result.history_result.datasets})
+            for store_result in fetch_many_result.results
+        )
+        fetched_day_count = sum(
+            len(store_result.history_result.date_pages)
+            for store_result in fetch_many_result.results
+        )
+        skipped_count = sum(
+            len(store_result.history_result.skipped_targets)
+            for store_result in fetch_many_result.results
+        )
+        skipped_date_count = sum(
+            len(store_result.history_result.skipped_dates)
+            for store_result in fetch_many_result.results
+        )
+        failed_text = f" / 失敗{len(fetch_many_result.failures)}店舗" if fetch_many_result.failures else ""
+        display_text = (
+            " / 表表示省略"
+            if self.skip_comparison_display_var.get()
+            else f" / 表表示は{last_history_result.store_name}"
+        )
+        return (
+            f"{len(fetch_many_result.results)}店舗完了{failed_text} / "
+            f"{first_history_result.start_date} ～ {first_history_result.end_date} / "
+            f"{fetched_machine_count}機種 / {fetched_day_count}日取得 / "
+            f"{self._many_save_status_text(fetch_many_result.results)}"
+            f"{f' / 日付スキップ{skipped_date_count}日' if skipped_date_count else ''}"
+            f"{f' / スキップ{skipped_count}件' if skipped_count else ''}"
+            f"{display_text}"
+        )
+
+    def _single_fetch_summary_text(
+        self,
+        history_result: MachineHistoryResult,
+        save_summary: PersistenceSummary | None,
+    ) -> str:
+        skipped_count = len(history_result.skipped_targets)
+        skipped_date_count = len(history_result.skipped_dates)
+        fetched_machine_count = len({dataset.machine_name for dataset in history_result.datasets})
+        return (
+            f"{history_result.store_name} / {history_result.start_date} ～ {history_result.end_date} / "
+            f"{fetched_machine_count}機種 / {len(history_result.date_pages)}日取得 / "
+            f"{self._save_status_text(save_summary)}"
+            f"{f' / 日付スキップ{skipped_date_count}日' if skipped_date_count else ''}"
+            f"{f' / スキップ{skipped_count}件' if skipped_count else ''}"
+            f"{' / 表表示省略' if self.skip_comparison_display_var.get() else ''}"
+        )
+
+    def _many_save_status_text(self, store_results: list[StoreFetchResult]) -> str:
+        save_summaries = [store_result.save_summary for store_result in store_results]
+        if any(save_summary is not None and save_summary.has_errors for save_summary in save_summaries):
+            return "保存に注意"
+
+        if any(
+            save_summary is not None
+            and (save_summary.local_file_path or save_summary.supabase_saved)
+            for save_summary in save_summaries
+        ):
+            return "保存あり"
+
+        return "保存なし"
 
     def _populate_comparison_table(self, history_result: MachineHistoryResult) -> None:
         self.comparison_sort_key = "日付"
@@ -850,34 +1060,74 @@ class MinRepoApp:
                 "",
                 "end",
                 iid=f"registered_store_{index}",
-                values=(registered_store.name, registered_store.url),
+                values=(
+                    self._registered_store_target_marker(registered_store),
+                    registered_store.name,
+                    registered_store.url,
+                ),
             )
 
-    def _refresh_store_selector(self) -> None:
-        store_names = [registered_store.name for registered_store in self.registered_stores]
-        self.store_selector.configure(values=store_names)
+    def _registered_store_target_marker(self, registered_store: RegisteredStore) -> str:
+        return "☑" if normalize_store_url(registered_store.url) in self.selected_store_urls else "☐"
 
-        selected_store = self._find_registered_store(self.selected_store_var.get())
-        if selected_store is None and self.registered_stores:
-            selected_store = self.registered_stores[0]
-            self.selected_store_var.set(selected_store.name)
+    def _selected_registered_stores(self) -> list[RegisteredStore]:
+        return [
+            registered_store
+            for registered_store in self.registered_stores
+            if normalize_store_url(registered_store.url) in self.selected_store_urls
+        ]
 
-        if selected_store is not None:
-            self.store_url_var.set(selected_store.url)
+    def _on_registered_store_tree_click(self, event: tk.Event[tk.Misc]) -> str | None:
+        if self.is_busy:
+            return None
 
-    def _find_registered_store(self, store_name: str) -> RegisteredStore | None:
-        normalized_name = normalize_text(store_name)
-        for registered_store in self.registered_stores:
-            if normalize_text(registered_store.name) == normalized_name:
-                return registered_store
-        return None
+        if self.registered_store_tree.identify_region(event.x, event.y) != "cell":
+            return None
 
-    def _on_selected_store_changed(self, _: tk.Event[tk.Misc]) -> None:
-        selected_store = self._find_registered_store(self.selected_store_var.get())
-        if selected_store is None:
+        if self.registered_store_tree.identify_column(event.x) != "#1":
+            return None
+
+        item_id = self.registered_store_tree.identify_row(event.y)
+        if not item_id:
+            return None
+
+        self._toggle_registered_store_target(item_id)
+        return "break"
+
+    def _toggle_registered_store_target(self, item_id: str) -> None:
+        prefix = "registered_store_"
+        if not item_id.startswith(prefix):
             return
 
-        self.store_url_var.set(selected_store.url)
+        index_text = item_id[len(prefix):]
+        if not index_text.isdigit():
+            return
+
+        index = int(index_text)
+        if index < 0 or index >= len(self.registered_stores):
+            return
+
+        registered_store = self.registered_stores[index]
+        normalized_url = normalize_store_url(registered_store.url)
+        if normalized_url in self.selected_store_urls:
+            self.selected_store_urls.remove(normalized_url)
+        else:
+            self.selected_store_urls.add(normalized_url)
+
+        self.registered_store_tree.set(item_id, "取得対象", self._registered_store_target_marker(registered_store))
+        self._reset_fetch_display_for_store_change()
+
+    def _select_all_registered_stores(self) -> None:
+        self.selected_store_urls = {
+            normalize_store_url(registered_store.url)
+            for registered_store in self.registered_stores
+        }
+        self._refresh_registered_store_table()
+        self._reset_fetch_display_for_store_change()
+
+    def _clear_registered_store_selection(self) -> None:
+        self.selected_store_urls.clear()
+        self._refresh_registered_store_table()
         self._reset_fetch_display_for_store_change()
 
     def _apply_registered_store(self, store_name: str, store_url: str) -> None:
@@ -890,9 +1140,9 @@ class MinRepoApp:
                 return
 
         self.registered_stores.append(RegisteredStore(name=store_name, url=normalized_url))
+        self.selected_store_urls.add(normalized_url)
         self.register_store_url_var.set("")
         self._refresh_registered_store_table()
-        self._refresh_store_selector()
         save_summary = self._persist_registered_stores()
         if save_summary.has_errors:
             self.register_store_status_var.set(f"{store_name} を登録しました（保存に注意）")
@@ -1288,13 +1538,14 @@ class MinRepoApp:
 
         self.fetch_button.configure(state="disabled" if self.is_busy else "normal")
         self.target_date_entry.configure(state="disabled" if self.is_busy else "normal")
-        self.store_selector.configure(state="disabled" if self.is_busy else "readonly")
         self.comparison_day_tail_selector.configure(state="readonly" if not self.is_busy and has_comparison_data else "disabled")
         self.comparison_focus_button.configure(state="normal" if not self.is_busy and has_comparison_data else "disabled")
         self.skip_comparison_display_button.configure(state="disabled" if self.is_busy else "normal")
         self.notify_fetch_complete_button.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_button.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_url_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.select_all_stores_button.configure(state="disabled" if self.is_busy else "normal")
+        self.clear_store_selection_button.configure(state="disabled" if self.is_busy else "normal")
 
     def _show_error(self, exc: object) -> None:
         if isinstance(exc, ScraperError):
