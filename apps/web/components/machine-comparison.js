@@ -376,9 +376,9 @@ function getMetrics(settingEstimateDefinition, getCompositeSettingEstimate) {
   return [...COMMON_METRICS, ...RATIO_METRICS];
 }
 
-function buildCsvRows(slotNumbers, dateRows, metrics) {
-  const headerRow1 = ["日付"];
-  const headerRow2 = [""];
+function buildCsvRows(slotNumbers, dateRows, metrics, specialDateSet) {
+  const headerRow1 = ["日付", "特定日"];
+  const headerRow2 = ["", ""];
 
   for (const slotNumber of slotNumbers) {
     for (let i = 0; i < metrics.length; i++) {
@@ -388,7 +388,7 @@ function buildCsvRows(slotNumbers, dateRows, metrics) {
   }
 
   const dataRows = dateRows.map((row) => {
-    const cells = [row.date];
+    const cells = [row.date, specialDateSet.has(row.date) ? "はい" : "いいえ"];
     for (const slotNumber of slotNumbers) {
       const record = row.recordsBySlot[slotNumber] ?? null;
       for (const metric of metrics) {
@@ -672,19 +672,27 @@ export function MachineComparison({
     return dateRows.filter((row) => matchesEventFilters(row.date, eventFilters));
   }, [dateRows, eventDisplayMode, eventFilters]);
 
-  const highlightedDateSet = useMemo(() => {
-    if (eventDisplayMode !== "highlight" || !eventFilters.isActive) {
+  const specialDateSet = useMemo(() => {
+    if (!eventFilters.isActive) {
       return new Set();
     }
 
     return new Set(
       dateRows.filter((row) => matchesEventFilters(row.date, eventFilters)).map((row) => row.date),
     );
-  }, [dateRows, eventDisplayMode, eventFilters]);
+  }, [dateRows, eventFilters]);
+
+  const highlightedDateSet = useMemo(() => {
+    if (eventDisplayMode !== "highlight") {
+      return new Set();
+    }
+
+    return specialDateSet;
+  }, [eventDisplayMode, specialDateSet]);
 
   const csvRows = useMemo(
-    () => buildCsvRows(slotNumbers, visibleRows, visibleMetrics),
-    [slotNumbers, visibleRows, visibleMetrics],
+    () => buildCsvRows(slotNumbers, visibleRows, visibleMetrics, specialDateSet),
+    [slotNumbers, specialDateSet, visibleRows, visibleMetrics],
   );
 
   const tableStyle = useMemo(() => {
