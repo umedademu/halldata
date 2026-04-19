@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import queue
+import threading
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -8,7 +10,7 @@ from tempfile import TemporaryDirectory
 from bs4 import BeautifulSoup
 
 from data_persistence import HistoryPersistenceService, build_machine_daily_records, normalize_store_url
-from main import build_recent_date_range_input, matches_day_tail
+from main import MinRepoApp, build_recent_date_range_input, matches_day_tail, parse_retry_delay_seconds
 from minrepo_scraper import FetchProgress, MinRepoScraper, normalize_text, parse_date_range_input
 
 
@@ -55,6 +57,39 @@ class MinRepoScraperTests(unittest.TestCase):
         result = build_recent_date_range_input("90", datetime(2026, 4, 14, 0, 30, tzinfo=timezone.utc))
 
         self.assertEqual(result, "2026-01-15 ～ 2026-04-14")
+
+    def test_parse_retry_delay_seconds(self) -> None:
+        self.assertEqual(parse_retry_delay_seconds("10"), 10)
+        self.assertEqual(parse_retry_delay_seconds("0"), 0)
+
+        with self.assertRaisesRegex(Exception, "再試行の休止秒数"):
+            parse_retry_delay_seconds("1.5")
+
+    def test_run_with_fetch_retries_retries_three_times(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.result_queue = queue.Queue()
+        calls = 0
+        retry_messages: list[tuple[int, int, int]] = []
+
+        def flaky_fetch() -> str:
+            nonlocal calls
+            calls += 1
+            if calls < 4:
+                raise RuntimeError("temporary failure")
+            return "ok"
+
+        result = app._run_with_fetch_retries(
+            flaky_fetch,
+            retry_delay_seconds=0,
+            retry_status_callback=lambda retry_number, max_retries, delay_seconds: retry_messages.append(
+                (retry_number, max_retries, delay_seconds)
+            ),
+        )
+
+        self.assertEqual(result, "ok")
+        self.assertEqual(calls, 4)
+        self.assertEqual(retry_messages, [(1, 3, 0), (2, 3, 0), (3, 3, 0)])
 
     def test_fetch_store_name_from_saved_html(self) -> None:
         scraper = FixtureScraper()

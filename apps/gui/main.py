@@ -10,7 +10,7 @@ import threading
 import tkinter as tk
 from tkinter import font as tkfont
 from tkinter import messagebox, ttk
-from typing import Callable
+from typing import Callable, TypeVar
 from urllib.parse import urlparse
 
 try:
@@ -46,12 +46,15 @@ from minrepo_scraper import (
 DEFAULT_STORE_NAME = "MJアリーナ箱崎店"
 DEFAULT_STORE_URL = "https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/"
 DEFAULT_RECENT_DAYS = "90"
+DEFAULT_RETRY_DELAY_SECONDS = "10"
+MAX_FETCH_RETRY_COUNT = 3
 DEFAULT_SCHEDULE_HOUR = 2
 GUI_SETTINGS_FILE_NAME = "gui_settings.json"
 JST = timezone(timedelta(hours=9))
 REGISTERED_STORE_COLUMNS = ("取得対象", "店舗名", "URL")
 COMPARISON_SUBCOLUMNS = ("機種名", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率")
 COMPARISON_DAY_TAIL_OPTIONS = ("全て", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
+T = TypeVar("T")
 
 
 def build_recent_date_range_input(value: str, today: datetime | None = None) -> str:
@@ -66,6 +69,14 @@ def build_recent_date_range_input(value: str, today: datetime | None = None) -> 
     today_date = (today or datetime.now(JST)).astimezone(JST).date()
     start_date = today_date - timedelta(days=recent_days - 1)
     return f"{start_date.strftime('%Y-%m-%d')} ～ {today_date.strftime('%Y-%m-%d')}"
+
+
+def parse_retry_delay_seconds(value: str) -> int:
+    text = value.strip()
+    if not re.fullmatch(r"\d+", text):
+        raise ScraperError("再試行の休止秒数は 0 以上の整数で入力してください。")
+
+    return int(text)
 
 
 def matches_day_tail(date_text: str, day_tail: str) -> bool:
@@ -154,6 +165,7 @@ class MinRepoApp:
         self.target_date_var = tk.StringVar(value=DEFAULT_RECENT_DAYS)
         self.schedule_hour_var = tk.StringVar(value=str(self.scheduled_fetch_hour))
         self.schedule_status_var = tk.StringVar(value=f"毎日 {self.scheduled_fetch_hour} 時に実行")
+        self.retry_delay_seconds_var = tk.StringVar(value=DEFAULT_RETRY_DELAY_SECONDS)
         self.status_var = tk.StringVar(value="待機中")
         self.summary_var = tk.StringVar(value="未取得")
         self.fetch_progress_value_var = tk.DoubleVar(value=0.0)
@@ -203,8 +215,19 @@ class MinRepoApp:
         self.target_date_entry.grid(row=0, column=1, sticky="w", pady=4)
         ttk.Label(self.fetch_form, text="日（日本時間の今日まで）").grid(row=0, column=1, sticky="w", padx=(72, 0), pady=4)
 
+        ttk.Label(self.fetch_form, text="再試行休止").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.retry_delay_entry = ttk.Entry(self.fetch_form, textvariable=self.retry_delay_seconds_var, width=8)
+        self.retry_delay_entry.grid(row=1, column=1, sticky="w", pady=4)
+        ttk.Label(self.fetch_form, text="秒（取得失敗時は最大3回まで再試行）").grid(
+            row=1,
+            column=1,
+            sticky="w",
+            padx=(72, 0),
+            pady=4,
+        )
+
         button_row = ttk.Frame(self.fetch_form)
-        button_row.grid(row=1, column=1, sticky="w", pady=(8, 0))
+        button_row.grid(row=2, column=1, sticky="w", pady=(8, 0))
 
         self.fetch_button = ttk.Button(button_row, text="取得", command=self.fetch_data)
         self.fetch_button.grid(row=0, column=0, sticky="w")
@@ -228,7 +251,7 @@ class MinRepoApp:
         self.notify_fetch_complete_button.grid(row=0, column=3, sticky="w", padx=(12, 0))
 
         schedule_row = ttk.Frame(self.fetch_form)
-        schedule_row.grid(row=2, column=1, sticky="w", pady=(8, 0))
+        schedule_row.grid(row=3, column=1, sticky="w", pady=(8, 0))
         ttk.Label(schedule_row, text="毎日").grid(row=0, column=0, sticky="w")
         self.schedule_hour_entry = ttk.Entry(schedule_row, textvariable=self.schedule_hour_var, width=4)
         self.schedule_hour_entry.grid(row=0, column=1, sticky="w", padx=(6, 4))
@@ -411,6 +434,7 @@ class MinRepoApp:
     def _start_scheduled_fetch(self) -> None:
         try:
             target_date_input = self._target_date_input_from_recent_days()
+            retry_delay_seconds = self._retry_delay_seconds_input()
         except ScraperError as exc:
             self.schedule_status_var.set("定期実行を開始できません")
             self._show_error(exc)
@@ -431,6 +455,7 @@ class MinRepoApp:
         self._start_worker(
             self._worker_scheduled_fetch,
             target_date_input,
+            retry_delay_seconds,
             operation_kind="scheduled_fetch",
         )
 
@@ -616,11 +641,15 @@ class MinRepoApp:
         except Exception as exc:  # noqa: BLE001
             self.result_queue.put(("refresh_registered_stores_error", exc))
 
-    def _worker_scheduled_fetch(self, target_date_input: str) -> None:
+    def _worker_scheduled_fetch(self, target_date_input: str, retry_delay_seconds: int) -> None:
         try:
             refresh_result = self._load_and_complete_registered_stores()
             self._raise_if_fetch_cancelled()
-            fetch_many_result = self._run_fetch_many(refresh_result.registered_stores, target_date_input)
+            fetch_many_result = self._run_fetch_many(
+                refresh_result.registered_stores,
+                target_date_input,
+                retry_delay_seconds,
+            )
             if fetch_many_result.cancelled and not fetch_many_result.results:
                 self.result_queue.put(("fetch_cancelled", None))
                 return
@@ -692,6 +721,7 @@ class MinRepoApp:
     def fetch_data(self) -> None:
         try:
             target_date_input = self._target_date_input_from_recent_days()
+            retry_delay_seconds = self._retry_delay_seconds_input()
         except ScraperError as exc:
             self._show_error(exc)
             return
@@ -716,6 +746,7 @@ class MinRepoApp:
             self._worker_fetch_many,
             target_stores,
             target_date_input,
+            retry_delay_seconds,
             operation_kind="fetch",
         )
 
@@ -741,13 +772,37 @@ class MinRepoApp:
         if self.fetch_cancel_event.is_set():
             raise FetchCancelled
 
+    def _run_with_fetch_retries(
+        self,
+        action: Callable[[], T],
+        retry_delay_seconds: int,
+        retry_status_callback: Callable[[int, int, int], None],
+    ) -> T:
+        for failed_count in range(MAX_FETCH_RETRY_COUNT + 1):
+            self._raise_if_fetch_cancelled()
+            try:
+                return action()
+            except FetchCancelled:
+                raise
+            except Exception:
+                if failed_count >= MAX_FETCH_RETRY_COUNT:
+                    raise
+
+                retry_number = failed_count + 1
+                retry_status_callback(retry_number, MAX_FETCH_RETRY_COUNT, retry_delay_seconds)
+                if retry_delay_seconds > 0 and self.fetch_cancel_event.wait(retry_delay_seconds):
+                    raise FetchCancelled
+
+        raise ScraperError("取得の再試行に失敗しました。")
+
     def _worker_fetch_many(
         self,
         target_stores: list[RegisteredStore],
         target_date_input: str,
+        retry_delay_seconds: int,
     ) -> None:
         try:
-            fetch_many_result = self._run_fetch_many(target_stores, target_date_input)
+            fetch_many_result = self._run_fetch_many(target_stores, target_date_input, retry_delay_seconds)
             if fetch_many_result.cancelled and not fetch_many_result.results:
                 self.result_queue.put(("fetch_cancelled", None))
                 return
@@ -759,6 +814,7 @@ class MinRepoApp:
         self,
         target_stores: list[RegisteredStore],
         target_date_input: str,
+        retry_delay_seconds: int,
     ) -> FetchManyResult:
         results: list[StoreFetchResult] = []
         failures: list[StoreFetchFailure] = []
@@ -777,6 +833,7 @@ class MinRepoApp:
                         target_date_input=target_date_input,
                         store_index=store_index,
                         total_stores=total_stores,
+                        retry_delay_seconds=retry_delay_seconds,
                     )
                 )
             except FetchCancelled:
@@ -810,11 +867,28 @@ class MinRepoApp:
         target_date_input: str,
         store_index: int,
         total_stores: int,
+        retry_delay_seconds: int,
     ) -> StoreFetchResult:
         self._raise_if_fetch_cancelled()
         store_url = registered_store.url
         store_label = f"{store_index}/{total_stores} {self._registered_store_display_name(registered_store)}"
-        context = self.scraper.prepare_machine_history_context(store_url, target_date_input)
+        context = self._run_with_fetch_retries(
+            lambda: self.scraper.prepare_machine_history_context(store_url, target_date_input),
+            retry_delay_seconds=retry_delay_seconds,
+            retry_status_callback=lambda retry_number, max_retries, delay_seconds: self.result_queue.put(
+                (
+                    "fetch_progress",
+                    FetchProgress(
+                        current_step=0,
+                        total_steps=1,
+                        message=(
+                            f"{store_label}: 対象期間の確認に失敗しました。"
+                            f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
+                        ),
+                    ),
+                )
+            ),
+        )
         self._raise_if_fetch_cancelled()
         saved_full_day_summary = self.persistence_service.find_saved_full_day_dates(
             store_name=context.store_name,
@@ -875,12 +949,28 @@ class MinRepoApp:
                 if datasets or save_summary is not None:
                     break
                 raise FetchCancelled
-            day_result = self.scraper.fetch_all_machine_history_for_date_page(
-                context=context,
-                date_page=date_page,
-                step_callback=step_callback,
-                date_index=date_index,
-                total_dates=len(pending_date_pages),
+            day_result = self._run_with_fetch_retries(
+                lambda: self.scraper.fetch_all_machine_history_for_date_page(
+                    context=context,
+                    date_page=date_page,
+                    step_callback=step_callback,
+                    date_index=date_index,
+                    total_dates=len(pending_date_pages),
+                ),
+                retry_delay_seconds=retry_delay_seconds,
+                retry_status_callback=lambda retry_number, max_retries, delay_seconds, target_date=date_page.target_date: self.result_queue.put(
+                    (
+                        "fetch_progress",
+                        FetchProgress(
+                            current_step=current_step,
+                            total_steps=total_steps,
+                            message=(
+                                f"{store_label}: {target_date} の取得に失敗しました。"
+                                f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
+                            ),
+                        ),
+                    )
+                ),
             )
             datasets.extend(day_result.datasets)
             skipped_targets.extend(day_result.skipped_targets)
@@ -1719,6 +1809,9 @@ class MinRepoApp:
     def _target_date_input_from_recent_days(self) -> str:
         return build_recent_date_range_input(self.target_date_var.get())
 
+    def _retry_delay_seconds_input(self) -> int:
+        return parse_retry_delay_seconds(self.retry_delay_seconds_var.get())
+
     def _build_table_columns(self, results: list[MachineDataset]) -> list[str]:
         columns = ["機種名"]
         seen_columns = set(columns)
@@ -1989,6 +2082,7 @@ class MinRepoApp:
         )
         self.cancel_fetch_button.configure(state="normal" if can_cancel_fetch else "disabled")
         self.target_date_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.retry_delay_entry.configure(state="disabled" if self.is_busy else "normal")
         self.schedule_hour_entry.configure(state="disabled" if self.is_busy else "normal")
         self.apply_schedule_button.configure(state="disabled" if self.is_busy else "normal")
         self.clear_schedule_button.configure(state="disabled" if self.is_busy else "normal")

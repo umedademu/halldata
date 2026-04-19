@@ -37,6 +37,8 @@ const narrowPercentFormatter = new Intl.NumberFormat("ja-JP", {
   useGrouping: false,
 });
 
+const weekdayLabels = ["日", "月", "火", "水", "木", "金", "土"];
+
 function normalizeDateText(value) {
   if (typeof value !== "string") {
     return null;
@@ -53,6 +55,24 @@ function normalizeDateText(value) {
   }
 
   return `${match[1]}-${match[2]}-${match[3]}`;
+}
+
+export function getWeekdayIndex(value) {
+  const normalized = normalizeDateText(value);
+  const date = normalized
+    ? new Date(
+        Number(normalized.slice(0, 4)),
+        Number(normalized.slice(5, 7)) - 1,
+        Number(normalized.slice(8, 10)),
+      )
+    : new Date(value);
+
+  return Number.isNaN(date.getTime()) ? null : date.getDay();
+}
+
+export function formatWeekday(value) {
+  const weekday = getWeekdayIndex(value);
+  return weekday === null ? "-" : weekdayLabels[weekday];
 }
 
 export function formatCompactDate(value) {

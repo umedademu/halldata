@@ -11,6 +11,7 @@ import {
   formatRatio,
   formatShortDate,
   formatSignedNumber,
+  formatWeekday,
   valueToneClass,
 } from "../lib/format";
 import { createEventFilters, matchesEventFilters } from "../lib/event-filters";
@@ -26,6 +27,15 @@ import {
 import { CsvExportButton } from "./csv-export-button";
 
 const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, value) => value);
+const WEEKDAY_FILTER_OPTIONS = [
+  { value: 0, label: "日曜" },
+  { value: 1, label: "月曜" },
+  { value: 2, label: "火曜" },
+  { value: 3, label: "水曜" },
+  { value: 4, label: "木曜" },
+  { value: 5, label: "金曜" },
+  { value: 6, label: "土曜" },
+];
 const DEFAULT_VISIBLE_METRIC_KEYS = [
   "difference_value",
   "games_count",
@@ -35,6 +45,7 @@ const DEFAULT_VISIBLE_METRIC_KEYS = [
   "setting_estimate",
 ];
 const MATRIX_DATE_COLUMN_WIDTH_REM = 4.8;
+const MATRIX_WEEKDAY_COLUMN_WIDTH_REM = 2.4;
 const MATRIX_SLOT_WIDTH_REM = 16;
 const DEFAULT_GAME_MIN_GAMES = 6000;
 const DEFAULT_GAME_MAX_GAMES = 9000;
@@ -58,7 +69,24 @@ function getSettingEstimate(definition, record) {
   return estimate;
 }
 
-function createDefaultEstimateOptions(slotCount) {
+function isJugglerMachine(machineName) {
+  return String(machineName ?? "").normalize("NFKC").includes("ジャグラー");
+}
+
+function createDefaultEstimateOptions(slotCount, machineName) {
+  if (isJugglerMachine(machineName)) {
+    return {
+      dataWeight: 100,
+      gameEnabled: false,
+      gameWeight: 0,
+      comparisonEnabled: false,
+      comparisonWeight: 0,
+      minGames: DEFAULT_GAME_MIN_GAMES,
+      maxGames: DEFAULT_GAME_MAX_GAMES,
+      gameExponent: DEFAULT_GAME_EXPONENT,
+    };
+  }
+
   const isSmallMachine = slotCount <= 8;
 
   return {
@@ -377,8 +405,8 @@ function getMetrics(settingEstimateDefinition, getCompositeSettingEstimate) {
 }
 
 function buildCsvRows(slotNumbers, dateRows, metrics, specialDateSet) {
-  const headerRow1 = ["日付", "特定日"];
-  const headerRow2 = ["", ""];
+  const headerRow1 = ["日付", "曜日", "特定日"];
+  const headerRow2 = ["", "", ""];
 
   for (const slotNumber of slotNumbers) {
     for (let i = 0; i < metrics.length; i++) {
@@ -388,7 +416,7 @@ function buildCsvRows(slotNumbers, dateRows, metrics, specialDateSet) {
   }
 
   const dataRows = dateRows.map((row) => {
-    const cells = [row.date, specialDateSet.has(row.date) ? "はい" : "いいえ"];
+    const cells = [row.date, formatWeekday(row.date), specialDateSet.has(row.date) ? "はい" : "いいえ"];
     for (const slotNumber of slotNumbers) {
       const record = row.recordsBySlot[slotNumber] ?? null;
       for (const metric of metrics) {
@@ -579,6 +607,7 @@ const MatrixRow = memo(function MatrixRow({
   return (
     <tr className={isHighlighted ? "matrixRowHighlighted" : ""}>
       <th className="dateCell">{formatShortDate(row.date)}</th>
+      <td className="weekdayCell">{formatWeekday(row.date)}</td>
       {slotNumbers.flatMap((slotNumber, slotIndex) => {
         const record = row.recordsBySlot[slotNumber] ?? null;
         const settingEstimate =
@@ -622,12 +651,16 @@ export function MachineComparison({
   initialEventDisplayMode = "highlight",
 }) {
   const [eventFilters, setEventFilters] = useState(() =>
-    createEventFilters(initialEventFilters?.dayTails ?? [], initialEventFilters?.zoro ?? false),
+    createEventFilters(
+      initialEventFilters?.dayTails ?? [],
+      initialEventFilters?.zoro ?? false,
+      initialEventFilters?.weekdays ?? [],
+    ),
   );
   const [eventDisplayMode, setEventDisplayMode] = useState(initialEventDisplayMode);
   const [visibleMetricKeys, setVisibleMetricKeys] = useState(DEFAULT_VISIBLE_METRIC_KEYS);
   const [estimateOptions, setEstimateOptions] = useState(() =>
-    createDefaultEstimateOptions(slotNumbers.length),
+    createDefaultEstimateOptions(slotNumbers.length, machineName),
   );
   const [isPending, startTransition] = useTransition();
   const settingEstimateDefinition = useMemo(
@@ -703,8 +736,13 @@ export function MachineComparison({
 
     return {
       "--matrix-date-column-width": `${MATRIX_DATE_COLUMN_WIDTH_REM}rem`,
+      "--matrix-weekday-column-width": `${MATRIX_WEEKDAY_COLUMN_WIDTH_REM}rem`,
       "--matrix-metric-column-width": `${MATRIX_SLOT_WIDTH_REM / visibleMetricCount}rem`,
-      "--matrix-table-width": `${MATRIX_DATE_COLUMN_WIDTH_REM + slotNumbers.length * MATRIX_SLOT_WIDTH_REM}rem`,
+      "--matrix-table-width": `${
+        MATRIX_DATE_COLUMN_WIDTH_REM +
+        MATRIX_WEEKDAY_COLUMN_WIDTH_REM +
+        slotNumbers.length * MATRIX_SLOT_WIDTH_REM
+      }rem`,
       "--matrix-cell-font-size": `${cellFontSize}rem`,
       "--matrix-header-font-size": `${headerFontSize}rem`,
       "--matrix-date-font-size": `${dateFontSize}rem`,
@@ -729,6 +767,7 @@ export function MachineComparison({
         body: JSON.stringify({
           dayTails: nextFilters.dayTails,
           zoro: nextFilters.zoro,
+          weekdays: nextFilters.weekdays,
         }),
       }).catch(() => {});
     },
@@ -749,7 +788,11 @@ export function MachineComparison({
         const nextDayTails = currentFilters.dayTails.includes(dayTail)
           ? currentFilters.dayTails.filter((value) => value !== dayTail)
           : [...currentFilters.dayTails, dayTail];
-        const nextFilters = createEventFilters(nextDayTails, currentFilters.zoro);
+        const nextFilters = createEventFilters(
+          nextDayTails,
+          currentFilters.zoro,
+          currentFilters.weekdays,
+        );
         saveEventFilters(nextFilters);
         return nextFilters;
       });
@@ -759,7 +802,29 @@ export function MachineComparison({
   const toggleZoro = () => {
     startTransition(() => {
       setEventFilters((currentFilters) => {
-        const nextFilters = createEventFilters(currentFilters.dayTails, !currentFilters.zoro);
+        const nextFilters = createEventFilters(
+          currentFilters.dayTails,
+          !currentFilters.zoro,
+          currentFilters.weekdays,
+        );
+        saveEventFilters(nextFilters);
+        return nextFilters;
+      });
+    });
+  };
+
+  const toggleWeekday = (weekday) => {
+    startTransition(() => {
+      setEventFilters((currentFilters) => {
+        const currentWeekdays = currentFilters.weekdays ?? [];
+        const nextWeekdays = currentWeekdays.includes(weekday)
+          ? currentWeekdays.filter((value) => value !== weekday)
+          : [...currentWeekdays, weekday];
+        const nextFilters = createEventFilters(
+          currentFilters.dayTails,
+          currentFilters.zoro,
+          nextWeekdays,
+        );
         saveEventFilters(nextFilters);
         return nextFilters;
       });
@@ -799,7 +864,7 @@ export function MachineComparison({
     <>
       <section className="filterPanel">
         <div>
-          <p className="sectionLabel">日付の末尾を選ぶ</p>
+          <p className="sectionLabel">特定日を選ぶ</p>
           <p className="filterLead">
             イベント日を絞り込むか、全日を表示したまま該当日だけを強調できます。
           </p>
@@ -827,7 +892,7 @@ export function MachineComparison({
           </div>
         </div>
         <div className="filterControlGroup">
-          <p className="filterControlLabel">特定日</p>
+          <p className="filterControlLabel">日付</p>
           <div className="dayFilterRow">
             <button
               type="button"
@@ -858,6 +923,24 @@ export function MachineComparison({
             >
               ゾロ目
             </button>
+          </div>
+        </div>
+        <div className="filterControlGroup">
+          <p className="filterControlLabel">曜日</p>
+          <div className="dayFilterRow">
+            {WEEKDAY_FILTER_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => toggleWeekday(option.value)}
+                className={`dayFilterChip ${
+                  eventFilters.weekdays?.includes(option.value) ? "dayFilterChipActive" : ""
+                }`}
+                aria-pressed={eventFilters.weekdays?.includes(option.value) ?? false}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
         </div>
         <div className="filterControlGroup">
@@ -945,6 +1028,7 @@ function MachineComparisonTable({
         <table className="matrixTable" style={tableStyle}>
           <colgroup>
             <col className="matrixDateColumn" />
+            <col className="matrixWeekdayColumn" />
             {slotNumbers.flatMap((slotNumber) =>
               visibleMetrics.map((metric) => (
                 <col key={`${slotNumber}-${metric.key}`} className="matrixMetricColumn" />
@@ -955,6 +1039,9 @@ function MachineComparisonTable({
             <tr>
               <th rowSpan={2} className="dateHeaderCell">
                 日付
+              </th>
+              <th rowSpan={2} className="weekdayHeaderCell">
+                曜日
               </th>
               {slotNumbers.map((slotNumber, slotIndex) => (
                 <th

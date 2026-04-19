@@ -601,7 +601,7 @@ class HistoryPersistenceService:
     def _local_save_dir(self) -> Path:
         settings = self._load_settings()
         local_dir_text = settings.get("SUPABASE_LOCAL_SAVE_DIR") or settings.get("LOCAL_SAVE_DIR")
-        local_dir = Path(local_dir_text) if local_dir_text else DEFAULT_LOCAL_SAVE_DIR
+        local_dir = Path(local_dir_text) if local_dir_text else self.root_dir / "local_data"
         if not local_dir.is_absolute():
             local_dir = self.root_dir / local_dir
         return local_dir

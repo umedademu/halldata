@@ -161,8 +161,37 @@ function normalizeEventDayTails(value) {
     .sort((left, right) => left - right);
 }
 
+function normalizeEventWeekdays(value) {
+  const sourceValues = Array.isArray(value) ? value : [];
+  return [...new Set(sourceValues)]
+    .map((item) => Number(item))
+    .filter((item) => Number.isInteger(item) && item >= 0 && item <= 6)
+    .sort((left, right) => left - right);
+}
+
 function buildEventFiltersFromStore(store) {
-  return createEventFilters(normalizeEventDayTails(store?.event_day_tails), Boolean(store?.event_zoro));
+  return createEventFilters(
+    normalizeEventDayTails(store?.event_day_tails),
+    Boolean(store?.event_zoro),
+    normalizeEventWeekdays(store?.event_weekdays),
+  );
+}
+
+async function fetchStoreEventRows(storesTable, storeId) {
+  try {
+    return await fetchAllRows(storesTable, {
+      select: "id,store_name,store_url,event_day_tails,event_zoro,event_weekdays",
+      id: `eq.${storeId}`,
+    });
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("(400)")) {
+      throw error;
+    }
+    return fetchAllRows(storesTable, {
+      select: "id,store_name,store_url,event_day_tails,event_zoro",
+      id: `eq.${storeId}`,
+    });
+  }
 }
 
 async function fetchAllRowsUncached(tableName, params) {
@@ -519,10 +548,7 @@ export const getStoreDetail = cache(async function getStoreDetail(storeId) {
 export const getMachineDetail = cache(async function getMachineDetail(storeId, machineName) {
   const { storesTable, resultsTable } = await getSupabaseConfig();
   const [stores, rows] = await Promise.all([
-    fetchAllRows(storesTable, {
-      select: "id,store_name,store_url,event_day_tails,event_zoro",
-      id: `eq.${storeId}`,
-    }),
+    fetchStoreEventRows(storesTable, storeId),
     fetchAllRows(resultsTable, {
       select:
         "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate,bb_count,rb_count,combined_ratio_text,bb_ratio_text,rb_ratio_text",
@@ -556,35 +582,47 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
 export async function updateStoreEventSettings(storeId, eventSettings) {
   const dayTails = normalizeEventDayTails(eventSettings?.dayTails);
   const zoro = Boolean(eventSettings?.zoro);
+  const weekdays = normalizeEventWeekdays(eventSettings?.weekdays);
   const { baseUrl, serviceKey, schema, storesTable } = await getSupabaseConfig();
-  const response = await fetch(
-    `${baseUrl}/rest/v1/${encodeURIComponent(storesTable)}?id=eq.${encodeURIComponent(storeId)}`,
-    {
+  const url = `${baseUrl}/rest/v1/${encodeURIComponent(storesTable)}?id=eq.${encodeURIComponent(storeId)}`;
+  const headers = {
+    apikey: serviceKey,
+    Authorization: `Bearer ${serviceKey}`,
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    "Accept-Profile": schema,
+    "Content-Profile": schema,
+    Prefer: "return=minimal",
+  };
+  const updatedAt = new Date().toISOString();
+  const patchEventSettings = (payload) =>
+    fetch(url, {
       method: "PATCH",
-      headers: {
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "Accept-Profile": schema,
-        "Content-Profile": schema,
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify({
-        event_day_tails: dayTails,
-        event_zoro: zoro,
-        updated_at: new Date().toISOString(),
-      }),
+      headers,
+      body: JSON.stringify(payload),
       cache: "no-store",
-    },
-  );
+    });
+  let response = await patchEventSettings({
+    event_day_tails: dayTails,
+    event_zoro: zoro,
+    event_weekdays: weekdays,
+    updated_at: updatedAt,
+  });
+
+  if (!response.ok && response.status === 400) {
+    response = await patchEventSettings({
+      event_day_tails: dayTails,
+      event_zoro: zoro,
+      updated_at: updatedAt,
+    });
+  }
 
   if (!response.ok) {
     throw new Error(`Supabase への特定日保存に失敗しました。(${response.status})`);
   }
 
   clearRowsCache();
-  return createEventFilters(dayTails, zoro);
+  return createEventFilters(dayTails, zoro, weekdays);
 }
 
 export function readRouteSegment(value) {
