@@ -214,6 +214,19 @@ class HistoryPersistenceService:
 
         return summary
 
+    def delete_registered_stores(self, store_urls: list[str]) -> int:
+        normalized_store_urls = sorted(
+            {
+                normalized_store_url
+                for store_url in store_urls
+                if (normalized_store_url := normalize_store_url(store_url))
+            }
+        )
+        if not normalized_store_urls:
+            return 0
+
+        return self._delete_registered_stores_from_supabase(normalized_store_urls)
+
     def _build_local_snapshot(self, history_result: MachineHistoryResult) -> dict[str, Any]:
         records = build_machine_daily_records(history_result)
         return {
@@ -478,6 +491,41 @@ class HistoryPersistenceService:
             offset += page_size
 
         return self._normalize_registered_stores(rows)
+
+    def _delete_registered_stores_from_supabase(self, store_urls: list[str]) -> int:
+        supabase_url, _, schema, stores_table, results_table = self._supabase_config()
+        session = self._create_supabase_session(schema)
+        stores_endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(stores_table, safe='')}"
+        results_endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(results_table, safe='')}"
+        deleted_store_count = 0
+
+        for store_url in store_urls:
+            store_id = self._find_store_id(session, supabase_url, stores_table, store_url)
+            if not store_id:
+                continue
+
+            response = session.delete(
+                results_endpoint,
+                params={
+                    "store_id": f"eq.{store_id}",
+                },
+                headers={"Prefer": "return=minimal"},
+                timeout=30,
+            )
+            response.raise_for_status()
+
+            response = session.delete(
+                stores_endpoint,
+                params={
+                    "id": f"eq.{store_id}",
+                },
+                headers={"Prefer": "return=minimal"},
+                timeout=30,
+            )
+            response.raise_for_status()
+            deleted_store_count += 1
+
+        return deleted_store_count
 
     def _find_saved_machine_targets_from_supabase(
         self,

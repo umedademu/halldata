@@ -395,6 +395,30 @@ class MinRepoScraperTests(unittest.TestCase):
                 ],
             )
 
+    def test_delete_registered_stores_deduplicates_normalized_url(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            captured_store_urls: list[str] = []
+
+            def fake_delete_registered_stores_from_supabase(store_urls: list[str]) -> int:
+                captured_store_urls.extend(store_urls)
+                return len(store_urls)
+
+            service._delete_registered_stores_from_supabase = fake_delete_registered_stores_from_supabase  # type: ignore[method-assign]
+
+            deleted_count = service.delete_registered_stores(
+                [
+                    "https://min-repo.com/tag/mj%e5%a4%a9%e7%a5%9eiii/",
+                    "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/",
+                ]
+            )
+
+            self.assertEqual(deleted_count, 1)
+            self.assertEqual(
+                captured_store_urls,
+                ["https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/"],
+            )
+
     def test_find_saved_machine_targets_uses_local_snapshot(self) -> None:
         scraper = FixtureScraper()
         history_result = scraper.fetch_machine_history_datasets(

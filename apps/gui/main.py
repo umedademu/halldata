@@ -126,6 +126,12 @@ class StoreRefreshResult:
     save_summary: RegisteredStoresPersistenceSummary | None = None
 
 
+@dataclass
+class StoreDeleteResult:
+    registered_stores: list[RegisteredStore]
+    deleted_store_count: int
+
+
 class MinRepoApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
@@ -536,6 +542,7 @@ class MinRepoApp:
                 "ここでは店舗URLを入れて店舗名を自動取得し、一覧へ登録できます。"
                 "取得対象のチェックが入っている店舗を、データ取得タブの取得ボタンで順番に取得します。"
                 "登録した店舗一覧は Supabase に保存されます。"
+                "一覧で行を選ぶと、選んだ店舗を Supabase から削除できます。"
             ),
             wraplength=900,
             justify="left",
@@ -582,8 +589,19 @@ class MinRepoApp:
             command=self.refresh_registered_stores,
         )
         self.refresh_registered_stores_button.grid(row=0, column=2, sticky="w", padx=(8, 0))
+        self.delete_registered_stores_button = ttk.Button(
+            target_action_row,
+            text="選択した店舗を削除",
+            command=self.delete_registered_stores,
+        )
+        self.delete_registered_stores_button.grid(row=0, column=3, sticky="w", padx=(8, 0))
 
-        self.registered_store_tree = ttk.Treeview(table_frame, columns=REGISTERED_STORE_COLUMNS, show="headings")
+        self.registered_store_tree = ttk.Treeview(
+            table_frame,
+            columns=REGISTERED_STORE_COLUMNS,
+            show="headings",
+            selectmode="extended",
+        )
         self.registered_store_tree.grid(row=1, column=0, sticky="nsew")
 
         for column in REGISTERED_STORE_COLUMNS:
@@ -598,6 +616,7 @@ class MinRepoApp:
                 anchor="w",
             )
         self.registered_store_tree.bind("<Button-1>", self._on_registered_store_tree_click)
+        self.registered_store_tree.bind("<<TreeviewSelect>>", self._on_registered_store_selection_changed)
 
         y_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=self.registered_store_tree.yview)
         y_scroll.grid(row=1, column=1, sticky="ns")
@@ -619,13 +638,10 @@ class MinRepoApp:
 
     def _load_latest_registered_stores(self) -> list[RegisteredStore]:
         saved_stores = self.persistence_service.load_registered_stores()
-        registered_stores = [
+        return [
             RegisteredStore(name=store["store_name"], url=store["store_url"])
             for store in saved_stores
         ]
-        if not registered_stores:
-            return self._default_registered_stores()
-        return registered_stores
 
     def refresh_registered_stores(self) -> None:
         if self.is_busy:
@@ -640,6 +656,41 @@ class MinRepoApp:
             self.result_queue.put(("refresh_registered_stores_success", refresh_result))
         except Exception as exc:  # noqa: BLE001
             self.result_queue.put(("refresh_registered_stores_error", exc))
+
+    def delete_registered_stores(self) -> None:
+        if self.is_busy:
+            return
+
+        target_stores = self._selected_registered_store_rows()
+        if not target_stores:
+            messagebox.showwarning("入力不足", "削除する店舗を一覧から選んでください。")
+            return
+
+        if not self._confirm_registered_store_deletion(target_stores):
+            return
+
+        self.register_store_status_var.set("登録店舗を削除中...")
+        self._start_worker(
+            self._worker_delete_registered_stores,
+            [registered_store.url for registered_store in target_stores],
+            operation_kind="delete_stores",
+        )
+
+    def _worker_delete_registered_stores(self, store_urls: list[str]) -> None:
+        try:
+            deleted_store_count = self.persistence_service.delete_registered_stores(store_urls)
+            registered_stores = self._load_latest_registered_stores()
+            self.result_queue.put(
+                (
+                    "delete_registered_stores_success",
+                    StoreDeleteResult(
+                        registered_stores=registered_stores,
+                        deleted_store_count=deleted_store_count,
+                    ),
+                )
+            )
+        except Exception as exc:  # noqa: BLE001
+            self.result_queue.put(("delete_registered_stores_error", exc))
 
     def _worker_scheduled_fetch(self, target_date_input: str, retry_delay_seconds: int) -> None:
         try:
@@ -1053,6 +1104,23 @@ class MinRepoApp:
             self.register_store_status_var.set(f"{len(payload.registered_stores)}店舗を読み込みました")
             if payload.save_summary is not None and payload.save_summary.has_errors:
                 messagebox.showwarning("登録店舗", "\n\n".join(payload.save_summary.messages))
+            return
+
+        if kind == "delete_registered_stores_error":
+            self.register_store_status_var.set("登録店舗の削除に失敗しました")
+            messagebox.showerror("登録店舗", f"登録店舗の削除に失敗しました。\n{payload}")
+            return
+
+        if kind == "delete_registered_stores_success":
+            if not isinstance(payload, StoreDeleteResult):
+                self.register_store_status_var.set("登録店舗の削除に失敗しました")
+                messagebox.showerror("登録店舗", "削除結果の形式が不正です。")
+                return
+            self._replace_registered_stores(payload.registered_stores, select_all=False)
+            if payload.deleted_store_count > 0:
+                self.register_store_status_var.set(f"{payload.deleted_store_count}店舗を削除しました")
+            else:
+                self.register_store_status_var.set("削除結果を反映しました")
             return
 
         if kind == "fetch_error":
@@ -1564,6 +1632,7 @@ class MinRepoApp:
                     registered_store.url,
                 ),
             )
+        self._update_button_states()
 
     def _replace_registered_stores(
         self,
@@ -1608,6 +1677,49 @@ class MinRepoApp:
             for registered_store in self.registered_stores
             if normalize_store_url(registered_store.url) in self.selected_store_urls
         ]
+
+    def _selected_registered_store_rows(self) -> list[RegisteredStore]:
+        return [
+            registered_store
+            for item_id in self.registered_store_tree.selection()
+            if (registered_store := self._registered_store_from_item_id(item_id)) is not None
+        ]
+
+    def _registered_store_from_item_id(self, item_id: str) -> RegisteredStore | None:
+        prefix = "registered_store_"
+        if not item_id.startswith(prefix):
+            return None
+
+        index_text = item_id[len(prefix):]
+        if not index_text.isdigit():
+            return None
+
+        index = int(index_text)
+        if index < 0 or index >= len(self.registered_stores):
+            return None
+
+        return self.registered_stores[index]
+
+    def _confirm_registered_store_deletion(self, registered_stores: list[RegisteredStore]) -> bool:
+        store_lines = [
+            self._registered_store_display_name(registered_store)
+            for registered_store in registered_stores[:5]
+        ]
+        if len(registered_stores) > 5:
+            store_lines.append(f"ほか {len(registered_stores) - 5} 店舗")
+
+        return messagebox.askyesno(
+            "登録店舗",
+            (
+                "選択した店舗を Supabase から削除します。\n"
+                "保存済みの台データも合わせて削除します。\n"
+                "ローカル保存ファイルは削除しません。\n\n"
+                + "\n".join(store_lines)
+            ),
+        )
+
+    def _on_registered_store_selection_changed(self, _: tk.Event[tk.Misc]) -> None:
+        self._update_button_states()
 
     def _on_registered_store_tree_click(self, event: tk.Event[tk.Misc]) -> str | None:
         if self.is_busy:
@@ -2073,6 +2185,10 @@ class MinRepoApp:
 
     def _update_button_states(self) -> None:
         has_comparison_data = self.current_history_result is not None and not self.skip_comparison_display_var.get()
+        has_registered_store_row_selection = (
+            hasattr(self, "registered_store_tree")
+            and bool(self.registered_store_tree.selection())
+        )
 
         self.fetch_button.configure(state="disabled" if self.is_busy else "normal")
         can_cancel_fetch = (
@@ -2095,6 +2211,9 @@ class MinRepoApp:
         self.select_all_stores_button.configure(state="disabled" if self.is_busy else "normal")
         self.clear_store_selection_button.configure(state="disabled" if self.is_busy else "normal")
         self.refresh_registered_stores_button.configure(state="disabled" if self.is_busy else "normal")
+        self.delete_registered_stores_button.configure(
+            state="disabled" if self.is_busy or not has_registered_store_row_selection else "normal"
+        )
 
     def _show_error(self, exc: object) -> None:
         if isinstance(exc, ScraperError):
