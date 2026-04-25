@@ -13,7 +13,7 @@ from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 import requests
 
-from machine_difference import calculate_machine_difference_value
+from machine_difference import calculate_machine_difference_value, canonical_machine_name
 from minrepo_scraper import MachineHistoryResult, normalize_text
 
 
@@ -90,6 +90,11 @@ def normalize_store_name_key(value: str) -> str:
     return normalize_text(normalized_value).casefold()
 
 
+def normalize_machine_name_key(value: str) -> str:
+    canonical_name = canonical_machine_name(str(value)).strip()
+    return normalize_text(canonical_name)
+
+
 def choose_preferred_store(candidates: list[dict[str, Any]]) -> dict[str, str] | None:
     ranked_candidates: list[tuple[int, int, str, str]] = []
     for candidate in candidates:
@@ -127,6 +132,7 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
 
     for dataset in history_result.datasets:
         source_columns = [column for column in dataset.columns if normalize_text(column) not in STORE_COLUMNS]
+        stored_machine_name = canonical_machine_name(dataset.machine_name).strip() or dataset.machine_name.strip()
         for row in dataset.rows:
             row_values = dict(zip(source_columns, row, strict=False))
             slot_number = row_values.get("台番", "").strip()
@@ -135,13 +141,13 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
 
             difference_value = _parse_difference_value(row_values.get("差枚", ""))
             if difference_value is None:
-                difference_value = calculate_machine_difference_value(dataset.machine_name, row_values)
+                difference_value = calculate_machine_difference_value(stored_machine_name, row_values)
 
             records.append(
                 {
                     "target_date": dataset.target_date,
                     "slot_number": slot_number,
-                    "machine_name": dataset.machine_name.strip(),
+                    "machine_name": stored_machine_name,
                     "difference_value": difference_value,
                     "games_count": _parse_int_value(row_values.get("G数", "")),
                     "payout_rate": _parse_percent_value(row_values.get("出率", "")),
@@ -218,7 +224,11 @@ class HistoryPersistenceService:
         end_date: str,
         machine_names: list[str],
     ) -> SavedMachineTargetsSummary:
-        target_machine_names = {normalize_text(machine_name) for machine_name in machine_names if machine_name.strip()}
+        target_machine_names = {
+            normalize_machine_name_key(machine_name)
+            for machine_name in machine_names
+            if machine_name.strip()
+        }
         summary = SavedMachineTargetsSummary()
         if not target_machine_names:
             return summary
@@ -257,7 +267,11 @@ class HistoryPersistenceService:
         end_date: str,
         machine_names: list[str],
     ) -> SavedMachineTargetsSummary:
-        target_machine_names = {normalize_text(machine_name) for machine_name in machine_names if machine_name.strip()}
+        target_machine_names = {
+            normalize_machine_name_key(machine_name)
+            for machine_name in machine_names
+            if machine_name.strip()
+        }
         summary = SavedMachineTargetsSummary()
         if not target_machine_names:
             return summary
@@ -385,7 +399,14 @@ class HistoryPersistenceService:
                 }
                 for date_page in history_result.date_pages
             ],
-            "machine_names": sorted({dataset.machine_name for dataset in history_result.datasets}, key=normalize_text),
+            "machine_names": sorted(
+                {
+                    str(record.get("machine_name", "")).strip()
+                    for record in records
+                    if str(record.get("machine_name", "")).strip()
+                },
+                key=normalize_text,
+            ),
             "records": records,
         }
 
@@ -526,7 +547,7 @@ class HistoryPersistenceService:
                     continue
 
                 target_date = str(record.get("target_date", "")).strip()
-                machine_name = normalize_text(str(record.get("machine_name", "")).strip())
+                machine_name = normalize_machine_name_key(str(record.get("machine_name", "")).strip())
                 if not target_date or not machine_name:
                     continue
                 if target_date < start_date or target_date > end_date:
@@ -711,7 +732,7 @@ class HistoryPersistenceService:
                     continue
 
                 target_date = str(row.get("target_date", "")).strip()
-                machine_name = normalize_text(str(row.get("machine_name", "")).strip())
+                machine_name = normalize_machine_name_key(str(row.get("machine_name", "")).strip())
                 if not target_date or machine_name not in target_machine_names:
                     continue
                 saved_targets.add((target_date, machine_name))

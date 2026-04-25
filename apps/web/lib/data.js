@@ -1,7 +1,7 @@
 import { cache } from "react";
 
 import { createEventFilters } from "./event-filters";
-import { withCalculatedDifferenceValue } from "./machine-difference";
+import { canonicalMachineName, listEquivalentMachineNames, withCalculatedDifferenceValue } from "./machine-difference";
 
 const PAGE_SIZE = 1000;
 const DEFAULT_FETCH_CACHE_TTL_MS = 60 * 1000;
@@ -563,13 +563,22 @@ export const getStoreDetail = cache(async function getStoreDetail(storeId) {
 
 export const getMachineDetail = cache(async function getMachineDetail(storeId, machineName) {
   const { storesTable, resultsTable } = await getSupabaseConfig();
+  const equivalentMachineNames = listEquivalentMachineNames(machineName);
+  const machineFilter =
+    equivalentMachineNames.length > 1
+      ? {
+          or: `(${equivalentMachineNames.map((name) => `machine_name.eq.${name}`).join(",")})`,
+        }
+      : {
+          machine_name: `eq.${machineName}`,
+        };
   const [stores, fetchedRows] = await Promise.all([
     fetchStoreEventRows(storesTable, storeId),
     fetchAllRows(resultsTable, {
       select:
         "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate,bb_count,rb_count,combined_ratio_text,bb_ratio_text,rb_ratio_text",
       store_id: `eq.${storeId}`,
-      machine_name: `eq.${machineName}`,
+      ...machineFilter,
       order: "target_date.desc,slot_number.asc",
     }),
   ]);
@@ -589,7 +598,7 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
       storeUrl: store.store_url,
       eventFilters: buildEventFiltersFromStore(store),
     },
-    machineName,
+    machineName: canonicalMachineName(machineName),
     slotNumbers: detail.slotNumbers,
     dateRows: detail.dateRows,
     summary: detail.summary,

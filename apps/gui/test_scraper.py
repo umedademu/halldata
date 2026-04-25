@@ -351,7 +351,7 @@ class MinRepoScraperTests(unittest.TestCase):
             {
                 "target_date": "2026-04-07",
                 "slot_number": "687",
-                "machine_name": "ネオアイムジャグラーEX",
+                "machine_name": "SアイムジャグラーＥＸ",
                 "difference_value": -562,
                 "games_count": 5931,
                 "payout_rate": 96.8,
@@ -376,8 +376,12 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(difference_value, -852)
 
     def test_canonical_machine_name_matches_site7_keyword(self) -> None:
-        self.assertEqual(canonical_machine_name("SアイムジャグラーＥＸ", site7_only=True), "ネオアイムジャグラーEX")
+        self.assertEqual(canonical_machine_name("SアイムジャグラーＥＸ", site7_only=True), "SアイムジャグラーＥＸ")
+        self.assertEqual(canonical_machine_name("ネオアイムジャグラーEX", site7_only=True), "SアイムジャグラーＥＸ")
         self.assertEqual(canonical_machine_name("マイジャグラー", site7_only=True), "マイジャグラーV")
+        self.assertEqual(canonical_machine_name("ゴーゴージャグラー3", site7_only=True), "ゴーゴージャグラー３")
+        self.assertEqual(canonical_machine_name("ファンキージャグラー2", site7_only=True), "ファンキージャグラー２ＫＴ")
+        self.assertEqual(canonical_machine_name("ハッピージャグラーV", site7_only=True), "ハッピージャグラーＶＩＩＩ")
 
     def test_site7_extract_store_name_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
@@ -439,9 +443,9 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(
             [(entry.display_name, entry.machine_name) for entry in entries],
             [
-                ("ネオアイムジャグラーEX", "ネオアイムジャグラーEX"),
+                ("ネオアイムジャグラーEX", "SアイムジャグラーＥＸ"),
                 ("マイジャグラーV", "マイジャグラーV"),
-                ("ゴーゴージャグラー3", "ゴーゴージャグラー3"),
+                ("ゴーゴージャグラー3", "ゴーゴージャグラー３"),
             ],
         )
         self.assertIn("マイジャグラー", SITE7_TARGET_MACHINE_KEYWORDS)
@@ -602,7 +606,7 @@ class MinRepoScraperTests(unittest.TestCase):
             {
                 "target_date": "2026-04-24",
                 "slot_number": "821",
-                "machine_name": SITE7_TARGET_MACHINE_NAME,
+                "machine_name": "SアイムジャグラーＥＸ",
                 "difference_value": 735,
                 "games_count": 5454,
                 "payout_rate": None,
@@ -842,8 +846,8 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(
                 summary.saved_targets,
                 {
-                    ("2026-04-07", normalize_text("ネオアイムジャグラーEX")),
-                    ("2026-04-08", normalize_text("ネオアイムジャグラーEX")),
+                    ("2026-04-07", normalize_text("SアイムジャグラーＥＸ")),
+                    ("2026-04-08", normalize_text("SアイムジャグラーＥＸ")),
                 },
             )
 

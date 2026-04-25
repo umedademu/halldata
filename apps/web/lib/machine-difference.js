@@ -109,6 +109,49 @@ export function findMachineDifferenceRule(machineName) {
   );
 }
 
+export function canonicalMachineName(machineName) {
+  const rule = findMachineDifferenceRule(machineName);
+  if (!rule) {
+    return String(machineName ?? "").trim();
+  }
+
+  const canonicalName = String(rule.canonical_name ?? "").trim();
+  if (canonicalName) {
+    return canonicalName;
+  }
+
+  const machineNames = Array.isArray(rule.machine_names) ? rule.machine_names : [];
+  for (const candidateName of machineNames) {
+    const text = String(candidateName ?? "").trim();
+    if (text) {
+      return text;
+    }
+  }
+
+  return String(machineName ?? "").trim();
+}
+
+export function listEquivalentMachineNames(machineName) {
+  const rule = findMachineDifferenceRule(machineName);
+  if (!rule) {
+    const text = String(machineName ?? "").trim();
+    return text ? [text] : [];
+  }
+
+  const names = [];
+  const seenNames = new Set();
+  for (const candidateName of [rule.canonical_name, ...(Array.isArray(rule.machine_names) ? rule.machine_names : [])]) {
+    const text = String(candidateName ?? "").trim();
+    if (!text || seenNames.has(text)) {
+      continue;
+    }
+    seenNames.add(text);
+    names.push(text);
+  }
+
+  return names;
+}
+
 export function calculateMachineDifferenceValue(machineName, row) {
   const rule = findMachineDifferenceRule(machineName);
   if (!rule) {
@@ -148,17 +191,31 @@ export function calculateMachineDifferenceValue(machineName, row) {
 }
 
 export function withCalculatedDifferenceValue(row) {
+  const normalizedMachineName = canonicalMachineName(row?.machine_name);
   if (typeof row?.difference_value === "number" && Number.isFinite(row.difference_value)) {
-    return row;
+    if (normalizedMachineName === row?.machine_name) {
+      return row;
+    }
+    return {
+      ...row,
+      machine_name: normalizedMachineName,
+    };
   }
 
-  const calculatedValue = calculateMachineDifferenceValue(row?.machine_name, row);
+  const calculatedValue = calculateMachineDifferenceValue(normalizedMachineName, row);
   if (calculatedValue === null) {
-    return row;
+    if (normalizedMachineName === row?.machine_name) {
+      return row;
+    }
+    return {
+      ...row,
+      machine_name: normalizedMachineName,
+    };
   }
 
   return {
     ...row,
+    machine_name: normalizedMachineName,
     difference_value: calculatedValue,
   };
 }
