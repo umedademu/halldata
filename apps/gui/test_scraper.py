@@ -10,7 +10,16 @@ from tempfile import TemporaryDirectory
 from bs4 import BeautifulSoup
 
 from data_persistence import HistoryPersistenceService, build_machine_daily_records, normalize_store_url
-from main import MinRepoApp, build_recent_date_range_input, matches_day_tail, parse_recent_days, parse_retry_delay_seconds
+from main import (
+    SITE7_BROWSER_MODE_HIDDEN,
+    SITE7_BROWSER_MODE_VISIBLE,
+    MinRepoApp,
+    build_recent_date_range_input,
+    matches_day_tail,
+    normalize_site7_browser_mode,
+    parse_recent_days,
+    parse_retry_delay_seconds,
+)
 from minrepo_scraper import FetchProgress, MinRepoScraper, normalize_text, parse_date_range_input
 from site7_scraper import SITE7_TARGET_MACHINE_NAME, Site7Scraper, clamp_site7_recent_days
 
@@ -80,6 +89,29 @@ class MinRepoScraperTests(unittest.TestCase):
     def test_clamp_site7_recent_days(self) -> None:
         self.assertEqual(clamp_site7_recent_days(3), 3)
         self.assertEqual(clamp_site7_recent_days(90), 8)
+
+    def test_normalize_site7_browser_mode(self) -> None:
+        self.assertEqual(normalize_site7_browser_mode("visible"), SITE7_BROWSER_MODE_VISIBLE)
+        self.assertEqual(normalize_site7_browser_mode("hidden"), SITE7_BROWSER_MODE_HIDDEN)
+        self.assertEqual(normalize_site7_browser_mode("anything"), SITE7_BROWSER_MODE_VISIBLE)
+
+    def test_site7_browser_mode_defaults_to_visible(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            app = MinRepoApp.__new__(MinRepoApp)
+            app.persistence_service = HistoryPersistenceService(root_dir=Path(temp_dir))
+
+            self.assertEqual(app._load_saved_site7_browser_mode(), SITE7_BROWSER_MODE_VISIBLE)
+
+    def test_gui_settings_keep_schedule_and_site7_browser_mode(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            app = MinRepoApp.__new__(MinRepoApp)
+            app.persistence_service = HistoryPersistenceService(root_dir=Path(temp_dir))
+
+            app._save_schedule_hour(5)
+            app._save_site7_browser_mode(SITE7_BROWSER_MODE_HIDDEN)
+
+            self.assertEqual(app._load_saved_schedule_hour(), 5)
+            self.assertEqual(app._load_saved_site7_browser_mode(), SITE7_BROWSER_MODE_HIDDEN)
 
     def test_run_with_fetch_retries_retries_three_times(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)

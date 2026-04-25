@@ -51,6 +51,8 @@ DEFAULT_RETRY_DELAY_SECONDS = "10"
 MAX_FETCH_RETRY_COUNT = 3
 DEFAULT_SCHEDULE_HOUR = 2
 GUI_SETTINGS_FILE_NAME = "gui_settings.json"
+SITE7_BROWSER_MODE_VISIBLE = "visible"
+SITE7_BROWSER_MODE_HIDDEN = "hidden"
 JST = timezone(timedelta(hours=9))
 REGISTERED_STORE_COLUMNS = ("取得対象", "店舗名", "URL")
 COMPARISON_SUBCOLUMNS = ("機種名", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率")
@@ -94,6 +96,13 @@ def matches_day_tail(date_text: str, day_tail: str) -> bool:
         return False
 
     return match.group(1).endswith(day_tail)
+
+
+def normalize_site7_browser_mode(value: object) -> str:
+    text = str(value).strip().lower()
+    if text == SITE7_BROWSER_MODE_HIDDEN:
+        return SITE7_BROWSER_MODE_HIDDEN
+    return SITE7_BROWSER_MODE_VISIBLE
 
 
 @dataclass
@@ -170,6 +179,7 @@ class MinRepoApp:
         self.active_operation_kind = ""
         self.fetch_cancel_event = threading.Event()
         self.scheduled_fetch_hour: int | None = self._load_saved_schedule_hour()
+        self.site7_browser_mode: str = self._load_saved_site7_browser_mode()
         self.scheduled_last_run_date: str | None = None
         self.scheduled_pending_date: str | None = None
         self.tray_icon: object | None = None
@@ -188,6 +198,7 @@ class MinRepoApp:
         self.comparison_day_tail_var = tk.StringVar(value="全て")
         self.register_store_url_var = tk.StringVar()
         self.register_store_status_var = tk.StringVar(value="未登録")
+        self.site7_browser_mode_var = tk.StringVar(value=self.site7_browser_mode)
         self.site7_status_var = tk.StringVar(
             value="保存済みのログイン情報あり" if self.site7_scraper.has_saved_login_state() else "初回ログインが必要"
         )
@@ -289,10 +300,11 @@ class MinRepoApp:
                 "固定対象は Ａパーク春日店 の "
                 f"{SITE7_TARGET_MACHINE_NAME} です。"
                 f"直近日数は最大 {SITE7_MAX_RECENT_DAYS} 日まで使えます。"
+                " ログイン操作は常に表示で開きます。"
             ),
             wraplength=900,
             justify="left",
-        ).grid(row=0, column=0, columnspan=3, sticky="w")
+        ).grid(row=0, column=0, columnspan=4, sticky="w")
 
         self.site7_login_button = ttk.Button(
             site7_row,
@@ -308,7 +320,28 @@ class MinRepoApp:
         )
         self.site7_fetch_button.grid(row=1, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
 
-        ttk.Label(site7_row, textvariable=self.site7_status_var).grid(row=1, column=2, sticky="w", padx=(12, 0), pady=(8, 0))
+        ttk.Label(site7_row, textvariable=self.site7_status_var).grid(row=1, column=2, columnspan=2, sticky="w", padx=(12, 0), pady=(8, 0))
+
+        mode_row = ttk.Frame(site7_row)
+        mode_row.grid(row=2, column=0, columnspan=4, sticky="w", pady=(8, 0))
+        ttk.Label(mode_row, text="取得時のブラウザ").grid(row=0, column=0, sticky="w")
+        self.site7_browser_visible_radio = ttk.Radiobutton(
+            mode_row,
+            text="表示",
+            value=SITE7_BROWSER_MODE_VISIBLE,
+            variable=self.site7_browser_mode_var,
+            command=self._on_site7_browser_mode_changed,
+        )
+        self.site7_browser_visible_radio.grid(row=0, column=1, sticky="w", padx=(12, 0))
+        self.site7_browser_hidden_radio = ttk.Radiobutton(
+            mode_row,
+            text="非表示",
+            value=SITE7_BROWSER_MODE_HIDDEN,
+            variable=self.site7_browser_mode_var,
+            command=self._on_site7_browser_mode_changed,
+        )
+        self.site7_browser_hidden_radio.grid(row=0, column=2, sticky="w", padx=(8, 0))
+        ttk.Label(mode_row, text="初期値は表示").grid(row=0, column=3, sticky="w", padx=(12, 0))
 
         self.fetch_info = ttk.Frame(self.fetch_tab, padding=(0, 12, 0, 12))
         self.fetch_info.grid(row=1, column=0, sticky="ew")
@@ -427,6 +460,19 @@ class MinRepoApp:
         except Exception as exc:  # noqa: BLE001
             self.result_queue.put(("site7_login_error", exc))
 
+    def _on_site7_browser_mode_changed(self) -> None:
+        self.site7_browser_mode = normalize_site7_browser_mode(self.site7_browser_mode_var.get())
+        self.site7_browser_mode_var.set(self.site7_browser_mode)
+        try:
+            self._save_site7_browser_mode(self.site7_browser_mode)
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showwarning("設定保存", f"サイトセブンの表示設定保存に失敗しました。\n{exc}")
+
+    def _site7_browser_visible(self) -> bool:
+        browser_mode = normalize_site7_browser_mode(self.site7_browser_mode_var.get())
+        self.site7_browser_mode = browser_mode
+        return browser_mode == SITE7_BROWSER_MODE_VISIBLE
+
     def apply_daily_schedule(self) -> None:
         try:
             scheduled_hour = self._parse_schedule_hour()
@@ -463,13 +509,31 @@ class MinRepoApp:
     def _settings_file_path(self) -> Path:
         return self.persistence_service.root_dir / "local_data" / GUI_SETTINGS_FILE_NAME
 
-    def _load_saved_schedule_hour(self) -> int:
+    def _load_gui_settings(self) -> dict[str, object]:
         settings_path = self._settings_file_path()
         if not settings_path.exists():
-            return DEFAULT_SCHEDULE_HOUR
+            return {}
 
         try:
             payload = json.loads(settings_path.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            return {}
+
+        return payload if isinstance(payload, dict) else {}
+
+    def _save_gui_settings(self, **updates: object) -> None:
+        settings_path = self._settings_file_path()
+        settings_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = self._load_gui_settings()
+        payload.update(updates)
+        settings_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
+    def _load_saved_schedule_hour(self) -> int:
+        try:
+            payload = self._load_gui_settings()
             scheduled_hour = int(payload.get("scheduled_fetch_hour", DEFAULT_SCHEDULE_HOUR))
         except Exception:  # noqa: BLE001
             return DEFAULT_SCHEDULE_HOUR
@@ -479,12 +543,17 @@ class MinRepoApp:
         return scheduled_hour
 
     def _save_schedule_hour(self, scheduled_hour: int) -> None:
-        settings_path = self._settings_file_path()
-        settings_path.parent.mkdir(parents=True, exist_ok=True)
-        settings_path.write_text(
-            json.dumps({"scheduled_fetch_hour": scheduled_hour}, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        self._save_gui_settings(scheduled_fetch_hour=scheduled_hour)
+
+    def _load_saved_site7_browser_mode(self) -> str:
+        try:
+            payload = self._load_gui_settings()
+        except Exception:  # noqa: BLE001
+            return SITE7_BROWSER_MODE_VISIBLE
+        return normalize_site7_browser_mode(payload.get("site7_browser_mode", SITE7_BROWSER_MODE_VISIBLE))
+
+    def _save_site7_browser_mode(self, browser_mode: str) -> None:
+        self._save_gui_settings(site7_browser_mode=normalize_site7_browser_mode(browser_mode))
 
     def _schedule_timer_tick(self) -> None:
         self._run_scheduled_fetch_if_due()
@@ -884,18 +953,21 @@ class MinRepoApp:
         self.status_var.set("サイトセブン取得中...")
         self.summary_var.set(f"{SITE7_TARGET_MACHINE_NAME} をサイトセブンから取得中")
         self.fetch_cancel_event.clear()
+        browser_visible = self._site7_browser_visible()
         self._start_worker(
             self._worker_fetch_site7,
             recent_days,
             retry_delay_seconds,
+            browser_visible,
             operation_kind="site7_fetch",
         )
 
-    def _worker_fetch_site7(self, recent_days: int, retry_delay_seconds: int) -> None:
+    def _worker_fetch_site7(self, recent_days: int, retry_delay_seconds: int, browser_visible: bool) -> None:
         try:
             history_result = self._run_with_fetch_retries(
                 lambda: self.site7_scraper.fetch_target_machine_history(
                     recent_days=recent_days,
+                    browser_visible=browser_visible,
                     progress_callback=lambda progress: self.result_queue.put(("fetch_progress", progress)),
                 ),
                 retry_delay_seconds=retry_delay_seconds,
@@ -2373,6 +2445,8 @@ class MinRepoApp:
         self.notify_fetch_complete_button.configure(state="disabled" if self.is_busy else "normal")
         self.site7_login_button.configure(state="disabled" if self.is_busy else "normal")
         self.site7_fetch_button.configure(state="disabled" if self.is_busy else "normal")
+        self.site7_browser_visible_radio.configure(state="disabled" if self.is_busy else "normal")
+        self.site7_browser_hidden_radio.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_button.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_url_entry.configure(state="disabled" if self.is_busy else "normal")
         self.select_all_stores_button.configure(state="disabled" if self.is_busy else "normal")

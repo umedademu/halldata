@@ -93,7 +93,7 @@ class Site7Scraper:
 
         raise ScraperError("ログイン状態を確認できませんでした。ログイン後の画面が開いたままなら数秒待ってください。")
 
-    def is_logged_in(self) -> bool:
+    def is_logged_in(self, browser_visible: bool = False) -> bool:
         if not self.has_saved_login_state():
             return False
 
@@ -102,12 +102,14 @@ class Site7Scraper:
             with sync_playwright() as playwright:
                 context = playwright.chromium.launch_persistent_context(
                     str(self.browser_state_dir),
-                    headless=True,
+                    headless=not browser_visible,
                     locale="ja-JP",
                     viewport={"width": 1440, "height": 960},
                 )
                 try:
                     page = context.new_page()
+                    if browser_visible:
+                        page.bring_to_front()
                     page.goto(SITE7_TARGET_HALL_URL, wait_until="domcontentloaded", timeout=60_000)
                     page.wait_for_timeout(1_000)
                     if self._page_is_login_required(page.url, page.content()):
@@ -121,6 +123,7 @@ class Site7Scraper:
     def fetch_target_machine_history(
         self,
         recent_days: int,
+        browser_visible: bool = False,
         progress_callback: Callable[[FetchProgress], None] | None = None,
     ) -> MachineHistoryResult:
         target_days = clamp_site7_recent_days(recent_days)
@@ -131,12 +134,14 @@ class Site7Scraper:
             with sync_playwright() as playwright:
                 context = playwright.chromium.launch_persistent_context(
                     str(self.browser_state_dir),
-                    headless=True,
+                    headless=not browser_visible,
                     locale="ja-JP",
                     viewport={"width": 1440, "height": 960},
                 )
                 try:
                     page = context.new_page()
+                    if browser_visible:
+                        page.bring_to_front()
                     page.goto(SITE7_TARGET_HALL_URL, wait_until="domcontentloaded", timeout=60_000)
                     page.wait_for_timeout(1_000)
                     hall_html = page.content()
