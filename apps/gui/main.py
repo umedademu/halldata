@@ -41,7 +41,7 @@ from minrepo_scraper import (
     ScraperError,
     normalize_text,
 )
-from site7_scraper import SITE7_MAX_RECENT_DAYS, SITE7_TARGET_MACHINE_NAME, Site7Scraper
+from site7_scraper import SITE7_MAX_RECENT_DAYS, SITE7_TARGET_MACHINE_KEYWORDS, Site7Scraper
 
 
 DEFAULT_STORE_NAME = "MJアリーナ箱崎店"
@@ -359,8 +359,8 @@ class MinRepoApp:
         ttk.Label(
             site7_row,
             text=(
-                "固定対象は Ａパーク春日店 の "
-                f"{SITE7_TARGET_MACHINE_NAME} です。"
+                "固定対象は Ａパーク春日店 の対象ジャグラー機種です。"
+                f" 対象語は {'、'.join(SITE7_TARGET_MACHINE_KEYWORDS)} です。"
                 f"直近日数は最大 {SITE7_MAX_RECENT_DAYS} 日まで使えます。"
                 " ログイン操作は常に表示で開きます。"
             ),
@@ -1014,7 +1014,7 @@ class MinRepoApp:
         self._clear_comparison_table()
         self._begin_fetch_progress("サイトセブンへ接続中...")
         self.status_var.set("サイトセブン取得中...")
-        self.summary_var.set(f"{SITE7_TARGET_MACHINE_NAME} をサイトセブンから取得中")
+        self.summary_var.set("対象ジャグラー機種をサイトセブンから取得中")
         self.fetch_cancel_event.clear()
         browser_visible = self._site7_browser_visible()
         self._start_worker(

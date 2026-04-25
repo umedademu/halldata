@@ -28,9 +28,9 @@ from main import (
     parse_recent_days,
     parse_retry_delay_seconds,
 )
-from machine_difference import calculate_machine_difference_value
+from machine_difference import calculate_machine_difference_value, canonical_machine_name
 from minrepo_scraper import FetchProgress, MinRepoScraper, normalize_text, parse_date_range_input
-from site7_scraper import SITE7_TARGET_MACHINE_NAME, Site7Scraper, clamp_site7_recent_days
+from site7_scraper import SITE7_TARGET_MACHINE_KEYWORDS, SITE7_TARGET_MACHINE_NAME, Site7Scraper, clamp_site7_recent_days
 from site7_scraper import build_site7_transition_wait_milliseconds
 
 
@@ -368,11 +368,69 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertEqual(difference_value, -852)
 
+    def test_canonical_machine_name_matches_site7_keyword(self) -> None:
+        self.assertEqual(canonical_machine_name("SアイムジャグラーＥＸ", site7_only=True), "ネオアイムジャグラーEX")
+        self.assertEqual(canonical_machine_name("マイジャグラー", site7_only=True), "マイジャグラーV")
+
     def test_site7_extract_store_name_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = find_gui_fixture("site7_machine.html")
 
         self.assertEqual(scraper.extract_store_name(html), "Ａパーク春日店")
+
+    def test_site7_extract_target_machine_entries_from_saved_html(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = """
+<!DOCTYPE html>
+<html lang="ja">
+  <body>
+    <table class="slot">
+      <tr>
+        <td class="clear">
+          <p><span>ネオアイムジャグラーEX(25)</span></p>
+          <ul><li><input type="button" name="select" value="出玉データ"></li></ul>
+        </td>
+      </tr>
+      <tr>
+        <td class="clear">
+          <p><span>SアイムジャグラーＥＸ(20)</span></p>
+          <ul><li><input type="button" name="select" value="出玉データ"></li></ul>
+        </td>
+      </tr>
+      <tr>
+        <td class="clear">
+          <p><span>マイジャグラーV(18)</span></p>
+          <ul><li><input type="button" name="select" value="出玉データ"></li></ul>
+        </td>
+      </tr>
+      <tr>
+        <td class="clear">
+          <p><span>ゴーゴージャグラー3(12)</span></p>
+          <ul><li><input type="button" name="select" value="出玉データ"></li></ul>
+        </td>
+      </tr>
+      <tr>
+        <td class="clear">
+          <p><span>ハナハナホウオウ(10)</span></p>
+          <ul><li><input type="button" name="select" value="出玉データ"></li></ul>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+"""
+
+        entries = scraper.extract_target_machine_entries(html)
+
+        self.assertEqual(
+            [(entry.display_name, entry.machine_name) for entry in entries],
+            [
+                ("ネオアイムジャグラーEX", "ネオアイムジャグラーEX"),
+                ("マイジャグラーV", "マイジャグラーV"),
+                ("ゴーゴージャグラー3", "ゴーゴージャグラー3"),
+            ],
+        )
+        self.assertIn("マイジャグラー", SITE7_TARGET_MACHINE_KEYWORDS)
 
     def test_site7_release_browser_context_keeps_visible_browser_open(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)

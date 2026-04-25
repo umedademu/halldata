@@ -68,8 +68,12 @@ export function loadMachineDifferenceRules() {
       .filter((rule) => rule && typeof rule === "object")
       .map((rule) => ({
         ...rule,
+        normalizedCanonicalName: normalizeMachineName(rule.canonical_name),
         normalizedMachineNames: Array.isArray(rule.machine_names)
           ? rule.machine_names.map(normalizeMachineName).filter(Boolean)
+          : [],
+        normalizedMatchKeywords: Array.isArray(rule.match_keywords)
+          ? rule.match_keywords.map(normalizeMachineName).filter(Boolean)
           : [],
       }));
   } catch {
@@ -86,9 +90,22 @@ export function findMachineDifferenceRule(machineName) {
   }
 
   return (
-    loadMachineDifferenceRules().find((rule) =>
-      rule.normalizedMachineNames.includes(normalizedMachineName),
-    ) ?? null
+    loadMachineDifferenceRules().find((rule) => {
+      if (
+        rule.normalizedCanonicalName &&
+        rule.normalizedCanonicalName === normalizedMachineName
+      ) {
+        return true;
+      }
+
+      if (rule.normalizedMachineNames.includes(normalizedMachineName)) {
+        return true;
+      }
+
+      return rule.normalizedMatchKeywords.some(
+        (keyword) => keyword && normalizedMachineName.includes(keyword),
+      );
+    }) ?? null
   );
 }
 

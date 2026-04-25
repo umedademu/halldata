@@ -12,6 +12,8 @@ from minrepo_scraper import normalize_text
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 MACHINE_DIFFERENCE_RULES_PATH = ROOT_DIR / "config" / "machine_difference_rules.json"
+
+
 @lru_cache(maxsize=1)
 def load_machine_difference_rules() -> list[dict[str, Any]]:
     if not MACHINE_DIFFERENCE_RULES_PATH.exists():
@@ -24,15 +26,16 @@ def load_machine_difference_rules() -> list[dict[str, Any]]:
     return [rule for rule in rules if isinstance(rule, dict)]
 
 
-def find_machine_difference_rule(machine_name: str) -> dict[str, Any] | None:
-    normalized_machine_name = normalize_text(str(machine_name))
+def find_machine_difference_rule(machine_name: str, site7_only: bool = False) -> dict[str, Any] | None:
+    normalized_machine_name = _normalize_machine_name(machine_name)
     if not normalized_machine_name:
         return None
 
     for rule in load_machine_difference_rules():
-        for candidate_name in rule.get("machine_names", []):
-            if normalize_text(str(candidate_name)) == normalized_machine_name:
-                return rule
+        if site7_only and not bool(rule.get("site7_enabled")):
+            continue
+        if _machine_name_matches_rule(normalized_machine_name, rule):
+            return rule
     return None
 
 
@@ -83,6 +86,79 @@ def format_machine_difference_value(value: int | None) -> str:
 
 def format_machine_difference_for_row(machine_name: str, row_values: dict[str, Any]) -> str:
     return format_machine_difference_value(calculate_machine_difference_value(machine_name, row_values))
+
+
+def canonical_machine_name(machine_name: str, site7_only: bool = False) -> str:
+    rule = find_machine_difference_rule(machine_name, site7_only=site7_only)
+    if rule is None:
+        return str(machine_name).strip()
+
+    canonical_name = str(rule.get("canonical_name", "")).strip()
+    if canonical_name:
+        return canonical_name
+
+    for candidate_name in rule.get("machine_names", []):
+        text = str(candidate_name).strip()
+        if text:
+            return text
+
+    return str(machine_name).strip()
+
+
+def list_site7_target_machine_keywords() -> list[str]:
+    keywords: list[str] = []
+    seen_keywords: set[str] = set()
+    for rule in load_machine_difference_rules():
+        if not bool(rule.get("site7_enabled")):
+            continue
+        for keyword in _rule_keyword_texts(rule):
+            if keyword in seen_keywords:
+                continue
+            seen_keywords.add(keyword)
+            keywords.append(keyword)
+    return keywords
+
+
+def machine_is_site7_target(machine_name: str) -> bool:
+    return find_machine_difference_rule(machine_name, site7_only=True) is not None
+
+
+def _machine_name_matches_rule(normalized_machine_name: str, rule: dict[str, Any]) -> bool:
+    for candidate_name in _rule_exact_names(rule):
+        if candidate_name == normalized_machine_name:
+            return True
+
+    for keyword in _rule_keyword_texts(rule):
+        normalized_keyword = _normalize_machine_name(keyword)
+        if normalized_keyword and normalized_keyword in normalized_machine_name:
+            return True
+
+    return False
+
+
+def _rule_exact_names(rule: dict[str, Any]) -> list[str]:
+    exact_names: list[str] = []
+    canonical_name = str(rule.get("canonical_name", "")).strip()
+    if canonical_name:
+        exact_names.append(_normalize_machine_name(canonical_name))
+
+    for candidate_name in rule.get("machine_names", []):
+        exact_names.append(_normalize_machine_name(str(candidate_name)))
+
+    return [name for name in exact_names if name]
+
+
+def _rule_keyword_texts(rule: dict[str, Any]) -> list[str]:
+    keyword_texts: list[str] = []
+    for keyword in rule.get("match_keywords", []):
+        text = str(keyword).strip()
+        if text:
+            keyword_texts.append(text)
+    return keyword_texts
+
+
+def _normalize_machine_name(value: str) -> str:
+    return normalize_text(str(value)).casefold()
 
 
 def _read_decimal_value(row_values: dict[str, Any], *keys: str) -> Decimal | None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import random
 import re
 import time
@@ -10,7 +11,12 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
 
-from machine_difference import format_machine_difference_for_row
+from machine_difference import (
+    canonical_machine_name,
+    format_machine_difference_for_row,
+    list_site7_target_machine_keywords,
+    machine_is_site7_target,
+)
 from minrepo_scraper import FetchProgress, MachineDataset, MachineHistoryResult, ScraperError, StoreDatePage
 
 try:
@@ -34,6 +40,7 @@ SITE7_TARGET_AREA_URL_KEYWORD = "HallSearchByArea.do?prefecturecode=40&district=
 SITE7_TARGET_HALL_NAME = "Ａパーク春日店"
 SITE7_TARGET_HALL_ADDRESS = "福岡県春日市日の出町５－２４"
 SITE7_TARGET_MACHINE_NAME = "ネオアイムジャグラーEX"
+SITE7_TARGET_MACHINE_KEYWORDS = tuple(list_site7_target_machine_keywords())
 SITE7_MAX_RECENT_DAYS = 8
 SITE7_TRANSITION_WAIT_MIN_SECONDS = 2.0
 SITE7_TRANSITION_WAIT_MAX_SECONDS = 4.0
@@ -71,6 +78,12 @@ def build_site7_transition_wait_milliseconds(
     seconds = float(seconds_fn(SITE7_TRANSITION_WAIT_MIN_SECONDS, SITE7_TRANSITION_WAIT_MAX_SECONDS))
     seconds = max(SITE7_TRANSITION_WAIT_MIN_SECONDS, min(SITE7_TRANSITION_WAIT_MAX_SECONDS, seconds))
     return int(seconds * 1000)
+
+
+@dataclass(frozen=True)
+class Site7MachineEntry:
+    display_name: str
+    machine_name: str
 
 
 class Site7Scraper:
@@ -160,13 +173,14 @@ class Site7Scraper:
         progress_callback: Callable[[FetchProgress], None] | None = None,
     ) -> MachineHistoryResult:
         target_days = clamp_site7_recent_days(recent_days)
-        self._notify_progress(progress_callback, 0, 4, "サイトセブンのトップから店舗ページへ移動しています")
+        self._notify_progress(progress_callback, 0, 1, "サイトセブンのトップから店舗ページへ移動しています")
         self._require_playwright()
         self.close_visible_browser()
 
         playwright = None
         context = None
         keep_browser_open = False
+        machine_results: list[MachineHistoryResult] = []
         try:
             playwright = sync_playwright().start()
             context = playwright.chromium.launch_persistent_context(
@@ -180,25 +194,52 @@ class Site7Scraper:
                 page.bring_to_front()
             hall_page_url, hall_html = self._open_target_hall_page(page)
             store_name = self.extract_store_name(hall_html)
-            self._notify_progress(progress_callback, 1, 4, "対象機種ページを開いています")
-            self._wait_between_transitions(page)
-            self._open_target_machine_page(page)
-            page.wait_for_selector("#ata0", timeout=60_000)
-            machine_page_url = page.url
-            machine_html = page.content()
+            target_machine_entries = self.extract_target_machine_entries(hall_html)
+            total_steps = len(target_machine_entries) + 2
+
+            for machine_index, machine_entry in enumerate(target_machine_entries, start=1):
+                if machine_index > 1:
+                    self._wait_between_transitions(page)
+                    page.goto(hall_page_url, wait_until="domcontentloaded", timeout=60_000)
+                    self._accept_cookie_banner_if_present(page)
+
+                self._notify_progress(
+                    progress_callback,
+                    machine_index,
+                    total_steps,
+                    f"{machine_entry.machine_name} のページを開いています",
+                )
+                self._wait_between_transitions(page)
+                self._open_target_machine_page(page, machine_entry)
+                page.wait_for_selector("#ata0", timeout=60_000)
+                machine_page_url = str(page.url)
+                machine_html = page.content()
+                machine_results.append(
+                    self.parse_machine_history_html(
+                        machine_html,
+                        store_url=hall_page_url,
+                        page_url=machine_page_url,
+                        recent_days=target_days,
+                        fallback_store_name=store_name,
+                        machine_name_override=machine_entry.machine_name,
+                    )
+                )
             keep_browser_open = browser_visible
         except PlaywrightError as exc:
             raise self._wrap_playwright_error(exc) from exc
         finally:
             self._release_browser_context(playwright, context, keep_open=keep_browser_open)
 
-        self._notify_progress(progress_callback, 2, 4, "台データを読み取っています")
-        return self.parse_machine_history_html(
-            machine_html,
+        self._notify_progress(
+            progress_callback,
+            len(machine_results) + 1,
+            len(machine_results) + 2,
+            "台データを読み取っています",
+        )
+        return self._merge_machine_history_results(
+            machine_results,
+            fallback_store_name=store_name if "store_name" in locals() else SITE7_TARGET_HALL_NAME,
             store_url=hall_page_url if "hall_page_url" in locals() else SITE7_TARGET_HALL_URL,
-            page_url=machine_page_url if "machine_page_url" in locals() else SITE7_TARGET_HALL_URL,
-            recent_days=target_days,
-            fallback_store_name=store_name,
         )
 
     def extract_store_name(self, html: str) -> str:
@@ -223,11 +264,12 @@ class Site7Scraper:
         page_url: str,
         recent_days: int,
         fallback_store_name: str = "",
+        machine_name_override: str = "",
     ) -> MachineHistoryResult:
         target_days = clamp_site7_recent_days(recent_days)
         soup = BeautifulSoup(html, "html.parser")
         store_name = fallback_store_name.strip() or self.extract_store_name(html)
-        machine_name = self.extract_machine_name(html)
+        machine_name = machine_name_override.strip() or self.extract_machine_name(html)
         base_date = self.extract_updated_date(html)
 
         datasets: list[MachineDataset] = []
@@ -289,6 +331,40 @@ class Site7Scraper:
         month = int(match.group(2))
         day = int(match.group(3))
         return datetime(year, month, day)
+
+    def extract_target_machine_entries(self, html: str) -> list[Site7MachineEntry]:
+        soup = BeautifulSoup(html, "html.parser")
+        entries: list[Site7MachineEntry] = []
+        seen_machine_names: set[str] = set()
+
+        for row in soup.find_all("tr"):
+            if row.find("input", attrs={"name": "select"}) is None and row.find("input", attrs={"type": "button"}) is None:
+                continue
+
+            display_name = self._extract_machine_label_from_row(row)
+            if not display_name or not machine_is_site7_target(display_name):
+                continue
+
+            machine_name = canonical_machine_name(display_name, site7_only=True)
+            machine_key = machine_name.casefold()
+            if machine_key in seen_machine_names:
+                continue
+
+            seen_machine_names.add(machine_key)
+            entries.append(
+                Site7MachineEntry(
+                    display_name=display_name,
+                    machine_name=machine_name,
+                )
+            )
+
+        if not entries:
+            raise ScraperError(
+                "サイトセブンで対象機種の行が見つかりませんでした。\n"
+                f"対象語: {'、'.join(SITE7_TARGET_MACHINE_KEYWORDS)}"
+            )
+
+        return entries
 
     def _build_dataset_for_day(
         self,
@@ -478,14 +554,18 @@ class Site7Scraper:
         except Exception:  # noqa: BLE001
             pass
 
-    def _open_target_machine_page(self, page: object) -> None:
-        row_locator = page.locator("tr").filter(has_text=SITE7_TARGET_MACHINE_NAME).first
+    def _open_target_machine_page(self, page: object, machine_entry: Site7MachineEntry) -> None:
+        row_locator = page.locator("tr").filter(has_text=machine_entry.display_name).first
         if row_locator.count() == 0:
-            raise ScraperError(f"サイトセブンで {SITE7_TARGET_MACHINE_NAME} の行が見つかりませんでした。")
+            raise ScraperError(f"サイトセブンで {machine_entry.machine_name} の行が見つかりませんでした。")
 
-        button_locator = row_locator.locator("input[value='出玉データ']").first
+        button_locator = row_locator.locator("input[name='select']").first
         if button_locator.count() == 0:
-            raise ScraperError(f"サイトセブンで {SITE7_TARGET_MACHINE_NAME} の出玉ボタンが見つかりませんでした。")
+            button_locator = row_locator.locator("input[value='出玉データ']").first
+        if button_locator.count() == 0:
+            button_locator = row_locator.locator("input[type='button']").first
+        if button_locator.count() == 0:
+            raise ScraperError(f"サイトセブンで {machine_entry.machine_name} の出玉ボタンが見つかりませんでした。")
 
         try:
             with page.expect_navigation(wait_until="domcontentloaded", timeout=60_000):
@@ -493,6 +573,50 @@ class Site7Scraper:
         except PlaywrightTimeoutError:
             pass
         page.wait_for_timeout(1_000)
+
+    def _extract_machine_label_from_row(self, row: Tag) -> str:
+        paragraph = row.find("p")
+        text = paragraph.get_text(" ", strip=True) if paragraph is not None else row.get_text(" ", strip=True)
+        text = text.replace("FREE", " ").replace("free", " ")
+        text = re.sub(r"\s+", " ", text).strip()
+        text = re.sub(r"[\(（]\d+[\)）]\s*$", "", text).strip()
+        return text
+
+    def _merge_machine_history_results(
+        self,
+        machine_results: list[MachineHistoryResult],
+        fallback_store_name: str,
+        store_url: str,
+    ) -> MachineHistoryResult:
+        if not machine_results:
+            raise ScraperError("サイトセブンの対象機種データが見つかりませんでした。")
+
+        datasets: list[MachineDataset] = []
+        date_pages_by_date: dict[str, StoreDatePage] = {}
+        skipped_targets: list[tuple[str, str]] = []
+        skipped_dates: list[str] = []
+
+        for machine_result in machine_results:
+            datasets.extend(machine_result.datasets)
+            skipped_targets.extend(machine_result.skipped_targets)
+            for skipped_date in machine_result.skipped_dates:
+                if skipped_date not in skipped_dates:
+                    skipped_dates.append(skipped_date)
+            for date_page in machine_result.date_pages:
+                date_pages_by_date.setdefault(date_page.target_date, date_page)
+
+        datasets.sort(key=lambda dataset: (dataset.target_date, dataset.machine_name.casefold()))
+        date_pages = sorted(date_pages_by_date.values(), key=lambda date_page: date_page.target_date)
+        return MachineHistoryResult(
+            store_name=fallback_store_name,
+            store_url=store_url,
+            start_date=date_pages[0].target_date,
+            end_date=date_pages[-1].target_date,
+            date_pages=date_pages,
+            datasets=datasets,
+            skipped_targets=skipped_targets,
+            skipped_dates=skipped_dates,
+        )
 
     def _wait_for_login_success(self, context: object, timeout_seconds: int) -> bool:
         deadline = time.time() + timeout_seconds

@@ -1,13 +1,140 @@
 {
   "machine_rules": [
     {
+      "canonical_name": "ネオアイムジャグラーEX",
       "machine_names": [
-        "ネオアイムジャグラーEX"
+        "ネオアイムジャグラーEX",
+        "SアイムジャグラーＥＸ",
+        "SアイムジャグラーEX"
       ],
+      "match_keywords": [
+        "ネオアイムジャグラー",
+        "SアイムジャグラーＥＸ",
+        "SアイムジャグラーEX"
+      ],
+      "site7_enabled": true,
       "investment_coins": 50,
       "games_per_investment": 40.6,
       "bonus_payouts": {
         "BB": 252,
+        "RB": 96
+      }
+    },
+    {
+      "canonical_name": "マイジャグラーV",
+      "machine_names": [
+        "マイジャグラーV",
+        "マイジャグラーⅤ",
+        "マイジャグラー"
+      ],
+      "match_keywords": [
+        "マイジャグラー"
+      ],
+      "site7_enabled": true,
+      "investment_coins": 50,
+      "games_per_investment": 42.27,
+      "bonus_payouts": {
+        "BB": 240,
+        "RB": 96
+      }
+    },
+    {
+      "canonical_name": "ゴーゴージャグラー3",
+      "machine_names": [
+        "ゴーゴージャグラー3",
+        "ゴーゴージャグラー"
+      ],
+      "match_keywords": [
+        "ゴーゴージャグラー"
+      ],
+      "site7_enabled": true,
+      "investment_coins": 50,
+      "games_per_investment": 40.03,
+      "bonus_payouts": {
+        "BB": 240,
+        "RB": 96
+      }
+    },
+    {
+      "canonical_name": "ファンキージャグラー2",
+      "machine_names": [
+        "ファンキージャグラー2",
+        "ファンキージャグラー"
+      ],
+      "match_keywords": [
+        "ファンキージャグラー"
+      ],
+      "site7_enabled": true,
+      "investment_coins": 50,
+      "games_per_investment": 42.16,
+      "bonus_payouts": {
+        "BB": 240,
+        "RB": 96
+      }
+    },
+    {
+      "canonical_name": "ミスタージャグラー",
+      "machine_names": [
+        "ミスタージャグラー"
+      ],
+      "match_keywords": [
+        "ミスタージャグラー"
+      ],
+      "site7_enabled": true,
+      "investment_coins": 50,
+      "games_per_investment": 39.93,
+      "bonus_payouts": {
+        "BB": 240,
+        "RB": 96
+      }
+    },
+    {
+      "canonical_name": "ジャグラーガールズSS",
+      "machine_names": [
+        "ジャグラーガールズSS",
+        "ジャグラーガールズ"
+      ],
+      "match_keywords": [
+        "ジャグラーガールズ"
+      ],
+      "site7_enabled": true,
+      "investment_coins": 50,
+      "games_per_investment": 41.72,
+      "bonus_payouts": {
+        "BB": 240,
+        "RB": 96
+      }
+    },
+    {
+      "canonical_name": "ウルトラミラクルジャグラー",
+      "machine_names": [
+        "ウルトラミラクルジャグラー"
+      ],
+      "match_keywords": [
+        "ウルトラミラクルジャグラー"
+      ],
+      "site7_enabled": true,
+      "investment_coins": 50,
+      "games_per_investment": 42.16,
+      "bonus_payouts": {
+        "BB": 240,
+        "RB": 96
+      }
+    },
+    {
+      "canonical_name": "ハッピージャグラーV",
+      "machine_names": [
+        "ハッピージャグラーV",
+        "ハッピージャグラー"
+      ],
+      "match_keywords": [
+        "ハッピージャグラー"
+      ],
+      "site7_enabled": true,
+      "investment_coins": 50,
+      "games_per_investment": 40.68,
+      "bonus_payouts": {
+        "BB": 240,
         "RB": 96
       }
     }
