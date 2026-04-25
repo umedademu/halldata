@@ -9,12 +9,19 @@ from tempfile import TemporaryDirectory
 
 from bs4 import BeautifulSoup
 
-from data_persistence import HistoryPersistenceService, build_machine_daily_records, normalize_store_url
+from data_persistence import (
+    HistoryPersistenceService,
+    build_machine_daily_records,
+    choose_preferred_store,
+    normalize_store_name_key,
+    normalize_store_url,
+)
 from main import (
     SITE7_BROWSER_MODE_HIDDEN,
     SITE7_BROWSER_MODE_VISIBLE,
     MinRepoApp,
     build_recent_date_range_input,
+    filter_site7_history_result_by_saved_targets,
     matches_day_tail,
     normalize_site7_browser_mode,
     parse_recent_days,
@@ -519,6 +526,36 @@ class MinRepoScraperTests(unittest.TestCase):
             "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/",
         )
 
+    def test_normalize_store_name_key_unifies_halfwidth_and_fullwidth(self) -> None:
+        self.assertEqual(
+            normalize_store_name_key("Aパーク春日店"),
+            normalize_store_name_key("Ａパーク春日店"),
+        )
+
+    def test_choose_preferred_store_uses_most_records(self) -> None:
+        preferred_store = choose_preferred_store(
+            [
+                {
+                    "store_name": "Ａパーク春日店",
+                    "store_url": "https://www.d-deltanet.com/pc/HallSelectLink.do/?hallcode=abc",
+                    "record_count": 200,
+                },
+                {
+                    "store_name": "Aパーク春日店",
+                    "store_url": "https://min-repo.com/tag/a-park-kasuga/",
+                    "record_count": 999,
+                },
+            ]
+        )
+
+        self.assertEqual(
+            preferred_store,
+            {
+                "store_name": "Aパーク春日店",
+                "store_url": "https://min-repo.com/tag/a-park-kasuga/",
+            },
+        )
+
     def test_save_registered_stores_deduplicates_normalized_url(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
@@ -607,6 +644,50 @@ class MinRepoScraperTests(unittest.TestCase):
                     ("2026-04-08", normalize_text("ネオアイムジャグラーEX")),
                 },
             )
+
+    def test_find_saved_machine_targets_supabase_uses_supabase_only(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            service._find_saved_machine_targets_from_supabase = (  # type: ignore[method-assign]
+                lambda **kwargs: {("2026-04-25", normalize_text(SITE7_TARGET_MACHINE_NAME))}
+            )
+
+            summary = service.find_saved_machine_targets_supabase(
+                store_url="https://example.com/store",
+                start_date="2026-04-24",
+                end_date="2026-04-25",
+                machine_names=[SITE7_TARGET_MACHINE_NAME],
+            )
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(
+                summary.saved_targets,
+                {("2026-04-25", normalize_text(SITE7_TARGET_MACHINE_NAME))},
+            )
+
+    def test_filter_site7_history_result_skips_saved_past_dates_but_keeps_today(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = find_gui_fixture("site7_machine.html")
+        history_result = scraper.parse_machine_history_html(
+            html,
+            store_url="https://example.com/site7",
+            page_url="https://example.com/site7/machine",
+            recent_days=2,
+        )
+
+        filtered_result = filter_site7_history_result_by_saved_targets(
+            history_result,
+            saved_targets={
+                ("2026-04-24", normalize_text(SITE7_TARGET_MACHINE_NAME)),
+                ("2026-04-25", normalize_text(SITE7_TARGET_MACHINE_NAME)),
+            },
+            today_text="2026-04-25",
+        )
+
+        self.assertEqual([page.target_date for page in filtered_result.date_pages], ["2026-04-25"])
+        self.assertEqual([dataset.target_date for dataset in filtered_result.datasets], ["2026-04-25"])
+        self.assertEqual(filtered_result.skipped_dates, ["2026-04-24"])
+        self.assertEqual(filtered_result.skipped_targets, [("2026-04-24", SITE7_TARGET_MACHINE_NAME)])
 
     def test_find_date_pages_handles_year_rollover_without_year_label(self) -> None:
         scraper = MinRepoScraper()

@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 from typing import Any
+import unicodedata
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 import requests
@@ -80,6 +81,43 @@ def normalize_store_url(value: str) -> str:
         normalized_path = normalized_path.rstrip("/") + "/"
 
     return urlunsplit((normalized_scheme, normalized_netloc, normalized_path, parts.query, ""))
+
+
+def normalize_store_name_key(value: str) -> str:
+    normalized_value = unicodedata.normalize("NFKC", str(value))
+    return normalize_text(normalized_value).casefold()
+
+
+def choose_preferred_store(candidates: list[dict[str, Any]]) -> dict[str, str] | None:
+    ranked_candidates: list[tuple[int, int, str, str]] = []
+    for candidate in candidates:
+        store_name = str(candidate.get("store_name", "")).strip()
+        store_url = normalize_store_url(str(candidate.get("store_url", "")).strip())
+        if not store_name or not store_url:
+            continue
+
+        try:
+            record_count = int(candidate.get("record_count", 0) or 0)
+        except (TypeError, ValueError):
+            record_count = 0
+
+        ranked_candidates.append(
+            (
+                record_count,
+                1 if "min-repo.com" in store_url.lower() else 0,
+                store_name,
+                store_url,
+            )
+        )
+
+    if not ranked_candidates:
+        return None
+
+    _, _, store_name, store_url = max(ranked_candidates, key=lambda item: (item[0], item[1], item[3]))
+    return {
+        "store_name": store_name,
+        "store_url": store_url,
+    }
 
 
 def build_machine_daily_records(history_result: MachineHistoryResult) -> list[dict[str, Any]]:
@@ -197,6 +235,93 @@ class HistoryPersistenceService:
             summary.messages.append(f"Supabase の取得済み確認に失敗しました。\n{exc}")
 
         return summary
+
+    def find_saved_machine_targets_supabase(
+        self,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+        machine_names: list[str],
+    ) -> SavedMachineTargetsSummary:
+        target_machine_names = {normalize_text(machine_name) for machine_name in machine_names if machine_name.strip()}
+        summary = SavedMachineTargetsSummary()
+        if not target_machine_names:
+            return summary
+
+        try:
+            summary.saved_targets.update(
+                self._find_saved_machine_targets_from_supabase(
+                    store_url=store_url,
+                    start_date=start_date,
+                    end_date=end_date,
+                    target_machine_names=target_machine_names,
+                )
+            )
+        except Exception as exc:  # noqa: BLE001
+            summary.messages.append(f"Supabase の取得済み確認に失敗しました。\n{exc}")
+
+        return summary
+
+    def resolve_preferred_store_by_name(self, store_name: str) -> dict[str, str] | None:
+        store_name_key = normalize_store_name_key(store_name)
+        if not store_name_key:
+            return None
+
+        try:
+            supabase_url, _, schema, stores_table, results_table = self._supabase_config()
+        except RuntimeError:
+            return None
+
+        session = self._create_supabase_session(schema)
+        candidates = self._find_store_candidates_by_name_key(
+            session=session,
+            supabase_url=supabase_url,
+            stores_table=stores_table,
+            results_table=results_table,
+            store_name_key=store_name_key,
+        )
+        return choose_preferred_store(candidates)
+
+    def delete_machine_targets_from_supabase(
+        self,
+        store_url: str,
+        target_pairs: set[tuple[str, str]],
+    ) -> int:
+        normalized_target_pairs = {
+            (str(target_date).strip(), str(machine_name).strip())
+            for target_date, machine_name in target_pairs
+            if str(target_date).strip() and str(machine_name).strip()
+        }
+        if not normalized_target_pairs:
+            return 0
+
+        try:
+            supabase_url, _, schema, stores_table, results_table = self._supabase_config()
+        except RuntimeError:
+            return 0
+
+        session = self._create_supabase_session(schema)
+        store_id = self._find_store_id(session, supabase_url, stores_table, normalize_store_url(store_url))
+        if not store_id:
+            return 0
+
+        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(results_table, safe='')}"
+        deleted_target_count = 0
+        for target_date, machine_name in sorted(normalized_target_pairs):
+            response = session.delete(
+                endpoint,
+                params={
+                    "store_id": f"eq.{store_id}",
+                    "target_date": f"eq.{target_date}",
+                    "machine_name": f"eq.{machine_name}",
+                },
+                headers={"Prefer": "return=minimal"},
+                timeout=30,
+            )
+            response.raise_for_status()
+            deleted_target_count += 1
+
+        return deleted_target_count
 
     def load_registered_stores(self) -> list[dict[str, str]]:
         return self._load_registered_stores_from_supabase()
@@ -585,6 +710,92 @@ class HistoryPersistenceService:
             offset += page_size
 
         return saved_targets
+
+    def _find_store_candidates_by_name_key(
+        self,
+        session: requests.Session,
+        supabase_url: str,
+        stores_table: str,
+        results_table: str,
+        store_name_key: str,
+    ) -> list[dict[str, Any]]:
+        if not store_name_key:
+            return []
+
+        candidates: list[dict[str, Any]] = []
+        offset = 0
+        page_size = 1000
+        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(stores_table, safe='')}"
+
+        while True:
+            response = session.get(
+                endpoint,
+                params={
+                    "select": "id,store_name,store_url",
+                    "order": "id.asc",
+                    "limit": str(page_size),
+                    "offset": str(offset),
+                },
+                timeout=30,
+            )
+            response.raise_for_status()
+            rows = response.json()
+            if not rows:
+                break
+
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+
+                candidate_name = str(row.get("store_name", "")).strip()
+                if normalize_store_name_key(candidate_name) != store_name_key:
+                    continue
+
+                store_id = str(row.get("id", "")).strip()
+                if not store_id:
+                    continue
+
+                candidates.append(
+                    {
+                        "store_name": candidate_name,
+                        "store_url": normalize_store_url(str(row.get("store_url", "")).strip()),
+                        "record_count": self._count_supabase_results(session, supabase_url, results_table, store_id),
+                    }
+                )
+
+            if len(rows) < page_size:
+                break
+            offset += page_size
+
+        return candidates
+
+    def _count_supabase_results(
+        self,
+        session: requests.Session,
+        supabase_url: str,
+        results_table: str,
+        store_id: str,
+    ) -> int:
+        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(results_table, safe='')}"
+        response = session.get(
+            endpoint,
+            params={
+                "select": "id",
+                "store_id": f"eq.{store_id}",
+                "limit": "1",
+            },
+            headers={"Prefer": "count=exact"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        content_range = response.headers.get("Content-Range", "")
+        if "/" not in content_range:
+            return 0
+
+        try:
+            return int(content_range.rsplit("/", 1)[1])
+        except ValueError:
+            return 0
 
     def _upsert_store(
         self,

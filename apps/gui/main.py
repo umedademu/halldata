@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
@@ -103,6 +103,68 @@ def normalize_site7_browser_mode(value: object) -> str:
     if text == SITE7_BROWSER_MODE_HIDDEN:
         return SITE7_BROWSER_MODE_HIDDEN
     return SITE7_BROWSER_MODE_VISIBLE
+
+
+def current_jst_date_text(now: datetime | None = None) -> str:
+    return (now or datetime.now(JST)).astimezone(JST).strftime("%Y-%m-%d")
+
+
+def rewrite_history_result_store(
+    history_result: MachineHistoryResult,
+    store_name: str,
+    store_url: str,
+) -> MachineHistoryResult:
+    rewritten_datasets = [
+        replace(
+            dataset,
+            store_name=store_name,
+            store_url=store_url,
+        )
+        for dataset in history_result.datasets
+    ]
+    return replace(
+        history_result,
+        store_name=store_name,
+        store_url=store_url,
+        datasets=rewritten_datasets,
+    )
+
+
+def filter_site7_history_result_by_saved_targets(
+    history_result: MachineHistoryResult,
+    saved_targets: set[tuple[str, str]],
+    today_text: str | None = None,
+) -> MachineHistoryResult:
+    if not saved_targets:
+        return history_result
+
+    today_date_text = today_text or current_jst_date_text()
+    filtered_datasets: list[MachineDataset] = []
+    skipped_targets = list(history_result.skipped_targets)
+    skipped_dates = list(history_result.skipped_dates)
+    skipped_target_dates: set[str] = set()
+
+    for dataset in history_result.datasets:
+        target_key = (dataset.target_date, normalize_text(dataset.machine_name))
+        if dataset.target_date != today_date_text and target_key in saved_targets:
+            skipped_targets.append((dataset.target_date, dataset.machine_name))
+            skipped_target_dates.add(dataset.target_date)
+            continue
+        filtered_datasets.append(dataset)
+
+    remaining_dates = {dataset.target_date for dataset in filtered_datasets}
+    filtered_date_pages = [date_page for date_page in history_result.date_pages if date_page.target_date in remaining_dates]
+    for skipped_date in sorted(skipped_target_dates - remaining_dates):
+        if skipped_date not in skipped_dates:
+            skipped_dates.append(skipped_date)
+
+    return replace(
+        history_result,
+        date_pages=filtered_date_pages,
+        datasets=filtered_datasets,
+        skipped_targets=skipped_targets,
+        skipped_dates=skipped_dates,
+    )
 
 
 @dataclass
@@ -986,13 +1048,64 @@ class MinRepoApp:
                 ),
             )
             self._raise_if_fetch_cancelled()
-            self.result_queue.put(("fetch_progress", FetchProgress(current_step=3, total_steps=4, message="保存中")))
-            save_summary = self.persistence_service.save_history_result(history_result)
-            self.result_queue.put(("site7_fetch_success", (history_result, save_summary, SavedFullDayDatesSummary())))
+            self.result_queue.put(("fetch_progress", FetchProgress(current_step=3, total_steps=4, message="保存済み日付を確認中")))
+            history_result, warning_summary = self._prepare_site7_history_result_for_save(history_result)
+            self._raise_if_fetch_cancelled()
+            save_summary: PersistenceSummary | None = None
+            if history_result.datasets:
+                self.result_queue.put(("fetch_progress", FetchProgress(current_step=3, total_steps=4, message="保存中")))
+                save_summary = self.persistence_service.save_history_result(history_result)
+            self.result_queue.put(("site7_fetch_success", (history_result, save_summary, warning_summary)))
         except FetchCancelled:
             self.result_queue.put(("fetch_cancelled", None))
         except Exception as exc:  # noqa: BLE001
             self.result_queue.put(("fetch_error", exc))
+
+    def _prepare_site7_history_result_for_save(
+        self,
+        history_result: MachineHistoryResult,
+    ) -> tuple[MachineHistoryResult, SavedFullDayDatesSummary]:
+        warning_messages: list[str] = []
+        preferred_store = self.persistence_service.resolve_preferred_store_by_name(history_result.store_name)
+        if preferred_store is not None:
+            preferred_store_name = str(preferred_store.get("store_name", "")).strip()
+            preferred_store_url = str(preferred_store.get("store_url", "")).strip()
+            if preferred_store_name and preferred_store_url:
+                history_result = rewrite_history_result_store(
+                    history_result,
+                    store_name=preferred_store_name,
+                    store_url=preferred_store_url,
+                )
+
+        machine_names = sorted({dataset.machine_name for dataset in history_result.datasets}, key=normalize_text)
+        saved_targets_summary = self.persistence_service.find_saved_machine_targets_supabase(
+            store_url=history_result.store_url,
+            start_date=history_result.start_date,
+            end_date=history_result.end_date,
+            machine_names=machine_names,
+        )
+        warning_messages.extend(saved_targets_summary.messages)
+        history_result = filter_site7_history_result_by_saved_targets(
+            history_result,
+            saved_targets=saved_targets_summary.saved_targets,
+        )
+
+        today_targets = {
+            (dataset.target_date, dataset.machine_name)
+            for dataset in history_result.datasets
+            if dataset.target_date == current_jst_date_text()
+        }
+        if today_targets:
+            self.result_queue.put(("fetch_progress", FetchProgress(current_step=3, total_steps=4, message="当日分を入れ直す準備中")))
+            try:
+                self.persistence_service.delete_machine_targets_from_supabase(
+                    store_url=history_result.store_url,
+                    target_pairs=today_targets,
+                )
+            except Exception as exc:  # noqa: BLE001
+                warning_messages.append(f"当日分の上書き準備に失敗しました。\n{exc}")
+
+        return history_result, SavedFullDayDatesSummary(messages=warning_messages)
 
     def fetch_data(self) -> None:
         try:
