@@ -45,6 +45,7 @@ from site7_scraper import (
     DEFAULT_SITE7_PREFECTURE_NAME,
     SITE7_MAX_RECENT_DAYS,
     SITE7_TARGET_MACHINE_KEYWORDS,
+    Site7FetchCancelled,
     Site7Scraper,
     Site7TargetStore,
     default_site7_store_settings,
@@ -409,7 +410,10 @@ class MinRepoApp:
         )
         self.site7_fetch_button.grid(row=1, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
 
-        ttk.Label(site7_row, textvariable=self.site7_status_var).grid(row=1, column=2, columnspan=2, sticky="w", padx=(12, 0), pady=(8, 0))
+        self.site7_cancel_button = ttk.Button(site7_row, text="中止", command=self.cancel_fetch)
+        self.site7_cancel_button.grid(row=1, column=2, sticky="w", padx=(8, 0), pady=(8, 0))
+
+        ttk.Label(site7_row, textvariable=self.site7_status_var).grid(row=1, column=3, sticky="w", padx=(12, 0), pady=(8, 0))
 
         mode_row = ttk.Frame(site7_row)
         mode_row.grid(row=2, column=0, columnspan=4, sticky="w", pady=(8, 0))
@@ -1308,22 +1312,30 @@ class MinRepoApp:
         self._raise_if_fetch_cancelled()
         target_store = registered_store.to_site7_target_store()
         store_label = f"{store_index}/{total_stores} {registered_store.name}"
+
+        def run_site7_fetch() -> MachineHistoryResult:
+            try:
+                return self.site7_scraper.fetch_target_machine_history(
+                    recent_days=recent_days,
+                    browser_visible=browser_visible,
+                    progress_callback=lambda progress: self.result_queue.put(
+                        (
+                            "fetch_progress",
+                            FetchProgress(
+                                current_step=progress.current_step,
+                                total_steps=progress.total_steps,
+                                message=f"{store_label}: {progress.message}",
+                            ),
+                        )
+                    ),
+                    target_store=target_store,
+                    cancel_requested=self.fetch_cancel_event.is_set,
+                )
+            except Site7FetchCancelled as exc:
+                raise FetchCancelled from exc
+
         history_result = self._run_with_fetch_retries(
-            lambda: self.site7_scraper.fetch_target_machine_history(
-                recent_days=recent_days,
-                browser_visible=browser_visible,
-                progress_callback=lambda progress: self.result_queue.put(
-                    (
-                        "fetch_progress",
-                        FetchProgress(
-                            current_step=progress.current_step,
-                            total_steps=progress.total_steps,
-                            message=f"{store_label}: {progress.message}",
-                        ),
-                    )
-                ),
-                target_store=target_store,
-            ),
+            run_site7_fetch,
             retry_delay_seconds=retry_delay_seconds,
             retry_status_callback=lambda retry_number, max_retries, delay_seconds: self.result_queue.put(
                 (
@@ -3080,6 +3092,8 @@ class MinRepoApp:
         self.notify_fetch_complete_button.configure(state="disabled" if self.is_busy else "normal")
         self.site7_login_button.configure(state="disabled" if self.is_busy else "normal")
         self.site7_fetch_button.configure(state="disabled" if self.is_busy else "normal")
+        can_cancel_site7_fetch = self.is_busy and self.active_operation_kind == "site7_fetch" and not self.fetch_cancel_event.is_set()
+        self.site7_cancel_button.configure(state="normal" if can_cancel_site7_fetch else "disabled")
         self.site7_browser_visible_radio.configure(state="disabled" if self.is_busy else "normal")
         self.site7_browser_hidden_radio.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_button.configure(state="disabled" if self.is_busy else "normal")

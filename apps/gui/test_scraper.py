@@ -4,6 +4,7 @@ import json
 import queue
 import threading
 import unittest
+from unittest import mock
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -37,6 +38,7 @@ from site7_scraper import (
     SITE7_TARGET_MACHINE_NAME,
     SITE7_TARGET_STORE_DISPLAY_NAMES,
     SITE7_TARGET_STORES,
+    Site7FetchCancelled,
     Site7Scraper,
     clamp_site7_recent_days,
     default_site7_store_settings,
@@ -88,6 +90,39 @@ class FakePlayableBrowser:
 
     def stop(self) -> None:
         self.stop_count += 1
+
+
+class FakeStateWidget:
+    def __init__(self) -> None:
+        self.state = ""
+
+    def configure(self, **kwargs: object) -> None:
+        if "state" in kwargs:
+            self.state = str(kwargs["state"])
+
+
+class FakeVariable:
+    def __init__(self, value: bool = False) -> None:
+        self.value = value
+
+    def get(self) -> bool:
+        return self.value
+
+
+class FakeTreeview:
+    def __init__(self, selected_items: tuple[str, ...] = ()) -> None:
+        self.selected_items = selected_items
+
+    def selection(self) -> tuple[str, ...]:
+        return self.selected_items
+
+
+class FakeWaitingPage:
+    def __init__(self) -> None:
+        self.wait_calls: list[int] = []
+
+    def wait_for_timeout(self, milliseconds: int) -> None:
+        self.wait_calls.append(milliseconds)
 
 
 class MinRepoScraperTests(unittest.TestCase):
@@ -155,6 +190,54 @@ class MinRepoScraperTests(unittest.TestCase):
 
             self.assertEqual(app._load_saved_schedule_hour(), 5)
             self.assertEqual(app._load_saved_site7_browser_mode(), SITE7_BROWSER_MODE_HIDDEN)
+
+    def test_update_button_states_enables_site7_cancel_button_while_site7_fetching(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.current_history_result = None
+        app.skip_comparison_display_var = FakeVariable(False)
+        app.fetch_cancel_event = threading.Event()
+        app.is_busy = True
+        app.active_operation_kind = "site7_fetch"
+        app.registered_store_tree = FakeTreeview()
+
+        widget_names = (
+            "fetch_button",
+            "cancel_fetch_button",
+            "target_date_entry",
+            "retry_delay_entry",
+            "schedule_hour_entry",
+            "apply_schedule_button",
+            "clear_schedule_button",
+            "comparison_day_tail_selector",
+            "comparison_focus_button",
+            "skip_comparison_display_button",
+            "notify_fetch_complete_button",
+            "site7_login_button",
+            "site7_fetch_button",
+            "site7_cancel_button",
+            "site7_browser_visible_radio",
+            "site7_browser_hidden_radio",
+            "register_store_button",
+            "register_store_url_entry",
+            "register_store_site7_button",
+            "register_store_prefecture_entry",
+            "register_store_area_entry",
+            "register_store_site7_store_name_entry",
+            "update_registered_store_button",
+            "clear_register_store_form_button",
+            "select_all_stores_button",
+            "clear_store_selection_button",
+            "refresh_registered_stores_button",
+            "delete_registered_stores_button",
+        )
+        for widget_name in widget_names:
+            setattr(app, widget_name, FakeStateWidget())
+
+        app._update_button_states()
+
+        self.assertEqual(app.cancel_fetch_button.state, "normal")
+        self.assertEqual(app.site7_fetch_button.state, "disabled")
+        self.assertEqual(app.site7_cancel_button.state, "normal")
 
     def test_run_with_fetch_retries_retries_three_times(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -414,6 +497,17 @@ class MinRepoScraperTests(unittest.TestCase):
             },
         )
 
+    def test_default_site7_store_settings_accepts_store_name_variation(self) -> None:
+        self.assertEqual(
+            default_site7_store_settings("Ａパーク春日"),
+            {
+                "site7_enabled": True,
+                "site7_prefecture": "福岡県",
+                "site7_area": "春日市",
+                "site7_store_name": "Ａパーク春日店",
+            },
+        )
+
     def test_site7_extract_target_machine_entries_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = """
@@ -529,6 +623,22 @@ class MinRepoScraperTests(unittest.TestCase):
             "https://www.d-deltanet.com/pc/HallMapSearch.do?prefecturecode=40",
         )
 
+    def test_site7_extract_prefecture_link_accepts_suffix_variation(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = """
+<!DOCTYPE html>
+<html lang="ja">
+  <body>
+    <a href="HallMapSearch.do?prefecturecode=40">福岡県</a>
+  </body>
+</html>
+"""
+
+        self.assertEqual(
+            scraper.extract_prefecture_link(html),
+            "https://www.d-deltanet.com/pc/HallMapSearch.do?prefecturecode=40",
+        )
+
     def test_site7_extract_area_link_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = find_gui_fixture("site7_fukuoka.html")
@@ -546,6 +656,22 @@ class MinRepoScraperTests(unittest.TestCase):
   <body>
     <a href="HallSearchByArea.do?prefecturecode=40&district=40133">福岡市中央区</a>
     <a href="HallSearchByArea.do?prefecturecode=40&district=40218">春日市</a>
+  </body>
+</html>
+"""
+
+        self.assertEqual(
+            scraper.extract_area_link(html, SITE7_TARGET_STORES[1]),
+            "https://www.d-deltanet.com/pc/HallSearchByArea.do?prefecturecode=40&district=40133",
+        )
+
+    def test_site7_extract_area_link_accepts_spacing_variation(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = """
+<!DOCTYPE html>
+<html lang="ja">
+  <body>
+    <a href="HallSearchByArea.do?prefecturecode=40&district=40133">福岡市 中央区</a>
   </body>
 </html>
 """
@@ -586,6 +712,22 @@ class MinRepoScraperTests(unittest.TestCase):
             scraper.extract_target_hall_search_code(html, SITE7_TARGET_STORES[1]),
             "22222222222222222222222222222222",
         )
+
+    def test_site7_wait_between_transitions_can_be_cancelled(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        page = FakeWaitingPage()
+        calls = 0
+
+        def cancel_requested() -> bool:
+            nonlocal calls
+            calls += 1
+            return calls >= 3
+
+        with mock.patch("site7_scraper.build_site7_transition_wait_milliseconds", return_value=350):
+            with self.assertRaises(Site7FetchCancelled):
+                scraper._wait_between_transitions(page, cancel_requested=cancel_requested)
+
+        self.assertEqual(page.wait_calls, [100, 100])
 
     def test_site7_parse_machine_history_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)

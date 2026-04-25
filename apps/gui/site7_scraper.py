@@ -49,6 +49,7 @@ SITE7_LOGGED_IN_URL_KEYWORDS = (
     "MypageTop.do",
     "MypageRegistProfile.do",
 )
+SITE7_LOOKUP_DROP_PATTERN = re.compile(r"[\s\u3000'\"`´’‘“”.,，．:：;；/／\\|｜!?！？\-_－ー―ｰ~〜～・･·•()\[\]{}（）［］｛｝【】「」『』〈〉<>]")
 
 
 def clamp_site7_recent_days(recent_days: int) -> int:
@@ -92,16 +93,17 @@ class Site7TargetStore:
     hall_name_aliases: tuple[str, ...] = ()
 
     @property
-    def hall_match_texts(self) -> tuple[str, ...]:
-        match_texts: list[str] = []
-        seen_texts: set[str] = set()
-        for candidate in (self.display_name, self.site7_hall_name, *self.hall_name_aliases, self.hall_address):
-            normalized_candidate = _normalize_site7_lookup_text(candidate)
-            if not normalized_candidate or normalized_candidate in seen_texts:
-                continue
-            seen_texts.add(normalized_candidate)
-            match_texts.append(str(candidate).strip())
-        return tuple(match_texts)
+    def store_name_match_keys(self) -> tuple[str, ...]:
+        return _collect_site7_lookup_keys(self.display_name, self.site7_hall_name, *self.hall_name_aliases)
+
+    @property
+    def hall_match_keys(self) -> tuple[str, ...]:
+        return _collect_site7_lookup_keys(
+            self.display_name,
+            self.site7_hall_name,
+            *self.hall_name_aliases,
+            self.hall_address,
+        )
 
     @property
     def prefecture_link_text(self) -> str:
@@ -133,8 +135,71 @@ SITE7_DEFAULT_TARGET_STORE = SITE7_TARGET_STORES[0]
 
 
 def _normalize_site7_lookup_text(value: str) -> str:
-    normalized = unicodedata.normalize("NFKC", str(value))
-    return re.sub(r"\s+", "", normalized).casefold()
+    normalized = unicodedata.normalize("NFKC", str(value)).casefold()
+    normalized = SITE7_LOOKUP_DROP_PATTERN.sub("", normalized)
+    return normalized.strip()
+
+
+def _build_site7_lookup_keys(value: str) -> tuple[str, ...]:
+    normalized = _normalize_site7_lookup_text(value)
+    if not normalized:
+        return ()
+
+    candidates = [normalized]
+    if normalized.endswith("店") and len(normalized) > 1:
+        candidates.append(normalized[:-1])
+    if normalized.endswith(("都", "府", "県")) and len(normalized) > 1:
+        candidates.append(normalized[:-1])
+
+    seen_keys: set[str] = set()
+    keys: list[str] = []
+    for candidate in candidates:
+        if not candidate or candidate in seen_keys:
+            continue
+        seen_keys.add(candidate)
+        keys.append(candidate)
+    return tuple(keys)
+
+
+def _collect_site7_lookup_keys(*values: str) -> tuple[str, ...]:
+    seen_keys: set[str] = set()
+    keys: list[str] = []
+    for value in values:
+        for key in _build_site7_lookup_keys(value):
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            keys.append(key)
+    return tuple(keys)
+
+
+def _site7_lookup_keys_match(
+    left_keys: tuple[str, ...],
+    right_keys: tuple[str, ...],
+    *,
+    allow_partial: bool = False,
+    partial_min_length: int = 4,
+) -> bool:
+    for left_key in left_keys:
+        for right_key in right_keys:
+            if left_key == right_key:
+                return True
+            if not allow_partial:
+                continue
+            if min(len(left_key), len(right_key)) < partial_min_length:
+                continue
+            if left_key in right_key or right_key in left_key:
+                return True
+    return False
+
+
+class Site7FetchCancelled(ScraperError):
+    pass
+
+
+def _raise_if_site7_cancel_requested(cancel_requested: Callable[[], bool] | None) -> None:
+    if cancel_requested is not None and cancel_requested():
+        raise Site7FetchCancelled("サイトセブン取得を中止しました。")
 
 
 def _normalize_site7_prefecture_link_text(value: str) -> str:
@@ -147,14 +212,13 @@ def _normalize_site7_prefecture_link_text(value: str) -> str:
 
 
 def find_known_site7_target_store(store_name: str) -> Site7TargetStore | None:
-    normalized_store_name = _normalize_site7_lookup_text(store_name)
-    if not normalized_store_name:
+    store_name_keys = _build_site7_lookup_keys(store_name)
+    if not store_name_keys:
         return None
 
     for target_store in SITE7_TARGET_STORES:
-        for candidate in (target_store.display_name, target_store.site7_hall_name, *target_store.hall_name_aliases):
-            if _normalize_site7_lookup_text(candidate) == normalized_store_name:
-                return target_store
+        if _site7_lookup_keys_match(target_store.store_name_match_keys, store_name_keys):
+            return target_store
     return None
 
 
@@ -263,6 +327,7 @@ class Site7Scraper:
         browser_visible: bool = False,
         progress_callback: Callable[[FetchProgress], None] | None = None,
         target_store: Site7TargetStore | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> MachineHistoryResult:
         resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
         target_days = clamp_site7_recent_days(recent_days)
@@ -274,6 +339,7 @@ class Site7Scraper:
         )
         self._require_playwright()
         self.close_visible_browser()
+        _raise_if_site7_cancel_requested(cancel_requested)
 
         playwright = None
         context = None
@@ -290,14 +356,20 @@ class Site7Scraper:
             page = context.new_page()
             if browser_visible:
                 page.bring_to_front()
-            hall_page_url, hall_html = self._open_target_hall_page(page, resolved_target_store)
+            hall_page_url, hall_html = self._open_target_hall_page(
+                page,
+                resolved_target_store,
+                cancel_requested=cancel_requested,
+            )
             store_name = self.extract_store_name(hall_html)
             target_machine_entries = self.extract_target_machine_entries(hall_html)
             total_steps = len(target_machine_entries) + 2
 
             for machine_index, machine_entry in enumerate(target_machine_entries, start=1):
+                _raise_if_site7_cancel_requested(cancel_requested)
                 if machine_index > 1:
-                    self._wait_between_transitions(page)
+                    self._wait_between_transitions(page, cancel_requested=cancel_requested)
+                    _raise_if_site7_cancel_requested(cancel_requested)
                     page.goto(hall_page_url, wait_until="domcontentloaded", timeout=60_000)
                     self._accept_cookie_banner_if_present(page)
 
@@ -307,8 +379,9 @@ class Site7Scraper:
                     total_steps,
                     f"{resolved_target_store.display_name} / {machine_entry.machine_name} のページを開いています",
                 )
-                self._wait_between_transitions(page)
-                self._open_target_machine_page(page, machine_entry)
+                self._wait_between_transitions(page, cancel_requested=cancel_requested)
+                self._open_target_machine_page(page, machine_entry, cancel_requested=cancel_requested)
+                _raise_if_site7_cancel_requested(cancel_requested)
                 page.wait_for_selector("#ata0", timeout=60_000)
                 machine_page_url = str(page.url)
                 machine_html = page.content()
@@ -328,6 +401,7 @@ class Site7Scraper:
         finally:
             self._release_browser_context(playwright, context, keep_open=keep_browser_open)
 
+        _raise_if_site7_cancel_requested(cancel_requested)
         self._notify_progress(
             progress_callback,
             len(machine_results) + 1,
@@ -549,11 +623,6 @@ class Site7Scraper:
 
     def extract_target_hall_search_code(self, html: str, target_store: Site7TargetStore | None = None) -> str:
         resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
-        normalized_match_texts = {
-            _normalize_site7_lookup_text(match_text)
-            for match_text in resolved_target_store.hall_match_texts
-            if _normalize_site7_lookup_text(match_text)
-        }
         soup = BeautifulSoup(html, "html.parser")
         for hall_link in soup.find_all("a", onclick=True):
             onclick = str(hall_link.get("onclick") or "")
@@ -569,8 +638,11 @@ class Site7Scraper:
                 hall_row = hall_link.find_parent(["tr", "li", "div"])
                 hall_text = hall_row.get_text(" ", strip=True) if hall_row is not None else hall_link.get_text(" ", strip=True)
 
-            normalized_hall_text = _normalize_site7_lookup_text(hall_text)
-            if any(match_text in normalized_hall_text for match_text in normalized_match_texts):
+            if _site7_lookup_keys_match(
+                _build_site7_lookup_keys(hall_text),
+                resolved_target_store.hall_match_keys,
+                allow_partial=True,
+            ):
                 return match.group(1)
 
         raise ScraperError(
@@ -578,11 +650,17 @@ class Site7Scraper:
         )
 
     def _extract_link_from_html(self, html: str, link_text: str, href_keyword: str = "") -> str:
+        target_link_keys = _build_site7_lookup_keys(link_text)
         soup = BeautifulSoup(html, "html.parser")
         for anchor in soup.find_all("a"):
             text = anchor.get_text(" ", strip=True)
             href = str(anchor.get("href") or "").strip()
-            if text != link_text:
+            if not _site7_lookup_keys_match(
+                _build_site7_lookup_keys(text),
+                target_link_keys,
+                allow_partial=True,
+                partial_min_length=2,
+            ):
                 continue
             if not href:
                 continue
@@ -596,33 +674,38 @@ class Site7Scraper:
         self,
         page: object,
         target_store: Site7TargetStore | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> tuple[str, str]:
         resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
+        _raise_if_site7_cancel_requested(cancel_requested)
         page.goto(SITE7_TOP_URL, wait_until="domcontentloaded", timeout=60_000)
         self._accept_cookie_banner_if_present(page)
         top_html = page.content()
-        self._wait_between_transitions(page)
+        self._wait_between_transitions(page, cancel_requested=cancel_requested)
 
         prefecture_link = self.extract_prefecture_link(top_html, resolved_target_store)
+        _raise_if_site7_cancel_requested(cancel_requested)
         page.goto(prefecture_link, wait_until="domcontentloaded", timeout=60_000)
         self._accept_cookie_banner_if_present(page)
         prefecture_html = page.content()
-        self._wait_between_transitions(page)
+        self._wait_between_transitions(page, cancel_requested=cancel_requested)
 
         area_link = self.extract_area_link(prefecture_html, resolved_target_store)
+        _raise_if_site7_cancel_requested(cancel_requested)
         page.goto(area_link, wait_until="domcontentloaded", timeout=60_000)
         self._accept_cookie_banner_if_present(page)
         area_html = page.content()
         target_hall_search_code = self.extract_target_hall_search_code(area_html, resolved_target_store)
-        self._wait_between_transitions(page)
+        self._wait_between_transitions(page, cancel_requested=cancel_requested)
 
         try:
+            _raise_if_site7_cancel_requested(cancel_requested)
             with page.expect_navigation(wait_until="domcontentloaded", timeout=60_000):
                 page.evaluate("(hallCode) => hallClick(hallCode)", target_hall_search_code)
         except PlaywrightTimeoutError:
             pass
 
-        page.wait_for_timeout(1_000)
+        self._wait_between_transitions(page, cancel_requested=cancel_requested)
         self._accept_cookie_banner_if_present(page)
         hall_html = page.content()
         hall_page_url = str(page.url)
@@ -634,8 +717,14 @@ class Site7Scraper:
 
         return hall_page_url, hall_html
 
-    def _wait_between_transitions(self, page: object) -> None:
-        page.wait_for_timeout(build_site7_transition_wait_milliseconds())
+    def _wait_between_transitions(self, page: object, cancel_requested: Callable[[], bool] | None = None) -> None:
+        remaining_milliseconds = build_site7_transition_wait_milliseconds()
+        while remaining_milliseconds > 0:
+            _raise_if_site7_cancel_requested(cancel_requested)
+            wait_milliseconds = min(100, remaining_milliseconds)
+            page.wait_for_timeout(wait_milliseconds)
+            remaining_milliseconds -= wait_milliseconds
+        _raise_if_site7_cancel_requested(cancel_requested)
 
     def _release_browser_context(self, playwright: object | None, context: object | None, keep_open: bool = False) -> None:
         if keep_open and playwright is not None and context is not None:
@@ -673,7 +762,12 @@ class Site7Scraper:
         except Exception:  # noqa: BLE001
             pass
 
-    def _open_target_machine_page(self, page: object, machine_entry: Site7MachineEntry) -> None:
+    def _open_target_machine_page(
+        self,
+        page: object,
+        machine_entry: Site7MachineEntry,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> None:
         row_locator = page.locator("tr").filter(has_text=machine_entry.display_name).first
         if row_locator.count() == 0:
             raise ScraperError(f"サイトセブンで {machine_entry.machine_name} の行が見つかりませんでした。")
@@ -687,11 +781,12 @@ class Site7Scraper:
             raise ScraperError(f"サイトセブンで {machine_entry.machine_name} の出玉ボタンが見つかりませんでした。")
 
         try:
+            _raise_if_site7_cancel_requested(cancel_requested)
             with page.expect_navigation(wait_until="domcontentloaded", timeout=60_000):
                 button_locator.click()
         except PlaywrightTimeoutError:
             pass
-        page.wait_for_timeout(1_000)
+        self._wait_between_transitions(page, cancel_requested=cancel_requested)
 
     def _extract_machine_label_from_row(self, row: Tag) -> str:
         paragraph = row.find("p")
@@ -792,12 +887,11 @@ class Site7Scraper:
         resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
         if not self._page_has_hall_content(html):
             return False
-        normalized_html = _normalize_site7_lookup_text(html)
-        for match_text in resolved_target_store.hall_match_texts:
-            normalized_match_text = _normalize_site7_lookup_text(match_text)
-            if normalized_match_text and normalized_match_text in normalized_html:
-                return True
-        return False
+        return _site7_lookup_keys_match(
+            _build_site7_lookup_keys(html),
+            resolved_target_store.hall_match_keys,
+            allow_partial=True,
+        )
 
     def _safe_page_url(self, page: object) -> str:
         try:
