@@ -346,6 +346,33 @@ class MinRepoScraperTests(unittest.TestCase):
             )
         )
 
+    def test_site7_extract_prefecture_link_from_saved_html(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = find_gui_fixture("site7_top.html")
+
+        self.assertEqual(
+            scraper.extract_prefecture_link(html),
+            "https://www.d-deltanet.com/pc/HallMapSearch.do?prefecturecode=40",
+        )
+
+    def test_site7_extract_area_link_from_saved_html(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = find_gui_fixture("site7_fukuoka.html")
+
+        self.assertEqual(
+            scraper.extract_area_link(html),
+            "https://www.d-deltanet.com/pc/HallSearchByArea.do?prefecturecode=40&district=40218",
+        )
+
+    def test_site7_extract_target_hall_search_code_from_saved_html(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = find_gui_fixture("site7_kasuga.html")
+
+        self.assertEqual(
+            scraper.extract_target_hall_search_code(html),
+            "ff3cd2a71a6cbc459c80f25b44423ba6",
+        )
+
     def test_site7_parse_machine_history_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = find_gui_fixture("site7_machine.html")

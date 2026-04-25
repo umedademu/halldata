@@ -5,6 +5,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Callable
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
 
@@ -21,13 +22,21 @@ except ImportError:  # pragma: no cover
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
+SITE7_TOP_URL = "https://www.d-deltanet.com/pc/Top.do"
 SITE7_LOGIN_URL = "https://www.d-deltanet.com/pc/MypageLoginTop.do?redirectLogin=0&skskb="
 SITE7_TARGET_HALL_URL = "https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=235def7f3ed0c81275a2bc47dc5b839a"
+SITE7_TARGET_PREFECTURE_NAME = "福岡"
+SITE7_TARGET_PREFECTURE_URL_KEYWORD = "HallMapSearch.do?prefecturecode=40"
+SITE7_TARGET_AREA_NAME = "春日市"
+SITE7_TARGET_AREA_URL_KEYWORD = "HallSearchByArea.do?prefecturecode=40&district=40218"
+SITE7_TARGET_HALL_NAME = "Ａパーク春日店"
+SITE7_TARGET_HALL_ADDRESS = "福岡県春日市日の出町５－２４"
 SITE7_TARGET_MACHINE_NAME = "ネオアイムジャグラーEX"
 SITE7_MAX_RECENT_DAYS = 8
 SITE7_BROWSER_STATE_DIR_NAME = "site7_browser"
 SITE7_UPDATE_DATE_PATTERN = re.compile(r"データ更新日時：\s*(\d{4})/(\d{1,2})/(\d{1,2})")
 SITE7_SLOT_NUMBER_PATTERN = re.compile(r"(\d+)")
+SITE7_HALL_CLICK_PATTERN = re.compile(r"hallClick\('([^']+)'\)")
 SITE7_LOGIN_URL_PATTERN = re.compile(r"(?:Mypage)?Login", re.IGNORECASE)
 SITE7_LOGGED_IN_URL_KEYWORDS = (
     "PCCreditAuth.do",
@@ -110,11 +119,10 @@ class Site7Scraper:
                     page = context.new_page()
                     if browser_visible:
                         page.bring_to_front()
-                    page.goto(SITE7_TARGET_HALL_URL, wait_until="domcontentloaded", timeout=60_000)
-                    page.wait_for_timeout(1_000)
-                    if self._page_is_login_required(page.url, page.content()):
+                    hall_page_url, hall_html = self._open_target_hall_page(page)
+                    if self._page_is_login_required(hall_page_url, hall_html):
                         return False
-                    return bool(page.locator("#hall_name").count())
+                    return self._page_has_target_hall_page(hall_page_url, hall_html)
                 finally:
                     context.close()
         except Exception:  # noqa: BLE001
@@ -127,7 +135,7 @@ class Site7Scraper:
         progress_callback: Callable[[FetchProgress], None] | None = None,
     ) -> MachineHistoryResult:
         target_days = clamp_site7_recent_days(recent_days)
-        self._notify_progress(progress_callback, 0, 4, "サイトセブンの店舗ページを開いています")
+        self._notify_progress(progress_callback, 0, 4, "サイトセブンのトップから店舗ページへ移動しています")
         self._require_playwright()
 
         try:
@@ -142,12 +150,7 @@ class Site7Scraper:
                     page = context.new_page()
                     if browser_visible:
                         page.bring_to_front()
-                    page.goto(SITE7_TARGET_HALL_URL, wait_until="domcontentloaded", timeout=60_000)
-                    page.wait_for_timeout(1_000)
-                    hall_html = page.content()
-                    if self._page_is_login_required(page.url, hall_html):
-                        raise ScraperError("サイトセブンのログインが必要です。先にサイトセブンにログインしてください。")
-
+                    hall_page_url, hall_html = self._open_target_hall_page(page)
                     store_name = self.extract_store_name(hall_html)
                     self._notify_progress(progress_callback, 1, 4, "対象機種ページを開いています")
                     self._open_target_machine_page(page)
@@ -162,7 +165,7 @@ class Site7Scraper:
         self._notify_progress(progress_callback, 2, 4, "台データを読み取っています")
         return self.parse_machine_history_html(
             machine_html,
-            store_url=SITE7_TARGET_HALL_URL,
+            store_url=hall_page_url if "hall_page_url" in locals() else SITE7_TARGET_HALL_URL,
             page_url=machine_page_url if "machine_page_url" in locals() else SITE7_TARGET_HALL_URL,
             recent_days=target_days,
             fallback_store_name=store_name,
@@ -318,6 +321,95 @@ class Site7Scraper:
         match = SITE7_SLOT_NUMBER_PATTERN.search(str(cell_text))
         return match.group(1) if match is not None else ""
 
+    def extract_prefecture_link(self, html: str) -> str:
+        return self._extract_link_from_html(
+            html,
+            link_text=SITE7_TARGET_PREFECTURE_NAME,
+            href_keyword=SITE7_TARGET_PREFECTURE_URL_KEYWORD,
+        )
+
+    def extract_area_link(self, html: str) -> str:
+        return self._extract_link_from_html(
+            html,
+            link_text=SITE7_TARGET_AREA_NAME,
+            href_keyword=SITE7_TARGET_AREA_URL_KEYWORD,
+        )
+
+    def extract_target_hall_search_code(self, html: str) -> str:
+        soup = BeautifulSoup(html, "html.parser")
+        for hall_block in soup.select("div.hall"):
+            hall_text = hall_block.get_text(" ", strip=True)
+            if SITE7_TARGET_HALL_NAME not in hall_text and SITE7_TARGET_HALL_ADDRESS not in hall_text:
+                continue
+
+            hall_link = hall_block.find("a", onclick=True)
+            if hall_link is None:
+                continue
+
+            onclick = str(hall_link.get("onclick") or "")
+            match = SITE7_HALL_CLICK_PATTERN.search(onclick)
+            if match is not None:
+                return match.group(1)
+
+        raise ScraperError(f"サイトセブンで {SITE7_TARGET_HALL_NAME} を選ぶための情報が見つかりませんでした。")
+
+    def _extract_link_from_html(self, html: str, link_text: str, href_keyword: str) -> str:
+        soup = BeautifulSoup(html, "html.parser")
+        for anchor in soup.find_all("a"):
+            text = anchor.get_text(" ", strip=True)
+            href = str(anchor.get("href") or "").strip()
+            if text != link_text:
+                continue
+            if not href or href_keyword not in href:
+                continue
+            return urljoin(SITE7_TOP_URL, href)
+
+        raise ScraperError(f"サイトセブンで {link_text} のリンクが見つかりませんでした。")
+
+    def _open_target_hall_page(self, page: object) -> tuple[str, str]:
+        page.goto(SITE7_TOP_URL, wait_until="domcontentloaded", timeout=60_000)
+        self._accept_cookie_banner_if_present(page)
+        top_html = page.content()
+
+        prefecture_link = self.extract_prefecture_link(top_html)
+        page.goto(prefecture_link, wait_until="domcontentloaded", timeout=60_000)
+        self._accept_cookie_banner_if_present(page)
+        prefecture_html = page.content()
+
+        area_link = self.extract_area_link(prefecture_html)
+        page.goto(area_link, wait_until="domcontentloaded", timeout=60_000)
+        self._accept_cookie_banner_if_present(page)
+        area_html = page.content()
+        target_hall_search_code = self.extract_target_hall_search_code(area_html)
+
+        try:
+            with page.expect_navigation(wait_until="domcontentloaded", timeout=60_000):
+                page.evaluate("(hallCode) => hallClick(hallCode)", target_hall_search_code)
+        except PlaywrightTimeoutError:
+            pass
+
+        page.wait_for_timeout(1_000)
+        self._accept_cookie_banner_if_present(page)
+        hall_html = page.content()
+        hall_page_url = str(page.url)
+
+        if self._page_is_login_required(hall_page_url, hall_html):
+            raise ScraperError("サイトセブンのログインが必要です。先にサイトセブンにログインしてください。")
+        if not self._page_has_target_hall_page(hall_page_url, hall_html):
+            raise ScraperError(f"サイトセブンで {SITE7_TARGET_HALL_NAME} の店舗ページを開けませんでした。")
+
+        return hall_page_url, hall_html
+
+    def _accept_cookie_banner_if_present(self, page: object) -> None:
+        try:
+            button_locator = page.locator("button").filter(has_text="承諾する").first
+            if button_locator.count() == 0 or not button_locator.is_visible():
+                return
+            button_locator.click(timeout=2_000)
+            page.wait_for_timeout(300)
+        except Exception:  # noqa: BLE001
+            pass
+
     def _open_target_machine_page(self, page: object) -> None:
         row_locator = page.locator("tr").filter(has_text=SITE7_TARGET_MACHINE_NAME).first
         if row_locator.count() == 0:
@@ -378,7 +470,12 @@ class Site7Scraper:
         return False
 
     def _page_has_hall_content(self, html: str) -> bool:
-        return 'id="hall_name"' in html or "HallSelectLink.do?hallcode=" in html
+        return 'id="hall_name"' in html or ('id="hall_contents"' in html and "HallSelectLink.do?hallcode=" in html)
+
+    def _page_has_target_hall_page(self, page_url: str, html: str) -> bool:
+        if not self._page_has_hall_content(html):
+            return False
+        return SITE7_TARGET_HALL_NAME in html or "id=\"hall_name\"" in html and SITE7_TARGET_HALL_ADDRESS in html
 
     def _safe_page_url(self, page: object) -> str:
         try:
