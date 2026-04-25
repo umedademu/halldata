@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import queue
 import threading
 import unittest
@@ -28,7 +29,7 @@ from main import (
     parse_recent_days,
     parse_retry_delay_seconds,
 )
-from machine_difference import calculate_machine_difference_value, canonical_machine_name
+from machine_difference import calculate_machine_difference_value, canonical_machine_name, machine_requires_slot_resolution
 from minrepo_scraper import FetchProgress, MinRepoScraper, normalize_text, parse_date_range_input
 from site7_scraper import (
     DEFAULT_SITE7_PREFECTURE_NAME,
@@ -353,7 +354,7 @@ class MinRepoScraperTests(unittest.TestCase):
             {
                 "target_date": "2026-04-07",
                 "slot_number": "687",
-                "machine_name": "SアイムジャグラーＥＸ",
+                "machine_name": "ネオアイムジャグラーEX",
                 "difference_value": -562,
                 "games_count": 5931,
                 "payout_rate": 96.8,
@@ -379,11 +380,16 @@ class MinRepoScraperTests(unittest.TestCase):
 
     def test_canonical_machine_name_matches_site7_keyword(self) -> None:
         self.assertEqual(canonical_machine_name("SアイムジャグラーＥＸ", site7_only=True), "SアイムジャグラーＥＸ")
-        self.assertEqual(canonical_machine_name("ネオアイムジャグラーEX", site7_only=True), "SアイムジャグラーＥＸ")
+        self.assertEqual(canonical_machine_name("ネオアイムジャグラーEX", site7_only=True), "ネオアイムジャグラーEX")
         self.assertEqual(canonical_machine_name("マイジャグラー", site7_only=True), "マイジャグラーV")
         self.assertEqual(canonical_machine_name("ゴーゴージャグラー3", site7_only=True), "ゴーゴージャグラー３")
         self.assertEqual(canonical_machine_name("ファンキージャグラー2", site7_only=True), "ファンキージャグラー２ＫＴ")
         self.assertEqual(canonical_machine_name("ハッピージャグラーV", site7_only=True), "ハッピージャグラーＶＩＩＩ")
+
+    def test_machine_requires_slot_resolution_for_neo_and_s(self) -> None:
+        self.assertTrue(machine_requires_slot_resolution("ネオアイムジャグラーEX"))
+        self.assertTrue(machine_requires_slot_resolution("SアイムジャグラーＥＸ"))
+        self.assertFalse(machine_requires_slot_resolution("ゴーゴージャグラー３"))
 
     def test_site7_extract_store_name_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
@@ -455,12 +461,15 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(
             [(entry.display_name, entry.machine_name) for entry in entries],
             [
-                ("ネオアイムジャグラーEX", "SアイムジャグラーＥＸ"),
+                ("ネオアイムジャグラーEX", "ネオアイムジャグラーEX"),
+                ("SアイムジャグラーＥＸ", "SアイムジャグラーＥＸ"),
                 ("マイジャグラーV", "マイジャグラーV"),
                 ("ゴーゴージャグラー3", "ゴーゴージャグラー３"),
             ],
         )
         self.assertIn("マイジャグラー", SITE7_TARGET_MACHINE_KEYWORDS)
+        self.assertIn("ネオアイムジャグラー", SITE7_TARGET_MACHINE_KEYWORDS)
+        self.assertIn("SアイムジャグラーＥＸ", SITE7_TARGET_MACHINE_KEYWORDS)
 
     def test_site7_release_browser_context_keeps_visible_browser_open(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
@@ -618,7 +627,7 @@ class MinRepoScraperTests(unittest.TestCase):
             {
                 "target_date": "2026-04-24",
                 "slot_number": "821",
-                "machine_name": "SアイムジャグラーＥＸ",
+                "machine_name": "ネオアイムジャグラーEX",
                 "difference_value": 735,
                 "games_count": 5454,
                 "payout_rate": None,
@@ -878,54 +887,97 @@ class MinRepoScraperTests(unittest.TestCase):
             )
 
     def test_find_saved_machine_targets_uses_local_snapshot(self) -> None:
-        scraper = FixtureScraper()
-        history_result = scraper.fetch_machine_history_datasets(
-            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
-            target_date_input="2026-04-07 ～ 2026-04-08",
-            machine_names=["ネオアイムジャグラーEX"],
-        )
-
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            service._save_to_supabase = lambda snapshot: len(snapshot["records"])  # type: ignore[method-assign]
             service._find_saved_machine_targets_from_supabase = lambda **kwargs: set()  # type: ignore[method-assign]
+            store_dir = Path(temp_dir) / "local_data" / "テスト店"
+            store_dir.mkdir(parents=True, exist_ok=True)
+            (store_dir / "sample.json").write_text(
+                json.dumps(
+                    {
+                        "store": {
+                            "store_name": "テスト店",
+                            "store_url": "https://example.com/store/",
+                        },
+                        "records": [
+                            {"target_date": "2026-04-07", "machine_name": "ゴーゴージャグラー3"},
+                            {"target_date": "2026-04-08", "machine_name": "ゴーゴージャグラー３"},
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
 
-            service.save_history_result(history_result)
             summary = service.find_saved_machine_targets(
-                store_name="MJアリーナ箱崎店",
-                store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+                store_name="テスト店",
+                store_url="https://example.com/store/",
                 start_date="2026-04-07",
                 end_date="2026-04-08",
-                machine_names=["ネオアイムジャグラーEX", "マイジャグラー"],
+                machine_names=["ゴーゴージャグラー"],
             )
 
             self.assertFalse(summary.has_errors)
             self.assertEqual(
                 summary.saved_targets,
                 {
-                    ("2026-04-07", normalize_text("SアイムジャグラーＥＸ")),
-                    ("2026-04-08", normalize_text("SアイムジャグラーＥＸ")),
+                    ("2026-04-07", normalize_text("ゴーゴージャグラー３")),
+                    ("2026-04-08", normalize_text("ゴーゴージャグラー３")),
                 },
             )
+
+    def test_find_saved_machine_targets_ignores_slot_resolved_machines(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            service._find_saved_machine_targets_from_supabase = lambda **kwargs: set()  # type: ignore[method-assign]
+            store_dir = Path(temp_dir) / "local_data" / "テスト店"
+            store_dir.mkdir(parents=True, exist_ok=True)
+            (store_dir / "sample.json").write_text(
+                json.dumps(
+                    {
+                        "store": {
+                            "store_name": "テスト店",
+                            "store_url": "https://example.com/store/",
+                        },
+                        "records": [
+                            {"target_date": "2026-04-07", "machine_name": "ネオアイムジャグラーEX"},
+                            {"target_date": "2026-04-08", "machine_name": "SアイムジャグラーＥＸ"},
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            summary = service.find_saved_machine_targets(
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                start_date="2026-04-07",
+                end_date="2026-04-08",
+                machine_names=["ネオアイムジャグラーEX", "SアイムジャグラーＥＸ"],
+            )
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(summary.saved_targets, set())
 
     def test_find_saved_machine_targets_supabase_uses_supabase_only(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
             service._find_saved_machine_targets_from_supabase = (  # type: ignore[method-assign]
-                lambda **kwargs: {("2026-04-25", normalize_text(SITE7_TARGET_MACHINE_NAME))}
+                lambda **kwargs: {("2026-04-25", normalize_text("ゴーゴージャグラー３"))}
             )
 
             summary = service.find_saved_machine_targets_supabase(
                 store_url="https://example.com/store",
                 start_date="2026-04-24",
                 end_date="2026-04-25",
-                machine_names=[SITE7_TARGET_MACHINE_NAME],
+                machine_names=["ゴーゴージャグラー"],
             )
 
             self.assertFalse(summary.has_errors)
             self.assertEqual(
                 summary.saved_targets,
-                {("2026-04-25", normalize_text(SITE7_TARGET_MACHINE_NAME))},
+                {("2026-04-25", normalize_text("ゴーゴージャグラー３"))},
             )
 
     def test_filter_site7_history_result_skips_saved_past_dates_but_keeps_today(self) -> None:

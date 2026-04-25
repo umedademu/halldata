@@ -13,7 +13,7 @@ from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 import requests
 
-from machine_difference import calculate_machine_difference_value, canonical_machine_name
+from machine_difference import calculate_machine_difference_value, canonical_machine_name, machine_requires_slot_resolution
 from minrepo_scraper import MachineHistoryResult, normalize_text
 from site7_scraper import DEFAULT_SITE7_PREFECTURE_NAME, default_site7_store_settings
 
@@ -94,6 +94,18 @@ def normalize_store_name_key(value: str) -> str:
 def normalize_machine_name_key(value: str) -> str:
     canonical_name = canonical_machine_name(str(value)).strip()
     return normalize_text(canonical_name)
+
+
+def normalize_saved_target_machine_name_keys(machine_names: list[str]) -> set[str]:
+    normalized_names: set[str] = set()
+    for machine_name in machine_names:
+        text = str(machine_name).strip()
+        if not text or machine_requires_slot_resolution(text):
+            continue
+        normalized_name = normalize_machine_name_key(text)
+        if normalized_name:
+            normalized_names.add(normalized_name)
+    return normalized_names
 
 
 def choose_preferred_store(candidates: list[dict[str, Any]]) -> dict[str, str] | None:
@@ -225,11 +237,7 @@ class HistoryPersistenceService:
         end_date: str,
         machine_names: list[str],
     ) -> SavedMachineTargetsSummary:
-        target_machine_names = {
-            normalize_machine_name_key(machine_name)
-            for machine_name in machine_names
-            if machine_name.strip()
-        }
+        target_machine_names = normalize_saved_target_machine_name_keys(machine_names)
         summary = SavedMachineTargetsSummary()
         if not target_machine_names:
             return summary
@@ -268,11 +276,7 @@ class HistoryPersistenceService:
         end_date: str,
         machine_names: list[str],
     ) -> SavedMachineTargetsSummary:
-        target_machine_names = {
-            normalize_machine_name_key(machine_name)
-            for machine_name in machine_names
-            if machine_name.strip()
-        }
+        target_machine_names = normalize_saved_target_machine_name_keys(machine_names)
         summary = SavedMachineTargetsSummary()
         if not target_machine_names:
             return summary

@@ -123,6 +123,13 @@ def machine_is_site7_target(machine_name: str) -> bool:
     return find_machine_difference_rule(machine_name, site7_only=True) is not None
 
 
+def machine_requires_slot_resolution(machine_name: str) -> bool:
+    rule = find_machine_difference_rule(machine_name)
+    if rule is None:
+        return False
+    return bool(rule.get("resolve_by_slot"))
+
+
 def _machine_name_matches_rule(normalized_machine_name: str, rule: dict[str, Any]) -> bool:
     for candidate_name in _rule_exact_names(rule):
         if candidate_name == normalized_machine_name:

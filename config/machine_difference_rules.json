@@ -1,15 +1,31 @@
 {
   "machine_rules": [
     {
-      "canonical_name": "SアイムジャグラーＥＸ",
+      "canonical_name": "ネオアイムジャグラーEX",
+      "resolve_by_slot": true,
       "machine_names": [
-        "SアイムジャグラーＥＸ",
-        "SアイムジャグラーEX",
         "ネオアイムジャグラーEX",
         "ネオアイムジャグラーＥＸ"
       ],
       "match_keywords": [
-        "ネオアイムジャグラー",
+        "ネオアイムジャグラー"
+      ],
+      "site7_enabled": true,
+      "investment_coins": 50,
+      "games_per_investment": 40.6,
+      "bonus_payouts": {
+        "BB": 252,
+        "RB": 96
+      }
+    },
+    {
+      "canonical_name": "SアイムジャグラーＥＸ",
+      "resolve_by_slot": true,
+      "machine_names": [
+        "SアイムジャグラーＥＸ",
+        "SアイムジャグラーEX"
+      ],
+      "match_keywords": [
         "SアイムジャグラーＥＸ",
         "SアイムジャグラーEX"
       ],
