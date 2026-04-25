@@ -33,8 +33,7 @@ except ImportError:  # pragma: no cover
 ROOT_DIR = Path(__file__).resolve().parents[2]
 SITE7_TOP_URL = "https://www.d-deltanet.com/pc/Top.do"
 SITE7_LOGIN_URL = "https://www.d-deltanet.com/pc/MypageLoginTop.do?redirectLogin=0&skskb="
-SITE7_TARGET_PREFECTURE_NAME = "福岡"
-SITE7_TARGET_PREFECTURE_URL_KEYWORD = "HallMapSearch.do?prefecturecode=40"
+DEFAULT_SITE7_PREFECTURE_NAME = "福岡県"
 SITE7_TARGET_MACHINE_NAME = "ネオアイムジャグラーEX"
 SITE7_TARGET_MACHINE_KEYWORDS = tuple(list_site7_target_machine_keywords())
 SITE7_MAX_RECENT_DAYS = 8
@@ -86,9 +85,9 @@ class Site7MachineEntry:
 class Site7TargetStore:
     display_name: str
     site7_hall_name: str
-    hall_address: str
-    area_name: str
-    area_url_keyword: str
+    prefecture_name: str = DEFAULT_SITE7_PREFECTURE_NAME
+    area_name: str = ""
+    hall_address: str = ""
     direct_hall_url: str = ""
     hall_name_aliases: tuple[str, ...] = ()
 
@@ -104,23 +103,27 @@ class Site7TargetStore:
             match_texts.append(str(candidate).strip())
         return tuple(match_texts)
 
+    @property
+    def prefecture_link_text(self) -> str:
+        return _normalize_site7_prefecture_link_text(self.prefecture_name)
+
 
 SITE7_TARGET_STORES = (
     Site7TargetStore(
         display_name="Aパーク春日店",
         site7_hall_name="Ａパーク春日店",
+        prefecture_name=DEFAULT_SITE7_PREFECTURE_NAME,
         hall_address="福岡県春日市日の出町５－２４",
         area_name="春日市",
-        area_url_keyword="HallSearchByArea.do?prefecturecode=40&district=40218",
         direct_hall_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=235def7f3ed0c81275a2bc47dc5b839a",
         hall_name_aliases=("Aパーク春日店",),
     ),
     Site7TargetStore(
         display_name="GOGOアリーナ天神",
         site7_hall_name="ＧＯＧＯアリーナ天神",
+        prefecture_name=DEFAULT_SITE7_PREFECTURE_NAME,
         hall_address="福岡県福岡市中央区天神２－６－３７",
         area_name="福岡市中央区",
-        area_url_keyword="HallSearchByArea.do?prefecturecode=40&district=40133",
         direct_hall_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=40056006",
         hall_name_aliases=("GOGOアリーナ天神",),
     ),
@@ -132,6 +135,46 @@ SITE7_DEFAULT_TARGET_STORE = SITE7_TARGET_STORES[0]
 def _normalize_site7_lookup_text(value: str) -> str:
     normalized = unicodedata.normalize("NFKC", str(value))
     return re.sub(r"\s+", "", normalized).casefold()
+
+
+def _normalize_site7_prefecture_link_text(value: str) -> str:
+    text = str(value).strip()
+    if text == "北海道":
+        return text
+    if text.endswith(("都", "府", "県")):
+        return text[:-1]
+    return text
+
+
+def find_known_site7_target_store(store_name: str) -> Site7TargetStore | None:
+    normalized_store_name = _normalize_site7_lookup_text(store_name)
+    if not normalized_store_name:
+        return None
+
+    for target_store in SITE7_TARGET_STORES:
+        for candidate in (target_store.display_name, target_store.site7_hall_name, *target_store.hall_name_aliases):
+            if _normalize_site7_lookup_text(candidate) == normalized_store_name:
+                return target_store
+    return None
+
+
+def default_site7_store_settings(store_name: str) -> dict[str, object]:
+    known_target_store = find_known_site7_target_store(store_name)
+    if known_target_store is not None:
+        return {
+            "site7_enabled": True,
+            "site7_prefecture": known_target_store.prefecture_name,
+            "site7_area": known_target_store.area_name,
+            "site7_store_name": known_target_store.site7_hall_name,
+        }
+
+    stripped_store_name = str(store_name).strip()
+    return {
+        "site7_enabled": False,
+        "site7_prefecture": DEFAULT_SITE7_PREFECTURE_NAME,
+        "site7_area": "",
+        "site7_store_name": stripped_store_name,
+    }
 
 
 class Site7Scraper:
@@ -489,10 +532,11 @@ class Site7Scraper:
         return match.group(1) if match is not None else ""
 
     def extract_prefecture_link(self, html: str, target_store: Site7TargetStore | None = None) -> str:
+        resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
         return self._extract_link_from_html(
             html,
-            link_text=SITE7_TARGET_PREFECTURE_NAME,
-            href_keyword=SITE7_TARGET_PREFECTURE_URL_KEYWORD,
+            link_text=resolved_target_store.prefecture_link_text,
+            href_keyword="HallMapSearch.do?",
         )
 
     def extract_area_link(self, html: str, target_store: Site7TargetStore | None = None) -> str:
@@ -500,7 +544,7 @@ class Site7Scraper:
         return self._extract_link_from_html(
             html,
             link_text=resolved_target_store.area_name,
-            href_keyword=resolved_target_store.area_url_keyword,
+            href_keyword="HallSearchByArea.do?",
         )
 
     def extract_target_hall_search_code(self, html: str, target_store: Site7TargetStore | None = None) -> str:
@@ -511,33 +555,38 @@ class Site7Scraper:
             if _normalize_site7_lookup_text(match_text)
         }
         soup = BeautifulSoup(html, "html.parser")
-        for hall_block in soup.select("div.hall"):
-            hall_text = hall_block.get_text(" ", strip=True)
-            normalized_hall_text = _normalize_site7_lookup_text(hall_text)
-            if not any(match_text in normalized_hall_text for match_text in normalized_match_texts):
-                continue
-
-            hall_link = hall_block.find("a", onclick=True)
-            if hall_link is None:
-                continue
-
+        for hall_link in soup.find_all("a", onclick=True):
             onclick = str(hall_link.get("onclick") or "")
             match = SITE7_HALL_CLICK_PATTERN.search(onclick)
-            if match is not None:
+            if match is None:
+                continue
+
+            hall_container = hall_link.find_parent(class_="hall")
+            hall_text = ""
+            if hall_container is not None:
+                hall_text = hall_container.get_text(" ", strip=True)
+            if not hall_text:
+                hall_row = hall_link.find_parent(["tr", "li", "div"])
+                hall_text = hall_row.get_text(" ", strip=True) if hall_row is not None else hall_link.get_text(" ", strip=True)
+
+            normalized_hall_text = _normalize_site7_lookup_text(hall_text)
+            if any(match_text in normalized_hall_text for match_text in normalized_match_texts):
                 return match.group(1)
 
         raise ScraperError(
             f"サイトセブンで {resolved_target_store.display_name} を選ぶための情報が見つかりませんでした。"
         )
 
-    def _extract_link_from_html(self, html: str, link_text: str, href_keyword: str) -> str:
+    def _extract_link_from_html(self, html: str, link_text: str, href_keyword: str = "") -> str:
         soup = BeautifulSoup(html, "html.parser")
         for anchor in soup.find_all("a"):
             text = anchor.get_text(" ", strip=True)
             href = str(anchor.get("href") or "").strip()
             if text != link_text:
                 continue
-            if not href or href_keyword not in href:
+            if not href:
+                continue
+            if href_keyword and href_keyword not in href:
                 continue
             return urljoin(SITE7_TOP_URL, href)
 

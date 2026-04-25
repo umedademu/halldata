@@ -15,6 +15,7 @@ import requests
 
 from machine_difference import calculate_machine_difference_value, canonical_machine_name
 from minrepo_scraper import MachineHistoryResult, normalize_text
+from site7_scraper import DEFAULT_SITE7_PREFECTURE_NAME, default_site7_store_settings
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -351,10 +352,10 @@ class HistoryPersistenceService:
 
         return deleted_target_count
 
-    def load_registered_stores(self) -> list[dict[str, str]]:
+    def load_registered_stores(self) -> list[dict[str, Any]]:
         return self._load_registered_stores_from_supabase()
 
-    def save_registered_stores(self, stores: list[dict[str, str]]) -> RegisteredStoresPersistenceSummary:
+    def save_registered_stores(self, stores: list[dict[str, Any]]) -> RegisteredStoresPersistenceSummary:
         normalized_stores = self._normalize_registered_stores(stores)
         summary = RegisteredStoresPersistenceSummary()
 
@@ -593,7 +594,7 @@ class HistoryPersistenceService:
 
         return len(result_payloads)
 
-    def _save_registered_stores_to_supabase(self, stores: list[dict[str, str]]) -> int:
+    def _save_registered_stores_to_supabase(self, stores: list[dict[str, Any]]) -> int:
         if not stores:
             return 0
 
@@ -604,22 +605,34 @@ class HistoryPersistenceService:
             {
                 "store_name": store["store_name"],
                 "store_url": normalize_store_url(store["store_url"]),
+                "site7_enabled": bool(store.get("site7_enabled", False)),
+                "site7_prefecture": str(store.get("site7_prefecture", "")).strip() or DEFAULT_SITE7_PREFECTURE_NAME,
+                "site7_area": str(store.get("site7_area", "")).strip(),
+                "site7_store_name": str(store.get("site7_store_name", "")).strip() or str(store["store_name"]).strip(),
                 "updated_at": now_text,
             }
             for store in stores
         ]
         endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(stores_table, safe='')}?on_conflict=store_url"
-        for payload_chunk in _chunk_items(payloads, 500):
-            response = session.post(
-                endpoint,
-                headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
-                json=payload_chunk,
-                timeout=30,
-            )
-            response.raise_for_status()
+        try:
+            for payload_chunk in _chunk_items(payloads, 500):
+                response = session.post(
+                    endpoint,
+                    headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
+                    json=payload_chunk,
+                    timeout=30,
+                )
+                response.raise_for_status()
+        except requests.HTTPError as exc:
+            if exc.response is not None and exc.response.status_code == 400:
+                raise RuntimeError(
+                    "stores テーブルにサイトセブン用の列がありません。"
+                    " 追加用SQLを適用してから再度保存してください。"
+                ) from exc
+            raise
         return len(payloads)
 
-    def _load_registered_stores_from_supabase(self) -> list[dict[str, str]]:
+    def _load_registered_stores_from_supabase(self) -> list[dict[str, Any]]:
         supabase_url, _, schema, stores_table, _ = self._supabase_config()
         session = self._create_supabase_session(schema)
         endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(stores_table, safe='')}"
@@ -627,25 +640,51 @@ class HistoryPersistenceService:
         offset = 0
         page_size = 1000
 
-        while True:
-            response = session.get(
-                endpoint,
-                params={
-                    "select": "store_name,store_url",
-                    "order": "store_name.asc",
-                    "limit": str(page_size),
-                    "offset": str(offset),
-                },
-                timeout=30,
-            )
-            response.raise_for_status()
-            chunk = response.json()
-            if not chunk:
-                break
-            rows.extend(chunk)
-            if len(chunk) < page_size:
-                break
-            offset += page_size
+        try:
+            while True:
+                response = session.get(
+                    endpoint,
+                    params={
+                        "select": "store_name,store_url,site7_enabled,site7_prefecture,site7_area,site7_store_name",
+                        "order": "store_name.asc",
+                        "limit": str(page_size),
+                        "offset": str(offset),
+                    },
+                    timeout=30,
+                )
+                response.raise_for_status()
+                chunk = response.json()
+                if not chunk:
+                    break
+                rows.extend(chunk)
+                if len(chunk) < page_size:
+                    break
+                offset += page_size
+        except requests.HTTPError as exc:
+            if exc.response is None or exc.response.status_code != 400:
+                raise
+
+            rows = []
+            offset = 0
+            while True:
+                response = session.get(
+                    endpoint,
+                    params={
+                        "select": "store_name,store_url",
+                        "order": "store_name.asc",
+                        "limit": str(page_size),
+                        "offset": str(offset),
+                    },
+                    timeout=30,
+                )
+                response.raise_for_status()
+                chunk = response.json()
+                if not chunk:
+                    break
+                rows.extend(chunk)
+                if len(chunk) < page_size:
+                    break
+                offset += page_size
 
         return self._normalize_registered_stores(rows)
 
@@ -897,9 +936,9 @@ class HistoryPersistenceService:
             local_dir = self.root_dir / local_dir
         return local_dir
 
-    def _normalize_registered_stores(self, stores: list[dict[str, Any]]) -> list[dict[str, str]]:
-        normalized_stores: list[dict[str, str]] = []
-        seen_keys: set[tuple[str, str]] = set()
+    def _normalize_registered_stores(self, stores: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        normalized_stores: list[dict[str, Any]] = []
+        seen_store_urls: set[str] = set()
 
         for store in stores:
             if not isinstance(store, dict):
@@ -910,14 +949,24 @@ class HistoryPersistenceService:
             if not store_url:
                 continue
 
-            dedupe_key = (store_url,)
-            if dedupe_key in seen_keys:
+            site7_defaults = default_site7_store_settings(store_name)
+            if store_url in seen_store_urls:
                 continue
-            seen_keys.add(dedupe_key)
+            seen_store_urls.add(store_url)
             normalized_stores.append(
                 {
                     "store_name": store_name,
                     "store_url": store_url,
+                    "site7_enabled": _coerce_bool(store.get("site7_enabled", site7_defaults["site7_enabled"])),
+                    "site7_prefecture": str(
+                        store.get("site7_prefecture", site7_defaults["site7_prefecture"])
+                    ).strip()
+                    or DEFAULT_SITE7_PREFECTURE_NAME,
+                    "site7_area": str(store.get("site7_area", site7_defaults["site7_area"])).strip(),
+                    "site7_store_name": str(
+                        store.get("site7_store_name", site7_defaults["site7_store_name"])
+                    ).strip()
+                    or store_name,
                 }
             )
 
@@ -1010,6 +1059,20 @@ def _parse_percent_value(value: str) -> float | None:
 def _parse_text_value(value: str) -> str | None:
     normalized = str(value).strip()
     return normalized or None
+
+
+def _coerce_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "on", "t"}:
+        return True
+    if text in {"0", "false", "no", "off", "f", ""}:
+        return False
+    return bool(text)
 
 
 def _normalize_difference_value_for_supabase(value: Any) -> int | None:

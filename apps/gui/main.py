@@ -42,12 +42,12 @@ from minrepo_scraper import (
     normalize_text,
 )
 from site7_scraper import (
+    DEFAULT_SITE7_PREFECTURE_NAME,
     SITE7_MAX_RECENT_DAYS,
     SITE7_TARGET_MACHINE_KEYWORDS,
-    SITE7_TARGET_STORE_DISPLAY_NAMES,
-    SITE7_TARGET_STORES,
     Site7Scraper,
     Site7TargetStore,
+    default_site7_store_settings,
 )
 
 
@@ -61,7 +61,7 @@ GUI_SETTINGS_FILE_NAME = "gui_settings.json"
 SITE7_BROWSER_MODE_VISIBLE = "visible"
 SITE7_BROWSER_MODE_HIDDEN = "hidden"
 JST = timezone(timedelta(hours=9))
-REGISTERED_STORE_COLUMNS = ("取得対象", "店舗名", "URL")
+REGISTERED_STORE_COLUMNS = ("取得対象", "サイトセブン", "店舗名", "URL", "都道府県", "地域", "SS店舗名")
 COMPARISON_SUBCOLUMNS = ("機種名", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率")
 COMPARISON_DAY_TAIL_OPTIONS = ("全て", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
 T = TypeVar("T")
@@ -178,6 +178,22 @@ def filter_site7_history_result_by_saved_targets(
 class RegisteredStore:
     name: str
     url: str
+    site7_enabled: bool = False
+    site7_prefecture: str = DEFAULT_SITE7_PREFECTURE_NAME
+    site7_area: str = ""
+    site7_store_name: str = ""
+
+    def resolved_site7_store_name(self) -> str:
+        return self.site7_store_name.strip() or self.name.strip()
+
+    def to_site7_target_store(self) -> Site7TargetStore:
+        return Site7TargetStore(
+            display_name=self.name.strip() or self.resolved_site7_store_name(),
+            site7_hall_name=self.resolved_site7_store_name(),
+            prefecture_name=self.site7_prefecture.strip() or DEFAULT_SITE7_PREFECTURE_NAME,
+            area_name=self.site7_area.strip(),
+            hall_name_aliases=(self.name.strip(),) if self.name.strip() else (),
+        )
 
 
 class FetchCancelled(Exception):
@@ -266,6 +282,10 @@ class MinRepoApp:
         self.notify_fetch_complete_var = tk.BooleanVar(value=True)
         self.comparison_day_tail_var = tk.StringVar(value="全て")
         self.register_store_url_var = tk.StringVar()
+        self.register_store_site7_enabled_var = tk.BooleanVar(value=False)
+        self.register_store_prefecture_var = tk.StringVar(value=DEFAULT_SITE7_PREFECTURE_NAME)
+        self.register_store_area_var = tk.StringVar()
+        self.register_store_site7_store_name_var = tk.StringVar()
         self.register_store_status_var = tk.StringVar(value="未登録")
         self.site7_browser_mode_var = tk.StringVar(value=self.site7_browser_mode)
         self.site7_status_var = tk.StringVar(
@@ -366,7 +386,7 @@ class MinRepoApp:
         ttk.Label(
             site7_row,
             text=(
-                f"固定対象は {'、'.join(SITE7_TARGET_STORE_DISPLAY_NAMES)} の対象ジャグラー機種です。"
+                "登録店舗タブでサイトセブン列にチェックを入れた店舗の対象ジャグラー機種を取得します。"
                 f" 対象語は {'、'.join(SITE7_TARGET_MACHINE_KEYWORDS)} です。"
                 f" 直近日数は最大 {SITE7_MAX_RECENT_DAYS} 日まで使えます。"
                 " ログイン操作は常に表示で開きます。"
@@ -769,21 +789,52 @@ class MinRepoApp:
         form = ttk.LabelFrame(register_tab, text="店舗を登録", padding=12)
         form.grid(row=1, column=0, sticky="nsew", pady=(12, 0))
         form.columnconfigure(1, weight=1)
-        form.rowconfigure(2, weight=1)
+        form.rowconfigure(6, weight=1)
 
         ttk.Label(form, text="店舗URL").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=4)
         self.register_store_url_entry = ttk.Entry(form, textvariable=self.register_store_url_var)
         self.register_store_url_entry.grid(row=0, column=1, sticky="ew", pady=4)
 
+        self.register_store_site7_button = ttk.Checkbutton(
+            form,
+            text="この店舗をサイトセブン取得の対象にする",
+            variable=self.register_store_site7_enabled_var,
+        )
+        self.register_store_site7_button.grid(row=1, column=1, sticky="w", pady=4)
+
+        ttk.Label(form, text="都道府県").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.register_store_prefecture_entry = ttk.Entry(form, textvariable=self.register_store_prefecture_var)
+        self.register_store_prefecture_entry.grid(row=2, column=1, sticky="ew", pady=4)
+
+        ttk.Label(form, text="地域").grid(row=3, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.register_store_area_entry = ttk.Entry(form, textvariable=self.register_store_area_var)
+        self.register_store_area_entry.grid(row=3, column=1, sticky="ew", pady=4)
+
+        ttk.Label(form, text="SS店舗名").grid(row=4, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.register_store_site7_store_name_entry = ttk.Entry(form, textvariable=self.register_store_site7_store_name_var)
+        self.register_store_site7_store_name_entry.grid(row=4, column=1, sticky="ew", pady=4)
+
         action_row = ttk.Frame(form)
-        action_row.grid(row=1, column=1, sticky="w", pady=(8, 8))
+        action_row.grid(row=5, column=1, sticky="w", pady=(8, 8))
         self.register_store_button = ttk.Button(action_row, text="登録する", command=self.register_store)
         self.register_store_button.grid(row=0, column=0, sticky="w")
+        self.update_registered_store_button = ttk.Button(
+            action_row,
+            text="選択行を更新",
+            command=self.update_registered_store,
+        )
+        self.update_registered_store_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
+        self.clear_register_store_form_button = ttk.Button(
+            action_row,
+            text="入力欄をクリア",
+            command=self.clear_register_store_form,
+        )
+        self.clear_register_store_form_button.grid(row=0, column=2, sticky="w", padx=(8, 0))
 
-        ttk.Label(action_row, textvariable=self.register_store_status_var).grid(row=0, column=1, sticky="w", padx=(12, 0))
+        ttk.Label(action_row, textvariable=self.register_store_status_var).grid(row=0, column=3, sticky="w", padx=(12, 0))
 
         table_frame = ttk.LabelFrame(form, text="登録済み一覧", padding=8)
-        table_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
+        table_frame.grid(row=6, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
         table_frame.columnconfigure(0, weight=1)
         table_frame.rowconfigure(1, weight=1)
 
@@ -824,13 +875,13 @@ class MinRepoApp:
 
         for column in REGISTERED_STORE_COLUMNS:
             self.registered_store_tree.heading(column, text=column)
-            if column == "取得対象":
+            if column in {"取得対象", "サイトセブン"}:
                 self.registered_store_tree.column(column, width=80, minwidth=80, anchor="center")
                 continue
             self.registered_store_tree.column(
                 column,
-                width=220 if column == "店舗名" else 760,
-                minwidth=120,
+                width=220 if column == "店舗名" else 180 if column in {"都道府県", "地域", "SS店舗名"} else 520,
+                minwidth=120 if column != "URL" else 280,
                 anchor="w",
             )
         self.registered_store_tree.bind("<Button-1>", self._on_registered_store_tree_click)
@@ -852,12 +903,19 @@ class MinRepoApp:
             return self._default_registered_stores()
 
     def _default_registered_stores(self) -> list[RegisteredStore]:
-        return [RegisteredStore(name=DEFAULT_STORE_NAME, url=DEFAULT_STORE_URL)]
+        return [self._build_registered_store(DEFAULT_STORE_NAME, DEFAULT_STORE_URL)]
 
     def _load_latest_registered_stores(self) -> list[RegisteredStore]:
         saved_stores = self.persistence_service.load_registered_stores()
         return [
-            RegisteredStore(name=store["store_name"], url=store["store_url"])
+            self._build_registered_store(
+                store_name=store["store_name"],
+                store_url=store["store_url"],
+                site7_enabled=bool(store.get("site7_enabled", False)),
+                site7_prefecture=str(store.get("site7_prefecture", DEFAULT_SITE7_PREFECTURE_NAME)),
+                site7_area=str(store.get("site7_area", "")),
+                site7_store_name=str(store.get("site7_store_name", "")),
+            )
             for store in saved_stores
         ]
 
@@ -947,7 +1005,16 @@ class MinRepoApp:
                 completed_stores.append(registered_store)
                 continue
 
-            completed_stores.append(RegisteredStore(name=store_name, url=registered_store.url))
+            completed_stores.append(
+                self._build_registered_store(
+                    store_name=store_name,
+                    store_url=registered_store.url,
+                    site7_enabled=registered_store.site7_enabled,
+                    site7_prefecture=registered_store.site7_prefecture,
+                    site7_area=registered_store.site7_area,
+                    site7_store_name=registered_store.site7_store_name,
+                )
+            )
             changed = True
 
         if changed:
@@ -961,14 +1028,16 @@ class MinRepoApp:
         return StoreRefreshResult(registered_stores=completed_stores, save_summary=save_summary)
 
     def register_store(self) -> None:
-        store_url = self.register_store_url_var.get().strip()
-
-        if not store_url:
-            messagebox.showwarning("入力不足", "店舗URLを入力してください。")
-            return
-
-        if not self._is_valid_url(store_url):
-            messagebox.showwarning("入力不正", "店舗URLは http:// または https:// から入力してください。")
+        try:
+            (
+                store_url,
+                site7_enabled,
+                site7_prefecture,
+                site7_area,
+                site7_store_name,
+            ) = self._validated_register_store_form_input()
+        except ScraperError as exc:
+            self._show_error(exc)
             return
 
         normalized_url = normalize_store_url(store_url)
@@ -978,14 +1047,123 @@ class MinRepoApp:
                 return
 
         self.register_store_status_var.set("店舗名を取得中...")
-        self._start_worker(self._worker_register_store, store_url)
+        self._start_worker(
+            self._worker_register_store,
+            store_url,
+            site7_enabled,
+            site7_prefecture,
+            site7_area,
+            site7_store_name,
+        )
 
-    def _worker_register_store(self, store_url: str) -> None:
+    def update_registered_store(self) -> None:
+        target_stores = self._selected_registered_store_rows()
+        if len(target_stores) != 1:
+            messagebox.showwarning("入力不足", "更新する店舗を一覧から1つだけ選んでください。")
+            return
+
+        try:
+            (
+                store_url,
+                site7_enabled,
+                site7_prefecture,
+                site7_area,
+                site7_store_name,
+            ) = self._validated_register_store_form_input()
+        except ScraperError as exc:
+            self._show_error(exc)
+            return
+
+        target_store = target_stores[0]
+        if normalize_store_url(store_url) == normalize_store_url(target_store.url):
+            self._replace_registered_store_entry(
+                original_store=target_store,
+                store_name=target_store.name,
+                store_url=store_url,
+                site7_enabled=site7_enabled,
+                site7_prefecture=site7_prefecture,
+                site7_area=site7_area,
+                site7_store_name=site7_store_name,
+            )
+            return
+
+        self.register_store_status_var.set("更新先URLの店舗名を取得中...")
+        self._start_worker(
+            self._worker_update_registered_store,
+            target_store.url,
+            store_url,
+            site7_enabled,
+            site7_prefecture,
+            site7_area,
+            site7_store_name,
+        )
+
+    def clear_register_store_form(self) -> None:
+        self.register_store_url_var.set("")
+        self.register_store_site7_enabled_var.set(False)
+        self.register_store_prefecture_var.set(DEFAULT_SITE7_PREFECTURE_NAME)
+        self.register_store_area_var.set("")
+        self.register_store_site7_store_name_var.set("")
+        if hasattr(self, "registered_store_tree"):
+            selected_items = self.registered_store_tree.selection()
+            if selected_items:
+                self.registered_store_tree.selection_remove(*selected_items)
+        self.register_store_status_var.set("入力欄をクリアしました")
+        self._update_button_states()
+
+    def _worker_register_store(
+        self,
+        store_url: str,
+        site7_enabled: bool,
+        site7_prefecture: str,
+        site7_area: str,
+        site7_store_name: str,
+    ) -> None:
         try:
             store_name = self.scraper.fetch_store_name(store_url)
-            self.result_queue.put(("register_store_success", (store_name, store_url)))
+            self.result_queue.put(
+                (
+                    "register_store_success",
+                    (
+                        store_name,
+                        store_url,
+                        site7_enabled,
+                        site7_prefecture,
+                        site7_area,
+                        site7_store_name,
+                    ),
+                )
+            )
         except Exception as exc:  # noqa: BLE001
             self.result_queue.put(("register_store_error", exc))
+
+    def _worker_update_registered_store(
+        self,
+        original_store_url: str,
+        store_url: str,
+        site7_enabled: bool,
+        site7_prefecture: str,
+        site7_area: str,
+        site7_store_name: str,
+    ) -> None:
+        try:
+            store_name = self.scraper.fetch_store_name(store_url)
+            self.result_queue.put(
+                (
+                    "update_registered_store_success",
+                    (
+                        original_store_url,
+                        store_name,
+                        store_url,
+                        site7_enabled,
+                        site7_prefecture,
+                        site7_area,
+                        site7_store_name,
+                    ),
+                )
+            )
+        except Exception as exc:  # noqa: BLE001
+            self.result_queue.put(("update_registered_store_error", exc))
 
     def fetch_site7_data(self) -> None:
         try:
@@ -1012,6 +1190,15 @@ class MinRepoApp:
                 self.site7_login()
             return
 
+        try:
+            target_stores = self._selected_site7_registered_stores()
+        except ScraperError as exc:
+            self._show_error(exc)
+            return
+        if not target_stores:
+            messagebox.showwarning("入力不足", "登録店舗タブでサイトセブン列にチェックを入れた店舗を1つ以上用意してください。")
+            return
+
         self.current_results = []
         self.current_history_result = None
         self.comparison_rows = []
@@ -1021,20 +1208,28 @@ class MinRepoApp:
         self._clear_comparison_table()
         self._begin_fetch_progress("サイトセブンへ接続中...")
         self.status_var.set("サイトセブン取得中...")
-        self.summary_var.set(f"{len(SITE7_TARGET_STORES)}店舗の対象ジャグラー機種をサイトセブンから取得中")
+        self.summary_var.set(f"{len(target_stores)}店舗の対象ジャグラー機種をサイトセブンから取得中")
         self.fetch_cancel_event.clear()
         browser_visible = self._site7_browser_visible()
         self._start_worker(
             self._worker_fetch_site7,
+            target_stores,
             recent_days,
             retry_delay_seconds,
             browser_visible,
             operation_kind="site7_fetch",
         )
 
-    def _worker_fetch_site7(self, recent_days: int, retry_delay_seconds: int, browser_visible: bool) -> None:
+    def _worker_fetch_site7(
+        self,
+        target_stores: list[RegisteredStore],
+        recent_days: int,
+        retry_delay_seconds: int,
+        browser_visible: bool,
+    ) -> None:
         try:
             fetch_many_result = self._run_site7_fetch_many(
+                target_stores=target_stores,
                 recent_days=recent_days,
                 retry_delay_seconds=retry_delay_seconds,
                 browser_visible=browser_visible,
@@ -1050,28 +1245,25 @@ class MinRepoApp:
 
     def _run_site7_fetch_many(
         self,
+        target_stores: list[RegisteredStore],
         recent_days: int,
         retry_delay_seconds: int,
         browser_visible: bool,
     ) -> FetchManyResult:
         results: list[StoreFetchResult] = []
         failures: list[StoreFetchFailure] = []
-        total_stores = len(SITE7_TARGET_STORES)
+        total_stores = len(target_stores)
         cancelled = False
 
-        for store_index, target_store in enumerate(SITE7_TARGET_STORES, start=1):
+        for store_index, registered_store in enumerate(target_stores, start=1):
             if self.fetch_cancel_event.is_set():
                 cancelled = True
                 break
 
-            registered_store = RegisteredStore(
-                name=target_store.display_name,
-                url=target_store.direct_hall_url or "https://www.d-deltanet.com/pc/Top.do",
-            )
             try:
                 results.append(
                     self._fetch_single_site7_store(
-                        target_store=target_store,
+                        registered_store=registered_store,
                         recent_days=recent_days,
                         store_index=store_index,
                         total_stores=total_stores,
@@ -1106,7 +1298,7 @@ class MinRepoApp:
 
     def _fetch_single_site7_store(
         self,
-        target_store: Site7TargetStore,
+        registered_store: RegisteredStore,
         recent_days: int,
         store_index: int,
         total_stores: int,
@@ -1114,7 +1306,8 @@ class MinRepoApp:
         browser_visible: bool,
     ) -> StoreFetchResult:
         self._raise_if_fetch_cancelled()
-        store_label = f"{store_index}/{total_stores} {target_store.display_name}"
+        target_store = registered_store.to_site7_target_store()
+        store_label = f"{store_index}/{total_stores} {registered_store.name}"
         history_result = self._run_with_fetch_retries(
             lambda: self.site7_scraper.fetch_target_machine_history(
                 recent_days=recent_days,
@@ -1147,6 +1340,11 @@ class MinRepoApp:
             ),
         )
         self._raise_if_fetch_cancelled()
+        history_result = rewrite_history_result_store(
+            history_result,
+            store_name=registered_store.name,
+            store_url=registered_store.url,
+        )
         self.result_queue.put(
             (
                 "fetch_progress",
@@ -1539,14 +1737,74 @@ class MinRepoApp:
         if kind == "register_store_success":
             if (
                 not isinstance(payload, tuple)
-                or len(payload) != 2
+                or len(payload) != 6
                 or not isinstance(payload[0], str)
                 or not isinstance(payload[1], str)
             ):
                 messagebox.showerror("エラー", "登録店舗の形式が不正です。")
                 return
-            store_name, store_url = payload
-            self._apply_registered_store(store_name, store_url)
+            (
+                store_name,
+                store_url,
+                site7_enabled,
+                site7_prefecture,
+                site7_area,
+                site7_store_name,
+            ) = payload
+            self._apply_registered_store(
+                store_name,
+                store_url,
+                bool(site7_enabled),
+                str(site7_prefecture),
+                str(site7_area),
+                str(site7_store_name),
+            )
+            return
+
+        if kind == "update_registered_store_error":
+            self.register_store_status_var.set("店舗更新に失敗しました")
+            self._show_error(payload)
+            return
+
+        if kind == "update_registered_store_success":
+            if (
+                not isinstance(payload, tuple)
+                or len(payload) != 7
+                or not isinstance(payload[0], str)
+                or not isinstance(payload[1], str)
+                or not isinstance(payload[2], str)
+            ):
+                messagebox.showerror("エラー", "更新店舗の形式が不正です。")
+                return
+            (
+                original_store_url,
+                store_name,
+                store_url,
+                site7_enabled,
+                site7_prefecture,
+                site7_area,
+                site7_store_name,
+            ) = payload
+            original_store = next(
+                (
+                    registered_store
+                    for registered_store in self.registered_stores
+                    if normalize_store_url(registered_store.url) == normalize_store_url(original_store_url)
+                ),
+                None,
+            )
+            if original_store is None:
+                messagebox.showerror("エラー", "更新対象の店舗が見つかりませんでした。")
+                return
+            self._replace_registered_store_entry(
+                original_store=original_store,
+                store_name=store_name,
+                store_url=store_url,
+                site7_enabled=bool(site7_enabled),
+                site7_prefecture=str(site7_prefecture),
+                site7_area=str(site7_area),
+                site7_store_name=str(site7_store_name),
+            )
             return
 
         if kind == "refresh_registered_stores_error":
@@ -2087,8 +2345,12 @@ class MinRepoApp:
                 iid=f"registered_store_{index}",
                 values=(
                     self._registered_store_target_marker(registered_store),
+                    self._registered_store_site7_marker(registered_store),
                     self._registered_store_display_name(registered_store),
                     registered_store.url,
+                    registered_store.site7_prefecture,
+                    registered_store.site7_area,
+                    registered_store.resolved_site7_store_name(),
                 ),
             )
         self._update_button_states()
@@ -2127,8 +2389,19 @@ class MinRepoApp:
     def _registered_store_target_marker(self, registered_store: RegisteredStore) -> str:
         return "☑" if normalize_store_url(registered_store.url) in self.selected_store_urls else "☐"
 
+    def _registered_store_site7_marker(self, registered_store: RegisteredStore) -> str:
+        return "☑" if registered_store.site7_enabled else "☐"
+
     def _registered_store_display_name(self, registered_store: RegisteredStore) -> str:
         return registered_store.name.strip() or "（店舗名未取得）"
+
+    def _load_registered_store_form(self, registered_store: RegisteredStore) -> None:
+        self.register_store_url_var.set(registered_store.url)
+        self.register_store_site7_enabled_var.set(registered_store.site7_enabled)
+        self.register_store_prefecture_var.set(registered_store.site7_prefecture or DEFAULT_SITE7_PREFECTURE_NAME)
+        self.register_store_area_var.set(registered_store.site7_area)
+        self.register_store_site7_store_name_var.set(registered_store.resolved_site7_store_name())
+        self.register_store_status_var.set(f"{self._registered_store_display_name(registered_store)} を編集中")
 
     def _selected_registered_stores(self) -> list[RegisteredStore]:
         return [
@@ -2178,6 +2451,9 @@ class MinRepoApp:
         )
 
     def _on_registered_store_selection_changed(self, _: tk.Event[tk.Misc]) -> None:
+        selected_rows = self._selected_registered_store_rows()
+        if len(selected_rows) == 1:
+            self._load_registered_store_form(selected_rows[0])
         self._update_button_states()
 
     def _on_registered_store_tree_click(self, event: tk.Event[tk.Misc]) -> str | None:
@@ -2187,14 +2463,18 @@ class MinRepoApp:
         if self.registered_store_tree.identify_region(event.x, event.y) != "cell":
             return None
 
-        if self.registered_store_tree.identify_column(event.x) != "#1":
+        column_id = self.registered_store_tree.identify_column(event.x)
+        if column_id not in {"#1", "#2"}:
             return None
 
         item_id = self.registered_store_tree.identify_row(event.y)
         if not item_id:
             return None
 
-        self._toggle_registered_store_target(item_id)
+        if column_id == "#1":
+            self._toggle_registered_store_target(item_id)
+        else:
+            self._toggle_registered_store_site7(item_id)
         return "break"
 
     def _toggle_registered_store_target(self, item_id: str) -> None:
@@ -2220,6 +2500,19 @@ class MinRepoApp:
         self.registered_store_tree.set(item_id, "取得対象", self._registered_store_target_marker(registered_store))
         self._reset_fetch_display_for_store_change()
 
+    def _toggle_registered_store_site7(self, item_id: str) -> None:
+        registered_store = self._registered_store_from_item_id(item_id)
+        if registered_store is None:
+            return
+
+        registered_store.site7_enabled = not registered_store.site7_enabled
+        self.registered_store_tree.set(item_id, "サイトセブン", self._registered_store_site7_marker(registered_store))
+        save_summary = self._persist_registered_stores()
+        if save_summary.has_errors:
+            messagebox.showwarning("登録店舗", "\n\n".join(save_summary.messages))
+        self._load_registered_store_form(registered_store)
+        self._update_button_states()
+
     def _select_all_registered_stores(self) -> None:
         self.selected_store_urls = {
             normalize_store_url(registered_store.url)
@@ -2233,7 +2526,54 @@ class MinRepoApp:
         self._refresh_registered_store_table()
         self._reset_fetch_display_for_store_change()
 
-    def _apply_registered_store(self, store_name: str, store_url: str) -> None:
+    def _validated_register_store_form_input(self) -> tuple[str, bool, str, str, str]:
+        store_url = self.register_store_url_var.get().strip()
+        site7_enabled = bool(self.register_store_site7_enabled_var.get())
+        site7_prefecture = self.register_store_prefecture_var.get().strip() or DEFAULT_SITE7_PREFECTURE_NAME
+        site7_area = self.register_store_area_var.get().strip()
+        site7_store_name = self.register_store_site7_store_name_var.get().strip()
+
+        if not store_url:
+            raise ScraperError("店舗URLを入力してください。")
+        if not self._is_valid_url(store_url):
+            raise ScraperError("店舗URLは http:// または https:// から入力してください。")
+        if site7_enabled and not site7_area:
+            raise ScraperError("サイトセブン取得を使う場合は地域を入力してください。")
+
+        return store_url, site7_enabled, site7_prefecture, site7_area, site7_store_name
+
+    def _build_registered_store(
+        self,
+        store_name: str,
+        store_url: str,
+        site7_enabled: bool | None = None,
+        site7_prefecture: str = "",
+        site7_area: str = "",
+        site7_store_name: str = "",
+    ) -> RegisteredStore:
+        defaults = default_site7_store_settings(store_name)
+        resolved_site7_enabled = defaults["site7_enabled"] if site7_enabled is None else bool(site7_enabled)
+        resolved_site7_prefecture = site7_prefecture.strip() or str(defaults["site7_prefecture"]).strip() or DEFAULT_SITE7_PREFECTURE_NAME
+        resolved_site7_area = site7_area.strip() or str(defaults["site7_area"]).strip()
+        resolved_site7_store_name = site7_store_name.strip() or str(defaults["site7_store_name"]).strip() or store_name.strip()
+        return RegisteredStore(
+            name=store_name,
+            url=normalize_store_url(store_url),
+            site7_enabled=bool(resolved_site7_enabled),
+            site7_prefecture=resolved_site7_prefecture,
+            site7_area=resolved_site7_area,
+            site7_store_name=resolved_site7_store_name,
+        )
+
+    def _apply_registered_store(
+        self,
+        store_name: str,
+        store_url: str,
+        site7_enabled: bool = False,
+        site7_prefecture: str = DEFAULT_SITE7_PREFECTURE_NAME,
+        site7_area: str = "",
+        site7_store_name: str = "",
+    ) -> None:
         normalized_name = normalize_text(store_name)
         normalized_url = normalize_store_url(store_url)
         for registered_store in self.registered_stores:
@@ -2242,9 +2582,17 @@ class MinRepoApp:
                 self.register_store_status_var.set("登録済みの店舗です")
                 return
 
-        self.registered_stores.append(RegisteredStore(name=store_name, url=normalized_url))
+        registered_store = self._build_registered_store(
+            store_name=store_name,
+            store_url=normalized_url,
+            site7_enabled=site7_enabled,
+            site7_prefecture=site7_prefecture,
+            site7_area=site7_area,
+            site7_store_name=site7_store_name,
+        )
+        self.registered_stores.append(registered_store)
         self.selected_store_urls.add(normalized_url)
-        self.register_store_url_var.set("")
+        self.clear_register_store_form()
         self._refresh_registered_store_table()
         save_summary = self._persist_registered_stores()
         if save_summary.has_errors:
@@ -2254,6 +2602,63 @@ class MinRepoApp:
 
         self.register_store_status_var.set(f"{store_name} を登録しました")
 
+    def _replace_registered_store_entry(
+        self,
+        original_store: RegisteredStore,
+        store_name: str,
+        store_url: str,
+        site7_enabled: bool,
+        site7_prefecture: str,
+        site7_area: str,
+        site7_store_name: str,
+    ) -> None:
+        normalized_name = normalize_text(store_name)
+        normalized_url = normalize_store_url(store_url)
+        for registered_store in self.registered_stores:
+            if registered_store is original_store:
+                continue
+            if normalize_text(registered_store.name) == normalized_name or normalize_store_url(registered_store.url) == normalized_url:
+                messagebox.showwarning("重複", "同じ店舗名またはURLがすでに登録されています。")
+                self.register_store_status_var.set("登録済みの店舗です")
+                return
+
+        updated_store = self._build_registered_store(
+            store_name=store_name,
+            store_url=store_url,
+            site7_enabled=site7_enabled,
+            site7_prefecture=site7_prefecture,
+            site7_area=site7_area,
+            site7_store_name=site7_store_name,
+        )
+        updated_registered_stores = [
+            updated_store if registered_store is original_store else registered_store
+            for registered_store in self.registered_stores
+        ]
+        previously_selected = normalize_store_url(original_store.url) in self.selected_store_urls
+        if previously_selected:
+            self.selected_store_urls.discard(normalize_store_url(original_store.url))
+            self.selected_store_urls.add(normalize_store_url(updated_store.url))
+        self.registered_stores = updated_registered_stores
+        self._refresh_registered_store_table()
+        save_summary = self._persist_registered_stores()
+        if save_summary.has_errors:
+            self.register_store_status_var.set(f"{store_name} を更新しました（保存に注意）")
+            messagebox.showwarning("登録店舗", "\n\n".join(save_summary.messages))
+            return
+
+        self.register_store_status_var.set(f"{store_name} を更新しました")
+
+    def _selected_site7_registered_stores(self) -> list[RegisteredStore]:
+        target_stores = [registered_store for registered_store in self.registered_stores if registered_store.site7_enabled]
+        invalid_stores = [
+            registered_store.name
+            for registered_store in target_stores
+            if not registered_store.site7_area.strip()
+        ]
+        if invalid_stores:
+            raise ScraperError("サイトセブン取得を使う店舗は地域を入力してください。\n" + "\n".join(invalid_stores))
+        return target_stores
+
     def _persist_registered_stores(self) -> RegisteredStoresPersistenceSummary:
         return self._persist_registered_store_list(self.registered_stores)
 
@@ -2262,6 +2667,10 @@ class MinRepoApp:
             {
                 "store_name": registered_store.name,
                 "store_url": registered_store.url,
+                "site7_enabled": registered_store.site7_enabled,
+                "site7_prefecture": registered_store.site7_prefecture,
+                "site7_area": registered_store.site7_area,
+                "site7_store_name": registered_store.resolved_site7_store_name(),
             }
             for registered_store in registered_stores
         ]
@@ -2648,6 +3057,10 @@ class MinRepoApp:
             hasattr(self, "registered_store_tree")
             and bool(self.registered_store_tree.selection())
         )
+        has_single_registered_store_row_selection = (
+            hasattr(self, "registered_store_tree")
+            and len(self.registered_store_tree.selection()) == 1
+        )
 
         self.fetch_button.configure(state="disabled" if self.is_busy else "normal")
         can_cancel_fetch = (
@@ -2671,6 +3084,14 @@ class MinRepoApp:
         self.site7_browser_hidden_radio.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_button.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_url_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.register_store_site7_button.configure(state="disabled" if self.is_busy else "normal")
+        self.register_store_prefecture_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.register_store_area_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.register_store_site7_store_name_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.update_registered_store_button.configure(
+            state="disabled" if self.is_busy or not has_single_registered_store_row_selection else "normal"
+        )
+        self.clear_register_store_form_button.configure(state="disabled" if self.is_busy else "normal")
         self.select_all_stores_button.configure(state="disabled" if self.is_busy else "normal")
         self.clear_store_selection_button.configure(state="disabled" if self.is_busy else "normal")
         self.refresh_registered_stores_button.configure(state="disabled" if self.is_busy else "normal")

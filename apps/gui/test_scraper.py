@@ -31,12 +31,14 @@ from main import (
 from machine_difference import calculate_machine_difference_value, canonical_machine_name
 from minrepo_scraper import FetchProgress, MinRepoScraper, normalize_text, parse_date_range_input
 from site7_scraper import (
+    DEFAULT_SITE7_PREFECTURE_NAME,
     SITE7_TARGET_MACHINE_KEYWORDS,
     SITE7_TARGET_MACHINE_NAME,
     SITE7_TARGET_STORE_DISPLAY_NAMES,
     SITE7_TARGET_STORES,
     Site7Scraper,
     clamp_site7_recent_days,
+    default_site7_store_settings,
 )
 from site7_scraper import build_site7_transition_wait_milliseconds
 
@@ -395,6 +397,16 @@ class MinRepoScraperTests(unittest.TestCase):
             ("Aパーク春日店", "GOGOアリーナ天神"),
         )
         self.assertEqual(SITE7_TARGET_STORES[1].area_name, "福岡市中央区")
+        self.assertEqual(SITE7_TARGET_STORES[0].prefecture_link_text, "福岡")
+        self.assertEqual(
+            default_site7_store_settings("GOGOアリーナ天神"),
+            {
+                "site7_enabled": True,
+                "site7_prefecture": "福岡県",
+                "site7_area": "福岡市中央区",
+                "site7_store_name": "ＧＯＧＯアリーナ天神",
+            },
+        )
 
     def test_site7_extract_target_machine_entries_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
@@ -689,9 +701,9 @@ class MinRepoScraperTests(unittest.TestCase):
     def test_save_and_load_registered_stores(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            stored_stores: list[dict[str, str]] = []
+            stored_stores: list[dict[str, object]] = []
 
-            def fake_save_registered_stores_to_supabase(stores: list[dict[str, str]]) -> int:
+            def fake_save_registered_stores_to_supabase(stores: list[dict[str, object]]) -> int:
                 stored_stores[:] = list(stores)
                 return len(stores)
 
@@ -702,7 +714,14 @@ class MinRepoScraperTests(unittest.TestCase):
 
             summary = service.save_registered_stores(
                 [
-                    {"store_name": "MJアリーナ箱崎店", "store_url": "https://example.com/a"},
+                    {
+                        "store_name": "MJアリーナ箱崎店",
+                        "store_url": "https://example.com/a",
+                        "site7_enabled": True,
+                        "site7_prefecture": "福岡県",
+                        "site7_area": "東区",
+                        "site7_store_name": "ＭＪアリーナ箱崎店",
+                    },
                     {"store_name": "ABCホール", "store_url": "https://example.com/b"},
                 ]
             )
@@ -715,8 +734,42 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(
                 loaded_stores,
                 [
-                    {"store_name": "MJアリーナ箱崎店", "store_url": "https://example.com/a/"},
-                    {"store_name": "ABCホール", "store_url": "https://example.com/b/"},
+                    {
+                        "store_name": "MJアリーナ箱崎店",
+                        "store_url": "https://example.com/a/",
+                        "site7_enabled": True,
+                        "site7_prefecture": "福岡県",
+                        "site7_area": "東区",
+                        "site7_store_name": "ＭＪアリーナ箱崎店",
+                    },
+                    {
+                        "store_name": "ABCホール",
+                        "store_url": "https://example.com/b/",
+                        "site7_enabled": False,
+                        "site7_prefecture": DEFAULT_SITE7_PREFECTURE_NAME,
+                        "site7_area": "",
+                        "site7_store_name": "ABCホール",
+                    },
+                ],
+            )
+
+    def test_normalize_registered_stores_applies_site7_defaults(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+
+            self.assertEqual(
+                service._normalize_registered_stores(  # type: ignore[attr-defined]
+                    [{"store_name": "Aパーク春日店", "store_url": "https://example.com/kasuga"}]
+                ),
+                [
+                    {
+                        "store_name": "Aパーク春日店",
+                        "store_url": "https://example.com/kasuga/",
+                        "site7_enabled": True,
+                        "site7_prefecture": "福岡県",
+                        "site7_area": "春日市",
+                        "site7_store_name": "Ａパーク春日店",
+                    }
                 ],
             )
 
@@ -765,9 +818,9 @@ class MinRepoScraperTests(unittest.TestCase):
     def test_save_registered_stores_deduplicates_normalized_url(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            captured_stores: list[dict[str, str]] = []
+            captured_stores: list[dict[str, object]] = []
 
-            def fake_save_registered_stores_to_supabase(stores: list[dict[str, str]]) -> int:
+            def fake_save_registered_stores_to_supabase(stores: list[dict[str, object]]) -> int:
                 captured_stores.extend(stores)
                 return len(stores)
 
@@ -792,6 +845,10 @@ class MinRepoScraperTests(unittest.TestCase):
                     {
                         "store_name": "GOGOアリーナ天神",
                         "store_url": "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/",
+                        "site7_enabled": True,
+                        "site7_prefecture": "福岡県",
+                        "site7_area": "福岡市中央区",
+                        "site7_store_name": "ＧＯＧＯアリーナ天神",
                     }
                 ],
             )
