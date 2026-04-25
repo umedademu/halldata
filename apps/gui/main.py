@@ -41,6 +41,7 @@ from minrepo_scraper import (
     ScraperError,
     normalize_text,
 )
+from site7_scraper import SITE7_MAX_RECENT_DAYS, SITE7_TARGET_MACHINE_NAME, Site7Scraper
 
 
 DEFAULT_STORE_NAME = "MJアリーナ箱崎店"
@@ -57,7 +58,7 @@ COMPARISON_DAY_TAIL_OPTIONS = ("全て", "0", "1", "2", "3", "4", "5", "6", "7",
 T = TypeVar("T")
 
 
-def build_recent_date_range_input(value: str, today: datetime | None = None) -> str:
+def parse_recent_days(value: str) -> int:
     text = value.strip()
     if not re.fullmatch(r"\d+", text):
         raise ScraperError("直近日数は 1 以上の整数で入力してください。")
@@ -66,6 +67,11 @@ def build_recent_date_range_input(value: str, today: datetime | None = None) -> 
     if recent_days <= 0:
         raise ScraperError("直近日数は 1 以上の整数で入力してください。")
 
+    return recent_days
+
+
+def build_recent_date_range_input(value: str, today: datetime | None = None) -> str:
+    recent_days = parse_recent_days(value)
     today_date = (today or datetime.now(JST)).astimezone(JST).date()
     start_date = today_date - timedelta(days=recent_days - 1)
     return f"{start_date.strftime('%Y-%m-%d')} ～ {today_date.strftime('%Y-%m-%d')}"
@@ -141,6 +147,7 @@ class MinRepoApp:
 
         self.scraper = MinRepoScraper()
         self.persistence_service = HistoryPersistenceService()
+        self.site7_scraper = Site7Scraper(self.persistence_service.root_dir)
         self.result_queue: queue.Queue[tuple[str, object]] = queue.Queue()
         self.current_results: list[MachineDataset] = []
         self.current_history_result: MachineHistoryResult | None = None
@@ -181,6 +188,9 @@ class MinRepoApp:
         self.comparison_day_tail_var = tk.StringVar(value="全て")
         self.register_store_url_var = tk.StringVar()
         self.register_store_status_var = tk.StringVar(value="未登録")
+        self.site7_status_var = tk.StringVar(
+            value="保存済みのログイン情報あり" if self.site7_scraper.has_saved_login_state() else "初回ログインが必要"
+        )
         self.fetch_progress_current = 0
         self.fetch_progress_total = 0
 
@@ -192,6 +202,7 @@ class MinRepoApp:
         self._schedule_timer_tick()
         if self.startup_store_warning:
             self.root.after(100, lambda: messagebox.showwarning("登録店舗", self.startup_store_warning))
+        self.root.after(250, self._prompt_site7_login_on_startup_if_needed)
 
     def _build_ui(self) -> None:
         container = ttk.Frame(self.root, padding=16)
@@ -267,6 +278,37 @@ class MinRepoApp:
         self.clear_schedule_button = ttk.Button(schedule_row, text="解除", command=self.clear_daily_schedule)
         self.clear_schedule_button.grid(row=0, column=4, sticky="w", padx=(8, 0))
         ttk.Label(schedule_row, textvariable=self.schedule_status_var).grid(row=0, column=5, sticky="w", padx=(12, 0))
+
+        site7_row = ttk.LabelFrame(self.fetch_form, text="サイトセブン", padding=12)
+        site7_row.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        site7_row.columnconfigure(0, weight=1)
+
+        ttk.Label(
+            site7_row,
+            text=(
+                "固定対象は Ａパーク春日店 の "
+                f"{SITE7_TARGET_MACHINE_NAME} です。"
+                f"直近日数は最大 {SITE7_MAX_RECENT_DAYS} 日まで使えます。"
+            ),
+            wraplength=900,
+            justify="left",
+        ).grid(row=0, column=0, columnspan=3, sticky="w")
+
+        self.site7_login_button = ttk.Button(
+            site7_row,
+            text="サイトセブンにログイン",
+            command=self.site7_login,
+        )
+        self.site7_login_button.grid(row=1, column=0, sticky="w", pady=(8, 0))
+
+        self.site7_fetch_button = ttk.Button(
+            site7_row,
+            text="サイトセブン取得",
+            command=self.fetch_site7_data,
+        )
+        self.site7_fetch_button.grid(row=1, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+
+        ttk.Label(site7_row, textvariable=self.site7_status_var).grid(row=1, column=2, sticky="w", padx=(12, 0), pady=(8, 0))
 
         self.fetch_info = ttk.Frame(self.fetch_tab, padding=(0, 12, 0, 12))
         self.fetch_info.grid(row=1, column=0, sticky="ew")
@@ -347,6 +389,42 @@ class MinRepoApp:
         self.comparison_body_canvas.bind("<MouseWheel>", self._on_comparison_mousewheel)
 
         self._build_register_tab(register_tab)
+
+    def _prompt_site7_login_on_startup_if_needed(self) -> None:
+        if self.site7_scraper.has_saved_login_state():
+            self.site7_status_var.set("保存済みのログイン情報あり")
+            return
+
+        self.site7_status_var.set("初回ログインが必要")
+        if not messagebox.askyesno(
+            "サイトセブン",
+            "サイトセブンは初回ログインが必要です。\n"
+            "いまブラウザを開いてログインしますか？\n"
+            "ログイン後にブラウザを閉じると、次回起動時以降は再入力を減らせます。",
+        ):
+            return
+
+        self.site7_login()
+
+    def site7_login(self) -> None:
+        if self.is_busy:
+            return
+
+        messagebox.showinfo(
+            "サイトセブン",
+            "これからサイトセブンのログイン画面を開きます。\n"
+            "ブラウザでログインしたあと、そのブラウザを閉じてください。",
+        )
+        self.status_var.set("サイトセブンのログイン待ち")
+        self.site7_status_var.set("ログイン待ち")
+        self._start_worker(self._worker_site7_login, operation_kind="site7_login")
+
+    def _worker_site7_login(self) -> None:
+        try:
+            self.site7_scraper.login_interactively()
+            self.result_queue.put(("site7_login_success", None))
+        except Exception as exc:  # noqa: BLE001
+            self.result_queue.put(("site7_login_error", exc))
 
     def apply_daily_schedule(self) -> None:
         try:
@@ -769,6 +847,80 @@ class MinRepoApp:
         except Exception as exc:  # noqa: BLE001
             self.result_queue.put(("register_store_error", exc))
 
+    def fetch_site7_data(self) -> None:
+        try:
+            recent_days = parse_recent_days(self.target_date_var.get())
+            retry_delay_seconds = self._retry_delay_seconds_input()
+        except ScraperError as exc:
+            self._show_error(exc)
+            return
+
+        if recent_days > SITE7_MAX_RECENT_DAYS:
+            if not messagebox.askyesno(
+                "サイトセブン",
+                f"サイトセブンは直近 {SITE7_MAX_RECENT_DAYS} 日までです。\n"
+                f"{SITE7_MAX_RECENT_DAYS} 日として取得しますか？",
+            ):
+                return
+            recent_days = SITE7_MAX_RECENT_DAYS
+
+        if not self.site7_scraper.has_saved_login_state():
+            if messagebox.askyesno(
+                "サイトセブン",
+                "サイトセブンのログイン情報がまだありません。\n先にログイン画面を開きますか？",
+            ):
+                self.site7_login()
+            return
+
+        self.current_results = []
+        self.current_history_result = None
+        self.comparison_rows = []
+        self.comparison_slot_numbers = []
+        self.comparison_display_rows = []
+        self.comparison_selected_date = None
+        self._clear_comparison_table()
+        self._begin_fetch_progress("サイトセブンへ接続中...")
+        self.status_var.set("サイトセブン取得中...")
+        self.summary_var.set(f"{SITE7_TARGET_MACHINE_NAME} をサイトセブンから取得中")
+        self.fetch_cancel_event.clear()
+        self._start_worker(
+            self._worker_fetch_site7,
+            recent_days,
+            retry_delay_seconds,
+            operation_kind="site7_fetch",
+        )
+
+    def _worker_fetch_site7(self, recent_days: int, retry_delay_seconds: int) -> None:
+        try:
+            history_result = self._run_with_fetch_retries(
+                lambda: self.site7_scraper.fetch_target_machine_history(
+                    recent_days=recent_days,
+                    progress_callback=lambda progress: self.result_queue.put(("fetch_progress", progress)),
+                ),
+                retry_delay_seconds=retry_delay_seconds,
+                retry_status_callback=lambda retry_number, max_retries, delay_seconds: self.result_queue.put(
+                    (
+                        "fetch_progress",
+                        FetchProgress(
+                            current_step=0,
+                            total_steps=4,
+                            message=(
+                                "サイトセブン取得に失敗しました。"
+                                f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
+                            ),
+                        ),
+                    )
+                ),
+            )
+            self._raise_if_fetch_cancelled()
+            self.result_queue.put(("fetch_progress", FetchProgress(current_step=3, total_steps=4, message="保存中")))
+            save_summary = self.persistence_service.save_history_result(history_result)
+            self.result_queue.put(("site7_fetch_success", (history_result, save_summary, SavedFullDayDatesSummary())))
+        except FetchCancelled:
+            self.result_queue.put(("fetch_cancelled", None))
+        except Exception as exc:  # noqa: BLE001
+            self.result_queue.put(("fetch_error", exc))
+
     def fetch_data(self) -> None:
         try:
             target_date_input = self._target_date_input_from_recent_days()
@@ -802,7 +954,7 @@ class MinRepoApp:
         )
 
     def cancel_fetch(self) -> None:
-        if not self.is_busy or self.active_operation_kind not in {"fetch", "scheduled_fetch"}:
+        if not self.is_busy or self.active_operation_kind not in {"fetch", "scheduled_fetch", "site7_fetch"}:
             return
 
         self.fetch_cancel_event.set()
@@ -1068,9 +1220,21 @@ class MinRepoApp:
         operation_kind = self.active_operation_kind
         self.is_busy = False
         self.active_operation_kind = ""
-        if operation_kind in {"fetch", "scheduled_fetch"}:
+        if operation_kind in {"fetch", "scheduled_fetch", "site7_fetch"}:
             self.fetch_cancel_event.clear()
         self._update_button_states()
+
+        if kind == "site7_login_error":
+            self.site7_status_var.set("ログイン未完了")
+            self.status_var.set("待機中")
+            self._show_error(payload)
+            return
+
+        if kind == "site7_login_success":
+            self.site7_status_var.set("ログイン情報を保存しました")
+            self.status_var.set("待機中")
+            messagebox.showinfo("サイトセブン", "サイトセブンのログイン情報を保存しました。次回以降は再ログインを省ける場合があります。")
+            return
 
         if kind == "register_store_error":
             self.register_store_status_var.set("店舗登録に失敗しました")
@@ -2193,7 +2357,7 @@ class MinRepoApp:
         self.fetch_button.configure(state="disabled" if self.is_busy else "normal")
         can_cancel_fetch = (
             self.is_busy
-            and self.active_operation_kind in {"fetch", "scheduled_fetch"}
+            and self.active_operation_kind in {"fetch", "scheduled_fetch", "site7_fetch"}
             and not self.fetch_cancel_event.is_set()
         )
         self.cancel_fetch_button.configure(state="normal" if can_cancel_fetch else "disabled")
@@ -2206,6 +2370,8 @@ class MinRepoApp:
         self.comparison_focus_button.configure(state="normal" if not self.is_busy and has_comparison_data else "disabled")
         self.skip_comparison_display_button.configure(state="disabled" if self.is_busy else "normal")
         self.notify_fetch_complete_button.configure(state="disabled" if self.is_busy else "normal")
+        self.site7_login_button.configure(state="disabled" if self.is_busy else "normal")
+        self.site7_fetch_button.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_button.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_url_entry.configure(state="disabled" if self.is_busy else "normal")
         self.select_all_stores_button.configure(state="disabled" if self.is_busy else "normal")

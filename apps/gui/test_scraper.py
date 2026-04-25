@@ -10,18 +10,24 @@ from tempfile import TemporaryDirectory
 from bs4 import BeautifulSoup
 
 from data_persistence import HistoryPersistenceService, build_machine_daily_records, normalize_store_url
-from main import MinRepoApp, build_recent_date_range_input, matches_day_tail, parse_retry_delay_seconds
+from main import MinRepoApp, build_recent_date_range_input, matches_day_tail, parse_recent_days, parse_retry_delay_seconds
 from minrepo_scraper import FetchProgress, MinRepoScraper, normalize_text, parse_date_range_input
+from site7_scraper import SITE7_TARGET_MACHINE_NAME, Site7Scraper, clamp_site7_recent_days
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 HTML_DIR = ROOT_DIR / "html"
+GUI_FIXTURE_DIR = Path(__file__).resolve().parent / "test_fixtures"
 
 
 def find_html(folder_name: str) -> str:
     folder = HTML_DIR / folder_name
     html_file = next(folder.glob("*.html"))
     return html_file.read_text(encoding="utf-8")
+
+
+def find_gui_fixture(file_name: str) -> str:
+    return (GUI_FIXTURE_DIR / file_name).read_text(encoding="utf-8")
 
 
 class FixtureScraper(MinRepoScraper):
@@ -64,6 +70,16 @@ class MinRepoScraperTests(unittest.TestCase):
 
         with self.assertRaisesRegex(Exception, "再試行の休止秒数"):
             parse_retry_delay_seconds("1.5")
+
+    def test_parse_recent_days(self) -> None:
+        self.assertEqual(parse_recent_days("90"), 90)
+
+        with self.assertRaisesRegex(Exception, "直近日数"):
+            parse_recent_days("0")
+
+    def test_clamp_site7_recent_days(self) -> None:
+        self.assertEqual(clamp_site7_recent_days(3), 3)
+        self.assertEqual(clamp_site7_recent_days(90), 8)
 
     def test_run_with_fetch_retries_retries_three_times(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -272,6 +288,64 @@ class MinRepoScraperTests(unittest.TestCase):
                 "combined_ratio_text": "1/165",
                 "bb_ratio_text": "1/270",
                 "rb_ratio_text": "1/424",
+            },
+        )
+
+    def test_site7_extract_store_name_from_saved_html(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = find_gui_fixture("site7_machine.html")
+
+        self.assertEqual(scraper.extract_store_name(html), "Ａパーク春日店")
+
+    def test_site7_parse_machine_history_from_saved_html(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = find_gui_fixture("site7_machine.html")
+
+        history_result = scraper.parse_machine_history_html(
+            html,
+            store_url="https://example.com/site7",
+            page_url="https://example.com/site7/machine",
+            recent_days=2,
+        )
+
+        self.assertEqual(history_result.store_name, "Ａパーク春日店")
+        self.assertEqual(history_result.start_date, "2026-04-24")
+        self.assertEqual(history_result.end_date, "2026-04-25")
+        self.assertEqual([page.target_date for page in history_result.date_pages], ["2026-04-24", "2026-04-25"])
+        self.assertEqual([dataset.target_date for dataset in history_result.datasets], ["2026-04-24", "2026-04-25"])
+        self.assertTrue(all(dataset.machine_name == SITE7_TARGET_MACHINE_NAME for dataset in history_result.datasets))
+        self.assertEqual(
+            history_result.datasets[1].rows[0],
+            ["821", "-", "2163", "-", "10", "5", "1/144", "1/216", "1/432"],
+        )
+
+    def test_site7_build_machine_daily_records_from_history_result(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = find_gui_fixture("site7_machine.html")
+        history_result = scraper.parse_machine_history_html(
+            html,
+            store_url="https://example.com/site7",
+            page_url="https://example.com/site7/machine",
+            recent_days=2,
+        )
+
+        records = build_machine_daily_records(history_result)
+
+        self.assertEqual(len(records), 4)
+        self.assertEqual(
+            records[0],
+            {
+                "target_date": "2026-04-24",
+                "slot_number": "821",
+                "machine_name": SITE7_TARGET_MACHINE_NAME,
+                "difference_value": None,
+                "games_count": 5454,
+                "payout_rate": None,
+                "bb_count": 25,
+                "rb_count": 12,
+                "combined_ratio_text": "1/147",
+                "bb_ratio_text": "1/218",
+                "rb_ratio_text": "1/454",
             },
         )
 
