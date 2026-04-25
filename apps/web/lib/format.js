@@ -17,14 +17,12 @@ const integerFormatter = new Intl.NumberFormat("ja-JP");
 
 const signedFormatter = new Intl.NumberFormat("ja-JP", {
   signDisplay: "always",
-  maximumFractionDigits: 1,
-  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
 });
 
 const narrowSignedFormatter = new Intl.NumberFormat("ja-JP", {
   signDisplay: "always",
-  maximumFractionDigits: 1,
-  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
   useGrouping: false,
 });
 

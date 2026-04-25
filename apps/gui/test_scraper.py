@@ -350,7 +350,7 @@ class MinRepoScraperTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(difference_value, -852.2)
+        self.assertEqual(difference_value, -852)
 
     def test_site7_extract_store_name_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
@@ -421,7 +421,7 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertTrue(all(dataset.machine_name == SITE7_TARGET_MACHINE_NAME for dataset in history_result.datasets))
         self.assertEqual(
             history_result.datasets[1].rows[0],
-            ["821", "336.2", "2163", "-", "10", "5", "1/144", "1/216", "1/432"],
+            ["821", "336", "2163", "-", "10", "5", "1/144", "1/216", "1/432"],
         )
 
     def test_site7_build_machine_daily_records_from_history_result(self) -> None:
@@ -443,7 +443,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 "target_date": "2026-04-24",
                 "slot_number": "821",
                 "machine_name": SITE7_TARGET_MACHINE_NAME,
-                "difference_value": 735.3,
+                "difference_value": 735,
                 "games_count": 5454,
                 "payout_rate": None,
                 "bb_count": 25,
@@ -454,7 +454,7 @@ class MinRepoScraperTests(unittest.TestCase):
             },
         )
 
-    def test_build_supabase_result_payload_clears_fractional_difference_value(self) -> None:
+    def test_build_supabase_result_payload_rounds_fractional_difference_value(self) -> None:
         payload = build_supabase_result_payload(
             {
                 "target_date": "2026-04-24",
@@ -473,7 +473,7 @@ class MinRepoScraperTests(unittest.TestCase):
             updated_at="2026-04-25T12:34:56+09:00",
         )
 
-        self.assertIsNone(payload["difference_value"])
+        self.assertEqual(payload["difference_value"], 735)
         self.assertEqual(payload["store_id"], "store-1")
 
     def test_save_history_result_writes_local_file(self) -> None:

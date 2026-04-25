@@ -34,7 +34,7 @@ function roundDifferenceValue(value) {
     return null;
   }
 
-  const roundedValue = Math.sign(value) * Math.round(Math.abs(value) * 10) / 10;
+  const roundedValue = Math.sign(value) * Math.floor(Math.abs(value) + 0.5);
   return Object.is(roundedValue, -0) ? 0 : roundedValue;
 }
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 import json
 import os
 from pathlib import Path
@@ -998,16 +999,27 @@ def _normalize_difference_value_for_supabase(value: Any) -> int | None:
         return value
 
     if isinstance(value, float):
-        if value.is_integer():
-            return int(value)
-        return None
+        return _round_half_up_to_int(str(value))
 
     parsed_value = _parse_difference_value(str(value))
     if isinstance(parsed_value, int):
         return parsed_value
-    if isinstance(parsed_value, float) and parsed_value.is_integer():
-        return int(parsed_value)
+    if isinstance(parsed_value, float):
+        return _round_half_up_to_int(str(parsed_value))
     return None
+
+
+def _round_half_up_to_int(value: str) -> int | None:
+    normalized = str(value).strip().replace(",", "")
+    if not normalized or normalized == "-":
+        return None
+    if re.fullmatch(r"-?\d+(?:\.\d+)?", normalized) is None:
+        return None
+
+    try:
+        return int(Decimal(normalized).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    except InvalidOperation:
+        return None
 
 
 def _sanitize_file_name(value: str) -> str:

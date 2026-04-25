@@ -12,9 +12,6 @@ from minrepo_scraper import normalize_text
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 MACHINE_DIFFERENCE_RULES_PATH = ROOT_DIR / "config" / "machine_difference_rules.json"
-DIFFERENCE_QUANTIZE = Decimal("0.1")
-
-
 @lru_cache(maxsize=1)
 def load_machine_difference_rules() -> list[dict[str, Any]]:
     if not MACHINE_DIFFERENCE_RULES_PATH.exists():
@@ -39,7 +36,7 @@ def find_machine_difference_rule(machine_name: str) -> dict[str, Any] | None:
     return None
 
 
-def calculate_machine_difference_value(machine_name: str, row_values: dict[str, Any]) -> float | None:
+def calculate_machine_difference_value(machine_name: str, row_values: dict[str, Any]) -> int | None:
     rule = find_machine_difference_rule(machine_name)
     if rule is None:
         return None
@@ -72,16 +69,16 @@ def calculate_machine_difference_value(machine_name: str, row_values: dict[str, 
         total_bonus_payout += hit_count * payout_coins
 
     used_coins = games_count * investment_coins / games_per_investment
-    difference_value = (total_bonus_payout - used_coins).quantize(DIFFERENCE_QUANTIZE, rounding=ROUND_HALF_UP)
-    if difference_value == Decimal("-0.0"):
-        difference_value = Decimal("0.0")
-    return float(difference_value)
+    difference_value = (total_bonus_payout - used_coins).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    if difference_value == Decimal("-0"):
+        difference_value = Decimal("0")
+    return int(difference_value)
 
 
-def format_machine_difference_value(value: float | None) -> str:
+def format_machine_difference_value(value: int | None) -> str:
     if value is None:
         return "-"
-    return f"{value:.1f}"
+    return str(value)
 
 
 def format_machine_difference_for_row(machine_name: str, row_values: dict[str, Any]) -> str:
