@@ -739,6 +739,7 @@ class MinRepoApp:
         if self.tray_icon is not None:
             self.tray_icon.stop()
             self.tray_icon = None
+        self.site7_scraper.close_visible_browser()
         self.root.destroy()
 
     def _build_register_tab(self, register_tab: ttk.Frame) -> None:

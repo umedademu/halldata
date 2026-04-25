@@ -77,12 +77,23 @@ class Site7Scraper:
     def __init__(self, root_dir: Path | None = None) -> None:
         self.root_dir = root_dir or ROOT_DIR
         self.browser_state_dir = self.root_dir / "local_data" / SITE7_BROWSER_STATE_DIR_NAME
+        self._visible_browser_playwright: object | None = None
+        self._visible_browser_context: object | None = None
 
     def has_saved_login_state(self) -> bool:
         return self.browser_state_dir.exists() and any(self.browser_state_dir.iterdir())
 
+    def close_visible_browser(self) -> None:
+        retained_context = self._visible_browser_context
+        retained_playwright = self._visible_browser_playwright
+        self._visible_browser_context = None
+        self._visible_browser_playwright = None
+        self._close_browser_context(retained_context)
+        self._stop_playwright(retained_playwright)
+
     def login_interactively(self, timeout_seconds: int = 300) -> None:
         self._require_playwright()
+        self.close_visible_browser()
         self.browser_state_dir.mkdir(parents=True, exist_ok=True)
         timed_out = False
 
@@ -120,6 +131,7 @@ class Site7Scraper:
             return False
 
         self._require_playwright()
+        self.close_visible_browser()
         try:
             with sync_playwright() as playwright:
                 context = playwright.chromium.launch_persistent_context(
@@ -150,31 +162,35 @@ class Site7Scraper:
         target_days = clamp_site7_recent_days(recent_days)
         self._notify_progress(progress_callback, 0, 4, "サイトセブンのトップから店舗ページへ移動しています")
         self._require_playwright()
+        self.close_visible_browser()
 
+        playwright = None
+        context = None
+        keep_browser_open = False
         try:
-            with sync_playwright() as playwright:
-                context = playwright.chromium.launch_persistent_context(
-                    str(self.browser_state_dir),
-                    headless=not browser_visible,
-                    locale="ja-JP",
-                    viewport={"width": 1440, "height": 960},
-                )
-                try:
-                    page = context.new_page()
-                    if browser_visible:
-                        page.bring_to_front()
-                    hall_page_url, hall_html = self._open_target_hall_page(page)
-                    store_name = self.extract_store_name(hall_html)
-                    self._notify_progress(progress_callback, 1, 4, "対象機種ページを開いています")
-                    self._wait_between_transitions(page)
-                    self._open_target_machine_page(page)
-                    page.wait_for_selector("#ata0", timeout=60_000)
-                    machine_page_url = page.url
-                    machine_html = page.content()
-                finally:
-                    context.close()
+            playwright = sync_playwright().start()
+            context = playwright.chromium.launch_persistent_context(
+                str(self.browser_state_dir),
+                headless=not browser_visible,
+                locale="ja-JP",
+                viewport={"width": 1440, "height": 960},
+            )
+            page = context.new_page()
+            if browser_visible:
+                page.bring_to_front()
+            hall_page_url, hall_html = self._open_target_hall_page(page)
+            store_name = self.extract_store_name(hall_html)
+            self._notify_progress(progress_callback, 1, 4, "対象機種ページを開いています")
+            self._wait_between_transitions(page)
+            self._open_target_machine_page(page)
+            page.wait_for_selector("#ata0", timeout=60_000)
+            machine_page_url = page.url
+            machine_html = page.content()
+            keep_browser_open = browser_visible
         except PlaywrightError as exc:
             raise self._wrap_playwright_error(exc) from exc
+        finally:
+            self._release_browser_context(playwright, context, keep_open=keep_browser_open)
 
         self._notify_progress(progress_callback, 2, 4, "台データを読み取っています")
         return self.parse_machine_history_html(
@@ -425,6 +441,32 @@ class Site7Scraper:
 
     def _wait_between_transitions(self, page: object) -> None:
         page.wait_for_timeout(build_site7_transition_wait_milliseconds())
+
+    def _release_browser_context(self, playwright: object | None, context: object | None, keep_open: bool = False) -> None:
+        if keep_open and playwright is not None and context is not None:
+            self.close_visible_browser()
+            self._visible_browser_playwright = playwright
+            self._visible_browser_context = context
+            return
+
+        self._close_browser_context(context)
+        self._stop_playwright(playwright)
+
+    def _close_browser_context(self, context: object | None) -> None:
+        if context is None:
+            return
+        try:
+            context.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _stop_playwright(self, playwright: object | None) -> None:
+        if playwright is None:
+            return
+        try:
+            playwright.stop()
+        except Exception:  # noqa: BLE001
+            pass
 
     def _accept_cookie_banner_if_present(self, page: object) -> None:
         try:

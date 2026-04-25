@@ -64,6 +64,22 @@ class FixtureScraper(MinRepoScraper):
         return self.date_html
 
 
+class FakeClosableContext:
+    def __init__(self) -> None:
+        self.close_count = 0
+
+    def close(self) -> None:
+        self.close_count += 1
+
+
+class FakePlayableBrowser:
+    def __init__(self) -> None:
+        self.stop_count = 0
+
+    def stop(self) -> None:
+        self.stop_count += 1
+
+
 class MinRepoScraperTests(unittest.TestCase):
     def test_matches_day_tail(self) -> None:
         self.assertTrue(matches_day_tail("2026-03-07", "7"))
@@ -357,6 +373,38 @@ class MinRepoScraperTests(unittest.TestCase):
         html = find_gui_fixture("site7_machine.html")
 
         self.assertEqual(scraper.extract_store_name(html), "Ａパーク春日店")
+
+    def test_site7_release_browser_context_keeps_visible_browser_open(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        context = FakeClosableContext()
+        playwright = FakePlayableBrowser()
+
+        scraper._release_browser_context(playwright, context, keep_open=True)
+
+        self.assertIs(scraper._visible_browser_context, context)
+        self.assertIs(scraper._visible_browser_playwright, playwright)
+        self.assertEqual(context.close_count, 0)
+        self.assertEqual(playwright.stop_count, 0)
+
+        scraper.close_visible_browser()
+
+        self.assertEqual(context.close_count, 1)
+        self.assertEqual(playwright.stop_count, 1)
+
+    def test_site7_replacing_visible_browser_closes_previous_one(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        first_context = FakeClosableContext()
+        first_playwright = FakePlayableBrowser()
+        second_context = FakeClosableContext()
+        second_playwright = FakePlayableBrowser()
+
+        scraper._release_browser_context(first_playwright, first_context, keep_open=True)
+        scraper._release_browser_context(second_playwright, second_context, keep_open=True)
+
+        self.assertEqual(first_context.close_count, 1)
+        self.assertEqual(first_playwright.stop_count, 1)
+        self.assertIs(scraper._visible_browser_context, second_context)
+        self.assertIs(scraper._visible_browser_playwright, second_playwright)
 
     def test_site7_detects_logged_in_page_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
