@@ -121,6 +121,45 @@ const SETTING_ESTIMATE_DEFINITIONS = [
       { setting: 6, label: "設定6", bbText: "1/234.9", rbText: "1/234.9" },
     ],
   },
+  {
+    key: "juggler-girls",
+    displayName: "ジャグラーガールズ",
+    matchNames: ["ジャグラーガールズ", "ジャグラーガールズSS"],
+    settings: [
+      { setting: 1, label: "設定1", bbText: "1/273.1", rbText: "1/381.0" },
+      { setting: 2, label: "設定2", bbText: "1/270.8", rbText: "1/350.5" },
+      { setting: 3, label: "設定3", bbText: "1/260.1", rbText: "1/316.6" },
+      { setting: 4, label: "設定4", bbText: "1/250.1", rbText: "1/281.3" },
+      { setting: 5, label: "設定5", bbText: "1/243.6", rbText: "1/270.8" },
+      { setting: 6, label: "設定6", bbText: "1/226.0", rbText: "1/252.1" },
+    ],
+  },
+  {
+    key: "ultra-miracle-juggler",
+    displayName: "ウルトラミラクルジャグラー",
+    matchNames: ["ウルトラミラクルジャグラー"],
+    settings: [
+      { setting: 1, label: "設定1", bbText: "1/267.5", rbText: "1/425.6" },
+      { setting: 2, label: "設定2", bbText: "1/261.1", rbText: "1/402.1" },
+      { setting: 3, label: "設定3", bbText: "1/256.0", rbText: "1/350.5" },
+      { setting: 4, label: "設定4", bbText: "1/242.7", rbText: "1/322.8" },
+      { setting: 5, label: "設定5", bbText: "1/233.2", rbText: "1/297.9" },
+      { setting: 6, label: "設定6", bbText: "1/216.3", rbText: "1/277.7" },
+    ],
+  },
+  {
+    key: "mr-juggler",
+    displayName: "ミスタージャグラー",
+    matchNames: ["ミスタージャグラー"],
+    settings: [
+      { setting: 1, label: "設定1", bbText: "1/268.6", rbText: "1/374.5" },
+      { setting: 2, label: "設定2", bbText: "1/267.5", rbText: "1/354.2" },
+      { setting: 3, label: "設定3", bbText: "1/260.1", rbText: "1/331.0" },
+      { setting: 4, label: "設定4", bbText: "1/249.2", rbText: "1/291.3" },
+      { setting: 5, label: "設定5", bbText: "1/240.9", rbText: "1/257.0" },
+      { setting: 6, label: "設定6", bbText: "1/237.4", rbText: "1/237.4" },
+    ],
+  },
 ];
 
 function parseRateText(value) {
