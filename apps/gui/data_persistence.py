@@ -25,6 +25,8 @@ DEFAULT_STORES_TABLE = "stores"
 DEFAULT_RESULTS_TABLE = "machine_daily_results"
 STORE_COLUMNS = {"機種", "機種名"}
 WINDOWS_FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]+')
+DATA_SOURCE_MINREPO = "minrepo"
+DATA_SOURCE_SITE7 = "site7"
 
 
 @dataclass
@@ -54,6 +56,7 @@ class RegisteredStoresPersistenceSummary:
 @dataclass
 class SavedMachineTargetsSummary:
     saved_targets: set[tuple[str, str]] = field(default_factory=set)
+    replaceable_targets: set[tuple[str, str]] = field(default_factory=set)
     messages: list[str] = field(default_factory=list)
 
     @property
@@ -108,6 +111,34 @@ def normalize_saved_target_machine_name_keys(machine_names: list[str]) -> set[st
     return normalized_names
 
 
+def _normalize_data_source(value: Any) -> str:
+    text = str(value or "").strip().casefold()
+    if text == DATA_SOURCE_SITE7:
+        return DATA_SOURCE_SITE7
+    return DATA_SOURCE_MINREPO
+
+
+def _infer_history_data_source(*urls: str) -> str:
+    for url in urls:
+        normalized_url = str(url or "").strip().lower()
+        if "d-deltanet.com" in normalized_url or "/site7" in normalized_url or "site7" in normalized_url:
+            return DATA_SOURCE_SITE7
+        if "min-repo.com" in normalized_url:
+            return DATA_SOURCE_MINREPO
+    return DATA_SOURCE_MINREPO
+
+
+def _infer_saved_result_data_source(row: dict[str, Any]) -> str:
+    data_source = _normalize_data_source(row.get("data_source"))
+    if data_source:
+        if str(row.get("data_source", "")).strip():
+            return data_source
+    payout_rate = row.get("payout_rate")
+    if payout_rate in (None, ""):
+        return DATA_SOURCE_SITE7
+    return DATA_SOURCE_MINREPO
+
+
 def choose_preferred_store(candidates: list[dict[str, Any]]) -> dict[str, str] | None:
     ranked_candidates: list[tuple[int, int, str, str]] = []
     for candidate in candidates:
@@ -146,6 +177,7 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
     for dataset in history_result.datasets:
         source_columns = [column for column in dataset.columns if normalize_text(column) not in STORE_COLUMNS]
         stored_machine_name = canonical_machine_name(dataset.machine_name).strip() or dataset.machine_name.strip()
+        data_source = _infer_history_data_source(dataset.store_url, dataset.date_url, dataset.machine_url)
         for row in dataset.rows:
             row_values = dict(zip(source_columns, row, strict=False))
             slot_number = row_values.get("台番", "").strip()
@@ -161,6 +193,7 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
                     "target_date": dataset.target_date,
                     "slot_number": slot_number,
                     "machine_name": stored_machine_name,
+                    "data_source": data_source,
                     "difference_value": difference_value,
                     "games_count": _parse_int_value(row_values.get("G数", "")),
                     "payout_rate": _parse_percent_value(row_values.get("出率", "")),
@@ -178,6 +211,7 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
 def build_supabase_result_payload(record: dict[str, Any], store_id: str, updated_at: str) -> dict[str, Any]:
     payload = dict(record)
     payload["difference_value"] = _normalize_difference_value_for_supabase(payload.get("difference_value"))
+    payload["data_source"] = _normalize_data_source(payload.get("data_source"))
     payload["store_id"] = store_id
     payload["updated_at"] = updated_at
     return payload
@@ -282,43 +316,24 @@ class HistoryPersistenceService:
             return summary
 
         try:
-            summary.saved_targets.update(
-                self._find_saved_machine_targets_from_supabase(
-                    store_url=store_url,
-                    start_date=start_date,
-                    end_date=end_date,
-                    target_machine_names=target_machine_names,
-                )
+            protected_targets, replaceable_targets = self._find_saved_machine_target_sources_from_supabase(
+                store_url=store_url,
+                start_date=start_date,
+                end_date=end_date,
+                target_machine_names=target_machine_names,
             )
+            summary.saved_targets.update(protected_targets)
+            summary.replaceable_targets.update(replaceable_targets)
         except Exception as exc:  # noqa: BLE001
             summary.messages.append(f"Supabase の取得済み確認に失敗しました。\n{exc}")
 
         return summary
 
-    def resolve_preferred_store_by_name(self, store_name: str) -> dict[str, str] | None:
-        store_name_key = normalize_store_name_key(store_name)
-        if not store_name_key:
-            return None
-
-        try:
-            supabase_url, _, schema, stores_table, results_table = self._supabase_config()
-        except RuntimeError:
-            return None
-
-        session = self._create_supabase_session(schema)
-        candidates = self._find_store_candidates_by_name_key(
-            session=session,
-            supabase_url=supabase_url,
-            stores_table=stores_table,
-            results_table=results_table,
-            store_name_key=store_name_key,
-        )
-        return choose_preferred_store(candidates)
-
     def delete_machine_targets_from_supabase(
         self,
         store_url: str,
         target_pairs: set[tuple[str, str]],
+        data_source: str | None = None,
     ) -> int:
         normalized_target_pairs = {
             (str(target_date).strip(), str(machine_name).strip())
@@ -340,14 +355,18 @@ class HistoryPersistenceService:
 
         endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(results_table, safe='')}"
         deleted_target_count = 0
+        normalized_data_source = str(data_source or "").strip().casefold()
         for target_date, machine_name in sorted(normalized_target_pairs):
+            params = {
+                "store_id": f"eq.{store_id}",
+                "target_date": f"eq.{target_date}",
+                "machine_name": f"eq.{machine_name}",
+            }
+            if normalized_data_source:
+                params["data_source"] = f"eq.{normalized_data_source}"
             response = session.delete(
                 endpoint,
-                params={
-                    "store_id": f"eq.{store_id}",
-                    "target_date": f"eq.{target_date}",
-                    "machine_name": f"eq.{machine_name}",
-                },
+                params=params,
                 headers={"Prefer": "return=minimal"},
                 timeout=30,
             )
@@ -414,6 +433,25 @@ class HistoryPersistenceService:
             ),
             "records": records,
         }
+    def resolve_preferred_store_by_name(self, store_name: str) -> dict[str, str] | None:
+        store_name_key = normalize_store_name_key(store_name)
+        if not store_name_key:
+            return None
+
+        try:
+            supabase_url, _, schema, stores_table, results_table = self._supabase_config()
+        except RuntimeError:
+            return None
+
+        session = self._create_supabase_session(schema)
+        candidates = self._find_store_candidates_by_name_key(
+            session=session,
+            supabase_url=supabase_url,
+            stores_table=stores_table,
+            results_table=results_table,
+            store_name_key=store_name_key,
+        )
+        return choose_preferred_store(candidates)
 
     def _save_local_snapshot(self, snapshot: dict[str, Any]) -> Path:
         local_dir = self._local_save_dir()
@@ -588,13 +626,21 @@ class HistoryPersistenceService:
                 f"{supabase_url.rstrip('/')}/rest/v1/{quote(results_table, safe='')}"
                 "?on_conflict=store_id,target_date,slot_number"
             )
-            response = session.post(
-                endpoint,
-                headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
-                json=payload_chunk,
-                timeout=30,
-            )
-            response.raise_for_status()
+            try:
+                response = session.post(
+                    endpoint,
+                    headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
+                    json=payload_chunk,
+                    timeout=30,
+                )
+                response.raise_for_status()
+            except requests.HTTPError as exc:
+                if exc.response is not None and exc.response.status_code == 400:
+                    raise RuntimeError(
+                        "machine_daily_results テーブルに取得元を保存する列がありません。"
+                        " 追加用SQLを適用してから再度保存してください。"
+                    ) from exc
+                raise
 
         return len(result_payloads)
 
@@ -785,6 +831,83 @@ class HistoryPersistenceService:
             offset += page_size
 
         return saved_targets
+
+    def _find_saved_machine_target_sources_from_supabase(
+        self,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+        target_machine_names: set[str],
+    ) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
+        if not target_machine_names:
+            return set(), set()
+
+        try:
+            supabase_url, _, schema, stores_table, results_table = self._supabase_config()
+        except RuntimeError:
+            return set(), set()
+
+        session = self._create_supabase_session(schema)
+        store_id = self._find_store_id(session, supabase_url, stores_table, normalize_store_url(store_url))
+        if not store_id:
+            return set(), set()
+
+        protected_targets: set[tuple[str, str]] = set()
+        replaceable_targets: set[tuple[str, str]] = set()
+        offset = 0
+        page_size = 1000
+        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(results_table, safe='')}"
+        select_clause = "target_date,machine_name,data_source,payout_rate"
+
+        while True:
+            try:
+                response = session.get(
+                    endpoint,
+                    params={
+                        "select": select_clause,
+                        "store_id": f"eq.{store_id}",
+                        "target_date": [f"gte.{start_date}", f"lte.{end_date}"],
+                        "order": "target_date.asc",
+                        "limit": str(page_size),
+                        "offset": str(offset),
+                    },
+                    timeout=30,
+                )
+                response.raise_for_status()
+            except requests.HTTPError as exc:
+                if exc.response is None or exc.response.status_code != 400 or select_clause == "target_date,machine_name,payout_rate":
+                    raise
+                select_clause = "target_date,machine_name,payout_rate"
+                continue
+
+            rows = response.json()
+            if not rows:
+                break
+
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+
+                target_date = str(row.get("target_date", "")).strip()
+                machine_name = normalize_machine_name_key(str(row.get("machine_name", "")).strip())
+                if not target_date or machine_name not in target_machine_names:
+                    continue
+
+                target_key = (target_date, machine_name)
+                data_source = _infer_saved_result_data_source(row)
+                if data_source == DATA_SOURCE_SITE7:
+                    if target_key not in protected_targets:
+                        replaceable_targets.add(target_key)
+                    continue
+
+                protected_targets.add(target_key)
+                replaceable_targets.discard(target_key)
+
+            if len(rows) < page_size:
+                break
+            offset += page_size
+
+        return protected_targets, replaceable_targets
 
     def _find_store_candidates_by_name_key(
         self,

@@ -141,12 +141,10 @@ def rewrite_history_result_store(
 def filter_site7_history_result_by_saved_targets(
     history_result: MachineHistoryResult,
     saved_targets: set[tuple[str, str]],
-    today_text: str | None = None,
 ) -> MachineHistoryResult:
     if not saved_targets:
         return history_result
 
-    today_date_text = today_text or current_jst_date_text()
     filtered_datasets: list[MachineDataset] = []
     skipped_targets = list(history_result.skipped_targets)
     skipped_dates = list(history_result.skipped_dates)
@@ -154,7 +152,7 @@ def filter_site7_history_result_by_saved_targets(
 
     for dataset in history_result.datasets:
         target_key = (dataset.target_date, normalize_text(dataset.machine_name))
-        if dataset.target_date != today_date_text and target_key in saved_targets:
+        if target_key in saved_targets:
             skipped_targets.append((dataset.target_date, dataset.machine_name))
             skipped_target_dates.add(dataset.target_date)
             continue
@@ -1409,20 +1407,21 @@ class MinRepoApp:
             saved_targets=saved_targets_summary.saved_targets,
         )
 
-        today_targets = {
+        replaceable_targets = {
             (dataset.target_date, dataset.machine_name)
             for dataset in history_result.datasets
-            if dataset.target_date == current_jst_date_text()
+            if (dataset.target_date, normalize_text(dataset.machine_name)) in saved_targets_summary.replaceable_targets
         }
-        if today_targets:
-            self.result_queue.put(("fetch_progress", FetchProgress(current_step=3, total_steps=4, message="当日分を入れ直す準備中")))
+        if replaceable_targets:
+            self.result_queue.put(("fetch_progress", FetchProgress(current_step=3, total_steps=4, message="サイトセブン仮置き分を入れ直す準備中")))
             try:
                 self.persistence_service.delete_machine_targets_from_supabase(
                     store_url=history_result.store_url,
-                    target_pairs=today_targets,
+                    target_pairs=replaceable_targets,
+                    data_source="site7",
                 )
             except Exception as exc:  # noqa: BLE001
-                warning_messages.append(f"当日分の上書き準備に失敗しました。\n{exc}")
+                warning_messages.append(f"サイトセブン仮置き分の上書き準備に失敗しました。\n{exc}")
 
         return history_result, SavedFullDayDatesSummary(messages=warning_messages)
 
