@@ -22,4 +22,5 @@
 新しく環境を作る場合は、`apps/gui/requirements.txt` の導入後に `python -m playwright install chromium` も一度実行してください。
 `Supabase` 保存には、`.env.local` の `SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` を使います。
 `apps/web` には、`Supabase` に保存された内容を `店舗一覧 → 機種一覧 → 台データ` の順で見られるサイトを用意しています。
+機種一覧ページは店舗全体の最新日一日分ではなく、各機種ごとの最新記録日を基準に一覧を出します。
 このサイトは `PC` と `スマホ` の両方で、台データを横長の比較表として見られます。

@@ -51,16 +51,16 @@ export default async function StoreDetailPage({ params }) {
           <p className="eyebrow">Machine Directory</p>
           <h1 className="pageTitle">{store.storeName}</h1>
           <p className="leadText">
-            店舗内の最新日に記録がある機種だけを軽く表示し、機種名から台データページへ進めます。
+            各機種ごとの最新記録日を基準に一覧を出し、機種名から台データページへ進めます。
           </p>
         </div>
         <div className="heroMeta heroMetaWide">
           <div className="metaCard">
-            <span className="metaLabel">最新日の機種数</span>
+            <span className="metaLabel">保存済み機種数</span>
             <strong className="metaValue">{formatNumber(summary.machineCount)}</strong>
           </div>
           <div className="metaCard">
-            <span className="metaLabel">最新日</span>
+            <span className="metaLabel">店内の最新日</span>
             <strong className="metaValue">
               {summary.latestDate ? formatCompactDate(summary.latestDate) : "-"}
             </strong>
