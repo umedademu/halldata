@@ -29,6 +29,11 @@ SITE7_BROWSER_STATE_DIR_NAME = "site7_browser"
 SITE7_UPDATE_DATE_PATTERN = re.compile(r"データ更新日時：\s*(\d{4})/(\d{1,2})/(\d{1,2})")
 SITE7_SLOT_NUMBER_PATTERN = re.compile(r"(\d+)")
 SITE7_LOGIN_URL_PATTERN = re.compile(r"(?:Mypage)?Login", re.IGNORECASE)
+SITE7_LOGGED_IN_URL_KEYWORDS = (
+    "PCCreditAuth.do",
+    "MypageTop.do",
+    "MypageRegistProfile.do",
+)
 
 
 def clamp_site7_recent_days(recent_days: int) -> int:
@@ -57,6 +62,7 @@ class Site7Scraper:
     def login_interactively(self, timeout_seconds: int = 300) -> None:
         self._require_playwright()
         self.browser_state_dir.mkdir(parents=True, exist_ok=True)
+        timed_out = False
 
         try:
             with sync_playwright() as playwright:
@@ -70,13 +76,7 @@ class Site7Scraper:
                     page = context.pages[0] if context.pages else context.new_page()
                     page.goto(SITE7_LOGIN_URL, wait_until="domcontentloaded", timeout=60_000)
                     page.bring_to_front()
-                    deadline = time.time() + timeout_seconds
-                    while time.time() < deadline:
-                        if not context.pages:
-                            break
-                        time.sleep(1)
-                    else:
-                        raise ScraperError("ログイン待機がタイムアウトしました。ログイン後にブラウザを閉じてください。")
+                    timed_out = self._wait_for_login_success(context, timeout_seconds=timeout_seconds)
                 finally:
                     try:
                         context.close()
@@ -85,8 +85,13 @@ class Site7Scraper:
         except PlaywrightError as exc:
             raise self._wrap_playwright_error(exc) from exc
 
-        if not self.is_logged_in():
-            raise ScraperError("ログイン状態を確認できませんでした。ログイン後にブラウザを閉じてください。")
+        if self.is_logged_in():
+            return
+
+        if timed_out:
+            raise ScraperError("ログイン待機がタイムアウトしました。ログイン完了後の画面が開いたままなら数秒待ってください。")
+
+        raise ScraperError("ログイン状態を確認できませんでした。ログイン後の画面が開いたままなら数秒待ってください。")
 
     def is_logged_in(self) -> bool:
         if not self.has_saved_login_state():
@@ -324,10 +329,68 @@ class Site7Scraper:
             pass
         page.wait_for_timeout(1_000)
 
+    def _wait_for_login_success(self, context: object, timeout_seconds: int) -> bool:
+        deadline = time.time() + timeout_seconds
+
+        while time.time() < deadline:
+            pages = list(context.pages)
+            if not pages:
+                return False
+
+            for page in pages:
+                page_url = self._safe_page_url(page)
+                page_html = self._safe_page_content(page)
+                if not page_html:
+                    continue
+
+                if self._page_has_hall_content(page_html):
+                    return False
+
+                if self._page_indicates_logged_in(page_url, page_html):
+                    try:
+                        page.wait_for_timeout(1_500)
+                    except Exception:  # noqa: BLE001
+                        pass
+                    return False
+
+            time.sleep(1)
+
+        return True
+
+    def _page_indicates_logged_in(self, page_url: str, html: str) -> bool:
+        if any(keyword in (page_url or "") for keyword in SITE7_LOGGED_IN_URL_KEYWORDS):
+            return True
+
+        normalized_html = re.sub(r"\s+", "", html)
+        if "MypageTop.do" in html and "プロフィール" in normalized_html:
+            return True
+        if "MypageRegistProfile.do" in html:
+            return True
+        if "プロフィール変更" in normalized_html and "マイページ" in normalized_html:
+            return True
+        if "のプロフィール" in normalized_html and "マイページ" in normalized_html:
+            return True
+        return False
+
+    def _page_has_hall_content(self, html: str) -> bool:
+        return 'id="hall_name"' in html or "HallSelectLink.do?hallcode=" in html
+
+    def _safe_page_url(self, page: object) -> str:
+        try:
+            return str(page.url)
+        except Exception:  # noqa: BLE001
+            return ""
+
+    def _safe_page_content(self, page: object) -> str:
+        try:
+            return str(page.content())
+        except Exception:  # noqa: BLE001
+            return ""
+
     def _page_is_login_required(self, page_url: str, html: str) -> bool:
         if SITE7_LOGIN_URL_PATTERN.search(page_url or ""):
             return True
-        return "MypageLoginTop.do" in html or "ログイン" in html and "hall_name" not in html
+        return "MypageLoginTop.do" in html or "ログイン" in html and not self._page_has_hall_content(html)
 
     def _notify_progress(
         self,

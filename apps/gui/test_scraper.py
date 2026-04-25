@@ -297,6 +297,23 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertEqual(scraper.extract_store_name(html), "Ａパーク春日店")
 
+    def test_site7_detects_logged_in_page_from_saved_html(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = find_gui_fixture("site7_logged_in.html")
+
+        self.assertTrue(
+            scraper._page_indicates_logged_in(
+                "https://www.d-deltanet.com/pc/PCCreditAuth.do?skskb=3",
+                html,
+            )
+        )
+        self.assertFalse(
+            scraper._page_is_login_required(
+                "https://www.d-deltanet.com/pc/PCCreditAuth.do?skskb=3",
+                html,
+            )
+        )
+
     def test_site7_parse_machine_history_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = find_gui_fixture("site7_machine.html")

@@ -400,7 +400,7 @@ class MinRepoApp:
             "サイトセブン",
             "サイトセブンは初回ログインが必要です。\n"
             "いまブラウザを開いてログインしますか？\n"
-            "ログイン後にブラウザを閉じると、次回起動時以降は再入力を減らせます。",
+            "ログイン完了後の画面が見えたら、数秒待つと自動で反映します。",
         ):
             return
 
@@ -413,10 +413,11 @@ class MinRepoApp:
         messagebox.showinfo(
             "サイトセブン",
             "これからサイトセブンのログイン画面を開きます。\n"
-            "ブラウザでログインしたあと、そのブラウザを閉じてください。",
+            "ブラウザでログインしたあと、ログイン後の画面が見えるまで進めてください。\n"
+            "画面が切り替わったら、数秒待つと自動で反映します。",
         )
-        self.status_var.set("サイトセブンのログイン待ち")
-        self.site7_status_var.set("ログイン待ち")
+        self.status_var.set("サイトセブンのログイン確認中")
+        self.site7_status_var.set("ログイン確認中")
         self._start_worker(self._worker_site7_login, operation_kind="site7_login")
 
     def _worker_site7_login(self) -> None:
@@ -1233,7 +1234,7 @@ class MinRepoApp:
         if kind == "site7_login_success":
             self.site7_status_var.set("ログイン情報を保存しました")
             self.status_var.set("待機中")
-            messagebox.showinfo("サイトセブン", "サイトセブンのログイン情報を保存しました。次回以降は再ログインを省ける場合があります。")
+            messagebox.showinfo("サイトセブン", "サイトセブンのログイン状態を確認して保存しました。次回以降は再ログインを省ける場合があります。")
             return
 
         if kind == "register_store_error":
