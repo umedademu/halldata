@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import random
 import re
 import time
+import unicodedata
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Callable
@@ -32,13 +33,8 @@ except ImportError:  # pragma: no cover
 ROOT_DIR = Path(__file__).resolve().parents[2]
 SITE7_TOP_URL = "https://www.d-deltanet.com/pc/Top.do"
 SITE7_LOGIN_URL = "https://www.d-deltanet.com/pc/MypageLoginTop.do?redirectLogin=0&skskb="
-SITE7_TARGET_HALL_URL = "https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=235def7f3ed0c81275a2bc47dc5b839a"
 SITE7_TARGET_PREFECTURE_NAME = "福岡"
 SITE7_TARGET_PREFECTURE_URL_KEYWORD = "HallMapSearch.do?prefecturecode=40"
-SITE7_TARGET_AREA_NAME = "春日市"
-SITE7_TARGET_AREA_URL_KEYWORD = "HallSearchByArea.do?prefecturecode=40&district=40218"
-SITE7_TARGET_HALL_NAME = "Ａパーク春日店"
-SITE7_TARGET_HALL_ADDRESS = "福岡県春日市日の出町５－２４"
 SITE7_TARGET_MACHINE_NAME = "ネオアイムジャグラーEX"
 SITE7_TARGET_MACHINE_KEYWORDS = tuple(list_site7_target_machine_keywords())
 SITE7_MAX_RECENT_DAYS = 8
@@ -84,6 +80,58 @@ def build_site7_transition_wait_milliseconds(
 class Site7MachineEntry:
     display_name: str
     machine_name: str
+
+
+@dataclass(frozen=True)
+class Site7TargetStore:
+    display_name: str
+    site7_hall_name: str
+    hall_address: str
+    area_name: str
+    area_url_keyword: str
+    direct_hall_url: str = ""
+    hall_name_aliases: tuple[str, ...] = ()
+
+    @property
+    def hall_match_texts(self) -> tuple[str, ...]:
+        match_texts: list[str] = []
+        seen_texts: set[str] = set()
+        for candidate in (self.display_name, self.site7_hall_name, *self.hall_name_aliases, self.hall_address):
+            normalized_candidate = _normalize_site7_lookup_text(candidate)
+            if not normalized_candidate or normalized_candidate in seen_texts:
+                continue
+            seen_texts.add(normalized_candidate)
+            match_texts.append(str(candidate).strip())
+        return tuple(match_texts)
+
+
+SITE7_TARGET_STORES = (
+    Site7TargetStore(
+        display_name="Aパーク春日店",
+        site7_hall_name="Ａパーク春日店",
+        hall_address="福岡県春日市日の出町５－２４",
+        area_name="春日市",
+        area_url_keyword="HallSearchByArea.do?prefecturecode=40&district=40218",
+        direct_hall_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=235def7f3ed0c81275a2bc47dc5b839a",
+        hall_name_aliases=("Aパーク春日店",),
+    ),
+    Site7TargetStore(
+        display_name="GOGOアリーナ天神",
+        site7_hall_name="ＧＯＧＯアリーナ天神",
+        hall_address="福岡県福岡市中央区天神２－６－３７",
+        area_name="福岡市中央区",
+        area_url_keyword="HallSearchByArea.do?prefecturecode=40&district=40133",
+        direct_hall_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=40056006",
+        hall_name_aliases=("GOGOアリーナ天神",),
+    ),
+)
+SITE7_TARGET_STORE_DISPLAY_NAMES = tuple(store.display_name for store in SITE7_TARGET_STORES)
+SITE7_DEFAULT_TARGET_STORE = SITE7_TARGET_STORES[0]
+
+
+def _normalize_site7_lookup_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", str(value))
+    return re.sub(r"\s+", "", normalized).casefold()
 
 
 class Site7Scraper:
@@ -157,10 +205,10 @@ class Site7Scraper:
                     page = context.new_page()
                     if browser_visible:
                         page.bring_to_front()
-                    hall_page_url, hall_html = self._open_target_hall_page(page)
+                    hall_page_url, hall_html = self._open_target_hall_page(page, SITE7_DEFAULT_TARGET_STORE)
                     if self._page_is_login_required(hall_page_url, hall_html):
                         return False
-                    return self._page_has_target_hall_page(hall_page_url, hall_html)
+                    return self._page_has_target_hall_page(hall_page_url, hall_html, SITE7_DEFAULT_TARGET_STORE)
                 finally:
                     context.close()
         except Exception:  # noqa: BLE001
@@ -171,9 +219,16 @@ class Site7Scraper:
         recent_days: int,
         browser_visible: bool = False,
         progress_callback: Callable[[FetchProgress], None] | None = None,
+        target_store: Site7TargetStore | None = None,
     ) -> MachineHistoryResult:
+        resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
         target_days = clamp_site7_recent_days(recent_days)
-        self._notify_progress(progress_callback, 0, 1, "サイトセブンのトップから店舗ページへ移動しています")
+        self._notify_progress(
+            progress_callback,
+            0,
+            1,
+            f"{resolved_target_store.display_name} の店舗ページへ移動しています",
+        )
         self._require_playwright()
         self.close_visible_browser()
 
@@ -192,7 +247,7 @@ class Site7Scraper:
             page = context.new_page()
             if browser_visible:
                 page.bring_to_front()
-            hall_page_url, hall_html = self._open_target_hall_page(page)
+            hall_page_url, hall_html = self._open_target_hall_page(page, resolved_target_store)
             store_name = self.extract_store_name(hall_html)
             target_machine_entries = self.extract_target_machine_entries(hall_html)
             total_steps = len(target_machine_entries) + 2
@@ -207,7 +262,7 @@ class Site7Scraper:
                     progress_callback,
                     machine_index,
                     total_steps,
-                    f"{machine_entry.machine_name} のページを開いています",
+                    f"{resolved_target_store.display_name} / {machine_entry.machine_name} のページを開いています",
                 )
                 self._wait_between_transitions(page)
                 self._open_target_machine_page(page, machine_entry)
@@ -234,12 +289,12 @@ class Site7Scraper:
             progress_callback,
             len(machine_results) + 1,
             len(machine_results) + 2,
-            "台データを読み取っています",
+            f"{resolved_target_store.display_name} の台データを読み取っています",
         )
         return self._merge_machine_history_results(
             machine_results,
-            fallback_store_name=store_name if "store_name" in locals() else SITE7_TARGET_HALL_NAME,
-            store_url=hall_page_url if "hall_page_url" in locals() else SITE7_TARGET_HALL_URL,
+            fallback_store_name=store_name if "store_name" in locals() else resolved_target_store.display_name,
+            store_url=hall_page_url if "hall_page_url" in locals() else resolved_target_store.direct_hall_url,
         )
 
     def extract_store_name(self, html: str) -> str:
@@ -433,25 +488,33 @@ class Site7Scraper:
         match = SITE7_SLOT_NUMBER_PATTERN.search(str(cell_text))
         return match.group(1) if match is not None else ""
 
-    def extract_prefecture_link(self, html: str) -> str:
+    def extract_prefecture_link(self, html: str, target_store: Site7TargetStore | None = None) -> str:
         return self._extract_link_from_html(
             html,
             link_text=SITE7_TARGET_PREFECTURE_NAME,
             href_keyword=SITE7_TARGET_PREFECTURE_URL_KEYWORD,
         )
 
-    def extract_area_link(self, html: str) -> str:
+    def extract_area_link(self, html: str, target_store: Site7TargetStore | None = None) -> str:
+        resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
         return self._extract_link_from_html(
             html,
-            link_text=SITE7_TARGET_AREA_NAME,
-            href_keyword=SITE7_TARGET_AREA_URL_KEYWORD,
+            link_text=resolved_target_store.area_name,
+            href_keyword=resolved_target_store.area_url_keyword,
         )
 
-    def extract_target_hall_search_code(self, html: str) -> str:
+    def extract_target_hall_search_code(self, html: str, target_store: Site7TargetStore | None = None) -> str:
+        resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
+        normalized_match_texts = {
+            _normalize_site7_lookup_text(match_text)
+            for match_text in resolved_target_store.hall_match_texts
+            if _normalize_site7_lookup_text(match_text)
+        }
         soup = BeautifulSoup(html, "html.parser")
         for hall_block in soup.select("div.hall"):
             hall_text = hall_block.get_text(" ", strip=True)
-            if SITE7_TARGET_HALL_NAME not in hall_text and SITE7_TARGET_HALL_ADDRESS not in hall_text:
+            normalized_hall_text = _normalize_site7_lookup_text(hall_text)
+            if not any(match_text in normalized_hall_text for match_text in normalized_match_texts):
                 continue
 
             hall_link = hall_block.find("a", onclick=True)
@@ -463,7 +526,9 @@ class Site7Scraper:
             if match is not None:
                 return match.group(1)
 
-        raise ScraperError(f"サイトセブンで {SITE7_TARGET_HALL_NAME} を選ぶための情報が見つかりませんでした。")
+        raise ScraperError(
+            f"サイトセブンで {resolved_target_store.display_name} を選ぶための情報が見つかりませんでした。"
+        )
 
     def _extract_link_from_html(self, html: str, link_text: str, href_keyword: str) -> str:
         soup = BeautifulSoup(html, "html.parser")
@@ -478,23 +543,28 @@ class Site7Scraper:
 
         raise ScraperError(f"サイトセブンで {link_text} のリンクが見つかりませんでした。")
 
-    def _open_target_hall_page(self, page: object) -> tuple[str, str]:
+    def _open_target_hall_page(
+        self,
+        page: object,
+        target_store: Site7TargetStore | None = None,
+    ) -> tuple[str, str]:
+        resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
         page.goto(SITE7_TOP_URL, wait_until="domcontentloaded", timeout=60_000)
         self._accept_cookie_banner_if_present(page)
         top_html = page.content()
         self._wait_between_transitions(page)
 
-        prefecture_link = self.extract_prefecture_link(top_html)
+        prefecture_link = self.extract_prefecture_link(top_html, resolved_target_store)
         page.goto(prefecture_link, wait_until="domcontentloaded", timeout=60_000)
         self._accept_cookie_banner_if_present(page)
         prefecture_html = page.content()
         self._wait_between_transitions(page)
 
-        area_link = self.extract_area_link(prefecture_html)
+        area_link = self.extract_area_link(prefecture_html, resolved_target_store)
         page.goto(area_link, wait_until="domcontentloaded", timeout=60_000)
         self._accept_cookie_banner_if_present(page)
         area_html = page.content()
-        target_hall_search_code = self.extract_target_hall_search_code(area_html)
+        target_hall_search_code = self.extract_target_hall_search_code(area_html, resolved_target_store)
         self._wait_between_transitions(page)
 
         try:
@@ -510,8 +580,8 @@ class Site7Scraper:
 
         if self._page_is_login_required(hall_page_url, hall_html):
             raise ScraperError("サイトセブンのログインが必要です。先にサイトセブンにログインしてください。")
-        if not self._page_has_target_hall_page(hall_page_url, hall_html):
-            raise ScraperError(f"サイトセブンで {SITE7_TARGET_HALL_NAME} の店舗ページを開けませんでした。")
+        if not self._page_has_target_hall_page(hall_page_url, hall_html, resolved_target_store):
+            raise ScraperError(f"サイトセブンで {resolved_target_store.display_name} の店舗ページを開けませんでした。")
 
         return hall_page_url, hall_html
 
@@ -664,10 +734,21 @@ class Site7Scraper:
     def _page_has_hall_content(self, html: str) -> bool:
         return 'id="hall_name"' in html or ('id="hall_contents"' in html and "HallSelectLink.do?hallcode=" in html)
 
-    def _page_has_target_hall_page(self, page_url: str, html: str) -> bool:
+    def _page_has_target_hall_page(
+        self,
+        page_url: str,
+        html: str,
+        target_store: Site7TargetStore | None = None,
+    ) -> bool:
+        resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
         if not self._page_has_hall_content(html):
             return False
-        return SITE7_TARGET_HALL_NAME in html or "id=\"hall_name\"" in html and SITE7_TARGET_HALL_ADDRESS in html
+        normalized_html = _normalize_site7_lookup_text(html)
+        for match_text in resolved_target_store.hall_match_texts:
+            normalized_match_text = _normalize_site7_lookup_text(match_text)
+            if normalized_match_text and normalized_match_text in normalized_html:
+                return True
+        return False
 
     def _safe_page_url(self, page: object) -> str:
         try:

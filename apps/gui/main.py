@@ -41,7 +41,14 @@ from minrepo_scraper import (
     ScraperError,
     normalize_text,
 )
-from site7_scraper import SITE7_MAX_RECENT_DAYS, SITE7_TARGET_MACHINE_KEYWORDS, Site7Scraper
+from site7_scraper import (
+    SITE7_MAX_RECENT_DAYS,
+    SITE7_TARGET_MACHINE_KEYWORDS,
+    SITE7_TARGET_STORE_DISPLAY_NAMES,
+    SITE7_TARGET_STORES,
+    Site7Scraper,
+    Site7TargetStore,
+)
 
 
 DEFAULT_STORE_NAME = "MJアリーナ箱崎店"
@@ -359,9 +366,9 @@ class MinRepoApp:
         ttk.Label(
             site7_row,
             text=(
-                "固定対象は Ａパーク春日店 の対象ジャグラー機種です。"
+                f"固定対象は {'、'.join(SITE7_TARGET_STORE_DISPLAY_NAMES)} の対象ジャグラー機種です。"
                 f" 対象語は {'、'.join(SITE7_TARGET_MACHINE_KEYWORDS)} です。"
-                f"直近日数は最大 {SITE7_MAX_RECENT_DAYS} 日まで使えます。"
+                f" 直近日数は最大 {SITE7_MAX_RECENT_DAYS} 日まで使えます。"
                 " ログイン操作は常に表示で開きます。"
             ),
             wraplength=900,
@@ -1014,7 +1021,7 @@ class MinRepoApp:
         self._clear_comparison_table()
         self._begin_fetch_progress("サイトセブンへ接続中...")
         self.status_var.set("サイトセブン取得中...")
-        self.summary_var.set("対象ジャグラー機種をサイトセブンから取得中")
+        self.summary_var.set(f"{len(SITE7_TARGET_STORES)}店舗の対象ジャグラー機種をサイトセブンから取得中")
         self.fetch_cancel_event.clear()
         browser_visible = self._site7_browser_visible()
         self._start_worker(
@@ -1027,40 +1034,141 @@ class MinRepoApp:
 
     def _worker_fetch_site7(self, recent_days: int, retry_delay_seconds: int, browser_visible: bool) -> None:
         try:
-            history_result = self._run_with_fetch_retries(
-                lambda: self.site7_scraper.fetch_target_machine_history(
-                    recent_days=recent_days,
-                    browser_visible=browser_visible,
-                    progress_callback=lambda progress: self.result_queue.put(("fetch_progress", progress)),
-                ),
+            fetch_many_result = self._run_site7_fetch_many(
+                recent_days=recent_days,
                 retry_delay_seconds=retry_delay_seconds,
-                retry_status_callback=lambda retry_number, max_retries, delay_seconds: self.result_queue.put(
-                    (
-                        "fetch_progress",
-                        FetchProgress(
-                            current_step=0,
-                            total_steps=4,
-                            message=(
-                                "サイトセブン取得に失敗しました。"
-                                f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
-                            ),
-                        ),
-                    )
-                ),
+                browser_visible=browser_visible,
             )
-            self._raise_if_fetch_cancelled()
-            self.result_queue.put(("fetch_progress", FetchProgress(current_step=3, total_steps=4, message="保存済み日付を確認中")))
-            history_result, warning_summary = self._prepare_site7_history_result_for_save(history_result)
-            self._raise_if_fetch_cancelled()
-            save_summary: PersistenceSummary | None = None
-            if history_result.datasets:
-                self.result_queue.put(("fetch_progress", FetchProgress(current_step=3, total_steps=4, message="保存中")))
-                save_summary = self.persistence_service.save_history_result(history_result)
-            self.result_queue.put(("site7_fetch_success", (history_result, save_summary, warning_summary)))
+            if fetch_many_result.cancelled and not fetch_many_result.results:
+                self.result_queue.put(("fetch_cancelled", None))
+                return
+            self.result_queue.put(("fetch_many_success", fetch_many_result))
         except FetchCancelled:
             self.result_queue.put(("fetch_cancelled", None))
         except Exception as exc:  # noqa: BLE001
             self.result_queue.put(("fetch_error", exc))
+
+    def _run_site7_fetch_many(
+        self,
+        recent_days: int,
+        retry_delay_seconds: int,
+        browser_visible: bool,
+    ) -> FetchManyResult:
+        results: list[StoreFetchResult] = []
+        failures: list[StoreFetchFailure] = []
+        total_stores = len(SITE7_TARGET_STORES)
+        cancelled = False
+
+        for store_index, target_store in enumerate(SITE7_TARGET_STORES, start=1):
+            if self.fetch_cancel_event.is_set():
+                cancelled = True
+                break
+
+            registered_store = RegisteredStore(
+                name=target_store.display_name,
+                url=target_store.direct_hall_url or "https://www.d-deltanet.com/pc/Top.do",
+            )
+            try:
+                results.append(
+                    self._fetch_single_site7_store(
+                        target_store=target_store,
+                        recent_days=recent_days,
+                        store_index=store_index,
+                        total_stores=total_stores,
+                        retry_delay_seconds=retry_delay_seconds,
+                        browser_visible=browser_visible,
+                    )
+                )
+            except FetchCancelled:
+                cancelled = True
+                break
+            except Exception as exc:  # noqa: BLE001
+                failures.append(StoreFetchFailure(store=registered_store, error=exc))
+                self.result_queue.put(
+                    (
+                        "fetch_progress",
+                        FetchProgress(
+                            current_step=1,
+                            total_steps=1,
+                            message=f"{store_index}/{total_stores} {target_store.display_name} は取得失敗",
+                        ),
+                    )
+                )
+
+        if self.fetch_cancel_event.is_set():
+            cancelled = True
+
+        if not results and failures:
+            failure_lines = "\n".join(f"{failure.store.name}: {failure.error}" for failure in failures)
+            raise ScraperError(f"サイトセブンの対象店舗を取得できませんでした。\n{failure_lines}")
+
+        return FetchManyResult(results=results, failures=failures, cancelled=cancelled)
+
+    def _fetch_single_site7_store(
+        self,
+        target_store: Site7TargetStore,
+        recent_days: int,
+        store_index: int,
+        total_stores: int,
+        retry_delay_seconds: int,
+        browser_visible: bool,
+    ) -> StoreFetchResult:
+        self._raise_if_fetch_cancelled()
+        store_label = f"{store_index}/{total_stores} {target_store.display_name}"
+        history_result = self._run_with_fetch_retries(
+            lambda: self.site7_scraper.fetch_target_machine_history(
+                recent_days=recent_days,
+                browser_visible=browser_visible,
+                progress_callback=lambda progress: self.result_queue.put(
+                    (
+                        "fetch_progress",
+                        FetchProgress(
+                            current_step=progress.current_step,
+                            total_steps=progress.total_steps,
+                            message=f"{store_label}: {progress.message}",
+                        ),
+                    )
+                ),
+                target_store=target_store,
+            ),
+            retry_delay_seconds=retry_delay_seconds,
+            retry_status_callback=lambda retry_number, max_retries, delay_seconds: self.result_queue.put(
+                (
+                    "fetch_progress",
+                    FetchProgress(
+                        current_step=0,
+                        total_steps=4,
+                        message=(
+                            f"{store_label}: サイトセブン取得に失敗しました。"
+                            f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
+                        ),
+                    ),
+                )
+            ),
+        )
+        self._raise_if_fetch_cancelled()
+        self.result_queue.put(
+            (
+                "fetch_progress",
+                FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: 保存済み日付を確認中"),
+            )
+        )
+        history_result, warning_summary = self._prepare_site7_history_result_for_save(history_result)
+        self._raise_if_fetch_cancelled()
+        save_summary: PersistenceSummary | None = None
+        if history_result.datasets:
+            self.result_queue.put(
+                (
+                    "fetch_progress",
+                    FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: 保存中"),
+                )
+            )
+            save_summary = self.persistence_service.save_history_result(history_result)
+        return StoreFetchResult(
+            history_result=history_result,
+            save_summary=save_summary,
+            saved_full_day_summary=warning_summary,
+        )
 
     def _prepare_site7_history_result_for_save(
         self,

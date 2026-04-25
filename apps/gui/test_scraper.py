@@ -30,7 +30,14 @@ from main import (
 )
 from machine_difference import calculate_machine_difference_value, canonical_machine_name
 from minrepo_scraper import FetchProgress, MinRepoScraper, normalize_text, parse_date_range_input
-from site7_scraper import SITE7_TARGET_MACHINE_KEYWORDS, SITE7_TARGET_MACHINE_NAME, Site7Scraper, clamp_site7_recent_days
+from site7_scraper import (
+    SITE7_TARGET_MACHINE_KEYWORDS,
+    SITE7_TARGET_MACHINE_NAME,
+    SITE7_TARGET_STORE_DISPLAY_NAMES,
+    SITE7_TARGET_STORES,
+    Site7Scraper,
+    clamp_site7_recent_days,
+)
 from site7_scraper import build_site7_transition_wait_milliseconds
 
 
@@ -378,6 +385,13 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertEqual(scraper.extract_store_name(html), "Ａパーク春日店")
 
+    def test_site7_target_store_names_include_gogo_arena_tenjin(self) -> None:
+        self.assertEqual(
+            SITE7_TARGET_STORE_DISPLAY_NAMES,
+            ("Aパーク春日店", "GOGOアリーナ天神"),
+        )
+        self.assertEqual(SITE7_TARGET_STORES[1].area_name, "福岡市中央区")
+
     def test_site7_extract_target_machine_entries_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = """
@@ -499,6 +513,23 @@ class MinRepoScraperTests(unittest.TestCase):
             "https://www.d-deltanet.com/pc/HallSearchByArea.do?prefecturecode=40&district=40218",
         )
 
+    def test_site7_extract_area_link_for_gogo_store(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = """
+<!DOCTYPE html>
+<html lang="ja">
+  <body>
+    <a href="HallSearchByArea.do?prefecturecode=40&district=40133">福岡市中央区</a>
+    <a href="HallSearchByArea.do?prefecturecode=40&district=40218">春日市</a>
+  </body>
+</html>
+"""
+
+        self.assertEqual(
+            scraper.extract_area_link(html, SITE7_TARGET_STORES[1]),
+            "https://www.d-deltanet.com/pc/HallSearchByArea.do?prefecturecode=40&district=40133",
+        )
+
     def test_site7_extract_target_hall_search_code_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = find_gui_fixture("site7_kasuga.html")
@@ -506,6 +537,29 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(
             scraper.extract_target_hall_search_code(html),
             "ff3cd2a71a6cbc459c80f25b44423ba6",
+        )
+
+    def test_site7_extract_target_hall_search_code_for_gogo_store(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = """
+<!DOCTYPE html>
+<html lang="ja">
+  <body>
+    <div class="hall">
+      <a onclick="javascript:hallClick('11111111111111111111111111111111')">店舗詳細</a>
+      <p>福岡県福岡市中央区天神２－６－４１</p>
+    </div>
+    <div class="hall">
+      <a onclick="javascript:hallClick('22222222222222222222222222222222')">店舗詳細</a>
+      <p>福岡県福岡市中央区天神２－６－３７</p>
+    </div>
+  </body>
+</html>
+"""
+
+        self.assertEqual(
+            scraper.extract_target_hall_search_code(html, SITE7_TARGET_STORES[1]),
+            "22222222222222222222222222222222",
         )
 
     def test_site7_parse_machine_history_from_saved_html(self) -> None:
@@ -672,6 +726,12 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(
             normalize_store_name_key("Aパーク春日店"),
             normalize_store_name_key("Ａパーク春日店"),
+        )
+
+    def test_normalize_store_name_key_unifies_halfwidth_and_fullwidth_gogo(self) -> None:
+        self.assertEqual(
+            normalize_store_name_key("GOGOアリーナ天神"),
+            normalize_store_name_key("ＧＯＧＯアリーナ天神"),
         )
 
     def test_choose_preferred_store_uses_most_records(self) -> None:
