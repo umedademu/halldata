@@ -1,6 +1,7 @@
 import { cache } from "react";
 
 import { createEventFilters } from "./event-filters";
+import { withCalculatedDifferenceValue } from "./machine-difference";
 
 const PAGE_SIZE = 1000;
 const DEFAULT_FETCH_CACHE_TTL_MS = 60 * 1000;
@@ -529,14 +530,14 @@ export async function registerPendingStoreUrl(storeUrl) {
 
 export const getStoreDetail = cache(async function getStoreDetail(storeId) {
   const { storesTable, resultsTable } = await getSupabaseConfig();
-  const [stores, rows] = await Promise.all([
+  const [stores, fetchedRows] = await Promise.all([
     fetchAllRows(storesTable, {
       select: "id,store_name,store_url",
       id: `eq.${storeId}`,
     }),
     fetchAllRows(resultsTable, {
       select:
-        "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate",
+        "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate,bb_count,rb_count",
       store_id: `eq.${storeId}`,
     }),
   ]);
@@ -546,6 +547,7 @@ export const getStoreDetail = cache(async function getStoreDetail(storeId) {
     return null;
   }
 
+  const rows = fetchedRows.map(withCalculatedDifferenceValue);
   const machineSummaryResult = buildMachineLatestSummaries(rows);
 
   return {
@@ -561,7 +563,7 @@ export const getStoreDetail = cache(async function getStoreDetail(storeId) {
 
 export const getMachineDetail = cache(async function getMachineDetail(storeId, machineName) {
   const { storesTable, resultsTable } = await getSupabaseConfig();
-  const [stores, rows] = await Promise.all([
+  const [stores, fetchedRows] = await Promise.all([
     fetchStoreEventRows(storesTable, storeId),
     fetchAllRows(resultsTable, {
       select:
@@ -573,10 +575,11 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
   ]);
 
   const store = stores[0];
-  if (!store || rows.length === 0) {
+  if (!store || fetchedRows.length === 0) {
     return null;
   }
 
+  const rows = fetchedRows.map(withCalculatedDifferenceValue);
   const detail = buildMachineDetail(rows);
 
   return {

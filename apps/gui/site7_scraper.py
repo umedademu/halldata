@@ -10,6 +10,7 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
 
+from machine_difference import format_machine_difference_for_row
 from minrepo_scraper import FetchProgress, MachineDataset, MachineHistoryResult, ScraperError, StoreDatePage
 
 try:
@@ -305,14 +306,20 @@ class Site7Scraper:
             if not slot_number:
                 continue
 
+            row_values = {
+                "G数": cells[1] or "-",
+                "BB": cells[2] or "-",
+                "RB": cells[3] or "-",
+            }
+
             rows.append(
                 [
                     slot_number,
+                    format_machine_difference_for_row(machine_name, row_values),
+                    row_values["G数"],
                     "-",
-                    cells[1] or "-",
-                    "-",
-                    cells[2] or "-",
-                    cells[3] or "-",
+                    row_values["BB"],
+                    row_values["RB"],
                     format_site7_ratio_text(cells[4]),
                     format_site7_ratio_text(cells[5]),
                     format_site7_ratio_text(cells[6]),

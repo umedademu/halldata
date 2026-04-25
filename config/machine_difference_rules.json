@@ -1,0 +1,15 @@
+{
+  "machine_rules": [
+    {
+      "machine_names": [
+        "ネオアイムジャグラーEX"
+      ],
+      "investment_coins": 50,
+      "games_per_investment": 40.6,
+      "bonus_payouts": {
+        "BB": 252,
+        "RB": 96
+      }
+    }
+  ]
+}

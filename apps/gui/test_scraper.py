@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 from data_persistence import (
     HistoryPersistenceService,
     build_machine_daily_records,
+    build_supabase_result_payload,
     choose_preferred_store,
     normalize_store_name_key,
     normalize_store_url,
@@ -27,6 +28,7 @@ from main import (
     parse_recent_days,
     parse_retry_delay_seconds,
 )
+from machine_difference import calculate_machine_difference_value
 from minrepo_scraper import FetchProgress, MinRepoScraper, normalize_text, parse_date_range_input
 from site7_scraper import SITE7_TARGET_MACHINE_NAME, Site7Scraper, clamp_site7_recent_days
 from site7_scraper import build_site7_transition_wait_milliseconds
@@ -338,6 +340,18 @@ class MinRepoScraperTests(unittest.TestCase):
             },
         )
 
+    def test_calculate_machine_difference_value_for_registered_machine(self) -> None:
+        difference_value = calculate_machine_difference_value(
+            "ネオアイムジャグラーEX",
+            {
+                "G数": "8000",
+                "BB": "30",
+                "RB": "15",
+            },
+        )
+
+        self.assertEqual(difference_value, -852.2)
+
     def test_site7_extract_store_name_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = find_gui_fixture("site7_machine.html")
@@ -407,7 +421,7 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertTrue(all(dataset.machine_name == SITE7_TARGET_MACHINE_NAME for dataset in history_result.datasets))
         self.assertEqual(
             history_result.datasets[1].rows[0],
-            ["821", "-", "2163", "-", "10", "5", "1/144", "1/216", "1/432"],
+            ["821", "336.2", "2163", "-", "10", "5", "1/144", "1/216", "1/432"],
         )
 
     def test_site7_build_machine_daily_records_from_history_result(self) -> None:
@@ -429,7 +443,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 "target_date": "2026-04-24",
                 "slot_number": "821",
                 "machine_name": SITE7_TARGET_MACHINE_NAME,
-                "difference_value": None,
+                "difference_value": 735.3,
                 "games_count": 5454,
                 "payout_rate": None,
                 "bb_count": 25,
@@ -439,6 +453,28 @@ class MinRepoScraperTests(unittest.TestCase):
                 "rb_ratio_text": "1/454",
             },
         )
+
+    def test_build_supabase_result_payload_clears_fractional_difference_value(self) -> None:
+        payload = build_supabase_result_payload(
+            {
+                "target_date": "2026-04-24",
+                "slot_number": "821",
+                "machine_name": SITE7_TARGET_MACHINE_NAME,
+                "difference_value": 735.3,
+                "games_count": 5454,
+                "payout_rate": None,
+                "bb_count": 25,
+                "rb_count": 12,
+                "combined_ratio_text": "1/147",
+                "bb_ratio_text": "1/218",
+                "rb_ratio_text": "1/454",
+            },
+            store_id="store-1",
+            updated_at="2026-04-25T12:34:56+09:00",
+        )
+
+        self.assertIsNone(payload["difference_value"])
+        self.assertEqual(payload["store_id"], "store-1")
 
     def test_save_history_result_writes_local_file(self) -> None:
         scraper = FixtureScraper()

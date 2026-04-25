@@ -12,6 +12,7 @@ from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 import requests
 
+from machine_difference import calculate_machine_difference_value
 from minrepo_scraper import MachineHistoryResult, normalize_text
 
 
@@ -131,12 +132,16 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
             if not slot_number:
                 continue
 
+            difference_value = _parse_difference_value(row_values.get("差枚", ""))
+            if difference_value is None:
+                difference_value = calculate_machine_difference_value(dataset.machine_name, row_values)
+
             records.append(
                 {
                     "target_date": dataset.target_date,
                     "slot_number": slot_number,
                     "machine_name": dataset.machine_name.strip(),
-                    "difference_value": _parse_int_value(row_values.get("差枚", "")),
+                    "difference_value": difference_value,
                     "games_count": _parse_int_value(row_values.get("G数", "")),
                     "payout_rate": _parse_percent_value(row_values.get("出率", "")),
                     "bb_count": _parse_int_value(row_values.get("BB", "")),
@@ -148,6 +153,14 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
             )
 
     return records
+
+
+def build_supabase_result_payload(record: dict[str, Any], store_id: str, updated_at: str) -> dict[str, Any]:
+    payload = dict(record)
+    payload["difference_value"] = _normalize_difference_value_for_supabase(payload.get("difference_value"))
+    payload["store_id"] = store_id
+    payload["updated_at"] = updated_at
+    return payload
 
 
 class HistoryPersistenceService:
@@ -541,10 +554,7 @@ class HistoryPersistenceService:
 
         result_payloads = []
         for record in records:
-            payload = dict(record)
-            payload["store_id"] = store_id
-            payload["updated_at"] = now_text
-            result_payloads.append(payload)
+            result_payloads.append(build_supabase_result_payload(record, store_id=store_id, updated_at=now_text))
 
         for payload_chunk in _chunk_items(result_payloads, 500):
             endpoint = (
@@ -955,6 +965,17 @@ def _parse_int_value(value: str) -> int | None:
     return int(normalized)
 
 
+def _parse_difference_value(value: str) -> int | float | None:
+    normalized = str(value).strip().replace(",", "")
+    if not normalized or normalized == "-":
+        return None
+    if re.fullmatch(r"-?\d+(?:\.\d+)?", normalized) is None:
+        return None
+    if "." in normalized:
+        return float(normalized)
+    return int(normalized)
+
+
 def _parse_percent_value(value: str) -> float | None:
     normalized = str(value).strip().replace("%", "")
     if not normalized or normalized == "-":
@@ -967,6 +988,26 @@ def _parse_percent_value(value: str) -> float | None:
 def _parse_text_value(value: str) -> str | None:
     normalized = str(value).strip()
     return normalized or None
+
+
+def _normalize_difference_value_for_supabase(value: Any) -> int | None:
+    if value is None:
+        return None
+
+    if isinstance(value, int):
+        return value
+
+    if isinstance(value, float):
+        if value.is_integer():
+            return int(value)
+        return None
+
+    parsed_value = _parse_difference_value(str(value))
+    if isinstance(parsed_value, int):
+        return parsed_value
+    if isinstance(parsed_value, float) and parsed_value.is_integer():
+        return int(parsed_value)
+    return None
 
 
 def _sanitize_file_name(value: str) -> str:
