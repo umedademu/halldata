@@ -22,6 +22,7 @@ from main import (
 )
 from minrepo_scraper import FetchProgress, MinRepoScraper, normalize_text, parse_date_range_input
 from site7_scraper import SITE7_TARGET_MACHINE_NAME, Site7Scraper, clamp_site7_recent_days
+from site7_scraper import build_site7_transition_wait_milliseconds
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -89,6 +90,13 @@ class MinRepoScraperTests(unittest.TestCase):
     def test_clamp_site7_recent_days(self) -> None:
         self.assertEqual(clamp_site7_recent_days(3), 3)
         self.assertEqual(clamp_site7_recent_days(90), 8)
+
+    def test_site7_transition_wait_milliseconds_uses_given_value(self) -> None:
+        self.assertEqual(build_site7_transition_wait_milliseconds(lambda start, end: 2.5), 2500)
+
+    def test_site7_transition_wait_milliseconds_clamps_min_and_max(self) -> None:
+        self.assertEqual(build_site7_transition_wait_milliseconds(lambda start, end: 1.0), 2000)
+        self.assertEqual(build_site7_transition_wait_milliseconds(lambda start, end: 9.0), 4000)
 
     def test_normalize_site7_browser_mode(self) -> None:
         self.assertEqual(normalize_site7_browser_mode("visible"), SITE7_BROWSER_MODE_VISIBLE)

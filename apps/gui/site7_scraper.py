@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 import re
 import time
 from datetime import datetime, timedelta
@@ -33,6 +34,8 @@ SITE7_TARGET_HALL_NAME = "Ａパーク春日店"
 SITE7_TARGET_HALL_ADDRESS = "福岡県春日市日の出町５－２４"
 SITE7_TARGET_MACHINE_NAME = "ネオアイムジャグラーEX"
 SITE7_MAX_RECENT_DAYS = 8
+SITE7_TRANSITION_WAIT_MIN_SECONDS = 2.0
+SITE7_TRANSITION_WAIT_MAX_SECONDS = 4.0
 SITE7_BROWSER_STATE_DIR_NAME = "site7_browser"
 SITE7_UPDATE_DATE_PATTERN = re.compile(r"データ更新日時：\s*(\d{4})/(\d{1,2})/(\d{1,2})")
 SITE7_SLOT_NUMBER_PATTERN = re.compile(r"(\d+)")
@@ -58,6 +61,15 @@ def format_site7_ratio_text(value: str) -> str:
     if text.startswith("1/"):
         return text
     return f"1/{text}"
+
+
+def build_site7_transition_wait_milliseconds(
+    random_seconds_fn: Callable[[float, float], float] | None = None,
+) -> int:
+    seconds_fn = random_seconds_fn or random.uniform
+    seconds = float(seconds_fn(SITE7_TRANSITION_WAIT_MIN_SECONDS, SITE7_TRANSITION_WAIT_MAX_SECONDS))
+    seconds = max(SITE7_TRANSITION_WAIT_MIN_SECONDS, min(SITE7_TRANSITION_WAIT_MAX_SECONDS, seconds))
+    return int(seconds * 1000)
 
 
 class Site7Scraper:
@@ -153,6 +165,7 @@ class Site7Scraper:
                     hall_page_url, hall_html = self._open_target_hall_page(page)
                     store_name = self.extract_store_name(hall_html)
                     self._notify_progress(progress_callback, 1, 4, "対象機種ページを開いています")
+                    self._wait_between_transitions(page)
                     self._open_target_machine_page(page)
                     page.wait_for_selector("#ata0", timeout=60_000)
                     machine_page_url = page.url
@@ -370,17 +383,20 @@ class Site7Scraper:
         page.goto(SITE7_TOP_URL, wait_until="domcontentloaded", timeout=60_000)
         self._accept_cookie_banner_if_present(page)
         top_html = page.content()
+        self._wait_between_transitions(page)
 
         prefecture_link = self.extract_prefecture_link(top_html)
         page.goto(prefecture_link, wait_until="domcontentloaded", timeout=60_000)
         self._accept_cookie_banner_if_present(page)
         prefecture_html = page.content()
+        self._wait_between_transitions(page)
 
         area_link = self.extract_area_link(prefecture_html)
         page.goto(area_link, wait_until="domcontentloaded", timeout=60_000)
         self._accept_cookie_banner_if_present(page)
         area_html = page.content()
         target_hall_search_code = self.extract_target_hall_search_code(area_html)
+        self._wait_between_transitions(page)
 
         try:
             with page.expect_navigation(wait_until="domcontentloaded", timeout=60_000):
@@ -399,6 +415,9 @@ class Site7Scraper:
             raise ScraperError(f"サイトセブンで {SITE7_TARGET_HALL_NAME} の店舗ページを開けませんでした。")
 
         return hall_page_url, hall_html
+
+    def _wait_between_transitions(self, page: object) -> None:
+        page.wait_for_timeout(build_site7_transition_wait_milliseconds())
 
     def _accept_cookie_banner_if_present(self, page: object) -> None:
         try:
