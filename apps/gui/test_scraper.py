@@ -34,6 +34,7 @@ from main import (
     parse_retry_delay_seconds,
 )
 from machine_difference import calculate_machine_difference_value, canonical_machine_name, machine_requires_slot_resolution
+from machine_difference import machine_slot_resolution_group
 from minrepo_scraper import FetchProgress, MinRepoScraper, normalize_text, parse_date_range_input
 from site7_scraper import (
     DEFAULT_SITE7_PREFECTURE_NAME,
@@ -95,6 +96,17 @@ class FakePlayableBrowser:
 
     def stop(self) -> None:
         self.stop_count += 1
+
+
+class FakeJsonResponse:
+    def __init__(self, body: object) -> None:
+        self._body = body
+
+    def raise_for_status(self) -> None:
+        return None
+
+    def json(self) -> object:
+        return self._body
 
 
 class FakeStateWidget:
@@ -479,6 +491,12 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertTrue(machine_requires_slot_resolution("ネオアイムジャグラーEX"))
         self.assertTrue(machine_requires_slot_resolution("SアイムジャグラーＥＸ"))
         self.assertFalse(machine_requires_slot_resolution("ゴーゴージャグラー３"))
+
+    def test_machine_slot_resolution_group_is_shared_by_neo_and_s(self) -> None:
+        self.assertEqual(
+            machine_slot_resolution_group("ネオアイムジャグラーEX"),
+            machine_slot_resolution_group("SアイムジャグラーＥＸ"),
+        )
 
     def test_site7_extract_store_name_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
@@ -888,6 +906,128 @@ class MinRepoScraperTests(unittest.TestCase):
 
             self.assertFalse(summary.has_errors)
             self.assertEqual(saved_dates_summary.saved_dates, {"2026-04-07"})
+
+    def test_apply_slot_resolution_history_updates_past_snapshot_and_local_file(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            service._apply_slot_resolution_to_supabase = lambda snapshot, resolution_map: 0  # type: ignore[method-assign]
+            store_dir = Path(temp_dir) / "local_data" / "Aパーク春日店"
+            store_dir.mkdir(parents=True, exist_ok=True)
+            existing_file = store_dir / "existing.json"
+            existing_file.write_text(
+                json.dumps(
+                    {
+                        "store": {
+                            "store_name": "Aパーク春日店",
+                            "store_url": "https://example.com/kasuga/",
+                        },
+                        "machine_names": ["ネオアイムジャグラーEX"],
+                        "records": [
+                            {
+                                "target_date": "2026-04-24",
+                                "slot_number": "101",
+                                "machine_name": "ネオアイムジャグラーEX",
+                            }
+                        ],
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+            snapshot = {
+                "store": {
+                    "store_name": "Aパーク春日店",
+                    "store_url": "https://example.com/kasuga/",
+                },
+                "machine_names": ["ネオアイムジャグラーEX", "SアイムジャグラーＥＸ"],
+                "records": [
+                    {
+                        "target_date": "2026-04-24",
+                        "slot_number": "101",
+                        "machine_name": "ネオアイムジャグラーEX",
+                    },
+                    {
+                        "target_date": "2026-04-25",
+                        "slot_number": "101",
+                        "machine_name": "SアイムジャグラーＥＸ",
+                    },
+                ],
+            }
+
+            service._apply_slot_resolution_history(snapshot)  # type: ignore[attr-defined]
+
+            self.assertEqual(
+                [record["machine_name"] for record in snapshot["records"]],
+                ["SアイムジャグラーＥＸ", "SアイムジャグラーＥＸ"],
+            )
+            saved_payload = json.loads(existing_file.read_text(encoding="utf-8"))
+            self.assertEqual(saved_payload["records"][0]["machine_name"], "SアイムジャグラーＥＸ")
+            self.assertEqual(saved_payload["machine_names"], ["SアイムジャグラーＥＸ"])
+
+    def test_apply_slot_resolution_to_supabase_moves_past_rows(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            captured_patches: list[tuple[dict[str, str], dict[str, str]]] = []
+
+            class FakeSession:
+                def get(self, endpoint: str, params: dict[str, str], timeout: int = 30) -> FakeJsonResponse:
+                    if params.get("offset") == "0":
+                        return FakeJsonResponse(
+                            [
+                                {
+                                    "target_date": "2026-04-24",
+                                    "slot_number": "101",
+                                    "machine_name": "ネオアイムジャグラーEX",
+                                },
+                                {
+                                    "target_date": "2026-04-25",
+                                    "slot_number": "101",
+                                    "machine_name": "SアイムジャグラーＥＸ",
+                                },
+                            ]
+                        )
+                    return FakeJsonResponse([])
+
+                def patch(
+                    self,
+                    endpoint: str,
+                    params: dict[str, str],
+                    headers: dict[str, str],
+                    json: dict[str, str],
+                    timeout: int = 30,
+                ) -> FakeJsonResponse:
+                    captured_patches.append((params, json))
+                    return FakeJsonResponse([])
+
+            service._supabase_config = lambda: (  # type: ignore[method-assign]
+                "https://example.supabase.co",
+                "service-key",
+                "public",
+                "stores",
+                "machine_daily_results",
+            )
+            service._create_supabase_session = lambda schema: FakeSession()  # type: ignore[method-assign]
+            service._find_store_id = lambda session, supabase_url, stores_table, store_url: "store-1"  # type: ignore[method-assign]
+
+            updated_count = service._apply_slot_resolution_to_supabase(  # type: ignore[attr-defined]
+                {
+                    "store": {
+                        "store_name": "Aパーク春日店",
+                        "store_url": "https://example.com/kasuga/",
+                    }
+                },
+                {
+                    ("101", machine_slot_resolution_group("SアイムジャグラーＥＸ")): (
+                        "SアイムジャグラーＥＸ",
+                        "2026-04-25",
+                    )
+                },
+            )
+
+            self.assertEqual(updated_count, 1)
+            self.assertEqual(captured_patches[0][0]["target_date"], "eq.2026-04-24")
+            self.assertEqual(captured_patches[0][1]["machine_name"], "SアイムジャグラーＥＸ")
 
     def test_save_and_load_registered_stores(self) -> None:
         with TemporaryDirectory() as temp_dir:

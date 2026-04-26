@@ -13,7 +13,12 @@ from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 import requests
 
-from machine_difference import calculate_machine_difference_value, canonical_machine_name, machine_requires_slot_resolution
+from machine_difference import (
+    calculate_machine_difference_value,
+    canonical_machine_name,
+    machine_requires_slot_resolution,
+    machine_slot_resolution_group,
+)
 from minrepo_scraper import MachineHistoryResult, normalize_text
 from site7_scraper import DEFAULT_SITE7_PREFECTURE_NAME, default_site7_store_settings
 
@@ -224,6 +229,11 @@ class HistoryPersistenceService:
     def save_history_result(self, history_result: MachineHistoryResult, full_day: bool = False) -> PersistenceSummary:
         snapshot = self._build_local_snapshot(history_result)
         summary = PersistenceSummary(local_record_count=len(snapshot["records"]))
+
+        try:
+            self._apply_slot_resolution_history(snapshot)
+        except Exception as exc:  # noqa: BLE001
+            summary.messages.append(f"台番による機種補正に失敗しました。\n{exc}")
 
         try:
             local_path = self._save_local_snapshot(snapshot)
@@ -681,6 +691,219 @@ class HistoryPersistenceService:
                 ) from exc
             raise
         return len(payloads)
+
+    def _apply_slot_resolution_history(self, snapshot: dict[str, Any]) -> None:
+        records = snapshot.get("records", [])
+        if not isinstance(records, list):
+            return
+
+        resolution_map = self._build_slot_resolution_map(records)
+        if not resolution_map:
+            return
+
+        self._apply_slot_resolution_to_records(records, resolution_map)
+        snapshot["machine_names"] = self._collect_machine_names_from_records(records)
+        self._apply_slot_resolution_to_local_snapshots(snapshot, resolution_map)
+        self._apply_slot_resolution_to_supabase(snapshot, resolution_map)
+
+    def _build_slot_resolution_map(
+        self,
+        records: list[dict[str, Any]],
+    ) -> dict[tuple[str, str], tuple[str, str]]:
+        resolution_map: dict[tuple[str, str], tuple[str, str]] = {}
+
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+
+            slot_number = str(record.get("slot_number", "")).strip()
+            target_date = str(record.get("target_date", "")).strip()
+            machine_name = canonical_machine_name(str(record.get("machine_name", "")).strip()).strip()
+            resolution_group = machine_slot_resolution_group(machine_name)
+            if not slot_number or not target_date or not machine_name or not resolution_group:
+                continue
+
+            resolution_key = (slot_number, resolution_group)
+            saved_resolution = resolution_map.get(resolution_key)
+            if saved_resolution is None or target_date >= saved_resolution[1]:
+                resolution_map[resolution_key] = (machine_name, target_date)
+
+        return resolution_map
+
+    def _apply_slot_resolution_to_records(
+        self,
+        records: list[dict[str, Any]],
+        resolution_map: dict[tuple[str, str], tuple[str, str]],
+    ) -> int:
+        changed_count = 0
+
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+
+            slot_number = str(record.get("slot_number", "")).strip()
+            target_date = str(record.get("target_date", "")).strip()
+            current_machine_name = str(record.get("machine_name", "")).strip()
+            resolution_group = machine_slot_resolution_group(current_machine_name)
+            if not slot_number or not target_date or not current_machine_name or not resolution_group:
+                continue
+
+            resolved_entry = resolution_map.get((slot_number, resolution_group))
+            if resolved_entry is None:
+                continue
+
+            resolved_machine_name, latest_date = resolved_entry
+            if target_date > latest_date or current_machine_name == resolved_machine_name:
+                continue
+
+            record["machine_name"] = resolved_machine_name
+            changed_count += 1
+
+        return changed_count
+
+    def _collect_machine_names_from_records(self, records: list[dict[str, Any]]) -> list[str]:
+        return sorted(
+            {
+                str(record.get("machine_name", "")).strip()
+                for record in records
+                if isinstance(record, dict) and str(record.get("machine_name", "")).strip()
+            },
+            key=normalize_text,
+        )
+
+    def _apply_slot_resolution_to_local_snapshots(
+        self,
+        snapshot: dict[str, Any],
+        resolution_map: dict[tuple[str, str], tuple[str, str]],
+    ) -> int:
+        if not resolution_map:
+            return 0
+
+        store_payload = snapshot.get("store", {})
+        if not isinstance(store_payload, dict):
+            return 0
+
+        store_name = str(store_payload.get("store_name", "")).strip()
+        if not store_name:
+            return 0
+
+        store_dir = self._local_save_dir() / _sanitize_file_name(store_name)
+        if not store_dir.exists():
+            return 0
+
+        normalized_store_url = normalize_store_url(str(store_payload.get("store_url", "")).strip())
+        changed_count = 0
+
+        for file_path in store_dir.glob("*.json"):
+            payload = json.loads(file_path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                continue
+
+            saved_store_payload = payload.get("store", {})
+            if isinstance(saved_store_payload, dict):
+                saved_store_url = normalize_store_url(str(saved_store_payload.get("store_url", "")).strip())
+                if saved_store_url and normalized_store_url and saved_store_url != normalized_store_url:
+                    continue
+
+            records = payload.get("records", [])
+            if not isinstance(records, list):
+                continue
+
+            file_changed_count = self._apply_slot_resolution_to_records(records, resolution_map)
+            if file_changed_count <= 0:
+                continue
+
+            payload["machine_names"] = self._collect_machine_names_from_records(records)
+            file_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            changed_count += file_changed_count
+
+        return changed_count
+
+    def _apply_slot_resolution_to_supabase(
+        self,
+        snapshot: dict[str, Any],
+        resolution_map: dict[tuple[str, str], tuple[str, str]],
+    ) -> int:
+        if not resolution_map:
+            return 0
+
+        try:
+            supabase_url, _, schema, stores_table, results_table = self._supabase_config()
+        except RuntimeError:
+            return 0
+
+        store_payload = snapshot.get("store", {})
+        if not isinstance(store_payload, dict):
+            return 0
+
+        store_url = normalize_store_url(str(store_payload.get("store_url", "")).strip())
+        if not store_url:
+            return 0
+
+        session = self._create_supabase_session(schema)
+        store_id = self._find_store_id(session, supabase_url, stores_table, store_url)
+        if not store_id:
+            return 0
+
+        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(results_table, safe='')}"
+        now_text = datetime.now().astimezone().isoformat(timespec="seconds")
+        updated_count = 0
+        page_size = 1000
+
+        for (slot_number, resolution_group), (resolved_machine_name, latest_date) in resolution_map.items():
+            offset = 0
+            while True:
+                response = session.get(
+                    endpoint,
+                    params={
+                        "select": "target_date,slot_number,machine_name",
+                        "store_id": f"eq.{store_id}",
+                        "slot_number": f"eq.{slot_number}",
+                        "target_date": f"lte.{latest_date}",
+                        "order": "target_date.asc",
+                        "limit": str(page_size),
+                        "offset": str(offset),
+                    },
+                    timeout=30,
+                )
+                response.raise_for_status()
+                rows = response.json()
+                if not rows:
+                    break
+
+                for row in rows:
+                    if not isinstance(row, dict):
+                        continue
+
+                    target_date = str(row.get("target_date", "")).strip()
+                    current_machine_name = str(row.get("machine_name", "")).strip()
+                    if not target_date or current_machine_name == resolved_machine_name:
+                        continue
+                    if machine_slot_resolution_group(current_machine_name) != resolution_group:
+                        continue
+
+                    patch_response = session.patch(
+                        endpoint,
+                        params={
+                            "store_id": f"eq.{store_id}",
+                            "target_date": f"eq.{target_date}",
+                            "slot_number": f"eq.{slot_number}",
+                        },
+                        headers={"Prefer": "return=minimal"},
+                        json={
+                            "machine_name": resolved_machine_name,
+                            "updated_at": now_text,
+                        },
+                        timeout=30,
+                    )
+                    patch_response.raise_for_status()
+                    updated_count += 1
+
+                if len(rows) < page_size:
+                    break
+                offset += page_size
+
+        return updated_count
 
     def _load_registered_stores_from_supabase(self) -> list[dict[str, Any]]:
         supabase_url, _, schema, stores_table, _ = self._supabase_config()

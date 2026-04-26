@@ -130,6 +130,22 @@ def machine_requires_slot_resolution(machine_name: str) -> bool:
     return bool(rule.get("resolve_by_slot"))
 
 
+def machine_slot_resolution_group(machine_name: str) -> str | None:
+    rule = find_machine_difference_rule(machine_name)
+    if rule is None or not bool(rule.get("resolve_by_slot")):
+        return None
+
+    group_name = str(rule.get("slot_resolution_group", "")).strip()
+    if group_name:
+        return _normalize_machine_name(group_name)
+
+    canonical_name = str(rule.get("canonical_name", "")).strip()
+    if canonical_name:
+        return _normalize_machine_name(canonical_name)
+
+    return None
+
+
 def _machine_name_matches_rule(normalized_machine_name: str, rule: dict[str, Any]) -> bool:
     for candidate_name in _rule_exact_names(rule):
         if candidate_name == normalized_machine_name:
