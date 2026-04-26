@@ -174,6 +174,88 @@ def filter_site7_history_result_by_saved_targets(
     )
 
 
+def _find_slot_column_index(columns: list[str]) -> int | None:
+    target_name = normalize_text("台番")
+    for index, column_name in enumerate(columns):
+        if normalize_text(column_name) == target_name:
+            return index
+    return None
+
+
+def collect_history_result_slot_keys(history_result: MachineHistoryResult) -> set[tuple[str, str]]:
+    slot_keys: set[tuple[str, str]] = set()
+    for dataset in history_result.datasets:
+        slot_column_index = _find_slot_column_index(dataset.columns)
+        if slot_column_index is None:
+            continue
+
+        for row in dataset.rows:
+            if slot_column_index >= len(row):
+                continue
+            slot_number = str(row[slot_column_index]).strip()
+            if slot_number:
+                slot_keys.add((dataset.target_date, slot_number))
+
+    return slot_keys
+
+
+def filter_site7_history_result_by_saved_slots(
+    history_result: MachineHistoryResult,
+    protected_slots: set[tuple[str, str]],
+) -> MachineHistoryResult:
+    if not protected_slots:
+        return history_result
+
+    filtered_datasets: list[MachineDataset] = []
+    skipped_targets = list(history_result.skipped_targets)
+    skipped_dates = list(history_result.skipped_dates)
+    skipped_target_dates: set[str] = set()
+
+    for dataset in history_result.datasets:
+        slot_column_index = _find_slot_column_index(dataset.columns)
+        if slot_column_index is None:
+            filtered_datasets.append(dataset)
+            continue
+
+        filtered_rows: list[list[str]] = []
+        removed_row_count = 0
+        for row in dataset.rows:
+            if slot_column_index >= len(row):
+                filtered_rows.append(row)
+                continue
+
+            slot_number = str(row[slot_column_index]).strip()
+            if slot_number and (dataset.target_date, slot_number) in protected_slots:
+                removed_row_count += 1
+                continue
+            filtered_rows.append(row)
+
+        if not filtered_rows and removed_row_count > 0:
+            skipped_targets.append((dataset.target_date, dataset.machine_name))
+            skipped_target_dates.add(dataset.target_date)
+            continue
+
+        if removed_row_count > 0:
+            filtered_datasets.append(replace(dataset, rows=filtered_rows))
+            continue
+
+        filtered_datasets.append(dataset)
+
+    remaining_dates = {dataset.target_date for dataset in filtered_datasets}
+    filtered_date_pages = [date_page for date_page in history_result.date_pages if date_page.target_date in remaining_dates]
+    for skipped_date in sorted(skipped_target_dates - remaining_dates):
+        if skipped_date not in skipped_dates:
+            skipped_dates.append(skipped_date)
+
+    return replace(
+        history_result,
+        date_pages=filtered_date_pages,
+        datasets=filtered_datasets,
+        skipped_targets=skipped_targets,
+        skipped_dates=skipped_dates,
+    )
+
+
 @dataclass
 class RegisteredStore:
     name: str
@@ -1397,30 +1479,27 @@ class MinRepoApp:
                     store_url=preferred_store_url,
                 )
 
-        machine_names = sorted({dataset.machine_name for dataset in history_result.datasets}, key=normalize_text)
-        saved_targets_summary = self.persistence_service.find_saved_machine_targets_supabase(
+        slot_keys = collect_history_result_slot_keys(history_result)
+        slot_numbers = sorted({slot_number for _, slot_number in slot_keys}, key=self._slot_sort_key)
+        saved_slots_summary = self.persistence_service.find_saved_machine_slots_supabase(
             store_url=history_result.store_url,
             start_date=history_result.start_date,
             end_date=history_result.end_date,
-            machine_names=machine_names,
+            slot_numbers=slot_numbers,
         )
-        warning_messages.extend(saved_targets_summary.messages)
-        history_result = filter_site7_history_result_by_saved_targets(
+        warning_messages.extend(saved_slots_summary.messages)
+        history_result = filter_site7_history_result_by_saved_slots(
             history_result,
-            saved_targets=saved_targets_summary.saved_targets,
+            protected_slots=saved_slots_summary.protected_slots,
         )
 
-        replaceable_targets = {
-            (dataset.target_date, dataset.machine_name)
-            for dataset in history_result.datasets
-            if (dataset.target_date, normalize_text(dataset.machine_name)) in saved_targets_summary.replaceable_targets
-        }
-        if replaceable_targets:
+        replaceable_slots = collect_history_result_slot_keys(history_result) & saved_slots_summary.replaceable_slots
+        if replaceable_slots:
             self.result_queue.put(("fetch_progress", FetchProgress(current_step=3, total_steps=4, message="サイトセブン仮置き分を入れ直す準備中")))
             try:
-                self.persistence_service.delete_machine_targets_from_supabase(
+                self.persistence_service.delete_machine_slots_from_supabase(
                     store_url=history_result.store_url,
-                    target_pairs=replaceable_targets,
+                    target_slots=replaceable_slots,
                     data_source="site7",
                 )
             except Exception as exc:  # noqa: BLE001

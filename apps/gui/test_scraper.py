@@ -27,6 +27,7 @@ from main import (
     MinRepoApp,
     RegisteredStore,
     build_recent_date_range_input,
+    filter_site7_history_result_by_saved_slots,
     filter_site7_history_result_by_saved_targets,
     matches_day_tail,
     normalize_site7_browser_mode,
@@ -1335,6 +1336,30 @@ class MinRepoScraperTests(unittest.TestCase):
             [("2026-04-24", SITE7_TARGET_MACHINE_NAME), ("2026-04-25", SITE7_TARGET_MACHINE_NAME)],
         )
 
+    def test_filter_site7_history_result_skips_saved_slots(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = find_gui_fixture("site7_machine.html")
+        history_result = scraper.parse_machine_history_html(
+            html,
+            store_url="https://example.com/site7",
+            page_url="https://example.com/site7/machine",
+            recent_days=2,
+        )
+
+        filtered_result = filter_site7_history_result_by_saved_slots(
+            history_result,
+            protected_slots={
+                ("2026-04-24", "821"),
+                ("2026-04-25", "821"),
+            },
+        )
+
+        self.assertEqual([len(dataset.rows) for dataset in filtered_result.datasets], [1, 1])
+        self.assertEqual(
+            [dataset.rows[0][0] for dataset in filtered_result.datasets],
+            ["822", "822"],
+        )
+
     def test_find_saved_machine_target_sources_from_supabase_prefers_minrepo(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
@@ -1376,6 +1401,48 @@ class MinRepoScraperTests(unittest.TestCase):
 
             self.assertEqual(protected_targets, {("2026-04-25", normalize_text("ゴーゴージャグラー３"))})
             self.assertEqual(replaceable_targets, {("2026-04-24", normalize_text("ゴーゴージャグラー３"))})
+
+    def test_find_saved_machine_slot_sources_from_supabase_prefers_minrepo(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            service._supabase_config = lambda: ("https://example.supabase.co", "anon", "public", "stores", "results")  # type: ignore[method-assign]
+            service._find_store_id = lambda *args, **kwargs: "store-1"  # type: ignore[method-assign]
+
+            class FakeSession:
+                def get(self, endpoint: str, params: dict[str, object], timeout: int) -> object:
+                    class Response:
+                        def raise_for_status(self) -> None:
+                            return None
+
+                        def json(self) -> list[dict[str, object]]:
+                            return [
+                                {
+                                    "target_date": "2026-04-24",
+                                    "slot_number": "737",
+                                    "data_source": DATA_SOURCE_SITE7,
+                                    "payout_rate": 98.4,
+                                },
+                                {
+                                    "target_date": "2026-04-25",
+                                    "slot_number": "737",
+                                    "data_source": DATA_SOURCE_MINREPO,
+                                    "payout_rate": None,
+                                },
+                            ]
+
+                    return Response()
+
+            service._create_supabase_session = lambda schema: FakeSession()  # type: ignore[method-assign]
+
+            protected_slots, replaceable_slots = service._find_saved_machine_slot_sources_from_supabase(  # type: ignore[attr-defined]
+                store_url="https://example.com/store",
+                start_date="2026-04-24",
+                end_date="2026-04-25",
+                target_slot_numbers={"737"},
+            )
+
+            self.assertEqual(protected_slots, {("2026-04-25", "737")})
+            self.assertEqual(replaceable_slots, {("2026-04-24", "737")})
 
     def test_find_date_pages_handles_year_rollover_without_year_label(self) -> None:
         scraper = MinRepoScraper()

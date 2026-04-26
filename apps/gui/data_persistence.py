@@ -70,6 +70,17 @@ class SavedMachineTargetsSummary:
 
 
 @dataclass
+class SavedMachineSlotsSummary:
+    protected_slots: set[tuple[str, str]] = field(default_factory=set)
+    replaceable_slots: set[tuple[str, str]] = field(default_factory=set)
+    messages: list[str] = field(default_factory=list)
+
+    @property
+    def has_errors(self) -> bool:
+        return bool(self.messages)
+
+
+@dataclass
 class SavedFullDayDatesSummary:
     saved_dates: set[str] = field(default_factory=set)
     messages: list[str] = field(default_factory=list)
@@ -339,6 +350,36 @@ class HistoryPersistenceService:
 
         return summary
 
+    def find_saved_machine_slots_supabase(
+        self,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+        slot_numbers: list[str],
+    ) -> SavedMachineSlotsSummary:
+        normalized_slot_numbers = {
+            str(slot_number).strip()
+            for slot_number in slot_numbers
+            if str(slot_number).strip()
+        }
+        summary = SavedMachineSlotsSummary()
+        if not normalized_slot_numbers:
+            return summary
+
+        try:
+            protected_slots, replaceable_slots = self._find_saved_machine_slot_sources_from_supabase(
+                store_url=store_url,
+                start_date=start_date,
+                end_date=end_date,
+                target_slot_numbers=normalized_slot_numbers,
+            )
+            summary.protected_slots.update(protected_slots)
+            summary.replaceable_slots.update(replaceable_slots)
+        except Exception as exc:  # noqa: BLE001
+            summary.messages.append(f"Supabase の取得済み確認に失敗しました。\n{exc}")
+
+        return summary
+
     def delete_machine_targets_from_supabase(
         self,
         store_url: str,
@@ -384,6 +425,52 @@ class HistoryPersistenceService:
             deleted_target_count += 1
 
         return deleted_target_count
+
+    def delete_machine_slots_from_supabase(
+        self,
+        store_url: str,
+        target_slots: set[tuple[str, str]],
+        data_source: str | None = None,
+    ) -> int:
+        normalized_target_slots = {
+            (str(target_date).strip(), str(slot_number).strip())
+            for target_date, slot_number in target_slots
+            if str(target_date).strip() and str(slot_number).strip()
+        }
+        if not normalized_target_slots:
+            return 0
+
+        try:
+            supabase_url, _, schema, stores_table, results_table = self._supabase_config()
+        except RuntimeError:
+            return 0
+
+        session = self._create_supabase_session(schema)
+        store_id = self._find_store_id(session, supabase_url, stores_table, normalize_store_url(store_url))
+        if not store_id:
+            return 0
+
+        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(results_table, safe='')}"
+        deleted_slot_count = 0
+        normalized_data_source = str(data_source or "").strip().casefold()
+        for target_date, slot_number in sorted(normalized_target_slots):
+            params = {
+                "store_id": f"eq.{store_id}",
+                "target_date": f"eq.{target_date}",
+                "slot_number": f"eq.{slot_number}",
+            }
+            if normalized_data_source:
+                params["data_source"] = f"eq.{normalized_data_source}"
+            response = session.delete(
+                endpoint,
+                params=params,
+                headers={"Prefer": "return=minimal"},
+                timeout=30,
+            )
+            response.raise_for_status()
+            deleted_slot_count += 1
+
+        return deleted_slot_count
 
     def load_registered_stores(self) -> list[dict[str, Any]]:
         return self._load_registered_stores_from_supabase()
@@ -1131,6 +1218,83 @@ class HistoryPersistenceService:
             offset += page_size
 
         return protected_targets, replaceable_targets
+
+    def _find_saved_machine_slot_sources_from_supabase(
+        self,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+        target_slot_numbers: set[str],
+    ) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
+        if not target_slot_numbers:
+            return set(), set()
+
+        try:
+            supabase_url, _, schema, stores_table, results_table = self._supabase_config()
+        except RuntimeError:
+            return set(), set()
+
+        session = self._create_supabase_session(schema)
+        store_id = self._find_store_id(session, supabase_url, stores_table, normalize_store_url(store_url))
+        if not store_id:
+            return set(), set()
+
+        protected_slots: set[tuple[str, str]] = set()
+        replaceable_slots: set[tuple[str, str]] = set()
+        offset = 0
+        page_size = 1000
+        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(results_table, safe='')}"
+        select_clause = "target_date,slot_number,data_source,payout_rate"
+
+        while True:
+            try:
+                response = session.get(
+                    endpoint,
+                    params={
+                        "select": select_clause,
+                        "store_id": f"eq.{store_id}",
+                        "target_date": [f"gte.{start_date}", f"lte.{end_date}"],
+                        "order": "target_date.asc",
+                        "limit": str(page_size),
+                        "offset": str(offset),
+                    },
+                    timeout=30,
+                )
+                response.raise_for_status()
+            except requests.HTTPError as exc:
+                if exc.response is None or exc.response.status_code != 400 or select_clause == "target_date,slot_number,payout_rate":
+                    raise
+                select_clause = "target_date,slot_number,payout_rate"
+                continue
+
+            rows = response.json()
+            if not rows:
+                break
+
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+
+                target_date = str(row.get("target_date", "")).strip()
+                slot_number = str(row.get("slot_number", "")).strip()
+                if not target_date or slot_number not in target_slot_numbers:
+                    continue
+
+                target_key = (target_date, slot_number)
+                data_source = _infer_saved_result_data_source(row)
+                if data_source == DATA_SOURCE_SITE7:
+                    if target_key not in protected_slots:
+                        replaceable_slots.add(target_key)
+                    continue
+
+                protected_slots.add(target_key)
+                replaceable_slots.discard(target_key)
+
+            if len(rows) < page_size:
+                break
+            offset += page_size
+
+        return protected_slots, replaceable_slots
 
     def _find_store_candidates_by_name_key(
         self,
