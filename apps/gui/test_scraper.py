@@ -25,6 +25,7 @@ from main import (
     SITE7_BROWSER_MODE_HIDDEN,
     SITE7_BROWSER_MODE_VISIBLE,
     MinRepoApp,
+    RegisteredStore,
     build_recent_date_range_input,
     filter_site7_history_result_by_saved_targets,
     matches_day_tail,
@@ -42,8 +43,10 @@ from site7_scraper import (
     SITE7_TARGET_STORES,
     Site7FetchCancelled,
     Site7Scraper,
+    Site7TargetStore,
     clamp_site7_recent_days,
     default_site7_store_settings,
+    enrich_site7_target_store,
 )
 from site7_scraper import build_site7_transition_wait_milliseconds
 
@@ -692,6 +695,37 @@ class MinRepoScraperTests(unittest.TestCase):
             scraper.extract_target_hall_search_code(html),
             "ff3cd2a71a6cbc459c80f25b44423ba6",
         )
+
+    def test_site7_extract_target_hall_search_code_accepts_registered_store_input(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = find_gui_fixture("site7_kasuga.html")
+        target_store = RegisteredStore(
+            name="Aパーク春日店",
+            url="https://example.com/kasuga",
+            site7_enabled=True,
+            site7_prefecture="福岡県",
+            site7_area="春日市",
+            site7_store_name="Aパーク春日店",
+        ).to_site7_target_store()
+
+        self.assertEqual(
+            scraper.extract_target_hall_search_code(html, target_store),
+            "ff3cd2a71a6cbc459c80f25b44423ba6",
+        )
+
+    def test_enrich_site7_target_store_restores_known_store_address(self) -> None:
+        target_store = enrich_site7_target_store(
+            Site7TargetStore(
+                display_name="Aパーク春日店",
+                site7_hall_name="Aパーク春日店",
+                prefecture_name="福岡県",
+                area_name="春日市",
+                hall_name_aliases=("Aパーク春日店",),
+            )
+        )
+
+        self.assertEqual(target_store.hall_address, "福岡県春日市日の出町５－２４")
+        self.assertIn("Ａパーク春日店", target_store.hall_name_aliases)
 
     def test_site7_extract_target_hall_search_code_for_gogo_store(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)

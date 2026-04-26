@@ -212,14 +212,58 @@ def _normalize_site7_prefecture_link_text(value: str) -> str:
 
 
 def find_known_site7_target_store(store_name: str) -> Site7TargetStore | None:
-    store_name_keys = _build_site7_lookup_keys(store_name)
-    if not store_name_keys:
-        return None
+    candidate_names = (store_name,)
+    for candidate_name in candidate_names:
+        store_name_keys = _build_site7_lookup_keys(candidate_name)
+        if not store_name_keys:
+            continue
 
-    for target_store in SITE7_TARGET_STORES:
-        if _site7_lookup_keys_match(target_store.store_name_match_keys, store_name_keys):
-            return target_store
+        for target_store in SITE7_TARGET_STORES:
+            if _site7_lookup_keys_match(target_store.store_name_match_keys, store_name_keys):
+                return target_store
     return None
+
+
+def enrich_site7_target_store(target_store: Site7TargetStore) -> Site7TargetStore:
+    known_target_store = (
+        find_known_site7_target_store(target_store.site7_hall_name)
+        or find_known_site7_target_store(target_store.display_name)
+        or next(
+            (
+                known_store
+                for alias in target_store.hall_name_aliases
+                for known_store in [find_known_site7_target_store(alias)]
+                if known_store is not None
+            ),
+            None,
+        )
+    )
+    if known_target_store is None:
+        return target_store
+
+    merged_aliases: list[str] = []
+    for alias in (
+        *target_store.hall_name_aliases,
+        target_store.display_name,
+        target_store.site7_hall_name,
+        known_target_store.display_name,
+        known_target_store.site7_hall_name,
+        *known_target_store.hall_name_aliases,
+    ):
+        stripped_alias = str(alias).strip()
+        if not stripped_alias or stripped_alias in merged_aliases:
+            continue
+        merged_aliases.append(stripped_alias)
+
+    return Site7TargetStore(
+        display_name=target_store.display_name.strip() or known_target_store.display_name,
+        site7_hall_name=target_store.site7_hall_name.strip() or known_target_store.site7_hall_name,
+        prefecture_name=target_store.prefecture_name.strip() or known_target_store.prefecture_name,
+        area_name=target_store.area_name.strip() or known_target_store.area_name,
+        hall_address=target_store.hall_address.strip() or known_target_store.hall_address,
+        direct_hall_url=target_store.direct_hall_url.strip() or known_target_store.direct_hall_url,
+        hall_name_aliases=tuple(merged_aliases),
+    )
 
 
 def default_site7_store_settings(store_name: str) -> dict[str, object]:
@@ -329,7 +373,7 @@ class Site7Scraper:
         target_store: Site7TargetStore | None = None,
         cancel_requested: Callable[[], bool] | None = None,
     ) -> MachineHistoryResult:
-        resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
+        resolved_target_store = enrich_site7_target_store(target_store or SITE7_DEFAULT_TARGET_STORE)
         target_days = clamp_site7_recent_days(recent_days)
         self._notify_progress(
             progress_callback,

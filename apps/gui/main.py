@@ -49,6 +49,7 @@ from site7_scraper import (
     Site7Scraper,
     Site7TargetStore,
     default_site7_store_settings,
+    enrich_site7_target_store,
 )
 
 
@@ -186,12 +187,14 @@ class RegisteredStore:
         return self.site7_store_name.strip() or self.name.strip()
 
     def to_site7_target_store(self) -> Site7TargetStore:
-        return Site7TargetStore(
+        return enrich_site7_target_store(
+            Site7TargetStore(
             display_name=self.name.strip() or self.resolved_site7_store_name(),
             site7_hall_name=self.resolved_site7_store_name(),
             prefecture_name=self.site7_prefecture.strip() or DEFAULT_SITE7_PREFECTURE_NAME,
             area_name=self.site7_area.strip(),
             hall_name_aliases=(self.name.strip(),) if self.name.strip() else (),
+            )
         )
 
 
