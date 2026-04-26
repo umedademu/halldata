@@ -1,6 +1,11 @@
 import { cache } from "react";
 
 import { createEventFilters } from "./event-filters";
+import {
+  attachHuntScores,
+  isHuntScoreSupported,
+  listHuntScoreTargetMachineNames,
+} from "./hunt-score";
 import { canonicalMachineName, listEquivalentMachineNames, withCalculatedDifferenceValue } from "./machine-difference";
 
 const PAGE_SIZE = 1000;
@@ -124,6 +129,24 @@ function buildQuery(params) {
     query.set(key, String(value));
   }
   return query;
+}
+
+function buildMachineNameFilter(machineNames) {
+  const uniqueMachineNames = [...new Set((Array.isArray(machineNames) ? machineNames : []).map((value) => String(value ?? "").trim()).filter(Boolean))];
+
+  if (uniqueMachineNames.length === 0) {
+    return {};
+  }
+
+  if (uniqueMachineNames.length === 1) {
+    return {
+      machine_name: `eq.${uniqueMachineNames[0]}`,
+    };
+  }
+
+  return {
+    or: `(${uniqueMachineNames.map((name) => `machine_name.eq.${name}`).join(",")})`,
+  };
 }
 
 function normalizeStoreUrl(value) {
@@ -563,32 +586,52 @@ export const getStoreDetail = cache(async function getStoreDetail(storeId) {
 
 export const getMachineDetail = cache(async function getMachineDetail(storeId, machineName) {
   const { storesTable, resultsTable } = await getSupabaseConfig();
-  const equivalentMachineNames = listEquivalentMachineNames(machineName);
-  const machineFilter =
-    equivalentMachineNames.length > 1
-      ? {
-          or: `(${equivalentMachineNames.map((name) => `machine_name.eq.${name}`).join(",")})`,
-        }
-      : {
-          machine_name: `eq.${machineName}`,
-        };
-  const [stores, fetchedRows] = await Promise.all([
-    fetchStoreEventRows(storesTable, storeId),
-    fetchAllRows(resultsTable, {
-      select:
-        "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate,bb_count,rb_count,combined_ratio_text,bb_ratio_text,rb_ratio_text",
-      store_id: `eq.${storeId}`,
-      ...machineFilter,
-      order: "target_date.desc,slot_number.asc",
-    }),
-  ]);
-
+  const stores = await fetchStoreEventRows(storesTable, storeId);
   const store = stores[0];
-  if (!store || fetchedRows.length === 0) {
+  if (!store) {
     return null;
   }
 
-  const rows = fetchedRows.map(withCalculatedDifferenceValue);
+  const requestedMachineName = canonicalMachineName(machineName);
+  const huntScoreEnabled = isHuntScoreSupported(store.store_name, requestedMachineName);
+  let rows;
+
+  if (huntScoreEnabled) {
+    const huntScoreMachineNames = [...new Set(
+      listHuntScoreTargetMachineNames().flatMap((name) => listEquivalentMachineNames(name)),
+    )];
+    const [fetchedTargetRows, fetchedStoreRows] = await Promise.all([
+      fetchAllRows(resultsTable, {
+        select:
+          "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate,bb_count,rb_count,combined_ratio_text,bb_ratio_text,rb_ratio_text",
+        store_id: `eq.${storeId}`,
+        ...buildMachineNameFilter(huntScoreMachineNames),
+        order: "target_date.desc,slot_number.asc",
+      }),
+      fetchAllRows(resultsTable, {
+        select: "target_date,difference_value,games_count,bb_count,rb_count",
+        store_id: `eq.${storeId}`,
+      }),
+    ]);
+
+    const targetRows = fetchedTargetRows.map(withCalculatedDifferenceValue);
+    attachHuntScores(targetRows, fetchedStoreRows);
+    rows = targetRows.filter((row) => canonicalMachineName(row.machine_name) === requestedMachineName);
+  } else {
+    const fetchedRows = await fetchAllRows(resultsTable, {
+      select:
+        "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate,bb_count,rb_count,combined_ratio_text,bb_ratio_text,rb_ratio_text",
+      store_id: `eq.${storeId}`,
+      ...buildMachineNameFilter(listEquivalentMachineNames(machineName)),
+      order: "target_date.desc,slot_number.asc",
+    });
+    rows = fetchedRows.map(withCalculatedDifferenceValue);
+  }
+
+  if (rows.length === 0) {
+    return null;
+  }
+
   const detail = buildMachineDetail(rows);
 
   return {
@@ -598,7 +641,7 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
       storeUrl: store.store_url,
       eventFilters: buildEventFiltersFromStore(store),
     },
-    machineName: canonicalMachineName(machineName),
+    machineName: requestedMachineName,
     slotNumbers: detail.slotNumbers,
     dateRows: detail.dateRows,
     summary: detail.summary,

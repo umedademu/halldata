@@ -37,6 +37,17 @@ const narrowPercentFormatter = new Intl.NumberFormat("ja-JP", {
   useGrouping: false,
 });
 
+const decimalFormatter = new Intl.NumberFormat("ja-JP", {
+  maximumFractionDigits: 1,
+  minimumFractionDigits: 1,
+});
+
+const narrowDecimalFormatter = new Intl.NumberFormat("ja-JP", {
+  maximumFractionDigits: 1,
+  minimumFractionDigits: 1,
+  useGrouping: false,
+});
+
 const weekdayLabels = ["日", "月", "火", "水", "木", "金", "土"];
 
 function normalizeDateText(value) {
@@ -167,6 +178,20 @@ export function formatNarrowPercent(value) {
     return "-";
   }
   return `${narrowPercentFormatter.format(Number(value))}%`;
+}
+
+export function formatDecimal(value) {
+  if (value === null || value === undefined || value === "") {
+    return "-";
+  }
+  return decimalFormatter.format(Number(value));
+}
+
+export function formatNarrowDecimal(value) {
+  if (value === null || value === undefined || value === "") {
+    return "-";
+  }
+  return narrowDecimalFormatter.format(Number(value));
 }
 
 export function formatRatio(value) {

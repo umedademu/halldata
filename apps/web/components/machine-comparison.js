@@ -4,7 +4,9 @@ import { memo, useCallback, useMemo, useState, useTransition } from "react";
 
 import {
   formatAverageGames,
+  formatDecimal,
   formatNarrowInteger,
+  formatNarrowDecimal,
   formatNarrowPercent,
   formatNarrowSignedNumber,
   formatPercent,
@@ -43,6 +45,7 @@ const DEFAULT_VISIBLE_METRIC_KEYS = [
   "rb_count",
   "combined_ratio_text",
   "setting_estimate",
+  "hunt_score",
 ];
 const MATRIX_DATE_COLUMN_WIDTH_REM = 4.8;
 const MATRIX_WEEKDAY_COLUMN_WIDTH_REM = 2.4;
@@ -332,6 +335,16 @@ function createSettingEstimateMetric(getCompositeSettingEstimate) {
   };
 }
 
+function createHuntScoreMetric() {
+  return {
+    key: "hunt_score",
+    label: "狙い度",
+    render: formatNarrowDecimal,
+    csvRender: formatDecimal,
+    columnClass: "matrixColumnMedium",
+  };
+}
+
 function getSettingEstimateHighlightClass(estimate) {
   if (!estimate) {
     return "";
@@ -393,15 +406,18 @@ const RATIO_METRICS = [
   { key: "rb_ratio_text", label: "RB率", render: formatRatio, columnClass: "matrixColumnWide" },
 ];
 
-function getMetrics(settingEstimateDefinition, getCompositeSettingEstimate) {
+function getMetrics(settingEstimateDefinition, getCompositeSettingEstimate, hasHuntScore) {
+  const metrics = [...COMMON_METRICS];
+
   if (settingEstimateDefinition) {
-    return [
-      ...COMMON_METRICS,
-      createSettingEstimateMetric(getCompositeSettingEstimate),
-      ...RATIO_METRICS,
-    ];
+    metrics.push(createSettingEstimateMetric(getCompositeSettingEstimate));
   }
-  return [...COMMON_METRICS, ...RATIO_METRICS];
+
+  if (hasHuntScore) {
+    metrics.push(createHuntScoreMetric());
+  }
+
+  return [...metrics, ...RATIO_METRICS];
 }
 
 function buildCsvRows(slotNumbers, dateRows, metrics, specialDateSet) {
@@ -623,7 +639,11 @@ const MatrixRow = memo(function MatrixRow({
           const toneClass = metric.tone ? valueToneClass(metric.key, value) : "";
           const boundaryClass =
             !isLastSlot && metricIndex === visibleMetrics.length - 1 ? "slotGroupBoundary" : "";
-          const className = [toneClass, settingHighlightClass, boundaryClass]
+          const className = [
+            toneClass,
+            metric.key === "hunt_score" ? "" : settingHighlightClass,
+            boundaryClass,
+          ]
             .filter(Boolean)
             .join(" ");
           const title = settingTitle || (metric.title ? metric.title(value, record) : "");
@@ -688,9 +708,18 @@ export function MachineComparison({
       ),
     [comparisonEstimateMap, estimateOptions, settingEstimateDefinition],
   );
+  const hasHuntScore = useMemo(
+    () =>
+      dateRows.some((row) =>
+        slotNumbers.some((slotNumber) =>
+          Number.isFinite(Number(row.recordsBySlot?.[slotNumber]?.hunt_score)),
+        ),
+      ),
+    [dateRows, slotNumbers],
+  );
   const metrics = useMemo(
-    () => getMetrics(settingEstimateDefinition, getCompositeSettingEstimate),
-    [getCompositeSettingEstimate, settingEstimateDefinition],
+    () => getMetrics(settingEstimateDefinition, getCompositeSettingEstimate, hasHuntScore),
+    [getCompositeSettingEstimate, hasHuntScore, settingEstimateDefinition],
   );
 
   const visibleMetrics = useMemo(
