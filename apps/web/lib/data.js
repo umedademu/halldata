@@ -3,7 +3,9 @@ import { cache } from "react";
 import { createEventFilters } from "./event-filters";
 import {
   attachHuntScores,
+  buildHuntScoreSnapshots,
   isHuntScoreSupported,
+  isHuntScoreTargetStore,
   listHuntScoreTargetMachineNames,
 } from "./hunt-score";
 import { canonicalMachineName, listEquivalentMachineNames, withCalculatedDifferenceValue } from "./machine-difference";
@@ -146,6 +148,32 @@ function buildMachineNameFilter(machineNames) {
 
   return {
     or: `(${uniqueMachineNames.map((name) => `machine_name.eq.${name}`).join(",")})`,
+  };
+}
+
+async function fetchHuntScoreSourceRows(resultsTable, storeId) {
+  const huntScoreMachineNames = [
+    ...new Set(
+      listHuntScoreTargetMachineNames().flatMap((name) => listEquivalentMachineNames(name)),
+    ),
+  ];
+  const [fetchedTargetRows, fetchedStoreRows] = await Promise.all([
+    fetchAllRows(resultsTable, {
+      select:
+        "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate,bb_count,rb_count,combined_ratio_text,bb_ratio_text,rb_ratio_text",
+      store_id: `eq.${storeId}`,
+      ...buildMachineNameFilter(huntScoreMachineNames),
+      order: "target_date.desc,slot_number.asc",
+    }),
+    fetchAllRows(resultsTable, {
+      select: "target_date,difference_value,games_count,bb_count,rb_count",
+      store_id: `eq.${storeId}`,
+    }),
+  ]);
+
+  return {
+    targetRows: fetchedTargetRows.map(withCalculatedDifferenceValue),
+    storeRows: fetchedStoreRows,
   };
 }
 
@@ -597,25 +625,8 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
   let rows;
 
   if (huntScoreEnabled) {
-    const huntScoreMachineNames = [...new Set(
-      listHuntScoreTargetMachineNames().flatMap((name) => listEquivalentMachineNames(name)),
-    )];
-    const [fetchedTargetRows, fetchedStoreRows] = await Promise.all([
-      fetchAllRows(resultsTable, {
-        select:
-          "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate,bb_count,rb_count,combined_ratio_text,bb_ratio_text,rb_ratio_text",
-        store_id: `eq.${storeId}`,
-        ...buildMachineNameFilter(huntScoreMachineNames),
-        order: "target_date.desc,slot_number.asc",
-      }),
-      fetchAllRows(resultsTable, {
-        select: "target_date,difference_value,games_count,bb_count,rb_count",
-        store_id: `eq.${storeId}`,
-      }),
-    ]);
-
-    const targetRows = fetchedTargetRows.map(withCalculatedDifferenceValue);
-    attachHuntScores(targetRows, fetchedStoreRows);
+    const { targetRows, storeRows } = await fetchHuntScoreSourceRows(resultsTable, storeId);
+    attachHuntScores(targetRows, storeRows);
     rows = targetRows.filter((row) => canonicalMachineName(row.machine_name) === requestedMachineName);
   } else {
     const fetchedRows = await fetchAllRows(resultsTable, {
@@ -645,6 +656,41 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
     slotNumbers: detail.slotNumbers,
     dateRows: detail.dateRows,
     summary: detail.summary,
+  };
+});
+
+export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankingDetail(
+  storeId,
+  requestedDate = "",
+) {
+  const { storesTable, resultsTable } = await getSupabaseConfig();
+  const stores = await fetchStoreEventRows(storesTable, storeId);
+  const store = stores[0];
+
+  if (!store || !isHuntScoreTargetStore(store.store_name)) {
+    return null;
+  }
+
+  const { targetRows, storeRows } = await fetchHuntScoreSourceRows(resultsTable, storeId);
+  const snapshots = buildHuntScoreSnapshots(targetRows, storeRows);
+  const rankingDates = snapshots.map((snapshot) => snapshot.baseDate);
+  const selectedDate = rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null;
+  const snapshot = snapshots.find((entry) => entry.baseDate === selectedDate) ?? null;
+
+  return {
+    store: {
+      id: store.id,
+      storeName: store.store_name,
+      storeUrl: store.store_url,
+    },
+    rankingDates,
+    selectedDate,
+    requestedDate,
+    predictionDate: snapshot?.baseDate ?? null,
+    nextBusinessDate: snapshot?.nextBusinessDate ?? null,
+    rows: snapshot?.rows.slice(0, 20) ?? [],
+    totalCount: snapshot?.rows.length ?? 0,
+    hasActualResults: snapshot?.rows.some((row) => row.nextRecord) ?? false,
   };
 });
 

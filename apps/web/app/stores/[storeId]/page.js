@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../components/breadcrumbs";
 import { getStoreDetail } from "../../../lib/data";
+import { isHuntScoreTargetStore } from "../../../lib/hunt-score";
 import {
   formatAverageGames,
   formatCompactDate,
@@ -36,6 +37,7 @@ export default async function StoreDetailPage({ params }) {
   }
 
   const { store, summary, machines } = storeDetail;
+  const hasHuntScoreRanking = isHuntScoreTargetStore(store.storeName);
 
   return (
     <main className="pageStack">
@@ -53,6 +55,13 @@ export default async function StoreDetailPage({ params }) {
           <p className="leadText">
             各機種ごとの最新記録日を基準に一覧を出し、機種名から台データページへ進めます。
           </p>
+          {hasHuntScoreRanking ? (
+            <div className="heroLinks">
+              <Link href={`/stores/${store.id}/hunt-ranking`} className="inlineAction">
+                狙い度ランキングを見る
+              </Link>
+            </div>
+          ) : null}
         </div>
         <div className="heroMeta heroMetaWide">
           <div className="metaCard">
