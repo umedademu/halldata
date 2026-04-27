@@ -8,6 +8,7 @@ import { HuntRankingTable } from "../../../../components/hunt-ranking-table";
 import { getHuntScoreAnalysisPageDetail, getStoreIdentity } from "../../../../lib/data";
 import {
   formatCompactDate,
+  formatDecimal,
   formatNumber,
   formatPeriod,
   formatPercent,
@@ -500,6 +501,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                     <tr>
                       <th className="directoryNameHeader">機種名</th>
                       <th>条件一致台数</th>
+                      <th>狙い度</th>
                       <th>実績集計台数</th>
                       <th>合計差枚</th>
                       <th>合計G数</th>
@@ -511,6 +513,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                     <tr className="backtestTotalRow">
                       <th className="directoryNameCell">総計</th>
                       <td>{formatNumber(detail.backtest.total.matchedRowCount)}</td>
+                      <td>{formatDecimal(detail.backtest.total.averageHuntScore)}</td>
                       <td>{formatNumber(detail.backtest.total.actualRowCount)}</td>
                       <td>{formatSignedNumber(detail.backtest.total.differenceTotal)}</td>
                       <td>{formatNumber(detail.backtest.total.gamesTotal)}</td>
@@ -524,6 +527,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                       >
                         <th className="directoryNameCell">{summary.machineName}</th>
                         <td>{formatNumber(summary.matchedRowCount)}</td>
+                        <td>{formatDecimal(summary.averageHuntScore)}</td>
                         <td>{formatNumber(summary.actualRowCount)}</td>
                         <td>{formatSignedNumber(summary.differenceTotal)}</td>
                         <td>{formatNumber(summary.gamesTotal)}</td>

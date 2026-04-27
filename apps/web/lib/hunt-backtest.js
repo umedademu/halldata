@@ -215,6 +215,8 @@ function buildEmptySummary(machineName = "総計") {
   return {
     machineName,
     matchedRowCount: 0,
+    huntScoreTotal: 0,
+    averageHuntScore: null,
     actualRowCount: 0,
     differenceTotal: 0,
     gamesTotal: 0,
@@ -237,6 +239,7 @@ function buildEmptyDailySummary(date, predictionDate) {
 function finalizeSummary(summary) {
   return {
     ...summary,
+    averageHuntScore: calculateAverage(summary.huntScoreTotal, summary.matchedRowCount),
     payoutRate: calculatePayoutRate(summary.gamesTotal, summary.differenceTotal),
   };
 }
@@ -309,7 +312,9 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
 
       const summary = summariesByMachine.get(row.machineName);
       summary.matchedRowCount += 1;
+      summary.huntScoreTotal += readFiniteNumber(row.huntScore);
       totalSummary.matchedRowCount += 1;
+      totalSummary.huntScoreTotal += readFiniteNumber(row.huntScore);
 
       const actualDate = String(row.nextBusinessDate ?? snapshot.nextBusinessDate ?? "").trim();
       if (actualDate) {
