@@ -214,6 +214,17 @@ function buildRawRowsFromMachineDailyDetailRows(rows) {
   return expandedRows;
 }
 
+function dailyDetailRowHasMeaningfulResult(row) {
+  const averageDifference = Number(row?.average_difference);
+  const averageGames = Number(row?.average_games);
+  if (Number.isFinite(averageDifference) || Number.isFinite(averageGames)) {
+    return true;
+  }
+
+  const recordsBySlot = readJsonObject(row?.records_by_slot);
+  return Object.values(recordsBySlot).some((record) => hasMeaningfulResult(record));
+}
+
 async function fetchHuntScoreSourceRows(resultsTable, machineDailyDetailsTable, storeId) {
   const huntScoreMachineNames = [
     ...new Set(
@@ -230,7 +241,7 @@ async function fetchHuntScoreSourceRows(resultsTable, machineDailyDetailsTable, 
         order: "target_date.desc,machine_name.asc",
       }),
       fetchAllRows(machineDailyDetailsTable, {
-        select: "target_date",
+        select: "target_date,average_difference,average_games,records_by_slot",
         store_id: `eq.${storeId}`,
         order: "target_date.desc",
       }),
@@ -240,12 +251,17 @@ async function fetchHuntScoreSourceRows(resultsTable, machineDailyDetailsTable, 
       const targetRows = buildRawRowsFromMachineDailyDetailRows(targetMachineRows).map(
         withCalculatedDifferenceValue,
       );
-      const storeRows = [...new Set(storeDateRows.map((row) => String(row.target_date ?? "").trim()))]
-        .filter(Boolean)
-        .map((targetDate) => ({
-          target_date: targetDate,
-          difference_value: 0,
-        }));
+      const storeRows = [
+        ...new Set(
+          storeDateRows
+            .filter((row) => dailyDetailRowHasMeaningfulResult(row))
+            .map((row) => String(row.target_date ?? "").trim())
+            .filter(Boolean),
+        ),
+      ].map((targetDate) => ({
+        target_date: targetDate,
+        difference_value: 0,
+      }));
       return {
         targetRows,
         storeRows,
