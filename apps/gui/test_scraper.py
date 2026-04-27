@@ -973,6 +973,37 @@ class MinRepoScraperTests(unittest.TestCase):
             ["821", "336", "2163", "-", "10", "5", "1/144", "1/216", "1/432"],
         )
 
+    def test_site7_extract_updated_date_uses_previous_day_before_four(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = '<p id="hall_date">データ更新日時：2026/04/28 03:59</p>'
+
+        updated_date = scraper.extract_updated_date(html)
+
+        self.assertEqual(updated_date, datetime(2026, 4, 27))
+
+    def test_site7_extract_updated_date_keeps_same_day_from_four(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = '<p id="hall_date">データ更新日時：2026/04/28 04:00</p>'
+
+        updated_date = scraper.extract_updated_date(html)
+
+        self.assertEqual(updated_date, datetime(2026, 4, 28))
+
+    def test_site7_parse_machine_history_uses_four_oclock_boundary(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = find_gui_fixture("site7_machine.html").replace("2026/04/25 15:15", "2026/04/28 01:00")
+
+        history_result = scraper.parse_machine_history_html(
+            html,
+            store_url="https://example.com/site7",
+            page_url="https://example.com/site7/machine",
+            recent_days=2,
+        )
+
+        self.assertEqual(history_result.start_date, "2026-04-26")
+        self.assertEqual(history_result.end_date, "2026-04-27")
+        self.assertEqual([page.target_date for page in history_result.date_pages], ["2026-04-26", "2026-04-27"])
+
     def test_site7_build_machine_daily_records_from_history_result(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = find_gui_fixture("site7_machine.html")

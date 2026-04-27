@@ -40,7 +40,10 @@ SITE7_MAX_RECENT_DAYS = 8
 SITE7_TRANSITION_WAIT_MIN_SECONDS = 2.0
 SITE7_TRANSITION_WAIT_MAX_SECONDS = 4.0
 SITE7_BROWSER_STATE_DIR_NAME = "site7_browser"
-SITE7_UPDATE_DATE_PATTERN = re.compile(r"データ更新日時：\s*(\d{4})/(\d{1,2})/(\d{1,2})")
+SITE7_DATE_BOUNDARY_HOUR = 4
+SITE7_UPDATE_DATE_PATTERN = re.compile(
+    r"データ更新日時：\s*(\d{4})/(\d{1,2})/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?"
+)
 SITE7_SLOT_NUMBER_PATTERN = re.compile(r"(\d+)")
 SITE7_HALL_CLICK_PATTERN = re.compile(r"hallClick\('([^']+)'\)")
 SITE7_LOGIN_URL_PATTERN = re.compile(r"(?:Mypage)?Login", re.IGNORECASE)
@@ -578,7 +581,15 @@ class Site7Scraper:
         year = int(match.group(1))
         month = int(match.group(2))
         day = int(match.group(3))
-        return datetime(year, month, day)
+        hour_text = match.group(4)
+        minute_text = match.group(5)
+        if hour_text is None or minute_text is None:
+            return datetime(year, month, day)
+
+        updated_at = datetime(year, month, day, int(hour_text), int(minute_text))
+        if updated_at.hour < SITE7_DATE_BOUNDARY_HOUR:
+            updated_at -= timedelta(days=1)
+        return updated_at.replace(hour=0, minute=0, second=0, microsecond=0)
 
     def extract_target_machine_entries(self, html: str) -> list[Site7MachineEntry]:
         soup = BeautifulSoup(html, "html.parser")
