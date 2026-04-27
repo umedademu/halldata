@@ -183,6 +183,21 @@ function readJsonObject(value) {
   return typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
+function readNumber(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function detailRecordHasMeaningfulResult(record) {
+  return ["difference_value", "games_count", "bb_count", "rb_count"].some((key) =>
+    Number.isFinite(readNumber(record?.[key])),
+  );
+}
+
 function buildRawRowsFromMachineDailyDetailRows(rows) {
   const expandedRows = [];
 
@@ -215,14 +230,14 @@ function buildRawRowsFromMachineDailyDetailRows(rows) {
 }
 
 function dailyDetailRowHasMeaningfulResult(row) {
-  const averageDifference = Number(row?.average_difference);
-  const averageGames = Number(row?.average_games);
+  const averageDifference = readNumber(row?.average_difference);
+  const averageGames = readNumber(row?.average_games);
   if (Number.isFinite(averageDifference) || Number.isFinite(averageGames)) {
     return true;
   }
 
   const recordsBySlot = readJsonObject(row?.records_by_slot);
-  return Object.values(recordsBySlot).some((record) => hasMeaningfulResult(record));
+  return Object.values(recordsBySlot).some((record) => detailRecordHasMeaningfulResult(record));
 }
 
 async function fetchHuntScoreSourceRows(resultsTable, machineDailyDetailsTable, storeId) {
