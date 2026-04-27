@@ -7,6 +7,15 @@ import { getHuntScoreRankingDetail, getStoreIdentity } from "../../../../lib/dat
 import { formatCompactDate, formatNumber } from "../../../../lib/format";
 
 export const dynamic = "force-dynamic";
+const DEFAULT_RANKING_LIMIT = 20;
+
+function parseRequestedLimit(value) {
+  const parsedValue = Number(value);
+  if (!Number.isInteger(parsedValue) || parsedValue < 1) {
+    return DEFAULT_RANKING_LIMIT;
+  }
+  return parsedValue;
+}
 
 export async function generateMetadata({ params }) {
   const resolvedParams = await params;
@@ -30,11 +39,12 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const storeId = resolvedParams.storeId;
   const requestedDate =
     typeof resolvedSearchParams?.date === "string" ? resolvedSearchParams.date : "";
+  const requestedLimit = parseRequestedLimit(resolvedSearchParams?.limit);
 
   let detail;
 
   try {
-    detail = await getHuntScoreRankingDetail(storeId, requestedDate);
+    detail = await getHuntScoreRankingDetail(storeId, requestedDate, requestedLimit);
   } catch (error) {
     return (
       <main className="pageStack">
@@ -82,7 +92,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
           <p className="eyebrow">Hunt Score Analysis</p>
           <h1 className="pageTitle pageTitleCompact">狙い度分析</h1>
           <p className="leadText">
-            集計日に見た次回営業日の狙い度を、固定ルールの絶対評価で分析し、高い順に並べた20台です。
+            集計日に見た次回営業日の狙い度を、固定ルールの絶対評価で分析し、高い順に並べて確認できます。
           </p>
           <div className="heroLinks">
             <Link href={`/stores/${detail.store.id}`} className="inlineAction">
@@ -120,7 +130,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
           <div>
             <p className="sectionLabel">集計日を選ぶ</p>
             <p className="filterLead">
-              選んだ日の時点で見た次回営業日の狙い度分析の点数順と、翌営業日の実績を表示します。
+              選んだ日の時点で見た次回営業日の狙い度分析を、表示したい順位まで絞って確認できます。
             </p>
           </div>
           <form method="get" className="storeReserveForm">
@@ -133,6 +143,17 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="storeReserveField">
+              <span>何位まで表示</span>
+              <input
+                type="number"
+                name="limit"
+                min="1"
+                max={Math.max(detail.totalCount, 1)}
+                defaultValue={detail.limit}
+                className="storeReserveInput"
+              />
             </label>
             <button type="submit" className="storeReserveButton">
               表示する

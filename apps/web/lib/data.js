@@ -1138,6 +1138,7 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
 export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankingDetail(
   storeId,
   requestedDate = "",
+  requestedLimit = 20,
 ) {
   const { storesTable, resultsTable, machineDailyDetailsTable } = await getSupabaseConfig();
   const stores = await fetchStoreEventRows(storesTable, storeId);
@@ -1156,6 +1157,10 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   const rankingDates = snapshots.map((snapshot) => snapshot.baseDate);
   const selectedDate = rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null;
   const snapshot = snapshots.find((entry) => entry.baseDate === selectedDate) ?? null;
+  const rankingLimit =
+    Number.isInteger(requestedLimit) && requestedLimit >= 1 ? requestedLimit : 20;
+  const totalCount = snapshot?.rows.length ?? 0;
+  const displayLimit = totalCount > 0 ? Math.min(rankingLimit, totalCount) : rankingLimit;
 
   return {
     store: {
@@ -1166,10 +1171,11 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     rankingDates,
     selectedDate,
     requestedDate,
+    limit: displayLimit,
     predictionDate: snapshot?.baseDate ?? null,
     nextBusinessDate: snapshot?.nextBusinessDate ?? null,
-    rows: snapshot?.rows.slice(0, 20) ?? [],
-    totalCount: snapshot?.rows.length ?? 0,
+    rows: snapshot?.rows.slice(0, displayLimit) ?? [],
+    totalCount,
     hasActualResults: snapshot?.rows.some((row) => row.nextRecord) ?? false,
   };
 });

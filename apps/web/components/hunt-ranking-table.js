@@ -138,7 +138,7 @@ export function HuntRankingTable({ rows }) {
         <div className="tablePanelHeader">
           <div>
             <p className="sectionLabel">狙い度上位</p>
-            <h2 className="tablePanelTitle">高得点20台</h2>
+            <h2 className="tablePanelTitle">高得点上位{formatNumber(rows.length)}台</h2>
           </div>
         </div>
         <div className="tableScroller directoryScroller">
