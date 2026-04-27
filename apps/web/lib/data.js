@@ -783,7 +783,23 @@ export const getStoreList = cache(async function getStoreList() {
       const leftLabel = left.isPendingRegistration ? left.storeUrl : left.storeName;
       const rightLabel = right.isPendingRegistration ? right.storeUrl : right.storeName;
       return leftLabel.localeCompare(rightLabel, "ja");
-  });
+    });
+});
+
+export const getStoreIdentity = cache(async function getStoreIdentity(storeId) {
+  const { storesTable } = await getSupabaseConfig();
+  const stores = await fetchStoreEventRows(storesTable, storeId);
+  const store = stores[0];
+
+  if (!store) {
+    return null;
+  }
+
+  return {
+    id: store.id,
+    storeName: store.store_name,
+    storeUrl: store.store_url,
+  };
 });
 
 async function readStoreMachineSummariesFromLocalData(storeName) {

@@ -1,7 +1,10 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Hall Data Board",
+  title: {
+    default: "Hall Data Board",
+    template: "%s | Hall Data Board",
+  },
   description: "Supabase に保存された店舗別の台データを一覧で確認するサイト",
 };
 

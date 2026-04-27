@@ -1,5 +1,9 @@
 import Link from "next/link";
 
+export const metadata = {
+  title: "ページが見つかりません",
+};
+
 export default function NotFound() {
   return (
     <main className="pageStack">

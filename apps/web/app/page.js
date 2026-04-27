@@ -5,6 +5,9 @@ import { revalidatePath } from "next/cache";
 import { getStoreList, registerPendingStoreUrl } from "../lib/data";
 
 export const dynamic = "force-dynamic";
+export const metadata = {
+  title: "店舗一覧",
+};
 
 async function registerStoreReservation(formData) {
   "use server";

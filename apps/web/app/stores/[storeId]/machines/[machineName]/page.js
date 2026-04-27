@@ -5,6 +5,7 @@ import { Breadcrumbs } from "../../../../../components/breadcrumbs";
 import { MachineComparison } from "../../../../../components/machine-comparison";
 import {
   getMachineDetail,
+  getStoreIdentity,
   readRouteSegment,
 } from "../../../../../lib/data";
 import { parseEventDisplayMode, parseEventFilters } from "../../../../../lib/event-filters";
@@ -22,6 +23,23 @@ export const dynamic = "force-dynamic";
 function hasSearchParamValue(searchParams, key) {
   const value = searchParams?.[key];
   return Array.isArray(value) ? value.length > 0 : value !== undefined;
+}
+
+export async function generateMetadata({ params }) {
+  const resolvedParams = await params;
+  const storeId = resolvedParams.storeId;
+  const machineName = readRouteSegment(resolvedParams.machineName);
+
+  try {
+    const store = await getStoreIdentity(storeId);
+    return {
+      title: store ? `${machineName}（${store.storeName}）` : machineName || "台データ",
+    };
+  } catch {
+    return {
+      title: machineName || "台データ",
+    };
+  }
 }
 
 export default async function MachineDetailPage({ params, searchParams }) {

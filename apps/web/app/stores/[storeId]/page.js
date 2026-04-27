@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../components/breadcrumbs";
-import { getStoreDetail } from "../../../lib/data";
+import { getStoreDetail, getStoreIdentity } from "../../../lib/data";
 import { isHuntScoreTargetStore } from "../../../lib/hunt-score";
 import {
   formatAverageGames,
@@ -13,6 +13,21 @@ import {
 } from "../../../lib/format";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }) {
+  const { storeId } = await params;
+
+  try {
+    const store = await getStoreIdentity(storeId);
+    return {
+      title: store ? `${store.storeName}の機種一覧` : "機種一覧",
+    };
+  } catch {
+    return {
+      title: "機種一覧",
+    };
+  }
+}
 
 export default async function StoreDetailPage({ params }) {
   const { storeId } = await params;

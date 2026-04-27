@@ -3,10 +3,26 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../../components/breadcrumbs";
 import { HuntRankingTable } from "../../../../components/hunt-ranking-table";
-import { getHuntScoreRankingDetail } from "../../../../lib/data";
+import { getHuntScoreRankingDetail, getStoreIdentity } from "../../../../lib/data";
 import { formatCompactDate, formatNumber } from "../../../../lib/format";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }) {
+  const resolvedParams = await params;
+  const storeId = resolvedParams.storeId;
+
+  try {
+    const store = await getStoreIdentity(storeId);
+    return {
+      title: store ? `${store.storeName}の狙い度分析` : "狙い度分析",
+    };
+  } catch {
+    return {
+      title: "狙い度分析",
+    };
+  }
+}
 
 export default async function HuntAnalysisPage({ params, searchParams }) {
   const resolvedParams = await params;
