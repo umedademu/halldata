@@ -79,7 +79,7 @@ const RESULT_COLUMNS = [
   },
 ];
 
-export function HuntRankingTable({ storeId, rows, selectedDate }) {
+export function HuntRankingTable({ storeId, rows }) {
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
   const [bookmark, setBookmark] = useState(null);
 
@@ -103,8 +103,8 @@ export function HuntRankingTable({ storeId, rows, selectedDate }) {
     [visibleResultKeys],
   );
   const bookmarkState = useMemo(
-    () => buildHuntBacktestBookmarkMatches(rows, bookmark, selectedDate),
-    [bookmark, rows, selectedDate],
+    () => buildHuntBacktestBookmarkMatches(rows, bookmark),
+    [bookmark, rows],
   );
   const bookmarkSummary = useMemo(
     () => formatHuntBacktestBookmarkSummary(bookmarkState.bookmark),
@@ -145,11 +145,9 @@ export function HuntRankingTable({ storeId, rows, selectedDate }) {
         </div>
         {bookmarkState.bookmark ? (
           <p className="storeReserveNotice storeReserveNotice-info">
-            {bookmarkState.isDateMatched
-              ? `目印条件を反映中です。${bookmarkSummary} / 表示中${formatNumber(
-                  bookmarkState.totalRowCount,
-                )}台のうち${formatNumber(bookmarkState.matchedRowCount)}台が一致しています。`
-              : `目印条件を反映中ですが、今見ている集計日は期間外です。${bookmarkSummary}`}
+            {`目印条件を反映中です。${bookmarkSummary} / 表示中${formatNumber(
+              bookmarkState.totalRowCount,
+            )}台のうち${formatNumber(bookmarkState.matchedRowCount)}台が一致しています。`}
           </p>
         ) : null}
         <div className="metricToggleRow">

@@ -600,11 +600,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             ) : null}
           </section>
 
-          <HuntRankingTable
-            storeId={detail.store.id}
-            rows={detail.rows}
-            selectedDate={detail.selectedDate}
-          />
+          <HuntRankingTable storeId={detail.store.id} rows={detail.rows} />
         </>
       ) : (
         <section className="statusPanel">

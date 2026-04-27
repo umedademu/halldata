@@ -311,21 +311,7 @@ export function buildHuntBacktestBookmarkRowKey(row) {
   return [normalizeText(row?.machineName), normalizeText(row?.slotNumber), normalizeText(row?.rank)].join("::");
 }
 
-function isBookmarkDateMatched(dateText, bookmark) {
-  const normalizedDate = normalizeDateText(dateText);
-  if (!normalizedDate) {
-    return false;
-  }
-  if (bookmark.startDate && normalizedDate < bookmark.startDate) {
-    return false;
-  }
-  if (bookmark.endDate && normalizedDate > bookmark.endDate) {
-    return false;
-  }
-  return true;
-}
-
-export function buildHuntBacktestBookmarkMatches(rows, bookmark, selectedDate) {
+export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
   const normalizedBookmark = normalizeHuntBacktestBookmark(bookmark);
   const safeRows = Array.isArray(rows) ? rows : [];
   const matchByRowKey = new Map();
@@ -333,21 +319,6 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark, selectedDate) {
   if (!normalizedBookmark) {
     return {
       bookmark: null,
-      isDateMatched: true,
-      matchedRowCount: 0,
-      totalRowCount: safeRows.length,
-      matchByRowKey,
-    };
-  }
-
-  if (!isBookmarkDateMatched(selectedDate, normalizedBookmark)) {
-    safeRows.forEach((row) => {
-      matchByRowKey.set(buildHuntBacktestBookmarkRowKey(row), false);
-    });
-
-    return {
-      bookmark: normalizedBookmark,
-      isDateMatched: false,
       matchedRowCount: 0,
       totalRowCount: safeRows.length,
       matchByRowKey,
@@ -390,7 +361,6 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark, selectedDate) {
 
   return {
     bookmark: normalizedBookmark,
-    isDateMatched: true,
     matchedRowCount,
     totalRowCount: safeRows.length,
     matchByRowKey,
