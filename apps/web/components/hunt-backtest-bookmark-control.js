@@ -6,6 +6,7 @@ import {
   HUNT_BACKTEST_BOOKMARK_EVENT,
   areHuntBacktestBookmarksEqual,
   clearSavedHuntBacktestBookmark,
+  formatHuntBacktestBookmarkPeriod,
   formatHuntBacktestBookmarkSummary,
   readSavedHuntBacktestBookmark,
   saveHuntBacktestBookmark,
@@ -35,6 +36,14 @@ export function HuntBacktestBookmarkControl({ storeId, bookmark }) {
   );
   const savedSummary = useMemo(
     () => formatHuntBacktestBookmarkSummary(savedBookmark),
+    [savedBookmark],
+  );
+  const currentPeriod = useMemo(
+    () => formatHuntBacktestBookmarkPeriod(bookmark),
+    [bookmark],
+  );
+  const savedPeriod = useMemo(
+    () => formatHuntBacktestBookmarkPeriod(savedBookmark),
     [savedBookmark],
   );
   const isCurrentSaved = useMemo(
@@ -80,12 +89,18 @@ export function HuntBacktestBookmarkControl({ storeId, bookmark }) {
         }`}
       >
         {isCurrentSaved
-          ? `この条件を目印として保存中です。${currentSummary}`
+          ? `この目印の強調条件を保存中です。${currentSummary}`
           : savedBookmark
-            ? `保存中の目印があります。${savedSummary}`
+            ? `保存中の目印があります。強調条件は ${savedSummary} です。`
             : "まだ目印は保存していません。"}
       </p>
-      {!isCurrentSaved ? <p className="storeReserveHelp">現在の条件: {currentSummary}</p> : null}
+      {isCurrentSaved && currentPeriod ? (
+        <p className="storeReserveHelp">保存時のバックテスト期間: {currentPeriod}</p>
+      ) : null}
+      {!isCurrentSaved ? <p className="storeReserveHelp">現在の強調条件: {currentSummary}</p> : null}
+      {!isCurrentSaved && savedPeriod ? (
+        <p className="storeReserveHelp">保存中のバックテスト期間: {savedPeriod}</p>
+      ) : null}
     </section>
   );
 }

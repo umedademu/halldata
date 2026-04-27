@@ -198,6 +198,19 @@ function buildMachineSummaryText(bookmark) {
   return `${bookmark.machineNames.length}機種`;
 }
 
+export function formatHuntBacktestBookmarkPeriod(bookmark) {
+  const normalizedBookmark = normalizeHuntBacktestBookmark(bookmark);
+  if (!normalizedBookmark) {
+    return "";
+  }
+
+  if (normalizedBookmark.startDate && normalizedBookmark.endDate) {
+    return `${normalizedBookmark.startDate}〜${normalizedBookmark.endDate}`;
+  }
+
+  return "";
+}
+
 export function formatHuntBacktestBookmarkSummary(bookmark) {
   const normalizedBookmark = normalizeHuntBacktestBookmark(bookmark);
   if (!normalizedBookmark) {
@@ -205,10 +218,6 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   }
 
   const parts = [buildMachineSummaryText(normalizedBookmark)];
-
-  if (normalizedBookmark.startDate && normalizedBookmark.endDate) {
-    parts.push(`期間${normalizedBookmark.startDate}〜${normalizedBookmark.endDate}`);
-  }
 
   parts.push(normalizedBookmark.rankScope === "machine" ? "機種内順位" : "全機種順位");
 
