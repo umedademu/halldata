@@ -54,23 +54,32 @@ export function HuntBacktestGraph({ points }) {
     return null;
   }
 
+  let cumulativeDifferenceTotal = 0;
+  const cumulativePoints = points.map((point) => {
+    cumulativeDifferenceTotal += point.differenceTotal;
+    return {
+      ...point,
+      cumulativeDifferenceTotal,
+    };
+  });
   const chartWidth = Math.max(
     MIN_CHART_WIDTH,
     CHART_PADDING.left + CHART_PADDING.right + Math.max(points.length - 1, 1) * POINT_GAP,
   );
   const innerWidth = chartWidth - CHART_PADDING.left - CHART_PADDING.right;
   const innerHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
-  const values = points.map((point) => point.differenceTotal);
+  const values = cumulativePoints.map((point) => point.cumulativeDifferenceTotal);
   const range = calculateRange(values);
   const yTicks = buildYAxisTicks(range.min, range.max);
-  const labelStep = Math.max(1, Math.ceil(points.length / 8));
-  const plotPoints = points.map((point, index) => {
+  const labelStep = Math.max(1, Math.ceil(cumulativePoints.length / 8));
+  const plotPoints = cumulativePoints.map((point, index) => {
     const x =
-      points.length === 1
+      cumulativePoints.length === 1
         ? CHART_PADDING.left + innerWidth / 2
-        : CHART_PADDING.left + (innerWidth * index) / (points.length - 1);
+        : CHART_PADDING.left + (innerWidth * index) / (cumulativePoints.length - 1);
     const y =
-      CHART_PADDING.top + ((range.max - point.differenceTotal) / (range.max - range.min)) * innerHeight;
+      CHART_PADDING.top +
+      ((range.max - point.cumulativeDifferenceTotal) / (range.max - range.min)) * innerHeight;
 
     return {
       ...point,
@@ -89,18 +98,18 @@ export function HuntBacktestGraph({ points }) {
       <div className="tablePanelHeader">
         <div>
           <p className="sectionLabel">差枚推移</p>
-          <h2 className="tablePanelTitle">日ごとの差枚折れ線</h2>
+          <h2 className="tablePanelTitle">累積差枚折れ線</h2>
         </div>
       </div>
       <p className="backtestGraphLead">
-        横軸は翌営業日の日付、縦軸はその日の差枚合計です。条件の期間指定自体は狙い度を出した日を基準にしています。
+        横軸は翌営業日の日付、縦軸はその時点までの累積差枚です。条件の期間指定自体は狙い度を出した日を基準にしています。
       </p>
       <div className="tableScroller backtestGraphScroller">
         <svg
           viewBox={`0 0 ${chartWidth} ${CHART_HEIGHT}`}
           className="backtestGraphSvg"
           role="img"
-          aria-label="バックテストの日別差枚推移"
+          aria-label="バックテストの累積差枚推移"
         >
           <rect
             x={CHART_PADDING.left}
@@ -150,7 +159,7 @@ export function HuntBacktestGraph({ points }) {
               <g key={point.date}>
                 <circle cx={point.x} cy={point.y} r="4.5" className="backtestGraphPoint">
                   <title>
-                    {`${point.date} 差枚 ${formatPlainSignedNumber(point.differenceTotal)} 条件一致 ${point.matchedRowCount}台 実績 ${point.actualRowCount}台`}
+                    {`${point.date} 当日差枚 ${formatPlainSignedNumber(point.differenceTotal)} 累積差枚 ${formatPlainSignedNumber(point.cumulativeDifferenceTotal)} 条件一致 ${point.matchedRowCount}台 実績 ${point.actualRowCount}台`}
                   </title>
                 </circle>
                 {shouldShowLabel ? (
