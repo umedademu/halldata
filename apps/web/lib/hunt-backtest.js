@@ -125,6 +125,10 @@ function normalizeMatchMode(value) {
   return value === "or" ? "or" : "and";
 }
 
+function normalizeShowGraph(value) {
+  return value === "off" ? "off" : "on";
+}
+
 function buildPeriodState(options, latestDate) {
   const periodMode = options?.periodMode === "range" ? "range" : "recent";
   const recentDays = readPositiveInteger(options?.recentDays) ?? DEFAULT_RECENT_DAYS;
@@ -216,6 +220,16 @@ function buildEmptySummary(machineName = "総計") {
   };
 }
 
+function buildEmptyDailySummary(date, predictionDate) {
+  return {
+    date,
+    predictionDate,
+    matchedRowCount: 0,
+    actualRowCount: 0,
+    differenceTotal: 0,
+  };
+}
+
 function finalizeSummary(summary) {
   return {
     ...summary,
@@ -253,11 +267,13 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const rankFilter = buildRankFilter(options.rankMin, options.rankMax);
   const scoreFilter = buildScoreFilter(options.scoreMin);
   const matchMode = normalizeMatchMode(options.matchMode);
+  const showGraph = normalizeShowGraph(options.showGraph);
   const periodState = buildPeriodState(options, latestDate);
   const snapshotsInPeriod = (Array.isArray(snapshots) ? snapshots : []).filter((snapshot) =>
     isSnapshotInPeriod(snapshot, periodState.startDate, periodState.endDate),
   );
   const summariesByMachine = new Map();
+  const dailySummariesByDate = new Map();
   const totalSummary = buildEmptySummary();
   const matchedDates = new Set();
   let matchedRowCount = 0;
@@ -283,6 +299,17 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
       summary.matchedRowCount += 1;
       totalSummary.matchedRowCount += 1;
 
+      const actualDate = String(row.nextBusinessDate ?? snapshot.nextBusinessDate ?? "").trim();
+      if (actualDate) {
+        if (!dailySummariesByDate.has(actualDate)) {
+          dailySummariesByDate.set(
+            actualDate,
+            buildEmptyDailySummary(actualDate, snapshot.baseDate),
+          );
+        }
+        dailySummariesByDate.get(actualDate).matchedRowCount += 1;
+      }
+
       if (!row.nextRecord) {
         continue;
       }
@@ -298,6 +325,12 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
       totalSummary.actualRowCount += 1;
       totalSummary.differenceTotal += differenceValue;
       totalSummary.gamesTotal += gamesCount;
+
+      if (actualDate && dailySummariesByDate.has(actualDate)) {
+        const dailySummary = dailySummariesByDate.get(actualDate);
+        dailySummary.actualRowCount += 1;
+        dailySummary.differenceTotal += differenceValue;
+      }
 
       if (settingAverage !== null) {
         summary.settingSampleCount += 1;
@@ -327,6 +360,9 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
         left.machineName.localeCompare(right.machineName, "ja")
       );
     });
+  const graphPoints = [...dailySummariesByDate.values()]
+    .filter((dailySummary) => dailySummary.actualRowCount > 0)
+    .sort((left, right) => left.date.localeCompare(right.date, "ja"));
 
   return {
     periodMode: periodState.periodMode,
@@ -347,6 +383,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     scoreMin: scoreFilter.scoreMin,
     hasScoreFilter: scoreFilter.hasScoreFilter,
     matchMode,
+    showGraph,
     targetDateCount: snapshotsInPeriod.length,
     matchedDateCount: matchedDates.size,
     matchedRowCount,
@@ -355,6 +392,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     hasMatches: matchedRowCount > 0,
     hasActualResults: actualRowCount > 0,
     summaries,
+    graphPoints,
     total: finalizeSummary(totalSummary),
   };
 }

@@ -294,6 +294,12 @@ a {
   gap: 12px;
 }
 
+.backtestGraphLead {
+  margin: 0 0 14px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
 .storeReserveNotice {
   width: fit-content;
   padding: 8px 10px;
@@ -740,6 +746,63 @@ a {
 
 .matrixScroller {
   border-radius: 12px;
+}
+
+.backtestGraphScroller {
+  padding: 10px 12px;
+}
+
+.backtestGraphSvg {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+  height: auto;
+}
+
+.backtestGraphPlot {
+  fill: rgba(255, 255, 255, 0.78);
+  stroke: rgba(64, 30, 7, 0.08);
+}
+
+.backtestGraphGrid {
+  stroke: rgba(64, 30, 7, 0.12);
+  stroke-width: 1;
+  stroke-dasharray: 4 6;
+}
+
+.backtestGraphZeroLine {
+  stroke: rgba(185, 65, 39, 0.42);
+  stroke-width: 1.5;
+}
+
+.backtestGraphLine {
+  fill: none;
+  stroke: var(--accent-strong);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.backtestGraphPoint {
+  fill: #fff4cf;
+  stroke: var(--accent-strong);
+  stroke-width: 2;
+}
+
+.backtestGraphTick {
+  stroke: rgba(64, 30, 7, 0.16);
+  stroke-width: 1;
+}
+
+.backtestGraphAxisText {
+  fill: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-anchor: end;
+}
+
+.backtestGraphDateText {
+  text-anchor: middle;
 }
 
 .directoryTable {

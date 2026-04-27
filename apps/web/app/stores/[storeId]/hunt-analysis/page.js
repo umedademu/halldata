@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../../components/breadcrumbs";
+import { HuntBacktestGraph } from "../../../../components/hunt-backtest-graph";
 import { HuntRankingLimitSync } from "../../../../components/hunt-ranking-limit-sync";
 import { HuntRankingTable } from "../../../../components/hunt-ranking-table";
 import { getHuntScoreAnalysisPageDetail, getStoreIdentity } from "../../../../lib/data";
@@ -29,6 +30,7 @@ const BACKTEST_SEARCH_KEYS = [
   "rankMax",
   "scoreMin",
   "matchMode",
+  "showGraph",
 ];
 
 function readSingleSearchParam(value) {
@@ -114,6 +116,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     rankMax: readSingleSearchParam(resolvedSearchParams?.rankMax),
     scoreMin: readSingleSearchParam(resolvedSearchParams?.scoreMin),
     matchMode: readSingleSearchParam(resolvedSearchParams?.matchMode),
+    showGraph: readSingleSearchParam(resolvedSearchParams?.showGraph),
   };
 
   let detail;
@@ -377,6 +380,38 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 </div>
               </div>
 
+              <div className="backtestBlock">
+                <p className="filterControlLabel">グラフ表示</p>
+                <div className="metricToggleRow">
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.showGraph === "on" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="showGraph"
+                      value="on"
+                      defaultChecked={detail.backtest.showGraph === "on"}
+                    />
+                    <span>表示する</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.showGraph === "off" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="showGraph"
+                      value="off"
+                      defaultChecked={detail.backtest.showGraph === "off"}
+                    />
+                    <span>表示しない</span>
+                  </label>
+                </div>
+              </div>
+
               <div className="backtestButtonRow">
                 <button type="submit" className="storeReserveButton">
                   バックテストする
@@ -411,6 +446,10 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
 
           {backtestNoActualNotice ? (
             <p className="filterPanelStatus">{backtestNoActualNotice}</p>
+          ) : null}
+
+          {detail.backtest.showGraph === "on" && detail.backtest.graphPoints.length > 0 ? (
+            <HuntBacktestGraph points={detail.backtest.graphPoints} />
           ) : null}
 
           {detail.backtest.hasMatches ? (
