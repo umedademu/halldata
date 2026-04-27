@@ -129,6 +129,10 @@ function normalizeShowGraph(value) {
   return value === "off" ? "off" : "on";
 }
 
+function normalizeRankScope(value) {
+  return value === "machine" ? "machine" : "all";
+}
+
 function buildPeriodState(options, latestDate) {
   const periodMode = options?.periodMode === "range" ? "range" : "recent";
   const recentDays = readPositiveInteger(options?.recentDays) ?? DEFAULT_RECENT_DAYS;
@@ -237,12 +241,12 @@ function finalizeSummary(summary) {
   };
 }
 
-function matchesOptionalFilters(row, rankFilter, scoreFilter, matchMode) {
+function matchesOptionalFilters(rankValue, huntScore, rankFilter, scoreFilter, matchMode) {
   const rankMatched = rankFilter.hasRankFilter
-    ? row.rank >= rankFilter.rankMin && row.rank <= rankFilter.rankMax
+    ? rankValue >= rankFilter.rankMin && rankValue <= rankFilter.rankMax
     : false;
   const scoreMatched = scoreFilter.hasScoreFilter
-    ? readFiniteNumber(row.huntScore, Number.NEGATIVE_INFINITY) >= scoreFilter.scoreMin
+    ? readFiniteNumber(huntScore, Number.NEGATIVE_INFINITY) >= scoreFilter.scoreMin
     : false;
 
   if (rankFilter.hasRankFilter && scoreFilter.hasScoreFilter) {
@@ -267,6 +271,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const rankFilter = buildRankFilter(options.rankMin, options.rankMax);
   const scoreFilter = buildScoreFilter(options.scoreMin);
   const matchMode = normalizeMatchMode(options.matchMode);
+  const rankScope = normalizeRankScope(options.rankScope);
   const showGraph = normalizeShowGraph(options.showGraph);
   const periodState = buildPeriodState(options, latestDate);
   const snapshotsInPeriod = (Array.isArray(snapshots) ? snapshots : []).filter((snapshot) =>
@@ -280,11 +285,18 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   let actualRowCount = 0;
 
   for (const snapshot of snapshotsInPeriod) {
+    const machineRankCounts = new Map();
+
     for (const row of snapshot.rows) {
       if (!selectedMachineNameSet.has(row.machineName)) {
         continue;
       }
-      if (!matchesOptionalFilters(row, rankFilter, scoreFilter, matchMode)) {
+
+      const machineRank = (machineRankCounts.get(row.machineName) ?? 0) + 1;
+      machineRankCounts.set(row.machineName, machineRank);
+      const rankValue = rankScope === "machine" ? machineRank : row.rank;
+
+      if (!matchesOptionalFilters(rankValue, row.huntScore, rankFilter, scoreFilter, matchMode)) {
         continue;
       }
 
@@ -383,6 +395,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     scoreMin: scoreFilter.scoreMin,
     hasScoreFilter: scoreFilter.hasScoreFilter,
     matchMode,
+    rankScope,
     showGraph,
     targetDateCount: snapshotsInPeriod.length,
     matchedDateCount: matchedDates.size,

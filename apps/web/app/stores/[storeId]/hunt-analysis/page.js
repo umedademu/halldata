@@ -28,6 +28,7 @@ const BACKTEST_SEARCH_KEYS = [
   "machine",
   "rankMin",
   "rankMax",
+  "rankScope",
   "scoreMin",
   "matchMode",
   "showGraph",
@@ -114,6 +115,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     machineNames: readMultiSearchParam(resolvedSearchParams?.machine),
     rankMin: readSingleSearchParam(resolvedSearchParams?.rankMin),
     rankMax: readSingleSearchParam(resolvedSearchParams?.rankMax),
+    rankScope: readSingleSearchParam(resolvedSearchParams?.rankScope),
     scoreMin: readSingleSearchParam(resolvedSearchParams?.scoreMin),
     matchMode: readSingleSearchParam(resolvedSearchParams?.matchMode),
     showGraph: readSingleSearchParam(resolvedSearchParams?.showGraph),
@@ -346,6 +348,38 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                     className="storeReserveInput"
                   />
                 </label>
+              </div>
+
+              <div className="backtestBlock">
+                <p className="filterControlLabel">順位の見方</p>
+                <div className="metricToggleRow">
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.rankScope === "all" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="rankScope"
+                      value="all"
+                      defaultChecked={detail.backtest.rankScope === "all"}
+                    />
+                    <span>全機種順位</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.rankScope === "machine" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="rankScope"
+                      value="machine"
+                      defaultChecked={detail.backtest.rankScope === "machine"}
+                    />
+                    <span>機種内順位</span>
+                  </label>
+                </div>
               </div>
 
               <div className="backtestBlock">
