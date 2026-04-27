@@ -138,6 +138,12 @@ a {
   letter-spacing: 0.04em;
 }
 
+.pageTitle.pageTitleCompact {
+  font-size: 1.3rem;
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+
 .leadText {
   margin: 0;
   max-width: 54rem;

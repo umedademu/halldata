@@ -51,7 +51,7 @@ export default async function StoreDetailPage({ params }) {
       <section className="heroPanel">
         <div className="heroCopy">
           <p className="eyebrow">Machine Directory</p>
-          <h1 className="pageTitle">{store.storeName}</h1>
+          <h1 className="pageTitle pageTitleCompact">{store.storeName}</h1>
           <p className="leadText">
             各機種ごとの最新記録日を基準に一覧を出し、機種名から台データページへ進めます。
           </p>

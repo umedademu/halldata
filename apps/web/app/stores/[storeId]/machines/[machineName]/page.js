@@ -79,7 +79,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
       <section className="heroPanel">
         <div className="heroCopy">
           <p className="eyebrow">Machine Timeline</p>
-          <h1 className="pageTitle">{machineName}</h1>
+          <h1 className="pageTitle pageTitleCompact">{machineName}</h1>
           <p className="leadText">
             期間内の日付ごとに、同じ台番の差枚や回転数を横並びで見比べられます。
           </p>

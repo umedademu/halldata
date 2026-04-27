@@ -51,7 +51,7 @@ export default async function StoresPage({ searchParams }) {
         <section className="heroPanel">
           <div className="heroCopy">
             <p className="eyebrow">Supabase Viewer</p>
-            <h1 className="pageTitle">店舗一覧</h1>
+            <h1 className="pageTitle pageTitleCompact">店舗一覧</h1>
             <p className="leadText">
               保存済みの店舗データから、機種一覧と台データ比較へ順番に進めます。
             </p>
@@ -164,7 +164,7 @@ export default async function StoresPage({ searchParams }) {
         <section className="heroPanel">
           <div className="heroCopy">
             <p className="eyebrow">Supabase Viewer</p>
-            <h1 className="pageTitle">店舗一覧</h1>
+            <h1 className="pageTitle pageTitleCompact">店舗一覧</h1>
           </div>
         </section>
         <section className="statusPanel">
