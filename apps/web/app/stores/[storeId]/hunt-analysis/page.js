@@ -80,7 +80,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
       <section className="heroPanel">
         <div className="heroCopy">
           <p className="eyebrow">Hunt Score Analysis</p>
-          <h1 className="pageTitle">狙い度分析</h1>
+          <h1 className="pageTitle pageTitleCompact">狙い度分析</h1>
           <p className="leadText">
             集計日に見た次回営業日の狙い度を、固定ルールの絶対評価で分析し、高い順に並べた20台です。
           </p>
