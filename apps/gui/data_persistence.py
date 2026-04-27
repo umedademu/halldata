@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -28,6 +29,7 @@ DEFAULT_LOCAL_SAVE_DIR = ROOT_DIR / "local_data"
 DEFAULT_SCHEMA = "public"
 DEFAULT_STORES_TABLE = "stores"
 DEFAULT_RESULTS_TABLE = "machine_daily_results"
+DEFAULT_MACHINE_SUMMARIES_TABLE = "store_machine_summaries"
 STORE_COLUMNS = {"機種", "機種名"}
 WINDOWS_FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]+')
 DATA_SOURCE_MINREPO = "minrepo"
@@ -231,6 +233,66 @@ def build_supabase_result_payload(record: dict[str, Any], store_id: str, updated
     payload["store_id"] = store_id
     payload["updated_at"] = updated_at
     return payload
+
+
+def build_store_machine_summary_payloads(
+    records: list[dict[str, Any]],
+    store_id: str,
+    updated_at: str,
+) -> list[dict[str, Any]]:
+    buckets: dict[str, dict[str, Any]] = {}
+
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+
+        machine_name = str(record.get("machine_name", "")).strip()
+        target_date = str(record.get("target_date", "")).strip()
+        slot_number = str(record.get("slot_number", "")).strip()
+        if not machine_name or not target_date or not slot_number:
+            continue
+
+        bucket = buckets.get(machine_name)
+        if bucket is None or target_date > bucket["latest_date"]:
+            buckets[machine_name] = {
+                "machine_name": machine_name,
+                "latest_date": target_date,
+                "slot_numbers": {slot_number},
+                "rows": [record],
+            }
+            continue
+
+        if target_date != bucket["latest_date"]:
+            continue
+
+        bucket["slot_numbers"].add(slot_number)
+        bucket["rows"].append(record)
+
+    payloads: list[dict[str, Any]] = []
+    for bucket in buckets.values():
+        rows = bucket["rows"]
+        payloads.append(
+            {
+                "store_id": store_id,
+                "machine_name": bucket["machine_name"],
+                "latest_date": bucket["latest_date"],
+                "slot_count": len(bucket["slot_numbers"]),
+                "average_difference": _average_summary_numbers(row.get("difference_value") for row in rows),
+                "average_games": _average_summary_numbers(row.get("games_count") for row in rows),
+                "average_payout": _average_summary_numbers(row.get("payout_rate") for row in rows),
+                "updated_at": updated_at,
+            }
+        )
+
+    payloads.sort(
+        key=lambda payload: (
+            str(payload.get("latest_date", "")),
+            int(payload.get("slot_count", 0) or 0),
+            normalize_text(str(payload.get("machine_name", ""))),
+        ),
+        reverse=True,
+    )
+    return payloads
 
 
 class HistoryPersistenceService:
@@ -700,6 +762,7 @@ class HistoryPersistenceService:
 
     def _save_to_supabase(self, snapshot: dict[str, Any]) -> int:
         supabase_url, _, schema, stores_table, results_table = self._supabase_config()
+        machine_summaries_table = self._machine_summaries_table()
         now_text = datetime.now().astimezone().isoformat(timespec="seconds")
         session = self._create_supabase_session(schema)
 
@@ -739,7 +802,115 @@ class HistoryPersistenceService:
                     ) from exc
                 raise
 
+        self._refresh_store_machine_summaries(
+            session=session,
+            supabase_url=supabase_url,
+            results_table=results_table,
+            machine_summaries_table=machine_summaries_table,
+            store_id=store_id,
+            updated_at=now_text,
+        )
+
         return len(result_payloads)
+
+    def _refresh_store_machine_summaries(
+        self,
+        session: requests.Session,
+        supabase_url: str,
+        results_table: str,
+        machine_summaries_table: str,
+        store_id: str,
+        updated_at: str,
+    ) -> int:
+        source_rows = self._fetch_store_summary_source_rows(
+            session=session,
+            supabase_url=supabase_url,
+            results_table=results_table,
+            store_id=store_id,
+        )
+        payloads = build_store_machine_summary_payloads(
+            source_rows,
+            store_id=store_id,
+            updated_at=updated_at,
+        )
+        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(machine_summaries_table, safe='')}"
+
+        try:
+            response = session.delete(
+                endpoint,
+                params={
+                    "store_id": f"eq.{store_id}",
+                },
+                headers={"Prefer": "return=minimal"},
+                timeout=30,
+            )
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            if exc.response is not None and exc.response.status_code in {400, 404}:
+                raise RuntimeError(
+                    "機種一覧用の要約テーブルがありません。"
+                    " 追加用SQLを適用してから再度保存してください。"
+                ) from exc
+            raise
+
+        if not payloads:
+            return 0
+
+        endpoint = f"{endpoint}?on_conflict=store_id,machine_name"
+        try:
+            for payload_chunk in _chunk_items(payloads, 500):
+                response = session.post(
+                    endpoint,
+                    headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
+                    json=payload_chunk,
+                    timeout=30,
+                )
+                response.raise_for_status()
+        except requests.HTTPError as exc:
+            if exc.response is not None and exc.response.status_code in {400, 404}:
+                raise RuntimeError(
+                    "機種一覧用の要約テーブルがありません。"
+                    " 追加用SQLを適用してから再度保存してください。"
+                ) from exc
+            raise
+
+        return len(payloads)
+
+    def _fetch_store_summary_source_rows(
+        self,
+        session: requests.Session,
+        supabase_url: str,
+        results_table: str,
+        store_id: str,
+    ) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        offset = 0
+        page_size = 1000
+        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(results_table, safe='')}"
+
+        while True:
+            response = session.get(
+                endpoint,
+                params={
+                    "select": "machine_name,target_date,slot_number,difference_value,games_count,payout_rate",
+                    "store_id": f"eq.{store_id}",
+                    "order": "target_date.desc,slot_number.asc",
+                    "limit": str(page_size),
+                    "offset": str(offset),
+                },
+                timeout=30,
+            )
+            response.raise_for_status()
+            chunk = response.json()
+            if not chunk:
+                break
+
+            rows.extend(chunk)
+            if len(chunk) < page_size:
+                break
+            offset += page_size
+
+        return rows
 
     def _save_registered_stores_to_supabase(self, stores: list[dict[str, Any]]) -> int:
         if not stores:
@@ -1501,6 +1672,13 @@ class HistoryPersistenceService:
         results_table = settings.get("SUPABASE_MACHINE_RESULTS_TABLE", DEFAULT_RESULTS_TABLE).strip() or DEFAULT_RESULTS_TABLE
         return supabase_url, supabase_key, schema, stores_table, results_table
 
+    def _machine_summaries_table(self) -> str:
+        settings = self._load_settings()
+        return (
+            settings.get("SUPABASE_MACHINE_SUMMARIES_TABLE", "").strip()
+            or DEFAULT_MACHINE_SUMMARIES_TABLE
+        )
+
     def _create_supabase_session(self, schema: str) -> requests.Session:
         _, supabase_key, _, _, _ = self._supabase_config()
         session = requests.Session()
@@ -1568,6 +1746,32 @@ def _parse_percent_value(value: str) -> float | None:
     if re.fullmatch(r"-?\d+(?:\.\d+)?", normalized) is None:
         return None
     return float(normalized)
+
+
+def _average_summary_numbers(values: Any) -> float | None:
+    numeric_values: list[float] = []
+    for value in values:
+        if value is None or value == "":
+            continue
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, (int, float)):
+            if isinstance(value, float) and not math.isfinite(value):
+                continue
+            numeric_values.append(float(value))
+            continue
+
+        normalized = str(value).strip().replace(",", "")
+        if not normalized or normalized == "-":
+            continue
+        if re.fullmatch(r"-?\d+(?:\.\d+)?", normalized) is None:
+            continue
+        numeric_values.append(float(normalized))
+
+    if not numeric_values:
+        return None
+
+    return sum(numeric_values) / len(numeric_values)
 
 
 def _parse_text_value(value: str) -> str | None:

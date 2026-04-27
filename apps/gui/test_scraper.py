@@ -16,6 +16,7 @@ from data_persistence import (
     DATA_SOURCE_SITE7,
     HistoryPersistenceService,
     build_machine_daily_records,
+    build_store_machine_summary_payloads,
     build_supabase_result_payload,
     choose_preferred_store,
     normalize_store_name_key,
@@ -947,6 +948,168 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(payload["difference_value"], 735)
         self.assertEqual(payload["data_source"], DATA_SOURCE_SITE7)
         self.assertEqual(payload["store_id"], "store-1")
+
+    def test_build_store_machine_summary_payloads_uses_latest_date_only(self) -> None:
+        payloads = build_store_machine_summary_payloads(
+            [
+                {
+                    "target_date": "2026-04-24",
+                    "slot_number": "101",
+                    "machine_name": "ゴーゴージャグラー３",
+                    "difference_value": 100,
+                    "games_count": 2000,
+                    "payout_rate": 101.5,
+                },
+                {
+                    "target_date": "2026-04-25",
+                    "slot_number": "101",
+                    "machine_name": "ゴーゴージャグラー３",
+                    "difference_value": 300,
+                    "games_count": 4000,
+                    "payout_rate": 104.0,
+                },
+                {
+                    "target_date": "2026-04-25",
+                    "slot_number": "102",
+                    "machine_name": "ゴーゴージャグラー３",
+                    "difference_value": 500,
+                    "games_count": 6000,
+                    "payout_rate": 106.0,
+                },
+            ],
+            store_id="store-1",
+            updated_at="2026-04-25T12:34:56+09:00",
+        )
+
+        self.assertEqual(len(payloads), 1)
+        self.assertEqual(
+            payloads[0],
+            {
+                "store_id": "store-1",
+                "machine_name": "ゴーゴージャグラー３",
+                "latest_date": "2026-04-25",
+                "slot_count": 2,
+                "average_difference": 400.0,
+                "average_games": 5000.0,
+                "average_payout": 105.0,
+                "updated_at": "2026-04-25T12:34:56+09:00",
+            },
+        )
+
+    def test_save_to_supabase_refreshes_machine_summary_table(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            captured_result_posts: list[list[dict[str, object]]] = []
+            captured_summary_posts: list[list[dict[str, object]]] = []
+            captured_summary_deletes: list[dict[str, str]] = []
+
+            class FakeSession:
+                def post(
+                    self,
+                    endpoint: str,
+                    headers: dict[str, str],
+                    json: list[dict[str, object]],
+                    timeout: int = 30,
+                ) -> FakeJsonResponse:
+                    if "store_machine_summaries" in endpoint:
+                        captured_summary_posts.append(json)
+                    else:
+                        captured_result_posts.append(json)
+                    return FakeJsonResponse([])
+
+                def delete(
+                    self,
+                    endpoint: str,
+                    params: dict[str, str],
+                    headers: dict[str, str],
+                    timeout: int = 30,
+                ) -> FakeJsonResponse:
+                    captured_summary_deletes.append(params)
+                    return FakeJsonResponse([])
+
+                def get(self, endpoint: str, params: dict[str, str], timeout: int = 30) -> FakeJsonResponse:
+                    if params.get("offset") != "0":
+                        return FakeJsonResponse([])
+                    return FakeJsonResponse(
+                        [
+                            {
+                                "machine_name": "ゴーゴージャグラー３",
+                                "target_date": "2026-04-24",
+                                "slot_number": "101",
+                                "difference_value": 100,
+                                "games_count": 2000,
+                                "payout_rate": 101.0,
+                            },
+                            {
+                                "machine_name": "ゴーゴージャグラー３",
+                                "target_date": "2026-04-25",
+                                "slot_number": "101",
+                                "difference_value": 300,
+                                "games_count": 4000,
+                                "payout_rate": 104.0,
+                            },
+                            {
+                                "machine_name": "ゴーゴージャグラー３",
+                                "target_date": "2026-04-25",
+                                "slot_number": "102",
+                                "difference_value": 500,
+                                "games_count": 6000,
+                                "payout_rate": 106.0,
+                            },
+                        ]
+                    )
+
+            service._supabase_config = lambda: (  # type: ignore[method-assign]
+                "https://example.supabase.co",
+                "service-key",
+                "public",
+                "stores",
+                "machine_daily_results",
+            )
+            service._machine_summaries_table = lambda: "store_machine_summaries"  # type: ignore[method-assign]
+            service._create_supabase_session = lambda schema: FakeSession()  # type: ignore[method-assign]
+            service._upsert_store = lambda session, supabase_url, stores_table, payload: "store-1"  # type: ignore[method-assign]
+
+            saved_count = service._save_to_supabase(  # type: ignore[attr-defined]
+                {
+                    "store": {
+                        "store_name": "Aパーク春日店",
+                        "store_url": "https://example.com/kasuga/",
+                    },
+                    "records": [
+                        {
+                            "target_date": "2026-04-25",
+                            "slot_number": "101",
+                            "machine_name": "ゴーゴージャグラー３",
+                            "difference_value": 300,
+                            "games_count": 4000,
+                            "payout_rate": 104.0,
+                            "data_source": DATA_SOURCE_MINREPO,
+                        },
+                        {
+                            "target_date": "2026-04-25",
+                            "slot_number": "102",
+                            "machine_name": "ゴーゴージャグラー３",
+                            "difference_value": 500,
+                            "games_count": 6000,
+                            "payout_rate": 106.0,
+                            "data_source": DATA_SOURCE_MINREPO,
+                        },
+                    ],
+                }
+            )
+
+            self.assertEqual(saved_count, 2)
+            self.assertEqual(len(captured_result_posts), 1)
+            self.assertEqual(captured_summary_deletes, [{"store_id": "eq.store-1"}])
+            self.assertEqual(len(captured_summary_posts), 1)
+            self.assertEqual(captured_summary_posts[0][0]["store_id"], "store-1")
+            self.assertEqual(captured_summary_posts[0][0]["machine_name"], "ゴーゴージャグラー３")
+            self.assertEqual(captured_summary_posts[0][0]["latest_date"], "2026-04-25")
+            self.assertEqual(captured_summary_posts[0][0]["slot_count"], 2)
+            self.assertEqual(captured_summary_posts[0][0]["average_difference"], 400.0)
+            self.assertEqual(captured_summary_posts[0][0]["average_games"], 5000.0)
+            self.assertEqual(captured_summary_posts[0][0]["average_payout"], 105.0)
 
     def test_save_history_result_writes_local_file(self) -> None:
         scraper = FixtureScraper()

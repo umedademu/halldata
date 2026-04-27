@@ -126,6 +126,10 @@ async function getSupabaseConfig() {
     schema: await readSetting("SUPABASE_SCHEMA", "public"),
     storesTable: await readSetting("SUPABASE_STORES_TABLE", "stores"),
     resultsTable: await readSetting("SUPABASE_MACHINE_RESULTS_TABLE", "machine_daily_results"),
+    machineSummariesTable: await readSetting(
+      "SUPABASE_MACHINE_SUMMARIES_TABLE",
+      "store_machine_summaries",
+    ),
   };
 }
 
@@ -437,6 +441,51 @@ function buildStoreSummary(store, machineSummaries) {
   };
 }
 
+function buildMachineSummaryResultFromSummaryRows(rows) {
+  const machines = rows
+    .map((row) => ({
+      machineName: String(row.machine_name ?? "").trim(),
+      slotCount: Number(row.slot_count ?? 0),
+      latestDate: row.latest_date ? String(row.latest_date) : null,
+      latestAverageDifference:
+        row.average_difference === null || row.average_difference === undefined
+          ? null
+          : Number(row.average_difference),
+      latestAverageGames:
+        row.average_games === null || row.average_games === undefined
+          ? null
+          : Number(row.average_games),
+      latestAveragePayout:
+        row.average_payout === null || row.average_payout === undefined
+          ? null
+          : Number(row.average_payout),
+    }))
+    .filter((machine) => machine.machineName && machine.latestDate)
+    .sort((left, right) => {
+      if (left.latestDate !== right.latestDate) {
+        return right.latestDate.localeCompare(left.latestDate, "ja");
+      }
+      if (left.slotCount !== right.slotCount) {
+        return right.slotCount - left.slotCount;
+      }
+      return left.machineName.localeCompare(right.machineName, "ja");
+    });
+
+  return {
+    latestDate:
+      machines.reduce((currentLatestDate, machine) => {
+        if (!machine.latestDate) {
+          return currentLatestDate;
+        }
+        if (currentLatestDate === null || machine.latestDate > currentLatestDate) {
+          return machine.latestDate;
+        }
+        return currentLatestDate;
+      }, null) ?? null,
+    machines,
+  };
+}
+
 function buildMachineDetail(rows) {
   const slots = new Set();
   const recordsByDate = new Map();
@@ -714,7 +763,7 @@ export async function registerPendingStoreUrl(storeUrl) {
 }
 
 export const getStoreDetail = cache(async function getStoreDetail(storeId) {
-  const { storesTable, resultsTable } = await getSupabaseConfig();
+  const { storesTable, resultsTable, machineSummariesTable } = await getSupabaseConfig();
   const stores = await fetchAllRows(storesTable, {
     select: "id,store_name,store_url",
     id: `eq.${storeId}`,
@@ -725,16 +774,41 @@ export const getStoreDetail = cache(async function getStoreDetail(storeId) {
     return null;
   }
 
-  const localMachineSummaryResult = await readStoreMachineSummariesFromLocalData(store.store_name);
-  const machineSummaryResult = localMachineSummaryResult
-    ? localMachineSummaryResult
-    : buildMachineLatestSummaries(
-        (await fetchAllRows(resultsTable, {
-          select:
-            "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate,bb_count,rb_count",
-          store_id: `eq.${storeId}`,
-        })).map(withCalculatedDifferenceValue),
-      );
+  let machineSummaryResult = null;
+
+  try {
+    const summaryRows = await fetchAllRows(machineSummariesTable, {
+      select:
+        "machine_name,latest_date,slot_count,average_difference,average_games,average_payout",
+      store_id: `eq.${storeId}`,
+      order: "latest_date.desc,slot_count.desc,machine_name.asc",
+    });
+    if (summaryRows.length > 0) {
+      machineSummaryResult = buildMachineSummaryResultFromSummaryRows(summaryRows);
+    }
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      (!error.message.includes("(400)") &&
+        !error.message.includes("(404)") &&
+        !error.message.includes("(500)"))
+    ) {
+      throw error;
+    }
+  }
+
+  if (!machineSummaryResult) {
+    const localMachineSummaryResult = await readStoreMachineSummariesFromLocalData(store.store_name);
+    machineSummaryResult = localMachineSummaryResult
+      ? localMachineSummaryResult
+      : buildMachineLatestSummaries(
+          (await fetchAllRows(resultsTable, {
+            select:
+              "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate,bb_count,rb_count",
+            store_id: `eq.${storeId}`,
+          })).map(withCalculatedDifferenceValue),
+        );
+  }
 
   return {
     store: {
