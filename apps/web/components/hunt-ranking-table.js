@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   formatAverageGames,
@@ -10,6 +10,13 @@ import {
   formatRatio,
   formatSignedNumber,
 } from "../lib/format";
+import {
+  HUNT_BACKTEST_BOOKMARK_EVENT,
+  buildHuntBacktestBookmarkMatches,
+  buildHuntBacktestBookmarkRowKey,
+  formatHuntBacktestBookmarkSummary,
+  readSavedHuntBacktestBookmark,
+} from "../lib/hunt-bookmark";
 import {
   formatSettingEstimateScore,
   getSettingEstimateHighlightClass,
@@ -72,12 +79,36 @@ const RESULT_COLUMNS = [
   },
 ];
 
-export function HuntRankingTable({ storeId, rows }) {
+export function HuntRankingTable({ storeId, rows, selectedDate }) {
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
+  const [bookmark, setBookmark] = useState(null);
+
+  useEffect(() => {
+    const syncBookmark = () => {
+      setBookmark(readSavedHuntBacktestBookmark(storeId));
+    };
+
+    syncBookmark();
+    window.addEventListener(HUNT_BACKTEST_BOOKMARK_EVENT, syncBookmark);
+    window.addEventListener("storage", syncBookmark);
+
+    return () => {
+      window.removeEventListener(HUNT_BACKTEST_BOOKMARK_EVENT, syncBookmark);
+      window.removeEventListener("storage", syncBookmark);
+    };
+  }, [storeId]);
 
   const visibleColumns = useMemo(
     () => RESULT_COLUMNS.filter((column) => visibleResultKeys.includes(column.key)),
     [visibleResultKeys],
+  );
+  const bookmarkState = useMemo(
+    () => buildHuntBacktestBookmarkMatches(rows, bookmark, selectedDate),
+    [bookmark, rows, selectedDate],
+  );
+  const bookmarkSummary = useMemo(
+    () => formatHuntBacktestBookmarkSummary(bookmarkState.bookmark),
+    [bookmarkState.bookmark],
   );
 
   const toggleColumn = (columnKey) => {
@@ -112,6 +143,15 @@ export function HuntRankingTable({ storeId, rows }) {
           <p className="sectionLabel">表示する列</p>
           <p className="filterLead">翌営業日の実績列だけを切り替えられます。</p>
         </div>
+        {bookmarkState.bookmark ? (
+          <p className="storeReserveNotice storeReserveNotice-info">
+            {bookmarkState.isDateMatched
+              ? `目印条件を反映中です。${bookmarkSummary} / 表示中${formatNumber(
+                  bookmarkState.totalRowCount,
+                )}台のうち${formatNumber(bookmarkState.matchedRowCount)}台が一致しています。`
+              : `目印条件を反映中ですが、今見ている集計日は期間外です。${bookmarkSummary}`}
+          </p>
+        ) : null}
         <div className="metricToggleRow">
           {RESULT_COLUMNS.map((column) => {
             const isChecked = visibleResultKeys.includes(column.key);
@@ -156,29 +196,42 @@ export function HuntRankingTable({ storeId, rows }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr
-                  key={`${row.machineName}-${row.slotNumber}-${row.rank}`}
-                  className={getSettingEstimateHighlightClass(row.nextSettingEstimate?.average)}
-                >
-                  <td>{row.rank}</td>
-                  <td>{formatNumber(row.huntScore)}</td>
-                  <td>
-                    <Link
-                      href={`/stores/${storeId}/machines/${encodeURIComponent(row.machineName)}`}
-                      className="directoryPrimaryLink"
-                    >
-                      {row.machineName}
-                    </Link>
-                  </td>
-                  <td>{row.slotNumber}</td>
-                  {visibleColumns.map((column) => (
-                    <td key={`${row.machineName}-${row.slotNumber}-${column.key}`}>
-                      {column.render(row)}
+              {rows.map((row) => {
+                const rowMatchState = bookmarkState.matchByRowKey.get(
+                  buildHuntBacktestBookmarkRowKey(row),
+                );
+                const rowClassName = [
+                  getSettingEstimateHighlightClass(row.nextSettingEstimate?.average),
+                  bookmarkState.bookmark
+                    ? rowMatchState
+                      ? "huntBookmarkMatchedRow"
+                      : "huntBookmarkUnmatchedRow"
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ");
+
+                return (
+                  <tr key={`${row.machineName}-${row.slotNumber}-${row.rank}`} className={rowClassName}>
+                    <td>{row.rank}</td>
+                    <td>{formatNumber(row.huntScore)}</td>
+                    <td>
+                      <Link
+                        href={`/stores/${storeId}/machines/${encodeURIComponent(row.machineName)}`}
+                        className="directoryPrimaryLink"
+                      >
+                        {row.machineName}
+                      </Link>
                     </td>
-                  ))}
-                </tr>
-              ))}
+                    <td>{row.slotNumber}</td>
+                    {visibleColumns.map((column) => (
+                      <td key={`${row.machineName}-${row.slotNumber}-${column.key}`}>
+                        {column.render(row)}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

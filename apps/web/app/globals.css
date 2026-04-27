@@ -276,6 +276,12 @@ a {
   cursor: pointer;
 }
 
+.storeReserveButtonSecondary {
+  border-color: rgba(64, 30, 7, 0.16);
+  background: rgba(36, 22, 15, 0.06);
+  color: var(--text);
+}
+
 .storeReserveHelp,
 .storeReserveNotice {
   margin: 12px 0 0;
@@ -884,6 +890,27 @@ a {
   background: #f4a6a6;
   color: var(--text);
   font-weight: 800;
+}
+
+.directoryTable tbody tr.huntBookmarkMatchedRow td,
+.directoryTable tbody tr.huntBookmarkMatchedRow th {
+  box-shadow: inset 0 0 0 2px rgba(13, 125, 87, 0.22);
+}
+
+.directoryTable tbody tr.huntBookmarkMatchedRow th:first-child {
+  box-shadow:
+    inset 5px 0 0 rgba(13, 125, 87, 0.5),
+    inset 0 0 0 2px rgba(13, 125, 87, 0.22);
+}
+
+.directoryTable tbody tr.huntBookmarkUnmatchedRow td,
+.directoryTable tbody tr.huntBookmarkUnmatchedRow th {
+  opacity: 0.48;
+}
+
+.directoryTable tbody tr.huntBookmarkUnmatchedRow:hover td,
+.directoryTable tbody tr.huntBookmarkUnmatchedRow:hover th {
+  opacity: 0.72;
 }
 
 .directoryNameHeader,

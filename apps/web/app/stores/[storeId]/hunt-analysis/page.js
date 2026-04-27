@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { HuntBacktestBookmarkControl } from "../../../../components/hunt-backtest-bookmark-control";
 import { Breadcrumbs } from "../../../../components/breadcrumbs";
 import { HuntBacktestGraph } from "../../../../components/hunt-backtest-graph";
 import { HuntRankingLimitSync } from "../../../../components/hunt-ranking-limit-sync";
@@ -169,6 +170,17 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     detail.backtest.missingActualRowCount > 0
       ? "翌営業日の実績が未取得の台は、実績集計台数と差枚合計などから除外しています。"
       : "";
+  const backtestBookmark = {
+    startDate: detail.backtest.startDate,
+    endDate: detail.backtest.endDate,
+    allMachineCount: detail.backtest.machineOptions.length,
+    machineNames: detail.backtest.selectedMachineNames,
+    rankMin: detail.backtest.rankMin,
+    rankMax: detail.backtest.rankMax,
+    scoreMin: detail.backtest.scoreMin,
+    matchMode: detail.backtest.matchMode,
+    rankScope: detail.backtest.rankScope,
+  };
 
   return (
     <main className="pageStack">
@@ -479,6 +491,8 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             </article>
           </section>
 
+          <HuntBacktestBookmarkControl storeId={detail.store.id} bookmark={backtestBookmark} />
+
           {backtestNoActualNotice ? (
             <p className="filterPanelStatus">{backtestNoActualNotice}</p>
           ) : null}
@@ -586,7 +600,11 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             ) : null}
           </section>
 
-          <HuntRankingTable storeId={detail.store.id} rows={detail.rows} />
+          <HuntRankingTable
+            storeId={detail.store.id}
+            rows={detail.rows}
+            selectedDate={detail.selectedDate}
+          />
         </>
       ) : (
         <section className="statusPanel">

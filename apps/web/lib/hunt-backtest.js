@@ -1,25 +1,16 @@
 import { listHuntScoreTargetMachineNames } from "./hunt-score";
+import {
+  buildRankFilter,
+  buildScoreFilter,
+  matchesOptionalFilters,
+  normalizeDateText,
+  normalizeMatchMode,
+  normalizeRankScope,
+  readFiniteNumber,
+} from "./hunt-bookmark";
 import { canonicalMachineName } from "./machine-difference";
 
 const DEFAULT_RECENT_DAYS = 90;
-
-function normalizeDateText(value) {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const normalized = value.trim();
-  if (!normalized) {
-    return null;
-  }
-
-  const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/u);
-  if (!match) {
-    return null;
-  }
-
-  return `${match[1]}-${match[2]}-${match[3]}`;
-}
 
 function readNumber(value) {
   if (value === null || value === undefined || value === "") {
@@ -90,47 +81,8 @@ function buildSelectedMachineNames(requestedMachineNames, availableMachineNames)
   return normalizedMachineNames.length > 0 ? normalizedMachineNames : availableMachineNames;
 }
 
-function buildRankFilter(rankMinValue, rankMaxValue) {
-  const parsedRankMin = readPositiveInteger(rankMinValue);
-  const parsedRankMax = readPositiveInteger(rankMaxValue);
-
-  if (parsedRankMin === null && parsedRankMax === null) {
-    return {
-      rankMin: null,
-      rankMax: null,
-      hasRankFilter: false,
-    };
-  }
-
-  const rankMin = parsedRankMin ?? 1;
-  const rankMax = parsedRankMax ?? rankMin;
-
-  return {
-    rankMin: Math.min(rankMin, rankMax),
-    rankMax: Math.max(rankMin, rankMax),
-    hasRankFilter: true,
-  };
-}
-
-function buildScoreFilter(scoreMinValue) {
-  const scoreMin = readNumber(scoreMinValue);
-
-  return {
-    scoreMin: scoreMin === null ? null : Math.min(100, Math.max(0, scoreMin)),
-    hasScoreFilter: scoreMin !== null,
-  };
-}
-
-function normalizeMatchMode(value) {
-  return value === "or" ? "or" : "and";
-}
-
 function normalizeShowGraph(value) {
   return value === "off" ? "off" : "on";
-}
-
-function normalizeRankScope(value) {
-  return value === "machine" ? "machine" : "all";
 }
 
 function buildPeriodState(options, latestDate) {
@@ -190,11 +142,6 @@ function isSnapshotInPeriod(snapshot, startDate, endDate) {
   return true;
 }
 
-function readFiniteNumber(value, fallbackValue = 0) {
-  const parsedValue = readNumber(value);
-  return parsedValue === null ? fallbackValue : parsedValue;
-}
-
 function calculateAverage(total, count) {
   if (!Number.isFinite(total) || !Number.isInteger(count) || count <= 0) {
     return null;
@@ -242,26 +189,6 @@ function finalizeSummary(summary) {
     averageHuntScore: calculateAverage(summary.huntScoreTotal, summary.matchedRowCount),
     payoutRate: calculatePayoutRate(summary.gamesTotal, summary.differenceTotal),
   };
-}
-
-function matchesOptionalFilters(rankValue, huntScore, rankFilter, scoreFilter, matchMode) {
-  const rankMatched = rankFilter.hasRankFilter
-    ? rankValue >= rankFilter.rankMin && rankValue <= rankFilter.rankMax
-    : false;
-  const scoreMatched = scoreFilter.hasScoreFilter
-    ? readFiniteNumber(huntScore, Number.NEGATIVE_INFINITY) >= scoreFilter.scoreMin
-    : false;
-
-  if (rankFilter.hasRankFilter && scoreFilter.hasScoreFilter) {
-    return matchMode === "or" ? rankMatched || scoreMatched : rankMatched && scoreMatched;
-  }
-  if (rankFilter.hasRankFilter) {
-    return rankMatched;
-  }
-  if (scoreFilter.hasScoreFilter) {
-    return scoreMatched;
-  }
-  return true;
 }
 
 export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
