@@ -894,23 +894,37 @@ a {
 
 .directoryTable tbody tr.huntBookmarkMatchedRow td,
 .directoryTable tbody tr.huntBookmarkMatchedRow th {
-  box-shadow: inset 0 0 0 2px rgba(13, 125, 87, 0.22);
+  box-shadow:
+    inset 0 2px 0 rgba(31, 59, 86, 0.45),
+    inset 0 -2px 0 rgba(31, 59, 86, 0.45);
 }
 
+.directoryTable tbody tr.huntBookmarkMatchedRow td:first-child,
 .directoryTable tbody tr.huntBookmarkMatchedRow th:first-child {
   box-shadow:
-    inset 5px 0 0 rgba(13, 125, 87, 0.5),
-    inset 0 0 0 2px rgba(13, 125, 87, 0.22);
+    inset 5px 0 0 rgba(31, 59, 86, 0.8),
+    inset 0 2px 0 rgba(31, 59, 86, 0.45),
+    inset 0 -2px 0 rgba(31, 59, 86, 0.45);
 }
 
-.directoryTable tbody tr.huntBookmarkUnmatchedRow td,
-.directoryTable tbody tr.huntBookmarkUnmatchedRow th {
-  opacity: 0.48;
+.huntBookmarkRankCell {
+  display: grid;
+  gap: 4px;
 }
 
-.directoryTable tbody tr.huntBookmarkUnmatchedRow:hover td,
-.directoryTable tbody tr.huntBookmarkUnmatchedRow:hover th {
-  opacity: 0.72;
+.huntBookmarkRankValue {
+  font-weight: 800;
+}
+
+.huntBookmarkBadge {
+  width: fit-content;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(31, 59, 86, 0.92);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.4;
 }
 
 .directoryNameHeader,

@@ -200,18 +200,17 @@ export function HuntRankingTable({ storeId, rows }) {
                 );
                 const rowClassName = [
                   getSettingEstimateHighlightClass(row.nextSettingEstimate?.average),
-                  bookmarkState.bookmark
-                    ? rowMatchState
-                      ? "huntBookmarkMatchedRow"
-                      : "huntBookmarkUnmatchedRow"
-                    : "",
+                  bookmarkState.bookmark && rowMatchState ? "huntBookmarkMatchedRow" : "",
                 ]
                   .filter(Boolean)
                   .join(" ");
 
                 return (
                   <tr key={`${row.machineName}-${row.slotNumber}-${row.rank}`} className={rowClassName}>
-                    <td>{row.rank}</td>
+                    <td className={rowMatchState ? "huntBookmarkRankCell" : ""}>
+                      <span className={rowMatchState ? "huntBookmarkRankValue" : ""}>{row.rank}</span>
+                      {rowMatchState ? <span className="huntBookmarkBadge">目印</span> : null}
+                    </td>
                     <td>{formatNumber(row.huntScore)}</td>
                     <td>
                       <Link
