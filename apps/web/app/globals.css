@@ -227,6 +227,11 @@ a {
   gap: 12px;
 }
 
+.backtestForm {
+  display: grid;
+  gap: 16px;
+}
+
 .storeReserveField {
   display: grid;
   flex: 1 1 26rem;
@@ -234,6 +239,16 @@ a {
   color: var(--muted);
   font-size: 0.82rem;
   font-weight: 800;
+}
+
+.backtestFieldGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.backtestField {
+  min-width: 0;
 }
 
 .storeReserveInput {
@@ -266,6 +281,17 @@ a {
   margin: 12px 0 0;
   color: var(--muted);
   line-height: 1.7;
+}
+
+.backtestBlock {
+  display: grid;
+  gap: 8px;
+}
+
+.backtestButtonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .storeReserveNotice {
@@ -753,6 +779,17 @@ a {
   background: rgba(214, 168, 74, 0.18);
 }
 
+.directoryTable tbody tr.backtestTotalRow td,
+.directoryTable tbody tr.backtestTotalRow th,
+.directoryTable tbody tr.backtestTotalRow:nth-child(odd) td,
+.directoryTable tbody tr.backtestTotalRow:nth-child(odd) th,
+.directoryTable tbody tr.backtestTotalRow:hover td,
+.directoryTable tbody tr.backtestTotalRow:hover th {
+  background: linear-gradient(180deg, rgba(255, 238, 195, 0.98), rgba(247, 216, 145, 0.92));
+  color: var(--text);
+  font-weight: 800;
+}
+
 .directoryTable tbody tr.settingEstimateLevel1 td,
 .directoryTable tbody tr.settingEstimateLevel1 th,
 .directoryTable tbody tr.settingEstimateLevel1:nth-child(odd) td,
@@ -1111,6 +1148,10 @@ a {
   .metricToggleChip {
     padding: 8px 10px;
     font-size: 0.9rem;
+  }
+
+  .backtestFieldGrid {
+    grid-template-columns: 1fr;
   }
 
   .estimateMethodHeader {

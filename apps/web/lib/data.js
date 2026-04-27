@@ -1,6 +1,7 @@
 import { cache } from "react";
 
 import { createEventFilters } from "./event-filters";
+import { buildHuntScoreBacktestDetail } from "./hunt-backtest";
 import {
   attachHuntScores,
   buildHuntScoreSnapshots,
@@ -1140,6 +1141,39 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   requestedDate = "",
   requestedLimit = 20,
 ) {
+  const detail = await getHuntScoreAnalysisPageDetail(storeId, requestedDate, requestedLimit);
+
+  if (!detail) {
+    return null;
+  }
+
+  const {
+    store,
+    rankingDates,
+    selectedDate,
+    limit,
+    predictionDate,
+    nextBusinessDate,
+    rows,
+    totalCount,
+    hasActualResults,
+  } = detail;
+
+  return {
+    store,
+    rankingDates,
+    selectedDate,
+    requestedDate,
+    limit,
+    predictionDate,
+    nextBusinessDate,
+    rows,
+    totalCount,
+    hasActualResults,
+  };
+});
+
+async function getHuntScoreSnapshotsForStore(storeId) {
   const { storesTable, resultsTable, machineDailyDetailsTable } = await getSupabaseConfig();
   const stores = await fetchStoreEventRows(storesTable, storeId);
   const store = stores[0];
@@ -1153,12 +1187,34 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     machineDailyDetailsTable,
     storeId,
   );
-  const snapshots = buildHuntScoreSnapshots(targetRows, storeRows);
+
+  return {
+    store,
+    snapshots: buildHuntScoreSnapshots(targetRows, storeRows),
+  };
+}
+
+function normalizeRankingLimit(requestedLimit) {
+  return Number.isInteger(requestedLimit) && requestedLimit >= 1 ? requestedLimit : 20;
+}
+
+export async function getHuntScoreAnalysisPageDetail(
+  storeId,
+  requestedDate = "",
+  requestedLimit = 20,
+  backtestOptions = {},
+) {
+  const snapshotDetail = await getHuntScoreSnapshotsForStore(storeId);
+
+  if (!snapshotDetail) {
+    return null;
+  }
+
+  const { store, snapshots } = snapshotDetail;
   const rankingDates = snapshots.map((snapshot) => snapshot.baseDate);
   const selectedDate = rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null;
   const snapshot = snapshots.find((entry) => entry.baseDate === selectedDate) ?? null;
-  const rankingLimit =
-    Number.isInteger(requestedLimit) && requestedLimit >= 1 ? requestedLimit : 20;
+  const rankingLimit = normalizeRankingLimit(requestedLimit);
   const totalCount = snapshot?.rows.length ?? 0;
   const displayLimit = totalCount > 0 ? Math.min(rankingLimit, totalCount) : rankingLimit;
 
@@ -1177,8 +1233,9 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     rows: snapshot?.rows.slice(0, displayLimit) ?? [],
     totalCount,
     hasActualResults: snapshot?.rows.some((row) => row.nextRecord) ?? false,
+    backtest: buildHuntScoreBacktestDetail(snapshots, backtestOptions),
   };
-});
+}
 
 export async function updateStoreEventSettings(storeId, eventSettings) {
   const dayTails = normalizeEventDayTails(eventSettings?.dayTails);
