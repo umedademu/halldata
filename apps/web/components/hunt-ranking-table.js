@@ -184,6 +184,7 @@ export function HuntRankingTable({ storeId, rows }) {
           <table className="directoryTable">
             <thead>
               <tr>
+                <th>条件</th>
                 <th>順位</th>
                 <th>狙い度</th>
                 <th>機種名</th>
@@ -198,15 +199,15 @@ export function HuntRankingTable({ storeId, rows }) {
                 const rowMatchState = bookmarkState.matchByRowKey.get(
                   buildHuntBacktestBookmarkRowKey(row),
                 );
-                const rowClassName = [
-                  getSettingEstimateHighlightClass(row.nextSettingEstimate?.average),
-                  bookmarkState.bookmark && rowMatchState ? "huntBookmarkMatchedRow" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ");
+                const rowClassName = getSettingEstimateHighlightClass(row.nextSettingEstimate?.average);
 
                 return (
                   <tr key={`${row.machineName}-${row.slotNumber}-${row.rank}`} className={rowClassName}>
+                    <td className="huntBookmarkConditionCell">
+                      {bookmarkState.bookmark && rowMatchState ? (
+                        <span className="huntBookmarkConditionMark">★</span>
+                      ) : null}
+                    </td>
                     <td>{row.rank}</td>
                     <td>{formatNumber(row.huntScore)}</td>
                     <td>

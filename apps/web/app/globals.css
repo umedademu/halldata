@@ -892,9 +892,17 @@ a {
   font-weight: 800;
 }
 
-.directoryTable tbody tr.huntBookmarkMatchedRow td,
-.directoryTable tbody tr.huntBookmarkMatchedRow th {
-  box-shadow: inset 0 0 0 2px rgba(31, 59, 86, 0.78);
+.huntBookmarkConditionCell {
+  width: 3.5rem;
+  min-width: 3.5rem;
+  text-align: center;
+}
+
+.huntBookmarkConditionMark {
+  color: #1f3b56;
+  font-size: 1.05rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .directoryNameHeader,
