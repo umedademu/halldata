@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 
 import {
   formatAverageGames,
-  formatDecimal,
+  formatNumber,
   formatPercent,
   formatRatio,
   formatSignedNumber,
@@ -95,8 +95,8 @@ export function HuntRankingTable({ rows }) {
   if (rows.length === 0) {
     return (
       <section className="statusPanel">
-        <h2>表示できる順位がありません</h2>
-        <p>保存済みの対象データが増えると、ここへ上位20台が表示されます。</p>
+        <h2>表示できる台がありません</h2>
+        <p>保存済みの対象データが増えると、ここへ点数順の一覧が表示されます。</p>
       </section>
     );
   }
@@ -134,8 +134,8 @@ export function HuntRankingTable({ rows }) {
       <section className="tablePanel directoryPanel">
         <div className="tablePanelHeader">
           <div>
-            <p className="sectionLabel">狙い度順位</p>
-            <h2 className="tablePanelTitle">上位20台</h2>
+            <p className="sectionLabel">狙い度上位</p>
+            <h2 className="tablePanelTitle">高得点20台</h2>
           </div>
         </div>
         <div className="tableScroller directoryScroller">
@@ -155,7 +155,7 @@ export function HuntRankingTable({ rows }) {
               {rows.map((row) => (
                 <tr key={`${row.machineName}-${row.slotNumber}-${row.rank}`}>
                   <td>{row.rank}</td>
-                  <td>{formatDecimal(row.huntScore)}</td>
+                  <td>{formatNumber(row.huntScore)}</td>
                   <td>{row.machineName}</td>
                   <td>{row.slotNumber}</td>
                   {visibleColumns.map((column) => (

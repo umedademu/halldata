@@ -66,7 +66,7 @@ export default async function HuntRankingPage({ params, searchParams }) {
           <p className="eyebrow">Hunt Score Ranking</p>
           <h1 className="pageTitle">狙い度ランキング</h1>
           <p className="leadText">
-            集計日に見た次回営業日の狙い度を、店内の対象ジャグラー全台で並べた上位20台です。
+            集計日に見た次回営業日の狙い度を、固定ルールの絶対評価で出し、高い順に並べた20台です。
           </p>
           <div className="heroLinks">
             <Link href={`/stores/${detail.store.id}`} className="inlineAction">
@@ -104,7 +104,7 @@ export default async function HuntRankingPage({ params, searchParams }) {
           <div>
             <p className="sectionLabel">集計日を選ぶ</p>
             <p className="filterLead">
-              選んだ日の時点で見た次回営業日の狙い度順位と、翌営業日の実績を表示します。
+              選んだ日の時点で見た次回営業日の狙い度点数順と、翌営業日の実績を表示します。
             </p>
           </div>
           <form method="get" className="storeReserveForm">
@@ -130,7 +130,7 @@ export default async function HuntRankingPage({ params, searchParams }) {
       ) : (
         <section className="statusPanel">
           <h2>狙い度を作れる日付がまだありません</h2>
-          <p>対象機種の保存済みデータが増えると、ここに順位が表示されます。</p>
+          <p>対象機種の保存済みデータが増えると、ここに点数順の一覧が表示されます。</p>
         </section>
       )}
 

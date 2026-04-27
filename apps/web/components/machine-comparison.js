@@ -4,9 +4,8 @@ import { memo, useCallback, useMemo, useState, useTransition } from "react";
 
 import {
   formatAverageGames,
-  formatDecimal,
+  formatNumber,
   formatNarrowInteger,
-  formatNarrowDecimal,
   formatNarrowPercent,
   formatNarrowSignedNumber,
   formatPercent,
@@ -339,8 +338,8 @@ function createHuntScoreMetric() {
   return {
     key: "hunt_score",
     label: "狙い度",
-    render: formatNarrowDecimal,
-    csvRender: formatDecimal,
+    render: formatNarrowInteger,
+    csvRender: formatNumber,
     columnClass: "matrixColumnMedium",
   };
 }

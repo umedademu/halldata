@@ -1,6 +1,7 @@
 import { calculateSettingEstimate, getSettingEstimateDefinition } from "./setting-estimates";
 
 const HUNT_SCORE_EPSILON = 0.000000001;
+const HUNT_SCORE_WINDOW_DAYS = 7;
 const HUNT_SCORE_TARGET_STORE_NAMES = ["Aパーク春日店"];
 const HUNT_SCORE_TARGET_MACHINE_NAMES = [
   "SアイムジャグラーＥＸ",
@@ -66,13 +67,11 @@ function getSettingEstimateAverage(settingDefinitionCache, row) {
   };
 }
 
-function calculateCurrentLosingStreak(businessDates, dateIndex, recordMapByDate) {
+function calculateCurrentLosingStreak(windowRows) {
   let streak = 0;
 
-  for (let index = dateIndex; index >= 0; index -= 1) {
-    const row = recordMapByDate.get(businessDates[index]);
-    const differenceValue = readNumber(row?.difference_value);
-    if (!Number.isFinite(differenceValue) || differenceValue >= 0) {
+  for (let index = windowRows.length - 1; index >= 0; index -= 1) {
+    if (windowRows[index].differenceValue >= 0) {
       break;
     }
     streak += 1;
@@ -81,22 +80,160 @@ function calculateCurrentLosingStreak(businessDates, dateIndex, recordMapByDate)
   return streak;
 }
 
+function scoreFromMinimums(value, thresholds) {
+  for (const threshold of thresholds) {
+    if (value >= threshold.minimum) {
+      return threshold.score;
+    }
+  }
+
+  return 0;
+}
+
+function scoreFromMaximums(value, thresholds) {
+  for (const threshold of thresholds) {
+    if (value <= threshold.maximum) {
+      return threshold.score;
+    }
+  }
+
+  return 0;
+}
+
+function calculateLossDaysScore(value) {
+  return scoreFromMinimums(value, [
+    { minimum: 7, score: 25 },
+    { minimum: 6, score: 21 },
+    { minimum: 5, score: 16 },
+    { minimum: 4, score: 10 },
+    { minimum: 3, score: 5 },
+  ]);
+}
+
+function calculateStreakScore(value) {
+  return scoreFromMinimums(value, [
+    { minimum: 7, score: 18 },
+    { minimum: 6, score: 16 },
+    { minimum: 5, score: 14 },
+    { minimum: 4, score: 11 },
+    { minimum: 3, score: 8 },
+    { minimum: 2, score: 4 },
+  ]);
+}
+
+function calculateLossAbsScore(value) {
+  return scoreFromMinimums(value, [
+    { minimum: 6000, score: 18 },
+    { minimum: 5000, score: 15 },
+    { minimum: 4000, score: 12 },
+    { minimum: 3000, score: 8 },
+    { minimum: 2000, score: 4 },
+  ]);
+}
+
+function calculateNetTotalScore(value) {
+  return scoreFromMaximums(value, [
+    { maximum: -5000, score: 14 },
+    { maximum: -4000, score: 12 },
+    { maximum: -3000, score: 9 },
+    { maximum: -2000, score: 6 },
+    { maximum: -1000, score: 3 },
+  ]);
+}
+
+function calculateCompensationRateScore(value) {
+  return scoreFromMaximums(value, [
+    { maximum: 0.2, score: 10 },
+    { maximum: 0.35, score: 8 },
+    { maximum: 0.5, score: 6 },
+    { maximum: 0.7, score: 3 },
+    { maximum: 1, score: 1 },
+  ]);
+}
+
+function calculateMaxWinScore(value) {
+  return scoreFromMaximums(value, [
+    { maximum: 500, score: 7 },
+    { maximum: 1000, score: 5 },
+    { maximum: 1500, score: 3 },
+    { maximum: 2000, score: 1 },
+  ]);
+}
+
+function calculateTodayDifferenceScore(value) {
+  return scoreFromMaximums(value, [
+    { maximum: -2000, score: 5 },
+    { maximum: -1000, score: 4 },
+    { maximum: -500, score: 3 },
+    { maximum: 0, score: 2 },
+    { maximum: 1000, score: 1 },
+  ]);
+}
+
+function calculateTodaySettingScore(value) {
+  return scoreFromMaximums(value, [
+    { maximum: 2, score: 3 },
+    { maximum: 3, score: 2 },
+    { maximum: 4, score: 1 },
+  ]);
+}
+
+function calculateAbsoluteHuntScore(metrics) {
+  const totalScore =
+    calculateLossDaysScore(metrics.lossDays) +
+    calculateStreakScore(metrics.streak) +
+    calculateLossAbsScore(metrics.lossAbsTotal) +
+    calculateNetTotalScore(metrics.netTotal) +
+    calculateCompensationRateScore(metrics.compensationRate) +
+    calculateMaxWinScore(metrics.maxWin) +
+    calculateTodayDifferenceScore(metrics.todayDifference) +
+    calculateTodaySettingScore(metrics.todaySetting);
+
+  return clamp(totalScore, 0, 100);
+}
+
+function buildWindowRows(businessDates, dateIndex, recordMapByDate) {
+  if (dateIndex < HUNT_SCORE_WINDOW_DAYS - 1) {
+    return null;
+  }
+
+  const windowDates = businessDates.slice(dateIndex - (HUNT_SCORE_WINDOW_DAYS - 1), dateIndex + 1);
+  if (windowDates.length < HUNT_SCORE_WINDOW_DAYS) {
+    return null;
+  }
+
+  const windowRows = [];
+
+  for (const date of windowDates) {
+    const row = recordMapByDate.get(date);
+    const differenceValue = readNumber(row?.difference_value);
+    if (!row || !Number.isFinite(differenceValue)) {
+      return null;
+    }
+
+    windowRows.push({
+      row,
+      differenceValue,
+    });
+  }
+
+  return windowRows;
+}
+
 function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, settingDefinitionCache) {
-  const windowDates = businessDates.slice(Math.max(0, dateIndex - 6), dateIndex + 1);
+  const windowRows = buildWindowRows(businessDates, dateIndex, recordMapByDate);
+  if (!windowRows) {
+    return null;
+  }
+
   let lossDays = 0;
   let winAbsTotal = 0;
   let lossAbsTotal = 0;
   let netTotal = 0;
   let maxWin = 0;
 
-  for (const date of windowDates) {
-    const windowRow = recordMapByDate.get(date);
-    const differenceValue = readNumber(windowRow?.difference_value);
-
-    if (!Number.isFinite(differenceValue)) {
-      continue;
-    }
-
+  for (const windowRow of windowRows) {
+    const differenceValue = windowRow.differenceValue;
     netTotal += differenceValue;
 
     if (differenceValue < 0) {
@@ -115,54 +252,14 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
 
   return {
     lossDays,
-    streak: calculateCurrentLosingStreak(businessDates, dateIndex, recordMapByDate),
+    streak: calculateCurrentLosingStreak(windowRows),
     lossAbsTotal,
-    netWeakness: -netTotal,
+    netTotal,
     compensationRate: lossAbsTotal === 0 ? 999 : winAbsTotal / lossAbsTotal,
     maxWin,
     todayDifference: readNumber(row?.difference_value) ?? 0,
     todaySetting,
   };
-}
-
-function assignRankScore(candidates, metricKey, scoreKey, direction) {
-  const sortable = candidates
-    .map((candidate) => ({
-      candidate,
-      value: readNumber(candidate?.metrics?.[metricKey]),
-    }))
-    .filter((entry) => Number.isFinite(entry.value))
-    .sort((left, right) => {
-      if (Math.abs(left.value - right.value) <= HUNT_SCORE_EPSILON) {
-        return left.candidate.rowKey.localeCompare(right.candidate.rowKey, "ja");
-      }
-      return direction === "high" ? right.value - left.value : left.value - right.value;
-    });
-
-  const total = sortable.length;
-  if (total === 0) {
-    return;
-  }
-
-  let index = 0;
-  while (index < total) {
-    let endIndex = index + 1;
-    while (
-      endIndex < total &&
-      Math.abs(sortable[endIndex].value - sortable[index].value) <= HUNT_SCORE_EPSILON
-    ) {
-      endIndex += 1;
-    }
-
-    const averageIndex = (index + endIndex - 1) / 2;
-    const score = total === 1 ? 1 : 1 - averageIndex / (total - 1);
-
-    for (let candidateIndex = index; candidateIndex < endIndex; candidateIndex += 1) {
-      sortable[candidateIndex].candidate[scoreKey] = score;
-    }
-
-    index = endIndex;
-  }
 }
 
 function buildBusinessDates(allStoreRows, targetRows) {
@@ -238,54 +335,26 @@ function buildSnapshotRowsForDate(
   const candidates = dateRows.map((row) => {
     const candidateKey = buildCandidateKey(row);
     const recordMapByDate = rowsByCandidateKey.get(candidateKey) ?? new Map();
+    const metrics = calculateWindowMetrics(
+      businessDates,
+      dateIndex,
+      row,
+      recordMapByDate,
+      settingDefinitionCache,
+    );
 
     return {
       row,
       rowKey: buildRowKey(row),
       candidateKey,
-      metrics: calculateWindowMetrics(
-        businessDates,
-        dateIndex,
-        row,
-        recordMapByDate,
-        settingDefinitionCache,
-      ),
-      f_lossDays: 0,
-      f_streak: 0,
-      f_lossAbs: 0,
-      f_netWeak: 0,
-      f_compLow: 0,
-      f_maxWinLow: 0,
-      f_todayDiffLow: 0,
-      f_todaySetLow: 0,
+      metrics,
     };
   });
 
-  assignRankScore(candidates, "lossDays", "f_lossDays", "high");
-  assignRankScore(candidates, "streak", "f_streak", "high");
-  assignRankScore(candidates, "lossAbsTotal", "f_lossAbs", "high");
-  assignRankScore(candidates, "netWeakness", "f_netWeak", "high");
-  assignRankScore(candidates, "compensationRate", "f_compLow", "low");
-  assignRankScore(candidates, "maxWin", "f_maxWinLow", "low");
-  assignRankScore(candidates, "todayDifference", "f_todayDiffLow", "low");
-  assignRankScore(candidates, "todaySetting", "f_todaySetLow", "low");
-
   const rows = candidates
+    .filter((candidate) => candidate.metrics)
     .map((candidate) => {
-      const huntScore = clamp(
-        (
-          0.3 * candidate.f_lossDays +
-          0.2 * candidate.f_streak +
-          0.18 * candidate.f_lossAbs +
-          0.15 * candidate.f_netWeak +
-          0.1 * candidate.f_compLow +
-          0.04 * candidate.f_maxWinLow +
-          0.02 * candidate.f_todayDiffLow +
-          0.01 * candidate.f_todaySetLow
-        ) * 100,
-        0,
-        100,
-      );
+      const huntScore = calculateAbsoluteHuntScore(candidate.metrics);
       const recordMapByDate = rowsByCandidateKey.get(candidate.candidateKey) ?? new Map();
       const nextRecord = nextBusinessDate ? recordMapByDate.get(nextBusinessDate) ?? null : null;
       const nextSetting = nextRecord
