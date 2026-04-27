@@ -9,6 +9,7 @@ import {
   formatCompactDate,
   formatNumber,
   formatPeriod,
+  formatPercent,
   formatSignedNumber,
 } from "../../../../lib/format";
 import {
@@ -429,6 +430,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                       <th>実績集計台数</th>
                       <th>合計差枚</th>
                       <th>合計G数</th>
+                      <th>機械割</th>
                       <th>平均設定</th>
                     </tr>
                   </thead>
@@ -439,6 +441,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                       <td>{formatNumber(detail.backtest.total.actualRowCount)}</td>
                       <td>{formatSignedNumber(detail.backtest.total.differenceTotal)}</td>
                       <td>{formatNumber(detail.backtest.total.gamesTotal)}</td>
+                      <td>{formatPercent(detail.backtest.total.payoutRate)}</td>
                       <td>{formatSettingEstimateScore(detail.backtest.total.averageSetting)}</td>
                     </tr>
                     {detail.backtest.summaries.map((summary) => (
@@ -451,6 +454,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                         <td>{formatNumber(summary.actualRowCount)}</td>
                         <td>{formatSignedNumber(summary.differenceTotal)}</td>
                         <td>{formatNumber(summary.gamesTotal)}</td>
+                        <td>{formatPercent(summary.payoutRate)}</td>
                         <td>{formatSettingEstimateScore(summary.averageSetting)}</td>
                       </tr>
                     ))}

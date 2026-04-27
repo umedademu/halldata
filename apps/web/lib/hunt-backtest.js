@@ -194,6 +194,15 @@ function calculateAverage(total, count) {
   return total / count;
 }
 
+function calculatePayoutRate(gamesTotal, differenceTotal) {
+  if (!Number.isFinite(gamesTotal) || gamesTotal <= 0) {
+    return null;
+  }
+
+  const investedCoins = gamesTotal * 3;
+  return ((investedCoins + differenceTotal) / investedCoins) * 100;
+}
+
 function buildEmptySummary(machineName = "総計") {
   return {
     machineName,
@@ -201,8 +210,16 @@ function buildEmptySummary(machineName = "総計") {
     actualRowCount: 0,
     differenceTotal: 0,
     gamesTotal: 0,
+    payoutRate: null,
     averageSetting: null,
     settingSampleCount: 0,
+  };
+}
+
+function finalizeSummary(summary) {
+  return {
+    ...summary,
+    payoutRate: calculatePayoutRate(summary.gamesTotal, summary.differenceTotal),
   };
 }
 
@@ -301,13 +318,15 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   }
 
   const machineOrder = new Map(selectedMachineNames.map((machineName, index) => [machineName, index]));
-  const summaries = [...summariesByMachine.values()].sort((left, right) => {
-    return (
-      (machineOrder.get(left.machineName) ?? Number.MAX_SAFE_INTEGER) -
-        (machineOrder.get(right.machineName) ?? Number.MAX_SAFE_INTEGER) ||
-      left.machineName.localeCompare(right.machineName, "ja")
-    );
-  });
+  const summaries = [...summariesByMachine.values()]
+    .map(finalizeSummary)
+    .sort((left, right) => {
+      return (
+        (machineOrder.get(left.machineName) ?? Number.MAX_SAFE_INTEGER) -
+          (machineOrder.get(right.machineName) ?? Number.MAX_SAFE_INTEGER) ||
+        left.machineName.localeCompare(right.machineName, "ja")
+      );
+    });
 
   return {
     periodMode: periodState.periodMode,
@@ -336,7 +355,6 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     hasMatches: matchedRowCount > 0,
     hasActualResults: actualRowCount > 0,
     summaries,
-    total: totalSummary,
+    total: finalizeSummary(totalSummary),
   };
 }
-
