@@ -207,10 +207,7 @@ export function HuntRankingTable({ storeId, rows }) {
 
                 return (
                   <tr key={`${row.machineName}-${row.slotNumber}-${row.rank}`} className={rowClassName}>
-                    <td className={rowMatchState ? "huntBookmarkRankCell" : ""}>
-                      <span className={rowMatchState ? "huntBookmarkRankValue" : ""}>{row.rank}</span>
-                      {rowMatchState ? <span className="huntBookmarkBadge">目印</span> : null}
-                    </td>
+                    <td>{row.rank}</td>
                     <td>{formatNumber(row.huntScore)}</td>
                     <td>
                       <Link
