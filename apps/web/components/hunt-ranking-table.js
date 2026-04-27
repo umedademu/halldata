@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import {
@@ -71,7 +72,7 @@ const RESULT_COLUMNS = [
   },
 ];
 
-export function HuntRankingTable({ rows }) {
+export function HuntRankingTable({ storeId, rows }) {
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
 
   const visibleColumns = useMemo(
@@ -162,7 +163,14 @@ export function HuntRankingTable({ rows }) {
                 >
                   <td>{row.rank}</td>
                   <td>{formatNumber(row.huntScore)}</td>
-                  <td>{row.machineName}</td>
+                  <td>
+                    <Link
+                      href={`/stores/${storeId}/machines/${encodeURIComponent(row.machineName)}`}
+                      className="directoryPrimaryLink"
+                    >
+                      {row.machineName}
+                    </Link>
+                  </td>
                   <td>{row.slotNumber}</td>
                   {visibleColumns.map((column) => (
                     <td key={`${row.machineName}-${row.slotNumber}-${column.key}`}>

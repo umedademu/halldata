@@ -171,7 +171,9 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
         </section>
       )}
 
-      {detail.rankingDates.length > 0 ? <HuntRankingTable rows={detail.rows} /> : null}
+      {detail.rankingDates.length > 0 ? (
+        <HuntRankingTable storeId={detail.store.id} rows={detail.rows} />
+      ) : null}
     </main>
   );
 }
