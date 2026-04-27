@@ -397,6 +397,24 @@ export function formatSettingEstimateScore(value) {
   return Number.isFinite(value) ? value.toFixed(2) : "-";
 }
 
+export function getSettingEstimateHighlightClass(value) {
+  const average = typeof value === "number" ? value : value?.average;
+
+  if (!Number.isFinite(average)) {
+    return "";
+  }
+  if (average >= 5) {
+    return "settingEstimateLevel3";
+  }
+  if (average >= 4.5) {
+    return "settingEstimateLevel2";
+  }
+  if (average >= 4) {
+    return "settingEstimateLevel1";
+  }
+  return "";
+}
+
 export function formatSettingEstimateAverage(estimate) {
   return estimate ? formatSettingEstimateScore(estimate.average) : "-";
 }

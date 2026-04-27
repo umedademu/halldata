@@ -24,6 +24,7 @@ import {
   formatSettingEstimateScore,
   getSettingEstimateScoreRange,
   getSettingEstimateDefinition,
+  getSettingEstimateHighlightClass,
 } from "../lib/setting-estimates";
 import { CsvExportButton } from "./csv-export-button";
 
@@ -342,22 +343,6 @@ function createHuntScoreMetric() {
     csvRender: formatNumber,
     columnClass: "matrixColumnMedium",
   };
-}
-
-function getSettingEstimateHighlightClass(estimate) {
-  if (!estimate) {
-    return "";
-  }
-  if (estimate.average >= 5) {
-    return "settingEstimateLevel3";
-  }
-  if (estimate.average >= 4.5) {
-    return "settingEstimateLevel2";
-  }
-  if (estimate.average >= 4) {
-    return "settingEstimateLevel1";
-  }
-  return "";
 }
 
 const COMMON_METRICS = [

@@ -9,7 +9,10 @@ import {
   formatRatio,
   formatSignedNumber,
 } from "../lib/format";
-import { formatSettingEstimateScore } from "../lib/setting-estimates";
+import {
+  formatSettingEstimateScore,
+  getSettingEstimateHighlightClass,
+} from "../lib/setting-estimates";
 
 const DEFAULT_VISIBLE_RESULT_KEYS = [
   "difference_value",
@@ -153,7 +156,10 @@ export function HuntRankingTable({ rows }) {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={`${row.machineName}-${row.slotNumber}-${row.rank}`}>
+                <tr
+                  key={`${row.machineName}-${row.slotNumber}-${row.rank}`}
+                  className={getSettingEstimateHighlightClass(row.nextSettingEstimate?.average)}
+                >
                   <td>{row.rank}</td>
                   <td>{formatNumber(row.huntScore)}</td>
                   <td>{row.machineName}</td>

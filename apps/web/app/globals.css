@@ -753,6 +753,39 @@ a {
   background: rgba(214, 168, 74, 0.18);
 }
 
+.directoryTable tbody tr.settingEstimateLevel1 td,
+.directoryTable tbody tr.settingEstimateLevel1 th,
+.directoryTable tbody tr.settingEstimateLevel1:nth-child(odd) td,
+.directoryTable tbody tr.settingEstimateLevel1:nth-child(odd) th,
+.directoryTable tbody tr.settingEstimateLevel1:hover td,
+.directoryTable tbody tr.settingEstimateLevel1:hover th {
+  background: #ffe8a3;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.directoryTable tbody tr.settingEstimateLevel2 td,
+.directoryTable tbody tr.settingEstimateLevel2 th,
+.directoryTable tbody tr.settingEstimateLevel2:nth-child(odd) td,
+.directoryTable tbody tr.settingEstimateLevel2:nth-child(odd) th,
+.directoryTable tbody tr.settingEstimateLevel2:hover td,
+.directoryTable tbody tr.settingEstimateLevel2:hover th {
+  background: #b9e7c8;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.directoryTable tbody tr.settingEstimateLevel3 td,
+.directoryTable tbody tr.settingEstimateLevel3 th,
+.directoryTable tbody tr.settingEstimateLevel3:nth-child(odd) td,
+.directoryTable tbody tr.settingEstimateLevel3:nth-child(odd) th,
+.directoryTable tbody tr.settingEstimateLevel3:hover td,
+.directoryTable tbody tr.settingEstimateLevel3:hover th {
+  background: #f4a6a6;
+  color: var(--text);
+  font-weight: 800;
+}
+
 .directoryNameHeader,
 .directoryNameCell {
   position: sticky;
