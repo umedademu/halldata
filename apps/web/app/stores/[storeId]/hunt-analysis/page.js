@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../../components/breadcrumbs";
+import { HuntRankingLimitSync } from "../../../../components/hunt-ranking-limit-sync";
 import { HuntRankingTable } from "../../../../components/hunt-ranking-table";
 import { getHuntScoreRankingDetail, getStoreIdentity } from "../../../../lib/data";
 import { formatCompactDate, formatNumber } from "../../../../lib/format";
@@ -79,6 +80,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
 
   return (
     <main className="pageStack">
+      <HuntRankingLimitSync defaultLimit={DEFAULT_RANKING_LIMIT} />
       <Breadcrumbs
         items={[
           { label: "店舗一覧", href: "/" },
