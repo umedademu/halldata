@@ -8,7 +8,7 @@ import { formatCompactDate, formatNumber } from "../../../../lib/format";
 
 export const dynamic = "force-dynamic";
 
-export default async function HuntRankingPage({ params, searchParams }) {
+export default async function HuntAnalysisPage({ params, searchParams }) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
   const storeId = resolvedParams.storeId;
@@ -26,11 +26,11 @@ export default async function HuntRankingPage({ params, searchParams }) {
           items={[
             { label: "店舗一覧", href: "/" },
             { label: "店舗ページ", href: `/stores/${storeId}` },
-            { label: "狙い度ランキング" },
+            { label: "狙い度分析" },
           ]}
         />
         <section className="statusPanel">
-          <h2>狙い度ランキングを読み込めませんでした</h2>
+          <h2>狙い度分析を読み込めませんでした</h2>
           <p>{error instanceof Error ? error.message : "設定を確認してください。"}</p>
         </section>
       </main>
@@ -57,16 +57,16 @@ export default async function HuntRankingPage({ params, searchParams }) {
         items={[
           { label: "店舗一覧", href: "/" },
           { label: detail.store.storeName, href: `/stores/${detail.store.id}` },
-          { label: "狙い度ランキング" },
+          { label: "狙い度分析" },
         ]}
       />
 
       <section className="heroPanel">
         <div className="heroCopy">
-          <p className="eyebrow">Hunt Score Ranking</p>
-          <h1 className="pageTitle">狙い度ランキング</h1>
+          <p className="eyebrow">Hunt Score Analysis</p>
+          <h1 className="pageTitle">狙い度分析</h1>
           <p className="leadText">
-            集計日に見た次回営業日の狙い度を、固定ルールの絶対評価で出し、高い順に並べた20台です。
+            集計日に見た次回営業日の狙い度を、固定ルールの絶対評価で分析し、高い順に並べた20台です。
           </p>
           <div className="heroLinks">
             <Link href={`/stores/${detail.store.id}`} className="inlineAction">
@@ -104,7 +104,7 @@ export default async function HuntRankingPage({ params, searchParams }) {
           <div>
             <p className="sectionLabel">集計日を選ぶ</p>
             <p className="filterLead">
-              選んだ日の時点で見た次回営業日の狙い度点数順と、翌営業日の実績を表示します。
+              選んだ日の時点で見た次回営業日の狙い度分析の点数順と、翌営業日の実績を表示します。
             </p>
           </div>
           <form method="get" className="storeReserveForm">
@@ -129,7 +129,7 @@ export default async function HuntRankingPage({ params, searchParams }) {
         </section>
       ) : (
         <section className="statusPanel">
-          <h2>狙い度を作れる日付がまだありません</h2>
+          <h2>狙い度分析を作れる日付がまだありません</h2>
           <p>対象機種の保存済みデータが増えると、ここに点数順の一覧が表示されます。</p>
         </section>
       )}

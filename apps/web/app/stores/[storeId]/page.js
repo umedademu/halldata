@@ -37,7 +37,7 @@ export default async function StoreDetailPage({ params }) {
   }
 
   const { store, summary, machines } = storeDetail;
-  const hasHuntScoreRanking = isHuntScoreTargetStore(store.storeName);
+  const hasHuntScoreAnalysis = isHuntScoreTargetStore(store.storeName);
 
   return (
     <main className="pageStack">
@@ -55,10 +55,10 @@ export default async function StoreDetailPage({ params }) {
           <p className="leadText">
             各機種ごとの最新記録日を基準に一覧を出し、機種名から台データページへ進めます。
           </p>
-          {hasHuntScoreRanking ? (
+          {hasHuntScoreAnalysis ? (
             <div className="heroLinks">
-              <Link href={`/stores/${store.id}/hunt-ranking`} className="inlineAction">
-                狙い度ランキングを見る
+              <Link href={`/stores/${store.id}/hunt-analysis`} className="inlineAction">
+                狙い度分析を見る
               </Link>
             </div>
           ) : null}
