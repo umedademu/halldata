@@ -30,6 +30,7 @@ DEFAULT_SCHEMA = "public"
 DEFAULT_STORES_TABLE = "stores"
 DEFAULT_RESULTS_TABLE = "machine_daily_results"
 DEFAULT_MACHINE_SUMMARIES_TABLE = "store_machine_summaries"
+DEFAULT_MACHINE_DAILY_DETAILS_TABLE = "store_machine_daily_details"
 STORE_COLUMNS = {"機種", "機種名"}
 WINDOWS_FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]+')
 DATA_SOURCE_MINREPO = "minrepo"
@@ -288,6 +289,77 @@ def build_store_machine_summary_payloads(
         key=lambda payload: (
             str(payload.get("latest_date", "")),
             int(payload.get("slot_count", 0) or 0),
+            normalize_text(str(payload.get("machine_name", ""))),
+        ),
+        reverse=True,
+    )
+    return payloads
+
+
+def build_store_machine_daily_detail_payloads(
+    records: list[dict[str, Any]],
+    store_id: str,
+    updated_at: str,
+) -> list[dict[str, Any]]:
+    buckets: dict[tuple[str, str], dict[str, Any]] = {}
+
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+
+        machine_name = str(record.get("machine_name", "")).strip()
+        target_date = str(record.get("target_date", "")).strip()
+        slot_number = str(record.get("slot_number", "")).strip()
+        if not machine_name or not target_date or not slot_number:
+            continue
+
+        bucket_key = (machine_name, target_date)
+        bucket = buckets.get(bucket_key)
+        if bucket is None:
+            bucket = {
+                "machine_name": machine_name,
+                "target_date": target_date,
+                "records_by_slot": {},
+                "rows": [],
+            }
+            buckets[bucket_key] = bucket
+
+        bucket["records_by_slot"][slot_number] = {
+            "difference_value": _normalize_difference_value_for_supabase(record.get("difference_value")),
+            "games_count": _parse_numeric_value(record.get("games_count")),
+            "payout_rate": _parse_numeric_value(record.get("payout_rate")),
+            "bb_count": _parse_numeric_value(record.get("bb_count")),
+            "rb_count": _parse_numeric_value(record.get("rb_count")),
+            "combined_ratio_text": _parse_text_value(record.get("combined_ratio_text") or ""),
+            "bb_ratio_text": _parse_text_value(record.get("bb_ratio_text") or ""),
+            "rb_ratio_text": _parse_text_value(record.get("rb_ratio_text") or ""),
+        }
+        bucket["rows"].append(record)
+
+    payloads: list[dict[str, Any]] = []
+    for bucket in buckets.values():
+        records_by_slot = {
+            slot_number: bucket["records_by_slot"][slot_number]
+            for slot_number in sorted(bucket["records_by_slot"].keys(), key=_slot_number_sort_key)
+        }
+        rows = bucket["rows"]
+        payloads.append(
+            {
+                "store_id": store_id,
+                "machine_name": bucket["machine_name"],
+                "target_date": bucket["target_date"],
+                "slot_count": len(records_by_slot),
+                "average_difference": _average_summary_numbers(row.get("difference_value") for row in rows),
+                "average_games": _average_summary_numbers(row.get("games_count") for row in rows),
+                "average_payout": _average_summary_numbers(row.get("payout_rate") for row in rows),
+                "records_by_slot": records_by_slot,
+                "updated_at": updated_at,
+            }
+        )
+
+    payloads.sort(
+        key=lambda payload: (
+            str(payload.get("target_date", "")),
             normalize_text(str(payload.get("machine_name", ""))),
         ),
         reverse=True,
@@ -763,6 +835,7 @@ class HistoryPersistenceService:
     def _save_to_supabase(self, snapshot: dict[str, Any]) -> int:
         supabase_url, _, schema, stores_table, results_table = self._supabase_config()
         machine_summaries_table = self._machine_summaries_table()
+        machine_daily_details_table = self._machine_daily_details_table()
         now_text = datetime.now().astimezone().isoformat(timespec="seconds")
         session = self._create_supabase_session(schema)
 
@@ -802,13 +875,28 @@ class HistoryPersistenceService:
                     ) from exc
                 raise
 
-        self._refresh_store_machine_summaries(
+        source_rows = self._fetch_store_result_source_rows(
             session=session,
             supabase_url=supabase_url,
             results_table=results_table,
+            store_id=store_id,
+        )
+
+        self._refresh_store_machine_summaries(
+            session=session,
+            supabase_url=supabase_url,
             machine_summaries_table=machine_summaries_table,
             store_id=store_id,
             updated_at=now_text,
+            source_rows=source_rows,
+        )
+        self._refresh_store_machine_daily_details(
+            session=session,
+            supabase_url=supabase_url,
+            machine_daily_details_table=machine_daily_details_table,
+            store_id=store_id,
+            updated_at=now_text,
+            source_rows=source_rows,
         )
 
         return len(result_payloads)
@@ -817,17 +905,11 @@ class HistoryPersistenceService:
         self,
         session: requests.Session,
         supabase_url: str,
-        results_table: str,
         machine_summaries_table: str,
         store_id: str,
         updated_at: str,
+        source_rows: list[dict[str, Any]],
     ) -> int:
-        source_rows = self._fetch_store_summary_source_rows(
-            session=session,
-            supabase_url=supabase_url,
-            results_table=results_table,
-            store_id=store_id,
-        )
         payloads = build_store_machine_summary_payloads(
             source_rows,
             store_id=store_id,
@@ -876,7 +958,64 @@ class HistoryPersistenceService:
 
         return len(payloads)
 
-    def _fetch_store_summary_source_rows(
+    def _refresh_store_machine_daily_details(
+        self,
+        session: requests.Session,
+        supabase_url: str,
+        machine_daily_details_table: str,
+        store_id: str,
+        updated_at: str,
+        source_rows: list[dict[str, Any]],
+    ) -> int:
+        payloads = build_store_machine_daily_detail_payloads(
+            source_rows,
+            store_id=store_id,
+            updated_at=updated_at,
+        )
+        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(machine_daily_details_table, safe='')}"
+
+        try:
+            response = session.delete(
+                endpoint,
+                params={
+                    "store_id": f"eq.{store_id}",
+                },
+                headers={"Prefer": "return=minimal"},
+                timeout=30,
+            )
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            if exc.response is not None and exc.response.status_code in {400, 404}:
+                raise RuntimeError(
+                    "台データページ用の詳細テーブルがありません。"
+                    " 追加用SQLを適用してから再度保存してください。"
+                ) from exc
+            raise
+
+        if not payloads:
+            return 0
+
+        endpoint = f"{endpoint}?on_conflict=store_id,machine_name,target_date"
+        try:
+            for payload_chunk in _chunk_items(payloads, 500):
+                response = session.post(
+                    endpoint,
+                    headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
+                    json=payload_chunk,
+                    timeout=30,
+                )
+                response.raise_for_status()
+        except requests.HTTPError as exc:
+            if exc.response is not None and exc.response.status_code in {400, 404}:
+                raise RuntimeError(
+                    "台データページ用の詳細テーブルがありません。"
+                    " 追加用SQLを適用してから再度保存してください。"
+                ) from exc
+            raise
+
+        return len(payloads)
+
+    def _fetch_store_result_source_rows(
         self,
         session: requests.Session,
         supabase_url: str,
@@ -892,7 +1031,10 @@ class HistoryPersistenceService:
             response = session.get(
                 endpoint,
                 params={
-                    "select": "machine_name,target_date,slot_number,difference_value,games_count,payout_rate",
+                    "select": (
+                        "machine_name,target_date,slot_number,difference_value,games_count,payout_rate,"
+                        "bb_count,rb_count,combined_ratio_text,bb_ratio_text,rb_ratio_text"
+                    ),
                     "store_id": f"eq.{store_id}",
                     "order": "target_date.desc,slot_number.asc",
                     "limit": str(page_size),
@@ -1679,6 +1821,13 @@ class HistoryPersistenceService:
             or DEFAULT_MACHINE_SUMMARIES_TABLE
         )
 
+    def _machine_daily_details_table(self) -> str:
+        settings = self._load_settings()
+        return (
+            settings.get("SUPABASE_MACHINE_DAILY_DETAILS_TABLE", "").strip()
+            or DEFAULT_MACHINE_DAILY_DETAILS_TABLE
+        )
+
     def _create_supabase_session(self, schema: str) -> requests.Session:
         _, supabase_key, _, _, _ = self._supabase_config()
         session = requests.Session()
@@ -1772,6 +1921,35 @@ def _average_summary_numbers(values: Any) -> float | None:
         return None
 
     return sum(numeric_values) / len(numeric_values)
+
+
+def _parse_numeric_value(value: Any) -> int | float | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            return None
+        return value
+
+    normalized = str(value).strip().replace(",", "")
+    if not normalized or normalized == "-":
+        return None
+    if re.fullmatch(r"-?\d+", normalized):
+        return int(normalized)
+    if re.fullmatch(r"-?\d+(?:\.\d+)?", normalized):
+        return float(normalized)
+    return None
+
+
+def _slot_number_sort_key(value: str) -> tuple[int, int | str]:
+    text = str(value).strip()
+    if re.fullmatch(r"\d+", text):
+        return (0, int(text))
+    return (1, text)
 
 
 def _parse_text_value(value: str) -> str | None:

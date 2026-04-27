@@ -16,6 +16,7 @@ from data_persistence import (
     DATA_SOURCE_SITE7,
     HistoryPersistenceService,
     build_machine_daily_records,
+    build_store_machine_daily_detail_payloads,
     build_store_machine_summary_payloads,
     build_supabase_result_payload,
     choose_preferred_store,
@@ -996,12 +997,89 @@ class MinRepoScraperTests(unittest.TestCase):
             },
         )
 
+    def test_build_store_machine_daily_detail_payloads_groups_by_machine_and_date(self) -> None:
+        payloads = build_store_machine_daily_detail_payloads(
+            [
+                {
+                    "target_date": "2026-04-25",
+                    "slot_number": "102",
+                    "machine_name": "ゴーゴージャグラー３",
+                    "difference_value": 500,
+                    "games_count": 6000,
+                    "payout_rate": 106.0,
+                    "bb_count": 28,
+                    "rb_count": 18,
+                    "combined_ratio_text": "1/130",
+                    "bb_ratio_text": "1/214",
+                    "rb_ratio_text": "1/333",
+                },
+                {
+                    "target_date": "2026-04-25",
+                    "slot_number": "101",
+                    "machine_name": "ゴーゴージャグラー３",
+                    "difference_value": 300.4,
+                    "games_count": 4000,
+                    "payout_rate": 104.0,
+                    "bb_count": 21,
+                    "rb_count": 14,
+                    "combined_ratio_text": "1/144",
+                    "bb_ratio_text": "1/191",
+                    "rb_ratio_text": "1/286",
+                },
+                {
+                    "target_date": "2026-04-24",
+                    "slot_number": "101",
+                    "machine_name": "ゴーゴージャグラー３",
+                    "difference_value": 100,
+                    "games_count": 2000,
+                    "payout_rate": 101.0,
+                    "bb_count": 10,
+                    "rb_count": 5,
+                },
+            ],
+            store_id="store-1",
+            updated_at="2026-04-25T12:34:56+09:00",
+        )
+
+        self.assertEqual(len(payloads), 2)
+        self.assertEqual(payloads[0]["machine_name"], "ゴーゴージャグラー３")
+        self.assertEqual(payloads[0]["target_date"], "2026-04-25")
+        self.assertEqual(payloads[0]["slot_count"], 2)
+        self.assertEqual(payloads[0]["average_difference"], 400.2)
+        self.assertEqual(
+            payloads[0]["records_by_slot"],
+            {
+                "101": {
+                    "difference_value": 300,
+                    "games_count": 4000,
+                    "payout_rate": 104.0,
+                    "bb_count": 21,
+                    "rb_count": 14,
+                    "combined_ratio_text": "1/144",
+                    "bb_ratio_text": "1/191",
+                    "rb_ratio_text": "1/286",
+                },
+                "102": {
+                    "difference_value": 500,
+                    "games_count": 6000,
+                    "payout_rate": 106.0,
+                    "bb_count": 28,
+                    "rb_count": 18,
+                    "combined_ratio_text": "1/130",
+                    "bb_ratio_text": "1/214",
+                    "rb_ratio_text": "1/333",
+                },
+            },
+        )
+
     def test_save_to_supabase_refreshes_machine_summary_table(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
             captured_result_posts: list[list[dict[str, object]]] = []
             captured_summary_posts: list[list[dict[str, object]]] = []
+            captured_daily_detail_posts: list[list[dict[str, object]]] = []
             captured_summary_deletes: list[dict[str, str]] = []
+            captured_daily_detail_deletes: list[dict[str, str]] = []
 
             class FakeSession:
                 def post(
@@ -1011,7 +1089,9 @@ class MinRepoScraperTests(unittest.TestCase):
                     json: list[dict[str, object]],
                     timeout: int = 30,
                 ) -> FakeJsonResponse:
-                    if "store_machine_summaries" in endpoint:
+                    if "store_machine_daily_details" in endpoint:
+                        captured_daily_detail_posts.append(json)
+                    elif "store_machine_summaries" in endpoint:
                         captured_summary_posts.append(json)
                     else:
                         captured_result_posts.append(json)
@@ -1024,7 +1104,10 @@ class MinRepoScraperTests(unittest.TestCase):
                     headers: dict[str, str],
                     timeout: int = 30,
                 ) -> FakeJsonResponse:
-                    captured_summary_deletes.append(params)
+                    if "store_machine_daily_details" in endpoint:
+                        captured_daily_detail_deletes.append(params)
+                    else:
+                        captured_summary_deletes.append(params)
                     return FakeJsonResponse([])
 
                 def get(self, endpoint: str, params: dict[str, str], timeout: int = 30) -> FakeJsonResponse:
@@ -1067,6 +1150,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 "machine_daily_results",
             )
             service._machine_summaries_table = lambda: "store_machine_summaries"  # type: ignore[method-assign]
+            service._machine_daily_details_table = lambda: "store_machine_daily_details"  # type: ignore[method-assign]
             service._create_supabase_session = lambda schema: FakeSession()  # type: ignore[method-assign]
             service._upsert_store = lambda session, supabase_url, stores_table, payload: "store-1"  # type: ignore[method-assign]
 
@@ -1102,7 +1186,9 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(saved_count, 2)
             self.assertEqual(len(captured_result_posts), 1)
             self.assertEqual(captured_summary_deletes, [{"store_id": "eq.store-1"}])
+            self.assertEqual(captured_daily_detail_deletes, [{"store_id": "eq.store-1"}])
             self.assertEqual(len(captured_summary_posts), 1)
+            self.assertEqual(len(captured_daily_detail_posts), 1)
             self.assertEqual(captured_summary_posts[0][0]["store_id"], "store-1")
             self.assertEqual(captured_summary_posts[0][0]["machine_name"], "ゴーゴージャグラー３")
             self.assertEqual(captured_summary_posts[0][0]["latest_date"], "2026-04-25")
@@ -1110,6 +1196,35 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(captured_summary_posts[0][0]["average_difference"], 400.0)
             self.assertEqual(captured_summary_posts[0][0]["average_games"], 5000.0)
             self.assertEqual(captured_summary_posts[0][0]["average_payout"], 105.0)
+            self.assertEqual(captured_daily_detail_posts[0][0]["store_id"], "store-1")
+            self.assertEqual(captured_daily_detail_posts[0][0]["machine_name"], "ゴーゴージャグラー３")
+            self.assertEqual(captured_daily_detail_posts[0][0]["target_date"], "2026-04-25")
+            self.assertEqual(captured_daily_detail_posts[0][0]["slot_count"], 2)
+            self.assertEqual(
+                captured_daily_detail_posts[0][0]["records_by_slot"],
+                {
+                    "101": {
+                        "difference_value": 300,
+                        "games_count": 4000,
+                        "payout_rate": 104.0,
+                        "bb_count": None,
+                        "rb_count": None,
+                        "combined_ratio_text": None,
+                        "bb_ratio_text": None,
+                        "rb_ratio_text": None,
+                    },
+                    "102": {
+                        "difference_value": 500,
+                        "games_count": 6000,
+                        "payout_rate": 106.0,
+                        "bb_count": None,
+                        "rb_count": None,
+                        "combined_ratio_text": None,
+                        "bb_ratio_text": None,
+                        "rb_ratio_text": None,
+                    },
+                },
+            )
 
     def test_save_history_result_writes_local_file(self) -> None:
         scraper = FixtureScraper()

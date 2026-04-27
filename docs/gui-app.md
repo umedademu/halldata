@@ -61,6 +61,7 @@
 - サイトセブンの対象機種判定は完全一致だけでなく、設定ファイルに置いた対象語を含むかどうかでも見ます
 - 保存先は既存と同じで、`local_data` の `json` と `Supabase` の `stores`、`machine_daily_results` を使います
 - さらに、機種一覧ページを軽く出すための要約保存先として、`Supabase` の `store_machine_summaries` も更新します
+- 台データページを軽く出すための保存先として、`Supabase` の `store_machine_daily_details` も更新します
 - 保存前に、既存データ件数が最も多い `Aパーク春日店` または `GOGOアリーナ天神` の店舗情報へ寄せ直し、サイトセブン側の店舗表記で別店舗を増やさないようにします
 - 保存時は、`ゴーゴージャグラー３` や `ファンキージャグラー２ＫＴ` のような既存表記へ機種名も寄せ直し、表記ゆれで別機種を増やさないようにします
 - ただし `ネオアイムジャグラーEX` と `SアイムジャグラーＥＸ` は別機種として分けて保存します
@@ -116,11 +117,14 @@
 - あわせて、その日分を `.env.local` の設定を使って `Supabase` の `stores` と `machine_daily_results` に自動保存します
 - 同時に、その店舗の全保存済み台データをもとに、機種一覧ページ用の `store_machine_summaries` を作り直します
 - `store_machine_summaries` を作るためのSQLと既存データの入れ直し用SQLは `docs/store-machine-summaries.sql` に置いています
+- 同時に、その店舗の全保存済み台データをもとに、台データページ用の `store_machine_daily_details` も作り直します
+- `store_machine_daily_details` を作るためのSQLと既存データの入れ直し用SQLは `docs/store-machine-daily-details.sql` に置いています
 - サイトセブンの再取得時は、同じ `日付 + 台番` を単位に既存行を見ます
 - 既存行が `みんレポ` のものなら残し、既存行が `サイトセブン` のものだけを入れ直します
 - 次回以降の取得では、このローカル索引を見て、全機種取得済みの日付を丸ごと飛ばします
 - `.env.local` では最低限 `SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` を使います
 - 要約保存先の表名を変えたい場合は、`.env.local` に `SUPABASE_MACHINE_SUMMARIES_TABLE` を入れると切り替えられます
+- 台データページ用の保存先表名を変えたい場合は、`.env.local` に `SUPABASE_MACHINE_DAILY_DETAILS_TABLE` を入れると切り替えられます
 - `.env.local` が未設定、または `Supabase` 保存に失敗した場合でも、取得済みの表表示は残します
 - `.env.local` と `local_data` は追跡対象から外す想定です
 

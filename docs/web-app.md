@@ -14,12 +14,13 @@
 
 ## データの読み出し
 
-- データ元は `Supabase` の `stores`、`machine_daily_results`、`store_machine_summaries` です
+- データ元は `Supabase` の `stores`、`machine_daily_results`、`store_machine_summaries`、`store_machine_daily_details` です
 - `apps/web` は `SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` を使って読み出します
 - 店舗URLの登録待ち追加では、`stores` にURLを保存します
 - ローカル確認時は、ルートの `.env.local` も読めるようにしています
 - 本番の `Vercel` では、同じ環境変数を `Vercel` 側に設定する想定です
 - 機種一覧用の要約表名を変えたい場合は、`.env.local` または `Vercel` 側に `SUPABASE_MACHINE_SUMMARIES_TABLE` を入れると切り替えられます
+- 台データページ用の詳細表名を変えたい場合は、`.env.local` または `Vercel` 側に `SUPABASE_MACHINE_DAILY_DETAILS_TABLE` を入れると切り替えられます
 
 ## 表示について
 
@@ -37,6 +38,8 @@
 - サイトセブン由来で `Supabase` に差枚が入っていない行でも、機種ごとの設定ファイルと `G数`、`BB`、`RB` から `差枚` を計算し、四捨五入した整数として補って表示します
 - 差枚の計算条件はルートの `config/machine_difference_rules.json` にまとめてあり、今は `ネオアイムジャグラーEX`、`SアイムジャグラーＥＸ`、`マイジャグラー`、`ゴーゴージャグラー`、`ファンキージャグラー`、`ミスタージャグラー`、`ジャグラーガールズ`、`ウルトラミラクルジャグラー`、`ハッピージャグラー` を登録済みです
 - 台データ比較では、横幅を抑えるために表内の日付を `YY/MM/DD` 形式で表示し、日付の隣に曜日を表示し、数値の桁区切りを省いています
+- 台データ比較は、まず `store_machine_daily_details` に保存した日付ごとの完成データを読みます
+- その詳細表が無い環境では、最後の手段として `machine_daily_results` の生データから組み立てます
 - 台データ比較では、チェックボックスで表示する列を選べます
 - 台データ比較の `出率`、`BB率`、`RB率` は初期状態では非表示です
 - アイムジャグラーEX系、スマスロ ハナビ、新ハナビ、スマスロ サンダーV、バーサスリヴァイズ、ハナハナホウオウ、ファンキージャグラー2、マイジャグラーV、ハッピージャグラーV、ゴーゴージャグラー、ジャグラーガールズ、ウルトラミラクルジャグラー、ミスタージャグラーの台データ比較では、`G数`、`BB`、`RB` から別アプリと同じ計算方法で設定を推測し、`設定` 列に加重平均値を表示します
@@ -80,6 +83,7 @@
 
 - `Supabase` から同じ条件で読み出した結果は、標準で60秒だけ使い回します
 - 機種一覧は、重い全件集計を避けるため、`store_machine_summaries` を最優先で使います
+- 台データページは、重い行データの組み立てを避けるため、`store_machine_daily_details` を最優先で使います
 - ローカル実行で `local_data` の全機種取得済み索引を使える場合、機種一覧は `Supabase` の大量読み出しを避けます
 - 取得結果の使い回し時間は、必要に応じて `HALLDATA_FETCH_CACHE_TTL_MS` でミリ秒単位に変更できます
 - 外部書体の読み込みをやめ、端末に入っている日本語書体を使います

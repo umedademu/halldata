@@ -130,6 +130,10 @@ async function getSupabaseConfig() {
       "SUPABASE_MACHINE_SUMMARIES_TABLE",
       "store_machine_summaries",
     ),
+    machineDailyDetailsTable: await readSetting(
+      "SUPABASE_MACHINE_DAILY_DETAILS_TABLE",
+      "store_machine_daily_details",
+    ),
   };
 }
 
@@ -162,12 +166,102 @@ function buildMachineNameFilter(machineNames) {
   };
 }
 
-async function fetchHuntScoreSourceRows(resultsTable, storeId) {
+function readJsonObject(value) {
+  if (!value) {
+    return {};
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  return typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function buildRawRowsFromMachineDailyDetailRows(rows) {
+  const expandedRows = [];
+
+  for (const row of rows) {
+    const machineName = String(row.machine_name ?? "").trim();
+    const targetDate = String(row.target_date ?? "").trim();
+    const recordsBySlot = readJsonObject(row.records_by_slot);
+    if (!machineName || !targetDate) {
+      continue;
+    }
+
+    for (const [slotNumber, record] of Object.entries(recordsBySlot)) {
+      expandedRows.push({
+        machine_name: machineName,
+        target_date: targetDate,
+        slot_number: String(slotNumber ?? "").trim(),
+        difference_value: record?.difference_value ?? null,
+        games_count: record?.games_count ?? null,
+        payout_rate: record?.payout_rate ?? null,
+        bb_count: record?.bb_count ?? null,
+        rb_count: record?.rb_count ?? null,
+        combined_ratio_text: record?.combined_ratio_text ?? null,
+        bb_ratio_text: record?.bb_ratio_text ?? null,
+        rb_ratio_text: record?.rb_ratio_text ?? null,
+      });
+    }
+  }
+
+  return expandedRows;
+}
+
+async function fetchHuntScoreSourceRows(resultsTable, machineDailyDetailsTable, storeId) {
   const huntScoreMachineNames = [
     ...new Set(
       listHuntScoreTargetMachineNames().flatMap((name) => listEquivalentMachineNames(name)),
     ),
   ];
+
+  try {
+    const [targetMachineRows, storeDateRows] = await Promise.all([
+      fetchAllRows(machineDailyDetailsTable, {
+        select: "machine_name,target_date,records_by_slot",
+        store_id: `eq.${storeId}`,
+        ...buildMachineNameFilter(huntScoreMachineNames),
+        order: "target_date.desc,machine_name.asc",
+      }),
+      fetchAllRows(machineDailyDetailsTable, {
+        select: "target_date",
+        store_id: `eq.${storeId}`,
+        order: "target_date.desc",
+      }),
+    ]);
+
+    if (targetMachineRows.length > 0) {
+      const targetRows = buildRawRowsFromMachineDailyDetailRows(targetMachineRows).map(
+        withCalculatedDifferenceValue,
+      );
+      const storeRows = [...new Set(storeDateRows.map((row) => String(row.target_date ?? "").trim()))]
+        .filter(Boolean)
+        .map((targetDate) => ({
+          target_date: targetDate,
+          difference_value: 0,
+        }));
+      return {
+        targetRows,
+        storeRows,
+      };
+    }
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      (!error.message.includes("(400)") &&
+        !error.message.includes("(404)") &&
+        !error.message.includes("(500)"))
+    ) {
+      throw error;
+    }
+  }
+
   const [fetchedTargetRows, fetchedStoreRows] = await Promise.all([
     fetchAllRows(resultsTable, {
       select:
@@ -483,6 +577,103 @@ function buildMachineSummaryResultFromSummaryRows(rows) {
         return currentLatestDate;
       }, null) ?? null,
     machines,
+  };
+}
+
+function buildMachineDetailFromDailyRows(rows) {
+  const slotNumbersSet = new Set();
+  const dateRows = [];
+  const allDifferenceValues = [];
+  const allGamesValues = [];
+  const allPayoutValues = [];
+  const bestWorstCandidates = [];
+  let recordCount = 0;
+
+  const sortedRows = [...rows].sort((left, right) => {
+    return String(right.target_date ?? "").localeCompare(String(left.target_date ?? ""), "ja");
+  });
+
+  for (const row of sortedRows) {
+    const date = String(row.target_date ?? "").trim();
+    const machineName = String(row.machine_name ?? "").trim();
+    if (!date || !machineName) {
+      continue;
+    }
+
+    const sourceRecords = readJsonObject(row.records_by_slot);
+    const recordsBySlot = {};
+    const dailyDifferenceValues = [];
+
+    for (const slotNumber of Object.keys(sourceRecords).sort(compareSlotNumbers)) {
+      const sourceRecord = sourceRecords[slotNumber] ?? {};
+      const record = withCalculatedDifferenceValue({
+        machine_name: machineName,
+        target_date: date,
+        slot_number: slotNumber,
+        difference_value: sourceRecord.difference_value ?? null,
+        games_count: sourceRecord.games_count ?? null,
+        payout_rate: sourceRecord.payout_rate ?? null,
+        bb_count: sourceRecord.bb_count ?? null,
+        rb_count: sourceRecord.rb_count ?? null,
+        combined_ratio_text: sourceRecord.combined_ratio_text ?? null,
+        bb_ratio_text: sourceRecord.bb_ratio_text ?? null,
+        rb_ratio_text: sourceRecord.rb_ratio_text ?? null,
+      });
+      recordsBySlot[slotNumber] = record;
+      slotNumbersSet.add(slotNumber);
+      recordCount += 1;
+
+      if (typeof record.difference_value === "number" && Number.isFinite(record.difference_value)) {
+        allDifferenceValues.push(record.difference_value);
+        dailyDifferenceValues.push(record.difference_value);
+      }
+      if (typeof record.games_count === "number" && Number.isFinite(record.games_count)) {
+        allGamesValues.push(record.games_count);
+      }
+      if (typeof record.payout_rate === "number" && Number.isFinite(record.payout_rate)) {
+        allPayoutValues.push(record.payout_rate);
+      }
+    }
+
+    dateRows.push({
+      date,
+      recordsBySlot,
+    });
+
+    const storedAverageDifference =
+      row.average_difference === null || row.average_difference === undefined
+        ? null
+        : Number(row.average_difference);
+    const dailyAverageDifference = Number.isFinite(storedAverageDifference)
+      ? storedAverageDifference
+      : average(dailyDifferenceValues);
+    if (typeof dailyAverageDifference === "number" && Number.isFinite(dailyAverageDifference)) {
+      bestWorstCandidates.push({
+        date,
+        value: dailyAverageDifference,
+      });
+    }
+  }
+
+  const slotNumbers = [...slotNumbersSet].sort(compareSlotNumbers);
+  const dates = dateRows.map((row) => row.date);
+  bestWorstCandidates.sort((left, right) => right.value - left.value);
+
+  return {
+    slotNumbers,
+    dateRows,
+    summary: {
+      slotCount: slotNumbers.length,
+      dayCount: dateRows.length,
+      recordCount,
+      startDate: dates.at(-1) ?? null,
+      endDate: dates[0] ?? null,
+      averageDifference: average(allDifferenceValues),
+      averageGames: average(allGamesValues),
+      averagePayout: average(allPayoutValues),
+      bestDay: bestWorstCandidates[0] ?? null,
+      worstDay: bestWorstCandidates.at(-1) ?? null,
+    },
   };
 }
 
@@ -822,7 +1013,7 @@ export const getStoreDetail = cache(async function getStoreDetail(storeId) {
 });
 
 export const getMachineDetail = cache(async function getMachineDetail(storeId, machineName) {
-  const { storesTable, resultsTable } = await getSupabaseConfig();
+  const { storesTable, resultsTable, machineDailyDetailsTable } = await getSupabaseConfig();
   const stores = await fetchStoreEventRows(storesTable, storeId);
   const store = stores[0];
   if (!store) {
@@ -832,27 +1023,56 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
   const requestedMachineName = canonicalMachineName(machineName);
   const huntScoreEnabled = isHuntScoreSupported(store.store_name, requestedMachineName);
   let rows;
+  let detail = null;
 
   if (huntScoreEnabled) {
-    const { targetRows, storeRows } = await fetchHuntScoreSourceRows(resultsTable, storeId);
+    const { targetRows, storeRows } = await fetchHuntScoreSourceRows(
+      resultsTable,
+      machineDailyDetailsTable,
+      storeId,
+    );
     attachHuntScores(targetRows, storeRows);
     rows = targetRows.filter((row) => canonicalMachineName(row.machine_name) === requestedMachineName);
   } else {
-    const fetchedRows = await fetchAllRows(resultsTable, {
-      select:
-        "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate,bb_count,rb_count,combined_ratio_text,bb_ratio_text,rb_ratio_text",
-      store_id: `eq.${storeId}`,
-      ...buildMachineNameFilter(listEquivalentMachineNames(machineName)),
-      order: "target_date.desc,slot_number.asc",
-    });
-    rows = fetchedRows.map(withCalculatedDifferenceValue);
+    try {
+      const dailyDetailRows = await fetchAllRows(machineDailyDetailsTable, {
+        select:
+          "machine_name,target_date,average_difference,records_by_slot",
+        store_id: `eq.${storeId}`,
+        ...buildMachineNameFilter(listEquivalentMachineNames(machineName)),
+        order: "target_date.desc,machine_name.asc",
+      });
+      if (dailyDetailRows.length > 0) {
+        detail = buildMachineDetailFromDailyRows(dailyDetailRows);
+      }
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        (!error.message.includes("(400)") &&
+          !error.message.includes("(404)") &&
+          !error.message.includes("(500)"))
+      ) {
+        throw error;
+      }
+    }
+
+    if (!detail) {
+      const fetchedRows = await fetchAllRows(resultsTable, {
+        select:
+          "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate,bb_count,rb_count,combined_ratio_text,bb_ratio_text,rb_ratio_text",
+        store_id: `eq.${storeId}`,
+        ...buildMachineNameFilter(listEquivalentMachineNames(machineName)),
+        order: "target_date.desc,slot_number.asc",
+      });
+      rows = fetchedRows.map(withCalculatedDifferenceValue);
+    }
   }
 
-  if (rows.length === 0) {
+  if (!detail && rows.length === 0) {
     return null;
   }
 
-  const detail = buildMachineDetail(rows);
+  const machineDetail = detail ?? buildMachineDetail(rows);
 
   return {
     store: {
@@ -862,9 +1082,9 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
       eventFilters: buildEventFiltersFromStore(store),
     },
     machineName: requestedMachineName,
-    slotNumbers: detail.slotNumbers,
-    dateRows: detail.dateRows,
-    summary: detail.summary,
+    slotNumbers: machineDetail.slotNumbers,
+    dateRows: machineDetail.dateRows,
+    summary: machineDetail.summary,
   };
 });
 
@@ -872,7 +1092,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   storeId,
   requestedDate = "",
 ) {
-  const { storesTable, resultsTable } = await getSupabaseConfig();
+  const { storesTable, resultsTable, machineDailyDetailsTable } = await getSupabaseConfig();
   const stores = await fetchStoreEventRows(storesTable, storeId);
   const store = stores[0];
 
@@ -880,7 +1100,11 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     return null;
   }
 
-  const { targetRows, storeRows } = await fetchHuntScoreSourceRows(resultsTable, storeId);
+  const { targetRows, storeRows } = await fetchHuntScoreSourceRows(
+    resultsTable,
+    machineDailyDetailsTable,
+    storeId,
+  );
   const snapshots = buildHuntScoreSnapshots(targetRows, storeRows);
   const rankingDates = snapshots.map((snapshot) => snapshot.baseDate);
   const selectedDate = rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null;
