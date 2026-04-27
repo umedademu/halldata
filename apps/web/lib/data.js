@@ -27,6 +27,13 @@ function getRowsCache() {
   return globalThis.__halldataRowsCache;
 }
 
+function getStoreMachineSummariesCache() {
+  if (!globalThis.__halldataStoreMachineSummariesCache) {
+    globalThis.__halldataStoreMachineSummariesCache = new Map();
+  }
+  return globalThis.__halldataStoreMachineSummariesCache;
+}
+
 function buildFetchCacheKey(tableName, params) {
   return JSON.stringify({
     tableName,
@@ -203,6 +210,7 @@ function normalizeStoreUrl(value) {
 
 function clearRowsCache() {
   globalThis.__halldataRowsCache?.clear();
+  globalThis.__halldataStoreMachineSummariesCache?.clear();
 }
 
 function normalizeEventDayTails(value) {
@@ -504,8 +512,134 @@ export const getStoreList = cache(async function getStoreList() {
       const leftLabel = left.isPendingRegistration ? left.storeUrl : left.storeName;
       const rightLabel = right.isPendingRegistration ? right.storeUrl : right.storeName;
       return leftLabel.localeCompare(rightLabel, "ja");
-    });
+  });
 });
+
+async function readStoreMachineSummariesFromLocalData(storeName) {
+  const machineSummariesCache = getStoreMachineSummariesCache();
+  const [{ default: fs }, pathModule, urlModule] = await Promise.all([
+    import("node:fs"),
+    import("node:path"),
+    import("node:url"),
+  ]);
+  const currentDirectory = pathModule.dirname(urlModule.fileURLToPath(import.meta.url));
+  const configuredLocalDataDirectory =
+    (await readSetting("SUPABASE_LOCAL_SAVE_DIR")) || (await readSetting("LOCAL_SAVE_DIR"));
+  const localDataDirectory = configuredLocalDataDirectory
+    ? pathModule.isAbsolute(configuredLocalDataDirectory)
+      ? configuredLocalDataDirectory
+      : pathModule.resolve(currentDirectory, "../../../", configuredLocalDataDirectory)
+    : pathModule.resolve(currentDirectory, "../../../local_data");
+  const indexPath = pathModule.resolve(localDataDirectory, storeName, "_full_day_index.json");
+
+  if (!fs.existsSync(indexPath)) {
+    return null;
+  }
+
+  const modifiedAtMs = fs.statSync(indexPath).mtimeMs;
+  const cachedEntry = machineSummariesCache.get(indexPath);
+
+  if (cachedEntry?.modifiedAtMs === modifiedAtMs) {
+    return cachedEntry.summary;
+  }
+
+  try {
+    const index = JSON.parse(fs.readFileSync(indexPath, "utf8"));
+    const fullDayDates = Object.entries(index?.full_day_dates ?? {}).sort(([left], [right]) =>
+      right.localeCompare(left, "ja"),
+    );
+    const buckets = new Map();
+
+    for (const [targetDate, entry] of fullDayDates) {
+      const savedPath = String(entry?.local_file_path ?? "").trim();
+      if (!savedPath) {
+        continue;
+      }
+
+      const snapshotPath = fs.existsSync(savedPath)
+        ? savedPath
+        : pathModule.resolve(pathModule.dirname(indexPath), pathModule.basename(savedPath));
+
+      if (!fs.existsSync(snapshotPath)) {
+        continue;
+      }
+
+      const snapshot = JSON.parse(fs.readFileSync(snapshotPath, "utf8"));
+      const rows = (Array.isArray(snapshot?.records) ? snapshot.records : []).map(
+        withCalculatedDifferenceValue,
+      );
+
+      for (const row of rows) {
+        const machineName = String(row.machine_name ?? "").trim();
+        if (!machineName) {
+          continue;
+        }
+
+        const existingBucket = buckets.get(machineName);
+        if (existingBucket && existingBucket.latestDate !== targetDate) {
+          continue;
+        }
+
+        if (!existingBucket) {
+          buckets.set(machineName, {
+            machineName,
+            latestDate: targetDate,
+            slots: new Set([row.slot_number]),
+            rows: [row],
+          });
+          continue;
+        }
+
+        existingBucket.rows.push(row);
+        existingBucket.slots.add(row.slot_number);
+      }
+    }
+
+    if (buckets.size === 0) {
+      return null;
+    }
+
+    const machineSummaries = [...buckets.values()].map((bucket) => ({
+      machineName: bucket.machineName,
+      slotCount: bucket.slots.size,
+      latestDate: bucket.latestDate,
+      latestAverageDifference: average(bucket.rows.map((row) => row.difference_value)),
+      latestAverageGames: average(bucket.rows.map((row) => row.games_count)),
+      latestAveragePayout: average(bucket.rows.map((row) => row.payout_rate)),
+    }));
+
+    const summary = {
+      latestDate:
+        machineSummaries.reduce((currentLatestDate, machine) => {
+          if (!machine?.latestDate) {
+            return currentLatestDate;
+          }
+          if (currentLatestDate === null || machine.latestDate > currentLatestDate) {
+            return machine.latestDate;
+          }
+          return currentLatestDate;
+        }, null) ?? null,
+      machines: machineSummaries.sort((left, right) => {
+        if (left.latestDate !== right.latestDate) {
+          return right.latestDate.localeCompare(left.latestDate, "ja");
+        }
+        if (left.slotCount !== right.slotCount) {
+          return right.slotCount - left.slotCount;
+        }
+        return left.machineName.localeCompare(right.machineName, "ja");
+      }),
+    };
+
+    machineSummariesCache.set(indexPath, {
+      modifiedAtMs,
+      summary,
+    });
+
+    return summary;
+  } catch {
+    return null;
+  }
+}
 
 export async function registerPendingStoreUrl(storeUrl) {
   const normalizedStoreUrl = normalizeStoreUrl(storeUrl);
@@ -581,25 +715,26 @@ export async function registerPendingStoreUrl(storeUrl) {
 
 export const getStoreDetail = cache(async function getStoreDetail(storeId) {
   const { storesTable, resultsTable } = await getSupabaseConfig();
-  const [stores, fetchedRows] = await Promise.all([
-    fetchAllRows(storesTable, {
-      select: "id,store_name,store_url",
-      id: `eq.${storeId}`,
-    }),
-    fetchAllRows(resultsTable, {
-      select:
-        "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate,bb_count,rb_count",
-      store_id: `eq.${storeId}`,
-    }),
-  ]);
+  const stores = await fetchAllRows(storesTable, {
+    select: "id,store_name,store_url",
+    id: `eq.${storeId}`,
+  });
 
   const store = stores[0];
   if (!store) {
     return null;
   }
 
-  const rows = fetchedRows.map(withCalculatedDifferenceValue);
-  const machineSummaryResult = buildMachineLatestSummaries(rows);
+  const localMachineSummaryResult = await readStoreMachineSummariesFromLocalData(store.store_name);
+  const machineSummaryResult = localMachineSummaryResult
+    ? localMachineSummaryResult
+    : buildMachineLatestSummaries(
+        (await fetchAllRows(resultsTable, {
+          select:
+            "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate,bb_count,rb_count",
+          store_id: `eq.${storeId}`,
+        })).map(withCalculatedDifferenceValue),
+      );
 
   return {
     store: {
