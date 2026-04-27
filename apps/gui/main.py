@@ -118,6 +118,22 @@ def current_jst_date_text(now: datetime | None = None) -> str:
     return (now or datetime.now(JST)).astimezone(JST).strftime("%Y-%m-%d")
 
 
+def scheduled_fetch_due_date(
+    scheduled_fetch_hour: int | None,
+    scheduled_last_run_date: str | None,
+    now: datetime | None = None,
+) -> str | None:
+    if scheduled_fetch_hour is None:
+        return None
+
+    current_time = (now or datetime.now(JST)).astimezone(JST)
+    today_text = current_time.date().isoformat()
+    if current_time.hour != scheduled_fetch_hour or scheduled_last_run_date == today_text:
+        return None
+
+    return today_text
+
+
 def rewrite_history_result_store(
     history_result: MachineHistoryResult,
     store_name: str,
@@ -351,12 +367,18 @@ class MinRepoApp:
         self.site7_browser_mode: str = self._load_saved_site7_browser_mode()
         self.scheduled_last_run_date: str | None = None
         self.scheduled_pending_date: str | None = None
+        self.scheduled_startup_prompt_date: str | None = scheduled_fetch_due_date(
+            self.scheduled_fetch_hour,
+            self.scheduled_last_run_date,
+        )
         self.tray_icon: object | None = None
         self.tray_thread: threading.Thread | None = None
 
         self.target_date_var = tk.StringVar(value=DEFAULT_RECENT_DAYS)
         self.schedule_hour_var = tk.StringVar(value=str(self.scheduled_fetch_hour))
         self.schedule_status_var = tk.StringVar(value=f"毎日 {self.scheduled_fetch_hour} 時に実行")
+        if self.scheduled_startup_prompt_date is not None:
+            self.schedule_status_var.set(f"本日 {self.scheduled_fetch_hour} 時の定期実行を確認待ち")
         self.retry_delay_seconds_var = tk.StringVar(value=DEFAULT_RETRY_DELAY_SECONDS)
         self.status_var = tk.StringVar(value="待機中")
         self.summary_var = tk.StringVar(value="未取得")
@@ -386,7 +408,8 @@ class MinRepoApp:
         self._schedule_timer_tick()
         if self.startup_store_warning:
             self.root.after(100, lambda: messagebox.showwarning("登録店舗", self.startup_store_warning))
-        self.root.after(250, self._prompt_site7_login_on_startup_if_needed)
+        self.root.after(250, self._prompt_scheduled_fetch_on_startup_if_needed)
+        self.root.after(500, self._prompt_site7_login_on_startup_if_needed)
 
     def _build_ui(self) -> None:
         container = ttk.Frame(self.root, padding=16)
@@ -604,6 +627,10 @@ class MinRepoApp:
             self.site7_status_var.set("保存済みのログイン情報あり")
             return
 
+        if self.is_busy:
+            self.root.after(30_000, self._prompt_site7_login_on_startup_if_needed)
+            return
+
         self.site7_status_var.set("初回ログインが必要")
         if not messagebox.askyesno(
             "サイトセブン",
@@ -614,6 +641,40 @@ class MinRepoApp:
             return
 
         self.site7_login()
+
+    def _prompt_scheduled_fetch_on_startup_if_needed(self) -> None:
+        prompt_date = self.scheduled_startup_prompt_date
+        if prompt_date is None:
+            return
+
+        if self.is_busy:
+            self.root.after(1_000, self._prompt_scheduled_fetch_on_startup_if_needed)
+            return
+
+        due_date = scheduled_fetch_due_date(
+            self.scheduled_fetch_hour,
+            self.scheduled_last_run_date,
+        )
+        if due_date != prompt_date:
+            self.scheduled_startup_prompt_date = None
+            return
+
+        scheduled_hour = self.scheduled_fetch_hour
+        self.scheduled_startup_prompt_date = None
+        should_start = messagebox.askyesno(
+            "定期実行",
+            f"いまは {scheduled_hour} 時台です。\n"
+            "起動直後のため、自動取得をすぐには始めません。\n"
+            "本日の定期実行をいま開始しますか？",
+        )
+        if not should_start:
+            self.scheduled_last_run_date = prompt_date
+            self.scheduled_pending_date = None
+            self.schedule_status_var.set(f"本日 {scheduled_hour} 時の定期実行は見送りました")
+            return
+
+        self.scheduled_last_run_date = prompt_date
+        self._start_scheduled_fetch()
 
     def site7_login(self) -> None:
         if self.is_busy:
@@ -659,6 +720,7 @@ class MinRepoApp:
         self.scheduled_fetch_hour = scheduled_hour
         self.scheduled_last_run_date = None
         self.scheduled_pending_date = None
+        self.scheduled_startup_prompt_date = None
         try:
             self._save_schedule_hour(scheduled_hour)
         except Exception as exc:  # noqa: BLE001
@@ -669,6 +731,7 @@ class MinRepoApp:
         self.scheduled_fetch_hour = None
         self.scheduled_last_run_date = None
         self.scheduled_pending_date = None
+        self.scheduled_startup_prompt_date = None
         self.schedule_status_var.set("定期実行なし")
 
     def _parse_schedule_hour(self) -> int:
@@ -736,11 +799,12 @@ class MinRepoApp:
         self.root.after(30_000, self._schedule_timer_tick)
 
     def _run_scheduled_fetch_if_due(self) -> None:
-        if self.scheduled_fetch_hour is None:
-            return
-
         now = datetime.now(JST)
-        today_text = now.date().isoformat()
+        due_date = scheduled_fetch_due_date(
+            self.scheduled_fetch_hour,
+            self.scheduled_last_run_date,
+            now,
+        )
         if self.scheduled_pending_date is not None:
             if self.is_busy:
                 self.schedule_status_var.set(f"{self.scheduled_pending_date} の定期実行を待機中")
@@ -750,15 +814,19 @@ class MinRepoApp:
             self._start_scheduled_fetch()
             return
 
-        if now.hour != self.scheduled_fetch_hour or self.scheduled_last_run_date == today_text:
+        if due_date is None:
+            return
+
+        if self.scheduled_startup_prompt_date == due_date:
+            self.schedule_status_var.set(f"本日 {self.scheduled_fetch_hour} 時の定期実行を確認待ち")
             return
 
         if self.is_busy:
-            self.scheduled_pending_date = today_text
+            self.scheduled_pending_date = due_date
             self.schedule_status_var.set(f"本日 {self.scheduled_fetch_hour} 時の定期実行を待機中")
             return
 
-        self.scheduled_last_run_date = today_text
+        self.scheduled_last_run_date = due_date
         self._start_scheduled_fetch()
 
     def _start_scheduled_fetch(self) -> None:

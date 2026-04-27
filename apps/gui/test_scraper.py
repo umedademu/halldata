@@ -35,6 +35,7 @@ from main import (
     normalize_site7_browser_mode,
     parse_recent_days,
     parse_retry_delay_seconds,
+    scheduled_fetch_due_date,
 )
 from machine_difference import calculate_machine_difference_value, canonical_machine_name, machine_requires_slot_resolution
 from machine_difference import machine_slot_resolution_group
@@ -130,6 +131,17 @@ class FakeVariable:
         return self.value
 
 
+class FakeTextVariable:
+    def __init__(self, value: str = "") -> None:
+        self.value = value
+
+    def get(self) -> str:
+        return self.value
+
+    def set(self, value: str) -> None:
+        self.value = value
+
+
 class FakeTreeview:
     def __init__(self, selected_items: tuple[str, ...] = ()) -> None:
         self.selected_items = selected_items
@@ -205,6 +217,13 @@ class MinRepoScraperTests(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "直近日数"):
             parse_recent_days("0")
 
+    def test_scheduled_fetch_due_date_returns_today_only_when_due(self) -> None:
+        now = datetime(2026, 4, 28, 1, 5, tzinfo=timezone.utc)
+
+        self.assertEqual(scheduled_fetch_due_date(10, None, now), "2026-04-28")
+        self.assertIsNone(scheduled_fetch_due_date(9, None, now))
+        self.assertIsNone(scheduled_fetch_due_date(10, "2026-04-28", now))
+
     def test_clamp_site7_recent_days(self) -> None:
         self.assertEqual(clamp_site7_recent_days(3), 3)
         self.assertEqual(clamp_site7_recent_days(90), 8)
@@ -238,6 +257,65 @@ class MinRepoScraperTests(unittest.TestCase):
 
             self.assertEqual(app._load_saved_schedule_hour(), 5)
             self.assertEqual(app._load_saved_site7_browser_mode(), SITE7_BROWSER_MODE_HIDDEN)
+
+    def test_run_scheduled_fetch_if_due_waits_for_startup_confirmation(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.scheduled_fetch_hour = 10
+        app.scheduled_last_run_date = None
+        app.scheduled_pending_date = None
+        app.scheduled_startup_prompt_date = "2026-04-28"
+        app.is_busy = False
+        app.schedule_status_var = FakeTextVariable()
+        start_calls: list[str] = []
+        app._start_scheduled_fetch = lambda: start_calls.append("started")
+
+        with mock.patch("main.datetime") as mock_datetime:
+            mock_datetime.now.return_value = datetime(2026, 4, 28, 1, 5, tzinfo=timezone.utc)
+            app._run_scheduled_fetch_if_due()
+
+        self.assertEqual(start_calls, [])
+        self.assertEqual(app.schedule_status_var.get(), "本日 10 時の定期実行を確認待ち")
+
+    def test_prompt_scheduled_fetch_on_startup_can_skip_today(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.scheduled_fetch_hour = 10
+        app.scheduled_last_run_date = None
+        app.scheduled_pending_date = None
+        app.scheduled_startup_prompt_date = "2026-04-28"
+        app.is_busy = False
+        app.schedule_status_var = FakeTextVariable()
+        app._start_scheduled_fetch = mock.Mock()
+
+        with (
+            mock.patch("main.scheduled_fetch_due_date", return_value="2026-04-28"),
+            mock.patch("main.messagebox.askyesno", return_value=False),
+        ):
+            app._prompt_scheduled_fetch_on_startup_if_needed()
+
+        self.assertEqual(app.scheduled_last_run_date, "2026-04-28")
+        self.assertIsNone(app.scheduled_startup_prompt_date)
+        self.assertEqual(app.schedule_status_var.get(), "本日 10 時の定期実行は見送りました")
+        app._start_scheduled_fetch.assert_not_called()
+
+    def test_prompt_scheduled_fetch_on_startup_can_start_now(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.scheduled_fetch_hour = 10
+        app.scheduled_last_run_date = None
+        app.scheduled_pending_date = None
+        app.scheduled_startup_prompt_date = "2026-04-28"
+        app.is_busy = False
+        app.schedule_status_var = FakeTextVariable()
+        app._start_scheduled_fetch = mock.Mock()
+
+        with (
+            mock.patch("main.scheduled_fetch_due_date", return_value="2026-04-28"),
+            mock.patch("main.messagebox.askyesno", return_value=True),
+        ):
+            app._prompt_scheduled_fetch_on_startup_if_needed()
+
+        self.assertEqual(app.scheduled_last_run_date, "2026-04-28")
+        self.assertIsNone(app.scheduled_startup_prompt_date)
+        app._start_scheduled_fetch.assert_called_once_with()
 
     def test_update_button_states_enables_site7_cancel_button_while_site7_fetching(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
