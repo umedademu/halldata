@@ -292,16 +292,57 @@ class Site7Scraper:
         self._visible_browser_playwright: object | None = None
         self._visible_browser_context: object | None = None
 
+    def _take_visible_browser(self) -> tuple[object | None, object | None]:
+        retained_playwright = self._visible_browser_playwright
+        retained_context = self._visible_browser_context
+        self._visible_browser_playwright = None
+        self._visible_browser_context = None
+        return retained_playwright, retained_context
+
     def has_saved_login_state(self) -> bool:
         return self.browser_state_dir.exists() and any(self.browser_state_dir.iterdir())
 
     def close_visible_browser(self) -> None:
-        retained_context = self._visible_browser_context
-        retained_playwright = self._visible_browser_playwright
-        self._visible_browser_context = None
-        self._visible_browser_playwright = None
+        retained_playwright, retained_context = self._take_visible_browser()
         self._close_browser_context(retained_context)
         self._stop_playwright(retained_playwright)
+
+    def _can_reuse_browser_context(self, context: object | None) -> bool:
+        if context is None:
+            return False
+        try:
+            list(context.pages)
+        except Exception:  # noqa: BLE001
+            return False
+        return True
+
+    def _launch_browser_context(self, browser_visible: bool) -> tuple[object, object]:
+        playwright = sync_playwright().start()
+        context = playwright.chromium.launch_persistent_context(
+            str(self.browser_state_dir),
+            headless=not browser_visible,
+            locale="ja-JP",
+            viewport={"width": 1440, "height": 960},
+        )
+        return playwright, context
+
+    def _open_fetch_browser_context(self, browser_visible: bool) -> tuple[object, object]:
+        if browser_visible:
+            retained_playwright, retained_context = self._take_visible_browser()
+            if retained_playwright is not None and self._can_reuse_browser_context(retained_context):
+                return retained_playwright, retained_context
+            self._close_browser_context(retained_context)
+            self._stop_playwright(retained_playwright)
+        else:
+            self.close_visible_browser()
+        return self._launch_browser_context(browser_visible)
+
+    def _prepare_fetch_page(self, context: object, browser_visible: bool) -> object:
+        pages = list(context.pages)
+        page = pages[-1] if pages else context.new_page()
+        if browser_visible:
+            page.bring_to_front()
+        return page
 
     def login_interactively(self, timeout_seconds: int = 300) -> None:
         self._require_playwright()
@@ -382,7 +423,6 @@ class Site7Scraper:
             f"{resolved_target_store.display_name} の店舗ページへ移動しています",
         )
         self._require_playwright()
-        self.close_visible_browser()
         _raise_if_site7_cancel_requested(cancel_requested)
 
         playwright = None
@@ -390,16 +430,8 @@ class Site7Scraper:
         keep_browser_open = False
         machine_results: list[MachineHistoryResult] = []
         try:
-            playwright = sync_playwright().start()
-            context = playwright.chromium.launch_persistent_context(
-                str(self.browser_state_dir),
-                headless=not browser_visible,
-                locale="ja-JP",
-                viewport={"width": 1440, "height": 960},
-            )
-            page = context.new_page()
-            if browser_visible:
-                page.bring_to_front()
+            playwright, context = self._open_fetch_browser_context(browser_visible)
+            page = self._prepare_fetch_page(context, browser_visible)
             hall_page_url, hall_html = self._open_target_hall_page(
                 page,
                 resolved_target_store,

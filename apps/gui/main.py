@@ -1369,7 +1369,7 @@ class MinRepoApp:
                         FetchProgress(
                             current_step=1,
                             total_steps=1,
-                            message=f"{store_index}/{total_stores} {target_store.display_name} は取得失敗",
+                            message=f"{store_index}/{total_stores} {registered_store.name} は取得失敗",
                         ),
                     )
                 )

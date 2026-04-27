@@ -36,13 +36,14 @@ from main import (
 )
 from machine_difference import calculate_machine_difference_value, canonical_machine_name, machine_requires_slot_resolution
 from machine_difference import machine_slot_resolution_group
-from minrepo_scraper import FetchProgress, MinRepoScraper, normalize_text, parse_date_range_input
+from minrepo_scraper import FetchProgress, MachineHistoryResult, MinRepoScraper, ScraperError, normalize_text, parse_date_range_input
 from site7_scraper import (
     DEFAULT_SITE7_PREFECTURE_NAME,
-    SITE7_TARGET_MACHINE_KEYWORDS,
     SITE7_TARGET_MACHINE_NAME,
+    SITE7_TARGET_MACHINE_KEYWORDS,
     SITE7_TARGET_STORE_DISPLAY_NAMES,
     SITE7_TARGET_STORES,
+    Site7MachineEntry,
     Site7FetchCancelled,
     Site7Scraper,
     Site7TargetStore,
@@ -141,6 +142,33 @@ class FakeWaitingPage:
 
     def wait_for_timeout(self, milliseconds: int) -> None:
         self.wait_calls.append(milliseconds)
+
+
+class FakeRetainedPage:
+    def __init__(self) -> None:
+        self.bring_to_front_count = 0
+        self.wait_selector_calls: list[tuple[str, int]] = []
+        self.url = "https://example.com/machine"
+
+    def bring_to_front(self) -> None:
+        self.bring_to_front_count += 1
+
+    def wait_for_selector(self, selector: str, timeout: int = 0) -> None:
+        self.wait_selector_calls.append((selector, timeout))
+
+    def content(self) -> str:
+        return "<html></html>"
+
+
+class FakeRetainedContext(FakeClosableContext):
+    def __init__(self, page: FakeRetainedPage | None = None) -> None:
+        super().__init__()
+        self.pages = [page or FakeRetainedPage()]
+
+    def new_page(self) -> FakeRetainedPage:
+        page = FakeRetainedPage()
+        self.pages.append(page)
+        return page
 
 
 class MinRepoScraperTests(unittest.TestCase):
@@ -622,6 +650,45 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertIs(scraper._visible_browser_context, second_context)
         self.assertIs(scraper._visible_browser_playwright, second_playwright)
 
+    def test_site7_fetch_reuses_visible_browser_when_available(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        page = FakeRetainedPage()
+        context = FakeRetainedContext(page)
+        playwright = FakePlayableBrowser()
+        expected_result = MachineHistoryResult(
+            store_name="Aパーク春日店",
+            store_url="https://example.com/hall",
+            start_date="2026-04-25",
+            end_date="2026-04-25",
+            date_pages=[],
+            datasets=[],
+        )
+        scraper._visible_browser_context = context
+        scraper._visible_browser_playwright = playwright
+        scraper._require_playwright = mock.Mock()
+        scraper._open_target_hall_page = mock.Mock(return_value=("https://example.com/hall", "<html></html>"))
+        scraper.extract_store_name = mock.Mock(return_value="Aパーク春日店")
+        scraper.extract_target_machine_entries = mock.Mock(
+            return_value=[Site7MachineEntry(display_name=SITE7_TARGET_MACHINE_NAME, machine_name=SITE7_TARGET_MACHINE_NAME)]
+        )
+        scraper._wait_between_transitions = mock.Mock()
+        scraper._accept_cookie_banner_if_present = mock.Mock()
+        scraper._open_target_machine_page = mock.Mock()
+        scraper.parse_machine_history_html = mock.Mock(return_value=expected_result)
+        scraper._merge_machine_history_results = mock.Mock(return_value=expected_result)
+
+        with mock.patch("site7_scraper.sync_playwright") as sync_playwright_mock:
+            result = scraper.fetch_target_machine_history(recent_days=1, browser_visible=True)
+
+        self.assertIs(result, expected_result)
+        sync_playwright_mock.assert_not_called()
+        self.assertEqual(page.bring_to_front_count, 1)
+        self.assertEqual(page.wait_selector_calls, [("#ata0", 60_000)])
+        self.assertIs(scraper._visible_browser_context, context)
+        self.assertIs(scraper._visible_browser_playwright, playwright)
+        self.assertEqual(context.close_count, 0)
+        self.assertEqual(playwright.stop_count, 0)
+
     def test_site7_detects_logged_in_page_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = find_gui_fixture("site7_logged_in.html")
@@ -784,6 +851,25 @@ class MinRepoScraperTests(unittest.TestCase):
                 scraper._wait_between_transitions(page, cancel_requested=cancel_requested)
 
         self.assertEqual(page.wait_calls, [100, 100])
+
+    def test_run_site7_fetch_many_reports_registered_store_name_when_store_fetch_fails(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.result_queue = queue.Queue()
+        app._fetch_single_site7_store = mock.Mock(side_effect=ScraperError("前回のブラウザを閉じられません"))
+        target_store = RegisteredStore(name="Aパーク春日店", url="https://example.com/store")
+
+        with self.assertRaisesRegex(ScraperError, "Aパーク春日店: 前回のブラウザを閉じられません"):
+            app._run_site7_fetch_many(
+                target_stores=[target_store],
+                recent_days=1,
+                retry_delay_seconds=0,
+                browser_visible=True,
+            )
+
+        kind, progress = app.result_queue.get_nowait()
+        self.assertEqual(kind, "fetch_progress")
+        self.assertEqual(progress.message, "1/1 Aパーク春日店 は取得失敗")
 
     def test_site7_parse_machine_history_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
