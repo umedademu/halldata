@@ -157,7 +157,7 @@ export function HuntBacktestGraph({ points }) {
 
             return (
               <g key={point.date}>
-                <circle cx={point.x} cy={point.y} r="4.5" className="backtestGraphPoint">
+                <circle cx={point.x} cy={point.y} r="3" className="backtestGraphPoint">
                   <title>
                     {`${point.date} 当日差枚 ${formatPlainSignedNumber(point.differenceTotal)} 累積差枚 ${formatPlainSignedNumber(point.cumulativeDifferenceTotal)} 条件一致 ${point.matchedRowCount}台 実績 ${point.actualRowCount}台`}
                   </title>

@@ -786,7 +786,7 @@ a {
 .backtestGraphPoint {
   fill: #fff4cf;
   stroke: var(--accent-strong);
-  stroke-width: 2;
+  stroke-width: 1.4;
 }
 
 .backtestGraphTick {
