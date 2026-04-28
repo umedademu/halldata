@@ -374,6 +374,7 @@ class HistoryPersistenceService:
     def save_history_result(self, history_result: MachineHistoryResult, full_day: bool = False) -> PersistenceSummary:
         snapshot = self._build_local_snapshot(history_result)
         summary = PersistenceSummary(local_record_count=len(snapshot["records"]))
+        local_path: Path | None = None
 
         try:
             self._apply_slot_resolution_history(snapshot)
@@ -383,8 +384,6 @@ class HistoryPersistenceService:
         try:
             local_path = self._save_local_snapshot(snapshot)
             summary.local_file_path = str(local_path)
-            if full_day:
-                self._mark_full_day_saved(snapshot, local_path)
         except Exception as exc:  # noqa: BLE001
             summary.messages.append(f"ローカル保存に失敗しました。\n{exc}")
 
@@ -394,6 +393,12 @@ class HistoryPersistenceService:
             summary.supabase_record_count = supabase_count
         except Exception as exc:  # noqa: BLE001
             summary.messages.append(f"Supabase 保存に失敗しました。\n{exc}")
+
+        if full_day and local_path is not None and summary.supabase_saved:
+            try:
+                self._mark_full_day_saved(snapshot, local_path)
+            except Exception as exc:  # noqa: BLE001
+                summary.messages.append(f"取得済み索引の更新に失敗しました。\n{exc}")
 
         return summary
 
@@ -405,17 +410,35 @@ class HistoryPersistenceService:
         end_date: str,
     ) -> SavedFullDayDatesSummary:
         summary = SavedFullDayDatesSummary()
+        saved_date_entries: dict[str, dict[str, Any]] = {}
         try:
-            summary.saved_dates.update(
-                self._find_saved_full_day_dates_local(
-                    store_name=store_name,
+            saved_date_entries = self._find_saved_full_day_date_entries_local(
+                store_name=store_name,
+                store_url=store_url,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            summary.saved_dates.update(saved_date_entries)
+        except Exception as exc:  # noqa: BLE001
+            summary.messages.append(f"ローカルの全機種取得済み確認に失敗しました。\n{exc}")
+            return summary
+
+        if not summary.saved_dates or not self._supabase_is_configured():
+            return summary
+
+        try:
+            summary.saved_dates.intersection_update(
+                self._find_saved_full_day_dates_from_supabase(
                     store_url=store_url,
                     start_date=start_date,
                     end_date=end_date,
+                    saved_date_entries=saved_date_entries,
                 )
             )
         except Exception as exc:  # noqa: BLE001
-            summary.messages.append(f"ローカルの全機種取得済み確認に失敗しました。\n{exc}")
+            summary.messages.append(f"Supabase の全機種取得済み確認に失敗しました。\n{exc}")
+            summary.saved_dates.clear()
+
         return summary
 
     def find_saved_machine_targets(
@@ -745,26 +768,150 @@ class HistoryPersistenceService:
         start_date: str,
         end_date: str,
     ) -> set[str]:
+        return set(
+            self._find_saved_full_day_date_entries_local(
+                store_name=store_name,
+                store_url=store_url,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        )
+
+    def _find_saved_full_day_date_entries_local(
+        self,
+        store_name: str,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+    ) -> dict[str, dict[str, Any]]:
         index_path = self._full_day_index_path(store_name)
         if not index_path.exists():
-            return set()
+            return {}
 
         payload = self._load_full_day_index(index_path)
         store_payload = payload.get("store", {})
         if isinstance(store_payload, dict):
             saved_store_url = normalize_store_url(str(store_payload.get("store_url", "")).strip())
             if saved_store_url and saved_store_url != normalize_store_url(store_url):
-                return set()
+                return {}
 
         full_day_dates = payload.get("full_day_dates", {})
         if not isinstance(full_day_dates, dict):
+            return {}
+
+        saved_date_entries: dict[str, dict[str, Any]] = {}
+        for target_date, entry in full_day_dates.items():
+            target_date_text = str(target_date).strip()
+            if not target_date_text or target_date_text < start_date or target_date_text > end_date:
+                continue
+            if isinstance(entry, dict):
+                saved_date_entries[target_date_text] = entry
+            else:
+                saved_date_entries[target_date_text] = {}
+
+        return saved_date_entries
+
+    def _find_saved_full_day_dates_from_supabase(
+        self,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+        saved_date_entries: dict[str, dict[str, Any]],
+    ) -> set[str]:
+        if not saved_date_entries:
             return set()
 
-        return {
-            target_date
-            for target_date in full_day_dates
-            if start_date <= target_date <= end_date
-        }
+        supabase_url, _, schema, stores_table, _ = self._supabase_config()
+        session = self._create_supabase_session(schema)
+        store_id = self._find_store_id(session, supabase_url, stores_table, normalize_store_url(store_url))
+        if not store_id:
+            return set()
+
+        saved_detail_counts = self._fetch_saved_full_day_detail_counts_by_date(
+            session=session,
+            supabase_url=supabase_url,
+            machine_daily_details_table=self._machine_daily_details_table(),
+            store_id=store_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        verified_dates: set[str] = set()
+        for target_date, saved_entry in saved_date_entries.items():
+            saved_machine_count = self._coerce_saved_full_day_machine_count(saved_entry.get("machine_count"))
+            actual_detail_count = saved_detail_counts.get(target_date, 0)
+            if saved_machine_count is None:
+                if actual_detail_count > 0:
+                    verified_dates.add(target_date)
+                continue
+            if actual_detail_count == saved_machine_count:
+                verified_dates.add(target_date)
+
+        return verified_dates
+
+    def _fetch_saved_full_day_detail_counts_by_date(
+        self,
+        session: requests.Session,
+        supabase_url: str,
+        machine_daily_details_table: str,
+        store_id: str,
+        start_date: str,
+        end_date: str,
+    ) -> dict[str, int]:
+        detail_counts: dict[str, int] = {}
+        offset = 0
+        page_size = 1000
+        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(machine_daily_details_table, safe='')}"
+
+        while True:
+            try:
+                response = session.get(
+                    endpoint,
+                    params={
+                        "select": "target_date,machine_name",
+                        "store_id": f"eq.{store_id}",
+                        "target_date": [f"gte.{start_date}", f"lte.{end_date}"],
+                        "order": "target_date.asc,machine_name.asc",
+                        "limit": str(page_size),
+                        "offset": str(offset),
+                    },
+                    timeout=30,
+                )
+                response.raise_for_status()
+            except requests.HTTPError as exc:
+                if exc.response is not None and exc.response.status_code in {400, 404}:
+                    raise RuntimeError(
+                        "台データページ用の詳細テーブルがありません。"
+                        " 追加用SQLを適用してから再度保存してください。"
+                    ) from exc
+                raise
+
+            rows = response.json()
+            if not rows:
+                break
+
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                target_date = str(row.get("target_date", "")).strip()
+                machine_name = str(row.get("machine_name", "")).strip()
+                if not target_date or not machine_name:
+                    continue
+                detail_counts[target_date] = detail_counts.get(target_date, 0) + 1
+
+            if len(rows) < page_size:
+                break
+            offset += page_size
+
+        return detail_counts
+
+    def _coerce_saved_full_day_machine_count(self, value: Any) -> int | None:
+        try:
+            machine_count = int(value)
+        except (TypeError, ValueError):
+            return None
+        if machine_count < 0:
+            return None
+        return machine_count
 
     def _full_day_index_path(self, store_name: str) -> Path:
         return self._local_save_dir() / _sanitize_file_name(store_name) / "_full_day_index.json"
@@ -1813,6 +1960,15 @@ class HistoryPersistenceService:
         stores_table = settings.get("SUPABASE_STORES_TABLE", DEFAULT_STORES_TABLE).strip() or DEFAULT_STORES_TABLE
         results_table = settings.get("SUPABASE_MACHINE_RESULTS_TABLE", DEFAULT_RESULTS_TABLE).strip() or DEFAULT_RESULTS_TABLE
         return supabase_url, supabase_key, schema, stores_table, results_table
+
+    def _supabase_is_configured(self) -> bool:
+        settings = self._load_settings()
+        supabase_url = settings.get("SUPABASE_URL", "").strip()
+        supabase_key = (
+            settings.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+            or settings.get("SUPABASE_SECRET_KEY", "").strip()
+        )
+        return bool(supabase_url and supabase_key)
 
     def _machine_summaries_table(self) -> str:
         settings = self._load_settings()

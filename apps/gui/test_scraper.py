@@ -1558,6 +1558,103 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertFalse(summary.has_errors)
             self.assertEqual(saved_dates_summary.saved_dates, {"2026-04-07"})
 
+    def test_save_history_result_does_not_mark_full_day_index_when_supabase_save_fails(self) -> None:
+        scraper = FixtureScraper()
+        context = scraper.prepare_machine_history_context(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-07 ～ 2026-04-08",
+        )
+        history_result = scraper.fetch_all_machine_history_for_date_page(
+            context=context,
+            date_page=context.date_pages[0],
+        )
+
+        def fail_to_save(snapshot: dict[str, object]) -> int:
+            raise RuntimeError("保存失敗")
+
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            service._save_to_supabase = fail_to_save  # type: ignore[method-assign]
+
+            summary = service.save_history_result(history_result, full_day=True)
+            saved_dates_summary = service.find_saved_full_day_dates(
+                store_name="MJアリーナ箱崎店",
+                store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+                start_date="2026-04-07",
+                end_date="2026-04-08",
+            )
+
+            self.assertTrue(summary.has_errors)
+            self.assertEqual(saved_dates_summary.saved_dates, set())
+
+    def test_find_saved_full_day_dates_skips_local_index_when_daily_details_are_incomplete(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            index_path = service._full_day_index_path("テスト店")
+            index_path.parent.mkdir(parents=True, exist_ok=True)
+            index_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "store": {
+                            "store_name": "テスト店",
+                            "store_url": "https://example.com/store/",
+                        },
+                        "full_day_dates": {
+                            "2026-04-26": {
+                                "saved_at": "2026-04-26T12:00:00+09:00",
+                                "machine_count": 2,
+                                "record_count": 20,
+                                "local_file_path": "dummy-1.json",
+                            },
+                            "2026-04-27": {
+                                "saved_at": "2026-04-27T12:00:00+09:00",
+                                "machine_count": 2,
+                                "record_count": 20,
+                                "local_file_path": "dummy-2.json",
+                            },
+                        },
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+
+            class FakeSession:
+                def get(self, endpoint: str, params: dict[str, object], timeout: int = 30) -> FakeJsonResponse:
+                    if params.get("offset") != "0":
+                        return FakeJsonResponse([])
+                    return FakeJsonResponse(
+                        [
+                            {"target_date": "2026-04-26", "machine_name": "機種A"},
+                            {"target_date": "2026-04-26", "machine_name": "機種B"},
+                            {"target_date": "2026-04-27", "machine_name": "機種A"},
+                        ]
+                    )
+
+            service._supabase_is_configured = lambda: True  # type: ignore[method-assign]
+            service._supabase_config = lambda: (  # type: ignore[method-assign]
+                "https://example.supabase.co",
+                "service-key",
+                "public",
+                "stores",
+                "machine_daily_results",
+            )
+            service._machine_daily_details_table = lambda: "store_machine_daily_details"  # type: ignore[method-assign]
+            service._create_supabase_session = lambda schema: FakeSession()  # type: ignore[method-assign]
+            service._find_store_id = lambda session, supabase_url, stores_table, store_url: "store-1"  # type: ignore[method-assign]
+
+            saved_dates_summary = service.find_saved_full_day_dates(
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                start_date="2026-04-26",
+                end_date="2026-04-27",
+            )
+
+            self.assertFalse(saved_dates_summary.has_errors)
+            self.assertEqual(saved_dates_summary.saved_dates, {"2026-04-26"})
+
     def test_apply_slot_resolution_history_updates_past_snapshot_and_local_file(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
