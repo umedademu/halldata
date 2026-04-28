@@ -483,9 +483,6 @@ function SettingEstimateControls({ options, onChange }) {
       <div className="estimateControlHeader">
         <div>
           <p className="filterControlLabel">設定推測の比重</p>
-          <p className="estimateHelpText">
-            有効な項目だけを使い、合計が100%でない場合は比率として補正します。
-          </p>
         </div>
         <p
           className={`estimateWeightTotal ${
@@ -666,7 +663,7 @@ export function MachineComparison({
   const [estimateOptions, setEstimateOptions] = useState(() =>
     createDefaultEstimateOptions(slotNumbers.length, machineName),
   );
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const settingEstimateDefinition = useMemo(
     () => getSettingEstimateDefinition(machineName),
     [machineName],
@@ -869,20 +866,12 @@ export function MachineComparison({
     }));
   }, []);
 
-  const displayCountText = isPending
-    ? "切り替え中"
-    : `表示 ${visibleRows.length} / ${dateRows.length}`;
-
   return (
     <>
       <section className="filterPanel">
         <div>
           <p className="sectionLabel">特定日を選ぶ</p>
-          <p className="filterLead">
-            イベント日を絞り込むか、全日を表示したまま該当日だけを強調できます。
-          </p>
         </div>
-        <div className="filterPanelStatus">{displayCountText}</div>
         <div className="filterControlGroup">
           <p className="filterControlLabel">表示方法</p>
           <div className="dayFilterRow">

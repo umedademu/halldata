@@ -197,6 +197,18 @@ a {
   gap: 12px;
 }
 
+.simpleHeroLinks {
+  gap: 18px;
+}
+
+.machineStoreName {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
 .inlineAction {
   width: fit-content;
   padding: 10px 14px;
@@ -778,6 +790,21 @@ a {
 .tablePanelTitle {
   margin: 0;
   font-size: 1.3rem;
+}
+
+.specDetailsPanel {
+  display: block;
+}
+
+.specDetailsSummary {
+  cursor: pointer;
+  color: var(--accent-strong);
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.specDetailsPanel[open] .specDetailsSummary {
+  margin-bottom: 14px;
 }
 
 .csvExportBtn {
