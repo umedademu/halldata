@@ -153,6 +153,11 @@ export function listEquivalentMachineNames(machineName) {
 }
 
 export function calculateMachineDifferenceValue(machineName, row) {
+  const metrics = calculateMachineDifferenceMetrics(machineName, row);
+  return metrics?.differenceValue ?? null;
+}
+
+export function calculateMachineDifferenceMetrics(machineName, row) {
   const rule = findMachineDifferenceRule(machineName);
   if (!rule) {
     return null;
@@ -187,7 +192,12 @@ export function calculateMachineDifferenceValue(machineName, row) {
     totalBonusPayout += hitCount * payoutCoins;
   }
 
-  return roundDifferenceValue(totalBonusPayout - (gamesCount * investmentCoins) / gamesPerInvestment);
+  const investedCoins = (gamesCount * investmentCoins) / gamesPerInvestment;
+
+  return {
+    differenceValue: roundDifferenceValue(totalBonusPayout - investedCoins),
+    investedCoins,
+  };
 }
 
 export function withCalculatedDifferenceValue(row) {

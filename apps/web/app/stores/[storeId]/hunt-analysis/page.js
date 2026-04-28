@@ -28,6 +28,7 @@ const BACKTEST_SEARCH_KEYS = [
   "startDate",
   "endDate",
   "machine",
+  "differenceMode",
   "rankMin",
   "rankMax",
   "rankScope",
@@ -115,6 +116,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     startDate: readSingleSearchParam(resolvedSearchParams?.startDate),
     endDate: readSingleSearchParam(resolvedSearchParams?.endDate),
     machineNames: readMultiSearchParam(resolvedSearchParams?.machine),
+    differenceMode: readSingleSearchParam(resolvedSearchParams?.differenceMode),
     rankMin: readSingleSearchParam(resolvedSearchParams?.rankMin),
     rankMax: readSingleSearchParam(resolvedSearchParams?.rankMax),
     rankScope: readSingleSearchParam(resolvedSearchParams?.rankScope),
@@ -364,6 +366,38 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               </div>
 
               <div className="backtestBlock">
+                <p className="filterControlLabel">差枚と機械割の基準</p>
+                <div className="metricToggleRow">
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.differenceMode === "bonus" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="differenceMode"
+                      value="bonus"
+                      defaultChecked={detail.backtest.differenceMode === "bonus"}
+                    />
+                    <span>ボーナス数基準</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.differenceMode === "minrepo" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="differenceMode"
+                      value="minrepo"
+                      defaultChecked={detail.backtest.differenceMode === "minrepo"}
+                    />
+                    <span>みんレポ基準</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="backtestBlock">
                 <p className="filterControlLabel">順位の見方</p>
                 <div className="metricToggleRow">
                   <label
@@ -519,6 +553,9 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                       <th>実績集計台数</th>
                       <th>合計差枚</th>
                       <th>合計G数</th>
+                      <th>BB</th>
+                      <th>RB</th>
+                      <th>合成</th>
                       <th>機械割</th>
                       <th>平均設定</th>
                     </tr>
@@ -531,6 +568,9 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                       <td>{formatNumber(detail.backtest.total.actualRowCount)}</td>
                       <td>{formatSignedNumber(detail.backtest.total.differenceTotal)}</td>
                       <td>{formatNumber(detail.backtest.total.gamesTotal)}</td>
+                      <td>{formatNumber(detail.backtest.total.bbTotal)}</td>
+                      <td>{formatNumber(detail.backtest.total.rbTotal)}</td>
+                      <td>{detail.backtest.total.combinedProbability ?? "-"}</td>
                       <td>{formatPercent(detail.backtest.total.payoutRate)}</td>
                       <td>{formatSettingEstimateScore(detail.backtest.total.averageSetting)}</td>
                     </tr>
@@ -545,6 +585,9 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                         <td>{formatNumber(summary.actualRowCount)}</td>
                         <td>{formatSignedNumber(summary.differenceTotal)}</td>
                         <td>{formatNumber(summary.gamesTotal)}</td>
+                        <td>{formatNumber(summary.bbTotal)}</td>
+                        <td>{formatNumber(summary.rbTotal)}</td>
+                        <td>{summary.combinedProbability ?? "-"}</td>
                         <td>{formatPercent(summary.payoutRate)}</td>
                         <td>{formatSettingEstimateScore(summary.averageSetting)}</td>
                       </tr>

@@ -8,9 +8,10 @@ import {
   normalizeRankScope,
   readFiniteNumber,
 } from "./hunt-bookmark";
-import { canonicalMachineName } from "./machine-difference";
+import { calculateMachineDifferenceMetrics, canonicalMachineName } from "./machine-difference";
 
 const DEFAULT_RECENT_DAYS = 90;
+const DEFAULT_DIFFERENCE_MODE = "bonus";
 
 function readNumber(value) {
   if (value === null || value === undefined || value === "") {
@@ -85,6 +86,10 @@ function normalizeShowGraph(value) {
   return value === "off" ? "off" : "on";
 }
 
+function normalizeDifferenceMode(value) {
+  return value === "minrepo" ? "minrepo" : DEFAULT_DIFFERENCE_MODE;
+}
+
 function buildPeriodState(options, latestDate) {
   const periodMode = options?.periodMode === "range" ? "range" : "recent";
   const recentDays = readPositiveInteger(options?.recentDays) ?? DEFAULT_RECENT_DAYS;
@@ -149,13 +154,53 @@ function calculateAverage(total, count) {
   return total / count;
 }
 
-function calculatePayoutRate(gamesTotal, differenceTotal) {
-  if (!Number.isFinite(gamesTotal) || gamesTotal <= 0) {
+function calculatePayoutRate(investedCoinsTotal, differenceTotal) {
+  if (!Number.isFinite(investedCoinsTotal) || investedCoinsTotal <= 0) {
     return null;
   }
 
-  const investedCoins = gamesTotal * 3;
-  return ((investedCoins + differenceTotal) / investedCoins) * 100;
+  return ((investedCoinsTotal + differenceTotal) / investedCoinsTotal) * 100;
+}
+
+function formatProbability(gamesTotal, hitCount) {
+  if (!Number.isFinite(gamesTotal) || gamesTotal <= 0 || !Number.isFinite(hitCount) || hitCount <= 0) {
+    return null;
+  }
+
+  const probability = gamesTotal / hitCount;
+  const roundedProbability = Math.round(probability * 10) / 10;
+  const probabilityText = Number.isInteger(roundedProbability)
+    ? String(roundedProbability)
+    : roundedProbability.toFixed(1);
+
+  return `1/${probabilityText}`;
+}
+
+function resolveActualMetrics(machineName, nextRecord, differenceMode) {
+  const gamesCount = readFiniteNumber(nextRecord?.games_count);
+  const bbCount = readFiniteNumber(nextRecord?.bb_count);
+  const rbCount = readFiniteNumber(nextRecord?.rb_count);
+
+  if (differenceMode === "bonus") {
+    const differenceMetrics = calculateMachineDifferenceMetrics(machineName, nextRecord);
+    if (differenceMetrics) {
+      return {
+        differenceValue: readFiniteNumber(differenceMetrics.differenceValue),
+        investedCoins: readFiniteNumber(differenceMetrics.investedCoins),
+        gamesCount,
+        bbCount,
+        rbCount,
+      };
+    }
+  }
+
+  return {
+    differenceValue: readFiniteNumber(nextRecord?.difference_value),
+    investedCoins: gamesCount > 0 ? gamesCount * 3 : 0,
+    gamesCount,
+    bbCount,
+    rbCount,
+  };
 }
 
 function buildEmptySummary(machineName = "総計") {
@@ -167,9 +212,13 @@ function buildEmptySummary(machineName = "総計") {
     actualRowCount: 0,
     differenceTotal: 0,
     gamesTotal: 0,
+    bbTotal: 0,
+    rbTotal: 0,
     payoutRate: null,
+    combinedProbability: null,
     averageSetting: null,
     settingSampleCount: 0,
+    investedCoinsTotal: 0,
   };
 }
 
@@ -187,7 +236,8 @@ function finalizeSummary(summary) {
   return {
     ...summary,
     averageHuntScore: calculateAverage(summary.huntScoreTotal, summary.matchedRowCount),
-    payoutRate: calculatePayoutRate(summary.gamesTotal, summary.differenceTotal),
+    payoutRate: calculatePayoutRate(summary.investedCoinsTotal, summary.differenceTotal),
+    combinedProbability: formatProbability(summary.gamesTotal, summary.bbTotal + summary.rbTotal),
   };
 }
 
@@ -203,6 +253,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const matchMode = normalizeMatchMode(options.matchMode);
   const rankScope = normalizeRankScope(options.rankScope);
   const showGraph = normalizeShowGraph(options.showGraph);
+  const differenceMode = normalizeDifferenceMode(options.differenceMode);
   const periodState = buildPeriodState(options, latestDate);
   const snapshotsInPeriod = (Array.isArray(snapshots) ? snapshots : []).filter((snapshot) =>
     isSnapshotInPeriod(snapshot, periodState.startDate, periodState.endDate),
@@ -258,22 +309,27 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
         continue;
       }
 
-      const differenceValue = readFiniteNumber(row.nextRecord?.difference_value);
-      const gamesCount = readFiniteNumber(row.nextRecord?.games_count);
+      const actualMetrics = resolveActualMetrics(row.machineName, row.nextRecord, differenceMode);
       const settingAverage = readNumber(row.nextSettingEstimate?.average);
 
       actualRowCount += 1;
       summary.actualRowCount += 1;
-      summary.differenceTotal += differenceValue;
-      summary.gamesTotal += gamesCount;
+      summary.differenceTotal += actualMetrics.differenceValue;
+      summary.gamesTotal += actualMetrics.gamesCount;
+      summary.bbTotal += actualMetrics.bbCount;
+      summary.rbTotal += actualMetrics.rbCount;
+      summary.investedCoinsTotal += actualMetrics.investedCoins;
       totalSummary.actualRowCount += 1;
-      totalSummary.differenceTotal += differenceValue;
-      totalSummary.gamesTotal += gamesCount;
+      totalSummary.differenceTotal += actualMetrics.differenceValue;
+      totalSummary.gamesTotal += actualMetrics.gamesCount;
+      totalSummary.bbTotal += actualMetrics.bbCount;
+      totalSummary.rbTotal += actualMetrics.rbCount;
+      totalSummary.investedCoinsTotal += actualMetrics.investedCoins;
 
       if (actualDate && dailySummariesByDate.has(actualDate)) {
         const dailySummary = dailySummariesByDate.get(actualDate);
         dailySummary.actualRowCount += 1;
-        dailySummary.differenceTotal += differenceValue;
+        dailySummary.differenceTotal += actualMetrics.differenceValue;
       }
 
       if (settingAverage !== null) {
@@ -329,6 +385,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     matchMode,
     rankScope,
     showGraph,
+    differenceMode,
     targetDateCount: snapshotsInPeriod.length,
     matchedDateCount: matchedDates.size,
     matchedRowCount,
