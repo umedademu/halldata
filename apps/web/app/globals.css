@@ -953,6 +953,17 @@ a {
   font-weight: 800;
 }
 
+.directoryTable tbody tr.settingEstimateLevel0 td,
+.directoryTable tbody tr.settingEstimateLevel0 th,
+.directoryTable tbody tr.settingEstimateLevel0:nth-child(odd) td,
+.directoryTable tbody tr.settingEstimateLevel0:nth-child(odd) th,
+.directoryTable tbody tr.settingEstimateLevel0:hover td,
+.directoryTable tbody tr.settingEstimateLevel0:hover th {
+  background: #cfe8ff;
+  color: var(--text);
+  font-weight: 800;
+}
+
 .directoryTable tbody tr.settingEstimateLevel1 td,
 .directoryTable tbody tr.settingEstimateLevel1 th,
 .directoryTable tbody tr.settingEstimateLevel1:nth-child(odd) td,
@@ -1174,6 +1185,15 @@ a {
 .valueNegative {
   color: var(--negative);
   font-weight: 800;
+}
+
+.matrixTable tbody tr td.settingEstimateLevel0,
+.matrixTable tbody tr.matrixRowHighlighted td.settingEstimateLevel0,
+.matrixTable tbody tr.matrixRowHighlighted:nth-child(odd) td.settingEstimateLevel0 {
+  background: #cfe8ff;
+  color: var(--text);
+  font-weight: 800;
+  box-shadow: none;
 }
 
 .matrixTable tbody tr td.settingEstimateLevel1,

@@ -412,6 +412,9 @@ export function getSettingEstimateHighlightClass(value) {
   if (average >= 4) {
     return "settingEstimateLevel1";
   }
+  if (average >= 3.5) {
+    return "settingEstimateLevel0";
+  }
   return "";
 }
 
