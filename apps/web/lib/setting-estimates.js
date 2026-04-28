@@ -82,6 +82,19 @@ const SETTING_ESTIMATE_DEFINITIONS = [
     ],
   },
   {
+    key: "king-hanahana",
+    displayName: "キングハナハナ",
+    matchNames: ["キングハナハナ"],
+    settings: [
+      { setting: 1, label: "設定1", bbText: "1/292", rbText: "1/489" },
+      { setting: 2, label: "設定2", bbText: "1/280", rbText: "1/452" },
+      { setting: 3, label: "設定3", bbText: "1/268", rbText: "1/420" },
+      { setting: 4, label: "設定4", bbText: "1/257", rbText: "1/390" },
+      { setting: 5, label: "設定5", bbText: "1/244", rbText: "1/360" },
+      { setting: 6, label: "設定6", bbText: "1/232", rbText: "1/332" },
+    ],
+  },
+  {
     key: "star-hanahana",
     displayName: "スターハナハナ",
     matchNames: ["スターハナハナ"],
