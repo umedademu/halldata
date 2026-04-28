@@ -157,11 +157,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     notFound();
   }
 
-  const selectedDateText = detail.selectedDate ? formatCompactDate(detail.selectedDate) : "-";
-  const targetDateText = detail.nextBusinessDate
-    ? formatCompactDate(detail.nextBusinessDate)
-    : "次回営業日（未取得）";
-  const actualStateText = detail.hasActualResults ? "あり" : "なし";
   const fallbackNotice =
     detail.requestedDate && detail.requestedDate !== detail.selectedDate
       ? "指定した日付は見つからなかったため、最新の集計日を表示しています。"
@@ -198,38 +193,16 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
 
       <section className="heroPanel">
         <div className="heroCopy">
-          <p className="eyebrow">Hunt Score Analysis</p>
           <h1 className="pageTitle pageTitleCompact">狙い度分析</h1>
-          <p className="leadText">
-            集計日に見た次回営業日の狙い度を固定ルールで点数化し、一覧確認と条件別の翌営業日バックテストを行えます。
-          </p>
-          <div className="heroLinks">
-            <Link href={`/stores/${detail.store.id}`} className="inlineAction">
+          <div className="heroLinks simpleHeroLinks">
+            <Link href={`/stores/${detail.store.id}`} className="externalLink">
               店舗ページへ戻る
             </Link>
-            <a href={detail.store.storeUrl} target="_blank" rel="noreferrer" className="inlineAction ghostAction">
-              店舗ページを開く
-            </a>
-          </div>
-        </div>
-        <div className="heroMeta heroMetaWide">
-          <div className="metaCard">
-            <span className="metaLabel">集計日</span>
-            <strong className="metaValue">{selectedDateText}</strong>
-          </div>
-          <div className="metaCard">
-            <span className="metaLabel">予測対象日</span>
-            <strong className="metaValue">{targetDateText}</strong>
-          </div>
-          <div className="metaCard">
-            <span className="metaLabel">翌営業日実績</span>
-            <strong className="metaValue">{actualStateText}</strong>
-          </div>
-          <div className="metaCard">
-            <span className="metaLabel">表示件数</span>
-            <strong className="metaValue">
-              {formatNumber(detail.rows.length)} / {formatNumber(detail.totalCount)}
-            </strong>
+            {detail.store.storeUrl ? (
+              <a href={detail.store.storeUrl} target="_blank" rel="noreferrer" className="externalLink">
+                店舗ページを開く
+              </a>
+            ) : null}
           </div>
         </div>
       </section>
@@ -239,9 +212,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
           <section className="filterPanel">
             <div>
               <p className="sectionLabel">翌営業日バックテスト</p>
-              <p className="filterLead">
-                期間は狙い度を出した日で絞り込み、差枚やG数、平均設定は一致した台の翌営業日実績だけを集計します。
-              </p>
             </div>
             <NativeGetForm action={`/stores/${detail.store.id}/hunt-analysis`} className="backtestForm">
               {renderHiddenSearchParams(resolvedSearchParams, BACKTEST_SEARCH_KEYS)}
@@ -396,9 +366,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                     <span>みんレポ基準</span>
                   </label>
                 </div>
-                <p className="storeReserveHelp">
-                  この切り替えは、上のバックテスト集計とグラフだけに反映します。下の狙い度上位一覧の翌営業日差枚は、保存済みの値をそのまま表示します。
-                </p>
               </div>
 
               <div className="backtestBlock">

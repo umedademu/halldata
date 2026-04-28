@@ -63,12 +63,6 @@ export function HuntBacktestBookmarkControl({ storeId, bookmark }) {
 
   return (
     <section className="filterPanel">
-      <div>
-        <p className="sectionLabel">一覧への目印</p>
-        <p className="filterLead">
-          ここで残した目印は、下の狙い度上位で一致行を強め、不一致行を控えめに見せるために使います。
-        </p>
-      </div>
       <div className="backtestButtonRow">
         <button type="button" className="storeReserveButton" onClick={handleSave}>
           この条件を目印にする
