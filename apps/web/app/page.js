@@ -48,31 +48,15 @@ export default async function StoresPage({ searchParams }) {
     const stores = await getStoreList();
     const completeStores = stores.filter((store) => !store.isPendingRegistration);
     const pendingStores = stores.filter((store) => store.isPendingRegistration);
-    const totalStores = completeStores.length + pendingStores.length;
 
     return (
       <main className="pageStack homePage">
         <section className="heroPanel homeHero">
           <div className="heroCopy">
-            <p className="eyebrow">店舗データ</p>
             <h1 className="pageTitle pageTitleCompact">店舗を選ぶ</h1>
             <p className="leadText">
               店舗名で絞り込み、必要な店舗の機種一覧へ進めます。
             </p>
-          </div>
-          <div className="summaryStrip homeSummaryStrip" aria-label="店舗の登録状況">
-            <div className="summaryCard">
-              <span className="summaryLabel">登録済み</span>
-              <strong className="summaryValue">{completeStores.length}店</strong>
-            </div>
-            <div className="summaryCard">
-              <span className="summaryLabel">登録待ち</span>
-              <strong className="summaryValue">{pendingStores.length}件</strong>
-            </div>
-            <div className="summaryCard">
-              <span className="summaryLabel">合計</span>
-              <strong className="summaryValue">{totalStores}件</strong>
-            </div>
           </div>
         </section>
 
@@ -116,7 +100,6 @@ export default async function StoresPage({ searchParams }) {
       <main className="pageStack">
         <section className="heroPanel">
           <div className="heroCopy">
-            <p className="eyebrow">店舗データ</p>
             <h1 className="pageTitle pageTitleCompact">店舗を選ぶ</h1>
           </div>
         </section>

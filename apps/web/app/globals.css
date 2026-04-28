@@ -1,23 +1,23 @@
 :root {
-  --bg: #f3ead8;
-  --bg-deep: #e8d4ae;
-  --panel: rgba(255, 250, 240, 0.98);
-  --panel-strong: rgba(255, 248, 232, 0.96);
-  --line: rgba(64, 30, 7, 0.14);
-  --line-strong: rgba(64, 30, 7, 0.28);
-  --text: #23160f;
-  --muted: #6f5847;
-  --accent: #b94127;
-  --accent-strong: #8f230c;
-  --accent-soft: rgba(185, 65, 39, 0.12);
-  --gold: #d6a84a;
+  --bg: #f6f7f9;
+  --bg-deep: #e7ebf0;
+  --panel: #ffffff;
+  --panel-strong: #ffffff;
+  --line: rgba(15, 23, 42, 0.12);
+  --line-strong: rgba(15, 23, 42, 0.28);
+  --text: #111827;
+  --muted: #6b7280;
+  --accent: #2563a5;
+  --accent-strong: #17436f;
+  --accent-soft: rgba(37, 99, 165, 0.1);
+  --gold: #8a94a3;
   --positive: #0d7d57;
   --negative: #c1442e;
-  --shadow: 0 24px 60px rgba(89, 41, 11, 0.12);
-  --radius-xl: 30px;
-  --radius-lg: 22px;
-  --radius-md: 16px;
-  --radius-sm: 12px;
+  --shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  --radius-xl: 12px;
+  --radius-lg: 10px;
+  --radius-md: 8px;
+  --radius-sm: 6px;
   --font-display: "Arial Narrow", "Yu Gothic", "Meiryo", sans-serif;
   --font-body: "Yu Gothic", "Meiryo", sans-serif;
 }
@@ -34,10 +34,7 @@ body {
   margin: 0;
   min-height: 100vh;
   color: var(--text);
-  background:
-    radial-gradient(circle at top left, rgba(214, 168, 74, 0.28), transparent 28rem),
-    radial-gradient(circle at top right, rgba(185, 65, 39, 0.16), transparent 26rem),
-    linear-gradient(180deg, #fbf5e8 0%, var(--bg) 48%, #f8efe0 100%);
+  background: var(--bg);
   font-family: var(--font-body);
 }
 
@@ -53,12 +50,7 @@ a {
 }
 
 .backgroundVeil {
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.24) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.24) 1px, transparent 1px);
-  background-size: 24px 24px;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.48), transparent 88%);
-  opacity: 0.34;
+  display: none;
 }
 
 .appShell {
@@ -99,19 +91,11 @@ a {
   display: grid;
   gap: 20px;
   padding: 28px;
-  background:
-    linear-gradient(140deg, rgba(255, 252, 245, 0.96), rgba(255, 247, 232, 0.84)),
-    var(--panel);
+  background: var(--panel);
 }
 
 .heroPanel::after {
-  content: "";
-  position: absolute;
-  inset: auto -6rem -6rem auto;
-  width: 18rem;
-  height: 18rem;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(214, 168, 74, 0.24), transparent 68%);
+  content: none;
 }
 
 .heroCopy {
@@ -173,7 +157,7 @@ a {
   display: grid;
   gap: 6px;
   padding: 16px 18px;
-  border: 1px solid rgba(64, 30, 7, 0.12);
+  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.52);
 }
@@ -217,7 +201,7 @@ a {
   width: fit-content;
   padding: 10px 14px;
   border-radius: 999px;
-  background: rgba(185, 65, 39, 0.1);
+  background: var(--accent-soft);
 }
 
 .storeReserveForm {
@@ -255,7 +239,7 @@ a {
   width: 100%;
   min-height: 2.8rem;
   padding: 9px 12px;
-  border: 1px solid rgba(64, 30, 7, 0.16);
+  border: 1px solid rgba(15, 23, 42, 0.16);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.78);
   color: var(--text);
@@ -266,9 +250,9 @@ a {
 .storeReserveButton {
   min-height: 2.8rem;
   padding: 9px 16px;
-  border: 1px solid rgba(185, 65, 39, 0.3);
+  border: 1px solid rgba(37, 99, 165, 0.28);
   border-radius: 8px;
-  background: rgba(185, 65, 39, 0.12);
+  background: rgba(37, 99, 165, 0.08);
   color: var(--accent-strong);
   font-family: var(--font-body);
   font-size: 0.92rem;
@@ -277,8 +261,8 @@ a {
 }
 
 .storeReserveButtonSecondary {
-  border-color: rgba(64, 30, 7, 0.16);
-  background: rgba(36, 22, 15, 0.06);
+  border-color: rgba(15, 23, 42, 0.16);
+  background: rgba(15, 23, 42, 0.04);
   color: var(--text);
 }
 
@@ -309,7 +293,7 @@ a {
 .storeReserveNotice {
   width: fit-content;
   padding: 8px 10px;
-  border: 1px solid rgba(64, 30, 7, 0.12);
+  border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.7);
   font-weight: 800;
@@ -329,7 +313,7 @@ a {
 }
 
 .ghostAction {
-  background: rgba(36, 22, 15, 0.06);
+  background: rgba(15, 23, 42, 0.04);
 }
 
 .cardsGrid {
@@ -346,9 +330,7 @@ a {
   padding: 22px;
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
-  background:
-    linear-gradient(180deg, rgba(255, 251, 244, 0.96), rgba(255, 246, 228, 0.92)),
-    var(--panel-strong);
+  background: var(--panel-strong);
   box-shadow: var(--shadow);
   transition:
     transform 0.24s ease,
@@ -358,17 +340,12 @@ a {
 
 .linkCard:hover {
   transform: translateY(-4px);
-  border-color: rgba(185, 65, 39, 0.28);
-  box-shadow: 0 32px 70px rgba(89, 41, 11, 0.16);
+  border-color: rgba(37, 99, 165, 0.24);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
 }
 
 .cardGlow {
-  position: absolute;
-  inset: auto -2rem -2rem auto;
-  width: 10rem;
-  height: 10rem;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(214, 168, 74, 0.22), transparent 70%);
+  display: none;
 }
 
 .cardTop,
@@ -409,8 +386,8 @@ a {
 .statsGrid div {
   padding: 12px 14px;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(64, 30, 7, 0.08);
+  background: #f9fafb;
+  border: 1px solid var(--line);
 }
 
 .statsGrid dt {
@@ -443,7 +420,7 @@ a {
 
 .breadcrumbItem:not(:last-child)::after {
   content: "/";
-  color: rgba(111, 88, 71, 0.6);
+  color: rgba(107, 114, 128, 0.7);
 }
 
 .summaryStrip {
@@ -454,10 +431,6 @@ a {
   gap: 18px;
 }
 
-.homeSummaryStrip {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
 .storeDirectoryPanel {
   display: grid;
   gap: 14px;
@@ -465,18 +438,6 @@ a {
 
 .storeDirectoryHeader {
   margin-bottom: 0;
-}
-
-.directoryCountText {
-  margin: 0;
-  padding: 7px 10px;
-  border: 1px solid rgba(64, 30, 7, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.7);
-  color: var(--muted);
-  font-size: 0.86rem;
-  font-weight: 800;
-  white-space: nowrap;
 }
 
 .storeSearchRow {
@@ -499,7 +460,7 @@ a {
   width: 100%;
   min-height: 2.7rem;
   padding: 9px 12px;
-  border: 1px solid rgba(64, 30, 7, 0.16);
+  border: 1px solid rgba(15, 23, 42, 0.16);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.78);
   color: var(--text);
@@ -510,9 +471,9 @@ a {
 .storeSearchClear {
   min-height: 2.7rem;
   padding: 9px 14px;
-  border: 1px solid rgba(64, 30, 7, 0.16);
+  border: 1px solid rgba(15, 23, 42, 0.16);
   border-radius: 8px;
-  background: rgba(36, 22, 15, 0.06);
+  background: rgba(15, 23, 42, 0.04);
   color: var(--text);
   font-family: var(--font-body);
   font-size: 0.9rem;
@@ -529,19 +490,38 @@ a {
   font-weight: 800;
 }
 
-.homeStoreTable {
-  width: 100%;
+.storeLinkList {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: #ffffff;
 }
 
-.directoryActionHeader {
-  width: 6rem;
+.storeLinkList li + li {
+  border-top: 1px solid var(--line);
+}
+
+.plainStoreLink {
+  display: block;
+  padding: 13px 14px;
+  color: var(--accent-strong);
+  font-weight: 800;
+  line-height: 1.5;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.plainStoreLink:hover {
+  background: #f9fafb;
 }
 
 .summaryCard {
   border-radius: var(--radius-lg);
-  background:
-    linear-gradient(180deg, rgba(255, 252, 246, 0.94), rgba(255, 245, 225, 0.88)),
-    var(--panel);
+  background: var(--panel);
 }
 
 .filterPanel {
@@ -553,7 +533,7 @@ a {
 .filterPanelStatus {
   width: fit-content;
   padding: 6px 10px;
-  border: 1px solid rgba(64, 30, 7, 0.12);
+  border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.7);
   color: var(--muted);
@@ -591,7 +571,7 @@ a {
 
 .dayFilterChip {
   padding: 10px 14px;
-  border: 1px solid rgba(64, 30, 7, 0.12);
+  border: 1px solid var(--line);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.7);
   color: var(--muted);
@@ -602,8 +582,8 @@ a {
 }
 
 .dayFilterChipActive {
-  border-color: rgba(185, 65, 39, 0.4);
-  background: rgba(185, 65, 39, 0.12);
+  border-color: rgba(37, 99, 165, 0.34);
+  background: rgba(37, 99, 165, 0.08);
   color: var(--accent-strong);
 }
 
@@ -619,7 +599,7 @@ a {
   gap: 7px;
   min-height: 2.4rem;
   padding: 8px 12px;
-  border: 1px solid rgba(64, 30, 7, 0.12);
+  border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.7);
   color: var(--muted);
@@ -642,8 +622,8 @@ a {
 }
 
 .metricToggleChipActive {
-  border-color: rgba(185, 65, 39, 0.4);
-  background: rgba(185, 65, 39, 0.12);
+  border-color: rgba(37, 99, 165, 0.34);
+  background: rgba(37, 99, 165, 0.08);
   color: var(--accent-strong);
 }
 
@@ -668,7 +648,7 @@ a {
   display: grid;
   gap: 10px;
   padding-top: 12px;
-  border-top: 1px solid rgba(64, 30, 7, 0.12);
+  border-top: 1px solid var(--line);
 }
 
 .estimateMethodTitle,
@@ -711,7 +691,7 @@ a {
   gap: 8px;
   min-height: 2.4rem;
   padding: 8px 12px;
-  border: 1px solid rgba(64, 30, 7, 0.12);
+  border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.7);
   color: var(--muted);
@@ -729,8 +709,8 @@ a {
 }
 
 .estimateToggleActive {
-  border-color: rgba(185, 65, 39, 0.4);
-  background: rgba(185, 65, 39, 0.12);
+  border-color: rgba(37, 99, 165, 0.34);
+  background: rgba(37, 99, 165, 0.08);
   color: var(--accent-strong);
 }
 
@@ -759,7 +739,7 @@ a {
   min-width: 0;
   height: 2.4rem;
   padding: 6px 9px;
-  border: 1px solid rgba(64, 30, 7, 0.16);
+  border: 1px solid rgba(15, 23, 42, 0.16);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.76);
   color: var(--text);
@@ -805,9 +785,9 @@ a {
   align-items: center;
   gap: 6px;
   padding: 9px 16px;
-  border: 1px solid rgba(185, 65, 39, 0.3);
+  border: 1px solid rgba(37, 99, 165, 0.28);
   border-radius: 999px;
-  background: rgba(185, 65, 39, 0.1);
+  background: rgba(37, 99, 165, 0.08);
   color: var(--accent-strong);
   font-family: var(--font-body);
   font-size: 0.82rem;
@@ -822,8 +802,8 @@ a {
 }
 
 .csvExportBtn:hover {
-  background: rgba(185, 65, 39, 0.18);
-  border-color: rgba(185, 65, 39, 0.48);
+  background: rgba(37, 99, 165, 0.14);
+  border-color: rgba(37, 99, 165, 0.42);
 }
 
 .csvExportBtn:active {
@@ -854,17 +834,17 @@ a {
 
 .backtestGraphPlot {
   fill: rgba(255, 255, 255, 0.78);
-  stroke: rgba(64, 30, 7, 0.08);
+  stroke: rgba(15, 23, 42, 0.08);
 }
 
 .backtestGraphGrid {
-  stroke: rgba(64, 30, 7, 0.12);
+  stroke: rgba(15, 23, 42, 0.12);
   stroke-width: 1;
   stroke-dasharray: 4 6;
 }
 
 .backtestGraphZeroLine {
-  stroke: rgba(185, 65, 39, 0.42);
+  stroke: rgba(37, 99, 165, 0.42);
   stroke-width: 1.5;
 }
 
@@ -877,13 +857,13 @@ a {
 }
 
 .backtestGraphPoint {
-  fill: #fff4cf;
+  fill: #ffffff;
   stroke: var(--accent-strong);
   stroke-width: 1.4;
 }
 
 .backtestGraphTick {
-  stroke: rgba(64, 30, 7, 0.16);
+  stroke: rgba(15, 23, 42, 0.16);
   stroke-width: 1;
 }
 
@@ -920,7 +900,7 @@ a {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: linear-gradient(180deg, rgba(255, 249, 235, 0.98), rgba(249, 235, 202, 0.96));
+  background: #f9fafb;
   color: var(--muted);
   font-weight: 800;
 }
@@ -932,7 +912,7 @@ a {
 
 .directoryTable tbody tr:hover td,
 .directoryTable tbody tr:hover th {
-  background: rgba(214, 168, 74, 0.18);
+  background: rgba(37, 99, 165, 0.06);
 }
 
 .directoryTable tbody tr.backtestTotalRow td,
@@ -941,7 +921,7 @@ a {
 .directoryTable tbody tr.backtestTotalRow:nth-child(odd) th,
 .directoryTable tbody tr.backtestTotalRow:hover td,
 .directoryTable tbody tr.backtestTotalRow:hover th {
-  background: linear-gradient(180deg, rgba(255, 238, 195, 0.98), rgba(247, 216, 145, 0.92));
+  background: linear-gradient(180deg, #f3f6fa, #e8eef6);
   color: var(--text);
   font-weight: 800;
 }
@@ -1008,18 +988,15 @@ a {
 
 .directoryTable tbody .directoryNameCell {
   z-index: 2;
-  background:
-    linear-gradient(180deg, rgba(255, 250, 239, 0.98), rgba(253, 241, 210, 0.96));
+  background: #ffffff;
 }
 
 .directoryTable tbody tr:nth-child(odd) .directoryNameCell {
-  background:
-    linear-gradient(180deg, rgba(255, 249, 236, 0.98), rgba(251, 236, 200, 0.96));
+  background: #fcfcfd;
 }
 
 .directoryTable tbody tr:hover .directoryNameCell {
-  background:
-    linear-gradient(180deg, rgba(255, 238, 176, 0.98), rgba(245, 205, 105, 0.88));
+  background: #f1f5f9;
 }
 
 .directoryPrimaryLink {
@@ -1032,9 +1009,9 @@ a {
   align-items: center;
   min-height: 2rem;
   padding: 7px 10px;
-  border: 1px solid rgba(185, 65, 39, 0.3);
+  border: 1px solid rgba(37, 99, 165, 0.28);
   border-radius: 8px;
-  background: rgba(185, 65, 39, 0.1);
+  background: rgba(37, 99, 165, 0.08);
   color: var(--accent-strong);
   font-weight: 800;
 }
@@ -1064,7 +1041,7 @@ a {
 .matrixTable thead th {
   position: relative;
   z-index: 1;
-  background: linear-gradient(180deg, rgba(255, 249, 235, 0.98), rgba(249, 235, 202, 0.96));
+  background: #f9fafb;
 }
 
 .matrixTable th,
@@ -1104,8 +1081,7 @@ a {
 .weekdayCell {
   position: sticky;
   z-index: 2;
-  background:
-    linear-gradient(180deg, rgba(255, 250, 239, 0.98), rgba(253, 241, 210, 0.96));
+  background: #ffffff;
 }
 
 .dateHeaderCell,
@@ -1141,21 +1117,19 @@ a {
 
 .matrixTable tbody tr:nth-child(odd) .dateCell,
 .matrixTable tbody tr:nth-child(odd) .weekdayCell {
-  background:
-    linear-gradient(180deg, rgba(255, 249, 236, 0.98), rgba(251, 236, 200, 0.96));
+  background: #fcfcfd;
 }
 
 .matrixTable tbody tr.matrixRowHighlighted td,
 .matrixTable tbody tr.matrixRowHighlighted:nth-child(odd) td {
-  background: rgba(214, 168, 74, 0.28);
+  background: rgba(37, 99, 165, 0.08);
 }
 
 .matrixTable tbody tr.matrixRowHighlighted .dateCell,
 .matrixTable tbody tr.matrixRowHighlighted .weekdayCell,
 .matrixTable tbody tr.matrixRowHighlighted:nth-child(odd) .dateCell,
 .matrixTable tbody tr.matrixRowHighlighted:nth-child(odd) .weekdayCell {
-  background:
-    linear-gradient(180deg, rgba(255, 238, 176, 0.98), rgba(245, 205, 105, 0.88));
+  background: #eaf1f8;
   color: var(--accent-strong);
 }
 
@@ -1267,9 +1241,6 @@ a {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .homeSummaryStrip {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 640px) {
@@ -1279,10 +1250,6 @@ a {
   .heroMetaWide,
   .statsGrid,
   .machineCard .statsGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .homeSummaryStrip {
     grid-template-columns: 1fr;
   }
 
@@ -1343,7 +1310,4 @@ a {
     align-items: flex-start;
   }
 
-  .directoryActionHeader {
-    width: 5.4rem;
-  }
 }

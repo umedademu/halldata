@@ -24,7 +24,7 @@ export function StoreDirectory({ completeStores, pendingStores }) {
     <>
       {completeStores.length === 0 ? (
         <section className="statusPanel">
-          <h2>完全登録済みの店舗がまだありません</h2>
+          <h2>店舗がまだありません</h2>
           <p>登録待ちURLを更新するか、台データを取得してください。</p>
         </section>
       ) : (
@@ -34,9 +34,6 @@ export function StoreDirectory({ completeStores, pendingStores }) {
               <p className="sectionLabel">店舗一覧</p>
               <h2 className="tablePanelTitle">保存済み店舗</h2>
             </div>
-            <p className="directoryCountText">
-              {filteredStores.length} / {completeStores.length}店
-            </p>
           </div>
           <div className="storeSearchRow">
             <label className="storeSearchField">
@@ -58,32 +55,15 @@ export function StoreDirectory({ completeStores, pendingStores }) {
           {filteredStores.length === 0 ? (
             <div className="emptyListPanel">該当する店舗はありません。</div>
           ) : (
-            <div className="tableScroller directoryScroller">
-              <table className="directoryTable homeStoreTable">
-                <thead>
-                  <tr>
-                    <th className="directoryNameHeader">店舗</th>
-                    <th className="directoryActionHeader">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredStores.map((store) => (
-                    <tr key={store.id}>
-                      <th className="directoryNameCell">
-                        <Link href={`/stores/${store.id}`} className="directoryPrimaryLink">
-                          {store.storeName}
-                        </Link>
-                      </th>
-                      <td>
-                        <Link href={`/stores/${store.id}`} className="tableActionLink">
-                          開く
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ul className="storeLinkList">
+              {filteredStores.map((store) => (
+                <li key={store.id}>
+                  <Link href={`/stores/${store.id}`} className="plainStoreLink">
+                    {store.storeName}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
         </section>
       )}
@@ -95,7 +75,6 @@ export function StoreDirectory({ completeStores, pendingStores }) {
               <p className="sectionLabel">登録待ち</p>
               <h2 className="tablePanelTitle">店舗URL</h2>
             </div>
-            <p className="directoryCountText">{pendingStores.length}件</p>
           </div>
           <div className="tableScroller directoryScroller">
             <table className="directoryTable">
