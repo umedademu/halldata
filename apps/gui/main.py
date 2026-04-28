@@ -404,7 +404,7 @@ class MinRepoApp:
         self._reset_fetch_progress()
         self._update_button_states()
         self._refresh_registered_store_table()
-        self.root.protocol("WM_DELETE_WINDOW", self._hide_to_resident)
+        self.root.protocol("WM_DELETE_WINDOW", self._on_window_close)
         self._schedule_timer_tick()
         if self.startup_store_warning:
             self.root.after(100, lambda: messagebox.showwarning("登録店舗", self.startup_store_warning))
@@ -869,6 +869,18 @@ class MinRepoApp:
         if not self.is_busy:
             self.status_var.set("常駐中")
 
+    def _on_window_close(self) -> None:
+        result = messagebox.askyesnocancel(
+            "終了確認",
+            "終了する場合は「はい」、常駐する場合は「いいえ」を選んでください。\n"
+            "「キャンセル」で閉じるのをやめます。",
+        )
+        if result is True:
+            self._quit_application()
+            return
+        if result is False:
+            self._hide_to_resident()
+
     def _ensure_tray_icon(self) -> bool:
         if self.tray_icon is not None:
             return True
@@ -918,9 +930,13 @@ class MinRepoApp:
         self.root.after(0, self._quit_from_tray)
 
     def _quit_from_tray(self) -> None:
+        self._quit_application()
+
+    def _quit_application(self) -> None:
         if self.tray_icon is not None:
             self.tray_icon.stop()
             self.tray_icon = None
+        self.tray_thread = None
         self.site7_scraper.close_visible_browser()
         self.root.destroy()
 

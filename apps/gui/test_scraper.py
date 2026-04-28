@@ -269,6 +269,55 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(app._load_saved_schedule_hour(), 5)
             self.assertEqual(app._load_saved_site7_browser_mode(), SITE7_BROWSER_MODE_HIDDEN)
 
+    def test_window_close_can_choose_exit(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app._quit_application = mock.Mock()
+        app._hide_to_resident = mock.Mock()
+
+        with mock.patch("main.messagebox.askyesnocancel", return_value=True):
+            app._on_window_close()
+
+        app._quit_application.assert_called_once_with()
+        app._hide_to_resident.assert_not_called()
+
+    def test_window_close_can_choose_resident(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app._quit_application = mock.Mock()
+        app._hide_to_resident = mock.Mock()
+
+        with mock.patch("main.messagebox.askyesnocancel", return_value=False):
+            app._on_window_close()
+
+        app._hide_to_resident.assert_called_once_with()
+        app._quit_application.assert_not_called()
+
+    def test_window_close_can_cancel(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app._quit_application = mock.Mock()
+        app._hide_to_resident = mock.Mock()
+
+        with mock.patch("main.messagebox.askyesnocancel", return_value=None):
+            app._on_window_close()
+
+        app._quit_application.assert_not_called()
+        app._hide_to_resident.assert_not_called()
+
+    def test_quit_application_stops_tray_and_closes_browser(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        tray_icon = mock.Mock()
+        app.tray_icon = tray_icon
+        app.tray_thread = object()
+        app.site7_scraper = mock.Mock()
+        app.root = mock.Mock()
+
+        app._quit_application()
+
+        tray_icon.stop.assert_called_once_with()
+        self.assertIsNone(app.tray_icon)
+        self.assertIsNone(app.tray_thread)
+        app.site7_scraper.close_visible_browser.assert_called_once_with()
+        app.root.destroy.assert_called_once_with()
+
     def test_run_scheduled_fetch_if_due_waits_for_startup_confirmation(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.scheduled_fetch_hour = 10
