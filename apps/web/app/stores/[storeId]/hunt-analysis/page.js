@@ -396,6 +396,9 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                     <span>みんレポ基準</span>
                   </label>
                 </div>
+                <p className="storeReserveHelp">
+                  この切り替えは、上のバックテスト集計とグラフだけに反映します。下の狙い度上位一覧の翌営業日差枚は、保存済みの値をそのまま表示します。
+                </p>
               </div>
 
               <div className="backtestBlock">

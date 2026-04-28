@@ -34,7 +34,7 @@ const DEFAULT_VISIBLE_RESULT_KEYS = [
 const RESULT_COLUMNS = [
   {
     key: "difference_value",
-    label: "翌営業日差枚",
+    label: "翌営業日差枚（保存値）",
     render: (row) => formatSignedNumber(row.nextRecord?.difference_value),
   },
   {
@@ -141,7 +141,9 @@ export function HuntRankingTable({ storeId, rows }) {
       <section className="filterPanel">
         <div>
           <p className="sectionLabel">表示する列</p>
-          <p className="filterLead">翌営業日の実績列だけを切り替えられます。</p>
+          <p className="filterLead">
+            翌営業日の実績列だけを切り替えられます。ここは保存済み実績の表示で、上のバックテスト基準切り替えは反映しません。
+          </p>
         </div>
         {bookmarkState.bookmark ? (
           <p className="storeReserveNotice storeReserveNotice-info">
