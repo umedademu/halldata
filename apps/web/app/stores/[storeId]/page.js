@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../components/breadcrumbs";
 import { getStoreDetail, getStoreIdentity } from "../../../lib/data";
-import { isHuntScoreTargetStore } from "../../../lib/hunt-score";
 import {
   formatAverageGames,
   formatCompactDate,
@@ -51,8 +50,7 @@ export default async function StoreDetailPage({ params }) {
     notFound();
   }
 
-  const { store, summary, machines } = storeDetail;
-  const hasHuntScoreAnalysis = isHuntScoreTargetStore(store.storeName);
+  const { store, machines } = storeDetail;
 
   return (
     <main className="pageStack">
@@ -65,36 +63,12 @@ export default async function StoreDetailPage({ params }) {
 
       <section className="heroPanel">
         <div className="heroCopy">
-          <p className="eyebrow">Machine Directory</p>
           <h1 className="pageTitle pageTitleCompact">{store.storeName}</h1>
-          <p className="leadText">
-            各機種ごとの最新記録日を基準に一覧を出し、機種名から台データページへ進めます。
-          </p>
-          {hasHuntScoreAnalysis ? (
-            <div className="heroLinks">
-              <Link href={`/stores/${store.id}/hunt-analysis`} className="inlineAction">
-                狙い度分析を見る
-              </Link>
-            </div>
-          ) : null}
-        </div>
-        <div className="heroMeta heroMetaWide">
-          <div className="metaCard">
-            <span className="metaLabel">保存済み機種数</span>
-            <strong className="metaValue">{formatNumber(summary.machineCount)}</strong>
-          </div>
-          <div className="metaCard">
-            <span className="metaLabel">店内の最新日</span>
-            <strong className="metaValue">
-              {summary.latestDate ? formatCompactDate(summary.latestDate) : "-"}
-            </strong>
-          </div>
-          <div className="metaCard">
-            <span className="metaLabel">元ページ</span>
+          {store.storeUrl ? (
             <a href={store.storeUrl} target="_blank" rel="noreferrer" className="externalLink">
               店舗ページを開く
             </a>
-          </div>
+          ) : null}
         </div>
       </section>
 
@@ -105,12 +79,6 @@ export default async function StoreDetailPage({ params }) {
         </section>
       ) : (
         <section className="tablePanel directoryPanel">
-          <div className="tablePanelHeader">
-            <div>
-              <p className="sectionLabel">機種一覧</p>
-              <h2 className="tablePanelTitle">{store.storeName}</h2>
-            </div>
-          </div>
           <div className="tableScroller directoryScroller">
             <table className="directoryTable">
               <thead>
