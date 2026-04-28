@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { HuntBacktestBookmarkControl } from "../../../../components/hunt-backtest-bookmark-control";
+import { HuntBacktestEventFilterSync } from "../../../../components/hunt-backtest-event-filter-sync";
 import { Breadcrumbs } from "../../../../components/breadcrumbs";
 import { HuntBacktestGraph } from "../../../../components/hunt-backtest-graph";
 import { HuntRankingLimitSync } from "../../../../components/hunt-ranking-limit-sync";
@@ -23,6 +24,16 @@ import {
 
 export const dynamic = "force-dynamic";
 const DEFAULT_RANKING_LIMIT = 20;
+const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, index) => index);
+const WEEKDAY_OPTIONS = [
+  { value: 0, label: "日曜" },
+  { value: 1, label: "月曜" },
+  { value: 2, label: "火曜" },
+  { value: 3, label: "水曜" },
+  { value: 4, label: "木曜" },
+  { value: 5, label: "金曜" },
+  { value: 6, label: "土曜" },
+];
 const BACKTEST_SEARCH_KEYS = [
   "periodMode",
   "recentDays",
@@ -36,6 +47,9 @@ const BACKTEST_SEARCH_KEYS = [
   "scoreMin",
   "matchMode",
   "showGraph",
+  "backtestEventTouched",
+  "backtestDayTail",
+  "backtestWeekday",
 ];
 
 function readSingleSearchParam(value) {
@@ -89,6 +103,77 @@ function renderHiddenSearchParams(searchParams, excludedNames) {
   return hiddenInputs;
 }
 
+function BacktestResultTable({ title, backtest }) {
+  return (
+    <section className="tablePanel directoryPanel">
+      <div className="tablePanelHeader">
+        <div>
+          <p className="sectionLabel">{title}</p>
+          <h2 className="tablePanelTitle">条件一致分の翌営業日結果</h2>
+        </div>
+      </div>
+      <div className="tableScroller directoryScroller">
+        <table className="directoryTable">
+          <thead>
+            <tr>
+              <th className="directoryNameHeader">機種名</th>
+              <th>条件一致台数</th>
+              <th>狙い度</th>
+              <th>実績集計台数</th>
+              <th>合計差枚</th>
+              <th>合計G数</th>
+              <th>BB</th>
+              <th>RB</th>
+              <th>BB率</th>
+              <th>RB率</th>
+              <th>合成</th>
+              <th>機械割</th>
+              <th>平均設定</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="backtestTotalRow">
+              <th className="directoryNameCell">総計</th>
+              <td>{formatNumber(backtest.total.matchedRowCount)}</td>
+              <td>{formatDecimal(backtest.total.averageHuntScore)}</td>
+              <td>{formatNumber(backtest.total.actualRowCount)}</td>
+              <td>{formatSignedNumber(backtest.total.differenceTotal)}</td>
+              <td>{formatNumber(backtest.total.gamesTotal)}</td>
+              <td>{formatNumber(backtest.total.bbTotal)}</td>
+              <td>{formatNumber(backtest.total.rbTotal)}</td>
+              <td>{backtest.total.bbProbability ?? "-"}</td>
+              <td>{backtest.total.rbProbability ?? "-"}</td>
+              <td>{backtest.total.combinedProbability ?? "-"}</td>
+              <td>{formatPercent(backtest.total.payoutRate)}</td>
+              <td>{formatSettingEstimateScore(backtest.total.averageSetting)}</td>
+            </tr>
+            {backtest.summaries.map((summary) => (
+              <tr
+                key={summary.machineName}
+                className={getSettingEstimateHighlightClass(summary.averageSetting)}
+              >
+                <th className="directoryNameCell">{summary.machineName}</th>
+                <td>{formatNumber(summary.matchedRowCount)}</td>
+                <td>{formatDecimal(summary.averageHuntScore)}</td>
+                <td>{formatNumber(summary.actualRowCount)}</td>
+                <td>{formatSignedNumber(summary.differenceTotal)}</td>
+                <td>{formatNumber(summary.gamesTotal)}</td>
+                <td>{formatNumber(summary.bbTotal)}</td>
+                <td>{formatNumber(summary.rbTotal)}</td>
+                <td>{summary.bbProbability ?? "-"}</td>
+                <td>{summary.rbProbability ?? "-"}</td>
+                <td>{summary.combinedProbability ?? "-"}</td>
+                <td>{formatPercent(summary.payoutRate)}</td>
+                <td>{formatSettingEstimateScore(summary.averageSetting)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 export async function generateMetadata({ params }) {
   const resolvedParams = await params;
   const storeId = resolvedParams.storeId;
@@ -124,6 +209,9 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     scoreMin: readSingleSearchParam(resolvedSearchParams?.scoreMin),
     matchMode: readSingleSearchParam(resolvedSearchParams?.matchMode),
     showGraph: readSingleSearchParam(resolvedSearchParams?.showGraph),
+    eventTouched: readSingleSearchParam(resolvedSearchParams?.backtestEventTouched) === "1",
+    dayTails: readMultiSearchParam(resolvedSearchParams?.backtestDayTail),
+    weekdays: readMultiSearchParam(resolvedSearchParams?.backtestWeekday),
   };
 
   let detail;
@@ -179,10 +267,13 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     matchMode: detail.backtest.matchMode,
     rankScope: detail.backtest.rankScope,
   };
+  const selectedBacktestDayTailSet = new Set(detail.backtest.eventFilters.dayTails);
+  const selectedBacktestWeekdaySet = new Set(detail.backtest.eventFilters.weekdays);
 
   return (
     <main className="pageStack">
       <HuntRankingLimitSync defaultLimit={DEFAULT_RANKING_LIMIT} />
+      <HuntBacktestEventFilterSync storeId={detail.store.id} />
       <Breadcrumbs
         items={[
           { label: "店舗一覧", href: "/" },
@@ -215,6 +306,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             </div>
             <NativeGetForm action={`/stores/${detail.store.id}/hunt-analysis`} className="backtestForm">
               {renderHiddenSearchParams(resolvedSearchParams, BACKTEST_SEARCH_KEYS)}
+              <input type="hidden" name="backtestEventTouched" value="1" />
 
               <div className="backtestBlock">
                 <p className="filterControlLabel">期間の指定方法</p>
@@ -277,6 +369,50 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                     className="storeReserveInput"
                   />
                 </label>
+              </div>
+
+              <div className="backtestBlock">
+                <p className="filterControlLabel">特定日（末尾）</p>
+                <div className="metricToggleRow">
+                  {DAY_TAIL_OPTIONS.map((dayTail) => (
+                    <label
+                      key={dayTail}
+                      className={`metricToggleChip ${
+                        selectedBacktestDayTailSet.has(dayTail) ? "metricToggleChipActive" : ""
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        name="backtestDayTail"
+                        value={dayTail}
+                        defaultChecked={selectedBacktestDayTailSet.has(dayTail)}
+                      />
+                      <span>{dayTail}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="backtestBlock">
+                <p className="filterControlLabel">特定日（曜日）</p>
+                <div className="metricToggleRow">
+                  {WEEKDAY_OPTIONS.map((weekday) => (
+                    <label
+                      key={weekday.value}
+                      className={`metricToggleChip ${
+                        selectedBacktestWeekdaySet.has(weekday.value) ? "metricToggleChipActive" : ""
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        name="backtestWeekday"
+                        value={weekday.value}
+                        defaultChecked={selectedBacktestWeekdaySet.has(weekday.value)}
+                      />
+                      <span>{weekday.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div className="backtestBlock">
@@ -507,72 +643,13 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
           ) : null}
 
           {detail.backtest.hasMatches ? (
-            <section className="tablePanel directoryPanel">
-              <div className="tablePanelHeader">
-                <div>
-                  <p className="sectionLabel">機種別集計</p>
-                  <h2 className="tablePanelTitle">条件一致分の翌営業日結果</h2>
-                </div>
-              </div>
-              <div className="tableScroller directoryScroller">
-                <table className="directoryTable">
-                  <thead>
-                    <tr>
-                      <th className="directoryNameHeader">機種名</th>
-                      <th>条件一致台数</th>
-                      <th>狙い度</th>
-                      <th>実績集計台数</th>
-                      <th>合計差枚</th>
-                      <th>合計G数</th>
-                      <th>BB</th>
-                      <th>RB</th>
-                      <th>BB率</th>
-                      <th>RB率</th>
-                      <th>合成</th>
-                      <th>機械割</th>
-                      <th>平均設定</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="backtestTotalRow">
-                      <th className="directoryNameCell">総計</th>
-                      <td>{formatNumber(detail.backtest.total.matchedRowCount)}</td>
-                      <td>{formatDecimal(detail.backtest.total.averageHuntScore)}</td>
-                      <td>{formatNumber(detail.backtest.total.actualRowCount)}</td>
-                      <td>{formatSignedNumber(detail.backtest.total.differenceTotal)}</td>
-                      <td>{formatNumber(detail.backtest.total.gamesTotal)}</td>
-                      <td>{formatNumber(detail.backtest.total.bbTotal)}</td>
-                      <td>{formatNumber(detail.backtest.total.rbTotal)}</td>
-                      <td>{detail.backtest.total.bbProbability ?? "-"}</td>
-                      <td>{detail.backtest.total.rbProbability ?? "-"}</td>
-                      <td>{detail.backtest.total.combinedProbability ?? "-"}</td>
-                      <td>{formatPercent(detail.backtest.total.payoutRate)}</td>
-                      <td>{formatSettingEstimateScore(detail.backtest.total.averageSetting)}</td>
-                    </tr>
-                    {detail.backtest.summaries.map((summary) => (
-                      <tr
-                        key={summary.machineName}
-                        className={getSettingEstimateHighlightClass(summary.averageSetting)}
-                      >
-                        <th className="directoryNameCell">{summary.machineName}</th>
-                        <td>{formatNumber(summary.matchedRowCount)}</td>
-                        <td>{formatDecimal(summary.averageHuntScore)}</td>
-                        <td>{formatNumber(summary.actualRowCount)}</td>
-                        <td>{formatSignedNumber(summary.differenceTotal)}</td>
-                        <td>{formatNumber(summary.gamesTotal)}</td>
-                        <td>{formatNumber(summary.bbTotal)}</td>
-                        <td>{formatNumber(summary.rbTotal)}</td>
-                        <td>{summary.bbProbability ?? "-"}</td>
-                        <td>{summary.rbProbability ?? "-"}</td>
-                        <td>{summary.combinedProbability ?? "-"}</td>
-                        <td>{formatPercent(summary.payoutRate)}</td>
-                        <td>{formatSettingEstimateScore(summary.averageSetting)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+            detail.backtest.breakdowns.map((breakdown) => (
+              <BacktestResultTable
+                key={breakdown.key}
+                title={breakdown.title}
+                backtest={breakdown}
+              />
+            ))
           ) : (
             <section className="statusPanel">
               <h2>条件に合う台がありません</h2>

@@ -13,6 +13,12 @@ import { canonicalMachineName, listEquivalentMachineNames, withCalculatedDiffere
 
 const PAGE_SIZE = 1000;
 const DEFAULT_FETCH_CACHE_TTL_MS = 60 * 1000;
+const HUNT_BACKTEST_DEFAULT_EVENT_FILTERS = {
+  "Aパーク春日店": {
+    dayTails: [0],
+    weekdays: [0, 6],
+  },
+};
 
 let cachedFileSettingsPromise = null;
 
@@ -1198,6 +1204,28 @@ function normalizeRankingLimit(requestedLimit) {
   return Number.isInteger(requestedLimit) && requestedLimit >= 1 ? requestedLimit : 20;
 }
 
+function buildBacktestOptionsForStore(store, backtestOptions) {
+  const hasRequestedEventFilters =
+    backtestOptions?.eventTouched ||
+    (Array.isArray(backtestOptions?.dayTails) && backtestOptions.dayTails.length > 0) ||
+    (Array.isArray(backtestOptions?.weekdays) && backtestOptions.weekdays.length > 0);
+
+  if (hasRequestedEventFilters) {
+    return backtestOptions;
+  }
+
+  const defaultEventFilters = HUNT_BACKTEST_DEFAULT_EVENT_FILTERS[String(store?.store_name ?? "").trim()];
+  if (!defaultEventFilters) {
+    return backtestOptions;
+  }
+
+  return {
+    ...backtestOptions,
+    dayTails: defaultEventFilters.dayTails,
+    weekdays: defaultEventFilters.weekdays,
+  };
+}
+
 export async function getHuntScoreAnalysisPageDetail(
   storeId,
   requestedDate = "",
@@ -1233,7 +1261,7 @@ export async function getHuntScoreAnalysisPageDetail(
     rows: snapshot?.rows.slice(0, displayLimit) ?? [],
     totalCount,
     hasActualResults: snapshot?.rows.some((row) => row.nextRecord) ?? false,
-    backtest: buildHuntScoreBacktestDetail(snapshots, backtestOptions),
+    backtest: buildHuntScoreBacktestDetail(snapshots, buildBacktestOptionsForStore(store, backtestOptions)),
   };
 }
 

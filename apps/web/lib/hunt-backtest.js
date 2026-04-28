@@ -12,6 +12,12 @@ import { calculateMachineDifferenceMetrics, canonicalMachineName } from "./machi
 
 const DEFAULT_RECENT_DAYS = 90;
 const DEFAULT_DIFFERENCE_MODE = "bonus";
+const BACKTEST_BREAKDOWN_DEFINITIONS = [
+  { key: "all", title: "全合算" },
+  { key: "dayTail", title: "末尾の日のみで絞り込み" },
+  { key: "weekday", title: "曜日のみで絞り込み" },
+  { key: "normal", title: "通常日" },
+];
 
 function readNumber(value) {
   if (value === null || value === undefined || value === "") {
@@ -28,6 +34,30 @@ function readPositiveInteger(value) {
     return null;
   }
   return parsedValue;
+}
+
+function splitOptionValues(value) {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => splitOptionValues(item));
+  }
+  if (value === null || value === undefined || value === "") {
+    return [];
+  }
+  return String(value)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function normalizeIntegerOptions(value, min, max) {
+  const normalizedValues = new Set();
+  for (const item of splitOptionValues(value)) {
+    const parsedValue = Number(item);
+    if (Number.isInteger(parsedValue) && parsedValue >= min && parsedValue <= max) {
+      normalizedValues.add(parsedValue);
+    }
+  }
+  return [...normalizedValues].sort((left, right) => left - right);
 }
 
 function shiftDateText(dateText, days) {
@@ -147,6 +177,36 @@ function isSnapshotInPeriod(snapshot, startDate, endDate) {
   return true;
 }
 
+function getDateWeekday(dateText) {
+  const match = String(dateText).match(/^(\d{4})-(\d{2})-(\d{2})$/u);
+  const parsedDate = match
+    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+    : new Date(dateText);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return null;
+  }
+
+  return parsedDate.getDay();
+}
+
+function matchesDayTail(dateText, dayTails) {
+  const dayTail = Number(String(dateText).slice(-1));
+  return dayTails.includes(dayTail);
+}
+
+function matchesWeekday(dateText, weekdays) {
+  const weekday = getDateWeekday(dateText);
+  return weekday !== null && weekdays.includes(weekday);
+}
+
+function buildBacktestEventFilters(options) {
+  return {
+    dayTails: normalizeIntegerOptions(options?.dayTails, 0, 9),
+    weekdays: normalizeIntegerOptions(options?.weekdays, 0, 6),
+  };
+}
+
 function calculateAverage(total, count) {
   if (!Number.isFinite(total) || !Number.isInteger(count) || count <= 0) {
     return null;
@@ -246,23 +306,18 @@ function finalizeSummary(summary) {
   };
 }
 
-export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
-  const rankingDates = Array.isArray(snapshots) ? snapshots.map((snapshot) => snapshot.baseDate) : [];
-  const latestDate = rankingDates[0] ?? null;
-  const earliestDate = rankingDates.at(-1) ?? null;
-  const availableMachineNames = buildAvailableMachineNames(Array.isArray(snapshots) ? snapshots : []);
-  const selectedMachineNames = buildSelectedMachineNames(options.machineNames, availableMachineNames);
-  const selectedMachineNameSet = new Set(selectedMachineNames);
-  const rankFilter = buildRankFilter(options.rankMin, options.rankMax);
-  const scoreFilter = buildScoreFilter(options.scoreMin);
-  const matchMode = normalizeMatchMode(options.matchMode);
-  const rankScope = normalizeRankScope(options.rankScope);
-  const showGraph = normalizeShowGraph(options.showGraph);
-  const differenceMode = normalizeDifferenceMode(options.differenceMode);
-  const periodState = buildPeriodState(options, latestDate);
-  const snapshotsInPeriod = (Array.isArray(snapshots) ? snapshots : []).filter((snapshot) =>
-    isSnapshotInPeriod(snapshot, periodState.startDate, periodState.endDate),
-  );
+function buildBacktestAggregationDetail(
+  snapshotsInPeriod,
+  {
+    selectedMachineNames,
+    selectedMachineNameSet,
+    rankFilter,
+    scoreFilter,
+    matchMode,
+    rankScope,
+    differenceMode,
+  },
+) {
   const summariesByMachine = new Map();
   const dailySummariesByDate = new Map();
   const totalSummary = buildEmptySummary();
@@ -370,6 +425,71 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     .sort((left, right) => left.date.localeCompare(right.date, "ja"));
 
   return {
+    targetDateCount: snapshotsInPeriod.length,
+    matchedDateCount: matchedDates.size,
+    matchedRowCount,
+    actualRowCount,
+    missingActualRowCount: matchedRowCount - actualRowCount,
+    hasMatches: matchedRowCount > 0,
+    hasActualResults: actualRowCount > 0,
+    summaries,
+    graphPoints,
+    total: finalizeSummary(totalSummary),
+  };
+}
+
+export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
+  const rankingDates = Array.isArray(snapshots) ? snapshots.map((snapshot) => snapshot.baseDate) : [];
+  const latestDate = rankingDates[0] ?? null;
+  const earliestDate = rankingDates.at(-1) ?? null;
+  const availableMachineNames = buildAvailableMachineNames(Array.isArray(snapshots) ? snapshots : []);
+  const selectedMachineNames = buildSelectedMachineNames(options.machineNames, availableMachineNames);
+  const selectedMachineNameSet = new Set(selectedMachineNames);
+  const rankFilter = buildRankFilter(options.rankMin, options.rankMax);
+  const scoreFilter = buildScoreFilter(options.scoreMin);
+  const matchMode = normalizeMatchMode(options.matchMode);
+  const rankScope = normalizeRankScope(options.rankScope);
+  const showGraph = normalizeShowGraph(options.showGraph);
+  const differenceMode = normalizeDifferenceMode(options.differenceMode);
+  const eventFilters = buildBacktestEventFilters(options);
+  const periodState = buildPeriodState(options, latestDate);
+  const snapshotsInPeriod = (Array.isArray(snapshots) ? snapshots : []).filter((snapshot) =>
+    isSnapshotInPeriod(snapshot, periodState.startDate, periodState.endDate),
+  );
+  const aggregationOptions = {
+    selectedMachineNames,
+    selectedMachineNameSet,
+    rankFilter,
+    scoreFilter,
+    matchMode,
+    rankScope,
+    differenceMode,
+  };
+  const dayTailSnapshots = snapshotsInPeriod.filter((snapshot) =>
+    matchesDayTail(snapshot.baseDate, eventFilters.dayTails),
+  );
+  const weekdaySnapshots = snapshotsInPeriod.filter((snapshot) =>
+    matchesWeekday(snapshot.baseDate, eventFilters.weekdays),
+  );
+  const normalSnapshots = snapshotsInPeriod.filter((snapshot) => {
+    return (
+      !matchesDayTail(snapshot.baseDate, eventFilters.dayTails) &&
+      !matchesWeekday(snapshot.baseDate, eventFilters.weekdays)
+    );
+  });
+  const allAggregation = buildBacktestAggregationDetail(snapshotsInPeriod, aggregationOptions);
+  const breakdownAggregations = {
+    all: allAggregation,
+    dayTail: buildBacktestAggregationDetail(dayTailSnapshots, aggregationOptions),
+    weekday: buildBacktestAggregationDetail(weekdaySnapshots, aggregationOptions),
+    normal: buildBacktestAggregationDetail(normalSnapshots, aggregationOptions),
+  };
+  const breakdowns = BACKTEST_BREAKDOWN_DEFINITIONS.map((definition) => ({
+    ...definition,
+    ...breakdownAggregations[definition.key],
+  }));
+
+  return {
     periodMode: periodState.periodMode,
     recentDays: periodState.recentDays,
     startDate: periodState.startDate,
@@ -391,15 +511,8 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     rankScope,
     showGraph,
     differenceMode,
-    targetDateCount: snapshotsInPeriod.length,
-    matchedDateCount: matchedDates.size,
-    matchedRowCount,
-    actualRowCount,
-    missingActualRowCount: matchedRowCount - actualRowCount,
-    hasMatches: matchedRowCount > 0,
-    hasActualResults: actualRowCount > 0,
-    summaries,
-    graphPoints,
-    total: finalizeSummary(totalSummary),
+    eventFilters,
+    breakdowns,
+    ...allAggregation,
   };
 }
