@@ -26,13 +26,13 @@ export const dynamic = "force-dynamic";
 const DEFAULT_RANKING_LIMIT = 20;
 const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, index) => index);
 const WEEKDAY_OPTIONS = [
-  { value: 0, label: "日曜" },
   { value: 1, label: "月曜" },
   { value: 2, label: "火曜" },
   { value: 3, label: "水曜" },
   { value: 4, label: "木曜" },
   { value: 5, label: "金曜" },
   { value: 6, label: "土曜" },
+  { value: 0, label: "日曜" },
 ];
 const BACKTEST_SEARCH_KEYS = [
   "periodMode",
