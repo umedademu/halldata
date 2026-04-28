@@ -9,6 +9,7 @@ import {
   isHuntScoreSupported,
   isHuntScoreTargetStore,
   listHuntScoreSourceMachineNames,
+  listHuntScoreTargetMachineNames,
 } from "./hunt-score";
 import { canonicalMachineName, listEquivalentMachineNames, withCalculatedDifferenceValue } from "./machine-difference";
 
@@ -248,12 +249,19 @@ function dailyDetailRowHasMeaningfulResult(row) {
   return Object.values(recordsBySlot).some((record) => detailRecordHasMeaningfulResult(record));
 }
 
-async function fetchHuntScoreSourceRows(resultsTable, machineDailyDetailsTable, storeId) {
+async function fetchHuntScoreSourceRows(resultsTable, machineDailyDetailsTable, storeId, storeName) {
   const huntScoreMachineNames = [
     ...new Set(
-      listHuntScoreSourceMachineNames().flatMap((name) => listEquivalentMachineNames(name)),
+      listHuntScoreSourceMachineNames(storeName).flatMap((name) => listEquivalentMachineNames(name)),
     ),
   ];
+
+  if (huntScoreMachineNames.length === 0) {
+    return {
+      targetRows: [],
+      storeRows: [],
+    };
+  }
 
   try {
     const [targetMachineRows, storeDateRows] = await Promise.all([
@@ -1077,7 +1085,7 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
 
   const requestedMachineName = canonicalMachineName(machineName);
   const requestedHuntScoreMachineName =
-    canonicalHuntScoreTargetMachineName(requestedMachineName) ?? requestedMachineName;
+    canonicalHuntScoreTargetMachineName(requestedMachineName, store.store_name) ?? requestedMachineName;
   const huntScoreEnabled = isHuntScoreSupported(store.store_name, requestedHuntScoreMachineName);
   let rows;
   let detail = null;
@@ -1087,12 +1095,13 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
       resultsTable,
       machineDailyDetailsTable,
       storeId,
+      store.store_name,
     );
-    attachHuntScores(targetRows, storeRows);
+    attachHuntScores(targetRows, storeRows, store.store_name);
     rows = targetRows
       .filter((row) => {
         const rowMachineName =
-          canonicalHuntScoreTargetMachineName(canonicalMachineName(row.machine_name)) ??
+          canonicalHuntScoreTargetMachineName(canonicalMachineName(row.machine_name), store.store_name) ??
           canonicalMachineName(row.machine_name);
         return rowMachineName === requestedHuntScoreMachineName;
       })
@@ -1205,11 +1214,12 @@ async function getHuntScoreSnapshotsForStore(storeId) {
     resultsTable,
     machineDailyDetailsTable,
     storeId,
+    store.store_name,
   );
 
   return {
     store,
-    snapshots: buildHuntScoreSnapshots(targetRows, storeRows),
+    snapshots: buildHuntScoreSnapshots(targetRows, storeRows, store.store_name),
   };
 }
 
@@ -1274,7 +1284,10 @@ export async function getHuntScoreAnalysisPageDetail(
     rows: snapshot?.rows.slice(0, displayLimit) ?? [],
     totalCount,
     hasActualResults: snapshot?.rows.some((row) => row.nextRecord) ?? false,
-    backtest: buildHuntScoreBacktestDetail(snapshots, buildBacktestOptionsForStore(store, backtestOptions)),
+    backtest: buildHuntScoreBacktestDetail(snapshots, {
+      ...buildBacktestOptionsForStore(store, backtestOptions),
+      machineOrder: listHuntScoreTargetMachineNames(store.store_name),
+    }),
   };
 }
 

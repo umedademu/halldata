@@ -1,9 +1,9 @@
 import { calculateSettingEstimate, getSettingEstimateDefinition } from "./setting-estimates";
 
 const HUNT_SCORE_EPSILON = 0.000000001;
-const HUNT_SCORE_WINDOW_DAYS = 7;
-const HUNT_SCORE_TARGET_STORE_NAMES = ["Aパーク春日店"];
-const HUNT_SCORE_TARGET_MACHINES = [
+const DEFAULT_HUNT_SCORE_WINDOW_DAYS = 7;
+
+const APARK_KASUGA_TARGET_MACHINES = [
   { name: "SアイムジャグラーＥＸ", aliases: ["SアイムジャグラーEX"] },
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -44,6 +44,40 @@ const HUNT_SCORE_TARGET_MACHINES = [
   { name: "スターハナハナ", aliases: ["スターハナハナ-30", "スターハナハナ‐30"] },
 ];
 
+const GOGO_ARENA_TENJIN_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
+  { name: "ゴーゴージャグラー３", aliases: ["ゴーゴージャグラー3", "ゴーゴージャグラー"] },
+  {
+    name: "ファンキージャグラー２ＫＴ",
+    aliases: ["ファンキージャグラー２", "ファンキージャグラー2", "ファンキージャグラー"],
+  },
+  { name: "ミスタージャグラー", aliases: [] },
+  { name: "ジャグラーガールズSS", aliases: ["ジャグラーガールズ"] },
+  {
+    name: "ハッピージャグラーＶＩＩＩ",
+    aliases: ["ハッピージャグラーVIII", "ハッピージャグラーＶ", "ハッピージャグラーV", "ハッピージャグラー"],
+  },
+  { name: "ウルトラミラクルジャグラー", aliases: [] },
+];
+
+const HUNT_SCORE_STORE_CONFIGS = [
+  {
+    key: "apark-kasuga",
+    storeNames: ["Aパーク春日店"],
+    targetMachines: APARK_KASUGA_TARGET_MACHINES,
+    windowDays: 7,
+    scoreCalculator: calculateAparkKasugaHuntScore,
+  },
+  {
+    key: "gogo-arena-tenjin",
+    storeNames: ["GOGOアリーナ天神", "ＧＯＧＯアリーナ天神"],
+    targetMachines: GOGO_ARENA_TENJIN_TARGET_MACHINES,
+    windowDays: 7,
+    scoreCalculator: calculateGogoArenaTenjinHuntScore,
+  },
+];
+
 function normalizeText(value) {
   return String(value ?? "").normalize("NFKC").replace(/\s+/gu, "").trim();
 }
@@ -55,23 +89,52 @@ function listHuntScoreTargetMachineNameCandidates(targetMachine) {
   ];
 }
 
-export function canonicalHuntScoreTargetMachineName(machineName) {
-  const normalizedMachineName = normalizeText(machineName);
-  if (!normalizedMachineName) {
+export function findHuntScoreStoreConfig(storeName) {
+  const normalizedStoreName = normalizeText(storeName);
+  if (!normalizedStoreName) {
     return null;
   }
 
-  const targetMachine = HUNT_SCORE_TARGET_MACHINES.find((candidate) =>
-    listHuntScoreTargetMachineNameCandidates(candidate).some(
-      (candidateName) => normalizeText(candidateName) === normalizedMachineName,
-    ),
+  return (
+    HUNT_SCORE_STORE_CONFIGS.find((config) =>
+      config.storeNames.some((candidate) => normalizeText(candidate) === normalizedStoreName),
+    ) ?? null
   );
-
-  return targetMachine?.name ?? null;
 }
 
-function normalizeHuntScoreMachineName(machineName) {
-  return canonicalHuntScoreTargetMachineName(machineName) ?? normalizeText(machineName);
+function listSearchConfigs(storeName) {
+  const config = findHuntScoreStoreConfig(storeName);
+  return config ? [config] : HUNT_SCORE_STORE_CONFIGS;
+}
+
+function findTargetMachine(config, machineName) {
+  const normalizedMachineName = normalizeText(machineName);
+  if (!config || !normalizedMachineName) {
+    return null;
+  }
+
+  return (
+    config.targetMachines.find((candidate) =>
+      listHuntScoreTargetMachineNameCandidates(candidate).some(
+        (candidateName) => normalizeText(candidateName) === normalizedMachineName,
+      ),
+    ) ?? null
+  );
+}
+
+export function canonicalHuntScoreTargetMachineName(machineName, storeName = "") {
+  for (const config of listSearchConfigs(storeName)) {
+    const targetMachine = findTargetMachine(config, machineName);
+    if (targetMachine) {
+      return targetMachine.name;
+    }
+  }
+
+  return null;
+}
+
+function normalizeHuntScoreMachineName(machineName, config) {
+  return canonicalHuntScoreTargetMachineName(machineName, config?.storeNames?.[0] ?? "") ?? normalizeText(machineName);
 }
 
 function readNumber(value) {
@@ -93,16 +156,19 @@ function hasMeaningfulResult(row) {
   );
 }
 
-function buildRowKey(row) {
+function buildRowKey(row, config) {
   return [
     String(row?.target_date ?? "").trim(),
-    normalizeHuntScoreMachineName(row?.machine_name),
+    normalizeHuntScoreMachineName(row?.machine_name, config),
     String(row?.slot_number ?? "").trim(),
   ].join("\u0000");
 }
 
-function buildCandidateKey(row) {
-  return [normalizeHuntScoreMachineName(row?.machine_name), String(row?.slot_number ?? "").trim()].join("\u0000");
+function buildCandidateKey(row, config) {
+  return [
+    normalizeHuntScoreMachineName(row?.machine_name, config),
+    String(row?.slot_number ?? "").trim(),
+  ].join("\u0000");
 }
 
 function getSettingDefinition(settingDefinitionCache, machineName) {
@@ -115,10 +181,10 @@ function getSettingDefinition(settingDefinitionCache, machineName) {
   return definition;
 }
 
-function getSettingEstimateAverage(settingDefinitionCache, row) {
+function getSettingEstimateAverage(settingDefinitionCache, row, config) {
   const definition = getSettingDefinition(
     settingDefinitionCache,
-    normalizeHuntScoreMachineName(row?.machine_name),
+    normalizeHuntScoreMachineName(row?.machine_name, config),
   );
   const estimate = definition ? calculateSettingEstimate(definition, row) : null;
   return {
@@ -132,6 +198,19 @@ function calculateCurrentLosingStreak(windowRows) {
 
   for (let index = windowRows.length - 1; index >= 0; index -= 1) {
     if (windowRows[index].differenceValue >= 0) {
+      break;
+    }
+    streak += 1;
+  }
+
+  return streak;
+}
+
+function calculateCurrentHighSettingStreak(windowRows) {
+  let streak = 0;
+
+  for (let index = windowRows.length - 1; index >= 0; index -= 1) {
+    if (windowRows[index].settingAverage < 4) {
       break;
     }
     streak += 1;
@@ -238,7 +317,7 @@ function calculateTodaySettingScore(value) {
   ]);
 }
 
-function calculateAbsoluteHuntScore(metrics) {
+function calculateAparkKasugaHuntScore(metrics) {
   const totalScore =
     calculateLossDaysScore(metrics.lossDays) +
     calculateStreakScore(metrics.streak) +
@@ -252,13 +331,94 @@ function calculateAbsoluteHuntScore(metrics) {
   return clamp(totalScore, 0, 100);
 }
 
-function buildWindowRows(businessDates, dateIndex, recordMapByDate) {
-  if (dateIndex < HUNT_SCORE_WINDOW_DAYS - 1) {
+function listMetricValues(context, selector) {
+  return context.metricsList
+    .map(selector)
+    .filter((value) => Number.isFinite(value));
+}
+
+function calculatePercentileScore(value, values, higherIsBetter = true) {
+  if (!Number.isFinite(value) || values.length === 0) {
+    return 0;
+  }
+  if (values.length === 1) {
+    return 1;
+  }
+
+  const sortedValues = [...values].sort((left, right) => left - right);
+  const lowerOrEqualCount = sortedValues.filter((candidate) => candidate <= value).length;
+  const percentile = lowerOrEqualCount / sortedValues.length;
+  return higherIsBetter ? percentile : 1 - percentile + 1 / sortedValues.length;
+}
+
+function calculateRecentStrengthBalanceScore(metrics) {
+  if (metrics.highSettingStreak >= 2) {
+    return 0;
+  }
+  if (metrics.highSettingCount >= 3) {
+    return 1;
+  }
+  if (metrics.highSettingCount >= 1) {
+    return 0.75;
+  }
+  if (metrics.averageSetting >= 3.3) {
+    return 0.5;
+  }
+  return 0.15;
+}
+
+function calculateGogoArenaTenjinHuntScore(metrics, context) {
+  const todayDip = calculatePercentileScore(
+    metrics.todayDifference,
+    listMetricValues(context, (candidate) => candidate.todayDifference),
+    false,
+  );
+  const settingMomentum = calculatePercentileScore(
+    metrics.averageSetting,
+    listMetricValues(context, (candidate) => candidate.averageSetting),
+    true,
+  );
+  const rbMomentum = calculatePercentileScore(
+    metrics.rbRate,
+    listMetricValues(context, (candidate) => candidate.rbRate),
+    true,
+  );
+  const previousDip = calculatePercentileScore(
+    metrics.previousDifference,
+    listMetricValues(context, (candidate) => candidate.previousDifference),
+    false,
+  );
+  const netDip = calculatePercentileScore(
+    metrics.netTotal,
+    listMetricValues(context, (candidate) => candidate.netTotal),
+    false,
+  );
+  const gameTrust = calculatePercentileScore(
+    metrics.averageGames,
+    listMetricValues(context, (candidate) => candidate.averageGames),
+    true,
+  );
+
+  return clamp(
+    todayDip * 25 +
+      settingMomentum * 25 +
+      rbMomentum * 15 +
+      previousDip * 10 +
+      netDip * 10 +
+      gameTrust * 10 +
+      calculateRecentStrengthBalanceScore(metrics) * 5,
+    0,
+    100,
+  );
+}
+
+function buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays) {
+  if (dateIndex < windowDays - 1) {
     return null;
   }
 
-  const windowDates = businessDates.slice(dateIndex - (HUNT_SCORE_WINDOW_DAYS - 1), dateIndex + 1);
-  if (windowDates.length < HUNT_SCORE_WINDOW_DAYS) {
+  const windowDates = businessDates.slice(dateIndex - (windowDays - 1), dateIndex + 1);
+  if (windowDates.length < windowDays) {
     return null;
   }
 
@@ -280,8 +440,13 @@ function buildWindowRows(businessDates, dateIndex, recordMapByDate) {
   return windowRows;
 }
 
-function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, settingDefinitionCache) {
-  const windowRows = buildWindowRows(businessDates, dateIndex, recordMapByDate);
+function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, settingDefinitionCache, config) {
+  const windowRows = buildWindowRows(
+    businessDates,
+    dateIndex,
+    recordMapByDate,
+    config.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
+  );
   if (!windowRows) {
     return null;
   }
@@ -291,34 +456,69 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
   let lossAbsTotal = 0;
   let netTotal = 0;
   let maxWin = 0;
+  let gamesTotal = 0;
+  let bbTotal = 0;
+  let rbTotal = 0;
+  let settingTotal = 0;
+  let settingSampleCount = 0;
+  let highSettingCount = 0;
+  const metricWindowRows = [];
 
   for (const windowRow of windowRows) {
     const differenceValue = windowRow.differenceValue;
+    const games = readNumber(windowRow.row?.games_count) ?? 0;
+    const bbCount = readNumber(windowRow.row?.bb_count) ?? 0;
+    const rbCount = readNumber(windowRow.row?.rb_count) ?? 0;
+    const settingAverage = getSettingEstimateAverage(settingDefinitionCache, windowRow.row, config).average;
     netTotal += differenceValue;
+    gamesTotal += games;
+    bbTotal += bbCount;
+    rbTotal += rbCount;
+    settingTotal += settingAverage;
+    settingSampleCount += 1;
+    if (settingAverage >= 4) {
+      highSettingCount += 1;
+    }
 
     if (differenceValue < 0) {
       lossDays += 1;
       lossAbsTotal += Math.abs(differenceValue);
-      continue;
-    }
-
-    if (differenceValue > 0) {
+    } else if (differenceValue > 0) {
       winAbsTotal += differenceValue;
       maxWin = Math.max(maxWin, differenceValue);
     }
+
+    metricWindowRows.push({
+      ...windowRow,
+      games,
+      bbCount,
+      rbCount,
+      settingAverage,
+    });
   }
 
-  const todaySetting = getSettingEstimateAverage(settingDefinitionCache, row).average;
+  const todaySetting = getSettingEstimateAverage(settingDefinitionCache, row, config).average;
+  const previousWindowRow = metricWindowRows.at(-2) ?? null;
 
   return {
     lossDays,
-    streak: calculateCurrentLosingStreak(windowRows),
+    streak: calculateCurrentLosingStreak(metricWindowRows),
     lossAbsTotal,
     netTotal,
     compensationRate: lossAbsTotal === 0 ? 999 : winAbsTotal / lossAbsTotal,
     maxWin,
     todayDifference: readNumber(row?.difference_value) ?? 0,
+    previousDifference: previousWindowRow?.differenceValue ?? 0,
     todaySetting,
+    averageSetting: settingSampleCount > 0 ? settingTotal / settingSampleCount : 0,
+    highSettingCount,
+    highSettingStreak: calculateCurrentHighSettingStreak(metricWindowRows),
+    gamesTotal,
+    averageGames: metricWindowRows.length > 0 ? gamesTotal / metricWindowRows.length : 0,
+    bbTotal,
+    rbTotal,
+    bbRate: gamesTotal > 0 ? bbTotal / gamesTotal : 0,
+    rbRate: gamesTotal > 0 ? rbTotal / gamesTotal : 0,
   };
 }
 
@@ -346,7 +546,7 @@ function buildBusinessDates(allStoreRows, targetRows) {
     .sort((left, right) => left.localeCompare(right));
 }
 
-function buildSourceMaps(targetRows, businessDateSet) {
+function buildSourceMaps(targetRows, businessDateSet, config) {
   const rowsByCandidateKey = new Map();
   const rowsByDate = new Map();
 
@@ -354,12 +554,12 @@ function buildSourceMaps(targetRows, businessDateSet) {
     if (
       !hasMeaningfulResult(row) ||
       !businessDateSet.has(row?.target_date) ||
-      !isHuntScoreTargetMachine(row?.machine_name)
+      !isHuntScoreTargetMachine(row?.machine_name, config.storeNames[0])
     ) {
       continue;
     }
 
-    const candidateKey = buildCandidateKey(row);
+    const candidateKey = buildCandidateKey(row, config);
     if (!rowsByCandidateKey.has(candidateKey)) {
       rowsByCandidateKey.set(candidateKey, new Map());
     }
@@ -377,12 +577,17 @@ function buildSourceMaps(targetRows, businessDateSet) {
   };
 }
 
+function roundHuntScore(value) {
+  return Number.isFinite(value) ? Math.round(clamp(value, 0, 100)) : null;
+}
+
 function buildSnapshotRowsForDate(
   businessDates,
   dateIndex,
   rowsByDate,
   rowsByCandidateKey,
   settingDefinitionCache,
+  config,
 ) {
   const baseDate = businessDates[dateIndex];
   const nextBusinessDate = businessDates[dateIndex + 1] ?? null;
@@ -397,7 +602,7 @@ function buildSnapshotRowsForDate(
   }
 
   const candidates = dateRows.map((row) => {
-    const candidateKey = buildCandidateKey(row);
+    const candidateKey = buildCandidateKey(row, config);
     const recordMapByDate = rowsByCandidateKey.get(candidateKey) ?? new Map();
     const metrics = calculateWindowMetrics(
       businessDates,
@@ -405,31 +610,41 @@ function buildSnapshotRowsForDate(
       row,
       recordMapByDate,
       settingDefinitionCache,
+      config,
     );
 
     return {
       row,
-      rowKey: buildRowKey(row),
+      rowKey: buildRowKey(row, config),
       candidateKey,
       metrics,
     };
   });
+  const validCandidates = candidates.filter((candidate) => candidate.metrics);
+  const context = {
+    baseDate,
+    nextBusinessDate,
+    metricsList: validCandidates.map((candidate) => candidate.metrics),
+  };
 
-  const rows = candidates
-    .filter((candidate) => candidate.metrics)
+  const rows = validCandidates
     .map((candidate) => {
-      const huntScore = calculateAbsoluteHuntScore(candidate.metrics);
+      const huntScore = roundHuntScore(config.scoreCalculator(candidate.metrics, context));
+      if (!Number.isFinite(huntScore)) {
+        return null;
+      }
+
       const recordMapByDate = rowsByCandidateKey.get(candidate.candidateKey) ?? new Map();
       const nextRecord = nextBusinessDate ? recordMapByDate.get(nextBusinessDate) ?? null : null;
       const nextSetting = nextRecord
-        ? getSettingEstimateAverage(settingDefinitionCache, nextRecord).estimate
+        ? getSettingEstimateAverage(settingDefinitionCache, nextRecord, config).estimate
         : null;
 
       return {
         baseDate,
         nextBusinessDate,
         rowKey: candidate.rowKey,
-        machineName: normalizeHuntScoreMachineName(candidate.row.machine_name),
+        machineName: normalizeHuntScoreMachineName(candidate.row.machine_name, config),
         slotNumber: candidate.row.slot_number,
         huntScore,
         currentRecord: candidate.row,
@@ -437,6 +652,7 @@ function buildSnapshotRowsForDate(
         nextSettingEstimate: nextSetting,
       };
     })
+    .filter(Boolean)
     .sort((left, right) => {
       if (Math.abs(right.huntScore - left.huntScore) > HUNT_SCORE_EPSILON) {
         return right.huntScore - left.huntScore;
@@ -460,36 +676,38 @@ function buildSnapshotRowsForDate(
 }
 
 export function isHuntScoreTargetStore(storeName) {
-  const normalizedStoreName = normalizeText(storeName);
-  return HUNT_SCORE_TARGET_STORE_NAMES.some(
-    (candidate) => normalizeText(candidate) === normalizedStoreName,
-  );
+  return findHuntScoreStoreConfig(storeName) !== null;
 }
 
-export function isHuntScoreTargetMachine(machineName) {
-  return canonicalHuntScoreTargetMachineName(machineName) !== null;
+export function isHuntScoreTargetMachine(machineName, storeName = "") {
+  return canonicalHuntScoreTargetMachineName(machineName, storeName) !== null;
 }
 
 export function isHuntScoreSupported(storeName, machineName) {
-  return isHuntScoreTargetStore(storeName) && isHuntScoreTargetMachine(machineName);
+  return isHuntScoreTargetStore(storeName) && isHuntScoreTargetMachine(machineName, storeName);
 }
 
-export function listHuntScoreTargetMachineNames() {
-  return HUNT_SCORE_TARGET_MACHINES.map((targetMachine) => targetMachine.name);
+export function listHuntScoreTargetMachineNames(storeName = "") {
+  return listSearchConfigs(storeName).flatMap((config) =>
+    config.targetMachines.map((targetMachine) => targetMachine.name),
+  );
 }
 
-export function listHuntScoreSourceMachineNames() {
+export function listHuntScoreSourceMachineNames(storeName = "") {
   return [
     ...new Set(
-      HUNT_SCORE_TARGET_MACHINES.flatMap(listHuntScoreTargetMachineNameCandidates)
+      listSearchConfigs(storeName)
+        .flatMap((config) => config.targetMachines)
+        .flatMap(listHuntScoreTargetMachineNameCandidates)
         .map((machineName) => String(machineName ?? "").trim())
         .filter(Boolean),
     ),
   ];
 }
 
-export function buildHuntScoreSnapshots(targetRows, allStoreRows = []) {
-  if (!Array.isArray(targetRows) || targetRows.length === 0) {
+export function buildHuntScoreSnapshots(targetRows, allStoreRows = [], storeName = "") {
+  const config = findHuntScoreStoreConfig(storeName);
+  if (!config || !Array.isArray(targetRows) || targetRows.length === 0) {
     return [];
   }
 
@@ -499,7 +717,7 @@ export function buildHuntScoreSnapshots(targetRows, allStoreRows = []) {
   }
 
   const businessDateSet = new Set(businessDates);
-  const { rowsByCandidateKey, rowsByDate } = buildSourceMaps(targetRows, businessDateSet);
+  const { rowsByCandidateKey, rowsByDate } = buildSourceMaps(targetRows, businessDateSet, config);
   const settingDefinitionCache = new Map();
 
   return businessDates
@@ -510,14 +728,20 @@ export function buildHuntScoreSnapshots(targetRows, allStoreRows = []) {
         rowsByDate,
         rowsByCandidateKey,
         settingDefinitionCache,
+        config,
       ),
     )
     .filter((snapshot) => snapshot.rows.length > 0)
     .sort((left, right) => right.baseDate.localeCompare(left.baseDate));
 }
 
-export function attachHuntScores(targetRows, allStoreRows = []) {
-  const snapshots = buildHuntScoreSnapshots(targetRows, allStoreRows);
+export function attachHuntScores(targetRows, allStoreRows = [], storeName = "") {
+  const config = findHuntScoreStoreConfig(storeName);
+  if (!config) {
+    return;
+  }
+
+  const snapshots = buildHuntScoreSnapshots(targetRows, allStoreRows, storeName);
   const huntScoreByRowKey = new Map();
 
   for (const snapshot of snapshots) {
@@ -527,7 +751,7 @@ export function attachHuntScores(targetRows, allStoreRows = []) {
   }
 
   for (const row of targetRows) {
-    const huntScore = huntScoreByRowKey.get(buildRowKey(row));
+    const huntScore = huntScoreByRowKey.get(buildRowKey(row, config));
     if (Number.isFinite(huntScore)) {
       row.hunt_score = huntScore;
     }

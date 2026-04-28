@@ -115,13 +115,13 @@ function normalizeCombineAimJuggler(value) {
   return values.includes("1") || values.includes("true") || values.includes("on");
 }
 
-function buildMachineOrder() {
-  const orderedMachineNames = [...new Set(listHuntScoreTargetMachineNames().map(canonicalMachineName))];
+function buildMachineOrder(machineOrder = listHuntScoreTargetMachineNames()) {
+  const orderedMachineNames = [...new Set(machineOrder.map(canonicalMachineName))];
   return new Map(orderedMachineNames.map((machineName, index) => [machineName, index]));
 }
 
-function buildAvailableMachineNames(snapshots) {
-  const machineOrder = buildMachineOrder();
+function buildAvailableMachineNames(snapshots, machineOrderNames) {
+  const machineOrder = buildMachineOrder(machineOrderNames);
   const machineNames = [
     ...new Set(
       snapshots.flatMap((snapshot) =>
@@ -536,7 +536,13 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const latestDate = rankingDates[0] ?? null;
   const earliestDate = rankingDates.at(-1) ?? null;
   const combineAimJuggler = normalizeCombineAimJuggler(options.combineAimJuggler);
-  const availableMachineNames = buildAvailableMachineNames(Array.isArray(snapshots) ? snapshots : []);
+  const availableMachineNames = buildAvailableMachineNames(
+    Array.isArray(snapshots) ? snapshots : [],
+    Array.isArray(options.machineOrder) ? options.machineOrder : undefined,
+  );
+  const hasAimJugglerGroupOption = AIM_JUGGLER_MACHINE_NAMES.every((machineName) =>
+    availableMachineNames.includes(machineName),
+  );
   const selectedMachineNames = buildSelectedMachineNames(
     options.machineNames,
     availableMachineNames,
@@ -597,6 +603,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     showGraph,
     differenceMode,
     combineAimJuggler,
+    hasAimJugglerGroupOption,
     eventFilters,
     breakdowns,
     ...allAggregation,

@@ -421,19 +421,21 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               <div className="backtestBlock">
                 <p className="filterControlLabel">機種名</p>
                 <input type="hidden" name="aimMachineGroup" value="0" />
-                <label
-                  className={`metricToggleChip ${
-                    detail.backtest.combineAimJuggler ? "metricToggleChipActive" : ""
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    name="aimMachineGroup"
-                    value="1"
-                    defaultChecked={detail.backtest.combineAimJuggler}
-                  />
-                  <span>SアイムジャグラーEXとネオアイムジャグラーEXをまとめる</span>
-                </label>
+                {detail.backtest.hasAimJugglerGroupOption ? (
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.combineAimJuggler ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="aimMachineGroup"
+                      value="1"
+                      defaultChecked={detail.backtest.combineAimJuggler}
+                    />
+                    <span>SアイムジャグラーEXとネオアイムジャグラーEXをまとめる</span>
+                  </label>
+                ) : null}
                 <div className="metricToggleRow">
                   {detail.backtest.machineOptions.map((machine) => (
                     <label
