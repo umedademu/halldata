@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
-const rulesPath = path.resolve(currentDirectory, "../../../config/machine_difference_rules.json");
+const rulesPath = path.resolve(currentDirectory, "../config/machine_difference_rules.json");
 
 let cachedRules = null;
 
