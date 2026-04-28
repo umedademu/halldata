@@ -216,6 +216,8 @@ function buildEmptySummary(machineName = "総計") {
     bbTotal: 0,
     rbTotal: 0,
     payoutRate: null,
+    bbProbability: null,
+    rbProbability: null,
     combinedProbability: null,
     averageSetting: null,
     settingSampleCount: 0,
@@ -238,6 +240,8 @@ function finalizeSummary(summary) {
     ...summary,
     averageHuntScore: calculateAverage(summary.huntScoreTotal, summary.matchedRowCount),
     payoutRate: calculatePayoutRate(summary.investedCoinsTotal, summary.differenceTotal),
+    bbProbability: formatProbability(summary.gamesTotal, summary.bbTotal),
+    rbProbability: formatProbability(summary.gamesTotal, summary.rbTotal),
     combinedProbability: formatProbability(summary.gamesTotal, summary.bbTotal + summary.rbTotal),
   };
 }

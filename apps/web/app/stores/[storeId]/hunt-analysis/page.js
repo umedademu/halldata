@@ -526,6 +526,8 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                       <th>合計G数</th>
                       <th>BB</th>
                       <th>RB</th>
+                      <th>BB率</th>
+                      <th>RB率</th>
                       <th>合成</th>
                       <th>機械割</th>
                       <th>平均設定</th>
@@ -541,6 +543,8 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                       <td>{formatNumber(detail.backtest.total.gamesTotal)}</td>
                       <td>{formatNumber(detail.backtest.total.bbTotal)}</td>
                       <td>{formatNumber(detail.backtest.total.rbTotal)}</td>
+                      <td>{detail.backtest.total.bbProbability ?? "-"}</td>
+                      <td>{detail.backtest.total.rbProbability ?? "-"}</td>
                       <td>{detail.backtest.total.combinedProbability ?? "-"}</td>
                       <td>{formatPercent(detail.backtest.total.payoutRate)}</td>
                       <td>{formatSettingEstimateScore(detail.backtest.total.averageSetting)}</td>
@@ -558,6 +562,8 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                         <td>{formatNumber(summary.gamesTotal)}</td>
                         <td>{formatNumber(summary.bbTotal)}</td>
                         <td>{formatNumber(summary.rbTotal)}</td>
+                        <td>{summary.bbProbability ?? "-"}</td>
+                        <td>{summary.rbProbability ?? "-"}</td>
                         <td>{summary.combinedProbability ?? "-"}</td>
                         <td>{formatPercent(summary.payoutRate)}</td>
                         <td>{formatSettingEstimateScore(summary.averageSetting)}</td>
