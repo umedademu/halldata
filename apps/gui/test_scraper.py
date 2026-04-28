@@ -38,6 +38,8 @@ from main import (
     parse_retry_delay_seconds,
     rewrite_history_result_store,
     scheduled_fetch_due_date,
+    site7_schedule_excludes_hour,
+    site7_schedule_is_due,
 )
 from machine_difference import calculate_machine_difference_value, canonical_machine_name, machine_requires_slot_resolution
 from machine_difference import machine_is_site7_target, machine_slot_resolution_group
@@ -237,6 +239,29 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertIsNone(scheduled_fetch_due_date(9, None, now))
         self.assertIsNone(scheduled_fetch_due_date(10, "2026-04-28", now))
 
+    def test_site7_schedule_excludes_hour_handles_normal_and_cross_day_ranges(self) -> None:
+        self.assertTrue(site7_schedule_excludes_hour(2, 2, 10))
+        self.assertTrue(site7_schedule_excludes_hour(9, 2, 10))
+        self.assertFalse(site7_schedule_excludes_hour(10, 2, 10))
+        self.assertFalse(site7_schedule_excludes_hour(1, 2, 10))
+
+        self.assertTrue(site7_schedule_excludes_hour(23, 22, 5))
+        self.assertTrue(site7_schedule_excludes_hour(4, 22, 5))
+        self.assertFalse(site7_schedule_excludes_hour(12, 22, 5))
+        self.assertFalse(site7_schedule_excludes_hour(2, 2, 2))
+
+    def test_site7_schedule_is_due_respects_interval_and_exclusion(self) -> None:
+        active_now = datetime(2026, 4, 28, 1, 30, tzinfo=timezone.utc)
+        recent_last_run = datetime(2026, 4, 28, 1, 0, tzinfo=timezone.utc)
+        old_last_run = datetime(2026, 4, 28, 0, 0, tzinfo=timezone.utc)
+        excluded_now = datetime(2026, 4, 27, 18, 0, tzinfo=timezone.utc)
+
+        self.assertTrue(site7_schedule_is_due(60, None, 2, 10, active_now))
+        self.assertFalse(site7_schedule_is_due(60, recent_last_run, 2, 10, active_now))
+        self.assertTrue(site7_schedule_is_due(60, old_last_run, 2, 10, active_now))
+        self.assertFalse(site7_schedule_is_due(60, old_last_run, 2, 10, excluded_now))
+        self.assertFalse(site7_schedule_is_due(0, old_last_run, 2, 10, active_now))
+
     def test_clamp_site7_recent_days(self) -> None:
         self.assertEqual(clamp_site7_recent_days(3), 3)
         self.assertEqual(clamp_site7_recent_days(90), 8)
@@ -267,9 +292,17 @@ class MinRepoScraperTests(unittest.TestCase):
 
             app._save_schedule_hour(5)
             app._save_site7_browser_mode(SITE7_BROWSER_MODE_HIDDEN)
+            app._save_site7_schedule_settings(45, 1, 9)
 
             self.assertEqual(app._load_saved_schedule_hour(), 5)
             self.assertEqual(app._load_saved_site7_browser_mode(), SITE7_BROWSER_MODE_HIDDEN)
+            self.assertEqual(app._load_saved_site7_schedule_settings(), (45, 1, 9))
+
+            app._save_site7_schedule_settings(None, 2, 10)
+
+            self.assertEqual(app._load_saved_schedule_hour(), 5)
+            self.assertEqual(app._load_saved_site7_browser_mode(), SITE7_BROWSER_MODE_HIDDEN)
+            self.assertEqual(app._load_saved_site7_schedule_settings(), (None, 2, 10))
 
     def test_window_close_can_choose_exit(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -403,6 +436,11 @@ class MinRepoScraperTests(unittest.TestCase):
             "site7_login_button",
             "site7_fetch_button",
             "site7_cancel_button",
+            "site7_schedule_interval_entry",
+            "site7_schedule_exclude_start_entry",
+            "site7_schedule_exclude_end_entry",
+            "apply_site7_schedule_button",
+            "clear_site7_schedule_button",
             "site7_browser_visible_radio",
             "site7_browser_hidden_radio",
             "register_store_button",

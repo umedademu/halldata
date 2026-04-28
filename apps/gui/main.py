@@ -59,6 +59,9 @@ DEFAULT_RECENT_DAYS = "90"
 DEFAULT_RETRY_DELAY_SECONDS = "10"
 MAX_FETCH_RETRY_COUNT = 3
 DEFAULT_SCHEDULE_HOUR = 2
+DEFAULT_SITE7_SCHEDULE_INTERVAL_MINUTES = 60
+DEFAULT_SITE7_SCHEDULE_EXCLUDE_START_HOUR = 2
+DEFAULT_SITE7_SCHEDULE_EXCLUDE_END_HOUR = 10
 GUI_SETTINGS_FILE_NAME = "gui_settings.json"
 SITE7_BROWSER_MODE_VISIBLE = "visible"
 SITE7_BROWSER_MODE_HIDDEN = "hidden"
@@ -132,6 +135,38 @@ def scheduled_fetch_due_date(
         return None
 
     return today_text
+
+
+def site7_schedule_excludes_hour(current_hour: int, exclude_start_hour: int, exclude_end_hour: int) -> bool:
+    if not 0 <= current_hour <= 23:
+        return False
+    if not 0 <= exclude_start_hour <= 23 or not 0 <= exclude_end_hour <= 23:
+        return False
+    if exclude_start_hour == exclude_end_hour:
+        return False
+    if exclude_start_hour < exclude_end_hour:
+        return exclude_start_hour <= current_hour < exclude_end_hour
+    return current_hour >= exclude_start_hour or current_hour < exclude_end_hour
+
+
+def site7_schedule_is_due(
+    interval_minutes: int | None,
+    last_run_at: datetime | None,
+    exclude_start_hour: int,
+    exclude_end_hour: int,
+    now: datetime | None = None,
+) -> bool:
+    if interval_minutes is None or interval_minutes <= 0:
+        return False
+
+    current_time = (now or datetime.now(JST)).astimezone(JST)
+    if site7_schedule_excludes_hour(current_time.hour, exclude_start_hour, exclude_end_hour):
+        return False
+    if last_run_at is None:
+        return True
+
+    elapsed_seconds = (current_time - last_run_at.astimezone(JST)).total_seconds()
+    return elapsed_seconds >= interval_minutes * 60
 
 
 def rewrite_history_result_store(
@@ -365,12 +400,21 @@ class MinRepoApp:
         self.fetch_cancel_event = threading.Event()
         self.scheduled_fetch_hour: int | None = self._load_saved_schedule_hour()
         self.site7_browser_mode: str = self._load_saved_site7_browser_mode()
+        (
+            self.site7_schedule_interval_minutes,
+            self.site7_schedule_exclude_start_hour,
+            self.site7_schedule_exclude_end_hour,
+        ) = self._load_saved_site7_schedule_settings()
         self.scheduled_last_run_date: str | None = None
         self.scheduled_pending_date: str | None = None
         self.scheduled_startup_prompt_date: str | None = scheduled_fetch_due_date(
             self.scheduled_fetch_hour,
             self.scheduled_last_run_date,
         )
+        self.site7_schedule_last_run_at: datetime | None = (
+            datetime.now(JST) if self.site7_schedule_interval_minutes is not None else None
+        )
+        self.site7_schedule_pending = False
         self.tray_icon: object | None = None
         self.tray_thread: threading.Thread | None = None
 
@@ -397,6 +441,12 @@ class MinRepoApp:
         self.site7_status_var = tk.StringVar(
             value="保存済みのログイン情報あり" if self.site7_scraper.has_saved_login_state() else "初回ログインが必要"
         )
+        self.site7_schedule_interval_var = tk.StringVar(
+            value=str(self.site7_schedule_interval_minutes or DEFAULT_SITE7_SCHEDULE_INTERVAL_MINUTES)
+        )
+        self.site7_schedule_exclude_start_var = tk.StringVar(value=str(self.site7_schedule_exclude_start_hour))
+        self.site7_schedule_exclude_end_var = tk.StringVar(value=str(self.site7_schedule_exclude_end_hour))
+        self.site7_schedule_status_var = tk.StringVar(value=self._site7_schedule_status_text())
         self.fetch_progress_current = 0
         self.fetch_progress_total = 0
 
@@ -521,8 +571,52 @@ class MinRepoApp:
 
         ttk.Label(site7_row, textvariable=self.site7_status_var).grid(row=1, column=3, sticky="w", padx=(12, 0), pady=(8, 0))
 
+        site7_schedule_row = ttk.Frame(site7_row)
+        site7_schedule_row.grid(row=2, column=0, columnspan=4, sticky="w", pady=(8, 0))
+        ttk.Label(site7_schedule_row, text="定期取得").grid(row=0, column=0, sticky="w")
+        self.site7_schedule_interval_entry = ttk.Entry(
+            site7_schedule_row,
+            textvariable=self.site7_schedule_interval_var,
+            width=5,
+        )
+        self.site7_schedule_interval_entry.grid(row=0, column=1, sticky="w", padx=(8, 4))
+        ttk.Label(site7_schedule_row, text="分に1回").grid(row=0, column=2, sticky="w")
+        ttk.Label(site7_schedule_row, text="除外").grid(row=0, column=3, sticky="w", padx=(12, 4))
+        self.site7_schedule_exclude_start_entry = ttk.Entry(
+            site7_schedule_row,
+            textvariable=self.site7_schedule_exclude_start_var,
+            width=4,
+        )
+        self.site7_schedule_exclude_start_entry.grid(row=0, column=4, sticky="w")
+        ttk.Label(site7_schedule_row, text="時～").grid(row=0, column=5, sticky="w", padx=(4, 4))
+        self.site7_schedule_exclude_end_entry = ttk.Entry(
+            site7_schedule_row,
+            textvariable=self.site7_schedule_exclude_end_var,
+            width=4,
+        )
+        self.site7_schedule_exclude_end_entry.grid(row=0, column=6, sticky="w")
+        ttk.Label(site7_schedule_row, text="時").grid(row=0, column=7, sticky="w", padx=(4, 0))
+        self.apply_site7_schedule_button = ttk.Button(
+            site7_schedule_row,
+            text="設定",
+            command=self.apply_site7_schedule,
+        )
+        self.apply_site7_schedule_button.grid(row=0, column=8, sticky="w", padx=(8, 0))
+        self.clear_site7_schedule_button = ttk.Button(
+            site7_schedule_row,
+            text="解除",
+            command=self.clear_site7_schedule,
+        )
+        self.clear_site7_schedule_button.grid(row=0, column=9, sticky="w", padx=(8, 0))
+        ttk.Label(site7_schedule_row, textvariable=self.site7_schedule_status_var).grid(
+            row=0,
+            column=10,
+            sticky="w",
+            padx=(12, 0),
+        )
+
         mode_row = ttk.Frame(site7_row)
-        mode_row.grid(row=2, column=0, columnspan=4, sticky="w", pady=(8, 0))
+        mode_row.grid(row=3, column=0, columnspan=4, sticky="w", pady=(8, 0))
         ttk.Label(mode_row, text="取得時のブラウザ").grid(row=0, column=0, sticky="w")
         self.site7_browser_visible_radio = ttk.Radiobutton(
             mode_row,
@@ -710,6 +804,72 @@ class MinRepoApp:
         self.site7_browser_mode = browser_mode
         return browser_mode == SITE7_BROWSER_MODE_VISIBLE
 
+    def _site7_schedule_status_text(self) -> str:
+        if self.site7_schedule_interval_minutes is None:
+            return "サイトセブン定期実行なし"
+        return (
+            f"{self.site7_schedule_interval_minutes}分に1回 / "
+            f"除外 {self.site7_schedule_exclude_start_hour}時～{self.site7_schedule_exclude_end_hour}時"
+        )
+
+    def apply_site7_schedule(self) -> None:
+        try:
+            interval_minutes = self._parse_site7_schedule_interval_minutes()
+            exclude_start_hour = self._parse_site7_schedule_hour(self.site7_schedule_exclude_start_var.get())
+            exclude_end_hour = self._parse_site7_schedule_hour(self.site7_schedule_exclude_end_var.get())
+        except ScraperError as exc:
+            messagebox.showwarning("入力不正", str(exc))
+            return
+
+        self.site7_schedule_interval_minutes = interval_minutes
+        self.site7_schedule_exclude_start_hour = exclude_start_hour
+        self.site7_schedule_exclude_end_hour = exclude_end_hour
+        self.site7_schedule_last_run_at = datetime.now(JST)
+        self.site7_schedule_pending = False
+        try:
+            self._save_site7_schedule_settings(
+                interval_minutes,
+                exclude_start_hour,
+                exclude_end_hour,
+            )
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showwarning("設定保存", f"サイトセブン定期実行の設定保存に失敗しました。\n{exc}")
+        self.site7_schedule_status_var.set(self._site7_schedule_status_text())
+
+    def clear_site7_schedule(self) -> None:
+        self.site7_schedule_interval_minutes = None
+        self.site7_schedule_last_run_at = None
+        self.site7_schedule_pending = False
+        try:
+            self._save_site7_schedule_settings(
+                None,
+                self.site7_schedule_exclude_start_hour,
+                self.site7_schedule_exclude_end_hour,
+            )
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showwarning("設定保存", f"サイトセブン定期実行の設定保存に失敗しました。\n{exc}")
+        self.site7_schedule_status_var.set("サイトセブン定期実行なし")
+
+    def _parse_site7_schedule_interval_minutes(self) -> int:
+        text = self.site7_schedule_interval_var.get().strip()
+        if not re.fullmatch(r"\d+", text):
+            raise ScraperError("サイトセブン定期取得の間隔は 1 以上の整数で入力してください。")
+
+        interval_minutes = int(text)
+        if interval_minutes <= 0:
+            raise ScraperError("サイトセブン定期取得の間隔は 1 以上の整数で入力してください。")
+        return interval_minutes
+
+    def _parse_site7_schedule_hour(self, value: str) -> int:
+        text = str(value).strip()
+        if not re.fullmatch(r"\d{1,2}", text):
+            raise ScraperError("サイトセブン定期取得の除外時刻は 0 から 23 の整数で入力してください。")
+
+        hour = int(text)
+        if not 0 <= hour <= 23:
+            raise ScraperError("サイトセブン定期取得の除外時刻は 0 から 23 の整数で入力してください。")
+        return hour
+
     def apply_daily_schedule(self) -> None:
         try:
             scheduled_hour = self._parse_schedule_hour()
@@ -794,8 +954,62 @@ class MinRepoApp:
     def _save_site7_browser_mode(self, browser_mode: str) -> None:
         self._save_gui_settings(site7_browser_mode=normalize_site7_browser_mode(browser_mode))
 
+    def _load_saved_site7_schedule_settings(self) -> tuple[int | None, int, int]:
+        try:
+            payload = self._load_gui_settings()
+        except Exception:  # noqa: BLE001
+            return (
+                DEFAULT_SITE7_SCHEDULE_INTERVAL_MINUTES,
+                DEFAULT_SITE7_SCHEDULE_EXCLUDE_START_HOUR,
+                DEFAULT_SITE7_SCHEDULE_EXCLUDE_END_HOUR,
+            )
+
+        interval_source = payload.get("site7_schedule_interval_minutes", DEFAULT_SITE7_SCHEDULE_INTERVAL_MINUTES)
+        if interval_source is None:
+            interval_minutes: int | None = None
+        else:
+            try:
+                interval_minutes = int(interval_source)
+            except (TypeError, ValueError):
+                interval_minutes = DEFAULT_SITE7_SCHEDULE_INTERVAL_MINUTES
+            if interval_minutes is not None and interval_minutes <= 0:
+                interval_minutes = DEFAULT_SITE7_SCHEDULE_INTERVAL_MINUTES
+
+        try:
+            exclude_start_hour = int(
+                payload.get("site7_schedule_exclude_start_hour", DEFAULT_SITE7_SCHEDULE_EXCLUDE_START_HOUR)
+            )
+        except (TypeError, ValueError):
+            exclude_start_hour = DEFAULT_SITE7_SCHEDULE_EXCLUDE_START_HOUR
+        try:
+            exclude_end_hour = int(
+                payload.get("site7_schedule_exclude_end_hour", DEFAULT_SITE7_SCHEDULE_EXCLUDE_END_HOUR)
+            )
+        except (TypeError, ValueError):
+            exclude_end_hour = DEFAULT_SITE7_SCHEDULE_EXCLUDE_END_HOUR
+
+        if not 0 <= exclude_start_hour <= 23:
+            exclude_start_hour = DEFAULT_SITE7_SCHEDULE_EXCLUDE_START_HOUR
+        if not 0 <= exclude_end_hour <= 23:
+            exclude_end_hour = DEFAULT_SITE7_SCHEDULE_EXCLUDE_END_HOUR
+
+        return interval_minutes, exclude_start_hour, exclude_end_hour
+
+    def _save_site7_schedule_settings(
+        self,
+        interval_minutes: int | None,
+        exclude_start_hour: int,
+        exclude_end_hour: int,
+    ) -> None:
+        self._save_gui_settings(
+            site7_schedule_interval_minutes=interval_minutes,
+            site7_schedule_exclude_start_hour=exclude_start_hour,
+            site7_schedule_exclude_end_hour=exclude_end_hour,
+        )
+
     def _schedule_timer_tick(self) -> None:
         self._run_scheduled_fetch_if_due()
+        self._run_scheduled_site7_fetch_if_due()
         self.root.after(30_000, self._schedule_timer_tick)
 
     def _run_scheduled_fetch_if_due(self) -> None:
@@ -855,6 +1069,83 @@ class MinRepoApp:
             target_date_input,
             retry_delay_seconds,
             operation_kind="scheduled_fetch",
+        )
+
+    def _run_scheduled_site7_fetch_if_due(self) -> None:
+        now = datetime.now(JST)
+        if self.site7_schedule_interval_minutes is None:
+            return
+
+        if site7_schedule_excludes_hour(
+            now.hour,
+            self.site7_schedule_exclude_start_hour,
+            self.site7_schedule_exclude_end_hour,
+        ):
+            if self.site7_schedule_pending:
+                self.site7_schedule_status_var.set(
+                    f"除外時刻中: {self.site7_schedule_exclude_start_hour}時～"
+                    f"{self.site7_schedule_exclude_end_hour}時"
+                )
+            return
+
+        if self.site7_schedule_pending:
+            if self.is_busy:
+                self.site7_schedule_status_var.set("サイトセブン定期実行を待機中")
+                return
+            self.site7_schedule_pending = False
+            self._start_scheduled_site7_fetch(now)
+            return
+
+        if not site7_schedule_is_due(
+            self.site7_schedule_interval_minutes,
+            self.site7_schedule_last_run_at,
+            self.site7_schedule_exclude_start_hour,
+            self.site7_schedule_exclude_end_hour,
+            now,
+        ):
+            return
+
+        if self.is_busy:
+            self.site7_schedule_pending = True
+            self.site7_schedule_status_var.set("サイトセブン定期実行を待機中")
+            return
+
+        self._start_scheduled_site7_fetch(now)
+
+    def _start_scheduled_site7_fetch(self, started_at: datetime | None = None) -> None:
+        self.site7_schedule_last_run_at = (started_at or datetime.now(JST)).astimezone(JST)
+        try:
+            recent_days = parse_recent_days(self.target_date_var.get())
+            retry_delay_seconds = self._retry_delay_seconds_input()
+        except ScraperError as exc:
+            self.site7_schedule_status_var.set("サイトセブン定期実行を開始できません")
+            self._show_error(exc)
+            return
+
+        recent_days = min(recent_days, SITE7_MAX_RECENT_DAYS)
+        if not self.site7_scraper.has_saved_login_state():
+            self.site7_schedule_status_var.set("サイトセブン定期実行はログイン情報待ち")
+            return
+
+        self.current_results = []
+        self.current_history_result = None
+        self.comparison_rows = []
+        self.comparison_slot_numbers = []
+        self.comparison_display_rows = []
+        self.comparison_selected_date = None
+        self._clear_comparison_table()
+        self._begin_fetch_progress("サイトセブン定期実行: 登録店舗を更新中...")
+        self.status_var.set("サイトセブン定期実行中...")
+        self.summary_var.set("登録店舗を更新してからサイトセブン取得します")
+        self.site7_schedule_status_var.set("サイトセブン定期実行中")
+        self.fetch_cancel_event.clear()
+        browser_visible = self._site7_browser_visible()
+        self._start_worker(
+            self._worker_scheduled_site7_fetch,
+            recent_days,
+            retry_delay_seconds,
+            browser_visible,
+            operation_kind="scheduled_site7_fetch",
         )
 
     def _hide_to_resident(self) -> None:
@@ -1208,6 +1499,34 @@ class MinRepoApp:
                 self.result_queue.put(("fetch_cancelled", None))
                 return
             self.result_queue.put(("scheduled_fetch_many_success", (refresh_result, fetch_many_result)))
+        except FetchCancelled:
+            self.result_queue.put(("fetch_cancelled", None))
+        except Exception as exc:  # noqa: BLE001
+            self.result_queue.put(("fetch_error", exc))
+
+    def _worker_scheduled_site7_fetch(
+        self,
+        recent_days: int,
+        retry_delay_seconds: int,
+        browser_visible: bool,
+    ) -> None:
+        try:
+            registered_stores = self._load_latest_registered_stores()
+            self._raise_if_fetch_cancelled()
+            target_stores = self._site7_registered_stores_from(registered_stores)
+            if not target_stores:
+                raise ScraperError("登録店舗タブでサイトセブン列にチェックを入れた店舗を1つ以上用意してください。")
+
+            fetch_many_result = self._run_site7_fetch_many(
+                target_stores=target_stores,
+                recent_days=recent_days,
+                retry_delay_seconds=retry_delay_seconds,
+                browser_visible=browser_visible,
+            )
+            if fetch_many_result.cancelled and not fetch_many_result.results:
+                self.result_queue.put(("fetch_cancelled", None))
+                return
+            self.result_queue.put(("scheduled_site7_fetch_many_success", (registered_stores, fetch_many_result)))
         except FetchCancelled:
             self.result_queue.put(("fetch_cancelled", None))
         except Exception as exc:  # noqa: BLE001
@@ -1679,7 +1998,12 @@ class MinRepoApp:
         )
 
     def cancel_fetch(self) -> None:
-        if not self.is_busy or self.active_operation_kind not in {"fetch", "scheduled_fetch", "site7_fetch"}:
+        if not self.is_busy or self.active_operation_kind not in {
+            "fetch",
+            "scheduled_fetch",
+            "site7_fetch",
+            "scheduled_site7_fetch",
+        }:
             return
 
         self.fetch_cancel_event.set()
@@ -1945,7 +2269,7 @@ class MinRepoApp:
         operation_kind = self.active_operation_kind
         self.is_busy = False
         self.active_operation_kind = ""
-        if operation_kind in {"fetch", "scheduled_fetch", "site7_fetch"}:
+        if operation_kind in {"fetch", "scheduled_fetch", "site7_fetch", "scheduled_site7_fetch"}:
             self.fetch_cancel_event.clear()
         self._update_button_states()
 
@@ -2078,6 +2402,8 @@ class MinRepoApp:
             self.summary_var.set("取得できませんでした")
             if operation_kind == "scheduled_fetch":
                 self.schedule_status_var.set("定期実行に失敗しました")
+            elif operation_kind == "scheduled_site7_fetch":
+                self.site7_schedule_status_var.set("サイトセブン定期実行に失敗しました")
             self._show_error(payload)
             return
 
@@ -2087,6 +2413,8 @@ class MinRepoApp:
             self.summary_var.set("取得を中止しました")
             if operation_kind == "scheduled_fetch":
                 self.schedule_status_var.set("定期実行を中止しました")
+            elif operation_kind == "scheduled_site7_fetch":
+                self.site7_schedule_status_var.set("サイトセブン定期実行を中止しました")
             return
 
         if kind == "fetch_many_success":
@@ -2121,6 +2449,28 @@ class MinRepoApp:
                 self.schedule_status_var.set("定期実行を中止しました")
             else:
                 self.schedule_status_var.set(f"定期実行完了: 毎日 {self.scheduled_fetch_hour} 時")
+            return
+
+        if kind == "scheduled_site7_fetch_many_success":
+            if (
+                not isinstance(payload, tuple)
+                or len(payload) != 2
+                or not isinstance(payload[0], list)
+                or not isinstance(payload[1], FetchManyResult)
+            ):
+                self._finish_fetch_progress(success=False, message="取得失敗")
+                self.status_var.set("失敗")
+                self.summary_var.set("不明な結果")
+                self.site7_schedule_status_var.set("サイトセブン定期実行に失敗しました")
+                messagebox.showerror("エラー", "サイトセブン定期実行の結果形式が不正です。")
+                return
+            registered_stores, fetch_many_result = payload
+            self._replace_registered_stores(registered_stores, select_all=True, reset_fetch_display=False)
+            self._apply_fetch_many_result(fetch_many_result)
+            if fetch_many_result.cancelled:
+                self.site7_schedule_status_var.set("サイトセブン定期実行を中止しました")
+            else:
+                self.site7_schedule_status_var.set(f"サイトセブン定期実行完了: {self._site7_schedule_status_text()}")
             return
 
         history_result = payload
@@ -2881,7 +3231,10 @@ class MinRepoApp:
         self.register_store_status_var.set(f"{store_name} を更新しました")
 
     def _selected_site7_registered_stores(self) -> list[RegisteredStore]:
-        target_stores = [registered_store for registered_store in self.registered_stores if registered_store.site7_enabled]
+        return self._site7_registered_stores_from(self.registered_stores)
+
+    def _site7_registered_stores_from(self, registered_stores: list[RegisteredStore]) -> list[RegisteredStore]:
+        target_stores = [registered_store for registered_store in registered_stores if registered_store.site7_enabled]
         invalid_stores = [
             registered_store.name
             for registered_store in target_stores
@@ -3297,7 +3650,7 @@ class MinRepoApp:
         self.fetch_button.configure(state="disabled" if self.is_busy else "normal")
         can_cancel_fetch = (
             self.is_busy
-            and self.active_operation_kind in {"fetch", "scheduled_fetch", "site7_fetch"}
+            and self.active_operation_kind in {"fetch", "scheduled_fetch", "site7_fetch", "scheduled_site7_fetch"}
             and not self.fetch_cancel_event.is_set()
         )
         self.cancel_fetch_button.configure(state="normal" if can_cancel_fetch else "disabled")
@@ -3312,8 +3665,17 @@ class MinRepoApp:
         self.notify_fetch_complete_button.configure(state="disabled" if self.is_busy else "normal")
         self.site7_login_button.configure(state="disabled" if self.is_busy else "normal")
         self.site7_fetch_button.configure(state="disabled" if self.is_busy else "normal")
-        can_cancel_site7_fetch = self.is_busy and self.active_operation_kind == "site7_fetch" and not self.fetch_cancel_event.is_set()
+        can_cancel_site7_fetch = (
+            self.is_busy
+            and self.active_operation_kind in {"site7_fetch", "scheduled_site7_fetch"}
+            and not self.fetch_cancel_event.is_set()
+        )
         self.site7_cancel_button.configure(state="normal" if can_cancel_site7_fetch else "disabled")
+        self.site7_schedule_interval_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.site7_schedule_exclude_start_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.site7_schedule_exclude_end_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.apply_site7_schedule_button.configure(state="disabled" if self.is_busy else "normal")
+        self.clear_site7_schedule_button.configure(state="disabled" if self.is_busy else "normal")
         self.site7_browser_visible_radio.configure(state="disabled" if self.is_busy else "normal")
         self.site7_browser_hidden_radio.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_button.configure(state="disabled" if self.is_busy else "normal")
