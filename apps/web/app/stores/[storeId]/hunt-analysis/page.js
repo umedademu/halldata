@@ -539,6 +539,19 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   </label>
                   <label
                     className={`metricToggleChip ${
+                      detail.backtest.rankScope === "selected" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="rankScope"
+                      value="selected"
+                      defaultChecked={detail.backtest.rankScope === "selected"}
+                    />
+                    <span>チェック機種内順位</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
                       detail.backtest.rankScope === "machine" ? "metricToggleChipActive" : ""
                     }`}
                   >

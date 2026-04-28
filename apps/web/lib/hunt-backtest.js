@@ -404,6 +404,7 @@ function buildBacktestAggregationDetail(
 
   for (const snapshot of snapshotsInPeriod) {
     const machineRankCounts = new Map();
+    let selectedRank = 0;
 
     for (const row of snapshot.rows) {
       const selectedMachineName = String(row.machineName ?? "").trim();
@@ -411,10 +412,12 @@ function buildBacktestAggregationDetail(
         continue;
       }
 
+      selectedRank += 1;
       const backtestMachineName = resolveBacktestMachineName(selectedMachineName, combineAimJuggler);
       const machineRank = (machineRankCounts.get(backtestMachineName) ?? 0) + 1;
       machineRankCounts.set(backtestMachineName, machineRank);
-      const rankValue = rankScope === "machine" ? machineRank : row.rank;
+      const rankValue =
+        rankScope === "machine" ? machineRank : rankScope === "selected" ? selectedRank : row.rank;
 
       if (!matchesOptionalFilters(rankValue, row.huntScore, rankFilter, scoreFilter, matchMode)) {
         continue;

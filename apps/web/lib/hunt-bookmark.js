@@ -112,7 +112,20 @@ export function normalizeMatchMode(value) {
 }
 
 export function normalizeRankScope(value) {
-  return value === "machine" ? "machine" : "all";
+  if (value === "machine" || value === "selected") {
+    return value;
+  }
+  return "all";
+}
+
+function formatRankScopeLabel(rankScope) {
+  if (rankScope === "machine") {
+    return "機種内順位";
+  }
+  if (rankScope === "selected") {
+    return "チェック機種内順位";
+  }
+  return "全機種順位";
 }
 
 export function matchesOptionalFilters(rankValue, huntScore, rankFilter, scoreFilter, matchMode) {
@@ -256,7 +269,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
 
   const parts = [buildMachineSummaryText(normalizedBookmark)];
 
-  parts.push(normalizedBookmark.rankScope === "machine" ? "機種内順位" : "全機種順位");
+  parts.push(formatRankScopeLabel(normalizedBookmark.rankScope));
 
   if (normalizedBookmark.hasRankFilter) {
     parts.push(`順位${normalizedBookmark.rankMin}〜${normalizedBookmark.rankMax}`);
@@ -380,6 +393,7 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
   const rankFilter = buildRankFilter(normalizedBookmark.rankMin, normalizedBookmark.rankMax);
   const scoreFilter = buildScoreFilter(normalizedBookmark.scoreMin);
   let matchedRowCount = 0;
+  let selectedRank = 0;
 
   for (const row of safeRows) {
     const machineName = normalizeText(row?.machineName);
@@ -390,6 +404,7 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
       continue;
     }
 
+    selectedRank += 1;
     const bookmarkMachineName = resolveBookmarkRankMachineName(
       machineName,
       normalizedBookmark.combineAimJuggler,
@@ -398,7 +413,11 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
     const machineRank = (machineRankCounts.get(bookmarkMachineName) ?? 0) + 1;
     machineRankCounts.set(bookmarkMachineName, machineRank);
     const rankValue =
-      normalizedBookmark.rankScope === "machine" ? machineRank : readPositiveInteger(row?.rank);
+      normalizedBookmark.rankScope === "machine"
+        ? machineRank
+        : normalizedBookmark.rankScope === "selected"
+          ? selectedRank
+          : readPositiveInteger(row?.rank);
     const matched = matchesOptionalFilters(
       rankValue,
       row?.huntScore,
