@@ -1220,6 +1220,8 @@ class HistoryPersistenceService:
                 "site7_prefecture": str(store.get("site7_prefecture", "")).strip() or DEFAULT_SITE7_PREFECTURE_NAME,
                 "site7_area": str(store.get("site7_area", "")).strip(),
                 "site7_store_name": str(store.get("site7_store_name", "")).strip() or str(store["store_name"]).strip(),
+                "site7_hall_id": str(store.get("site7_hall_id", "")).strip(),
+                "site7_address": str(store.get("site7_address", "")).strip(),
                 "updated_at": now_text,
             }
             for store in stores
@@ -1469,7 +1471,10 @@ class HistoryPersistenceService:
                 response = session.get(
                     endpoint,
                     params={
-                        "select": "store_name,store_url,site7_enabled,site7_prefecture,site7_area,site7_store_name",
+                        "select": (
+                            "store_name,store_url,site7_enabled,site7_prefecture,site7_area,"
+                            "site7_store_name,site7_hall_id,site7_address"
+                        ),
                         "order": "store_name.asc",
                         "limit": str(page_size),
                         "offset": str(offset),
@@ -1488,6 +1493,47 @@ class HistoryPersistenceService:
             if exc.response is None or exc.response.status_code != 400:
                 raise
 
+            rows = self._load_registered_stores_with_select(
+                session=session,
+                endpoint=endpoint,
+                select_columns="store_name,store_url,site7_enabled,site7_prefecture,site7_area,site7_store_name",
+                page_size=page_size,
+            )
+
+        return self._normalize_registered_stores(rows)
+
+    def _load_registered_stores_with_select(
+        self,
+        session: requests.Session,
+        endpoint: str,
+        select_columns: str,
+        page_size: int,
+    ) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        offset = 0
+        try:
+            while True:
+                response = session.get(
+                    endpoint,
+                    params={
+                        "select": select_columns,
+                        "order": "store_name.asc",
+                        "limit": str(page_size),
+                        "offset": str(offset),
+                    },
+                    timeout=30,
+                )
+                response.raise_for_status()
+                chunk = response.json()
+                if not chunk:
+                    break
+                rows.extend(chunk)
+                if len(chunk) < page_size:
+                    break
+                offset += page_size
+        except requests.HTTPError as exc:
+            if exc.response is None or exc.response.status_code != 400:
+                raise
             rows = []
             offset = 0
             while True:
@@ -1509,8 +1555,7 @@ class HistoryPersistenceService:
                 if len(chunk) < page_size:
                     break
                 offset += page_size
-
-        return self._normalize_registered_stores(rows)
+        return rows
 
     def _delete_registered_stores_from_supabase(self, store_urls: list[str]) -> int:
         supabase_url, _, schema, stores_table, results_table = self._supabase_config()
@@ -1945,6 +1990,8 @@ class HistoryPersistenceService:
                         store.get("site7_store_name", site7_defaults["site7_store_name"])
                     ).strip()
                     or store_name,
+                    "site7_hall_id": str(store.get("site7_hall_id", site7_defaults["site7_hall_id"])).strip(),
+                    "site7_address": str(store.get("site7_address", site7_defaults["site7_address"])).strip(),
                 }
             )
 

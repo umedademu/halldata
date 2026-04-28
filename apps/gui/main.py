@@ -66,7 +66,17 @@ GUI_SETTINGS_FILE_NAME = "gui_settings.json"
 SITE7_BROWSER_MODE_VISIBLE = "visible"
 SITE7_BROWSER_MODE_HIDDEN = "hidden"
 JST = timezone(timedelta(hours=9))
-REGISTERED_STORE_COLUMNS = ("取得対象", "サイトセブン", "店舗名", "URL", "都道府県", "地域", "SS店舗名")
+REGISTERED_STORE_COLUMNS = (
+    "取得対象",
+    "サイトセブン",
+    "店舗名",
+    "URL",
+    "都道府県",
+    "地域",
+    "SS店舗名",
+    "SS ID",
+    "SS住所",
+)
 COMPARISON_SUBCOLUMNS = ("機種名", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率")
 COMPARISON_DAY_TAIL_OPTIONS = ("全て", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
 T = TypeVar("T")
@@ -315,6 +325,8 @@ class RegisteredStore:
     site7_prefecture: str = DEFAULT_SITE7_PREFECTURE_NAME
     site7_area: str = ""
     site7_store_name: str = ""
+    site7_hall_id: str = ""
+    site7_address: str = ""
 
     def resolved_site7_store_name(self) -> str:
         return self.site7_store_name.strip() or self.name.strip()
@@ -322,11 +334,13 @@ class RegisteredStore:
     def to_site7_target_store(self) -> Site7TargetStore:
         return enrich_site7_target_store(
             Site7TargetStore(
-            display_name=self.name.strip() or self.resolved_site7_store_name(),
-            site7_hall_name=self.resolved_site7_store_name(),
-            prefecture_name=self.site7_prefecture.strip() or DEFAULT_SITE7_PREFECTURE_NAME,
-            area_name=self.site7_area.strip(),
-            hall_name_aliases=(self.name.strip(),) if self.name.strip() else (),
+                display_name=self.name.strip() or self.resolved_site7_store_name(),
+                site7_hall_name=self.resolved_site7_store_name(),
+                prefecture_name=self.site7_prefecture.strip() or DEFAULT_SITE7_PREFECTURE_NAME,
+                area_name=self.site7_area.strip(),
+                hall_id=self.site7_hall_id.strip(),
+                hall_address=self.site7_address.strip(),
+                hall_name_aliases=(self.name.strip(),) if self.name.strip() else (),
             )
         )
 
@@ -436,6 +450,8 @@ class MinRepoApp:
         self.register_store_prefecture_var = tk.StringVar(value=DEFAULT_SITE7_PREFECTURE_NAME)
         self.register_store_area_var = tk.StringVar()
         self.register_store_site7_store_name_var = tk.StringVar()
+        self.register_store_site7_hall_id_var = tk.StringVar()
+        self.register_store_site7_address_var = tk.StringVar()
         self.register_store_status_var = tk.StringVar(value="未登録")
         self.site7_browser_mode_var = tk.StringVar(value=self.site7_browser_mode)
         self.site7_status_var = tk.StringVar(
@@ -1307,7 +1323,7 @@ class MinRepoApp:
         form = ttk.LabelFrame(register_tab, text="店舗を登録", padding=12)
         form.grid(row=1, column=0, sticky="nsew", pady=(12, 0))
         form.columnconfigure(1, weight=1)
-        form.rowconfigure(6, weight=1)
+        form.rowconfigure(8, weight=1)
 
         ttk.Label(form, text="店舗URL").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=4)
         self.register_store_url_entry = ttk.Entry(form, textvariable=self.register_store_url_var)
@@ -1332,8 +1348,16 @@ class MinRepoApp:
         self.register_store_site7_store_name_entry = ttk.Entry(form, textvariable=self.register_store_site7_store_name_var)
         self.register_store_site7_store_name_entry.grid(row=4, column=1, sticky="ew", pady=4)
 
+        ttk.Label(form, text="SS ID").grid(row=5, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.register_store_site7_hall_id_entry = ttk.Entry(form, textvariable=self.register_store_site7_hall_id_var)
+        self.register_store_site7_hall_id_entry.grid(row=5, column=1, sticky="ew", pady=4)
+
+        ttk.Label(form, text="SS住所").grid(row=6, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.register_store_site7_address_entry = ttk.Entry(form, textvariable=self.register_store_site7_address_var)
+        self.register_store_site7_address_entry.grid(row=6, column=1, sticky="ew", pady=4)
+
         action_row = ttk.Frame(form)
-        action_row.grid(row=5, column=1, sticky="w", pady=(8, 8))
+        action_row.grid(row=7, column=1, sticky="w", pady=(8, 8))
         self.register_store_button = ttk.Button(action_row, text="登録する", command=self.register_store)
         self.register_store_button.grid(row=0, column=0, sticky="w")
         self.update_registered_store_button = ttk.Button(
@@ -1352,7 +1376,7 @@ class MinRepoApp:
         ttk.Label(action_row, textvariable=self.register_store_status_var).grid(row=0, column=3, sticky="w", padx=(12, 0))
 
         table_frame = ttk.LabelFrame(form, text="登録済み一覧", padding=8)
-        table_frame.grid(row=6, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
+        table_frame.grid(row=8, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
         table_frame.columnconfigure(0, weight=1)
         table_frame.rowconfigure(1, weight=1)
 
@@ -1398,7 +1422,7 @@ class MinRepoApp:
                 continue
             self.registered_store_tree.column(
                 column,
-                width=220 if column == "店舗名" else 180 if column in {"都道府県", "地域", "SS店舗名"} else 520,
+                width=220 if column == "店舗名" else 180 if column in {"都道府県", "地域", "SS店舗名", "SS ID"} else 520,
                 minwidth=120 if column != "URL" else 280,
                 anchor="w",
             )
@@ -1433,6 +1457,8 @@ class MinRepoApp:
                 site7_prefecture=str(store.get("site7_prefecture", DEFAULT_SITE7_PREFECTURE_NAME)),
                 site7_area=str(store.get("site7_area", "")),
                 site7_store_name=str(store.get("site7_store_name", "")),
+                site7_hall_id=str(store.get("site7_hall_id", "")),
+                site7_address=str(store.get("site7_address", "")),
             )
             for store in saved_stores
         ]
@@ -1559,6 +1585,8 @@ class MinRepoApp:
                     site7_prefecture=registered_store.site7_prefecture,
                     site7_area=registered_store.site7_area,
                     site7_store_name=registered_store.site7_store_name,
+                    site7_hall_id=registered_store.site7_hall_id,
+                    site7_address=registered_store.site7_address,
                 )
             )
             changed = True
@@ -1581,6 +1609,8 @@ class MinRepoApp:
                 site7_prefecture,
                 site7_area,
                 site7_store_name,
+                site7_hall_id,
+                site7_address,
             ) = self._validated_register_store_form_input()
         except ScraperError as exc:
             self._show_error(exc)
@@ -1600,6 +1630,8 @@ class MinRepoApp:
             site7_prefecture,
             site7_area,
             site7_store_name,
+            site7_hall_id,
+            site7_address,
         )
 
     def update_registered_store(self) -> None:
@@ -1615,6 +1647,8 @@ class MinRepoApp:
                 site7_prefecture,
                 site7_area,
                 site7_store_name,
+                site7_hall_id,
+                site7_address,
             ) = self._validated_register_store_form_input()
         except ScraperError as exc:
             self._show_error(exc)
@@ -1630,6 +1664,8 @@ class MinRepoApp:
                 site7_prefecture=site7_prefecture,
                 site7_area=site7_area,
                 site7_store_name=site7_store_name,
+                site7_hall_id=site7_hall_id,
+                site7_address=site7_address,
             )
             return
 
@@ -1642,6 +1678,8 @@ class MinRepoApp:
             site7_prefecture,
             site7_area,
             site7_store_name,
+            site7_hall_id,
+            site7_address,
         )
 
     def clear_register_store_form(self) -> None:
@@ -1650,6 +1688,8 @@ class MinRepoApp:
         self.register_store_prefecture_var.set(DEFAULT_SITE7_PREFECTURE_NAME)
         self.register_store_area_var.set("")
         self.register_store_site7_store_name_var.set("")
+        self.register_store_site7_hall_id_var.set("")
+        self.register_store_site7_address_var.set("")
         if hasattr(self, "registered_store_tree"):
             selected_items = self.registered_store_tree.selection()
             if selected_items:
@@ -1664,6 +1704,8 @@ class MinRepoApp:
         site7_prefecture: str,
         site7_area: str,
         site7_store_name: str,
+        site7_hall_id: str,
+        site7_address: str,
     ) -> None:
         try:
             store_name = self.scraper.fetch_store_name(store_url)
@@ -1677,6 +1719,8 @@ class MinRepoApp:
                         site7_prefecture,
                         site7_area,
                         site7_store_name,
+                        site7_hall_id,
+                        site7_address,
                     ),
                 )
             )
@@ -1691,6 +1735,8 @@ class MinRepoApp:
         site7_prefecture: str,
         site7_area: str,
         site7_store_name: str,
+        site7_hall_id: str,
+        site7_address: str,
     ) -> None:
         try:
             store_name = self.scraper.fetch_store_name(store_url)
@@ -1705,6 +1751,8 @@ class MinRepoApp:
                         site7_prefecture,
                         site7_area,
                         site7_store_name,
+                        site7_hall_id,
+                        site7_address,
                     ),
                 )
             )
@@ -2293,7 +2341,7 @@ class MinRepoApp:
         if kind == "register_store_success":
             if (
                 not isinstance(payload, tuple)
-                or len(payload) != 6
+                or len(payload) != 8
                 or not isinstance(payload[0], str)
                 or not isinstance(payload[1], str)
             ):
@@ -2306,6 +2354,8 @@ class MinRepoApp:
                 site7_prefecture,
                 site7_area,
                 site7_store_name,
+                site7_hall_id,
+                site7_address,
             ) = payload
             self._apply_registered_store(
                 store_name,
@@ -2314,6 +2364,8 @@ class MinRepoApp:
                 str(site7_prefecture),
                 str(site7_area),
                 str(site7_store_name),
+                str(site7_hall_id),
+                str(site7_address),
             )
             return
 
@@ -2325,7 +2377,7 @@ class MinRepoApp:
         if kind == "update_registered_store_success":
             if (
                 not isinstance(payload, tuple)
-                or len(payload) != 7
+                or len(payload) != 9
                 or not isinstance(payload[0], str)
                 or not isinstance(payload[1], str)
                 or not isinstance(payload[2], str)
@@ -2340,6 +2392,8 @@ class MinRepoApp:
                 site7_prefecture,
                 site7_area,
                 site7_store_name,
+                site7_hall_id,
+                site7_address,
             ) = payload
             original_store = next(
                 (
@@ -2360,6 +2414,8 @@ class MinRepoApp:
                 site7_prefecture=str(site7_prefecture),
                 site7_area=str(site7_area),
                 site7_store_name=str(site7_store_name),
+                site7_hall_id=str(site7_hall_id),
+                site7_address=str(site7_address),
             )
             return
 
@@ -2933,6 +2989,8 @@ class MinRepoApp:
                     registered_store.site7_prefecture,
                     registered_store.site7_area,
                     registered_store.resolved_site7_store_name(),
+                    registered_store.site7_hall_id,
+                    registered_store.site7_address,
                 ),
             )
         self._update_button_states()
@@ -2983,6 +3041,8 @@ class MinRepoApp:
         self.register_store_prefecture_var.set(registered_store.site7_prefecture or DEFAULT_SITE7_PREFECTURE_NAME)
         self.register_store_area_var.set(registered_store.site7_area)
         self.register_store_site7_store_name_var.set(registered_store.resolved_site7_store_name())
+        self.register_store_site7_hall_id_var.set(registered_store.site7_hall_id)
+        self.register_store_site7_address_var.set(registered_store.site7_address)
         self.register_store_status_var.set(f"{self._registered_store_display_name(registered_store)} を編集中")
 
     def _selected_registered_stores(self) -> list[RegisteredStore]:
@@ -3108,12 +3168,14 @@ class MinRepoApp:
         self._refresh_registered_store_table()
         self._reset_fetch_display_for_store_change()
 
-    def _validated_register_store_form_input(self) -> tuple[str, bool, str, str, str]:
+    def _validated_register_store_form_input(self) -> tuple[str, bool, str, str, str, str, str]:
         store_url = self.register_store_url_var.get().strip()
         site7_enabled = bool(self.register_store_site7_enabled_var.get())
         site7_prefecture = self.register_store_prefecture_var.get().strip() or DEFAULT_SITE7_PREFECTURE_NAME
         site7_area = self.register_store_area_var.get().strip()
         site7_store_name = self.register_store_site7_store_name_var.get().strip()
+        site7_hall_id = self.register_store_site7_hall_id_var.get().strip()
+        site7_address = self.register_store_site7_address_var.get().strip()
 
         if not store_url:
             raise ScraperError("店舗URLを入力してください。")
@@ -3122,7 +3184,7 @@ class MinRepoApp:
         if site7_enabled and not site7_area:
             raise ScraperError("サイトセブン取得を使う場合は地域を入力してください。")
 
-        return store_url, site7_enabled, site7_prefecture, site7_area, site7_store_name
+        return store_url, site7_enabled, site7_prefecture, site7_area, site7_store_name, site7_hall_id, site7_address
 
     def _build_registered_store(
         self,
@@ -3132,12 +3194,16 @@ class MinRepoApp:
         site7_prefecture: str = "",
         site7_area: str = "",
         site7_store_name: str = "",
+        site7_hall_id: str = "",
+        site7_address: str = "",
     ) -> RegisteredStore:
         defaults = default_site7_store_settings(store_name)
         resolved_site7_enabled = defaults["site7_enabled"] if site7_enabled is None else bool(site7_enabled)
         resolved_site7_prefecture = site7_prefecture.strip() or str(defaults["site7_prefecture"]).strip() or DEFAULT_SITE7_PREFECTURE_NAME
         resolved_site7_area = site7_area.strip() or str(defaults["site7_area"]).strip()
         resolved_site7_store_name = site7_store_name.strip() or str(defaults["site7_store_name"]).strip() or store_name.strip()
+        resolved_site7_hall_id = site7_hall_id.strip() or str(defaults["site7_hall_id"]).strip()
+        resolved_site7_address = site7_address.strip() or str(defaults["site7_address"]).strip()
         return RegisteredStore(
             name=store_name,
             url=normalize_store_url(store_url),
@@ -3145,6 +3211,8 @@ class MinRepoApp:
             site7_prefecture=resolved_site7_prefecture,
             site7_area=resolved_site7_area,
             site7_store_name=resolved_site7_store_name,
+            site7_hall_id=resolved_site7_hall_id,
+            site7_address=resolved_site7_address,
         )
 
     def _apply_registered_store(
@@ -3155,6 +3223,8 @@ class MinRepoApp:
         site7_prefecture: str = DEFAULT_SITE7_PREFECTURE_NAME,
         site7_area: str = "",
         site7_store_name: str = "",
+        site7_hall_id: str = "",
+        site7_address: str = "",
     ) -> None:
         normalized_name = normalize_text(store_name)
         normalized_url = normalize_store_url(store_url)
@@ -3171,6 +3241,8 @@ class MinRepoApp:
             site7_prefecture=site7_prefecture,
             site7_area=site7_area,
             site7_store_name=site7_store_name,
+            site7_hall_id=site7_hall_id,
+            site7_address=site7_address,
         )
         self.registered_stores.append(registered_store)
         self.selected_store_urls.add(normalized_url)
@@ -3193,6 +3265,8 @@ class MinRepoApp:
         site7_prefecture: str,
         site7_area: str,
         site7_store_name: str,
+        site7_hall_id: str,
+        site7_address: str,
     ) -> None:
         normalized_name = normalize_text(store_name)
         normalized_url = normalize_store_url(store_url)
@@ -3211,6 +3285,8 @@ class MinRepoApp:
             site7_prefecture=site7_prefecture,
             site7_area=site7_area,
             site7_store_name=site7_store_name,
+            site7_hall_id=site7_hall_id,
+            site7_address=site7_address,
         )
         updated_registered_stores = [
             updated_store if registered_store is original_store else registered_store
@@ -3256,6 +3332,8 @@ class MinRepoApp:
                 "site7_prefecture": registered_store.site7_prefecture,
                 "site7_area": registered_store.site7_area,
                 "site7_store_name": registered_store.resolved_site7_store_name(),
+                "site7_hall_id": registered_store.site7_hall_id,
+                "site7_address": registered_store.site7_address,
             }
             for registered_store in registered_stores
         ]
@@ -3684,6 +3762,8 @@ class MinRepoApp:
         self.register_store_prefecture_entry.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_area_entry.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_site7_store_name_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.register_store_site7_hall_id_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.register_store_site7_address_entry.configure(state="disabled" if self.is_busy else "normal")
         self.update_registered_store_button.configure(
             state="disabled" if self.is_busy or not has_single_registered_store_row_selection else "normal"
         )

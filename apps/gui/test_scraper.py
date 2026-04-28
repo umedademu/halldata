@@ -449,6 +449,8 @@ class MinRepoScraperTests(unittest.TestCase):
             "register_store_prefecture_entry",
             "register_store_area_entry",
             "register_store_site7_store_name_entry",
+            "register_store_site7_hall_id_entry",
+            "register_store_site7_address_entry",
             "update_registered_store_button",
             "clear_register_store_form_button",
             "select_all_stores_button",
@@ -841,9 +843,10 @@ class MinRepoScraperTests(unittest.TestCase):
     def test_site7_target_store_names_include_gogo_arena_tenjin(self) -> None:
         self.assertEqual(
             SITE7_TARGET_STORE_DISPLAY_NAMES,
-            ("Aパーク春日店", "GOGOアリーナ天神"),
+            ("Aパーク春日店", "GOGOアリーナ天神", "スーパーDステーション39筑紫野店"),
         )
         self.assertEqual(SITE7_TARGET_STORES[1].area_name, "福岡市中央区")
+        self.assertEqual(SITE7_TARGET_STORES[2].hall_id, "42006007")
         self.assertEqual(SITE7_TARGET_STORES[0].prefecture_link_text, "福岡")
         self.assertEqual(
             default_site7_store_settings("GOGOアリーナ天神"),
@@ -852,6 +855,8 @@ class MinRepoScraperTests(unittest.TestCase):
                 "site7_prefecture": "福岡県",
                 "site7_area": "福岡市中央区",
                 "site7_store_name": "ＧＯＧＯアリーナ天神",
+                "site7_hall_id": "",
+                "site7_address": "福岡県福岡市中央区天神２－６－３７",
             },
         )
 
@@ -863,6 +868,21 @@ class MinRepoScraperTests(unittest.TestCase):
                 "site7_prefecture": "福岡県",
                 "site7_area": "春日市",
                 "site7_store_name": "Ａパーク春日店",
+                "site7_hall_id": "",
+                "site7_address": "福岡県春日市日の出町５－２４",
+            },
+        )
+
+    def test_default_site7_store_settings_for_super_d_chikushino(self) -> None:
+        self.assertEqual(
+            default_site7_store_settings("スーパーDステーション39筑紫野店"),
+            {
+                "site7_enabled": True,
+                "site7_prefecture": "福岡県",
+                "site7_area": "筑紫野市",
+                "site7_store_name": "スーパーＤ’ステーション３９筑紫野店",
+                "site7_hall_id": "42006007",
+                "site7_address": "福岡県筑紫野市筑紫９６８番２",
             },
         )
 
@@ -1151,6 +1171,36 @@ class MinRepoScraperTests(unittest.TestCase):
             "ff3cd2a71a6cbc459c80f25b44423ba6",
         )
 
+    def test_site7_extract_target_hall_search_code_prefers_registered_hall_id(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = """
+<!DOCTYPE html>
+<html lang="ja">
+  <body>
+    <div class="hall">
+      <p class="hall-name">
+        <a href="#" onclick="javascript:hallClick('42006007');">
+          <img src="HallName.do?hn=41944978" border="0" alt="ホール名称">
+        </a>
+      </p>
+      <p class="address">福岡県筑紫野市筑紫９６８番２</p>
+    </div>
+  </body>
+</html>
+"""
+        target_store = RegisteredStore(
+            name="スーパーDステーション39筑紫野店",
+            url="https://example.com/chikushino",
+            site7_enabled=True,
+            site7_prefecture="福岡県",
+            site7_area="筑紫野市",
+            site7_store_name="スーパーＤ’ステーション３９筑紫野店",
+            site7_hall_id="42006007",
+            site7_address="福岡県筑紫野市筑紫９６８番２",
+        ).to_site7_target_store()
+
+        self.assertEqual(scraper.extract_target_hall_search_code(html, target_store), "42006007")
+
     def test_enrich_site7_target_store_restores_known_store_address(self) -> None:
         target_store = enrich_site7_target_store(
             Site7TargetStore(
@@ -1164,6 +1214,22 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertEqual(target_store.hall_address, "福岡県春日市日の出町５－２４")
         self.assertIn("Ａパーク春日店", target_store.hall_name_aliases)
+        self.assertEqual(target_store.hall_id, "")
+
+    def test_registered_store_target_store_keeps_hall_id_and_address(self) -> None:
+        target_store = RegisteredStore(
+            name="スーパーDステーション39筑紫野店",
+            url="https://example.com/chikushino",
+            site7_enabled=True,
+            site7_prefecture="福岡県",
+            site7_area="筑紫野市",
+            site7_store_name="スーパーＤ’ステーション３９筑紫野店",
+            site7_hall_id="42006007",
+            site7_address="福岡県筑紫野市筑紫９６８番２",
+        ).to_site7_target_store()
+
+        self.assertEqual(target_store.hall_id, "42006007")
+        self.assertEqual(target_store.hall_address, "福岡県筑紫野市筑紫９６８番２")
 
     def test_site7_extract_target_hall_search_code_for_gogo_store(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
@@ -1935,6 +2001,8 @@ class MinRepoScraperTests(unittest.TestCase):
                         "site7_prefecture": "福岡県",
                         "site7_area": "東区",
                         "site7_store_name": "ＭＪアリーナ箱崎店",
+                        "site7_hall_id": "",
+                        "site7_address": "",
                     },
                     {
                         "store_name": "ABCホール",
@@ -1943,6 +2011,8 @@ class MinRepoScraperTests(unittest.TestCase):
                         "site7_prefecture": DEFAULT_SITE7_PREFECTURE_NAME,
                         "site7_area": "",
                         "site7_store_name": "ABCホール",
+                        "site7_hall_id": "",
+                        "site7_address": "",
                     },
                 ],
             )
@@ -1963,6 +2033,8 @@ class MinRepoScraperTests(unittest.TestCase):
                         "site7_prefecture": "福岡県",
                         "site7_area": "春日市",
                         "site7_store_name": "Ａパーク春日店",
+                        "site7_hall_id": "",
+                        "site7_address": "福岡県春日市日の出町５－２４",
                     }
                 ],
             )
@@ -2043,6 +2115,8 @@ class MinRepoScraperTests(unittest.TestCase):
                         "site7_prefecture": "福岡県",
                         "site7_area": "福岡市中央区",
                         "site7_store_name": "ＧＯＧＯアリーナ天神",
+                        "site7_hall_id": "",
+                        "site7_address": "福岡県福岡市中央区天神２－６－３７",
                     }
                 ],
             )

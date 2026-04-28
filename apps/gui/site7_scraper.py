@@ -91,6 +91,7 @@ class Site7TargetStore:
     site7_hall_name: str
     prefecture_name: str = DEFAULT_SITE7_PREFECTURE_NAME
     area_name: str = ""
+    hall_id: str = ""
     hall_address: str = ""
     direct_hall_url: str = ""
     hall_name_aliases: tuple[str, ...] = ()
@@ -118,6 +119,7 @@ SITE7_TARGET_STORES = (
         display_name="Aパーク春日店",
         site7_hall_name="Ａパーク春日店",
         prefecture_name=DEFAULT_SITE7_PREFECTURE_NAME,
+        hall_id="",
         hall_address="福岡県春日市日の出町５－２４",
         area_name="春日市",
         direct_hall_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=235def7f3ed0c81275a2bc47dc5b839a",
@@ -127,10 +129,26 @@ SITE7_TARGET_STORES = (
         display_name="GOGOアリーナ天神",
         site7_hall_name="ＧＯＧＯアリーナ天神",
         prefecture_name=DEFAULT_SITE7_PREFECTURE_NAME,
+        hall_id="",
         hall_address="福岡県福岡市中央区天神２－６－３７",
         area_name="福岡市中央区",
         direct_hall_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=40056006",
         hall_name_aliases=("GOGOアリーナ天神",),
+    ),
+    Site7TargetStore(
+        display_name="スーパーDステーション39筑紫野店",
+        site7_hall_name="スーパーＤ’ステーション３９筑紫野店",
+        prefecture_name=DEFAULT_SITE7_PREFECTURE_NAME,
+        hall_id="42006007",
+        hall_address="福岡県筑紫野市筑紫９６８番２",
+        area_name="筑紫野市",
+        direct_hall_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=42006007",
+        hall_name_aliases=(
+            "スーパーDステーション筑紫野店",
+            "スーパーDステーション39筑紫野店",
+            "スーパーＤステーション筑紫野店",
+            "スーパーＤ’ステーション３９筑紫野店",
+        ),
     ),
 )
 SITE7_TARGET_STORE_DISPLAY_NAMES = tuple(store.display_name for store in SITE7_TARGET_STORES)
@@ -194,6 +212,16 @@ def _site7_lookup_keys_match(
             if left_key in right_key or right_key in left_key:
                 return True
     return False
+
+
+def _normalize_site7_hall_id(value: str) -> str:
+    return unicodedata.normalize("NFKC", str(value)).strip().casefold()
+
+
+def _site7_hall_id_matches(left_value: str, right_value: str) -> bool:
+    left_id = _normalize_site7_hall_id(left_value)
+    right_id = _normalize_site7_hall_id(right_value)
+    return bool(left_id and right_id and left_id == right_id)
 
 
 class Site7FetchCancelled(ScraperError):
@@ -263,6 +291,7 @@ def enrich_site7_target_store(target_store: Site7TargetStore) -> Site7TargetStor
         site7_hall_name=target_store.site7_hall_name.strip() or known_target_store.site7_hall_name,
         prefecture_name=target_store.prefecture_name.strip() or known_target_store.prefecture_name,
         area_name=target_store.area_name.strip() or known_target_store.area_name,
+        hall_id=target_store.hall_id.strip() or known_target_store.hall_id,
         hall_address=target_store.hall_address.strip() or known_target_store.hall_address,
         direct_hall_url=target_store.direct_hall_url.strip() or known_target_store.direct_hall_url,
         hall_name_aliases=tuple(merged_aliases),
@@ -277,6 +306,8 @@ def default_site7_store_settings(store_name: str) -> dict[str, object]:
             "site7_prefecture": known_target_store.prefecture_name,
             "site7_area": known_target_store.area_name,
             "site7_store_name": known_target_store.site7_hall_name,
+            "site7_hall_id": known_target_store.hall_id,
+            "site7_address": known_target_store.hall_address,
         }
 
     stripped_store_name = str(store_name).strip()
@@ -285,6 +316,8 @@ def default_site7_store_settings(store_name: str) -> dict[str, object]:
         "site7_prefecture": DEFAULT_SITE7_PREFECTURE_NAME,
         "site7_area": "",
         "site7_store_name": stripped_store_name,
+        "site7_hall_id": "",
+        "site7_address": "",
     }
 
 
@@ -717,6 +750,10 @@ class Site7Scraper:
             if match is None:
                 continue
 
+            hall_search_code = match.group(1)
+            if _site7_hall_id_matches(hall_search_code, resolved_target_store.hall_id):
+                return hall_search_code
+
             hall_container = hall_link.find_parent(class_="hall")
             hall_text = ""
             if hall_container is not None:
@@ -730,7 +767,7 @@ class Site7Scraper:
                 resolved_target_store.hall_match_keys,
                 allow_partial=True,
             ):
-                return match.group(1)
+                return hall_search_code
 
         raise ScraperError(
             f"サイトセブンで {resolved_target_store.display_name} を選ぶための情報が見つかりませんでした。"
@@ -974,6 +1011,9 @@ class Site7Scraper:
         resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
         if not self._page_has_hall_content(html):
             return False
+        hall_id = _normalize_site7_hall_id(resolved_target_store.hall_id)
+        if hall_id and hall_id in _normalize_site7_hall_id(f"{page_url} {html}"):
+            return True
         return _site7_lookup_keys_match(
             _build_site7_lookup_keys(html),
             resolved_target_store.hall_match_keys,
