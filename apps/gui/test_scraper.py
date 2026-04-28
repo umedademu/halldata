@@ -87,6 +87,17 @@ class FixtureScraper(MinRepoScraper):
         return self.date_html
 
 
+class MappingScraper(MinRepoScraper):
+    def __init__(self, html_by_url: dict[str, str]) -> None:
+        super().__init__()
+        self.html_by_url = html_by_url
+
+    def fetch_html(self, url: str) -> str:
+        if url not in self.html_by_url:
+            raise AssertionError(f"未定義のURLです: {url}")
+        return self.html_by_url[url]
+
+
 class FakeClosableContext:
     def __init__(self) -> None:
         self.close_count = 0
@@ -435,6 +446,64 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertEqual(result.target_date, "2026-04-08")
 
+    def test_fetch_machine_list_skips_same_day_placeholder_page(self) -> None:
+        store_url = "https://example.com/tag/test-store/"
+        unavailable_date_url = "https://example.com/20260428/"
+        available_date_url = "https://example.com/20260427/"
+        scraper = MappingScraper(
+            {
+                store_url: """
+                    <html>
+                      <body>
+                        <h1>テスト店</h1>
+                        <time class="date">2026年4月28日</time>
+                        <div class="table_wrap">
+                          <table>
+                            <tr><td><a href="https://example.com/20260428/">2026/4/28(火)</a></td></tr>
+                            <tr><td><a href="https://example.com/20260427/">2026/4/27(月)</a></td></tr>
+                          </table>
+                        </div>
+                      </body>
+                    </html>
+                """,
+                unavailable_date_url: """
+                    <html>
+                      <body>
+                        <div class="tab_content">
+                          <h2>機種別データ（2台以上設置機種）</h2>
+                        </div>
+                      </body>
+                    </html>
+                """,
+                available_date_url: """
+                    <html>
+                      <body>
+                        <div class="tab_content">
+                          <h2>機種別データ（2台以上設置機種）</h2>
+                          <table>
+                            <tr data-count="1">
+                              <td><a href="https://example.com/machine">テスト機</a></td>
+                              <td>100</td>
+                              <td>2000</td>
+                              <td>1/1</td>
+                              <td>101%</td>
+                            </tr>
+                          </table>
+                        </div>
+                      </body>
+                    </html>
+                """,
+            }
+        )
+
+        result = scraper.fetch_machine_list(
+            store_url=store_url,
+            target_date_input="2026-04-28",
+        )
+
+        self.assertEqual(result.target_date, "2026-04-27")
+        self.assertEqual([machine.name for machine in result.machine_entries], ["テスト機"])
+
     def test_fetch_machine_dataset_from_saved_html(self) -> None:
         scraper = FixtureScraper()
         result = scraper.fetch_machine_dataset(
@@ -493,6 +562,65 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(context.start_date, "2026-04-07")
         self.assertEqual(context.end_date, "2026-04-08")
         self.assertEqual([page.target_date for page in context.date_pages], ["2026-04-07", "2026-04-08"])
+
+    def test_prepare_machine_history_context_trims_unavailable_latest_date(self) -> None:
+        store_url = "https://example.com/tag/test-store/"
+        unavailable_date_url = "https://example.com/20260428/"
+        available_date_url = "https://example.com/20260427/"
+        scraper = MappingScraper(
+            {
+                store_url: """
+                    <html>
+                      <body>
+                        <h1>テスト店</h1>
+                        <time class="date">2026年4月28日</time>
+                        <div class="table_wrap">
+                          <table>
+                            <tr><td><a href="https://example.com/20260428/">2026/4/28(火)</a></td></tr>
+                            <tr><td><a href="https://example.com/20260427/">2026/4/27(月)</a></td></tr>
+                          </table>
+                        </div>
+                      </body>
+                    </html>
+                """,
+                unavailable_date_url: """
+                    <html>
+                      <body>
+                        <div class="tab_content">
+                          <h2>機種別データ（2台以上設置機種）</h2>
+                        </div>
+                      </body>
+                    </html>
+                """,
+                available_date_url: """
+                    <html>
+                      <body>
+                        <div class="tab_content">
+                          <h2>機種別データ（2台以上設置機種）</h2>
+                          <table>
+                            <tr data-count="1">
+                              <td><a href="https://example.com/machine">テスト機</a></td>
+                              <td>100</td>
+                              <td>2000</td>
+                              <td>1/1</td>
+                              <td>101%</td>
+                            </tr>
+                          </table>
+                        </div>
+                      </body>
+                    </html>
+                """,
+            }
+        )
+
+        context = scraper.prepare_machine_history_context(
+            store_url=store_url,
+            target_date_input="2026-04-27 ～ 2026-04-28",
+        )
+
+        self.assertEqual(context.start_date, "2026-04-27")
+        self.assertEqual(context.end_date, "2026-04-27")
+        self.assertEqual([page.target_date for page in context.date_pages], ["2026-04-27"])
 
     def test_fetch_machine_history_for_date_page_from_saved_html(self) -> None:
         scraper = FixtureScraper()

@@ -159,8 +159,7 @@ class MinRepoScraper:
         store_url: str,
         target_date_input: str,
     ) -> MachineListResult:
-        store_name, target_date, date_url, date_soup = self._load_date_page(store_url, target_date_input)
-        machine_entries = self.extract_machine_entries(date_soup, date_url)
+        store_name, target_date, date_url, _, machine_entries = self._load_date_page(store_url, target_date_input)
 
         return MachineListResult(
             store_name=store_name,
@@ -233,7 +232,16 @@ class MinRepoScraper:
         target_date_input: str,
     ) -> MachineHistoryContext:
         store_name, store_soup = self._load_store_page(store_url)
+        _, requested_end_date = parse_date_range_input(target_date_input)
         date_pages = self.find_date_pages_in_range(store_soup, store_url, target_date_input)
+        date_pages = self._trim_unavailable_latest_date_pages(date_pages)
+        if not date_pages:
+            fallback_date_page, _, _ = self._load_latest_available_date_page_on_or_before(
+                store_soup,
+                store_url,
+                requested_end_date,
+            )
+            date_pages = [fallback_date_page]
         start_date = date_pages[0].target_date
         end_date = date_pages[-1].target_date
         return MachineHistoryContext(
@@ -254,9 +262,7 @@ class MinRepoScraper:
         date_index: int | None = None,
         total_dates: int | None = None,
     ) -> MachineHistoryResult:
-        date_html = self.fetch_html(date_page.date_url)
-        date_soup = BeautifulSoup(date_html, "html.parser")
-        machine_entries = self.extract_machine_entries(date_soup, date_page.date_url)
+        _, machine_entries = self._load_machine_entries_from_date_page(date_page)
         machine_list = MachineListResult(
             store_name=context.store_name,
             store_url=context.store_url,
@@ -312,9 +318,7 @@ class MinRepoScraper:
         date_index: int | None = None,
         total_dates: int | None = None,
     ) -> MachineHistoryResult:
-        date_html = self.fetch_html(date_page.date_url)
-        date_soup = BeautifulSoup(date_html, "html.parser")
-        machine_entries = self.extract_machine_entries(date_soup, date_page.date_url)
+        _, machine_entries = self._load_machine_entries_from_date_page(date_page)
         machine_list = MachineListResult(
             store_name=context.store_name,
             store_url=context.store_url,
@@ -430,16 +434,17 @@ class MinRepoScraper:
         self,
         store_url: str,
         target_date_input: str,
-    ) -> tuple[str, datetime, str, BeautifulSoup]:
+    ) -> tuple[str, datetime, str, BeautifulSoup, List[MachineEntry]]:
         _, target_date = parse_date_range_input(target_date_input)
         store_name, store_soup = self._load_store_page(store_url)
-        date_page = self.find_latest_date_page_on_or_before(store_soup, store_url, target_date)
+        date_page, date_soup, machine_entries = self._load_latest_available_date_page_on_or_before(
+            store_soup,
+            store_url,
+            target_date,
+        )
         date_url = date_page.date_url
         actual_target_date = parse_date_input(date_page.target_date)
-
-        date_html = self.fetch_html(date_url)
-        date_soup = BeautifulSoup(date_html, "html.parser")
-        return store_name, actual_target_date, date_url, date_soup
+        return store_name, actual_target_date, date_url, date_soup, machine_entries
 
     def _load_store_page(
         self,
@@ -449,6 +454,61 @@ class MinRepoScraper:
         store_soup = BeautifulSoup(store_html, "html.parser")
         store_name = self.extract_store_name(store_soup)
         return store_name, store_soup
+
+    def _load_machine_entries_from_date_page(
+        self,
+        date_page: StoreDatePage,
+    ) -> tuple[BeautifulSoup, List[MachineEntry]]:
+        date_html = self.fetch_html(date_page.date_url)
+        date_soup = BeautifulSoup(date_html, "html.parser")
+        machine_entries = self.extract_machine_entries(date_soup, date_page.date_url)
+        return date_soup, machine_entries
+
+    def _trim_unavailable_latest_date_pages(
+        self,
+        date_pages: List[StoreDatePage],
+    ) -> List[StoreDatePage]:
+        trimmed_date_pages = list(date_pages)
+        while trimmed_date_pages:
+            try:
+                self._load_machine_entries_from_date_page(trimmed_date_pages[-1])
+            except ScraperError:
+                trimmed_date_pages.pop()
+                continue
+            break
+        return trimmed_date_pages
+
+    def _load_latest_available_date_page_on_or_before(
+        self,
+        soup: BeautifulSoup,
+        base_url: str,
+        target_date: datetime,
+        min_date: datetime | None = None,
+    ) -> tuple[StoreDatePage, BeautifulSoup, List[MachineEntry]]:
+        target_date_text = target_date.strftime("%Y-%m-%d")
+        min_date_text = min_date.strftime("%Y-%m-%d") if min_date is not None else None
+        candidate_pages = [
+            date_page
+            for date_page in self._collect_store_date_pages(soup, base_url)
+            if date_page.target_date <= target_date_text
+            and (min_date_text is None or date_page.target_date >= min_date_text)
+        ]
+
+        if not candidate_pages:
+            if min_date_text is None:
+                raise ScraperError(f"{target_date_text} 以前の日付ページが見つかりませんでした。")
+            raise ScraperError(f"{min_date_text} ～ {target_date_text} の日付ページが見つかりませんでした。")
+
+        for date_page in sorted(candidate_pages, key=lambda current_date_page: current_date_page.target_date, reverse=True):
+            try:
+                date_soup, machine_entries = self._load_machine_entries_from_date_page(date_page)
+            except ScraperError:
+                continue
+            return date_page, date_soup, machine_entries
+
+        if min_date_text is None:
+            raise ScraperError(f"{target_date_text} 以前で取得可能な日付ページが見つかりませんでした。")
+        raise ScraperError(f"{min_date_text} ～ {target_date_text} で取得可能な日付ページが見つかりませんでした。")
 
     def find_date_pages_in_range(
         self,
