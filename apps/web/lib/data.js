@@ -13,7 +13,7 @@ import {
 import { canonicalMachineName, listEquivalentMachineNames, withCalculatedDifferenceValue } from "./machine-difference";
 
 const PAGE_SIZE = 1000;
-const DEFAULT_FETCH_CACHE_TTL_MS = 60 * 1000;
+const DEFAULT_FETCH_CACHE_TTL_MS = 0;
 const HUNT_BACKTEST_DEFAULT_EVENT_FILTERS = {
   "Aパーク春日店": {
     dayTails: [0],
