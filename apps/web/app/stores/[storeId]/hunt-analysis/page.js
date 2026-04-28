@@ -6,6 +6,7 @@ import { Breadcrumbs } from "../../../../components/breadcrumbs";
 import { HuntBacktestGraph } from "../../../../components/hunt-backtest-graph";
 import { HuntRankingLimitSync } from "../../../../components/hunt-ranking-limit-sync";
 import { HuntRankingTable } from "../../../../components/hunt-ranking-table";
+import { NativeGetForm } from "../../../../components/native-get-form";
 import { getHuntScoreAnalysisPageDetail, getStoreIdentity } from "../../../../lib/data";
 import {
   formatCompactDate,
@@ -242,7 +243,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 期間は狙い度を出した日で絞り込み、差枚やG数、平均設定は一致した台の翌営業日実績だけを集計します。
               </p>
             </div>
-            <form method="get" className="backtestForm">
+            <NativeGetForm action={`/stores/${detail.store.id}/hunt-analysis`} className="backtestForm">
               {renderHiddenSearchParams(resolvedSearchParams, BACKTEST_SEARCH_KEYS)}
 
               <div className="backtestBlock">
@@ -498,7 +499,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   バックテストする
                 </button>
               </div>
-            </form>
+            </NativeGetForm>
             {backtestFallbackNotice ? <p className="storeReserveHelp">{backtestFallbackNotice}</p> : null}
           </section>
 
@@ -610,7 +611,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 選んだ日の時点で見た次回営業日の狙い度を、高い順の一覧として確認できます。
               </p>
             </div>
-            <form method="get" className="storeReserveForm">
+            <NativeGetForm action={`/stores/${detail.store.id}/hunt-analysis`} className="storeReserveForm">
               {renderHiddenSearchParams(resolvedSearchParams, ["date", "limit"])}
               <label className="storeReserveField">
                 <span>集計日</span>
@@ -636,7 +637,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               <button type="submit" className="storeReserveButton">
                 表示する
               </button>
-            </form>
+            </NativeGetForm>
             {fallbackNotice ? <p className="storeReserveHelp">{fallbackNotice}</p> : null}
             {!detail.nextBusinessDate ? (
               <p className="filterPanelStatus">最新日のため、翌営業日の実績はまだありません。</p>
