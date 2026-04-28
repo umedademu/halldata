@@ -1640,7 +1640,6 @@ class MinRepoApp:
                 self.persistence_service.delete_machine_slots_from_supabase(
                     store_url=history_result.store_url,
                     target_slots=replaceable_slots,
-                    data_source="site7",
                 )
             except Exception as exc:  # noqa: BLE001
                 warning_messages.append(f"サイトセブン仮置き分の上書き準備に失敗しました。\n{exc}")

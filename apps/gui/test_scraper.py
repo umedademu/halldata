@@ -15,6 +15,7 @@ from data_persistence import (
     DATA_SOURCE_MINREPO,
     DATA_SOURCE_SITE7,
     HistoryPersistenceService,
+    SavedMachineSlotsSummary,
     build_machine_daily_records,
     build_store_machine_daily_detail_payloads,
     build_store_machine_summary_payloads,
@@ -2160,6 +2161,72 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(
             [dataset.rows[0][0] for dataset in filtered_result.datasets],
             ["822", "822"],
+        )
+
+    def test_prepare_site7_history_result_deletes_replaceable_slots_without_source_filter(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.result_queue = queue.Queue()
+        deleted_calls: list[dict[str, object]] = []
+
+        class FakePersistenceService:
+            def resolve_preferred_store_by_name(self, store_name: str) -> None:
+                return None
+
+            def find_saved_machine_slots_supabase(
+                self,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+                slot_numbers: list[str],
+            ) -> SavedMachineSlotsSummary:
+                return SavedMachineSlotsSummary(
+                    protected_slots={("2026-04-24", "821")},
+                    replaceable_slots={("2026-04-25", "821")},
+                )
+
+            def delete_machine_slots_from_supabase(
+                self,
+                store_url: str,
+                target_slots: set[tuple[str, str]],
+                data_source: str | None = None,
+            ) -> int:
+                deleted_calls.append(
+                    {
+                        "store_url": store_url,
+                        "target_slots": set(target_slots),
+                        "data_source": data_source,
+                    }
+                )
+                return len(target_slots)
+
+        app.persistence_service = FakePersistenceService()
+
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = find_gui_fixture("site7_machine.html")
+        history_result = scraper.parse_machine_history_html(
+            html,
+            store_url="https://example.com/site7",
+            page_url="https://example.com/site7/machine",
+            recent_days=2,
+        )
+
+        filtered_result, warning_summary = app._prepare_site7_history_result_for_save(history_result)
+
+        self.assertEqual(warning_summary.messages, [])
+        self.assertEqual(
+            deleted_calls,
+            [
+                {
+                    "store_url": "https://example.com/site7",
+                    "target_slots": {("2026-04-25", "821")},
+                    "data_source": None,
+                }
+            ],
+        )
+        self.assertEqual([dataset.target_date for dataset in filtered_result.datasets], ["2026-04-24", "2026-04-25"])
+        self.assertEqual(
+            [dataset.rows[0][0] for dataset in filtered_result.datasets],
+            ["822", "821"],
         )
 
     def test_find_saved_machine_target_sources_from_supabase_prefers_minrepo(self) -> None:
