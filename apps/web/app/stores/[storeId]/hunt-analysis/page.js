@@ -372,7 +372,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               </div>
 
               <div className="backtestBlock">
-                <p className="filterControlLabel">特定日（末尾）</p>
+                <p className="filterControlLabel">特定日（翌営業日の末尾）</p>
                 <div className="metricToggleRow">
                   {DAY_TAIL_OPTIONS.map((dayTail) => (
                     <label
@@ -394,7 +394,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               </div>
 
               <div className="backtestBlock">
-                <p className="filterControlLabel">特定日（曜日）</p>
+                <p className="filterControlLabel">特定日（翌営業日の曜日）</p>
                 <div className="metricToggleRow">
                   {WEEKDAY_OPTIONS.map((weekday) => (
                     <label

@@ -14,8 +14,8 @@ const DEFAULT_RECENT_DAYS = 90;
 const DEFAULT_DIFFERENCE_MODE = "bonus";
 const BACKTEST_BREAKDOWN_DEFINITIONS = [
   { key: "all", title: "全合算" },
-  { key: "dayTail", title: "末尾の日のみで絞り込み" },
-  { key: "weekday", title: "曜日のみで絞り込み" },
+  { key: "dayTail", title: "翌営業日が末尾の日" },
+  { key: "weekday", title: "翌営業日が指定曜日" },
   { key: "normal", title: "通常日" },
 ];
 
@@ -207,6 +207,34 @@ function buildBacktestEventFilters(options) {
   };
 }
 
+function getActualDate(row, snapshot) {
+  return String(row?.nextBusinessDate ?? snapshot?.nextBusinessDate ?? "").trim();
+}
+
+function buildBreakdownRowFilter(breakdownKey, eventFilters) {
+  if (breakdownKey === "all") {
+    return () => true;
+  }
+
+  return ({ actualDate }) => {
+    if (!actualDate) {
+      return false;
+    }
+
+    const isDayTail = matchesDayTail(actualDate, eventFilters.dayTails);
+    const isWeekday = matchesWeekday(actualDate, eventFilters.weekdays);
+
+    if (breakdownKey === "dayTail") {
+      return isDayTail;
+    }
+    if (breakdownKey === "weekday") {
+      return isWeekday;
+    }
+
+    return !isDayTail && !isWeekday;
+  };
+}
+
 function calculateAverage(total, count) {
   if (!Number.isFinite(total) || !Number.isInteger(count) || count <= 0) {
     return null;
@@ -316,6 +344,7 @@ function buildBacktestAggregationDetail(
     matchMode,
     rankScope,
     differenceMode,
+    rowFilter = () => true,
   },
 ) {
   const summariesByMachine = new Map();
@@ -341,8 +370,13 @@ function buildBacktestAggregationDetail(
         continue;
       }
 
+      const actualDate = getActualDate(row, snapshot);
+      if (!rowFilter({ snapshot, row, actualDate })) {
+        continue;
+      }
+
       matchedRowCount += 1;
-      matchedDates.add(snapshot.baseDate);
+      matchedDates.add(actualDate || snapshot.baseDate);
 
       if (!summariesByMachine.has(row.machineName)) {
         summariesByMachine.set(row.machineName, buildEmptySummary(row.machineName));
@@ -354,7 +388,6 @@ function buildBacktestAggregationDetail(
       totalSummary.matchedRowCount += 1;
       totalSummary.huntScoreTotal += readFiniteNumber(row.huntScore);
 
-      const actualDate = String(row.nextBusinessDate ?? snapshot.nextBusinessDate ?? "").trim();
       if (actualDate) {
         if (!dailySummariesByDate.has(actualDate)) {
           dailySummariesByDate.set(
@@ -465,28 +498,15 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     rankScope,
     differenceMode,
   };
-  const dayTailSnapshots = snapshotsInPeriod.filter((snapshot) =>
-    matchesDayTail(snapshot.baseDate, eventFilters.dayTails),
-  );
-  const weekdaySnapshots = snapshotsInPeriod.filter((snapshot) =>
-    matchesWeekday(snapshot.baseDate, eventFilters.weekdays),
-  );
-  const normalSnapshots = snapshotsInPeriod.filter((snapshot) => {
-    return (
-      !matchesDayTail(snapshot.baseDate, eventFilters.dayTails) &&
-      !matchesWeekday(snapshot.baseDate, eventFilters.weekdays)
-    );
-  });
   const allAggregation = buildBacktestAggregationDetail(snapshotsInPeriod, aggregationOptions);
-  const breakdownAggregations = {
-    all: allAggregation,
-    dayTail: buildBacktestAggregationDetail(dayTailSnapshots, aggregationOptions),
-    weekday: buildBacktestAggregationDetail(weekdaySnapshots, aggregationOptions),
-    normal: buildBacktestAggregationDetail(normalSnapshots, aggregationOptions),
-  };
   const breakdowns = BACKTEST_BREAKDOWN_DEFINITIONS.map((definition) => ({
     ...definition,
-    ...breakdownAggregations[definition.key],
+    ...(definition.key === "all"
+      ? allAggregation
+      : buildBacktestAggregationDetail(snapshotsInPeriod, {
+          ...aggregationOptions,
+          rowFilter: buildBreakdownRowFilter(definition.key, eventFilters),
+        })),
   }));
 
   return {
