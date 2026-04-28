@@ -268,6 +268,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     scoreMin: detail.backtest.scoreMin,
     matchMode: detail.backtest.matchMode,
     rankScope: detail.backtest.rankScope,
+    combineAimJuggler: detail.backtest.combineAimJuggler,
   };
   const selectedBacktestDayTailSet = new Set(detail.backtest.eventFilters.dayTails);
   const selectedBacktestWeekdaySet = new Set(detail.backtest.eventFilters.weekdays);

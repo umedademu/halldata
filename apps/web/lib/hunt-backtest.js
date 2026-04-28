@@ -61,11 +61,11 @@ function resolveBacktestMachineName(machineName, combineAimJuggler) {
   return text;
 }
 
-function expandRequestedMachineName(machineName, combineAimJuggler) {
-  if (!combineAimJuggler && isAimJugglerGroup(machineName)) {
+function expandRequestedMachineName(machineName) {
+  if (isAimJugglerGroup(machineName)) {
     return AIM_JUGGLER_MACHINE_NAMES;
   }
-  return [resolveBacktestMachineName(machineName, combineAimJuggler)];
+  return [String(machineName ?? "").trim()];
 }
 
 function splitOptionValues(value) {
@@ -115,24 +115,18 @@ function normalizeCombineAimJuggler(value) {
   return values.includes("1") || values.includes("true") || values.includes("on");
 }
 
-function buildMachineOrder(combineAimJuggler) {
-  const orderedMachineNames = [
-    ...new Set(
-      listHuntScoreTargetMachineNames()
-        .map(canonicalMachineName)
-        .map((machineName) => resolveBacktestMachineName(machineName, combineAimJuggler)),
-    ),
-  ];
+function buildMachineOrder() {
+  const orderedMachineNames = [...new Set(listHuntScoreTargetMachineNames().map(canonicalMachineName))];
   return new Map(orderedMachineNames.map((machineName, index) => [machineName, index]));
 }
 
-function buildAvailableMachineNames(snapshots, combineAimJuggler) {
-  const machineOrder = buildMachineOrder(combineAimJuggler);
+function buildAvailableMachineNames(snapshots) {
+  const machineOrder = buildMachineOrder();
   const machineNames = [
     ...new Set(
       snapshots.flatMap((snapshot) =>
         snapshot.rows
-          .map((row) => resolveBacktestMachineName(row.machineName, combineAimJuggler))
+          .map((row) => String(row.machineName ?? "").trim())
           .filter(Boolean),
       ),
     ),
@@ -150,12 +144,12 @@ function buildAvailableMachineNames(snapshots, combineAimJuggler) {
   });
 }
 
-function buildSelectedMachineNames(requestedMachineNames, availableMachineNames, combineAimJuggler) {
+function buildSelectedMachineNames(requestedMachineNames, availableMachineNames) {
   const availableMachineNameSet = new Set(availableMachineNames);
   const normalizedMachineNames = [
     ...new Set(
       (Array.isArray(requestedMachineNames) ? requestedMachineNames : [requestedMachineNames])
-        .flatMap((value) => expandRequestedMachineName(value, combineAimJuggler))
+        .flatMap((value) => expandRequestedMachineName(value))
         .map((value) => String(value ?? "").trim())
         .filter(Boolean),
     ),
@@ -412,11 +406,12 @@ function buildBacktestAggregationDetail(
     const machineRankCounts = new Map();
 
     for (const row of snapshot.rows) {
-      const backtestMachineName = resolveBacktestMachineName(row.machineName, combineAimJuggler);
-      if (!selectedMachineNameSet.has(backtestMachineName)) {
+      const selectedMachineName = String(row.machineName ?? "").trim();
+      if (!selectedMachineNameSet.has(selectedMachineName)) {
         continue;
       }
 
+      const backtestMachineName = resolveBacktestMachineName(selectedMachineName, combineAimJuggler);
       const machineRank = (machineRankCounts.get(backtestMachineName) ?? 0) + 1;
       machineRankCounts.set(backtestMachineName, machineRank);
       const rankValue = rankScope === "machine" ? machineRank : row.rank;
@@ -498,7 +493,14 @@ function buildBacktestAggregationDetail(
     }
   }
 
-  const machineOrder = new Map(selectedMachineNames.map((machineName, index) => [machineName, index]));
+  const summaryMachineNames = [
+    ...new Set(
+      selectedMachineNames.map((machineName) =>
+        resolveBacktestMachineName(machineName, combineAimJuggler),
+      ),
+    ),
+  ];
+  const machineOrder = new Map(summaryMachineNames.map((machineName, index) => [machineName, index]));
   const summaries = [...summariesByMachine.values()]
     .map(finalizeSummary)
     .sort((left, right) => {
@@ -531,14 +533,10 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const latestDate = rankingDates[0] ?? null;
   const earliestDate = rankingDates.at(-1) ?? null;
   const combineAimJuggler = normalizeCombineAimJuggler(options.combineAimJuggler);
-  const availableMachineNames = buildAvailableMachineNames(
-    Array.isArray(snapshots) ? snapshots : [],
-    combineAimJuggler,
-  );
+  const availableMachineNames = buildAvailableMachineNames(Array.isArray(snapshots) ? snapshots : []);
   const selectedMachineNames = buildSelectedMachineNames(
     options.machineNames,
     availableMachineNames,
-    combineAimJuggler,
   );
   const selectedMachineNameSet = new Set(selectedMachineNames);
   const rankFilter = buildRankFilter(options.rankMin, options.rankMax);

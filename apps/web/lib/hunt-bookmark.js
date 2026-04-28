@@ -19,11 +19,22 @@ function isAimJugglerMachine(machineName) {
   );
 }
 
-function resolveBookmarkMachineName(machineName, selectedMachineNameSet) {
-  if (selectedMachineNameSet.has(machineName)) {
-    return machineName;
-  }
-  if (isAimJugglerMachine(machineName) && selectedMachineNameSet.has(AIM_JUGGLER_GROUP_NAME)) {
+function isAimJugglerGroup(machineName) {
+  return normalizeMachineNameText(machineName) === normalizeMachineNameText(AIM_JUGGLER_GROUP_NAME);
+}
+
+function includesBookmarkMachine(machineName, selectedMachineNameSet) {
+  return (
+    selectedMachineNameSet.has(machineName) ||
+    (isAimJugglerMachine(machineName) && selectedMachineNameSet.has(AIM_JUGGLER_GROUP_NAME))
+  );
+}
+
+function resolveBookmarkRankMachineName(machineName, combineAimJuggler, selectedMachineNameSet) {
+  if (
+    isAimJugglerMachine(machineName) &&
+    (combineAimJuggler || selectedMachineNameSet.has(AIM_JUGGLER_GROUP_NAME))
+  ) {
     return AIM_JUGGLER_GROUP_NAME;
   }
   return machineName;
@@ -158,6 +169,7 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
   const rankFilter = buildRankFilter(bookmark.rankMin, bookmark.rankMax);
   const scoreFilter = buildScoreFilter(bookmark.scoreMin);
   const allMachineCount = readPositiveInteger(bookmark.allMachineCount) ?? machineNames.length;
+  const combineAimJuggler = Boolean(bookmark.combineAimJuggler) || machineNames.some(isAimJugglerGroup);
 
   return {
     version: 1,
@@ -173,6 +185,7 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     hasScoreFilter: scoreFilter.hasScoreFilter,
     matchMode: normalizeMatchMode(bookmark.matchMode),
     rankScope: normalizeRankScope(bookmark.rankScope),
+    combineAimJuggler,
     savedAt: normalizeText(bookmark.savedAt) || null,
   };
 }
@@ -204,6 +217,7 @@ export function areHuntBacktestBookmarksEqual(left, right) {
     normalizedLeft.scoreMin === normalizedRight.scoreMin &&
     normalizedLeft.matchMode === normalizedRight.matchMode &&
     normalizedLeft.rankScope === normalizedRight.rankScope &&
+    normalizedLeft.combineAimJuggler === normalizedRight.combineAimJuggler &&
     normalizedLeft.machineNames.length === normalizedRight.machineNames.length &&
     normalizedLeft.machineNames.every((machineName, index) => machineName === normalizedRight.machineNames[index])
   );
@@ -254,6 +268,10 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
 
   if (normalizedBookmark.hasRankFilter && normalizedBookmark.hasScoreFilter) {
     parts.push(normalizedBookmark.matchMode === "or" ? "どちらか一致" : "両方一致");
+  }
+
+  if (normalizedBookmark.combineAimJuggler) {
+    parts.push("アイム統合");
   }
 
   if (!normalizedBookmark.hasRankFilter && !normalizedBookmark.hasScoreFilter) {
@@ -365,14 +383,18 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
 
   for (const row of safeRows) {
     const machineName = normalizeText(row?.machineName);
-    const bookmarkMachineName = resolveBookmarkMachineName(machineName, selectedMachineNameSet);
     const rowKey = buildHuntBacktestBookmarkRowKey(row);
 
-    if (!selectedMachineNameSet.has(bookmarkMachineName)) {
+    if (!includesBookmarkMachine(machineName, selectedMachineNameSet)) {
       matchByRowKey.set(rowKey, false);
       continue;
     }
 
+    const bookmarkMachineName = resolveBookmarkRankMachineName(
+      machineName,
+      normalizedBookmark.combineAimJuggler,
+      selectedMachineNameSet,
+    );
     const machineRank = (machineRankCounts.get(bookmarkMachineName) ?? 0) + 1;
     machineRankCounts.set(bookmarkMachineName, machineRank);
     const rankValue =
