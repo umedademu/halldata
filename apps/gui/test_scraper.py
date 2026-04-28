@@ -36,6 +36,7 @@ from main import (
     normalize_site7_browser_mode,
     parse_recent_days,
     parse_retry_delay_seconds,
+    rewrite_history_result_store,
     scheduled_fetch_due_date,
 )
 from machine_difference import calculate_machine_difference_value, canonical_machine_name, machine_requires_slot_resolution
@@ -1268,6 +1269,26 @@ class MinRepoScraperTests(unittest.TestCase):
             },
         )
 
+    def test_site7_build_machine_daily_records_keeps_site7_source_after_store_rewrite(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = find_gui_fixture("site7_machine.html")
+        history_result = scraper.parse_machine_history_html(
+            html,
+            store_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=example",
+            page_url="https://www.d-deltanet.com/pc/BonusList.do?model=example",
+            recent_days=1,
+        )
+        rewritten_result = rewrite_history_result_store(
+            history_result,
+            store_name="Aパーク春日店",
+            store_url="https://min-repo.com/tag/a-%E3%83%91%E3%83%BC%E3%82%AF%E6%98%A5%E6%97%A5%E5%BA%97/",
+        )
+
+        records = build_machine_daily_records(rewritten_result)
+
+        self.assertTrue(records)
+        self.assertEqual({record["data_source"] for record in records}, {DATA_SOURCE_SITE7})
+
     def test_build_supabase_result_payload_rounds_fractional_difference_value(self) -> None:
         payload = build_supabase_result_payload(
             {
@@ -2295,7 +2316,7 @@ class MinRepoScraperTests(unittest.TestCase):
                                     "target_date": "2026-04-25",
                                     "slot_number": "737",
                                     "data_source": DATA_SOURCE_MINREPO,
-                                    "payout_rate": None,
+                                    "payout_rate": 101.2,
                                 },
                             ]
 
@@ -2312,6 +2333,42 @@ class MinRepoScraperTests(unittest.TestCase):
 
             self.assertEqual(protected_slots, {("2026-04-25", "737")})
             self.assertEqual(replaceable_slots, {("2026-04-24", "737")})
+
+    def test_find_saved_machine_slot_sources_from_supabase_treats_legacy_empty_minrepo_as_replaceable(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            service._supabase_config = lambda: ("https://example.supabase.co", "anon", "public", "stores", "results")  # type: ignore[method-assign]
+            service._find_store_id = lambda *args, **kwargs: "store-1"  # type: ignore[method-assign]
+
+            class FakeSession:
+                def get(self, endpoint: str, params: dict[str, object], timeout: int) -> object:
+                    class Response:
+                        def raise_for_status(self) -> None:
+                            return None
+
+                        def json(self) -> list[dict[str, object]]:
+                            return [
+                                {
+                                    "target_date": "2026-04-25",
+                                    "slot_number": "863",
+                                    "data_source": DATA_SOURCE_MINREPO,
+                                    "payout_rate": None,
+                                },
+                            ]
+
+                    return Response()
+
+            service._create_supabase_session = lambda schema: FakeSession()  # type: ignore[method-assign]
+
+            protected_slots, replaceable_slots = service._find_saved_machine_slot_sources_from_supabase(  # type: ignore[attr-defined]
+                store_url="https://example.com/store",
+                start_date="2026-04-25",
+                end_date="2026-04-25",
+                target_slot_numbers={"863"},
+            )
+
+            self.assertEqual(protected_slots, set())
+            self.assertEqual(replaceable_slots, {("2026-04-25", "863")})
 
     def test_find_date_pages_handles_year_rollover_without_year_label(self) -> None:
         scraper = MinRepoScraper()

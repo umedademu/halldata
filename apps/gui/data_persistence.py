@@ -138,21 +138,25 @@ def _normalize_data_source(value: Any) -> str:
 
 
 def _infer_history_data_source(*urls: str) -> str:
+    has_minrepo_url = False
     for url in urls:
         normalized_url = str(url or "").strip().lower()
         if "d-deltanet.com" in normalized_url or "/site7" in normalized_url or "site7" in normalized_url:
             return DATA_SOURCE_SITE7
         if "min-repo.com" in normalized_url:
-            return DATA_SOURCE_MINREPO
+            has_minrepo_url = True
+    if has_minrepo_url:
+        return DATA_SOURCE_MINREPO
     return DATA_SOURCE_MINREPO
 
 
 def _infer_saved_result_data_source(row: dict[str, Any]) -> str:
     data_source = _normalize_data_source(row.get("data_source"))
-    if data_source:
-        if str(row.get("data_source", "")).strip():
-            return data_source
     payout_rate = row.get("payout_rate")
+    if data_source == DATA_SOURCE_SITE7:
+        return DATA_SOURCE_SITE7
+    if data_source == DATA_SOURCE_MINREPO and str(row.get("data_source", "")).strip() and payout_rate not in (None, ""):
+        return DATA_SOURCE_MINREPO
     if payout_rate in (None, ""):
         return DATA_SOURCE_SITE7
     return DATA_SOURCE_MINREPO
