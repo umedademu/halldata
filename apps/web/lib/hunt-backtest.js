@@ -180,13 +180,14 @@ function resolveActualMetrics(machineName, nextRecord, differenceMode) {
   const gamesCount = readFiniteNumber(nextRecord?.games_count);
   const bbCount = readFiniteNumber(nextRecord?.bb_count);
   const rbCount = readFiniteNumber(nextRecord?.rb_count);
+  const standardInvestedCoins = gamesCount > 0 ? gamesCount * 3 : 0;
 
   if (differenceMode === "bonus") {
     const differenceMetrics = calculateMachineDifferenceMetrics(machineName, nextRecord);
     if (differenceMetrics) {
       return {
         differenceValue: readFiniteNumber(differenceMetrics.differenceValue),
-        investedCoins: readFiniteNumber(differenceMetrics.investedCoins),
+        investedCoins: standardInvestedCoins,
         gamesCount,
         bbCount,
         rbCount,
@@ -196,7 +197,7 @@ function resolveActualMetrics(machineName, nextRecord, differenceMode) {
 
   return {
     differenceValue: readFiniteNumber(nextRecord?.difference_value),
-    investedCoins: gamesCount > 0 ? gamesCount * 3 : 0,
+    investedCoins: standardInvestedCoins,
     gamesCount,
     bbCount,
     rbCount,
