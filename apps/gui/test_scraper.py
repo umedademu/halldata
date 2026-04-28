@@ -274,7 +274,7 @@ class MinRepoScraperTests(unittest.TestCase):
         app._quit_application = mock.Mock()
         app._hide_to_resident = mock.Mock()
 
-        with mock.patch("main.messagebox.askyesnocancel", return_value=True):
+        with mock.patch("main.messagebox.askyesno", return_value=True):
             app._on_window_close()
 
         app._quit_application.assert_called_once_with()
@@ -285,22 +285,11 @@ class MinRepoScraperTests(unittest.TestCase):
         app._quit_application = mock.Mock()
         app._hide_to_resident = mock.Mock()
 
-        with mock.patch("main.messagebox.askyesnocancel", return_value=False):
+        with mock.patch("main.messagebox.askyesno", return_value=False):
             app._on_window_close()
 
         app._hide_to_resident.assert_called_once_with()
         app._quit_application.assert_not_called()
-
-    def test_window_close_can_cancel(self) -> None:
-        app = MinRepoApp.__new__(MinRepoApp)
-        app._quit_application = mock.Mock()
-        app._hide_to_resident = mock.Mock()
-
-        with mock.patch("main.messagebox.askyesnocancel", return_value=None):
-            app._on_window_close()
-
-        app._quit_application.assert_not_called()
-        app._hide_to_resident.assert_not_called()
 
     def test_quit_application_stops_tray_and_closes_browser(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)

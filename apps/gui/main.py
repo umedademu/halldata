@@ -870,16 +870,14 @@ class MinRepoApp:
             self.status_var.set("常駐中")
 
     def _on_window_close(self) -> None:
-        result = messagebox.askyesnocancel(
+        result = messagebox.askyesno(
             "終了確認",
-            "終了する場合は「はい」、常駐する場合は「いいえ」を選んでください。\n"
-            "「キャンセル」で閉じるのをやめます。",
+            "終了する場合は「はい」、常駐する場合は「いいえ」を選んでください。",
         )
         if result is True:
             self._quit_application()
             return
-        if result is False:
-            self._hide_to_resident()
+        self._hide_to_resident()
 
     def _ensure_tray_icon(self) -> bool:
         if self.tray_icon is not None:
