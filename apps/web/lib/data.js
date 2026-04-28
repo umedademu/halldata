@@ -5,9 +5,10 @@ import { buildHuntScoreBacktestDetail } from "./hunt-backtest";
 import {
   attachHuntScores,
   buildHuntScoreSnapshots,
+  canonicalHuntScoreTargetMachineName,
   isHuntScoreSupported,
   isHuntScoreTargetStore,
-  listHuntScoreTargetMachineNames,
+  listHuntScoreSourceMachineNames,
 } from "./hunt-score";
 import { canonicalMachineName, listEquivalentMachineNames, withCalculatedDifferenceValue } from "./machine-difference";
 
@@ -250,7 +251,7 @@ function dailyDetailRowHasMeaningfulResult(row) {
 async function fetchHuntScoreSourceRows(resultsTable, machineDailyDetailsTable, storeId) {
   const huntScoreMachineNames = [
     ...new Set(
-      listHuntScoreTargetMachineNames().flatMap((name) => listEquivalentMachineNames(name)),
+      listHuntScoreSourceMachineNames().flatMap((name) => listEquivalentMachineNames(name)),
     ),
   ];
 
@@ -1075,7 +1076,9 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
   }
 
   const requestedMachineName = canonicalMachineName(machineName);
-  const huntScoreEnabled = isHuntScoreSupported(store.store_name, requestedMachineName);
+  const requestedHuntScoreMachineName =
+    canonicalHuntScoreTargetMachineName(requestedMachineName) ?? requestedMachineName;
+  const huntScoreEnabled = isHuntScoreSupported(store.store_name, requestedHuntScoreMachineName);
   let rows;
   let detail = null;
 
@@ -1086,7 +1089,17 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
       storeId,
     );
     attachHuntScores(targetRows, storeRows);
-    rows = targetRows.filter((row) => canonicalMachineName(row.machine_name) === requestedMachineName);
+    rows = targetRows
+      .filter((row) => {
+        const rowMachineName =
+          canonicalHuntScoreTargetMachineName(canonicalMachineName(row.machine_name)) ??
+          canonicalMachineName(row.machine_name);
+        return rowMachineName === requestedHuntScoreMachineName;
+      })
+      .map((row) => ({
+        ...row,
+        machine_name: requestedHuntScoreMachineName,
+      }));
   } else {
     try {
       const dailyDetailRows = await fetchAllRows(machineDailyDetailsTable, {

@@ -3,18 +3,75 @@ import { calculateSettingEstimate, getSettingEstimateDefinition } from "./settin
 const HUNT_SCORE_EPSILON = 0.000000001;
 const HUNT_SCORE_WINDOW_DAYS = 7;
 const HUNT_SCORE_TARGET_STORE_NAMES = ["Aパーク春日店"];
-const HUNT_SCORE_TARGET_MACHINE_NAMES = [
-  "SアイムジャグラーＥＸ",
-  "ネオアイムジャグラーEX",
-  "マイジャグラーV",
-  "ゴーゴージャグラー３",
-  "ファンキージャグラー２ＫＴ",
-  "ミスタージャグラー",
-  "ジャグラーガールズSS",
+const HUNT_SCORE_TARGET_MACHINES = [
+  { name: "SアイムジャグラーＥＸ", aliases: ["SアイムジャグラーEX"] },
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
+  { name: "ゴーゴージャグラー３", aliases: ["ゴーゴージャグラー3", "ゴーゴージャグラー"] },
+  {
+    name: "ファンキージャグラー２ＫＴ",
+    aliases: ["ファンキージャグラー２", "ファンキージャグラー2", "ファンキージャグラー"],
+  },
+  { name: "ミスタージャグラー", aliases: [] },
+  { name: "ジャグラーガールズSS", aliases: ["ジャグラーガールズ"] },
+  {
+    name: "ハナハナホウオウ",
+    aliases: [
+      "ハナハナホウオウ-30",
+      "ハナハナホウオウ‐30",
+      "ハナハナホウオウ～天翔～-30",
+      "ハナハナホウオウ～天翔～‐30",
+    ],
+  },
+  {
+    name: "ドラゴンハナハナ～閃光～",
+    aliases: [
+      "ドラゴンハナハナ",
+      "ドラゴンハナハナ閃光",
+      "ドラゴンハナハナ閃光30",
+      "ドラゴンハナハナ～閃光～30",
+      "ドラゴンハナハナ～閃光～-30",
+      "ドラゴンハナハナ～閃光～‐30",
+    ],
+  },
+  { name: "キングハナハナ", aliases: ["キングハナハナ-30", "キングハナハナ‐30"] },
+  {
+    name: "ニューキングハナハナ",
+    aliases: ["ニューキングハナハナV", "ニューキングハナハナV-30", "ニューキングハナハナV‐30"],
+  },
+  { name: "新ハナビ", aliases: [] },
+  { name: "スマスロ ハナビ", aliases: ["スマスロハナビ"] },
+  { name: "スターハナハナ", aliases: ["スターハナハナ-30", "スターハナハナ‐30"] },
 ];
 
 function normalizeText(value) {
   return String(value ?? "").normalize("NFKC").replace(/\s+/gu, "").trim();
+}
+
+function listHuntScoreTargetMachineNameCandidates(targetMachine) {
+  return [
+    targetMachine.name,
+    ...(Array.isArray(targetMachine.aliases) ? targetMachine.aliases : []),
+  ];
+}
+
+export function canonicalHuntScoreTargetMachineName(machineName) {
+  const normalizedMachineName = normalizeText(machineName);
+  if (!normalizedMachineName) {
+    return null;
+  }
+
+  const targetMachine = HUNT_SCORE_TARGET_MACHINES.find((candidate) =>
+    listHuntScoreTargetMachineNameCandidates(candidate).some(
+      (candidateName) => normalizeText(candidateName) === normalizedMachineName,
+    ),
+  );
+
+  return targetMachine?.name ?? null;
+}
+
+function normalizeHuntScoreMachineName(machineName) {
+  return canonicalHuntScoreTargetMachineName(machineName) ?? normalizeText(machineName);
 }
 
 function readNumber(value) {
@@ -39,13 +96,13 @@ function hasMeaningfulResult(row) {
 function buildRowKey(row) {
   return [
     String(row?.target_date ?? "").trim(),
-    normalizeText(row?.machine_name),
+    normalizeHuntScoreMachineName(row?.machine_name),
     String(row?.slot_number ?? "").trim(),
   ].join("\u0000");
 }
 
 function buildCandidateKey(row) {
-  return [normalizeText(row?.machine_name), String(row?.slot_number ?? "").trim()].join("\u0000");
+  return [normalizeHuntScoreMachineName(row?.machine_name), String(row?.slot_number ?? "").trim()].join("\u0000");
 }
 
 function getSettingDefinition(settingDefinitionCache, machineName) {
@@ -59,7 +116,10 @@ function getSettingDefinition(settingDefinitionCache, machineName) {
 }
 
 function getSettingEstimateAverage(settingDefinitionCache, row) {
-  const definition = getSettingDefinition(settingDefinitionCache, row?.machine_name);
+  const definition = getSettingDefinition(
+    settingDefinitionCache,
+    normalizeHuntScoreMachineName(row?.machine_name),
+  );
   const estimate = definition ? calculateSettingEstimate(definition, row) : null;
   return {
     estimate,
@@ -291,7 +351,11 @@ function buildSourceMaps(targetRows, businessDateSet) {
   const rowsByDate = new Map();
 
   for (const row of targetRows) {
-    if (!hasMeaningfulResult(row) || !businessDateSet.has(row?.target_date)) {
+    if (
+      !hasMeaningfulResult(row) ||
+      !businessDateSet.has(row?.target_date) ||
+      !isHuntScoreTargetMachine(row?.machine_name)
+    ) {
       continue;
     }
 
@@ -365,7 +429,7 @@ function buildSnapshotRowsForDate(
         baseDate,
         nextBusinessDate,
         rowKey: candidate.rowKey,
-        machineName: candidate.row.machine_name,
+        machineName: normalizeHuntScoreMachineName(candidate.row.machine_name),
         slotNumber: candidate.row.slot_number,
         huntScore,
         currentRecord: candidate.row,
@@ -403,10 +467,7 @@ export function isHuntScoreTargetStore(storeName) {
 }
 
 export function isHuntScoreTargetMachine(machineName) {
-  const normalizedMachineName = normalizeText(machineName);
-  return HUNT_SCORE_TARGET_MACHINE_NAMES.some(
-    (candidate) => normalizeText(candidate) === normalizedMachineName,
-  );
+  return canonicalHuntScoreTargetMachineName(machineName) !== null;
 }
 
 export function isHuntScoreSupported(storeName, machineName) {
@@ -414,7 +475,17 @@ export function isHuntScoreSupported(storeName, machineName) {
 }
 
 export function listHuntScoreTargetMachineNames() {
-  return [...HUNT_SCORE_TARGET_MACHINE_NAMES];
+  return HUNT_SCORE_TARGET_MACHINES.map((targetMachine) => targetMachine.name);
+}
+
+export function listHuntScoreSourceMachineNames() {
+  return [
+    ...new Set(
+      HUNT_SCORE_TARGET_MACHINES.flatMap(listHuntScoreTargetMachineNameCandidates)
+        .map((machineName) => String(machineName ?? "").trim())
+        .filter(Boolean),
+    ),
+  ];
 }
 
 export function buildHuntScoreSnapshots(targetRows, allStoreRows = []) {
