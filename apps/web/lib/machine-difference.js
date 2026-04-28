@@ -1,12 +1,4 @@
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
-const rulesPathCandidates = [
-  path.resolve(currentDirectory, "../config/machine_difference_rules.json"),
-  path.resolve(currentDirectory, "../../../config/machine_difference_rules.json"),
-];
+import differenceRulesPayload from "../config/machine_difference_rules.json" with { type: "json" };
 
 let cachedRules = null;
 
@@ -65,14 +57,9 @@ export function loadMachineDifferenceRules() {
   }
 
   try {
-    const rulesPath = rulesPathCandidates.find((candidatePath) => fs.existsSync(candidatePath));
-    if (!rulesPath) {
-      cachedRules = [];
-      return cachedRules;
-    }
-
-    const payload = JSON.parse(fs.readFileSync(rulesPath, "utf8"));
-    const sourceRules = Array.isArray(payload?.machine_rules) ? payload.machine_rules : [];
+    const sourceRules = Array.isArray(differenceRulesPayload?.machine_rules)
+      ? differenceRulesPayload.machine_rules
+      : [];
     cachedRules = sourceRules
       .filter((rule) => rule && typeof rule === "object")
       .map((rule) => ({
