@@ -82,6 +82,37 @@ const SETTING_ESTIMATE_DEFINITIONS = [
     ],
   },
   {
+    key: "star-hanahana",
+    displayName: "スターハナハナ",
+    matchNames: ["スターハナハナ"],
+    settings: [
+      { setting: 1, label: "設定1", bbText: "1/270", rbText: "1/387" },
+      { setting: 2, label: "設定2", bbText: "1/262", rbText: "1/354" },
+      { setting: 3, label: "設定3", bbText: "1/252", rbText: "1/322" },
+      { setting: 4, label: "設定4", bbText: "1/240", rbText: "1/293" },
+      { setting: 5, label: "設定5", bbText: "1/229", rbText: "1/267" },
+      { setting: 6, label: "設定6", bbText: "1/218", rbText: "1/242" },
+    ],
+  },
+  {
+    key: "dragon-hanahana-senkou",
+    displayName: "ドラゴンハナハナ～閃光～",
+    matchNames: [
+      "ドラゴンハナハナ～閃光～",
+      "ドラゴンハナハナ閃光",
+      "ドラゴンハナハナ～閃光～30",
+      "ドラゴンハナハナ閃光30",
+    ],
+    settings: [
+      { setting: 1, label: "設定1", bbText: "1/256", rbText: "1/642" },
+      { setting: 2, label: "設定2", bbText: "1/246", rbText: "1/585" },
+      { setting: 3, label: "設定3", bbText: "1/235", rbText: "1/537" },
+      { setting: 4, label: "設定4", bbText: "1/224", rbText: "1/489" },
+      { setting: 5, label: "設定5", bbText: "1/212", rbText: "1/442" },
+      { setting: 6, label: "設定6", bbText: "1/199", rbText: "1/399" },
+    ],
+  },
+  {
     key: "funky-juggler-2",
     displayName: "ファンキージャグラー2",
     matchNames: ["ファンキージャグラー2"],
