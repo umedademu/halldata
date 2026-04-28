@@ -40,6 +40,7 @@ const BACKTEST_SEARCH_KEYS = [
   "startDate",
   "endDate",
   "machine",
+  "aimMachineGroup",
   "differenceMode",
   "rankMin",
   "rankMax",
@@ -202,6 +203,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     startDate: readSingleSearchParam(resolvedSearchParams?.startDate),
     endDate: readSingleSearchParam(resolvedSearchParams?.endDate),
     machineNames: readMultiSearchParam(resolvedSearchParams?.machine),
+    combineAimJuggler: readMultiSearchParam(resolvedSearchParams?.aimMachineGroup),
     differenceMode: readSingleSearchParam(resolvedSearchParams?.differenceMode),
     rankMin: readSingleSearchParam(resolvedSearchParams?.rankMin),
     rankMax: readSingleSearchParam(resolvedSearchParams?.rankMax),
@@ -417,6 +419,20 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
 
               <div className="backtestBlock">
                 <p className="filterControlLabel">機種名</p>
+                <input type="hidden" name="aimMachineGroup" value="0" />
+                <label
+                  className={`metricToggleChip ${
+                    detail.backtest.combineAimJuggler ? "metricToggleChipActive" : ""
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    name="aimMachineGroup"
+                    value="1"
+                    defaultChecked={detail.backtest.combineAimJuggler}
+                  />
+                  <span>SアイムジャグラーEXとネオアイムジャグラーEXをまとめる</span>
+                </label>
                 <div className="metricToggleRow">
                   {detail.backtest.machineOptions.map((machine) => (
                     <label

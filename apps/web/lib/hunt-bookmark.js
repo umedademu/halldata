@@ -1,9 +1,32 @@
 const HUNT_BACKTEST_BOOKMARK_STORAGE_PREFIX = "hunt-backtest-bookmark:";
+const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
+const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
 
 export const HUNT_BACKTEST_BOOKMARK_EVENT = "hunt-backtest-bookmark-change";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
+}
+
+function normalizeMachineNameText(value) {
+  return normalizeText(value).normalize("NFKC").replace(/\s+/gu, "");
+}
+
+function isAimJugglerMachine(machineName) {
+  const normalizedMachineName = normalizeMachineNameText(machineName);
+  return AIM_JUGGLER_MACHINE_NAMES.some(
+    (candidate) => normalizeMachineNameText(candidate) === normalizedMachineName,
+  );
+}
+
+function resolveBookmarkMachineName(machineName, selectedMachineNameSet) {
+  if (selectedMachineNameSet.has(machineName)) {
+    return machineName;
+  }
+  if (isAimJugglerMachine(machineName) && selectedMachineNameSet.has(AIM_JUGGLER_GROUP_NAME)) {
+    return AIM_JUGGLER_GROUP_NAME;
+  }
+  return machineName;
 }
 
 export function normalizeDateText(value) {
@@ -342,15 +365,16 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
 
   for (const row of safeRows) {
     const machineName = normalizeText(row?.machineName);
+    const bookmarkMachineName = resolveBookmarkMachineName(machineName, selectedMachineNameSet);
     const rowKey = buildHuntBacktestBookmarkRowKey(row);
 
-    if (!selectedMachineNameSet.has(machineName)) {
+    if (!selectedMachineNameSet.has(bookmarkMachineName)) {
       matchByRowKey.set(rowKey, false);
       continue;
     }
 
-    const machineRank = (machineRankCounts.get(machineName) ?? 0) + 1;
-    machineRankCounts.set(machineName, machineRank);
+    const machineRank = (machineRankCounts.get(bookmarkMachineName) ?? 0) + 1;
+    machineRankCounts.set(bookmarkMachineName, machineRank);
     const rankValue =
       normalizedBookmark.rankScope === "machine" ? machineRank : readPositiveInteger(row?.rank);
     const matched = matchesOptionalFilters(
