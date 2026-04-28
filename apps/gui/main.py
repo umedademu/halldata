@@ -870,14 +870,72 @@ class MinRepoApp:
             self.status_var.set("常駐中")
 
     def _on_window_close(self) -> None:
-        result = messagebox.askyesno(
-            "終了確認",
-            "終了する場合は「はい」、常駐する場合は「いいえ」を選んでください。",
-        )
-        if result is True:
+        result = self._ask_window_close_action()
+        if result == "quit":
             self._quit_application()
             return
-        self._hide_to_resident()
+        if result == "resident":
+            self._hide_to_resident()
+
+    def _ask_window_close_action(self) -> str | None:
+        selected_action: str | None = None
+        dialog = tk.Toplevel(self.root)
+        dialog.title("終了確認")
+        dialog.transient(self.root)
+        dialog.resizable(False, False)
+
+        def close_dialog() -> None:
+            dialog.destroy()
+
+        def choose_action(action: str) -> None:
+            nonlocal selected_action
+            selected_action = action
+            dialog.destroy()
+
+        dialog.protocol("WM_DELETE_WINDOW", close_dialog)
+        dialog.bind("<Escape>", lambda event: close_dialog())
+
+        container = ttk.Frame(dialog, padding=16)
+        container.pack(fill="both", expand=True)
+
+        ttk.Label(
+            container,
+            text="閉じる時の動作を選んでください。",
+            justify="left",
+        ).pack(anchor="w")
+
+        button_row = ttk.Frame(container)
+        button_row.pack(anchor="e", pady=(12, 0))
+
+        resident_button = ttk.Button(
+            button_row,
+            text="常駐",
+            command=lambda: choose_action("resident"),
+        )
+        resident_button.pack(side="right")
+
+        quit_button = ttk.Button(
+            button_row,
+            text="終了",
+            command=lambda: choose_action("quit"),
+        )
+        quit_button.pack(side="right", padx=(0, 8))
+
+        self._position_dialog_near_root(dialog)
+        dialog.grab_set()
+        quit_button.focus_set()
+        dialog.wait_window()
+        return selected_action
+
+    def _position_dialog_near_root(self, dialog: tk.Toplevel) -> None:
+        dialog.update_idletasks()
+        dialog_width = max(dialog.winfo_reqwidth(), 1)
+        dialog_height = max(dialog.winfo_reqheight(), 1)
+        root_width = max(self.root.winfo_width(), 1)
+        root_height = max(self.root.winfo_height(), 1)
+        x = self.root.winfo_rootx() + max((root_width - dialog_width) // 2, 0)
+        y = self.root.winfo_rooty() + max((root_height - dialog_height) // 2, 0)
+        dialog.geometry(f"+{x}+{y}")
 
     def _ensure_tray_icon(self) -> bool:
         if self.tray_icon is not None:
