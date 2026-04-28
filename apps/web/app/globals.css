@@ -450,6 +450,93 @@ a {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
+.homeHero {
+  gap: 18px;
+}
+
+.homeSummaryStrip {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.storeDirectoryPanel {
+  display: grid;
+  gap: 14px;
+}
+
+.storeDirectoryHeader {
+  margin-bottom: 0;
+}
+
+.directoryCountText {
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px solid rgba(64, 30, 7, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.storeSearchRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+}
+
+.storeSearchField {
+  display: grid;
+  flex: 1 1 18rem;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.storeSearchInput {
+  width: 100%;
+  min-height: 2.7rem;
+  padding: 9px 12px;
+  border: 1px solid rgba(64, 30, 7, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 1rem;
+}
+
+.storeSearchClear {
+  min-height: 2.7rem;
+  padding: 9px 14px;
+  border: 1px solid rgba(64, 30, 7, 0.16);
+  border-radius: 8px;
+  background: rgba(36, 22, 15, 0.06);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.emptyListPanel {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.homeStoreTable {
+  width: 100%;
+}
+
+.directoryActionHeader {
+  width: 6rem;
+}
+
 .summaryCard {
   border-radius: var(--radius-lg);
   background:
@@ -1179,6 +1266,10 @@ a {
   .summaryStrip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .homeSummaryStrip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -1188,6 +1279,10 @@ a {
   .heroMetaWide,
   .statsGrid,
   .machineCard .statsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .homeSummaryStrip {
     grid-template-columns: 1fr;
   }
 
@@ -1242,5 +1337,13 @@ a {
 
   .estimateFields {
     grid-template-columns: 1fr;
+  }
+
+  .storeDirectoryHeader {
+    align-items: flex-start;
+  }
+
+  .directoryActionHeader {
+    width: 5.4rem;
   }
 }

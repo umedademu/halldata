@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
+import { StoreDirectory } from "../components/store-directory";
 import { getStoreList, registerPendingStoreUrl } from "../lib/data";
 
 export const dynamic = "force-dynamic";
@@ -48,85 +48,35 @@ export default async function StoresPage({ searchParams }) {
     const stores = await getStoreList();
     const completeStores = stores.filter((store) => !store.isPendingRegistration);
     const pendingStores = stores.filter((store) => store.isPendingRegistration);
+    const totalStores = completeStores.length + pendingStores.length;
 
     return (
-      <main className="pageStack">
-        <section className="heroPanel">
+      <main className="pageStack homePage">
+        <section className="heroPanel homeHero">
           <div className="heroCopy">
-            <p className="eyebrow">Supabase Viewer</p>
-            <h1 className="pageTitle pageTitleCompact">店舗一覧</h1>
+            <p className="eyebrow">店舗データ</p>
+            <h1 className="pageTitle pageTitleCompact">店舗を選ぶ</h1>
             <p className="leadText">
-              保存済みの店舗データから、機種一覧と台データ比較へ順番に進めます。
+              店舗名で絞り込み、必要な店舗の機種一覧へ進めます。
             </p>
+          </div>
+          <div className="summaryStrip homeSummaryStrip" aria-label="店舗の登録状況">
+            <div className="summaryCard">
+              <span className="summaryLabel">登録済み</span>
+              <strong className="summaryValue">{completeStores.length}店</strong>
+            </div>
+            <div className="summaryCard">
+              <span className="summaryLabel">登録待ち</span>
+              <strong className="summaryValue">{pendingStores.length}件</strong>
+            </div>
+            <div className="summaryCard">
+              <span className="summaryLabel">合計</span>
+              <strong className="summaryValue">{totalStores}件</strong>
+            </div>
           </div>
         </section>
 
-        {pendingStores.length > 0 ? (
-          <section className="tablePanel directoryPanel">
-            <div className="tablePanelHeader">
-              <div>
-                <p className="sectionLabel">登録待ち</p>
-                <h2 className="tablePanelTitle">店舗URL</h2>
-              </div>
-            </div>
-            <div className="tableScroller directoryScroller">
-              <table className="directoryTable">
-                <thead>
-                  <tr>
-                    <th>URL</th>
-                    <th>状態</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingStores.map((store) => (
-                    <tr key={store.id}>
-                      <td>{store.storeUrl}</td>
-                      <td>店舗名取得待ち</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        ) : null}
-
-        {completeStores.length === 0 ? (
-          <section className="statusPanel">
-            <h2>完全登録済みの店舗がまだありません</h2>
-            <p>
-              先にGUIアプリで登録待ちURLを更新するか、台データを取得してください。
-            </p>
-          </section>
-        ) : (
-          <section className="tablePanel directoryPanel">
-            <div className="tablePanelHeader">
-              <div>
-                <p className="sectionLabel">店舗一覧</p>
-                <h2 className="tablePanelTitle">保存済み店舗</h2>
-              </div>
-            </div>
-            <div className="tableScroller directoryScroller">
-              <table className="directoryTable">
-                <thead>
-                  <tr>
-                    <th className="directoryNameHeader">店舗</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {completeStores.map((store) => (
-                    <tr key={store.id}>
-                      <th className="directoryNameCell">
-                        <Link href={`/stores/${store.id}`} className="directoryPrimaryLink">
-                          {store.storeName}
-                        </Link>
-                      </th>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
+        <StoreDirectory completeStores={completeStores} pendingStores={pendingStores} />
 
         <section className="tablePanel storeReservePanel">
           <div className="tablePanelHeader">
@@ -166,8 +116,8 @@ export default async function StoresPage({ searchParams }) {
       <main className="pageStack">
         <section className="heroPanel">
           <div className="heroCopy">
-            <p className="eyebrow">Supabase Viewer</p>
-            <h1 className="pageTitle pageTitleCompact">店舗一覧</h1>
+            <p className="eyebrow">店舗データ</p>
+            <h1 className="pageTitle pageTitleCompact">店舗を選ぶ</h1>
           </div>
         </section>
         <section className="statusPanel">
