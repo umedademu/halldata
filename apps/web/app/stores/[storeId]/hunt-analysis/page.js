@@ -109,8 +109,8 @@ function BacktestResultTable({ title, backtest }) {
     <section className="tablePanel directoryPanel">
       <div className="tablePanelHeader">
         <div>
-          <p className="sectionLabel">{title}</p>
-          <h2 className="tablePanelTitle">条件一致分の翌営業日結果</h2>
+          <p className="tablePanelTitle">{title}</p>
+          <h2 className="sectionLabel">条件一致分の翌営業日結果</h2>
         </div>
       </div>
       <div className="tableScroller directoryScroller">
