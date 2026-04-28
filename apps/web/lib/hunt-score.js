@@ -61,6 +61,115 @@ const GOGO_ARENA_TENJIN_TARGET_MACHINES = [
   { name: "ウルトラミラクルジャグラー", aliases: [] },
 ];
 
+const GOGO_ARENA_TENJIN_REFERENCE_EVENT_DAYS = new Set([5, 10, 15, 20, 25, 30]);
+
+const GOGO_ARENA_TENJIN_MACHINE_SCORES = {
+  "ネオアイムジャグラーEX": 16,
+  "マイジャグラーV": -8,
+  "ゴーゴージャグラー3": 8,
+  "ファンキージャグラー2KT": -4,
+  "ミスタージャグラー": 5,
+  "ジャグラーガールズSS": 6,
+  "ハッピージャグラーVIII": 1,
+  "ウルトラミラクルジャグラー": 4,
+};
+
+const GOGO_ARENA_TENJIN_SLOT_SCORES = {
+  "ネオアイムジャグラーEX": {
+    161: 10,
+    147: 9,
+    155: 8,
+    166: 8,
+    174: 7,
+    143: 7,
+    157: 7,
+    163: 7,
+    146: 5,
+    149: 5,
+    165: 5,
+    173: 5,
+    176: 5,
+    122: -3,
+    164: -4,
+    172: -4,
+    150: -3,
+  },
+  "ゴーゴージャグラー3": {
+    98: 8,
+    87: 6,
+    84: 4,
+    91: 4,
+    93: -7,
+    88: -5,
+    96: -3,
+  },
+  "ジャグラーガールズSS": {
+    57: 5,
+    58: 4,
+    52: 3,
+    54: 3,
+    61: 3,
+    53: -3,
+    55: -2,
+    56: -2,
+  },
+  "ウルトラミラクルジャグラー": {
+    71: 4,
+    68: 3,
+    70: 2,
+    69: -3,
+    67: -3,
+  },
+  "ミスタージャグラー": {
+    42: 4,
+    51: 3,
+    46: 3,
+    44: -3,
+    48: -3,
+    43: -2,
+  },
+  "ハッピージャグラーVIII": {
+    64: 4,
+    123: 3,
+    124: 2,
+    122: -4,
+    63: -3,
+    66: -3,
+  },
+  "ファンキージャグラー2KT": {
+    74: 3,
+    78: 2,
+    73: 1,
+    77: 1,
+    79: 1,
+    76: -4,
+    81: -4,
+    72: -2,
+  },
+  "マイジャグラーV": {
+    121: 4,
+    107: 3,
+    109: 3,
+    104: 2,
+    106: 2,
+    129: 2,
+    113: -10,
+    114: -10,
+    131: -8,
+    108: -5,
+    115: -5,
+    116: -5,
+    119: -5,
+    120: -5,
+    138: -5,
+    112: -3,
+    128: -3,
+    130: -3,
+    133: -3,
+    140: -3,
+  },
+};
+
 const HUNT_SCORE_STORE_CONFIGS = [
   {
     key: "apark-kasuga",
@@ -219,6 +328,56 @@ function calculateCurrentHighSettingStreak(windowRows) {
   return streak;
 }
 
+function sumDifferenceValues(rows) {
+  return rows.reduce((total, row) => total + (readNumber(row?.differenceValue) ?? 0), 0);
+}
+
+function readDateDay(dateText) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(String(dateText ?? "").trim());
+  if (!match) {
+    return null;
+  }
+  return Number(match[3]);
+}
+
+function isGogoArenaTenjinReferenceEventDate(dateText) {
+  const day = readDateDay(dateText);
+  return Number.isFinite(day) && GOGO_ARENA_TENJIN_REFERENCE_EVENT_DAYS.has(day);
+}
+
+function calculatePreviousReferenceEventMetrics(
+  businessDates,
+  dateIndex,
+  recordMapByDate,
+  settingDefinitionCache,
+  config,
+) {
+  const settings = [];
+
+  for (let index = dateIndex; index >= 0; index -= 1) {
+    const date = businessDates[index];
+    if (!isGogoArenaTenjinReferenceEventDate(date)) {
+      continue;
+    }
+
+    const eventRow = recordMapByDate.get(date);
+    if (!eventRow) {
+      continue;
+    }
+
+    settings.push(getSettingEstimateAverage(settingDefinitionCache, eventRow, config).average);
+    if (settings.length >= 3) {
+      break;
+    }
+  }
+
+  return {
+    previousReferenceEventSetting: settings[0] ?? null,
+    referenceEventHighSettingCount: settings.filter((setting) => setting >= 4).length,
+    referenceEventSampleCount: settings.length,
+  };
+}
+
 function scoreFromMinimums(value, thresholds) {
   for (const threshold of thresholds) {
     if (value >= threshold.minimum) {
@@ -331,85 +490,190 @@ function calculateAparkKasugaHuntScore(metrics) {
   return clamp(totalScore, 0, 100);
 }
 
-function listMetricValues(context, selector) {
-  return context.metricsList
-    .map(selector)
-    .filter((value) => Number.isFinite(value));
+function calculateGogoNetDipScore(value) {
+  if (value <= -5000) {
+    return 34;
+  }
+  if (value <= -4000) {
+    return 30;
+  }
+  if (value <= -3000) {
+    return 26;
+  }
+  if (value <= -2000) {
+    return 21;
+  }
+  if (value <= -1500) {
+    return 17;
+  }
+  if (value <= -1000) {
+    return 10;
+  }
+  if (value <= -500) {
+    return 5;
+  }
+  if (value >= 4000) {
+    return -18;
+  }
+  if (value >= 3000) {
+    return -14;
+  }
+  if (value >= 2000) {
+    return -10;
+  }
+  if (value >= 1000) {
+    return -5;
+  }
+  return 0;
 }
 
-function calculatePercentileScore(value, values, higherIsBetter = true) {
-  if (!Number.isFinite(value) || values.length === 0) {
+function calculateGogoShortDipScore(value) {
+  if (value <= -2500) {
+    return 10;
+  }
+  if (value <= -2000) {
+    return 8;
+  }
+  if (value <= -1500) {
+    return 6;
+  }
+  if (value <= -1000) {
+    return 4;
+  }
+  if (value <= -500) {
+    return 2;
+  }
+  if (value >= 2500) {
+    return -6;
+  }
+  if (value >= 1500) {
+    return -4;
+  }
+  if (value >= 1000) {
+    return -2;
+  }
+  return 0;
+}
+
+function calculateGogoLossDaysScore(value, netTotal) {
+  if (value >= 6) {
+    return 6;
+  }
+  if (value >= 5) {
+    return 4;
+  }
+  if (value >= 4) {
+    return 2;
+  }
+  if (value <= 1 && netTotal > 0) {
+    return -3;
+  }
+  return 0;
+}
+
+function calculateGogoMachineScore(machineName) {
+  return GOGO_ARENA_TENJIN_MACHINE_SCORES[normalizeText(machineName)] ?? 0;
+}
+
+function calculateGogoSlotScore(machineName, slotNumber) {
+  const machineScores = GOGO_ARENA_TENJIN_SLOT_SCORES[normalizeText(machineName)];
+  if (!machineScores) {
     return 0;
   }
-  if (values.length === 1) {
-    return 1;
-  }
-
-  const sortedValues = [...values].sort((left, right) => left - right);
-  const lowerOrEqualCount = sortedValues.filter((candidate) => candidate <= value).length;
-  const percentile = lowerOrEqualCount / sortedValues.length;
-  return higherIsBetter ? percentile : 1 - percentile + 1 / sortedValues.length;
+  return machineScores[String(slotNumber ?? "").trim()] ?? 0;
 }
 
-function calculateRecentStrengthBalanceScore(metrics) {
-  if (metrics.highSettingStreak >= 2) {
+function calculateGogoReferenceEventScore(metrics) {
+  const previousSetting = metrics.previousReferenceEventSetting;
+  if (!Number.isFinite(previousSetting)) {
     return 0;
   }
-  if (metrics.highSettingCount >= 3) {
-    return 1;
+  if (previousSetting >= 5) {
+    return 13;
   }
-  if (metrics.highSettingCount >= 1) {
-    return 0.75;
+  if (previousSetting >= 4.5) {
+    return 11;
   }
-  if (metrics.averageSetting >= 3.3) {
-    return 0.5;
+  if (previousSetting >= 4) {
+    return 9;
   }
-  return 0.15;
+  if (previousSetting >= 3.5) {
+    return 4;
+  }
+  if (previousSetting < 3 && metrics.referenceEventSampleCount > 0) {
+    return -2;
+  }
+  return 0;
 }
 
-function calculateGogoArenaTenjinHuntScore(metrics, context) {
-  const todayDip = calculatePercentileScore(
-    metrics.todayDifference,
-    listMetricValues(context, (candidate) => candidate.todayDifference),
-    false,
-  );
-  const settingMomentum = calculatePercentileScore(
-    metrics.averageSetting,
-    listMetricValues(context, (candidate) => candidate.averageSetting),
-    true,
-  );
-  const rbMomentum = calculatePercentileScore(
-    metrics.rbRate,
-    listMetricValues(context, (candidate) => candidate.rbRate),
-    true,
-  );
-  const previousDip = calculatePercentileScore(
-    metrics.previousDifference,
-    listMetricValues(context, (candidate) => candidate.previousDifference),
-    false,
-  );
-  const netDip = calculatePercentileScore(
-    metrics.netTotal,
-    listMetricValues(context, (candidate) => candidate.netTotal),
-    false,
-  );
-  const gameTrust = calculatePercentileScore(
-    metrics.averageGames,
-    listMetricValues(context, (candidate) => candidate.averageGames),
-    true,
-  );
+function calculateGogoReferenceEventHistoryScore(metrics) {
+  if (metrics.referenceEventHighSettingCount >= 2) {
+    return 6;
+  }
+  if (metrics.referenceEventHighSettingCount === 1) {
+    return 2;
+  }
+  if (metrics.referenceEventSampleCount >= 3) {
+    return -4;
+  }
+  return 0;
+}
 
-  return clamp(
-    todayDip * 25 +
-      settingMomentum * 25 +
-      rbMomentum * 15 +
-      previousDip * 10 +
-      netDip * 10 +
-      gameTrust * 10 +
-      calculateRecentStrengthBalanceScore(metrics) * 5,
-    0,
-    100,
-  );
+function calculateGogoReferenceEventDipComboScore(metrics) {
+  const previousSetting = metrics.previousReferenceEventSetting;
+  if (previousSetting >= 4 && metrics.netTotal <= -3000) {
+    return 10;
+  }
+  if (previousSetting >= 4 && metrics.netTotal <= -1500) {
+    return 7;
+  }
+  if (metrics.referenceEventHighSettingCount >= 2 && metrics.netTotal <= -1500) {
+    return 4;
+  }
+  return 0;
+}
+
+function calculateGogoGameTrustScore(value) {
+  if (value >= 2500) {
+    return 3;
+  }
+  if (value >= 1500) {
+    return 1;
+  }
+  if (value < 800) {
+    return -4;
+  }
+  if (value < 1200) {
+    return -2;
+  }
+  return 0;
+}
+
+function calculateGogoRecentHighSettingScore(value) {
+  if (value >= 3) {
+    return 3;
+  }
+  if (value >= 2) {
+    return 2;
+  }
+  return 0;
+}
+
+function calculateGogoArenaTenjinHuntScore(metrics) {
+  const totalScore =
+    20 +
+    calculateGogoNetDipScore(metrics.netTotal) +
+    calculateGogoShortDipScore(metrics.recentThreeNetTotal) +
+    calculateGogoLossDaysScore(metrics.lossDays, metrics.netTotal) +
+    calculateGogoMachineScore(metrics.machineName) +
+    calculateGogoSlotScore(metrics.machineName, metrics.slotNumber) +
+    calculateGogoReferenceEventScore(metrics) +
+    calculateGogoReferenceEventHistoryScore(metrics) +
+    calculateGogoReferenceEventDipComboScore(metrics) +
+    calculateGogoGameTrustScore(metrics.averageGames) +
+    calculateGogoRecentHighSettingScore(metrics.highSettingCount);
+
+  return clamp(totalScore, 0, 100);
 }
 
 function buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays) {
@@ -499,12 +763,23 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
 
   const todaySetting = getSettingEstimateAverage(settingDefinitionCache, row, config).average;
   const previousWindowRow = metricWindowRows.at(-2) ?? null;
+  const recentThreeNetTotal = sumDifferenceValues(metricWindowRows.slice(-3));
+  const previousReferenceEventMetrics = calculatePreviousReferenceEventMetrics(
+    businessDates,
+    dateIndex,
+    recordMapByDate,
+    settingDefinitionCache,
+    config,
+  );
 
   return {
+    machineName: normalizeHuntScoreMachineName(row?.machine_name, config),
+    slotNumber: String(row?.slot_number ?? "").trim(),
     lossDays,
     streak: calculateCurrentLosingStreak(metricWindowRows),
     lossAbsTotal,
     netTotal,
+    recentThreeNetTotal,
     compensationRate: lossAbsTotal === 0 ? 999 : winAbsTotal / lossAbsTotal,
     maxWin,
     todayDifference: readNumber(row?.difference_value) ?? 0,
@@ -519,6 +794,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     rbTotal,
     bbRate: gamesTotal > 0 ? bbTotal / gamesTotal : 0,
     rbRate: gamesTotal > 0 ? rbTotal / gamesTotal : 0,
+    ...previousReferenceEventMetrics,
   };
 }
 
