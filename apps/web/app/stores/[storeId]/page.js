@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../components/breadcrumbs";
 import { getStoreDetail, getStoreIdentity } from "../../../lib/data";
+import { isHuntScoreTargetStore } from "../../../lib/hunt-score";
 import {
   formatAverageGames,
   formatCompactDate,
@@ -51,6 +52,7 @@ export default async function StoreDetailPage({ params }) {
   }
 
   const { store, machines } = storeDetail;
+  const hasHuntScoreAnalysis = isHuntScoreTargetStore(store.storeName);
 
   return (
     <main className="pageStack">
@@ -64,11 +66,18 @@ export default async function StoreDetailPage({ params }) {
       <section className="heroPanel">
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">{store.storeName}</h1>
-          {store.storeUrl ? (
-            <a href={store.storeUrl} target="_blank" rel="noreferrer" className="externalLink">
-              店舗ページを開く
-            </a>
-          ) : null}
+          <div className="heroLinks simpleHeroLinks">
+            {hasHuntScoreAnalysis ? (
+              <Link href={`/stores/${store.id}/hunt-analysis`} className="externalLink">
+                狙い度分析を見る
+              </Link>
+            ) : null}
+            {store.storeUrl ? (
+              <a href={store.storeUrl} target="_blank" rel="noreferrer" className="externalLink">
+                店舗ページを開く
+              </a>
+            ) : null}
+          </div>
         </div>
       </section>
 
