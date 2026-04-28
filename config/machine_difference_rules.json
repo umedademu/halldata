@@ -162,6 +162,100 @@
         "BB": 240,
         "RB": 96
       }
+    },
+    {
+      "canonical_name": "ニューキングハナハナ",
+      "machine_names": [
+        "ニューキングハナハナ",
+        "ニューキングハナハナV",
+        "ニューキングハナハナV-30",
+        "ニューキングハナハナV‐30",
+        "ニューキングハナハナ-30",
+        "ニューキングハナハナ‐30"
+      ],
+      "match_keywords": [
+        "ニューキングハナハナ"
+      ],
+      "site7_enabled": true
+    },
+    {
+      "canonical_name": "キングハナハナ",
+      "machine_names": [
+        "キングハナハナ",
+        "キングハナハナ-30",
+        "キングハナハナ‐30"
+      ],
+      "match_keywords": [
+        "キングハナハナ"
+      ],
+      "site7_enabled": true
+    },
+    {
+      "canonical_name": "ハナハナホウオウ",
+      "machine_names": [
+        "ハナハナホウオウ",
+        "ハナハナホウオウ-30",
+        "ハナハナホウオウ‐30",
+        "ハナハナホウオウ～天翔～",
+        "ハナハナホウオウ～天翔～-30",
+        "ハナハナホウオウ～天翔～‐30"
+      ],
+      "match_keywords": [
+        "ハナハナホウオウ"
+      ],
+      "site7_enabled": true
+    },
+    {
+      "canonical_name": "スマスロ ハナビ",
+      "machine_names": [
+        "スマスロ ハナビ",
+        "スマスロハナビ"
+      ],
+      "match_keywords": [
+        "スマスロ ハナビ",
+        "スマスロハナビ"
+      ],
+      "site7_enabled": true
+    },
+    {
+      "canonical_name": "新ハナビ",
+      "machine_names": [
+        "新ハナビ"
+      ],
+      "match_keywords": [
+        "新ハナビ"
+      ],
+      "site7_enabled": true
+    },
+    {
+      "canonical_name": "スターハナハナ",
+      "machine_names": [
+        "スターハナハナ",
+        "スターハナハナ-30",
+        "スターハナハナ‐30"
+      ],
+      "match_keywords": [
+        "スターハナハナ"
+      ],
+      "site7_enabled": true
+    },
+    {
+      "canonical_name": "ドラゴンハナハナ～閃光～",
+      "machine_names": [
+        "ドラゴンハナハナ～閃光～",
+        "ドラゴンハナハナ～閃光～30",
+        "ドラゴンハナハナ～閃光～-30",
+        "ドラゴンハナハナ～閃光～‐30",
+        "ドラゴンハナハナ閃光",
+        "ドラゴンハナハナ閃光30",
+        "ドラゴンハナハナ"
+      ],
+      "match_keywords": [
+        "ドラゴンハナハナ～閃光～",
+        "ドラゴンハナハナ閃光",
+        "ドラゴンハナハナ"
+      ],
+      "site7_enabled": true
     }
   ]
 }

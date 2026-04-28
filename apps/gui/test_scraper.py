@@ -38,7 +38,7 @@ from main import (
     scheduled_fetch_due_date,
 )
 from machine_difference import calculate_machine_difference_value, canonical_machine_name, machine_requires_slot_resolution
-from machine_difference import machine_slot_resolution_group
+from machine_difference import machine_is_site7_target, machine_slot_resolution_group
 from minrepo_scraper import FetchProgress, MachineHistoryResult, MinRepoScraper, ScraperError, normalize_text, parse_date_range_input
 from site7_scraper import (
     DEFAULT_SITE7_PREFECTURE_NAME,
@@ -772,6 +772,14 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(canonical_machine_name("ゴーゴージャグラー3", site7_only=True), "ゴーゴージャグラー３")
         self.assertEqual(canonical_machine_name("ファンキージャグラー2", site7_only=True), "ファンキージャグラー２ＫＴ")
         self.assertEqual(canonical_machine_name("ハッピージャグラーV", site7_only=True), "ハッピージャグラーＶＩＩＩ")
+        self.assertEqual(canonical_machine_name("ニューキングハナハナV‐30", site7_only=True), "ニューキングハナハナ")
+        self.assertEqual(canonical_machine_name("キングハナハナ-30", site7_only=True), "キングハナハナ")
+        self.assertEqual(canonical_machine_name("ハナハナホウオウ～天翔～-30", site7_only=True), "ハナハナホウオウ")
+        self.assertEqual(canonical_machine_name("スマスロハナビ", site7_only=True), "スマスロ ハナビ")
+        self.assertEqual(canonical_machine_name("新ハナビ", site7_only=True), "新ハナビ")
+        self.assertEqual(canonical_machine_name("スターハナハナ-30", site7_only=True), "スターハナハナ")
+        self.assertEqual(canonical_machine_name("ドラゴンハナハナ～閃光～‐30", site7_only=True), "ドラゴンハナハナ～閃光～")
+        self.assertTrue(machine_is_site7_target("ドラゴンハナハナ"))
 
     def test_machine_requires_slot_resolution_for_neo_and_s(self) -> None:
         self.assertTrue(machine_requires_slot_resolution("ネオアイムジャグラーEX"))
@@ -855,6 +863,42 @@ class MinRepoScraperTests(unittest.TestCase):
           <ul><li><input type="button" name="select" value="出玉データ"></li></ul>
         </td>
       </tr>
+      <tr>
+        <td class="clear">
+          <p><span>ニューキングハナハナV‐30(12)</span></p>
+          <ul><li><input type="button" name="select" value="出玉データ"></li></ul>
+        </td>
+      </tr>
+      <tr>
+        <td class="clear">
+          <p><span>キングハナハナ-30(12)</span></p>
+          <ul><li><input type="button" name="select" value="出玉データ"></li></ul>
+        </td>
+      </tr>
+      <tr>
+        <td class="clear">
+          <p><span>スマスロ ハナビ(8)</span></p>
+          <ul><li><input type="button" name="select" value="出玉データ"></li></ul>
+        </td>
+      </tr>
+      <tr>
+        <td class="clear">
+          <p><span>新ハナビ(4)</span></p>
+          <ul><li><input type="button" name="select" value="出玉データ"></li></ul>
+        </td>
+      </tr>
+      <tr>
+        <td class="clear">
+          <p><span>スターハナハナ-30(5)</span></p>
+          <ul><li><input type="button" name="select" value="出玉データ"></li></ul>
+        </td>
+      </tr>
+      <tr>
+        <td class="clear">
+          <p><span>ドラゴンハナハナ～閃光～‐30(6)</span></p>
+          <ul><li><input type="button" name="select" value="出玉データ"></li></ul>
+        </td>
+      </tr>
     </table>
   </body>
 </html>
@@ -869,11 +913,22 @@ class MinRepoScraperTests(unittest.TestCase):
                 ("SアイムジャグラーＥＸ", "SアイムジャグラーＥＸ"),
                 ("マイジャグラーV", "マイジャグラーV"),
                 ("ゴーゴージャグラー3", "ゴーゴージャグラー３"),
+                ("ハナハナホウオウ", "ハナハナホウオウ"),
+                ("ニューキングハナハナV‐30", "ニューキングハナハナ"),
+                ("キングハナハナ-30", "キングハナハナ"),
+                ("スマスロ ハナビ", "スマスロ ハナビ"),
+                ("新ハナビ", "新ハナビ"),
+                ("スターハナハナ-30", "スターハナハナ"),
+                ("ドラゴンハナハナ～閃光～‐30", "ドラゴンハナハナ～閃光～"),
             ],
         )
         self.assertIn("マイジャグラー", SITE7_TARGET_MACHINE_KEYWORDS)
         self.assertIn("ネオアイムジャグラー", SITE7_TARGET_MACHINE_KEYWORDS)
         self.assertIn("SアイムジャグラーＥＸ", SITE7_TARGET_MACHINE_KEYWORDS)
+        self.assertIn("ニューキングハナハナ", SITE7_TARGET_MACHINE_KEYWORDS)
+        self.assertIn("ハナハナホウオウ", SITE7_TARGET_MACHINE_KEYWORDS)
+        self.assertIn("スマスロ ハナビ", SITE7_TARGET_MACHINE_KEYWORDS)
+        self.assertIn("ドラゴンハナハナ", SITE7_TARGET_MACHINE_KEYWORDS)
 
     def test_site7_release_browser_context_keeps_visible_browser_open(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)

@@ -493,7 +493,7 @@ class MinRepoApp:
         ttk.Label(
             site7_row,
             text=(
-                "登録店舗タブでサイトセブン列にチェックを入れた店舗の対象ジャグラー機種を取得します。"
+                "登録店舗タブでサイトセブン列にチェックを入れた店舗の対象機種を取得します。"
                 f" 対象語は {'、'.join(SITE7_TARGET_MACHINE_KEYWORDS)} です。"
                 f" 直近日数は最大 {SITE7_MAX_RECENT_DAYS} 日まで使えます。"
                 " ログイン操作は常に表示で開きます。"
@@ -1435,7 +1435,7 @@ class MinRepoApp:
         self._clear_comparison_table()
         self._begin_fetch_progress("サイトセブンへ接続中...")
         self.status_var.set("サイトセブン取得中...")
-        self.summary_var.set(f"{len(target_stores)}店舗の対象ジャグラー機種をサイトセブンから取得中")
+        self.summary_var.set(f"{len(target_stores)}店舗の対象機種をサイトセブンから取得中")
         self.fetch_cancel_event.clear()
         browser_visible = self._site7_browser_visible()
         self._start_worker(
