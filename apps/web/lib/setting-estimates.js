@@ -70,6 +70,18 @@ const SETTING_ESTIMATE_DEFINITIONS = [
     ],
   },
   {
+    key: "new-king-hanahana",
+    displayName: "ニューキングハナハナ",
+    matchNames: ["ニューキングハナハナ", "ニューキングハナハナV"],
+    settings: [
+      { setting: 1, label: "設定1", bbText: "1/299", rbText: "1/496" },
+      { setting: 2, label: "設定2", bbText: "1/291", rbText: "1/471" },
+      { setting: 3, label: "設定3", bbText: "1/281", rbText: "1/442" },
+      { setting: 4, label: "設定4", bbText: "1/268", rbText: "1/409" },
+      { setting: 5, label: "設定V", bbText: "1/253", rbText: "1/372" },
+    ],
+  },
+  {
     key: "funky-juggler-2",
     displayName: "ファンキージャグラー2",
     matchNames: ["ファンキージャグラー2"],
