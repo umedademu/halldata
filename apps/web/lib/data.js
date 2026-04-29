@@ -16,6 +16,7 @@ import { canonicalMachineName, listEquivalentMachineNames, withCalculatedDiffere
 const PAGE_SIZE = 1000;
 const DEFAULT_FETCH_CACHE_TTL_MS = 0;
 const DEFAULT_STATIC_WEB_DATA_DIRECTORY = "public/halldata-static";
+const DEFAULT_STATIC_WEB_DATA_PUBLIC_PATH = "/halldata-static";
 const HUNT_BACKTEST_DEFAULT_EVENT_FILTERS = {
   "Aパーク春日店": {
     dayTails: [0],
@@ -130,6 +131,17 @@ async function getStaticWebDataDirectory() {
   return pathModule.resolve(process.cwd(), DEFAULT_STATIC_WEB_DATA_DIRECTORY);
 }
 
+async function getStaticWebDataBaseUrl() {
+  const configuredBaseUrl = await readSetting("HALLDATA_STATIC_WEB_DATA_BASE_URL");
+  if (configuredBaseUrl) {
+    return configuredBaseUrl.replace(/\/+$/u, "");
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return "";
+}
+
 async function readJsonFileIfExists(filePath) {
   const [{ default: fs }] = await Promise.all([import("node:fs")]);
   if (!fs.existsSync(filePath)) {
@@ -142,15 +154,64 @@ async function readJsonFileIfExists(filePath) {
   }
 }
 
-async function readStaticWebDataIndex() {
+function normalizeStaticDataPath(relativePath) {
+  return String(relativePath ?? "")
+    .replace(/\\/gu, "/")
+    .replace(/^\/+/u, "")
+    .split("/")
+    .filter((part) => part && part !== "." && part !== "..")
+    .join("/");
+}
+
+async function readStaticJsonFromPublicUrl(relativePath) {
+  const baseUrl = await getStaticWebDataBaseUrl();
+  if (!baseUrl) {
+    return null;
+  }
+
+  const normalizedPath = normalizeStaticDataPath(relativePath);
+  if (!normalizedPath) {
+    return null;
+  }
+
+  const publicPath = `${DEFAULT_STATIC_WEB_DATA_PUBLIC_PATH}/${normalizedPath}`;
+  const url = new URL(publicPath, `${baseUrl}/`);
+  try {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) {
+      return null;
+    }
+    return response.json();
+  } catch {
+    return null;
+  }
+}
+
+async function readStaticWebDataPayload(relativePath) {
   const [{ default: pathModule }] = await Promise.all([import("node:path")]);
-  const dataDirectory = await getStaticWebDataDirectory();
-  const payload = await readJsonFileIfExists(pathModule.resolve(dataDirectory, "index.json"));
+  const normalizedPath = normalizeStaticDataPath(relativePath);
+  if (!normalizedPath) {
+    return null;
+  }
+
+  const dataDirectory = pathModule.resolve(await getStaticWebDataDirectory());
+  const filePath = pathModule.resolve(dataDirectory, normalizedPath);
+  if (filePath.startsWith(dataDirectory)) {
+    const filePayload = await readJsonFileIfExists(filePath);
+    if (filePayload) {
+      return filePayload;
+    }
+  }
+
+  return readStaticJsonFromPublicUrl(normalizedPath);
+}
+
+async function readStaticWebDataIndex() {
+  const payload = await readStaticWebDataPayload("index.json");
   if (!payload || !Array.isArray(payload.stores)) {
     return null;
   }
   return {
-    dataDirectory,
     stores: payload.stores.filter((store) => store && typeof store === "object"),
   };
 }
@@ -174,14 +235,7 @@ async function readStaticStoreById(storeId) {
     return null;
   }
 
-  const [{ default: pathModule }] = await Promise.all([import("node:path")]);
-  const storePath = pathModule.resolve(index.dataDirectory, String(storeEntry.dataFile));
-  const dataDirectory = pathModule.resolve(index.dataDirectory);
-  if (!storePath.startsWith(dataDirectory)) {
-    return null;
-  }
-
-  const payload = await readJsonFileIfExists(storePath);
+  const payload = await readStaticWebDataPayload(String(storeEntry.dataFile));
   return payload && typeof payload === "object" ? payload : null;
 }
 

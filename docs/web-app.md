@@ -26,6 +26,7 @@
 - 表示用JSONが無い環境だけ、従来通り `Supabase` の `stores`、`machine_daily_results`、`store_machine_summaries`、`store_machine_daily_details` を読みます
 - `apps/web` が `Supabase` を読む場合は、`SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` を使います
 - 表示用JSONの保存場所を変えたい場合は、`HALLDATA_STATIC_WEB_DATA_DIR` にディレクトリを指定します
+- 本番環境で表示用JSONをサーバー上のファイルとして読めない場合は、`VERCEL_URL` または `HALLDATA_STATIC_WEB_DATA_BASE_URL` を使って公開URLから読みます
 - 店舗URLの登録待ち追加では、`stores` にURLを保存します
 - ローカル確認時は、ルートの `.env.local` も読めるようにしています
 - 本番の `Vercel` では、同じ環境変数を `Vercel` 側に設定する想定です
