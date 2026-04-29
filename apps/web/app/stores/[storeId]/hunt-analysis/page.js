@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { HuntBacktestBookmarkControl } from "../../../../components/hunt-backtest-bookmark-control";
 import { HuntBacktestEventFilterSync } from "../../../../components/hunt-backtest-event-filter-sync";
 import { Breadcrumbs } from "../../../../components/breadcrumbs";
+import { DataSourceLabel } from "../../../../components/data-source-label";
 import { HuntBacktestGraph } from "../../../../components/hunt-backtest-graph";
 import { HuntRankingLimitSync } from "../../../../components/hunt-ranking-limit-sync";
 import { HuntRankingTable } from "../../../../components/hunt-ranking-table";
@@ -290,6 +291,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
       <section className="heroPanel">
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">狙い度分析</h1>
+          <DataSourceLabel source={detail.dataSource} />
           <div className="heroLinks simpleHeroLinks">
             <Link href={`/stores/${detail.store.id}`} className="externalLink">
               店舗ページへ戻る

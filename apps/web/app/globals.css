@@ -209,6 +209,14 @@ a {
   line-height: 1.5;
 }
 
+.dataSourceLabel {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 .inlineAction {
   width: fit-content;
   padding: 10px 14px;

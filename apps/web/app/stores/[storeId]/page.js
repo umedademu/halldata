@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../components/breadcrumbs";
+import { DataSourceLabel } from "../../../components/data-source-label";
 import { getStoreDetail, getStoreIdentity } from "../../../lib/data";
 import { isHuntScoreTargetStore } from "../../../lib/hunt-score";
 import {
@@ -66,6 +67,7 @@ export default async function StoreDetailPage({ params }) {
       <section className="heroPanel">
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">{store.storeName}</h1>
+          <DataSourceLabel source={storeDetail.dataSource} />
           <div className="heroLinks simpleHeroLinks">
             {hasHuntScoreAnalysis ? (
               <Link href={`/stores/${store.id}/hunt-analysis`} className="externalLink">

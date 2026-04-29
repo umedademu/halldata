@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../../../components/breadcrumbs";
+import { DataSourceLabel } from "../../../../../components/data-source-label";
 import { MachineComparison } from "../../../../../components/machine-comparison";
 import {
   getMachineDetail,
@@ -91,6 +92,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">{machineName}</h1>
           <p className="machineStoreName">{detail.store.storeName}</p>
+          <DataSourceLabel source={detail.dataSource} />
           <div className="heroLinks simpleHeroLinks">
             <Link href={`/stores/${detail.store.id}`} className="externalLink">
               機種一覧へ戻る

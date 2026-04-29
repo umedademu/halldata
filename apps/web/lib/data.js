@@ -853,6 +853,7 @@ export const getStoreList = cache(async function getStoreList() {
         id: String(store.id ?? "").trim(),
         storeName: String(store.storeName ?? "").trim(),
         storeUrl: String(store.storeUrl ?? "").trim(),
+        dataSource: "json",
         isPendingRegistration: !String(store.storeName ?? "").trim(),
       }))
       .filter((store) => store.id)
@@ -877,6 +878,7 @@ export const getStoreList = cache(async function getStoreList() {
       id: store.id,
       storeName: store.store_name ?? "",
       storeUrl: store.store_url,
+      dataSource: "supabase",
       isPendingRegistration: !String(store.store_name ?? "").trim(),
     }))
     .sort((left, right) => {
@@ -1100,6 +1102,7 @@ function buildStaticStoreDetail(staticStore) {
     }, null) ?? null;
 
   return {
+    dataSource: "json",
     store: {
       id: store.id,
       storeName: store.storeName,
@@ -1169,6 +1172,7 @@ function buildStaticMachineDetail(staticStore, machineName) {
 
   const machineDetail = buildMachineDetail(rows);
   return {
+    dataSource: "json",
     store: {
       id: store.id,
       storeName: store.storeName,
@@ -1308,6 +1312,7 @@ export const getStoreDetail = cache(async function getStoreDetail(storeId) {
   }
 
   return {
+    dataSource: "supabase",
     store: {
       id: store.id,
       storeName: store.store_name,
@@ -1399,6 +1404,7 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
   const machineDetail = detail ?? buildMachineDetail(rows);
 
   return {
+    dataSource: "supabase",
     store: {
       id: store.id,
       storeName: store.store_name,
@@ -1434,6 +1440,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     rankingGroups,
     totalCount,
     hasActualResults,
+    dataSource,
   } = detail;
 
   return {
@@ -1448,6 +1455,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     rankingGroups,
     totalCount,
     hasActualResults,
+    dataSource,
   };
 });
 
@@ -1460,6 +1468,7 @@ async function getHuntScoreSnapshotsForStore(storeId) {
     }
     const { targetRows, storeRows } = buildStaticHuntScoreSourceRows(staticStore);
     return {
+      dataSource: "json",
       store: {
         id: staticIdentity.id,
         store_name: staticIdentity.storeName,
@@ -1485,6 +1494,7 @@ async function getHuntScoreSnapshotsForStore(storeId) {
   );
 
   return {
+    dataSource: "supabase",
     store,
     snapshots: buildHuntScoreSnapshots(targetRows, storeRows, store.store_name),
   };
@@ -1597,6 +1607,7 @@ export async function getHuntScoreAnalysisPageDetail(
   const rankingRows = rankingGroups.flatMap((group) => group.rows);
 
   return {
+    dataSource: snapshotDetail.dataSource ?? "supabase",
     store: {
       id: store.id,
       storeName: store.store_name,
