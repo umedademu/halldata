@@ -120,15 +120,42 @@ async function readSetting(name, fallback = "") {
   return process.env[name] || fallbackSettings[name] || fallback;
 }
 
-async function getStaticWebDataDirectory() {
+async function getStaticWebDataDirectories() {
   const [{ default: pathModule }] = await Promise.all([import("node:path")]);
   const configuredDirectory = await readSetting("HALLDATA_STATIC_WEB_DATA_DIR");
   if (configuredDirectory) {
-    return pathModule.isAbsolute(configuredDirectory)
-      ? configuredDirectory
-      : pathModule.resolve(process.cwd(), configuredDirectory);
+    return [
+      pathModule.isAbsolute(configuredDirectory)
+        ? configuredDirectory
+        : pathModule.resolve(process.cwd(), configuredDirectory),
+    ];
   }
-  return pathModule.resolve(process.cwd(), DEFAULT_STATIC_WEB_DATA_DIRECTORY);
+
+  return [
+    pathModule.resolve(process.cwd(), DEFAULT_STATIC_WEB_DATA_DIRECTORY),
+    pathModule.resolve(process.cwd(), "apps/web", DEFAULT_STATIC_WEB_DATA_DIRECTORY),
+  ];
+}
+
+function buildUrlFromHost(host, protocol = "https") {
+  const safeHost = String(host ?? "").trim();
+  if (!safeHost) {
+    return "";
+  }
+  return `${String(protocol || "https").replace(/:$/u, "")}://${safeHost}`.replace(/\/+$/u, "");
+}
+
+async function getRequestBaseUrl() {
+  try {
+    const { headers } = await import("next/headers");
+    const headerList = await headers();
+    return buildUrlFromHost(
+      headerList.get("x-forwarded-host") || headerList.get("host"),
+      headerList.get("x-forwarded-proto") || "https",
+    );
+  } catch {
+    return "";
+  }
 }
 
 async function getStaticWebDataBaseUrl() {
@@ -136,10 +163,16 @@ async function getStaticWebDataBaseUrl() {
   if (configuredBaseUrl) {
     return configuredBaseUrl.replace(/\/+$/u, "");
   }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return buildUrlFromHost(process.env.VERCEL_PROJECT_PRODUCTION_URL);
   }
-  return "";
+  if (process.env.VERCEL_BRANCH_URL) {
+    return buildUrlFromHost(process.env.VERCEL_BRANCH_URL);
+  }
+  if (process.env.VERCEL_URL) {
+    return buildUrlFromHost(process.env.VERCEL_URL);
+  }
+  return getRequestBaseUrl();
 }
 
 async function readJsonFileIfExists(filePath) {
@@ -194,9 +227,15 @@ async function readStaticWebDataPayload(relativePath) {
     return null;
   }
 
-  const dataDirectory = pathModule.resolve(await getStaticWebDataDirectory());
-  const filePath = pathModule.resolve(dataDirectory, normalizedPath);
-  if (filePath.startsWith(dataDirectory)) {
+  const dataDirectories = await getStaticWebDataDirectories();
+  for (const dataDirectoryCandidate of dataDirectories) {
+    const dataDirectory = pathModule.resolve(dataDirectoryCandidate);
+    const filePath = pathModule.resolve(dataDirectory, normalizedPath);
+    const relativeFilePath = pathModule.relative(dataDirectory, filePath);
+    if (relativeFilePath.startsWith("..") || pathModule.isAbsolute(relativeFilePath)) {
+      continue;
+    }
+
     const filePayload = await readJsonFileIfExists(filePath);
     if (filePayload) {
       return filePayload;
