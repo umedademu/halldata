@@ -15,6 +15,7 @@ import { canonicalMachineName, listEquivalentMachineNames, withCalculatedDiffere
 
 const PAGE_SIZE = 1000;
 const DEFAULT_FETCH_CACHE_TTL_MS = 0;
+const DEFAULT_STATIC_WEB_DATA_DIRECTORY = "public/halldata-static";
 const HUNT_BACKTEST_DEFAULT_EVENT_FILTERS = {
   "Aパーク春日店": {
     dayTails: [0],
@@ -116,6 +117,72 @@ async function readFallbackSettings() {
 async function readSetting(name, fallback = "") {
   const fallbackSettings = await readFallbackSettings();
   return process.env[name] || fallbackSettings[name] || fallback;
+}
+
+async function getStaticWebDataDirectory() {
+  const [{ default: pathModule }] = await Promise.all([import("node:path")]);
+  const configuredDirectory = await readSetting("HALLDATA_STATIC_WEB_DATA_DIR");
+  if (configuredDirectory) {
+    return pathModule.isAbsolute(configuredDirectory)
+      ? configuredDirectory
+      : pathModule.resolve(process.cwd(), configuredDirectory);
+  }
+  return pathModule.resolve(process.cwd(), DEFAULT_STATIC_WEB_DATA_DIRECTORY);
+}
+
+async function readJsonFileIfExists(filePath) {
+  const [{ default: fs }] = await Promise.all([import("node:fs")]);
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+async function readStaticWebDataIndex() {
+  const [{ default: pathModule }] = await Promise.all([import("node:path")]);
+  const dataDirectory = await getStaticWebDataDirectory();
+  const payload = await readJsonFileIfExists(pathModule.resolve(dataDirectory, "index.json"));
+  if (!payload || !Array.isArray(payload.stores)) {
+    return null;
+  }
+  return {
+    dataDirectory,
+    stores: payload.stores.filter((store) => store && typeof store === "object"),
+  };
+}
+
+function staticStoreMatchesId(storeEntry, storeId) {
+  const requestedStoreId = String(storeId ?? "").trim();
+  if (!requestedStoreId) {
+    return false;
+  }
+  if (String(storeEntry?.id ?? "").trim() === requestedStoreId) {
+    return true;
+  }
+  return (Array.isArray(storeEntry?.legacyIds) ? storeEntry.legacyIds : [])
+    .some((legacyId) => String(legacyId ?? "").trim() === requestedStoreId);
+}
+
+async function readStaticStoreById(storeId) {
+  const index = await readStaticWebDataIndex();
+  const storeEntry = index?.stores.find((entry) => staticStoreMatchesId(entry, storeId));
+  if (!index || !storeEntry?.dataFile) {
+    return null;
+  }
+
+  const [{ default: pathModule }] = await Promise.all([import("node:path")]);
+  const storePath = pathModule.resolve(index.dataDirectory, String(storeEntry.dataFile));
+  const dataDirectory = pathModule.resolve(index.dataDirectory);
+  if (!storePath.startsWith(dataDirectory)) {
+    return null;
+  }
+
+  const payload = await readJsonFileIfExists(storePath);
+  return payload && typeof payload === "object" ? payload : null;
 }
 
 async function getSupabaseConfig() {
@@ -779,6 +846,26 @@ function buildMachineDetail(rows) {
 }
 
 export const getStoreList = cache(async function getStoreList() {
+  const staticIndex = await readStaticWebDataIndex();
+  if (staticIndex?.stores.length > 0) {
+    return staticIndex.stores
+      .map((store) => ({
+        id: String(store.id ?? "").trim(),
+        storeName: String(store.storeName ?? "").trim(),
+        storeUrl: String(store.storeUrl ?? "").trim(),
+        isPendingRegistration: !String(store.storeName ?? "").trim(),
+      }))
+      .filter((store) => store.id)
+      .sort((left, right) => {
+        if (left.isPendingRegistration !== right.isPendingRegistration) {
+          return left.isPendingRegistration ? 1 : -1;
+        }
+        const leftLabel = left.isPendingRegistration ? left.storeUrl : left.storeName;
+        const rightLabel = right.isPendingRegistration ? right.storeUrl : right.storeName;
+        return leftLabel.localeCompare(rightLabel, "ja");
+      });
+  }
+
   const { storesTable } = await getSupabaseConfig();
   const stores = await fetchAllRows(storesTable, {
     select: "id,store_name,store_url",
@@ -803,6 +890,16 @@ export const getStoreList = cache(async function getStoreList() {
 });
 
 export const getStoreIdentity = cache(async function getStoreIdentity(storeId) {
+  const staticStore = await readStaticStoreById(storeId);
+  if (staticStore) {
+    const store = readStaticStoreIdentity(staticStore);
+    return {
+      id: store.id,
+      storeName: store.storeName,
+      storeUrl: store.storeUrl,
+    };
+  }
+
   const { storesTable } = await getSupabaseConfig();
   const stores = await fetchStoreEventRows(storesTable, storeId);
   const store = stores[0];
@@ -944,6 +1041,147 @@ async function readStoreMachineSummariesFromLocalData(storeName) {
   }
 }
 
+function readStaticStoreIdentity(staticStore) {
+  const store = staticStore?.store && typeof staticStore.store === "object" ? staticStore.store : {};
+  return {
+    id: String(store.id ?? "").trim(),
+    storeName: String(store.storeName ?? "").trim(),
+    storeUrl: String(store.storeUrl ?? "").trim(),
+    eventFilters: createEventFilters(
+      normalizeEventDayTails(store.eventDayTails),
+      Boolean(store.eventZoro),
+      normalizeEventWeekdays(store.eventWeekdays),
+    ),
+  };
+}
+
+function readStaticStoreRecords(staticStore) {
+  return (Array.isArray(staticStore?.records) ? staticStore.records : [])
+    .map((record) => ({
+      store_id: record.store_id ?? staticStore?.store?.id ?? null,
+      machine_name: String(record.machine_name ?? "").trim(),
+      target_date: String(record.target_date ?? "").trim(),
+      slot_number: String(record.slot_number ?? "").trim(),
+      difference_value: readNumber(record.difference_value),
+      games_count: readNumber(record.games_count),
+      payout_rate: readNumber(record.payout_rate),
+      bb_count: readNumber(record.bb_count),
+      rb_count: readNumber(record.rb_count),
+      combined_ratio_text: record.combined_ratio_text ?? null,
+      bb_ratio_text: record.bb_ratio_text ?? null,
+      rb_ratio_text: record.rb_ratio_text ?? null,
+      data_source: record.data_source ?? null,
+    }))
+    .filter((record) => record.machine_name && record.target_date && record.slot_number)
+    .map(withCalculatedDifferenceValue);
+}
+
+function buildStaticStoreDetail(staticStore) {
+  const store = readStaticStoreIdentity(staticStore);
+  const machines = (Array.isArray(staticStore?.machines) ? staticStore.machines : [])
+    .map((machine) => ({
+      machineName: String(machine.machineName ?? "").trim(),
+      slotCount: Number(machine.slotCount ?? 0),
+      latestDate: machine.latestDate ? String(machine.latestDate) : null,
+      latestAverageDifference: readNumber(machine.latestAverageDifference),
+      latestAverageGames: readNumber(machine.latestAverageGames),
+      latestAveragePayout: readNumber(machine.latestAveragePayout),
+    }))
+    .filter((machine) => machine.machineName && machine.latestDate);
+  const latestDate =
+    machines.reduce((currentLatestDate, machine) => {
+      if (!machine.latestDate) {
+        return currentLatestDate;
+      }
+      if (currentLatestDate === null || machine.latestDate > currentLatestDate) {
+        return machine.latestDate;
+      }
+      return currentLatestDate;
+    }, null) ?? null;
+
+  return {
+    store: {
+      id: store.id,
+      storeName: store.storeName,
+      storeUrl: store.storeUrl,
+    },
+    summary: {
+      id: store.id,
+      storeName: store.storeName,
+      storeUrl: store.storeUrl,
+      machineCount: machines.length,
+      latestDate,
+    },
+    machines,
+  };
+}
+
+function buildStaticHuntScoreSourceRows(staticStore) {
+  const store = readStaticStoreIdentity(staticStore);
+  const huntScoreMachineNameSet = new Set(
+    listHuntScoreSourceMachineNames(store.storeName)
+      .flatMap((name) => listEquivalentMachineNames(name))
+      .map(canonicalMachineName),
+  );
+  const storeRows = readStaticStoreRecords(staticStore);
+  return {
+    targetRows: storeRows.filter((row) =>
+      huntScoreMachineNameSet.has(canonicalMachineName(row.machine_name)),
+    ),
+    storeRows,
+  };
+}
+
+function buildStaticMachineDetail(staticStore, machineName) {
+  const store = readStaticStoreIdentity(staticStore);
+  const requestedMachineName = canonicalMachineName(machineName);
+  const requestedHuntScoreMachineName =
+    canonicalHuntScoreTargetMachineName(requestedMachineName, store.storeName) ?? requestedMachineName;
+  const huntScoreEnabled = isHuntScoreSupported(store.storeName, requestedHuntScoreMachineName);
+  let rows = [];
+
+  if (huntScoreEnabled) {
+    const { targetRows, storeRows } = buildStaticHuntScoreSourceRows(staticStore);
+    attachHuntScores(targetRows, storeRows, store.storeName);
+    rows = targetRows
+      .filter((row) => {
+        const rowMachineName =
+          canonicalHuntScoreTargetMachineName(canonicalMachineName(row.machine_name), store.storeName) ??
+          canonicalMachineName(row.machine_name);
+        return rowMachineName === requestedHuntScoreMachineName;
+      })
+      .map((row) => ({
+        ...row,
+        machine_name: requestedHuntScoreMachineName,
+      }));
+  } else {
+    const equivalentMachineNameSet = new Set(
+      listEquivalentMachineNames(machineName).map(canonicalMachineName),
+    );
+    rows = readStaticStoreRecords(staticStore).filter((row) =>
+      equivalentMachineNameSet.has(canonicalMachineName(row.machine_name)),
+    );
+  }
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const machineDetail = buildMachineDetail(rows);
+  return {
+    store: {
+      id: store.id,
+      storeName: store.storeName,
+      storeUrl: store.storeUrl,
+      eventFilters: store.eventFilters,
+    },
+    machineName: requestedMachineName,
+    slotNumbers: machineDetail.slotNumbers,
+    dateRows: machineDetail.dateRows,
+    summary: machineDetail.summary,
+  };
+}
+
 export async function registerPendingStoreUrl(storeUrl) {
   const normalizedStoreUrl = normalizeStoreUrl(storeUrl);
   const { baseUrl, serviceKey, schema, storesTable } = await getSupabaseConfig();
@@ -1017,6 +1255,11 @@ export async function registerPendingStoreUrl(storeUrl) {
 }
 
 export const getStoreDetail = cache(async function getStoreDetail(storeId) {
+  const staticStore = await readStaticStoreById(storeId);
+  if (staticStore) {
+    return buildStaticStoreDetail(staticStore);
+  }
+
   const { storesTable, resultsTable, machineSummariesTable } = await getSupabaseConfig();
   const stores = await fetchAllRows(storesTable, {
     select: "id,store_name,store_url",
@@ -1076,6 +1319,11 @@ export const getStoreDetail = cache(async function getStoreDetail(storeId) {
 });
 
 export const getMachineDetail = cache(async function getMachineDetail(storeId, machineName) {
+  const staticStore = await readStaticStoreById(storeId);
+  if (staticStore) {
+    return buildStaticMachineDetail(staticStore, machineName);
+  }
+
   const { storesTable, resultsTable, machineDailyDetailsTable } = await getSupabaseConfig();
   const stores = await fetchStoreEventRows(storesTable, storeId);
   const store = stores[0];
@@ -1204,6 +1452,23 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
 });
 
 async function getHuntScoreSnapshotsForStore(storeId) {
+  const staticStore = await readStaticStoreById(storeId);
+  if (staticStore) {
+    const staticIdentity = readStaticStoreIdentity(staticStore);
+    if (!isHuntScoreTargetStore(staticIdentity.storeName)) {
+      return null;
+    }
+    const { targetRows, storeRows } = buildStaticHuntScoreSourceRows(staticStore);
+    return {
+      store: {
+        id: staticIdentity.id,
+        store_name: staticIdentity.storeName,
+        store_url: staticIdentity.storeUrl,
+      },
+      snapshots: buildHuntScoreSnapshots(targetRows, storeRows, staticIdentity.storeName),
+    };
+  }
+
   const { storesTable, resultsTable, machineDailyDetailsTable } = await getSupabaseConfig();
   const stores = await fetchStoreEventRows(storesTable, storeId);
   const store = stores[0];

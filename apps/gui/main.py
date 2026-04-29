@@ -1855,16 +1855,16 @@ class MinRepoApp:
                 break
 
             try:
-                results.append(
-                    self._fetch_single_site7_store(
-                        registered_store=registered_store,
-                        recent_days=recent_days,
-                        store_index=store_index,
-                        total_stores=total_stores,
-                        retry_delay_seconds=retry_delay_seconds,
-                        browser_visible=browser_visible,
-                    )
+                store_result = self._fetch_single_site7_store(
+                    registered_store=registered_store,
+                    recent_days=recent_days,
+                    store_index=store_index,
+                    total_stores=total_stores,
+                    retry_delay_seconds=retry_delay_seconds,
+                    browser_visible=browser_visible,
                 )
+                self._refresh_web_data_for_store_result(store_result)
+                results.append(store_result)
             except FetchCancelled:
                 cancelled = True
                 break
@@ -2127,15 +2127,15 @@ class MinRepoApp:
                 break
 
             try:
-                results.append(
-                    self._fetch_single_store(
-                        registered_store=registered_store,
-                        target_date_input=target_date_input,
-                        store_index=store_index,
-                        total_stores=total_stores,
-                        retry_delay_seconds=retry_delay_seconds,
-                    )
+                store_result = self._fetch_single_store(
+                    registered_store=registered_store,
+                    target_date_input=target_date_input,
+                    store_index=store_index,
+                    total_stores=total_stores,
+                    retry_delay_seconds=retry_delay_seconds,
                 )
+                self._refresh_web_data_for_store_result(store_result)
+                results.append(store_result)
             except FetchCancelled:
                 cancelled = True
                 break
@@ -3640,10 +3640,38 @@ class MinRepoApp:
             saved_targets.append("ローカル")
         if save_summary.supabase_saved:
             saved_targets.append("Supabase")
+        if save_summary.web_data_saved:
+            saved_targets.append("Web表示")
 
         if not saved_targets:
             return "保存失敗"
         return "保存:" + "+".join(saved_targets)
+
+    def _refresh_web_data_for_store_result(self, store_result: StoreFetchResult) -> None:
+        save_summary = store_result.save_summary
+        if save_summary is None or not save_summary.local_file_path:
+            return
+
+        try:
+            entry = self.persistence_service.refresh_web_data_for_store(
+                store_result.history_result.store_name,
+            )
+        except Exception as exc:  # noqa: BLE001
+            save_summary.messages.append(f"Web表示用データの生成に失敗しました。\n{exc}")
+            return
+
+        if not entry:
+            return
+        save_summary.web_data_saved = True
+        save_summary.web_data_file_path = str(
+            self.persistence_service.root_dir
+            / "apps"
+            / "web"
+            / "public"
+            / "halldata-static"
+            / str(entry.get("dataFile", ""))
+        )
+        save_summary.web_data_record_count = int(entry.get("recordCount") or 0)
 
     def _merge_persistence_summary(
         self,
@@ -3656,6 +3684,9 @@ class MinRepoApp:
                 local_record_count=day_summary.local_record_count,
                 supabase_saved=day_summary.supabase_saved,
                 supabase_record_count=day_summary.supabase_record_count,
+                web_data_saved=day_summary.web_data_saved,
+                web_data_file_path=day_summary.web_data_file_path,
+                web_data_record_count=day_summary.web_data_record_count,
                 messages=list(day_summary.messages),
             )
 
@@ -3664,6 +3695,13 @@ class MinRepoApp:
         current_summary.local_record_count += day_summary.local_record_count
         current_summary.supabase_saved = current_summary.supabase_saved or day_summary.supabase_saved
         current_summary.supabase_record_count += day_summary.supabase_record_count
+        current_summary.web_data_saved = current_summary.web_data_saved or day_summary.web_data_saved
+        if day_summary.web_data_file_path:
+            current_summary.web_data_file_path = day_summary.web_data_file_path
+        current_summary.web_data_record_count = max(
+            current_summary.web_data_record_count,
+            day_summary.web_data_record_count,
+        )
         current_summary.messages.extend(day_summary.messages)
         return current_summary
 

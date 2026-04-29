@@ -20,21 +20,25 @@
 
 ## データの読み出し
 
-- データ元は `Supabase` の `stores`、`machine_daily_results`、`store_machine_summaries`、`store_machine_daily_details` です
-- `apps/web` は `SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` を使って読み出します
+- Web表示では、まず `apps/web/public/halldata-static` の表示用JSONを読みます
+- 表示用JSONがある場合、店舗一覧、機種一覧、台データ、狙い度分析は `Supabase` を読まずに表示します
+- 表示用JSONが無い環境だけ、従来通り `Supabase` の `stores`、`machine_daily_results`、`store_machine_summaries`、`store_machine_daily_details` を読みます
+- `apps/web` が `Supabase` を読む場合は、`SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` を使います
+- 表示用JSONの保存場所を変えたい場合は、`HALLDATA_STATIC_WEB_DATA_DIR` にディレクトリを指定します
 - 店舗URLの登録待ち追加では、`stores` にURLを保存します
 - ローカル確認時は、ルートの `.env.local` も読めるようにしています
 - 本番の `Vercel` では、同じ環境変数を `Vercel` 側に設定する想定です
 - 機種一覧用の要約表名を変えたい場合は、`.env.local` または `Vercel` 側に `SUPABASE_MACHINE_SUMMARIES_TABLE` を入れると切り替えられます
 - 台データページ用の詳細表名を変えたい場合は、`.env.local` または `Vercel` 側に `SUPABASE_MACHINE_DAILY_DETAILS_TABLE` を入れると切り替えられます
+- 既存の `Supabase` データは、`stores_rows.csv` と `machine_daily_results_rows.csv` から `python apps/gui/web_data_export.py --source csv` で表示用JSONへ移行できます
 
 ## 表示について
 
 - 画面全体は白と薄い灰色を基調にし、装飾を抑えた表示にしています
 - `PC` と `スマホ` の両方で、左端の日付列を固定した横長の比較表で見られます
 - `スマホ` では店舗一覧、機種一覧、台データ比較の表を横に動かしながら確認します
-- 店舗一覧は `stores` だけを読み、台データ行は読みません
-- 機種一覧は、まず `Supabase` の `store_machine_summaries` を読み、保存済みの機種一覧をそのまま表示します
+- 店舗一覧は表示用JSONの索引だけを読み、台データ行は読みません
+- 機種一覧は、表示用JSONにある機種要約を優先して表示します
 - その要約表が無い環境では、ローカル実行時だけ `local_data` にある全機種取得済みの索引を見つけられる場合に、その索引と保存済みの一日分ファイルを使います
 - どちらも使えない環境では、最後の手段として `Supabase` の保存済み台データから機種ごとの最新日を集計します
 - 機種一覧の台数、平均差枚、平均G数、平均出率は、それぞれの機種にとって最新の日一日分をもとに表示します
@@ -140,9 +144,11 @@
 
 ## 軽量化について
 
-- `Supabase` から同じ条件で読み出した結果は、標準では使い回さず、ページ表示ごとに読み直します
-- 機種一覧は、重い全件集計を避けるため、`store_machine_summaries` を最優先で使います
-- 台データページは、重い行データの組み立てを避けるため、`store_machine_daily_details` を最優先で使います
+- 表示用JSONがある環境では、通常のページ表示で `Supabase` の読み出しを行いません
+- GUIアプリの取得後に表示用JSONを更新し、Webアプリはそのファイルを読むだけに寄せています
+- `Supabase` は元データ保管と再生成用の保存先として残します
+- 表示用JSONが無い環境では、機種一覧は重い全件集計を避けるために `store_machine_summaries` を最優先で使います
+- 表示用JSONが無い環境では、台データページは重い行データの組み立てを避けるために `store_machine_daily_details` を最優先で使います
 - ローカル実行で `local_data` の全機種取得済み索引を使える場合、機種一覧は `Supabase` の大量読み出しを避けます
 - 取得結果を短時間だけ使い回したい場合は、必要に応じて `HALLDATA_FETCH_CACHE_TTL_MS` でミリ秒単位に変更できます
 - 外部書体の読み込みをやめ、端末に入っている日本語書体を使います

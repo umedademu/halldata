@@ -22,6 +22,7 @@ from machine_difference import (
 )
 from minrepo_scraper import MachineHistoryResult, normalize_text
 from site7_scraper import DEFAULT_SITE7_PREFECTURE_NAME, default_site7_store_settings
+from web_data_export import export_store_from_local_data
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -43,6 +44,9 @@ class PersistenceSummary:
     local_record_count: int = 0
     supabase_saved: bool = False
     supabase_record_count: int = 0
+    web_data_saved: bool = False
+    web_data_file_path: str | None = None
+    web_data_record_count: int = 0
     messages: list[str] = field(default_factory=list)
 
     @property
@@ -661,6 +665,13 @@ class HistoryPersistenceService:
             return 0
 
         return self._delete_registered_stores_from_supabase(normalized_store_urls)
+
+    def refresh_web_data_for_store(self, store_name: str) -> dict[str, Any] | None:
+        return export_store_from_local_data(
+            store_name,
+            local_save_dir=self._local_save_dir(),
+            web_data_dir=self.root_dir / "apps" / "web" / "public" / "halldata-static",
+        )
 
     def _build_local_snapshot(self, history_result: MachineHistoryResult) -> dict[str, Any]:
         records = build_machine_daily_records(history_result)
