@@ -4,6 +4,7 @@ import { memo, useCallback, useMemo, useState, useTransition } from "react";
 
 import {
   formatAverageGames,
+  formatCompactDate,
   formatNumber,
   formatNarrowInteger,
   formatNarrowPercent,
@@ -53,8 +54,69 @@ const MATRIX_SLOT_WIDTH_REM = 16;
 const DEFAULT_GAME_MIN_GAMES = 6000;
 const DEFAULT_GAME_MAX_GAMES = 9000;
 const DEFAULT_GAME_EXPONENT = 1.5;
+const DEFAULT_COMPARISON_RECENT_DAYS = 14;
 const COMPARISON_SCORE_EPSILON = 0.000000001;
 const settingEstimateCache = new WeakMap();
+
+function isIsoDateText(value) {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/u.test(value.trim());
+}
+
+function formatCalendarDate(value) {
+  const formatted = formatCompactDate(value);
+  return formatted === "-" ? formatted : formatted.replaceAll("-", "/");
+}
+
+function parseDateText(value) {
+  if (!isIsoDateText(value)) {
+    return null;
+  }
+
+  const [year, month, day] = value.split("-").map((part) => Number(part));
+  const date = new Date(year, month - 1, day);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function shiftDateText(value, offsetDays) {
+  const date = parseDateText(value);
+  if (!date) {
+    return "";
+  }
+
+  date.setDate(date.getDate() + offsetDays);
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function clampDateText(value, minDate, maxDate, fallbackDate) {
+  if (!isIsoDateText(value)) {
+    return fallbackDate;
+  }
+  if (minDate && value < minDate) {
+    return minDate;
+  }
+  if (maxDate && value > maxDate) {
+    return maxDate;
+  }
+  return value;
+}
+
+function normalizeRecentDaysInput(value) {
+  const parsed = Number.parseInt(String(value ?? "").trim(), 10);
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_COMPARISON_RECENT_DAYS;
+  }
+  return Math.max(1, parsed);
+}
+
+function buildDisplayedPeriodLabel(startDate, endDate) {
+  if (!startDate || !endDate) {
+    return "日付データなし";
+  }
+  return `${formatCalendarDate(startDate)} ~ ${formatCalendarDate(endDate)}`;
+}
 
 function getSettingEstimate(definition, record) {
   if (!record) {
@@ -651,6 +713,20 @@ export function MachineComparison({
   initialEventFilters,
   initialEventDisplayMode = "highlight",
 }) {
+  const latestAvailableDate = dateRows[0]?.date ?? "";
+  const oldestAvailableDate = dateRows.at(-1)?.date ?? latestAvailableDate;
+  const initialRangeStartDate = latestAvailableDate
+    ? clampDateText(
+        shiftDateText(latestAvailableDate, -(DEFAULT_COMPARISON_RECENT_DAYS - 1)),
+        oldestAvailableDate,
+        latestAvailableDate,
+        oldestAvailableDate,
+      )
+    : "";
+  const [periodMode, setPeriodMode] = useState("recent");
+  const [recentDaysInput, setRecentDaysInput] = useState(String(DEFAULT_COMPARISON_RECENT_DAYS));
+  const [rangeStartInput, setRangeStartInput] = useState(initialRangeStartDate);
+  const [rangeEndInput, setRangeEndInput] = useState(latestAvailableDate);
   const [eventFilters, setEventFilters] = useState(() =>
     createEventFilters(
       initialEventFilters?.dayTails ?? [],
@@ -664,6 +740,46 @@ export function MachineComparison({
     createDefaultEstimateOptions(slotNumbers.length, machineName),
   );
   const [, startTransition] = useTransition();
+  const recentDays = useMemo(() => normalizeRecentDaysInput(recentDaysInput), [recentDaysInput]);
+  const activeDateRange = useMemo(() => {
+    if (!latestAvailableDate) {
+      return {
+        startDate: "",
+        endDate: "",
+      };
+    }
+
+    if (periodMode === "range") {
+      const startDate = clampDateText(
+        rangeStartInput,
+        oldestAvailableDate,
+        latestAvailableDate,
+        oldestAvailableDate,
+      );
+      const endDate = clampDateText(
+        rangeEndInput,
+        oldestAvailableDate,
+        latestAvailableDate,
+        latestAvailableDate,
+      );
+
+      return startDate <= endDate
+        ? { startDate, endDate }
+        : { startDate: endDate, endDate: startDate };
+    }
+
+    return {
+      startDate: shiftDateText(latestAvailableDate, -(recentDays - 1)),
+      endDate: latestAvailableDate,
+    };
+  }, [
+    latestAvailableDate,
+    oldestAvailableDate,
+    periodMode,
+    rangeEndInput,
+    rangeStartInput,
+    recentDays,
+  ]);
   const settingEstimateDefinition = useMemo(
     () => getSettingEstimateDefinition(machineName),
     [machineName],
@@ -708,12 +824,23 @@ export function MachineComparison({
     [metrics, visibleMetricKeys],
   );
 
-  const visibleRows = useMemo(() => {
-    if (eventDisplayMode === "highlight") {
+  const periodFilteredRows = useMemo(() => {
+    if (!activeDateRange.startDate || !activeDateRange.endDate) {
       return dateRows;
     }
-    return dateRows.filter((row) => matchesEventFilters(row.date, eventFilters));
-  }, [dateRows, eventDisplayMode, eventFilters]);
+
+    return dateRows.filter((row) => {
+      const rowDate = String(row.date ?? "");
+      return rowDate >= activeDateRange.startDate && rowDate <= activeDateRange.endDate;
+    });
+  }, [activeDateRange.endDate, activeDateRange.startDate, dateRows]);
+
+  const visibleRows = useMemo(() => {
+    if (eventDisplayMode === "highlight") {
+      return periodFilteredRows;
+    }
+    return periodFilteredRows.filter((row) => matchesEventFilters(row.date, eventFilters));
+  }, [eventDisplayMode, eventFilters, periodFilteredRows]);
 
   const specialDateSet = useMemo(() => {
     if (!eventFilters.isActive) {
@@ -721,9 +848,11 @@ export function MachineComparison({
     }
 
     return new Set(
-      dateRows.filter((row) => matchesEventFilters(row.date, eventFilters)).map((row) => row.date),
+      periodFilteredRows
+        .filter((row) => matchesEventFilters(row.date, eventFilters))
+        .map((row) => row.date),
     );
-  }, [dateRows, eventFilters]);
+  }, [eventFilters, periodFilteredRows]);
 
   const highlightedDateSet = useMemo(() => {
     if (eventDisplayMode !== "highlight") {
@@ -763,6 +892,56 @@ export function MachineComparison({
     startTransition(() => {
       setEventDisplayMode(mode);
     });
+  };
+
+  const updatePeriodMode = (mode) => {
+    startTransition(() => {
+      if (mode === "range" && periodMode !== "range") {
+        setRangeStartInput(
+          clampDateText(
+            activeDateRange.startDate,
+            oldestAvailableDate,
+            latestAvailableDate,
+            oldestAvailableDate,
+          ),
+        );
+        setRangeEndInput(
+          clampDateText(
+            activeDateRange.endDate,
+            oldestAvailableDate,
+            latestAvailableDate,
+            latestAvailableDate,
+          ),
+        );
+      }
+      setPeriodMode(mode);
+    });
+  };
+
+  const handleRangeStartChange = (value) => {
+    const nextStart = clampDateText(
+      value,
+      oldestAvailableDate,
+      latestAvailableDate,
+      oldestAvailableDate,
+    );
+    setRangeStartInput(nextStart);
+    if (rangeEndInput && nextStart > rangeEndInput) {
+      setRangeEndInput(nextStart);
+    }
+  };
+
+  const handleRangeEndChange = (value) => {
+    const nextEnd = clampDateText(
+      value,
+      oldestAvailableDate,
+      latestAvailableDate,
+      latestAvailableDate,
+    );
+    setRangeEndInput(nextEnd);
+    if (rangeStartInput && nextEnd < rangeStartInput) {
+      setRangeStartInput(nextEnd);
+    }
   };
 
   const saveEventFilters = useCallback(
@@ -870,7 +1049,78 @@ export function MachineComparison({
     <>
       <section className="filterPanel">
         <div>
-          <p className="sectionLabel">特定日を選ぶ</p>
+          <p className="sectionLabel">表示条件</p>
+        </div>
+        <div className="filterControlGroup">
+          <p className="filterControlLabel">表示期間</p>
+          <div className="dayFilterRow">
+            <button
+              type="button"
+              onClick={() => updatePeriodMode("recent")}
+              className={`dayFilterChip ${periodMode === "recent" ? "dayFilterChipActive" : ""}`}
+              aria-pressed={periodMode === "recent"}
+            >
+              直近
+            </button>
+            <button
+              type="button"
+              onClick={() => updatePeriodMode("range")}
+              className={`dayFilterChip ${periodMode === "range" ? "dayFilterChipActive" : ""}`}
+              aria-pressed={periodMode === "range"}
+            >
+              期間指定
+            </button>
+          </div>
+          <div className="periodInputGrid">
+            {periodMode === "recent" ? (
+              <label className="estimateField">
+                <span>直近日数</span>
+                <span className="estimateInputWrap">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputMode="numeric"
+                    value={recentDaysInput}
+                    onChange={(event) => setRecentDaysInput(event.target.value)}
+                    onBlur={() => setRecentDaysInput(String(recentDays))}
+                  />
+                  <span className="estimateInputSuffix">日</span>
+                </span>
+              </label>
+            ) : (
+              <>
+                <label className="estimateField">
+                  <span>開始日</span>
+                  <span className="estimateInputWrap">
+                    <input
+                      type="date"
+                      min={oldestAvailableDate}
+                      max={latestAvailableDate}
+                      value={rangeStartInput}
+                      onChange={(event) => handleRangeStartChange(event.target.value)}
+                    />
+                  </span>
+                </label>
+                <label className="estimateField">
+                  <span>終了日</span>
+                  <span className="estimateInputWrap">
+                    <input
+                      type="date"
+                      min={oldestAvailableDate}
+                      max={latestAvailableDate}
+                      value={rangeEndInput}
+                      onChange={(event) => handleRangeEndChange(event.target.value)}
+                    />
+                  </span>
+                </label>
+              </>
+            )}
+          </div>
+          <p className="filterPanelStatus">
+            {buildDisplayedPeriodLabel(activeDateRange.startDate, activeDateRange.endDate)} /{" "}
+            {periodFilteredRows.length}日分
+          </p>
         </div>
         <div className="filterControlGroup">
           <p className="filterControlLabel">表示方法</p>
@@ -1009,7 +1259,7 @@ function MachineComparisonTable({
     return (
       <section className="statusPanel">
         <h2>条件に合う日付がありません</h2>
-        <p>別の末尾に切り替えるか、すべて表示へ戻してください。</p>
+        <p>表示期間か特定日条件を見直してください。</p>
       </section>
     );
   }
