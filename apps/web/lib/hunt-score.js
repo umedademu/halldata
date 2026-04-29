@@ -39,9 +39,9 @@ const APARK_KASUGA_TARGET_MACHINES = [
     name: "ニューキングハナハナ",
     aliases: ["ニューキングハナハナV", "ニューキングハナハナV-30", "ニューキングハナハナV‐30"],
   },
+  { name: "スターハナハナ", aliases: ["スターハナハナ-30", "スターハナハナ‐30"] },
   { name: "新ハナビ", aliases: [] },
   { name: "スマスロ ハナビ", aliases: ["スマスロハナビ"] },
-  { name: "スターハナハナ", aliases: ["スターハナハナ-30", "スターハナハナ‐30"] },
 ];
 
 const GOGO_ARENA_TENJIN_TARGET_MACHINES = [
