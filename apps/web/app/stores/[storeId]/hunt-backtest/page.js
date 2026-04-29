@@ -144,6 +144,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     machineNames: readMultiSearchParam(resolvedSearchParams?.machine),
     machineTouched: readSingleSearchParam(resolvedSearchParams?.machineTouched),
     combineAimJuggler: readMultiSearchParam(resolvedSearchParams?.aimMachineGroup),
+    combineHanabi: readMultiSearchParam(resolvedSearchParams?.hanabiMachineGroup),
     differenceMode: readSingleSearchParam(resolvedSearchParams?.differenceMode),
     rankMin: readSingleSearchParam(resolvedSearchParams?.rankMin),
     rankMax: readSingleSearchParam(resolvedSearchParams?.rankMax),
@@ -205,6 +206,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     matchMode: detail.backtest.matchMode,
     rankScope: detail.backtest.rankScope,
     combineAimJuggler: detail.backtest.combineAimJuggler,
+    combineHanabi: detail.backtest.combineHanabi,
   };
   const selectedBacktestDayTailSet = new Set(detail.backtest.eventFilters.dayTails);
   const selectedBacktestWeekdaySet = new Set(detail.backtest.eventFilters.weekdays);
@@ -360,6 +362,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                 <p className="filterControlLabel">機種名</p>
                 <input type="hidden" name="machineTouched" value="1" />
                 <input type="hidden" name="aimMachineGroup" value="0" />
+                <input type="hidden" name="hanabiMachineGroup" value="0" />
                 {detail.backtest.hasAimJugglerGroupOption ? (
                   <label
                     className={`metricToggleChip ${
@@ -373,6 +376,21 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       defaultChecked={detail.backtest.combineAimJuggler}
                     />
                     <span>SアイムジャグラーEXとネオアイムジャグラーEXをまとめる</span>
+                  </label>
+                ) : null}
+                {detail.backtest.hasHanabiGroupOption ? (
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.combineHanabi ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="hanabiMachineGroup"
+                      value="1"
+                      defaultChecked={detail.backtest.combineHanabi}
+                    />
+                    <span>新ハナビとスマスロハナビをまとめる</span>
                   </label>
                 ) : null}
                 <div className="metricToggleRow">

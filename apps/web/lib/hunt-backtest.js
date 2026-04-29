@@ -14,6 +14,8 @@ const DEFAULT_RECENT_DAYS = 90;
 const DEFAULT_DIFFERENCE_MODE = "bonus";
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
+const HANABI_GROUP_NAME = "ハナビ";
+const HANABI_MACHINE_NAMES = ["新ハナビ", "スマスロ ハナビ"];
 const BACKTEST_BREAKDOWN_DEFINITIONS = [
   { key: "all", title: "全合算" },
   { key: "dayTail", title: "翌営業日が末尾の日" },
@@ -49,14 +51,28 @@ function isAimJugglerMachine(machineName) {
   );
 }
 
+function isHanabiMachine(machineName) {
+  const normalizedMachineName = normalizeMachineNameText(machineName);
+  return HANABI_MACHINE_NAMES.some(
+    (candidate) => normalizeMachineNameText(candidate) === normalizedMachineName,
+  );
+}
+
 function isAimJugglerGroup(machineName) {
   return normalizeMachineNameText(machineName) === normalizeMachineNameText(AIM_JUGGLER_GROUP_NAME);
 }
 
-function resolveBacktestMachineName(machineName, combineAimJuggler) {
+function isHanabiGroup(machineName) {
+  return normalizeMachineNameText(machineName) === normalizeMachineNameText(HANABI_GROUP_NAME);
+}
+
+function resolveBacktestMachineName(machineName, combineAimJuggler, combineHanabi) {
   const text = String(machineName ?? "").trim();
   if (combineAimJuggler && isAimJugglerMachine(text)) {
     return AIM_JUGGLER_GROUP_NAME;
+  }
+  if (combineHanabi && isHanabiMachine(text)) {
+    return HANABI_GROUP_NAME;
   }
   return text;
 }
@@ -64,6 +80,9 @@ function resolveBacktestMachineName(machineName, combineAimJuggler) {
 function expandRequestedMachineName(machineName) {
   if (isAimJugglerGroup(machineName)) {
     return AIM_JUGGLER_MACHINE_NAMES;
+  }
+  if (isHanabiGroup(machineName)) {
+    return HANABI_MACHINE_NAMES;
   }
   return [String(machineName ?? "").trim()];
 }
@@ -108,6 +127,14 @@ function shiftDateText(dateText, days) {
 }
 
 function normalizeCombineAimJuggler(value) {
+  const values = splitOptionValues(value);
+  if (values.length === 0) {
+    return true;
+  }
+  return values.includes("1") || values.includes("true") || values.includes("on");
+}
+
+function normalizeCombineHanabi(value) {
   const values = splitOptionValues(value);
   if (values.length === 0) {
     return true;
@@ -399,6 +426,7 @@ function buildBacktestAggregationDetail(
     rankScope,
     differenceMode,
     combineAimJuggler,
+    combineHanabi,
     rowFilter = () => true,
   },
 ) {
@@ -420,7 +448,11 @@ function buildBacktestAggregationDetail(
       }
 
       selectedRank += 1;
-      const backtestMachineName = resolveBacktestMachineName(selectedMachineName, combineAimJuggler);
+      const backtestMachineName = resolveBacktestMachineName(
+        selectedMachineName,
+        combineAimJuggler,
+        combineHanabi,
+      );
       const machineRank = (machineRankCounts.get(backtestMachineName) ?? 0) + 1;
       machineRankCounts.set(backtestMachineName, machineRank);
       const rankValue =
@@ -506,7 +538,7 @@ function buildBacktestAggregationDetail(
   const summaryMachineNames = [
     ...new Set(
       selectedMachineNames.map((machineName) =>
-        resolveBacktestMachineName(machineName, combineAimJuggler),
+        resolveBacktestMachineName(machineName, combineAimJuggler, combineHanabi),
       ),
     ),
   ];
@@ -542,7 +574,8 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const rankingDates = Array.isArray(snapshots) ? snapshots.map((snapshot) => snapshot.baseDate) : [];
   const latestDate = rankingDates[0] ?? null;
   const earliestDate = rankingDates.at(-1) ?? null;
-  const combineAimJuggler = normalizeCombineAimJuggler(options.combineAimJuggler);
+  const requestedCombineAimJuggler = normalizeCombineAimJuggler(options.combineAimJuggler);
+  const requestedCombineHanabi = normalizeCombineHanabi(options.combineHanabi);
   const availableMachineNames = buildAvailableMachineNames(
     Array.isArray(snapshots) ? snapshots : [],
     Array.isArray(options.machineOrder) ? options.machineOrder : undefined,
@@ -550,6 +583,11 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const hasAimJugglerGroupOption = AIM_JUGGLER_MACHINE_NAMES.every((machineName) =>
     availableMachineNames.includes(machineName),
   );
+  const hasHanabiGroupOption = HANABI_MACHINE_NAMES.every((machineName) =>
+    availableMachineNames.includes(machineName),
+  );
+  const combineAimJuggler = hasAimJugglerGroupOption ? requestedCombineAimJuggler : false;
+  const combineHanabi = hasHanabiGroupOption ? requestedCombineHanabi : false;
   const machineSelectionTouched = normalizeMachineSelectionTouched(options.machineTouched);
   const selectedMachineNames = buildSelectedMachineNames(
     options.machineNames,
@@ -577,6 +615,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     rankScope,
     differenceMode,
     combineAimJuggler,
+    combineHanabi,
   };
   const allAggregation = buildBacktestAggregationDetail(snapshotsInPeriod, aggregationOptions);
   const breakdowns = BACKTEST_BREAKDOWN_DEFINITIONS.map((definition) => ({
@@ -612,7 +651,9 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     showGraph,
     differenceMode,
     combineAimJuggler,
+    combineHanabi,
     hasAimJugglerGroupOption,
+    hasHanabiGroupOption,
     eventFilters,
     breakdowns,
     ...allAggregation,

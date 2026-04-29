@@ -14,6 +14,8 @@ export const dynamic = "force-dynamic";
 const DEFAULT_RANKING_LIMIT = 20;
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
+const HANABI_GROUP_NAME = "ハナビ";
+const HANABI_MACHINE_NAMES = ["新ハナビ", "スマスロ ハナビ"];
 
 function readSingleSearchParam(value) {
   if (Array.isArray(value)) {
@@ -48,7 +50,24 @@ function isAimJugglerMachine(machineName) {
   );
 }
 
+function isHanabiMachine(machineName) {
+  const normalizedMachineName = normalizeMachineNameText(machineName);
+  return HANABI_MACHINE_NAMES.some(
+    (candidate) => normalizeMachineNameText(candidate) === normalizedMachineName,
+  );
+}
+
 function normalizeCombineAimJuggler(values) {
+  const safeValues = (Array.isArray(values) ? values : [])
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+  if (safeValues.length === 0) {
+    return true;
+  }
+  return safeValues.includes("1") || safeValues.includes("true") || safeValues.includes("on");
+}
+
+function normalizeCombineHanabi(values) {
   const safeValues = (Array.isArray(values) ? values : [])
     .map((value) => String(value ?? "").trim())
     .filter(Boolean);
@@ -75,14 +94,23 @@ function compareRankingRows(left, right) {
   );
 }
 
-function resolveRankingGroupName(machineName, combineAimJuggler) {
+function resolveRankingGroupName(machineName, combineAimJuggler, combineHanabi) {
   if (combineAimJuggler && isAimJugglerMachine(machineName)) {
     return AIM_JUGGLER_GROUP_NAME;
+  }
+  if (combineHanabi && isHanabiMachine(machineName)) {
+    return HANABI_GROUP_NAME;
   }
   return String(machineName ?? "").trim();
 }
 
-function buildVisibleRankingGroups(rankingGroups, selectedMachineNameSet, combineAimJuggler, displayLimit) {
+function buildVisibleRankingGroups(
+  rankingGroups,
+  selectedMachineNameSet,
+  combineAimJuggler,
+  combineHanabi,
+  displayLimit,
+) {
   const groupsByName = new Map();
 
   for (const group of Array.isArray(rankingGroups) ? rankingGroups : []) {
@@ -91,13 +119,15 @@ function buildVisibleRankingGroups(rankingGroups, selectedMachineNameSet, combin
       continue;
     }
 
-    const rankingGroupName = resolveRankingGroupName(machineName, combineAimJuggler);
+    const rankingGroupName = resolveRankingGroupName(machineName, combineAimJuggler, combineHanabi);
     if (!groupsByName.has(rankingGroupName)) {
       groupsByName.set(rankingGroupName, {
         machineName: rankingGroupName,
         rows: [],
         totalCount: 0,
-        isCombinedGroup: rankingGroupName === AIM_JUGGLER_GROUP_NAME && machineName !== rankingGroupName,
+        isCombinedGroup:
+          (rankingGroupName === AIM_JUGGLER_GROUP_NAME || rankingGroupName === HANABI_GROUP_NAME) &&
+          machineName !== rankingGroupName,
       });
     }
 
@@ -158,6 +188,9 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const requestedCombineAimJuggler = normalizeCombineAimJuggler(
     readMultiSearchParam(resolvedSearchParams?.aimMachineGroup),
   );
+  const requestedCombineHanabi = normalizeCombineHanabi(
+    readMultiSearchParam(resolvedSearchParams?.hanabiMachineGroup),
+  );
 
   let detail;
 
@@ -194,7 +227,11 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const hasAimJugglerGroupOption = AIM_JUGGLER_MACHINE_NAMES.every((machineName) =>
     availableMachineNameSet.has(machineName),
   );
+  const hasHanabiGroupOption = HANABI_MACHINE_NAMES.every((machineName) =>
+    availableMachineNameSet.has(machineName),
+  );
   const combineAimJuggler = hasAimJugglerGroupOption ? requestedCombineAimJuggler : false;
+  const combineHanabi = hasHanabiGroupOption ? requestedCombineHanabi : false;
   const requestedMachineNameSet = new Set(
     requestedMachineNames
       .map((machineName) => String(machineName ?? "").trim())
@@ -211,6 +248,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     detail.rankingGroups,
     selectedMachineNameSet,
     combineAimJuggler,
+    combineHanabi,
     detail.limit,
   );
   const visibleRows = visibleRankingGroups.flatMap((group) => group.rows);
@@ -296,6 +334,24 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                           defaultChecked={combineAimJuggler}
                         />
                         <span>SアイムジャグラーEXとネオアイムジャグラーEXをまとめる</span>
+                      </label>
+                    </>
+                  ) : null}
+                  {hasHanabiGroupOption ? (
+                    <>
+                      <input type="hidden" name="hanabiMachineGroup" value="0" />
+                      <label
+                        className={`metricToggleChip ${
+                          combineHanabi ? "metricToggleChipActive" : ""
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          name="hanabiMachineGroup"
+                          value="1"
+                          defaultChecked={combineHanabi}
+                        />
+                        <span>新ハナビとスマスロハナビをまとめる</span>
                       </label>
                     </>
                   ) : null}

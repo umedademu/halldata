@@ -1,6 +1,8 @@
 const HUNT_BACKTEST_BOOKMARK_STORAGE_PREFIX = "hunt-backtest-bookmark:";
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
+const HANABI_GROUP_NAME = "ハナビ";
+const HANABI_MACHINE_NAMES = ["新ハナビ", "スマスロ ハナビ"];
 
 export const HUNT_BACKTEST_BOOKMARK_EVENT = "hunt-backtest-bookmark-change";
 
@@ -19,23 +21,46 @@ function isAimJugglerMachine(machineName) {
   );
 }
 
+function isHanabiMachine(machineName) {
+  const normalizedMachineName = normalizeMachineNameText(machineName);
+  return HANABI_MACHINE_NAMES.some(
+    (candidate) => normalizeMachineNameText(candidate) === normalizedMachineName,
+  );
+}
+
 function isAimJugglerGroup(machineName) {
   return normalizeMachineNameText(machineName) === normalizeMachineNameText(AIM_JUGGLER_GROUP_NAME);
+}
+
+function isHanabiGroup(machineName) {
+  return normalizeMachineNameText(machineName) === normalizeMachineNameText(HANABI_GROUP_NAME);
 }
 
 function includesBookmarkMachine(machineName, selectedMachineNameSet) {
   return (
     selectedMachineNameSet.has(machineName) ||
-    (isAimJugglerMachine(machineName) && selectedMachineNameSet.has(AIM_JUGGLER_GROUP_NAME))
+    (isAimJugglerMachine(machineName) && selectedMachineNameSet.has(AIM_JUGGLER_GROUP_NAME)) ||
+    (isHanabiMachine(machineName) && selectedMachineNameSet.has(HANABI_GROUP_NAME))
   );
 }
 
-function resolveBookmarkRankMachineName(machineName, combineAimJuggler, selectedMachineNameSet) {
+function resolveBookmarkRankMachineName(
+  machineName,
+  combineAimJuggler,
+  combineHanabi,
+  selectedMachineNameSet,
+) {
   if (
     isAimJugglerMachine(machineName) &&
     (combineAimJuggler || selectedMachineNameSet.has(AIM_JUGGLER_GROUP_NAME))
   ) {
     return AIM_JUGGLER_GROUP_NAME;
+  }
+  if (
+    isHanabiMachine(machineName) &&
+    (combineHanabi || selectedMachineNameSet.has(HANABI_GROUP_NAME))
+  ) {
+    return HANABI_GROUP_NAME;
   }
   return machineName;
 }
@@ -183,6 +208,7 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
   const scoreFilter = buildScoreFilter(bookmark.scoreMin);
   const allMachineCount = readPositiveInteger(bookmark.allMachineCount) ?? machineNames.length;
   const combineAimJuggler = Boolean(bookmark.combineAimJuggler) || machineNames.some(isAimJugglerGroup);
+  const combineHanabi = Boolean(bookmark.combineHanabi) || machineNames.some(isHanabiGroup);
 
   return {
     version: 1,
@@ -199,6 +225,7 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     matchMode: normalizeMatchMode(bookmark.matchMode),
     rankScope: normalizeRankScope(bookmark.rankScope),
     combineAimJuggler,
+    combineHanabi,
     savedAt: normalizeText(bookmark.savedAt) || null,
   };
 }
@@ -231,6 +258,7 @@ export function areHuntBacktestBookmarksEqual(left, right) {
     normalizedLeft.matchMode === normalizedRight.matchMode &&
     normalizedLeft.rankScope === normalizedRight.rankScope &&
     normalizedLeft.combineAimJuggler === normalizedRight.combineAimJuggler &&
+    normalizedLeft.combineHanabi === normalizedRight.combineHanabi &&
     normalizedLeft.machineNames.length === normalizedRight.machineNames.length &&
     normalizedLeft.machineNames.every((machineName, index) => machineName === normalizedRight.machineNames[index])
   );
@@ -285,6 +313,10 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
 
   if (normalizedBookmark.combineAimJuggler) {
     parts.push("アイム統合");
+  }
+
+  if (normalizedBookmark.combineHanabi) {
+    parts.push("ハナビ統合");
   }
 
   if (!normalizedBookmark.hasRankFilter && !normalizedBookmark.hasScoreFilter) {
@@ -412,6 +444,7 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
     const bookmarkMachineName = resolveBookmarkRankMachineName(
       machineName,
       normalizedBookmark.combineAimJuggler,
+      normalizedBookmark.combineHanabi,
       selectedMachineNameSet,
     );
     const machineRank = (machineRankCounts.get(bookmarkMachineName) ?? 0) + 1;
