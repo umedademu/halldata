@@ -1171,6 +1171,62 @@ function readStaticStoreRecords(staticStore) {
     .map(withCalculatedDifferenceValue);
 }
 
+function findStaticMachineEntries(staticStore, machineNames) {
+  const machineNameSet = new Set(
+    (Array.isArray(machineNames) ? machineNames : [machineNames])
+      .flatMap((name) => listEquivalentMachineNames(name))
+      .map(canonicalMachineName),
+  );
+
+  return (Array.isArray(staticStore?.machines) ? staticStore.machines : [])
+    .filter((machine) => machineNameSet.has(canonicalMachineName(machine?.machineName)))
+    .map((machine) => ({
+      machineName: String(machine.machineName ?? "").trim(),
+      dataFile: String(machine.dataFile ?? "").trim(),
+    }))
+    .filter((machine) => machine.machineName);
+}
+
+async function readStaticMachineRecords(staticStore, machineNames) {
+  const store = readStaticStoreIdentity(staticStore);
+  const machineEntries = findStaticMachineEntries(staticStore, machineNames);
+  const rows = [];
+
+  for (const machineEntry of machineEntries) {
+    if (!machineEntry.dataFile) {
+      continue;
+    }
+
+    const payload = await readStaticWebDataPayload(machineEntry.dataFile);
+    if (!payload || typeof payload !== "object") {
+      continue;
+    }
+
+    rows.push(
+      ...readStaticStoreRecords({
+        store: staticStore.store,
+        records: payload.records,
+      }),
+    );
+  }
+
+  if (rows.length > 0) {
+    return rows;
+  }
+
+  const fallbackMachineNameSet = new Set(
+    (Array.isArray(machineNames) ? machineNames : [machineNames])
+      .flatMap((name) => listEquivalentMachineNames(name))
+      .map(canonicalMachineName),
+  );
+  return readStaticStoreRecords(staticStore)
+    .filter((row) => fallbackMachineNameSet.has(canonicalMachineName(row.machine_name)))
+    .map((row) => ({
+      ...row,
+      store_id: row.store_id ?? store.id,
+    }));
+}
+
 function buildStaticStoreDetail(staticStore) {
   const store = readStaticStoreIdentity(staticStore);
   const machines = (Array.isArray(staticStore?.machines) ? staticStore.machines : [])
@@ -1181,6 +1237,7 @@ function buildStaticStoreDetail(staticStore) {
       latestAverageDifference: readNumber(machine.latestAverageDifference),
       latestAverageGames: readNumber(machine.latestAverageGames),
       latestAveragePayout: readNumber(machine.latestAveragePayout),
+      dataFile: String(machine.dataFile ?? "").trim() || null,
     }))
     .filter((machine) => machine.machineName && machine.latestDate);
   const latestDate =
@@ -1212,7 +1269,7 @@ function buildStaticStoreDetail(staticStore) {
   };
 }
 
-function buildStaticHuntScoreSourceRows(staticStore) {
+async function buildStaticHuntScoreSourceRows(staticStore) {
   const store = readStaticStoreIdentity(staticStore);
   const huntScoreMachineNameSet = new Set(
     listHuntScoreSourceMachineNames(store.storeName)
@@ -1220,6 +1277,17 @@ function buildStaticHuntScoreSourceRows(staticStore) {
       .map(canonicalMachineName),
   );
   const storeRows = readStaticStoreRecords(staticStore);
+  if (storeRows.length === 0) {
+    const targetRows = await readStaticMachineRecords(
+      staticStore,
+      listHuntScoreSourceMachineNames(store.storeName),
+    );
+    return {
+      targetRows,
+      storeRows: targetRows,
+    };
+  }
+
   return {
     targetRows: storeRows.filter((row) =>
       huntScoreMachineNameSet.has(canonicalMachineName(row.machine_name)),
@@ -1228,7 +1296,7 @@ function buildStaticHuntScoreSourceRows(staticStore) {
   };
 }
 
-function buildStaticMachineDetail(staticStore, machineName) {
+async function buildStaticMachineDetail(staticStore, machineName) {
   const store = readStaticStoreIdentity(staticStore);
   const requestedMachineName = canonicalMachineName(machineName);
   const requestedHuntScoreMachineName =
@@ -1237,8 +1305,8 @@ function buildStaticMachineDetail(staticStore, machineName) {
   let rows = [];
 
   if (huntScoreEnabled) {
-    const { targetRows, storeRows } = buildStaticHuntScoreSourceRows(staticStore);
-    attachHuntScores(targetRows, storeRows, store.storeName);
+    const targetRows = await readStaticMachineRecords(staticStore, machineName);
+    attachHuntScores(targetRows, targetRows, store.storeName);
     rows = targetRows
       .filter((row) => {
         const rowMachineName =
@@ -1251,12 +1319,7 @@ function buildStaticMachineDetail(staticStore, machineName) {
         machine_name: requestedHuntScoreMachineName,
       }));
   } else {
-    const equivalentMachineNameSet = new Set(
-      listEquivalentMachineNames(machineName).map(canonicalMachineName),
-    );
-    rows = readStaticStoreRecords(staticStore).filter((row) =>
-      equivalentMachineNameSet.has(canonicalMachineName(row.machine_name)),
-    );
+    rows = await readStaticMachineRecords(staticStore, machineName);
   }
 
   if (rows.length === 0) {
@@ -1419,7 +1482,7 @@ export const getStoreDetail = cache(async function getStoreDetail(storeId) {
 export const getMachineDetail = cache(async function getMachineDetail(storeId, machineName) {
   const staticStore = await readStaticStoreById(storeId);
   if (staticStore) {
-    return buildStaticMachineDetail(staticStore, machineName);
+    return await buildStaticMachineDetail(staticStore, machineName);
   }
 
   const { storesTable, resultsTable, machineDailyDetailsTable } = await getSupabaseConfig();
@@ -1559,7 +1622,7 @@ async function getHuntScoreSnapshotsForStore(storeId) {
     if (!isHuntScoreTargetStore(staticIdentity.storeName)) {
       return null;
     }
-    const { targetRows, storeRows } = buildStaticHuntScoreSourceRows(staticStore);
+    const { targetRows, storeRows } = await buildStaticHuntScoreSourceRows(staticStore);
     return {
       dataSource: "json",
       store: {

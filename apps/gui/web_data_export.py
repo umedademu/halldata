@@ -56,6 +56,11 @@ def build_store_id(store_name: str, store_url: str) -> str:
     return f"store-{digest}"
 
 
+def build_machine_data_file(store_id: str, machine_name: str) -> str:
+    digest = hashlib.sha1(str(machine_name or "").encode("utf-8")).hexdigest()[:12]
+    return f"stores/{store_id}/machines/machine-{digest}.json"
+
+
 def read_number(value: Any) -> float | int | None:
     if value is None:
         return None
@@ -160,10 +165,34 @@ def build_store_payload(store_source: StoreSource, records: list[dict[str, Any]]
     )
 
     machines = build_machine_summaries(sorted_records)
+    machine_records_by_file: dict[str, dict[str, Any]] = {}
+    for machine in machines:
+        machine_name = str(machine.get("machineName", "")).strip()
+        machine_records = [
+            record
+            for record in sorted_records
+            if str(record.get("machine_name", "")).strip() == machine_name
+        ]
+        data_file = build_machine_data_file(store_id, machine_name)
+        machine["dataFile"] = data_file
+        machine_records_by_file[data_file] = {
+            "version": WEB_DATA_VERSION,
+            "generatedAt": generated_at,
+            "store": {
+                "id": store_id,
+                "legacyIds": sorted(store_source.legacy_ids),
+                "storeName": store_source.store_name,
+                "storeUrl": normalize_store_url(store_source.store_url),
+            },
+            "machineName": machine_name,
+            "records": machine_records,
+        }
+
     latest_date = max((str(record.get("target_date", "")) for record in sorted_records), default=None)
     return {
         "version": WEB_DATA_VERSION,
         "generatedAt": generated_at,
+        "_machineRecordsByFile": machine_records_by_file,
         "store": {
             "id": store_id,
             "legacyIds": sorted(store_source.legacy_ids),
@@ -179,7 +208,6 @@ def build_store_payload(store_source: StoreSource, records: list[dict[str, Any]]
             "recordCount": len(sorted_records),
         },
         "machines": machines,
-        "records": sorted_records,
     }
 
 
@@ -268,6 +296,10 @@ def update_index(web_data_dir: Path, store_entries: list[dict[str, Any]]) -> Non
 def export_store_payloads(web_data_dir: Path, store_payloads: list[dict[str, Any]]) -> list[dict[str, Any]]:
     store_entries = []
     for store_payload in store_payloads:
+        machine_records_by_file = store_payload.pop("_machineRecordsByFile", {})
+        for data_file, machine_payload in machine_records_by_file.items():
+            write_json_atomic(web_data_dir / data_file, machine_payload)
+
         store = store_payload["store"]
         data_file = f"stores/{store['id']}.json"
         write_json_atomic(web_data_dir / data_file, store_payload)

@@ -23,6 +23,7 @@
 
 - Web表示では、まず `apps/web/public/halldata-static` の表示用JSONを読みます
 - 表示用JSONがある場合、店舗一覧、機種一覧、台データ、狙い度分析は `Supabase` を読まずに表示します
+- 表示用JSONは店舗概要と機種別データに分けて保存し、機種ページでは必要な機種のJSONだけを読みます
 - 表示用JSONが無い環境だけ、従来通り `Supabase` の `stores`、`machine_daily_results`、`store_machine_summaries`、`store_machine_daily_details` を読みます
 - `apps/web` が `Supabase` を読む場合は、`SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` を使います
 - 表示用JSONの保存場所を変えたい場合は、`HALLDATA_STATIC_WEB_DATA_DIR` にディレクトリを指定します
@@ -33,6 +34,7 @@
 - 機種一覧用の要約表名を変えたい場合は、`.env.local` または `Vercel` 側に `SUPABASE_MACHINE_SUMMARIES_TABLE` を入れると切り替えられます
 - 台データページ用の詳細表名を変えたい場合は、`.env.local` または `Vercel` 側に `SUPABASE_MACHINE_DAILY_DETAILS_TABLE` を入れると切り替えられます
 - 既存の `Supabase` データは、`stores_rows.csv` と `machine_daily_results_rows.csv` から `python apps/gui/web_data_export.py --source csv` で表示用JSONへ移行できます
+- ローカル保存済みの全店舗データは、`python apps/gui/web_data_export.py --source local` で全店舗分の表示用JSONへ出力できます
 
 ## 表示について
 

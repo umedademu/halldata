@@ -72,6 +72,7 @@
 - サイトセブンの対象機種判定は完全一致だけでなく、設定ファイルに置いた対象語を含むかどうかでも見ます
 - 保存先は既存と同じで、`local_data` の `json` と `Supabase` の `stores`、`machine_daily_results` を使います
 - 保存後は、Web表示用のJSONも `apps/web/public/halldata-static` に生成します
+- Web表示用JSONは店舗概要と機種別データに分けて生成し、Web側が全店舗を軽く表示できるようにします
 - Web表示用JSONは、Webアプリが通常表示で `Supabase` を読まないための軽い表示元です
 - さらに、機種一覧ページを軽く出すための要約保存先として、`Supabase` の `store_machine_summaries` も更新します
 - 台データページを軽く出すための保存先として、`Supabase` の `store_machine_daily_details` も更新します
