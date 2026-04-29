@@ -371,7 +371,11 @@ export function clearSavedHuntBacktestBookmark(storeId) {
 }
 
 export function buildHuntBacktestBookmarkRowKey(row) {
-  return [normalizeText(row?.machineName), normalizeText(row?.slotNumber), normalizeText(row?.rank)].join("::");
+  return [
+    normalizeText(row?.machineName),
+    normalizeText(row?.slotNumber),
+    normalizeText(row?.bookmarkRank ?? row?.rank),
+  ].join("::");
 }
 
 export function buildHuntBacktestBookmarkMatches(rows, bookmark) {

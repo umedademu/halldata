@@ -12,6 +12,8 @@ import { formatCompactDate } from "../../../../lib/format";
 export const dynamic = "force-dynamic";
 
 const DEFAULT_RANKING_LIMIT = 20;
+const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
+const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
 
 function readSingleSearchParam(value) {
   if (Array.isArray(value)) {
@@ -33,6 +35,100 @@ function parseRequestedLimit(value) {
     return DEFAULT_RANKING_LIMIT;
   }
   return parsedValue;
+}
+
+function normalizeMachineNameText(value) {
+  return String(value ?? "").normalize("NFKC").replace(/\s+/gu, "").trim();
+}
+
+function isAimJugglerMachine(machineName) {
+  const normalizedMachineName = normalizeMachineNameText(machineName);
+  return AIM_JUGGLER_MACHINE_NAMES.some(
+    (candidate) => normalizeMachineNameText(candidate) === normalizedMachineName,
+  );
+}
+
+function normalizeCombineAimJuggler(values) {
+  const safeValues = (Array.isArray(values) ? values : [])
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+  if (safeValues.length === 0) {
+    return true;
+  }
+  return safeValues.includes("1") || safeValues.includes("true") || safeValues.includes("on");
+}
+
+function readRankingSortNumber(value, fallbackValue = Number.MAX_SAFE_INTEGER) {
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) ? parsedValue : fallbackValue;
+}
+
+function compareRankingRows(left, right) {
+  return (
+    readRankingSortNumber(right.huntScore, 0) - readRankingSortNumber(left.huntScore, 0) ||
+    readRankingSortNumber(left.overallRank ?? left.selectedRank ?? left.rank) -
+      readRankingSortNumber(right.overallRank ?? right.selectedRank ?? right.rank) ||
+    String(left.machineName ?? "").localeCompare(String(right.machineName ?? ""), "ja") ||
+    String(left.slotNumber ?? "").localeCompare(String(right.slotNumber ?? ""), "ja", {
+      numeric: true,
+    })
+  );
+}
+
+function resolveRankingGroupName(machineName, combineAimJuggler) {
+  if (combineAimJuggler && isAimJugglerMachine(machineName)) {
+    return AIM_JUGGLER_GROUP_NAME;
+  }
+  return String(machineName ?? "").trim();
+}
+
+function buildVisibleRankingGroups(rankingGroups, selectedMachineNameSet, combineAimJuggler, displayLimit) {
+  const groupsByName = new Map();
+
+  for (const group of Array.isArray(rankingGroups) ? rankingGroups : []) {
+    const machineName = String(group.machineName ?? "").trim();
+    if (!selectedMachineNameSet.has(machineName)) {
+      continue;
+    }
+
+    const rankingGroupName = resolveRankingGroupName(machineName, combineAimJuggler);
+    if (!groupsByName.has(rankingGroupName)) {
+      groupsByName.set(rankingGroupName, {
+        machineName: rankingGroupName,
+        rows: [],
+        totalCount: 0,
+        isCombinedGroup: rankingGroupName === AIM_JUGGLER_GROUP_NAME && machineName !== rankingGroupName,
+      });
+    }
+
+    const rankingGroup = groupsByName.get(rankingGroupName);
+    rankingGroup.totalCount += group.totalCount ?? group.rows?.length ?? 0;
+    rankingGroup.rows.push(
+      ...(Array.isArray(group.rows) ? group.rows : []).map((row) => ({
+        ...row,
+        machineName: String(row.machineName ?? machineName).trim(),
+      })),
+    );
+  }
+
+  return [...groupsByName.values()]
+    .map((group) => {
+      const rankedRows = group.rows
+        .sort(compareRankingRows)
+        .slice(0, displayLimit)
+        .map((row, index) => ({
+          ...row,
+          rank: index + 1,
+          machineRank: index + 1,
+        }));
+
+      return {
+        ...group,
+        limit: Math.min(displayLimit, group.totalCount),
+        rows: rankedRows,
+      };
+    })
+    .filter((group) => group.rows.length > 0);
 }
 
 export async function generateMetadata({ params }) {
@@ -59,6 +155,9 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const requestedLimit = parseRequestedLimit(readSingleSearchParam(resolvedSearchParams?.limit));
   const requestedMachineNames = readMultiSearchParam(resolvedSearchParams?.machine);
   const machineFilterTouched = readSingleSearchParam(resolvedSearchParams?.machineTouched) === "1";
+  const requestedCombineAimJuggler = normalizeCombineAimJuggler(
+    readMultiSearchParam(resolvedSearchParams?.aimMachineGroup),
+  );
 
   let detail;
 
@@ -92,6 +191,10 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
       : "";
   const availableMachineNames = detail.rankingGroups.map((group) => group.machineName);
   const availableMachineNameSet = new Set(availableMachineNames);
+  const hasAimJugglerGroupOption = AIM_JUGGLER_MACHINE_NAMES.every((machineName) =>
+    availableMachineNameSet.has(machineName),
+  );
+  const combineAimJuggler = hasAimJugglerGroupOption ? requestedCombineAimJuggler : false;
   const requestedMachineNameSet = new Set(
     requestedMachineNames
       .map((machineName) => String(machineName ?? "").trim())
@@ -104,8 +207,11 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     name: machineName,
     checked: selectedMachineNameSet.has(machineName),
   }));
-  const visibleRankingGroups = detail.rankingGroups.filter((group) =>
-    selectedMachineNameSet.has(group.machineName),
+  const visibleRankingGroups = buildVisibleRankingGroups(
+    detail.rankingGroups,
+    selectedMachineNameSet,
+    combineAimJuggler,
+    detail.limit,
   );
   const visibleRows = visibleRankingGroups.flatMap((group) => group.rows);
 
@@ -175,6 +281,24 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               {machineOptions.length > 0 ? (
                 <div className="backtestBlock rankingMachineFilter">
                   <p className="filterControlLabel">機種名</p>
+                  {hasAimJugglerGroupOption ? (
+                    <>
+                      <input type="hidden" name="aimMachineGroup" value="0" />
+                      <label
+                        className={`metricToggleChip ${
+                          combineAimJuggler ? "metricToggleChipActive" : ""
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          name="aimMachineGroup"
+                          value="1"
+                          defaultChecked={combineAimJuggler}
+                        />
+                        <span>SアイムジャグラーEXとネオアイムジャグラーEXをまとめる</span>
+                      </label>
+                    </>
+                  ) : null}
                   <div className="metricToggleRow">
                     {machineOptions.map((machine) => (
                       <label
@@ -209,6 +333,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             storeId={detail.store.id}
             rows={visibleRows}
             rankingGroups={visibleRankingGroups}
+            overallLimit={detail.limit}
           />
         </>
       ) : (

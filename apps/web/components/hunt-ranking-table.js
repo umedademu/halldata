@@ -102,7 +102,24 @@ function buildFallbackRankingGroups(rows) {
   }));
 }
 
-export function HuntRankingTable({ storeId, rows = [], rankingGroups = [] }) {
+function readRankingSortNumber(value, fallbackValue = Number.MAX_SAFE_INTEGER) {
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) ? parsedValue : fallbackValue;
+}
+
+function compareRankingRows(left, right) {
+  return (
+    readRankingSortNumber(right.huntScore, 0) - readRankingSortNumber(left.huntScore, 0) ||
+    readRankingSortNumber(left.overallRank ?? left.selectedRank ?? left.rank) -
+      readRankingSortNumber(right.overallRank ?? right.selectedRank ?? right.rank) ||
+    String(left.machineName ?? "").localeCompare(String(right.machineName ?? ""), "ja") ||
+    String(left.slotNumber ?? "").localeCompare(String(right.slotNumber ?? ""), "ja", {
+      numeric: true,
+    })
+  );
+}
+
+export function HuntRankingTable({ storeId, rows = [], rankingGroups = [], overallLimit = 20 }) {
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
   const [bookmark, setBookmark] = useState(null);
 
@@ -130,8 +147,24 @@ export function HuntRankingTable({ storeId, rows = [], rankingGroups = [] }) {
     [rankingGroups, rows],
   );
   const displayRows = useMemo(
-    () => displayGroups.flatMap((group) => group.rows),
+    () =>
+      displayGroups
+        .flatMap((group) => group.rows)
+        .sort(compareRankingRows)
+        .map((row, index) => ({
+          ...row,
+          selectedRank: index + 1,
+        })),
     [displayGroups],
+  );
+  const overallRows = useMemo(
+    () =>
+      displayRows.slice(0, overallLimit).map((row, index) => ({
+        ...row,
+        bookmarkRank: row.rank,
+        rank: index + 1,
+      })),
+    [displayRows, overallLimit],
   );
   const bookmarkState = useMemo(
     () => buildHuntBacktestBookmarkMatches(displayRows, bookmark),
@@ -206,18 +239,86 @@ export function HuntRankingTable({ storeId, rows = [], rankingGroups = [] }) {
         </div>
       </section>
 
+      <section className="tablePanel directoryPanel">
+        <div className="tablePanelHeader">
+          <div>
+            <p className="sectionLabel">狙い度上位</p>
+            <h2 className="tablePanelTitle">
+              {`総合ランキング 上位${formatNumber(overallRows.length)}台`}
+            </h2>
+          </div>
+        </div>
+        <div className="tableScroller directoryScroller">
+          <table className="directoryTable">
+            <thead>
+              <tr>
+                <th>条件</th>
+                <th>順位</th>
+                <th>狙い度</th>
+                <th className="directoryNameHeader">機種名</th>
+                <th>台番</th>
+                {visibleColumns.map((column) => (
+                  <th key={column.key}>{column.label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {overallRows.map((row) => {
+                const rowMatchState = bookmarkState.matchByRowKey.get(
+                  buildHuntBacktestBookmarkRowKey(row),
+                );
+                const rowClassName = getSettingEstimateHighlightClass(row.nextSettingEstimate?.average);
+
+                return (
+                  <tr
+                    key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-overall-${row.rank}`}
+                    className={rowClassName}
+                  >
+                    <td className="huntBookmarkConditionCell">
+                      {bookmarkState.bookmark && rowMatchState ? (
+                        <span className="huntBookmarkConditionMark">★</span>
+                      ) : null}
+                    </td>
+                    <td>{row.rank}</td>
+                    <td>{formatNumber(row.huntScore)}</td>
+                    <th className="directoryNameCell">
+                      <Link
+                        href={`/stores/${storeId}/machines/${encodeURIComponent(row.machineName)}`}
+                        className="directoryPrimaryLink"
+                      >
+                        {row.machineName}
+                      </Link>
+                    </th>
+                    <td>{row.slotNumber}</td>
+                    {visibleColumns.map((column) => (
+                      <td key={`${row.machineName}-${row.slotNumber}-overall-${column.key}`}>
+                        {column.render(row)}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       {displayGroups.map((group) => (
         <section key={group.machineName} className="tablePanel directoryPanel">
           <div className="tablePanelHeader">
             <div>
               <p className="sectionLabel">狙い度上位</p>
               <h2 className="tablePanelTitle">
-                <Link
-                  href={`/stores/${storeId}/machines/${encodeURIComponent(group.machineName)}`}
-                  className="directoryPrimaryLink"
-                >
-                  {group.machineName}
-                </Link>
+                {group.isCombinedGroup ? (
+                  <span>{group.machineName}</span>
+                ) : (
+                  <Link
+                    href={`/stores/${storeId}/machines/${encodeURIComponent(group.machineName)}`}
+                    className="directoryPrimaryLink"
+                  >
+                    {group.machineName}
+                  </Link>
+                )}
                 {` 上位${formatNumber(group.rows.length)}台`}
               </h2>
             </div>
