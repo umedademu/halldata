@@ -40,6 +40,7 @@ const BACKTEST_SEARCH_KEYS = [
   "startDate",
   "endDate",
   "machine",
+  "machineTouched",
   "aimMachineGroup",
   "differenceMode",
   "rankMin",
@@ -203,6 +204,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     startDate: readSingleSearchParam(resolvedSearchParams?.startDate),
     endDate: readSingleSearchParam(resolvedSearchParams?.endDate),
     machineNames: readMultiSearchParam(resolvedSearchParams?.machine),
+    machineTouched: readSingleSearchParam(resolvedSearchParams?.machineTouched),
     combineAimJuggler: readMultiSearchParam(resolvedSearchParams?.aimMachineGroup),
     differenceMode: readSingleSearchParam(resolvedSearchParams?.differenceMode),
     rankMin: readSingleSearchParam(resolvedSearchParams?.rankMin),
@@ -420,6 +422,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
 
               <div className="backtestBlock">
                 <p className="filterControlLabel">機種名</p>
+                <input type="hidden" name="machineTouched" value="1" />
                 <input type="hidden" name="aimMachineGroup" value="0" />
                 {detail.backtest.hasAimJugglerGroupOption ? (
                   <label

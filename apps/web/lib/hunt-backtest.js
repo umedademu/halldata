@@ -115,6 +115,10 @@ function normalizeCombineAimJuggler(value) {
   return values.includes("1") || values.includes("true") || values.includes("on");
 }
 
+function normalizeMachineSelectionTouched(value) {
+  return value === true || value === "1" || value === "true" || value === "on";
+}
+
 function buildMachineOrder(machineOrder = listHuntScoreTargetMachineNames()) {
   const orderedMachineNames = [...new Set(machineOrder.map(canonicalMachineName))];
   return new Map(orderedMachineNames.map((machineName, index) => [machineName, index]));
@@ -144,7 +148,7 @@ function buildAvailableMachineNames(snapshots, machineOrderNames) {
   });
 }
 
-function buildSelectedMachineNames(requestedMachineNames, availableMachineNames) {
+function buildSelectedMachineNames(requestedMachineNames, availableMachineNames, fallbackToAll = true) {
   const availableMachineNameSet = new Set(availableMachineNames);
   const normalizedMachineNames = [
     ...new Set(
@@ -156,7 +160,10 @@ function buildSelectedMachineNames(requestedMachineNames, availableMachineNames)
   ]
     .filter((machineName) => availableMachineNameSet.has(machineName));
 
-  return normalizedMachineNames.length > 0 ? normalizedMachineNames : availableMachineNames;
+  if (normalizedMachineNames.length > 0) {
+    return normalizedMachineNames;
+  }
+  return fallbackToAll ? availableMachineNames : [];
 }
 
 function normalizeShowGraph(value) {
@@ -543,9 +550,11 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const hasAimJugglerGroupOption = AIM_JUGGLER_MACHINE_NAMES.every((machineName) =>
     availableMachineNames.includes(machineName),
   );
+  const machineSelectionTouched = normalizeMachineSelectionTouched(options.machineTouched);
   const selectedMachineNames = buildSelectedMachineNames(
     options.machineNames,
     availableMachineNames,
+    !machineSelectionTouched,
   );
   const selectedMachineNameSet = new Set(selectedMachineNames);
   const rankFilter = buildRankFilter(options.rankMin, options.rankMax);

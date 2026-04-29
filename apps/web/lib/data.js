@@ -1227,6 +1227,25 @@ function normalizeRankingLimit(requestedLimit) {
   return Number.isInteger(requestedLimit) && requestedLimit >= 1 ? requestedLimit : 20;
 }
 
+function buildSelectedMachineRankingRows(rows, selectedMachineNames) {
+  const selectedMachineNameSet = new Set(
+    (Array.isArray(selectedMachineNames) ? selectedMachineNames : [])
+      .map((value) => String(value ?? "").trim())
+      .filter(Boolean),
+  );
+
+  if (selectedMachineNameSet.size === 0) {
+    return [];
+  }
+
+  return (Array.isArray(rows) ? rows : [])
+    .filter((row) => selectedMachineNameSet.has(String(row.machineName ?? "").trim()))
+    .map((row, index) => ({
+      ...row,
+      rank: index + 1,
+    }));
+}
+
 function buildBacktestOptionsForStore(store, backtestOptions) {
   const hasRequestedEventFilters =
     backtestOptions?.eventTouched ||
@@ -1265,8 +1284,13 @@ export async function getHuntScoreAnalysisPageDetail(
   const rankingDates = snapshots.map((snapshot) => snapshot.baseDate);
   const selectedDate = rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null;
   const snapshot = snapshots.find((entry) => entry.baseDate === selectedDate) ?? null;
+  const backtest = buildHuntScoreBacktestDetail(snapshots, {
+    ...buildBacktestOptionsForStore(store, backtestOptions),
+    machineOrder: listHuntScoreTargetMachineNames(store.store_name),
+  });
+  const rankingRows = buildSelectedMachineRankingRows(snapshot?.rows ?? [], backtest.selectedMachineNames);
   const rankingLimit = normalizeRankingLimit(requestedLimit);
-  const totalCount = snapshot?.rows.length ?? 0;
+  const totalCount = rankingRows.length;
   const displayLimit = totalCount > 0 ? Math.min(rankingLimit, totalCount) : rankingLimit;
 
   return {
@@ -1281,13 +1305,10 @@ export async function getHuntScoreAnalysisPageDetail(
     limit: displayLimit,
     predictionDate: snapshot?.baseDate ?? null,
     nextBusinessDate: snapshot?.nextBusinessDate ?? null,
-    rows: snapshot?.rows.slice(0, displayLimit) ?? [],
+    rows: rankingRows.slice(0, displayLimit),
     totalCount,
-    hasActualResults: snapshot?.rows.some((row) => row.nextRecord) ?? false,
-    backtest: buildHuntScoreBacktestDetail(snapshots, {
-      ...buildBacktestOptionsForStore(store, backtestOptions),
-      machineOrder: listHuntScoreTargetMachineNames(store.store_name),
-    }),
+    hasActualResults: rankingRows.some((row) => row.nextRecord),
+    backtest,
   };
 }
 
