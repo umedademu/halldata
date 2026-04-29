@@ -274,6 +274,19 @@ def update_index(web_data_dir: Path, store_entries: list[dict[str, Any]]) -> Non
         if isinstance(entry, dict) and entry.get("id")
     }
     for entry in store_entries:
+        existing_entry = existing_entries.get(str(entry["id"]))
+        legacy_ids = {
+            str(legacy_id).strip()
+            for legacy_id in entry.get("legacyIds", [])
+            if str(legacy_id).strip()
+        }
+        if isinstance(existing_entry, dict):
+            legacy_ids.update(
+                str(legacy_id).strip()
+                for legacy_id in existing_entry.get("legacyIds", [])
+                if str(legacy_id).strip()
+            )
+        entry["legacyIds"] = sorted(legacy_ids)
         existing_entries[str(entry["id"])] = entry
 
     stores = sorted(
