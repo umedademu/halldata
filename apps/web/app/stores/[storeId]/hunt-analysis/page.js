@@ -251,6 +251,13 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     combineHanabi,
     detail.limit,
   );
+  const allChoiceRankingGroups = buildVisibleRankingGroups(
+    detail.rankingGroups,
+    availableMachineNameSet,
+    combineAimJuggler,
+    combineHanabi,
+    detail.limit,
+  );
   const visibleRows = visibleRankingGroups.flatMap((group) => group.rows);
 
   return (
@@ -389,6 +396,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             storeId={detail.store.id}
             rows={visibleRows}
             rankingGroups={visibleRankingGroups}
+            allRankingGroups={allChoiceRankingGroups}
             overallLimit={detail.limit}
           />
         </>
