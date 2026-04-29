@@ -79,7 +79,30 @@ const RESULT_COLUMNS = [
   },
 ];
 
-export function HuntRankingTable({ storeId, rows }) {
+function buildFallbackRankingGroups(rows) {
+  const groupsByMachineName = new Map();
+
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const machineName = String(row.machineName ?? "").trim();
+    if (!machineName) {
+      continue;
+    }
+
+    if (!groupsByMachineName.has(machineName)) {
+      groupsByMachineName.set(machineName, []);
+    }
+    groupsByMachineName.get(machineName).push(row);
+  }
+
+  return [...groupsByMachineName.entries()].map(([machineName, groupRows]) => ({
+    machineName,
+    totalCount: groupRows.length,
+    limit: groupRows.length,
+    rows: groupRows,
+  }));
+}
+
+export function HuntRankingTable({ storeId, rows = [], rankingGroups = [] }) {
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
   const [bookmark, setBookmark] = useState(null);
 
@@ -102,9 +125,17 @@ export function HuntRankingTable({ storeId, rows }) {
     () => RESULT_COLUMNS.filter((column) => visibleResultKeys.includes(column.key)),
     [visibleResultKeys],
   );
+  const displayGroups = useMemo(
+    () => (rankingGroups.length > 0 ? rankingGroups : buildFallbackRankingGroups(rows)),
+    [rankingGroups, rows],
+  );
+  const displayRows = useMemo(
+    () => displayGroups.flatMap((group) => group.rows),
+    [displayGroups],
+  );
   const bookmarkState = useMemo(
-    () => buildHuntBacktestBookmarkMatches(rows, bookmark),
-    [bookmark, rows],
+    () => buildHuntBacktestBookmarkMatches(displayRows, bookmark),
+    [bookmark, displayRows],
   );
   const bookmarkSummary = useMemo(
     () => formatHuntBacktestBookmarkSummary(bookmarkState.bookmark),
@@ -127,7 +158,7 @@ export function HuntRankingTable({ storeId, rows }) {
     });
   };
 
-  if (rows.length === 0) {
+  if (displayRows.length === 0) {
     return (
       <section className="statusPanel">
         <h2>表示できる台がありません</h2>
@@ -175,64 +206,68 @@ export function HuntRankingTable({ storeId, rows }) {
         </div>
       </section>
 
-      <section className="tablePanel directoryPanel">
-        <div className="tablePanelHeader">
-          <div>
-            <p className="sectionLabel">狙い度上位</p>
-            <h2 className="tablePanelTitle">高得点上位{formatNumber(rows.length)}台</h2>
+      {displayGroups.map((group) => (
+        <section key={group.machineName} className="tablePanel directoryPanel">
+          <div className="tablePanelHeader">
+            <div>
+              <p className="sectionLabel">狙い度上位</p>
+              <h2 className="tablePanelTitle">
+                <Link
+                  href={`/stores/${storeId}/machines/${encodeURIComponent(group.machineName)}`}
+                  className="directoryPrimaryLink"
+                >
+                  {group.machineName}
+                </Link>
+                {` 上位${formatNumber(group.rows.length)}台`}
+              </h2>
+            </div>
           </div>
-        </div>
-        <div className="tableScroller directoryScroller">
-          <table className="directoryTable">
-            <thead>
-              <tr>
-                <th>条件</th>
-                <th>順位</th>
-                <th>狙い度</th>
-                <th>機種名</th>
-                <th>台番</th>
-                {visibleColumns.map((column) => (
-                  <th key={column.key}>{column.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => {
-                const rowMatchState = bookmarkState.matchByRowKey.get(
-                  buildHuntBacktestBookmarkRowKey(row),
-                );
-                const rowClassName = getSettingEstimateHighlightClass(row.nextSettingEstimate?.average);
+          <div className="tableScroller directoryScroller">
+            <table className="directoryTable">
+              <thead>
+                <tr>
+                  <th>条件</th>
+                  <th>順位</th>
+                  <th>狙い度</th>
+                  <th>台番</th>
+                  {visibleColumns.map((column) => (
+                    <th key={column.key}>{column.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {group.rows.map((row) => {
+                  const rowMatchState = bookmarkState.matchByRowKey.get(
+                    buildHuntBacktestBookmarkRowKey(row),
+                  );
+                  const rowClassName = getSettingEstimateHighlightClass(row.nextSettingEstimate?.average);
 
-                return (
-                  <tr key={`${row.machineName}-${row.slotNumber}-${row.rank}`} className={rowClassName}>
-                    <td className="huntBookmarkConditionCell">
-                      {bookmarkState.bookmark && rowMatchState ? (
-                        <span className="huntBookmarkConditionMark">★</span>
-                      ) : null}
-                    </td>
-                    <td>{row.rank}</td>
-                    <td>{formatNumber(row.huntScore)}</td>
-                    <td>
-                      <Link
-                        href={`/stores/${storeId}/machines/${encodeURIComponent(row.machineName)}`}
-                        className="directoryPrimaryLink"
-                      >
-                        {row.machineName}
-                      </Link>
-                    </td>
-                    <td>{row.slotNumber}</td>
-                    {visibleColumns.map((column) => (
-                      <td key={`${row.machineName}-${row.slotNumber}-${column.key}`}>
-                        {column.render(row)}
+                  return (
+                    <tr
+                      key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${row.rank}`}
+                      className={rowClassName}
+                    >
+                      <td className="huntBookmarkConditionCell">
+                        {bookmarkState.bookmark && rowMatchState ? (
+                          <span className="huntBookmarkConditionMark">★</span>
+                        ) : null}
                       </td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                      <td>{row.rank}</td>
+                      <td>{formatNumber(row.huntScore)}</td>
+                      <td>{row.slotNumber}</td>
+                      {visibleColumns.map((column) => (
+                        <td key={`${row.machineName}-${row.slotNumber}-${column.key}`}>
+                          {column.render(row)}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ))}
     </>
   );
 }

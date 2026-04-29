@@ -696,7 +696,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             <div>
               <p className="sectionLabel">集計日を選ぶ</p>
               <p className="filterLead">
-                選んだ日の時点で見た次回営業日の狙い度を、高い順の一覧として確認できます。
+                選んだ日の時点で見た次回営業日の狙い度を、機種ごとの高い順で確認できます。
               </p>
             </div>
             <NativeGetForm action={`/stores/${detail.store.id}/hunt-analysis`} className="storeReserveForm">
@@ -712,7 +712,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 </select>
               </label>
               <label className="storeReserveField">
-                <span>何位まで表示</span>
+                <span>各機種何位まで表示</span>
                 <input
                   type="number"
                   name="limit"
@@ -732,7 +732,11 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             ) : null}
           </section>
 
-          <HuntRankingTable storeId={detail.store.id} rows={detail.rows} />
+          <HuntRankingTable
+            storeId={detail.store.id}
+            rows={detail.rows}
+            rankingGroups={detail.rankingGroups}
+          />
         </>
       ) : (
         <section className="statusPanel">

@@ -1183,6 +1183,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     predictionDate,
     nextBusinessDate,
     rows,
+    rankingGroups,
     totalCount,
     hasActualResults,
   } = detail;
@@ -1196,6 +1197,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     predictionDate,
     nextBusinessDate,
     rows,
+    rankingGroups,
     totalCount,
     hasActualResults,
   };
@@ -1227,23 +1229,54 @@ function normalizeRankingLimit(requestedLimit) {
   return Number.isInteger(requestedLimit) && requestedLimit >= 1 ? requestedLimit : 20;
 }
 
-function buildSelectedMachineRankingRows(rows, selectedMachineNames) {
+function buildSelectedMachineRankingGroups(rows, selectedMachineNames) {
+  const safeSelectedMachineNames = (Array.isArray(selectedMachineNames) ? selectedMachineNames : [])
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
   const selectedMachineNameSet = new Set(
-    (Array.isArray(selectedMachineNames) ? selectedMachineNames : [])
-      .map((value) => String(value ?? "").trim())
-      .filter(Boolean),
+    safeSelectedMachineNames,
   );
 
   if (selectedMachineNameSet.size === 0) {
     return [];
   }
 
-  return (Array.isArray(rows) ? rows : [])
-    .filter((row) => selectedMachineNameSet.has(String(row.machineName ?? "").trim()))
-    .map((row, index) => ({
+  const rowsByMachineName = new Map(safeSelectedMachineNames.map((machineName) => [machineName, []]));
+  const selectedRows = (Array.isArray(rows) ? rows : [])
+    .filter((row) => selectedMachineNameSet.has(String(row.machineName ?? "").trim()));
+
+  selectedRows.forEach((row, index) => {
+    const machineName = String(row.machineName ?? "").trim();
+    const machineRows = rowsByMachineName.get(machineName);
+    if (!machineRows) {
+      return;
+    }
+
+    const machineRank = machineRows.length + 1;
+    machineRows.push({
       ...row,
-      rank: index + 1,
-    }));
+      overallRank: row.rank,
+      selectedRank: index + 1,
+      machineRank,
+      rank: machineRank,
+    });
+  });
+
+  return safeSelectedMachineNames
+    .map((machineName) => ({
+      machineName,
+      totalCount: rowsByMachineName.get(machineName)?.length ?? 0,
+      rows: rowsByMachineName.get(machineName) ?? [],
+    }))
+    .filter((group) => group.totalCount > 0);
+}
+
+function limitRankingGroups(rankingGroups, displayLimit) {
+  return rankingGroups.map((group) => ({
+    ...group,
+    limit: Math.min(displayLimit, group.totalCount),
+    rows: group.rows.slice(0, displayLimit),
+  }));
 }
 
 function buildBacktestOptionsForStore(store, backtestOptions) {
@@ -1288,10 +1321,15 @@ export async function getHuntScoreAnalysisPageDetail(
     ...buildBacktestOptionsForStore(store, backtestOptions),
     machineOrder: listHuntScoreTargetMachineNames(store.store_name),
   });
-  const rankingRows = buildSelectedMachineRankingRows(snapshot?.rows ?? [], backtest.selectedMachineNames);
+  const fullRankingGroups = buildSelectedMachineRankingGroups(snapshot?.rows ?? [], backtest.selectedMachineNames);
   const rankingLimit = normalizeRankingLimit(requestedLimit);
-  const totalCount = rankingRows.length;
+  const totalCount = fullRankingGroups.reduce(
+    (maxCount, group) => Math.max(maxCount, group.totalCount),
+    0,
+  );
   const displayLimit = totalCount > 0 ? Math.min(rankingLimit, totalCount) : rankingLimit;
+  const rankingGroups = limitRankingGroups(fullRankingGroups, displayLimit);
+  const rankingRows = rankingGroups.flatMap((group) => group.rows);
 
   return {
     store: {
@@ -1305,7 +1343,8 @@ export async function getHuntScoreAnalysisPageDetail(
     limit: displayLimit,
     predictionDate: snapshot?.baseDate ?? null,
     nextBusinessDate: snapshot?.nextBusinessDate ?? null,
-    rows: rankingRows.slice(0, displayLimit),
+    rows: rankingRows,
+    rankingGroups,
     totalCount,
     hasActualResults: rankingRows.some((row) => row.nextRecord),
     backtest,

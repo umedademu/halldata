@@ -412,12 +412,15 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
     );
     const machineRank = (machineRankCounts.get(bookmarkMachineName) ?? 0) + 1;
     machineRankCounts.set(bookmarkMachineName, machineRank);
+    const rowOverallRank = readPositiveInteger(row?.overallRank) ?? readPositiveInteger(row?.rank);
+    const rowSelectedRank = readPositiveInteger(row?.selectedRank) ?? selectedRank;
+    const rowMachineRank = readPositiveInteger(row?.machineRank) ?? machineRank;
     const rankValue =
       normalizedBookmark.rankScope === "machine"
-        ? machineRank
+        ? rowMachineRank
         : normalizedBookmark.rankScope === "selected"
-          ? selectedRank
-          : readPositiveInteger(row?.rank);
+          ? rowSelectedRank
+          : rowOverallRank;
     const matched = matchesOptionalFilters(
       rankValue,
       row?.huntScore,
