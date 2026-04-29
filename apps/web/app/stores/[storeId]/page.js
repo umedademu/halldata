@@ -70,9 +70,14 @@ export default async function StoreDetailPage({ params }) {
           <DataSourceLabel source={storeDetail.dataSource} />
           <div className="heroLinks simpleHeroLinks">
             {hasHuntScoreAnalysis ? (
-              <Link href={`/stores/${store.id}/hunt-analysis`} className="externalLink">
-                狙い度分析を見る
-              </Link>
+              <>
+                <Link href={`/stores/${store.id}/hunt-analysis`} className="externalLink">
+                  狙い度ランキングを見る
+                </Link>
+                <Link href={`/stores/${store.id}/hunt-backtest`} className="externalLink">
+                  バックテストを見る
+                </Link>
+              </>
             ) : null}
             {store.storeUrl ? (
               <a href={store.storeUrl} target="_blank" rel="noreferrer" className="externalLink">

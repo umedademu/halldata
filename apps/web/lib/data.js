@@ -1579,39 +1579,46 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   requestedDate = "",
   requestedLimit = 20,
 ) {
-  const detail = await getHuntScoreAnalysisPageDetail(storeId, requestedDate, requestedLimit);
+  const snapshotDetail = await getHuntScoreSnapshotsForStore(storeId);
 
-  if (!detail) {
+  if (!snapshotDetail) {
     return null;
   }
 
-  const {
-    store,
-    rankingDates,
-    selectedDate,
-    limit,
-    predictionDate,
-    nextBusinessDate,
-    rows,
-    rankingGroups,
-    totalCount,
-    hasActualResults,
-    dataSource,
-  } = detail;
+  const { store, snapshots } = snapshotDetail;
+  const rankingDates = snapshots.map((snapshot) => snapshot.baseDate);
+  const selectedDate = rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null;
+  const snapshot = snapshots.find((entry) => entry.baseDate === selectedDate) ?? null;
+  const fullRankingGroups = buildSelectedMachineRankingGroups(
+    snapshot?.rows ?? [],
+    listHuntScoreTargetMachineNames(store.store_name),
+  );
+  const rankingLimit = normalizeRankingLimit(requestedLimit);
+  const totalCount = fullRankingGroups.reduce(
+    (maxCount, group) => Math.max(maxCount, group.totalCount),
+    0,
+  );
+  const displayLimit = totalCount > 0 ? Math.min(rankingLimit, totalCount) : rankingLimit;
+  const rankingGroups = limitRankingGroups(fullRankingGroups, displayLimit);
+  const rankingRows = rankingGroups.flatMap((group) => group.rows);
 
   return {
-    store,
+    dataSource: snapshotDetail.dataSource ?? "supabase",
+    store: {
+      id: store.id,
+      storeName: store.store_name,
+      storeUrl: store.store_url,
+    },
     rankingDates,
     selectedDate,
     requestedDate,
-    limit,
-    predictionDate,
-    nextBusinessDate,
-    rows,
+    limit: displayLimit,
+    predictionDate: snapshot?.baseDate ?? null,
+    nextBusinessDate: snapshot?.nextBusinessDate ?? null,
+    rows: rankingRows,
     rankingGroups,
     totalCount,
-    hasActualResults,
-    dataSource,
+    hasActualResults: rankingRows.some((row) => row.nextRecord),
   };
 });
 

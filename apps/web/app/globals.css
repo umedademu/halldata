@@ -298,6 +298,10 @@ a {
   gap: 8px;
 }
 
+.rankingMachineFilter {
+  flex: 1 1 100%;
+}
+
 .backtestButtonRow {
   display: flex;
   flex-wrap: wrap;
