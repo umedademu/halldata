@@ -1061,6 +1061,24 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(context.close_count, 0)
         self.assertEqual(playwright.stop_count, 0)
 
+    def test_site7_visible_browser_stays_open_when_fetch_is_cancelled(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        page = FakeRetainedPage()
+        context = FakeRetainedContext(page)
+        playwright = FakePlayableBrowser()
+        scraper._visible_browser_context = context
+        scraper._visible_browser_playwright = playwright
+        scraper._require_playwright = mock.Mock()
+        scraper._open_target_hall_page = mock.Mock(side_effect=Site7FetchCancelled("中止しました"))
+
+        with self.assertRaises(Site7FetchCancelled):
+            scraper.fetch_target_machine_history(recent_days=1, browser_visible=True)
+
+        self.assertIs(scraper._visible_browser_context, context)
+        self.assertIs(scraper._visible_browser_playwright, playwright)
+        self.assertEqual(context.close_count, 0)
+        self.assertEqual(playwright.stop_count, 0)
+
     def test_site7_detects_logged_in_page_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = find_gui_fixture("site7_logged_in.html")

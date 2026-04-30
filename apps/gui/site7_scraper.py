@@ -463,7 +463,7 @@ class Site7Scraper:
 
         playwright = None
         context = None
-        keep_browser_open = False
+        keep_browser_open = browser_visible
         machine_results: list[MachineHistoryResult] = []
         try:
             playwright, context = self._open_fetch_browser_context(browser_visible)
@@ -507,7 +507,6 @@ class Site7Scraper:
                         machine_name_override=machine_entry.machine_name,
                     )
                 )
-            keep_browser_open = browser_visible
         except PlaywrightError as exc:
             raise self._wrap_playwright_error(exc) from exc
         finally:
