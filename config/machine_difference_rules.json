@@ -2,8 +2,6 @@
   "machine_rules": [
     {
       "canonical_name": "ネオアイムジャグラーEX",
-      "resolve_by_slot": true,
-      "slot_resolution_group": "アイムジャグラーEX系",
       "machine_names": [
         "ネオアイムジャグラーEX",
         "ネオアイムジャグラーＥＸ"
@@ -21,8 +19,6 @@
     },
     {
       "canonical_name": "SアイムジャグラーＥＸ",
-      "resolve_by_slot": true,
-      "slot_resolution_group": "アイムジャグラーEX系",
       "machine_names": [
         "SアイムジャグラーＥＸ",
         "SアイムジャグラーEX"
