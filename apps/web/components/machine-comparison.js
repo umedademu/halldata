@@ -946,21 +946,9 @@ export function MachineComparison({
 
   const saveEventFilters = useCallback(
     (nextFilters) => {
-      if (!storeId) {
-        return;
-      }
-
-      fetch(`/api/stores/${encodeURIComponent(storeId)}/event-settings`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dayTails: nextFilters.dayTails,
-          zoro: nextFilters.zoro,
-          weekdays: nextFilters.weekdays,
-        }),
-      }).catch(() => {});
+      return nextFilters;
     },
-    [storeId],
+    [],
   );
 
   const clearFilters = () => {

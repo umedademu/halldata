@@ -60,13 +60,6 @@ async function readFallbackSettings() {
   cachedFileSettingsPromise = (async () => {
     const settings = {};
 
-    if (
-      process.env.SUPABASE_URL &&
-      (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY)
-    ) {
-      return settings;
-    }
-
     const [{ default: fs }, pathModule, urlModule] = await Promise.all([
       import("node:fs"),
       import("node:path"),
@@ -276,34 +269,6 @@ async function readStaticStoreById(storeId) {
 
   const payload = await readStaticWebDataPayload(String(storeEntry.dataFile));
   return payload && typeof payload === "object" ? payload : null;
-}
-
-async function getSupabaseConfig() {
-  const supabaseUrl = await readSetting("SUPABASE_URL");
-  const supabaseKey =
-    (await readSetting("SUPABASE_SERVICE_ROLE_KEY")) || (await readSetting("SUPABASE_SECRET_KEY"));
-
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error(
-      "Supabase の接続情報が見つかりません。apps/web の環境変数、またはルートの .env.local を確認してください。",
-    );
-  }
-
-  return {
-    baseUrl: supabaseUrl.replace(/\/+$/u, ""),
-    serviceKey: supabaseKey,
-    schema: await readSetting("SUPABASE_SCHEMA", "public"),
-    storesTable: await readSetting("SUPABASE_STORES_TABLE", "stores"),
-    resultsTable: await readSetting("SUPABASE_MACHINE_RESULTS_TABLE", "machine_daily_results"),
-    machineSummariesTable: await readSetting(
-      "SUPABASE_MACHINE_SUMMARIES_TABLE",
-      "store_machine_summaries",
-    ),
-    machineDailyDetailsTable: await readSetting(
-      "SUPABASE_MACHINE_DAILY_DETAILS_TABLE",
-      "store_machine_daily_details",
-    ),
-  };
 }
 
 function buildQuery(params) {
@@ -560,49 +525,7 @@ async function fetchStoreEventRows(storesTable, storeId) {
 }
 
 async function fetchAllRowsUncached(tableName, params) {
-  const { baseUrl, serviceKey, schema } = await getSupabaseConfig();
-  const requestedLimit = Number(params.limit);
-  const hasRequestedLimit = Number.isInteger(requestedLimit) && requestedLimit > 0;
-  const pageSize = hasRequestedLimit ? Math.min(requestedLimit, PAGE_SIZE) : PAGE_SIZE;
-  const headers = {
-    apikey: serviceKey,
-    Authorization: `Bearer ${serviceKey}`,
-    Accept: "application/json",
-    "Accept-Profile": schema,
-  };
-
-  const rows = [];
-  let offset = 0;
-
-  while (true) {
-    const query = buildQuery({
-      ...params,
-      limit: pageSize,
-      offset,
-    });
-
-    const response = await fetch(
-      `${baseUrl}/rest/v1/${encodeURIComponent(tableName)}?${query.toString()}`,
-      {
-        headers,
-        cache: "no-store",
-      },
-    );
-
-    if (!response.ok) {
-      throw new Error(`Supabase からの取得に失敗しました。(${response.status})`);
-    }
-
-    const chunk = await response.json();
-    rows.push(...chunk);
-
-    if (chunk.length < pageSize || (hasRequestedLimit && rows.length >= requestedLimit)) {
-      break;
-    }
-    offset += pageSize;
-  }
-
-  return hasRequestedLimit ? rows.slice(0, requestedLimit) : rows;
+  throw new Error("表示用JSONが見つかりません。GUIアプリでWeb表示用データを生成してください。");
 }
 
 async function fetchAllRows(tableName, params) {
@@ -960,28 +883,7 @@ export const getStoreList = cache(async function getStoreList() {
       });
   }
 
-  const { storesTable } = await getSupabaseConfig();
-  const stores = await fetchAllRows(storesTable, {
-    select: "id,store_name,store_url",
-    order: "store_name.asc",
-  });
-
-  return stores
-    .map((store) => ({
-      id: store.id,
-      storeName: store.store_name ?? "",
-      storeUrl: store.store_url,
-      dataSource: "supabase",
-      isPendingRegistration: !String(store.store_name ?? "").trim(),
-    }))
-    .sort((left, right) => {
-      if (left.isPendingRegistration !== right.isPendingRegistration) {
-        return left.isPendingRegistration ? 1 : -1;
-      }
-      const leftLabel = left.isPendingRegistration ? left.storeUrl : left.storeName;
-      const rightLabel = right.isPendingRegistration ? right.storeUrl : right.storeName;
-      return leftLabel.localeCompare(rightLabel, "ja");
-    });
+  return [];
 });
 
 export const getStoreIdentity = cache(async function getStoreIdentity(storeId) {
@@ -995,19 +897,7 @@ export const getStoreIdentity = cache(async function getStoreIdentity(storeId) {
     };
   }
 
-  const { storesTable } = await getSupabaseConfig();
-  const stores = await fetchStoreEventRows(storesTable, storeId);
-  const store = stores[0];
-
-  if (!store) {
-    return null;
-  }
-
-  return {
-    id: store.id,
-    storeName: store.store_name,
-    storeUrl: store.store_url,
-  };
+  return null;
 });
 
 async function readStoreMachineSummariesFromLocalData(storeName) {
@@ -1018,8 +908,7 @@ async function readStoreMachineSummariesFromLocalData(storeName) {
     import("node:url"),
   ]);
   const currentDirectory = pathModule.dirname(urlModule.fileURLToPath(import.meta.url));
-  const configuredLocalDataDirectory =
-    (await readSetting("SUPABASE_LOCAL_SAVE_DIR")) || (await readSetting("LOCAL_SAVE_DIR"));
+  const configuredLocalDataDirectory = await readSetting("LOCAL_SAVE_DIR");
   const localDataDirectory = configuredLocalDataDirectory
     ? pathModule.isAbsolute(configuredLocalDataDirectory)
       ? configuredLocalDataDirectory
@@ -1344,74 +1233,11 @@ async function buildStaticMachineDetail(staticStore, machineName) {
 
 export async function registerPendingStoreUrl(storeUrl) {
   const normalizedStoreUrl = normalizeStoreUrl(storeUrl);
-  const { baseUrl, serviceKey, schema, storesTable } = await getSupabaseConfig();
-  const headers = {
-    apikey: serviceKey,
-    Authorization: `Bearer ${serviceKey}`,
-    Accept: "application/json",
-    "Content-Type": "application/json",
-    "Accept-Profile": schema,
-    "Content-Profile": schema,
-  };
-
-  const existingQuery = buildQuery({
-    select: "id",
-    store_url: `eq.${normalizedStoreUrl}`,
-    limit: 1,
-  });
-  const existingResponse = await fetch(
-    `${baseUrl}/rest/v1/${encodeURIComponent(storesTable)}?${existingQuery.toString()}`,
-    {
-      headers,
-      cache: "no-store",
-    },
-  );
-
-  if (!existingResponse.ok) {
-    throw new Error(`登録済みURLの確認に失敗しました。(${existingResponse.status})`);
-  }
-
-  const existingStores = await existingResponse.json();
-  if (existingStores.length > 0) {
+  const stores = await getStoreList();
+  if (stores.some((store) => normalizeStoreUrl(store.storeUrl) === normalizedStoreUrl)) {
     return { status: "exists", storeUrl: normalizedStoreUrl };
   }
-
-  const insertStore = async (payload) => {
-    const response = await fetch(
-      `${baseUrl}/rest/v1/${encodeURIComponent(storesTable)}?select=id`,
-      {
-        method: "POST",
-        headers: {
-          ...headers,
-          Prefer: "return=representation",
-        },
-        body: JSON.stringify([payload]),
-        cache: "no-store",
-      },
-    );
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      throw new Error(`店舗URLの登録に失敗しました。(${response.status}) ${errorText}`.trim());
-    }
-    return response.json();
-  };
-
-  const nowText = new Date().toISOString();
-  try {
-    await insertStore({
-      store_url: normalizedStoreUrl,
-      updated_at: nowText,
-    });
-  } catch {
-    await insertStore({
-      store_name: "",
-      store_url: normalizedStoreUrl,
-      updated_at: nowText,
-    });
-  }
-
-  clearRowsCache();
-  return { status: "created", storeUrl: normalizedStoreUrl };
+  throw new Error("店舗URLの追加はGUIアプリで行ってください。");
 }
 
 export const getStoreDetail = cache(async function getStoreDetail(storeId) {
@@ -1420,63 +1246,7 @@ export const getStoreDetail = cache(async function getStoreDetail(storeId) {
     return buildStaticStoreDetail(staticStore);
   }
 
-  const { storesTable, resultsTable, machineSummariesTable } = await getSupabaseConfig();
-  const stores = await fetchAllRows(storesTable, {
-    select: "id,store_name,store_url",
-    id: `eq.${storeId}`,
-  });
-
-  const store = stores[0];
-  if (!store) {
-    return null;
-  }
-
-  let machineSummaryResult = null;
-
-  try {
-    const summaryRows = await fetchAllRows(machineSummariesTable, {
-      select:
-        "machine_name,latest_date,slot_count,average_difference,average_games,average_payout",
-      store_id: `eq.${storeId}`,
-      order: "latest_date.desc,slot_count.desc,machine_name.asc",
-    });
-    if (summaryRows.length > 0) {
-      machineSummaryResult = buildMachineSummaryResultFromSummaryRows(summaryRows);
-    }
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      (!error.message.includes("(400)") &&
-        !error.message.includes("(404)") &&
-        !error.message.includes("(500)"))
-    ) {
-      throw error;
-    }
-  }
-
-  if (!machineSummaryResult) {
-    const localMachineSummaryResult = await readStoreMachineSummariesFromLocalData(store.store_name);
-    machineSummaryResult = localMachineSummaryResult
-      ? localMachineSummaryResult
-      : buildMachineLatestSummaries(
-          (await fetchAllRows(resultsTable, {
-            select:
-              "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate,bb_count,rb_count",
-            store_id: `eq.${storeId}`,
-          })).map(withCalculatedDifferenceValue),
-        );
-  }
-
-  return {
-    dataSource: "supabase",
-    store: {
-      id: store.id,
-      storeName: store.store_name,
-      storeUrl: store.store_url,
-    },
-    summary: buildStoreSummary(store, machineSummaryResult.machines),
-    machines: machineSummaryResult.machines,
-  };
+  return null;
 });
 
 export const getMachineDetail = cache(async function getMachineDetail(storeId, machineName) {
@@ -1485,93 +1255,7 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
     return await buildStaticMachineDetail(staticStore, machineName);
   }
 
-  const { storesTable, resultsTable, machineDailyDetailsTable } = await getSupabaseConfig();
-  const stores = await fetchStoreEventRows(storesTable, storeId);
-  const store = stores[0];
-  if (!store) {
-    return null;
-  }
-
-  const requestedMachineName = canonicalMachineName(machineName);
-  const requestedHuntScoreMachineName =
-    canonicalHuntScoreTargetMachineName(requestedMachineName, store.store_name) ?? requestedMachineName;
-  const huntScoreEnabled = isHuntScoreSupported(store.store_name, requestedHuntScoreMachineName);
-  let rows;
-  let detail = null;
-
-  if (huntScoreEnabled) {
-    const { targetRows, storeRows } = await fetchHuntScoreSourceRows(
-      resultsTable,
-      machineDailyDetailsTable,
-      storeId,
-      store.store_name,
-    );
-    attachHuntScores(targetRows, storeRows, store.store_name);
-    rows = targetRows
-      .filter((row) => {
-        const rowMachineName =
-          canonicalHuntScoreTargetMachineName(canonicalMachineName(row.machine_name), store.store_name) ??
-          canonicalMachineName(row.machine_name);
-        return rowMachineName === requestedHuntScoreMachineName;
-      })
-      .map((row) => ({
-        ...row,
-        machine_name: requestedHuntScoreMachineName,
-      }));
-  } else {
-    try {
-      const dailyDetailRows = await fetchAllRows(machineDailyDetailsTable, {
-        select:
-          "machine_name,target_date,average_difference,records_by_slot",
-        store_id: `eq.${storeId}`,
-        ...buildMachineNameFilter(listEquivalentMachineNames(machineName)),
-        order: "target_date.desc,machine_name.asc",
-      });
-      if (dailyDetailRows.length > 0) {
-        detail = buildMachineDetailFromDailyRows(dailyDetailRows);
-      }
-    } catch (error) {
-      if (
-        !(error instanceof Error) ||
-        (!error.message.includes("(400)") &&
-          !error.message.includes("(404)") &&
-          !error.message.includes("(500)"))
-      ) {
-        throw error;
-      }
-    }
-
-    if (!detail) {
-      const fetchedRows = await fetchAllRows(resultsTable, {
-        select:
-          "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate,bb_count,rb_count,combined_ratio_text,bb_ratio_text,rb_ratio_text",
-        store_id: `eq.${storeId}`,
-        ...buildMachineNameFilter(listEquivalentMachineNames(machineName)),
-        order: "target_date.desc,slot_number.asc",
-      });
-      rows = fetchedRows.map(withCalculatedDifferenceValue);
-    }
-  }
-
-  if (!detail && rows.length === 0) {
-    return null;
-  }
-
-  const machineDetail = detail ?? buildMachineDetail(rows);
-
-  return {
-    dataSource: "supabase",
-    store: {
-      id: store.id,
-      storeName: store.store_name,
-      storeUrl: store.store_url,
-      eventFilters: buildEventFiltersFromStore(store),
-    },
-    machineName: requestedMachineName,
-    slotNumbers: machineDetail.slotNumbers,
-    dateRows: machineDetail.dateRows,
-    summary: machineDetail.summary,
-  };
+  return null;
 });
 
 export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankingDetail(
@@ -1603,7 +1287,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   const rankingRows = rankingGroups.flatMap((group) => group.rows);
 
   return {
-    dataSource: snapshotDetail.dataSource ?? "supabase",
+    dataSource: snapshotDetail.dataSource ?? "json",
     store: {
       id: store.id,
       storeName: store.store_name,
@@ -1641,26 +1325,7 @@ async function getHuntScoreSnapshotsForStore(storeId) {
     };
   }
 
-  const { storesTable, resultsTable, machineDailyDetailsTable } = await getSupabaseConfig();
-  const stores = await fetchStoreEventRows(storesTable, storeId);
-  const store = stores[0];
-
-  if (!store || !isHuntScoreTargetStore(store.store_name)) {
-    return null;
-  }
-
-  const { targetRows, storeRows } = await fetchHuntScoreSourceRows(
-    resultsTable,
-    machineDailyDetailsTable,
-    storeId,
-    store.store_name,
-  );
-
-  return {
-    dataSource: "supabase",
-    store,
-    snapshots: buildHuntScoreSnapshots(targetRows, storeRows, store.store_name),
-  };
+  return null;
 }
 
 function normalizeRankingLimit(requestedLimit) {
@@ -1770,7 +1435,7 @@ export async function getHuntScoreAnalysisPageDetail(
   const rankingRows = rankingGroups.flatMap((group) => group.rows);
 
   return {
-    dataSource: snapshotDetail.dataSource ?? "supabase",
+    dataSource: snapshotDetail.dataSource ?? "json",
     store: {
       id: store.id,
       storeName: store.store_name,
@@ -1794,45 +1459,6 @@ export async function updateStoreEventSettings(storeId, eventSettings) {
   const dayTails = normalizeEventDayTails(eventSettings?.dayTails);
   const zoro = Boolean(eventSettings?.zoro);
   const weekdays = normalizeEventWeekdays(eventSettings?.weekdays);
-  const { baseUrl, serviceKey, schema, storesTable } = await getSupabaseConfig();
-  const url = `${baseUrl}/rest/v1/${encodeURIComponent(storesTable)}?id=eq.${encodeURIComponent(storeId)}`;
-  const headers = {
-    apikey: serviceKey,
-    Authorization: `Bearer ${serviceKey}`,
-    Accept: "application/json",
-    "Content-Type": "application/json",
-    "Accept-Profile": schema,
-    "Content-Profile": schema,
-    Prefer: "return=minimal",
-  };
-  const updatedAt = new Date().toISOString();
-  const patchEventSettings = (payload) =>
-    fetch(url, {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify(payload),
-      cache: "no-store",
-    });
-  let response = await patchEventSettings({
-    event_day_tails: dayTails,
-    event_zoro: zoro,
-    event_weekdays: weekdays,
-    updated_at: updatedAt,
-  });
-
-  if (!response.ok && response.status === 400) {
-    response = await patchEventSettings({
-      event_day_tails: dayTails,
-      event_zoro: zoro,
-      updated_at: updatedAt,
-    });
-  }
-
-  if (!response.ok) {
-    throw new Error(`Supabase への特定日保存に失敗しました。(${response.status})`);
-  }
-
-  clearRowsCache();
   return createEventFilters(dayTails, zoro, weekdays);
 }
 

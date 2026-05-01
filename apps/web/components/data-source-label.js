@@ -1,5 +1,5 @@
 function formatDataSourceLabel(source) {
-  return source === "json" ? "JSON" : "Supabase";
+  return "JSON";
 }
 
 export function DataSourceLabel({ source }) {

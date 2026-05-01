@@ -30,6 +30,7 @@ DEFAULT_STORES_TABLE = "stores"
 DEFAULT_RESULTS_TABLE = "machine_daily_results"
 DEFAULT_MACHINE_SUMMARIES_TABLE = "store_machine_summaries"
 DEFAULT_MACHINE_DAILY_DETAILS_TABLE = "store_machine_daily_details"
+REGISTERED_STORES_FILE_NAME = "registered_stores.json"
 STORE_COLUMNS = {"機種", "機種名"}
 WINDOWS_FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]+')
 DATA_SOURCE_MINREPO = "minrepo"
@@ -54,6 +55,8 @@ class PersistenceSummary:
 
 @dataclass
 class RegisteredStoresPersistenceSummary:
+    local_saved: bool = False
+    local_store_count: int = 0
     supabase_saved: bool = False
     supabase_store_count: int = 0
     messages: list[str] = field(default_factory=list)
@@ -388,14 +391,7 @@ class HistoryPersistenceService:
         except Exception as exc:  # noqa: BLE001
             summary.messages.append(f"ローカル保存に失敗しました。\n{exc}")
 
-        try:
-            supabase_count = self._save_to_supabase(snapshot)
-            summary.supabase_saved = True
-            summary.supabase_record_count = supabase_count
-        except Exception as exc:  # noqa: BLE001
-            summary.messages.append(f"Supabase 保存に失敗しました。\n{exc}")
-
-        if full_day and local_path is not None and summary.supabase_saved:
+        if full_day and local_path is not None:
             try:
                 self._mark_full_day_saved(snapshot, local_path)
             except Exception as exc:  # noqa: BLE001
@@ -424,22 +420,6 @@ class HistoryPersistenceService:
             summary.messages.append(f"ローカルの全機種取得済み確認に失敗しました。\n{exc}")
             return summary
 
-        if not summary.saved_dates or not self._supabase_is_configured():
-            return summary
-
-        try:
-            summary.saved_dates.intersection_update(
-                self._find_saved_full_day_dates_from_supabase(
-                    store_url=store_url,
-                    start_date=start_date,
-                    end_date=end_date,
-                    saved_date_entries=saved_date_entries,
-                )
-            )
-        except Exception as exc:  # noqa: BLE001
-            summary.messages.append(f"Supabase の全機種取得済み確認に失敗しました。\n{exc}")
-            summary.saved_dates.clear()
-
         return summary
 
     def find_saved_machine_targets(
@@ -456,46 +436,8 @@ class HistoryPersistenceService:
             return summary
 
         try:
-            summary.saved_targets.update(
-                self._find_saved_machine_targets_local(
-                    store_name=store_name,
-                    store_url=store_url,
-                    start_date=start_date,
-                    end_date=end_date,
-                    target_machine_names=target_machine_names,
-                )
-            )
-        except Exception as exc:  # noqa: BLE001
-            summary.messages.append(f"ローカルの取得済み確認に失敗しました。\n{exc}")
-
-        try:
-            summary.saved_targets.update(
-                self._find_saved_machine_targets_from_supabase(
-                    store_url=store_url,
-                    start_date=start_date,
-                    end_date=end_date,
-                    target_machine_names=target_machine_names,
-                )
-            )
-        except Exception as exc:  # noqa: BLE001
-            summary.messages.append(f"Supabase の取得済み確認に失敗しました。\n{exc}")
-
-        return summary
-
-    def find_saved_machine_targets_supabase(
-        self,
-        store_url: str,
-        start_date: str,
-        end_date: str,
-        machine_names: list[str],
-    ) -> SavedMachineTargetsSummary:
-        target_machine_names = normalize_saved_target_machine_name_keys(machine_names)
-        summary = SavedMachineTargetsSummary()
-        if not target_machine_names:
-            return summary
-
-        try:
-            protected_targets, replaceable_targets = self._find_saved_machine_target_sources_from_supabase(
+            protected_targets, replaceable_targets = self._find_saved_machine_target_sources_local(
+                store_name=store_name,
                 store_url=store_url,
                 start_date=start_date,
                 end_date=end_date,
@@ -504,12 +446,13 @@ class HistoryPersistenceService:
             summary.saved_targets.update(protected_targets)
             summary.replaceable_targets.update(replaceable_targets)
         except Exception as exc:  # noqa: BLE001
-            summary.messages.append(f"Supabase の取得済み確認に失敗しました。\n{exc}")
+            summary.messages.append(f"ローカルの取得済み確認に失敗しました。\n{exc}")
 
         return summary
 
-    def find_saved_machine_slots_supabase(
+    def find_saved_machine_slots(
         self,
+        store_name: str,
         store_url: str,
         start_date: str,
         end_date: str,
@@ -525,7 +468,8 @@ class HistoryPersistenceService:
             return summary
 
         try:
-            protected_slots, replaceable_slots = self._find_saved_machine_slot_sources_from_supabase(
+            protected_slots, replaceable_slots = self._find_saved_machine_slot_sources_local(
+                store_name=store_name,
                 store_url=store_url,
                 start_date=start_date,
                 end_date=end_date,
@@ -534,9 +478,39 @@ class HistoryPersistenceService:
             summary.protected_slots.update(protected_slots)
             summary.replaceable_slots.update(replaceable_slots)
         except Exception as exc:  # noqa: BLE001
-            summary.messages.append(f"Supabase の取得済み確認に失敗しました。\n{exc}")
+            summary.messages.append(f"ローカルの取得済み確認に失敗しました。\n{exc}")
 
         return summary
+
+    def find_saved_machine_targets_supabase(
+        self,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+        machine_names: list[str],
+    ) -> SavedMachineTargetsSummary:
+        return self.find_saved_machine_targets(
+            store_name="",
+            store_url=store_url,
+            start_date=start_date,
+            end_date=end_date,
+            machine_names=machine_names,
+        )
+
+    def find_saved_machine_slots_supabase(
+        self,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+        slot_numbers: list[str],
+    ) -> SavedMachineSlotsSummary:
+        return self.find_saved_machine_slots(
+            store_name="",
+            store_url=store_url,
+            start_date=start_date,
+            end_date=end_date,
+            slot_numbers=slot_numbers,
+        )
 
     def delete_machine_targets_from_supabase(
         self,
@@ -544,45 +518,7 @@ class HistoryPersistenceService:
         target_pairs: set[tuple[str, str]],
         data_source: str | None = None,
     ) -> int:
-        normalized_target_pairs = {
-            (str(target_date).strip(), str(machine_name).strip())
-            for target_date, machine_name in target_pairs
-            if str(target_date).strip() and str(machine_name).strip()
-        }
-        if not normalized_target_pairs:
-            return 0
-
-        try:
-            supabase_url, _, schema, stores_table, results_table = self._supabase_config()
-        except RuntimeError:
-            return 0
-
-        session = self._create_supabase_session(schema)
-        store_id = self._find_store_id(session, supabase_url, stores_table, normalize_store_url(store_url))
-        if not store_id:
-            return 0
-
-        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(results_table, safe='')}"
-        deleted_target_count = 0
-        normalized_data_source = str(data_source or "").strip().casefold()
-        for target_date, machine_name in sorted(normalized_target_pairs):
-            params = {
-                "store_id": f"eq.{store_id}",
-                "target_date": f"eq.{target_date}",
-                "machine_name": f"eq.{machine_name}",
-            }
-            if normalized_data_source:
-                params["data_source"] = f"eq.{normalized_data_source}"
-            response = session.delete(
-                endpoint,
-                params=params,
-                headers={"Prefer": "return=minimal"},
-                timeout=30,
-            )
-            response.raise_for_status()
-            deleted_target_count += 1
-
-        return deleted_target_count
+        return 0
 
     def delete_machine_slots_from_supabase(
         self,
@@ -590,59 +526,26 @@ class HistoryPersistenceService:
         target_slots: set[tuple[str, str]],
         data_source: str | None = None,
     ) -> int:
-        normalized_target_slots = {
-            (str(target_date).strip(), str(slot_number).strip())
-            for target_date, slot_number in target_slots
-            if str(target_date).strip() and str(slot_number).strip()
-        }
-        if not normalized_target_slots:
-            return 0
-
-        try:
-            supabase_url, _, schema, stores_table, results_table = self._supabase_config()
-        except RuntimeError:
-            return 0
-
-        session = self._create_supabase_session(schema)
-        store_id = self._find_store_id(session, supabase_url, stores_table, normalize_store_url(store_url))
-        if not store_id:
-            return 0
-
-        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(results_table, safe='')}"
-        deleted_slot_count = 0
-        normalized_data_source = str(data_source or "").strip().casefold()
-        for target_date, slot_number in sorted(normalized_target_slots):
-            params = {
-                "store_id": f"eq.{store_id}",
-                "target_date": f"eq.{target_date}",
-                "slot_number": f"eq.{slot_number}",
-            }
-            if normalized_data_source:
-                params["data_source"] = f"eq.{normalized_data_source}"
-            response = session.delete(
-                endpoint,
-                params=params,
-                headers={"Prefer": "return=minimal"},
-                timeout=30,
-            )
-            response.raise_for_status()
-            deleted_slot_count += 1
-
-        return deleted_slot_count
+        return 0
 
     def load_registered_stores(self) -> list[dict[str, Any]]:
-        return self._load_registered_stores_from_supabase()
+        if self._registered_stores_path().exists():
+            return self._load_registered_stores_local()
+        local_stores = self._load_registered_stores_local()
+        if local_stores:
+            return local_stores
+        return self._load_registered_stores_from_static_web_data()
 
     def save_registered_stores(self, stores: list[dict[str, Any]]) -> RegisteredStoresPersistenceSummary:
         normalized_stores = self._normalize_registered_stores(stores)
         summary = RegisteredStoresPersistenceSummary()
 
         try:
-            saved_count = self._save_registered_stores_to_supabase(normalized_stores)
-            summary.supabase_saved = True
-            summary.supabase_store_count = saved_count
+            saved_count = self._save_registered_stores_local(normalized_stores)
+            summary.local_saved = True
+            summary.local_store_count = saved_count
         except Exception as exc:  # noqa: BLE001
-            summary.messages.append(f"登録店舗の Supabase 保存に失敗しました。\n{exc}")
+            summary.messages.append(f"登録店舗のローカル保存に失敗しました。\n{exc}")
 
         return summary
 
@@ -657,7 +560,7 @@ class HistoryPersistenceService:
         if not normalized_store_urls:
             return 0
 
-        return self._delete_registered_stores_from_supabase(normalized_store_urls)
+        return self._delete_registered_stores_local(normalized_store_urls)
 
     def refresh_web_data_for_store(self, store_name: str) -> dict[str, Any] | None:
         return export_store_from_local_data(
@@ -700,19 +603,28 @@ class HistoryPersistenceService:
         if not store_name_key:
             return None
 
-        try:
-            supabase_url, _, schema, stores_table, results_table = self._supabase_config()
-        except RuntimeError:
-            return None
-
-        session = self._create_supabase_session(schema)
-        candidates = self._find_store_candidates_by_name_key(
-            session=session,
-            supabase_url=supabase_url,
-            stores_table=stores_table,
-            results_table=results_table,
-            store_name_key=store_name_key,
-        )
+        candidates: list[dict[str, Any]] = []
+        for store in self.load_registered_stores():
+            candidate_name = str(store.get("store_name", "")).strip()
+            if normalize_store_name_key(candidate_name) != store_name_key:
+                continue
+            candidate_url = normalize_store_url(str(store.get("store_url", "")).strip())
+            if not candidate_url:
+                continue
+            candidates.append(
+                {
+                    "store_name": candidate_name,
+                    "store_url": candidate_url,
+                    "record_count": len(
+                        self._iter_local_snapshot_records(
+                            store_name=candidate_name,
+                            store_url=candidate_url,
+                            start_date="0000-00-00",
+                            end_date="9999-99-99",
+                        )
+                    ),
+                }
+            )
         return choose_preferred_store(candidates)
 
     def _save_local_snapshot(self, snapshot: dict[str, Any]) -> Path:
@@ -826,6 +738,8 @@ class HistoryPersistenceService:
         end_date: str,
         saved_date_entries: dict[str, dict[str, Any]],
     ) -> set[str]:
+        return set()
+
         if not saved_date_entries:
             return set()
 
@@ -936,6 +850,198 @@ class HistoryPersistenceService:
         payload.setdefault("full_day_dates", {})
         return payload
 
+    def _registered_stores_path(self) -> Path:
+        return self._local_save_dir() / REGISTERED_STORES_FILE_NAME
+
+    def _save_registered_stores_local(self, stores: list[dict[str, Any]]) -> int:
+        normalized_stores = self._normalize_registered_stores(stores)
+        path = self._registered_stores_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "saved_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+                    "stores": normalized_stores,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        return len(normalized_stores)
+
+    def _load_registered_stores_local(self) -> list[dict[str, Any]]:
+        path = self._registered_stores_path()
+        if not path.exists():
+            return []
+
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            return []
+        stores = payload.get("stores", [])
+        return self._normalize_registered_stores(stores if isinstance(stores, list) else [])
+
+    def _load_registered_stores_from_static_web_data(self) -> list[dict[str, Any]]:
+        index_path = self.root_dir / "apps" / "web" / "public" / "halldata-static" / "index.json"
+        if not index_path.exists():
+            return []
+
+        try:
+            payload = json.loads(index_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return []
+        if not isinstance(payload, dict):
+            return []
+
+        stores = []
+        for store in payload.get("stores", []):
+            if not isinstance(store, dict):
+                continue
+            store_name = str(store.get("storeName", "")).strip()
+            store_url = str(store.get("storeUrl", "")).strip()
+            if not store_url:
+                continue
+            stores.append(
+                {
+                    "store_name": store_name,
+                    "store_url": store_url,
+                }
+            )
+        return self._normalize_registered_stores(stores)
+
+    def _delete_registered_stores_local(self, store_urls: list[str]) -> int:
+        target_urls = {normalize_store_url(store_url) for store_url in store_urls if normalize_store_url(store_url)}
+        if not target_urls:
+            return 0
+
+        stores = self._load_registered_stores_local()
+        if not stores:
+            stores = self._load_registered_stores_from_static_web_data()
+
+        remaining_stores = [
+            store
+            for store in stores
+            if normalize_store_url(str(store.get("store_url", ""))) not in target_urls
+        ]
+        deleted_count = len(stores) - len(remaining_stores)
+        self._save_registered_stores_local(remaining_stores)
+        return deleted_count
+
+    def _iter_local_snapshot_records(
+        self,
+        *,
+        store_name: str = "",
+        store_url: str = "",
+        start_date: str,
+        end_date: str,
+    ) -> list[dict[str, Any]]:
+        local_dir = self._local_save_dir()
+        if not local_dir.exists():
+            return []
+
+        candidate_dirs: list[Path] = []
+        if store_name.strip():
+            candidate_dir = local_dir / _sanitize_file_name(store_name)
+            if candidate_dir.exists():
+                candidate_dirs.append(candidate_dir)
+        if not candidate_dirs:
+            candidate_dirs = sorted([path for path in local_dir.iterdir() if path.is_dir()])
+
+        normalized_store_url = normalize_store_url(store_url)
+        records: list[dict[str, Any]] = []
+        for store_dir in candidate_dirs:
+            for file_path in sorted(store_dir.glob("*.json")):
+                if file_path.name in {"_full_day_index.json", REGISTERED_STORES_FILE_NAME}:
+                    continue
+                try:
+                    payload = json.loads(file_path.read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, OSError):
+                    continue
+                if not isinstance(payload, dict):
+                    continue
+
+                snapshot_store = payload.get("store", {})
+                snapshot_store_url = ""
+                if isinstance(snapshot_store, dict):
+                    snapshot_store_url = normalize_store_url(str(snapshot_store.get("store_url", "")))
+                if normalized_store_url and snapshot_store_url and snapshot_store_url != normalized_store_url:
+                    continue
+
+                for row in payload.get("records", []):
+                    if not isinstance(row, dict):
+                        continue
+                    target_date = str(row.get("target_date", "")).strip()
+                    if not target_date or target_date < start_date or target_date > end_date:
+                        continue
+                    records.append(row)
+
+        return records
+
+    def _find_saved_machine_target_sources_local(
+        self,
+        store_name: str,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+        target_machine_names: set[str],
+    ) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
+        protected_targets: set[tuple[str, str]] = set()
+        replaceable_targets: set[tuple[str, str]] = set()
+        for row in self._iter_local_snapshot_records(
+            store_name=store_name,
+            store_url=store_url,
+            start_date=start_date,
+            end_date=end_date,
+        ):
+            target_date = str(row.get("target_date", "")).strip()
+            machine_name = normalize_machine_name_key(str(row.get("machine_name", "")).strip())
+            if not target_date or machine_name not in target_machine_names:
+                continue
+
+            target_key = (target_date, machine_name)
+            if _infer_saved_result_data_source(row) == DATA_SOURCE_SITE7:
+                if target_key not in protected_targets:
+                    replaceable_targets.add(target_key)
+                continue
+
+            protected_targets.add(target_key)
+            replaceable_targets.discard(target_key)
+
+        return protected_targets, replaceable_targets
+
+    def _find_saved_machine_slot_sources_local(
+        self,
+        store_name: str,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+        target_slot_numbers: set[str],
+    ) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
+        protected_slots: set[tuple[str, str]] = set()
+        replaceable_slots: set[tuple[str, str]] = set()
+        for row in self._iter_local_snapshot_records(
+            store_name=store_name,
+            store_url=store_url,
+            start_date=start_date,
+            end_date=end_date,
+        ):
+            target_date = str(row.get("target_date", "")).strip()
+            slot_number = str(row.get("slot_number", "")).strip()
+            if not target_date or slot_number not in target_slot_numbers:
+                continue
+
+            target_key = (target_date, slot_number)
+            if _infer_saved_result_data_source(row) == DATA_SOURCE_SITE7:
+                if target_key not in protected_slots:
+                    replaceable_slots.add(target_key)
+                continue
+
+            protected_slots.add(target_key)
+            replaceable_slots.discard(target_key)
+
+        return protected_slots, replaceable_slots
+
     def _find_saved_machine_targets_local(
         self,
         store_name: str,
@@ -988,6 +1094,8 @@ class HistoryPersistenceService:
         return saved_targets
 
     def _save_to_supabase(self, snapshot: dict[str, Any]) -> int:
+        raise RuntimeError("Supabase保存は無効です。")
+
         supabase_url, _, schema, stores_table, results_table = self._supabase_config()
         machine_summaries_table = self._machine_summaries_table()
         machine_daily_details_table = self._machine_daily_details_table()
@@ -1210,6 +1318,8 @@ class HistoryPersistenceService:
         return rows
 
     def _save_registered_stores_to_supabase(self, stores: list[dict[str, Any]]) -> int:
+        raise RuntimeError("Supabase保存は無効です。")
+
         if not stores:
             return 0
 
@@ -1260,6 +1370,8 @@ class HistoryPersistenceService:
         )
 
     def _load_registered_stores_from_supabase(self) -> list[dict[str, Any]]:
+        return []
+
         supabase_url, _, schema, stores_table, _ = self._supabase_config()
         session = self._create_supabase_session(schema)
         endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(stores_table, safe='')}"
@@ -1359,6 +1471,8 @@ class HistoryPersistenceService:
         return rows
 
     def _delete_registered_stores_from_supabase(self, store_urls: list[str]) -> int:
+        return 0
+
         supabase_url, _, schema, stores_table, results_table = self._supabase_config()
         session = self._create_supabase_session(schema)
         stores_endpoint = f"{supabase_url.rstrip('/')}/rest/v1/{quote(stores_table, safe='')}"
@@ -1400,6 +1514,8 @@ class HistoryPersistenceService:
         end_date: str,
         target_machine_names: set[str],
     ) -> set[tuple[str, str]]:
+        return set()
+
         if not target_machine_names:
             return set()
 
@@ -1459,6 +1575,8 @@ class HistoryPersistenceService:
         end_date: str,
         target_machine_names: set[str],
     ) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
+        return set(), set()
+
         if not target_machine_names:
             return set(), set()
 
@@ -1536,6 +1654,8 @@ class HistoryPersistenceService:
         end_date: str,
         target_slot_numbers: set[str],
     ) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
+        return set(), set()
+
         if not target_slot_numbers:
             return set(), set()
 
@@ -1799,6 +1919,8 @@ class HistoryPersistenceService:
         return normalized_stores
 
     def _supabase_config(self) -> tuple[str, str, str, str, str]:
+        raise RuntimeError("Supabase接続は無効です。")
+
         settings = self._load_settings()
         supabase_url = settings.get("SUPABASE_URL", "").strip()
         supabase_key = (
@@ -1814,6 +1936,8 @@ class HistoryPersistenceService:
         return supabase_url, supabase_key, schema, stores_table, results_table
 
     def _supabase_is_configured(self) -> bool:
+        return False
+
         settings = self._load_settings()
         supabase_url = settings.get("SUPABASE_URL", "").strip()
         supabase_key = (
@@ -1837,6 +1961,8 @@ class HistoryPersistenceService:
         )
 
     def _create_supabase_session(self, schema: str) -> requests.Session:
+        raise RuntimeError("Supabase接続は無効です。")
+
         _, supabase_key, _, _, _ = self._supabase_config()
         session = requests.Session()
         session.headers.update(

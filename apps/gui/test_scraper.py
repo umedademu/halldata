@@ -1545,159 +1545,12 @@ class MinRepoScraperTests(unittest.TestCase):
             },
         )
 
-    def test_save_to_supabase_refreshes_machine_summary_table(self) -> None:
+    def test_save_to_supabase_is_disabled(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            captured_result_posts: list[list[dict[str, object]]] = []
-            captured_summary_posts: list[list[dict[str, object]]] = []
-            captured_daily_detail_posts: list[list[dict[str, object]]] = []
-            captured_summary_deletes: list[dict[str, str]] = []
-            captured_daily_detail_deletes: list[dict[str, str]] = []
 
-            class FakeSession:
-                def post(
-                    self,
-                    endpoint: str,
-                    headers: dict[str, str],
-                    json: list[dict[str, object]],
-                    timeout: int = 30,
-                ) -> FakeJsonResponse:
-                    if "store_machine_daily_details" in endpoint:
-                        captured_daily_detail_posts.append(json)
-                    elif "store_machine_summaries" in endpoint:
-                        captured_summary_posts.append(json)
-                    else:
-                        captured_result_posts.append(json)
-                    return FakeJsonResponse([])
-
-                def delete(
-                    self,
-                    endpoint: str,
-                    params: dict[str, str],
-                    headers: dict[str, str],
-                    timeout: int = 30,
-                ) -> FakeJsonResponse:
-                    if "store_machine_daily_details" in endpoint:
-                        captured_daily_detail_deletes.append(params)
-                    else:
-                        captured_summary_deletes.append(params)
-                    return FakeJsonResponse([])
-
-                def get(self, endpoint: str, params: dict[str, str], timeout: int = 30) -> FakeJsonResponse:
-                    if params.get("offset") != "0":
-                        return FakeJsonResponse([])
-                    return FakeJsonResponse(
-                        [
-                            {
-                                "machine_name": "ゴーゴージャグラー３",
-                                "target_date": "2026-04-24",
-                                "slot_number": "101",
-                                "difference_value": 100,
-                                "games_count": 2000,
-                                "payout_rate": 101.0,
-                            },
-                            {
-                                "machine_name": "ゴーゴージャグラー３",
-                                "target_date": "2026-04-25",
-                                "slot_number": "101",
-                                "difference_value": 300,
-                                "games_count": 4000,
-                                "payout_rate": 104.0,
-                            },
-                            {
-                                "machine_name": "ゴーゴージャグラー３",
-                                "target_date": "2026-04-25",
-                                "slot_number": "102",
-                                "difference_value": 500,
-                                "games_count": 6000,
-                                "payout_rate": 106.0,
-                            },
-                        ]
-                    )
-
-            service._supabase_config = lambda: (  # type: ignore[method-assign]
-                "https://example.supabase.co",
-                "service-key",
-                "public",
-                "stores",
-                "machine_daily_results",
-            )
-            service._machine_summaries_table = lambda: "store_machine_summaries"  # type: ignore[method-assign]
-            service._machine_daily_details_table = lambda: "store_machine_daily_details"  # type: ignore[method-assign]
-            service._create_supabase_session = lambda schema: FakeSession()  # type: ignore[method-assign]
-            service._upsert_store = lambda session, supabase_url, stores_table, payload: "store-1"  # type: ignore[method-assign]
-
-            saved_count = service._save_to_supabase(  # type: ignore[attr-defined]
-                {
-                    "store": {
-                        "store_name": "Aパーク春日店",
-                        "store_url": "https://example.com/kasuga/",
-                    },
-                    "records": [
-                        {
-                            "target_date": "2026-04-25",
-                            "slot_number": "101",
-                            "machine_name": "ゴーゴージャグラー３",
-                            "difference_value": 300,
-                            "games_count": 4000,
-                            "payout_rate": 104.0,
-                            "data_source": DATA_SOURCE_MINREPO,
-                        },
-                        {
-                            "target_date": "2026-04-25",
-                            "slot_number": "102",
-                            "machine_name": "ゴーゴージャグラー３",
-                            "difference_value": 500,
-                            "games_count": 6000,
-                            "payout_rate": 106.0,
-                            "data_source": DATA_SOURCE_MINREPO,
-                        },
-                    ],
-                }
-            )
-
-            self.assertEqual(saved_count, 2)
-            self.assertEqual(len(captured_result_posts), 1)
-            self.assertEqual(captured_summary_deletes, [{"store_id": "eq.store-1"}])
-            self.assertEqual(captured_daily_detail_deletes, [{"store_id": "eq.store-1"}])
-            self.assertEqual(len(captured_summary_posts), 1)
-            self.assertEqual(len(captured_daily_detail_posts), 1)
-            self.assertEqual(captured_summary_posts[0][0]["store_id"], "store-1")
-            self.assertEqual(captured_summary_posts[0][0]["machine_name"], "ゴーゴージャグラー３")
-            self.assertEqual(captured_summary_posts[0][0]["latest_date"], "2026-04-25")
-            self.assertEqual(captured_summary_posts[0][0]["slot_count"], 2)
-            self.assertEqual(captured_summary_posts[0][0]["average_difference"], 400.0)
-            self.assertEqual(captured_summary_posts[0][0]["average_games"], 5000.0)
-            self.assertEqual(captured_summary_posts[0][0]["average_payout"], 105.0)
-            self.assertEqual(captured_daily_detail_posts[0][0]["store_id"], "store-1")
-            self.assertEqual(captured_daily_detail_posts[0][0]["machine_name"], "ゴーゴージャグラー３")
-            self.assertEqual(captured_daily_detail_posts[0][0]["target_date"], "2026-04-25")
-            self.assertEqual(captured_daily_detail_posts[0][0]["slot_count"], 2)
-            self.assertEqual(
-                captured_daily_detail_posts[0][0]["records_by_slot"],
-                {
-                    "101": {
-                        "difference_value": 300,
-                        "games_count": 4000,
-                        "payout_rate": 104.0,
-                        "bb_count": None,
-                        "rb_count": None,
-                        "combined_ratio_text": None,
-                        "bb_ratio_text": None,
-                        "rb_ratio_text": None,
-                    },
-                    "102": {
-                        "difference_value": 500,
-                        "games_count": 6000,
-                        "payout_rate": 106.0,
-                        "bb_count": None,
-                        "rb_count": None,
-                        "combined_ratio_text": None,
-                        "bb_ratio_text": None,
-                        "rb_ratio_text": None,
-                    },
-                },
-            )
+            with self.assertRaisesRegex(RuntimeError, "無効"):
+                service._save_to_supabase({"store": {}, "records": []})  # type: ignore[attr-defined]
 
     def test_save_history_result_writes_local_file(self) -> None:
         scraper = FixtureScraper()
@@ -1709,13 +1562,12 @@ class MinRepoScraperTests(unittest.TestCase):
 
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            service._save_to_supabase = lambda snapshot: len(snapshot["records"])  # type: ignore[method-assign]
 
             summary = service.save_history_result(history_result)
 
             self.assertFalse(summary.has_errors)
-            self.assertTrue(summary.supabase_saved)
-            self.assertEqual(summary.supabase_record_count, 80)
+            self.assertFalse(summary.supabase_saved)
+            self.assertEqual(summary.local_record_count, 80)
             self.assertIsNotNone(summary.local_file_path)
             self.assertTrue(Path(summary.local_file_path).exists())
 
@@ -1732,7 +1584,6 @@ class MinRepoScraperTests(unittest.TestCase):
 
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            service._save_to_supabase = lambda snapshot: len(snapshot["records"])  # type: ignore[method-assign]
 
             summary = service.save_history_result(history_result, full_day=True)
             saved_dates_summary = service.find_saved_full_day_dates(
@@ -1745,7 +1596,7 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertFalse(summary.has_errors)
             self.assertEqual(saved_dates_summary.saved_dates, {"2026-04-07"})
 
-    def test_save_history_result_does_not_mark_full_day_index_when_supabase_save_fails(self) -> None:
+    def test_save_history_result_does_not_mark_full_day_index_when_local_save_fails(self) -> None:
         scraper = FixtureScraper()
         context = scraper.prepare_machine_history_context(
             store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
@@ -1756,12 +1607,12 @@ class MinRepoScraperTests(unittest.TestCase):
             date_page=context.date_pages[0],
         )
 
-        def fail_to_save(snapshot: dict[str, object]) -> int:
+        def fail_to_save(snapshot: dict[str, object]) -> Path:
             raise RuntimeError("保存失敗")
 
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            service._save_to_supabase = fail_to_save  # type: ignore[method-assign]
+            service._save_local_snapshot = fail_to_save  # type: ignore[method-assign]
 
             summary = service.save_history_result(history_result, full_day=True)
             saved_dates_summary = service.find_saved_full_day_dates(
@@ -1774,7 +1625,7 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertTrue(summary.has_errors)
             self.assertEqual(saved_dates_summary.saved_dates, set())
 
-    def test_find_saved_full_day_dates_skips_local_index_when_daily_details_are_incomplete(self) -> None:
+    def test_find_saved_full_day_dates_uses_local_index_only(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
             index_path = service._full_day_index_path("テスト店")
@@ -1808,30 +1659,6 @@ class MinRepoScraperTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            class FakeSession:
-                def get(self, endpoint: str, params: dict[str, object], timeout: int = 30) -> FakeJsonResponse:
-                    if params.get("offset") != "0":
-                        return FakeJsonResponse([])
-                    return FakeJsonResponse(
-                        [
-                            {"target_date": "2026-04-26", "machine_name": "機種A"},
-                            {"target_date": "2026-04-26", "machine_name": "機種B"},
-                            {"target_date": "2026-04-27", "machine_name": "機種A"},
-                        ]
-                    )
-
-            service._supabase_is_configured = lambda: True  # type: ignore[method-assign]
-            service._supabase_config = lambda: (  # type: ignore[method-assign]
-                "https://example.supabase.co",
-                "service-key",
-                "public",
-                "stores",
-                "machine_daily_results",
-            )
-            service._machine_daily_details_table = lambda: "store_machine_daily_details"  # type: ignore[method-assign]
-            service._create_supabase_session = lambda schema: FakeSession()  # type: ignore[method-assign]
-            service._find_store_id = lambda session, supabase_url, stores_table, store_url: "store-1"  # type: ignore[method-assign]
-
             saved_dates_summary = service.find_saved_full_day_dates(
                 store_name="テスト店",
                 store_url="https://example.com/store/",
@@ -1840,21 +1667,11 @@ class MinRepoScraperTests(unittest.TestCase):
             )
 
             self.assertFalse(saved_dates_summary.has_errors)
-            self.assertEqual(saved_dates_summary.saved_dates, {"2026-04-26"})
+            self.assertEqual(saved_dates_summary.saved_dates, {"2026-04-26", "2026-04-27"})
 
     def test_save_and_load_registered_stores(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            stored_stores: list[dict[str, object]] = []
-
-            def fake_save_registered_stores_to_supabase(stores: list[dict[str, object]]) -> int:
-                stored_stores[:] = list(stores)
-                return len(stores)
-
-            service._save_registered_stores_to_supabase = fake_save_registered_stores_to_supabase  # type: ignore[method-assign]
-            service._load_registered_stores_from_supabase = (  # type: ignore[method-assign]
-                lambda: service._normalize_registered_stores(stored_stores)
-            )
 
             summary = service.save_registered_stores(
                 [
@@ -1872,9 +1689,9 @@ class MinRepoScraperTests(unittest.TestCase):
             loaded_stores = service.load_registered_stores()
 
             self.assertFalse(summary.has_errors)
-            self.assertTrue(summary.supabase_saved)
-            self.assertEqual(summary.supabase_store_count, 2)
-            self.assertFalse((Path(temp_dir) / "local_data" / "registered_stores.json").exists())
+            self.assertTrue(summary.local_saved)
+            self.assertEqual(summary.local_store_count, 2)
+            self.assertTrue((Path(temp_dir) / "local_data" / "registered_stores.json").exists())
             self.assertEqual(
                 loaded_stores,
                 [
@@ -1968,16 +1785,6 @@ class MinRepoScraperTests(unittest.TestCase):
     def test_save_registered_stores_deduplicates_normalized_url(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            captured_stores: list[dict[str, object]] = []
-
-            def fake_save_registered_stores_to_supabase(stores: list[dict[str, object]]) -> int:
-                captured_stores.extend(stores)
-                return len(stores)
-
-            service._save_registered_stores_to_supabase = fake_save_registered_stores_to_supabase  # type: ignore[method-assign]
-            service._load_registered_stores_from_supabase = (  # type: ignore[method-assign]
-                lambda: service._normalize_registered_stores(captured_stores)
-            )
 
             summary = service.save_registered_stores(
                 [
@@ -1988,7 +1795,7 @@ class MinRepoScraperTests(unittest.TestCase):
             loaded_stores = service.load_registered_stores()
 
             self.assertFalse(summary.has_errors)
-            self.assertEqual(len(captured_stores), 1)
+            self.assertEqual(summary.local_store_count, 1)
             self.assertEqual(
                 loaded_stores,
                 [
@@ -2008,13 +1815,12 @@ class MinRepoScraperTests(unittest.TestCase):
     def test_delete_registered_stores_deduplicates_normalized_url(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            captured_store_urls: list[str] = []
-
-            def fake_delete_registered_stores_from_supabase(store_urls: list[str]) -> int:
-                captured_store_urls.extend(store_urls)
-                return len(store_urls)
-
-            service._delete_registered_stores_from_supabase = fake_delete_registered_stores_from_supabase  # type: ignore[method-assign]
+            service.save_registered_stores(
+                [
+                    {"store_name": "GOGOアリーナ天神", "store_url": "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/"},
+                    {"store_name": "Aパーク春日店", "store_url": "https://example.com/kasuga/"},
+                ]
+            )
 
             deleted_count = service.delete_registered_stores(
                 [
@@ -2025,8 +1831,8 @@ class MinRepoScraperTests(unittest.TestCase):
 
             self.assertEqual(deleted_count, 1)
             self.assertEqual(
-                captured_store_urls,
-                ["https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/"],
+                [store["store_name"] for store in service.load_registered_stores()],
+                ["Aパーク春日店"],
             )
 
     def test_find_saved_machine_targets_uses_local_snapshot(self) -> None:
@@ -2043,8 +1849,8 @@ class MinRepoScraperTests(unittest.TestCase):
                             "store_url": "https://example.com/store/",
                         },
                         "records": [
-                            {"target_date": "2026-04-07", "machine_name": "ゴーゴージャグラー3"},
-                            {"target_date": "2026-04-08", "machine_name": "ゴーゴージャグラー３"},
+                            {"target_date": "2026-04-07", "machine_name": "ゴーゴージャグラー3", "payout_rate": 101.0},
+                            {"target_date": "2026-04-08", "machine_name": "ゴーゴージャグラー３", "payout_rate": 101.0},
                         ],
                     },
                     ensure_ascii=False,
@@ -2083,8 +1889,8 @@ class MinRepoScraperTests(unittest.TestCase):
                             "store_url": "https://example.com/store/",
                         },
                         "records": [
-                            {"target_date": "2026-04-07", "machine_name": "ネオアイムジャグラーEX"},
-                            {"target_date": "2026-04-08", "machine_name": "SアイムジャグラーＥＸ"},
+                            {"target_date": "2026-04-07", "machine_name": "ネオアイムジャグラーEX", "payout_rate": 101.0},
+                            {"target_date": "2026-04-08", "machine_name": "SアイムジャグラーＥＸ", "payout_rate": 101.0},
                         ],
                     },
                     ensure_ascii=False,
@@ -2109,14 +1915,36 @@ class MinRepoScraperTests(unittest.TestCase):
                 },
             )
 
-    def test_find_saved_machine_targets_supabase_uses_supabase_only(self) -> None:
+    def test_find_saved_machine_targets_supabase_alias_uses_local_json(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            service._find_saved_machine_target_sources_from_supabase = (  # type: ignore[method-assign]
-                lambda **kwargs: (
-                    {("2026-04-25", normalize_text("ゴーゴージャグラー３"))},
-                    {("2026-04-24", normalize_text("ゴーゴージャグラー３"))},
-                )
+            store_dir = Path(temp_dir) / "local_data" / "テスト店"
+            store_dir.mkdir(parents=True, exist_ok=True)
+            (store_dir / "sample.json").write_text(
+                json.dumps(
+                    {
+                        "store": {
+                            "store_name": "テスト店",
+                            "store_url": "https://example.com/store/",
+                        },
+                        "records": [
+                            {
+                                "target_date": "2026-04-24",
+                                "machine_name": "ゴーゴージャグラー３",
+                                "data_source": DATA_SOURCE_SITE7,
+                                "payout_rate": None,
+                            },
+                            {
+                                "target_date": "2026-04-25",
+                                "machine_name": "ゴーゴージャグラー３",
+                                "data_source": DATA_SOURCE_MINREPO,
+                                "payout_rate": 101.2,
+                            },
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
             )
 
             summary = service.find_saved_machine_targets_supabase(
@@ -2195,8 +2023,9 @@ class MinRepoScraperTests(unittest.TestCase):
             def resolve_preferred_store_by_name(self, store_name: str) -> None:
                 return None
 
-            def find_saved_machine_slots_supabase(
+            def find_saved_machine_slots(
                 self,
+                store_name: str,
                 store_url: str,
                 start_date: str,
                 end_date: str,
@@ -2206,21 +2035,6 @@ class MinRepoScraperTests(unittest.TestCase):
                     protected_slots={("2026-04-24", "821")},
                     replaceable_slots={("2026-04-25", "821")},
                 )
-
-            def delete_machine_slots_from_supabase(
-                self,
-                store_url: str,
-                target_slots: set[tuple[str, str]],
-                data_source: str | None = None,
-            ) -> int:
-                deleted_calls.append(
-                    {
-                        "store_url": store_url,
-                        "target_slots": set(target_slots),
-                        "data_source": data_source,
-                    }
-                )
-                return len(target_slots)
 
         app.persistence_service = FakePersistenceService()
 
@@ -2236,55 +2050,47 @@ class MinRepoScraperTests(unittest.TestCase):
         filtered_result, warning_summary = app._prepare_site7_history_result_for_save(history_result)
 
         self.assertEqual(warning_summary.messages, [])
-        self.assertEqual(
-            deleted_calls,
-            [
-                {
-                    "store_url": "https://example.com/site7",
-                    "target_slots": {("2026-04-25", "821")},
-                    "data_source": None,
-                }
-            ],
-        )
+        self.assertEqual(deleted_calls, [])
         self.assertEqual([dataset.target_date for dataset in filtered_result.datasets], ["2026-04-24", "2026-04-25"])
         self.assertEqual(
             [dataset.rows[0][0] for dataset in filtered_result.datasets],
             ["822", "821"],
         )
 
-    def test_find_saved_machine_target_sources_from_supabase_prefers_minrepo(self) -> None:
+    def test_find_saved_machine_target_sources_local_prefers_minrepo(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            service._supabase_config = lambda: ("https://example.supabase.co", "anon", "public", "stores", "results")  # type: ignore[method-assign]
-            service._find_store_id = lambda *args, **kwargs: "store-1"  # type: ignore[method-assign]
+            store_dir = Path(temp_dir) / "local_data" / "テスト店"
+            store_dir.mkdir(parents=True, exist_ok=True)
+            (store_dir / "sample.json").write_text(
+                json.dumps(
+                    {
+                        "store": {
+                            "store_name": "テスト店",
+                            "store_url": "https://example.com/store/",
+                        },
+                        "records": [
+                            {
+                                "target_date": "2026-04-24",
+                                "machine_name": "ゴーゴージャグラー３",
+                                "data_source": DATA_SOURCE_SITE7,
+                                "payout_rate": None,
+                            },
+                            {
+                                "target_date": "2026-04-25",
+                                "machine_name": "ゴーゴージャグラー３",
+                                "data_source": DATA_SOURCE_MINREPO,
+                                "payout_rate": 101.2,
+                            },
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
 
-            class FakeSession:
-                def get(self, endpoint: str, params: dict[str, object], timeout: int) -> object:
-                    class Response:
-                        def raise_for_status(self) -> None:
-                            return None
-
-                        def json(self) -> list[dict[str, object]]:
-                            return [
-                                {
-                                    "target_date": "2026-04-24",
-                                    "machine_name": "ゴーゴージャグラー３",
-                                    "data_source": DATA_SOURCE_SITE7,
-                                    "payout_rate": None,
-                                },
-                                {
-                                    "target_date": "2026-04-25",
-                                    "machine_name": "ゴーゴージャグラー３",
-                                    "data_source": DATA_SOURCE_MINREPO,
-                                    "payout_rate": 101.2,
-                                },
-                            ]
-
-                    return Response()
-
-            service._create_supabase_session = lambda schema: FakeSession()  # type: ignore[method-assign]
-
-            protected_targets, replaceable_targets = service._find_saved_machine_target_sources_from_supabase(  # type: ignore[attr-defined]
+            protected_targets, replaceable_targets = service._find_saved_machine_target_sources_local(  # type: ignore[attr-defined]
+                store_name="テスト店",
                 store_url="https://example.com/store",
                 start_date="2026-04-24",
                 end_date="2026-04-25",
@@ -2294,39 +2100,40 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(protected_targets, {("2026-04-25", normalize_text("ゴーゴージャグラー３"))})
             self.assertEqual(replaceable_targets, {("2026-04-24", normalize_text("ゴーゴージャグラー３"))})
 
-    def test_find_saved_machine_slot_sources_from_supabase_prefers_minrepo(self) -> None:
+    def test_find_saved_machine_slot_sources_local_prefers_minrepo(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            service._supabase_config = lambda: ("https://example.supabase.co", "anon", "public", "stores", "results")  # type: ignore[method-assign]
-            service._find_store_id = lambda *args, **kwargs: "store-1"  # type: ignore[method-assign]
+            store_dir = Path(temp_dir) / "local_data" / "テスト店"
+            store_dir.mkdir(parents=True, exist_ok=True)
+            (store_dir / "sample.json").write_text(
+                json.dumps(
+                    {
+                        "store": {
+                            "store_name": "テスト店",
+                            "store_url": "https://example.com/store/",
+                        },
+                        "records": [
+                            {
+                                "target_date": "2026-04-24",
+                                "slot_number": "737",
+                                "data_source": DATA_SOURCE_SITE7,
+                                "payout_rate": 98.4,
+                            },
+                            {
+                                "target_date": "2026-04-25",
+                                "slot_number": "737",
+                                "data_source": DATA_SOURCE_MINREPO,
+                                "payout_rate": 101.2,
+                            },
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
 
-            class FakeSession:
-                def get(self, endpoint: str, params: dict[str, object], timeout: int) -> object:
-                    class Response:
-                        def raise_for_status(self) -> None:
-                            return None
-
-                        def json(self) -> list[dict[str, object]]:
-                            return [
-                                {
-                                    "target_date": "2026-04-24",
-                                    "slot_number": "737",
-                                    "data_source": DATA_SOURCE_SITE7,
-                                    "payout_rate": 98.4,
-                                },
-                                {
-                                    "target_date": "2026-04-25",
-                                    "slot_number": "737",
-                                    "data_source": DATA_SOURCE_MINREPO,
-                                    "payout_rate": 101.2,
-                                },
-                            ]
-
-                    return Response()
-
-            service._create_supabase_session = lambda schema: FakeSession()  # type: ignore[method-assign]
-
-            protected_slots, replaceable_slots = service._find_saved_machine_slot_sources_from_supabase(  # type: ignore[attr-defined]
+            protected_slots, replaceable_slots = service._find_saved_machine_slot_sources_local(  # type: ignore[attr-defined]
+                store_name="テスト店",
                 store_url="https://example.com/store",
                 start_date="2026-04-24",
                 end_date="2026-04-25",
@@ -2336,33 +2143,34 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(protected_slots, {("2026-04-25", "737")})
             self.assertEqual(replaceable_slots, {("2026-04-24", "737")})
 
-    def test_find_saved_machine_slot_sources_from_supabase_treats_legacy_empty_minrepo_as_replaceable(self) -> None:
+    def test_find_saved_machine_slot_sources_local_treats_legacy_empty_minrepo_as_replaceable(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            service._supabase_config = lambda: ("https://example.supabase.co", "anon", "public", "stores", "results")  # type: ignore[method-assign]
-            service._find_store_id = lambda *args, **kwargs: "store-1"  # type: ignore[method-assign]
+            store_dir = Path(temp_dir) / "local_data" / "テスト店"
+            store_dir.mkdir(parents=True, exist_ok=True)
+            (store_dir / "sample.json").write_text(
+                json.dumps(
+                    {
+                        "store": {
+                            "store_name": "テスト店",
+                            "store_url": "https://example.com/store/",
+                        },
+                        "records": [
+                            {
+                                "target_date": "2026-04-25",
+                                "slot_number": "863",
+                                "data_source": DATA_SOURCE_MINREPO,
+                                "payout_rate": None,
+                            },
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
 
-            class FakeSession:
-                def get(self, endpoint: str, params: dict[str, object], timeout: int) -> object:
-                    class Response:
-                        def raise_for_status(self) -> None:
-                            return None
-
-                        def json(self) -> list[dict[str, object]]:
-                            return [
-                                {
-                                    "target_date": "2026-04-25",
-                                    "slot_number": "863",
-                                    "data_source": DATA_SOURCE_MINREPO,
-                                    "payout_rate": None,
-                                },
-                            ]
-
-                    return Response()
-
-            service._create_supabase_session = lambda schema: FakeSession()  # type: ignore[method-assign]
-
-            protected_slots, replaceable_slots = service._find_saved_machine_slot_sources_from_supabase(  # type: ignore[attr-defined]
+            protected_slots, replaceable_slots = service._find_saved_machine_slot_sources_local(  # type: ignore[attr-defined]
+                store_name="テスト店",
                 store_url="https://example.com/store",
                 start_date="2026-04-25",
                 end_date="2026-04-25",

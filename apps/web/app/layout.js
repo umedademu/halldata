@@ -5,7 +5,7 @@ export const metadata = {
     default: "Hall Data Board",
     template: "%s | Hall Data Board",
   },
-  description: "Supabase に保存された店舗別の台データを一覧で確認するサイト",
+  description: "JSONに保存された店舗別の台データを一覧で確認するサイト",
 };
 
 export default function RootLayout({ children }) {

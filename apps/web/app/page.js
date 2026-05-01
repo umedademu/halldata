@@ -1,29 +1,11 @@
-import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
-
 import { DataSourceLabel } from "../components/data-source-label";
 import { StoreDirectory } from "../components/store-directory";
-import { getStoreList, registerPendingStoreUrl } from "../lib/data";
+import { getStoreList } from "../lib/data";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
   title: "店舗一覧",
 };
-
-async function registerStoreReservation(formData) {
-  "use server";
-
-  let result;
-  try {
-    result = await registerPendingStoreUrl(formData.get("storeUrl"));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "登録できませんでした。";
-    redirect(`/?storeRegistration=error&message=${encodeURIComponent(message)}`);
-  }
-
-  revalidatePath("/");
-  redirect(`/?storeRegistration=${result.status}`);
-}
 
 function buildRegistrationNotice(searchParams) {
   const status = searchParams.storeRegistration;
@@ -47,7 +29,7 @@ export default async function StoresPage({ searchParams }) {
     const resolvedSearchParams = searchParams ? await searchParams : {};
     const registrationNotice = buildRegistrationNotice(resolvedSearchParams);
     const stores = await getStoreList();
-    const dataSource = stores.some((store) => store.dataSource === "json") ? "json" : "supabase";
+    const dataSource = "json";
     const completeStores = stores.filter((store) => !store.isPendingRegistration);
     const pendingStores = stores.filter((store) => store.isPendingRegistration);
 
@@ -69,26 +51,11 @@ export default async function StoresPage({ searchParams }) {
           <div className="tablePanelHeader">
             <div>
               <p className="sectionLabel">登録予約</p>
-              <h2 className="tablePanelTitle">店舗URLを追加</h2>
+              <h2 className="tablePanelTitle">店舗URLの追加</h2>
             </div>
           </div>
-          <form action={registerStoreReservation} className="storeReserveForm">
-            <label className="storeReserveField">
-              <span>店舗URL</span>
-              <input
-                className="storeReserveInput"
-                name="storeUrl"
-                type="url"
-                placeholder="https://min-repo.com/tag/..."
-                required
-              />
-            </label>
-            <button className="storeReserveButton" type="submit">
-              登録待ちに追加
-            </button>
-          </form>
           <p className="storeReserveHelp">
-            店舗名はここでは取得せず、GUIアプリの更新または定期取得で補完します。
+            店舗の追加や編集はGUIアプリで行います。WebアプリはGUIアプリが生成したJSONだけを表示します。
           </p>
           {registrationNotice ? (
             <p className={`storeReserveNotice storeReserveNotice-${registrationNotice.kind}`}>

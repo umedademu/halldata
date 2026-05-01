@@ -1313,8 +1313,8 @@ class MinRepoApp:
             text=(
                 "ここでは店舗URLを入れて店舗名を自動取得し、一覧へ登録できます。"
                 "取得対象のチェックが入っている店舗を、データ取得タブの取得ボタンで順番に取得します。"
-                "登録した店舗一覧は Supabase に保存されます。"
-                "一覧で行を選ぶと、選んだ店舗を Supabase から削除できます。"
+                "登録した店舗一覧はローカルJSONに保存されます。"
+                "一覧で行を選ぶと、選んだ店舗を登録一覧から削除できます。"
             ),
             wraplength=900,
             justify="left",
@@ -1988,7 +1988,8 @@ class MinRepoApp:
 
         slot_keys = collect_history_result_slot_keys(history_result)
         slot_numbers = sorted({slot_number for _, slot_number in slot_keys}, key=self._slot_sort_key)
-        saved_slots_summary = self.persistence_service.find_saved_machine_slots_supabase(
+        saved_slots_summary = self.persistence_service.find_saved_machine_slots(
+            store_name=history_result.store_name,
             store_url=history_result.store_url,
             start_date=history_result.start_date,
             end_date=history_result.end_date,
@@ -1999,17 +2000,6 @@ class MinRepoApp:
             history_result,
             protected_slots=saved_slots_summary.protected_slots,
         )
-
-        replaceable_slots = collect_history_result_slot_keys(history_result) & saved_slots_summary.replaceable_slots
-        if replaceable_slots:
-            self.result_queue.put(("fetch_progress", FetchProgress(current_step=3, total_steps=4, message="サイトセブン仮置き分を入れ直す準備中")))
-            try:
-                self.persistence_service.delete_machine_slots_from_supabase(
-                    store_url=history_result.store_url,
-                    target_slots=replaceable_slots,
-                )
-            except Exception as exc:  # noqa: BLE001
-                warning_messages.append(f"サイトセブン仮置き分の上書き準備に失敗しました。\n{exc}")
 
         return history_result, SavedFullDayDatesSummary(messages=warning_messages)
 
@@ -3085,9 +3075,8 @@ class MinRepoApp:
         return messagebox.askyesno(
             "登録店舗",
             (
-                "選択した店舗を Supabase から削除します。\n"
-                "保存済みの台データも合わせて削除します。\n"
-                "ローカル保存ファイルは削除しません。\n\n"
+                "選択した店舗を登録一覧から削除します。\n"
+                "保存済みの台データは削除しません。\n\n"
                 + "\n".join(store_lines)
             ),
         )
@@ -3638,8 +3627,6 @@ class MinRepoApp:
         saved_targets: list[str] = []
         if save_summary.local_file_path:
             saved_targets.append("ローカル")
-        if save_summary.supabase_saved:
-            saved_targets.append("Supabase")
         if save_summary.web_data_saved:
             saved_targets.append("Web表示")
 

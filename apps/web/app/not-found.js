@@ -9,7 +9,7 @@ export default function NotFound() {
     <main className="pageStack">
       <section className="heroPanel">
         <div className="heroCopy">
-          <p className="eyebrow">Supabase Viewer</p>
+          <p className="eyebrow">JSON Viewer</p>
           <h1 className="pageTitle">ページが見つかりません</h1>
           <p className="leadText">
             店舗または機種の指定が見つからないため、一覧ページへ戻ってください。

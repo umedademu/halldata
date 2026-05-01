@@ -357,7 +357,7 @@ def export_from_csv(
         for key, store_source in store_sources.items()
         for legacy_id in store_source.legacy_ids
     }
-    records_by_store_key: dict[str, dict[tuple[str, str, str], dict[str, Any]]] = {}
+    records_by_store_key: dict[str, dict[tuple[str, str], dict[str, Any]]] = {}
 
     with results_csv.open("r", encoding="utf-8-sig", newline="") as csv_file:
         for row in csv.DictReader(csv_file):
@@ -368,11 +368,7 @@ def export_from_csv(
             record = safe_record(row, store_id=legacy_store_id)
             if record is None:
                 continue
-            record_key = (
-                str(record["target_date"]),
-                str(record["machine_name"]),
-                str(record["slot_number"]),
-            )
+            record_key = (str(record["target_date"]), str(record["slot_number"]))
             records_by_store_key.setdefault(key, {})[record_key] = record
 
     store_payloads = [
@@ -393,7 +389,7 @@ def load_snapshot(path: Path) -> dict[str, Any] | None:
 
 def collect_store_records_from_local_store_dir(store_dir: Path) -> tuple[StoreSource | None, list[dict[str, Any]]]:
     store_source: StoreSource | None = None
-    records_by_key: dict[tuple[str, str, str], tuple[str, dict[str, Any]]] = {}
+    records_by_key: dict[tuple[str, str], tuple[str, dict[str, Any]]] = {}
 
     for snapshot_path in sorted(store_dir.glob("*.json")):
         if snapshot_path.name == "_full_day_index.json":
@@ -416,11 +412,7 @@ def collect_store_records_from_local_store_dir(store_dir: Path) -> tuple[StoreSo
             record = safe_record(raw_record)
             if record is None:
                 continue
-            record_key = (
-                str(record["target_date"]),
-                str(record["machine_name"]),
-                str(record["slot_number"]),
-            )
+            record_key = (str(record["target_date"]), str(record["slot_number"]))
             current_saved_at = records_by_key.get(record_key, ("", {}))[0]
             if saved_at >= current_saved_at:
                 records_by_key[record_key] = (saved_at, record)
