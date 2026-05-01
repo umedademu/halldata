@@ -1718,6 +1718,120 @@ class MinRepoScraperTests(unittest.TestCase):
                 ],
             )
 
+    def test_load_registered_stores_merges_static_web_entries_when_local_file_is_partial(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root_dir = Path(temp_dir)
+            registered_stores_path = root_dir / "local_data" / "registered_stores.json"
+            registered_stores_path.parent.mkdir(parents=True, exist_ok=True)
+            registered_stores_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "stores": [
+                            {
+                                "store_name": "GOGOアリーナ天神",
+                                "store_url": "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/",
+                                "site7_enabled": False,
+                                "site7_area": "",
+                            }
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            static_index_path = root_dir / "apps" / "web" / "public" / "halldata-static" / "index.json"
+            static_index_path.parent.mkdir(parents=True, exist_ok=True)
+            static_index_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "stores": [
+                            {
+                                "storeName": "Aパーク春日店",
+                                "storeUrl": "https://min-repo.com/tag/a-%E3%83%91%E3%83%BC%E3%82%AF%E6%98%A5%E6%97%A5%E5%BA%97/",
+                            },
+                            {
+                                "storeName": "GOGOアリーナ天神",
+                                "storeUrl": "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/",
+                            },
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            service = HistoryPersistenceService(root_dir=root_dir)
+            loaded_stores = service.load_registered_stores()
+
+            self.assertEqual([store["store_name"] for store in loaded_stores], ["GOGOアリーナ天神", "Aパーク春日店"])
+            self.assertFalse(loaded_stores[0]["site7_enabled"])
+            self.assertEqual(loaded_stores[0]["site7_area"], "")
+            self.assertTrue(loaded_stores[1]["site7_enabled"])
+
+    def test_delete_registered_stores_keeps_static_fallback_store_hidden(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root_dir = Path(temp_dir)
+            static_index_path = root_dir / "apps" / "web" / "public" / "halldata-static" / "index.json"
+            static_index_path.parent.mkdir(parents=True, exist_ok=True)
+            static_index_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "stores": [
+                            {
+                                "storeName": "GOGOアリーナ天神",
+                                "storeUrl": "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/",
+                            },
+                            {
+                                "storeName": "Aパーク春日店",
+                                "storeUrl": "https://example.com/kasuga/",
+                            },
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            service = HistoryPersistenceService(root_dir=root_dir)
+            deleted_count = service.delete_registered_stores(["https://example.com/kasuga"])
+            loaded_stores = service.load_registered_stores()
+            registered_payload = json.loads((root_dir / "local_data" / "registered_stores.json").read_text(encoding="utf-8"))
+
+            self.assertEqual(deleted_count, 1)
+            self.assertEqual([store["store_name"] for store in loaded_stores], ["GOGOアリーナ天神"])
+            self.assertEqual(registered_payload["excluded_store_urls"], ["https://example.com/kasuga/"])
+
+    def test_load_registered_stores_falls_back_to_local_snapshots(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root_dir = Path(temp_dir)
+            store_dir = root_dir / "local_data" / "テスト店"
+            store_dir.mkdir(parents=True, exist_ok=True)
+            (store_dir / "sample.json").write_text(
+                json.dumps(
+                    {
+                        "store": {
+                            "store_name": "テスト店",
+                            "store_url": "https://example.com/test/",
+                        },
+                        "records": [],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            service = HistoryPersistenceService(root_dir=root_dir)
+            loaded_stores = service.load_registered_stores()
+
+            self.assertEqual(
+                [(store["store_name"], store["store_url"]) for store in loaded_stores],
+                [("テスト店", "https://example.com/test/")],
+            )
+
     def test_normalize_registered_stores_applies_site7_defaults(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))

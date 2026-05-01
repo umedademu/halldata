@@ -31,6 +31,7 @@ DEFAULT_RESULTS_TABLE = "machine_daily_results"
 DEFAULT_MACHINE_SUMMARIES_TABLE = "store_machine_summaries"
 DEFAULT_MACHINE_DAILY_DETAILS_TABLE = "store_machine_daily_details"
 REGISTERED_STORES_FILE_NAME = "registered_stores.json"
+REGISTERED_STORE_EXCLUDED_URLS_KEY = "excluded_store_urls"
 STORE_COLUMNS = {"機種", "機種名"}
 WINDOWS_FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]+')
 DATA_SOURCE_MINREPO = "minrepo"
@@ -529,12 +530,18 @@ class HistoryPersistenceService:
         return 0
 
     def load_registered_stores(self) -> list[dict[str, Any]]:
-        if self._registered_stores_path().exists():
-            return self._load_registered_stores_local()
         local_stores = self._load_registered_stores_local()
-        if local_stores:
-            return local_stores
-        return self._load_registered_stores_from_static_web_data()
+        excluded_store_urls = self._load_registered_store_excluded_urls()
+        fallback_stores = self._merge_registered_store_sources(
+            self._load_registered_stores_from_static_web_data(),
+            self._load_registered_stores_from_local_snapshots(),
+            excluded_store_urls=set(),
+        )
+        return self._merge_registered_store_sources(
+            local_stores,
+            fallback_stores,
+            excluded_store_urls=excluded_store_urls,
+        )
 
     def save_registered_stores(self, stores: list[dict[str, Any]]) -> RegisteredStoresPersistenceSummary:
         normalized_stores = self._normalize_registered_stores(stores)
@@ -853,34 +860,92 @@ class HistoryPersistenceService:
     def _registered_stores_path(self) -> Path:
         return self._local_save_dir() / REGISTERED_STORES_FILE_NAME
 
-    def _save_registered_stores_local(self, stores: list[dict[str, Any]]) -> int:
+    def _save_registered_stores_local(
+        self,
+        stores: list[dict[str, Any]],
+        excluded_store_urls: set[str] | None = None,
+    ) -> int:
         normalized_stores = self._normalize_registered_stores(stores)
+        saved_store_urls = {
+            normalize_store_url(str(store.get("store_url", "")))
+            for store in normalized_stores
+            if normalize_store_url(str(store.get("store_url", "")))
+        }
+        normalized_excluded_store_urls = {
+            normalize_store_url(store_url)
+            for store_url in (excluded_store_urls if excluded_store_urls is not None else self._load_registered_store_excluded_urls())
+            if normalize_store_url(store_url)
+        }
+        normalized_excluded_store_urls.difference_update(saved_store_urls)
+
+        payload = {
+            "version": 1,
+            "saved_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "stores": normalized_stores,
+        }
+        if normalized_excluded_store_urls:
+            payload[REGISTERED_STORE_EXCLUDED_URLS_KEY] = sorted(normalized_excluded_store_urls)
+
         path = self._registered_stores_path()
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
-            json.dumps(
-                {
-                    "version": 1,
-                    "saved_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-                    "stores": normalized_stores,
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
+            json.dumps(payload, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
         return len(normalized_stores)
 
     def _load_registered_stores_local(self) -> list[dict[str, Any]]:
-        path = self._registered_stores_path()
-        if not path.exists():
-            return []
-
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(payload, dict):
-            return []
+        payload = self._load_registered_stores_payload()
         stores = payload.get("stores", [])
         return self._normalize_registered_stores(stores if isinstance(stores, list) else [])
+
+    def _load_registered_stores_payload(self) -> dict[str, Any]:
+        path = self._registered_stores_path()
+        if not path.exists():
+            return {}
+
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return {}
+        if not isinstance(payload, dict):
+            return {}
+        return payload
+
+    def _load_registered_store_excluded_urls(self) -> set[str]:
+        payload = self._load_registered_stores_payload()
+        raw_urls = payload.get(REGISTERED_STORE_EXCLUDED_URLS_KEY, [])
+        if not isinstance(raw_urls, list):
+            return set()
+        return {
+            normalized_url
+            for raw_url in raw_urls
+            if (normalized_url := normalize_store_url(str(raw_url)))
+        }
+
+    def _merge_registered_store_sources(
+        self,
+        primary_stores: list[dict[str, Any]],
+        fallback_stores: list[dict[str, Any]],
+        excluded_store_urls: set[str],
+    ) -> list[dict[str, Any]]:
+        excluded_urls = {
+            normalized_url
+            for store_url in excluded_store_urls
+            if (normalized_url := normalize_store_url(store_url))
+        }
+        merged_stores: list[dict[str, Any]] = []
+        seen_store_urls: set[str] = set()
+
+        for source_stores in (primary_stores, fallback_stores):
+            for store in self._normalize_registered_stores(source_stores):
+                store_url = normalize_store_url(str(store.get("store_url", "")))
+                if not store_url or store_url in excluded_urls or store_url in seen_store_urls:
+                    continue
+                seen_store_urls.add(store_url)
+                merged_stores.append(store)
+
+        return merged_stores
 
     def _load_registered_stores_from_static_web_data(self) -> list[dict[str, Any]]:
         index_path = self.root_dir / "apps" / "web" / "public" / "halldata-static" / "index.json"
@@ -910,22 +975,70 @@ class HistoryPersistenceService:
             )
         return self._normalize_registered_stores(stores)
 
+    def _load_registered_stores_from_local_snapshots(self) -> list[dict[str, Any]]:
+        local_dir = self._local_save_dir()
+        if not local_dir.exists():
+            return []
+
+        stores: list[dict[str, Any]] = []
+        for store_dir in sorted((path for path in local_dir.iterdir() if path.is_dir()), key=lambda path: path.name):
+            store = self._load_registered_store_from_local_snapshot_dir(store_dir)
+            if store is not None:
+                stores.append(store)
+
+        return self._normalize_registered_stores(stores)
+
+    def _load_registered_store_from_local_snapshot_dir(self, store_dir: Path) -> dict[str, Any] | None:
+        for snapshot_path in [store_dir / "_full_day_index.json", *sorted(store_dir.glob("*.json"))]:
+            if snapshot_path.name == REGISTERED_STORES_FILE_NAME:
+                continue
+            if snapshot_path.name != "_full_day_index.json" and snapshot_path.name.startswith("_"):
+                continue
+
+            payload = self._load_json_dict(snapshot_path)
+            if not payload:
+                continue
+
+            store_payload = payload.get("store", {})
+            if not isinstance(store_payload, dict):
+                continue
+
+            store_name = str(store_payload.get("store_name", "")).strip() or store_dir.name
+            store_url = normalize_store_url(str(store_payload.get("store_url", "")).strip())
+            if not store_url:
+                continue
+
+            return {
+                "store_name": store_name,
+                "store_url": store_url,
+            }
+
+        return None
+
+    def _load_json_dict(self, path: Path) -> dict[str, Any]:
+        if not path.exists():
+            return {}
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return {}
+        return payload if isinstance(payload, dict) else {}
+
     def _delete_registered_stores_local(self, store_urls: list[str]) -> int:
         target_urls = {normalize_store_url(store_url) for store_url in store_urls if normalize_store_url(store_url)}
         if not target_urls:
             return 0
 
-        stores = self._load_registered_stores_local()
-        if not stores:
-            stores = self._load_registered_stores_from_static_web_data()
-
+        stores = self.load_registered_stores()
         remaining_stores = [
             store
             for store in stores
             if normalize_store_url(str(store.get("store_url", ""))) not in target_urls
         ]
         deleted_count = len(stores) - len(remaining_stores)
-        self._save_registered_stores_local(remaining_stores)
+        excluded_store_urls = self._load_registered_store_excluded_urls()
+        excluded_store_urls.update(target_urls)
+        self._save_registered_stores_local(remaining_stores, excluded_store_urls=excluded_store_urls)
         return deleted_count
 
     def _iter_local_snapshot_records(
