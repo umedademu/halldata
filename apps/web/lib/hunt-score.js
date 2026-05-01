@@ -61,6 +61,32 @@ const GOGO_ARENA_TENJIN_TARGET_MACHINES = [
   { name: "ウルトラミラクルジャグラー", aliases: [] },
 ];
 
+const APARK_YAKATABARU_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
+  {
+    name: "ファンキージャグラー２ＫＴ",
+    aliases: ["ファンキージャグラー２", "ファンキージャグラー2", "ファンキージャグラー"],
+  },
+  {
+    name: "ハッピージャグラーＶＩＩＩ",
+    aliases: ["ハッピージャグラーVIII", "ハッピージャグラーＶ", "ハッピージャグラーV", "ハッピージャグラー"],
+  },
+  { name: "ウルトラミラクルジャグラー", aliases: [] },
+  {
+    name: "ハナハナホウオウ",
+    aliases: [
+      "ハナハナホウオウ-30",
+      "ハナハナホウオウ‐30",
+      "ハナハナホウオウ～天翔～-30",
+      "ハナハナホウオウ～天翔～‐30",
+    ],
+  },
+  { name: "キングハナハナ", aliases: ["キングハナハナ-30", "キングハナハナ‐30"] },
+  { name: "新ハナビ", aliases: [] },
+  { name: "スマスロ ハナビ", aliases: ["スマスロハナビ"] },
+];
+
 const GOGO_ARENA_TENJIN_REFERENCE_EVENT_DAYS = new Set([5, 10, 15, 20, 25, 30]);
 
 const GOGO_ARENA_TENJIN_MACHINE_SCORES = {
@@ -175,6 +201,13 @@ const HUNT_SCORE_STORE_CONFIGS = [
     key: "apark-kasuga",
     storeNames: ["Aパーク春日店"],
     targetMachines: APARK_KASUGA_TARGET_MACHINES,
+    windowDays: 7,
+    scoreCalculator: calculateAparkKasugaHuntScore,
+  },
+  {
+    key: "apark-yakatabaru",
+    storeNames: ["A-PARK屋形原", "A-PARK屋形原店", "Aパーク屋形原", "Aパーク屋形原店"],
+    targetMachines: APARK_YAKATABARU_TARGET_MACHINES,
     windowDays: 7,
     scoreCalculator: calculateAparkKasugaHuntScore,
   },

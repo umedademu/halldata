@@ -22,6 +22,14 @@ const HUNT_BACKTEST_DEFAULT_EVENT_FILTERS = {
     dayTails: [0],
     weekdays: [0, 6],
   },
+  "A-PARK屋形原": {
+    dayTails: [0],
+    weekdays: [0, 6],
+  },
+  "Aパーク屋形原店": {
+    dayTails: [0],
+    weekdays: [0, 6],
+  },
 };
 
 let cachedFileSettingsPromise = null;
