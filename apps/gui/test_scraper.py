@@ -173,13 +173,17 @@ class FakeWaitingPage:
 
 
 class FakeRetainedPage:
-    def __init__(self) -> None:
+    def __init__(self, closed: bool = False) -> None:
+        self.closed = closed
         self.bring_to_front_count = 0
         self.wait_selector_calls: list[tuple[str, int]] = []
         self.url = "https://example.com/machine"
 
     def bring_to_front(self) -> None:
         self.bring_to_front_count += 1
+
+    def is_closed(self) -> bool:
+        return self.closed
 
     def wait_for_selector(self, selector: str, timeout: int = 0) -> None:
         self.wait_selector_calls.append((selector, timeout))
@@ -1048,6 +1052,48 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertIs(scraper._visible_browser_playwright, playwright)
         self.assertEqual(context.close_count, 0)
         self.assertEqual(playwright.stop_count, 0)
+
+    def test_site7_fetch_reopens_visible_browser_when_retained_page_is_closed(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        closed_page = FakeRetainedPage(closed=True)
+        closed_context = FakeRetainedContext(closed_page)
+        closed_playwright = FakePlayableBrowser()
+        fresh_page = FakeRetainedPage()
+        fresh_context = FakeRetainedContext(fresh_page)
+        fresh_playwright = FakePlayableBrowser()
+        expected_result = MachineHistoryResult(
+            store_name="Aパーク春日店",
+            store_url="https://example.com/hall",
+            start_date="2026-04-25",
+            end_date="2026-04-25",
+            date_pages=[],
+            datasets=[],
+        )
+        scraper._visible_browser_context = closed_context
+        scraper._visible_browser_playwright = closed_playwright
+        scraper._launch_browser_context = mock.Mock(return_value=(fresh_playwright, fresh_context))
+        scraper._require_playwright = mock.Mock()
+        scraper._open_target_hall_page = mock.Mock(return_value=("https://example.com/hall", "<html></html>"))
+        scraper.extract_store_name = mock.Mock(return_value="Aパーク春日店")
+        scraper.extract_target_machine_entries = mock.Mock(
+            return_value=[Site7MachineEntry(display_name=SITE7_TARGET_MACHINE_NAME, machine_name=SITE7_TARGET_MACHINE_NAME)]
+        )
+        scraper._wait_between_transitions = mock.Mock()
+        scraper._accept_cookie_banner_if_present = mock.Mock()
+        scraper._open_target_machine_page = mock.Mock()
+        scraper.parse_machine_history_html = mock.Mock(return_value=expected_result)
+        scraper._merge_machine_history_results = mock.Mock(return_value=expected_result)
+
+        result = scraper.fetch_target_machine_history(recent_days=1, browser_visible=True)
+
+        self.assertIs(result, expected_result)
+        scraper._launch_browser_context.assert_called_once_with(True)
+        self.assertEqual(closed_context.close_count, 1)
+        self.assertEqual(closed_playwright.stop_count, 1)
+        self.assertEqual(fresh_page.bring_to_front_count, 1)
+        self.assertEqual(fresh_page.wait_selector_calls, [("#ata0", 60_000)])
+        self.assertIs(scraper._visible_browser_context, fresh_context)
+        self.assertIs(scraper._visible_browser_playwright, fresh_playwright)
 
     def test_site7_visible_browser_stays_open_when_fetch_is_cancelled(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)

@@ -343,14 +343,28 @@ class Site7Scraper:
         self._close_browser_context(retained_context)
         self._stop_playwright(retained_playwright)
 
-    def _can_reuse_browser_context(self, context: object | None) -> bool:
-        if context is None:
+    def _page_is_reusable(self, page: object | None) -> bool:
+        if page is None:
             return False
         try:
-            list(context.pages)
+            is_closed = getattr(page, "is_closed", None)
+            if callable(is_closed):
+                return not bool(is_closed())
         except Exception:  # noqa: BLE001
             return False
         return True
+
+    def _list_reusable_browser_pages(self, context: object | None) -> list[object]:
+        if context is None:
+            return []
+        try:
+            pages = list(context.pages)
+        except Exception:  # noqa: BLE001
+            return []
+        return [page for page in pages if self._page_is_reusable(page)]
+
+    def _can_reuse_browser_context(self, context: object | None) -> bool:
+        return bool(self._list_reusable_browser_pages(context))
 
     def _launch_browser_context(self, browser_visible: bool) -> tuple[object, object]:
         playwright = sync_playwright().start()
@@ -374,7 +388,7 @@ class Site7Scraper:
         return self._launch_browser_context(browser_visible)
 
     def _prepare_fetch_page(self, context: object, browser_visible: bool) -> object:
-        pages = list(context.pages)
+        pages = self._list_reusable_browser_pages(context)
         page = pages[-1] if pages else context.new_page()
         if browser_visible:
             page.bring_to_front()
