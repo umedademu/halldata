@@ -12,6 +12,8 @@ import tempfile
 from typing import Any
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
+from r2_storage import R2JsonStorage
+
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_LOCAL_SAVE_DIR = ROOT_DIR / "local_data"
@@ -138,7 +140,34 @@ def write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
     temp_path.replace(path)
 
 
-def load_existing_index(web_data_dir: Path) -> dict[str, Any]:
+def write_json_payload(
+    web_data_dir: Path,
+    relative_path: str,
+    payload: dict[str, Any],
+    *,
+    r2_storage: R2JsonStorage | None = None,
+) -> None:
+    normalized_path = str(relative_path).replace("\\", "/").lstrip("/")
+    if r2_storage is not None:
+        r2_storage.write_json(normalized_path, payload)
+        return
+    write_json_atomic(web_data_dir / normalized_path, payload)
+
+
+def load_existing_index(
+    web_data_dir: Path,
+    *,
+    r2_storage: R2JsonStorage | None = None,
+) -> dict[str, Any]:
+    if r2_storage is not None:
+        try:
+            payload = r2_storage.read_json("index.json")
+        except Exception:
+            payload = None
+        if isinstance(payload, dict) and isinstance(payload.get("stores"), list):
+            return payload
+        return {"version": WEB_DATA_VERSION, "stores": []}
+
     index_path = web_data_dir / "index.json"
     if not index_path.exists():
         return {"version": WEB_DATA_VERSION, "stores": []}
@@ -266,8 +295,13 @@ def build_index_store_entry(store_payload: dict[str, Any], data_file: str) -> di
     }
 
 
-def update_index(web_data_dir: Path, store_entries: list[dict[str, Any]]) -> None:
-    index_payload = load_existing_index(web_data_dir)
+def update_index(
+    web_data_dir: Path,
+    store_entries: list[dict[str, Any]],
+    *,
+    r2_storage: R2JsonStorage | None = None,
+) -> None:
+    index_payload = load_existing_index(web_data_dir, r2_storage=r2_storage)
     existing_entries = {
         str(entry.get("id")): entry
         for entry in index_payload.get("stores", [])
@@ -296,28 +330,35 @@ def update_index(web_data_dir: Path, store_entries: list[dict[str, Any]]) -> Non
             str(entry.get("storeName") or entry.get("storeUrl") or ""),
         ),
     )
-    write_json_atomic(
-        web_data_dir / "index.json",
+    write_json_payload(
+        web_data_dir,
+        "index.json",
         {
             "version": WEB_DATA_VERSION,
             "generatedAt": datetime.now().astimezone().isoformat(timespec="seconds"),
             "stores": stores,
         },
+        r2_storage=r2_storage,
     )
 
 
-def export_store_payloads(web_data_dir: Path, store_payloads: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def export_store_payloads(
+    web_data_dir: Path,
+    store_payloads: list[dict[str, Any]],
+    *,
+    r2_storage: R2JsonStorage | None = None,
+) -> list[dict[str, Any]]:
     store_entries = []
     for store_payload in store_payloads:
         machine_records_by_file = store_payload.pop("_machineRecordsByFile", {})
         for data_file, machine_payload in machine_records_by_file.items():
-            write_json_atomic(web_data_dir / data_file, machine_payload)
+            write_json_payload(web_data_dir, data_file, machine_payload, r2_storage=r2_storage)
 
         store = store_payload["store"]
         data_file = f"stores/{store['id']}.json"
-        write_json_atomic(web_data_dir / data_file, store_payload)
+        write_json_payload(web_data_dir, data_file, store_payload, r2_storage=r2_storage)
         store_entries.append(build_index_store_entry(store_payload, data_file))
-    update_index(web_data_dir, store_entries)
+    update_index(web_data_dir, store_entries, r2_storage=r2_storage)
     return store_entries
 
 
@@ -350,6 +391,7 @@ def export_from_csv(
     stores_csv: Path = DEFAULT_STORES_CSV,
     results_csv: Path = DEFAULT_RESULTS_CSV,
     web_data_dir: Path = DEFAULT_WEB_DATA_DIR,
+    r2_storage: R2JsonStorage | None = None,
 ) -> list[dict[str, Any]]:
     store_sources = load_store_sources_from_csv(stores_csv)
     legacy_store_id_to_key = {
@@ -376,7 +418,7 @@ def export_from_csv(
         for key, store_source in store_sources.items()
         if (records_by_key := records_by_store_key.get(key))
     ]
-    return export_store_payloads(web_data_dir, store_payloads)
+    return export_store_payloads(web_data_dir, store_payloads, r2_storage=r2_storage)
 
 
 def load_snapshot(path: Path) -> dict[str, Any] | None:
@@ -425,6 +467,7 @@ def export_store_from_local_data(
     *,
     local_save_dir: Path = DEFAULT_LOCAL_SAVE_DIR,
     web_data_dir: Path = DEFAULT_WEB_DATA_DIR,
+    r2_storage: R2JsonStorage | None = None,
 ) -> dict[str, Any] | None:
     store_dir = local_save_dir / sanitize_file_name(store_name)
     if not store_dir.exists():
@@ -433,7 +476,7 @@ def export_store_from_local_data(
     if store_source is None or not records:
         return None
     store_payload = build_store_payload(store_source, records)
-    entries = export_store_payloads(web_data_dir, [store_payload])
+    entries = export_store_payloads(web_data_dir, [store_payload], r2_storage=r2_storage)
     return entries[0] if entries else None
 
 
@@ -441,6 +484,7 @@ def export_from_local_data(
     *,
     local_save_dir: Path = DEFAULT_LOCAL_SAVE_DIR,
     web_data_dir: Path = DEFAULT_WEB_DATA_DIR,
+    r2_storage: R2JsonStorage | None = None,
 ) -> list[dict[str, Any]]:
     store_payloads = []
     for store_dir in sorted([path for path in local_save_dir.iterdir() if path.is_dir()]):
@@ -448,7 +492,7 @@ def export_from_local_data(
         if store_source is None or not records:
             continue
         store_payloads.append(build_store_payload(store_source, records))
-    return export_store_payloads(web_data_dir, store_payloads)
+    return export_store_payloads(web_data_dir, store_payloads, r2_storage=r2_storage)
 
 
 def sanitize_file_name(value: str) -> str:
@@ -458,6 +502,7 @@ def sanitize_file_name(value: str) -> str:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Web表示用データを生成します。")
     parser.add_argument("--source", choices=["csv", "local"], default="csv")
+    parser.add_argument("--destination", choices=["r2", "local"], default="r2")
     parser.add_argument("--stores-csv", type=Path, default=DEFAULT_STORES_CSV)
     parser.add_argument("--results-csv", type=Path, default=DEFAULT_RESULTS_CSV)
     parser.add_argument("--local-save-dir", type=Path, default=DEFAULT_LOCAL_SAVE_DIR)
@@ -468,23 +513,32 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    r2_storage = None
+    if args.destination == "r2":
+        r2_storage = R2JsonStorage.from_environment(ROOT_DIR)
+        if not r2_storage.is_configured:
+            raise SystemExit(".env.local に R2 の接続情報を設定してください。")
+
     if args.source == "csv":
         entries = export_from_csv(
             stores_csv=args.stores_csv,
             results_csv=args.results_csv,
             web_data_dir=args.web_data_dir,
+            r2_storage=r2_storage,
         )
     elif args.store_name:
         entry = export_store_from_local_data(
             args.store_name,
             local_save_dir=args.local_save_dir,
             web_data_dir=args.web_data_dir,
+            r2_storage=r2_storage,
         )
         entries = [entry] if entry else []
     else:
         entries = export_from_local_data(
             local_save_dir=args.local_save_dir,
             web_data_dir=args.web_data_dir,
+            r2_storage=r2_storage,
         )
 
     print(f"{len(entries)}店舗分のWeb表示用データを生成しました。")

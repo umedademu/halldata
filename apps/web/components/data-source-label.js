@@ -1,5 +1,5 @@
 function formatDataSourceLabel(source) {
-  return "JSON";
+  return "Cloudflare R2 JSON";
 }
 
 export function DataSourceLabel({ source }) {

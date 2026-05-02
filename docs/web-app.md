@@ -20,16 +20,15 @@
 
 ## データの読み出し
 
-- Web表示では、まず `apps/web/public/halldata-static` の表示用JSONを読みます
-- 店舗一覧、機種一覧、台データ、狙い度ランキング、バックテストは表示用JSONだけを読んで表示します
+- Web表示では、Cloudflare R2 の公開URLにある表示用JSONだけを読みます
+- 店舗一覧、機種一覧、台データ、狙い度ランキング、バックテストはR2上の表示用JSONだけを読んで表示します
 - 表示用JSONは店舗概要と機種別データに分けて保存し、機種ページでは必要な機種のJSONだけを読みます
-- 表示用JSONが無い環境では、WebアプリはSupabaseへ取りに行かず、データなしとして扱います
-- 表示用JSONの保存場所を変えたい場合は、`HALLDATA_STATIC_WEB_DATA_DIR` にディレクトリを指定します
-- 本番環境で表示用JSONをサーバー上のファイルとして読めない場合は、`VERCEL_URL`、`VERCEL_PROJECT_PRODUCTION_URL`、`HALLDATA_STATIC_WEB_DATA_BASE_URL`、または実際のアクセス先ホストを使って公開URLから読みます
+- 表示用JSONが無い環境では、WebアプリはSupabaseやgit上のJSONへ戻らず、データなしとして扱います
+- R2の公開URLは `CLOUDFLARE_R2_PUBLIC_BASE_URL` に設定します。`r2.dev` の公開URLか、R2に割り当てた独自ドメインを入れます
 - ローカル確認時は、ルートの `.env.local` も読めるようにしています
 - 本番の `Vercel` では、同じ環境変数を `Vercel` 側に設定する想定です
-- 既存のCSV退避データは、`stores_rows.csv` と `machine_daily_results_rows.csv` から `python apps/gui/web_data_export.py --source csv` で表示用JSONへ移行できます
-- ローカル保存済みの全店舗データは、`python apps/gui/web_data_export.py --source local` で全店舗分の表示用JSONへ出力できます
+- 既存のCSV退避データは、`stores_rows.csv` と `machine_daily_results_rows.csv` から `python apps/gui/web_data_export.py --source csv` でR2へ移行できます
+- 既存の `apps/web/public/halldata-static` は `python apps/gui/migrate_static_web_data_to_r2.py` でR2へ移行できます
 
 ## 表示について
 
@@ -38,7 +37,6 @@
 - `スマホ` では店舗一覧、機種一覧、台データ比較の表を横に動かしながら確認します
 - 店舗一覧は表示用JSONの索引だけを読み、台データ行は読みません
 - 機種一覧は、表示用JSONにある機種要約を優先して表示します
-- その要約表が無い環境では、ローカル実行時だけ `local_data` にある全機種取得済みの索引を見つけられる場合に、その索引と保存済みの一日分ファイルを使います
 - 表示用JSONが使えない環境では、機種一覧や台データは表示できません
 - 機種一覧の台数、平均差枚、平均G数、平均出率は、それぞれの機種にとって最新の日一日分をもとに表示します
 - 機種一覧は、まず機種ごとの最新日が新しい順、その次に台数の多い順で表示します
@@ -152,8 +150,8 @@
 ## 軽量化について
 
 - 通常のページ表示で `Supabase` の読み出しは行いません
-- GUIアプリの取得後に表示用JSONを更新し、Webアプリはそのファイルを読むだけに寄せています
-- 表示用JSONが無い環境では、Supabaseへ戻らず、データなしとして扱います
+- GUIアプリの取得後にR2上の表示用JSONを更新し、WebアプリはR2の公開URLだけを読む形に寄せています
+- 表示用JSONが無い環境では、Supabaseやgit上のJSONへ戻らず、データなしとして扱います
 - 取得結果を短時間だけ使い回したい場合は、必要に応じて `HALLDATA_FETCH_CACHE_TTL_MS` でミリ秒単位に変更できます
 - 外部書体の読み込みをやめ、端末に入っている日本語書体を使います
 - 重いぼかし背景と初期表示時の動きを外し、表の描画を優先しています

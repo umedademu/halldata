@@ -2,7 +2,9 @@ html/
 .env.local
 env.local
 local_data/
+**/__pycache__/
 apps/web/node_modules/
 apps/web/.next/
 apps/web/.vercel/
+apps/web/public/halldata-static/
 サイトセブンHTML/

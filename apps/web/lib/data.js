@@ -15,8 +15,6 @@ import { canonicalMachineName, listEquivalentMachineNames, withCalculatedDiffere
 
 const PAGE_SIZE = 1000;
 const DEFAULT_FETCH_CACHE_TTL_MS = 0;
-const DEFAULT_STATIC_WEB_DATA_DIRECTORY = "public/halldata-static";
-const DEFAULT_STATIC_WEB_DATA_PUBLIC_PATH = "/halldata-static";
 const HUNT_BACKTEST_DEFAULT_EVENT_FILTERS = {
   "Aパーク春日店": {
     dayTails: [0],
@@ -121,23 +119,6 @@ async function readSetting(name, fallback = "") {
   return process.env[name] || fallbackSettings[name] || fallback;
 }
 
-async function getStaticWebDataDirectories() {
-  const [{ default: pathModule }] = await Promise.all([import("node:path")]);
-  const configuredDirectory = await readSetting("HALLDATA_STATIC_WEB_DATA_DIR");
-  if (configuredDirectory) {
-    return [
-      pathModule.isAbsolute(configuredDirectory)
-        ? configuredDirectory
-        : pathModule.resolve(process.cwd(), configuredDirectory),
-    ];
-  }
-
-  return [
-    pathModule.resolve(process.cwd(), DEFAULT_STATIC_WEB_DATA_DIRECTORY),
-    pathModule.resolve(process.cwd(), "apps/web", DEFAULT_STATIC_WEB_DATA_DIRECTORY),
-  ];
-}
-
 function buildUrlFromHost(host, protocol = "https") {
   const safeHost = String(host ?? "").trim();
   if (!safeHost) {
@@ -160,32 +141,14 @@ async function getRequestBaseUrl() {
 }
 
 async function getStaticWebDataBaseUrl() {
-  const configuredBaseUrl = await readSetting("HALLDATA_STATIC_WEB_DATA_BASE_URL");
+  const configuredBaseUrl =
+    (await readSetting("CLOUDFLARE_R2_PUBLIC_BASE_URL")) ||
+    (await readSetting("CLOUDFLARE_R2_PUBLIC_URL")) ||
+    (await readSetting("HALLDATA_R2_PUBLIC_BASE_URL"));
   if (configuredBaseUrl) {
     return configuredBaseUrl.replace(/\/+$/u, "");
   }
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-    return buildUrlFromHost(process.env.VERCEL_PROJECT_PRODUCTION_URL);
-  }
-  if (process.env.VERCEL_BRANCH_URL) {
-    return buildUrlFromHost(process.env.VERCEL_BRANCH_URL);
-  }
-  if (process.env.VERCEL_URL) {
-    return buildUrlFromHost(process.env.VERCEL_URL);
-  }
-  return getRequestBaseUrl();
-}
-
-async function readJsonFileIfExists(filePath) {
-  const [{ default: fs }] = await Promise.all([import("node:fs")]);
-  if (!fs.existsSync(filePath)) {
-    return null;
-  }
-  try {
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
-  } catch {
-    return null;
-  }
+  throw new Error("R2の公開URLが設定されていません。CLOUDFLARE_R2_PUBLIC_BASE_URL を設定してください。");
 }
 
 function normalizeStaticDataPath(relativePath) {
@@ -208,39 +171,28 @@ async function readStaticJsonFromPublicUrl(relativePath) {
     return null;
   }
 
-  const publicPath = `${DEFAULT_STATIC_WEB_DATA_PUBLIC_PATH}/${normalizedPath}`;
-  const url = new URL(publicPath, `${baseUrl}/`);
+  const url = new URL(normalizedPath, `${baseUrl}/`);
   try {
     const response = await fetch(url, { cache: "no-store" });
-    if (!response.ok) {
+    if (response.status === 404) {
       return null;
     }
+    if (!response.ok) {
+      throw new Error(`R2のJsonを読み込めませんでした。(${response.status}) ${normalizedPath}`);
+    }
     return response.json();
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(`R2のJsonを読み込めませんでした。${normalizedPath}`);
   }
 }
 
 async function readStaticWebDataPayload(relativePath) {
-  const [{ default: pathModule }] = await Promise.all([import("node:path")]);
   const normalizedPath = normalizeStaticDataPath(relativePath);
   if (!normalizedPath) {
     return null;
-  }
-
-  const dataDirectories = await getStaticWebDataDirectories();
-  for (const dataDirectoryCandidate of dataDirectories) {
-    const dataDirectory = pathModule.resolve(dataDirectoryCandidate);
-    const filePath = pathModule.resolve(dataDirectory, normalizedPath);
-    const relativeFilePath = pathModule.relative(dataDirectory, filePath);
-    if (relativeFilePath.startsWith("..") || pathModule.isAbsolute(relativeFilePath)) {
-      continue;
-    }
-
-    const filePayload = await readJsonFileIfExists(filePath);
-    if (filePayload) {
-      return filePayload;
-    }
   }
 
   return readStaticJsonFromPublicUrl(normalizedPath);
@@ -907,131 +859,6 @@ export const getStoreIdentity = cache(async function getStoreIdentity(storeId) {
 
   return null;
 });
-
-async function readStoreMachineSummariesFromLocalData(storeName) {
-  const machineSummariesCache = getStoreMachineSummariesCache();
-  const [{ default: fs }, pathModule, urlModule] = await Promise.all([
-    import("node:fs"),
-    import("node:path"),
-    import("node:url"),
-  ]);
-  const currentDirectory = pathModule.dirname(urlModule.fileURLToPath(import.meta.url));
-  const configuredLocalDataDirectory = await readSetting("LOCAL_SAVE_DIR");
-  const localDataDirectory = configuredLocalDataDirectory
-    ? pathModule.isAbsolute(configuredLocalDataDirectory)
-      ? configuredLocalDataDirectory
-      : pathModule.resolve(currentDirectory, "../../../", configuredLocalDataDirectory)
-    : pathModule.resolve(currentDirectory, "../../../local_data");
-  const indexPath = pathModule.resolve(localDataDirectory, storeName, "_full_day_index.json");
-
-  if (!fs.existsSync(indexPath)) {
-    return null;
-  }
-
-  const modifiedAtMs = fs.statSync(indexPath).mtimeMs;
-  const cachedEntry = machineSummariesCache.get(indexPath);
-
-  if (cachedEntry?.modifiedAtMs === modifiedAtMs) {
-    return cachedEntry.summary;
-  }
-
-  try {
-    const index = JSON.parse(fs.readFileSync(indexPath, "utf8"));
-    const fullDayDates = Object.entries(index?.full_day_dates ?? {}).sort(([left], [right]) =>
-      right.localeCompare(left, "ja"),
-    );
-    const buckets = new Map();
-
-    for (const [targetDate, entry] of fullDayDates) {
-      const savedPath = String(entry?.local_file_path ?? "").trim();
-      if (!savedPath) {
-        continue;
-      }
-
-      const snapshotPath = fs.existsSync(savedPath)
-        ? savedPath
-        : pathModule.resolve(pathModule.dirname(indexPath), pathModule.basename(savedPath));
-
-      if (!fs.existsSync(snapshotPath)) {
-        continue;
-      }
-
-      const snapshot = JSON.parse(fs.readFileSync(snapshotPath, "utf8"));
-      const rows = (Array.isArray(snapshot?.records) ? snapshot.records : []).map(
-        withCalculatedDifferenceValue,
-      );
-
-      for (const row of rows) {
-        const machineName = String(row.machine_name ?? "").trim();
-        if (!machineName) {
-          continue;
-        }
-
-        const existingBucket = buckets.get(machineName);
-        if (existingBucket && existingBucket.latestDate !== targetDate) {
-          continue;
-        }
-
-        if (!existingBucket) {
-          buckets.set(machineName, {
-            machineName,
-            latestDate: targetDate,
-            slots: new Set([row.slot_number]),
-            rows: [row],
-          });
-          continue;
-        }
-
-        existingBucket.rows.push(row);
-        existingBucket.slots.add(row.slot_number);
-      }
-    }
-
-    if (buckets.size === 0) {
-      return null;
-    }
-
-    const machineSummaries = [...buckets.values()].map((bucket) => ({
-      machineName: bucket.machineName,
-      slotCount: bucket.slots.size,
-      latestDate: bucket.latestDate,
-      latestAverageDifference: average(bucket.rows.map((row) => row.difference_value)),
-      latestAverageGames: average(bucket.rows.map((row) => row.games_count)),
-      latestAveragePayout: average(bucket.rows.map((row) => row.payout_rate)),
-    }));
-
-    const summary = {
-      latestDate:
-        machineSummaries.reduce((currentLatestDate, machine) => {
-          if (!machine?.latestDate) {
-            return currentLatestDate;
-          }
-          if (currentLatestDate === null || machine.latestDate > currentLatestDate) {
-            return machine.latestDate;
-          }
-          return currentLatestDate;
-        }, null) ?? null,
-      machines: machineSummaries.sort((left, right) => {
-        if (left.latestDate !== right.latestDate) {
-          return right.latestDate.localeCompare(left.latestDate, "ja");
-        }
-        if (left.slotCount !== right.slotCount) {
-          return right.slotCount - left.slotCount;
-        }
-        return left.machineName.localeCompare(right.machineName, "ja");
-      }),
-    };
-
-    machineSummariesCache.set(indexPath, {
-      modifiedAtMs,
-      summary,
-    });
-
-    return summary;
-  } catch {
-    return null;
-  }
-}
 
 function readStaticStoreIdentity(staticStore) {
   const store = staticStore?.store && typeof staticStore.store === "object" ? staticStore.store : {};

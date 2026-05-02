@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import queue
+from types import SimpleNamespace
 import threading
 import unittest
 from unittest import mock
@@ -58,11 +59,63 @@ from site7_scraper import (
     enrich_site7_target_store,
 )
 from site7_scraper import build_site7_transition_wait_milliseconds
+from web_data_export import StoreSource, build_store_payload, export_store_payloads
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 HTML_DIR = ROOT_DIR / "html"
 GUI_FIXTURE_DIR = Path(__file__).resolve().parent / "test_fixtures"
+
+
+class FakeR2JsonStorage:
+    def __init__(self) -> None:
+        self.objects: dict[str, object] = {}
+        self.is_configured = True
+
+    def require_config(self) -> SimpleNamespace:
+        return SimpleNamespace(bucket_name="test-bucket")
+
+    def read_json(self, key: str) -> dict[str, object] | None:
+        payload = self.objects.get(self._normalize_key(key))
+        if isinstance(payload, bytes):
+            payload = json.loads(payload.decode("utf-8"))
+        return json.loads(json.dumps(payload, ensure_ascii=False)) if isinstance(payload, dict) else None
+
+    def write_json(self, key: str, payload: dict[str, object]) -> str:
+        normalized_key = self._normalize_key(key)
+        self.objects[normalized_key] = json.loads(json.dumps(payload, ensure_ascii=False))
+        return normalized_key
+
+    def write_bytes(self, key: str, body: bytes, content_type: str = "application/json") -> str:
+        normalized_key = self._normalize_key(key)
+        self.objects[normalized_key] = bytes(body)
+        return normalized_key
+
+    def delete_object(self, key: str) -> None:
+        self.objects.pop(self._normalize_key(key), None)
+
+    @staticmethod
+    def _normalize_key(key: str) -> str:
+        return str(key).replace("\\", "/").lstrip("/")
+
+
+def make_r2_service(root_dir: Path) -> tuple[HistoryPersistenceService, FakeR2JsonStorage]:
+    storage = FakeR2JsonStorage()
+    return HistoryPersistenceService(root_dir=root_dir, r2_storage=storage), storage
+
+
+def seed_r2_store(
+    storage: FakeR2JsonStorage,
+    *,
+    store_name: str,
+    store_url: str,
+    records: list[dict[str, object]],
+) -> None:
+    store_payload = build_store_payload(
+        StoreSource(store_name=store_name, store_url=normalize_store_url(store_url)),
+        records,
+    )
+    export_store_payloads(Path("."), [store_payload], r2_storage=storage)  # type: ignore[arg-type]
 
 
 def find_html(folder_name: str) -> str:
@@ -1598,7 +1651,7 @@ class MinRepoScraperTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "無効"):
                 service._save_to_supabase({"store": {}, "records": []})  # type: ignore[attr-defined]
 
-    def test_save_history_result_writes_local_file(self) -> None:
+    def test_save_history_result_writes_r2_web_data(self) -> None:
         scraper = FixtureScraper()
         history_result = scraper.fetch_machine_history_datasets(
             store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
@@ -1607,15 +1660,16 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         with TemporaryDirectory() as temp_dir:
-            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            service, storage = make_r2_service(Path(temp_dir))
 
             summary = service.save_history_result(history_result)
 
             self.assertFalse(summary.has_errors)
             self.assertFalse(summary.supabase_saved)
             self.assertEqual(summary.local_record_count, 80)
-            self.assertIsNotNone(summary.local_file_path)
-            self.assertTrue(Path(summary.local_file_path).exists())
+            self.assertIsNone(summary.local_file_path)
+            self.assertTrue(summary.web_data_saved)
+            self.assertIn("index.json", storage.objects)
 
     def test_save_history_result_marks_full_day_index(self) -> None:
         scraper = FixtureScraper()
@@ -1629,7 +1683,7 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         with TemporaryDirectory() as temp_dir:
-            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            service, _ = make_r2_service(Path(temp_dir))
 
             summary = service.save_history_result(history_result, full_day=True)
             saved_dates_summary = service.find_saved_full_day_dates(
@@ -1642,7 +1696,7 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertFalse(summary.has_errors)
             self.assertEqual(saved_dates_summary.saved_dates, {"2026-04-07"})
 
-    def test_save_history_result_does_not_mark_full_day_index_when_local_save_fails(self) -> None:
+    def test_save_history_result_does_not_mark_full_day_index_when_r2_save_fails(self) -> None:
         scraper = FixtureScraper()
         context = scraper.prepare_machine_history_context(
             store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
@@ -1653,12 +1707,12 @@ class MinRepoScraperTests(unittest.TestCase):
             date_page=context.date_pages[0],
         )
 
-        def fail_to_save(snapshot: dict[str, object]) -> Path:
+        def fail_to_save(snapshot: dict[str, object]) -> str:
             raise RuntimeError("保存失敗")
 
         with TemporaryDirectory() as temp_dir:
-            service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            service._save_local_snapshot = fail_to_save  # type: ignore[method-assign]
+            service, _ = make_r2_service(Path(temp_dir))
+            service._save_r2_snapshot = fail_to_save  # type: ignore[method-assign]
 
             summary = service.save_history_result(history_result, full_day=True)
             saved_dates_summary = service.find_saved_full_day_dates(
@@ -1671,38 +1725,32 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertTrue(summary.has_errors)
             self.assertEqual(saved_dates_summary.saved_dates, set())
 
-    def test_find_saved_full_day_dates_uses_local_index_only(self) -> None:
+    def test_find_saved_full_day_dates_uses_r2_index_only(self) -> None:
         with TemporaryDirectory() as temp_dir:
-            service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            index_path = service._full_day_index_path("テスト店")
-            index_path.parent.mkdir(parents=True, exist_ok=True)
-            index_path.write_text(
-                json.dumps(
-                    {
-                        "version": 1,
-                        "store": {
-                            "store_name": "テスト店",
-                            "store_url": "https://example.com/store/",
+            service, storage = make_r2_service(Path(temp_dir))
+            storage.write_json(
+                service._r2_full_day_index_key("テスト店", "https://example.com/store/"),  # type: ignore[attr-defined]
+                {
+                    "version": 1,
+                    "store": {
+                        "store_name": "テスト店",
+                        "store_url": "https://example.com/store/",
+                    },
+                    "full_day_dates": {
+                        "2026-04-26": {
+                            "saved_at": "2026-04-26T12:00:00+09:00",
+                            "machine_count": 2,
+                            "record_count": 20,
+                            "snapshot_key": "dummy-1.json",
                         },
-                        "full_day_dates": {
-                            "2026-04-26": {
-                                "saved_at": "2026-04-26T12:00:00+09:00",
-                                "machine_count": 2,
-                                "record_count": 20,
-                                "local_file_path": "dummy-1.json",
-                            },
-                            "2026-04-27": {
-                                "saved_at": "2026-04-27T12:00:00+09:00",
-                                "machine_count": 2,
-                                "record_count": 20,
-                                "local_file_path": "dummy-2.json",
-                            },
+                        "2026-04-27": {
+                            "saved_at": "2026-04-27T12:00:00+09:00",
+                            "machine_count": 2,
+                            "record_count": 20,
+                            "snapshot_key": "dummy-2.json",
                         },
                     },
-                    ensure_ascii=False,
-                    indent=2,
-                ),
-                encoding="utf-8",
+                },
             )
 
             saved_dates_summary = service.find_saved_full_day_dates(
@@ -1787,29 +1835,24 @@ class MinRepoScraperTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            static_index_path = root_dir / "apps" / "web" / "public" / "halldata-static" / "index.json"
-            static_index_path.parent.mkdir(parents=True, exist_ok=True)
-            static_index_path.write_text(
-                json.dumps(
-                    {
-                        "version": 1,
-                        "stores": [
-                            {
-                                "storeName": "Aパーク春日店",
-                                "storeUrl": "https://min-repo.com/tag/a-%E3%83%91%E3%83%BC%E3%82%AF%E6%98%A5%E6%97%A5%E5%BA%97/",
-                            },
-                            {
-                                "storeName": "GOGOアリーナ天神",
-                                "storeUrl": "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/",
-                            },
-                        ],
-                    },
-                    ensure_ascii=False,
-                ),
-                encoding="utf-8",
+            service, storage = make_r2_service(root_dir)
+            storage.write_json(
+                "index.json",
+                {
+                    "version": 1,
+                    "stores": [
+                        {
+                            "storeName": "Aパーク春日店",
+                            "storeUrl": "https://min-repo.com/tag/a-%E3%83%91%E3%83%BC%E3%82%AF%E6%98%A5%E6%97%A5%E5%BA%97/",
+                        },
+                        {
+                            "storeName": "GOGOアリーナ天神",
+                            "storeUrl": "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/",
+                        },
+                    ],
+                },
             )
 
-            service = HistoryPersistenceService(root_dir=root_dir)
             loaded_stores = service.load_registered_stores()
 
             self.assertEqual([store["store_name"] for store in loaded_stores], ["GOGOアリーナ天神", "Aパーク春日店"])
@@ -1820,29 +1863,24 @@ class MinRepoScraperTests(unittest.TestCase):
     def test_delete_registered_stores_keeps_static_fallback_store_hidden(self) -> None:
         with TemporaryDirectory() as temp_dir:
             root_dir = Path(temp_dir)
-            static_index_path = root_dir / "apps" / "web" / "public" / "halldata-static" / "index.json"
-            static_index_path.parent.mkdir(parents=True, exist_ok=True)
-            static_index_path.write_text(
-                json.dumps(
-                    {
-                        "version": 1,
-                        "stores": [
-                            {
-                                "storeName": "GOGOアリーナ天神",
-                                "storeUrl": "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/",
-                            },
-                            {
-                                "storeName": "Aパーク春日店",
-                                "storeUrl": "https://example.com/kasuga/",
-                            },
-                        ],
-                    },
-                    ensure_ascii=False,
-                ),
-                encoding="utf-8",
+            service, storage = make_r2_service(root_dir)
+            storage.write_json(
+                "index.json",
+                {
+                    "version": 1,
+                    "stores": [
+                        {
+                            "storeName": "GOGOアリーナ天神",
+                            "storeUrl": "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/",
+                        },
+                        {
+                            "storeName": "Aパーク春日店",
+                            "storeUrl": "https://example.com/kasuga/",
+                        },
+                    ],
+                },
             )
 
-            service = HistoryPersistenceService(root_dir=root_dir)
             deleted_count = service.delete_registered_stores(["https://example.com/kasuga"])
             loaded_stores = service.load_registered_stores()
             registered_payload = json.loads((root_dir / "local_data" / "registered_stores.json").read_text(encoding="utf-8"))
@@ -1851,7 +1889,7 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual([store["store_name"] for store in loaded_stores], ["GOGOアリーナ天神"])
             self.assertEqual(registered_payload["excluded_store_urls"], ["https://example.com/kasuga/"])
 
-    def test_load_registered_stores_falls_back_to_local_snapshots(self) -> None:
+    def test_load_registered_stores_does_not_fall_back_to_local_snapshots(self) -> None:
         with TemporaryDirectory() as temp_dir:
             root_dir = Path(temp_dir)
             store_dir = root_dir / "local_data" / "テスト店"
@@ -1870,13 +1908,10 @@ class MinRepoScraperTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            service = HistoryPersistenceService(root_dir=root_dir)
+            service, _ = make_r2_service(root_dir)
             loaded_stores = service.load_registered_stores()
 
-            self.assertEqual(
-                [(store["store_name"], store["store_url"]) for store in loaded_stores],
-                [("テスト店", "https://example.com/test/")],
-            )
+            self.assertEqual(loaded_stores, [])
 
     def test_normalize_registered_stores_applies_site7_defaults(self) -> None:
         with TemporaryDirectory() as temp_dir:
@@ -1995,27 +2030,27 @@ class MinRepoScraperTests(unittest.TestCase):
                 ["Aパーク春日店"],
             )
 
-    def test_find_saved_machine_targets_uses_local_snapshot(self) -> None:
+    def test_find_saved_machine_targets_uses_r2_store_data(self) -> None:
         with TemporaryDirectory() as temp_dir:
-            service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            service._find_saved_machine_targets_from_supabase = lambda **kwargs: set()  # type: ignore[method-assign]
-            store_dir = Path(temp_dir) / "local_data" / "テスト店"
-            store_dir.mkdir(parents=True, exist_ok=True)
-            (store_dir / "sample.json").write_text(
-                json.dumps(
+            service, storage = make_r2_service(Path(temp_dir))
+            seed_r2_store(
+                storage,
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                records=[
                     {
-                        "store": {
-                            "store_name": "テスト店",
-                            "store_url": "https://example.com/store/",
-                        },
-                        "records": [
-                            {"target_date": "2026-04-07", "machine_name": "ゴーゴージャグラー3", "payout_rate": 101.0},
-                            {"target_date": "2026-04-08", "machine_name": "ゴーゴージャグラー３", "payout_rate": 101.0},
-                        ],
+                        "target_date": "2026-04-07",
+                        "slot_number": "1",
+                        "machine_name": "ゴーゴージャグラー3",
+                        "payout_rate": 101.0,
                     },
-                    ensure_ascii=False,
-                ),
-                encoding="utf-8",
+                    {
+                        "target_date": "2026-04-08",
+                        "slot_number": "1",
+                        "machine_name": "ゴーゴージャグラー３",
+                        "payout_rate": 101.0,
+                    },
+                ],
             )
 
             summary = service.find_saved_machine_targets(
@@ -2037,25 +2072,25 @@ class MinRepoScraperTests(unittest.TestCase):
 
     def test_find_saved_machine_targets_includes_all_target_machines(self) -> None:
         with TemporaryDirectory() as temp_dir:
-            service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            service._find_saved_machine_targets_from_supabase = lambda **kwargs: set()  # type: ignore[method-assign]
-            store_dir = Path(temp_dir) / "local_data" / "テスト店"
-            store_dir.mkdir(parents=True, exist_ok=True)
-            (store_dir / "sample.json").write_text(
-                json.dumps(
+            service, storage = make_r2_service(Path(temp_dir))
+            seed_r2_store(
+                storage,
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                records=[
                     {
-                        "store": {
-                            "store_name": "テスト店",
-                            "store_url": "https://example.com/store/",
-                        },
-                        "records": [
-                            {"target_date": "2026-04-07", "machine_name": "ネオアイムジャグラーEX", "payout_rate": 101.0},
-                            {"target_date": "2026-04-08", "machine_name": "SアイムジャグラーＥＸ", "payout_rate": 101.0},
-                        ],
+                        "target_date": "2026-04-07",
+                        "slot_number": "1",
+                        "machine_name": "ネオアイムジャグラーEX",
+                        "payout_rate": 101.0,
                     },
-                    ensure_ascii=False,
-                ),
-                encoding="utf-8",
+                    {
+                        "target_date": "2026-04-08",
+                        "slot_number": "1",
+                        "machine_name": "SアイムジャグラーＥＸ",
+                        "payout_rate": 101.0,
+                    },
+                ],
             )
 
             summary = service.find_saved_machine_targets(
@@ -2075,36 +2110,29 @@ class MinRepoScraperTests(unittest.TestCase):
                 },
             )
 
-    def test_find_saved_machine_targets_supabase_alias_uses_local_json(self) -> None:
+    def test_find_saved_machine_targets_supabase_alias_uses_r2_json(self) -> None:
         with TemporaryDirectory() as temp_dir:
-            service = HistoryPersistenceService(root_dir=Path(temp_dir))
-            store_dir = Path(temp_dir) / "local_data" / "テスト店"
-            store_dir.mkdir(parents=True, exist_ok=True)
-            (store_dir / "sample.json").write_text(
-                json.dumps(
+            service, storage = make_r2_service(Path(temp_dir))
+            seed_r2_store(
+                storage,
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                records=[
                     {
-                        "store": {
-                            "store_name": "テスト店",
-                            "store_url": "https://example.com/store/",
-                        },
-                        "records": [
-                            {
-                                "target_date": "2026-04-24",
-                                "machine_name": "ゴーゴージャグラー３",
-                                "data_source": DATA_SOURCE_SITE7,
-                                "payout_rate": None,
-                            },
-                            {
-                                "target_date": "2026-04-25",
-                                "machine_name": "ゴーゴージャグラー３",
-                                "data_source": DATA_SOURCE_MINREPO,
-                                "payout_rate": 101.2,
-                            },
-                        ],
+                        "target_date": "2026-04-24",
+                        "slot_number": "737",
+                        "machine_name": "ゴーゴージャグラー３",
+                        "data_source": DATA_SOURCE_SITE7,
+                        "payout_rate": None,
                     },
-                    ensure_ascii=False,
-                ),
-                encoding="utf-8",
+                    {
+                        "target_date": "2026-04-25",
+                        "slot_number": "737",
+                        "machine_name": "ゴーゴージャグラー３",
+                        "data_source": DATA_SOURCE_MINREPO,
+                        "payout_rate": 101.2,
+                    },
+                ],
             )
 
             summary = service.find_saved_machine_targets_supabase(

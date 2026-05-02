@@ -19,8 +19,16 @@ from machine_difference import (
     canonical_machine_name,
 )
 from minrepo_scraper import MachineHistoryResult, normalize_text
+from r2_storage import R2JsonStorage, R2StorageError
 from site7_scraper import DEFAULT_SITE7_PREFECTURE_NAME, default_site7_store_settings
-from web_data_export import export_store_from_local_data
+from web_data_export import (
+    WEB_DATA_VERSION,
+    StoreSource,
+    build_index_store_entry,
+    build_store_id,
+    build_store_payload,
+    export_store_payloads,
+)
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -36,6 +44,8 @@ STORE_COLUMNS = {"機種", "機種名"}
 WINDOWS_FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]+')
 DATA_SOURCE_MINREPO = "minrepo"
 DATA_SOURCE_SITE7 = "site7"
+R2_SNAPSHOT_PREFIX = "snapshots"
+R2_FULL_DAY_INDEX_FILE_NAME = "full-day-index.json"
 
 
 @dataclass
@@ -378,25 +388,24 @@ def build_store_machine_daily_detail_payloads(
 
 
 class HistoryPersistenceService:
-    def __init__(self, root_dir: Path | None = None) -> None:
+    def __init__(self, root_dir: Path | None = None, r2_storage: R2JsonStorage | None = None) -> None:
         self.root_dir = root_dir or ROOT_DIR
+        self.r2_storage = r2_storage or R2JsonStorage.from_environment(self.root_dir)
 
     def save_history_result(self, history_result: MachineHistoryResult, full_day: bool = False) -> PersistenceSummary:
         snapshot = self._build_local_snapshot(history_result)
         summary = PersistenceSummary(local_record_count=len(snapshot["records"]))
-        local_path: Path | None = None
 
         try:
-            local_path = self._save_local_snapshot(snapshot)
-            summary.local_file_path = str(local_path)
+            snapshot_key = self._save_r2_snapshot(snapshot)
+            entry = self._save_r2_web_data(snapshot)
+            if full_day:
+                self._mark_full_day_saved_r2(snapshot, snapshot_key)
+            summary.web_data_saved = True
+            summary.web_data_file_path = self._format_r2_path(str(entry.get("dataFile", "")))
+            summary.web_data_record_count = int(entry.get("recordCount") or len(snapshot["records"]))
         except Exception as exc:  # noqa: BLE001
-            summary.messages.append(f"ローカル保存に失敗しました。\n{exc}")
-
-        if full_day and local_path is not None:
-            try:
-                self._mark_full_day_saved(snapshot, local_path)
-            except Exception as exc:  # noqa: BLE001
-                summary.messages.append(f"取得済み索引の更新に失敗しました。\n{exc}")
+            summary.messages.append(f"R2保存に失敗しました。\n{exc}")
 
         return summary
 
@@ -408,9 +417,8 @@ class HistoryPersistenceService:
         end_date: str,
     ) -> SavedFullDayDatesSummary:
         summary = SavedFullDayDatesSummary()
-        saved_date_entries: dict[str, dict[str, Any]] = {}
         try:
-            saved_date_entries = self._find_saved_full_day_date_entries_local(
+            saved_date_entries = self._find_saved_full_day_date_entries_r2(
                 store_name=store_name,
                 store_url=store_url,
                 start_date=start_date,
@@ -418,7 +426,7 @@ class HistoryPersistenceService:
             )
             summary.saved_dates.update(saved_date_entries)
         except Exception as exc:  # noqa: BLE001
-            summary.messages.append(f"ローカルの全機種取得済み確認に失敗しました。\n{exc}")
+            summary.messages.append(f"R2の全機種取得済み確認に失敗しました。\n{exc}")
             return summary
 
         return summary
@@ -437,7 +445,7 @@ class HistoryPersistenceService:
             return summary
 
         try:
-            protected_targets, replaceable_targets = self._find_saved_machine_target_sources_local(
+            protected_targets, replaceable_targets = self._find_saved_machine_target_sources_r2(
                 store_name=store_name,
                 store_url=store_url,
                 start_date=start_date,
@@ -447,7 +455,7 @@ class HistoryPersistenceService:
             summary.saved_targets.update(protected_targets)
             summary.replaceable_targets.update(replaceable_targets)
         except Exception as exc:  # noqa: BLE001
-            summary.messages.append(f"ローカルの取得済み確認に失敗しました。\n{exc}")
+            summary.messages.append(f"R2の取得済み確認に失敗しました。\n{exc}")
 
         return summary
 
@@ -469,7 +477,7 @@ class HistoryPersistenceService:
             return summary
 
         try:
-            protected_slots, replaceable_slots = self._find_saved_machine_slot_sources_local(
+            protected_slots, replaceable_slots = self._find_saved_machine_slot_sources_r2(
                 store_name=store_name,
                 store_url=store_url,
                 start_date=start_date,
@@ -479,7 +487,7 @@ class HistoryPersistenceService:
             summary.protected_slots.update(protected_slots)
             summary.replaceable_slots.update(replaceable_slots)
         except Exception as exc:  # noqa: BLE001
-            summary.messages.append(f"ローカルの取得済み確認に失敗しました。\n{exc}")
+            summary.messages.append(f"R2の取得済み確認に失敗しました。\n{exc}")
 
         return summary
 
@@ -534,7 +542,7 @@ class HistoryPersistenceService:
         excluded_store_urls = self._load_registered_store_excluded_urls()
         fallback_stores = self._merge_registered_store_sources(
             self._load_registered_stores_from_static_web_data(),
-            self._load_registered_stores_from_local_snapshots(),
+            [],
             excluded_store_urls=set(),
         )
         return self._merge_registered_store_sources(
@@ -570,11 +578,7 @@ class HistoryPersistenceService:
         return self._delete_registered_stores_local(normalized_store_urls)
 
     def refresh_web_data_for_store(self, store_name: str) -> dict[str, Any] | None:
-        return export_store_from_local_data(
-            store_name,
-            local_save_dir=self._local_save_dir(),
-            web_data_dir=self.root_dir / "apps" / "web" / "public" / "halldata-static",
-        )
+        return self._find_r2_store_entry(store_name=store_name, store_url="")
 
     def _build_local_snapshot(self, history_result: MachineHistoryResult) -> dict[str, Any]:
         records = build_machine_daily_records(history_result)
@@ -605,6 +609,194 @@ class HistoryPersistenceService:
             ),
             "records": records,
         }
+
+    def _r2_store_source_from_snapshot(self, snapshot: dict[str, Any]) -> StoreSource:
+        store = snapshot.get("store", {})
+        store_name = str(store.get("store_name", "")).strip() if isinstance(store, dict) else ""
+        store_url = normalize_store_url(str(store.get("store_url", "")).strip()) if isinstance(store, dict) else ""
+        return StoreSource(store_name=store_name or store_url, store_url=store_url)
+
+    def _r2_store_id(self, store_name: str, store_url: str) -> str:
+        return build_store_id(store_name, normalize_store_url(store_url))
+
+    def _r2_store_key(self, store_id: str) -> str:
+        return f"stores/{store_id}.json"
+
+    def _r2_full_day_index_key(self, store_name: str, store_url: str) -> str:
+        store_id = self._r2_store_id(store_name, store_url)
+        return f"stores/{store_id}/{R2_FULL_DAY_INDEX_FILE_NAME}"
+
+    def _format_r2_path(self, key: str) -> str:
+        config = self.r2_storage.require_config()
+        normalized_key = str(key).replace("\\", "/").lstrip("/")
+        return f"r2://{config.bucket_name}/{normalized_key}"
+
+    def _save_r2_snapshot(self, snapshot: dict[str, Any]) -> str:
+        store_source = self._r2_store_source_from_snapshot(snapshot)
+        store_id = self._r2_store_id(store_source.store_name, store_source.store_url)
+        period = snapshot.get("period", {})
+        start_date = str(period.get("start_date", "")).strip() if isinstance(period, dict) else ""
+        end_date = str(period.get("end_date", "")).strip() if isinstance(period, dict) else ""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        key = f"{R2_SNAPSHOT_PREFIX}/{store_id}/{start_date}_{end_date}_{timestamp}.json"
+        return self.r2_storage.write_json(key, snapshot)
+
+    def _save_r2_web_data(self, snapshot: dict[str, Any]) -> dict[str, Any]:
+        store_source = self._r2_store_source_from_snapshot(snapshot)
+        incoming_records = [record for record in snapshot.get("records", []) if isinstance(record, dict)]
+        existing_records = self._load_r2_store_records(
+            store_name=store_source.store_name,
+            store_url=store_source.store_url,
+        )
+        records = self._merge_r2_records(existing_records, incoming_records)
+        store_payload = build_store_payload(store_source, records)
+        entries = export_store_payloads(
+            self.root_dir / "apps" / "web" / "public" / "halldata-static",
+            [store_payload],
+            r2_storage=self.r2_storage,
+        )
+        return entries[0] if entries else {}
+
+    def _merge_r2_records(
+        self,
+        existing_records: list[dict[str, Any]],
+        incoming_records: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        records_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+        for record in existing_records:
+            key = self._record_replace_key(record)
+            if key is not None:
+                records_by_key[key] = record
+
+        for record in incoming_records:
+            key = self._record_replace_key(record)
+            if key is None:
+                continue
+            existing_record = records_by_key.get(key)
+            if existing_record is None or self._incoming_record_should_replace(existing_record, record):
+                records_by_key[key] = record
+
+        return list(records_by_key.values())
+
+    def _record_replace_key(self, record: dict[str, Any]) -> tuple[str, str] | None:
+        target_date = str(record.get("target_date", "")).strip()
+        slot_number = str(record.get("slot_number", "")).strip()
+        if not target_date or not slot_number:
+            return None
+        return target_date, slot_number
+
+    def _incoming_record_should_replace(self, existing_record: dict[str, Any], incoming_record: dict[str, Any]) -> bool:
+        existing_source = _infer_saved_result_data_source(existing_record)
+        incoming_source = _infer_saved_result_data_source(incoming_record)
+        if existing_source == DATA_SOURCE_MINREPO and incoming_source == DATA_SOURCE_SITE7:
+            return False
+        return True
+
+    def _load_r2_index_payload(self) -> dict[str, Any]:
+        payload = self.r2_storage.read_json("index.json")
+        if isinstance(payload, dict):
+            return payload
+        return {"version": WEB_DATA_VERSION, "stores": []}
+
+    def _find_r2_store_entry(self, *, store_name: str, store_url: str) -> dict[str, Any] | None:
+        payload = self._load_r2_index_payload()
+        stores = payload.get("stores", [])
+        if not isinstance(stores, list):
+            return None
+
+        normalized_url = normalize_store_url(store_url)
+        requested_id = self._r2_store_id(store_name, normalized_url) if (store_name or normalized_url) else ""
+        normalized_name = normalize_store_name_key(store_name) if store_name else ""
+        for store in stores:
+            if not isinstance(store, dict):
+                continue
+            store_id = str(store.get("id", "")).strip()
+            legacy_ids = {str(legacy_id).strip() for legacy_id in store.get("legacyIds", []) if str(legacy_id).strip()}
+            store_entry_url = normalize_store_url(str(store.get("storeUrl", "")).strip())
+            store_entry_name = normalize_store_name_key(str(store.get("storeName", "")).strip())
+            if requested_id and (store_id == requested_id or requested_id in legacy_ids):
+                return store
+            if normalized_url and store_entry_url == normalized_url:
+                return store
+            if normalized_name and store_entry_name == normalized_name:
+                return store
+        return None
+
+    def _load_r2_store_payload(self, *, store_name: str, store_url: str) -> dict[str, Any] | None:
+        entry = self._find_r2_store_entry(store_name=store_name, store_url=store_url)
+        data_file = str(entry.get("dataFile", "")).strip() if isinstance(entry, dict) else ""
+        if not data_file:
+            store_id = self._r2_store_id(store_name, store_url)
+            data_file = self._r2_store_key(store_id)
+        payload = self.r2_storage.read_json(data_file)
+        return payload if isinstance(payload, dict) else None
+
+    def _load_r2_store_records(self, *, store_name: str, store_url: str) -> list[dict[str, Any]]:
+        store_payload = self._load_r2_store_payload(store_name=store_name, store_url=store_url)
+        if not store_payload:
+            return []
+
+        records: list[dict[str, Any]] = []
+        for record in store_payload.get("records", []):
+            if isinstance(record, dict):
+                records.append(record)
+
+        for machine in store_payload.get("machines", []):
+            if not isinstance(machine, dict):
+                continue
+            data_file = str(machine.get("dataFile", "")).strip()
+            if not data_file:
+                continue
+            machine_payload = self.r2_storage.read_json(data_file)
+            if not isinstance(machine_payload, dict):
+                continue
+            for record in machine_payload.get("records", []):
+                if isinstance(record, dict):
+                    records.append(record)
+        return records
+
+    def _mark_full_day_saved_r2(self, snapshot: dict[str, Any], snapshot_key: str) -> None:
+        store = snapshot.get("store", {})
+        if not isinstance(store, dict):
+            return
+
+        store_name = str(store.get("store_name", "")).strip()
+        store_url = normalize_store_url(str(store.get("store_url", "")))
+        if not store_name and not store_url:
+            return
+
+        index_key = self._r2_full_day_index_key(store_name, store_url)
+        index_payload = self.r2_storage.read_json(index_key) or {"version": 1, "store": {}, "full_day_dates": {}}
+        if not isinstance(index_payload, dict):
+            index_payload = {"version": 1, "store": {}, "full_day_dates": {}}
+
+        index_payload["store"] = {
+            "store_name": store_name,
+            "store_url": store_url,
+        }
+        full_day_dates = index_payload.setdefault("full_day_dates", {})
+        if not isinstance(full_day_dates, dict):
+            full_day_dates = {}
+            index_payload["full_day_dates"] = full_day_dates
+
+        now_text = datetime.now().astimezone().isoformat(timespec="seconds")
+        machine_names = snapshot.get("machine_names", [])
+        records = snapshot.get("records", [])
+        for date_page in snapshot.get("date_pages", []):
+            if not isinstance(date_page, dict):
+                continue
+            target_date = str(date_page.get("target_date", "")).strip()
+            if not target_date:
+                continue
+            full_day_dates[target_date] = {
+                "saved_at": now_text,
+                "machine_count": len(machine_names) if isinstance(machine_names, list) else 0,
+                "record_count": len(records) if isinstance(records, list) else 0,
+                "snapshot_key": snapshot_key,
+            }
+
+        self.r2_storage.write_json(index_key, index_payload)
+
     def resolve_preferred_store_by_name(self, store_name: str) -> dict[str, str] | None:
         store_name_key = normalize_store_name_key(store_name)
         if not store_name_key:
@@ -623,7 +815,7 @@ class HistoryPersistenceService:
                     "store_name": candidate_name,
                     "store_url": candidate_url,
                     "record_count": len(
-                        self._iter_local_snapshot_records(
+                        self._iter_r2_store_records(
                             store_name=candidate_name,
                             store_url=candidate_url,
                             start_date="0000-00-00",
@@ -703,6 +895,117 @@ class HistoryPersistenceService:
                 end_date=end_date,
             )
         )
+
+    def _find_saved_full_day_date_entries_r2(
+        self,
+        store_name: str,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+    ) -> dict[str, dict[str, Any]]:
+        index_key = self._r2_full_day_index_key(store_name, store_url)
+        payload = self.r2_storage.read_json(index_key)
+        if not isinstance(payload, dict):
+            return {}
+
+        store_payload = payload.get("store", {})
+        if isinstance(store_payload, dict):
+            saved_store_url = normalize_store_url(str(store_payload.get("store_url", "")).strip())
+            if saved_store_url and saved_store_url != normalize_store_url(store_url):
+                return {}
+
+        full_day_dates = payload.get("full_day_dates", {})
+        if not isinstance(full_day_dates, dict):
+            return {}
+
+        saved_date_entries: dict[str, dict[str, Any]] = {}
+        for target_date, entry in full_day_dates.items():
+            target_date_text = str(target_date).strip()
+            if not target_date_text or target_date_text < start_date or target_date_text > end_date:
+                continue
+            saved_date_entries[target_date_text] = entry if isinstance(entry, dict) else {}
+        return saved_date_entries
+
+    def _iter_r2_store_records(
+        self,
+        *,
+        store_name: str = "",
+        store_url: str = "",
+        start_date: str,
+        end_date: str,
+    ) -> list[dict[str, Any]]:
+        records = self._load_r2_store_records(store_name=store_name, store_url=store_url)
+        filtered_records: list[dict[str, Any]] = []
+        for row in records:
+            target_date = str(row.get("target_date", "")).strip()
+            if not target_date or target_date < start_date or target_date > end_date:
+                continue
+            filtered_records.append(row)
+        return filtered_records
+
+    def _find_saved_machine_target_sources_r2(
+        self,
+        store_name: str,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+        target_machine_names: set[str],
+    ) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
+        protected_targets: set[tuple[str, str]] = set()
+        replaceable_targets: set[tuple[str, str]] = set()
+        for row in self._iter_r2_store_records(
+            store_name=store_name,
+            store_url=store_url,
+            start_date=start_date,
+            end_date=end_date,
+        ):
+            target_date = str(row.get("target_date", "")).strip()
+            machine_name = normalize_machine_name_key(str(row.get("machine_name", "")).strip())
+            if not target_date or machine_name not in target_machine_names:
+                continue
+
+            target_key = (target_date, machine_name)
+            if _infer_saved_result_data_source(row) == DATA_SOURCE_SITE7:
+                if target_key not in protected_targets:
+                    replaceable_targets.add(target_key)
+                continue
+
+            protected_targets.add(target_key)
+            replaceable_targets.discard(target_key)
+
+        return protected_targets, replaceable_targets
+
+    def _find_saved_machine_slot_sources_r2(
+        self,
+        store_name: str,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+        target_slot_numbers: set[str],
+    ) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
+        protected_slots: set[tuple[str, str]] = set()
+        replaceable_slots: set[tuple[str, str]] = set()
+        for row in self._iter_r2_store_records(
+            store_name=store_name,
+            store_url=store_url,
+            start_date=start_date,
+            end_date=end_date,
+        ):
+            target_date = str(row.get("target_date", "")).strip()
+            slot_number = str(row.get("slot_number", "")).strip()
+            if not target_date or slot_number not in target_slot_numbers:
+                continue
+
+            target_key = (target_date, slot_number)
+            if _infer_saved_result_data_source(row) == DATA_SOURCE_SITE7:
+                if target_key not in protected_slots:
+                    replaceable_slots.add(target_key)
+                continue
+
+            protected_slots.add(target_key)
+            replaceable_slots.discard(target_key)
+
+        return protected_slots, replaceable_slots
 
     def _find_saved_full_day_date_entries_local(
         self,
@@ -948,13 +1251,12 @@ class HistoryPersistenceService:
         return merged_stores
 
     def _load_registered_stores_from_static_web_data(self) -> list[dict[str, Any]]:
-        index_path = self.root_dir / "apps" / "web" / "public" / "halldata-static" / "index.json"
-        if not index_path.exists():
+        if not self.r2_storage.is_configured:
             return []
 
         try:
-            payload = json.loads(index_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
+            payload = self._load_r2_index_payload()
+        except R2StorageError:
             return []
         if not isinstance(payload, dict):
             return []

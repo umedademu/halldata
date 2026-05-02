@@ -3628,7 +3628,7 @@ class MinRepoApp:
         if save_summary.local_file_path:
             saved_targets.append("ローカル")
         if save_summary.web_data_saved:
-            saved_targets.append("Web表示")
+            saved_targets.append("R2")
 
         if not saved_targets:
             return "保存失敗"
@@ -3636,7 +3636,9 @@ class MinRepoApp:
 
     def _refresh_web_data_for_store_result(self, store_result: StoreFetchResult) -> None:
         save_summary = store_result.save_summary
-        if save_summary is None or not save_summary.local_file_path:
+        if save_summary is None or save_summary.web_data_saved:
+            return
+        if not save_summary.local_file_path:
             return
 
         try:
