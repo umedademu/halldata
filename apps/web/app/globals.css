@@ -575,6 +575,7 @@ a {
   line-height: 1.5;
   text-decoration: underline;
   text-underline-offset: 3px;
+  overflow-wrap: anywhere;
 }
 
 .plainStoreLink:hover {
@@ -614,15 +615,19 @@ a {
 }
 
 .storeRegionList {
-  display: grid;
-  gap: 8px;
+  column-count: 4;
+  column-gap: 10px;
 }
 
 .storeRegionGroup {
+  display: inline-block;
+  width: 100%;
+  margin: 0 0 10px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: #ffffff;
+  break-inside: avoid;
 }
 
 .storeRegionSummary {
@@ -1632,6 +1637,12 @@ a {
   }
 }
 
+@media (max-width: 1180px) {
+  .storeRegionList {
+    column-count: 3;
+  }
+}
+
 @media (max-width: 920px) {
   .appShell {
     padding: 20px 14px 36px;
@@ -1662,6 +1673,10 @@ a {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .storeRegionList {
+    column-count: 2;
+  }
+
 }
 
 @media (max-width: 640px) {
@@ -1680,6 +1695,10 @@ a {
 
   .tablePanel {
     padding: 16px;
+  }
+
+  .storeRegionList {
+    column-count: 1;
   }
 
   .matrixPanel {
