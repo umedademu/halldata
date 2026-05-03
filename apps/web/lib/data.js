@@ -421,6 +421,37 @@ function staticStoreMatchesId(storeEntry, storeId) {
     .some((legacyId) => String(legacyId ?? "").trim() === requestedStoreId);
 }
 
+function readStaticStoreEntryIdentity(storeEntry) {
+  return {
+    id: String(storeEntry?.id ?? "").trim(),
+    storeName: String(storeEntry?.storeName ?? "").trim(),
+    storeUrl: String(storeEntry?.storeUrl ?? "").trim(),
+    prefectureName: String(
+      storeEntry?.prefectureName ?? storeEntry?.site7Prefecture ?? storeEntry?.site7_prefecture ?? "",
+    ).trim(),
+    areaName: String(storeEntry?.areaName ?? storeEntry?.site7Area ?? storeEntry?.site7_area ?? "").trim(),
+  };
+}
+
+function mergeStaticStoreEntryIdentity(payload, storeEntry) {
+  if (!payload || typeof payload !== "object") {
+    return payload;
+  }
+  const store = payload.store && typeof payload.store === "object" ? payload.store : {};
+  const entry = readStaticStoreEntryIdentity(storeEntry);
+  return {
+    ...payload,
+    store: {
+      ...store,
+      id: String(store.id ?? "").trim() || entry.id,
+      storeName: String(store.storeName ?? "").trim() || entry.storeName,
+      storeUrl: String(store.storeUrl ?? "").trim() || entry.storeUrl,
+      prefectureName: String(store.prefectureName ?? "").trim() || entry.prefectureName,
+      areaName: String(store.areaName ?? "").trim() || entry.areaName,
+    },
+  };
+}
+
 async function readStaticStoreById(storeId) {
   const index = await readStaticWebDataIndex();
   const storeEntry = index?.stores.find((entry) => staticStoreMatchesId(entry, storeId));
@@ -429,7 +460,7 @@ async function readStaticStoreById(storeId) {
   }
 
   const payload = await readStaticWebDataPayload(String(storeEntry.dataFile));
-  return payload && typeof payload === "object" ? payload : null;
+  return payload && typeof payload === "object" ? mergeStaticStoreEntryIdentity(payload, storeEntry) : null;
 }
 
 function buildQuery(params) {
