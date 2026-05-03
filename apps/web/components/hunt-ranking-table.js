@@ -352,15 +352,10 @@ export function HuntRankingTable({
   overallLimit = 20,
   predictionDate = null,
   actualDate = null,
+  highlightOptions = {},
 }) {
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
   const [differenceMode, setDifferenceMode] = useState(DEFAULT_DIFFERENCE_MODE);
-  const [rankMin, setRankMin] = useState(String(DEFAULT_HIGHLIGHT_RANK_MIN));
-  const [rankMax, setRankMax] = useState(String(DEFAULT_HIGHLIGHT_RANK_MAX));
-  const [scoreMin, setScoreMin] = useState(String(DEFAULT_HIGHLIGHT_SCORE_MIN));
-  const [deviationScope, setDeviationScope] = useState(DEFAULT_DEVIATION_SCOPE);
-  const [deviationMin, setDeviationMin] = useState(String(DEFAULT_DEVIATION_MIN));
-  const [matchMode, setMatchMode] = useState(DEFAULT_HIGHLIGHT_MATCH_MODE);
   const [bookmark, setBookmark] = useState(null);
 
   useEffect(() => {
@@ -387,15 +382,32 @@ export function HuntRankingTable({
     [resultColumns, visibleResultKeys],
   );
   const scoreColumnLabel = useMemo(() => formatScoreColumnLabel(predictionDate), [predictionDate]);
+  const deviationScope = normalizeDeviationScope(
+    highlightOptions.deviationScope ?? DEFAULT_DEVIATION_SCOPE,
+  );
   const highlightCondition = useMemo(
     () => ({
-      rankFilter: buildRankFilter(rankMin, rankMax),
-      scoreFilter: buildScoreFilter(scoreMin),
-      deviationFilter: buildDeviationFilter(deviationMin),
-      matchMode: normalizeMatchMode(matchMode),
-      deviationScope: normalizeDeviationScope(deviationScope),
+      rankFilter: buildRankFilter(
+        highlightOptions.rankMin ?? String(DEFAULT_HIGHLIGHT_RANK_MIN),
+        highlightOptions.rankMax ?? String(DEFAULT_HIGHLIGHT_RANK_MAX),
+      ),
+      scoreFilter: buildScoreFilter(
+        highlightOptions.scoreMin ?? String(DEFAULT_HIGHLIGHT_SCORE_MIN),
+      ),
+      deviationFilter: buildDeviationFilter(
+        highlightOptions.deviationMin ?? String(DEFAULT_DEVIATION_MIN),
+      ),
+      matchMode: normalizeMatchMode(highlightOptions.matchMode ?? DEFAULT_HIGHLIGHT_MATCH_MODE),
+      deviationScope,
     }),
-    [deviationMin, deviationScope, matchMode, rankMax, rankMin, scoreMin],
+    [
+      deviationScope,
+      highlightOptions.deviationMin,
+      highlightOptions.matchMode,
+      highlightOptions.rankMax,
+      highlightOptions.rankMin,
+      highlightOptions.scoreMin,
+    ],
   );
   const resultColumnLead = actualDate
     ? `${formatMonthDay(actualDate)}の実績列だけを切り替えられます。`
@@ -519,131 +531,6 @@ export function HuntRankingTable({
                 onChange={() => setDifferenceMode("minrepo")}
               />
               <span>みんレポ基準</span>
-            </label>
-          </div>
-        </div>
-        <div className="backtestFieldGrid">
-          <label className="storeReserveField backtestField">
-            <span>順位の開始</span>
-            <input
-              type="number"
-              min="1"
-              value={rankMin}
-              onChange={(event) => setRankMin(event.target.value)}
-              className="storeReserveInput"
-            />
-          </label>
-          <label className="storeReserveField backtestField">
-            <span>順位の終了</span>
-            <input
-              type="number"
-              min="1"
-              value={rankMax}
-              onChange={(event) => setRankMax(event.target.value)}
-              className="storeReserveInput"
-            />
-          </label>
-          <label className="storeReserveField backtestField">
-            <span>狙い度の下限</span>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.1"
-              value={scoreMin}
-              onChange={(event) => setScoreMin(event.target.value)}
-              className="storeReserveInput"
-            />
-          </label>
-          <label className="storeReserveField backtestField">
-            <span>偏差値の下限</span>
-            <input
-              type="number"
-              min="0"
-              step="0.1"
-              value={deviationMin}
-              onChange={(event) => setDeviationMin(event.target.value)}
-              className="storeReserveInput"
-            />
-          </label>
-        </div>
-        <div>
-          <p className="sectionLabel">順位、狙い度、偏差値を複数入れた時の条件</p>
-          <div className="metricToggleRow">
-            <label
-              className={`metricToggleChip ${
-                matchMode === "and" ? "metricToggleChipActive" : ""
-              }`}
-            >
-              <input
-                type="radio"
-                name="huntRankingMatchMode"
-                value="and"
-                checked={matchMode === "and"}
-                onChange={() => setMatchMode("and")}
-              />
-              <span>すべて一致</span>
-            </label>
-            <label
-              className={`metricToggleChip ${
-                matchMode === "or" ? "metricToggleChipActive" : ""
-              }`}
-            >
-              <input
-                type="radio"
-                name="huntRankingMatchMode"
-                value="or"
-                checked={matchMode === "or"}
-                onChange={() => setMatchMode("or")}
-              />
-              <span>どれか一致</span>
-            </label>
-          </div>
-        </div>
-        <div>
-          <p className="sectionLabel">偏差値の比較対象</p>
-          <div className="metricToggleRow">
-            <label
-              className={`metricToggleChip ${
-                deviationScope === "selected" ? "metricToggleChipActive" : ""
-              }`}
-            >
-              <input
-                type="radio"
-                name="huntRankingDeviationScope"
-                value="selected"
-                checked={deviationScope === "selected"}
-                onChange={() => setDeviationScope("selected")}
-              />
-              <span>チェック機種内</span>
-            </label>
-            <label
-              className={`metricToggleChip ${
-                deviationScope === "machine" ? "metricToggleChipActive" : ""
-              }`}
-            >
-              <input
-                type="radio"
-                name="huntRankingDeviationScope"
-                value="machine"
-                checked={deviationScope === "machine"}
-                onChange={() => setDeviationScope("machine")}
-              />
-              <span>機種内</span>
-            </label>
-            <label
-              className={`metricToggleChip ${
-                deviationScope === "all" ? "metricToggleChipActive" : ""
-              }`}
-            >
-              <input
-                type="radio"
-                name="huntRankingDeviationScope"
-                value="all"
-                checked={deviationScope === "all"}
-                onChange={() => setDeviationScope("all")}
-              />
-              <span>全機種内</span>
             </label>
           </div>
         </div>

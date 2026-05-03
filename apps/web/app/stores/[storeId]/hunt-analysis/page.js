@@ -18,6 +18,12 @@ import { groupHuntMachineOptions } from "../../../../lib/hunt-machine-display";
 export const dynamic = "force-dynamic";
 
 const DEFAULT_RANKING_LIMIT = 20;
+const DEFAULT_HIGHLIGHT_RANK_MIN = "1";
+const DEFAULT_HIGHLIGHT_RANK_MAX = "3";
+const DEFAULT_HIGHLIGHT_SCORE_MIN = "70";
+const DEFAULT_HIGHLIGHT_DEVIATION_MIN = "60";
+const DEFAULT_HIGHLIGHT_MATCH_MODE = "or";
+const DEFAULT_HIGHLIGHT_DEVIATION_SCOPE = "selected";
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
 const HANABI_GROUP_NAME = "ハナビ";
@@ -35,6 +41,25 @@ function readMultiSearchParam(value) {
     return value.filter((entry) => typeof entry === "string");
   }
   return typeof value === "string" ? [value] : [];
+}
+
+function hasSearchParam(searchParams, key) {
+  return Object.hasOwn(searchParams ?? {}, key);
+}
+
+function readSearchParamWithDefault(searchParams, key, defaultValue) {
+  return hasSearchParam(searchParams, key) ? readSingleSearchParam(searchParams?.[key]) : defaultValue;
+}
+
+function normalizeHighlightMatchMode(value) {
+  return value === "and" ? "and" : DEFAULT_HIGHLIGHT_MATCH_MODE;
+}
+
+function normalizeHighlightDeviationScope(value) {
+  if (value === "all" || value === "machine" || value === "selected") {
+    return value;
+  }
+  return DEFAULT_HIGHLIGHT_DEVIATION_SCOPE;
 }
 
 function parseRequestedLimit(value) {
@@ -206,6 +231,32 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const requestedCombineHanabi = normalizeCombineHanabi(
     readMultiSearchParam(resolvedSearchParams?.hanabiMachineGroup),
   );
+  const rankingHighlightOptions = {
+    rankMin: readSearchParamWithDefault(
+      resolvedSearchParams,
+      "rankMin",
+      DEFAULT_HIGHLIGHT_RANK_MIN,
+    ),
+    rankMax: readSearchParamWithDefault(
+      resolvedSearchParams,
+      "rankMax",
+      DEFAULT_HIGHLIGHT_RANK_MAX,
+    ),
+    scoreMin: readSearchParamWithDefault(
+      resolvedSearchParams,
+      "scoreMin",
+      DEFAULT_HIGHLIGHT_SCORE_MIN,
+    ),
+    deviationMin: readSearchParamWithDefault(
+      resolvedSearchParams,
+      "deviationMin",
+      DEFAULT_HIGHLIGHT_DEVIATION_MIN,
+    ),
+    matchMode: normalizeHighlightMatchMode(readSingleSearchParam(resolvedSearchParams?.matchMode)),
+    deviationScope: normalizeHighlightDeviationScope(
+      readSingleSearchParam(resolvedSearchParams?.deviationScope),
+    ),
+  };
 
   let detail;
 
@@ -437,6 +488,130 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   </div>
                 </div>
               ) : null}
+              <div className="backtestFieldGrid rankingMachineFilter">
+                <label className="storeReserveField backtestField">
+                  <span>順位の開始</span>
+                  <input
+                    type="number"
+                    name="rankMin"
+                    min="1"
+                    defaultValue={rankingHighlightOptions.rankMin}
+                    className="storeReserveInput"
+                  />
+                </label>
+                <label className="storeReserveField backtestField">
+                  <span>順位の終了</span>
+                  <input
+                    type="number"
+                    name="rankMax"
+                    min="1"
+                    defaultValue={rankingHighlightOptions.rankMax}
+                    className="storeReserveInput"
+                  />
+                </label>
+                <label className="storeReserveField backtestField">
+                  <span>狙い度の下限</span>
+                  <input
+                    type="number"
+                    name="scoreMin"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    defaultValue={rankingHighlightOptions.scoreMin}
+                    className="storeReserveInput"
+                  />
+                </label>
+                <label className="storeReserveField backtestField">
+                  <span>偏差値の下限</span>
+                  <input
+                    type="number"
+                    name="deviationMin"
+                    min="0"
+                    step="0.1"
+                    defaultValue={rankingHighlightOptions.deviationMin}
+                    className="storeReserveInput"
+                  />
+                </label>
+              </div>
+              <div className="backtestBlock rankingMachineFilter">
+                <p className="filterControlLabel">順位、狙い度、偏差値を複数入れた時の条件</p>
+                <div className="metricToggleRow">
+                  <label
+                    className={`metricToggleChip ${
+                      rankingHighlightOptions.matchMode === "and" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="matchMode"
+                      value="and"
+                      defaultChecked={rankingHighlightOptions.matchMode === "and"}
+                    />
+                    <span>すべて一致</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      rankingHighlightOptions.matchMode === "or" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="matchMode"
+                      value="or"
+                      defaultChecked={rankingHighlightOptions.matchMode === "or"}
+                    />
+                    <span>どれか一致</span>
+                  </label>
+                </div>
+              </div>
+              <div className="backtestBlock rankingMachineFilter">
+                <p className="filterControlLabel">偏差値の比較対象</p>
+                <div className="metricToggleRow">
+                  <label
+                    className={`metricToggleChip ${
+                      rankingHighlightOptions.deviationScope === "selected"
+                        ? "metricToggleChipActive"
+                        : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="deviationScope"
+                      value="selected"
+                      defaultChecked={rankingHighlightOptions.deviationScope === "selected"}
+                    />
+                    <span>チェック機種内</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      rankingHighlightOptions.deviationScope === "machine"
+                        ? "metricToggleChipActive"
+                        : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="deviationScope"
+                      value="machine"
+                      defaultChecked={rankingHighlightOptions.deviationScope === "machine"}
+                    />
+                    <span>機種内</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      rankingHighlightOptions.deviationScope === "all" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="deviationScope"
+                      value="all"
+                      defaultChecked={rankingHighlightOptions.deviationScope === "all"}
+                    />
+                    <span>全機種内</span>
+                  </label>
+                </div>
+              </div>
               <button type="submit" className="storeReserveButton">
                 表示する
               </button>
@@ -457,6 +632,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 overallLimit={detail.limit}
                 predictionDate={detail.predictionDate}
                 actualDate={detail.nextBusinessDate}
+                highlightOptions={rankingHighlightOptions}
               />
             ) : (
               <section className="statusPanel">
