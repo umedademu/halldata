@@ -424,6 +424,7 @@ class Site7Scraper:
         progress_callback: Callable[[FetchProgress], None] | None = None,
         target_store: Site7TargetStore | None = None,
         cancel_requested: Callable[[], bool] | None = None,
+        machine_result_callback: Callable[[MachineHistoryResult], None] | None = None,
     ) -> MachineHistoryResult:
         resolved_target_store = enrich_site7_target_store(target_store or SITE7_DEFAULT_TARGET_STORE)
         target_days = clamp_site7_recent_days(recent_days)
@@ -471,16 +472,17 @@ class Site7Scraper:
                 page.wait_for_selector("#ata0", timeout=60_000)
                 machine_page_url = str(page.url)
                 machine_html = page.content()
-                machine_results.append(
-                    self.parse_machine_history_html(
-                        machine_html,
-                        store_url=hall_page_url,
-                        page_url=machine_page_url,
-                        recent_days=target_days,
-                        fallback_store_name=store_name,
-                        machine_name_override=machine_entry.machine_name,
-                    )
+                machine_result = self.parse_machine_history_html(
+                    machine_html,
+                    store_url=hall_page_url,
+                    page_url=machine_page_url,
+                    recent_days=target_days,
+                    fallback_store_name=store_name,
+                    machine_name_override=machine_entry.machine_name,
                 )
+                machine_results.append(machine_result)
+                if machine_result_callback is not None:
+                    machine_result_callback(machine_result)
         except PlaywrightError as exc:
             raise self._wrap_playwright_error(exc) from exc
         finally:

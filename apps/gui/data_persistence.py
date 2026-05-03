@@ -418,6 +418,17 @@ class HistoryPersistenceService:
 
         return summary
 
+    def mark_full_day_saved(self, history_result: MachineHistoryResult) -> PersistenceSummary:
+        snapshot = self._build_local_snapshot(history_result)
+        summary = PersistenceSummary()
+
+        try:
+            self._mark_full_day_saved_r2(snapshot, "")
+        except Exception as exc:  # noqa: BLE001
+            summary.messages.append(f"R2の全機種取得済み記録に失敗しました。\n{exc}")
+
+        return summary
+
     def find_saved_full_day_dates(
         self,
         store_name: str,

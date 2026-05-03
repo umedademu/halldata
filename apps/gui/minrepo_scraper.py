@@ -317,6 +317,7 @@ class MinRepoScraper:
         step_callback: Callable[[str], None] | None = None,
         date_index: int | None = None,
         total_dates: int | None = None,
+        dataset_callback: Callable[[MachineHistoryResult], None] | None = None,
     ) -> MachineHistoryResult:
         _, machine_entries = self._load_machine_entries_from_date_page(date_page)
         machine_list = MachineListResult(
@@ -336,9 +337,21 @@ class MinRepoScraper:
 
         datasets: List[MachineDataset] = []
         for machine_index, machine_entry in enumerate(machine_entries, start=1):
-            datasets.append(self.fetch_machine_dataset_from_entry(machine_list, machine_entry))
+            dataset = self.fetch_machine_dataset_from_entry(machine_list, machine_entry)
+            datasets.append(dataset)
             if step_callback is not None:
                 step_callback(f"{date_page.target_date} の {machine_index}/{len(machine_entries)}機種目を取得中")
+            if dataset_callback is not None:
+                dataset_callback(
+                    MachineHistoryResult(
+                        store_name=context.store_name,
+                        store_url=context.store_url,
+                        start_date=date_page.target_date,
+                        end_date=date_page.target_date,
+                        date_pages=[date_page],
+                        datasets=[dataset],
+                    )
+                )
 
         return MachineHistoryResult(
             store_name=context.store_name,

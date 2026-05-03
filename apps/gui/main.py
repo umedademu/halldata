@@ -1904,6 +1904,30 @@ class MinRepoApp:
         store_label = f"{store_index}/{total_stores} {registered_store.name}"
 
         def run_site7_fetch() -> MachineHistoryResult:
+            def save_machine_result(machine_result: MachineHistoryResult) -> None:
+                nonlocal save_summary, warning_summary
+                self._raise_if_fetch_cancelled()
+                partial_result = rewrite_history_result_store(
+                    machine_result,
+                    store_name=registered_store.name,
+                    store_url=registered_store.url,
+                )
+                partial_result, partial_warning_summary = self._prepare_site7_history_result_for_save(partial_result)
+                warning_summary.messages.extend(partial_warning_summary.messages)
+                if not partial_result.datasets:
+                    return
+
+                machine_names = sorted({dataset.machine_name for dataset in partial_result.datasets}, key=normalize_text)
+                machine_label = "、".join(machine_names) if machine_names else "機種"
+                self.result_queue.put(
+                    (
+                        "fetch_progress",
+                        FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: {machine_label} を保存中"),
+                    )
+                )
+                partial_save_summary = self.persistence_service.save_history_result(partial_result)
+                save_summary = self._merge_persistence_summary(save_summary, partial_save_summary)
+
             try:
                 return self.site7_scraper.fetch_target_machine_history(
                     recent_days=recent_days,
@@ -1920,10 +1944,13 @@ class MinRepoApp:
                     ),
                     target_store=target_store,
                     cancel_requested=self.fetch_cancel_event.is_set,
+                    machine_result_callback=save_machine_result,
                 )
             except Site7FetchCancelled as exc:
                 raise FetchCancelled from exc
 
+        save_summary: PersistenceSummary | None = None
+        warning_summary = SavedFullDayDatesSummary()
         history_result = self._run_with_fetch_retries(
             run_site7_fetch,
             retry_delay_seconds=retry_delay_seconds,
@@ -1953,10 +1980,10 @@ class MinRepoApp:
                 FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: 保存済み日付を確認中"),
             )
         )
-        history_result, warning_summary = self._prepare_site7_history_result_for_save(history_result)
+        history_result, final_warning_summary = self._prepare_site7_history_result_for_save(history_result)
+        warning_summary.messages.extend(final_warning_summary.messages)
         self._raise_if_fetch_cancelled()
-        save_summary: PersistenceSummary | None = None
-        if history_result.datasets:
+        if history_result.datasets and save_summary is None:
             self.result_queue.put(
                 (
                     "fetch_progress",
@@ -2239,6 +2266,18 @@ class MinRepoApp:
                 if datasets or save_summary is not None:
                     break
                 raise FetchCancelled
+            day_save_summary: PersistenceSummary | None = None
+
+            def save_dataset_result(dataset_result: MachineHistoryResult) -> None:
+                nonlocal day_save_summary, save_summary
+                self._raise_if_fetch_cancelled()
+                dataset = dataset_result.datasets[0] if dataset_result.datasets else None
+                if dataset is not None:
+                    step_callback(f"{dataset.target_date} の {dataset.machine_name} を保存中")
+                dataset_save_summary = self.persistence_service.save_history_result(dataset_result)
+                day_save_summary = self._merge_persistence_summary(day_save_summary, dataset_save_summary)
+                save_summary = self._merge_persistence_summary(save_summary, dataset_save_summary)
+
             day_result = self._run_with_fetch_retries(
                 lambda: self.scraper.fetch_all_machine_history_for_date_page(
                     context=context,
@@ -2246,6 +2285,7 @@ class MinRepoApp:
                     step_callback=step_callback,
                     date_index=date_index,
                     total_dates=len(pending_date_pages),
+                    dataset_callback=save_dataset_result,
                 ),
                 retry_delay_seconds=retry_delay_seconds,
                 retry_status_callback=lambda retry_number, max_retries, delay_seconds, target_date=date_page.target_date: self.result_queue.put(
@@ -2266,10 +2306,15 @@ class MinRepoApp:
             skipped_targets.extend(day_result.skipped_targets)
 
             if day_result.datasets:
-                self._raise_if_fetch_cancelled()
-                step_callback(f"{date_page.target_date} の保存中")
-                day_save_summary = self.persistence_service.save_history_result(day_result, full_day=True)
-                save_summary = self._merge_persistence_summary(save_summary, day_save_summary)
+                if day_save_summary is None:
+                    self._raise_if_fetch_cancelled()
+                    step_callback(f"{date_page.target_date} の保存中")
+                    day_save_summary = self.persistence_service.save_history_result(day_result)
+                    save_summary = self._merge_persistence_summary(save_summary, day_save_summary)
+                if not day_save_summary.has_errors:
+                    mark_summary = self.persistence_service.mark_full_day_saved(day_result)
+                    if mark_summary.has_errors:
+                        save_summary = self._merge_persistence_summary(save_summary, mark_summary)
             else:
                 step_callback(f"{date_page.target_date} は保存対象なし")
 

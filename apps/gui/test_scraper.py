@@ -794,16 +794,20 @@ class MinRepoScraperTests(unittest.TestCase):
             store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
             target_date_input="2026-04-07 ～ 2026-04-08",
         )
+        partial_results: list[MachineHistoryResult] = []
 
         day_result = scraper.fetch_all_machine_history_for_date_page(
             context=context,
             date_page=context.date_pages[0],
+            dataset_callback=partial_results.append,
         )
 
         self.assertEqual(day_result.start_date, "2026-04-07")
         self.assertEqual(day_result.end_date, "2026-04-07")
         self.assertEqual([page.target_date for page in day_result.date_pages], ["2026-04-07"])
         self.assertGreater(len({dataset.machine_name for dataset in day_result.datasets}), 10)
+        self.assertEqual(len(partial_results), len(day_result.datasets))
+        self.assertTrue(all(len(result.datasets) == 1 for result in partial_results))
 
     def test_fetch_machine_history_progress_from_saved_html(self) -> None:
         scraper = FixtureScraper()
@@ -1071,10 +1075,16 @@ class MinRepoScraperTests(unittest.TestCase):
         scraper._open_target_machine_page = mock.Mock()
         scraper.parse_machine_history_html = mock.Mock(return_value=expected_result)
         scraper._merge_machine_history_results = mock.Mock(return_value=expected_result)
+        partial_results: list[MachineHistoryResult] = []
 
-        result = scraper.fetch_target_machine_history(recent_days=1, browser_visible=True)
+        result = scraper.fetch_target_machine_history(
+            recent_days=1,
+            browser_visible=True,
+            machine_result_callback=partial_results.append,
+        )
 
         self.assertIs(result, expected_result)
+        self.assertEqual(partial_results, [expected_result])
         scraper._launch_browser_context.assert_called_once_with(True)
         self.assertEqual(page.bring_to_front_count, 1)
         self.assertEqual(page.wait_selector_calls, [("#ata0", 60_000)])
@@ -1628,6 +1638,36 @@ class MinRepoScraperTests(unittest.TestCase):
             )
 
             self.assertFalse(summary.has_errors)
+            self.assertEqual(saved_dates_summary.saved_dates, {"2026-04-07"})
+
+    def test_mark_full_day_saved_can_run_after_partial_saves(self) -> None:
+        scraper = FixtureScraper()
+        context = scraper.prepare_machine_history_context(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-07 ～ 2026-04-08",
+        )
+        partial_results: list[MachineHistoryResult] = []
+        history_result = scraper.fetch_all_machine_history_for_date_page(
+            context=context,
+            date_page=context.date_pages[0],
+            dataset_callback=partial_results.append,
+        )
+
+        with TemporaryDirectory() as temp_dir:
+            service, _ = make_r2_service(Path(temp_dir))
+            for partial_result in partial_results:
+                summary = service.save_history_result(partial_result)
+                self.assertFalse(summary.has_errors)
+
+            mark_summary = service.mark_full_day_saved(history_result)
+            saved_dates_summary = service.find_saved_full_day_dates(
+                store_name="MJアリーナ箱崎店",
+                store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+                start_date="2026-04-07",
+                end_date="2026-04-08",
+            )
+
+            self.assertFalse(mark_summary.has_errors)
             self.assertEqual(saved_dates_summary.saved_dates, {"2026-04-07"})
 
     def test_save_history_result_does_not_mark_full_day_index_when_r2_save_fails(self) -> None:
