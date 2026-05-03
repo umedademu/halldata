@@ -41,6 +41,7 @@ const DEFAULT_VISIBLE_RESULT_KEYS = [
   "setting_estimate",
 ];
 const DEFAULT_DIFFERENCE_MODE = "bonus";
+const DEFAULT_RANK_SCOPE = "selected";
 const DEFAULT_DEVIATION_SCOPE = "selected";
 const DEFAULT_HIGHLIGHT_RANK_MIN = 1;
 const DEFAULT_HIGHLIGHT_RANK_MAX = 3;
@@ -226,6 +227,24 @@ function normalizeDeviationScope(value) {
   return DEFAULT_DEVIATION_SCOPE;
 }
 
+function normalizeRankScope(value) {
+  if (value === "all" || value === "machine" || value === "selected") {
+    return value;
+  }
+  return DEFAULT_RANK_SCOPE;
+}
+
+function readRankForScope(row, rankScope) {
+  const normalizedScope = normalizeRankScope(rankScope);
+  if (normalizedScope === "machine") {
+    return row?.machineRank ?? row?.bookmarkRank ?? row?.rank;
+  }
+  if (normalizedScope === "all") {
+    return row?.overallRank ?? row?.rank;
+  }
+  return row?.selectedRank ?? null;
+}
+
 function formatDeviationForScope(row, deviationScope) {
   return formatDecimal(readDeviationForRankScope(row, normalizeDeviationScope(deviationScope)));
 }
@@ -243,8 +262,9 @@ function isRankingConditionHighlighted(row, highlightCondition) {
     row,
     normalizeDeviationScope(highlightCondition.deviationScope),
   );
+  const rankValue = readRankForScope(row, highlightCondition.rankScope);
   return matchesRequiredConditionFilters(
-    row.rank,
+    rankValue,
     row.huntScore,
     highlightCondition.rankFilter,
     highlightCondition.scoreFilter,
@@ -259,6 +279,28 @@ function getRankingConditionHighlightClass(row, highlightCondition) {
   return isRankingConditionHighlighted(row, highlightCondition)
     ? "huntScoreDeviationHighlighted"
     : undefined;
+}
+
+function buildSelectedRankValueMap(displayGroups) {
+  const rows = (Array.isArray(displayGroups) ? displayGroups : [])
+    .flatMap((group) => getRankingGroupRows(group, true))
+    .sort(compareRankingRows);
+
+  return new Map(
+    rows.map((row, index) => [
+      buildDeviationRowKey(row),
+      row?.selectedRank ?? index + 1,
+    ]),
+  );
+}
+
+function decorateRowsWithSelectedRank(rows, selectedRankValueMap) {
+  return rows.map((row) => ({
+    ...row,
+    selectedRank: selectedRankValueMap.has(buildDeviationRowKey(row))
+      ? selectedRankValueMap.get(buildDeviationRowKey(row))
+      : null,
+  }));
 }
 
 function OverallRankingTable({
@@ -385,6 +427,7 @@ export function HuntRankingTable({
   const deviationScope = normalizeDeviationScope(
     highlightOptions.deviationScope ?? DEFAULT_DEVIATION_SCOPE,
   );
+  const rankScope = normalizeRankScope(highlightOptions.rankScope ?? DEFAULT_RANK_SCOPE);
   const highlightCondition = useMemo(
     () => ({
       rankFilter: buildRankFilter(
@@ -402,15 +445,18 @@ export function HuntRankingTable({
         scoreRequired: true,
         deviationRequired: false,
       }),
+      rankScope,
       deviationScope,
     }),
     [
       deviationScope,
+      rankScope,
       highlightOptions.deviationMin,
       highlightOptions.deviationRequired,
       highlightOptions.rankMax,
       highlightOptions.rankMin,
       highlightOptions.rankRequired,
+      highlightOptions.rankScope,
       highlightOptions.scoreMin,
       highlightOptions.scoreRequired,
     ],
@@ -446,13 +492,21 @@ export function HuntRankingTable({
     () => buildDeviationValueMaps(displayDeviationRows, allDeviationRows, displayGroups),
     [allDeviationRows, displayGroups, displayDeviationRows],
   );
+  const selectedRankValueByRowKey = useMemo(
+    () => buildSelectedRankValueMap(displayGroups),
+    [displayGroups],
+  );
   const displayRowsWithDeviation = useMemo(
     () => decorateRowsWithDeviation(displayRows, deviationValueByRowKey),
     [deviationValueByRowKey, displayRows],
   );
   const allDisplayRowsWithDeviation = useMemo(
-    () => decorateRowsWithDeviation(allDisplayRows, deviationValueByRowKey),
-    [allDisplayRows, deviationValueByRowKey],
+    () =>
+      decorateRowsWithSelectedRank(
+        decorateRowsWithDeviation(allDisplayRows, deviationValueByRowKey),
+        selectedRankValueByRowKey,
+      ),
+    [allDisplayRows, deviationValueByRowKey, selectedRankValueByRowKey],
   );
   const displayGroupsWithDeviation = useMemo(
     () =>

@@ -22,6 +22,7 @@ const DEFAULT_HIGHLIGHT_RANK_MIN = "1";
 const DEFAULT_HIGHLIGHT_RANK_MAX = "3";
 const DEFAULT_HIGHLIGHT_SCORE_MIN = "70";
 const DEFAULT_HIGHLIGHT_DEVIATION_MIN = "60";
+const DEFAULT_HIGHLIGHT_RANK_SCOPE = "selected";
 const DEFAULT_HIGHLIGHT_DEVIATION_SCOPE = "selected";
 const DEFAULT_HIGHLIGHT_RANK_REQUIRED = true;
 const DEFAULT_HIGHLIGHT_SCORE_REQUIRED = true;
@@ -57,11 +58,11 @@ function readMultiSearchParamWithDefault(searchParams, key, defaultValue) {
   return hasSearchParam(searchParams, key) ? readMultiSearchParam(searchParams?.[key]) : [defaultValue];
 }
 
-function normalizeHighlightDeviationScope(value) {
+function normalizeHighlightScope(value, fallbackValue) {
   if (value === "all" || value === "machine" || value === "selected") {
     return value;
   }
-  return DEFAULT_HIGHLIGHT_DEVIATION_SCOPE;
+  return fallbackValue;
 }
 
 function parseRequestedLimit(value) {
@@ -133,6 +134,10 @@ function compareRankingRows(left, right) {
   );
 }
 
+function buildRankingRowKey(row) {
+  return String(row?.rowKey ?? `${row?.machineName ?? ""}::${row?.slotNumber ?? ""}`).trim();
+}
+
 function resolveRankingGroupName(machineName, combineAimJuggler, combineHanabi) {
   if (combineAimJuggler && isAimJugglerMachine(machineName)) {
     return AIM_JUGGLER_GROUP_NAME;
@@ -181,7 +186,7 @@ function buildVisibleRankingGroups(
     );
   }
 
-  return [...groupsByName.values()]
+  const groupedRankings = [...groupsByName.values()]
     .map((group) => {
       const rankedAllRows = group.rows
         .sort(compareRankingRows)
@@ -200,6 +205,25 @@ function buildVisibleRankingGroups(
       };
     })
     .filter((group) => group.rows.length > 0);
+
+  const selectedRankByRowKey = new Map(
+    groupedRankings
+      .flatMap((group) => group.allRows)
+      .sort(compareRankingRows)
+      .map((row, index) => [buildRankingRowKey(row), index + 1]),
+  );
+
+  return groupedRankings.map((group) => ({
+    ...group,
+    allRows: group.allRows.map((row) => ({
+      ...row,
+      selectedRank: selectedRankByRowKey.get(buildRankingRowKey(row)) ?? row.selectedRank,
+    })),
+    rows: group.rows.map((row) => ({
+      ...row,
+      selectedRank: selectedRankByRowKey.get(buildRankingRowKey(row)) ?? row.selectedRank,
+    })),
+  }));
 }
 
 export async function generateMetadata({ params }) {
@@ -269,8 +293,13 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
       "deviationRequired",
       DEFAULT_HIGHLIGHT_DEVIATION_REQUIRED ? "1" : "0",
     ),
-    deviationScope: normalizeHighlightDeviationScope(
+    rankScope: normalizeHighlightScope(
+      readSingleSearchParam(resolvedSearchParams?.rankScope),
+      DEFAULT_HIGHLIGHT_RANK_SCOPE,
+    ),
+    deviationScope: normalizeHighlightScope(
       readSingleSearchParam(resolvedSearchParams?.deviationScope),
+      DEFAULT_HIGHLIGHT_DEVIATION_SCOPE,
     ),
   };
   const rankRequired = rankingHighlightOptions.rankRequired.some((value) =>
@@ -618,6 +647,54 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                       defaultChecked={deviationRequired}
                     />
                     <span>必須</span>
+                  </label>
+                </div>
+              </div>
+              <div className="backtestBlock rankingMachineFilter">
+                <p className="filterControlLabel">順位の見方</p>
+                <div className="metricToggleRow">
+                  <label
+                    className={`metricToggleChip ${
+                      rankingHighlightOptions.rankScope === "selected"
+                        ? "metricToggleChipActive"
+                        : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="rankScope"
+                      value="selected"
+                      defaultChecked={rankingHighlightOptions.rankScope === "selected"}
+                    />
+                    <span>チェック機種内順位</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      rankingHighlightOptions.rankScope === "machine"
+                        ? "metricToggleChipActive"
+                        : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="rankScope"
+                      value="machine"
+                      defaultChecked={rankingHighlightOptions.rankScope === "machine"}
+                    />
+                    <span>機種内順位</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      rankingHighlightOptions.rankScope === "all" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="rankScope"
+                      value="all"
+                      defaultChecked={rankingHighlightOptions.rankScope === "all"}
+                    />
+                    <span>全機種順位</span>
                   </label>
                 </div>
               </div>
