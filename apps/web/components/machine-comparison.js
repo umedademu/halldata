@@ -69,6 +69,10 @@ const DEFAULT_HUNT_SCORE_RANK_SCOPE = "selected";
 const DEFAULT_HUNT_SCORE_DEVIATION_SCOPE = "selected";
 const DEFAULT_HUNT_SCORE_MATCH_MODE = "or";
 const HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX = "machine-hunt-score-highlight:";
+const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
+const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
+const HANABI_GROUP_NAME = "ハナビ";
+const HANABI_MACHINE_NAMES = ["新ハナビ", "スマスロ ハナビ"];
 const COMPARISON_SCORE_EPSILON = 0.000000001;
 const settingEstimateCache = new WeakMap();
 
@@ -180,6 +184,52 @@ function isHuntScoreValueMatched(value, threshold) {
   return Number.isFinite(score) && Number.isFinite(threshold) && score >= threshold;
 }
 
+function normalizeMachineGroupName(value) {
+  return String(value ?? "").normalize("NFKC").replace(/\s+/gu, "").trim();
+}
+
+function isSameMachineGroupName(left, right) {
+  return normalizeMachineGroupName(left) === normalizeMachineGroupName(right);
+}
+
+function isMachineInGroup(machineName, groupMachineNames) {
+  return groupMachineNames.some((candidateName) => isSameMachineGroupName(candidateName, machineName));
+}
+
+function isAimJugglerMachine(machineName) {
+  return isMachineInGroup(machineName, AIM_JUGGLER_MACHINE_NAMES);
+}
+
+function isHanabiMachine(machineName) {
+  return isMachineInGroup(machineName, HANABI_MACHINE_NAMES);
+}
+
+function hasMachineGroupOption(availableMachineNames, groupMachineNames) {
+  return groupMachineNames.every((machineName) =>
+    availableMachineNames.some((availableMachineName) =>
+      isSameMachineGroupName(availableMachineName, machineName),
+    ),
+  );
+}
+
+function normalizeEnabledOption(value, fallbackValue) {
+  if (value === undefined || value === null) {
+    return fallbackValue;
+  }
+  return value === true || value === 1 || value === "1" || value === "true" || value === "on";
+}
+
+function resolveHuntScoreMachineGroupName(machineName, options) {
+  const text = String(machineName ?? "").trim();
+  if (options.combineAimJuggler && isAimJugglerMachine(text)) {
+    return AIM_JUGGLER_GROUP_NAME;
+  }
+  if (options.combineHanabi && isHanabiMachine(text)) {
+    return HANABI_GROUP_NAME;
+  }
+  return text;
+}
+
 function buildHuntScoreHighlightKey(date, machineName, slotNumber) {
   return `${String(date ?? "").trim()}\t${String(machineName ?? "").trim()}\t${String(
     slotNumber ?? "",
@@ -197,6 +247,8 @@ function createDefaultHuntScoreHighlightOptions(machineNames) {
     rankScope: DEFAULT_HUNT_SCORE_RANK_SCOPE,
     deviationScope: DEFAULT_HUNT_SCORE_DEVIATION_SCOPE,
     selectedMachineNames: availableMachineNames.filter(isJugglerMachine),
+    combineAimJuggler: hasMachineGroupOption(availableMachineNames, AIM_JUGGLER_MACHINE_NAMES),
+    combineHanabi: hasMachineGroupOption(availableMachineNames, HANABI_MACHINE_NAMES),
   };
 }
 
@@ -271,6 +323,12 @@ function normalizeHuntScoreHighlightOptions(value, availableMachineNames) {
       value.selectedMachineNames,
       availableMachineNames,
     ),
+    combineAimJuggler:
+      hasMachineGroupOption(availableMachineNames, AIM_JUGGLER_MACHINE_NAMES) &&
+      normalizeEnabledOption(value.combineAimJuggler, defaults.combineAimJuggler),
+    combineHanabi:
+      hasMachineGroupOption(availableMachineNames, HANABI_MACHINE_NAMES) &&
+      normalizeEnabledOption(value.combineHanabi, defaults.combineHanabi),
   };
 }
 
@@ -374,7 +432,7 @@ function buildHuntScoreDeviationValueMap(highlightDetail, options) {
     const rowsByMachineName = new Map();
 
     for (const row of rows) {
-      const machineName = String(row.machineName ?? "").trim();
+      const machineName = resolveHuntScoreMachineGroupName(row.machineName, normalizedOptions);
       if (!machineName) {
         continue;
       }
@@ -441,14 +499,15 @@ function buildHuntScoreHighlightKeySet(highlightDetail, options, deviationValueM
 
     for (const row of Array.isArray(snapshot.rows) ? snapshot.rows : []) {
       const machineName = String(row.machineName ?? "").trim();
+      const rankMachineName = resolveHuntScoreMachineGroupName(machineName, normalizedOptions);
       const slotNumber = String(row.slotNumber ?? "").trim();
       const huntScore = Number(row.huntScore);
       if (!machineName || !slotNumber || !Number.isFinite(huntScore)) {
         continue;
       }
 
-      const machineRank = (machineRankCounts.get(machineName) ?? 0) + 1;
-      machineRankCounts.set(machineName, machineRank);
+      const machineRank = (machineRankCounts.get(rankMachineName) ?? 0) + 1;
+      machineRankCounts.set(rankMachineName, machineRank);
 
       const isSelectedMachine = selectedMachineNameSet.has(machineName);
       const selectedRankValue = isSelectedMachine ? selectedRank + 1 : null;
@@ -951,6 +1010,11 @@ function EstimateNumberField({
 
 function HuntScoreHighlightControls({ options, availableMachineNames, onChange }) {
   const selectedMachineNameSet = new Set(options.selectedMachineNames);
+  const hasAimJugglerGroupOption = hasMachineGroupOption(
+    availableMachineNames,
+    AIM_JUGGLER_MACHINE_NAMES,
+  );
+  const hasHanabiGroupOption = hasMachineGroupOption(availableMachineNames, HANABI_MACHINE_NAMES);
 
   const updateOption = (key, value) => {
     onChange({ ...options, [key]: value });
@@ -1135,6 +1199,34 @@ function HuntScoreHighlightControls({ options, availableMachineNames, onChange }
       {availableMachineNames.length > 0 ? (
         <div className="backtestBlock">
           <p className="filterControlLabel">順位と偏差値に使う機種</p>
+          {hasAimJugglerGroupOption ? (
+            <label
+              className={`metricToggleChip ${
+                options.combineAimJuggler ? "metricToggleChipActive" : ""
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={options.combineAimJuggler}
+                onChange={(event) => updateOption("combineAimJuggler", event.target.checked)}
+              />
+              <span>SアイムジャグラーEXとネオアイムジャグラーEXをまとめる</span>
+            </label>
+          ) : null}
+          {hasHanabiGroupOption ? (
+            <label
+              className={`metricToggleChip ${
+                options.combineHanabi ? "metricToggleChipActive" : ""
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={options.combineHanabi}
+                onChange={(event) => updateOption("combineHanabi", event.target.checked)}
+              />
+              <span>新ハナビとスマスロハナビをまとめる</span>
+            </label>
+          ) : null}
           <div className="metricToggleRow">
             {availableMachineNames.map((machineName) => {
               const checked = selectedMachineNameSet.has(machineName);
