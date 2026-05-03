@@ -385,35 +385,39 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                 <input type="hidden" name="machineTouched" value="1" />
                 <input type="hidden" name="aimMachineGroup" value="0" />
                 <input type="hidden" name="hanabiMachineGroup" value="0" />
-                {detail.backtest.hasAimJugglerGroupOption ? (
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.combineAimJuggler ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      name="aimMachineGroup"
-                      value="1"
-                      defaultChecked={detail.backtest.combineAimJuggler}
-                    />
-                    <span>Sアイムとネオアイムをまとめる</span>
-                  </label>
-                ) : null}
-                {detail.backtest.hasHanabiGroupOption ? (
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.combineHanabi ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      name="hanabiMachineGroup"
-                      value="1"
-                      defaultChecked={detail.backtest.combineHanabi}
-                    />
-                    <span>新ハナビとスマハナビをまとめる</span>
-                  </label>
+                {detail.backtest.hasAimJugglerGroupOption || detail.backtest.hasHanabiGroupOption ? (
+                  <div className="machineGroupToggleRow">
+                    {detail.backtest.hasAimJugglerGroupOption ? (
+                      <label
+                        className={`metricToggleChip ${
+                          detail.backtest.combineAimJuggler ? "metricToggleChipActive" : ""
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          name="aimMachineGroup"
+                          value="1"
+                          defaultChecked={detail.backtest.combineAimJuggler}
+                        />
+                        <span>Sアイムとネオアイムをまとめる</span>
+                      </label>
+                    ) : null}
+                    {detail.backtest.hasHanabiGroupOption ? (
+                      <label
+                        className={`metricToggleChip ${
+                          detail.backtest.combineHanabi ? "metricToggleChipActive" : ""
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          name="hanabiMachineGroup"
+                          value="1"
+                          defaultChecked={detail.backtest.combineHanabi}
+                        />
+                        <span>新ハナビとスマハナビをまとめる</span>
+                      </label>
+                    ) : null}
+                  </div>
                 ) : null}
                 <div className="machineFilterActionRow">
                   <JugglerOnlyButton />

@@ -1173,33 +1173,37 @@ function HuntScoreHighlightControls({ options, availableMachineNames, onChange }
       {availableMachineNames.length > 0 ? (
         <div className="backtestBlock">
           <p className="filterControlLabel">順位と偏差値に使う機種</p>
-          {hasAimJugglerGroupOption ? (
-            <label
-              className={`metricToggleChip ${
-                options.combineAimJuggler ? "metricToggleChipActive" : ""
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={options.combineAimJuggler}
-                onChange={(event) => updateOption("combineAimJuggler", event.target.checked)}
-              />
-              <span>Sアイムとネオアイムをまとめる</span>
-            </label>
-          ) : null}
-          {hasHanabiGroupOption ? (
-            <label
-              className={`metricToggleChip ${
-                options.combineHanabi ? "metricToggleChipActive" : ""
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={options.combineHanabi}
-                onChange={(event) => updateOption("combineHanabi", event.target.checked)}
-              />
-              <span>新ハナビとスマハナビをまとめる</span>
-            </label>
+          {hasAimJugglerGroupOption || hasHanabiGroupOption ? (
+            <div className="machineGroupToggleRow">
+              {hasAimJugglerGroupOption ? (
+                <label
+                  className={`metricToggleChip ${
+                    options.combineAimJuggler ? "metricToggleChipActive" : ""
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={options.combineAimJuggler}
+                    onChange={(event) => updateOption("combineAimJuggler", event.target.checked)}
+                  />
+                  <span>Sアイムとネオアイムをまとめる</span>
+                </label>
+              ) : null}
+              {hasHanabiGroupOption ? (
+                <label
+                  className={`metricToggleChip ${
+                    options.combineHanabi ? "metricToggleChipActive" : ""
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={options.combineHanabi}
+                    onChange={(event) => updateOption("combineHanabi", event.target.checked)}
+                  />
+                  <span>新ハナビとスマハナビをまとめる</span>
+                </label>
+              ) : null}
+            </div>
           ) : null}
           <div className="machineFilterActionRow">
             <button

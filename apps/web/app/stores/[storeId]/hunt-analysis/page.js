@@ -365,40 +365,44 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 <div className="backtestBlock rankingMachineFilter">
                   <p className="filterControlLabel">機種名</p>
                   {hasAimJugglerGroupOption ? (
-                    <>
-                      <input type="hidden" name="aimMachineGroup" value="0" />
-                      <label
-                        className={`metricToggleChip ${
-                          combineAimJuggler ? "metricToggleChipActive" : ""
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          name="aimMachineGroup"
-                          value="1"
-                          defaultChecked={combineAimJuggler}
-                        />
-                        <span>Sアイムとネオアイムをまとめる</span>
-                      </label>
-                    </>
+                    <input type="hidden" name="aimMachineGroup" value="0" />
                   ) : null}
                   {hasHanabiGroupOption ? (
-                    <>
-                      <input type="hidden" name="hanabiMachineGroup" value="0" />
-                      <label
-                        className={`metricToggleChip ${
-                          combineHanabi ? "metricToggleChipActive" : ""
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          name="hanabiMachineGroup"
-                          value="1"
-                          defaultChecked={combineHanabi}
-                        />
-                        <span>新ハナビとスマハナビをまとめる</span>
-                      </label>
-                    </>
+                    <input type="hidden" name="hanabiMachineGroup" value="0" />
+                  ) : null}
+                  {hasAimJugglerGroupOption || hasHanabiGroupOption ? (
+                    <div className="machineGroupToggleRow">
+                      {hasAimJugglerGroupOption ? (
+                        <label
+                          className={`metricToggleChip ${
+                            combineAimJuggler ? "metricToggleChipActive" : ""
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            name="aimMachineGroup"
+                            value="1"
+                            defaultChecked={combineAimJuggler}
+                          />
+                          <span>Sアイムとネオアイムをまとめる</span>
+                        </label>
+                      ) : null}
+                      {hasHanabiGroupOption ? (
+                        <label
+                          className={`metricToggleChip ${
+                            combineHanabi ? "metricToggleChipActive" : ""
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            name="hanabiMachineGroup"
+                            value="1"
+                            defaultChecked={combineHanabi}
+                          />
+                          <span>新ハナビとスマハナビをまとめる</span>
+                        </label>
+                      ) : null}
+                    </div>
                   ) : null}
                   <div className="machineFilterActionRow">
                     <JugglerOnlyButton />

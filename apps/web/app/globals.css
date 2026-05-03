@@ -666,6 +666,12 @@ a {
   gap: 10px;
 }
 
+.machineGroupToggleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .machineFilterAction {
   min-height: 2.4rem;
   padding: 8px 12px;
