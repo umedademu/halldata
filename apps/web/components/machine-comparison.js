@@ -57,6 +57,7 @@ const DEFAULT_GAME_MIN_GAMES = 6000;
 const DEFAULT_GAME_MAX_GAMES = 9000;
 const DEFAULT_GAME_EXPONENT = 1.5;
 const DEFAULT_COMPARISON_RECENT_DAYS = 14;
+const DEFAULT_HUNT_SCORE_HIGHLIGHT_THRESHOLD = 70;
 const COMPARISON_SCORE_EPSILON = 0.000000001;
 const settingEstimateCache = new WeakMap();
 
@@ -111,6 +112,23 @@ function normalizeRecentDaysInput(value) {
     return DEFAULT_COMPARISON_RECENT_DAYS;
   }
   return Math.max(1, parsed);
+}
+
+function parseHuntScoreHighlightThreshold(value) {
+  const text = String(value ?? "").trim();
+  if (text === "") {
+    return null;
+  }
+  const parsed = Number(text);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+  return Math.min(100, Math.max(0, parsed));
+}
+
+function isHuntScoreHighlighted(value, threshold) {
+  const score = Number(value);
+  return Number.isFinite(score) && Number.isFinite(threshold) && score >= threshold;
 }
 
 function buildDisplayedPeriodLabel(startDate, endDate) {
@@ -547,7 +565,13 @@ function EstimateNumberField({
   );
 }
 
-function SettingEstimateControls({ options, onChange }) {
+function SettingEstimateControls({
+  options,
+  onChange,
+  hasHuntScore,
+  huntScoreHighlightThreshold,
+  onHuntScoreHighlightThresholdChange,
+}) {
   const activeWeightTotal = calculateActiveWeightTotal(options);
   const isWeightTotalValid = Math.abs(activeWeightTotal - 100) < 0.001;
 
@@ -577,7 +601,7 @@ function SettingEstimateControls({ options, onChange }) {
             <p className="estimateHelpText">BBとRBから出す既存の推測です。</p>
           </div>
         </div>
-        <div className="estimateFields">
+        <div className="estimateFields estimateFieldsStacked">
           <EstimateNumberField
             label="重み"
             value={options.dataWeight}
@@ -586,6 +610,16 @@ function SettingEstimateControls({ options, onChange }) {
             suffix="%"
             onChange={(value) => updateOption("dataWeight", value)}
           />
+          {hasHuntScore ? (
+            <EstimateNumberField
+              label="狙い度強調"
+              value={huntScoreHighlightThreshold}
+              min={0}
+              max={100}
+              suffix="以上"
+              onChange={onHuntScoreHighlightThresholdChange}
+            />
+          ) : null}
         </div>
       </div>
 
@@ -677,6 +711,7 @@ const MatrixRow = memo(function MatrixRow({
   isHighlighted,
   settingEstimateDefinition,
   getCompositeSettingEstimate,
+  huntScoreHighlightThreshold,
 }) {
   return (
     <tr className={isHighlighted ? "matrixRowHighlighted" : ""}>
@@ -697,9 +732,14 @@ const MatrixRow = memo(function MatrixRow({
           const toneClass = metric.tone ? valueToneClass(metric.key, value) : "";
           const boundaryClass =
             !isLastSlot && metricIndex === visibleMetrics.length - 1 ? "slotGroupBoundary" : "";
+          const huntScoreHighlightClass =
+            metric.key === "hunt_score" && isHuntScoreHighlighted(value, huntScoreHighlightThreshold)
+              ? "huntScoreHighlighted"
+              : "";
           const className = [
             toneClass,
             metric.key === "hunt_score" ? "" : settingHighlightClass,
+            huntScoreHighlightClass,
             boundaryClass,
           ]
             .filter(Boolean)
@@ -755,8 +795,15 @@ export function MachineComparison({
   const [estimateOptions, setEstimateOptions] = useState(() =>
     createDefaultEstimateOptions(slotNumbers.length, machineName),
   );
+  const [huntScoreHighlightThresholdInput, setHuntScoreHighlightThresholdInput] = useState(
+    DEFAULT_HUNT_SCORE_HIGHLIGHT_THRESHOLD,
+  );
   const [, startTransition] = useTransition();
   const recentDays = useMemo(() => normalizeRecentDaysInput(recentDaysInput), [recentDaysInput]);
+  const huntScoreHighlightThreshold = useMemo(
+    () => parseHuntScoreHighlightThreshold(huntScoreHighlightThresholdInput),
+    [huntScoreHighlightThresholdInput],
+  );
   const activeDateRange = useMemo(() => {
     if (!latestAvailableDate) {
       return {
@@ -1261,6 +1308,9 @@ export function MachineComparison({
             <SettingEstimateControls
               options={estimateOptions}
               onChange={updateEstimateOptions}
+              hasHuntScore={hasHuntScore}
+              huntScoreHighlightThreshold={huntScoreHighlightThresholdInput}
+              onHuntScoreHighlightThresholdChange={setHuntScoreHighlightThresholdInput}
             />
           </div>
         ) : null}
@@ -1274,6 +1324,7 @@ export function MachineComparison({
         highlightedDateSet={highlightedDateSet}
         settingEstimateDefinition={settingEstimateDefinition}
         getCompositeSettingEstimate={getCompositeSettingEstimate}
+        huntScoreHighlightThreshold={huntScoreHighlightThreshold}
         csvRows={csvRows}
         tableStyle={tableStyle}
       />
@@ -1289,6 +1340,7 @@ function MachineComparisonTable({
   highlightedDateSet,
   settingEstimateDefinition,
   getCompositeSettingEstimate,
+  huntScoreHighlightThreshold,
   csvRows,
   tableStyle,
 }) {
@@ -1372,6 +1424,7 @@ function MachineComparisonTable({
                 isHighlighted={highlightedDateSet.has(row.date)}
                 settingEstimateDefinition={settingEstimateDefinition}
                 getCompositeSettingEstimate={getCompositeSettingEstimate}
+                huntScoreHighlightThreshold={huntScoreHighlightThreshold}
               />
             ))}
           </tbody>

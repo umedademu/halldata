@@ -752,6 +752,10 @@ a {
   gap: 10px;
 }
 
+.estimateFieldsStacked {
+  grid-template-columns: minmax(8.8rem, 16rem);
+}
+
 .estimateField {
   display: grid;
   gap: 6px;
@@ -1241,6 +1245,16 @@ a {
   color: var(--text);
   font-weight: 800;
   box-shadow: none;
+}
+
+.matrixTable tbody tr td.huntScoreHighlighted,
+.matrixTable tbody tr:nth-child(odd) td.huntScoreHighlighted,
+.matrixTable tbody tr.matrixRowHighlighted td.huntScoreHighlighted,
+.matrixTable tbody tr.matrixRowHighlighted:nth-child(odd) td.huntScoreHighlighted {
+  background: #eadcff;
+  color: #3b1a65;
+  font-weight: 900;
+  box-shadow: inset 0 0 0 1px rgba(91, 50, 142, 0.18);
 }
 
 .neoSpecTable {
