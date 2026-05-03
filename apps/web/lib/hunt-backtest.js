@@ -9,7 +9,6 @@ import {
   readFiniteNumber,
 } from "./hunt-bookmark";
 import {
-  calculateMachineDifferenceMetrics,
   canonicalMachineName,
   selectDifferenceValue,
 } from "./machine-difference";
@@ -357,25 +356,13 @@ function resolveActualMetrics(machineName, nextRecord, differenceMode) {
 
   if (differenceMode === "bonus") {
     const storedBonusDifferenceValue = selectDifferenceValue(nextRecord, "bonus");
-    if (storedBonusDifferenceValue !== null) {
-      return {
-        differenceValue: readFiniteNumber(storedBonusDifferenceValue),
-        investedCoins: standardInvestedCoins,
-        gamesCount,
-        bbCount,
-        rbCount,
-      };
-    }
-    const differenceMetrics = calculateMachineDifferenceMetrics(machineName, nextRecord);
-    if (differenceMetrics) {
-      return {
-        differenceValue: readFiniteNumber(differenceMetrics.differenceValue),
-        investedCoins: standardInvestedCoins,
-        gamesCount,
-        bbCount,
-        rbCount,
-      };
-    }
+    return {
+      differenceValue: readFiniteNumber(storedBonusDifferenceValue),
+      investedCoins: standardInvestedCoins,
+      gamesCount,
+      bbCount,
+      rbCount,
+    };
   }
 
   return {

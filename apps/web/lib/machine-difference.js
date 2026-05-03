@@ -24,33 +24,6 @@ function readNumber(value) {
   return Number.isFinite(parsedValue) ? parsedValue : null;
 }
 
-function roundDifferenceValue(value) {
-  if (!Number.isFinite(value)) {
-    return null;
-  }
-
-  const roundedValue = Math.sign(value) * Math.floor(Math.abs(value) + 0.5);
-  return Object.is(roundedValue, -0) ? 0 : roundedValue;
-}
-
-function resolveBonusCount(row, bonusLabel) {
-  const normalizedBonusLabel = String(bonusLabel ?? "").toLowerCase();
-  const candidateValues = [
-    row?.[bonusLabel],
-    row?.[normalizedBonusLabel],
-    row?.[`${normalizedBonusLabel}_count`],
-  ];
-
-  for (const value of candidateValues) {
-    const parsedValue = readNumber(value);
-    if (parsedValue !== null) {
-      return parsedValue;
-    }
-  }
-
-  return null;
-}
-
 export function loadMachineDifferenceRules() {
   if (cachedRules !== null) {
     return cachedRules;
@@ -148,54 +121,6 @@ export function listEquivalentMachineNames(machineName) {
   return names;
 }
 
-export function calculateMachineDifferenceValue(machineName, row) {
-  const metrics = calculateMachineDifferenceMetrics(machineName, row);
-  return metrics?.differenceValue ?? null;
-}
-
-export function calculateMachineDifferenceMetrics(machineName, row) {
-  const rule = findMachineDifferenceRule(machineName);
-  if (!rule) {
-    return null;
-  }
-
-  const investmentCoins = readNumber(rule.investment_coins);
-  const gamesPerInvestment = readNumber(rule.games_per_investment);
-  const gamesCount = readNumber(row?.games_count ?? row?.["G数"]);
-  if (
-    investmentCoins === null ||
-    gamesPerInvestment === null ||
-    gamesPerInvestment === 0 ||
-    gamesCount === null
-  ) {
-    return null;
-  }
-
-  const bonusPayouts =
-    rule.bonus_payouts && typeof rule.bonus_payouts === "object" ? rule.bonus_payouts : {};
-  const bonusEntries = Object.entries(bonusPayouts);
-  if (bonusEntries.length === 0) {
-    return null;
-  }
-
-  let totalBonusPayout = 0;
-  for (const [bonusLabel, payoutValue] of bonusEntries) {
-    const payoutCoins = readNumber(payoutValue);
-    const hitCount = resolveBonusCount(row, bonusLabel);
-    if (payoutCoins === null || hitCount === null) {
-      return null;
-    }
-    totalBonusPayout += hitCount * payoutCoins;
-  }
-
-  const investedCoins = (gamesCount * investmentCoins) / gamesPerInvestment;
-
-  return {
-    differenceValue: roundDifferenceValue(totalBonusPayout - investedCoins),
-    investedCoins,
-  };
-}
-
 function readDifferenceNumber(value) {
   return typeof value === "number" && Number.isFinite(value) ? value : readNumber(value);
 }
@@ -211,39 +136,13 @@ export function selectDifferenceValue(row, differenceMode = "bonus") {
   return readDifferenceNumber(row?.difference_value);
 }
 
-export function withCalculatedDifferenceValue(row) {
+export function withCanonicalMachineName(row) {
   const normalizedMachineName = canonicalMachineName(row?.machine_name);
-  const existingDifferenceValue = readDifferenceNumber(row?.difference_value);
-  let bonusDifferenceValue = readDifferenceNumber(row?.bonus_difference_value);
-  if (bonusDifferenceValue === null) {
-    bonusDifferenceValue = calculateMachineDifferenceValue(normalizedMachineName, row);
+  if (normalizedMachineName === row?.machine_name) {
+    return row;
   }
-
-  if (existingDifferenceValue !== null) {
-    if (normalizedMachineName === row?.machine_name && bonusDifferenceValue === row?.bonus_difference_value) {
-      return row;
-    }
-    return {
-      ...row,
-      machine_name: normalizedMachineName,
-      bonus_difference_value: bonusDifferenceValue,
-    };
-  }
-
-  if (bonusDifferenceValue === null) {
-    if (normalizedMachineName === row?.machine_name) {
-      return row;
-    }
-    return {
-      ...row,
-      machine_name: normalizedMachineName,
-    };
-  }
-
   return {
     ...row,
     machine_name: normalizedMachineName,
-    difference_value: bonusDifferenceValue,
-    bonus_difference_value: bonusDifferenceValue,
   };
 }

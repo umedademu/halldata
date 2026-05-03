@@ -11,7 +11,7 @@ import {
   listHuntScoreSourceMachineNames,
   listHuntScoreTargetMachineNames,
 } from "./hunt-score";
-import { canonicalMachineName, listEquivalentMachineNames, withCalculatedDifferenceValue } from "./machine-difference";
+import { canonicalMachineName, listEquivalentMachineNames, withCanonicalMachineName } from "./machine-difference";
 
 const PAGE_SIZE = 1000;
 const DEFAULT_FETCH_CACHE_TTL_MS = 0;
@@ -413,7 +413,7 @@ async function fetchHuntScoreSourceRows(resultsTable, machineDailyDetailsTable, 
 
     if (targetMachineRows.length > 0) {
       const targetRows = buildRawRowsFromMachineDailyDetailRows(targetMachineRows).map(
-        withCalculatedDifferenceValue,
+        withCanonicalMachineName,
       );
       const storeRows = [
         ...new Set(
@@ -457,7 +457,7 @@ async function fetchHuntScoreSourceRows(resultsTable, machineDailyDetailsTable, 
   ]);
 
   return {
-    targetRows: fetchedTargetRows.map(withCalculatedDifferenceValue),
+    targetRows: fetchedTargetRows.map(withCanonicalMachineName),
     storeRows: fetchedStoreRows,
   };
 }
@@ -744,7 +744,7 @@ function buildMachineDetailFromDailyRows(rows) {
 
     for (const slotNumber of Object.keys(sourceRecords).sort(compareSlotNumbers)) {
       const sourceRecord = sourceRecords[slotNumber] ?? {};
-      const record = withCalculatedDifferenceValue({
+      const record = withCanonicalMachineName({
         machine_name: machineName,
         target_date: date,
         slot_number: slotNumber,
@@ -942,7 +942,7 @@ function readStaticStoreRecords(staticStore) {
       data_source: record.data_source ?? null,
     }))
     .filter((record) => record.machine_name && record.target_date && record.slot_number)
-    .map(withCalculatedDifferenceValue);
+    .map(withCanonicalMachineName);
 }
 
 function findStaticMachineEntries(staticStore, machineNames) {
