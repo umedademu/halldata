@@ -432,6 +432,10 @@ function readMachineComparisonOptions(storeId, defaults, options = {}) {
       differenceMode: normalizeDifferenceMode(parsedValue.differenceMode),
       visibleMetricKeys: normalizeMetricKeys(parsedValue.visibleMetricKeys, null, defaults.visibleMetricKeys),
       estimateOptions: normalizeEstimateOptions(parsedValue.estimateOptions, defaults.estimateOptions),
+      displayControlsOpen: normalizeEnabledOption(
+        parsedValue.displayControlsOpen,
+        defaults.displayControlsOpen,
+      ),
       settingControlsOpen: normalizeEnabledOption(
         parsedValue.settingControlsOpen,
         defaults.settingControlsOpen,
@@ -469,6 +473,7 @@ function saveMachineComparisonOptions(storeId, options) {
         differenceMode: normalizeDifferenceMode(options.differenceMode),
         visibleMetricKeys: normalizeMetricKeys(options.visibleMetricKeys),
         estimateOptions: options.estimateOptions,
+        displayControlsOpen: Boolean(options.displayControlsOpen),
         settingControlsOpen: Boolean(options.settingControlsOpen),
         huntScoreControlsOpen: Boolean(options.huntScoreControlsOpen),
       }),
@@ -1644,6 +1649,7 @@ export function MachineComparison({
       differenceMode: DEFAULT_DIFFERENCE_MODE,
       visibleMetricKeys: DEFAULT_VISIBLE_METRIC_KEYS,
       estimateOptions: defaultEstimateOptions,
+      displayControlsOpen: true,
       settingControlsOpen: true,
       huntScoreControlsOpen: true,
     }),
@@ -1657,6 +1663,9 @@ export function MachineComparison({
   const [differenceMode, setDifferenceMode] = useState(defaultComparisonOptions.differenceMode);
   const [visibleMetricKeys, setVisibleMetricKeys] = useState(defaultComparisonOptions.visibleMetricKeys);
   const [estimateOptions, setEstimateOptions] = useState(defaultComparisonOptions.estimateOptions);
+  const [displayControlsOpen, setDisplayControlsOpen] = useState(
+    defaultComparisonOptions.displayControlsOpen,
+  );
   const [settingControlsOpen, setSettingControlsOpen] = useState(
     defaultComparisonOptions.settingControlsOpen,
   );
@@ -1818,6 +1827,7 @@ export function MachineComparison({
     setDifferenceMode(options.differenceMode);
     setVisibleMetricKeys(options.visibleMetricKeys);
     setEstimateOptions(options.estimateOptions);
+    setDisplayControlsOpen(options.displayControlsOpen);
     setSettingControlsOpen(options.settingControlsOpen);
     setHuntScoreControlsOpen(options.huntScoreControlsOpen);
     setMachineComparisonOptionsLoadedStoreId(storeId);
@@ -1848,10 +1858,12 @@ export function MachineComparison({
       differenceMode,
       visibleMetricKeys,
       estimateOptions,
+      displayControlsOpen,
       settingControlsOpen,
       huntScoreControlsOpen,
     });
   }, [
+    displayControlsOpen,
     differenceMode,
     estimateOptions,
     eventFilters,
@@ -2063,10 +2075,12 @@ export function MachineComparison({
   return (
     <>
       <section className="filterPanel machineComparisonFilterPanel">
-        <div>
-          <p className="sectionLabel">表示条件</p>
-        </div>
-        <div className="filterControlGroup">
+        <CollapsibleControlGroup
+          title="表示条件"
+          open={displayControlsOpen}
+          onOpenChange={setDisplayControlsOpen}
+        >
+          <div className="filterControlGroup">
           <p className="filterControlLabel">表示期間</p>
           <div className="dayFilterRow">
             <button
@@ -2237,7 +2251,8 @@ export function MachineComparison({
               );
             })}
           </div>
-        </div>
+          </div>
+        </CollapsibleControlGroup>
         {hasSettingEstimate ? (
           <CollapsibleControlGroup
             title="設定推測"
