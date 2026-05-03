@@ -3,6 +3,7 @@ const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
 const HANABI_GROUP_NAME = "ハナビ";
 const HANABI_MACHINE_NAMES = ["新ハナビ", "スマスロ ハナビ"];
+const DEVIATION_EPSILON = 0.000000001;
 
 export const HUNT_BACKTEST_BOOKMARK_EVENT = "hunt-backtest-bookmark-change";
 
@@ -132,6 +133,15 @@ export function buildScoreFilter(scoreMinValue) {
   };
 }
 
+export function buildDeviationFilter(deviationMinValue) {
+  const deviationMin = readNumber(deviationMinValue);
+
+  return {
+    deviationMin,
+    hasDeviationFilter: deviationMin !== null,
+  };
+}
+
 export function normalizeMatchMode(value) {
   return value === "or" ? "or" : "and";
 }
@@ -153,7 +163,56 @@ function formatRankScopeLabel(rankScope) {
   return "全機種順位";
 }
 
-export function matchesOptionalFilters(rankValue, huntScore, rankFilter, scoreFilter, matchMode) {
+export function calculateHuntScoreDeviationMap(rows) {
+  const validRows = (Array.isArray(rows) ? rows : [])
+    .map((row) => ({
+      row,
+      score: readNumber(row?.huntScore),
+    }))
+    .filter((entry) => entry.score !== null);
+
+  if (validRows.length < 2) {
+    return new Map();
+  }
+
+  const average =
+    validRows.reduce((sum, entry) => sum + entry.score, 0) / validRows.length;
+  const variance =
+    validRows.reduce((sum, entry) => sum + (entry.score - average) ** 2, 0) /
+    validRows.length;
+  const standardDeviation = Math.sqrt(variance);
+
+  if (!Number.isFinite(standardDeviation) || standardDeviation <= DEVIATION_EPSILON) {
+    return new Map();
+  }
+
+  return new Map(
+    validRows.map((entry) => [
+      entry.row,
+      50 + ((entry.score - average) / standardDeviation) * 10,
+    ]),
+  );
+}
+
+export function readDeviationForRankScope(row, rankScope) {
+  if (rankScope === "machine") {
+    return readNumber(row?.machineDeviation);
+  }
+  if (rankScope === "selected") {
+    return readNumber(row?.selectedDeviation);
+  }
+  return readNumber(row?.overallDeviation);
+}
+
+export function matchesOptionalFilters(
+  rankValue,
+  huntScore,
+  rankFilter,
+  scoreFilter,
+  matchMode,
+  deviationValue = null,
+  deviationFilter = { hasDeviationFilter: false, deviationMin: null },
+) {
   const normalizedRankValue = readPositiveInteger(rankValue);
   const rankMatched = rankFilter.hasRankFilter
     ? normalizedRankValue !== null &&
@@ -163,17 +222,30 @@ export function matchesOptionalFilters(rankValue, huntScore, rankFilter, scoreFi
   const scoreMatched = scoreFilter.hasScoreFilter
     ? readFiniteNumber(huntScore, Number.NEGATIVE_INFINITY) >= scoreFilter.scoreMin
     : false;
+  const normalizedDeviationValue = readNumber(deviationValue);
+  const deviationMatched = deviationFilter.hasDeviationFilter
+    ? normalizedDeviationValue !== null &&
+      normalizedDeviationValue >= deviationFilter.deviationMin
+    : false;
+  const conditionMatches = [];
 
-  if (rankFilter.hasRankFilter && scoreFilter.hasScoreFilter) {
-    return matchMode === "or" ? rankMatched || scoreMatched : rankMatched && scoreMatched;
-  }
   if (rankFilter.hasRankFilter) {
-    return rankMatched;
+    conditionMatches.push(rankMatched);
   }
   if (scoreFilter.hasScoreFilter) {
-    return scoreMatched;
+    conditionMatches.push(scoreMatched);
   }
-  return true;
+  if (deviationFilter.hasDeviationFilter) {
+    conditionMatches.push(deviationMatched);
+  }
+
+  if (conditionMatches.length === 0) {
+    return true;
+  }
+
+  return matchMode === "or"
+    ? conditionMatches.some(Boolean)
+    : conditionMatches.every(Boolean);
 }
 
 function normalizeMachineNames(machineNames) {
@@ -206,6 +278,7 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
 
   const rankFilter = buildRankFilter(bookmark.rankMin, bookmark.rankMax);
   const scoreFilter = buildScoreFilter(bookmark.scoreMin);
+  const deviationFilter = buildDeviationFilter(bookmark.deviationMin);
   const allMachineCount = readPositiveInteger(bookmark.allMachineCount) ?? machineNames.length;
   const combineAimJuggler = Boolean(bookmark.combineAimJuggler) || machineNames.some(isAimJugglerGroup);
   const combineHanabi = Boolean(bookmark.combineHanabi) || machineNames.some(isHanabiGroup);
@@ -222,6 +295,8 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     hasRankFilter: rankFilter.hasRankFilter,
     scoreMin: scoreFilter.scoreMin,
     hasScoreFilter: scoreFilter.hasScoreFilter,
+    deviationMin: deviationFilter.deviationMin,
+    hasDeviationFilter: deviationFilter.hasDeviationFilter,
     matchMode: normalizeMatchMode(bookmark.matchMode),
     rankScope: normalizeRankScope(bookmark.rankScope),
     combineAimJuggler,
@@ -255,6 +330,7 @@ export function areHuntBacktestBookmarksEqual(left, right) {
     normalizedLeft.rankMin === normalizedRight.rankMin &&
     normalizedLeft.rankMax === normalizedRight.rankMax &&
     normalizedLeft.scoreMin === normalizedRight.scoreMin &&
+    normalizedLeft.deviationMin === normalizedRight.deviationMin &&
     normalizedLeft.matchMode === normalizedRight.matchMode &&
     normalizedLeft.rankScope === normalizedRight.rankScope &&
     normalizedLeft.combineAimJuggler === normalizedRight.combineAimJuggler &&
@@ -307,8 +383,18 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
     parts.push(`狙い度${trimDecimalText(normalizedBookmark.scoreMin)}以上`);
   }
 
-  if (normalizedBookmark.hasRankFilter && normalizedBookmark.hasScoreFilter) {
-    parts.push(normalizedBookmark.matchMode === "or" ? "どちらか一致" : "両方一致");
+  if (normalizedBookmark.hasDeviationFilter) {
+    parts.push(`偏差値${trimDecimalText(normalizedBookmark.deviationMin)}以上`);
+  }
+
+  const activeFilterCount = [
+    normalizedBookmark.hasRankFilter,
+    normalizedBookmark.hasScoreFilter,
+    normalizedBookmark.hasDeviationFilter,
+  ].filter(Boolean).length;
+
+  if (activeFilterCount >= 2) {
+    parts.push(normalizedBookmark.matchMode === "or" ? "どれか一致" : "すべて一致");
   }
 
   if (normalizedBookmark.combineAimJuggler) {
@@ -319,8 +405,8 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
     parts.push("ハナビ統合");
   }
 
-  if (!normalizedBookmark.hasRankFilter && !normalizedBookmark.hasScoreFilter) {
-    parts.push("順位と狙い度の指定なし");
+  if (activeFilterCount === 0) {
+    parts.push("順位、狙い度、偏差値の指定なし");
   }
 
   return parts.join(" / ");
@@ -428,8 +514,39 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
   const machineRankCounts = new Map();
   const rankFilter = buildRankFilter(normalizedBookmark.rankMin, normalizedBookmark.rankMax);
   const scoreFilter = buildScoreFilter(normalizedBookmark.scoreMin);
+  const deviationFilter = buildDeviationFilter(normalizedBookmark.deviationMin);
+  const overallDeviationMap = calculateHuntScoreDeviationMap(safeRows);
+  const selectedRows = safeRows.filter((row) =>
+    includesBookmarkMachine(normalizeText(row?.machineName), selectedMachineNameSet),
+  );
+  const selectedDeviationMap = calculateHuntScoreDeviationMap(selectedRows);
+  const rowsByBookmarkMachineName = new Map();
   let matchedRowCount = 0;
   let selectedRank = 0;
+
+  for (const row of selectedRows) {
+    const machineName = normalizeText(row?.machineName);
+    const bookmarkMachineName = resolveBookmarkRankMachineName(
+      machineName,
+      normalizedBookmark.combineAimJuggler,
+      normalizedBookmark.combineHanabi,
+      selectedMachineNameSet,
+    );
+    if (!rowsByBookmarkMachineName.has(bookmarkMachineName)) {
+      rowsByBookmarkMachineName.set(bookmarkMachineName, []);
+    }
+    rowsByBookmarkMachineName.get(bookmarkMachineName).push(row);
+  }
+
+  const machineDeviationMap = new Map();
+  for (const machineRows of rowsByBookmarkMachineName.values()) {
+    const deviationMap = calculateHuntScoreDeviationMap(machineRows);
+    for (const row of machineRows) {
+      if (deviationMap.has(row)) {
+        machineDeviationMap.set(row, deviationMap.get(row));
+      }
+    }
+  }
 
   for (const row of safeRows) {
     const machineName = normalizeText(row?.machineName);
@@ -458,12 +575,22 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
         : normalizedBookmark.rankScope === "selected"
           ? rowSelectedRank
           : rowOverallRank;
+    const existingDeviationValue = readDeviationForRankScope(row, normalizedBookmark.rankScope);
+    const calculatedDeviationValue =
+      normalizedBookmark.rankScope === "machine"
+        ? machineDeviationMap.get(row) ?? null
+        : normalizedBookmark.rankScope === "selected"
+          ? selectedDeviationMap.get(row) ?? null
+          : overallDeviationMap.get(row) ?? null;
+    const deviationValue = existingDeviationValue ?? calculatedDeviationValue;
     const matched = matchesOptionalFilters(
       rankValue,
       row?.huntScore,
       rankFilter,
       scoreFilter,
       normalizedBookmark.matchMode,
+      deviationValue,
+      deviationFilter,
     );
 
     if (matched) {

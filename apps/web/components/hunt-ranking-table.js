@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   formatAverageGames,
+  formatDecimal,
   formatMonthDay,
   formatNumber,
   formatPercent,
@@ -15,7 +16,9 @@ import {
   HUNT_BACKTEST_BOOKMARK_EVENT,
   buildHuntBacktestBookmarkMatches,
   buildHuntBacktestBookmarkRowKey,
+  calculateHuntScoreDeviationMap,
   formatHuntBacktestBookmarkSummary,
+  readDeviationForRankScope,
   readSavedHuntBacktestBookmark,
 } from "../lib/hunt-bookmark";
 import {
@@ -33,6 +36,8 @@ const DEFAULT_VISIBLE_RESULT_KEYS = [
   "setting_estimate",
 ];
 const DEFAULT_DIFFERENCE_MODE = "bonus";
+const DEFAULT_DEVIATION_SCOPE = "selected";
+const DEFAULT_DEVIATION_MIN = 60;
 
 const RESULT_COLUMN_DEFINITIONS = [
   {
@@ -136,9 +141,16 @@ function compareRankingRows(left, right) {
   );
 }
 
-function buildSortedRankingRows(rankingGroups) {
+function getRankingGroupRows(group, includeAllRows = false) {
+  if (includeAllRows && Array.isArray(group.allRows)) {
+    return group.allRows;
+  }
+  return Array.isArray(group.rows) ? group.rows : [];
+}
+
+function buildSortedRankingRows(rankingGroups, includeAllRows = false) {
   return rankingGroups
-    .flatMap((group) => group.rows)
+    .flatMap((group) => getRankingGroupRows(group, includeAllRows))
     .sort(compareRankingRows)
     .map((row, index) => ({
       ...row,
@@ -154,7 +166,92 @@ function buildOverallRows(rows, overallLimit) {
   }));
 }
 
-function OverallRankingTable({ storeId, title, rows, visibleColumns, bookmarkState, scoreColumnLabel }) {
+function buildDeviationRowKey(row) {
+  return String(row?.rowKey ?? `${row?.machineName ?? ""}::${row?.slotNumber ?? ""}`).trim();
+}
+
+function buildDeviationValueMaps(displayRows, allDisplayRows, displayGroups) {
+  const overallDeviationMap = calculateHuntScoreDeviationMap(allDisplayRows);
+  const selectedDeviationMap = calculateHuntScoreDeviationMap(displayRows);
+  const overallDeviationByKey = new Map(
+    allDisplayRows.map((row) => [buildDeviationRowKey(row), overallDeviationMap.get(row) ?? null]),
+  );
+  const selectedDeviationByKey = new Map(
+    displayRows.map((row) => [buildDeviationRowKey(row), selectedDeviationMap.get(row) ?? null]),
+  );
+  const machineDeviationByKey = new Map();
+
+  for (const group of displayGroups) {
+    const groupRows = getRankingGroupRows(group, true);
+    const deviationMap = calculateHuntScoreDeviationMap(groupRows);
+    for (const row of groupRows) {
+      if (deviationMap.has(row)) {
+        machineDeviationByKey.set(buildDeviationRowKey(row), deviationMap.get(row));
+      }
+    }
+  }
+
+  const valueByRowKey = new Map();
+  for (const row of allDisplayRows) {
+    const rowKey = buildDeviationRowKey(row);
+    valueByRowKey.set(rowKey, {
+      overallDeviation: overallDeviationByKey.get(rowKey) ?? null,
+      selectedDeviation: selectedDeviationByKey.get(rowKey) ?? null,
+      machineDeviation: machineDeviationByKey.get(rowKey) ?? null,
+    });
+  }
+
+  return valueByRowKey;
+}
+
+function decorateRowsWithDeviation(rows, deviationValueByRowKey) {
+  return rows.map((row) => ({
+    ...row,
+    ...(deviationValueByRowKey.get(buildDeviationRowKey(row)) ?? {}),
+  }));
+}
+
+function normalizeDeviationScope(value) {
+  if (value === "all" || value === "machine" || value === "selected") {
+    return value;
+  }
+  return DEFAULT_DEVIATION_SCOPE;
+}
+
+function formatDeviationForScope(row, deviationScope) {
+  return formatDecimal(readDeviationForRankScope(row, normalizeDeviationScope(deviationScope)));
+}
+
+function parseDeviationMin(value) {
+  const text = String(value ?? "").trim();
+  if (text === "") {
+    return null;
+  }
+  const parsedValue = Number(text);
+  return Number.isFinite(parsedValue) ? parsedValue : null;
+}
+
+function isDeviationHighlighted(row, deviationScope, deviationMin) {
+  const threshold = parseDeviationMin(deviationMin);
+  const deviationValue = readDeviationForRankScope(row, normalizeDeviationScope(deviationScope));
+
+  return (
+    Number.isFinite(threshold) &&
+    Number.isFinite(deviationValue) &&
+    deviationValue >= threshold
+  );
+}
+
+function OverallRankingTable({
+  storeId,
+  title,
+  rows,
+  visibleColumns,
+  bookmarkState,
+  scoreColumnLabel,
+  deviationScope,
+  deviationMin,
+}) {
   return (
     <section className="tablePanel directoryPanel">
       <div className="tablePanelHeader">
@@ -170,6 +267,7 @@ function OverallRankingTable({ storeId, title, rows, visibleColumns, bookmarkSta
               <th>条件</th>
               <th>順位</th>
               <th>{scoreColumnLabel}</th>
+              <th>偏差値</th>
               <th className="directoryNameHeader">機種名</th>
               <th>台番</th>
               {visibleColumns.map((column) => (
@@ -196,6 +294,15 @@ function OverallRankingTable({ storeId, title, rows, visibleColumns, bookmarkSta
                   </td>
                   <td>{row.rank}</td>
                   <td>{formatNumber(row.huntScore)}</td>
+                  <td
+                    className={
+                      isDeviationHighlighted(row, deviationScope, deviationMin)
+                        ? "huntScoreDeviationHighlighted"
+                        : undefined
+                    }
+                  >
+                    {formatDeviationForScope(row, deviationScope)}
+                  </td>
                   <th className="directoryNameCell">
                     <Link
                       href={`/stores/${storeId}/machines/${encodeURIComponent(row.machineName)}`}
@@ -231,6 +338,8 @@ export function HuntRankingTable({
 }) {
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
   const [differenceMode, setDifferenceMode] = useState(DEFAULT_DIFFERENCE_MODE);
+  const [deviationScope, setDeviationScope] = useState(DEFAULT_DEVIATION_SCOPE);
+  const [deviationMin, setDeviationMin] = useState(String(DEFAULT_DEVIATION_MIN));
   const [bookmark, setBookmark] = useState(null);
 
   useEffect(() => {
@@ -276,17 +385,45 @@ export function HuntRankingTable({
     () => buildSortedRankingRows(allDisplayGroups),
     [allDisplayGroups],
   );
+  const displayDeviationRows = useMemo(
+    () => buildSortedRankingRows(displayGroups, true),
+    [displayGroups],
+  );
+  const allDeviationRows = useMemo(
+    () => buildSortedRankingRows(allDisplayGroups, true),
+    [allDisplayGroups],
+  );
+  const deviationValueByRowKey = useMemo(
+    () => buildDeviationValueMaps(displayDeviationRows, allDeviationRows, displayGroups),
+    [allDeviationRows, displayGroups, displayDeviationRows],
+  );
+  const displayRowsWithDeviation = useMemo(
+    () => decorateRowsWithDeviation(displayRows, deviationValueByRowKey),
+    [deviationValueByRowKey, displayRows],
+  );
+  const allDisplayRowsWithDeviation = useMemo(
+    () => decorateRowsWithDeviation(allDisplayRows, deviationValueByRowKey),
+    [allDisplayRows, deviationValueByRowKey],
+  );
+  const displayGroupsWithDeviation = useMemo(
+    () =>
+      displayGroups.map((group) => ({
+        ...group,
+        rows: decorateRowsWithDeviation(group.rows, deviationValueByRowKey),
+      })),
+    [deviationValueByRowKey, displayGroups],
+  );
   const selectedOverallRows = useMemo(
-    () => buildOverallRows(displayRows, overallLimit),
-    [displayRows, overallLimit],
+    () => buildOverallRows(displayRowsWithDeviation, overallLimit),
+    [displayRowsWithDeviation, overallLimit],
   );
   const allOverallRows = useMemo(
-    () => buildOverallRows(allDisplayRows, overallLimit),
-    [allDisplayRows, overallLimit],
+    () => buildOverallRows(allDisplayRowsWithDeviation, overallLimit),
+    [allDisplayRowsWithDeviation, overallLimit],
   );
   const bookmarkState = useMemo(
-    () => buildHuntBacktestBookmarkMatches(allDisplayRows, bookmark),
-    [allDisplayRows, bookmark],
+    () => buildHuntBacktestBookmarkMatches(allDisplayRowsWithDeviation, bookmark),
+    [allDisplayRowsWithDeviation, bookmark],
   );
   const bookmarkSummary = useMemo(
     () => formatHuntBacktestBookmarkSummary(bookmarkState.bookmark),
@@ -355,6 +492,64 @@ export function HuntRankingTable({
           </div>
         </div>
         <div>
+          <p className="sectionLabel">偏差値の見方</p>
+          <div className="metricToggleRow">
+            <label
+              className={`metricToggleChip ${
+                deviationScope === "selected" ? "metricToggleChipActive" : ""
+              }`}
+            >
+              <input
+                type="radio"
+                name="huntRankingDeviationScope"
+                value="selected"
+                checked={deviationScope === "selected"}
+                onChange={() => setDeviationScope("selected")}
+              />
+              <span>チェック機種内</span>
+            </label>
+            <label
+              className={`metricToggleChip ${
+                deviationScope === "machine" ? "metricToggleChipActive" : ""
+              }`}
+            >
+              <input
+                type="radio"
+                name="huntRankingDeviationScope"
+                value="machine"
+                checked={deviationScope === "machine"}
+                onChange={() => setDeviationScope("machine")}
+              />
+              <span>機種内</span>
+            </label>
+            <label
+              className={`metricToggleChip ${
+                deviationScope === "all" ? "metricToggleChipActive" : ""
+              }`}
+            >
+              <input
+                type="radio"
+                name="huntRankingDeviationScope"
+                value="all"
+                checked={deviationScope === "all"}
+                onChange={() => setDeviationScope("all")}
+              />
+              <span>全機種内</span>
+            </label>
+          </div>
+        </div>
+        <label className="storeReserveField backtestField">
+          <span>偏差値の下限</span>
+          <input
+            type="number"
+            min="0"
+            step="0.1"
+            value={deviationMin}
+            onChange={(event) => setDeviationMin(event.target.value)}
+            className="storeReserveInput"
+          />
+        </label>
+        <div>
           <p className="sectionLabel">表示する列</p>
           <p className="filterLead">
             {`${resultColumnLead}ここは保存済み実績の表示で、上のバックテスト基準切り替えは反映しません。`}
@@ -398,6 +593,8 @@ export function HuntRankingTable({
           visibleColumns={visibleColumns}
           bookmarkState={bookmarkState}
           scoreColumnLabel={scoreColumnLabel}
+          deviationScope={deviationScope}
+          deviationMin={deviationMin}
         />
       ) : (
         <section className="statusPanel">
@@ -413,9 +610,11 @@ export function HuntRankingTable({
         visibleColumns={visibleColumns}
         bookmarkState={bookmarkState}
         scoreColumnLabel={scoreColumnLabel}
+        deviationScope={deviationScope}
+        deviationMin={deviationMin}
       />
 
-      {displayGroups.map((group) => (
+      {displayGroupsWithDeviation.map((group) => (
         <section key={group.machineName} className="tablePanel directoryPanel">
           <div className="tablePanelHeader">
             <div>
@@ -442,6 +641,7 @@ export function HuntRankingTable({
                   <th>条件</th>
                   <th>順位</th>
                   <th>{scoreColumnLabel}</th>
+                  <th>偏差値</th>
                   <th>台番</th>
                   {visibleColumns.map((column) => (
                     <th key={column.key}>{column.label}</th>
@@ -467,6 +667,15 @@ export function HuntRankingTable({
                       </td>
                       <td>{row.rank}</td>
                       <td>{formatNumber(row.huntScore)}</td>
+                      <td
+                        className={
+                          isDeviationHighlighted(row, deviationScope, deviationMin)
+                            ? "huntScoreDeviationHighlighted"
+                            : undefined
+                        }
+                      >
+                        {formatDeviationForScope(row, deviationScope)}
+                      </td>
                       <td>{row.slotNumber}</td>
                       {visibleColumns.map((column) => (
                         <td key={`${row.machineName}-${row.slotNumber}-${column.key}`}>

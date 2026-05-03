@@ -142,9 +142,10 @@ function buildVisibleRankingGroups(
     }
 
     const rankingGroup = groupsByName.get(rankingGroupName);
-    rankingGroup.totalCount += group.totalCount ?? group.rows?.length ?? 0;
+    const sourceRows = Array.isArray(group.allRows) ? group.allRows : group.rows;
+    rankingGroup.totalCount += group.totalCount ?? sourceRows?.length ?? 0;
     rankingGroup.rows.push(
-      ...(Array.isArray(group.rows) ? group.rows : []).map((row) => ({
+      ...(Array.isArray(sourceRows) ? sourceRows : []).map((row) => ({
         ...row,
         machineName: String(row.machineName ?? machineName).trim(),
       })),
@@ -153,18 +154,19 @@ function buildVisibleRankingGroups(
 
   return [...groupsByName.values()]
     .map((group) => {
-      const rankedRows = group.rows
+      const rankedAllRows = group.rows
         .sort(compareRankingRows)
-        .slice(0, displayLimit)
         .map((row, index) => ({
           ...row,
           rank: index + 1,
           machineRank: index + 1,
         }));
+      const rankedRows = rankedAllRows.slice(0, displayLimit);
 
       return {
         ...group,
         limit: Math.min(displayLimit, group.totalCount),
+        allRows: rankedAllRows,
         rows: rankedRows,
       };
     })

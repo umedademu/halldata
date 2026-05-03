@@ -26,6 +26,7 @@ import {
 
 export const dynamic = "force-dynamic";
 const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, index) => index);
+const DEFAULT_DEVIATION_MIN = "60";
 const WEEKDAY_OPTIONS = [
   { value: 1, label: "月曜" },
   { value: 2, label: "火曜" },
@@ -65,6 +66,7 @@ function BacktestResultTable({ title, backtest }) {
               <th className="directoryNameHeader">機種名</th>
               <th>条件一致台数</th>
               <th>狙い度</th>
+              <th>偏差値</th>
               <th>実績集計台数</th>
               <th>合計差枚</th>
               <th>合計G数</th>
@@ -82,6 +84,7 @@ function BacktestResultTable({ title, backtest }) {
               <th className="directoryNameCell">総計</th>
               <td>{formatNumber(backtest.total.matchedRowCount)}</td>
               <td>{formatDecimal(backtest.total.averageHuntScore)}</td>
+              <td>{formatDecimal(backtest.total.averageDeviation)}</td>
               <td>{formatNumber(backtest.total.actualRowCount)}</td>
               <td>{formatSignedNumber(backtest.total.differenceTotal)}</td>
               <td>{formatNumber(backtest.total.gamesTotal)}</td>
@@ -101,6 +104,7 @@ function BacktestResultTable({ title, backtest }) {
                 <th className="directoryNameCell">{summary.machineName}</th>
                 <td>{formatNumber(summary.matchedRowCount)}</td>
                 <td>{formatDecimal(summary.averageHuntScore)}</td>
+                <td>{formatDecimal(summary.averageDeviation)}</td>
                 <td>{formatNumber(summary.actualRowCount)}</td>
                 <td>{formatSignedNumber(summary.differenceTotal)}</td>
                 <td>{formatNumber(summary.gamesTotal)}</td>
@@ -141,6 +145,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
   const resolvedSearchParams = await searchParams;
   const storeId = resolvedParams.storeId;
   const resultRequested = readSingleSearchParam(resolvedSearchParams?.show) === "1";
+  const hasDeviationMinParam = Object.hasOwn(resolvedSearchParams ?? {}, "deviationMin");
   const requestedBacktestOptions = {
     periodMode: readSingleSearchParam(resolvedSearchParams?.periodMode),
     recentDays: readSingleSearchParam(resolvedSearchParams?.recentDays),
@@ -155,6 +160,9 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     rankMax: readSingleSearchParam(resolvedSearchParams?.rankMax),
     rankScope: readSingleSearchParam(resolvedSearchParams?.rankScope),
     scoreMin: readSingleSearchParam(resolvedSearchParams?.scoreMin),
+    deviationMin: hasDeviationMinParam
+      ? readSingleSearchParam(resolvedSearchParams?.deviationMin)
+      : DEFAULT_DEVIATION_MIN,
     matchMode: readSingleSearchParam(resolvedSearchParams?.matchMode),
     showGraph: readSingleSearchParam(resolvedSearchParams?.showGraph),
     eventTouched: readSingleSearchParam(resolvedSearchParams?.backtestEventTouched) === "1",
@@ -210,6 +218,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     rankMin: detail.backtest.rankMin,
     rankMax: detail.backtest.rankMax,
     scoreMin: detail.backtest.scoreMin,
+    deviationMin: detail.backtest.deviationMin,
     matchMode: detail.backtest.matchMode,
     rankScope: detail.backtest.rankScope,
     combineAimJuggler: detail.backtest.combineAimJuggler,
@@ -454,6 +463,17 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                     className="storeReserveInput"
                   />
                 </label>
+                <label className="storeReserveField backtestField">
+                  <span>偏差値の下限</span>
+                  <input
+                    type="number"
+                    name="deviationMin"
+                    min="0"
+                    step="0.1"
+                    defaultValue={detail.backtest.deviationMin ?? ""}
+                    className="storeReserveInput"
+                  />
+                </label>
               </div>
 
               <div className="backtestBlock">
@@ -489,7 +509,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
               </div>
 
               <div className="backtestBlock">
-                <p className="filterControlLabel">順位の見方</p>
+                <p className="filterControlLabel">順位と偏差値の見方</p>
                 <div className="metricToggleRow">
                   <label
                     className={`metricToggleChip ${
@@ -534,7 +554,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
               </div>
 
               <div className="backtestBlock">
-                <p className="filterControlLabel">順位と狙い度を両方入れた時の条件</p>
+                <p className="filterControlLabel">順位、狙い度、偏差値を複数入れた時の条件</p>
                 <div className="metricToggleRow">
                   <label
                     className={`metricToggleChip ${
@@ -547,7 +567,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       value="and"
                       defaultChecked={detail.backtest.matchMode === "and"}
                     />
-                    <span>両方一致</span>
+                    <span>すべて一致</span>
                   </label>
                   <label
                     className={`metricToggleChip ${
@@ -560,7 +580,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       value="or"
                       defaultChecked={detail.backtest.matchMode === "or"}
                     />
-                    <span>どちらか一致</span>
+                    <span>どれか一致</span>
                   </label>
                 </div>
               </div>

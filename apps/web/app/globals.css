@@ -1041,6 +1041,27 @@ a {
   line-height: 1;
 }
 
+.directoryTable tbody tr td.huntScoreDeviationHighlighted,
+.directoryTable tbody tr:nth-child(odd) td.huntScoreDeviationHighlighted,
+.directoryTable tbody tr:hover td.huntScoreDeviationHighlighted,
+.directoryTable tbody tr.settingEstimateLevel0 td.huntScoreDeviationHighlighted,
+.directoryTable tbody tr.settingEstimateLevel0:nth-child(odd) td.huntScoreDeviationHighlighted,
+.directoryTable tbody tr.settingEstimateLevel0:hover td.huntScoreDeviationHighlighted,
+.directoryTable tbody tr.settingEstimateLevel1 td.huntScoreDeviationHighlighted,
+.directoryTable tbody tr.settingEstimateLevel1:nth-child(odd) td.huntScoreDeviationHighlighted,
+.directoryTable tbody tr.settingEstimateLevel1:hover td.huntScoreDeviationHighlighted,
+.directoryTable tbody tr.settingEstimateLevel2 td.huntScoreDeviationHighlighted,
+.directoryTable tbody tr.settingEstimateLevel2:nth-child(odd) td.huntScoreDeviationHighlighted,
+.directoryTable tbody tr.settingEstimateLevel2:hover td.huntScoreDeviationHighlighted,
+.directoryTable tbody tr.settingEstimateLevel3 td.huntScoreDeviationHighlighted,
+.directoryTable tbody tr.settingEstimateLevel3:nth-child(odd) td.huntScoreDeviationHighlighted,
+.directoryTable tbody tr.settingEstimateLevel3:hover td.huntScoreDeviationHighlighted {
+  background: #eadcff;
+  color: #3b1a65;
+  font-weight: 900;
+  box-shadow: inset 0 0 0 1px rgba(91, 50, 142, 0.18);
+}
+
 .directoryNameHeader,
 .directoryNameCell {
   position: sticky;

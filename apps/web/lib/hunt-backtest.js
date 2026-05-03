@@ -1,11 +1,14 @@
 import { listHuntScoreTargetMachineNames } from "./hunt-score";
 import {
+  buildDeviationFilter,
   buildRankFilter,
   buildScoreFilter,
+  calculateHuntScoreDeviationMap,
   matchesOptionalFilters,
   normalizeDateText,
   normalizeMatchMode,
   normalizeRankScope,
+  readDeviationForRankScope,
   readFiniteNumber,
 } from "./hunt-bookmark";
 import {
@@ -15,6 +18,7 @@ import {
 
 const DEFAULT_RECENT_DAYS = 90;
 const DEFAULT_DIFFERENCE_MODE = "bonus";
+const DEFAULT_DEVIATION_MIN = 60;
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
 const HANABI_GROUP_NAME = "ハナビ";
@@ -379,7 +383,10 @@ function buildEmptySummary(machineName = "総計") {
     machineName,
     matchedRowCount: 0,
     huntScoreTotal: 0,
+    deviationTotal: 0,
+    deviationSampleCount: 0,
     averageHuntScore: null,
+    averageDeviation: null,
     actualRowCount: 0,
     differenceTotal: 0,
     gamesTotal: 0,
@@ -409,11 +416,56 @@ function finalizeSummary(summary) {
   return {
     ...summary,
     averageHuntScore: calculateAverage(summary.huntScoreTotal, summary.matchedRowCount),
+    averageDeviation: calculateAverage(summary.deviationTotal, summary.deviationSampleCount),
     payoutRate: calculatePayoutRate(summary.investedCoinsTotal, summary.differenceTotal),
     bbProbability: formatProbability(summary.gamesTotal, summary.bbTotal),
     rbProbability: formatProbability(summary.gamesTotal, summary.rbTotal),
     combinedProbability: formatProbability(summary.gamesTotal, summary.bbTotal + summary.rbTotal),
   };
+}
+
+function buildSnapshotDeviationRows(snapshot, selectedMachineNameSet, combineAimJuggler, combineHanabi) {
+  const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
+  const overallDeviationMap = calculateHuntScoreDeviationMap(rows);
+  const selectedRows = rows.filter((row) =>
+    selectedMachineNameSet.has(String(row.machineName ?? "").trim()),
+  );
+  const selectedDeviationMap = calculateHuntScoreDeviationMap(selectedRows);
+  const machineRowsByName = new Map();
+
+  for (const row of selectedRows) {
+    const machineName = resolveBacktestMachineName(
+      row.machineName,
+      combineAimJuggler,
+      combineHanabi,
+    );
+    if (!machineRowsByName.has(machineName)) {
+      machineRowsByName.set(machineName, []);
+    }
+    machineRowsByName.get(machineName).push(row);
+  }
+
+  const machineDeviationMap = new Map();
+  for (const machineRows of machineRowsByName.values()) {
+    const deviationMap = calculateHuntScoreDeviationMap(machineRows);
+    for (const row of machineRows) {
+      if (deviationMap.has(row)) {
+        machineDeviationMap.set(row, deviationMap.get(row));
+      }
+    }
+  }
+
+  return new Map(
+    rows.map((row) => [
+      row,
+      {
+        ...row,
+        overallDeviation: overallDeviationMap.get(row) ?? null,
+        selectedDeviation: selectedDeviationMap.get(row) ?? null,
+        machineDeviation: machineDeviationMap.get(row) ?? null,
+      },
+    ]),
+  );
 }
 
 function buildBacktestAggregationDetail(
@@ -423,6 +475,7 @@ function buildBacktestAggregationDetail(
     selectedMachineNameSet,
     rankFilter,
     scoreFilter,
+    deviationFilter,
     matchMode,
     rankScope,
     differenceMode,
@@ -440,6 +493,12 @@ function buildBacktestAggregationDetail(
 
   for (const snapshot of snapshotsInPeriod) {
     const machineRankCounts = new Map();
+    const deviationRowsByRow = buildSnapshotDeviationRows(
+      snapshot,
+      selectedMachineNameSet,
+      combineAimJuggler,
+      combineHanabi,
+    );
     let selectedRank = 0;
 
     for (const row of snapshot.rows) {
@@ -458,8 +517,20 @@ function buildBacktestAggregationDetail(
       machineRankCounts.set(backtestMachineName, machineRank);
       const rankValue =
         rankScope === "machine" ? machineRank : rankScope === "selected" ? selectedRank : row.rank;
+      const deviationRow = deviationRowsByRow.get(row) ?? row;
+      const deviationValue = readDeviationForRankScope(deviationRow, rankScope);
 
-      if (!matchesOptionalFilters(rankValue, row.huntScore, rankFilter, scoreFilter, matchMode)) {
+      if (
+        !matchesOptionalFilters(
+          rankValue,
+          row.huntScore,
+          rankFilter,
+          scoreFilter,
+          matchMode,
+          deviationValue,
+          deviationFilter,
+        )
+      ) {
         continue;
       }
 
@@ -480,6 +551,12 @@ function buildBacktestAggregationDetail(
       summary.huntScoreTotal += readFiniteNumber(row.huntScore);
       totalSummary.matchedRowCount += 1;
       totalSummary.huntScoreTotal += readFiniteNumber(row.huntScore);
+      if (Number.isFinite(deviationValue)) {
+        summary.deviationTotal += deviationValue;
+        summary.deviationSampleCount += 1;
+        totalSummary.deviationTotal += deviationValue;
+        totalSummary.deviationSampleCount += 1;
+      }
 
       if (actualDate) {
         if (!dailySummariesByDate.has(actualDate)) {
@@ -598,6 +675,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const selectedMachineNameSet = new Set(selectedMachineNames);
   const rankFilter = buildRankFilter(options.rankMin, options.rankMax);
   const scoreFilter = buildScoreFilter(options.scoreMin);
+  const deviationFilter = buildDeviationFilter(options.deviationMin ?? DEFAULT_DEVIATION_MIN);
   const matchMode = normalizeMatchMode(options.matchMode);
   const rankScope = normalizeRankScope(options.rankScope);
   const showGraph = normalizeShowGraph(options.showGraph);
@@ -612,6 +690,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     selectedMachineNameSet,
     rankFilter,
     scoreFilter,
+    deviationFilter,
     matchMode,
     rankScope,
     differenceMode,
@@ -647,6 +726,8 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     hasRankFilter: rankFilter.hasRankFilter,
     scoreMin: scoreFilter.scoreMin,
     hasScoreFilter: scoreFilter.hasScoreFilter,
+    deviationMin: deviationFilter.deviationMin,
+    hasDeviationFilter: deviationFilter.hasDeviationFilter,
     matchMode,
     rankScope,
     showGraph,

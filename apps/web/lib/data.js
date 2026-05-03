@@ -30,6 +30,7 @@ const HUNT_BACKTEST_DEFAULT_EVENT_FILTERS = {
 };
 const DEFAULT_HUNT_RANKING_LIMIT = 20;
 const DEFAULT_HUNT_BACKTEST_RECENT_DAYS = 90;
+const DEFAULT_HUNT_SCORE_DEVIATION_MIN = 60;
 
 let cachedFileSettingsPromise = null;
 
@@ -1048,6 +1049,7 @@ function buildInitialBacktestDetail(storeName, options = {}) {
   const rankMin = readPositiveInteger(defaultedOptions?.rankMin, null);
   const rankMax = readPositiveInteger(defaultedOptions?.rankMax, null);
   const scoreMin = readNumber(defaultedOptions?.scoreMin);
+  const deviationMin = readNumber(defaultedOptions?.deviationMin) ?? DEFAULT_HUNT_SCORE_DEVIATION_MIN;
   const combineAimJuggler = normalizeEnabledOption(defaultedOptions?.combineAimJuggler, true);
   const combineHanabi = normalizeEnabledOption(defaultedOptions?.combineHanabi, true);
 
@@ -1069,6 +1071,8 @@ function buildInitialBacktestDetail(storeName, options = {}) {
     hasRankFilter: rankMin !== null || rankMax !== null,
     scoreMin,
     hasScoreFilter: scoreMin !== null,
+    deviationMin,
+    hasDeviationFilter: deviationMin !== null,
     matchMode: defaultedOptions?.matchMode === "or" ? "or" : "and",
     rankScope:
       defaultedOptions?.rankScope === "machine" || defaultedOptions?.rankScope === "selected"
@@ -1412,6 +1416,7 @@ function limitRankingGroups(rankingGroups, displayLimit) {
   return rankingGroups.map((group) => ({
     ...group,
     limit: Math.min(displayLimit, group.totalCount),
+    allRows: group.rows,
     rows: group.rows.slice(0, displayLimit),
   }));
 }
