@@ -193,8 +193,50 @@ function normalizeStoredNumberInput(value, fallbackValue) {
   return Number.isFinite(number) ? number : fallbackValue;
 }
 
+function isStoredNumberValue(value, expectedValue) {
+  return normalizeStoredNumberInput(value, null) === expectedValue;
+}
+
+function isStoredEnabledValue(value, expectedValue) {
+  if (value === undefined || value === null) {
+    return false;
+  }
+  return normalizeEnabledOption(value, !expectedValue) === expectedValue;
+}
+
+function isLegacyDefaultEstimateOptions(source) {
+  if (!source || typeof source !== "object") {
+    return false;
+  }
+
+  const hasDefaultGameRange =
+    isStoredNumberValue(source.minGames, DEFAULT_GAME_MIN_GAMES) &&
+    isStoredNumberValue(source.maxGames, DEFAULT_GAME_MAX_GAMES) &&
+    isStoredNumberValue(source.gameExponent, DEFAULT_GAME_EXPONENT);
+  if (!hasDefaultGameRange) {
+    return false;
+  }
+
+  const isSmallMachineDefault =
+    isStoredNumberValue(source.dataWeight, 20) &&
+    isStoredEnabledValue(source.gameEnabled, true) &&
+    isStoredNumberValue(source.gameWeight, 40) &&
+    isStoredEnabledValue(source.comparisonEnabled, true) &&
+    isStoredNumberValue(source.comparisonWeight, 40);
+  const isStandardMachineDefault =
+    isStoredNumberValue(source.dataWeight, 80) &&
+    isStoredEnabledValue(source.gameEnabled, true) &&
+    isStoredNumberValue(source.gameWeight, 20) &&
+    isStoredEnabledValue(source.comparisonEnabled, false) &&
+    isStoredNumberValue(source.comparisonWeight, 0);
+  return isSmallMachineDefault || isStandardMachineDefault;
+}
+
 function normalizeEstimateOptions(value, defaults) {
   const source = value && typeof value === "object" ? value : {};
+  if (isLegacyDefaultEstimateOptions(source)) {
+    return defaults;
+  }
   return {
     dataWeight: normalizeStoredNumberInput(source.dataWeight, defaults.dataWeight),
     gameEnabled: Boolean(source.gameEnabled ?? defaults.gameEnabled),
@@ -685,32 +727,13 @@ function getSettingEstimate(definition, record) {
   return estimate;
 }
 
-function isJugglerMachine(machineName) {
-  return String(machineName ?? "").normalize("NFKC").includes("ジャグラー");
-}
-
-function createDefaultEstimateOptions(slotCount, machineName) {
-  if (isJugglerMachine(machineName)) {
-    return {
-      dataWeight: 100,
-      gameEnabled: false,
-      gameWeight: 0,
-      comparisonEnabled: false,
-      comparisonWeight: 0,
-      minGames: DEFAULT_GAME_MIN_GAMES,
-      maxGames: DEFAULT_GAME_MAX_GAMES,
-      gameExponent: DEFAULT_GAME_EXPONENT,
-    };
-  }
-
-  const isSmallMachine = slotCount <= 8;
-
+function createDefaultEstimateOptions() {
   return {
-    dataWeight: isSmallMachine ? 20 : 80,
-    gameEnabled: true,
-    gameWeight: isSmallMachine ? 40 : 20,
-    comparisonEnabled: isSmallMachine,
-    comparisonWeight: isSmallMachine ? 40 : 0,
+    dataWeight: 100,
+    gameEnabled: false,
+    gameWeight: 0,
+    comparisonEnabled: false,
+    comparisonWeight: 0,
     minGames: DEFAULT_GAME_MIN_GAMES,
     maxGames: DEFAULT_GAME_MAX_GAMES,
     gameExponent: DEFAULT_GAME_EXPONENT,
@@ -1651,8 +1674,8 @@ export function MachineComparison({
     [initialEventFilters],
   );
   const defaultEstimateOptions = useMemo(
-    () => createDefaultEstimateOptions(slotNumbers.length, machineName),
-    [machineName, slotNumbers.length],
+    () => createDefaultEstimateOptions(),
+    [],
   );
   const defaultComparisonOptions = useMemo(
     () => ({
