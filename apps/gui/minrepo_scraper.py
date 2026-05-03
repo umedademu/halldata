@@ -146,6 +146,7 @@ def normalize_text(value: str) -> str:
 class MinRepoScraper:
     def __init__(self) -> None:
         self._thread_local = threading.local()
+        self._session_lock = threading.Lock()
         self.session = self._create_session()
         self._thread_local.session = self.session
 
@@ -158,8 +159,25 @@ class MinRepoScraper:
         session = getattr(self._thread_local, "session", None)
         if session is None:
             session = self._create_session()
+            self._copy_base_session_cookies(session)
             self._thread_local.session = session
         return session
+
+    def _copy_cookies(self, source: requests.Session, target: requests.Session) -> None:
+        for cookie in source.cookies:
+            target.cookies.set_cookie(cookie)
+
+    def _copy_base_session_cookies(self, session: requests.Session) -> None:
+        if session is self.session:
+            return
+        with self._session_lock:
+            self._copy_cookies(self.session, session)
+
+    def _copy_session_cookies_to_base(self, session: requests.Session) -> None:
+        if session is self.session:
+            return
+        with self._session_lock:
+            self._copy_cookies(session, self.session)
 
     def fetch_store_name(self, store_url: str) -> str:
         store_html = self.fetch_html(store_url)
@@ -492,25 +510,31 @@ class MinRepoScraper:
 
     def fetch_html(self, url: str) -> str:
         session = self._get_session()
+        self._copy_base_session_cookies(session)
         response = session.get(url, timeout=30)
+        self._copy_session_cookies_to_base(session)
         response.raise_for_status()
 
         if self._apply_inline_cookies(response.text):
+            self._copy_base_session_cookies(session)
             response = session.get(url, timeout=30)
+            self._copy_session_cookies_to_base(session)
             response.raise_for_status()
 
         return response.text
 
     def _apply_inline_cookies(self, html: str) -> bool:
         changed = False
+        session = self._get_session()
         for name, value in INLINE_COOKIE_PATTERN.findall(html):
             if not name.startswith("_d"):
                 continue
-            session = self._get_session()
             if session.cookies.get(name) == value:
                 continue
             session.cookies.set(name, value, domain=".min-repo.com", path="/")
             changed = True
+        if changed:
+            self._copy_session_cookies_to_base(session)
         return changed
 
     def _notify_progress(

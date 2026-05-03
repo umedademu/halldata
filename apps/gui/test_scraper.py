@@ -320,6 +320,40 @@ class MinRepoScraperTests(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "直近日数"):
             parse_recent_days("0")
 
+    def test_parallel_thread_sessions_inherit_minrepo_cookies(self) -> None:
+        scraper = MinRepoScraper()
+        scraper.session.cookies.set("_dparallel", "base", domain=".min-repo.com", path="/")
+        worker_cookie_values: list[str | None] = []
+
+        def collect_worker_cookie() -> None:
+            session = scraper._get_session()
+            worker_cookie_values.append(
+                session.cookies.get("_dparallel", domain=".min-repo.com", path="/")
+            )
+
+        thread = threading.Thread(target=collect_worker_cookie)
+        thread.start()
+        thread.join()
+
+        self.assertEqual(worker_cookie_values, ["base"])
+
+    def test_parallel_inline_cookies_sync_to_base_session(self) -> None:
+        scraper = MinRepoScraper()
+        changed_values: list[bool] = []
+
+        def apply_worker_cookie() -> None:
+            changed_values.append(scraper._apply_inline_cookies("$.cookie('_dparallel', 'worker')"))
+
+        thread = threading.Thread(target=apply_worker_cookie)
+        thread.start()
+        thread.join()
+
+        self.assertEqual(changed_values, [True])
+        self.assertEqual(
+            scraper.session.cookies.get("_dparallel", domain=".min-repo.com", path="/"),
+            "worker",
+        )
+
     def test_scheduled_fetch_due_date_returns_today_only_when_due(self) -> None:
         now = datetime(2026, 4, 28, 1, 5, tzinfo=timezone.utc)
 
