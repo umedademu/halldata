@@ -1936,6 +1936,38 @@ class MinRepoScraperTests(unittest.TestCase):
                 ],
             )
 
+    def test_sync_registered_stores_to_web_data_updates_existing_index_location(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root_dir = Path(temp_dir)
+            service, storage = make_r2_service(root_dir)
+            store_url = "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/"
+            seed_r2_store(
+                storage,
+                store_name="GOGOアリーナ天神",
+                store_url=store_url,
+                records=[],
+            )
+
+            summary = service.sync_registered_stores_to_web_data(
+                [
+                    {
+                        "store_name": "GOGOアリーナ天神",
+                        "store_url": store_url,
+                        "site7_prefecture": "福岡県",
+                        "site7_area": "福岡市中央区",
+                    }
+                ]
+            )
+            index_payload = storage.read_json("index.json")
+            stores = index_payload["stores"] if isinstance(index_payload, dict) else []
+
+            self.assertFalse(summary.has_errors)
+            self.assertTrue(summary.web_data_saved)
+            self.assertEqual(summary.web_data_store_count, 1)
+            self.assertEqual(stores[0]["prefectureName"], "福岡県")
+            self.assertEqual(stores[0]["areaName"], "福岡市中央区")
+            self.assertTrue(stores[0]["dataFile"])
+
     def test_load_registered_stores_merges_static_web_entries_when_local_file_is_partial(self) -> None:
         with TemporaryDirectory() as temp_dir:
             root_dir = Path(temp_dir)

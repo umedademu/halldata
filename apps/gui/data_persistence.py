@@ -71,6 +71,8 @@ class RegisteredStoresPersistenceSummary:
     local_store_count: int = 0
     supabase_saved: bool = False
     supabase_store_count: int = 0
+    web_data_saved: bool = False
+    web_data_store_count: int = 0
     messages: list[str] = field(default_factory=list)
 
     @property
@@ -584,7 +586,26 @@ class HistoryPersistenceService:
             summary.messages.append(f"登録店舗のローカル保存に失敗しました。\n{exc}")
 
         try:
-            self._save_registered_stores_to_r2_web_data(normalized_stores)
+            entries = self._save_registered_stores_to_r2_web_data(normalized_stores)
+            summary.web_data_saved = bool(entries)
+            summary.web_data_store_count = len(entries)
+        except Exception as exc:  # noqa: BLE001
+            summary.messages.append(f"Web表示用店舗索引の更新に失敗しました。\n{exc}")
+
+        return summary
+
+    def sync_registered_stores_to_web_data(
+        self,
+        stores: list[dict[str, Any]] | None = None,
+    ) -> RegisteredStoresPersistenceSummary:
+        source_stores = self.load_registered_stores() if stores is None else stores
+        normalized_stores = self._normalize_registered_stores(source_stores)
+        summary = RegisteredStoresPersistenceSummary(local_store_count=len(normalized_stores))
+
+        try:
+            entries = self._save_registered_stores_to_r2_web_data(normalized_stores)
+            summary.web_data_saved = bool(entries)
+            summary.web_data_store_count = len(entries)
         except Exception as exc:  # noqa: BLE001
             summary.messages.append(f"Web表示用店舗索引の更新に失敗しました。\n{exc}")
 

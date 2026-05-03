@@ -1372,7 +1372,14 @@ class MinRepoApp:
 
     def _load_registered_stores_on_startup(self) -> list[RegisteredStore]:
         try:
-            return self._load_latest_registered_stores()
+            registered_stores = self._load_latest_registered_stores()
+            sync_summary = self._sync_registered_store_web_data(registered_stores)
+            if sync_summary.has_errors:
+                self.startup_store_warning = (
+                    "登録店舗は読み込めましたが、Web表示用店舗索引の更新に失敗しました。\n"
+                    + "\n\n".join(sync_summary.messages)
+                )
+            return registered_stores
         except Exception as exc:  # noqa: BLE001
             self.startup_store_warning = f"登録店舗の読込に失敗したため、初期店舗だけを表示します。\n{exc}"
             return self._default_registered_stores()
@@ -1526,10 +1533,10 @@ class MinRepoApp:
 
         if changed:
             save_summary = self._persist_registered_store_list(completed_stores)
-        elif messages:
-            save_summary = RegisteredStoresPersistenceSummary(messages=list(messages))
+        else:
+            save_summary = self._sync_registered_store_web_data(completed_stores)
 
-        if save_summary is not None and changed:
+        if save_summary is not None and messages:
             save_summary.messages.extend(messages)
 
         return StoreRefreshResult(registered_stores=completed_stores, save_summary=save_summary)
@@ -3320,7 +3327,17 @@ class MinRepoApp:
         return self._persist_registered_store_list(self.registered_stores)
 
     def _persist_registered_store_list(self, registered_stores: list[RegisteredStore]) -> RegisteredStoresPersistenceSummary:
-        store_payloads = [
+        return self.persistence_service.save_registered_stores(
+            self._registered_store_payloads(registered_stores)
+        )
+
+    def _sync_registered_store_web_data(self, registered_stores: list[RegisteredStore]) -> RegisteredStoresPersistenceSummary:
+        return self.persistence_service.sync_registered_stores_to_web_data(
+            self._registered_store_payloads(registered_stores)
+        )
+
+    def _registered_store_payloads(self, registered_stores: list[RegisteredStore]) -> list[dict[str, object]]:
+        return [
             {
                 "store_name": registered_store.name,
                 "store_url": registered_store.url,
@@ -3333,7 +3350,6 @@ class MinRepoApp:
             }
             for registered_store in registered_stores
         ]
-        return self.persistence_service.save_registered_stores(store_payloads)
 
     def toggle_comparison_focus(self) -> None:
         if self.skip_comparison_display_var.get():
