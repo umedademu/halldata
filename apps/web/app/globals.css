@@ -554,6 +554,25 @@ a {
   padding: 22px 24px;
 }
 
+.machineComparisonFilterPanel {
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.machineComparisonFilterPanel .sectionLabel {
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+}
+
+.machineComparisonFilterPanel .filterControlGroup,
+.machineComparisonFilterPanel .backtestBlock {
+  gap: 6px;
+}
+
+.machineComparisonFilterPanel .filterControlLabel {
+  font-size: 0.76rem;
+}
+
 .filterPanelStatus {
   margin: 0;
   width: fit-content;
@@ -604,6 +623,36 @@ a {
   font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+.machineComparisonFilterPanel .filterPanelStatus {
+  padding: 5px 8px;
+  font-size: 0.78rem;
+}
+
+.machineComparisonFilterPanel .dayFilterRow,
+.machineComparisonFilterPanel .metricToggleRow,
+.machineComparisonFilterPanel .machineGroupToggleRow {
+  gap: 7px;
+}
+
+.machineComparisonFilterPanel .dayFilterChip {
+  padding: 7px 10px;
+  font-size: 0.86rem;
+}
+
+.machineComparisonFilterPanel .metricToggleChip,
+.machineComparisonFilterPanel .estimateToggle {
+  gap: 6px;
+  min-height: 2.12rem;
+  padding: 6px 9px;
+  font-size: 0.84rem;
+}
+
+.machineComparisonFilterPanel .metricToggleChip input,
+.machineComparisonFilterPanel .estimateToggle input {
+  width: 0.9rem;
+  height: 0.9rem;
 }
 
 .dayFilterChipActive {
@@ -678,9 +727,19 @@ a {
   font-size: 0.9rem;
 }
 
+.machineComparisonFilterPanel .machineFilterAction {
+  min-height: 2.12rem;
+  padding: 6px 9px;
+  font-size: 0.84rem;
+}
+
 .machineFilterGroups {
   display: grid;
   gap: 12px;
+}
+
+.machineComparisonFilterPanel .machineFilterGroups {
+  gap: 10px;
 }
 
 .machineFilterGroup {
@@ -688,11 +747,19 @@ a {
   gap: 7px;
 }
 
+.machineComparisonFilterPanel .machineFilterGroup {
+  gap: 6px;
+}
+
 .machineFilterGroupLabel {
   margin: 0;
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 900;
+}
+
+.machineComparisonFilterPanel .machineFilterGroupLabel {
+  font-size: 0.72rem;
 }
 
 .estimateControlGrid {
@@ -724,10 +791,19 @@ a {
   cursor: pointer;
 }
 
+.machineComparisonFilterPanel .collapsibleControlHeader {
+  padding: 9px 11px;
+  font-size: 0.86rem;
+}
+
 .collapsibleControlStatus {
   color: var(--accent-strong);
   font-size: 0.82rem;
   font-weight: 900;
+}
+
+.machineComparisonFilterPanel .collapsibleControlStatus {
+  font-size: 0.76rem;
 }
 
 .collapsibleControlBody {
@@ -735,6 +811,11 @@ a {
   gap: 12px;
   padding: 14px;
   border-top: 1px solid var(--line);
+}
+
+.machineComparisonFilterPanel .collapsibleControlBody {
+  gap: 10px;
+  padding: 11px;
 }
 
 .estimateControlHeader,
@@ -756,6 +837,16 @@ a {
   border-top: 1px solid var(--line);
 }
 
+.machineComparisonFilterPanel .estimateControlGrid,
+.machineComparisonFilterPanel .huntHighlightControls {
+  gap: 10px;
+}
+
+.machineComparisonFilterPanel .estimateMethodRow {
+  gap: 8px;
+  padding-top: 10px;
+}
+
 .estimateMethodTitle,
 .estimateHelpText,
 .estimateWeightTotal {
@@ -766,10 +857,20 @@ a {
   font-weight: 800;
 }
 
+.machineComparisonFilterPanel .estimateMethodTitle {
+  font-size: 0.88rem;
+}
+
 .estimateHelpText {
   color: var(--muted);
   font-size: 0.84rem;
   line-height: 1.6;
+}
+
+.machineComparisonFilterPanel .estimateHelpText,
+.machineComparisonFilterPanel .estimateWeightTotal,
+.machineComparisonFilterPanel .estimateInputSuffix {
+  font-size: 0.78rem;
 }
 
 .estimateWeightTotal {
@@ -844,6 +945,11 @@ a {
   font-weight: 800;
 }
 
+.machineComparisonFilterPanel .estimateField {
+  gap: 5px;
+  font-size: 0.74rem;
+}
+
 .estimateInputWrap {
   display: flex;
   align-items: center;
@@ -862,6 +968,12 @@ a {
   font-family: var(--font-body);
   font-size: 0.96rem;
   font-weight: 800;
+}
+
+.machineComparisonFilterPanel .estimateInputWrap input {
+  height: 2.16rem;
+  padding: 5px 8px;
+  font-size: 0.86rem;
 }
 
 .estimateInputWrap input:disabled {

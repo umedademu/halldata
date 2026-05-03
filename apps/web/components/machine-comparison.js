@@ -2062,7 +2062,7 @@ export function MachineComparison({
 
   return (
     <>
-      <section className="filterPanel">
+      <section className="filterPanel machineComparisonFilterPanel">
         <div>
           <p className="sectionLabel">表示条件</p>
         </div>
