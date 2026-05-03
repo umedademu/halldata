@@ -20,6 +20,13 @@ import {
 } from "../lib/format";
 import { createEventFilters, matchesEventFilters } from "../lib/event-filters";
 import { calculateHuntScoreDeviationMap } from "../lib/hunt-bookmark";
+import {
+  groupHuntMachineOptions,
+  hasAimJugglerHuntMachineGroupOption,
+  hasHanabiHuntMachineGroupOption,
+  isHuntJugglerMachine,
+  resolveHuntMachineGroupName,
+} from "../lib/hunt-machine-display";
 import { selectDifferenceValue } from "../lib/machine-difference";
 import {
   calculateGameCountEstimate,
@@ -69,10 +76,6 @@ const DEFAULT_HUNT_SCORE_RANK_SCOPE = "selected";
 const DEFAULT_HUNT_SCORE_DEVIATION_SCOPE = "selected";
 const DEFAULT_HUNT_SCORE_MATCH_MODE = "or";
 const HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX = "machine-hunt-score-highlight:";
-const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
-const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
-const HANABI_GROUP_NAME = "ハナビ";
-const HANABI_MACHINE_NAMES = ["新ハナビ", "スマスロ ハナビ"];
 const COMPARISON_SCORE_EPSILON = 0.000000001;
 const settingEstimateCache = new WeakMap();
 
@@ -184,50 +187,11 @@ function isHuntScoreValueMatched(value, threshold) {
   return Number.isFinite(score) && Number.isFinite(threshold) && score >= threshold;
 }
 
-function normalizeMachineGroupName(value) {
-  return String(value ?? "").normalize("NFKC").replace(/\s+/gu, "").trim();
-}
-
-function isSameMachineGroupName(left, right) {
-  return normalizeMachineGroupName(left) === normalizeMachineGroupName(right);
-}
-
-function isMachineInGroup(machineName, groupMachineNames) {
-  return groupMachineNames.some((candidateName) => isSameMachineGroupName(candidateName, machineName));
-}
-
-function isAimJugglerMachine(machineName) {
-  return isMachineInGroup(machineName, AIM_JUGGLER_MACHINE_NAMES);
-}
-
-function isHanabiMachine(machineName) {
-  return isMachineInGroup(machineName, HANABI_MACHINE_NAMES);
-}
-
-function hasMachineGroupOption(availableMachineNames, groupMachineNames) {
-  return groupMachineNames.every((machineName) =>
-    availableMachineNames.some((availableMachineName) =>
-      isSameMachineGroupName(availableMachineName, machineName),
-    ),
-  );
-}
-
 function normalizeEnabledOption(value, fallbackValue) {
   if (value === undefined || value === null) {
     return fallbackValue;
   }
   return value === true || value === 1 || value === "1" || value === "true" || value === "on";
-}
-
-function resolveHuntScoreMachineGroupName(machineName, options) {
-  const text = String(machineName ?? "").trim();
-  if (options.combineAimJuggler && isAimJugglerMachine(text)) {
-    return AIM_JUGGLER_GROUP_NAME;
-  }
-  if (options.combineHanabi && isHanabiMachine(text)) {
-    return HANABI_GROUP_NAME;
-  }
-  return text;
 }
 
 function buildHuntScoreHighlightKey(date, machineName, slotNumber) {
@@ -246,9 +210,9 @@ function createDefaultHuntScoreHighlightOptions(machineNames) {
     matchMode: DEFAULT_HUNT_SCORE_MATCH_MODE,
     rankScope: DEFAULT_HUNT_SCORE_RANK_SCOPE,
     deviationScope: DEFAULT_HUNT_SCORE_DEVIATION_SCOPE,
-    selectedMachineNames: availableMachineNames.filter(isJugglerMachine),
-    combineAimJuggler: hasMachineGroupOption(availableMachineNames, AIM_JUGGLER_MACHINE_NAMES),
-    combineHanabi: hasMachineGroupOption(availableMachineNames, HANABI_MACHINE_NAMES),
+    selectedMachineNames: availableMachineNames.filter(isHuntJugglerMachine),
+    combineAimJuggler: hasAimJugglerHuntMachineGroupOption(availableMachineNames),
+    combineHanabi: hasHanabiHuntMachineGroupOption(availableMachineNames),
   };
 }
 
@@ -324,10 +288,10 @@ function normalizeHuntScoreHighlightOptions(value, availableMachineNames) {
       availableMachineNames,
     ),
     combineAimJuggler:
-      hasMachineGroupOption(availableMachineNames, AIM_JUGGLER_MACHINE_NAMES) &&
+      hasAimJugglerHuntMachineGroupOption(availableMachineNames) &&
       normalizeEnabledOption(value.combineAimJuggler, defaults.combineAimJuggler),
     combineHanabi:
-      hasMachineGroupOption(availableMachineNames, HANABI_MACHINE_NAMES) &&
+      hasHanabiHuntMachineGroupOption(availableMachineNames) &&
       normalizeEnabledOption(value.combineHanabi, defaults.combineHanabi),
   };
 }
@@ -432,7 +396,7 @@ function buildHuntScoreDeviationValueMap(highlightDetail, options) {
     const rowsByMachineName = new Map();
 
     for (const row of rows) {
-      const machineName = resolveHuntScoreMachineGroupName(row.machineName, normalizedOptions);
+      const machineName = resolveHuntMachineGroupName(row.machineName, normalizedOptions);
       if (!machineName) {
         continue;
       }
@@ -499,7 +463,7 @@ function buildHuntScoreHighlightKeySet(highlightDetail, options, deviationValueM
 
     for (const row of Array.isArray(snapshot.rows) ? snapshot.rows : []) {
       const machineName = String(row.machineName ?? "").trim();
-      const rankMachineName = resolveHuntScoreMachineGroupName(machineName, normalizedOptions);
+      const rankMachineName = resolveHuntMachineGroupName(machineName, normalizedOptions);
       const slotNumber = String(row.slotNumber ?? "").trim();
       const huntScore = Number(row.huntScore);
       if (!machineName || !slotNumber || !Number.isFinite(huntScore)) {
@@ -1010,14 +974,24 @@ function EstimateNumberField({
 
 function HuntScoreHighlightControls({ options, availableMachineNames, onChange }) {
   const selectedMachineNameSet = new Set(options.selectedMachineNames);
-  const hasAimJugglerGroupOption = hasMachineGroupOption(
-    availableMachineNames,
-    AIM_JUGGLER_MACHINE_NAMES,
+  const hasAimJugglerGroupOption = hasAimJugglerHuntMachineGroupOption(availableMachineNames);
+  const hasHanabiGroupOption = hasHanabiHuntMachineGroupOption(availableMachineNames);
+  const machineOptionGroups = groupHuntMachineOptions(
+    availableMachineNames.map((machineName) => ({
+      name: machineName,
+      checked: selectedMachineNameSet.has(machineName),
+    })),
   );
-  const hasHanabiGroupOption = hasMachineGroupOption(availableMachineNames, HANABI_MACHINE_NAMES);
 
   const updateOption = (key, value) => {
     onChange({ ...options, [key]: value });
+  };
+
+  const selectJugglerOnly = () => {
+    onChange({
+      ...options,
+      selectedMachineNames: availableMachineNames.filter(isHuntJugglerMachine),
+    });
   };
 
   const toggleMachine = (machineName) => {
@@ -1210,7 +1184,7 @@ function HuntScoreHighlightControls({ options, availableMachineNames, onChange }
                 checked={options.combineAimJuggler}
                 onChange={(event) => updateOption("combineAimJuggler", event.target.checked)}
               />
-              <span>SアイムジャグラーEXとネオアイムジャグラーEXをまとめる</span>
+              <span>Sアイムとネオアイムをまとめる</span>
             </label>
           ) : null}
           {hasHanabiGroupOption ? (
@@ -1224,26 +1198,42 @@ function HuntScoreHighlightControls({ options, availableMachineNames, onChange }
                 checked={options.combineHanabi}
                 onChange={(event) => updateOption("combineHanabi", event.target.checked)}
               />
-              <span>新ハナビとスマスロハナビをまとめる</span>
+              <span>新ハナビとスマハナビをまとめる</span>
             </label>
           ) : null}
-          <div className="metricToggleRow">
-            {availableMachineNames.map((machineName) => {
-              const checked = selectedMachineNameSet.has(machineName);
-              return (
-                <label
-                  key={machineName}
-                  className={`metricToggleChip ${checked ? "metricToggleChipActive" : ""}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleMachine(machineName)}
-                  />
-                  <span>{machineName}</span>
-                </label>
-              );
-            })}
+          <div className="machineFilterActionRow">
+            <button
+              type="button"
+              className="storeReserveButton storeReserveButtonSecondary machineFilterAction"
+              onClick={selectJugglerOnly}
+            >
+              ジャグ系のみ選択
+            </button>
+          </div>
+          <div className="machineFilterGroups">
+            {machineOptionGroups.map((group) => (
+              <div key={group.key} className="machineFilterGroup">
+                <p className="machineFilterGroupLabel">{group.label}</p>
+                <div className="metricToggleRow">
+                  {group.options.map((machine) => (
+                    <label
+                      key={machine.name}
+                      className={`metricToggleChip ${
+                        machine.checked ? "metricToggleChipActive" : ""
+                      }`}
+                      title={machine.name}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={machine.checked}
+                        onChange={() => toggleMachine(machine.name)}
+                      />
+                      <span>{machine.shortName}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       ) : null}

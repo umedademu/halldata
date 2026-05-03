@@ -6,6 +6,7 @@ import { HuntBacktestEventFilterSync } from "../../../../components/hunt-backtes
 import { Breadcrumbs } from "../../../../components/breadcrumbs";
 import { DataSourceLabel } from "../../../../components/data-source-label";
 import { HuntBacktestGraph } from "../../../../components/hunt-backtest-graph";
+import { JugglerOnlyButton } from "../../../../components/hunt-machine-filter-tools";
 import { NativeGetForm } from "../../../../components/native-get-form";
 import {
   getHuntScoreAnalysisPageDetail,
@@ -19,6 +20,7 @@ import {
   formatPercent,
   formatSignedNumber,
 } from "../../../../lib/format";
+import { groupHuntMachineOptions } from "../../../../lib/hunt-machine-display";
 import {
   formatSettingEstimateScore,
   getSettingEstimateHighlightClass,
@@ -228,6 +230,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
   };
   const selectedBacktestDayTailSet = new Set(detail.backtest.eventFilters.dayTails);
   const selectedBacktestWeekdaySet = new Set(detail.backtest.eventFilters.weekdays);
+  const machineOptionGroups = groupHuntMachineOptions(detail.backtest.machineOptions);
 
   return (
     <main className="pageStack">
@@ -394,7 +397,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       value="1"
                       defaultChecked={detail.backtest.combineAimJuggler}
                     />
-                    <span>SアイムジャグラーEXとネオアイムジャグラーEXをまとめる</span>
+                    <span>Sアイムとネオアイムをまとめる</span>
                   </label>
                 ) : null}
                 {detail.backtest.hasHanabiGroupOption ? (
@@ -409,25 +412,38 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       value="1"
                       defaultChecked={detail.backtest.combineHanabi}
                     />
-                    <span>新ハナビとスマスロハナビをまとめる</span>
+                    <span>新ハナビとスマハナビをまとめる</span>
                   </label>
                 ) : null}
-                <div className="metricToggleRow">
-                  {detail.backtest.machineOptions.map((machine) => (
-                    <label
-                      key={machine.name}
-                      className={`metricToggleChip ${
-                        machine.checked ? "metricToggleChipActive" : ""
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        name="machine"
-                        value={machine.name}
-                        defaultChecked={machine.checked}
-                      />
-                      <span>{machine.name}</span>
-                    </label>
+                <div className="machineFilterActionRow">
+                  <JugglerOnlyButton />
+                </div>
+                <div className="machineFilterGroups">
+                  {machineOptionGroups.map((group) => (
+                    <div key={group.key} className="machineFilterGroup">
+                      <p className="machineFilterGroupLabel">{group.label}</p>
+                      <div className="metricToggleRow">
+                        {group.options.map((machine) => (
+                          <label
+                            key={machine.name}
+                            className={`metricToggleChip ${
+                              machine.checked ? "metricToggleChipActive" : ""
+                            }`}
+                            title={machine.name}
+                          >
+                            <input
+                              type="checkbox"
+                              name="machine"
+                              value={machine.name}
+                              defaultChecked={machine.checked}
+                              data-machine-filter-option="1"
+                              data-machine-category={machine.category}
+                            />
+                            <span>{machine.shortName}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>

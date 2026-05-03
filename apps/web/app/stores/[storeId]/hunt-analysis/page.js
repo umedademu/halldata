@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../../components/breadcrumbs";
 import { DataSourceLabel } from "../../../../components/data-source-label";
+import { JugglerOnlyButton } from "../../../../components/hunt-machine-filter-tools";
 import { HuntRankingLimitSync } from "../../../../components/hunt-ranking-limit-sync";
 import { HuntRankingTable } from "../../../../components/hunt-ranking-table";
 import { NativeGetForm } from "../../../../components/native-get-form";
@@ -12,6 +13,7 @@ import {
   getStoreIdentity,
 } from "../../../../lib/data";
 import { formatMonthDay } from "../../../../lib/format";
+import { groupHuntMachineOptions } from "../../../../lib/hunt-machine-display";
 
 export const dynamic = "force-dynamic";
 
@@ -269,6 +271,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     name: machineName,
     checked: selectedMachineNameSet.has(machineName),
   }));
+  const machineOptionGroups = groupHuntMachineOptions(machineOptions);
   const visibleRankingGroups = buildVisibleRankingGroups(
     resultRequested ? detail.rankingGroups : [],
     selectedMachineNameSet,
@@ -375,7 +378,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                           value="1"
                           defaultChecked={combineAimJuggler}
                         />
-                        <span>SアイムジャグラーEXとネオアイムジャグラーEXをまとめる</span>
+                        <span>Sアイムとネオアイムをまとめる</span>
                       </label>
                     </>
                   ) : null}
@@ -393,26 +396,39 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                           value="1"
                           defaultChecked={combineHanabi}
                         />
-                        <span>新ハナビとスマスロハナビをまとめる</span>
+                        <span>新ハナビとスマハナビをまとめる</span>
                       </label>
                     </>
                   ) : null}
-                  <div className="metricToggleRow">
-                    {machineOptions.map((machine) => (
-                      <label
-                        key={machine.name}
-                        className={`metricToggleChip ${
-                          machine.checked ? "metricToggleChipActive" : ""
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          name="machine"
-                          value={machine.name}
-                          defaultChecked={machine.checked}
-                        />
-                        <span>{machine.name}</span>
-                      </label>
+                  <div className="machineFilterActionRow">
+                    <JugglerOnlyButton />
+                  </div>
+                  <div className="machineFilterGroups">
+                    {machineOptionGroups.map((group) => (
+                      <div key={group.key} className="machineFilterGroup">
+                        <p className="machineFilterGroupLabel">{group.label}</p>
+                        <div className="metricToggleRow">
+                          {group.options.map((machine) => (
+                            <label
+                              key={machine.name}
+                              className={`metricToggleChip ${
+                                machine.checked ? "metricToggleChipActive" : ""
+                              }`}
+                              title={machine.name}
+                            >
+                              <input
+                                type="checkbox"
+                                name="machine"
+                                value={machine.name}
+                                defaultChecked={machine.checked}
+                                data-machine-filter-option="1"
+                                data-machine-category={machine.category}
+                              />
+                              <span>{machine.shortName}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
