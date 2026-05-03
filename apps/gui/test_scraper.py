@@ -841,6 +841,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 "machine_name": "ネオアイムジャグラーEX",
                 "data_source": DATA_SOURCE_MINREPO,
                 "difference_value": -562,
+                "bonus_difference_value": -416,
                 "games_count": 5931,
                 "payout_rate": 96.8,
                 "bb_count": 22,
@@ -1397,6 +1398,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 "machine_name": "ネオアイムジャグラーEX",
                 "data_source": DATA_SOURCE_SITE7,
                 "difference_value": 735,
+                "bonus_difference_value": 735,
                 "games_count": 5454,
                 "payout_rate": None,
                 "bb_count": 25,
@@ -1448,6 +1450,7 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         self.assertEqual(payload["difference_value"], 735)
+        self.assertIsNone(payload["bonus_difference_value"])
         self.assertEqual(payload["data_source"], DATA_SOURCE_SITE7)
         self.assertEqual(payload["store_id"], "store-1")
 
@@ -1552,6 +1555,7 @@ class MinRepoScraperTests(unittest.TestCase):
             {
                 "101": {
                     "difference_value": 300,
+                    "bonus_difference_value": None,
                     "games_count": 4000,
                     "payout_rate": 104.0,
                     "bb_count": 21,
@@ -1562,6 +1566,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 },
                 "102": {
                     "difference_value": 500,
+                    "bonus_difference_value": None,
                     "games_count": 6000,
                     "payout_rate": 106.0,
                     "bb_count": 28,

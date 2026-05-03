@@ -1,3 +1,6 @@
+alter table public.machine_daily_results
+    add column if not exists bonus_difference_value numeric;
+
 create table if not exists public.store_machine_daily_details (
     store_id uuid not null references public.stores (id) on delete cascade,
     machine_name text not null,
@@ -21,6 +24,7 @@ with normalized as (
         target_date::date as target_date,
         slot_number,
         difference_value,
+        bonus_difference_value,
         games_count,
         payout_rate,
         bb_count,
@@ -49,6 +53,7 @@ grouped as (
             jsonb_strip_nulls(
                 jsonb_build_object(
                     'difference_value', difference_value,
+                    'bonus_difference_value', bonus_difference_value,
                     'games_count', games_count,
                     'payout_rate', payout_rate,
                     'bb_count', bb_count,

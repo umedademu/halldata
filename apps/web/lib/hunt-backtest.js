@@ -8,7 +8,11 @@ import {
   normalizeRankScope,
   readFiniteNumber,
 } from "./hunt-bookmark";
-import { calculateMachineDifferenceMetrics, canonicalMachineName } from "./machine-difference";
+import {
+  calculateMachineDifferenceMetrics,
+  canonicalMachineName,
+  selectDifferenceValue,
+} from "./machine-difference";
 
 const DEFAULT_RECENT_DAYS = 90;
 const DEFAULT_DIFFERENCE_MODE = "bonus";
@@ -352,6 +356,16 @@ function resolveActualMetrics(machineName, nextRecord, differenceMode) {
   const standardInvestedCoins = gamesCount > 0 ? gamesCount * 3 : 0;
 
   if (differenceMode === "bonus") {
+    const storedBonusDifferenceValue = selectDifferenceValue(nextRecord, "bonus");
+    if (storedBonusDifferenceValue !== null) {
+      return {
+        differenceValue: readFiniteNumber(storedBonusDifferenceValue),
+        investedCoins: standardInvestedCoins,
+        gamesCount,
+        bbCount,
+        rbCount,
+      };
+    }
     const differenceMetrics = calculateMachineDifferenceMetrics(machineName, nextRecord);
     if (differenceMetrics) {
       return {
@@ -365,7 +379,7 @@ function resolveActualMetrics(machineName, nextRecord, differenceMode) {
   }
 
   return {
-    differenceValue: readFiniteNumber(nextRecord?.difference_value),
+    differenceValue: readFiniteNumber(selectDifferenceValue(nextRecord, "minrepo")),
     investedCoins: standardInvestedCoins,
     gamesCount,
     bbCount,

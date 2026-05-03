@@ -334,7 +334,7 @@ function normalizeInitialMachineSelection(machineNames, options = {}) {
 }
 
 function detailRecordHasMeaningfulResult(record) {
-  return ["difference_value", "games_count", "bb_count", "rb_count"].some((key) =>
+  return ["difference_value", "bonus_difference_value", "games_count", "bb_count", "rb_count"].some((key) =>
     Number.isFinite(readNumber(record?.[key])),
   );
 }
@@ -356,6 +356,7 @@ function buildRawRowsFromMachineDailyDetailRows(rows) {
         target_date: targetDate,
         slot_number: String(slotNumber ?? "").trim(),
         difference_value: record?.difference_value ?? null,
+        bonus_difference_value: record?.bonus_difference_value ?? null,
         games_count: record?.games_count ?? null,
         payout_rate: record?.payout_rate ?? null,
         bb_count: record?.bb_count ?? null,
@@ -444,7 +445,7 @@ async function fetchHuntScoreSourceRows(resultsTable, machineDailyDetailsTable, 
   const [fetchedTargetRows, fetchedStoreRows] = await Promise.all([
     fetchAllRows(resultsTable, {
       select:
-        "store_id,machine_name,target_date,slot_number,difference_value,games_count,payout_rate,bb_count,rb_count,combined_ratio_text,bb_ratio_text,rb_ratio_text",
+        "store_id,machine_name,target_date,slot_number,difference_value,bonus_difference_value,games_count,payout_rate,bb_count,rb_count,combined_ratio_text,bb_ratio_text,rb_ratio_text",
       store_id: `eq.${storeId}`,
       ...buildMachineNameFilter(huntScoreMachineNames),
       order: "target_date.desc,slot_number.asc",
@@ -748,6 +749,7 @@ function buildMachineDetailFromDailyRows(rows) {
         target_date: date,
         slot_number: slotNumber,
         difference_value: sourceRecord.difference_value ?? null,
+        bonus_difference_value: sourceRecord.bonus_difference_value ?? null,
         games_count: sourceRecord.games_count ?? null,
         payout_rate: sourceRecord.payout_rate ?? null,
         bb_count: sourceRecord.bb_count ?? null,
@@ -929,6 +931,7 @@ function readStaticStoreRecords(staticStore) {
       target_date: String(record.target_date ?? "").trim(),
       slot_number: String(record.slot_number ?? "").trim(),
       difference_value: readNumber(record.difference_value),
+      bonus_difference_value: readNumber(record.bonus_difference_value),
       games_count: readNumber(record.games_count),
       payout_rate: readNumber(record.payout_rate),
       bb_count: readNumber(record.bb_count),

@@ -22,6 +22,7 @@ import {
   formatSettingEstimateScore,
   getSettingEstimateHighlightClass,
 } from "../lib/setting-estimates";
+import { selectDifferenceValue } from "../lib/machine-difference";
 
 const DEFAULT_VISIBLE_RESULT_KEYS = [
   "difference_value",
@@ -31,12 +32,14 @@ const DEFAULT_VISIBLE_RESULT_KEYS = [
   "combined_ratio_text",
   "setting_estimate",
 ];
+const DEFAULT_DIFFERENCE_MODE = "bonus";
 
 const RESULT_COLUMN_DEFINITIONS = [
   {
     key: "difference_value",
     label: "差枚",
-    render: (row) => formatSignedNumber(row.nextRecord?.difference_value),
+    render: (row, differenceMode) =>
+      formatSignedNumber(selectDifferenceValue(row.nextRecord, differenceMode)),
   },
   {
     key: "games_count",
@@ -80,11 +83,12 @@ const RESULT_COLUMN_DEFINITIONS = [
   },
 ];
 
-function buildResultColumns(actualDate) {
+function buildResultColumns(actualDate, differenceMode) {
   const actualDatePrefix = actualDate ? formatMonthDay(actualDate) : "実績";
   return RESULT_COLUMN_DEFINITIONS.map((column) => ({
     ...column,
     label: `${actualDatePrefix}${column.label}`,
+    render: (row) => column.render(row, differenceMode),
   }));
 }
 
@@ -226,6 +230,7 @@ export function HuntRankingTable({
   actualDate = null,
 }) {
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
+  const [differenceMode, setDifferenceMode] = useState(DEFAULT_DIFFERENCE_MODE);
   const [bookmark, setBookmark] = useState(null);
 
   useEffect(() => {
@@ -244,8 +249,8 @@ export function HuntRankingTable({
   }, [storeId]);
 
   const resultColumns = useMemo(
-    () => buildResultColumns(actualDate),
-    [actualDate],
+    () => buildResultColumns(actualDate, differenceMode),
+    [actualDate, differenceMode],
   );
   const visibleColumns = useMemo(
     () => resultColumns.filter((column) => visibleResultKeys.includes(column.key)),
@@ -316,6 +321,39 @@ export function HuntRankingTable({
   return (
     <>
       <section className="filterPanel">
+        <div>
+          <p className="sectionLabel">差枚の基準</p>
+          <div className="metricToggleRow">
+            <label
+              className={`metricToggleChip ${
+                differenceMode === "bonus" ? "metricToggleChipActive" : ""
+              }`}
+            >
+              <input
+                type="radio"
+                name="huntRankingDifferenceMode"
+                value="bonus"
+                checked={differenceMode === "bonus"}
+                onChange={() => setDifferenceMode("bonus")}
+              />
+              <span>ボーナス数基準</span>
+            </label>
+            <label
+              className={`metricToggleChip ${
+                differenceMode === "minrepo" ? "metricToggleChipActive" : ""
+              }`}
+            >
+              <input
+                type="radio"
+                name="huntRankingDifferenceMode"
+                value="minrepo"
+                checked={differenceMode === "minrepo"}
+                onChange={() => setDifferenceMode("minrepo")}
+              />
+              <span>みんレポ基準</span>
+            </label>
+          </div>
+        </div>
         <div>
           <p className="sectionLabel">表示する列</p>
           <p className="filterLead">

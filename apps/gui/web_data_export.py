@@ -12,6 +12,7 @@ import tempfile
 from typing import Any
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
+from machine_difference import calculate_machine_difference_value
 from r2_storage import R2JsonStorage
 
 
@@ -110,6 +111,7 @@ def safe_record(raw_record: dict[str, Any], store_id: str | None = None) -> dict
         "target_date": target_date,
         "slot_number": slot_number,
         "difference_value": read_number(raw_record.get("difference_value")),
+        "bonus_difference_value": read_number(raw_record.get("bonus_difference_value")),
         "games_count": read_number(raw_record.get("games_count")),
         "payout_rate": read_number(raw_record.get("payout_rate")),
         "bb_count": read_number(raw_record.get("bb_count")),
@@ -118,6 +120,8 @@ def safe_record(raw_record: dict[str, Any], store_id: str | None = None) -> dict
         "bb_ratio_text": read_text(raw_record.get("bb_ratio_text")) or None,
         "rb_ratio_text": read_text(raw_record.get("rb_ratio_text")) or None,
     }
+    if record["bonus_difference_value"] is None:
+        record["bonus_difference_value"] = calculate_machine_difference_value(machine_name, raw_record)
     data_source = read_text(raw_record.get("data_source"))
     if data_source:
         record["data_source"] = data_source

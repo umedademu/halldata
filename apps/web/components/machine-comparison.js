@@ -17,6 +17,7 @@ import {
   valueToneClass,
 } from "../lib/format";
 import { createEventFilters, matchesEventFilters } from "../lib/event-filters";
+import { selectDifferenceValue } from "../lib/machine-difference";
 import {
   calculateGameCountEstimate,
   calculateSettingEstimate,
@@ -48,6 +49,7 @@ const DEFAULT_VISIBLE_METRIC_KEYS = [
   "setting_estimate",
   "hunt_score",
 ];
+const DEFAULT_DIFFERENCE_MODE = "bonus";
 const MATRIX_DATE_COLUMN_WIDTH_REM = 4.8;
 const MATRIX_WEEKDAY_COLUMN_WIDTH_REM = 2.4;
 const MATRIX_SLOT_WIDTH_REM = 16;
@@ -452,8 +454,21 @@ const RATIO_METRICS = [
   { key: "rb_ratio_text", label: "RB率", render: formatRatio, columnClass: "matrixColumnWide" },
 ];
 
-function getMetrics(settingEstimateDefinition, getCompositeSettingEstimate, hasHuntScore) {
-  const metrics = [...COMMON_METRICS];
+function createDifferenceMetric(differenceMode) {
+  return {
+    key: "difference_value",
+    label: "差枚",
+    render: (_value, record) => formatNarrowSignedNumber(selectDifferenceValue(record, differenceMode)),
+    csvRender: (_value, record) => formatSignedNumber(selectDifferenceValue(record, differenceMode)),
+    columnClass: "matrixColumnWide",
+  };
+}
+
+function getMetrics(settingEstimateDefinition, getCompositeSettingEstimate, hasHuntScore, differenceMode) {
+  const metrics = [
+    createDifferenceMetric(differenceMode),
+    ...COMMON_METRICS.filter((metric) => metric.key !== "difference_value"),
+  ];
 
   if (settingEstimateDefinition) {
     metrics.push(createSettingEstimateMetric(getCompositeSettingEstimate));
@@ -735,6 +750,7 @@ export function MachineComparison({
     ),
   );
   const [eventDisplayMode, setEventDisplayMode] = useState(initialEventDisplayMode);
+  const [differenceMode, setDifferenceMode] = useState(DEFAULT_DIFFERENCE_MODE);
   const [visibleMetricKeys, setVisibleMetricKeys] = useState(DEFAULT_VISIBLE_METRIC_KEYS);
   const [estimateOptions, setEstimateOptions] = useState(() =>
     createDefaultEstimateOptions(slotNumbers.length, machineName),
@@ -815,8 +831,8 @@ export function MachineComparison({
     [dateRows, slotNumbers],
   );
   const metrics = useMemo(
-    () => getMetrics(settingEstimateDefinition, getCompositeSettingEstimate, hasHuntScore),
-    [getCompositeSettingEstimate, hasHuntScore, settingEstimateDefinition],
+    () => getMetrics(settingEstimateDefinition, getCompositeSettingEstimate, hasHuntScore, differenceMode),
+    [differenceMode, getCompositeSettingEstimate, hasHuntScore, settingEstimateDefinition],
   );
 
   const visibleMetrics = useMemo(
@@ -1181,6 +1197,39 @@ export function MachineComparison({
                 {option.label}
               </button>
             ))}
+          </div>
+        </div>
+        <div className="filterControlGroup">
+          <p className="filterControlLabel">差枚の基準</p>
+          <div className="metricToggleRow">
+            <label
+              className={`metricToggleChip ${
+                differenceMode === "bonus" ? "metricToggleChipActive" : ""
+              }`}
+            >
+              <input
+                type="radio"
+                name="machineDifferenceMode"
+                value="bonus"
+                checked={differenceMode === "bonus"}
+                onChange={() => setDifferenceMode("bonus")}
+              />
+              <span>ボーナス数基準</span>
+            </label>
+            <label
+              className={`metricToggleChip ${
+                differenceMode === "minrepo" ? "metricToggleChipActive" : ""
+              }`}
+            >
+              <input
+                type="radio"
+                name="machineDifferenceMode"
+                value="minrepo"
+                checked={differenceMode === "minrepo"}
+                onChange={() => setDifferenceMode("minrepo")}
+              />
+              <span>みんレポ基準</span>
+            </label>
           </div>
         </div>
         <div className="filterControlGroup">

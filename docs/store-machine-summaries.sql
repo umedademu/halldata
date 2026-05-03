@@ -1,3 +1,6 @@
+alter table public.machine_daily_results
+    add column if not exists bonus_difference_value numeric;
+
 create table if not exists public.store_machine_summaries (
     store_id uuid not null references public.stores (id) on delete cascade,
     machine_name text not null,

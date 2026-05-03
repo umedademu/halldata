@@ -196,20 +196,41 @@ export function calculateMachineDifferenceMetrics(machineName, row) {
   };
 }
 
+function readDifferenceNumber(value) {
+  return typeof value === "number" && Number.isFinite(value) ? value : readNumber(value);
+}
+
+export function selectDifferenceValue(row, differenceMode = "bonus") {
+  if (differenceMode === "bonus") {
+    const bonusDifferenceValue = readDifferenceNumber(row?.bonus_difference_value);
+    if (bonusDifferenceValue !== null) {
+      return bonusDifferenceValue;
+    }
+  }
+
+  return readDifferenceNumber(row?.difference_value);
+}
+
 export function withCalculatedDifferenceValue(row) {
   const normalizedMachineName = canonicalMachineName(row?.machine_name);
-  if (typeof row?.difference_value === "number" && Number.isFinite(row.difference_value)) {
-    if (normalizedMachineName === row?.machine_name) {
+  const existingDifferenceValue = readDifferenceNumber(row?.difference_value);
+  let bonusDifferenceValue = readDifferenceNumber(row?.bonus_difference_value);
+  if (bonusDifferenceValue === null) {
+    bonusDifferenceValue = calculateMachineDifferenceValue(normalizedMachineName, row);
+  }
+
+  if (existingDifferenceValue !== null) {
+    if (normalizedMachineName === row?.machine_name && bonusDifferenceValue === row?.bonus_difference_value) {
       return row;
     }
     return {
       ...row,
       machine_name: normalizedMachineName,
+      bonus_difference_value: bonusDifferenceValue,
     };
   }
 
-  const calculatedValue = calculateMachineDifferenceValue(normalizedMachineName, row);
-  if (calculatedValue === null) {
+  if (bonusDifferenceValue === null) {
     if (normalizedMachineName === row?.machine_name) {
       return row;
     }
@@ -222,6 +243,7 @@ export function withCalculatedDifferenceValue(row) {
   return {
     ...row,
     machine_name: normalizedMachineName,
-    difference_value: calculatedValue,
+    difference_value: bonusDifferenceValue,
+    bonus_difference_value: bonusDifferenceValue,
   };
 }

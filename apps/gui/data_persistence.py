@@ -223,9 +223,13 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
             if not slot_number:
                 continue
 
-            difference_value = _parse_difference_value(row_values.get("差枚", ""))
-            if difference_value is None:
-                difference_value = calculate_machine_difference_value(stored_machine_name, row_values)
+            source_difference_value = _parse_difference_value(row_values.get("差枚", ""))
+            bonus_difference_value = calculate_machine_difference_value(stored_machine_name, row_values)
+            difference_value = (
+                source_difference_value
+                if source_difference_value is not None
+                else bonus_difference_value
+            )
 
             records.append(
                 {
@@ -234,6 +238,7 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
                     "machine_name": stored_machine_name,
                     "data_source": data_source,
                     "difference_value": difference_value,
+                    "bonus_difference_value": bonus_difference_value,
                     "games_count": _parse_int_value(row_values.get("G数", "")),
                     "payout_rate": _parse_percent_value(row_values.get("出率", "")),
                     "bb_count": _parse_int_value(row_values.get("BB", "")),
@@ -250,6 +255,7 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
 def build_supabase_result_payload(record: dict[str, Any], store_id: str, updated_at: str) -> dict[str, Any]:
     payload = dict(record)
     payload["difference_value"] = _normalize_difference_value_for_supabase(payload.get("difference_value"))
+    payload["bonus_difference_value"] = _normalize_difference_value_for_supabase(payload.get("bonus_difference_value"))
     payload["data_source"] = _normalize_data_source(payload.get("data_source"))
     payload["store_id"] = store_id
     payload["updated_at"] = updated_at
@@ -346,6 +352,9 @@ def build_store_machine_daily_detail_payloads(
 
         bucket["records_by_slot"][slot_number] = {
             "difference_value": _normalize_difference_value_for_supabase(record.get("difference_value")),
+            "bonus_difference_value": _normalize_difference_value_for_supabase(
+                record.get("bonus_difference_value")
+            ),
             "games_count": _parse_numeric_value(record.get("games_count")),
             "payout_rate": _parse_numeric_value(record.get("payout_rate")),
             "bb_count": _parse_numeric_value(record.get("bb_count")),
@@ -1710,8 +1719,8 @@ class HistoryPersistenceService:
                 endpoint,
                 params={
                     "select": (
-                        "machine_name,target_date,slot_number,difference_value,games_count,payout_rate,"
-                        "bb_count,rb_count,combined_ratio_text,bb_ratio_text,rb_ratio_text"
+                        "machine_name,target_date,slot_number,difference_value,bonus_difference_value,"
+                        "games_count,payout_rate,bb_count,rb_count,combined_ratio_text,bb_ratio_text,rb_ratio_text"
                     ),
                     "store_id": f"eq.{store_id}",
                     "order": "target_date.desc,slot_number.asc",
