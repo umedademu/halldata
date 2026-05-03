@@ -76,6 +76,7 @@ const DEFAULT_HUNT_SCORE_RANK_SCOPE = "selected";
 const DEFAULT_HUNT_SCORE_DEVIATION_SCOPE = "selected";
 const DEFAULT_HUNT_SCORE_MATCH_MODE = "or";
 const HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX = "machine-hunt-score-highlight:";
+const MACHINE_COMPARISON_STORAGE_PREFIX = "machine-comparison-options:";
 const COMPARISON_SCORE_EPSILON = 0.000000001;
 const settingEstimateCache = new WeakMap();
 
@@ -130,6 +131,70 @@ function normalizeRecentDaysInput(value) {
     return DEFAULT_COMPARISON_RECENT_DAYS;
   }
   return Math.max(1, parsed);
+}
+
+function normalizeRecentDaysInputText(value, fallbackValue = DEFAULT_COMPARISON_RECENT_DAYS) {
+  const text = String(value ?? "").trim();
+  if (text === "") {
+    return "";
+  }
+  return String(normalizeRecentDaysInput(text || fallbackValue));
+}
+
+function normalizePeriodMode(value) {
+  return value === "range" ? "range" : "recent";
+}
+
+function normalizeDifferenceMode(value) {
+  return value === "minrepo" ? "minrepo" : DEFAULT_DIFFERENCE_MODE;
+}
+
+function normalizeDateInputValue(value, minDate, maxDate, fallbackDate) {
+  return clampDateText(String(value ?? "").trim(), minDate, maxDate, fallbackDate);
+}
+
+function normalizeMetricKeys(value, allowedMetricKeys = null, fallbackKeys = DEFAULT_VISIBLE_METRIC_KEYS) {
+  const allowedMetricKeySet = allowedMetricKeys ? new Set(allowedMetricKeys) : null;
+  const keys = [
+    ...new Set(
+      (Array.isArray(value) ? value : [])
+        .map((key) => String(key ?? "").trim())
+        .filter((key) => key && (!allowedMetricKeySet || allowedMetricKeySet.has(key))),
+    ),
+  ];
+  if (keys.length > 0) {
+    return keys;
+  }
+  return fallbackKeys.filter((key) => !allowedMetricKeySet || allowedMetricKeySet.has(key));
+}
+
+function normalizeStoredNumberInput(value, fallbackValue) {
+  if (String(value ?? "").trim() === "") {
+    return "";
+  }
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallbackValue;
+}
+
+function normalizeEstimateOptions(value, defaults) {
+  const source = value && typeof value === "object" ? value : {};
+  return {
+    dataWeight: normalizeStoredNumberInput(source.dataWeight, defaults.dataWeight),
+    gameEnabled: Boolean(source.gameEnabled ?? defaults.gameEnabled),
+    gameWeight: normalizeStoredNumberInput(source.gameWeight, defaults.gameWeight),
+    comparisonEnabled: Boolean(source.comparisonEnabled ?? defaults.comparisonEnabled),
+    comparisonWeight: normalizeStoredNumberInput(source.comparisonWeight, defaults.comparisonWeight),
+    minGames: normalizeStoredNumberInput(source.minGames, defaults.minGames),
+    maxGames: normalizeStoredNumberInput(source.maxGames, defaults.maxGames),
+    gameExponent: normalizeStoredNumberInput(source.gameExponent, defaults.gameExponent),
+  };
+}
+
+function normalizeStoredEventFilters(value, fallbackFilters) {
+  if (!value || typeof value !== "object") {
+    return fallbackFilters;
+  }
+  return createEventFilters(value.dayTails, Boolean(value.zoro), value.weekdays);
 }
 
 function parseHuntScoreHighlightThreshold(value, fallbackValue = null) {
@@ -321,6 +386,83 @@ function saveHuntScoreHighlightOptions(storeId, options) {
   try {
     const storageKey = `${HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX}${storeId}`;
     window.localStorage.setItem(storageKey, JSON.stringify(options));
+  } catch {
+    // 保存できない環境では、画面上の変更だけを有効にします。
+  }
+}
+
+function readMachineComparisonOptions(storeId, defaults, options = {}) {
+  if (typeof window === "undefined") {
+    return defaults;
+  }
+
+  try {
+    const storageKey = `${MACHINE_COMPARISON_STORAGE_PREFIX}${storeId}`;
+    const storedValue = window.localStorage.getItem(storageKey);
+    if (!storedValue) {
+      return defaults;
+    }
+
+    const parsedValue = JSON.parse(storedValue);
+    if (!parsedValue || typeof parsedValue !== "object") {
+      return defaults;
+    }
+
+    return {
+      periodMode: normalizePeriodMode(parsedValue.periodMode),
+      recentDaysInput: normalizeRecentDaysInputText(
+        parsedValue.recentDaysInput ?? parsedValue.recentDays,
+        defaults.recentDaysInput,
+      ),
+      rangeStartInput: normalizeDateInputValue(
+        parsedValue.rangeStartInput,
+        options.oldestAvailableDate,
+        options.latestAvailableDate,
+        defaults.rangeStartInput,
+      ),
+      rangeEndInput: normalizeDateInputValue(
+        parsedValue.rangeEndInput,
+        options.oldestAvailableDate,
+        options.latestAvailableDate,
+        defaults.rangeEndInput,
+      ),
+      eventFilters: options.preferInitialEventFilters
+        ? defaults.eventFilters
+        : normalizeStoredEventFilters(parsedValue.eventFilters, defaults.eventFilters),
+      differenceMode: normalizeDifferenceMode(parsedValue.differenceMode),
+      visibleMetricKeys: normalizeMetricKeys(parsedValue.visibleMetricKeys, null, defaults.visibleMetricKeys),
+      estimateOptions: normalizeEstimateOptions(parsedValue.estimateOptions, defaults.estimateOptions),
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+function saveMachineComparisonOptions(storeId, options) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    const storageKey = `${MACHINE_COMPARISON_STORAGE_PREFIX}${storeId}`;
+    window.localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        version: 1,
+        periodMode: normalizePeriodMode(options.periodMode),
+        recentDaysInput: String(options.recentDaysInput ?? ""),
+        rangeStartInput: String(options.rangeStartInput ?? ""),
+        rangeEndInput: String(options.rangeEndInput ?? ""),
+        eventFilters: {
+          dayTails: options.eventFilters?.dayTails ?? [],
+          zoro: Boolean(options.eventFilters?.zoro),
+          weekdays: options.eventFilters?.weekdays ?? [],
+        },
+        differenceMode: normalizeDifferenceMode(options.differenceMode),
+        visibleMetricKeys: normalizeMetricKeys(options.visibleMetricKeys),
+        estimateOptions: options.estimateOptions,
+      }),
+    );
   } catch {
     // 保存できない環境では、画面上の変更だけを有効にします。
   }
@@ -1450,6 +1592,7 @@ export function MachineComparison({
   slotLabels = {},
   dateRows,
   initialEventFilters,
+  initialEventFiltersFromSearchParams = false,
   huntScoreHighlight,
 }) {
   const latestAvailableDate = dateRows[0]?.date ?? "";
@@ -1462,22 +1605,42 @@ export function MachineComparison({
         oldestAvailableDate,
       )
     : "";
-  const [periodMode, setPeriodMode] = useState("recent");
-  const [recentDaysInput, setRecentDaysInput] = useState(String(DEFAULT_COMPARISON_RECENT_DAYS));
-  const [rangeStartInput, setRangeStartInput] = useState(initialRangeStartDate);
-  const [rangeEndInput, setRangeEndInput] = useState(latestAvailableDate);
-  const [eventFilters, setEventFilters] = useState(() =>
-    createEventFilters(
-      initialEventFilters?.dayTails ?? [],
-      initialEventFilters?.zoro ?? false,
-      initialEventFilters?.weekdays ?? [],
-    ),
+  const defaultEventFilters = useMemo(
+    () =>
+      createEventFilters(
+        initialEventFilters?.dayTails ?? [],
+        initialEventFilters?.zoro ?? false,
+        initialEventFilters?.weekdays ?? [],
+      ),
+    [initialEventFilters],
   );
-  const [differenceMode, setDifferenceMode] = useState(DEFAULT_DIFFERENCE_MODE);
-  const [visibleMetricKeys, setVisibleMetricKeys] = useState(DEFAULT_VISIBLE_METRIC_KEYS);
-  const [estimateOptions, setEstimateOptions] = useState(() =>
-    createDefaultEstimateOptions(slotNumbers.length, machineName),
+  const defaultEstimateOptions = useMemo(
+    () => createDefaultEstimateOptions(slotNumbers.length, machineName),
+    [machineName, slotNumbers.length],
   );
+  const defaultComparisonOptions = useMemo(
+    () => ({
+      periodMode: "recent",
+      recentDaysInput: String(DEFAULT_COMPARISON_RECENT_DAYS),
+      rangeStartInput: initialRangeStartDate,
+      rangeEndInput: latestAvailableDate,
+      eventFilters: defaultEventFilters,
+      differenceMode: DEFAULT_DIFFERENCE_MODE,
+      visibleMetricKeys: DEFAULT_VISIBLE_METRIC_KEYS,
+      estimateOptions: defaultEstimateOptions,
+    }),
+    [defaultEstimateOptions, defaultEventFilters, initialRangeStartDate, latestAvailableDate],
+  );
+  const [periodMode, setPeriodMode] = useState(defaultComparisonOptions.periodMode);
+  const [recentDaysInput, setRecentDaysInput] = useState(defaultComparisonOptions.recentDaysInput);
+  const [rangeStartInput, setRangeStartInput] = useState(defaultComparisonOptions.rangeStartInput);
+  const [rangeEndInput, setRangeEndInput] = useState(defaultComparisonOptions.rangeEndInput);
+  const [eventFilters, setEventFilters] = useState(defaultComparisonOptions.eventFilters);
+  const [differenceMode, setDifferenceMode] = useState(defaultComparisonOptions.differenceMode);
+  const [visibleMetricKeys, setVisibleMetricKeys] = useState(defaultComparisonOptions.visibleMetricKeys);
+  const [estimateOptions, setEstimateOptions] = useState(defaultComparisonOptions.estimateOptions);
+  const [machineComparisonOptionsLoadedStoreId, setMachineComparisonOptionsLoadedStoreId] =
+    useState("");
   const huntScoreHighlightAvailableMachineNames = useMemo(
     () => normalizeAvailableHuntScoreMachineNames(huntScoreHighlight?.availableMachineNames),
     [huntScoreHighlight],
@@ -1614,6 +1777,64 @@ export function MachineComparison({
       settingEstimateDefinition,
     ],
   );
+  const metricKeys = useMemo(() => metrics.map((metric) => metric.key), [metrics]);
+
+  useEffect(() => {
+    setMachineComparisonOptionsLoadedStoreId("");
+    const options = readMachineComparisonOptions(storeId, defaultComparisonOptions, {
+      oldestAvailableDate,
+      latestAvailableDate,
+      preferInitialEventFilters: initialEventFiltersFromSearchParams,
+    });
+    setPeriodMode(options.periodMode);
+    setRecentDaysInput(options.recentDaysInput);
+    setRangeStartInput(options.rangeStartInput);
+    setRangeEndInput(options.rangeEndInput);
+    setEventFilters(options.eventFilters);
+    setDifferenceMode(options.differenceMode);
+    setVisibleMetricKeys(options.visibleMetricKeys);
+    setEstimateOptions(options.estimateOptions);
+    setMachineComparisonOptionsLoadedStoreId(storeId);
+  }, [
+    defaultComparisonOptions,
+    initialEventFiltersFromSearchParams,
+    latestAvailableDate,
+    oldestAvailableDate,
+    storeId,
+  ]);
+
+  useEffect(() => {
+    setVisibleMetricKeys((currentKeys) =>
+      normalizeMetricKeys(currentKeys, metricKeys, DEFAULT_VISIBLE_METRIC_KEYS),
+    );
+  }, [metricKeys]);
+
+  useEffect(() => {
+    if (machineComparisonOptionsLoadedStoreId !== storeId) {
+      return;
+    }
+    saveMachineComparisonOptions(storeId, {
+      periodMode,
+      recentDaysInput,
+      rangeStartInput,
+      rangeEndInput,
+      eventFilters,
+      differenceMode,
+      visibleMetricKeys,
+      estimateOptions,
+    });
+  }, [
+    differenceMode,
+    estimateOptions,
+    eventFilters,
+    machineComparisonOptionsLoadedStoreId,
+    periodMode,
+    rangeEndInput,
+    rangeStartInput,
+    recentDaysInput,
+    storeId,
+    visibleMetricKeys,
+  ]);
 
   useEffect(() => {
     setHuntScoreHighlightOptionsLoadedStoreId("");
@@ -1738,13 +1959,6 @@ export function MachineComparison({
     }
   };
 
-  const saveEventFilters = useCallback(
-    (nextFilters) => {
-      return nextFilters;
-    },
-    [],
-  );
-
   const toggleDayTail = (dayTail) => {
     startTransition(() => {
       setEventFilters((currentFilters) => {
@@ -1756,7 +1970,6 @@ export function MachineComparison({
           currentFilters.zoro,
           currentFilters.weekdays,
         );
-        saveEventFilters(nextFilters);
         return nextFilters;
       });
     });
@@ -1770,7 +1983,6 @@ export function MachineComparison({
           !currentFilters.zoro,
           currentFilters.weekdays,
         );
-        saveEventFilters(nextFilters);
         return nextFilters;
       });
     });
@@ -1788,7 +2000,6 @@ export function MachineComparison({
           currentFilters.zoro,
           nextWeekdays,
         );
-        saveEventFilters(nextFilters);
         return nextFilters;
       });
     });

@@ -143,6 +143,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
         slotLabels={detail.slotLabels}
         dateRows={detail.dateRows}
         initialEventFilters={initialEventFilters}
+        initialEventFiltersFromSearchParams={hasEventFilterSearchParams}
         huntScoreHighlight={detail.huntScoreHighlight}
       />
     </main>
