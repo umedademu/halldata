@@ -29,6 +29,8 @@ const HUNT_BACKTEST_DEFAULT_EVENT_FILTERS = {
     weekdays: [0, 6],
   },
 };
+const DEFAULT_HUNT_RANKING_LIMIT = 20;
+const DEFAULT_HUNT_BACKTEST_RECENT_DAYS = 90;
 
 let cachedFileSettingsPromise = null;
 
@@ -284,6 +286,51 @@ function readNumber(value) {
 
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+function readPositiveInteger(value, fallbackValue) {
+  const number = Number(value);
+  return Number.isInteger(number) && number >= 1 ? number : fallbackValue;
+}
+
+function normalizeDateInput(value) {
+  const text = String(value ?? "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/u.test(text) ? text : null;
+}
+
+function splitOptionValues(value) {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => splitOptionValues(item));
+  }
+  if (value === null || value === undefined || value === "") {
+    return [];
+  }
+  return String(value)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function normalizeEnabledOption(value, fallbackValue = true) {
+  const values = splitOptionValues(value);
+  if (values.length === 0) {
+    return fallbackValue;
+  }
+  return values.includes("1") || values.includes("true") || values.includes("on");
+}
+
+function normalizeInitialMachineSelection(machineNames, options = {}) {
+  const machineTouched =
+    options?.machineTouched === true ||
+    options?.machineTouched === "1" ||
+    options?.machineTouched === "true" ||
+    options?.machineTouched === "on";
+  if (!machineTouched) {
+    return machineNames;
+  }
+
+  const machineNameSet = new Set(machineNames);
+  return splitOptionValues(options?.machineNames).filter((machineName) => machineNameSet.has(machineName));
 }
 
 function detailRecordHasMeaningfulResult(record) {
@@ -914,25 +961,22 @@ function findStaticMachineEntries(staticStore, machineNames) {
 async function readStaticMachineRecords(staticStore, machineNames) {
   const store = readStaticStoreIdentity(staticStore);
   const machineEntries = findStaticMachineEntries(staticStore, machineNames);
-  const rows = [];
 
-  for (const machineEntry of machineEntries) {
+  const rowGroups = await Promise.all(machineEntries.map(async (machineEntry) => {
     if (!machineEntry.dataFile) {
-      continue;
+      return [];
     }
-
     const payload = await readStaticWebDataPayload(machineEntry.dataFile);
     if (!payload || typeof payload !== "object") {
-      continue;
+      return [];
     }
 
-    rows.push(
-      ...readStaticStoreRecords({
-        store: staticStore.store,
-        records: payload.records,
-      }),
-    );
-  }
+    return readStaticStoreRecords({
+      store: staticStore.store,
+      records: payload.records,
+    });
+  }));
+  const rows = rowGroups.flat();
 
   if (rows.length > 0) {
     return rows;
@@ -990,6 +1034,110 @@ function buildStaticStoreDetail(staticStore) {
       latestDate,
     },
     machines,
+  };
+}
+
+function buildInitialBacktestDetail(storeName, options = {}) {
+  const machineNames = listHuntScoreTargetMachineNames(storeName);
+  const selectedMachineNames = normalizeInitialMachineSelection(machineNames, options);
+  const selectedMachineNameSet = new Set(selectedMachineNames);
+  const defaultedOptions = buildBacktestOptionsForStore({ store_name: storeName }, options);
+  const periodMode = defaultedOptions?.periodMode === "range" ? "range" : "recent";
+  const rankMin = readPositiveInteger(defaultedOptions?.rankMin, null);
+  const rankMax = readPositiveInteger(defaultedOptions?.rankMax, null);
+  const scoreMin = readNumber(defaultedOptions?.scoreMin);
+  const combineAimJuggler = normalizeEnabledOption(defaultedOptions?.combineAimJuggler, true);
+  const combineHanabi = normalizeEnabledOption(defaultedOptions?.combineHanabi, true);
+
+  return {
+    periodMode,
+    recentDays: readPositiveInteger(defaultedOptions?.recentDays, DEFAULT_HUNT_BACKTEST_RECENT_DAYS),
+    startDate: normalizeDateInput(defaultedOptions?.startDate),
+    endDate: normalizeDateInput(defaultedOptions?.endDate),
+    latestDate: null,
+    earliestDate: null,
+    usedFallbackRange: false,
+    machineOptions: machineNames.map((machineName) => ({
+      name: machineName,
+      checked: selectedMachineNameSet.has(machineName),
+    })),
+    selectedMachineNames,
+    rankMin,
+    rankMax,
+    hasRankFilter: rankMin !== null || rankMax !== null,
+    scoreMin,
+    hasScoreFilter: scoreMin !== null,
+    matchMode: defaultedOptions?.matchMode === "or" ? "or" : "and",
+    rankScope:
+      defaultedOptions?.rankScope === "machine" || defaultedOptions?.rankScope === "selected"
+        ? defaultedOptions.rankScope
+        : "all",
+    showGraph: defaultedOptions?.showGraph === "off" ? "off" : "on",
+    differenceMode: defaultedOptions?.differenceMode === "minrepo" ? "minrepo" : "bonus",
+    combineAimJuggler,
+    combineHanabi,
+    hasAimJugglerGroupOption:
+      machineNames.includes("SアイムジャグラーＥＸ") && machineNames.includes("ネオアイムジャグラーEX"),
+    hasHanabiGroupOption: machineNames.includes("新ハナビ") && machineNames.includes("スマスロ ハナビ"),
+    eventFilters: {
+      dayTails: normalizeEventDayTails(defaultedOptions?.dayTails),
+      weekdays: normalizeEventWeekdays(defaultedOptions?.weekdays),
+    },
+    breakdowns: [],
+    targetDateCount: 0,
+    matchedDateCount: 0,
+    matchedRowCount: 0,
+    actualRowCount: 0,
+    missingActualRowCount: 0,
+    hasMatches: false,
+    hasActualResults: false,
+    summaries: [],
+    graphPoints: [],
+    total: {
+      matchedRowCount: 0,
+      averageHuntScore: null,
+      actualRowCount: 0,
+      differenceTotal: 0,
+      gamesTotal: 0,
+      bbTotal: 0,
+      rbTotal: 0,
+      bbProbability: null,
+      rbProbability: null,
+      combinedProbability: null,
+      payoutRate: null,
+      averageSetting: null,
+    },
+  };
+}
+
+function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}) {
+  const store = readStaticStoreIdentity(staticStore);
+  if (!isHuntScoreTargetStore(store.storeName)) {
+    return null;
+  }
+
+  const storeDetail = buildStaticStoreDetail(staticStore);
+  const machineNames = listHuntScoreTargetMachineNames(store.storeName);
+  return {
+    dataSource: "json",
+    resultRequested: false,
+    store: {
+      id: store.id,
+      storeName: store.storeName,
+      storeUrl: store.storeUrl,
+    },
+    availableMachineNames: machineNames,
+    rankingDates: [],
+    selectedDate: storeDetail.summary.latestDate,
+    requestedDate: "",
+    limit: DEFAULT_HUNT_RANKING_LIMIT,
+    predictionDate: null,
+    nextBusinessDate: null,
+    rows: [],
+    rankingGroups: [],
+    totalCount: 0,
+    hasActualResults: false,
+    backtest: buildInitialBacktestDetail(store.storeName, backtestOptions),
   };
 }
 
@@ -1088,6 +1236,18 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
   const staticStore = await readStaticStoreById(storeId);
   if (staticStore) {
     return await buildStaticMachineDetail(staticStore, machineName);
+  }
+
+  return null;
+});
+
+export const getHuntScoreInitialPageDetail = cache(async function getHuntScoreInitialPageDetail(
+  storeId,
+  backtestOptions = {},
+) {
+  const staticStore = await readStaticStoreById(storeId);
+  if (staticStore) {
+    return buildInitialHuntScoreDetail(staticStore, backtestOptions);
   }
 
   return null;

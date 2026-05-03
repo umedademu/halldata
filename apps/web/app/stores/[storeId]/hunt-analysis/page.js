@@ -6,7 +6,11 @@ import { DataSourceLabel } from "../../../../components/data-source-label";
 import { HuntRankingLimitSync } from "../../../../components/hunt-ranking-limit-sync";
 import { HuntRankingTable } from "../../../../components/hunt-ranking-table";
 import { NativeGetForm } from "../../../../components/native-get-form";
-import { getHuntScoreRankingDetail, getStoreIdentity } from "../../../../lib/data";
+import {
+  getHuntScoreInitialPageDetail,
+  getHuntScoreRankingDetail,
+  getStoreIdentity,
+} from "../../../../lib/data";
 import { formatCompactDate } from "../../../../lib/format";
 
 export const dynamic = "force-dynamic";
@@ -182,6 +186,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const resolvedSearchParams = await searchParams;
   const storeId = resolvedParams.storeId;
   const requestedDate = readSingleSearchParam(resolvedSearchParams?.date);
+  const resultRequested = readSingleSearchParam(resolvedSearchParams?.show) === "1";
   const requestedLimit = parseRequestedLimit(readSingleSearchParam(resolvedSearchParams?.limit));
   const requestedMachineNames = readMultiSearchParam(resolvedSearchParams?.machine);
   const machineFilterTouched = readSingleSearchParam(resolvedSearchParams?.machineTouched) === "1";
@@ -195,7 +200,9 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   let detail;
 
   try {
-    detail = await getHuntScoreRankingDetail(storeId, requestedDate, requestedLimit);
+    detail = resultRequested
+      ? await getHuntScoreRankingDetail(storeId, requestedDate, requestedLimit)
+      : await getHuntScoreInitialPageDetail(storeId);
   } catch (error) {
     return (
       <main className="pageStack">
@@ -219,10 +226,13 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   }
 
   const fallbackNotice =
-    detail.requestedDate && detail.requestedDate !== detail.selectedDate
+    resultRequested && detail.requestedDate && detail.requestedDate !== detail.selectedDate
       ? "指定した日付は見つからなかったため、最新の集計日を表示しています。"
       : "";
-  const availableMachineNames = detail.rankingGroups.map((group) => group.machineName);
+  const availableMachineNames =
+    Array.isArray(detail.availableMachineNames) && detail.availableMachineNames.length > 0
+      ? detail.availableMachineNames
+      : detail.rankingGroups.map((group) => group.machineName);
   const availableMachineNameSet = new Set(availableMachineNames);
   const hasAimJugglerGroupOption = AIM_JUGGLER_MACHINE_NAMES.every((machineName) =>
     availableMachineNameSet.has(machineName),
@@ -245,14 +255,14 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     checked: selectedMachineNameSet.has(machineName),
   }));
   const visibleRankingGroups = buildVisibleRankingGroups(
-    detail.rankingGroups,
+    resultRequested ? detail.rankingGroups : [],
     selectedMachineNameSet,
     combineAimJuggler,
     combineHanabi,
     detail.limit,
   );
   const allChoiceRankingGroups = buildVisibleRankingGroups(
-    detail.rankingGroups,
+    resultRequested ? detail.rankingGroups : [],
     availableMachineNameSet,
     combineAimJuggler,
     combineHanabi,
@@ -291,7 +301,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
         </div>
       </section>
 
-      {detail.rankingDates.length > 0 ? (
+      {availableMachineNames.length > 0 ? (
         <>
           <section className="filterPanel">
             <div>
@@ -301,16 +311,26 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               </p>
             </div>
             <NativeGetForm action={`/stores/${detail.store.id}/hunt-analysis`} className="storeReserveForm">
+              <input type="hidden" name="show" value="1" />
               <input type="hidden" name="machineTouched" value="1" />
               <label className="storeReserveField">
                 <span>集計日</span>
-                <select name="date" defaultValue={detail.selectedDate ?? ""} className="storeReserveInput">
-                  {detail.rankingDates.map((date) => (
-                    <option key={date} value={date}>
-                      {formatCompactDate(date)}
-                    </option>
-                  ))}
-                </select>
+                {resultRequested && detail.rankingDates.length > 0 ? (
+                  <select name="date" defaultValue={detail.selectedDate ?? ""} className="storeReserveInput">
+                    {detail.rankingDates.map((date) => (
+                      <option key={date} value={date}>
+                        {formatCompactDate(date)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="date"
+                    name="date"
+                    defaultValue={detail.selectedDate ?? ""}
+                    className="storeReserveInput"
+                  />
+                )}
               </label>
               <label className="storeReserveField">
                 <span>各機種何位まで表示</span>
@@ -318,7 +338,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   type="number"
                   name="limit"
                   min="1"
-                  max={Math.max(detail.totalCount, 1)}
+                  max={Math.max(detail.totalCount, detail.limit, 1)}
                   defaultValue={detail.limit}
                   className="storeReserveInput"
                 />
@@ -387,18 +407,32 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               </button>
             </NativeGetForm>
             {fallbackNotice ? <p className="storeReserveHelp">{fallbackNotice}</p> : null}
-            {!detail.nextBusinessDate ? (
+            {resultRequested && !detail.nextBusinessDate ? (
               <p className="filterPanelStatus">最新日のため、翌営業日の実績はまだありません。</p>
             ) : null}
           </section>
 
-          <HuntRankingTable
-            storeId={detail.store.id}
-            rows={visibleRows}
-            rankingGroups={visibleRankingGroups}
-            allRankingGroups={allChoiceRankingGroups}
-            overallLimit={detail.limit}
-          />
+          {resultRequested ? (
+            detail.rankingDates.length > 0 ? (
+              <HuntRankingTable
+                storeId={detail.store.id}
+                rows={visibleRows}
+                rankingGroups={visibleRankingGroups}
+                allRankingGroups={allChoiceRankingGroups}
+                overallLimit={detail.limit}
+              />
+            ) : (
+              <section className="statusPanel">
+                <h2>狙い度ランキングを作れる日付がまだありません</h2>
+                <p>対象機種の保存済みデータが増えると、ここに点数順の一覧が表示されます。</p>
+              </section>
+            )
+          ) : (
+            <section className="statusPanel">
+              <h2>狙い度ランキングはまだ表示していません</h2>
+              <p>条件を選んで表示すると、対象機種の台データを読み込んで集計します。</p>
+            </section>
+          )}
         </>
       ) : (
         <section className="statusPanel">

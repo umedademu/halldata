@@ -7,7 +7,11 @@ import { Breadcrumbs } from "../../../../components/breadcrumbs";
 import { DataSourceLabel } from "../../../../components/data-source-label";
 import { HuntBacktestGraph } from "../../../../components/hunt-backtest-graph";
 import { NativeGetForm } from "../../../../components/native-get-form";
-import { getHuntScoreAnalysisPageDetail, getStoreIdentity } from "../../../../lib/data";
+import {
+  getHuntScoreAnalysisPageDetail,
+  getHuntScoreInitialPageDetail,
+  getStoreIdentity,
+} from "../../../../lib/data";
 import {
   formatDecimal,
   formatNumber,
@@ -136,6 +140,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
   const storeId = resolvedParams.storeId;
+  const resultRequested = readSingleSearchParam(resolvedSearchParams?.show) === "1";
   const requestedBacktestOptions = {
     periodMode: readSingleSearchParam(resolvedSearchParams?.periodMode),
     recentDays: readSingleSearchParam(resolvedSearchParams?.recentDays),
@@ -160,12 +165,14 @@ export default async function HuntBacktestPage({ params, searchParams }) {
   let detail;
 
   try {
-    detail = await getHuntScoreAnalysisPageDetail(
-      storeId,
-      "",
-      20,
-      requestedBacktestOptions,
-    );
+    detail = resultRequested
+      ? await getHuntScoreAnalysisPageDetail(
+          storeId,
+          "",
+          20,
+          requestedBacktestOptions,
+        )
+      : await getHuntScoreInitialPageDetail(storeId, requestedBacktestOptions);
   } catch (error) {
     return (
       <main className="pageStack">
@@ -188,11 +195,11 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     notFound();
   }
 
-  const backtestFallbackNotice = detail.backtest.usedFallbackRange
+  const backtestFallbackNotice = resultRequested && detail.backtest.usedFallbackRange
     ? "期間指定が空欄だったため、直近日数の期間を日付範囲へ仮で入れています。"
     : "";
   const backtestNoActualNotice =
-    detail.backtest.missingActualRowCount > 0
+    resultRequested && detail.backtest.missingActualRowCount > 0
       ? "翌営業日の実績が未取得の台は、実績集計台数と差枚合計などから除外しています。"
       : "";
   const backtestBookmark = {
@@ -242,13 +249,14 @@ export default async function HuntBacktestPage({ params, searchParams }) {
         </div>
       </section>
 
-      {detail.rankingDates.length > 0 ? (
+      {detail.backtest.machineOptions.length > 0 ? (
         <>
           <section className="filterPanel">
             <div>
               <p className="sectionLabel">翌営業日バックテスト</p>
             </div>
             <NativeGetForm action={`/stores/${detail.store.id}/hunt-backtest`} className="backtestForm">
+              <input type="hidden" name="show" value="1" />
               <input type="hidden" name="backtestEventTouched" value="1" />
 
               <div className="backtestBlock">
@@ -598,51 +606,69 @@ export default async function HuntBacktestPage({ params, searchParams }) {
             {backtestFallbackNotice ? <p className="storeReserveHelp">{backtestFallbackNotice}</p> : null}
           </section>
 
-          <section className="cardsGrid summaryStrip">
-            <article className="summaryCard">
-              <p className="metaLabel">狙い度期間</p>
-              <strong className="metaValue">{formatPeriod(detail.backtest.startDate, detail.backtest.endDate)}</strong>
-            </article>
-            <article className="summaryCard">
-              <p className="metaLabel">対象集計日</p>
-              <strong className="metaValue">{formatNumber(detail.backtest.targetDateCount)}日</strong>
-            </article>
-            <article className="summaryCard">
-              <p className="metaLabel">条件一致台数</p>
-              <strong className="metaValue">{formatNumber(detail.backtest.matchedRowCount)}台</strong>
-            </article>
-            <article className="summaryCard">
-              <p className="metaLabel">実績集計台数</p>
-              <strong className="metaValue">{formatNumber(detail.backtest.actualRowCount)}台</strong>
-            </article>
-            <article className="summaryCard">
-              <p className="metaLabel">実績未取得台数</p>
-              <strong className="metaValue">{formatNumber(detail.backtest.missingActualRowCount)}台</strong>
-            </article>
-          </section>
+          {resultRequested ? (
+            detail.rankingDates.length > 0 ? (
+              <>
+                <section className="cardsGrid summaryStrip">
+                  <article className="summaryCard">
+                    <p className="metaLabel">狙い度期間</p>
+                    <strong className="metaValue">
+                      {formatPeriod(detail.backtest.startDate, detail.backtest.endDate)}
+                    </strong>
+                  </article>
+                  <article className="summaryCard">
+                    <p className="metaLabel">対象集計日</p>
+                    <strong className="metaValue">{formatNumber(detail.backtest.targetDateCount)}日</strong>
+                  </article>
+                  <article className="summaryCard">
+                    <p className="metaLabel">条件一致台数</p>
+                    <strong className="metaValue">{formatNumber(detail.backtest.matchedRowCount)}台</strong>
+                  </article>
+                  <article className="summaryCard">
+                    <p className="metaLabel">実績集計台数</p>
+                    <strong className="metaValue">{formatNumber(detail.backtest.actualRowCount)}台</strong>
+                  </article>
+                  <article className="summaryCard">
+                    <p className="metaLabel">実績未取得台数</p>
+                    <strong className="metaValue">{formatNumber(detail.backtest.missingActualRowCount)}台</strong>
+                  </article>
+                </section>
 
-          <HuntBacktestBookmarkControl storeId={detail.store.id} bookmark={backtestBookmark} />
+                <HuntBacktestBookmarkControl storeId={detail.store.id} bookmark={backtestBookmark} />
 
-          {backtestNoActualNotice ? (
-            <p className="filterPanelStatus">{backtestNoActualNotice}</p>
-          ) : null}
+                {backtestNoActualNotice ? (
+                  <p className="filterPanelStatus">{backtestNoActualNotice}</p>
+                ) : null}
 
-          {detail.backtest.showGraph === "on" && detail.backtest.graphPoints.length > 0 ? (
-            <HuntBacktestGraph points={detail.backtest.graphPoints} />
-          ) : null}
+                {detail.backtest.showGraph === "on" && detail.backtest.graphPoints.length > 0 ? (
+                  <HuntBacktestGraph points={detail.backtest.graphPoints} />
+                ) : null}
 
-          {detail.backtest.hasMatches ? (
-            detail.backtest.breakdowns.map((breakdown) => (
-              <BacktestResultTable
-                key={breakdown.key}
-                title={breakdown.title}
-                backtest={breakdown}
-              />
-            ))
+                {detail.backtest.hasMatches ? (
+                  detail.backtest.breakdowns.map((breakdown) => (
+                    <BacktestResultTable
+                      key={breakdown.key}
+                      title={breakdown.title}
+                      backtest={breakdown}
+                    />
+                  ))
+                ) : (
+                  <section className="statusPanel">
+                    <h2>条件に合う台がありません</h2>
+                    <p>期間、機種、順位、狙い度の条件を見直してください。</p>
+                  </section>
+                )}
+              </>
+            ) : (
+              <section className="statusPanel">
+                <h2>バックテストを作れる日付がまだありません</h2>
+                <p>対象機種の保存済みデータが増えると、ここで条件ごとの結果を確認できます。</p>
+              </section>
+            )
           ) : (
             <section className="statusPanel">
-              <h2>条件に合う台がありません</h2>
-              <p>期間、機種、順位、狙い度の条件を見直してください。</p>
+              <h2>バックテスト結果はまだ表示していません</h2>
+              <p>条件を選んでバックテストすると、対象機種の台データを読み込んで集計します。</p>
             </section>
           )}
         </>
