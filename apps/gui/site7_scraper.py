@@ -325,46 +325,12 @@ class Site7Scraper:
     def __init__(self, root_dir: Path | None = None) -> None:
         self.root_dir = root_dir or ROOT_DIR
         self.browser_state_dir = self.root_dir / "local_data" / SITE7_BROWSER_STATE_DIR_NAME
-        self._visible_browser_playwright: object | None = None
-        self._visible_browser_context: object | None = None
-
-    def _take_visible_browser(self) -> tuple[object | None, object | None]:
-        retained_playwright = self._visible_browser_playwright
-        retained_context = self._visible_browser_context
-        self._visible_browser_playwright = None
-        self._visible_browser_context = None
-        return retained_playwright, retained_context
 
     def has_saved_login_state(self) -> bool:
         return self.browser_state_dir.exists() and any(self.browser_state_dir.iterdir())
 
     def close_visible_browser(self) -> None:
-        retained_playwright, retained_context = self._take_visible_browser()
-        self._close_browser_context(retained_context)
-        self._stop_playwright(retained_playwright)
-
-    def _page_is_reusable(self, page: object | None) -> bool:
-        if page is None:
-            return False
-        try:
-            is_closed = getattr(page, "is_closed", None)
-            if callable(is_closed):
-                return not bool(is_closed())
-        except Exception:  # noqa: BLE001
-            return False
-        return True
-
-    def _list_reusable_browser_pages(self, context: object | None) -> list[object]:
-        if context is None:
-            return []
-        try:
-            pages = list(context.pages)
-        except Exception:  # noqa: BLE001
-            return []
-        return [page for page in pages if self._page_is_reusable(page)]
-
-    def _can_reuse_browser_context(self, context: object | None) -> bool:
-        return bool(self._list_reusable_browser_pages(context))
+        return
 
     def _launch_browser_context(self, browser_visible: bool) -> tuple[object, object]:
         playwright = sync_playwright().start()
@@ -377,18 +343,13 @@ class Site7Scraper:
         return playwright, context
 
     def _open_fetch_browser_context(self, browser_visible: bool) -> tuple[object, object]:
-        if browser_visible:
-            retained_playwright, retained_context = self._take_visible_browser()
-            if retained_playwright is not None and self._can_reuse_browser_context(retained_context):
-                return retained_playwright, retained_context
-            self._close_browser_context(retained_context)
-            self._stop_playwright(retained_playwright)
-        else:
-            self.close_visible_browser()
         return self._launch_browser_context(browser_visible)
 
     def _prepare_fetch_page(self, context: object, browser_visible: bool) -> object:
-        pages = self._list_reusable_browser_pages(context)
+        try:
+            pages = list(context.pages)
+        except Exception:  # noqa: BLE001
+            pages = []
         page = pages[-1] if pages else context.new_page()
         if browser_visible:
             page.bring_to_front()
@@ -477,7 +438,6 @@ class Site7Scraper:
 
         playwright = None
         context = None
-        keep_browser_open = browser_visible
         machine_results: list[MachineHistoryResult] = []
         try:
             playwright, context = self._open_fetch_browser_context(browser_visible)
@@ -524,7 +484,7 @@ class Site7Scraper:
         except PlaywrightError as exc:
             raise self._wrap_playwright_error(exc) from exc
         finally:
-            self._release_browser_context(playwright, context, keep_open=keep_browser_open)
+            self._release_browser_context(playwright, context)
 
         _raise_if_site7_cancel_requested(cancel_requested)
         self._notify_progress(
@@ -863,13 +823,7 @@ class Site7Scraper:
             remaining_milliseconds -= wait_milliseconds
         _raise_if_site7_cancel_requested(cancel_requested)
 
-    def _release_browser_context(self, playwright: object | None, context: object | None, keep_open: bool = False) -> None:
-        if keep_open and playwright is not None and context is not None:
-            self.close_visible_browser()
-            self._visible_browser_playwright = playwright
-            self._visible_browser_context = context
-            return
-
+    def _release_browser_context(self, playwright: object | None, context: object | None) -> None:
         self._close_browser_context(context)
         self._stop_playwright(playwright)
 

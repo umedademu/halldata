@@ -1035,39 +1035,17 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertIn("スマスロ ハナビ", SITE7_TARGET_MACHINE_KEYWORDS)
         self.assertIn("ドラゴンハナハナ", SITE7_TARGET_MACHINE_KEYWORDS)
 
-    def test_site7_release_browser_context_keeps_visible_browser_open(self) -> None:
+    def test_site7_release_browser_context_closes_browser(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         context = FakeClosableContext()
         playwright = FakePlayableBrowser()
 
-        scraper._release_browser_context(playwright, context, keep_open=True)
-
-        self.assertIs(scraper._visible_browser_context, context)
-        self.assertIs(scraper._visible_browser_playwright, playwright)
-        self.assertEqual(context.close_count, 0)
-        self.assertEqual(playwright.stop_count, 0)
-
-        scraper.close_visible_browser()
+        scraper._release_browser_context(playwright, context)
 
         self.assertEqual(context.close_count, 1)
         self.assertEqual(playwright.stop_count, 1)
 
-    def test_site7_replacing_visible_browser_closes_previous_one(self) -> None:
-        scraper = Site7Scraper(root_dir=ROOT_DIR)
-        first_context = FakeClosableContext()
-        first_playwright = FakePlayableBrowser()
-        second_context = FakeClosableContext()
-        second_playwright = FakePlayableBrowser()
-
-        scraper._release_browser_context(first_playwright, first_context, keep_open=True)
-        scraper._release_browser_context(second_playwright, second_context, keep_open=True)
-
-        self.assertEqual(first_context.close_count, 1)
-        self.assertEqual(first_playwright.stop_count, 1)
-        self.assertIs(scraper._visible_browser_context, second_context)
-        self.assertIs(scraper._visible_browser_playwright, second_playwright)
-
-    def test_site7_fetch_reuses_visible_browser_when_available(self) -> None:
+    def test_site7_fetch_opens_and_closes_visible_browser(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         page = FakeRetainedPage()
         context = FakeRetainedContext(page)
@@ -1080,51 +1058,7 @@ class MinRepoScraperTests(unittest.TestCase):
             date_pages=[],
             datasets=[],
         )
-        scraper._visible_browser_context = context
-        scraper._visible_browser_playwright = playwright
-        scraper._require_playwright = mock.Mock()
-        scraper._open_target_hall_page = mock.Mock(return_value=("https://example.com/hall", "<html></html>"))
-        scraper.extract_store_name = mock.Mock(return_value="Aパーク春日店")
-        scraper.extract_target_machine_entries = mock.Mock(
-            return_value=[Site7MachineEntry(display_name=SITE7_TARGET_MACHINE_NAME, machine_name=SITE7_TARGET_MACHINE_NAME)]
-        )
-        scraper._wait_between_transitions = mock.Mock()
-        scraper._accept_cookie_banner_if_present = mock.Mock()
-        scraper._open_target_machine_page = mock.Mock()
-        scraper.parse_machine_history_html = mock.Mock(return_value=expected_result)
-        scraper._merge_machine_history_results = mock.Mock(return_value=expected_result)
-
-        with mock.patch("site7_scraper.sync_playwright") as sync_playwright_mock:
-            result = scraper.fetch_target_machine_history(recent_days=1, browser_visible=True)
-
-        self.assertIs(result, expected_result)
-        sync_playwright_mock.assert_not_called()
-        self.assertEqual(page.bring_to_front_count, 1)
-        self.assertEqual(page.wait_selector_calls, [("#ata0", 60_000)])
-        self.assertIs(scraper._visible_browser_context, context)
-        self.assertIs(scraper._visible_browser_playwright, playwright)
-        self.assertEqual(context.close_count, 0)
-        self.assertEqual(playwright.stop_count, 0)
-
-    def test_site7_fetch_reopens_visible_browser_when_retained_page_is_closed(self) -> None:
-        scraper = Site7Scraper(root_dir=ROOT_DIR)
-        closed_page = FakeRetainedPage(closed=True)
-        closed_context = FakeRetainedContext(closed_page)
-        closed_playwright = FakePlayableBrowser()
-        fresh_page = FakeRetainedPage()
-        fresh_context = FakeRetainedContext(fresh_page)
-        fresh_playwright = FakePlayableBrowser()
-        expected_result = MachineHistoryResult(
-            store_name="Aパーク春日店",
-            store_url="https://example.com/hall",
-            start_date="2026-04-25",
-            end_date="2026-04-25",
-            date_pages=[],
-            datasets=[],
-        )
-        scraper._visible_browser_context = closed_context
-        scraper._visible_browser_playwright = closed_playwright
-        scraper._launch_browser_context = mock.Mock(return_value=(fresh_playwright, fresh_context))
+        scraper._launch_browser_context = mock.Mock(return_value=(playwright, context))
         scraper._require_playwright = mock.Mock()
         scraper._open_target_hall_page = mock.Mock(return_value=("https://example.com/hall", "<html></html>"))
         scraper.extract_store_name = mock.Mock(return_value="Aパーク春日店")
@@ -1141,30 +1075,25 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertIs(result, expected_result)
         scraper._launch_browser_context.assert_called_once_with(True)
-        self.assertEqual(closed_context.close_count, 1)
-        self.assertEqual(closed_playwright.stop_count, 1)
-        self.assertEqual(fresh_page.bring_to_front_count, 1)
-        self.assertEqual(fresh_page.wait_selector_calls, [("#ata0", 60_000)])
-        self.assertIs(scraper._visible_browser_context, fresh_context)
-        self.assertIs(scraper._visible_browser_playwright, fresh_playwright)
+        self.assertEqual(page.bring_to_front_count, 1)
+        self.assertEqual(page.wait_selector_calls, [("#ata0", 60_000)])
+        self.assertEqual(context.close_count, 1)
+        self.assertEqual(playwright.stop_count, 1)
 
-    def test_site7_visible_browser_stays_open_when_fetch_is_cancelled(self) -> None:
+    def test_site7_visible_browser_closes_when_fetch_is_cancelled(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         page = FakeRetainedPage()
         context = FakeRetainedContext(page)
         playwright = FakePlayableBrowser()
-        scraper._visible_browser_context = context
-        scraper._visible_browser_playwright = playwright
+        scraper._launch_browser_context = mock.Mock(return_value=(playwright, context))
         scraper._require_playwright = mock.Mock()
         scraper._open_target_hall_page = mock.Mock(side_effect=Site7FetchCancelled("中止しました"))
 
         with self.assertRaises(Site7FetchCancelled):
             scraper.fetch_target_machine_history(recent_days=1, browser_visible=True)
 
-        self.assertIs(scraper._visible_browser_context, context)
-        self.assertIs(scraper._visible_browser_playwright, playwright)
-        self.assertEqual(context.close_count, 0)
-        self.assertEqual(playwright.stop_count, 0)
+        self.assertEqual(context.close_count, 1)
+        self.assertEqual(playwright.stop_count, 1)
 
     def test_site7_detects_logged_in_page_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
