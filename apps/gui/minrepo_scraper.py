@@ -67,6 +67,13 @@ class StoreDatePage:
 
 
 @dataclass
+class StoreRegistrationInfo:
+    store_name: str
+    prefecture_name: str
+    area_name: str
+
+
+@dataclass
 class MachineHistoryResult:
     store_name: str
     store_url: str
@@ -143,6 +150,35 @@ class MinRepoScraper:
         store_html = self.fetch_html(store_url)
         store_soup = BeautifulSoup(store_html, "html.parser")
         return self.extract_store_name(store_soup)
+
+    def fetch_store_registration_info(self, store_url: str) -> StoreRegistrationInfo:
+        store_name, store_soup = self._load_store_page(store_url)
+        prefecture_name = self.extract_prefecture_name(store_soup)
+        area_name = ""
+
+        for date_page in sorted(
+            self._collect_store_date_pages(store_soup, store_url),
+            key=lambda current_date_page: current_date_page.target_date,
+            reverse=True,
+        ):
+            try:
+                date_html = self.fetch_html(date_page.date_url)
+            except requests.RequestException:
+                continue
+
+            date_soup = BeautifulSoup(date_html, "html.parser")
+            if not prefecture_name:
+                prefecture_name = self.extract_prefecture_name(date_soup)
+            if not area_name:
+                area_name = self.extract_area_name(date_soup)
+            if prefecture_name and area_name:
+                break
+
+        return StoreRegistrationInfo(
+            store_name=store_name,
+            prefecture_name=prefecture_name,
+            area_name=area_name,
+        )
 
     def fetch_machine_dataset(
         self,
@@ -442,6 +478,37 @@ class MinRepoScraper:
         if not heading:
             raise ScraperError("店舗名が見つかりませんでした。")
         return heading.get_text(strip=True)
+
+    def extract_prefecture_name(self, soup: BeautifulSoup) -> str:
+        prefecture_link = soup.select_one("div.hall_header span.todofuken a")
+        if prefecture_link is not None:
+            prefecture_name = prefecture_link.get_text(strip=True)
+            if prefecture_name:
+                return prefecture_name
+
+        category_names = self._extract_category_breadcrumb_names(soup)
+        if category_names:
+            return category_names[0]
+        return ""
+
+    def extract_area_name(self, soup: BeautifulSoup) -> str:
+        category_names = self._extract_category_breadcrumb_names(soup)
+        if len(category_names) >= 2:
+            return category_names[1]
+        return ""
+
+    def _extract_category_breadcrumb_names(self, soup: BeautifulSoup) -> list[str]:
+        category_names: list[str] = []
+        for link in soup.select("ul.breadcrumb li a"):
+            href = str(link.get("href") or "")
+            if "/category/" not in href:
+                continue
+
+            category_name = link.get_text(strip=True)
+            if category_name:
+                category_names.append(category_name)
+
+        return category_names
 
     def _load_date_page(
         self,

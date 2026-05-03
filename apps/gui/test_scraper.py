@@ -567,6 +567,128 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(calls, 4)
         self.assertEqual(retry_messages, [(1, 3, 0), (2, 3, 0), (3, 3, 0)])
 
+    def test_validated_register_store_form_input_allows_blank_area_for_auto_fill(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.register_store_url_var = FakeTextVariable("https://example.com/store")
+        app.register_store_site7_enabled_var = FakeVariable(True)
+        app.register_store_prefecture_var = FakeTextVariable(DEFAULT_SITE7_PREFECTURE_NAME)
+        app.register_store_area_var = FakeTextVariable("")
+        app.register_store_site7_store_name_var = FakeTextVariable("")
+        app.register_store_site7_hall_id_var = FakeTextVariable("")
+        app.register_store_site7_address_var = FakeTextVariable("")
+        app._is_valid_url = mock.Mock(return_value=True)
+
+        result = app._validated_register_store_form_input()
+
+        self.assertEqual(
+            result,
+            ("https://example.com/store", True, DEFAULT_SITE7_PREFECTURE_NAME, "", "", "", ""),
+        )
+
+    def test_worker_register_store_auto_fills_prefecture_and_area(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.scraper = mock.Mock()
+        app.scraper.fetch_store_registration_info.return_value = SimpleNamespace(
+            store_name="BIGディッパー門前仲町店",
+            prefecture_name="東京都",
+            area_name="江東区",
+        )
+        app.result_queue = queue.Queue()
+
+        app._worker_register_store(
+            "https://min-repo.com/tag/big-dipper/",
+            True,
+            DEFAULT_SITE7_PREFECTURE_NAME,
+            "",
+            "",
+            "",
+            "",
+        )
+
+        kind, payload = app.result_queue.get_nowait()
+        self.assertEqual(kind, "register_store_success")
+        self.assertEqual(
+            payload,
+            (
+                "BIGディッパー門前仲町店",
+                "https://min-repo.com/tag/big-dipper/",
+                True,
+                "東京都",
+                "江東区",
+                "",
+                "",
+                "",
+            ),
+        )
+
+    def test_worker_update_registered_store_uses_auto_fill_but_keeps_manual_region(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.scraper = mock.Mock()
+        app.scraper.fetch_store_registration_info.return_value = SimpleNamespace(
+            store_name="ワンダーランド三潴店",
+            prefecture_name="福岡県",
+            area_name="久留米市",
+        )
+        app.result_queue = queue.Queue()
+
+        app._worker_update_registered_store(
+            "https://min-repo.com/tag/old-store/",
+            "https://min-repo.com/tag/new-store/",
+            True,
+            "佐賀県",
+            "佐賀市",
+            "",
+            "",
+            "",
+        )
+
+        kind, payload = app.result_queue.get_nowait()
+        self.assertEqual(kind, "update_registered_store_success")
+        self.assertEqual(
+            payload,
+            (
+                "https://min-repo.com/tag/old-store/",
+                "ワンダーランド三潴店",
+                "https://min-repo.com/tag/new-store/",
+                True,
+                "佐賀県",
+                "佐賀市",
+                "",
+                "",
+                "",
+            ),
+        )
+
+    def test_update_registered_store_same_url_uses_worker_for_auto_fill(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        target_store = RegisteredStore(name="123博多店", url="https://min-repo.com/tag/123-hakata/")
+        app._selected_registered_store_rows = mock.Mock(return_value=[target_store])
+        app._is_valid_url = mock.Mock(return_value=True)
+        app._start_worker = mock.Mock()
+        app.register_store_status_var = FakeTextVariable("")
+        app.register_store_url_var = FakeTextVariable("https://min-repo.com/tag/123-hakata/")
+        app.register_store_site7_enabled_var = FakeVariable(True)
+        app.register_store_prefecture_var = FakeTextVariable(DEFAULT_SITE7_PREFECTURE_NAME)
+        app.register_store_area_var = FakeTextVariable("")
+        app.register_store_site7_store_name_var = FakeTextVariable("")
+        app.register_store_site7_hall_id_var = FakeTextVariable("")
+        app.register_store_site7_address_var = FakeTextVariable("")
+
+        app.update_registered_store()
+
+        app._start_worker.assert_called_once_with(
+            app._worker_update_registered_store,
+            "https://min-repo.com/tag/123-hakata/",
+            "https://min-repo.com/tag/123-hakata/",
+            True,
+            DEFAULT_SITE7_PREFECTURE_NAME,
+            "",
+            "",
+            "",
+            "",
+        )
+        self.assertEqual(app.register_store_status_var.get(), "更新先URLの店舗情報を取得中...")
+
     def test_fetch_store_name_from_saved_html(self) -> None:
         scraper = FixtureScraper()
         result = scraper.fetch_store_name(
@@ -574,6 +696,16 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         self.assertEqual(result, "MJアリーナ箱崎店")
+
+    def test_fetch_store_registration_info_from_saved_html(self) -> None:
+        scraper = FixtureScraper()
+        result = scraper.fetch_store_registration_info(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+        )
+
+        self.assertEqual(result.store_name, "MJアリーナ箱崎店")
+        self.assertEqual(result.prefecture_name, "福岡県")
+        self.assertEqual(result.area_name, "福岡市東区")
 
     def test_fetch_machine_list_from_saved_html(self) -> None:
         scraper = FixtureScraper()

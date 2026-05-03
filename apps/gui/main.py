@@ -1555,7 +1555,7 @@ class MinRepoApp:
                 messagebox.showwarning("重複", "同じURLがすでに登録されています。")
                 return
 
-        self.register_store_status_var.set("店舗名を取得中...")
+        self.register_store_status_var.set("店舗情報を取得中...")
         self._start_worker(
             self._worker_register_store,
             store_url,
@@ -1588,21 +1588,7 @@ class MinRepoApp:
             return
 
         target_store = target_stores[0]
-        if normalize_store_url(store_url) == normalize_store_url(target_store.url):
-            self._replace_registered_store_entry(
-                original_store=target_store,
-                store_name=target_store.name,
-                store_url=store_url,
-                site7_enabled=site7_enabled,
-                site7_prefecture=site7_prefecture,
-                site7_area=site7_area,
-                site7_store_name=site7_store_name,
-                site7_hall_id=site7_hall_id,
-                site7_address=site7_address,
-            )
-            return
-
-        self.register_store_status_var.set("更新先URLの店舗名を取得中...")
+        self.register_store_status_var.set("更新先URLの店舗情報を取得中...")
         self._start_worker(
             self._worker_update_registered_store,
             target_store.url,
@@ -1641,16 +1627,23 @@ class MinRepoApp:
         site7_address: str,
     ) -> None:
         try:
-            store_name = self.scraper.fetch_store_name(store_url)
+            registration_info = self.scraper.fetch_store_registration_info(store_url)
+            resolved_site7_prefecture, resolved_site7_area = self._resolve_store_region_input(
+                site7_enabled=site7_enabled,
+                site7_prefecture=site7_prefecture,
+                site7_area=site7_area,
+                fetched_prefecture=registration_info.prefecture_name,
+                fetched_area=registration_info.area_name,
+            )
             self.result_queue.put(
                 (
                     "register_store_success",
                     (
-                        store_name,
+                        registration_info.store_name,
                         store_url,
                         site7_enabled,
-                        site7_prefecture,
-                        site7_area,
+                        resolved_site7_prefecture,
+                        resolved_site7_area,
                         site7_store_name,
                         site7_hall_id,
                         site7_address,
@@ -1672,17 +1665,24 @@ class MinRepoApp:
         site7_address: str,
     ) -> None:
         try:
-            store_name = self.scraper.fetch_store_name(store_url)
+            registration_info = self.scraper.fetch_store_registration_info(store_url)
+            resolved_site7_prefecture, resolved_site7_area = self._resolve_store_region_input(
+                site7_enabled=site7_enabled,
+                site7_prefecture=site7_prefecture,
+                site7_area=site7_area,
+                fetched_prefecture=registration_info.prefecture_name,
+                fetched_area=registration_info.area_name,
+            )
             self.result_queue.put(
                 (
                     "update_registered_store_success",
                     (
                         original_store_url,
-                        store_name,
+                        registration_info.store_name,
                         store_url,
                         site7_enabled,
-                        site7_prefecture,
-                        site7_area,
+                        resolved_site7_prefecture,
+                        resolved_site7_area,
                         site7_store_name,
                         site7_hall_id,
                         site7_address,
@@ -3135,6 +3135,33 @@ class MinRepoApp:
         self._refresh_registered_store_table()
         self._reset_fetch_display_for_store_change()
 
+    def _resolve_store_region_input(
+        self,
+        *,
+        site7_enabled: bool,
+        site7_prefecture: str,
+        site7_area: str,
+        fetched_prefecture: str,
+        fetched_area: str,
+    ) -> tuple[str, str]:
+        resolved_site7_prefecture = site7_prefecture.strip()
+        resolved_site7_area = site7_area.strip()
+        normalized_fetched_prefecture = fetched_prefecture.strip()
+        normalized_fetched_area = fetched_area.strip()
+
+        if normalized_fetched_prefecture and (
+            not resolved_site7_prefecture or resolved_site7_prefecture == DEFAULT_SITE7_PREFECTURE_NAME
+        ):
+            resolved_site7_prefecture = normalized_fetched_prefecture
+
+        if not resolved_site7_area and normalized_fetched_area:
+            resolved_site7_area = normalized_fetched_area
+
+        if site7_enabled and not resolved_site7_area:
+            raise ScraperError("サイトセブン取得を使う場合は地域を入力してください。みんレポから取れない時だけ手入力してください。")
+
+        return resolved_site7_prefecture or DEFAULT_SITE7_PREFECTURE_NAME, resolved_site7_area
+
     def _validated_register_store_form_input(self) -> tuple[str, bool, str, str, str, str, str]:
         store_url = self.register_store_url_var.get().strip()
         site7_enabled = bool(self.register_store_site7_enabled_var.get())
@@ -3148,8 +3175,6 @@ class MinRepoApp:
             raise ScraperError("店舗URLを入力してください。")
         if not self._is_valid_url(store_url):
             raise ScraperError("店舗URLは http:// または https:// から入力してください。")
-        if site7_enabled and not site7_area:
-            raise ScraperError("サイトセブン取得を使う場合は地域を入力してください。")
 
         return store_url, site7_enabled, site7_prefecture, site7_area, site7_store_name, site7_hall_id, site7_address
 
