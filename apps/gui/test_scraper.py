@@ -32,6 +32,7 @@ from main import (
     SITE7_BROWSER_MODE_HIDDEN,
     SITE7_BROWSER_MODE_VISIBLE,
     MinRepoApp,
+    MinRepoFetchParallelOptions,
     RegisteredStore,
     build_recent_date_range_input,
     filter_site7_history_result_by_saved_slots,
@@ -991,6 +992,29 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(len(partial_results), len(day_result.datasets))
         self.assertTrue(all(len(result.datasets) == 1 for result in partial_results))
 
+    def test_fetch_all_machine_history_for_date_page_parallel_from_saved_html(self) -> None:
+        scraper = FixtureScraper()
+        context = scraper.prepare_machine_history_context(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-07 ～ 2026-04-08",
+        )
+        partial_results: list[MachineHistoryResult] = []
+
+        day_result = scraper.fetch_all_machine_history_for_date_page(
+            context=context,
+            date_page=context.date_pages[0],
+            dataset_callback=partial_results.append,
+            machine_parallel_workers=4,
+        )
+
+        self.assertEqual(day_result.start_date, "2026-04-07")
+        self.assertGreater(len(day_result.datasets), 10)
+        self.assertEqual(len(partial_results), len(day_result.datasets))
+        self.assertEqual(
+            sorted(dataset.machine_name for dataset in day_result.datasets),
+            sorted(result.datasets[0].machine_name for result in partial_results),
+        )
+
     def test_fetch_single_store_uses_local_checkpoints_and_daily_r2_save(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.scraper = FixtureScraper()
@@ -1060,6 +1084,68 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertTrue(day_progress)
         self.assertGreater(day_progress[0].total_steps, 41)
         self.assertLess(day_progress[0].current_step, day_progress[0].total_steps)
+
+    def test_fetch_single_store_strong_parallel_saves_each_day(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.scraper = FixtureScraper()
+        app.fetch_cancel_event = threading.Event()
+        app.result_queue = queue.Queue()
+
+        class FakePersistenceService:
+            def __init__(self) -> None:
+                self.lock = threading.Lock()
+                self.checkpoint_results: list[MachineHistoryResult] = []
+                self.saved_results: list[tuple[MachineHistoryResult, bool]] = []
+
+            def find_saved_full_day_dates(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+            ) -> SavedFullDayDatesSummary:
+                return SavedFullDayDatesSummary()
+
+            def save_history_result_local_checkpoint(
+                self,
+                history_result: MachineHistoryResult,
+            ) -> PersistenceSummary:
+                with self.lock:
+                    self.checkpoint_results.append(history_result)
+                return PersistenceSummary(local_file_path="checkpoint.json", local_record_count=1)
+
+            def save_history_result(
+                self,
+                history_result: MachineHistoryResult,
+                full_day: bool = False,
+            ) -> PersistenceSummary:
+                with self.lock:
+                    self.saved_results.append((history_result, full_day))
+                return PersistenceSummary(web_data_saved=True, web_data_record_count=1)
+
+        persistence_service = FakePersistenceService()
+        app.persistence_service = persistence_service
+
+        result = app._fetch_single_store(
+            registered_store=RegisteredStore(
+                name="MJアリーナ箱崎店",
+                url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            ),
+            target_date_input="2026-04-07 ～ 2026-04-08",
+            store_index=1,
+            total_stores=1,
+            retry_delay_seconds=0,
+            fetch_parallel_options=MinRepoFetchParallelOptions(date_workers=2, machine_workers=4),
+        )
+
+        self.assertEqual([page.target_date for page in result.history_result.date_pages], ["2026-04-07", "2026-04-08"])
+        self.assertEqual(
+            sorted({dataset.target_date for dataset in result.history_result.datasets}),
+            ["2026-04-07", "2026-04-08"],
+        )
+        self.assertEqual(len(persistence_service.saved_results), 2)
+        self.assertTrue(all(full_day for _, full_day in persistence_service.saved_results))
+        self.assertEqual(len(persistence_service.checkpoint_results), len(result.history_result.datasets))
 
     def test_fetch_machine_history_progress_from_saved_html(self) -> None:
         scraper = FixtureScraper()

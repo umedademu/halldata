@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable, List
@@ -143,8 +145,21 @@ def normalize_text(value: str) -> str:
 
 class MinRepoScraper:
     def __init__(self) -> None:
-        self.session = requests.Session()
-        self.session.headers.update(DEFAULT_HEADERS)
+        self._thread_local = threading.local()
+        self.session = self._create_session()
+        self._thread_local.session = self.session
+
+    def _create_session(self) -> requests.Session:
+        session = requests.Session()
+        session.headers.update(DEFAULT_HEADERS)
+        return session
+
+    def _get_session(self) -> requests.Session:
+        session = getattr(self._thread_local, "session", None)
+        if session is None:
+            session = self._create_session()
+            self._thread_local.session = session
+        return session
 
     def fetch_store_name(self, store_url: str) -> str:
         store_html = self.fetch_html(store_url)
@@ -355,6 +370,7 @@ class MinRepoScraper:
         total_dates: int | None = None,
         dataset_callback: Callable[[MachineHistoryResult], None] | None = None,
         day_total_callback: Callable[[str, int], None] | None = None,
+        machine_parallel_workers: int = 1,
     ) -> MachineHistoryResult:
         _, machine_entries = self._load_machine_entries_from_date_page(date_page)
         if day_total_callback is not None:
@@ -375,6 +391,43 @@ class MinRepoScraper:
             step_callback(f"{day_prefix}全機種一覧を確認中")
 
         datasets: List[MachineDataset] = []
+        machine_worker_count = max(1, min(int(machine_parallel_workers), len(machine_entries) or 1))
+        if machine_worker_count > 1:
+            datasets_by_index: list[MachineDataset | None] = [None] * len(machine_entries)
+            completed_count = 0
+            with ThreadPoolExecutor(max_workers=machine_worker_count, thread_name_prefix="minrepo-machine") as executor:
+                futures_by_index = {
+                    executor.submit(self.fetch_machine_dataset_from_entry, machine_list, machine_entry): machine_index
+                    for machine_index, machine_entry in enumerate(machine_entries)
+                }
+                for future in as_completed(futures_by_index):
+                    machine_index = futures_by_index[future]
+                    dataset = future.result()
+                    datasets_by_index[machine_index] = dataset
+                    completed_count += 1
+                    if step_callback is not None:
+                        step_callback(f"{date_page.target_date} の {completed_count}/{len(machine_entries)}機種目を取得中")
+                    if dataset_callback is not None:
+                        dataset_callback(
+                            MachineHistoryResult(
+                                store_name=context.store_name,
+                                store_url=context.store_url,
+                                start_date=date_page.target_date,
+                                end_date=date_page.target_date,
+                                date_pages=[date_page],
+                                datasets=[dataset],
+                            )
+                        )
+            datasets = [dataset for dataset in datasets_by_index if dataset is not None]
+            return MachineHistoryResult(
+                store_name=context.store_name,
+                store_url=context.store_url,
+                start_date=date_page.target_date,
+                end_date=date_page.target_date,
+                date_pages=[date_page],
+                datasets=datasets,
+            )
+
         for machine_index, machine_entry in enumerate(machine_entries, start=1):
             dataset = self.fetch_machine_dataset_from_entry(machine_list, machine_entry)
             datasets.append(dataset)
@@ -438,11 +491,12 @@ class MinRepoScraper:
         )
 
     def fetch_html(self, url: str) -> str:
-        response = self.session.get(url, timeout=30)
+        session = self._get_session()
+        response = session.get(url, timeout=30)
         response.raise_for_status()
 
         if self._apply_inline_cookies(response.text):
-            response = self.session.get(url, timeout=30)
+            response = session.get(url, timeout=30)
             response.raise_for_status()
 
         return response.text
@@ -452,9 +506,10 @@ class MinRepoScraper:
         for name, value in INLINE_COOKIE_PATTERN.findall(html):
             if not name.startswith("_d"):
                 continue
-            if self.session.cookies.get(name) == value:
+            session = self._get_session()
+            if session.cookies.get(name) == value:
                 continue
-            self.session.cookies.set(name, value, domain=".min-repo.com", path="/")
+            session.cookies.set(name, value, domain=".min-repo.com", path="/")
             changed = True
         return changed
 

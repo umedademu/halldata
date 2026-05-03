@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 import json
@@ -61,6 +62,14 @@ DEFAULT_RETRY_DELAY_SECONDS = "10"
 MAX_FETCH_RETRY_COUNT = 3
 DEFAULT_MINREPO_DAY_PROGRESS_STEPS = 40
 FETCH_PROGRESS_GLOBAL_SCALE = 1000
+MINREPO_FETCH_MODE_NORMAL = "通常"
+MINREPO_FETCH_MODE_FAST = "高速"
+MINREPO_FETCH_MODE_STRONG = "強並列"
+MINREPO_FETCH_MODE_OPTIONS = (
+    MINREPO_FETCH_MODE_NORMAL,
+    MINREPO_FETCH_MODE_FAST,
+    MINREPO_FETCH_MODE_STRONG,
+)
 DEFAULT_SCHEDULE_HOUR = 2
 SITE7_SCHEDULE_HOUR_OPTIONS = tuple(range(10, 24))
 DEFAULT_SITE7_SCHEDULE_HOURS = (12, 15, 18, 21)
@@ -82,6 +91,19 @@ REGISTERED_STORE_COLUMNS = (
 COMPARISON_SUBCOLUMNS = ("機種名", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率")
 COMPARISON_DAY_TAIL_OPTIONS = ("全て", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
 T = TypeVar("T")
+
+
+@dataclass(frozen=True)
+class MinRepoFetchParallelOptions:
+    date_workers: int
+    machine_workers: int
+
+
+MINREPO_FETCH_PARALLEL_OPTIONS = {
+    MINREPO_FETCH_MODE_NORMAL: MinRepoFetchParallelOptions(date_workers=1, machine_workers=1),
+    MINREPO_FETCH_MODE_FAST: MinRepoFetchParallelOptions(date_workers=1, machine_workers=4),
+    MINREPO_FETCH_MODE_STRONG: MinRepoFetchParallelOptions(date_workers=3, machine_workers=6),
+}
 
 
 def parse_recent_days(value: str) -> int:
@@ -449,6 +471,7 @@ class MinRepoApp:
         if self.scheduled_startup_prompt_date is not None:
             self.schedule_status_var.set(f"本日 {self.scheduled_fetch_hour} 時の定期実行を確認待ち")
         self.retry_delay_seconds_var = tk.StringVar(value=DEFAULT_RETRY_DELAY_SECONDS)
+        self.minrepo_fetch_mode_var = tk.StringVar(value=MINREPO_FETCH_MODE_NORMAL)
         self.status_var = tk.StringVar(value="待機中")
         self.summary_var = tk.StringVar(value="未取得")
         self.fetch_progress_value_var = tk.DoubleVar(value=0.0)
@@ -528,8 +551,19 @@ class MinRepoApp:
             pady=4,
         )
 
+        ttk.Label(self.fetch_form, text="みんレポ取得モード").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.minrepo_fetch_mode_selector = ttk.Combobox(
+            self.fetch_form,
+            textvariable=self.minrepo_fetch_mode_var,
+            values=MINREPO_FETCH_MODE_OPTIONS,
+            state="readonly",
+            width=8,
+        )
+        self.minrepo_fetch_mode_selector.grid(row=2, column=1, sticky="w", pady=4)
+        ttk.Label(self.fetch_form, text="通常 / 高速 / 強並列").grid(row=2, column=1, sticky="w", padx=(84, 0), pady=4)
+
         button_row = ttk.Frame(self.fetch_form)
-        button_row.grid(row=2, column=1, sticky="w", pady=(8, 0))
+        button_row.grid(row=3, column=1, sticky="w", pady=(8, 0))
 
         self.fetch_button = ttk.Button(button_row, text="取得", command=self.fetch_data)
         self.fetch_button.grid(row=0, column=0, sticky="w")
@@ -553,7 +587,7 @@ class MinRepoApp:
         self.notify_fetch_complete_button.grid(row=0, column=3, sticky="w", padx=(12, 0))
 
         schedule_row = ttk.Frame(self.fetch_form)
-        schedule_row.grid(row=3, column=1, sticky="w", pady=(8, 0))
+        schedule_row.grid(row=4, column=1, sticky="w", pady=(8, 0))
         ttk.Label(schedule_row, text="毎日").grid(row=0, column=0, sticky="w")
         self.schedule_hour_entry = ttk.Entry(schedule_row, textvariable=self.schedule_hour_var, width=4)
         self.schedule_hour_entry.grid(row=0, column=1, sticky="w", padx=(6, 4))
@@ -565,7 +599,7 @@ class MinRepoApp:
         ttk.Label(schedule_row, textvariable=self.schedule_status_var).grid(row=0, column=5, sticky="w", padx=(12, 0))
 
         site7_row = ttk.LabelFrame(self.fetch_form, text="サイトセブン", padding=12)
-        site7_row.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        site7_row.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(12, 0))
         site7_row.columnconfigure(0, weight=1)
 
         ttk.Label(
@@ -1014,6 +1048,7 @@ class MinRepoApp:
         try:
             target_date_input = self._target_date_input_from_recent_days()
             retry_delay_seconds = self._retry_delay_seconds_input()
+            fetch_parallel_options = self._minrepo_fetch_parallel_options()
         except ScraperError as exc:
             self.schedule_status_var.set("定期実行を開始できません")
             self._show_error(exc)
@@ -1035,6 +1070,7 @@ class MinRepoApp:
             self._worker_scheduled_fetch,
             target_date_input,
             retry_delay_seconds,
+            fetch_parallel_options,
             operation_kind="scheduled_fetch",
         )
 
@@ -1457,7 +1493,12 @@ class MinRepoApp:
         except Exception as exc:  # noqa: BLE001
             self.result_queue.put(("delete_registered_stores_error", exc))
 
-    def _worker_scheduled_fetch(self, target_date_input: str, retry_delay_seconds: int) -> None:
+    def _worker_scheduled_fetch(
+        self,
+        target_date_input: str,
+        retry_delay_seconds: int,
+        fetch_parallel_options: MinRepoFetchParallelOptions,
+    ) -> None:
         try:
             refresh_result = self._load_and_complete_registered_stores()
             self._raise_if_fetch_cancelled()
@@ -1465,6 +1506,7 @@ class MinRepoApp:
                 refresh_result.registered_stores,
                 target_date_input,
                 retry_delay_seconds,
+                fetch_parallel_options,
             )
             if fetch_many_result.cancelled and not fetch_many_result.results:
                 self.result_queue.put(("fetch_cancelled", None))
@@ -1962,6 +2004,7 @@ class MinRepoApp:
         try:
             target_date_input = self._target_date_input_from_recent_days()
             retry_delay_seconds = self._retry_delay_seconds_input()
+            fetch_parallel_options = self._minrepo_fetch_parallel_options()
         except ScraperError as exc:
             self._show_error(exc)
             return
@@ -1987,6 +2030,7 @@ class MinRepoApp:
             target_stores,
             target_date_input,
             retry_delay_seconds,
+            fetch_parallel_options,
             operation_kind="fetch",
         )
 
@@ -2045,9 +2089,15 @@ class MinRepoApp:
         target_stores: list[RegisteredStore],
         target_date_input: str,
         retry_delay_seconds: int,
+        fetch_parallel_options: MinRepoFetchParallelOptions,
     ) -> None:
         try:
-            fetch_many_result = self._run_fetch_many(target_stores, target_date_input, retry_delay_seconds)
+            fetch_many_result = self._run_fetch_many(
+                target_stores,
+                target_date_input,
+                retry_delay_seconds,
+                fetch_parallel_options,
+            )
             if fetch_many_result.cancelled and not fetch_many_result.results:
                 self.result_queue.put(("fetch_cancelled", None))
                 return
@@ -2060,7 +2110,9 @@ class MinRepoApp:
         target_stores: list[RegisteredStore],
         target_date_input: str,
         retry_delay_seconds: int,
+        fetch_parallel_options: MinRepoFetchParallelOptions | None = None,
     ) -> FetchManyResult:
+        fetch_parallel_options = fetch_parallel_options or MINREPO_FETCH_PARALLEL_OPTIONS[MINREPO_FETCH_MODE_NORMAL]
         target_stores = self._minrepo_fetch_ordered_stores(target_stores)
         results: list[StoreFetchResult] = []
         failures: list[StoreFetchFailure] = []
@@ -2079,6 +2131,7 @@ class MinRepoApp:
                     store_index=store_index,
                     total_stores=total_stores,
                     retry_delay_seconds=retry_delay_seconds,
+                    fetch_parallel_options=fetch_parallel_options,
                 )
                 self._refresh_web_data_for_store_result(store_result)
                 results.append(store_result)
@@ -2145,7 +2198,9 @@ class MinRepoApp:
         store_index: int,
         total_stores: int,
         retry_delay_seconds: int,
+        fetch_parallel_options: MinRepoFetchParallelOptions | None = None,
     ) -> StoreFetchResult:
+        fetch_parallel_options = fetch_parallel_options or MINREPO_FETCH_PARALLEL_OPTIONS[MINREPO_FETCH_MODE_NORMAL]
         self._raise_if_fetch_cancelled()
         store_url = registered_store.url
         store_label = f"{store_index}/{total_stores} {self._registered_store_display_name(registered_store)}"
@@ -2191,6 +2246,10 @@ class MinRepoApp:
         }
         total_steps = max(1, sum(day_progress_steps.values()) + 1)
         current_step = 0
+        progress_lock = threading.Lock()
+        save_summary_lock = threading.Lock()
+        date_parallel_workers = max(1, min(fetch_parallel_options.date_workers, len(pending_date_pages) or 1))
+        machine_parallel_workers = max(1, fetch_parallel_options.machine_workers)
         queue_progress(
             FetchProgress(
                 current_step=current_step,
@@ -2206,46 +2265,58 @@ class MinRepoApp:
         def step_callback(message: str) -> None:
             nonlocal current_step, total_steps
             self._raise_if_fetch_cancelled()
-            current_step += 1
-            total_steps = max(total_steps, current_step)
-            queue_progress(
-                FetchProgress(
+            with progress_lock:
+                current_step += 1
+                total_steps = max(total_steps, current_step)
+                progress = FetchProgress(
                     current_step=current_step,
                     total_steps=total_steps,
                     message=f"{store_label}: {message}",
                 )
+            queue_progress(
+                progress
             )
 
         def day_total_callback(target_date: str, machine_count: int) -> None:
             nonlocal current_step, total_steps
-            current_estimate = day_progress_steps.get(target_date, DEFAULT_MINREPO_DAY_PROGRESS_STEPS)
-            exact_steps = max(2, 2 + max(0, machine_count) * 2)
-            if exact_steps == current_estimate:
-                return
-            day_progress_steps[target_date] = exact_steps
-            total_steps = max(current_step + 1, total_steps + exact_steps - current_estimate)
+            with progress_lock:
+                current_estimate = day_progress_steps.get(target_date, DEFAULT_MINREPO_DAY_PROGRESS_STEPS)
+                exact_steps = max(2, 2 + max(0, machine_count) * 2)
+                if exact_steps == current_estimate:
+                    return
+                day_progress_steps[target_date] = exact_steps
+                total_steps = max(current_step + 1, total_steps + exact_steps - current_estimate)
 
-        datasets: list[MachineDataset] = []
-        skipped_targets: list[tuple[str, str]] = []
+        def queue_retry_progress(target_date: str, retry_number: int, max_retries: int, delay_seconds: int) -> None:
+            with progress_lock:
+                progress = FetchProgress(
+                    current_step=current_step,
+                    total_steps=total_steps,
+                    message=(
+                        f"{store_label}: {target_date} の取得に失敗しました。"
+                        f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
+                    ),
+                )
+            queue_progress(progress)
+
         save_summary: PersistenceSummary | None = None
 
-        for date_index, date_page in enumerate(pending_date_pages, start=1):
-            if self.fetch_cancel_event.is_set():
-                if datasets or save_summary is not None:
-                    break
-                raise FetchCancelled
-
-            def save_dataset_checkpoint(dataset_result: MachineHistoryResult) -> None:
-                nonlocal save_summary
-                self._raise_if_fetch_cancelled()
-                dataset = dataset_result.datasets[0] if dataset_result.datasets else None
-                if dataset is not None:
-                    step_callback(f"{dataset.target_date} の {dataset.machine_name} をローカル退避中")
-                checkpoint_summary = self.persistence_service.save_history_result_local_checkpoint(dataset_result)
-                if checkpoint_summary.has_errors:
+        def merge_checkpoint_summary(checkpoint_summary: PersistenceSummary) -> None:
+            nonlocal save_summary
+            if checkpoint_summary.has_errors:
+                with save_summary_lock:
                     save_summary = self._merge_persistence_summary(save_summary, checkpoint_summary)
 
-            day_result = self._run_with_fetch_retries(
+        def save_dataset_checkpoint(dataset_result: MachineHistoryResult) -> None:
+            self._raise_if_fetch_cancelled()
+            dataset = dataset_result.datasets[0] if dataset_result.datasets else None
+            if dataset is not None:
+                step_callback(f"{dataset.target_date} の {dataset.machine_name} をローカル退避中")
+            checkpoint_summary = self.persistence_service.save_history_result_local_checkpoint(dataset_result)
+            merge_checkpoint_summary(checkpoint_summary)
+
+        def fetch_date_page(date_index: int, date_page: object) -> MachineHistoryResult:
+            return self._run_with_fetch_retries(
                 lambda: self.scraper.fetch_all_machine_history_for_date_page(
                     context=context,
                     date_page=date_page,
@@ -2254,29 +2325,64 @@ class MinRepoApp:
                     total_dates=len(pending_date_pages),
                     dataset_callback=save_dataset_checkpoint,
                     day_total_callback=day_total_callback,
+                    machine_parallel_workers=machine_parallel_workers,
                 ),
                 retry_delay_seconds=retry_delay_seconds,
-                retry_status_callback=lambda retry_number, max_retries, delay_seconds, target_date=date_page.target_date: queue_progress(
-                    FetchProgress(
-                        current_step=current_step,
-                        total_steps=total_steps,
-                        message=(
-                            f"{store_label}: {target_date} の取得に失敗しました。"
-                            f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
-                        ),
-                    )
+                retry_status_callback=lambda retry_number, max_retries, delay_seconds, target_date=date_page.target_date: queue_retry_progress(
+                    target_date,
+                    retry_number,
+                    max_retries,
+                    delay_seconds,
                 ),
             )
-            datasets.extend(day_result.datasets)
-            skipped_targets.extend(day_result.skipped_targets)
 
+        day_results_by_date: dict[str, MachineHistoryResult] = {}
+
+        def save_day_result(date_page: object, day_result: MachineHistoryResult) -> None:
+            nonlocal save_summary
+            day_results_by_date[date_page.target_date] = day_result
             if day_result.datasets:
                 self._raise_if_fetch_cancelled()
                 step_callback(f"{date_page.target_date} のR2保存とWeb更新中")
                 day_save_summary = self.persistence_service.save_history_result(day_result, full_day=True)
-                save_summary = self._merge_persistence_summary(save_summary, day_save_summary)
+                with save_summary_lock:
+                    save_summary = self._merge_persistence_summary(save_summary, day_save_summary)
             else:
                 step_callback(f"{date_page.target_date} は保存対象なし")
+
+        if date_parallel_workers <= 1:
+            for date_index, date_page in enumerate(pending_date_pages, start=1):
+                if self.fetch_cancel_event.is_set():
+                    if day_results_by_date or save_summary is not None:
+                        break
+                    raise FetchCancelled
+
+                day_result = fetch_date_page(date_index, date_page)
+                save_day_result(date_page, day_result)
+        else:
+            with ThreadPoolExecutor(max_workers=date_parallel_workers, thread_name_prefix="minrepo-day") as executor:
+                futures_by_date_page = {
+                    executor.submit(fetch_date_page, date_index, date_page): date_page
+                    for date_index, date_page in enumerate(pending_date_pages, start=1)
+                }
+                try:
+                    for future in as_completed(futures_by_date_page):
+                        date_page = futures_by_date_page[future]
+                        day_result = future.result()
+                        save_day_result(date_page, day_result)
+                except Exception:
+                    for future in futures_by_date_page:
+                        future.cancel()
+                    raise
+
+        datasets: list[MachineDataset] = []
+        skipped_targets: list[tuple[str, str]] = []
+        for date_page in pending_date_pages:
+            day_result = day_results_by_date.get(date_page.target_date)
+            if day_result is None:
+                continue
+            datasets.extend(day_result.datasets)
+            skipped_targets.extend(day_result.skipped_targets)
 
         result = MachineHistoryResult(
             store_name=context.store_name,
@@ -3521,6 +3627,12 @@ class MinRepoApp:
     def _retry_delay_seconds_input(self) -> int:
         return parse_retry_delay_seconds(self.retry_delay_seconds_var.get())
 
+    def _minrepo_fetch_parallel_options(self) -> MinRepoFetchParallelOptions:
+        return MINREPO_FETCH_PARALLEL_OPTIONS.get(
+            self.minrepo_fetch_mode_var.get(),
+            MINREPO_FETCH_PARALLEL_OPTIONS[MINREPO_FETCH_MODE_NORMAL],
+        )
+
     def _build_table_columns(self, results: list[MachineDataset]) -> list[str]:
         columns = ["機種名"]
         seen_columns = set(columns)
@@ -3838,6 +3950,8 @@ class MinRepoApp:
         self.cancel_fetch_button.configure(state="normal" if can_cancel_fetch else "disabled")
         self.target_date_entry.configure(state="disabled" if self.is_busy else "normal")
         self.retry_delay_entry.configure(state="disabled" if self.is_busy else "normal")
+        if hasattr(self, "minrepo_fetch_mode_selector"):
+            self.minrepo_fetch_mode_selector.configure(state="disabled" if self.is_busy else "readonly")
         self.schedule_hour_entry.configure(state="disabled" if self.is_busy else "normal")
         self.apply_schedule_button.configure(state="disabled" if self.is_busy else "normal")
         self.clear_schedule_button.configure(state="disabled" if self.is_busy else "normal")
