@@ -112,8 +112,21 @@ export default async function StoreDetailPage({ params }) {
                   const machineHref = `/stores/${store.id}/machines/${encodeURIComponent(machine.machineName)}`;
 
                   return (
-                    <tr key={machine.machineName}>
-                      <th className="directoryNameCell">
+                    <tr
+                      key={`${machine.machineName}-${machine.isCombinedMachineGroup ? "group" : "machine"}`}
+                      className={
+                        machine.isCombinedMachineGroup
+                          ? "combinedMachineGroupRow"
+                          : machine.isCombinedMachineChild
+                            ? "combinedMachineChildRow"
+                            : undefined
+                      }
+                    >
+                      <th
+                        className={`directoryNameCell ${
+                          machine.isCombinedMachineChild ? "directoryNameCellIndented" : ""
+                        }`}
+                      >
                         <Link href={machineHref} className="directoryPrimaryLink">
                           {machine.machineName}
                         </Link>

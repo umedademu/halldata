@@ -666,13 +666,18 @@ function buildComparisonEstimateMap(definition, slotNumbers, dateRows, eventFilt
 }
 
 function buildCompositeSettingEstimate(definition, record, comparisonEstimateMap, options) {
-  if (!definition || !record) {
+  if (!record) {
     return null;
   }
 
-  const dataEstimate = getSettingEstimate(definition, record);
+  const resolvedDefinition = definition ?? getSettingEstimateDefinition(record.machine_name);
+  if (!resolvedDefinition) {
+    return null;
+  }
+
+  const dataEstimate = getSettingEstimate(resolvedDefinition, record);
   const gameEstimate = options.gameEnabled
-    ? calculateGameCountEstimate(definition, record, options)
+    ? calculateGameCountEstimate(resolvedDefinition, record, options)
     : null;
   const comparisonEstimate = options.comparisonEnabled
     ? comparisonEstimateMap.get(record) ?? null
@@ -851,7 +856,7 @@ function createDifferenceMetric(differenceMode) {
 }
 
 function getMetrics(
-  settingEstimateDefinition,
+  hasSettingEstimate,
   getCompositeSettingEstimate,
   hasHuntScore,
   differenceMode,
@@ -862,7 +867,7 @@ function getMetrics(
     ...COMMON_METRICS.filter((metric) => metric.key !== "difference_value"),
   ];
 
-  if (settingEstimateDefinition) {
+  if (hasSettingEstimate) {
     metrics.push(createSettingEstimateMetric(getCompositeSettingEstimate));
   }
 
@@ -874,13 +879,17 @@ function getMetrics(
   return [...metrics, ...RATIO_METRICS];
 }
 
-function buildCsvRows(slotNumbers, dateRows, metrics, specialDateSet) {
+function formatSlotHeaderLabel(slotLabels, slotNumber) {
+  return slotLabels?.[slotNumber] ?? `${slotNumber}番台`;
+}
+
+function buildCsvRows(slotNumbers, slotLabels, dateRows, metrics, specialDateSet) {
   const headerRow1 = ["日付", "曜日", "特定日"];
   const headerRow2 = ["", "", ""];
 
   for (const slotNumber of slotNumbers) {
     for (let i = 0; i < metrics.length; i++) {
-      headerRow1.push(i === 0 ? `${slotNumber}番台` : "");
+      headerRow1.push(i === 0 ? formatSlotHeaderLabel(slotLabels, slotNumber) : "");
       headerRow2.push(metrics[i].label);
     }
   }
@@ -1320,7 +1329,7 @@ const MatrixRow = memo(function MatrixRow({
           const huntScoreHighlightClass =
             isHuntScoreMetric &&
             huntScoreHighlightKeySet.has(
-              buildHuntScoreHighlightKey(row.date, record?.machine_name, slotNumber),
+              buildHuntScoreHighlightKey(row.date, record?.machine_name, record?.slot_number ?? slotNumber),
             )
               ? "huntScoreHighlighted"
               : "";
@@ -1352,6 +1361,7 @@ export function MachineComparison({
   storeId,
   machineName,
   slotNumbers,
+  slotLabels = {},
   dateRows,
   initialEventFilters,
   initialEventDisplayMode = "highlight",
@@ -1459,8 +1469,18 @@ export function MachineComparison({
         dateRows,
         eventFilters,
         estimateOptions,
-      ),
+    ),
     [dateRows, estimateOptions, eventFilters, settingEstimateDefinition, slotNumbers],
+  );
+  const hasSettingEstimate = useMemo(
+    () =>
+      Boolean(settingEstimateDefinition) ||
+      dateRows.some((row) =>
+        slotNumbers.some((slotNumber) =>
+          Boolean(getSettingEstimateDefinition(row.recordsBySlot?.[slotNumber]?.machine_name)),
+        ),
+      ),
+    [dateRows, settingEstimateDefinition, slotNumbers],
   );
   const getCompositeSettingEstimate = useCallback(
     (record) =>
@@ -1478,7 +1498,7 @@ export function MachineComparison({
         buildHuntScoreHighlightKey(
           context?.row?.date ?? record?.target_date,
           record?.machine_name,
-          context?.slotNumber ?? record?.slot_number,
+          record?.slot_number ?? context?.slotNumber,
         ),
       ) ?? null,
     [huntScoreDeviationValueMap],
@@ -1495,7 +1515,7 @@ export function MachineComparison({
   const metrics = useMemo(
     () =>
       getMetrics(
-        settingEstimateDefinition,
+        hasSettingEstimate,
         getCompositeSettingEstimate,
         hasHuntScore,
         differenceMode,
@@ -1506,6 +1526,7 @@ export function MachineComparison({
       getCompositeSettingEstimate,
       getHuntScoreDeviationValue,
       hasHuntScore,
+      hasSettingEstimate,
       settingEstimateDefinition,
     ],
   );
@@ -1569,8 +1590,8 @@ export function MachineComparison({
   }, [eventDisplayMode, specialDateSet]);
 
   const csvRows = useMemo(
-    () => buildCsvRows(slotNumbers, visibleRows, visibleMetrics, specialDateSet),
-    [slotNumbers, specialDateSet, visibleRows, visibleMetrics],
+    () => buildCsvRows(slotNumbers, slotLabels, visibleRows, visibleMetrics, specialDateSet),
+    [slotLabels, slotNumbers, specialDateSet, visibleRows, visibleMetrics],
   );
 
   const tableStyle = useMemo(() => {
@@ -1946,7 +1967,7 @@ export function MachineComparison({
             })}
           </div>
         </div>
-        {settingEstimateDefinition ? (
+        {hasSettingEstimate ? (
           <div className="filterControlGroup">
             <SettingEstimateControls
               options={estimateOptions}
@@ -1963,6 +1984,7 @@ export function MachineComparison({
       <MachineComparisonTable
         machineName={machineName}
         slotNumbers={slotNumbers}
+        slotLabels={slotLabels}
         dateRows={visibleRows}
         visibleMetrics={visibleMetrics}
         highlightedDateSet={highlightedDateSet}
@@ -1979,6 +2001,7 @@ export function MachineComparison({
 function MachineComparisonTable({
   machineName,
   slotNumbers,
+  slotLabels,
   dateRows,
   visibleMetrics,
   highlightedDateSet,
@@ -2036,7 +2059,7 @@ function MachineComparisonTable({
                     slotIndex === slotNumbers.length - 1 ? "" : "slotGroupBoundary"
                   }`}
                 >
-                  {slotNumber}番台
+                  {formatSlotHeaderLabel(slotLabels, slotNumber)}
                 </th>
               ))}
             </tr>

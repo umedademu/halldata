@@ -73,7 +73,8 @@ export default async function MachineDetailPage({ params, searchParams }) {
     notFound();
   }
 
-  const settingEstimateDefinition = getSettingEstimateDefinition(machineName);
+  const displayMachineName = detail.machineName ?? machineName;
+  const settingEstimateDefinition = getSettingEstimateDefinition(displayMachineName);
   const initialEventFilters = hasEventFilterSearchParams
     ? eventFilters
     : detail.store.eventFilters;
@@ -84,13 +85,13 @@ export default async function MachineDetailPage({ params, searchParams }) {
         items={[
           { label: "店舗一覧", href: "/" },
           { label: detail.store.storeName, href: `/stores/${detail.store.id}` },
-          { label: machineName },
+          { label: displayMachineName },
         ]}
       />
 
       <section className="heroPanel">
         <div className="heroCopy">
-          <h1 className="pageTitle pageTitleCompact">{machineName}</h1>
+          <h1 className="pageTitle pageTitleCompact">{displayMachineName}</h1>
           <p className="machineStoreName">{detail.store.storeName}</p>
           <DataSourceLabel source={detail.dataSource} />
           <div className="heroLinks simpleHeroLinks">
@@ -138,8 +139,9 @@ export default async function MachineDetailPage({ params, searchParams }) {
 
       <MachineComparison
         storeId={detail.store.id}
-        machineName={machineName}
+        machineName={displayMachineName}
         slotNumbers={detail.slotNumbers}
+        slotLabels={detail.slotLabels}
         dateRows={detail.dateRows}
         initialEventFilters={initialEventFilters}
         initialEventDisplayMode={eventDisplayMode}

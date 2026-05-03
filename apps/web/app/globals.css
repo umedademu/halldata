@@ -1089,6 +1089,16 @@ a {
   background: #f1f5f9;
 }
 
+.combinedMachineGroupRow .directoryNameCell {
+  font-weight: 900;
+}
+
+.directoryNameCellIndented .directoryPrimaryLink {
+  display: inline-block;
+  padding-left: 1.25rem;
+  font-weight: 700;
+}
+
 .directoryPrimaryLink {
   color: var(--accent-strong);
   font-weight: 800;

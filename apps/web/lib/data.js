@@ -31,6 +31,25 @@ const HUNT_BACKTEST_DEFAULT_EVENT_FILTERS = {
 const DEFAULT_HUNT_RANKING_LIMIT = 20;
 const DEFAULT_HUNT_BACKTEST_RECENT_DAYS = 90;
 const DEFAULT_HUNT_SCORE_DEVIATION_MIN = 60;
+const SLOT_KEY_SEPARATOR = "\u0000";
+const COMBINED_MACHINE_GROUPS = [
+  {
+    groupName: "アイムジャグラーEX",
+    machineNames: ["ネオアイムジャグラーEX", "SアイムジャグラーＥＸ"],
+    slotLabelPrefixes: {
+      "ネオアイムジャグラーEX": "ネオアイム",
+      "SアイムジャグラーＥＸ": "Sアイム",
+    },
+  },
+  {
+    groupName: "ハナビ",
+    machineNames: ["新ハナビ", "スマスロ ハナビ"],
+    slotLabelPrefixes: {
+      "新ハナビ": "新ハナビ",
+      "スマスロ ハナビ": "スマスロハナビ",
+    },
+  },
+];
 
 let cachedFileSettingsPromise = null;
 
@@ -51,6 +70,182 @@ function getStoreMachineSummariesCache() {
     globalThis.__halldataStoreMachineSummariesCache = new Map();
   }
   return globalThis.__halldataStoreMachineSummariesCache;
+}
+
+function normalizeMachineNameForGrouping(value) {
+  return String(value ?? "").normalize("NFKC").replace(/\s+/gu, "").trim();
+}
+
+function findCombinedMachineGroup(machineName) {
+  const normalizedMachineName = normalizeMachineNameForGrouping(machineName);
+  return (
+    COMBINED_MACHINE_GROUPS.find(
+      (group) => normalizeMachineNameForGrouping(group.groupName) === normalizedMachineName,
+    ) ?? null
+  );
+}
+
+function findCombinedMachineChildGroup(machineName) {
+  const normalizedMachineName = normalizeMachineNameForGrouping(canonicalMachineName(machineName));
+  return (
+    COMBINED_MACHINE_GROUPS.find((group) =>
+      group.machineNames.some(
+        (candidateName) =>
+          normalizeMachineNameForGrouping(canonicalMachineName(candidateName)) === normalizedMachineName,
+      ),
+    ) ?? null
+  );
+}
+
+function buildMachineSummaryByCanonicalName(machines) {
+  return new Map(
+    (Array.isArray(machines) ? machines : []).map((machine) => [
+      normalizeMachineNameForGrouping(canonicalMachineName(machine.machineName)),
+      machine,
+    ]),
+  );
+}
+
+function getAvailableCombinedMachineGroup(group, machinesByCanonicalName) {
+  const childMachines = group.machineNames
+    .map((machineName) =>
+      machinesByCanonicalName.get(normalizeMachineNameForGrouping(canonicalMachineName(machineName))),
+    )
+    .filter(Boolean);
+
+  return childMachines.length === group.machineNames.length ? childMachines : null;
+}
+
+function calculateWeightedMachineAverage(machines, key) {
+  let total = 0;
+  let weightTotal = 0;
+
+  for (const machine of machines) {
+    const value = readNumber(machine?.[key]);
+    const weight = Number(machine?.slotCount ?? 0);
+    if (!Number.isFinite(value) || !Number.isFinite(weight) || weight <= 0) {
+      continue;
+    }
+    total += value * weight;
+    weightTotal += weight;
+  }
+
+  return weightTotal > 0 ? total / weightTotal : null;
+}
+
+function buildCombinedMachineSummary(group, childMachines) {
+  return {
+    machineName: group.groupName,
+    slotCount: childMachines.reduce((sum, machine) => sum + Number(machine.slotCount ?? 0), 0),
+    latestDate:
+      childMachines.reduce((latestDate, machine) => {
+        const machineLatestDate = String(machine.latestDate ?? "").trim();
+        if (!machineLatestDate) {
+          return latestDate;
+        }
+        return !latestDate || machineLatestDate > latestDate ? machineLatestDate : latestDate;
+      }, "") || null,
+    latestAverageDifference: calculateWeightedMachineAverage(childMachines, "latestAverageDifference"),
+    latestAverageGames: calculateWeightedMachineAverage(childMachines, "latestAverageGames"),
+    latestAveragePayout: calculateWeightedMachineAverage(childMachines, "latestAveragePayout"),
+    dataFile: null,
+    isCombinedMachineGroup: true,
+    childMachineNames: childMachines.map((machine) => machine.machineName),
+  };
+}
+
+function withCombinedMachineEntries(machines) {
+  const machinesByCanonicalName = buildMachineSummaryByCanonicalName(machines);
+  const emittedMachineNames = new Set();
+  const emittedGroupNames = new Set();
+  const entries = [];
+
+  for (const machine of machines) {
+    const childGroup = findCombinedMachineChildGroup(machine.machineName);
+    if (!childGroup) {
+      entries.push(machine);
+      continue;
+    }
+
+    const childMachines = getAvailableCombinedMachineGroup(childGroup, machinesByCanonicalName);
+    if (!childMachines) {
+      entries.push(machine);
+      continue;
+    }
+
+    if (!emittedGroupNames.has(childGroup.groupName)) {
+      entries.push(buildCombinedMachineSummary(childGroup, childMachines));
+      emittedGroupNames.add(childGroup.groupName);
+      for (const childMachine of childMachines) {
+        const canonicalChildName = normalizeMachineNameForGrouping(canonicalMachineName(childMachine.machineName));
+        entries.push({
+          ...childMachine,
+          isCombinedMachineChild: true,
+          parentMachineName: childGroup.groupName,
+        });
+        emittedMachineNames.add(canonicalChildName);
+      }
+    }
+
+    const canonicalMachine = normalizeMachineNameForGrouping(canonicalMachineName(machine.machineName));
+    if (!emittedMachineNames.has(canonicalMachine)) {
+      entries.push(machine);
+    }
+  }
+
+  return entries;
+}
+
+function parseCombinedSlotKey(slotKey) {
+  const text = String(slotKey ?? "");
+  const separatorIndex = text.indexOf(SLOT_KEY_SEPARATOR);
+  if (separatorIndex < 0) {
+    return {
+      machineName: "",
+      slotNumber: text,
+    };
+  }
+
+  return {
+    machineName: text.slice(0, separatorIndex),
+    slotNumber: text.slice(separatorIndex + SLOT_KEY_SEPARATOR.length),
+  };
+}
+
+function getCombinedMachineChildOrder(machineName) {
+  const childGroup = findCombinedMachineChildGroup(machineName);
+  if (!childGroup) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+  const normalizedMachineName = normalizeMachineNameForGrouping(canonicalMachineName(machineName));
+  const index = childGroup.machineNames.findIndex(
+    (candidateName) =>
+      normalizeMachineNameForGrouping(canonicalMachineName(candidateName)) === normalizedMachineName,
+  );
+  return index >= 0 ? index : Number.MAX_SAFE_INTEGER;
+}
+
+function compareSlotKeys(left, right) {
+  const leftSlot = parseCombinedSlotKey(left);
+  const rightSlot = parseCombinedSlotKey(right);
+
+  if (leftSlot.machineName || rightSlot.machineName) {
+    return (
+      getCombinedMachineChildOrder(leftSlot.machineName) -
+        getCombinedMachineChildOrder(rightSlot.machineName) ||
+      leftSlot.machineName.localeCompare(rightSlot.machineName, "ja") ||
+      compareSlotNumbers(leftSlot.slotNumber, rightSlot.slotNumber)
+    );
+  }
+
+  return compareSlotNumbers(left, right);
+}
+
+function getCombinedSlotLabel(machineName, slotNumber) {
+  const childGroup = findCombinedMachineChildGroup(machineName);
+  const canonicalName = canonicalMachineName(machineName);
+  const prefix = childGroup?.slotLabelPrefixes?.[canonicalName] ?? canonicalName;
+  return `${prefix} ${slotNumber}番台`;
 }
 
 function buildFetchCacheKey(tableName, params) {
@@ -818,15 +1013,30 @@ function buildMachineDetailFromDailyRows(rows) {
 
 function buildMachineDetail(rows) {
   const slots = new Set();
+  const slotLabels = {};
   const recordsByDate = new Map();
   const dailyDifferences = new Map();
+  const machineNames = [
+    ...new Set(
+      rows
+        .map((row) => String(row.machine_name ?? "").trim())
+        .filter(Boolean),
+    ),
+  ];
+  const useMachineSlotLabels = machineNames.length > 1;
 
   for (const row of rows) {
-    slots.add(row.slot_number);
+    const slotKey = useMachineSlotLabels
+      ? `${row.machine_name}${SLOT_KEY_SEPARATOR}${row.slot_number}`
+      : row.slot_number;
+    slots.add(slotKey);
+    if (useMachineSlotLabels) {
+      slotLabels[slotKey] = getCombinedSlotLabel(row.machine_name, row.slot_number);
+    }
     if (!recordsByDate.has(row.target_date)) {
       recordsByDate.set(row.target_date, {});
     }
-    recordsByDate.get(row.target_date)[row.slot_number] = row;
+    recordsByDate.get(row.target_date)[slotKey] = row;
 
     if (typeof row.difference_value === "number" && Number.isFinite(row.difference_value)) {
       if (!dailyDifferences.has(row.target_date)) {
@@ -836,7 +1046,7 @@ function buildMachineDetail(rows) {
     }
   }
 
-  const slotNumbers = [...slots].sort(compareSlotNumbers);
+  const slotNumbers = [...slots].sort(compareSlotKeys);
   const dates = [...recordsByDate.keys()].sort((left, right) => right.localeCompare(left));
   const dateRows = dates.map((date) => ({
     date,
@@ -854,6 +1064,7 @@ function buildMachineDetail(rows) {
 
   return {
     slotNumbers,
+    slotLabels,
     dateRows,
     summary: {
       slotCount: slotNumbers.length,
@@ -1036,7 +1247,7 @@ function buildStaticStoreDetail(staticStore) {
       machineCount: machines.length,
       latestDate,
     },
-    machines,
+    machines: withCombinedMachineEntries(machines),
   };
 }
 
@@ -1179,6 +1390,21 @@ function buildMachineHuntScoreHighlightDetail(storeName, snapshots) {
   };
 }
 
+function getHuntScoreRecordMachineName(row, storeName) {
+  return (
+    canonicalHuntScoreTargetMachineName(canonicalMachineName(row?.machine_name), storeName) ??
+    canonicalMachineName(row?.machine_name)
+  );
+}
+
+function buildHuntScoreRecordKey(row, storeName) {
+  return [
+    String(row?.target_date ?? "").trim(),
+    getHuntScoreRecordMachineName(row, storeName),
+    String(row?.slot_number ?? "").trim(),
+  ].join("\u0000");
+}
+
 async function buildStaticHuntScoreSourceRows(staticStore) {
   const store = readStaticStoreIdentity(staticStore);
   const huntScoreMachineNameSet = new Set(
@@ -1209,9 +1435,31 @@ async function buildStaticHuntScoreSourceRows(staticStore) {
 async function buildStaticMachineDetail(staticStore, machineName) {
   const store = readStaticStoreIdentity(staticStore);
   const requestedMachineName = canonicalMachineName(machineName);
+  const machines = (Array.isArray(staticStore?.machines) ? staticStore.machines : [])
+    .map((machine) => ({
+      machineName: String(machine.machineName ?? "").trim(),
+      latestDate: machine.latestDate ? String(machine.latestDate) : null,
+    }))
+    .filter((machine) => machine.machineName && machine.latestDate);
+  const machinesByCanonicalName = buildMachineSummaryByCanonicalName(machines);
+  const requestedCombinedGroup = findCombinedMachineGroup(requestedMachineName);
+  const combinedChildMachines = requestedCombinedGroup
+    ? getAvailableCombinedMachineGroup(requestedCombinedGroup, machinesByCanonicalName)
+    : null;
+  const detailMachineName = combinedChildMachines ? requestedCombinedGroup.groupName : requestedMachineName;
+  const requestedMachineNames = combinedChildMachines
+    ? requestedCombinedGroup.machineNames
+    : [requestedMachineName];
+  const requestedHuntScoreMachineNames = new Set(
+    requestedMachineNames
+      .map((name) => canonicalHuntScoreTargetMachineName(name, store.storeName) ?? canonicalMachineName(name))
+      .filter(Boolean),
+  );
   const requestedHuntScoreMachineName =
     canonicalHuntScoreTargetMachineName(requestedMachineName, store.storeName) ?? requestedMachineName;
-  const huntScoreEnabled = isHuntScoreSupported(store.storeName, requestedHuntScoreMachineName);
+  const huntScoreEnabled = combinedChildMachines
+    ? requestedMachineNames.some((name) => isHuntScoreSupported(store.storeName, name))
+    : isHuntScoreSupported(store.storeName, requestedHuntScoreMachineName);
   let huntScoreHighlight = null;
   let rows = [];
 
@@ -1220,19 +1468,31 @@ async function buildStaticMachineDetail(staticStore, machineName) {
     const snapshots = buildHuntScoreSnapshots(targetRows, storeRows, store.storeName);
     applySnapshotHuntScores(snapshots);
     huntScoreHighlight = buildMachineHuntScoreHighlightDetail(store.storeName, snapshots);
-    rows = targetRows
-      .filter((row) => {
-        const rowMachineName =
-          canonicalHuntScoreTargetMachineName(canonicalMachineName(row.machine_name), store.storeName) ??
-          canonicalMachineName(row.machine_name);
-        return rowMachineName === requestedHuntScoreMachineName;
-      })
-      .map((row) => ({
+    const targetMachineRows = targetRows.filter((row) =>
+      requestedHuntScoreMachineNames.has(getHuntScoreRecordMachineName(row, store.storeName)),
+    );
+    if (combinedChildMachines) {
+      const huntScoreByRecordKey = new Map(
+        targetMachineRows
+          .map((row) => [buildHuntScoreRecordKey(row, store.storeName), readNumber(row.hunt_score)])
+          .filter(([, huntScore]) => Number.isFinite(huntScore)),
+      );
+      rows = (await readStaticMachineRecords(staticStore, requestedMachineNames)).map((row) => {
+        const huntScore = huntScoreByRecordKey.get(buildHuntScoreRecordKey(row, store.storeName));
+        return {
+          ...row,
+          machine_name: getHuntScoreRecordMachineName(row, store.storeName),
+          ...(Number.isFinite(huntScore) ? { hunt_score: huntScore } : {}),
+        };
+      });
+    } else {
+      rows = targetMachineRows.map((row) => ({
         ...row,
         machine_name: requestedHuntScoreMachineName,
       }));
+    }
   } else {
-    rows = await readStaticMachineRecords(staticStore, machineName);
+    rows = await readStaticMachineRecords(staticStore, requestedMachineNames);
   }
 
   if (rows.length === 0) {
@@ -1248,10 +1508,13 @@ async function buildStaticMachineDetail(staticStore, machineName) {
       storeUrl: store.storeUrl,
       eventFilters: store.eventFilters,
     },
-    machineName: requestedMachineName,
+    machineName: detailMachineName,
     slotNumbers: machineDetail.slotNumbers,
+    slotLabels: machineDetail.slotLabels,
     dateRows: machineDetail.dateRows,
     summary: machineDetail.summary,
+    isCombinedMachineGroup: Boolean(combinedChildMachines),
+    childMachineNames: combinedChildMachines?.map((machine) => machine.machineName) ?? [],
     huntScoreHighlight,
   };
 }
