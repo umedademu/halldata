@@ -3,7 +3,6 @@ import { cache } from "react";
 import { createEventFilters } from "./event-filters";
 import { buildHuntScoreBacktestDetail } from "./hunt-backtest";
 import {
-  attachHuntScores,
   buildHuntScoreSnapshots,
   canonicalHuntScoreTargetMachineName,
   isHuntScoreSupported,
@@ -1145,6 +1144,31 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}) {
   };
 }
 
+function applySnapshotHuntScores(snapshots) {
+  for (const snapshot of Array.isArray(snapshots) ? snapshots : []) {
+    for (const row of Array.isArray(snapshot.rows) ? snapshot.rows : []) {
+      if (row?.currentRecord && Number.isFinite(row.huntScore)) {
+        row.currentRecord.hunt_score = row.huntScore;
+      }
+    }
+  }
+}
+
+function buildMachineHuntScoreHighlightDetail(storeName, snapshots) {
+  return {
+    availableMachineNames: listHuntScoreTargetMachineNames(storeName),
+    snapshots: (Array.isArray(snapshots) ? snapshots : []).map((snapshot) => ({
+      date: snapshot.baseDate,
+      rows: (Array.isArray(snapshot.rows) ? snapshot.rows : []).map((row) => ({
+        machineName: String(row.machineName ?? "").trim(),
+        slotNumber: String(row.slotNumber ?? "").trim(),
+        huntScore: readNumber(row.huntScore),
+        rank: readPositiveInteger(row.rank, null),
+      })),
+    })),
+  };
+}
+
 async function buildStaticHuntScoreSourceRows(staticStore) {
   const store = readStaticStoreIdentity(staticStore);
   const huntScoreMachineNameSet = new Set(
@@ -1178,11 +1202,14 @@ async function buildStaticMachineDetail(staticStore, machineName) {
   const requestedHuntScoreMachineName =
     canonicalHuntScoreTargetMachineName(requestedMachineName, store.storeName) ?? requestedMachineName;
   const huntScoreEnabled = isHuntScoreSupported(store.storeName, requestedHuntScoreMachineName);
+  let huntScoreHighlight = null;
   let rows = [];
 
   if (huntScoreEnabled) {
-    const targetRows = await readStaticMachineRecords(staticStore, machineName);
-    attachHuntScores(targetRows, targetRows, store.storeName);
+    const { targetRows, storeRows } = await buildStaticHuntScoreSourceRows(staticStore);
+    const snapshots = buildHuntScoreSnapshots(targetRows, storeRows, store.storeName);
+    applySnapshotHuntScores(snapshots);
+    huntScoreHighlight = buildMachineHuntScoreHighlightDetail(store.storeName, snapshots);
     rows = targetRows
       .filter((row) => {
         const rowMachineName =
@@ -1215,6 +1242,7 @@ async function buildStaticMachineDetail(staticStore, machineName) {
     slotNumbers: machineDetail.slotNumbers,
     dateRows: machineDetail.dateRows,
     summary: machineDetail.summary,
+    huntScoreHighlight,
   };
 }
 

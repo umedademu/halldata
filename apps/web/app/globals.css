@@ -756,6 +756,13 @@ a {
   grid-template-columns: minmax(8.8rem, 16rem);
 }
 
+.huntHighlightControls {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
 .estimateField {
   display: grid;
   gap: 6px;

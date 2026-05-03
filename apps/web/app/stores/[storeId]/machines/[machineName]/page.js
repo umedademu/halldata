@@ -143,6 +143,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
         dateRows={detail.dateRows}
         initialEventFilters={initialEventFilters}
         initialEventDisplayMode={eventDisplayMode}
+        huntScoreHighlight={detail.huntScoreHighlight}
       />
     </main>
   );

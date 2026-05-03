@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo, useState, useTransition } from "react";
+import { memo, useCallback, useEffect, useMemo, useState, useTransition } from "react";
 
 import {
   formatAverageGames,
@@ -58,6 +58,11 @@ const DEFAULT_GAME_MAX_GAMES = 9000;
 const DEFAULT_GAME_EXPONENT = 1.5;
 const DEFAULT_COMPARISON_RECENT_DAYS = 14;
 const DEFAULT_HUNT_SCORE_HIGHLIGHT_THRESHOLD = 70;
+const DEFAULT_HUNT_SCORE_RANK_MIN = 1;
+const DEFAULT_HUNT_SCORE_RANK_MAX = 3;
+const DEFAULT_HUNT_SCORE_RANK_SCOPE = "selected";
+const DEFAULT_HUNT_SCORE_MATCH_MODE = "or";
+const HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX = "machine-hunt-score-highlight:";
 const COMPARISON_SCORE_EPSILON = 0.000000001;
 const settingEstimateCache = new WeakMap();
 
@@ -114,21 +119,245 @@ function normalizeRecentDaysInput(value) {
   return Math.max(1, parsed);
 }
 
-function parseHuntScoreHighlightThreshold(value) {
+function parseHuntScoreHighlightThreshold(value, fallbackValue = null) {
   const text = String(value ?? "").trim();
   if (text === "") {
-    return null;
+    return fallbackValue;
   }
   const parsed = Number(text);
   if (!Number.isFinite(parsed)) {
-    return null;
+    return fallbackValue;
   }
   return Math.min(100, Math.max(0, parsed));
 }
 
-function isHuntScoreHighlighted(value, threshold) {
+function parsePositiveIntegerOption(value, fallbackValue = null) {
+  const parsed = Number.parseInt(String(value ?? "").trim(), 10);
+  return Number.isInteger(parsed) && parsed >= 1 ? parsed : fallbackValue;
+}
+
+function normalizeHuntScoreMatchMode(value) {
+  return value === "and" ? "and" : DEFAULT_HUNT_SCORE_MATCH_MODE;
+}
+
+function normalizeHuntScoreRankScope(value) {
+  if (value === "all" || value === "machine" || value === "selected") {
+    return value;
+  }
+  return DEFAULT_HUNT_SCORE_RANK_SCOPE;
+}
+
+function buildHuntScoreRankFilter(rankMinValue, rankMaxValue) {
+  const parsedRankMin = parsePositiveIntegerOption(rankMinValue);
+  const parsedRankMax = parsePositiveIntegerOption(rankMaxValue);
+
+  if (parsedRankMin === null && parsedRankMax === null) {
+    return {
+      rankMin: null,
+      rankMax: null,
+      hasRankFilter: false,
+    };
+  }
+
+  const rankMin = parsedRankMin ?? DEFAULT_HUNT_SCORE_RANK_MIN;
+  const rankMax = parsedRankMax ?? rankMin;
+
+  return {
+    rankMin: Math.min(rankMin, rankMax),
+    rankMax: Math.max(rankMin, rankMax),
+    hasRankFilter: true,
+  };
+}
+
+function isHuntScoreValueMatched(value, threshold) {
   const score = Number(value);
   return Number.isFinite(score) && Number.isFinite(threshold) && score >= threshold;
+}
+
+function buildHuntScoreHighlightKey(date, machineName, slotNumber) {
+  return `${String(date ?? "").trim()}\t${String(machineName ?? "").trim()}\t${String(
+    slotNumber ?? "",
+  ).trim()}`;
+}
+
+function createDefaultHuntScoreHighlightOptions(machineNames) {
+  const availableMachineNames = normalizeAvailableHuntScoreMachineNames(machineNames);
+  return {
+    rankMin: DEFAULT_HUNT_SCORE_RANK_MIN,
+    rankMax: DEFAULT_HUNT_SCORE_RANK_MAX,
+    scoreMin: DEFAULT_HUNT_SCORE_HIGHLIGHT_THRESHOLD,
+    matchMode: DEFAULT_HUNT_SCORE_MATCH_MODE,
+    rankScope: DEFAULT_HUNT_SCORE_RANK_SCOPE,
+    selectedMachineNames: availableMachineNames.filter(isJugglerMachine),
+  };
+}
+
+function normalizeAvailableHuntScoreMachineNames(machineNames) {
+  return [
+    ...new Set(
+      (Array.isArray(machineNames) ? machineNames : [])
+        .map((machineName) => String(machineName ?? "").trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function normalizeSelectedHuntScoreMachineNames(machineNames, availableMachineNames) {
+  const availableMachineNameSet = new Set(availableMachineNames);
+  return [
+    ...new Set(
+      (Array.isArray(machineNames) ? machineNames : [])
+        .map((machineName) => String(machineName ?? "").trim())
+        .filter((machineName) => availableMachineNameSet.has(machineName)),
+    ),
+  ];
+}
+
+function normalizeHuntScoreRankInputValue(value, fallbackValue) {
+  if (String(value ?? "").trim() === "") {
+    return "";
+  }
+  return parsePositiveIntegerOption(value, fallbackValue);
+}
+
+function normalizeHuntScoreScoreInputValue(value, fallbackValue) {
+  if (String(value ?? "").trim() === "") {
+    return "";
+  }
+  return parseHuntScoreHighlightThreshold(value, fallbackValue);
+}
+
+function normalizeHuntScoreHighlightOptions(value, availableMachineNames) {
+  const defaults = createDefaultHuntScoreHighlightOptions(availableMachineNames);
+  if (!value || typeof value !== "object") {
+    return defaults;
+  }
+
+  return {
+    rankMin: Object.hasOwn(value, "rankMin")
+      ? normalizeHuntScoreRankInputValue(value.rankMin, defaults.rankMin)
+      : defaults.rankMin,
+    rankMax: Object.hasOwn(value, "rankMax")
+      ? normalizeHuntScoreRankInputValue(value.rankMax, defaults.rankMax)
+      : defaults.rankMax,
+    scoreMin: Object.hasOwn(value, "scoreMin")
+      ? normalizeHuntScoreScoreInputValue(value.scoreMin, defaults.scoreMin)
+      : defaults.scoreMin,
+    matchMode: normalizeHuntScoreMatchMode(value.matchMode),
+    rankScope: normalizeHuntScoreRankScope(value.rankScope),
+    selectedMachineNames: normalizeSelectedHuntScoreMachineNames(
+      value.selectedMachineNames,
+      availableMachineNames,
+    ),
+  };
+}
+
+function readHuntScoreHighlightOptions(storeId, availableMachineNames) {
+  const defaults = createDefaultHuntScoreHighlightOptions(availableMachineNames);
+  if (typeof window === "undefined") {
+    return defaults;
+  }
+
+  try {
+    const storageKey = `${HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX}${storeId}`;
+    const storedValue = window.localStorage.getItem(storageKey);
+    return storedValue
+      ? normalizeHuntScoreHighlightOptions(JSON.parse(storedValue), availableMachineNames)
+      : defaults;
+  } catch {
+    return defaults;
+  }
+}
+
+function saveHuntScoreHighlightOptions(storeId, options) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    const storageKey = `${HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX}${storeId}`;
+    window.localStorage.setItem(storageKey, JSON.stringify(options));
+  } catch {
+    // 保存できない環境では、画面上の変更だけを有効にします。
+  }
+}
+
+function matchesHuntScoreHighlightCondition(rankValue, huntScore, rankFilter, scoreMin, matchMode) {
+  const rankMatched =
+    rankFilter.hasRankFilter &&
+    Number.isInteger(rankValue) &&
+    rankValue >= rankFilter.rankMin &&
+    rankValue <= rankFilter.rankMax;
+  const scoreMatched =
+    Number.isFinite(scoreMin) && isHuntScoreValueMatched(huntScore, scoreMin);
+
+  if (rankFilter.hasRankFilter && Number.isFinite(scoreMin)) {
+    return matchMode === "and" ? rankMatched && scoreMatched : rankMatched || scoreMatched;
+  }
+  if (rankFilter.hasRankFilter) {
+    return rankMatched;
+  }
+  if (Number.isFinite(scoreMin)) {
+    return scoreMatched;
+  }
+  return false;
+}
+
+function buildHuntScoreHighlightKeySet(highlightDetail, options) {
+  const matchKeys = new Set();
+  const snapshots = Array.isArray(highlightDetail?.snapshots) ? highlightDetail.snapshots : [];
+  const normalizedOptions = normalizeHuntScoreHighlightOptions(
+    options,
+    normalizeAvailableHuntScoreMachineNames(highlightDetail?.availableMachineNames),
+  );
+  const selectedMachineNameSet = new Set(normalizedOptions.selectedMachineNames);
+  const rankFilter = buildHuntScoreRankFilter(
+    normalizedOptions.rankMin,
+    normalizedOptions.rankMax,
+  );
+  const scoreMin = parseHuntScoreHighlightThreshold(normalizedOptions.scoreMin);
+  const rankScope = normalizeHuntScoreRankScope(normalizedOptions.rankScope);
+  const matchMode = normalizeHuntScoreMatchMode(normalizedOptions.matchMode);
+
+  if (!rankFilter.hasRankFilter && !Number.isFinite(scoreMin)) {
+    return matchKeys;
+  }
+
+  for (const snapshot of snapshots) {
+    const machineRankCounts = new Map();
+    let selectedRank = 0;
+
+    for (const row of Array.isArray(snapshot.rows) ? snapshot.rows : []) {
+      const machineName = String(row.machineName ?? "").trim();
+      const slotNumber = String(row.slotNumber ?? "").trim();
+      const huntScore = Number(row.huntScore);
+      if (!machineName || !slotNumber || !Number.isFinite(huntScore)) {
+        continue;
+      }
+
+      const machineRank = (machineRankCounts.get(machineName) ?? 0) + 1;
+      machineRankCounts.set(machineName, machineRank);
+
+      const isSelectedMachine = selectedMachineNameSet.has(machineName);
+      const selectedRankValue = isSelectedMachine ? selectedRank + 1 : null;
+      if (isSelectedMachine) {
+        selectedRank += 1;
+      }
+
+      const rankValue =
+        rankScope === "all"
+          ? parsePositiveIntegerOption(row.rank)
+          : rankScope === "machine"
+            ? machineRank
+            : selectedRankValue;
+
+      if (matchesHuntScoreHighlightCondition(rankValue, huntScore, rankFilter, scoreMin, matchMode)) {
+        matchKeys.add(buildHuntScoreHighlightKey(snapshot.date, machineName, slotNumber));
+      }
+    }
+  }
+
+  return matchKeys;
 }
 
 function buildDisplayedPeriodLabel(startDate, endDate) {
@@ -565,12 +794,168 @@ function EstimateNumberField({
   );
 }
 
+function HuntScoreHighlightControls({ options, availableMachineNames, onChange }) {
+  const selectedMachineNameSet = new Set(options.selectedMachineNames);
+
+  const updateOption = (key, value) => {
+    onChange({ ...options, [key]: value });
+  };
+
+  const toggleMachine = (machineName) => {
+    const nextMachineNameSet = new Set(options.selectedMachineNames);
+    if (nextMachineNameSet.has(machineName)) {
+      nextMachineNameSet.delete(machineName);
+    } else {
+      nextMachineNameSet.add(machineName);
+    }
+    onChange({
+      ...options,
+      selectedMachineNames: availableMachineNames.filter((name) => nextMachineNameSet.has(name)),
+    });
+  };
+
+  return (
+    <div className="huntHighlightControls">
+      <div className="estimateFields">
+        <EstimateNumberField
+          label="順位の開始"
+          value={options.rankMin}
+          min={1}
+          onChange={(value) => updateOption("rankMin", value)}
+        />
+        <EstimateNumberField
+          label="順位の終了"
+          value={options.rankMax}
+          min={1}
+          onChange={(value) => updateOption("rankMax", value)}
+        />
+        <EstimateNumberField
+          label="狙い度の下限"
+          value={options.scoreMin}
+          min={0}
+          max={100}
+          step={0.1}
+          suffix="以上"
+          onChange={(value) => updateOption("scoreMin", value)}
+        />
+      </div>
+
+      <div className="backtestBlock">
+        <p className="filterControlLabel">順位の見方</p>
+        <div className="metricToggleRow">
+          <label
+            className={`metricToggleChip ${
+              options.rankScope === "selected" ? "metricToggleChipActive" : ""
+            }`}
+          >
+            <input
+              type="radio"
+              name="machineHuntScoreRankScope"
+              value="selected"
+              checked={options.rankScope === "selected"}
+              onChange={() => updateOption("rankScope", "selected")}
+            />
+            <span>チェック機種内順位</span>
+          </label>
+          <label
+            className={`metricToggleChip ${
+              options.rankScope === "machine" ? "metricToggleChipActive" : ""
+            }`}
+          >
+            <input
+              type="radio"
+              name="machineHuntScoreRankScope"
+              value="machine"
+              checked={options.rankScope === "machine"}
+              onChange={() => updateOption("rankScope", "machine")}
+            />
+            <span>機種内順位</span>
+          </label>
+          <label
+            className={`metricToggleChip ${
+              options.rankScope === "all" ? "metricToggleChipActive" : ""
+            }`}
+          >
+            <input
+              type="radio"
+              name="machineHuntScoreRankScope"
+              value="all"
+              checked={options.rankScope === "all"}
+              onChange={() => updateOption("rankScope", "all")}
+            />
+            <span>全機種順位</span>
+          </label>
+        </div>
+      </div>
+
+      <div className="backtestBlock">
+        <p className="filterControlLabel">順位と狙い度を両方入れた時の条件</p>
+        <div className="metricToggleRow">
+          <label
+            className={`metricToggleChip ${
+              options.matchMode === "or" ? "metricToggleChipActive" : ""
+            }`}
+          >
+            <input
+              type="radio"
+              name="machineHuntScoreMatchMode"
+              value="or"
+              checked={options.matchMode === "or"}
+              onChange={() => updateOption("matchMode", "or")}
+            />
+            <span>どちらか一致</span>
+          </label>
+          <label
+            className={`metricToggleChip ${
+              options.matchMode === "and" ? "metricToggleChipActive" : ""
+            }`}
+          >
+            <input
+              type="radio"
+              name="machineHuntScoreMatchMode"
+              value="and"
+              checked={options.matchMode === "and"}
+              onChange={() => updateOption("matchMode", "and")}
+            />
+            <span>両方一致</span>
+          </label>
+        </div>
+      </div>
+
+      {availableMachineNames.length > 0 ? (
+        <div className="backtestBlock">
+          <p className="filterControlLabel">順位に使う機種</p>
+          <div className="metricToggleRow">
+            {availableMachineNames.map((machineName) => {
+              const checked = selectedMachineNameSet.has(machineName);
+              return (
+                <label
+                  key={machineName}
+                  className={`metricToggleChip ${checked ? "metricToggleChipActive" : ""}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleMachine(machineName)}
+                  />
+                  <span>{machineName}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function SettingEstimateControls({
   options,
   onChange,
   hasHuntScore,
-  huntScoreHighlightThreshold,
-  onHuntScoreHighlightThresholdChange,
+  huntScoreHighlightOptions,
+  huntScoreHighlightAvailableMachineNames,
+  onHuntScoreHighlightOptionsChange,
 }) {
   const activeWeightTotal = calculateActiveWeightTotal(options);
   const isWeightTotalValid = Math.abs(activeWeightTotal - 100) < 0.001;
@@ -610,17 +995,14 @@ function SettingEstimateControls({
             suffix="%"
             onChange={(value) => updateOption("dataWeight", value)}
           />
-          {hasHuntScore ? (
-            <EstimateNumberField
-              label="狙い度強調"
-              value={huntScoreHighlightThreshold}
-              min={0}
-              max={100}
-              suffix="以上"
-              onChange={onHuntScoreHighlightThresholdChange}
-            />
-          ) : null}
         </div>
+        {hasHuntScore ? (
+          <HuntScoreHighlightControls
+            options={huntScoreHighlightOptions}
+            availableMachineNames={huntScoreHighlightAvailableMachineNames}
+            onChange={onHuntScoreHighlightOptionsChange}
+          />
+        ) : null}
       </div>
 
       <div className="estimateMethodRow">
@@ -711,7 +1093,7 @@ const MatrixRow = memo(function MatrixRow({
   isHighlighted,
   settingEstimateDefinition,
   getCompositeSettingEstimate,
-  huntScoreHighlightThreshold,
+  huntScoreHighlightKeySet = new Set(),
 }) {
   return (
     <tr className={isHighlighted ? "matrixRowHighlighted" : ""}>
@@ -733,7 +1115,10 @@ const MatrixRow = memo(function MatrixRow({
           const boundaryClass =
             !isLastSlot && metricIndex === visibleMetrics.length - 1 ? "slotGroupBoundary" : "";
           const huntScoreHighlightClass =
-            metric.key === "hunt_score" && isHuntScoreHighlighted(value, huntScoreHighlightThreshold)
+            metric.key === "hunt_score" &&
+            huntScoreHighlightKeySet.has(
+              buildHuntScoreHighlightKey(row.date, record?.machine_name, slotNumber),
+            )
               ? "huntScoreHighlighted"
               : "";
           const className = [
@@ -767,6 +1152,7 @@ export function MachineComparison({
   dateRows,
   initialEventFilters,
   initialEventDisplayMode = "highlight",
+  huntScoreHighlight,
 }) {
   const latestAvailableDate = dateRows[0]?.date ?? "";
   const oldestAvailableDate = dateRows.at(-1)?.date ?? latestAvailableDate;
@@ -795,14 +1181,20 @@ export function MachineComparison({
   const [estimateOptions, setEstimateOptions] = useState(() =>
     createDefaultEstimateOptions(slotNumbers.length, machineName),
   );
-  const [huntScoreHighlightThresholdInput, setHuntScoreHighlightThresholdInput] = useState(
-    DEFAULT_HUNT_SCORE_HIGHLIGHT_THRESHOLD,
+  const huntScoreHighlightAvailableMachineNames = useMemo(
+    () => normalizeAvailableHuntScoreMachineNames(huntScoreHighlight?.availableMachineNames),
+    [huntScoreHighlight],
   );
+  const [huntScoreHighlightOptions, setHuntScoreHighlightOptions] = useState(() =>
+    createDefaultHuntScoreHighlightOptions(huntScoreHighlightAvailableMachineNames),
+  );
+  const [huntScoreHighlightOptionsLoadedStoreId, setHuntScoreHighlightOptionsLoadedStoreId] =
+    useState("");
   const [, startTransition] = useTransition();
   const recentDays = useMemo(() => normalizeRecentDaysInput(recentDaysInput), [recentDaysInput]);
-  const huntScoreHighlightThreshold = useMemo(
-    () => parseHuntScoreHighlightThreshold(huntScoreHighlightThresholdInput),
-    [huntScoreHighlightThresholdInput],
+  const huntScoreHighlightKeySet = useMemo(
+    () => buildHuntScoreHighlightKeySet(huntScoreHighlight, huntScoreHighlightOptions),
+    [huntScoreHighlight, huntScoreHighlightOptions],
   );
   const activeDateRange = useMemo(() => {
     if (!latestAvailableDate) {
@@ -881,6 +1273,21 @@ export function MachineComparison({
     () => getMetrics(settingEstimateDefinition, getCompositeSettingEstimate, hasHuntScore, differenceMode),
     [differenceMode, getCompositeSettingEstimate, hasHuntScore, settingEstimateDefinition],
   );
+
+  useEffect(() => {
+    setHuntScoreHighlightOptionsLoadedStoreId("");
+    setHuntScoreHighlightOptions(
+      readHuntScoreHighlightOptions(storeId, huntScoreHighlightAvailableMachineNames),
+    );
+    setHuntScoreHighlightOptionsLoadedStoreId(storeId);
+  }, [huntScoreHighlightAvailableMachineNames, storeId]);
+
+  useEffect(() => {
+    if (huntScoreHighlightOptionsLoadedStoreId !== storeId) {
+      return;
+    }
+    saveHuntScoreHighlightOptions(storeId, huntScoreHighlightOptions);
+  }, [huntScoreHighlightOptions, huntScoreHighlightOptionsLoadedStoreId, storeId]);
 
   const visibleMetrics = useMemo(
     () => metrics.filter((metric) => visibleMetricKeys.includes(metric.key)),
@@ -1309,8 +1716,9 @@ export function MachineComparison({
               options={estimateOptions}
               onChange={updateEstimateOptions}
               hasHuntScore={hasHuntScore}
-              huntScoreHighlightThreshold={huntScoreHighlightThresholdInput}
-              onHuntScoreHighlightThresholdChange={setHuntScoreHighlightThresholdInput}
+              huntScoreHighlightOptions={huntScoreHighlightOptions}
+              huntScoreHighlightAvailableMachineNames={huntScoreHighlightAvailableMachineNames}
+              onHuntScoreHighlightOptionsChange={setHuntScoreHighlightOptions}
             />
           </div>
         ) : null}
@@ -1324,7 +1732,7 @@ export function MachineComparison({
         highlightedDateSet={highlightedDateSet}
         settingEstimateDefinition={settingEstimateDefinition}
         getCompositeSettingEstimate={getCompositeSettingEstimate}
-        huntScoreHighlightThreshold={huntScoreHighlightThreshold}
+        huntScoreHighlightKeySet={huntScoreHighlightKeySet}
         csvRows={csvRows}
         tableStyle={tableStyle}
       />
@@ -1340,7 +1748,7 @@ function MachineComparisonTable({
   highlightedDateSet,
   settingEstimateDefinition,
   getCompositeSettingEstimate,
-  huntScoreHighlightThreshold,
+  huntScoreHighlightKeySet,
   csvRows,
   tableStyle,
 }) {
@@ -1424,7 +1832,7 @@ function MachineComparisonTable({
                 isHighlighted={highlightedDateSet.has(row.date)}
                 settingEstimateDefinition={settingEstimateDefinition}
                 getCompositeSettingEstimate={getCompositeSettingEstimate}
-                huntScoreHighlightThreshold={huntScoreHighlightThreshold}
+                huntScoreHighlightKeySet={huntScoreHighlightKeySet}
               />
             ))}
           </tbody>
