@@ -1265,12 +1265,13 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   }
 
   const { store, snapshots } = snapshotDetail;
+  const availableMachineNames = listHuntScoreTargetMachineNames(store.store_name);
   const rankingDates = snapshots.map((snapshot) => snapshot.baseDate);
   const selectedDate = rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null;
   const snapshot = snapshots.find((entry) => entry.baseDate === selectedDate) ?? null;
   const fullRankingGroups = buildSelectedMachineRankingGroups(
     snapshot?.rows ?? [],
-    listHuntScoreTargetMachineNames(store.store_name),
+    availableMachineNames,
   );
   const rankingLimit = normalizeRankingLimit(requestedLimit);
   const totalCount = fullRankingGroups.reduce(
@@ -1288,6 +1289,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
       storeName: store.store_name,
       storeUrl: store.store_url,
     },
+    availableMachineNames,
     rankingDates,
     selectedDate,
     requestedDate,
