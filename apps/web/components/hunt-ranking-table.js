@@ -14,10 +14,15 @@ import {
 } from "../lib/format";
 import {
   HUNT_BACKTEST_BOOKMARK_EVENT,
+  buildDeviationFilter,
   buildHuntBacktestBookmarkMatches,
   buildHuntBacktestBookmarkRowKey,
+  buildRankFilter,
+  buildScoreFilter,
   calculateHuntScoreDeviationMap,
   formatHuntBacktestBookmarkSummary,
+  matchesOptionalFilters,
+  normalizeMatchMode,
   readDeviationForRankScope,
   readSavedHuntBacktestBookmark,
 } from "../lib/hunt-bookmark";
@@ -37,7 +42,11 @@ const DEFAULT_VISIBLE_RESULT_KEYS = [
 ];
 const DEFAULT_DIFFERENCE_MODE = "bonus";
 const DEFAULT_DEVIATION_SCOPE = "selected";
+const DEFAULT_HIGHLIGHT_RANK_MIN = 1;
+const DEFAULT_HIGHLIGHT_RANK_MAX = 3;
+const DEFAULT_HIGHLIGHT_SCORE_MIN = 70;
 const DEFAULT_DEVIATION_MIN = 60;
+const DEFAULT_HIGHLIGHT_MATCH_MODE = "or";
 
 const RESULT_COLUMN_DEFINITIONS = [
   {
@@ -222,24 +231,34 @@ function formatDeviationForScope(row, deviationScope) {
   return formatDecimal(readDeviationForRankScope(row, normalizeDeviationScope(deviationScope)));
 }
 
-function parseDeviationMin(value) {
-  const text = String(value ?? "").trim();
-  if (text === "") {
-    return null;
+function isRankingConditionHighlighted(row, highlightCondition) {
+  if (
+    !highlightCondition.rankFilter.hasRankFilter &&
+    !highlightCondition.scoreFilter.hasScoreFilter &&
+    !highlightCondition.deviationFilter.hasDeviationFilter
+  ) {
+    return false;
   }
-  const parsedValue = Number(text);
-  return Number.isFinite(parsedValue) ? parsedValue : null;
+
+  const deviationValue = readDeviationForRankScope(
+    row,
+    normalizeDeviationScope(highlightCondition.deviationScope),
+  );
+  return matchesOptionalFilters(
+    row.rank,
+    row.huntScore,
+    highlightCondition.rankFilter,
+    highlightCondition.scoreFilter,
+    highlightCondition.matchMode,
+    deviationValue,
+    highlightCondition.deviationFilter,
+  );
 }
 
-function isDeviationHighlighted(row, deviationScope, deviationMin) {
-  const threshold = parseDeviationMin(deviationMin);
-  const deviationValue = readDeviationForRankScope(row, normalizeDeviationScope(deviationScope));
-
-  return (
-    Number.isFinite(threshold) &&
-    Number.isFinite(deviationValue) &&
-    deviationValue >= threshold
-  );
+function getRankingConditionHighlightClass(row, highlightCondition) {
+  return isRankingConditionHighlighted(row, highlightCondition)
+    ? "huntScoreDeviationHighlighted"
+    : undefined;
 }
 
 function OverallRankingTable({
@@ -250,7 +269,7 @@ function OverallRankingTable({
   bookmarkState,
   scoreColumnLabel,
   deviationScope,
-  deviationMin,
+  highlightCondition,
 }) {
   return (
     <section className="tablePanel directoryPanel">
@@ -292,15 +311,13 @@ function OverallRankingTable({
                       <span className="huntBookmarkConditionMark">★</span>
                     ) : null}
                   </td>
-                  <td>{row.rank}</td>
-                  <td>{formatNumber(row.huntScore)}</td>
-                  <td
-                    className={
-                      isDeviationHighlighted(row, deviationScope, deviationMin)
-                        ? "huntScoreDeviationHighlighted"
-                        : undefined
-                    }
-                  >
+                  <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
+                    {row.rank}
+                  </td>
+                  <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
+                    {formatNumber(row.huntScore)}
+                  </td>
+                  <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
                     {formatDeviationForScope(row, deviationScope)}
                   </td>
                   <th className="directoryNameCell">
@@ -338,8 +355,12 @@ export function HuntRankingTable({
 }) {
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
   const [differenceMode, setDifferenceMode] = useState(DEFAULT_DIFFERENCE_MODE);
+  const [rankMin, setRankMin] = useState(String(DEFAULT_HIGHLIGHT_RANK_MIN));
+  const [rankMax, setRankMax] = useState(String(DEFAULT_HIGHLIGHT_RANK_MAX));
+  const [scoreMin, setScoreMin] = useState(String(DEFAULT_HIGHLIGHT_SCORE_MIN));
   const [deviationScope, setDeviationScope] = useState(DEFAULT_DEVIATION_SCOPE);
   const [deviationMin, setDeviationMin] = useState(String(DEFAULT_DEVIATION_MIN));
+  const [matchMode, setMatchMode] = useState(DEFAULT_HIGHLIGHT_MATCH_MODE);
   const [bookmark, setBookmark] = useState(null);
 
   useEffect(() => {
@@ -366,6 +387,16 @@ export function HuntRankingTable({
     [resultColumns, visibleResultKeys],
   );
   const scoreColumnLabel = useMemo(() => formatScoreColumnLabel(predictionDate), [predictionDate]);
+  const highlightCondition = useMemo(
+    () => ({
+      rankFilter: buildRankFilter(rankMin, rankMax),
+      scoreFilter: buildScoreFilter(scoreMin),
+      deviationFilter: buildDeviationFilter(deviationMin),
+      matchMode: normalizeMatchMode(matchMode),
+      deviationScope: normalizeDeviationScope(deviationScope),
+    }),
+    [deviationMin, deviationScope, matchMode, rankMax, rankMin, scoreMin],
+  );
   const resultColumnLead = actualDate
     ? `${formatMonthDay(actualDate)}の実績列だけを切り替えられます。`
     : "実績列だけを切り替えられます。";
@@ -491,6 +522,84 @@ export function HuntRankingTable({
             </label>
           </div>
         </div>
+        <div className="backtestFieldGrid">
+          <label className="storeReserveField backtestField">
+            <span>順位の開始</span>
+            <input
+              type="number"
+              min="1"
+              value={rankMin}
+              onChange={(event) => setRankMin(event.target.value)}
+              className="storeReserveInput"
+            />
+          </label>
+          <label className="storeReserveField backtestField">
+            <span>順位の終了</span>
+            <input
+              type="number"
+              min="1"
+              value={rankMax}
+              onChange={(event) => setRankMax(event.target.value)}
+              className="storeReserveInput"
+            />
+          </label>
+          <label className="storeReserveField backtestField">
+            <span>狙い度の下限</span>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              value={scoreMin}
+              onChange={(event) => setScoreMin(event.target.value)}
+              className="storeReserveInput"
+            />
+          </label>
+          <label className="storeReserveField backtestField">
+            <span>偏差値の下限</span>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={deviationMin}
+              onChange={(event) => setDeviationMin(event.target.value)}
+              className="storeReserveInput"
+            />
+          </label>
+        </div>
+        <div>
+          <p className="sectionLabel">順位、狙い度、偏差値を複数入れた時の条件</p>
+          <div className="metricToggleRow">
+            <label
+              className={`metricToggleChip ${
+                matchMode === "and" ? "metricToggleChipActive" : ""
+              }`}
+            >
+              <input
+                type="radio"
+                name="huntRankingMatchMode"
+                value="and"
+                checked={matchMode === "and"}
+                onChange={() => setMatchMode("and")}
+              />
+              <span>すべて一致</span>
+            </label>
+            <label
+              className={`metricToggleChip ${
+                matchMode === "or" ? "metricToggleChipActive" : ""
+              }`}
+            >
+              <input
+                type="radio"
+                name="huntRankingMatchMode"
+                value="or"
+                checked={matchMode === "or"}
+                onChange={() => setMatchMode("or")}
+              />
+              <span>どれか一致</span>
+            </label>
+          </div>
+        </div>
         <div>
           <p className="sectionLabel">偏差値の比較対象</p>
           <div className="metricToggleRow">
@@ -538,17 +647,6 @@ export function HuntRankingTable({
             </label>
           </div>
         </div>
-        <label className="storeReserveField backtestField">
-          <span>偏差値の下限</span>
-          <input
-            type="number"
-            min="0"
-            step="0.1"
-            value={deviationMin}
-            onChange={(event) => setDeviationMin(event.target.value)}
-            className="storeReserveInput"
-          />
-        </label>
         <div>
           <p className="sectionLabel">表示する列</p>
           <p className="filterLead">
@@ -594,7 +692,7 @@ export function HuntRankingTable({
           bookmarkState={bookmarkState}
           scoreColumnLabel={scoreColumnLabel}
           deviationScope={deviationScope}
-          deviationMin={deviationMin}
+          highlightCondition={highlightCondition}
         />
       ) : (
         <section className="statusPanel">
@@ -611,7 +709,7 @@ export function HuntRankingTable({
         bookmarkState={bookmarkState}
         scoreColumnLabel={scoreColumnLabel}
         deviationScope={deviationScope}
-        deviationMin={deviationMin}
+        highlightCondition={highlightCondition}
       />
 
       {displayGroupsWithDeviation.map((group) => (
@@ -665,15 +763,13 @@ export function HuntRankingTable({
                           <span className="huntBookmarkConditionMark">★</span>
                         ) : null}
                       </td>
-                      <td>{row.rank}</td>
-                      <td>{formatNumber(row.huntScore)}</td>
-                      <td
-                        className={
-                          isDeviationHighlighted(row, deviationScope, deviationMin)
-                            ? "huntScoreDeviationHighlighted"
-                            : undefined
-                        }
-                      >
+                      <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
+                        {row.rank}
+                      </td>
+                      <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
+                        {formatNumber(row.huntScore)}
+                      </td>
+                      <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
                         {formatDeviationForScope(row, deviationScope)}
                       </td>
                       <td>{row.slotNumber}</td>
