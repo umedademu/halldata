@@ -39,8 +39,7 @@ from main import (
     parse_retry_delay_seconds,
     rewrite_history_result_store,
     scheduled_fetch_due_date,
-    site7_schedule_excludes_hour,
-    site7_schedule_is_due,
+    site7_schedule_due_hour,
 )
 from machine_difference import calculate_machine_difference_value, canonical_machine_name, machine_is_site7_target
 from minrepo_scraper import FetchProgress, MachineHistoryResult, MinRepoScraper, ScraperError, normalize_text, parse_date_range_input
@@ -295,28 +294,42 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertIsNone(scheduled_fetch_due_date(9, None, now))
         self.assertIsNone(scheduled_fetch_due_date(10, "2026-04-28", now))
 
-    def test_site7_schedule_excludes_hour_handles_normal_and_cross_day_ranges(self) -> None:
-        self.assertTrue(site7_schedule_excludes_hour(2, 2, 10))
-        self.assertTrue(site7_schedule_excludes_hour(9, 2, 10))
-        self.assertFalse(site7_schedule_excludes_hour(10, 2, 10))
-        self.assertFalse(site7_schedule_excludes_hour(1, 2, 10))
+    def test_site7_schedule_due_hour_runs_checked_hour_once_per_day(self) -> None:
+        noon_now = datetime(2026, 4, 28, 3, 30, tzinfo=timezone.utc)
+        evening_now = datetime(2026, 4, 28, 9, 0, tzinfo=timezone.utc)
+        morning_now = datetime(2026, 4, 28, 0, 0, tzinfo=timezone.utc)
 
-        self.assertTrue(site7_schedule_excludes_hour(23, 22, 5))
-        self.assertTrue(site7_schedule_excludes_hour(4, 22, 5))
-        self.assertFalse(site7_schedule_excludes_hour(12, 22, 5))
-        self.assertFalse(site7_schedule_excludes_hour(2, 2, 2))
+        self.assertEqual(site7_schedule_due_hour((12, 15, 18, 21), {}, noon_now), 12)
+        self.assertIsNone(site7_schedule_due_hour((12, 15, 18, 21), {12: "2026-04-28"}, noon_now))
+        self.assertEqual(site7_schedule_due_hour((12, 15, 18, 21), {12: "2026-04-27"}, noon_now), 12)
+        self.assertEqual(site7_schedule_due_hour((12, 15, 18, 21), {}, evening_now), 18)
+        self.assertIsNone(site7_schedule_due_hour((12, 15, 18, 21), {}, morning_now))
 
-    def test_site7_schedule_is_due_respects_interval_and_exclusion(self) -> None:
-        active_now = datetime(2026, 4, 28, 1, 30, tzinfo=timezone.utc)
-        recent_last_run = datetime(2026, 4, 28, 1, 0, tzinfo=timezone.utc)
-        old_last_run = datetime(2026, 4, 28, 0, 0, tzinfo=timezone.utc)
-        excluded_now = datetime(2026, 4, 27, 18, 0, tzinfo=timezone.utc)
+    def test_run_scheduled_site7_fetch_if_due_queues_checked_hours_while_busy(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.site7_schedule_hours = (12, 15, 18, 21)
+        app.site7_schedule_last_run_dates_by_hour = {}
+        app.site7_schedule_pending_hours = set()
+        app.site7_schedule_status_var = FakeTextVariable()
+        app._start_scheduled_site7_fetch = mock.Mock()
+        app.is_busy = True
 
-        self.assertTrue(site7_schedule_is_due(60, None, 2, 10, active_now))
-        self.assertFalse(site7_schedule_is_due(60, recent_last_run, 2, 10, active_now))
-        self.assertTrue(site7_schedule_is_due(60, old_last_run, 2, 10, active_now))
-        self.assertFalse(site7_schedule_is_due(60, old_last_run, 2, 10, excluded_now))
-        self.assertFalse(site7_schedule_is_due(0, old_last_run, 2, 10, active_now))
+        with mock.patch("main.datetime") as mocked_datetime:
+            mocked_datetime.now.return_value = datetime(2026, 4, 28, 3, 0, tzinfo=timezone.utc)
+            app._run_scheduled_site7_fetch_if_due()
+            mocked_datetime.now.return_value = datetime(2026, 4, 28, 6, 0, tzinfo=timezone.utc)
+            app._run_scheduled_site7_fetch_if_due()
+
+        self.assertEqual(app.site7_schedule_pending_hours, {12, 15})
+        app._start_scheduled_site7_fetch.assert_not_called()
+
+        app.is_busy = False
+        with mock.patch("main.datetime") as mocked_datetime:
+            current_time = datetime(2026, 4, 28, 7, 0, tzinfo=timezone.utc)
+            mocked_datetime.now.return_value = current_time
+            app._run_scheduled_site7_fetch_if_due()
+
+        app._start_scheduled_site7_fetch.assert_called_once_with(12, current_time)
 
     def test_clamp_site7_recent_days(self) -> None:
         self.assertEqual(clamp_site7_recent_days(3), 3)
@@ -348,17 +361,20 @@ class MinRepoScraperTests(unittest.TestCase):
 
             app._save_schedule_hour(5)
             app._save_site7_browser_mode(SITE7_BROWSER_MODE_HIDDEN)
-            app._save_site7_schedule_settings(45, 1, 9)
+            app._save_site7_schedule_hours((10, 12, 21))
 
             self.assertEqual(app._load_saved_schedule_hour(), 5)
             self.assertEqual(app._load_saved_site7_browser_mode(), SITE7_BROWSER_MODE_HIDDEN)
-            self.assertEqual(app._load_saved_site7_schedule_settings(), (45, 1, 9))
+            self.assertEqual(app._load_saved_site7_schedule_hours(), (10, 12, 21))
 
-            app._save_site7_schedule_settings(None, 2, 10)
+            app.site7_schedule_last_run_dates_by_hour = {12: "2026-04-28", 24: "2026-04-28"}
+            app._save_site7_schedule_run_dates()
+            app._save_site7_schedule_hours(())
 
             self.assertEqual(app._load_saved_schedule_hour(), 5)
             self.assertEqual(app._load_saved_site7_browser_mode(), SITE7_BROWSER_MODE_HIDDEN)
-            self.assertEqual(app._load_saved_site7_schedule_settings(), (None, 2, 10))
+            self.assertEqual(app._load_saved_site7_schedule_hours(), ())
+            self.assertEqual(app._load_saved_site7_schedule_run_dates(), {12: "2026-04-28"})
 
     def test_window_close_can_choose_exit(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -492,9 +508,6 @@ class MinRepoScraperTests(unittest.TestCase):
             "site7_login_button",
             "site7_fetch_button",
             "site7_cancel_button",
-            "site7_schedule_interval_entry",
-            "site7_schedule_exclude_start_entry",
-            "site7_schedule_exclude_end_entry",
             "apply_site7_schedule_button",
             "clear_site7_schedule_button",
             "site7_browser_visible_radio",
@@ -516,12 +529,17 @@ class MinRepoScraperTests(unittest.TestCase):
         )
         for widget_name in widget_names:
             setattr(app, widget_name, FakeStateWidget())
+        app.site7_schedule_hour_buttons = {
+            hour: FakeStateWidget()
+            for hour in range(10, 24)
+        }
 
         app._update_button_states()
 
         self.assertEqual(app.cancel_fetch_button.state, "normal")
         self.assertEqual(app.site7_fetch_button.state, "disabled")
         self.assertEqual(app.site7_cancel_button.state, "normal")
+        self.assertTrue(all(widget.state == "disabled" for widget in app.site7_schedule_hour_buttons.values()))
 
     def test_run_with_fetch_retries_retries_three_times(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)

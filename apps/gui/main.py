@@ -59,9 +59,8 @@ DEFAULT_RECENT_DAYS = "90"
 DEFAULT_RETRY_DELAY_SECONDS = "10"
 MAX_FETCH_RETRY_COUNT = 3
 DEFAULT_SCHEDULE_HOUR = 2
-DEFAULT_SITE7_SCHEDULE_INTERVAL_MINUTES = 60
-DEFAULT_SITE7_SCHEDULE_EXCLUDE_START_HOUR = 2
-DEFAULT_SITE7_SCHEDULE_EXCLUDE_END_HOUR = 10
+SITE7_SCHEDULE_HOUR_OPTIONS = tuple(range(10, 24))
+DEFAULT_SITE7_SCHEDULE_HOURS = (12, 15, 18, 21)
 GUI_SETTINGS_FILE_NAME = "gui_settings.json"
 SITE7_BROWSER_MODE_VISIBLE = "visible"
 SITE7_BROWSER_MODE_HIDDEN = "hidden"
@@ -147,36 +146,51 @@ def scheduled_fetch_due_date(
     return today_text
 
 
-def site7_schedule_excludes_hour(current_hour: int, exclude_start_hour: int, exclude_end_hour: int) -> bool:
-    if not 0 <= current_hour <= 23:
-        return False
-    if not 0 <= exclude_start_hour <= 23 or not 0 <= exclude_end_hour <= 23:
-        return False
-    if exclude_start_hour == exclude_end_hour:
-        return False
-    if exclude_start_hour < exclude_end_hour:
-        return exclude_start_hour <= current_hour < exclude_end_hour
-    return current_hour >= exclude_start_hour or current_hour < exclude_end_hour
+def normalize_site7_schedule_hours(value: object) -> tuple[int, ...]:
+    if not isinstance(value, (list, tuple, set)):
+        return DEFAULT_SITE7_SCHEDULE_HOURS
+
+    hours: set[int] = set()
+    for raw_hour in value:
+        try:
+            hour = int(raw_hour)
+        except (TypeError, ValueError):
+            continue
+        if hour in SITE7_SCHEDULE_HOUR_OPTIONS:
+            hours.add(hour)
+    return tuple(sorted(hours))
 
 
-def site7_schedule_is_due(
-    interval_minutes: int | None,
-    last_run_at: datetime | None,
-    exclude_start_hour: int,
-    exclude_end_hour: int,
+def normalize_site7_schedule_run_dates(value: object) -> dict[int, str]:
+    if not isinstance(value, dict):
+        return {}
+
+    run_dates: dict[int, str] = {}
+    for raw_hour, raw_date in value.items():
+        try:
+            hour = int(raw_hour)
+        except (TypeError, ValueError):
+            continue
+        date_text = str(raw_date).strip()
+        if hour in SITE7_SCHEDULE_HOUR_OPTIONS and re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_text):
+            run_dates[hour] = date_text
+    return run_dates
+
+
+def site7_schedule_due_hour(
+    schedule_hours: tuple[int, ...] | list[int] | set[int],
+    last_run_dates_by_hour: dict[int, str],
     now: datetime | None = None,
-) -> bool:
-    if interval_minutes is None or interval_minutes <= 0:
-        return False
-
+) -> int | None:
     current_time = (now or datetime.now(JST)).astimezone(JST)
-    if site7_schedule_excludes_hour(current_time.hour, exclude_start_hour, exclude_end_hour):
-        return False
-    if last_run_at is None:
-        return True
+    current_hour = current_time.hour
+    if current_hour not in set(schedule_hours):
+        return None
 
-    elapsed_seconds = (current_time - last_run_at.astimezone(JST)).total_seconds()
-    return elapsed_seconds >= interval_minutes * 60
+    today_text = current_time.date().isoformat()
+    if last_run_dates_by_hour.get(current_hour) == today_text:
+        return None
+    return current_hour
 
 
 def rewrite_history_result_store(
@@ -414,21 +428,15 @@ class MinRepoApp:
         self.fetch_cancel_event = threading.Event()
         self.scheduled_fetch_hour: int | None = self._load_saved_schedule_hour()
         self.site7_browser_mode: str = self._load_saved_site7_browser_mode()
-        (
-            self.site7_schedule_interval_minutes,
-            self.site7_schedule_exclude_start_hour,
-            self.site7_schedule_exclude_end_hour,
-        ) = self._load_saved_site7_schedule_settings()
+        self.site7_schedule_hours = self._load_saved_site7_schedule_hours()
+        self.site7_schedule_last_run_dates_by_hour = self._load_saved_site7_schedule_run_dates()
         self.scheduled_last_run_date: str | None = None
         self.scheduled_pending_date: str | None = None
         self.scheduled_startup_prompt_date: str | None = scheduled_fetch_due_date(
             self.scheduled_fetch_hour,
             self.scheduled_last_run_date,
         )
-        self.site7_schedule_last_run_at: datetime | None = (
-            datetime.now(JST) if self.site7_schedule_interval_minutes is not None else None
-        )
-        self.site7_schedule_pending = False
+        self.site7_schedule_pending_hours: set[int] = set()
         self.tray_icon: object | None = None
         self.tray_thread: threading.Thread | None = None
 
@@ -457,11 +465,10 @@ class MinRepoApp:
         self.site7_status_var = tk.StringVar(
             value="保存済みのログイン情報あり" if self.site7_scraper.has_saved_login_state() else "初回ログインが必要"
         )
-        self.site7_schedule_interval_var = tk.StringVar(
-            value=str(self.site7_schedule_interval_minutes or DEFAULT_SITE7_SCHEDULE_INTERVAL_MINUTES)
-        )
-        self.site7_schedule_exclude_start_var = tk.StringVar(value=str(self.site7_schedule_exclude_start_hour))
-        self.site7_schedule_exclude_end_var = tk.StringVar(value=str(self.site7_schedule_exclude_end_hour))
+        self.site7_schedule_hour_vars = {
+            hour: tk.BooleanVar(value=hour in self.site7_schedule_hours)
+            for hour in SITE7_SCHEDULE_HOUR_OPTIONS
+        }
         self.site7_schedule_status_var = tk.StringVar(value=self._site7_schedule_status_text())
         self.fetch_progress_current = 0
         self.fetch_progress_total = 0
@@ -590,43 +597,34 @@ class MinRepoApp:
         site7_schedule_row = ttk.Frame(site7_row)
         site7_schedule_row.grid(row=2, column=0, columnspan=4, sticky="w", pady=(8, 0))
         ttk.Label(site7_schedule_row, text="定期取得").grid(row=0, column=0, sticky="w")
-        self.site7_schedule_interval_entry = ttk.Entry(
-            site7_schedule_row,
-            textvariable=self.site7_schedule_interval_var,
-            width=5,
-        )
-        self.site7_schedule_interval_entry.grid(row=0, column=1, sticky="w", padx=(8, 4))
-        ttk.Label(site7_schedule_row, text="分に1回").grid(row=0, column=2, sticky="w")
-        ttk.Label(site7_schedule_row, text="除外").grid(row=0, column=3, sticky="w", padx=(12, 4))
-        self.site7_schedule_exclude_start_entry = ttk.Entry(
-            site7_schedule_row,
-            textvariable=self.site7_schedule_exclude_start_var,
-            width=4,
-        )
-        self.site7_schedule_exclude_start_entry.grid(row=0, column=4, sticky="w")
-        ttk.Label(site7_schedule_row, text="時～").grid(row=0, column=5, sticky="w", padx=(4, 4))
-        self.site7_schedule_exclude_end_entry = ttk.Entry(
-            site7_schedule_row,
-            textvariable=self.site7_schedule_exclude_end_var,
-            width=4,
-        )
-        self.site7_schedule_exclude_end_entry.grid(row=0, column=6, sticky="w")
-        ttk.Label(site7_schedule_row, text="時").grid(row=0, column=7, sticky="w", padx=(4, 0))
+        ttk.Label(site7_schedule_row, text="実行時刻").grid(row=0, column=1, sticky="w", padx=(8, 4))
+        self.site7_schedule_hour_buttons: dict[int, ttk.Checkbutton] = {}
+        for index, hour in enumerate(SITE7_SCHEDULE_HOUR_OPTIONS):
+            row_index = 0 if index < 7 else 1
+            column_index = 2 + (index % 7)
+            hour_button = ttk.Checkbutton(
+                site7_schedule_row,
+                text=f"{hour}時",
+                variable=self.site7_schedule_hour_vars[hour],
+            )
+            hour_button.grid(row=row_index, column=column_index, sticky="w", padx=(4, 0))
+            self.site7_schedule_hour_buttons[hour] = hour_button
         self.apply_site7_schedule_button = ttk.Button(
             site7_schedule_row,
             text="設定",
             command=self.apply_site7_schedule,
         )
-        self.apply_site7_schedule_button.grid(row=0, column=8, sticky="w", padx=(8, 0))
+        self.apply_site7_schedule_button.grid(row=0, column=9, sticky="w", padx=(8, 0))
         self.clear_site7_schedule_button = ttk.Button(
             site7_schedule_row,
-            text="解除",
+            text="全解除",
             command=self.clear_site7_schedule,
         )
-        self.clear_site7_schedule_button.grid(row=0, column=9, sticky="w", padx=(8, 0))
+        self.clear_site7_schedule_button.grid(row=0, column=10, sticky="w", padx=(8, 0))
         ttk.Label(site7_schedule_row, textvariable=self.site7_schedule_status_var).grid(
-            row=0,
-            column=10,
+            row=1,
+            column=9,
+            columnspan=2,
             sticky="w",
             padx=(12, 0),
         )
@@ -821,70 +819,36 @@ class MinRepoApp:
         return browser_mode == SITE7_BROWSER_MODE_VISIBLE
 
     def _site7_schedule_status_text(self) -> str:
-        if self.site7_schedule_interval_minutes is None:
+        if not self.site7_schedule_hours:
             return "サイトセブン定期実行なし"
-        return (
-            f"{self.site7_schedule_interval_minutes}分に1回 / "
-            f"除外 {self.site7_schedule_exclude_start_hour}時～{self.site7_schedule_exclude_end_hour}時"
-        )
+        hours_text = "、".join(f"{hour}時" for hour in self.site7_schedule_hours)
+        return f"毎日 {hours_text} に実行"
 
     def apply_site7_schedule(self) -> None:
+        self.site7_schedule_hours = tuple(
+            hour
+            for hour in SITE7_SCHEDULE_HOUR_OPTIONS
+            if self.site7_schedule_hour_vars[hour].get()
+        )
+        self.site7_schedule_pending_hours = {
+            hour for hour in self.site7_schedule_pending_hours if hour in self.site7_schedule_hours
+        }
         try:
-            interval_minutes = self._parse_site7_schedule_interval_minutes()
-            exclude_start_hour = self._parse_site7_schedule_hour(self.site7_schedule_exclude_start_var.get())
-            exclude_end_hour = self._parse_site7_schedule_hour(self.site7_schedule_exclude_end_var.get())
-        except ScraperError as exc:
-            messagebox.showwarning("入力不正", str(exc))
-            return
-
-        self.site7_schedule_interval_minutes = interval_minutes
-        self.site7_schedule_exclude_start_hour = exclude_start_hour
-        self.site7_schedule_exclude_end_hour = exclude_end_hour
-        self.site7_schedule_last_run_at = datetime.now(JST)
-        self.site7_schedule_pending = False
-        try:
-            self._save_site7_schedule_settings(
-                interval_minutes,
-                exclude_start_hour,
-                exclude_end_hour,
-            )
+            self._save_site7_schedule_hours(self.site7_schedule_hours)
         except Exception as exc:  # noqa: BLE001
             messagebox.showwarning("設定保存", f"サイトセブン定期実行の設定保存に失敗しました。\n{exc}")
         self.site7_schedule_status_var.set(self._site7_schedule_status_text())
 
     def clear_site7_schedule(self) -> None:
-        self.site7_schedule_interval_minutes = None
-        self.site7_schedule_last_run_at = None
-        self.site7_schedule_pending = False
+        self.site7_schedule_hours = ()
+        self.site7_schedule_pending_hours = set()
+        for hour_var in self.site7_schedule_hour_vars.values():
+            hour_var.set(False)
         try:
-            self._save_site7_schedule_settings(
-                None,
-                self.site7_schedule_exclude_start_hour,
-                self.site7_schedule_exclude_end_hour,
-            )
+            self._save_site7_schedule_hours(self.site7_schedule_hours)
         except Exception as exc:  # noqa: BLE001
             messagebox.showwarning("設定保存", f"サイトセブン定期実行の設定保存に失敗しました。\n{exc}")
         self.site7_schedule_status_var.set("サイトセブン定期実行なし")
-
-    def _parse_site7_schedule_interval_minutes(self) -> int:
-        text = self.site7_schedule_interval_var.get().strip()
-        if not re.fullmatch(r"\d+", text):
-            raise ScraperError("サイトセブン定期取得の間隔は 1 以上の整数で入力してください。")
-
-        interval_minutes = int(text)
-        if interval_minutes <= 0:
-            raise ScraperError("サイトセブン定期取得の間隔は 1 以上の整数で入力してください。")
-        return interval_minutes
-
-    def _parse_site7_schedule_hour(self, value: str) -> int:
-        text = str(value).strip()
-        if not re.fullmatch(r"\d{1,2}", text):
-            raise ScraperError("サイトセブン定期取得の除外時刻は 0 から 23 の整数で入力してください。")
-
-        hour = int(text)
-        if not 0 <= hour <= 23:
-            raise ScraperError("サイトセブン定期取得の除外時刻は 0 から 23 の整数で入力してください。")
-        return hour
 
     def apply_daily_schedule(self) -> None:
         try:
@@ -970,58 +934,40 @@ class MinRepoApp:
     def _save_site7_browser_mode(self, browser_mode: str) -> None:
         self._save_gui_settings(site7_browser_mode=normalize_site7_browser_mode(browser_mode))
 
-    def _load_saved_site7_schedule_settings(self) -> tuple[int | None, int, int]:
+    def _load_saved_site7_schedule_hours(self) -> tuple[int, ...]:
         try:
             payload = self._load_gui_settings()
         except Exception:  # noqa: BLE001
-            return (
-                DEFAULT_SITE7_SCHEDULE_INTERVAL_MINUTES,
-                DEFAULT_SITE7_SCHEDULE_EXCLUDE_START_HOUR,
-                DEFAULT_SITE7_SCHEDULE_EXCLUDE_END_HOUR,
-            )
+            return DEFAULT_SITE7_SCHEDULE_HOURS
+        return normalize_site7_schedule_hours(payload.get("site7_schedule_hours", DEFAULT_SITE7_SCHEDULE_HOURS))
 
-        interval_source = payload.get("site7_schedule_interval_minutes", DEFAULT_SITE7_SCHEDULE_INTERVAL_MINUTES)
-        if interval_source is None:
-            interval_minutes: int | None = None
-        else:
-            try:
-                interval_minutes = int(interval_source)
-            except (TypeError, ValueError):
-                interval_minutes = DEFAULT_SITE7_SCHEDULE_INTERVAL_MINUTES
-            if interval_minutes is not None and interval_minutes <= 0:
-                interval_minutes = DEFAULT_SITE7_SCHEDULE_INTERVAL_MINUTES
+    def _save_site7_schedule_hours(self, schedule_hours: tuple[int, ...]) -> None:
+        self._save_gui_settings(site7_schedule_hours=list(schedule_hours))
 
+    def _load_saved_site7_schedule_run_dates(self) -> dict[int, str]:
         try:
-            exclude_start_hour = int(
-                payload.get("site7_schedule_exclude_start_hour", DEFAULT_SITE7_SCHEDULE_EXCLUDE_START_HOUR)
-            )
-        except (TypeError, ValueError):
-            exclude_start_hour = DEFAULT_SITE7_SCHEDULE_EXCLUDE_START_HOUR
+            payload = self._load_gui_settings()
+        except Exception:  # noqa: BLE001
+            return {}
+        return normalize_site7_schedule_run_dates(payload.get("site7_schedule_last_run_dates", {}))
+
+    def _save_site7_schedule_run_dates(self) -> None:
+        payload = {
+            str(hour): date_text
+            for hour, date_text in sorted(self.site7_schedule_last_run_dates_by_hour.items())
+            if hour in SITE7_SCHEDULE_HOUR_OPTIONS
+        }
+        self._save_gui_settings(site7_schedule_last_run_dates=payload)
+
+    def _mark_site7_schedule_hour_started(self, scheduled_hour: int, started_at: datetime | None = None) -> None:
+        if scheduled_hour not in SITE7_SCHEDULE_HOUR_OPTIONS:
+            return
+        started_time = (started_at or datetime.now(JST)).astimezone(JST)
+        self.site7_schedule_last_run_dates_by_hour[scheduled_hour] = started_time.date().isoformat()
         try:
-            exclude_end_hour = int(
-                payload.get("site7_schedule_exclude_end_hour", DEFAULT_SITE7_SCHEDULE_EXCLUDE_END_HOUR)
-            )
-        except (TypeError, ValueError):
-            exclude_end_hour = DEFAULT_SITE7_SCHEDULE_EXCLUDE_END_HOUR
-
-        if not 0 <= exclude_start_hour <= 23:
-            exclude_start_hour = DEFAULT_SITE7_SCHEDULE_EXCLUDE_START_HOUR
-        if not 0 <= exclude_end_hour <= 23:
-            exclude_end_hour = DEFAULT_SITE7_SCHEDULE_EXCLUDE_END_HOUR
-
-        return interval_minutes, exclude_start_hour, exclude_end_hour
-
-    def _save_site7_schedule_settings(
-        self,
-        interval_minutes: int | None,
-        exclude_start_hour: int,
-        exclude_end_hour: int,
-    ) -> None:
-        self._save_gui_settings(
-            site7_schedule_interval_minutes=interval_minutes,
-            site7_schedule_exclude_start_hour=exclude_start_hour,
-            site7_schedule_exclude_end_hour=exclude_end_hour,
-        )
+            self._save_site7_schedule_run_dates()
+        except Exception as exc:  # noqa: BLE001
+            self.site7_schedule_status_var.set(f"サイトセブン定期実行の記録保存に失敗しました: {exc}")
 
     def _schedule_timer_tick(self) -> None:
         self._run_scheduled_fetch_if_due()
@@ -1089,47 +1035,34 @@ class MinRepoApp:
 
     def _run_scheduled_site7_fetch_if_due(self) -> None:
         now = datetime.now(JST)
-        if self.site7_schedule_interval_minutes is None:
+        if not self.site7_schedule_hours:
             return
 
-        if site7_schedule_excludes_hour(
-            now.hour,
-            self.site7_schedule_exclude_start_hour,
-            self.site7_schedule_exclude_end_hour,
-        ):
-            if self.site7_schedule_pending:
-                self.site7_schedule_status_var.set(
-                    f"除外時刻中: {self.site7_schedule_exclude_start_hour}時～"
-                    f"{self.site7_schedule_exclude_end_hour}時"
-                )
-            return
-
-        if self.site7_schedule_pending:
-            if self.is_busy:
-                self.site7_schedule_status_var.set("サイトセブン定期実行を待機中")
-                return
-            self.site7_schedule_pending = False
-            self._start_scheduled_site7_fetch(now)
-            return
-
-        if not site7_schedule_is_due(
-            self.site7_schedule_interval_minutes,
-            self.site7_schedule_last_run_at,
-            self.site7_schedule_exclude_start_hour,
-            self.site7_schedule_exclude_end_hour,
+        due_hour = site7_schedule_due_hour(
+            self.site7_schedule_hours,
+            self.site7_schedule_last_run_dates_by_hour,
             now,
-        ):
+        )
+        if due_hour is not None:
+            self.site7_schedule_pending_hours.add(due_hour)
+
+        self.site7_schedule_pending_hours = {
+            hour for hour in self.site7_schedule_pending_hours if hour in self.site7_schedule_hours
+        }
+        if not self.site7_schedule_pending_hours:
             return
 
         if self.is_busy:
-            self.site7_schedule_pending = True
-            self.site7_schedule_status_var.set("サイトセブン定期実行を待機中")
+            pending_hours_text = "、".join(f"{hour}時台" for hour in sorted(self.site7_schedule_pending_hours))
+            self.site7_schedule_status_var.set(f"{pending_hours_text}のサイトセブン定期実行を待機中")
             return
 
-        self._start_scheduled_site7_fetch(now)
+        pending_hour = min(self.site7_schedule_pending_hours)
+        self._start_scheduled_site7_fetch(pending_hour, now)
 
-    def _start_scheduled_site7_fetch(self, started_at: datetime | None = None) -> None:
-        self.site7_schedule_last_run_at = (started_at or datetime.now(JST)).astimezone(JST)
+    def _start_scheduled_site7_fetch(self, scheduled_hour: int, started_at: datetime | None = None) -> None:
+        self.site7_schedule_pending_hours.discard(scheduled_hour)
+        self._mark_site7_schedule_hour_started(scheduled_hour, started_at)
         try:
             recent_days = parse_recent_days(self.target_date_var.get())
             retry_delay_seconds = self._retry_delay_seconds_input()
@@ -3821,9 +3754,8 @@ class MinRepoApp:
             and not self.fetch_cancel_event.is_set()
         )
         self.site7_cancel_button.configure(state="normal" if can_cancel_site7_fetch else "disabled")
-        self.site7_schedule_interval_entry.configure(state="disabled" if self.is_busy else "normal")
-        self.site7_schedule_exclude_start_entry.configure(state="disabled" if self.is_busy else "normal")
-        self.site7_schedule_exclude_end_entry.configure(state="disabled" if self.is_busy else "normal")
+        for hour_button in self.site7_schedule_hour_buttons.values():
+            hour_button.configure(state="disabled" if self.is_busy else "normal")
         self.apply_site7_schedule_button.configure(state="disabled" if self.is_busy else "normal")
         self.clear_site7_schedule_button.configure(state="disabled" if self.is_busy else "normal")
         self.site7_browser_visible_radio.configure(state="disabled" if self.is_busy else "normal")
