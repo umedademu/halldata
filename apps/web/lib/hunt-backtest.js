@@ -478,6 +478,7 @@ function buildBacktestAggregationDetail(
     deviationFilter,
     matchMode,
     rankScope,
+    deviationScope,
     differenceMode,
     combineAimJuggler,
     combineHanabi,
@@ -518,7 +519,7 @@ function buildBacktestAggregationDetail(
       const rankValue =
         rankScope === "machine" ? machineRank : rankScope === "selected" ? selectedRank : row.rank;
       const deviationRow = deviationRowsByRow.get(row) ?? row;
-      const deviationValue = readDeviationForRankScope(deviationRow, rankScope);
+      const deviationValue = readDeviationForRankScope(deviationRow, deviationScope);
 
       if (
         !matchesOptionalFilters(
@@ -678,6 +679,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const deviationFilter = buildDeviationFilter(options.deviationMin ?? DEFAULT_DEVIATION_MIN);
   const matchMode = normalizeMatchMode(options.matchMode);
   const rankScope = normalizeRankScope(options.rankScope);
+  const deviationScope = normalizeRankScope(options.deviationScope ?? rankScope);
   const showGraph = normalizeShowGraph(options.showGraph);
   const differenceMode = normalizeDifferenceMode(options.differenceMode);
   const eventFilters = buildBacktestEventFilters(options);
@@ -693,6 +695,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     deviationFilter,
     matchMode,
     rankScope,
+    deviationScope,
     differenceMode,
     combineAimJuggler,
     combineHanabi,
@@ -730,6 +733,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     hasDeviationFilter: deviationFilter.hasDeviationFilter,
     matchMode,
     rankScope,
+    deviationScope,
     showGraph,
     differenceMode,
     combineAimJuggler,

@@ -160,6 +160,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     rankMax: readSingleSearchParam(resolvedSearchParams?.rankMax),
     rankScope: readSingleSearchParam(resolvedSearchParams?.rankScope),
     scoreMin: readSingleSearchParam(resolvedSearchParams?.scoreMin),
+    deviationScope: readSingleSearchParam(resolvedSearchParams?.deviationScope),
     deviationMin: hasDeviationMinParam
       ? readSingleSearchParam(resolvedSearchParams?.deviationMin)
       : DEFAULT_DEVIATION_MIN,
@@ -221,6 +222,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     deviationMin: detail.backtest.deviationMin,
     matchMode: detail.backtest.matchMode,
     rankScope: detail.backtest.rankScope,
+    deviationScope: detail.backtest.deviationScope,
     combineAimJuggler: detail.backtest.combineAimJuggler,
     combineHanabi: detail.backtest.combineHanabi,
   };
@@ -509,7 +511,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
               </div>
 
               <div className="backtestBlock">
-                <p className="filterControlLabel">順位と偏差値の見方</p>
+                <p className="filterControlLabel">順位の見方</p>
                 <div className="metricToggleRow">
                   <label
                     className={`metricToggleChip ${
@@ -549,6 +551,51 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       defaultChecked={detail.backtest.rankScope === "machine"}
                     />
                     <span>機種内順位</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="backtestBlock">
+                <p className="filterControlLabel">偏差値の比較対象</p>
+                <div className="metricToggleRow">
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.deviationScope === "all" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="deviationScope"
+                      value="all"
+                      defaultChecked={detail.backtest.deviationScope === "all"}
+                    />
+                    <span>全機種内</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.deviationScope === "selected" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="deviationScope"
+                      value="selected"
+                      defaultChecked={detail.backtest.deviationScope === "selected"}
+                    />
+                    <span>チェック機種内</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.deviationScope === "machine" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="deviationScope"
+                      value="machine"
+                      defaultChecked={detail.backtest.deviationScope === "machine"}
+                    />
+                    <span>機種内</span>
                   </label>
                 </div>
               </div>

@@ -492,7 +492,7 @@ export function HuntRankingTable({
           </div>
         </div>
         <div>
-          <p className="sectionLabel">偏差値の見方</p>
+          <p className="sectionLabel">偏差値の比較対象</p>
           <div className="metricToggleRow">
             <label
               className={`metricToggleChip ${

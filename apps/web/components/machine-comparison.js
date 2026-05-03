@@ -66,6 +66,7 @@ const DEFAULT_HUNT_SCORE_DEVIATION_MIN = 60;
 const DEFAULT_HUNT_SCORE_RANK_MIN = 1;
 const DEFAULT_HUNT_SCORE_RANK_MAX = 3;
 const DEFAULT_HUNT_SCORE_RANK_SCOPE = "selected";
+const DEFAULT_HUNT_SCORE_DEVIATION_SCOPE = "selected";
 const DEFAULT_HUNT_SCORE_MATCH_MODE = "or";
 const HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX = "machine-hunt-score-highlight:";
 const COMPARISON_SCORE_EPSILON = 0.000000001;
@@ -194,6 +195,7 @@ function createDefaultHuntScoreHighlightOptions(machineNames) {
     deviationMin: DEFAULT_HUNT_SCORE_DEVIATION_MIN,
     matchMode: DEFAULT_HUNT_SCORE_MATCH_MODE,
     rankScope: DEFAULT_HUNT_SCORE_RANK_SCOPE,
+    deviationScope: DEFAULT_HUNT_SCORE_DEVIATION_SCOPE,
     selectedMachineNames: availableMachineNames.filter(isJugglerMachine),
   };
 }
@@ -246,6 +248,8 @@ function normalizeHuntScoreHighlightOptions(value, availableMachineNames) {
   if (!value || typeof value !== "object") {
     return defaults;
   }
+  const rankScope = normalizeHuntScoreRankScope(value.rankScope);
+  const deviationScope = normalizeHuntScoreRankScope(value.deviationScope ?? rankScope);
 
   return {
     rankMin: Object.hasOwn(value, "rankMin")
@@ -261,7 +265,8 @@ function normalizeHuntScoreHighlightOptions(value, availableMachineNames) {
       ? normalizeHuntScoreDeviationInputValue(value.deviationMin, defaults.deviationMin)
       : defaults.deviationMin,
     matchMode: normalizeHuntScoreMatchMode(value.matchMode),
-    rankScope: normalizeHuntScoreRankScope(value.rankScope),
+    rankScope,
+    deviationScope,
     selectedMachineNames: normalizeSelectedHuntScoreMachineNames(
       value.selectedMachineNames,
       availableMachineNames,
@@ -357,7 +362,7 @@ function buildHuntScoreDeviationValueMap(highlightDetail, options) {
     normalizeAvailableHuntScoreMachineNames(highlightDetail?.availableMachineNames),
   );
   const selectedMachineNameSet = new Set(normalizedOptions.selectedMachineNames);
-  const rankScope = normalizeHuntScoreRankScope(normalizedOptions.rankScope);
+  const deviationScope = normalizeHuntScoreRankScope(normalizedOptions.deviationScope);
 
   for (const snapshot of snapshots) {
     const rows = Array.isArray(snapshot.rows) ? snapshot.rows : [];
@@ -391,9 +396,9 @@ function buildHuntScoreDeviationValueMap(highlightDetail, options) {
 
     for (const row of rows) {
       const deviationValue =
-        rankScope === "all"
+        deviationScope === "all"
           ? overallDeviationMap.get(row)
-          : rankScope === "machine"
+          : deviationScope === "machine"
             ? machineDeviationMap.get(row)
             : selectedDeviationMap.get(row);
 
@@ -989,7 +994,7 @@ function HuntScoreHighlightControls({ options, availableMachineNames, onChange }
       </div>
 
       <div className="backtestBlock">
-        <p className="filterControlLabel">順位と偏差値の見方</p>
+        <p className="filterControlLabel">順位の見方</p>
         <div className="metricToggleRow">
           <label
             className={`metricToggleChip ${
@@ -1032,6 +1037,54 @@ function HuntScoreHighlightControls({ options, availableMachineNames, onChange }
               onChange={() => updateOption("rankScope", "all")}
             />
             <span>全機種順位</span>
+          </label>
+        </div>
+      </div>
+
+      <div className="backtestBlock">
+        <p className="filterControlLabel">偏差値の比較対象</p>
+        <div className="metricToggleRow">
+          <label
+            className={`metricToggleChip ${
+              options.deviationScope === "selected" ? "metricToggleChipActive" : ""
+            }`}
+          >
+            <input
+              type="radio"
+              name="machineHuntScoreDeviationScope"
+              value="selected"
+              checked={options.deviationScope === "selected"}
+              onChange={() => updateOption("deviationScope", "selected")}
+            />
+            <span>チェック機種内</span>
+          </label>
+          <label
+            className={`metricToggleChip ${
+              options.deviationScope === "machine" ? "metricToggleChipActive" : ""
+            }`}
+          >
+            <input
+              type="radio"
+              name="machineHuntScoreDeviationScope"
+              value="machine"
+              checked={options.deviationScope === "machine"}
+              onChange={() => updateOption("deviationScope", "machine")}
+            />
+            <span>機種内</span>
+          </label>
+          <label
+            className={`metricToggleChip ${
+              options.deviationScope === "all" ? "metricToggleChipActive" : ""
+            }`}
+          >
+            <input
+              type="radio"
+              name="machineHuntScoreDeviationScope"
+              value="all"
+              checked={options.deviationScope === "all"}
+              onChange={() => updateOption("deviationScope", "all")}
+            />
+            <span>全機種内</span>
           </label>
         </div>
       </div>

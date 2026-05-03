@@ -163,6 +163,16 @@ function formatRankScopeLabel(rankScope) {
   return "全機種順位";
 }
 
+function formatDeviationScopeLabel(deviationScope) {
+  if (deviationScope === "machine") {
+    return "機種内偏差値";
+  }
+  if (deviationScope === "selected") {
+    return "チェック機種内偏差値";
+  }
+  return "全機種内偏差値";
+}
+
 export function calculateHuntScoreDeviationMap(rows) {
   const validRows = (Array.isArray(rows) ? rows : [])
     .map((row) => ({
@@ -279,6 +289,7 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
   const rankFilter = buildRankFilter(bookmark.rankMin, bookmark.rankMax);
   const scoreFilter = buildScoreFilter(bookmark.scoreMin);
   const deviationFilter = buildDeviationFilter(bookmark.deviationMin);
+  const rankScope = normalizeRankScope(bookmark.rankScope);
   const allMachineCount = readPositiveInteger(bookmark.allMachineCount) ?? machineNames.length;
   const combineAimJuggler = Boolean(bookmark.combineAimJuggler) || machineNames.some(isAimJugglerGroup);
   const combineHanabi = Boolean(bookmark.combineHanabi) || machineNames.some(isHanabiGroup);
@@ -298,7 +309,8 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     deviationMin: deviationFilter.deviationMin,
     hasDeviationFilter: deviationFilter.hasDeviationFilter,
     matchMode: normalizeMatchMode(bookmark.matchMode),
-    rankScope: normalizeRankScope(bookmark.rankScope),
+    rankScope,
+    deviationScope: normalizeRankScope(bookmark.deviationScope ?? rankScope),
     combineAimJuggler,
     combineHanabi,
     savedAt: normalizeText(bookmark.savedAt) || null,
@@ -333,6 +345,7 @@ export function areHuntBacktestBookmarksEqual(left, right) {
     normalizedLeft.deviationMin === normalizedRight.deviationMin &&
     normalizedLeft.matchMode === normalizedRight.matchMode &&
     normalizedLeft.rankScope === normalizedRight.rankScope &&
+    normalizedLeft.deviationScope === normalizedRight.deviationScope &&
     normalizedLeft.combineAimJuggler === normalizedRight.combineAimJuggler &&
     normalizedLeft.combineHanabi === normalizedRight.combineHanabi &&
     normalizedLeft.machineNames.length === normalizedRight.machineNames.length &&
@@ -374,6 +387,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   const parts = [buildMachineSummaryText(normalizedBookmark)];
 
   parts.push(formatRankScopeLabel(normalizedBookmark.rankScope));
+  parts.push(formatDeviationScopeLabel(normalizedBookmark.deviationScope));
 
   if (normalizedBookmark.hasRankFilter) {
     parts.push(`順位${normalizedBookmark.rankMin}〜${normalizedBookmark.rankMax}`);
@@ -575,11 +589,11 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
         : normalizedBookmark.rankScope === "selected"
           ? rowSelectedRank
           : rowOverallRank;
-    const existingDeviationValue = readDeviationForRankScope(row, normalizedBookmark.rankScope);
+    const existingDeviationValue = readDeviationForRankScope(row, normalizedBookmark.deviationScope);
     const calculatedDeviationValue =
-      normalizedBookmark.rankScope === "machine"
+      normalizedBookmark.deviationScope === "machine"
         ? machineDeviationMap.get(row) ?? null
-        : normalizedBookmark.rankScope === "selected"
+        : normalizedBookmark.deviationScope === "selected"
           ? selectedDeviationMap.get(row) ?? null
           : overallDeviationMap.get(row) ?? null;
     const deviationValue = existingDeviationValue ?? calculatedDeviationValue;

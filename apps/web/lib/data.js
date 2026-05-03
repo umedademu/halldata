@@ -1050,6 +1050,14 @@ function buildInitialBacktestDetail(storeName, options = {}) {
   const rankMax = readPositiveInteger(defaultedOptions?.rankMax, null);
   const scoreMin = readNumber(defaultedOptions?.scoreMin);
   const deviationMin = readNumber(defaultedOptions?.deviationMin) ?? DEFAULT_HUNT_SCORE_DEVIATION_MIN;
+  const rankScope =
+    defaultedOptions?.rankScope === "machine" || defaultedOptions?.rankScope === "selected"
+      ? defaultedOptions.rankScope
+      : "all";
+  const deviationScope =
+    defaultedOptions?.deviationScope === "machine" || defaultedOptions?.deviationScope === "selected"
+      ? defaultedOptions.deviationScope
+      : rankScope;
   const combineAimJuggler = normalizeEnabledOption(defaultedOptions?.combineAimJuggler, true);
   const combineHanabi = normalizeEnabledOption(defaultedOptions?.combineHanabi, true);
 
@@ -1074,10 +1082,8 @@ function buildInitialBacktestDetail(storeName, options = {}) {
     deviationMin,
     hasDeviationFilter: deviationMin !== null,
     matchMode: defaultedOptions?.matchMode === "or" ? "or" : "and",
-    rankScope:
-      defaultedOptions?.rankScope === "machine" || defaultedOptions?.rankScope === "selected"
-        ? defaultedOptions.rankScope
-        : "all",
+    rankScope,
+    deviationScope,
     showGraph: defaultedOptions?.showGraph === "off" ? "off" : "on",
     differenceMode: defaultedOptions?.differenceMode === "minrepo" ? "minrepo" : "bonus",
     combineAimJuggler,
