@@ -2210,17 +2210,16 @@ class MinRepoApp:
                 if datasets or save_summary is not None:
                     break
                 raise FetchCancelled
-            day_save_summary: PersistenceSummary | None = None
 
-            def save_dataset_result(dataset_result: MachineHistoryResult) -> None:
-                nonlocal day_save_summary, save_summary
+            def save_dataset_checkpoint(dataset_result: MachineHistoryResult) -> None:
+                nonlocal save_summary
                 self._raise_if_fetch_cancelled()
                 dataset = dataset_result.datasets[0] if dataset_result.datasets else None
                 if dataset is not None:
-                    step_callback(f"{dataset.target_date} の {dataset.machine_name} を保存中")
-                dataset_save_summary = self.persistence_service.save_history_result(dataset_result)
-                day_save_summary = self._merge_persistence_summary(day_save_summary, dataset_save_summary)
-                save_summary = self._merge_persistence_summary(save_summary, dataset_save_summary)
+                    step_callback(f"{dataset.target_date} の {dataset.machine_name} をローカル退避中")
+                checkpoint_summary = self.persistence_service.save_history_result_local_checkpoint(dataset_result)
+                if checkpoint_summary.has_errors:
+                    save_summary = self._merge_persistence_summary(save_summary, checkpoint_summary)
 
             day_result = self._run_with_fetch_retries(
                 lambda: self.scraper.fetch_all_machine_history_for_date_page(
@@ -2229,7 +2228,7 @@ class MinRepoApp:
                     step_callback=step_callback,
                     date_index=date_index,
                     total_dates=len(pending_date_pages),
-                    dataset_callback=save_dataset_result,
+                    dataset_callback=save_dataset_checkpoint,
                 ),
                 retry_delay_seconds=retry_delay_seconds,
                 retry_status_callback=lambda retry_number, max_retries, delay_seconds, target_date=date_page.target_date: self.result_queue.put(
@@ -2250,15 +2249,10 @@ class MinRepoApp:
             skipped_targets.extend(day_result.skipped_targets)
 
             if day_result.datasets:
-                if day_save_summary is None:
-                    self._raise_if_fetch_cancelled()
-                    step_callback(f"{date_page.target_date} の保存中")
-                    day_save_summary = self.persistence_service.save_history_result(day_result)
-                    save_summary = self._merge_persistence_summary(save_summary, day_save_summary)
-                if not day_save_summary.has_errors:
-                    mark_summary = self.persistence_service.mark_full_day_saved(day_result)
-                    if mark_summary.has_errors:
-                        save_summary = self._merge_persistence_summary(save_summary, mark_summary)
+                self._raise_if_fetch_cancelled()
+                step_callback(f"{date_page.target_date} のR2保存とWeb更新中")
+                day_save_summary = self.persistence_service.save_history_result(day_result, full_day=True)
+                save_summary = self._merge_persistence_summary(save_summary, day_save_summary)
             else:
                 step_callback(f"{date_page.target_date} は保存対象なし")
 

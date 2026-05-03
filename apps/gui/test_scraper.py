@@ -16,6 +16,8 @@ from data_persistence import (
     DATA_SOURCE_MINREPO,
     DATA_SOURCE_SITE7,
     HistoryPersistenceService,
+    PersistenceSummary,
+    SavedFullDayDatesSummary,
     SavedMachineSlotsSummary,
     build_machine_daily_records,
     build_store_machine_daily_detail_payloads,
@@ -959,6 +961,63 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(len(partial_results), len(day_result.datasets))
         self.assertTrue(all(len(result.datasets) == 1 for result in partial_results))
 
+    def test_fetch_single_store_uses_local_checkpoints_and_daily_r2_save(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.scraper = FixtureScraper()
+        app.fetch_cancel_event = threading.Event()
+        app.result_queue = queue.Queue()
+
+        class FakePersistenceService:
+            def __init__(self) -> None:
+                self.checkpoint_results: list[MachineHistoryResult] = []
+                self.saved_results: list[tuple[MachineHistoryResult, bool]] = []
+
+            def find_saved_full_day_dates(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+            ) -> SavedFullDayDatesSummary:
+                return SavedFullDayDatesSummary()
+
+            def save_history_result_local_checkpoint(
+                self,
+                history_result: MachineHistoryResult,
+            ) -> PersistenceSummary:
+                self.checkpoint_results.append(history_result)
+                return PersistenceSummary(local_file_path="checkpoint.json", local_record_count=1)
+
+            def save_history_result(
+                self,
+                history_result: MachineHistoryResult,
+                full_day: bool = False,
+            ) -> PersistenceSummary:
+                self.saved_results.append((history_result, full_day))
+                return PersistenceSummary(web_data_saved=True, web_data_record_count=1)
+
+        persistence_service = FakePersistenceService()
+        app.persistence_service = persistence_service
+
+        result = app._fetch_single_store(
+            registered_store=RegisteredStore(
+                name="MJアリーナ箱崎店",
+                url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            ),
+            target_date_input="2026-04-07 ～ 2026-04-07",
+            store_index=1,
+            total_stores=1,
+            retry_delay_seconds=0,
+        )
+
+        self.assertEqual(len(persistence_service.checkpoint_results), len(result.history_result.datasets))
+        self.assertEqual(len(persistence_service.saved_results), 1)
+        self.assertTrue(persistence_service.saved_results[0][1])
+        self.assertEqual(
+            len(persistence_service.saved_results[0][0].datasets),
+            len(result.history_result.datasets),
+        )
+
     def test_fetch_machine_history_progress_from_saved_html(self) -> None:
         scraper = FixtureScraper()
         progress_updates: list[FetchProgress] = []
@@ -1764,6 +1823,25 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertIsNone(summary.local_file_path)
             self.assertTrue(summary.web_data_saved)
             self.assertIn("index.json", storage.objects)
+
+    def test_save_history_result_local_checkpoint_writes_local_snapshot(self) -> None:
+        scraper = FixtureScraper()
+        history_result = scraper.fetch_machine_history_datasets(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-07 ～ 2026-04-08",
+            machine_names=["ネオアイムジャグラーEX"],
+        )
+
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+
+            summary = service.save_history_result_local_checkpoint(history_result)
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(summary.local_record_count, 80)
+            self.assertIsNotNone(summary.local_file_path)
+            self.assertTrue(Path(str(summary.local_file_path)).exists())
+            self.assertFalse(summary.web_data_saved)
 
     def test_save_history_result_marks_full_day_index(self) -> None:
         scraper = FixtureScraper()

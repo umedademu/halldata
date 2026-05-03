@@ -421,6 +421,24 @@ class HistoryPersistenceService:
 
         return summary
 
+    def save_history_result_local_checkpoint(
+        self,
+        history_result: MachineHistoryResult,
+        full_day: bool = False,
+    ) -> PersistenceSummary:
+        snapshot = self._build_local_snapshot(history_result)
+        summary = PersistenceSummary(local_record_count=len(snapshot["records"]))
+
+        try:
+            local_path = self._save_local_snapshot(snapshot)
+            if full_day:
+                self._mark_full_day_saved(snapshot, local_path)
+            summary.local_file_path = str(local_path)
+        except Exception as exc:  # noqa: BLE001
+            summary.messages.append(f"ローカル退避に失敗しました。\n{exc}")
+
+        return summary
+
     def mark_full_day_saved(self, history_result: MachineHistoryResult) -> PersistenceSummary:
         snapshot = self._build_local_snapshot(history_result)
         summary = PersistenceSummary()
@@ -916,7 +934,7 @@ class HistoryPersistenceService:
         period = snapshot["period"]
         file_name = (
             f"{period['start_date']}_{period['end_date']}_"
-            f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            f"{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.json"
         )
         file_path = store_dir / file_name
         file_path.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
