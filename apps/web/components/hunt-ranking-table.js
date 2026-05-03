@@ -19,10 +19,10 @@ import {
   buildHuntBacktestBookmarkRowKey,
   buildRankFilter,
   buildScoreFilter,
+  buildConditionRequirementOptions,
   calculateHuntScoreDeviationMap,
   formatHuntBacktestBookmarkSummary,
-  matchesOptionalFilters,
-  normalizeMatchMode,
+  matchesRequiredConditionFilters,
   readDeviationForRankScope,
   readSavedHuntBacktestBookmark,
 } from "../lib/hunt-bookmark";
@@ -46,7 +46,6 @@ const DEFAULT_HIGHLIGHT_RANK_MIN = 1;
 const DEFAULT_HIGHLIGHT_RANK_MAX = 3;
 const DEFAULT_HIGHLIGHT_SCORE_MIN = 70;
 const DEFAULT_DEVIATION_MIN = 60;
-const DEFAULT_HIGHLIGHT_MATCH_MODE = "or";
 
 const RESULT_COLUMN_DEFINITIONS = [
   {
@@ -244,14 +243,15 @@ function isRankingConditionHighlighted(row, highlightCondition) {
     row,
     normalizeDeviationScope(highlightCondition.deviationScope),
   );
-  return matchesOptionalFilters(
+  return matchesRequiredConditionFilters(
     row.rank,
     row.huntScore,
     highlightCondition.rankFilter,
     highlightCondition.scoreFilter,
-    highlightCondition.matchMode,
+    highlightCondition.requirementOptions,
     deviationValue,
     highlightCondition.deviationFilter,
+    false,
   );
 }
 
@@ -397,16 +397,22 @@ export function HuntRankingTable({
       deviationFilter: buildDeviationFilter(
         highlightOptions.deviationMin ?? String(DEFAULT_DEVIATION_MIN),
       ),
-      matchMode: normalizeMatchMode(highlightOptions.matchMode ?? DEFAULT_HIGHLIGHT_MATCH_MODE),
+      requirementOptions: buildConditionRequirementOptions(highlightOptions, {
+        rankRequired: true,
+        scoreRequired: true,
+        deviationRequired: false,
+      }),
       deviationScope,
     }),
     [
       deviationScope,
       highlightOptions.deviationMin,
-      highlightOptions.matchMode,
+      highlightOptions.deviationRequired,
       highlightOptions.rankMax,
       highlightOptions.rankMin,
+      highlightOptions.rankRequired,
       highlightOptions.scoreMin,
+      highlightOptions.scoreRequired,
     ],
   );
   const resultColumnLead = actualDate

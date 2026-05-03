@@ -22,8 +22,10 @@ const DEFAULT_HIGHLIGHT_RANK_MIN = "1";
 const DEFAULT_HIGHLIGHT_RANK_MAX = "3";
 const DEFAULT_HIGHLIGHT_SCORE_MIN = "70";
 const DEFAULT_HIGHLIGHT_DEVIATION_MIN = "60";
-const DEFAULT_HIGHLIGHT_MATCH_MODE = "or";
 const DEFAULT_HIGHLIGHT_DEVIATION_SCOPE = "selected";
+const DEFAULT_HIGHLIGHT_RANK_REQUIRED = true;
+const DEFAULT_HIGHLIGHT_SCORE_REQUIRED = true;
+const DEFAULT_HIGHLIGHT_DEVIATION_REQUIRED = false;
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
 const HANABI_GROUP_NAME = "ハナビ";
@@ -51,8 +53,8 @@ function readSearchParamWithDefault(searchParams, key, defaultValue) {
   return hasSearchParam(searchParams, key) ? readSingleSearchParam(searchParams?.[key]) : defaultValue;
 }
 
-function normalizeHighlightMatchMode(value) {
-  return value === "and" ? "and" : DEFAULT_HIGHLIGHT_MATCH_MODE;
+function readMultiSearchParamWithDefault(searchParams, key, defaultValue) {
+  return hasSearchParam(searchParams, key) ? readMultiSearchParam(searchParams?.[key]) : [defaultValue];
 }
 
 function normalizeHighlightDeviationScope(value) {
@@ -252,10 +254,39 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
       "deviationMin",
       DEFAULT_HIGHLIGHT_DEVIATION_MIN,
     ),
-    matchMode: normalizeHighlightMatchMode(readSingleSearchParam(resolvedSearchParams?.matchMode)),
+    rankRequired: readMultiSearchParamWithDefault(
+      resolvedSearchParams,
+      "rankRequired",
+      DEFAULT_HIGHLIGHT_RANK_REQUIRED ? "1" : "0",
+    ),
+    scoreRequired: readMultiSearchParamWithDefault(
+      resolvedSearchParams,
+      "scoreRequired",
+      DEFAULT_HIGHLIGHT_SCORE_REQUIRED ? "1" : "0",
+    ),
+    deviationRequired: readMultiSearchParamWithDefault(
+      resolvedSearchParams,
+      "deviationRequired",
+      DEFAULT_HIGHLIGHT_DEVIATION_REQUIRED ? "1" : "0",
+    ),
     deviationScope: normalizeHighlightDeviationScope(
       readSingleSearchParam(resolvedSearchParams?.deviationScope),
     ),
+  };
+  const rankRequired = rankingHighlightOptions.rankRequired.some((value) =>
+    ["1", "true", "on"].includes(String(value ?? "").trim()),
+  );
+  const scoreRequired = rankingHighlightOptions.scoreRequired.some((value) =>
+    ["1", "true", "on"].includes(String(value ?? "").trim()),
+  );
+  const deviationRequired = rankingHighlightOptions.deviationRequired.some((value) =>
+    ["1", "true", "on"].includes(String(value ?? "").trim()),
+  );
+  const normalizedRankingHighlightOptions = {
+    ...rankingHighlightOptions,
+    rankRequired,
+    scoreRequired,
+    deviationRequired,
   };
 
   let detail;
@@ -488,79 +519,105 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   </div>
                 </div>
               ) : null}
-              <div className="backtestFieldGrid rankingMachineFilter">
-                <label className="storeReserveField backtestField">
-                  <span>順位の開始</span>
-                  <input
-                    type="number"
-                    name="rankMin"
-                    min="1"
-                    defaultValue={rankingHighlightOptions.rankMin}
-                    className="storeReserveInput"
-                  />
-                </label>
-                <label className="storeReserveField backtestField">
-                  <span>順位の終了</span>
-                  <input
-                    type="number"
-                    name="rankMax"
-                    min="1"
-                    defaultValue={rankingHighlightOptions.rankMax}
-                    className="storeReserveInput"
-                  />
-                </label>
-                <label className="storeReserveField backtestField">
-                  <span>狙い度の下限</span>
-                  <input
-                    type="number"
-                    name="scoreMin"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    defaultValue={rankingHighlightOptions.scoreMin}
-                    className="storeReserveInput"
-                  />
-                </label>
-                <label className="storeReserveField backtestField">
-                  <span>偏差値の下限</span>
-                  <input
-                    type="number"
-                    name="deviationMin"
-                    min="0"
-                    step="0.1"
-                    defaultValue={rankingHighlightOptions.deviationMin}
-                    className="storeReserveInput"
-                  />
-                </label>
-              </div>
-              <div className="backtestBlock rankingMachineFilter">
-                <p className="filterControlLabel">順位、狙い度、偏差値を複数入れた時の条件</p>
-                <div className="metricToggleRow">
+              <div className="huntConditionRows rankingMachineFilter">
+                <div className="huntConditionRow">
+                  <p className="huntConditionLabel">順位</p>
+                  <div className="huntConditionInputs">
+                    <label className="storeReserveField backtestField huntConditionNumberField">
+                      <span>開始</span>
+                      <input
+                        type="number"
+                        name="rankMin"
+                        min="1"
+                        defaultValue={rankingHighlightOptions.rankMin}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                    <label className="storeReserveField backtestField huntConditionNumberField">
+                      <span>終了</span>
+                      <input
+                        type="number"
+                        name="rankMax"
+                        min="1"
+                        defaultValue={rankingHighlightOptions.rankMax}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                  </div>
+                  <input type="hidden" name="rankRequired" value="0" />
                   <label
-                    className={`metricToggleChip ${
-                      rankingHighlightOptions.matchMode === "and" ? "metricToggleChipActive" : ""
+                    className={`metricToggleChip huntConditionRequired ${
+                      rankRequired ? "metricToggleChipActive" : ""
                     }`}
                   >
                     <input
-                      type="radio"
-                      name="matchMode"
-                      value="and"
-                      defaultChecked={rankingHighlightOptions.matchMode === "and"}
+                      type="checkbox"
+                      name="rankRequired"
+                      value="1"
+                      defaultChecked={rankRequired}
                     />
-                    <span>すべて一致</span>
+                    <span>必須</span>
                   </label>
+                </div>
+                <div className="huntConditionRow">
+                  <p className="huntConditionLabel">狙い度</p>
+                  <div className="huntConditionInputs">
+                    <label className="storeReserveField backtestField huntConditionNumberField">
+                      <span>下限</span>
+                      <input
+                        type="number"
+                        name="scoreMin"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        defaultValue={rankingHighlightOptions.scoreMin}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                  </div>
+                  <input type="hidden" name="scoreRequired" value="0" />
                   <label
-                    className={`metricToggleChip ${
-                      rankingHighlightOptions.matchMode === "or" ? "metricToggleChipActive" : ""
+                    className={`metricToggleChip huntConditionRequired ${
+                      scoreRequired ? "metricToggleChipActive" : ""
                     }`}
                   >
                     <input
-                      type="radio"
-                      name="matchMode"
-                      value="or"
-                      defaultChecked={rankingHighlightOptions.matchMode === "or"}
+                      type="checkbox"
+                      name="scoreRequired"
+                      value="1"
+                      defaultChecked={scoreRequired}
                     />
-                    <span>どれか一致</span>
+                    <span>必須</span>
+                  </label>
+                </div>
+                <div className="huntConditionRow">
+                  <p className="huntConditionLabel">偏差値</p>
+                  <div className="huntConditionInputs">
+                    <label className="storeReserveField backtestField huntConditionNumberField">
+                      <span>下限</span>
+                      <input
+                        type="number"
+                        name="deviationMin"
+                        min="0"
+                        step="0.1"
+                        defaultValue={rankingHighlightOptions.deviationMin}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                  </div>
+                  <input type="hidden" name="deviationRequired" value="0" />
+                  <label
+                    className={`metricToggleChip huntConditionRequired ${
+                      deviationRequired ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="deviationRequired"
+                      value="1"
+                      defaultChecked={deviationRequired}
+                    />
+                    <span>必須</span>
                   </label>
                 </div>
               </div>
@@ -632,7 +689,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 overallLimit={detail.limit}
                 predictionDate={detail.predictionDate}
                 actualDate={detail.nextBusinessDate}
-                highlightOptions={rankingHighlightOptions}
+                highlightOptions={normalizedRankingHighlightOptions}
               />
             ) : (
               <section className="statusPanel">

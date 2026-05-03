@@ -166,7 +166,9 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     deviationMin: hasDeviationMinParam
       ? readSingleSearchParam(resolvedSearchParams?.deviationMin)
       : DEFAULT_DEVIATION_MIN,
-    matchMode: readSingleSearchParam(resolvedSearchParams?.matchMode),
+    rankRequired: readMultiSearchParam(resolvedSearchParams?.rankRequired),
+    scoreRequired: readMultiSearchParam(resolvedSearchParams?.scoreRequired),
+    deviationRequired: readMultiSearchParam(resolvedSearchParams?.deviationRequired),
     showGraph: readSingleSearchParam(resolvedSearchParams?.showGraph),
     eventTouched: readSingleSearchParam(resolvedSearchParams?.backtestEventTouched) === "1",
     dayTails: readMultiSearchParam(resolvedSearchParams?.backtestDayTail),
@@ -222,7 +224,9 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     rankMax: detail.backtest.rankMax,
     scoreMin: detail.backtest.scoreMin,
     deviationMin: detail.backtest.deviationMin,
-    matchMode: detail.backtest.matchMode,
+    rankRequired: detail.backtest.rankRequired,
+    scoreRequired: detail.backtest.scoreRequired,
+    deviationRequired: detail.backtest.deviationRequired,
     rankScope: detail.backtest.rankScope,
     deviationScope: detail.backtest.deviationScope,
     combineAimJuggler: detail.backtest.combineAimJuggler,
@@ -452,50 +456,107 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                 </div>
               </div>
 
-              <div className="backtestFieldGrid">
-                <label className="storeReserveField backtestField">
-                  <span>順位の開始</span>
-                  <input
-                    type="number"
-                    name="rankMin"
-                    min="1"
-                    defaultValue={detail.backtest.rankMin ?? ""}
-                    className="storeReserveInput"
-                  />
-                </label>
-                <label className="storeReserveField backtestField">
-                  <span>順位の終了</span>
-                  <input
-                    type="number"
-                    name="rankMax"
-                    min="1"
-                    defaultValue={detail.backtest.rankMax ?? ""}
-                    className="storeReserveInput"
-                  />
-                </label>
-                <label className="storeReserveField backtestField">
-                  <span>狙い度の下限</span>
-                  <input
-                    type="number"
-                    name="scoreMin"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    defaultValue={detail.backtest.scoreMin ?? ""}
-                    className="storeReserveInput"
-                  />
-                </label>
-                <label className="storeReserveField backtestField">
-                  <span>偏差値の下限</span>
-                  <input
-                    type="number"
-                    name="deviationMin"
-                    min="0"
-                    step="0.1"
-                    defaultValue={detail.backtest.deviationMin ?? ""}
-                    className="storeReserveInput"
-                  />
-                </label>
+              <div className="huntConditionRows">
+                <div className="huntConditionRow">
+                  <p className="huntConditionLabel">順位</p>
+                  <div className="huntConditionInputs">
+                    <label className="storeReserveField backtestField huntConditionNumberField">
+                      <span>開始</span>
+                      <input
+                        type="number"
+                        name="rankMin"
+                        min="1"
+                        defaultValue={detail.backtest.rankMin ?? ""}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                    <label className="storeReserveField backtestField huntConditionNumberField">
+                      <span>終了</span>
+                      <input
+                        type="number"
+                        name="rankMax"
+                        min="1"
+                        defaultValue={detail.backtest.rankMax ?? ""}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                  </div>
+                  <input type="hidden" name="rankRequired" value="0" />
+                  <label
+                    className={`metricToggleChip huntConditionRequired ${
+                      detail.backtest.rankRequired ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="rankRequired"
+                      value="1"
+                      defaultChecked={detail.backtest.rankRequired}
+                    />
+                    <span>必須</span>
+                  </label>
+                </div>
+                <div className="huntConditionRow">
+                  <p className="huntConditionLabel">狙い度</p>
+                  <div className="huntConditionInputs">
+                    <label className="storeReserveField backtestField huntConditionNumberField">
+                      <span>下限</span>
+                      <input
+                        type="number"
+                        name="scoreMin"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        defaultValue={detail.backtest.scoreMin ?? ""}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                  </div>
+                  <input type="hidden" name="scoreRequired" value="0" />
+                  <label
+                    className={`metricToggleChip huntConditionRequired ${
+                      detail.backtest.scoreRequired ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="scoreRequired"
+                      value="1"
+                      defaultChecked={detail.backtest.scoreRequired}
+                    />
+                    <span>必須</span>
+                  </label>
+                </div>
+                <div className="huntConditionRow">
+                  <p className="huntConditionLabel">偏差値</p>
+                  <div className="huntConditionInputs">
+                    <label className="storeReserveField backtestField huntConditionNumberField">
+                      <span>下限</span>
+                      <input
+                        type="number"
+                        name="deviationMin"
+                        min="0"
+                        step="0.1"
+                        defaultValue={detail.backtest.deviationMin ?? ""}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                  </div>
+                  <input type="hidden" name="deviationRequired" value="0" />
+                  <label
+                    className={`metricToggleChip huntConditionRequired ${
+                      detail.backtest.deviationRequired ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="deviationRequired"
+                      value="1"
+                      defaultChecked={detail.backtest.deviationRequired}
+                    />
+                    <span>必須</span>
+                  </label>
+                </div>
               </div>
 
               <div className="backtestBlock">
@@ -616,38 +677,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       defaultChecked={detail.backtest.deviationScope === "machine"}
                     />
                     <span>機種内</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="backtestBlock">
-                <p className="filterControlLabel">順位、狙い度、偏差値を複数入れた時の条件</p>
-                <div className="metricToggleRow">
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.matchMode === "and" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="matchMode"
-                      value="and"
-                      defaultChecked={detail.backtest.matchMode === "and"}
-                    />
-                    <span>すべて一致</span>
-                  </label>
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.matchMode === "or" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="matchMode"
-                      value="or"
-                      defaultChecked={detail.backtest.matchMode === "or"}
-                    />
-                    <span>どれか一致</span>
                   </label>
                 </div>
               </div>

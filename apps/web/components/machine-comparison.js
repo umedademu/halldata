@@ -19,7 +19,13 @@ import {
   valueToneClass,
 } from "../lib/format";
 import { createEventFilters, matchesEventFilters } from "../lib/event-filters";
-import { calculateHuntScoreDeviationMap } from "../lib/hunt-bookmark";
+import {
+  buildConditionRequirementOptions,
+  buildDeviationFilter,
+  buildScoreFilter,
+  calculateHuntScoreDeviationMap,
+  matchesRequiredConditionFilters,
+} from "../lib/hunt-bookmark";
 import {
   groupHuntMachineOptions,
   hasAimJugglerHuntMachineGroupOption,
@@ -74,7 +80,9 @@ const DEFAULT_HUNT_SCORE_RANK_MIN = 1;
 const DEFAULT_HUNT_SCORE_RANK_MAX = 3;
 const DEFAULT_HUNT_SCORE_RANK_SCOPE = "selected";
 const DEFAULT_HUNT_SCORE_DEVIATION_SCOPE = "selected";
-const DEFAULT_HUNT_SCORE_MATCH_MODE = "or";
+const DEFAULT_HUNT_RANK_REQUIRED = true;
+const DEFAULT_HUNT_SCORE_REQUIRED = true;
+const DEFAULT_HUNT_DEVIATION_REQUIRED = false;
 const HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX = "machine-hunt-score-highlight:";
 const MACHINE_COMPARISON_STORAGE_PREFIX = "machine-comparison-options:";
 const COMPARISON_SCORE_EPSILON = 0.000000001;
@@ -214,10 +222,6 @@ function parsePositiveIntegerOption(value, fallbackValue = null) {
   return Number.isInteger(parsed) && parsed >= 1 ? parsed : fallbackValue;
 }
 
-function normalizeHuntScoreMatchMode(value) {
-  return value === "and" ? "and" : DEFAULT_HUNT_SCORE_MATCH_MODE;
-}
-
 function normalizeHuntScoreRankScope(value) {
   if (value === "all" || value === "machine" || value === "selected") {
     return value;
@@ -247,11 +251,6 @@ function buildHuntScoreRankFilter(rankMinValue, rankMaxValue) {
   };
 }
 
-function isHuntScoreValueMatched(value, threshold) {
-  const score = Number(value);
-  return Number.isFinite(score) && Number.isFinite(threshold) && score >= threshold;
-}
-
 function normalizeEnabledOption(value, fallbackValue) {
   if (value === undefined || value === null) {
     return fallbackValue;
@@ -272,7 +271,9 @@ function createDefaultHuntScoreHighlightOptions(machineNames) {
     rankMax: DEFAULT_HUNT_SCORE_RANK_MAX,
     scoreMin: DEFAULT_HUNT_SCORE_HIGHLIGHT_THRESHOLD,
     deviationMin: DEFAULT_HUNT_SCORE_DEVIATION_MIN,
-    matchMode: DEFAULT_HUNT_SCORE_MATCH_MODE,
+    rankRequired: DEFAULT_HUNT_RANK_REQUIRED,
+    scoreRequired: DEFAULT_HUNT_SCORE_REQUIRED,
+    deviationRequired: DEFAULT_HUNT_DEVIATION_REQUIRED,
     rankScope: DEFAULT_HUNT_SCORE_RANK_SCOPE,
     deviationScope: DEFAULT_HUNT_SCORE_DEVIATION_SCOPE,
     selectedMachineNames: availableMachineNames.filter(isHuntJugglerMachine),
@@ -331,6 +332,11 @@ function normalizeHuntScoreHighlightOptions(value, availableMachineNames) {
   }
   const rankScope = normalizeHuntScoreRankScope(value.rankScope);
   const deviationScope = normalizeHuntScoreRankScope(value.deviationScope ?? rankScope);
+  const requirementOptions = buildConditionRequirementOptions(value, {
+    rankRequired: defaults.rankRequired,
+    scoreRequired: defaults.scoreRequired,
+    deviationRequired: defaults.deviationRequired,
+  });
 
   return {
     rankMin: Object.hasOwn(value, "rankMin")
@@ -345,7 +351,9 @@ function normalizeHuntScoreHighlightOptions(value, availableMachineNames) {
     deviationMin: Object.hasOwn(value, "deviationMin")
       ? normalizeHuntScoreDeviationInputValue(value.deviationMin, defaults.deviationMin)
       : defaults.deviationMin,
-    matchMode: normalizeHuntScoreMatchMode(value.matchMode),
+    rankRequired: requirementOptions.rankRequired,
+    scoreRequired: requirementOptions.scoreRequired,
+    deviationRequired: requirementOptions.deviationRequired,
     rankScope,
     deviationScope,
     selectedMachineNames: normalizeSelectedHuntScoreMachineNames(
@@ -483,56 +491,6 @@ function saveMachineComparisonOptions(storeId, options) {
   }
 }
 
-function parseHuntScoreDeviationThreshold(value) {
-  const text = String(value ?? "").trim();
-  if (text === "") {
-    return null;
-  }
-  const parsed = Number(text);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function matchesHuntScoreHighlightCondition(
-  rankValue,
-  huntScore,
-  deviationValue,
-  rankFilter,
-  scoreMin,
-  deviationMin,
-  matchMode,
-) {
-  const rankMatched =
-    rankFilter.hasRankFilter &&
-    Number.isInteger(rankValue) &&
-    rankValue >= rankFilter.rankMin &&
-    rankValue <= rankFilter.rankMax;
-  const scoreMatched =
-    Number.isFinite(scoreMin) && isHuntScoreValueMatched(huntScore, scoreMin);
-  const deviationMatched =
-    Number.isFinite(deviationMin) &&
-    Number.isFinite(deviationValue) &&
-    deviationValue >= deviationMin;
-  const conditionMatches = [];
-
-  if (rankFilter.hasRankFilter) {
-    conditionMatches.push(rankMatched);
-  }
-  if (Number.isFinite(scoreMin)) {
-    conditionMatches.push(scoreMatched);
-  }
-  if (Number.isFinite(deviationMin)) {
-    conditionMatches.push(deviationMatched);
-  }
-
-  if (conditionMatches.length === 0) {
-    return false;
-  }
-
-  return matchMode === "and"
-    ? conditionMatches.every(Boolean)
-    : conditionMatches.some(Boolean);
-}
-
 function buildHuntScoreDeviationValueMap(highlightDetail, options) {
   const valueMap = new Map();
   const snapshots = Array.isArray(highlightDetail?.snapshots) ? highlightDetail.snapshots : [];
@@ -605,12 +563,16 @@ function buildHuntScoreHighlightKeySet(highlightDetail, options, deviationValueM
     normalizedOptions.rankMin,
     normalizedOptions.rankMax,
   );
-  const scoreMin = parseHuntScoreHighlightThreshold(normalizedOptions.scoreMin);
-  const deviationMin = parseHuntScoreDeviationThreshold(normalizedOptions.deviationMin);
+  const scoreFilter = buildScoreFilter(normalizedOptions.scoreMin);
+  const deviationFilter = buildDeviationFilter(normalizedOptions.deviationMin);
+  const requirementOptions = buildConditionRequirementOptions(normalizedOptions, {
+    rankRequired: DEFAULT_HUNT_RANK_REQUIRED,
+    scoreRequired: DEFAULT_HUNT_SCORE_REQUIRED,
+    deviationRequired: DEFAULT_HUNT_DEVIATION_REQUIRED,
+  });
   const rankScope = normalizeHuntScoreRankScope(normalizedOptions.rankScope);
-  const matchMode = normalizeHuntScoreMatchMode(normalizedOptions.matchMode);
 
-  if (!rankFilter.hasRankFilter && !Number.isFinite(scoreMin) && !Number.isFinite(deviationMin)) {
+  if (!rankFilter.hasRankFilter && !scoreFilter.hasScoreFilter && !deviationFilter.hasDeviationFilter) {
     return matchKeys;
   }
 
@@ -646,14 +608,15 @@ function buildHuntScoreHighlightKeySet(highlightDetail, options, deviationValueM
       const deviationValue = deviationValueMap.get(rowKey);
 
       if (
-        matchesHuntScoreHighlightCondition(
+        matchesRequiredConditionFilters(
           rankValue,
           huntScore,
-          deviationValue,
           rankFilter,
-          scoreMin,
-          deviationMin,
-          matchMode,
+          scoreFilter,
+          requirementOptions,
+          deviationValue,
+          deviationFilter,
+          false,
         )
       ) {
         matchKeys.add(rowKey);
@@ -1166,35 +1129,86 @@ function HuntScoreHighlightControls({ options, availableMachineNames, onChange }
 
   return (
     <div className="huntHighlightControls">
-      <div className="estimateFields">
-        <EstimateNumberField
-          label="順位の開始"
-          value={options.rankMin}
-          min={1}
-          onChange={(value) => updateOption("rankMin", value)}
-        />
-        <EstimateNumberField
-          label="順位の終了"
-          value={options.rankMax}
-          min={1}
-          onChange={(value) => updateOption("rankMax", value)}
-        />
-        <EstimateNumberField
-          label="狙い度の下限"
-          value={options.scoreMin}
-          min={0}
-          max={100}
-          step={0.1}
-          suffix="以上"
-          onChange={(value) => updateOption("scoreMin", value)}
-        />
-        <EstimateNumberField
-          label="偏差値の下限"
-          value={options.deviationMin}
-          min={0}
-          step={0.1}
-          onChange={(value) => updateOption("deviationMin", value)}
-        />
+      <div className="huntConditionRows">
+        <div className="huntConditionRow">
+          <p className="huntConditionLabel">順位</p>
+          <div className="huntConditionInputs">
+            <EstimateNumberField
+              label="開始"
+              value={options.rankMin}
+              min={1}
+              onChange={(value) => updateOption("rankMin", value)}
+            />
+            <EstimateNumberField
+              label="終了"
+              value={options.rankMax}
+              min={1}
+              onChange={(value) => updateOption("rankMax", value)}
+            />
+          </div>
+          <label
+            className={`metricToggleChip huntConditionRequired ${
+              options.rankRequired ? "metricToggleChipActive" : ""
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={options.rankRequired}
+              onChange={(event) => updateOption("rankRequired", event.target.checked)}
+            />
+            <span>必須</span>
+          </label>
+        </div>
+        <div className="huntConditionRow">
+          <p className="huntConditionLabel">狙い度</p>
+          <div className="huntConditionInputs">
+            <EstimateNumberField
+              label="下限"
+              value={options.scoreMin}
+              min={0}
+              max={100}
+              step={0.1}
+              suffix="以上"
+              onChange={(value) => updateOption("scoreMin", value)}
+            />
+          </div>
+          <label
+            className={`metricToggleChip huntConditionRequired ${
+              options.scoreRequired ? "metricToggleChipActive" : ""
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={options.scoreRequired}
+              onChange={(event) => updateOption("scoreRequired", event.target.checked)}
+            />
+            <span>必須</span>
+          </label>
+        </div>
+        <div className="huntConditionRow">
+          <p className="huntConditionLabel">偏差値</p>
+          <div className="huntConditionInputs">
+            <EstimateNumberField
+              label="下限"
+              value={options.deviationMin}
+              min={0}
+              step={0.1}
+              onChange={(value) => updateOption("deviationMin", value)}
+            />
+          </div>
+          <label
+            className={`metricToggleChip huntConditionRequired ${
+              options.deviationRequired ? "metricToggleChipActive" : ""
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={options.deviationRequired}
+              onChange={(event) => updateOption("deviationRequired", event.target.checked)}
+            />
+            <span>必須</span>
+          </label>
+        </div>
       </div>
 
       <div className="backtestBlock">
@@ -1289,40 +1303,6 @@ function HuntScoreHighlightControls({ options, availableMachineNames, onChange }
               onChange={() => updateOption("deviationScope", "all")}
             />
             <span>全機種内</span>
-          </label>
-        </div>
-      </div>
-
-      <div className="backtestBlock">
-        <p className="filterControlLabel">順位、狙い度、偏差値を複数入れた時の条件</p>
-        <div className="metricToggleRow">
-          <label
-            className={`metricToggleChip ${
-              options.matchMode === "or" ? "metricToggleChipActive" : ""
-            }`}
-          >
-            <input
-              type="radio"
-              name="machineHuntScoreMatchMode"
-              value="or"
-              checked={options.matchMode === "or"}
-              onChange={() => updateOption("matchMode", "or")}
-            />
-            <span>どれか一致</span>
-          </label>
-          <label
-            className={`metricToggleChip ${
-              options.matchMode === "and" ? "metricToggleChipActive" : ""
-            }`}
-          >
-            <input
-              type="radio"
-              name="machineHuntScoreMatchMode"
-              value="and"
-              checked={options.matchMode === "and"}
-              onChange={() => updateOption("matchMode", "and")}
-            />
-            <span>すべて一致</span>
           </label>
         </div>
       </div>

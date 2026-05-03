@@ -2,6 +2,7 @@ import { cache } from "react";
 
 import { createEventFilters } from "./event-filters";
 import { buildHuntScoreBacktestDetail } from "./hunt-backtest";
+import { buildConditionRequirementOptions } from "./hunt-bookmark";
 import {
   buildHuntScoreSnapshots,
   canonicalHuntScoreTargetMachineName,
@@ -31,6 +32,9 @@ const HUNT_BACKTEST_DEFAULT_EVENT_FILTERS = {
 const DEFAULT_HUNT_RANKING_LIMIT = 20;
 const DEFAULT_HUNT_BACKTEST_RECENT_DAYS = 90;
 const DEFAULT_HUNT_SCORE_DEVIATION_MIN = 60;
+const DEFAULT_HUNT_RANK_REQUIRED = true;
+const DEFAULT_HUNT_SCORE_REQUIRED = true;
+const DEFAULT_HUNT_DEVIATION_REQUIRED = false;
 const SLOT_KEY_SEPARATOR = "\u0000";
 const COMBINED_MACHINE_GROUPS = [
   {
@@ -1269,6 +1273,11 @@ function buildInitialBacktestDetail(storeName, options = {}) {
     defaultedOptions?.deviationScope === "machine" || defaultedOptions?.deviationScope === "selected"
       ? defaultedOptions.deviationScope
       : rankScope;
+  const requirementOptions = buildConditionRequirementOptions(defaultedOptions, {
+    rankRequired: DEFAULT_HUNT_RANK_REQUIRED,
+    scoreRequired: DEFAULT_HUNT_SCORE_REQUIRED,
+    deviationRequired: DEFAULT_HUNT_DEVIATION_REQUIRED,
+  });
   const combineAimJuggler = normalizeEnabledOption(defaultedOptions?.combineAimJuggler, true);
   const combineHanabi = normalizeEnabledOption(defaultedOptions?.combineHanabi, true);
 
@@ -1292,7 +1301,9 @@ function buildInitialBacktestDetail(storeName, options = {}) {
     hasScoreFilter: scoreMin !== null,
     deviationMin,
     hasDeviationFilter: deviationMin !== null,
-    matchMode: defaultedOptions?.matchMode === "or" ? "or" : "and",
+    rankRequired: requirementOptions.rankRequired,
+    scoreRequired: requirementOptions.scoreRequired,
+    deviationRequired: requirementOptions.deviationRequired,
     rankScope,
     deviationScope,
     showGraph: defaultedOptions?.showGraph === "off" ? "off" : "on",

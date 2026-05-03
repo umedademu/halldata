@@ -4,9 +4,9 @@ import {
   buildRankFilter,
   buildScoreFilter,
   calculateHuntScoreDeviationMap,
-  matchesOptionalFilters,
+  buildConditionRequirementOptions,
+  matchesRequiredConditionFilters,
   normalizeDateText,
-  normalizeMatchMode,
   normalizeRankScope,
   readDeviationForRankScope,
   readFiniteNumber,
@@ -476,7 +476,7 @@ function buildBacktestAggregationDetail(
     rankFilter,
     scoreFilter,
     deviationFilter,
-    matchMode,
+    requirementOptions,
     rankScope,
     deviationScope,
     differenceMode,
@@ -522,12 +522,12 @@ function buildBacktestAggregationDetail(
       const deviationValue = readDeviationForRankScope(deviationRow, deviationScope);
 
       if (
-        !matchesOptionalFilters(
+        !matchesRequiredConditionFilters(
           rankValue,
           row.huntScore,
           rankFilter,
           scoreFilter,
-          matchMode,
+          requirementOptions,
           deviationValue,
           deviationFilter,
         )
@@ -677,7 +677,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const rankFilter = buildRankFilter(options.rankMin, options.rankMax);
   const scoreFilter = buildScoreFilter(options.scoreMin);
   const deviationFilter = buildDeviationFilter(options.deviationMin ?? DEFAULT_DEVIATION_MIN);
-  const matchMode = normalizeMatchMode(options.matchMode);
+  const requirementOptions = buildConditionRequirementOptions(options);
   const rankScope = normalizeRankScope(options.rankScope);
   const deviationScope = normalizeRankScope(options.deviationScope ?? rankScope);
   const showGraph = normalizeShowGraph(options.showGraph);
@@ -693,7 +693,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     rankFilter,
     scoreFilter,
     deviationFilter,
-    matchMode,
+    requirementOptions,
     rankScope,
     deviationScope,
     differenceMode,
@@ -731,7 +731,9 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     hasScoreFilter: scoreFilter.hasScoreFilter,
     deviationMin: deviationFilter.deviationMin,
     hasDeviationFilter: deviationFilter.hasDeviationFilter,
-    matchMode,
+    rankRequired: requirementOptions.rankRequired,
+    scoreRequired: requirementOptions.scoreRequired,
+    deviationRequired: requirementOptions.deviationRequired,
     rankScope,
     deviationScope,
     showGraph,

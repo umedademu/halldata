@@ -146,6 +146,45 @@ export function normalizeMatchMode(value) {
   return value === "or" ? "or" : "and";
 }
 
+export function normalizeRequiredOption(value, fallbackValue = false) {
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return fallbackValue;
+    }
+    return value.some((entry) => normalizeRequiredOption(entry, false));
+  }
+  if (value === undefined || value === null) {
+    return fallbackValue;
+  }
+  return value === true || value === 1 || value === "1" || value === "true" || value === "on";
+}
+
+export function buildConditionRequirementOptions(source = {}, fallback = {}) {
+  const safeSource = source && typeof source === "object" ? source : {};
+  if (
+    !Object.hasOwn(safeSource, "rankRequired") &&
+    !Object.hasOwn(safeSource, "scoreRequired") &&
+    !Object.hasOwn(safeSource, "deviationRequired") &&
+    Object.hasOwn(safeSource, "matchMode")
+  ) {
+    const allRequired = normalizeMatchMode(safeSource.matchMode) === "and";
+    return {
+      rankRequired: allRequired,
+      scoreRequired: allRequired,
+      deviationRequired: allRequired,
+    };
+  }
+
+  return {
+    rankRequired: normalizeRequiredOption(safeSource.rankRequired, Boolean(fallback.rankRequired)),
+    scoreRequired: normalizeRequiredOption(safeSource.scoreRequired, Boolean(fallback.scoreRequired)),
+    deviationRequired: normalizeRequiredOption(
+      safeSource.deviationRequired,
+      Boolean(fallback.deviationRequired),
+    ),
+  };
+}
+
 export function normalizeRankScope(value) {
   if (value === "machine" || value === "selected") {
     return value;
@@ -214,48 +253,63 @@ export function readDeviationForRankScope(row, rankScope) {
   return readNumber(row?.overallDeviation);
 }
 
-export function matchesOptionalFilters(
+export function matchesRequiredConditionFilters(
   rankValue,
   huntScore,
   rankFilter,
   scoreFilter,
-  matchMode,
+  requirementOptions = {},
   deviationValue = null,
   deviationFilter = { hasDeviationFilter: false, deviationMin: null },
+  noFilterResult = true,
 ) {
+  const normalizedRequirements = buildConditionRequirementOptions(requirementOptions);
   const normalizedRankValue = readPositiveInteger(rankValue);
-  const rankMatched = rankFilter.hasRankFilter
-    ? normalizedRankValue !== null &&
-      normalizedRankValue >= rankFilter.rankMin &&
-      normalizedRankValue <= rankFilter.rankMax
-    : false;
-  const scoreMatched = scoreFilter.hasScoreFilter
-    ? readFiniteNumber(huntScore, Number.NEGATIVE_INFINITY) >= scoreFilter.scoreMin
-    : false;
-  const normalizedDeviationValue = readNumber(deviationValue);
-  const deviationMatched = deviationFilter.hasDeviationFilter
-    ? normalizedDeviationValue !== null &&
-      normalizedDeviationValue >= deviationFilter.deviationMin
-    : false;
-  const conditionMatches = [];
+  const conditionEntries = [];
 
   if (rankFilter.hasRankFilter) {
-    conditionMatches.push(rankMatched);
+    conditionEntries.push({
+      matched:
+        normalizedRankValue !== null &&
+        normalizedRankValue >= rankFilter.rankMin &&
+        normalizedRankValue <= rankFilter.rankMax,
+      required: normalizedRequirements.rankRequired,
+    });
   }
   if (scoreFilter.hasScoreFilter) {
-    conditionMatches.push(scoreMatched);
+    conditionEntries.push({
+      matched: readFiniteNumber(huntScore, Number.NEGATIVE_INFINITY) >= scoreFilter.scoreMin,
+      required: normalizedRequirements.scoreRequired,
+    });
   }
   if (deviationFilter.hasDeviationFilter) {
-    conditionMatches.push(deviationMatched);
+    const normalizedDeviationValue = readNumber(deviationValue);
+    conditionEntries.push({
+      matched:
+        normalizedDeviationValue !== null &&
+        normalizedDeviationValue >= deviationFilter.deviationMin,
+      required: normalizedRequirements.deviationRequired,
+    });
   }
 
-  if (conditionMatches.length === 0) {
-    return true;
+  if (conditionEntries.length === 0) {
+    return noFilterResult;
   }
 
-  return matchMode === "or"
-    ? conditionMatches.some(Boolean)
-    : conditionMatches.every(Boolean);
+  const requiredEntries = conditionEntries.filter((entry) => entry.required);
+  const optionalEntries = conditionEntries.filter((entry) => !entry.required);
+  const requiredMatched =
+    requiredEntries.length > 0 && requiredEntries.every((entry) => entry.matched);
+  const optionalMatched =
+    optionalEntries.length > 0 && optionalEntries.some((entry) => entry.matched);
+
+  if (requiredEntries.length > 0 && optionalEntries.length > 0) {
+    return requiredMatched || optionalMatched;
+  }
+  if (requiredEntries.length > 0) {
+    return requiredMatched;
+  }
+  return optionalMatched;
 }
 
 function normalizeMachineNames(machineNames) {
@@ -290,6 +344,7 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
   const scoreFilter = buildScoreFilter(bookmark.scoreMin);
   const deviationFilter = buildDeviationFilter(bookmark.deviationMin);
   const rankScope = normalizeRankScope(bookmark.rankScope);
+  const requirementOptions = buildConditionRequirementOptions(bookmark);
   const allMachineCount = readPositiveInteger(bookmark.allMachineCount) ?? machineNames.length;
   const combineAimJuggler = Boolean(bookmark.combineAimJuggler) || machineNames.some(isAimJugglerGroup);
   const combineHanabi = Boolean(bookmark.combineHanabi) || machineNames.some(isHanabiGroup);
@@ -308,7 +363,9 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     hasScoreFilter: scoreFilter.hasScoreFilter,
     deviationMin: deviationFilter.deviationMin,
     hasDeviationFilter: deviationFilter.hasDeviationFilter,
-    matchMode: normalizeMatchMode(bookmark.matchMode),
+    rankRequired: requirementOptions.rankRequired,
+    scoreRequired: requirementOptions.scoreRequired,
+    deviationRequired: requirementOptions.deviationRequired,
     rankScope,
     deviationScope: normalizeRankScope(bookmark.deviationScope ?? rankScope),
     combineAimJuggler,
@@ -343,7 +400,9 @@ export function areHuntBacktestBookmarksEqual(left, right) {
     normalizedLeft.rankMax === normalizedRight.rankMax &&
     normalizedLeft.scoreMin === normalizedRight.scoreMin &&
     normalizedLeft.deviationMin === normalizedRight.deviationMin &&
-    normalizedLeft.matchMode === normalizedRight.matchMode &&
+    normalizedLeft.rankRequired === normalizedRight.rankRequired &&
+    normalizedLeft.scoreRequired === normalizedRight.scoreRequired &&
+    normalizedLeft.deviationRequired === normalizedRight.deviationRequired &&
     normalizedLeft.rankScope === normalizedRight.rankScope &&
     normalizedLeft.deviationScope === normalizedRight.deviationScope &&
     normalizedLeft.combineAimJuggler === normalizedRight.combineAimJuggler &&
@@ -390,15 +449,27 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   parts.push(formatDeviationScopeLabel(normalizedBookmark.deviationScope));
 
   if (normalizedBookmark.hasRankFilter) {
-    parts.push(`順位${normalizedBookmark.rankMin}〜${normalizedBookmark.rankMax}`);
+    parts.push(
+      `順位${normalizedBookmark.rankMin}〜${normalizedBookmark.rankMax}${
+        normalizedBookmark.rankRequired ? "必須" : ""
+      }`,
+    );
   }
 
   if (normalizedBookmark.hasScoreFilter) {
-    parts.push(`狙い度${trimDecimalText(normalizedBookmark.scoreMin)}以上`);
+    parts.push(
+      `狙い度${trimDecimalText(normalizedBookmark.scoreMin)}以上${
+        normalizedBookmark.scoreRequired ? "必須" : ""
+      }`,
+    );
   }
 
   if (normalizedBookmark.hasDeviationFilter) {
-    parts.push(`偏差値${trimDecimalText(normalizedBookmark.deviationMin)}以上`);
+    parts.push(
+      `偏差値${trimDecimalText(normalizedBookmark.deviationMin)}以上${
+        normalizedBookmark.deviationRequired ? "必須" : ""
+      }`,
+    );
   }
 
   const activeFilterCount = [
@@ -406,10 +477,6 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
     normalizedBookmark.hasScoreFilter,
     normalizedBookmark.hasDeviationFilter,
   ].filter(Boolean).length;
-
-  if (activeFilterCount >= 2) {
-    parts.push(normalizedBookmark.matchMode === "or" ? "どれか一致" : "すべて一致");
-  }
 
   if (normalizedBookmark.combineAimJuggler) {
     parts.push("アイム統合");
@@ -597,12 +664,16 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
           ? selectedDeviationMap.get(row) ?? null
           : overallDeviationMap.get(row) ?? null;
     const deviationValue = existingDeviationValue ?? calculatedDeviationValue;
-    const matched = matchesOptionalFilters(
+    const matched = matchesRequiredConditionFilters(
       rankValue,
       row?.huntScore,
       rankFilter,
       scoreFilter,
-      normalizedBookmark.matchMode,
+      {
+        rankRequired: normalizedBookmark.rankRequired,
+        scoreRequired: normalizedBookmark.scoreRequired,
+        deviationRequired: normalizedBookmark.deviationRequired,
+      },
       deviationValue,
       deviationFilter,
     );

@@ -255,6 +255,44 @@ a {
   min-width: 0;
 }
 
+.huntConditionRows {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+}
+
+.huntConditionRow {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 7rem) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.huntConditionLabel {
+  margin: 0 0 0.55rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.huntConditionInputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.storeReserveField.huntConditionNumberField,
+.huntConditionInputs .estimateField {
+  flex: 1 1 8rem;
+  min-width: 7rem;
+}
+
+.huntConditionRequired {
+  align-self: end;
+  white-space: nowrap;
+}
+
 .storeReserveInput {
   width: 100%;
   min-height: 2.8rem;
@@ -1600,6 +1638,19 @@ a {
 
   .backtestFieldGrid {
     grid-template-columns: 1fr;
+  }
+
+  .huntConditionRow {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .huntConditionLabel {
+    margin-bottom: 0;
+  }
+
+  .huntConditionRequired {
+    justify-self: flex-start;
   }
 
   .estimateMethodHeader {
