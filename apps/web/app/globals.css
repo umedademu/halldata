@@ -615,19 +615,17 @@ a {
 }
 
 .storeRegionList {
-  column-count: 4;
-  column-gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
+  gap: 10px;
 }
 
 .storeRegionGroup {
-  display: inline-block;
-  width: 100%;
-  margin: 0 0 10px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: #ffffff;
-  break-inside: avoid;
 }
 
 .storeRegionSummary {
@@ -1639,7 +1637,7 @@ a {
 
 @media (max-width: 1180px) {
   .storeRegionList {
-    column-count: 3;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -1674,7 +1672,7 @@ a {
   }
 
   .storeRegionList {
-    column-count: 2;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
 }
@@ -1698,7 +1696,7 @@ a {
   }
 
   .storeRegionList {
-    column-count: 1;
+    grid-template-columns: 1fr;
   }
 
   .matrixPanel {
