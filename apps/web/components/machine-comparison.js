@@ -73,7 +73,7 @@ const MATRIX_SLOT_WIDTH_REM = 16;
 const DEFAULT_GAME_MIN_GAMES = 6000;
 const DEFAULT_GAME_MAX_GAMES = 9000;
 const DEFAULT_GAME_EXPONENT = 1.5;
-const DEFAULT_COMPARISON_RECENT_DAYS = 14;
+const DEFAULT_COMPARISON_RECENT_DAYS = 90;
 const DEFAULT_HUNT_SCORE_HIGHLIGHT_THRESHOLD = 70;
 const DEFAULT_HUNT_SCORE_DEVIATION_MIN = 60;
 const DEFAULT_HUNT_SCORE_RANK_MIN = 1;
@@ -85,6 +85,7 @@ const DEFAULT_HUNT_SCORE_REQUIRED = true;
 const DEFAULT_HUNT_DEVIATION_REQUIRED = false;
 const HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX = "machine-hunt-score-highlight:";
 const MACHINE_COMPARISON_STORAGE_PREFIX = "machine-comparison-options:";
+const MACHINE_COMPARISON_PERIOD_STORAGE_KEY = "machine-comparison-period-options";
 const COMPARISON_SCORE_EPSILON = 0.000000001;
 const settingEstimateCache = new WeakMap();
 
@@ -142,11 +143,14 @@ function normalizeRecentDaysInput(value) {
 }
 
 function normalizeRecentDaysInputText(value, fallbackValue = DEFAULT_COMPARISON_RECENT_DAYS) {
+  if (value === undefined || value === null) {
+    return String(normalizeRecentDaysInput(fallbackValue));
+  }
   const text = String(value ?? "").trim();
   if (text === "") {
     return "";
   }
-  return String(normalizeRecentDaysInput(text || fallbackValue));
+  return String(normalizeRecentDaysInput(text));
 }
 
 function normalizePeriodMode(value) {
@@ -159,6 +163,11 @@ function normalizeDifferenceMode(value) {
 
 function normalizeDateInputValue(value, minDate, maxDate, fallbackDate) {
   return clampDateText(String(value ?? "").trim(), minDate, maxDate, fallbackDate);
+}
+
+function normalizeSavedDateInputValue(value, fallbackDate) {
+  const text = String(value ?? "").trim();
+  return isIsoDateText(text) ? text : fallbackDate;
 }
 
 function normalizeMetricKeys(value, allowedMetricKeys = null, fallbackKeys = DEFAULT_VISIBLE_METRIC_KEYS) {
@@ -399,63 +408,92 @@ function saveHuntScoreHighlightOptions(storeId, options) {
   }
 }
 
+function readLocalStorageJson(storageKey) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const storedValue = window.localStorage.getItem(storageKey);
+    if (!storedValue) {
+      return null;
+    }
+
+    const parsedValue = JSON.parse(storedValue);
+    return parsedValue && typeof parsedValue === "object" ? parsedValue : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeMachineComparisonPeriodOptions(value, defaults) {
+  const source = value && typeof value === "object" ? value : {};
+  return {
+    periodMode: normalizePeriodMode(source.periodMode ?? defaults.periodMode),
+    recentDaysInput: normalizeRecentDaysInputText(
+      source.recentDaysInput ?? source.recentDays ?? defaults.recentDaysInput,
+    ),
+    rangeStartInput: normalizeSavedDateInputValue(
+      source.rangeStartInput ?? source.startDate ?? defaults.rangeStartInput,
+      defaults.rangeStartInput,
+    ),
+    rangeEndInput: normalizeSavedDateInputValue(
+      source.rangeEndInput ?? source.endDate ?? defaults.rangeEndInput,
+      defaults.rangeEndInput,
+    ),
+  };
+}
+
+function readMachineComparisonPeriodOptions(defaults) {
+  const parsedValue = readLocalStorageJson(MACHINE_COMPARISON_PERIOD_STORAGE_KEY);
+  return parsedValue ? normalizeMachineComparisonPeriodOptions(parsedValue, defaults) : null;
+}
+
+function saveMachineComparisonPeriodOptions(options) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      MACHINE_COMPARISON_PERIOD_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        periodMode: normalizePeriodMode(options.periodMode),
+        recentDaysInput: String(options.recentDaysInput ?? ""),
+        rangeStartInput: String(options.rangeStartInput ?? ""),
+        rangeEndInput: String(options.rangeEndInput ?? ""),
+      }),
+    );
+  } catch {
+    // 保存できない環境では、画面上の変更だけを有効にします。
+  }
+}
+
 function readMachineComparisonOptions(storeId, defaults, options = {}) {
   if (typeof window === "undefined") {
     return defaults;
   }
 
-  try {
-    const storageKey = `${MACHINE_COMPARISON_STORAGE_PREFIX}${storeId}`;
-    const storedValue = window.localStorage.getItem(storageKey);
-    if (!storedValue) {
-      return defaults;
-    }
+  const storageKey = `${MACHINE_COMPARISON_STORAGE_PREFIX}${storeId}`;
+  const parsedValue = readLocalStorageJson(storageKey);
+  const source = parsedValue ?? {};
+  const periodOptions =
+    readMachineComparisonPeriodOptions(defaults) ??
+    normalizeMachineComparisonPeriodOptions(source, defaults);
 
-    const parsedValue = JSON.parse(storedValue);
-    if (!parsedValue || typeof parsedValue !== "object") {
-      return defaults;
-    }
-
-    return {
-      periodMode: normalizePeriodMode(parsedValue.periodMode),
-      recentDaysInput: normalizeRecentDaysInputText(
-        parsedValue.recentDaysInput ?? parsedValue.recentDays,
-        defaults.recentDaysInput,
-      ),
-      rangeStartInput: normalizeDateInputValue(
-        parsedValue.rangeStartInput,
-        options.oldestAvailableDate,
-        options.latestAvailableDate,
-        defaults.rangeStartInput,
-      ),
-      rangeEndInput: normalizeDateInputValue(
-        parsedValue.rangeEndInput,
-        options.oldestAvailableDate,
-        options.latestAvailableDate,
-        defaults.rangeEndInput,
-      ),
-      eventFilters: options.preferInitialEventFilters
-        ? defaults.eventFilters
-        : normalizeStoredEventFilters(parsedValue.eventFilters, defaults.eventFilters),
-      differenceMode: normalizeDifferenceMode(parsedValue.differenceMode),
-      visibleMetricKeys: normalizeMetricKeys(parsedValue.visibleMetricKeys, null, defaults.visibleMetricKeys),
-      estimateOptions: normalizeEstimateOptions(parsedValue.estimateOptions, defaults.estimateOptions),
-      displayControlsOpen: normalizeEnabledOption(
-        parsedValue.displayControlsOpen,
-        defaults.displayControlsOpen,
-      ),
-      settingControlsOpen: normalizeEnabledOption(
-        parsedValue.settingControlsOpen,
-        defaults.settingControlsOpen,
-      ),
-      huntScoreControlsOpen: normalizeEnabledOption(
-        parsedValue.huntScoreControlsOpen,
-        defaults.huntScoreControlsOpen,
-      ),
-    };
-  } catch {
-    return defaults;
-  }
+  return {
+    ...periodOptions,
+    eventFilters: options.preferInitialEventFilters
+      ? defaults.eventFilters
+      : normalizeStoredEventFilters(source.eventFilters, defaults.eventFilters),
+    differenceMode: normalizeDifferenceMode(source.differenceMode),
+    visibleMetricKeys: normalizeMetricKeys(source.visibleMetricKeys, null, defaults.visibleMetricKeys),
+    estimateOptions: normalizeEstimateOptions(source.estimateOptions, defaults.estimateOptions),
+    displayControlsOpen: normalizeEnabledOption(source.displayControlsOpen, defaults.displayControlsOpen),
+    settingControlsOpen: normalizeEnabledOption(source.settingControlsOpen, defaults.settingControlsOpen),
+    huntScoreControlsOpen: normalizeEnabledOption(source.huntScoreControlsOpen, defaults.huntScoreControlsOpen),
+  };
 }
 
 function saveMachineComparisonOptions(storeId, options) {
@@ -464,15 +502,12 @@ function saveMachineComparisonOptions(storeId, options) {
   }
 
   try {
+    saveMachineComparisonPeriodOptions(options);
     const storageKey = `${MACHINE_COMPARISON_STORAGE_PREFIX}${storeId}`;
     window.localStorage.setItem(
       storageKey,
       JSON.stringify({
         version: 1,
-        periodMode: normalizePeriodMode(options.periodMode),
-        recentDaysInput: String(options.recentDaysInput ?? ""),
-        rangeStartInput: String(options.rangeStartInput ?? ""),
-        rangeEndInput: String(options.rangeEndInput ?? ""),
         eventFilters: {
           dayTails: options.eventFilters?.dayTails ?? [],
           zoro: Boolean(options.eventFilters?.zoro),
