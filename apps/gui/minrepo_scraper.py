@@ -354,8 +354,11 @@ class MinRepoScraper:
         date_index: int | None = None,
         total_dates: int | None = None,
         dataset_callback: Callable[[MachineHistoryResult], None] | None = None,
+        day_total_callback: Callable[[str, int], None] | None = None,
     ) -> MachineHistoryResult:
         _, machine_entries = self._load_machine_entries_from_date_page(date_page)
+        if day_total_callback is not None:
+            day_total_callback(date_page.target_date, len(machine_entries))
         machine_list = MachineListResult(
             store_name=context.store_name,
             store_url=context.store_url,

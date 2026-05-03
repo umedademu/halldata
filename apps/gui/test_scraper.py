@@ -4,6 +4,7 @@ import json
 import queue
 from types import SimpleNamespace
 import threading
+import time
 import unittest
 from unittest import mock
 from datetime import datetime, timezone
@@ -191,6 +192,24 @@ class FakeStateWidget:
             self.state = str(kwargs["state"])
 
 
+class FakeProgressbar:
+    def __init__(self) -> None:
+        self.config: dict[str, object] = {}
+        self.started = False
+        self.stopped = False
+
+    def stop(self) -> None:
+        self.stopped = True
+        self.started = False
+
+    def start(self, interval: int) -> None:
+        self.config["interval"] = interval
+        self.started = True
+
+    def configure(self, **kwargs: object) -> None:
+        self.config.update(kwargs)
+
+
 class FakeVariable:
     def __init__(self, value: bool = False) -> None:
         self.value = value
@@ -207,6 +226,17 @@ class FakeTextVariable:
         return self.value
 
     def set(self, value: str) -> None:
+        self.value = value
+
+
+class FakeNumberVariable:
+    def __init__(self, value: float = 0.0) -> None:
+        self.value = value
+
+    def get(self) -> float:
+        return self.value
+
+    def set(self, value: float) -> None:
         self.value = value
 
 
@@ -1017,6 +1047,19 @@ class MinRepoScraperTests(unittest.TestCase):
             len(persistence_service.saved_results[0][0].datasets),
             len(result.history_result.datasets),
         )
+        progress_updates = [
+            payload
+            for kind, payload in list(app.result_queue.queue)
+            if kind == "fetch_progress" and isinstance(payload, FetchProgress)
+        ]
+        day_progress = [
+            progress
+            for progress in progress_updates
+            if "全機種一覧を確認中" in progress.message
+        ]
+        self.assertTrue(day_progress)
+        self.assertGreater(day_progress[0].total_steps, 41)
+        self.assertLess(day_progress[0].current_step, day_progress[0].total_steps)
 
     def test_fetch_machine_history_progress_from_saved_html(self) -> None:
         scraper = FixtureScraper()
@@ -1034,6 +1077,32 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(progress_updates[0].total_steps, 5)
         self.assertEqual(progress_updates[-1].current_step, 4)
         self.assertIn("自動保存中", progress_updates[-1].message)
+
+    def test_scaled_fetch_progress_keeps_multi_store_progress_global(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+
+        progress = app._scaled_fetch_progress(
+            FetchProgress(current_step=50, total_steps=100, message="2店舗目"),
+            store_index=2,
+            total_stores=4,
+        )
+
+        self.assertEqual(progress.total_steps, 4000)
+        self.assertEqual(progress.current_step, 1500)
+        self.assertEqual(progress.message, "2店舗目")
+
+    def test_apply_fetch_progress_shows_percent_and_elapsed_time(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_progress_bar = FakeProgressbar()
+        app.fetch_progress_value_var = FakeNumberVariable()
+        app.fetch_progress_text_var = FakeTextVariable()
+        app.fetch_progress_started_at = time.monotonic() - 65
+
+        app._apply_fetch_progress(FetchProgress(current_step=25, total_steps=100, message="取得中"))
+
+        self.assertEqual(app.fetch_progress_value_var.get(), 25.0)
+        self.assertIn("25.0%", app.fetch_progress_text_var.get())
+        self.assertIn("経過 01:05", app.fetch_progress_text_var.get())
 
     def test_build_machine_daily_records_from_history_result(self) -> None:
         scraper = FixtureScraper()

@@ -7,6 +7,7 @@ from pathlib import Path
 import queue
 import re
 import threading
+import time
 import tkinter as tk
 from tkinter import font as tkfont
 from tkinter import messagebox, ttk
@@ -58,6 +59,8 @@ DEFAULT_STORE_URL = "https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%8
 DEFAULT_RECENT_DAYS = "90"
 DEFAULT_RETRY_DELAY_SECONDS = "10"
 MAX_FETCH_RETRY_COUNT = 3
+DEFAULT_MINREPO_DAY_PROGRESS_STEPS = 40
+FETCH_PROGRESS_GLOBAL_SCALE = 1000
 DEFAULT_SCHEDULE_HOUR = 2
 SITE7_SCHEDULE_HOUR_OPTIONS = tuple(range(10, 24))
 DEFAULT_SITE7_SCHEDULE_HOURS = (12, 15, 18, 21)
@@ -472,6 +475,8 @@ class MinRepoApp:
         self.site7_schedule_status_var = tk.StringVar(value=self._site7_schedule_status_text())
         self.fetch_progress_current = 0
         self.fetch_progress_total = 0
+        self.fetch_progress_started_at: float | None = None
+        self.fetch_progress_last_message = "未開始"
 
         self._build_ui()
         self._reset_fetch_progress()
@@ -1810,15 +1815,14 @@ class MinRepoApp:
                 break
             except Exception as exc:  # noqa: BLE001
                 failures.append(StoreFetchFailure(store=registered_store, error=exc))
-                self.result_queue.put(
-                    (
-                        "fetch_progress",
-                        FetchProgress(
-                            current_step=1,
-                            total_steps=1,
-                            message=f"{store_index}/{total_stores} {registered_store.name} は取得失敗",
-                        ),
-                    )
+                self._queue_fetch_progress(
+                    FetchProgress(
+                        current_step=1,
+                        total_steps=1,
+                        message=f"{store_index}/{total_stores} {registered_store.name} は取得失敗",
+                    ),
+                    store_index=store_index,
+                    total_stores=total_stores,
                 )
 
         if self.fetch_cancel_event.is_set():
@@ -1843,6 +1847,9 @@ class MinRepoApp:
         target_store = registered_store.to_site7_target_store()
         store_label = f"{store_index}/{total_stores} {registered_store.name}"
 
+        def queue_progress(progress: FetchProgress) -> None:
+            self._queue_fetch_progress(progress, store_index=store_index, total_stores=total_stores)
+
         def run_site7_fetch() -> MachineHistoryResult:
             def save_machine_result(machine_result: MachineHistoryResult) -> None:
                 nonlocal save_summary, warning_summary
@@ -1859,11 +1866,8 @@ class MinRepoApp:
 
                 machine_names = sorted({dataset.machine_name for dataset in partial_result.datasets}, key=normalize_text)
                 machine_label = "、".join(machine_names) if machine_names else "機種"
-                self.result_queue.put(
-                    (
-                        "fetch_progress",
-                        FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: {machine_label} を保存中"),
-                    )
+                queue_progress(
+                    FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: {machine_label} を保存中")
                 )
                 partial_save_summary = self.persistence_service.save_history_result(partial_result)
                 save_summary = self._merge_persistence_summary(save_summary, partial_save_summary)
@@ -1872,14 +1876,11 @@ class MinRepoApp:
                 return self.site7_scraper.fetch_target_machine_history(
                     recent_days=recent_days,
                     browser_visible=browser_visible,
-                    progress_callback=lambda progress: self.result_queue.put(
-                        (
-                            "fetch_progress",
-                            FetchProgress(
-                                current_step=progress.current_step,
-                                total_steps=progress.total_steps,
-                                message=f"{store_label}: {progress.message}",
-                            ),
+                    progress_callback=lambda progress: queue_progress(
+                        FetchProgress(
+                            current_step=progress.current_step,
+                            total_steps=progress.total_steps,
+                            message=f"{store_label}: {progress.message}",
                         )
                     ),
                     target_store=target_store,
@@ -1894,18 +1895,15 @@ class MinRepoApp:
         history_result = self._run_with_fetch_retries(
             run_site7_fetch,
             retry_delay_seconds=retry_delay_seconds,
-            retry_status_callback=lambda retry_number, max_retries, delay_seconds: self.result_queue.put(
-                (
-                    "fetch_progress",
-                    FetchProgress(
-                        current_step=0,
-                        total_steps=4,
-                        message=(
-                            f"{store_label}: サイトセブン取得に失敗しました。"
-                            f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
-                        ),
+            retry_status_callback=lambda retry_number, max_retries, delay_seconds: queue_progress(
+                FetchProgress(
+                    current_step=0,
+                    total_steps=4,
+                    message=(
+                        f"{store_label}: サイトセブン取得に失敗しました。"
+                        f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
                     ),
-                )
+                ),
             ),
         )
         self._raise_if_fetch_cancelled()
@@ -1914,22 +1912,12 @@ class MinRepoApp:
             store_name=registered_store.name,
             store_url=registered_store.url,
         )
-        self.result_queue.put(
-            (
-                "fetch_progress",
-                FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: 保存済み日付を確認中"),
-            )
-        )
+        queue_progress(FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: 保存済み日付を確認中"))
         history_result, final_warning_summary = self._prepare_site7_history_result_for_save(history_result)
         warning_summary.messages.extend(final_warning_summary.messages)
         self._raise_if_fetch_cancelled()
         if history_result.datasets and save_summary is None:
-            self.result_queue.put(
-                (
-                    "fetch_progress",
-                    FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: 保存中"),
-                )
-            )
+            queue_progress(FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: 保存中"))
             save_summary = self.persistence_service.save_history_result(history_result)
         return StoreFetchResult(
             history_result=history_result,
@@ -2013,7 +2001,7 @@ class MinRepoApp:
 
         self.fetch_cancel_event.set()
         self.status_var.set("中止中...")
-        self.fetch_progress_text_var.set("現在の処理が区切れたら中止します")
+        self._set_fetch_progress_text("現在の処理が区切れたら中止します")
         self._update_button_states()
 
     def _start_worker(self, target: object, *args: object, operation_kind: str = "general") -> None:
@@ -2099,15 +2087,14 @@ class MinRepoApp:
                 break
             except Exception as exc:  # noqa: BLE001
                 failures.append(StoreFetchFailure(store=registered_store, error=exc))
-                self.result_queue.put(
-                    (
-                        "fetch_progress",
-                        FetchProgress(
-                            current_step=1,
-                            total_steps=1,
-                            message=f"{store_index}/{total_stores} {registered_store.name} は取得失敗",
-                        ),
-                    )
+                self._queue_fetch_progress(
+                    FetchProgress(
+                        current_step=1,
+                        total_steps=1,
+                        message=f"{store_index}/{total_stores} {registered_store.name} は取得失敗",
+                    ),
+                    store_index=store_index,
+                    total_stores=total_stores,
                 )
 
         if self.fetch_cancel_event.is_set():
@@ -2118,6 +2105,35 @@ class MinRepoApp:
             raise ScraperError(f"選択した店舗を取得できませんでした。\n{failure_lines}")
 
         return FetchManyResult(results=results, failures=failures, cancelled=cancelled)
+
+    def _queue_fetch_progress(
+        self,
+        progress: FetchProgress,
+        *,
+        store_index: int | None = None,
+        total_stores: int | None = None,
+    ) -> None:
+        self.result_queue.put(("fetch_progress", self._scaled_fetch_progress(progress, store_index, total_stores)))
+
+    def _scaled_fetch_progress(
+        self,
+        progress: FetchProgress,
+        store_index: int | None,
+        total_stores: int | None,
+    ) -> FetchProgress:
+        if store_index is None or total_stores is None or total_stores <= 1:
+            return progress
+
+        local_total = max(1, progress.total_steps)
+        local_current = min(max(0, progress.current_step), local_total)
+        total_steps = max(1, total_stores * FETCH_PROGRESS_GLOBAL_SCALE)
+        store_fraction = max(0, store_index - 1) + (local_current / local_total)
+        current_step = int(round(store_fraction * FETCH_PROGRESS_GLOBAL_SCALE))
+        return FetchProgress(
+            current_step=min(max(0, current_step), total_steps),
+            total_steps=total_steps,
+            message=progress.message,
+        )
 
     def _minrepo_fetch_ordered_stores(self, target_stores: list[RegisteredStore]) -> list[RegisteredStore]:
         return sorted(target_stores, key=lambda registered_store: 0 if registered_store.site7_enabled else 1)
@@ -2133,19 +2149,20 @@ class MinRepoApp:
         self._raise_if_fetch_cancelled()
         store_url = registered_store.url
         store_label = f"{store_index}/{total_stores} {self._registered_store_display_name(registered_store)}"
+
+        def queue_progress(progress: FetchProgress) -> None:
+            self._queue_fetch_progress(progress, store_index=store_index, total_stores=total_stores)
+
         context = self._run_with_fetch_retries(
             lambda: self.scraper.prepare_machine_history_context(store_url, target_date_input),
             retry_delay_seconds=retry_delay_seconds,
-            retry_status_callback=lambda retry_number, max_retries, delay_seconds: self.result_queue.put(
-                (
-                    "fetch_progress",
-                    FetchProgress(
-                        current_step=0,
-                        total_steps=1,
-                        message=(
-                            f"{store_label}: 対象期間の確認に失敗しました。"
-                            f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
-                        ),
+            retry_status_callback=lambda retry_number, max_retries, delay_seconds: queue_progress(
+                FetchProgress(
+                    current_step=0,
+                    total_steps=1,
+                    message=(
+                        f"{store_label}: 対象期間の確認に失敗しました。"
+                        f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
                     ),
                 )
             ),
@@ -2168,19 +2185,20 @@ class MinRepoApp:
             for date_page in context.date_pages
             if date_page.target_date not in saved_full_day_summary.saved_dates
         ]
-        total_steps = max(1, len(pending_date_pages) * 2 + 1)
+        day_progress_steps = {
+            date_page.target_date: DEFAULT_MINREPO_DAY_PROGRESS_STEPS
+            for date_page in pending_date_pages
+        }
+        total_steps = max(1, sum(day_progress_steps.values()) + 1)
         current_step = 0
-        self.result_queue.put(
-            (
-                "fetch_progress",
-                FetchProgress(
-                    current_step=current_step,
-                    total_steps=total_steps,
-                    message=(
-                        f"{store_label}: "
-                        f"{len(context.date_pages)}日分のうち"
-                        f"{len(skipped_dates)}日を日付ごとスキップ"
-                    ),
+        queue_progress(
+            FetchProgress(
+                current_step=current_step,
+                total_steps=total_steps,
+                message=(
+                    f"{store_label}: "
+                    f"{len(context.date_pages)}日分のうち"
+                    f"{len(skipped_dates)}日を日付ごとスキップ"
                 ),
             )
         )
@@ -2190,16 +2208,22 @@ class MinRepoApp:
             self._raise_if_fetch_cancelled()
             current_step += 1
             total_steps = max(total_steps, current_step)
-            self.result_queue.put(
-                (
-                    "fetch_progress",
-                    FetchProgress(
-                        current_step=current_step,
-                        total_steps=total_steps,
-                        message=f"{store_label}: {message}",
-                    ),
+            queue_progress(
+                FetchProgress(
+                    current_step=current_step,
+                    total_steps=total_steps,
+                    message=f"{store_label}: {message}",
                 )
             )
+
+        def day_total_callback(target_date: str, machine_count: int) -> None:
+            nonlocal current_step, total_steps
+            current_estimate = day_progress_steps.get(target_date, DEFAULT_MINREPO_DAY_PROGRESS_STEPS)
+            exact_steps = max(2, 2 + max(0, machine_count) * 2)
+            if exact_steps == current_estimate:
+                return
+            day_progress_steps[target_date] = exact_steps
+            total_steps = max(current_step + 1, total_steps + exact_steps - current_estimate)
 
         datasets: list[MachineDataset] = []
         skipped_targets: list[tuple[str, str]] = []
@@ -2229,18 +2253,16 @@ class MinRepoApp:
                     date_index=date_index,
                     total_dates=len(pending_date_pages),
                     dataset_callback=save_dataset_checkpoint,
+                    day_total_callback=day_total_callback,
                 ),
                 retry_delay_seconds=retry_delay_seconds,
-                retry_status_callback=lambda retry_number, max_retries, delay_seconds, target_date=date_page.target_date: self.result_queue.put(
-                    (
-                        "fetch_progress",
-                        FetchProgress(
-                            current_step=current_step,
-                            total_steps=total_steps,
-                            message=(
-                                f"{store_label}: {target_date} の取得に失敗しました。"
-                                f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
-                            ),
+                retry_status_callback=lambda retry_number, max_retries, delay_seconds, target_date=date_page.target_date: queue_progress(
+                    FetchProgress(
+                        current_step=current_step,
+                        total_steps=total_steps,
+                        message=(
+                            f"{store_label}: {target_date} の取得に失敗しました。"
+                            f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
                         ),
                     )
                 ),
@@ -3399,21 +3421,25 @@ class MinRepoApp:
     def _begin_fetch_progress(self, message: str) -> None:
         self.fetch_progress_current = 0
         self.fetch_progress_total = 0
+        self.fetch_progress_started_at = time.monotonic()
+        self.fetch_progress_last_message = message
         self.fetch_progress_bar.stop()
         self.fetch_progress_bar.configure(mode="indeterminate", maximum=100)
         self.fetch_progress_value_var.set(0.0)
-        self.fetch_progress_text_var.set(message)
+        self._set_fetch_progress_text(message)
         self.fetch_progress_bar.start(12)
+        self._schedule_fetch_elapsed_tick()
 
     def _apply_fetch_progress(self, progress: FetchProgress) -> None:
         total_steps = max(1, progress.total_steps)
         current_step = min(max(0, progress.current_step), total_steps)
+        progress_percent = current_step * 100 / total_steps
         self.fetch_progress_current = current_step
         self.fetch_progress_total = total_steps
         self.fetch_progress_bar.stop()
         self.fetch_progress_bar.configure(mode="determinate", maximum=100)
-        self.fetch_progress_value_var.set(current_step * 100 / total_steps)
-        self.fetch_progress_text_var.set(f"{current_step}/{total_steps} {progress.message}")
+        self.fetch_progress_value_var.set(progress_percent)
+        self._set_fetch_progress_text(f"{progress_percent:.1f}% {progress.message}")
 
     def _finish_fetch_progress(self, success: bool, message: str) -> None:
         self.fetch_progress_bar.stop()
@@ -3423,21 +3449,55 @@ class MinRepoApp:
             self.fetch_progress_current = total_steps
             self.fetch_progress_total = total_steps
             self.fetch_progress_value_var.set(100.0)
-            self.fetch_progress_text_var.set(f"{total_steps}/{total_steps} {message}")
+            self._set_fetch_progress_text(f"100.0% {message}")
+            self.fetch_progress_started_at = None
             return
 
         self.fetch_progress_current = 0
         self.fetch_progress_total = 0
         self.fetch_progress_value_var.set(0.0)
-        self.fetch_progress_text_var.set(message)
+        self._set_fetch_progress_text(message)
+        self.fetch_progress_started_at = None
 
     def _reset_fetch_progress(self) -> None:
         self.fetch_progress_bar.stop()
         self.fetch_progress_bar.configure(mode="determinate", maximum=100)
         self.fetch_progress_current = 0
         self.fetch_progress_total = 0
+        self.fetch_progress_started_at = None
+        self.fetch_progress_last_message = "未開始"
         self.fetch_progress_value_var.set(0.0)
         self.fetch_progress_text_var.set("未開始")
+
+    def _set_fetch_progress_text(self, message: str) -> None:
+        self.fetch_progress_last_message = message
+        elapsed_text = self._fetch_elapsed_text()
+        if elapsed_text:
+            self.fetch_progress_text_var.set(f"{message} / {elapsed_text}")
+            return
+        self.fetch_progress_text_var.set(message)
+
+    def _fetch_elapsed_text(self) -> str:
+        fetch_progress_started_at = getattr(self, "fetch_progress_started_at", None)
+        if fetch_progress_started_at is None:
+            return ""
+        elapsed_seconds = max(0, int(time.monotonic() - fetch_progress_started_at))
+        hours, remainder = divmod(elapsed_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        if hours:
+            return f"経過 {hours}:{minutes:02d}:{seconds:02d}"
+        return f"経過 {minutes:02d}:{seconds:02d}"
+
+    def _schedule_fetch_elapsed_tick(self) -> None:
+        if not hasattr(self, "root"):
+            return
+        self.root.after(1000, self._refresh_fetch_elapsed_text)
+
+    def _refresh_fetch_elapsed_text(self) -> None:
+        if getattr(self, "fetch_progress_started_at", None) is None:
+            return
+        self._set_fetch_progress_text(self.fetch_progress_last_message)
+        self._schedule_fetch_elapsed_tick()
 
     def _notify_fetch_complete(self) -> None:
         if not self.notify_fetch_complete_var.get():
