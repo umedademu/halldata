@@ -370,47 +370,47 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   {hasHanabiGroupOption ? (
                     <input type="hidden" name="hanabiMachineGroup" value="0" />
                   ) : null}
-                  {hasAimJugglerGroupOption || hasHanabiGroupOption ? (
-                    <div className="machineGroupToggleRow">
-                      {hasAimJugglerGroupOption ? (
-                        <label
-                          className={`metricToggleChip ${
-                            combineAimJuggler ? "metricToggleChipActive" : ""
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            name="aimMachineGroup"
-                            value="1"
-                            defaultChecked={combineAimJuggler}
-                          />
-                          <span>Sアイムとネオアイムをまとめる</span>
-                        </label>
-                      ) : null}
-                      {hasHanabiGroupOption ? (
-                        <label
-                          className={`metricToggleChip ${
-                            combineHanabi ? "metricToggleChipActive" : ""
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            name="hanabiMachineGroup"
-                            value="1"
-                            defaultChecked={combineHanabi}
-                          />
-                          <span>新ハナビとスマハナビをまとめる</span>
-                        </label>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  <div className="machineFilterActionRow">
-                    <JugglerOnlyButton />
-                  </div>
                   <div className="machineFilterGroups">
                     {machineOptionGroups.map((group) => (
                       <div key={group.key} className="machineFilterGroup">
                         <p className="machineFilterGroupLabel">{group.label}</p>
+                        {group.key === "juggler" ? (
+                          <div className="machineGroupToggleRow">
+                            {hasAimJugglerGroupOption ? (
+                              <label
+                                className={`metricToggleChip ${
+                                  combineAimJuggler ? "metricToggleChipActive" : ""
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  name="aimMachineGroup"
+                                  value="1"
+                                  defaultChecked={combineAimJuggler}
+                                />
+                                <span>アイジャグをまとめる</span>
+                              </label>
+                            ) : null}
+                            <JugglerOnlyButton />
+                          </div>
+                        ) : null}
+                        {group.key === "hanabi" && hasHanabiGroupOption ? (
+                          <div className="machineGroupToggleRow">
+                            <label
+                              className={`metricToggleChip ${
+                                combineHanabi ? "metricToggleChipActive" : ""
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                name="hanabiMachineGroup"
+                                value="1"
+                                defaultChecked={combineHanabi}
+                              />
+                              <span>ハナビをまとめる</span>
+                            </label>
+                          </div>
+                        ) : null}
                         <div className="metricToggleRow">
                           {group.options.map((machine) => (
                             <label
