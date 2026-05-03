@@ -9,7 +9,7 @@ import {
   getStoreIdentity,
   readRouteSegment,
 } from "../../../../../lib/data";
-import { parseEventDisplayMode, parseEventFilters } from "../../../../../lib/event-filters";
+import { parseEventFilters } from "../../../../../lib/event-filters";
 import { getSettingEstimateDefinition } from "../../../../../lib/setting-estimates";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +42,6 @@ export default async function MachineDetailPage({ params, searchParams }) {
   const storeId = resolvedParams.storeId;
   const machineName = readRouteSegment(resolvedParams.machineName);
   const eventFilters = parseEventFilters(resolvedSearchParams);
-  const eventDisplayMode = parseEventDisplayMode(resolvedSearchParams);
   const hasEventFilterSearchParams =
     hasSearchParamValue(resolvedSearchParams, "dayTail") ||
     hasSearchParamValue(resolvedSearchParams, "zoro") ||
@@ -144,7 +143,6 @@ export default async function MachineDetailPage({ params, searchParams }) {
         slotLabels={detail.slotLabels}
         dateRows={detail.dateRows}
         initialEventFilters={initialEventFilters}
-        initialEventDisplayMode={eventDisplayMode}
         huntScoreHighlight={detail.huntScoreHighlight}
       />
     </main>

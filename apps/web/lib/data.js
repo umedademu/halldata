@@ -1787,4 +1787,4 @@ export function readRouteSegment(value) {
   }
 }
 
-export { matchesEventFilters, parseEventDisplayMode, parseEventFilters } from "./event-filters";
+export { matchesEventFilters, parseEventFilters } from "./event-filters";

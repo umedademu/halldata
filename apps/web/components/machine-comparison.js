@@ -1450,7 +1450,6 @@ export function MachineComparison({
   slotLabels = {},
   dateRows,
   initialEventFilters,
-  initialEventDisplayMode = "highlight",
   huntScoreHighlight,
 }) {
   const latestAvailableDate = dateRows[0]?.date ?? "";
@@ -1474,7 +1473,6 @@ export function MachineComparison({
       initialEventFilters?.weekdays ?? [],
     ),
   );
-  const [eventDisplayMode, setEventDisplayMode] = useState(initialEventDisplayMode);
   const [differenceMode, setDifferenceMode] = useState(DEFAULT_DIFFERENCE_MODE);
   const [visibleMetricKeys, setVisibleMetricKeys] = useState(DEFAULT_VISIBLE_METRIC_KEYS);
   const [estimateOptions, setEstimateOptions] = useState(() =>
@@ -1648,12 +1646,7 @@ export function MachineComparison({
     });
   }, [activeDateRange.endDate, activeDateRange.startDate, dateRows]);
 
-  const visibleRows = useMemo(() => {
-    if (eventDisplayMode === "highlight") {
-      return periodFilteredRows;
-    }
-    return periodFilteredRows.filter((row) => matchesEventFilters(row.date, eventFilters));
-  }, [eventDisplayMode, eventFilters, periodFilteredRows]);
+  const visibleRows = periodFilteredRows;
 
   const specialDateSet = useMemo(() => {
     if (!eventFilters.isActive) {
@@ -1667,13 +1660,7 @@ export function MachineComparison({
     );
   }, [eventFilters, periodFilteredRows]);
 
-  const highlightedDateSet = useMemo(() => {
-    if (eventDisplayMode !== "highlight") {
-      return new Set();
-    }
-
-    return specialDateSet;
-  }, [eventDisplayMode, specialDateSet]);
+  const highlightedDateSet = specialDateSet;
 
   const csvRows = useMemo(
     () => buildCsvRows(slotNumbers, slotLabels, visibleRows, visibleMetrics, specialDateSet),
@@ -1700,12 +1687,6 @@ export function MachineComparison({
       "--matrix-date-font-size": `${dateFontSize}rem`,
     };
   }, [slotNumbers.length, visibleMetrics.length]);
-
-  const updateDisplayMode = (mode) => {
-    startTransition(() => {
-      setEventDisplayMode(mode);
-    });
-  };
 
   const updatePeriodMode = (mode) => {
     startTransition(() => {
@@ -1922,27 +1903,6 @@ export function MachineComparison({
             {buildDisplayedPeriodLabel(activeDateRange.startDate, activeDateRange.endDate)} /{" "}
             {periodFilteredRows.length}日分
           </p>
-        </div>
-        <div className="filterControlGroup">
-          <p className="filterControlLabel">表示方法</p>
-          <div className="dayFilterRow">
-            <button
-              type="button"
-              onClick={() => updateDisplayMode("highlight")}
-              className={`dayFilterChip ${eventDisplayMode === "highlight" ? "dayFilterChipActive" : ""}`}
-              aria-pressed={eventDisplayMode === "highlight"}
-            >
-              強調
-            </button>
-            <button
-              type="button"
-              onClick={() => updateDisplayMode("filter")}
-              className={`dayFilterChip ${eventDisplayMode === "filter" ? "dayFilterChipActive" : ""}`}
-              aria-pressed={eventDisplayMode === "filter"}
-            >
-              絞込
-            </button>
-          </div>
         </div>
         <div className="filterControlGroup">
           <p className="filterControlLabel">日付</p>
