@@ -1745,14 +1745,6 @@ export function MachineComparison({
     [],
   );
 
-  const clearFilters = () => {
-    startTransition(() => {
-      const nextFilters = createEventFilters();
-      setEventFilters(nextFilters);
-      saveEventFilters(nextFilters);
-    });
-  };
-
   const toggleDayTail = (dayTail) => {
     startTransition(() => {
       setEventFilters((currentFilters) => {
@@ -1907,14 +1899,6 @@ export function MachineComparison({
         <div className="filterControlGroup">
           <p className="filterControlLabel">日付</p>
           <div className="dayFilterRow">
-            <button
-              type="button"
-              onClick={clearFilters}
-              className={`dayFilterChip ${eventFilters.isActive ? "" : "dayFilterChipActive"}`}
-              aria-pressed={!eventFilters.isActive}
-            >
-              すべて
-            </button>
             {DAY_TAIL_OPTIONS.map((value) => (
               <button
                 key={value}
