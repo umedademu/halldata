@@ -432,6 +432,14 @@ function readMachineComparisonOptions(storeId, defaults, options = {}) {
       differenceMode: normalizeDifferenceMode(parsedValue.differenceMode),
       visibleMetricKeys: normalizeMetricKeys(parsedValue.visibleMetricKeys, null, defaults.visibleMetricKeys),
       estimateOptions: normalizeEstimateOptions(parsedValue.estimateOptions, defaults.estimateOptions),
+      settingControlsOpen: normalizeEnabledOption(
+        parsedValue.settingControlsOpen,
+        defaults.settingControlsOpen,
+      ),
+      huntScoreControlsOpen: normalizeEnabledOption(
+        parsedValue.huntScoreControlsOpen,
+        defaults.huntScoreControlsOpen,
+      ),
     };
   } catch {
     return defaults;
@@ -461,6 +469,8 @@ function saveMachineComparisonOptions(storeId, options) {
         differenceMode: normalizeDifferenceMode(options.differenceMode),
         visibleMetricKeys: normalizeMetricKeys(options.visibleMetricKeys),
         estimateOptions: options.estimateOptions,
+        settingControlsOpen: Boolean(options.settingControlsOpen),
+        huntScoreControlsOpen: Boolean(options.huntScoreControlsOpen),
       }),
     );
   } catch {
@@ -1390,10 +1400,6 @@ function HuntScoreHighlightControls({ options, availableMachineNames, onChange }
 function SettingEstimateControls({
   options,
   onChange,
-  hasHuntScore,
-  huntScoreHighlightOptions,
-  huntScoreHighlightAvailableMachineNames,
-  onHuntScoreHighlightOptionsChange,
 }) {
   const activeWeightTotal = calculateActiveWeightTotal(options);
   const isWeightTotalValid = Math.abs(activeWeightTotal - 100) < 0.001;
@@ -1434,13 +1440,6 @@ function SettingEstimateControls({
             onChange={(value) => updateOption("dataWeight", value)}
           />
         </div>
-        {hasHuntScore ? (
-          <HuntScoreHighlightControls
-            options={huntScoreHighlightOptions}
-            availableMachineNames={huntScoreHighlightAvailableMachineNames}
-            onChange={onHuntScoreHighlightOptionsChange}
-          />
-        ) : null}
       </div>
 
       <div className="estimateMethodRow">
@@ -1520,6 +1519,23 @@ function SettingEstimateControls({
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+function CollapsibleControlGroup({ title, open, onOpenChange, children }) {
+  return (
+    <div className="collapsibleControlGroup">
+      <button
+        type="button"
+        className="collapsibleControlHeader"
+        aria-expanded={open}
+        onClick={() => onOpenChange(!open)}
+      >
+        <span>{title}</span>
+        <span className="collapsibleControlStatus">{open ? "閉じる" : "開く"}</span>
+      </button>
+      {open ? <div className="collapsibleControlBody">{children}</div> : null}
     </div>
   );
 }
@@ -1628,6 +1644,8 @@ export function MachineComparison({
       differenceMode: DEFAULT_DIFFERENCE_MODE,
       visibleMetricKeys: DEFAULT_VISIBLE_METRIC_KEYS,
       estimateOptions: defaultEstimateOptions,
+      settingControlsOpen: true,
+      huntScoreControlsOpen: true,
     }),
     [defaultEstimateOptions, defaultEventFilters, initialRangeStartDate, latestAvailableDate],
   );
@@ -1639,6 +1657,12 @@ export function MachineComparison({
   const [differenceMode, setDifferenceMode] = useState(defaultComparisonOptions.differenceMode);
   const [visibleMetricKeys, setVisibleMetricKeys] = useState(defaultComparisonOptions.visibleMetricKeys);
   const [estimateOptions, setEstimateOptions] = useState(defaultComparisonOptions.estimateOptions);
+  const [settingControlsOpen, setSettingControlsOpen] = useState(
+    defaultComparisonOptions.settingControlsOpen,
+  );
+  const [huntScoreControlsOpen, setHuntScoreControlsOpen] = useState(
+    defaultComparisonOptions.huntScoreControlsOpen,
+  );
   const [machineComparisonOptionsLoadedStoreId, setMachineComparisonOptionsLoadedStoreId] =
     useState("");
   const huntScoreHighlightAvailableMachineNames = useMemo(
@@ -1794,6 +1818,8 @@ export function MachineComparison({
     setDifferenceMode(options.differenceMode);
     setVisibleMetricKeys(options.visibleMetricKeys);
     setEstimateOptions(options.estimateOptions);
+    setSettingControlsOpen(options.settingControlsOpen);
+    setHuntScoreControlsOpen(options.huntScoreControlsOpen);
     setMachineComparisonOptionsLoadedStoreId(storeId);
   }, [
     defaultComparisonOptions,
@@ -1822,16 +1848,20 @@ export function MachineComparison({
       differenceMode,
       visibleMetricKeys,
       estimateOptions,
+      settingControlsOpen,
+      huntScoreControlsOpen,
     });
   }, [
     differenceMode,
     estimateOptions,
     eventFilters,
+    huntScoreControlsOpen,
     machineComparisonOptionsLoadedStoreId,
     periodMode,
     rangeEndInput,
     rangeStartInput,
     recentDaysInput,
+    settingControlsOpen,
     storeId,
     visibleMetricKeys,
   ]);
@@ -2209,16 +2239,29 @@ export function MachineComparison({
           </div>
         </div>
         {hasSettingEstimate ? (
-          <div className="filterControlGroup">
+          <CollapsibleControlGroup
+            title="設定推測"
+            open={settingControlsOpen}
+            onOpenChange={setSettingControlsOpen}
+          >
             <SettingEstimateControls
               options={estimateOptions}
               onChange={updateEstimateOptions}
-              hasHuntScore={hasHuntScore}
-              huntScoreHighlightOptions={huntScoreHighlightOptions}
-              huntScoreHighlightAvailableMachineNames={huntScoreHighlightAvailableMachineNames}
-              onHuntScoreHighlightOptionsChange={setHuntScoreHighlightOptions}
             />
-          </div>
+          </CollapsibleControlGroup>
+        ) : null}
+        {hasHuntScore ? (
+          <CollapsibleControlGroup
+            title="狙い度"
+            open={huntScoreControlsOpen}
+            onOpenChange={setHuntScoreControlsOpen}
+          >
+            <HuntScoreHighlightControls
+              options={huntScoreHighlightOptions}
+              availableMachineNames={huntScoreHighlightAvailableMachineNames}
+              onChange={setHuntScoreHighlightOptions}
+            />
+          </CollapsibleControlGroup>
         ) : null}
       </section>
 
