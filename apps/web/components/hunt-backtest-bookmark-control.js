@@ -83,15 +83,15 @@ export function HuntBacktestBookmarkControl({ storeId, bookmark }) {
         }`}
       >
         {isCurrentSaved
-          ? `この目印の強調条件を保存中です。${currentSummary}`
+          ? `この目印条件を保存中です。${currentSummary}`
           : savedBookmark
-            ? `保存中の目印があります。強調条件は ${savedSummary} です。`
+            ? `保存中の目印があります。条件は ${savedSummary} です。`
             : "まだ目印は保存していません。"}
       </p>
       {isCurrentSaved && currentPeriod ? (
         <p className="storeReserveHelp">保存時のバックテスト期間: {currentPeriod}</p>
       ) : null}
-      {!isCurrentSaved ? <p className="storeReserveHelp">現在の強調条件: {currentSummary}</p> : null}
+      {!isCurrentSaved ? <p className="storeReserveHelp">現在の目印条件: {currentSummary}</p> : null}
       {!isCurrentSaved && savedPeriod ? (
         <p className="storeReserveHelp">保存中のバックテスト期間: {savedPeriod}</p>
       ) : null}

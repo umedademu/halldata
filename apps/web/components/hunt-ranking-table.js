@@ -16,7 +16,6 @@ import {
   HUNT_BACKTEST_BOOKMARK_EVENT,
   buildDeviationFilter,
   buildHuntBacktestBookmarkMatches,
-  buildHuntBacktestBookmarkRowKey,
   buildRankFilter,
   buildScoreFilter,
   buildConditionRequirementOptions,
@@ -308,7 +307,6 @@ function OverallRankingTable({
   title,
   rows,
   visibleColumns,
-  bookmarkState,
   scoreColumnLabel,
   deviationScope,
   highlightCondition,
@@ -325,7 +323,6 @@ function OverallRankingTable({
         <table className="directoryTable">
           <thead>
             <tr>
-              <th>条件</th>
               <th>順位</th>
               <th>{scoreColumnLabel}</th>
               <th>偏差値</th>
@@ -338,9 +335,6 @@ function OverallRankingTable({
           </thead>
           <tbody>
             {rows.map((row) => {
-              const rowMatchState = bookmarkState.matchByRowKey.get(
-                buildHuntBacktestBookmarkRowKey(row),
-              );
               const rowClassName = getSettingEstimateHighlightClass(row.nextSettingEstimate?.average);
 
               return (
@@ -348,11 +342,6 @@ function OverallRankingTable({
                   key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${title}-${row.rank}`}
                   className={rowClassName}
                 >
-                  <td className="huntBookmarkConditionCell">
-                    {bookmarkState.bookmark && rowMatchState ? (
-                      <span className="huntBookmarkConditionMark">★</span>
-                    ) : null}
-                  </td>
                   <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
                     {row.rank}
                   </td>
@@ -602,7 +591,7 @@ export function HuntRankingTable({
         </div>
         {bookmarkState.bookmark ? (
           <p className="storeReserveNotice storeReserveNotice-info">
-            {`目印の強調条件を反映中です。${bookmarkSummary} / 表示中${formatNumber(
+            {`保存済み目印条件: ${bookmarkSummary} / 表示中${formatNumber(
               bookmarkState.totalRowCount,
             )}台のうち${formatNumber(bookmarkState.matchedRowCount)}台が一致しています。`}
           </p>
@@ -636,7 +625,6 @@ export function HuntRankingTable({
           title={`選択機種内ランキング 上位${formatNumber(selectedOverallRows.length)}台`}
           rows={selectedOverallRows}
           visibleColumns={visibleColumns}
-          bookmarkState={bookmarkState}
           scoreColumnLabel={scoreColumnLabel}
           deviationScope={deviationScope}
           highlightCondition={highlightCondition}
@@ -653,7 +641,6 @@ export function HuntRankingTable({
         title={`全機種内ランキング 上位${formatNumber(allOverallRows.length)}台`}
         rows={allOverallRows}
         visibleColumns={visibleColumns}
-        bookmarkState={bookmarkState}
         scoreColumnLabel={scoreColumnLabel}
         deviationScope={deviationScope}
         highlightCondition={highlightCondition}
@@ -683,7 +670,6 @@ export function HuntRankingTable({
             <table className="directoryTable">
               <thead>
                 <tr>
-                  <th>条件</th>
                   <th>順位</th>
                   <th>{scoreColumnLabel}</th>
                   <th>偏差値</th>
@@ -695,9 +681,6 @@ export function HuntRankingTable({
               </thead>
               <tbody>
                 {group.rows.map((row) => {
-                  const rowMatchState = bookmarkState.matchByRowKey.get(
-                    buildHuntBacktestBookmarkRowKey(row),
-                  );
                   const rowClassName = getSettingEstimateHighlightClass(row.nextSettingEstimate?.average);
 
                   return (
@@ -705,11 +688,6 @@ export function HuntRankingTable({
                       key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${row.rank}`}
                       className={rowClassName}
                     >
-                      <td className="huntBookmarkConditionCell">
-                        {bookmarkState.bookmark && rowMatchState ? (
-                          <span className="huntBookmarkConditionMark">★</span>
-                        ) : null}
-                      </td>
                       <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
                         {row.rank}
                       </td>

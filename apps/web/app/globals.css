@@ -1251,19 +1251,6 @@ a {
   font-weight: 800;
 }
 
-.huntBookmarkConditionCell {
-  width: 3.5rem;
-  min-width: 3.5rem;
-  text-align: center;
-}
-
-.huntBookmarkConditionMark {
-  color: #1f3b56;
-  font-size: 1.05rem;
-  font-weight: 900;
-  line-height: 1;
-}
-
 .directoryTable tbody tr td.huntScoreDeviationHighlighted,
 .directoryTable tbody tr:nth-child(odd) td.huntScoreDeviationHighlighted,
 .directoryTable tbody tr:hover td.huntScoreDeviationHighlighted,
