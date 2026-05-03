@@ -27,6 +27,7 @@ from web_data_export import (
     build_index_store_entry,
     build_store_id,
     build_store_payload,
+    export_registered_store_payloads,
     export_store_payloads,
 )
 
@@ -582,6 +583,11 @@ class HistoryPersistenceService:
         except Exception as exc:  # noqa: BLE001
             summary.messages.append(f"登録店舗のローカル保存に失敗しました。\n{exc}")
 
+        try:
+            self._save_registered_stores_to_r2_web_data(normalized_stores)
+        except Exception as exc:  # noqa: BLE001
+            summary.messages.append(f"Web表示用店舗索引の更新に失敗しました。\n{exc}")
+
         return summary
 
     def delete_registered_stores(self, store_urls: list[str]) -> int:
@@ -602,12 +608,22 @@ class HistoryPersistenceService:
 
     def _build_local_snapshot(self, history_result: MachineHistoryResult) -> dict[str, Any]:
         records = build_machine_daily_records(history_result)
+        registered_location = self._registered_store_location_for(
+            history_result.store_name,
+            history_result.store_url,
+        )
+        store_payload = {
+            "store_name": history_result.store_name,
+            "store_url": normalize_store_url(history_result.store_url),
+        }
+        if registered_location.get("prefecture_name"):
+            store_payload["site7_prefecture"] = registered_location["prefecture_name"]
+        if registered_location.get("area_name"):
+            store_payload["site7_area"] = registered_location["area_name"]
+
         return {
             "saved_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-            "store": {
-                "store_name": history_result.store_name,
-                "store_url": normalize_store_url(history_result.store_url),
-            },
+            "store": store_payload,
             "period": {
                 "start_date": history_result.start_date,
                 "end_date": history_result.end_date,
@@ -634,7 +650,31 @@ class HistoryPersistenceService:
         store = snapshot.get("store", {})
         store_name = str(store.get("store_name", "")).strip() if isinstance(store, dict) else ""
         store_url = normalize_store_url(str(store.get("store_url", "")).strip()) if isinstance(store, dict) else ""
-        return StoreSource(store_name=store_name or store_url, store_url=store_url)
+        prefecture_name = ""
+        area_name = ""
+        if isinstance(store, dict):
+            prefecture_name = str(
+                store.get("prefectureName")
+                or store.get("prefecture_name")
+                or store.get("site7_prefecture")
+                or store.get("site7Prefecture")
+                or ""
+            ).strip()
+            area_name = str(
+                store.get("areaName")
+                or store.get("area_name")
+                or store.get("site7_area")
+                or store.get("site7Area")
+                or ""
+            ).strip()
+
+        registered_location = self._registered_store_location_for(store_name, store_url)
+        return StoreSource(
+            store_name=store_name or store_url,
+            store_url=store_url,
+            prefecture_name=prefecture_name or registered_location.get("prefecture_name", ""),
+            area_name=area_name or registered_location.get("area_name", ""),
+        )
 
     def _r2_store_id(self, store_name: str, store_url: str) -> str:
         return build_store_id(store_name, normalize_store_url(store_url))
@@ -1293,9 +1333,69 @@ class HistoryPersistenceService:
                 {
                     "store_name": store_name,
                     "store_url": store_url,
+                    "site7_prefecture": str(
+                        store.get("prefectureName")
+                        or store.get("site7_prefecture")
+                        or store.get("site7Prefecture")
+                        or ""
+                    ).strip(),
+                    "site7_area": str(
+                        store.get("areaName")
+                        or store.get("site7_area")
+                        or store.get("site7Area")
+                        or ""
+                    ).strip(),
                 }
             )
         return self._normalize_registered_stores(stores)
+
+    def _registered_store_location_for(self, store_name: str, store_url: str) -> dict[str, str]:
+        normalized_url = normalize_store_url(store_url)
+        store_name_key = normalize_store_name_key(store_name)
+        name_match: dict[str, str] = {}
+
+        try:
+            registered_stores = self._load_registered_stores_local()
+        except Exception:  # noqa: BLE001
+            registered_stores = []
+
+        for registered_store in registered_stores:
+            registered_location = {
+                "prefecture_name": str(registered_store.get("site7_prefecture", "")).strip(),
+                "area_name": str(registered_store.get("site7_area", "")).strip(),
+            }
+            registered_url = normalize_store_url(str(registered_store.get("store_url", "")))
+            if normalized_url and registered_url == normalized_url:
+                return registered_location
+
+            registered_name_key = normalize_store_name_key(str(registered_store.get("store_name", "")))
+            if store_name_key and registered_name_key == store_name_key:
+                name_match = registered_location
+
+        return name_match
+
+    def _save_registered_stores_to_r2_web_data(self, stores: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if not self.r2_storage.is_configured:
+            return []
+
+        store_sources = [
+            StoreSource(
+                store_name=str(store.get("store_name", "")).strip(),
+                store_url=normalize_store_url(str(store.get("store_url", ""))),
+                prefecture_name=str(store.get("site7_prefecture", "")).strip(),
+                area_name=str(store.get("site7_area", "")).strip(),
+            )
+            for store in stores
+            if normalize_store_url(str(store.get("store_url", "")))
+        ]
+        if not store_sources:
+            return []
+
+        return export_registered_store_payloads(
+            self.root_dir / "apps" / "web" / "public" / "halldata-static",
+            store_sources,
+            r2_storage=self.r2_storage,
+        )
 
     def _load_registered_stores_from_local_snapshots(self) -> list[dict[str, Any]]:
         local_dir = self._local_save_dir()

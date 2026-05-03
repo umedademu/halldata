@@ -1093,6 +1093,10 @@ export const getStoreList = cache(async function getStoreList() {
         id: String(store.id ?? "").trim(),
         storeName: String(store.storeName ?? "").trim(),
         storeUrl: String(store.storeUrl ?? "").trim(),
+        prefectureName: String(
+          store.prefectureName ?? store.site7Prefecture ?? store.site7_prefecture ?? "",
+        ).trim(),
+        areaName: String(store.areaName ?? store.site7Area ?? store.site7_area ?? "").trim(),
         dataSource: "json",
         isPendingRegistration: !String(store.storeName ?? "").trim(),
       }))
@@ -1130,6 +1134,10 @@ function readStaticStoreIdentity(staticStore) {
     id: String(store.id ?? "").trim(),
     storeName: String(store.storeName ?? "").trim(),
     storeUrl: String(store.storeUrl ?? "").trim(),
+    prefectureName: String(
+      store.prefectureName ?? store.site7Prefecture ?? store.site7_prefecture ?? "",
+    ).trim(),
+    areaName: String(store.areaName ?? store.site7Area ?? store.site7_area ?? "").trim(),
     eventFilters: createEventFilters(
       normalizeEventDayTails(store.eventDayTails),
       Boolean(store.eventZoro),
@@ -1243,11 +1251,15 @@ function buildStaticStoreDetail(staticStore) {
       id: store.id,
       storeName: store.storeName,
       storeUrl: store.storeUrl,
+      prefectureName: store.prefectureName,
+      areaName: store.areaName,
     },
     summary: {
       id: store.id,
       storeName: store.storeName,
       storeUrl: store.storeUrl,
+      prefectureName: store.prefectureName,
+      areaName: store.areaName,
       machineCount: machines.length,
       latestDate,
     },

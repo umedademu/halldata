@@ -581,6 +581,98 @@ a {
   background: #f9fafb;
 }
 
+.storeGroupList {
+  display: grid;
+  gap: 16px;
+}
+
+.storePrefectureGroup {
+  display: grid;
+  gap: 10px;
+}
+
+.storePrefectureHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px;
+}
+
+.storePrefectureHeader h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.storePrefectureHeader span,
+.storeRegionSummary span:last-child {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.storeRegionList {
+  display: grid;
+  gap: 8px;
+}
+
+.storeRegionGroup {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: #ffffff;
+}
+
+.storeRegionSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 3rem;
+  padding: 11px 14px;
+  color: var(--text);
+  font-weight: 900;
+  line-height: 1.5;
+  cursor: pointer;
+  list-style: none;
+}
+
+.storeRegionSummary::-webkit-details-marker {
+  display: none;
+}
+
+.storeRegionSummary span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.storeRegionSummary::before {
+  content: "+";
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 1.35rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 1px solid rgba(37, 99, 165, 0.28);
+  border-radius: 6px;
+  color: var(--accent-strong);
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.storeRegionGroup[open] .storeRegionSummary::before {
+  content: "-";
+}
+
+.storeRegionStoreList {
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  border-radius: 0;
+}
+
 .summaryCard {
   border-radius: var(--radius-lg);
   background: var(--panel);

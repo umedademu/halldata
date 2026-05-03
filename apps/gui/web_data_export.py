@@ -29,6 +29,8 @@ class StoreSource:
     store_name: str
     store_url: str
     legacy_ids: set[str] = field(default_factory=set)
+    prefecture_name: str = ""
+    area_name: str = ""
 
 
 def normalize_store_url(value: str) -> str:
@@ -83,6 +85,28 @@ def read_number(value: Any) -> float | int | None:
 
 def read_text(value: Any) -> str:
     return str(value or "").strip()
+
+
+def read_prefecture_name(value: dict[str, Any]) -> str:
+    return read_text(
+        value.get("prefectureName")
+        or value.get("prefecture_name")
+        or value.get("site7Prefecture")
+        or value.get("site7_prefecture")
+        or value.get("prefecture")
+        or value.get("都道府県")
+    )
+
+
+def read_area_name(value: dict[str, Any]) -> str:
+    return read_text(
+        value.get("areaName")
+        or value.get("area_name")
+        or value.get("site7Area")
+        or value.get("site7_area")
+        or value.get("area")
+        or value.get("地域")
+    )
 
 
 def average(values: list[float | int | None]) -> float | None:
@@ -216,6 +240,8 @@ def build_store_payload(store_source: StoreSource, records: list[dict[str, Any]]
                 "legacyIds": sorted(store_source.legacy_ids),
                 "storeName": store_source.store_name,
                 "storeUrl": normalize_store_url(store_source.store_url),
+                "prefectureName": read_text(store_source.prefecture_name),
+                "areaName": read_text(store_source.area_name),
             },
             "machineName": machine_name,
             "records": machine_records,
@@ -231,6 +257,8 @@ def build_store_payload(store_source: StoreSource, records: list[dict[str, Any]]
             "legacyIds": sorted(store_source.legacy_ids),
             "storeName": store_source.store_name,
             "storeUrl": normalize_store_url(store_source.store_url),
+            "prefectureName": read_text(store_source.prefecture_name),
+            "areaName": read_text(store_source.area_name),
             "eventDayTails": [],
             "eventZoro": False,
             "eventWeekdays": [],
@@ -292,6 +320,8 @@ def build_index_store_entry(store_payload: dict[str, Any], data_file: str) -> di
         "legacyIds": store.get("legacyIds", []),
         "storeName": store.get("storeName"),
         "storeUrl": store.get("storeUrl"),
+        "prefectureName": store.get("prefectureName"),
+        "areaName": store.get("areaName"),
         "machineCount": summary.get("machineCount", 0),
         "latestDate": summary.get("latestDate"),
         "recordCount": summary.get("recordCount", 0),
@@ -366,6 +396,58 @@ def export_store_payloads(
     return store_entries
 
 
+def export_registered_store_payloads(
+    web_data_dir: Path,
+    store_sources: list[StoreSource],
+    *,
+    r2_storage: R2JsonStorage | None = None,
+) -> list[dict[str, Any]]:
+    index_payload = load_existing_index(web_data_dir, r2_storage=r2_storage)
+    existing_entries = {
+        str(entry.get("id")): entry
+        for entry in index_payload.get("stores", [])
+        if isinstance(entry, dict) and entry.get("id")
+    }
+    metadata_only_entries: list[dict[str, Any]] = []
+    empty_store_payloads: list[dict[str, Any]] = []
+
+    for store_source in store_sources:
+        store_id = build_store_id(store_source.store_name, store_source.store_url)
+        existing_entry = existing_entries.get(store_id)
+        if isinstance(existing_entry, dict) and existing_entry.get("dataFile"):
+            legacy_ids = {
+                str(legacy_id).strip()
+                for legacy_id in existing_entry.get("legacyIds", [])
+                if str(legacy_id).strip()
+            }
+            legacy_ids.update(store_source.legacy_ids)
+            metadata_only_entries.append(
+                {
+                    **existing_entry,
+                    "id": store_id,
+                    "legacyIds": sorted(legacy_ids),
+                    "storeName": store_source.store_name,
+                    "storeUrl": normalize_store_url(store_source.store_url),
+                    "prefectureName": read_text(store_source.prefecture_name),
+                    "areaName": read_text(store_source.area_name),
+                }
+            )
+            continue
+
+        empty_store_payloads.append(build_store_payload(store_source, []))
+
+    exported_entries = []
+    if empty_store_payloads:
+        exported_entries.extend(
+            export_store_payloads(web_data_dir, empty_store_payloads, r2_storage=r2_storage)
+        )
+    if metadata_only_entries:
+        update_index(web_data_dir, metadata_only_entries, r2_storage=r2_storage)
+        exported_entries.extend(metadata_only_entries)
+
+    return exported_entries
+
+
 def load_store_sources_from_csv(stores_csv: Path) -> dict[str, StoreSource]:
     store_sources: dict[str, StoreSource] = {}
     if not stores_csv.exists():
@@ -380,10 +462,19 @@ def load_store_sources_from_csv(stores_csv: Path) -> dict[str, StoreSource]:
             key = store_key(store_name, store_url)
             store_source = store_sources.setdefault(
                 key,
-                StoreSource(store_name=store_name or store_url, store_url=store_url),
+                StoreSource(
+                    store_name=store_name or store_url,
+                    store_url=store_url,
+                    prefecture_name=read_prefecture_name(row),
+                    area_name=read_area_name(row),
+                ),
             )
             if store_name and not store_source.store_name:
                 store_source.store_name = store_name
+            if not store_source.prefecture_name:
+                store_source.prefecture_name = read_prefecture_name(row)
+            if not store_source.area_name:
+                store_source.area_name = read_area_name(row)
             legacy_id = read_text(row.get("id"))
             if legacy_id:
                 store_source.legacy_ids.add(legacy_id)
@@ -447,7 +538,16 @@ def collect_store_records_from_local_store_dir(store_dir: Path) -> tuple[StoreSo
         store_payload = snapshot.get("store") if isinstance(snapshot.get("store"), dict) else {}
         store_name = read_text(store_payload.get("store_name")) or store_dir.name
         store_url = normalize_store_url(read_text(store_payload.get("store_url")))
-        store_source = store_source or StoreSource(store_name=store_name, store_url=store_url)
+        store_source = store_source or StoreSource(
+            store_name=store_name,
+            store_url=store_url,
+            prefecture_name=read_prefecture_name(store_payload),
+            area_name=read_area_name(store_payload),
+        )
+        if not store_source.prefecture_name:
+            store_source.prefecture_name = read_prefecture_name(store_payload)
+        if not store_source.area_name:
+            store_source.area_name = read_area_name(store_payload)
         saved_at = read_text(snapshot.get("saved_at")) or datetime.fromtimestamp(
             snapshot_path.stat().st_mtime,
         ).isoformat()

@@ -7,6 +7,45 @@ function normalizeText(value) {
   return String(value ?? "").trim().toLocaleLowerCase("ja");
 }
 
+function normalizeGroupName(value, fallback) {
+  const text = String(value ?? "").trim();
+  return text || fallback;
+}
+
+function buildStoreGroups(stores) {
+  const prefectureGroups = new Map();
+
+  for (const store of stores) {
+    const prefectureName = normalizeGroupName(store.prefectureName, "都道府県未設定");
+    const areaName = normalizeGroupName(store.areaName, "地域未設定");
+    if (!prefectureGroups.has(prefectureName)) {
+      prefectureGroups.set(prefectureName, new Map());
+    }
+    const areaGroups = prefectureGroups.get(prefectureName);
+    if (!areaGroups.has(areaName)) {
+      areaGroups.set(areaName, []);
+    }
+    areaGroups.get(areaName).push(store);
+  }
+
+  return [...prefectureGroups.entries()]
+    .sort(([left], [right]) => left.localeCompare(right, "ja"))
+    .map(([prefectureName, areaGroups]) => {
+      const areas = [...areaGroups.entries()]
+        .sort(([left], [right]) => left.localeCompare(right, "ja"))
+        .map(([areaName, areaStores]) => ({
+          areaName,
+          stores: [...areaStores].sort((left, right) => left.storeName.localeCompare(right.storeName, "ja")),
+        }));
+
+      return {
+        prefectureName,
+        areas,
+        storeCount: areas.reduce((count, area) => count + area.stores.length, 0),
+      };
+    });
+}
+
 export function StoreDirectory({ completeStores, pendingStores }) {
   const [query, setQuery] = useState("");
   const normalizedQuery = normalizeText(query);
@@ -19,6 +58,8 @@ export function StoreDirectory({ completeStores, pendingStores }) {
       normalizeText(store.storeName).includes(normalizedQuery),
     );
   }, [completeStores, normalizedQuery]);
+  const storeGroups = useMemo(() => buildStoreGroups(filteredStores), [filteredStores]);
+  const shouldOpenMatchedRegions = Boolean(normalizedQuery);
 
   return (
     <>
@@ -55,15 +96,39 @@ export function StoreDirectory({ completeStores, pendingStores }) {
           {filteredStores.length === 0 ? (
             <div className="emptyListPanel">該当する店舗はありません。</div>
           ) : (
-            <ul className="storeLinkList">
-              {filteredStores.map((store) => (
-                <li key={store.id}>
-                  <Link href={`/stores/${store.id}`} className="plainStoreLink">
-                    {store.storeName}
-                  </Link>
-                </li>
+            <div className="storeGroupList">
+              {storeGroups.map((prefecture) => (
+                <section className="storePrefectureGroup" key={prefecture.prefectureName}>
+                  <div className="storePrefectureHeader">
+                    <h3>{prefecture.prefectureName}</h3>
+                    <span>{prefecture.storeCount}店舗</span>
+                  </div>
+                  <div className="storeRegionList">
+                    {prefecture.areas.map((area) => (
+                      <details
+                        className="storeRegionGroup"
+                        key={`${prefecture.prefectureName}-${area.areaName}`}
+                        open={shouldOpenMatchedRegions || undefined}
+                      >
+                        <summary className="storeRegionSummary">
+                          <span>{area.areaName}</span>
+                          <span>{area.stores.length}店舗</span>
+                        </summary>
+                        <ul className="storeLinkList storeRegionStoreList">
+                          {area.stores.map((store) => (
+                            <li key={store.id}>
+                              <Link href={`/stores/${store.id}`} className="plainStoreLink">
+                                {store.storeName}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    ))}
+                  </div>
+                </section>
               ))}
-            </ul>
+            </div>
           )}
         </section>
       )}
