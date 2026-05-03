@@ -2066,6 +2066,7 @@ class MinRepoApp:
         target_date_input: str,
         retry_delay_seconds: int,
     ) -> FetchManyResult:
+        target_stores = self._minrepo_fetch_ordered_stores(target_stores)
         results: list[StoreFetchResult] = []
         failures: list[StoreFetchFailure] = []
         total_stores = len(target_stores)
@@ -2110,6 +2111,9 @@ class MinRepoApp:
             raise ScraperError(f"選択した店舗を取得できませんでした。\n{failure_lines}")
 
         return FetchManyResult(results=results, failures=failures, cancelled=cancelled)
+
+    def _minrepo_fetch_ordered_stores(self, target_stores: list[RegisteredStore]) -> list[RegisteredStore]:
+        return sorted(target_stores, key=lambda registered_store: 0 if registered_store.site7_enabled else 1)
 
     def _fetch_single_store(
         self,
