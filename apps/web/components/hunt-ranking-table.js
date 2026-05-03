@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   formatAverageGames,
+  formatMonthDay,
   formatNumber,
   formatPercent,
   formatRatio,
@@ -31,53 +32,65 @@ const DEFAULT_VISIBLE_RESULT_KEYS = [
   "setting_estimate",
 ];
 
-const RESULT_COLUMNS = [
+const RESULT_COLUMN_DEFINITIONS = [
   {
     key: "difference_value",
-    label: "翌営業日差枚（保存値）",
+    label: "差枚",
     render: (row) => formatSignedNumber(row.nextRecord?.difference_value),
   },
   {
     key: "games_count",
-    label: "翌営業日G数",
+    label: "G数",
     render: (row) => formatAverageGames(row.nextRecord?.games_count),
   },
   {
     key: "bb_count",
-    label: "翌営業日BB",
+    label: "BB",
     render: (row) => formatAverageGames(row.nextRecord?.bb_count),
   },
   {
     key: "rb_count",
-    label: "翌営業日RB",
+    label: "RB",
     render: (row) => formatAverageGames(row.nextRecord?.rb_count),
   },
   {
     key: "combined_ratio_text",
-    label: "翌営業日合成",
+    label: "合成",
     render: (row) => formatRatio(row.nextRecord?.combined_ratio_text),
   },
   {
     key: "setting_estimate",
-    label: "翌営業日設定",
+    label: "設定",
     render: (row) => formatSettingEstimateScore(row.nextSettingEstimate?.average),
   },
   {
     key: "payout_rate",
-    label: "翌営業日出率",
+    label: "出率",
     render: (row) => formatPercent(row.nextRecord?.payout_rate),
   },
   {
     key: "bb_ratio_text",
-    label: "翌営業日BB率",
+    label: "BB率",
     render: (row) => formatRatio(row.nextRecord?.bb_ratio_text),
   },
   {
     key: "rb_ratio_text",
-    label: "翌営業日RB率",
+    label: "RB率",
     render: (row) => formatRatio(row.nextRecord?.rb_ratio_text),
   },
 ];
+
+function buildResultColumns(actualDate) {
+  const actualDatePrefix = actualDate ? formatMonthDay(actualDate) : "実績";
+  return RESULT_COLUMN_DEFINITIONS.map((column) => ({
+    ...column,
+    label: `${actualDatePrefix}${column.label}`,
+  }));
+}
+
+function formatScoreColumnLabel(predictionDate) {
+  return predictionDate ? `${formatMonthDay(predictionDate)}狙い度` : "狙い度";
+}
 
 function buildFallbackRankingGroups(rows) {
   const groupsByMachineName = new Map();
@@ -137,7 +150,7 @@ function buildOverallRows(rows, overallLimit) {
   }));
 }
 
-function OverallRankingTable({ storeId, title, rows, visibleColumns, bookmarkState }) {
+function OverallRankingTable({ storeId, title, rows, visibleColumns, bookmarkState, scoreColumnLabel }) {
   return (
     <section className="tablePanel directoryPanel">
       <div className="tablePanelHeader">
@@ -152,7 +165,7 @@ function OverallRankingTable({ storeId, title, rows, visibleColumns, bookmarkSta
             <tr>
               <th>条件</th>
               <th>順位</th>
-              <th>狙い度</th>
+              <th>{scoreColumnLabel}</th>
               <th className="directoryNameHeader">機種名</th>
               <th>台番</th>
               {visibleColumns.map((column) => (
@@ -209,6 +222,8 @@ export function HuntRankingTable({
   rankingGroups = [],
   allRankingGroups = [],
   overallLimit = 20,
+  predictionDate = null,
+  actualDate = null,
 }) {
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
   const [bookmark, setBookmark] = useState(null);
@@ -228,10 +243,18 @@ export function HuntRankingTable({
     };
   }, [storeId]);
 
-  const visibleColumns = useMemo(
-    () => RESULT_COLUMNS.filter((column) => visibleResultKeys.includes(column.key)),
-    [visibleResultKeys],
+  const resultColumns = useMemo(
+    () => buildResultColumns(actualDate),
+    [actualDate],
   );
+  const visibleColumns = useMemo(
+    () => resultColumns.filter((column) => visibleResultKeys.includes(column.key)),
+    [resultColumns, visibleResultKeys],
+  );
+  const scoreColumnLabel = useMemo(() => formatScoreColumnLabel(predictionDate), [predictionDate]);
+  const resultColumnLead = actualDate
+    ? `${formatMonthDay(actualDate)}の実績列だけを切り替えられます。`
+    : "実績列だけを切り替えられます。";
   const displayGroups = useMemo(
     () => (rankingGroups.length > 0 ? rankingGroups : buildFallbackRankingGroups(rows)),
     [rankingGroups, rows],
@@ -277,7 +300,7 @@ export function HuntRankingTable({
         nextKeys.add(columnKey);
       }
 
-      return RESULT_COLUMNS.filter((column) => nextKeys.has(column.key)).map((column) => column.key);
+      return resultColumns.filter((column) => nextKeys.has(column.key)).map((column) => column.key);
     });
   };
 
@@ -296,7 +319,7 @@ export function HuntRankingTable({
         <div>
           <p className="sectionLabel">表示する列</p>
           <p className="filterLead">
-            翌営業日の実績列だけを切り替えられます。ここは保存済み実績の表示で、上のバックテスト基準切り替えは反映しません。
+            {`${resultColumnLead}ここは保存済み実績の表示で、上のバックテスト基準切り替えは反映しません。`}
           </p>
         </div>
         {bookmarkState.bookmark ? (
@@ -307,7 +330,7 @@ export function HuntRankingTable({
           </p>
         ) : null}
         <div className="metricToggleRow">
-          {RESULT_COLUMNS.map((column) => {
+          {resultColumns.map((column) => {
             const isChecked = visibleResultKeys.includes(column.key);
             const isLastVisible = isChecked && visibleColumns.length === 1;
 
@@ -336,6 +359,7 @@ export function HuntRankingTable({
           rows={selectedOverallRows}
           visibleColumns={visibleColumns}
           bookmarkState={bookmarkState}
+          scoreColumnLabel={scoreColumnLabel}
         />
       ) : (
         <section className="statusPanel">
@@ -350,6 +374,7 @@ export function HuntRankingTable({
         rows={allOverallRows}
         visibleColumns={visibleColumns}
         bookmarkState={bookmarkState}
+        scoreColumnLabel={scoreColumnLabel}
       />
 
       {displayGroups.map((group) => (
@@ -378,7 +403,7 @@ export function HuntRankingTable({
                 <tr>
                   <th>条件</th>
                   <th>順位</th>
-                  <th>狙い度</th>
+                  <th>{scoreColumnLabel}</th>
                   <th>台番</th>
                   {visibleColumns.map((column) => (
                     <th key={column.key}>{column.label}</th>

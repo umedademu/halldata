@@ -121,6 +121,24 @@ export function formatShortDate(value) {
   return `${year}/${month}/${day}`;
 }
 
+export function formatMonthDay(value) {
+  const normalized = normalizeDateText(value);
+  if (normalized) {
+    return `${Number(normalized.slice(5, 7))}/${Number(normalized.slice(8, 10))}`;
+  }
+
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
 export function formatPeriod(startDate, endDate) {
   if (!startDate && !endDate) {
     return "期間データなし";

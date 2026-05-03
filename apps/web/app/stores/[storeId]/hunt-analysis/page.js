@@ -11,7 +11,7 @@ import {
   getHuntScoreRankingDetail,
   getStoreIdentity,
 } from "../../../../lib/data";
-import { formatCompactDate } from "../../../../lib/format";
+import { formatMonthDay } from "../../../../lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +41,12 @@ function parseRequestedLimit(value) {
     return DEFAULT_RANKING_LIMIT;
   }
   return parsedValue;
+}
+
+function formatRankingDateOption(date, nextBusinessDate) {
+  const scoreDateLabel = formatMonthDay(date);
+  const actualDateLabel = nextBusinessDate ? `${formatMonthDay(nextBusinessDate)}実績` : "実績なし";
+  return `${scoreDateLabel}狙い度 → ${actualDateLabel}`;
 }
 
 function normalizeMachineNameText(value) {
@@ -233,6 +239,13 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     Array.isArray(detail.availableMachineNames) && detail.availableMachineNames.length > 0
       ? detail.availableMachineNames
       : detail.rankingGroups.map((group) => group.machineName);
+  const rankingDateOptions =
+    Array.isArray(detail.rankingDateOptions) && detail.rankingDateOptions.length > 0
+      ? detail.rankingDateOptions
+      : detail.rankingDates.map((date) => ({
+          date,
+          nextBusinessDate: date === detail.selectedDate ? detail.nextBusinessDate : null,
+        }));
   const availableMachineNameSet = new Set(availableMachineNames);
   const hasAimJugglerGroupOption = AIM_JUGGLER_MACHINE_NAMES.every((machineName) =>
     availableMachineNameSet.has(machineName),
@@ -307,19 +320,19 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             <div>
               <p className="sectionLabel">集計日を選ぶ</p>
               <p className="filterLead">
-                選んだ日の時点で見た次回営業日の狙い度を、機種ごとの高い順で確認できます。
+                選んだ日の狙い度と、その次の営業日の実績を並べて確認できます。
               </p>
             </div>
             <NativeGetForm action={`/stores/${detail.store.id}/hunt-analysis`} className="storeReserveForm">
               <input type="hidden" name="show" value="1" />
               <input type="hidden" name="machineTouched" value="1" />
               <label className="storeReserveField">
-                <span>集計日</span>
-                {resultRequested && detail.rankingDates.length > 0 ? (
+                <span>狙い度の日</span>
+                {resultRequested && rankingDateOptions.length > 0 ? (
                   <select name="date" defaultValue={detail.selectedDate ?? ""} className="storeReserveInput">
-                    {detail.rankingDates.map((date) => (
-                      <option key={date} value={date}>
-                        {formatCompactDate(date)}
+                    {rankingDateOptions.map((option) => (
+                      <option key={option.date} value={option.date}>
+                        {formatRankingDateOption(option.date, option.nextBusinessDate)}
                       </option>
                     ))}
                   </select>
@@ -420,6 +433,8 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 rankingGroups={visibleRankingGroups}
                 allRankingGroups={allChoiceRankingGroups}
                 overallLimit={detail.limit}
+                predictionDate={detail.predictionDate}
+                actualDate={detail.nextBusinessDate}
               />
             ) : (
               <section className="statusPanel">

@@ -1128,6 +1128,7 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}) {
     },
     availableMachineNames: machineNames,
     rankingDates: [],
+    rankingDateOptions: [],
     selectedDate: storeDetail.summary.latestDate,
     requestedDate: "",
     limit: DEFAULT_HUNT_RANKING_LIMIT,
@@ -1266,6 +1267,10 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
 
   const { store, snapshots } = snapshotDetail;
   const availableMachineNames = listHuntScoreTargetMachineNames(store.store_name);
+  const rankingDateOptions = snapshots.map((snapshot) => ({
+    date: snapshot.baseDate,
+    nextBusinessDate: snapshot.nextBusinessDate ?? null,
+  }));
   const rankingDates = snapshots.map((snapshot) => snapshot.baseDate);
   const selectedDate = rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null;
   const snapshot = snapshots.find((entry) => entry.baseDate === selectedDate) ?? null;
@@ -1290,6 +1295,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
       storeUrl: store.store_url,
     },
     availableMachineNames,
+    rankingDateOptions,
     rankingDates,
     selectedDate,
     requestedDate,
@@ -1414,6 +1420,10 @@ export async function getHuntScoreAnalysisPageDetail(
   }
 
   const { store, snapshots } = snapshotDetail;
+  const rankingDateOptions = snapshots.map((snapshot) => ({
+    date: snapshot.baseDate,
+    nextBusinessDate: snapshot.nextBusinessDate ?? null,
+  }));
   const rankingDates = snapshots.map((snapshot) => snapshot.baseDate);
   const selectedDate = rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null;
   const snapshot = snapshots.find((entry) => entry.baseDate === selectedDate) ?? null;
@@ -1438,6 +1448,7 @@ export async function getHuntScoreAnalysisPageDetail(
       storeName: store.store_name,
       storeUrl: store.store_url,
     },
+    rankingDateOptions,
     rankingDates,
     selectedDate,
     requestedDate,
