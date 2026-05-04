@@ -188,13 +188,12 @@ def load_existing_index(
     r2_storage: R2JsonStorage | None = None,
 ) -> dict[str, Any]:
     if r2_storage is not None:
-        try:
-            payload = r2_storage.read_json("index.json")
-        except Exception:
-            payload = None
+        payload = r2_storage.read_json("index.json")
+        if payload is None:
+            return {"version": WEB_DATA_VERSION, "stores": []}
         if isinstance(payload, dict) and isinstance(payload.get("stores"), list):
             return payload
-        return {"version": WEB_DATA_VERSION, "stores": []}
+        raise ValueError("R2上のindex.jsonの形式が不正です。")
 
     index_path = web_data_dir / "index.json"
     if not index_path.exists():
