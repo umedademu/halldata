@@ -131,7 +131,9 @@ class R2JsonStorage:
             payload = response.json()
         except ValueError as exc:
             raise R2StorageError(f"R2上のJsonを読めませんでした。{key}") from exc
-        return payload if isinstance(payload, dict) else None
+        if not isinstance(payload, dict):
+            raise R2StorageError(f"R2上のJson形式が不正です。{key}")
+        return payload
 
     def write_json(self, key: str, payload: dict[str, Any]) -> str:
         body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")

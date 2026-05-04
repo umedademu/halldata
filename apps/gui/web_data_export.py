@@ -24,6 +24,10 @@ DEFAULT_RESULTS_CSV = ROOT_DIR / "machine_daily_results_rows.csv"
 WEB_DATA_VERSION = 1
 
 
+class WebDataIndexMissingError(RuntimeError):
+    pass
+
+
 @dataclass
 class StoreSource:
     store_name: str
@@ -186,12 +190,19 @@ def load_existing_index(
     web_data_dir: Path,
     *,
     r2_storage: R2JsonStorage | None = None,
+    allow_missing_r2_index: bool = False,
 ) -> dict[str, Any]:
     if r2_storage is not None:
         payload = r2_storage.read_json("index.json")
         if payload is None:
-            return {"version": WEB_DATA_VERSION, "stores": []}
-        if isinstance(payload, dict) and isinstance(payload.get("stores"), list):
+            if allow_missing_r2_index:
+                return {"version": WEB_DATA_VERSION, "stores": []}
+            raise WebDataIndexMissingError(
+                "R2上のindex.jsonが見つからないため、公開用店舗一覧の更新を中止しました。"
+            )
+        if not isinstance(payload, dict):
+            raise ValueError("R2上のindex.jsonの形式が不正です。")
+        if isinstance(payload.get("stores"), list):
             return payload
         raise ValueError("R2上のindex.jsonの形式が不正です。")
 
@@ -333,8 +344,13 @@ def update_index(
     store_entries: list[dict[str, Any]],
     *,
     r2_storage: R2JsonStorage | None = None,
+    allow_missing_r2_index: bool = False,
 ) -> None:
-    index_payload = load_existing_index(web_data_dir, r2_storage=r2_storage)
+    index_payload = load_existing_index(
+        web_data_dir,
+        r2_storage=r2_storage,
+        allow_missing_r2_index=allow_missing_r2_index,
+    )
     existing_entries = {
         str(entry.get("id")): entry
         for entry in index_payload.get("stores", [])
@@ -380,6 +396,7 @@ def export_store_payloads(
     store_payloads: list[dict[str, Any]],
     *,
     r2_storage: R2JsonStorage | None = None,
+    allow_missing_r2_index: bool = False,
 ) -> list[dict[str, Any]]:
     store_entries = []
     for store_payload in store_payloads:
@@ -391,7 +408,12 @@ def export_store_payloads(
         data_file = f"stores/{store['id']}.json"
         write_json_payload(web_data_dir, data_file, store_payload, r2_storage=r2_storage)
         store_entries.append(build_index_store_entry(store_payload, data_file))
-    update_index(web_data_dir, store_entries, r2_storage=r2_storage)
+    update_index(
+        web_data_dir,
+        store_entries,
+        r2_storage=r2_storage,
+        allow_missing_r2_index=allow_missing_r2_index,
+    )
     return store_entries
 
 
@@ -401,7 +423,11 @@ def export_registered_store_payloads(
     *,
     r2_storage: R2JsonStorage | None = None,
 ) -> list[dict[str, Any]]:
-    index_payload = load_existing_index(web_data_dir, r2_storage=r2_storage)
+    index_payload = load_existing_index(
+        web_data_dir,
+        r2_storage=r2_storage,
+        allow_missing_r2_index=True,
+    )
     existing_entries = {
         str(entry.get("id")): entry
         for entry in index_payload.get("stores", [])
@@ -438,10 +464,20 @@ def export_registered_store_payloads(
     exported_entries = []
     if empty_store_payloads:
         exported_entries.extend(
-            export_store_payloads(web_data_dir, empty_store_payloads, r2_storage=r2_storage)
+            export_store_payloads(
+                web_data_dir,
+                empty_store_payloads,
+                r2_storage=r2_storage,
+                allow_missing_r2_index=True,
+            )
         )
     if metadata_only_entries:
-        update_index(web_data_dir, metadata_only_entries, r2_storage=r2_storage)
+        update_index(
+            web_data_dir,
+            metadata_only_entries,
+            r2_storage=r2_storage,
+            allow_missing_r2_index=True,
+        )
         exported_entries.extend(metadata_only_entries)
 
     return exported_entries

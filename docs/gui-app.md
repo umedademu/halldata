@@ -167,6 +167,7 @@
 - 同じ店舗名または同じURLは重複登録しないようにしています
 - 登録後は `local_data/registered_stores.json` に保存します
 - 次回起動時は、`local_data/registered_stores.json` を優先し、不足分はR2上のWeb表示用索引から補って登録店舗一覧を表示します
+- R2上のWeb表示用索引を確認できない場合は、一部店舗だけの一覧で `index.json` を上書きしないよう、Web表示用店舗索引の更新を中止します
 
 ## 常駐
 

@@ -47,6 +47,7 @@ from main import (
 )
 from machine_difference import calculate_machine_difference_value, canonical_machine_name, machine_is_site7_target
 from minrepo_scraper import FetchProgress, MachineHistoryResult, MinRepoScraper, ScraperError, normalize_text, parse_date_range_input
+from r2_storage import R2StorageError
 from site7_scraper import (
     DEFAULT_SITE7_PREFECTURE_NAME,
     SITE7_TARGET_MACHINE_NAME,
@@ -79,10 +80,15 @@ class FakeR2JsonStorage:
         return SimpleNamespace(bucket_name="test-bucket")
 
     def read_json(self, key: str) -> dict[str, object] | None:
-        payload = self.objects.get(self._normalize_key(key))
+        normalized_key = self._normalize_key(key)
+        if normalized_key not in self.objects:
+            return None
+        payload = self.objects.get(normalized_key)
         if isinstance(payload, bytes):
             payload = json.loads(payload.decode("utf-8"))
-        return json.loads(json.dumps(payload, ensure_ascii=False)) if isinstance(payload, dict) else None
+        if not isinstance(payload, dict):
+            raise R2StorageError(f"R2上のJson形式が不正です。{key}")
+        return json.loads(json.dumps(payload, ensure_ascii=False))
 
     def write_json(self, key: str, payload: dict[str, object]) -> str:
         normalized_key = self._normalize_key(key)
@@ -102,8 +108,16 @@ class FakeR2JsonStorage:
         return str(key).replace("\\", "/").lstrip("/")
 
 
+class FailingIndexReadStorage(FakeR2JsonStorage):
+    def read_json(self, key: str) -> dict[str, object] | None:
+        if self._normalize_key(key) == "index.json":
+            raise R2StorageError("読込失敗")
+        return super().read_json(key)
+
+
 def make_r2_service(root_dir: Path) -> tuple[HistoryPersistenceService, FakeR2JsonStorage]:
     storage = FakeR2JsonStorage()
+    storage.write_json("index.json", {"version": 1, "stores": []})
     return HistoryPersistenceService(root_dir=root_dir, r2_storage=storage), storage
 
 
@@ -2013,6 +2027,24 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertTrue(summary.web_data_saved)
             self.assertIn("index.json", storage.objects)
 
+    def test_save_history_result_does_not_recreate_missing_r2_index_from_single_store(self) -> None:
+        scraper = FixtureScraper()
+        history_result = scraper.fetch_machine_history_datasets(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-07 ～ 2026-04-08",
+            machine_names=["ネオアイムジャグラーEX"],
+        )
+
+        with TemporaryDirectory() as temp_dir:
+            service, storage = make_r2_service(Path(temp_dir))
+            storage.delete_object("index.json")
+
+            summary = service.save_history_result(history_result)
+
+            self.assertTrue(summary.has_errors)
+            self.assertFalse(summary.web_data_saved)
+            self.assertNotIn("index.json", storage.objects)
+
     def test_save_history_result_local_checkpoint_writes_local_snapshot(self) -> None:
         scraper = FixtureScraper()
         history_result = scraper.fetch_machine_history_datasets(
@@ -2234,6 +2266,37 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(stores[0]["prefectureName"], "福岡県")
             self.assertEqual(stores[0]["areaName"], "福岡市中央区")
             self.assertTrue(stores[0]["dataFile"])
+
+    def test_sync_registered_stores_to_web_data_stops_after_index_read_error(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root_dir = Path(temp_dir)
+            registered_stores_path = root_dir / "local_data" / "registered_stores.json"
+            registered_stores_path.parent.mkdir(parents=True, exist_ok=True)
+            registered_stores_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "stores": [
+                            {
+                                "store_name": "GOGOアリーナ天神",
+                                "store_url": "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/",
+                            }
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            storage = FailingIndexReadStorage()
+            service = HistoryPersistenceService(root_dir=root_dir, r2_storage=storage)  # type: ignore[arg-type]
+
+            loaded_stores = service.load_registered_stores()
+            summary = service.sync_registered_stores_to_web_data(loaded_stores)
+
+            self.assertEqual([store["store_name"] for store in loaded_stores], ["GOGOアリーナ天神"])
+            self.assertTrue(summary.has_errors)
+            self.assertFalse(summary.web_data_saved)
+            self.assertNotIn("index.json", storage.objects)
 
     def test_load_registered_stores_merges_static_web_entries_when_local_file_is_partial(self) -> None:
         with TemporaryDirectory() as temp_dir:

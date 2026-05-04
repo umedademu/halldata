@@ -403,6 +403,8 @@ class HistoryPersistenceService:
     def __init__(self, root_dir: Path | None = None, r2_storage: R2JsonStorage | None = None) -> None:
         self.root_dir = root_dir or ROOT_DIR
         self.r2_storage = r2_storage or R2JsonStorage.from_environment(self.root_dir)
+        self._registered_store_index_load_failed = False
+        self._registered_store_index_load_error = ""
 
     def save_history_result(self, history_result: MachineHistoryResult, full_day: bool = False) -> PersistenceSummary:
         snapshot = self._build_local_snapshot(history_result)
@@ -579,6 +581,8 @@ class HistoryPersistenceService:
         return 0
 
     def load_registered_stores(self) -> list[dict[str, Any]]:
+        self._registered_store_index_load_failed = False
+        self._registered_store_index_load_error = ""
         local_stores = self._load_registered_stores_local()
         excluded_store_urls = self._load_registered_store_excluded_urls()
         fallback_stores = self._merge_registered_store_sources(
@@ -604,9 +608,12 @@ class HistoryPersistenceService:
             summary.messages.append(f"登録店舗のローカル保存に失敗しました。\n{exc}")
 
         try:
-            entries = self._save_registered_stores_to_r2_web_data(normalized_stores)
-            summary.web_data_saved = bool(entries)
-            summary.web_data_store_count = len(entries)
+            if self._registered_store_index_load_failed:
+                summary.messages.append(self._registered_store_index_update_blocked_message())
+            else:
+                entries = self._save_registered_stores_to_r2_web_data(normalized_stores)
+                summary.web_data_saved = bool(entries)
+                summary.web_data_store_count = len(entries)
         except Exception as exc:  # noqa: BLE001
             summary.messages.append(f"Web表示用店舗索引の更新に失敗しました。\n{exc}")
 
@@ -621,9 +628,12 @@ class HistoryPersistenceService:
         summary = RegisteredStoresPersistenceSummary(local_store_count=len(normalized_stores))
 
         try:
-            entries = self._save_registered_stores_to_r2_web_data(normalized_stores)
-            summary.web_data_saved = bool(entries)
-            summary.web_data_store_count = len(entries)
+            if self._registered_store_index_load_failed:
+                summary.messages.append(self._registered_store_index_update_blocked_message())
+            else:
+                entries = self._save_registered_stores_to_r2_web_data(normalized_stores)
+                summary.web_data_saved = bool(entries)
+                summary.web_data_store_count = len(entries)
         except Exception as exc:  # noqa: BLE001
             summary.messages.append(f"Web表示用店舗索引の更新に失敗しました。\n{exc}")
 
@@ -753,6 +763,7 @@ class HistoryPersistenceService:
             self.root_dir / "apps" / "web" / "public" / "halldata-static",
             [store_payload],
             r2_storage=self.r2_storage,
+            allow_missing_r2_index=False,
         )
         return entries[0] if entries else {}
 
@@ -1354,10 +1365,15 @@ class HistoryPersistenceService:
             return []
 
         try:
-            payload = self._load_r2_index_payload()
-        except R2StorageError:
+            payload = self.r2_storage.read_json("index.json")
+        except R2StorageError as exc:
+            self._mark_registered_store_index_load_failed(f"R2のindex.json読込に失敗しました。\n{exc}")
+            return []
+        if payload is None:
+            self._mark_registered_store_index_load_failed("R2のindex.jsonが見つかりませんでした。")
             return []
         if not isinstance(payload, dict):
+            self._mark_registered_store_index_load_failed("R2のindex.jsonの形式が不正です。")
             return []
 
         stores = []
@@ -1387,6 +1403,15 @@ class HistoryPersistenceService:
                 }
             )
         return self._normalize_registered_stores(stores)
+
+    def _mark_registered_store_index_load_failed(self, message: str) -> None:
+        self._registered_store_index_load_failed = True
+        self._registered_store_index_load_error = message
+
+    def _registered_store_index_update_blocked_message(self) -> str:
+        detail = self._registered_store_index_load_error.strip()
+        message = "R2の公開用店舗一覧を確認できなかったため、欠けた一覧での上書きを防ぐ目的で更新を中止しました。"
+        return f"{message}\n{detail}" if detail else message
 
     def _registered_store_location_for(self, store_name: str, store_url: str) -> dict[str, str]:
         normalized_url = normalize_store_url(store_url)
