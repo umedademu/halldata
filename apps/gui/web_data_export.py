@@ -218,6 +218,28 @@ def load_existing_index(
     return payload
 
 
+def load_existing_payload(
+    web_data_dir: Path,
+    relative_path: str,
+    *,
+    r2_storage: R2JsonStorage | None = None,
+) -> dict[str, Any] | None:
+    normalized_path = str(relative_path).replace("\\", "/").lstrip("/")
+    if not normalized_path:
+        return None
+    if r2_storage is not None:
+        return r2_storage.read_json(normalized_path)
+
+    payload_path = web_data_dir / normalized_path
+    if not payload_path.exists():
+        return None
+    try:
+        payload = json.loads(payload_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 def build_store_payload(store_source: StoreSource, records: list[dict[str, Any]]) -> dict[str, Any]:
     generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
     store_id = build_store_id(store_source.store_name, store_source.store_url)
@@ -339,6 +361,34 @@ def build_index_store_entry(store_payload: dict[str, Any], data_file: str) -> di
     }
 
 
+def build_registered_store_index_entry(
+    store_source: StoreSource,
+    store_id: str,
+    *,
+    existing_entry: dict[str, Any] | None = None,
+    data_file: str = "",
+) -> dict[str, Any]:
+    existing_entry = existing_entry if isinstance(existing_entry, dict) else {}
+    legacy_ids = {
+        str(legacy_id).strip()
+        for legacy_id in existing_entry.get("legacyIds", [])
+        if str(legacy_id).strip()
+    }
+    legacy_ids.update(store_source.legacy_ids)
+    return {
+        "id": store_id,
+        "legacyIds": sorted(legacy_ids),
+        "storeName": store_source.store_name,
+        "storeUrl": normalize_store_url(store_source.store_url),
+        "prefectureName": read_text(store_source.prefecture_name),
+        "areaName": read_text(store_source.area_name),
+        "machineCount": int(existing_entry.get("machineCount") or 0),
+        "latestDate": existing_entry.get("latestDate"),
+        "recordCount": int(existing_entry.get("recordCount") or 0),
+        "dataFile": data_file or str(existing_entry.get("dataFile") or "").strip(),
+    }
+
+
 def update_index(
     web_data_dir: Path,
     store_entries: list[dict[str, Any]],
@@ -426,7 +476,6 @@ def export_registered_store_payloads(
     index_payload = load_existing_index(
         web_data_dir,
         r2_storage=r2_storage,
-        allow_missing_r2_index=True,
     )
     existing_entries = {
         str(entry.get("id")): entry
@@ -434,49 +483,45 @@ def export_registered_store_payloads(
         if isinstance(entry, dict) and entry.get("id")
     }
     metadata_only_entries: list[dict[str, Any]] = []
-    empty_store_payloads: list[dict[str, Any]] = []
 
     for store_source in store_sources:
         store_id = build_store_id(store_source.store_name, store_source.store_url)
         existing_entry = existing_entries.get(store_id)
         if isinstance(existing_entry, dict) and existing_entry.get("dataFile"):
-            legacy_ids = {
-                str(legacy_id).strip()
-                for legacy_id in existing_entry.get("legacyIds", [])
-                if str(legacy_id).strip()
-            }
-            legacy_ids.update(store_source.legacy_ids)
             metadata_only_entries.append(
-                {
-                    **existing_entry,
-                    "id": store_id,
-                    "legacyIds": sorted(legacy_ids),
-                    "storeName": store_source.store_name,
-                    "storeUrl": normalize_store_url(store_source.store_url),
-                    "prefectureName": read_text(store_source.prefecture_name),
-                    "areaName": read_text(store_source.area_name),
-                }
+                build_registered_store_index_entry(
+                    store_source,
+                    store_id,
+                    existing_entry=existing_entry,
+                    data_file=str(existing_entry.get("dataFile") or "").strip(),
+                )
             )
             continue
 
-        empty_store_payloads.append(build_store_payload(store_source, []))
+        data_file = f"stores/{store_id}.json"
+        existing_payload = load_existing_payload(
+            web_data_dir,
+            data_file,
+            r2_storage=r2_storage,
+        )
+        if existing_payload is not None:
+            existing_entry = build_index_store_entry(existing_payload, data_file)
 
-    exported_entries = []
-    if empty_store_payloads:
-        exported_entries.extend(
-            export_store_payloads(
-                web_data_dir,
-                empty_store_payloads,
-                r2_storage=r2_storage,
-                allow_missing_r2_index=True,
+        metadata_only_entries.append(
+            build_registered_store_index_entry(
+                store_source,
+                store_id,
+                existing_entry=existing_entry,
+                data_file=data_file if existing_payload is not None else "",
             )
         )
+
+    exported_entries = []
     if metadata_only_entries:
         update_index(
             web_data_dir,
             metadata_only_entries,
             r2_storage=r2_storage,
-            allow_missing_r2_index=True,
         )
         exported_entries.extend(metadata_only_entries)
 

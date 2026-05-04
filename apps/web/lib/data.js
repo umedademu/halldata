@@ -455,8 +455,29 @@ function mergeStaticStoreEntryIdentity(payload, storeEntry) {
 async function readStaticStoreById(storeId) {
   const index = await readStaticWebDataIndex();
   const storeEntry = index?.stores.find((entry) => staticStoreMatchesId(entry, storeId));
-  if (!index || !storeEntry?.dataFile) {
+  if (!index || !storeEntry) {
     return null;
+  }
+
+  if (!storeEntry.dataFile) {
+    const entry = readStaticStoreEntryIdentity(storeEntry);
+    return {
+      version: 1,
+      generatedAt: null,
+      store: {
+        ...entry,
+        legacyIds: Array.isArray(storeEntry.legacyIds) ? storeEntry.legacyIds : [],
+        eventDayTails: [],
+        eventZoro: false,
+        eventWeekdays: [],
+      },
+      summary: {
+        machineCount: 0,
+        latestDate: null,
+        recordCount: 0,
+      },
+      machines: [],
+    };
   }
 
   const payload = await readStaticWebDataPayload(String(storeEntry.dataFile));

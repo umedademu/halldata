@@ -63,7 +63,12 @@ from site7_scraper import (
     enrich_site7_target_store,
 )
 from site7_scraper import build_site7_transition_wait_milliseconds
-from web_data_export import StoreSource, build_store_payload, export_store_payloads
+from web_data_export import (
+    StoreSource,
+    build_store_id,
+    build_store_payload,
+    export_store_payloads,
+)
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -2266,6 +2271,60 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(stores[0]["prefectureName"], "福岡県")
             self.assertEqual(stores[0]["areaName"], "福岡市中央区")
             self.assertTrue(stores[0]["dataFile"])
+
+    def test_sync_registered_stores_uses_existing_store_payload_when_index_entry_is_missing(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root_dir = Path(temp_dir)
+            service, storage = make_r2_service(root_dir)
+            store_name = "Aパーク春日店"
+            store_url = "https://min-repo.com/tag/a-%E3%83%91%E3%83%BC%E3%82%AF%E6%98%A5%E6%97%A5%E5%BA%97/"
+            seed_r2_store(
+                storage,
+                store_name=store_name,
+                store_url=store_url,
+                records=[
+                    {
+                        "target_date": "2026-05-01",
+                        "machine_name": "ネオアイムジャグラーEX",
+                        "slot_number": "1",
+                        "games_count": 1000,
+                    }
+                ],
+            )
+            store_id = build_store_id(store_name, normalize_store_url(store_url))
+            data_file = f"stores/{store_id}.json"
+            before_payload = storage.read_json(data_file)
+            storage.write_json("index.json", {"version": 1, "stores": []})
+
+            summary = service.sync_registered_stores_to_web_data(
+                [{"store_name": store_name, "store_url": store_url, "site7_prefecture": "福岡県"}]
+            )
+            index_payload = storage.read_json("index.json")
+            stores = index_payload["stores"] if isinstance(index_payload, dict) else []
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(stores[0]["dataFile"], data_file)
+            self.assertEqual(stores[0]["recordCount"], 1)
+            self.assertEqual(storage.read_json(data_file), before_payload)
+
+    def test_sync_registered_stores_does_not_write_empty_store_payload_for_new_store(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root_dir = Path(temp_dir)
+            service, storage = make_r2_service(root_dir)
+            store_name = "未取得店"
+            store_url = "https://example.com/new-store/"
+
+            summary = service.sync_registered_stores_to_web_data(
+                [{"store_name": store_name, "store_url": store_url, "site7_prefecture": "福岡県"}]
+            )
+            index_payload = storage.read_json("index.json")
+            stores = index_payload["stores"] if isinstance(index_payload, dict) else []
+            store_id = build_store_id(store_name, normalize_store_url(store_url))
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(stores[0]["id"], store_id)
+            self.assertEqual(stores[0]["dataFile"], "")
+            self.assertIsNone(storage.read_json(f"stores/{store_id}.json"))
 
     def test_sync_registered_stores_to_web_data_stops_after_index_read_error(self) -> None:
         with TemporaryDirectory() as temp_dir:
