@@ -298,6 +298,10 @@ function hasMeaningfulResult(row) {
   );
 }
 
+function readHuntScoreDifferenceValue(row) {
+  return readNumber(row?.difference_value) ?? readNumber(row?.bonus_difference_value) ?? 0;
+}
+
 function buildRowKey(row, config) {
   return [
     String(row?.target_date ?? "").trim(),
@@ -723,14 +727,13 @@ function buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays) 
 
   for (const date of windowDates) {
     const row = recordMapByDate.get(date);
-    const differenceValue = readNumber(row?.difference_value);
-    if (!row || !Number.isFinite(differenceValue)) {
+    if (!row || !hasMeaningfulResult(row)) {
       return null;
     }
 
     windowRows.push({
       row,
-      differenceValue,
+      differenceValue: readHuntScoreDifferenceValue(row),
     });
   }
 
@@ -815,7 +818,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     recentThreeNetTotal,
     compensationRate: lossAbsTotal === 0 ? 999 : winAbsTotal / lossAbsTotal,
     maxWin,
-    todayDifference: readNumber(row?.difference_value) ?? 0,
+    todayDifference: readHuntScoreDifferenceValue(row),
     previousDifference: previousWindowRow?.differenceValue ?? 0,
     todaySetting,
     averageSetting: settingSampleCount > 0 ? settingTotal / settingSampleCount : 0,
