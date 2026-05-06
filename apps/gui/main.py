@@ -41,6 +41,7 @@ from minrepo_scraper import (
     MachineHistoryResult,
     MinRepoScraper,
     ScraperError,
+    StoreDatePage,
     normalize_text,
 )
 from site7_scraper import (
@@ -70,6 +71,9 @@ MINREPO_FETCH_MODE_OPTIONS = (
     MINREPO_FETCH_MODE_FAST,
     MINREPO_FETCH_MODE_STRONG,
 )
+WEB_PUBLISH_MODE_DAYS = "days"
+WEB_PUBLISH_MODE_STORE = "store"
+DEFAULT_WEB_PUBLISH_INTERVAL_DAYS = 1
 DEFAULT_SCHEDULE_HOUR = 2
 SITE7_SCHEDULE_HOUR_OPTIONS = tuple(range(10, 24))
 DEFAULT_SITE7_SCHEDULE_HOURS = (12, 15, 18, 21)
@@ -97,6 +101,12 @@ T = TypeVar("T")
 class MinRepoFetchParallelOptions:
     date_workers: int
     machine_workers: int
+
+
+@dataclass(frozen=True)
+class WebPublishOptions:
+    mode: str
+    interval_days: int = DEFAULT_WEB_PUBLISH_INTERVAL_DAYS
 
 
 MINREPO_FETCH_PARALLEL_OPTIONS = {
@@ -131,6 +141,31 @@ def parse_retry_delay_seconds(value: str) -> int:
         raise ScraperError("再試行の休止秒数は 0 以上の整数で入力してください。")
 
     return int(text)
+
+
+def normalize_web_publish_mode(value: object) -> str:
+    if str(value).strip() == WEB_PUBLISH_MODE_STORE:
+        return WEB_PUBLISH_MODE_STORE
+    return WEB_PUBLISH_MODE_DAYS
+
+
+def parse_web_publish_interval_days(value: str) -> int:
+    text = value.strip()
+    if not re.fullmatch(r"\d+", text):
+        raise ScraperError("Web反映の日数は 1 以上の整数で入力してください。")
+
+    interval_days = int(text)
+    if interval_days <= 0:
+        raise ScraperError("Web反映の日数は 1 以上の整数で入力してください。")
+
+    return interval_days
+
+
+def normalize_web_publish_interval_days(value: object) -> int:
+    try:
+        return parse_web_publish_interval_days(str(value))
+    except ScraperError:
+        return DEFAULT_WEB_PUBLISH_INTERVAL_DAYS
 
 
 def matches_day_tail(date_text: str, day_tail: str) -> bool:
@@ -452,6 +487,8 @@ class MinRepoApp:
         self.active_operation_kind = ""
         self.fetch_cancel_event = threading.Event()
         self.scheduled_fetch_hour: int | None = self._load_saved_schedule_hour()
+        self.web_publish_mode = self._load_saved_web_publish_mode()
+        self.web_publish_interval_days = self._load_saved_web_publish_interval_days()
         self.site7_browser_mode: str = self._load_saved_site7_browser_mode()
         self.site7_schedule_hours = self._load_saved_site7_schedule_hours()
         self.site7_schedule_last_run_dates_by_hour = self._load_saved_site7_schedule_run_dates()
@@ -472,6 +509,8 @@ class MinRepoApp:
             self.schedule_status_var.set(f"本日 {self.scheduled_fetch_hour} 時の定期実行を確認待ち")
         self.retry_delay_seconds_var = tk.StringVar(value=DEFAULT_RETRY_DELAY_SECONDS)
         self.minrepo_fetch_mode_var = tk.StringVar(value=MINREPO_FETCH_MODE_NORMAL)
+        self.web_publish_mode_var = tk.StringVar(value=self.web_publish_mode)
+        self.web_publish_interval_days_var = tk.StringVar(value=str(self.web_publish_interval_days))
         self.status_var = tk.StringVar(value="待機中")
         self.summary_var = tk.StringVar(value="未取得")
         self.fetch_progress_value_var = tk.DoubleVar(value=0.0)
@@ -562,8 +601,35 @@ class MinRepoApp:
         self.minrepo_fetch_mode_selector.grid(row=2, column=1, sticky="w", pady=4)
         ttk.Label(self.fetch_form, text="通常 / 高速 / 強並列").grid(row=2, column=1, sticky="w", padx=(84, 0), pady=4)
 
+        ttk.Label(self.fetch_form, text="Web反映").grid(row=3, column=0, sticky="w", padx=(0, 8), pady=4)
+        web_publish_row = ttk.Frame(self.fetch_form)
+        web_publish_row.grid(row=3, column=1, sticky="w", pady=4)
+        self.web_publish_days_radio = ttk.Radiobutton(
+            web_publish_row,
+            text="日数ごと",
+            value=WEB_PUBLISH_MODE_DAYS,
+            variable=self.web_publish_mode_var,
+            command=self._on_web_publish_mode_changed,
+        )
+        self.web_publish_days_radio.grid(row=0, column=0, sticky="w")
+        self.web_publish_interval_days_entry = ttk.Entry(
+            web_publish_row,
+            textvariable=self.web_publish_interval_days_var,
+            width=4,
+        )
+        self.web_publish_interval_days_entry.grid(row=0, column=1, sticky="w", padx=(8, 4))
+        ttk.Label(web_publish_row, text="日ごと").grid(row=0, column=2, sticky="w")
+        self.web_publish_store_radio = ttk.Radiobutton(
+            web_publish_row,
+            text="店舗ごと",
+            value=WEB_PUBLISH_MODE_STORE,
+            variable=self.web_publish_mode_var,
+            command=self._on_web_publish_mode_changed,
+        )
+        self.web_publish_store_radio.grid(row=0, column=3, sticky="w", padx=(16, 0))
+
         button_row = ttk.Frame(self.fetch_form)
-        button_row.grid(row=3, column=1, sticky="w", pady=(8, 0))
+        button_row.grid(row=4, column=1, sticky="w", pady=(8, 0))
 
         self.fetch_button = ttk.Button(button_row, text="取得", command=self.fetch_data)
         self.fetch_button.grid(row=0, column=0, sticky="w")
@@ -587,7 +653,7 @@ class MinRepoApp:
         self.notify_fetch_complete_button.grid(row=0, column=3, sticky="w", padx=(12, 0))
 
         schedule_row = ttk.Frame(self.fetch_form)
-        schedule_row.grid(row=4, column=1, sticky="w", pady=(8, 0))
+        schedule_row.grid(row=5, column=1, sticky="w", pady=(8, 0))
         ttk.Label(schedule_row, text="毎日").grid(row=0, column=0, sticky="w")
         self.schedule_hour_entry = ttk.Entry(schedule_row, textvariable=self.schedule_hour_var, width=4)
         self.schedule_hour_entry.grid(row=0, column=1, sticky="w", padx=(6, 4))
@@ -599,7 +665,7 @@ class MinRepoApp:
         ttk.Label(schedule_row, textvariable=self.schedule_status_var).grid(row=0, column=5, sticky="w", padx=(12, 0))
 
         site7_row = ttk.LabelFrame(self.fetch_form, text="サイトセブン", padding=12)
-        site7_row.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        site7_row.grid(row=6, column=0, columnspan=2, sticky="ew", pady=(12, 0))
         site7_row.columnconfigure(0, weight=1)
 
         ttk.Label(
@@ -963,6 +1029,43 @@ class MinRepoApp:
     def _save_schedule_hour(self, scheduled_hour: int) -> None:
         self._save_gui_settings(scheduled_fetch_hour=scheduled_hour)
 
+    def _load_saved_web_publish_mode(self) -> str:
+        try:
+            payload = self._load_gui_settings()
+        except Exception:  # noqa: BLE001
+            return WEB_PUBLISH_MODE_DAYS
+        return normalize_web_publish_mode(payload.get("web_publish_mode", WEB_PUBLISH_MODE_DAYS))
+
+    def _load_saved_web_publish_interval_days(self) -> int:
+        try:
+            payload = self._load_gui_settings()
+        except Exception:  # noqa: BLE001
+            return DEFAULT_WEB_PUBLISH_INTERVAL_DAYS
+        return normalize_web_publish_interval_days(
+            payload.get("web_publish_interval_days", DEFAULT_WEB_PUBLISH_INTERVAL_DAYS)
+        )
+
+    def _save_web_publish_settings(self, options: WebPublishOptions) -> None:
+        self._save_gui_settings(
+            web_publish_mode=normalize_web_publish_mode(options.mode),
+            web_publish_interval_days=options.interval_days,
+        )
+
+    def _on_web_publish_mode_changed(self) -> None:
+        self.web_publish_mode = normalize_web_publish_mode(self.web_publish_mode_var.get())
+        interval_days = normalize_web_publish_interval_days(self.web_publish_interval_days_var.get())
+        self.web_publish_interval_days_var.set(str(interval_days))
+        try:
+            self._save_web_publish_settings(
+                WebPublishOptions(
+                    mode=self.web_publish_mode,
+                    interval_days=interval_days,
+                )
+            )
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showwarning("設定保存", f"Web反映設定の保存に失敗しました。\n{exc}")
+        self._update_button_states()
+
     def _load_saved_site7_browser_mode(self) -> str:
         try:
             payload = self._load_gui_settings()
@@ -1049,6 +1152,7 @@ class MinRepoApp:
             target_date_input = self._target_date_input_from_recent_days()
             retry_delay_seconds = self._retry_delay_seconds_input()
             fetch_parallel_options = self._minrepo_fetch_parallel_options()
+            web_publish_options = self._web_publish_options_input()
         except ScraperError as exc:
             self.schedule_status_var.set("定期実行を開始できません")
             self._show_error(exc)
@@ -1071,6 +1175,7 @@ class MinRepoApp:
             target_date_input,
             retry_delay_seconds,
             fetch_parallel_options,
+            web_publish_options,
             operation_kind="scheduled_fetch",
         )
 
@@ -1498,6 +1603,7 @@ class MinRepoApp:
         target_date_input: str,
         retry_delay_seconds: int,
         fetch_parallel_options: MinRepoFetchParallelOptions,
+        web_publish_options: WebPublishOptions,
     ) -> None:
         try:
             refresh_result = self._load_and_complete_registered_stores()
@@ -1507,6 +1613,7 @@ class MinRepoApp:
                 target_date_input,
                 retry_delay_seconds,
                 fetch_parallel_options,
+                web_publish_options,
             )
             if fetch_many_result.cancelled and not fetch_many_result.results:
                 self.result_queue.put(("fetch_cancelled", None))
@@ -2005,6 +2112,7 @@ class MinRepoApp:
             target_date_input = self._target_date_input_from_recent_days()
             retry_delay_seconds = self._retry_delay_seconds_input()
             fetch_parallel_options = self._minrepo_fetch_parallel_options()
+            web_publish_options = self._web_publish_options_input()
         except ScraperError as exc:
             self._show_error(exc)
             return
@@ -2031,6 +2139,7 @@ class MinRepoApp:
             target_date_input,
             retry_delay_seconds,
             fetch_parallel_options,
+            web_publish_options,
             operation_kind="fetch",
         )
 
@@ -2090,6 +2199,7 @@ class MinRepoApp:
         target_date_input: str,
         retry_delay_seconds: int,
         fetch_parallel_options: MinRepoFetchParallelOptions,
+        web_publish_options: WebPublishOptions,
     ) -> None:
         try:
             fetch_many_result = self._run_fetch_many(
@@ -2097,6 +2207,7 @@ class MinRepoApp:
                 target_date_input,
                 retry_delay_seconds,
                 fetch_parallel_options,
+                web_publish_options,
             )
             if fetch_many_result.cancelled and not fetch_many_result.results:
                 self.result_queue.put(("fetch_cancelled", None))
@@ -2111,8 +2222,10 @@ class MinRepoApp:
         target_date_input: str,
         retry_delay_seconds: int,
         fetch_parallel_options: MinRepoFetchParallelOptions | None = None,
+        web_publish_options: WebPublishOptions | None = None,
     ) -> FetchManyResult:
         fetch_parallel_options = fetch_parallel_options or MINREPO_FETCH_PARALLEL_OPTIONS[MINREPO_FETCH_MODE_NORMAL]
+        web_publish_options = web_publish_options or WebPublishOptions(mode=WEB_PUBLISH_MODE_DAYS)
         target_stores = self._minrepo_fetch_ordered_stores(target_stores)
         results: list[StoreFetchResult] = []
         failures: list[StoreFetchFailure] = []
@@ -2132,6 +2245,7 @@ class MinRepoApp:
                     total_stores=total_stores,
                     retry_delay_seconds=retry_delay_seconds,
                     fetch_parallel_options=fetch_parallel_options,
+                    web_publish_options=web_publish_options,
                 )
                 self._refresh_web_data_for_store_result(store_result)
                 results.append(store_result)
@@ -2199,8 +2313,10 @@ class MinRepoApp:
         total_stores: int,
         retry_delay_seconds: int,
         fetch_parallel_options: MinRepoFetchParallelOptions | None = None,
+        web_publish_options: WebPublishOptions | None = None,
     ) -> StoreFetchResult:
         fetch_parallel_options = fetch_parallel_options or MINREPO_FETCH_PARALLEL_OPTIONS[MINREPO_FETCH_MODE_NORMAL]
+        web_publish_options = web_publish_options or WebPublishOptions(mode=WEB_PUBLISH_MODE_DAYS)
         self._raise_if_fetch_cancelled()
         store_url = registered_store.url
         store_label = f"{store_index}/{total_stores} {self._registered_store_display_name(registered_store)}"
@@ -2337,16 +2453,66 @@ class MinRepoApp:
             )
 
         day_results_by_date: dict[str, MachineHistoryResult] = {}
+        publish_batch_results: list[MachineHistoryResult] = []
+
+        def build_publish_result(batch_results: list[MachineHistoryResult]) -> MachineHistoryResult:
+            date_pages_by_date: dict[str, StoreDatePage] = {}
+            datasets: list[MachineDataset] = []
+            skipped_targets: list[tuple[str, str]] = []
+            skipped_batch_dates: list[str] = []
+
+            for batch_result in batch_results:
+                for batch_date_page in batch_result.date_pages:
+                    date_pages_by_date[batch_date_page.target_date] = batch_date_page
+                datasets.extend(batch_result.datasets)
+                skipped_targets.extend(batch_result.skipped_targets)
+                for skipped_date in batch_result.skipped_dates:
+                    if skipped_date not in skipped_batch_dates:
+                        skipped_batch_dates.append(skipped_date)
+
+            date_pages = sorted(
+                date_pages_by_date.values(),
+                key=lambda batch_date_page: batch_date_page.target_date,
+            )
+            batch_start_date = date_pages[0].target_date if date_pages else context.start_date
+            batch_end_date = date_pages[-1].target_date if date_pages else context.end_date
+            return MachineHistoryResult(
+                store_name=context.store_name,
+                store_url=context.store_url,
+                start_date=batch_start_date,
+                end_date=batch_end_date,
+                date_pages=date_pages,
+                datasets=datasets,
+                skipped_targets=skipped_targets,
+                skipped_dates=skipped_batch_dates,
+            )
+
+        def publish_batch(label: str) -> None:
+            nonlocal save_summary, publish_batch_results
+            if not publish_batch_results:
+                return
+
+            publish_result = build_publish_result(publish_batch_results)
+            if not publish_result.datasets:
+                publish_batch_results = []
+                return
+
+            step_callback(f"{label}のR2保存とWeb更新中")
+            batch_save_summary = self.persistence_service.save_history_result(publish_result, full_day=True)
+            with save_summary_lock:
+                save_summary = self._merge_persistence_summary(save_summary, batch_save_summary)
+            publish_batch_results = []
 
         def save_day_result(date_page: object, day_result: MachineHistoryResult) -> None:
-            nonlocal save_summary
+            nonlocal publish_batch_results
             day_results_by_date[date_page.target_date] = day_result
             if day_result.datasets:
-                self._raise_if_fetch_cancelled()
-                step_callback(f"{date_page.target_date} のR2保存とWeb更新中")
-                day_save_summary = self.persistence_service.save_history_result(day_result, full_day=True)
-                with save_summary_lock:
-                    save_summary = self._merge_persistence_summary(save_summary, day_save_summary)
+                publish_batch_results.append(day_result)
+                if (
+                    web_publish_options.mode == WEB_PUBLISH_MODE_DAYS
+                    and len(publish_batch_results) >= web_publish_options.interval_days
+                ):
+                    publish_batch(f"{len(publish_batch_results)}日分")
             else:
                 step_callback(f"{date_page.target_date} は保存対象なし")
 
@@ -2374,6 +2540,12 @@ class MinRepoApp:
                     for future in futures_by_date_page:
                         future.cancel()
                     raise
+
+        if publish_batch_results and not self.fetch_cancel_event.is_set():
+            if web_publish_options.mode == WEB_PUBLISH_MODE_STORE:
+                publish_batch("店舗完了分")
+            else:
+                publish_batch(f"残り{len(publish_batch_results)}日分")
 
         datasets: list[MachineDataset] = []
         skipped_targets: list[tuple[str, str]] = []
@@ -2805,7 +2977,7 @@ class MinRepoApp:
 
         if any(
             save_summary is not None
-            and (save_summary.local_file_path or save_summary.supabase_saved)
+            and (save_summary.local_file_path or save_summary.supabase_saved or save_summary.web_data_saved)
             for save_summary in save_summaries
         ):
             return "保存あり"
@@ -3627,6 +3799,23 @@ class MinRepoApp:
     def _retry_delay_seconds_input(self) -> int:
         return parse_retry_delay_seconds(self.retry_delay_seconds_var.get())
 
+    def _web_publish_options_input(self) -> WebPublishOptions:
+        mode = normalize_web_publish_mode(self.web_publish_mode_var.get())
+        if mode == WEB_PUBLISH_MODE_STORE:
+            interval_days = normalize_web_publish_interval_days(self.web_publish_interval_days_var.get())
+            self.web_publish_interval_days_var.set(str(interval_days))
+        else:
+            interval_days = parse_web_publish_interval_days(self.web_publish_interval_days_var.get())
+
+        options = WebPublishOptions(mode=mode, interval_days=interval_days)
+        self.web_publish_mode = mode
+        self.web_publish_interval_days = interval_days
+        try:
+            self._save_web_publish_settings(options)
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showwarning("設定保存", f"Web反映設定の保存に失敗しました。\n{exc}")
+        return options
+
     def _minrepo_fetch_parallel_options(self) -> MinRepoFetchParallelOptions:
         return MINREPO_FETCH_PARALLEL_OPTIONS.get(
             self.minrepo_fetch_mode_var.get(),
@@ -3952,6 +4141,12 @@ class MinRepoApp:
         self.retry_delay_entry.configure(state="disabled" if self.is_busy else "normal")
         if hasattr(self, "minrepo_fetch_mode_selector"):
             self.minrepo_fetch_mode_selector.configure(state="disabled" if self.is_busy else "readonly")
+        web_publish_days_selected = normalize_web_publish_mode(self.web_publish_mode_var.get()) == WEB_PUBLISH_MODE_DAYS
+        self.web_publish_days_radio.configure(state="disabled" if self.is_busy else "normal")
+        self.web_publish_store_radio.configure(state="disabled" if self.is_busy else "normal")
+        self.web_publish_interval_days_entry.configure(
+            state="normal" if not self.is_busy and web_publish_days_selected else "disabled"
+        )
         self.schedule_hour_entry.configure(state="disabled" if self.is_busy else "normal")
         self.apply_schedule_button.configure(state="disabled" if self.is_busy else "normal")
         self.clear_schedule_button.configure(state="disabled" if self.is_busy else "normal")
