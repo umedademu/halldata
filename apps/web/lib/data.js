@@ -579,6 +579,15 @@ function readNonNegativeInteger(value, fallbackValue) {
   return Number.isInteger(number) && number >= 0 ? number : fallbackValue;
 }
 
+function readOptionalNonNegativeInteger(value) {
+  const text = String(value ?? "").trim();
+  if (!text) {
+    return null;
+  }
+  const number = Number(text);
+  return Number.isInteger(number) && number >= 0 ? number : null;
+}
+
 function normalizeDateInput(value) {
   const text = String(value ?? "").trim();
   return /^\d{4}-\d{2}-\d{2}$/u.test(text) ? text : null;
@@ -1964,6 +1973,8 @@ function buildCrossStoreBacktestOptions(options = {}) {
       options?.minMatchedDateCount,
       DEFAULT_CROSS_STORE_MIN_MATCHED_DATES,
     ),
+    minSlotCount: readOptionalNonNegativeInteger(options?.minSlotCount),
+    maxSlotCount: readOptionalNonNegativeInteger(options?.maxSlotCount),
     limit: normalizeCrossStoreBacktestLimit(options?.limit),
   };
 }
@@ -1990,6 +2001,41 @@ async function mapWithConcurrency(items, concurrency, mapper) {
 function storeEntryHasBacktestData(storeEntry) {
   const identity = readStaticStoreEntryIdentity(storeEntry);
   return Boolean(identity.id && identity.storeName && storeEntry?.dataFile);
+}
+
+function calculateStaticStoreSlotCountForMachineNames(staticStore, machineNames) {
+  const targetMachineNameSet = new Set(
+    (Array.isArray(machineNames) ? machineNames : [])
+      .flatMap((name) => listEquivalentMachineNames(name))
+      .map(canonicalMachineName),
+  );
+
+  return (Array.isArray(staticStore?.machines) ? staticStore.machines : []).reduce(
+    (total, machine) => {
+      if (!targetMachineNameSet.has(canonicalMachineName(machine?.machineName))) {
+        return total;
+      }
+      const slotCount = Number(machine?.slotCount ?? 0);
+      return Number.isFinite(slotCount) && slotCount > 0 ? total + slotCount : total;
+    },
+    0,
+  );
+}
+
+function slotCountMatchesCrossStoreRange(slotCount, backtestOptions) {
+  if (
+    backtestOptions.minSlotCount !== null &&
+    Number(slotCount ?? 0) < backtestOptions.minSlotCount
+  ) {
+    return false;
+  }
+  if (
+    backtestOptions.maxSlotCount !== null &&
+    Number(slotCount ?? 0) > backtestOptions.maxSlotCount
+  ) {
+    return false;
+  }
+  return true;
 }
 
 function readStaticStoreLatestDateForMachines(staticStore, machineNames) {
@@ -2070,7 +2116,7 @@ function filterRowsByDateRange(rows, dateRange) {
   });
 }
 
-function buildCrossStoreBacktestRow(store, backtest) {
+function buildCrossStoreBacktestRow(store, backtest, slotCount) {
   const total = backtest.total ?? {};
   const actualRowCount = Number(backtest.actualRowCount ?? total.actualRowCount ?? 0);
   const differenceTotal = readNumber(total.differenceTotal) ?? 0;
@@ -2086,6 +2132,7 @@ function buildCrossStoreBacktestRow(store, backtest) {
     },
     selectedMachineNames: backtest.selectedMachineNames,
     selectedMachineCount: backtest.selectedMachineNames.length,
+    slotCount,
     targetDateCount: backtest.targetDateCount,
     matchedDateCount: backtest.matchedDateCount,
     matchedRowCount: backtest.matchedRowCount,
@@ -2115,6 +2162,14 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
 
     const store = readStaticStoreIdentity(staticStore);
     if (!store.id || !store.storeName || !isHuntScoreTargetStore(store.storeName)) {
+      return null;
+    }
+
+    const slotCount = calculateStaticStoreSlotCountForMachineNames(
+      staticStore,
+      backtestOptions.selectedMachineNames,
+    );
+    if (slotCount <= 0 || !slotCountMatchesCrossStoreRange(slotCount, backtestOptions)) {
       return null;
     }
 
@@ -2178,7 +2233,7 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       return null;
     }
 
-    return buildCrossStoreBacktestRow(store, backtest);
+    return buildCrossStoreBacktestRow(store, backtest, slotCount);
   } catch {
     return null;
   }
@@ -2245,6 +2300,8 @@ export async function getCrossStoreBacktestDetail(options = {}) {
     eventFilters: backtestOptions.eventFilters,
     minActualRows: backtestOptions.minActualRows,
     minMatchedDateCount: backtestOptions.minMatchedDateCount,
+    minSlotCount: backtestOptions.minSlotCount,
+    maxSlotCount: backtestOptions.maxSlotCount,
     limit: backtestOptions.limit,
     scannedStoreCount: storeEntries.length,
     rankedStoreCount: rows.length,

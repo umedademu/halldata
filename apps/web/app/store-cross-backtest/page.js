@@ -79,6 +79,7 @@ function StoreRankingTable({ rows }) {
               <th>対象日数</th>
               <th>一致日数</th>
               <th>対象機種</th>
+              <th>設置台数</th>
               <th>狙い度</th>
               <th>偏差値</th>
               <th>BB</th>
@@ -109,6 +110,7 @@ function StoreRankingTable({ rows }) {
                 <td title={row.selectedMachineNames.join("、")}>
                   {formatNumber(row.selectedMachineCount)}
                 </td>
+                <td>{formatNumber(row.slotCount)}</td>
                 <td>{formatDecimal(row.averageHuntScore)}</td>
                 <td>{formatDecimal(row.averageDeviation)}</td>
                 <td>{formatNumber(row.bbTotal)}</td>
@@ -154,6 +156,8 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
     weekdays: readMultiSearchParam(resolvedSearchParams?.backtestWeekday),
     minActualRows: readSingleSearchParam(resolvedSearchParams?.minActualRows),
     minMatchedDateCount: readSingleSearchParam(resolvedSearchParams?.minMatchedDateCount),
+    minSlotCount: readSingleSearchParam(resolvedSearchParams?.minSlotCount),
+    maxSlotCount: readSingleSearchParam(resolvedSearchParams?.maxSlotCount),
     limit: readSingleSearchParam(resolvedSearchParams?.limit),
   });
   const selectedDayTailSet = new Set(detail.eventFilters.dayTails);
@@ -224,6 +228,26 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                 name="minMatchedDateCount"
                 min="0"
                 defaultValue={detail.minMatchedDateCount}
+                className="storeReserveInput"
+              />
+            </label>
+            <label className="storeReserveField backtestField">
+              <span>最低設置台数</span>
+              <input
+                type="number"
+                name="minSlotCount"
+                min="0"
+                defaultValue={detail.minSlotCount ?? ""}
+                className="storeReserveInput"
+              />
+            </label>
+            <label className="storeReserveField backtestField">
+              <span>最大設置台数</span>
+              <input
+                type="number"
+                name="maxSlotCount"
+                min="0"
+                defaultValue={detail.maxSlotCount ?? ""}
                 className="storeReserveInput"
               />
             </label>
