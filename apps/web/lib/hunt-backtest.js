@@ -208,6 +208,10 @@ function normalizeDifferenceMode(value) {
   return value === "minrepo" ? "minrepo" : DEFAULT_DIFFERENCE_MODE;
 }
 
+function readOptionWithDefault(options, key, fallbackValue) {
+  return Object.hasOwn(options ?? {}, key) ? options[key] : fallbackValue;
+}
+
 function buildPeriodState(options, latestDate) {
   const periodMode = options?.periodMode === "range" ? "range" : "recent";
   const recentDays = readPositiveInteger(options?.recentDays) ?? DEFAULT_RECENT_DAYS;
@@ -676,7 +680,9 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const selectedMachineNameSet = new Set(selectedMachineNames);
   const rankFilter = buildRankFilter(options.rankMin, options.rankMax);
   const scoreFilter = buildScoreFilter(options.scoreMin);
-  const deviationFilter = buildDeviationFilter(options.deviationMin ?? DEFAULT_DEVIATION_MIN);
+  const deviationFilter = buildDeviationFilter(
+    readOptionWithDefault(options, "deviationMin", DEFAULT_DEVIATION_MIN),
+  );
   const requirementOptions = buildConditionRequirementOptions(options);
   const rankScope = normalizeRankScope(options.rankScope);
   const deviationScope = normalizeRankScope(options.deviationScope ?? rankScope);
