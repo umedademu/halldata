@@ -959,6 +959,10 @@ a {
   background: rgba(255, 255, 255, 0.62);
 }
 
+.crossBacktestConditionGroup {
+  width: 100%;
+}
+
 .collapsibleControlHeader {
   display: flex;
   align-items: center;
@@ -973,6 +977,30 @@ a {
   font-size: 0.96rem;
   font-weight: 900;
   cursor: pointer;
+}
+
+.crossBacktestConditionSummary {
+  list-style: none;
+}
+
+.crossBacktestConditionSummary::-webkit-details-marker {
+  display: none;
+}
+
+.crossBacktestConditionStatus::before {
+  content: "開く";
+}
+
+.crossBacktestConditionGroup[open] .crossBacktestConditionStatus::before {
+  content: "閉じる";
+}
+
+.crossBacktestConditionBody {
+  align-items: stretch;
+}
+
+.crossBacktestActionRow {
+  padding-top: 2px;
 }
 
 .machineComparisonFilterPanel .collapsibleControlHeader {

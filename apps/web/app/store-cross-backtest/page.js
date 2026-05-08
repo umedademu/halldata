@@ -194,16 +194,22 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
       </section>
 
       <section className="filterPanel">
-        <div>
-          <p className="sectionLabel">店舗横断条件</p>
-        </div>
         <NativeGetForm action="/store-cross-backtest" className="backtestForm">
           <input type="hidden" name="show" value="1" />
           <input type="hidden" name="machineTouched" value="1" />
           <input type="hidden" name="aimMachineGroup" value="0" />
           <input type="hidden" name="hanabiMachineGroup" value="0" />
 
-          <div className="backtestFieldGrid">
+          <details className="collapsibleControlGroup crossBacktestConditionGroup" open>
+            <summary className="collapsibleControlHeader crossBacktestConditionSummary">
+              <span className="sectionLabel">店舗横断条件</span>
+              <span
+                className="collapsibleControlStatus crossBacktestConditionStatus"
+                aria-hidden="true"
+              />
+            </summary>
+            <div className="collapsibleControlBody crossBacktestConditionBody">
+              <div className="backtestFieldGrid">
             <label className="storeReserveField backtestField">
               <span>ロジック</span>
               <select
@@ -333,59 +339,6 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
               />
             </label>
           </div>
-
-          <details className="backtestBlock" open={locationFilterOpen}>
-            <summary className="filterControlLabel">地域条件</summary>
-            <div className="machineFilterGroups">
-              <div className="machineFilterGroup">
-                <p className="machineFilterGroupLabel">都道府県</p>
-                <div className="metricToggleRow">
-                  {detail.prefectureOptions.map((prefecture) => (
-                    <label
-                      key={prefecture.name}
-                      className={`metricToggleChip ${
-                        prefecture.checked ? "metricToggleChipActive" : ""
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        name="prefecture"
-                        value={prefecture.name}
-                        defaultChecked={prefecture.checked}
-                      />
-                      <span>{prefecture.name}（{formatNumber(prefecture.count)}）</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div className="machineFilterGroup">
-                <p className="machineFilterGroupLabel">地域</p>
-                {detail.areaOptionGroups.map((group) => (
-                  <div key={group.prefectureName} className="machineFilterGroup">
-                    <p className="machineFilterGroupLabel">{group.prefectureName}</p>
-                    <div className="metricToggleRow">
-                      {group.options.map((area) => (
-                        <label
-                          key={area.key}
-                          className={`metricToggleChip ${
-                            area.checked ? "metricToggleChipActive" : ""
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            name="area"
-                            value={area.key}
-                            defaultChecked={area.checked}
-                          />
-                          <span>{area.areaName}（{formatNumber(area.count)}）</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </details>
 
           <div className="backtestBlock">
             <p className="filterControlLabel">特定日（翌営業日の末尾）</p>
@@ -684,8 +637,71 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
               ))}
             </div>
           </div>
+            </div>
+          </details>
 
-          <div className="backtestButtonRow">
+          <details className="collapsibleControlGroup crossBacktestConditionGroup" open={locationFilterOpen}>
+            <summary className="collapsibleControlHeader crossBacktestConditionSummary">
+              <span className="sectionLabel">地域条件</span>
+              <span
+                className="collapsibleControlStatus crossBacktestConditionStatus"
+                aria-hidden="true"
+              />
+            </summary>
+            <div className="collapsibleControlBody crossBacktestConditionBody">
+              <div className="machineFilterGroups">
+                <div className="machineFilterGroup">
+                  <p className="machineFilterGroupLabel">都道府県</p>
+                  <div className="metricToggleRow">
+                    {detail.prefectureOptions.map((prefecture) => (
+                      <label
+                        key={prefecture.name}
+                        className={`metricToggleChip ${
+                          prefecture.checked ? "metricToggleChipActive" : ""
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          name="prefecture"
+                          value={prefecture.name}
+                          defaultChecked={prefecture.checked}
+                        />
+                        <span>{prefecture.name}（{formatNumber(prefecture.count)}）</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="machineFilterGroup">
+                  <p className="machineFilterGroupLabel">地域</p>
+                  {detail.areaOptionGroups.map((group) => (
+                    <div key={group.prefectureName} className="machineFilterGroup">
+                      <p className="machineFilterGroupLabel">{group.prefectureName}</p>
+                      <div className="metricToggleRow">
+                        {group.options.map((area) => (
+                          <label
+                            key={area.key}
+                            className={`metricToggleChip ${
+                              area.checked ? "metricToggleChipActive" : ""
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              name="area"
+                              value={area.key}
+                              defaultChecked={area.checked}
+                            />
+                            <span>{area.areaName}（{formatNumber(area.count)}）</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <div className="backtestButtonRow crossBacktestActionRow">
             <button type="submit" className="storeReserveButton">
               店舗横断バックテストする
             </button>
