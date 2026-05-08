@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import {
   formatAverageGames,
@@ -531,7 +531,9 @@ function readMachineComparisonOptions(storeId, defaults, options = {}) {
       : normalizeStoredEventFilters(source.eventFilters, defaults.eventFilters),
     differenceMode: normalizeDifferenceMode(source.differenceMode),
     visibleMetricKeys: normalizeMetricKeys(source.visibleMetricKeys, null, defaults.visibleMetricKeys),
-    estimateOptions: normalizeEstimateOptions(source.estimateOptions, defaults.estimateOptions),
+    estimateOptions: options.preferDefaultEstimateOptions
+      ? defaults.estimateOptions
+      : normalizeEstimateOptions(source.estimateOptions, defaults.estimateOptions),
     displayControlsOpen: normalizeEnabledOption(source.displayControlsOpen, defaults.displayControlsOpen),
     settingControlsOpen: normalizeEnabledOption(source.settingControlsOpen, defaults.settingControlsOpen),
     huntScoreControlsOpen: normalizeEnabledOption(source.huntScoreControlsOpen, defaults.huntScoreControlsOpen),
@@ -546,6 +548,9 @@ function saveMachineComparisonOptions(storeId, options) {
   try {
     saveMachineComparisonPeriodOptions(options);
     const storageKey = `${MACHINE_COMPARISON_STORAGE_PREFIX}${storeId}`;
+    const existingValue = options.preserveEstimateOptions
+      ? readLocalStorageJson(storageKey)
+      : null;
     window.localStorage.setItem(
       storageKey,
       JSON.stringify({
@@ -557,7 +562,7 @@ function saveMachineComparisonOptions(storeId, options) {
         },
         differenceMode: normalizeDifferenceMode(options.differenceMode),
         visibleMetricKeys: normalizeMetricKeys(options.visibleMetricKeys),
-        estimateOptions: options.estimateOptions,
+        estimateOptions: existingValue?.estimateOptions ?? options.estimateOptions,
         displayControlsOpen: Boolean(options.displayControlsOpen),
         settingControlsOpen: Boolean(options.settingControlsOpen),
         huntScoreControlsOpen: Boolean(options.huntScoreControlsOpen),
@@ -1653,6 +1658,7 @@ export function MachineComparison({
   initialEventFilters,
   initialEventFiltersFromSearchParams = false,
   huntScoreHighlight,
+  preferDefaultEstimateOptions = false,
 }) {
   const latestAvailableDate = dateRows[0]?.date ?? "";
   const oldestAvailableDate = dateRows.at(-1)?.date ?? latestAvailableDate;
@@ -1712,6 +1718,7 @@ export function MachineComparison({
   );
   const [machineComparisonOptionsLoadedStoreId, setMachineComparisonOptionsLoadedStoreId] =
     useState("");
+  const estimateOptionsTouchedRef = useRef(false);
   const huntScoreHighlightAvailableMachineNames = useMemo(
     () => normalizeAvailableHuntScoreMachineNames(huntScoreHighlight?.availableMachineNames),
     [huntScoreHighlight],
@@ -1852,10 +1859,12 @@ export function MachineComparison({
 
   useEffect(() => {
     setMachineComparisonOptionsLoadedStoreId("");
+    estimateOptionsTouchedRef.current = false;
     const options = readMachineComparisonOptions(storeId, defaultComparisonOptions, {
       oldestAvailableDate,
       latestAvailableDate,
       preferInitialEventFilters: initialEventFiltersFromSearchParams,
+      preferDefaultEstimateOptions,
     });
     setPeriodMode(options.periodMode);
     setRecentDaysInput(options.recentDaysInput);
@@ -1874,6 +1883,7 @@ export function MachineComparison({
     initialEventFiltersFromSearchParams,
     latestAvailableDate,
     oldestAvailableDate,
+    preferDefaultEstimateOptions,
     storeId,
   ]);
 
@@ -1896,6 +1906,7 @@ export function MachineComparison({
       differenceMode,
       visibleMetricKeys,
       estimateOptions,
+      preserveEstimateOptions: preferDefaultEstimateOptions && !estimateOptionsTouchedRef.current,
       displayControlsOpen,
       settingControlsOpen,
       huntScoreControlsOpen,
@@ -1914,6 +1925,7 @@ export function MachineComparison({
     settingControlsOpen,
     storeId,
     visibleMetricKeys,
+    preferDefaultEstimateOptions,
   ]);
 
   useEffect(() => {
@@ -2104,6 +2116,7 @@ export function MachineComparison({
   };
 
   const updateEstimateOptions = useCallback((changes) => {
+    estimateOptionsTouchedRef.current = true;
     setEstimateOptions((currentOptions) => ({
       ...currentOptions,
       ...changes,

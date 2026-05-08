@@ -161,6 +161,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
         initialEventFilters={initialEventFilters}
         initialEventFiltersFromSearchParams={hasEventFilterSearchParams}
         huntScoreHighlight={detail.huntScoreHighlight}
+        preferDefaultEstimateOptions={Boolean(detail.huntScoreHighlight)}
       />
     </main>
   );
