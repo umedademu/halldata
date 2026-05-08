@@ -12,7 +12,9 @@ import {
   listAllHuntScoreTargetMachineNames,
   listHuntScoreLogicOptions,
   listHuntScoreSourceMachineNames,
+  listHuntScoreSourceMachineNamesForStoreMachines,
   listHuntScoreTargetMachineNames,
+  listHuntScoreTargetMachineNamesForStoreMachines,
 } from "./hunt-score";
 import { canonicalMachineName, listEquivalentMachineNames, withCanonicalMachineName } from "./machine-difference";
 
@@ -1262,6 +1264,12 @@ function readStaticStoreIdentity(staticStore) {
   };
 }
 
+function readStaticStoreMachineNames(staticStore) {
+  return (Array.isArray(staticStore?.machines) ? staticStore.machines : [])
+    .map((machine) => String(machine?.machineName ?? "").trim())
+    .filter(Boolean);
+}
+
 function rawRecordIsInDateRange(record, dateRange) {
   if (!dateRange?.startDate && !dateRange?.endDate) {
     return true;
@@ -1402,8 +1410,15 @@ function buildStaticStoreDetail(staticStore) {
   };
 }
 
-function buildInitialBacktestDetail(storeName, options = {}, huntScoreLogicKey = "") {
-  const machineNames = listHuntScoreTargetMachineNames(storeName);
+function buildInitialBacktestDetail(
+  storeName,
+  options = {},
+  huntScoreLogicKey = "",
+  storeMachineNames = null,
+) {
+  const machineNames = Array.isArray(storeMachineNames)
+    ? listHuntScoreTargetMachineNamesForStoreMachines(storeName, storeMachineNames)
+    : listHuntScoreTargetMachineNames(storeName);
   const selectedMachineNames = normalizeInitialMachineSelection(machineNames, options);
   const selectedMachineNameSet = new Set(selectedMachineNames);
   const defaultedOptions = buildBacktestOptionsForStore({ store_name: storeName }, options);
@@ -1499,7 +1514,11 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
   }
 
   const storeDetail = buildStaticStoreDetail(staticStore);
-  const machineNames = listHuntScoreTargetMachineNames(store.storeName);
+  const storeMachineNames = readStaticStoreMachineNames(staticStore);
+  const machineNames = listHuntScoreTargetMachineNamesForStoreMachines(
+    store.storeName,
+    storeMachineNames,
+  );
   const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName);
   return {
     dataSource: "json",
@@ -1522,7 +1541,12 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
     rankingGroups: [],
     totalCount: 0,
     hasActualResults: false,
-    backtest: buildInitialBacktestDetail(store.storeName, backtestOptions, huntScoreLogic.key),
+    backtest: buildInitialBacktestDetail(
+      store.storeName,
+      backtestOptions,
+      huntScoreLogic.key,
+      storeMachineNames,
+    ),
   };
 }
 
@@ -1536,9 +1560,20 @@ function applySnapshotHuntScores(snapshots) {
   }
 }
 
-function buildMachineHuntScoreHighlightDetail(storeName, snapshots) {
+function buildMachineHuntScoreHighlightDetail(storeName, snapshots, storeMachineNames = null) {
+  const sourceMachineNames = Array.isArray(storeMachineNames) ? storeMachineNames : [
+    ...new Set(
+      (Array.isArray(snapshots) ? snapshots : [])
+        .flatMap((snapshot) => (Array.isArray(snapshot.rows) ? snapshot.rows : []))
+        .map((row) => String(row.machineName ?? "").trim())
+        .filter(Boolean),
+    ),
+  ];
   return {
-    availableMachineNames: listHuntScoreTargetMachineNames(storeName),
+    availableMachineNames: listHuntScoreTargetMachineNamesForStoreMachines(
+      storeName,
+      sourceMachineNames,
+    ),
     snapshots: (Array.isArray(snapshots) ? snapshots : []).map((snapshot) => ({
       date: snapshot.baseDate,
       rows: (Array.isArray(snapshot.rows) ? snapshot.rows : []).map((row) => ({
@@ -1598,7 +1633,10 @@ async function buildStaticHuntScoreSourceRows(staticStore) {
   const store = readStaticStoreIdentity(staticStore);
   return buildStaticHuntScoreSourceRowsForMachineNames(
     staticStore,
-    listHuntScoreSourceMachineNames(store.storeName),
+    listHuntScoreSourceMachineNamesForStoreMachines(
+      store.storeName,
+      readStaticStoreMachineNames(staticStore),
+    ),
   );
 }
 
@@ -1638,7 +1676,11 @@ async function buildStaticMachineDetail(staticStore, machineName, huntScoreLogic
     const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName);
     const snapshots = buildHuntScoreSnapshots(targetRows, storeRows, store.storeName, huntScoreLogic.key);
     applySnapshotHuntScores(snapshots);
-    huntScoreHighlight = buildMachineHuntScoreHighlightDetail(store.storeName, snapshots);
+    huntScoreHighlight = buildMachineHuntScoreHighlightDetail(
+      store.storeName,
+      snapshots,
+      readStaticStoreMachineNames(staticStore),
+    );
     const targetMachineRows = targetRows.filter((row) =>
       requestedHuntScoreMachineNames.has(getHuntScoreRecordMachineName(row, store.storeName)),
     );
@@ -1750,7 +1792,8 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   }
 
   const { store, snapshots } = snapshotDetail;
-  const availableMachineNames = listHuntScoreTargetMachineNames(store.store_name);
+  const availableMachineNames =
+    snapshotDetail.availableMachineNames ?? listHuntScoreTargetMachineNames(store.store_name);
   const rankingDateOptions = snapshots.map((snapshot) => ({
     date: snapshot.baseDate,
     nextBusinessDate: snapshot.nextBusinessDate ?? null,
@@ -1803,9 +1846,14 @@ async function getHuntScoreSnapshotsForStore(storeId, huntScoreLogicKey = "") {
     }
     const { targetRows, storeRows } = await buildStaticHuntScoreSourceRows(staticStore);
     const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, staticIdentity.storeName);
+    const availableMachineNames = listHuntScoreTargetMachineNamesForStoreMachines(
+      staticIdentity.storeName,
+      readStaticStoreMachineNames(staticStore),
+    );
     return {
       dataSource: "json",
       huntScoreLogic,
+      availableMachineNames,
       store: {
         id: staticIdentity.id,
         store_name: staticIdentity.storeName,
@@ -2284,8 +2332,13 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
 
     const needsAllTargetMachines =
       backtestOptions.rankScope === "all" || backtestOptions.deviationScope === "all";
+    const storeMachineNames = readStaticStoreMachineNames(staticStore);
+    const storeHuntScoreMachineNames = listHuntScoreTargetMachineNamesForStoreMachines(
+      store.storeName,
+      storeMachineNames,
+    );
     const sourceMachineNames = needsAllTargetMachines
-      ? listHuntScoreSourceMachineNames(store.storeName)
+      ? listHuntScoreSourceMachineNamesForStoreMachines(store.storeName, storeMachineNames)
       : backtestOptions.selectedMachineNames;
     const sourceDateRange = buildCrossStoreSourceDateRange(
       staticStore,
@@ -2330,7 +2383,7 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       combineHanabi: backtestOptions.combineHanabi,
       dayTails: backtestOptions.eventFilters.dayTails,
       weekdays: backtestOptions.eventFilters.weekdays,
-      machineOrder: listHuntScoreTargetMachineNames(store.storeName),
+      machineOrder: storeHuntScoreMachineNames,
     });
     const payoutRate = readNumber(backtest.total?.payoutRate);
     if (
@@ -2450,7 +2503,8 @@ export async function getHuntScoreAnalysisPageDetail(
   const backtest = {
     ...buildHuntScoreBacktestDetail(snapshots, {
       ...buildBacktestOptionsForStore(store, backtestOptions),
-      machineOrder: listHuntScoreTargetMachineNames(store.store_name),
+      machineOrder:
+        snapshotDetail.availableMachineNames ?? listHuntScoreTargetMachineNames(store.store_name),
     }),
     huntScoreLogic: snapshotDetail.huntScoreLogic,
   };

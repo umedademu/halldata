@@ -16,6 +16,11 @@ const APARK_KASUGA_TARGET_MACHINES = [
   { name: "ミスタージャグラー", aliases: [] },
   { name: "ジャグラーガールズSS", aliases: ["ジャグラーガールズ"] },
   {
+    name: "ハッピージャグラーＶＩＩＩ",
+    aliases: ["ハッピージャグラーVIII", "ハッピージャグラーＶ", "ハッピージャグラーV", "ハッピージャグラー"],
+  },
+  { name: "ウルトラミラクルジャグラー", aliases: [] },
+  {
     name: "ハナハナホウオウ",
     aliases: [
       "ハナハナホウオウ-30",
@@ -268,6 +273,33 @@ function resolveHuntScoreStoreConfig(storeName = "") {
   return findHuntScoreStoreConfig(storeName) ?? DEFAULT_HUNT_SCORE_STORE_CONFIG;
 }
 
+function listKnownHuntScoreStoreConfigs(storeName = "") {
+  const primaryConfig = resolveHuntScoreStoreConfig(storeName);
+  const configs = [primaryConfig, DEFAULT_HUNT_SCORE_STORE_CONFIG, ...HUNT_SCORE_STORE_CONFIGS];
+  const seenKeys = new Set();
+  return configs.filter((config) => {
+    if (!config?.key || seenKeys.has(config.key)) {
+      return false;
+    }
+    seenKeys.add(config.key);
+    return true;
+  });
+}
+
+function listTargetMachinesFromConfigs(configs) {
+  const seenNames = new Set();
+  return (Array.isArray(configs) ? configs : [])
+    .flatMap((config) => (Array.isArray(config?.targetMachines) ? config.targetMachines : []))
+    .filter((targetMachine) => {
+      const normalizedName = normalizeText(targetMachine?.name);
+      if (!normalizedName || seenNames.has(normalizedName)) {
+        return false;
+      }
+      seenNames.add(normalizedName);
+      return true;
+    });
+}
+
 function findHuntScoreLogicDefinition(logicKey) {
   const normalizedLogicKey = String(logicKey ?? "").trim();
   if (!normalizedLogicKey) {
@@ -337,15 +369,46 @@ function findTargetMachine(config, machineName) {
   );
 }
 
-export function canonicalHuntScoreTargetMachineName(machineName, storeName = "") {
-  for (const config of listSearchConfigs(storeName)) {
-    const targetMachine = findTargetMachine(config, machineName);
-    if (targetMachine) {
-      return targetMachine.name;
-    }
+function findKnownTargetMachine(storeName, machineName) {
+  const normalizedMachineName = normalizeText(machineName);
+  if (!normalizedMachineName) {
+    return null;
   }
 
-  return null;
+  return (
+    listTargetMachinesFromConfigs(listKnownHuntScoreStoreConfigs(storeName)).find((candidate) =>
+      listHuntScoreTargetMachineNameCandidates(candidate).some(
+        (candidateName) => normalizeText(candidateName) === normalizedMachineName,
+      ),
+    ) ?? null
+  );
+}
+
+function buildEffectiveHuntScoreStoreConfig(storeName, machineNames) {
+  const primaryConfig = resolveHuntScoreStoreConfig(storeName);
+  const availableMachineNames = (Array.isArray(machineNames) ? machineNames : [])
+    .map((machineName) => String(machineName ?? "").trim())
+    .filter(Boolean);
+  if (availableMachineNames.length === 0) {
+    return primaryConfig;
+  }
+
+  const availableMachineNameSet = new Set(availableMachineNames.map(normalizeText));
+  const targetMachines = listTargetMachinesFromConfigs(listKnownHuntScoreStoreConfigs(storeName)).filter(
+    (targetMachine) =>
+      listHuntScoreTargetMachineNameCandidates(targetMachine).some((candidateName) =>
+        availableMachineNameSet.has(normalizeText(candidateName)),
+      ),
+  );
+
+  return {
+    ...primaryConfig,
+    targetMachines,
+  };
+}
+
+export function canonicalHuntScoreTargetMachineName(machineName, storeName = "") {
+  return findKnownTargetMachine(storeName, machineName)?.name ?? null;
 }
 
 function normalizeHuntScoreMachineName(machineName, config) {
@@ -1078,6 +1141,18 @@ export function listHuntScoreTargetMachineNames(storeName = "") {
   );
 }
 
+export function listHuntScoreTargetMachineNamesForStoreMachines(storeName = "", machineNames = null) {
+  if (!Array.isArray(machineNames)) {
+    return listHuntScoreTargetMachineNames(storeName);
+  }
+  if (machineNames.length === 0) {
+    return [];
+  }
+  return buildEffectiveHuntScoreStoreConfig(storeName, machineNames).targetMachines.map(
+    (targetMachine) => targetMachine.name,
+  );
+}
+
 export function listAllHuntScoreTargetMachineNames() {
   return [
     ...new Set(
@@ -1100,8 +1175,28 @@ export function listHuntScoreSourceMachineNames(storeName = "") {
   ];
 }
 
+export function listHuntScoreSourceMachineNamesForStoreMachines(storeName = "", machineNames = null) {
+  if (!Array.isArray(machineNames)) {
+    return listHuntScoreSourceMachineNames(storeName);
+  }
+  if (machineNames.length === 0) {
+    return [];
+  }
+  return [
+    ...new Set(
+      buildEffectiveHuntScoreStoreConfig(storeName, machineNames).targetMachines
+        .flatMap(listHuntScoreTargetMachineNameCandidates)
+        .map((machineName) => String(machineName ?? "").trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
 export function buildHuntScoreSnapshots(targetRows, allStoreRows = [], storeName = "", logicKey = "") {
-  const storeConfig = resolveHuntScoreStoreConfig(storeName);
+  const storeConfig = buildEffectiveHuntScoreStoreConfig(
+    storeName,
+    (Array.isArray(targetRows) ? targetRows : []).map((row) => row?.machine_name),
+  );
   if (!storeConfig || !Array.isArray(targetRows) || targetRows.length === 0) {
     return [];
   }
