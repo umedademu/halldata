@@ -578,6 +578,29 @@ function readPositiveInteger(value, fallbackValue) {
   return Number.isInteger(number) && number >= 1 ? number : fallbackValue;
 }
 
+function hasProvidedOption(options, key) {
+  return (
+    options &&
+    typeof options === "object" &&
+    Object.hasOwn(options, key) &&
+    options[key] !== undefined
+  );
+}
+
+function readPositiveIntegerOption(options, key, fallbackValue) {
+  if (!hasProvidedOption(options, key)) {
+    return fallbackValue;
+  }
+  return readPositiveInteger(options?.[key], null);
+}
+
+function readNumberOption(options, key, fallbackValue) {
+  if (!hasProvidedOption(options, key)) {
+    return fallbackValue;
+  }
+  return readNumber(options?.[key]);
+}
+
 function readNonNegativeInteger(value, fallbackValue) {
   const number = Number(value);
   return Number.isInteger(number) && number >= 0 ? number : fallbackValue;
@@ -2106,10 +2129,10 @@ function buildCrossStoreBacktestOptions(options = {}) {
       checked: selectedMachineNameSet.has(machineName),
     })),
     selectedMachineNames,
-    rankMin: readPositiveInteger(options?.rankMin, 1),
-    rankMax: readPositiveInteger(options?.rankMax, 3),
-    scoreMin: readNumber(options?.scoreMin) ?? 70,
-    deviationMin: readNumber(options?.deviationMin) ?? DEFAULT_HUNT_SCORE_DEVIATION_MIN,
+    rankMin: readPositiveIntegerOption(options, "rankMin", 1),
+    rankMax: readPositiveIntegerOption(options, "rankMax", 3),
+    scoreMin: readNumberOption(options, "scoreMin", 70),
+    deviationMin: readNumberOption(options, "deviationMin", DEFAULT_HUNT_SCORE_DEVIATION_MIN),
     rankRequired: requirementOptions.rankRequired,
     scoreRequired: requirementOptions.scoreRequired,
     deviationRequired: requirementOptions.deviationRequired,

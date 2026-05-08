@@ -29,7 +29,6 @@ export const metadata = {
 };
 
 const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, index) => index);
-const DEFAULT_DEVIATION_MIN = "60";
 const WEEKDAY_OPTIONS = [
   { value: 1, label: "月曜" },
   { value: 2, label: "火曜" },
@@ -52,6 +51,12 @@ function readMultiSearchParam(value) {
     return value.filter((entry) => typeof entry === "string");
   }
   return typeof value === "string" ? [value] : [];
+}
+
+function readOptionalSearchParam(searchParams, key) {
+  return Object.hasOwn(searchParams ?? {}, key)
+    ? readSingleSearchParam(searchParams?.[key])
+    : undefined;
 }
 
 function formatAverageDifference(value) {
@@ -188,7 +193,6 @@ function StoreRankingTable({ rows, huntScoreLogic }) {
 export default async function CrossStoreBacktestPage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const resultRequested = readSingleSearchParam(resolvedSearchParams?.show) === "1";
-  const hasDeviationMinParam = Object.hasOwn(resolvedSearchParams ?? {}, "deviationMin");
   const detail = await getCrossStoreBacktestDetail({
     resultRequested,
     logicKey: readSingleSearchParam(resolvedSearchParams?.logicKey),
@@ -201,14 +205,12 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
     combineAimJuggler: readMultiSearchParam(resolvedSearchParams?.aimMachineGroup),
     combineHanabi: readMultiSearchParam(resolvedSearchParams?.hanabiMachineGroup),
     differenceMode: readSingleSearchParam(resolvedSearchParams?.differenceMode),
-    rankMin: readSingleSearchParam(resolvedSearchParams?.rankMin),
-    rankMax: readSingleSearchParam(resolvedSearchParams?.rankMax),
+    rankMin: readOptionalSearchParam(resolvedSearchParams, "rankMin"),
+    rankMax: readOptionalSearchParam(resolvedSearchParams, "rankMax"),
     rankScope: readSingleSearchParam(resolvedSearchParams?.rankScope),
-    scoreMin: readSingleSearchParam(resolvedSearchParams?.scoreMin),
+    scoreMin: readOptionalSearchParam(resolvedSearchParams, "scoreMin"),
     deviationScope: readSingleSearchParam(resolvedSearchParams?.deviationScope),
-    deviationMin: hasDeviationMinParam
-      ? readSingleSearchParam(resolvedSearchParams?.deviationMin)
-      : DEFAULT_DEVIATION_MIN,
+    deviationMin: readOptionalSearchParam(resolvedSearchParams, "deviationMin"),
     rankRequired: readMultiSearchParam(resolvedSearchParams?.rankRequired),
     scoreRequired: readMultiSearchParam(resolvedSearchParams?.scoreRequired),
     deviationRequired: readMultiSearchParam(resolvedSearchParams?.deviationRequired),
