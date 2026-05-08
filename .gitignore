@@ -2,6 +2,7 @@ html/
 .env.local
 env.local
 local_data/
+.venv/
 **/__pycache__/
 apps/web/node_modules/
 apps/web/.next/

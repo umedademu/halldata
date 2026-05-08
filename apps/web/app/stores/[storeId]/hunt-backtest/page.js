@@ -8,6 +8,7 @@ import { Breadcrumbs } from "../../../../components/breadcrumbs";
 import { DataSourceLabel } from "../../../../components/data-source-label";
 import { HuntBacktestGraph } from "../../../../components/hunt-backtest-graph";
 import { JugglerOnlyButton } from "../../../../components/hunt-machine-filter-tools";
+import { HuntScoreLogicSelector } from "../../../../components/hunt-score-logic-selector";
 import { NativeGetForm } from "../../../../components/native-get-form";
 import {
   getHuntScoreAnalysisPageDetail,
@@ -26,6 +27,7 @@ import {
   decodeHuntScoreLogicCookieValue,
   getHuntScoreLogicCookieName,
 } from "../../../../lib/hunt-score-logic-selection";
+import { listHuntScoreLogicOptions } from "../../../../lib/hunt-score";
 import {
   formatSettingEstimateScore,
   getSettingEstimateHighlightClass,
@@ -282,6 +284,13 @@ export default async function HuntBacktestPage({ params, searchParams }) {
               </a>
             ) : null}
           </div>
+          {detail.huntScoreLogic ? (
+            <HuntScoreLogicSelector
+              storeId={detail.store.id}
+              selectedLogicKey={detail.huntScoreLogic.key}
+              options={listHuntScoreLogicOptions()}
+            />
+          ) : null}
         </div>
       </section>
 

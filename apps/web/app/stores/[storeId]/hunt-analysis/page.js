@@ -7,6 +7,7 @@ import { DataSourceLabel } from "../../../../components/data-source-label";
 import { JugglerOnlyButton } from "../../../../components/hunt-machine-filter-tools";
 import { HuntRankingLimitSync } from "../../../../components/hunt-ranking-limit-sync";
 import { HuntRankingTable } from "../../../../components/hunt-ranking-table";
+import { HuntScoreLogicSelector } from "../../../../components/hunt-score-logic-selector";
 import { NativeGetForm } from "../../../../components/native-get-form";
 import {
   getHuntScoreInitialPageDetail,
@@ -18,6 +19,7 @@ import {
   decodeHuntScoreLogicCookieValue,
   getHuntScoreLogicCookieName,
 } from "../../../../lib/hunt-score-logic-selection";
+import { listHuntScoreLogicOptions } from "../../../../lib/hunt-score";
 import { groupHuntMachineOptions } from "../../../../lib/hunt-machine-display";
 
 export const dynamic = "force-dynamic";
@@ -443,6 +445,13 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               </a>
             ) : null}
           </div>
+          {detail.huntScoreLogic ? (
+            <HuntScoreLogicSelector
+              storeId={detail.store.id}
+              selectedLogicKey={detail.huntScoreLogic.key}
+              options={listHuntScoreLogicOptions()}
+            />
+          ) : null}
         </div>
       </section>
 
