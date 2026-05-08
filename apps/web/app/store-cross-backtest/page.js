@@ -7,6 +7,8 @@ import {
   JugglerOnlyButton,
 } from "../../components/hunt-machine-filter-tools";
 import { NativeGetForm } from "../../components/native-get-form";
+import { SortableTableController } from "../../components/sortable-table-controller";
+import { SortableTableHeader } from "../../components/sortable-table-header";
 import { getCrossStoreBacktestDetail } from "../../lib/data";
 import {
   formatDecimal,
@@ -56,9 +58,21 @@ function formatAverageDifference(value) {
   return Number.isFinite(value) ? formatSignedNumber(Math.round(value)) : "-";
 }
 
+function readProbabilitySortValue(value) {
+  const match = /^1\/(\d+(?:\.\d+)?)$/u.exec(String(value ?? "").trim());
+  return match ? Number(match[1]) : "";
+}
+
+function readSortNumber(value) {
+  return Number.isFinite(value) ? value : "";
+}
+
 function StoreRankingTable({ rows, huntScoreLogic }) {
+  const tableId = "cross-store-backtest-results";
+
   return (
     <section className="tablePanel directoryPanel">
+      <SortableTableController tableId={tableId} />
       <div className="tablePanelHeader">
         <div>
           <p className="sectionLabel">平均機械割ランキング</p>
@@ -69,28 +83,41 @@ function StoreRankingTable({ rows, huntScoreLogic }) {
         </div>
       </div>
       <div className="tableScroller directoryScroller">
-        <table className="directoryTable">
+        <table id={tableId} className="directoryTable" data-sortable-table="1">
           <thead>
             <tr>
-              <th>順位</th>
-              <th className="directoryNameHeader">店舗名</th>
-              <th>地域</th>
-              <th>平均機械割</th>
-              <th>平均差枚</th>
-              <th>合計差枚</th>
-              <th>合計G数</th>
-              <th>平均設定</th>
-              <th>実績台数</th>
-              <th>条件一致台数</th>
-              <th>対象日数</th>
-              <th>一致日数</th>
-              <th>対象機種</th>
-              <th>設置台数</th>
-              <th>狙い度</th>
-              <th>偏差値</th>
-              <th>BB</th>
-              <th>RB</th>
-              <th>合成</th>
+              <SortableTableHeader columnIndex={0} initialDirection="asc">
+                順位
+              </SortableTableHeader>
+              <SortableTableHeader
+                columnIndex={1}
+                type="text"
+                initialDirection="asc"
+                className="directoryNameHeader"
+              >
+                店舗名
+              </SortableTableHeader>
+              <SortableTableHeader columnIndex={2} type="text" initialDirection="asc">
+                地域
+              </SortableTableHeader>
+              <SortableTableHeader columnIndex={3}>平均機械割</SortableTableHeader>
+              <SortableTableHeader columnIndex={4}>平均差枚</SortableTableHeader>
+              <SortableTableHeader columnIndex={5}>合計差枚</SortableTableHeader>
+              <SortableTableHeader columnIndex={6}>合計G数</SortableTableHeader>
+              <SortableTableHeader columnIndex={7}>平均設定</SortableTableHeader>
+              <SortableTableHeader columnIndex={8}>実績台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={9}>条件一致台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={10}>対象日数</SortableTableHeader>
+              <SortableTableHeader columnIndex={11}>一致日数</SortableTableHeader>
+              <SortableTableHeader columnIndex={12}>対象機種</SortableTableHeader>
+              <SortableTableHeader columnIndex={13}>設置台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={14}>狙い度</SortableTableHeader>
+              <SortableTableHeader columnIndex={15}>偏差値</SortableTableHeader>
+              <SortableTableHeader columnIndex={16}>BB</SortableTableHeader>
+              <SortableTableHeader columnIndex={17}>RB</SortableTableHeader>
+              <SortableTableHeader columnIndex={18} initialDirection="asc">
+                合成
+              </SortableTableHeader>
             </tr>
           </thead>
           <tbody>
@@ -99,29 +126,56 @@ function StoreRankingTable({ rows, huntScoreLogic }) {
                 key={row.store.id}
                 className={getSettingEstimateHighlightClass(row.averageSetting)}
               >
-                <td>{formatNumber(row.rank)}</td>
-                <th className="directoryNameCell">
+                <td data-sort-value={row.rank}>{formatNumber(row.rank)}</td>
+                <th className="directoryNameCell" data-sort-value={row.store.storeName}>
                   <Link href={`/stores/${row.store.id}`}>{row.store.storeName}</Link>
                 </th>
-                <td>{[row.store.prefectureName, row.store.areaName].filter(Boolean).join(" / ") || "-"}</td>
-                <td>{formatPercent(row.payoutRate)}</td>
-                <td>{formatAverageDifference(row.averageDifference)}</td>
-                <td>{formatSignedNumber(row.differenceTotal)}</td>
-                <td>{formatNumber(row.gamesTotal)}</td>
-                <td>{formatSettingEstimateScore(row.averageSetting)}</td>
-                <td>{formatNumber(row.actualRowCount)}</td>
-                <td>{formatNumber(row.matchedRowCount)}</td>
-                <td>{formatNumber(row.targetDateCount)}</td>
-                <td>{formatNumber(row.matchedDateCount)}</td>
-                <td title={row.selectedMachineNames.join("、")}>
+                <td
+                  data-sort-value={
+                    [row.store.prefectureName, row.store.areaName].filter(Boolean).join(" / ") ||
+                    ""
+                  }
+                >
+                  {[row.store.prefectureName, row.store.areaName].filter(Boolean).join(" / ") ||
+                    "-"}
+                </td>
+                <td data-sort-value={readSortNumber(row.payoutRate)}>
+                  {formatPercent(row.payoutRate)}
+                </td>
+                <td data-sort-value={readSortNumber(row.averageDifference)}>
+                  {formatAverageDifference(row.averageDifference)}
+                </td>
+                <td data-sort-value={row.differenceTotal}>
+                  {formatSignedNumber(row.differenceTotal)}
+                </td>
+                <td data-sort-value={row.gamesTotal}>{formatNumber(row.gamesTotal)}</td>
+                <td data-sort-value={readSortNumber(row.averageSetting)}>
+                  {formatSettingEstimateScore(row.averageSetting)}
+                </td>
+                <td data-sort-value={row.actualRowCount}>{formatNumber(row.actualRowCount)}</td>
+                <td data-sort-value={row.matchedRowCount}>{formatNumber(row.matchedRowCount)}</td>
+                <td data-sort-value={row.targetDateCount}>{formatNumber(row.targetDateCount)}</td>
+                <td data-sort-value={row.matchedDateCount}>
+                  {formatNumber(row.matchedDateCount)}
+                </td>
+                <td
+                  title={row.selectedMachineNames.join("、")}
+                  data-sort-value={row.selectedMachineCount}
+                >
                   {formatNumber(row.selectedMachineCount)}
                 </td>
-                <td>{formatNumber(row.slotCount)}</td>
-                <td>{formatDecimal(row.averageHuntScore)}</td>
-                <td>{formatDecimal(row.averageDeviation)}</td>
-                <td>{formatNumber(row.bbTotal)}</td>
-                <td>{formatNumber(row.rbTotal)}</td>
-                <td>{row.combinedProbability ?? "-"}</td>
+                <td data-sort-value={row.slotCount}>{formatNumber(row.slotCount)}</td>
+                <td data-sort-value={readSortNumber(row.averageHuntScore)}>
+                  {formatDecimal(row.averageHuntScore)}
+                </td>
+                <td data-sort-value={readSortNumber(row.averageDeviation)}>
+                  {formatDecimal(row.averageDeviation)}
+                </td>
+                <td data-sort-value={row.bbTotal}>{formatNumber(row.bbTotal)}</td>
+                <td data-sort-value={row.rbTotal}>{formatNumber(row.rbTotal)}</td>
+                <td data-sort-value={readProbabilitySortValue(row.combinedProbability)}>
+                  {row.combinedProbability ?? "-"}
+                </td>
               </tr>
             ))}
           </tbody>

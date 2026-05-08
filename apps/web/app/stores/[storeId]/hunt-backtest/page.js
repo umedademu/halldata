@@ -13,6 +13,8 @@ import {
 } from "../../../../components/hunt-machine-filter-tools";
 import { HuntScoreLogicSelector } from "../../../../components/hunt-score-logic-selector";
 import { NativeGetForm } from "../../../../components/native-get-form";
+import { SortableTableController } from "../../../../components/sortable-table-controller";
+import { SortableTableHeader } from "../../../../components/sortable-table-header";
 import {
   getHuntScoreAnalysisPageDetail,
   getHuntScoreInitialPageDetail,
@@ -70,9 +72,19 @@ function readMultiSearchParam(value) {
   return typeof value === "string" ? [value] : [];
 }
 
-function BacktestResultTable({ title, backtest }) {
+function readProbabilitySortValue(value) {
+  const match = /^1\/(\d+(?:\.\d+)?)$/u.exec(String(value ?? "").trim());
+  return match ? Number(match[1]) : "";
+}
+
+function readSortNumber(value) {
+  return Number.isFinite(value) ? value : "";
+}
+
+function BacktestResultTable({ title, backtest, tableId }) {
   return (
     <section className="tablePanel directoryPanel">
+      <SortableTableController tableId={tableId} />
       <div className="tablePanelHeader">
         <div>
           <p className="tablePanelTitle">{title}</p>
@@ -80,61 +92,74 @@ function BacktestResultTable({ title, backtest }) {
         </div>
       </div>
       <div className="tableScroller directoryScroller">
-        <table className="directoryTable">
+        <table id={tableId} className="directoryTable" data-sortable-table="1">
           <thead>
             <tr>
-              <th className="directoryNameHeader">機種名</th>
-              <th>条件一致台数</th>
-              <th>狙い度</th>
-              <th>偏差値</th>
-              <th>実績集計台数</th>
-              <th>合計差枚</th>
-              <th>合計G数</th>
-              <th>BB</th>
-              <th>RB</th>
-              <th>BB率</th>
-              <th>RB率</th>
-              <th>合成</th>
-              <th>機械割</th>
-              <th>平均設定</th>
+              <SortableTableHeader
+                columnIndex={0}
+                type="text"
+                initialDirection="asc"
+                className="directoryNameHeader"
+              >
+                機種名
+              </SortableTableHeader>
+              <SortableTableHeader columnIndex={1}>条件一致台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={2}>狙い度</SortableTableHeader>
+              <SortableTableHeader columnIndex={3}>偏差値</SortableTableHeader>
+              <SortableTableHeader columnIndex={4}>実績集計台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={5}>合計差枚</SortableTableHeader>
+              <SortableTableHeader columnIndex={6}>合計G数</SortableTableHeader>
+              <SortableTableHeader columnIndex={7}>BB</SortableTableHeader>
+              <SortableTableHeader columnIndex={8}>RB</SortableTableHeader>
+              <SortableTableHeader columnIndex={9} initialDirection="asc">
+                BB率
+              </SortableTableHeader>
+              <SortableTableHeader columnIndex={10} initialDirection="asc">
+                RB率
+              </SortableTableHeader>
+              <SortableTableHeader columnIndex={11} initialDirection="asc">
+                合成
+              </SortableTableHeader>
+              <SortableTableHeader columnIndex={12}>機械割</SortableTableHeader>
+              <SortableTableHeader columnIndex={13}>平均設定</SortableTableHeader>
             </tr>
           </thead>
           <tbody>
-            <tr className="backtestTotalRow">
-              <th className="directoryNameCell">総計</th>
-              <td>{formatNumber(backtest.total.matchedRowCount)}</td>
-              <td>{formatDecimal(backtest.total.averageHuntScore)}</td>
-              <td>{formatDecimal(backtest.total.averageDeviation)}</td>
-              <td>{formatNumber(backtest.total.actualRowCount)}</td>
-              <td>{formatSignedNumber(backtest.total.differenceTotal)}</td>
-              <td>{formatNumber(backtest.total.gamesTotal)}</td>
-              <td>{formatNumber(backtest.total.bbTotal)}</td>
-              <td>{formatNumber(backtest.total.rbTotal)}</td>
-              <td>{backtest.total.bbProbability ?? "-"}</td>
-              <td>{backtest.total.rbProbability ?? "-"}</td>
-              <td>{backtest.total.combinedProbability ?? "-"}</td>
-              <td>{formatPercent(backtest.total.payoutRate)}</td>
-              <td>{formatSettingEstimateScore(backtest.total.averageSetting)}</td>
+            <tr className="backtestTotalRow" data-sort-fixed="1">
+              <th className="directoryNameCell" data-sort-value="総計">総計</th>
+              <td data-sort-value={backtest.total.matchedRowCount}>{formatNumber(backtest.total.matchedRowCount)}</td>
+              <td data-sort-value={readSortNumber(backtest.total.averageHuntScore)}>{formatDecimal(backtest.total.averageHuntScore)}</td>
+              <td data-sort-value={readSortNumber(backtest.total.averageDeviation)}>{formatDecimal(backtest.total.averageDeviation)}</td>
+              <td data-sort-value={backtest.total.actualRowCount}>{formatNumber(backtest.total.actualRowCount)}</td>
+              <td data-sort-value={backtest.total.differenceTotal}>{formatSignedNumber(backtest.total.differenceTotal)}</td>
+              <td data-sort-value={backtest.total.gamesTotal}>{formatNumber(backtest.total.gamesTotal)}</td>
+              <td data-sort-value={backtest.total.bbTotal}>{formatNumber(backtest.total.bbTotal)}</td>
+              <td data-sort-value={backtest.total.rbTotal}>{formatNumber(backtest.total.rbTotal)}</td>
+              <td data-sort-value={readProbabilitySortValue(backtest.total.bbProbability)}>{backtest.total.bbProbability ?? "-"}</td>
+              <td data-sort-value={readProbabilitySortValue(backtest.total.rbProbability)}>{backtest.total.rbProbability ?? "-"}</td>
+              <td data-sort-value={readProbabilitySortValue(backtest.total.combinedProbability)}>{backtest.total.combinedProbability ?? "-"}</td>
+              <td data-sort-value={readSortNumber(backtest.total.payoutRate)}>{formatPercent(backtest.total.payoutRate)}</td>
+              <td data-sort-value={readSortNumber(backtest.total.averageSetting)}>{formatSettingEstimateScore(backtest.total.averageSetting)}</td>
             </tr>
             {backtest.summaries.map((summary) => (
               <tr
                 key={summary.machineName}
                 className={getSettingEstimateHighlightClass(summary.averageSetting)}
               >
-                <th className="directoryNameCell">{summary.machineName}</th>
-                <td>{formatNumber(summary.matchedRowCount)}</td>
-                <td>{formatDecimal(summary.averageHuntScore)}</td>
-                <td>{formatDecimal(summary.averageDeviation)}</td>
-                <td>{formatNumber(summary.actualRowCount)}</td>
-                <td>{formatSignedNumber(summary.differenceTotal)}</td>
-                <td>{formatNumber(summary.gamesTotal)}</td>
-                <td>{formatNumber(summary.bbTotal)}</td>
-                <td>{formatNumber(summary.rbTotal)}</td>
-                <td>{summary.bbProbability ?? "-"}</td>
-                <td>{summary.rbProbability ?? "-"}</td>
-                <td>{summary.combinedProbability ?? "-"}</td>
-                <td>{formatPercent(summary.payoutRate)}</td>
-                <td>{formatSettingEstimateScore(summary.averageSetting)}</td>
+                <th className="directoryNameCell" data-sort-value={summary.machineName}>{summary.machineName}</th>
+                <td data-sort-value={summary.matchedRowCount}>{formatNumber(summary.matchedRowCount)}</td>
+                <td data-sort-value={readSortNumber(summary.averageHuntScore)}>{formatDecimal(summary.averageHuntScore)}</td>
+                <td data-sort-value={readSortNumber(summary.averageDeviation)}>{formatDecimal(summary.averageDeviation)}</td>
+                <td data-sort-value={summary.actualRowCount}>{formatNumber(summary.actualRowCount)}</td>
+                <td data-sort-value={summary.differenceTotal}>{formatSignedNumber(summary.differenceTotal)}</td>
+                <td data-sort-value={summary.gamesTotal}>{formatNumber(summary.gamesTotal)}</td>
+                <td data-sort-value={summary.bbTotal}>{formatNumber(summary.bbTotal)}</td>
+                <td data-sort-value={summary.rbTotal}>{formatNumber(summary.rbTotal)}</td>
+                <td data-sort-value={readProbabilitySortValue(summary.bbProbability)}>{summary.bbProbability ?? "-"}</td>
+                <td data-sort-value={readProbabilitySortValue(summary.rbProbability)}>{summary.rbProbability ?? "-"}</td>
+                <td data-sort-value={readProbabilitySortValue(summary.combinedProbability)}>{summary.combinedProbability ?? "-"}</td>
+                <td data-sort-value={readSortNumber(summary.payoutRate)}>{formatPercent(summary.payoutRate)}</td>
+                <td data-sort-value={readSortNumber(summary.averageSetting)}>{formatSettingEstimateScore(summary.averageSetting)}</td>
               </tr>
             ))}
           </tbody>
@@ -792,11 +817,12 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                 ) : null}
 
                 {detail.backtest.hasMatches ? (
-                  detail.backtest.breakdowns.map((breakdown) => (
+                  detail.backtest.breakdowns.map((breakdown, index) => (
                     <BacktestResultTable
                       key={breakdown.key}
                       title={breakdown.title}
                       backtest={breakdown}
+                      tableId={`store-backtest-${breakdown.key}-${index}`}
                     />
                   ))
                 ) : (

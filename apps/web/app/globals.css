@@ -1360,6 +1360,36 @@ a {
   font-weight: 800;
 }
 
+.sortableTableHeaderButton {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  min-height: 1.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sortableTableHeaderButton:hover,
+.sortableTableHeaderButton:focus-visible {
+  color: var(--accent-strong);
+}
+
+.sortableTableHeaderIndicator {
+  display: inline-block;
+  min-width: 0.8rem;
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
 .directoryTable tbody tr:nth-child(odd) td,
 .directoryTable tbody tr:nth-child(odd) th {
   background: rgba(255, 255, 255, 0.56);
