@@ -53,13 +53,16 @@ function formatAverageDifference(value) {
   return Number.isFinite(value) ? formatSignedNumber(Math.round(value)) : "-";
 }
 
-function StoreRankingTable({ rows }) {
+function StoreRankingTable({ rows, huntScoreLogic }) {
   return (
     <section className="tablePanel directoryPanel">
       <div className="tablePanelHeader">
         <div>
           <p className="sectionLabel">平均機械割ランキング</p>
           <h2 className="tablePanelTitle">店舗横断バックテスト結果</h2>
+          {huntScoreLogic ? (
+            <p className="dataSourceLabel">使用ロジック: {huntScoreLogic.name}</p>
+          ) : null}
         </div>
       </div>
       <div className="tableScroller directoryScroller">
@@ -660,7 +663,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                 <strong className="metaValue">{formatNumber(detail.selectedMachineNames.length)}機種</strong>
               </article>
             </section>
-            <StoreRankingTable rows={detail.rows} />
+            <StoreRankingTable rows={detail.rows} huntScoreLogic={detail.huntScoreLogic} />
           </>
         ) : (
           <section className="statusPanel">
