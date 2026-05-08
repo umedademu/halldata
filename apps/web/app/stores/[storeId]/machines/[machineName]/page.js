@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../../../components/breadcrumbs";
@@ -10,9 +11,20 @@ import {
   readRouteSegment,
 } from "../../../../../lib/data";
 import { parseEventFilters } from "../../../../../lib/event-filters";
+import {
+  decodeHuntScoreLogicCookieValue,
+  getHuntScoreLogicCookieName,
+} from "../../../../../lib/hunt-score-logic-selection";
 import { getSettingEstimateDefinition } from "../../../../../lib/setting-estimates";
 
 export const dynamic = "force-dynamic";
+
+async function readStoredHuntScoreLogicKey(storeId) {
+  const cookieStore = await cookies();
+  return decodeHuntScoreLogicCookieValue(
+    cookieStore.get(getHuntScoreLogicCookieName(storeId))?.value ?? "",
+  );
+}
 
 function hasSearchParamValue(searchParams, key) {
   const value = searchParams?.[key];
@@ -41,6 +53,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
   const resolvedSearchParams = await searchParams;
   const storeId = resolvedParams.storeId;
   const machineName = readRouteSegment(resolvedParams.machineName);
+  const huntScoreLogicKey = await readStoredHuntScoreLogicKey(storeId);
   const eventFilters = parseEventFilters(resolvedSearchParams);
   const hasEventFilterSearchParams =
     hasSearchParamValue(resolvedSearchParams, "dayTail") ||
@@ -49,7 +62,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
   let detail;
 
   try {
-    detail = await getMachineDetail(storeId, machineName);
+    detail = await getMachineDetail(storeId, machineName, huntScoreLogicKey);
   } catch (error) {
     return (
       <main className="pageStack">
@@ -92,6 +105,9 @@ export default async function MachineDetailPage({ params, searchParams }) {
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">{displayMachineName}</h1>
           <p className="machineStoreName">{detail.store.storeName}</p>
+          {detail.huntScoreLogic ? (
+            <p className="dataSourceLabel">適用中: {detail.huntScoreLogic.name}</p>
+          ) : null}
           <DataSourceLabel source={detail.dataSource} />
           <div className="heroLinks simpleHeroLinks">
             <Link href={`/stores/${detail.store.id}`} className="externalLink">

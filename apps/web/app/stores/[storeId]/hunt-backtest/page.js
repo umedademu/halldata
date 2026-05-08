@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { HuntBacktestBookmarkControl } from "../../../../components/hunt-backtest-bookmark-control";
@@ -22,6 +23,10 @@ import {
 } from "../../../../lib/format";
 import { groupHuntMachineOptions } from "../../../../lib/hunt-machine-display";
 import {
+  decodeHuntScoreLogicCookieValue,
+  getHuntScoreLogicCookieName,
+} from "../../../../lib/hunt-score-logic-selection";
+import {
   formatSettingEstimateScore,
   getSettingEstimateHighlightClass,
 } from "../../../../lib/setting-estimates";
@@ -38,6 +43,14 @@ const WEEKDAY_OPTIONS = [
   { value: 6, label: "土曜" },
   { value: 0, label: "日曜" },
 ];
+
+async function readStoredHuntScoreLogicKey(storeId) {
+  const cookieStore = await cookies();
+  return decodeHuntScoreLogicCookieValue(
+    cookieStore.get(getHuntScoreLogicCookieName(storeId))?.value ?? "",
+  );
+}
+
 function readSingleSearchParam(value) {
   if (Array.isArray(value)) {
     return typeof value[0] === "string" ? value[0] : "";
@@ -147,6 +160,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
   const resolvedSearchParams = await searchParams;
   const storeId = resolvedParams.storeId;
   const resultRequested = readSingleSearchParam(resolvedSearchParams?.show) === "1";
+  const huntScoreLogicKey = await readStoredHuntScoreLogicKey(storeId);
   const hasDeviationMinParam = Object.hasOwn(resolvedSearchParams ?? {}, "deviationMin");
   const requestedBacktestOptions = {
     periodMode: readSingleSearchParam(resolvedSearchParams?.periodMode),
@@ -184,8 +198,9 @@ export default async function HuntBacktestPage({ params, searchParams }) {
           "",
           20,
           requestedBacktestOptions,
+          huntScoreLogicKey,
         )
-      : await getHuntScoreInitialPageDetail(storeId, requestedBacktestOptions);
+      : await getHuntScoreInitialPageDetail(storeId, requestedBacktestOptions, huntScoreLogicKey);
   } catch (error) {
     return (
       <main className="pageStack">
@@ -250,6 +265,9 @@ export default async function HuntBacktestPage({ params, searchParams }) {
       <section className="heroPanel">
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">バックテスト</h1>
+          {detail.huntScoreLogic ? (
+            <p className="dataSourceLabel">適用中: {detail.huntScoreLogic.name}</p>
+          ) : null}
           <DataSourceLabel source={detail.dataSource} />
           <div className="heroLinks simpleHeroLinks">
             <Link href={`/stores/${detail.store.id}`} className="externalLink">

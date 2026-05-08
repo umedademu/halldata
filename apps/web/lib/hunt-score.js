@@ -2,6 +2,7 @@ import { calculateSettingEstimate, getSettingEstimateDefinition } from "./settin
 
 const HUNT_SCORE_EPSILON = 0.000000001;
 const DEFAULT_HUNT_SCORE_WINDOW_DAYS = 7;
+const DEFAULT_HUNT_SCORE_LOGIC_KEY = "apark";
 
 const APARK_KASUGA_TARGET_MACHINES = [
   { name: "SアイムジャグラーＥＸ", aliases: ["SアイムジャグラーEX"] },
@@ -196,27 +197,39 @@ const GOGO_ARENA_TENJIN_SLOT_SCORES = {
   },
 };
 
+const HUNT_SCORE_LOGIC_DEFINITIONS = [
+  {
+    key: "apark",
+    name: "Aパーク式",
+    windowDays: 7,
+    scoreCalculator: calculateAparkKasugaHuntScore,
+  },
+  {
+    key: "gogo",
+    name: "GOGO式",
+    windowDays: 7,
+    scoreCalculator: calculateGogoArenaTenjinHuntScore,
+  },
+];
+
 const HUNT_SCORE_STORE_CONFIGS = [
   {
     key: "apark-kasuga",
     storeNames: ["Aパーク春日店"],
     targetMachines: APARK_KASUGA_TARGET_MACHINES,
-    windowDays: 7,
-    scoreCalculator: calculateAparkKasugaHuntScore,
+    defaultLogicKey: "apark",
   },
   {
     key: "apark-yakatabaru",
     storeNames: ["A-PARK屋形原", "A-PARK屋形原店", "Aパーク屋形原", "Aパーク屋形原店"],
     targetMachines: APARK_YAKATABARU_TARGET_MACHINES,
-    windowDays: 7,
-    scoreCalculator: calculateAparkKasugaHuntScore,
+    defaultLogicKey: "apark",
   },
   {
     key: "gogo-arena-tenjin",
     storeNames: ["GOGOアリーナ天神", "ＧＯＧＯアリーナ天神"],
     targetMachines: GOGO_ARENA_TENJIN_TARGET_MACHINES,
-    windowDays: 7,
-    scoreCalculator: calculateGogoArenaTenjinHuntScore,
+    defaultLogicKey: "gogo",
   },
 ];
 
@@ -242,6 +255,56 @@ export function findHuntScoreStoreConfig(storeName) {
       config.storeNames.some((candidate) => normalizeText(candidate) === normalizedStoreName),
     ) ?? null
   );
+}
+
+function findHuntScoreLogicDefinition(logicKey) {
+  const normalizedLogicKey = String(logicKey ?? "").trim();
+  if (!normalizedLogicKey) {
+    return null;
+  }
+  return (
+    HUNT_SCORE_LOGIC_DEFINITIONS.find((definition) => definition.key === normalizedLogicKey) ?? null
+  );
+}
+
+export function listHuntScoreLogicOptions() {
+  return HUNT_SCORE_LOGIC_DEFINITIONS.map((definition) => ({
+    key: definition.key,
+    name: definition.name,
+  }));
+}
+
+export function getDefaultHuntScoreLogicKey(storeName = "") {
+  const config = findHuntScoreStoreConfig(storeName);
+  return findHuntScoreLogicDefinition(config?.defaultLogicKey)?.key ?? DEFAULT_HUNT_SCORE_LOGIC_KEY;
+}
+
+export function normalizeHuntScoreLogicKey(logicKey = "", storeName = "") {
+  return findHuntScoreLogicDefinition(logicKey)?.key ?? getDefaultHuntScoreLogicKey(storeName);
+}
+
+export function getHuntScoreLogicDetail(logicKey = "", storeName = "") {
+  const normalizedLogicKey = normalizeHuntScoreLogicKey(logicKey, storeName);
+  const definition =
+    findHuntScoreLogicDefinition(normalizedLogicKey) ??
+    findHuntScoreLogicDefinition(DEFAULT_HUNT_SCORE_LOGIC_KEY);
+  return {
+    key: definition.key,
+    name: definition.name,
+  };
+}
+
+function buildRuntimeHuntScoreConfig(config, logicKey = "") {
+  const logicDefinition =
+    findHuntScoreLogicDefinition(normalizeHuntScoreLogicKey(logicKey, config?.storeNames?.[0] ?? "")) ??
+    findHuntScoreLogicDefinition(DEFAULT_HUNT_SCORE_LOGIC_KEY);
+  return {
+    ...config,
+    logicKey: logicDefinition.key,
+    logicName: logicDefinition.name,
+    windowDays: logicDefinition.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
+    scoreCalculator: logicDefinition.scoreCalculator,
+  };
 }
 
 function listSearchConfigs(storeName) {
@@ -1017,11 +1080,12 @@ export function listHuntScoreSourceMachineNames(storeName = "") {
   ];
 }
 
-export function buildHuntScoreSnapshots(targetRows, allStoreRows = [], storeName = "") {
-  const config = findHuntScoreStoreConfig(storeName);
-  if (!config || !Array.isArray(targetRows) || targetRows.length === 0) {
+export function buildHuntScoreSnapshots(targetRows, allStoreRows = [], storeName = "", logicKey = "") {
+  const storeConfig = findHuntScoreStoreConfig(storeName);
+  if (!storeConfig || !Array.isArray(targetRows) || targetRows.length === 0) {
     return [];
   }
+  const config = buildRuntimeHuntScoreConfig(storeConfig, logicKey);
 
   const businessDates = buildBusinessDates(allStoreRows, targetRows);
   if (businessDates.length === 0) {
@@ -1047,13 +1111,14 @@ export function buildHuntScoreSnapshots(targetRows, allStoreRows = [], storeName
     .sort((left, right) => right.baseDate.localeCompare(left.baseDate));
 }
 
-export function attachHuntScores(targetRows, allStoreRows = [], storeName = "") {
-  const config = findHuntScoreStoreConfig(storeName);
-  if (!config) {
+export function attachHuntScores(targetRows, allStoreRows = [], storeName = "", logicKey = "") {
+  const storeConfig = findHuntScoreStoreConfig(storeName);
+  if (!storeConfig) {
     return;
   }
+  const config = buildRuntimeHuntScoreConfig(storeConfig, logicKey);
 
-  const snapshots = buildHuntScoreSnapshots(targetRows, allStoreRows, storeName);
+  const snapshots = buildHuntScoreSnapshots(targetRows, allStoreRows, storeName, logicKey);
   const huntScoreByRowKey = new Map();
 
   for (const snapshot of snapshots) {

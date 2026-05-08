@@ -1,10 +1,20 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../components/breadcrumbs";
 import { DataSourceLabel } from "../../../components/data-source-label";
+import { HuntScoreLogicSelector } from "../../../components/hunt-score-logic-selector";
 import { getStoreDetail, getStoreIdentity } from "../../../lib/data";
-import { isHuntScoreTargetStore } from "../../../lib/hunt-score";
+import {
+  getHuntScoreLogicDetail,
+  isHuntScoreTargetStore,
+  listHuntScoreLogicOptions,
+} from "../../../lib/hunt-score";
+import {
+  decodeHuntScoreLogicCookieValue,
+  getHuntScoreLogicCookieName,
+} from "../../../lib/hunt-score-logic-selection";
 import {
   formatAverageGames,
   formatCompactDate,
@@ -14,6 +24,13 @@ import {
 } from "../../../lib/format";
 
 export const dynamic = "force-dynamic";
+
+async function readStoredHuntScoreLogicKey(storeId) {
+  const cookieStore = await cookies();
+  return decodeHuntScoreLogicCookieValue(
+    cookieStore.get(getHuntScoreLogicCookieName(storeId))?.value ?? "",
+  );
+}
 
 export async function generateMetadata({ params }) {
   const { storeId } = await params;
@@ -54,6 +71,9 @@ export default async function StoreDetailPage({ params }) {
 
   const { store, machines } = storeDetail;
   const hasHuntScoreAnalysis = isHuntScoreTargetStore(store.storeName);
+  const huntScoreLogic = hasHuntScoreAnalysis
+    ? getHuntScoreLogicDetail(await readStoredHuntScoreLogicKey(store.id), store.storeName)
+    : null;
 
   return (
     <main className="pageStack">
@@ -85,6 +105,13 @@ export default async function StoreDetailPage({ params }) {
               </a>
             ) : null}
           </div>
+          {hasHuntScoreAnalysis ? (
+            <HuntScoreLogicSelector
+              storeId={store.id}
+              selectedLogicKey={huntScoreLogic.key}
+              options={listHuntScoreLogicOptions()}
+            />
+          ) : null}
         </div>
       </section>
 

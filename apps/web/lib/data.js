@@ -6,6 +6,7 @@ import { buildConditionRequirementOptions } from "./hunt-bookmark";
 import {
   buildHuntScoreSnapshots,
   canonicalHuntScoreTargetMachineName,
+  getHuntScoreLogicDetail,
   isHuntScoreSupported,
   isHuntScoreTargetStore,
   listHuntScoreSourceMachineNames,
@@ -1319,7 +1320,7 @@ function buildStaticStoreDetail(staticStore) {
   };
 }
 
-function buildInitialBacktestDetail(storeName, options = {}) {
+function buildInitialBacktestDetail(storeName, options = {}, huntScoreLogicKey = "") {
   const machineNames = listHuntScoreTargetMachineNames(storeName);
   const selectedMachineNames = normalizeInitialMachineSelection(machineNames, options);
   const selectedMachineNameSet = new Set(selectedMachineNames);
@@ -1348,6 +1349,7 @@ function buildInitialBacktestDetail(storeName, options = {}) {
   return {
     periodMode,
     recentDays: readPositiveInteger(defaultedOptions?.recentDays, DEFAULT_HUNT_BACKTEST_RECENT_DAYS),
+    huntScoreLogic: getHuntScoreLogicDetail(huntScoreLogicKey, storeName),
     startDate: normalizeDateInput(defaultedOptions?.startDate),
     endDate: normalizeDateInput(defaultedOptions?.endDate),
     latestDate: null,
@@ -1408,7 +1410,7 @@ function buildInitialBacktestDetail(storeName, options = {}) {
   };
 }
 
-function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}) {
+function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScoreLogicKey = "") {
   const store = readStaticStoreIdentity(staticStore);
   if (!isHuntScoreTargetStore(store.storeName)) {
     return null;
@@ -1416,9 +1418,11 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}) {
 
   const storeDetail = buildStaticStoreDetail(staticStore);
   const machineNames = listHuntScoreTargetMachineNames(store.storeName);
+  const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName);
   return {
     dataSource: "json",
     resultRequested: false,
+    huntScoreLogic,
     store: {
       id: store.id,
       storeName: store.storeName,
@@ -1436,7 +1440,7 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}) {
     rankingGroups: [],
     totalCount: 0,
     hasActualResults: false,
-    backtest: buildInitialBacktestDetail(store.storeName, backtestOptions),
+    backtest: buildInitialBacktestDetail(store.storeName, backtestOptions, huntScoreLogic.key),
   };
 }
 
@@ -1507,7 +1511,7 @@ async function buildStaticHuntScoreSourceRows(staticStore) {
   };
 }
 
-async function buildStaticMachineDetail(staticStore, machineName) {
+async function buildStaticMachineDetail(staticStore, machineName, huntScoreLogicKey = "") {
   const store = readStaticStoreIdentity(staticStore);
   const requestedMachineName = canonicalMachineName(machineName);
   const machines = (Array.isArray(staticStore?.machines) ? staticStore.machines : [])
@@ -1540,7 +1544,8 @@ async function buildStaticMachineDetail(staticStore, machineName) {
 
   if (huntScoreEnabled) {
     const { targetRows, storeRows } = await buildStaticHuntScoreSourceRows(staticStore);
-    const snapshots = buildHuntScoreSnapshots(targetRows, storeRows, store.storeName);
+    const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName);
+    const snapshots = buildHuntScoreSnapshots(targetRows, storeRows, store.storeName, huntScoreLogic.key);
     applySnapshotHuntScores(snapshots);
     huntScoreHighlight = buildMachineHuntScoreHighlightDetail(store.storeName, snapshots);
     const targetMachineRows = targetRows.filter((row) =>
@@ -1583,6 +1588,9 @@ async function buildStaticMachineDetail(staticStore, machineName) {
       storeUrl: store.storeUrl,
       eventFilters: store.eventFilters,
     },
+    huntScoreLogic: isHuntScoreTargetStore(store.storeName)
+      ? getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName)
+      : null,
     machineName: detailMachineName,
     slotNumbers: machineDetail.slotNumbers,
     slotLabels: machineDetail.slotLabels,
@@ -1612,10 +1620,14 @@ export const getStoreDetail = cache(async function getStoreDetail(storeId) {
   return null;
 });
 
-export const getMachineDetail = cache(async function getMachineDetail(storeId, machineName) {
+export const getMachineDetail = cache(async function getMachineDetail(
+  storeId,
+  machineName,
+  huntScoreLogicKey = "",
+) {
   const staticStore = await readStaticStoreById(storeId);
   if (staticStore) {
-    return await buildStaticMachineDetail(staticStore, machineName);
+    return await buildStaticMachineDetail(staticStore, machineName, huntScoreLogicKey);
   }
 
   return null;
@@ -1624,10 +1636,11 @@ export const getMachineDetail = cache(async function getMachineDetail(storeId, m
 export const getHuntScoreInitialPageDetail = cache(async function getHuntScoreInitialPageDetail(
   storeId,
   backtestOptions = {},
+  huntScoreLogicKey = "",
 ) {
   const staticStore = await readStaticStoreById(storeId);
   if (staticStore) {
-    return buildInitialHuntScoreDetail(staticStore, backtestOptions);
+    return buildInitialHuntScoreDetail(staticStore, backtestOptions, huntScoreLogicKey);
   }
 
   return null;
@@ -1637,8 +1650,9 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   storeId,
   requestedDate = "",
   requestedLimit = 20,
+  huntScoreLogicKey = "",
 ) {
-  const snapshotDetail = await getHuntScoreSnapshotsForStore(storeId);
+  const snapshotDetail = await getHuntScoreSnapshotsForStore(storeId, huntScoreLogicKey);
 
   if (!snapshotDetail) {
     return null;
@@ -1668,6 +1682,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
 
   return {
     dataSource: snapshotDetail.dataSource ?? "json",
+    huntScoreLogic: snapshotDetail.huntScoreLogic,
     store: {
       id: store.id,
       storeName: store.store_name,
@@ -1688,7 +1703,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   };
 });
 
-async function getHuntScoreSnapshotsForStore(storeId) {
+async function getHuntScoreSnapshotsForStore(storeId, huntScoreLogicKey = "") {
   const staticStore = await readStaticStoreById(storeId);
   if (staticStore) {
     const staticIdentity = readStaticStoreIdentity(staticStore);
@@ -1696,14 +1711,21 @@ async function getHuntScoreSnapshotsForStore(storeId) {
       return null;
     }
     const { targetRows, storeRows } = await buildStaticHuntScoreSourceRows(staticStore);
+    const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, staticIdentity.storeName);
     return {
       dataSource: "json",
+      huntScoreLogic,
       store: {
         id: staticIdentity.id,
         store_name: staticIdentity.storeName,
         store_url: staticIdentity.storeUrl,
       },
-      snapshots: buildHuntScoreSnapshots(targetRows, storeRows, staticIdentity.storeName),
+      snapshots: buildHuntScoreSnapshots(
+        targetRows,
+        storeRows,
+        staticIdentity.storeName,
+        huntScoreLogic.key,
+      ),
     };
   }
 
@@ -1792,8 +1814,9 @@ export async function getHuntScoreAnalysisPageDetail(
   requestedDate = "",
   requestedLimit = 20,
   backtestOptions = {},
+  huntScoreLogicKey = "",
 ) {
-  const snapshotDetail = await getHuntScoreSnapshotsForStore(storeId);
+  const snapshotDetail = await getHuntScoreSnapshotsForStore(storeId, huntScoreLogicKey);
 
   if (!snapshotDetail) {
     return null;
@@ -1807,10 +1830,13 @@ export async function getHuntScoreAnalysisPageDetail(
   const rankingDates = snapshots.map((snapshot) => snapshot.baseDate);
   const selectedDate = rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null;
   const snapshot = snapshots.find((entry) => entry.baseDate === selectedDate) ?? null;
-  const backtest = buildHuntScoreBacktestDetail(snapshots, {
-    ...buildBacktestOptionsForStore(store, backtestOptions),
-    machineOrder: listHuntScoreTargetMachineNames(store.store_name),
-  });
+  const backtest = {
+    ...buildHuntScoreBacktestDetail(snapshots, {
+      ...buildBacktestOptionsForStore(store, backtestOptions),
+      machineOrder: listHuntScoreTargetMachineNames(store.store_name),
+    }),
+    huntScoreLogic: snapshotDetail.huntScoreLogic,
+  };
   const fullRankingGroups = buildSelectedMachineRankingGroups(snapshot?.rows ?? [], backtest.selectedMachineNames);
   const rankingLimit = normalizeRankingLimit(requestedLimit);
   const totalCount = fullRankingGroups.reduce(
@@ -1823,6 +1849,7 @@ export async function getHuntScoreAnalysisPageDetail(
 
   return {
     dataSource: snapshotDetail.dataSource ?? "json",
+    huntScoreLogic: snapshotDetail.huntScoreLogic,
     store: {
       id: store.id,
       storeName: store.store_name,

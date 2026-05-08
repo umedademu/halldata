@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../../components/breadcrumbs";
@@ -13,6 +14,10 @@ import {
   getStoreIdentity,
 } from "../../../../lib/data";
 import { formatMonthDay } from "../../../../lib/format";
+import {
+  decodeHuntScoreLogicCookieValue,
+  getHuntScoreLogicCookieName,
+} from "../../../../lib/hunt-score-logic-selection";
 import { groupHuntMachineOptions } from "../../../../lib/hunt-machine-display";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +36,13 @@ const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
 const HANABI_GROUP_NAME = "ハナビ";
 const HANABI_MACHINE_NAMES = ["新ハナビ", "スマスロ ハナビ"];
+
+async function readStoredHuntScoreLogicKey(storeId) {
+  const cookieStore = await cookies();
+  return decodeHuntScoreLogicCookieValue(
+    cookieStore.get(getHuntScoreLogicCookieName(storeId))?.value ?? "",
+  );
+}
 
 function readSingleSearchParam(value) {
   if (Array.isArray(value)) {
@@ -250,6 +262,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const resultRequested = readSingleSearchParam(resolvedSearchParams?.show) === "1";
   const requestedLimit = parseRequestedLimit(readSingleSearchParam(resolvedSearchParams?.limit));
   const requestedMachineNames = readMultiSearchParam(resolvedSearchParams?.machine);
+  const huntScoreLogicKey = await readStoredHuntScoreLogicKey(storeId);
   const machineFilterTouched = readSingleSearchParam(resolvedSearchParams?.machineTouched) === "1";
   const requestedCombineAimJuggler = normalizeCombineAimJuggler(
     readMultiSearchParam(resolvedSearchParams?.aimMachineGroup),
@@ -322,8 +335,8 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
 
   try {
     detail = resultRequested
-      ? await getHuntScoreRankingDetail(storeId, requestedDate, requestedLimit)
-      : await getHuntScoreInitialPageDetail(storeId);
+      ? await getHuntScoreRankingDetail(storeId, requestedDate, requestedLimit, huntScoreLogicKey)
+      : await getHuntScoreInitialPageDetail(storeId, {}, huntScoreLogicKey);
   } catch (error) {
     return (
       <main className="pageStack">
@@ -413,6 +426,9 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
       <section className="heroPanel">
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">狙い度ランキング</h1>
+          {detail.huntScoreLogic ? (
+            <p className="dataSourceLabel">適用中: {detail.huntScoreLogic.name}</p>
+          ) : null}
           <DataSourceLabel source={detail.dataSource} />
           <div className="heroLinks simpleHeroLinks">
             <Link href={`/stores/${detail.store.id}`} className="externalLink">
