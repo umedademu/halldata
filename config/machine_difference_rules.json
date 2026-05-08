@@ -252,6 +252,101 @@
         "ドラゴンハナハナ"
       ],
       "site7_enabled": true
+    },
+    {
+      "canonical_name": "スマスロ北斗の拳 転生の章",
+      "machine_names": [
+        "スマスロ北斗の拳 転生の章",
+        "スマスロ北斗の拳 転生の章2",
+        "スマスロ北斗の拳転生の章",
+        "スマスロ北斗の拳転生の章2"
+      ],
+      "match_keywords": [
+        "スマスロ北斗の拳 転生の章",
+        "スマスロ北斗の拳転生の章"
+      ],
+      "site7_enabled": false
+    },
+    {
+      "canonical_name": "スマスロ ミリオンゴッド",
+      "machine_names": [
+        "スマスロ ミリオンゴッド",
+        "スマスロ ミリオンゴッド-神々の軌跡-",
+        "スマスロミリオンゴッド",
+        "スマスロミリオンゴッド-神々の軌跡-"
+      ],
+      "match_keywords": [
+        "スマスロ ミリオンゴッド",
+        "スマスロミリオンゴッド"
+      ],
+      "site7_enabled": false
+    },
+    {
+      "canonical_name": "L東京喰種",
+      "machine_names": [
+        "L東京喰種",
+        "L 東京喰種",
+        "東京喰種"
+      ],
+      "match_keywords": [
+        "L東京喰種",
+        "L 東京喰種"
+      ],
+      "site7_enabled": false
+    },
+    {
+      "canonical_name": "スマスロモンキーターンV",
+      "machine_names": [
+        "スマスロモンキーターンV",
+        "スマスロ モンキーターンV",
+        "スマスロモンキーターンⅤ",
+        "スマスロ モンキーターンⅤ"
+      ],
+      "match_keywords": [
+        "スマスロモンキーターン",
+        "スマスロ モンキーターン"
+      ],
+      "site7_enabled": false
+    },
+    {
+      "canonical_name": "スマスロ 甲鉄城のカバネリ 海門決戦",
+      "machine_names": [
+        "スマスロ 甲鉄城のカバネリ 海門決戦",
+        "スマスロ甲鉄城のカバネリ海門決戦"
+      ],
+      "match_keywords": [
+        "甲鉄城のカバネリ 海門決戦",
+        "甲鉄城のカバネリ海門決戦"
+      ],
+      "site7_enabled": false
+    },
+    {
+      "canonical_name": "Lスマスロ北斗の拳",
+      "machine_names": [
+        "Lスマスロ北斗の拳",
+        "L スマスロ北斗の拳",
+        "スマスロ北斗の拳"
+      ],
+      "match_keywords": [
+        "Lスマスロ北斗の拳",
+        "L スマスロ北斗の拳"
+      ],
+      "site7_enabled": false
+    },
+    {
+      "canonical_name": "Lパチスロ炎炎ノ消防隊2",
+      "machine_names": [
+        "Lパチスロ炎炎ノ消防隊2",
+        "Lパチスロ炎炎ノ消防隊２",
+        "L パチスロ炎炎ノ消防隊2",
+        "L炎炎ノ消防隊2"
+      ],
+      "match_keywords": [
+        "Lパチスロ炎炎ノ消防隊",
+        "L パチスロ炎炎ノ消防隊",
+        "L炎炎ノ消防隊"
+      ],
+      "site7_enabled": false
     }
   ]
 }

@@ -4,6 +4,35 @@ const HUNT_SCORE_EPSILON = 0.000000001;
 const DEFAULT_HUNT_SCORE_WINDOW_DAYS = 7;
 const DEFAULT_HUNT_SCORE_LOGIC_KEY = "apark";
 
+const AT_TARGET_MACHINES = [
+  {
+    name: "スマスロ北斗の拳 転生の章",
+    aliases: ["スマスロ北斗の拳 転生の章2", "スマスロ北斗の拳転生の章", "スマスロ北斗の拳転生の章2"],
+  },
+  {
+    name: "スマスロ ミリオンゴッド",
+    aliases: [
+      "スマスロ ミリオンゴッド-神々の軌跡-",
+      "スマスロミリオンゴッド",
+      "スマスロミリオンゴッド-神々の軌跡-",
+    ],
+  },
+  { name: "L東京喰種", aliases: ["L 東京喰種", "東京喰種"] },
+  {
+    name: "スマスロモンキーターンV",
+    aliases: ["スマスロ モンキーターンV", "スマスロモンキーターンⅤ", "スマスロ モンキーターンⅤ"],
+  },
+  {
+    name: "スマスロ 甲鉄城のカバネリ 海門決戦",
+    aliases: ["スマスロ甲鉄城のカバネリ海門決戦"],
+  },
+  { name: "Lスマスロ北斗の拳", aliases: ["L スマスロ北斗の拳", "スマスロ北斗の拳"] },
+  {
+    name: "Lパチスロ炎炎ノ消防隊2",
+    aliases: ["Lパチスロ炎炎ノ消防隊２", "L パチスロ炎炎ノ消防隊2", "L炎炎ノ消防隊2"],
+  },
+];
+
 const APARK_KASUGA_TARGET_MACHINES = [
   { name: "SアイムジャグラーＥＸ", aliases: ["SアイムジャグラーEX"] },
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
@@ -48,6 +77,7 @@ const APARK_KASUGA_TARGET_MACHINES = [
   { name: "スターハナハナ", aliases: ["スターハナハナ-30", "スターハナハナ‐30"] },
   { name: "新ハナビ", aliases: [] },
   { name: "スマスロ ハナビ", aliases: ["スマスロハナビ"] },
+  ...AT_TARGET_MACHINES,
 ];
 
 const GOGO_ARENA_TENJIN_TARGET_MACHINES = [
@@ -65,6 +95,7 @@ const GOGO_ARENA_TENJIN_TARGET_MACHINES = [
     aliases: ["ハッピージャグラーVIII", "ハッピージャグラーＶ", "ハッピージャグラーV", "ハッピージャグラー"],
   },
   { name: "ウルトラミラクルジャグラー", aliases: [] },
+  ...AT_TARGET_MACHINES,
 ];
 
 const APARK_YAKATABARU_TARGET_MACHINES = [
@@ -91,6 +122,7 @@ const APARK_YAKATABARU_TARGET_MACHINES = [
   { name: "キングハナハナ", aliases: ["キングハナハナ-30", "キングハナハナ‐30"] },
   { name: "新ハナビ", aliases: [] },
   { name: "スマスロ ハナビ", aliases: ["スマスロハナビ"] },
+  ...AT_TARGET_MACHINES,
 ];
 
 const GOGO_ARENA_TENJIN_REFERENCE_EVENT_DAYS = new Set([5, 10, 15, 20, 25, 30]);
@@ -471,7 +503,7 @@ function getSettingEstimateAverage(settingDefinitionCache, row, config) {
   const estimate = definition ? calculateSettingEstimate(definition, row) : null;
   return {
     estimate,
-    average: estimate?.average ?? 0,
+    average: estimate?.average ?? null,
   };
 }
 
@@ -492,7 +524,7 @@ function calculateCurrentHighSettingStreak(windowRows) {
   let streak = 0;
 
   for (let index = windowRows.length - 1; index >= 0; index -= 1) {
-    if (windowRows[index].settingAverage < 4) {
+    if (!Number.isFinite(windowRows[index].settingAverage) || windowRows[index].settingAverage < 4) {
       break;
     }
     streak += 1;
@@ -538,7 +570,11 @@ function calculatePreviousReferenceEventMetrics(
       continue;
     }
 
-    settings.push(getSettingEstimateAverage(settingDefinitionCache, eventRow, config).average);
+    const settingAverage = getSettingEstimateAverage(settingDefinitionCache, eventRow, config).average;
+    if (!Number.isFinite(settingAverage)) {
+      continue;
+    }
+    settings.push(settingAverage);
     if (settings.length >= 3) {
       break;
     }
@@ -642,6 +678,9 @@ function calculateTodayDifferenceScore(value) {
 }
 
 function calculateTodaySettingScore(value) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
   return scoreFromMaximums(value, [
     { maximum: 2, score: 3 },
     { maximum: 3, score: 2 },
@@ -910,10 +949,12 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     gamesTotal += games;
     bbTotal += bbCount;
     rbTotal += rbCount;
-    settingTotal += settingAverage;
-    settingSampleCount += 1;
-    if (settingAverage >= 4) {
-      highSettingCount += 1;
+    if (Number.isFinite(settingAverage)) {
+      settingTotal += settingAverage;
+      settingSampleCount += 1;
+      if (settingAverage >= 4) {
+        highSettingCount += 1;
+      }
     }
 
     if (differenceValue < 0) {
@@ -957,7 +998,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     todayDifference: readHuntScoreDifferenceValue(row),
     previousDifference: previousWindowRow?.differenceValue ?? 0,
     todaySetting,
-    averageSetting: settingSampleCount > 0 ? settingTotal / settingSampleCount : 0,
+    averageSetting: settingSampleCount > 0 ? settingTotal / settingSampleCount : null,
     highSettingCount,
     highSettingStreak: calculateCurrentHighSettingStreak(metricWindowRows),
     gamesTotal,

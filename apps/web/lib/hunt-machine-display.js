@@ -1,8 +1,9 @@
-const HUNT_MACHINE_CATEGORY_ORDER = ["juggler", "hana", "hanabi", "other"];
+const HUNT_MACHINE_CATEGORY_ORDER = ["juggler", "hana", "hanabi", "at", "other"];
 const HUNT_MACHINE_CATEGORY_LABELS = {
   juggler: "ジャグ系",
   hana: "ハナ系",
   hanabi: "ハナビ系",
+  at: "AT系",
   other: "その他",
 };
 
@@ -128,6 +129,41 @@ const HUNT_MACHINE_DISPLAY_DEFINITIONS = [
     category: "hanabi",
     names: ["ハナビ"],
   },
+  {
+    shortName: "北斗転生",
+    category: "at",
+    names: ["スマスロ北斗の拳 転生の章", "スマスロ北斗の拳 転生の章2"],
+  },
+  {
+    shortName: "ゴッド",
+    category: "at",
+    names: ["スマスロ ミリオンゴッド", "スマスロ ミリオンゴッド-神々の軌跡-"],
+  },
+  {
+    shortName: "東京喰種",
+    category: "at",
+    names: ["L東京喰種"],
+  },
+  {
+    shortName: "モンキーV",
+    category: "at",
+    names: ["スマスロモンキーターンV", "スマスロ モンキーターンV"],
+  },
+  {
+    shortName: "カバネリ",
+    category: "at",
+    names: ["スマスロ 甲鉄城のカバネリ 海門決戦"],
+  },
+  {
+    shortName: "北斗",
+    category: "at",
+    names: ["Lスマスロ北斗の拳", "スマスロ北斗の拳"],
+  },
+  {
+    shortName: "炎炎2",
+    category: "at",
+    names: ["Lパチスロ炎炎ノ消防隊2", "Lパチスロ炎炎ノ消防隊２"],
+  },
 ];
 
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
@@ -175,6 +211,12 @@ export function getHuntMachineCategory(machineName) {
   }
   if (normalizedMachineName.includes("ハナハナ")) {
     return "hana";
+  }
+  if (
+    normalizedMachineName.includes("スマスロ") ||
+    normalizedMachineName.startsWith("L")
+  ) {
+    return "at";
   }
   return "other";
 }
