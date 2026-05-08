@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../../../components/breadcrumbs";
 import { DataSourceLabel } from "../../../../../components/data-source-label";
+import { HuntScoreLogicSelector } from "../../../../../components/hunt-score-logic-selector";
 import { MachineComparison } from "../../../../../components/machine-comparison";
 import {
   getMachineDetail,
@@ -11,6 +12,7 @@ import {
   readRouteSegment,
 } from "../../../../../lib/data";
 import { parseEventFilters } from "../../../../../lib/event-filters";
+import { listHuntScoreLogicOptions } from "../../../../../lib/hunt-score";
 import {
   decodeHuntScoreLogicCookieValue,
   getHuntScoreLogicCookieName,
@@ -119,6 +121,13 @@ export default async function MachineDetailPage({ params, searchParams }) {
               </a>
             ) : null}
           </div>
+          {detail.huntScoreLogic ? (
+            <HuntScoreLogicSelector
+              storeId={detail.store.id}
+              selectedLogicKey={detail.huntScoreLogic.key}
+              options={listHuntScoreLogicOptions()}
+            />
+          ) : null}
         </div>
       </section>
 
