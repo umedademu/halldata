@@ -155,6 +155,8 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
     rankRequired: readMultiSearchParam(resolvedSearchParams?.rankRequired),
     scoreRequired: readMultiSearchParam(resolvedSearchParams?.scoreRequired),
     deviationRequired: readMultiSearchParam(resolvedSearchParams?.deviationRequired),
+    prefectures: readMultiSearchParam(resolvedSearchParams?.prefecture),
+    areaKeys: readMultiSearchParam(resolvedSearchParams?.area),
     dayTails: readMultiSearchParam(resolvedSearchParams?.backtestDayTail),
     weekdays: readMultiSearchParam(resolvedSearchParams?.backtestWeekday),
     minActualRows: readSingleSearchParam(resolvedSearchParams?.minActualRows),
@@ -166,6 +168,8 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
   const selectedDayTailSet = new Set(detail.eventFilters.dayTails);
   const selectedWeekdaySet = new Set(detail.eventFilters.weekdays);
   const machineOptionGroups = groupHuntMachineOptions(detail.machineOptions);
+  const locationFilterOpen =
+    detail.selectedPrefectures.length > 0 || detail.selectedAreaKeys.length > 0;
 
   return (
     <main className="pageStack">
@@ -329,6 +333,59 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
               />
             </label>
           </div>
+
+          <details className="backtestBlock" open={locationFilterOpen}>
+            <summary className="filterControlLabel">地域条件</summary>
+            <div className="machineFilterGroups">
+              <div className="machineFilterGroup">
+                <p className="machineFilterGroupLabel">都道府県</p>
+                <div className="metricToggleRow">
+                  {detail.prefectureOptions.map((prefecture) => (
+                    <label
+                      key={prefecture.name}
+                      className={`metricToggleChip ${
+                        prefecture.checked ? "metricToggleChipActive" : ""
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        name="prefecture"
+                        value={prefecture.name}
+                        defaultChecked={prefecture.checked}
+                      />
+                      <span>{prefecture.name}（{formatNumber(prefecture.count)}）</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="machineFilterGroup">
+                <p className="machineFilterGroupLabel">地域</p>
+                {detail.areaOptionGroups.map((group) => (
+                  <div key={group.prefectureName} className="machineFilterGroup">
+                    <p className="machineFilterGroupLabel">{group.prefectureName}</p>
+                    <div className="metricToggleRow">
+                      {group.options.map((area) => (
+                        <label
+                          key={area.key}
+                          className={`metricToggleChip ${
+                            area.checked ? "metricToggleChipActive" : ""
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            name="area"
+                            value={area.key}
+                            defaultChecked={area.checked}
+                          />
+                          <span>{area.areaName}（{formatNumber(area.count)}）</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </details>
 
           <div className="backtestBlock">
             <p className="filterControlLabel">特定日（翌営業日の末尾）</p>

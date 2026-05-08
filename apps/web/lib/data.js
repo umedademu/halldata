@@ -57,6 +57,8 @@ const DEFAULT_CROSS_STORE_MACHINE_NAMES = [
   "ハッピージャグラーＶＩＩＩ",
   "ウルトラミラクルジャグラー",
 ];
+const UNKNOWN_PREFECTURE_LABEL = "都道府県未設定";
+const UNKNOWN_AREA_LABEL = "地域未設定";
 const SLOT_KEY_SEPARATOR = "\u0000";
 const COMBINED_MACHINE_GROUPS = [
   {
@@ -1926,6 +1928,113 @@ function normalizeCrossStoreInitialMachineSelection(machineNames, options = {}) 
   return defaultMachineNames.length > 0 ? defaultMachineNames : machineNames;
 }
 
+function normalizeLocationFilterValues(value, availableValues) {
+  const availableValueSet = new Set(availableValues);
+  return [...new Set(splitOptionValues(value))]
+    .map((entry) => String(entry ?? "").trim())
+    .filter((entry) => entry && availableValueSet.has(entry));
+}
+
+function buildCrossStoreLocationDetail(storeEntries, options = {}) {
+  const locations = (Array.isArray(storeEntries) ? storeEntries : [])
+    .map((storeEntry) => {
+      const identity = readStaticStoreEntryIdentity(storeEntry);
+      const prefectureName = identity.prefectureName || UNKNOWN_PREFECTURE_LABEL;
+      const areaName = identity.areaName || UNKNOWN_AREA_LABEL;
+      return {
+        prefectureName,
+        areaName,
+        areaKey: `${prefectureName} / ${areaName}`,
+      };
+    })
+    .filter((location) => location.prefectureName);
+  const prefectureCounts = new Map();
+  const areaCounts = new Map();
+
+  for (const location of locations) {
+    prefectureCounts.set(
+      location.prefectureName,
+      (prefectureCounts.get(location.prefectureName) ?? 0) + 1,
+    );
+    if (!areaCounts.has(location.areaKey)) {
+      areaCounts.set(location.areaKey, {
+        key: location.areaKey,
+        prefectureName: location.prefectureName,
+        areaName: location.areaName,
+        count: 0,
+      });
+    }
+    areaCounts.get(location.areaKey).count += 1;
+  }
+
+  const prefectureNames = [...prefectureCounts.keys()].sort((left, right) =>
+    left.localeCompare(right, "ja"),
+  );
+  const areaEntries = [...areaCounts.values()].sort(
+    (left, right) =>
+      left.prefectureName.localeCompare(right.prefectureName, "ja") ||
+      left.areaName.localeCompare(right.areaName, "ja"),
+  );
+  const selectedPrefectures = normalizeLocationFilterValues(
+    options?.prefectures,
+    prefectureNames,
+  );
+  const selectedAreaKeys = normalizeLocationFilterValues(
+    options?.areaKeys,
+    areaEntries.map((entry) => entry.key),
+  );
+  const selectedPrefectureSet = new Set(selectedPrefectures);
+  const selectedAreaKeySet = new Set(selectedAreaKeys);
+  const areaGroupsByPrefecture = new Map();
+
+  for (const areaEntry of areaEntries) {
+    if (!areaGroupsByPrefecture.has(areaEntry.prefectureName)) {
+      areaGroupsByPrefecture.set(areaEntry.prefectureName, {
+        prefectureName: areaEntry.prefectureName,
+        options: [],
+      });
+    }
+    areaGroupsByPrefecture.get(areaEntry.prefectureName).options.push({
+      ...areaEntry,
+      checked: selectedAreaKeySet.has(areaEntry.key),
+    });
+  }
+
+  return {
+    selectedPrefectures,
+    selectedAreaKeys,
+    selectedPrefectureSet,
+    selectedAreaKeySet,
+    prefectureOptions: prefectureNames.map((prefectureName) => ({
+      name: prefectureName,
+      count: prefectureCounts.get(prefectureName) ?? 0,
+      checked: selectedPrefectureSet.has(prefectureName),
+    })),
+    areaOptionGroups: [...areaGroupsByPrefecture.values()],
+  };
+}
+
+function storeEntryMatchesCrossStoreLocation(storeEntry, locationDetail) {
+  const identity = readStaticStoreEntryIdentity(storeEntry);
+  const prefectureName = identity.prefectureName || UNKNOWN_PREFECTURE_LABEL;
+  const areaName = identity.areaName || UNKNOWN_AREA_LABEL;
+  const areaKey = `${prefectureName} / ${areaName}`;
+
+  if (
+    locationDetail.selectedPrefectureSet.size > 0 &&
+    !locationDetail.selectedPrefectureSet.has(prefectureName)
+  ) {
+    return false;
+  }
+  if (
+    locationDetail.selectedAreaKeySet.size > 0 &&
+    !locationDetail.selectedAreaKeySet.has(areaKey)
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function buildCrossStoreBacktestOptions(options = {}) {
   const machineNames = listAllHuntScoreTargetMachineNames();
   const selectedMachineNames = normalizeCrossStoreInitialMachineSelection(machineNames, options);
@@ -2241,7 +2350,11 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
 
 export async function getCrossStoreBacktestDetail(options = {}) {
   const index = await readStaticWebDataIndex();
-  const storeEntries = (index?.stores ?? []).filter(storeEntryHasBacktestData);
+  const allStoreEntries = (index?.stores ?? []).filter(storeEntryHasBacktestData);
+  const locationDetail = buildCrossStoreLocationDetail(allStoreEntries, options);
+  const storeEntries = allStoreEntries.filter((storeEntry) =>
+    storeEntryMatchesCrossStoreLocation(storeEntry, locationDetail),
+  );
   const backtestOptions = buildCrossStoreBacktestOptions(options);
   const huntScoreLogic = getHuntScoreLogicDetail(options?.logicKey, "");
   let rows = [];
@@ -2277,6 +2390,10 @@ export async function getCrossStoreBacktestDetail(options = {}) {
     resultRequested: Boolean(options?.resultRequested),
     huntScoreLogic,
     logicOptions: listHuntScoreLogicOptions(),
+    prefectureOptions: locationDetail.prefectureOptions,
+    areaOptionGroups: locationDetail.areaOptionGroups,
+    selectedPrefectures: locationDetail.selectedPrefectures,
+    selectedAreaKeys: locationDetail.selectedAreaKeys,
     periodMode: backtestOptions.periodMode,
     recentDays: backtestOptions.recentDays,
     startDate: backtestOptions.startDate,
