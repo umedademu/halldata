@@ -2,7 +2,10 @@ import Link from "next/link";
 
 import { Breadcrumbs } from "../../components/breadcrumbs";
 import { DataSourceLabel } from "../../components/data-source-label";
-import { JugglerOnlyButton } from "../../components/hunt-machine-filter-tools";
+import {
+  AllMachineFilterButtons,
+  JugglerOnlyButton,
+} from "../../components/hunt-machine-filter-tools";
 import { NativeGetForm } from "../../components/native-get-form";
 import { getCrossStoreBacktestDetail } from "../../lib/data";
 import {
@@ -386,6 +389,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
 
           <div className="backtestBlock">
             <p className="filterControlLabel">機種名</p>
+            <AllMachineFilterButtons />
             <div className="machineFilterGroups">
               {machineOptionGroups.map((group) => (
                 <div key={group.key} className="machineFilterGroup">

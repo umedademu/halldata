@@ -4,7 +4,10 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../../components/breadcrumbs";
 import { DataSourceLabel } from "../../../../components/data-source-label";
-import { JugglerOnlyButton } from "../../../../components/hunt-machine-filter-tools";
+import {
+  AllMachineFilterButtons,
+  JugglerOnlyButton,
+} from "../../../../components/hunt-machine-filter-tools";
 import { HuntRankingLimitSync } from "../../../../components/hunt-ranking-limit-sync";
 import { HuntRankingTable } from "../../../../components/hunt-ranking-table";
 import { HuntScoreLogicSelector } from "../../../../components/hunt-score-logic-selector";
@@ -506,6 +509,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   {hasHanabiGroupOption ? (
                     <input type="hidden" name="hanabiMachineGroup" value="0" />
                   ) : null}
+                  <AllMachineFilterButtons />
                   <div className="machineFilterGroups">
                     {machineOptionGroups.map((group) => (
                       <div key={group.key} className="machineFilterGroup">

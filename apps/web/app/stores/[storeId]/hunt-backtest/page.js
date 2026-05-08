@@ -7,7 +7,10 @@ import { HuntBacktestEventFilterSync } from "../../../../components/hunt-backtes
 import { Breadcrumbs } from "../../../../components/breadcrumbs";
 import { DataSourceLabel } from "../../../../components/data-source-label";
 import { HuntBacktestGraph } from "../../../../components/hunt-backtest-graph";
-import { JugglerOnlyButton } from "../../../../components/hunt-machine-filter-tools";
+import {
+  AllMachineFilterButtons,
+  JugglerOnlyButton,
+} from "../../../../components/hunt-machine-filter-tools";
 import { HuntScoreLogicSelector } from "../../../../components/hunt-score-logic-selector";
 import { NativeGetForm } from "../../../../components/native-get-form";
 import {
@@ -416,6 +419,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                 <input type="hidden" name="machineTouched" value="1" />
                 <input type="hidden" name="aimMachineGroup" value="0" />
                 <input type="hidden" name="hanabiMachineGroup" value="0" />
+                <AllMachineFilterButtons />
                 <div className="machineFilterGroups">
                   {machineOptionGroups.map((group) => (
                     <div key={group.key} className="machineFilterGroup">
