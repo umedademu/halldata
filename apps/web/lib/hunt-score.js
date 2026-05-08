@@ -4,7 +4,7 @@ const HUNT_SCORE_EPSILON = 0.000000001;
 const DEFAULT_HUNT_SCORE_WINDOW_DAYS = 7;
 const DEFAULT_HUNT_SCORE_LOGIC_KEY = "apark";
 
-const AT_TARGET_MACHINES = [
+const OTHER_TARGET_MACHINES = [
   {
     name: "スマスロ北斗の拳 転生の章",
     aliases: ["スマスロ北斗の拳 転生の章2", "スマスロ北斗の拳転生の章", "スマスロ北斗の拳転生の章2"],
@@ -31,6 +31,58 @@ const AT_TARGET_MACHINES = [
     name: "Lパチスロ炎炎ノ消防隊2",
     aliases: ["Lパチスロ炎炎ノ消防隊２", "L パチスロ炎炎ノ消防隊2", "L炎炎ノ消防隊2"],
   },
+  { name: "Lパチスロからくりサーカス", aliases: ["L パチスロからくりサーカス"] },
+  { name: "Lパチスロ かぐや様は告らせたい", aliases: ["Lパチスロかぐや様は告らせたい"] },
+  { name: "Lパチスロ革命機ヴァルヴレイヴ2", aliases: ["Lパチスロ革命機ヴァルヴレイヴ２"] },
+  { name: "Lパチスロ革命機ヴァルヴレイヴ", aliases: [] },
+  { name: "Lパチスロ炎炎ノ消防隊", aliases: ["L パチスロ炎炎ノ消防隊", "L炎炎ノ消防隊"] },
+  { name: "Lパチスロ ダンベル何キロ持てる？", aliases: ["Lパチスロダンベル何キロ持てる？"] },
+  { name: "Lパチスロ 機動戦士ガンダムSEED", aliases: ["Lパチスロ機動戦士ガンダムSEED"] },
+  {
+    name: "Lパチスロ 機動戦士ガンダムユニコーン 覚醒DRIVE",
+    aliases: [
+      "機動戦士ガンダムユニコーン 覚醒DRIVE",
+      "Lパチスロ機動戦士ガンダムユニコーン覚醒DRIVE",
+      "L機動戦士ガンダムユニコーン覚醒",
+    ],
+  },
+  { name: "Lパチスロ ありふれた職業で世界最強", aliases: ["Lパチスロありふれた職業で世界最強"] },
+  { name: "Lパチスロ シン・エヴァンゲリオン", aliases: ["Lパチスロシン・エヴァンゲリオン"] },
+  { name: "Lパチスロ戦姫絶唱シンフォギア 正義の歌", aliases: [] },
+  { name: "Lパチスロガールズ＆パンツァー 最終章", aliases: ["Lパチスロガールズ&パンツァー 最終章"] },
+  { name: "Lパチスロうみねこのなく頃に2", aliases: ["Lパチスロうみねこのなく頃に２"] },
+  { name: "Lパチスロ閃乱カグラ2 SHINOVI MASTER", aliases: ["Lパチスロ閃乱カグラ２ SHINOVI MASTER"] },
+  { name: "Lパチスロ ベルセルク無双", aliases: ["Lパチスロ　ベルセルク無双"] },
+  { name: "Lパチスロうる星やつら", aliases: [] },
+  { name: "Lパチスロ マクロスフロンティア4", aliases: ["Lパチスロマクロスフロンティア4"] },
+  { name: "Lパチスロ花の慶次～佐渡攻めの章～", aliases: [] },
+  { name: "スマスロ 攻殻機動隊", aliases: ["スマスロ攻殻機動隊"] },
+  { name: "真打 吉宗", aliases: ["真打吉宗"] },
+  {
+    name: "クレアの秘宝伝～はじまりの扉と太陽の石～ボーナストリガーver.",
+    aliases: [
+      "クレアの秘宝伝ボーナストリガーVER.A2",
+      "⑳LB/クレアの秘宝伝ボーナストリガーVER.A2",
+    ],
+  },
+  { name: "SHAKE BONUS TRIGGER", aliases: ["LB SHAKE BONUS TRIGGER"] },
+  { name: "ニューパルサーSP4 with 太鼓の達人", aliases: ["ニューパルサーＳＰ４ with 太鼓の達人"] },
+  { name: "スマスロニューパルサーBT", aliases: ["スマスロ ニューパルサーBT"] },
+  { name: "A-SLOT+ ディスクアップ ULTRAREMIX", aliases: ["A-SLOT+ディスクアップ ULTRAREMIX"] },
+  { name: "クランキークレスト", aliases: [] },
+];
+
+const OKIDOKI_TARGET_MACHINES = [
+  { name: "沖ドキ！ＧＯＬＤ", aliases: ["沖ドキ！ＧＯＬＤ-30", "沖ドキ!GOLD", "沖ドキ!GOLD-30"] },
+  {
+    name: "スマスロ 沖ドキ!DUO アンコール",
+    aliases: ["スマスロ沖ドキ!DUOアンコール", "L沖ドキ!DUO アンコール"],
+  },
+  { name: "沖ドキ！BLACK", aliases: ["沖ドキ!BLACK"] },
+  { name: "沖ドキ!ゴージャス 25Φ", aliases: ["沖ドキ!ゴージャス", "沖ドキ！ゴージャス"] },
+  { name: "沖ドキ!ゴージャス 30Φ", aliases: [] },
+  { name: "沖ドキ！DUO", aliases: ["沖ドキ！DUO-30", "沖ドキ!DUO", "沖ドキ!DUO-30"] },
+  { name: "沖ドキ！２-30", aliases: ["沖ドキ!2-30", "沖ドキ！2-30"] },
 ];
 
 const APARK_KASUGA_TARGET_MACHINES = [
@@ -77,7 +129,8 @@ const APARK_KASUGA_TARGET_MACHINES = [
   { name: "スターハナハナ", aliases: ["スターハナハナ-30", "スターハナハナ‐30"] },
   { name: "新ハナビ", aliases: [] },
   { name: "スマスロ ハナビ", aliases: ["スマスロハナビ"] },
-  ...AT_TARGET_MACHINES,
+  ...OKIDOKI_TARGET_MACHINES,
+  ...OTHER_TARGET_MACHINES,
 ];
 
 const GOGO_ARENA_TENJIN_TARGET_MACHINES = [
@@ -95,7 +148,8 @@ const GOGO_ARENA_TENJIN_TARGET_MACHINES = [
     aliases: ["ハッピージャグラーVIII", "ハッピージャグラーＶ", "ハッピージャグラーV", "ハッピージャグラー"],
   },
   { name: "ウルトラミラクルジャグラー", aliases: [] },
-  ...AT_TARGET_MACHINES,
+  ...OKIDOKI_TARGET_MACHINES,
+  ...OTHER_TARGET_MACHINES,
 ];
 
 const APARK_YAKATABARU_TARGET_MACHINES = [
@@ -122,7 +176,8 @@ const APARK_YAKATABARU_TARGET_MACHINES = [
   { name: "キングハナハナ", aliases: ["キングハナハナ-30", "キングハナハナ‐30"] },
   { name: "新ハナビ", aliases: [] },
   { name: "スマスロ ハナビ", aliases: ["スマスロハナビ"] },
-  ...AT_TARGET_MACHINES,
+  ...OKIDOKI_TARGET_MACHINES,
+  ...OTHER_TARGET_MACHINES,
 ];
 
 const GOGO_ARENA_TENJIN_REFERENCE_EVENT_DAYS = new Set([5, 10, 15, 20, 25, 30]);

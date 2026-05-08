@@ -1,9 +1,9 @@
-const HUNT_MACHINE_CATEGORY_ORDER = ["juggler", "hana", "hanabi", "at", "other"];
+const HUNT_MACHINE_CATEGORY_ORDER = ["juggler", "hana", "hanabi", "okidoki", "other"];
 const HUNT_MACHINE_CATEGORY_LABELS = {
   juggler: "ジャグ系",
   hana: "ハナ系",
   hanabi: "ハナビ系",
-  at: "AT系",
+  okidoki: "沖ドキ系",
   other: "その他",
 };
 
@@ -131,38 +131,212 @@ const HUNT_MACHINE_DISPLAY_DEFINITIONS = [
   },
   {
     shortName: "北斗転生",
-    category: "at",
+    category: "other",
     names: ["スマスロ北斗の拳 転生の章", "スマスロ北斗の拳 転生の章2"],
   },
   {
     shortName: "ゴッド",
-    category: "at",
+    category: "other",
     names: ["スマスロ ミリオンゴッド", "スマスロ ミリオンゴッド-神々の軌跡-"],
   },
   {
     shortName: "東京喰種",
-    category: "at",
+    category: "other",
     names: ["L東京喰種"],
   },
   {
     shortName: "モンキーV",
-    category: "at",
+    category: "other",
     names: ["スマスロモンキーターンV", "スマスロ モンキーターンV"],
   },
   {
     shortName: "カバネリ",
-    category: "at",
+    category: "other",
     names: ["スマスロ 甲鉄城のカバネリ 海門決戦"],
   },
   {
     shortName: "北斗",
-    category: "at",
+    category: "other",
     names: ["Lスマスロ北斗の拳", "スマスロ北斗の拳"],
   },
   {
     shortName: "炎炎2",
-    category: "at",
+    category: "other",
     names: ["Lパチスロ炎炎ノ消防隊2", "Lパチスロ炎炎ノ消防隊２"],
+  },
+  {
+    shortName: "沖ドキGOLD",
+    category: "okidoki",
+    names: ["沖ドキ！ＧＯＬＤ", "沖ドキ！ＧＯＬＤ-30", "沖ドキ!GOLD", "沖ドキ!GOLD-30"],
+  },
+  {
+    shortName: "沖ドキDUOアン",
+    category: "okidoki",
+    names: ["スマスロ 沖ドキ!DUO アンコール", "スマスロ沖ドキ!DUOアンコール", "L沖ドキ!DUO アンコール"],
+  },
+  {
+    shortName: "沖ドキBLACK",
+    category: "okidoki",
+    names: ["沖ドキ！BLACK", "沖ドキ!BLACK"],
+  },
+  {
+    shortName: "沖ドキ豪25",
+    category: "okidoki",
+    names: ["沖ドキ!ゴージャス 25Φ", "沖ドキ!ゴージャス", "沖ドキ！ゴージャス"],
+  },
+  {
+    shortName: "沖ドキ豪30",
+    category: "okidoki",
+    names: ["沖ドキ!ゴージャス 30Φ"],
+  },
+  {
+    shortName: "沖ドキDUO",
+    category: "okidoki",
+    names: ["沖ドキ！DUO", "沖ドキ！DUO-30", "沖ドキ!DUO", "沖ドキ!DUO-30"],
+  },
+  {
+    shortName: "沖ドキ2",
+    category: "okidoki",
+    names: ["沖ドキ！２-30", "沖ドキ!2-30", "沖ドキ！2-30"],
+  },
+  {
+    shortName: "からくり",
+    category: "other",
+    names: ["Lパチスロからくりサーカス", "L パチスロからくりサーカス"],
+  },
+  {
+    shortName: "かぐや",
+    category: "other",
+    names: ["Lパチスロ かぐや様は告らせたい", "Lパチスロかぐや様は告らせたい"],
+  },
+  {
+    shortName: "ヴヴヴ2",
+    category: "other",
+    names: ["Lパチスロ革命機ヴァルヴレイヴ2", "Lパチスロ革命機ヴァルヴレイヴ２"],
+  },
+  {
+    shortName: "ヴヴヴ",
+    category: "other",
+    names: ["Lパチスロ革命機ヴァルヴレイヴ"],
+  },
+  {
+    shortName: "炎炎",
+    category: "other",
+    names: ["Lパチスロ炎炎ノ消防隊", "L パチスロ炎炎ノ消防隊", "L炎炎ノ消防隊"],
+  },
+  {
+    shortName: "ダンベル",
+    category: "other",
+    names: ["Lパチスロ ダンベル何キロ持てる？", "Lパチスロダンベル何キロ持てる？"],
+  },
+  {
+    shortName: "ガンダムSEED",
+    category: "other",
+    names: ["Lパチスロ 機動戦士ガンダムSEED", "Lパチスロ機動戦士ガンダムSEED"],
+  },
+  {
+    shortName: "ユニコーン",
+    category: "other",
+    names: [
+      "Lパチスロ 機動戦士ガンダムユニコーン 覚醒DRIVE",
+      "機動戦士ガンダムユニコーン 覚醒DRIVE",
+      "Lパチスロ機動戦士ガンダムユニコーン覚醒DRIVE",
+      "L機動戦士ガンダムユニコーン覚醒",
+    ],
+  },
+  {
+    shortName: "ありふれ",
+    category: "other",
+    names: ["Lパチスロ ありふれた職業で世界最強", "Lパチスロありふれた職業で世界最強"],
+  },
+  {
+    shortName: "シンエヴァ",
+    category: "other",
+    names: ["Lパチスロ シン・エヴァンゲリオン", "Lパチスロシン・エヴァンゲリオン"],
+  },
+  {
+    shortName: "シンフォ",
+    category: "other",
+    names: ["Lパチスロ戦姫絶唱シンフォギア 正義の歌"],
+  },
+  {
+    shortName: "ガルパン",
+    category: "other",
+    names: ["Lパチスロガールズ＆パンツァー 最終章", "Lパチスロガールズ&パンツァー 最終章"],
+  },
+  {
+    shortName: "うみねこ",
+    category: "other",
+    names: ["Lパチスロうみねこのなく頃に2", "Lパチスロうみねこのなく頃に２"],
+  },
+  {
+    shortName: "閃乱カグラ",
+    category: "other",
+    names: ["Lパチスロ閃乱カグラ2 SHINOVI MASTER", "Lパチスロ閃乱カグラ２ SHINOVI MASTER"],
+  },
+  {
+    shortName: "ベルセルク",
+    category: "other",
+    names: ["Lパチスロ ベルセルク無双", "Lパチスロ　ベルセルク無双"],
+  },
+  {
+    shortName: "うる星",
+    category: "other",
+    names: ["Lパチスロうる星やつら"],
+  },
+  {
+    shortName: "マクロスF4",
+    category: "other",
+    names: ["Lパチスロ マクロスフロンティア4", "Lパチスロマクロスフロンティア4"],
+  },
+  {
+    shortName: "花の慶次",
+    category: "other",
+    names: ["Lパチスロ花の慶次～佐渡攻めの章～"],
+  },
+  {
+    shortName: "攻殻",
+    category: "other",
+    names: ["スマスロ 攻殻機動隊", "スマスロ攻殻機動隊"],
+  },
+  {
+    shortName: "吉宗",
+    category: "other",
+    names: ["真打 吉宗", "真打吉宗"],
+  },
+  {
+    shortName: "クレアBT",
+    category: "other",
+    names: [
+      "クレアの秘宝伝～はじまりの扉と太陽の石～ボーナストリガーver.",
+      "クレアの秘宝伝ボーナストリガーVER.A2",
+      "⑳LB/クレアの秘宝伝ボーナストリガーVER.A2",
+    ],
+  },
+  {
+    shortName: "SHAKE",
+    category: "other",
+    names: ["SHAKE BONUS TRIGGER", "LB SHAKE BONUS TRIGGER"],
+  },
+  {
+    shortName: "ニューパルSP4",
+    category: "other",
+    names: ["ニューパルサーSP4 with 太鼓の達人", "ニューパルサーＳＰ４ with 太鼓の達人"],
+  },
+  {
+    shortName: "ニューパルBT",
+    category: "other",
+    names: ["スマスロニューパルサーBT", "スマスロ ニューパルサーBT"],
+  },
+  {
+    shortName: "ディスクUR",
+    category: "other",
+    names: ["A-SLOT+ ディスクアップ ULTRAREMIX", "A-SLOT+ディスクアップ ULTRAREMIX"],
+  },
+  {
+    shortName: "クランキー",
+    category: "other",
+    names: ["クランキークレスト"],
   },
 ];
 
@@ -212,11 +386,14 @@ export function getHuntMachineCategory(machineName) {
   if (normalizedMachineName.includes("ハナハナ")) {
     return "hana";
   }
+  if (normalizedMachineName.includes("沖ドキ")) {
+    return "okidoki";
+  }
   if (
     normalizedMachineName.includes("スマスロ") ||
     normalizedMachineName.startsWith("L")
   ) {
-    return "at";
+    return "other";
   }
   return "other";
 }
