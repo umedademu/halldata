@@ -578,12 +578,16 @@ class MinRepoScraperTests(unittest.TestCase):
         app.is_busy = True
         app.active_operation_kind = "site7_fetch"
         app.registered_store_tree = FakeTreeview()
+        app.web_publish_mode_var = FakeTextVariable("days")
 
         widget_names = (
             "fetch_button",
             "cancel_fetch_button",
             "target_date_entry",
             "retry_delay_entry",
+            "web_publish_days_radio",
+            "web_publish_store_radio",
+            "web_publish_interval_days_entry",
             "schedule_hour_entry",
             "apply_schedule_button",
             "clear_schedule_button",
@@ -2190,6 +2194,141 @@ class MinRepoScraperTests(unittest.TestCase):
 
             self.assertFalse(saved_dates_summary.has_errors)
             self.assertEqual(saved_dates_summary.saved_dates, {"2026-04-26", "2026-04-27"})
+
+    def test_find_saved_full_day_dates_rechecks_low_saved_counts(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service, storage = make_r2_service(Path(temp_dir))
+            storage.write_json(
+                service._r2_full_day_index_key("テスト店", "https://example.com/store/"),  # type: ignore[attr-defined]
+                {
+                    "version": 1,
+                    "store": {
+                        "store_name": "テスト店",
+                        "store_url": "https://example.com/store/",
+                    },
+                    "full_day_dates": {
+                        "2026-05-01": {
+                            "saved_at": "2026-05-01T12:00:00+09:00",
+                            "machine_count": 41,
+                            "record_count": 290,
+                            "snapshot_key": "dummy-1.json",
+                        },
+                        "2026-05-02": {
+                            "saved_at": "2026-05-02T12:00:00+09:00",
+                            "machine_count": 13,
+                            "record_count": 131,
+                            "snapshot_key": "dummy-2.json",
+                        },
+                        "2026-05-03": {
+                            "saved_at": "2026-05-03T12:00:00+09:00",
+                            "machine_count": 41,
+                            "record_count": 290,
+                            "snapshot_key": "dummy-3.json",
+                        },
+                    },
+                },
+            )
+
+            saved_dates_summary = service.find_saved_full_day_dates(
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                start_date="2026-05-02",
+                end_date="2026-05-02",
+            )
+
+            self.assertFalse(saved_dates_summary.has_errors)
+            self.assertEqual(saved_dates_summary.saved_dates, set())
+            self.assertEqual(saved_dates_summary.incomplete_dates, {"2026-05-02"})
+
+    def test_find_saved_full_day_dates_ignores_high_saved_count_outlier(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service, storage = make_r2_service(Path(temp_dir))
+            storage.write_json(
+                service._r2_full_day_index_key("テスト店", "https://example.com/store/"),  # type: ignore[attr-defined]
+                {
+                    "version": 1,
+                    "store": {
+                        "store_name": "テスト店",
+                        "store_url": "https://example.com/store/",
+                    },
+                    "full_day_dates": {
+                        "2026-05-01": {
+                            "saved_at": "2026-05-01T12:00:00+09:00",
+                            "machine_count": 80,
+                            "record_count": 580,
+                            "snapshot_key": "dummy-1.json",
+                        },
+                        "2026-05-02": {
+                            "saved_at": "2026-05-02T12:00:00+09:00",
+                            "machine_count": 41,
+                            "record_count": 290,
+                            "snapshot_key": "dummy-2.json",
+                        },
+                        "2026-05-03": {
+                            "saved_at": "2026-05-03T12:00:00+09:00",
+                            "machine_count": 41,
+                            "record_count": 290,
+                            "snapshot_key": "dummy-3.json",
+                        },
+                    },
+                },
+            )
+
+            saved_dates_summary = service.find_saved_full_day_dates(
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                start_date="2026-05-02",
+                end_date="2026-05-02",
+            )
+
+            self.assertFalse(saved_dates_summary.has_errors)
+            self.assertEqual(saved_dates_summary.saved_dates, {"2026-05-02"})
+            self.assertEqual(saved_dates_summary.incomplete_dates, set())
+
+    def test_full_day_index_counts_each_date_separately(self) -> None:
+        scraper = FixtureScraper()
+        context = scraper.prepare_machine_history_context(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-07 ～ 2026-04-08",
+        )
+        day_results = [
+            scraper.fetch_all_machine_history_for_date_page(
+                context=context,
+                date_page=date_page,
+            )
+            for date_page in context.date_pages
+        ]
+        history_result = MachineHistoryResult(
+            store_name=context.store_name,
+            store_url=context.store_url,
+            start_date=context.start_date,
+            end_date=context.end_date,
+            date_pages=context.date_pages,
+            datasets=[
+                dataset
+                for day_result in day_results
+                for dataset in day_result.datasets
+            ],
+        )
+
+        with TemporaryDirectory() as temp_dir:
+            service, storage = make_r2_service(Path(temp_dir))
+            snapshot = service._build_local_snapshot(history_result)  # type: ignore[attr-defined]
+            service._mark_full_day_saved_r2(snapshot, "dummy.json")  # type: ignore[attr-defined]
+
+            index_payload = storage.read_json(
+                service._r2_full_day_index_key(  # type: ignore[attr-defined]
+                    "MJアリーナ箱崎店",
+                    "https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+                )
+            )
+            self.assertIsNotNone(index_payload)
+            full_day_dates = index_payload["full_day_dates"]  # type: ignore[index]
+
+            for day_result in day_results:
+                entry = full_day_dates[day_result.start_date]  # type: ignore[index]
+                self.assertEqual(entry["record_count"], len(build_machine_daily_records(day_result)))
+                self.assertEqual(entry["machine_count"], len({dataset.machine_name for dataset in day_result.datasets}))
 
     def test_save_and_load_registered_stores(self) -> None:
         with TemporaryDirectory() as temp_dir:

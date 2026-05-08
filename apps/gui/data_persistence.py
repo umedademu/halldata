@@ -47,6 +47,10 @@ DATA_SOURCE_MINREPO = "minrepo"
 DATA_SOURCE_SITE7 = "site7"
 R2_SNAPSHOT_PREFIX = "snapshots"
 R2_FULL_DAY_INDEX_FILE_NAME = "full-day-index.json"
+FULL_DAY_INCOMPLETE_RECORD_RATIO = 0.8
+FULL_DAY_INCOMPLETE_MACHINE_RATIO = 0.8
+FULL_DAY_INCOMPLETE_MIN_REFERENCE_RECORD_COUNT = 20
+FULL_DAY_INCOMPLETE_MIN_REFERENCE_MACHINE_COUNT = 5
 
 
 @dataclass
@@ -105,6 +109,7 @@ class SavedMachineSlotsSummary:
 @dataclass
 class SavedFullDayDatesSummary:
     saved_dates: set[str] = field(default_factory=set)
+    incomplete_dates: set[str] = field(default_factory=set)
     messages: list[str] = field(default_factory=list)
 
     @property
@@ -461,13 +466,20 @@ class HistoryPersistenceService:
     ) -> SavedFullDayDatesSummary:
         summary = SavedFullDayDatesSummary()
         try:
-            saved_date_entries = self._find_saved_full_day_date_entries_r2(
+            all_saved_date_entries = self._find_saved_full_day_date_entries_r2(
                 store_name=store_name,
                 store_url=store_url,
-                start_date=start_date,
-                end_date=end_date,
+                start_date="0000-00-00",
+                end_date="9999-99-99",
             )
-            summary.saved_dates.update(saved_date_entries)
+            saved_date_entries = {
+                target_date: entry
+                for target_date, entry in all_saved_date_entries.items()
+                if start_date <= target_date <= end_date
+            }
+            incomplete_dates = self._find_incomplete_full_day_dates(all_saved_date_entries)
+            summary.incomplete_dates.update(incomplete_dates.intersection(saved_date_entries))
+            summary.saved_dates.update(set(saved_date_entries).difference(summary.incomplete_dates))
         except Exception as exc:  # noqa: BLE001
             summary.messages.append(f"R2の全機種取得済み確認に失敗しました。\n{exc}")
             return summary
@@ -890,18 +902,18 @@ class HistoryPersistenceService:
             index_payload["full_day_dates"] = full_day_dates
 
         now_text = datetime.now().astimezone().isoformat(timespec="seconds")
-        machine_names = snapshot.get("machine_names", [])
-        records = snapshot.get("records", [])
+        saved_counts_by_date = self._full_day_saved_counts_by_date(snapshot)
         for date_page in snapshot.get("date_pages", []):
             if not isinstance(date_page, dict):
                 continue
             target_date = str(date_page.get("target_date", "")).strip()
             if not target_date:
                 continue
+            saved_counts = saved_counts_by_date.get(target_date, {"machine_count": 0, "record_count": 0})
             full_day_dates[target_date] = {
                 "saved_at": now_text,
-                "machine_count": len(machine_names) if isinstance(machine_names, list) else 0,
-                "record_count": len(records) if isinstance(records, list) else 0,
+                "machine_count": saved_counts["machine_count"],
+                "record_count": saved_counts["record_count"],
                 "snapshot_key": snapshot_key,
             }
 
@@ -972,18 +984,18 @@ class HistoryPersistenceService:
             index_payload["full_day_dates"] = full_day_dates
 
         now_text = datetime.now().astimezone().isoformat(timespec="seconds")
-        machine_names = snapshot.get("machine_names", [])
-        records = snapshot.get("records", [])
+        saved_counts_by_date = self._full_day_saved_counts_by_date(snapshot)
         for date_page in snapshot.get("date_pages", []):
             if not isinstance(date_page, dict):
                 continue
             target_date = str(date_page.get("target_date", "")).strip()
             if not target_date:
                 continue
+            saved_counts = saved_counts_by_date.get(target_date, {"machine_count": 0, "record_count": 0})
             full_day_dates[target_date] = {
                 "saved_at": now_text,
-                "machine_count": len(machine_names) if isinstance(machine_names, list) else 0,
-                "record_count": len(records) if isinstance(records, list) else 0,
+                "machine_count": saved_counts["machine_count"],
+                "record_count": saved_counts["record_count"],
                 "local_file_path": str(local_path),
             }
 
@@ -1254,6 +1266,93 @@ class HistoryPersistenceService:
         if machine_count < 0:
             return None
         return machine_count
+
+    def _coerce_saved_full_day_record_count(self, value: Any) -> int | None:
+        try:
+            record_count = int(value)
+        except (TypeError, ValueError):
+            return None
+        if record_count < 0:
+            return None
+        return record_count
+
+    def _full_day_saved_counts_by_date(self, snapshot: dict[str, Any]) -> dict[str, dict[str, int]]:
+        counts_by_date: dict[str, dict[str, int]] = {}
+        machine_names_by_date: dict[str, set[str]] = {}
+        records = snapshot.get("records", [])
+        if not isinstance(records, list):
+            return counts_by_date
+
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            target_date = str(record.get("target_date", "")).strip()
+            if not target_date:
+                continue
+            counts = counts_by_date.setdefault(target_date, {"machine_count": 0, "record_count": 0})
+            counts["record_count"] += 1
+
+            machine_name = str(record.get("machine_name", "")).strip()
+            if machine_name:
+                machine_names_by_date.setdefault(target_date, set()).add(machine_name)
+
+        for target_date, machine_names in machine_names_by_date.items():
+            counts_by_date.setdefault(target_date, {"machine_count": 0, "record_count": 0})
+            counts_by_date[target_date]["machine_count"] = len(machine_names)
+
+        return counts_by_date
+
+    def _find_incomplete_full_day_dates(
+        self,
+        saved_date_entries: dict[str, dict[str, Any]],
+    ) -> set[str]:
+        record_counts: dict[str, int] = {}
+        machine_counts: dict[str, int] = {}
+        for target_date, entry in saved_date_entries.items():
+            if not isinstance(entry, dict):
+                continue
+            record_count = self._coerce_saved_full_day_record_count(entry.get("record_count"))
+            if record_count is not None:
+                record_counts[target_date] = record_count
+            machine_count = self._coerce_saved_full_day_machine_count(entry.get("machine_count"))
+            if machine_count is not None:
+                machine_counts[target_date] = machine_count
+
+        incomplete_dates = self._find_low_saved_count_dates(
+            record_counts,
+            ratio=FULL_DAY_INCOMPLETE_RECORD_RATIO,
+            min_reference_count=FULL_DAY_INCOMPLETE_MIN_REFERENCE_RECORD_COUNT,
+        )
+        incomplete_dates.update(
+            self._find_low_saved_count_dates(
+                machine_counts,
+                ratio=FULL_DAY_INCOMPLETE_MACHINE_RATIO,
+                min_reference_count=FULL_DAY_INCOMPLETE_MIN_REFERENCE_MACHINE_COUNT,
+            )
+        )
+        return incomplete_dates
+
+    def _find_low_saved_count_dates(
+        self,
+        counts_by_date: dict[str, int],
+        *,
+        ratio: float,
+        min_reference_count: int,
+    ) -> set[str]:
+        if len(counts_by_date) < 2:
+            return set()
+
+        sorted_counts = sorted(counts_by_date.values())
+        reference_count = sorted_counts[len(sorted_counts) // 2] if len(sorted_counts) >= 3 else sorted_counts[-1]
+        if reference_count < min_reference_count:
+            return set()
+
+        threshold = int(reference_count * ratio)
+        return {
+            target_date
+            for target_date, count in counts_by_date.items()
+            if count < threshold
+        }
 
     def _full_day_index_path(self, store_name: str) -> Path:
         return self._local_save_dir() / _sanitize_file_name(store_name) / "_full_day_index.json"

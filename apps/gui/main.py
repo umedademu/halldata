@@ -2366,6 +2366,8 @@ class MinRepoApp:
         save_summary_lock = threading.Lock()
         date_parallel_workers = max(1, min(fetch_parallel_options.date_workers, len(pending_date_pages) or 1))
         machine_parallel_workers = max(1, fetch_parallel_options.machine_workers)
+        incomplete_date_count = len(saved_full_day_summary.incomplete_dates)
+        incomplete_date_text = f"、保存台数不足の{incomplete_date_count}日を再取得" if incomplete_date_count else ""
         queue_progress(
             FetchProgress(
                 current_step=current_step,
@@ -2374,6 +2376,7 @@ class MinRepoApp:
                     f"{store_label}: "
                     f"{len(context.date_pages)}日分のうち"
                     f"{len(skipped_dates)}日を日付ごとスキップ"
+                    f"{incomplete_date_text}"
                 ),
             )
         )
