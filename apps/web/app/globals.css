@@ -1149,6 +1149,21 @@ a {
   border-top: 1px solid var(--line);
 }
 
+.huntHighlightApplyRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.formErrorText {
+  width: 100%;
+  margin: 0;
+  color: #b42318;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .estimateField {
   display: grid;
   gap: 6px;

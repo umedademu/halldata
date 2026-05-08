@@ -78,8 +78,8 @@ const DEFAULT_HUNT_SCORE_HIGHLIGHT_THRESHOLD = 70;
 const DEFAULT_HUNT_SCORE_DEVIATION_MIN = 60;
 const DEFAULT_HUNT_SCORE_RANK_MIN = 1;
 const DEFAULT_HUNT_SCORE_RANK_MAX = 3;
-const DEFAULT_HUNT_SCORE_RANK_SCOPE = "selected";
-const DEFAULT_HUNT_SCORE_DEVIATION_SCOPE = "selected";
+const DEFAULT_HUNT_SCORE_RANK_SCOPE = "machine";
+const DEFAULT_HUNT_SCORE_DEVIATION_SCOPE = "machine";
 const DEFAULT_HUNT_RANK_REQUIRED = true;
 const DEFAULT_HUNT_SCORE_REQUIRED = true;
 const DEFAULT_HUNT_DEVIATION_REQUIRED = false;
@@ -315,8 +315,28 @@ function buildHuntScoreHighlightKey(date, machineName, slotNumber) {
   ).trim()}`;
 }
 
-function createDefaultHuntScoreHighlightOptions(machineNames) {
+function normalizeMachineNameText(value) {
+  return String(value ?? "").replace(/\s+/gu, "").trim();
+}
+
+function chooseDefaultHuntScoreMachineName(machineNames, currentMachineName = "") {
   const availableMachineNames = normalizeAvailableHuntScoreMachineNames(machineNames);
+  const normalizedCurrentMachineName = normalizeMachineNameText(currentMachineName);
+  return (
+    availableMachineNames.find(
+      (machineName) => normalizeMachineNameText(machineName) === normalizedCurrentMachineName,
+    ) ??
+    availableMachineNames[0] ??
+    ""
+  );
+}
+
+function createDefaultHuntScoreHighlightOptions(machineNames, currentMachineName = "") {
+  const availableMachineNames = normalizeAvailableHuntScoreMachineNames(machineNames);
+  const defaultMachineName = chooseDefaultHuntScoreMachineName(
+    availableMachineNames,
+    currentMachineName,
+  );
   return {
     rankMin: DEFAULT_HUNT_SCORE_RANK_MIN,
     rankMax: DEFAULT_HUNT_SCORE_RANK_MAX,
@@ -327,7 +347,7 @@ function createDefaultHuntScoreHighlightOptions(machineNames) {
     deviationRequired: DEFAULT_HUNT_DEVIATION_REQUIRED,
     rankScope: DEFAULT_HUNT_SCORE_RANK_SCOPE,
     deviationScope: DEFAULT_HUNT_SCORE_DEVIATION_SCOPE,
-    selectedMachineNames: availableMachineNames.filter(isHuntJugglerMachine),
+    selectedMachineNames: defaultMachineName ? [defaultMachineName] : [],
     combineAimJuggler: hasAimJugglerHuntMachineGroupOption(availableMachineNames),
     combineHanabi: hasHanabiHuntMachineGroupOption(availableMachineNames),
   };
@@ -376,8 +396,8 @@ function normalizeHuntScoreDeviationInputValue(value, fallbackValue) {
   return Number.isFinite(parsed) ? parsed : fallbackValue;
 }
 
-function normalizeHuntScoreHighlightOptions(value, availableMachineNames) {
-  const defaults = createDefaultHuntScoreHighlightOptions(availableMachineNames);
+function normalizeHuntScoreHighlightOptions(value, availableMachineNames, currentMachineName = "") {
+  const defaults = createDefaultHuntScoreHighlightOptions(availableMachineNames, currentMachineName);
   if (!value || typeof value !== "object") {
     return defaults;
   }
@@ -420,8 +440,8 @@ function normalizeHuntScoreHighlightOptions(value, availableMachineNames) {
   };
 }
 
-function readHuntScoreHighlightOptions(storeId, availableMachineNames) {
-  const defaults = createDefaultHuntScoreHighlightOptions(availableMachineNames);
+function readHuntScoreHighlightOptions(storeId, availableMachineNames, currentMachineName = "") {
+  const defaults = createDefaultHuntScoreHighlightOptions(availableMachineNames, currentMachineName);
   if (typeof window === "undefined") {
     return defaults;
   }
@@ -430,7 +450,7 @@ function readHuntScoreHighlightOptions(storeId, availableMachineNames) {
     const storageKey = `${HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX}${storeId}`;
     const storedValue = window.localStorage.getItem(storageKey);
     return storedValue
-      ? normalizeHuntScoreHighlightOptions(JSON.parse(storedValue), availableMachineNames)
+      ? normalizeHuntScoreHighlightOptions(JSON.parse(storedValue), availableMachineNames, currentMachineName)
       : defaults;
   } catch {
     return defaults;
@@ -448,6 +468,43 @@ function saveHuntScoreHighlightOptions(storeId, options) {
   } catch {
     // 保存できない環境では、画面上の変更だけを有効にします。
   }
+}
+
+function normalizeHuntScoreOptionSignature(options) {
+  return JSON.stringify({
+    rankMin: options.rankMin,
+    rankMax: options.rankMax,
+    scoreMin: options.scoreMin,
+    deviationMin: options.deviationMin,
+    rankRequired: Boolean(options.rankRequired),
+    scoreRequired: Boolean(options.scoreRequired),
+    deviationRequired: Boolean(options.deviationRequired),
+    rankScope: normalizeHuntScoreRankScope(options.rankScope),
+    deviationScope: normalizeHuntScoreRankScope(options.deviationScope),
+    selectedMachineNames: [...new Set(options.selectedMachineNames ?? [])].sort(),
+    combineAimJuggler: Boolean(options.combineAimJuggler),
+    combineHanabi: Boolean(options.combineHanabi),
+  });
+}
+
+function huntScoreHighlightOptionsEqual(left, right) {
+  return normalizeHuntScoreOptionSignature(left) === normalizeHuntScoreOptionSignature(right);
+}
+
+function huntScoreHighlightNeedsFullData(options, currentMachineName) {
+  if (!options) {
+    return false;
+  }
+  const rankScope = normalizeHuntScoreRankScope(options.rankScope);
+  const deviationScope = normalizeHuntScoreRankScope(options.deviationScope);
+  if (rankScope === "all" || deviationScope === "all") {
+    return true;
+  }
+  const normalizedCurrentMachineName = normalizeMachineNameText(currentMachineName);
+  const hasSelectedOtherMachine = (options.selectedMachineNames ?? []).some(
+    (machineName) => normalizeMachineNameText(machineName) !== normalizedCurrentMachineName,
+  );
+  return (rankScope === "selected" || deviationScope === "selected") && hasSelectedOtherMachine;
 }
 
 function readLocalStorageJson(storageKey) {
@@ -1155,7 +1212,16 @@ function EstimateNumberField({
   );
 }
 
-function HuntScoreHighlightControls({ options, availableMachineNames, onChange }) {
+function HuntScoreHighlightControls({
+  options,
+  availableMachineNames,
+  onChange,
+  onApply,
+  hasPendingChanges,
+  isApplying,
+  applyError,
+  loadedFullData,
+}) {
   const selectedMachineNameSet = new Set(options.selectedMachineNames);
   const hasAimJugglerGroupOption = hasAimJugglerHuntMachineGroupOption(availableMachineNames);
   const hasHanabiGroupOption = hasHanabiHuntMachineGroupOption(availableMachineNames);
@@ -1177,6 +1243,20 @@ function HuntScoreHighlightControls({ options, availableMachineNames, onChange }
     });
   };
 
+  const selectAllMachines = () => {
+    onChange({
+      ...options,
+      selectedMachineNames: availableMachineNames,
+    });
+  };
+
+  const clearAllMachines = () => {
+    onChange({
+      ...options,
+      selectedMachineNames: [],
+    });
+  };
+
   const toggleMachine = (machineName) => {
     const nextMachineNameSet = new Set(options.selectedMachineNames);
     if (nextMachineNameSet.has(machineName)) {
@@ -1192,6 +1272,21 @@ function HuntScoreHighlightControls({ options, availableMachineNames, onChange }
 
   return (
     <div className="huntHighlightControls">
+      <div className="huntHighlightApplyRow">
+        <button
+          type="button"
+          className="storeReserveButton"
+          disabled={!hasPendingChanges || isApplying}
+          onClick={onApply}
+        >
+          {isApplying ? "更新中" : "狙い度条件を反映"}
+        </button>
+        <p className="filterPanelStatus">
+          {hasPendingChanges ? "条件変更はまだ表に反映されていません" : "条件は表に反映済み"}
+          {loadedFullData ? " / 全体比較データ読み込み済み" : ""}
+        </p>
+        {applyError ? <p className="formErrorText">{applyError}</p> : null}
+      </div>
       <div className="huntConditionRows">
         <div className="huntConditionRow">
           <p className="huntConditionLabel">順位</p>
@@ -1373,6 +1468,22 @@ function HuntScoreHighlightControls({ options, availableMachineNames, onChange }
       {availableMachineNames.length > 0 ? (
         <div className="backtestBlock">
           <p className="filterControlLabel">順位と偏差値に使う機種</p>
+          <div className="machineFilterActionRow">
+            <button
+              type="button"
+              className="storeReserveButton storeReserveButtonSecondary machineFilterAction"
+              onClick={selectAllMachines}
+            >
+              全てのチェックをON
+            </button>
+            <button
+              type="button"
+              className="storeReserveButton storeReserveButtonSecondary machineFilterAction"
+              onClick={clearAllMachines}
+            >
+              全てのチェックをOFF
+            </button>
+          </div>
           <div className="machineFilterGroups">
             {machineOptionGroups.map((group) => (
               <div key={group.key} className="machineFilterGroup">
@@ -1658,6 +1769,7 @@ export function MachineComparison({
   initialEventFilters,
   initialEventFiltersFromSearchParams = false,
   huntScoreHighlight,
+  fullHuntScoreHighlightUrl = "",
   preferDefaultEstimateOptions = false,
 }) {
   const latestAvailableDate = dateRows[0]?.date ?? "";
@@ -1724,24 +1836,35 @@ export function MachineComparison({
     [huntScoreHighlight],
   );
   const [huntScoreHighlightOptions, setHuntScoreHighlightOptions] = useState(() =>
-    createDefaultHuntScoreHighlightOptions(huntScoreHighlightAvailableMachineNames),
+    createDefaultHuntScoreHighlightOptions(huntScoreHighlightAvailableMachineNames, machineName),
   );
+  const [appliedHuntScoreHighlightOptions, setAppliedHuntScoreHighlightOptions] = useState(() =>
+    createDefaultHuntScoreHighlightOptions(huntScoreHighlightAvailableMachineNames, machineName),
+  );
+  const [activeHuntScoreHighlight, setActiveHuntScoreHighlight] = useState(huntScoreHighlight);
+  const [fullHuntScoreHighlight, setFullHuntScoreHighlight] = useState(null);
+  const [isHuntScoreHighlightApplying, setIsHuntScoreHighlightApplying] = useState(false);
+  const [huntScoreHighlightApplyError, setHuntScoreHighlightApplyError] = useState("");
   const [huntScoreHighlightOptionsLoadedStoreId, setHuntScoreHighlightOptionsLoadedStoreId] =
     useState("");
   const [, startTransition] = useTransition();
   const recentDays = useMemo(() => normalizeRecentDaysInput(recentDaysInput), [recentDaysInput]);
   const huntScoreDeviationValueMap = useMemo(
-    () => buildHuntScoreDeviationValueMap(huntScoreHighlight, huntScoreHighlightOptions),
-    [huntScoreHighlight, huntScoreHighlightOptions],
+    () => buildHuntScoreDeviationValueMap(activeHuntScoreHighlight, appliedHuntScoreHighlightOptions),
+    [activeHuntScoreHighlight, appliedHuntScoreHighlightOptions],
   );
   const huntScoreHighlightKeySet = useMemo(
     () =>
       buildHuntScoreHighlightKeySet(
-        huntScoreHighlight,
-        huntScoreHighlightOptions,
+        activeHuntScoreHighlight,
+        appliedHuntScoreHighlightOptions,
         huntScoreDeviationValueMap,
       ),
-    [huntScoreDeviationValueMap, huntScoreHighlight, huntScoreHighlightOptions],
+    [activeHuntScoreHighlight, appliedHuntScoreHighlightOptions, huntScoreDeviationValueMap],
+  );
+  const hasPendingHuntScoreHighlightOptions = useMemo(
+    () => !huntScoreHighlightOptionsEqual(huntScoreHighlightOptions, appliedHuntScoreHighlightOptions),
+    [appliedHuntScoreHighlightOptions, huntScoreHighlightOptions],
   );
   const activeDateRange = useMemo(() => {
     if (!latestAvailableDate) {
@@ -1930,18 +2053,35 @@ export function MachineComparison({
 
   useEffect(() => {
     setHuntScoreHighlightOptionsLoadedStoreId("");
-    setHuntScoreHighlightOptions(
-      readHuntScoreHighlightOptions(storeId, huntScoreHighlightAvailableMachineNames),
+    setActiveHuntScoreHighlight(huntScoreHighlight);
+    setFullHuntScoreHighlight(null);
+    setHuntScoreHighlightApplyError("");
+    const loadedOptions = readHuntScoreHighlightOptions(
+      storeId,
+      huntScoreHighlightAvailableMachineNames,
+      machineName,
     );
+    const machineOnlyDefaults = createDefaultHuntScoreHighlightOptions(
+      huntScoreHighlightAvailableMachineNames,
+      machineName,
+    );
+    const machineScopeOptions = {
+      ...loadedOptions,
+      rankScope: "machine",
+      deviationScope: "machine",
+      selectedMachineNames: machineOnlyDefaults.selectedMachineNames,
+    };
+    setHuntScoreHighlightOptions(machineScopeOptions);
+    setAppliedHuntScoreHighlightOptions(machineScopeOptions);
     setHuntScoreHighlightOptionsLoadedStoreId(storeId);
-  }, [huntScoreHighlightAvailableMachineNames, storeId]);
+  }, [huntScoreHighlight, huntScoreHighlightAvailableMachineNames, machineName, storeId]);
 
   useEffect(() => {
     if (huntScoreHighlightOptionsLoadedStoreId !== storeId) {
       return;
     }
-    saveHuntScoreHighlightOptions(storeId, huntScoreHighlightOptions);
-  }, [huntScoreHighlightOptions, huntScoreHighlightOptionsLoadedStoreId, storeId]);
+    saveHuntScoreHighlightOptions(storeId, appliedHuntScoreHighlightOptions);
+  }, [appliedHuntScoreHighlightOptions, huntScoreHighlightOptionsLoadedStoreId, storeId]);
 
   const visibleMetrics = useMemo(
     () => metrics.filter((metric) => visibleMetricKeys.includes(metric.key)),
@@ -2122,6 +2262,54 @@ export function MachineComparison({
       ...changes,
     }));
   }, []);
+
+  const applyHuntScoreHighlightOptions = useCallback(async () => {
+    const needsFullData = huntScoreHighlightNeedsFullData(huntScoreHighlightOptions, machineName);
+    setIsHuntScoreHighlightApplying(true);
+    setHuntScoreHighlightApplyError("");
+
+    try {
+      let nextHighlight = huntScoreHighlight;
+      if (needsFullData) {
+        if (fullHuntScoreHighlight) {
+          nextHighlight = fullHuntScoreHighlight;
+        } else {
+          if (!fullHuntScoreHighlightUrl) {
+            throw new Error("全体比較データの取得先がありません。");
+          }
+          const response = await fetch(fullHuntScoreHighlightUrl, {
+            method: "GET",
+            headers: {
+              accept: "application/json",
+            },
+          });
+          if (!response.ok) {
+            throw new Error("全体比較データを読み込めませんでした。");
+          }
+          nextHighlight = await response.json();
+          setFullHuntScoreHighlight(nextHighlight);
+        }
+      }
+
+      startTransition(() => {
+        setActiveHuntScoreHighlight(nextHighlight);
+        setAppliedHuntScoreHighlightOptions(huntScoreHighlightOptions);
+      });
+    } catch (error) {
+      setHuntScoreHighlightApplyError(
+        error instanceof Error ? error.message : "狙い度条件を反映できませんでした。",
+      );
+    } finally {
+      setIsHuntScoreHighlightApplying(false);
+    }
+  }, [
+    fullHuntScoreHighlight,
+    fullHuntScoreHighlightUrl,
+    huntScoreHighlight,
+    huntScoreHighlightOptions,
+    machineName,
+    startTransition,
+  ]);
 
   return (
     <>
@@ -2326,6 +2514,11 @@ export function MachineComparison({
               options={huntScoreHighlightOptions}
               availableMachineNames={huntScoreHighlightAvailableMachineNames}
               onChange={setHuntScoreHighlightOptions}
+              onApply={applyHuntScoreHighlightOptions}
+              hasPendingChanges={hasPendingHuntScoreHighlightOptions}
+              isApplying={isHuntScoreHighlightApplying}
+              applyError={huntScoreHighlightApplyError}
+              loadedFullData={Boolean(fullHuntScoreHighlight)}
             />
           </CollapsibleControlGroup>
         ) : null}

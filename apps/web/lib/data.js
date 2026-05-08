@@ -1663,6 +1663,22 @@ async function buildStaticHuntScoreSourceRows(staticStore) {
   );
 }
 
+async function buildStaticMachineHuntScoreHighlight(staticStore, huntScoreLogicKey = "") {
+  const store = readStaticStoreIdentity(staticStore);
+  if (!isHuntScoreTargetStore(store.storeName)) {
+    return null;
+  }
+
+  const { targetRows, storeRows } = await buildStaticHuntScoreSourceRows(staticStore);
+  const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName);
+  const snapshots = buildHuntScoreSnapshots(targetRows, storeRows, store.storeName, huntScoreLogic.key);
+  return buildMachineHuntScoreHighlightDetail(
+    store.storeName,
+    snapshots,
+    readStaticStoreMachineNames(staticStore),
+  );
+}
+
 async function buildStaticMachineDetail(staticStore, machineName, huntScoreLogicKey = "") {
   const store = readStaticStoreIdentity(staticStore);
   const requestedMachineName = canonicalMachineName(machineName);
@@ -1695,7 +1711,10 @@ async function buildStaticMachineDetail(staticStore, machineName, huntScoreLogic
   let rows = [];
 
   if (huntScoreEnabled) {
-    const { targetRows, storeRows } = await buildStaticHuntScoreSourceRows(staticStore);
+    const { targetRows, storeRows } = await buildStaticHuntScoreSourceRowsForMachineNames(
+      staticStore,
+      requestedMachineNames,
+    );
     const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName);
     const snapshots = buildHuntScoreSnapshots(targetRows, storeRows, store.storeName, huntScoreLogic.key);
     applySnapshotHuntScores(snapshots);
@@ -1784,6 +1803,18 @@ export const getMachineDetail = cache(async function getMachineDetail(
   const staticStore = await readStaticStoreById(storeId);
   if (staticStore) {
     return await buildStaticMachineDetail(staticStore, machineName, huntScoreLogicKey);
+  }
+
+  return null;
+});
+
+export const getMachineHuntScoreHighlight = cache(async function getMachineHuntScoreHighlight(
+  storeId,
+  huntScoreLogicKey = "",
+) {
+  const staticStore = await readStaticStoreById(storeId);
+  if (staticStore) {
+    return await buildStaticMachineHuntScoreHighlight(staticStore, huntScoreLogicKey);
   }
 
   return null;
