@@ -1078,6 +1078,16 @@ export function listHuntScoreTargetMachineNames(storeName = "") {
   );
 }
 
+export function listAllHuntScoreTargetMachineNames() {
+  return [
+    ...new Set(
+      [DEFAULT_HUNT_SCORE_STORE_CONFIG, ...HUNT_SCORE_STORE_CONFIGS]
+        .flatMap((config) => config.targetMachines)
+        .map((targetMachine) => targetMachine.name),
+    ),
+  ];
+}
+
 export function listHuntScoreSourceMachineNames(storeName = "") {
   return [
     ...new Set(
