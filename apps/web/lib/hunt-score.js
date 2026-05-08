@@ -200,7 +200,7 @@ const GOGO_ARENA_TENJIN_SLOT_SCORES = {
 const HUNT_SCORE_LOGIC_DEFINITIONS = [
   {
     key: "apark",
-    name: "Aパーク式",
+    name: "Aパーク春日式",
     windowDays: 7,
     scoreCalculator: calculateAparkKasugaHuntScore,
   },
@@ -211,6 +211,13 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     scoreCalculator: calculateGogoArenaTenjinHuntScore,
   },
 ];
+
+const DEFAULT_HUNT_SCORE_STORE_CONFIG = {
+  key: "default",
+  storeNames: [],
+  targetMachines: APARK_KASUGA_TARGET_MACHINES,
+  defaultLogicKey: DEFAULT_HUNT_SCORE_LOGIC_KEY,
+};
 
 const HUNT_SCORE_STORE_CONFIGS = [
   {
@@ -257,6 +264,10 @@ export function findHuntScoreStoreConfig(storeName) {
   );
 }
 
+function resolveHuntScoreStoreConfig(storeName = "") {
+  return findHuntScoreStoreConfig(storeName) ?? DEFAULT_HUNT_SCORE_STORE_CONFIG;
+}
+
 function findHuntScoreLogicDefinition(logicKey) {
   const normalizedLogicKey = String(logicKey ?? "").trim();
   if (!normalizedLogicKey) {
@@ -275,7 +286,7 @@ export function listHuntScoreLogicOptions() {
 }
 
 export function getDefaultHuntScoreLogicKey(storeName = "") {
-  const config = findHuntScoreStoreConfig(storeName);
+  const config = resolveHuntScoreStoreConfig(storeName);
   return findHuntScoreLogicDefinition(config?.defaultLogicKey)?.key ?? DEFAULT_HUNT_SCORE_LOGIC_KEY;
 }
 
@@ -308,8 +319,7 @@ function buildRuntimeHuntScoreConfig(config, logicKey = "") {
 }
 
 function listSearchConfigs(storeName) {
-  const config = findHuntScoreStoreConfig(storeName);
-  return config ? [config] : HUNT_SCORE_STORE_CONFIGS;
+  return [resolveHuntScoreStoreConfig(storeName)];
 }
 
 function findTargetMachine(config, machineName) {
@@ -339,7 +349,7 @@ export function canonicalHuntScoreTargetMachineName(machineName, storeName = "")
 }
 
 function normalizeHuntScoreMachineName(machineName, config) {
-  return canonicalHuntScoreTargetMachineName(machineName, config?.storeNames?.[0] ?? "") ?? normalizeText(machineName);
+  return findTargetMachine(config, machineName)?.name ?? normalizeText(machineName);
 }
 
 function readNumber(value) {
@@ -929,7 +939,7 @@ function buildSourceMaps(targetRows, businessDateSet, config) {
     if (
       !hasMeaningfulResult(row) ||
       !businessDateSet.has(row?.target_date) ||
-      !isHuntScoreTargetMachine(row?.machine_name, config.storeNames[0])
+      !findTargetMachine(config, row?.machine_name)
     ) {
       continue;
     }
@@ -1051,7 +1061,7 @@ function buildSnapshotRowsForDate(
 }
 
 export function isHuntScoreTargetStore(storeName) {
-  return findHuntScoreStoreConfig(storeName) !== null;
+  return Boolean(normalizeText(storeName));
 }
 
 export function isHuntScoreTargetMachine(machineName, storeName = "") {
@@ -1081,7 +1091,7 @@ export function listHuntScoreSourceMachineNames(storeName = "") {
 }
 
 export function buildHuntScoreSnapshots(targetRows, allStoreRows = [], storeName = "", logicKey = "") {
-  const storeConfig = findHuntScoreStoreConfig(storeName);
+  const storeConfig = resolveHuntScoreStoreConfig(storeName);
   if (!storeConfig || !Array.isArray(targetRows) || targetRows.length === 0) {
     return [];
   }
@@ -1112,7 +1122,7 @@ export function buildHuntScoreSnapshots(targetRows, allStoreRows = [], storeName
 }
 
 export function attachHuntScores(targetRows, allStoreRows = [], storeName = "", logicKey = "") {
-  const storeConfig = findHuntScoreStoreConfig(storeName);
+  const storeConfig = resolveHuntScoreStoreConfig(storeName);
   if (!storeConfig) {
     return;
   }
