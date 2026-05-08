@@ -81,7 +81,7 @@ function readSortNumber(value) {
   return Number.isFinite(value) ? value : "";
 }
 
-function BacktestResultTable({ title, backtest, tableId }) {
+function BacktestResultTable({ title, backtest, tableId, storeId }) {
   return (
     <section className="tablePanel directoryPanel">
       <SortableTableController tableId={tableId} />
@@ -146,7 +146,14 @@ function BacktestResultTable({ title, backtest, tableId }) {
                 key={summary.machineName}
                 className={getSettingEstimateHighlightClass(summary.averageSetting)}
               >
-                <th className="directoryNameCell" data-sort-value={summary.machineName}>{summary.machineName}</th>
+                <th className="directoryNameCell" data-sort-value={summary.machineName}>
+                  <Link
+                    href={`/stores/${storeId}/machines/${encodeURIComponent(summary.machineName)}`}
+                    className="directoryPrimaryLink"
+                  >
+                    {summary.machineName}
+                  </Link>
+                </th>
                 <td data-sort-value={summary.matchedRowCount}>{formatNumber(summary.matchedRowCount)}</td>
                 <td data-sort-value={readSortNumber(summary.averageHuntScore)}>{formatDecimal(summary.averageHuntScore)}</td>
                 <td data-sort-value={readSortNumber(summary.averageDeviation)}>{formatDecimal(summary.averageDeviation)}</td>
@@ -823,6 +830,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       title={breakdown.title}
                       backtest={breakdown}
                       tableId={`store-backtest-${breakdown.key}-${index}`}
+                      storeId={detail.store.id}
                     />
                   ))
                 ) : (
