@@ -302,6 +302,36 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     windowDays: 7,
     scoreCalculator: calculateGogoArenaTenjinHuntScore,
   },
+  {
+    key: "tamaya-ohashi",
+    name: "玉屋555大橋式",
+    windowDays: 7,
+    scoreCalculator: calculateTamayaOhashiHuntScore,
+  },
+  {
+    key: "123-hakata",
+    name: "123博多式",
+    windowDays: 7,
+    scoreCalculator: calculate123HakataHuntScore,
+  },
+  {
+    key: "mj-itazuke",
+    name: "MJ板付式",
+    windowDays: 7,
+    scoreCalculator: calculateMjItazukeHuntScore,
+  },
+  {
+    key: "mzas-ozasa",
+    name: "エムザス小笹式",
+    windowDays: 7,
+    scoreCalculator: calculateMzasOzasaHuntScore,
+  },
+  {
+    key: "plaza3",
+    name: "プラザ3式",
+    windowDays: 7,
+    scoreCalculator: calculatePlaza3HuntScore,
+  },
 ];
 
 const DEFAULT_HUNT_SCORE_STORE_CONFIG = {
@@ -331,10 +361,34 @@ const HUNT_SCORE_STORE_CONFIGS = [
     defaultLogicKey: "gogo",
   },
   {
-    key: "fukuoka-dip-stores",
-    storeNames: ["玉屋555大橋店", "123博多店", "MJアリーナ板付店", "エムザス小笹店", "プラザ3"],
+    key: "tamaya-ohashi",
+    storeNames: ["玉屋555大橋店"],
     targetMachines: APARK_KASUGA_TARGET_MACHINES,
-    defaultLogicKey: "apark",
+    defaultLogicKey: "tamaya-ohashi",
+  },
+  {
+    key: "123-hakata",
+    storeNames: ["123博多店"],
+    targetMachines: APARK_KASUGA_TARGET_MACHINES,
+    defaultLogicKey: "123-hakata",
+  },
+  {
+    key: "mj-itazuke",
+    storeNames: ["MJアリーナ板付店"],
+    targetMachines: APARK_KASUGA_TARGET_MACHINES,
+    defaultLogicKey: "mj-itazuke",
+  },
+  {
+    key: "mzas-ozasa",
+    storeNames: ["エムザス小笹店"],
+    targetMachines: APARK_KASUGA_TARGET_MACHINES,
+    defaultLogicKey: "mzas-ozasa",
+  },
+  {
+    key: "plaza3",
+    storeNames: ["プラザ3"],
+    targetMachines: APARK_KASUGA_TARGET_MACHINES,
+    defaultLogicKey: "plaza3",
   },
 ];
 
@@ -592,6 +646,16 @@ function calculateCurrentHighSettingStreak(windowRows) {
   }
 
   return streak;
+}
+
+function calculateDaysSinceLastHighSetting(windowRows) {
+  for (let index = windowRows.length - 1; index >= 0; index -= 1) {
+    if (Number.isFinite(windowRows[index].settingAverage) && windowRows[index].settingAverage >= 4) {
+      return windowRows.length - 1 - index;
+    }
+  }
+
+  return 99;
 }
 
 function sumDifferenceValues(rows) {
@@ -949,6 +1013,258 @@ function calculateGogoArenaTenjinHuntScore(metrics) {
   return clamp(totalScore, 0, 100);
 }
 
+function calculateScaledAparkHuntScore(metrics) {
+  return clamp(45 + calculateAparkKasugaHuntScore(metrics) * 0.65, 0, 100);
+}
+
+function calculateScaledGogoHuntScore(metrics) {
+  return clamp(45 + calculateGogoArenaTenjinHuntScore(metrics) * 0.65, 0, 100);
+}
+
+function isMachineNameMatch(machineName, pattern) {
+  return pattern.test(normalizeText(machineName));
+}
+
+function isAimJugglerMachineName(machineName) {
+  return isMachineNameMatch(machineName, /アイムジャグラー/u);
+}
+
+function isMyJugglerMachineName(machineName) {
+  return isMachineNameMatch(machineName, /マイジャグラー/u);
+}
+
+function isGogoJugglerMachineName(machineName) {
+  return isMachineNameMatch(machineName, /ゴーゴージャグラー/u);
+}
+
+function isHokutoTenseiMachineName(machineName) {
+  return isMachineNameMatch(machineName, /北斗の拳.*転生/u);
+}
+
+function calculateStoreDipHuntScore(metrics) {
+  const totalScore =
+    50 +
+    (metrics.netTotal <= -5000
+      ? 24
+      : metrics.netTotal <= -3000
+        ? 18
+        : metrics.netTotal <= -2000
+          ? 13
+          : metrics.netTotal <= -1000
+            ? 8
+            : metrics.netTotal <= -500
+              ? 4
+              : metrics.netTotal >= 4000
+                ? -18
+                : metrics.netTotal >= 2500
+                  ? -12
+                  : metrics.netTotal >= 1500
+                    ? -7
+                    : 0) +
+    (metrics.recentThreeNetTotal <= -2500
+      ? 12
+      : metrics.recentThreeNetTotal <= -1500
+        ? 8
+        : metrics.recentThreeNetTotal <= -800
+          ? 4
+          : metrics.recentThreeNetTotal >= 2500
+            ? -8
+            : metrics.recentThreeNetTotal >= 1500
+              ? -5
+              : 0) +
+    (metrics.streak >= 4 ? 12 : metrics.streak >= 3 ? 8 : metrics.streak >= 2 ? 4 : 0) +
+    (metrics.lossDays >= 6 ? 8 : metrics.lossDays >= 5 ? 5 : metrics.lossDays >= 4 ? 3 : 0) +
+    (metrics.averageGames < 800 ? -5 : metrics.averageGames >= 2500 ? 2 : 0);
+
+  return clamp(totalScore, 0, 100);
+}
+
+function calculateStrongDipHuntScore(metrics) {
+  return clamp(
+    calculateStoreDipHuntScore(metrics) +
+      (metrics.netTotal <= -3000 ? 7 : 0) +
+      (metrics.recentThreeNetTotal <= -1500 ? 5 : 0) +
+      (metrics.streak >= 3 ? 5 : 0),
+    0,
+    100,
+  );
+}
+
+function calculateSameHighHuntScore(metrics) {
+  const averageSettingScore = Number.isFinite(metrics.averageSetting)
+    ? metrics.averageSetting >= 4
+      ? 8
+      : metrics.averageSetting >= 3.5
+        ? 4
+        : 0
+    : 0;
+  const totalScore =
+    50 +
+    (metrics.todaySetting >= 4.5
+      ? 16
+      : metrics.todaySetting >= 4
+        ? 12
+        : metrics.todaySetting >= 3.5
+          ? 7
+          : 0) +
+    (metrics.highSettingStreak >= 2 ? 18 : metrics.highSettingStreak === 1 ? 11 : 0) +
+    (metrics.highSettingCount >= 3 ? 14 : metrics.highSettingCount >= 2 ? 8 : metrics.highSettingCount >= 1 ? 3 : 0) +
+    averageSettingScore +
+    (metrics.netTotal >= 3000
+      ? 8
+      : metrics.netTotal >= 1500
+        ? 4
+        : metrics.netTotal <= -3000
+          ? -10
+          : 0) +
+    (metrics.averageGames >= 2500 ? 2 : metrics.averageGames < 800 ? -5 : 0);
+
+  return clamp(totalScore, 0, 100);
+}
+
+function calculateReverseDipHuntScore(metrics) {
+  const totalScore =
+    50 +
+    (metrics.netTotal >= 5000
+      ? 24
+      : metrics.netTotal >= 3000
+        ? 18
+        : metrics.netTotal >= 1500
+          ? 12
+          : metrics.netTotal >= 500
+            ? 6
+            : metrics.netTotal <= -3000
+              ? -14
+              : metrics.netTotal <= -1500
+                ? -8
+                : 0) +
+    (metrics.recentThreeNetTotal >= 2500
+      ? 10
+      : metrics.recentThreeNetTotal >= 1500
+        ? 6
+        : metrics.recentThreeNetTotal <= -1500
+          ? -5
+          : 0) +
+    (metrics.highSettingCount >= 2 ? 6 : metrics.highSettingCount >= 1 ? 3 : 0) +
+    (metrics.averageGames >= 2500 ? 2 : metrics.averageGames < 800 ? -4 : 0);
+
+  return clamp(totalScore, 0, 100);
+}
+
+function calculateColdRotationHuntScore(metrics) {
+  const averageSettingScore = Number.isFinite(metrics.averageSetting)
+    ? metrics.averageSetting < 3
+      ? 5
+      : metrics.averageSetting >= 4
+        ? -6
+        : 0
+    : 0;
+  const daysSinceHighSetting = metrics.daysSinceLastHighSetting;
+  const totalScore =
+    50 +
+    (daysSinceHighSetting >= 6
+      ? 18
+      : daysSinceHighSetting >= 4
+        ? 13
+        : daysSinceHighSetting >= 2
+          ? 8
+          : daysSinceHighSetting === 1
+            ? 3
+            : daysSinceHighSetting === 0
+              ? -8
+              : 0) +
+    (metrics.highSettingCount === 0 ? 9 : metrics.highSettingCount === 1 ? 4 : metrics.highSettingCount >= 3 ? -8 : 0) +
+    (metrics.netTotal <= -2500 ? 10 : metrics.netTotal <= -1000 ? 5 : metrics.netTotal >= 2500 ? -7 : 0) +
+    averageSettingScore;
+
+  return clamp(totalScore, 0, 100);
+}
+
+function calculateLowGameHuntScore(metrics) {
+  const totalScore =
+    50 +
+    (metrics.averageGames < 700
+      ? 24
+      : metrics.averageGames < 1000
+        ? 18
+        : metrics.averageGames < 1500
+          ? 11
+          : metrics.averageGames > 3500
+            ? -12
+            : metrics.averageGames > 2500
+              ? -6
+              : 0) +
+    (metrics.netTotal <= -1500 ? 8 : metrics.netTotal >= 2000 ? -7 : 0) +
+    (metrics.streak >= 3 ? 5 : 0);
+
+  return clamp(totalScore, 0, 100);
+}
+
+function calculateTamayaOhashiHuntScore(metrics) {
+  if (isHokutoTenseiMachineName(metrics.machineName)) {
+    return calculateLowGameHuntScore(metrics);
+  }
+  if (isAimJugglerMachineName(metrics.machineName)) {
+    return calculateSameHighHuntScore(metrics);
+  }
+  if (isMyJugglerMachineName(metrics.machineName)) {
+    return calculateScaledAparkHuntScore(metrics);
+  }
+  if (isGogoJugglerMachineName(metrics.machineName)) {
+    return Math.max(calculateReverseDipHuntScore(metrics), calculateSameHighHuntScore(metrics));
+  }
+  return calculateStrongDipHuntScore(metrics);
+}
+
+function calculate123HakataHuntScore(metrics) {
+  if (isHokutoTenseiMachineName(metrics.machineName)) {
+    return calculateStrongDipHuntScore(metrics);
+  }
+  if (isAimJugglerMachineName(metrics.machineName)) {
+    return calculateStrongDipHuntScore(metrics);
+  }
+  if (isMyJugglerMachineName(metrics.machineName)) {
+    return calculateScaledAparkHuntScore(metrics);
+  }
+  if (isGogoJugglerMachineName(metrics.machineName)) {
+    return Math.max(calculateLowGameHuntScore(metrics), calculateColdRotationHuntScore(metrics));
+  }
+  return calculateStrongDipHuntScore(metrics);
+}
+
+function calculateMjItazukeHuntScore(metrics) {
+  if (isHokutoTenseiMachineName(metrics.machineName)) {
+    return calculateStrongDipHuntScore(metrics);
+  }
+  if (isMyJugglerMachineName(metrics.machineName)) {
+    return calculateStrongDipHuntScore(metrics);
+  }
+  return calculateScaledAparkHuntScore(metrics);
+}
+
+function calculateMzasOzasaHuntScore(metrics) {
+  if (isHokutoTenseiMachineName(metrics.machineName)) {
+    return calculateReverseDipHuntScore(metrics);
+  }
+  if (isAimJugglerMachineName(metrics.machineName)) {
+    return calculateStrongDipHuntScore(metrics);
+  }
+  return clamp(calculateScaledAparkHuntScore(metrics) - 15, 0, 100);
+}
+
+function calculatePlaza3HuntScore(metrics) {
+  if (isHokutoTenseiMachineName(metrics.machineName)) {
+    return calculateScaledGogoHuntScore(metrics);
+  }
+  if (isAimJugglerMachineName(metrics.machineName) || isMyJugglerMachineName(metrics.machineName)) {
+    return calculateScaledAparkHuntScore(metrics);
+  }
+  if (isGogoJugglerMachineName(metrics.machineName)) {
+    return Math.max(calculateLowGameHuntScore(metrics), calculateColdRotationHuntScore(metrics));
+  }
+  return calculateStrongDipHuntScore(metrics);
+}
+
 function buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays) {
   if (dateIndex < windowDays - 1) {
     return null;
@@ -1062,6 +1378,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     averageSetting: settingSampleCount > 0 ? settingTotal / settingSampleCount : null,
     highSettingCount,
     highSettingStreak: calculateCurrentHighSettingStreak(metricWindowRows),
+    daysSinceLastHighSetting: calculateDaysSinceLastHighSetting(metricWindowRows),
     gamesTotal,
     averageGames: metricWindowRows.length > 0 ? gamesTotal / metricWindowRows.length : 0,
     bbTotal,
