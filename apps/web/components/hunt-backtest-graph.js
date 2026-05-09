@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
 import { formatShortDate, formatSignedNumber } from "../lib/format";
 
 const CHART_HEIGHT = 360;
@@ -49,13 +53,102 @@ function buildPathText(points) {
     .join(" ");
 }
 
-export function HuntBacktestGraph({ points }) {
-  if (!Array.isArray(points) || points.length === 0) {
+function normalizeGraphGroups(groups, fallbackPoints) {
+  const normalizedGroups = Array.isArray(groups)
+    ? groups
+        .map((group) => ({
+          key: String(group?.key ?? "").trim(),
+          title: String(group?.title ?? "").trim(),
+          points: Array.isArray(group?.points) ? group.points : [],
+        }))
+        .filter((group) => group.key && group.title)
+    : [];
+
+  if (normalizedGroups.length > 0) {
+    return normalizedGroups;
+  }
+
+  return Array.isArray(fallbackPoints)
+    ? [{ key: "all", title: "全合算", points: fallbackPoints }]
+    : [];
+}
+
+function GraphGroupButtons({ groups, selectedKey, onSelect }) {
+  if (groups.length <= 1) {
     return null;
   }
 
+  return (
+    <div className="backtestGraphToggleRow" aria-label="グラフの集計切替">
+      {groups.map((group) => {
+        const isActive = group.key === selectedKey;
+
+        return (
+          <button
+            key={group.key}
+            type="button"
+            className={`metricToggleChip backtestGraphToggleButton ${
+              isActive ? "metricToggleChipActive" : ""
+            }`}
+            aria-pressed={isActive}
+            onClick={() => onSelect(group.key)}
+          >
+            {group.title}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function HuntBacktestGraph({ points, groups }) {
+  const graphGroups = useMemo(() => normalizeGraphGroups(groups, points), [groups, points]);
+  const [selectedGroupKey, setSelectedGroupKey] = useState(graphGroups[0]?.key ?? "");
+
+  useEffect(() => {
+    if (graphGroups.length === 0) {
+      setSelectedGroupKey("");
+      return;
+    }
+    if (!graphGroups.some((group) => group.key === selectedGroupKey)) {
+      setSelectedGroupKey(graphGroups[0].key);
+    }
+  }, [graphGroups, selectedGroupKey]);
+
+  if (graphGroups.length === 0) {
+    return null;
+  }
+
+  const selectedGroup =
+    graphGroups.find((group) => group.key === selectedGroupKey) ?? graphGroups[0];
+  const selectedPoints = selectedGroup.points;
+
+  if (!Array.isArray(selectedPoints) || selectedPoints.length === 0) {
+    return (
+      <section className="tablePanel">
+        <div className="tablePanelHeader">
+          <div>
+            <p className="sectionLabel">差枚推移</p>
+            <h2 className="tablePanelTitle">累積差枚折れ線</h2>
+          </div>
+        </div>
+        <GraphGroupButtons
+          groups={graphGroups}
+          selectedKey={selectedGroup.key}
+          onSelect={setSelectedGroupKey}
+        />
+        <p className="backtestGraphLead">
+          横軸は翌営業日の日付、縦軸はその時点までの累積差枚です。条件の期間指定自体は狙い度を出した日を基準にしています。
+        </p>
+        <p className="filterPanelStatus">
+          {selectedGroup.title}には、グラフに表示できる翌営業日実績がありません。
+        </p>
+      </section>
+    );
+  }
+
   let cumulativeDifferenceTotal = 0;
-  const cumulativePoints = points.map((point) => {
+  const cumulativePoints = selectedPoints.map((point) => {
     cumulativeDifferenceTotal += point.differenceTotal;
     return {
       ...point,
@@ -64,7 +157,7 @@ export function HuntBacktestGraph({ points }) {
   });
   const chartWidth = Math.max(
     MIN_CHART_WIDTH,
-    CHART_PADDING.left + CHART_PADDING.right + Math.max(points.length - 1, 1) * POINT_GAP,
+    CHART_PADDING.left + CHART_PADDING.right + Math.max(selectedPoints.length - 1, 1) * POINT_GAP,
   );
   const innerWidth = chartWidth - CHART_PADDING.left - CHART_PADDING.right;
   const innerHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
@@ -101,6 +194,11 @@ export function HuntBacktestGraph({ points }) {
           <h2 className="tablePanelTitle">累積差枚折れ線</h2>
         </div>
       </div>
+      <GraphGroupButtons
+        groups={graphGroups}
+        selectedKey={selectedGroup.key}
+        onSelect={setSelectedGroupKey}
+      />
       <p className="backtestGraphLead">
         横軸は翌営業日の日付、縦軸はその時点までの累積差枚です。条件の期間指定自体は狙い度を出した日を基準にしています。
       </p>

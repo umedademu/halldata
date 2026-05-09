@@ -820,7 +820,13 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                 ) : null}
 
                 {detail.backtest.showGraph === "on" && detail.backtest.graphPoints.length > 0 ? (
-                  <HuntBacktestGraph points={detail.backtest.graphPoints} />
+                  <HuntBacktestGraph
+                    groups={detail.backtest.breakdowns.map((breakdown) => ({
+                      key: breakdown.key,
+                      title: breakdown.title,
+                      points: breakdown.graphPoints,
+                    }))}
+                  />
                 ) : null}
 
                 {detail.backtest.hasMatches ? (

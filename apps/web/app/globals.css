@@ -403,6 +403,18 @@ a {
   line-height: 1.7;
 }
 
+.backtestGraphToggleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 2px 0 14px;
+}
+
+.backtestGraphToggleButton {
+  border-color: var(--line);
+  font-family: var(--font-body);
+}
+
 .storeReserveNotice {
   width: fit-content;
   padding: 8px 10px;
