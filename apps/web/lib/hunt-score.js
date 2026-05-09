@@ -133,6 +133,8 @@ const APARK_KASUGA_TARGET_MACHINES = [
   ...OTHER_TARGET_MACHINES,
 ];
 
+const JUGGLER_TARGET_MACHINES = APARK_KASUGA_TARGET_MACHINES.slice(0, 9);
+
 const GOGO_ARENA_TENJIN_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -315,22 +317,10 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     scoreCalculator: calculate123HakataHuntScore,
   },
   {
-    key: "mj-itazuke",
-    name: "MJ板付式",
-    windowDays: 7,
-    scoreCalculator: calculateMjItazukeHuntScore,
-  },
-  {
     key: "mzas-ozasa",
     name: "エムザス小笹式",
     windowDays: 7,
     scoreCalculator: calculateMzasOzasaHuntScore,
-  },
-  {
-    key: "plaza3",
-    name: "プラザ3式",
-    windowDays: 7,
-    scoreCalculator: calculatePlaza3HuntScore,
   },
 ];
 
@@ -376,19 +366,19 @@ const HUNT_SCORE_STORE_CONFIGS = [
     key: "mj-itazuke",
     storeNames: ["MJアリーナ板付店"],
     targetMachines: APARK_KASUGA_TARGET_MACHINES,
-    defaultLogicKey: "mj-itazuke",
+    defaultLogicKey: "apark",
   },
   {
     key: "mzas-ozasa",
     storeNames: ["エムザス小笹店"],
-    targetMachines: APARK_KASUGA_TARGET_MACHINES,
+    targetMachines: JUGGLER_TARGET_MACHINES,
     defaultLogicKey: "mzas-ozasa",
   },
   {
     key: "plaza3",
     storeNames: ["プラザ3"],
     targetMachines: APARK_KASUGA_TARGET_MACHINES,
-    defaultLogicKey: "plaza3",
+    defaultLogicKey: "apark",
   },
 ];
 
@@ -1013,32 +1003,8 @@ function calculateGogoArenaTenjinHuntScore(metrics) {
   return clamp(totalScore, 0, 100);
 }
 
-function calculateScaledAparkHuntScore(metrics) {
-  return clamp(45 + calculateAparkKasugaHuntScore(metrics) * 0.65, 0, 100);
-}
-
 function calculateScaledGogoHuntScore(metrics) {
   return clamp(45 + calculateGogoArenaTenjinHuntScore(metrics) * 0.65, 0, 100);
-}
-
-function isMachineNameMatch(machineName, pattern) {
-  return pattern.test(normalizeText(machineName));
-}
-
-function isAimJugglerMachineName(machineName) {
-  return isMachineNameMatch(machineName, /アイムジャグラー/u);
-}
-
-function isMyJugglerMachineName(machineName) {
-  return isMachineNameMatch(machineName, /マイジャグラー/u);
-}
-
-function isGogoJugglerMachineName(machineName) {
-  return isMachineNameMatch(machineName, /ゴーゴージャグラー/u);
-}
-
-function isHokutoTenseiMachineName(machineName) {
-  return isMachineNameMatch(machineName, /北斗の拳.*転生/u);
 }
 
 function calculateStoreDipHuntScore(metrics) {
@@ -1122,35 +1088,6 @@ function calculateSameHighHuntScore(metrics) {
   return clamp(totalScore, 0, 100);
 }
 
-function calculateReverseDipHuntScore(metrics) {
-  const totalScore =
-    50 +
-    (metrics.netTotal >= 5000
-      ? 24
-      : metrics.netTotal >= 3000
-        ? 18
-        : metrics.netTotal >= 1500
-          ? 12
-          : metrics.netTotal >= 500
-            ? 6
-            : metrics.netTotal <= -3000
-              ? -14
-              : metrics.netTotal <= -1500
-                ? -8
-                : 0) +
-    (metrics.recentThreeNetTotal >= 2500
-      ? 10
-      : metrics.recentThreeNetTotal >= 1500
-        ? 6
-        : metrics.recentThreeNetTotal <= -1500
-          ? -5
-          : 0) +
-    (metrics.highSettingCount >= 2 ? 6 : metrics.highSettingCount >= 1 ? 3 : 0) +
-    (metrics.averageGames >= 2500 ? 2 : metrics.averageGames < 800 ? -4 : 0);
-
-  return clamp(totalScore, 0, 100);
-}
-
 function calculateColdRotationHuntScore(metrics) {
   const averageSettingScore = Number.isFinite(metrics.averageSetting)
     ? metrics.averageSetting < 3
@@ -1200,69 +1137,27 @@ function calculateLowGameHuntScore(metrics) {
   return clamp(totalScore, 0, 100);
 }
 
+function calculateBalancedStoreHuntScore(metrics) {
+  return clamp(
+    calculateStrongDipHuntScore(metrics) * 0.45 +
+      calculateColdRotationHuntScore(metrics) * 0.25 +
+      calculateSameHighHuntScore(metrics) * 0.15 +
+      calculateLowGameHuntScore(metrics) * 0.15,
+    0,
+    100,
+  );
+}
+
 function calculateTamayaOhashiHuntScore(metrics) {
-  if (isHokutoTenseiMachineName(metrics.machineName)) {
-    return calculateLowGameHuntScore(metrics);
-  }
-  if (isAimJugglerMachineName(metrics.machineName)) {
-    return calculateSameHighHuntScore(metrics);
-  }
-  if (isMyJugglerMachineName(metrics.machineName)) {
-    return calculateScaledAparkHuntScore(metrics);
-  }
-  if (isGogoJugglerMachineName(metrics.machineName)) {
-    return Math.max(calculateReverseDipHuntScore(metrics), calculateSameHighHuntScore(metrics));
-  }
-  return calculateStrongDipHuntScore(metrics);
+  return calculateScaledGogoHuntScore(metrics);
 }
 
 function calculate123HakataHuntScore(metrics) {
-  if (isHokutoTenseiMachineName(metrics.machineName)) {
-    return calculateStrongDipHuntScore(metrics);
-  }
-  if (isAimJugglerMachineName(metrics.machineName)) {
-    return calculateStrongDipHuntScore(metrics);
-  }
-  if (isMyJugglerMachineName(metrics.machineName)) {
-    return calculateScaledAparkHuntScore(metrics);
-  }
-  if (isGogoJugglerMachineName(metrics.machineName)) {
-    return Math.max(calculateLowGameHuntScore(metrics), calculateColdRotationHuntScore(metrics));
-  }
-  return calculateStrongDipHuntScore(metrics);
-}
-
-function calculateMjItazukeHuntScore(metrics) {
-  if (isHokutoTenseiMachineName(metrics.machineName)) {
-    return calculateStrongDipHuntScore(metrics);
-  }
-  if (isMyJugglerMachineName(metrics.machineName)) {
-    return calculateStrongDipHuntScore(metrics);
-  }
-  return calculateScaledAparkHuntScore(metrics);
+  return calculateBalancedStoreHuntScore(metrics);
 }
 
 function calculateMzasOzasaHuntScore(metrics) {
-  if (isHokutoTenseiMachineName(metrics.machineName)) {
-    return calculateReverseDipHuntScore(metrics);
-  }
-  if (isAimJugglerMachineName(metrics.machineName)) {
-    return calculateStrongDipHuntScore(metrics);
-  }
-  return clamp(calculateScaledAparkHuntScore(metrics) - 15, 0, 100);
-}
-
-function calculatePlaza3HuntScore(metrics) {
-  if (isHokutoTenseiMachineName(metrics.machineName)) {
-    return calculateScaledGogoHuntScore(metrics);
-  }
-  if (isAimJugglerMachineName(metrics.machineName) || isMyJugglerMachineName(metrics.machineName)) {
-    return calculateScaledAparkHuntScore(metrics);
-  }
-  if (isGogoJugglerMachineName(metrics.machineName)) {
-    return Math.max(calculateLowGameHuntScore(metrics), calculateColdRotationHuntScore(metrics));
-  }
-  return calculateStrongDipHuntScore(metrics);
+  return calculateScaledGogoHuntScore(metrics);
 }
 
 function buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays) {
