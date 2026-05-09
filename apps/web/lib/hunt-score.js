@@ -330,6 +330,12 @@ const HUNT_SCORE_STORE_CONFIGS = [
     targetMachines: GOGO_ARENA_TENJIN_TARGET_MACHINES,
     defaultLogicKey: "gogo",
   },
+  {
+    key: "fukuoka-dip-stores",
+    storeNames: ["玉屋555大橋店", "123博多店", "MJアリーナ板付店", "エムザス小笹店", "プラザ3"],
+    targetMachines: APARK_KASUGA_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+  },
 ];
 
 function normalizeText(value) {
