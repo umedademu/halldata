@@ -435,15 +435,21 @@ function finalizeSummary(summary) {
   };
 }
 
-function buildSnapshotDeviationRows(snapshot, selectedMachineNameSet, combineAimJuggler, combineHanabi) {
+function buildSnapshotDeviationRows(
+  snapshot,
+  selectedMachineNameSet,
+  combineAimJuggler,
+  combineHanabi,
+  rankFilter,
+) {
   const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
   const overallDeviationMap = calculateHuntScoreDeviationMap(rows);
-  const overallNextGapMap = calculateHuntScoreNextGapMap(rows);
+  const overallNextGapMap = calculateHuntScoreNextGapMap(rows, rankFilter);
   const selectedRows = rows.filter((row) =>
     selectedMachineNameSet.has(String(row.machineName ?? "").trim()),
   );
   const selectedDeviationMap = calculateHuntScoreDeviationMap(selectedRows);
-  const selectedNextGapMap = calculateHuntScoreNextGapMap(selectedRows);
+  const selectedNextGapMap = calculateHuntScoreNextGapMap(selectedRows, rankFilter);
   const machineRowsByName = new Map();
 
   for (const row of selectedRows) {
@@ -462,7 +468,7 @@ function buildSnapshotDeviationRows(snapshot, selectedMachineNameSet, combineAim
   const machineNextGapMap = new Map();
   for (const machineRows of machineRowsByName.values()) {
     const deviationMap = calculateHuntScoreDeviationMap(machineRows);
-    const nextGapMap = calculateHuntScoreNextGapMap(machineRows);
+    const nextGapMap = calculateHuntScoreNextGapMap(machineRows, rankFilter);
     for (const row of machineRows) {
       if (deviationMap.has(row)) {
         machineDeviationMap.set(row, deviationMap.get(row));
@@ -522,6 +528,7 @@ function buildBacktestAggregationDetail(
       selectedMachineNameSet,
       combineAimJuggler,
       combineHanabi,
+      rankFilter,
     );
     let selectedRank = 0;
 

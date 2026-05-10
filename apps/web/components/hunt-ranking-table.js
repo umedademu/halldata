@@ -182,11 +182,11 @@ function buildDeviationRowKey(row) {
   return String(row?.rowKey ?? `${row?.machineName ?? ""}::${row?.slotNumber ?? ""}`).trim();
 }
 
-function buildDeviationValueMaps(displayRows, allDisplayRows, displayGroups) {
+function buildDeviationValueMaps(displayRows, allDisplayRows, displayGroups, rankFilter) {
   const overallDeviationMap = calculateHuntScoreDeviationMap(allDisplayRows);
-  const overallNextGapMap = calculateHuntScoreNextGapMap(allDisplayRows);
+  const overallNextGapMap = calculateHuntScoreNextGapMap(allDisplayRows, rankFilter);
   const selectedDeviationMap = calculateHuntScoreDeviationMap(displayRows);
-  const selectedNextGapMap = calculateHuntScoreNextGapMap(displayRows);
+  const selectedNextGapMap = calculateHuntScoreNextGapMap(displayRows, rankFilter);
   const overallDeviationByKey = new Map(
     allDisplayRows.map((row) => [buildDeviationRowKey(row), overallDeviationMap.get(row) ?? null]),
   );
@@ -205,7 +205,7 @@ function buildDeviationValueMaps(displayRows, allDisplayRows, displayGroups) {
   for (const group of displayGroups) {
     const groupRows = getRankingGroupRows(group, true);
     const deviationMap = calculateHuntScoreDeviationMap(groupRows);
-    const nextGapMap = calculateHuntScoreNextGapMap(groupRows);
+    const nextGapMap = calculateHuntScoreNextGapMap(groupRows, rankFilter);
     for (const row of groupRows) {
       if (deviationMap.has(row)) {
         machineDeviationByKey.set(buildDeviationRowKey(row), deviationMap.get(row));
@@ -529,8 +529,14 @@ export function HuntRankingTable({
     [allDisplayGroups],
   );
   const deviationValueByRowKey = useMemo(
-    () => buildDeviationValueMaps(displayDeviationRows, allDeviationRows, displayGroups),
-    [allDeviationRows, displayGroups, displayDeviationRows],
+    () =>
+      buildDeviationValueMaps(
+        displayDeviationRows,
+        allDeviationRows,
+        displayGroups,
+        highlightCondition.rankFilter,
+      ),
+    [allDeviationRows, displayGroups, displayDeviationRows, highlightCondition.rankFilter],
   );
   const selectedRankValueByRowKey = useMemo(
     () => buildSelectedRankValueMap(displayGroups),

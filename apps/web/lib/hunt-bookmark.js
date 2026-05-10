@@ -268,7 +268,7 @@ export function calculateHuntScoreDeviationMap(rows) {
   );
 }
 
-export function calculateHuntScoreNextGapMap(rows) {
+export function calculateHuntScoreNextGapMap(rows, rankFilter = null) {
   const validRows = (Array.isArray(rows) ? rows : [])
     .map((row, index) => ({
       row,
@@ -280,6 +280,30 @@ export function calculateHuntScoreNextGapMap(rows) {
 
   if (validRows.length < 2) {
     return new Map();
+  }
+
+  if (rankFilter?.hasRankFilter) {
+    const rankMin = readPositiveInteger(rankFilter.rankMin) ?? 1;
+    const rankMax = readPositiveInteger(rankFilter.rankMax) ?? rankMin;
+    const normalizedRankMin = Math.min(rankMin, rankMax);
+    const normalizedRankMax = Math.max(rankMin, rankMax);
+    const nextEntry = validRows[normalizedRankMax] ?? null;
+
+    if (!nextEntry) {
+      return new Map();
+    }
+
+    return new Map(
+      validRows.map((entry, index) => {
+        const rank = index + 1;
+        return [
+          entry.row,
+          rank >= normalizedRankMin && rank <= normalizedRankMax
+            ? Math.max(0, entry.score - nextEntry.score)
+            : null,
+        ];
+      }),
+    );
   }
 
   return new Map(
@@ -687,12 +711,12 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
   const deviationFilter = buildDeviationFilter(normalizedBookmark.deviationMin);
   const nextGapFilter = buildNextGapFilter(normalizedBookmark.nextGapMin);
   const overallDeviationMap = calculateHuntScoreDeviationMap(safeRows);
-  const overallNextGapMap = calculateHuntScoreNextGapMap(safeRows);
+  const overallNextGapMap = calculateHuntScoreNextGapMap(safeRows, rankFilter);
   const selectedRows = safeRows.filter((row) =>
     includesBookmarkMachine(normalizeText(row?.machineName), selectedMachineNameSet),
   );
   const selectedDeviationMap = calculateHuntScoreDeviationMap(selectedRows);
-  const selectedNextGapMap = calculateHuntScoreNextGapMap(selectedRows);
+  const selectedNextGapMap = calculateHuntScoreNextGapMap(selectedRows, rankFilter);
   const rowsByBookmarkMachineName = new Map();
   let matchedRowCount = 0;
   let selectedRank = 0;
@@ -715,7 +739,7 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
   const machineNextGapMap = new Map();
   for (const machineRows of rowsByBookmarkMachineName.values()) {
     const deviationMap = calculateHuntScoreDeviationMap(machineRows);
-    const nextGapMap = calculateHuntScoreNextGapMap(machineRows);
+    const nextGapMap = calculateHuntScoreNextGapMap(machineRows, rankFilter);
     for (const row of machineRows) {
       if (deviationMap.has(row)) {
         machineDeviationMap.set(row, deviationMap.get(row));
@@ -761,14 +785,13 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
           ? selectedDeviationMap.get(row) ?? null
           : overallDeviationMap.get(row) ?? null;
     const deviationValue = existingDeviationValue ?? calculatedDeviationValue;
-    const existingNextGapValue = readNextGapForRankScope(row, normalizedBookmark.nextGapScope);
     const calculatedNextGapValue =
       normalizedBookmark.nextGapScope === "machine"
         ? machineNextGapMap.get(row) ?? null
         : normalizedBookmark.nextGapScope === "selected"
           ? selectedNextGapMap.get(row) ?? null
           : overallNextGapMap.get(row) ?? null;
-    const nextGapValue = existingNextGapValue ?? calculatedNextGapValue;
+    const nextGapValue = calculatedNextGapValue;
     const matched = matchesRequiredConditionFilters(
       rankValue,
       row?.huntScore,
