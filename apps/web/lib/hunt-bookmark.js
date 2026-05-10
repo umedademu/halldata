@@ -142,6 +142,15 @@ export function buildDeviationFilter(deviationMinValue) {
   };
 }
 
+export function buildNextGapFilter(nextGapMinValue) {
+  const nextGapMin = readNumber(nextGapMinValue);
+
+  return {
+    nextGapMin: nextGapMin === null ? null : Math.max(0, nextGapMin),
+    hasNextGapFilter: nextGapMin !== null,
+  };
+}
+
 export function normalizeMatchMode(value) {
   return value === "or" ? "or" : "and";
 }
@@ -165,6 +174,7 @@ export function buildConditionRequirementOptions(source = {}, fallback = {}) {
     !Object.hasOwn(safeSource, "rankRequired") &&
     !Object.hasOwn(safeSource, "scoreRequired") &&
     !Object.hasOwn(safeSource, "deviationRequired") &&
+    !Object.hasOwn(safeSource, "nextGapRequired") &&
     Object.hasOwn(safeSource, "matchMode")
   ) {
     const allRequired = normalizeMatchMode(safeSource.matchMode) === "and";
@@ -172,6 +182,7 @@ export function buildConditionRequirementOptions(source = {}, fallback = {}) {
       rankRequired: allRequired,
       scoreRequired: allRequired,
       deviationRequired: allRequired,
+      nextGapRequired: allRequired,
     };
   }
 
@@ -181,6 +192,10 @@ export function buildConditionRequirementOptions(source = {}, fallback = {}) {
     deviationRequired: normalizeRequiredOption(
       safeSource.deviationRequired,
       Boolean(fallback.deviationRequired),
+    ),
+    nextGapRequired: normalizeRequiredOption(
+      safeSource.nextGapRequired,
+      Boolean(fallback.nextGapRequired),
     ),
   };
 }
@@ -210,6 +225,16 @@ function formatDeviationScopeLabel(deviationScope) {
     return "チェック機種内偏差値";
   }
   return "全機種内偏差値";
+}
+
+function formatNextGapScopeLabel(nextGapScope) {
+  if (nextGapScope === "machine") {
+    return "機種内次点差";
+  }
+  if (nextGapScope === "selected") {
+    return "チェック機種内次点差";
+  }
+  return "全機種内次点差";
 }
 
 export function calculateHuntScoreDeviationMap(rows) {
@@ -243,6 +268,31 @@ export function calculateHuntScoreDeviationMap(rows) {
   );
 }
 
+export function calculateHuntScoreNextGapMap(rows) {
+  const validRows = (Array.isArray(rows) ? rows : [])
+    .map((row, index) => ({
+      row,
+      index,
+      score: readNumber(row?.huntScore),
+    }))
+    .filter((entry) => entry.score !== null)
+    .sort((left, right) => right.score - left.score || left.index - right.index);
+
+  if (validRows.length < 2) {
+    return new Map();
+  }
+
+  return new Map(
+    validRows.map((entry, index) => {
+      const nextEntry = validRows[index + 1] ?? null;
+      return [
+        entry.row,
+        nextEntry ? Math.max(0, entry.score - nextEntry.score) : null,
+      ];
+    }),
+  );
+}
+
 export function readDeviationForRankScope(row, rankScope) {
   if (rankScope === "machine") {
     return readNumber(row?.machineDeviation);
@@ -251,6 +301,16 @@ export function readDeviationForRankScope(row, rankScope) {
     return readNumber(row?.selectedDeviation);
   }
   return readNumber(row?.overallDeviation);
+}
+
+export function readNextGapForRankScope(row, rankScope) {
+  if (rankScope === "machine") {
+    return readNumber(row?.machineNextGap);
+  }
+  if (rankScope === "selected") {
+    return readNumber(row?.selectedNextGap);
+  }
+  return readNumber(row?.overallNextGap);
 }
 
 export function matchesRequiredConditionFilters(
@@ -262,6 +322,8 @@ export function matchesRequiredConditionFilters(
   deviationValue = null,
   deviationFilter = { hasDeviationFilter: false, deviationMin: null },
   noFilterResult = true,
+  nextGapValue = null,
+  nextGapFilter = { hasNextGapFilter: false, nextGapMin: null },
 ) {
   const normalizedRequirements = buildConditionRequirementOptions(requirementOptions);
   const normalizedRankValue = readPositiveInteger(rankValue);
@@ -289,6 +351,15 @@ export function matchesRequiredConditionFilters(
         normalizedDeviationValue !== null &&
         normalizedDeviationValue >= deviationFilter.deviationMin,
       required: normalizedRequirements.deviationRequired,
+    });
+  }
+  if (nextGapFilter.hasNextGapFilter) {
+    const normalizedNextGapValue = readNumber(nextGapValue);
+    conditionEntries.push({
+      matched:
+        normalizedNextGapValue !== null &&
+        normalizedNextGapValue >= nextGapFilter.nextGapMin,
+      required: normalizedRequirements.nextGapRequired,
     });
   }
 
@@ -343,6 +414,7 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
   const rankFilter = buildRankFilter(bookmark.rankMin, bookmark.rankMax);
   const scoreFilter = buildScoreFilter(bookmark.scoreMin);
   const deviationFilter = buildDeviationFilter(bookmark.deviationMin);
+  const nextGapFilter = buildNextGapFilter(bookmark.nextGapMin);
   const rankScope = normalizeRankScope(bookmark.rankScope);
   const requirementOptions = buildConditionRequirementOptions(bookmark);
   const allMachineCount = readPositiveInteger(bookmark.allMachineCount) ?? machineNames.length;
@@ -363,11 +435,15 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     hasScoreFilter: scoreFilter.hasScoreFilter,
     deviationMin: deviationFilter.deviationMin,
     hasDeviationFilter: deviationFilter.hasDeviationFilter,
+    nextGapMin: nextGapFilter.nextGapMin,
+    hasNextGapFilter: nextGapFilter.hasNextGapFilter,
     rankRequired: requirementOptions.rankRequired,
     scoreRequired: requirementOptions.scoreRequired,
     deviationRequired: requirementOptions.deviationRequired,
+    nextGapRequired: requirementOptions.nextGapRequired,
     rankScope,
     deviationScope: normalizeRankScope(bookmark.deviationScope ?? rankScope),
+    nextGapScope: normalizeRankScope(bookmark.nextGapScope ?? "machine"),
     combineAimJuggler,
     combineHanabi,
     savedAt: normalizeText(bookmark.savedAt) || null,
@@ -400,11 +476,14 @@ export function areHuntBacktestBookmarksEqual(left, right) {
     normalizedLeft.rankMax === normalizedRight.rankMax &&
     normalizedLeft.scoreMin === normalizedRight.scoreMin &&
     normalizedLeft.deviationMin === normalizedRight.deviationMin &&
+    normalizedLeft.nextGapMin === normalizedRight.nextGapMin &&
     normalizedLeft.rankRequired === normalizedRight.rankRequired &&
     normalizedLeft.scoreRequired === normalizedRight.scoreRequired &&
     normalizedLeft.deviationRequired === normalizedRight.deviationRequired &&
+    normalizedLeft.nextGapRequired === normalizedRight.nextGapRequired &&
     normalizedLeft.rankScope === normalizedRight.rankScope &&
     normalizedLeft.deviationScope === normalizedRight.deviationScope &&
+    normalizedLeft.nextGapScope === normalizedRight.nextGapScope &&
     normalizedLeft.combineAimJuggler === normalizedRight.combineAimJuggler &&
     normalizedLeft.combineHanabi === normalizedRight.combineHanabi &&
     normalizedLeft.machineNames.length === normalizedRight.machineNames.length &&
@@ -447,6 +526,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
 
   parts.push(formatRankScopeLabel(normalizedBookmark.rankScope));
   parts.push(formatDeviationScopeLabel(normalizedBookmark.deviationScope));
+  parts.push(formatNextGapScopeLabel(normalizedBookmark.nextGapScope));
 
   if (normalizedBookmark.hasRankFilter) {
     parts.push(
@@ -472,10 +552,19 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
     );
   }
 
+  if (normalizedBookmark.hasNextGapFilter) {
+    parts.push(
+      `次点差${trimDecimalText(normalizedBookmark.nextGapMin)}以上${
+        normalizedBookmark.nextGapRequired ? "必須" : ""
+      }`,
+    );
+  }
+
   const activeFilterCount = [
     normalizedBookmark.hasRankFilter,
     normalizedBookmark.hasScoreFilter,
     normalizedBookmark.hasDeviationFilter,
+    normalizedBookmark.hasNextGapFilter,
   ].filter(Boolean).length;
 
   if (normalizedBookmark.combineAimJuggler) {
@@ -487,7 +576,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   }
 
   if (activeFilterCount === 0) {
-    parts.push("順位、狙い度、偏差値の指定なし");
+    parts.push("順位、狙い度、偏差値、次点差の指定なし");
   }
 
   return parts.join(" / ");
@@ -596,11 +685,14 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
   const rankFilter = buildRankFilter(normalizedBookmark.rankMin, normalizedBookmark.rankMax);
   const scoreFilter = buildScoreFilter(normalizedBookmark.scoreMin);
   const deviationFilter = buildDeviationFilter(normalizedBookmark.deviationMin);
+  const nextGapFilter = buildNextGapFilter(normalizedBookmark.nextGapMin);
   const overallDeviationMap = calculateHuntScoreDeviationMap(safeRows);
+  const overallNextGapMap = calculateHuntScoreNextGapMap(safeRows);
   const selectedRows = safeRows.filter((row) =>
     includesBookmarkMachine(normalizeText(row?.machineName), selectedMachineNameSet),
   );
   const selectedDeviationMap = calculateHuntScoreDeviationMap(selectedRows);
+  const selectedNextGapMap = calculateHuntScoreNextGapMap(selectedRows);
   const rowsByBookmarkMachineName = new Map();
   let matchedRowCount = 0;
   let selectedRank = 0;
@@ -620,11 +712,16 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
   }
 
   const machineDeviationMap = new Map();
+  const machineNextGapMap = new Map();
   for (const machineRows of rowsByBookmarkMachineName.values()) {
     const deviationMap = calculateHuntScoreDeviationMap(machineRows);
+    const nextGapMap = calculateHuntScoreNextGapMap(machineRows);
     for (const row of machineRows) {
       if (deviationMap.has(row)) {
         machineDeviationMap.set(row, deviationMap.get(row));
+      }
+      if (nextGapMap.has(row)) {
+        machineNextGapMap.set(row, nextGapMap.get(row));
       }
     }
   }
@@ -664,6 +761,14 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
           ? selectedDeviationMap.get(row) ?? null
           : overallDeviationMap.get(row) ?? null;
     const deviationValue = existingDeviationValue ?? calculatedDeviationValue;
+    const existingNextGapValue = readNextGapForRankScope(row, normalizedBookmark.nextGapScope);
+    const calculatedNextGapValue =
+      normalizedBookmark.nextGapScope === "machine"
+        ? machineNextGapMap.get(row) ?? null
+        : normalizedBookmark.nextGapScope === "selected"
+          ? selectedNextGapMap.get(row) ?? null
+          : overallNextGapMap.get(row) ?? null;
+    const nextGapValue = existingNextGapValue ?? calculatedNextGapValue;
     const matched = matchesRequiredConditionFilters(
       rankValue,
       row?.huntScore,
@@ -673,9 +778,13 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
         rankRequired: normalizedBookmark.rankRequired,
         scoreRequired: normalizedBookmark.scoreRequired,
         deviationRequired: normalizedBookmark.deviationRequired,
+        nextGapRequired: normalizedBookmark.nextGapRequired,
       },
       deviationValue,
       deviationFilter,
+      true,
+      nextGapValue,
+      nextGapFilter,
     );
 
     if (matched) {

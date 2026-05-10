@@ -118,9 +118,10 @@ function StoreRankingTable({ rows, huntScoreLogic }) {
               <SortableTableHeader columnIndex={13}>設置台数</SortableTableHeader>
               <SortableTableHeader columnIndex={14}>狙い度</SortableTableHeader>
               <SortableTableHeader columnIndex={15}>偏差値</SortableTableHeader>
-              <SortableTableHeader columnIndex={16}>BB</SortableTableHeader>
-              <SortableTableHeader columnIndex={17}>RB</SortableTableHeader>
-              <SortableTableHeader columnIndex={18} initialDirection="asc">
+              <SortableTableHeader columnIndex={16}>次点差</SortableTableHeader>
+              <SortableTableHeader columnIndex={17}>BB</SortableTableHeader>
+              <SortableTableHeader columnIndex={18}>RB</SortableTableHeader>
+              <SortableTableHeader columnIndex={19} initialDirection="asc">
                 合成
               </SortableTableHeader>
             </tr>
@@ -176,6 +177,9 @@ function StoreRankingTable({ rows, huntScoreLogic }) {
                 <td data-sort-value={readSortNumber(row.averageDeviation)}>
                   {formatDecimal(row.averageDeviation)}
                 </td>
+                <td data-sort-value={readSortNumber(row.averageNextGap)}>
+                  {formatDecimal(row.averageNextGap)}
+                </td>
                 <td data-sort-value={row.bbTotal}>{formatNumber(row.bbTotal)}</td>
                 <td data-sort-value={row.rbTotal}>{formatNumber(row.rbTotal)}</td>
                 <td data-sort-value={readProbabilitySortValue(row.combinedProbability)}>
@@ -211,9 +215,12 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
     scoreMin: readOptionalSearchParam(resolvedSearchParams, "scoreMin"),
     deviationScope: readSingleSearchParam(resolvedSearchParams?.deviationScope),
     deviationMin: readOptionalSearchParam(resolvedSearchParams, "deviationMin"),
+    nextGapScope: readSingleSearchParam(resolvedSearchParams?.nextGapScope),
+    nextGapMin: readOptionalSearchParam(resolvedSearchParams, "nextGapMin"),
     rankRequired: readMultiSearchParam(resolvedSearchParams?.rankRequired),
     scoreRequired: readMultiSearchParam(resolvedSearchParams?.scoreRequired),
     deviationRequired: readMultiSearchParam(resolvedSearchParams?.deviationRequired),
+    nextGapRequired: readMultiSearchParam(resolvedSearchParams?.nextGapRequired),
     prefectures: readMultiSearchParam(resolvedSearchParams?.prefecture),
     areaKeys: readMultiSearchParam(resolvedSearchParams?.area),
     dayTails: readMultiSearchParam(resolvedSearchParams?.backtestDayTail),
@@ -612,6 +619,37 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                 <span>必須</span>
               </label>
             </div>
+            <div className="huntConditionRow">
+              <p className="huntConditionLabel">次点差</p>
+              <div className="huntConditionInputs">
+                <label className="storeReserveField backtestField huntConditionNumberField">
+                  <span>下限</span>
+                  <input
+                    type="number"
+                    name="nextGapMin"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    defaultValue={detail.nextGapMin ?? ""}
+                    className="storeReserveInput"
+                  />
+                </label>
+              </div>
+              <input type="hidden" name="nextGapRequired" value="0" />
+              <label
+                className={`metricToggleChip huntConditionRequired ${
+                  detail.nextGapRequired ? "metricToggleChipActive" : ""
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  name="nextGapRequired"
+                  value="1"
+                  defaultChecked={detail.nextGapRequired}
+                />
+                <span>必須</span>
+              </label>
+            </div>
           </div>
 
           <div className="backtestBlock">
@@ -691,6 +729,31 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                     name="deviationScope"
                     value={scope.value}
                     defaultChecked={detail.deviationScope === scope.value}
+                  />
+                  <span>{scope.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="backtestBlock">
+            <p className="filterControlLabel">次点差の比較対象</p>
+            <div className="metricToggleRow">
+              {[
+                { value: "all", label: "全機種内" },
+                { value: "selected", label: "チェック機種内" },
+                { value: "machine", label: "機種内" },
+              ].map((scope) => (
+                <label
+                  key={scope.value}
+                  className={`metricToggleChip ${
+                    detail.nextGapScope === scope.value ? "metricToggleChipActive" : ""
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="nextGapScope"
+                    value={scope.value}
+                    defaultChecked={detail.nextGapScope === scope.value}
                   />
                   <span>{scope.label}</span>
                 </label>

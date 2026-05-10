@@ -15,14 +15,17 @@ import {
 import {
   HUNT_BACKTEST_BOOKMARK_EVENT,
   buildDeviationFilter,
+  buildNextGapFilter,
   buildHuntBacktestBookmarkMatches,
   buildRankFilter,
   buildScoreFilter,
   buildConditionRequirementOptions,
   calculateHuntScoreDeviationMap,
+  calculateHuntScoreNextGapMap,
   formatHuntBacktestBookmarkSummary,
   matchesRequiredConditionFilters,
   readDeviationForRankScope,
+  readNextGapForRankScope,
   readSavedHuntBacktestBookmark,
 } from "../lib/hunt-bookmark";
 import {
@@ -42,6 +45,7 @@ const DEFAULT_VISIBLE_RESULT_KEYS = [
 const DEFAULT_DIFFERENCE_MODE = "bonus";
 const DEFAULT_RANK_SCOPE = "selected";
 const DEFAULT_DEVIATION_SCOPE = "selected";
+const DEFAULT_NEXT_GAP_SCOPE = "machine";
 const DEFAULT_HIGHLIGHT_RANK_MIN = 1;
 const DEFAULT_HIGHLIGHT_RANK_MAX = 3;
 const DEFAULT_HIGHLIGHT_SCORE_MIN = 70;
@@ -180,21 +184,34 @@ function buildDeviationRowKey(row) {
 
 function buildDeviationValueMaps(displayRows, allDisplayRows, displayGroups) {
   const overallDeviationMap = calculateHuntScoreDeviationMap(allDisplayRows);
+  const overallNextGapMap = calculateHuntScoreNextGapMap(allDisplayRows);
   const selectedDeviationMap = calculateHuntScoreDeviationMap(displayRows);
+  const selectedNextGapMap = calculateHuntScoreNextGapMap(displayRows);
   const overallDeviationByKey = new Map(
     allDisplayRows.map((row) => [buildDeviationRowKey(row), overallDeviationMap.get(row) ?? null]),
+  );
+  const overallNextGapByKey = new Map(
+    allDisplayRows.map((row) => [buildDeviationRowKey(row), overallNextGapMap.get(row) ?? null]),
   );
   const selectedDeviationByKey = new Map(
     displayRows.map((row) => [buildDeviationRowKey(row), selectedDeviationMap.get(row) ?? null]),
   );
+  const selectedNextGapByKey = new Map(
+    displayRows.map((row) => [buildDeviationRowKey(row), selectedNextGapMap.get(row) ?? null]),
+  );
   const machineDeviationByKey = new Map();
+  const machineNextGapByKey = new Map();
 
   for (const group of displayGroups) {
     const groupRows = getRankingGroupRows(group, true);
     const deviationMap = calculateHuntScoreDeviationMap(groupRows);
+    const nextGapMap = calculateHuntScoreNextGapMap(groupRows);
     for (const row of groupRows) {
       if (deviationMap.has(row)) {
         machineDeviationByKey.set(buildDeviationRowKey(row), deviationMap.get(row));
+      }
+      if (nextGapMap.has(row)) {
+        machineNextGapByKey.set(buildDeviationRowKey(row), nextGapMap.get(row));
       }
     }
   }
@@ -206,6 +223,9 @@ function buildDeviationValueMaps(displayRows, allDisplayRows, displayGroups) {
       overallDeviation: overallDeviationByKey.get(rowKey) ?? null,
       selectedDeviation: selectedDeviationByKey.get(rowKey) ?? null,
       machineDeviation: machineDeviationByKey.get(rowKey) ?? null,
+      overallNextGap: overallNextGapByKey.get(rowKey) ?? null,
+      selectedNextGap: selectedNextGapByKey.get(rowKey) ?? null,
+      machineNextGap: machineNextGapByKey.get(rowKey) ?? null,
     });
   }
 
@@ -224,6 +244,13 @@ function normalizeDeviationScope(value) {
     return value;
   }
   return DEFAULT_DEVIATION_SCOPE;
+}
+
+function normalizeNextGapScope(value) {
+  if (value === "all" || value === "machine" || value === "selected") {
+    return value;
+  }
+  return DEFAULT_NEXT_GAP_SCOPE;
 }
 
 function normalizeRankScope(value) {
@@ -248,11 +275,16 @@ function formatDeviationForScope(row, deviationScope) {
   return formatDecimal(readDeviationForRankScope(row, normalizeDeviationScope(deviationScope)));
 }
 
+function formatNextGapForScope(row, nextGapScope) {
+  return formatDecimal(readNextGapForRankScope(row, normalizeNextGapScope(nextGapScope)));
+}
+
 function isRankingConditionHighlighted(row, highlightCondition) {
   if (
     !highlightCondition.rankFilter.hasRankFilter &&
     !highlightCondition.scoreFilter.hasScoreFilter &&
-    !highlightCondition.deviationFilter.hasDeviationFilter
+    !highlightCondition.deviationFilter.hasDeviationFilter &&
+    !highlightCondition.nextGapFilter.hasNextGapFilter
   ) {
     return false;
   }
@@ -262,6 +294,10 @@ function isRankingConditionHighlighted(row, highlightCondition) {
     normalizeDeviationScope(highlightCondition.deviationScope),
   );
   const rankValue = readRankForScope(row, highlightCondition.rankScope);
+  const nextGapValue = readNextGapForRankScope(
+    row,
+    normalizeNextGapScope(highlightCondition.nextGapScope),
+  );
   return matchesRequiredConditionFilters(
     rankValue,
     row.huntScore,
@@ -271,6 +307,8 @@ function isRankingConditionHighlighted(row, highlightCondition) {
     deviationValue,
     highlightCondition.deviationFilter,
     false,
+    nextGapValue,
+    highlightCondition.nextGapFilter,
   );
 }
 
@@ -309,6 +347,7 @@ function OverallRankingTable({
   visibleColumns,
   scoreColumnLabel,
   deviationScope,
+  nextGapScope,
   highlightCondition,
 }) {
   return (
@@ -326,6 +365,7 @@ function OverallRankingTable({
               <th>順位</th>
               <th>{scoreColumnLabel}</th>
               <th>偏差値</th>
+              <th>次点差</th>
               <th className="directoryNameHeader">機種名</th>
               <th>台番</th>
               {visibleColumns.map((column) => (
@@ -350,6 +390,9 @@ function OverallRankingTable({
                   </td>
                   <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
                     {formatDeviationForScope(row, deviationScope)}
+                  </td>
+                  <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
+                    {formatNextGapForScope(row, nextGapScope)}
                   </td>
                   <th className="directoryNameCell">
                     <Link
@@ -416,6 +459,7 @@ export function HuntRankingTable({
   const deviationScope = normalizeDeviationScope(
     highlightOptions.deviationScope ?? DEFAULT_DEVIATION_SCOPE,
   );
+  const nextGapScope = normalizeNextGapScope(highlightOptions.nextGapScope ?? DEFAULT_NEXT_GAP_SCOPE);
   const rankScope = normalizeRankScope(highlightOptions.rankScope ?? DEFAULT_RANK_SCOPE);
   const highlightCondition = useMemo(
     () => ({
@@ -429,19 +473,26 @@ export function HuntRankingTable({
       deviationFilter: buildDeviationFilter(
         highlightOptions.deviationMin ?? String(DEFAULT_DEVIATION_MIN),
       ),
+      nextGapFilter: buildNextGapFilter(highlightOptions.nextGapMin),
       requirementOptions: buildConditionRequirementOptions(highlightOptions, {
         rankRequired: true,
         scoreRequired: true,
         deviationRequired: false,
+        nextGapRequired: false,
       }),
       rankScope,
       deviationScope,
+      nextGapScope,
     }),
     [
       deviationScope,
+      nextGapScope,
       rankScope,
       highlightOptions.deviationMin,
       highlightOptions.deviationRequired,
+      highlightOptions.nextGapMin,
+      highlightOptions.nextGapRequired,
+      highlightOptions.nextGapScope,
       highlightOptions.rankMax,
       highlightOptions.rankMin,
       highlightOptions.rankRequired,
@@ -627,6 +678,7 @@ export function HuntRankingTable({
           visibleColumns={visibleColumns}
           scoreColumnLabel={scoreColumnLabel}
           deviationScope={deviationScope}
+          nextGapScope={nextGapScope}
           highlightCondition={highlightCondition}
         />
       ) : (
@@ -643,6 +695,7 @@ export function HuntRankingTable({
         visibleColumns={visibleColumns}
         scoreColumnLabel={scoreColumnLabel}
         deviationScope={deviationScope}
+        nextGapScope={nextGapScope}
         highlightCondition={highlightCondition}
       />
 
@@ -673,6 +726,7 @@ export function HuntRankingTable({
                   <th>順位</th>
                   <th>{scoreColumnLabel}</th>
                   <th>偏差値</th>
+                  <th>次点差</th>
                   <th>台番</th>
                   {visibleColumns.map((column) => (
                     <th key={column.key}>{column.label}</th>
@@ -696,6 +750,9 @@ export function HuntRankingTable({
                       </td>
                       <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
                         {formatDeviationForScope(row, deviationScope)}
+                      </td>
+                      <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
+                        {formatNextGapForScope(row, nextGapScope)}
                       </td>
                       <td>{row.slotNumber}</td>
                       {visibleColumns.map((column) => (

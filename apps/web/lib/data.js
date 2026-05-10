@@ -40,6 +40,7 @@ const DEFAULT_HUNT_SCORE_DEVIATION_MIN = 60;
 const DEFAULT_HUNT_RANK_REQUIRED = true;
 const DEFAULT_HUNT_SCORE_REQUIRED = true;
 const DEFAULT_HUNT_DEVIATION_REQUIRED = false;
+const DEFAULT_HUNT_NEXT_GAP_REQUIRED = false;
 const DEFAULT_CROSS_STORE_BACKTEST_LIMIT = 100;
 const MAX_CROSS_STORE_BACKTEST_LIMIT = 300;
 const DEFAULT_CROSS_STORE_BACKTEST_RECENT_DAYS = 30;
@@ -1450,6 +1451,7 @@ function buildInitialBacktestDetail(
   const rankMax = readPositiveInteger(defaultedOptions?.rankMax, null);
   const scoreMin = readNumber(defaultedOptions?.scoreMin);
   const deviationMin = readNumber(defaultedOptions?.deviationMin) ?? DEFAULT_HUNT_SCORE_DEVIATION_MIN;
+  const nextGapMin = readNumber(defaultedOptions?.nextGapMin);
   const rankScope =
     defaultedOptions?.rankScope === "machine" || defaultedOptions?.rankScope === "selected"
       ? defaultedOptions.rankScope
@@ -1458,10 +1460,17 @@ function buildInitialBacktestDetail(
     defaultedOptions?.deviationScope === "machine" || defaultedOptions?.deviationScope === "selected"
       ? defaultedOptions.deviationScope
       : rankScope;
+  const nextGapScope =
+    defaultedOptions?.nextGapScope === "all" ||
+    defaultedOptions?.nextGapScope === "selected" ||
+    defaultedOptions?.nextGapScope === "machine"
+      ? defaultedOptions.nextGapScope
+      : "machine";
   const requirementOptions = buildConditionRequirementOptions(defaultedOptions, {
     rankRequired: DEFAULT_HUNT_RANK_REQUIRED,
     scoreRequired: DEFAULT_HUNT_SCORE_REQUIRED,
     deviationRequired: DEFAULT_HUNT_DEVIATION_REQUIRED,
+    nextGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
   });
   const combineAimJuggler = normalizeEnabledOption(defaultedOptions?.combineAimJuggler, true);
   const combineHanabi = normalizeEnabledOption(defaultedOptions?.combineHanabi, true);
@@ -1487,11 +1496,15 @@ function buildInitialBacktestDetail(
     hasScoreFilter: scoreMin !== null,
     deviationMin,
     hasDeviationFilter: deviationMin !== null,
+    nextGapMin,
+    hasNextGapFilter: nextGapMin !== null,
     rankRequired: requirementOptions.rankRequired,
     scoreRequired: requirementOptions.scoreRequired,
     deviationRequired: requirementOptions.deviationRequired,
+    nextGapRequired: requirementOptions.nextGapRequired,
     rankScope,
     deviationScope,
+    nextGapScope,
     showGraph: defaultedOptions?.showGraph === "off" ? "off" : "on",
     differenceMode: defaultedOptions?.differenceMode === "minrepo" ? "minrepo" : "bonus",
     combineAimJuggler,
@@ -2145,9 +2158,11 @@ function buildCrossStoreBacktestOptions(options = {}) {
     rankRequired: DEFAULT_HUNT_RANK_REQUIRED,
     scoreRequired: DEFAULT_HUNT_SCORE_REQUIRED,
     deviationRequired: DEFAULT_HUNT_DEVIATION_REQUIRED,
+    nextGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
   });
   const rankScope = normalizeCrossStoreRankScope(options?.rankScope);
   const deviationScope = normalizeCrossStoreRankScope(options?.deviationScope, rankScope);
+  const nextGapScope = normalizeCrossStoreRankScope(options?.nextGapScope, "machine");
 
   return {
     periodMode: options?.periodMode === "range" ? "range" : "recent",
@@ -2164,11 +2179,14 @@ function buildCrossStoreBacktestOptions(options = {}) {
     rankMax: readPositiveIntegerOption(options, "rankMax", 3),
     scoreMin: readNumberOption(options, "scoreMin", 70),
     deviationMin: readNumberOption(options, "deviationMin", DEFAULT_HUNT_SCORE_DEVIATION_MIN),
+    nextGapMin: readNumberOption(options, "nextGapMin", null),
     rankRequired: requirementOptions.rankRequired,
     scoreRequired: requirementOptions.scoreRequired,
     deviationRequired: requirementOptions.deviationRequired,
+    nextGapRequired: requirementOptions.nextGapRequired,
     rankScope,
     deviationScope,
+    nextGapScope,
     differenceMode: options?.differenceMode === "minrepo" ? "minrepo" : "bonus",
     combineAimJuggler: normalizeEnabledOption(options?.combineAimJuggler, true),
     combineHanabi: normalizeEnabledOption(options?.combineHanabi, true),
@@ -2356,6 +2374,7 @@ function buildCrossStoreBacktestRow(store, backtest, slotCount) {
     averageSetting: total.averageSetting,
     averageHuntScore: total.averageHuntScore,
     averageDeviation: total.averageDeviation,
+    averageNextGap: total.averageNextGap,
     bbTotal: total.bbTotal,
     rbTotal: total.rbTotal,
     bbProbability: total.bbProbability,
@@ -2385,7 +2404,9 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
     }
 
     const needsAllTargetMachines =
-      backtestOptions.rankScope === "all" || backtestOptions.deviationScope === "all";
+      backtestOptions.rankScope === "all" ||
+      backtestOptions.deviationScope === "all" ||
+      backtestOptions.nextGapScope === "all";
     const storeMachineNames = readStaticStoreMachineNames(staticStore);
     const storeHuntScoreMachineNames = listHuntScoreTargetMachineNamesForStoreMachines(
       store.storeName,
@@ -2427,11 +2448,14 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       rankMax: backtestOptions.rankMax,
       scoreMin: backtestOptions.scoreMin,
       deviationMin: backtestOptions.deviationMin,
+      nextGapMin: backtestOptions.nextGapMin,
       rankRequired: backtestOptions.rankRequired,
       scoreRequired: backtestOptions.scoreRequired,
       deviationRequired: backtestOptions.deviationRequired,
+      nextGapRequired: backtestOptions.nextGapRequired,
       rankScope: backtestOptions.rankScope,
       deviationScope: backtestOptions.deviationScope,
+      nextGapScope: backtestOptions.nextGapScope,
       differenceMode: backtestOptions.differenceMode,
       combineAimJuggler: backtestOptions.combineAimJuggler,
       combineHanabi: backtestOptions.combineHanabi,
@@ -2511,11 +2535,14 @@ export async function getCrossStoreBacktestDetail(options = {}) {
     rankMax: backtestOptions.rankMax,
     scoreMin: backtestOptions.scoreMin,
     deviationMin: backtestOptions.deviationMin,
+    nextGapMin: backtestOptions.nextGapMin,
     rankRequired: backtestOptions.rankRequired,
     scoreRequired: backtestOptions.scoreRequired,
     deviationRequired: backtestOptions.deviationRequired,
+    nextGapRequired: backtestOptions.nextGapRequired,
     rankScope: backtestOptions.rankScope,
     deviationScope: backtestOptions.deviationScope,
+    nextGapScope: backtestOptions.nextGapScope,
     differenceMode: backtestOptions.differenceMode,
     combineAimJuggler: backtestOptions.combineAimJuggler,
     combineHanabi: backtestOptions.combineHanabi,

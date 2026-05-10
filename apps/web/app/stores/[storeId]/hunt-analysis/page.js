@@ -32,11 +32,14 @@ const DEFAULT_HIGHLIGHT_RANK_MIN = "1";
 const DEFAULT_HIGHLIGHT_RANK_MAX = "3";
 const DEFAULT_HIGHLIGHT_SCORE_MIN = "70";
 const DEFAULT_HIGHLIGHT_DEVIATION_MIN = "60";
+const DEFAULT_HIGHLIGHT_NEXT_GAP_MIN = "";
 const DEFAULT_HIGHLIGHT_RANK_SCOPE = "selected";
 const DEFAULT_HIGHLIGHT_DEVIATION_SCOPE = "selected";
+const DEFAULT_HIGHLIGHT_NEXT_GAP_SCOPE = "machine";
 const DEFAULT_HIGHLIGHT_RANK_REQUIRED = true;
 const DEFAULT_HIGHLIGHT_SCORE_REQUIRED = true;
 const DEFAULT_HIGHLIGHT_DEVIATION_REQUIRED = false;
+const DEFAULT_HIGHLIGHT_NEXT_GAP_REQUIRED = false;
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
 const HANABI_GROUP_NAME = "ハナビ";
@@ -296,6 +299,11 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
       "deviationMin",
       DEFAULT_HIGHLIGHT_DEVIATION_MIN,
     ),
+    nextGapMin: readSearchParamWithDefault(
+      resolvedSearchParams,
+      "nextGapMin",
+      DEFAULT_HIGHLIGHT_NEXT_GAP_MIN,
+    ),
     rankRequired: readMultiSearchParamWithDefault(
       resolvedSearchParams,
       "rankRequired",
@@ -311,6 +319,11 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
       "deviationRequired",
       DEFAULT_HIGHLIGHT_DEVIATION_REQUIRED ? "1" : "0",
     ),
+    nextGapRequired: readMultiSearchParamWithDefault(
+      resolvedSearchParams,
+      "nextGapRequired",
+      DEFAULT_HIGHLIGHT_NEXT_GAP_REQUIRED ? "1" : "0",
+    ),
     rankScope: normalizeHighlightScope(
       readSingleSearchParam(resolvedSearchParams?.rankScope),
       DEFAULT_HIGHLIGHT_RANK_SCOPE,
@@ -318,6 +331,10 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     deviationScope: normalizeHighlightScope(
       readSingleSearchParam(resolvedSearchParams?.deviationScope),
       DEFAULT_HIGHLIGHT_DEVIATION_SCOPE,
+    ),
+    nextGapScope: normalizeHighlightScope(
+      readSingleSearchParam(resolvedSearchParams?.nextGapScope),
+      DEFAULT_HIGHLIGHT_NEXT_GAP_SCOPE,
     ),
   };
   const rankRequired = rankingHighlightOptions.rankRequired.some((value) =>
@@ -329,11 +346,15 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const deviationRequired = rankingHighlightOptions.deviationRequired.some((value) =>
     ["1", "true", "on"].includes(String(value ?? "").trim()),
   );
+  const nextGapRequired = rankingHighlightOptions.nextGapRequired.some((value) =>
+    ["1", "true", "on"].includes(String(value ?? "").trim()),
+  );
   const normalizedRankingHighlightOptions = {
     ...rankingHighlightOptions,
     rankRequired,
     scoreRequired,
     deviationRequired,
+    nextGapRequired,
   };
 
   let detail;
@@ -678,6 +699,37 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                     <span>必須</span>
                   </label>
                 </div>
+                <div className="huntConditionRow">
+                  <p className="huntConditionLabel">次点差</p>
+                  <div className="huntConditionInputs">
+                    <label className="storeReserveField backtestField huntConditionNumberField">
+                      <span>下限</span>
+                      <input
+                        type="number"
+                        name="nextGapMin"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        defaultValue={rankingHighlightOptions.nextGapMin}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                  </div>
+                  <input type="hidden" name="nextGapRequired" value="0" />
+                  <label
+                    className={`metricToggleChip huntConditionRequired ${
+                      nextGapRequired ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="nextGapRequired"
+                      value="1"
+                      defaultChecked={nextGapRequired}
+                    />
+                    <span>必須</span>
+                  </label>
+                </div>
               </div>
               <div className="backtestBlock rankingMachineFilter">
                 <p className="filterControlLabel">順位の見方</p>
@@ -770,6 +822,54 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                       name="deviationScope"
                       value="all"
                       defaultChecked={rankingHighlightOptions.deviationScope === "all"}
+                    />
+                    <span>全機種内</span>
+                  </label>
+                </div>
+              </div>
+              <div className="backtestBlock rankingMachineFilter">
+                <p className="filterControlLabel">次点差の比較対象</p>
+                <div className="metricToggleRow">
+                  <label
+                    className={`metricToggleChip ${
+                      rankingHighlightOptions.nextGapScope === "selected"
+                        ? "metricToggleChipActive"
+                        : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="nextGapScope"
+                      value="selected"
+                      defaultChecked={rankingHighlightOptions.nextGapScope === "selected"}
+                    />
+                    <span>チェック機種内</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      rankingHighlightOptions.nextGapScope === "machine"
+                        ? "metricToggleChipActive"
+                        : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="nextGapScope"
+                      value="machine"
+                      defaultChecked={rankingHighlightOptions.nextGapScope === "machine"}
+                    />
+                    <span>機種内</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      rankingHighlightOptions.nextGapScope === "all" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="nextGapScope"
+                      value="all"
+                      defaultChecked={rankingHighlightOptions.nextGapScope === "all"}
                     />
                     <span>全機種内</span>
                   </label>

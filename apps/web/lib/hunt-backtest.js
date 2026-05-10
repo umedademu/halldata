@@ -1,15 +1,18 @@
 import { listHuntScoreTargetMachineNames } from "./hunt-score";
 import {
   buildDeviationFilter,
+  buildNextGapFilter,
   buildRankFilter,
   buildScoreFilter,
   calculateHuntScoreDeviationMap,
+  calculateHuntScoreNextGapMap,
   buildConditionRequirementOptions,
   matchesRequiredConditionFilters,
   normalizeDateText,
   normalizeRankScope,
   readDeviationForRankScope,
   readFiniteNumber,
+  readNextGapForRankScope,
 } from "./hunt-bookmark";
 import {
   canonicalMachineName,
@@ -389,8 +392,11 @@ function buildEmptySummary(machineName = "総計") {
     huntScoreTotal: 0,
     deviationTotal: 0,
     deviationSampleCount: 0,
+    nextGapTotal: 0,
+    nextGapSampleCount: 0,
     averageHuntScore: null,
     averageDeviation: null,
+    averageNextGap: null,
     actualRowCount: 0,
     differenceTotal: 0,
     gamesTotal: 0,
@@ -421,6 +427,7 @@ function finalizeSummary(summary) {
     ...summary,
     averageHuntScore: calculateAverage(summary.huntScoreTotal, summary.matchedRowCount),
     averageDeviation: calculateAverage(summary.deviationTotal, summary.deviationSampleCount),
+    averageNextGap: calculateAverage(summary.nextGapTotal, summary.nextGapSampleCount),
     payoutRate: calculatePayoutRate(summary.investedCoinsTotal, summary.differenceTotal),
     bbProbability: formatProbability(summary.gamesTotal, summary.bbTotal),
     rbProbability: formatProbability(summary.gamesTotal, summary.rbTotal),
@@ -431,10 +438,12 @@ function finalizeSummary(summary) {
 function buildSnapshotDeviationRows(snapshot, selectedMachineNameSet, combineAimJuggler, combineHanabi) {
   const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
   const overallDeviationMap = calculateHuntScoreDeviationMap(rows);
+  const overallNextGapMap = calculateHuntScoreNextGapMap(rows);
   const selectedRows = rows.filter((row) =>
     selectedMachineNameSet.has(String(row.machineName ?? "").trim()),
   );
   const selectedDeviationMap = calculateHuntScoreDeviationMap(selectedRows);
+  const selectedNextGapMap = calculateHuntScoreNextGapMap(selectedRows);
   const machineRowsByName = new Map();
 
   for (const row of selectedRows) {
@@ -450,11 +459,16 @@ function buildSnapshotDeviationRows(snapshot, selectedMachineNameSet, combineAim
   }
 
   const machineDeviationMap = new Map();
+  const machineNextGapMap = new Map();
   for (const machineRows of machineRowsByName.values()) {
     const deviationMap = calculateHuntScoreDeviationMap(machineRows);
+    const nextGapMap = calculateHuntScoreNextGapMap(machineRows);
     for (const row of machineRows) {
       if (deviationMap.has(row)) {
         machineDeviationMap.set(row, deviationMap.get(row));
+      }
+      if (nextGapMap.has(row)) {
+        machineNextGapMap.set(row, nextGapMap.get(row));
       }
     }
   }
@@ -467,6 +481,9 @@ function buildSnapshotDeviationRows(snapshot, selectedMachineNameSet, combineAim
         overallDeviation: overallDeviationMap.get(row) ?? null,
         selectedDeviation: selectedDeviationMap.get(row) ?? null,
         machineDeviation: machineDeviationMap.get(row) ?? null,
+        overallNextGap: overallNextGapMap.get(row) ?? null,
+        selectedNextGap: selectedNextGapMap.get(row) ?? null,
+        machineNextGap: machineNextGapMap.get(row) ?? null,
       },
     ]),
   );
@@ -480,9 +497,11 @@ function buildBacktestAggregationDetail(
     rankFilter,
     scoreFilter,
     deviationFilter,
+    nextGapFilter,
     requirementOptions,
     rankScope,
     deviationScope,
+    nextGapScope,
     differenceMode,
     combineAimJuggler,
     combineHanabi,
@@ -524,6 +543,7 @@ function buildBacktestAggregationDetail(
         rankScope === "machine" ? machineRank : rankScope === "selected" ? selectedRank : row.rank;
       const deviationRow = deviationRowsByRow.get(row) ?? row;
       const deviationValue = readDeviationForRankScope(deviationRow, deviationScope);
+      const nextGapValue = readNextGapForRankScope(deviationRow, nextGapScope);
 
       if (
         !matchesRequiredConditionFilters(
@@ -534,6 +554,9 @@ function buildBacktestAggregationDetail(
           requirementOptions,
           deviationValue,
           deviationFilter,
+          true,
+          nextGapValue,
+          nextGapFilter,
         )
       ) {
         continue;
@@ -561,6 +584,12 @@ function buildBacktestAggregationDetail(
         summary.deviationSampleCount += 1;
         totalSummary.deviationTotal += deviationValue;
         totalSummary.deviationSampleCount += 1;
+      }
+      if (Number.isFinite(nextGapValue)) {
+        summary.nextGapTotal += nextGapValue;
+        summary.nextGapSampleCount += 1;
+        totalSummary.nextGapTotal += nextGapValue;
+        totalSummary.nextGapSampleCount += 1;
       }
 
       if (actualDate) {
@@ -683,9 +712,11 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const deviationFilter = buildDeviationFilter(
     readOptionWithDefault(options, "deviationMin", DEFAULT_DEVIATION_MIN),
   );
+  const nextGapFilter = buildNextGapFilter(options.nextGapMin);
   const requirementOptions = buildConditionRequirementOptions(options);
   const rankScope = normalizeRankScope(options.rankScope);
   const deviationScope = normalizeRankScope(options.deviationScope ?? rankScope);
+  const nextGapScope = normalizeRankScope(options.nextGapScope ?? "machine");
   const showGraph = normalizeShowGraph(options.showGraph);
   const differenceMode = normalizeDifferenceMode(options.differenceMode);
   const eventFilters = buildBacktestEventFilters(options);
@@ -699,9 +730,11 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     rankFilter,
     scoreFilter,
     deviationFilter,
+    nextGapFilter,
     requirementOptions,
     rankScope,
     deviationScope,
+    nextGapScope,
     differenceMode,
     combineAimJuggler,
     combineHanabi,
@@ -737,11 +770,15 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     hasScoreFilter: scoreFilter.hasScoreFilter,
     deviationMin: deviationFilter.deviationMin,
     hasDeviationFilter: deviationFilter.hasDeviationFilter,
+    nextGapMin: nextGapFilter.nextGapMin,
+    hasNextGapFilter: nextGapFilter.hasNextGapFilter,
     rankRequired: requirementOptions.rankRequired,
     scoreRequired: requirementOptions.scoreRequired,
     deviationRequired: requirementOptions.deviationRequired,
+    nextGapRequired: requirementOptions.nextGapRequired,
     rankScope,
     deviationScope,
+    nextGapScope,
     showGraph,
     differenceMode,
     combineAimJuggler,
