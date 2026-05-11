@@ -3,6 +3,7 @@ import { calculateSettingEstimate, getSettingEstimateDefinition } from "./settin
 const HUNT_SCORE_EPSILON = 0.000000001;
 const DEFAULT_HUNT_SCORE_WINDOW_DAYS = 7;
 const TAMAYA_ZASSHONOKUMA_HISTORY_WINDOW_DAYS = 120;
+const HINODE_ONOJO_HISTORY_WINDOW_DAYS = 120;
 const DEFAULT_HUNT_SCORE_LOGIC_KEY = "apark";
 
 const OTHER_TARGET_MACHINES = [
@@ -154,6 +155,10 @@ const GOGO_ARENA_TENJIN_TARGET_MACHINES = [
 ];
 
 const TAMAYA_ZASSHONOKUMA_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
+const HINODE_ONOJO_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
@@ -313,6 +318,40 @@ const TAMAYA_ZASSHONOKUMA_SLOT_SCORES = {
   109: 3,
 };
 
+const HINODE_ONOJO_SLOT_SCORES = {
+  1651: 4,
+  1653: 6,
+  1655: -2,
+  1657: 3,
+  1658: -2,
+  1661: 4,
+  1662: -2,
+  1663: -3,
+  1665: 5,
+  1666: 4,
+  1667: -3,
+  1668: -2,
+  1670: -4,
+  1671: 3,
+  1673: 5,
+  1675: 4,
+  1736: 3,
+  1738: 3,
+  1750: -3,
+  1751: -4,
+  1752: -3,
+  1755: 3,
+  1756: -6,
+  1757: -2,
+  1758: 3,
+  1762: -3,
+  1763: 3,
+  1766: -3,
+  1767: -3,
+  1768: 3,
+  1770: 3,
+};
+
 const HUNT_SCORE_LOGIC_DEFINITIONS = [
   {
     key: "apark",
@@ -332,6 +371,13 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     windowDays: 7,
     historyWindowDays: TAMAYA_ZASSHONOKUMA_HISTORY_WINDOW_DAYS,
     scoreCalculator: calculateTamayaZasshonokumaHuntScore,
+  },
+  {
+    key: "hinode-onojo",
+    name: "HINODE大野城式",
+    windowDays: 7,
+    historyWindowDays: HINODE_ONOJO_HISTORY_WINDOW_DAYS,
+    scoreCalculator: calculateHinodeOnojoHuntScore,
   },
 ];
 
@@ -366,6 +412,12 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["玉屋409雑餉隈", "玉屋雑餉隈", "玉屋雑餉隈店"],
     targetMachines: TAMAYA_ZASSHONOKUMA_TARGET_MACHINES,
     defaultLogicKey: "tamaya-zasshonokuma",
+  },
+  {
+    key: "hinode-onojo",
+    storeNames: ["HINODE大野城店", "HINODE大野城"],
+    targetMachines: HINODE_ONOJO_TARGET_MACHINES,
+    defaultLogicKey: "hinode-onojo",
   },
   {
     key: "tamaya-ohashi",
@@ -636,6 +688,20 @@ function calculateCurrentLosingStreak(windowRows) {
 
   for (let index = windowRows.length - 1; index >= 0; index -= 1) {
     if (windowRows[index].differenceValue >= 0) {
+      break;
+    }
+    streak += 1;
+  }
+
+  return streak;
+}
+
+function calculateCurrentHighSettingStreak(windowRows) {
+  let streak = 0;
+
+  for (let index = windowRows.length - 1; index >= 0; index -= 1) {
+    const settingAverage = windowRows[index].settingAverage;
+    if (!Number.isFinite(settingAverage) || settingAverage < 4) {
       break;
     }
     streak += 1;
@@ -1251,6 +1317,225 @@ function calculateTamayaZasshonokumaHuntScore(metrics) {
   return clamp(totalScore, 0, 100);
 }
 
+function calculateHinodeSevenDayNetScore(metrics) {
+  const value = metrics.netTotal;
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  if (value <= -7500) {
+    return 30;
+  }
+  if (value <= -6000) {
+    return 26;
+  }
+  if (value <= -4500) {
+    return 22;
+  }
+  if (value <= -3200) {
+    return 17;
+  }
+  if (value <= -2200) {
+    return 12;
+  }
+  if (value <= -1200) {
+    return 7;
+  }
+  if (value >= 7500) {
+    return -20;
+  }
+  if (value >= 5500) {
+    return -16;
+  }
+  if (value >= 3800) {
+    return -12;
+  }
+  if (value >= 2400) {
+    return -7;
+  }
+  return 0;
+}
+
+function calculateHinodeTwoDayNetScore(metrics) {
+  const value = metrics.recentTwoNetTotal;
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  if (value <= -3000) {
+    return 18;
+  }
+  if (value <= -2200) {
+    return 15;
+  }
+  if (value <= -1500) {
+    return 11;
+  }
+  if (value <= -900) {
+    return 7;
+  }
+  if (value >= 3000) {
+    return -14;
+  }
+  if (value >= 2200) {
+    return -10;
+  }
+  if (value >= 1500) {
+    return -7;
+  }
+  return 0;
+}
+
+function calculateHinodeThreeDayNetScore(metrics) {
+  const value = metrics.recentThreeNetTotal;
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  if (value <= -4200) {
+    return 12;
+  }
+  if (value <= -3000) {
+    return 9;
+  }
+  if (value <= -2000) {
+    return 6;
+  }
+  if (value <= -1200) {
+    return 3;
+  }
+  if (value >= 4200) {
+    return -10;
+  }
+  if (value >= 3000) {
+    return -7;
+  }
+  if (value >= 2000) {
+    return -4;
+  }
+  return 0;
+}
+
+function calculateHinodePreviousDaySignalScore(metrics) {
+  let score = 0;
+  const previousDifference = metrics.todayDifference;
+  const previousGames = metrics.previousGames;
+  const previousRbCount = metrics.previousRbCount;
+  const previousBonusTotal = metrics.previousBonusTotal;
+
+  if (Number.isFinite(previousDifference)) {
+    if (previousDifference <= -1800) {
+      score += 7;
+    } else if (previousDifference <= -1000) {
+      score += 4;
+    } else if (previousDifference >= 2200) {
+      score -= 8;
+    } else if (previousDifference >= 1400) {
+      score -= 5;
+    }
+  }
+
+  if (Number.isFinite(previousGames)) {
+    if (previousGames >= 6000) {
+      score += 8;
+    } else if (previousGames >= 4500) {
+      score += 6;
+    } else if (previousGames >= 3000) {
+      score += 3;
+    } else if (previousGames <= 900) {
+      score -= 8;
+    } else if (previousGames <= 1600) {
+      score -= 5;
+    }
+  }
+
+  if (Number.isFinite(previousRbCount)) {
+    if (previousRbCount >= 18) {
+      score += 8;
+    } else if (previousRbCount >= 13) {
+      score += 6;
+    } else if (previousRbCount >= 9) {
+      score += 3;
+    } else if (previousRbCount <= 1) {
+      score -= 3;
+    }
+  }
+
+  if (Number.isFinite(previousBonusTotal) && previousBonusTotal >= 32) {
+    score += 2;
+  }
+
+  return score;
+}
+
+function calculateHinodeHighSettingScore(metrics) {
+  let score = 0;
+
+  if (metrics.highSettingStreak >= 3) {
+    score -= 18;
+  } else if (metrics.highSettingStreak >= 1) {
+    score += 5;
+  }
+
+  if (metrics.highSettingCount >= 5) {
+    score -= 8;
+  } else if (metrics.highSettingCount >= 4) {
+    score -= 5;
+  }
+
+  return score;
+}
+
+function calculateHinodeLongTermSettingScore(metrics) {
+  const sampleCount = metrics.historySettingSampleCount;
+  const rate = metrics.historyHighSettingRate;
+  if (!Number.isFinite(sampleCount) || sampleCount < 30 || !Number.isFinite(rate)) {
+    return 0;
+  }
+
+  if (rate >= 0.245) {
+    return 6;
+  }
+  if (rate >= 0.225) {
+    return 4;
+  }
+  if (rate >= 0.205) {
+    return 2;
+  }
+  if (rate <= 0.105) {
+    return -6;
+  }
+  if (rate <= 0.135) {
+    return -4;
+  }
+  if (rate <= 0.155) {
+    return -2;
+  }
+  return 0;
+}
+
+function calculateHinodeSlotScore(slotNumber) {
+  const normalizedSlotNumber = String(slotNumber ?? "").trim();
+  const slotNumberValue = Number(normalizedSlotNumber);
+  const fixedScore = HINODE_ONOJO_SLOT_SCORES[normalizedSlotNumber] ?? 0;
+  const islandScore = slotNumberValue >= 1651 && slotNumberValue <= 1675 ? 2 : 0;
+  return fixedScore + islandScore;
+}
+
+function calculateHinodeOnojoHuntScore(metrics) {
+  const totalScore =
+    34 +
+    calculateHinodeSevenDayNetScore(metrics) +
+    calculateHinodeTwoDayNetScore(metrics) +
+    calculateHinodeThreeDayNetScore(metrics) +
+    calculateHinodePreviousDaySignalScore(metrics) +
+    calculateHinodeHighSettingScore(metrics) +
+    calculateHinodeLongTermSettingScore(metrics) +
+    calculateHinodeSlotScore(metrics.slotNumber);
+
+  return clamp(totalScore, 0, 100);
+}
+
 function buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays) {
   if (dateIndex < windowDays - 1) {
     return null;
@@ -1378,7 +1663,9 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
 
   const todaySetting = getSettingEstimateAverage(settingDefinitionCache, row, config).average;
   const previousWindowRow = metricWindowRows.at(-2) ?? null;
+  const recentTwoRows = metricWindowRows.slice(-2);
   const recentThreeRows = metricWindowRows.slice(-3);
+  const recentTwoNetTotal = sumDifferenceValues(recentTwoRows);
   const recentThreeNetTotal = sumDifferenceValues(recentThreeRows);
   const recentThreeGamesTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentThreeBonusTotal = recentThreeRows.reduce(
@@ -1403,13 +1690,19 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     streak: calculateCurrentLosingStreak(metricWindowRows),
     lossAbsTotal,
     netTotal,
+    recentTwoNetTotal,
     recentThreeNetTotal,
     compensationRate: lossAbsTotal === 0 ? 999 : winAbsTotal / lossAbsTotal,
     maxWin,
     todayDifference: readHuntScoreDifferenceValue(row),
     previousDifference: previousWindowRow?.differenceValue ?? 0,
+    previousGames: readNumber(row?.games_count) ?? 0,
+    previousBbCount: readNumber(row?.bb_count) ?? 0,
+    previousRbCount: readNumber(row?.rb_count) ?? 0,
+    previousBonusTotal: (readNumber(row?.bb_count) ?? 0) + (readNumber(row?.rb_count) ?? 0),
     todaySetting,
     highSettingCount,
+    highSettingStreak: calculateCurrentHighSettingStreak(metricWindowRows),
     recentThreeHighSettingCount,
     gamesTotal,
     averageGames: metricWindowRows.length > 0 ? gamesTotal / metricWindowRows.length : 0,
