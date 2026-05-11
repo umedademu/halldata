@@ -349,6 +349,12 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     windowDays: 7,
     scoreCalculator: calculateHinodeOnojoV2HuntScore,
   },
+  {
+    key: "hinode-onojo-v3",
+    name: "HINODE大野城式3",
+    windowDays: 7,
+    scoreCalculator: calculateHinodeOnojoV3HuntScore,
+  },
 ];
 
 const DEFAULT_HUNT_SCORE_STORE_CONFIG = {
@@ -387,7 +393,7 @@ const HUNT_SCORE_STORE_CONFIGS = [
     key: "hinode-onojo",
     storeNames: ["HINODE大野城店", "HINODE大野城"],
     targetMachines: HINODE_ONOJO_TARGET_MACHINES,
-    defaultLogicKey: "hinode-onojo-v2",
+    defaultLogicKey: "hinode-onojo-v3",
   },
   {
     key: "tamaya-ohashi",
@@ -658,6 +664,19 @@ function calculateCurrentLosingStreak(windowRows) {
 
   for (let index = windowRows.length - 1; index >= 0; index -= 1) {
     if (windowRows[index].differenceValue >= 0) {
+      break;
+    }
+    streak += 1;
+  }
+
+  return streak;
+}
+
+function calculateCurrentWinningStreak(windowRows) {
+  let streak = 0;
+
+  for (let index = windowRows.length - 1; index >= 0; index -= 1) {
+    if (windowRows[index].differenceValue <= 0) {
       break;
     }
     streak += 1;
@@ -1603,6 +1622,62 @@ function calculateHinodeOnojoV2HuntScore(metrics) {
   return 0;
 }
 
+function calculateHinodeOnojoV3HuntScore(metrics) {
+  const lossDays = metrics.lossDays;
+  const netTotal = metrics.netTotal;
+  const recentSixLossDays = metrics.recentSixLossDays;
+  const recentFiveNetTotal = metrics.recentFiveNetTotal;
+  const recentFivePositiveCount = metrics.recentFivePositiveCount;
+  const losingStreak = metrics.streak;
+  const winningStreak = metrics.winningStreak;
+
+  if (
+    !Number.isFinite(lossDays) ||
+    !Number.isFinite(netTotal) ||
+    !Number.isFinite(recentSixLossDays) ||
+    !Number.isFinite(recentFiveNetTotal) ||
+    !Number.isFinite(recentFivePositiveCount) ||
+    !Number.isFinite(losingStreak) ||
+    !Number.isFinite(winningStreak)
+  ) {
+    return 0;
+  }
+
+  if (lossDays === 7) {
+    return 100;
+  }
+
+  if (netTotal <= -8000 && recentSixLossDays >= 5) {
+    return 95;
+  }
+
+  if (netTotal <= -5000 && losingStreak >= 3) {
+    return 85;
+  }
+
+  if (recentFiveNetTotal <= -4000 && lossDays >= 6) {
+    return 75;
+  }
+
+  if (losingStreak >= 4) {
+    return 65;
+  }
+
+  if (losingStreak >= 3) {
+    return 55;
+  }
+
+  if (winningStreak >= 3 || recentFivePositiveCount >= 4) {
+    return 20;
+  }
+
+  if (netTotal >= 5000) {
+    return 30;
+  }
+
+  return 0;
+}
+
 function buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays) {
   if (dateIndex < windowDays - 1) {
     return null;
@@ -1732,10 +1807,14 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
   const previousWindowRow = metricWindowRows.at(-2) ?? null;
   const recentTwoRows = metricWindowRows.slice(-2);
   const recentThreeRows = metricWindowRows.slice(-3);
+  const recentFiveRows = metricWindowRows.slice(-5);
   const recentSixRows = metricWindowRows.slice(-6);
   const recentTwoNetTotal = sumDifferenceValues(recentTwoRows);
   const recentThreeNetTotal = sumDifferenceValues(recentThreeRows);
+  const recentFiveNetTotal = sumDifferenceValues(recentFiveRows);
   const recentSixNetTotal = sumDifferenceValues(recentSixRows);
+  const recentSixLossDays = recentSixRows.filter((windowRow) => windowRow.differenceValue < 0).length;
+  const recentFivePositiveCount = recentFiveRows.filter((windowRow) => windowRow.differenceValue > 0).length;
   const recentSevenPositiveCount = metricWindowRows.filter((windowRow) => windowRow.differenceValue > 0).length;
   const recentThreeGamesTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentThreeBonusTotal = recentThreeRows.reduce(
@@ -1758,11 +1837,15 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     slotNumber: String(row?.slot_number ?? "").trim(),
     lossDays,
     streak: calculateCurrentLosingStreak(metricWindowRows),
+    winningStreak: calculateCurrentWinningStreak(metricWindowRows),
     lossAbsTotal,
     netTotal,
     recentTwoNetTotal,
     recentThreeNetTotal,
+    recentFiveNetTotal,
     recentSixNetTotal,
+    recentSixLossDays,
+    recentFivePositiveCount,
     recentSevenPositiveCount,
     compensationRate: lossAbsTotal === 0 ? 999 : winAbsTotal / lossAbsTotal,
     maxWin,
