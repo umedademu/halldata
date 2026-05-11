@@ -343,18 +343,6 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     windowDays: 7,
     scoreCalculator: calculateHinodeOnojoHuntScore,
   },
-  {
-    key: "hinode-onojo-v2",
-    name: "HINODE大野城式2",
-    windowDays: 7,
-    scoreCalculator: calculateHinodeOnojoV2HuntScore,
-  },
-  {
-    key: "hinode-onojo-v3",
-    name: "HINODE大野城式3",
-    windowDays: 7,
-    scoreCalculator: calculateHinodeOnojoV3HuntScore,
-  },
 ];
 
 const DEFAULT_HUNT_SCORE_STORE_CONFIG = {
@@ -393,7 +381,7 @@ const HUNT_SCORE_STORE_CONFIGS = [
     key: "hinode-onojo",
     storeNames: ["HINODE大野城店", "HINODE大野城"],
     targetMachines: HINODE_ONOJO_TARGET_MACHINES,
-    defaultLogicKey: "hinode-onojo-v3",
+    defaultLogicKey: "hinode-onojo",
   },
   {
     key: "tamaya-ohashi",
@@ -664,19 +652,6 @@ function calculateCurrentLosingStreak(windowRows) {
 
   for (let index = windowRows.length - 1; index >= 0; index -= 1) {
     if (windowRows[index].differenceValue >= 0) {
-      break;
-    }
-    streak += 1;
-  }
-
-  return streak;
-}
-
-function calculateCurrentWinningStreak(windowRows) {
-  let streak = 0;
-
-  for (let index = windowRows.length - 1; index >= 0; index -= 1) {
-    if (windowRows[index].differenceValue <= 0) {
       break;
     }
     streak += 1;
@@ -1306,251 +1281,7 @@ function calculateTamayaZasshonokumaHuntScore(metrics) {
   return clamp(totalScore, 0, 100);
 }
 
-function isHinodeRecoverablePreviousDay(value) {
-  return Number.isFinite(value) && value >= -3000 && value < 0;
-}
-
-function calculateHinodeLongDipShapeScore(metrics) {
-  const recentSixNetTotal = metrics.recentSixNetTotal;
-  const recentSevenNetTotal = metrics.netTotal;
-  const previousDifference = metrics.todayDifference;
-
-  if (!isHinodeRecoverablePreviousDay(previousDifference)) {
-    return 0;
-  }
-
-  if (recentSixNetTotal <= -6000) {
-    return 24;
-  }
-  if (recentSevenNetTotal <= -4000 && previousDifference < -500) {
-    return 22;
-  }
-  if (recentSevenNetTotal <= -4000) {
-    return 18;
-  }
-  if (recentSevenNetTotal <= -3000) {
-    return 12;
-  }
-  return 0;
-}
-
-function calculateHinodeSevenDayNetScore(metrics) {
-  const value = metrics.netTotal;
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  if (value <= -7000) {
-    return 14;
-  }
-  if (value <= -6000) {
-    return 12;
-  }
-  if (value <= -5000) {
-    return 10;
-  }
-  if (value <= -4000) {
-    return 8;
-  }
-  if (value <= -3000) {
-    return 5;
-  }
-  if (value <= -2000) {
-    return 2;
-  }
-  if (value >= 6000) {
-    return -16;
-  }
-  if (value >= 4500) {
-    return -12;
-  }
-  if (value >= 3000) {
-    return -8;
-  }
-  if (value >= 2000) {
-    return -4;
-  }
-  return 0;
-}
-
-function calculateHinodeSixDayNetScore(metrics) {
-  const value = metrics.recentSixNetTotal;
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  if (value <= -7000) {
-    return 12;
-  }
-  if (value <= -6000) {
-    return 10;
-  }
-  if (value <= -5000) {
-    return 8;
-  }
-  if (value <= -4000) {
-    return 6;
-  }
-  if (value <= -3000) {
-    return 3;
-  }
-  if (value >= 5000) {
-    return -12;
-  }
-  if (value >= 3500) {
-    return -8;
-  }
-  if (value >= 2500) {
-    return -5;
-  }
-  return 0;
-}
-
-function calculateHinodeTwoDayNetScore(metrics) {
-  const value = metrics.recentTwoNetTotal;
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  if (value <= -3000) {
-    return 9;
-  }
-  if (value <= -2200) {
-    return 7;
-  }
-  if (value <= -1500) {
-    return 5;
-  }
-  if (value <= -900) {
-    return 3;
-  }
-  if (value >= 3000) {
-    return -8;
-  }
-  if (value >= 2200) {
-    return -6;
-  }
-  if (value >= 1500) {
-    return -4;
-  }
-  return 0;
-}
-
-function calculateHinodeThreeDayNetScore(metrics) {
-  const value = metrics.recentThreeNetTotal;
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  if (value <= -4200) {
-    return 8;
-  }
-  if (value <= -3000) {
-    return 6;
-  }
-  if (value <= -2000) {
-    return 4;
-  }
-  if (value <= -1200) {
-    return 2;
-  }
-  if (value >= 4200) {
-    return -10;
-  }
-  if (value >= 3000) {
-    return -7;
-  }
-  if (value >= 2000) {
-    return -4;
-  }
-  return 0;
-}
-
-function calculateHinodePreviousDayNetScore(metrics) {
-  const previousDifference = metrics.todayDifference;
-  if (!Number.isFinite(previousDifference)) {
-    return 0;
-  }
-
-  if (previousDifference < -3000) {
-    return -28;
-  }
-  if (previousDifference < -2000) {
-    return 10;
-  }
-  if (previousDifference < -1000) {
-    return 8;
-  }
-  if (previousDifference < -500) {
-    return 6;
-  }
-  if (previousDifference < 0) {
-    return 3;
-  }
-  if (previousDifference >= 2500) {
-    return -12;
-  }
-  if (previousDifference >= 1500) {
-    return -8;
-  }
-  if (previousDifference >= 500) {
-    return -4;
-  }
-  return 0;
-}
-
-function calculateHinodeLosingStreakScore(metrics) {
-  if (metrics.streak >= 7) {
-    return 24;
-  }
-  if (metrics.streak >= 6) {
-    return 21;
-  }
-  if (metrics.streak >= 5) {
-    return 13;
-  }
-  if (metrics.streak >= 4) {
-    return 8;
-  }
-  if (metrics.streak >= 3) {
-    return 4;
-  }
-  return 0;
-}
-
-function calculateHinodeHotPeriodPenalty(metrics) {
-  let score = 0;
-
-  if (metrics.recentSevenPositiveCount >= 6) {
-    score -= 18;
-  } else if (metrics.recentSevenPositiveCount >= 5) {
-    score -= 14;
-  }
-
-  if (metrics.netTotal >= 3000 && metrics.recentTwoNetTotal >= 0) {
-    score -= 12;
-  } else if (metrics.netTotal >= 2000 && metrics.recentTwoNetTotal >= 0) {
-    score -= 8;
-  }
-
-  return score;
-}
-
 function calculateHinodeOnojoHuntScore(metrics) {
-  const totalScore =
-    calculateHinodeLongDipShapeScore(metrics) +
-    calculateHinodeSevenDayNetScore(metrics) +
-    calculateHinodeSixDayNetScore(metrics) +
-    calculateHinodeTwoDayNetScore(metrics) +
-    calculateHinodeThreeDayNetScore(metrics) +
-    calculateHinodePreviousDayNetScore(metrics) +
-    calculateHinodeLosingStreakScore(metrics) +
-    calculateHinodeHotPeriodPenalty(metrics);
-
-  return clamp(totalScore, 0, 100);
-}
-
-function calculateHinodeOnojoV2HuntScore(metrics) {
   const lossDays = metrics.lossDays;
   const netTotal = metrics.netTotal;
   if (!Number.isFinite(lossDays) || !Number.isFinite(netTotal)) {
@@ -1617,62 +1348,6 @@ function calculateHinodeOnojoV2HuntScore(metrics) {
 
   if (lossDays === 4) {
     return netTotal <= -6500 ? 24 : 12;
-  }
-
-  return 0;
-}
-
-function calculateHinodeOnojoV3HuntScore(metrics) {
-  const lossDays = metrics.lossDays;
-  const netTotal = metrics.netTotal;
-  const recentSixLossDays = metrics.recentSixLossDays;
-  const recentFiveNetTotal = metrics.recentFiveNetTotal;
-  const recentFivePositiveCount = metrics.recentFivePositiveCount;
-  const losingStreak = metrics.streak;
-  const winningStreak = metrics.winningStreak;
-
-  if (
-    !Number.isFinite(lossDays) ||
-    !Number.isFinite(netTotal) ||
-    !Number.isFinite(recentSixLossDays) ||
-    !Number.isFinite(recentFiveNetTotal) ||
-    !Number.isFinite(recentFivePositiveCount) ||
-    !Number.isFinite(losingStreak) ||
-    !Number.isFinite(winningStreak)
-  ) {
-    return 0;
-  }
-
-  if (lossDays === 7) {
-    return 100;
-  }
-
-  if (netTotal <= -8000 && recentSixLossDays >= 5) {
-    return 95;
-  }
-
-  if (netTotal <= -5000 && losingStreak >= 3) {
-    return 85;
-  }
-
-  if (recentFiveNetTotal <= -4000 && lossDays >= 6) {
-    return 75;
-  }
-
-  if (losingStreak >= 4) {
-    return 65;
-  }
-
-  if (losingStreak >= 3) {
-    return 55;
-  }
-
-  if (winningStreak >= 3 || recentFivePositiveCount >= 4) {
-    return 20;
-  }
-
-  if (netTotal >= 5000) {
-    return 30;
   }
 
   return 0;
@@ -1807,15 +1482,8 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
   const previousWindowRow = metricWindowRows.at(-2) ?? null;
   const recentTwoRows = metricWindowRows.slice(-2);
   const recentThreeRows = metricWindowRows.slice(-3);
-  const recentFiveRows = metricWindowRows.slice(-5);
-  const recentSixRows = metricWindowRows.slice(-6);
   const recentTwoNetTotal = sumDifferenceValues(recentTwoRows);
   const recentThreeNetTotal = sumDifferenceValues(recentThreeRows);
-  const recentFiveNetTotal = sumDifferenceValues(recentFiveRows);
-  const recentSixNetTotal = sumDifferenceValues(recentSixRows);
-  const recentSixLossDays = recentSixRows.filter((windowRow) => windowRow.differenceValue < 0).length;
-  const recentFivePositiveCount = recentFiveRows.filter((windowRow) => windowRow.differenceValue > 0).length;
-  const recentSevenPositiveCount = metricWindowRows.filter((windowRow) => windowRow.differenceValue > 0).length;
   const recentThreeGamesTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentThreeBonusTotal = recentThreeRows.reduce(
     (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
@@ -1837,16 +1505,10 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     slotNumber: String(row?.slot_number ?? "").trim(),
     lossDays,
     streak: calculateCurrentLosingStreak(metricWindowRows),
-    winningStreak: calculateCurrentWinningStreak(metricWindowRows),
     lossAbsTotal,
     netTotal,
     recentTwoNetTotal,
     recentThreeNetTotal,
-    recentFiveNetTotal,
-    recentSixNetTotal,
-    recentSixLossDays,
-    recentFivePositiveCount,
-    recentSevenPositiveCount,
     compensationRate: lossAbsTotal === 0 ? 999 : winAbsTotal / lossAbsTotal,
     maxWin,
     todayDifference: readHuntScoreDifferenceValue(row),
