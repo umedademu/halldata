@@ -2,6 +2,7 @@ import { calculateSettingEstimate, getSettingEstimateDefinition } from "./settin
 
 const HUNT_SCORE_EPSILON = 0.000000001;
 const DEFAULT_HUNT_SCORE_WINDOW_DAYS = 7;
+const TAMAYA_ZASSHONOKUMA_HISTORY_WINDOW_DAYS = 120;
 const DEFAULT_HUNT_SCORE_LOGIC_KEY = "apark";
 
 const OTHER_TARGET_MACHINES = [
@@ -294,21 +295,22 @@ const GOGO_ARENA_TENJIN_SLOT_SCORES = {
 };
 
 const TAMAYA_ZASSHONOKUMA_SLOT_SCORES = {
-  69: 9,
-  73: 6,
-  74: -8,
-  77: 7,
-  78: -4,
-  79: -4,
-  97: 10,
-  98: -3,
-  99: 6,
-  100: -6,
-  101: -4,
-  102: -6,
-  103: 6,
-  104: 7,
-  109: 6,
+  69: 5,
+  71: -2,
+  73: 3,
+  74: -5,
+  77: 4,
+  78: -2,
+  79: -2,
+  97: 6,
+  98: -2,
+  99: 3,
+  100: -4,
+  101: -2,
+  102: -4,
+  103: 3,
+  104: 4,
+  109: 3,
 };
 
 const HUNT_SCORE_LOGIC_DEFINITIONS = [
@@ -328,6 +330,7 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     key: "tamaya-zasshonokuma",
     name: "玉屋雑餉隈式",
     windowDays: 7,
+    historyWindowDays: TAMAYA_ZASSHONOKUMA_HISTORY_WINDOW_DAYS,
     scoreCalculator: calculateTamayaZasshonokumaHuntScore,
   },
 ];
@@ -497,6 +500,8 @@ function buildRuntimeHuntScoreConfig(config, logicKey = "") {
     logicKey: logicDefinition.key,
     logicName: logicDefinition.name,
     windowDays: logicDefinition.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
+    historyWindowDays:
+      logicDefinition.historyWindowDays ?? logicDefinition.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
     scoreCalculator: logicDefinition.scoreCalculator,
   };
 }
@@ -994,158 +999,192 @@ function calculateGogoArenaTenjinHuntScore(metrics) {
   return clamp(totalScore, 0, 100);
 }
 
-function listContextMetricValues(context, selector) {
-  return (Array.isArray(context?.metricsList) ? context.metricsList : [])
-    .map(selector)
-    .filter((value) => Number.isFinite(value));
-}
-
-function calculateContextRank(value, context, selector, order = "asc") {
+function calculateTamayaRecentNetScore(metrics) {
+  const value = metrics.recentThreeNetTotal;
   if (!Number.isFinite(value)) {
-    return null;
-  }
-
-  const sortedValues = listContextMetricValues(context, selector).sort((left, right) =>
-    order === "desc" ? right - left : left - right,
-  );
-  const index = sortedValues.findIndex(
-    (candidateValue) => Math.abs(candidateValue - value) <= HUNT_SCORE_EPSILON,
-  );
-  return index >= 0 ? index + 1 : null;
-}
-
-function scoreFromRanks(rank, thresholds) {
-  if (!Number.isFinite(rank)) {
     return 0;
   }
 
-  for (const threshold of thresholds) {
-    if (rank <= threshold.rank) {
-      return threshold.score;
-    }
+  if (value <= -4500) {
+    return 30;
   }
-
+  if (value <= -3500) {
+    return 25;
+  }
+  if (value <= -2800) {
+    return 21;
+  }
+  if (value <= -2200) {
+    return 17;
+  }
+  if (value <= -1600) {
+    return 12;
+  }
+  if (value <= -1000) {
+    return 7;
+  }
+  if (value >= 4000) {
+    return -20;
+  }
+  if (value >= 3000) {
+    return -16;
+  }
+  if (value >= 2200) {
+    return -12;
+  }
+  if (value >= 1500) {
+    return -8;
+  }
+  if (value >= 800) {
+    return -4;
+  }
   return 0;
 }
 
-function calculateTamayaRankScore(value, context, selector, bottomThresholds, topThresholds) {
-  const bottomRank = calculateContextRank(value, context, selector, "asc");
-  const topRank = calculateContextRank(value, context, selector, "desc");
-  return scoreFromRanks(bottomRank, bottomThresholds) + scoreFromRanks(topRank, topThresholds);
-}
-
-function calculateTamayaRecentNetScore(metrics, context) {
-  return calculateTamayaRankScore(
-    metrics.recentThreeNetTotal,
-    context,
-    (metric) => metric.recentThreeNetTotal,
-    [
-      { rank: 3, score: 28 },
-      { rank: 4, score: 25 },
-      { rank: 6, score: 20 },
-      { rank: 8, score: 12 },
-      { rank: 12, score: 5 },
-    ],
-    [
-      { rank: 3, score: -18 },
-      { rank: 6, score: -12 },
-      { rank: 8, score: -6 },
-    ],
-  );
-}
-
-function calculateTamayaRecentBonusScore(metrics, context) {
-  return calculateTamayaRankScore(
-    metrics.recentThreeBonusTotal,
-    context,
-    (metric) => metric.recentThreeBonusTotal,
-    [
-      { rank: 3, score: 16 },
-      { rank: 6, score: 12 },
-      { rank: 8, score: 8 },
-    ],
-    [
-      { rank: 3, score: -12 },
-      { rank: 6, score: -8 },
-    ],
-  );
-}
-
-function calculateTamayaRecentGamesScore(metrics, context) {
-  return calculateTamayaRankScore(
-    metrics.recentThreeGamesTotal,
-    context,
-    (metric) => metric.recentThreeGamesTotal,
-    [
-      { rank: 3, score: 11 },
-      { rank: 8, score: 7 },
-    ],
-    [
-      { rank: 6, score: -7 },
-    ],
-  );
-}
-
-function calculateTamayaSevenDayNetScore(metrics, context) {
-  return calculateTamayaRankScore(
-    metrics.netTotal,
-    context,
-    (metric) => metric.netTotal,
-    [
-      { rank: 3, score: 8 },
-      { rank: 6, score: 5 },
-    ],
-    [
-      { rank: 4, score: -5 },
-    ],
-  );
-}
-
-function calculateTamayaPreviousDayShapeScore(metrics, context) {
-  const recentThreeRank = calculateContextRank(
-    metrics.recentThreeNetTotal,
-    context,
-    (metric) => metric.recentThreeNetTotal,
-    "asc",
-  );
-  const todayRank = calculateContextRank(
-    metrics.todayDifference,
-    context,
-    (metric) => metric.todayDifference,
-    "asc",
-  );
-  if (!Number.isFinite(recentThreeRank) || recentThreeRank > 4 || !Number.isFinite(todayRank)) {
+function calculateTamayaRecentBonusScore(metrics) {
+  const value = metrics.recentThreeBonusTotal;
+  if (!Number.isFinite(value)) {
     return 0;
   }
-  return todayRank > 8 ? 8 : 1;
+
+  if (value <= 8) {
+    return 16;
+  }
+  if (value <= 11) {
+    return 13;
+  }
+  if (value <= 14) {
+    return 10;
+  }
+  if (value <= 18) {
+    return 6;
+  }
+  if (value >= 45) {
+    return -14;
+  }
+  if (value >= 38) {
+    return -10;
+  }
+  if (value >= 32) {
+    return -7;
+  }
+  if (value >= 26) {
+    return -4;
+  }
+  return 0;
+}
+
+function calculateTamayaRecentGamesScore(metrics) {
+  const value = metrics.recentThreeGamesTotal;
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  if (value <= 1800) {
+    return 11;
+  }
+  if (value <= 2600) {
+    return 9;
+  }
+  if (value <= 3600) {
+    return 6;
+  }
+  if (value <= 4800) {
+    return 3;
+  }
+  if (value >= 15000) {
+    return -10;
+  }
+  if (value >= 12000) {
+    return -7;
+  }
+  if (value >= 9500) {
+    return -4;
+  }
+  return 0;
+}
+
+function calculateTamayaSevenDayNetScore(metrics) {
+  const value = metrics.netTotal;
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  if (value <= -7000) {
+    return 10;
+  }
+  if (value <= -5000) {
+    return 8;
+  }
+  if (value <= -3500) {
+    return 6;
+  }
+  if (value <= -2000) {
+    return 3;
+  }
+  if (value >= 7000) {
+    return -8;
+  }
+  if (value >= 5000) {
+    return -6;
+  }
+  if (value >= 3000) {
+    return -3;
+  }
+  return 0;
+}
+
+function calculateTamayaPreviousDayShapeScore(metrics) {
+  const recentThreeNetTotal = metrics.recentThreeNetTotal;
+  const todayDifference = metrics.todayDifference;
+  if (!Number.isFinite(recentThreeNetTotal) || !Number.isFinite(todayDifference)) {
+    return 0;
+  }
+
+  if (recentThreeNetTotal <= -2200) {
+    if (todayDifference > -1000) {
+      return 8;
+    }
+    if (todayDifference <= -2500) {
+      return 1;
+    }
+    return 4;
+  }
+  if (todayDifference >= 1500) {
+    return -6;
+  }
+  if (todayDifference >= 800) {
+    return -3;
+  }
+  return 0;
 }
 
 function calculateTamayaHighSettingScore(metrics) {
   let score = 0;
 
   if (metrics.highSettingCount === 0) {
-    score += 12;
+    score += 10;
   } else if (metrics.highSettingCount >= 3) {
-    score -= 12;
+    score -= 14;
   } else if (metrics.highSettingCount >= 2) {
-    score -= 7;
+    score -= 8;
   } else {
-    score -= 1;
+    score -= 2;
   }
 
   if (metrics.recentThreeHighSettingCount === 0) {
-    score += 3;
+    score += 4;
   } else if (metrics.recentThreeHighSettingCount >= 2) {
-    score -= 12;
+    score -= 14;
   } else {
-    score -= 7;
+    score -= 8;
   }
 
   if (Number.isFinite(metrics.todaySetting)) {
     if (metrics.todaySetting >= 4) {
-      score -= 9;
+      score -= 10;
     } else if (metrics.todaySetting >= 3.5) {
-      score -= 3;
+      score -= 4;
     } else if (metrics.todaySetting <= 3) {
       score += 2;
     }
@@ -1163,21 +1202,50 @@ function calculateTamayaSlotScore(slotNumber) {
   const normalizedSlotNumber = String(slotNumber ?? "").trim();
   const slotNumberValue = Number(normalizedSlotNumber);
   const fixedScore = TAMAYA_ZASSHONOKUMA_SLOT_SCORES[normalizedSlotNumber] ?? 0;
-  const cornerScore = [69, 79, 97, 109].includes(slotNumberValue) ? 3 : 0;
+  const cornerScore = [69, 79, 97, 109].includes(slotNumberValue) ? 2 : 0;
   const lastDigit = readSlotLastDigit(slotNumber);
-  const tailScore = [3, 7, 9].includes(lastDigit) ? 2 : [0, 1, 2].includes(lastDigit) ? -2 : 0;
+  const tailScore = [3, 7, 9].includes(lastDigit) ? 1 : [0, 1, 2].includes(lastDigit) ? -1 : 0;
   return fixedScore + cornerScore + tailScore;
 }
 
-function calculateTamayaZasshonokumaHuntScore(metrics, context = {}) {
+function calculateTamayaLongTermSettingScore(metrics) {
+  const sampleCount = metrics.historySettingSampleCount;
+  const rate = metrics.historyHighSettingRate;
+  if (!Number.isFinite(sampleCount) || sampleCount < 30 || !Number.isFinite(rate)) {
+    return 0;
+  }
+
+  if (rate >= 0.21) {
+    return 8;
+  }
+  if (rate >= 0.185) {
+    return 6;
+  }
+  if (rate >= 0.165) {
+    return 4;
+  }
+  if (rate <= 0.085) {
+    return -8;
+  }
+  if (rate <= 0.11) {
+    return -6;
+  }
+  if (rate <= 0.125) {
+    return -3;
+  }
+  return 0;
+}
+
+function calculateTamayaZasshonokumaHuntScore(metrics) {
   const totalScore =
-    36 +
-    calculateTamayaRecentNetScore(metrics, context) +
-    calculateTamayaRecentBonusScore(metrics, context) +
-    calculateTamayaRecentGamesScore(metrics, context) +
-    calculateTamayaSevenDayNetScore(metrics, context) +
-    calculateTamayaPreviousDayShapeScore(metrics, context) +
+    40 +
+    calculateTamayaRecentNetScore(metrics) +
+    calculateTamayaRecentBonusScore(metrics) +
+    calculateTamayaRecentGamesScore(metrics) +
+    calculateTamayaSevenDayNetScore(metrics) +
+    calculateTamayaPreviousDayShapeScore(metrics) +
     calculateTamayaHighSettingScore(metrics) +
+    calculateTamayaLongTermSettingScore(metrics) +
     calculateTamayaSlotScore(metrics.slotNumber);
 
   return clamp(totalScore, 0, 100);
@@ -1210,6 +1278,27 @@ function buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays) 
   return windowRows;
 }
 
+function buildAvailableWindowRows(businessDates, dateIndex, recordMapByDate, windowDays) {
+  const normalizedWindowDays = Math.max(1, Number(windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
+  const startIndex = Math.max(0, dateIndex - (normalizedWindowDays - 1));
+  const windowDates = businessDates.slice(startIndex, dateIndex + 1);
+  const windowRows = [];
+
+  for (const date of windowDates) {
+    const row = recordMapByDate.get(date);
+    if (!row || !hasMeaningfulResult(row)) {
+      continue;
+    }
+
+    windowRows.push({
+      row,
+      differenceValue: readHuntScoreDifferenceValue(row),
+    });
+  }
+
+  return windowRows;
+}
+
 function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, settingDefinitionCache, config) {
   const windowRows = buildWindowRows(
     businessDates,
@@ -1231,6 +1320,9 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
   let rbTotal = 0;
   let highSettingCount = 0;
   const metricWindowRows = [];
+  let historySettingSampleCount = 0;
+  let historyHighSettingCount = 0;
+  let historyNetTotal = 0;
 
   for (const windowRow of windowRows) {
     const differenceValue = windowRow.differenceValue;
@@ -1261,6 +1353,27 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
       rbCount,
       settingAverage,
     });
+  }
+
+  const historyWindowRows = buildAvailableWindowRows(
+    businessDates,
+    dateIndex,
+    recordMapByDate,
+    config.historyWindowDays ?? config.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
+  );
+  for (const historyWindowRow of historyWindowRows) {
+    const settingAverage = getSettingEstimateAverage(
+      settingDefinitionCache,
+      historyWindowRow.row,
+      config,
+    ).average;
+    historyNetTotal += historyWindowRow.differenceValue;
+    if (Number.isFinite(settingAverage)) {
+      historySettingSampleCount += 1;
+      if (settingAverage >= 4) {
+        historyHighSettingCount += 1;
+      }
+    }
   }
 
   const todaySetting = getSettingEstimateAverage(settingDefinitionCache, row, config).average;
@@ -1302,6 +1415,11 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     averageGames: metricWindowRows.length > 0 ? gamesTotal / metricWindowRows.length : 0,
     recentThreeGamesTotal,
     recentThreeBonusTotal,
+    historySettingSampleCount,
+    historyHighSettingCount,
+    historyHighSettingRate:
+      historySettingSampleCount > 0 ? historyHighSettingCount / historySettingSampleCount : null,
+    historyNetTotal,
     bbTotal,
     rbTotal,
     bbRate: gamesTotal > 0 ? bbTotal / gamesTotal : 0,
