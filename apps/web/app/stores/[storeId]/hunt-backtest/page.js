@@ -663,7 +663,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
               </div>
 
               <div className="backtestBlock">
-                <p className="filterControlLabel">差枚と機械割の基準</p>
+                <p className="filterControlLabel">コイン持ち基準</p>
                 <div className="metricToggleRow">
                   <label
                     className={`metricToggleChip ${
@@ -676,20 +676,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       value="bonus"
                       defaultChecked={detail.backtest.differenceMode === "bonus"}
                     />
-                    <span>ボーナス数基準</span>
-                  </label>
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.differenceMode === "minrepo" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="differenceMode"
-                      value="minrepo"
-                      defaultChecked={detail.backtest.differenceMode === "minrepo"}
-                    />
-                    <span>みんレポ基準</span>
+                    <span>設定1基準</span>
                   </label>
                   <label
                     className={`metricToggleChip ${
@@ -704,7 +691,20 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       value="estimated"
                       defaultChecked={detail.backtest.differenceMode === "estimated"}
                     />
-                    <span>推定コイン持ち基準</span>
+                    <span>推定設定基準</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.differenceMode === "minrepo" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="differenceMode"
+                      value="minrepo"
+                      defaultChecked={detail.backtest.differenceMode === "minrepo"}
+                    />
+                    <span>みんレポ基準</span>
                   </label>
                 </div>
               </div>

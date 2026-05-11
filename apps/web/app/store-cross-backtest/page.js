@@ -653,7 +653,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
           </div>
 
           <div className="backtestBlock">
-            <p className="filterControlLabel">差枚と機械割の基準</p>
+            <p className="filterControlLabel">コイン持ち基準</p>
             <div className="metricToggleRow">
               <label
                 className={`metricToggleChip ${
@@ -666,7 +666,20 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                   value="bonus"
                   defaultChecked={detail.differenceMode === "bonus"}
                 />
-                <span>ボーナス数基準</span>
+                <span>設定1基準</span>
+              </label>
+              <label
+                className={`metricToggleChip ${
+                  detail.differenceMode === "estimated" ? "metricToggleChipActive" : ""
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="differenceMode"
+                  value="estimated"
+                  defaultChecked={detail.differenceMode === "estimated"}
+                />
+                <span>推定設定基準</span>
               </label>
               <label
                 className={`metricToggleChip ${
@@ -680,19 +693,6 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                   defaultChecked={detail.differenceMode === "minrepo"}
                 />
                 <span>みんレポ基準</span>
-              </label>
-              <label
-                className={`metricToggleChip ${
-                  detail.differenceMode === "estimated" ? "metricToggleChipActive" : ""
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="differenceMode"
-                  value="estimated"
-                  defaultChecked={detail.differenceMode === "estimated"}
-                />
-                <span>推定コイン持ち基準</span>
               </label>
             </div>
           </div>

@@ -608,7 +608,7 @@ export function HuntRankingTable({
     <>
       <section className="filterPanel">
         <div>
-          <p className="sectionLabel">差枚の基準</p>
+          <p className="sectionLabel">コイン持ち基準</p>
           <div className="metricToggleRow">
             <label
               className={`metricToggleChip ${
@@ -622,7 +622,21 @@ export function HuntRankingTable({
                 checked={differenceMode === "bonus"}
                 onChange={() => setDifferenceMode("bonus")}
               />
-              <span>ボーナス数基準</span>
+              <span>設定1基準</span>
+            </label>
+            <label
+              className={`metricToggleChip ${
+                differenceMode === "estimated" ? "metricToggleChipActive" : ""
+              }`}
+            >
+              <input
+                type="radio"
+                name="huntRankingDifferenceMode"
+                value="estimated"
+                checked={differenceMode === "estimated"}
+                onChange={() => setDifferenceMode("estimated")}
+              />
+              <span>推定設定基準</span>
             </label>
             <label
               className={`metricToggleChip ${
@@ -637,20 +651,6 @@ export function HuntRankingTable({
                 onChange={() => setDifferenceMode("minrepo")}
               />
               <span>みんレポ基準</span>
-            </label>
-            <label
-              className={`metricToggleChip ${
-                differenceMode === "estimated" ? "metricToggleChipActive" : ""
-              }`}
-            >
-              <input
-                type="radio"
-                name="huntRankingDifferenceMode"
-                value="estimated"
-                checked={differenceMode === "estimated"}
-                onChange={() => setDifferenceMode("estimated")}
-              />
-              <span>推定コイン持ち基準</span>
             </label>
           </div>
         </div>
