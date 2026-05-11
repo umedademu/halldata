@@ -1711,9 +1711,21 @@ const MatrixRow = memo(function MatrixRow({
   getCompositeSettingEstimate,
   huntScoreHighlightKeySet = new Set(),
 }) {
+  const dateCellClassName = ["dateCell", row.hasSite7Data ? "site7DateCell" : ""]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <tr className={isHighlighted ? "matrixRowHighlighted" : ""}>
-      <th className="dateCell">{formatShortDate(row.date)}</th>
+      <th
+        className={dateCellClassName}
+        title={row.hasSite7Data ? "Sセブン暫定データ" : undefined}
+      >
+        <span className="dateCellStack">
+          <span>{formatShortDate(row.date)}</span>
+          {row.hasSite7Data ? <span className="site7DateBadge">Sセブン</span> : null}
+        </span>
+      </th>
       <td className="weekdayCell">{formatWeekday(row.date)}</td>
       {slotNumbers.flatMap((slotNumber, slotIndex) => {
         const record = row.recordsBySlot[slotNumber] ?? null;

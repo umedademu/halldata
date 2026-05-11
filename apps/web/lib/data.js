@@ -1098,6 +1098,7 @@ function buildMachineDetailFromDailyRows(rows) {
         combined_ratio_text: sourceRecord.combined_ratio_text ?? null,
         bb_ratio_text: sourceRecord.bb_ratio_text ?? null,
         rb_ratio_text: sourceRecord.rb_ratio_text ?? null,
+        data_source: String(sourceRecord.data_source ?? "").trim() || null,
       });
       recordsBySlot[slotNumber] = record;
       slotNumbersSet.add(slotNumber);
@@ -1118,6 +1119,7 @@ function buildMachineDetailFromDailyRows(rows) {
     dateRows.push({
       date,
       recordsBySlot,
+      hasSite7Data: Object.values(recordsBySlot).some(isSite7Record),
     });
 
     const storedAverageDifference =
@@ -1197,6 +1199,7 @@ function buildMachineDetail(rows) {
   const dateRows = dates.map((date) => ({
     date,
     recordsBySlot: recordsByDate.get(date),
+    hasSite7Data: Object.values(recordsByDate.get(date) ?? {}).some(isSite7Record),
   }));
 
   const bestWorstCandidates = [...dailyDifferences.entries()]
@@ -1329,10 +1332,14 @@ function readStaticStoreRecords(staticStore, dateRange = null) {
       combined_ratio_text: record.combined_ratio_text ?? null,
       bb_ratio_text: record.bb_ratio_text ?? null,
       rb_ratio_text: record.rb_ratio_text ?? null,
-      data_source: record.data_source ?? null,
+      data_source: String(record.data_source ?? "").trim() || null,
     }))
     .filter((record) => record.machine_name && record.target_date && record.slot_number)
     .map(withCanonicalMachineName);
+}
+
+function isSite7Record(record) {
+  return String(record?.data_source ?? "").trim().toLowerCase() === "site7";
 }
 
 function findStaticMachineEntries(staticStore, machineNames) {
@@ -1598,6 +1605,12 @@ function applySnapshotHuntScores(snapshots) {
       }
     }
   }
+}
+
+function snapshotUsesSite7Data(snapshot) {
+  return (Array.isArray(snapshot?.rows) ? snapshot.rows : []).some((row) =>
+    isSite7Record(row?.currentRecord),
+  );
 }
 
 function buildMachineHuntScoreHighlightDetail(storeName, snapshots, storeMachineNames = null) {
@@ -1868,6 +1881,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   const rankingDateOptions = snapshots.map((snapshot) => ({
     date: snapshot.baseDate,
     nextBusinessDate: snapshot.nextBusinessDate ?? null,
+    hasSite7Data: snapshotUsesSite7Data(snapshot),
   }));
   const rankingDates = snapshots.map((snapshot) => snapshot.baseDate);
   const selectedDate = rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null;
@@ -1901,6 +1915,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     limit: displayLimit,
     predictionDate: snapshot?.baseDate ?? null,
     nextBusinessDate: snapshot?.nextBusinessDate ?? null,
+    predictionHasSite7Data: snapshotUsesSite7Data(snapshot),
     rows: rankingRows,
     rankingGroups,
     totalCount,
@@ -2584,6 +2599,7 @@ export async function getHuntScoreAnalysisPageDetail(
   const rankingDateOptions = snapshots.map((snapshot) => ({
     date: snapshot.baseDate,
     nextBusinessDate: snapshot.nextBusinessDate ?? null,
+    hasSite7Data: snapshotUsesSite7Data(snapshot),
   }));
   const rankingDates = snapshots.map((snapshot) => snapshot.baseDate);
   const selectedDate = rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null;
@@ -2621,6 +2637,7 @@ export async function getHuntScoreAnalysisPageDetail(
     limit: displayLimit,
     predictionDate: snapshot?.baseDate ?? null,
     nextBusinessDate: snapshot?.nextBusinessDate ?? null,
+    predictionHasSite7Data: snapshotUsesSite7Data(snapshot),
     rows: rankingRows,
     rankingGroups,
     totalCount,
