@@ -1524,7 +1524,6 @@ function calculateHinodeSlotScore(slotNumber) {
 
 function calculateHinodeOnojoHuntScore(metrics) {
   const totalScore =
-    34 +
     calculateHinodeSevenDayNetScore(metrics) +
     calculateHinodeTwoDayNetScore(metrics) +
     calculateHinodeThreeDayNetScore(metrics) +
