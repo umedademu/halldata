@@ -376,6 +376,7 @@ function OverallRankingTable({
           <tbody>
             {rows.map((row) => {
               const rowClassName = getSettingEstimateHighlightClass(row.nextSettingEstimate?.average);
+              const machineHasSite7Data = Boolean(row.predictionMachineHasSite7Data);
 
               return (
                 <tr
@@ -394,13 +395,19 @@ function OverallRankingTable({
                   <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
                     {formatNextGapForScope(row, nextGapScope)}
                   </td>
-                  <th className="directoryNameCell">
-                    <Link
-                      href={`/stores/${storeId}/machines/${encodeURIComponent(row.machineName)}`}
-                      className="directoryPrimaryLink"
-                    >
-                      {row.machineName}
-                    </Link>
+                  <th
+                    className={`directoryNameCell ${machineHasSite7Data ? "site7MachineCell" : ""}`}
+                    title={machineHasSite7Data ? "この機種にSセブン暫定データが含まれます" : undefined}
+                  >
+                    <span className="directoryNameContent">
+                      <Link
+                        href={`/stores/${storeId}/machines/${encodeURIComponent(row.machineName)}`}
+                        className="directoryPrimaryLink"
+                      >
+                        {row.machineName}
+                      </Link>
+                      {machineHasSite7Data ? <span className="site7RankingBadge">Sセブン</span> : null}
+                    </span>
                   </th>
                   <td>{row.slotNumber}</td>
                   {visibleColumns.map((column) => (
@@ -719,26 +726,30 @@ export function HuntRankingTable({
         highlightCondition={highlightCondition}
       />
 
-      {displayGroupsWithDeviation.map((group) => (
-        <section key={group.machineName} className="tablePanel directoryPanel">
-          <div className="tablePanelHeader">
-            <div>
-              <p className="sectionLabel">狙い度上位</p>
-              <h2 className="tablePanelTitle">
-                {group.isCombinedGroup ? (
-                  <span>{group.machineName}</span>
-                ) : (
-                  <Link
-                    href={`/stores/${storeId}/machines/${encodeURIComponent(group.machineName)}`}
-                    className="directoryPrimaryLink"
-                  >
-                    {group.machineName}
-                  </Link>
-                )}
-                {` 上位${formatNumber(group.rows.length)}台`}
-              </h2>
+      {displayGroupsWithDeviation.map((group) => {
+        const groupHasSite7Data = group.rows.some((row) => row.predictionMachineHasSite7Data);
+
+        return (
+          <section key={group.machineName} className="tablePanel directoryPanel">
+            <div className="tablePanelHeader">
+              <div>
+                <p className="sectionLabel">狙い度上位</p>
+                <h2 className="tablePanelTitle">
+                  {group.isCombinedGroup ? (
+                    <span>{group.machineName}</span>
+                  ) : (
+                    <Link
+                      href={`/stores/${storeId}/machines/${encodeURIComponent(group.machineName)}`}
+                      className="directoryPrimaryLink"
+                    >
+                      {group.machineName}
+                    </Link>
+                  )}
+                  {groupHasSite7Data ? <span className="site7RankingBadge">Sセブン</span> : null}
+                  {` 上位${formatNumber(group.rows.length)}台`}
+                </h2>
+              </div>
             </div>
-          </div>
           <div className="tableScroller directoryScroller">
             <table className="directoryTable">
               <thead>
@@ -787,7 +798,8 @@ export function HuntRankingTable({
             </table>
           </div>
         </section>
-      ))}
+        );
+      })}
     </>
   );
 }

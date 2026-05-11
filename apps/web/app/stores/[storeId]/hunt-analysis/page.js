@@ -93,11 +93,10 @@ function parseRequestedLimit(value) {
   return parsedValue;
 }
 
-function formatRankingDateOption(date, nextBusinessDate, hasSite7Data = false) {
+function formatRankingDateOption(date, nextBusinessDate) {
   const scoreDateLabel = formatMonthDay(date);
   const actualDateLabel = nextBusinessDate ? `${formatMonthDay(nextBusinessDate)}実績` : "実績なし";
-  const sourceLabel = hasSite7Data ? "（Sセブン暫定）" : "";
-  return `${scoreDateLabel}狙い度${sourceLabel} → ${actualDateLabel}`;
+  return `${scoreDateLabel}狙い度 → ${actualDateLabel}`;
 }
 
 function normalizeMachineNameText(value) {
@@ -498,11 +497,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   <select name="date" defaultValue={detail.selectedDate ?? ""} className="storeReserveInput">
                     {rankingDateOptions.map((option) => (
                       <option key={option.date} value={option.date}>
-                        {formatRankingDateOption(
-                          option.date,
-                          option.nextBusinessDate,
-                          option.hasSite7Data,
-                        )}
+                        {formatRankingDateOption(option.date, option.nextBusinessDate)}
                       </option>
                     ))}
                   </select>
@@ -885,11 +880,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               </button>
             </NativeGetForm>
             {fallbackNotice ? <p className="storeReserveHelp">{fallbackNotice}</p> : null}
-            {resultRequested && detail.predictionHasSite7Data ? (
-              <p className="storeReserveNotice storeReserveNotice-warning">
-                この狙い度は予測日のデータにSセブン暫定データを含みます。みんレポ更新後に変わる可能性があります。
-              </p>
-            ) : null}
             {resultRequested && !detail.nextBusinessDate ? (
               <p className="filterPanelStatus">最新日のため、翌営業日の実績はまだありません。</p>
             ) : null}

@@ -1613,6 +1613,22 @@ function snapshotUsesSite7Data(snapshot) {
   );
 }
 
+function buildSnapshotSite7MachineNameSet(snapshot) {
+  return new Set(
+    (Array.isArray(snapshot?.rows) ? snapshot.rows : [])
+      .filter((row) => isSite7Record(row?.currentRecord))
+      .map((row) => String(row?.machineName ?? "").trim())
+      .filter(Boolean),
+  );
+}
+
+function decorateRowsWithSite7MachineData(rows, site7MachineNameSet) {
+  return (Array.isArray(rows) ? rows : []).map((row) => ({
+    ...row,
+    predictionMachineHasSite7Data: site7MachineNameSet.has(String(row?.machineName ?? "").trim()),
+  }));
+}
+
 function buildMachineHuntScoreHighlightDetail(storeName, snapshots, storeMachineNames = null) {
   const sourceMachineNames = Array.isArray(storeMachineNames) ? storeMachineNames : [
     ...new Set(
@@ -1886,8 +1902,12 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   const rankingDates = snapshots.map((snapshot) => snapshot.baseDate);
   const selectedDate = rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null;
   const snapshot = snapshots.find((entry) => entry.baseDate === selectedDate) ?? null;
-  const fullRankingGroups = buildSelectedMachineRankingGroups(
+  const snapshotRows = decorateRowsWithSite7MachineData(
     snapshot?.rows ?? [],
+    buildSnapshotSite7MachineNameSet(snapshot),
+  );
+  const fullRankingGroups = buildSelectedMachineRankingGroups(
+    snapshotRows,
     availableMachineNames,
   );
   const rankingLimit = normalizeRankingLimit(requestedLimit);
@@ -2604,6 +2624,10 @@ export async function getHuntScoreAnalysisPageDetail(
   const rankingDates = snapshots.map((snapshot) => snapshot.baseDate);
   const selectedDate = rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null;
   const snapshot = snapshots.find((entry) => entry.baseDate === selectedDate) ?? null;
+  const snapshotRows = decorateRowsWithSite7MachineData(
+    snapshot?.rows ?? [],
+    buildSnapshotSite7MachineNameSet(snapshot),
+  );
   const backtest = {
     ...buildHuntScoreBacktestDetail(snapshots, {
       ...buildBacktestOptionsForStore(store, backtestOptions),
@@ -2612,7 +2636,7 @@ export async function getHuntScoreAnalysisPageDetail(
     }),
     huntScoreLogic: snapshotDetail.huntScoreLogic,
   };
-  const fullRankingGroups = buildSelectedMachineRankingGroups(snapshot?.rows ?? [], backtest.selectedMachineNames);
+  const fullRankingGroups = buildSelectedMachineRankingGroups(snapshotRows, backtest.selectedMachineNames);
   const rankingLimit = normalizeRankingLimit(requestedLimit);
   const totalCount = fullRankingGroups.reduce(
     (maxCount, group) => Math.max(maxCount, group.totalCount),
