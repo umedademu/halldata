@@ -1,4 +1,8 @@
 import differenceRulesPayload from "../config/machine_difference_rules.json" with { type: "json" };
+import {
+  calculateSettingEstimate,
+  getSettingEstimateDefinition,
+} from "./setting-estimates.js";
 
 let cachedRules = null;
 
@@ -125,8 +129,130 @@ function readDifferenceNumber(value) {
   return typeof value === "number" && Number.isFinite(value) ? value : readNumber(value);
 }
 
-export function selectDifferenceValue(row, differenceMode = "bonus") {
+function roundHalfUp(value) {
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+  return value >= 0 ? Math.floor(value + 0.5) : Math.ceil(value - 0.5);
+}
+
+function readBonusCount(row, bonusLabel) {
+  const normalizedLabel = String(bonusLabel ?? "").trim();
+  if (!normalizedLabel) {
+    return null;
+  }
+  return (
+    readDifferenceNumber(row?.[normalizedLabel]) ??
+    readDifferenceNumber(row?.[`${normalizedLabel.toLowerCase()}_count`])
+  );
+}
+
+function calculateBonusPayout(rule, row) {
+  const bonusPayouts = rule?.bonus_payouts;
+  if (!bonusPayouts || typeof bonusPayouts !== "object") {
+    return null;
+  }
+
+  let totalPayout = 0;
+  let hasBonusRule = false;
+  for (const [bonusLabel, payoutValue] of Object.entries(bonusPayouts)) {
+    const payoutCoins = readDifferenceNumber(payoutValue);
+    const hitCount = readBonusCount(row, bonusLabel);
+    if (payoutCoins === null || hitCount === null) {
+      return null;
+    }
+    hasBonusRule = true;
+    totalPayout += hitCount * payoutCoins;
+  }
+
+  return hasBonusRule ? totalPayout : null;
+}
+
+function readSettingCoinHoldRows(rule) {
+  return Object.entries(rule?.setting_coin_holds ?? {})
+    .map(([setting, coinHold]) => ({
+      setting: readDifferenceNumber(setting),
+      coinHold: readDifferenceNumber(coinHold),
+    }))
+    .filter((row) => row.setting !== null && row.coinHold !== null && row.coinHold > 0)
+    .sort((left, right) => left.setting - right.setting);
+}
+
+function interpolateSettingCoinHold(rule, settingAverage) {
+  const coinHoldRows = readSettingCoinHoldRows(rule);
+  if (coinHoldRows.length === 0 || !Number.isFinite(settingAverage)) {
+    return null;
+  }
+
+  const firstRow = coinHoldRows[0];
+  const lastRow = coinHoldRows.at(-1);
+  if (settingAverage <= firstRow.setting) {
+    return firstRow.coinHold;
+  }
+  if (settingAverage >= lastRow.setting) {
+    return lastRow.coinHold;
+  }
+
+  for (let index = 0; index < coinHoldRows.length - 1; index += 1) {
+    const leftRow = coinHoldRows[index];
+    const rightRow = coinHoldRows[index + 1];
+    if (settingAverage < leftRow.setting || settingAverage > rightRow.setting) {
+      continue;
+    }
+    const settingWidth = rightRow.setting - leftRow.setting;
+    if (settingWidth <= 0) {
+      return leftRow.coinHold;
+    }
+    const progress = (settingAverage - leftRow.setting) / settingWidth;
+    return leftRow.coinHold + (rightRow.coinHold - leftRow.coinHold) * progress;
+  }
+
+  return null;
+}
+
+export function calculateEstimatedCoinHoldDifferenceValue(row, machineName = "") {
+  const targetMachineName = String(
+    machineName || row?.machine_name || row?.machineName || "",
+  ).trim();
+  const rule = findMachineDifferenceRule(targetMachineName);
+  const settingDefinition = getSettingEstimateDefinition(targetMachineName);
+  const settingEstimate = settingDefinition
+    ? calculateSettingEstimate(settingDefinition, row)
+    : null;
+  const coinHold = interpolateSettingCoinHold(rule, settingEstimate?.average);
+  const gamesCount = readDifferenceNumber(row?.games_count);
+  const investmentCoins = readDifferenceNumber(rule?.investment_coins);
+  const totalBonusPayout = calculateBonusPayout(rule, row);
+
+  if (
+    !rule ||
+    coinHold === null ||
+    gamesCount === null ||
+    investmentCoins === null ||
+    totalBonusPayout === null
+  ) {
+    return null;
+  }
+
+  return roundHalfUp(totalBonusPayout - (gamesCount * investmentCoins) / coinHold);
+}
+
+export function selectDifferenceValue(row, differenceMode = "bonus", machineName = "") {
+  if (differenceMode === "estimated") {
+    const estimatedDifferenceValue = calculateEstimatedCoinHoldDifferenceValue(row, machineName);
+    if (estimatedDifferenceValue !== null) {
+      return estimatedDifferenceValue;
+    }
+  }
+
   if (differenceMode === "bonus") {
+    const bonusDifferenceValue = readDifferenceNumber(row?.bonus_difference_value);
+    if (bonusDifferenceValue !== null) {
+      return bonusDifferenceValue;
+    }
+  }
+
+  if (differenceMode === "estimated") {
     const bonusDifferenceValue = readDifferenceNumber(row?.bonus_difference_value);
     if (bonusDifferenceValue !== null) {
       return bonusDifferenceValue;

@@ -691,6 +691,21 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                     />
                     <span>みんレポ基準</span>
                   </label>
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.differenceMode === "estimated"
+                        ? "metricToggleChipActive"
+                        : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="differenceMode"
+                      value="estimated"
+                      defaultChecked={detail.backtest.differenceMode === "estimated"}
+                    />
+                    <span>推定コイン持ち基準</span>
+                  </label>
                 </div>
               </div>
 

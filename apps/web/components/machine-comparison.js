@@ -158,7 +158,10 @@ function normalizePeriodMode(value) {
 }
 
 function normalizeDifferenceMode(value) {
-  return value === "minrepo" ? "minrepo" : DEFAULT_DIFFERENCE_MODE;
+  if (value === "minrepo" || value === "estimated") {
+    return value;
+  }
+  return DEFAULT_DIFFERENCE_MODE;
 }
 
 function normalizeDateInputValue(value, minDate, maxDate, fallbackDate) {
@@ -2464,6 +2467,20 @@ export function MachineComparison({
                 onChange={() => setDifferenceMode("minrepo")}
               />
               <span>みんレポ基準</span>
+            </label>
+            <label
+              className={`metricToggleChip ${
+                differenceMode === "estimated" ? "metricToggleChipActive" : ""
+              }`}
+            >
+              <input
+                type="radio"
+                name="machineDifferenceMode"
+                value="estimated"
+                checked={differenceMode === "estimated"}
+                onChange={() => setDifferenceMode("estimated")}
+              />
+              <span>推定コイン持ち基準</span>
             </label>
           </div>
         </div>

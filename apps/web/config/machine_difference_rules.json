@@ -12,6 +12,14 @@
       "site7_enabled": true,
       "investment_coins": 50,
       "games_per_investment": 40.6,
+      "setting_coin_holds": {
+        "1": 40.6,
+        "2": 40.6,
+        "3": 40.6,
+        "4": 40.6,
+        "5": 40.6,
+        "6": 42.6
+      },
       "bonus_payouts": {
         "BB": 252,
         "RB": 96
@@ -30,6 +38,14 @@
       "site7_enabled": true,
       "investment_coins": 50,
       "games_per_investment": 40.6,
+      "setting_coin_holds": {
+        "1": 40.6,
+        "2": 40.6,
+        "3": 40.6,
+        "4": 40.6,
+        "5": 40.6,
+        "6": 42.6
+      },
       "bonus_payouts": {
         "BB": 252,
         "RB": 96
@@ -48,6 +64,14 @@
       "site7_enabled": true,
       "investment_coins": 50,
       "games_per_investment": 42.27,
+      "setting_coin_holds": {
+        "1": 42.27,
+        "2": 42.61,
+        "3": 43.01,
+        "4": 43.35,
+        "5": 43.71,
+        "6": 44.57
+      },
       "bonus_payouts": {
         "BB": 240,
         "RB": 96
@@ -66,6 +90,14 @@
       "site7_enabled": true,
       "investment_coins": 50,
       "games_per_investment": 40.03,
+      "setting_coin_holds": {
+        "1": 40.03,
+        "2": 40.37,
+        "3": 40.72,
+        "4": 41.3,
+        "5": 41.85,
+        "6": 42.49
+      },
       "bonus_payouts": {
         "BB": 240,
         "RB": 96
@@ -85,6 +117,14 @@
       "site7_enabled": true,
       "investment_coins": 50,
       "games_per_investment": 42.16,
+      "setting_coin_holds": {
+        "1": 42.16,
+        "2": 42.24,
+        "3": 42.66,
+        "4": 43.08,
+        "5": 43.35,
+        "6": 43.62
+      },
       "bonus_payouts": {
         "BB": 240,
         "RB": 96
@@ -101,6 +141,14 @@
       "site7_enabled": true,
       "investment_coins": 50,
       "games_per_investment": 39.93,
+      "setting_coin_holds": {
+        "1": 39.93,
+        "2": 40.31,
+        "3": 40.63,
+        "4": 40.89,
+        "5": 41.16,
+        "6": 41.47
+      },
       "bonus_payouts": {
         "BB": 240,
         "RB": 96
@@ -118,6 +166,14 @@
       "site7_enabled": true,
       "investment_coins": 50,
       "games_per_investment": 41.72,
+      "setting_coin_holds": {
+        "1": 41.72,
+        "2": 41.73,
+        "3": 41.74,
+        "4": 41.75,
+        "5": 42.47,
+        "6": 42.74
+      },
       "bonus_payouts": {
         "BB": 240,
         "RB": 96
@@ -134,6 +190,14 @@
       "site7_enabled": true,
       "investment_coins": 50,
       "games_per_investment": 42.16,
+      "setting_coin_holds": {
+        "1": 42.16,
+        "2": 42.18,
+        "3": 42.23,
+        "4": 42.26,
+        "5": 42.3,
+        "6": 42.38
+      },
       "bonus_payouts": {
         "BB": 240,
         "RB": 96
@@ -154,6 +218,14 @@
       "site7_enabled": true,
       "investment_coins": 50,
       "games_per_investment": 40.68,
+      "setting_coin_holds": {
+        "1": 40.68,
+        "2": 40.9,
+        "3": 41.13,
+        "4": 42.08,
+        "5": 42.24,
+        "6": 42.41
+      },
       "bonus_payouts": {
         "BB": 240,
         "RB": 96

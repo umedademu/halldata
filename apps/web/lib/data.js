@@ -1506,7 +1506,11 @@ function buildInitialBacktestDetail(
     deviationScope,
     nextGapScope,
     showGraph: defaultedOptions?.showGraph === "off" ? "off" : "on",
-    differenceMode: defaultedOptions?.differenceMode === "minrepo" ? "minrepo" : "bonus",
+    differenceMode:
+      defaultedOptions?.differenceMode === "minrepo" ||
+      defaultedOptions?.differenceMode === "estimated"
+        ? defaultedOptions.differenceMode
+        : "bonus",
     combineAimJuggler,
     combineHanabi,
     hasAimJugglerGroupOption:
@@ -2187,7 +2191,10 @@ function buildCrossStoreBacktestOptions(options = {}) {
     rankScope,
     deviationScope,
     nextGapScope,
-    differenceMode: options?.differenceMode === "minrepo" ? "minrepo" : "bonus",
+    differenceMode:
+      options?.differenceMode === "minrepo" || options?.differenceMode === "estimated"
+        ? options.differenceMode
+        : "bonus",
     combineAimJuggler: normalizeEnabledOption(options?.combineAimJuggler, true),
     combineHanabi: normalizeEnabledOption(options?.combineHanabi, true),
     eventFilters: {

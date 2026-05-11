@@ -681,6 +681,19 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                 />
                 <span>みんレポ基準</span>
               </label>
+              <label
+                className={`metricToggleChip ${
+                  detail.differenceMode === "estimated" ? "metricToggleChipActive" : ""
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="differenceMode"
+                  value="estimated"
+                  defaultChecked={detail.differenceMode === "estimated"}
+                />
+                <span>推定コイン持ち基準</span>
+              </label>
             </div>
           </div>
 

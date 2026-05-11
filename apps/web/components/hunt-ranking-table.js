@@ -56,7 +56,7 @@ const RESULT_COLUMN_DEFINITIONS = [
     key: "difference_value",
     label: "差枚",
     render: (row, differenceMode) =>
-      formatSignedNumber(selectDifferenceValue(row.nextRecord, differenceMode)),
+      formatSignedNumber(selectDifferenceValue(row.nextRecord, differenceMode, row.machineName)),
   },
   {
     key: "games_count",
@@ -637,6 +637,20 @@ export function HuntRankingTable({
                 onChange={() => setDifferenceMode("minrepo")}
               />
               <span>みんレポ基準</span>
+            </label>
+            <label
+              className={`metricToggleChip ${
+                differenceMode === "estimated" ? "metricToggleChipActive" : ""
+              }`}
+            >
+              <input
+                type="radio"
+                name="huntRankingDifferenceMode"
+                value="estimated"
+                checked={differenceMode === "estimated"}
+                onChange={() => setDifferenceMode("estimated")}
+              />
+              <span>推定コイン持ち基準</span>
             </label>
           </div>
         </div>

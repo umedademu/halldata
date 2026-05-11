@@ -208,7 +208,10 @@ function normalizeShowGraph(value) {
 }
 
 function normalizeDifferenceMode(value) {
-  return value === "minrepo" ? "minrepo" : DEFAULT_DIFFERENCE_MODE;
+  if (value === "minrepo" || value === "estimated") {
+    return value;
+  }
+  return DEFAULT_DIFFERENCE_MODE;
 }
 
 function readOptionWithDefault(options, key, fallbackValue) {
@@ -365,8 +368,8 @@ function resolveActualMetrics(machineName, nextRecord, differenceMode) {
   const rbCount = readFiniteNumber(nextRecord?.rb_count);
   const standardInvestedCoins = gamesCount > 0 ? gamesCount * 3 : 0;
 
-  if (differenceMode === "bonus") {
-    const storedBonusDifferenceValue = selectDifferenceValue(nextRecord, "bonus");
+  if (differenceMode === "bonus" || differenceMode === "estimated") {
+    const storedBonusDifferenceValue = selectDifferenceValue(nextRecord, differenceMode, machineName);
     return {
       differenceValue: readFiniteNumber(storedBonusDifferenceValue),
       investedCoins: standardInvestedCoins,
