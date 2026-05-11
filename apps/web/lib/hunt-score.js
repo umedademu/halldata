@@ -343,6 +343,12 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     windowDays: 7,
     scoreCalculator: calculateHinodeOnojoHuntScore,
   },
+  {
+    key: "hinode-onojo-v2",
+    name: "HINODE大野城式2",
+    windowDays: 7,
+    scoreCalculator: calculateHinodeOnojoV2HuntScore,
+  },
 ];
 
 const DEFAULT_HUNT_SCORE_STORE_CONFIG = {
@@ -381,7 +387,7 @@ const HUNT_SCORE_STORE_CONFIGS = [
     key: "hinode-onojo",
     storeNames: ["HINODE大野城店", "HINODE大野城"],
     targetMachines: HINODE_ONOJO_TARGET_MACHINES,
-    defaultLogicKey: "hinode-onojo",
+    defaultLogicKey: "hinode-onojo-v2",
   },
   {
     key: "tamaya-ohashi",
@@ -1523,6 +1529,78 @@ function calculateHinodeOnojoHuntScore(metrics) {
     calculateHinodeHotPeriodPenalty(metrics);
 
   return clamp(totalScore, 0, 100);
+}
+
+function calculateHinodeOnojoV2HuntScore(metrics) {
+  const lossDays = metrics.lossDays;
+  const netTotal = metrics.netTotal;
+  if (!Number.isFinite(lossDays) || !Number.isFinite(netTotal)) {
+    return 0;
+  }
+
+  if (netTotal >= 0) {
+    return 0;
+  }
+
+  if (lossDays === 7) {
+    if (netTotal <= -9000) {
+      return 100;
+    }
+    if (netTotal <= -7000) {
+      return 97;
+    }
+    if (netTotal <= -5500) {
+      return 94;
+    }
+    if (netTotal <= -4000) {
+      return 91;
+    }
+    if (netTotal <= -3000) {
+      return 78;
+    }
+    return 68;
+  }
+
+  if (lossDays === 6) {
+    if (netTotal <= -13000) {
+      return 100;
+    }
+    if (netTotal <= -11000) {
+      return 96;
+    }
+    if (netTotal <= -9500) {
+      return 93;
+    }
+    if (netTotal <= -8500) {
+      return 90;
+    }
+    if (netTotal <= -7000) {
+      return 62;
+    }
+    if (netTotal <= -5500) {
+      return 50;
+    }
+    return 35;
+  }
+
+  if (lossDays === 5) {
+    if (netTotal <= -9000) {
+      return 48;
+    }
+    if (netTotal <= -6500) {
+      return 38;
+    }
+    if (netTotal <= -4000) {
+      return 28;
+    }
+    return 18;
+  }
+
+  if (lossDays === 4) {
+    return netTotal <= -6500 ? 24 : 12;
+  }
+
+  return 0;
 }
 
 function buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays) {
