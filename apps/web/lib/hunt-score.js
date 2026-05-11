@@ -152,6 +152,10 @@ const GOGO_ARENA_TENJIN_TARGET_MACHINES = [
   ...OTHER_TARGET_MACHINES,
 ];
 
+const TAMAYA_ZASSHONOKUMA_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const APARK_YAKATABARU_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -289,6 +293,24 @@ const GOGO_ARENA_TENJIN_SLOT_SCORES = {
   },
 };
 
+const TAMAYA_ZASSHONOKUMA_SLOT_SCORES = {
+  69: 9,
+  73: 6,
+  74: -8,
+  77: 7,
+  78: -4,
+  79: -4,
+  97: 10,
+  98: -3,
+  99: 6,
+  100: -6,
+  101: -4,
+  102: -6,
+  103: 6,
+  104: 7,
+  109: 6,
+};
+
 const HUNT_SCORE_LOGIC_DEFINITIONS = [
   {
     key: "apark",
@@ -301,6 +323,12 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     name: "GOGO式",
     windowDays: 7,
     scoreCalculator: calculateGogoArenaTenjinHuntScore,
+  },
+  {
+    key: "tamaya-zasshonokuma",
+    name: "玉屋雑餉隈式",
+    windowDays: 7,
+    scoreCalculator: calculateTamayaZasshonokumaHuntScore,
   },
 ];
 
@@ -329,6 +357,12 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["GOGOアリーナ天神", "ＧＯＧＯアリーナ天神"],
     targetMachines: GOGO_ARENA_TENJIN_TARGET_MACHINES,
     defaultLogicKey: "gogo",
+  },
+  {
+    key: "tamaya-zasshonokuma",
+    storeNames: ["玉屋409雑餉隈", "玉屋雑餉隈", "玉屋雑餉隈店"],
+    targetMachines: TAMAYA_ZASSHONOKUMA_TARGET_MACHINES,
+    defaultLogicKey: "tamaya-zasshonokuma",
   },
   {
     key: "tamaya-ohashi",
@@ -960,6 +994,195 @@ function calculateGogoArenaTenjinHuntScore(metrics) {
   return clamp(totalScore, 0, 100);
 }
 
+function listContextMetricValues(context, selector) {
+  return (Array.isArray(context?.metricsList) ? context.metricsList : [])
+    .map(selector)
+    .filter((value) => Number.isFinite(value));
+}
+
+function calculateContextRank(value, context, selector, order = "asc") {
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+
+  const sortedValues = listContextMetricValues(context, selector).sort((left, right) =>
+    order === "desc" ? right - left : left - right,
+  );
+  const index = sortedValues.findIndex(
+    (candidateValue) => Math.abs(candidateValue - value) <= HUNT_SCORE_EPSILON,
+  );
+  return index >= 0 ? index + 1 : null;
+}
+
+function scoreFromRanks(rank, thresholds) {
+  if (!Number.isFinite(rank)) {
+    return 0;
+  }
+
+  for (const threshold of thresholds) {
+    if (rank <= threshold.rank) {
+      return threshold.score;
+    }
+  }
+
+  return 0;
+}
+
+function calculateTamayaRankScore(value, context, selector, bottomThresholds, topThresholds) {
+  const bottomRank = calculateContextRank(value, context, selector, "asc");
+  const topRank = calculateContextRank(value, context, selector, "desc");
+  return scoreFromRanks(bottomRank, bottomThresholds) + scoreFromRanks(topRank, topThresholds);
+}
+
+function calculateTamayaRecentNetScore(metrics, context) {
+  return calculateTamayaRankScore(
+    metrics.recentThreeNetTotal,
+    context,
+    (metric) => metric.recentThreeNetTotal,
+    [
+      { rank: 3, score: 28 },
+      { rank: 4, score: 25 },
+      { rank: 6, score: 20 },
+      { rank: 8, score: 12 },
+      { rank: 12, score: 5 },
+    ],
+    [
+      { rank: 3, score: -18 },
+      { rank: 6, score: -12 },
+      { rank: 8, score: -6 },
+    ],
+  );
+}
+
+function calculateTamayaRecentBonusScore(metrics, context) {
+  return calculateTamayaRankScore(
+    metrics.recentThreeBonusTotal,
+    context,
+    (metric) => metric.recentThreeBonusTotal,
+    [
+      { rank: 3, score: 16 },
+      { rank: 6, score: 12 },
+      { rank: 8, score: 8 },
+    ],
+    [
+      { rank: 3, score: -12 },
+      { rank: 6, score: -8 },
+    ],
+  );
+}
+
+function calculateTamayaRecentGamesScore(metrics, context) {
+  return calculateTamayaRankScore(
+    metrics.recentThreeGamesTotal,
+    context,
+    (metric) => metric.recentThreeGamesTotal,
+    [
+      { rank: 3, score: 11 },
+      { rank: 8, score: 7 },
+    ],
+    [
+      { rank: 6, score: -7 },
+    ],
+  );
+}
+
+function calculateTamayaSevenDayNetScore(metrics, context) {
+  return calculateTamayaRankScore(
+    metrics.netTotal,
+    context,
+    (metric) => metric.netTotal,
+    [
+      { rank: 3, score: 8 },
+      { rank: 6, score: 5 },
+    ],
+    [
+      { rank: 4, score: -5 },
+    ],
+  );
+}
+
+function calculateTamayaPreviousDayShapeScore(metrics, context) {
+  const recentThreeRank = calculateContextRank(
+    metrics.recentThreeNetTotal,
+    context,
+    (metric) => metric.recentThreeNetTotal,
+    "asc",
+  );
+  const todayRank = calculateContextRank(
+    metrics.todayDifference,
+    context,
+    (metric) => metric.todayDifference,
+    "asc",
+  );
+  if (!Number.isFinite(recentThreeRank) || recentThreeRank > 4 || !Number.isFinite(todayRank)) {
+    return 0;
+  }
+  return todayRank > 8 ? 8 : 1;
+}
+
+function calculateTamayaHighSettingScore(metrics) {
+  let score = 0;
+
+  if (metrics.highSettingCount === 0) {
+    score += 12;
+  } else if (metrics.highSettingCount >= 3) {
+    score -= 12;
+  } else if (metrics.highSettingCount >= 2) {
+    score -= 7;
+  } else {
+    score -= 1;
+  }
+
+  if (metrics.recentThreeHighSettingCount === 0) {
+    score += 3;
+  } else if (metrics.recentThreeHighSettingCount >= 2) {
+    score -= 12;
+  } else {
+    score -= 7;
+  }
+
+  if (Number.isFinite(metrics.todaySetting)) {
+    if (metrics.todaySetting >= 4) {
+      score -= 9;
+    } else if (metrics.todaySetting >= 3.5) {
+      score -= 3;
+    } else if (metrics.todaySetting <= 3) {
+      score += 2;
+    }
+  }
+
+  return score;
+}
+
+function readSlotLastDigit(slotNumber) {
+  const match = /(\d)$/u.exec(String(slotNumber ?? "").trim());
+  return match ? Number(match[1]) : null;
+}
+
+function calculateTamayaSlotScore(slotNumber) {
+  const normalizedSlotNumber = String(slotNumber ?? "").trim();
+  const slotNumberValue = Number(normalizedSlotNumber);
+  const fixedScore = TAMAYA_ZASSHONOKUMA_SLOT_SCORES[normalizedSlotNumber] ?? 0;
+  const cornerScore = [69, 79, 97, 109].includes(slotNumberValue) ? 3 : 0;
+  const lastDigit = readSlotLastDigit(slotNumber);
+  const tailScore = [3, 7, 9].includes(lastDigit) ? 2 : [0, 1, 2].includes(lastDigit) ? -2 : 0;
+  return fixedScore + cornerScore + tailScore;
+}
+
+function calculateTamayaZasshonokumaHuntScore(metrics, context = {}) {
+  const totalScore =
+    36 +
+    calculateTamayaRecentNetScore(metrics, context) +
+    calculateTamayaRecentBonusScore(metrics, context) +
+    calculateTamayaRecentGamesScore(metrics, context) +
+    calculateTamayaSevenDayNetScore(metrics, context) +
+    calculateTamayaPreviousDayShapeScore(metrics, context) +
+    calculateTamayaHighSettingScore(metrics) +
+    calculateTamayaSlotScore(metrics.slotNumber);
+
+  return clamp(totalScore, 0, 100);
+}
+
 function buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays) {
   if (dateIndex < windowDays - 1) {
     return null;
@@ -1042,7 +1265,16 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
 
   const todaySetting = getSettingEstimateAverage(settingDefinitionCache, row, config).average;
   const previousWindowRow = metricWindowRows.at(-2) ?? null;
-  const recentThreeNetTotal = sumDifferenceValues(metricWindowRows.slice(-3));
+  const recentThreeRows = metricWindowRows.slice(-3);
+  const recentThreeNetTotal = sumDifferenceValues(recentThreeRows);
+  const recentThreeGamesTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.games, 0);
+  const recentThreeBonusTotal = recentThreeRows.reduce(
+    (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
+    0,
+  );
+  const recentThreeHighSettingCount = recentThreeRows.filter(
+    (windowRow) => Number.isFinite(windowRow.settingAverage) && windowRow.settingAverage >= 4,
+  ).length;
   const previousReferenceEventMetrics = calculatePreviousReferenceEventMetrics(
     businessDates,
     dateIndex,
@@ -1065,8 +1297,11 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     previousDifference: previousWindowRow?.differenceValue ?? 0,
     todaySetting,
     highSettingCount,
+    recentThreeHighSettingCount,
     gamesTotal,
     averageGames: metricWindowRows.length > 0 ? gamesTotal / metricWindowRows.length : 0,
+    recentThreeGamesTotal,
+    recentThreeBonusTotal,
     bbTotal,
     rbTotal,
     bbRate: gamesTotal > 0 ? bbTotal / gamesTotal : 0,
