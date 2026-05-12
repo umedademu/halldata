@@ -162,6 +162,10 @@ const TAMAYA_ZASSHONOKUMA_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const TAMAYA_OHASHI_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const HINODE_ONOJO_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -344,6 +348,12 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     scoreCalculator: calculateTamayaZasshonokumaHuntScore,
   },
   {
+    key: "tamaya-ohashi",
+    name: "玉屋555大橋店式",
+    windowDays: 7,
+    scoreCalculator: calculateTamayaOhashiHuntScore,
+  },
+  {
     key: "hinode-onojo",
     name: "HINODE大野城式",
     windowDays: 7,
@@ -416,8 +426,8 @@ const HUNT_SCORE_STORE_CONFIGS = [
   {
     key: "tamaya-ohashi",
     storeNames: ["玉屋555大橋店"],
-    targetMachines: APARK_KASUGA_TARGET_MACHINES,
-    defaultLogicKey: "apark",
+    targetMachines: TAMAYA_OHASHI_TARGET_MACHINES,
+    defaultLogicKey: "tamaya-ohashi",
   },
   {
     key: "123-hakata",
@@ -720,6 +730,16 @@ function calculateCurrentHighSettingStreak(windowRows) {
 
 function sumDifferenceValues(rows) {
   return rows.reduce((total, row) => total + (readNumber(row?.differenceValue) ?? 0), 0);
+}
+
+function calculateSettingAverageFromWindowRows(rows) {
+  const settings = rows
+    .map((row) => row?.settingAverage)
+    .filter((settingAverage) => Number.isFinite(settingAverage));
+  if (settings.length === 0) {
+    return null;
+  }
+  return settings.reduce((total, settingAverage) => total + settingAverage, 0) / settings.length;
 }
 
 function readDateDay(dateText) {
@@ -1325,6 +1345,76 @@ function calculateTamayaZasshonokumaHuntScore(metrics) {
   return clamp(totalScore, 0, 100);
 }
 
+function calculateTamayaOhashiCandidatePointScore(pointCount) {
+  if (pointCount >= 3) {
+    return 100;
+  }
+  if (pointCount >= 2) {
+    return 90;
+  }
+  if (pointCount >= 1) {
+    return 70;
+  }
+  return 0;
+}
+
+function calculateTamayaOhashiSupportScore(metrics) {
+  let score = 0;
+
+  if (metrics.recentFiveNetTotal >= 3000) {
+    score += 22;
+  } else if (metrics.recentThreeNetTotal >= 3000) {
+    score += 20;
+  } else if (metrics.recentFiveNetTotal >= 1500) {
+    score += 10;
+  }
+
+  if (metrics.recentThreeBonusTotal >= 120) {
+    score += 20;
+  } else if (metrics.recentThreeBonusTotal >= 100) {
+    score += 10;
+  }
+
+  if (metrics.recentFiveRbTotal >= 75) {
+    score += 18;
+  } else if (metrics.recentFiveRbTotal >= 60) {
+    score += 8;
+  }
+
+  return Math.min(score, 55);
+}
+
+function calculateTamayaOhashiHuntScore(metrics) {
+  let pointCount = 0;
+
+  if (metrics.recentTwoGamesTotal >= 14000) {
+    pointCount += 1;
+  }
+  if (metrics.recentTwoSettingAverage >= 4) {
+    pointCount += 1;
+  }
+  if (metrics.recentFiveSettingAverage >= 4) {
+    pointCount += 1;
+  }
+
+  let score = Math.max(
+    calculateTamayaOhashiCandidatePointScore(pointCount),
+    calculateTamayaOhashiSupportScore(metrics),
+  );
+
+  if (metrics.netTotal <= -3000) {
+    score = Math.min(score, 20);
+  } else if (metrics.todayDifference <= -1000) {
+    score = Math.min(score, 45);
+  }
+
+  if (metrics.highSettingStreak >= 2) {
+    score = Math.min(score, 55);
+  }
+
+  return clamp(score, 0, 100);
+}
+
 function calculateHinodeOnojoHuntScore(metrics) {
   const lossDays = metrics.lossDays;
   const netTotal = metrics.netTotal;
@@ -1777,11 +1867,15 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
   const recentSixNetTotal = sumDifferenceValues(recentSixRows);
   const recentFourLossDays = recentFourRows.filter((windowRow) => windowRow.differenceValue < 0).length;
   const recentFourPositiveCount = recentFourRows.filter((windowRow) => windowRow.differenceValue > 0).length;
+  const recentTwoGamesTotal = recentTwoRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentThreeGamesTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentThreeBonusTotal = recentThreeRows.reduce(
     (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
     0,
   );
+  const recentFiveRbTotal = recentFiveRows.reduce((total, windowRow) => total + windowRow.rbCount, 0);
+  const recentTwoSettingAverage = calculateSettingAverageFromWindowRows(recentTwoRows);
+  const recentFiveSettingAverage = calculateSettingAverageFromWindowRows(recentFiveRows);
   const recentThreeHighSettingCount = recentThreeRows.filter(
     (windowRow) => Number.isFinite(windowRow.settingAverage) && windowRow.settingAverage >= 4,
   ).length;
@@ -1826,8 +1920,12 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     recentThreeHighSettingCount,
     gamesTotal,
     averageGames: metricWindowRows.length > 0 ? gamesTotal / metricWindowRows.length : 0,
+    recentTwoGamesTotal,
     recentThreeGamesTotal,
     recentThreeBonusTotal,
+    recentFiveRbTotal,
+    recentTwoSettingAverage,
+    recentFiveSettingAverage,
     historySettingSampleCount,
     historyHighSettingCount,
     historyHighSettingRate:
