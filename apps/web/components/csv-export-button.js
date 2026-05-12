@@ -6,9 +6,9 @@ import { useCallback } from "react";
  * 台データ比較の表をCSVとしてダウンロードするボタン。
  * サーバー側で組み立て済みの文字列二次元配列を受け取る。
  *
- * @param {{ machineName: string, csvRows: string[][] }} props
+ * @param {{ storeName: string, machineName: string, csvRows: string[][] }} props
  */
-export function CsvExportButton({ machineName, csvRows }) {
+export function CsvExportButton({ storeName, machineName, csvRows }) {
   const handleExport = useCallback(() => {
     const bom = "\uFEFF";
     const csvText =
@@ -32,13 +32,16 @@ export function CsvExportButton({ machineName, csvRows }) {
 
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `${machineName}_台データ比較.csv`;
+    anchor.download = [storeName, machineName, "台データ比較"]
+      .map((part) => String(part ?? "").trim().replace(/[\\/:*?"<>|]/g, "_"))
+      .filter(Boolean)
+      .join("_") + ".csv";
     document.body.appendChild(anchor);
     anchor.click();
 
     document.body.removeChild(anchor);
     URL.revokeObjectURL(url);
-  }, [machineName, csvRows]);
+  }, [storeName, machineName, csvRows]);
 
   return (
     <button

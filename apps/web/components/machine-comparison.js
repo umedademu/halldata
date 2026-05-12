@@ -1773,6 +1773,7 @@ const MatrixRow = memo(function MatrixRow({
 
 export function MachineComparison({
   storeId,
+  storeName = "",
   machineName,
   slotNumbers,
   slotLabels = {},
@@ -2574,6 +2575,7 @@ export function MachineComparison({
       </section>
 
       <MachineComparisonTable
+        storeName={storeName}
         machineName={machineName}
         slotNumbers={slotNumbers}
         slotLabels={slotLabels}
@@ -2591,6 +2593,7 @@ export function MachineComparison({
 }
 
 function MachineComparisonTable({
+  storeName,
   machineName,
   slotNumbers,
   slotLabels,
@@ -2620,6 +2623,7 @@ function MachineComparisonTable({
           <h2 className="tablePanelTitle">{machineName}</h2>
         </div>
         <CsvExportButton
+          storeName={storeName}
           machineName={machineName}
           csvRows={csvRows}
         />

@@ -171,6 +171,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
 
       <MachineComparison
         storeId={detail.store.id}
+        storeName={detail.store.storeName}
         machineName={displayMachineName}
         slotNumbers={detail.slotNumbers}
         slotLabels={detail.slotLabels}
