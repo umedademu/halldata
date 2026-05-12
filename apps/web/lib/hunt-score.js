@@ -362,6 +362,12 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     windowDays: 7,
     scoreCalculator: calculateHinodeOnojoCHuntScore,
   },
+  {
+    key: "hinode-onojo-d",
+    name: "HINODE大野城式D",
+    windowDays: 7,
+    scoreCalculator: calculateHinodeOnojoDHuntScore,
+  },
 ];
 
 const DEFAULT_HUNT_SCORE_STORE_CONFIG = {
@@ -1509,6 +1515,111 @@ function calculateHinodeOnojoCHuntScore(metrics) {
     return 86;
   }
   return 0;
+}
+
+function calculateHinodeOnojoDHuntScore(metrics) {
+  let score = 0;
+
+  score += scoreFromMinimums(metrics.lossDays, [
+    { minimum: 7, score: 18 },
+    { minimum: 6, score: 15 },
+    { minimum: 5, score: 11 },
+    { minimum: 4, score: 7 },
+    { minimum: 3, score: 4 },
+  ]);
+  score += scoreFromMinimums(metrics.streak, [
+    { minimum: 7, score: 14 },
+    { minimum: 6, score: 12 },
+    { minimum: 5, score: 10 },
+    { minimum: 4, score: 8 },
+    { minimum: 3, score: 6 },
+    { minimum: 2, score: 3 },
+  ]);
+  score += scoreFromMinimums(metrics.lossAbsTotal, [
+    { minimum: 9000, score: 14 },
+    { minimum: 7500, score: 12 },
+    { minimum: 6000, score: 10 },
+    { minimum: 4500, score: 7 },
+    { minimum: 3000, score: 4 },
+    { minimum: 2000, score: 2 },
+  ]);
+  score += scoreFromMaximums(metrics.netTotal, [
+    { maximum: -9000, score: 14 },
+    { maximum: -7500, score: 12 },
+    { maximum: -6000, score: 10 },
+    { maximum: -4500, score: 8 },
+    { maximum: -3500, score: 6 },
+    { maximum: -2500, score: 4 },
+    { maximum: -1500, score: 2 },
+  ]);
+  score += scoreFromMaximums(metrics.recentThreeNetTotal, [
+    { maximum: -4000, score: 10 },
+    { maximum: -3500, score: 9 },
+    { maximum: -2800, score: 7 },
+    { maximum: -2200, score: 5 },
+    { maximum: -1500, score: 3 },
+    { maximum: -800, score: 1 },
+  ]);
+  score += Math.max(
+    scoreFromMaximums(metrics.recentFourNetTotal, [
+      { maximum: -5500, score: 10 },
+      { maximum: -4500, score: 8 },
+      { maximum: -3500, score: 5 },
+      { maximum: -2500, score: 3 },
+    ]),
+    scoreFromMaximums(metrics.recentFiveNetTotal, [
+      { maximum: -5500, score: 9 },
+      { maximum: -4500, score: 7 },
+      { maximum: -3500, score: 5 },
+      { maximum: -2500, score: 3 },
+    ]),
+    scoreFromMaximums(metrics.recentSixNetTotal, [
+      { maximum: -6500, score: 8 },
+      { maximum: -5500, score: 7 },
+      { maximum: -4500, score: 5 },
+      { maximum: -3500, score: 3 },
+    ]),
+  );
+  score += scoreFromMaximums(metrics.compensationRate, [
+    { maximum: 0.2, score: 6 },
+    { maximum: 0.35, score: 5 },
+    { maximum: 0.5, score: 4 },
+    { maximum: 0.75, score: 2 },
+  ]);
+  score += scoreFromMaximums(metrics.maxWin, [
+    { maximum: 500, score: 5 },
+    { maximum: 1000, score: 4 },
+    { maximum: 1500, score: 2 },
+  ]);
+  score += scoreFromMaximums(metrics.todayDifference, [
+    { maximum: -2000, score: 5 },
+    { maximum: -1000, score: 4 },
+    { maximum: -500, score: 3 },
+    { maximum: -1, score: 2 },
+  ]);
+
+  if (metrics.netTotal >= 5000) {
+    score -= 16;
+  } else if (metrics.netTotal >= 3000) {
+    score -= 10;
+  } else if (metrics.netTotal >= 1500) {
+    score -= 5;
+  }
+
+  if (metrics.winningStreak >= 3) {
+    score -= 12;
+  }
+  if (metrics.recentFourPositiveCount >= 3) {
+    score -= 8;
+  }
+  if (metrics.recentFourNetTotal >= 3000) {
+    score -= 8;
+  }
+  if (metrics.lossDays <= 2) {
+    score -= 6;
+  }
+
+  return clamp(score, 0, 100);
 }
 
 function buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays) {
