@@ -208,6 +208,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
     machineTouched: readSingleSearchParam(resolvedSearchParams?.machineTouched),
     combineAimJuggler: readMultiSearchParam(resolvedSearchParams?.aimMachineGroup),
     combineHanabi: readMultiSearchParam(resolvedSearchParams?.hanabiMachineGroup),
+    scoreDifferenceMode: readSingleSearchParam(resolvedSearchParams?.scoreDifferenceMode),
     differenceMode: readSingleSearchParam(resolvedSearchParams?.differenceMode),
     rankMin: readOptionalSearchParam(resolvedSearchParams, "rankMin"),
     rankMax: readOptionalSearchParam(resolvedSearchParams, "rankMax"),
@@ -653,7 +654,52 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
           </div>
 
           <div className="backtestBlock">
-            <p className="filterControlLabel">コイン持ち基準</p>
+            <p className="filterControlLabel">狙い度計算の差枚基準</p>
+            <div className="metricToggleRow">
+              <label
+                className={`metricToggleChip ${
+                  detail.scoreDifferenceMode === "bonus" ? "metricToggleChipActive" : ""
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="scoreDifferenceMode"
+                  value="bonus"
+                  defaultChecked={detail.scoreDifferenceMode === "bonus"}
+                />
+                <span>設定1基準</span>
+              </label>
+              <label
+                className={`metricToggleChip ${
+                  detail.scoreDifferenceMode === "estimated" ? "metricToggleChipActive" : ""
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="scoreDifferenceMode"
+                  value="estimated"
+                  defaultChecked={detail.scoreDifferenceMode === "estimated"}
+                />
+                <span>推定設定基準</span>
+              </label>
+              <label
+                className={`metricToggleChip ${
+                  detail.scoreDifferenceMode === "minrepo" ? "metricToggleChipActive" : ""
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="scoreDifferenceMode"
+                  value="minrepo"
+                  defaultChecked={detail.scoreDifferenceMode === "minrepo"}
+                />
+                <span>みんレポ基準</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="backtestBlock">
+            <p className="filterControlLabel">実績差枚の集計基準</p>
             <div className="metricToggleRow">
               <label
                 className={`metricToggleChip ${
