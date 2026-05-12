@@ -172,6 +172,11 @@ const HAKATA_123_TARGET_MACHINES = [
   { name: "ゴーゴージャグラー３", aliases: ["ゴーゴージャグラー3", "ゴーゴージャグラー"] },
 ];
 
+const BOOM_TENJIN_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
+];
+
 const HINODE_ONOJO_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -333,6 +338,27 @@ const TAMAYA_ZASSHONOKUMA_SLOT_SCORES = {
   109: 3,
 };
 
+const BOOM_TENJIN_MYJUGGLER_STRONG_DAYS = new Set([3, 8, 13, 18, 23, 26, 28]);
+const BOOM_TENJIN_NEO_STRONG_DAYS = new Set([3, 8, 26, 28]);
+const BOOM_TENJIN_MYJUGGLER_PREFERRED_SLOTS = new Set(["632", "644", "648", "651", "656", "659", "839"]);
+const BOOM_TENJIN_MYJUGGLER_SECONDARY_SLOTS = new Set([
+  "633",
+  "638",
+  "641",
+  "643",
+  "647",
+  "649",
+  "650",
+  "655",
+  "657",
+  "817",
+  "835",
+]);
+const BOOM_TENJIN_MYJUGGLER_WEAK_SLOTS = new Set(["814", "815", "833", "836"]);
+const BOOM_TENJIN_NEO_BEST_SLOTS = new Set(["795"]);
+const BOOM_TENJIN_NEO_SECONDARY_SLOTS = new Set(["796", "797"]);
+const BOOM_TENJIN_NEO_WEAK_SLOTS = new Set(["793", "801"]);
+
 const HUNT_SCORE_LOGIC_DEFINITIONS = [
   {
     key: "apark",
@@ -364,6 +390,12 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     name: "123博多式",
     windowDays: 7,
     scoreCalculator: calculate123HakataHuntScore,
+  },
+  {
+    key: "boom-tenjin",
+    name: "BOOM天神式",
+    windowDays: 7,
+    scoreCalculator: calculateBoomTenjinHuntScore,
   },
   {
     key: "hinode-onojo",
@@ -446,6 +478,12 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["123博多店"],
     targetMachines: HAKATA_123_TARGET_MACHINES,
     defaultLogicKey: "123-hakata",
+  },
+  {
+    key: "boom-tenjin",
+    storeNames: ["BOOM天神店", "BOOM天神", "ＢＯＯＭ天神店", "ＢＯＯＭ天神"],
+    targetMachines: BOOM_TENJIN_TARGET_MACHINES,
+    defaultLogicKey: "boom-tenjin",
   },
   {
     key: "mj-itazuke",
@@ -1558,6 +1596,192 @@ function calculate123HakataHuntScore(metrics, context = {}) {
   return clamp(totalScore, 0, 100);
 }
 
+function readBoomTenjinTargetDay(context = {}) {
+  return readDateDay(context.nextBusinessDate ?? context.baseDate);
+}
+
+function isBoomTenjinMyJuggler(machineName) {
+  return normalizeText(machineName) === normalizeText("マイジャグラーV");
+}
+
+function isBoomTenjinNeo(machineName) {
+  return normalizeText(machineName) === normalizeText("ネオアイムジャグラーEX");
+}
+
+function calculateBoomTenjinDatePoint(machineName, context, highMode = false) {
+  const targetDay = readBoomTenjinTargetDay(context);
+  if (!Number.isFinite(targetDay)) {
+    return 0;
+  }
+  if (isBoomTenjinMyJuggler(machineName)) {
+    return BOOM_TENJIN_MYJUGGLER_STRONG_DAYS.has(targetDay) ? (highMode ? 10 : 12) : -10;
+  }
+  if (isBoomTenjinNeo(machineName)) {
+    return BOOM_TENJIN_NEO_STRONG_DAYS.has(targetDay) ? (highMode ? 12 : 8) : -12;
+  }
+  return 0;
+}
+
+function calculateBoomTenjinSlotPoint(machineName, slotNumber, highMode = false) {
+  const normalizedSlot = String(slotNumber ?? "").trim();
+  if (isBoomTenjinMyJuggler(machineName)) {
+    if (BOOM_TENJIN_MYJUGGLER_PREFERRED_SLOTS.has(normalizedSlot)) {
+      return highMode ? 7 : 9;
+    }
+    if (BOOM_TENJIN_MYJUGGLER_SECONDARY_SLOTS.has(normalizedSlot)) {
+      return highMode ? 4 : 5;
+    }
+    if (BOOM_TENJIN_MYJUGGLER_WEAK_SLOTS.has(normalizedSlot)) {
+      return highMode ? -10 : -12;
+    }
+    return 0;
+  }
+  if (isBoomTenjinNeo(machineName)) {
+    if (BOOM_TENJIN_NEO_BEST_SLOTS.has(normalizedSlot)) {
+      return highMode ? 10 : 6;
+    }
+    if (BOOM_TENJIN_NEO_SECONDARY_SLOTS.has(normalizedSlot)) {
+      return highMode ? 6 : 4;
+    }
+    if (BOOM_TENJIN_NEO_WEAK_SLOTS.has(normalizedSlot)) {
+      return -12;
+    }
+  }
+  return 0;
+}
+
+function calculateBoomTenjinMyJugglerHistoryPoint(metrics, highMode = false) {
+  let point = 3;
+
+  if (metrics.netTotal <= -4500) {
+    point += 3;
+  } else if (metrics.netTotal <= -1500) {
+    point += 6;
+  } else if (metrics.netTotal >= 3000) {
+    point -= 5;
+  }
+
+  const recentThreeAverageGames = metrics.recentThreeGamesTotal / 3;
+  if (recentThreeAverageGames >= 1000 && recentThreeAverageGames <= 1500) {
+    point += 6;
+  } else if (recentThreeAverageGames < 1000) {
+    point += 2;
+  } else if (recentThreeAverageGames <= 2500) {
+    point += 3;
+  } else if (recentThreeAverageGames >= 7000) {
+    point -= 7;
+  } else if (recentThreeAverageGames >= 5000) {
+    point -= 4;
+  }
+
+  if (metrics.recentThreeRbTotal <= 10) {
+    point += highMode ? 5 : 4;
+  } else if (metrics.recentThreeRbTotal >= 25) {
+    point -= 5;
+  }
+
+  if (metrics.daysSinceHighSettingCandidate >= 4 && metrics.daysSinceHighSettingCandidate <= 7) {
+    point += highMode ? 8 : 6;
+  } else if (metrics.daysSinceHighSettingCandidate >= 2 && metrics.daysSinceHighSettingCandidate <= 3) {
+    point -= 8;
+  } else if (metrics.daysSinceHighSettingCandidate === 1) {
+    point -= 2;
+  } else if (!Number.isFinite(metrics.daysSinceHighSettingCandidate)) {
+    point += 2;
+  }
+
+  if (metrics.highSettingCandidateCount >= 2) {
+    point -= highMode ? 7 : 8;
+  } else if (metrics.highSettingCandidateCount === 0) {
+    point += 3;
+  }
+
+  return point;
+}
+
+function calculateBoomTenjinNeoHistoryPoint(metrics, highMode = false) {
+  let point = -3;
+
+  if (metrics.daysSinceHighSettingCandidate === 1) {
+    point -= 12;
+  } else if (metrics.daysSinceHighSettingCandidate >= 4 && metrics.daysSinceHighSettingCandidate <= 7) {
+    point += highMode ? 8 : 5;
+  } else if (metrics.daysSinceHighSettingCandidate >= 2 && metrics.daysSinceHighSettingCandidate <= 3) {
+    point -= 6;
+  } else if (!Number.isFinite(metrics.daysSinceHighSettingCandidate)) {
+    point += 2;
+  }
+
+  if (metrics.previousRbCount >= 4 && metrics.previousRbCount <= 8) {
+    point += 5;
+  } else if (metrics.previousRbCount <= 3) {
+    point -= 3;
+  } else if (metrics.previousRbCount >= 15) {
+    point -= 4;
+  }
+
+  if (metrics.recentTwoNetTotal >= 1500 && metrics.recentTwoNetTotal <= 3000) {
+    point += 6;
+  } else if (metrics.recentTwoNetTotal > 3000) {
+    point += 2;
+  } else if (metrics.recentTwoNetTotal <= -3000) {
+    point -= 3;
+  }
+
+  if (metrics.recentThreeNetTotal >= -3000 && metrics.recentThreeNetTotal <= -2000) {
+    point += 6;
+  } else if (metrics.recentThreeNetTotal < -3000) {
+    point += 3;
+  } else if (metrics.recentThreeNetTotal >= 2000) {
+    point -= 3;
+  }
+
+  if (metrics.highSettingCandidateCount >= 2) {
+    point -= 8;
+  } else if (metrics.highSettingCandidateCount === 0) {
+    point += 2;
+  }
+
+  if (metrics.todaySetting >= 5) {
+    point -= 8;
+  }
+
+  return point;
+}
+
+function calculateBoomTenjinScoreFromRaw(rawScore) {
+  return 100 / (1 + Math.exp(-(rawScore - 50) / 12));
+}
+
+function calculateBoomTenjinHuntScore(metrics, context = {}) {
+  const machineName = metrics.machineName;
+  if (!isBoomTenjinMyJuggler(machineName) && !isBoomTenjinNeo(machineName)) {
+    return 0;
+  }
+
+  const rawHigh =
+    50 +
+    calculateBoomTenjinDatePoint(machineName, context, true) +
+    calculateBoomTenjinSlotPoint(machineName, metrics.slotNumber, true) +
+    (isBoomTenjinMyJuggler(machineName)
+      ? calculateBoomTenjinMyJugglerHistoryPoint(metrics, true)
+      : calculateBoomTenjinNeoHistoryPoint(metrics, true));
+
+  const rawFive =
+    50 +
+    calculateBoomTenjinDatePoint(machineName, context, false) +
+    calculateBoomTenjinSlotPoint(machineName, metrics.slotNumber, false) +
+    (isBoomTenjinMyJuggler(machineName)
+      ? calculateBoomTenjinMyJugglerHistoryPoint(metrics, false)
+      : calculateBoomTenjinNeoHistoryPoint(metrics, false));
+
+  const weightedRaw = isBoomTenjinMyJuggler(machineName)
+    ? rawHigh * 0.25 + rawFive * 0.75
+    : rawHigh * 0.75 + rawFive * 0.25;
+
+  return clamp(calculateBoomTenjinScoreFromRaw(weightedRaw), 0, 100);
+}
+
 function calculateHinodeOnojoHuntScore(metrics) {
   const lossDays = metrics.lossDays;
   const netTotal = metrics.netTotal;
@@ -2020,12 +2244,27 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
     0,
   );
+  const recentThreeRbTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.rbCount, 0);
   const recentFiveRbTotal = recentFiveRows.reduce((total, windowRow) => total + windowRow.rbCount, 0);
   const recentTwoSettingAverage = calculateSettingAverageFromWindowRows(recentTwoRows);
   const recentFiveSettingAverage = calculateSettingAverageFromWindowRows(recentFiveRows);
   const recentThreeHighSettingCount = recentThreeRows.filter(
     (windowRow) => Number.isFinite(windowRow.settingAverage) && windowRow.settingAverage >= 4,
   ).length;
+  const daysSinceHighSettingCandidate = (() => {
+    for (let offset = 1; offset <= metricWindowRows.length; offset += 1) {
+      const windowRow = metricWindowRows.at(-offset);
+      if (
+        windowRow &&
+        Number.isFinite(windowRow.settingAverage) &&
+        windowRow.settingAverage >= 4.5 &&
+        windowRow.rbCount >= 25
+      ) {
+        return offset;
+      }
+    }
+    return null;
+  })();
   const previousReferenceEventMetrics = calculatePreviousReferenceEventMetrics(
     businessDates,
     dateIndex,
@@ -2064,6 +2303,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     todaySetting,
     highSettingCount,
     highSettingCandidateCount,
+    daysSinceHighSettingCandidate,
     highSettingStreak: calculateCurrentHighSettingStreak(metricWindowRows),
     recentThreeHighSettingCount,
     gamesTotal,
@@ -2071,6 +2311,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     recentTwoGamesTotal,
     recentThreeGamesTotal,
     recentThreeBonusTotal,
+    recentThreeRbTotal,
     recentFiveRbTotal,
     recentTwoSettingAverage,
     recentFiveSettingAverage,
