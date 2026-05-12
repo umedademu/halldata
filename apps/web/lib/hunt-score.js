@@ -190,6 +190,17 @@ const MJ_ARENA_AIRPORT_TARGET_MACHINES = [
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
 ];
 
+const SLOT_MARUMITSU_OHASHI_TARGET_MACHINES = [
+  { name: "ゴーゴージャグラー３", aliases: ["ゴーゴージャグラー3", "ゴーゴージャグラー"] },
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  {
+    name: "ファンキージャグラー２ＫＴ",
+    aliases: ["ファンキージャグラー２", "ファンキージャグラー2", "ファンキージャグラー"],
+  },
+  { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
+  { name: "ミスタージャグラー", aliases: [] },
+];
+
 const WONDERLAND_MINAMIGAOKA_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -467,6 +478,20 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     scoreCalculator: calculateMjArenaAirportBHuntScore,
   },
   {
+    key: "slot-marumitsu-ohashi-a",
+    name: "スロットまるみつ大橋式A",
+    windowDays: 7,
+    historyWindowDays: 90,
+    scoreCalculator: calculateSlotMarumitsuOhashiAHuntScore,
+  },
+  {
+    key: "slot-marumitsu-ohashi-b",
+    name: "スロットまるみつ大橋式B",
+    windowDays: 7,
+    historyWindowDays: 90,
+    scoreCalculator: calculateSlotMarumitsuOhashiBHuntScore,
+  },
+  {
     key: "wonderland-minamigaoka-a",
     name: "ワンダーランド南ヶ丘式A",
     windowDays: 7,
@@ -599,6 +624,12 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["MJアリーナ空港店", "MJアリーナ空港", "ＭＪアリーナ空港店", "ＭＪアリーナ空港"],
     targetMachines: MJ_ARENA_AIRPORT_TARGET_MACHINES,
     defaultLogicKey: "mj-arena-airport-a",
+  },
+  {
+    key: "slot-marumitsu-ohashi",
+    storeNames: ["スロットまるみつ大橋店", "スロットまるみつ大橋", "まるみつ大橋店", "まるみつ大橋"],
+    targetMachines: SLOT_MARUMITSU_OHASHI_TARGET_MACHINES,
+    defaultLogicKey: "slot-marumitsu-ohashi-a",
   },
   {
     key: "wonderland-minamigaoka",
@@ -4049,6 +4080,257 @@ function calculateMjArenaAirportBHuntScore(metrics, context = {}) {
   return clamp(score, 0, 100);
 }
 
+function isSlotMarumitsuOhashiTargetMachine(machineName) {
+  const normalizedMachineName = normalizeText(machineName);
+  return SLOT_MARUMITSU_OHASHI_TARGET_MACHINES.some(
+    (targetMachine) =>
+      normalizeText(targetMachine.name) === normalizedMachineName ||
+      (targetMachine.aliases ?? []).some((alias) => normalizeText(alias) === normalizedMachineName),
+  );
+}
+
+function isSlotMarumitsuOhashiHighCandidate(metrics) {
+  return Boolean(metrics && metrics.todaySetting >= 4.5 && metrics.previousRbCount >= 25);
+}
+
+function countSlotMarumitsuOhashiNeighborHighCandidates(metrics, context = {}) {
+  const slot = readSlotNumberValue(metrics.slotNumber);
+  if (!Number.isFinite(slot) || !Array.isArray(context.metricsList)) {
+    return 0;
+  }
+
+  return context.metricsList.filter((otherMetrics) => {
+    if (!otherMetrics || otherMetrics === metrics || otherMetrics.machineName !== metrics.machineName) {
+      return false;
+    }
+    const otherSlot = readSlotNumberValue(otherMetrics.slotNumber);
+    return (
+      Number.isFinite(otherSlot) &&
+      Math.abs(otherSlot - slot) === 1 &&
+      isSlotMarumitsuOhashiHighCandidate(otherMetrics)
+    );
+  }).length;
+}
+
+function calculateSlotMarumitsuOhashiDifferenceScoreA(metrics) {
+  let score = 20;
+
+  if (metrics.recentThreeNetTotal <= -1000) {
+    score += 18;
+  }
+  if (metrics.recentThreeNetTotal <= -2500) {
+    score += 8;
+  }
+  if (metrics.netTotal <= -5000) {
+    score += 6;
+  }
+  if (metrics.recentTwoNetTotal <= -725) {
+    score += 10;
+  }
+  if (metrics.recentTwoNetTotal <= -1500) {
+    score += 4;
+  }
+  if (metrics.recentTwoNetTotal <= -2500) {
+    score += 4;
+  }
+  if (metrics.todayDifference <= 0) {
+    score += 4;
+  }
+  if (metrics.todayDifference <= -1000) {
+    score += 7;
+  }
+
+  if (metrics.todayDifference >= 500) {
+    score -= 18;
+  }
+  if (metrics.todayDifference >= 1000) {
+    score -= 4;
+  }
+  if (metrics.recentTwoNetTotal >= 2000) {
+    score -= 8;
+  }
+  if (metrics.recentThreeNetTotal >= 3000) {
+    score -= 8;
+  }
+  if (metrics.netTotal >= 5000) {
+    score -= 6;
+  }
+
+  return score;
+}
+
+function calculateSlotMarumitsuOhashiActivityScoreA(metrics) {
+  let score = 0;
+  const recentTwoAverageGames = metrics.recentTwoGamesTotal / 2;
+  const recentThreeAverageGames = metrics.recentThreeGamesTotal / 3;
+  const recentThreeBbTotal = metrics.recentThreeBonusTotal - metrics.recentThreeRbTotal;
+
+  if (recentThreeBbTotal <= 38) {
+    score += 10;
+  }
+  if (recentThreeBbTotal <= 30) {
+    score += 2;
+  }
+  if (metrics.recentThreeRbTotal <= 30) {
+    score += 6;
+  }
+  if (recentTwoAverageGames <= 3000) {
+    score += 5;
+  }
+  if (recentThreeAverageGames <= 4000) {
+    score += 3;
+  }
+
+  if (recentThreeBbTotal >= 55) {
+    score -= 6;
+  }
+  if (metrics.rbTotal >= 110) {
+    score -= 4;
+  }
+  if (metrics.previousGames >= 7000) {
+    score -= 4;
+  }
+
+  return score;
+}
+
+function calculateSlotMarumitsuOhashiSettingScoreA(metrics, context = {}) {
+  if (!hasBeamHikariSettingMetrics(metrics)) {
+    return 0;
+  }
+
+  let score = 0;
+  const previousHigh = isSlotMarumitsuOhashiHighCandidate(metrics);
+  const daysSince = metrics.daysSinceHistoryHighSettingCandidate;
+
+  if (metrics.highSettingCandidateCount === 0) {
+    score += 5;
+    if (metrics.historyThirtyHighSettingCandidateCount >= 3) {
+      score += 5;
+    }
+  }
+  if (Number.isFinite(daysSince) && daysSince >= 4 && daysSince <= 14) {
+    score += 5;
+  }
+  if (!previousHigh && countSlotMarumitsuOhashiNeighborHighCandidates(metrics, context) > 0) {
+    score += 6;
+  }
+  if (previousHigh) {
+    score -= 18;
+    if (metrics.todayDifference < 0) {
+      score += 28;
+    }
+  }
+  if (metrics.highSettingCandidateStreak >= 2) {
+    score -= 20;
+  }
+  if (Number.isFinite(daysSince) && [1, 2].includes(daysSince)) {
+    score -= 10;
+  }
+  if (metrics.highSettingCandidateCount >= 2) {
+    score -= 8;
+  }
+  if (metrics.recentFourteenHighSettingCandidateCount >= 3) {
+    score -= 5;
+  }
+  if (Number.isFinite(metrics.windowSettingAverage) && metrics.windowSettingAverage >= 3.2) {
+    score -= 4;
+  }
+
+  return score;
+}
+
+function calculateSlotMarumitsuOhashiAHuntScore(metrics, context = {}) {
+  if (!isSlotMarumitsuOhashiTargetMachine(metrics.machineName)) {
+    return 0;
+  }
+
+  const score =
+    calculateSlotMarumitsuOhashiDifferenceScoreA(metrics) +
+    calculateSlotMarumitsuOhashiActivityScoreA(metrics) +
+    calculateSlotMarumitsuOhashiSettingScoreA(metrics, context);
+
+  return clamp(score, 0, 100);
+}
+
+function calculateSlotMarumitsuOhashiDifferenceScoreB(metrics) {
+  let score = 50;
+
+  if (metrics.recentThreeNetTotal <= -4000) {
+    score += 30;
+  } else if (metrics.recentThreeNetTotal <= -3000) {
+    score += 25;
+  } else if (metrics.recentThreeNetTotal <= -2000) {
+    score += 18;
+  } else if (metrics.recentThreeNetTotal <= -1000) {
+    score += 10;
+  } else if (metrics.recentThreeNetTotal >= 2000) {
+    score -= 12;
+  }
+
+  if (metrics.netTotal <= -5000) {
+    score += 10;
+  } else if (metrics.netTotal <= -3000) {
+    score += 6;
+  } else if (metrics.netTotal >= 3000) {
+    score -= 8;
+  }
+
+  if (metrics.todayDifference >= -2000 && metrics.todayDifference <= -500) {
+    score += 8;
+  }
+  if (metrics.todayDifference >= 1000) {
+    score -= 10;
+  }
+
+  return score;
+}
+
+function calculateSlotMarumitsuOhashiSettingScoreB(metrics) {
+  if (!hasBeamHikariSettingMetrics(metrics)) {
+    return 0;
+  }
+
+  let score = 0;
+  if (isSlotMarumitsuOhashiHighCandidate(metrics)) {
+    score -= 20;
+  }
+  if (metrics.highSettingCandidateCount === 0) {
+    score += 5;
+  } else if (metrics.highSettingCandidateCount >= 2) {
+    score -= 10;
+  }
+  return score;
+}
+
+function calculateSlotMarumitsuOhashiActivityScoreB(metrics) {
+  let score = 0;
+  if (metrics.recentThreeRbTotal <= 20) {
+    score += 4;
+  } else if (metrics.recentThreeRbTotal >= 60) {
+    score -= 4;
+  }
+  if (metrics.recentThreeBonusTotal <= 60) {
+    score += 3;
+  } else if (metrics.recentThreeBonusTotal >= 150) {
+    score -= 5;
+  }
+  return score;
+}
+
+function calculateSlotMarumitsuOhashiBHuntScore(metrics) {
+  if (!isSlotMarumitsuOhashiTargetMachine(metrics.machineName)) {
+    return 0;
+  }
+
+  const score =
+    calculateSlotMarumitsuOhashiDifferenceScoreB(metrics) +
+    calculateSlotMarumitsuOhashiSettingScoreB(metrics) +
+    calculateSlotMarumitsuOhashiActivityScoreB(metrics);
+
+  return clamp(score, 0, 100);
+}
+
 function calculateHinodeOnojoHuntScore(metrics) {
   const lossDays = metrics.lossDays;
   const netTotal = metrics.netTotal;
@@ -4542,6 +4824,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
   const recentFiveRbTotal = recentFiveRows.reduce((total, windowRow) => total + windowRow.rbCount, 0);
   const recentTwoSettingAverage = calculateSettingAverageFromWindowRows(recentTwoRows);
   const recentFiveSettingAverage = calculateSettingAverageFromWindowRows(recentFiveRows);
+  const windowSettingAverage = calculateSettingAverageFromWindowRows(metricWindowRows);
   const recentThreeHighSettingCount = recentThreeRows.filter(
     (windowRow) => Number.isFinite(windowRow.settingAverage) && windowRow.settingAverage >= 4,
   ).length;
@@ -4604,6 +4887,9 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
   const recentFifteenHighSettingEstimateCount = historyWindowRows
     .slice(-15)
     .filter(isHistoryHighSettingEstimateWindowRow).length;
+  const recentFourteenHighSettingCandidateCount = historyWindowRows
+    .slice(-14)
+    .filter(isHistoryHighSettingCandidateWindowRow).length;
   const historyThirtyRows = historyWindowRows.slice(-30);
   const historyFortyFiveRows = historyWindowRows.slice(-45);
   const historyThirtyHighSettingCandidateCount = historyThirtyRows.filter(isHistoryHighSettingCandidateWindowRow).length;
@@ -4718,6 +5004,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     recentFiveHighSettingCandidateCount,
     recentFiveHighSettingEstimateCount,
     recentFifteenHighSettingEstimateCount,
+    recentFourteenHighSettingCandidateCount,
     twoDaysAgoHighSettingCandidate,
     twoDaysAgoHighSettingEstimate,
     twoDaysAgoSettingFive,
@@ -4746,6 +5033,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     recentFiveRbTotal,
     recentTwoSettingAverage,
     recentFiveSettingAverage,
+    windowSettingAverage,
     historyRowCount,
     historySettingSampleCount,
     historyHighSettingCount,
