@@ -211,6 +211,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     machineTouched: readSingleSearchParam(resolvedSearchParams?.machineTouched),
     combineAimJuggler: readMultiSearchParam(resolvedSearchParams?.aimMachineGroup),
     combineHanabi: readMultiSearchParam(resolvedSearchParams?.hanabiMachineGroup),
+    scoreDifferenceMode: readSingleSearchParam(resolvedSearchParams?.scoreDifferenceMode),
     differenceMode: readSingleSearchParam(resolvedSearchParams?.differenceMode),
     rankMin: readSingleSearchParam(resolvedSearchParams?.rankMin),
     rankMax: readSingleSearchParam(resolvedSearchParams?.rankMax),
@@ -290,6 +291,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     rankScope: detail.backtest.rankScope,
     deviationScope: detail.backtest.deviationScope,
     nextGapScope: detail.backtest.nextGapScope,
+    scoreDifferenceMode: detail.backtest.scoreDifferenceMode,
     differenceMode: detail.backtest.differenceMode,
     combineAimJuggler: detail.backtest.combineAimJuggler,
     combineHanabi: detail.backtest.combineHanabi,
@@ -664,7 +666,58 @@ export default async function HuntBacktestPage({ params, searchParams }) {
               </div>
 
               <div className="backtestBlock">
-                <p className="filterControlLabel">狙い度・実績差枚基準</p>
+                <p className="filterControlLabel">狙い度計算の差枚基準</p>
+                <div className="metricToggleRow">
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.scoreDifferenceMode === "bonus"
+                        ? "metricToggleChipActive"
+                        : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="scoreDifferenceMode"
+                      value="bonus"
+                      defaultChecked={detail.backtest.scoreDifferenceMode === "bonus"}
+                    />
+                    <span>設定1基準</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.scoreDifferenceMode === "estimated"
+                        ? "metricToggleChipActive"
+                        : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="scoreDifferenceMode"
+                      value="estimated"
+                      defaultChecked={detail.backtest.scoreDifferenceMode === "estimated"}
+                    />
+                    <span>推定設定基準</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.scoreDifferenceMode === "minrepo"
+                        ? "metricToggleChipActive"
+                        : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="scoreDifferenceMode"
+                      value="minrepo"
+                      defaultChecked={detail.backtest.scoreDifferenceMode === "minrepo"}
+                    />
+                    <span>みんレポ基準</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="backtestBlock">
+                <p className="filterControlLabel">実績差枚の集計基準</p>
                 <div className="metricToggleRow">
                   <label
                     className={`metricToggleChip ${

@@ -1518,6 +1518,7 @@ function buildInitialBacktestDetail(
     deviationScope,
     nextGapScope,
     showGraph: defaultedOptions?.showGraph === "off" ? "off" : "on",
+    scoreDifferenceMode: normalizeDifferenceMode(defaultedOptions?.scoreDifferenceMode),
     differenceMode: normalizeDifferenceMode(defaultedOptions?.differenceMode),
     combineAimJuggler,
     combineHanabi,
@@ -2266,6 +2267,7 @@ function buildCrossStoreBacktestOptions(options = {}) {
     rankScope,
     deviationScope,
     nextGapScope,
+    scoreDifferenceMode: normalizeDifferenceMode(options?.scoreDifferenceMode),
     differenceMode: normalizeDifferenceMode(options?.differenceMode),
     combineAimJuggler: normalizeEnabledOption(options?.combineAimJuggler, true),
     combineHanabi: normalizeEnabledOption(options?.combineHanabi, true),
@@ -2515,7 +2517,7 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       storeRowsInRange,
       store.storeName,
       huntScoreLogic.key,
-      backtestOptions.differenceMode,
+      backtestOptions.scoreDifferenceMode,
     );
     const backtest = buildHuntScoreBacktestDetail(snapshots, {
       periodMode: backtestOptions.periodMode,
@@ -2536,6 +2538,7 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       rankScope: backtestOptions.rankScope,
       deviationScope: backtestOptions.deviationScope,
       nextGapScope: backtestOptions.nextGapScope,
+      scoreDifferenceMode: backtestOptions.scoreDifferenceMode,
       differenceMode: backtestOptions.differenceMode,
       combineAimJuggler: backtestOptions.combineAimJuggler,
       combineHanabi: backtestOptions.combineHanabi,
@@ -2623,6 +2626,7 @@ export async function getCrossStoreBacktestDetail(options = {}) {
     rankScope: backtestOptions.rankScope,
     deviationScope: backtestOptions.deviationScope,
     nextGapScope: backtestOptions.nextGapScope,
+    scoreDifferenceMode: backtestOptions.scoreDifferenceMode,
     differenceMode: backtestOptions.differenceMode,
     combineAimJuggler: backtestOptions.combineAimJuggler,
     combineHanabi: backtestOptions.combineHanabi,
@@ -2651,7 +2655,7 @@ export async function getHuntScoreAnalysisPageDetail(
   const snapshotDetail = await getHuntScoreSnapshotsForStore(
     storeId,
     huntScoreLogicKey,
-    normalizedBacktestOptions.differenceMode,
+    normalizedBacktestOptions.scoreDifferenceMode,
   );
 
   if (!snapshotDetail) {
@@ -2674,6 +2678,7 @@ export async function getHuntScoreAnalysisPageDetail(
   const backtest = {
     ...buildHuntScoreBacktestDetail(snapshots, {
       ...buildBacktestOptionsForStore(store, normalizedBacktestOptions),
+      scoreDifferenceMode: normalizedBacktestOptions.scoreDifferenceMode,
       machineOrder:
         snapshotDetail.availableMachineNames ?? listHuntScoreTargetMachineNames(store.store_name),
     }),

@@ -726,6 +726,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const deviationScope = normalizeRankScope(options.deviationScope ?? rankScope);
   const nextGapScope = normalizeRankScope(options.nextGapScope ?? "machine");
   const showGraph = normalizeShowGraph(options.showGraph);
+  const scoreDifferenceMode = normalizeDifferenceMode(options.scoreDifferenceMode);
   const differenceMode = normalizeDifferenceMode(options.differenceMode);
   const eventFilters = buildBacktestEventFilters(options);
   const periodState = buildPeriodState(options, latestDate);
@@ -788,6 +789,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     deviationScope,
     nextGapScope,
     showGraph,
+    scoreDifferenceMode,
     differenceMode,
     combineAimJuggler,
     combineHanabi,
