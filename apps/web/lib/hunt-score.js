@@ -180,6 +180,16 @@ const BOOM_TENJIN_TARGET_MACHINES = [
 const BEAM_HIKARI_TARGET_MACHINES = APARK_KASUGA_TARGET_MACHINES;
 const MJ_ARENA_IJIRI_TARGET_MACHINES = APARK_KASUGA_TARGET_MACHINES;
 
+const MJ_ARENA_AIRPORT_TARGET_MACHINES = [
+  { name: "ゴーゴージャグラー３", aliases: ["ゴーゴージャグラー3", "ゴーゴージャグラー"] },
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  {
+    name: "ファンキージャグラー２ＫＴ",
+    aliases: ["ファンキージャグラー２", "ファンキージャグラー2", "ファンキージャグラー"],
+  },
+  { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
+];
+
 const WONDERLAND_MINAMIGAOKA_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -443,6 +453,20 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     scoreCalculator: calculateMjArenaIjiriBHuntScore,
   },
   {
+    key: "mj-arena-airport-a",
+    name: "MJアリーナ空港式A",
+    windowDays: 7,
+    historyWindowDays: 90,
+    scoreCalculator: calculateMjArenaAirportAHuntScore,
+  },
+  {
+    key: "mj-arena-airport-b",
+    name: "MJアリーナ空港式B",
+    windowDays: 7,
+    historyWindowDays: 90,
+    scoreCalculator: calculateMjArenaAirportBHuntScore,
+  },
+  {
     key: "wonderland-minamigaoka-a",
     name: "ワンダーランド南ヶ丘式A",
     windowDays: 7,
@@ -569,6 +593,12 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["MJアリーナ井尻店", "MJアリーナ井尻", "ＭＪアリーナ井尻店", "ＭＪアリーナ井尻"],
     targetMachines: MJ_ARENA_IJIRI_TARGET_MACHINES,
     defaultLogicKey: "mj-arena-ijiri-a",
+  },
+  {
+    key: "mj-arena-airport",
+    storeNames: ["MJアリーナ空港店", "MJアリーナ空港", "ＭＪアリーナ空港店", "ＭＪアリーナ空港"],
+    targetMachines: MJ_ARENA_AIRPORT_TARGET_MACHINES,
+    defaultLogicKey: "mj-arena-airport-a",
   },
   {
     key: "wonderland-minamigaoka",
@@ -888,6 +918,21 @@ function calculateCurrentHighSettingEstimateStreak(windowRows) {
   for (let index = windowRows.length - 1; index >= 0; index -= 1) {
     const settingAverage = windowRows[index].settingAverage;
     if (!Number.isFinite(settingAverage) || settingAverage < 4.5) {
+      break;
+    }
+    streak += 1;
+  }
+
+  return streak;
+}
+
+function calculateCurrentHighSettingCandidateStreak(windowRows) {
+  let streak = 0;
+
+  for (let index = windowRows.length - 1; index >= 0; index -= 1) {
+    const windowRow = windowRows[index];
+    const settingAverage = windowRow?.settingAverage;
+    if (!Number.isFinite(settingAverage) || settingAverage < 4.5 || windowRow.rbCount < 25) {
       break;
     }
     streak += 1;
@@ -3633,6 +3678,377 @@ function calculateWonderlandSueBHuntScore(metrics, context = {}) {
   return clamp(score, 0, 100);
 }
 
+function isMjArenaAirportTargetMachine(machineName) {
+  const normalizedMachineName = normalizeText(machineName);
+  return MJ_ARENA_AIRPORT_TARGET_MACHINES.some(
+    (targetMachine) =>
+      normalizeText(targetMachine.name) === normalizedMachineName ||
+      (targetMachine.aliases ?? []).some((alias) => normalizeText(alias) === normalizedMachineName),
+  );
+}
+
+function isMjArenaAirportHighCandidate(metrics) {
+  return Boolean(metrics && metrics.todaySetting >= 4.5 && metrics.previousRbCount >= 25);
+}
+
+function calculateMjArenaAirportDifferenceScoreA(metrics) {
+  let score = 0;
+  const d7 = metrics.netTotal;
+  const d3 = metrics.recentThreeNetTotal;
+  const d1 = metrics.todayDifference;
+
+  if (d7 <= -5000) {
+    score += 8;
+  } else if (d7 <= -3000) {
+    score += 18;
+  } else if (d7 <= -2000) {
+    score += 16;
+  } else if (d7 <= -1000) {
+    score += 10;
+  } else if (d7 < 0) {
+    score += 4;
+  } else if (d7 > 5000) {
+    score -= 15;
+  } else if (d7 > 3000) {
+    score -= 12;
+  } else if (d7 > 1000) {
+    score -= 8;
+  }
+
+  if (d3 <= -3000) {
+    score += 6;
+  } else if (d3 <= -2000) {
+    score += 10;
+  } else if (d3 <= -1000) {
+    score += 11;
+  } else if (d3 < 0) {
+    score += 7;
+  } else if (d3 > 2000) {
+    score -= 10;
+  } else if (d3 > 1000) {
+    score -= 6;
+  }
+
+  if (d1 <= -1500) {
+    score += 6;
+  } else if (d1 <= -500) {
+    score += 5;
+  } else if (d1 < 0) {
+    score += 2;
+  } else if (d1 > 1000) {
+    score -= 6;
+  } else if (d1 > 500) {
+    score -= 4;
+  }
+
+  return score;
+}
+
+function calculateMjArenaAirportActivityScoreA(metrics) {
+  let score = 0;
+
+  if (metrics.rbTotal <= 15) {
+    score += 14;
+  } else if (metrics.rbTotal <= 20) {
+    score += 10;
+  } else if (metrics.rbTotal <= 30) {
+    score += 6;
+  } else if (metrics.rbTotal <= 50) {
+    score += 2;
+  } else if (metrics.rbTotal > 60) {
+    score -= 4;
+  }
+
+  if (metrics.bbTotal <= 20) {
+    score += 4;
+  } else if (metrics.bbTotal <= 25) {
+    score += 12;
+  } else if (metrics.bbTotal <= 50) {
+    score += 8;
+  } else if (metrics.bbTotal <= 60) {
+    score += 4;
+  } else if (metrics.bbTotal > 80) {
+    score -= 8;
+  }
+
+  if (metrics.averageGames <= 1000) {
+    score += 10;
+  } else if (metrics.averageGames <= 1500) {
+    score += 8;
+  } else if (metrics.averageGames <= 2000) {
+    score += 6;
+  } else if (metrics.averageGames <= 2500) {
+    score += 2;
+  } else if (metrics.averageGames >= 3500) {
+    score -= 3;
+  }
+
+  return score;
+}
+
+function calculateMjArenaAirportPreviousHighScoreA(metrics) {
+  if (!hasBeamHikariSettingMetrics(metrics)) {
+    return 0;
+  }
+
+  if (metrics.highSettingEstimateStreak >= 2) {
+    return -12;
+  }
+
+  const d1 = metrics.todayDifference;
+  if (metrics.todaySetting >= 5) {
+    if (d1 < 500) {
+      return 18;
+    }
+    if (d1 < 1000) {
+      return 6;
+    }
+    return 4;
+  }
+
+  if (metrics.todaySetting >= 4.5) {
+    if (d1 < 500) {
+      return 7;
+    }
+    if (d1 < 1000) {
+      return 3;
+    }
+    return -5;
+  }
+
+  return 0;
+}
+
+function calculateMjArenaAirportRotationScoreA(metrics) {
+  if (!hasBeamHikariSettingMetrics(metrics)) {
+    return 0;
+  }
+
+  let score = 0;
+  if (metrics.highSettingEstimateCount === 0) {
+    score += 6;
+  } else if (metrics.highSettingEstimateCount >= 2) {
+    score -= 5;
+  }
+  if (metrics.settingFiveCount === 0) {
+    score += 3;
+  } else if (metrics.settingFiveCount >= 2) {
+    score -= 5;
+  }
+
+  const daysSince = metrics.daysSinceHistoryHighSettingEstimate;
+  if (Number.isFinite(daysSince)) {
+    if (daysSince === 1) {
+      score += 1;
+    } else if (daysSince >= 2 && daysSince <= 7) {
+      score -= 6;
+    } else if (daysSince >= 8 && daysSince <= 14) {
+      score += 2;
+    } else if (daysSince >= 15 && daysSince <= 30) {
+      score += 5;
+    }
+  } else {
+    score += 5;
+  }
+
+  return score;
+}
+
+function calculateMjArenaAirportAHuntScore(metrics) {
+  if (!isMjArenaAirportTargetMachine(metrics.machineName)) {
+    return 0;
+  }
+
+  let score =
+    20 +
+    calculateMjArenaAirportDifferenceScoreA(metrics) +
+    calculateMjArenaAirportActivityScoreA(metrics) +
+    calculateMjArenaAirportPreviousHighScoreA(metrics) +
+    calculateMjArenaAirportRotationScoreA(metrics);
+
+  if (metrics.previousGames <= 100) {
+    score -= 10;
+  }
+  if (!hasBeamHikariSettingMetrics(metrics) || metrics.todaySetting < 4.5) {
+    score = Math.min(score, 85);
+  }
+
+  return clamp(score, 0, 100);
+}
+
+function calculateMjArenaAirportDateScoreB(context = {}) {
+  const targetDate = context.nextBusinessDate ?? context.baseDate;
+  const day = readDateDay(targetDate);
+  const weekday = readDateWeekday(targetDate);
+  let score = 0;
+
+  if ([5, 15, 25].includes(day)) {
+    score += 10;
+  } else if ([0, 3, 6].includes(weekday)) {
+    score += 4;
+  } else if ([1, 5].includes(weekday)) {
+    score -= 3;
+  }
+
+  return score;
+}
+
+function calculateMjArenaAirportDifferenceScoreB(metrics) {
+  let score = 0;
+  const s7 = metrics.netTotal;
+  const s3 = metrics.recentThreeNetTotal;
+  const s1 = metrics.todayDifference;
+
+  if (s7 <= -2000) {
+    score += 18;
+  } else if (s7 <= -1000) {
+    score += 13;
+  } else if (s7 <= -500) {
+    score += 8;
+  } else if (s7 <= 0) {
+    score += 3;
+  } else if (s7 >= 2000) {
+    score -= 14;
+  } else if (s7 >= 1000) {
+    score -= 9;
+  } else if (s7 >= 500) {
+    score -= 4;
+  }
+
+  if (s3 <= -1000) {
+    score += 9;
+  } else if (s3 <= -500) {
+    score += 7;
+  } else if (s3 <= 0) {
+    score += 3;
+  } else if (s3 >= 2000) {
+    score -= 8;
+  } else if (s3 >= 1000) {
+    score -= 5;
+  }
+
+  if (s1 <= -2000) {
+    score += 4;
+  } else if (s1 <= -1000) {
+    score += 3;
+  } else if (s1 <= -500) {
+    score += 2;
+  } else if (s1 >= 2000) {
+    score -= 5;
+  } else if (s1 >= 1000) {
+    score -= 3;
+  }
+
+  return score;
+}
+
+function calculateMjArenaAirportActivityScoreB(metrics) {
+  let score = 0;
+  const rbAverage = metrics.rbTotal / 7;
+
+  if (metrics.averageGames < 1000) {
+    score += 10;
+  } else if (metrics.averageGames < 2000) {
+    score += 8;
+  } else if (metrics.averageGames < 3000) {
+    score += 3;
+  } else if (metrics.averageGames >= 5000) {
+    score -= 4;
+  }
+
+  if (rbAverage < 5) {
+    score += 10;
+  } else if (rbAverage < 10) {
+    score += 5;
+  } else if (rbAverage >= 15) {
+    score -= 3;
+  }
+
+  return score;
+}
+
+function calculateMjArenaAirportRotationScoreB(metrics) {
+  if (!hasBeamHikariSettingMetrics(metrics)) {
+    return 0;
+  }
+
+  let score = 0;
+  if (metrics.highSettingCandidateCount === 0) {
+    score += 8;
+  } else if (metrics.highSettingCandidateCount === 1) {
+    score -= 6;
+  } else if (metrics.highSettingCandidateCount >= 2) {
+    score -= 10;
+  }
+
+  if (metrics.recentFifteenHighSettingEstimateCount === 0) {
+    score += 5;
+  } else if (metrics.recentFifteenHighSettingEstimateCount >= 3) {
+    score -= 5;
+  }
+
+  const daysSinceHighCandidate = metrics.daysSinceHistoryHighSettingCandidate;
+  if (!Number.isFinite(daysSinceHighCandidate) || daysSinceHighCandidate >= 15) {
+    score += 4;
+  } else if (daysSinceHighCandidate >= 2 && daysSinceHighCandidate <= 7) {
+    score -= 4;
+  }
+
+  const daysSinceSettingFive = metrics.daysSinceHistorySettingFive;
+  if (!Number.isFinite(daysSinceSettingFive) || daysSinceSettingFive >= 15) {
+    score += 2;
+  }
+
+  return score;
+}
+
+function calculateMjArenaAirportPreviousHighScoreB(metrics) {
+  if (!hasBeamHikariSettingMetrics(metrics)) {
+    return 0;
+  }
+
+  let score = 0;
+  const d1 = metrics.todayDifference;
+  const settingFive = metrics.todaySetting >= 5;
+  const highCandidate = isMjArenaAirportHighCandidate(metrics);
+  const highEstimate = metrics.todaySetting >= 4.5;
+
+  if (settingFive && d1 < 0) {
+    score += 12;
+  } else if (highCandidate && d1 < 0) {
+    score += 10;
+  } else if (highEstimate && d1 < 0) {
+    score += 5;
+  }
+
+  if (settingFive && d1 >= 0) {
+    score += 3;
+  }
+  if (highEstimate && d1 >= 1000) {
+    score -= 5;
+  }
+  if (metrics.highSettingEstimateStreak >= 2 || metrics.highSettingCandidateStreak >= 2) {
+    score -= 10;
+  }
+
+  return score;
+}
+
+function calculateMjArenaAirportBHuntScore(metrics, context = {}) {
+  if (!isMjArenaAirportTargetMachine(metrics.machineName)) {
+    return 0;
+  }
+
+  const score =
+    calculateMjArenaAirportDateScoreB(context) +
+    calculateMjArenaAirportDifferenceScoreB(metrics) +
+    calculateMjArenaAirportActivityScoreB(metrics) +
+    calculateMjArenaAirportRotationScoreB(metrics) +
+    calculateMjArenaAirportPreviousHighScoreB(metrics);
+
+  return clamp(score, 0, 100);
+}
+
 function calculateHinodeOnojoHuntScore(metrics) {
   const lossDays = metrics.lossDays;
   const netTotal = metrics.netTotal;
@@ -4230,10 +4646,28 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     }
     return null;
   })();
+  const daysSinceHistoryHighSettingCandidate = (() => {
+    for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
+      const historyWindowRow = historyWindowRows.at(-offset);
+      if (isHistoryHighSettingCandidateWindowRow(historyWindowRow)) {
+        return offset;
+      }
+    }
+    return null;
+  })();
   const daysSinceHistoryStrongHighSettingCandidate = (() => {
     for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
       const historyWindowRow = historyWindowRows.at(-offset);
       if (isHistoryStrongHighSettingCandidateWindowRow(historyWindowRow)) {
+        return offset;
+      }
+    }
+    return null;
+  })();
+  const daysSinceHistorySettingFive = (() => {
+    for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
+      const historyWindowRow = historyWindowRows.at(-offset);
+      if (isHistorySettingFiveWindowRow(historyWindowRow)) {
         return offset;
       }
     }
@@ -4293,9 +4727,12 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     daysSinceHighSettingEstimate,
     daysSinceSettingFive,
     daysSinceHistoryHighSettingEstimate,
+    daysSinceHistoryHighSettingCandidate,
     daysSinceHistoryStrongHighSettingCandidate,
+    daysSinceHistorySettingFive,
     highSettingStreak: calculateCurrentHighSettingStreak(metricWindowRows),
     highSettingEstimateStreak: calculateCurrentHighSettingEstimateStreak(metricWindowRows),
+    highSettingCandidateStreak: calculateCurrentHighSettingCandidateStreak(metricWindowRows),
     recentThreeHighSettingCount,
     recentThreeHighSettingEstimateCount,
     recentThreeSettingFiveCount,
