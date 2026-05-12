@@ -178,6 +178,7 @@ const BOOM_TENJIN_TARGET_MACHINES = [
 ];
 
 const BEAM_HIKARI_TARGET_MACHINES = APARK_KASUGA_TARGET_MACHINES;
+const MJ_ARENA_IJIRI_TARGET_MACHINES = APARK_KASUGA_TARGET_MACHINES;
 
 const HINODE_ONOJO_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
@@ -414,6 +415,20 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     scoreCalculator: calculateBeamHikariBHuntScore,
   },
   {
+    key: "mj-arena-ijiri-a",
+    name: "MJアリーナ井尻式A",
+    windowDays: 7,
+    historyWindowDays: 90,
+    scoreCalculator: calculateMjArenaIjiriAHuntScore,
+  },
+  {
+    key: "mj-arena-ijiri-b",
+    name: "MJアリーナ井尻式B",
+    windowDays: 7,
+    historyWindowDays: 90,
+    scoreCalculator: calculateMjArenaIjiriBHuntScore,
+  },
+  {
     key: "hinode-onojo",
     name: "HINODE大野城式",
     windowDays: 7,
@@ -506,6 +521,12 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["ビームヒカリ店", "ビームヒカリ", "BEAM HIKARI", "BEAMHIKARI", "ＢＥＡＭヒカリ店"],
     targetMachines: BEAM_HIKARI_TARGET_MACHINES,
     defaultLogicKey: "beam-hikari-a",
+  },
+  {
+    key: "mj-arena-ijiri",
+    storeNames: ["MJアリーナ井尻店", "MJアリーナ井尻", "ＭＪアリーナ井尻店", "ＭＪアリーナ井尻"],
+    targetMachines: MJ_ARENA_IJIRI_TARGET_MACHINES,
+    defaultLogicKey: "mj-arena-ijiri-a",
   },
   {
     key: "mj-itazuke",
@@ -820,6 +841,15 @@ function readDateDay(dateText) {
     return null;
   }
   return Number(match[3]);
+}
+
+function readDateWeekday(dateText) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(String(dateText ?? "").trim());
+  const date = match
+    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+    : new Date(String(dateText ?? ""));
+  const weekday = date.getDay();
+  return Number.isFinite(weekday) ? weekday : null;
 }
 
 function isGogoArenaTenjinReferenceEventDate(dateText) {
@@ -2155,6 +2185,375 @@ function calculateBeamHikariBHuntScore(metrics) {
   return clamp(score, 0, 100);
 }
 
+function isMjArenaIjiriTargetMachine(machineName) {
+  return Boolean(normalizeText(machineName));
+}
+
+function readMjArenaIjiriTargetDate(context = {}) {
+  return context.nextBusinessDate ?? context.baseDate;
+}
+
+function calculateMjArenaIjiriDateScore(context = {}) {
+  const targetDate = readMjArenaIjiriTargetDate(context);
+  const day = readDateDay(targetDate);
+  const weekday = readDateWeekday(targetDate);
+  let score = 0;
+
+  if ([5, 15, 25].includes(day)) {
+    score += 10;
+  } else if ([1, 31].includes(day)) {
+    score += 8;
+  }
+
+  if ([0, 2, 6].includes(weekday)) {
+    score += 2;
+  } else if ([4, 5].includes(weekday)) {
+    score -= 2;
+  }
+
+  return clamp(score, -4, 12);
+}
+
+function calculateMjArenaIjiriTailScore(slotNumber) {
+  const tail = readSlotLastDigit(slotNumber);
+  if (tail === 1) {
+    return 2;
+  }
+  if (tail === 9) {
+    return 1.5;
+  }
+  if (tail === 0) {
+    return 1;
+  }
+  if ([3, 7].includes(tail)) {
+    return 0.5;
+  }
+  if (tail === 6) {
+    return -1.5;
+  }
+  if (tail === 5) {
+    return -0.5;
+  }
+  return 0;
+}
+
+function calculateMjArenaIjiriHistoryScore(metrics) {
+  if (metrics.historyRowCount < 14) {
+    return 0;
+  }
+
+  if (metrics.historySettingSampleCount >= 14 && Number.isFinite(metrics.historyHighSettingEstimateRate)) {
+    if (metrics.historyHighSettingEstimateRate >= 0.2) {
+      return 8;
+    }
+    if (metrics.historyHighSettingEstimateRate >= 0.14) {
+      return 5;
+    }
+    if (metrics.historyHighSettingEstimateRate >= 0.1) {
+      return 2.5;
+    }
+    if (metrics.historyHighSettingEstimateRate <= 0.03) {
+      return -5;
+    }
+    return 0;
+  }
+
+  const averageNet = metrics.historyNetTotal / metrics.historyRowCount;
+  const positiveRate = metrics.historyPositiveDays / metrics.historyRowCount;
+  if (averageNet >= 250 || positiveRate >= 0.58) {
+    return 6;
+  }
+  if (averageNet >= 100 || positiveRate >= 0.52) {
+    return 3;
+  }
+  if (averageNet <= -250 || positiveRate <= 0.36) {
+    return -5;
+  }
+  if (averageNet <= -100 || positiveRate <= 0.42) {
+    return -2.5;
+  }
+  return 0;
+}
+
+function calculateMjArenaIjiriDipScoreA(metrics) {
+  let score = 0;
+
+  score += scoreFromMaximums(metrics.netTotal, [
+    { maximum: -5000, score: 22 },
+    { maximum: -4000, score: 18 },
+    { maximum: -3000, score: 15 },
+    { maximum: -2000, score: 11 },
+    { maximum: -1000, score: 7 },
+    { maximum: -500, score: 4 },
+  ]);
+  score += scoreFromMaximums(metrics.recentFourNetTotal, [
+    { maximum: -3000, score: 12 },
+    { maximum: -2000, score: 9 },
+    { maximum: -1000, score: 6 },
+    { maximum: -500, score: 3 },
+  ]);
+  score += scoreFromMaximums(metrics.recentThreeNetTotal, [
+    { maximum: -2000, score: 8 },
+    { maximum: -1500, score: 6 },
+    { maximum: -1000, score: 4 },
+  ]);
+  score += scoreFromMaximums(metrics.recentTwoNetTotal, [
+    { maximum: -2000, score: 6 },
+    { maximum: -1000, score: 4 },
+    { maximum: -500, score: 2 },
+  ]);
+  score += scoreFromMaximums(metrics.todayDifference, [
+    { maximum: -1500, score: 4 },
+    { maximum: -1000, score: 2 },
+  ]);
+
+  score += scoreFromMinimums(metrics.netTotal, [
+    { minimum: 5000, score: -16 },
+    { minimum: 3000, score: -12 },
+    { minimum: 1500, score: -8 },
+    { minimum: 500, score: -4 },
+  ]);
+  score += scoreFromMinimums(metrics.recentFourNetTotal, [
+    { minimum: 3000, score: -10 },
+    { minimum: 1500, score: -6 },
+    { minimum: 500, score: -3 },
+  ]);
+  score += scoreFromMinimums(metrics.recentThreeNetTotal, [
+    { minimum: 3000, score: -8 },
+    { minimum: 1500, score: -6 },
+    { minimum: 500, score: -3 },
+  ]);
+  score += scoreFromMinimums(metrics.recentTwoNetTotal, [
+    { minimum: 2000, score: -6 },
+    { minimum: 1000, score: -4 },
+    { minimum: 500, score: -2 },
+  ]);
+  score += scoreFromMinimums(metrics.todayDifference, [
+    { minimum: 2000, score: -5 },
+    { minimum: 1000, score: -3 },
+  ]);
+
+  return clamp(score, -30, 45);
+}
+
+function calculateMjArenaIjiriDipScoreB(metrics) {
+  let score = 0;
+
+  if (metrics.netTotal <= -5000) {
+    score += 25;
+  } else if (metrics.netTotal <= -3000) {
+    score += 18;
+  } else if (metrics.netTotal <= -2000) {
+    score += 13;
+  } else if (metrics.netTotal <= -1000) {
+    score += 9;
+  } else if (metrics.netTotal < 0) {
+    score += 4;
+  } else if (metrics.netTotal >= 5000) {
+    score -= 12;
+  } else if (metrics.netTotal >= 3000) {
+    score -= 9;
+  } else if (metrics.netTotal >= 2000) {
+    score -= 6;
+  }
+
+  if (metrics.recentThreeNetTotal <= -3000) {
+    score += 12;
+  } else if (metrics.recentThreeNetTotal <= -2000) {
+    score += 9;
+  } else if (metrics.recentThreeNetTotal <= -1000) {
+    score += 5;
+  } else if (metrics.recentThreeNetTotal >= 5000) {
+    score -= 12;
+  } else if (metrics.recentThreeNetTotal >= 3000) {
+    score -= 10;
+  } else if (metrics.recentThreeNetTotal >= 2000) {
+    score -= 6;
+  }
+
+  if (metrics.todayDifference <= -2000) {
+    score += 0;
+  } else if (metrics.todayDifference <= -1000) {
+    score += 8;
+  } else if (metrics.todayDifference < 0) {
+    score += 3;
+  } else if (metrics.todayDifference >= 3000) {
+    score -= 10;
+  } else if (metrics.todayDifference >= 1000) {
+    score -= 7;
+  }
+
+  return clamp(score, -20, 35);
+}
+
+function calculateMjArenaIjiriActivityScore(metrics) {
+  let score = 0;
+  const recentThreeAverageGames = metrics.recentThreeGamesTotal / 3;
+  const recentTwoAverageGames = metrics.recentTwoGamesTotal / 2;
+  const sevenAverageGames = metrics.averageGames;
+
+  if (sevenAverageGames < 1000) {
+    score += 8;
+  } else if (sevenAverageGames < 2000) {
+    score += 5;
+  } else if (sevenAverageGames < 3000) {
+    score += 2;
+  } else if (sevenAverageGames >= 6000) {
+    score -= 8;
+  } else if (sevenAverageGames >= 5000) {
+    score -= 5;
+  }
+
+  if (recentTwoAverageGames < 1000) {
+    score += 4;
+  } else if (recentTwoAverageGames < 2000) {
+    score += 2;
+  } else if (recentTwoAverageGames < 3000) {
+    score += 1;
+  } else if (recentTwoAverageGames >= 5000) {
+    score -= 3;
+  }
+
+  if (recentThreeAverageGames <= 1500) {
+    score += 6;
+  } else if (recentThreeAverageGames <= 2500) {
+    score += 3;
+  } else if (recentThreeAverageGames >= 5500) {
+    score -= 5;
+  } else if (recentThreeAverageGames >= 4500) {
+    score -= 2;
+  }
+
+  return clamp(score, -12, 15);
+}
+
+function calculateMjArenaIjiriSettingCycleScoreA(metrics) {
+  if (!hasBeamHikariSettingMetrics(metrics)) {
+    return 0;
+  }
+
+  let score = 0;
+  if (metrics.highSettingEstimateCount === 0) {
+    score += 6;
+  } else if (metrics.highSettingEstimateCount >= 2) {
+    score -= 9;
+  }
+  if (metrics.settingFiveCount === 0) {
+    score += 3;
+  } else if (metrics.settingFiveCount >= 1) {
+    score -= 4;
+  }
+  if (metrics.recentThreeHighSettingEstimateCount >= 1) {
+    score -= 2;
+  }
+  if (metrics.recentThreeSettingFiveCount >= 1) {
+    score -= 2;
+  }
+
+  if (metrics.todaySetting >= 4.5) {
+    if (metrics.todayDifference <= 0) {
+      score += 6;
+    } else {
+      score -= 4;
+    }
+  }
+  if (metrics.todaySetting >= 5) {
+    if (metrics.todayDifference <= 0) {
+      score += 2;
+    } else {
+      score -= 2;
+    }
+  }
+  if (metrics.todaySetting >= 4.5 && metrics.twoDaysAgoHighSettingEstimate) {
+    score -= 10;
+  }
+  if (metrics.todaySetting >= 5 && metrics.twoDaysAgoSettingFive) {
+    score -= 7;
+  }
+
+  return clamp(score, -15, 25);
+}
+
+function calculateMjArenaIjiriSettingCycleScoreB(metrics) {
+  if (!hasBeamHikariSettingMetrics(metrics)) {
+    return 0;
+  }
+
+  let score = 0;
+  if (metrics.highSettingEstimateCount === 0) {
+    score += 8;
+  } else if (metrics.highSettingEstimateCount >= 2) {
+    score -= 10;
+  }
+  if (metrics.settingFiveCount === 0) {
+    score += 5;
+  } else {
+    score -= 3;
+  }
+  if (metrics.recentFifteenHighSettingEstimateCount === 0) {
+    score += 4;
+  }
+  if (Number.isFinite(metrics.daysSinceHistoryHighSettingEstimate)) {
+    if (metrics.daysSinceHistoryHighSettingEstimate >= 15) {
+      score += 7;
+    } else if (metrics.daysSinceHistoryHighSettingEstimate >= 8) {
+      score += 3;
+    }
+  }
+  if (metrics.recentThreeHighSettingEstimateCount >= 1) {
+    score -= 4;
+  }
+  if (metrics.todaySetting >= 4.5) {
+    if (metrics.todayDifference < 0) {
+      score += 12;
+    } else if (metrics.todayDifference >= 1000) {
+      score -= 6;
+    }
+  }
+  if (metrics.todaySetting >= 5) {
+    if (metrics.todayDifference < 0) {
+      score += 4;
+    } else if (metrics.todayDifference >= 1000) {
+      score -= 3;
+    }
+  }
+
+  return clamp(score, -15, 25);
+}
+
+function calculateMjArenaIjiriAHuntScore(metrics) {
+  if (!isMjArenaIjiriTargetMachine(metrics.machineName)) {
+    return 0;
+  }
+
+  const score =
+    28 +
+    calculateMjArenaIjiriDipScoreA(metrics) +
+    calculateMjArenaIjiriActivityScore(metrics) +
+    calculateMjArenaIjiriSettingCycleScoreA(metrics) +
+    calculateMjArenaIjiriHistoryScore(metrics) +
+    calculateMjArenaIjiriTailScore(metrics.slotNumber);
+
+  return clamp(score, 0, 100);
+}
+
+function calculateMjArenaIjiriBHuntScore(metrics, context = {}) {
+  if (!isMjArenaIjiriTargetMachine(metrics.machineName)) {
+    return 0;
+  }
+
+  const score =
+    25 +
+    calculateMjArenaIjiriDateScore(context) +
+    calculateMjArenaIjiriDipScoreB(metrics) +
+    calculateMjArenaIjiriActivityScore(metrics) +
+    calculateMjArenaIjiriSettingCycleScoreB(metrics) +
+    calculateMjArenaIjiriHistoryScore(metrics) +
+    calculateMjArenaIjiriTailScore(metrics.slotNumber);
+
+  return clamp(score, 0, 100);
+}
+
 function calculateHinodeOnojoHuntScore(metrics) {
   const lossDays = metrics.lossDays;
   const netTotal = metrics.netTotal;
@@ -2538,6 +2937,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
   let highSettingCount = 0;
   let highSettingEstimateCount = 0;
   let highSettingCandidateCount = 0;
+  let settingFiveCount = 0;
   const metricWindowRows = [];
   let historyRowCount = 0;
   let historySettingSampleCount = 0;
@@ -2563,6 +2963,9 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
       }
       if (settingAverage >= 4.5) {
         highSettingEstimateCount += 1;
+      }
+      if (settingAverage >= 5) {
+        settingFiveCount += 1;
       }
     }
     if (Number.isFinite(settingAverage) && settingAverage >= 4.5 && rbCount >= 25) {
@@ -2652,12 +3055,27 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     );
   const isHighSettingEstimateWindowRow = (windowRow) =>
     Boolean(windowRow && Number.isFinite(windowRow.settingAverage) && windowRow.settingAverage >= 4.5);
+  const isSettingFiveWindowRow = (windowRow) =>
+    Boolean(windowRow && Number.isFinite(windowRow.settingAverage) && windowRow.settingAverage >= 5);
+  const isHistoryHighSettingEstimateWindowRow = (historyWindowRow) => {
+    if (!historyWindowRow) {
+      return false;
+    }
+    const settingAverage = getSettingEstimateAverage(settingDefinitionCache, historyWindowRow.row, config).average;
+    return Number.isFinite(settingAverage) && settingAverage >= 4.5;
+  };
   const twoDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-2));
   const threeDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-3));
   const fourDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-4));
   const recentFiveHighSettingCandidateCount = recentFiveRows.filter(isHighSettingCandidateWindowRow).length;
   const twoDaysAgoHighSettingEstimate = isHighSettingEstimateWindowRow(metricWindowRows.at(-2));
+  const twoDaysAgoSettingFive = isSettingFiveWindowRow(metricWindowRows.at(-2));
+  const recentThreeHighSettingEstimateCount = recentThreeRows.filter(isHighSettingEstimateWindowRow).length;
+  const recentThreeSettingFiveCount = recentThreeRows.filter(isSettingFiveWindowRow).length;
   const recentFiveHighSettingEstimateCount = recentFiveRows.filter(isHighSettingEstimateWindowRow).length;
+  const recentFifteenHighSettingEstimateCount = historyWindowRows
+    .slice(-15)
+    .filter(isHistoryHighSettingEstimateWindowRow).length;
   const daysSinceHighSettingCandidate = (() => {
     for (let offset = 1; offset <= metricWindowRows.length; offset += 1) {
       const windowRow = metricWindowRows.at(-offset);
@@ -2680,6 +3098,15 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     for (let offset = 1; offset <= metricWindowRows.length; offset += 1) {
       const windowRow = metricWindowRows.at(-offset);
       if (windowRow && Number.isFinite(windowRow.settingAverage) && windowRow.settingAverage >= 5) {
+        return offset;
+      }
+    }
+    return null;
+  })();
+  const daysSinceHistoryHighSettingEstimate = (() => {
+    for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
+      const historyWindowRow = historyWindowRows.at(-offset);
+      if (isHistoryHighSettingEstimateWindowRow(historyWindowRow)) {
         return offset;
       }
     }
@@ -2725,17 +3152,23 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     highSettingCount,
     highSettingEstimateCount,
     highSettingCandidateCount,
+    settingFiveCount,
     recentFiveHighSettingCandidateCount,
     recentFiveHighSettingEstimateCount,
+    recentFifteenHighSettingEstimateCount,
     twoDaysAgoHighSettingCandidate,
     twoDaysAgoHighSettingEstimate,
+    twoDaysAgoSettingFive,
     threeDaysAgoHighSettingCandidate,
     fourDaysAgoHighSettingCandidate,
     daysSinceHighSettingCandidate,
     daysSinceHighSettingEstimate,
     daysSinceSettingFive,
+    daysSinceHistoryHighSettingEstimate,
     highSettingStreak: calculateCurrentHighSettingStreak(metricWindowRows),
     recentThreeHighSettingCount,
+    recentThreeHighSettingEstimateCount,
+    recentThreeSettingFiveCount,
     gamesTotal,
     averageGames: metricWindowRows.length > 0 ? gamesTotal / metricWindowRows.length : 0,
     recentTwoGamesTotal,
