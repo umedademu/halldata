@@ -180,6 +180,11 @@ const BOOM_TENJIN_TARGET_MACHINES = [
 const BEAM_HIKARI_TARGET_MACHINES = APARK_KASUGA_TARGET_MACHINES;
 const MJ_ARENA_IJIRI_TARGET_MACHINES = APARK_KASUGA_TARGET_MACHINES;
 
+const WONDERLAND_MINAMIGAOKA_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
+];
+
 const HINODE_ONOJO_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -429,6 +434,20 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     scoreCalculator: calculateMjArenaIjiriBHuntScore,
   },
   {
+    key: "wonderland-minamigaoka-a",
+    name: "ワンダーランド南ヶ丘式A",
+    windowDays: 7,
+    historyWindowDays: 90,
+    scoreCalculator: calculateWonderlandMinamigaokaAHuntScore,
+  },
+  {
+    key: "wonderland-minamigaoka-b",
+    name: "ワンダーランド南ヶ丘式B",
+    windowDays: 7,
+    historyWindowDays: 90,
+    scoreCalculator: calculateWonderlandMinamigaokaBHuntScore,
+  },
+  {
     key: "hinode-onojo",
     name: "HINODE大野城式",
     windowDays: 7,
@@ -527,6 +546,19 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["MJアリーナ井尻店", "MJアリーナ井尻", "ＭＪアリーナ井尻店", "ＭＪアリーナ井尻"],
     targetMachines: MJ_ARENA_IJIRI_TARGET_MACHINES,
     defaultLogicKey: "mj-arena-ijiri-a",
+  },
+  {
+    key: "wonderland-minamigaoka",
+    storeNames: [
+      "ワンダーランド南ヶ丘店",
+      "ワンダーランド南ヶ丘",
+      "ワンダーランド南が丘店",
+      "ワンダーランド南が丘",
+      "ワンダーランド南ケ丘店",
+      "ワンダーランド南ケ丘",
+    ],
+    targetMachines: WONDERLAND_MINAMIGAOKA_TARGET_MACHINES,
+    defaultLogicKey: "wonderland-minamigaoka-b",
   },
   {
     key: "mj-itazuke",
@@ -2550,6 +2582,506 @@ function calculateMjArenaIjiriBHuntScore(metrics, context = {}) {
     calculateMjArenaIjiriSettingCycleScoreB(metrics) +
     calculateMjArenaIjiriHistoryScore(metrics) +
     calculateMjArenaIjiriTailScore(metrics.slotNumber);
+
+  return clamp(score, 0, 100);
+}
+
+function isWonderlandMinamigaokaMyJuggler(machineName) {
+  return normalizeText(machineName) === normalizeText("マイジャグラーV");
+}
+
+function isWonderlandMinamigaokaNeo(machineName) {
+  return normalizeText(machineName) === normalizeText("ネオアイムジャグラーEX");
+}
+
+function isWonderlandMinamigaokaTargetMachine(machineName) {
+  return isWonderlandMinamigaokaMyJuggler(machineName) || isWonderlandMinamigaokaNeo(machineName);
+}
+
+function readSlotNumberValue(slotNumber) {
+  const match = String(slotNumber ?? "").match(/\d+/u);
+  return match ? Number(match[0]) : null;
+}
+
+function readWonderlandMinamigaokaTargetDate(context = {}) {
+  return context.nextBusinessDate ?? context.baseDate;
+}
+
+function calculateWonderlandMinamigaokaDateScoreA(machineName, context = {}) {
+  const targetDate = readWonderlandMinamigaokaTargetDate(context);
+  const day = readDateDay(targetDate);
+  const weekday = readDateWeekday(targetDate);
+  let score = 0;
+
+  if (isWonderlandMinamigaokaMyJuggler(machineName)) {
+    if (day === 21) {
+      score += 18;
+    } else if (day === 11) {
+      score += 16;
+    } else if (day === 31) {
+      score += 10;
+    } else if (day === 1) {
+      score += 6;
+    } else if (day === 7) {
+      score -= 8;
+    } else if (day === 17) {
+      score -= 14;
+    } else if (day === 27) {
+      score -= 12;
+    }
+
+    if (weekday === 6) {
+      score += 6;
+    } else if ([2, 3].includes(weekday)) {
+      score += 3;
+    } else if (weekday === 4) {
+      score -= 5;
+    } else if (weekday === 5) {
+      score -= 4;
+    }
+  } else if (isWonderlandMinamigaokaNeo(machineName)) {
+    if (day === 21) {
+      score += 18;
+    } else if (day === 31) {
+      score += 12;
+    } else if ([1, 11].includes(day)) {
+      score += 6;
+    } else if (day === 7) {
+      score -= 7;
+    } else if ([17, 27].includes(day)) {
+      score -= 8;
+    }
+
+    if (weekday === 6) {
+      score += 6;
+    } else if (weekday === 2) {
+      score += 4;
+    } else if (weekday === 0) {
+      score += 2;
+    } else if ([4, 5].includes(weekday)) {
+      score -= 6;
+    }
+  }
+
+  return clamp(score, -20, 24);
+}
+
+function calculateWonderlandMinamigaokaDateScoreB(context = {}) {
+  const targetDate = readWonderlandMinamigaokaTargetDate(context);
+  const day = readDateDay(targetDate);
+  const weekday = readDateWeekday(targetDate);
+  let score = 0;
+
+  if (day === 21) {
+    score += 12;
+  } else if ([11, 31].includes(day)) {
+    score += 8;
+  } else if (day === 1) {
+    score += 5;
+  } else if ([7, 17, 27].includes(day)) {
+    score -= 8;
+  }
+
+  if (weekday === 6) {
+    score += 10;
+  } else if (weekday === 2) {
+    score += 6;
+  } else if ([0, 3].includes(weekday)) {
+    score += 2;
+  } else if (weekday === 4) {
+    score -= 7;
+  } else if (weekday === 5) {
+    score -= 6;
+  }
+
+  return clamp(score, -14, 20);
+}
+
+function getWonderlandMinamigaokaSlotGroup(machineName, slotNumber) {
+  const slot = readSlotNumberValue(slotNumber);
+  if (!Number.isFinite(slot)) {
+    return "normal";
+  }
+
+  if (isWonderlandMinamigaokaMyJuggler(machineName)) {
+    if ([1208, 1225, 1238].includes(slot)) {
+      return "top";
+    }
+    if ([1206, 1223, 1224, 1230, 1235, 1239, 1203].includes(slot)) {
+      return "good";
+    }
+    if ([1207, 1227, 1229].includes(slot)) {
+      return "weak";
+    }
+    if ([1231, 1237].includes(slot)) {
+      return "slightlyWeak";
+    }
+  }
+
+  if (isWonderlandMinamigaokaNeo(machineName)) {
+    if (slot === 1305) {
+      return "top";
+    }
+    if ([1311, 1316, 1317, 1323, 1327, 1331, 1335, 1310, 1330, 1308].includes(slot)) {
+      return "good";
+    }
+    if ([1318, 1322].includes(slot)) {
+      return "weak";
+    }
+    if ([1222, 1302, 1307, 1319, 1320, 1328].includes(slot)) {
+      return "slightlyWeak";
+    }
+  }
+
+  return "normal";
+}
+
+function isWonderlandMinamigaokaStrongSlot(machineName, slotNumber) {
+  const group = getWonderlandMinamigaokaSlotGroup(machineName, slotNumber);
+  return group === "top" || group === "good";
+}
+
+function calculateWonderlandMinamigaokaSlotScoreA(metrics) {
+  const group = getWonderlandMinamigaokaSlotGroup(metrics.machineName, metrics.slotNumber);
+  if (group === "top") {
+    return isWonderlandMinamigaokaNeo(metrics.machineName) ? 10 : 8;
+  }
+  if (group === "good") {
+    return isWonderlandMinamigaokaMyJuggler(metrics.machineName) ? 5 : 4;
+  }
+  if (group === "weak") {
+    return isWonderlandMinamigaokaNeo(metrics.machineName) ? -8 : -6;
+  }
+  if (group === "slightlyWeak") {
+    return -4;
+  }
+  return 0;
+}
+
+function calculateWonderlandMinamigaokaSlotScoreB(metrics) {
+  const tail = readSlotLastDigit(metrics.slotNumber);
+  let score = isWonderlandMinamigaokaMyJuggler(metrics.machineName) ? 5 : 0;
+  const group = getWonderlandMinamigaokaSlotGroup(metrics.machineName, metrics.slotNumber);
+
+  if (group === "top") {
+    score += 10;
+  } else if (group === "good") {
+    score += isWonderlandMinamigaokaMyJuggler(metrics.machineName) ? 6 : 4;
+  } else if (group === "weak") {
+    score -= isWonderlandMinamigaokaNeo(metrics.machineName) ? 8 : 6;
+  } else if (group === "slightlyWeak") {
+    score -= 5;
+  }
+
+  if (isWonderlandMinamigaokaMyJuggler(metrics.machineName)) {
+    if ([8, 5, 4].includes(tail)) {
+      score += 4;
+    } else if (tail === 7) {
+      score -= 4;
+    }
+  } else if (isWonderlandMinamigaokaNeo(metrics.machineName)) {
+    if (tail === 5) {
+      score += 3;
+    } else if ([2, 8].includes(tail)) {
+      score -= 3;
+    }
+  }
+
+  return clamp(score, -12, 20);
+}
+
+function calculateWonderlandMinamigaokaDipScoreA(metrics) {
+  const score =
+    clamp(-metrics.netTotal / 240, -18, 18) +
+    clamp(-metrics.todayDifference / 180, -10, 10) +
+    clamp(-metrics.recentThreeNetTotal / 380, -6, 6);
+
+  return Number.isFinite(score) ? score : 0;
+}
+
+function calculateWonderlandMinamigaokaDipScoreB(metrics) {
+  let score = 0;
+
+  if (metrics.netTotal <= -3000) {
+    score += 20;
+  } else if (metrics.netTotal <= -1000) {
+    score += 10;
+  } else if (metrics.netTotal >= 3000) {
+    score -= 20;
+  } else if (metrics.netTotal >= 1000) {
+    score -= 10;
+  }
+
+  if (metrics.recentThreeNetTotal <= -3000) {
+    score += 8;
+  } else if (metrics.recentThreeNetTotal <= -1000) {
+    score += 5;
+  } else if (metrics.recentThreeNetTotal >= 3000) {
+    score -= 8;
+  } else if (metrics.recentThreeNetTotal >= 1000) {
+    score -= 4;
+  }
+
+  if (metrics.todayDifference <= -2000) {
+    score += 5;
+  } else if (metrics.todayDifference <= -1000) {
+    score += 3;
+  } else if (metrics.todayDifference >= 2000) {
+    score -= 8;
+  } else if (metrics.todayDifference >= 1000) {
+    score -= 4;
+  }
+
+  if (isWonderlandMinamigaokaStrongSlot(metrics.machineName, metrics.slotNumber)) {
+    if (metrics.netTotal <= -3000) {
+      score += 8;
+    } else if (metrics.netTotal <= -1000) {
+      score += 4;
+    }
+  }
+
+  return clamp(score, -32, 36);
+}
+
+function calculateWonderlandMinamigaokaRecentBehaviorScoreA(metrics, context = {}) {
+  const previousRbDenominator =
+    metrics.previousRbCount > 0 && metrics.previousGames > 0 ? metrics.previousGames / metrics.previousRbCount : null;
+  const recentThreeRbDenominator =
+    metrics.recentThreeRbTotal > 0 && metrics.recentThreeGamesTotal > 0
+      ? metrics.recentThreeGamesTotal / metrics.recentThreeRbTotal
+      : null;
+  let score = 0;
+
+  if (isWonderlandMinamigaokaMyJuggler(metrics.machineName)) {
+    if (Number.isFinite(previousRbDenominator) && previousRbDenominator <= 270) {
+      score += 6;
+    } else if (Number.isFinite(previousRbDenominator) && previousRbDenominator <= 320) {
+      score += 3;
+    }
+    if (metrics.rbTotal <= 45) {
+      score += 5;
+    }
+    if (metrics.averageGames < 3000) {
+      score += 5;
+    }
+    if (countWonderlandMinamigaokaNeighborHighSettings(metrics, context, 2) >= 2) {
+      score += 4;
+    }
+  } else if (isWonderlandMinamigaokaNeo(metrics.machineName)) {
+    if (Number.isFinite(previousRbDenominator) && previousRbDenominator <= 270) {
+      score += 5;
+    } else if (Number.isFinite(previousRbDenominator) && previousRbDenominator <= 320) {
+      score += 3;
+    }
+    if (metrics.rbTotal <= 45) {
+      score += 4;
+    }
+    if (metrics.averageGames < 3000) {
+      score += 2;
+    }
+    if (metrics.previousGames >= 6000) {
+      score += 3;
+    }
+    if (metrics.todaySetting >= 4.5 && metrics.previousRbCount >= 30) {
+      score += 3;
+    }
+    if (countWonderlandMinamigaokaNeighborHighSettings(metrics, context, 1) >= 1) {
+      score -= 4;
+    }
+  }
+
+  if (Number.isFinite(recentThreeRbDenominator) && recentThreeRbDenominator <= 280) {
+    score += 2;
+  }
+
+  return clamp(score, -8, 18);
+}
+
+function calculateWonderlandMinamigaokaRecentBehaviorScoreB(metrics, context = {}) {
+  const targetDate = readWonderlandMinamigaokaTargetDate(context);
+  const weekday = readDateWeekday(targetDate);
+  const recentThreeRbDenominator =
+    metrics.recentThreeRbTotal > 0 && metrics.recentThreeGamesTotal > 0
+      ? metrics.recentThreeGamesTotal / metrics.recentThreeRbTotal
+      : null;
+  let score = 0;
+
+  if (metrics.netTotal <= -3000 && Number.isFinite(recentThreeRbDenominator) && recentThreeRbDenominator <= 280) {
+    score += 6;
+  }
+  if (weekday === 6 && metrics.netTotal <= -3000) {
+    score += 4;
+  }
+  if (metrics.previousGames >= 8000) {
+    score += 6;
+  } else if (metrics.previousGames >= 6000) {
+    score += 3;
+  } else if (metrics.previousGames < 1000) {
+    score -= 6;
+  }
+  if (metrics.recentThreeGamesTotal >= 15000) {
+    score += 3;
+  }
+  if (metrics.previousRbCount >= 25) {
+    score += 3;
+  }
+  if (Number.isFinite(recentThreeRbDenominator) && recentThreeRbDenominator <= 280) {
+    score += 5;
+  } else if (Number.isFinite(recentThreeRbDenominator) && recentThreeRbDenominator >= 400) {
+    score -= 4;
+  }
+  if (metrics.recentTwoRbTotal <= 5) {
+    score -= 5;
+  }
+
+  return clamp(score, -12, 20);
+}
+
+function calculateWonderlandMinamigaokaRotationScoreA(metrics) {
+  if (!hasBeamHikariSettingMetrics(metrics)) {
+    return 0;
+  }
+
+  let score = 0;
+  const daysSince = metrics.daysSinceHistoryHighSettingEstimate;
+
+  if (isWonderlandMinamigaokaMyJuggler(metrics.machineName)) {
+    if (metrics.highSettingEstimateCount === 0) {
+      score += 8;
+    } else if (metrics.highSettingEstimateCount >= 2) {
+      score -= 18;
+    }
+    if (Number.isFinite(daysSince)) {
+      if (daysSince >= 8 && daysSince <= 14) {
+        score += 7;
+      } else if (daysSince >= 15) {
+        score += 4;
+      } else if (daysSince >= 5 && daysSince <= 7) {
+        score -= 12;
+      } else if (daysSince >= 2 && daysSince <= 4) {
+        score -= 3;
+      }
+    } else {
+      score += 4;
+    }
+    if (metrics.todaySetting >= 4.5) {
+      score -= 2;
+    }
+  } else if (isWonderlandMinamigaokaNeo(metrics.machineName)) {
+    if (metrics.highSettingEstimateCount === 0) {
+      score += 5;
+    } else if (metrics.highSettingEstimateCount >= 2) {
+      score -= 10;
+    }
+    if (Number.isFinite(daysSince)) {
+      if (daysSince >= 8 && daysSince <= 14) {
+        score += 3;
+      } else if (daysSince >= 15) {
+        score += 2;
+      } else if (daysSince >= 5 && daysSince <= 7) {
+        score -= 8;
+      } else if (daysSince >= 2 && daysSince <= 4) {
+        score -= 2;
+      }
+    } else {
+      score += 2;
+    }
+    if (metrics.todaySetting >= 4.5) {
+      score += 5;
+    }
+  }
+
+  if (metrics.highSettingStreak >= 2) {
+    score -= 18;
+  }
+
+  return clamp(score, -24, 18);
+}
+
+function calculateWonderlandMinamigaokaRotationScoreB(metrics) {
+  if (!hasBeamHikariSettingMetrics(metrics)) {
+    return 0;
+  }
+
+  let score = 0;
+  const daysSince = metrics.daysSinceHistoryHighSettingEstimate;
+
+  if (metrics.todaySetting >= 4.5) {
+    score += 7;
+  }
+  if (metrics.todaySetting >= 5) {
+    score += 5;
+  }
+  if (metrics.todaySetting >= 4.5 && metrics.todayDifference < 0) {
+    score += 7;
+  }
+  if (metrics.highSettingStreak >= 2) {
+    score -= 30;
+  }
+  if (metrics.highSettingEstimateCount === 0) {
+    score += 4;
+  } else if (metrics.highSettingEstimateCount === 1) {
+    score -= 2;
+  } else if (metrics.highSettingEstimateCount >= 2) {
+    score -= 18;
+  }
+  if (Number.isFinite(daysSince)) {
+    if (daysSince >= 8 && daysSince <= 14) {
+      score += 5;
+    } else if (daysSince >= 3 && daysSince <= 7) {
+      score -= 8;
+    }
+  }
+
+  return clamp(score, -32, 25);
+}
+
+function countWonderlandMinamigaokaNeighborHighSettings(metrics, context = {}, distance = 1) {
+  const slot = readSlotNumberValue(metrics.slotNumber);
+  if (!Number.isFinite(slot) || !Array.isArray(context.metricsList)) {
+    return 0;
+  }
+
+  return context.metricsList.filter((otherMetrics) => {
+    if (!otherMetrics || otherMetrics === metrics) {
+      return false;
+    }
+    if (otherMetrics.machineName !== metrics.machineName || otherMetrics.todaySetting < 4.5) {
+      return false;
+    }
+    const otherSlot = readSlotNumberValue(otherMetrics.slotNumber);
+    return Number.isFinite(otherSlot) && Math.abs(otherSlot - slot) <= distance;
+  }).length;
+}
+
+function calculateWonderlandMinamigaokaAHuntScore(metrics, context = {}) {
+  if (!isWonderlandMinamigaokaTargetMachine(metrics.machineName)) {
+    return 0;
+  }
+
+  const score =
+    40 +
+    calculateWonderlandMinamigaokaDipScoreA(metrics) +
+    calculateWonderlandMinamigaokaDateScoreA(metrics.machineName, context) * 0.8 +
+    calculateWonderlandMinamigaokaRotationScoreA(metrics) * 0.8 +
+    calculateWonderlandMinamigaokaRecentBehaviorScoreA(metrics, context) * 0.8 +
+    calculateWonderlandMinamigaokaSlotScoreA(metrics) * 0.8;
+
+  return clamp(score, 0, 100);
+}
+
+function calculateWonderlandMinamigaokaBHuntScore(metrics, context = {}) {
+  if (!isWonderlandMinamigaokaTargetMachine(metrics.machineName)) {
+    return 0;
+  }
+
+  const score =
+    40 +
+    calculateWonderlandMinamigaokaDateScoreB(context) +
+    calculateWonderlandMinamigaokaSlotScoreB(metrics) +
+    calculateWonderlandMinamigaokaDipScoreB(metrics) +
+    calculateWonderlandMinamigaokaRecentBehaviorScoreB(metrics, context) +
+    calculateWonderlandMinamigaokaRotationScoreB(metrics);
 
   return clamp(score, 0, 100);
 }
