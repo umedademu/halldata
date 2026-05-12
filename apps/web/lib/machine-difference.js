@@ -6,6 +6,14 @@ import {
 
 let cachedRules = null;
 
+export const DEFAULT_DIFFERENCE_MODE = "estimated";
+
+export function normalizeDifferenceMode(value) {
+  return value === "bonus" || value === "estimated" || value === "minrepo"
+    ? value
+    : DEFAULT_DIFFERENCE_MODE;
+}
+
 function normalizeMachineName(value) {
   return String(value ?? "")
     .replace(/\u3000/gu, " ")
@@ -238,21 +246,23 @@ export function calculateEstimatedCoinHoldDifferenceValue(row, machineName = "")
 }
 
 export function selectDifferenceValue(row, differenceMode = "bonus", machineName = "") {
-  if (differenceMode === "estimated") {
+  const normalizedDifferenceMode = normalizeDifferenceMode(differenceMode);
+
+  if (normalizedDifferenceMode === "estimated") {
     const estimatedDifferenceValue = calculateEstimatedCoinHoldDifferenceValue(row, machineName);
     if (estimatedDifferenceValue !== null) {
       return estimatedDifferenceValue;
     }
   }
 
-  if (differenceMode === "bonus") {
+  if (normalizedDifferenceMode === "bonus") {
     const bonusDifferenceValue = readDifferenceNumber(row?.bonus_difference_value);
     if (bonusDifferenceValue !== null) {
       return bonusDifferenceValue;
     }
   }
 
-  if (differenceMode === "estimated") {
+  if (normalizedDifferenceMode === "estimated") {
     const bonusDifferenceValue = readDifferenceNumber(row?.bonus_difference_value);
     if (bonusDifferenceValue !== null) {
       return bonusDifferenceValue;

@@ -15,12 +15,13 @@ import {
   readNextGapForRankScope,
 } from "./hunt-bookmark";
 import {
+  DEFAULT_DIFFERENCE_MODE,
   canonicalMachineName,
+  normalizeDifferenceMode as normalizeMachineDifferenceMode,
   selectDifferenceValue,
 } from "./machine-difference";
 
 const DEFAULT_RECENT_DAYS = 90;
-const DEFAULT_DIFFERENCE_MODE = "bonus";
 const DEFAULT_DEVIATION_MIN = 60;
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
@@ -208,10 +209,7 @@ function normalizeShowGraph(value) {
 }
 
 function normalizeDifferenceMode(value) {
-  if (value === "minrepo" || value === "estimated") {
-    return value;
-  }
-  return DEFAULT_DIFFERENCE_MODE;
+  return normalizeMachineDifferenceMode(value);
 }
 
 function readOptionWithDefault(options, key, fallbackValue) {

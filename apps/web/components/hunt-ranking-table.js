@@ -32,7 +32,11 @@ import {
   formatSettingEstimateScore,
   getSettingEstimateHighlightClass,
 } from "../lib/setting-estimates";
-import { selectDifferenceValue } from "../lib/machine-difference";
+import {
+  DEFAULT_DIFFERENCE_MODE,
+  normalizeDifferenceMode,
+  selectDifferenceValue,
+} from "../lib/machine-difference";
 
 const DEFAULT_VISIBLE_RESULT_KEYS = [
   "difference_value",
@@ -42,7 +46,6 @@ const DEFAULT_VISIBLE_RESULT_KEYS = [
   "combined_ratio_text",
   "setting_estimate",
 ];
-const DEFAULT_DIFFERENCE_MODE = "bonus";
 const DEFAULT_RANK_SCOPE = "selected";
 const DEFAULT_DEVIATION_SCOPE = "selected";
 const DEFAULT_NEXT_GAP_SCOPE = "machine";
@@ -434,10 +437,17 @@ export function HuntRankingTable({
   predictionDate = null,
   actualDate = null,
   highlightOptions = {},
+  initialDifferenceMode = DEFAULT_DIFFERENCE_MODE,
 }) {
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
-  const [differenceMode, setDifferenceMode] = useState(DEFAULT_DIFFERENCE_MODE);
+  const [differenceMode, setDifferenceMode] = useState(() =>
+    normalizeDifferenceMode(initialDifferenceMode),
+  );
   const [bookmark, setBookmark] = useState(null);
+
+  useEffect(() => {
+    setDifferenceMode(normalizeDifferenceMode(initialDifferenceMode));
+  }, [initialDifferenceMode]);
 
   useEffect(() => {
     const syncBookmark = () => {
@@ -664,7 +674,7 @@ export function HuntRankingTable({
         <div>
           <p className="sectionLabel">表示する列</p>
           <p className="filterLead">
-            {`${resultColumnLead}ここは保存済み実績の表示で、上のバックテスト基準切り替えは反映しません。`}
+            {`${resultColumnLead}ここは保存済み実績の表示だけを切り替えます。`}
           </p>
         </div>
         {bookmarkState.bookmark ? (

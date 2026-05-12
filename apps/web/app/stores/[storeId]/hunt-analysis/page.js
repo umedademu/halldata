@@ -24,6 +24,7 @@ import {
 } from "../../../../lib/hunt-score-logic-selection";
 import { listHuntScoreLogicOptions } from "../../../../lib/hunt-score";
 import { groupHuntMachineOptions } from "../../../../lib/hunt-machine-display";
+import { normalizeDifferenceMode } from "../../../../lib/machine-difference";
 
 export const dynamic = "force-dynamic";
 
@@ -271,6 +272,9 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const requestedLimit = parseRequestedLimit(readSingleSearchParam(resolvedSearchParams?.limit));
   const requestedMachineNames = readMultiSearchParam(resolvedSearchParams?.machine);
   const huntScoreLogicKey = await readStoredHuntScoreLogicKey(storeId);
+  const differenceMode = normalizeDifferenceMode(
+    readSingleSearchParam(resolvedSearchParams?.differenceMode),
+  );
   const machineFilterTouched = readSingleSearchParam(resolvedSearchParams?.machineTouched) === "1";
   const requestedCombineAimJuggler = normalizeCombineAimJuggler(
     readMultiSearchParam(resolvedSearchParams?.aimMachineGroup),
@@ -361,8 +365,14 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
 
   try {
     detail = resultRequested
-      ? await getHuntScoreRankingDetail(storeId, requestedDate, requestedLimit, huntScoreLogicKey)
-      : await getHuntScoreInitialPageDetail(storeId, {}, huntScoreLogicKey);
+      ? await getHuntScoreRankingDetail(
+          storeId,
+          requestedDate,
+          requestedLimit,
+          huntScoreLogicKey,
+          differenceMode,
+        )
+      : await getHuntScoreInitialPageDetail(storeId, { differenceMode }, huntScoreLogicKey);
   } catch (error) {
     return (
       <main className="pageStack">
@@ -521,6 +531,50 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   className="storeReserveInput"
                 />
               </label>
+              <div className="backtestBlock rankingMachineFilter">
+                <p className="filterControlLabel">狙い度計算の差枚基準</p>
+                <div className="metricToggleRow">
+                  <label
+                    className={`metricToggleChip ${
+                      detail.differenceMode === "bonus" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="differenceMode"
+                      value="bonus"
+                      defaultChecked={detail.differenceMode === "bonus"}
+                    />
+                    <span>設定1基準</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      detail.differenceMode === "estimated" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="differenceMode"
+                      value="estimated"
+                      defaultChecked={detail.differenceMode === "estimated"}
+                    />
+                    <span>推定設定基準</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      detail.differenceMode === "minrepo" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="differenceMode"
+                      value="minrepo"
+                      defaultChecked={detail.differenceMode === "minrepo"}
+                    />
+                    <span>みんレポ基準</span>
+                  </label>
+                </div>
+              </div>
               {machineOptions.length > 0 ? (
                 <div className="backtestBlock rankingMachineFilter">
                   <p className="filterControlLabel">機種名</p>
@@ -896,6 +950,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 predictionDate={detail.predictionDate}
                 actualDate={detail.nextBusinessDate}
                 highlightOptions={normalizedRankingHighlightOptions}
+                initialDifferenceMode={detail.differenceMode}
               />
             ) : (
               <section className="statusPanel">

@@ -1,4 +1,9 @@
 import { calculateSettingEstimate, getSettingEstimateDefinition } from "./setting-estimates";
+import {
+  DEFAULT_DIFFERENCE_MODE,
+  normalizeDifferenceMode,
+  selectDifferenceValue,
+} from "./machine-difference";
 
 const HUNT_SCORE_EPSILON = 0.000000001;
 const DEFAULT_HUNT_SCORE_WINDOW_DAYS = 7;
@@ -532,7 +537,7 @@ export function getHuntScoreLogicDetail(logicKey = "", storeName = "") {
   };
 }
 
-function buildRuntimeHuntScoreConfig(config, logicKey = "") {
+function buildRuntimeHuntScoreConfig(config, logicKey = "", differenceMode = DEFAULT_DIFFERENCE_MODE) {
   const logicDefinition =
     findHuntScoreLogicDefinition(normalizeHuntScoreLogicKey(logicKey, config?.storeNames?.[0] ?? "")) ??
     findHuntScoreLogicDefinition(DEFAULT_HUNT_SCORE_LOGIC_KEY);
@@ -543,6 +548,7 @@ function buildRuntimeHuntScoreConfig(config, logicKey = "") {
     windowDays: logicDefinition.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
     historyWindowDays:
       logicDefinition.historyWindowDays ?? logicDefinition.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
+    differenceMode: normalizeDifferenceMode(differenceMode),
     scoreCalculator: logicDefinition.scoreCalculator,
   };
 }
@@ -631,8 +637,8 @@ function hasMeaningfulResult(row) {
   );
 }
 
-function readHuntScoreDifferenceValue(row) {
-  return readNumber(row?.difference_value) ?? readNumber(row?.bonus_difference_value) ?? 0;
+function readHuntScoreDifferenceValue(row, differenceMode = DEFAULT_DIFFERENCE_MODE, machineName = "") {
+  return selectDifferenceValue(row, differenceMode, machineName || row?.machine_name) ?? 0;
 }
 
 function buildRowKey(row, config) {
@@ -1622,7 +1628,7 @@ function calculateHinodeOnojoDHuntScore(metrics) {
   return clamp(score, 0, 100);
 }
 
-function buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays) {
+function buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays, config) {
   if (dateIndex < windowDays - 1) {
     return null;
   }
@@ -1642,14 +1648,18 @@ function buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays) 
 
     windowRows.push({
       row,
-      differenceValue: readHuntScoreDifferenceValue(row),
+      differenceValue: readHuntScoreDifferenceValue(
+        row,
+        config.differenceMode,
+        normalizeHuntScoreMachineName(row?.machine_name, config),
+      ),
     });
   }
 
   return windowRows;
 }
 
-function buildAvailableWindowRows(businessDates, dateIndex, recordMapByDate, windowDays) {
+function buildAvailableWindowRows(businessDates, dateIndex, recordMapByDate, windowDays, config) {
   const normalizedWindowDays = Math.max(1, Number(windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
   const startIndex = Math.max(0, dateIndex - (normalizedWindowDays - 1));
   const windowDates = businessDates.slice(startIndex, dateIndex + 1);
@@ -1663,7 +1673,11 @@ function buildAvailableWindowRows(businessDates, dateIndex, recordMapByDate, win
 
     windowRows.push({
       row,
-      differenceValue: readHuntScoreDifferenceValue(row),
+      differenceValue: readHuntScoreDifferenceValue(
+        row,
+        config.differenceMode,
+        normalizeHuntScoreMachineName(row?.machine_name, config),
+      ),
     });
   }
 
@@ -1676,6 +1690,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     dateIndex,
     recordMapByDate,
     config.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
+    config,
   );
   if (!windowRows) {
     return null;
@@ -1731,6 +1746,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     dateIndex,
     recordMapByDate,
     config.historyWindowDays ?? config.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
+    config,
   );
   for (const historyWindowRow of historyWindowRows) {
     const settingAverage = getSettingEstimateAverage(
@@ -1794,7 +1810,11 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     recentFourPositiveCount,
     compensationRate: lossAbsTotal === 0 ? 999 : winAbsTotal / lossAbsTotal,
     maxWin,
-    todayDifference: readHuntScoreDifferenceValue(row),
+    todayDifference: readHuntScoreDifferenceValue(
+      row,
+      config.differenceMode,
+      normalizeHuntScoreMachineName(row?.machine_name, config),
+    ),
     previousDifference: previousWindowRow?.differenceValue ?? 0,
     previousGames: readNumber(row?.games_count) ?? 0,
     previousBbCount: readNumber(row?.bb_count) ?? 0,
@@ -2043,7 +2063,13 @@ export function listHuntScoreSourceMachineNamesForStoreMachines(storeName = "", 
   ];
 }
 
-export function buildHuntScoreSnapshots(targetRows, allStoreRows = [], storeName = "", logicKey = "") {
+export function buildHuntScoreSnapshots(
+  targetRows,
+  allStoreRows = [],
+  storeName = "",
+  logicKey = "",
+  differenceMode = DEFAULT_DIFFERENCE_MODE,
+) {
   const storeConfig = buildEffectiveHuntScoreStoreConfig(
     storeName,
     (Array.isArray(targetRows) ? targetRows : []).map((row) => row?.machine_name),
@@ -2051,7 +2077,7 @@ export function buildHuntScoreSnapshots(targetRows, allStoreRows = [], storeName
   if (!storeConfig || !Array.isArray(targetRows) || targetRows.length === 0) {
     return [];
   }
-  const config = buildRuntimeHuntScoreConfig(storeConfig, logicKey);
+  const config = buildRuntimeHuntScoreConfig(storeConfig, logicKey, differenceMode);
 
   const businessDates = buildBusinessDates(allStoreRows, targetRows);
   if (businessDates.length === 0) {
@@ -2077,14 +2103,26 @@ export function buildHuntScoreSnapshots(targetRows, allStoreRows = [], storeName
     .sort((left, right) => right.baseDate.localeCompare(left.baseDate));
 }
 
-export function attachHuntScores(targetRows, allStoreRows = [], storeName = "", logicKey = "") {
+export function attachHuntScores(
+  targetRows,
+  allStoreRows = [],
+  storeName = "",
+  logicKey = "",
+  differenceMode = DEFAULT_DIFFERENCE_MODE,
+) {
   const storeConfig = resolveHuntScoreStoreConfig(storeName);
   if (!storeConfig) {
     return;
   }
-  const config = buildRuntimeHuntScoreConfig(storeConfig, logicKey);
+  const config = buildRuntimeHuntScoreConfig(storeConfig, logicKey, differenceMode);
 
-  const snapshots = buildHuntScoreSnapshots(targetRows, allStoreRows, storeName, logicKey);
+  const snapshots = buildHuntScoreSnapshots(
+    targetRows,
+    allStoreRows,
+    storeName,
+    logicKey,
+    differenceMode,
+  );
   const huntScoreByRowKey = new Map();
 
   for (const snapshot of snapshots) {

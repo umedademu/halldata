@@ -33,7 +33,11 @@ import {
   isHuntJugglerMachine,
   resolveHuntMachineGroupName,
 } from "../lib/hunt-machine-display";
-import { selectDifferenceValue } from "../lib/machine-difference";
+import {
+  DEFAULT_DIFFERENCE_MODE,
+  normalizeDifferenceMode,
+  selectDifferenceValue,
+} from "../lib/machine-difference";
 import {
   calculateGameCountEstimate,
   calculateSettingEstimate,
@@ -66,7 +70,6 @@ const DEFAULT_VISIBLE_METRIC_KEYS = [
   "hunt_score",
   "hunt_score_deviation",
 ];
-const DEFAULT_DIFFERENCE_MODE = "bonus";
 const MATRIX_DATE_COLUMN_WIDTH_REM = 4.8;
 const MATRIX_WEEKDAY_COLUMN_WIDTH_REM = 2.4;
 const MATRIX_SLOT_WIDTH_REM = 16;
@@ -155,13 +158,6 @@ function normalizeRecentDaysInputText(value, fallbackValue = DEFAULT_COMPARISON_
 
 function normalizePeriodMode(value) {
   return value === "range" ? "range" : "recent";
-}
-
-function normalizeDifferenceMode(value) {
-  if (value === "minrepo" || value === "estimated") {
-    return value;
-  }
-  return DEFAULT_DIFFERENCE_MODE;
 }
 
 function normalizeDateInputValue(value, minDate, maxDate, fallbackDate) {
@@ -1785,6 +1781,7 @@ export function MachineComparison({
   initialEventFiltersFromSearchParams = false,
   huntScoreHighlight,
   fullHuntScoreHighlightUrl = "",
+  initialDifferenceMode = DEFAULT_DIFFERENCE_MODE,
   preferDefaultEstimateOptions = false,
 }) {
   const latestAvailableDate = dateRows[0]?.date ?? "";
@@ -1817,14 +1814,20 @@ export function MachineComparison({
       rangeStartInput: initialRangeStartDate,
       rangeEndInput: latestAvailableDate,
       eventFilters: defaultEventFilters,
-      differenceMode: DEFAULT_DIFFERENCE_MODE,
+      differenceMode: normalizeDifferenceMode(initialDifferenceMode),
       visibleMetricKeys: DEFAULT_VISIBLE_METRIC_KEYS,
       estimateOptions: defaultEstimateOptions,
       displayControlsOpen: true,
       settingControlsOpen: true,
       huntScoreControlsOpen: true,
     }),
-    [defaultEstimateOptions, defaultEventFilters, initialRangeStartDate, latestAvailableDate],
+    [
+      defaultEstimateOptions,
+      defaultEventFilters,
+      initialDifferenceMode,
+      initialRangeStartDate,
+      latestAvailableDate,
+    ],
   );
   const [periodMode, setPeriodMode] = useState(defaultComparisonOptions.periodMode);
   const [recentDaysInput, setRecentDaysInput] = useState(defaultComparisonOptions.recentDaysInput);
@@ -2009,7 +2012,7 @@ export function MachineComparison({
     setRangeStartInput(options.rangeStartInput);
     setRangeEndInput(options.rangeEndInput);
     setEventFilters(options.eventFilters);
-    setDifferenceMode(options.differenceMode);
+    setDifferenceMode(normalizeDifferenceMode(initialDifferenceMode));
     setVisibleMetricKeys(options.visibleMetricKeys);
     setEstimateOptions(options.estimateOptions);
     setDisplayControlsOpen(options.displayControlsOpen);
@@ -2022,6 +2025,7 @@ export function MachineComparison({
     latestAvailableDate,
     oldestAvailableDate,
     preferDefaultEstimateOptions,
+    initialDifferenceMode,
     storeId,
   ]);
 
@@ -2180,6 +2184,19 @@ export function MachineComparison({
     });
   };
 
+  const updateDifferenceMode = (value) => {
+    const nextDifferenceMode = normalizeDifferenceMode(value);
+    setDifferenceMode(nextDifferenceMode);
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("differenceMode", nextDifferenceMode);
+    window.location.assign(url.toString());
+  };
+
   const handleRangeStartChange = (value) => {
     const nextStart = clampDateText(
       value,
@@ -2292,7 +2309,9 @@ export function MachineComparison({
           if (!fullHuntScoreHighlightUrl) {
             throw new Error("全体比較データの取得先がありません。");
           }
-          const response = await fetch(fullHuntScoreHighlightUrl, {
+          const fullHighlightUrl = new URL(fullHuntScoreHighlightUrl, window.location.href);
+          fullHighlightUrl.searchParams.set("differenceMode", differenceMode);
+          const response = await fetch(fullHighlightUrl.toString(), {
             method: "GET",
             headers: {
               accept: "application/json",
@@ -2322,6 +2341,7 @@ export function MachineComparison({
     fullHuntScoreHighlightUrl,
     huntScoreHighlight,
     huntScoreHighlightOptions,
+    differenceMode,
     machineName,
     startTransition,
   ]);
@@ -2450,7 +2470,7 @@ export function MachineComparison({
           </div>
         </div>
         <div className="filterControlGroup">
-          <p className="filterControlLabel">コイン持ち基準</p>
+          <p className="filterControlLabel">差枚・狙い度計算基準</p>
           <div className="metricToggleRow">
             <label
               className={`metricToggleChip ${
@@ -2462,7 +2482,7 @@ export function MachineComparison({
                 name="machineDifferenceMode"
                 value="bonus"
                 checked={differenceMode === "bonus"}
-                onChange={() => setDifferenceMode("bonus")}
+                onChange={() => updateDifferenceMode("bonus")}
               />
               <span>設定1基準</span>
             </label>
@@ -2476,7 +2496,7 @@ export function MachineComparison({
                 name="machineDifferenceMode"
                 value="estimated"
                 checked={differenceMode === "estimated"}
-                onChange={() => setDifferenceMode("estimated")}
+                onChange={() => updateDifferenceMode("estimated")}
               />
               <span>推定設定基準</span>
             </label>
@@ -2490,7 +2510,7 @@ export function MachineComparison({
                 name="machineDifferenceMode"
                 value="minrepo"
                 checked={differenceMode === "minrepo"}
-                onChange={() => setDifferenceMode("minrepo")}
+                onChange={() => updateDifferenceMode("minrepo")}
               />
               <span>みんレポ基準</span>
             </label>

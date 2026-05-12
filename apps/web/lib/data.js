@@ -16,7 +16,12 @@ import {
   listHuntScoreTargetMachineNames,
   listHuntScoreTargetMachineNamesForStoreMachines,
 } from "./hunt-score";
-import { canonicalMachineName, listEquivalentMachineNames, withCanonicalMachineName } from "./machine-difference";
+import {
+  canonicalMachineName,
+  normalizeDifferenceMode,
+  listEquivalentMachineNames,
+  withCanonicalMachineName,
+} from "./machine-difference";
 
 const PAGE_SIZE = 1000;
 const DEFAULT_FETCH_CACHE_TTL_MS = 0;
@@ -1513,11 +1518,7 @@ function buildInitialBacktestDetail(
     deviationScope,
     nextGapScope,
     showGraph: defaultedOptions?.showGraph === "off" ? "off" : "on",
-    differenceMode:
-      defaultedOptions?.differenceMode === "minrepo" ||
-      defaultedOptions?.differenceMode === "estimated"
-        ? defaultedOptions.differenceMode
-        : "bonus",
+    differenceMode: normalizeDifferenceMode(defaultedOptions?.differenceMode),
     combineAimJuggler,
     combineHanabi,
     hasAimJugglerGroupOption:
@@ -1562,6 +1563,7 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
 
   const storeDetail = buildStaticStoreDetail(staticStore);
   const storeMachineNames = readStaticStoreMachineNames(staticStore);
+  const differenceMode = normalizeDifferenceMode(backtestOptions?.differenceMode);
   const machineNames = listHuntScoreTargetMachineNamesForStoreMachines(
     store.storeName,
     storeMachineNames,
@@ -1571,6 +1573,7 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
     dataSource: "json",
     resultRequested: false,
     huntScoreLogic,
+    differenceMode,
     store: {
       id: store.id,
       storeName: store.storeName,
@@ -1709,7 +1712,11 @@ async function buildStaticHuntScoreSourceRows(staticStore) {
   );
 }
 
-async function buildStaticMachineHuntScoreHighlight(staticStore, huntScoreLogicKey = "") {
+async function buildStaticMachineHuntScoreHighlight(
+  staticStore,
+  huntScoreLogicKey = "",
+  differenceMode = undefined,
+) {
   const store = readStaticStoreIdentity(staticStore);
   if (!isHuntScoreTargetStore(store.storeName)) {
     return null;
@@ -1717,7 +1724,13 @@ async function buildStaticMachineHuntScoreHighlight(staticStore, huntScoreLogicK
 
   const { targetRows, storeRows } = await buildStaticHuntScoreSourceRows(staticStore);
   const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName);
-  const snapshots = buildHuntScoreSnapshots(targetRows, storeRows, store.storeName, huntScoreLogic.key);
+  const snapshots = buildHuntScoreSnapshots(
+    targetRows,
+    storeRows,
+    store.storeName,
+    huntScoreLogic.key,
+    normalizeDifferenceMode(differenceMode),
+  );
   return buildMachineHuntScoreHighlightDetail(
     store.storeName,
     snapshots,
@@ -1725,7 +1738,12 @@ async function buildStaticMachineHuntScoreHighlight(staticStore, huntScoreLogicK
   );
 }
 
-async function buildStaticMachineDetail(staticStore, machineName, huntScoreLogicKey = "") {
+async function buildStaticMachineDetail(
+  staticStore,
+  machineName,
+  huntScoreLogicKey = "",
+  differenceMode = undefined,
+) {
   const store = readStaticStoreIdentity(staticStore);
   const requestedMachineName = canonicalMachineName(machineName);
   const machines = (Array.isArray(staticStore?.machines) ? staticStore.machines : [])
@@ -1762,7 +1780,13 @@ async function buildStaticMachineDetail(staticStore, machineName, huntScoreLogic
       requestedMachineNames,
     );
     const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName);
-    const snapshots = buildHuntScoreSnapshots(targetRows, storeRows, store.storeName, huntScoreLogic.key);
+    const snapshots = buildHuntScoreSnapshots(
+      targetRows,
+      storeRows,
+      store.storeName,
+      huntScoreLogic.key,
+      normalizeDifferenceMode(differenceMode),
+    );
     applySnapshotHuntScores(snapshots);
     huntScoreHighlight = buildMachineHuntScoreHighlightDetail(
       store.storeName,
@@ -1812,6 +1836,7 @@ async function buildStaticMachineDetail(staticStore, machineName, huntScoreLogic
     huntScoreLogic: isHuntScoreTargetStore(store.storeName)
       ? getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName)
       : null,
+    differenceMode: normalizeDifferenceMode(differenceMode),
     machineName: detailMachineName,
     slotNumbers: machineDetail.slotNumbers,
     slotLabels: machineDetail.slotLabels,
@@ -1845,10 +1870,11 @@ export const getMachineDetail = cache(async function getMachineDetail(
   storeId,
   machineName,
   huntScoreLogicKey = "",
+  differenceMode = undefined,
 ) {
   const staticStore = await readStaticStoreById(storeId);
   if (staticStore) {
-    return await buildStaticMachineDetail(staticStore, machineName, huntScoreLogicKey);
+    return await buildStaticMachineDetail(staticStore, machineName, huntScoreLogicKey, differenceMode);
   }
 
   return null;
@@ -1857,10 +1883,11 @@ export const getMachineDetail = cache(async function getMachineDetail(
 export const getMachineHuntScoreHighlight = cache(async function getMachineHuntScoreHighlight(
   storeId,
   huntScoreLogicKey = "",
+  differenceMode = undefined,
 ) {
   const staticStore = await readStaticStoreById(storeId);
   if (staticStore) {
-    return await buildStaticMachineHuntScoreHighlight(staticStore, huntScoreLogicKey);
+    return await buildStaticMachineHuntScoreHighlight(staticStore, huntScoreLogicKey, differenceMode);
   }
 
   return null;
@@ -1884,8 +1911,13 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   requestedDate = "",
   requestedLimit = 20,
   huntScoreLogicKey = "",
+  differenceMode = undefined,
 ) {
-  const snapshotDetail = await getHuntScoreSnapshotsForStore(storeId, huntScoreLogicKey);
+  const snapshotDetail = await getHuntScoreSnapshotsForStore(
+    storeId,
+    huntScoreLogicKey,
+    differenceMode,
+  );
 
   if (!snapshotDetail) {
     return null;
@@ -1922,6 +1954,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   return {
     dataSource: snapshotDetail.dataSource ?? "json",
     huntScoreLogic: snapshotDetail.huntScoreLogic,
+    differenceMode: snapshotDetail.differenceMode,
     store: {
       id: store.id,
       storeName: store.store_name,
@@ -1943,7 +1976,11 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   };
 });
 
-async function getHuntScoreSnapshotsForStore(storeId, huntScoreLogicKey = "") {
+async function getHuntScoreSnapshotsForStore(
+  storeId,
+  huntScoreLogicKey = "",
+  differenceMode = undefined,
+) {
   const staticStore = await readStaticStoreById(storeId);
   if (staticStore) {
     const staticIdentity = readStaticStoreIdentity(staticStore);
@@ -1952,6 +1989,7 @@ async function getHuntScoreSnapshotsForStore(storeId, huntScoreLogicKey = "") {
     }
     const { targetRows, storeRows } = await buildStaticHuntScoreSourceRows(staticStore);
     const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, staticIdentity.storeName);
+    const normalizedDifferenceMode = normalizeDifferenceMode(differenceMode);
     const availableMachineNames = listHuntScoreTargetMachineNamesForStoreMachines(
       staticIdentity.storeName,
       readStaticStoreMachineNames(staticStore),
@@ -1959,6 +1997,7 @@ async function getHuntScoreSnapshotsForStore(storeId, huntScoreLogicKey = "") {
     return {
       dataSource: "json",
       huntScoreLogic,
+      differenceMode: normalizedDifferenceMode,
       availableMachineNames,
       store: {
         id: staticIdentity.id,
@@ -1970,6 +2009,7 @@ async function getHuntScoreSnapshotsForStore(storeId, huntScoreLogicKey = "") {
         storeRows,
         staticIdentity.storeName,
         huntScoreLogic.key,
+        normalizedDifferenceMode,
       ),
     };
   }
@@ -2226,10 +2266,7 @@ function buildCrossStoreBacktestOptions(options = {}) {
     rankScope,
     deviationScope,
     nextGapScope,
-    differenceMode:
-      options?.differenceMode === "minrepo" || options?.differenceMode === "estimated"
-        ? options.differenceMode
-        : "bonus",
+    differenceMode: normalizeDifferenceMode(options?.differenceMode),
     combineAimJuggler: normalizeEnabledOption(options?.combineAimJuggler, true),
     combineHanabi: normalizeEnabledOption(options?.combineHanabi, true),
     eventFilters: {
@@ -2478,6 +2515,7 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       storeRowsInRange,
       store.storeName,
       huntScoreLogic.key,
+      backtestOptions.differenceMode,
     );
     const backtest = buildHuntScoreBacktestDetail(snapshots, {
       periodMode: backtestOptions.periodMode,
@@ -2609,7 +2647,12 @@ export async function getHuntScoreAnalysisPageDetail(
   backtestOptions = {},
   huntScoreLogicKey = "",
 ) {
-  const snapshotDetail = await getHuntScoreSnapshotsForStore(storeId, huntScoreLogicKey);
+  const normalizedBacktestOptions = buildBacktestOptionsForStore(null, backtestOptions);
+  const snapshotDetail = await getHuntScoreSnapshotsForStore(
+    storeId,
+    huntScoreLogicKey,
+    normalizedBacktestOptions.differenceMode,
+  );
 
   if (!snapshotDetail) {
     return null;
@@ -2630,7 +2673,7 @@ export async function getHuntScoreAnalysisPageDetail(
   );
   const backtest = {
     ...buildHuntScoreBacktestDetail(snapshots, {
-      ...buildBacktestOptionsForStore(store, backtestOptions),
+      ...buildBacktestOptionsForStore(store, normalizedBacktestOptions),
       machineOrder:
         snapshotDetail.availableMachineNames ?? listHuntScoreTargetMachineNames(store.store_name),
     }),
@@ -2649,6 +2692,7 @@ export async function getHuntScoreAnalysisPageDetail(
   return {
     dataSource: snapshotDetail.dataSource ?? "json",
     huntScoreLogic: snapshotDetail.huntScoreLogic,
+    differenceMode: snapshotDetail.differenceMode,
     store: {
       id: store.id,
       storeName: store.store_name,

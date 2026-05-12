@@ -290,6 +290,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     rankScope: detail.backtest.rankScope,
     deviationScope: detail.backtest.deviationScope,
     nextGapScope: detail.backtest.nextGapScope,
+    differenceMode: detail.backtest.differenceMode,
     combineAimJuggler: detail.backtest.combineAimJuggler,
     combineHanabi: detail.backtest.combineHanabi,
   };
@@ -663,7 +664,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
               </div>
 
               <div className="backtestBlock">
-                <p className="filterControlLabel">コイン持ち基準</p>
+                <p className="filterControlLabel">狙い度・実績差枚基準</p>
                 <div className="metricToggleRow">
                   <label
                     className={`metricToggleChip ${

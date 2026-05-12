@@ -18,11 +18,12 @@ async function readStoredHuntScoreLogicKey(storeId) {
   );
 }
 
-export async function GET(_request, { params }) {
+export async function GET(request, { params }) {
   const resolvedParams = await params;
   const storeId = String(resolvedParams.storeId ?? "").trim();
+  const differenceMode = new URL(request.url).searchParams.get("differenceMode") ?? undefined;
   const huntScoreLogicKey = await readStoredHuntScoreLogicKey(storeId);
-  const highlight = await getMachineHuntScoreHighlight(storeId, huntScoreLogicKey);
+  const highlight = await getMachineHuntScoreHighlight(storeId, huntScoreLogicKey, differenceMode);
 
   if (!highlight) {
     return NextResponse.json({ error: "狙い度データがありません。" }, { status: 404 });

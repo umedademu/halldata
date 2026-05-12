@@ -17,6 +17,7 @@ import {
   decodeHuntScoreLogicCookieValue,
   getHuntScoreLogicCookieName,
 } from "../../../../../lib/hunt-score-logic-selection";
+import { normalizeDifferenceMode } from "../../../../../lib/machine-difference";
 import { getSettingEstimateDefinition } from "../../../../../lib/setting-estimates";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +32,10 @@ async function readStoredHuntScoreLogicKey(storeId) {
 function hasSearchParamValue(searchParams, key) {
   const value = searchParams?.[key];
   return Array.isArray(value) ? value.length > 0 : value !== undefined;
+}
+
+function readSingleSearchParam(value) {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
 export async function generateMetadata({ params }) {
@@ -56,6 +61,9 @@ export default async function MachineDetailPage({ params, searchParams }) {
   const storeId = resolvedParams.storeId;
   const machineName = readRouteSegment(resolvedParams.machineName);
   const huntScoreLogicKey = await readStoredHuntScoreLogicKey(storeId);
+  const differenceMode = normalizeDifferenceMode(
+    readSingleSearchParam(resolvedSearchParams?.differenceMode),
+  );
   const eventFilters = parseEventFilters(resolvedSearchParams);
   const hasEventFilterSearchParams =
     hasSearchParamValue(resolvedSearchParams, "dayTail") ||
@@ -64,7 +72,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
   let detail;
 
   try {
-    detail = await getMachineDetail(storeId, machineName, huntScoreLogicKey);
+    detail = await getMachineDetail(storeId, machineName, huntScoreLogicKey, differenceMode);
   } catch (error) {
     return (
       <main className="pageStack">
@@ -171,6 +179,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
         initialEventFiltersFromSearchParams={hasEventFilterSearchParams}
         huntScoreHighlight={detail.huntScoreHighlight}
         fullHuntScoreHighlightUrl={`/stores/${detail.store.id}/machines/${encodeURIComponent(displayMachineName)}/hunt-score-highlight`}
+        initialDifferenceMode={detail.differenceMode}
         preferDefaultEstimateOptions={Boolean(detail.huntScoreHighlight)}
       />
     </main>
