@@ -201,21 +201,6 @@ const APARK_YAKATABARU_TARGET_MACHINES = [
     name: "ハッピージャグラーＶＩＩＩ",
     aliases: ["ハッピージャグラーVIII", "ハッピージャグラーＶ", "ハッピージャグラーV", "ハッピージャグラー"],
   },
-  { name: "ウルトラミラクルジャグラー", aliases: [] },
-  {
-    name: "ハナハナホウオウ",
-    aliases: [
-      "ハナハナホウオウ-30",
-      "ハナハナホウオウ‐30",
-      "ハナハナホウオウ～天翔～-30",
-      "ハナハナホウオウ～天翔～‐30",
-    ],
-  },
-  { name: "キングハナハナ", aliases: ["キングハナハナ-30", "キングハナハナ‐30"] },
-  { name: "新ハナビ", aliases: [] },
-  { name: "スマスロ ハナビ", aliases: ["スマスロハナビ"] },
-  ...OKIDOKI_TARGET_MACHINES,
-  ...OTHER_TARGET_MACHINES,
 ];
 
 const GOGO_ARENA_TENJIN_REFERENCE_EVENT_DAYS = new Set([5, 10, 15, 20, 25, 30]);
@@ -375,6 +360,20 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     scoreCalculator: calculateAparkKasugaHuntScore,
   },
   {
+    key: "apark-yakatabaru-a",
+    name: "Aパーク屋形原式A",
+    windowDays: 7,
+    historyWindowDays: 90,
+    scoreCalculator: calculateAparkYakatabaruAHuntScore,
+  },
+  {
+    key: "apark-yakatabaru-b",
+    name: "Aパーク屋形原式B",
+    windowDays: 7,
+    historyWindowDays: 90,
+    scoreCalculator: calculateAparkYakatabaruBHuntScore,
+  },
+  {
     key: "gogo",
     name: "GOGO式",
     windowDays: 7,
@@ -497,7 +496,7 @@ const HUNT_SCORE_STORE_CONFIGS = [
     key: "apark-yakatabaru",
     storeNames: ["A-PARK屋形原", "A-PARK屋形原店", "Aパーク屋形原", "Aパーク屋形原店"],
     targetMachines: APARK_YAKATABARU_TARGET_MACHINES,
-    defaultLogicKey: "apark",
+    defaultLogicKey: "apark-yakatabaru-a",
   },
   {
     key: "gogo-arena-tenjin",
@@ -853,6 +852,20 @@ function calculateCurrentHighSettingStreak(windowRows) {
   return streak;
 }
 
+function calculateCurrentHighSettingEstimateStreak(windowRows) {
+  let streak = 0;
+
+  for (let index = windowRows.length - 1; index >= 0; index -= 1) {
+    const settingAverage = windowRows[index].settingAverage;
+    if (!Number.isFinite(settingAverage) || settingAverage < 4.5) {
+      break;
+    }
+    streak += 1;
+  }
+
+  return streak;
+}
+
 function sumDifferenceValues(rows) {
   return rows.reduce((total, row) => total + (readNumber(row?.differenceValue) ?? 0), 0);
 }
@@ -1039,6 +1052,331 @@ function calculateAparkKasugaHuntScore(metrics) {
     calculateTodaySettingScore(metrics.todaySetting);
 
   return clamp(totalScore, 0, 100);
+}
+
+function isAparkYakatabaruTargetMachine(machineName) {
+  const normalizedMachineName = normalizeText(machineName);
+  return APARK_YAKATABARU_TARGET_MACHINES.some(
+    (targetMachine) =>
+      normalizeText(targetMachine.name) === normalizedMachineName ||
+      (targetMachine.aliases ?? []).some((alias) => normalizeText(alias) === normalizedMachineName),
+  );
+}
+
+function isAparkYakatabaruReferenceEventDate(context = {}) {
+  const targetDate = context.nextBusinessDate ?? context.baseDate;
+  const day = readDateDay(targetDate);
+  const weekday = readDateWeekday(targetDate);
+  return (Number.isFinite(day) && day % 10 === 0) || weekday === 0 || weekday === 6;
+}
+
+function calculateAparkYakatabaruTailScore(metrics, mode = "a") {
+  const tail = readSlotLastDigit(metrics.slotNumber);
+  if (!Number.isFinite(tail)) {
+    return 0;
+  }
+
+  if (mode === "b") {
+    if ([3, 5].includes(tail)) {
+      return 3;
+    }
+    if ([0, 2].includes(tail)) {
+      return 1;
+    }
+    if (tail === 6) {
+      return -2;
+    }
+    return 0;
+  }
+
+  if (tail === 5) {
+    return 2;
+  }
+  if (tail === 3) {
+    return 1;
+  }
+  return 0;
+}
+
+function calculateAparkYakatabaruBaseScoreA(metrics) {
+  const d1 = metrics.todayDifference;
+  const d2 = metrics.recentTwoNetTotal;
+  const d3 = metrics.recentThreeNetTotal;
+  const d5 = metrics.recentFiveNetTotal;
+  const r2 = metrics.recentTwoRbTotal / 2;
+  const g3 = metrics.recentThreeGamesTotal / 3;
+
+  let score = 50;
+  score += clamp(-d2 / 120, 0, 25);
+  score += clamp(-d3 / 250, 0, 16);
+  score += clamp(-d5 / 650, 0, 10);
+  score += clamp(-d1 / 160, 0, 8);
+
+  score -= clamp(d1 / 120, 0, 20);
+  score -= clamp((d2 - 1000) / 160, 0, 18);
+  score -= clamp((d3 - 2000) / 300, 0, 12);
+
+  score += clamp((13 - r2) * 2, 0, 12);
+  score -= clamp((r2 - 20) * 2, 0, 12);
+
+  score += clamp((4800 - g3) / 350, 0, 9);
+  score -= clamp((g3 - 6200) / 300, 0, 8);
+
+  return score;
+}
+
+function calculateAparkYakatabaruRotationScoreA(metrics) {
+  if (!hasBeamHikariSettingMetrics(metrics)) {
+    return 0;
+  }
+
+  let score = 0;
+  const daysSince = metrics.daysSinceHistoryStrongHighSettingCandidate;
+  if (Number.isFinite(daysSince)) {
+    if (daysSince >= 1 && daysSince <= 2) {
+      score -= 12;
+    } else if (daysSince >= 6 && daysSince <= 12) {
+      score += 7;
+    } else if (daysSince >= 13 && daysSince <= 28) {
+      score += 3;
+    }
+  }
+
+  if (metrics.strongHighSettingCandidateCount === 0) {
+    score += 3;
+  } else if (metrics.strongHighSettingCandidateCount >= 2) {
+    score -= 6;
+  }
+
+  const previousStrongCandidate =
+    metrics.todaySetting >= 5 || (metrics.todaySetting >= 4.5 && metrics.previousRbCount >= 25);
+  if (metrics.todaySetting >= 5) {
+    score -= 12;
+  }
+  if (previousStrongCandidate && metrics.todayDifference >= 1000) {
+    score -= 14;
+  }
+  if (metrics.todaySetting >= 4.5 && metrics.todayDifference <= 0) {
+    score += 10;
+  }
+
+  return score;
+}
+
+function calculateAparkYakatabaruAHuntScore(metrics, context = {}) {
+  if (!isAparkYakatabaruTargetMachine(metrics.machineName)) {
+    return 0;
+  }
+
+  const d2Adjustment = clamp(1 - Math.abs(metrics.recentTwoNetTotal + 2500) / 2500, 0, 1);
+  const score =
+    Math.min(
+      calculateAparkYakatabaruBaseScoreA(metrics) +
+        calculateAparkYakatabaruRotationScoreA(metrics) +
+        (isAparkYakatabaruReferenceEventDate(context) ? 3 : 0) +
+        calculateAparkYakatabaruTailScore(metrics, "a"),
+      99,
+    ) + d2Adjustment;
+
+  return clamp(score, 0, 100);
+}
+
+function calculateAparkYakatabaruDifferencePointB(metrics) {
+  let point = 0;
+  const d1 = metrics.todayDifference;
+  const d2 = metrics.recentTwoNetTotal;
+  const d3 = metrics.recentThreeNetTotal;
+  const d7 = metrics.netTotal;
+
+  if (d2 <= -3000) {
+    point += 28;
+  } else if (d2 <= -2000) {
+    point += 22;
+  } else if (d2 <= -1000) {
+    point += 15;
+  } else if (d2 <= -500) {
+    point += 8;
+  } else if (d2 >= 3000) {
+    point -= 22;
+  } else if (d2 >= 2000) {
+    point -= 18;
+  } else if (d2 >= 1000) {
+    point -= 12;
+  } else if (d2 >= 0) {
+    point -= 6;
+  }
+
+  if (d1 <= -2000) {
+    point += 10;
+  } else if (d1 <= -1000) {
+    point += 7;
+  } else if (d1 <= -500) {
+    point += 4;
+  } else if (d1 >= 3000) {
+    point -= 14;
+  } else if (d1 >= 2000) {
+    point -= 10;
+  } else if (d1 >= 1000) {
+    point -= 7;
+  } else if (d1 >= 0) {
+    point -= 3;
+  }
+
+  if (d3 <= -3000) {
+    point += 12;
+  } else if (d3 <= -2000) {
+    point += 9;
+  } else if (d3 <= -1000) {
+    point += 5;
+  } else if (d3 >= 3000) {
+    point -= 10;
+  } else if (d3 >= 2000) {
+    point -= 7;
+  } else if (d3 >= 1000) {
+    point -= 4;
+  }
+
+  point -= clamp(d7, 0, 6000) / 500;
+  point += clamp(-d7, 0, 5000) / 500;
+
+  if (metrics.streak >= 2) {
+    point += 5;
+  }
+  if (metrics.streak >= 3) {
+    point += 5;
+  }
+  if (metrics.winningStreak >= 2) {
+    point -= 6;
+  }
+
+  return point;
+}
+
+function calculateAparkYakatabaruActivityPointB(metrics) {
+  let point = 0;
+  const recentTwoAverageGames = metrics.recentTwoGamesTotal / 2;
+
+  if (metrics.recentTwoRbTotal <= 10) {
+    point += 12;
+  } else if (metrics.recentTwoRbTotal <= 15) {
+    point += 9;
+  } else if (metrics.recentTwoRbTotal <= 20) {
+    point += 5;
+  } else if (metrics.recentTwoRbTotal >= 55) {
+    point -= 6;
+  } else if (metrics.recentTwoRbTotal >= 45) {
+    point -= 3;
+  }
+
+  if (metrics.recentThreeRbTotal <= 15) {
+    point += 6;
+  } else if (metrics.recentThreeRbTotal <= 20) {
+    point += 4;
+  }
+
+  if (recentTwoAverageGames <= 2000) {
+    point += 10;
+  } else if (recentTwoAverageGames <= 3000) {
+    point += 7;
+  } else if (recentTwoAverageGames <= 4000) {
+    point += 3;
+  } else if (recentTwoAverageGames >= 8000) {
+    point -= 5;
+  } else if (recentTwoAverageGames >= 7000) {
+    point -= 3;
+  }
+
+  if (metrics.averageGames < 4500) {
+    point += 5;
+  }
+  if (metrics.averageGames >= 5500) {
+    point -= 6;
+  }
+
+  return point;
+}
+
+function calculateAparkYakatabaruSettingPointB(metrics) {
+  if (!hasBeamHikariSettingMetrics(metrics)) {
+    return 0;
+  }
+
+  let point = 0;
+  const recentTwoSettingAverage = metrics.recentTwoSettingAverage;
+  if (Number.isFinite(recentTwoSettingAverage)) {
+    if (recentTwoSettingAverage <= 2) {
+      point += 10;
+    } else if (recentTwoSettingAverage <= 2.5) {
+      point += 6;
+    } else if (recentTwoSettingAverage <= 3) {
+      point += 2;
+    } else if (recentTwoSettingAverage >= 4.5) {
+      point -= 18;
+    } else if (recentTwoSettingAverage >= 4) {
+      point -= 12;
+    } else if (recentTwoSettingAverage >= 3.5) {
+      point -= 5;
+    }
+  }
+
+  if (metrics.highSettingEstimateCount === 0) {
+    point += 8;
+  } else if (metrics.highSettingEstimateCount === 1) {
+    point += 1;
+  } else if (metrics.highSettingEstimateCount >= 2) {
+    point -= 8;
+  }
+  if (metrics.settingFiveCount === 0) {
+    point += 4;
+  } else if (metrics.settingFiveCount >= 1) {
+    point -= 4;
+  }
+
+  const daysSince = metrics.daysSinceHistoryHighSettingEstimate;
+  if (Number.isFinite(daysSince)) {
+    if (daysSince >= 1 && daysSince <= 2) {
+      point -= 10;
+    } else if (daysSince >= 8 && daysSince <= 14) {
+      point += 7;
+    } else if (daysSince >= 5 && daysSince <= 7) {
+      point += 4;
+    } else if (daysSince >= 15) {
+      point += 4;
+    }
+  }
+
+  if (metrics.todaySetting >= 4.5 && metrics.todayDifference < 0) {
+    point += 8;
+  }
+  if (metrics.todaySetting >= 4.5 && metrics.todayDifference > 0) {
+    point -= 16;
+  }
+  if (metrics.todaySetting >= 5 && metrics.todayDifference < 0) {
+    point += 2;
+  }
+  if (metrics.todaySetting >= 5 && metrics.todayDifference > 0) {
+    point -= 8;
+  }
+  if (metrics.highSettingEstimateStreak >= 2) {
+    point -= 10;
+  }
+
+  return point;
+}
+
+function calculateAparkYakatabaruBHuntScore(metrics, context = {}) {
+  if (!isAparkYakatabaruTargetMachine(metrics.machineName)) {
+    return 0;
+  }
+
+  const point =
+    calculateAparkYakatabaruDifferencePointB(metrics) +
+    calculateAparkYakatabaruActivityPointB(metrics) +
+    calculateAparkYakatabaruSettingPointB(metrics) +
+    (isAparkYakatabaruReferenceEventDate(context) ? 4 : 0) +
+    calculateAparkYakatabaruTailScore(metrics, "b");
+
+  return clamp(50 + 0.65 * point, 0, 100);
 }
 
 function calculateGogoNetDipScore(value) {
@@ -3470,6 +3808,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
   let highSettingEstimateCount = 0;
   let highSettingCandidateCount = 0;
   let settingFiveCount = 0;
+  let strongHighSettingCandidateCount = 0;
   const metricWindowRows = [];
   let historyRowCount = 0;
   let historySettingSampleCount = 0;
@@ -3502,6 +3841,9 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     }
     if (Number.isFinite(settingAverage) && settingAverage >= 4.5 && rbCount >= 25) {
       highSettingCandidateCount += 1;
+    }
+    if (Number.isFinite(settingAverage) && (settingAverage >= 5 || (settingAverage >= 4.5 && rbCount >= 25))) {
+      strongHighSettingCandidateCount += 1;
     }
 
     if (differenceValue < 0) {
@@ -3587,6 +3929,12 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     );
   const isHighSettingEstimateWindowRow = (windowRow) =>
     Boolean(windowRow && Number.isFinite(windowRow.settingAverage) && windowRow.settingAverage >= 4.5);
+  const isStrongHighSettingCandidateWindowRow = (windowRow) =>
+    Boolean(
+      windowRow &&
+        Number.isFinite(windowRow.settingAverage) &&
+        (windowRow.settingAverage >= 5 || (windowRow.settingAverage >= 4.5 && windowRow.rbCount >= 25)),
+    );
   const isSettingFiveWindowRow = (windowRow) =>
     Boolean(windowRow && Number.isFinite(windowRow.settingAverage) && windowRow.settingAverage >= 5);
   const isHistoryHighSettingEstimateWindowRow = (historyWindowRow) => {
@@ -3595,6 +3943,14 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     }
     const settingAverage = getSettingEstimateAverage(settingDefinitionCache, historyWindowRow.row, config).average;
     return Number.isFinite(settingAverage) && settingAverage >= 4.5;
+  };
+  const isHistoryStrongHighSettingCandidateWindowRow = (historyWindowRow) => {
+    if (!historyWindowRow) {
+      return false;
+    }
+    const settingAverage = getSettingEstimateAverage(settingDefinitionCache, historyWindowRow.row, config).average;
+    const rbCount = readNumber(historyWindowRow.row?.rb_count) ?? 0;
+    return Number.isFinite(settingAverage) && (settingAverage >= 5 || (settingAverage >= 4.5 && rbCount >= 25));
   };
   const twoDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-2));
   const threeDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-3));
@@ -3644,6 +4000,15 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     }
     return null;
   })();
+  const daysSinceHistoryStrongHighSettingCandidate = (() => {
+    for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
+      const historyWindowRow = historyWindowRows.at(-offset);
+      if (isHistoryStrongHighSettingCandidateWindowRow(historyWindowRow)) {
+        return offset;
+      }
+    }
+    return null;
+  })();
   const previousReferenceEventMetrics = calculatePreviousReferenceEventMetrics(
     businessDates,
     dateIndex,
@@ -3685,6 +4050,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     highSettingEstimateCount,
     highSettingCandidateCount,
     settingFiveCount,
+    strongHighSettingCandidateCount,
     recentFiveHighSettingCandidateCount,
     recentFiveHighSettingEstimateCount,
     recentFifteenHighSettingEstimateCount,
@@ -3697,7 +4063,9 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     daysSinceHighSettingEstimate,
     daysSinceSettingFive,
     daysSinceHistoryHighSettingEstimate,
+    daysSinceHistoryStrongHighSettingCandidate,
     highSettingStreak: calculateCurrentHighSettingStreak(metricWindowRows),
+    highSettingEstimateStreak: calculateCurrentHighSettingEstimateStreak(metricWindowRows),
     recentThreeHighSettingCount,
     recentThreeHighSettingEstimateCount,
     recentThreeSettingFiveCount,
