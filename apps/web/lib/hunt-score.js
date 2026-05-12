@@ -159,6 +159,7 @@ const TAMAYA_ZASSHONOKUMA_TARGET_MACHINES = [
 
 const HINODE_ONOJO_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
 ];
 
 const APARK_YAKATABARU_TARGET_MACHINES = [
@@ -342,6 +343,24 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     name: "HINODE大野城式",
     windowDays: 7,
     scoreCalculator: calculateHinodeOnojoHuntScore,
+  },
+  {
+    key: "hinode-onojo-a",
+    name: "HINODE大野城式A",
+    windowDays: 7,
+    scoreCalculator: calculateHinodeOnojoAHuntScore,
+  },
+  {
+    key: "hinode-onojo-b",
+    name: "HINODE大野城式B",
+    windowDays: 7,
+    scoreCalculator: calculateHinodeOnojoBHuntScore,
+  },
+  {
+    key: "hinode-onojo-c",
+    name: "HINODE大野城式C",
+    windowDays: 7,
+    scoreCalculator: calculateHinodeOnojoCHuntScore,
   },
 ];
 
@@ -652,6 +671,19 @@ function calculateCurrentLosingStreak(windowRows) {
 
   for (let index = windowRows.length - 1; index >= 0; index -= 1) {
     if (windowRows[index].differenceValue >= 0) {
+      break;
+    }
+    streak += 1;
+  }
+
+  return streak;
+}
+
+function calculateCurrentWinningStreak(windowRows) {
+  let streak = 0;
+
+  for (let index = windowRows.length - 1; index >= 0; index -= 1) {
+    if (windowRows[index].differenceValue <= 0) {
       break;
     }
     streak += 1;
@@ -1353,6 +1385,132 @@ function calculateHinodeOnojoHuntScore(metrics) {
   return 0;
 }
 
+function calculateHinodeOnojoAHuntScore(metrics) {
+  const streak = metrics.streak;
+  const winningStreak = metrics.winningStreak;
+  const recentThreeNetTotal = metrics.recentThreeNetTotal;
+  const netTotal = metrics.netTotal;
+  const todayDifference = metrics.todayDifference;
+
+  if (
+    !Number.isFinite(streak) ||
+    !Number.isFinite(winningStreak) ||
+    !Number.isFinite(recentThreeNetTotal) ||
+    !Number.isFinite(netTotal) ||
+    !Number.isFinite(todayDifference)
+  ) {
+    return 0;
+  }
+
+  if (streak >= 4 && recentThreeNetTotal <= -3500 && netTotal <= -5000) {
+    return 100;
+  }
+  if (streak >= 3 && recentThreeNetTotal <= -3500 && netTotal <= -5000) {
+    return 95;
+  }
+  if (streak >= 4 && netTotal <= -5000) {
+    return 90;
+  }
+  if (recentThreeNetTotal <= -4000) {
+    return 88;
+  }
+  if (metrics.lossDays === 7) {
+    return 80;
+  }
+  if (streak >= 4) {
+    return 70;
+  }
+  if (winningStreak >= 3) {
+    return 20;
+  }
+  if (netTotal >= 3000) {
+    return 30;
+  }
+  if (todayDifference <= -1000) {
+    return 55;
+  }
+  return 0;
+}
+
+function calculateHinodeOnojoBHuntScore(metrics) {
+  const recentThreeNetTotal = metrics.recentThreeNetTotal;
+  const recentFourNetTotal = metrics.recentFourNetTotal;
+  const recentFiveNetTotal = metrics.recentFiveNetTotal;
+  const recentSixNetTotal = metrics.recentSixNetTotal;
+  const netTotal = metrics.netTotal;
+  const recentFourPositiveCount = metrics.recentFourPositiveCount;
+
+  if (
+    !Number.isFinite(recentThreeNetTotal) ||
+    !Number.isFinite(recentFourNetTotal) ||
+    !Number.isFinite(recentFiveNetTotal) ||
+    !Number.isFinite(recentSixNetTotal) ||
+    !Number.isFinite(netTotal) ||
+    !Number.isFinite(recentFourPositiveCount)
+  ) {
+    return 0;
+  }
+
+  if (recentThreeNetTotal <= -3500 && netTotal <= -5000) {
+    return 100;
+  }
+  if (recentSixNetTotal >= 4000 || recentFourPositiveCount >= 3 || recentFourNetTotal >= 3000) {
+    return 20;
+  }
+  if (recentFourNetTotal <= -4500 || recentSixNetTotal <= -5500) {
+    return 95;
+  }
+  if (recentFiveNetTotal <= -4500) {
+    return 90;
+  }
+  if (recentFourNetTotal <= -4000) {
+    return 82;
+  }
+  if (recentFiveNetTotal <= -4000) {
+    return 78;
+  }
+  return 0;
+}
+
+function calculateHinodeOnojoCHuntScore(metrics) {
+  const recentThreeNetTotal = metrics.recentThreeNetTotal;
+  const recentFourNetTotal = metrics.recentFourNetTotal;
+  const recentSixNetTotal = metrics.recentSixNetTotal;
+  const recentFourLossDays = metrics.recentFourLossDays;
+
+  if (
+    !Number.isFinite(recentThreeNetTotal) ||
+    !Number.isFinite(recentFourNetTotal) ||
+    !Number.isFinite(recentSixNetTotal) ||
+    !Number.isFinite(recentFourLossDays)
+  ) {
+    return 0;
+  }
+
+  if (recentFourLossDays === 4 && recentFourNetTotal <= -5500) {
+    return 100;
+  }
+  if (recentFourLossDays === 4 && recentFourNetTotal <= -5000) {
+    return 95;
+  }
+  if (recentFourLossDays === 4 && recentFourNetTotal <= -4500) {
+    return 90;
+  }
+  if (recentFourNetTotal >= 2500 || recentFourLossDays <= 2) {
+    return 20;
+  }
+  if (recentFourNetTotal > 0) {
+    return 30;
+  }
+  if (recentThreeNetTotal <= -4000) {
+    return 88;
+  }
+  if (recentSixNetTotal <= -5500) {
+    return 86;
+  }
+  return 0;
+}
+
 function buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays) {
   if (dateIndex < windowDays - 1) {
     return null;
@@ -1482,8 +1640,16 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
   const previousWindowRow = metricWindowRows.at(-2) ?? null;
   const recentTwoRows = metricWindowRows.slice(-2);
   const recentThreeRows = metricWindowRows.slice(-3);
+  const recentFourRows = metricWindowRows.slice(-4);
+  const recentFiveRows = metricWindowRows.slice(-5);
+  const recentSixRows = metricWindowRows.slice(-6);
   const recentTwoNetTotal = sumDifferenceValues(recentTwoRows);
   const recentThreeNetTotal = sumDifferenceValues(recentThreeRows);
+  const recentFourNetTotal = sumDifferenceValues(recentFourRows);
+  const recentFiveNetTotal = sumDifferenceValues(recentFiveRows);
+  const recentSixNetTotal = sumDifferenceValues(recentSixRows);
+  const recentFourLossDays = recentFourRows.filter((windowRow) => windowRow.differenceValue < 0).length;
+  const recentFourPositiveCount = recentFourRows.filter((windowRow) => windowRow.differenceValue > 0).length;
   const recentThreeGamesTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentThreeBonusTotal = recentThreeRows.reduce(
     (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
@@ -1505,10 +1671,16 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     slotNumber: String(row?.slot_number ?? "").trim(),
     lossDays,
     streak: calculateCurrentLosingStreak(metricWindowRows),
+    winningStreak: calculateCurrentWinningStreak(metricWindowRows),
     lossAbsTotal,
     netTotal,
     recentTwoNetTotal,
     recentThreeNetTotal,
+    recentFourNetTotal,
+    recentFiveNetTotal,
+    recentSixNetTotal,
+    recentFourLossDays,
+    recentFourPositiveCount,
     compensationRate: lossAbsTotal === 0 ? 999 : winAbsTotal / lossAbsTotal,
     maxWin,
     todayDifference: readHuntScoreDifferenceValue(row),
