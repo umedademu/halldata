@@ -177,10 +177,7 @@ const BOOM_TENJIN_TARGET_MACHINES = [
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
 ];
 
-const BEAM_HIKARI_TARGET_MACHINES = [
-  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
-  { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
-];
+const BEAM_HIKARI_TARGET_MACHINES = APARK_KASUGA_TARGET_MACHINES;
 
 const HINODE_ONOJO_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
@@ -364,56 +361,6 @@ const BOOM_TENJIN_NEO_BEST_SLOTS = new Set(["795"]);
 const BOOM_TENJIN_NEO_SECONDARY_SLOTS = new Set(["796", "797"]);
 const BOOM_TENJIN_NEO_WEAK_SLOTS = new Set(["793", "801"]);
 
-const BEAM_HIKARI_A_NEO_STRONG_SLOTS = new Set(["873", "875", "1008", "1021", "1022"]);
-const BEAM_HIKARI_A_NEO_SECONDARY_SLOTS = new Set([
-  "872",
-  "876",
-  "878",
-  "880",
-  "881",
-  "1006",
-  "1011",
-  "1015",
-  "1017",
-  "1023",
-  "1026",
-  "1028",
-]);
-const BEAM_HIKARI_A_NEO_WEAK_SLOTS = new Set(["877", "883", "1016"]);
-const BEAM_HIKARI_A_MYJUGGLER_STRONG_SLOTS = new Set(["1087", "1108", "1121"]);
-const BEAM_HIKARI_A_MYJUGGLER_SECONDARY_SLOTS = new Set([
-  "1101",
-  "1102",
-  "1103",
-  "1105",
-  "1106",
-  "1111",
-  "1112",
-  "1120",
-  "1123",
-]);
-const BEAM_HIKARI_A_MYJUGGLER_WEAK_SLOTS = new Set(["1086", "1100", "1113", "1118", "1122"]);
-
-const BEAM_HIKARI_B_NEO_A_SLOTS = new Set(["873", "875", "1008", "1021", "1022"]);
-const BEAM_HIKARI_B_NEO_B_SLOTS = new Set([
-  "872",
-  "876",
-  "878",
-  "880",
-  "881",
-  "1006",
-  "1011",
-  "1015",
-  "1017",
-  "1023",
-  "1026",
-  "1028",
-]);
-const BEAM_HIKARI_B_NEO_D_SLOTS = new Set(["877", "1016", "1020"]);
-const BEAM_HIKARI_B_MYJUGGLER_A_SLOTS = new Set(["1108"]);
-const BEAM_HIKARI_B_MYJUGGLER_B_SLOTS = new Set(["1087", "1102", "1121"]);
-const BEAM_HIKARI_B_MYJUGGLER_D_SLOTS = new Set(["1100", "1101", "1113", "1118", "1122"]);
-
 const HUNT_SCORE_LOGIC_DEFINITIONS = [
   {
     key: "apark",
@@ -456,12 +403,14 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     key: "beam-hikari-a",
     name: "ビームヒカリ式A",
     windowDays: 7,
+    historyWindowDays: 90,
     scoreCalculator: calculateBeamHikariAHuntScore,
   },
   {
     key: "beam-hikari-b",
     name: "ビームヒカリ式B",
     windowDays: 7,
+    historyWindowDays: 90,
     scoreCalculator: calculateBeamHikariBHuntScore,
   },
   {
@@ -1864,37 +1813,50 @@ function isBeamHikariNeo(machineName) {
 }
 
 function isBeamHikariTargetMachine(machineName) {
-  return isBeamHikariMyJuggler(machineName) || isBeamHikariNeo(machineName);
+  return Boolean(normalizeText(machineName));
 }
 
-function isBeamHikariPreviousHighCandidate(metrics) {
-  return metrics.todaySetting >= 4.5 && metrics.previousRbCount >= 25;
+function hasBeamHikariSettingMetrics(metrics) {
+  return Number.isFinite(metrics.settingSampleCount) && metrics.settingSampleCount > 0;
 }
 
-function calculateBeamHikariASlotScore(metrics) {
-  const slotNumber = String(metrics.slotNumber ?? "").trim();
-  if (isBeamHikariNeo(metrics.machineName)) {
-    if (BEAM_HIKARI_A_NEO_STRONG_SLOTS.has(slotNumber)) {
-      return 14;
+function calculateBeamHikariHistoryScore(metrics) {
+  if (metrics.historyRowCount < 14) {
+    return 0;
+  }
+
+  if (metrics.historySettingSampleCount >= 14 && Number.isFinite(metrics.historyHighSettingEstimateRate)) {
+    if (metrics.historyHighSettingEstimateRate >= 0.24) {
+      return 12;
     }
-    if (BEAM_HIKARI_A_NEO_SECONDARY_SLOTS.has(slotNumber)) {
+    if (metrics.historyHighSettingEstimateRate >= 0.18) {
       return 8;
     }
-    if (BEAM_HIKARI_A_NEO_WEAK_SLOTS.has(slotNumber)) {
+    if (metrics.historyHighSettingEstimateRate >= 0.12) {
+      return 4;
+    }
+    if (metrics.historyHighSettingEstimateRate <= 0.04) {
       return -6;
     }
     return 0;
   }
-  if (isBeamHikariMyJuggler(metrics.machineName)) {
-    if (BEAM_HIKARI_A_MYJUGGLER_STRONG_SLOTS.has(slotNumber)) {
-      return 14;
-    }
-    if (BEAM_HIKARI_A_MYJUGGLER_SECONDARY_SLOTS.has(slotNumber)) {
-      return 8;
-    }
-    if (BEAM_HIKARI_A_MYJUGGLER_WEAK_SLOTS.has(slotNumber)) {
-      return -6;
-    }
+
+  const averageNet = metrics.historyNetTotal / metrics.historyRowCount;
+  const positiveRate = metrics.historyPositiveDays / metrics.historyRowCount;
+  if (averageNet >= 300 || positiveRate >= 0.6) {
+    return 10;
+  }
+  if (averageNet >= 150 || positiveRate >= 0.54) {
+    return 6;
+  }
+  if (averageNet >= 50 || positiveRate >= 0.5) {
+    return 3;
+  }
+  if (averageNet <= -300 || positiveRate <= 0.35) {
+    return -8;
+  }
+  if (averageNet <= -150 || positiveRate <= 0.42) {
+    return -5;
   }
   return 0;
 }
@@ -1902,158 +1864,106 @@ function calculateBeamHikariASlotScore(metrics) {
 function calculateBeamHikariADipScore(metrics) {
   let score = 0;
 
-  if (metrics.todayDifference <= -2000) {
-    score += 10;
-  } else if (metrics.todayDifference <= -1000) {
-    score += 8;
-  } else if (metrics.todayDifference <= -500) {
-    score += 5;
-  } else if (metrics.todayDifference < 0) {
-    score += 2;
-  }
-
-  if (metrics.recentTwoNetTotal <= -2000) {
+  if (metrics.recentTwoNetTotal <= -3000) {
+    score += 16;
+  } else if (metrics.recentTwoNetTotal <= -2000) {
+    score += 12;
+  } else if (metrics.recentTwoNetTotal <= -1000) {
     score += 7;
-  } else if (metrics.recentTwoNetTotal <= -1500) {
-    score += 5;
-  } else if (metrics.recentTwoNetTotal <= -500) {
-    score += 2;
+  } else if (metrics.recentTwoNetTotal < 0) {
+    score += 3;
   }
 
-  if (metrics.recentThreeNetTotal <= -3000) {
+  if (metrics.recentThreeNetTotal <= -4000) {
+    score += 8;
+  } else if (metrics.recentThreeNetTotal <= -2500) {
+    score += 6;
+  } else if (metrics.recentThreeNetTotal <= -1500) {
+    score += 3;
+  }
+
+  if (metrics.netTotal <= -7000) {
+    score += 6;
+  } else if (metrics.netTotal <= -5000) {
     score += 4;
-  } else if (metrics.recentThreeNetTotal <= -2000) {
-    score += 3;
-  }
-
-  if (metrics.netTotal <= -5000) {
-    score += 3;
   } else if (metrics.netTotal <= -3000) {
     score += 2;
   }
 
-  return Math.min(score, 22);
+  if (metrics.todayDifference <= -2000) {
+    score += 6;
+  } else if (metrics.todayDifference <= -1000) {
+    score += 4;
+  } else if (metrics.todayDifference <= -500) {
+    score += 2;
+  }
+
+  return Math.min(score, 32);
 }
 
 function calculateBeamHikariALowActivityScore(metrics) {
   let score = 0;
 
-  if (metrics.previousGames <= 1500) {
-    score += 10;
-  } else if (metrics.previousGames <= 2000) {
+  if (metrics.recentTwoGamesTotal < 4000) {
+    score += 12;
+  } else if (metrics.recentTwoGamesTotal <= 6000) {
     score += 8;
-  } else if (metrics.previousGames <= 3000) {
-    score += 6;
-  } else if (metrics.previousGames <= 4000) {
-    score += 3;
+  } else if (metrics.recentTwoGamesTotal <= 8000) {
+    score += 4;
   }
 
-  if (metrics.recentTwoGamesTotal <= 5000) {
-    score += 8;
-  } else if (metrics.recentTwoGamesTotal <= 6000) {
-    score += 6;
-  } else if (metrics.recentTwoGamesTotal <= 8000) {
-    score += 3;
+  if (metrics.previousGames <= 3000) {
+    score += 5;
+  } else if (metrics.previousGames <= 5000) {
+    score += 2;
   }
 
   if (metrics.recentThreeGamesTotal <= 9000) {
-    score += 4;
-  }
-  if (metrics.gamesTotal <= 21000) {
     score += 2;
-  }
-
-  return Math.min(score, 24);
-}
-
-function calculateBeamHikariARbShortageScore(metrics) {
-  let score = 0;
-
-  if (metrics.previousRbCount <= 5) {
-    score += 7;
-  } else if (metrics.previousRbCount <= 10) {
-    score += 4;
-  } else if (metrics.previousRbCount <= 15) {
-    score += 2;
-  }
-
-  if (metrics.recentTwoRbTotal <= 15) {
-    score += 7;
-  } else if (metrics.recentTwoRbTotal <= 20) {
-    score += 5;
-  } else if (metrics.recentTwoRbTotal <= 30) {
-    score += 2;
-  }
-
-  if (metrics.rbTotal <= 60) {
-    score += 4;
-  } else if (metrics.rbTotal <= 70) {
-    score += 2;
-  }
-
-  if (metrics.previousBonusTotal <= 15) {
-    score += 3;
-  } else if (metrics.previousBonusTotal <= 25) {
-    score += 1;
-  }
-
-  return Math.min(score, 18);
-}
-
-function hasBeamHikariAdjacentPreviousHighCandidate(metrics, context = {}) {
-  const slotNumber = Number(String(metrics.slotNumber ?? "").trim());
-  if (!Number.isFinite(slotNumber) || !Array.isArray(context.metricsList)) {
-    return false;
-  }
-
-  return context.metricsList.some((otherMetrics) => {
-    if (!otherMetrics || otherMetrics === metrics || otherMetrics.machineName !== metrics.machineName) {
-      return false;
-    }
-    const otherSlotNumber = Number(String(otherMetrics.slotNumber ?? "").trim());
-    return (
-      Number.isFinite(otherSlotNumber) &&
-      Math.abs(otherSlotNumber - slotNumber) === 1 &&
-      isBeamHikariPreviousHighCandidate(otherMetrics)
-    );
-  });
-}
-
-function calculateBeamHikariARotationScore(metrics, context = {}) {
-  let score = 0;
-
-  if (metrics.highSettingCandidateCount === 0) {
-    score += 7;
-  } else if (metrics.highSettingCandidateCount === 1) {
-    score += 4;
-  }
-
-  if (metrics.threeDaysAgoHighSettingCandidate) {
-    score += 5;
-  }
-  if (metrics.fourDaysAgoHighSettingCandidate) {
-    score += 4;
-  }
-  if (hasBeamHikariAdjacentPreviousHighCandidate(metrics, context)) {
-    score += 3;
   }
 
   return Math.min(score, 20);
 }
 
+function calculateBeamHikariASettingCycleScore(metrics) {
+  if (!hasBeamHikariSettingMetrics(metrics)) {
+    return 0;
+  }
+
+  let score = 0;
+  if (!Number.isFinite(metrics.daysSinceHighSettingEstimate)) {
+    score += 5;
+  } else if (metrics.daysSinceHighSettingEstimate === 1) {
+    score -= 18;
+  } else if (metrics.daysSinceHighSettingEstimate === 2) {
+    score -= 12;
+  } else if (metrics.daysSinceHighSettingEstimate === 3) {
+    score += 6;
+  } else if (metrics.daysSinceHighSettingEstimate <= 7) {
+    score += 5;
+  }
+
+  if (metrics.recentFiveHighSettingEstimateCount === 0) {
+    score += 4;
+  } else if (metrics.recentFiveHighSettingEstimateCount >= 2) {
+    score -= 8;
+  }
+
+  return score;
+}
+
 function calculateBeamHikariAPenaltyScore(metrics) {
   let score = 0;
 
-  if (metrics.todaySetting >= 5) {
-    score += 25;
-  } else if (metrics.todaySetting >= 4.5 || isBeamHikariPreviousHighCandidate(metrics)) {
-    score += 20;
-  }
-  if (metrics.twoDaysAgoHighSettingCandidate) {
-    score += 12;
-  }
-  if (metrics.highSettingCandidateCount >= 2) {
-    score += 8;
+  if (hasBeamHikariSettingMetrics(metrics)) {
+    if (metrics.todaySetting >= 5) {
+      score += 20;
+    } else if (metrics.todaySetting >= 4.5) {
+      score += 16;
+    }
+    if (metrics.twoDaysAgoHighSettingEstimate) {
+      score += 8;
+    }
   }
 
   if (metrics.todayDifference >= 2000) {
@@ -2099,67 +2009,23 @@ function calculateBeamHikariAPenaltyScore(metrics) {
     score += 2;
   }
 
-  if (metrics.previousRbCount >= 30) {
-    score += 5;
-  } else if (metrics.previousRbCount >= 25) {
-    score += 3;
-  }
-  if (metrics.recentTwoRbTotal >= 50) {
-    score += 3;
-  }
-  if (metrics.rbTotal >= 140) {
-    score += 2;
-  }
-  if (metrics.previousBonusTotal >= 60) {
-    score += 3;
-  }
-
   return score;
 }
 
-function calculateBeamHikariAHuntScore(metrics, context = {}) {
+function calculateBeamHikariAHuntScore(metrics) {
   if (!isBeamHikariTargetMachine(metrics.machineName)) {
     return 0;
   }
 
   const totalScore =
-    calculateBeamHikariASlotScore(metrics) +
+    30 +
+    calculateBeamHikariHistoryScore(metrics) +
     calculateBeamHikariADipScore(metrics) +
     calculateBeamHikariALowActivityScore(metrics) +
-    calculateBeamHikariARbShortageScore(metrics) +
-    calculateBeamHikariARotationScore(metrics, context) -
+    calculateBeamHikariASettingCycleScore(metrics) -
     calculateBeamHikariAPenaltyScore(metrics);
 
   return clamp(totalScore, 0, 100);
-}
-
-function calculateBeamHikariBSlotPoint(metrics) {
-  const slotNumber = String(metrics.slotNumber ?? "").trim();
-  if (isBeamHikariNeo(metrics.machineName)) {
-    if (BEAM_HIKARI_B_NEO_A_SLOTS.has(slotNumber)) {
-      return 3.1;
-    }
-    if (BEAM_HIKARI_B_NEO_B_SLOTS.has(slotNumber)) {
-      return 1.5;
-    }
-    if (BEAM_HIKARI_B_NEO_D_SLOTS.has(slotNumber)) {
-      return -3.2;
-    }
-    return -0.7;
-  }
-  if (isBeamHikariMyJuggler(metrics.machineName)) {
-    if (BEAM_HIKARI_B_MYJUGGLER_A_SLOTS.has(slotNumber)) {
-      return 3.1;
-    }
-    if (BEAM_HIKARI_B_MYJUGGLER_B_SLOTS.has(slotNumber)) {
-      return 1.5;
-    }
-    if (BEAM_HIKARI_B_MYJUGGLER_D_SLOTS.has(slotNumber)) {
-      return -3.2;
-    }
-    return -0.7;
-  }
-  return 0;
 }
 
 function calculateBeamHikariBDifferencePoint(metrics) {
@@ -2221,93 +2087,56 @@ function calculateBeamHikariBActivityPoint(metrics) {
   return -5.3;
 }
 
-function calculateBeamHikariBRbPoint(metrics) {
-  let point = 0;
-
-  if (metrics.recentTwoRbTotal <= 15) {
-    point += 3.6;
-  } else if (metrics.recentTwoRbTotal <= 30) {
-    point -= 3.5;
-  } else if (metrics.recentTwoRbTotal <= 45) {
-    point -= 5.6;
-  } else {
-    point -= 8;
+function calculateBeamHikariBHistoryPoint(metrics) {
+  if (metrics.historyRowCount < 14) {
+    return 0;
   }
-
-  if (metrics.recentThreeRbTotal <= 25) {
-    point += 2.8;
-  } else if (metrics.recentThreeRbTotal <= 45) {
-    point -= 1.9;
-  } else if (metrics.recentThreeRbTotal <= 65) {
-    point -= 3.8;
-  } else {
-    point -= 1;
-  }
-
-  if (metrics.previousRbCount <= 10) {
-    point += 1.9;
-  } else if (metrics.previousRbCount <= 20) {
-    point -= 3.7;
-  } else if (metrics.previousRbCount <= 25) {
-    point -= 5.9;
-  } else if (metrics.previousRbCount <= 30) {
-    point -= 6.8;
-  } else {
-    point -= 6.5;
-  }
-
-  return point;
+  return calculateBeamHikariHistoryScore(metrics) * 0.35;
 }
 
-function calculateBeamHikariBDaysSinceHighPoint(daysSinceHigh) {
+function calculateBeamHikariBSettingPoint(metrics) {
+  if (!hasBeamHikariSettingMetrics(metrics)) {
+    return 0;
+  }
+
+  const daysSinceHigh = metrics.daysSinceHighSettingEstimate;
+  const daysSinceFive = metrics.daysSinceSettingFive;
+  let point = 0;
+
   if (!Number.isFinite(daysSinceHigh)) {
     return 1.7;
   }
   if (daysSinceHigh >= 8) {
-    return 0.3;
+    point += 0.3;
+  } else if (daysSinceHigh >= 4) {
+    point += 1.5;
+  } else if (daysSinceHigh === 3) {
+    point += 2.2;
+  } else if (daysSinceHigh >= 1) {
+    point -= 7.3;
   }
-  if (daysSinceHigh >= 4) {
-    return 1.5;
-  }
-  if (daysSinceHigh === 3) {
-    return 2.2;
-  }
-  if (daysSinceHigh >= 1) {
-    return -7.3;
-  }
-  return 0;
-}
 
-function calculateBeamHikariBDaysSinceFivePoint(daysSinceFive) {
   if (!Number.isFinite(daysSinceFive)) {
-    return 0.9;
+    point += 0.9;
+  } else if (daysSinceFive >= 4 && daysSinceFive <= 7) {
+    point += 1.6;
+  } else if (daysSinceFive === 3) {
+    point += 2;
+  } else if (daysSinceFive === 2) {
+    point -= 4.3;
+  } else if (daysSinceFive === 1) {
+    point -= 6.4;
   }
-  if (daysSinceFive >= 8) {
-    return 0;
-  }
-  if (daysSinceFive >= 4) {
-    return 1.6;
-  }
-  if (daysSinceFive === 3) {
-    return 2;
-  }
-  if (daysSinceFive === 2) {
-    return -4.3;
-  }
-  if (daysSinceFive === 1) {
-    return -6.4;
-  }
-  return 0;
-}
 
-function calculateBeamHikariBRecentHighCountPoint(metrics) {
-  if (metrics.recentFiveHighSettingCandidateCount === 0) {
-    return 0.5;
+  if (metrics.recentFiveHighSettingEstimateCount === 0) {
+    point += 0.5;
+  } else if (metrics.recentFiveHighSettingEstimateCount === 1) {
+    point -= 0.5;
+  } else {
+    point -= 4.1;
   }
-  if (metrics.recentFiveHighSettingCandidateCount === 1) {
-    return -0.5;
-  }
-  return -4.1;
+
+  return point;
 }
 
 function calculateBeamHikariBHuntScore(metrics) {
@@ -2315,17 +2144,13 @@ function calculateBeamHikariBHuntScore(metrics) {
     return 0;
   }
 
-  const machinePoint = isBeamHikariNeo(metrics.machineName) ? 0.6 : -1;
   const score =
     50 +
-    machinePoint +
-    calculateBeamHikariBSlotPoint(metrics) +
+    calculateBeamHikariBHistoryPoint(metrics) +
     calculateBeamHikariBDifferencePoint(metrics) +
     calculateBeamHikariBActivityPoint(metrics) +
-    calculateBeamHikariBRbPoint(metrics) +
-    calculateBeamHikariBDaysSinceHighPoint(metrics.daysSinceHighSettingCandidate) +
-    calculateBeamHikariBDaysSinceFivePoint(metrics.daysSinceSettingFive) +
-    calculateBeamHikariBRecentHighCountPoint(metrics);
+    calculateBeamHikariBSettingPoint(metrics) -
+    calculateBeamHikariAPenaltyScore(metrics) * 0.35;
 
   return clamp(score, 0, 100);
 }
@@ -2709,12 +2534,17 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
   let gamesTotal = 0;
   let bbTotal = 0;
   let rbTotal = 0;
+  let settingSampleCount = 0;
   let highSettingCount = 0;
+  let highSettingEstimateCount = 0;
   let highSettingCandidateCount = 0;
   const metricWindowRows = [];
+  let historyRowCount = 0;
   let historySettingSampleCount = 0;
   let historyHighSettingCount = 0;
+  let historyHighSettingEstimateCount = 0;
   let historyNetTotal = 0;
+  let historyPositiveDays = 0;
 
   for (const windowRow of windowRows) {
     const differenceValue = windowRow.differenceValue;
@@ -2726,8 +2556,14 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     gamesTotal += games;
     bbTotal += bbCount;
     rbTotal += rbCount;
-    if (Number.isFinite(settingAverage) && settingAverage >= 4) {
-      highSettingCount += 1;
+    if (Number.isFinite(settingAverage)) {
+      settingSampleCount += 1;
+      if (settingAverage >= 4) {
+        highSettingCount += 1;
+      }
+      if (settingAverage >= 4.5) {
+        highSettingEstimateCount += 1;
+      }
     }
     if (Number.isFinite(settingAverage) && settingAverage >= 4.5 && rbCount >= 25) {
       highSettingCandidateCount += 1;
@@ -2758,16 +2594,23 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     config,
   );
   for (const historyWindowRow of historyWindowRows) {
+    historyRowCount += 1;
     const settingAverage = getSettingEstimateAverage(
       settingDefinitionCache,
       historyWindowRow.row,
       config,
     ).average;
     historyNetTotal += historyWindowRow.differenceValue;
+    if (historyWindowRow.differenceValue > 0) {
+      historyPositiveDays += 1;
+    }
     if (Number.isFinite(settingAverage)) {
       historySettingSampleCount += 1;
       if (settingAverage >= 4) {
         historyHighSettingCount += 1;
+      }
+      if (settingAverage >= 4.5) {
+        historyHighSettingEstimateCount += 1;
       }
     }
   }
@@ -2807,14 +2650,27 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
         windowRow.settingAverage >= 4.5 &&
         windowRow.rbCount >= 25,
     );
+  const isHighSettingEstimateWindowRow = (windowRow) =>
+    Boolean(windowRow && Number.isFinite(windowRow.settingAverage) && windowRow.settingAverage >= 4.5);
   const twoDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-2));
   const threeDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-3));
   const fourDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-4));
   const recentFiveHighSettingCandidateCount = recentFiveRows.filter(isHighSettingCandidateWindowRow).length;
+  const twoDaysAgoHighSettingEstimate = isHighSettingEstimateWindowRow(metricWindowRows.at(-2));
+  const recentFiveHighSettingEstimateCount = recentFiveRows.filter(isHighSettingEstimateWindowRow).length;
   const daysSinceHighSettingCandidate = (() => {
     for (let offset = 1; offset <= metricWindowRows.length; offset += 1) {
       const windowRow = metricWindowRows.at(-offset);
       if (isHighSettingCandidateWindowRow(windowRow)) {
+        return offset;
+      }
+    }
+    return null;
+  })();
+  const daysSinceHighSettingEstimate = (() => {
+    for (let offset = 1; offset <= metricWindowRows.length; offset += 1) {
+      const windowRow = metricWindowRows.at(-offset);
+      if (isHighSettingEstimateWindowRow(windowRow)) {
         return offset;
       }
     }
@@ -2865,13 +2721,18 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     previousRbCount: readNumber(row?.rb_count) ?? 0,
     previousBonusTotal: (readNumber(row?.bb_count) ?? 0) + (readNumber(row?.rb_count) ?? 0),
     todaySetting,
+    settingSampleCount,
     highSettingCount,
+    highSettingEstimateCount,
     highSettingCandidateCount,
     recentFiveHighSettingCandidateCount,
+    recentFiveHighSettingEstimateCount,
     twoDaysAgoHighSettingCandidate,
+    twoDaysAgoHighSettingEstimate,
     threeDaysAgoHighSettingCandidate,
     fourDaysAgoHighSettingCandidate,
     daysSinceHighSettingCandidate,
+    daysSinceHighSettingEstimate,
     daysSinceSettingFive,
     highSettingStreak: calculateCurrentHighSettingStreak(metricWindowRows),
     recentThreeHighSettingCount,
@@ -2885,11 +2746,16 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     recentFiveRbTotal,
     recentTwoSettingAverage,
     recentFiveSettingAverage,
+    historyRowCount,
     historySettingSampleCount,
     historyHighSettingCount,
     historyHighSettingRate:
       historySettingSampleCount > 0 ? historyHighSettingCount / historySettingSampleCount : null,
+    historyHighSettingEstimateCount,
+    historyHighSettingEstimateRate:
+      historySettingSampleCount > 0 ? historyHighSettingEstimateCount / historySettingSampleCount : null,
     historyNetTotal,
+    historyPositiveDays,
     bbTotal,
     rbTotal,
     bbRate: gamesTotal > 0 ? bbTotal / gamesTotal : 0,
