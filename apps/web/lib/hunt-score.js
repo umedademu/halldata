@@ -166,6 +166,12 @@ const TAMAYA_OHASHI_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const HAKATA_123_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
+  { name: "ゴーゴージャグラー３", aliases: ["ゴーゴージャグラー3", "ゴーゴージャグラー"] },
+];
+
 const HINODE_ONOJO_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -354,6 +360,12 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     scoreCalculator: calculateTamayaOhashiHuntScore,
   },
   {
+    key: "123-hakata",
+    name: "123博多式",
+    windowDays: 7,
+    scoreCalculator: calculate123HakataHuntScore,
+  },
+  {
     key: "hinode-onojo",
     name: "HINODE大野城式",
     windowDays: 7,
@@ -432,8 +444,8 @@ const HUNT_SCORE_STORE_CONFIGS = [
   {
     key: "123-hakata",
     storeNames: ["123博多店"],
-    targetMachines: APARK_KASUGA_TARGET_MACHINES,
-    defaultLogicKey: "apark",
+    targetMachines: HAKATA_123_TARGET_MACHINES,
+    defaultLogicKey: "123-hakata",
   },
   {
     key: "mj-itazuke",
@@ -1415,6 +1427,137 @@ function calculateTamayaOhashiHuntScore(metrics) {
   return clamp(score, 0, 100);
 }
 
+function calculate123HakataTailScore(metrics, context = {}) {
+  const targetDay = readDateDay(context.nextBusinessDate ?? context.baseDate);
+  const slotTail = readSlotLastDigit(metrics.slotNumber);
+  if (!Number.isFinite(targetDay) || !Number.isFinite(slotTail)) {
+    return 0;
+  }
+
+  const targetTail = targetDay % 10;
+  if (slotTail !== targetTail) {
+    return targetTail === 3 ? 4 : 0;
+  }
+
+  let score = 48;
+  if ([3, 5, 9].includes(slotTail)) {
+    score += 7;
+  } else if ([1, 2, 6, 7].includes(slotTail)) {
+    score += 5;
+  } else if ([4, 8].includes(slotTail)) {
+    score += 2;
+  }
+  return score;
+}
+
+function is123HakataTailMatched(metrics, context = {}) {
+  const targetDay = readDateDay(context.nextBusinessDate ?? context.baseDate);
+  const slotTail = readSlotLastDigit(metrics.slotNumber);
+  return Number.isFinite(targetDay) && Number.isFinite(slotTail) && slotTail === targetDay % 10;
+}
+
+function calculate123HakataMachineScore(machineName) {
+  const normalized = normalizeText(machineName);
+  if (normalized === normalizeText("ネオアイムジャグラーEX")) {
+    return 10;
+  }
+  if (normalized === normalizeText("マイジャグラーV")) {
+    return 3;
+  }
+  return 0;
+}
+
+function calculate123HakataRecentDipScore(metrics) {
+  let score = 0;
+
+  if (metrics.recentThreeNetTotal <= -3000) {
+    score += 8;
+  } else if (metrics.recentThreeNetTotal <= -2000) {
+    score += 6;
+  } else if (metrics.recentThreeNetTotal <= -1000) {
+    score += 3;
+  } else if (metrics.recentThreeNetTotal >= 5000) {
+    score -= 6;
+  } else if (metrics.recentThreeNetTotal >= 3000) {
+    score -= 4;
+  }
+
+  if (metrics.recentTwoNetTotal <= -2000) {
+    score += 5;
+  } else if (metrics.recentTwoNetTotal <= -1000) {
+    score += 3;
+  } else if (metrics.recentTwoNetTotal >= 3000) {
+    score -= 4;
+  }
+
+  if (metrics.todayDifference <= -1000) {
+    score += 3;
+  } else if (metrics.todayDifference >= 3000) {
+    score -= 4;
+  } else if (metrics.todayDifference >= 1000) {
+    score -= 2;
+  }
+
+  return score;
+}
+
+function calculate123HakataActivityScore(metrics) {
+  const recentThreeAverageGames = metrics.recentThreeGamesTotal / 3;
+  if (recentThreeAverageGames <= 3000) {
+    return 6;
+  }
+  if (recentThreeAverageGames <= 4000) {
+    return 3;
+  }
+  if (recentThreeAverageGames >= 7000) {
+    return -6;
+  }
+  if (recentThreeAverageGames >= 6000) {
+    return -3;
+  }
+  return 0;
+}
+
+function calculate123HakataPreviousHighScore(metrics, tailMatched) {
+  const previousHighCandidate = metrics.todaySetting >= 4.5 && metrics.previousRbCount >= 25;
+  if (!previousHighCandidate) {
+    return 0;
+  }
+  if (metrics.todayDifference < 0) {
+    return 8;
+  }
+  if (metrics.todayDifference > 0) {
+    return tailMatched ? 2 : -8;
+  }
+  return 0;
+}
+
+function calculate123HakataNoInputScore(metrics) {
+  if (metrics.highSettingCandidateCount <= 0) {
+    return 5;
+  }
+  if (metrics.highSettingCandidateCount === 1) {
+    return 2;
+  }
+  if (metrics.highSettingCandidateCount === 2) {
+    return -3;
+  }
+  return -6;
+}
+
+function calculate123HakataHuntScore(metrics, context = {}) {
+  const tailMatched = is123HakataTailMatched(metrics, context);
+  const totalScore =
+    calculate123HakataTailScore(metrics, context) +
+    calculate123HakataMachineScore(metrics.machineName) +
+    calculate123HakataRecentDipScore(metrics) +
+    calculate123HakataActivityScore(metrics) +
+    calculate123HakataPreviousHighScore(metrics, tailMatched) +
+    calculate123HakataNoInputScore(metrics);
+
+  return clamp(totalScore, 0, 100);
+}
+
 function calculateHinodeOnojoHuntScore(metrics) {
   const lossDays = metrics.lossDays;
   const netTotal = metrics.netTotal;
@@ -1795,6 +1938,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
   let bbTotal = 0;
   let rbTotal = 0;
   let highSettingCount = 0;
+  let highSettingCandidateCount = 0;
   const metricWindowRows = [];
   let historySettingSampleCount = 0;
   let historyHighSettingCount = 0;
@@ -1812,6 +1956,9 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     rbTotal += rbCount;
     if (Number.isFinite(settingAverage) && settingAverage >= 4) {
       highSettingCount += 1;
+    }
+    if (Number.isFinite(settingAverage) && settingAverage >= 4.5 && rbCount >= 25) {
+      highSettingCandidateCount += 1;
     }
 
     if (differenceValue < 0) {
@@ -1916,6 +2063,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     previousBonusTotal: (readNumber(row?.bb_count) ?? 0) + (readNumber(row?.rb_count) ?? 0),
     todaySetting,
     highSettingCount,
+    highSettingCandidateCount,
     highSettingStreak: calculateCurrentHighSettingStreak(metricWindowRows),
     recentThreeHighSettingCount,
     gamesTotal,
