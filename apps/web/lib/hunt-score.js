@@ -430,6 +430,13 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     scoreCalculator: calculate123HakataHuntScore,
   },
   {
+    key: "123-hakata-a",
+    name: "123博多式A",
+    windowDays: 7,
+    historyWindowDays: 60,
+    scoreCalculator: calculate123HakataAHuntScore,
+  },
+  {
     key: "boom-tenjin",
     name: "BOOM天神式",
     windowDays: 7,
@@ -2120,6 +2127,175 @@ function calculate123HakataHuntScore(metrics, context = {}) {
     calculate123HakataActivityScore(metrics) +
     calculate123HakataPreviousHighScore(metrics, tailMatched) +
     calculate123HakataNoInputScore(metrics);
+
+  return clamp(totalScore, 0, 100);
+}
+
+function calculate123HakataAShortDipScore(metrics) {
+  let score = 0;
+  const recentThreeAverageGames = metrics.recentThreeGamesTotal / 3;
+
+  if (metrics.recentTwoNetTotal <= -2000 && metrics.recentThreeRbTotal <= 25) {
+    score += 18;
+  }
+  if (
+    metrics.recentThreeNetTotal <= -2000 &&
+    metrics.recentThreeRbTotal <= 25 &&
+    recentThreeAverageGames <= 3000
+  ) {
+    score += 15;
+  }
+  if (metrics.recentFourteenNetTotal <= -4000 && metrics.recentThreeRbTotal <= 25) {
+    score += 4;
+  }
+
+  return Math.min(score, 37);
+}
+
+function calculate123HakataALowActivityScore(metrics) {
+  let score = 0;
+  const recentThreeAverageGames = metrics.recentThreeGamesTotal / 3;
+  const recentFiveAverageGames = metrics.recentFiveGamesTotal / 5;
+  const recentSevenAverageGames = metrics.averageGames;
+
+  if (recentThreeAverageGames <= 3000) {
+    score += 14;
+  } else if (recentThreeAverageGames <= 4000) {
+    score += 8;
+  } else if (recentThreeAverageGames >= 7000) {
+    score -= 10;
+  } else if (recentThreeAverageGames >= 6000) {
+    score -= 6;
+  }
+
+  if (recentFiveAverageGames <= 3000) {
+    score += 8;
+  } else if (recentFiveAverageGames <= 4000) {
+    score += 4;
+  } else if (recentFiveAverageGames >= 7000) {
+    score -= 6;
+  } else if (recentFiveAverageGames >= 6000) {
+    score -= 4;
+  }
+
+  if (recentSevenAverageGames <= 3000) {
+    score += 4;
+  } else if (recentSevenAverageGames <= 4000) {
+    score += 2;
+  } else if (recentSevenAverageGames >= 7000) {
+    score -= 4;
+  } else if (recentSevenAverageGames >= 6000) {
+    score -= 2;
+  }
+
+  return Math.min(score, 26);
+}
+
+function calculate123HakataAShiftedTailScore(metrics, context = {}) {
+  const targetDay = readDateDay(context.nextBusinessDate ?? context.baseDate);
+  const slotTail = readSlotLastDigit(metrics.slotNumber);
+  if (!Number.isFinite(targetDay) || !Number.isFinite(slotTail)) {
+    return 0;
+  }
+
+  const shiftedTail = (slotTail - (targetDay % 10) + 10) % 10;
+  if (shiftedTail === 6) {
+    return 12;
+  }
+  if (shiftedTail === 5 || shiftedTail === 9) {
+    return 8;
+  }
+  if (shiftedTail === 2 || shiftedTail === 4) {
+    return 4;
+  }
+  if (shiftedTail === 8) {
+    return -6;
+  }
+  return 0;
+}
+
+function calculate123HakataARecentInputScore(metrics) {
+  let score = 0;
+  const historyFortyFiveRate =
+    metrics.historyFortyFiveSettingSampleCount > 0
+      ? metrics.historyFortyFiveHighSettingCandidateCount / metrics.historyFortyFiveSettingSampleCount
+      : null;
+
+  if (metrics.historySixtyHighSettingCandidateCount >= 9) {
+    score += 7;
+  } else if (metrics.historySixtyHighSettingCandidateCount >= 8) {
+    score += 5;
+  } else if (metrics.historySixtyHighSettingCandidateCount >= 7) {
+    score += 4;
+  } else if (metrics.historySixtyHighSettingCandidateCount <= 1) {
+    score -= 3;
+  }
+
+  if (metrics.historyFortyFiveHighSettingCandidateCount >= 7) {
+    score += 4;
+  } else if (metrics.historyFortyFiveHighSettingCandidateCount >= 6) {
+    score += 3;
+  }
+
+  if (Number.isFinite(historyFortyFiveRate) && historyFortyFiveRate >= 0.12) {
+    score += 3;
+  } else if (Number.isFinite(historyFortyFiveRate) && historyFortyFiveRate >= 0.1) {
+    score += 2;
+  }
+
+  if (metrics.historyTwentyOneHighSettingCandidateCount >= 4 || metrics.historyThirtyHighSettingCandidateCount >= 4) {
+    score += 2;
+  }
+
+  return clamp(score, -3, 13);
+}
+
+function calculate123HakataAPreviousHighScore(metrics) {
+  const previousHighCandidate = metrics.todaySetting >= 4.5 && metrics.previousRbCount >= 25;
+  if (metrics.todaySetting >= 5 && metrics.todayDifference < 0) {
+    return 6;
+  }
+  if (previousHighCandidate && metrics.todayDifference < 0) {
+    return 5;
+  }
+  if (previousHighCandidate && metrics.todayDifference > 0) {
+    return -5;
+  }
+  return 0;
+}
+
+function calculate123HakataAMidTermDipScore(metrics) {
+  const value = metrics.recentFourteenNetTotal;
+  if (value <= -6000) {
+    return 6;
+  }
+  if (value <= -4000) {
+    return 5;
+  }
+  if (value <= -2000) {
+    return 3;
+  }
+  if (value >= 8000) {
+    return -5;
+  }
+  if (value >= 5000) {
+    return -3;
+  }
+  return 0;
+}
+
+function calculate123HakataAHuntScore(metrics, context = {}) {
+  if (is123HakataTailMatched(metrics, context)) {
+    return null;
+  }
+
+  const totalScore =
+    calculate123HakataAShortDipScore(metrics) +
+    calculate123HakataALowActivityScore(metrics) +
+    calculate123HakataAShiftedTailScore(metrics, context) +
+    calculate123HakataARecentInputScore(metrics) +
+    calculate123HakataAPreviousHighScore(metrics) +
+    calculate123HakataAMidTermDipScore(metrics);
 
   return clamp(totalScore, 0, 100);
 }
@@ -4806,15 +4982,18 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
   const recentFourRows = metricWindowRows.slice(-4);
   const recentFiveRows = metricWindowRows.slice(-5);
   const recentSixRows = metricWindowRows.slice(-6);
+  const recentFourteenRows = historyWindowRows.slice(-14);
   const recentTwoNetTotal = sumDifferenceValues(recentTwoRows);
   const recentThreeNetTotal = sumDifferenceValues(recentThreeRows);
   const recentFourNetTotal = sumDifferenceValues(recentFourRows);
   const recentFiveNetTotal = sumDifferenceValues(recentFiveRows);
   const recentSixNetTotal = sumDifferenceValues(recentSixRows);
+  const recentFourteenNetTotal = sumDifferenceValues(recentFourteenRows);
   const recentFourLossDays = recentFourRows.filter((windowRow) => windowRow.differenceValue < 0).length;
   const recentFourPositiveCount = recentFourRows.filter((windowRow) => windowRow.differenceValue > 0).length;
   const recentTwoGamesTotal = recentTwoRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentThreeGamesTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.games, 0);
+  const recentFiveGamesTotal = recentFiveRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentThreeBonusTotal = recentThreeRows.reduce(
     (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
     0,
@@ -4892,9 +5071,19 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     .filter(isHistoryHighSettingCandidateWindowRow).length;
   const historyThirtyRows = historyWindowRows.slice(-30);
   const historyFortyFiveRows = historyWindowRows.slice(-45);
+  const historySixtyRows = historyWindowRows.slice(-60);
+  const historyTwentyOneRows = historyWindowRows.slice(-21);
+  const historyFortyFiveSettingSampleCount = historyFortyFiveRows.filter((historyWindowRow) => {
+    const settingAverage = getSettingEstimateAverage(settingDefinitionCache, historyWindowRow.row, config).average;
+    return Number.isFinite(settingAverage);
+  }).length;
+  const historyTwentyOneHighSettingCandidateCount =
+    historyTwentyOneRows.filter(isHistoryHighSettingCandidateWindowRow).length;
   const historyThirtyHighSettingCandidateCount = historyThirtyRows.filter(isHistoryHighSettingCandidateWindowRow).length;
   const historyFortyFiveHighSettingCandidateCount =
     historyFortyFiveRows.filter(isHistoryHighSettingCandidateWindowRow).length;
+  const historySixtyHighSettingCandidateCount =
+    historySixtyRows.filter(isHistoryHighSettingCandidateWindowRow).length;
   const historyThirtySettingFiveCount = historyThirtyRows.filter(isHistorySettingFiveWindowRow).length;
   const daysSinceHighSettingCandidate = (() => {
     for (let offset = 1; offset <= metricWindowRows.length; offset += 1) {
@@ -4980,6 +5169,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     recentFourNetTotal,
     recentFiveNetTotal,
     recentSixNetTotal,
+    recentFourteenNetTotal,
     recentFourLossDays,
     recentFourPositiveCount,
     compensationRate: lossAbsTotal === 0 ? 999 : winAbsTotal / lossAbsTotal,
@@ -5027,6 +5217,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     averageGames: metricWindowRows.length > 0 ? gamesTotal / metricWindowRows.length : 0,
     recentTwoGamesTotal,
     recentThreeGamesTotal,
+    recentFiveGamesTotal,
     recentThreeBonusTotal,
     recentTwoRbTotal,
     recentThreeRbTotal,
@@ -5044,6 +5235,9 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
       historySettingSampleCount > 0 ? historyHighSettingEstimateCount / historySettingSampleCount : null,
     historyThirtyHighSettingCandidateCount,
     historyFortyFiveHighSettingCandidateCount,
+    historySixtyHighSettingCandidateCount,
+    historyTwentyOneHighSettingCandidateCount,
+    historyFortyFiveSettingSampleCount,
     historyThirtySettingFiveCount,
     historyNetTotal,
     historyPositiveDays,
