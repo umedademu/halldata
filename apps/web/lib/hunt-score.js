@@ -177,6 +177,11 @@ const BOOM_TENJIN_TARGET_MACHINES = [
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
 ];
 
+const BEAM_HIKARI_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
+];
+
 const HINODE_ONOJO_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -359,6 +364,56 @@ const BOOM_TENJIN_NEO_BEST_SLOTS = new Set(["795"]);
 const BOOM_TENJIN_NEO_SECONDARY_SLOTS = new Set(["796", "797"]);
 const BOOM_TENJIN_NEO_WEAK_SLOTS = new Set(["793", "801"]);
 
+const BEAM_HIKARI_A_NEO_STRONG_SLOTS = new Set(["873", "875", "1008", "1021", "1022"]);
+const BEAM_HIKARI_A_NEO_SECONDARY_SLOTS = new Set([
+  "872",
+  "876",
+  "878",
+  "880",
+  "881",
+  "1006",
+  "1011",
+  "1015",
+  "1017",
+  "1023",
+  "1026",
+  "1028",
+]);
+const BEAM_HIKARI_A_NEO_WEAK_SLOTS = new Set(["877", "883", "1016"]);
+const BEAM_HIKARI_A_MYJUGGLER_STRONG_SLOTS = new Set(["1087", "1108", "1121"]);
+const BEAM_HIKARI_A_MYJUGGLER_SECONDARY_SLOTS = new Set([
+  "1101",
+  "1102",
+  "1103",
+  "1105",
+  "1106",
+  "1111",
+  "1112",
+  "1120",
+  "1123",
+]);
+const BEAM_HIKARI_A_MYJUGGLER_WEAK_SLOTS = new Set(["1086", "1100", "1113", "1118", "1122"]);
+
+const BEAM_HIKARI_B_NEO_A_SLOTS = new Set(["873", "875", "1008", "1021", "1022"]);
+const BEAM_HIKARI_B_NEO_B_SLOTS = new Set([
+  "872",
+  "876",
+  "878",
+  "880",
+  "881",
+  "1006",
+  "1011",
+  "1015",
+  "1017",
+  "1023",
+  "1026",
+  "1028",
+]);
+const BEAM_HIKARI_B_NEO_D_SLOTS = new Set(["877", "1016", "1020"]);
+const BEAM_HIKARI_B_MYJUGGLER_A_SLOTS = new Set(["1108"]);
+const BEAM_HIKARI_B_MYJUGGLER_B_SLOTS = new Set(["1087", "1102", "1121"]);
+const BEAM_HIKARI_B_MYJUGGLER_D_SLOTS = new Set(["1100", "1101", "1113", "1118", "1122"]);
+
 const HUNT_SCORE_LOGIC_DEFINITIONS = [
   {
     key: "apark",
@@ -396,6 +451,18 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     name: "BOOM天神式",
     windowDays: 7,
     scoreCalculator: calculateBoomTenjinHuntScore,
+  },
+  {
+    key: "beam-hikari-a",
+    name: "ビームヒカリ式A",
+    windowDays: 7,
+    scoreCalculator: calculateBeamHikariAHuntScore,
+  },
+  {
+    key: "beam-hikari-b",
+    name: "ビームヒカリ式B",
+    windowDays: 7,
+    scoreCalculator: calculateBeamHikariBHuntScore,
   },
   {
     key: "hinode-onojo",
@@ -484,6 +551,12 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["BOOM天神店", "BOOM天神", "ＢＯＯＭ天神店", "ＢＯＯＭ天神"],
     targetMachines: BOOM_TENJIN_TARGET_MACHINES,
     defaultLogicKey: "boom-tenjin",
+  },
+  {
+    key: "beam-hikari",
+    storeNames: ["ビームヒカリ店", "ビームヒカリ", "BEAM HIKARI", "BEAMHIKARI", "ＢＥＡＭヒカリ店"],
+    targetMachines: BEAM_HIKARI_TARGET_MACHINES,
+    defaultLogicKey: "beam-hikari-a",
   },
   {
     key: "mj-itazuke",
@@ -1782,6 +1855,481 @@ function calculateBoomTenjinHuntScore(metrics, context = {}) {
   return clamp(calculateBoomTenjinScoreFromRaw(weightedRaw), 0, 100);
 }
 
+function isBeamHikariMyJuggler(machineName) {
+  return normalizeText(machineName) === normalizeText("マイジャグラーV");
+}
+
+function isBeamHikariNeo(machineName) {
+  return normalizeText(machineName) === normalizeText("ネオアイムジャグラーEX");
+}
+
+function isBeamHikariTargetMachine(machineName) {
+  return isBeamHikariMyJuggler(machineName) || isBeamHikariNeo(machineName);
+}
+
+function isBeamHikariPreviousHighCandidate(metrics) {
+  return metrics.todaySetting >= 4.5 && metrics.previousRbCount >= 25;
+}
+
+function calculateBeamHikariASlotScore(metrics) {
+  const slotNumber = String(metrics.slotNumber ?? "").trim();
+  if (isBeamHikariNeo(metrics.machineName)) {
+    if (BEAM_HIKARI_A_NEO_STRONG_SLOTS.has(slotNumber)) {
+      return 14;
+    }
+    if (BEAM_HIKARI_A_NEO_SECONDARY_SLOTS.has(slotNumber)) {
+      return 8;
+    }
+    if (BEAM_HIKARI_A_NEO_WEAK_SLOTS.has(slotNumber)) {
+      return -6;
+    }
+    return 0;
+  }
+  if (isBeamHikariMyJuggler(metrics.machineName)) {
+    if (BEAM_HIKARI_A_MYJUGGLER_STRONG_SLOTS.has(slotNumber)) {
+      return 14;
+    }
+    if (BEAM_HIKARI_A_MYJUGGLER_SECONDARY_SLOTS.has(slotNumber)) {
+      return 8;
+    }
+    if (BEAM_HIKARI_A_MYJUGGLER_WEAK_SLOTS.has(slotNumber)) {
+      return -6;
+    }
+  }
+  return 0;
+}
+
+function calculateBeamHikariADipScore(metrics) {
+  let score = 0;
+
+  if (metrics.todayDifference <= -2000) {
+    score += 10;
+  } else if (metrics.todayDifference <= -1000) {
+    score += 8;
+  } else if (metrics.todayDifference <= -500) {
+    score += 5;
+  } else if (metrics.todayDifference < 0) {
+    score += 2;
+  }
+
+  if (metrics.recentTwoNetTotal <= -2000) {
+    score += 7;
+  } else if (metrics.recentTwoNetTotal <= -1500) {
+    score += 5;
+  } else if (metrics.recentTwoNetTotal <= -500) {
+    score += 2;
+  }
+
+  if (metrics.recentThreeNetTotal <= -3000) {
+    score += 4;
+  } else if (metrics.recentThreeNetTotal <= -2000) {
+    score += 3;
+  }
+
+  if (metrics.netTotal <= -5000) {
+    score += 3;
+  } else if (metrics.netTotal <= -3000) {
+    score += 2;
+  }
+
+  return Math.min(score, 22);
+}
+
+function calculateBeamHikariALowActivityScore(metrics) {
+  let score = 0;
+
+  if (metrics.previousGames <= 1500) {
+    score += 10;
+  } else if (metrics.previousGames <= 2000) {
+    score += 8;
+  } else if (metrics.previousGames <= 3000) {
+    score += 6;
+  } else if (metrics.previousGames <= 4000) {
+    score += 3;
+  }
+
+  if (metrics.recentTwoGamesTotal <= 5000) {
+    score += 8;
+  } else if (metrics.recentTwoGamesTotal <= 6000) {
+    score += 6;
+  } else if (metrics.recentTwoGamesTotal <= 8000) {
+    score += 3;
+  }
+
+  if (metrics.recentThreeGamesTotal <= 9000) {
+    score += 4;
+  }
+  if (metrics.gamesTotal <= 21000) {
+    score += 2;
+  }
+
+  return Math.min(score, 24);
+}
+
+function calculateBeamHikariARbShortageScore(metrics) {
+  let score = 0;
+
+  if (metrics.previousRbCount <= 5) {
+    score += 7;
+  } else if (metrics.previousRbCount <= 10) {
+    score += 4;
+  } else if (metrics.previousRbCount <= 15) {
+    score += 2;
+  }
+
+  if (metrics.recentTwoRbTotal <= 15) {
+    score += 7;
+  } else if (metrics.recentTwoRbTotal <= 20) {
+    score += 5;
+  } else if (metrics.recentTwoRbTotal <= 30) {
+    score += 2;
+  }
+
+  if (metrics.rbTotal <= 60) {
+    score += 4;
+  } else if (metrics.rbTotal <= 70) {
+    score += 2;
+  }
+
+  if (metrics.previousBonusTotal <= 15) {
+    score += 3;
+  } else if (metrics.previousBonusTotal <= 25) {
+    score += 1;
+  }
+
+  return Math.min(score, 18);
+}
+
+function hasBeamHikariAdjacentPreviousHighCandidate(metrics, context = {}) {
+  const slotNumber = Number(String(metrics.slotNumber ?? "").trim());
+  if (!Number.isFinite(slotNumber) || !Array.isArray(context.metricsList)) {
+    return false;
+  }
+
+  return context.metricsList.some((otherMetrics) => {
+    if (!otherMetrics || otherMetrics === metrics || otherMetrics.machineName !== metrics.machineName) {
+      return false;
+    }
+    const otherSlotNumber = Number(String(otherMetrics.slotNumber ?? "").trim());
+    return (
+      Number.isFinite(otherSlotNumber) &&
+      Math.abs(otherSlotNumber - slotNumber) === 1 &&
+      isBeamHikariPreviousHighCandidate(otherMetrics)
+    );
+  });
+}
+
+function calculateBeamHikariARotationScore(metrics, context = {}) {
+  let score = 0;
+
+  if (metrics.highSettingCandidateCount === 0) {
+    score += 7;
+  } else if (metrics.highSettingCandidateCount === 1) {
+    score += 4;
+  }
+
+  if (metrics.threeDaysAgoHighSettingCandidate) {
+    score += 5;
+  }
+  if (metrics.fourDaysAgoHighSettingCandidate) {
+    score += 4;
+  }
+  if (hasBeamHikariAdjacentPreviousHighCandidate(metrics, context)) {
+    score += 3;
+  }
+
+  return Math.min(score, 20);
+}
+
+function calculateBeamHikariAPenaltyScore(metrics) {
+  let score = 0;
+
+  if (metrics.todaySetting >= 5) {
+    score += 25;
+  } else if (metrics.todaySetting >= 4.5 || isBeamHikariPreviousHighCandidate(metrics)) {
+    score += 20;
+  }
+  if (metrics.twoDaysAgoHighSettingCandidate) {
+    score += 12;
+  }
+  if (metrics.highSettingCandidateCount >= 2) {
+    score += 8;
+  }
+
+  if (metrics.todayDifference >= 2000) {
+    score += 10;
+  } else if (metrics.todayDifference >= 1000) {
+    score += 6;
+  } else if (metrics.todayDifference > 0) {
+    score += 2;
+  }
+
+  if (metrics.recentTwoNetTotal >= 2500) {
+    score += 8;
+  } else if (metrics.recentTwoNetTotal >= 1500) {
+    score += 5;
+  }
+
+  if (metrics.recentThreeNetTotal >= 3000) {
+    score += 5;
+  } else if (metrics.recentThreeNetTotal >= 2000) {
+    score += 3;
+  }
+
+  if (metrics.netTotal >= 5000) {
+    score += 4;
+  } else if (metrics.netTotal >= 3000) {
+    score += 2;
+  }
+
+  if (metrics.previousGames >= 8000) {
+    score += 8;
+  } else if (metrics.previousGames >= 7000) {
+    score += 6;
+  } else if (metrics.previousGames >= 6000) {
+    score += 3;
+  }
+  if (metrics.recentTwoGamesTotal >= 14000) {
+    score += 4;
+  }
+  if (metrics.recentThreeGamesTotal >= 21000) {
+    score += 3;
+  }
+  if (metrics.gamesTotal >= 42000) {
+    score += 2;
+  }
+
+  if (metrics.previousRbCount >= 30) {
+    score += 5;
+  } else if (metrics.previousRbCount >= 25) {
+    score += 3;
+  }
+  if (metrics.recentTwoRbTotal >= 50) {
+    score += 3;
+  }
+  if (metrics.rbTotal >= 140) {
+    score += 2;
+  }
+  if (metrics.previousBonusTotal >= 60) {
+    score += 3;
+  }
+
+  return score;
+}
+
+function calculateBeamHikariAHuntScore(metrics, context = {}) {
+  if (!isBeamHikariTargetMachine(metrics.machineName)) {
+    return 0;
+  }
+
+  const totalScore =
+    calculateBeamHikariASlotScore(metrics) +
+    calculateBeamHikariADipScore(metrics) +
+    calculateBeamHikariALowActivityScore(metrics) +
+    calculateBeamHikariARbShortageScore(metrics) +
+    calculateBeamHikariARotationScore(metrics, context) -
+    calculateBeamHikariAPenaltyScore(metrics);
+
+  return clamp(totalScore, 0, 100);
+}
+
+function calculateBeamHikariBSlotPoint(metrics) {
+  const slotNumber = String(metrics.slotNumber ?? "").trim();
+  if (isBeamHikariNeo(metrics.machineName)) {
+    if (BEAM_HIKARI_B_NEO_A_SLOTS.has(slotNumber)) {
+      return 3.1;
+    }
+    if (BEAM_HIKARI_B_NEO_B_SLOTS.has(slotNumber)) {
+      return 1.5;
+    }
+    if (BEAM_HIKARI_B_NEO_D_SLOTS.has(slotNumber)) {
+      return -3.2;
+    }
+    return -0.7;
+  }
+  if (isBeamHikariMyJuggler(metrics.machineName)) {
+    if (BEAM_HIKARI_B_MYJUGGLER_A_SLOTS.has(slotNumber)) {
+      return 3.1;
+    }
+    if (BEAM_HIKARI_B_MYJUGGLER_B_SLOTS.has(slotNumber)) {
+      return 1.5;
+    }
+    if (BEAM_HIKARI_B_MYJUGGLER_D_SLOTS.has(slotNumber)) {
+      return -3.2;
+    }
+    return -0.7;
+  }
+  return 0;
+}
+
+function calculateBeamHikariBDifferencePoint(metrics) {
+  let point = 0;
+
+  if (metrics.recentTwoNetTotal <= -3000) {
+    point += 7.5;
+  } else if (metrics.recentTwoNetTotal <= -2000) {
+    point += 4;
+  } else if (metrics.recentTwoNetTotal <= -1000) {
+    point += 2.8;
+  } else if (metrics.recentTwoNetTotal <= 1000) {
+    point += 0.1;
+  } else if (metrics.recentTwoNetTotal <= 2000) {
+    point -= 8.3;
+  } else {
+    point -= 7.2;
+  }
+
+  if (metrics.recentThreeNetTotal <= -3000) {
+    point += 4.8;
+  } else if (metrics.recentThreeNetTotal <= -2000) {
+    point += 3.3;
+  } else if (metrics.recentThreeNetTotal <= -1000) {
+    point += 0.5;
+  } else if (metrics.recentThreeNetTotal <= 1000) {
+    point += 0.3;
+  } else if (metrics.recentThreeNetTotal <= 2000) {
+    point -= 2.4;
+  } else {
+    point -= 3.6;
+  }
+
+  if (metrics.todayDifference <= -1500) {
+    point += 3.6;
+  } else if (metrics.todayDifference <= -1000) {
+    point += 2.4;
+  } else if (metrics.todayDifference < 0) {
+    point += 1.7;
+  } else if (metrics.todayDifference <= 1000) {
+    point -= 3.8;
+  } else {
+    point -= 8.8;
+  }
+
+  return point;
+}
+
+function calculateBeamHikariBActivityPoint(metrics) {
+  if (metrics.recentTwoGamesTotal < 4000) {
+    return 4.8;
+  }
+  if (metrics.recentTwoGamesTotal < 6000) {
+    return 2.5;
+  }
+  if (metrics.recentTwoGamesTotal < 10000) {
+    return -3;
+  }
+  return -5.3;
+}
+
+function calculateBeamHikariBRbPoint(metrics) {
+  let point = 0;
+
+  if (metrics.recentTwoRbTotal <= 15) {
+    point += 3.6;
+  } else if (metrics.recentTwoRbTotal <= 30) {
+    point -= 3.5;
+  } else if (metrics.recentTwoRbTotal <= 45) {
+    point -= 5.6;
+  } else {
+    point -= 8;
+  }
+
+  if (metrics.recentThreeRbTotal <= 25) {
+    point += 2.8;
+  } else if (metrics.recentThreeRbTotal <= 45) {
+    point -= 1.9;
+  } else if (metrics.recentThreeRbTotal <= 65) {
+    point -= 3.8;
+  } else {
+    point -= 1;
+  }
+
+  if (metrics.previousRbCount <= 10) {
+    point += 1.9;
+  } else if (metrics.previousRbCount <= 20) {
+    point -= 3.7;
+  } else if (metrics.previousRbCount <= 25) {
+    point -= 5.9;
+  } else if (metrics.previousRbCount <= 30) {
+    point -= 6.8;
+  } else {
+    point -= 6.5;
+  }
+
+  return point;
+}
+
+function calculateBeamHikariBDaysSinceHighPoint(daysSinceHigh) {
+  if (!Number.isFinite(daysSinceHigh)) {
+    return 1.7;
+  }
+  if (daysSinceHigh >= 8) {
+    return 0.3;
+  }
+  if (daysSinceHigh >= 4) {
+    return 1.5;
+  }
+  if (daysSinceHigh === 3) {
+    return 2.2;
+  }
+  if (daysSinceHigh >= 1) {
+    return -7.3;
+  }
+  return 0;
+}
+
+function calculateBeamHikariBDaysSinceFivePoint(daysSinceFive) {
+  if (!Number.isFinite(daysSinceFive)) {
+    return 0.9;
+  }
+  if (daysSinceFive >= 8) {
+    return 0;
+  }
+  if (daysSinceFive >= 4) {
+    return 1.6;
+  }
+  if (daysSinceFive === 3) {
+    return 2;
+  }
+  if (daysSinceFive === 2) {
+    return -4.3;
+  }
+  if (daysSinceFive === 1) {
+    return -6.4;
+  }
+  return 0;
+}
+
+function calculateBeamHikariBRecentHighCountPoint(metrics) {
+  if (metrics.recentFiveHighSettingCandidateCount === 0) {
+    return 0.5;
+  }
+  if (metrics.recentFiveHighSettingCandidateCount === 1) {
+    return -0.5;
+  }
+  return -4.1;
+}
+
+function calculateBeamHikariBHuntScore(metrics) {
+  if (!isBeamHikariTargetMachine(metrics.machineName)) {
+    return 0;
+  }
+
+  const machinePoint = isBeamHikariNeo(metrics.machineName) ? 0.6 : -1;
+  const score =
+    50 +
+    machinePoint +
+    calculateBeamHikariBSlotPoint(metrics) +
+    calculateBeamHikariBDifferencePoint(metrics) +
+    calculateBeamHikariBActivityPoint(metrics) +
+    calculateBeamHikariBRbPoint(metrics) +
+    calculateBeamHikariBDaysSinceHighPoint(metrics.daysSinceHighSettingCandidate) +
+    calculateBeamHikariBDaysSinceFivePoint(metrics.daysSinceSettingFive) +
+    calculateBeamHikariBRecentHighCountPoint(metrics);
+
+  return clamp(score, 0, 100);
+}
+
 function calculateHinodeOnojoHuntScore(metrics) {
   const lossDays = metrics.lossDays;
   const netTotal = metrics.netTotal;
@@ -2244,6 +2792,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
     0,
   );
+  const recentTwoRbTotal = recentTwoRows.reduce((total, windowRow) => total + windowRow.rbCount, 0);
   const recentThreeRbTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.rbCount, 0);
   const recentFiveRbTotal = recentFiveRows.reduce((total, windowRow) => total + windowRow.rbCount, 0);
   const recentTwoSettingAverage = calculateSettingAverageFromWindowRows(recentTwoRows);
@@ -2251,15 +2800,30 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
   const recentThreeHighSettingCount = recentThreeRows.filter(
     (windowRow) => Number.isFinite(windowRow.settingAverage) && windowRow.settingAverage >= 4,
   ).length;
+  const isHighSettingCandidateWindowRow = (windowRow) =>
+    Boolean(
+      windowRow &&
+        Number.isFinite(windowRow.settingAverage) &&
+        windowRow.settingAverage >= 4.5 &&
+        windowRow.rbCount >= 25,
+    );
+  const twoDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-2));
+  const threeDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-3));
+  const fourDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-4));
+  const recentFiveHighSettingCandidateCount = recentFiveRows.filter(isHighSettingCandidateWindowRow).length;
   const daysSinceHighSettingCandidate = (() => {
     for (let offset = 1; offset <= metricWindowRows.length; offset += 1) {
       const windowRow = metricWindowRows.at(-offset);
-      if (
-        windowRow &&
-        Number.isFinite(windowRow.settingAverage) &&
-        windowRow.settingAverage >= 4.5 &&
-        windowRow.rbCount >= 25
-      ) {
+      if (isHighSettingCandidateWindowRow(windowRow)) {
+        return offset;
+      }
+    }
+    return null;
+  })();
+  const daysSinceSettingFive = (() => {
+    for (let offset = 1; offset <= metricWindowRows.length; offset += 1) {
+      const windowRow = metricWindowRows.at(-offset);
+      if (windowRow && Number.isFinite(windowRow.settingAverage) && windowRow.settingAverage >= 5) {
         return offset;
       }
     }
@@ -2303,7 +2867,12 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     todaySetting,
     highSettingCount,
     highSettingCandidateCount,
+    recentFiveHighSettingCandidateCount,
+    twoDaysAgoHighSettingCandidate,
+    threeDaysAgoHighSettingCandidate,
+    fourDaysAgoHighSettingCandidate,
     daysSinceHighSettingCandidate,
+    daysSinceSettingFive,
     highSettingStreak: calculateCurrentHighSettingStreak(metricWindowRows),
     recentThreeHighSettingCount,
     gamesTotal,
@@ -2311,6 +2880,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     recentTwoGamesTotal,
     recentThreeGamesTotal,
     recentThreeBonusTotal,
+    recentTwoRbTotal,
     recentThreeRbTotal,
     recentFiveRbTotal,
     recentTwoSettingAverage,
