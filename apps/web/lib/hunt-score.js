@@ -185,6 +185,16 @@ const WONDERLAND_MINAMIGAOKA_TARGET_MACHINES = [
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
 ];
 
+const WONDERLAND_SUE_TARGET_MACHINES = [
+  { name: "ゴーゴージャグラー３", aliases: ["ゴーゴージャグラー3", "ゴーゴージャグラー"] },
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  {
+    name: "ハッピージャグラーＶＩＩＩ",
+    aliases: ["ハッピージャグラーVIII", "ハッピージャグラーＶ", "ハッピージャグラーV", "ハッピージャグラー"],
+  },
+  { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
+];
+
 const HINODE_ONOJO_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -447,6 +457,20 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     scoreCalculator: calculateWonderlandMinamigaokaBHuntScore,
   },
   {
+    key: "wonderland-sue-a",
+    name: "ワンダーランド須恵式A",
+    windowDays: 7,
+    historyWindowDays: 90,
+    scoreCalculator: calculateWonderlandSueAHuntScore,
+  },
+  {
+    key: "wonderland-sue-b",
+    name: "ワンダーランド須恵式B",
+    windowDays: 7,
+    historyWindowDays: 90,
+    scoreCalculator: calculateWonderlandSueBHuntScore,
+  },
+  {
     key: "hinode-onojo",
     name: "HINODE大野城式",
     windowDays: 7,
@@ -558,6 +582,12 @@ const HUNT_SCORE_STORE_CONFIGS = [
     ],
     targetMachines: WONDERLAND_MINAMIGAOKA_TARGET_MACHINES,
     defaultLogicKey: "wonderland-minamigaoka-b",
+  },
+  {
+    key: "wonderland-sue",
+    storeNames: ["ワンダーランド須恵店", "ワンダーランド須恵"],
+    targetMachines: WONDERLAND_SUE_TARGET_MACHINES,
+    defaultLogicKey: "wonderland-sue-a",
   },
   {
     key: "mj-itazuke",
@@ -3424,6 +3454,185 @@ function calculateWonderlandMinamigaokaBHuntScore(metrics, context = {}) {
   return clamp(score, 0, 100);
 }
 
+function isWonderlandSueTargetMachine(machineName) {
+  const normalizedMachineName = normalizeText(machineName);
+  return WONDERLAND_SUE_TARGET_MACHINES.some(
+    (targetMachine) =>
+      normalizeText(targetMachine.name) === normalizedMachineName ||
+      (targetMachine.aliases ?? []).some((alias) => normalizeText(alias) === normalizedMachineName),
+  );
+}
+
+function isWonderlandSueHighCandidate(metrics) {
+  return Boolean(metrics && metrics.todaySetting >= 4.5 && metrics.previousRbCount >= 25);
+}
+
+function calculateWonderlandSueDipScoreA(metrics) {
+  const d7 = clamp((-metrics.netTotal - 1000) / 6000, 0, 1);
+  const d3 = clamp((-metrics.recentThreeNetTotal - 1000) / 4000, 0, 1);
+  const p7 = clamp((metrics.netTotal - 3000) / 5000, 0, 1);
+  const rb = clamp((metrics.previousRbCount - 25) / 15, 0, 1);
+  const previousHighUnderwhelmed = isWonderlandSueHighCandidate(metrics)
+    ? clamp((1000 - metrics.todayDifference) / 2000, 0, 1)
+    : 0;
+  const games = clamp((metrics.previousGames - 7000) / 2000, 0, 1);
+
+  const rawScore = 20 + 60 * d7 + 30 * d3 + 9 * rb + 3 * previousHighUnderwhelmed + 2 * games - 10 * p7;
+  return clamp((rawScore / 124) * 100, 0, 100);
+}
+
+function countWonderlandSueNeighborHighCandidates(metrics, context = {}) {
+  const slot = readSlotNumberValue(metrics.slotNumber);
+  if (!Number.isFinite(slot) || !Array.isArray(context.metricsList)) {
+    return 0;
+  }
+
+  return context.metricsList.filter((otherMetrics) => {
+    if (!otherMetrics || otherMetrics === metrics || otherMetrics.machineName !== metrics.machineName) {
+      return false;
+    }
+    const otherSlot = readSlotNumberValue(otherMetrics.slotNumber);
+    return Number.isFinite(otherSlot) && Math.abs(otherSlot - slot) === 1 && isWonderlandSueHighCandidate(otherMetrics);
+  }).length;
+}
+
+function calculateWonderlandSueDipScoreB(metrics) {
+  let score = 50;
+  score += 45 * clamp(-metrics.netTotal / 9000, 0, 1);
+  score += 20 * clamp(-metrics.recentThreeNetTotal / 6000, 0, 1);
+  score += 12 * clamp(-metrics.recentTwoNetTotal / 3000, 0, 1);
+  score -= 5 * clamp(metrics.netTotal / 6000, 0, 1);
+  score -= 8 * clamp(metrics.recentThreeNetTotal / 3000, 0, 1);
+  score -= 3 * clamp((3500 - metrics.previousGames) / 2500, 0, 1);
+
+  if (metrics.todayDifference <= -1500) {
+    score += 6;
+  } else if (metrics.todayDifference <= -1000) {
+    score += 4;
+  } else if (metrics.todayDifference >= 1000) {
+    score -= 4;
+  }
+
+  return score;
+}
+
+function calculateWonderlandSuePreviousHighScoreB(metrics, context = {}) {
+  if (!hasBeamHikariSettingMetrics(metrics)) {
+    return 0;
+  }
+
+  let score = 0;
+  const highCandidate = isWonderlandSueHighCandidate(metrics);
+  const settingFive = metrics.todaySetting >= 5;
+  const twoDaysAgoHigh = metrics.twoDaysAgoHighSettingCandidate;
+  const threeDaysAgoHigh = metrics.threeDaysAgoHighSettingCandidate;
+
+  if (highCandidate && metrics.todayDifference <= 0) {
+    score += 12;
+  } else if (highCandidate) {
+    score += 5;
+  }
+  if (highCandidate && !twoDaysAgoHigh) {
+    score += 8;
+  }
+  if (highCandidate && twoDaysAgoHigh && !threeDaysAgoHigh) {
+    score += 5;
+  }
+  if (settingFive) {
+    score += 2;
+  }
+  if (highCandidate && twoDaysAgoHigh && threeDaysAgoHigh) {
+    score -= 10;
+  }
+
+  if (countWonderlandSueNeighborHighCandidates(metrics, context) > 0 && metrics.todayDifference <= -1000) {
+    score += 4;
+  }
+
+  return score;
+}
+
+function calculateWonderlandSueHistoryScoreB(metrics) {
+  if (!hasBeamHikariSettingMetrics(metrics)) {
+    return 0;
+  }
+
+  let score = 0;
+  if (metrics.historyThirtyHighSettingCandidateCount >= 5) {
+    score += 3;
+  } else if (metrics.historyThirtyHighSettingCandidateCount >= 4) {
+    score += 2;
+  } else if (metrics.highSettingCandidateCount >= 2) {
+    score += 1;
+  }
+
+  if (metrics.historyThirtySettingFiveCount >= 4) {
+    score += 6;
+  } else if (metrics.historyThirtySettingFiveCount >= 3) {
+    score += 3;
+  }
+
+  if (metrics.historyFortyFiveHighSettingCandidateCount === 0) {
+    score -= 18;
+  } else if (metrics.historyThirtyHighSettingCandidateCount === 0) {
+    score -= 9;
+  }
+
+  return score;
+}
+
+function calculateWonderlandSueBehaviorScoreB(metrics) {
+  let score = 0;
+
+  if (metrics.previousRbCount >= 40) {
+    score += 24;
+  } else if (metrics.previousRbCount >= 35) {
+    score += 18;
+  } else if (metrics.previousRbCount >= 30) {
+    score += 12;
+  } else if (metrics.previousRbCount >= 25) {
+    score += 6;
+  }
+
+  if (metrics.previousGames >= 8000) {
+    score += 10;
+  } else if (metrics.previousGames >= 7000) {
+    score += 5;
+  } else if (metrics.previousGames <= 2000) {
+    score -= 8;
+  } else if (metrics.previousGames <= 3000) {
+    score -= 4;
+  }
+
+  if (metrics.todayDifference >= 1000 && !isWonderlandSueHighCandidate(metrics)) {
+    score -= 4;
+  }
+
+  return score;
+}
+
+function calculateWonderlandSueAHuntScore(metrics) {
+  if (!isWonderlandSueTargetMachine(metrics.machineName)) {
+    return 0;
+  }
+
+  return calculateWonderlandSueDipScoreA(metrics);
+}
+
+function calculateWonderlandSueBHuntScore(metrics, context = {}) {
+  if (!isWonderlandSueTargetMachine(metrics.machineName)) {
+    return 0;
+  }
+
+  const score =
+    calculateWonderlandSueDipScoreB(metrics) +
+    calculateWonderlandSuePreviousHighScoreB(metrics, context) +
+    calculateWonderlandSueBehaviorScoreB(metrics) +
+    calculateWonderlandSueHistoryScoreB(metrics);
+
+  return clamp(score, 0, 100);
+}
+
 function calculateHinodeOnojoHuntScore(metrics) {
   const lossDays = metrics.lossDays;
   const netTotal = metrics.netTotal;
@@ -3952,6 +4161,21 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     const rbCount = readNumber(historyWindowRow.row?.rb_count) ?? 0;
     return Number.isFinite(settingAverage) && (settingAverage >= 5 || (settingAverage >= 4.5 && rbCount >= 25));
   };
+  const isHistoryHighSettingCandidateWindowRow = (historyWindowRow) => {
+    if (!historyWindowRow) {
+      return false;
+    }
+    const settingAverage = getSettingEstimateAverage(settingDefinitionCache, historyWindowRow.row, config).average;
+    const rbCount = readNumber(historyWindowRow.row?.rb_count) ?? 0;
+    return Number.isFinite(settingAverage) && settingAverage >= 4.5 && rbCount >= 25;
+  };
+  const isHistorySettingFiveWindowRow = (historyWindowRow) => {
+    if (!historyWindowRow) {
+      return false;
+    }
+    const settingAverage = getSettingEstimateAverage(settingDefinitionCache, historyWindowRow.row, config).average;
+    return Number.isFinite(settingAverage) && settingAverage >= 5;
+  };
   const twoDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-2));
   const threeDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-3));
   const fourDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-4));
@@ -3964,6 +4188,12 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
   const recentFifteenHighSettingEstimateCount = historyWindowRows
     .slice(-15)
     .filter(isHistoryHighSettingEstimateWindowRow).length;
+  const historyThirtyRows = historyWindowRows.slice(-30);
+  const historyFortyFiveRows = historyWindowRows.slice(-45);
+  const historyThirtyHighSettingCandidateCount = historyThirtyRows.filter(isHistoryHighSettingCandidateWindowRow).length;
+  const historyFortyFiveHighSettingCandidateCount =
+    historyFortyFiveRows.filter(isHistoryHighSettingCandidateWindowRow).length;
+  const historyThirtySettingFiveCount = historyThirtyRows.filter(isHistorySettingFiveWindowRow).length;
   const daysSinceHighSettingCandidate = (() => {
     for (let offset = 1; offset <= metricWindowRows.length; offset += 1) {
       const windowRow = metricWindowRows.at(-offset);
@@ -4087,6 +4317,9 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     historyHighSettingEstimateCount,
     historyHighSettingEstimateRate:
       historySettingSampleCount > 0 ? historyHighSettingEstimateCount / historySettingSampleCount : null,
+    historyThirtyHighSettingCandidateCount,
+    historyFortyFiveHighSettingCandidateCount,
+    historyThirtySettingFiveCount,
     historyNetTotal,
     historyPositiveDays,
     bbTotal,
