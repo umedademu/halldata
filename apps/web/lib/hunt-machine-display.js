@@ -444,10 +444,13 @@ export function groupHuntMachineOptions(machineOptions) {
 
   for (const machine of Array.isArray(machineOptions) ? machineOptions : []) {
     const slotCount = Number(machine.slotCount);
+    const machineCategoryKey = getHuntMachineCategory(machine.name);
     const categoryKey =
-      Number.isFinite(slotCount) && slotCount > 0 && slotCount <= 2
-        ? "small"
-        : getHuntMachineCategory(machine.name);
+      machineCategoryKey !== "other"
+        ? machineCategoryKey
+        : Number.isFinite(slotCount) && slotCount > 0 && slotCount <= 2
+          ? "small"
+          : machineCategoryKey;
     const safeCategoryKey = groupsByKey.has(categoryKey) ? categoryKey : "other";
     groupsByKey.get(safeCategoryKey).options.push({
       ...machine,
