@@ -46,7 +46,16 @@ from main import (
     site7_schedule_due_hour,
 )
 from machine_difference import calculate_machine_difference_value, canonical_machine_name, machine_is_site7_target
-from minrepo_scraper import FetchProgress, MachineHistoryResult, MinRepoScraper, ScraperError, normalize_text, parse_date_range_input
+from minrepo_scraper import (
+    FetchProgress,
+    MachineDataset,
+    MachineHistoryResult,
+    MinRepoScraper,
+    ScraperError,
+    StoreDatePage,
+    normalize_text,
+    parse_date_range_input,
+)
 from r2_storage import R2StorageError
 from site7_scraper import (
     DEFAULT_SITE7_PREFECTURE_NAME,
@@ -1794,6 +1803,26 @@ class MinRepoScraperTests(unittest.TestCase):
             ["821", "336", "2163", "-", "10", "5", "1/144", "1/216", "1/432"],
         )
 
+    def test_site7_parse_machine_history_skips_blank_holiday_rows(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        soup = BeautifulSoup(find_gui_fixture("site7_machine.html"), "html.parser")
+        day_container = soup.find(id="ata0")
+        self.assertIsNotNone(day_container)
+        for row in day_container.find_all("tr")[1:]:
+            cells = row.find_all("td")
+            for cell in cells[1:7]:
+                cell.string = "-"
+
+        history_result = scraper.parse_machine_history_html(
+            str(soup),
+            store_url="https://example.com/site7",
+            page_url="https://example.com/site7/machine",
+            recent_days=2,
+        )
+
+        self.assertEqual([page.target_date for page in history_result.date_pages], ["2026-04-24"])
+        self.assertEqual([dataset.target_date for dataset in history_result.datasets], ["2026-04-24"])
+
     def test_site7_extract_updated_date_uses_previous_day_before_four(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = '<p id="hall_date">データ更新日時：2026/04/28 03:59</p>'
@@ -1856,6 +1885,34 @@ class MinRepoScraperTests(unittest.TestCase):
                 "rb_ratio_text": "1/454",
             },
         )
+
+    def test_site7_build_machine_daily_records_skips_blank_rows(self) -> None:
+        history_result = MachineHistoryResult(
+            store_name="Ａパーク春日店",
+            store_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=example",
+            start_date="2026-04-25",
+            end_date="2026-04-25",
+            date_pages=[
+                StoreDatePage(
+                    target_date="2026-04-25",
+                    date_url="https://www.d-deltanet.com/pc/BonusList.do?model=example#ata0",
+                )
+            ],
+            datasets=[
+                MachineDataset(
+                    store_name="Ａパーク春日店",
+                    store_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=example",
+                    target_date="2026-04-25",
+                    date_url="https://www.d-deltanet.com/pc/BonusList.do?model=example#ata0",
+                    machine_name=SITE7_TARGET_MACHINE_NAME,
+                    machine_url="https://www.d-deltanet.com/pc/BonusList.do?model=example",
+                    columns=["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"],
+                    rows=[["821", "-", "-", "-", "-", "-", "-", "-", "-"]],
+                )
+            ],
+        )
+
+        self.assertEqual(build_machine_daily_records(history_result), [])
 
     def test_site7_build_machine_daily_records_keeps_site7_source_after_store_rewrite(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)

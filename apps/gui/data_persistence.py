@@ -238,6 +238,25 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
                 if source_difference_value is not None
                 else bonus_difference_value
             )
+            games_count = _parse_int_value(row_values.get("G数", ""))
+            payout_rate = _parse_percent_value(row_values.get("出率", ""))
+            bb_count = _parse_int_value(row_values.get("BB", ""))
+            rb_count = _parse_int_value(row_values.get("RB", ""))
+            combined_ratio_text = _parse_text_value(row_values.get("合成", ""))
+            bb_ratio_text = _parse_text_value(row_values.get("BB率", ""))
+            rb_ratio_text = _parse_text_value(row_values.get("RB率", ""))
+            if data_source == DATA_SOURCE_SITE7 and not _site7_record_has_meaningful_data(
+                difference_value=difference_value,
+                bonus_difference_value=bonus_difference_value,
+                games_count=games_count,
+                payout_rate=payout_rate,
+                bb_count=bb_count,
+                rb_count=rb_count,
+                combined_ratio_text=combined_ratio_text,
+                bb_ratio_text=bb_ratio_text,
+                rb_ratio_text=rb_ratio_text,
+            ):
+                continue
 
             records.append(
                 {
@@ -247,17 +266,44 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
                     "data_source": data_source,
                     "difference_value": difference_value,
                     "bonus_difference_value": bonus_difference_value,
-                    "games_count": _parse_int_value(row_values.get("G数", "")),
-                    "payout_rate": _parse_percent_value(row_values.get("出率", "")),
-                    "bb_count": _parse_int_value(row_values.get("BB", "")),
-                    "rb_count": _parse_int_value(row_values.get("RB", "")),
-                    "combined_ratio_text": _parse_text_value(row_values.get("合成", "")),
-                    "bb_ratio_text": _parse_text_value(row_values.get("BB率", "")),
-                    "rb_ratio_text": _parse_text_value(row_values.get("RB率", "")),
+                    "games_count": games_count,
+                    "payout_rate": payout_rate,
+                    "bb_count": bb_count,
+                    "rb_count": rb_count,
+                    "combined_ratio_text": combined_ratio_text,
+                    "bb_ratio_text": bb_ratio_text,
+                    "rb_ratio_text": rb_ratio_text,
                 }
             )
 
     return records
+
+
+def _site7_record_has_meaningful_data(
+    *,
+    difference_value: Any = None,
+    bonus_difference_value: Any = None,
+    games_count: Any = None,
+    payout_rate: Any = None,
+    bb_count: Any = None,
+    rb_count: Any = None,
+    combined_ratio_text: Any = None,
+    bb_ratio_text: Any = None,
+    rb_ratio_text: Any = None,
+) -> bool:
+    numeric_values = (
+        difference_value,
+        bonus_difference_value,
+        games_count,
+        payout_rate,
+        bb_count,
+        rb_count,
+    )
+    if any(value is not None for value in numeric_values):
+        return True
+
+    text_values = (combined_ratio_text, bb_ratio_text, rb_ratio_text)
+    return any(str(value or "").strip() not in {"", "-", "--"} for value in text_values)
 
 
 def build_supabase_result_payload(record: dict[str, Any], store_id: str, updated_at: str) -> dict[str, Any]:

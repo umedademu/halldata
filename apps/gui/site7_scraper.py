@@ -55,6 +55,11 @@ SITE7_LOGGED_IN_URL_KEYWORDS = (
 SITE7_LOOKUP_DROP_PATTERN = re.compile(r"[\s\u3000'\"`´’‘“”.,，．:：;；/／\\|｜!?！？\-_－ー―ｰ~〜～・･·•()\[\]{}（）［］｛｝【】「」『』〈〉<>]")
 
 
+def site7_value_has_data(value: str) -> bool:
+    text = str(value).strip()
+    return bool(text and text not in {"-", "--"})
+
+
 def clamp_site7_recent_days(recent_days: int) -> int:
     if recent_days <= 0:
         raise ScraperError("直近日数は 1 以上の整数で入力してください。")
@@ -680,6 +685,9 @@ class Site7Scraper:
                 "BB": cells[2] or "-",
                 "RB": cells[3] or "-",
             }
+            ratio_values = [format_site7_ratio_text(cells[index]) for index in (4, 5, 6)]
+            if not any(site7_value_has_data(value) for value in [*row_values.values(), *ratio_values]):
+                continue
 
             rows.append(
                 [
@@ -689,9 +697,7 @@ class Site7Scraper:
                     "-",
                     row_values["BB"],
                     row_values["RB"],
-                    format_site7_ratio_text(cells[4]),
-                    format_site7_ratio_text(cells[5]),
-                    format_site7_ratio_text(cells[6]),
+                    *ratio_values,
                 ]
             )
 
