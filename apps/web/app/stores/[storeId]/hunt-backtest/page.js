@@ -8,7 +8,7 @@ import { Breadcrumbs } from "../../../../components/breadcrumbs";
 import { HuntBacktestGraph } from "../../../../components/hunt-backtest-graph";
 import {
   AllMachineFilterButtons,
-  JugglerOnlyButton,
+  MachineFilterCategoryButton,
 } from "../../../../components/hunt-machine-filter-tools";
 import { HuntScoreLogicSelector } from "../../../../components/hunt-score-logic-selector";
 import { NativeGetForm } from "../../../../components/native-get-form";
@@ -469,43 +469,42 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                   {machineOptionGroups.map((group) => (
                     <div key={group.key} className="machineFilterGroup">
                       <p className="machineFilterGroupLabel">{group.label}</p>
-                      {group.key === "juggler" ? (
-                        <div className="machineGroupToggleRow">
-                          {detail.backtest.hasAimJugglerGroupOption ? (
-                            <label
-                              className={`metricToggleChip ${
-                                detail.backtest.combineAimJuggler ? "metricToggleChipActive" : ""
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                name="aimMachineGroup"
-                                value="1"
-                                defaultChecked={detail.backtest.combineAimJuggler}
-                              />
-                              <span>アイジャグをまとめる</span>
-                            </label>
-                          ) : null}
-                          <JugglerOnlyButton />
-                        </div>
-                      ) : null}
-                      {group.key === "hanabi" && detail.backtest.hasHanabiGroupOption ? (
-                        <div className="machineGroupToggleRow">
+                      <div className="machineGroupToggleRow">
+                        {group.key === "juggler" && detail.backtest.hasAimJugglerGroupOption ? (
                           <label
                             className={`metricToggleChip ${
-                              detail.backtest.combineHanabi ? "metricToggleChipActive" : ""
+                              detail.backtest.combineAimJuggler ? "metricToggleChipActive" : ""
                             }`}
                           >
                             <input
                               type="checkbox"
-                              name="hanabiMachineGroup"
+                              name="aimMachineGroup"
                               value="1"
-                              defaultChecked={detail.backtest.combineHanabi}
+                              defaultChecked={detail.backtest.combineAimJuggler}
                             />
-                            <span>ハナビをまとめる</span>
+                            <span>アイジャグをまとめる</span>
                           </label>
-                        </div>
-                      ) : null}
+                        ) : null}
+                        {group.key === "hanabi" && detail.backtest.hasHanabiGroupOption ? (
+                            <label
+                              className={`metricToggleChip ${
+                                detail.backtest.combineHanabi ? "metricToggleChipActive" : ""
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                name="hanabiMachineGroup"
+                                value="1"
+                                defaultChecked={detail.backtest.combineHanabi}
+                              />
+                              <span>ハナビをまとめる</span>
+                            </label>
+                        ) : null}
+                        <MachineFilterCategoryButton
+                          category={group.key}
+                          label={`${group.label}のみ選択`}
+                        />
+                      </div>
                       <div className="metricToggleRow">
                         {group.options.map((machine) => (
                           <label

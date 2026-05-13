@@ -30,7 +30,6 @@ import {
   groupHuntMachineOptions,
   hasAimJugglerHuntMachineGroupOption,
   hasHanabiHuntMachineGroupOption,
-  isHuntJugglerMachine,
   resolveHuntMachineGroupName,
 } from "../lib/hunt-machine-display";
 import {
@@ -1214,6 +1213,7 @@ function EstimateNumberField({
 function HuntScoreHighlightControls({
   options,
   availableMachineNames,
+  availableMachineSlotCounts = {},
   onChange,
   onApply,
   hasPendingChanges,
@@ -1228,6 +1228,7 @@ function HuntScoreHighlightControls({
     availableMachineNames.map((machineName) => ({
       name: machineName,
       checked: selectedMachineNameSet.has(machineName),
+      slotCount: availableMachineSlotCounts?.[machineName] ?? null,
     })),
   );
 
@@ -1235,10 +1236,19 @@ function HuntScoreHighlightControls({
     onChange({ ...options, [key]: value });
   };
 
-  const selectJugglerOnly = () => {
+  const selectMachineCategory = (category) => {
+    const targetMachineNames =
+      machineOptionGroups.find((group) => group.key === category)?.options.map((machine) => machine.name) ?? [];
+    if (targetMachineNames.length === 0) {
+      return;
+    }
+    const nextMachineNameSet = new Set(options.selectedMachineNames);
+    for (const machineName of targetMachineNames) {
+      nextMachineNameSet.add(machineName);
+    }
     onChange({
       ...options,
-      selectedMachineNames: availableMachineNames.filter(isHuntJugglerMachine),
+      selectedMachineNames: availableMachineNames.filter((name) => nextMachineNameSet.has(name)),
     });
   };
 
@@ -1487,33 +1497,22 @@ function HuntScoreHighlightControls({
             {machineOptionGroups.map((group) => (
               <div key={group.key} className="machineFilterGroup">
                 <p className="machineFilterGroupLabel">{group.label}</p>
-                {group.key === "juggler" ? (
-                  <div className="machineGroupToggleRow">
-                    {hasAimJugglerGroupOption ? (
-                      <label
-                        className={`metricToggleChip ${
-                          options.combineAimJuggler ? "metricToggleChipActive" : ""
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={options.combineAimJuggler}
-                          onChange={(event) => updateOption("combineAimJuggler", event.target.checked)}
-                        />
-                        <span>アイジャグをまとめる</span>
-                      </label>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="storeReserveButton storeReserveButtonSecondary machineFilterAction"
-                      onClick={selectJugglerOnly}
+                <div className="machineGroupToggleRow">
+                  {group.key === "juggler" && hasAimJugglerGroupOption ? (
+                    <label
+                      className={`metricToggleChip ${
+                        options.combineAimJuggler ? "metricToggleChipActive" : ""
+                      }`}
                     >
-                      ジャグ系のみ選択
-                    </button>
-                  </div>
-                ) : null}
-                {group.key === "hanabi" && hasHanabiGroupOption ? (
-                  <div className="machineGroupToggleRow">
+                      <input
+                        type="checkbox"
+                        checked={options.combineAimJuggler}
+                        onChange={(event) => updateOption("combineAimJuggler", event.target.checked)}
+                      />
+                      <span>アイジャグをまとめる</span>
+                    </label>
+                  ) : null}
+                  {group.key === "hanabi" && hasHanabiGroupOption ? (
                     <label
                       className={`metricToggleChip ${
                         options.combineHanabi ? "metricToggleChipActive" : ""
@@ -1526,8 +1525,15 @@ function HuntScoreHighlightControls({
                       />
                       <span>ハナビをまとめる</span>
                     </label>
-                  </div>
-                ) : null}
+                  ) : null}
+                  <button
+                    type="button"
+                    className="storeReserveButton storeReserveButtonSecondary machineFilterAction"
+                    onClick={() => selectMachineCategory(group.key)}
+                  >
+                    {group.label}のみ選択
+                  </button>
+                </div>
                 <div className="metricToggleRow">
                   {group.options.map((machine) => (
                     <label
@@ -1862,6 +1868,10 @@ export function MachineComparison({
   );
   const [activeHuntScoreHighlight, setActiveHuntScoreHighlight] = useState(huntScoreHighlight);
   const [fullHuntScoreHighlight, setFullHuntScoreHighlight] = useState(null);
+  const huntScoreHighlightMachineSlotCounts = useMemo(() => {
+    const source = fullHuntScoreHighlight?.machineSlotCounts ?? huntScoreHighlight?.machineSlotCounts;
+    return source && typeof source === "object" ? source : {};
+  }, [fullHuntScoreHighlight, huntScoreHighlight]);
   const [isHuntScoreHighlightApplying, setIsHuntScoreHighlightApplying] = useState(false);
   const [huntScoreHighlightApplyError, setHuntScoreHighlightApplyError] = useState("");
   const [huntScoreHighlightOptionsLoadedStoreId, setHuntScoreHighlightOptionsLoadedStoreId] =
@@ -2563,6 +2573,7 @@ export function MachineComparison({
             <HuntScoreHighlightControls
               options={huntScoreHighlightOptions}
               availableMachineNames={huntScoreHighlightAvailableMachineNames}
+              availableMachineSlotCounts={huntScoreHighlightMachineSlotCounts}
               onChange={setHuntScoreHighlightOptions}
               onApply={applyHuntScoreHighlightOptions}
               hasPendingChanges={hasPendingHuntScoreHighlightOptions}

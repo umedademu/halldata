@@ -1,23 +1,36 @@
 "use client";
 
-function setMachineFilterChecks(form, predicate) {
+function updateMachineFilterChecks(form, resolveChecked) {
   if (!form) {
     return;
   }
 
   for (const input of form.querySelectorAll('input[data-machine-filter-option="1"]')) {
-    input.checked = predicate(input);
-    input.dispatchEvent(new Event("change", { bubbles: true }));
+    const nextChecked = Boolean(resolveChecked(input, input.checked));
+    if (input.checked !== nextChecked) {
+      input.checked = nextChecked;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }
   }
+}
+
+function setMachineFilterChecks(form, checked) {
+  updateMachineFilterChecks(form, () => checked);
+}
+
+function turnMachineFilterCategoryOn(form, category) {
+  updateMachineFilterChecks(form, (input, currentChecked) =>
+    input.dataset.machineCategory === category ? true : currentChecked,
+  );
 }
 
 export function AllMachineFilterButtons() {
   const selectAll = (event) => {
-    setMachineFilterChecks(event.currentTarget.closest("form"), () => true);
+    setMachineFilterChecks(event.currentTarget.closest("form"), true);
   };
 
   const clearAll = (event) => {
-    setMachineFilterChecks(event.currentTarget.closest("form"), () => false);
+    setMachineFilterChecks(event.currentTarget.closest("form"), false);
   };
 
   return (
@@ -40,21 +53,22 @@ export function AllMachineFilterButtons() {
   );
 }
 
-export function JugglerOnlyButton() {
-  const selectJugglerOnly = (event) => {
-    setMachineFilterChecks(
-      event.currentTarget.closest("form"),
-      (input) => input.dataset.machineCategory === "juggler",
-    );
+export function MachineFilterCategoryButton({ category, label }) {
+  const selectCategory = (event) => {
+    turnMachineFilterCategoryOn(event.currentTarget.closest("form"), category);
   };
 
   return (
     <button
       type="button"
       className="storeReserveButton storeReserveButtonSecondary machineFilterAction"
-      onClick={selectJugglerOnly}
+      onClick={selectCategory}
     >
-      ジャグ系のみ選択
+      {label}
     </button>
   );
+}
+
+export function JugglerOnlyButton() {
+  return <MachineFilterCategoryButton category="juggler" label="ジャグ系のみ選択" />;
 }

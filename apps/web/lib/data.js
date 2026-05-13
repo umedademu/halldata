@@ -1622,6 +1622,7 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
     store.storeName,
     storeMachineNames,
   );
+  const machineSlotCounts = buildStaticStoreMachineSlotCounts(staticStore);
   const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName);
   return {
     dataSource: "json",
@@ -1641,6 +1642,7 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
     limit: DEFAULT_HUNT_RANKING_LIMIT,
     predictionDate: null,
     nextBusinessDate: null,
+    machineSlotCounts,
     rows: [],
     rankingGroups: [],
     totalCount: 0,
@@ -1650,7 +1652,7 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
       backtestOptions,
       huntScoreLogic.key,
       storeMachineNames,
-      buildStaticStoreMachineSlotCounts(staticStore),
+      machineSlotCounts,
     ),
   };
 }
@@ -1687,7 +1689,12 @@ function decorateRowsWithSite7MachineData(rows, site7MachineNameSet) {
   }));
 }
 
-function buildMachineHuntScoreHighlightDetail(storeName, snapshots, storeMachineNames = null) {
+function buildMachineHuntScoreHighlightDetail(
+  storeName,
+  snapshots,
+  storeMachineNames = null,
+  machineSlotCounts = {},
+) {
   const sourceMachineNames = Array.isArray(storeMachineNames) ? storeMachineNames : [
     ...new Set(
       (Array.isArray(snapshots) ? snapshots : [])
@@ -1696,10 +1703,17 @@ function buildMachineHuntScoreHighlightDetail(storeName, snapshots, storeMachine
         .filter(Boolean),
     ),
   ];
+  const availableMachineNames = listHuntScoreTargetMachineNamesForStoreMachines(
+    storeName,
+    sourceMachineNames,
+  );
   return {
-    availableMachineNames: listHuntScoreTargetMachineNamesForStoreMachines(
-      storeName,
-      sourceMachineNames,
+    availableMachineNames,
+    machineSlotCounts: Object.fromEntries(
+      availableMachineNames.map((machineName) => [
+        machineName,
+        readMachineSlotCount(machineSlotCounts, machineName),
+      ]),
     ),
     snapshots: (Array.isArray(snapshots) ? snapshots : []).map((snapshot) => ({
       date: snapshot.baseDate,
@@ -1801,6 +1815,7 @@ async function buildStaticMachineHuntScoreHighlight(
     store.storeName,
     snapshots,
     readStaticStoreMachineNames(staticStore),
+    buildStaticStoreMachineSlotCounts(staticStore),
   );
 }
 
@@ -1858,6 +1873,7 @@ async function buildStaticMachineDetail(
       store.storeName,
       snapshots,
       readStaticStoreMachineNames(staticStore),
+      buildStaticStoreMachineSlotCounts(staticStore),
     );
     const targetMachineRows = targetRows.filter((row) =>
       requestedHuntScoreMachineNames.has(getHuntScoreRecordMachineName(row, store.storeName)),
@@ -2042,6 +2058,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     limit: displayLimit,
     predictionDate: snapshot?.baseDate ?? null,
     nextBusinessDate: snapshot?.nextBusinessDate ?? null,
+    machineSlotCounts: snapshotDetail.machineSlotCounts ?? {},
     predictionHasSite7Data: snapshotUsesSite7Data(snapshot),
     rows: rankingRows,
     rankingGroups,
@@ -2868,6 +2885,7 @@ export async function getHuntScoreAnalysisPageDetail(
     limit: displayLimit,
     predictionDate: snapshot?.baseDate ?? null,
     nextBusinessDate: snapshot?.nextBusinessDate ?? null,
+    machineSlotCounts: snapshotDetail.machineSlotCounts ?? {},
     predictionHasSite7Data: snapshotUsesSite7Data(snapshot),
     rows: rankingRows,
     rankingGroups,

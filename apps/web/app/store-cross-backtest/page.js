@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import {
   AllMachineFilterButtons,
-  JugglerOnlyButton,
+  MachineFilterCategoryButton,
 } from "../../components/hunt-machine-filter-tools";
 import { NativeGetForm } from "../../components/native-get-form";
 import { SortableTableController } from "../../components/sortable-table-controller";
@@ -479,8 +479,8 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
               {machineOptionGroups.map((group) => (
                 <div key={group.key} className="machineFilterGroup">
                   <p className="machineFilterGroupLabel">{group.label}</p>
-                  {group.key === "juggler" ? (
-                    <div className="machineGroupToggleRow">
+                  <div className="machineGroupToggleRow">
+                    {group.key === "juggler" ? (
                       <label
                         className={`metricToggleChip ${
                           detail.combineAimJuggler ? "metricToggleChipActive" : ""
@@ -494,11 +494,8 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                         />
                         <span>アイジャグをまとめる</span>
                       </label>
-                      <JugglerOnlyButton />
-                    </div>
-                  ) : null}
-                  {group.key === "hanabi" ? (
-                    <div className="machineGroupToggleRow">
+                    ) : null}
+                    {group.key === "hanabi" ? (
                       <label
                         className={`metricToggleChip ${
                           detail.combineHanabi ? "metricToggleChipActive" : ""
@@ -512,8 +509,12 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                         />
                         <span>ハナビをまとめる</span>
                       </label>
-                    </div>
-                  ) : null}
+                    ) : null}
+                    <MachineFilterCategoryButton
+                      category={group.key}
+                      label={`${group.label}のみ選択`}
+                    />
+                  </div>
                   <div className="metricToggleRow">
                     {group.options.map((machine) => (
                       <label

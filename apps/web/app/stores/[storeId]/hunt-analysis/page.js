@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "../../../../components/breadcrumbs";
 import {
   AllMachineFilterButtons,
-  JugglerOnlyButton,
+  MachineFilterCategoryButton,
 } from "../../../../components/hunt-machine-filter-tools";
 import { HuntRankingLimitSync } from "../../../../components/hunt-ranking-limit-sync";
 import { HuntRankingTable } from "../../../../components/hunt-ranking-table";
@@ -434,6 +434,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const machineOptions = availableMachineNames.map((machineName) => ({
     name: machineName,
     checked: selectedMachineNameSet.has(machineName),
+    slotCount: detail.machineSlotCounts?.[machineName] ?? null,
   }));
   const machineOptionGroups = groupHuntMachineOptions(machineOptions);
   const visibleRankingGroups = buildVisibleRankingGroups(
@@ -585,28 +586,23 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                     {machineOptionGroups.map((group) => (
                       <div key={group.key} className="machineFilterGroup">
                         <p className="machineFilterGroupLabel">{group.label}</p>
-                        {group.key === "juggler" ? (
-                          <div className="machineGroupToggleRow">
-                            {hasAimJugglerGroupOption ? (
-                              <label
-                                className={`metricToggleChip ${
-                                  combineAimJuggler ? "metricToggleChipActive" : ""
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  name="aimMachineGroup"
-                                  value="1"
-                                  defaultChecked={combineAimJuggler}
-                                />
-                                <span>アイジャグをまとめる</span>
-                              </label>
-                            ) : null}
-                            <JugglerOnlyButton />
-                          </div>
-                        ) : null}
-                        {group.key === "hanabi" && hasHanabiGroupOption ? (
-                          <div className="machineGroupToggleRow">
+                        <div className="machineGroupToggleRow">
+                          {group.key === "juggler" && hasAimJugglerGroupOption ? (
+                            <label
+                              className={`metricToggleChip ${
+                                combineAimJuggler ? "metricToggleChipActive" : ""
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                name="aimMachineGroup"
+                                value="1"
+                                defaultChecked={combineAimJuggler}
+                              />
+                              <span>アイジャグをまとめる</span>
+                            </label>
+                          ) : null}
+                          {group.key === "hanabi" && hasHanabiGroupOption ? (
                             <label
                               className={`metricToggleChip ${
                                 combineHanabi ? "metricToggleChipActive" : ""
@@ -620,8 +616,12 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                               />
                               <span>ハナビをまとめる</span>
                             </label>
-                          </div>
-                        ) : null}
+                          ) : null}
+                          <MachineFilterCategoryButton
+                            category={group.key}
+                            label={`${group.label}のみ選択`}
+                          />
+                        </div>
                         <div className="metricToggleRow">
                           {group.options.map((machine) => (
                             <label
