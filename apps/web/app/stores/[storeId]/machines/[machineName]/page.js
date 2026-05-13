@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../../../components/breadcrumbs";
-import { DataSourceLabel } from "../../../../../components/data-source-label";
 import { HuntScoreLogicSelector } from "../../../../../components/hunt-score-logic-selector";
 import { MachineComparison } from "../../../../../components/machine-comparison";
 import {
@@ -118,7 +117,6 @@ export default async function MachineDetailPage({ params, searchParams }) {
           {detail.huntScoreLogic ? (
             <p className="dataSourceLabel">適用中: {detail.huntScoreLogic.name}</p>
           ) : null}
-          <DataSourceLabel source={detail.dataSource} />
           <div className="heroLinks simpleHeroLinks">
             <Link href={`/stores/${detail.store.id}`} className="externalLink">
               機種一覧へ戻る

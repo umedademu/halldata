@@ -1,7 +1,5 @@
 import Link from "next/link";
 
-import { Breadcrumbs } from "../../components/breadcrumbs";
-import { DataSourceLabel } from "../../components/data-source-label";
 import {
   AllMachineFilterButtons,
   JugglerOnlyButton,
@@ -240,18 +238,10 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
 
   return (
     <main className="pageStack">
-      <Breadcrumbs
-        items={[
-          { label: "店舗一覧", href: "/" },
-          { label: "店舗横断バックテスト" },
-        ]}
-      />
-
       <section className="heroPanel">
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">店舗横断バックテスト</h1>
           <p className="dataSourceLabel">適用中: {detail.huntScoreLogic.name}</p>
-          <DataSourceLabel source={detail.dataSource} />
           <div className="heroLinks simpleHeroLinks">
             <Link href="/" className="externalLink">
               店舗一覧へ戻る

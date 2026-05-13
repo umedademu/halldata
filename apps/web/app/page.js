@@ -1,4 +1,3 @@
-import { DataSourceLabel } from "../components/data-source-label";
 import { StoreDirectory } from "../components/store-directory";
 import { getStoreList } from "../lib/data";
 
@@ -29,7 +28,6 @@ export default async function StoresPage({ searchParams }) {
     const resolvedSearchParams = searchParams ? await searchParams : {};
     const registrationNotice = buildRegistrationNotice(resolvedSearchParams);
     const stores = await getStoreList();
-    const dataSource = "json";
     const completeStores = stores.filter((store) => !store.isPendingRegistration);
     const pendingStores = stores.filter((store) => store.isPendingRegistration);
 
@@ -41,7 +39,6 @@ export default async function StoresPage({ searchParams }) {
             <p className="leadText">
               店舗名で絞り込み、必要な店舗の機種一覧へ進めます。
             </p>
-            <DataSourceLabel source={dataSource} />
           </div>
         </section>
 

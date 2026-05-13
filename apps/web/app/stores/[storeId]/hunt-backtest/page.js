@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 import { HuntBacktestBookmarkControl } from "../../../../components/hunt-backtest-bookmark-control";
 import { HuntBacktestEventFilterSync } from "../../../../components/hunt-backtest-event-filter-sync";
 import { Breadcrumbs } from "../../../../components/breadcrumbs";
-import { DataSourceLabel } from "../../../../components/data-source-label";
 import { HuntBacktestGraph } from "../../../../components/hunt-backtest-graph";
 import {
   AllMachineFilterButtons,
@@ -320,7 +319,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
           {detail.huntScoreLogic ? (
             <p className="dataSourceLabel">適用中: {detail.huntScoreLogic.name}</p>
           ) : null}
-          <DataSourceLabel source={detail.dataSource} />
           <div className="heroLinks simpleHeroLinks">
             <Link href={`/stores/${detail.store.id}`} className="externalLink">
               店舗ページへ戻る

@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../components/breadcrumbs";
-import { DataSourceLabel } from "../../../components/data-source-label";
 import { HuntScoreLogicSelector } from "../../../components/hunt-score-logic-selector";
 import { getStoreDetail, getStoreIdentity } from "../../../lib/data";
 import {
@@ -87,7 +86,6 @@ export default async function StoreDetailPage({ params }) {
       <section className="heroPanel">
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">{store.storeName}</h1>
-          <DataSourceLabel source={storeDetail.dataSource} />
           <div className="heroLinks simpleHeroLinks">
             {hasHuntScoreAnalysis ? (
               <>
