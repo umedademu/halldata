@@ -22,6 +22,7 @@ import {
 
 const DEFAULT_RECENT_DAYS = 90;
 const DEFAULT_DEVIATION_MIN = 60;
+const DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP = "machineTopNextGap";
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
 const HANABI_GROUP_NAME = "ハナビ";
@@ -211,6 +212,16 @@ function buildSelectedMachineNames(requestedMachineNames, availableMachineNames,
 
 function normalizeBacktestRankScope(value, fallbackValue = "selected") {
   return value === "machine" || value === "selected" ? value : fallbackValue;
+}
+
+function normalizeDailySelectionMode(value) {
+  return splitOptionValues(value).includes(DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP)
+    ? DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP
+    : "";
+}
+
+function isMachineTopNextGapSelectionMode(value) {
+  return normalizeDailySelectionMode(value) === DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP;
 }
 
 function buildMachineSlotCountLookup(machineSlotCounts) {
@@ -552,6 +563,74 @@ function buildSnapshotDeviationRows(
   );
 }
 
+function compareSelectionCandidates(left, right) {
+  const nextGapDiff = right.nextGapValue - left.nextGapValue;
+  if (Math.abs(nextGapDiff) > 0.000000001) {
+    return nextGapDiff;
+  }
+
+  const scoreDiff = readFiniteNumber(right.huntScore) - readFiniteNumber(left.huntScore);
+  if (Math.abs(scoreDiff) > 0.000000001) {
+    return scoreDiff;
+  }
+
+  const leftRank = readPositiveInteger(left.rank) ?? Number.MAX_SAFE_INTEGER;
+  const rightRank = readPositiveInteger(right.rank) ?? Number.MAX_SAFE_INTEGER;
+  return (
+    leftRank - rightRank ||
+    String(left.machineName ?? "").localeCompare(String(right.machineName ?? ""), "ja") ||
+    String(left.slotNumber ?? "").localeCompare(String(right.slotNumber ?? ""), "ja", {
+      numeric: true,
+    })
+  );
+}
+
+function buildMachineTopNextGapSelectionRowSet(
+  snapshot,
+  selectedMachineNameSet,
+  combineAimJuggler,
+  combineHanabi,
+  selectionRowsByRow,
+) {
+  const seenMachineNames = new Set();
+  const candidates = [];
+
+  for (const row of Array.isArray(snapshot?.rows) ? snapshot.rows : []) {
+    const selectedMachineName = String(row.machineName ?? "").trim();
+    if (!selectedMachineNameSet.has(selectedMachineName)) {
+      continue;
+    }
+
+    const backtestMachineName = resolveBacktestMachineName(
+      selectedMachineName,
+      combineAimJuggler,
+      combineHanabi,
+    );
+    if (seenMachineNames.has(backtestMachineName)) {
+      continue;
+    }
+    seenMachineNames.add(backtestMachineName);
+
+    const selectionRow = selectionRowsByRow.get(row) ?? row;
+    const nextGapValue = readNextGapForRankScope(selectionRow, "machine");
+    if (!Number.isFinite(nextGapValue)) {
+      continue;
+    }
+
+    candidates.push({
+      row,
+      nextGapValue,
+      huntScore: row.huntScore,
+      rank: row.rank,
+      machineName: backtestMachineName,
+      slotNumber: row.slotNumber,
+    });
+  }
+
+  candidates.sort(compareSelectionCandidates);
+  return new Set(candidates[0]?.row ? [candidates[0].row] : []);
+}
+
 function buildBacktestAggregationDetail(
   snapshotsInPeriod,
   {
@@ -570,6 +649,8 @@ function buildBacktestAggregationDetail(
     combineHanabi,
     machineSlotCountLookup,
     deviationRowsCache,
+    selectionMode,
+    selectionRowsCache,
     rowFilter = () => true,
   },
 ) {
@@ -593,6 +674,29 @@ function buildBacktestAggregationDetail(
       );
       deviationRowsCache?.set(snapshot, deviationRowsByRow);
     }
+    const selectionRowsByRow =
+      isMachineTopNextGapSelectionMode(selectionMode)
+        ? selectionRowsCache?.get(snapshot) ??
+          buildSnapshotDeviationRows(
+            snapshot,
+            selectedMachineNameSet,
+            combineAimJuggler,
+            combineHanabi,
+            buildRankFilter(1, 1),
+          )
+        : null;
+    if (selectionRowsByRow && !selectionRowsCache?.has(snapshot)) {
+      selectionRowsCache?.set(snapshot, selectionRowsByRow);
+    }
+    const selectedRowSet = selectionRowsByRow
+      ? buildMachineTopNextGapSelectionRowSet(
+          snapshot,
+          selectedMachineNameSet,
+          combineAimJuggler,
+          combineHanabi,
+          selectionRowsByRow,
+        )
+      : null;
     let selectedRank = 0;
 
     for (const row of snapshot.rows) {
@@ -614,6 +718,10 @@ function buildBacktestAggregationDetail(
       const deviationRow = deviationRowsByRow.get(row) ?? row;
       const deviationValue = readDeviationForRankScope(deviationRow, deviationScope);
       const nextGapValue = readNextGapForRankScope(deviationRow, nextGapScope);
+
+      if (selectedRowSet && !selectedRowSet.has(row)) {
+        continue;
+      }
 
       if (
         !matchesRequiredConditionFilters(
@@ -788,9 +896,16 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   );
   const nextGapFilter = buildNextGapFilter(options.nextGapMin);
   const requirementOptions = buildConditionRequirementOptions(options);
-  const rankScope = normalizeBacktestRankScope(options.rankScope);
+  const selectionMode = normalizeDailySelectionMode(options.dailySelectionMode);
+  const usesMachineTopNextGapSelection = isMachineTopNextGapSelectionMode(selectionMode);
+  const rankScope = usesMachineTopNextGapSelection
+    ? "machine"
+    : normalizeBacktestRankScope(options.rankScope);
   const deviationScope = normalizeBacktestRankScope(options.deviationScope ?? rankScope, rankScope);
-  const nextGapScope = normalizeBacktestRankScope(options.nextGapScope ?? "machine", "machine");
+  const nextGapScope = usesMachineTopNextGapSelection
+    ? "machine"
+    : normalizeBacktestRankScope(options.nextGapScope ?? "machine", "machine");
+  const effectiveRankFilter = usesMachineTopNextGapSelection ? buildRankFilter(1, 1) : rankFilter;
   const showGraph = normalizeShowGraph(options.showGraph);
   const scoreDifferenceMode = normalizeDifferenceMode(options.scoreDifferenceMode);
   const differenceMode = normalizeDifferenceMode(options.differenceMode);
@@ -800,10 +915,11 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     isSnapshotInPeriod(snapshot, periodState.startDate, periodState.endDate),
   );
   const deviationRowsCache = new Map();
+  const selectionRowsCache = new Map();
   const aggregationOptions = {
     selectedMachineNames,
     selectedMachineNameSet,
-    rankFilter,
+    rankFilter: effectiveRankFilter,
     scoreFilter,
     deviationFilter,
     nextGapFilter,
@@ -816,6 +932,8 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     combineHanabi,
     machineSlotCountLookup,
     deviationRowsCache,
+    selectionMode,
+    selectionRowsCache,
   };
   const allAggregation = buildBacktestAggregationDetail(snapshotsInPeriod, aggregationOptions);
   const breakdowns = BACKTEST_BREAKDOWN_DEFINITIONS.map((definition) => ({
@@ -842,9 +960,9 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
       slotCount: readMachineSlotCount(machineSlotCountLookup, machineName),
     })),
     selectedMachineNames,
-    rankMin: rankFilter.rankMin,
-    rankMax: rankFilter.rankMax,
-    hasRankFilter: rankFilter.hasRankFilter,
+    rankMin: effectiveRankFilter.rankMin,
+    rankMax: effectiveRankFilter.rankMax,
+    hasRankFilter: effectiveRankFilter.hasRankFilter,
     scoreMin: scoreFilter.scoreMin,
     hasScoreFilter: scoreFilter.hasScoreFilter,
     deviationMin: deviationFilter.deviationMin,
@@ -855,6 +973,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     scoreRequired: requirementOptions.scoreRequired,
     deviationRequired: requirementOptions.deviationRequired,
     nextGapRequired: requirementOptions.nextGapRequired,
+    dailySelectionMode: selectionMode,
     rankScope,
     deviationScope,
     nextGapScope,

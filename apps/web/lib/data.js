@@ -47,6 +47,7 @@ const DEFAULT_HUNT_RANK_REQUIRED = true;
 const DEFAULT_HUNT_SCORE_REQUIRED = true;
 const DEFAULT_HUNT_DEVIATION_REQUIRED = false;
 const DEFAULT_HUNT_NEXT_GAP_REQUIRED = false;
+const DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP = "machineTopNextGap";
 const DEFAULT_CROSS_STORE_BACKTEST_LIMIT = 100;
 const MAX_CROSS_STORE_BACKTEST_LIMIT = 300;
 const DEFAULT_CROSS_STORE_BACKTEST_RECENT_DAYS = 30;
@@ -664,6 +665,12 @@ function normalizeEnabledOption(value, fallbackValue = true) {
     return fallbackValue;
   }
   return values.includes("1") || values.includes("true") || values.includes("on");
+}
+
+function normalizeDailySelectionMode(value) {
+  return splitOptionValues(value).includes(DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP)
+    ? DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP
+    : "";
 }
 
 function normalizeInitialMachineSelection(machineNames, options = {}) {
@@ -1516,8 +1523,13 @@ function buildInitialBacktestDetail(
   const scoreMin = readNumber(defaultedOptions?.scoreMin);
   const deviationMin = readNumber(defaultedOptions?.deviationMin) ?? DEFAULT_HUNT_SCORE_DEVIATION_MIN;
   const nextGapMin = readNumber(defaultedOptions?.nextGapMin);
+  const dailySelectionMode = normalizeDailySelectionMode(defaultedOptions?.dailySelectionMode);
+  const usesMachineTopNextGapSelection =
+    dailySelectionMode === DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP;
   const rankScope =
-    defaultedOptions?.rankScope === "machine" || defaultedOptions?.rankScope === "selected"
+    usesMachineTopNextGapSelection
+      ? "machine"
+      : defaultedOptions?.rankScope === "machine" || defaultedOptions?.rankScope === "selected"
       ? defaultedOptions.rankScope
       : "selected";
   const deviationScope =
@@ -1525,8 +1537,10 @@ function buildInitialBacktestDetail(
       ? defaultedOptions.deviationScope
       : rankScope;
   const nextGapScope =
-    defaultedOptions?.nextGapScope === "selected" ||
-    defaultedOptions?.nextGapScope === "machine"
+    usesMachineTopNextGapSelection
+      ? "machine"
+      : defaultedOptions?.nextGapScope === "selected" ||
+        defaultedOptions?.nextGapScope === "machine"
       ? defaultedOptions.nextGapScope
       : "machine";
   const requirementOptions = buildConditionRequirementOptions(defaultedOptions, {
@@ -1537,6 +1551,8 @@ function buildInitialBacktestDetail(
   });
   const combineAimJuggler = normalizeEnabledOption(defaultedOptions?.combineAimJuggler, true);
   const combineHanabi = normalizeEnabledOption(defaultedOptions?.combineHanabi, true);
+  const effectiveRankMin = usesMachineTopNextGapSelection ? 1 : rankMin;
+  const effectiveRankMax = usesMachineTopNextGapSelection ? 1 : rankMax;
 
   return {
     periodMode,
@@ -1553,9 +1569,9 @@ function buildInitialBacktestDetail(
       slotCount: readMachineSlotCount(machineSlotCounts, machineName),
     })),
     selectedMachineNames,
-    rankMin,
-    rankMax,
-    hasRankFilter: rankMin !== null || rankMax !== null,
+    rankMin: effectiveRankMin,
+    rankMax: effectiveRankMax,
+    hasRankFilter: effectiveRankMin !== null || effectiveRankMax !== null,
     scoreMin,
     hasScoreFilter: scoreMin !== null,
     deviationMin,
@@ -1566,6 +1582,7 @@ function buildInitialBacktestDetail(
     scoreRequired: requirementOptions.scoreRequired,
     deviationRequired: requirementOptions.deviationRequired,
     nextGapRequired: requirementOptions.nextGapRequired,
+    dailySelectionMode,
     rankScope,
     deviationScope,
     nextGapScope,

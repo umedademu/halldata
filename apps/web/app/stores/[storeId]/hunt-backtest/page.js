@@ -229,6 +229,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     scoreRequired: readMultiSearchParam(resolvedSearchParams?.scoreRequired),
     deviationRequired: readMultiSearchParam(resolvedSearchParams?.deviationRequired),
     nextGapRequired: readMultiSearchParam(resolvedSearchParams?.nextGapRequired),
+    dailySelectionMode: readMultiSearchParam(resolvedSearchParams?.dailySelectionMode),
     showGraph: readSingleSearchParam(resolvedSearchParams?.showGraph),
     eventTouched: readSingleSearchParam(resolvedSearchParams?.backtestEventTouched) === "1",
     dayTails: readMultiSearchParam(resolvedSearchParams?.backtestDayTail),
@@ -297,6 +298,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     differenceMode: detail.backtest.differenceMode,
     combineAimJuggler: detail.backtest.combineAimJuggler,
     combineHanabi: detail.backtest.combineHanabi,
+    dailySelectionMode: detail.backtest.dailySelectionMode,
   };
   const selectedBacktestDayTailSet = new Set(detail.backtest.eventFilters.dayTails);
   const selectedBacktestWeekdaySet = new Set(detail.backtest.eventFilters.weekdays);
@@ -529,6 +531,31 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <div className="backtestBlock">
+                <p className="filterControlLabel">選抜方法</p>
+                <div className="metricToggleRow">
+                  <input type="hidden" name="dailySelectionMode" value="" />
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.dailySelectionMode === "machineTopNextGap"
+                        ? "metricToggleChipActive"
+                        : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="dailySelectionMode"
+                      value="machineTopNextGap"
+                      defaultChecked={detail.backtest.dailySelectionMode === "machineTopNextGap"}
+                    />
+                    <span>各機種1位から機種内次点差1位を1台選抜</span>
+                  </label>
+                </div>
+                <p className="storeReserveHelp">
+                  ONの場合、日ごとに各機種の機種内狙い度1位台を候補にし、その中で機種内次点差が最大の1台だけを集計します。
+                </p>
               </div>
 
               <div className="huntConditionRows">
