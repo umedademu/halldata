@@ -212,6 +212,23 @@ export function buildConditionRequirementOptions(source = {}, fallback = {}) {
   };
 }
 
+function requireActiveConditionFilters(requirementOptions, filters = {}) {
+  return {
+    rankRequired: filters.rankFilter?.hasRankFilter
+      ? true
+      : Boolean(requirementOptions.rankRequired),
+    scoreRequired: filters.scoreFilter?.hasScoreFilter
+      ? true
+      : Boolean(requirementOptions.scoreRequired),
+    deviationRequired: filters.deviationFilter?.hasDeviationFilter
+      ? true
+      : Boolean(requirementOptions.deviationRequired),
+    nextGapRequired: filters.nextGapFilter?.hasNextGapFilter
+      ? true
+      : Boolean(requirementOptions.nextGapRequired),
+  };
+}
+
 export function normalizeRankScope(value) {
   if (value === "machine" || value === "selected") {
     return value;
@@ -503,8 +520,16 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
   const nextGapFilter = buildNextGapFilter(bookmark.nextGapMin);
   const dailySelectionMode = normalizeDailySelectionMode(bookmark.dailySelectionMode);
   const usesMachineTopNextGapSelection = isMachineTopNextGapSelectionMode(dailySelectionMode);
-  const rankScope = usesMachineTopNextGapSelection ? "machine" : normalizeRankScope(bookmark.rankScope);
-  const requirementOptions = buildConditionRequirementOptions(bookmark);
+  const rankScope = normalizeRankScope(bookmark.rankScope);
+  const baseRequirementOptions = buildConditionRequirementOptions(bookmark);
+  const requirementOptions = usesMachineTopNextGapSelection
+    ? requireActiveConditionFilters(baseRequirementOptions, {
+        rankFilter,
+        scoreFilter,
+        deviationFilter,
+        nextGapFilter,
+      })
+    : baseRequirementOptions;
   const allMachineCount = readPositiveInteger(bookmark.allMachineCount) ?? machineNames.length;
   const combineAimJuggler = Boolean(bookmark.combineAimJuggler) || machineNames.some(isAimJugglerGroup);
   const combineHanabi = Boolean(bookmark.combineHanabi) || machineNames.some(isHanabiGroup);
@@ -516,9 +541,9 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     endDate: normalizeDateText(bookmark.endDate),
     allMachineCount,
     machineNames,
-    rankMin: usesMachineTopNextGapSelection ? 1 : rankFilter.rankMin,
-    rankMax: usesMachineTopNextGapSelection ? 1 : rankFilter.rankMax,
-    hasRankFilter: usesMachineTopNextGapSelection ? true : rankFilter.hasRankFilter,
+    rankMin: rankFilter.rankMin,
+    rankMax: rankFilter.rankMax,
+    hasRankFilter: rankFilter.hasRankFilter,
     scoreMin: scoreFilter.scoreMin,
     hasScoreFilter: scoreFilter.hasScoreFilter,
     deviationMin: deviationFilter.deviationMin,
@@ -532,9 +557,7 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     dailySelectionMode,
     rankScope,
     deviationScope: normalizeRankScope(bookmark.deviationScope ?? rankScope),
-    nextGapScope: usesMachineTopNextGapSelection
-      ? "machine"
-      : normalizeRankScope(bookmark.nextGapScope ?? "machine"),
+    nextGapScope: normalizeRankScope(bookmark.nextGapScope ?? "machine"),
     combineAimJuggler,
     combineHanabi,
     savedAt: normalizeText(bookmark.savedAt) || null,
@@ -782,13 +805,21 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
   const scoreFilter = buildScoreFilter(normalizedBookmark.scoreMin);
   const deviationFilter = buildDeviationFilter(normalizedBookmark.deviationMin);
   const nextGapFilter = buildNextGapFilter(normalizedBookmark.nextGapMin);
+  const usesMachineTopNextGapSelection = isMachineTopNextGapSelectionMode(
+    normalizedBookmark.dailySelectionMode,
+  );
+  const conditionNextGapRankFilter = usesMachineTopNextGapSelection ? null : rankFilter;
+  const selectionRankFilter = buildRankFilter(1, 1);
   const overallDeviationMap = calculateHuntScoreDeviationMap(safeRows);
-  const overallNextGapMap = calculateHuntScoreNextGapMap(safeRows, rankFilter);
+  const overallNextGapMap = calculateHuntScoreNextGapMap(safeRows, conditionNextGapRankFilter);
   const selectedRows = safeRows.filter((row) =>
     includesBookmarkMachine(normalizeText(row?.machineName), selectedMachineNameSet),
   );
   const selectedDeviationMap = calculateHuntScoreDeviationMap(selectedRows);
-  const selectedNextGapMap = calculateHuntScoreNextGapMap(selectedRows, rankFilter);
+  const selectedNextGapMap = calculateHuntScoreNextGapMap(
+    selectedRows,
+    conditionNextGapRankFilter,
+  );
   const rowsByBookmarkMachineName = new Map();
   let matchedRowCount = 0;
   let selectedRank = 0;
@@ -809,9 +840,13 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
 
   const machineDeviationMap = new Map();
   const machineNextGapMap = new Map();
+  const selectionMachineNextGapMap = new Map();
   for (const machineRows of rowsByBookmarkMachineName.values()) {
     const deviationMap = calculateHuntScoreDeviationMap(machineRows);
-    const nextGapMap = calculateHuntScoreNextGapMap(machineRows, rankFilter);
+    const nextGapMap = calculateHuntScoreNextGapMap(machineRows, conditionNextGapRankFilter);
+    const selectionNextGapMap = usesMachineTopNextGapSelection
+      ? calculateHuntScoreNextGapMap(machineRows, selectionRankFilter)
+      : null;
     for (const row of machineRows) {
       if (deviationMap.has(row)) {
         machineDeviationMap.set(row, deviationMap.get(row));
@@ -819,10 +854,13 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
       if (nextGapMap.has(row)) {
         machineNextGapMap.set(row, nextGapMap.get(row));
       }
+      if (selectionNextGapMap?.has(row)) {
+        selectionMachineNextGapMap.set(row, selectionNextGapMap.get(row));
+      }
     }
   }
-  const selectedRowSet = isMachineTopNextGapSelectionMode(normalizedBookmark.dailySelectionMode)
-    ? buildMachineTopNextGapBookmarkRowSet(rowsByBookmarkMachineName, machineNextGapMap)
+  const selectedRowSet = usesMachineTopNextGapSelection
+    ? buildMachineTopNextGapBookmarkRowSet(rowsByBookmarkMachineName, selectionMachineNextGapMap)
     : null;
 
   for (const row of safeRows) {

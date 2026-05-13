@@ -67,6 +67,20 @@ const DEFAULT_CROSS_STORE_MACHINE_NAMES = [
   "ハッピージャグラーＶＩＩＩ",
   "ウルトラミラクルジャグラー",
 ];
+
+function requireActiveConditionFilters(requirementOptions, filters = {}) {
+  return {
+    rankRequired: filters.hasRankFilter ? true : Boolean(requirementOptions.rankRequired),
+    scoreRequired: filters.hasScoreFilter ? true : Boolean(requirementOptions.scoreRequired),
+    deviationRequired: filters.hasDeviationFilter
+      ? true
+      : Boolean(requirementOptions.deviationRequired),
+    nextGapRequired: filters.hasNextGapFilter
+      ? true
+      : Boolean(requirementOptions.nextGapRequired),
+  };
+}
+
 const UNKNOWN_PREFECTURE_LABEL = "都道府県未設定";
 const UNKNOWN_AREA_LABEL = "地域未設定";
 const SLOT_KEY_SEPARATOR = "\u0000";
@@ -1527,9 +1541,7 @@ function buildInitialBacktestDetail(
   const usesMachineTopNextGapSelection =
     dailySelectionMode === DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP;
   const rankScope =
-    usesMachineTopNextGapSelection
-      ? "machine"
-      : defaultedOptions?.rankScope === "machine" || defaultedOptions?.rankScope === "selected"
+    defaultedOptions?.rankScope === "machine" || defaultedOptions?.rankScope === "selected"
       ? defaultedOptions.rankScope
       : "selected";
   const deviationScope =
@@ -1537,22 +1549,30 @@ function buildInitialBacktestDetail(
       ? defaultedOptions.deviationScope
       : rankScope;
   const nextGapScope =
-    usesMachineTopNextGapSelection
-      ? "machine"
-      : defaultedOptions?.nextGapScope === "selected" ||
-        defaultedOptions?.nextGapScope === "machine"
+    defaultedOptions?.nextGapScope === "selected" ||
+    defaultedOptions?.nextGapScope === "machine"
       ? defaultedOptions.nextGapScope
       : "machine";
-  const requirementOptions = buildConditionRequirementOptions(defaultedOptions, {
+  const baseRequirementOptions = buildConditionRequirementOptions(defaultedOptions, {
     rankRequired: DEFAULT_HUNT_RANK_REQUIRED,
     scoreRequired: DEFAULT_HUNT_SCORE_REQUIRED,
     deviationRequired: DEFAULT_HUNT_DEVIATION_REQUIRED,
     nextGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
   });
+  const hasRankFilter = rankMin !== null || rankMax !== null;
+  const hasScoreFilter = scoreMin !== null;
+  const hasDeviationFilter = deviationMin !== null;
+  const hasNextGapFilter = nextGapMin !== null;
+  const requirementOptions = usesMachineTopNextGapSelection
+    ? requireActiveConditionFilters(baseRequirementOptions, {
+        hasRankFilter,
+        hasScoreFilter,
+        hasDeviationFilter,
+        hasNextGapFilter,
+      })
+    : baseRequirementOptions;
   const combineAimJuggler = normalizeEnabledOption(defaultedOptions?.combineAimJuggler, true);
   const combineHanabi = normalizeEnabledOption(defaultedOptions?.combineHanabi, true);
-  const effectiveRankMin = usesMachineTopNextGapSelection ? 1 : rankMin;
-  const effectiveRankMax = usesMachineTopNextGapSelection ? 1 : rankMax;
 
   return {
     periodMode,
@@ -1569,15 +1589,15 @@ function buildInitialBacktestDetail(
       slotCount: readMachineSlotCount(machineSlotCounts, machineName),
     })),
     selectedMachineNames,
-    rankMin: effectiveRankMin,
-    rankMax: effectiveRankMax,
-    hasRankFilter: effectiveRankMin !== null || effectiveRankMax !== null,
+    rankMin,
+    rankMax,
+    hasRankFilter,
     scoreMin,
-    hasScoreFilter: scoreMin !== null,
+    hasScoreFilter,
     deviationMin,
-    hasDeviationFilter: deviationMin !== null,
+    hasDeviationFilter,
     nextGapMin,
-    hasNextGapFilter: nextGapMin !== null,
+    hasNextGapFilter,
     rankRequired: requirementOptions.rankRequired,
     scoreRequired: requirementOptions.scoreRequired,
     deviationRequired: requirementOptions.deviationRequired,

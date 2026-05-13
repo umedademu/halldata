@@ -224,6 +224,23 @@ function isMachineTopNextGapSelectionMode(value) {
   return normalizeDailySelectionMode(value) === DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP;
 }
 
+function requireActiveConditionFilters(requirementOptions, filters = {}) {
+  return {
+    rankRequired: filters.rankFilter?.hasRankFilter
+      ? true
+      : Boolean(requirementOptions.rankRequired),
+    scoreRequired: filters.scoreFilter?.hasScoreFilter
+      ? true
+      : Boolean(requirementOptions.scoreRequired),
+    deviationRequired: filters.deviationFilter?.hasDeviationFilter
+      ? true
+      : Boolean(requirementOptions.deviationRequired),
+    nextGapRequired: filters.nextGapFilter?.hasNextGapFilter
+      ? true
+      : Boolean(requirementOptions.nextGapRequired),
+  };
+}
+
 function buildMachineSlotCountLookup(machineSlotCounts) {
   const lookup = new Map();
   if (!machineSlotCounts || typeof machineSlotCounts !== "object") {
@@ -644,6 +661,7 @@ function buildBacktestAggregationDetail(
     rankScope,
     deviationScope,
     nextGapScope,
+    nextGapRankFilter,
     differenceMode,
     combineAimJuggler,
     combineHanabi,
@@ -670,7 +688,7 @@ function buildBacktestAggregationDetail(
         selectedMachineNameSet,
         combineAimJuggler,
         combineHanabi,
-        rankFilter,
+        nextGapRankFilter,
       );
       deviationRowsCache?.set(snapshot, deviationRowsByRow);
     }
@@ -895,17 +913,21 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     readOptionWithDefault(options, "deviationMin", DEFAULT_DEVIATION_MIN),
   );
   const nextGapFilter = buildNextGapFilter(options.nextGapMin);
-  const requirementOptions = buildConditionRequirementOptions(options);
+  const baseRequirementOptions = buildConditionRequirementOptions(options);
   const selectionMode = normalizeDailySelectionMode(options.dailySelectionMode);
   const usesMachineTopNextGapSelection = isMachineTopNextGapSelectionMode(selectionMode);
-  const rankScope = usesMachineTopNextGapSelection
-    ? "machine"
-    : normalizeBacktestRankScope(options.rankScope);
+  const rankScope = normalizeBacktestRankScope(options.rankScope);
   const deviationScope = normalizeBacktestRankScope(options.deviationScope ?? rankScope, rankScope);
-  const nextGapScope = usesMachineTopNextGapSelection
-    ? "machine"
-    : normalizeBacktestRankScope(options.nextGapScope ?? "machine", "machine");
-  const effectiveRankFilter = usesMachineTopNextGapSelection ? buildRankFilter(1, 1) : rankFilter;
+  const nextGapScope = normalizeBacktestRankScope(options.nextGapScope ?? "machine", "machine");
+  const requirementOptions = usesMachineTopNextGapSelection
+    ? requireActiveConditionFilters(baseRequirementOptions, {
+        rankFilter,
+        scoreFilter,
+        deviationFilter,
+        nextGapFilter,
+      })
+    : baseRequirementOptions;
+  const nextGapRankFilter = usesMachineTopNextGapSelection ? null : rankFilter;
   const showGraph = normalizeShowGraph(options.showGraph);
   const scoreDifferenceMode = normalizeDifferenceMode(options.scoreDifferenceMode);
   const differenceMode = normalizeDifferenceMode(options.differenceMode);
@@ -919,7 +941,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const aggregationOptions = {
     selectedMachineNames,
     selectedMachineNameSet,
-    rankFilter: effectiveRankFilter,
+    rankFilter,
     scoreFilter,
     deviationFilter,
     nextGapFilter,
@@ -927,6 +949,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     rankScope,
     deviationScope,
     nextGapScope,
+    nextGapRankFilter,
     differenceMode,
     combineAimJuggler,
     combineHanabi,
@@ -960,9 +983,9 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
       slotCount: readMachineSlotCount(machineSlotCountLookup, machineName),
     })),
     selectedMachineNames,
-    rankMin: effectiveRankFilter.rankMin,
-    rankMax: effectiveRankFilter.rankMax,
-    hasRankFilter: effectiveRankFilter.hasRankFilter,
+    rankMin: rankFilter.rankMin,
+    rankMax: rankFilter.rankMax,
+    hasRankFilter: rankFilter.hasRankFilter,
     scoreMin: scoreFilter.scoreMin,
     hasScoreFilter: scoreFilter.hasScoreFilter,
     deviationMin: deviationFilter.deviationMin,

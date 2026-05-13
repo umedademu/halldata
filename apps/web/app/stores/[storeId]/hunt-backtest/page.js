@@ -554,7 +554,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                   </label>
                 </div>
                 <p className="storeReserveHelp">
-                  ONの場合、日ごとに各機種の機種内狙い度1位台を候補にし、その中で機種内次点差が最大の1台だけを集計します。
+                  ONの場合、日ごとに各機種の機種内狙い度1位台を候補にし、その中で機種内次点差が最大の1台だけを選びます。入力済みの順位、狙い度、偏差値、次点差条件は、その1台への追加条件としてすべて満たした場合だけ集計します。
                 </p>
               </div>
 
