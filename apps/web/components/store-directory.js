@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const MY_HALL_STORAGE_KEY = "halldata-my-hall-store-ids";
 const MY_HALL_CHANGE_EVENT = "halldata-my-hall-change";
@@ -44,6 +44,25 @@ function saveMyHallStoreIds(storeIds) {
   const normalizedStoreIds = [...new Set(storeIds.map(normalizeStoreId).filter(Boolean))];
   window.localStorage.setItem(MY_HALL_STORAGE_KEY, JSON.stringify(normalizedStoreIds));
   window.dispatchEvent(new CustomEvent(MY_HALL_CHANGE_EVENT));
+}
+
+function reorderStoreIds(storeIds, sourceStoreId, targetStoreId) {
+  const sourceId = normalizeStoreId(sourceStoreId);
+  const targetId = normalizeStoreId(targetStoreId);
+  if (!sourceId || !targetId || sourceId === targetId) {
+    return storeIds;
+  }
+
+  const sourceIndex = storeIds.indexOf(sourceId);
+  const targetIndex = storeIds.indexOf(targetId);
+  if (sourceIndex < 0 || targetIndex < 0) {
+    return storeIds;
+  }
+
+  const nextStoreIds = [...storeIds];
+  const [movedStoreId] = nextStoreIds.splice(sourceIndex, 1);
+  nextStoreIds.splice(targetIndex, 0, movedStoreId);
+  return nextStoreIds;
 }
 
 function buildStoreGroups(stores) {
@@ -94,11 +113,24 @@ function StoreFavoriteButton({ store, isFavorite, onToggle }) {
   );
 }
 
-function StoreListItem({ store, isFavorite, onToggle, compact = false }) {
+function StoreListItem({ store, isFavorite, onToggle, compact = false, reorderable = false }) {
+  const className = [
+    "storeLinkItem",
+    compact ? "storeLinkItemCompact" : "",
+    reorderable ? "storeLinkItemDraggable" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className={`storeLinkItem ${compact ? "storeLinkItemCompact" : ""}`}>
+    <div className={className}>
+      {reorderable ? (
+        <span className="storeDragHandle" aria-hidden="true" title="ドラッグで並び替え">
+          ≡
+        </span>
+      ) : null}
       <StoreFavoriteButton store={store} isFavorite={isFavorite} onToggle={onToggle} />
-      <Link href={`/stores/${store.id}`} className="plainStoreLink storeRowLink">
+      <Link href={`/stores/${store.id}`} className="plainStoreLink storeRowLink" draggable={false}>
         {store.storeName}
       </Link>
     </div>
@@ -108,6 +140,9 @@ function StoreListItem({ store, isFavorite, onToggle, compact = false }) {
 export function StoreDirectory({ completeStores, pendingStores }) {
   const [query, setQuery] = useState("");
   const [myHallStoreIds, setMyHallStoreIds] = useState([]);
+  const [draggedMyHallStoreId, setDraggedMyHallStoreId] = useState("");
+  const [dragOverMyHallStoreId, setDragOverMyHallStoreId] = useState("");
+  const draggedMyHallStoreIdRef = useRef("");
   const normalizedQuery = normalizeText(query);
   const storeById = useMemo(
     () => new Map(completeStores.map((store) => [normalizeStoreId(store.id), store])),
@@ -160,6 +195,69 @@ export function StoreDirectory({ completeStores, pendingStores }) {
     });
   };
 
+  const clearMyHallDragState = () => {
+    draggedMyHallStoreIdRef.current = "";
+    setDraggedMyHallStoreId("");
+    setDragOverMyHallStoreId("");
+  };
+
+  const moveMyHallStoreId = (sourceStoreId, targetStoreId) => {
+    if (!sourceStoreId || !targetStoreId) {
+      return;
+    }
+
+    setDragOverMyHallStoreId(targetStoreId);
+    setMyHallStoreIds((currentStoreIds) => {
+      const nextStoreIds = reorderStoreIds(currentStoreIds, sourceStoreId, targetStoreId);
+      if (nextStoreIds === currentStoreIds) {
+        return currentStoreIds;
+      }
+
+      saveMyHallStoreIds(nextStoreIds);
+      return nextStoreIds;
+    });
+  };
+
+  const handleMyHallPointerDown = (event, store) => {
+    if (!(event.target instanceof Element) || !event.target.closest(".storeDragHandle")) {
+      return;
+    }
+
+    const storeId = normalizeStoreId(store.id);
+    if (!storeId) {
+      return;
+    }
+
+    event.preventDefault();
+    draggedMyHallStoreIdRef.current = storeId;
+    setDraggedMyHallStoreId(storeId);
+    setDragOverMyHallStoreId(storeId);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  const handleMyHallPointerMove = (event) => {
+    const sourceStoreId = draggedMyHallStoreIdRef.current;
+    if (!sourceStoreId) {
+      return;
+    }
+
+    event.preventDefault();
+    const targetElement = document.elementFromPoint(event.clientX, event.clientY);
+    const targetItem = targetElement?.closest?.("[data-my-hall-store-id]");
+    const targetStoreId = targetItem?.getAttribute("data-my-hall-store-id") || "";
+    moveMyHallStoreId(sourceStoreId, targetStoreId);
+  };
+
+  const handleMyHallPointerEnd = (event) => {
+    if (!draggedMyHallStoreIdRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    clearMyHallDragState();
+  };
+
   return (
     <>
       {completeStores.length > 0 ? (
@@ -173,16 +271,42 @@ export function StoreDirectory({ completeStores, pendingStores }) {
           </div>
           {myHallStores.length > 0 ? (
             <ul className="myHallList">
-              {myHallStores.map((store) => (
-                <li key={store.id}>
-                  <StoreListItem
-                    store={store}
-                    isFavorite={myHallStoreIdSet.has(normalizeStoreId(store.id))}
-                    onToggle={handleToggleMyHall}
-                    compact
-                  />
-                </li>
-              ))}
+              {myHallStores.map((store) => {
+                const storeId = normalizeStoreId(store.id);
+                const isReorderable = myHallStores.length > 1;
+                const itemClassName = [
+                  "myHallItem",
+                  isReorderable ? "myHallItemReorderable" : "",
+                  draggedMyHallStoreId === storeId ? "myHallItemDragging" : "",
+                  dragOverMyHallStoreId === storeId && draggedMyHallStoreId !== storeId
+                    ? "myHallItemDragOver"
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ");
+
+                return (
+                  <li
+                    key={store.id}
+                    className={itemClassName}
+                    data-my-hall-store-id={storeId}
+                    onPointerDown={
+                      isReorderable ? (event) => handleMyHallPointerDown(event, store) : undefined
+                    }
+                    onPointerMove={isReorderable ? handleMyHallPointerMove : undefined}
+                    onPointerUp={isReorderable ? handleMyHallPointerEnd : undefined}
+                    onPointerCancel={isReorderable ? handleMyHallPointerEnd : undefined}
+                  >
+                    <StoreListItem
+                      store={store}
+                      isFavorite={myHallStoreIdSet.has(normalizeStoreId(store.id))}
+                      onToggle={handleToggleMyHall}
+                      compact
+                      reorderable={isReorderable}
+                    />
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <p className="myHallEmpty">店舗一覧の星を押すと、ここに店舗を固定できます。</p>
