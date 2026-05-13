@@ -126,6 +126,16 @@ SITE7_TARGET_STORES = (
         hall_name_aliases=("Aパーク春日店",),
     ),
     Site7TargetStore(
+        display_name="スーパーハリウッド1120",
+        site7_hall_name="スーパーハリウッド１１２０",
+        prefecture_name=DEFAULT_SITE7_PREFECTURE_NAME,
+        hall_id="",
+        hall_address="福岡県春日市星見ヶ丘６丁目３２番地",
+        area_name="春日市",
+        direct_hall_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=7c0196b036b9225e520c13b81e969c84",
+        hall_name_aliases=("スーパーハリウッド1120",),
+    ),
+    Site7TargetStore(
         display_name="GOGOアリーナ天神",
         site7_hall_name="ＧＯＧＯアリーナ天神",
         prefecture_name=DEFAULT_SITE7_PREFECTURE_NAME,

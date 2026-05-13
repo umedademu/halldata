@@ -1314,11 +1314,28 @@ class MinRepoScraperTests(unittest.TestCase):
     def test_site7_target_store_names_include_gogo_arena_tenjin(self) -> None:
         self.assertEqual(
             SITE7_TARGET_STORE_DISPLAY_NAMES,
-            ("Aパーク春日店", "GOGOアリーナ天神", "スーパーDステーション39筑紫野店"),
+            (
+                "Aパーク春日店",
+                "スーパーハリウッド1120",
+                "GOGOアリーナ天神",
+                "スーパーDステーション39筑紫野店",
+            ),
         )
-        self.assertEqual(SITE7_TARGET_STORES[1].area_name, "福岡市中央区")
-        self.assertEqual(SITE7_TARGET_STORES[2].hall_id, "42006007")
+        self.assertEqual(SITE7_TARGET_STORES[1].area_name, "春日市")
+        self.assertEqual(SITE7_TARGET_STORES[2].area_name, "福岡市中央区")
+        self.assertEqual(SITE7_TARGET_STORES[3].hall_id, "42006007")
         self.assertEqual(SITE7_TARGET_STORES[0].prefecture_link_text, "福岡")
+        self.assertEqual(
+            default_site7_store_settings("スーパーハリウッド1120"),
+            {
+                "site7_enabled": True,
+                "site7_prefecture": "福岡県",
+                "site7_area": "春日市",
+                "site7_store_name": "スーパーハリウッド１１２０",
+                "site7_hall_id": "",
+                "site7_address": "福岡県春日市星見ヶ丘６丁目３２番地",
+            },
+        )
         self.assertEqual(
             default_site7_store_settings("GOGOアリーナ天神"),
             {
