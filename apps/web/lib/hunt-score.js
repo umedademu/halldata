@@ -5497,9 +5497,23 @@ export function buildHuntScoreSnapshots(
   const { rowsByCandidateKey, rowsByDate } = buildSourceMaps(targetRows, businessDateSet, config);
   const settingDefinitionCache = new Map();
   const targetDate = String(options?.targetDate ?? "").trim();
+  const targetDateRange = options?.targetDateRange ?? null;
+  const targetStartDate = String(targetDateRange?.startDate ?? "").trim();
+  const targetEndDate = String(targetDateRange?.endDate ?? "").trim();
   const dateIndexes = targetDate
     ? [businessDates.indexOf(targetDate)].filter((dateIndex) => dateIndex >= 0)
-    : businessDates.map((_, dateIndex) => dateIndex);
+    : businessDates
+        .map((date, dateIndex) => ({ date, dateIndex }))
+        .filter(({ date }) => {
+          if (targetStartDate && date < targetStartDate) {
+            return false;
+          }
+          if (targetEndDate && date > targetEndDate) {
+            return false;
+          }
+          return true;
+        })
+        .map(({ dateIndex }) => dateIndex);
 
   return dateIndexes
     .map((dateIndex) =>

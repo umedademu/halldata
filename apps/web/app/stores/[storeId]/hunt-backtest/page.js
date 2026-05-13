@@ -769,19 +769,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                 <div className="metricToggleRow">
                   <label
                     className={`metricToggleChip ${
-                      detail.backtest.rankScope === "all" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="rankScope"
-                      value="all"
-                      defaultChecked={detail.backtest.rankScope === "all"}
-                    />
-                    <span>全機種順位</span>
-                  </label>
-                  <label
-                    className={`metricToggleChip ${
                       detail.backtest.rankScope === "selected" ? "metricToggleChipActive" : ""
                     }`}
                   >
@@ -814,19 +801,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                 <div className="metricToggleRow">
                   <label
                     className={`metricToggleChip ${
-                      detail.backtest.deviationScope === "all" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="deviationScope"
-                      value="all"
-                      defaultChecked={detail.backtest.deviationScope === "all"}
-                    />
-                    <span>全機種内</span>
-                  </label>
-                  <label
-                    className={`metricToggleChip ${
                       detail.backtest.deviationScope === "selected" ? "metricToggleChipActive" : ""
                     }`}
                   >
@@ -857,19 +831,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
               <div className="backtestBlock">
                 <p className="filterControlLabel">次点差の比較対象</p>
                 <div className="metricToggleRow">
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.nextGapScope === "all" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="nextGapScope"
-                      value="all"
-                      defaultChecked={detail.backtest.nextGapScope === "all"}
-                    />
-                    <span>全機種内</span>
-                  </label>
                   <label
                     className={`metricToggleChip ${
                       detail.backtest.nextGapScope === "selected" ? "metricToggleChipActive" : ""

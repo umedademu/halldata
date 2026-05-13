@@ -9,7 +9,6 @@ import {
   buildConditionRequirementOptions,
   matchesRequiredConditionFilters,
   normalizeDateText,
-  normalizeRankScope,
   readDeviationForRankScope,
   readFiniteNumber,
   readNextGapForRankScope,
@@ -163,8 +162,11 @@ function buildMachineOrder(machineOrder = listHuntScoreTargetMachineNames()) {
 }
 
 function buildAvailableMachineNames(snapshots, machineOrderNames) {
-  const machineOrder = buildMachineOrder(machineOrderNames);
-  const machineNames = [
+  const orderedMachineNames = Array.isArray(machineOrderNames)
+    ? machineOrderNames.map((machineName) => String(machineName ?? "").trim()).filter(Boolean)
+    : [];
+  const machineOrder = buildMachineOrder(orderedMachineNames);
+  const snapshotMachineNames = [
     ...new Set(
       snapshots.flatMap((snapshot) =>
         snapshot.rows
@@ -173,6 +175,9 @@ function buildAvailableMachineNames(snapshots, machineOrderNames) {
       ),
     ),
   ];
+  const machineNames = orderedMachineNames.length > 0
+    ? [...new Set([...orderedMachineNames, ...snapshotMachineNames])]
+    : snapshotMachineNames;
 
   return machineNames.sort((left, right) => {
     const leftOrder = machineOrder.get(left);
@@ -202,6 +207,10 @@ function buildSelectedMachineNames(requestedMachineNames, availableMachineNames,
     return normalizedMachineNames;
   }
   return fallbackToAll ? availableMachineNames : [];
+}
+
+function normalizeBacktestRankScope(value, fallbackValue = "selected") {
+  return value === "machine" || value === "selected" ? value : fallbackValue;
 }
 
 function buildMachineSlotCountLookup(machineSlotCounts) {
@@ -495,8 +504,6 @@ function buildSnapshotDeviationRows(
   rankFilter,
 ) {
   const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
-  const overallDeviationMap = calculateHuntScoreDeviationMap(rows);
-  const overallNextGapMap = calculateHuntScoreNextGapMap(rows, rankFilter);
   const selectedRows = rows.filter((row) =>
     selectedMachineNameSet.has(String(row.machineName ?? "").trim()),
   );
@@ -532,14 +539,12 @@ function buildSnapshotDeviationRows(
   }
 
   return new Map(
-    rows.map((row) => [
+    selectedRows.map((row) => [
       row,
       {
         ...row,
-        overallDeviation: overallDeviationMap.get(row) ?? null,
         selectedDeviation: selectedDeviationMap.get(row) ?? null,
         machineDeviation: machineDeviationMap.get(row) ?? null,
-        overallNextGap: overallNextGapMap.get(row) ?? null,
         selectedNextGap: selectedNextGapMap.get(row) ?? null,
         machineNextGap: machineNextGapMap.get(row) ?? null,
       },
@@ -564,6 +569,7 @@ function buildBacktestAggregationDetail(
     combineAimJuggler,
     combineHanabi,
     machineSlotCountLookup,
+    deviationRowsCache,
     rowFilter = () => true,
   },
 ) {
@@ -576,13 +582,17 @@ function buildBacktestAggregationDetail(
 
   for (const snapshot of snapshotsInPeriod) {
     const machineRankCounts = new Map();
-    const deviationRowsByRow = buildSnapshotDeviationRows(
-      snapshot,
-      selectedMachineNameSet,
-      combineAimJuggler,
-      combineHanabi,
-      rankFilter,
-    );
+    let deviationRowsByRow = deviationRowsCache?.get(snapshot);
+    if (!deviationRowsByRow) {
+      deviationRowsByRow = buildSnapshotDeviationRows(
+        snapshot,
+        selectedMachineNameSet,
+        combineAimJuggler,
+        combineHanabi,
+        rankFilter,
+      );
+      deviationRowsCache?.set(snapshot, deviationRowsByRow);
+    }
     let selectedRank = 0;
 
     for (const row of snapshot.rows) {
@@ -778,9 +788,9 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   );
   const nextGapFilter = buildNextGapFilter(options.nextGapMin);
   const requirementOptions = buildConditionRequirementOptions(options);
-  const rankScope = normalizeRankScope(options.rankScope);
-  const deviationScope = normalizeRankScope(options.deviationScope ?? rankScope);
-  const nextGapScope = normalizeRankScope(options.nextGapScope ?? "machine");
+  const rankScope = normalizeBacktestRankScope(options.rankScope);
+  const deviationScope = normalizeBacktestRankScope(options.deviationScope ?? rankScope, rankScope);
+  const nextGapScope = normalizeBacktestRankScope(options.nextGapScope ?? "machine", "machine");
   const showGraph = normalizeShowGraph(options.showGraph);
   const scoreDifferenceMode = normalizeDifferenceMode(options.scoreDifferenceMode);
   const differenceMode = normalizeDifferenceMode(options.differenceMode);
@@ -789,6 +799,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const snapshotsInPeriod = (Array.isArray(snapshots) ? snapshots : []).filter((snapshot) =>
     isSnapshotInPeriod(snapshot, periodState.startDate, periodState.endDate),
   );
+  const deviationRowsCache = new Map();
   const aggregationOptions = {
     selectedMachineNames,
     selectedMachineNameSet,
@@ -804,6 +815,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     combineAimJuggler,
     combineHanabi,
     machineSlotCountLookup,
+    deviationRowsCache,
   };
   const allAggregation = buildBacktestAggregationDetail(snapshotsInPeriod, aggregationOptions);
   const breakdowns = BACKTEST_BREAKDOWN_DEFINITIONS.map((definition) => ({

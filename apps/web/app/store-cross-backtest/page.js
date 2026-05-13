@@ -768,7 +768,6 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
             <p className="filterControlLabel">順位の見方</p>
             <div className="metricToggleRow">
               {[
-                { value: "all", label: "全機種順位" },
                 { value: "selected", label: "チェック機種内順位" },
                 { value: "machine", label: "機種内順位" },
               ].map((scope) => (
@@ -794,7 +793,6 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
             <p className="filterControlLabel">偏差値の比較対象</p>
             <div className="metricToggleRow">
               {[
-                { value: "all", label: "全機種内" },
                 { value: "selected", label: "チェック機種内" },
                 { value: "machine", label: "機種内" },
               ].map((scope) => (
@@ -819,7 +817,6 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
             <p className="filterControlLabel">次点差の比較対象</p>
             <div className="metricToggleRow">
               {[
-                { value: "all", label: "全機種内" },
                 { value: "selected", label: "チェック機種内" },
                 { value: "machine", label: "機種内" },
               ].map((scope) => (

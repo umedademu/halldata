@@ -204,7 +204,7 @@ export function normalizeRankScope(value) {
   if (value === "machine" || value === "selected") {
     return value;
   }
-  return "all";
+  return "selected";
 }
 
 function formatRankScopeLabel(rankScope) {
@@ -214,7 +214,7 @@ function formatRankScopeLabel(rankScope) {
   if (rankScope === "selected") {
     return "チェック機種内順位";
   }
-  return "全機種順位";
+  return "チェック機種内順位";
 }
 
 function formatDeviationScopeLabel(deviationScope) {
@@ -224,7 +224,7 @@ function formatDeviationScopeLabel(deviationScope) {
   if (deviationScope === "selected") {
     return "チェック機種内偏差値";
   }
-  return "全機種内偏差値";
+  return "チェック機種内偏差値";
 }
 
 function formatNextGapScopeLabel(nextGapScope) {
@@ -234,7 +234,7 @@ function formatNextGapScopeLabel(nextGapScope) {
   if (nextGapScope === "selected") {
     return "チェック機種内次点差";
   }
-  return "全機種内次点差";
+  return "チェック機種内次点差";
 }
 
 export function calculateHuntScoreDeviationMap(rows) {

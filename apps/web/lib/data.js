@@ -1519,13 +1519,12 @@ function buildInitialBacktestDetail(
   const rankScope =
     defaultedOptions?.rankScope === "machine" || defaultedOptions?.rankScope === "selected"
       ? defaultedOptions.rankScope
-      : "all";
+      : "selected";
   const deviationScope =
     defaultedOptions?.deviationScope === "machine" || defaultedOptions?.deviationScope === "selected"
       ? defaultedOptions.deviationScope
       : rankScope;
   const nextGapScope =
-    defaultedOptions?.nextGapScope === "all" ||
     defaultedOptions?.nextGapScope === "selected" ||
     defaultedOptions?.nextGapScope === "machine"
       ? defaultedOptions.nextGapScope
@@ -1733,6 +1732,7 @@ async function buildStaticHuntScoreSourceRowsForMachineNames(
   staticStore,
   sourceMachineNames,
   dateRange = null,
+  options = {},
 ) {
   const store = readStaticStoreIdentity(staticStore);
   const huntScoreMachineNameSet = new Set(
@@ -1740,6 +1740,16 @@ async function buildStaticHuntScoreSourceRowsForMachineNames(
       .flatMap((name) => listEquivalentMachineNames(name))
       .map(canonicalMachineName),
   );
+  if (options?.preferMachineRows === true) {
+    const targetRows = await readStaticMachineRecords(staticStore, sourceMachineNames, dateRange);
+    if (targetRows.length > 0) {
+      return {
+        targetRows,
+        storeRows: targetRows,
+      };
+    }
+  }
+
   const storeRows = readStaticStoreRecords(staticStore, dateRange);
   if (storeRows.length === 0) {
     const targetRows = await readStaticMachineRecords(staticStore, sourceMachineNames, dateRange);
@@ -1974,7 +1984,11 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     storeId,
     huntScoreLogicKey,
     differenceMode,
-    machineOptions,
+    {
+      ...machineOptions,
+      requestedDate,
+      targetDateOnly: true,
+    },
   );
 
   if (!snapshotDetail) {
@@ -2055,20 +2069,33 @@ async function getHuntScoreSnapshotsForStore(
       readStaticStoreMachineNames(staticStore),
     );
     const rankingMachineNames = normalizeInitialMachineSelection(availableMachineNames, machineOptions);
+    const targetDateOnly = machineOptions?.targetDateOnly === true;
+    const requestedDate = String(machineOptions?.requestedDate ?? "").trim();
+    const sourceMachineNames = listHuntScoreSourceMachineNamesForStoreMachines(
+      staticIdentity.storeName,
+      rankingMachineNames,
+    );
+    const sourceDateRange = targetDateOnly
+      ? null
+      : buildCrossStoreSourceDateRange(staticStore, sourceMachineNames, machineOptions);
+    const targetDateRange = targetDateOnly
+      ? null
+      : buildBacktestSnapshotDateRange(staticStore, sourceMachineNames, machineOptions);
+    const preferMachineRows =
+      rankingMachineNames.length > 0 && rankingMachineNames.length < availableMachineNames.length;
     const { targetRows, storeRows } =
       rankingMachineNames.length > 0
         ? await buildStaticHuntScoreSourceRowsForMachineNames(
             staticStore,
-            listHuntScoreSourceMachineNamesForStoreMachines(
-              staticIdentity.storeName,
-              rankingMachineNames,
-            ),
+            sourceMachineNames,
+            sourceDateRange,
+            { preferMachineRows },
           )
         : { targetRows: [], storeRows: [] };
     const rankingDateOptions = listHuntScoreRankingDateOptions(targetRows, storeRows);
     const rankingDates = rankingDateOptions.map((option) => option.date);
-    const selectedDate = rankingDates.includes(String(machineOptions?.requestedDate ?? "").trim())
-      ? String(machineOptions?.requestedDate ?? "").trim()
+    const selectedDate = rankingDates.includes(requestedDate)
+      ? requestedDate
       : rankingDates[0] ?? null;
     return {
       dataSource: "json",
@@ -2091,7 +2118,7 @@ async function getHuntScoreSnapshotsForStore(
         staticIdentity.storeName,
         huntScoreLogic.key,
         normalizedDifferenceMode,
-        { targetDate: selectedDate },
+        targetDateOnly ? { targetDate: selectedDate } : { targetDateRange },
       ),
     };
   }
@@ -2188,7 +2215,7 @@ function normalizeCrossStoreRankingMetric(value) {
 }
 
 function normalizeCrossStoreRankScope(value, fallbackValue = "selected") {
-  return value === "all" || value === "machine" || value === "selected" ? value : fallbackValue;
+  return value === "machine" || value === "selected" ? value : fallbackValue;
 }
 
 function normalizeCrossStoreInitialMachineSelection(machineNames, options = {}) {
@@ -2492,6 +2519,36 @@ function buildCrossStoreSourceDateRange(staticStore, sourceMachineNames, backtes
   };
 }
 
+function buildBacktestSnapshotDateRange(staticStore, sourceMachineNames, backtestOptions) {
+  const latestDate = readStaticStoreLatestDateForMachines(staticStore, sourceMachineNames);
+  if (!latestDate) {
+    return null;
+  }
+
+  if (backtestOptions.periodMode === "range") {
+    let startDate = backtestOptions.startDate;
+    let endDate = backtestOptions.endDate;
+
+    if (startDate && !endDate) {
+      endDate = startDate;
+    } else if (!startDate && endDate) {
+      startDate = endDate;
+    }
+
+    if (startDate && endDate) {
+      return {
+        startDate: startDate <= endDate ? startDate : endDate,
+        endDate: startDate <= endDate ? endDate : startDate,
+      };
+    }
+  }
+
+  return {
+    startDate: shiftDateInput(latestDate, -(backtestOptions.recentDays - 1)),
+    endDate: latestDate,
+  };
+}
+
 function filterRowsByDateRange(rows, dateRange) {
   if (!dateRange?.startDate && !dateRange?.endDate) {
     return rows;
@@ -2588,18 +2645,15 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       return null;
     }
 
-    const needsAllTargetMachines =
-      backtestOptions.rankScope === "all" ||
-      backtestOptions.deviationScope === "all" ||
-      backtestOptions.nextGapScope === "all";
     const storeMachineNames = readStaticStoreMachineNames(staticStore);
     const storeHuntScoreMachineNames = listHuntScoreTargetMachineNamesForStoreMachines(
       store.storeName,
       storeMachineNames,
     );
-    const sourceMachineNames = needsAllTargetMachines
-      ? listHuntScoreSourceMachineNamesForStoreMachines(store.storeName, storeMachineNames)
-      : backtestOptions.selectedMachineNames;
+    const sourceMachineNames = listHuntScoreSourceMachineNamesForStoreMachines(
+      store.storeName,
+      backtestOptions.selectedMachineNames,
+    );
     const sourceDateRange = buildCrossStoreSourceDateRange(
       staticStore,
       sourceMachineNames,
@@ -2609,6 +2663,11 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       staticStore,
       sourceMachineNames,
       sourceDateRange,
+      {
+        preferMachineRows:
+          backtestOptions.selectedMachineNames.length > 0 &&
+          backtestOptions.selectedMachineNames.length < storeHuntScoreMachineNames.length,
+      },
     );
     const targetRowsInRange = filterRowsByDateRange(targetRows, sourceDateRange);
     const storeRowsInRange = filterRowsByDateRange(storeRows, sourceDateRange);
@@ -2753,6 +2812,7 @@ export async function getHuntScoreAnalysisPageDetail(
     storeId,
     huntScoreLogicKey,
     normalizedBacktestOptions.scoreDifferenceMode,
+    normalizedBacktestOptions,
   );
 
   if (!snapshotDetail) {
