@@ -795,6 +795,42 @@ function buildHuntScoreNextGapValueMap(highlightDetail, options, useRankFilter =
   return valueMap;
 }
 
+function buildHuntScoreRankValueMap(rows) {
+  const valueMap = new Map();
+  const rankedRows = (Array.isArray(rows) ? rows : [])
+    .map((row, index) => ({
+      row,
+      index,
+      huntScore: Number(row?.huntScore),
+    }))
+    .filter((row) => Number.isFinite(row.huntScore))
+    .sort((left, right) => {
+      const scoreDifference = right.huntScore - left.huntScore;
+      if (Math.abs(scoreDifference) > COMPARISON_SCORE_EPSILON) {
+        return scoreDifference;
+      }
+      return left.index - right.index;
+    });
+
+  let previousScore = null;
+  let previousRank = 0;
+
+  for (let index = 0; index < rankedRows.length; index += 1) {
+    const row = rankedRows[index];
+    const rank =
+      previousScore !== null &&
+      Math.abs(row.huntScore - previousScore) <= COMPARISON_SCORE_EPSILON
+        ? previousRank
+        : index + 1;
+
+    valueMap.set(row.row, rank);
+    previousScore = row.huntScore;
+    previousRank = rank;
+  }
+
+  return valueMap;
+}
+
 function buildHuntScoreHighlightKeySet(highlightDetail, options, deviationValueMap, nextGapValueMap) {
   const matchKeys = new Set();
   const snapshots = Array.isArray(highlightDetail?.snapshots) ? highlightDetail.snapshots : [];
@@ -828,33 +864,49 @@ function buildHuntScoreHighlightKeySet(highlightDetail, options, deviationValueM
   }
 
   for (const snapshot of snapshots) {
-    const machineRankCounts = new Map();
-    let selectedRank = 0;
+    const rows = Array.isArray(snapshot.rows) ? snapshot.rows : [];
+    const overallRankMap = buildHuntScoreRankValueMap(rows);
+    const selectedRows = rows.filter((row) =>
+      selectedMachineNameSet.has(String(row.machineName ?? "").trim()),
+    );
+    const selectedRankMap = buildHuntScoreRankValueMap(selectedRows);
+    const rowsByMachineName = new Map();
 
-    for (const row of Array.isArray(snapshot.rows) ? snapshot.rows : []) {
+    for (const row of rows) {
+      const machineName = resolveHuntMachineGroupName(row.machineName, normalizedOptions);
+      if (!machineName) {
+        continue;
+      }
+      if (!rowsByMachineName.has(machineName)) {
+        rowsByMachineName.set(machineName, []);
+      }
+      rowsByMachineName.get(machineName).push(row);
+    }
+
+    const machineRankMap = new Map();
+    for (const machineRows of rowsByMachineName.values()) {
+      const rankMap = buildHuntScoreRankValueMap(machineRows);
+      for (const row of machineRows) {
+        if (rankMap.has(row)) {
+          machineRankMap.set(row, rankMap.get(row));
+        }
+      }
+    }
+
+    for (const row of rows) {
       const machineName = String(row.machineName ?? "").trim();
-      const rankMachineName = resolveHuntMachineGroupName(machineName, normalizedOptions);
       const slotNumber = String(row.slotNumber ?? "").trim();
       const huntScore = Number(row.huntScore);
       if (!machineName || !slotNumber || !Number.isFinite(huntScore)) {
         continue;
       }
 
-      const machineRank = (machineRankCounts.get(rankMachineName) ?? 0) + 1;
-      machineRankCounts.set(rankMachineName, machineRank);
-
-      const isSelectedMachine = selectedMachineNameSet.has(machineName);
-      const selectedRankValue = isSelectedMachine ? selectedRank + 1 : null;
-      if (isSelectedMachine) {
-        selectedRank += 1;
-      }
-
       const rankValue =
         rankScope === "all"
-          ? parsePositiveIntegerOption(row.rank)
+          ? overallRankMap.get(row) ?? parsePositiveIntegerOption(row.rank)
           : rankScope === "machine"
-            ? machineRank
-            : selectedRankValue;
+            ? machineRankMap.get(row)
+            : selectedRankMap.get(row);
       const rowKey = buildHuntScoreHighlightKey(snapshot.date, machineName, slotNumber);
       const deviationValue = deviationValueMap.get(rowKey);
       const nextGapValue = nextGapValueMap.get(rowKey);
