@@ -1392,6 +1392,7 @@ class MinRepoApp:
             text=(
                 "ここでは店舗URLを入れて店舗名を自動取得し、一覧へ登録できます。"
                 "取得対象のチェックが入っている店舗を、データ取得タブの取得ボタンで順番に取得します。"
+                "登録済み一覧の行を右クリックすると、その店舗だけを個別取得できます。"
                 "登録した店舗一覧はローカルJSONに保存されます。"
                 "一覧で行を選ぶと、選んだ店舗を登録一覧から削除できます。"
             ),
@@ -1506,6 +1507,7 @@ class MinRepoApp:
                 anchor="w",
             )
         self.registered_store_tree.bind("<Button-1>", self._on_registered_store_tree_click)
+        self.registered_store_tree.bind("<Button-3>", self._on_registered_store_tree_right_click)
         self.registered_store_tree.bind("<<TreeviewSelect>>", self._on_registered_store_selection_changed)
 
         y_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=self.registered_store_tree.yview)
@@ -1887,21 +1889,60 @@ class MinRepoApp:
             messagebox.showwarning("入力不足", "登録店舗タブでサイトセブン列にチェックを入れた店舗を1つ以上用意してください。")
             return
 
-        self.current_results = []
-        self.current_history_result = None
-        self.comparison_rows = []
-        self.comparison_slot_numbers = []
-        self.comparison_display_rows = []
-        self.comparison_selected_date = None
-        self._clear_comparison_table()
-        self._begin_fetch_progress("サイトセブンへ接続中...")
-        self.status_var.set("サイトセブン取得中...")
-        self.summary_var.set(f"{len(target_stores)}店舗の対象機種をサイトセブンから取得中")
-        self.fetch_cancel_event.clear()
+        self._begin_fetch_run(
+            progress_message="サイトセブンへ接続中...",
+            status_message="サイトセブン取得中...",
+            summary_message=f"{len(target_stores)}店舗の対象機種をサイトセブンから取得中",
+        )
         browser_visible = self._site7_browser_visible()
         self._start_worker(
             self._worker_fetch_site7,
             target_stores,
+            recent_days,
+            retry_delay_seconds,
+            browser_visible,
+            operation_kind="site7_fetch",
+        )
+
+    def fetch_registered_store_site7_data(self, registered_store: RegisteredStore) -> None:
+        if self.is_busy:
+            return
+
+        try:
+            recent_days = parse_recent_days(self.target_date_var.get())
+            retry_delay_seconds = self._retry_delay_seconds_input()
+            target_store = self._site7_registered_store_for_single_fetch(registered_store)
+        except ScraperError as exc:
+            self._show_error(exc)
+            return
+
+        if recent_days > SITE7_MAX_RECENT_DAYS:
+            if not messagebox.askyesno(
+                "サイトセブン",
+                f"サイトセブンは直近 {SITE7_MAX_RECENT_DAYS} 日までです。\n"
+                f"{SITE7_MAX_RECENT_DAYS} 日として取得しますか？",
+            ):
+                return
+            recent_days = SITE7_MAX_RECENT_DAYS
+
+        if not self.site7_scraper.has_saved_login_state():
+            if messagebox.askyesno(
+                "サイトセブン",
+                "サイトセブンのログイン情報がまだありません。\n先にログイン画面を開きますか？",
+            ):
+                self.site7_login()
+            return
+
+        display_name = self._registered_store_display_name(target_store)
+        self._begin_fetch_run(
+            progress_message="サイトセブンへ接続中...",
+            status_message="サイトセブン取得中...",
+            summary_message=f"{display_name} をサイトセブンから取得中",
+        )
+        browser_visible = self._site7_browser_visible()
+        self._start_worker(
+            self._worker_fetch_site7,
+            [target_store],
             recent_days,
             retry_delay_seconds,
             browser_visible,
@@ -2107,6 +2148,19 @@ class MinRepoApp:
 
         return history_result, SavedFullDayDatesSummary(messages=warning_messages)
 
+    def _begin_fetch_run(self, *, progress_message: str, status_message: str, summary_message: str) -> None:
+        self.current_results = []
+        self.current_history_result = None
+        self.comparison_rows = []
+        self.comparison_slot_numbers = []
+        self.comparison_display_rows = []
+        self.comparison_selected_date = None
+        self._clear_comparison_table()
+        self._begin_fetch_progress(progress_message)
+        self.status_var.set(status_message)
+        self.summary_var.set(summary_message)
+        self.fetch_cancel_event.clear()
+
     def fetch_data(self) -> None:
         try:
             target_date_input = self._target_date_input_from_recent_days()
@@ -2122,20 +2176,43 @@ class MinRepoApp:
             messagebox.showwarning("入力不足", "登録店舗タブで取得対象にする店舗を1つ以上選んでください。")
             return
 
-        self.current_results = []
-        self.current_history_result = None
-        self.comparison_rows = []
-        self.comparison_slot_numbers = []
-        self.comparison_display_rows = []
-        self.comparison_selected_date = None
-        self._clear_comparison_table()
-        self._begin_fetch_progress("対象期間を確認中...")
-        self.status_var.set("取得中...")
-        self.summary_var.set(f"{len(target_stores)}店舗を期間取得中")
-        self.fetch_cancel_event.clear()
+        self._begin_fetch_run(
+            progress_message="対象期間を確認中...",
+            status_message="取得中...",
+            summary_message=f"{len(target_stores)}店舗を期間取得中",
+        )
         self._start_worker(
             self._worker_fetch_many,
             target_stores,
+            target_date_input,
+            retry_delay_seconds,
+            fetch_parallel_options,
+            web_publish_options,
+            operation_kind="fetch",
+        )
+
+    def fetch_registered_store_data(self, registered_store: RegisteredStore) -> None:
+        if self.is_busy:
+            return
+
+        try:
+            target_date_input = self._target_date_input_from_recent_days()
+            retry_delay_seconds = self._retry_delay_seconds_input()
+            fetch_parallel_options = self._minrepo_fetch_parallel_options()
+            web_publish_options = self._web_publish_options_input()
+        except ScraperError as exc:
+            self._show_error(exc)
+            return
+
+        display_name = self._registered_store_display_name(registered_store)
+        self._begin_fetch_run(
+            progress_message="対象期間を確認中...",
+            status_message="取得中...",
+            summary_message=f"{display_name} をみんレポから取得中",
+        )
+        self._start_worker(
+            self._worker_fetch_many,
+            [registered_store],
             target_date_input,
             retry_delay_seconds,
             fetch_parallel_options,
@@ -3394,6 +3471,37 @@ class MinRepoApp:
             self._toggle_registered_store_site7(item_id)
         return "break"
 
+    def _on_registered_store_tree_right_click(self, event: tk.Event[tk.Misc]) -> str | None:
+        if self.is_busy:
+            return "break"
+
+        item_id = self.registered_store_tree.identify_row(event.y)
+        if not item_id:
+            return None
+
+        registered_store = self._registered_store_from_item_id(item_id)
+        if registered_store is None:
+            return None
+
+        self.registered_store_tree.focus(item_id)
+        self.registered_store_tree.selection_set(item_id)
+        self._load_registered_store_form(registered_store)
+
+        menu = tk.Menu(self.root, tearoff=False)
+        menu.add_command(
+            label="この店舗だけをみんレポ取得",
+            command=lambda store=registered_store: self.fetch_registered_store_data(store),
+        )
+        menu.add_command(
+            label="この店舗だけをサイトセブン取得",
+            command=lambda store=registered_store: self.fetch_registered_store_site7_data(store),
+        )
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+        return "break"
+
     def _toggle_registered_store_target(self, item_id: str) -> None:
         prefix = "registered_store_"
         if not item_id.startswith(prefix):
@@ -3608,6 +3716,12 @@ class MinRepoApp:
 
     def _selected_site7_registered_stores(self) -> list[RegisteredStore]:
         return self._site7_registered_stores_from(self.registered_stores)
+
+    def _site7_registered_store_for_single_fetch(self, registered_store: RegisteredStore) -> RegisteredStore:
+        if not registered_store.site7_area.strip():
+            display_name = self._registered_store_display_name(registered_store)
+            raise ScraperError(f"{display_name} をサイトセブン取得するには地域を入力してください。")
+        return registered_store
 
     def _site7_registered_stores_from(self, registered_stores: list[RegisteredStore]) -> list[RegisteredStore]:
         target_stores = [registered_store for registered_store in registered_stores if registered_store.site7_enabled]
