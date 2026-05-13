@@ -306,6 +306,22 @@ def _site7_record_has_meaningful_data(
     return any(str(value or "").strip() not in {"", "-", "--"} for value in text_values)
 
 
+def _saved_record_should_be_kept(record: dict[str, Any]) -> bool:
+    if _infer_saved_result_data_source(record) != DATA_SOURCE_SITE7:
+        return True
+    return _site7_record_has_meaningful_data(
+        difference_value=record.get("difference_value"),
+        bonus_difference_value=record.get("bonus_difference_value"),
+        games_count=record.get("games_count"),
+        payout_rate=record.get("payout_rate"),
+        bb_count=record.get("bb_count"),
+        rb_count=record.get("rb_count"),
+        combined_ratio_text=record.get("combined_ratio_text"),
+        bb_ratio_text=record.get("bb_ratio_text"),
+        rb_ratio_text=record.get("rb_ratio_text"),
+    )
+
+
 def build_supabase_result_payload(record: dict[str, Any], store_id: str, updated_at: str) -> dict[str, Any]:
     payload = dict(record)
     payload["difference_value"] = _normalize_difference_value_for_supabase(payload.get("difference_value"))
@@ -832,11 +848,15 @@ class HistoryPersistenceService:
     ) -> list[dict[str, Any]]:
         records_by_key: dict[tuple[str, str], dict[str, Any]] = {}
         for record in existing_records:
+            if not _saved_record_should_be_kept(record):
+                continue
             key = self._record_replace_key(record)
             if key is not None:
                 records_by_key[key] = record
 
         for record in incoming_records:
+            if not _saved_record_should_be_kept(record):
+                continue
             key = self._record_replace_key(record)
             if key is None:
                 continue
@@ -906,7 +926,7 @@ class HistoryPersistenceService:
 
         records: list[dict[str, Any]] = []
         for record in store_payload.get("records", []):
-            if isinstance(record, dict):
+            if isinstance(record, dict) and _saved_record_should_be_kept(record):
                 records.append(record)
 
         for machine in store_payload.get("machines", []):
@@ -919,7 +939,7 @@ class HistoryPersistenceService:
             if not isinstance(machine_payload, dict):
                 continue
             for record in machine_payload.get("records", []):
-                if isinstance(record, dict):
+                if isinstance(record, dict) and _saved_record_should_be_kept(record):
                     records.append(record)
         return records
 

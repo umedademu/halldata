@@ -77,6 +77,7 @@ from web_data_export import (
     build_store_id,
     build_store_payload,
     export_store_payloads,
+    safe_record,
 )
 
 
@@ -1913,6 +1914,66 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         self.assertEqual(build_machine_daily_records(history_result), [])
+
+    def test_r2_merge_removes_existing_blank_site7_rows(self) -> None:
+        service = HistoryPersistenceService(root_dir=ROOT_DIR, r2_storage=FakeR2JsonStorage())
+        existing_records = [
+            {
+                "target_date": "2026-05-11",
+                "slot_number": "821",
+                "machine_name": SITE7_TARGET_MACHINE_NAME,
+                "data_source": DATA_SOURCE_SITE7,
+                "difference_value": None,
+                "bonus_difference_value": None,
+                "games_count": None,
+                "payout_rate": None,
+                "bb_count": None,
+                "rb_count": None,
+                "combined_ratio_text": "-",
+                "bb_ratio_text": "-",
+                "rb_ratio_text": "-",
+            },
+            {
+                "target_date": "2026-05-12",
+                "slot_number": "821",
+                "machine_name": SITE7_TARGET_MACHINE_NAME,
+                "data_source": DATA_SOURCE_SITE7,
+                "difference_value": 100,
+                "bonus_difference_value": 80,
+                "games_count": 2000,
+                "payout_rate": None,
+                "bb_count": 8,
+                "rb_count": 6,
+                "combined_ratio_text": "1/142",
+                "bb_ratio_text": "1/250",
+                "rb_ratio_text": "1/333",
+            },
+        ]
+
+        merged_records = service._merge_r2_records(existing_records, [])
+
+        self.assertEqual([record["target_date"] for record in merged_records], ["2026-05-12"])
+
+    def test_web_export_skips_blank_site7_rows(self) -> None:
+        record = safe_record(
+            {
+                "target_date": "2026-05-11",
+                "slot_number": "821",
+                "machine_name": SITE7_TARGET_MACHINE_NAME,
+                "data_source": DATA_SOURCE_SITE7,
+                "difference_value": None,
+                "bonus_difference_value": None,
+                "games_count": None,
+                "payout_rate": None,
+                "bb_count": None,
+                "rb_count": None,
+                "combined_ratio_text": "-",
+                "bb_ratio_text": "-",
+                "rb_ratio_text": "-",
+            }
+        )
+
+        self.assertIsNone(record)
 
     def test_site7_build_machine_daily_records_keeps_site7_source_after_store_rewrite(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)

@@ -22,6 +22,7 @@ DEFAULT_WEB_DATA_DIR = ROOT_DIR / "apps" / "web" / "public" / "halldata-static"
 DEFAULT_STORES_CSV = ROOT_DIR / "stores_rows.csv"
 DEFAULT_RESULTS_CSV = ROOT_DIR / "machine_daily_results_rows.csv"
 WEB_DATA_VERSION = 1
+DATA_SOURCE_SITE7 = "site7"
 
 
 class WebDataIndexMissingError(RuntimeError):
@@ -91,6 +92,22 @@ def read_text(value: Any) -> str:
     return str(value or "").strip()
 
 
+def site7_record_has_meaningful_data(record: dict[str, Any]) -> bool:
+    numeric_keys = (
+        "difference_value",
+        "bonus_difference_value",
+        "games_count",
+        "payout_rate",
+        "bb_count",
+        "rb_count",
+    )
+    if any(record.get(key) is not None for key in numeric_keys):
+        return True
+
+    text_keys = ("combined_ratio_text", "bb_ratio_text", "rb_ratio_text")
+    return any(str(record.get(key) or "").strip() not in {"", "-", "--"} for key in text_keys)
+
+
 def read_prefecture_name(value: dict[str, Any]) -> str:
     return read_text(
         value.get("prefectureName")
@@ -153,6 +170,8 @@ def safe_record(raw_record: dict[str, Any], store_id: str | None = None) -> dict
     data_source = read_text(raw_record.get("data_source"))
     if data_source:
         record["data_source"] = data_source
+    if data_source.casefold() == DATA_SOURCE_SITE7 and not site7_record_has_meaningful_data(record):
+        return None
     if store_id:
         record["store_id"] = store_id
     return record
