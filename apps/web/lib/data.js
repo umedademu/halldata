@@ -1302,6 +1302,56 @@ function readStaticStoreMachineNames(staticStore) {
     .filter(Boolean);
 }
 
+function addMachineSlotCount(machineSlotCounts, machineName, rawSlotCount) {
+  const normalizedMachineName = String(machineName ?? "").trim();
+  const slotCount = Number(rawSlotCount ?? 0);
+  if (!normalizedMachineName || !Number.isFinite(slotCount) || slotCount <= 0) {
+    return;
+  }
+
+  machineSlotCounts[normalizedMachineName] =
+    Number(machineSlotCounts[normalizedMachineName] ?? 0) + slotCount;
+}
+
+function readMachineSlotCount(machineSlotCounts, machineName) {
+  const normalizedMachineName = String(machineName ?? "").trim();
+  const slotCount = Number(machineSlotCounts?.[normalizedMachineName] ?? 0);
+  return normalizedMachineName && Number.isFinite(slotCount) && slotCount > 0 ? slotCount : null;
+}
+
+function buildStaticStoreMachineSlotCounts(staticStore) {
+  const store = readStaticStoreIdentity(staticStore);
+  const machineSlotCounts = {};
+
+  for (const machine of Array.isArray(staticStore?.machines) ? staticStore.machines : []) {
+    const machineName = String(machine?.machineName ?? "").trim();
+    const slotCount = Number(machine?.slotCount ?? 0);
+    const targetMachineName =
+      canonicalHuntScoreTargetMachineName(canonicalMachineName(machineName), store.storeName) ??
+      machineName;
+    const slotCountNames = new Set([machineName, targetMachineName].filter(Boolean));
+
+    for (const slotCountName of slotCountNames) {
+      addMachineSlotCount(machineSlotCounts, slotCountName, slotCount);
+    }
+  }
+
+  addMachineSlotCount(
+    machineSlotCounts,
+    "アイムジャグラーEX",
+    Number(machineSlotCounts["SアイムジャグラーＥＸ"] ?? 0) +
+      Number(machineSlotCounts["ネオアイムジャグラーEX"] ?? 0),
+  );
+  addMachineSlotCount(
+    machineSlotCounts,
+    "ハナビ",
+    Number(machineSlotCounts["新ハナビ"] ?? 0) +
+      Number(machineSlotCounts["スマスロ ハナビ"] ?? 0),
+  );
+
+  return machineSlotCounts;
+}
+
 function rawRecordIsInDateRange(record, dateRange) {
   if (!dateRange?.startDate && !dateRange?.endDate) {
     return true;
@@ -1451,6 +1501,7 @@ function buildInitialBacktestDetail(
   options = {},
   huntScoreLogicKey = "",
   storeMachineNames = null,
+  machineSlotCounts = {},
 ) {
   const machineNames = Array.isArray(storeMachineNames)
     ? listHuntScoreTargetMachineNamesForStoreMachines(storeName, storeMachineNames)
@@ -1499,6 +1550,7 @@ function buildInitialBacktestDetail(
     machineOptions: machineNames.map((machineName) => ({
       name: machineName,
       checked: selectedMachineNameSet.has(machineName),
+      slotCount: readMachineSlotCount(machineSlotCounts, machineName),
     })),
     selectedMachineNames,
     rankMin,
@@ -1540,6 +1592,7 @@ function buildInitialBacktestDetail(
     summaries: [],
     graphPoints: [],
     total: {
+      slotCount: null,
       matchedRowCount: 0,
       averageHuntScore: null,
       actualRowCount: 0,
@@ -1597,6 +1650,7 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
       backtestOptions,
       huntScoreLogic.key,
       storeMachineNames,
+      buildStaticStoreMachineSlotCounts(staticStore),
     ),
   };
 }
@@ -2000,6 +2054,7 @@ async function getHuntScoreSnapshotsForStore(
       huntScoreLogic,
       differenceMode: normalizedDifferenceMode,
       availableMachineNames,
+      machineSlotCounts: buildStaticStoreMachineSlotCounts(staticStore),
       store: {
         id: staticIdentity.id,
         store_name: staticIdentity.storeName,
@@ -2679,6 +2734,7 @@ export async function getHuntScoreAnalysisPageDetail(
     ...buildHuntScoreBacktestDetail(snapshots, {
       ...buildBacktestOptionsForStore(store, normalizedBacktestOptions),
       scoreDifferenceMode: normalizedBacktestOptions.scoreDifferenceMode,
+      machineSlotCounts: snapshotDetail.machineSlotCounts,
       machineOrder:
         snapshotDetail.availableMachineNames ?? listHuntScoreTargetMachineNames(store.store_name),
     }),

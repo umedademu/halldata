@@ -204,6 +204,57 @@ function buildSelectedMachineNames(requestedMachineNames, availableMachineNames,
   return fallbackToAll ? availableMachineNames : [];
 }
 
+function buildMachineSlotCountLookup(machineSlotCounts) {
+  const lookup = new Map();
+  if (!machineSlotCounts || typeof machineSlotCounts !== "object") {
+    return lookup;
+  }
+
+  for (const [machineName, rawSlotCount] of Object.entries(machineSlotCounts)) {
+    const normalizedMachineName = String(machineName ?? "").trim();
+    const slotCount = Number(rawSlotCount ?? 0);
+    if (!normalizedMachineName || !Number.isFinite(slotCount) || slotCount <= 0) {
+      continue;
+    }
+    lookup.set(normalizedMachineName, slotCount);
+  }
+
+  return lookup;
+}
+
+function readMachineSlotCount(machineSlotCountLookup, machineName) {
+  const normalizedMachineName = String(machineName ?? "").trim();
+  if (!normalizedMachineName || !(machineSlotCountLookup instanceof Map)) {
+    return null;
+  }
+
+  const slotCount = Number(machineSlotCountLookup.get(normalizedMachineName) ?? 0);
+  return Number.isFinite(slotCount) && slotCount > 0 ? slotCount : null;
+}
+
+function addSummarySlotCount(summary, machineSlotCountLookup) {
+  return {
+    ...summary,
+    slotCount: readMachineSlotCount(machineSlotCountLookup, summary.machineName),
+  };
+}
+
+function calculateMachineSlotCountTotal(machineNames, machineSlotCountLookup) {
+  let slotCountTotal = 0;
+  let hasSlotCount = false;
+
+  for (const machineName of Array.isArray(machineNames) ? machineNames : []) {
+    const slotCount = readMachineSlotCount(machineSlotCountLookup, machineName);
+    if (slotCount === null) {
+      continue;
+    }
+    slotCountTotal += slotCount;
+    hasSlotCount = true;
+  }
+
+  return hasSlotCount ? slotCountTotal : null;
+}
+
 function normalizeShowGraph(value) {
   return value === "off" ? "off" : "on";
 }
@@ -512,6 +563,7 @@ function buildBacktestAggregationDetail(
     differenceMode,
     combineAimJuggler,
     combineHanabi,
+    machineSlotCountLookup,
     rowFilter = () => true,
   },
 ) {
@@ -664,7 +716,7 @@ function buildBacktestAggregationDetail(
   ];
   const machineOrder = new Map(summaryMachineNames.map((machineName, index) => [machineName, index]));
   const summaries = [...summariesByMachine.values()]
-    .map(finalizeSummary)
+    .map((summary) => addSummarySlotCount(finalizeSummary(summary), machineSlotCountLookup))
     .sort((left, right) => {
       return (
         (machineOrder.get(left.machineName) ?? Number.MAX_SAFE_INTEGER) -
@@ -686,7 +738,10 @@ function buildBacktestAggregationDetail(
     hasActualResults: actualRowCount > 0,
     summaries,
     graphPoints,
-    total: finalizeSummary(totalSummary),
+    total: {
+      ...finalizeSummary(totalSummary),
+      slotCount: calculateMachineSlotCountTotal(summaryMachineNames, machineSlotCountLookup),
+    },
   };
 }
 
@@ -708,6 +763,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   );
   const combineAimJuggler = hasAimJugglerGroupOption ? requestedCombineAimJuggler : false;
   const combineHanabi = hasHanabiGroupOption ? requestedCombineHanabi : false;
+  const machineSlotCountLookup = buildMachineSlotCountLookup(options.machineSlotCounts);
   const machineSelectionTouched = normalizeMachineSelectionTouched(options.machineTouched);
   const selectedMachineNames = buildSelectedMachineNames(
     options.machineNames,
@@ -747,6 +803,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     differenceMode,
     combineAimJuggler,
     combineHanabi,
+    machineSlotCountLookup,
   };
   const allAggregation = buildBacktestAggregationDetail(snapshotsInPeriod, aggregationOptions);
   const breakdowns = BACKTEST_BREAKDOWN_DEFINITIONS.map((definition) => ({
@@ -770,6 +827,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     machineOptions: availableMachineNames.map((machineName) => ({
       name: machineName,
       checked: selectedMachineNameSet.has(machineName),
+      slotCount: readMachineSlotCount(machineSlotCountLookup, machineName),
     })),
     selectedMachineNames,
     rankMin: rankFilter.rankMin,

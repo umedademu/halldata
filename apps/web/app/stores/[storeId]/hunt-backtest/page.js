@@ -103,31 +103,33 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
               >
                 機種名
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={1}>条件一致台数</SortableTableHeader>
-              <SortableTableHeader columnIndex={2}>狙い度</SortableTableHeader>
-              <SortableTableHeader columnIndex={3}>偏差値</SortableTableHeader>
-              <SortableTableHeader columnIndex={4}>次点差</SortableTableHeader>
-              <SortableTableHeader columnIndex={5}>実績集計台数</SortableTableHeader>
-              <SortableTableHeader columnIndex={6}>合計差枚</SortableTableHeader>
-              <SortableTableHeader columnIndex={7}>合計G数</SortableTableHeader>
-              <SortableTableHeader columnIndex={8}>BB</SortableTableHeader>
-              <SortableTableHeader columnIndex={9}>RB</SortableTableHeader>
-              <SortableTableHeader columnIndex={10} initialDirection="asc">
+              <SortableTableHeader columnIndex={1}>設置台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={2}>条件一致台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={3}>狙い度</SortableTableHeader>
+              <SortableTableHeader columnIndex={4}>偏差値</SortableTableHeader>
+              <SortableTableHeader columnIndex={5}>次点差</SortableTableHeader>
+              <SortableTableHeader columnIndex={6}>実績集計台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={7}>合計差枚</SortableTableHeader>
+              <SortableTableHeader columnIndex={8}>合計G数</SortableTableHeader>
+              <SortableTableHeader columnIndex={9}>BB</SortableTableHeader>
+              <SortableTableHeader columnIndex={10}>RB</SortableTableHeader>
+              <SortableTableHeader columnIndex={11} initialDirection="asc">
                 BB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={11} initialDirection="asc">
+              <SortableTableHeader columnIndex={12} initialDirection="asc">
                 RB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={12} initialDirection="asc">
+              <SortableTableHeader columnIndex={13} initialDirection="asc">
                 合成
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={13}>機械割</SortableTableHeader>
-              <SortableTableHeader columnIndex={14}>平均設定</SortableTableHeader>
+              <SortableTableHeader columnIndex={14}>機械割</SortableTableHeader>
+              <SortableTableHeader columnIndex={15}>平均設定</SortableTableHeader>
             </tr>
           </thead>
           <tbody>
             <tr className="backtestTotalRow" data-sort-fixed="1">
               <th className="directoryNameCell" data-sort-value="総計">総計</th>
+              <td data-sort-value={readSortNumber(backtest.total.slotCount)}>{formatNumber(backtest.total.slotCount)}</td>
               <td data-sort-value={backtest.total.matchedRowCount}>{formatNumber(backtest.total.matchedRowCount)}</td>
               <td data-sort-value={readSortNumber(backtest.total.averageHuntScore)}>{formatDecimal(backtest.total.averageHuntScore)}</td>
               <td data-sort-value={readSortNumber(backtest.total.averageDeviation)}>{formatDecimal(backtest.total.averageDeviation)}</td>
@@ -156,6 +158,7 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
                     {summary.machineName}
                   </Link>
                 </th>
+                <td data-sort-value={readSortNumber(summary.slotCount)}>{formatNumber(summary.slotCount)}</td>
                 <td data-sort-value={summary.matchedRowCount}>{formatNumber(summary.matchedRowCount)}</td>
                 <td data-sort-value={readSortNumber(summary.averageHuntScore)}>{formatDecimal(summary.averageHuntScore)}</td>
                 <td data-sort-value={readSortNumber(summary.averageDeviation)}>{formatDecimal(summary.averageDeviation)}</td>
