@@ -1,5 +1,7 @@
 import "./globals.css";
 
+import { TopNavigation } from "../components/top-navigation";
+
 export const metadata = {
   title: {
     default: "Hall Data Board",
@@ -13,7 +15,10 @@ export default function RootLayout({ children }) {
     <html lang="ja">
       <body>
         <div className="backgroundVeil" />
-        <div className="appShell">{children}</div>
+        <div className="appShell">
+          <TopNavigation />
+          {children}
+        </div>
       </body>
     </html>
   );

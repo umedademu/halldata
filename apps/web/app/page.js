@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { DataSourceLabel } from "../components/data-source-label";
 import { StoreDirectory } from "../components/store-directory";
 import { getStoreList } from "../lib/data";
@@ -44,11 +42,6 @@ export default async function StoresPage({ searchParams }) {
               店舗名で絞り込み、必要な店舗の機種一覧へ進めます。
             </p>
             <DataSourceLabel source={dataSource} />
-            <div className="heroLinks simpleHeroLinks">
-              <Link href="/store-cross-backtest" className="externalLink">
-                店舗横断バックテスト
-              </Link>
-            </div>
           </div>
         </section>
 
