@@ -2157,6 +2157,10 @@ function normalizeCrossStoreBacktestLimit(value) {
   );
 }
 
+function normalizeCrossStoreRankingMetric(value) {
+  return value === "differenceTotal" ? "differenceTotal" : "payoutRate";
+}
+
 function normalizeCrossStoreRankScope(value, fallbackValue = "selected") {
   return value === "all" || value === "machine" || value === "selected" ? value : fallbackValue;
 }
@@ -2341,6 +2345,7 @@ function buildCrossStoreBacktestOptions(options = {}) {
     minSlotCount: readOptionalNonNegativeInteger(options?.minSlotCount),
     maxSlotCount: readOptionalNonNegativeInteger(options?.maxSlotCount),
     limit: normalizeCrossStoreBacktestLimit(options?.limit),
+    rankingMetric: normalizeCrossStoreRankingMetric(options?.rankingMetric),
   };
 }
 
@@ -2519,6 +2524,24 @@ function buildCrossStoreBacktestRow(store, backtest, slotCount) {
   };
 }
 
+function compareCrossStoreBacktestRows(left, right, rankingMetric) {
+  if (rankingMetric === "differenceTotal") {
+    return (
+      Number(right.differenceTotal ?? 0) - Number(left.differenceTotal ?? 0) ||
+      Number(right.payoutRate ?? 0) - Number(left.payoutRate ?? 0) ||
+      Number(right.actualRowCount ?? 0) - Number(left.actualRowCount ?? 0) ||
+      left.store.storeName.localeCompare(right.store.storeName, "ja")
+    );
+  }
+
+  return (
+    Number(right.payoutRate ?? 0) - Number(left.payoutRate ?? 0) ||
+    Number(right.actualRowCount ?? 0) - Number(left.actualRowCount ?? 0) ||
+    Number(right.differenceTotal ?? 0) - Number(left.differenceTotal ?? 0) ||
+    left.store.storeName.localeCompare(right.store.storeName, "ja")
+  );
+}
+
 async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, huntScoreLogic) {
   try {
     const staticStore = await readStaticStoreByEntry(storeEntry);
@@ -2636,17 +2659,9 @@ export async function getCrossStoreBacktestDetail(options = {}) {
     );
     rows = evaluatedRows
       .filter(Boolean)
-      .sort((left, right) => {
-        const payoutDiff = Number(right.payoutRate ?? 0) - Number(left.payoutRate ?? 0);
-        if (payoutDiff !== 0) {
-          return payoutDiff;
-        }
-        return (
-          Number(right.actualRowCount ?? 0) - Number(left.actualRowCount ?? 0) ||
-          Number(right.differenceTotal ?? 0) - Number(left.differenceTotal ?? 0) ||
-          left.store.storeName.localeCompare(right.store.storeName, "ja")
-        );
-      })
+      .sort((left, right) =>
+        compareCrossStoreBacktestRows(left, right, backtestOptions.rankingMetric),
+      )
       .slice(0, backtestOptions.limit)
       .map((row, index) => ({
         ...row,
@@ -2693,6 +2708,7 @@ export async function getCrossStoreBacktestDetail(options = {}) {
     minSlotCount: backtestOptions.minSlotCount,
     maxSlotCount: backtestOptions.maxSlotCount,
     limit: backtestOptions.limit,
+    rankingMetric: backtestOptions.rankingMetric,
     scannedStoreCount: storeEntries.length,
     rankedStoreCount: rows.length,
     rows,

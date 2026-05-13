@@ -70,15 +70,20 @@ function readSortNumber(value) {
   return Number.isFinite(value) ? value : "";
 }
 
-function StoreRankingTable({ rows, huntScoreLogic }) {
+function formatCrossStoreRankingMetricLabel(rankingMetric) {
+  return rankingMetric === "differenceTotal" ? "合計差枚" : "平均機械割";
+}
+
+function StoreRankingTable({ rows, huntScoreLogic, rankingMetric }) {
   const tableId = "cross-store-backtest-results";
+  const rankingMetricLabel = formatCrossStoreRankingMetricLabel(rankingMetric);
 
   return (
     <section className="tablePanel directoryPanel">
       <SortableTableController tableId={tableId} />
       <div className="tablePanelHeader">
         <div>
-          <p className="sectionLabel">平均機械割ランキング</p>
+          <p className="sectionLabel">{rankingMetricLabel}ランキング</p>
           <h2 className="tablePanelTitle">店舗横断バックテスト結果</h2>
           {huntScoreLogic ? (
             <p className="dataSourceLabel">使用ロジック: {huntScoreLogic.name}</p>
@@ -229,6 +234,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
     minSlotCount: readSingleSearchParam(resolvedSearchParams?.minSlotCount),
     maxSlotCount: readSingleSearchParam(resolvedSearchParams?.maxSlotCount),
     limit: readSingleSearchParam(resolvedSearchParams?.limit),
+    rankingMetric: readSingleSearchParam(resolvedSearchParams?.rankingMetric),
   });
   const selectedDayTailSet = new Set(detail.eventFilters.dayTails);
   const selectedWeekdaySet = new Set(detail.eventFilters.weekdays);
@@ -332,6 +338,31 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                 className="storeReserveInput"
               />
             </label>
+          </div>
+
+          <div className="backtestBlock">
+            <p className="filterControlLabel">ランキング基準</p>
+            <div className="metricToggleRow">
+              {[
+                { value: "payoutRate", label: "平均機械割" },
+                { value: "differenceTotal", label: "合計差枚" },
+              ].map((metric) => (
+                <label
+                  key={metric.value}
+                  className={`metricToggleChip ${
+                    detail.rankingMetric === metric.value ? "metricToggleChipActive" : ""
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="rankingMetric"
+                    value={metric.value}
+                    defaultChecked={detail.rankingMetric === metric.value}
+                  />
+                  <span>{metric.label}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
           <div className="backtestBlock">
@@ -904,11 +935,21 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                 <strong className="metaValue">{formatNumber(detail.rows.length)}件</strong>
               </article>
               <article className="summaryCard">
+                <p className="metaLabel">ランキング基準</p>
+                <strong className="metaValue">
+                  {formatCrossStoreRankingMetricLabel(detail.rankingMetric)}
+                </strong>
+              </article>
+              <article className="summaryCard">
                 <p className="metaLabel">対象機種</p>
                 <strong className="metaValue">{formatNumber(detail.selectedMachineNames.length)}機種</strong>
               </article>
             </section>
-            <StoreRankingTable rows={detail.rows} huntScoreLogic={detail.huntScoreLogic} />
+            <StoreRankingTable
+              rows={detail.rows}
+              huntScoreLogic={detail.huntScoreLogic}
+              rankingMetric={detail.rankingMetric}
+            />
           </>
         ) : (
           <section className="statusPanel">
@@ -919,7 +960,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
       ) : (
         <section className="statusPanel">
           <h2>バックテスト結果はまだ表示していません</h2>
-          <p>条件を選ぶと、全店舗を同じ条件で集計して平均機械割順に並べます。</p>
+          <p>条件を選ぶと、全店舗を同じ条件で集計して選択した基準で並べます。</p>
         </section>
       )}
     </main>
