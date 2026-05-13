@@ -394,14 +394,14 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     key: "apark-yakatabaru-a",
     name: "Aパーク屋形原式A",
     windowDays: 7,
-    historyWindowDays: 90,
+    historyWindowDays: 14,
     scoreCalculator: calculateAparkYakatabaruAHuntScore,
   },
   {
     key: "apark-yakatabaru-b",
     name: "Aパーク屋形原式B",
     windowDays: 7,
-    historyWindowDays: 90,
+    historyWindowDays: 14,
     scoreCalculator: calculateAparkYakatabaruBHuntScore,
   },
   {
