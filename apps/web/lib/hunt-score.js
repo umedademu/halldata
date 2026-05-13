@@ -5477,6 +5477,7 @@ export function buildHuntScoreSnapshots(
   storeName = "",
   logicKey = "",
   differenceMode = DEFAULT_DIFFERENCE_MODE,
+  options = {},
 ) {
   const storeConfig = buildEffectiveHuntScoreStoreConfig(
     storeName,
@@ -5495,9 +5496,13 @@ export function buildHuntScoreSnapshots(
   const businessDateSet = new Set(businessDates);
   const { rowsByCandidateKey, rowsByDate } = buildSourceMaps(targetRows, businessDateSet, config);
   const settingDefinitionCache = new Map();
+  const targetDate = String(options?.targetDate ?? "").trim();
+  const dateIndexes = targetDate
+    ? [businessDates.indexOf(targetDate)].filter((dateIndex) => dateIndex >= 0)
+    : businessDates.map((_, dateIndex) => dateIndex);
 
-  return businessDates
-    .map((_, dateIndex) =>
+  return dateIndexes
+    .map((dateIndex) =>
       buildSnapshotRowsForDate(
         businessDates,
         dateIndex,
@@ -5509,6 +5514,28 @@ export function buildHuntScoreSnapshots(
     )
     .filter((snapshot) => snapshot.rows.length > 0)
     .sort((left, right) => right.baseDate.localeCompare(left.baseDate));
+}
+
+export function listHuntScoreRankingDateOptions(targetRows, allStoreRows = []) {
+  const businessDates = buildBusinessDates(allStoreRows, targetRows);
+  const businessDateIndexes = new Map(businessDates.map((date, index) => [date, index]));
+  const targetDateSet = new Set(
+    (Array.isArray(targetRows) ? targetRows : [])
+      .filter(hasMeaningfulResult)
+      .map((row) => String(row?.target_date ?? "").trim())
+      .filter(Boolean),
+  );
+
+  return businessDates
+    .filter((date) => targetDateSet.has(date))
+    .map((date) => {
+      const dateIndex = businessDateIndexes.get(date) ?? -1;
+      return {
+        date,
+        nextBusinessDate: dateIndex >= 0 ? businessDates[dateIndex + 1] ?? null : null,
+      };
+    })
+    .sort((left, right) => right.date.localeCompare(left.date));
 }
 
 export function attachHuntScores(

@@ -79,7 +79,7 @@ function readMultiSearchParamWithDefault(searchParams, key, defaultValue) {
 }
 
 function normalizeHighlightScope(value, fallbackValue) {
-  if (value === "all" || value === "machine" || value === "selected") {
+  if (value === "machine" || value === "selected") {
     return value;
   }
   return fallbackValue;
@@ -370,6 +370,11 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
           requestedLimit,
           huntScoreLogicKey,
           differenceMode,
+          {
+            machineNames: requestedMachineNames,
+            machineTouched: machineFilterTouched,
+            requestedDate,
+          },
         )
       : await getHuntScoreInitialPageDetail(storeId, { differenceMode }, huntScoreLogicKey);
   } catch (error) {
@@ -434,13 +439,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const visibleRankingGroups = buildVisibleRankingGroups(
     resultRequested ? detail.rankingGroups : [],
     selectedMachineNameSet,
-    combineAimJuggler,
-    combineHanabi,
-    detail.limit,
-  );
-  const allChoiceRankingGroups = buildVisibleRankingGroups(
-    resultRequested ? detail.rankingGroups : [],
-    availableMachineNameSet,
     combineAimJuggler,
     combineHanabi,
     detail.limit,
@@ -816,19 +814,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                     />
                     <span>機種内順位</span>
                   </label>
-                  <label
-                    className={`metricToggleChip ${
-                      rankingHighlightOptions.rankScope === "all" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="rankScope"
-                      value="all"
-                      defaultChecked={rankingHighlightOptions.rankScope === "all"}
-                    />
-                    <span>全機種順位</span>
-                  </label>
                 </div>
               </div>
               <div className="backtestBlock rankingMachineFilter">
@@ -863,19 +848,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                       defaultChecked={rankingHighlightOptions.deviationScope === "machine"}
                     />
                     <span>機種内</span>
-                  </label>
-                  <label
-                    className={`metricToggleChip ${
-                      rankingHighlightOptions.deviationScope === "all" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="deviationScope"
-                      value="all"
-                      defaultChecked={rankingHighlightOptions.deviationScope === "all"}
-                    />
-                    <span>全機種内</span>
                   </label>
                 </div>
               </div>
@@ -912,19 +884,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                     />
                     <span>機種内</span>
                   </label>
-                  <label
-                    className={`metricToggleChip ${
-                      rankingHighlightOptions.nextGapScope === "all" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="nextGapScope"
-                      value="all"
-                      defaultChecked={rankingHighlightOptions.nextGapScope === "all"}
-                    />
-                    <span>全機種内</span>
-                  </label>
                 </div>
               </div>
               <button type="submit" className="storeReserveButton">
@@ -943,7 +902,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 storeId={detail.store.id}
                 rows={visibleRows}
                 rankingGroups={visibleRankingGroups}
-                allRankingGroups={allChoiceRankingGroups}
                 overallLimit={detail.limit}
                 predictionDate={detail.predictionDate}
                 actualDate={detail.nextBusinessDate}

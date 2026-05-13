@@ -185,16 +185,16 @@ function buildDeviationRowKey(row) {
   return String(row?.rowKey ?? `${row?.machineName ?? ""}::${row?.slotNumber ?? ""}`).trim();
 }
 
-function buildDeviationValueMaps(displayRows, allDisplayRows, displayGroups, rankFilter) {
-  const overallDeviationMap = calculateHuntScoreDeviationMap(allDisplayRows);
-  const overallNextGapMap = calculateHuntScoreNextGapMap(allDisplayRows, rankFilter);
+function buildDeviationValueMaps(displayRows, displayGroups, rankFilter) {
+  const overallDeviationMap = calculateHuntScoreDeviationMap(displayRows);
+  const overallNextGapMap = calculateHuntScoreNextGapMap(displayRows, rankFilter);
   const selectedDeviationMap = calculateHuntScoreDeviationMap(displayRows);
   const selectedNextGapMap = calculateHuntScoreNextGapMap(displayRows, rankFilter);
   const overallDeviationByKey = new Map(
-    allDisplayRows.map((row) => [buildDeviationRowKey(row), overallDeviationMap.get(row) ?? null]),
+    displayRows.map((row) => [buildDeviationRowKey(row), overallDeviationMap.get(row) ?? null]),
   );
   const overallNextGapByKey = new Map(
-    allDisplayRows.map((row) => [buildDeviationRowKey(row), overallNextGapMap.get(row) ?? null]),
+    displayRows.map((row) => [buildDeviationRowKey(row), overallNextGapMap.get(row) ?? null]),
   );
   const selectedDeviationByKey = new Map(
     displayRows.map((row) => [buildDeviationRowKey(row), selectedDeviationMap.get(row) ?? null]),
@@ -220,7 +220,7 @@ function buildDeviationValueMaps(displayRows, allDisplayRows, displayGroups, ran
   }
 
   const valueByRowKey = new Map();
-  for (const row of allDisplayRows) {
+  for (const row of displayRows) {
     const rowKey = buildDeviationRowKey(row);
     valueByRowKey.set(rowKey, {
       overallDeviation: overallDeviationByKey.get(rowKey) ?? null,
@@ -432,7 +432,6 @@ export function HuntRankingTable({
   storeId,
   rows = [],
   rankingGroups = [],
-  allRankingGroups = [],
   overallLimit = 20,
   predictionDate = null,
   actualDate = null,
@@ -525,35 +524,22 @@ export function HuntRankingTable({
     () => (rankingGroups.length > 0 ? rankingGroups : buildFallbackRankingGroups(rows)),
     [rankingGroups, rows],
   );
-  const allDisplayGroups = useMemo(
-    () => (allRankingGroups.length > 0 ? allRankingGroups : displayGroups),
-    [allRankingGroups, displayGroups],
-  );
   const displayRows = useMemo(
     () => buildSortedRankingRows(displayGroups),
     [displayGroups],
-  );
-  const allDisplayRows = useMemo(
-    () => buildSortedRankingRows(allDisplayGroups),
-    [allDisplayGroups],
   );
   const displayDeviationRows = useMemo(
     () => buildSortedRankingRows(displayGroups, true),
     [displayGroups],
   );
-  const allDeviationRows = useMemo(
-    () => buildSortedRankingRows(allDisplayGroups, true),
-    [allDisplayGroups],
-  );
   const deviationValueByRowKey = useMemo(
     () =>
       buildDeviationValueMaps(
         displayDeviationRows,
-        allDeviationRows,
         displayGroups,
         highlightCondition.rankFilter,
       ),
-    [allDeviationRows, displayGroups, displayDeviationRows, highlightCondition.rankFilter],
+    [displayGroups, displayDeviationRows, highlightCondition.rankFilter],
   );
   const selectedRankValueByRowKey = useMemo(
     () => buildSelectedRankValueMap(displayGroups),
@@ -562,14 +548,6 @@ export function HuntRankingTable({
   const displayRowsWithDeviation = useMemo(
     () => decorateRowsWithDeviation(displayRows, deviationValueByRowKey),
     [deviationValueByRowKey, displayRows],
-  );
-  const allDisplayRowsWithDeviation = useMemo(
-    () =>
-      decorateRowsWithSelectedRank(
-        decorateRowsWithDeviation(allDisplayRows, deviationValueByRowKey),
-        selectedRankValueByRowKey,
-      ),
-    [allDisplayRows, deviationValueByRowKey, selectedRankValueByRowKey],
   );
   const displayGroupsWithDeviation = useMemo(
     () =>
@@ -583,13 +561,13 @@ export function HuntRankingTable({
     () => buildOverallRows(displayRowsWithDeviation, overallLimit),
     [displayRowsWithDeviation, overallLimit],
   );
-  const allOverallRows = useMemo(
-    () => buildOverallRows(allDisplayRowsWithDeviation, overallLimit),
-    [allDisplayRowsWithDeviation, overallLimit],
-  );
   const bookmarkState = useMemo(
-    () => buildHuntBacktestBookmarkMatches(allDisplayRowsWithDeviation, bookmark),
-    [allDisplayRowsWithDeviation, bookmark],
+    () =>
+      buildHuntBacktestBookmarkMatches(
+        decorateRowsWithSelectedRank(displayRowsWithDeviation, selectedRankValueByRowKey),
+        bookmark,
+      ),
+    [displayRowsWithDeviation, bookmark, selectedRankValueByRowKey],
   );
   const bookmarkSummary = useMemo(
     () => formatHuntBacktestBookmarkSummary(bookmarkState.bookmark),
@@ -612,7 +590,7 @@ export function HuntRankingTable({
     });
   };
 
-  if (allDisplayRows.length === 0) {
+  if (displayRows.length === 0) {
     return (
       <section className="statusPanel">
         <h2>表示できる台がありません</h2>
@@ -724,17 +702,6 @@ export function HuntRankingTable({
           <p>機種名にチェックを入れると、ここに選択機種内ランキングが表示されます。</p>
         </section>
       )}
-
-      <OverallRankingTable
-        storeId={storeId}
-        title={`全機種内ランキング 上位${formatNumber(allOverallRows.length)}台`}
-        rows={allOverallRows}
-        visibleColumns={visibleColumns}
-        scoreColumnLabel={scoreColumnLabel}
-        deviationScope={deviationScope}
-        nextGapScope={nextGapScope}
-        highlightCondition={highlightCondition}
-      />
 
       {displayGroupsWithDeviation.map((group) => {
         const groupHasSite7Data = group.rows.some((row) => row.predictionMachineHasSite7Data);

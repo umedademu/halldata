@@ -10,6 +10,7 @@ import {
   isHuntScoreSupported,
   isHuntScoreTargetStore,
   listAllHuntScoreTargetMachineNames,
+  listHuntScoreRankingDateOptions,
   listHuntScoreLogicOptions,
   listHuntScoreSourceMachineNames,
   listHuntScoreSourceMachineNamesForStoreMachines,
@@ -1967,11 +1968,13 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   requestedLimit = 20,
   huntScoreLogicKey = "",
   differenceMode = undefined,
+  machineOptions = {},
 ) {
   const snapshotDetail = await getHuntScoreSnapshotsForStore(
     storeId,
     huntScoreLogicKey,
     differenceMode,
+    machineOptions,
   );
 
   if (!snapshotDetail) {
@@ -1981,13 +1984,15 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   const { store, snapshots } = snapshotDetail;
   const availableMachineNames =
     snapshotDetail.availableMachineNames ?? listHuntScoreTargetMachineNames(store.store_name);
-  const rankingDateOptions = snapshots.map((snapshot) => ({
+  const rankingMachineNames = snapshotDetail.rankingMachineNames ?? availableMachineNames;
+  const rankingDateOptions = snapshotDetail.rankingDateOptions ?? snapshots.map((snapshot) => ({
     date: snapshot.baseDate,
     nextBusinessDate: snapshot.nextBusinessDate ?? null,
     hasSite7Data: snapshotUsesSite7Data(snapshot),
   }));
-  const rankingDates = snapshots.map((snapshot) => snapshot.baseDate);
-  const selectedDate = rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null;
+  const rankingDates = snapshotDetail.rankingDates ?? rankingDateOptions.map((option) => option.date);
+  const selectedDate =
+    snapshotDetail.selectedDate ?? (rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null);
   const snapshot = snapshots.find((entry) => entry.baseDate === selectedDate) ?? null;
   const snapshotRows = decorateRowsWithSite7MachineData(
     snapshot?.rows ?? [],
@@ -1995,7 +2000,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   );
   const fullRankingGroups = buildSelectedMachineRankingGroups(
     snapshotRows,
-    availableMachineNames,
+    rankingMachineNames,
   );
   const rankingLimit = normalizeRankingLimit(requestedLimit);
   const totalCount = fullRankingGroups.reduce(
@@ -2035,6 +2040,7 @@ async function getHuntScoreSnapshotsForStore(
   storeId,
   huntScoreLogicKey = "",
   differenceMode = undefined,
+  machineOptions = {},
 ) {
   const staticStore = await readStaticStoreById(storeId);
   if (staticStore) {
@@ -2042,18 +2048,37 @@ async function getHuntScoreSnapshotsForStore(
     if (!isHuntScoreTargetStore(staticIdentity.storeName)) {
       return null;
     }
-    const { targetRows, storeRows } = await buildStaticHuntScoreSourceRows(staticStore);
     const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, staticIdentity.storeName);
     const normalizedDifferenceMode = normalizeDifferenceMode(differenceMode);
     const availableMachineNames = listHuntScoreTargetMachineNamesForStoreMachines(
       staticIdentity.storeName,
       readStaticStoreMachineNames(staticStore),
     );
+    const rankingMachineNames = normalizeInitialMachineSelection(availableMachineNames, machineOptions);
+    const { targetRows, storeRows } =
+      rankingMachineNames.length > 0
+        ? await buildStaticHuntScoreSourceRowsForMachineNames(
+            staticStore,
+            listHuntScoreSourceMachineNamesForStoreMachines(
+              staticIdentity.storeName,
+              rankingMachineNames,
+            ),
+          )
+        : { targetRows: [], storeRows: [] };
+    const rankingDateOptions = listHuntScoreRankingDateOptions(targetRows, storeRows);
+    const rankingDates = rankingDateOptions.map((option) => option.date);
+    const selectedDate = rankingDates.includes(String(machineOptions?.requestedDate ?? "").trim())
+      ? String(machineOptions?.requestedDate ?? "").trim()
+      : rankingDates[0] ?? null;
     return {
       dataSource: "json",
       huntScoreLogic,
       differenceMode: normalizedDifferenceMode,
       availableMachineNames,
+      rankingMachineNames,
+      rankingDateOptions,
+      rankingDates,
+      selectedDate,
       machineSlotCounts: buildStaticStoreMachineSlotCounts(staticStore),
       store: {
         id: staticIdentity.id,
@@ -2066,6 +2091,7 @@ async function getHuntScoreSnapshotsForStore(
         staticIdentity.storeName,
         huntScoreLogic.key,
         normalizedDifferenceMode,
+        { targetDate: selectedDate },
       ),
     };
   }
