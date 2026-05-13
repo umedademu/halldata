@@ -22,8 +22,10 @@ import { createEventFilters, matchesEventFilters } from "../lib/event-filters";
 import {
   buildConditionRequirementOptions,
   buildDeviationFilter,
+  buildNextGapFilter,
   buildScoreFilter,
   calculateHuntScoreDeviationMap,
+  calculateHuntScoreNextGapMap,
   matchesRequiredConditionFilters,
 } from "../lib/hunt-bookmark";
 import {
@@ -68,6 +70,7 @@ const DEFAULT_VISIBLE_METRIC_KEYS = [
   "setting_estimate",
   "hunt_score",
   "hunt_score_deviation",
+  "hunt_score_next_gap",
 ];
 const MATRIX_DATE_COLUMN_WIDTH_REM = 4.8;
 const MATRIX_WEEKDAY_COLUMN_WIDTH_REM = 2.4;
@@ -78,13 +81,16 @@ const DEFAULT_GAME_EXPONENT = 1.5;
 const DEFAULT_COMPARISON_RECENT_DAYS = 90;
 const DEFAULT_HUNT_SCORE_HIGHLIGHT_THRESHOLD = "";
 const DEFAULT_HUNT_SCORE_DEVIATION_MIN = "";
+const DEFAULT_HUNT_SCORE_NEXT_GAP_MIN = "";
 const DEFAULT_HUNT_SCORE_RANK_MIN = 1;
 const DEFAULT_HUNT_SCORE_RANK_MAX = 1;
 const DEFAULT_HUNT_SCORE_RANK_SCOPE = "machine";
 const DEFAULT_HUNT_SCORE_DEVIATION_SCOPE = "machine";
+const DEFAULT_HUNT_SCORE_NEXT_GAP_SCOPE = "machine";
 const DEFAULT_HUNT_RANK_REQUIRED = true;
 const DEFAULT_HUNT_SCORE_REQUIRED = false;
 const DEFAULT_HUNT_DEVIATION_REQUIRED = false;
+const DEFAULT_HUNT_NEXT_GAP_REQUIRED = false;
 const HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX = "machine-hunt-score-highlight:v2:";
 const MACHINE_COMPARISON_STORAGE_PREFIX = "machine-comparison-options:";
 const MACHINE_COMPARISON_PERIOD_STORAGE_KEY = "machine-comparison-period-options";
@@ -340,11 +346,14 @@ function createDefaultHuntScoreHighlightOptions(machineNames, currentMachineName
     rankMax: DEFAULT_HUNT_SCORE_RANK_MAX,
     scoreMin: DEFAULT_HUNT_SCORE_HIGHLIGHT_THRESHOLD,
     deviationMin: DEFAULT_HUNT_SCORE_DEVIATION_MIN,
+    nextGapMin: DEFAULT_HUNT_SCORE_NEXT_GAP_MIN,
     rankRequired: DEFAULT_HUNT_RANK_REQUIRED,
     scoreRequired: DEFAULT_HUNT_SCORE_REQUIRED,
     deviationRequired: DEFAULT_HUNT_DEVIATION_REQUIRED,
+    nextGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
     rankScope: DEFAULT_HUNT_SCORE_RANK_SCOPE,
     deviationScope: DEFAULT_HUNT_SCORE_DEVIATION_SCOPE,
+    nextGapScope: DEFAULT_HUNT_SCORE_NEXT_GAP_SCOPE,
     selectedMachineNames: defaultMachineName ? [defaultMachineName] : [],
     combineAimJuggler: hasAimJugglerHuntMachineGroupOption(availableMachineNames),
     combineHanabi: hasHanabiHuntMachineGroupOption(availableMachineNames),
@@ -401,10 +410,12 @@ function normalizeHuntScoreHighlightOptions(value, availableMachineNames, curren
   }
   const rankScope = normalizeHuntScoreRankScope(value.rankScope);
   const deviationScope = normalizeHuntScoreRankScope(value.deviationScope ?? rankScope);
+  const nextGapScope = normalizeHuntScoreRankScope(value.nextGapScope ?? defaults.nextGapScope);
   const requirementOptions = buildConditionRequirementOptions(value, {
     rankRequired: defaults.rankRequired,
     scoreRequired: defaults.scoreRequired,
     deviationRequired: defaults.deviationRequired,
+    nextGapRequired: defaults.nextGapRequired,
   });
 
   return {
@@ -420,11 +431,16 @@ function normalizeHuntScoreHighlightOptions(value, availableMachineNames, curren
     deviationMin: Object.hasOwn(value, "deviationMin")
       ? normalizeHuntScoreDeviationInputValue(value.deviationMin, defaults.deviationMin)
       : defaults.deviationMin,
+    nextGapMin: Object.hasOwn(value, "nextGapMin")
+      ? normalizeHuntScoreDeviationInputValue(value.nextGapMin, defaults.nextGapMin)
+      : defaults.nextGapMin,
     rankRequired: requirementOptions.rankRequired,
     scoreRequired: requirementOptions.scoreRequired,
     deviationRequired: requirementOptions.deviationRequired,
+    nextGapRequired: requirementOptions.nextGapRequired,
     rankScope,
     deviationScope,
+    nextGapScope,
     selectedMachineNames: normalizeSelectedHuntScoreMachineNames(
       value.selectedMachineNames,
       availableMachineNames,
@@ -474,11 +490,14 @@ function normalizeHuntScoreOptionSignature(options) {
     rankMax: options.rankMax,
     scoreMin: options.scoreMin,
     deviationMin: options.deviationMin,
+    nextGapMin: options.nextGapMin,
     rankRequired: Boolean(options.rankRequired),
     scoreRequired: Boolean(options.scoreRequired),
     deviationRequired: Boolean(options.deviationRequired),
+    nextGapRequired: Boolean(options.nextGapRequired),
     rankScope: normalizeHuntScoreRankScope(options.rankScope),
     deviationScope: normalizeHuntScoreRankScope(options.deviationScope),
+    nextGapScope: normalizeHuntScoreRankScope(options.nextGapScope),
     selectedMachineNames: [...new Set(options.selectedMachineNames ?? [])].sort(),
     combineAimJuggler: Boolean(options.combineAimJuggler),
     combineHanabi: Boolean(options.combineHanabi),
@@ -495,14 +514,20 @@ function huntScoreHighlightNeedsFullData(options, currentMachineName) {
   }
   const rankScope = normalizeHuntScoreRankScope(options.rankScope);
   const deviationScope = normalizeHuntScoreRankScope(options.deviationScope);
-  if (rankScope === "all" || deviationScope === "all") {
+  const nextGapScope = normalizeHuntScoreRankScope(options.nextGapScope);
+  if (rankScope === "all" || deviationScope === "all" || nextGapScope === "all") {
     return true;
   }
   const normalizedCurrentMachineName = normalizeMachineNameText(currentMachineName);
   const hasSelectedOtherMachine = (options.selectedMachineNames ?? []).some(
     (machineName) => normalizeMachineNameText(machineName) !== normalizedCurrentMachineName,
   );
-  return (rankScope === "selected" || deviationScope === "selected") && hasSelectedOtherMachine;
+  return (
+    (rankScope === "selected" ||
+      deviationScope === "selected" ||
+      nextGapScope === "selected") &&
+    hasSelectedOtherMachine
+  );
 }
 
 function readLocalStorageJson(storageKey) {
@@ -546,6 +571,21 @@ function readMachineComparisonPeriodOptions(defaults) {
   return parsedValue ? normalizeMachineComparisonPeriodOptions(parsedValue, defaults) : null;
 }
 
+function normalizeMachineComparisonMetricKeys(source, defaults) {
+  const keys = normalizeMetricKeys(source.visibleMetricKeys, null, defaults.visibleMetricKeys);
+  const metricDefaultsVersion = Number(source.metricDefaultsVersion ?? source.version ?? 1);
+  if (
+    metricDefaultsVersion < 2 &&
+    keys.includes("hunt_score_deviation") &&
+    !keys.includes("hunt_score_next_gap")
+  ) {
+    const nextKeys = [...keys];
+    nextKeys.splice(nextKeys.indexOf("hunt_score_deviation") + 1, 0, "hunt_score_next_gap");
+    return nextKeys;
+  }
+  return keys;
+}
+
 function saveMachineComparisonPeriodOptions(options) {
   if (typeof window === "undefined") {
     return;
@@ -585,7 +625,7 @@ function readMachineComparisonOptions(storeId, defaults, options = {}) {
       ? defaults.eventFilters
       : normalizeStoredEventFilters(source.eventFilters, defaults.eventFilters),
     differenceMode: normalizeDifferenceMode(source.differenceMode),
-    visibleMetricKeys: normalizeMetricKeys(source.visibleMetricKeys, null, defaults.visibleMetricKeys),
+    visibleMetricKeys: normalizeMachineComparisonMetricKeys(source, defaults),
     estimateOptions: options.preferDefaultEstimateOptions
       ? defaults.estimateOptions
       : normalizeEstimateOptions(source.estimateOptions, defaults.estimateOptions),
@@ -610,6 +650,7 @@ function saveMachineComparisonOptions(storeId, options) {
       storageKey,
       JSON.stringify({
         version: 1,
+        metricDefaultsVersion: 2,
         eventFilters: {
           dayTails: options.eventFilters?.dayTails ?? [],
           zoro: Boolean(options.eventFilters?.zoro),
@@ -688,7 +729,73 @@ function buildHuntScoreDeviationValueMap(highlightDetail, options) {
   return valueMap;
 }
 
-function buildHuntScoreHighlightKeySet(highlightDetail, options, deviationValueMap) {
+function buildHuntScoreNextGapValueMap(highlightDetail, options, useRankFilter = false) {
+  const valueMap = new Map();
+  const snapshots = Array.isArray(highlightDetail?.snapshots) ? highlightDetail.snapshots : [];
+  const normalizedOptions = normalizeHuntScoreHighlightOptions(
+    options,
+    normalizeAvailableHuntScoreMachineNames(highlightDetail?.availableMachineNames),
+  );
+  const selectedMachineNameSet = new Set(normalizedOptions.selectedMachineNames);
+  const nextGapScope = normalizeHuntScoreRankScope(normalizedOptions.nextGapScope);
+  const rankFilter = useRankFilter
+    ? buildHuntScoreRankFilter(
+        normalizedOptions.rankMin,
+        normalizedOptions.rankMax,
+      )
+    : null;
+
+  for (const snapshot of snapshots) {
+    const rows = Array.isArray(snapshot.rows) ? snapshot.rows : [];
+    const overallNextGapMap = calculateHuntScoreNextGapMap(rows, rankFilter);
+    const selectedRows = rows.filter((row) =>
+      selectedMachineNameSet.has(String(row.machineName ?? "").trim()),
+    );
+    const selectedNextGapMap = calculateHuntScoreNextGapMap(selectedRows, rankFilter);
+    const rowsByMachineName = new Map();
+
+    for (const row of rows) {
+      const machineName = resolveHuntMachineGroupName(row.machineName, normalizedOptions);
+      if (!machineName) {
+        continue;
+      }
+      if (!rowsByMachineName.has(machineName)) {
+        rowsByMachineName.set(machineName, []);
+      }
+      rowsByMachineName.get(machineName).push(row);
+    }
+
+    const machineNextGapMap = new Map();
+    for (const machineRows of rowsByMachineName.values()) {
+      const nextGapMap = calculateHuntScoreNextGapMap(machineRows, rankFilter);
+      for (const row of machineRows) {
+        if (nextGapMap.has(row)) {
+          machineNextGapMap.set(row, nextGapMap.get(row));
+        }
+      }
+    }
+
+    for (const row of rows) {
+      const nextGapValue =
+        nextGapScope === "all"
+          ? overallNextGapMap.get(row)
+          : nextGapScope === "machine"
+            ? machineNextGapMap.get(row)
+            : selectedNextGapMap.get(row);
+
+      if (Number.isFinite(nextGapValue)) {
+        valueMap.set(
+          buildHuntScoreHighlightKey(snapshot.date, row.machineName, row.slotNumber),
+          nextGapValue,
+        );
+      }
+    }
+  }
+
+  return valueMap;
+}
+
+function buildHuntScoreHighlightKeySet(highlightDetail, options, deviationValueMap, nextGapValueMap) {
   const matchKeys = new Set();
   const snapshots = Array.isArray(highlightDetail?.snapshots) ? highlightDetail.snapshots : [];
   const normalizedOptions = normalizeHuntScoreHighlightOptions(
@@ -702,14 +809,21 @@ function buildHuntScoreHighlightKeySet(highlightDetail, options, deviationValueM
   );
   const scoreFilter = buildScoreFilter(normalizedOptions.scoreMin);
   const deviationFilter = buildDeviationFilter(normalizedOptions.deviationMin);
+  const nextGapFilter = buildNextGapFilter(normalizedOptions.nextGapMin);
   const requirementOptions = buildConditionRequirementOptions(normalizedOptions, {
     rankRequired: DEFAULT_HUNT_RANK_REQUIRED,
     scoreRequired: DEFAULT_HUNT_SCORE_REQUIRED,
     deviationRequired: DEFAULT_HUNT_DEVIATION_REQUIRED,
+    nextGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
   });
   const rankScope = normalizeHuntScoreRankScope(normalizedOptions.rankScope);
 
-  if (!rankFilter.hasRankFilter && !scoreFilter.hasScoreFilter && !deviationFilter.hasDeviationFilter) {
+  if (
+    !rankFilter.hasRankFilter &&
+    !scoreFilter.hasScoreFilter &&
+    !deviationFilter.hasDeviationFilter &&
+    !nextGapFilter.hasNextGapFilter
+  ) {
     return matchKeys;
   }
 
@@ -743,6 +857,7 @@ function buildHuntScoreHighlightKeySet(highlightDetail, options, deviationValueM
             : selectedRankValue;
       const rowKey = buildHuntScoreHighlightKey(snapshot.date, machineName, slotNumber);
       const deviationValue = deviationValueMap.get(rowKey);
+      const nextGapValue = nextGapValueMap.get(rowKey);
 
       if (
         matchesRequiredConditionFilters(
@@ -754,6 +869,8 @@ function buildHuntScoreHighlightKeySet(highlightDetail, options, deviationValueM
           deviationValue,
           deviationFilter,
           false,
+          nextGapValue,
+          nextGapFilter,
         )
       ) {
         matchKeys.add(rowKey);
@@ -1061,6 +1178,21 @@ function createHuntScoreDeviationMetric(getHuntScoreDeviationValue) {
   };
 }
 
+function createHuntScoreNextGapMetric(getHuntScoreNextGapValue) {
+  const renderNextGap = (_value, record, context) =>
+    formatNarrowDecimal(getHuntScoreNextGapValue(record, context));
+  const csvRenderNextGap = (_value, record, context) =>
+    formatDecimal(getHuntScoreNextGapValue(record, context));
+
+  return {
+    key: "hunt_score_next_gap",
+    label: "次点差",
+    render: renderNextGap,
+    csvRender: csvRenderNextGap,
+    columnClass: "matrixColumnMedium",
+  };
+}
+
 const COMMON_METRICS = [
   {
     key: "difference_value",
@@ -1122,6 +1254,7 @@ function getMetrics(
   hasHuntScore,
   differenceMode,
   getHuntScoreDeviationValue,
+  getHuntScoreNextGapValue,
 ) {
   const metrics = [
     createDifferenceMetric(differenceMode),
@@ -1135,6 +1268,7 @@ function getMetrics(
   if (hasHuntScore) {
     metrics.push(createHuntScoreMetric());
     metrics.push(createHuntScoreDeviationMetric(getHuntScoreDeviationValue));
+    metrics.push(createHuntScoreNextGapMetric(getHuntScoreNextGapValue));
   }
 
   return [...metrics, ...RATIO_METRICS];
@@ -1376,6 +1510,30 @@ function HuntScoreHighlightControls({
             <span>必須</span>
           </label>
         </div>
+        <div className="huntConditionRow">
+          <p className="huntConditionLabel">次点差</p>
+          <div className="huntConditionInputs">
+            <EstimateNumberField
+              label="下限"
+              value={options.nextGapMin}
+              min={0}
+              step={0.1}
+              onChange={(value) => updateOption("nextGapMin", value)}
+            />
+          </div>
+          <label
+            className={`metricToggleChip huntConditionRequired ${
+              options.nextGapRequired ? "metricToggleChipActive" : ""
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={options.nextGapRequired}
+              onChange={(event) => updateOption("nextGapRequired", event.target.checked)}
+            />
+            <span>必須</span>
+          </label>
+        </div>
       </div>
 
       <div className="backtestBlock">
@@ -1474,9 +1632,57 @@ function HuntScoreHighlightControls({
         </div>
       </div>
 
+      <div className="backtestBlock">
+        <p className="filterControlLabel">次点差の比較対象</p>
+        <div className="metricToggleRow">
+          <label
+            className={`metricToggleChip ${
+              options.nextGapScope === "selected" ? "metricToggleChipActive" : ""
+            }`}
+          >
+            <input
+              type="radio"
+              name="machineHuntScoreNextGapScope"
+              value="selected"
+              checked={options.nextGapScope === "selected"}
+              onChange={() => updateOption("nextGapScope", "selected")}
+            />
+            <span>チェック機種内</span>
+          </label>
+          <label
+            className={`metricToggleChip ${
+              options.nextGapScope === "machine" ? "metricToggleChipActive" : ""
+            }`}
+          >
+            <input
+              type="radio"
+              name="machineHuntScoreNextGapScope"
+              value="machine"
+              checked={options.nextGapScope === "machine"}
+              onChange={() => updateOption("nextGapScope", "machine")}
+            />
+            <span>機種内</span>
+          </label>
+          <label
+            className={`metricToggleChip ${
+              options.nextGapScope === "all" ? "metricToggleChipActive" : ""
+            }`}
+          >
+            <input
+              type="radio"
+              name="machineHuntScoreNextGapScope"
+              value="all"
+              checked={options.nextGapScope === "all"}
+              onChange={() => updateOption("nextGapScope", "all")}
+            />
+            <span>全機種内</span>
+          </label>
+        </div>
+      </div>
+
       {availableMachineNames.length > 0 ? (
         <div className="backtestBlock">
-          <p className="filterControlLabel">順位と偏差値に使う機種</p>
+          <p className="filterControlLabel">順位と偏差値と次点差に使う機種</p>
           <div className="machineFilterActionRow">
             <button
               type="button"
@@ -1745,7 +1951,9 @@ const MatrixRow = memo(function MatrixRow({
           const boundaryClass =
             !isLastSlot && metricIndex === visibleMetrics.length - 1 ? "slotGroupBoundary" : "";
           const isHuntScoreMetric =
-            metric.key === "hunt_score" || metric.key === "hunt_score_deviation";
+            metric.key === "hunt_score" ||
+            metric.key === "hunt_score_deviation" ||
+            metric.key === "hunt_score_next_gap";
           const huntScoreHighlightClass =
             isHuntScoreMetric &&
             huntScoreHighlightKeySet.has(
@@ -1882,14 +2090,37 @@ export function MachineComparison({
     () => buildHuntScoreDeviationValueMap(activeHuntScoreHighlight, appliedHuntScoreHighlightOptions),
     [activeHuntScoreHighlight, appliedHuntScoreHighlightOptions],
   );
+  const huntScoreNextGapValueMap = useMemo(
+    () =>
+      buildHuntScoreNextGapValueMap(
+        activeHuntScoreHighlight,
+        appliedHuntScoreHighlightOptions,
+      ),
+    [activeHuntScoreHighlight, appliedHuntScoreHighlightOptions],
+  );
+  const huntScoreNextGapConditionValueMap = useMemo(
+    () =>
+      buildHuntScoreNextGapValueMap(
+        activeHuntScoreHighlight,
+        appliedHuntScoreHighlightOptions,
+        true,
+      ),
+    [activeHuntScoreHighlight, appliedHuntScoreHighlightOptions],
+  );
   const huntScoreHighlightKeySet = useMemo(
     () =>
       buildHuntScoreHighlightKeySet(
         activeHuntScoreHighlight,
         appliedHuntScoreHighlightOptions,
         huntScoreDeviationValueMap,
+        huntScoreNextGapConditionValueMap,
       ),
-    [activeHuntScoreHighlight, appliedHuntScoreHighlightOptions, huntScoreDeviationValueMap],
+    [
+      activeHuntScoreHighlight,
+      appliedHuntScoreHighlightOptions,
+      huntScoreDeviationValueMap,
+      huntScoreNextGapConditionValueMap,
+    ],
   );
   const hasPendingHuntScoreHighlightOptions = useMemo(
     () => !huntScoreHighlightOptionsEqual(huntScoreHighlightOptions, appliedHuntScoreHighlightOptions),
@@ -1980,6 +2211,17 @@ export function MachineComparison({
       ) ?? null,
     [huntScoreDeviationValueMap],
   );
+  const getHuntScoreNextGapValue = useCallback(
+    (record, context) =>
+      huntScoreNextGapValueMap.get(
+        buildHuntScoreHighlightKey(
+          context?.row?.date ?? record?.target_date,
+          record?.machine_name,
+          record?.slot_number ?? context?.slotNumber,
+        ),
+      ) ?? null,
+    [huntScoreNextGapValueMap],
+  );
   const hasHuntScore = useMemo(
     () =>
       dateRows.some((row) =>
@@ -1997,11 +2239,13 @@ export function MachineComparison({
         hasHuntScore,
         differenceMode,
         getHuntScoreDeviationValue,
+        getHuntScoreNextGapValue,
       ),
     [
       differenceMode,
       getCompositeSettingEstimate,
       getHuntScoreDeviationValue,
+      getHuntScoreNextGapValue,
       hasHuntScore,
       hasSettingEstimate,
       settingEstimateDefinition,
@@ -2099,6 +2343,7 @@ export function MachineComparison({
       ...loadedOptions,
       rankScope: "machine",
       deviationScope: "machine",
+      nextGapScope: "machine",
       selectedMachineNames: machineOnlyDefaults.selectedMachineNames,
     };
     setHuntScoreHighlightOptions(machineScopeOptions);
