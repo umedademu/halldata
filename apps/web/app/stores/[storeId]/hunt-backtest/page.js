@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { HuntBacktestBookmarkControl } from "../../../../components/hunt-backtest-bookmark-control";
-import { HuntBacktestEventFilterSync } from "../../../../components/hunt-backtest-event-filter-sync";
+import { HuntBacktestFormStateSync } from "../../../../components/hunt-backtest-form-state-sync";
 import { Breadcrumbs } from "../../../../components/breadcrumbs";
 import { HuntBacktestGraph } from "../../../../components/hunt-backtest-graph";
 import {
@@ -40,6 +40,7 @@ import {
 export const dynamic = "force-dynamic";
 const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, index) => index);
 const DEFAULT_DEVIATION_MIN = "60";
+const HUNT_BACKTEST_FORM_ID = "hunt-backtest-condition-form";
 const WEEKDAY_OPTIONS = [
   { value: 1, label: "月曜" },
   { value: 2, label: "火曜" },
@@ -303,10 +304,41 @@ export default async function HuntBacktestPage({ params, searchParams }) {
   const selectedBacktestDayTailSet = new Set(detail.backtest.eventFilters.dayTails);
   const selectedBacktestWeekdaySet = new Set(detail.backtest.eventFilters.weekdays);
   const machineOptionGroups = groupHuntMachineOptions(detail.backtest.machineOptions);
+  const backtestFormStateKey = JSON.stringify({
+    periodMode: detail.backtest.periodMode,
+    recentDays: detail.backtest.recentDays,
+    startDate: detail.backtest.startDate ?? "",
+    endDate: detail.backtest.endDate ?? "",
+    dayTails: detail.backtest.eventFilters.dayTails,
+    weekdays: detail.backtest.eventFilters.weekdays,
+    machineNames: detail.backtest.selectedMachineNames,
+    combineAimJuggler: detail.backtest.combineAimJuggler,
+    combineHanabi: detail.backtest.combineHanabi,
+    dailySelectionMode: detail.backtest.dailySelectionMode,
+    rankMin: detail.backtest.rankMin ?? "",
+    rankMax: detail.backtest.rankMax ?? "",
+    scoreMin: detail.backtest.scoreMin ?? "",
+    deviationMin: detail.backtest.deviationMin ?? "",
+    nextGapMin: detail.backtest.nextGapMin ?? "",
+    rankRequired: detail.backtest.rankRequired,
+    scoreRequired: detail.backtest.scoreRequired,
+    deviationRequired: detail.backtest.deviationRequired,
+    nextGapRequired: detail.backtest.nextGapRequired,
+    scoreDifferenceMode: detail.backtest.scoreDifferenceMode,
+    differenceMode: detail.backtest.differenceMode,
+    rankScope: detail.backtest.rankScope,
+    deviationScope: detail.backtest.deviationScope,
+    nextGapScope: detail.backtest.nextGapScope,
+    showGraph: detail.backtest.showGraph,
+  });
 
   return (
     <main className="pageStack">
-      <HuntBacktestEventFilterSync storeId={detail.store.id} />
+      <HuntBacktestFormStateSync
+        storeId={detail.store.id}
+        formId={HUNT_BACKTEST_FORM_ID}
+        formStateKey={backtestFormStateKey}
+      />
       <Breadcrumbs
         items={[
           { label: "店舗一覧", href: "/" },
@@ -350,7 +382,12 @@ export default async function HuntBacktestPage({ params, searchParams }) {
             <div>
               <p className="sectionLabel">翌営業日バックテスト</p>
             </div>
-            <NativeGetForm action={`/stores/${detail.store.id}/hunt-backtest`} className="backtestForm">
+            <NativeGetForm
+              key={backtestFormStateKey}
+              id={HUNT_BACKTEST_FORM_ID}
+              action={`/stores/${detail.store.id}/hunt-backtest`}
+              className="backtestForm"
+            >
               <input type="hidden" name="show" value="1" />
               <input type="hidden" name="backtestEventTouched" value="1" />
 
