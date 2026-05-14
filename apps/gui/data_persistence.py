@@ -826,7 +826,11 @@ class HistoryPersistenceService:
 
     def _save_r2_web_data(self, snapshot: dict[str, Any]) -> dict[str, Any]:
         store_source = self._r2_store_source_from_snapshot(snapshot)
-        incoming_records = [record for record in snapshot.get("records", []) if isinstance(record, dict)]
+        incoming_records = [
+            record
+            for record in snapshot.get("records", [])
+            if isinstance(record, dict) and _saved_record_should_be_kept(record)
+        ]
         existing_records = self._load_r2_store_records(
             store_name=store_source.store_name,
             store_url=store_source.store_url,
@@ -1733,7 +1737,7 @@ class HistoryPersistenceService:
                     continue
 
                 for row in payload.get("records", []):
-                    if not isinstance(row, dict):
+                    if not isinstance(row, dict) or not _saved_record_should_be_kept(row):
                         continue
                     target_date = str(row.get("target_date", "")).strip()
                     if not target_date or target_date < start_date or target_date > end_date:

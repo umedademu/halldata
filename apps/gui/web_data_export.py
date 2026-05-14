@@ -108,6 +108,13 @@ def site7_record_has_meaningful_data(record: dict[str, Any]) -> bool:
     return any(str(record.get(key) or "").strip() not in {"", "-", "--"} for key in text_keys)
 
 
+def record_should_be_exported(record: dict[str, Any]) -> bool:
+    data_source = read_text(record.get("data_source"))
+    if data_source.casefold() == DATA_SOURCE_SITE7 and not site7_record_has_meaningful_data(record):
+        return False
+    return True
+
+
 def read_prefecture_name(value: dict[str, Any]) -> str:
     return read_text(
         value.get("prefectureName")
@@ -170,7 +177,7 @@ def safe_record(raw_record: dict[str, Any], store_id: str | None = None) -> dict
     data_source = read_text(raw_record.get("data_source"))
     if data_source:
         record["data_source"] = data_source
-    if data_source.casefold() == DATA_SOURCE_SITE7 and not site7_record_has_meaningful_data(record):
+    if not record_should_be_exported(record):
         return None
     if store_id:
         record["store_id"] = store_id
@@ -262,8 +269,13 @@ def load_existing_payload(
 def build_store_payload(store_source: StoreSource, records: list[dict[str, Any]]) -> dict[str, Any]:
     generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
     store_id = build_store_id(store_source.store_name, store_source.store_url)
+    export_records = [
+        record
+        for record in records
+        if isinstance(record, dict) and record_should_be_exported(record)
+    ]
     sorted_records = sorted(
-        records,
+        export_records,
         key=lambda record: (
             str(record.get("target_date", "")),
             str(record.get("machine_name", "")),

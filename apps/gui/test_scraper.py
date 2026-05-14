@@ -1975,6 +1975,49 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertIsNone(record)
 
+    def test_web_export_store_payload_filters_blank_site7_rows(self) -> None:
+        store_source = StoreSource(
+            store_name="Aパーク春日店",
+            store_url="https://min-repo.com/tag/a-%E3%83%91%E3%83%BC%E3%82%AF%E6%98%A5%E6%97%A5%E5%BA%97/",
+        )
+        blank_record = {
+            "target_date": "2026-05-11",
+            "slot_number": "821",
+            "machine_name": SITE7_TARGET_MACHINE_NAME,
+            "data_source": DATA_SOURCE_SITE7,
+            "difference_value": None,
+            "bonus_difference_value": None,
+            "games_count": None,
+            "payout_rate": None,
+            "bb_count": None,
+            "rb_count": None,
+            "combined_ratio_text": "-",
+            "bb_ratio_text": "-",
+            "rb_ratio_text": "-",
+        }
+        valid_record = {
+            "target_date": "2026-05-12",
+            "slot_number": "821",
+            "machine_name": SITE7_TARGET_MACHINE_NAME,
+            "data_source": DATA_SOURCE_SITE7,
+            "difference_value": 100,
+            "bonus_difference_value": 80,
+            "games_count": 2000,
+            "payout_rate": None,
+            "bb_count": 8,
+            "rb_count": 6,
+            "combined_ratio_text": "1/142",
+            "bb_ratio_text": "1/250",
+            "rb_ratio_text": "1/333",
+        }
+
+        payload = build_store_payload(store_source, [blank_record, valid_record])
+        machine_payloads = payload.get("_machineRecordsByFile", {})
+        machine_records = next(iter(machine_payloads.values()))["records"]
+
+        self.assertEqual(payload["summary"]["recordCount"], 1)
+        self.assertEqual([record["target_date"] for record in machine_records], ["2026-05-12"])
+
     def test_site7_build_machine_daily_records_keeps_site7_source_after_store_rewrite(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = find_gui_fixture("site7_machine.html")
