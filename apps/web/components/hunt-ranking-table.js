@@ -181,6 +181,52 @@ function buildOverallRows(rows, overallLimit) {
   }));
 }
 
+function compareMachineTopCandidateRows(left, right) {
+  const leftNextGap = readNextGapForRankScope(left, "machine");
+  const rightNextGap = readNextGapForRankScope(right, "machine");
+  const nextGapDiff =
+    readRankingSortNumber(rightNextGap, Number.NEGATIVE_INFINITY) -
+    readRankingSortNumber(leftNextGap, Number.NEGATIVE_INFINITY);
+  if (Math.abs(nextGapDiff) > 0.000000001) {
+    return nextGapDiff;
+  }
+
+  const scoreDiff =
+    readRankingSortNumber(right.huntScore, Number.NEGATIVE_INFINITY) -
+    readRankingSortNumber(left.huntScore, Number.NEGATIVE_INFINITY);
+  if (Math.abs(scoreDiff) > 0.000000001) {
+    return scoreDiff;
+  }
+
+  return (
+    readRankingSortNumber(left.selectedRank ?? left.overallRank ?? left.rank) -
+      readRankingSortNumber(right.selectedRank ?? right.overallRank ?? right.rank) ||
+    String(left.machineName ?? "").localeCompare(String(right.machineName ?? ""), "ja") ||
+    String(left.slotNumber ?? "").localeCompare(String(right.slotNumber ?? ""), "ja", {
+      numeric: true,
+    })
+  );
+}
+
+function buildMachineTopCandidateRows(displayGroups, deviationValueByRowKey) {
+  return (Array.isArray(displayGroups) ? displayGroups : [])
+    .map((group) => {
+      const topRow = getRankingGroupRows(group, true)[0] ?? null;
+      if (!topRow) {
+        return null;
+      }
+
+      return decorateRowsWithDeviation([topRow], deviationValueByRowKey)[0] ?? null;
+    })
+    .filter((row) => Number.isFinite(readNextGapForRankScope(row, "machine")))
+    .sort(compareMachineTopCandidateRows)
+    .map((row, index) => ({
+      ...row,
+      bookmarkRank: row.rank,
+      rank: index + 1,
+    }));
+}
+
 function buildDeviationRowKey(row) {
   return String(row?.rowKey ?? `${row?.machineName ?? ""}::${row?.slotNumber ?? ""}`).trim();
 }
@@ -345,6 +391,8 @@ function decorateRowsWithSelectedRank(rows, selectedRankValueMap) {
 
 function OverallRankingTable({
   storeId,
+  sectionLabel = "狙い度上位",
+  rankColumnLabel = "順位",
   title,
   rows,
   visibleColumns,
@@ -357,7 +405,7 @@ function OverallRankingTable({
     <section className="tablePanel directoryPanel">
       <div className="tablePanelHeader">
         <div>
-          <p className="sectionLabel">狙い度上位</p>
+          <p className="sectionLabel">{sectionLabel}</p>
           <h2 className="tablePanelTitle">{title}</h2>
         </div>
       </div>
@@ -365,7 +413,7 @@ function OverallRankingTable({
         <table className="directoryTable">
           <thead>
             <tr>
-              <th>順位</th>
+              <th>{rankColumnLabel}</th>
               <th>{scoreColumnLabel}</th>
               <th>偏差値</th>
               <th>次点差</th>
@@ -437,6 +485,7 @@ export function HuntRankingTable({
   actualDate = null,
   highlightOptions = {},
   initialDifferenceMode = DEFAULT_DIFFERENCE_MODE,
+  showMachineTopCandidates = false,
 }) {
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
   const [differenceMode, setDifferenceMode] = useState(() =>
@@ -541,6 +590,15 @@ export function HuntRankingTable({
       ),
     [displayGroups, displayDeviationRows, highlightCondition.rankFilter],
   );
+  const machineTopCandidateDeviationValueByRowKey = useMemo(
+    () =>
+      buildDeviationValueMaps(
+        displayDeviationRows,
+        displayGroups,
+        buildRankFilter(1, 1),
+      ),
+    [displayGroups, displayDeviationRows],
+  );
   const selectedRankValueByRowKey = useMemo(
     () => buildSelectedRankValueMap(displayGroups),
     [displayGroups],
@@ -560,6 +618,13 @@ export function HuntRankingTable({
   const selectedOverallRows = useMemo(
     () => buildOverallRows(displayRowsWithDeviation, overallLimit),
     [displayRowsWithDeviation, overallLimit],
+  );
+  const machineTopCandidateRows = useMemo(
+    () =>
+      showMachineTopCandidates
+        ? buildMachineTopCandidateRows(displayGroups, machineTopCandidateDeviationValueByRowKey)
+        : [],
+    [displayGroups, machineTopCandidateDeviationValueByRowKey, showMachineTopCandidates],
   );
   const bookmarkState = useMemo(
     () =>
@@ -684,6 +749,30 @@ export function HuntRankingTable({
           })}
         </div>
       </section>
+
+      {showMachineTopCandidates ? (
+        machineTopCandidateRows.length > 0 ? (
+          <OverallRankingTable
+            storeId={storeId}
+            sectionLabel="選抜候補"
+            rankColumnLabel="候補順位"
+            title={`各機種1位の機種内次点差ランキング 上位${formatNumber(
+              machineTopCandidateRows.length,
+            )}台`}
+            rows={machineTopCandidateRows}
+            visibleColumns={visibleColumns}
+            scoreColumnLabel={scoreColumnLabel}
+            deviationScope="machine"
+            nextGapScope="machine"
+            highlightCondition={highlightCondition}
+          />
+        ) : (
+          <section className="statusPanel">
+            <h2>選抜候補はありません</h2>
+            <p>機種内次点差を出せる各機種1位台があると、ここに追加表示されます。</p>
+          </section>
+        )
+      ) : null}
 
       {selectedOverallRows.length > 0 ? (
         <OverallRankingTable
