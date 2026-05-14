@@ -7,7 +7,7 @@ import {
   AllMachineFilterButtons,
   MachineFilterCategoryButton,
 } from "../../../../components/hunt-machine-filter-tools";
-import { HuntRankingLimitSync } from "../../../../components/hunt-ranking-limit-sync";
+import { HuntRankingFormStateSync } from "../../../../components/hunt-ranking-form-state-sync";
 import { HuntRankingTable } from "../../../../components/hunt-ranking-table";
 import { HuntScoreLogicSelector } from "../../../../components/hunt-score-logic-selector";
 import { NativeGetForm } from "../../../../components/native-get-form";
@@ -44,6 +44,7 @@ const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
 const HANABI_GROUP_NAME = "ハナビ";
 const HANABI_MACHINE_NAMES = ["新ハナビ", "スマスロ ハナビ"];
+const HUNT_RANKING_FORM_ID = "hunt-ranking-condition-form";
 
 async function readStoredHuntScoreLogicKey(storeId) {
   const cookieStore = await cookies();
@@ -458,10 +459,35 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     detail.limit,
   );
   const visibleRows = visibleRankingGroups.flatMap((group) => group.rows);
+  const rankingFormStateKey = JSON.stringify({
+    date: detail.selectedDate ?? "",
+    limit: detail.limit,
+    differenceMode: detail.differenceMode,
+    machines: [...selectedMachineNameSet].sort(),
+    combineAimJuggler,
+    combineHanabi,
+    rankMin: rankingHighlightOptions.rankMin,
+    rankMax: rankingHighlightOptions.rankMax,
+    scoreMin: rankingHighlightOptions.scoreMin,
+    deviationMin: rankingHighlightOptions.deviationMin,
+    nextGapMin: rankingHighlightOptions.nextGapMin,
+    rankRequired,
+    scoreRequired,
+    deviationRequired,
+    nextGapRequired,
+    rankScope: rankingHighlightOptions.rankScope,
+    deviationScope: rankingHighlightOptions.deviationScope,
+    nextGapScope: rankingHighlightOptions.nextGapScope,
+    showMachineTopCandidates,
+  });
 
   return (
     <main className="pageStack">
-      <HuntRankingLimitSync defaultLimit={DEFAULT_RANKING_LIMIT} />
+      <HuntRankingFormStateSync
+        storeId={detail.store.id}
+        formId={HUNT_RANKING_FORM_ID}
+        formStateKey={rankingFormStateKey}
+      />
       <Breadcrumbs
         items={[
           { label: "店舗一覧", href: "/" },
@@ -508,7 +534,12 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 選んだ日の狙い度と、その次の営業日の実績を並べて確認できます。
               </p>
             </div>
-            <NativeGetForm action={`/stores/${detail.store.id}/hunt-analysis`} className="storeReserveForm">
+            <NativeGetForm
+              key={rankingFormStateKey}
+              id={HUNT_RANKING_FORM_ID}
+              action={`/stores/${detail.store.id}/hunt-analysis`}
+              className="storeReserveForm"
+            >
               <input type="hidden" name="show" value="1" />
               <input type="hidden" name="machineTouched" value="1" />
               <label className="storeReserveField">
