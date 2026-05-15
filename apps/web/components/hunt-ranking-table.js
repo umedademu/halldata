@@ -750,6 +750,24 @@ export function HuntRankingTable({
         </div>
       </section>
 
+      {selectedOverallRows.length > 0 ? (
+        <OverallRankingTable
+          storeId={storeId}
+          title={`選択機種内ランキング 上位${formatNumber(selectedOverallRows.length)}台`}
+          rows={selectedOverallRows}
+          visibleColumns={visibleColumns}
+          scoreColumnLabel={scoreColumnLabel}
+          deviationScope={deviationScope}
+          nextGapScope={nextGapScope}
+          highlightCondition={highlightCondition}
+        />
+      ) : (
+        <section className="statusPanel">
+          <h2>チェック中の機種がありません</h2>
+          <p>機種名にチェックを入れると、ここに選択機種内ランキングが表示されます。</p>
+        </section>
+      )}
+
       {showMachineTopCandidates ? (
         machineTopCandidateRows.length > 0 ? (
           <OverallRankingTable
@@ -773,24 +791,6 @@ export function HuntRankingTable({
           </section>
         )
       ) : null}
-
-      {selectedOverallRows.length > 0 ? (
-        <OverallRankingTable
-          storeId={storeId}
-          title={`選択機種内ランキング 上位${formatNumber(selectedOverallRows.length)}台`}
-          rows={selectedOverallRows}
-          visibleColumns={visibleColumns}
-          scoreColumnLabel={scoreColumnLabel}
-          deviationScope={deviationScope}
-          nextGapScope={nextGapScope}
-          highlightCondition={highlightCondition}
-        />
-      ) : (
-        <section className="statusPanel">
-          <h2>チェック中の機種がありません</h2>
-          <p>機種名にチェックを入れると、ここに選択機種内ランキングが表示されます。</p>
-        </section>
-      )}
 
       {displayGroupsWithDeviation.map((group) => {
         const groupHasSite7Data = group.rows.some((row) => row.predictionMachineHasSite7Data);
