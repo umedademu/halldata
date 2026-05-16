@@ -42,10 +42,8 @@ const HUNT_BACKTEST_DEFAULT_EVENT_FILTERS = {
 };
 const DEFAULT_HUNT_RANKING_LIMIT = 20;
 const DEFAULT_HUNT_BACKTEST_RECENT_DAYS = 90;
-const DEFAULT_HUNT_SCORE_DEVIATION_MIN = 60;
 const DEFAULT_HUNT_RANK_REQUIRED = true;
 const DEFAULT_HUNT_SCORE_REQUIRED = true;
-const DEFAULT_HUNT_DEVIATION_REQUIRED = false;
 const DEFAULT_HUNT_NEXT_GAP_REQUIRED = false;
 const DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP = "machineTopNextGap";
 const DEFAULT_CROSS_STORE_BACKTEST_LIMIT = 100;
@@ -72,9 +70,6 @@ function requireActiveConditionFilters(requirementOptions, filters = {}) {
   return {
     rankRequired: filters.hasRankFilter ? true : Boolean(requirementOptions.rankRequired),
     scoreRequired: filters.hasScoreFilter ? true : Boolean(requirementOptions.scoreRequired),
-    deviationRequired: filters.hasDeviationFilter
-      ? true
-      : Boolean(requirementOptions.deviationRequired),
     nextGapRequired: filters.hasNextGapFilter
       ? true
       : Boolean(requirementOptions.nextGapRequired),
@@ -1559,7 +1554,6 @@ function buildInitialBacktestDetail(
   const rankMin = readPositiveInteger(defaultedOptions?.rankMin, null);
   const rankMax = readPositiveInteger(defaultedOptions?.rankMax, null);
   const scoreMin = readNumber(defaultedOptions?.scoreMin);
-  const deviationMin = readNumber(defaultedOptions?.deviationMin) ?? DEFAULT_HUNT_SCORE_DEVIATION_MIN;
   const nextGapMin = readNumber(defaultedOptions?.nextGapMin);
   const dailySelectionMode = normalizeDailySelectionMode(defaultedOptions?.dailySelectionMode);
   const usesMachineTopNextGapSelection =
@@ -1568,10 +1562,6 @@ function buildInitialBacktestDetail(
     defaultedOptions?.rankScope === "machine" || defaultedOptions?.rankScope === "selected"
       ? defaultedOptions.rankScope
       : "selected";
-  const deviationScope =
-    defaultedOptions?.deviationScope === "machine" || defaultedOptions?.deviationScope === "selected"
-      ? defaultedOptions.deviationScope
-      : rankScope;
   const nextGapScope =
     defaultedOptions?.nextGapScope === "selected" ||
     defaultedOptions?.nextGapScope === "machine"
@@ -1580,18 +1570,15 @@ function buildInitialBacktestDetail(
   const baseRequirementOptions = buildConditionRequirementOptions(defaultedOptions, {
     rankRequired: DEFAULT_HUNT_RANK_REQUIRED,
     scoreRequired: DEFAULT_HUNT_SCORE_REQUIRED,
-    deviationRequired: DEFAULT_HUNT_DEVIATION_REQUIRED,
     nextGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
   });
   const hasRankFilter = rankMin !== null || rankMax !== null;
   const hasScoreFilter = scoreMin !== null;
-  const hasDeviationFilter = deviationMin !== null;
   const hasNextGapFilter = nextGapMin !== null;
   const requirementOptions = usesMachineTopNextGapSelection
     ? requireActiveConditionFilters(baseRequirementOptions, {
         hasRankFilter,
         hasScoreFilter,
-        hasDeviationFilter,
         hasNextGapFilter,
       })
     : baseRequirementOptions;
@@ -1618,17 +1605,13 @@ function buildInitialBacktestDetail(
     hasRankFilter,
     scoreMin,
     hasScoreFilter,
-    deviationMin,
-    hasDeviationFilter,
     nextGapMin,
     hasNextGapFilter,
     rankRequired: requirementOptions.rankRequired,
     scoreRequired: requirementOptions.scoreRequired,
-    deviationRequired: requirementOptions.deviationRequired,
     nextGapRequired: requirementOptions.nextGapRequired,
     dailySelectionMode,
     rankScope,
-    deviationScope,
     nextGapScope,
     showGraph: defaultedOptions?.showGraph === "off" ? "off" : "on",
     scoreDifferenceMode: normalizeDifferenceMode(defaultedOptions?.scoreDifferenceMode),
@@ -2454,11 +2437,9 @@ function buildCrossStoreBacktestOptions(options = {}) {
   const requirementOptions = buildConditionRequirementOptions(options, {
     rankRequired: DEFAULT_HUNT_RANK_REQUIRED,
     scoreRequired: DEFAULT_HUNT_SCORE_REQUIRED,
-    deviationRequired: DEFAULT_HUNT_DEVIATION_REQUIRED,
     nextGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
   });
   const rankScope = normalizeCrossStoreRankScope(options?.rankScope);
-  const deviationScope = normalizeCrossStoreRankScope(options?.deviationScope, rankScope);
   const nextGapScope = normalizeCrossStoreRankScope(options?.nextGapScope, "machine");
 
   return {
@@ -2475,14 +2456,11 @@ function buildCrossStoreBacktestOptions(options = {}) {
     rankMin: readPositiveIntegerOption(options, "rankMin", 1),
     rankMax: readPositiveIntegerOption(options, "rankMax", 3),
     scoreMin: readNumberOption(options, "scoreMin", 70),
-    deviationMin: readNumberOption(options, "deviationMin", DEFAULT_HUNT_SCORE_DEVIATION_MIN),
     nextGapMin: readNumberOption(options, "nextGapMin", null),
     rankRequired: requirementOptions.rankRequired,
     scoreRequired: requirementOptions.scoreRequired,
-    deviationRequired: requirementOptions.deviationRequired,
     nextGapRequired: requirementOptions.nextGapRequired,
     rankScope,
-    deviationScope,
     nextGapScope,
     scoreDifferenceMode: normalizeDifferenceMode(options?.scoreDifferenceMode),
     differenceMode: normalizeDifferenceMode(options?.differenceMode),
@@ -2702,7 +2680,6 @@ function buildCrossStoreBacktestRow(store, backtest, slotCount) {
     gamesTotal: total.gamesTotal,
     averageSetting: total.averageSetting,
     averageHuntScore: total.averageHuntScore,
-    averageDeviation: total.averageDeviation,
     averageNextGap: total.averageNextGap,
     bbTotal: total.bbTotal,
     rbTotal: total.rbTotal,
@@ -2797,14 +2774,11 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       rankMin: backtestOptions.rankMin,
       rankMax: backtestOptions.rankMax,
       scoreMin: backtestOptions.scoreMin,
-      deviationMin: backtestOptions.deviationMin,
       nextGapMin: backtestOptions.nextGapMin,
       rankRequired: backtestOptions.rankRequired,
       scoreRequired: backtestOptions.scoreRequired,
-      deviationRequired: backtestOptions.deviationRequired,
       nextGapRequired: backtestOptions.nextGapRequired,
       rankScope: backtestOptions.rankScope,
-      deviationScope: backtestOptions.deviationScope,
       nextGapScope: backtestOptions.nextGapScope,
       scoreDifferenceMode: backtestOptions.scoreDifferenceMode,
       differenceMode: backtestOptions.differenceMode,
@@ -2877,14 +2851,11 @@ export async function getCrossStoreBacktestDetail(options = {}) {
     rankMin: backtestOptions.rankMin,
     rankMax: backtestOptions.rankMax,
     scoreMin: backtestOptions.scoreMin,
-    deviationMin: backtestOptions.deviationMin,
     nextGapMin: backtestOptions.nextGapMin,
     rankRequired: backtestOptions.rankRequired,
     scoreRequired: backtestOptions.scoreRequired,
-    deviationRequired: backtestOptions.deviationRequired,
     nextGapRequired: backtestOptions.nextGapRequired,
     rankScope: backtestOptions.rankScope,
-    deviationScope: backtestOptions.deviationScope,
     nextGapScope: backtestOptions.nextGapScope,
     scoreDifferenceMode: backtestOptions.scoreDifferenceMode,
     differenceMode: backtestOptions.differenceMode,

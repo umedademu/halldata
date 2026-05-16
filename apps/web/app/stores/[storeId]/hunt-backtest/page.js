@@ -39,7 +39,6 @@ import {
 
 export const dynamic = "force-dynamic";
 const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, index) => index);
-const DEFAULT_DEVIATION_MIN = "60";
 const HUNT_BACKTEST_FORM_ID = "hunt-backtest-condition-form";
 const WEEKDAY_OPTIONS = [
   { value: 1, label: "月曜" },
@@ -106,24 +105,23 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
               <SortableTableHeader columnIndex={1}>設置台数</SortableTableHeader>
               <SortableTableHeader columnIndex={2}>条件一致台数</SortableTableHeader>
               <SortableTableHeader columnIndex={3}>狙い度</SortableTableHeader>
-              <SortableTableHeader columnIndex={4}>偏差値</SortableTableHeader>
-              <SortableTableHeader columnIndex={5}>次点差</SortableTableHeader>
-              <SortableTableHeader columnIndex={6}>実績集計台数</SortableTableHeader>
-              <SortableTableHeader columnIndex={7}>合計差枚</SortableTableHeader>
-              <SortableTableHeader columnIndex={8}>合計G数</SortableTableHeader>
-              <SortableTableHeader columnIndex={9}>BB</SortableTableHeader>
-              <SortableTableHeader columnIndex={10}>RB</SortableTableHeader>
-              <SortableTableHeader columnIndex={11} initialDirection="asc">
+              <SortableTableHeader columnIndex={4}>次点差</SortableTableHeader>
+              <SortableTableHeader columnIndex={5}>実績集計台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={6}>合計差枚</SortableTableHeader>
+              <SortableTableHeader columnIndex={7}>合計G数</SortableTableHeader>
+              <SortableTableHeader columnIndex={8}>BB</SortableTableHeader>
+              <SortableTableHeader columnIndex={9}>RB</SortableTableHeader>
+              <SortableTableHeader columnIndex={10} initialDirection="asc">
                 BB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={12} initialDirection="asc">
+              <SortableTableHeader columnIndex={11} initialDirection="asc">
                 RB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={13} initialDirection="asc">
+              <SortableTableHeader columnIndex={12} initialDirection="asc">
                 合成
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={14}>機械割</SortableTableHeader>
-              <SortableTableHeader columnIndex={15}>平均設定</SortableTableHeader>
+              <SortableTableHeader columnIndex={13}>機械割</SortableTableHeader>
+              <SortableTableHeader columnIndex={14}>平均設定</SortableTableHeader>
             </tr>
           </thead>
           <tbody>
@@ -132,7 +130,6 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
               <td data-sort-value={readSortNumber(backtest.total.slotCount)}>{formatNumber(backtest.total.slotCount)}</td>
               <td data-sort-value={backtest.total.matchedRowCount}>{formatNumber(backtest.total.matchedRowCount)}</td>
               <td data-sort-value={readSortNumber(backtest.total.averageHuntScore)}>{formatDecimal(backtest.total.averageHuntScore)}</td>
-              <td data-sort-value={readSortNumber(backtest.total.averageDeviation)}>{formatDecimal(backtest.total.averageDeviation)}</td>
               <td data-sort-value={readSortNumber(backtest.total.averageNextGap)}>{formatDecimal(backtest.total.averageNextGap)}</td>
               <td data-sort-value={backtest.total.actualRowCount}>{formatNumber(backtest.total.actualRowCount)}</td>
               <td data-sort-value={backtest.total.differenceTotal}>{formatSignedNumber(backtest.total.differenceTotal)}</td>
@@ -161,7 +158,6 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
                 <td data-sort-value={readSortNumber(summary.slotCount)}>{formatNumber(summary.slotCount)}</td>
                 <td data-sort-value={summary.matchedRowCount}>{formatNumber(summary.matchedRowCount)}</td>
                 <td data-sort-value={readSortNumber(summary.averageHuntScore)}>{formatDecimal(summary.averageHuntScore)}</td>
-                <td data-sort-value={readSortNumber(summary.averageDeviation)}>{formatDecimal(summary.averageDeviation)}</td>
                 <td data-sort-value={readSortNumber(summary.averageNextGap)}>{formatDecimal(summary.averageNextGap)}</td>
                 <td data-sort-value={summary.actualRowCount}>{formatNumber(summary.actualRowCount)}</td>
                 <td data-sort-value={summary.differenceTotal}>{formatSignedNumber(summary.differenceTotal)}</td>
@@ -204,7 +200,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
   const storeId = resolvedParams.storeId;
   const resultRequested = readSingleSearchParam(resolvedSearchParams?.show) === "1";
   const huntScoreLogicKey = await readStoredHuntScoreLogicKey(storeId);
-  const hasDeviationMinParam = Object.hasOwn(resolvedSearchParams ?? {}, "deviationMin");
   const requestedBacktestOptions = {
     periodMode: readSingleSearchParam(resolvedSearchParams?.periodMode),
     recentDays: readSingleSearchParam(resolvedSearchParams?.recentDays),
@@ -220,15 +215,10 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     rankMax: readSingleSearchParam(resolvedSearchParams?.rankMax),
     rankScope: readSingleSearchParam(resolvedSearchParams?.rankScope),
     scoreMin: readSingleSearchParam(resolvedSearchParams?.scoreMin),
-    deviationScope: readSingleSearchParam(resolvedSearchParams?.deviationScope),
-    deviationMin: hasDeviationMinParam
-      ? readSingleSearchParam(resolvedSearchParams?.deviationMin)
-      : DEFAULT_DEVIATION_MIN,
     nextGapScope: readSingleSearchParam(resolvedSearchParams?.nextGapScope),
     nextGapMin: readSingleSearchParam(resolvedSearchParams?.nextGapMin),
     rankRequired: readMultiSearchParam(resolvedSearchParams?.rankRequired),
     scoreRequired: readMultiSearchParam(resolvedSearchParams?.scoreRequired),
-    deviationRequired: readMultiSearchParam(resolvedSearchParams?.deviationRequired),
     nextGapRequired: readMultiSearchParam(resolvedSearchParams?.nextGapRequired),
     dailySelectionMode: readMultiSearchParam(resolvedSearchParams?.dailySelectionMode),
     showGraph: readSingleSearchParam(resolvedSearchParams?.showGraph),
@@ -286,14 +276,11 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     rankMin: detail.backtest.rankMin,
     rankMax: detail.backtest.rankMax,
     scoreMin: detail.backtest.scoreMin,
-    deviationMin: detail.backtest.deviationMin,
     nextGapMin: detail.backtest.nextGapMin,
     rankRequired: detail.backtest.rankRequired,
     scoreRequired: detail.backtest.scoreRequired,
-    deviationRequired: detail.backtest.deviationRequired,
     nextGapRequired: detail.backtest.nextGapRequired,
     rankScope: detail.backtest.rankScope,
-    deviationScope: detail.backtest.deviationScope,
     nextGapScope: detail.backtest.nextGapScope,
     scoreDifferenceMode: detail.backtest.scoreDifferenceMode,
     differenceMode: detail.backtest.differenceMode,
@@ -318,16 +305,13 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     rankMin: detail.backtest.rankMin ?? "",
     rankMax: detail.backtest.rankMax ?? "",
     scoreMin: detail.backtest.scoreMin ?? "",
-    deviationMin: detail.backtest.deviationMin ?? "",
     nextGapMin: detail.backtest.nextGapMin ?? "",
     rankRequired: detail.backtest.rankRequired,
     scoreRequired: detail.backtest.scoreRequired,
-    deviationRequired: detail.backtest.deviationRequired,
     nextGapRequired: detail.backtest.nextGapRequired,
     scoreDifferenceMode: detail.backtest.scoreDifferenceMode,
     differenceMode: detail.backtest.differenceMode,
     rankScope: detail.backtest.rankScope,
-    deviationScope: detail.backtest.deviationScope,
     nextGapScope: detail.backtest.nextGapScope,
     showGraph: detail.backtest.showGraph,
   });
@@ -591,7 +575,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                   </label>
                 </div>
                 <p className="storeReserveHelp">
-                  ONの場合、日ごとに各機種の機種内狙い度1位台を候補にし、その中で機種内次点差が最大の1台だけを選びます。入力済みの順位、狙い度、偏差値、次点差条件は、その1台への追加条件としてすべて満たした場合だけ集計します。
+                  ONの場合、日ごとに各機種の機種内狙い度1位台を候補にし、その中で機種内次点差が最大の1台だけを選びます。入力済みの順位、狙い度、次点差条件は、その1台への追加条件としてすべて満たした場合だけ集計します。
                 </p>
               </div>
 
@@ -662,36 +646,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       name="scoreRequired"
                       value="1"
                       defaultChecked={detail.backtest.scoreRequired}
-                    />
-                    <span>必須</span>
-                  </label>
-                </div>
-                <div className="huntConditionRow">
-                  <p className="huntConditionLabel">偏差値</p>
-                  <div className="huntConditionInputs">
-                    <label className="storeReserveField backtestField huntConditionNumberField">
-                      <span>下限</span>
-                      <input
-                        type="number"
-                        name="deviationMin"
-                        min="0"
-                        step="0.1"
-                        defaultValue={detail.backtest.deviationMin ?? ""}
-                        className="storeReserveInput"
-                      />
-                    </label>
-                  </div>
-                  <input type="hidden" name="deviationRequired" value="0" />
-                  <label
-                    className={`metricToggleChip huntConditionRequired ${
-                      detail.backtest.deviationRequired ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      name="deviationRequired"
-                      value="1"
-                      defaultChecked={detail.backtest.deviationRequired}
                     />
                     <span>必須</span>
                   </label>
@@ -855,38 +809,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       defaultChecked={detail.backtest.rankScope === "machine"}
                     />
                     <span>機種内順位</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="backtestBlock">
-                <p className="filterControlLabel">偏差値の比較対象</p>
-                <div className="metricToggleRow">
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.deviationScope === "selected" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="deviationScope"
-                      value="selected"
-                      defaultChecked={detail.backtest.deviationScope === "selected"}
-                    />
-                    <span>チェック機種内</span>
-                  </label>
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.deviationScope === "machine" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="deviationScope"
-                      value="machine"
-                      defaultChecked={detail.backtest.deviationScope === "machine"}
-                    />
-                    <span>機種内</span>
                   </label>
                 </div>
               </div>

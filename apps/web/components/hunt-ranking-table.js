@@ -16,17 +16,14 @@ import {
 } from "../lib/format";
 import {
   HUNT_BACKTEST_BOOKMARK_EVENT,
-  buildDeviationFilter,
   buildNextGapFilter,
   buildHuntBacktestBookmarkMatches,
   buildRankFilter,
   buildScoreFilter,
   buildConditionRequirementOptions,
-  calculateHuntScoreDeviationMap,
   calculateHuntScoreNextGapMap,
   formatHuntBacktestBookmarkSummary,
   matchesRequiredConditionFilters,
-  readDeviationForRankScope,
   readNextGapForRankScope,
   readSavedHuntBacktestBookmark,
 } from "../lib/hunt-bookmark";
@@ -49,12 +46,10 @@ const DEFAULT_VISIBLE_RESULT_KEYS = [
   "setting_estimate",
 ];
 const DEFAULT_RANK_SCOPE = "selected";
-const DEFAULT_DEVIATION_SCOPE = "selected";
 const DEFAULT_NEXT_GAP_SCOPE = "machine";
 const DEFAULT_HIGHLIGHT_RANK_MIN = 1;
 const DEFAULT_HIGHLIGHT_RANK_MAX = 3;
 const DEFAULT_HIGHLIGHT_SCORE_MIN = 70;
-const DEFAULT_DEVIATION_MIN = 60;
 
 const RESULT_COLUMN_DEFINITIONS = [
   {
@@ -238,7 +233,7 @@ function compareMachineTopCandidateRows(left, right) {
   );
 }
 
-function buildMachineTopCandidateRows(displayGroups, deviationValueByRowKey) {
+function buildMachineTopCandidateRows(displayGroups, gapValueByRowKey) {
   return (Array.isArray(displayGroups) ? displayGroups : [])
     .map((group) => {
       const topRow = getRankingGroupRows(group, true)[0] ?? null;
@@ -246,7 +241,7 @@ function buildMachineTopCandidateRows(displayGroups, deviationValueByRowKey) {
         return null;
       }
 
-      return decorateRowsWithDeviation([topRow], deviationValueByRowKey)[0] ?? null;
+      return decorateRowsWithGapValues([topRow], gapValueByRowKey)[0] ?? null;
     })
     .filter((row) => Number.isFinite(readNextGapForRankScope(row, "machine")))
     .sort(compareMachineTopCandidateRows)
@@ -257,51 +252,35 @@ function buildMachineTopCandidateRows(displayGroups, deviationValueByRowKey) {
     }));
 }
 
-function buildDeviationRowKey(row) {
+function buildRankGapRowKey(row) {
   return String(row?.rowKey ?? `${row?.machineName ?? ""}::${row?.slotNumber ?? ""}`).trim();
 }
 
-function buildDeviationValueMaps(displayRows, displayGroups, rankFilter) {
-  const overallDeviationMap = calculateHuntScoreDeviationMap(displayRows);
+function buildGapValueMaps(displayRows, displayGroups, rankFilter) {
   const overallNextGapMap = calculateHuntScoreNextGapMap(displayRows, rankFilter);
-  const selectedDeviationMap = calculateHuntScoreDeviationMap(displayRows);
   const selectedNextGapMap = calculateHuntScoreNextGapMap(displayRows, rankFilter);
-  const overallDeviationByKey = new Map(
-    displayRows.map((row) => [buildDeviationRowKey(row), overallDeviationMap.get(row) ?? null]),
-  );
   const overallNextGapByKey = new Map(
-    displayRows.map((row) => [buildDeviationRowKey(row), overallNextGapMap.get(row) ?? null]),
-  );
-  const selectedDeviationByKey = new Map(
-    displayRows.map((row) => [buildDeviationRowKey(row), selectedDeviationMap.get(row) ?? null]),
+    displayRows.map((row) => [buildRankGapRowKey(row), overallNextGapMap.get(row) ?? null]),
   );
   const selectedNextGapByKey = new Map(
-    displayRows.map((row) => [buildDeviationRowKey(row), selectedNextGapMap.get(row) ?? null]),
+    displayRows.map((row) => [buildRankGapRowKey(row), selectedNextGapMap.get(row) ?? null]),
   );
-  const machineDeviationByKey = new Map();
   const machineNextGapByKey = new Map();
 
   for (const group of displayGroups) {
     const groupRows = getRankingGroupRows(group, true);
-    const deviationMap = calculateHuntScoreDeviationMap(groupRows);
     const nextGapMap = calculateHuntScoreNextGapMap(groupRows, rankFilter);
     for (const row of groupRows) {
-      if (deviationMap.has(row)) {
-        machineDeviationByKey.set(buildDeviationRowKey(row), deviationMap.get(row));
-      }
       if (nextGapMap.has(row)) {
-        machineNextGapByKey.set(buildDeviationRowKey(row), nextGapMap.get(row));
+        machineNextGapByKey.set(buildRankGapRowKey(row), nextGapMap.get(row));
       }
     }
   }
 
   const valueByRowKey = new Map();
   for (const row of displayRows) {
-    const rowKey = buildDeviationRowKey(row);
+    const rowKey = buildRankGapRowKey(row);
     valueByRowKey.set(rowKey, {
-      overallDeviation: overallDeviationByKey.get(rowKey) ?? null,
-      selectedDeviation: selectedDeviationByKey.get(rowKey) ?? null,
-      machineDeviation: machineDeviationByKey.get(rowKey) ?? null,
       overallNextGap: overallNextGapByKey.get(rowKey) ?? null,
       selectedNextGap: selectedNextGapByKey.get(rowKey) ?? null,
       machineNextGap: machineNextGapByKey.get(rowKey) ?? null,
@@ -311,18 +290,11 @@ function buildDeviationValueMaps(displayRows, displayGroups, rankFilter) {
   return valueByRowKey;
 }
 
-function decorateRowsWithDeviation(rows, deviationValueByRowKey) {
+function decorateRowsWithGapValues(rows, gapValueByRowKey) {
   return rows.map((row) => ({
     ...row,
-    ...(deviationValueByRowKey.get(buildDeviationRowKey(row)) ?? {}),
+    ...(gapValueByRowKey.get(buildRankGapRowKey(row)) ?? {}),
   }));
-}
-
-function normalizeDeviationScope(value) {
-  if (value === "all" || value === "machine" || value === "selected") {
-    return value;
-  }
-  return DEFAULT_DEVIATION_SCOPE;
 }
 
 function normalizeNextGapScope(value) {
@@ -350,10 +322,6 @@ function readRankForScope(row, rankScope) {
   return row?.selectedRank ?? null;
 }
 
-function formatDeviationForScope(row, deviationScope) {
-  return formatDecimal(readDeviationForRankScope(row, normalizeDeviationScope(deviationScope)));
-}
-
 function formatNextGapForScope(row, nextGapScope) {
   return formatDecimal(readNextGapForRankScope(row, normalizeNextGapScope(nextGapScope)));
 }
@@ -362,16 +330,11 @@ function isRankingConditionHighlighted(row, highlightCondition) {
   if (
     !highlightCondition.rankFilter.hasRankFilter &&
     !highlightCondition.scoreFilter.hasScoreFilter &&
-    !highlightCondition.deviationFilter.hasDeviationFilter &&
     !highlightCondition.nextGapFilter.hasNextGapFilter
   ) {
     return false;
   }
 
-  const deviationValue = readDeviationForRankScope(
-    row,
-    normalizeDeviationScope(highlightCondition.deviationScope),
-  );
   const rankValue = readRankForScope(row, highlightCondition.rankScope);
   const nextGapValue = readNextGapForRankScope(
     row,
@@ -383,8 +346,6 @@ function isRankingConditionHighlighted(row, highlightCondition) {
     highlightCondition.rankFilter,
     highlightCondition.scoreFilter,
     highlightCondition.requirementOptions,
-    deviationValue,
-    highlightCondition.deviationFilter,
     false,
     nextGapValue,
     highlightCondition.nextGapFilter,
@@ -393,7 +354,7 @@ function isRankingConditionHighlighted(row, highlightCondition) {
 
 function getRankingConditionHighlightClass(row, highlightCondition) {
   return isRankingConditionHighlighted(row, highlightCondition)
-    ? "huntScoreDeviationHighlighted"
+    ? "huntScoreConditionHighlighted"
     : undefined;
 }
 
@@ -404,7 +365,7 @@ function buildSelectedRankValueMap(displayGroups) {
 
   return new Map(
     rows.map((row, index) => [
-      buildDeviationRowKey(row),
+      buildRankGapRowKey(row),
       row?.selectedRank ?? index + 1,
     ]),
   );
@@ -413,8 +374,8 @@ function buildSelectedRankValueMap(displayGroups) {
 function decorateRowsWithSelectedRank(rows, selectedRankValueMap) {
   return rows.map((row) => ({
     ...row,
-    selectedRank: selectedRankValueMap.has(buildDeviationRowKey(row))
-      ? selectedRankValueMap.get(buildDeviationRowKey(row))
+    selectedRank: selectedRankValueMap.has(buildRankGapRowKey(row))
+      ? selectedRankValueMap.get(buildRankGapRowKey(row))
       : null,
   }));
 }
@@ -427,7 +388,6 @@ function OverallRankingTable({
   rows,
   visibleColumns,
   scoreColumnLabel,
-  deviationScope,
   nextGapScope,
   highlightCondition,
 }) {
@@ -445,7 +405,6 @@ function OverallRankingTable({
             <tr>
               <th>{rankColumnLabel}</th>
               <th>{scoreColumnLabel}</th>
-              <th>偏差値</th>
               <th>次点差</th>
               <th className="directoryNameHeader">機種名</th>
               <th>台番</th>
@@ -476,9 +435,6 @@ function OverallRankingTable({
                   </td>
                   <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
                     {formatNumber(row.huntScore)}
-                  </td>
-                  <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
-                    {formatDeviationForScope(row, deviationScope)}
                   </td>
                   <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
                     {formatNextGapForScope(row, nextGapScope)}
@@ -563,9 +519,6 @@ export function HuntRankingTable({
     [resultColumns, visibleResultKeys],
   );
   const scoreColumnLabel = useMemo(() => formatScoreColumnLabel(predictionDate), [predictionDate]);
-  const deviationScope = normalizeDeviationScope(
-    highlightOptions.deviationScope ?? DEFAULT_DEVIATION_SCOPE,
-  );
   const nextGapScope = normalizeNextGapScope(highlightOptions.nextGapScope ?? DEFAULT_NEXT_GAP_SCOPE);
   const rankScope = normalizeRankScope(highlightOptions.rankScope ?? DEFAULT_RANK_SCOPE);
   const highlightCondition = useMemo(
@@ -577,26 +530,18 @@ export function HuntRankingTable({
       scoreFilter: buildScoreFilter(
         highlightOptions.scoreMin ?? String(DEFAULT_HIGHLIGHT_SCORE_MIN),
       ),
-      deviationFilter: buildDeviationFilter(
-        highlightOptions.deviationMin ?? String(DEFAULT_DEVIATION_MIN),
-      ),
       nextGapFilter: buildNextGapFilter(highlightOptions.nextGapMin),
       requirementOptions: buildConditionRequirementOptions(highlightOptions, {
         rankRequired: true,
         scoreRequired: true,
-        deviationRequired: false,
         nextGapRequired: false,
       }),
       rankScope,
-      deviationScope,
       nextGapScope,
     }),
     [
-      deviationScope,
       nextGapScope,
       rankScope,
-      highlightOptions.deviationMin,
-      highlightOptions.deviationRequired,
       highlightOptions.nextGapMin,
       highlightOptions.nextGapRequired,
       highlightOptions.nextGapScope,
@@ -619,62 +564,62 @@ export function HuntRankingTable({
     () => buildSortedRankingRows(displayGroups),
     [displayGroups],
   );
-  const displayDeviationRows = useMemo(
+  const displayGapRows = useMemo(
     () => buildSortedRankingRows(displayGroups, true),
     [displayGroups],
   );
-  const deviationValueByRowKey = useMemo(
+  const gapValueByRowKey = useMemo(
     () =>
-      buildDeviationValueMaps(
-        displayDeviationRows,
+      buildGapValueMaps(
+        displayGapRows,
         displayGroups,
         highlightCondition.rankFilter,
       ),
-    [displayGroups, displayDeviationRows, highlightCondition.rankFilter],
+    [displayGroups, displayGapRows, highlightCondition.rankFilter],
   );
-  const machineTopCandidateDeviationValueByRowKey = useMemo(
+  const machineTopCandidateGapValueByRowKey = useMemo(
     () =>
-      buildDeviationValueMaps(
-        displayDeviationRows,
+      buildGapValueMaps(
+        displayGapRows,
         displayGroups,
         buildRankFilter(1, 1),
       ),
-    [displayGroups, displayDeviationRows],
+    [displayGroups, displayGapRows],
   );
   const selectedRankValueByRowKey = useMemo(
     () => buildSelectedRankValueMap(displayGroups),
     [displayGroups],
   );
-  const displayRowsWithDeviation = useMemo(
-    () => decorateRowsWithDeviation(displayRows, deviationValueByRowKey),
-    [deviationValueByRowKey, displayRows],
+  const displayRowsWithGap = useMemo(
+    () => decorateRowsWithGapValues(displayRows, gapValueByRowKey),
+    [gapValueByRowKey, displayRows],
   );
-  const displayGroupsWithDeviation = useMemo(
+  const displayGroupsWithGap = useMemo(
     () =>
       displayGroups.map((group) => ({
         ...group,
-        rows: decorateRowsWithDeviation(group.rows, deviationValueByRowKey),
+        rows: decorateRowsWithGapValues(group.rows, gapValueByRowKey),
       })),
-    [deviationValueByRowKey, displayGroups],
+    [gapValueByRowKey, displayGroups],
   );
   const selectedOverallRows = useMemo(
-    () => buildOverallRows(displayRowsWithDeviation, overallLimit),
-    [displayRowsWithDeviation, overallLimit],
+    () => buildOverallRows(displayRowsWithGap, overallLimit),
+    [displayRowsWithGap, overallLimit],
   );
   const machineTopCandidateRows = useMemo(
     () =>
       showMachineTopCandidates
-        ? buildMachineTopCandidateRows(displayGroups, machineTopCandidateDeviationValueByRowKey)
+        ? buildMachineTopCandidateRows(displayGroups, machineTopCandidateGapValueByRowKey)
         : [],
-    [displayGroups, machineTopCandidateDeviationValueByRowKey, showMachineTopCandidates],
+    [displayGroups, machineTopCandidateGapValueByRowKey, showMachineTopCandidates],
   );
   const bookmarkState = useMemo(
     () =>
       buildHuntBacktestBookmarkMatches(
-        decorateRowsWithSelectedRank(displayRowsWithDeviation, selectedRankValueByRowKey),
+        decorateRowsWithSelectedRank(displayRowsWithGap, selectedRankValueByRowKey),
         bookmark,
       ),
-    [displayRowsWithDeviation, bookmark, selectedRankValueByRowKey],
+    [displayRowsWithGap, bookmark, selectedRankValueByRowKey],
   );
   const bookmarkSummary = useMemo(
     () => formatHuntBacktestBookmarkSummary(bookmarkState.bookmark),
@@ -799,7 +744,6 @@ export function HuntRankingTable({
           rows={selectedOverallRows}
           visibleColumns={visibleColumns}
           scoreColumnLabel={scoreColumnLabel}
-          deviationScope={deviationScope}
           nextGapScope={nextGapScope}
           highlightCondition={highlightCondition}
         />
@@ -822,7 +766,6 @@ export function HuntRankingTable({
             rows={machineTopCandidateRows}
             visibleColumns={visibleColumns}
             scoreColumnLabel={scoreColumnLabel}
-            deviationScope="machine"
             nextGapScope="machine"
             highlightCondition={highlightCondition}
           />
@@ -834,7 +777,7 @@ export function HuntRankingTable({
         )
       ) : null}
 
-      {displayGroupsWithDeviation.map((group) => {
+      {displayGroupsWithGap.map((group) => {
         const groupHasSite7Data = group.rows.some((row) => row.predictionMachineHasSite7Data);
         const groupSite7FetchedAt = latestSite7FetchedAtFromRows(group.rows);
 
@@ -870,7 +813,6 @@ export function HuntRankingTable({
                 <tr>
                   <th>順位</th>
                   <th>{scoreColumnLabel}</th>
-                  <th>偏差値</th>
                   <th>次点差</th>
                   <th>台番</th>
                   {visibleColumns.map((column) => (
@@ -892,9 +834,6 @@ export function HuntRankingTable({
                       </td>
                       <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
                         {formatNumber(row.huntScore)}
-                      </td>
-                      <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
-                        {formatDeviationForScope(row, deviationScope)}
                       </td>
                       <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
                         {formatNextGapForScope(row, nextGapScope)}

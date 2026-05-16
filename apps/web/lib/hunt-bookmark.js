@@ -4,7 +4,7 @@ const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
 const HANABI_GROUP_NAME = "ハナビ";
 const HANABI_MACHINE_NAMES = ["新ハナビ", "スマスロ ハナビ"];
-const DEVIATION_EPSILON = 0.000000001;
+const SCORE_EPSILON = 0.000000001;
 
 export const HUNT_BACKTEST_BOOKMARK_EVENT = "hunt-backtest-bookmark-change";
 
@@ -145,15 +145,6 @@ export function buildScoreFilter(scoreMinValue) {
   };
 }
 
-export function buildDeviationFilter(deviationMinValue) {
-  const deviationMin = readNumber(deviationMinValue);
-
-  return {
-    deviationMin,
-    hasDeviationFilter: deviationMin !== null,
-  };
-}
-
 export function buildNextGapFilter(nextGapMinValue) {
   const nextGapMin = readNumber(nextGapMinValue);
 
@@ -185,7 +176,6 @@ export function buildConditionRequirementOptions(source = {}, fallback = {}) {
   if (
     !Object.hasOwn(safeSource, "rankRequired") &&
     !Object.hasOwn(safeSource, "scoreRequired") &&
-    !Object.hasOwn(safeSource, "deviationRequired") &&
     !Object.hasOwn(safeSource, "nextGapRequired") &&
     Object.hasOwn(safeSource, "matchMode")
   ) {
@@ -193,7 +183,6 @@ export function buildConditionRequirementOptions(source = {}, fallback = {}) {
     return {
       rankRequired: allRequired,
       scoreRequired: allRequired,
-      deviationRequired: allRequired,
       nextGapRequired: allRequired,
     };
   }
@@ -201,10 +190,6 @@ export function buildConditionRequirementOptions(source = {}, fallback = {}) {
   return {
     rankRequired: normalizeRequiredOption(safeSource.rankRequired, Boolean(fallback.rankRequired)),
     scoreRequired: normalizeRequiredOption(safeSource.scoreRequired, Boolean(fallback.scoreRequired)),
-    deviationRequired: normalizeRequiredOption(
-      safeSource.deviationRequired,
-      Boolean(fallback.deviationRequired),
-    ),
     nextGapRequired: normalizeRequiredOption(
       safeSource.nextGapRequired,
       Boolean(fallback.nextGapRequired),
@@ -220,9 +205,6 @@ function requireActiveConditionFilters(requirementOptions, filters = {}) {
     scoreRequired: filters.scoreFilter?.hasScoreFilter
       ? true
       : Boolean(requirementOptions.scoreRequired),
-    deviationRequired: filters.deviationFilter?.hasDeviationFilter
-      ? true
-      : Boolean(requirementOptions.deviationRequired),
     nextGapRequired: filters.nextGapFilter?.hasNextGapFilter
       ? true
       : Boolean(requirementOptions.nextGapRequired),
@@ -246,16 +228,6 @@ function formatRankScopeLabel(rankScope) {
   return "チェック機種内順位";
 }
 
-function formatDeviationScopeLabel(deviationScope) {
-  if (deviationScope === "machine") {
-    return "機種内偏差値";
-  }
-  if (deviationScope === "selected") {
-    return "チェック機種内偏差値";
-  }
-  return "チェック機種内偏差値";
-}
-
 function formatNextGapScopeLabel(nextGapScope) {
   if (nextGapScope === "machine") {
     return "機種内次点差";
@@ -264,37 +236,6 @@ function formatNextGapScopeLabel(nextGapScope) {
     return "チェック機種内次点差";
   }
   return "チェック機種内次点差";
-}
-
-export function calculateHuntScoreDeviationMap(rows) {
-  const validRows = (Array.isArray(rows) ? rows : [])
-    .map((row) => ({
-      row,
-      score: readNumber(row?.huntScore),
-    }))
-    .filter((entry) => entry.score !== null);
-
-  if (validRows.length < 2) {
-    return new Map();
-  }
-
-  const average =
-    validRows.reduce((sum, entry) => sum + entry.score, 0) / validRows.length;
-  const variance =
-    validRows.reduce((sum, entry) => sum + (entry.score - average) ** 2, 0) /
-    validRows.length;
-  const standardDeviation = Math.sqrt(variance);
-
-  if (!Number.isFinite(standardDeviation) || standardDeviation <= DEVIATION_EPSILON) {
-    return new Map();
-  }
-
-  return new Map(
-    validRows.map((entry) => [
-      entry.row,
-      50 + ((entry.score - average) / standardDeviation) * 10,
-    ]),
-  );
 }
 
 export function calculateHuntScoreNextGapMap(rows, rankFilter = null) {
@@ -346,16 +287,6 @@ export function calculateHuntScoreNextGapMap(rows, rankFilter = null) {
   );
 }
 
-export function readDeviationForRankScope(row, rankScope) {
-  if (rankScope === "machine") {
-    return readNumber(row?.machineDeviation);
-  }
-  if (rankScope === "selected") {
-    return readNumber(row?.selectedDeviation);
-  }
-  return readNumber(row?.overallDeviation);
-}
-
 export function readNextGapForRankScope(row, rankScope) {
   if (rankScope === "machine") {
     return readNumber(row?.machineNextGap);
@@ -368,12 +299,12 @@ export function readNextGapForRankScope(row, rankScope) {
 
 function compareSelectionCandidates(left, right) {
   const nextGapDiff = right.nextGapValue - left.nextGapValue;
-  if (Math.abs(nextGapDiff) > DEVIATION_EPSILON) {
+  if (Math.abs(nextGapDiff) > SCORE_EPSILON) {
     return nextGapDiff;
   }
 
   const scoreDiff = readFiniteNumber(right.huntScore) - readFiniteNumber(left.huntScore);
-  if (Math.abs(scoreDiff) > DEVIATION_EPSILON) {
+  if (Math.abs(scoreDiff) > SCORE_EPSILON) {
     return scoreDiff;
   }
 
@@ -422,8 +353,6 @@ export function matchesRequiredConditionFilters(
   rankFilter,
   scoreFilter,
   requirementOptions = {},
-  deviationValue = null,
-  deviationFilter = { hasDeviationFilter: false, deviationMin: null },
   noFilterResult = true,
   nextGapValue = null,
   nextGapFilter = { hasNextGapFilter: false, nextGapMin: null },
@@ -445,15 +374,6 @@ export function matchesRequiredConditionFilters(
     conditionEntries.push({
       matched: readFiniteNumber(huntScore, Number.NEGATIVE_INFINITY) >= scoreFilter.scoreMin,
       required: normalizedRequirements.scoreRequired,
-    });
-  }
-  if (deviationFilter.hasDeviationFilter) {
-    const normalizedDeviationValue = readNumber(deviationValue);
-    conditionEntries.push({
-      matched:
-        normalizedDeviationValue !== null &&
-        normalizedDeviationValue >= deviationFilter.deviationMin,
-      required: normalizedRequirements.deviationRequired,
     });
   }
   if (nextGapFilter.hasNextGapFilter) {
@@ -516,7 +436,6 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
 
   const rankFilter = buildRankFilter(bookmark.rankMin, bookmark.rankMax);
   const scoreFilter = buildScoreFilter(bookmark.scoreMin);
-  const deviationFilter = buildDeviationFilter(bookmark.deviationMin);
   const nextGapFilter = buildNextGapFilter(bookmark.nextGapMin);
   const dailySelectionMode = normalizeDailySelectionMode(bookmark.dailySelectionMode);
   const usesMachineTopNextGapSelection = isMachineTopNextGapSelectionMode(dailySelectionMode);
@@ -526,7 +445,6 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     ? requireActiveConditionFilters(baseRequirementOptions, {
         rankFilter,
         scoreFilter,
-        deviationFilter,
         nextGapFilter,
       })
     : baseRequirementOptions;
@@ -546,17 +464,13 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     hasRankFilter: rankFilter.hasRankFilter,
     scoreMin: scoreFilter.scoreMin,
     hasScoreFilter: scoreFilter.hasScoreFilter,
-    deviationMin: deviationFilter.deviationMin,
-    hasDeviationFilter: deviationFilter.hasDeviationFilter,
     nextGapMin: nextGapFilter.nextGapMin,
     hasNextGapFilter: nextGapFilter.hasNextGapFilter,
     rankRequired: requirementOptions.rankRequired,
     scoreRequired: requirementOptions.scoreRequired,
-    deviationRequired: requirementOptions.deviationRequired,
     nextGapRequired: requirementOptions.nextGapRequired,
     dailySelectionMode,
     rankScope,
-    deviationScope: normalizeRankScope(bookmark.deviationScope ?? rankScope),
     nextGapScope: normalizeRankScope(bookmark.nextGapScope ?? "machine"),
     combineAimJuggler,
     combineHanabi,
@@ -589,15 +503,12 @@ export function areHuntBacktestBookmarksEqual(left, right) {
     normalizedLeft.rankMin === normalizedRight.rankMin &&
     normalizedLeft.rankMax === normalizedRight.rankMax &&
     normalizedLeft.scoreMin === normalizedRight.scoreMin &&
-    normalizedLeft.deviationMin === normalizedRight.deviationMin &&
     normalizedLeft.nextGapMin === normalizedRight.nextGapMin &&
     normalizedLeft.rankRequired === normalizedRight.rankRequired &&
     normalizedLeft.scoreRequired === normalizedRight.scoreRequired &&
-    normalizedLeft.deviationRequired === normalizedRight.deviationRequired &&
     normalizedLeft.nextGapRequired === normalizedRight.nextGapRequired &&
     normalizedLeft.dailySelectionMode === normalizedRight.dailySelectionMode &&
     normalizedLeft.rankScope === normalizedRight.rankScope &&
-    normalizedLeft.deviationScope === normalizedRight.deviationScope &&
     normalizedLeft.nextGapScope === normalizedRight.nextGapScope &&
     normalizedLeft.combineAimJuggler === normalizedRight.combineAimJuggler &&
     normalizedLeft.combineHanabi === normalizedRight.combineHanabi &&
@@ -644,7 +555,6 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   }
 
   parts.push(formatRankScopeLabel(normalizedBookmark.rankScope));
-  parts.push(formatDeviationScopeLabel(normalizedBookmark.deviationScope));
   parts.push(formatNextGapScopeLabel(normalizedBookmark.nextGapScope));
 
   if (normalizedBookmark.hasRankFilter) {
@@ -663,14 +573,6 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
     );
   }
 
-  if (normalizedBookmark.hasDeviationFilter) {
-    parts.push(
-      `偏差値${trimDecimalText(normalizedBookmark.deviationMin)}以上${
-        normalizedBookmark.deviationRequired ? "必須" : ""
-      }`,
-    );
-  }
-
   if (normalizedBookmark.hasNextGapFilter) {
     parts.push(
       `次点差${trimDecimalText(normalizedBookmark.nextGapMin)}以上${
@@ -682,7 +584,6 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   const activeFilterCount = [
     normalizedBookmark.hasRankFilter,
     normalizedBookmark.hasScoreFilter,
-    normalizedBookmark.hasDeviationFilter,
     normalizedBookmark.hasNextGapFilter,
   ].filter(Boolean).length;
 
@@ -695,7 +596,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   }
 
   if (activeFilterCount === 0) {
-    parts.push("順位、狙い度、偏差値、次点差の指定なし");
+    parts.push("順位、狙い度、次点差の指定なし");
   }
 
   return parts.join(" / ");
@@ -803,19 +704,16 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
   const machineRankCounts = new Map();
   const rankFilter = buildRankFilter(normalizedBookmark.rankMin, normalizedBookmark.rankMax);
   const scoreFilter = buildScoreFilter(normalizedBookmark.scoreMin);
-  const deviationFilter = buildDeviationFilter(normalizedBookmark.deviationMin);
   const nextGapFilter = buildNextGapFilter(normalizedBookmark.nextGapMin);
   const usesMachineTopNextGapSelection = isMachineTopNextGapSelectionMode(
     normalizedBookmark.dailySelectionMode,
   );
   const conditionNextGapRankFilter = usesMachineTopNextGapSelection ? null : rankFilter;
   const selectionRankFilter = buildRankFilter(1, 1);
-  const overallDeviationMap = calculateHuntScoreDeviationMap(safeRows);
   const overallNextGapMap = calculateHuntScoreNextGapMap(safeRows, conditionNextGapRankFilter);
   const selectedRows = safeRows.filter((row) =>
     includesBookmarkMachine(normalizeText(row?.machineName), selectedMachineNameSet),
   );
-  const selectedDeviationMap = calculateHuntScoreDeviationMap(selectedRows);
   const selectedNextGapMap = calculateHuntScoreNextGapMap(
     selectedRows,
     conditionNextGapRankFilter,
@@ -838,19 +736,14 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
     rowsByBookmarkMachineName.get(bookmarkMachineName).push(row);
   }
 
-  const machineDeviationMap = new Map();
   const machineNextGapMap = new Map();
   const selectionMachineNextGapMap = new Map();
   for (const machineRows of rowsByBookmarkMachineName.values()) {
-    const deviationMap = calculateHuntScoreDeviationMap(machineRows);
     const nextGapMap = calculateHuntScoreNextGapMap(machineRows, conditionNextGapRankFilter);
     const selectionNextGapMap = usesMachineTopNextGapSelection
       ? calculateHuntScoreNextGapMap(machineRows, selectionRankFilter)
       : null;
     for (const row of machineRows) {
-      if (deviationMap.has(row)) {
-        machineDeviationMap.set(row, deviationMap.get(row));
-      }
       if (nextGapMap.has(row)) {
         machineNextGapMap.set(row, nextGapMap.get(row));
       }
@@ -895,14 +788,6 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
         : normalizedBookmark.rankScope === "selected"
           ? rowSelectedRank
           : rowOverallRank;
-    const existingDeviationValue = readDeviationForRankScope(row, normalizedBookmark.deviationScope);
-    const calculatedDeviationValue =
-      normalizedBookmark.deviationScope === "machine"
-        ? machineDeviationMap.get(row) ?? null
-        : normalizedBookmark.deviationScope === "selected"
-          ? selectedDeviationMap.get(row) ?? null
-          : overallDeviationMap.get(row) ?? null;
-    const deviationValue = existingDeviationValue ?? calculatedDeviationValue;
     const calculatedNextGapValue =
       normalizedBookmark.nextGapScope === "machine"
         ? machineNextGapMap.get(row) ?? null
@@ -918,11 +803,8 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
       {
         rankRequired: normalizedBookmark.rankRequired,
         scoreRequired: normalizedBookmark.scoreRequired,
-        deviationRequired: normalizedBookmark.deviationRequired,
         nextGapRequired: normalizedBookmark.nextGapRequired,
       },
-      deviationValue,
-      deviationFilter,
       true,
       nextGapValue,
       nextGapFilter,

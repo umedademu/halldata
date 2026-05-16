@@ -31,14 +31,11 @@ const DEFAULT_RANKING_LIMIT = 20;
 const DEFAULT_HIGHLIGHT_RANK_MIN = "1";
 const DEFAULT_HIGHLIGHT_RANK_MAX = "3";
 const DEFAULT_HIGHLIGHT_SCORE_MIN = "70";
-const DEFAULT_HIGHLIGHT_DEVIATION_MIN = "60";
 const DEFAULT_HIGHLIGHT_NEXT_GAP_MIN = "";
 const DEFAULT_HIGHLIGHT_RANK_SCOPE = "selected";
-const DEFAULT_HIGHLIGHT_DEVIATION_SCOPE = "selected";
 const DEFAULT_HIGHLIGHT_NEXT_GAP_SCOPE = "machine";
 const DEFAULT_HIGHLIGHT_RANK_REQUIRED = true;
 const DEFAULT_HIGHLIGHT_SCORE_REQUIRED = true;
-const DEFAULT_HIGHLIGHT_DEVIATION_REQUIRED = false;
 const DEFAULT_HIGHLIGHT_NEXT_GAP_REQUIRED = false;
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
@@ -308,11 +305,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
       "scoreMin",
       DEFAULT_HIGHLIGHT_SCORE_MIN,
     ),
-    deviationMin: readSearchParamWithDefault(
-      resolvedSearchParams,
-      "deviationMin",
-      DEFAULT_HIGHLIGHT_DEVIATION_MIN,
-    ),
     nextGapMin: readSearchParamWithDefault(
       resolvedSearchParams,
       "nextGapMin",
@@ -328,11 +320,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
       "scoreRequired",
       DEFAULT_HIGHLIGHT_SCORE_REQUIRED ? "1" : "0",
     ),
-    deviationRequired: readMultiSearchParamWithDefault(
-      resolvedSearchParams,
-      "deviationRequired",
-      DEFAULT_HIGHLIGHT_DEVIATION_REQUIRED ? "1" : "0",
-    ),
     nextGapRequired: readMultiSearchParamWithDefault(
       resolvedSearchParams,
       "nextGapRequired",
@@ -341,10 +328,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     rankScope: normalizeHighlightScope(
       readSingleSearchParam(resolvedSearchParams?.rankScope),
       DEFAULT_HIGHLIGHT_RANK_SCOPE,
-    ),
-    deviationScope: normalizeHighlightScope(
-      readSingleSearchParam(resolvedSearchParams?.deviationScope),
-      DEFAULT_HIGHLIGHT_DEVIATION_SCOPE,
     ),
     nextGapScope: normalizeHighlightScope(
       readSingleSearchParam(resolvedSearchParams?.nextGapScope),
@@ -357,9 +340,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const scoreRequired = rankingHighlightOptions.scoreRequired.some((value) =>
     ["1", "true", "on"].includes(String(value ?? "").trim()),
   );
-  const deviationRequired = rankingHighlightOptions.deviationRequired.some((value) =>
-    ["1", "true", "on"].includes(String(value ?? "").trim()),
-  );
   const nextGapRequired = rankingHighlightOptions.nextGapRequired.some((value) =>
     ["1", "true", "on"].includes(String(value ?? "").trim()),
   );
@@ -370,7 +350,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     ...rankingHighlightOptions,
     rankRequired,
     scoreRequired,
-    deviationRequired,
     nextGapRequired,
   };
 
@@ -469,14 +448,11 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     rankMin: rankingHighlightOptions.rankMin,
     rankMax: rankingHighlightOptions.rankMax,
     scoreMin: rankingHighlightOptions.scoreMin,
-    deviationMin: rankingHighlightOptions.deviationMin,
     nextGapMin: rankingHighlightOptions.nextGapMin,
     rankRequired,
     scoreRequired,
-    deviationRequired,
     nextGapRequired,
     rankScope: rankingHighlightOptions.rankScope,
-    deviationScope: rankingHighlightOptions.deviationScope,
     nextGapScope: rankingHighlightOptions.nextGapScope,
     showMachineTopCandidates,
   });
@@ -764,36 +740,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   </label>
                 </div>
                 <div className="huntConditionRow">
-                  <p className="huntConditionLabel">偏差値</p>
-                  <div className="huntConditionInputs">
-                    <label className="storeReserveField backtestField huntConditionNumberField">
-                      <span>下限</span>
-                      <input
-                        type="number"
-                        name="deviationMin"
-                        min="0"
-                        step="0.1"
-                        defaultValue={rankingHighlightOptions.deviationMin}
-                        className="storeReserveInput"
-                      />
-                    </label>
-                  </div>
-                  <input type="hidden" name="deviationRequired" value="0" />
-                  <label
-                    className={`metricToggleChip huntConditionRequired ${
-                      deviationRequired ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      name="deviationRequired"
-                      value="1"
-                      defaultChecked={deviationRequired}
-                    />
-                    <span>必須</span>
-                  </label>
-                </div>
-                <div className="huntConditionRow">
                   <p className="huntConditionLabel">次点差</p>
                   <div className="huntConditionInputs">
                     <label className="storeReserveField backtestField huntConditionNumberField">
@@ -857,41 +803,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                       defaultChecked={rankingHighlightOptions.rankScope === "machine"}
                     />
                     <span>機種内順位</span>
-                  </label>
-                </div>
-              </div>
-              <div className="backtestBlock rankingMachineFilter">
-                <p className="filterControlLabel">偏差値の比較対象</p>
-                <div className="metricToggleRow">
-                  <label
-                    className={`metricToggleChip ${
-                      rankingHighlightOptions.deviationScope === "selected"
-                        ? "metricToggleChipActive"
-                        : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="deviationScope"
-                      value="selected"
-                      defaultChecked={rankingHighlightOptions.deviationScope === "selected"}
-                    />
-                    <span>チェック機種内</span>
-                  </label>
-                  <label
-                    className={`metricToggleChip ${
-                      rankingHighlightOptions.deviationScope === "machine"
-                        ? "metricToggleChipActive"
-                        : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="deviationScope"
-                      value="machine"
-                      defaultChecked={rankingHighlightOptions.deviationScope === "machine"}
-                    />
-                    <span>機種内</span>
                   </label>
                 </div>
               </div>

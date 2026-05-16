@@ -1645,21 +1645,21 @@ a {
   font-weight: 800;
 }
 
-.directoryTable tbody tr td.huntScoreDeviationHighlighted,
-.directoryTable tbody tr:nth-child(odd) td.huntScoreDeviationHighlighted,
-.directoryTable tbody tr:hover td.huntScoreDeviationHighlighted,
-.directoryTable tbody tr.settingEstimateLevel0 td.huntScoreDeviationHighlighted,
-.directoryTable tbody tr.settingEstimateLevel0:nth-child(odd) td.huntScoreDeviationHighlighted,
-.directoryTable tbody tr.settingEstimateLevel0:hover td.huntScoreDeviationHighlighted,
-.directoryTable tbody tr.settingEstimateLevel1 td.huntScoreDeviationHighlighted,
-.directoryTable tbody tr.settingEstimateLevel1:nth-child(odd) td.huntScoreDeviationHighlighted,
-.directoryTable tbody tr.settingEstimateLevel1:hover td.huntScoreDeviationHighlighted,
-.directoryTable tbody tr.settingEstimateLevel2 td.huntScoreDeviationHighlighted,
-.directoryTable tbody tr.settingEstimateLevel2:nth-child(odd) td.huntScoreDeviationHighlighted,
-.directoryTable tbody tr.settingEstimateLevel2:hover td.huntScoreDeviationHighlighted,
-.directoryTable tbody tr.settingEstimateLevel3 td.huntScoreDeviationHighlighted,
-.directoryTable tbody tr.settingEstimateLevel3:nth-child(odd) td.huntScoreDeviationHighlighted,
-.directoryTable tbody tr.settingEstimateLevel3:hover td.huntScoreDeviationHighlighted {
+.directoryTable tbody tr td.huntScoreConditionHighlighted,
+.directoryTable tbody tr:nth-child(odd) td.huntScoreConditionHighlighted,
+.directoryTable tbody tr:hover td.huntScoreConditionHighlighted,
+.directoryTable tbody tr.settingEstimateLevel0 td.huntScoreConditionHighlighted,
+.directoryTable tbody tr.settingEstimateLevel0:nth-child(odd) td.huntScoreConditionHighlighted,
+.directoryTable tbody tr.settingEstimateLevel0:hover td.huntScoreConditionHighlighted,
+.directoryTable tbody tr.settingEstimateLevel1 td.huntScoreConditionHighlighted,
+.directoryTable tbody tr.settingEstimateLevel1:nth-child(odd) td.huntScoreConditionHighlighted,
+.directoryTable tbody tr.settingEstimateLevel1:hover td.huntScoreConditionHighlighted,
+.directoryTable tbody tr.settingEstimateLevel2 td.huntScoreConditionHighlighted,
+.directoryTable tbody tr.settingEstimateLevel2:nth-child(odd) td.huntScoreConditionHighlighted,
+.directoryTable tbody tr.settingEstimateLevel2:hover td.huntScoreConditionHighlighted,
+.directoryTable tbody tr.settingEstimateLevel3 td.huntScoreConditionHighlighted,
+.directoryTable tbody tr.settingEstimateLevel3:nth-child(odd) td.huntScoreConditionHighlighted,
+.directoryTable tbody tr.settingEstimateLevel3:hover td.huntScoreConditionHighlighted {
   background: #eadcff;
   color: #3b1a65;
   font-weight: 900;
