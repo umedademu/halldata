@@ -124,6 +124,12 @@ function StoreRankingTable({ rows, huntScoreLogic, rankingMetric }) {
               <SortableTableHeader columnIndex={16}>BB</SortableTableHeader>
               <SortableTableHeader columnIndex={17}>RB</SortableTableHeader>
               <SortableTableHeader columnIndex={18} initialDirection="asc">
+                BB率
+              </SortableTableHeader>
+              <SortableTableHeader columnIndex={19} initialDirection="asc">
+                RB率
+              </SortableTableHeader>
+              <SortableTableHeader columnIndex={20} initialDirection="asc">
                 合成
               </SortableTableHeader>
             </tr>
@@ -181,6 +187,12 @@ function StoreRankingTable({ rows, huntScoreLogic, rankingMetric }) {
                 </td>
                 <td data-sort-value={row.bbTotal}>{formatNumber(row.bbTotal)}</td>
                 <td data-sort-value={row.rbTotal}>{formatNumber(row.rbTotal)}</td>
+                <td data-sort-value={readProbabilitySortValue(row.bbProbability)}>
+                  {row.bbProbability ?? "-"}
+                </td>
+                <td data-sort-value={readProbabilitySortValue(row.rbProbability)}>
+                  {row.rbProbability ?? "-"}
+                </td>
                 <td data-sort-value={readProbabilitySortValue(row.combinedProbability)}>
                   {row.combinedProbability ?? "-"}
                 </td>
