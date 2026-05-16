@@ -391,6 +391,13 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     scoreCalculator: calculateAparkKasugaHuntScore,
   },
   {
+    key: "apark-kai",
+    name: "Aパーク春日式・改",
+    windowDays: 7,
+    rankByRawScore: true,
+    scoreCalculator: calculateAparkKasugaKaiHuntScore,
+  },
+  {
     key: "apark-yakatabaru-a",
     name: "Aパーク屋形原式A",
     windowDays: 7,
@@ -781,6 +788,7 @@ function buildRuntimeHuntScoreConfig(config, logicKey = "", differenceMode = DEF
     historyWindowDays:
       logicDefinition.historyWindowDays ?? logicDefinition.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
     differenceMode: normalizeDifferenceMode(differenceMode),
+    rankByRawScore: Boolean(logicDefinition.rankByRawScore),
     scoreCalculator: logicDefinition.scoreCalculator,
   };
 }
@@ -1165,6 +1173,54 @@ function calculateAparkKasugaHuntScore(metrics) {
     calculateTodaySettingScore(metrics.todaySetting);
 
   return clamp(totalScore, 0, 100);
+}
+
+function readMachineActiveSlotCount(metrics, context = {}) {
+  const machineName = String(metrics?.machineName ?? "").trim();
+  if (!machineName) {
+    return 0;
+  }
+
+  return (Array.isArray(context.metricsList) ? context.metricsList : []).filter(
+    (candidateMetrics) => String(candidateMetrics?.machineName ?? "").trim() === machineName,
+  ).length;
+}
+
+function calculateAparkKasugaKaiHuntScore(metrics, context = {}) {
+  let score = calculateAparkKasugaHuntScore(metrics);
+
+  if (
+    metrics.lossDays >= 5 &&
+    metrics.lossDays <= 6 &&
+    metrics.streak >= 3 &&
+    metrics.netTotal <= -3000
+  ) {
+    score += 18;
+  }
+  if (metrics.streak >= 4) {
+    score += 8;
+  }
+  if (metrics.netTotal <= -5000) {
+    score += 8;
+  }
+  if (metrics.compensationRate <= 0.35) {
+    score += 4;
+  }
+  if (metrics.lossDays <= 4) {
+    score -= 10;
+  }
+  if (metrics.streak <= 1) {
+    score -= 6;
+  }
+  if (metrics.netTotal > -2000) {
+    score -= 6;
+  }
+  const activeSlotCount = readMachineActiveSlotCount(metrics, context);
+  if (activeSlotCount > 0 && activeSlotCount <= 4) {
+    score -= 10;
+  }
+
+  return score;
 }
 
 function isAparkYakatabaruTargetMachine(machineName) {
@@ -5356,7 +5412,8 @@ function buildSnapshotRowsForDate(
 
   const rows = validCandidates
     .map((candidate) => {
-      const huntScore = roundHuntScore(config.scoreCalculator(candidate.metrics, context));
+      const rawHuntScore = config.scoreCalculator(candidate.metrics, context);
+      const huntScore = roundHuntScore(rawHuntScore);
       if (!Number.isFinite(huntScore)) {
         return null;
       }
@@ -5374,6 +5431,7 @@ function buildSnapshotRowsForDate(
         machineName: normalizeHuntScoreMachineName(candidate.row.machine_name, config),
         slotNumber: candidate.row.slot_number,
         huntScore,
+        rankScore: config.rankByRawScore && Number.isFinite(rawHuntScore) ? rawHuntScore : huntScore,
         currentRecord: candidate.row,
         nextRecord,
         nextSettingEstimate: nextSetting,
@@ -5381,8 +5439,8 @@ function buildSnapshotRowsForDate(
     })
     .filter(Boolean)
     .sort((left, right) => {
-      if (Math.abs(right.huntScore - left.huntScore) > HUNT_SCORE_EPSILON) {
-        return right.huntScore - left.huntScore;
+      if (Math.abs(right.rankScore - left.rankScore) > HUNT_SCORE_EPSILON) {
+        return right.rankScore - left.rankScore;
       }
       const machineComparison = left.machineName.localeCompare(right.machineName, "ja");
       if (machineComparison !== 0) {
@@ -5390,7 +5448,7 @@ function buildSnapshotRowsForDate(
       }
       return String(left.slotNumber).localeCompare(String(right.slotNumber), "ja");
     })
-    .map((row, index) => ({
+    .map(({ rankScore, ...row }, index) => ({
       ...row,
       rank: index + 1,
     }));
