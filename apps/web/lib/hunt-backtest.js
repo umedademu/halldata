@@ -19,6 +19,10 @@ import {
   normalizeDifferenceMode as normalizeMachineDifferenceMode,
   selectDifferenceValue,
 } from "./machine-difference";
+import {
+  calculateSettingEstimate,
+  getSettingEstimateDefinition,
+} from "./setting-estimates";
 
 const DEFAULT_RECENT_DAYS = 90;
 const DEFAULT_DEVIATION_MIN = 60;
@@ -33,15 +37,6 @@ const BACKTEST_BREAKDOWN_DEFINITIONS = [
   { key: "weekday", title: "翌営業日が指定曜日" },
   { key: "normal", title: "通常日" },
 ];
-
-function readNumber(value) {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
-  const parsedValue = Number(value);
-  return Number.isFinite(parsedValue) ? parsedValue : null;
-}
 
 function readPositiveInteger(value) {
   const parsedValue = Number(value);
@@ -474,6 +469,70 @@ function resolveActualMetrics(machineName, nextRecord, differenceMode) {
   };
 }
 
+function getSettingEstimateBucketKey(definition) {
+  return String(definition?.displayName ?? "").trim();
+}
+
+function addAggregateSettingMetrics(summary, machineName, actualMetrics) {
+  const definition = getSettingEstimateDefinition(machineName);
+  const bucketKey = getSettingEstimateBucketKey(definition);
+  if (!definition || !bucketKey) {
+    return;
+  }
+
+  if (!summary.settingEstimateBuckets.has(bucketKey)) {
+    summary.settingEstimateBuckets.set(bucketKey, {
+      definition,
+      gamesTotal: 0,
+      bbTotal: 0,
+      rbTotal: 0,
+    });
+  }
+
+  const bucket = summary.settingEstimateBuckets.get(bucketKey);
+  bucket.gamesTotal += actualMetrics.gamesCount;
+  bucket.bbTotal += actualMetrics.bbCount;
+  bucket.rbTotal += actualMetrics.rbCount;
+}
+
+function calculateAggregateSettingAverage(summary) {
+  const estimates = [...summary.settingEstimateBuckets.values()]
+    .map((bucket) => {
+      const estimate = calculateSettingEstimate(bucket.definition, {
+        games_count: bucket.gamesTotal,
+        bb_count: bucket.bbTotal,
+        rb_count: bucket.rbTotal,
+      });
+      return estimate?.average !== undefined
+        ? {
+            average: estimate.average,
+            gamesTotal: bucket.gamesTotal,
+          }
+        : null;
+    })
+    .filter((estimate) => estimate && Number.isFinite(estimate.average));
+
+  if (estimates.length === 0) {
+    return null;
+  }
+  if (estimates.length === 1) {
+    return estimates[0].average;
+  }
+
+  const weightedGamesTotal = estimates.reduce(
+    (total, estimate) => total + estimate.gamesTotal,
+    0,
+  );
+  if (!Number.isFinite(weightedGamesTotal) || weightedGamesTotal <= 0) {
+    return null;
+  }
+
+  return estimates.reduce(
+    (total, estimate) => total + estimate.average * estimate.gamesTotal,
+    0,
+  ) / weightedGamesTotal;
+}
+
 function buildEmptySummary(machineName = "総計") {
   return {
     machineName,
@@ -496,7 +555,7 @@ function buildEmptySummary(machineName = "総計") {
     rbProbability: null,
     combinedProbability: null,
     averageSetting: null,
-    settingSampleCount: 0,
+    settingEstimateBuckets: new Map(),
     investedCoinsTotal: 0,
   };
 }
@@ -512,8 +571,9 @@ function buildEmptyDailySummary(date, predictionDate) {
 }
 
 function finalizeSummary(summary) {
+  const { settingEstimateBuckets, ...publicSummary } = summary;
   return {
-    ...summary,
+    ...publicSummary,
     averageHuntScore: calculateAverage(summary.huntScoreTotal, summary.matchedRowCount),
     averageDeviation: calculateAverage(summary.deviationTotal, summary.deviationSampleCount),
     averageNextGap: calculateAverage(summary.nextGapTotal, summary.nextGapSampleCount),
@@ -521,6 +581,7 @@ function finalizeSummary(summary) {
     bbProbability: formatProbability(summary.gamesTotal, summary.bbTotal),
     rbProbability: formatProbability(summary.gamesTotal, summary.rbTotal),
     combinedProbability: formatProbability(summary.gamesTotal, summary.bbTotal + summary.rbTotal),
+    averageSetting: calculateAggregateSettingAverage(summary),
   };
 }
 
@@ -803,7 +864,6 @@ function buildBacktestAggregationDetail(
       }
 
       const actualMetrics = resolveActualMetrics(row.machineName, row.nextRecord, differenceMode);
-      const settingAverage = readNumber(row.nextSettingEstimate?.average);
 
       actualRowCount += 1;
       summary.actualRowCount += 1;
@@ -818,27 +878,13 @@ function buildBacktestAggregationDetail(
       totalSummary.bbTotal += actualMetrics.bbCount;
       totalSummary.rbTotal += actualMetrics.rbCount;
       totalSummary.investedCoinsTotal += actualMetrics.investedCoins;
+      addAggregateSettingMetrics(summary, row.machineName, actualMetrics);
+      addAggregateSettingMetrics(totalSummary, row.machineName, actualMetrics);
 
       if (actualDate && dailySummariesByDate.has(actualDate)) {
         const dailySummary = dailySummariesByDate.get(actualDate);
         dailySummary.actualRowCount += 1;
         dailySummary.differenceTotal += actualMetrics.differenceValue;
-      }
-
-      if (settingAverage !== null) {
-        summary.settingSampleCount += 1;
-        summary.averageSetting =
-          calculateAverage(
-            (summary.averageSetting ?? 0) * (summary.settingSampleCount - 1) + settingAverage,
-            summary.settingSampleCount,
-          );
-        totalSummary.settingSampleCount += 1;
-        totalSummary.averageSetting =
-          calculateAverage(
-            (totalSummary.averageSetting ?? 0) * (totalSummary.settingSampleCount - 1) +
-              settingAverage,
-            totalSummary.settingSampleCount,
-          );
       }
     }
   }
