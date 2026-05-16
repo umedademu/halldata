@@ -70,6 +70,7 @@ from site7_scraper import (
     clamp_site7_recent_days,
     default_site7_store_settings,
     enrich_site7_target_store,
+    site7_store_is_known_unavailable,
 )
 from site7_scraper import build_site7_transition_wait_milliseconds
 from web_data_export import (
@@ -158,6 +159,13 @@ def find_html(folder_name: str) -> str:
 
 def find_gui_fixture(file_name: str) -> str:
     return (GUI_FIXTURE_DIR / file_name).read_text(encoding="utf-8")
+
+
+def find_site7_target_store(display_name: str) -> Site7TargetStore:
+    for target_store in SITE7_TARGET_STORES:
+        if target_store.display_name == display_name:
+            return target_store
+    raise AssertionError(f"未登録のサイトセブン店舗です: {display_name}")
 
 
 class FixtureScraper(MinRepoScraper):
@@ -1326,15 +1334,19 @@ class MinRepoScraperTests(unittest.TestCase):
             SITE7_TARGET_STORE_DISPLAY_NAMES,
             (
                 "Aパーク春日店",
+                "123博多店",
                 "スーパーハリウッド1120",
+                "BOOM天神本店",
                 "GOGOアリーナ天神",
+                "MJアリーナ井尻店",
+                "HINODE大野城店",
                 "スーパーDステーション39筑紫野店",
             ),
         )
-        self.assertEqual(SITE7_TARGET_STORES[1].area_name, "春日市")
-        self.assertEqual(SITE7_TARGET_STORES[2].area_name, "福岡市中央区")
-        self.assertEqual(SITE7_TARGET_STORES[3].hall_id, "42006007")
-        self.assertEqual(SITE7_TARGET_STORES[0].prefecture_link_text, "福岡")
+        self.assertEqual(find_site7_target_store("スーパーハリウッド1120").area_name, "春日市")
+        self.assertEqual(find_site7_target_store("GOGOアリーナ天神").area_name, "福岡市中央区")
+        self.assertEqual(find_site7_target_store("スーパーDステーション39筑紫野店").hall_id, "42006007")
+        self.assertEqual(find_site7_target_store("Aパーク春日店").prefecture_link_text, "福岡")
         self.assertEqual(
             default_site7_store_settings("スーパーハリウッド1120"),
             {
@@ -1355,6 +1367,66 @@ class MinRepoScraperTests(unittest.TestCase):
                 "site7_store_name": "ＧＯＧＯアリーナ天神",
                 "site7_hall_id": "",
                 "site7_address": "福岡県福岡市中央区天神２－６－３７",
+            },
+        )
+
+    def test_default_site7_store_settings_for_recently_checked_stores(self) -> None:
+        self.assertEqual(
+            default_site7_store_settings("123博多店"),
+            {
+                "site7_enabled": True,
+                "site7_prefecture": "福岡県",
+                "site7_area": "福岡市博多区",
+                "site7_store_name": "１２３博多店",
+                "site7_hall_id": "27038079",
+                "site7_address": "福岡県福岡市博多区住吉２丁目６番２４号",
+            },
+        )
+        self.assertEqual(
+            default_site7_store_settings("BOOM天神本店"),
+            {
+                "site7_enabled": True,
+                "site7_prefecture": "福岡県",
+                "site7_area": "福岡市中央区",
+                "site7_store_name": "ブーム天神本店",
+                "site7_hall_id": "40001007",
+                "site7_address": "福岡県福岡市中央区今泉１丁目１３番１号",
+            },
+        )
+        self.assertEqual(
+            default_site7_store_settings("MJアリーナ井尻店"),
+            {
+                "site7_enabled": True,
+                "site7_prefecture": "福岡県",
+                "site7_area": "春日市",
+                "site7_store_name": "MJアリーナ井尻店",
+                "site7_hall_id": "40056001",
+                "site7_address": "福岡県春日市桜ケ丘４－１４",
+            },
+        )
+        self.assertEqual(
+            default_site7_store_settings("HINODE大野城店"),
+            {
+                "site7_enabled": True,
+                "site7_prefecture": "福岡県",
+                "site7_area": "大野城市",
+                "site7_store_name": "HINODE大野城店",
+                "site7_hall_id": "40101001",
+                "site7_address": "福岡県大野城市瓦田４－１２－５",
+            },
+        )
+
+    def test_default_site7_store_settings_disables_unlisted_beam_hikari(self) -> None:
+        self.assertTrue(site7_store_is_known_unavailable("ビームヒカリ"))
+        self.assertEqual(
+            default_site7_store_settings("ビームヒカリ"),
+            {
+                "site7_enabled": False,
+                "site7_prefecture": "福岡県",
+                "site7_area": "大野城市",
+                "site7_store_name": "ビームヒカリ",
+                "site7_hall_id": "",
+                "site7_address": "",
             },
         )
 
@@ -1618,7 +1690,7 @@ class MinRepoScraperTests(unittest.TestCase):
 """
 
         self.assertEqual(
-            scraper.extract_area_link(html, SITE7_TARGET_STORES[1]),
+            scraper.extract_area_link(html, find_site7_target_store("GOGOアリーナ天神")),
             "https://www.d-deltanet.com/pc/HallSearchByArea.do?prefecturecode=40&district=40133",
         )
 
@@ -1634,7 +1706,7 @@ class MinRepoScraperTests(unittest.TestCase):
 """
 
         self.assertEqual(
-            scraper.extract_area_link(html, SITE7_TARGET_STORES[1]),
+            scraper.extract_area_link(html, find_site7_target_store("GOGOアリーナ天神")),
             "https://www.d-deltanet.com/pc/HallSearchByArea.do?prefecturecode=40&district=40133",
         )
 
@@ -1743,7 +1815,7 @@ class MinRepoScraperTests(unittest.TestCase):
 """
 
         self.assertEqual(
-            scraper.extract_target_hall_search_code(html, SITE7_TARGET_STORES[1]),
+            scraper.extract_target_hall_search_code(html, find_site7_target_store("GOGOアリーナ天神")),
             "22222222222222222222222222222222",
         )
 
@@ -1781,6 +1853,35 @@ class MinRepoScraperTests(unittest.TestCase):
         kind, progress = app.result_queue.get_nowait()
         self.assertEqual(kind, "fetch_progress")
         self.assertEqual(progress.message, "1/1 Aパーク春日店 は取得失敗")
+
+    def test_site7_registered_stores_from_skips_unlisted_store(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        beam_store = RegisteredStore(
+            name="ビームヒカリ",
+            url="https://example.com/beam",
+            site7_enabled=True,
+            site7_area="大野城市",
+        )
+        hinode_store = RegisteredStore(
+            name="HINODE大野城店",
+            url="https://example.com/hinode",
+            site7_enabled=True,
+            site7_area="大野城市",
+        )
+
+        self.assertEqual(app._site7_registered_stores_from([beam_store, hinode_store]), [hinode_store])
+
+    def test_site7_registered_stores_from_errors_when_only_unlisted_store(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        beam_store = RegisteredStore(
+            name="ビームヒカリ",
+            url="https://example.com/beam",
+            site7_enabled=True,
+            site7_area="大野城市",
+        )
+
+        with self.assertRaisesRegex(ScraperError, "サイトセブンの店舗一覧にない"):
+            app._site7_registered_stores_from([beam_store])
 
     def test_site7_parse_machine_history_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
@@ -2793,6 +2894,67 @@ class MinRepoScraperTests(unittest.TestCase):
                         "site7_store_name": "Ａパーク春日店",
                         "site7_hall_id": "",
                         "site7_address": "福岡県春日市日の出町５－２４",
+                    }
+                ],
+            )
+
+    def test_normalize_registered_stores_disables_unlisted_site7_store(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+
+            self.assertEqual(
+                service._normalize_registered_stores(  # type: ignore[attr-defined]
+                    [
+                        {
+                            "store_name": "ビームヒカリ",
+                            "store_url": "https://example.com/beam",
+                            "site7_enabled": True,
+                            "site7_area": "大野城市",
+                        }
+                    ]
+                ),
+                [
+                    {
+                        "store_name": "ビームヒカリ",
+                        "store_url": "https://example.com/beam/",
+                        "site7_enabled": False,
+                        "site7_prefecture": "福岡県",
+                        "site7_area": "大野城市",
+                        "site7_store_name": "ビームヒカリ",
+                        "site7_hall_id": "",
+                        "site7_address": "",
+                    }
+                ],
+            )
+
+    def test_normalize_registered_stores_fills_blank_site7_fields_for_known_store(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+
+            self.assertEqual(
+                service._normalize_registered_stores(  # type: ignore[attr-defined]
+                    [
+                        {
+                            "store_name": "HINODE大野城店",
+                            "store_url": "https://example.com/hinode",
+                            "site7_enabled": True,
+                            "site7_area": "",
+                            "site7_store_name": "",
+                            "site7_hall_id": "",
+                            "site7_address": "",
+                        }
+                    ]
+                ),
+                [
+                    {
+                        "store_name": "HINODE大野城店",
+                        "store_url": "https://example.com/hinode/",
+                        "site7_enabled": True,
+                        "site7_prefecture": "福岡県",
+                        "site7_area": "大野城市",
+                        "site7_store_name": "HINODE大野城店",
+                        "site7_hall_id": "40101001",
+                        "site7_address": "福岡県大野城市瓦田４－１２－５",
                     }
                 ],
             )

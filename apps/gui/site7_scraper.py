@@ -119,6 +119,18 @@ class Site7TargetStore:
         return _normalize_site7_prefecture_link_text(self.prefecture_name)
 
 
+@dataclass(frozen=True)
+class Site7UnavailableStore:
+    display_name: str
+    prefecture_name: str = DEFAULT_SITE7_PREFECTURE_NAME
+    area_name: str = ""
+    hall_name_aliases: tuple[str, ...] = ()
+
+    @property
+    def store_name_match_keys(self) -> tuple[str, ...]:
+        return _collect_site7_lookup_keys(self.display_name, *self.hall_name_aliases)
+
+
 SITE7_TARGET_STORES = (
     Site7TargetStore(
         display_name="Aパーク春日店",
@@ -131,6 +143,16 @@ SITE7_TARGET_STORES = (
         hall_name_aliases=("Aパーク春日店",),
     ),
     Site7TargetStore(
+        display_name="123博多店",
+        site7_hall_name="１２３博多店",
+        prefecture_name=DEFAULT_SITE7_PREFECTURE_NAME,
+        hall_id="27038079",
+        hall_address="福岡県福岡市博多区住吉２丁目６番２４号",
+        area_name="福岡市博多区",
+        direct_hall_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=27038079",
+        hall_name_aliases=("123博多店",),
+    ),
+    Site7TargetStore(
         display_name="スーパーハリウッド1120",
         site7_hall_name="スーパーハリウッド１１２０",
         prefecture_name=DEFAULT_SITE7_PREFECTURE_NAME,
@@ -141,6 +163,16 @@ SITE7_TARGET_STORES = (
         hall_name_aliases=("スーパーハリウッド1120",),
     ),
     Site7TargetStore(
+        display_name="BOOM天神本店",
+        site7_hall_name="ブーム天神本店",
+        prefecture_name=DEFAULT_SITE7_PREFECTURE_NAME,
+        hall_id="40001007",
+        hall_address="福岡県福岡市中央区今泉１丁目１３番１号",
+        area_name="福岡市中央区",
+        direct_hall_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=40001007",
+        hall_name_aliases=("BOOM天神本店", "ＢＯＯＭ天神本店"),
+    ),
+    Site7TargetStore(
         display_name="GOGOアリーナ天神",
         site7_hall_name="ＧＯＧＯアリーナ天神",
         prefecture_name=DEFAULT_SITE7_PREFECTURE_NAME,
@@ -149,6 +181,26 @@ SITE7_TARGET_STORES = (
         area_name="福岡市中央区",
         direct_hall_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=40056006",
         hall_name_aliases=("GOGOアリーナ天神",),
+    ),
+    Site7TargetStore(
+        display_name="MJアリーナ井尻店",
+        site7_hall_name="MJアリーナ井尻店",
+        prefecture_name=DEFAULT_SITE7_PREFECTURE_NAME,
+        hall_id="40056001",
+        hall_address="福岡県春日市桜ケ丘４－１４",
+        area_name="春日市",
+        direct_hall_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=40056001",
+        hall_name_aliases=("ＭＪアリーナ井尻店",),
+    ),
+    Site7TargetStore(
+        display_name="HINODE大野城店",
+        site7_hall_name="HINODE大野城店",
+        prefecture_name=DEFAULT_SITE7_PREFECTURE_NAME,
+        hall_id="40101001",
+        hall_address="福岡県大野城市瓦田４－１２－５",
+        area_name="大野城市",
+        direct_hall_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=40101001",
+        hall_name_aliases=("ヒノデ大野城店", "日の出大野城店"),
     ),
     Site7TargetStore(
         display_name="スーパーDステーション39筑紫野店",
@@ -164,6 +216,14 @@ SITE7_TARGET_STORES = (
             "スーパーＤステーション筑紫野店",
             "スーパーＤ’ステーション３９筑紫野店",
         ),
+    ),
+)
+SITE7_UNAVAILABLE_STORES = (
+    Site7UnavailableStore(
+        display_name="ビームヒカリ",
+        prefecture_name=DEFAULT_SITE7_PREFECTURE_NAME,
+        area_name="大野城市",
+        hall_name_aliases=("BEAM BY HIKARI", "BEAM HIKARI", "ビームヒカリ店"),
     ),
 )
 SITE7_TARGET_STORE_DISPLAY_NAMES = tuple(store.display_name for store in SITE7_TARGET_STORES)
@@ -270,6 +330,21 @@ def find_known_site7_target_store(store_name: str) -> Site7TargetStore | None:
     return None
 
 
+def find_known_unavailable_site7_store(store_name: str) -> Site7UnavailableStore | None:
+    store_name_keys = _build_site7_lookup_keys(store_name)
+    if not store_name_keys:
+        return None
+
+    for unavailable_store in SITE7_UNAVAILABLE_STORES:
+        if _site7_lookup_keys_match(unavailable_store.store_name_match_keys, store_name_keys):
+            return unavailable_store
+    return None
+
+
+def site7_store_is_known_unavailable(store_name: str) -> bool:
+    return find_known_unavailable_site7_store(store_name) is not None
+
+
 def enrich_site7_target_store(target_store: Site7TargetStore) -> Site7TargetStore:
     known_target_store = (
         find_known_site7_target_store(target_store.site7_hall_name)
@@ -323,6 +398,17 @@ def default_site7_store_settings(store_name: str) -> dict[str, object]:
             "site7_store_name": known_target_store.site7_hall_name,
             "site7_hall_id": known_target_store.hall_id,
             "site7_address": known_target_store.hall_address,
+        }
+
+    known_unavailable_store = find_known_unavailable_site7_store(store_name)
+    if known_unavailable_store is not None:
+        return {
+            "site7_enabled": False,
+            "site7_prefecture": known_unavailable_store.prefecture_name,
+            "site7_area": known_unavailable_store.area_name,
+            "site7_store_name": known_unavailable_store.display_name,
+            "site7_hall_id": "",
+            "site7_address": "",
         }
 
     stripped_store_name = str(store_name).strip()

@@ -20,7 +20,11 @@ from machine_difference import (
 )
 from minrepo_scraper import MachineHistoryResult, normalize_text
 from r2_storage import R2JsonStorage, R2StorageError
-from site7_scraper import DEFAULT_SITE7_PREFECTURE_NAME, default_site7_store_settings
+from site7_scraper import (
+    DEFAULT_SITE7_PREFECTURE_NAME,
+    default_site7_store_settings,
+    site7_store_is_known_unavailable,
+)
 from web_data_export import (
     WEB_DATA_VERSION,
     StoreSource,
@@ -2665,22 +2669,37 @@ class HistoryPersistenceService:
             if store_url in seen_store_urls:
                 continue
             seen_store_urls.add(store_url)
+            site7_enabled = _coerce_bool(store.get("site7_enabled", site7_defaults["site7_enabled"]))
+            raw_site7_store_name = str(store.get("site7_store_name", "")).strip()
+            is_known_unavailable = site7_store_is_known_unavailable(store_name) or site7_store_is_known_unavailable(
+                raw_site7_store_name
+            )
+            if is_known_unavailable:
+                site7_enabled = False
+            should_fill_site7_defaults = site7_enabled or is_known_unavailable
+            site7_area = str(store.get("site7_area", "")).strip()
+            site7_store_name = raw_site7_store_name
+            site7_hall_id = str(store.get("site7_hall_id", "")).strip()
+            site7_address = str(store.get("site7_address", "")).strip()
+            if should_fill_site7_defaults:
+                site7_area = site7_area or str(site7_defaults["site7_area"]).strip()
+                site7_store_name = site7_store_name or str(site7_defaults["site7_store_name"]).strip()
+                site7_hall_id = site7_hall_id or str(site7_defaults["site7_hall_id"]).strip()
+                site7_address = site7_address or str(site7_defaults["site7_address"]).strip()
+            site7_store_name = site7_store_name or store_name
             normalized_stores.append(
                 {
                     "store_name": store_name,
                     "store_url": store_url,
-                    "site7_enabled": _coerce_bool(store.get("site7_enabled", site7_defaults["site7_enabled"])),
+                    "site7_enabled": site7_enabled,
                     "site7_prefecture": str(
                         store.get("site7_prefecture", site7_defaults["site7_prefecture"])
                     ).strip()
                     or DEFAULT_SITE7_PREFECTURE_NAME,
-                    "site7_area": str(store.get("site7_area", site7_defaults["site7_area"])).strip(),
-                    "site7_store_name": str(
-                        store.get("site7_store_name", site7_defaults["site7_store_name"])
-                    ).strip()
-                    or store_name,
-                    "site7_hall_id": str(store.get("site7_hall_id", site7_defaults["site7_hall_id"])).strip(),
-                    "site7_address": str(store.get("site7_address", site7_defaults["site7_address"])).strip(),
+                    "site7_area": site7_area,
+                    "site7_store_name": site7_store_name,
+                    "site7_hall_id": site7_hall_id,
+                    "site7_address": site7_address,
                 }
             )
 

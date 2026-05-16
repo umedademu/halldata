@@ -53,6 +53,7 @@ from site7_scraper import (
     Site7TargetStore,
     default_site7_store_settings,
     enrich_site7_target_store,
+    site7_store_is_known_unavailable,
 )
 
 
@@ -3718,6 +3719,11 @@ class MinRepoApp:
         return self._site7_registered_stores_from(self.registered_stores)
 
     def _site7_registered_store_for_single_fetch(self, registered_store: RegisteredStore) -> RegisteredStore:
+        if self._registered_store_is_known_site7_unavailable(registered_store):
+            display_name = self._registered_store_display_name(registered_store)
+            raise ScraperError(
+                f"{display_name} は現在サイトセブンの店舗一覧にないため、サイトセブン取得の対象外です。"
+            )
         if not registered_store.site7_area.strip():
             display_name = self._registered_store_display_name(registered_store)
             raise ScraperError(f"{display_name} をサイトセブン取得するには地域を入力してください。")
@@ -3725,6 +3731,21 @@ class MinRepoApp:
 
     def _site7_registered_stores_from(self, registered_stores: list[RegisteredStore]) -> list[RegisteredStore]:
         target_stores = [registered_store for registered_store in registered_stores if registered_store.site7_enabled]
+        unavailable_stores = [
+            registered_store.name
+            for registered_store in target_stores
+            if self._registered_store_is_known_site7_unavailable(registered_store)
+        ]
+        target_stores = [
+            registered_store
+            for registered_store in target_stores
+            if not self._registered_store_is_known_site7_unavailable(registered_store)
+        ]
+        if unavailable_stores and not target_stores:
+            raise ScraperError(
+                "次の店舗は現在サイトセブンの店舗一覧にないため、サイトセブン取得の対象外です。\n"
+                + "\n".join(unavailable_stores)
+            )
         invalid_stores = [
             registered_store.name
             for registered_store in target_stores
@@ -3733,6 +3754,11 @@ class MinRepoApp:
         if invalid_stores:
             raise ScraperError("サイトセブン取得を使う店舗は地域を入力してください。\n" + "\n".join(invalid_stores))
         return target_stores
+
+    def _registered_store_is_known_site7_unavailable(self, registered_store: RegisteredStore) -> bool:
+        return site7_store_is_known_unavailable(registered_store.name) or site7_store_is_known_unavailable(
+            registered_store.resolved_site7_store_name()
+        )
 
     def _persist_registered_stores(self) -> RegisteredStoresPersistenceSummary:
         return self._persist_registered_store_list(self.registered_stores)
