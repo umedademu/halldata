@@ -9,6 +9,8 @@ const HUNT_SCORE_EPSILON = 0.000000001;
 const DEFAULT_HUNT_SCORE_WINDOW_DAYS = 7;
 const TAMAYA_ZASSHONOKUMA_HISTORY_WINDOW_DAYS = 30;
 const DEFAULT_HUNT_SCORE_LOGIC_KEY = "apark";
+const APARK_KASUGA_KAI_RAW_MIN = -32;
+const APARK_KASUGA_KAI_RAW_MAX = 138;
 
 const OTHER_TARGET_MACHINES = [
   {
@@ -394,7 +396,6 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     key: "apark-kai",
     name: "Aパーク春日式・改",
     windowDays: 7,
-    rankByRawScore: true,
     scoreCalculator: calculateAparkKasugaKaiHuntScore,
   },
   {
@@ -788,7 +789,6 @@ function buildRuntimeHuntScoreConfig(config, logicKey = "", differenceMode = DEF
     historyWindowDays:
       logicDefinition.historyWindowDays ?? logicDefinition.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
     differenceMode: normalizeDifferenceMode(differenceMode),
-    rankByRawScore: Boolean(logicDefinition.rankByRawScore),
     scoreCalculator: logicDefinition.scoreCalculator,
   };
 }
@@ -1187,7 +1187,7 @@ function readMachineActiveSlotCount(metrics, context = {}) {
 }
 
 function calculateAparkKasugaKaiHuntScore(metrics, context = {}) {
-  let score = calculateAparkKasugaHuntScore(metrics);
+  let rawScore = calculateAparkKasugaHuntScore(metrics);
 
   if (
     metrics.lossDays >= 5 &&
@@ -1195,32 +1195,33 @@ function calculateAparkKasugaKaiHuntScore(metrics, context = {}) {
     metrics.streak >= 3 &&
     metrics.netTotal <= -3000
   ) {
-    score += 18;
+    rawScore += 18;
   }
   if (metrics.streak >= 4) {
-    score += 8;
+    rawScore += 8;
   }
   if (metrics.netTotal <= -5000) {
-    score += 8;
+    rawScore += 8;
   }
   if (metrics.compensationRate <= 0.35) {
-    score += 4;
+    rawScore += 4;
   }
   if (metrics.lossDays <= 4) {
-    score -= 10;
+    rawScore -= 10;
   }
   if (metrics.streak <= 1) {
-    score -= 6;
+    rawScore -= 6;
   }
   if (metrics.netTotal > -2000) {
-    score -= 6;
+    rawScore -= 6;
   }
   const activeSlotCount = readMachineActiveSlotCount(metrics, context);
   if (activeSlotCount > 0 && activeSlotCount <= 4) {
-    score -= 10;
+    rawScore -= 10;
   }
 
-  return score;
+  return ((rawScore - APARK_KASUGA_KAI_RAW_MIN) /
+    (APARK_KASUGA_KAI_RAW_MAX - APARK_KASUGA_KAI_RAW_MIN)) * 100;
 }
 
 function isAparkYakatabaruTargetMachine(machineName) {
@@ -5412,8 +5413,7 @@ function buildSnapshotRowsForDate(
 
   const rows = validCandidates
     .map((candidate) => {
-      const rawHuntScore = config.scoreCalculator(candidate.metrics, context);
-      const huntScore = roundHuntScore(rawHuntScore);
+      const huntScore = roundHuntScore(config.scoreCalculator(candidate.metrics, context));
       if (!Number.isFinite(huntScore)) {
         return null;
       }
@@ -5431,7 +5431,6 @@ function buildSnapshotRowsForDate(
         machineName: normalizeHuntScoreMachineName(candidate.row.machine_name, config),
         slotNumber: candidate.row.slot_number,
         huntScore,
-        rankScore: config.rankByRawScore && Number.isFinite(rawHuntScore) ? rawHuntScore : huntScore,
         currentRecord: candidate.row,
         nextRecord,
         nextSettingEstimate: nextSetting,
@@ -5439,8 +5438,8 @@ function buildSnapshotRowsForDate(
     })
     .filter(Boolean)
     .sort((left, right) => {
-      if (Math.abs(right.rankScore - left.rankScore) > HUNT_SCORE_EPSILON) {
-        return right.rankScore - left.rankScore;
+      if (Math.abs(right.huntScore - left.huntScore) > HUNT_SCORE_EPSILON) {
+        return right.huntScore - left.huntScore;
       }
       const machineComparison = left.machineName.localeCompare(right.machineName, "ja");
       if (machineComparison !== 0) {
@@ -5448,7 +5447,7 @@ function buildSnapshotRowsForDate(
       }
       return String(left.slotNumber).localeCompare(String(right.slotNumber), "ja");
     })
-    .map(({ rankScore, ...row }, index) => ({
+    .map((row, index) => ({
       ...row,
       rank: index + 1,
     }));
