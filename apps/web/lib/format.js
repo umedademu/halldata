@@ -4,6 +4,25 @@ const compactDateFormatter = new Intl.DateTimeFormat("ja-JP", {
   day: "2-digit",
 });
 
+const site7FetchedTimeFormatter = new Intl.DateTimeFormat("ja-JP", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  hourCycle: "h23",
+  timeZone: "Asia/Tokyo",
+});
+
+const site7FetchedDateTimeFormatter = new Intl.DateTimeFormat("ja-JP", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  hourCycle: "h23",
+  timeZone: "Asia/Tokyo",
+});
+
 const averageGamesFormatter = new Intl.NumberFormat("ja-JP", {
   maximumFractionDigits: 0,
 });
@@ -137,6 +156,25 @@ export function formatMonthDay(value) {
   }
 
   return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+function parseDateTime(value) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function formatSite7FetchedTime(value) {
+  const date = parseDateTime(value);
+  return date ? site7FetchedTimeFormatter.format(date) : "";
+}
+
+export function formatSite7FetchedDateTime(value) {
+  const date = parseDateTime(value);
+  return date ? site7FetchedDateTimeFormatter.format(date) : "";
 }
 
 export function formatPeriod(startDate, endDate) {

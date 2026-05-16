@@ -1126,6 +1126,7 @@ function buildMachineDetailFromDailyRows(rows) {
         bb_ratio_text: sourceRecord.bb_ratio_text ?? null,
         rb_ratio_text: sourceRecord.rb_ratio_text ?? null,
         data_source: String(sourceRecord.data_source ?? "").trim() || null,
+        site7_fetched_at: readSite7FetchedAt(sourceRecord),
       });
       recordsBySlot[slotNumber] = record;
       slotNumbersSet.add(slotNumber);
@@ -1147,6 +1148,7 @@ function buildMachineDetailFromDailyRows(rows) {
       date,
       recordsBySlot,
       hasSite7Data: Object.values(recordsBySlot).some(isSite7Record),
+      site7FetchedAt: latestSite7FetchedAt(Object.values(recordsBySlot)),
     });
 
     const storedAverageDifference =
@@ -1227,6 +1229,7 @@ function buildMachineDetail(rows) {
     date,
     recordsBySlot: recordsByDate.get(date),
     hasSite7Data: Object.values(recordsByDate.get(date) ?? {}).some(isSite7Record),
+    site7FetchedAt: latestSite7FetchedAt(Object.values(recordsByDate.get(date) ?? {})),
   }));
 
   const bestWorstCandidates = [...dailyDifferences.entries()]
@@ -1410,6 +1413,7 @@ function readStaticStoreRecords(staticStore, dateRange = null) {
       bb_ratio_text: record.bb_ratio_text ?? null,
       rb_ratio_text: record.rb_ratio_text ?? null,
       data_source: String(record.data_source ?? "").trim() || null,
+      site7_fetched_at: readSite7FetchedAt(record),
     }))
     .filter((record) => record.machine_name && record.target_date && record.slot_number)
     .map(withCanonicalMachineName);
@@ -1417,6 +1421,26 @@ function readStaticStoreRecords(staticStore, dateRange = null) {
 
 function isSite7Record(record) {
   return String(record?.data_source ?? "").trim().toLowerCase() === "site7";
+}
+
+function readSite7FetchedAt(record) {
+  const fetchedAt = String(record?.site7_fetched_at ?? record?.site7FetchedAt ?? "").trim();
+  return fetchedAt || null;
+}
+
+function latestSite7FetchedAt(records) {
+  return (Array.isArray(records) ? records : [])
+    .filter(isSite7Record)
+    .map(readSite7FetchedAt)
+    .filter(Boolean)
+    .sort((left, right) => {
+      const leftTime = Date.parse(left);
+      const rightTime = Date.parse(right);
+      if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) {
+        return rightTime - leftTime;
+      }
+      return String(right).localeCompare(String(left), "ja");
+    })[0] ?? null;
 }
 
 function findStaticMachineEntries(staticStore, machineNames) {
@@ -1719,10 +1743,36 @@ function buildSnapshotSite7MachineNameSet(snapshot) {
   );
 }
 
-function decorateRowsWithSite7MachineData(rows, site7MachineNameSet) {
+function buildSnapshotSite7MachineFetchedAtMap(snapshot) {
+  const fetchedAtByMachineName = new Map();
+  for (const row of Array.isArray(snapshot?.rows) ? snapshot.rows : []) {
+    if (!isSite7Record(row?.currentRecord)) {
+      continue;
+    }
+    const machineName = String(row?.machineName ?? "").trim();
+    const fetchedAt = readSite7FetchedAt(row?.currentRecord);
+    if (!machineName || !fetchedAt) {
+      continue;
+    }
+    const currentFetchedAt = fetchedAtByMachineName.get(machineName);
+    const latestFetchedAt = latestSite7FetchedAt([
+      { data_source: "site7", site7_fetched_at: currentFetchedAt },
+      { data_source: "site7", site7_fetched_at: fetchedAt },
+    ]);
+    fetchedAtByMachineName.set(machineName, latestFetchedAt ?? fetchedAt);
+  }
+  return fetchedAtByMachineName;
+}
+
+function decorateRowsWithSite7MachineData(
+  rows,
+  site7MachineNameSet,
+  site7MachineFetchedAtByName = new Map(),
+) {
   return (Array.isArray(rows) ? rows : []).map((row) => ({
     ...row,
     predictionMachineHasSite7Data: site7MachineNameSet.has(String(row?.machineName ?? "").trim()),
+    predictionMachineSite7FetchedAt: site7MachineFetchedAtByName.get(String(row?.machineName ?? "").trim()) ?? null,
   }));
 }
 
@@ -2064,6 +2114,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   const snapshotRows = decorateRowsWithSite7MachineData(
     snapshot?.rows ?? [],
     buildSnapshotSite7MachineNameSet(snapshot),
+    buildSnapshotSite7MachineFetchedAtMap(snapshot),
   );
   const fullRankingGroups = buildSelectedMachineRankingGroups(
     snapshotRows,
@@ -2885,6 +2936,7 @@ export async function getHuntScoreAnalysisPageDetail(
   const snapshotRows = decorateRowsWithSite7MachineData(
     snapshot?.rows ?? [],
     buildSnapshotSite7MachineNameSet(snapshot),
+    buildSnapshotSite7MachineFetchedAtMap(snapshot),
   );
   const backtest = {
     ...buildHuntScoreBacktestDetail(snapshots, {

@@ -10,6 +10,8 @@ import {
   formatNumber,
   formatPercent,
   formatRatio,
+  formatSite7FetchedDateTime,
+  formatSite7FetchedTime,
   formatSignedNumber,
 } from "../lib/format";
 import {
@@ -114,6 +116,34 @@ function buildResultColumns(actualDate, differenceMode) {
 
 function formatScoreColumnLabel(predictionDate) {
   return predictionDate ? `${formatMonthDay(predictionDate)}狙い度` : "狙い度";
+}
+
+function latestSite7FetchedAtFromRows(rows) {
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => String(row?.predictionMachineSite7FetchedAt ?? "").trim())
+    .filter(Boolean)
+    .sort((left, right) => {
+      const leftTime = Date.parse(left);
+      const rightTime = Date.parse(right);
+      if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) {
+        return rightTime - leftTime;
+      }
+      return String(right).localeCompare(String(left), "ja");
+    })[0] ?? null;
+}
+
+function site7BadgeTitle(fetchedAt, fallbackTitle) {
+  const fetchedDateTime = formatSite7FetchedDateTime(fetchedAt);
+  return fetchedDateTime ? `${fallbackTitle}\n取得: ${fetchedDateTime}` : fallbackTitle;
+}
+
+function Site7RankingBadge({ fetchedAt, title }) {
+  const fetchedTime = formatSite7FetchedTime(fetchedAt);
+  return (
+    <span className="site7RankingBadge" title={site7BadgeTitle(fetchedAt, title)}>
+      Sセブン{fetchedTime ? <span className="site7BadgeTime">{fetchedTime}</span> : null}
+    </span>
+  );
 }
 
 function buildFallbackRankingGroups(rows) {
@@ -428,6 +458,13 @@ function OverallRankingTable({
             {rows.map((row) => {
               const rowClassName = getSettingEstimateHighlightClass(row.nextSettingEstimate?.average);
               const machineHasSite7Data = Boolean(row.predictionMachineHasSite7Data);
+              const machineSite7FetchedAt = row.predictionMachineSite7FetchedAt ?? null;
+              const machineTitle = machineHasSite7Data
+                ? site7BadgeTitle(
+                    machineSite7FetchedAt,
+                    "この機種にSセブン暫定データが含まれます",
+                  )
+                : undefined;
 
               return (
                 <tr
@@ -448,7 +485,7 @@ function OverallRankingTable({
                   </td>
                   <th
                     className={`directoryNameCell ${machineHasSite7Data ? "site7MachineCell" : ""}`}
-                    title={machineHasSite7Data ? "この機種にSセブン暫定データが含まれます" : undefined}
+                    title={machineTitle}
                   >
                     <span className="directoryNameContent">
                       <Link
@@ -457,7 +494,12 @@ function OverallRankingTable({
                       >
                         {row.machineName}
                       </Link>
-                      {machineHasSite7Data ? <span className="site7RankingBadge">Sセブン</span> : null}
+                      {machineHasSite7Data ? (
+                        <Site7RankingBadge
+                          fetchedAt={machineSite7FetchedAt}
+                          title="この機種にSセブン暫定データが含まれます"
+                        />
+                      ) : null}
                     </span>
                   </th>
                   <td>{row.slotNumber}</td>
@@ -794,6 +836,7 @@ export function HuntRankingTable({
 
       {displayGroupsWithDeviation.map((group) => {
         const groupHasSite7Data = group.rows.some((row) => row.predictionMachineHasSite7Data);
+        const groupSite7FetchedAt = latestSite7FetchedAtFromRows(group.rows);
 
         return (
           <section key={group.machineName} className="tablePanel directoryPanel">
@@ -811,7 +854,12 @@ export function HuntRankingTable({
                       {group.machineName}
                     </Link>
                   )}
-                  {groupHasSite7Data ? <span className="site7RankingBadge">Sセブン</span> : null}
+                  {groupHasSite7Data ? (
+                    <Site7RankingBadge
+                      fetchedAt={groupSite7FetchedAt}
+                      title="この機種にSセブン暫定データが含まれます"
+                    />
+                  ) : null}
                   {` 上位${formatNumber(group.rows.length)}台`}
                 </h2>
               </div>

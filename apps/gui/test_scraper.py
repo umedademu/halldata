@@ -77,6 +77,7 @@ from web_data_export import (
     StoreSource,
     build_store_id,
     build_store_payload,
+    collect_store_records_from_local_store_dir,
     export_store_payloads,
     safe_record,
 )
@@ -2076,6 +2077,59 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertIsNone(record)
 
+    def test_web_export_keeps_site7_fetched_at(self) -> None:
+        record = safe_record(
+            {
+                "target_date": "2026-05-12",
+                "slot_number": "821",
+                "machine_name": SITE7_TARGET_MACHINE_NAME,
+                "data_source": DATA_SOURCE_SITE7,
+                "difference_value": 100,
+                "games_count": 2000,
+                "bb_count": 8,
+                "rb_count": 6,
+                "site7_fetched_at": "2026-05-17T12:34:56+09:00",
+            }
+        )
+
+        self.assertIsNotNone(record)
+        self.assertEqual(record["site7_fetched_at"], "2026-05-17T12:34:56+09:00")
+
+    def test_local_snapshot_export_uses_snapshot_saved_at_for_site7_records(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            store_dir = Path(temp_dir) / "Aパーク春日店"
+            store_dir.mkdir(parents=True)
+            saved_at = "2026-05-17T12:34:56+09:00"
+            (store_dir / "snapshot.json").write_text(
+                json.dumps(
+                    {
+                        "saved_at": saved_at,
+                        "store": {
+                            "store_name": "Aパーク春日店",
+                            "store_url": "https://example.com/store/",
+                        },
+                        "records": [
+                            {
+                                "target_date": "2026-05-12",
+                                "slot_number": "821",
+                                "machine_name": SITE7_TARGET_MACHINE_NAME,
+                                "data_source": DATA_SOURCE_SITE7,
+                                "difference_value": 100,
+                                "games_count": 2000,
+                                "bb_count": 8,
+                                "rb_count": 6,
+                            }
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            _, records = collect_store_records_from_local_store_dir(store_dir)
+
+            self.assertEqual(records[0]["site7_fetched_at"], saved_at)
+
     def test_web_export_store_payload_filters_blank_site7_rows(self) -> None:
         store_source = StoreSource(
             store_name="Aパーク春日店",
@@ -2138,6 +2192,15 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertTrue(records)
         self.assertEqual({record["data_source"] for record in records}, {DATA_SOURCE_SITE7})
+
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            snapshot = service._build_local_snapshot(rewritten_result)  # type: ignore[attr-defined]
+
+        self.assertTrue(snapshot["records"])
+        self.assertTrue(
+            all(record["site7_fetched_at"] == snapshot["saved_at"] for record in snapshot["records"])
+        )
 
     def test_build_supabase_result_payload_rounds_fractional_difference_value(self) -> None:
         payload = build_supabase_result_payload(

@@ -14,6 +14,8 @@ import {
   formatPercent,
   formatRatio,
   formatShortDate,
+  formatSite7FetchedDateTime,
+  formatSite7FetchedTime,
   formatSignedNumber,
   formatWeekday,
   valueToneClass,
@@ -1974,16 +1976,27 @@ const MatrixRow = memo(function MatrixRow({
   const dateCellClassName = ["dateCell", row.hasSite7Data ? "site7DateCell" : ""]
     .filter(Boolean)
     .join(" ");
+  const site7FetchedTime = formatSite7FetchedTime(row.site7FetchedAt);
+  const site7FetchedDateTime = formatSite7FetchedDateTime(row.site7FetchedAt);
+  const site7Title = row.hasSite7Data
+    ? site7FetchedDateTime
+      ? `Sセブン暫定データ\n取得: ${site7FetchedDateTime}`
+      : "Sセブン暫定データ"
+    : undefined;
 
   return (
     <tr className={isHighlighted ? "matrixRowHighlighted" : ""}>
       <th
         className={dateCellClassName}
-        title={row.hasSite7Data ? "Sセブン暫定データ" : undefined}
+        title={site7Title}
       >
         <span className="dateCellStack">
           <span>{formatShortDate(row.date)}</span>
-          {row.hasSite7Data ? <span className="site7DateBadge">Sセブン</span> : null}
+          {row.hasSite7Data ? (
+            <span className="site7DateBadge">
+              Sセブン{site7FetchedTime ? <span className="site7BadgeTime">{site7FetchedTime}</span> : null}
+            </span>
+          ) : null}
         </span>
       </th>
       <td className="weekdayCell">{formatWeekday(row.date)}</td>

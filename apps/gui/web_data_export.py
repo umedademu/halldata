@@ -151,7 +151,11 @@ def compare_slot_key(slot_number: str) -> tuple[int, int | str]:
         return (1, slot_number)
 
 
-def safe_record(raw_record: dict[str, Any], store_id: str | None = None) -> dict[str, Any] | None:
+def safe_record(
+    raw_record: dict[str, Any],
+    store_id: str | None = None,
+    site7_fetched_at: str | None = None,
+) -> dict[str, Any] | None:
     machine_name = read_text(raw_record.get("machine_name"))
     target_date = read_text(raw_record.get("target_date"))
     slot_number = read_text(raw_record.get("slot_number"))
@@ -177,6 +181,14 @@ def safe_record(raw_record: dict[str, Any], store_id: str | None = None) -> dict
     data_source = read_text(raw_record.get("data_source"))
     if data_source:
         record["data_source"] = data_source
+    fetched_at = read_text(
+        raw_record.get("site7_fetched_at")
+        or raw_record.get("site7FetchedAt")
+        or raw_record.get("saved_at")
+        or site7_fetched_at
+    )
+    if data_source.casefold() == DATA_SOURCE_SITE7 and fetched_at:
+        record["site7_fetched_at"] = fetched_at
     if not record_should_be_exported(record):
         return None
     if store_id:
@@ -666,7 +678,7 @@ def collect_store_records_from_local_store_dir(store_dir: Path) -> tuple[StoreSo
         for raw_record in snapshot.get("records", []):
             if not isinstance(raw_record, dict):
                 continue
-            record = safe_record(raw_record)
+            record = safe_record(raw_record, site7_fetched_at=saved_at)
             if record is None:
                 continue
             record_key = (str(record["target_date"]), str(record["slot_number"]))

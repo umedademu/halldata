@@ -1739,6 +1739,7 @@ a {
 .site7RankingBadge {
   display: inline-flex;
   align-items: center;
+  gap: 3px;
   min-height: 1.1rem;
   padding: 1px 5px;
   border: 1px solid rgba(126, 74, 35, 0.34);
@@ -1862,6 +1863,8 @@ a {
 
 .site7DateBadge {
   display: inline-flex;
+  align-items: center;
+  gap: 2px;
   max-width: 100%;
   padding: 1px 3px;
   border: 1px solid rgba(126, 74, 35, 0.34);
@@ -1871,6 +1874,11 @@ a {
   font-size: 0.54rem;
   font-weight: 900;
   line-height: 1.1;
+}
+
+.site7BadgeTime {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
 .weekdayCell {

@@ -326,6 +326,21 @@ def _saved_record_should_be_kept(record: dict[str, Any]) -> bool:
     )
 
 
+def _with_site7_fetched_at(record: dict[str, Any], fetched_at: str) -> dict[str, Any]:
+    if _infer_saved_result_data_source(record) != DATA_SOURCE_SITE7:
+        return record
+
+    normalized_fetched_at = str(
+        record.get("site7_fetched_at") or record.get("site7FetchedAt") or fetched_at
+    ).strip()
+    if not normalized_fetched_at:
+        return record
+
+    updated_record = dict(record)
+    updated_record["site7_fetched_at"] = normalized_fetched_at
+    return updated_record
+
+
 def build_supabase_result_payload(record: dict[str, Any], store_id: str, updated_at: str) -> dict[str, Any]:
     payload = dict(record)
     payload["difference_value"] = _normalize_difference_value_for_supabase(payload.get("difference_value"))
@@ -424,7 +439,7 @@ def build_store_machine_daily_detail_payloads(
             }
             buckets[bucket_key] = bucket
 
-        bucket["records_by_slot"][slot_number] = {
+        slot_payload = {
             "difference_value": _normalize_difference_value_for_supabase(record.get("difference_value")),
             "bonus_difference_value": _normalize_difference_value_for_supabase(
                 record.get("bonus_difference_value")
@@ -437,6 +452,13 @@ def build_store_machine_daily_detail_payloads(
             "bb_ratio_text": _parse_text_value(record.get("bb_ratio_text") or ""),
             "rb_ratio_text": _parse_text_value(record.get("rb_ratio_text") or ""),
         }
+        data_source = _normalize_data_source(record.get("data_source"))
+        if data_source == DATA_SOURCE_SITE7:
+            slot_payload["data_source"] = data_source
+        site7_fetched_at = str(record.get("site7_fetched_at") or record.get("site7FetchedAt") or "").strip()
+        if data_source == DATA_SOURCE_SITE7 and site7_fetched_at:
+            slot_payload["site7_fetched_at"] = site7_fetched_at
+        bucket["records_by_slot"][slot_number] = slot_payload
         bucket["rows"].append(record)
 
     payloads: list[dict[str, Any]] = []
@@ -734,7 +756,11 @@ class HistoryPersistenceService:
         return self._find_r2_store_entry(store_name=store_name, store_url="")
 
     def _build_local_snapshot(self, history_result: MachineHistoryResult) -> dict[str, Any]:
-        records = build_machine_daily_records(history_result)
+        saved_at = datetime.now().astimezone().isoformat(timespec="seconds")
+        records = [
+            _with_site7_fetched_at(record, saved_at)
+            for record in build_machine_daily_records(history_result)
+        ]
         registered_location = self._registered_store_location_for(
             history_result.store_name,
             history_result.store_url,
@@ -749,7 +775,7 @@ class HistoryPersistenceService:
             store_payload["site7_area"] = registered_location["area_name"]
 
         return {
-            "saved_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "saved_at": saved_at,
             "store": store_payload,
             "period": {
                 "start_date": history_result.start_date,
