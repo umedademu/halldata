@@ -115,21 +115,22 @@ function StoreRankingTable({ rows, rankingMetric }) {
               <SortableTableHeader columnIndex={7}>平均G数</SortableTableHeader>
               <SortableTableHeader columnIndex={8}>設定</SortableTableHeader>
               <SortableTableHeader columnIndex={9}>集計台数</SortableTableHeader>
-              <SortableTableHeader columnIndex={10}>対象日数</SortableTableHeader>
-              <SortableTableHeader columnIndex={11}>集計日数</SortableTableHeader>
-              <SortableTableHeader columnIndex={12}>対象機種</SortableTableHeader>
-              <SortableTableHeader columnIndex={13}>設置台数</SortableTableHeader>
-              <SortableTableHeader columnIndex={14}>狙い度</SortableTableHeader>
-              <SortableTableHeader columnIndex={15}>次点差</SortableTableHeader>
-              <SortableTableHeader columnIndex={16}>BB</SortableTableHeader>
-              <SortableTableHeader columnIndex={17}>RB</SortableTableHeader>
-              <SortableTableHeader columnIndex={18} initialDirection="asc">
+              <SortableTableHeader columnIndex={10}>勝率</SortableTableHeader>
+              <SortableTableHeader columnIndex={11}>対象日数</SortableTableHeader>
+              <SortableTableHeader columnIndex={12}>集計日数</SortableTableHeader>
+              <SortableTableHeader columnIndex={13}>対象機種</SortableTableHeader>
+              <SortableTableHeader columnIndex={14}>設置台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={15}>狙い度</SortableTableHeader>
+              <SortableTableHeader columnIndex={16}>次点差</SortableTableHeader>
+              <SortableTableHeader columnIndex={17}>BB</SortableTableHeader>
+              <SortableTableHeader columnIndex={18}>RB</SortableTableHeader>
+              <SortableTableHeader columnIndex={19} initialDirection="asc">
                 BB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={19} initialDirection="asc">
+              <SortableTableHeader columnIndex={20} initialDirection="asc">
                 RB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={20} initialDirection="asc">
+              <SortableTableHeader columnIndex={21} initialDirection="asc">
                 合成
               </SortableTableHeader>
             </tr>
@@ -176,6 +177,9 @@ function StoreRankingTable({ rows, rankingMetric }) {
                   {formatSettingEstimateScore(row.averageSetting)}
                 </td>
                 <td data-sort-value={row.actualRowCount}>{formatNumber(row.actualRowCount)}</td>
+                <td data-sort-value={readSortNumber(row.winRate)}>
+                  {formatPercent(row.winRate)}
+                </td>
                 <td data-sort-value={row.targetDateCount}>{formatNumber(row.targetDateCount)}</td>
                 <td data-sort-value={row.matchedDateCount}>
                   {formatNumber(row.matchedDateCount)}

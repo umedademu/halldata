@@ -596,6 +596,8 @@ function buildEmptySummary(machineName = "総計") {
     averageHuntScore: null,
     averageNextGap: null,
     actualRowCount: 0,
+    winCount: 0,
+    winRate: null,
     differenceTotal: 0,
     gamesTotal: 0,
     bbTotal: 0,
@@ -626,6 +628,7 @@ function finalizeSummary(summary) {
     averageHuntScore: calculateAverage(summary.huntScoreTotal, summary.actualRowCount),
     averageNextGap: calculateAverage(summary.nextGapTotal, summary.nextGapSampleCount),
     averageGames: calculateAverage(summary.gamesTotal, summary.actualRowCount),
+    winRate: calculateAverage(summary.winCount * 100, summary.actualRowCount),
     payoutRate: calculatePayoutRate(summary.investedCoinsTotal, summary.differenceTotal),
     bbProbability: formatProbability(summary.gamesTotal, summary.bbTotal),
     rbProbability: formatProbability(summary.gamesTotal, summary.rbTotal),
@@ -890,6 +893,9 @@ function buildBacktestAggregationDetail(
         actualDates.add(actualDate);
       }
       summary.actualRowCount += 1;
+      if (actualMetrics.differenceValue > 0) {
+        summary.winCount += 1;
+      }
       summary.huntScoreTotal += readFiniteNumber(row.huntScore);
       summary.differenceTotal += actualMetrics.differenceValue;
       summary.gamesTotal += actualMetrics.gamesCount;
@@ -897,6 +903,9 @@ function buildBacktestAggregationDetail(
       summary.rbTotal += actualMetrics.rbCount;
       summary.investedCoinsTotal += actualMetrics.investedCoins;
       totalSummary.actualRowCount += 1;
+      if (actualMetrics.differenceValue > 0) {
+        totalSummary.winCount += 1;
+      }
       totalSummary.huntScoreTotal += readFiniteNumber(row.huntScore);
       totalSummary.differenceTotal += actualMetrics.differenceValue;
       totalSummary.gamesTotal += actualMetrics.gamesCount;
