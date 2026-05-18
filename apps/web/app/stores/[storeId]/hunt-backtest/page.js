@@ -26,7 +26,10 @@ import {
   formatPercent,
   formatSignedNumber,
 } from "../../../../lib/format";
-import { groupHuntMachineOptions } from "../../../../lib/hunt-machine-display";
+import {
+  getHuntMachineShortName,
+  groupHuntMachineOptions,
+} from "../../../../lib/hunt-machine-display";
 import {
   decodeHuntScoreLogicCookieValue,
   getHuntScoreLogicCookieName,
@@ -139,34 +142,41 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
               <td data-sort-value={readSortNumber(backtest.total.payoutRate)}>{formatPercent(backtest.total.payoutRate)}</td>
               <td data-sort-value={readSortNumber(backtest.total.averageSetting)}>{formatSettingEstimateScore(backtest.total.averageSetting)}</td>
             </tr>
-            {backtest.summaries.map((summary) => (
-              <tr
-                key={summary.machineName}
-                className={getSettingEstimateHighlightClass(summary.averageSetting)}
-              >
-                <th className="directoryNameCell" data-sort-value={summary.machineName}>
-                  <Link
-                    href={`/stores/${storeId}/machines/${encodeURIComponent(summary.machineName)}`}
-                    className="directoryPrimaryLink"
+            {backtest.summaries.map((summary) => {
+              const shortMachineName = getHuntMachineShortName(summary.machineName);
+              return (
+                <tr
+                  key={summary.machineName}
+                  className={getSettingEstimateHighlightClass(summary.averageSetting)}
+                >
+                  <th
+                    className="directoryNameCell"
+                    data-sort-value={summary.machineName}
+                    title={summary.machineName}
                   >
-                    {summary.machineName}
-                  </Link>
-                </th>
-                <td data-sort-value={readSortNumber(summary.slotCount)}>{formatNumber(summary.slotCount)}</td>
-                <td data-sort-value={readSortNumber(summary.averageHuntScore)}>{formatDecimal(summary.averageHuntScore)}</td>
-                <td data-sort-value={readSortNumber(summary.averageNextGap)}>{formatDecimal(summary.averageNextGap)}</td>
-                <td data-sort-value={summary.actualRowCount}>{formatNumber(summary.actualRowCount)}</td>
-                <td data-sort-value={summary.differenceTotal}>{formatSignedNumber(summary.differenceTotal)}</td>
-                <td data-sort-value={summary.gamesTotal}>{formatNumber(summary.gamesTotal)}</td>
-                <td data-sort-value={summary.bbTotal}>{formatNumber(summary.bbTotal)}</td>
-                <td data-sort-value={summary.rbTotal}>{formatNumber(summary.rbTotal)}</td>
-                <td data-sort-value={readProbabilitySortValue(summary.bbProbability)}>{summary.bbProbability ?? "-"}</td>
-                <td data-sort-value={readProbabilitySortValue(summary.rbProbability)}>{summary.rbProbability ?? "-"}</td>
-                <td data-sort-value={readProbabilitySortValue(summary.combinedProbability)}>{summary.combinedProbability ?? "-"}</td>
-                <td data-sort-value={readSortNumber(summary.payoutRate)}>{formatPercent(summary.payoutRate)}</td>
-                <td data-sort-value={readSortNumber(summary.averageSetting)}>{formatSettingEstimateScore(summary.averageSetting)}</td>
-              </tr>
-            ))}
+                    <Link
+                      href={`/stores/${storeId}/machines/${encodeURIComponent(summary.machineName)}`}
+                      className="directoryPrimaryLink"
+                    >
+                      {shortMachineName}
+                    </Link>
+                  </th>
+                  <td data-sort-value={readSortNumber(summary.slotCount)}>{formatNumber(summary.slotCount)}</td>
+                  <td data-sort-value={readSortNumber(summary.averageHuntScore)}>{formatDecimal(summary.averageHuntScore)}</td>
+                  <td data-sort-value={readSortNumber(summary.averageNextGap)}>{formatDecimal(summary.averageNextGap)}</td>
+                  <td data-sort-value={summary.actualRowCount}>{formatNumber(summary.actualRowCount)}</td>
+                  <td data-sort-value={summary.differenceTotal}>{formatSignedNumber(summary.differenceTotal)}</td>
+                  <td data-sort-value={summary.gamesTotal}>{formatNumber(summary.gamesTotal)}</td>
+                  <td data-sort-value={summary.bbTotal}>{formatNumber(summary.bbTotal)}</td>
+                  <td data-sort-value={summary.rbTotal}>{formatNumber(summary.rbTotal)}</td>
+                  <td data-sort-value={readProbabilitySortValue(summary.bbProbability)}>{summary.bbProbability ?? "-"}</td>
+                  <td data-sort-value={readProbabilitySortValue(summary.rbProbability)}>{summary.rbProbability ?? "-"}</td>
+                  <td data-sort-value={readProbabilitySortValue(summary.combinedProbability)}>{summary.combinedProbability ?? "-"}</td>
+                  <td data-sort-value={readSortNumber(summary.payoutRate)}>{formatPercent(summary.payoutRate)}</td>
+                  <td data-sort-value={readSortNumber(summary.averageSetting)}>{formatSettingEstimateScore(summary.averageSetting)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
