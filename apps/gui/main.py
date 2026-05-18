@@ -531,6 +531,8 @@ class MinRepoApp:
         self.register_store_site7_hall_id_var = tk.StringVar()
         self.register_store_site7_address_var = tk.StringVar()
         self.register_store_status_var = tk.StringVar(value="未登録")
+        self.registered_store_filter_var = tk.StringVar()
+        self.registered_store_filter_status_var = tk.StringVar()
         self.site7_browser_mode_var = tk.StringVar(value=self.site7_browser_mode)
         self.site7_status_var = tk.StringVar(
             value="保存済みのログイン情報あり" if self.site7_scraper.has_saved_login_state() else "初回ログインが必要"
@@ -1508,7 +1510,7 @@ class MinRepoApp:
         table_frame = ttk.LabelFrame(form, text="登録済み一覧", padding=8)
         table_frame.grid(row=8, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
         table_frame.columnconfigure(0, weight=1)
-        table_frame.rowconfigure(1, weight=1)
+        table_frame.rowconfigure(2, weight=1)
 
         target_action_row = ttk.Frame(table_frame)
         target_action_row.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
@@ -1537,13 +1539,36 @@ class MinRepoApp:
         )
         self.delete_registered_stores_button.grid(row=0, column=3, sticky="w", padx=(8, 0))
 
+        filter_row = ttk.Frame(table_frame)
+        filter_row.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 8))
+        filter_row.columnconfigure(1, weight=1)
+        ttk.Label(filter_row, text="店舗名検索").grid(row=0, column=0, sticky="w", padx=(0, 8))
+        self.registered_store_filter_entry = ttk.Entry(
+            filter_row,
+            textvariable=self.registered_store_filter_var,
+        )
+        self.registered_store_filter_entry.grid(row=0, column=1, sticky="ew")
+        self.clear_registered_store_filter_button = ttk.Button(
+            filter_row,
+            text="クリア",
+            command=self._clear_registered_store_filter,
+        )
+        self.clear_registered_store_filter_button.grid(row=0, column=2, sticky="w", padx=(8, 0))
+        ttk.Label(filter_row, textvariable=self.registered_store_filter_status_var).grid(
+            row=0,
+            column=3,
+            sticky="w",
+            padx=(12, 0),
+        )
+        self.registered_store_filter_var.trace_add("write", self._on_registered_store_filter_changed)
+
         self.registered_store_tree = ttk.Treeview(
             table_frame,
             columns=REGISTERED_STORE_COLUMNS,
             show="headings",
             selectmode="extended",
         )
-        self.registered_store_tree.grid(row=1, column=0, sticky="nsew")
+        self.registered_store_tree.grid(row=2, column=0, sticky="nsew")
 
         for column in REGISTERED_STORE_COLUMNS:
             self.registered_store_tree.heading(column, text=column)
@@ -1561,11 +1586,11 @@ class MinRepoApp:
         self.registered_store_tree.bind("<<TreeviewSelect>>", self._on_registered_store_selection_changed)
 
         y_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=self.registered_store_tree.yview)
-        y_scroll.grid(row=1, column=1, sticky="ns")
+        y_scroll.grid(row=2, column=1, sticky="ns")
         self.registered_store_tree.configure(yscrollcommand=y_scroll.set)
 
         x_scroll = ttk.Scrollbar(table_frame, orient="horizontal", command=self.registered_store_tree.xview)
-        x_scroll.grid(row=2, column=0, sticky="ew")
+        x_scroll.grid(row=3, column=0, sticky="ew")
         self.registered_store_tree.configure(xscrollcommand=x_scroll.set)
 
     def _load_registered_stores_on_startup(self) -> list[RegisteredStore]:
@@ -3377,17 +3402,37 @@ class MinRepoApp:
         if reset_view:
             self.comparison_y_scrollbar.set(0, 1)
 
-    def _refresh_registered_store_table(self) -> None:
+    def _on_registered_store_filter_changed(self, *_: object) -> None:
+        if hasattr(self, "registered_store_tree"):
+            self._refresh_registered_store_table(preserve_selection=True)
+
+    def _clear_registered_store_filter(self) -> None:
+        self.registered_store_filter_var.set("")
+
+    def _registered_store_filter_keyword(self) -> str:
+        if not hasattr(self, "registered_store_filter_var"):
+            return ""
+        return normalize_text(self.registered_store_filter_var.get())
+
+    def _refresh_registered_store_table(self, preserve_selection: bool = False) -> None:
+        selected_item_ids = set(self.registered_store_tree.selection()) if preserve_selection else set()
         self.registered_store_tree.delete(*self.registered_store_tree.get_children())
+        filter_keyword = self._registered_store_filter_keyword()
+        visible_count = 0
         for index, registered_store in enumerate(self.registered_stores):
+            display_name = self._registered_store_display_name(registered_store)
+            if filter_keyword and filter_keyword not in normalize_text(display_name):
+                continue
+
+            item_id = f"registered_store_{index}"
             self.registered_store_tree.insert(
                 "",
                 "end",
-                iid=f"registered_store_{index}",
+                iid=item_id,
                 values=(
                     self._registered_store_target_marker(registered_store),
                     self._registered_store_site7_marker(registered_store),
-                    self._registered_store_display_name(registered_store),
+                    display_name,
                     registered_store.url,
                     registered_store.site7_prefecture,
                     registered_store.site7_area,
@@ -3396,6 +3441,15 @@ class MinRepoApp:
                     registered_store.site7_address,
                 ),
             )
+            visible_count += 1
+            if item_id in selected_item_ids:
+                self.registered_store_tree.selection_add(item_id)
+        if hasattr(self, "registered_store_filter_status_var"):
+            total_count = len(self.registered_stores)
+            if filter_keyword:
+                self.registered_store_filter_status_var.set(f"{visible_count} / {total_count} 店舗を表示")
+            else:
+                self.registered_store_filter_status_var.set(f"{total_count} 店舗を表示")
         self._update_button_states()
 
     def _replace_registered_stores(
@@ -4372,6 +4426,8 @@ class MinRepoApp:
             state="disabled" if self.is_busy or not has_single_registered_store_row_selection else "normal"
         )
         self.clear_register_store_form_button.configure(state="disabled" if self.is_busy else "normal")
+        self.registered_store_filter_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.clear_registered_store_filter_button.configure(state="disabled" if self.is_busy else "normal")
         self.select_all_stores_button.configure(state="disabled" if self.is_busy else "normal")
         self.clear_store_selection_button.configure(state="disabled" if self.is_busy else "normal")
         self.refresh_registered_stores_button.configure(state="disabled" if self.is_busy else "normal")
