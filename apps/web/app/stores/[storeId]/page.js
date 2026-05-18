@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../components/breadcrumbs";
 import { HuntScoreLogicSelector } from "../../../components/hunt-score-logic-selector";
+import { StoreFavoriteButton } from "../../../components/store-favorite-button";
 import { getStoreDetail, getStoreIdentity } from "../../../lib/data";
 import {
   getHuntScoreLogicDetail,
@@ -85,7 +86,10 @@ export default async function StoreDetailPage({ params }) {
 
       <section className="heroPanel">
         <div className="heroCopy">
-          <h1 className="pageTitle pageTitleCompact">{store.storeName}</h1>
+          <div className="storeTitleLine">
+            <h1 className="pageTitle pageTitleCompact">{store.storeName}</h1>
+            <StoreFavoriteButton store={{ id: store.id, storeName: store.storeName }} compact />
+          </div>
           <div className="heroLinks simpleHeroLinks">
             {hasHuntScoreAnalysis ? (
               <>

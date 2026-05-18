@@ -3,47 +3,21 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-const MY_HALL_STORAGE_KEY = "halldata-my-hall-store-ids";
-const MY_HALL_CHANGE_EVENT = "halldata-my-hall-change";
+import {
+  MY_HALL_CHANGE_EVENT,
+  StoreFavoriteButton,
+  normalizeStoreId,
+  readSavedMyHallStoreIds,
+  saveMyHallStoreIds,
+} from "./store-favorite-button";
 
 function normalizeText(value) {
   return String(value ?? "").trim().toLocaleLowerCase("ja");
 }
 
-function normalizeStoreId(value) {
-  return String(value ?? "").trim();
-}
-
 function normalizeGroupName(value, fallback) {
   const text = String(value ?? "").trim();
   return text || fallback;
-}
-
-function readSavedMyHallStoreIds() {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  try {
-    const parsedValue = JSON.parse(window.localStorage.getItem(MY_HALL_STORAGE_KEY) || "[]");
-    if (!Array.isArray(parsedValue)) {
-      return [];
-    }
-    return [...new Set(parsedValue.map(normalizeStoreId).filter(Boolean))];
-  } catch {
-    window.localStorage.removeItem(MY_HALL_STORAGE_KEY);
-    return [];
-  }
-}
-
-function saveMyHallStoreIds(storeIds) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const normalizedStoreIds = [...new Set(storeIds.map(normalizeStoreId).filter(Boolean))];
-  window.localStorage.setItem(MY_HALL_STORAGE_KEY, JSON.stringify(normalizedStoreIds));
-  window.dispatchEvent(new CustomEvent(MY_HALL_CHANGE_EVENT));
 }
 
 function reorderStoreIds(storeIds, sourceStoreId, targetStoreId) {
@@ -97,20 +71,6 @@ function buildStoreGroups(stores) {
         storeCount: areas.reduce((count, area) => count + area.stores.length, 0),
       };
     });
-}
-
-function StoreFavoriteButton({ store, isFavorite, onToggle }) {
-  return (
-    <button
-      type="button"
-      className={`storeFavoriteButton ${isFavorite ? "storeFavoriteButtonActive" : ""}`}
-      onClick={() => onToggle(store)}
-      aria-label={`${store.storeName}を${isFavorite ? "マイホールから外す" : "マイホールに追加"}`}
-      title={isFavorite ? "マイホールから外す" : "マイホールに追加"}
-    >
-      <span aria-hidden="true">{isFavorite ? "★" : "☆"}</span>
-    </button>
-  );
 }
 
 function StoreListItem({ store, isFavorite, onToggle, compact = false, reorderable = false }) {

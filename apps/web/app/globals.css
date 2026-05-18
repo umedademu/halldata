@@ -798,6 +798,47 @@ a {
   background: rgba(209, 138, 0, 0.08);
 }
 
+.storeFavoriteButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.storeFavoriteButtonCompact {
+  flex: 0 0 auto;
+  width: 2rem;
+  min-height: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 1rem;
+}
+
+.storeFavoriteButtonCompact:hover,
+.storeFavoriteButtonCompact.storeFavoriteButtonActive {
+  border-color: rgba(209, 138, 0, 0.34);
+}
+
+.storeTitleLine,
+.storeContextLine,
+.storeNameWithFavorite {
+  display: inline-flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.storeContextLink,
+.storeNameWithFavorite a {
+  min-width: 0;
+  color: var(--accent-strong);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.storeNameWithFavorite {
+  flex-wrap: nowrap;
+}
+
 .storeRowLink {
   min-width: 0;
 }

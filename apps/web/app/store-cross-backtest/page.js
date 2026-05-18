@@ -7,6 +7,7 @@ import {
 import { NativeGetForm } from "../../components/native-get-form";
 import { SortableTableController } from "../../components/sortable-table-controller";
 import { SortableTableHeader } from "../../components/sortable-table-header";
+import { StoreFavoriteButton } from "../../components/store-favorite-button";
 import { getCrossStoreBacktestDetail } from "../../lib/data";
 import {
   formatDecimal,
@@ -138,7 +139,13 @@ function StoreRankingTable({ rows, rankingMetric }) {
               >
                 <td data-sort-value={row.rank}>{formatNumber(row.rank)}</td>
                 <th className="directoryNameCell" data-sort-value={row.store.storeName}>
-                  <Link href={`/stores/${row.store.id}`}>{row.store.storeName}</Link>
+                  <span className="storeNameWithFavorite">
+                    <StoreFavoriteButton
+                      store={{ id: row.store.id, storeName: row.store.storeName }}
+                      compact
+                    />
+                    <Link href={`/stores/${row.store.id}`}>{row.store.storeName}</Link>
+                  </span>
                 </th>
                 <td
                   data-sort-value={

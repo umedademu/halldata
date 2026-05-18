@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "../../../../../components/breadcrumbs";
 import { HuntScoreLogicSelector } from "../../../../../components/hunt-score-logic-selector";
 import { MachineComparison } from "../../../../../components/machine-comparison";
+import { StoreFavoriteButton } from "../../../../../components/store-favorite-button";
 import {
   getMachineDetail,
   getStoreIdentity,
@@ -113,7 +114,15 @@ export default async function MachineDetailPage({ params, searchParams }) {
       <section className="heroPanel">
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">{displayMachineName}</h1>
-          <p className="machineStoreName">{detail.store.storeName}</p>
+          <div className="storeContextLine">
+            <StoreFavoriteButton
+              store={{ id: detail.store.id, storeName: detail.store.storeName }}
+              compact
+            />
+            <Link href={`/stores/${detail.store.id}`} className="storeContextLink">
+              {detail.store.storeName}
+            </Link>
+          </div>
           {detail.huntScoreLogic ? (
             <p className="dataSourceLabel">適用中: {detail.huntScoreLogic.name}</p>
           ) : null}

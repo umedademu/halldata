@@ -14,6 +14,7 @@ import { HuntScoreLogicSelector } from "../../../../components/hunt-score-logic-
 import { NativeGetForm } from "../../../../components/native-get-form";
 import { SortableTableController } from "../../../../components/sortable-table-controller";
 import { SortableTableHeader } from "../../../../components/sortable-table-header";
+import { StoreFavoriteButton } from "../../../../components/store-favorite-button";
 import {
   getHuntScoreAnalysisPageDetail,
   getHuntScoreInitialPageDetail,
@@ -336,6 +337,15 @@ export default async function HuntBacktestPage({ params, searchParams }) {
       <section className="heroPanel">
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">バックテスト</h1>
+          <div className="storeContextLine">
+            <StoreFavoriteButton
+              store={{ id: detail.store.id, storeName: detail.store.storeName }}
+              compact
+            />
+            <Link href={`/stores/${detail.store.id}`} className="storeContextLink">
+              {detail.store.storeName}
+            </Link>
+          </div>
           <div className="heroLinks simpleHeroLinks">
             <Link href={`/stores/${detail.store.id}`} className="externalLink">
               店舗ページへ戻る

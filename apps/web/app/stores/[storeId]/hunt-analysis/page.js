@@ -11,6 +11,7 @@ import { HuntRankingFormStateSync } from "../../../../components/hunt-ranking-fo
 import { HuntRankingTable } from "../../../../components/hunt-ranking-table";
 import { HuntScoreLogicSelector } from "../../../../components/hunt-score-logic-selector";
 import { NativeGetForm } from "../../../../components/native-get-form";
+import { StoreFavoriteButton } from "../../../../components/store-favorite-button";
 import {
   getHuntScoreInitialPageDetail,
   getHuntScoreRankingDetail,
@@ -475,6 +476,15 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
       <section className="heroPanel">
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">狙い度ランキング</h1>
+          <div className="storeContextLine">
+            <StoreFavoriteButton
+              store={{ id: detail.store.id, storeName: detail.store.storeName }}
+              compact
+            />
+            <Link href={`/stores/${detail.store.id}`} className="storeContextLink">
+              {detail.store.storeName}
+            </Link>
+          </div>
           {detail.huntScoreLogic ? (
             <p className="dataSourceLabel">適用中: {detail.huntScoreLogic.name}</p>
           ) : null}
