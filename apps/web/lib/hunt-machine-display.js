@@ -312,6 +312,18 @@ const HUNT_MACHINE_DISPLAY_DEFINITIONS = [
     names: ["スマスロ 攻殻機動隊", "スマスロ攻殻機動隊"],
   },
   {
+    shortName: "バイオRE3",
+    category: "other",
+    names: [
+      "スマスロ バイオハザードRE:3",
+      "スマスロ バイオハザード RE:3",
+      "スマスロバイオハザードRE:3",
+      "スマスロバイオハザード RE:3",
+      "スマスロ バイオハザードＲＥ：３",
+      "スマスロバイオハザードＲＥ：３",
+    ],
+  },
+  {
     shortName: "吉宗",
     category: "other",
     names: ["真打 吉宗", "真打吉宗"],
