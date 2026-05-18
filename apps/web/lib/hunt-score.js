@@ -9,6 +9,7 @@ const HUNT_SCORE_EPSILON = 0.000000001;
 const DEFAULT_HUNT_SCORE_WINDOW_DAYS = 7;
 const TAMAYA_ZASSHONOKUMA_HISTORY_WINDOW_DAYS = 30;
 const MILLION_TOBU_NERIMA_R30_WINDOW_DAYS = 30;
+const AMUSE_ASAKUSA_R30_WINDOW_DAYS = 30;
 const DEFAULT_HUNT_SCORE_LOGIC_KEY = "apark";
 const APARK_KASUGA_KAI_RAW_MIN = -32;
 const APARK_KASUGA_KAI_RAW_MAX = 138;
@@ -402,6 +403,15 @@ const MILLION_TOBU_NERIMA_TARGET_MACHINES = [
   },
 ];
 
+const AMUSE_ASAKUSA_TARGET_MACHINES = [
+  { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  { name: "ゴーゴージャグラー３", aliases: ["ゴーゴージャグラー3", "ゴーゴージャグラー"] },
+  { name: "ジャグラーガールズSS", aliases: ["ジャグラーガールズ"] },
+  { name: "ウルトラミラクルジャグラー", aliases: [] },
+  { name: "ミスタージャグラー", aliases: [] },
+];
+
 const HUNT_SCORE_LOGIC_DEFINITIONS = [
   {
     key: "apark",
@@ -421,6 +431,13 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     windowDays: 7,
     historyWindowDays: MILLION_TOBU_NERIMA_R30_WINDOW_DAYS,
     scoreCalculator: calculateMillionTobuNerimaHuntScore,
+  },
+  {
+    key: "amuse-asakusa",
+    name: "アミューズ浅草式",
+    windowDays: 7,
+    historyWindowDays: AMUSE_ASAKUSA_R30_WINDOW_DAYS,
+    scoreCalculator: calculateAmuseAsakusaHuntScore,
   },
   {
     key: "apark-yakatabaru-a",
@@ -614,6 +631,19 @@ const HUNT_SCORE_STORE_CONFIGS = [
     ],
     targetMachines: MILLION_TOBU_NERIMA_TARGET_MACHINES,
     defaultLogicKey: "million-tobu-nerima",
+  },
+  {
+    key: "amuse-asakusa",
+    storeNames: [
+      "アミューズ浅草店",
+      "アミューズ浅草",
+      "AMUSE浅草店",
+      "AMUSE浅草",
+      "ＡＭＵＳＥ浅草店",
+      "ＡＭＵＳＥ浅草",
+    ],
+    targetMachines: AMUSE_ASAKUSA_TARGET_MACHINES,
+    defaultLogicKey: "amuse-asakusa",
   },
   {
     key: "apark-yakatabaru",
@@ -1343,6 +1373,211 @@ function calculateMillionTobuNerimaHuntScore(metrics, context = {}) {
   }
 
   return normalizedScore;
+}
+
+function calculateAmuseAsakusaLargeMachineScore(metrics) {
+  let rawScore = 0;
+
+  rawScore += scoreFromMaximums(metrics.gamesTotal, [
+    { maximum: 25000, score: 40 },
+    { maximum: 30000, score: 32 },
+    { maximum: 35000, score: 24 },
+    { maximum: 40000, score: 12 },
+  ]);
+  if (metrics.gamesTotal > 48000) {
+    rawScore -= 12;
+  }
+
+  rawScore += scoreFromMaximums(metrics.recentThreeGamesTotal, [
+    { maximum: 9000, score: 7 },
+    { maximum: 12000, score: 4 },
+  ]);
+  if (metrics.recentThreeGamesTotal > 21000) {
+    rawScore -= 6;
+  }
+
+  rawScore += scoreFromMinimums(metrics.todaySetting, [
+    { minimum: 5, score: 12 },
+    { minimum: 4.5, score: 8 },
+    { minimum: 4, score: 4 },
+  ]);
+
+  if (metrics.historyThirtyHighSettingCandidateCount <= 1) {
+    rawScore += 5;
+  }
+  if (normalizeDaysSinceHighSettingEstimateOffset(metrics.daysSinceHistoryHighSettingCandidate) === 1) {
+    rawScore -= 4;
+  }
+
+  return rawScore;
+}
+
+function calculateAmuseAsakusaMainMachineScore(metrics) {
+  let rawScore = 0;
+
+  rawScore += scoreFromMaximums(metrics.gamesTotal, [
+    { maximum: 22000, score: 40 },
+    { maximum: 26000, score: 32 },
+    { maximum: 30000, score: 24 },
+    { maximum: 35000, score: 16 },
+    { maximum: 40000, score: 8 },
+  ]);
+  if (metrics.gamesTotal > 48000) {
+    rawScore -= 8;
+  }
+
+  rawScore += scoreFromMaximums(metrics.recentThreeGamesTotal, [
+    { maximum: 6000, score: 10 },
+    { maximum: 9000, score: 7 },
+  ]);
+  if (metrics.recentThreeGamesTotal > 21000) {
+    rawScore -= 5;
+  }
+
+  if (metrics.streak >= 2 && metrics.streak <= 3) {
+    rawScore += 8;
+  } else if (metrics.streak >= 4 && metrics.streak <= 5) {
+    rawScore += 4;
+  } else if (metrics.streak >= 6) {
+    rawScore -= 5;
+  }
+
+  return rawScore;
+}
+
+function calculateAmuseAsakusaSpotMachineScore(metrics) {
+  let rawScore = 0;
+  const daysSinceH45 = normalizeDaysSinceHighSettingEstimateOffset(
+    metrics.daysSinceHistoryHighSettingCandidate,
+  );
+
+  rawScore += scoreFromMaximums(metrics.gamesTotal, [
+    { maximum: 25000, score: 20 },
+    { maximum: 30000, score: 15 },
+    { maximum: 35000, score: 10 },
+    { maximum: 40000, score: 5 },
+  ]);
+  if (metrics.gamesTotal > 48000) {
+    rawScore -= 5;
+  }
+
+  rawScore += scoreFromMaximums(metrics.recentThreeGamesTotal, [
+    { maximum: 6000, score: 8 },
+    { maximum: 9000, score: 5 },
+  ]);
+  if (metrics.recentThreeGamesTotal > 21000) {
+    rawScore -= 5;
+  }
+
+  if (daysSinceH45 >= 2 && daysSinceH45 <= 3) {
+    rawScore += 10;
+  } else if (daysSinceH45 >= 4 && daysSinceH45 <= 7) {
+    rawScore += 5;
+  } else if (daysSinceH45 >= 0 && daysSinceH45 <= 1) {
+    rawScore -= 5;
+  }
+
+  if (metrics.streak >= 2 && metrics.streak <= 3) {
+    rawScore += 8;
+  } else if (metrics.streak >= 4 && metrics.streak <= 5) {
+    rawScore += 4;
+  }
+
+  if (metrics.lossDays >= 5) {
+    rawScore += 5;
+  }
+  if (metrics.netTotal >= -5000 && metrics.netTotal <= -1000) {
+    rawScore += 5;
+  }
+  if (metrics.historyThirtyHighSettingCandidateCount >= 3) {
+    rawScore += 3;
+  }
+
+  return rawScore;
+}
+
+function calculateAmuseAsakusaSmallMachineScore(metrics) {
+  let rawScore = 0;
+  const rbDenominator = metrics.rbTotal > 0 && metrics.gamesTotal > 0 ? metrics.gamesTotal / metrics.rbTotal : 9999;
+  const daysSinceH45 = normalizeDaysSinceHighSettingEstimateOffset(
+    metrics.daysSinceHistoryHighSettingCandidate,
+  );
+
+  rawScore += scoreFromMinimums(metrics.windowSettingAverage, [
+    { minimum: 3.8, score: 20 },
+    { minimum: 3.5, score: 14 },
+    { minimum: 3.2, score: 8 },
+  ]);
+
+  rawScore += scoreFromMaximums(rbDenominator, [
+    { maximum: 300, score: 14 },
+    { maximum: 330, score: 10 },
+  ]);
+  if (rbDenominator >= 400) {
+    rawScore -= 8;
+  }
+
+  rawScore += scoreFromMinimums(metrics.todaySetting, [
+    { minimum: 4.5, score: 10 },
+    { minimum: 4, score: 6 },
+  ]);
+
+  if (metrics.gamesTotal >= 36000) {
+    rawScore += 8;
+  }
+  if (metrics.gamesTotal <= 25000) {
+    rawScore -= 4;
+  }
+
+  if (daysSinceH45 >= 2 && daysSinceH45 <= 3) {
+    rawScore += 10;
+  } else if (daysSinceH45 >= 0 && daysSinceH45 <= 1) {
+    rawScore -= 4;
+  }
+
+  if (metrics.historyThirtyHighSettingCandidateCount >= 2) {
+    rawScore += 5;
+  }
+
+  return rawScore;
+}
+
+function applyAmuseAsakusaDensityGate(score, typeR30) {
+  if (!Number.isFinite(typeR30)) {
+    return score;
+  }
+  if (typeR30 >= 0.7) {
+    return score;
+  }
+  if (typeR30 >= 0.5) {
+    return score >= 64 ? score : 0;
+  }
+  if (typeR30 >= 0.25) {
+    return score >= 80 ? score : 0;
+  }
+  if (typeR30 >= 0.1) {
+    return score >= 96 ? score : 0;
+  }
+  return 0;
+}
+
+function calculateAmuseAsakusaHuntScore(metrics, context = {}) {
+  const machineCount = readMachineActiveSlotCount(metrics, context);
+  const typeR30 = readMachineHighSettingCandidateRate30(metrics, context);
+  let rawScore = 0;
+
+  if (machineCount >= 40) {
+    rawScore = calculateAmuseAsakusaLargeMachineScore(metrics);
+  } else if (machineCount >= 20) {
+    rawScore = calculateAmuseAsakusaMainMachineScore(metrics);
+  } else if (machineCount >= 10) {
+    rawScore = calculateAmuseAsakusaSpotMachineScore(metrics);
+  } else {
+    rawScore = calculateAmuseAsakusaSmallMachineScore(metrics);
+  }
+
+  const score = Math.round(clamp(rawScore * 1.6, 0, 100));
+  return applyAmuseAsakusaDensityGate(score, typeR30);
 }
 
 function isAparkYakatabaruTargetMachine(machineName) {
