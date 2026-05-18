@@ -1337,6 +1337,8 @@ function HuntScoreHighlightControls({
   const clearAllMachines = () => {
     onChange({
       ...options,
+      combineAimJuggler: false,
+      combineHanabi: false,
       selectedMachineNames: [],
     });
   };

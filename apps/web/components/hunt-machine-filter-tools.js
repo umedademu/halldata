@@ -18,6 +18,21 @@ function setMachineFilterChecks(form, checked) {
   updateMachineFilterChecks(form, () => checked);
 }
 
+function clearMachineGroupChecks(form) {
+  if (!form) {
+    return;
+  }
+
+  for (const input of form.querySelectorAll(
+    'input[type="checkbox"][name="aimMachineGroup"], input[type="checkbox"][name="hanabiMachineGroup"]',
+  )) {
+    if (input.checked) {
+      input.checked = false;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+}
+
 function turnMachineFilterCategoryOn(form, category) {
   updateMachineFilterChecks(form, (input, currentChecked) =>
     input.dataset.machineCategory === category ? true : currentChecked,
@@ -30,7 +45,9 @@ export function AllMachineFilterButtons() {
   };
 
   const clearAll = (event) => {
-    setMachineFilterChecks(event.currentTarget.closest("form"), false);
+    const form = event.currentTarget.closest("form");
+    setMachineFilterChecks(form, false);
+    clearMachineGroupChecks(form);
   };
 
   return (
