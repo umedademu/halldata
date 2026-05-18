@@ -1,11 +1,22 @@
-const HUNT_MACHINE_CATEGORY_ORDER = ["juggler", "hana", "hanabi", "okidoki", "other", "small"];
+const HUNT_MACHINE_CATEGORY_ORDER = [
+  "juggler",
+  "hana",
+  "hanabi",
+  "okidoki",
+  "large",
+  "medium",
+  "small",
+  "other",
+];
 const HUNT_MACHINE_CATEGORY_LABELS = {
   juggler: "ジャグ系",
   hana: "ハナ系",
   hanabi: "ハナビ系",
   okidoki: "沖ドキ系",
-  other: "その他",
+  large: "10台以上",
+  medium: "3~9台",
   small: "2台以下",
+  other: "その他",
 };
 
 const HUNT_MACHINE_DISPLAY_DEFINITIONS = [
@@ -453,12 +464,16 @@ export function groupHuntMachineOptions(machineOptions) {
   for (const machine of Array.isArray(machineOptions) ? machineOptions : []) {
     const slotCount = Number(machine.slotCount);
     const machineCategoryKey = getHuntMachineCategory(machine.name);
-    const categoryKey =
-      machineCategoryKey !== "other"
-        ? machineCategoryKey
-        : Number.isFinite(slotCount) && slotCount > 0 && slotCount <= 2
-          ? "small"
-          : machineCategoryKey;
+    let categoryKey = machineCategoryKey;
+    if (machineCategoryKey === "other" && Number.isFinite(slotCount) && slotCount > 0) {
+      if (slotCount >= 10) {
+        categoryKey = "large";
+      } else if (slotCount >= 3) {
+        categoryKey = "medium";
+      } else {
+        categoryKey = "small";
+      }
+    }
     const safeCategoryKey = groupsByKey.has(categoryKey) ? categoryKey : "other";
     groupsByKey.get(safeCategoryKey).options.push({
       ...machine,
