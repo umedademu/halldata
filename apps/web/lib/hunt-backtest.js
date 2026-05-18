@@ -373,10 +373,31 @@ function matchesWeekday(dateText, weekdays) {
   return weekday !== null && weekdays.includes(weekday);
 }
 
+function matchesMonthDay(dateText, monthDays) {
+  const match = String(dateText).match(/^\d{4}-\d{2}-(\d{2})$/u);
+  if (!match) {
+    return false;
+  }
+  const monthDay = Number(match[1]);
+  return monthDays.includes(monthDay);
+}
+
+function matchesZoro(dateText, zoro) {
+  if (!zoro) {
+    return false;
+  }
+  const match = String(dateText).match(/^\d{4}-(\d{2})-(\d{2})$/u);
+  return Boolean(match) && Number(match[1]) === Number(match[2]);
+}
+
 function buildBacktestEventFilters(options) {
   return {
     dayTails: normalizeIntegerOptions(options?.dayTails, 0, 9),
     weekdays: normalizeIntegerOptions(options?.weekdays, 0, 6),
+    monthDays: normalizeIntegerOptions(options?.monthDays, 1, 31),
+    zoro: splitOptionValues(options?.zoro).some((value) =>
+      ["1", "true", "on"].includes(String(value).toLowerCase()),
+    ),
   };
 }
 
@@ -396,6 +417,9 @@ function buildBreakdownRowFilter(breakdownKey, eventFilters) {
 
     const isDayTail = matchesDayTail(actualDate, eventFilters.dayTails);
     const isWeekday = matchesWeekday(actualDate, eventFilters.weekdays);
+    const isMonthDay = matchesMonthDay(actualDate, eventFilters.monthDays);
+    const isZoro = matchesZoro(actualDate, eventFilters.zoro);
+    const isEvent = isDayTail || isWeekday || isMonthDay || isZoro;
 
     if (breakdownKey === "dayTail") {
       return isDayTail;
@@ -404,10 +428,10 @@ function buildBreakdownRowFilter(breakdownKey, eventFilters) {
       return isWeekday;
     }
     if (breakdownKey === "eventTotal") {
-      return isDayTail || isWeekday;
+      return isEvent;
     }
 
-    return !isDayTail && !isWeekday;
+    return !isEvent;
   };
 }
 

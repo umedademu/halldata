@@ -476,6 +476,58 @@ function readStaticStoreEntryIdentity(storeEntry) {
   };
 }
 
+function hasOwnValue(source, key) {
+  return source && typeof source === "object" && Object.hasOwn(source, key);
+}
+
+function readStaticEventArray(source, camelKey, snakeKey, fallbackSource = null) {
+  if (hasOwnValue(source, camelKey)) {
+    return source[camelKey];
+  }
+  if (hasOwnValue(source, snakeKey)) {
+    return source[snakeKey];
+  }
+  if (fallbackSource) {
+    return readStaticEventArray(fallbackSource, camelKey, snakeKey);
+  }
+  return [];
+}
+
+function readStaticEventFlag(source, camelKey, snakeKey, fallbackSource = null) {
+  if (hasOwnValue(source, camelKey)) {
+    return Boolean(source[camelKey]);
+  }
+  if (hasOwnValue(source, snakeKey)) {
+    return Boolean(source[snakeKey]);
+  }
+  if (fallbackSource) {
+    return readStaticEventFlag(fallbackSource, camelKey, snakeKey);
+  }
+  return false;
+}
+
+function buildStaticEventFields(source, fallbackSource = null) {
+  return {
+    eventDayTails: normalizeEventDayTails(
+      readStaticEventArray(source, "eventDayTails", "event_day_tails", fallbackSource),
+    ),
+    eventZoro: readStaticEventFlag(source, "eventZoro", "event_zoro", fallbackSource),
+    eventWeekdays: normalizeEventWeekdays(
+      readStaticEventArray(source, "eventWeekdays", "event_weekdays", fallbackSource),
+    ),
+    eventMonthDays: normalizeEventMonthDays(
+      readStaticEventArray(source, "eventMonthDays", "event_month_days", fallbackSource),
+    ),
+    eventSourceText: String(
+      source?.eventSourceText ??
+        source?.event_source_text ??
+        fallbackSource?.eventSourceText ??
+        fallbackSource?.event_source_text ??
+        "",
+    ).trim(),
+  };
+}
+
 function mergeStaticStoreEntryIdentity(payload, storeEntry) {
   if (!payload || typeof payload !== "object") {
     return payload;
@@ -491,6 +543,7 @@ function mergeStaticStoreEntryIdentity(payload, storeEntry) {
       storeUrl: String(store.storeUrl ?? "").trim() || entry.storeUrl,
       prefectureName: String(store.prefectureName ?? "").trim() || entry.prefectureName,
       areaName: String(store.areaName ?? "").trim() || entry.areaName,
+      ...buildStaticEventFields(store, storeEntry),
     },
   };
 }
@@ -508,9 +561,7 @@ async function readStaticStoreByEntry(storeEntry) {
       store: {
         ...entry,
         legacyIds: Array.isArray(storeEntry.legacyIds) ? storeEntry.legacyIds : [],
-        eventDayTails: [],
-        eventZoro: false,
-        eventWeekdays: [],
+        ...buildStaticEventFields(storeEntry),
       },
       summary: {
         machineCount: 0,
@@ -870,28 +921,47 @@ function normalizeEventWeekdays(value) {
     .sort((left, right) => left - right);
 }
 
+function normalizeEventMonthDays(value) {
+  const sourceValues = Array.isArray(value) ? value : [];
+  return [...new Set(sourceValues)]
+    .map((item) => Number(item))
+    .filter((item) => Number.isInteger(item) && item >= 1 && item <= 31)
+    .sort((left, right) => left - right);
+}
+
 function buildEventFiltersFromStore(store) {
   return createEventFilters(
     normalizeEventDayTails(store?.event_day_tails),
     Boolean(store?.event_zoro),
     normalizeEventWeekdays(store?.event_weekdays),
+    normalizeEventMonthDays(store?.event_month_days),
   );
 }
 
 async function fetchStoreEventRows(storesTable, storeId) {
   try {
     return await fetchAllRows(storesTable, {
-      select: "id,store_name,store_url,event_day_tails,event_zoro,event_weekdays",
+      select: "id,store_name,store_url,event_day_tails,event_zoro,event_weekdays,event_month_days",
       id: `eq.${storeId}`,
     });
   } catch (error) {
     if (!(error instanceof Error) || !error.message.includes("(400)")) {
       throw error;
     }
-    return fetchAllRows(storesTable, {
-      select: "id,store_name,store_url,event_day_tails,event_zoro",
-      id: `eq.${storeId}`,
-    });
+    try {
+      return await fetchAllRows(storesTable, {
+        select: "id,store_name,store_url,event_day_tails,event_zoro,event_weekdays",
+        id: `eq.${storeId}`,
+      });
+    } catch (fallbackError) {
+      if (!(fallbackError instanceof Error) || !fallbackError.message.includes("(400)")) {
+        throw fallbackError;
+      }
+      return fetchAllRows(storesTable, {
+        select: "id,store_name,store_url,event_day_tails,event_zoro",
+        id: `eq.${storeId}`,
+      });
+    }
   }
 }
 
@@ -1312,7 +1382,9 @@ function readStaticStoreIdentity(staticStore) {
       normalizeEventDayTails(store.eventDayTails),
       Boolean(store.eventZoro),
       normalizeEventWeekdays(store.eventWeekdays),
+      normalizeEventMonthDays(store.eventMonthDays),
     ),
+    eventSourceText: String(store.eventSourceText ?? "").trim(),
   };
 }
 
@@ -1587,18 +1659,22 @@ function buildStaticStoreDetail(staticStore) {
 }
 
 function buildInitialBacktestDetail(
-  storeName,
+  store,
   options = {},
   huntScoreLogicKey = "",
   storeMachineNames = null,
   machineSlotCounts = {},
 ) {
+  const storeName =
+    typeof store === "string"
+      ? store
+      : String(store?.storeName ?? store?.store_name ?? "").trim();
   const machineNames = Array.isArray(storeMachineNames)
     ? listHuntScoreTargetMachineNamesForStoreMachines(storeName, storeMachineNames)
     : listHuntScoreTargetMachineNames(storeName);
   const selectedMachineNames = normalizeInitialMachineSelection(machineNames, options);
   const selectedMachineNameSet = new Set(selectedMachineNames);
-  const defaultedOptions = buildBacktestOptionsForStore({ store_name: storeName }, options);
+  const defaultedOptions = buildBacktestOptionsForStore(store, options);
   const periodMode = defaultedOptions?.periodMode === "range" ? "range" : "recent";
   const rankMin = readPositiveInteger(defaultedOptions?.rankMin, null);
   const rankMax = readPositiveInteger(defaultedOptions?.rankMax, null);
@@ -1672,7 +1748,9 @@ function buildInitialBacktestDetail(
     hasHanabiGroupOption: machineNames.includes("新ハナビ") && machineNames.includes("スマスロ ハナビ"),
     eventFilters: {
       dayTails: normalizeEventDayTails(defaultedOptions?.dayTails),
+      zoro: Boolean(defaultedOptions?.zoro),
       weekdays: normalizeEventWeekdays(defaultedOptions?.weekdays),
+      monthDays: normalizeEventMonthDays(defaultedOptions?.monthDays),
     },
     breakdowns: [],
     targetDateCount: 0,
@@ -1738,7 +1816,7 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
     totalCount: 0,
     hasActualResults: false,
     backtest: buildInitialBacktestDetail(
-      store.storeName,
+      store,
       backtestOptions,
       huntScoreLogic.key,
       storeMachineNames,
@@ -2245,6 +2323,7 @@ async function getHuntScoreSnapshotsForStore(
         id: staticIdentity.id,
         store_name: staticIdentity.storeName,
         store_url: staticIdentity.storeUrl,
+        eventFilters: staticIdentity.eventFilters,
       },
       snapshots: buildHuntScoreSnapshots(
         targetRows,
@@ -2319,13 +2398,17 @@ function buildBacktestOptionsForStore(store, backtestOptions) {
   const hasRequestedEventFilters =
     backtestOptions?.eventTouched ||
     (Array.isArray(backtestOptions?.dayTails) && backtestOptions.dayTails.length > 0) ||
-    (Array.isArray(backtestOptions?.weekdays) && backtestOptions.weekdays.length > 0);
+    Boolean(backtestOptions?.zoro) ||
+    (Array.isArray(backtestOptions?.weekdays) && backtestOptions.weekdays.length > 0) ||
+    (Array.isArray(backtestOptions?.monthDays) && backtestOptions.monthDays.length > 0);
 
   if (hasRequestedEventFilters) {
     return backtestOptions;
   }
 
-  const defaultEventFilters = HUNT_BACKTEST_DEFAULT_EVENT_FILTERS[String(store?.store_name ?? "").trim()];
+  const storeEventFilters = store?.eventFilters?.isActive ? store.eventFilters : null;
+  const defaultEventFilters =
+    storeEventFilters ?? HUNT_BACKTEST_DEFAULT_EVENT_FILTERS[String(store?.store_name ?? store?.storeName ?? "").trim()];
   if (!defaultEventFilters) {
     return backtestOptions;
   }
@@ -2333,7 +2416,9 @@ function buildBacktestOptionsForStore(store, backtestOptions) {
   return {
     ...backtestOptions,
     dayTails: defaultEventFilters.dayTails,
+    zoro: defaultEventFilters.zoro,
     weekdays: defaultEventFilters.weekdays,
+    monthDays: defaultEventFilters.monthDays,
   };
 }
 
@@ -2514,7 +2599,9 @@ function buildCrossStoreBacktestOptions(options = {}) {
     combineHanabi: normalizeEnabledOption(options?.combineHanabi, true),
     eventFilters: {
       dayTails: normalizeEventDayTails(options?.dayTails),
+      zoro: Boolean(options?.zoro),
       weekdays: normalizeEventWeekdays(options?.weekdays),
+      monthDays: normalizeEventMonthDays(options?.monthDays),
     },
     minActualRows: readNonNegativeInteger(
       options?.minActualRows,
@@ -2830,7 +2917,9 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       combineAimJuggler: backtestOptions.combineAimJuggler,
       combineHanabi: backtestOptions.combineHanabi,
       dayTails: backtestOptions.eventFilters.dayTails,
+      zoro: backtestOptions.eventFilters.zoro,
       weekdays: backtestOptions.eventFilters.weekdays,
+      monthDays: backtestOptions.eventFilters.monthDays,
       machineOrder: storeHuntScoreMachineNames,
     });
     const payoutRate = readNumber(backtest.total?.payoutRate);
@@ -3004,7 +3093,8 @@ export async function updateStoreEventSettings(storeId, eventSettings) {
   const dayTails = normalizeEventDayTails(eventSettings?.dayTails);
   const zoro = Boolean(eventSettings?.zoro);
   const weekdays = normalizeEventWeekdays(eventSettings?.weekdays);
-  return createEventFilters(dayTails, zoro, weekdays);
+  const monthDays = normalizeEventMonthDays(eventSettings?.monthDays);
+  return createEventFilters(dayTails, zoro, weekdays, monthDays);
 }
 
 export function readRouteSegment(value) {

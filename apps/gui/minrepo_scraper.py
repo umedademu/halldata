@@ -3,6 +3,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
 import threading
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable, List
@@ -13,6 +14,15 @@ from bs4 import BeautifulSoup, Tag
 
 
 WEEKDAYS_JP = "月火水木金土日"
+WEEKDAY_VALUE_BY_JP = {
+    "日": 0,
+    "月": 1,
+    "火": 2,
+    "水": 3,
+    "木": 4,
+    "金": 5,
+    "土": 6,
+}
 INLINE_COOKIE_PATTERN = re.compile(r"\$\.cookie\('([^']+)', '([^']+)'")
 DATE_RANGE_PATTERN = re.compile(r"\s*[～〜~]\s*")
 STORE_DATE_PATTERN = re.compile(r"^(?:(\d{4})/)?(\d{1,2})/(\d{1,2})")
@@ -69,10 +79,23 @@ class StoreDatePage:
 
 
 @dataclass
+class StoreEventSettings:
+    day_tails: List[int] = field(default_factory=list)
+    month_days: List[int] = field(default_factory=list)
+    zoro: bool = False
+    weekdays: List[int] = field(default_factory=list)
+    source_text: str = ""
+
+    def has_conditions(self) -> bool:
+        return bool(self.day_tails or self.month_days or self.zoro or self.weekdays)
+
+
+@dataclass
 class StoreRegistrationInfo:
     store_name: str
     prefecture_name: str
     area_name: str
+    event_settings: StoreEventSettings = field(default_factory=StoreEventSettings)
 
 
 @dataclass
@@ -143,6 +166,42 @@ def normalize_text(value: str) -> str:
     return re.sub(r"\s+", "", value.replace("\u3000", " ").strip())
 
 
+def _sorted_int_values(values: set[int], minimum: int, maximum: int) -> List[int]:
+    return sorted(value for value in values if minimum <= value <= maximum)
+
+
+def parse_old_event_days_text(value: str) -> StoreEventSettings:
+    source_text = re.sub(r"\s+", "", unicodedata.normalize("NFKC", str(value or ""))).strip("、,，")
+    day_tails: set[int] = set()
+    month_days: set[int] = set()
+    weekdays: set[int] = set()
+
+    if not source_text:
+        return StoreEventSettings()
+
+    for match in re.finditer(r"([0-9])\s*の\s*つく日", source_text):
+        day_tails.add(int(match.group(1)))
+    for match in re.finditer(r"末尾\s*([0-9])", source_text):
+        day_tails.add(int(match.group(1)))
+    for match in re.finditer(r"(?<!\d)([1-9]|[12][0-9]|3[01])\s*日", source_text):
+        month_days.add(int(match.group(1)))
+
+    zoro = "ゾロ目" in source_text
+    if "土日" in source_text or "土・日" in source_text:
+        weekdays.update({6, 0})
+    for label, value_index in WEEKDAY_VALUE_BY_JP.items():
+        if f"{label}曜日" in source_text or f"{label}曜" in source_text:
+            weekdays.add(value_index)
+
+    return StoreEventSettings(
+        day_tails=_sorted_int_values(day_tails, 0, 9),
+        month_days=_sorted_int_values(month_days, 1, 31),
+        zoro=zoro,
+        weekdays=_sorted_int_values(weekdays, 0, 6),
+        source_text=source_text,
+    )
+
+
 class MinRepoScraper:
     def __init__(self) -> None:
         self._thread_local = threading.local()
@@ -187,6 +246,7 @@ class MinRepoScraper:
     def fetch_store_registration_info(self, store_url: str) -> StoreRegistrationInfo:
         store_name, store_soup = self._load_store_page(store_url)
         prefecture_name = self.extract_prefecture_name(store_soup)
+        event_settings = parse_old_event_days_text(self.extract_old_event_days_text(store_soup))
         area_name = ""
 
         for date_page in sorted(
@@ -211,6 +271,7 @@ class MinRepoScraper:
             store_name=store_name,
             prefecture_name=prefecture_name,
             area_name=area_name,
+            event_settings=event_settings,
         )
 
     def fetch_machine_dataset(
@@ -577,6 +638,31 @@ class MinRepoScraper:
         category_names = self._extract_category_breadcrumb_names(soup)
         if len(category_names) >= 2:
             return category_names[1]
+        return ""
+
+    def extract_old_event_days_text(self, soup: BeautifulSoup) -> str:
+        for row in soup.find_all("tr"):
+            row_text = row.get_text("\t", strip=True)
+            if "旧イベント日" not in row_text:
+                continue
+
+            parts = [part.strip() for part in row_text.split("\t") if part.strip()]
+            for index, part in enumerate(parts):
+                if "旧イベント日" in part:
+                    event_text = "、".join(parts[index + 1 :]).strip()
+                    if event_text:
+                        return event_text
+                    return part.replace("旧イベント日", "").strip(" :：\t")
+
+        lines = [line.strip() for line in soup.get_text("\n", strip=True).splitlines() if line.strip()]
+        for index, line in enumerate(lines):
+            if "旧イベント日" not in line:
+                continue
+            event_text = line.replace("旧イベント日", "").strip(" :：\t")
+            if event_text:
+                return event_text
+            if index + 1 < len(lines):
+                return lines[index + 1]
         return ""
 
     def _extract_category_breadcrumb_names(self, soup: BeautifulSoup) -> list[str]:

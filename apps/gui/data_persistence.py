@@ -773,6 +773,16 @@ class HistoryPersistenceService:
             store_payload["site7_prefecture"] = registered_location["prefecture_name"]
         if registered_location.get("area_name"):
             store_payload["site7_area"] = registered_location["area_name"]
+        if registered_location.get("event_day_tails"):
+            store_payload["event_day_tails"] = registered_location["event_day_tails"]
+        if registered_location.get("event_month_days"):
+            store_payload["event_month_days"] = registered_location["event_month_days"]
+        if registered_location.get("event_zoro"):
+            store_payload["event_zoro"] = True
+        if registered_location.get("event_weekdays"):
+            store_payload["event_weekdays"] = registered_location["event_weekdays"]
+        if registered_location.get("event_source_text"):
+            store_payload["event_source_text"] = registered_location["event_source_text"]
 
         return {
             "saved_at": saved_at,
@@ -827,6 +837,39 @@ class HistoryPersistenceService:
             store_url=store_url,
             prefecture_name=prefecture_name or registered_location.get("prefecture_name", ""),
             area_name=area_name or registered_location.get("area_name", ""),
+            event_day_tails=_normalize_event_values(
+                store.get("event_day_tails", registered_location.get("event_day_tails", []))
+                if isinstance(store, dict)
+                else registered_location.get("event_day_tails", []),
+                0,
+                9,
+            ),
+            event_month_days=_normalize_event_values(
+                store.get("event_month_days", registered_location.get("event_month_days", []))
+                if isinstance(store, dict)
+                else registered_location.get("event_month_days", []),
+                1,
+                31,
+            ),
+            event_zoro=_coerce_bool(
+                store.get("event_zoro", registered_location.get("event_zoro", False))
+                if isinstance(store, dict)
+                else registered_location.get("event_zoro", False),
+            ),
+            event_weekdays=_normalize_event_values(
+                store.get("event_weekdays", registered_location.get("event_weekdays", []))
+                if isinstance(store, dict)
+                else registered_location.get("event_weekdays", []),
+                0,
+                6,
+            ),
+            event_source_text=str(
+                (
+                    store.get("event_source_text", registered_location.get("event_source_text", ""))
+                    if isinstance(store, dict)
+                    else registered_location.get("event_source_text", "")
+                )
+            ).strip(),
         )
 
     def _r2_store_id(self, store_name: str, store_url: str) -> str:
@@ -953,14 +996,20 @@ class HistoryPersistenceService:
         payload = self.r2_storage.read_json(data_file)
         return payload if isinstance(payload, dict) else None
 
-    def _load_r2_store_records(self, *, store_name: str, store_url: str) -> list[dict[str, Any]]:
+    def _load_r2_store_records(
+        self,
+        *,
+        store_name: str,
+        store_url: str,
+        include_empty_site7: bool = False,
+    ) -> list[dict[str, Any]]:
         store_payload = self._load_r2_store_payload(store_name=store_name, store_url=store_url)
         if not store_payload:
             return []
 
         records: list[dict[str, Any]] = []
         for record in store_payload.get("records", []):
-            if isinstance(record, dict) and _saved_record_should_be_kept(record):
+            if isinstance(record, dict) and (include_empty_site7 or _saved_record_should_be_kept(record)):
                 records.append(record)
 
         for machine in store_payload.get("machines", []):
@@ -973,7 +1022,7 @@ class HistoryPersistenceService:
             if not isinstance(machine_payload, dict):
                 continue
             for record in machine_payload.get("records", []):
-                if isinstance(record, dict) and _saved_record_should_be_kept(record):
+                if isinstance(record, dict) and (include_empty_site7 or _saved_record_should_be_kept(record)):
                     records.append(record)
         return records
 
@@ -992,10 +1041,26 @@ class HistoryPersistenceService:
         if not isinstance(index_payload, dict):
             index_payload = {"version": 1, "store": {}, "full_day_dates": {}}
 
-        index_payload["store"] = {
+        index_store = {
             "store_name": store_name,
             "store_url": store_url,
         }
+        event_day_tails = _normalize_event_values(store.get("event_day_tails", []), 0, 9)
+        event_month_days = _normalize_event_values(store.get("event_month_days", []), 1, 31)
+        event_zoro = _coerce_bool(store.get("event_zoro", False))
+        event_weekdays = _normalize_event_values(store.get("event_weekdays", []), 0, 6)
+        event_source_text = str(store.get("event_source_text", "")).strip()
+        if event_day_tails:
+            index_store["event_day_tails"] = event_day_tails
+        if event_month_days:
+            index_store["event_month_days"] = event_month_days
+        if event_zoro:
+            index_store["event_zoro"] = True
+        if event_weekdays:
+            index_store["event_weekdays"] = event_weekdays
+        if event_source_text:
+            index_store["event_source_text"] = event_source_text
+        index_payload["store"] = index_store
         full_day_dates = index_payload.setdefault("full_day_dates", {})
         if not isinstance(full_day_dates, dict):
             full_day_dates = {}
@@ -1074,10 +1139,26 @@ class HistoryPersistenceService:
 
         index_path = self._full_day_index_path(store_name)
         index_payload = self._load_full_day_index(index_path)
-        index_payload["store"] = {
+        index_store = {
             "store_name": store_name,
             "store_url": normalize_store_url(str(store.get("store_url", ""))),
         }
+        event_day_tails = _normalize_event_values(store.get("event_day_tails", []), 0, 9)
+        event_month_days = _normalize_event_values(store.get("event_month_days", []), 1, 31)
+        event_zoro = _coerce_bool(store.get("event_zoro", False))
+        event_weekdays = _normalize_event_values(store.get("event_weekdays", []), 0, 6)
+        event_source_text = str(store.get("event_source_text", "")).strip()
+        if event_day_tails:
+            index_store["event_day_tails"] = event_day_tails
+        if event_month_days:
+            index_store["event_month_days"] = event_month_days
+        if event_zoro:
+            index_store["event_zoro"] = True
+        if event_weekdays:
+            index_store["event_weekdays"] = event_weekdays
+        if event_source_text:
+            index_store["event_source_text"] = event_source_text
+        index_payload["store"] = index_store
         full_day_dates = index_payload.setdefault("full_day_dates", {})
         if not isinstance(full_day_dates, dict):
             full_day_dates = {}
@@ -1155,8 +1236,13 @@ class HistoryPersistenceService:
         store_url: str = "",
         start_date: str,
         end_date: str,
+        include_empty_site7: bool = False,
     ) -> list[dict[str, Any]]:
-        records = self._load_r2_store_records(store_name=store_name, store_url=store_url)
+        records = self._load_r2_store_records(
+            store_name=store_name,
+            store_url=store_url,
+            include_empty_site7=include_empty_site7,
+        )
         filtered_records: list[dict[str, Any]] = []
         for row in records:
             target_date = str(row.get("target_date", "")).strip()
@@ -1180,6 +1266,7 @@ class HistoryPersistenceService:
             store_url=store_url,
             start_date=start_date,
             end_date=end_date,
+            include_empty_site7=True,
         ):
             target_date = str(row.get("target_date", "")).strip()
             machine_name = normalize_machine_name_key(str(row.get("machine_name", "")).strip())
@@ -1212,6 +1299,7 @@ class HistoryPersistenceService:
             store_url=store_url,
             start_date=start_date,
             end_date=end_date,
+            include_empty_site7=True,
         ):
             target_date = str(row.get("target_date", "")).strip()
             slot_number = str(row.get("slot_number", "")).strip()
@@ -1599,6 +1687,11 @@ class HistoryPersistenceService:
                         or store.get("site7Area")
                         or ""
                     ).strip(),
+                    "event_day_tails": _normalize_event_values(store.get("eventDayTails", []), 0, 9),
+                    "event_month_days": _normalize_event_values(store.get("eventMonthDays", []), 1, 31),
+                    "event_zoro": _coerce_bool(store.get("eventZoro", False)),
+                    "event_weekdays": _normalize_event_values(store.get("eventWeekdays", []), 0, 6),
+                    "event_source_text": str(store.get("eventSourceText", "")).strip(),
                 }
             )
         return self._normalize_registered_stores(stores)
@@ -1612,7 +1705,7 @@ class HistoryPersistenceService:
         message = "R2の公開用店舗一覧を確認できなかったため、欠けた一覧での上書きを防ぐ目的で更新を中止しました。"
         return f"{message}\n{detail}" if detail else message
 
-    def _registered_store_location_for(self, store_name: str, store_url: str) -> dict[str, str]:
+    def _registered_store_location_for(self, store_name: str, store_url: str) -> dict[str, Any]:
         normalized_url = normalize_store_url(store_url)
         store_name_key = normalize_store_name_key(store_name)
         name_match: dict[str, str] = {}
@@ -1627,6 +1720,21 @@ class HistoryPersistenceService:
                 "prefecture_name": str(registered_store.get("site7_prefecture", "")).strip(),
                 "area_name": str(registered_store.get("site7_area", "")).strip(),
             }
+            event_day_tails = _normalize_event_values(registered_store.get("event_day_tails", []), 0, 9)
+            event_month_days = _normalize_event_values(registered_store.get("event_month_days", []), 1, 31)
+            event_zoro = _coerce_bool(registered_store.get("event_zoro", False))
+            event_weekdays = _normalize_event_values(registered_store.get("event_weekdays", []), 0, 6)
+            event_source_text = str(registered_store.get("event_source_text", "")).strip()
+            if event_day_tails:
+                registered_location["event_day_tails"] = event_day_tails
+            if event_month_days:
+                registered_location["event_month_days"] = event_month_days
+            if event_zoro:
+                registered_location["event_zoro"] = event_zoro
+            if event_weekdays:
+                registered_location["event_weekdays"] = event_weekdays
+            if event_source_text:
+                registered_location["event_source_text"] = event_source_text
             registered_url = normalize_store_url(str(registered_store.get("store_url", "")))
             if normalized_url and registered_url == normalized_url:
                 return registered_location
@@ -1647,6 +1755,11 @@ class HistoryPersistenceService:
                 store_url=normalize_store_url(str(store.get("store_url", ""))),
                 prefecture_name=str(store.get("site7_prefecture", "")).strip(),
                 area_name=str(store.get("site7_area", "")).strip(),
+                event_day_tails=_normalize_event_values(store.get("event_day_tails", []), 0, 9),
+                event_month_days=_normalize_event_values(store.get("event_month_days", []), 1, 31),
+                event_zoro=_coerce_bool(store.get("event_zoro", False)),
+                event_weekdays=_normalize_event_values(store.get("event_weekdays", []), 0, 6),
+                event_source_text=str(store.get("event_source_text", "")).strip(),
             )
             for store in stores
             if normalize_store_url(str(store.get("store_url", "")))
@@ -1693,10 +1806,26 @@ class HistoryPersistenceService:
             if not store_url:
                 continue
 
-            return {
+            registered_store = {
                 "store_name": store_name,
                 "store_url": store_url,
             }
+            event_day_tails = _normalize_event_values(store_payload.get("event_day_tails", []), 0, 9)
+            event_month_days = _normalize_event_values(store_payload.get("event_month_days", []), 1, 31)
+            event_zoro = _coerce_bool(store_payload.get("event_zoro", False))
+            event_weekdays = _normalize_event_values(store_payload.get("event_weekdays", []), 0, 6)
+            event_source_text = str(store_payload.get("event_source_text", "")).strip()
+            if event_day_tails:
+                registered_store["event_day_tails"] = event_day_tails
+            if event_month_days:
+                registered_store["event_month_days"] = event_month_days
+            if event_zoro:
+                registered_store["event_zoro"] = True
+            if event_weekdays:
+                registered_store["event_weekdays"] = event_weekdays
+            if event_source_text:
+                registered_store["event_source_text"] = event_source_text
+            return registered_store
 
         return None
 
@@ -1767,7 +1896,7 @@ class HistoryPersistenceService:
                     continue
 
                 for row in payload.get("records", []):
-                    if not isinstance(row, dict) or not _saved_record_should_be_kept(row):
+                    if not isinstance(row, dict):
                         continue
                     target_date = str(row.get("target_date", "")).strip()
                     if not target_date or target_date < start_date or target_date > end_date:
@@ -2134,6 +2263,11 @@ class HistoryPersistenceService:
                 "site7_store_name": str(store.get("site7_store_name", "")).strip() or str(store["store_name"]).strip(),
                 "site7_hall_id": str(store.get("site7_hall_id", "")).strip(),
                 "site7_address": str(store.get("site7_address", "")).strip(),
+                "event_day_tails": _normalize_event_values(store.get("event_day_tails", []), 0, 9),
+                "event_month_days": _normalize_event_values(store.get("event_month_days", []), 1, 31),
+                "event_zoro": _coerce_bool(store.get("event_zoro", False)),
+                "event_weekdays": _normalize_event_values(store.get("event_weekdays", []), 0, 6),
+                "event_source_text": str(store.get("event_source_text", "")).strip(),
                 "updated_at": now_text,
             }
             for store in stores
@@ -2184,7 +2318,8 @@ class HistoryPersistenceService:
                     params={
                         "select": (
                             "store_name,store_url,site7_enabled,site7_prefecture,site7_area,"
-                            "site7_store_name,site7_hall_id,site7_address"
+                            "site7_store_name,site7_hall_id,site7_address,"
+                            "event_day_tails,event_month_days,event_zoro,event_weekdays,event_source_text"
                         ),
                         "order": "store_name.asc",
                         "limit": str(page_size),
@@ -2713,21 +2848,35 @@ class HistoryPersistenceService:
                 site7_hall_id = site7_hall_id or str(site7_defaults["site7_hall_id"]).strip()
                 site7_address = site7_address or str(site7_defaults["site7_address"]).strip()
             site7_store_name = site7_store_name or store_name
-            normalized_stores.append(
-                {
-                    "store_name": store_name,
-                    "store_url": store_url,
-                    "site7_enabled": site7_enabled,
-                    "site7_prefecture": str(
-                        store.get("site7_prefecture", site7_defaults["site7_prefecture"])
-                    ).strip()
-                    or DEFAULT_SITE7_PREFECTURE_NAME,
-                    "site7_area": site7_area,
-                    "site7_store_name": site7_store_name,
-                    "site7_hall_id": site7_hall_id,
-                    "site7_address": site7_address,
-                }
-            )
+            normalized_store = {
+                "store_name": store_name,
+                "store_url": store_url,
+                "site7_enabled": site7_enabled,
+                "site7_prefecture": str(
+                    store.get("site7_prefecture", site7_defaults["site7_prefecture"])
+                ).strip()
+                or DEFAULT_SITE7_PREFECTURE_NAME,
+                "site7_area": site7_area,
+                "site7_store_name": site7_store_name,
+                "site7_hall_id": site7_hall_id,
+                "site7_address": site7_address,
+            }
+            event_day_tails = _normalize_event_values(store.get("event_day_tails", []), 0, 9)
+            event_month_days = _normalize_event_values(store.get("event_month_days", []), 1, 31)
+            event_zoro = _coerce_bool(store.get("event_zoro", False))
+            event_weekdays = _normalize_event_values(store.get("event_weekdays", []), 0, 6)
+            event_source_text = str(store.get("event_source_text", "")).strip()
+            if event_day_tails:
+                normalized_store["event_day_tails"] = event_day_tails
+            if event_month_days:
+                normalized_store["event_month_days"] = event_month_days
+            if event_zoro:
+                normalized_store["event_zoro"] = event_zoro
+            if event_weekdays:
+                normalized_store["event_weekdays"] = event_weekdays
+            if event_source_text:
+                normalized_store["event_source_text"] = event_source_text
+            normalized_stores.append(normalized_store)
 
         return normalized_stores
 
@@ -2916,6 +3065,19 @@ def _coerce_bool(value: Any) -> bool:
     if text in {"0", "false", "no", "off", "f", ""}:
         return False
     return bool(text)
+
+
+def _normalize_event_values(value: Any, minimum: int, maximum: int) -> list[int]:
+    raw_values = value if isinstance(value, (list, tuple, set)) else []
+    normalized_values: set[int] = set()
+    for raw_value in raw_values:
+        try:
+            numeric_value = int(raw_value)
+        except (TypeError, ValueError):
+            continue
+        if minimum <= numeric_value <= maximum:
+            normalized_values.add(numeric_value)
+    return sorted(normalized_values)
 
 
 def _normalize_difference_value_for_supabase(value: Any) -> int | None:

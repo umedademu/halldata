@@ -68,7 +68,8 @@ export default async function MachineDetailPage({ params, searchParams }) {
   const hasEventFilterSearchParams =
     hasSearchParamValue(resolvedSearchParams, "dayTail") ||
     hasSearchParamValue(resolvedSearchParams, "zoro") ||
-    hasSearchParamValue(resolvedSearchParams, "weekday");
+    hasSearchParamValue(resolvedSearchParams, "weekday") ||
+    hasSearchParamValue(resolvedSearchParams, "monthDay");
   let detail;
 
   try {

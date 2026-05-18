@@ -42,6 +42,7 @@ from minrepo_scraper import (
     MinRepoScraper,
     ScraperError,
     StoreDatePage,
+    StoreEventSettings,
     normalize_text,
 )
 from site7_scraper import (
@@ -185,6 +186,19 @@ def normalize_site7_browser_mode(value: object) -> str:
     if text == SITE7_BROWSER_MODE_HIDDEN:
         return SITE7_BROWSER_MODE_HIDDEN
     return SITE7_BROWSER_MODE_VISIBLE
+
+
+def normalize_int_tuple(value: object, minimum: int, maximum: int) -> tuple[int, ...]:
+    values = value if isinstance(value, (list, tuple, set)) else []
+    normalized_values: set[int] = set()
+    for raw_value in values:
+        try:
+            numeric_value = int(raw_value)
+        except (TypeError, ValueError):
+            continue
+        if minimum <= numeric_value <= maximum:
+            normalized_values.add(numeric_value)
+    return tuple(sorted(normalized_values))
 
 
 def current_jst_date_text(now: datetime | None = None) -> str:
@@ -402,9 +416,17 @@ class RegisteredStore:
     site7_store_name: str = ""
     site7_hall_id: str = ""
     site7_address: str = ""
+    event_day_tails: tuple[int, ...] = ()
+    event_month_days: tuple[int, ...] = ()
+    event_zoro: bool = False
+    event_weekdays: tuple[int, ...] = ()
+    event_source_text: str = ""
 
     def resolved_site7_store_name(self) -> str:
         return self.site7_store_name.strip() or self.name.strip()
+
+    def has_event_settings(self) -> bool:
+        return bool(self.event_day_tails or self.event_month_days or self.event_zoro or self.event_weekdays)
 
     def to_site7_target_store(self) -> Site7TargetStore:
         return enrich_site7_target_store(
@@ -1622,6 +1644,11 @@ class MinRepoApp:
                 site7_store_name=str(store.get("site7_store_name", "")),
                 site7_hall_id=str(store.get("site7_hall_id", "")),
                 site7_address=str(store.get("site7_address", "")),
+                event_day_tails=normalize_int_tuple(store.get("event_day_tails", []), 0, 9),
+                event_month_days=normalize_int_tuple(store.get("event_month_days", []), 1, 31),
+                event_zoro=bool(store.get("event_zoro", False)),
+                event_weekdays=normalize_int_tuple(store.get("event_weekdays", []), 0, 6),
+                event_source_text=str(store.get("event_source_text", "")),
             )
             for store in saved_stores
         ]
@@ -1742,7 +1769,7 @@ class MinRepoApp:
                 continue
 
             try:
-                store_name = self.scraper.fetch_store_name(registered_store.url)
+                registration_info = self.scraper.fetch_store_registration_info(registered_store.url)
             except Exception as exc:  # noqa: BLE001
                 messages.append(f"{registered_store.url} の店舗名取得に失敗しました。\n{exc}")
                 completed_stores.append(registered_store)
@@ -1750,14 +1777,19 @@ class MinRepoApp:
 
             completed_stores.append(
                 self._build_registered_store(
-                    store_name=store_name,
+                    store_name=registration_info.store_name,
                     store_url=registered_store.url,
                     site7_enabled=registered_store.site7_enabled,
-                    site7_prefecture=registered_store.site7_prefecture,
-                    site7_area=registered_store.site7_area,
+                    site7_prefecture=registered_store.site7_prefecture or registration_info.prefecture_name,
+                    site7_area=registered_store.site7_area or registration_info.area_name,
                     site7_store_name=registered_store.site7_store_name,
                     site7_hall_id=registered_store.site7_hall_id,
                     site7_address=registered_store.site7_address,
+                    event_day_tails=tuple(registration_info.event_settings.day_tails),
+                    event_month_days=tuple(registration_info.event_settings.month_days),
+                    event_zoro=registration_info.event_settings.zoro,
+                    event_weekdays=tuple(registration_info.event_settings.weekdays),
+                    event_source_text=registration_info.event_settings.source_text,
                 )
             )
             changed = True
@@ -1866,6 +1898,7 @@ class MinRepoApp:
     ) -> None:
         try:
             registration_info = self.scraper.fetch_store_registration_info(store_url)
+            event_settings = getattr(registration_info, "event_settings", StoreEventSettings())
             resolved_site7_prefecture, resolved_site7_area = self._resolve_store_region_input(
                 site7_enabled=site7_enabled,
                 site7_prefecture=site7_prefecture,
@@ -1885,6 +1918,7 @@ class MinRepoApp:
                         site7_store_name,
                         site7_hall_id,
                         site7_address,
+                        event_settings,
                     ),
                 )
             )
@@ -1904,6 +1938,7 @@ class MinRepoApp:
     ) -> None:
         try:
             registration_info = self.scraper.fetch_store_registration_info(store_url)
+            event_settings = getattr(registration_info, "event_settings", StoreEventSettings())
             resolved_site7_prefecture, resolved_site7_area = self._resolve_store_region_input(
                 site7_enabled=site7_enabled,
                 site7_prefecture=site7_prefecture,
@@ -1924,6 +1959,7 @@ class MinRepoApp:
                         site7_store_name,
                         site7_hall_id,
                         site7_address,
+                        event_settings,
                     ),
                 )
             )
@@ -2769,7 +2805,7 @@ class MinRepoApp:
         if kind == "register_store_success":
             if (
                 not isinstance(payload, tuple)
-                or len(payload) != 8
+                or len(payload) != 9
                 or not isinstance(payload[0], str)
                 or not isinstance(payload[1], str)
             ):
@@ -2784,6 +2820,7 @@ class MinRepoApp:
                 site7_store_name,
                 site7_hall_id,
                 site7_address,
+                event_settings,
             ) = payload
             self._apply_registered_store(
                 store_name,
@@ -2794,6 +2831,7 @@ class MinRepoApp:
                 str(site7_store_name),
                 str(site7_hall_id),
                 str(site7_address),
+                event_settings if isinstance(event_settings, StoreEventSettings) else None,
             )
             return
 
@@ -2805,7 +2843,7 @@ class MinRepoApp:
         if kind == "update_registered_store_success":
             if (
                 not isinstance(payload, tuple)
-                or len(payload) != 9
+                or len(payload) != 10
                 or not isinstance(payload[0], str)
                 or not isinstance(payload[1], str)
                 or not isinstance(payload[2], str)
@@ -2822,6 +2860,7 @@ class MinRepoApp:
                 site7_store_name,
                 site7_hall_id,
                 site7_address,
+                event_settings,
             ) = payload
             original_store = next(
                 (
@@ -2844,6 +2883,7 @@ class MinRepoApp:
                 site7_store_name=str(site7_store_name),
                 site7_hall_id=str(site7_hall_id),
                 site7_address=str(site7_address),
+                event_settings=event_settings if isinstance(event_settings, StoreEventSettings) else None,
             )
             return
 
@@ -3708,6 +3748,11 @@ class MinRepoApp:
         site7_store_name: str = "",
         site7_hall_id: str = "",
         site7_address: str = "",
+        event_day_tails: tuple[int, ...] = (),
+        event_month_days: tuple[int, ...] = (),
+        event_zoro: bool = False,
+        event_weekdays: tuple[int, ...] = (),
+        event_source_text: str = "",
     ) -> RegisteredStore:
         defaults = default_site7_store_settings(store_name)
         resolved_site7_enabled = defaults["site7_enabled"] if site7_enabled is None else bool(site7_enabled)
@@ -3725,6 +3770,11 @@ class MinRepoApp:
             site7_store_name=resolved_site7_store_name,
             site7_hall_id=resolved_site7_hall_id,
             site7_address=resolved_site7_address,
+            event_day_tails=normalize_int_tuple(event_day_tails, 0, 9),
+            event_month_days=normalize_int_tuple(event_month_days, 1, 31),
+            event_zoro=bool(event_zoro),
+            event_weekdays=normalize_int_tuple(event_weekdays, 0, 6),
+            event_source_text=event_source_text.strip(),
         )
 
     def _apply_registered_store(
@@ -3737,6 +3787,7 @@ class MinRepoApp:
         site7_store_name: str = "",
         site7_hall_id: str = "",
         site7_address: str = "",
+        event_settings: StoreEventSettings | None = None,
     ) -> None:
         normalized_name = normalize_text(store_name)
         normalized_url = normalize_store_url(store_url)
@@ -3755,6 +3806,11 @@ class MinRepoApp:
             site7_store_name=site7_store_name,
             site7_hall_id=site7_hall_id,
             site7_address=site7_address,
+            event_day_tails=tuple(event_settings.day_tails) if event_settings else (),
+            event_month_days=tuple(event_settings.month_days) if event_settings else (),
+            event_zoro=event_settings.zoro if event_settings else False,
+            event_weekdays=tuple(event_settings.weekdays) if event_settings else (),
+            event_source_text=event_settings.source_text if event_settings else "",
         )
         self.registered_stores.append(registered_store)
         self.selected_store_urls.add(normalized_url)
@@ -3779,6 +3835,7 @@ class MinRepoApp:
         site7_store_name: str,
         site7_hall_id: str,
         site7_address: str,
+        event_settings: StoreEventSettings | None = None,
     ) -> None:
         normalized_name = normalize_text(store_name)
         normalized_url = normalize_store_url(store_url)
@@ -3799,6 +3856,11 @@ class MinRepoApp:
             site7_store_name=site7_store_name,
             site7_hall_id=site7_hall_id,
             site7_address=site7_address,
+            event_day_tails=tuple(event_settings.day_tails) if event_settings else original_store.event_day_tails,
+            event_month_days=tuple(event_settings.month_days) if event_settings else original_store.event_month_days,
+            event_zoro=event_settings.zoro if event_settings else original_store.event_zoro,
+            event_weekdays=tuple(event_settings.weekdays) if event_settings else original_store.event_weekdays,
+            event_source_text=event_settings.source_text if event_settings else original_store.event_source_text,
         )
         updated_registered_stores = [
             updated_store if registered_store is original_store else registered_store
@@ -3887,6 +3949,11 @@ class MinRepoApp:
                 "site7_store_name": registered_store.resolved_site7_store_name(),
                 "site7_hall_id": registered_store.site7_hall_id,
                 "site7_address": registered_store.site7_address,
+                "event_day_tails": list(registered_store.event_day_tails),
+                "event_month_days": list(registered_store.event_month_days),
+                "event_zoro": registered_store.event_zoro,
+                "event_weekdays": list(registered_store.event_weekdays),
+                "event_source_text": registered_store.event_source_text,
             }
             for registered_store in registered_stores
         ]
@@ -4426,8 +4493,10 @@ class MinRepoApp:
             state="disabled" if self.is_busy or not has_single_registered_store_row_selection else "normal"
         )
         self.clear_register_store_form_button.configure(state="disabled" if self.is_busy else "normal")
-        self.registered_store_filter_entry.configure(state="disabled" if self.is_busy else "normal")
-        self.clear_registered_store_filter_button.configure(state="disabled" if self.is_busy else "normal")
+        if hasattr(self, "registered_store_filter_entry"):
+            self.registered_store_filter_entry.configure(state="disabled" if self.is_busy else "normal")
+        if hasattr(self, "clear_registered_store_filter_button"):
+            self.clear_registered_store_filter_button.configure(state="disabled" if self.is_busy else "normal")
         self.select_all_stores_button.configure(state="disabled" if self.is_busy else "normal")
         self.clear_store_selection_button.configure(state="disabled" if self.is_busy else "normal")
         self.refresh_registered_stores_button.configure(state="disabled" if self.is_busy else "normal")

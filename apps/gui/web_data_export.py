@@ -36,6 +36,11 @@ class StoreSource:
     legacy_ids: set[str] = field(default_factory=set)
     prefecture_name: str = ""
     area_name: str = ""
+    event_day_tails: list[int] = field(default_factory=list)
+    event_month_days: list[int] = field(default_factory=list)
+    event_zoro: bool = False
+    event_weekdays: list[int] = field(default_factory=list)
+    event_source_text: str = ""
 
 
 def normalize_store_url(value: str) -> str:
@@ -135,6 +140,80 @@ def read_area_name(value: dict[str, Any]) -> str:
         or value.get("area")
         or value.get("地域")
     )
+
+
+def read_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    text = str(value or "").strip().lower()
+    if text in {"1", "true", "yes", "on", "t"}:
+        return True
+    if text in {"0", "false", "no", "off", "f", ""}:
+        return False
+    return bool(text)
+
+
+def normalize_event_values(value: Any, minimum: int, maximum: int) -> list[int]:
+    if isinstance(value, str):
+        text = value.strip()
+        if text.startswith("["):
+            try:
+                parsed_value = json.loads(text)
+            except json.JSONDecodeError:
+                parsed_value = []
+            raw_values = parsed_value if isinstance(parsed_value, (list, tuple, set)) else []
+        else:
+            raw_values = [item.strip() for item in text.split(",") if item.strip()]
+    else:
+        raw_values = value if isinstance(value, (list, tuple, set)) else []
+    normalized_values: set[int] = set()
+    for raw_value in raw_values:
+        try:
+            numeric_value = int(raw_value)
+        except (TypeError, ValueError):
+            continue
+        if minimum <= numeric_value <= maximum:
+            normalized_values.add(numeric_value)
+    return sorted(normalized_values)
+
+
+def apply_event_fields(store_source: StoreSource, value: dict[str, Any]) -> None:
+    if not store_source.event_day_tails:
+        store_source.event_day_tails = normalize_event_values(
+            value.get("eventDayTails", value.get("event_day_tails", [])),
+            0,
+            9,
+        )
+    if not store_source.event_month_days:
+        store_source.event_month_days = normalize_event_values(
+            value.get("eventMonthDays", value.get("event_month_days", [])),
+            1,
+            31,
+        )
+    if not store_source.event_zoro:
+        store_source.event_zoro = read_bool(value.get("eventZoro", value.get("event_zoro", False)))
+    if not store_source.event_weekdays:
+        store_source.event_weekdays = normalize_event_values(
+            value.get("eventWeekdays", value.get("event_weekdays", [])),
+            0,
+            6,
+        )
+    if not store_source.event_source_text:
+        store_source.event_source_text = read_text(
+            value.get("eventSourceText", value.get("event_source_text", "")),
+        )
+
+
+def build_store_event_payload(store_source: StoreSource) -> dict[str, Any]:
+    return {
+        "eventDayTails": normalize_event_values(store_source.event_day_tails, 0, 9),
+        "eventMonthDays": normalize_event_values(store_source.event_month_days, 1, 31),
+        "eventZoro": bool(store_source.event_zoro),
+        "eventWeekdays": normalize_event_values(store_source.event_weekdays, 0, 6),
+        "eventSourceText": read_text(store_source.event_source_text),
+    }
 
 
 def average(values: list[float | int | None]) -> float | None:
@@ -317,6 +396,7 @@ def build_store_payload(store_source: StoreSource, records: list[dict[str, Any]]
                 "storeUrl": normalize_store_url(store_source.store_url),
                 "prefectureName": read_text(store_source.prefecture_name),
                 "areaName": read_text(store_source.area_name),
+                **build_store_event_payload(store_source),
             },
             "machineName": machine_name,
             "records": machine_records,
@@ -334,9 +414,7 @@ def build_store_payload(store_source: StoreSource, records: list[dict[str, Any]]
             "storeUrl": normalize_store_url(store_source.store_url),
             "prefectureName": read_text(store_source.prefecture_name),
             "areaName": read_text(store_source.area_name),
-            "eventDayTails": [],
-            "eventZoro": False,
-            "eventWeekdays": [],
+            **build_store_event_payload(store_source),
         },
         "summary": {
             "machineCount": len(machines),
@@ -397,6 +475,11 @@ def build_index_store_entry(store_payload: dict[str, Any], data_file: str) -> di
         "storeUrl": store.get("storeUrl"),
         "prefectureName": store.get("prefectureName"),
         "areaName": store.get("areaName"),
+        "eventDayTails": store.get("eventDayTails", []),
+        "eventMonthDays": store.get("eventMonthDays", []),
+        "eventZoro": bool(store.get("eventZoro", False)),
+        "eventWeekdays": store.get("eventWeekdays", []),
+        "eventSourceText": store.get("eventSourceText", ""),
         "machineCount": summary.get("machineCount", 0),
         "latestDate": summary.get("latestDate"),
         "recordCount": summary.get("recordCount", 0),
@@ -418,6 +501,21 @@ def build_registered_store_index_entry(
         if str(legacy_id).strip()
     }
     legacy_ids.update(store_source.legacy_ids)
+    event_payload = build_store_event_payload(store_source)
+    if not (
+        event_payload["eventDayTails"] or
+        event_payload["eventMonthDays"] or
+        event_payload["eventZoro"] or
+        event_payload["eventWeekdays"] or
+        event_payload["eventSourceText"]
+    ):
+        event_payload = {
+            "eventDayTails": normalize_event_values(existing_entry.get("eventDayTails", []), 0, 9),
+            "eventMonthDays": normalize_event_values(existing_entry.get("eventMonthDays", []), 1, 31),
+            "eventZoro": read_bool(existing_entry.get("eventZoro", False)),
+            "eventWeekdays": normalize_event_values(existing_entry.get("eventWeekdays", []), 0, 6),
+            "eventSourceText": read_text(existing_entry.get("eventSourceText", "")),
+        }
     return {
         "id": store_id,
         "legacyIds": sorted(legacy_ids),
@@ -425,6 +523,7 @@ def build_registered_store_index_entry(
         "storeUrl": normalize_store_url(store_source.store_url),
         "prefectureName": read_text(store_source.prefecture_name),
         "areaName": read_text(store_source.area_name),
+        **event_payload,
         "machineCount": int(existing_entry.get("machineCount") or 0),
         "latestDate": existing_entry.get("latestDate"),
         "recordCount": int(existing_entry.get("recordCount") or 0),
@@ -590,6 +689,11 @@ def load_store_sources_from_csv(stores_csv: Path) -> dict[str, StoreSource]:
                     store_url=store_url,
                     prefecture_name=read_prefecture_name(row),
                     area_name=read_area_name(row),
+                    event_day_tails=normalize_event_values(row.get("event_day_tails", []), 0, 9),
+                    event_month_days=normalize_event_values(row.get("event_month_days", []), 1, 31),
+                    event_zoro=read_bool(row.get("event_zoro", False)),
+                    event_weekdays=normalize_event_values(row.get("event_weekdays", []), 0, 6),
+                    event_source_text=read_text(row.get("event_source_text")),
                 ),
             )
             if store_name and not store_source.store_name:
@@ -598,6 +702,7 @@ def load_store_sources_from_csv(stores_csv: Path) -> dict[str, StoreSource]:
                 store_source.prefecture_name = read_prefecture_name(row)
             if not store_source.area_name:
                 store_source.area_name = read_area_name(row)
+            apply_event_fields(store_source, row)
             legacy_id = read_text(row.get("id"))
             if legacy_id:
                 store_source.legacy_ids.add(legacy_id)
@@ -666,11 +771,17 @@ def collect_store_records_from_local_store_dir(store_dir: Path) -> tuple[StoreSo
             store_url=store_url,
             prefecture_name=read_prefecture_name(store_payload),
             area_name=read_area_name(store_payload),
+            event_day_tails=normalize_event_values(store_payload.get("event_day_tails", []), 0, 9),
+            event_month_days=normalize_event_values(store_payload.get("event_month_days", []), 1, 31),
+            event_zoro=read_bool(store_payload.get("event_zoro", False)),
+            event_weekdays=normalize_event_values(store_payload.get("event_weekdays", []), 0, 6),
+            event_source_text=read_text(store_payload.get("event_source_text")),
         )
         if not store_source.prefecture_name:
             store_source.prefecture_name = read_prefecture_name(store_payload)
         if not store_source.area_name:
             store_source.area_name = read_area_name(store_payload)
+        apply_event_fields(store_source, store_payload)
         saved_at = read_text(snapshot.get("saved_at")) or datetime.fromtimestamp(
             snapshot_path.stat().st_mtime,
         ).isoformat()

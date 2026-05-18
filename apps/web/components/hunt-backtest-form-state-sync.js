@@ -13,7 +13,9 @@ const MANAGED_PARAM_KEYS = [
   "endDate",
   "backtestEventTouched",
   "backtestDayTail",
+  "backtestZoro",
   "backtestWeekday",
+  "backtestMonthDay",
   "machineTouched",
   "aimMachineGroup",
   "hanabiMachineGroup",
@@ -133,8 +135,14 @@ function readLegacyEventState(storeId) {
     for (const dayTail of normalizeIntegerValues(parsedValue?.dayTails ?? [], 0, 9)) {
       entries.push(["backtestDayTail", String(dayTail)]);
     }
+    if (parsedValue?.zoro) {
+      entries.push(["backtestZoro", "1"]);
+    }
     for (const weekday of normalizeIntegerValues(parsedValue?.weekdays ?? [], 0, 6)) {
       entries.push(["backtestWeekday", String(weekday)]);
+    }
+    for (const monthDay of normalizeIntegerValues(parsedValue?.monthDays ?? [], 1, 31)) {
+      entries.push(["backtestMonthDay", String(monthDay)]);
     }
     return entries;
   } catch {

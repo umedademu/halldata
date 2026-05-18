@@ -43,6 +43,7 @@ import {
 
 export const dynamic = "force-dynamic";
 const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, index) => index);
+const MONTH_DAY_OPTIONS = Array.from({ length: 31 }, (_, index) => index + 1);
 const HUNT_BACKTEST_FORM_ID = "hunt-backtest-condition-form";
 const WEEKDAY_OPTIONS = [
   { value: 1, label: "月曜" },
@@ -231,7 +232,9 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     showGraph: readSingleSearchParam(resolvedSearchParams?.showGraph),
     eventTouched: readSingleSearchParam(resolvedSearchParams?.backtestEventTouched) === "1",
     dayTails: readMultiSearchParam(resolvedSearchParams?.backtestDayTail),
+    zoro: readSingleSearchParam(resolvedSearchParams?.backtestZoro) === "1",
     weekdays: readMultiSearchParam(resolvedSearchParams?.backtestWeekday),
+    monthDays: readMultiSearchParam(resolvedSearchParams?.backtestMonthDay),
   };
 
   let detail;
@@ -287,12 +290,17 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     nextGapScope: detail.backtest.nextGapScope,
     scoreDifferenceMode: detail.backtest.scoreDifferenceMode,
     differenceMode: detail.backtest.differenceMode,
+    eventDayTails: detail.backtest.eventFilters.dayTails,
+    eventZoro: detail.backtest.eventFilters.zoro,
+    eventWeekdays: detail.backtest.eventFilters.weekdays,
+    eventMonthDays: detail.backtest.eventFilters.monthDays,
     combineAimJuggler: detail.backtest.combineAimJuggler,
     combineHanabi: detail.backtest.combineHanabi,
     dailySelectionMode: detail.backtest.dailySelectionMode,
   };
   const selectedBacktestDayTailSet = new Set(detail.backtest.eventFilters.dayTails);
   const selectedBacktestWeekdaySet = new Set(detail.backtest.eventFilters.weekdays);
+  const selectedBacktestMonthDaySet = new Set(detail.backtest.eventFilters.monthDays);
   const machineOptionGroups = groupHuntMachineOptions(detail.backtest.machineOptions);
   const backtestFormStateKey = JSON.stringify({
     periodMode: detail.backtest.periodMode,
@@ -300,7 +308,9 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     startDate: detail.backtest.startDate ?? "",
     endDate: detail.backtest.endDate ?? "",
     dayTails: detail.backtest.eventFilters.dayTails,
+    zoro: detail.backtest.eventFilters.zoro,
     weekdays: detail.backtest.eventFilters.weekdays,
+    monthDays: detail.backtest.eventFilters.monthDays,
     machineNames: detail.backtest.selectedMachineNames,
     combineAimJuggler: detail.backtest.combineAimJuggler,
     combineHanabi: detail.backtest.combineHanabi,
@@ -464,6 +474,41 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                         defaultChecked={selectedBacktestDayTailSet.has(dayTail)}
                       />
                       <span>{dayTail}</span>
+                    </label>
+                  ))}
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.eventFilters.zoro ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="backtestZoro"
+                      value="1"
+                      defaultChecked={detail.backtest.eventFilters.zoro}
+                    />
+                    <span>ゾロ目</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="backtestBlock">
+                <p className="filterControlLabel">特定日（翌営業日の日付）</p>
+                <div className="metricToggleRow">
+                  {MONTH_DAY_OPTIONS.map((monthDay) => (
+                    <label
+                      key={monthDay}
+                      className={`metricToggleChip ${
+                        selectedBacktestMonthDaySet.has(monthDay) ? "metricToggleChipActive" : ""
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        name="backtestMonthDay"
+                        value={monthDay}
+                        defaultChecked={selectedBacktestMonthDaySet.has(monthDay)}
+                      />
+                      <span>{monthDay}日</span>
                     </label>
                   ))}
                 </div>

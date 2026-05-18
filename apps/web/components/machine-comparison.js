@@ -52,6 +52,7 @@ import {
 import { CsvExportButton } from "./csv-export-button";
 
 const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, value) => value);
+const MONTH_DAY_OPTIONS = Array.from({ length: 31 }, (_, index) => index + 1);
 const WEEKDAY_FILTER_OPTIONS = [
   { value: 1, label: "月曜" },
   { value: 2, label: "火曜" },
@@ -253,7 +254,7 @@ function normalizeStoredEventFilters(value, fallbackFilters) {
   if (!value || typeof value !== "object") {
     return fallbackFilters;
   }
-  return createEventFilters(value.dayTails, Boolean(value.zoro), value.weekdays);
+  return createEventFilters(value.dayTails, Boolean(value.zoro), value.weekdays, value.monthDays);
 }
 
 function parseHuntScoreHighlightThreshold(value, fallbackValue = null) {
@@ -625,6 +626,7 @@ function saveMachineComparisonOptions(storeId, options) {
           dayTails: options.eventFilters?.dayTails ?? [],
           zoro: Boolean(options.eventFilters?.zoro),
           weekdays: options.eventFilters?.weekdays ?? [],
+          monthDays: options.eventFilters?.monthDays ?? [],
         },
         differenceMode: normalizeDifferenceMode(options.differenceMode),
         visibleMetricKeys: normalizeMetricKeys(options.visibleMetricKeys),
@@ -1892,6 +1894,7 @@ export function MachineComparison({
         initialEventFilters?.dayTails ?? [],
         initialEventFilters?.zoro ?? false,
         initialEventFilters?.weekdays ?? [],
+        initialEventFilters?.monthDays ?? [],
       ),
     [initialEventFilters],
   );
@@ -2346,6 +2349,7 @@ export function MachineComparison({
           nextDayTails,
           currentFilters.zoro,
           currentFilters.weekdays,
+          currentFilters.monthDays,
         );
         return nextFilters;
       });
@@ -2359,8 +2363,26 @@ export function MachineComparison({
           currentFilters.dayTails,
           !currentFilters.zoro,
           currentFilters.weekdays,
+          currentFilters.monthDays,
         );
         return nextFilters;
+      });
+    });
+  };
+
+  const toggleMonthDay = (monthDay) => {
+    startTransition(() => {
+      setEventFilters((currentFilters) => {
+        const currentMonthDays = currentFilters.monthDays ?? [];
+        const nextMonthDays = currentMonthDays.includes(monthDay)
+          ? currentMonthDays.filter((value) => value !== monthDay)
+          : [...currentMonthDays, monthDay];
+        return createEventFilters(
+          currentFilters.dayTails,
+          currentFilters.zoro,
+          currentFilters.weekdays,
+          nextMonthDays,
+        );
       });
     });
   };
@@ -2376,6 +2398,7 @@ export function MachineComparison({
           currentFilters.dayTails,
           currentFilters.zoro,
           nextWeekdays,
+          currentFilters.monthDays,
         );
         return nextFilters;
       });
@@ -2562,6 +2585,24 @@ export function MachineComparison({
             >
               ゾロ目
             </button>
+          </div>
+        </div>
+        <div className="filterControlGroup">
+          <p className="filterControlLabel">毎月日付</p>
+          <div className="dayFilterRow">
+            {MONTH_DAY_OPTIONS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => toggleMonthDay(value)}
+                className={`dayFilterChip ${
+                  eventFilters.monthDays?.includes(value) ? "dayFilterChipActive" : ""
+                }`}
+                aria-pressed={eventFilters.monthDays?.includes(value) ?? false}
+              >
+                {value}日
+              </button>
+            ))}
           </div>
         </div>
         <div className="filterControlGroup">

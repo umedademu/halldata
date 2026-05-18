@@ -33,6 +33,17 @@ function parseWeekdayValues(value) {
   return [...weekdays].sort((left, right) => left - right);
 }
 
+function parseMonthDayValues(value) {
+  const monthDays = new Set();
+  for (const item of splitSearchParamValue(value)) {
+    const numericValue = Number(item);
+    if (Number.isInteger(numericValue) && numericValue >= 1 && numericValue <= 31) {
+      monthDays.add(numericValue);
+    }
+  }
+  return [...monthDays].sort((left, right) => left - right);
+}
+
 function parseFlagValue(value) {
   return splitSearchParamValue(value).some((item) => item === "1" || item === "true");
 }
@@ -58,19 +69,36 @@ function isZoromeDate(date) {
   return Number(match[1]) === Number(match[2]);
 }
 
-export function createEventFilters(dayTails = [], zoro = false, weekdays = []) {
+function getDateMonthDay(date) {
+  const match = String(date).match(/^\d{4}-\d{2}-(\d{2})$/u);
+  if (!match) {
+    return null;
+  }
+  const monthDay = Number(match[1]);
+  return Number.isInteger(monthDay) && monthDay >= 1 && monthDay <= 31 ? monthDay : null;
+}
+
+export function createEventFilters(dayTails = [], zoro = false, weekdays = [], monthDays = []) {
   const normalizedDayTails = [...new Set(dayTails)]
     .filter((value) => Number.isInteger(value) && value >= 0 && value <= 9)
     .sort((left, right) => left - right);
   const normalizedWeekdays = [...new Set(weekdays)]
     .filter((value) => Number.isInteger(value) && value >= 0 && value <= 6)
     .sort((left, right) => left - right);
+  const normalizedMonthDays = [...new Set(monthDays)]
+    .filter((value) => Number.isInteger(value) && value >= 1 && value <= 31)
+    .sort((left, right) => left - right);
 
   return {
     dayTails: normalizedDayTails,
     zoro: Boolean(zoro),
     weekdays: normalizedWeekdays,
-    isActive: normalizedDayTails.length > 0 || Boolean(zoro) || normalizedWeekdays.length > 0,
+    monthDays: normalizedMonthDays,
+    isActive:
+      normalizedDayTails.length > 0 ||
+      Boolean(zoro) ||
+      normalizedWeekdays.length > 0 ||
+      normalizedMonthDays.length > 0,
   };
 }
 
@@ -79,6 +107,7 @@ export function parseEventFilters(searchParams) {
     parseDayTailValues(searchParams?.dayTail),
     parseFlagValue(searchParams?.zoro),
     parseWeekdayValues(searchParams?.weekday),
+    parseMonthDayValues(searchParams?.monthDay),
   );
 }
 
@@ -94,6 +123,11 @@ export function matchesEventFilters(date, filters) {
 
   const weekday = getDateWeekday(date);
   if (weekday !== null && filters.weekdays?.includes(weekday)) {
+    return true;
+  }
+
+  const monthDay = getDateMonthDay(date);
+  if (monthDay !== null && filters.monthDays?.includes(monthDay)) {
     return true;
   }
 

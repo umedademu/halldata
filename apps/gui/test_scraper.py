@@ -53,8 +53,10 @@ from minrepo_scraper import (
     MinRepoScraper,
     ScraperError,
     StoreDatePage,
+    StoreEventSettings,
     normalize_text,
     parse_date_range_input,
+    parse_old_event_days_text,
 )
 from r2_storage import R2StorageError
 from site7_scraper import (
@@ -339,6 +341,22 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertEqual(start_date, datetime(2025, 12, 30))
         self.assertEqual(end_date, datetime(2026, 4, 8))
+
+    def test_parse_old_event_days_text(self) -> None:
+        event_settings = parse_old_event_days_text("5のつく日、9のつく日、11日、22日、月と日がゾロ目の日")
+
+        self.assertEqual(event_settings.day_tails, [5, 9])
+        self.assertEqual(event_settings.month_days, [11, 22])
+        self.assertTrue(event_settings.zoro)
+        self.assertEqual(event_settings.weekdays, [])
+
+    def test_parse_old_event_days_text_accepts_weekdays(self) -> None:
+        event_settings = parse_old_event_days_text("毎週土曜日、日曜日")
+
+        self.assertEqual(event_settings.day_tails, [])
+        self.assertEqual(event_settings.month_days, [])
+        self.assertFalse(event_settings.zoro)
+        self.assertEqual(event_settings.weekdays, [0, 6])
 
     def test_build_recent_date_range_input_uses_jst_today(self) -> None:
         result = build_recent_date_range_input("90", datetime(2026, 4, 14, 0, 30, tzinfo=timezone.utc))
@@ -779,7 +797,7 @@ class MinRepoScraperTests(unittest.TestCase):
         kind, payload = app.result_queue.get_nowait()
         self.assertEqual(kind, "register_store_success")
         self.assertEqual(
-            payload,
+            payload[:8],
             (
                 "BIGディッパー門前仲町店",
                 "https://min-repo.com/tag/big-dipper/",
@@ -791,6 +809,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 "",
             ),
         )
+        self.assertIsInstance(payload[8], StoreEventSettings)
 
     def test_worker_update_registered_store_uses_auto_fill_but_keeps_manual_region(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -816,7 +835,7 @@ class MinRepoScraperTests(unittest.TestCase):
         kind, payload = app.result_queue.get_nowait()
         self.assertEqual(kind, "update_registered_store_success")
         self.assertEqual(
-            payload,
+            payload[:9],
             (
                 "https://min-repo.com/tag/old-store/",
                 "ワンダーランド三潴店",
@@ -829,6 +848,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 "",
             ),
         )
+        self.assertIsInstance(payload[9], StoreEventSettings)
 
     def test_update_registered_store_same_url_uses_worker_for_auto_fill(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
