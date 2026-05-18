@@ -917,12 +917,28 @@ function buildEffectiveHuntScoreStoreConfig(storeName, machineNames) {
   }
 
   const availableMachineNameSet = new Set(availableMachineNames.map(normalizeText));
-  const targetMachines = listTargetMachinesFromConfigs(listKnownHuntScoreStoreConfigs(storeName)).filter(
+  const knownTargetMachines = listTargetMachinesFromConfigs(listKnownHuntScoreStoreConfigs(storeName));
+  const knownAvailableTargetMachines = knownTargetMachines.filter(
     (targetMachine) =>
       listHuntScoreTargetMachineNameCandidates(targetMachine).some((candidateName) =>
         availableMachineNameSet.has(normalizeText(candidateName)),
       ),
   );
+  const knownTargetCandidateSet = new Set(
+    knownAvailableTargetMachines
+      .flatMap(listHuntScoreTargetMachineNameCandidates)
+      .map(normalizeText)
+      .filter(Boolean),
+  );
+  const dynamicTargetMachines = availableMachineNames
+    .filter((machineName) => !knownTargetCandidateSet.has(normalizeText(machineName)))
+    .map((machineName) => ({
+      name: machineName,
+      aliases: [],
+    }));
+  const targetMachines = listTargetMachinesFromConfigs([
+    { targetMachines: [...knownAvailableTargetMachines, ...dynamicTargetMachines] },
+  ]);
 
   return {
     ...primaryConfig,

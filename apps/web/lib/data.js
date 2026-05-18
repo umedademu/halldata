@@ -7,9 +7,7 @@ import {
   buildHuntScoreSnapshots,
   canonicalHuntScoreTargetMachineName,
   getHuntScoreLogicDetail,
-  isHuntScoreSupported,
   isHuntScoreTargetStore,
-  listAllHuntScoreTargetMachineNames,
   listHuntScoreRankingDateOptions,
   listHuntScoreLogicOptions,
   listHuntScoreSourceMachineNames,
@@ -54,6 +52,7 @@ const DEFAULT_CROSS_STORE_MIN_MATCHED_DATES = 3;
 const CROSS_STORE_BACKTEST_CONCURRENCY = 12;
 const CROSS_STORE_BACKTEST_WINDOW_BUFFER_DAYS = 18;
 const CROSS_STORE_BACKTEST_NEXT_RESULT_BUFFER_DAYS = 7;
+const HUNT_SCORE_ACTIVE_MACHINE_WINDOW_DAYS = 7;
 const DEFAULT_CROSS_STORE_MACHINE_NAMES = [
   "SアイムジャグラーＥＸ",
   "ネオアイムジャグラーEX",
@@ -1455,6 +1454,37 @@ function readStaticStoreMachineNames(staticStore) {
     .filter(Boolean);
 }
 
+function readStaticStoreRecentMachineNames(staticStore) {
+  const machines = (Array.isArray(staticStore?.machines) ? staticStore.machines : [])
+    .map((machine) => ({
+      machineName: String(machine?.machineName ?? "").trim(),
+      latestDate: normalizeDateInput(machine?.latestDate),
+    }))
+    .filter((machine) => machine.machineName && machine.latestDate);
+  const latestDate =
+    machines.reduce((currentLatestDate, machine) => {
+      if (!machine.latestDate) {
+        return currentLatestDate;
+      }
+      if (currentLatestDate === null || machine.latestDate > currentLatestDate) {
+        return machine.latestDate;
+      }
+      return currentLatestDate;
+    }, null) ?? normalizeDateInput(staticStore?.summary?.latestDate);
+  const activeStartDate = shiftDateInput(
+    latestDate,
+    -(HUNT_SCORE_ACTIVE_MACHINE_WINDOW_DAYS - 1),
+  );
+
+  if (!latestDate || !activeStartDate) {
+    return readStaticStoreMachineNames(staticStore);
+  }
+
+  return machines
+    .filter((machine) => machine.latestDate >= activeStartDate && machine.latestDate <= latestDate)
+    .map((machine) => machine.machineName);
+}
+
 function setMachineSlotCount(machineSlotCounts, machineName, rawSlotCount) {
   const normalizedMachineName = String(machineName ?? "").trim();
   const slotCount = Number(rawSlotCount ?? 0);
@@ -1879,7 +1909,7 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
   }
 
   const storeDetail = buildStaticStoreDetail(staticStore);
-  const storeMachineNames = readStaticStoreMachineNames(staticStore);
+  const storeMachineNames = readStaticStoreRecentMachineNames(staticStore);
   const differenceMode = normalizeDifferenceMode(backtestOptions?.differenceMode);
   const machineNames = listHuntScoreTargetMachineNamesForStoreMachines(
     store.storeName,
@@ -2079,7 +2109,7 @@ async function buildStaticHuntScoreSourceRows(staticStore) {
     staticStore,
     listHuntScoreSourceMachineNamesForStoreMachines(
       store.storeName,
-      readStaticStoreMachineNames(staticStore),
+      readStaticStoreRecentMachineNames(staticStore),
     ),
   );
 }
@@ -2106,7 +2136,7 @@ async function buildStaticMachineHuntScoreHighlight(
   return buildMachineHuntScoreHighlightDetail(
     store.storeName,
     snapshots,
-    readStaticStoreMachineNames(staticStore),
+    readStaticStoreRecentMachineNames(staticStore),
     buildStaticStoreMachineSlotCounts(staticStore),
   );
 }
@@ -2125,6 +2155,12 @@ async function buildStaticMachineDetail(
       latestDate: machine.latestDate ? String(machine.latestDate) : null,
     }))
     .filter((machine) => machine.machineName && machine.latestDate);
+  const activeMachineNames = readStaticStoreRecentMachineNames(staticStore);
+  const activeHuntScoreMachineNameSet = new Set(
+    listHuntScoreTargetMachineNamesForStoreMachines(store.storeName, activeMachineNames)
+      .flatMap((name) => [name, canonicalMachineName(name)])
+      .filter(Boolean),
+  );
   const machinesByCanonicalName = buildMachineSummaryByCanonicalName(machines);
   const requestedCombinedGroup = findCombinedMachineGroup(requestedMachineName);
   const combinedChildMachines = requestedCombinedGroup
@@ -2142,8 +2178,12 @@ async function buildStaticMachineDetail(
   const requestedHuntScoreMachineName =
     canonicalHuntScoreTargetMachineName(requestedMachineName, store.storeName) ?? requestedMachineName;
   const huntScoreEnabled = combinedChildMachines
-    ? requestedMachineNames.some((name) => isHuntScoreSupported(store.storeName, name))
-    : isHuntScoreSupported(store.storeName, requestedHuntScoreMachineName);
+    ? requestedMachineNames.some((name) =>
+        activeHuntScoreMachineNameSet.has(
+          canonicalHuntScoreTargetMachineName(name, store.storeName) ?? canonicalMachineName(name),
+        ),
+      )
+    : activeHuntScoreMachineNameSet.has(canonicalMachineName(requestedHuntScoreMachineName));
   let huntScoreHighlight = null;
   let rows = [];
 
@@ -2164,7 +2204,7 @@ async function buildStaticMachineDetail(
     huntScoreHighlight = buildMachineHuntScoreHighlightDetail(
       store.storeName,
       snapshots,
-      readStaticStoreMachineNames(staticStore),
+      activeMachineNames,
       buildStaticStoreMachineSlotCounts(staticStore),
     );
     const targetMachineRows = targetRows.filter((row) =>
@@ -2374,9 +2414,10 @@ async function getHuntScoreSnapshotsForStore(
     }
     const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, staticIdentity.storeName);
     const normalizedDifferenceMode = normalizeDifferenceMode(differenceMode);
+    const storeMachineNames = readStaticStoreRecentMachineNames(staticStore);
     const availableMachineNames = listHuntScoreTargetMachineNamesForStoreMachines(
       staticIdentity.storeName,
-      readStaticStoreMachineNames(staticStore),
+      storeMachineNames,
     );
     const rankingMachineNames = normalizeInitialMachineSelection(availableMachineNames, machineOptions);
     const targetDateOnly = machineOptions?.targetDateOnly === true;
@@ -2429,7 +2470,7 @@ async function getHuntScoreSnapshotsForStore(
     ];
     const detailAvailableMachineNames = listHuntScoreTargetMachineNamesForStoreMachines(
       staticIdentity.storeName,
-      [...new Set([...readStaticStoreMachineNames(staticStore), ...snapshotMachineNames])],
+      [...new Set([...storeMachineNames, ...snapshotMachineNames])],
     );
     return {
       dataSource: "json",
@@ -2676,8 +2717,10 @@ function storeEntryMatchesCrossStoreLocation(storeEntry, locationDetail) {
   return true;
 }
 
-function buildCrossStoreBacktestOptions(options = {}) {
-  const machineNames = listAllHuntScoreTargetMachineNames();
+function buildCrossStoreBacktestOptions(options = {}, availableMachineNames = null) {
+  const machineNames = Array.isArray(availableMachineNames) && availableMachineNames.length > 0
+    ? availableMachineNames
+    : DEFAULT_CROSS_STORE_MACHINE_NAMES;
   const selectedMachineNames = normalizeCrossStoreInitialMachineSelection(machineNames, options);
   const selectedMachineNameSet = new Set(selectedMachineNames);
   const hasScopedRankOption =
@@ -2773,6 +2816,47 @@ async function mapWithConcurrency(items, concurrency, mapper) {
   );
 
   return results;
+}
+
+function sortHuntScoreMachineNamesWithDefaults(machineNames) {
+  const names = [...new Set((Array.isArray(machineNames) ? machineNames : [])
+    .map((machineName) => String(machineName ?? "").trim())
+    .filter(Boolean))];
+  const nameSet = new Set(names);
+  const defaultNames = DEFAULT_CROSS_STORE_MACHINE_NAMES.filter((machineName) =>
+    nameSet.has(machineName),
+  );
+  const otherNames = names
+    .filter((machineName) => !DEFAULT_CROSS_STORE_MACHINE_NAMES.includes(machineName))
+    .sort((left, right) => left.localeCompare(right, "ja", { numeric: true }));
+  return [...defaultNames, ...otherNames];
+}
+
+async function listCrossStoreRecentHuntScoreMachineNames(storeEntries) {
+  const storeMachineNameLists = await mapWithConcurrency(
+    storeEntries,
+    CROSS_STORE_BACKTEST_CONCURRENCY,
+    async (storeEntry) => {
+      try {
+        const staticStore = await readStaticStoreByEntry(storeEntry);
+        if (!staticStore) {
+          return [];
+        }
+        const store = readStaticStoreIdentity(staticStore);
+        if (!isHuntScoreTargetStore(store.storeName)) {
+          return [];
+        }
+        return listHuntScoreTargetMachineNamesForStoreMachines(
+          store.storeName,
+          readStaticStoreRecentMachineNames(staticStore),
+        );
+      } catch {
+        return [];
+      }
+    },
+  );
+
+  return sortHuntScoreMachineNamesWithDefaults(storeMachineNameLists.flat());
 }
 
 function storeEntryHasBacktestData(storeEntry) {
@@ -3022,7 +3106,7 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       return null;
     }
 
-    const storeMachineNames = readStaticStoreMachineNames(staticStore);
+    const storeMachineNames = readStaticStoreRecentMachineNames(staticStore);
     const storeHuntScoreMachineNames = listHuntScoreTargetMachineNamesForStoreMachines(
       store.storeName,
       storeMachineNames,
@@ -3114,7 +3198,8 @@ export async function getCrossStoreBacktestDetail(options = {}) {
   const storeEntries = allStoreEntries.filter((storeEntry) =>
     storeEntryMatchesCrossStoreLocation(storeEntry, locationDetail),
   );
-  const backtestOptions = buildCrossStoreBacktestOptions(options);
+  const machineNames = await listCrossStoreRecentHuntScoreMachineNames(storeEntries);
+  const backtestOptions = buildCrossStoreBacktestOptions(options, machineNames);
   const huntScoreLogic = getHuntScoreLogicDetail(options?.logicKey, "");
   let rows = [];
 
