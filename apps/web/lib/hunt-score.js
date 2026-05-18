@@ -1268,6 +1268,87 @@ function readMachineHighSettingCandidateRate30(metrics, context = {}) {
   return Number.isFinite(rate) ? rate : null;
 }
 
+function calculateRbSettingEquivalentFromRates(settingRates, games, rbCount) {
+  const normalizedGames = Number(games);
+  const normalizedRbCount = Number(rbCount);
+  if (!Number.isFinite(normalizedGames) || normalizedGames <= 0 || !Number.isFinite(normalizedRbCount)) {
+    return null;
+  }
+
+  const rates = (Array.isArray(settingRates) ? settingRates : [])
+    .map((row) => ({
+      setting: Number(row?.setting),
+      rb: Number(row?.rb),
+    }))
+    .filter((row) => Number.isFinite(row.setting) && Number.isFinite(row.rb) && row.rb > 0)
+    .sort((left, right) => left.setting - right.setting);
+
+  if (rates.length === 0) {
+    return null;
+  }
+
+  const probability = normalizedRbCount > 0 ? normalizedRbCount / normalizedGames : 0;
+  if (probability <= rates[0].rb) {
+    return rates[0].setting;
+  }
+
+  const lastRate = rates.at(-1);
+  if (probability >= lastRate.rb) {
+    return lastRate.setting;
+  }
+
+  for (let index = 1; index < rates.length; index += 1) {
+    const lower = rates[index - 1];
+    const upper = rates[index];
+    if (probability > upper.rb) {
+      continue;
+    }
+
+    if (Math.abs(upper.rb - lower.rb) <= Number.EPSILON) {
+      return upper.setting;
+    }
+
+    const ratio = (probability - lower.rb) / (upper.rb - lower.rb);
+    return lower.setting + ratio * (upper.setting - lower.setting);
+  }
+
+  return lastRate.setting;
+}
+
+function calculateRbSettingEquivalentForTotals(machineName, games, rbCount, settingDefinitionCache) {
+  const definition = getSettingDefinition(settingDefinitionCache, machineName);
+  return calculateRbSettingEquivalentFromRates(definition?.settingRates, games, rbCount);
+}
+
+function calculateRbSettingEquivalentForRow(row, settingDefinitionCache, config) {
+  const machineName = normalizeHuntScoreMachineName(row?.machine_name, config);
+  return calculateRbSettingEquivalentForTotals(
+    machineName,
+    readNumber(row?.games_count) ?? 0,
+    readNumber(row?.rb_count) ?? 0,
+    settingDefinitionCache,
+  );
+}
+
+function isAmuseAsakusaNormalizedHighSettingRow(row, settingDefinitionCache, config) {
+  if (!row) {
+    return false;
+  }
+
+  const games = readNumber(row?.games_count) ?? 0;
+  if (games < 4500) {
+    return false;
+  }
+
+  const settingAverage = getSettingEstimateAverage(settingDefinitionCache, row, config).average;
+  if (!Number.isFinite(settingAverage) || settingAverage < 4.5) {
+    return false;
+  }
+
+  const rbSettingEquivalent = calculateRbSettingEquivalentForRow(row, settingDefinitionCache, config);
+  return Number.isFinite(rbSettingEquivalent) && rbSettingEquivalent >= 4;
+}
+
 function normalizeDaysSinceHighSettingEstimateOffset(offset) {
   return Number.isFinite(offset) ? Math.max(0, offset - 1) : 99;
 }
@@ -1377,6 +1458,12 @@ function calculateMillionTobuNerimaHuntScore(metrics, context = {}) {
 
 function calculateAmuseAsakusaLargeMachineScore(metrics) {
   let rawScore = 0;
+  const daysSinceHNorm = Number.isFinite(metrics.amuseAsakusaDaysSinceHNorm)
+    ? metrics.amuseAsakusaDaysSinceHNorm
+    : 99;
+  const hNormCount30 = Number.isFinite(metrics.amuseAsakusaHNormCount30)
+    ? metrics.amuseAsakusaHNormCount30
+    : 0;
 
   rawScore += scoreFromMaximums(metrics.gamesTotal, [
     { maximum: 25000, score: 40 },
@@ -1402,10 +1489,10 @@ function calculateAmuseAsakusaLargeMachineScore(metrics) {
     { minimum: 4, score: 4 },
   ]);
 
-  if (metrics.historyThirtyHighSettingCandidateCount <= 1) {
+  if (hNormCount30 <= 1) {
     rawScore += 5;
   }
-  if (normalizeDaysSinceHighSettingEstimateOffset(metrics.daysSinceHistoryHighSettingCandidate) === 1) {
+  if (daysSinceHNorm === 1) {
     rawScore -= 4;
   }
 
@@ -1447,9 +1534,12 @@ function calculateAmuseAsakusaMainMachineScore(metrics) {
 
 function calculateAmuseAsakusaSpotMachineScore(metrics) {
   let rawScore = 0;
-  const daysSinceH45 = normalizeDaysSinceHighSettingEstimateOffset(
-    metrics.daysSinceHistoryHighSettingCandidate,
-  );
+  const daysSinceHNorm = Number.isFinite(metrics.amuseAsakusaDaysSinceHNorm)
+    ? metrics.amuseAsakusaDaysSinceHNorm
+    : 99;
+  const hNormCount30 = Number.isFinite(metrics.amuseAsakusaHNormCount30)
+    ? metrics.amuseAsakusaHNormCount30
+    : 0;
 
   rawScore += scoreFromMaximums(metrics.gamesTotal, [
     { maximum: 25000, score: 20 },
@@ -1469,11 +1559,11 @@ function calculateAmuseAsakusaSpotMachineScore(metrics) {
     rawScore -= 5;
   }
 
-  if (daysSinceH45 >= 2 && daysSinceH45 <= 3) {
+  if (daysSinceHNorm >= 2 && daysSinceHNorm <= 3) {
     rawScore += 10;
-  } else if (daysSinceH45 >= 4 && daysSinceH45 <= 7) {
+  } else if (daysSinceHNorm >= 4 && daysSinceHNorm <= 7) {
     rawScore += 5;
-  } else if (daysSinceH45 >= 0 && daysSinceH45 <= 1) {
+  } else if (daysSinceHNorm >= 0 && daysSinceHNorm <= 1) {
     rawScore -= 5;
   }
 
@@ -1489,7 +1579,7 @@ function calculateAmuseAsakusaSpotMachineScore(metrics) {
   if (metrics.netTotal >= -5000 && metrics.netTotal <= -1000) {
     rawScore += 5;
   }
-  if (metrics.historyThirtyHighSettingCandidateCount >= 3) {
+  if (hNormCount30 >= 3) {
     rawScore += 3;
   }
 
@@ -1498,10 +1588,15 @@ function calculateAmuseAsakusaSpotMachineScore(metrics) {
 
 function calculateAmuseAsakusaSmallMachineScore(metrics) {
   let rawScore = 0;
-  const rbDenominator = metrics.rbTotal > 0 && metrics.gamesTotal > 0 ? metrics.gamesTotal / metrics.rbTotal : 9999;
-  const daysSinceH45 = normalizeDaysSinceHighSettingEstimateOffset(
-    metrics.daysSinceHistoryHighSettingCandidate,
-  );
+  const rbSettingEquivalent7 = Number.isFinite(metrics.amuseAsakusaRbSetting7)
+    ? metrics.amuseAsakusaRbSetting7
+    : null;
+  const daysSinceHNorm = Number.isFinite(metrics.amuseAsakusaDaysSinceHNorm)
+    ? metrics.amuseAsakusaDaysSinceHNorm
+    : 99;
+  const hNormCount30 = Number.isFinite(metrics.amuseAsakusaHNormCount30)
+    ? metrics.amuseAsakusaHNormCount30
+    : 0;
 
   rawScore += scoreFromMinimums(metrics.windowSettingAverage, [
     { minimum: 3.8, score: 20 },
@@ -1509,11 +1604,11 @@ function calculateAmuseAsakusaSmallMachineScore(metrics) {
     { minimum: 3.2, score: 8 },
   ]);
 
-  rawScore += scoreFromMaximums(rbDenominator, [
-    { maximum: 300, score: 14 },
-    { maximum: 330, score: 10 },
+  rawScore += scoreFromMinimums(rbSettingEquivalent7, [
+    { minimum: 4.5, score: 14 },
+    { minimum: 3.8, score: 10 },
   ]);
-  if (rbDenominator >= 400) {
+  if (Number.isFinite(rbSettingEquivalent7) && rbSettingEquivalent7 <= 1.5) {
     rawScore -= 8;
   }
 
@@ -1529,24 +1624,24 @@ function calculateAmuseAsakusaSmallMachineScore(metrics) {
     rawScore -= 4;
   }
 
-  if (daysSinceH45 >= 2 && daysSinceH45 <= 3) {
+  if (daysSinceHNorm >= 2 && daysSinceHNorm <= 3) {
     rawScore += 10;
-  } else if (daysSinceH45 >= 0 && daysSinceH45 <= 1) {
+  } else if (daysSinceHNorm >= 0 && daysSinceHNorm <= 1) {
     rawScore -= 4;
   }
 
-  if (metrics.historyThirtyHighSettingCandidateCount >= 2) {
+  if (hNormCount30 >= 2) {
     rawScore += 5;
   }
 
   return rawScore;
 }
 
-function applyAmuseAsakusaDensityGate(score, typeR30) {
-  if (!Number.isFinite(typeR30)) {
+function applyAmuseAsakusaDensityGate(score, typeR30, machineCount) {
+  if (Number.isFinite(machineCount) && machineCount >= 20) {
     return score;
   }
-  if (typeR30 >= 0.7) {
+  if (!Number.isFinite(typeR30)) {
     return score;
   }
   if (typeR30 >= 0.5) {
@@ -1577,7 +1672,7 @@ function calculateAmuseAsakusaHuntScore(metrics, context = {}) {
   }
 
   const score = Math.round(clamp(rawScore * 1.6, 0, 100));
-  return applyAmuseAsakusaDensityGate(score, typeR30);
+  return applyAmuseAsakusaDensityGate(score, typeR30, machineCount);
 }
 
 function isAparkYakatabaruTargetMachine(machineName) {
@@ -5490,6 +5585,16 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
   const historyFortyFiveRows = historyWindowRows.slice(-45);
   const historySixtyRows = historyWindowRows.slice(-60);
   const historyTwentyOneRows = historyWindowRows.slice(-21);
+  const isHistoryAmuseAsakusaHNormWindowRow = (historyWindowRow) =>
+    isAmuseAsakusaNormalizedHighSettingRow(historyWindowRow?.row, settingDefinitionCache, config);
+  const historyThirtyAmuseAsakusaHNormCount =
+    historyThirtyRows.filter(isHistoryAmuseAsakusaHNormWindowRow).length;
+  const amuseAsakusaRbSetting7 = calculateRbSettingEquivalentForTotals(
+    normalizeHuntScoreMachineName(row?.machine_name, config),
+    gamesTotal,
+    rbTotal,
+    settingDefinitionCache,
+  );
   const historyFortyFiveSettingSampleCount = historyFortyFiveRows.filter((historyWindowRow) => {
     const settingAverage = getSettingEstimateAverage(settingDefinitionCache, historyWindowRow.row, config).average;
     return Number.isFinite(settingAverage);
@@ -5542,6 +5647,15 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
       const historyWindowRow = historyWindowRows.at(-offset);
       if (isHistoryHighSettingCandidateWindowRow(historyWindowRow)) {
+        return offset;
+      }
+    }
+    return null;
+  })();
+  const daysSinceHistoryAmuseAsakusaHNorm = (() => {
+    for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
+      const historyWindowRow = historyWindowRows.at(-offset);
+      if (isHistoryAmuseAsakusaHNormWindowRow(historyWindowRow)) {
         return offset;
       }
     }
@@ -5623,6 +5737,9 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     daysSinceSettingFive,
     daysSinceHistoryHighSettingEstimate,
     daysSinceHistoryHighSettingCandidate,
+    amuseAsakusaDaysSinceHNorm: normalizeDaysSinceHighSettingEstimateOffset(
+      daysSinceHistoryAmuseAsakusaHNorm,
+    ),
     daysSinceHistoryStrongHighSettingCandidate,
     daysSinceHistorySettingFive,
     highSettingStreak: calculateCurrentHighSettingStreak(metricWindowRows),
@@ -5652,6 +5769,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     historyHighSettingEstimateRate:
       historySettingSampleCount > 0 ? historyHighSettingEstimateCount / historySettingSampleCount : null,
     historyThirtyHighSettingCandidateCount,
+    amuseAsakusaHNormCount30: historyThirtyAmuseAsakusaHNormCount,
     historyFortyFiveHighSettingCandidateCount,
     historySixtyHighSettingCandidateCount,
     historyTwentyOneHighSettingCandidateCount,
@@ -5661,6 +5779,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     historyPositiveDays,
     bbTotal,
     rbTotal,
+    amuseAsakusaRbSetting7,
     bbRate: gamesTotal > 0 ? bbTotal / gamesTotal : 0,
     rbRate: gamesTotal > 0 ? rbTotal / gamesTotal : 0,
     ...previousReferenceEventMetrics,
@@ -5739,6 +5858,7 @@ function buildMachineHighSettingCandidateRateMap(
 
   const machineNames = new Set();
   const highSettingCandidateDateCounts = new Map();
+  const useAmuseAsakusaHNorm = config?.logicKey === "amuse-asakusa";
 
   for (const date of windowDates) {
     const highSettingCandidateMachineNames = new Set();
@@ -5756,7 +5876,10 @@ function buildMachineHighSettingCandidateRateMap(
       machineNames.add(machineName);
       const settingAverage = getSettingEstimateAverage(settingDefinitionCache, row, config).average;
       const rbCount = readNumber(row?.rb_count) ?? 0;
-      if (Number.isFinite(settingAverage) && settingAverage >= 4.5 && rbCount >= 25) {
+      const isHighSettingCandidate = useAmuseAsakusaHNorm
+        ? isAmuseAsakusaNormalizedHighSettingRow(row, settingDefinitionCache, config)
+        : Number.isFinite(settingAverage) && settingAverage >= 4.5 && rbCount >= 25;
+      if (isHighSettingCandidate) {
         highSettingCandidateMachineNames.add(machineName);
       }
     }
