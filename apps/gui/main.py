@@ -499,6 +499,10 @@ class MinRepoApp:
             self.scheduled_fetch_hour,
             self.scheduled_last_run_date,
         )
+        self.site7_schedule_startup_prompt_hour: int | None = site7_schedule_due_hour(
+            self.site7_schedule_hours,
+            self.site7_schedule_last_run_dates_by_hour,
+        )
         self.site7_schedule_pending_hours: set[int] = set()
         self.tray_icon: object | None = None
         self.tray_thread: threading.Thread | None = None
@@ -536,6 +540,10 @@ class MinRepoApp:
             for hour in SITE7_SCHEDULE_HOUR_OPTIONS
         }
         self.site7_schedule_status_var = tk.StringVar(value=self._site7_schedule_status_text())
+        if self.site7_schedule_startup_prompt_hour is not None:
+            self.site7_schedule_status_var.set(
+                f"本日 {self.site7_schedule_startup_prompt_hour} 時のサイトセブン定期実行を確認待ち"
+            )
         self.fetch_progress_current = 0
         self.fetch_progress_total = 0
         self.fetch_progress_started_at: float | None = None
@@ -550,6 +558,7 @@ class MinRepoApp:
         if self.startup_store_warning:
             self.root.after(100, lambda: messagebox.showwarning("登録店舗", self.startup_store_warning))
         self.root.after(250, self._prompt_scheduled_fetch_on_startup_if_needed)
+        self.root.after(350, self._prompt_scheduled_site7_fetch_on_startup_if_needed)
         self.root.after(500, self._prompt_site7_login_on_startup_if_needed)
 
     def _build_ui(self) -> None:
@@ -890,6 +899,43 @@ class MinRepoApp:
         self.scheduled_last_run_date = prompt_date
         self._start_scheduled_fetch()
 
+    def _prompt_scheduled_site7_fetch_on_startup_if_needed(self) -> None:
+        prompt_hour = self.site7_schedule_startup_prompt_hour
+        if prompt_hour is None:
+            return
+
+        if self.is_busy:
+            self.root.after(1_000, self._prompt_scheduled_site7_fetch_on_startup_if_needed)
+            return
+
+        due_hour = site7_schedule_due_hour(
+            self.site7_schedule_hours,
+            self.site7_schedule_last_run_dates_by_hour,
+        )
+        if due_hour != prompt_hour:
+            self.site7_schedule_startup_prompt_hour = None
+            return
+
+        self.site7_schedule_startup_prompt_hour = None
+        should_start = messagebox.askyesno(
+            "サイトセブン定期実行",
+            f"いまは {prompt_hour} 時台です。\n"
+            "起動直後のため、サイトセブン取得をすぐには始めません。\n"
+            "本日のサイトセブン定期実行をいま開始しますか？",
+        )
+        if not should_start:
+            self.site7_schedule_pending_hours.discard(prompt_hour)
+            self.site7_schedule_last_run_dates_by_hour[prompt_hour] = current_jst_date_text()
+            try:
+                self._save_site7_schedule_run_dates()
+            except Exception as exc:  # noqa: BLE001
+                self.site7_schedule_status_var.set(f"サイトセブン定期実行の記録保存に失敗しました: {exc}")
+                return
+            self.site7_schedule_status_var.set(f"本日 {prompt_hour} 時のサイトセブン定期実行は見送りました")
+            return
+
+        self._start_scheduled_site7_fetch(prompt_hour)
+
     def site7_login(self) -> None:
         if self.is_busy:
             return
@@ -1191,6 +1237,9 @@ class MinRepoApp:
             now,
         )
         if due_hour is not None:
+            if getattr(self, "site7_schedule_startup_prompt_hour", None) == due_hour:
+                self.site7_schedule_status_var.set(f"本日 {due_hour} 時のサイトセブン定期実行を確認待ち")
+                return
             self.site7_schedule_pending_hours.add(due_hour)
 
         self.site7_schedule_pending_hours = {

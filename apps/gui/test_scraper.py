@@ -548,6 +548,24 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(start_calls, [])
         self.assertEqual(app.schedule_status_var.get(), "本日 10 時の定期実行を確認待ち")
 
+    def test_run_scheduled_site7_fetch_if_due_waits_for_startup_confirmation(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.site7_schedule_hours = (12, 15, 18, 21)
+        app.site7_schedule_last_run_dates_by_hour = {}
+        app.site7_schedule_pending_hours = set()
+        app.site7_schedule_startup_prompt_hour = 12
+        app.site7_schedule_status_var = FakeTextVariable()
+        app._start_scheduled_site7_fetch = mock.Mock()
+        app.is_busy = False
+
+        with mock.patch("main.datetime") as mocked_datetime:
+            mocked_datetime.now.return_value = datetime(2026, 4, 28, 3, 0, tzinfo=timezone.utc)
+            app._run_scheduled_site7_fetch_if_due()
+
+        self.assertEqual(app.site7_schedule_pending_hours, set())
+        self.assertEqual(app.site7_schedule_status_var.get(), "本日 12 時のサイトセブン定期実行を確認待ち")
+        app._start_scheduled_site7_fetch.assert_not_called()
+
     def test_prompt_scheduled_fetch_on_startup_can_skip_today(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.scheduled_fetch_hour = 10
@@ -569,6 +587,31 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(app.schedule_status_var.get(), "本日 10 時の定期実行は見送りました")
         app._start_scheduled_fetch.assert_not_called()
 
+    def test_prompt_scheduled_site7_fetch_on_startup_can_skip_today(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.site7_schedule_hours = (12, 15, 18, 21)
+        app.site7_schedule_last_run_dates_by_hour = {}
+        app.site7_schedule_pending_hours = {12}
+        app.site7_schedule_startup_prompt_hour = 12
+        app.is_busy = False
+        app.site7_schedule_status_var = FakeTextVariable()
+        app._save_site7_schedule_run_dates = mock.Mock()
+        app._start_scheduled_site7_fetch = mock.Mock()
+
+        with (
+            mock.patch("main.site7_schedule_due_hour", return_value=12),
+            mock.patch("main.current_jst_date_text", return_value="2026-04-28"),
+            mock.patch("main.messagebox.askyesno", return_value=False),
+        ):
+            app._prompt_scheduled_site7_fetch_on_startup_if_needed()
+
+        self.assertEqual(app.site7_schedule_last_run_dates_by_hour, {12: "2026-04-28"})
+        self.assertEqual(app.site7_schedule_pending_hours, set())
+        self.assertIsNone(app.site7_schedule_startup_prompt_hour)
+        self.assertEqual(app.site7_schedule_status_var.get(), "本日 12 時のサイトセブン定期実行は見送りました")
+        app._save_site7_schedule_run_dates.assert_called_once_with()
+        app._start_scheduled_site7_fetch.assert_not_called()
+
     def test_prompt_scheduled_fetch_on_startup_can_start_now(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.scheduled_fetch_hour = 10
@@ -588,6 +631,25 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(app.scheduled_last_run_date, "2026-04-28")
         self.assertIsNone(app.scheduled_startup_prompt_date)
         app._start_scheduled_fetch.assert_called_once_with()
+
+    def test_prompt_scheduled_site7_fetch_on_startup_can_start_now(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.site7_schedule_hours = (12, 15, 18, 21)
+        app.site7_schedule_last_run_dates_by_hour = {}
+        app.site7_schedule_pending_hours = set()
+        app.site7_schedule_startup_prompt_hour = 12
+        app.is_busy = False
+        app.site7_schedule_status_var = FakeTextVariable()
+        app._start_scheduled_site7_fetch = mock.Mock()
+
+        with (
+            mock.patch("main.site7_schedule_due_hour", return_value=12),
+            mock.patch("main.messagebox.askyesno", return_value=True),
+        ):
+            app._prompt_scheduled_site7_fetch_on_startup_if_needed()
+
+        self.assertIsNone(app.site7_schedule_startup_prompt_hour)
+        app._start_scheduled_site7_fetch.assert_called_once_with(12)
 
     def test_update_button_states_enables_site7_cancel_button_while_site7_fetching(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
