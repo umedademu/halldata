@@ -367,6 +367,15 @@ const HUNT_MACHINE_DISPLAY_DEFINITIONS = [
     category: "other",
     names: ["スマスロ サンダーV", "LサンダーV", "スマスロサンダーV"],
   },
+  {
+    shortName: "異世界BT",
+    category: "other",
+    names: [
+      "A-SLOT+異世界かるてっとBT",
+      "A-SLOT+ 異世界かるてっとBT",
+      "A-SLOT+異世界かるてっとＢＴ",
+    ],
+  },
 ];
 
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
