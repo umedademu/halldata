@@ -8,6 +8,7 @@ import {
 const HUNT_SCORE_EPSILON = 0.000000001;
 const DEFAULT_HUNT_SCORE_WINDOW_DAYS = 7;
 const TAMAYA_ZASSHONOKUMA_HISTORY_WINDOW_DAYS = 30;
+const MILLION_TOBU_NERIMA_R30_WINDOW_DAYS = 30;
 const DEFAULT_HUNT_SCORE_LOGIC_KEY = "apark";
 const APARK_KASUGA_KAI_RAW_MIN = -32;
 const APARK_KASUGA_KAI_RAW_MAX = 138;
@@ -388,6 +389,17 @@ const BOOM_TENJIN_NEO_WEAK_SLOTS = new Set(["793", "801"]);
 const MILLION_TOBU_NERIMA_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
+  { name: "ゴーゴージャグラー３", aliases: ["ゴーゴージャグラー3", "ゴーゴージャグラー"] },
+  {
+    name: "ファンキージャグラー２ＫＴ",
+    aliases: ["ファンキージャグラー２", "ファンキージャグラー2", "ファンキージャグラー"],
+  },
+  { name: "ミスタージャグラー", aliases: [] },
+  { name: "ジャグラーガールズSS", aliases: ["ジャグラーガールズ"] },
+  {
+    name: "ハッピージャグラーＶＩＩＩ",
+    aliases: ["ハッピージャグラーVIII", "ハッピージャグラーＶ", "ハッピージャグラーV", "ハッピージャグラー"],
+  },
 ];
 
 const HUNT_SCORE_LOGIC_DEFINITIONS = [
@@ -407,6 +419,7 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     key: "million-tobu-nerima",
     name: "ミリオン東武練馬式",
     windowDays: 7,
+    historyWindowDays: MILLION_TOBU_NERIMA_R30_WINDOW_DAYS,
     scoreCalculator: calculateMillionTobuNerimaHuntScore,
   },
   {
@@ -1203,9 +1216,30 @@ function readMachineActiveSlotCount(metrics, context = {}) {
     return 0;
   }
 
+  if (context.machineActiveSlotCountByName instanceof Map) {
+    const count = context.machineActiveSlotCountByName.get(machineName);
+    if (Number.isFinite(count)) {
+      return count;
+    }
+  }
+
   return (Array.isArray(context.metricsList) ? context.metricsList : []).filter(
     (candidateMetrics) => String(candidateMetrics?.machineName ?? "").trim() === machineName,
   ).length;
+}
+
+function readMachineHighSettingCandidateRate30(metrics, context = {}) {
+  const machineName = String(metrics?.machineName ?? "").trim();
+  if (!machineName || !(context.machineHighSettingCandidateRateByName instanceof Map)) {
+    return null;
+  }
+
+  const rate = context.machineHighSettingCandidateRateByName.get(machineName);
+  return Number.isFinite(rate) ? rate : null;
+}
+
+function normalizeDaysSinceHighSettingEstimateOffset(offset) {
+  return Number.isFinite(offset) ? Math.max(0, offset - 1) : 99;
 }
 
 function calculateAparkKasugaKaiHuntScore(metrics, context = {}) {
@@ -1247,32 +1281,68 @@ function calculateAparkKasugaKaiHuntScore(metrics, context = {}) {
 }
 
 function calculateMillionTobuNerimaHuntScore(metrics, context = {}) {
-  let score = Math.round(clamp(calculateAparkKasugaKaiHuntScore(metrics, context), 0, 100));
+  let rawScore =
+    calculateLossDaysScore(metrics.lossDays) +
+    calculateStreakScore(metrics.streak) +
+    calculateLossAbsScore(metrics.lossAbsTotal) +
+    calculateNetTotalScore(metrics.netTotal) +
+    calculateCompensationRateScore(metrics.compensationRate) +
+    calculateMaxWinScore(metrics.maxWin) +
+    calculateTodayDifferenceScore(metrics.todayDifference) +
+    calculateTodaySettingScore(metrics.todaySetting);
+
+  const machineCount = readMachineActiveSlotCount(metrics, context);
+  const machineHighSettingCandidateRate30 = readMachineHighSettingCandidateRate30(metrics, context);
   const rbDenominator = metrics.rbTotal > 0 && metrics.gamesTotal > 0 ? metrics.gamesTotal / metrics.rbTotal : 9999;
+  const daysSinceH45 = normalizeDaysSinceHighSettingEstimateOffset(metrics.daysSinceHistoryHighSettingEstimate);
+  const todayRb = readNumber(metrics.previousRbCount) ?? 0;
 
-  if (metrics.lossAbsTotal >= 4000) {
-    score -= 20;
+  if (
+    metrics.lossDays >= 5 &&
+    metrics.lossDays <= 6 &&
+    metrics.streak >= 3 &&
+    metrics.netTotal <= -3000
+  ) {
+    rawScore += 18;
   }
-  if (metrics.netTotal <= -1000) {
-    score -= 20;
+  if (metrics.streak >= 4) {
+    rawScore += 8;
   }
-  if (rbDenominator >= 400) {
-    score -= 50;
+  if (metrics.netTotal <= -5000) {
+    rawScore += 8;
   }
-  if (metrics.lowSettingCount >= 5) {
-    score -= 10;
-  }
-  if (Number.isFinite(metrics.windowSettingAverage) && metrics.windowSettingAverage >= 3.5) {
-    score += 5;
-  }
-  if (metrics.netTotal <= -3000 && metrics.compensationRate <= 0.35 && metrics.maxWin <= 1500) {
-    score += 5;
-  }
-  if (metrics.lossAbsTotal >= 5000 && metrics.maxWin <= 1500) {
-    score -= 5;
+  if (metrics.compensationRate <= 0.35) {
+    rawScore += 4;
   }
 
-  return clamp(score, 0, 100);
+  if (metrics.lossDays <= 4) {
+    rawScore -= 10;
+  }
+  if (metrics.streak <= 1) {
+    rawScore -= 6;
+  }
+  if (metrics.netTotal > -2000) {
+    rawScore -= 6;
+  }
+  if (machineCount >= 1 && machineCount <= 4) {
+    rawScore -= 10;
+  }
+  if (daysSinceH45 === 1) {
+    rawScore -= 18;
+  }
+  if (rbDenominator >= 420) {
+    rawScore -= 12;
+  }
+  if (todayRb >= 25 && metrics.todayDifference > 1500) {
+    rawScore -= 8;
+  }
+
+  const normalizedScore = Math.round(clamp(((rawScore + 32) / 170) * 100, 0, 100));
+  if (Number.isFinite(machineHighSettingCandidateRate30) && machineHighSettingCandidateRate30 < 0.1) {
+    return 0;
+  }
+
+  return normalizedScore;
 }
 
 function isAparkYakatabaruTargetMachine(machineName) {
@@ -5417,6 +5487,80 @@ function buildSourceMaps(targetRows, businessDateSet, config) {
   };
 }
 
+function buildMachineHighSettingCandidateRateMap(
+  businessDates,
+  dateIndex,
+  rowsByDate,
+  settingDefinitionCache,
+  config,
+  windowDays = MILLION_TOBU_NERIMA_R30_WINDOW_DAYS,
+) {
+  const normalizedWindowDays = Math.max(1, Number(windowDays) || MILLION_TOBU_NERIMA_R30_WINDOW_DAYS);
+  const startIndex = Math.max(0, dateIndex - (normalizedWindowDays - 1));
+  const windowDates = businessDates.slice(startIndex, dateIndex + 1);
+  if (windowDates.length < normalizedWindowDays) {
+    return new Map();
+  }
+
+  const machineNames = new Set();
+  const highSettingCandidateDateCounts = new Map();
+
+  for (const date of windowDates) {
+    const highSettingCandidateMachineNames = new Set();
+
+    for (const row of rowsByDate.get(date) ?? []) {
+      if (!hasMeaningfulResult(row)) {
+        continue;
+      }
+
+      const machineName = normalizeHuntScoreMachineName(row?.machine_name, config);
+      if (!machineName) {
+        continue;
+      }
+
+      machineNames.add(machineName);
+      const settingAverage = getSettingEstimateAverage(settingDefinitionCache, row, config).average;
+      const rbCount = readNumber(row?.rb_count) ?? 0;
+      if (Number.isFinite(settingAverage) && settingAverage >= 4.5 && rbCount >= 25) {
+        highSettingCandidateMachineNames.add(machineName);
+      }
+    }
+
+    for (const machineName of highSettingCandidateMachineNames) {
+      highSettingCandidateDateCounts.set(
+        machineName,
+        (highSettingCandidateDateCounts.get(machineName) ?? 0) + 1,
+      );
+    }
+  }
+
+  return new Map(
+    [...machineNames].map((machineName) => [
+      machineName,
+      (highSettingCandidateDateCounts.get(machineName) ?? 0) / windowDates.length,
+    ]),
+  );
+}
+
+function buildMachineActiveSlotCountMap(dateRows, config) {
+  const countByName = new Map();
+
+  for (const row of dateRows) {
+    if (!hasMeaningfulResult(row)) {
+      continue;
+    }
+
+    const machineName = normalizeHuntScoreMachineName(row?.machine_name, config);
+    if (!machineName) {
+      continue;
+    }
+
+    countByName.set(machineName, (countByName.get(machineName) ?? 0) + 1);
+  }
+
+  return countByName;
+}
+
 function roundHuntScore(value) {
   return Number.isFinite(value) ? Math.round(clamp(value, 0, 100)) : null;
 }
@@ -5465,6 +5609,14 @@ function buildSnapshotRowsForDate(
     baseDate,
     nextBusinessDate,
     metricsList: validCandidates.map((candidate) => candidate.metrics),
+    machineActiveSlotCountByName: buildMachineActiveSlotCountMap(dateRows, config),
+    machineHighSettingCandidateRateByName: buildMachineHighSettingCandidateRateMap(
+      businessDates,
+      dateIndex,
+      rowsByDate,
+      settingDefinitionCache,
+      config,
+    ),
   };
 
   const rows = validCandidates
