@@ -2,7 +2,7 @@ import { cache } from "react";
 
 import { createEventFilters } from "./event-filters";
 import { buildHuntScoreBacktestDetail } from "./hunt-backtest";
-import { buildConditionRequirementOptions } from "./hunt-bookmark";
+import { buildConditionRequirementOptions, buildScopedRankFilters } from "./hunt-bookmark";
 import {
   buildHuntScoreSnapshots,
   canonicalHuntScoreTargetMachineName,
@@ -69,6 +69,12 @@ const DEFAULT_CROSS_STORE_MACHINE_NAMES = [
 function requireActiveConditionFilters(requirementOptions, filters = {}) {
   return {
     rankRequired: filters.hasRankFilter ? true : Boolean(requirementOptions.rankRequired),
+    machineRankRequired: filters.hasMachineRankFilter
+      ? true
+      : Boolean(requirementOptions.machineRankRequired),
+    selectedRankRequired: filters.hasSelectedRankFilter
+      ? true
+      : Boolean(requirementOptions.selectedRankRequired),
     scoreRequired: filters.hasScoreFilter ? true : Boolean(requirementOptions.scoreRequired),
     nextGapRequired: filters.hasNextGapFilter
       ? true
@@ -1754,17 +1760,18 @@ function buildInitialBacktestDetail(
   const selectedMachineNameSet = new Set(selectedMachineNames);
   const defaultedOptions = buildBacktestOptionsForStore(store, options);
   const periodMode = defaultedOptions?.periodMode === "range" ? "range" : "recent";
-  const rankMin = readPositiveInteger(defaultedOptions?.rankMin, null);
-  const rankMax = readPositiveInteger(defaultedOptions?.rankMax, null);
+  const {
+    rankScope,
+    rankFilter,
+    machineRankFilter,
+    selectedRankFilter,
+    hasRankFilter,
+  } = buildScopedRankFilters(defaultedOptions);
   const scoreMin = readNumber(defaultedOptions?.scoreMin);
   const nextGapMin = readNumber(defaultedOptions?.nextGapMin);
   const dailySelectionMode = normalizeDailySelectionMode(defaultedOptions?.dailySelectionMode);
   const usesMachineTopNextGapSelection =
     dailySelectionMode === DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP;
-  const rankScope =
-    defaultedOptions?.rankScope === "machine" || defaultedOptions?.rankScope === "selected"
-      ? defaultedOptions.rankScope
-      : "selected";
   const nextGapScope =
     defaultedOptions?.nextGapScope === "selected" ||
     defaultedOptions?.nextGapScope === "machine"
@@ -1775,12 +1782,13 @@ function buildInitialBacktestDetail(
     scoreRequired: DEFAULT_HUNT_SCORE_REQUIRED,
     nextGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
   });
-  const hasRankFilter = rankMin !== null || rankMax !== null;
   const hasScoreFilter = scoreMin !== null;
   const hasNextGapFilter = nextGapMin !== null;
   const requirementOptions = usesMachineTopNextGapSelection
     ? requireActiveConditionFilters(baseRequirementOptions, {
         hasRankFilter,
+        hasMachineRankFilter: machineRankFilter.hasRankFilter,
+        hasSelectedRankFilter: selectedRankFilter.hasRankFilter,
         hasScoreFilter,
         hasNextGapFilter,
       })
@@ -1803,14 +1811,22 @@ function buildInitialBacktestDetail(
       slotCount: readMachineSlotCount(machineSlotCounts, machineName),
     })),
     selectedMachineNames,
-    rankMin,
-    rankMax,
+    rankMin: rankFilter.rankMin,
+    rankMax: rankFilter.rankMax,
+    machineRankMin: machineRankFilter.rankMin,
+    machineRankMax: machineRankFilter.rankMax,
+    selectedRankMin: selectedRankFilter.rankMin,
+    selectedRankMax: selectedRankFilter.rankMax,
     hasRankFilter,
+    hasMachineRankFilter: machineRankFilter.hasRankFilter,
+    hasSelectedRankFilter: selectedRankFilter.hasRankFilter,
     scoreMin,
     hasScoreFilter,
     nextGapMin,
     hasNextGapFilter,
     rankRequired: requirementOptions.rankRequired,
+    machineRankRequired: requirementOptions.machineRankRequired,
+    selectedRankRequired: requirementOptions.selectedRankRequired,
     scoreRequired: requirementOptions.scoreRequired,
     nextGapRequired: requirementOptions.nextGapRequired,
     dailySelectionMode,
@@ -2664,12 +2680,29 @@ function buildCrossStoreBacktestOptions(options = {}) {
   const machineNames = listAllHuntScoreTargetMachineNames();
   const selectedMachineNames = normalizeCrossStoreInitialMachineSelection(machineNames, options);
   const selectedMachineNameSet = new Set(selectedMachineNames);
+  const hasScopedRankOption =
+    hasProvidedOption(options, "machineRankMin") ||
+    hasProvidedOption(options, "machineRankMax") ||
+    hasProvidedOption(options, "selectedRankMin") ||
+    hasProvidedOption(options, "selectedRankMax");
+  const defaultRankMin = hasScopedRankOption ? null : 1;
+  const defaultRankMax = hasScopedRankOption ? null : 3;
+  const scopedRankFilters = buildScopedRankFilters({
+    rankMin: readPositiveIntegerOption(options, "rankMin", defaultRankMin),
+    rankMax: readPositiveIntegerOption(options, "rankMax", defaultRankMax),
+    rankScope: options?.rankScope,
+    machineRankMin: readPositiveIntegerOption(options, "machineRankMin", null),
+    machineRankMax: readPositiveIntegerOption(options, "machineRankMax", null),
+    selectedRankMin: readPositiveIntegerOption(options, "selectedRankMin", null),
+    selectedRankMax: readPositiveIntegerOption(options, "selectedRankMax", null),
+  });
   const requirementOptions = buildConditionRequirementOptions(options, {
     rankRequired: DEFAULT_HUNT_RANK_REQUIRED,
+    machineRankRequired: DEFAULT_HUNT_RANK_REQUIRED,
+    selectedRankRequired: DEFAULT_HUNT_RANK_REQUIRED,
     scoreRequired: DEFAULT_HUNT_SCORE_REQUIRED,
     nextGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
   });
-  const rankScope = normalizeCrossStoreRankScope(options?.rankScope);
   const nextGapScope = normalizeCrossStoreRankScope(options?.nextGapScope, "machine");
 
   return {
@@ -2683,14 +2716,20 @@ function buildCrossStoreBacktestOptions(options = {}) {
       checked: selectedMachineNameSet.has(machineName),
     })),
     selectedMachineNames,
-    rankMin: readPositiveIntegerOption(options, "rankMin", 1),
-    rankMax: readPositiveIntegerOption(options, "rankMax", 3),
+    rankMin: scopedRankFilters.rankFilter.rankMin,
+    rankMax: scopedRankFilters.rankFilter.rankMax,
+    machineRankMin: scopedRankFilters.machineRankFilter.rankMin,
+    machineRankMax: scopedRankFilters.machineRankFilter.rankMax,
+    selectedRankMin: scopedRankFilters.selectedRankFilter.rankMin,
+    selectedRankMax: scopedRankFilters.selectedRankFilter.rankMax,
     scoreMin: readNumberOption(options, "scoreMin", 70),
     nextGapMin: readNumberOption(options, "nextGapMin", null),
     rankRequired: requirementOptions.rankRequired,
+    machineRankRequired: requirementOptions.machineRankRequired,
+    selectedRankRequired: requirementOptions.selectedRankRequired,
     scoreRequired: requirementOptions.scoreRequired,
     nextGapRequired: requirementOptions.nextGapRequired,
-    rankScope,
+    rankScope: scopedRankFilters.rankScope,
     nextGapScope,
     scoreDifferenceMode: normalizeDifferenceMode(options?.scoreDifferenceMode),
     differenceMode: normalizeDifferenceMode(options?.differenceMode),
@@ -3028,9 +3067,15 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       machineTouched: true,
       rankMin: backtestOptions.rankMin,
       rankMax: backtestOptions.rankMax,
+      machineRankMin: backtestOptions.machineRankMin,
+      machineRankMax: backtestOptions.machineRankMax,
+      selectedRankMin: backtestOptions.selectedRankMin,
+      selectedRankMax: backtestOptions.selectedRankMax,
       scoreMin: backtestOptions.scoreMin,
       nextGapMin: backtestOptions.nextGapMin,
       rankRequired: backtestOptions.rankRequired,
+      machineRankRequired: backtestOptions.machineRankRequired,
+      selectedRankRequired: backtestOptions.selectedRankRequired,
       scoreRequired: backtestOptions.scoreRequired,
       nextGapRequired: backtestOptions.nextGapRequired,
       rankScope: backtestOptions.rankScope,
@@ -3107,9 +3152,15 @@ export async function getCrossStoreBacktestDetail(options = {}) {
     selectedMachineNames: backtestOptions.selectedMachineNames,
     rankMin: backtestOptions.rankMin,
     rankMax: backtestOptions.rankMax,
+    machineRankMin: backtestOptions.machineRankMin,
+    machineRankMax: backtestOptions.machineRankMax,
+    selectedRankMin: backtestOptions.selectedRankMin,
+    selectedRankMax: backtestOptions.selectedRankMax,
     scoreMin: backtestOptions.scoreMin,
     nextGapMin: backtestOptions.nextGapMin,
     rankRequired: backtestOptions.rankRequired,
+    machineRankRequired: backtestOptions.machineRankRequired,
+    selectedRankRequired: backtestOptions.selectedRankRequired,
     scoreRequired: backtestOptions.scoreRequired,
     nextGapRequired: backtestOptions.nextGapRequired,
     rankScope: backtestOptions.rankScope,

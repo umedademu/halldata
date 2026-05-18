@@ -232,10 +232,16 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
     rankMin: readOptionalSearchParam(resolvedSearchParams, "rankMin"),
     rankMax: readOptionalSearchParam(resolvedSearchParams, "rankMax"),
     rankScope: readSingleSearchParam(resolvedSearchParams?.rankScope),
+    machineRankMin: readOptionalSearchParam(resolvedSearchParams, "machineRankMin"),
+    machineRankMax: readOptionalSearchParam(resolvedSearchParams, "machineRankMax"),
+    selectedRankMin: readOptionalSearchParam(resolvedSearchParams, "selectedRankMin"),
+    selectedRankMax: readOptionalSearchParam(resolvedSearchParams, "selectedRankMax"),
     scoreMin: readOptionalSearchParam(resolvedSearchParams, "scoreMin"),
     nextGapScope: readSingleSearchParam(resolvedSearchParams?.nextGapScope),
     nextGapMin: readOptionalSearchParam(resolvedSearchParams, "nextGapMin"),
     rankRequired: readMultiSearchParam(resolvedSearchParams?.rankRequired),
+    machineRankRequired: readMultiSearchParam(resolvedSearchParams?.machineRankRequired),
+    selectedRankRequired: readMultiSearchParam(resolvedSearchParams?.selectedRankRequired),
     scoreRequired: readMultiSearchParam(resolvedSearchParams?.scoreRequired),
     nextGapRequired: readMultiSearchParam(resolvedSearchParams?.nextGapRequired),
     prefectures: readMultiSearchParam(resolvedSearchParams?.prefecture),
@@ -593,15 +599,15 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
 
           <div className="huntConditionRows">
             <div className="huntConditionRow">
-              <p className="huntConditionLabel">順位</p>
+              <p className="huntConditionLabel">機種内順位</p>
               <div className="huntConditionInputs">
                 <label className="storeReserveField backtestField huntConditionNumberField">
                   <span>開始</span>
                   <input
                     type="number"
-                    name="rankMin"
+                    name="machineRankMin"
                     min="1"
-                    defaultValue={detail.rankMin ?? ""}
+                    defaultValue={detail.machineRankMin ?? ""}
                     className="storeReserveInput"
                   />
                 </label>
@@ -609,24 +615,63 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                   <span>終了</span>
                   <input
                     type="number"
-                    name="rankMax"
+                    name="machineRankMax"
                     min="1"
-                    defaultValue={detail.rankMax ?? ""}
+                    defaultValue={detail.machineRankMax ?? ""}
                     className="storeReserveInput"
                   />
                 </label>
               </div>
-              <input type="hidden" name="rankRequired" value="0" />
+              <input type="hidden" name="machineRankRequired" value="0" />
               <label
                 className={`metricToggleChip huntConditionRequired ${
-                  detail.rankRequired ? "metricToggleChipActive" : ""
+                  detail.machineRankRequired ? "metricToggleChipActive" : ""
                 }`}
               >
                 <input
                   type="checkbox"
-                  name="rankRequired"
+                  name="machineRankRequired"
                   value="1"
-                  defaultChecked={detail.rankRequired}
+                  defaultChecked={detail.machineRankRequired}
+                />
+                <span>必須</span>
+              </label>
+            </div>
+            <div className="huntConditionRow">
+              <p className="huntConditionLabel">チェック機種内順位</p>
+              <div className="huntConditionInputs">
+                <label className="storeReserveField backtestField huntConditionNumberField">
+                  <span>開始</span>
+                  <input
+                    type="number"
+                    name="selectedRankMin"
+                    min="1"
+                    defaultValue={detail.selectedRankMin ?? ""}
+                    className="storeReserveInput"
+                  />
+                </label>
+                <label className="storeReserveField backtestField huntConditionNumberField">
+                  <span>終了</span>
+                  <input
+                    type="number"
+                    name="selectedRankMax"
+                    min="1"
+                    defaultValue={detail.selectedRankMax ?? ""}
+                    className="storeReserveInput"
+                  />
+                </label>
+              </div>
+              <input type="hidden" name="selectedRankRequired" value="0" />
+              <label
+                className={`metricToggleChip huntConditionRequired ${
+                  detail.selectedRankRequired ? "metricToggleChipActive" : ""
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  name="selectedRankRequired"
+                  value="1"
+                  defaultChecked={detail.selectedRankRequired}
                 />
                 <span>必須</span>
               </label>
@@ -782,31 +827,6 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                 />
                 <span>みんレポ基準</span>
               </label>
-            </div>
-          </div>
-
-          <div className="backtestBlock">
-            <p className="filterControlLabel">順位の見方</p>
-            <div className="metricToggleRow">
-              {[
-                { value: "selected", label: "チェック機種内順位" },
-                { value: "machine", label: "機種内順位" },
-              ].map((scope) => (
-                <label
-                  key={scope.value}
-                  className={`metricToggleChip ${
-                    detail.rankScope === scope.value ? "metricToggleChipActive" : ""
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="rankScope"
-                    value={scope.value}
-                    defaultChecked={detail.rankScope === scope.value}
-                  />
-                  <span>{scope.label}</span>
-                </label>
-              ))}
             </div>
           </div>
 

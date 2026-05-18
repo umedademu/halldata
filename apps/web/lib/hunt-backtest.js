@@ -6,6 +6,7 @@ import {
   calculateHuntScoreNextGapMap,
   buildConditionRequirementOptions,
   matchesRequiredConditionFilters,
+  buildScopedRankFilters,
   normalizeDateText,
   readFiniteNumber,
   readNextGapForRankScope,
@@ -247,6 +248,12 @@ function requireActiveConditionFilters(requirementOptions, filters = {}) {
     rankRequired: filters.rankFilter?.hasRankFilter
       ? true
       : Boolean(requirementOptions.rankRequired),
+    machineRankRequired: filters.machineRankFilter?.hasRankFilter
+      ? true
+      : Boolean(requirementOptions.machineRankRequired),
+    selectedRankRequired: filters.selectedRankFilter?.hasRankFilter
+      ? true
+      : Boolean(requirementOptions.selectedRankRequired),
     scoreRequired: filters.scoreFilter?.hasScoreFilter
       ? true
       : Boolean(requirementOptions.scoreRequired),
@@ -632,13 +639,16 @@ function buildSnapshotGapRows(
   selectedMachineNameSet,
   combineAimJuggler,
   combineHanabi,
-  rankFilter,
+  rankFilters = {},
 ) {
   const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
   const selectedRows = rows.filter((row) =>
     selectedMachineNameSet.has(String(row.machineName ?? "").trim()),
   );
-  const selectedNextGapMap = calculateHuntScoreNextGapMap(selectedRows, rankFilter);
+  const selectedNextGapMap = calculateHuntScoreNextGapMap(
+    selectedRows,
+    rankFilters.selectedRankFilter,
+  );
   const machineRowsByName = new Map();
 
   for (const row of selectedRows) {
@@ -655,7 +665,10 @@ function buildSnapshotGapRows(
 
   const machineNextGapMap = new Map();
   for (const machineRows of machineRowsByName.values()) {
-    const nextGapMap = calculateHuntScoreNextGapMap(machineRows, rankFilter);
+    const nextGapMap = calculateHuntScoreNextGapMap(
+      machineRows,
+      rankFilters.machineRankFilter,
+    );
     for (const row of machineRows) {
       if (nextGapMap.has(row)) {
         machineNextGapMap.set(row, nextGapMap.get(row));
@@ -748,13 +761,13 @@ function buildBacktestAggregationDetail(
   {
     selectedMachineNames,
     selectedMachineNameSet,
-    rankFilter,
+    machineRankFilter,
+    selectedRankFilter,
     scoreFilter,
     nextGapFilter,
     requirementOptions,
-    rankScope,
     nextGapScope,
-    nextGapRankFilter,
+    nextGapRankFilters,
     differenceMode,
     combineAimJuggler,
     combineHanabi,
@@ -780,7 +793,7 @@ function buildBacktestAggregationDetail(
         selectedMachineNameSet,
         combineAimJuggler,
         combineHanabi,
-        nextGapRankFilter,
+        nextGapRankFilters,
       );
       gapRowsCache?.set(snapshot, gapRowsByRow);
     }
@@ -792,7 +805,7 @@ function buildBacktestAggregationDetail(
             selectedMachineNameSet,
             combineAimJuggler,
             combineHanabi,
-            buildRankFilter(1, 1),
+            { machineRankFilter: buildRankFilter(1, 1) },
           )
         : null;
     if (selectionRowsByRow && !selectionRowsCache?.has(snapshot)) {
@@ -823,8 +836,6 @@ function buildBacktestAggregationDetail(
       );
       const machineRank = (machineRankCounts.get(backtestMachineName) ?? 0) + 1;
       machineRankCounts.set(backtestMachineName, machineRank);
-      const rankValue =
-        rankScope === "machine" ? machineRank : rankScope === "selected" ? selectedRank : row.rank;
       const gapRow = gapRowsByRow.get(row) ?? row;
       const nextGapValue = readNextGapForRankScope(gapRow, nextGapScope);
 
@@ -834,9 +845,20 @@ function buildBacktestAggregationDetail(
 
       if (
         !matchesRequiredConditionFilters(
-          rankValue,
+          [
+            {
+              rankValue: machineRank,
+              rankFilter: machineRankFilter,
+              required: requirementOptions.machineRankRequired,
+            },
+            {
+              rankValue: selectedRank,
+              rankFilter: selectedRankFilter,
+              required: requirementOptions.selectedRankRequired,
+            },
+          ],
           row.huntScore,
-          rankFilter,
+          null,
           scoreFilter,
           requirementOptions,
           true,
@@ -970,22 +992,33 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     !machineSelectionTouched,
   );
   const selectedMachineNameSet = new Set(selectedMachineNames);
-  const rankFilter = buildRankFilter(options.rankMin, options.rankMax);
+  const {
+    rankScope,
+    rankFilter,
+    machineRankFilter,
+    selectedRankFilter,
+    hasRankFilter,
+  } = buildScopedRankFilters(options);
   const scoreFilter = buildScoreFilter(options.scoreMin);
   const nextGapFilter = buildNextGapFilter(options.nextGapMin);
   const baseRequirementOptions = buildConditionRequirementOptions(options);
   const selectionMode = normalizeDailySelectionMode(options.dailySelectionMode);
   const usesMachineTopNextGapSelection = isMachineTopNextGapSelectionMode(selectionMode);
-  const rankScope = normalizeBacktestRankScope(options.rankScope);
   const nextGapScope = normalizeBacktestRankScope(options.nextGapScope ?? "machine", "machine");
   const requirementOptions = usesMachineTopNextGapSelection
     ? requireActiveConditionFilters(baseRequirementOptions, {
-        rankFilter,
+        machineRankFilter,
+        selectedRankFilter,
         scoreFilter,
         nextGapFilter,
       })
     : baseRequirementOptions;
-  const nextGapRankFilter = usesMachineTopNextGapSelection ? null : rankFilter;
+  const nextGapRankFilters = usesMachineTopNextGapSelection
+    ? {}
+    : {
+        machineRankFilter,
+        selectedRankFilter,
+      };
   const showGraph = normalizeShowGraph(options.showGraph);
   const scoreDifferenceMode = normalizeDifferenceMode(options.scoreDifferenceMode);
   const differenceMode = normalizeDifferenceMode(options.differenceMode);
@@ -999,13 +1032,13 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const aggregationOptions = {
     selectedMachineNames,
     selectedMachineNameSet,
-    rankFilter,
+    machineRankFilter,
+    selectedRankFilter,
     scoreFilter,
     nextGapFilter,
     requirementOptions,
-    rankScope,
     nextGapScope,
-    nextGapRankFilter,
+    nextGapRankFilters,
     differenceMode,
     combineAimJuggler,
     combineHanabi,
@@ -1041,12 +1074,20 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     selectedMachineNames,
     rankMin: rankFilter.rankMin,
     rankMax: rankFilter.rankMax,
-    hasRankFilter: rankFilter.hasRankFilter,
+    machineRankMin: machineRankFilter.rankMin,
+    machineRankMax: machineRankFilter.rankMax,
+    selectedRankMin: selectedRankFilter.rankMin,
+    selectedRankMax: selectedRankFilter.rankMax,
+    hasRankFilter,
+    hasMachineRankFilter: machineRankFilter.hasRankFilter,
+    hasSelectedRankFilter: selectedRankFilter.hasRankFilter,
     scoreMin: scoreFilter.scoreMin,
     hasScoreFilter: scoreFilter.hasScoreFilter,
     nextGapMin: nextGapFilter.nextGapMin,
     hasNextGapFilter: nextGapFilter.hasNextGapFilter,
     rankRequired: requirementOptions.rankRequired,
+    machineRankRequired: requirementOptions.machineRankRequired,
+    selectedRankRequired: requirementOptions.selectedRankRequired,
     scoreRequired: requirementOptions.scoreRequired,
     nextGapRequired: requirementOptions.nextGapRequired,
     dailySelectionMode: selectionMode,

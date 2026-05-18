@@ -226,10 +226,16 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     rankMin: readSingleSearchParam(resolvedSearchParams?.rankMin),
     rankMax: readSingleSearchParam(resolvedSearchParams?.rankMax),
     rankScope: readSingleSearchParam(resolvedSearchParams?.rankScope),
+    machineRankMin: readSingleSearchParam(resolvedSearchParams?.machineRankMin),
+    machineRankMax: readSingleSearchParam(resolvedSearchParams?.machineRankMax),
+    selectedRankMin: readSingleSearchParam(resolvedSearchParams?.selectedRankMin),
+    selectedRankMax: readSingleSearchParam(resolvedSearchParams?.selectedRankMax),
     scoreMin: readSingleSearchParam(resolvedSearchParams?.scoreMin),
     nextGapScope: readSingleSearchParam(resolvedSearchParams?.nextGapScope),
     nextGapMin: readSingleSearchParam(resolvedSearchParams?.nextGapMin),
     rankRequired: readMultiSearchParam(resolvedSearchParams?.rankRequired),
+    machineRankRequired: readMultiSearchParam(resolvedSearchParams?.machineRankRequired),
+    selectedRankRequired: readMultiSearchParam(resolvedSearchParams?.selectedRankRequired),
     scoreRequired: readMultiSearchParam(resolvedSearchParams?.scoreRequired),
     nextGapRequired: readMultiSearchParam(resolvedSearchParams?.nextGapRequired),
     dailySelectionMode: readMultiSearchParam(resolvedSearchParams?.dailySelectionMode),
@@ -285,9 +291,15 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     machineNames: detail.backtest.selectedMachineNames,
     rankMin: detail.backtest.rankMin,
     rankMax: detail.backtest.rankMax,
+    machineRankMin: detail.backtest.machineRankMin,
+    machineRankMax: detail.backtest.machineRankMax,
+    selectedRankMin: detail.backtest.selectedRankMin,
+    selectedRankMax: detail.backtest.selectedRankMax,
     scoreMin: detail.backtest.scoreMin,
     nextGapMin: detail.backtest.nextGapMin,
     rankRequired: detail.backtest.rankRequired,
+    machineRankRequired: detail.backtest.machineRankRequired,
+    selectedRankRequired: detail.backtest.selectedRankRequired,
     scoreRequired: detail.backtest.scoreRequired,
     nextGapRequired: detail.backtest.nextGapRequired,
     rankScope: detail.backtest.rankScope,
@@ -321,9 +333,15 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     dailySelectionMode: detail.backtest.dailySelectionMode,
     rankMin: detail.backtest.rankMin ?? "",
     rankMax: detail.backtest.rankMax ?? "",
+    machineRankMin: detail.backtest.machineRankMin ?? "",
+    machineRankMax: detail.backtest.machineRankMax ?? "",
+    selectedRankMin: detail.backtest.selectedRankMin ?? "",
+    selectedRankMax: detail.backtest.selectedRankMax ?? "",
     scoreMin: detail.backtest.scoreMin ?? "",
     nextGapMin: detail.backtest.nextGapMin ?? "",
     rankRequired: detail.backtest.rankRequired,
+    machineRankRequired: detail.backtest.machineRankRequired,
+    selectedRankRequired: detail.backtest.selectedRankRequired,
     scoreRequired: detail.backtest.scoreRequired,
     nextGapRequired: detail.backtest.nextGapRequired,
     scoreDifferenceMode: detail.backtest.scoreDifferenceMode,
@@ -633,21 +651,21 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                   </label>
                 </div>
                 <p className="storeReserveHelp">
-                  ONの場合、日ごとに各機種の機種内狙い度1位台を候補にし、その中で機種内次点差が最大の1台だけを選びます。入力済みの順位、狙い度、次点差条件は、その1台への追加条件としてすべて満たした場合だけ集計します。
+                  ONの場合、日ごとに各機種の機種内狙い度1位台を候補にし、その中で機種内次点差が最大の1台だけを選びます。入力済みの機種内順位、チェック機種内順位、狙い度、次点差条件は、その1台への追加条件としてすべて満たした場合だけ集計します。
                 </p>
               </div>
 
               <div className="huntConditionRows">
                 <div className="huntConditionRow">
-                  <p className="huntConditionLabel">順位</p>
+                  <p className="huntConditionLabel">機種内順位</p>
                   <div className="huntConditionInputs">
                     <label className="storeReserveField backtestField huntConditionNumberField">
                       <span>開始</span>
                       <input
                         type="number"
-                        name="rankMin"
+                        name="machineRankMin"
                         min="1"
-                        defaultValue={detail.backtest.rankMin ?? ""}
+                        defaultValue={detail.backtest.machineRankMin ?? ""}
                         className="storeReserveInput"
                       />
                     </label>
@@ -655,24 +673,63 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       <span>終了</span>
                       <input
                         type="number"
-                        name="rankMax"
+                        name="machineRankMax"
                         min="1"
-                        defaultValue={detail.backtest.rankMax ?? ""}
+                        defaultValue={detail.backtest.machineRankMax ?? ""}
                         className="storeReserveInput"
                       />
                     </label>
                   </div>
-                  <input type="hidden" name="rankRequired" value="0" />
+                  <input type="hidden" name="machineRankRequired" value="0" />
                   <label
                     className={`metricToggleChip huntConditionRequired ${
-                      detail.backtest.rankRequired ? "metricToggleChipActive" : ""
+                      detail.backtest.machineRankRequired ? "metricToggleChipActive" : ""
                     }`}
                   >
                     <input
                       type="checkbox"
-                      name="rankRequired"
+                      name="machineRankRequired"
                       value="1"
-                      defaultChecked={detail.backtest.rankRequired}
+                      defaultChecked={detail.backtest.machineRankRequired}
+                    />
+                    <span>必須</span>
+                  </label>
+                </div>
+                <div className="huntConditionRow">
+                  <p className="huntConditionLabel">チェック機種内順位</p>
+                  <div className="huntConditionInputs">
+                    <label className="storeReserveField backtestField huntConditionNumberField">
+                      <span>開始</span>
+                      <input
+                        type="number"
+                        name="selectedRankMin"
+                        min="1"
+                        defaultValue={detail.backtest.selectedRankMin ?? ""}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                    <label className="storeReserveField backtestField huntConditionNumberField">
+                      <span>終了</span>
+                      <input
+                        type="number"
+                        name="selectedRankMax"
+                        min="1"
+                        defaultValue={detail.backtest.selectedRankMax ?? ""}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                  </div>
+                  <input type="hidden" name="selectedRankRequired" value="0" />
+                  <label
+                    className={`metricToggleChip huntConditionRequired ${
+                      detail.backtest.selectedRankRequired ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="selectedRankRequired"
+                      value="1"
+                      defaultChecked={detail.backtest.selectedRankRequired}
                     />
                     <span>必須</span>
                   </label>
@@ -835,38 +892,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       defaultChecked={detail.backtest.differenceMode === "minrepo"}
                     />
                     <span>みんレポ基準</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="backtestBlock">
-                <p className="filterControlLabel">順位の見方</p>
-                <div className="metricToggleRow">
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.rankScope === "selected" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="rankScope"
-                      value="selected"
-                      defaultChecked={detail.backtest.rankScope === "selected"}
-                    />
-                    <span>チェック機種内順位</span>
-                  </label>
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.rankScope === "machine" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="rankScope"
-                      value="machine"
-                      defaultChecked={detail.backtest.rankScope === "machine"}
-                    />
-                    <span>機種内順位</span>
                   </label>
                 </div>
               </div>
