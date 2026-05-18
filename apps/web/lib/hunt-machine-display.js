@@ -423,7 +423,7 @@ export function isHuntJugglerMachine(machineName) {
 }
 
 export function hasAimJugglerHuntMachineGroupOption(availableMachineNames) {
-  return AIM_JUGGLER_MACHINE_NAMES.every((machineName) =>
+  return AIM_JUGGLER_MACHINE_NAMES.some((machineName) =>
     (Array.isArray(availableMachineNames) ? availableMachineNames : []).some((availableMachineName) =>
       isHuntMachineInGroup(availableMachineName, [machineName]),
     ),

@@ -90,6 +90,32 @@ function expandRequestedMachineName(machineName) {
   return [String(machineName ?? "").trim()];
 }
 
+function expandRequestedMachineNamesForCombine(machineNames, combineAimJuggler, combineHanabi) {
+  const requestedMachineNames = [
+    ...new Set(
+      (Array.isArray(machineNames) ? machineNames : [machineNames])
+        .flatMap((machineName) => expandRequestedMachineName(machineName))
+        .map((machineName) => String(machineName ?? "").trim())
+        .filter(Boolean),
+    ),
+  ];
+  const expandedMachineNames = new Set(requestedMachineNames);
+
+  if (combineAimJuggler && requestedMachineNames.some((machineName) => isAimJugglerMachine(machineName))) {
+    for (const machineName of AIM_JUGGLER_MACHINE_NAMES) {
+      expandedMachineNames.add(machineName);
+    }
+  }
+
+  if (combineHanabi && requestedMachineNames.some((machineName) => isHanabiMachine(machineName))) {
+    for (const machineName of HANABI_MACHINE_NAMES) {
+      expandedMachineNames.add(machineName);
+    }
+  }
+
+  return [...expandedMachineNames];
+}
+
 function splitOptionValues(value) {
   if (Array.isArray(value)) {
     return value.flatMap((item) => splitOptionValues(item));
@@ -923,7 +949,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     Array.isArray(snapshots) ? snapshots : [],
     Array.isArray(options.machineOrder) ? options.machineOrder : undefined,
   );
-  const hasAimJugglerGroupOption = AIM_JUGGLER_MACHINE_NAMES.every((machineName) =>
+  const hasAimJugglerGroupOption = AIM_JUGGLER_MACHINE_NAMES.some((machineName) =>
     availableMachineNames.includes(machineName),
   );
   const hasHanabiGroupOption = HANABI_MACHINE_NAMES.every((machineName) =>
@@ -934,7 +960,11 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const machineSlotCountLookup = buildMachineSlotCountLookup(options.machineSlotCounts);
   const machineSelectionTouched = normalizeMachineSelectionTouched(options.machineTouched);
   const selectedMachineNames = buildSelectedMachineNames(
-    options.machineNames,
+    expandRequestedMachineNamesForCombine(
+      options.machineNames,
+      requestedCombineAimJuggler,
+      requestedCombineHanabi,
+    ),
     availableMachineNames,
     !machineSelectionTouched,
   );

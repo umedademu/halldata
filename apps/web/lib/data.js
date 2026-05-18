@@ -83,6 +83,8 @@ const COMBINED_MACHINE_GROUPS = [
   {
     groupName: "アイムジャグラーEX",
     machineNames: ["ネオアイムジャグラーEX", "SアイムジャグラーＥＸ"],
+    optionKey: "combineAimJuggler",
+    allowPartial: true,
     slotLabelPrefixes: {
       "ネオアイムジャグラーEX": "ネオアイム",
       "SアイムジャグラーＥＸ": "Sアイム",
@@ -91,6 +93,7 @@ const COMBINED_MACHINE_GROUPS = [
   {
     groupName: "ハナビ",
     machineNames: ["新ハナビ", "スマスロ ハナビ"],
+    optionKey: "combineHanabi",
     slotLabelPrefixes: {
       "新ハナビ": "新ハナビ",
       "スマスロ ハナビ": "スマスロハナビ",
@@ -144,6 +147,43 @@ function findCombinedMachineChildGroup(machineName) {
   );
 }
 
+function combinedMachineGroupContainsName(group, machineName) {
+  const normalizedMachineName = normalizeMachineNameForGrouping(canonicalMachineName(machineName));
+  if (!group || !normalizedMachineName) {
+    return false;
+  }
+  if (normalizeMachineNameForGrouping(group.groupName) === normalizeMachineNameForGrouping(machineName)) {
+    return true;
+  }
+  return group.machineNames.some(
+    (candidateName) =>
+      normalizeMachineNameForGrouping(canonicalMachineName(candidateName)) === normalizedMachineName,
+  );
+}
+
+function expandCombinedMachineNamesForOptions(machineNames, options = {}) {
+  const expandedMachineNames = new Set(
+    (Array.isArray(machineNames) ? machineNames : [machineNames])
+      .map((machineName) => String(machineName ?? "").trim())
+      .filter(Boolean),
+  );
+
+  for (const group of COMBINED_MACHINE_GROUPS) {
+    const optionKey = String(group.optionKey ?? "").trim();
+    if (!optionKey || !normalizeEnabledOption(options?.[optionKey], true)) {
+      continue;
+    }
+    if (![...expandedMachineNames].some((machineName) => combinedMachineGroupContainsName(group, machineName))) {
+      continue;
+    }
+    for (const machineName of group.machineNames) {
+      expandedMachineNames.add(machineName);
+    }
+  }
+
+  return [...expandedMachineNames];
+}
+
 function buildMachineSummaryByCanonicalName(machines) {
   return new Map(
     (Array.isArray(machines) ? machines : []).map((machine) => [
@@ -160,7 +200,19 @@ function getAvailableCombinedMachineGroup(group, machinesByCanonicalName) {
     )
     .filter(Boolean);
 
-  return childMachines.length === group.machineNames.length ? childMachines : null;
+  const requiredChildCount = group.allowPartial === true ? 1 : group.machineNames.length;
+  return childMachines.length >= requiredChildCount ? childMachines : null;
+}
+
+function filterLatestCombinedMachineChildren(childMachines) {
+  const latestDate = (Array.isArray(childMachines) ? childMachines : [])
+    .map((machine) => String(machine?.latestDate ?? "").trim())
+    .filter(Boolean)
+    .sort((left, right) => right.localeCompare(left))[0] ?? "";
+  if (!latestDate) {
+    return Array.isArray(childMachines) ? childMachines : [];
+  }
+  return childMachines.filter((machine) => String(machine?.latestDate ?? "").trim() === latestDate);
 }
 
 function calculateWeightedMachineAverage(machines, key) {
@@ -181,20 +233,23 @@ function calculateWeightedMachineAverage(machines, key) {
 }
 
 function buildCombinedMachineSummary(group, childMachines) {
+  const activeChildMachines = filterLatestCombinedMachineChildren(childMachines);
+  const latestDate =
+    activeChildMachines.reduce((latest, machine) => {
+      const machineLatestDate = String(machine.latestDate ?? "").trim();
+      if (!machineLatestDate) {
+        return latest;
+      }
+      return !latest || machineLatestDate > latest ? machineLatestDate : latest;
+    }, "") || null;
+
   return {
     machineName: group.groupName,
-    slotCount: childMachines.reduce((sum, machine) => sum + Number(machine.slotCount ?? 0), 0),
-    latestDate:
-      childMachines.reduce((latestDate, machine) => {
-        const machineLatestDate = String(machine.latestDate ?? "").trim();
-        if (!machineLatestDate) {
-          return latestDate;
-        }
-        return !latestDate || machineLatestDate > latestDate ? machineLatestDate : latestDate;
-      }, "") || null,
-    latestAverageDifference: calculateWeightedMachineAverage(childMachines, "latestAverageDifference"),
-    latestAverageGames: calculateWeightedMachineAverage(childMachines, "latestAverageGames"),
-    latestAveragePayout: calculateWeightedMachineAverage(childMachines, "latestAveragePayout"),
+    slotCount: activeChildMachines.reduce((sum, machine) => sum + Number(machine.slotCount ?? 0), 0),
+    latestDate,
+    latestAverageDifference: calculateWeightedMachineAverage(activeChildMachines, "latestAverageDifference"),
+    latestAverageGames: calculateWeightedMachineAverage(activeChildMachines, "latestAverageGames"),
+    latestAveragePayout: calculateWeightedMachineAverage(activeChildMachines, "latestAveragePayout"),
     dataFile: null,
     isCombinedMachineGroup: true,
     childMachineNames: childMachines.map((machine) => machine.machineName),
@@ -1394,17 +1449,6 @@ function readStaticStoreMachineNames(staticStore) {
     .filter(Boolean);
 }
 
-function addMachineSlotCount(machineSlotCounts, machineName, rawSlotCount) {
-  const normalizedMachineName = String(machineName ?? "").trim();
-  const slotCount = Number(rawSlotCount ?? 0);
-  if (!normalizedMachineName || !Number.isFinite(slotCount) || slotCount <= 0) {
-    return;
-  }
-
-  machineSlotCounts[normalizedMachineName] =
-    Number(machineSlotCounts[normalizedMachineName] ?? 0) + slotCount;
-}
-
 function setMachineSlotCount(machineSlotCounts, machineName, rawSlotCount) {
   const normalizedMachineName = String(machineName ?? "").trim();
   const slotCount = Number(rawSlotCount ?? 0);
@@ -1419,6 +1463,36 @@ function readMachineSlotCount(machineSlotCounts, machineName) {
   const normalizedMachineName = String(machineName ?? "").trim();
   const slotCount = Number(machineSlotCounts?.[normalizedMachineName] ?? 0);
   return normalizedMachineName && Number.isFinite(slotCount) && slotCount > 0 ? slotCount : null;
+}
+
+function readCombinedStaticStoreMachineSlotCount(staticStore, group) {
+  const childCanonicalNames = new Set(
+    group.machineNames.map((machineName) => canonicalMachineName(machineName)),
+  );
+  let latestDate = "";
+  let total = 0;
+
+  for (const machine of Array.isArray(staticStore?.machines) ? staticStore.machines : []) {
+    const canonicalName = canonicalMachineName(machine?.machineName);
+    if (!childCanonicalNames.has(canonicalName)) {
+      continue;
+    }
+
+    const machineLatestDate = normalizeDateInput(machine?.latestDate) ?? "";
+    const slotCount = Number(machine?.slotCount ?? 0);
+    if (!machineLatestDate || !Number.isFinite(slotCount) || slotCount <= 0) {
+      continue;
+    }
+
+    if (machineLatestDate > latestDate) {
+      latestDate = machineLatestDate;
+      total = slotCount;
+    } else if (machineLatestDate === latestDate) {
+      total += slotCount;
+    }
+  }
+
+  return total;
 }
 
 function buildActiveStaticStoreMachineSlotCountsByCanonicalName(staticStore) {
@@ -1477,18 +1551,13 @@ function buildStaticStoreMachineSlotCounts(staticStore) {
     }
   }
 
-  addMachineSlotCount(
-    machineSlotCounts,
-    "アイムジャグラーEX",
-    Number(machineSlotCounts["SアイムジャグラーＥＸ"] ?? 0) +
-      Number(machineSlotCounts["ネオアイムジャグラーEX"] ?? 0),
-  );
-  addMachineSlotCount(
-    machineSlotCounts,
-    "ハナビ",
-    Number(machineSlotCounts["新ハナビ"] ?? 0) +
-      Number(machineSlotCounts["スマスロ ハナビ"] ?? 0),
-  );
+  for (const group of COMBINED_MACHINE_GROUPS) {
+    setMachineSlotCount(
+      machineSlotCounts,
+      group.groupName,
+      readCombinedStaticStoreMachineSlotCount(staticStore, group),
+    );
+  }
 
   return machineSlotCounts;
 }
@@ -1575,9 +1644,22 @@ function findStaticMachineEntries(staticStore, machineNames) {
     .filter((machine) => machine.machineName);
 }
 
+function buildStaticRecordKey(row) {
+  return [
+    canonicalMachineName(row?.machine_name),
+    String(row?.target_date ?? "").trim(),
+    String(row?.slot_number ?? "").trim(),
+  ].join("\u0000");
+}
+
 async function readStaticMachineRecords(staticStore, machineNames, dateRange = null) {
   const store = readStaticStoreIdentity(staticStore);
   const machineEntries = findStaticMachineEntries(staticStore, machineNames);
+  const fallbackMachineNameSet = new Set(
+    (Array.isArray(machineNames) ? machineNames : [machineNames])
+      .flatMap((name) => listEquivalentMachineNames(name))
+      .map(canonicalMachineName),
+  );
 
   const rowGroups = await Promise.all(machineEntries.map(async (machineEntry) => {
     if (!machineEntry.dataFile) {
@@ -1593,23 +1675,19 @@ async function readStaticMachineRecords(staticStore, machineNames, dateRange = n
       records: payload.records,
     }, dateRange);
   }));
-  const rows = rowGroups.flat();
-
-  if (rows.length > 0) {
-    return rows;
-  }
-
-  const fallbackMachineNameSet = new Set(
-    (Array.isArray(machineNames) ? machineNames : [machineNames])
-      .flatMap((name) => listEquivalentMachineNames(name))
-      .map(canonicalMachineName),
-  );
-  return readStaticStoreRecords(staticStore, dateRange)
+  const fallbackRows = readStaticStoreRecords(staticStore, dateRange)
     .filter((row) => fallbackMachineNameSet.has(canonicalMachineName(row.machine_name)))
     .map((row) => ({
       ...row,
       store_id: row.store_id ?? store.id,
     }));
+  const rowsByKey = new Map();
+
+  for (const row of [...fallbackRows, ...rowGroups.flat()]) {
+    rowsByKey.set(buildStaticRecordKey(row), row);
+  }
+
+  return [...rowsByKey.values()];
 }
 
 function buildStaticStoreDetail(staticStore) {
@@ -1744,7 +1822,7 @@ function buildInitialBacktestDetail(
     combineAimJuggler,
     combineHanabi,
     hasAimJugglerGroupOption:
-      machineNames.includes("SアイムジャグラーＥＸ") && machineNames.includes("ネオアイムジャグラーEX"),
+      machineNames.includes("SアイムジャグラーＥＸ") || machineNames.includes("ネオアイムジャグラーEX"),
     hasHanabiGroupOption: machineNames.includes("新ハナビ") && machineNames.includes("スマスロ ハナビ"),
     eventFilters: {
       dayTails: normalizeEventDayTails(defaultedOptions?.dayTails),
@@ -1889,7 +1967,7 @@ function buildMachineHuntScoreHighlightDetail(
   storeMachineNames = null,
   machineSlotCounts = {},
 ) {
-  const sourceMachineNames = Array.isArray(storeMachineNames) ? storeMachineNames : [
+  const snapshotMachineNames = [
     ...new Set(
       (Array.isArray(snapshots) ? snapshots : [])
         .flatMap((snapshot) => (Array.isArray(snapshot.rows) ? snapshot.rows : []))
@@ -1897,6 +1975,9 @@ function buildMachineHuntScoreHighlightDetail(
         .filter(Boolean),
     ),
   ];
+  const sourceMachineNames = Array.isArray(storeMachineNames)
+    ? [...new Set([...storeMachineNames, ...snapshotMachineNames])]
+    : snapshotMachineNames;
   const availableMachineNames = listHuntScoreTargetMachineNamesForStoreMachines(
     storeName,
     sourceMachineNames,
@@ -2283,9 +2364,13 @@ async function getHuntScoreSnapshotsForStore(
     const rankingMachineNames = normalizeInitialMachineSelection(availableMachineNames, machineOptions);
     const targetDateOnly = machineOptions?.targetDateOnly === true;
     const requestedDate = String(machineOptions?.requestedDate ?? "").trim();
+    const sourceRequestMachineNames = expandCombinedMachineNamesForOptions(
+      rankingMachineNames,
+      machineOptions,
+    );
     const sourceMachineNames = listHuntScoreSourceMachineNamesForStoreMachines(
       staticIdentity.storeName,
-      rankingMachineNames,
+      sourceRequestMachineNames,
     );
     const sourceDateRange = targetDateOnly
       ? null
@@ -2309,11 +2394,31 @@ async function getHuntScoreSnapshotsForStore(
     const selectedDate = rankingDates.includes(requestedDate)
       ? requestedDate
       : rankingDates[0] ?? null;
+    const snapshots = buildHuntScoreSnapshots(
+      targetRows,
+      storeRows,
+      staticIdentity.storeName,
+      huntScoreLogic.key,
+      normalizedDifferenceMode,
+      targetDateOnly ? { targetDate: selectedDate } : { targetDateRange },
+    );
+    const snapshotMachineNames = [
+      ...new Set(
+        snapshots
+          .flatMap((snapshot) => (Array.isArray(snapshot.rows) ? snapshot.rows : []))
+          .map((row) => String(row.machineName ?? "").trim())
+          .filter(Boolean),
+      ),
+    ];
+    const detailAvailableMachineNames = listHuntScoreTargetMachineNamesForStoreMachines(
+      staticIdentity.storeName,
+      [...new Set([...readStaticStoreMachineNames(staticStore), ...snapshotMachineNames])],
+    );
     return {
       dataSource: "json",
       huntScoreLogic,
       differenceMode: normalizedDifferenceMode,
-      availableMachineNames,
+      availableMachineNames: detailAvailableMachineNames,
       rankingMachineNames,
       rankingDateOptions,
       rankingDates,
@@ -2325,14 +2430,7 @@ async function getHuntScoreSnapshotsForStore(
         store_url: staticIdentity.storeUrl,
         eventFilters: staticIdentity.eventFilters,
       },
-      snapshots: buildHuntScoreSnapshots(
-        targetRows,
-        storeRows,
-        staticIdentity.storeName,
-        huntScoreLogic.key,
-        normalizedDifferenceMode,
-        targetDateOnly ? { targetDate: selectedDate } : { targetDateRange },
-      ),
+      snapshots,
     };
   }
 
@@ -2642,7 +2740,7 @@ function storeEntryHasBacktestData(storeEntry) {
   return Boolean(identity.id && identity.storeName && storeEntry?.dataFile);
 }
 
-function calculateStaticStoreSlotCountForMachineNames(staticStore, machineNames) {
+function calculateStaticStoreSlotCountForMachineNames(staticStore, machineNames, options = {}) {
   const targetMachineNameSet = new Set(
     (Array.isArray(machineNames) ? machineNames : [])
       .flatMap((name) => listEquivalentMachineNames(name))
@@ -2651,6 +2749,24 @@ function calculateStaticStoreSlotCountForMachineNames(staticStore, machineNames)
   const activeSlotCountsByCanonicalName =
     buildActiveStaticStoreMachineSlotCountsByCanonicalName(staticStore);
   let total = 0;
+
+  for (const group of COMBINED_MACHINE_GROUPS) {
+    const optionKey = String(group.optionKey ?? "").trim();
+    if (!optionKey || !normalizeEnabledOption(options?.[optionKey], true)) {
+      continue;
+    }
+    const groupMatches = group.machineNames.some((machineName) =>
+      targetMachineNameSet.has(canonicalMachineName(machineName)),
+    );
+    if (!groupMatches) {
+      continue;
+    }
+
+    total += readCombinedStaticStoreMachineSlotCount(staticStore, group);
+    for (const machineName of group.machineNames) {
+      targetMachineNameSet.delete(canonicalMachineName(machineName));
+    }
+  }
 
   for (const canonicalName of targetMachineNameSet) {
     const slotCount = Number(activeSlotCountsByCanonicalName.get(canonicalName) ?? 0);
@@ -2851,9 +2967,14 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       return null;
     }
 
+    const sourceRequestMachineNames = expandCombinedMachineNamesForOptions(
+      backtestOptions.selectedMachineNames,
+      backtestOptions,
+    );
     const slotCount = calculateStaticStoreSlotCountForMachineNames(
       staticStore,
-      backtestOptions.selectedMachineNames,
+      sourceRequestMachineNames,
+      backtestOptions,
     );
     if (slotCount <= 0 || !slotCountMatchesCrossStoreRange(slotCount, backtestOptions)) {
       return null;
@@ -2866,7 +2987,7 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
     );
     const sourceMachineNames = listHuntScoreSourceMachineNamesForStoreMachines(
       store.storeName,
-      backtestOptions.selectedMachineNames,
+      sourceRequestMachineNames,
     );
     const sourceDateRange = buildCrossStoreSourceDateRange(
       staticStore,
