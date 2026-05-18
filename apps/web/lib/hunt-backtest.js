@@ -32,6 +32,7 @@ const BACKTEST_BREAKDOWN_DEFINITIONS = [
   { key: "dayTail", title: "翌営業日が末尾の日" },
   { key: "weekday", title: "翌営業日が指定曜日" },
   { key: "normal", title: "通常日" },
+  { key: "eventTotal", title: "特定日合算" },
 ];
 
 function readPositiveInteger(value) {
@@ -401,6 +402,9 @@ function buildBreakdownRowFilter(breakdownKey, eventFilters) {
     }
     if (breakdownKey === "weekday") {
       return isWeekday;
+    }
+    if (breakdownKey === "eventTotal") {
+      return isDayTail || isWeekday;
     }
 
     return !isDayTail && !isWeekday;
