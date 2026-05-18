@@ -733,6 +733,11 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                             category={group.key}
                             label={`${group.label}のみ選択`}
                           />
+                          <MachineFilterCategoryButton
+                            category={group.key}
+                            label={`${group.label}のみ解除`}
+                            action="clear"
+                          />
                         </div>
                         <div className="metricToggleRow">
                           {group.options.map((machine) => (

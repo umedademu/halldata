@@ -1327,6 +1327,21 @@ function HuntScoreHighlightControls({
     });
   };
 
+  const clearMachineCategory = (category) => {
+    const targetMachineNames =
+      machineOptionGroups.find((group) => group.key === category)?.options.map((machine) => machine.name) ?? [];
+    if (targetMachineNames.length === 0) {
+      return;
+    }
+    const targetMachineNameSet = new Set(targetMachineNames);
+    onChange({
+      ...options,
+      selectedMachineNames: options.selectedMachineNames.filter(
+        (name) => !targetMachineNameSet.has(name),
+      ),
+    });
+  };
+
   const selectAllMachines = () => {
     onChange({
       ...options,
@@ -1609,6 +1624,13 @@ function HuntScoreHighlightControls({
                     onClick={() => selectMachineCategory(group.key)}
                   >
                     {group.label}のみ選択
+                  </button>
+                  <button
+                    type="button"
+                    className="storeReserveButton storeReserveButtonSecondary machineFilterAction"
+                    onClick={() => clearMachineCategory(group.key)}
+                  >
+                    {group.label}のみ解除
                   </button>
                 </div>
                 <div className="metricToggleRow">

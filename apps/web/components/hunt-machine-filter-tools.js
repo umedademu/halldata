@@ -39,6 +39,12 @@ function turnMachineFilterCategoryOn(form, category) {
   );
 }
 
+function turnMachineFilterCategoryOff(form, category) {
+  updateMachineFilterChecks(form, (input, currentChecked) =>
+    input.dataset.machineCategory === category ? false : currentChecked,
+  );
+}
+
 export function AllMachineFilterButtons() {
   const selectAll = (event) => {
     setMachineFilterChecks(event.currentTarget.closest("form"), true);
@@ -70,16 +76,22 @@ export function AllMachineFilterButtons() {
   );
 }
 
-export function MachineFilterCategoryButton({ category, label }) {
-  const selectCategory = (event) => {
-    turnMachineFilterCategoryOn(event.currentTarget.closest("form"), category);
+export function MachineFilterCategoryButton({ category, label, action = "select" }) {
+  const updateCategory = (event) => {
+    const form = event.currentTarget.closest("form");
+    if (action === "clear") {
+      turnMachineFilterCategoryOff(form, category);
+      return;
+    }
+
+    turnMachineFilterCategoryOn(form, category);
   };
 
   return (
     <button
       type="button"
       className="storeReserveButton storeReserveButtonSecondary machineFilterAction"
-      onClick={selectCategory}
+      onClick={updateCategory}
     >
       {label}
     </button>
