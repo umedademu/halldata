@@ -400,7 +400,7 @@ function OverallRankingTable({
         </div>
       </div>
       <div className="tableScroller directoryScroller">
-        <table className="directoryTable">
+        <table className="directoryTable huntCompactTable huntRankingTable">
           <thead>
             <tr>
               <th>{rankColumnLabel}</th>
@@ -808,7 +808,7 @@ export function HuntRankingTable({
               </div>
             </div>
           <div className="tableScroller directoryScroller">
-            <table className="directoryTable">
+            <table className="directoryTable huntCompactTable huntRankingTable">
               <thead>
                 <tr>
                   <th>順位</th>

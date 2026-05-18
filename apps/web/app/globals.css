@@ -1535,6 +1535,21 @@ a {
   white-space: nowrap;
 }
 
+.directoryTable.huntCompactTable {
+  min-width: max-content;
+}
+
+.directoryTable.huntCompactTable th,
+.directoryTable.huntCompactTable td {
+  padding: 9px 10px;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.directoryTable.huntCompactTable .sortableTableHeaderButton {
+  min-height: 1.25rem;
+}
+
 .directoryTable thead th {
   position: sticky;
   top: 0;
@@ -1672,6 +1687,18 @@ a {
 
 .directoryNameHeader {
   z-index: 3;
+}
+
+.huntBacktestResultTable .directoryNameHeader,
+.huntBacktestResultTable .directoryNameCell {
+  min-width: 7rem;
+  max-width: 9rem;
+}
+
+.huntRankingTable .directoryNameHeader,
+.huntRankingTable .directoryNameCell {
+  min-width: 8rem;
+  max-width: 11rem;
 }
 
 .directoryTable tbody .directoryNameCell {
@@ -2156,6 +2183,23 @@ a {
   .directoryNameCell {
     min-width: 11rem;
     max-width: 13rem;
+  }
+
+  .directoryTable.huntCompactTable th,
+  .directoryTable.huntCompactTable td {
+    padding: 8px 9px;
+  }
+
+  .huntBacktestResultTable .directoryNameHeader,
+  .huntBacktestResultTable .directoryNameCell {
+    min-width: 6.5rem;
+    max-width: 8.5rem;
+  }
+
+  .huntRankingTable .directoryNameHeader,
+  .huntRankingTable .directoryNameCell {
+    min-width: 8rem;
+    max-width: 10rem;
   }
 
   .dayFilterRow {

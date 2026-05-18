@@ -93,7 +93,7 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
         </div>
       </div>
       <div className="tableScroller directoryScroller">
-        <table id={tableId} className="directoryTable" data-sortable-table="1">
+        <table id={tableId} className="directoryTable huntCompactTable huntBacktestResultTable" data-sortable-table="1">
           <thead>
             <tr>
               <SortableTableHeader
