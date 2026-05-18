@@ -618,6 +618,7 @@ function finalizeSummary(summary) {
     ...publicSummary,
     averageHuntScore: calculateAverage(summary.huntScoreTotal, summary.actualRowCount),
     averageNextGap: calculateAverage(summary.nextGapTotal, summary.nextGapSampleCount),
+    averageGames: calculateAverage(summary.gamesTotal, summary.actualRowCount),
     payoutRate: calculatePayoutRate(summary.investedCoinsTotal, summary.differenceTotal),
     bbProbability: formatProbability(summary.gamesTotal, summary.bbTotal),
     rbProbability: formatProbability(summary.gamesTotal, summary.rbTotal),

@@ -22,6 +22,7 @@ import {
 } from "../../../../lib/data";
 import {
   formatDecimal,
+  formatAverageGames,
   formatNumber,
   formatPeriod,
   formatPercent,
@@ -112,19 +113,20 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
               <SortableTableHeader columnIndex={4}>集計台数</SortableTableHeader>
               <SortableTableHeader columnIndex={5}>合計差枚</SortableTableHeader>
               <SortableTableHeader columnIndex={6}>合計G数</SortableTableHeader>
-              <SortableTableHeader columnIndex={7}>BB</SortableTableHeader>
-              <SortableTableHeader columnIndex={8}>RB</SortableTableHeader>
-              <SortableTableHeader columnIndex={9} initialDirection="asc">
+              <SortableTableHeader columnIndex={7}>平均G数</SortableTableHeader>
+              <SortableTableHeader columnIndex={8}>BB</SortableTableHeader>
+              <SortableTableHeader columnIndex={9}>RB</SortableTableHeader>
+              <SortableTableHeader columnIndex={10} initialDirection="asc">
                 BB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={10} initialDirection="asc">
+              <SortableTableHeader columnIndex={11} initialDirection="asc">
                 RB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={11} initialDirection="asc">
+              <SortableTableHeader columnIndex={12} initialDirection="asc">
                 合成
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={12}>機械割</SortableTableHeader>
-              <SortableTableHeader columnIndex={13}>設定</SortableTableHeader>
+              <SortableTableHeader columnIndex={13}>機械割</SortableTableHeader>
+              <SortableTableHeader columnIndex={14}>設定</SortableTableHeader>
             </tr>
           </thead>
           <tbody>
@@ -136,6 +138,7 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
               <td data-sort-value={backtest.total.actualRowCount}>{formatNumber(backtest.total.actualRowCount)}</td>
               <td data-sort-value={backtest.total.differenceTotal}>{formatSignedNumber(backtest.total.differenceTotal)}</td>
               <td data-sort-value={backtest.total.gamesTotal}>{formatNumber(backtest.total.gamesTotal)}</td>
+              <td data-sort-value={readSortNumber(backtest.total.averageGames)}>{formatAverageGames(backtest.total.averageGames)}</td>
               <td data-sort-value={backtest.total.bbTotal}>{formatNumber(backtest.total.bbTotal)}</td>
               <td data-sort-value={backtest.total.rbTotal}>{formatNumber(backtest.total.rbTotal)}</td>
               <td data-sort-value={readProbabilitySortValue(backtest.total.bbProbability)}>{backtest.total.bbProbability ?? "-"}</td>
@@ -169,6 +172,7 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
                   <td data-sort-value={summary.actualRowCount}>{formatNumber(summary.actualRowCount)}</td>
                   <td data-sort-value={summary.differenceTotal}>{formatSignedNumber(summary.differenceTotal)}</td>
                   <td data-sort-value={summary.gamesTotal}>{formatNumber(summary.gamesTotal)}</td>
+                  <td data-sort-value={readSortNumber(summary.averageGames)}>{formatAverageGames(summary.averageGames)}</td>
                   <td data-sort-value={summary.bbTotal}>{formatNumber(summary.bbTotal)}</td>
                   <td data-sort-value={summary.rbTotal}>{formatNumber(summary.rbTotal)}</td>
                   <td data-sort-value={readProbabilitySortValue(summary.bbProbability)}>{summary.bbProbability ?? "-"}</td>

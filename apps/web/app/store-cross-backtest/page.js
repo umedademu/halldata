@@ -10,6 +10,7 @@ import { SortableTableHeader } from "../../components/sortable-table-header";
 import { StoreFavoriteButton } from "../../components/store-favorite-button";
 import { getCrossStoreBacktestDetail } from "../../lib/data";
 import {
+  formatAverageGames,
   formatDecimal,
   formatNumber,
   formatPeriod,
@@ -111,23 +112,24 @@ function StoreRankingTable({ rows, rankingMetric }) {
               <SortableTableHeader columnIndex={4}>平均差枚</SortableTableHeader>
               <SortableTableHeader columnIndex={5}>合計差枚</SortableTableHeader>
               <SortableTableHeader columnIndex={6}>合計G数</SortableTableHeader>
-              <SortableTableHeader columnIndex={7}>設定</SortableTableHeader>
-              <SortableTableHeader columnIndex={8}>集計台数</SortableTableHeader>
-              <SortableTableHeader columnIndex={9}>対象日数</SortableTableHeader>
-              <SortableTableHeader columnIndex={10}>集計日数</SortableTableHeader>
-              <SortableTableHeader columnIndex={11}>対象機種</SortableTableHeader>
-              <SortableTableHeader columnIndex={12}>設置台数</SortableTableHeader>
-              <SortableTableHeader columnIndex={13}>狙い度</SortableTableHeader>
-              <SortableTableHeader columnIndex={14}>次点差</SortableTableHeader>
-              <SortableTableHeader columnIndex={15}>BB</SortableTableHeader>
-              <SortableTableHeader columnIndex={16}>RB</SortableTableHeader>
-              <SortableTableHeader columnIndex={17} initialDirection="asc">
+              <SortableTableHeader columnIndex={7}>平均G数</SortableTableHeader>
+              <SortableTableHeader columnIndex={8}>設定</SortableTableHeader>
+              <SortableTableHeader columnIndex={9}>集計台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={10}>対象日数</SortableTableHeader>
+              <SortableTableHeader columnIndex={11}>集計日数</SortableTableHeader>
+              <SortableTableHeader columnIndex={12}>対象機種</SortableTableHeader>
+              <SortableTableHeader columnIndex={13}>設置台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={14}>狙い度</SortableTableHeader>
+              <SortableTableHeader columnIndex={15}>次点差</SortableTableHeader>
+              <SortableTableHeader columnIndex={16}>BB</SortableTableHeader>
+              <SortableTableHeader columnIndex={17}>RB</SortableTableHeader>
+              <SortableTableHeader columnIndex={18} initialDirection="asc">
                 BB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={18} initialDirection="asc">
+              <SortableTableHeader columnIndex={19} initialDirection="asc">
                 RB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={19} initialDirection="asc">
+              <SortableTableHeader columnIndex={20} initialDirection="asc">
                 合成
               </SortableTableHeader>
             </tr>
@@ -167,6 +169,9 @@ function StoreRankingTable({ rows, rankingMetric }) {
                   {formatSignedNumber(row.differenceTotal)}
                 </td>
                 <td data-sort-value={row.gamesTotal}>{formatNumber(row.gamesTotal)}</td>
+                <td data-sort-value={readSortNumber(row.averageGames)}>
+                  {formatAverageGames(row.averageGames)}
+                </td>
                 <td data-sort-value={readSortNumber(row.averageSetting)}>
                   {formatSettingEstimateScore(row.averageSetting)}
                 </td>
