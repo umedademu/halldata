@@ -544,7 +544,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                               data-machine-filter-option="1"
                               data-machine-category={machine.category}
                             />
-                            <span>{machine.shortName}</span>
+                            <span>{machine.optionLabel}</span>
                           </label>
                         ))}
                       </div>

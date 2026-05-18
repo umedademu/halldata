@@ -659,7 +659,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                                 data-machine-filter-option="1"
                                 data-machine-category={machine.category}
                               />
-                              <span>{machine.shortName}</span>
+                              <span>{machine.optionLabel}</span>
                             </label>
                           ))}
                         </div>

@@ -371,6 +371,14 @@ export function getHuntMachineShortName(machineName) {
   return findHuntMachineDisplayDefinition(machineName)?.shortName ?? String(machineName ?? "").trim();
 }
 
+export function getHuntMachineOptionLabel(machineName, slotCount) {
+  const shortName = getHuntMachineShortName(machineName);
+  const safeSlotCount = Number(slotCount);
+  return Number.isFinite(safeSlotCount) && safeSlotCount > 0
+    ? `${shortName}(${safeSlotCount})`
+    : shortName;
+}
+
 export function getHuntMachineCategory(machineName) {
   const definition = findHuntMachineDisplayDefinition(machineName);
   if (definition) {
@@ -455,6 +463,7 @@ export function groupHuntMachineOptions(machineOptions) {
     groupsByKey.get(safeCategoryKey).options.push({
       ...machine,
       shortName: getHuntMachineShortName(machine.name),
+      optionLabel: getHuntMachineOptionLabel(machine.name, machine.slotCount),
       category: safeCategoryKey,
     });
   }

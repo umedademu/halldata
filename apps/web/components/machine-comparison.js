@@ -1621,7 +1621,7 @@ function HuntScoreHighlightControls({
                         checked={machine.checked}
                         onChange={() => toggleMachine(machine.name)}
                       />
-                      <span>{machine.shortName}</span>
+                      <span>{machine.optionLabel}</span>
                     </label>
                   ))}
                 </div>
