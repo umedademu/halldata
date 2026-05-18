@@ -90,6 +90,7 @@ const OTHER_TARGET_MACHINES = [
   { name: "スマスロニューパルサーBT", aliases: ["スマスロ ニューパルサーBT"] },
   { name: "A-SLOT+ ディスクアップ ULTRAREMIX", aliases: ["A-SLOT+ディスクアップ ULTRAREMIX"] },
   { name: "クランキークレスト", aliases: [] },
+  { name: "スマスロ サンダーV", aliases: ["LサンダーV", "スマスロサンダーV"] },
 ];
 
 const OKIDOKI_TARGET_MACHINES = [

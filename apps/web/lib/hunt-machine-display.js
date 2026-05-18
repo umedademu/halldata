@@ -362,6 +362,11 @@ const HUNT_MACHINE_DISPLAY_DEFINITIONS = [
     category: "other",
     names: ["クランキークレスト"],
   },
+  {
+    shortName: "サンダーV",
+    category: "other",
+    names: ["スマスロ サンダーV", "LサンダーV", "スマスロサンダーV"],
+  },
 ];
 
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
