@@ -136,16 +136,6 @@ function normalizeCombineHanabi(values) {
   return safeValues.includes("1") || safeValues.includes("true") || safeValues.includes("on");
 }
 
-function normalizeCheckboxEnabled(values, fallbackValue = false) {
-  const safeValues = (Array.isArray(values) ? values : [values])
-    .map((value) => String(value ?? "").trim())
-    .filter(Boolean);
-  if (safeValues.length === 0) {
-    return fallbackValue;
-  }
-  return safeValues.includes("1") || safeValues.includes("true") || safeValues.includes("on");
-}
-
 function readRankingSortNumber(value, fallbackValue = Number.MAX_SAFE_INTEGER) {
   const parsedValue = Number(value);
   return Number.isFinite(parsedValue) ? parsedValue : fallbackValue;
@@ -344,9 +334,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const nextGapRequired = rankingHighlightOptions.nextGapRequired.some((value) =>
     ["1", "true", "on"].includes(String(value ?? "").trim()),
   );
-  const showMachineTopCandidates = normalizeCheckboxEnabled(
-    readMultiSearchParamWithDefault(resolvedSearchParams, "showMachineTopCandidates", "0"),
-  );
   const normalizedRankingHighlightOptions = {
     ...rankingHighlightOptions,
     rankRequired,
@@ -425,6 +412,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const selectedMachineNameSet = machineFilterTouched
     ? requestedMachineNameSet
     : new Set(availableMachineNames);
+  const showMachineTopCandidates = selectedMachineNameSet.size >= 2;
   const machineOptions = availableMachineNames.map((machineName) => ({
     name: machineName,
     checked: selectedMachineNameSet.has(machineName),
@@ -455,7 +443,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     nextGapRequired,
     rankScope: rankingHighlightOptions.rankScope,
     nextGapScope: rankingHighlightOptions.nextGapScope,
-    showMachineTopCandidates,
   });
 
   return (
@@ -848,25 +835,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                       defaultChecked={rankingHighlightOptions.nextGapScope === "machine"}
                     />
                     <span>機種内</span>
-                  </label>
-                </div>
-              </div>
-              <div className="backtestBlock rankingMachineFilter">
-                <p className="filterControlLabel">追加表示</p>
-                <input type="hidden" name="showMachineTopCandidates" value="0" />
-                <div className="metricToggleRow">
-                  <label
-                    className={`metricToggleChip ${
-                      showMachineTopCandidates ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      name="showMachineTopCandidates"
-                      value="1"
-                      defaultChecked={showMachineTopCandidates}
-                    />
-                    <span>各機種1位を機種内次点差順で追加表示</span>
                   </label>
                 </div>
               </div>

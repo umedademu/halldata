@@ -22,7 +22,6 @@ const MANAGED_PARAM_KEYS = [
   "nextGapRequired",
   "rankScope",
   "nextGapScope",
-  "showMachineTopCandidates",
 ];
 const MANAGED_PARAM_KEY_SET = new Set(MANAGED_PARAM_KEYS);
 

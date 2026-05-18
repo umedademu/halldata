@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { SortableTableController } from "./sortable-table-controller";
+import { SortableTableHeader } from "./sortable-table-header";
 import {
   formatAverageGames,
   formatDecimal,
@@ -243,7 +245,7 @@ function buildMachineTopCandidateRows(displayGroups, gapValueByRowKey) {
 
       return decorateRowsWithGapValues([topRow], gapValueByRowKey)[0] ?? null;
     })
-    .filter((row) => Number.isFinite(readNextGapForRankScope(row, "machine")))
+    .filter(Boolean)
     .sort(compareMachineTopCandidateRows)
     .map((row, index) => ({
       ...row,
@@ -390,9 +392,35 @@ function OverallRankingTable({
   scoreColumnLabel,
   nextGapScope,
   highlightCondition,
+  sortable = false,
+  tableId = "",
 }) {
+  const tableProps = sortable && tableId
+    ? { id: tableId, "data-sortable-table": "1" }
+    : {};
+  const HeaderCell = ({
+    children,
+    columnIndex,
+    type = "number",
+    initialDirection = "desc",
+    className = "",
+  }) =>
+    sortable ? (
+      <SortableTableHeader
+        columnIndex={columnIndex}
+        type={type}
+        initialDirection={initialDirection}
+        className={className}
+      >
+        {children}
+      </SortableTableHeader>
+    ) : (
+      <th className={className || undefined}>{children}</th>
+    );
+
   return (
     <section className="tablePanel directoryPanel">
+      {sortable && tableId ? <SortableTableController tableId={tableId} /> : null}
       <div className="tablePanelHeader">
         <div>
           <p className="sectionLabel">{sectionLabel}</p>
@@ -400,14 +428,16 @@ function OverallRankingTable({
         </div>
       </div>
       <div className="tableScroller directoryScroller">
-        <table className="directoryTable huntCompactTable huntRankingTable">
+        <table className="directoryTable huntCompactTable huntRankingTable" {...tableProps}>
           <thead>
             <tr>
-              <th>{rankColumnLabel}</th>
-              <th>{scoreColumnLabel}</th>
-              <th>次点差</th>
-              <th className="directoryNameHeader">機種名</th>
-              <th>台番</th>
+              <HeaderCell columnIndex={0}>{rankColumnLabel}</HeaderCell>
+              <HeaderCell columnIndex={1}>{scoreColumnLabel}</HeaderCell>
+              <HeaderCell columnIndex={2}>次点差</HeaderCell>
+              <HeaderCell columnIndex={3} type="text" initialDirection="asc" className="directoryNameHeader">
+                機種名
+              </HeaderCell>
+              <HeaderCell columnIndex={4} type="text" initialDirection="asc">台番</HeaderCell>
               {visibleColumns.map((column) => (
                 <th key={column.key}>{column.label}</th>
               ))}
@@ -430,18 +460,31 @@ function OverallRankingTable({
                   key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${title}-${row.rank}`}
                   className={rowClassName}
                 >
-                  <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
+                  <td
+                    className={getRankingConditionHighlightClass(row, highlightCondition)}
+                    data-sort-value={readRankingSortNumber(row.rank, "")}
+                  >
                     {row.rank}
                   </td>
-                  <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
+                  <td
+                    className={getRankingConditionHighlightClass(row, highlightCondition)}
+                    data-sort-value={readRankingSortNumber(row.huntScore, "")}
+                  >
                     {formatNumber(row.huntScore)}
                   </td>
-                  <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
+                  <td
+                    className={getRankingConditionHighlightClass(row, highlightCondition)}
+                    data-sort-value={readRankingSortNumber(
+                      readNextGapForRankScope(row, normalizeNextGapScope(nextGapScope)),
+                      "",
+                    )}
+                  >
                     {formatNextGapForScope(row, nextGapScope)}
                   </td>
                   <th
                     className={`directoryNameCell ${machineHasSite7Data ? "site7MachineCell" : ""}`}
                     title={machineTitle}
+                    data-sort-value={row.machineName}
                   >
                     <span className="directoryNameContent">
                       <Link
@@ -458,7 +501,7 @@ function OverallRankingTable({
                       ) : null}
                     </span>
                   </th>
-                  <td>{row.slotNumber}</td>
+                  <td data-sort-value={row.slotNumber}>{row.slotNumber}</td>
                   {visibleColumns.map((column) => (
                     <td key={`${row.machineName}-${row.slotNumber}-${title}-${column.key}`}>
                       {column.render(row)}
@@ -758,21 +801,21 @@ export function HuntRankingTable({
         machineTopCandidateRows.length > 0 ? (
           <OverallRankingTable
             storeId={storeId}
-            sectionLabel="選抜候補"
-            rankColumnLabel="候補順位"
-            title={`各機種1位の機種内次点差ランキング 上位${formatNumber(
-              machineTopCandidateRows.length,
-            )}台`}
+            sectionLabel="各機種1位"
+            rankColumnLabel="順位"
+            title={`各機種1位 ${formatNumber(machineTopCandidateRows.length)}台`}
             rows={machineTopCandidateRows}
             visibleColumns={visibleColumns}
             scoreColumnLabel={scoreColumnLabel}
             nextGapScope="machine"
             highlightCondition={highlightCondition}
+            sortable
+            tableId="machine-top-candidates-ranking"
           />
         ) : (
           <section className="statusPanel">
-            <h2>選抜候補はありません</h2>
-            <p>機種内次点差を出せる各機種1位台があると、ここに追加表示されます。</p>
+            <h2>各機種1位はありません</h2>
+            <p>2機種以上を選択して各機種の1位台を出せると、ここに表示されます。</p>
           </section>
         )
       ) : null}
