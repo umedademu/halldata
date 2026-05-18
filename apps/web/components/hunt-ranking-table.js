@@ -38,6 +38,7 @@ import {
   normalizeDifferenceMode,
   selectDifferenceValue,
 } from "../lib/machine-difference";
+import { getHuntMachineShortName } from "../lib/hunt-machine-display";
 
 const DEFAULT_VISIBLE_RESULT_KEYS = [
   "difference_value",
@@ -459,12 +460,14 @@ function OverallRankingTable({
               const rowClassName = getSettingEstimateHighlightClass(row.nextSettingEstimate?.average);
               const machineHasSite7Data = Boolean(row.predictionMachineHasSite7Data);
               const machineSite7FetchedAt = row.predictionMachineSite7FetchedAt ?? null;
+              const machineFullName = String(row.machineName ?? "").trim();
+              const machineShortName = getHuntMachineShortName(machineFullName);
               const machineTitle = machineHasSite7Data
                 ? site7BadgeTitle(
                     machineSite7FetchedAt,
-                    "この機種にSセブン暫定データが含まれます",
+                    `${machineFullName}\nこの機種にSセブン暫定データが含まれます`,
                   )
-                : undefined;
+                : machineFullName;
 
               return (
                 <tr
@@ -502,7 +505,7 @@ function OverallRankingTable({
                         href={`/stores/${storeId}/machines/${encodeURIComponent(row.machineName)}`}
                         className="directoryPrimaryLink"
                       >
-                        {row.machineName}
+                        {machineShortName}
                       </Link>
                       {machineHasSite7Data ? (
                         <Site7RankingBadge
