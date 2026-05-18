@@ -164,7 +164,11 @@ const HUNT_MACHINE_DISPLAY_DEFINITIONS = [
   {
     shortName: "カバネリ",
     category: "other",
-    names: ["スマスロ 甲鉄城のカバネリ 海門決戦"],
+    names: [
+      "スマスロ 甲鉄城のカバネリ 海門決戦",
+      "パチスロ　甲鉄城のカバネリ",
+      "パチスロ 甲鉄城のカバネリ",
+    ],
   },
   {
     shortName: "北斗",
@@ -376,6 +380,89 @@ const HUNT_MACHINE_DISPLAY_DEFINITIONS = [
       "A-SLOT+異世界かるてっとＢＴ",
     ],
   },
+  {
+    shortName: "ToLOVEる",
+    category: "other",
+    names: ["L ToLOVEるダークネス", "LToLOVEるダークネス"],
+  },
+  {
+    shortName: "アズレン",
+    category: "other",
+    names: ["Lアズールレーン THE ANIMATION", "L アズールレーン THE ANIMATION"],
+  },
+  {
+    shortName: "虚構推理",
+    category: "other",
+    names: ["L虚構推理", "L 虚構推理"],
+  },
+  {
+    shortName: "いざ番長",
+    category: "other",
+    names: ["いざ！番長", "いざ番長"],
+  },
+  {
+    shortName: "アレックス",
+    category: "other",
+    names: ["アレックス ブライト", "アレックスブライト"],
+  },
+  {
+    shortName: "ゴッドイーター",
+    category: "other",
+    names: ["スマスロ ゴッドイーター リザレクション", "スマスロゴッドイーターリザレクション"],
+  },
+  {
+    shortName: "ゴブスレII",
+    category: "other",
+    names: ["スマスロ ゴブリンスレイヤーⅡ", "スマスロゴブリンスレイヤーⅡ", "スマスロ ゴブリンスレイヤーII"],
+  },
+  {
+    shortName: "マギレコ",
+    category: "other",
+    names: [
+      "スマスロ マギアレコード 魔法少女まどか☆マギカ外伝",
+      "スマスロマギアレコード魔法少女まどか☆マギカ外伝",
+    ],
+  },
+  {
+    shortName: "モンハンR",
+    category: "other",
+    names: ["スマスロ モンスターハンターライズ", "スマスロモンスターハンターライズ"],
+  },
+  {
+    shortName: "東リベ",
+    category: "other",
+    names: ["スマスロ 東京リベンジャーズ", "スマスロ東京リベンジャーズ"],
+  },
+  {
+    shortName: "ヨルムン",
+    category: "other",
+    names: ["スマスロヨルムンガンド", "スマスロ ヨルムンガンド"],
+  },
+  {
+    shortName: "化物語",
+    category: "other",
+    names: ["スマスロ化物語", "スマスロ 化物語"],
+  },
+  {
+    shortName: "新鬼武者3",
+    category: "other",
+    names: ["スマスロ新鬼武者3", "スマスロ 新鬼武者3", "スマスロ新鬼武者３"],
+  },
+  {
+    shortName: "秘宝伝",
+    category: "other",
+    names: ["スマスロ秘宝伝", "スマスロ 秘宝伝"],
+  },
+  {
+    shortName: "鉄拳6",
+    category: "other",
+    names: ["スマスロ鉄拳6", "スマスロ 鉄拳6", "スマスロ鉄拳６"],
+  },
+  {
+    shortName: "バーサス",
+    category: "other",
+    names: ["バーサスリヴァイズ", "バーサス リヴァイズ"],
+  },
 ];
 
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
@@ -404,8 +491,31 @@ function isHuntMachineInGroup(machineName, groupMachineNames) {
   );
 }
 
+function buildFallbackHuntMachineShortName(machineName) {
+  const originalText = String(machineName ?? "").trim();
+  if (!originalText) {
+    return "";
+  }
+
+  const cleanedText = originalText
+    .normalize("NFKC")
+    .replace(/^L\s*/u, "")
+    .replace(/^スマスロ\s*/u, "")
+    .replace(/^スマスロ/u, "")
+    .replace(/^パチスロ\s*/u, "")
+    .replace(/^A-SLOT\+\s*/u, "")
+    .replace(/～.*?～/gu, "")
+    .replace(/ THE ANIMATION/gu, "")
+    .replace(/\s+/gu, "")
+    .trim();
+  if (cleanedText.length <= 8) {
+    return cleanedText || originalText;
+  }
+  return `${cleanedText.slice(0, 8)}…`;
+}
+
 export function getHuntMachineShortName(machineName) {
-  return findHuntMachineDisplayDefinition(machineName)?.shortName ?? String(machineName ?? "").trim();
+  return findHuntMachineDisplayDefinition(machineName)?.shortName ?? buildFallbackHuntMachineShortName(machineName);
 }
 
 export function getHuntMachineOptionLabel(machineName, slotCount) {
