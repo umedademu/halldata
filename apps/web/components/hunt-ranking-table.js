@@ -20,7 +20,7 @@ import {
   HUNT_BACKTEST_BOOKMARK_EVENT,
   buildNextGapFilter,
   buildHuntBacktestBookmarkMatches,
-  buildRankFilter,
+  buildScopedRankFilters,
   buildScoreFilter,
   buildConditionRequirementOptions,
   calculateHuntScoreNextGapMap,
@@ -330,22 +330,33 @@ function formatNextGapForScope(row, nextGapScope) {
 
 function isRankingConditionHighlighted(row, highlightCondition) {
   if (
-    !highlightCondition.rankFilter.hasRankFilter &&
+    !highlightCondition.machineRankFilter.hasRankFilter &&
+    !highlightCondition.selectedRankFilter.hasRankFilter &&
     !highlightCondition.scoreFilter.hasScoreFilter &&
     !highlightCondition.nextGapFilter.hasNextGapFilter
   ) {
     return false;
   }
 
-  const rankValue = readRankForScope(row, highlightCondition.rankScope);
   const nextGapValue = readNextGapForRankScope(
     row,
     normalizeNextGapScope(highlightCondition.nextGapScope),
   );
   return matchesRequiredConditionFilters(
-    rankValue,
+    [
+      {
+        rankValue: readRankForScope(row, "machine"),
+        rankFilter: highlightCondition.machineRankFilter,
+        required: highlightCondition.requirementOptions.machineRankRequired,
+      },
+      {
+        rankValue: readRankForScope(row, "selected"),
+        rankFilter: highlightCondition.selectedRankFilter,
+        required: highlightCondition.requirementOptions.selectedRankRequired,
+      },
+    ],
     row.huntScore,
-    highlightCondition.rankFilter,
+    null,
     highlightCondition.scoreFilter,
     highlightCondition.requirementOptions,
     false,
@@ -563,28 +574,42 @@ export function HuntRankingTable({
   );
   const scoreColumnLabel = useMemo(() => formatScoreColumnLabel(predictionDate), [predictionDate]);
   const nextGapScope = normalizeNextGapScope(highlightOptions.nextGapScope ?? DEFAULT_NEXT_GAP_SCOPE);
-  const rankScope = normalizeRankScope(highlightOptions.rankScope ?? DEFAULT_RANK_SCOPE);
   const highlightCondition = useMemo(
-    () => ({
-      rankFilter: buildRankFilter(
-        highlightOptions.rankMin ?? String(DEFAULT_HIGHLIGHT_RANK_MIN),
-        highlightOptions.rankMax ?? String(DEFAULT_HIGHLIGHT_RANK_MAX),
-      ),
-      scoreFilter: buildScoreFilter(
-        highlightOptions.scoreMin ?? String(DEFAULT_HIGHLIGHT_SCORE_MIN),
-      ),
-      nextGapFilter: buildNextGapFilter(highlightOptions.nextGapMin),
-      requirementOptions: buildConditionRequirementOptions(highlightOptions, {
-        rankRequired: true,
-        scoreRequired: true,
-        nextGapRequired: false,
-      }),
-      rankScope,
-      nextGapScope,
-    }),
+    () => {
+      const scopedRankFilters = buildScopedRankFilters({
+        ...highlightOptions,
+        selectedRankMin:
+          highlightOptions.selectedRankMin ??
+          highlightOptions.rankMin ??
+          String(DEFAULT_HIGHLIGHT_RANK_MIN),
+        selectedRankMax:
+          highlightOptions.selectedRankMax ??
+          highlightOptions.rankMax ??
+          String(DEFAULT_HIGHLIGHT_RANK_MAX),
+      });
+
+      return {
+        machineRankFilter: scopedRankFilters.machineRankFilter,
+        selectedRankFilter: scopedRankFilters.selectedRankFilter,
+        scoreFilter: buildScoreFilter(
+          highlightOptions.scoreMin ?? String(DEFAULT_HIGHLIGHT_SCORE_MIN),
+        ),
+        nextGapFilter: buildNextGapFilter(highlightOptions.nextGapMin),
+        requirementOptions: buildConditionRequirementOptions(highlightOptions, {
+          rankRequired: true,
+          machineRankRequired: false,
+          selectedRankRequired: true,
+          scoreRequired: true,
+          nextGapRequired: false,
+        }),
+        rankScope: scopedRankFilters.rankScope,
+        nextGapScope,
+      };
+    },
     [
       nextGapScope,
-      rankScope,
+      highlightOptions.machineRankMax,
+      highlightOptions.machineRankMin,
       highlightOptions.nextGapMin,
       highlightOptions.nextGapRequired,
       highlightOptions.nextGapScope,
@@ -592,6 +617,10 @@ export function HuntRankingTable({
       highlightOptions.rankMin,
       highlightOptions.rankRequired,
       highlightOptions.rankScope,
+      highlightOptions.machineRankRequired,
+      highlightOptions.selectedRankMax,
+      highlightOptions.selectedRankMin,
+      highlightOptions.selectedRankRequired,
       highlightOptions.scoreMin,
       highlightOptions.scoreRequired,
     ],

@@ -31,11 +31,17 @@ export const dynamic = "force-dynamic";
 const DEFAULT_RANKING_LIMIT = 20;
 const DEFAULT_HIGHLIGHT_RANK_MIN = "1";
 const DEFAULT_HIGHLIGHT_RANK_MAX = "3";
+const DEFAULT_HIGHLIGHT_MACHINE_RANK_MIN = "";
+const DEFAULT_HIGHLIGHT_MACHINE_RANK_MAX = "";
+const DEFAULT_HIGHLIGHT_SELECTED_RANK_MIN = "1";
+const DEFAULT_HIGHLIGHT_SELECTED_RANK_MAX = "3";
 const DEFAULT_HIGHLIGHT_SCORE_MIN = "70";
 const DEFAULT_HIGHLIGHT_NEXT_GAP_MIN = "";
 const DEFAULT_HIGHLIGHT_RANK_SCOPE = "selected";
 const DEFAULT_HIGHLIGHT_NEXT_GAP_SCOPE = "machine";
 const DEFAULT_HIGHLIGHT_RANK_REQUIRED = true;
+const DEFAULT_HIGHLIGHT_MACHINE_RANK_REQUIRED = false;
+const DEFAULT_HIGHLIGHT_SELECTED_RANK_REQUIRED = true;
 const DEFAULT_HIGHLIGHT_SCORE_REQUIRED = true;
 const DEFAULT_HIGHLIGHT_NEXT_GAP_REQUIRED = false;
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
@@ -280,16 +286,69 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const requestedCombineHanabi = normalizeCombineHanabi(
     readMultiSearchParam(resolvedSearchParams?.hanabiMachineGroup),
   );
+  const hasMachineRankCondition =
+    hasSearchParam(resolvedSearchParams, "machineRankMin") ||
+    hasSearchParam(resolvedSearchParams, "machineRankMax");
+  const hasSelectedRankCondition =
+    hasSearchParam(resolvedSearchParams, "selectedRankMin") ||
+    hasSearchParam(resolvedSearchParams, "selectedRankMax");
+  const hasScopedRankCondition = hasMachineRankCondition || hasSelectedRankCondition;
+  const legacyRankScope = normalizeHighlightScope(
+    readSingleSearchParam(resolvedSearchParams?.rankScope),
+    DEFAULT_HIGHLIGHT_RANK_SCOPE,
+  );
+  const legacyRankMin = readSearchParamWithDefault(
+    resolvedSearchParams,
+    "rankMin",
+    DEFAULT_HIGHLIGHT_RANK_MIN,
+  );
+  const legacyRankMax = readSearchParamWithDefault(
+    resolvedSearchParams,
+    "rankMax",
+    DEFAULT_HIGHLIGHT_RANK_MAX,
+  );
+  const defaultMachineRankMin =
+    !hasScopedRankCondition && legacyRankScope === "machine"
+      ? legacyRankMin
+      : DEFAULT_HIGHLIGHT_MACHINE_RANK_MIN;
+  const defaultMachineRankMax =
+    !hasScopedRankCondition && legacyRankScope === "machine"
+      ? legacyRankMax
+      : DEFAULT_HIGHLIGHT_MACHINE_RANK_MAX;
+  const defaultSelectedRankMin =
+    !hasScopedRankCondition && legacyRankScope === "selected"
+      ? legacyRankMin
+      : hasScopedRankCondition
+        ? ""
+        : DEFAULT_HIGHLIGHT_SELECTED_RANK_MIN;
+  const defaultSelectedRankMax =
+    !hasScopedRankCondition && legacyRankScope === "selected"
+      ? legacyRankMax
+      : hasScopedRankCondition
+        ? ""
+        : DEFAULT_HIGHLIGHT_SELECTED_RANK_MAX;
   const rankingHighlightOptions = {
-    rankMin: readSearchParamWithDefault(
+    rankMin: legacyRankMin,
+    rankMax: legacyRankMax,
+    machineRankMin: readSearchParamWithDefault(
       resolvedSearchParams,
-      "rankMin",
-      DEFAULT_HIGHLIGHT_RANK_MIN,
+      "machineRankMin",
+      defaultMachineRankMin,
     ),
-    rankMax: readSearchParamWithDefault(
+    machineRankMax: readSearchParamWithDefault(
       resolvedSearchParams,
-      "rankMax",
-      DEFAULT_HIGHLIGHT_RANK_MAX,
+      "machineRankMax",
+      defaultMachineRankMax,
+    ),
+    selectedRankMin: readSearchParamWithDefault(
+      resolvedSearchParams,
+      "selectedRankMin",
+      defaultSelectedRankMin,
+    ),
+    selectedRankMax: readSearchParamWithDefault(
+      resolvedSearchParams,
+      "selectedRankMax",
+      defaultSelectedRankMax,
     ),
     scoreMin: readSearchParamWithDefault(
       resolvedSearchParams,
@@ -305,6 +364,28 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
       resolvedSearchParams,
       "rankRequired",
       DEFAULT_HIGHLIGHT_RANK_REQUIRED ? "1" : "0",
+    ),
+    machineRankRequired: readMultiSearchParamWithDefault(
+      resolvedSearchParams,
+      "machineRankRequired",
+      !hasScopedRankCondition && legacyRankScope === "machine"
+        ? DEFAULT_HIGHLIGHT_RANK_REQUIRED
+          ? "1"
+          : "0"
+        : hasMachineRankCondition && DEFAULT_HIGHLIGHT_MACHINE_RANK_REQUIRED
+          ? "1"
+          : "0",
+    ),
+    selectedRankRequired: readMultiSearchParamWithDefault(
+      resolvedSearchParams,
+      "selectedRankRequired",
+      !hasScopedRankCondition && legacyRankScope === "selected"
+        ? DEFAULT_HIGHLIGHT_RANK_REQUIRED
+          ? "1"
+          : "0"
+        : hasSelectedRankCondition && DEFAULT_HIGHLIGHT_SELECTED_RANK_REQUIRED
+          ? "1"
+          : "0",
     ),
     scoreRequired: readMultiSearchParamWithDefault(
       resolvedSearchParams,
@@ -328,6 +409,12 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const rankRequired = rankingHighlightOptions.rankRequired.some((value) =>
     ["1", "true", "on"].includes(String(value ?? "").trim()),
   );
+  const machineRankRequired = rankingHighlightOptions.machineRankRequired.some((value) =>
+    ["1", "true", "on"].includes(String(value ?? "").trim()),
+  );
+  const selectedRankRequired = rankingHighlightOptions.selectedRankRequired.some((value) =>
+    ["1", "true", "on"].includes(String(value ?? "").trim()),
+  );
   const scoreRequired = rankingHighlightOptions.scoreRequired.some((value) =>
     ["1", "true", "on"].includes(String(value ?? "").trim()),
   );
@@ -337,6 +424,8 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const normalizedRankingHighlightOptions = {
     ...rankingHighlightOptions,
     rankRequired,
+    machineRankRequired,
+    selectedRankRequired,
     scoreRequired,
     nextGapRequired,
   };
@@ -436,9 +525,15 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     combineHanabi,
     rankMin: rankingHighlightOptions.rankMin,
     rankMax: rankingHighlightOptions.rankMax,
+    machineRankMin: rankingHighlightOptions.machineRankMin,
+    machineRankMax: rankingHighlightOptions.machineRankMax,
+    selectedRankMin: rankingHighlightOptions.selectedRankMin,
+    selectedRankMax: rankingHighlightOptions.selectedRankMax,
     scoreMin: rankingHighlightOptions.scoreMin,
     nextGapMin: rankingHighlightOptions.nextGapMin,
     rankRequired,
+    machineRankRequired,
+    selectedRankRequired,
     scoreRequired,
     nextGapRequired,
     rankScope: rankingHighlightOptions.rankScope,
@@ -667,15 +762,15 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               ) : null}
               <div className="huntConditionRows rankingMachineFilter">
                 <div className="huntConditionRow">
-                  <p className="huntConditionLabel">順位</p>
+                  <p className="huntConditionLabel">機種内順位</p>
                   <div className="huntConditionInputs">
                     <label className="storeReserveField backtestField huntConditionNumberField">
                       <span>開始</span>
                       <input
                         type="number"
-                        name="rankMin"
+                        name="machineRankMin"
                         min="1"
-                        defaultValue={rankingHighlightOptions.rankMin}
+                        defaultValue={rankingHighlightOptions.machineRankMin}
                         className="storeReserveInput"
                       />
                     </label>
@@ -683,24 +778,63 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                       <span>終了</span>
                       <input
                         type="number"
-                        name="rankMax"
+                        name="machineRankMax"
                         min="1"
-                        defaultValue={rankingHighlightOptions.rankMax}
+                        defaultValue={rankingHighlightOptions.machineRankMax}
                         className="storeReserveInput"
                       />
                     </label>
                   </div>
-                  <input type="hidden" name="rankRequired" value="0" />
+                  <input type="hidden" name="machineRankRequired" value="0" />
                   <label
                     className={`metricToggleChip huntConditionRequired ${
-                      rankRequired ? "metricToggleChipActive" : ""
+                      machineRankRequired ? "metricToggleChipActive" : ""
                     }`}
                   >
                     <input
                       type="checkbox"
-                      name="rankRequired"
+                      name="machineRankRequired"
                       value="1"
-                      defaultChecked={rankRequired}
+                      defaultChecked={machineRankRequired}
+                    />
+                    <span>必須</span>
+                  </label>
+                </div>
+                <div className="huntConditionRow">
+                  <p className="huntConditionLabel">チェック機種内順位</p>
+                  <div className="huntConditionInputs">
+                    <label className="storeReserveField backtestField huntConditionNumberField">
+                      <span>開始</span>
+                      <input
+                        type="number"
+                        name="selectedRankMin"
+                        min="1"
+                        defaultValue={rankingHighlightOptions.selectedRankMin}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                    <label className="storeReserveField backtestField huntConditionNumberField">
+                      <span>終了</span>
+                      <input
+                        type="number"
+                        name="selectedRankMax"
+                        min="1"
+                        defaultValue={rankingHighlightOptions.selectedRankMax}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                  </div>
+                  <input type="hidden" name="selectedRankRequired" value="0" />
+                  <label
+                    className={`metricToggleChip huntConditionRequired ${
+                      selectedRankRequired ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="selectedRankRequired"
+                      value="1"
+                      defaultChecked={selectedRankRequired}
                     />
                     <span>必須</span>
                   </label>
@@ -765,41 +899,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                       defaultChecked={nextGapRequired}
                     />
                     <span>必須</span>
-                  </label>
-                </div>
-              </div>
-              <div className="backtestBlock rankingMachineFilter">
-                <p className="filterControlLabel">順位の見方</p>
-                <div className="metricToggleRow">
-                  <label
-                    className={`metricToggleChip ${
-                      rankingHighlightOptions.rankScope === "selected"
-                        ? "metricToggleChipActive"
-                        : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="rankScope"
-                      value="selected"
-                      defaultChecked={rankingHighlightOptions.rankScope === "selected"}
-                    />
-                    <span>チェック機種内順位</span>
-                  </label>
-                  <label
-                    className={`metricToggleChip ${
-                      rankingHighlightOptions.rankScope === "machine"
-                        ? "metricToggleChipActive"
-                        : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="rankScope"
-                      value="machine"
-                      defaultChecked={rankingHighlightOptions.rankScope === "machine"}
-                    />
-                    <span>機種内順位</span>
                   </label>
                 </div>
               </div>
