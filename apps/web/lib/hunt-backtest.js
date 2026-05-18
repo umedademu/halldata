@@ -529,7 +529,6 @@ function calculateAggregateSettingAverage(summary) {
 function buildEmptySummary(machineName = "総計") {
   return {
     machineName,
-    matchedRowCount: 0,
     huntScoreTotal: 0,
     nextGapTotal: 0,
     nextGapSampleCount: 0,
@@ -554,7 +553,6 @@ function buildEmptyDailySummary(date, predictionDate) {
   return {
     date,
     predictionDate,
-    matchedRowCount: 0,
     actualRowCount: 0,
     differenceTotal: 0,
   };
@@ -564,7 +562,7 @@ function finalizeSummary(summary) {
   const { settingEstimateBuckets, ...publicSummary } = summary;
   return {
     ...publicSummary,
-    averageHuntScore: calculateAverage(summary.huntScoreTotal, summary.matchedRowCount),
+    averageHuntScore: calculateAverage(summary.huntScoreTotal, summary.actualRowCount),
     averageNextGap: calculateAverage(summary.nextGapTotal, summary.nextGapSampleCount),
     payoutRate: calculatePayoutRate(summary.investedCoinsTotal, summary.differenceTotal),
     bbProbability: formatProbability(summary.gamesTotal, summary.bbTotal),
@@ -715,8 +713,7 @@ function buildBacktestAggregationDetail(
   const summariesByMachine = new Map();
   const dailySummariesByDate = new Map();
   const totalSummary = buildEmptySummary();
-  const matchedDates = new Set();
-  let matchedRowCount = 0;
+  const actualDates = new Set();
   let actualRowCount = 0;
 
   for (const snapshot of snapshotsInPeriod) {
@@ -800,24 +797,43 @@ function buildBacktestAggregationDetail(
         continue;
       }
 
-      matchedRowCount += 1;
-      matchedDates.add(actualDate || snapshot.baseDate);
+      if (!row.nextRecord) {
+        continue;
+      }
 
+      const actualMetrics = resolveActualMetrics(row.machineName, row.nextRecord, differenceMode);
       if (!summariesByMachine.has(backtestMachineName)) {
         summariesByMachine.set(backtestMachineName, buildEmptySummary(backtestMachineName));
       }
 
       const summary = summariesByMachine.get(backtestMachineName);
-      summary.matchedRowCount += 1;
+
+      actualRowCount += 1;
+      if (actualDate) {
+        actualDates.add(actualDate);
+      }
+      summary.actualRowCount += 1;
       summary.huntScoreTotal += readFiniteNumber(row.huntScore);
-      totalSummary.matchedRowCount += 1;
+      summary.differenceTotal += actualMetrics.differenceValue;
+      summary.gamesTotal += actualMetrics.gamesCount;
+      summary.bbTotal += actualMetrics.bbCount;
+      summary.rbTotal += actualMetrics.rbCount;
+      summary.investedCoinsTotal += actualMetrics.investedCoins;
+      totalSummary.actualRowCount += 1;
       totalSummary.huntScoreTotal += readFiniteNumber(row.huntScore);
+      totalSummary.differenceTotal += actualMetrics.differenceValue;
+      totalSummary.gamesTotal += actualMetrics.gamesCount;
+      totalSummary.bbTotal += actualMetrics.bbCount;
+      totalSummary.rbTotal += actualMetrics.rbCount;
+      totalSummary.investedCoinsTotal += actualMetrics.investedCoins;
       if (Number.isFinite(nextGapValue)) {
         summary.nextGapTotal += nextGapValue;
         summary.nextGapSampleCount += 1;
         totalSummary.nextGapTotal += nextGapValue;
         totalSummary.nextGapSampleCount += 1;
       }
+      addAggregateSettingMetrics(summary, row.machineName, actualMetrics);
+      addAggregateSettingMetrics(totalSummary, row.machineName, actualMetrics);
 
       if (actualDate) {
         if (!dailySummariesByDate.has(actualDate)) {
@@ -826,32 +842,6 @@ function buildBacktestAggregationDetail(
             buildEmptyDailySummary(actualDate, snapshot.baseDate),
           );
         }
-        dailySummariesByDate.get(actualDate).matchedRowCount += 1;
-      }
-
-      if (!row.nextRecord) {
-        continue;
-      }
-
-      const actualMetrics = resolveActualMetrics(row.machineName, row.nextRecord, differenceMode);
-
-      actualRowCount += 1;
-      summary.actualRowCount += 1;
-      summary.differenceTotal += actualMetrics.differenceValue;
-      summary.gamesTotal += actualMetrics.gamesCount;
-      summary.bbTotal += actualMetrics.bbCount;
-      summary.rbTotal += actualMetrics.rbCount;
-      summary.investedCoinsTotal += actualMetrics.investedCoins;
-      totalSummary.actualRowCount += 1;
-      totalSummary.differenceTotal += actualMetrics.differenceValue;
-      totalSummary.gamesTotal += actualMetrics.gamesCount;
-      totalSummary.bbTotal += actualMetrics.bbCount;
-      totalSummary.rbTotal += actualMetrics.rbCount;
-      totalSummary.investedCoinsTotal += actualMetrics.investedCoins;
-      addAggregateSettingMetrics(summary, row.machineName, actualMetrics);
-      addAggregateSettingMetrics(totalSummary, row.machineName, actualMetrics);
-
-      if (actualDate && dailySummariesByDate.has(actualDate)) {
         const dailySummary = dailySummariesByDate.get(actualDate);
         dailySummary.actualRowCount += 1;
         dailySummary.differenceTotal += actualMetrics.differenceValue;
@@ -882,11 +872,9 @@ function buildBacktestAggregationDetail(
 
   return {
     targetDateCount: snapshotsInPeriod.length,
-    matchedDateCount: matchedDates.size,
-    matchedRowCount,
+    matchedDateCount: actualDates.size,
     actualRowCount,
-    missingActualRowCount: matchedRowCount - actualRowCount,
-    hasMatches: matchedRowCount > 0,
+    hasMatches: actualRowCount > 0,
     hasActualResults: actualRowCount > 0,
     summaries,
     graphPoints,

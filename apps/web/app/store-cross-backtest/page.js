@@ -112,24 +112,23 @@ function StoreRankingTable({ rows, huntScoreLogic, rankingMetric }) {
               <SortableTableHeader columnIndex={4}>平均差枚</SortableTableHeader>
               <SortableTableHeader columnIndex={5}>合計差枚</SortableTableHeader>
               <SortableTableHeader columnIndex={6}>合計G数</SortableTableHeader>
-              <SortableTableHeader columnIndex={7}>平均設定</SortableTableHeader>
-              <SortableTableHeader columnIndex={8}>実績台数</SortableTableHeader>
-              <SortableTableHeader columnIndex={9}>条件一致台数</SortableTableHeader>
-              <SortableTableHeader columnIndex={10}>対象日数</SortableTableHeader>
-              <SortableTableHeader columnIndex={11}>一致日数</SortableTableHeader>
-              <SortableTableHeader columnIndex={12}>対象機種</SortableTableHeader>
-              <SortableTableHeader columnIndex={13}>設置台数</SortableTableHeader>
-              <SortableTableHeader columnIndex={14}>狙い度</SortableTableHeader>
-              <SortableTableHeader columnIndex={15}>次点差</SortableTableHeader>
-              <SortableTableHeader columnIndex={16}>BB</SortableTableHeader>
-              <SortableTableHeader columnIndex={17}>RB</SortableTableHeader>
-              <SortableTableHeader columnIndex={18} initialDirection="asc">
+              <SortableTableHeader columnIndex={7}>設定</SortableTableHeader>
+              <SortableTableHeader columnIndex={8}>集計台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={9}>対象日数</SortableTableHeader>
+              <SortableTableHeader columnIndex={10}>集計日数</SortableTableHeader>
+              <SortableTableHeader columnIndex={11}>対象機種</SortableTableHeader>
+              <SortableTableHeader columnIndex={12}>設置台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={13}>狙い度</SortableTableHeader>
+              <SortableTableHeader columnIndex={14}>次点差</SortableTableHeader>
+              <SortableTableHeader columnIndex={15}>BB</SortableTableHeader>
+              <SortableTableHeader columnIndex={16}>RB</SortableTableHeader>
+              <SortableTableHeader columnIndex={17} initialDirection="asc">
                 BB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={19} initialDirection="asc">
+              <SortableTableHeader columnIndex={18} initialDirection="asc">
                 RB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={20} initialDirection="asc">
+              <SortableTableHeader columnIndex={19} initialDirection="asc">
                 合成
               </SortableTableHeader>
             </tr>
@@ -167,7 +166,6 @@ function StoreRankingTable({ rows, huntScoreLogic, rankingMetric }) {
                   {formatSettingEstimateScore(row.averageSetting)}
                 </td>
                 <td data-sort-value={row.actualRowCount}>{formatNumber(row.actualRowCount)}</td>
-                <td data-sort-value={row.matchedRowCount}>{formatNumber(row.matchedRowCount)}</td>
                 <td data-sort-value={row.targetDateCount}>{formatNumber(row.targetDateCount)}</td>
                 <td data-sort-value={row.matchedDateCount}>
                   {formatNumber(row.matchedDateCount)}
@@ -293,7 +291,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
               </select>
             </label>
             <label className="storeReserveField backtestField">
-              <span>最低実績台数</span>
+              <span>最低集計台数</span>
               <input
                 type="number"
                 name="minActualRows"
@@ -303,7 +301,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
               />
             </label>
             <label className="storeReserveField backtestField">
-              <span>最低一致日数</span>
+              <span>最低集計日数</span>
               <input
                 type="number"
                 name="minMatchedDateCount"
@@ -903,7 +901,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
         ) : (
           <section className="statusPanel">
             <h2>条件に合う店舗がありません</h2>
-            <p>機種、期間、狙い度条件、最低実績台数を見直してください。</p>
+            <p>機種、期間、狙い度条件、最低集計台数を見直してください。</p>
           </section>
         )
       ) : (

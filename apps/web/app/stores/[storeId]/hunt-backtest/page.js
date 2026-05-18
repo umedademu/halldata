@@ -87,7 +87,7 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
       <div className="tablePanelHeader">
         <div>
           <p className="tablePanelTitle">{title}</p>
-          <h2 className="sectionLabel">条件一致分の翌営業日結果</h2>
+          <h2 className="sectionLabel">翌営業日結果</h2>
         </div>
       </div>
       <div className="tableScroller directoryScroller">
@@ -103,32 +103,30 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
                 機種名
               </SortableTableHeader>
               <SortableTableHeader columnIndex={1}>設置台数</SortableTableHeader>
-              <SortableTableHeader columnIndex={2}>条件一致台数</SortableTableHeader>
-              <SortableTableHeader columnIndex={3}>狙い度</SortableTableHeader>
-              <SortableTableHeader columnIndex={4}>次点差</SortableTableHeader>
-              <SortableTableHeader columnIndex={5}>実績集計台数</SortableTableHeader>
-              <SortableTableHeader columnIndex={6}>合計差枚</SortableTableHeader>
-              <SortableTableHeader columnIndex={7}>合計G数</SortableTableHeader>
-              <SortableTableHeader columnIndex={8}>BB</SortableTableHeader>
-              <SortableTableHeader columnIndex={9}>RB</SortableTableHeader>
-              <SortableTableHeader columnIndex={10} initialDirection="asc">
+              <SortableTableHeader columnIndex={2}>狙い度</SortableTableHeader>
+              <SortableTableHeader columnIndex={3}>次点差</SortableTableHeader>
+              <SortableTableHeader columnIndex={4}>集計台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={5}>合計差枚</SortableTableHeader>
+              <SortableTableHeader columnIndex={6}>合計G数</SortableTableHeader>
+              <SortableTableHeader columnIndex={7}>BB</SortableTableHeader>
+              <SortableTableHeader columnIndex={8}>RB</SortableTableHeader>
+              <SortableTableHeader columnIndex={9} initialDirection="asc">
                 BB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={11} initialDirection="asc">
+              <SortableTableHeader columnIndex={10} initialDirection="asc">
                 RB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={12} initialDirection="asc">
+              <SortableTableHeader columnIndex={11} initialDirection="asc">
                 合成
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={13}>機械割</SortableTableHeader>
-              <SortableTableHeader columnIndex={14}>平均設定</SortableTableHeader>
+              <SortableTableHeader columnIndex={12}>機械割</SortableTableHeader>
+              <SortableTableHeader columnIndex={13}>設定</SortableTableHeader>
             </tr>
           </thead>
           <tbody>
             <tr className="backtestTotalRow" data-sort-fixed="1">
               <th className="directoryNameCell" data-sort-value="総計">総計</th>
               <td data-sort-value={readSortNumber(backtest.total.slotCount)}>{formatNumber(backtest.total.slotCount)}</td>
-              <td data-sort-value={backtest.total.matchedRowCount}>{formatNumber(backtest.total.matchedRowCount)}</td>
               <td data-sort-value={readSortNumber(backtest.total.averageHuntScore)}>{formatDecimal(backtest.total.averageHuntScore)}</td>
               <td data-sort-value={readSortNumber(backtest.total.averageNextGap)}>{formatDecimal(backtest.total.averageNextGap)}</td>
               <td data-sort-value={backtest.total.actualRowCount}>{formatNumber(backtest.total.actualRowCount)}</td>
@@ -156,7 +154,6 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
                   </Link>
                 </th>
                 <td data-sort-value={readSortNumber(summary.slotCount)}>{formatNumber(summary.slotCount)}</td>
-                <td data-sort-value={summary.matchedRowCount}>{formatNumber(summary.matchedRowCount)}</td>
                 <td data-sort-value={readSortNumber(summary.averageHuntScore)}>{formatDecimal(summary.averageHuntScore)}</td>
                 <td data-sort-value={readSortNumber(summary.averageNextGap)}>{formatDecimal(summary.averageNextGap)}</td>
                 <td data-sort-value={summary.actualRowCount}>{formatNumber(summary.actualRowCount)}</td>
@@ -264,10 +261,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
   const backtestFallbackNotice = resultRequested && detail.backtest.usedFallbackRange
     ? "期間指定が空欄だったため、直近日数の期間を日付範囲へ仮で入れています。"
     : "";
-  const backtestNoActualNotice =
-    resultRequested && detail.backtest.missingActualRowCount > 0
-      ? "翌営業日の実績が未取得の台は、実績集計台数と差枚合計などから除外しています。"
-      : "";
   const backtestBookmark = {
     startDate: detail.backtest.startDate,
     endDate: detail.backtest.endDate,
@@ -901,24 +894,12 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                     <strong className="metaValue">{formatNumber(detail.backtest.targetDateCount)}日</strong>
                   </article>
                   <article className="summaryCard">
-                    <p className="metaLabel">条件一致台数</p>
-                    <strong className="metaValue">{formatNumber(detail.backtest.matchedRowCount)}台</strong>
-                  </article>
-                  <article className="summaryCard">
-                    <p className="metaLabel">実績集計台数</p>
+                    <p className="metaLabel">集計台数</p>
                     <strong className="metaValue">{formatNumber(detail.backtest.actualRowCount)}台</strong>
-                  </article>
-                  <article className="summaryCard">
-                    <p className="metaLabel">実績未取得台数</p>
-                    <strong className="metaValue">{formatNumber(detail.backtest.missingActualRowCount)}台</strong>
                   </article>
                 </section>
 
                 <HuntBacktestBookmarkControl storeId={detail.store.id} bookmark={backtestBookmark} />
-
-                {backtestNoActualNotice ? (
-                  <p className="filterPanelStatus">{backtestNoActualNotice}</p>
-                ) : null}
 
                 {detail.backtest.showGraph === "on" && detail.backtest.graphPoints.length > 0 ? (
                   <HuntBacktestGraph
@@ -942,7 +923,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                   ))
                 ) : (
                   <section className="statusPanel">
-                    <h2>条件に合う台がありません</h2>
+                    <h2>集計できる台がありません</h2>
                     <p>期間、機種、順位、狙い度の条件を見直してください。</p>
                   </section>
                 )}
