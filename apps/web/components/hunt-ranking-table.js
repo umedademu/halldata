@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-import { SortableTableController } from "./sortable-table-controller";
 import { SortableTableHeader } from "./sortable-table-header";
 import {
   formatAverageGames,
@@ -394,6 +393,74 @@ function decorateRowsWithSelectedRank(rows, selectedRankValueMap) {
   }));
 }
 
+const RANKING_TABLE_COLLATOR = new Intl.Collator("ja", {
+  numeric: true,
+  sensitivity: "base",
+});
+
+function readSortableTableNumber(value) {
+  const text = String(value ?? "").trim();
+  if (!text || text === "-") {
+    return null;
+  }
+
+  const parsedValue = Number(text.replace(/,/g, "").replace(/%$/u, ""));
+  return Number.isFinite(parsedValue) ? parsedValue : null;
+}
+
+function readSortableTableValue(row, columnIndex, nextGapScope) {
+  if (columnIndex === 0) {
+    return { missing: false, value: readSortableTableNumber(row.rank), type: "number" };
+  }
+  if (columnIndex === 1) {
+    return { missing: false, value: readSortableTableNumber(row.huntScore), type: "number" };
+  }
+  if (columnIndex === 2) {
+    return {
+      missing: false,
+      value: readSortableTableNumber(
+        readNextGapForRankScope(row, normalizeNextGapScope(nextGapScope)),
+      ),
+      type: "number",
+    };
+  }
+  if (columnIndex === 3) {
+    return { missing: false, value: String(row.machineName ?? ""), type: "text" };
+  }
+  if (columnIndex === 4) {
+    return { missing: false, value: String(row.slotNumber ?? ""), type: "text" };
+  }
+
+  return { missing: true, value: null, type: "number" };
+}
+
+function compareSortableTableRows(leftEntry, rightEntry, sortState, nextGapScope) {
+  const leftValue = readSortableTableValue(leftEntry.row, sortState.columnIndex, nextGapScope);
+  const rightValue = readSortableTableValue(rightEntry.row, sortState.columnIndex, nextGapScope);
+  const leftMissing = leftValue.missing || leftValue.value === null || leftValue.value === "";
+  const rightMissing = rightValue.missing || rightValue.value === null || rightValue.value === "";
+
+  if (leftMissing && rightMissing) {
+    return leftEntry.originalIndex - rightEntry.originalIndex;
+  }
+  if (leftMissing) {
+    return 1;
+  }
+  if (rightMissing) {
+    return -1;
+  }
+
+  const baseResult = sortState.type === "text"
+    ? RANKING_TABLE_COLLATOR.compare(leftValue.value, rightValue.value)
+    : leftValue.value - rightValue.value;
+
+  if (baseResult === 0) {
+    return leftEntry.originalIndex - rightEntry.originalIndex;
+  }
+
+  return sortState.direction === "asc" ? baseResult : -baseResult;
+}
+
 function OverallRankingTable({
   storeId,
   sectionLabel = "狙い度上位",
@@ -407,32 +474,68 @@ function OverallRankingTable({
   sortable = false,
   tableId = "",
 }) {
-  const tableProps = sortable && tableId
-    ? { id: tableId, "data-sortable-table": "1" }
-    : {};
+  const [sortState, setSortState] = useState(() =>
+    sortable ? { columnIndex: 2, direction: "desc", type: "number" } : null,
+  );
+  const sortedRows = useMemo(() => {
+    if (!sortable || !sortState) {
+      return rows;
+    }
+
+    return rows
+      .map((row, originalIndex) => ({ row, originalIndex }))
+      .sort((left, right) => compareSortableTableRows(left, right, sortState, nextGapScope))
+      .map((entry) => entry.row);
+  }, [nextGapScope, rows, sortState, sortable]);
+  const tableProps = tableId ? { id: tableId } : {};
+  const handleSort = (columnIndex, type, initialDirection) => {
+    if (!sortable) {
+      return;
+    }
+
+    setSortState((currentState) => {
+      const nextDirection =
+        currentState?.columnIndex === columnIndex && currentState.direction === "desc"
+          ? "asc"
+          : currentState?.columnIndex === columnIndex && currentState.direction === "asc"
+            ? "desc"
+            : initialDirection;
+
+      return {
+        columnIndex,
+        direction: nextDirection,
+        type,
+      };
+    });
+  };
   const HeaderCell = ({
     children,
     columnIndex,
     type = "number",
     initialDirection = "desc",
     className = "",
-  }) =>
-    sortable ? (
-      <SortableTableHeader
-        columnIndex={columnIndex}
-        type={type}
-        initialDirection={initialDirection}
-        className={className}
-      >
-        {children}
-      </SortableTableHeader>
-    ) : (
-      <th className={className || undefined}>{children}</th>
-    );
+  }) => {
+    const activeDirection =
+      sortable && sortState?.columnIndex === columnIndex ? sortState.direction : null;
+
+    return sortable ? (
+        <SortableTableHeader
+          columnIndex={columnIndex}
+          type={type}
+          initialDirection={initialDirection}
+          className={className}
+          activeDirection={activeDirection}
+          onSort={() => handleSort(columnIndex, type, initialDirection)}
+        >
+          {children}
+        </SortableTableHeader>
+      ) : (
+        <th className={className || undefined}>{children}</th>
+      );
+  };
 
   return (
     <section className="tablePanel directoryPanel">
-      {sortable && tableId ? <SortableTableController tableId={tableId} /> : null}
       <div className="tablePanelHeader">
         <div>
           <p className="sectionLabel">{sectionLabel}</p>
@@ -456,7 +559,7 @@ function OverallRankingTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => {
+            {sortedRows.map((row) => {
               const rowClassName = getSettingEstimateHighlightClass(row.nextSettingEstimate?.average);
               const machineHasSite7Data = Boolean(row.predictionMachineHasSite7Data);
               const machineSite7FetchedAt = row.predictionMachineSite7FetchedAt ?? null;
