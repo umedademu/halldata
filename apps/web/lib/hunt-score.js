@@ -1330,6 +1330,16 @@ function calculateRbSettingEquivalentForRow(row, settingDefinitionCache, config)
   );
 }
 
+function isStandardHighSettingCandidateRow(row, settingDefinitionCache, config) {
+  if (!row) {
+    return false;
+  }
+
+  const settingAverage = getSettingEstimateAverage(settingDefinitionCache, row, config).average;
+  const rbCount = readNumber(row?.rb_count) ?? 0;
+  return Number.isFinite(settingAverage) && settingAverage >= 4.5 && rbCount >= 25;
+}
+
 function isAmuseAsakusaNormalizedHighSettingRow(row, settingDefinitionCache, config) {
   if (!row) {
     return false;
@@ -1657,22 +1667,44 @@ function applyAmuseAsakusaDensityGate(score, typeR30, machineCount) {
 }
 
 function calculateAmuseAsakusaHuntScore(metrics, context = {}) {
-  const machineCount = readMachineActiveSlotCount(metrics, context);
-  const typeR30 = readMachineHighSettingCandidateRate30(metrics, context);
-  let rawScore = 0;
+  let rawScore = 50 - metrics.netTotal / 200;
 
-  if (machineCount >= 40) {
-    rawScore = calculateAmuseAsakusaLargeMachineScore(metrics);
-  } else if (machineCount >= 20) {
-    rawScore = calculateAmuseAsakusaMainMachineScore(metrics);
-  } else if (machineCount >= 10) {
-    rawScore = calculateAmuseAsakusaSpotMachineScore(metrics);
-  } else {
-    rawScore = calculateAmuseAsakusaSmallMachineScore(metrics);
+  if (metrics.todayDifference <= 0) {
+    if (metrics.todaySetting >= 5) {
+      rawScore += 7;
+    } else if (metrics.todaySetting >= 4.5) {
+      rawScore += 5;
+    }
   }
 
-  const score = Math.round(clamp(rawScore * 1.6, 0, 100));
-  return applyAmuseAsakusaDensityGate(score, typeR30, machineCount);
+  if (metrics.todaySetting >= 4.5 && metrics.todayDifference >= 1000) {
+    rawScore -= 3;
+  }
+
+  if (metrics.adjacentHighSettingCandidateCount7 >= 3) {
+    rawScore += 3;
+  } else if (metrics.adjacentHighSettingCandidateCount7 === 0) {
+    rawScore -= 3;
+  }
+
+  if (metrics.historyThirtyHighSettingCandidateCount <= 1) {
+    rawScore -= 2;
+  } else if (
+    metrics.historyThirtyHighSettingCandidateCount >= 3 &&
+    metrics.historyThirtyHighSettingCandidateCount <= 5
+  ) {
+    rawScore += 2;
+  }
+
+  if (metrics.previousGames > 7000) {
+    rawScore -= 2;
+  }
+
+  if (metrics.windowRowCount < (context.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS)) {
+    rawScore -= 20;
+  }
+
+  return rawScore;
 }
 
 function isAparkYakatabaruTargetMachine(machineName) {
@@ -5374,15 +5406,60 @@ function buildAvailableWindowRows(businessDates, dateIndex, recordMapByDate, win
   return windowRows;
 }
 
-function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, settingDefinitionCache, config) {
-  const windowRows = buildWindowRows(
-    businessDates,
-    dateIndex,
-    recordMapByDate,
-    config.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
-    config,
-  );
-  if (!windowRows) {
+function countAdjacentHighSettingCandidates(
+  businessDates,
+  dateIndex,
+  row,
+  rowsByDate,
+  settingDefinitionCache,
+  config,
+  windowDays,
+) {
+  if (!(rowsByDate instanceof Map)) {
+    return 0;
+  }
+
+  const slotNumber = Number(row?.slot_number);
+  if (!Number.isFinite(slotNumber)) {
+    return 0;
+  }
+
+  const normalizedWindowDays = Math.max(1, Number(windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
+  const startIndex = Math.max(0, dateIndex - (normalizedWindowDays - 1));
+  const windowDates = businessDates.slice(startIndex, dateIndex + 1);
+  let count = 0;
+
+  for (const date of windowDates) {
+    for (const dateRow of rowsByDate.get(date) ?? []) {
+      const dateRowSlotNumber = Number(dateRow?.slot_number);
+      if (
+        Number.isFinite(dateRowSlotNumber) &&
+        Math.abs(dateRowSlotNumber - slotNumber) === 1 &&
+        isStandardHighSettingCandidateRow(dateRow, settingDefinitionCache, config)
+      ) {
+        count += 1;
+      }
+    }
+  }
+
+  return count;
+}
+
+function calculateWindowMetrics(
+  businessDates,
+  dateIndex,
+  row,
+  recordMapByDate,
+  settingDefinitionCache,
+  config,
+  rowsByDate = null,
+) {
+  const windowDays = config.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS;
+  const useAvailableRows = config?.logicKey === "amuse-asakusa";
+  const windowRows = useAvailableRows
+    ? buildAvailableWindowRows(businessDates, dateIndex, recordMapByDate, windowDays, config)
+    : buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays, config);
+  if (!windowRows || windowRows.length === 0) {
     return null;
   }
 
@@ -5686,10 +5763,20 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     settingDefinitionCache,
     config,
   );
+  const adjacentHighSettingCandidateCount7 = countAdjacentHighSettingCandidates(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    settingDefinitionCache,
+    config,
+    windowDays,
+  );
 
   return {
     machineName: normalizeHuntScoreMachineName(row?.machine_name, config),
     slotNumber: String(row?.slot_number ?? "").trim(),
+    windowRowCount: metricWindowRows.length,
     lossDays,
     streak: calculateCurrentLosingStreak(metricWindowRows),
     winningStreak: calculateCurrentWinningStreak(metricWindowRows),
@@ -5775,6 +5862,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     historyTwentyOneHighSettingCandidateCount,
     historyFortyFiveSettingSampleCount,
     historyThirtySettingFiveCount,
+    adjacentHighSettingCandidateCount7,
     historyNetTotal,
     historyPositiveDays,
     bbTotal,
@@ -5953,6 +6041,7 @@ function buildSnapshotRowsForDate(
       recordMapByDate,
       settingDefinitionCache,
       config,
+      rowsByDate,
     );
 
     return {
@@ -5966,6 +6055,7 @@ function buildSnapshotRowsForDate(
   const context = {
     baseDate,
     nextBusinessDate,
+    windowDays: config.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
     metricsList: validCandidates.map((candidate) => candidate.metrics),
     machineActiveSlotCountByName: buildMachineActiveSlotCountMap(dateRows, config),
     machineHighSettingCandidateRateByName: buildMachineHighSettingCandidateRateMap(
@@ -5979,7 +6069,8 @@ function buildSnapshotRowsForDate(
 
   const rows = validCandidates
     .map((candidate) => {
-      const huntScore = roundHuntScore(config.scoreCalculator(candidate.metrics, context));
+      const rawHuntScore = config.scoreCalculator(candidate.metrics, context);
+      const huntScore = roundHuntScore(rawHuntScore);
       if (!Number.isFinite(huntScore)) {
         return null;
       }
@@ -5997,6 +6088,10 @@ function buildSnapshotRowsForDate(
         machineName: normalizeHuntScoreMachineName(candidate.row.machine_name, config),
         slotNumber: candidate.row.slot_number,
         huntScore,
+        huntScoreSortValue:
+          config.logicKey === "amuse-asakusa" && Number.isFinite(rawHuntScore)
+            ? rawHuntScore
+            : huntScore,
         currentRecord: candidate.row,
         nextRecord,
         nextSettingEstimate: nextSetting,
@@ -6007,13 +6102,16 @@ function buildSnapshotRowsForDate(
       if (Math.abs(right.huntScore - left.huntScore) > HUNT_SCORE_EPSILON) {
         return right.huntScore - left.huntScore;
       }
+      if (Math.abs(right.huntScoreSortValue - left.huntScoreSortValue) > HUNT_SCORE_EPSILON) {
+        return right.huntScoreSortValue - left.huntScoreSortValue;
+      }
       const machineComparison = left.machineName.localeCompare(right.machineName, "ja");
       if (machineComparison !== 0) {
         return machineComparison;
       }
       return String(left.slotNumber).localeCompare(String(right.slotNumber), "ja");
     })
-    .map((row, index) => ({
+    .map(({ huntScoreSortValue, ...row }, index) => ({
       ...row,
       rank: index + 1,
     }));
