@@ -258,9 +258,9 @@ function buildRankGapRowKey(row) {
   return String(row?.rowKey ?? `${row?.machineName ?? ""}::${row?.slotNumber ?? ""}`).trim();
 }
 
-function buildGapValueMaps(displayRows, displayGroups, rankFilter) {
-  const overallNextGapMap = calculateHuntScoreNextGapMap(displayRows, rankFilter);
-  const selectedNextGapMap = calculateHuntScoreNextGapMap(displayRows, rankFilter);
+function buildGapValueMaps(displayRows, displayGroups) {
+  const overallNextGapMap = calculateHuntScoreNextGapMap(displayRows);
+  const selectedNextGapMap = calculateHuntScoreNextGapMap(displayRows);
   const overallNextGapByKey = new Map(
     displayRows.map((row) => [buildRankGapRowKey(row), overallNextGapMap.get(row) ?? null]),
   );
@@ -271,7 +271,7 @@ function buildGapValueMaps(displayRows, displayGroups, rankFilter) {
 
   for (const group of displayGroups) {
     const groupRows = getRankingGroupRows(group, true);
-    const nextGapMap = calculateHuntScoreNextGapMap(groupRows, rankFilter);
+    const nextGapMap = calculateHuntScoreNextGapMap(groupRows);
     for (const row of groupRows) {
       if (nextGapMap.has(row)) {
         machineNextGapByKey.set(buildRankGapRowKey(row), nextGapMap.get(row));
@@ -616,16 +616,14 @@ export function HuntRankingTable({
       buildGapValueMaps(
         displayGapRows,
         displayGroups,
-        highlightCondition.rankFilter,
       ),
-    [displayGroups, displayGapRows, highlightCondition.rankFilter],
+    [displayGroups, displayGapRows],
   );
   const machineTopCandidateGapValueByRowKey = useMemo(
     () =>
       buildGapValueMaps(
         displayGapRows,
         displayGroups,
-        buildRankFilter(1, 1),
       ),
     [displayGroups, displayGapRows],
   );
