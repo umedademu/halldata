@@ -29,10 +29,10 @@ const HANABI_GROUP_NAME = "ハナビ";
 const HANABI_MACHINE_NAMES = ["新ハナビ", "スマスロ ハナビ"];
 const BACKTEST_BREAKDOWN_DEFINITIONS = [
   { key: "all", title: "全合算" },
-  { key: "dayTail", title: "翌営業日が末尾の日" },
-  { key: "weekday", title: "翌営業日が指定曜日" },
   { key: "normal", title: "通常日" },
   { key: "eventTotal", title: "特定日合算" },
+  { key: "dayTail", title: "翌営業日が末尾の日" },
+  { key: "weekday", title: "翌営業日が指定曜日" },
 ];
 
 function readPositiveInteger(value) {
