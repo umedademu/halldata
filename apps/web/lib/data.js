@@ -1333,26 +1333,75 @@ function addMachineSlotCount(machineSlotCounts, machineName, rawSlotCount) {
     Number(machineSlotCounts[normalizedMachineName] ?? 0) + slotCount;
 }
 
+function setMachineSlotCount(machineSlotCounts, machineName, rawSlotCount) {
+  const normalizedMachineName = String(machineName ?? "").trim();
+  const slotCount = Number(rawSlotCount ?? 0);
+  if (!normalizedMachineName || !Number.isFinite(slotCount) || slotCount <= 0) {
+    return;
+  }
+
+  machineSlotCounts[normalizedMachineName] = slotCount;
+}
+
 function readMachineSlotCount(machineSlotCounts, machineName) {
   const normalizedMachineName = String(machineName ?? "").trim();
   const slotCount = Number(machineSlotCounts?.[normalizedMachineName] ?? 0);
   return normalizedMachineName && Number.isFinite(slotCount) && slotCount > 0 ? slotCount : null;
 }
 
-function buildStaticStoreMachineSlotCounts(staticStore) {
-  const store = readStaticStoreIdentity(staticStore);
-  const machineSlotCounts = {};
+function buildActiveStaticStoreMachineSlotCountsByCanonicalName(staticStore) {
+  const statsByCanonicalName = new Map();
 
   for (const machine of Array.isArray(staticStore?.machines) ? staticStore.machines : []) {
     const machineName = String(machine?.machineName ?? "").trim();
+    const canonicalName = canonicalMachineName(machineName);
     const slotCount = Number(machine?.slotCount ?? 0);
+    if (!machineName || !canonicalName || !Number.isFinite(slotCount) || slotCount <= 0) {
+      continue;
+    }
+
+    const latestDate = normalizeDateInput(machine?.latestDate) ?? "";
+    const currentStats = statsByCanonicalName.get(canonicalName);
+    if (!currentStats || latestDate > currentStats.latestDate) {
+      statsByCanonicalName.set(canonicalName, {
+        latestDate,
+        slotCount,
+      });
+      continue;
+    }
+
+    if (latestDate === currentStats.latestDate) {
+      currentStats.slotCount += slotCount;
+    }
+  }
+
+  return new Map(
+    [...statsByCanonicalName.entries()].map(([canonicalName, stats]) => [
+      canonicalName,
+      stats.slotCount,
+    ]),
+  );
+}
+
+function buildStaticStoreMachineSlotCounts(staticStore) {
+  const store = readStaticStoreIdentity(staticStore);
+  const machineSlotCounts = {};
+  const activeSlotCountsByCanonicalName =
+    buildActiveStaticStoreMachineSlotCountsByCanonicalName(staticStore);
+
+  for (const machine of Array.isArray(staticStore?.machines) ? staticStore.machines : []) {
+    const machineName = String(machine?.machineName ?? "").trim();
+    const canonicalName = canonicalMachineName(machineName);
+    const slotCount = Number(activeSlotCountsByCanonicalName.get(canonicalName) ?? 0);
+    if (!machineName || !canonicalName || !Number.isFinite(slotCount) || slotCount <= 0) {
+      continue;
+    }
     const targetMachineName =
-      canonicalHuntScoreTargetMachineName(canonicalMachineName(machineName), store.storeName) ??
-      machineName;
-    const slotCountNames = new Set([machineName, targetMachineName].filter(Boolean));
+      canonicalHuntScoreTargetMachineName(canonicalName, store.storeName) ?? canonicalName;
+    const slotCountNames = new Set([machineName, canonicalName, targetMachineName].filter(Boolean));
 
     for (const slotCountName of slotCountNames) {
-      addMachineSlotCount(machineSlotCounts, slotCountName, slotCount);
+      setMachineSlotCount(machineSlotCounts, slotCountName, slotCount);
     }
   }
 
@@ -2512,17 +2561,18 @@ function calculateStaticStoreSlotCountForMachineNames(staticStore, machineNames)
       .flatMap((name) => listEquivalentMachineNames(name))
       .map(canonicalMachineName),
   );
+  const activeSlotCountsByCanonicalName =
+    buildActiveStaticStoreMachineSlotCountsByCanonicalName(staticStore);
+  let total = 0;
 
-  return (Array.isArray(staticStore?.machines) ? staticStore.machines : []).reduce(
-    (total, machine) => {
-      if (!targetMachineNameSet.has(canonicalMachineName(machine?.machineName))) {
-        return total;
-      }
-      const slotCount = Number(machine?.slotCount ?? 0);
-      return Number.isFinite(slotCount) && slotCount > 0 ? total + slotCount : total;
-    },
-    0,
-  );
+  for (const canonicalName of targetMachineNameSet) {
+    const slotCount = Number(activeSlotCountsByCanonicalName.get(canonicalName) ?? 0);
+    if (Number.isFinite(slotCount) && slotCount > 0) {
+      total += slotCount;
+    }
+  }
+
+  return total;
 }
 
 function slotCountMatchesCrossStoreRange(slotCount, backtestOptions) {
