@@ -209,6 +209,13 @@ function buildOverallRows(rows, overallLimit) {
 }
 
 function compareMachineTopCandidateRows(left, right) {
+  const scoreDiff =
+    readRankingSortNumber(right.huntScore, Number.NEGATIVE_INFINITY) -
+    readRankingSortNumber(left.huntScore, Number.NEGATIVE_INFINITY);
+  if (Math.abs(scoreDiff) > 0.000000001) {
+    return scoreDiff;
+  }
+
   const leftNextGap = readNextGapForRankScope(left, "machine");
   const rightNextGap = readNextGapForRankScope(right, "machine");
   const nextGapDiff =
@@ -216,13 +223,6 @@ function compareMachineTopCandidateRows(left, right) {
     readRankingSortNumber(leftNextGap, Number.NEGATIVE_INFINITY);
   if (Math.abs(nextGapDiff) > 0.000000001) {
     return nextGapDiff;
-  }
-
-  const scoreDiff =
-    readRankingSortNumber(right.huntScore, Number.NEGATIVE_INFINITY) -
-    readRankingSortNumber(left.huntScore, Number.NEGATIVE_INFINITY);
-  if (Math.abs(scoreDiff) > 0.000000001) {
-    return scoreDiff;
   }
 
   return (
@@ -475,7 +475,7 @@ function OverallRankingTable({
   tableId = "",
 }) {
   const [sortState, setSortState] = useState(() =>
-    sortable ? { columnIndex: 2, direction: "desc", type: "number" } : null,
+    sortable ? { columnIndex: 1, direction: "desc", type: "number" } : null,
   );
   const sortedRows = useMemo(() => {
     if (!sortable || !sortState) {
