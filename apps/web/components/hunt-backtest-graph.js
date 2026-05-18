@@ -128,8 +128,7 @@ export function HuntBacktestGraph({ points, groups }) {
       <section className="tablePanel">
         <div className="tablePanelHeader">
           <div>
-            <p className="sectionLabel">差枚推移</p>
-            <h2 className="tablePanelTitle">累積差枚折れ線</h2>
+            <h2 className="tablePanelTitle">差枚グラフ</h2>
           </div>
         </div>
         <GraphGroupButtons
@@ -137,9 +136,6 @@ export function HuntBacktestGraph({ points, groups }) {
           selectedKey={selectedGroup.key}
           onSelect={setSelectedGroupKey}
         />
-        <p className="backtestGraphLead">
-          横軸は翌営業日の日付、縦軸はその時点までの累積差枚です。条件の期間指定自体は狙い度を出した日を基準にしています。
-        </p>
         <p className="filterPanelStatus">
           {selectedGroup.title}には、グラフに表示できる翌営業日実績がありません。
         </p>
@@ -190,8 +186,7 @@ export function HuntBacktestGraph({ points, groups }) {
     <section className="tablePanel">
       <div className="tablePanelHeader">
         <div>
-          <p className="sectionLabel">差枚推移</p>
-          <h2 className="tablePanelTitle">累積差枚折れ線</h2>
+          <h2 className="tablePanelTitle">差枚グラフ</h2>
         </div>
       </div>
       <GraphGroupButtons
@@ -199,15 +194,12 @@ export function HuntBacktestGraph({ points, groups }) {
         selectedKey={selectedGroup.key}
         onSelect={setSelectedGroupKey}
       />
-      <p className="backtestGraphLead">
-        横軸は翌営業日の日付、縦軸はその時点までの累積差枚です。条件の期間指定自体は狙い度を出した日を基準にしています。
-      </p>
       <div className="tableScroller backtestGraphScroller">
         <svg
           viewBox={`0 0 ${chartWidth} ${CHART_HEIGHT}`}
           className="backtestGraphSvg"
           role="img"
-          aria-label="バックテストの累積差枚推移"
+          aria-label="バックテストの差枚グラフ"
         >
           <rect
             x={CHART_PADDING.left}

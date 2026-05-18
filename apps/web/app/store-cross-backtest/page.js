@@ -74,7 +74,7 @@ function formatCrossStoreRankingMetricLabel(rankingMetric) {
   return rankingMetric === "differenceTotal" ? "合計差枚" : "平均機械割";
 }
 
-function StoreRankingTable({ rows, huntScoreLogic, rankingMetric }) {
+function StoreRankingTable({ rows, rankingMetric }) {
   const tableId = "cross-store-backtest-results";
   const rankingMetricLabel = formatCrossStoreRankingMetricLabel(rankingMetric);
 
@@ -85,9 +85,6 @@ function StoreRankingTable({ rows, huntScoreLogic, rankingMetric }) {
         <div>
           <p className="sectionLabel">{rankingMetricLabel}ランキング</p>
           <h2 className="tablePanelTitle">店舗横断バックテスト結果</h2>
-          {huntScoreLogic ? (
-            <p className="dataSourceLabel">使用ロジック: {huntScoreLogic.name}</p>
-          ) : null}
         </div>
       </div>
       <div className="tableScroller directoryScroller">
@@ -250,7 +247,6 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
       <section className="heroPanel">
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">店舗横断バックテスト</h1>
-          <p className="dataSourceLabel">適用中: {detail.huntScoreLogic.name}</p>
           <div className="heroLinks simpleHeroLinks">
             <Link href="/" className="externalLink">
               店舗一覧へ戻る
@@ -894,7 +890,6 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
             </section>
             <StoreRankingTable
               rows={detail.rows}
-              huntScoreLogic={detail.huntScoreLogic}
               rankingMetric={detail.rankingMetric}
             />
           </>

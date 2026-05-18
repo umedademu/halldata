@@ -87,7 +87,6 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
       <div className="tablePanelHeader">
         <div>
           <p className="tablePanelTitle">{title}</p>
-          <h2 className="sectionLabel">翌営業日結果</h2>
         </div>
       </div>
       <div className="tableScroller directoryScroller">
@@ -327,9 +326,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
       <section className="heroPanel">
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">バックテスト</h1>
-          {detail.huntScoreLogic ? (
-            <p className="dataSourceLabel">適用中: {detail.huntScoreLogic.name}</p>
-          ) : null}
           <div className="heroLinks simpleHeroLinks">
             <Link href={`/stores/${detail.store.id}`} className="externalLink">
               店舗ページへ戻る

@@ -430,12 +430,6 @@ a {
   gap: 12px;
 }
 
-.backtestGraphLead {
-  margin: 0 0 14px;
-  color: var(--muted);
-  line-height: 1.7;
-}
-
 .backtestGraphToggleRow {
   display: flex;
   flex-wrap: wrap;
