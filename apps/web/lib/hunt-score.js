@@ -385,6 +385,11 @@ const BOOM_TENJIN_NEO_BEST_SLOTS = new Set(["795"]);
 const BOOM_TENJIN_NEO_SECONDARY_SLOTS = new Set(["796", "797"]);
 const BOOM_TENJIN_NEO_WEAK_SLOTS = new Set(["793", "801"]);
 
+const MILLION_TOBU_NERIMA_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
+];
+
 const HUNT_SCORE_LOGIC_DEFINITIONS = [
   {
     key: "apark",
@@ -397,6 +402,12 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     name: "Aパーク春日式・改",
     windowDays: 7,
     scoreCalculator: calculateAparkKasugaKaiHuntScore,
+  },
+  {
+    key: "million-tobu-nerima",
+    name: "ミリオン東武練馬式",
+    windowDays: 7,
+    scoreCalculator: calculateMillionTobuNerimaHuntScore,
   },
   {
     key: "apark-yakatabaru-a",
@@ -579,6 +590,17 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["Aパーク春日店"],
     targetMachines: APARK_KASUGA_TARGET_MACHINES,
     defaultLogicKey: "apark",
+  },
+  {
+    key: "million-tobu-nerima",
+    storeNames: [
+      "ミリオン東武練馬店スロット館",
+      "ミリオン東武練馬スロット館",
+      "ミリオン東武練馬店",
+      "ミリオン東武練馬",
+    ],
+    targetMachines: MILLION_TOBU_NERIMA_TARGET_MACHINES,
+    defaultLogicKey: "million-tobu-nerima",
   },
   {
     key: "apark-yakatabaru",
@@ -1222,6 +1244,35 @@ function calculateAparkKasugaKaiHuntScore(metrics, context = {}) {
 
   return ((rawScore - APARK_KASUGA_KAI_RAW_MIN) /
     (APARK_KASUGA_KAI_RAW_MAX - APARK_KASUGA_KAI_RAW_MIN)) * 100;
+}
+
+function calculateMillionTobuNerimaHuntScore(metrics, context = {}) {
+  let score = Math.round(clamp(calculateAparkKasugaKaiHuntScore(metrics, context), 0, 100));
+  const rbDenominator = metrics.rbTotal > 0 && metrics.gamesTotal > 0 ? metrics.gamesTotal / metrics.rbTotal : 9999;
+
+  if (metrics.lossAbsTotal >= 4000) {
+    score -= 20;
+  }
+  if (metrics.netTotal <= -1000) {
+    score -= 20;
+  }
+  if (rbDenominator >= 400) {
+    score -= 50;
+  }
+  if (metrics.lowSettingCount >= 5) {
+    score -= 10;
+  }
+  if (Number.isFinite(metrics.windowSettingAverage) && metrics.windowSettingAverage >= 3.5) {
+    score += 5;
+  }
+  if (metrics.netTotal <= -3000 && metrics.compensationRate <= 0.35 && metrics.maxWin <= 1500) {
+    score += 5;
+  }
+  if (metrics.lossAbsTotal >= 5000 && metrics.maxWin <= 1500) {
+    score -= 5;
+  }
+
+  return clamp(score, 0, 100);
 }
 
 function isAparkYakatabaruTargetMachine(machineName) {
@@ -4944,6 +4995,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
   let bbTotal = 0;
   let rbTotal = 0;
   let settingSampleCount = 0;
+  let lowSettingCount = 0;
   let highSettingCount = 0;
   let highSettingEstimateCount = 0;
   let highSettingCandidateCount = 0;
@@ -4969,6 +5021,9 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     rbTotal += rbCount;
     if (Number.isFinite(settingAverage)) {
       settingSampleCount += 1;
+      if (settingAverage <= 3) {
+        lowSettingCount += 1;
+      }
       if (settingAverage >= 4) {
         highSettingCount += 1;
       }
@@ -5243,6 +5298,7 @@ function calculateWindowMetrics(businessDates, dateIndex, row, recordMapByDate, 
     previousBonusTotal: (readNumber(row?.bb_count) ?? 0) + (readNumber(row?.rb_count) ?? 0),
     todaySetting,
     settingSampleCount,
+    lowSettingCount,
     highSettingCount,
     highSettingEstimateCount,
     highSettingCandidateCount,
