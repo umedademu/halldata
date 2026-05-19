@@ -296,6 +296,17 @@ function formatNextGapScopeLabel(nextGapScope) {
   return "チェック機種内次点差";
 }
 
+function findNextLowerHuntScore(sortedRows, startIndex, currentScore) {
+  for (let index = startIndex + 1; index < sortedRows.length; index += 1) {
+    const candidateScore = sortedRows[index].score;
+    if (currentScore - candidateScore > SCORE_EPSILON) {
+      return candidateScore;
+    }
+  }
+
+  return null;
+}
+
 export function calculateHuntScoreNextGapMap(rows, rankFilter = null) {
   const validRows = (Array.isArray(rows) ? rows : [])
     .map((row, index) => ({
@@ -315,9 +326,13 @@ export function calculateHuntScoreNextGapMap(rows, rankFilter = null) {
     const rankMax = readPositiveInteger(rankFilter.rankMax) ?? rankMin;
     const normalizedRankMin = Math.min(rankMin, rankMax);
     const normalizedRankMax = Math.max(rankMin, rankMax);
-    const nextEntry = validRows[normalizedRankMax] ?? null;
+    const nextLowerScore = findNextLowerHuntScore(
+      validRows,
+      normalizedRankMax - 1,
+      validRows[normalizedRankMax - 1]?.score ?? Number.NEGATIVE_INFINITY,
+    );
 
-    if (!nextEntry) {
+    if (nextLowerScore === null) {
       return new Map();
     }
 
@@ -327,7 +342,7 @@ export function calculateHuntScoreNextGapMap(rows, rankFilter = null) {
         return [
           entry.row,
           rank >= normalizedRankMin && rank <= normalizedRankMax
-            ? Math.max(0, entry.score - nextEntry.score)
+            ? Math.max(0, entry.score - nextLowerScore)
             : null,
         ];
       }),
@@ -336,10 +351,10 @@ export function calculateHuntScoreNextGapMap(rows, rankFilter = null) {
 
   return new Map(
     validRows.map((entry, index) => {
-      const nextEntry = validRows[index + 1] ?? null;
+      const nextLowerScore = findNextLowerHuntScore(validRows, index, entry.score);
       return [
         entry.row,
-        nextEntry ? Math.max(0, entry.score - nextEntry.score) : null,
+        nextLowerScore !== null ? Math.max(0, entry.score - nextLowerScore) : null,
       ];
     }),
   );
