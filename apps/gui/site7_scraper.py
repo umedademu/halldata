@@ -217,6 +217,16 @@ SITE7_TARGET_STORES = (
             "スーパーＤ’ステーション３９筑紫野店",
         ),
     ),
+    Site7TargetStore(
+        display_name="アミューズ浅草店",
+        site7_hall_name="アミューズ浅草店",
+        prefecture_name="東京都",
+        hall_id="13777725",
+        hall_address="東京都台東区浅草１－４３－１",
+        area_name="台東区",
+        direct_hall_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=13777725",
+        hall_name_aliases=("アミューズ浅草", "AMUSE浅草店", "AMUSE浅草", "ＡＭＵＳＥ浅草店", "ＡＭＵＳＥ浅草"),
+    ),
 )
 SITE7_UNAVAILABLE_STORES = (
     Site7UnavailableStore(

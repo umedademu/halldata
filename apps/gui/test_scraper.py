@@ -1424,12 +1424,15 @@ class MinRepoScraperTests(unittest.TestCase):
                 "MJアリーナ井尻店",
                 "HINODE大野城店",
                 "スーパーDステーション39筑紫野店",
+                "アミューズ浅草店",
             ),
         )
         self.assertEqual(find_site7_target_store("スーパーハリウッド1120").area_name, "春日市")
         self.assertEqual(find_site7_target_store("GOGOアリーナ天神").area_name, "福岡市中央区")
         self.assertEqual(find_site7_target_store("スーパーDステーション39筑紫野店").hall_id, "42006007")
+        self.assertEqual(find_site7_target_store("アミューズ浅草店").hall_id, "13777725")
         self.assertEqual(find_site7_target_store("Aパーク春日店").prefecture_link_text, "福岡")
+        self.assertEqual(find_site7_target_store("アミューズ浅草店").prefecture_link_text, "東京")
         self.assertEqual(
             default_site7_store_settings("スーパーハリウッド1120"),
             {
@@ -1452,6 +1455,20 @@ class MinRepoScraperTests(unittest.TestCase):
                 "site7_address": "福岡県福岡市中央区天神２－６－３７",
             },
         )
+
+    def test_default_site7_store_settings_for_amuse_asakusa(self) -> None:
+        self.assertEqual(
+            default_site7_store_settings("アミューズ浅草店"),
+            {
+                "site7_enabled": True,
+                "site7_prefecture": "東京都",
+                "site7_area": "台東区",
+                "site7_store_name": "アミューズ浅草店",
+                "site7_hall_id": "13777725",
+                "site7_address": "東京都台東区浅草１－４３－１",
+            },
+        )
+        self.assertEqual(default_site7_store_settings("AMUSE浅草")["site7_hall_id"], "13777725")
 
     def test_default_site7_store_settings_for_recently_checked_stores(self) -> None:
         self.assertEqual(
