@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Fragment } from "react";
 
+import { ExpandableTableRowsController } from "../../components/expandable-table-rows-controller";
 import {
   AllMachineFilterButtons,
   MachineFilterCategoryButton,
@@ -73,21 +75,53 @@ function readSortNumber(value) {
   return Number.isFinite(value) ? value : "";
 }
 
-function buildNonmatchingCellTitle(nonmatchingSummary, label, value) {
-  if (Number(nonmatchingSummary?.actualRowCount ?? 0) <= 0) {
-    return undefined;
-  }
-  return `非該当台 ${label}: ${value ?? "-"}`;
+function BacktestMetricCell({ sortValue, children }) {
+  return <td data-sort-value={sortValue}>{children}</td>;
 }
 
-function BacktestMetricCell({ sortValue, nonmatchingSummary, nonmatchingLabel, nonmatchingValue, children }) {
+function hasNonmatchingSummary(summary) {
+  return Number(summary?.actualRowCount ?? 0) > 0;
+}
+
+function CrossStoreNonmatchingRow({ parentKey, summary }) {
+  if (!hasNonmatchingSummary(summary)) {
+    return null;
+  }
+
   return (
-    <td
-      data-sort-value={sortValue}
-      title={buildNonmatchingCellTitle(nonmatchingSummary, nonmatchingLabel, nonmatchingValue)}
+    <tr
+      className="backtestNonmatchingRow"
+      data-expand-detail-row="1"
+      data-expand-parent-key={parentKey}
+      hidden
     >
-      {children}
-    </td>
+      <td data-sort-value="">-</td>
+      <th className="directoryNameCell" data-sort-value="非該当台">非該当台</th>
+      <td data-sort-value="">-</td>
+      <BacktestMetricCell sortValue={readSortNumber(summary.payoutRate)}>{formatPercent(summary.payoutRate)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.averageDifference)}>{formatAverageDifference(summary.averageDifference)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={summary.differenceTotal}>{formatSignedNumber(summary.differenceTotal)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={summary.gamesTotal}>{formatNumber(summary.gamesTotal)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.averageGames)}>{formatAverageGames(summary.averageGames)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.averageSetting)}>{formatSettingEstimateScore(summary.averageSetting)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.setting35PlusRate)}>{formatPercent(summary.setting35PlusRate)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.setting4PlusRate)}>{formatPercent(summary.setting4PlusRate)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.setting45PlusRate)}>{formatPercent(summary.setting45PlusRate)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.setting5PlusRate)}>{formatPercent(summary.setting5PlusRate)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={summary.actualRowCount}>{formatNumber(summary.actualRowCount)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.winRate)}>{formatPercent(summary.winRate)}</BacktestMetricCell>
+      <td data-sort-value="">-</td>
+      <td data-sort-value="">-</td>
+      <td data-sort-value="">-</td>
+      <td data-sort-value="">-</td>
+      <BacktestMetricCell sortValue={readSortNumber(summary.averageHuntScore)}>{formatDecimal(summary.averageHuntScore)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.averageNextGap)}>{formatDecimal(summary.averageNextGap)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={summary.bbTotal}>{formatNumber(summary.bbTotal)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={summary.rbTotal}>{formatNumber(summary.rbTotal)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readProbabilitySortValue(summary.bbProbability)}>{summary.bbProbability ?? "-"}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readProbabilitySortValue(summary.rbProbability)}>{summary.rbProbability ?? "-"}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readProbabilitySortValue(summary.combinedProbability)}>{summary.combinedProbability ?? "-"}</BacktestMetricCell>
+    </tr>
   );
 }
 
@@ -102,6 +136,7 @@ function StoreRankingTable({ rows, rankingMetric }) {
   return (
     <section className="tablePanel directoryPanel">
       <SortableTableController tableId={tableId} />
+      <ExpandableTableRowsController tableId={tableId} />
       <div className="tablePanelHeader">
         <div>
           <p className="sectionLabel">{rankingMetricLabel}ランキング</p>
@@ -160,14 +195,19 @@ function StoreRankingTable({ rows, rankingMetric }) {
           <tbody>
             {rows.map((row) => {
               const nonmatchingSummary = row.nonmatchingSummary;
+              const rowKey = `${tableId}:store:${row.store.id}`;
               return (
+              <Fragment key={row.store.id}>
               <tr
-                key={row.store.id}
                 className={getSettingEstimateHighlightClass(row.averageSetting)}
+                data-expand-row-key={rowKey}
               >
                 <td data-sort-value={row.rank}>{formatNumber(row.rank)}</td>
                 <th className="directoryNameCell" data-sort-value={row.store.storeName}>
                   <span className="storeNameWithFavorite">
+                    {hasNonmatchingSummary(nonmatchingSummary) ? (
+                      <span className="backtestExpandIndicator" aria-hidden="true">＋</span>
+                    ) : null}
                     <StoreFavoriteButton
                       store={{ id: row.store.id, storeName: row.store.storeName }}
                       compact
@@ -215,6 +255,8 @@ function StoreRankingTable({ rows, rankingMetric }) {
                 <BacktestMetricCell sortValue={readProbabilitySortValue(row.rbProbability)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="RB率" nonmatchingValue={nonmatchingSummary?.rbProbability ?? "-"}>{row.rbProbability ?? "-"}</BacktestMetricCell>
                 <BacktestMetricCell sortValue={readProbabilitySortValue(row.combinedProbability)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="合成" nonmatchingValue={nonmatchingSummary?.combinedProbability ?? "-"}>{row.combinedProbability ?? "-"}</BacktestMetricCell>
               </tr>
+              <CrossStoreNonmatchingRow parentKey={rowKey} summary={nonmatchingSummary} />
+              </Fragment>
               );
             })}
           </tbody>

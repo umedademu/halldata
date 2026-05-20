@@ -55,6 +55,49 @@ function resetHeaderState(headers) {
   });
 }
 
+function collectSortableRowEntries(tbody) {
+  const detailRowsByParentKey = new Map();
+  const fixedRows = [];
+  const sortableRows = [];
+
+  [...tbody.rows].forEach((row) => {
+    if (row.dataset.expandDetailRow !== "1") {
+      return;
+    }
+
+    const parentKey = row.dataset.expandParentKey;
+    if (parentKey) {
+      detailRowsByParentKey.set(parentKey, row);
+    }
+  });
+
+  [...tbody.rows].forEach((row) => {
+    if (row.dataset.expandDetailRow === "1") {
+      return;
+    }
+
+    const entry = {
+      row,
+      originalIndex: Number(row.dataset.sortOriginalIndex ?? "0"),
+      detailRow: detailRowsByParentKey.get(row.dataset.expandRowKey) ?? null,
+    };
+    if (row.dataset.sortFixed === "1") {
+      fixedRows.push(entry);
+    } else {
+      sortableRows.push(entry);
+    }
+  });
+
+  return { fixedRows, sortableRows };
+}
+
+function appendRowEntry(tbody, entry) {
+  tbody.appendChild(entry.row);
+  if (entry.detailRow) {
+    tbody.appendChild(entry.detailRow);
+  }
+}
+
 export function SortableTableController({ tableId }) {
   useEffect(() => {
     const table = document.getElementById(tableId);
@@ -68,8 +111,13 @@ export function SortableTableController({ tableId }) {
       return undefined;
     }
 
-    [...tbody.rows].forEach((row, index) => {
-      row.dataset.sortOriginalIndex = String(index);
+    let originalIndex = 0;
+    [...tbody.rows].forEach((row) => {
+      if (row.dataset.expandDetailRow === "1") {
+        return;
+      }
+      row.dataset.sortOriginalIndex = String(originalIndex);
+      originalIndex += 1;
     });
 
     const collator = new Intl.Collator("ja", {
@@ -98,26 +146,14 @@ export function SortableTableController({ tableId }) {
               ? "desc"
               : initialDirection;
 
-        const fixedRows = [];
-        const sortableRows = [];
-        [...tbody.rows].forEach((row) => {
-          const entry = {
-            row,
-            originalIndex: Number(row.dataset.sortOriginalIndex ?? "0"),
-          };
-          if (row.dataset.sortFixed === "1") {
-            fixedRows.push(entry);
-          } else {
-            sortableRows.push(entry);
-          }
-        });
+        const { fixedRows, sortableRows } = collectSortableRowEntries(tbody);
 
         sortableRows.sort((left, right) =>
           compareRows(left, right, columnIndex, type, nextDirection, collator),
         );
 
         [...fixedRows, ...sortableRows].forEach((entry) => {
-          tbody.appendChild(entry.row);
+          appendRowEntry(tbody, entry);
         });
 
         table.dataset.sortColumn = String(columnIndex);

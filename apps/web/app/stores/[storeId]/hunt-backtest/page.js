@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { Fragment } from "react";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
+import { ExpandableTableRowsController } from "../../../../components/expandable-table-rows-controller";
 import { HuntBacktestBookmarkControl } from "../../../../components/hunt-backtest-bookmark-control";
 import { HuntBacktestFormStateSync } from "../../../../components/hunt-backtest-form-state-sync";
 import { Breadcrumbs } from "../../../../components/breadcrumbs";
@@ -86,30 +88,58 @@ function readSortNumber(value) {
   return Number.isFinite(value) ? value : "";
 }
 
-function buildNonmatchingCellTitle(nonmatchingSummary, label, value) {
-  if (Number(nonmatchingSummary?.actualRowCount ?? 0) <= 0) {
-    return undefined;
-  }
-  return `非該当台 ${label}: ${value ?? "-"}`;
+function BacktestMetricCell({ sortValue, children }) {
+  return <td data-sort-value={sortValue}>{children}</td>;
 }
 
-function BacktestMetricCell({ sortValue, nonmatchingSummary, nonmatchingLabel, nonmatchingValue, children }) {
+function hasNonmatchingSummary(summary) {
+  return Number(summary?.actualRowCount ?? 0) > 0;
+}
+
+function BacktestNonmatchingSummaryRow({ parentKey, summary, label }) {
+  if (!hasNonmatchingSummary(summary)) {
+    return null;
+  }
+
   return (
-    <td
-      data-sort-value={sortValue}
-      title={buildNonmatchingCellTitle(nonmatchingSummary, nonmatchingLabel, nonmatchingValue)}
+    <tr
+      className="backtestNonmatchingRow"
+      data-expand-detail-row="1"
+      data-expand-parent-key={parentKey}
+      hidden
     >
-      {children}
-    </td>
+      <th className="directoryNameCell" data-sort-value={label}>{label}</th>
+      <td data-sort-value="">-</td>
+      <BacktestMetricCell sortValue={readSortNumber(summary.averageHuntScore)}>{formatDecimal(summary.averageHuntScore)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.averageNextGap)}>{formatDecimal(summary.averageNextGap)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={summary.actualRowCount}>{formatNumber(summary.actualRowCount)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.winRate)}>{formatPercent(summary.winRate)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={summary.differenceTotal}>{formatSignedNumber(summary.differenceTotal)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={summary.gamesTotal}>{formatNumber(summary.gamesTotal)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.averageGames)}>{formatAverageGames(summary.averageGames)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={summary.bbTotal}>{formatNumber(summary.bbTotal)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={summary.rbTotal}>{formatNumber(summary.rbTotal)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readProbabilitySortValue(summary.bbProbability)}>{summary.bbProbability ?? "-"}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readProbabilitySortValue(summary.rbProbability)}>{summary.rbProbability ?? "-"}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readProbabilitySortValue(summary.combinedProbability)}>{summary.combinedProbability ?? "-"}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.payoutRate)}>{formatPercent(summary.payoutRate)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.averageSetting)}>{formatSettingEstimateScore(summary.averageSetting)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.setting35PlusRate)}>{formatPercent(summary.setting35PlusRate)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.setting4PlusRate)}>{formatPercent(summary.setting4PlusRate)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.setting45PlusRate)}>{formatPercent(summary.setting45PlusRate)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.setting5PlusRate)}>{formatPercent(summary.setting5PlusRate)}</BacktestMetricCell>
+    </tr>
   );
 }
 
 function BacktestResultTable({ title, backtest, tableId, storeId }) {
   const totalNonmatchingSummary = backtest.total.nonmatchingSummary;
+  const totalRowKey = `${tableId}:total`;
 
   return (
     <section className="tablePanel directoryPanel">
       <SortableTableController tableId={tableId} />
+      <ExpandableTableRowsController tableId={tableId} />
       <div className="tablePanelHeader">
         <div>
           <p className="tablePanelTitle">{title}</p>
@@ -155,8 +185,13 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
             </tr>
           </thead>
           <tbody>
-            <tr className="backtestTotalRow" data-sort-fixed="1">
-              <th className="directoryNameCell" data-sort-value="総計">総計</th>
+            <tr className="backtestTotalRow" data-sort-fixed="1" data-expand-row-key={totalRowKey}>
+              <th className="directoryNameCell" data-sort-value="総計">
+                {hasNonmatchingSummary(totalNonmatchingSummary) ? (
+                  <span className="backtestExpandIndicator" aria-hidden="true">＋</span>
+                ) : null}
+                総計
+              </th>
               <td data-sort-value={readSortNumber(backtest.total.slotCount)}>{formatNumber(backtest.total.slotCount)}</td>
               <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageHuntScore)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="狙い度" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageHuntScore)}>{formatDecimal(backtest.total.averageHuntScore)}</BacktestMetricCell>
               <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageNextGap)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="次点差" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageNextGap)}>{formatDecimal(backtest.total.averageNextGap)}</BacktestMetricCell>
@@ -177,19 +212,29 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
               <BacktestMetricCell sortValue={readSortNumber(backtest.total.setting45PlusRate)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="推定4.5+" nonmatchingValue={formatPercent(totalNonmatchingSummary?.setting45PlusRate)}>{formatPercent(backtest.total.setting45PlusRate)}</BacktestMetricCell>
               <BacktestMetricCell sortValue={readSortNumber(backtest.total.setting5PlusRate)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="推定5.0+" nonmatchingValue={formatPercent(totalNonmatchingSummary?.setting5PlusRate)}>{formatPercent(backtest.total.setting5PlusRate)}</BacktestMetricCell>
             </tr>
+            <BacktestNonmatchingSummaryRow
+              parentKey={totalRowKey}
+              summary={totalNonmatchingSummary}
+              label="非該当台 合計"
+            />
             {backtest.summaries.map((summary) => {
               const shortMachineName = getHuntMachineShortName(summary.machineName);
               const nonmatchingSummary = summary.nonmatchingSummary;
+              const rowKey = `${tableId}:machine:${summary.machineName}`;
               return (
+                <Fragment key={summary.machineName}>
                 <tr
-                  key={summary.machineName}
                   className={getSettingEstimateHighlightClass(summary.averageSetting)}
+                  data-expand-row-key={rowKey}
                 >
                   <th
                     className="directoryNameCell"
                     data-sort-value={summary.machineName}
                     title={summary.machineName}
                   >
+                    {hasNonmatchingSummary(nonmatchingSummary) ? (
+                      <span className="backtestExpandIndicator" aria-hidden="true">＋</span>
+                    ) : null}
                     <Link
                       href={`/stores/${storeId}/machines/${encodeURIComponent(summary.machineName)}`}
                       className="directoryPrimaryLink"
@@ -217,6 +262,12 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
                   <BacktestMetricCell sortValue={readSortNumber(summary.setting45PlusRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="推定4.5+" nonmatchingValue={formatPercent(nonmatchingSummary?.setting45PlusRate)}>{formatPercent(summary.setting45PlusRate)}</BacktestMetricCell>
                   <BacktestMetricCell sortValue={readSortNumber(summary.setting5PlusRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="推定5.0+" nonmatchingValue={formatPercent(nonmatchingSummary?.setting5PlusRate)}>{formatPercent(summary.setting5PlusRate)}</BacktestMetricCell>
                 </tr>
+                <BacktestNonmatchingSummaryRow
+                  parentKey={rowKey}
+                  summary={nonmatchingSummary}
+                  label="非該当台"
+                />
+                </Fragment>
               );
             })}
           </tbody>

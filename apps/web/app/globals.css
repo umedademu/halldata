@@ -1640,6 +1640,46 @@ a {
   background: rgba(37, 99, 165, 0.06);
 }
 
+.directoryTable tbody tr.backtestExpandableRow {
+  cursor: pointer;
+}
+
+.directoryTable tbody tr.backtestExpandableRow:focus-visible td,
+.directoryTable tbody tr.backtestExpandableRow:focus-visible th {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.backtestExpandIndicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-right: 0.35rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 165, 0.12);
+  color: var(--accent-strong);
+  font-size: 0.75rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.directoryTable tbody tr.backtestNonmatchingRow td,
+.directoryTable tbody tr.backtestNonmatchingRow th,
+.directoryTable tbody tr.backtestNonmatchingRow:nth-child(odd) td,
+.directoryTable tbody tr.backtestNonmatchingRow:nth-child(odd) th,
+.directoryTable tbody tr.backtestNonmatchingRow:hover td,
+.directoryTable tbody tr.backtestNonmatchingRow:hover th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+}
+
+.directoryTable tbody tr.backtestNonmatchingRow .directoryNameCell {
+  color: #334155;
+}
+
 .directoryTable tbody tr.backtestTotalRow td,
 .directoryTable tbody tr.backtestTotalRow th,
 .directoryTable tbody tr.backtestTotalRow:nth-child(odd) td,
@@ -1753,6 +1793,13 @@ a {
 
 .directoryTable tbody tr:hover .directoryNameCell {
   background: #f1f5f9;
+}
+
+.directoryTable tbody tr.backtestNonmatchingRow .directoryNameCell,
+.directoryTable tbody tr.backtestNonmatchingRow:nth-child(odd) .directoryNameCell,
+.directoryTable tbody tr.backtestNonmatchingRow:hover .directoryNameCell {
+  background: #f8fafc;
+  color: #334155;
 }
 
 .directoryNameContent {
