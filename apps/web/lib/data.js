@@ -3031,6 +3031,11 @@ function buildCrossStoreBacktestRow(store, backtest, slotCount) {
   const actualRowCount = Number(backtest.actualRowCount ?? total.actualRowCount ?? 0);
   const differenceTotal = readNumber(total.differenceTotal) ?? 0;
   const averageDifference = actualRowCount > 0 ? differenceTotal / actualRowCount : null;
+  const nonmatchingSummary = total.nonmatchingSummary ?? null;
+  const nonmatchingActualRowCount = Number(nonmatchingSummary?.actualRowCount ?? 0);
+  const nonmatchingDifferenceTotal = readNumber(nonmatchingSummary?.differenceTotal) ?? 0;
+  const nonmatchingAverageDifference =
+    nonmatchingActualRowCount > 0 ? nonmatchingDifferenceTotal / nonmatchingActualRowCount : null;
 
   return {
     store: {
@@ -3059,6 +3064,12 @@ function buildCrossStoreBacktestRow(store, backtest, slotCount) {
     winRate: total.winRate,
     averageHuntScore: total.averageHuntScore,
     averageNextGap: total.averageNextGap,
+    nonmatchingSummary: nonmatchingSummary
+      ? {
+          ...nonmatchingSummary,
+          averageDifference: nonmatchingAverageDifference,
+        }
+      : null,
     bbTotal: total.bbTotal,
     rbTotal: total.rbTotal,
     bbProbability: total.bbProbability,

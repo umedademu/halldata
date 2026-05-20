@@ -677,6 +677,25 @@ function finalizeSummary(summary) {
   };
 }
 
+function addActualMetricsToSummary(summary, machineName, row, actualMetrics, nextGapValue) {
+  summary.actualRowCount += 1;
+  if (actualMetrics.differenceValue > 0) {
+    summary.winCount += 1;
+  }
+  summary.huntScoreTotal += readFiniteNumber(row.huntScore);
+  summary.differenceTotal += actualMetrics.differenceValue;
+  summary.gamesTotal += actualMetrics.gamesCount;
+  summary.bbTotal += actualMetrics.bbCount;
+  summary.rbTotal += actualMetrics.rbCount;
+  summary.investedCoinsTotal += actualMetrics.investedCoins;
+  if (Number.isFinite(nextGapValue)) {
+    summary.nextGapTotal += nextGapValue;
+    summary.nextGapSampleCount += 1;
+  }
+  addAggregateSettingMetrics(summary, machineName, actualMetrics);
+  addSettingEstimateRateMetrics(summary, machineName, row.nextRecord);
+}
+
 function buildSnapshotGapRows(
   snapshot,
   selectedMachineNameSet,
@@ -822,8 +841,10 @@ function buildBacktestAggregationDetail(
   },
 ) {
   const summariesByMachine = new Map();
+  const nonmatchingSummariesByMachine = new Map();
   const dailySummariesByDate = new Map();
   const totalSummary = buildEmptySummary();
+  const nonmatchingTotalSummary = buildEmptySummary();
   const actualDates = new Set();
   let actualRowCount = 0;
 
@@ -882,12 +903,9 @@ function buildBacktestAggregationDetail(
       const gapRow = gapRowsByRow.get(row) ?? row;
       const nextGapValue = readNextGapForRankScope(gapRow, nextGapScope);
 
-      if (selectedRowSet && !selectedRowSet.has(row)) {
-        continue;
-      }
-
-      if (
-        !matchesRequiredConditionFilters(
+      const matchesCondition =
+        (!selectedRowSet || selectedRowSet.has(row)) &&
+        matchesRequiredConditionFilters(
           [
             {
               rankValue: machineRank,
@@ -907,10 +925,7 @@ function buildBacktestAggregationDetail(
           true,
           nextGapValue,
           nextGapFilter,
-        )
-      ) {
-        continue;
-      }
+        );
 
       const actualDate = getActualDate(row, snapshot);
       if (!rowFilter({ snapshot, row, actualDate })) {
@@ -922,46 +937,27 @@ function buildBacktestAggregationDetail(
       }
 
       const actualMetrics = resolveActualMetrics(row.machineName, row.nextRecord, differenceMode);
-      if (!summariesByMachine.has(backtestMachineName)) {
-        summariesByMachine.set(backtestMachineName, buildEmptySummary(backtestMachineName));
+      const targetSummariesByMachine = matchesCondition
+        ? summariesByMachine
+        : nonmatchingSummariesByMachine;
+      const targetTotalSummary = matchesCondition ? totalSummary : nonmatchingTotalSummary;
+
+      if (!targetSummariesByMachine.has(backtestMachineName)) {
+        targetSummariesByMachine.set(backtestMachineName, buildEmptySummary(backtestMachineName));
       }
 
-      const summary = summariesByMachine.get(backtestMachineName);
+      const summary = targetSummariesByMachine.get(backtestMachineName);
+      addActualMetricsToSummary(summary, row.machineName, row, actualMetrics, nextGapValue);
+      addActualMetricsToSummary(targetTotalSummary, row.machineName, row, actualMetrics, nextGapValue);
+
+      if (!matchesCondition) {
+        continue;
+      }
 
       actualRowCount += 1;
       if (actualDate) {
         actualDates.add(actualDate);
       }
-      summary.actualRowCount += 1;
-      if (actualMetrics.differenceValue > 0) {
-        summary.winCount += 1;
-      }
-      summary.huntScoreTotal += readFiniteNumber(row.huntScore);
-      summary.differenceTotal += actualMetrics.differenceValue;
-      summary.gamesTotal += actualMetrics.gamesCount;
-      summary.bbTotal += actualMetrics.bbCount;
-      summary.rbTotal += actualMetrics.rbCount;
-      summary.investedCoinsTotal += actualMetrics.investedCoins;
-      totalSummary.actualRowCount += 1;
-      if (actualMetrics.differenceValue > 0) {
-        totalSummary.winCount += 1;
-      }
-      totalSummary.huntScoreTotal += readFiniteNumber(row.huntScore);
-      totalSummary.differenceTotal += actualMetrics.differenceValue;
-      totalSummary.gamesTotal += actualMetrics.gamesCount;
-      totalSummary.bbTotal += actualMetrics.bbCount;
-      totalSummary.rbTotal += actualMetrics.rbCount;
-      totalSummary.investedCoinsTotal += actualMetrics.investedCoins;
-      if (Number.isFinite(nextGapValue)) {
-        summary.nextGapTotal += nextGapValue;
-        summary.nextGapSampleCount += 1;
-        totalSummary.nextGapTotal += nextGapValue;
-        totalSummary.nextGapSampleCount += 1;
-      }
-      addAggregateSettingMetrics(summary, row.machineName, actualMetrics);
-      addAggregateSettingMetrics(totalSummary, row.machineName, actualMetrics);
-      addSettingEstimateRateMetrics(summary, row.machineName, row.nextRecord);
-      addSettingEstimateRateMetrics(totalSummary, row.machineName, row.nextRecord);
 
       if (actualDate) {
         if (!dailySummariesByDate.has(actualDate)) {
@@ -986,7 +982,16 @@ function buildBacktestAggregationDetail(
   ];
   const machineOrder = new Map(summaryMachineNames.map((machineName, index) => [machineName, index]));
   const summaries = [...summariesByMachine.values()]
-    .map((summary) => addSummarySlotCount(finalizeSummary(summary), machineSlotCountLookup))
+    .map((summary) => {
+      const nonmatchingSummary = nonmatchingSummariesByMachine.get(summary.machineName);
+      return addSummarySlotCount(
+        {
+          ...finalizeSummary(summary),
+          nonmatchingSummary: nonmatchingSummary ? finalizeSummary(nonmatchingSummary) : null,
+        },
+        machineSlotCountLookup,
+      );
+    })
     .sort((left, right) => {
       return (
         (machineOrder.get(left.machineName) ?? Number.MAX_SAFE_INTEGER) -
@@ -1008,6 +1013,7 @@ function buildBacktestAggregationDetail(
     graphPoints,
     total: {
       ...finalizeSummary(totalSummary),
+      nonmatchingSummary: finalizeSummary(nonmatchingTotalSummary),
       slotCount: calculateMachineSlotCountTotal(summaryMachineNames, machineSlotCountLookup),
     },
   };

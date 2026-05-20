@@ -86,7 +86,27 @@ function readSortNumber(value) {
   return Number.isFinite(value) ? value : "";
 }
 
+function buildNonmatchingCellTitle(nonmatchingSummary, label, value) {
+  if (Number(nonmatchingSummary?.actualRowCount ?? 0) <= 0) {
+    return undefined;
+  }
+  return `非該当台 ${label}: ${value ?? "-"}`;
+}
+
+function BacktestMetricCell({ sortValue, nonmatchingSummary, nonmatchingLabel, nonmatchingValue, children }) {
+  return (
+    <td
+      data-sort-value={sortValue}
+      title={buildNonmatchingCellTitle(nonmatchingSummary, nonmatchingLabel, nonmatchingValue)}
+    >
+      {children}
+    </td>
+  );
+}
+
 function BacktestResultTable({ title, backtest, tableId, storeId }) {
+  const totalNonmatchingSummary = backtest.total.nonmatchingSummary;
+
   return (
     <section className="tablePanel directoryPanel">
       <SortableTableController tableId={tableId} />
@@ -138,27 +158,28 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
             <tr className="backtestTotalRow" data-sort-fixed="1">
               <th className="directoryNameCell" data-sort-value="総計">総計</th>
               <td data-sort-value={readSortNumber(backtest.total.slotCount)}>{formatNumber(backtest.total.slotCount)}</td>
-              <td data-sort-value={readSortNumber(backtest.total.averageHuntScore)}>{formatDecimal(backtest.total.averageHuntScore)}</td>
-              <td data-sort-value={readSortNumber(backtest.total.averageNextGap)}>{formatDecimal(backtest.total.averageNextGap)}</td>
-              <td data-sort-value={backtest.total.actualRowCount}>{formatNumber(backtest.total.actualRowCount)}</td>
-              <td data-sort-value={readSortNumber(backtest.total.winRate)}>{formatPercent(backtest.total.winRate)}</td>
-              <td data-sort-value={backtest.total.differenceTotal}>{formatSignedNumber(backtest.total.differenceTotal)}</td>
-              <td data-sort-value={backtest.total.gamesTotal}>{formatNumber(backtest.total.gamesTotal)}</td>
-              <td data-sort-value={readSortNumber(backtest.total.averageGames)}>{formatAverageGames(backtest.total.averageGames)}</td>
-              <td data-sort-value={backtest.total.bbTotal}>{formatNumber(backtest.total.bbTotal)}</td>
-              <td data-sort-value={backtest.total.rbTotal}>{formatNumber(backtest.total.rbTotal)}</td>
-              <td data-sort-value={readProbabilitySortValue(backtest.total.bbProbability)}>{backtest.total.bbProbability ?? "-"}</td>
-              <td data-sort-value={readProbabilitySortValue(backtest.total.rbProbability)}>{backtest.total.rbProbability ?? "-"}</td>
-              <td data-sort-value={readProbabilitySortValue(backtest.total.combinedProbability)}>{backtest.total.combinedProbability ?? "-"}</td>
-              <td data-sort-value={readSortNumber(backtest.total.payoutRate)}>{formatPercent(backtest.total.payoutRate)}</td>
-              <td data-sort-value={readSortNumber(backtest.total.averageSetting)}>{formatSettingEstimateScore(backtest.total.averageSetting)}</td>
-              <td data-sort-value={readSortNumber(backtest.total.setting35PlusRate)}>{formatPercent(backtest.total.setting35PlusRate)}</td>
-              <td data-sort-value={readSortNumber(backtest.total.setting4PlusRate)}>{formatPercent(backtest.total.setting4PlusRate)}</td>
-              <td data-sort-value={readSortNumber(backtest.total.setting45PlusRate)}>{formatPercent(backtest.total.setting45PlusRate)}</td>
-              <td data-sort-value={readSortNumber(backtest.total.setting5PlusRate)}>{formatPercent(backtest.total.setting5PlusRate)}</td>
+              <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageHuntScore)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="狙い度" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageHuntScore)}>{formatDecimal(backtest.total.averageHuntScore)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageNextGap)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="次点差" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageNextGap)}>{formatDecimal(backtest.total.averageNextGap)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={backtest.total.actualRowCount} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="集計台数" nonmatchingValue={formatNumber(totalNonmatchingSummary?.actualRowCount)}>{formatNumber(backtest.total.actualRowCount)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readSortNumber(backtest.total.winRate)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="勝率" nonmatchingValue={formatPercent(totalNonmatchingSummary?.winRate)}>{formatPercent(backtest.total.winRate)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={backtest.total.differenceTotal} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="合計差枚" nonmatchingValue={formatSignedNumber(totalNonmatchingSummary?.differenceTotal)}>{formatSignedNumber(backtest.total.differenceTotal)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={backtest.total.gamesTotal} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="合計G数" nonmatchingValue={formatNumber(totalNonmatchingSummary?.gamesTotal)}>{formatNumber(backtest.total.gamesTotal)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageGames)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="平均G数" nonmatchingValue={formatAverageGames(totalNonmatchingSummary?.averageGames)}>{formatAverageGames(backtest.total.averageGames)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={backtest.total.bbTotal} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="BB" nonmatchingValue={formatNumber(totalNonmatchingSummary?.bbTotal)}>{formatNumber(backtest.total.bbTotal)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={backtest.total.rbTotal} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="RB" nonmatchingValue={formatNumber(totalNonmatchingSummary?.rbTotal)}>{formatNumber(backtest.total.rbTotal)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readProbabilitySortValue(backtest.total.bbProbability)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="BB率" nonmatchingValue={totalNonmatchingSummary?.bbProbability ?? "-"}>{backtest.total.bbProbability ?? "-"}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readProbabilitySortValue(backtest.total.rbProbability)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="RB率" nonmatchingValue={totalNonmatchingSummary?.rbProbability ?? "-"}>{backtest.total.rbProbability ?? "-"}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readProbabilitySortValue(backtest.total.combinedProbability)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="合成" nonmatchingValue={totalNonmatchingSummary?.combinedProbability ?? "-"}>{backtest.total.combinedProbability ?? "-"}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readSortNumber(backtest.total.payoutRate)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="機械割" nonmatchingValue={formatPercent(totalNonmatchingSummary?.payoutRate)}>{formatPercent(backtest.total.payoutRate)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageSetting)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="平均設定" nonmatchingValue={formatSettingEstimateScore(totalNonmatchingSummary?.averageSetting)}>{formatSettingEstimateScore(backtest.total.averageSetting)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readSortNumber(backtest.total.setting35PlusRate)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="推定3.5+" nonmatchingValue={formatPercent(totalNonmatchingSummary?.setting35PlusRate)}>{formatPercent(backtest.total.setting35PlusRate)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readSortNumber(backtest.total.setting4PlusRate)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="推定4.0+" nonmatchingValue={formatPercent(totalNonmatchingSummary?.setting4PlusRate)}>{formatPercent(backtest.total.setting4PlusRate)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readSortNumber(backtest.total.setting45PlusRate)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="推定4.5+" nonmatchingValue={formatPercent(totalNonmatchingSummary?.setting45PlusRate)}>{formatPercent(backtest.total.setting45PlusRate)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readSortNumber(backtest.total.setting5PlusRate)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="推定5.0+" nonmatchingValue={formatPercent(totalNonmatchingSummary?.setting5PlusRate)}>{formatPercent(backtest.total.setting5PlusRate)}</BacktestMetricCell>
             </tr>
             {backtest.summaries.map((summary) => {
               const shortMachineName = getHuntMachineShortName(summary.machineName);
+              const nonmatchingSummary = summary.nonmatchingSummary;
               return (
                 <tr
                   key={summary.machineName}
@@ -177,24 +198,24 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
                     </Link>
                   </th>
                   <td data-sort-value={readSortNumber(summary.slotCount)}>{formatNumber(summary.slotCount)}</td>
-                  <td data-sort-value={readSortNumber(summary.averageHuntScore)}>{formatDecimal(summary.averageHuntScore)}</td>
-                  <td data-sort-value={readSortNumber(summary.averageNextGap)}>{formatDecimal(summary.averageNextGap)}</td>
-                  <td data-sort-value={summary.actualRowCount}>{formatNumber(summary.actualRowCount)}</td>
-                  <td data-sort-value={readSortNumber(summary.winRate)}>{formatPercent(summary.winRate)}</td>
-                  <td data-sort-value={summary.differenceTotal}>{formatSignedNumber(summary.differenceTotal)}</td>
-                  <td data-sort-value={summary.gamesTotal}>{formatNumber(summary.gamesTotal)}</td>
-                  <td data-sort-value={readSortNumber(summary.averageGames)}>{formatAverageGames(summary.averageGames)}</td>
-                  <td data-sort-value={summary.bbTotal}>{formatNumber(summary.bbTotal)}</td>
-                  <td data-sort-value={summary.rbTotal}>{formatNumber(summary.rbTotal)}</td>
-                  <td data-sort-value={readProbabilitySortValue(summary.bbProbability)}>{summary.bbProbability ?? "-"}</td>
-                  <td data-sort-value={readProbabilitySortValue(summary.rbProbability)}>{summary.rbProbability ?? "-"}</td>
-                  <td data-sort-value={readProbabilitySortValue(summary.combinedProbability)}>{summary.combinedProbability ?? "-"}</td>
-                  <td data-sort-value={readSortNumber(summary.payoutRate)}>{formatPercent(summary.payoutRate)}</td>
-                  <td data-sort-value={readSortNumber(summary.averageSetting)}>{formatSettingEstimateScore(summary.averageSetting)}</td>
-                  <td data-sort-value={readSortNumber(summary.setting35PlusRate)}>{formatPercent(summary.setting35PlusRate)}</td>
-                  <td data-sort-value={readSortNumber(summary.setting4PlusRate)}>{formatPercent(summary.setting4PlusRate)}</td>
-                  <td data-sort-value={readSortNumber(summary.setting45PlusRate)}>{formatPercent(summary.setting45PlusRate)}</td>
-                  <td data-sort-value={readSortNumber(summary.setting5PlusRate)}>{formatPercent(summary.setting5PlusRate)}</td>
+                  <BacktestMetricCell sortValue={readSortNumber(summary.averageHuntScore)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="狙い度" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageHuntScore)}>{formatDecimal(summary.averageHuntScore)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readSortNumber(summary.averageNextGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="次点差" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageNextGap)}>{formatDecimal(summary.averageNextGap)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={summary.actualRowCount} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="集計台数" nonmatchingValue={formatNumber(nonmatchingSummary?.actualRowCount)}>{formatNumber(summary.actualRowCount)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readSortNumber(summary.winRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="勝率" nonmatchingValue={formatPercent(nonmatchingSummary?.winRate)}>{formatPercent(summary.winRate)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={summary.differenceTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="合計差枚" nonmatchingValue={formatSignedNumber(nonmatchingSummary?.differenceTotal)}>{formatSignedNumber(summary.differenceTotal)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={summary.gamesTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="合計G数" nonmatchingValue={formatNumber(nonmatchingSummary?.gamesTotal)}>{formatNumber(summary.gamesTotal)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readSortNumber(summary.averageGames)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="平均G数" nonmatchingValue={formatAverageGames(nonmatchingSummary?.averageGames)}>{formatAverageGames(summary.averageGames)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={summary.bbTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="BB" nonmatchingValue={formatNumber(nonmatchingSummary?.bbTotal)}>{formatNumber(summary.bbTotal)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={summary.rbTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="RB" nonmatchingValue={formatNumber(nonmatchingSummary?.rbTotal)}>{formatNumber(summary.rbTotal)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readProbabilitySortValue(summary.bbProbability)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="BB率" nonmatchingValue={nonmatchingSummary?.bbProbability ?? "-"}>{summary.bbProbability ?? "-"}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readProbabilitySortValue(summary.rbProbability)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="RB率" nonmatchingValue={nonmatchingSummary?.rbProbability ?? "-"}>{summary.rbProbability ?? "-"}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readProbabilitySortValue(summary.combinedProbability)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="合成" nonmatchingValue={nonmatchingSummary?.combinedProbability ?? "-"}>{summary.combinedProbability ?? "-"}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readSortNumber(summary.payoutRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="機械割" nonmatchingValue={formatPercent(nonmatchingSummary?.payoutRate)}>{formatPercent(summary.payoutRate)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readSortNumber(summary.averageSetting)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="平均設定" nonmatchingValue={formatSettingEstimateScore(nonmatchingSummary?.averageSetting)}>{formatSettingEstimateScore(summary.averageSetting)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readSortNumber(summary.setting35PlusRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="推定3.5+" nonmatchingValue={formatPercent(nonmatchingSummary?.setting35PlusRate)}>{formatPercent(summary.setting35PlusRate)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readSortNumber(summary.setting4PlusRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="推定4.0+" nonmatchingValue={formatPercent(nonmatchingSummary?.setting4PlusRate)}>{formatPercent(summary.setting4PlusRate)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readSortNumber(summary.setting45PlusRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="推定4.5+" nonmatchingValue={formatPercent(nonmatchingSummary?.setting45PlusRate)}>{formatPercent(summary.setting45PlusRate)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readSortNumber(summary.setting5PlusRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="推定5.0+" nonmatchingValue={formatPercent(nonmatchingSummary?.setting5PlusRate)}>{formatPercent(summary.setting5PlusRate)}</BacktestMetricCell>
                 </tr>
               );
             })}
