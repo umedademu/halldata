@@ -5,17 +5,20 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const STORAGE_KEY_PREFIX = "hunt-backtest-form-state:";
 const LEGACY_EVENT_STORAGE_KEY_PREFIX = "hunt-backtest-event-filters:";
+const EVENT_PARAM_KEYS = [
+  "backtestEventTouched",
+  "backtestDayTail",
+  "backtestZoro",
+  "backtestWeekday",
+  "backtestMonthDay",
+];
 const MANAGED_PARAM_KEYS = [
   "show",
   "periodMode",
   "recentDays",
   "startDate",
   "endDate",
-  "backtestEventTouched",
-  "backtestDayTail",
-  "backtestZoro",
-  "backtestWeekday",
-  "backtestMonthDay",
+  ...EVENT_PARAM_KEYS,
   "machineTouched",
   "aimMachineGroup",
   "hanabiMachineGroup",
@@ -41,6 +44,7 @@ const MANAGED_PARAM_KEYS = [
   "showGraph",
 ];
 const MANAGED_PARAM_KEY_SET = new Set(MANAGED_PARAM_KEYS);
+const EVENT_PARAM_KEY_SET = new Set(EVENT_PARAM_KEYS);
 
 function storageKeyForStore(storeId) {
   return `${STORAGE_KEY_PREFIX}${storeId}`;
@@ -104,6 +108,41 @@ function readStateFromForm(form) {
 
 function hasManagedSearchParams(searchParams) {
   return MANAGED_PARAM_KEYS.some((key) => searchParams.has(key));
+}
+
+function hasEventEntries(entries) {
+  return normalizeStateEntries(entries).some(([key]) => EVENT_PARAM_KEY_SET.has(key));
+}
+
+function getEventEntries(entries) {
+  return normalizeStateEntries(entries).filter(([key]) => EVENT_PARAM_KEY_SET.has(key));
+}
+
+function mergeSavedEventEntries(entries, savedEntries) {
+  if (hasEventEntries(entries)) {
+    return normalizeStateEntries(entries);
+  }
+
+  const eventEntries = getEventEntries(savedEntries);
+  if (eventEntries.length === 0) {
+    return normalizeStateEntries(entries);
+  }
+
+  const baseEntries = normalizeStateEntries(entries).filter(([key]) => !EVENT_PARAM_KEY_SET.has(key));
+  return [...baseEntries, ...eventEntries];
+}
+
+function entriesAreEqual(leftEntries, rightEntries) {
+  const leftNormalizedEntries = normalizeStateEntries(leftEntries);
+  const rightNormalizedEntries = normalizeStateEntries(rightEntries);
+  if (leftNormalizedEntries.length !== rightNormalizedEntries.length) {
+    return false;
+  }
+
+  return leftNormalizedEntries.every(
+    ([key, value], index) =>
+      key === rightNormalizedEntries[index]?.[0] && value === rightNormalizedEntries[index]?.[1],
+  );
 }
 
 function saveState(storeId, entries) {
@@ -197,7 +236,15 @@ export function HuntBacktestFormStateSync({ storeId, formId, formStateKey = "" }
     }
 
     if (hasManagedSearchParams(searchParams)) {
-      saveState(storeId, readStateFromSearchParams(searchParams));
+      const searchEntries = readStateFromSearchParams(searchParams);
+      const savedEntries = readSavedState(storeId);
+      const mergedEntries = mergeSavedEventEntries(searchEntries, savedEntries);
+      saveState(storeId, mergedEntries);
+      if (!entriesAreEqual(searchEntries, mergedEntries)) {
+        const nextSearchParams = applyStateToSearchParams(searchParams, mergedEntries);
+        const queryText = nextSearchParams.toString();
+        router.replace(queryText ? `${pathname}?${queryText}` : pathname, { scroll: false });
+      }
       return;
     }
 
