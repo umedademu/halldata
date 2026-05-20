@@ -3052,6 +3052,7 @@ function buildCrossStoreBacktestRow(store, backtest, slotCount) {
     gamesTotal: total.gamesTotal,
     averageGames: total.averageGames,
     averageSetting: total.averageSetting,
+    setting35PlusRate: total.setting35PlusRate,
     setting4PlusRate: total.setting4PlusRate,
     setting45PlusRate: total.setting45PlusRate,
     setting5PlusRate: total.setting5PlusRate,

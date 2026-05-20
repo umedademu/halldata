@@ -127,10 +127,11 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
                 合成
               </SortableTableHeader>
               <SortableTableHeader columnIndex={14}>機械割</SortableTableHeader>
-              <SortableTableHeader columnIndex={15}>設定</SortableTableHeader>
-              <SortableTableHeader columnIndex={16}>推定4+</SortableTableHeader>
-              <SortableTableHeader columnIndex={17}>推定4.5+</SortableTableHeader>
-              <SortableTableHeader columnIndex={18}>推定5+</SortableTableHeader>
+              <SortableTableHeader columnIndex={15}>平均設定</SortableTableHeader>
+              <SortableTableHeader columnIndex={16}>推定3.5+</SortableTableHeader>
+              <SortableTableHeader columnIndex={17}>推定4.0+</SortableTableHeader>
+              <SortableTableHeader columnIndex={18}>推定4.5+</SortableTableHeader>
+              <SortableTableHeader columnIndex={19}>推定5.0+</SortableTableHeader>
             </tr>
           </thead>
           <tbody>
@@ -151,6 +152,7 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
               <td data-sort-value={readProbabilitySortValue(backtest.total.combinedProbability)}>{backtest.total.combinedProbability ?? "-"}</td>
               <td data-sort-value={readSortNumber(backtest.total.payoutRate)}>{formatPercent(backtest.total.payoutRate)}</td>
               <td data-sort-value={readSortNumber(backtest.total.averageSetting)}>{formatSettingEstimateScore(backtest.total.averageSetting)}</td>
+              <td data-sort-value={readSortNumber(backtest.total.setting35PlusRate)}>{formatPercent(backtest.total.setting35PlusRate)}</td>
               <td data-sort-value={readSortNumber(backtest.total.setting4PlusRate)}>{formatPercent(backtest.total.setting4PlusRate)}</td>
               <td data-sort-value={readSortNumber(backtest.total.setting45PlusRate)}>{formatPercent(backtest.total.setting45PlusRate)}</td>
               <td data-sort-value={readSortNumber(backtest.total.setting5PlusRate)}>{formatPercent(backtest.total.setting5PlusRate)}</td>
@@ -189,6 +191,7 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
                   <td data-sort-value={readProbabilitySortValue(summary.combinedProbability)}>{summary.combinedProbability ?? "-"}</td>
                   <td data-sort-value={readSortNumber(summary.payoutRate)}>{formatPercent(summary.payoutRate)}</td>
                   <td data-sort-value={readSortNumber(summary.averageSetting)}>{formatSettingEstimateScore(summary.averageSetting)}</td>
+                  <td data-sort-value={readSortNumber(summary.setting35PlusRate)}>{formatPercent(summary.setting35PlusRate)}</td>
                   <td data-sort-value={readSortNumber(summary.setting4PlusRate)}>{formatPercent(summary.setting4PlusRate)}</td>
                   <td data-sort-value={readSortNumber(summary.setting45PlusRate)}>{formatPercent(summary.setting45PlusRate)}</td>
                   <td data-sort-value={readSortNumber(summary.setting5PlusRate)}>{formatPercent(summary.setting5PlusRate)}</td>

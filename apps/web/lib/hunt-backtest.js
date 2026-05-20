@@ -562,6 +562,9 @@ function addSettingEstimateRateMetrics(summary, machineName, nextRecord) {
   }
 
   summary.settingEstimateSampleCount += 1;
+  if (settingAverage >= 3.5) {
+    summary.setting35PlusCount += 1;
+  }
   if (settingAverage >= 4) {
     summary.setting4PlusCount += 1;
   }
@@ -633,9 +636,11 @@ function buildEmptySummary(machineName = "総計") {
     averageSetting: null,
     settingEstimateBuckets: new Map(),
     settingEstimateSampleCount: 0,
+    setting35PlusCount: 0,
     setting4PlusCount: 0,
     setting45PlusCount: 0,
     setting5PlusCount: 0,
+    setting35PlusRate: null,
     setting4PlusRate: null,
     setting45PlusRate: null,
     setting5PlusRate: null,
@@ -665,6 +670,7 @@ function finalizeSummary(summary) {
     rbProbability: formatProbability(summary.gamesTotal, summary.rbTotal),
     combinedProbability: formatProbability(summary.gamesTotal, summary.bbTotal + summary.rbTotal),
     averageSetting: calculateAggregateSettingAverage(summary),
+    setting35PlusRate: calculateAverage(summary.setting35PlusCount * 100, summary.settingEstimateSampleCount),
     setting4PlusRate: calculateAverage(summary.setting4PlusCount * 100, summary.settingEstimateSampleCount),
     setting45PlusRate: calculateAverage(summary.setting45PlusCount * 100, summary.settingEstimateSampleCount),
     setting5PlusRate: calculateAverage(summary.setting5PlusCount * 100, summary.settingEstimateSampleCount),
