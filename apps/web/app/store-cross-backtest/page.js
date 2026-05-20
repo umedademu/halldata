@@ -114,23 +114,26 @@ function StoreRankingTable({ rows, rankingMetric }) {
               <SortableTableHeader columnIndex={6}>合計G数</SortableTableHeader>
               <SortableTableHeader columnIndex={7}>平均G数</SortableTableHeader>
               <SortableTableHeader columnIndex={8}>設定</SortableTableHeader>
-              <SortableTableHeader columnIndex={9}>集計台数</SortableTableHeader>
-              <SortableTableHeader columnIndex={10}>勝率</SortableTableHeader>
-              <SortableTableHeader columnIndex={11}>対象日数</SortableTableHeader>
-              <SortableTableHeader columnIndex={12}>集計日数</SortableTableHeader>
-              <SortableTableHeader columnIndex={13}>対象機種</SortableTableHeader>
-              <SortableTableHeader columnIndex={14}>設置台数</SortableTableHeader>
-              <SortableTableHeader columnIndex={15}>狙い度</SortableTableHeader>
-              <SortableTableHeader columnIndex={16}>次点差</SortableTableHeader>
-              <SortableTableHeader columnIndex={17}>BB</SortableTableHeader>
-              <SortableTableHeader columnIndex={18}>RB</SortableTableHeader>
-              <SortableTableHeader columnIndex={19} initialDirection="asc">
+              <SortableTableHeader columnIndex={9}>推定4+</SortableTableHeader>
+              <SortableTableHeader columnIndex={10}>推定4.5+</SortableTableHeader>
+              <SortableTableHeader columnIndex={11}>推定5+</SortableTableHeader>
+              <SortableTableHeader columnIndex={12}>集計台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={13}>勝率</SortableTableHeader>
+              <SortableTableHeader columnIndex={14}>対象日数</SortableTableHeader>
+              <SortableTableHeader columnIndex={15}>集計日数</SortableTableHeader>
+              <SortableTableHeader columnIndex={16}>対象機種</SortableTableHeader>
+              <SortableTableHeader columnIndex={17}>設置台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={18}>狙い度</SortableTableHeader>
+              <SortableTableHeader columnIndex={19}>次点差</SortableTableHeader>
+              <SortableTableHeader columnIndex={20}>BB</SortableTableHeader>
+              <SortableTableHeader columnIndex={21}>RB</SortableTableHeader>
+              <SortableTableHeader columnIndex={22} initialDirection="asc">
                 BB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={20} initialDirection="asc">
+              <SortableTableHeader columnIndex={23} initialDirection="asc">
                 RB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={21} initialDirection="asc">
+              <SortableTableHeader columnIndex={24} initialDirection="asc">
                 合成
               </SortableTableHeader>
             </tr>
@@ -175,6 +178,15 @@ function StoreRankingTable({ rows, rankingMetric }) {
                 </td>
                 <td data-sort-value={readSortNumber(row.averageSetting)}>
                   {formatSettingEstimateScore(row.averageSetting)}
+                </td>
+                <td data-sort-value={readSortNumber(row.setting4PlusRate)}>
+                  {formatPercent(row.setting4PlusRate)}
+                </td>
+                <td data-sort-value={readSortNumber(row.setting45PlusRate)}>
+                  {formatPercent(row.setting45PlusRate)}
+                </td>
+                <td data-sort-value={readSortNumber(row.setting5PlusRate)}>
+                  {formatPercent(row.setting5PlusRate)}
                 </td>
                 <td data-sort-value={row.actualRowCount}>{formatNumber(row.actualRowCount)}</td>
                 <td data-sort-value={readSortNumber(row.winRate)}>

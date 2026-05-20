@@ -549,6 +549,30 @@ function addAggregateSettingMetrics(summary, machineName, actualMetrics) {
   bucket.rbTotal += actualMetrics.rbCount;
 }
 
+function addSettingEstimateRateMetrics(summary, machineName, nextRecord) {
+  const definition = getSettingEstimateDefinition(machineName);
+  if (!definition) {
+    return;
+  }
+
+  const settingEstimate = calculateSettingEstimate(definition, nextRecord);
+  const settingAverage = settingEstimate?.average;
+  if (!Number.isFinite(settingAverage)) {
+    return;
+  }
+
+  summary.settingEstimateSampleCount += 1;
+  if (settingAverage >= 4) {
+    summary.setting4PlusCount += 1;
+  }
+  if (settingAverage >= 4.5) {
+    summary.setting45PlusCount += 1;
+  }
+  if (settingAverage >= 5) {
+    summary.setting5PlusCount += 1;
+  }
+}
+
 function calculateAggregateSettingAverage(summary) {
   const estimates = [...summary.settingEstimateBuckets.values()]
     .map((bucket) => {
@@ -608,6 +632,13 @@ function buildEmptySummary(machineName = "総計") {
     combinedProbability: null,
     averageSetting: null,
     settingEstimateBuckets: new Map(),
+    settingEstimateSampleCount: 0,
+    setting4PlusCount: 0,
+    setting45PlusCount: 0,
+    setting5PlusCount: 0,
+    setting4PlusRate: null,
+    setting45PlusRate: null,
+    setting5PlusRate: null,
     investedCoinsTotal: 0,
   };
 }
@@ -634,6 +665,9 @@ function finalizeSummary(summary) {
     rbProbability: formatProbability(summary.gamesTotal, summary.rbTotal),
     combinedProbability: formatProbability(summary.gamesTotal, summary.bbTotal + summary.rbTotal),
     averageSetting: calculateAggregateSettingAverage(summary),
+    setting4PlusRate: calculateAverage(summary.setting4PlusCount * 100, summary.settingEstimateSampleCount),
+    setting45PlusRate: calculateAverage(summary.setting45PlusCount * 100, summary.settingEstimateSampleCount),
+    setting5PlusRate: calculateAverage(summary.setting5PlusCount * 100, summary.settingEstimateSampleCount),
   };
 }
 
@@ -920,6 +954,8 @@ function buildBacktestAggregationDetail(
       }
       addAggregateSettingMetrics(summary, row.machineName, actualMetrics);
       addAggregateSettingMetrics(totalSummary, row.machineName, actualMetrics);
+      addSettingEstimateRateMetrics(summary, row.machineName, row.nextRecord);
+      addSettingEstimateRateMetrics(totalSummary, row.machineName, row.nextRecord);
 
       if (actualDate) {
         if (!dailySummariesByDate.has(actualDate)) {
