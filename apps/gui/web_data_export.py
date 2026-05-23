@@ -12,8 +12,16 @@ import tempfile
 from typing import Any
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
-from machine_difference import calculate_machine_difference_value
+from machine_difference import (
+    calculate_estimated_coin_hold_difference_value,
+    calculate_machine_difference_value,
+)
 from r2_storage import R2JsonStorage
+from setting_estimates import (
+    SETTING_ESTIMATE_VALUE_VERSION,
+    calculate_setting_estimate,
+    get_setting_estimate_definition,
+)
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -23,6 +31,8 @@ DEFAULT_STORES_CSV = ROOT_DIR / "stores_rows.csv"
 DEFAULT_RESULTS_CSV = ROOT_DIR / "machine_daily_results_rows.csv"
 WEB_DATA_VERSION = 1
 DATA_SOURCE_SITE7 = "site7"
+SETTING_ESTIMATE_STATUS_CONFIRMED = "confirmed"
+SETTING_ESTIMATE_STATUS_PROVISIONAL = "provisional"
 
 
 class WebDataIndexMissingError(RuntimeError):
@@ -118,6 +128,39 @@ def record_should_be_exported(record: dict[str, Any]) -> bool:
     if data_source.casefold() == DATA_SOURCE_SITE7 and not site7_record_has_meaningful_data(record):
         return False
     return True
+
+
+def add_setting_estimate_fields(
+    record: dict[str, Any],
+    machine_name: str,
+    data_source: str,
+) -> None:
+    definition = get_setting_estimate_definition(machine_name)
+    setting_estimate = calculate_setting_estimate(definition, record) if definition else None
+    setting_average = setting_estimate.get("average") if setting_estimate else None
+    if not isinstance(setting_average, (int, float)):
+        return
+
+    is_site7 = data_source.casefold() == DATA_SOURCE_SITE7
+    status = SETTING_ESTIMATE_STATUS_PROVISIONAL if is_site7 else SETTING_ESTIMATE_STATUS_CONFIRMED
+    source = data_source if data_source else "minrepo"
+    record["setting_estimate_average"] = setting_average
+    record["setting_estimate_status"] = status
+    record["setting_estimate_source"] = source
+    record["setting_estimate_version"] = SETTING_ESTIMATE_VALUE_VERSION
+
+    estimated_difference_value = calculate_estimated_coin_hold_difference_value(
+        machine_name,
+        record,
+        setting_average=setting_average,
+    )
+    if estimated_difference_value is None:
+        return
+
+    record["estimated_difference_value"] = estimated_difference_value
+    record["estimated_difference_status"] = status
+    record["estimated_difference_source"] = source
+    record["estimated_difference_version"] = SETTING_ESTIMATE_VALUE_VERSION
 
 
 def read_prefecture_name(value: dict[str, Any]) -> str:
@@ -270,6 +313,7 @@ def safe_record(
         record["site7_fetched_at"] = fetched_at
     if not record_should_be_exported(record):
         return None
+    add_setting_estimate_fields(record, machine_name, data_source)
     if store_id:
         record["store_id"] = store_id
     return record

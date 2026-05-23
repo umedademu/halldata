@@ -1,222 +1,10 @@
-const SETTING_ESTIMATE_DEFINITIONS = [
-  {
-    key: "neoim-juggler-ex",
-    displayName: "アイムジャグラーEX",
-    matchNames: ["アイムジャグラーEX"],
-    settings: [
-      { setting: 1, label: "設定1", bbText: "1/273.1", rbText: "1/439.8" },
-      { setting: 2, label: "設定2", bbText: "1/269.7", rbText: "1/399.6" },
-      { setting: 3, label: "設定3", bbText: "1/269.7", rbText: "1/331.0" },
-      { setting: 4, label: "設定4", bbText: "1/259.0", rbText: "1/315.1" },
-      { setting: 5, label: "設定5", bbText: "1/259.0", rbText: "1/255.0" },
-      { setting: 6, label: "設定6", bbText: "1/255.0", rbText: "1/255.0" },
-    ],
-  },
-  {
-    key: "sumaslo-hanabi",
-    displayName: "スマスロ ハナビ",
-    matchNames: ["スマスロ ハナビ"],
-    settings: [
-      { setting: 1, label: "設定1", bbText: "1/312.1", rbText: "1/385.5" },
-      { setting: 2, label: "設定2", bbText: "1/303.4", rbText: "1/368.2" },
-      { setting: 5, label: "設定5", bbText: "1/292.6", rbText: "1/348.6" },
-      { setting: 6, label: "設定6", bbText: "1/277.7", rbText: "1/324.4" },
-    ],
-  },
-  {
-    key: "shin-hanabi",
-    displayName: "新ハナビ",
-    matchNames: ["新ハナビ"],
-    settings: [
-      { setting: 1, label: "設定1", bbText: "1/277.7", rbText: "1/356.2" },
-      { setting: 2, label: "設定2", bbText: "1/268.6", rbText: "1/331.0" },
-      { setting: 5, label: "設定5", bbText: "1/256.0", rbText: "1/306.2" },
-      { setting: 6, label: "設定6", bbText: "1/248.2", rbText: "1/280.1" },
-    ],
-  },
-  {
-    key: "sumaslo-thunder-v",
-    displayName: "スマスロ サンダーV",
-    matchNames: ["スマスロ サンダーV", "LサンダーV"],
-    settings: [
-      { setting: 1, label: "設定1", bbText: "1/277.7", rbText: "1/434.0" },
-      { setting: 2, label: "設定2", bbText: "1/275.4", rbText: "1/394.8" },
-      { setting: 5, label: "設定5", bbText: "1/270.8", rbText: "1/344.9" },
-      { setting: 6, label: "設定6", bbText: "1/264.3", rbText: "1/313.6" },
-    ],
-  },
-  {
-    key: "versus-revise",
-    displayName: "バーサスリヴァイズ",
-    matchNames: ["バーサスリヴァイズ", "バーサス リヴァイズ"],
-    settings: [
-      { setting: 1, label: "設定1", bbText: "1/292.6", rbText: "1/374.5" },
-      { setting: 2, label: "設定2", bbText: "1/284.9", rbText: "1/341.3" },
-      { setting: 5, label: "設定5", bbText: "1/275.4", rbText: "1/319.7" },
-      { setting: 6, label: "設定6", bbText: "1/264.3", rbText: "1/292.6" },
-    ],
-  },
-  {
-    key: "hanahana-houou",
-    displayName: "ハナハナホウオウ",
-    matchNames: ["ハナハナホウオウ"],
-    settings: [
-      { setting: 1, label: "設定1", bbText: "1/297", rbText: "1/496" },
-      { setting: 2, label: "設定2", bbText: "1/284", rbText: "1/458" },
-      { setting: 3, label: "設定3", bbText: "1/273", rbText: "1/425" },
-      { setting: 4, label: "設定4", bbText: "1/262", rbText: "1/397" },
-      { setting: 5, label: "設定5", bbText: "1/249", rbText: "1/366" },
-      { setting: 6, label: "設定6", bbText: "1/236", rbText: "1/337" },
-    ],
-  },
-  {
-    key: "new-king-hanahana",
-    displayName: "ニューキングハナハナ",
-    matchNames: ["ニューキングハナハナ", "ニューキングハナハナV"],
-    settings: [
-      { setting: 1, label: "設定1", bbText: "1/299", rbText: "1/496" },
-      { setting: 2, label: "設定2", bbText: "1/291", rbText: "1/471" },
-      { setting: 3, label: "設定3", bbText: "1/281", rbText: "1/442" },
-      { setting: 4, label: "設定4", bbText: "1/268", rbText: "1/409" },
-      { setting: 5, label: "設定V", bbText: "1/253", rbText: "1/372" },
-    ],
-  },
-  {
-    key: "king-hanahana",
-    displayName: "キングハナハナ",
-    matchNames: ["キングハナハナ"],
-    settings: [
-      { setting: 1, label: "設定1", bbText: "1/292", rbText: "1/489" },
-      { setting: 2, label: "設定2", bbText: "1/280", rbText: "1/452" },
-      { setting: 3, label: "設定3", bbText: "1/268", rbText: "1/420" },
-      { setting: 4, label: "設定4", bbText: "1/257", rbText: "1/390" },
-      { setting: 5, label: "設定5", bbText: "1/244", rbText: "1/360" },
-      { setting: 6, label: "設定6", bbText: "1/232", rbText: "1/332" },
-    ],
-  },
-  {
-    key: "star-hanahana",
-    displayName: "スターハナハナ",
-    matchNames: ["スターハナハナ"],
-    settings: [
-      { setting: 1, label: "設定1", bbText: "1/270", rbText: "1/387" },
-      { setting: 2, label: "設定2", bbText: "1/262", rbText: "1/354" },
-      { setting: 3, label: "設定3", bbText: "1/252", rbText: "1/322" },
-      { setting: 4, label: "設定4", bbText: "1/240", rbText: "1/293" },
-      { setting: 5, label: "設定5", bbText: "1/229", rbText: "1/267" },
-      { setting: 6, label: "設定6", bbText: "1/218", rbText: "1/242" },
-    ],
-  },
-  {
-    key: "dragon-hanahana-senkou",
-    displayName: "ドラゴンハナハナ～閃光～",
-    matchNames: [
-      "ドラゴンハナハナ～閃光～",
-      "ドラゴンハナハナ閃光",
-      "ドラゴンハナハナ～閃光～30",
-      "ドラゴンハナハナ閃光30",
-    ],
-    settings: [
-      { setting: 1, label: "設定1", bbText: "1/256", rbText: "1/642" },
-      { setting: 2, label: "設定2", bbText: "1/246", rbText: "1/585" },
-      { setting: 3, label: "設定3", bbText: "1/235", rbText: "1/537" },
-      { setting: 4, label: "設定4", bbText: "1/224", rbText: "1/489" },
-      { setting: 5, label: "設定5", bbText: "1/212", rbText: "1/442" },
-      { setting: 6, label: "設定6", bbText: "1/199", rbText: "1/399" },
-    ],
-  },
-  {
-    key: "funky-juggler-2",
-    displayName: "ファンキージャグラー2",
-    matchNames: ["ファンキージャグラー2"],
-    settings: [
-      { setting: 1, label: "設定1", bbText: "1/266.4", rbText: "1/439.8" },
-      { setting: 2, label: "設定2", bbText: "1/259.0", rbText: "1/407.1" },
-      { setting: 3, label: "設定3", bbText: "1/256.0", rbText: "1/366.1" },
-      { setting: 4, label: "設定4", bbText: "1/249.2", rbText: "1/322.8" },
-      { setting: 5, label: "設定5", bbText: "1/240.1", rbText: "1/299.3" },
-      { setting: 6, label: "設定6", bbText: "1/219.9", rbText: "1/262.1" },
-    ],
-  },
-  {
-    key: "my-juggler-v",
-    displayName: "マイジャグラーV",
-    matchNames: ["マイジャグラー"],
-    settings: [
-      { setting: 1, label: "設定1", bbText: "1/273.1", rbText: "1/409.6" },
-      { setting: 2, label: "設定2", bbText: "1/270.8", rbText: "1/385.5" },
-      { setting: 3, label: "設定3", bbText: "1/266.4", rbText: "1/336.1" },
-      { setting: 4, label: "設定4", bbText: "1/254.0", rbText: "1/290.0" },
-      { setting: 5, label: "設定5", bbText: "1/240.1", rbText: "1/268.6" },
-      { setting: 6, label: "設定6", bbText: "1/229.1", rbText: "1/229.1" },
-    ],
-  },
-  {
-    key: "happy-juggler-v",
-    displayName: "ハッピージャグラーV",
-    matchNames: ["ハッピージャグラー"],
-    settings: [
-      { setting: 1, label: "設定1", bbText: "1/273.1", rbText: "1/397.2" },
-      { setting: 2, label: "設定2", bbText: "1/270.8", rbText: "1/362.1" },
-      { setting: 3, label: "設定3", bbText: "1/263.2", rbText: "1/332.7" },
-      { setting: 4, label: "設定4", bbText: "1/254.0", rbText: "1/300.6" },
-      { setting: 5, label: "設定5", bbText: "1/239.2", rbText: "1/273.1" },
-      { setting: 6, label: "設定6", bbText: "1/226.0", rbText: "1/256.0" },
-    ],
-  },
-  {
-    key: "gogo-juggler",
-    displayName: "ゴーゴージャグラー",
-    matchNames: ["ゴーゴージャグラー"],
-    settings: [
-      { setting: 1, label: "設定1", bbText: "1/259.0", rbText: "1/354.2" },
-      { setting: 2, label: "設定2", bbText: "1/258.0", rbText: "1/332.7" },
-      { setting: 3, label: "設定3", bbText: "1/257.0", rbText: "1/306.2" },
-      { setting: 4, label: "設定4", bbText: "1/254.0", rbText: "1/268.6" },
-      { setting: 5, label: "設定5", bbText: "1/247.3", rbText: "1/247.3" },
-      { setting: 6, label: "設定6", bbText: "1/234.9", rbText: "1/234.9" },
-    ],
-  },
-  {
-    key: "juggler-girls",
-    displayName: "ジャグラーガールズ",
-    matchNames: ["ジャグラーガールズ", "ジャグラーガールズSS"],
-    settings: [
-      { setting: 1, label: "設定1", bbText: "1/273.1", rbText: "1/381.0" },
-      { setting: 2, label: "設定2", bbText: "1/270.8", rbText: "1/350.5" },
-      { setting: 3, label: "設定3", bbText: "1/260.1", rbText: "1/316.6" },
-      { setting: 4, label: "設定4", bbText: "1/250.1", rbText: "1/281.3" },
-      { setting: 5, label: "設定5", bbText: "1/243.6", rbText: "1/270.8" },
-      { setting: 6, label: "設定6", bbText: "1/226.0", rbText: "1/252.1" },
-    ],
-  },
-  {
-    key: "ultra-miracle-juggler",
-    displayName: "ウルトラミラクルジャグラー",
-    matchNames: ["ウルトラミラクルジャグラー"],
-    settings: [
-      { setting: 1, label: "設定1", bbText: "1/267.5", rbText: "1/425.6" },
-      { setting: 2, label: "設定2", bbText: "1/261.1", rbText: "1/402.1" },
-      { setting: 3, label: "設定3", bbText: "1/256.0", rbText: "1/350.5" },
-      { setting: 4, label: "設定4", bbText: "1/242.7", rbText: "1/322.8" },
-      { setting: 5, label: "設定5", bbText: "1/233.2", rbText: "1/297.9" },
-      { setting: 6, label: "設定6", bbText: "1/216.3", rbText: "1/277.7" },
-    ],
-  },
-  {
-    key: "mr-juggler",
-    displayName: "ミスタージャグラー",
-    matchNames: ["ミスタージャグラー"],
-    settings: [
-      { setting: 1, label: "設定1", bbText: "1/268.6", rbText: "1/374.5" },
-      { setting: 2, label: "設定2", bbText: "1/267.5", rbText: "1/354.2" },
-      { setting: 3, label: "設定3", bbText: "1/260.1", rbText: "1/331.0" },
-      { setting: 4, label: "設定4", bbText: "1/249.2", rbText: "1/291.3" },
-      { setting: 5, label: "設定5", bbText: "1/240.9", rbText: "1/257.0" },
-      { setting: 6, label: "設定6", bbText: "1/237.4", rbText: "1/237.4" },
-    ],
-  },
-];
+import settingEstimatesPayload from "../config/setting_estimates.json" with { type: "json" };
+
+export const SETTING_ESTIMATE_VALUE_VERSION = 1;
+
+const SETTING_ESTIMATE_DEFINITIONS = Array.isArray(settingEstimatesPayload?.setting_estimates)
+  ? settingEstimatesPayload.setting_estimates
+  : [];
 
 function parseRateText(value) {
   const denominator = Number(String(value).replace("1/", ""));
@@ -311,6 +99,20 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function readPrecomputedSettingEstimate(record) {
+  const average = readNumber(record?.setting_estimate_average);
+  const version = readNumber(record?.setting_estimate_version);
+  if (!Number.isFinite(average) || version !== SETTING_ESTIMATE_VALUE_VERSION) {
+    return null;
+  }
+
+  return {
+    average,
+    probabilities: [],
+    precomputed: true,
+  };
+}
+
 export function getSettingEstimateScoreRange(definition) {
   const settings = definition?.settingRates
     ?.map((row) => row.setting)
@@ -396,12 +198,20 @@ function calculateLogBinomialProbability(successCount, totalCount, probability) 
 }
 
 export function calculateSettingEstimate(definition, record) {
+  if (!definition) {
+    return null;
+  }
+
+  const precomputedEstimate = readPrecomputedSettingEstimate(record);
+  if (precomputedEstimate) {
+    return precomputedEstimate;
+  }
+
   const games = readNumber(record?.games_count);
   const bbCount = readNumber(record?.bb_count);
   const rbCount = readNumber(record?.rb_count);
 
   if (
-    !definition ||
     !Number.isInteger(games) ||
     games <= 0 ||
     !isValidCount(bbCount, games) ||

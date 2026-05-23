@@ -1,5 +1,6 @@
 import differenceRulesPayload from "../config/machine_difference_rules.json" with { type: "json" };
 import {
+  SETTING_ESTIMATE_VALUE_VERSION,
   calculateSettingEstimate,
   getSettingEstimateDefinition,
 } from "./setting-estimates.js";
@@ -219,6 +220,15 @@ function interpolateSettingCoinHold(rule, settingAverage) {
 }
 
 export function calculateEstimatedCoinHoldDifferenceValue(row, machineName = "") {
+  const precomputedDifferenceValue = readDifferenceNumber(row?.estimated_difference_value);
+  const precomputedVersion = readDifferenceNumber(row?.estimated_difference_version);
+  if (
+    precomputedDifferenceValue !== null &&
+    precomputedVersion === SETTING_ESTIMATE_VALUE_VERSION
+  ) {
+    return precomputedDifferenceValue;
+  }
+
   const targetMachineName = String(
     machineName || row?.machine_name || row?.machineName || "",
   ).trim();

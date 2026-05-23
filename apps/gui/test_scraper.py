@@ -45,7 +45,12 @@ from main import (
     scheduled_fetch_due_date,
     site7_schedule_due_hour,
 )
-from machine_difference import calculate_machine_difference_value, canonical_machine_name, machine_is_site7_target
+from machine_difference import (
+    calculate_estimated_coin_hold_difference_value,
+    calculate_machine_difference_value,
+    canonical_machine_name,
+    machine_is_site7_target,
+)
 from minrepo_scraper import (
     FetchProgress,
     MachineDataset,
@@ -75,6 +80,7 @@ from site7_scraper import (
     site7_store_is_known_unavailable,
 )
 from site7_scraper import build_site7_transition_wait_milliseconds
+from setting_estimates import SETTING_ESTIMATE_VALUE_VERSION
 from web_data_export import (
     StoreSource,
     build_store_id,
@@ -1390,6 +1396,18 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertEqual(difference_value, -852)
 
+    def test_calculate_estimated_coin_hold_difference_value_for_registered_machine(self) -> None:
+        difference_value = calculate_estimated_coin_hold_difference_value(
+            "マイジャグラーV",
+            {
+                "games_count": 5454,
+                "bb_count": 25,
+                "rb_count": 12,
+            },
+        )
+
+        self.assertEqual(difference_value, 776)
+
     def test_canonical_machine_name_matches_site7_keyword(self) -> None:
         self.assertEqual(canonical_machine_name("SアイムジャグラーＥＸ", site7_only=True), "SアイムジャグラーＥＸ")
         self.assertEqual(canonical_machine_name("ネオアイムジャグラーEX", site7_only=True), "ネオアイムジャグラーEX")
@@ -2193,6 +2211,30 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertIsNotNone(record)
         self.assertEqual(record["site7_fetched_at"], "2026-05-17T12:34:56+09:00")
+        self.assertEqual(record["setting_estimate_status"], "provisional")
+        self.assertEqual(record["estimated_difference_status"], "provisional")
+
+    def test_web_export_adds_setting_estimate_values(self) -> None:
+        record = safe_record(
+            {
+                "target_date": "2026-05-12",
+                "slot_number": "821",
+                "machine_name": "マイジャグラーV",
+                "games_count": 5454,
+                "bb_count": 25,
+                "rb_count": 12,
+            }
+        )
+
+        self.assertIsNotNone(record)
+        self.assertAlmostEqual(record["setting_estimate_average"], 2.3920680616849204)
+        self.assertEqual(record["setting_estimate_status"], "confirmed")
+        self.assertEqual(record["setting_estimate_source"], "minrepo")
+        self.assertEqual(record["setting_estimate_version"], SETTING_ESTIMATE_VALUE_VERSION)
+        self.assertEqual(record["estimated_difference_value"], 776)
+        self.assertEqual(record["estimated_difference_status"], "confirmed")
+        self.assertEqual(record["estimated_difference_source"], "minrepo")
+        self.assertEqual(record["estimated_difference_version"], SETTING_ESTIMATE_VALUE_VERSION)
 
     def test_local_snapshot_export_uses_snapshot_saved_at_for_site7_records(self) -> None:
         with TemporaryDirectory() as temp_dir:
@@ -3309,6 +3351,7 @@ class MinRepoScraperTests(unittest.TestCase):
                         "slot_number": "737",
                         "machine_name": "ゴーゴージャグラー３",
                         "data_source": DATA_SOURCE_SITE7,
+                        "games_count": 1000,
                         "payout_rate": None,
                     },
                     {

@@ -8,6 +8,7 @@ import re
 from typing import Any
 
 from minrepo_scraper import normalize_text
+from setting_estimates import calculate_setting_estimate, get_setting_estimate_definition
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -78,6 +79,42 @@ def calculate_machine_difference_value(machine_name: str, row_values: dict[str, 
     return int(difference_value)
 
 
+def calculate_estimated_coin_hold_difference_value(
+    machine_name: str,
+    row_values: dict[str, Any],
+    *,
+    setting_average: float | int | None = None,
+) -> int | None:
+    rule = find_machine_difference_rule(machine_name)
+    if rule is None:
+        return None
+
+    if setting_average is None:
+        definition = get_setting_estimate_definition(machine_name)
+        setting_estimate = calculate_setting_estimate(definition, row_values) if definition else None
+        setting_average = setting_estimate.get("average") if setting_estimate else None
+    setting_average_decimal = _parse_decimal_value(setting_average)
+    coin_hold = _interpolate_setting_coin_hold(rule, setting_average_decimal)
+    investment_coins = _parse_decimal_value(rule.get("investment_coins"))
+    games_count = _read_decimal_value(row_values, "G数", "games_count")
+    total_bonus_payout = _calculate_bonus_payout(rule, row_values)
+    if (
+        coin_hold is None
+        or investment_coins is None
+        or games_count is None
+        or total_bonus_payout is None
+    ):
+        return None
+
+    difference_value = (total_bonus_payout - games_count * investment_coins / coin_hold).quantize(
+        Decimal("1"),
+        rounding=ROUND_HALF_UP,
+    )
+    if difference_value == Decimal("-0"):
+        difference_value = Decimal("0")
+    return int(difference_value)
+
+
 def format_machine_difference_value(value: int | None) -> str:
     if value is None:
         return "-"
@@ -121,6 +158,69 @@ def list_site7_target_machine_keywords() -> list[str]:
 
 def machine_is_site7_target(machine_name: str) -> bool:
     return find_machine_difference_rule(machine_name, site7_only=True) is not None
+
+
+def _calculate_bonus_payout(rule: dict[str, Any], row_values: dict[str, Any]) -> Decimal | None:
+    bonus_payouts = rule.get("bonus_payouts", {})
+    if not isinstance(bonus_payouts, dict) or not bonus_payouts:
+        return None
+
+    total_bonus_payout = Decimal("0")
+    for bonus_label, payout_value in bonus_payouts.items():
+        payout_coins = _parse_decimal_value(payout_value)
+        hit_count = _read_decimal_value(
+            row_values,
+            str(bonus_label),
+            f"{str(bonus_label).lower()}_count",
+        )
+        if payout_coins is None or hit_count is None:
+            return None
+        total_bonus_payout += hit_count * payout_coins
+    return total_bonus_payout
+
+
+def _read_setting_coin_hold_rows(rule: dict[str, Any]) -> list[tuple[Decimal, Decimal]]:
+    setting_coin_holds = rule.get("setting_coin_holds", {})
+    if not isinstance(setting_coin_holds, dict):
+        return []
+
+    rows: list[tuple[Decimal, Decimal]] = []
+    for setting, coin_hold in setting_coin_holds.items():
+        setting_value = _parse_decimal_value(setting)
+        coin_hold_value = _parse_decimal_value(coin_hold)
+        if setting_value is None or coin_hold_value is None or coin_hold_value <= 0:
+            continue
+        rows.append((setting_value, coin_hold_value))
+    return sorted(rows, key=lambda row: row[0])
+
+
+def _interpolate_setting_coin_hold(
+    rule: dict[str, Any],
+    setting_average: Decimal | None,
+) -> Decimal | None:
+    coin_hold_rows = _read_setting_coin_hold_rows(rule)
+    if setting_average is None or not coin_hold_rows:
+        return None
+
+    first_setting, first_coin_hold = coin_hold_rows[0]
+    last_setting, last_coin_hold = coin_hold_rows[-1]
+    if setting_average <= first_setting:
+        return first_coin_hold
+    if setting_average >= last_setting:
+        return last_coin_hold
+
+    for index in range(len(coin_hold_rows) - 1):
+        left_setting, left_coin_hold = coin_hold_rows[index]
+        right_setting, right_coin_hold = coin_hold_rows[index + 1]
+        if setting_average < left_setting or setting_average > right_setting:
+            continue
+        setting_width = right_setting - left_setting
+        if setting_width <= 0:
+            return left_coin_hold
+        progress = (setting_average - left_setting) / setting_width
+        return left_coin_hold + (right_coin_hold - left_coin_hold) * progress
+
+    return None
 
 
 def _machine_name_matches_rule(normalized_machine_name: str, rule: dict[str, Any]) -> bool:
