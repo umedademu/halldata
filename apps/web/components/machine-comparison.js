@@ -1485,7 +1485,7 @@ function HuntScoreHighlightControls({
               checked={options.rankScope === "selected"}
               onChange={() => updateOption("rankScope", "selected")}
             />
-            <span>チェック機種内順位</span>
+            <span>全機種内順位</span>
           </label>
           <label
             className={`metricToggleChip ${
@@ -1533,7 +1533,7 @@ function HuntScoreHighlightControls({
               checked={options.nextGapScope === "selected"}
               onChange={() => updateOption("nextGapScope", "selected")}
             />
-            <span>チェック機種内</span>
+            <span>全機種内</span>
           </label>
           <label
             className={`metricToggleChip ${

@@ -840,7 +840,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                   </label>
                 </div>
                 <p className="storeReserveHelp">
-                  ONの場合、日ごとに各機種の機種内狙い度1位台を候補にし、その中で機種内下位境界差が最大の1台だけを選びます。入力済みの機種内順位、チェック機種内順位、狙い度、境界差条件は、その1台への追加条件としてすべて満たした場合だけ集計します。
+                  ONの場合、日ごとに各機種の機種内狙い度1位台を候補にし、その中で機種内下位境界差が最大の1台だけを選びます。入力済みの機種内順位、全機種内順位、狙い度、境界差条件は、その1台への追加条件としてすべて満たした場合だけ集計します。
                 </p>
               </div>
 
@@ -885,7 +885,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                   </label>
                 </div>
                 <div className="huntConditionRow">
-                  <p className="huntConditionLabel">チェック機種内順位</p>
+                  <p className="huntConditionLabel">全機種内順位</p>
                   <div className="huntConditionInputs">
                     <label className="storeReserveField backtestField huntConditionNumberField">
                       <span>開始</span>

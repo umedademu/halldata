@@ -460,9 +460,9 @@ function formatRankScopeLabel(rankScope) {
     return "機種内順位";
   }
   if (rankScope === "selected") {
-    return "チェック機種内順位";
+    return "全機種内順位";
   }
-  return "チェック機種内順位";
+  return "全機種内順位";
 }
 
 function findNextLowerHuntScore(sortedRows, startIndex, currentScore) {
@@ -1013,7 +1013,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
 
   if (normalizedBookmark.hasSelectedRankFilter) {
     parts.push(
-      `チェック機種内順位${normalizedBookmark.selectedRankMin}〜${normalizedBookmark.selectedRankMax}${
+      `全機種内順位${normalizedBookmark.selectedRankMin}〜${normalizedBookmark.selectedRankMax}${
         normalizedBookmark.selectedRankRequired ? "必須" : ""
       }`,
     );

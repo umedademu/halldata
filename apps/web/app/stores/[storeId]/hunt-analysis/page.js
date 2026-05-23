@@ -806,7 +806,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   </label>
                 </div>
                 <div className="huntConditionRow">
-                  <p className="huntConditionLabel">チェック機種内順位</p>
+                  <p className="huntConditionLabel">全機種内順位</p>
                   <div className="huntConditionInputs">
                     <label className="storeReserveField backtestField huntConditionNumberField">
                       <span>開始</span>
@@ -923,7 +923,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                       value="selected"
                       defaultChecked={rankingHighlightOptions.nextGapScope === "selected"}
                     />
-                    <span>チェック機種内</span>
+                    <span>全機種内</span>
                   </label>
                   <label
                     className={`metricToggleChip ${

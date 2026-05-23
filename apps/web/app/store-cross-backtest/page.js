@@ -772,7 +772,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
               </label>
             </div>
             <div className="huntConditionRow">
-              <p className="huntConditionLabel">チェック機種内順位</p>
+              <p className="huntConditionLabel">全機種内順位</p>
               <div className="huntConditionInputs">
                 <label className="storeReserveField backtestField huntConditionNumberField">
                   <span>開始</span>
