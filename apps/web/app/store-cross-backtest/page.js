@@ -142,6 +142,46 @@ function ScopedConditionRow({
   );
 }
 
+function ScoreDifferenceModeOptions({ value }) {
+  return (
+    <div className="metricToggleRow commonConditionModeOptions">
+      <label
+        className={`metricToggleChip ${value === "bonus" ? "metricToggleChipActive" : ""}`}
+      >
+        <input
+          type="radio"
+          name="scoreDifferenceMode"
+          value="bonus"
+          defaultChecked={value === "bonus"}
+        />
+        <span>設定1基準</span>
+      </label>
+      <label
+        className={`metricToggleChip ${value === "estimated" ? "metricToggleChipActive" : ""}`}
+      >
+        <input
+          type="radio"
+          name="scoreDifferenceMode"
+          value="estimated"
+          defaultChecked={value === "estimated"}
+        />
+        <span>推定設定基準</span>
+      </label>
+      <label
+        className={`metricToggleChip ${value === "minrepo" ? "metricToggleChipActive" : ""}`}
+      >
+        <input
+          type="radio"
+          name="scoreDifferenceMode"
+          value="minrepo"
+          defaultChecked={value === "minrepo"}
+        />
+        <span>みんレポ基準</span>
+      </label>
+    </div>
+  );
+}
+
 function CrossStoreNonmatchingRow({ parentKey, summary }) {
   if (!hasNonmatchingSummary(summary)) {
     return null;
@@ -737,15 +777,21 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
           <div className="huntConditionRows">
             <div className="commonConditionPanel">
               <p className="scopedConditionColumnTitle">共通条件</p>
-              <ScopedConditionRow
-                label="狙い度"
-                minName="scoreMin"
-                maxName="scoreMax"
-                requiredName="scoreRequired"
-                minValue={detail.scoreMin}
-                maxValue={detail.scoreMax}
-                requiredValue={detail.scoreRequired}
-              />
+              <div className="commonConditionGrid">
+                <ScopedConditionRow
+                  label="狙い度"
+                  minName="scoreMin"
+                  maxName="scoreMax"
+                  requiredName="scoreRequired"
+                  minValue={detail.scoreMin}
+                  maxValue={detail.scoreMax}
+                  requiredValue={detail.scoreRequired}
+                />
+                <div className="commonConditionMode">
+                  <p className="commonConditionSubLabel">狙い度計算の差枚基準</p>
+                  <ScoreDifferenceModeOptions value={detail.scoreDifferenceMode} />
+                </div>
+              </div>
             </div>
             <div className="scopedConditionColumns">
               <div className="scopedConditionColumn">
@@ -818,51 +864,6 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                   requiredValue={detail.selectedNextGapRequired}
                 />
               </div>
-            </div>
-          </div>
-
-          <div className="backtestBlock">
-            <p className="filterControlLabel">狙い度計算の差枚基準</p>
-            <div className="metricToggleRow">
-              <label
-                className={`metricToggleChip ${
-                  detail.scoreDifferenceMode === "bonus" ? "metricToggleChipActive" : ""
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="scoreDifferenceMode"
-                  value="bonus"
-                  defaultChecked={detail.scoreDifferenceMode === "bonus"}
-                />
-                <span>設定1基準</span>
-              </label>
-              <label
-                className={`metricToggleChip ${
-                  detail.scoreDifferenceMode === "estimated" ? "metricToggleChipActive" : ""
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="scoreDifferenceMode"
-                  value="estimated"
-                  defaultChecked={detail.scoreDifferenceMode === "estimated"}
-                />
-                <span>推定設定基準</span>
-              </label>
-              <label
-                className={`metricToggleChip ${
-                  detail.scoreDifferenceMode === "minrepo" ? "metricToggleChipActive" : ""
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="scoreDifferenceMode"
-                  value="minrepo"
-                  defaultChecked={detail.scoreDifferenceMode === "minrepo"}
-                />
-                <span>みんレポ基準</span>
-              </label>
             </div>
           </div>
 

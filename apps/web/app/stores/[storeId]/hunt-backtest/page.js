@@ -155,6 +155,46 @@ function ScopedConditionRow({
   );
 }
 
+function ScoreDifferenceModeOptions({ value }) {
+  return (
+    <div className="metricToggleRow commonConditionModeOptions">
+      <label
+        className={`metricToggleChip ${value === "bonus" ? "metricToggleChipActive" : ""}`}
+      >
+        <input
+          type="radio"
+          name="scoreDifferenceMode"
+          value="bonus"
+          defaultChecked={value === "bonus"}
+        />
+        <span>設定1基準</span>
+      </label>
+      <label
+        className={`metricToggleChip ${value === "estimated" ? "metricToggleChipActive" : ""}`}
+      >
+        <input
+          type="radio"
+          name="scoreDifferenceMode"
+          value="estimated"
+          defaultChecked={value === "estimated"}
+        />
+        <span>推定設定基準</span>
+      </label>
+      <label
+        className={`metricToggleChip ${value === "minrepo" ? "metricToggleChipActive" : ""}`}
+      >
+        <input
+          type="radio"
+          name="scoreDifferenceMode"
+          value="minrepo"
+          defaultChecked={value === "minrepo"}
+        />
+        <span>みんレポ基準</span>
+      </label>
+    </div>
+  );
+}
+
 function BacktestNonmatchingSummaryRow({ parentKey, summary, label }) {
   if (!hasNonmatchingSummary(summary)) {
     return null;
@@ -850,15 +890,21 @@ export default async function HuntBacktestPage({ params, searchParams }) {
               <div className="huntConditionRows">
                 <div className="commonConditionPanel">
                   <p className="scopedConditionColumnTitle">共通条件</p>
-                  <ScopedConditionRow
-                    label="狙い度"
-                    minName="scoreMin"
-                    maxName="scoreMax"
-                    requiredName="scoreRequired"
-                    minValue={detail.backtest.scoreMin}
-                    maxValue={detail.backtest.scoreMax}
-                    requiredValue={detail.backtest.scoreRequired}
-                  />
+                  <div className="commonConditionGrid">
+                    <ScopedConditionRow
+                      label="狙い度"
+                      minName="scoreMin"
+                      maxName="scoreMax"
+                      requiredName="scoreRequired"
+                      minValue={detail.backtest.scoreMin}
+                      maxValue={detail.backtest.scoreMax}
+                      requiredValue={detail.backtest.scoreRequired}
+                    />
+                    <div className="commonConditionMode">
+                      <p className="commonConditionSubLabel">狙い度計算の差枚基準</p>
+                      <ScoreDifferenceModeOptions value={detail.backtest.scoreDifferenceMode} />
+                    </div>
+                  </div>
                 </div>
                 <div className="scopedConditionColumns">
                   <div className="scopedConditionColumn">
@@ -931,57 +977,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       requiredValue={detail.backtest.selectedNextGapRequired}
                     />
                   </div>
-                </div>
-              </div>
-
-              <div className="backtestBlock">
-                <p className="filterControlLabel">狙い度計算の差枚基準</p>
-                <div className="metricToggleRow">
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.scoreDifferenceMode === "bonus"
-                        ? "metricToggleChipActive"
-                        : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="scoreDifferenceMode"
-                      value="bonus"
-                      defaultChecked={detail.backtest.scoreDifferenceMode === "bonus"}
-                    />
-                    <span>設定1基準</span>
-                  </label>
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.scoreDifferenceMode === "estimated"
-                        ? "metricToggleChipActive"
-                        : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="scoreDifferenceMode"
-                      value="estimated"
-                      defaultChecked={detail.backtest.scoreDifferenceMode === "estimated"}
-                    />
-                    <span>推定設定基準</span>
-                  </label>
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.scoreDifferenceMode === "minrepo"
-                        ? "metricToggleChipActive"
-                        : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="scoreDifferenceMode"
-                      value="minrepo"
-                      defaultChecked={detail.backtest.scoreDifferenceMode === "minrepo"}
-                    />
-                    <span>みんレポ基準</span>
-                  </label>
                 </div>
               </div>
 
