@@ -853,42 +853,50 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                 <span>必須</span>
               </label>
             </div>
-            <BoundaryGapConditionRow
-              label="上位境界差（同一機種内）"
-              minName="machineUpperGapMin"
-              maxName="machineUpperGapMax"
-              requiredName="machineUpperGapRequired"
-              minValue={detail.machineUpperGapMin}
-              maxValue={detail.machineUpperGapMax}
-              requiredValue={detail.machineUpperGapRequired}
-            />
-            <BoundaryGapConditionRow
-              label="下位境界差（同一機種内）"
-              minName="machineNextGapMin"
-              maxName="machineNextGapMax"
-              requiredName="machineNextGapRequired"
-              minValue={detail.machineNextGapMin}
-              maxValue={detail.machineNextGapMax}
-              requiredValue={detail.machineNextGapRequired}
-            />
-            <BoundaryGapConditionRow
-              label="上位境界差（全機種内）"
-              minName="selectedUpperGapMin"
-              maxName="selectedUpperGapMax"
-              requiredName="selectedUpperGapRequired"
-              minValue={detail.selectedUpperGapMin}
-              maxValue={detail.selectedUpperGapMax}
-              requiredValue={detail.selectedUpperGapRequired}
-            />
-            <BoundaryGapConditionRow
-              label="下位境界差（全機種内）"
-              minName="selectedNextGapMin"
-              maxName="selectedNextGapMax"
-              requiredName="selectedNextGapRequired"
-              minValue={detail.selectedNextGapMin}
-              maxValue={detail.selectedNextGapMax}
-              requiredValue={detail.selectedNextGapRequired}
-            />
+            <div className="boundaryGapConditionColumns">
+              <div className="boundaryGapConditionColumn">
+                <p className="boundaryGapConditionColumnTitle">同一機種内</p>
+                <BoundaryGapConditionRow
+                  label="上位境界差"
+                  minName="machineUpperGapMin"
+                  maxName="machineUpperGapMax"
+                  requiredName="machineUpperGapRequired"
+                  minValue={detail.machineUpperGapMin}
+                  maxValue={detail.machineUpperGapMax}
+                  requiredValue={detail.machineUpperGapRequired}
+                />
+                <BoundaryGapConditionRow
+                  label="下位境界差"
+                  minName="machineNextGapMin"
+                  maxName="machineNextGapMax"
+                  requiredName="machineNextGapRequired"
+                  minValue={detail.machineNextGapMin}
+                  maxValue={detail.machineNextGapMax}
+                  requiredValue={detail.machineNextGapRequired}
+                />
+              </div>
+              <div className="boundaryGapConditionColumn">
+                <p className="boundaryGapConditionColumnTitle">全機種内</p>
+                <BoundaryGapConditionRow
+                  label="上位境界差"
+                  minName="selectedUpperGapMin"
+                  maxName="selectedUpperGapMax"
+                  requiredName="selectedUpperGapRequired"
+                  minValue={detail.selectedUpperGapMin}
+                  maxValue={detail.selectedUpperGapMax}
+                  requiredValue={detail.selectedUpperGapRequired}
+                />
+                <BoundaryGapConditionRow
+                  label="下位境界差"
+                  minName="selectedNextGapMin"
+                  maxName="selectedNextGapMax"
+                  requiredName="selectedNextGapRequired"
+                  minValue={detail.selectedNextGapMin}
+                  maxValue={detail.selectedNextGapMax}
+                  requiredValue={detail.selectedNextGapRequired}
+                />
+              </div>
+            </div>
           </div>
 
           <div className="backtestBlock">

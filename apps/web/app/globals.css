@@ -345,6 +345,26 @@ a {
   width: 100%;
 }
 
+.boundaryGapConditionColumns {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+}
+
+.boundaryGapConditionColumn {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.boundaryGapConditionColumnTitle {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
 .huntConditionRow {
   display: grid;
   grid-template-columns: minmax(5.5rem, 7rem) minmax(0, 1fr) auto;
@@ -375,6 +395,19 @@ a {
 .huntConditionRequired {
   align-self: end;
   white-space: nowrap;
+}
+
+.boundaryGapConditionColumns .huntConditionRow {
+  grid-template-columns: minmax(4.75rem, 5.6rem) minmax(0, 1fr) auto;
+}
+
+.boundaryGapConditionColumns .huntConditionInputs {
+  gap: 8px;
+}
+
+.boundaryGapConditionColumns .storeReserveField.huntConditionNumberField {
+  flex-basis: 6.25rem;
+  min-width: 5.75rem;
 }
 
 .storeReserveInput {
@@ -2309,6 +2342,10 @@ a {
   }
 
   .backtestFieldGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .boundaryGapConditionColumns {
     grid-template-columns: 1fr;
   }
 
