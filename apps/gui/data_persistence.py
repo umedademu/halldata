@@ -121,6 +121,19 @@ class SavedFullDayDatesSummary:
         return bool(self.messages)
 
 
+@dataclass
+class FullDaySite7CleanupSummary:
+    checked_store_count: int = 0
+    updated_store_count: int = 0
+    removed_date_count: int = 0
+    removed_dates_by_store: dict[str, list[str]] = field(default_factory=dict)
+    messages: list[str] = field(default_factory=list)
+
+    @property
+    def has_errors(self) -> bool:
+        return bool(self.messages)
+
+
 def normalize_store_url(value: str) -> str:
     text = str(value).strip()
     if not text:
@@ -188,6 +201,16 @@ def _infer_saved_result_data_source(row: dict[str, Any]) -> str:
     if payout_rate in (None, ""):
         return DATA_SOURCE_SITE7
     return DATA_SOURCE_MINREPO
+
+
+def _record_has_site7_data_source(row: dict[str, Any]) -> bool:
+    return str(row.get("data_source", "")).strip().casefold() == DATA_SOURCE_SITE7
+
+
+def _record_has_site7_source(row: dict[str, Any]) -> bool:
+    if _record_has_site7_data_source(row):
+        return True
+    return bool(str(row.get("site7_fetched_at", "")).strip())
 
 
 def choose_preferred_store(candidates: list[dict[str, Any]]) -> dict[str, str] | None:
@@ -327,7 +350,7 @@ def _saved_record_should_be_kept(record: dict[str, Any]) -> bool:
 
 
 def _with_site7_fetched_at(record: dict[str, Any], fetched_at: str) -> dict[str, Any]:
-    if _infer_saved_result_data_source(record) != DATA_SOURCE_SITE7:
+    if not _record_has_site7_data_source(record):
         return record
 
     normalized_fetched_at = str(
@@ -508,6 +531,8 @@ class HistoryPersistenceService:
             entry = self._save_r2_web_data(snapshot)
             if full_day:
                 self._mark_full_day_saved_r2(snapshot, snapshot_key)
+            else:
+                self._clear_full_day_saved_r2_for_snapshot_site7_dates(snapshot)
             summary.web_data_saved = True
             summary.web_data_file_path = self._format_r2_path(str(entry.get("dataFile", "")))
             summary.web_data_record_count = int(entry.get("recordCount") or len(snapshot["records"]))
@@ -571,6 +596,55 @@ class HistoryPersistenceService:
         except Exception as exc:  # noqa: BLE001
             summary.messages.append(f"R2の全機種取得済み確認に失敗しました。\n{exc}")
             return summary
+
+        return summary
+
+    def clear_full_day_saved_dates_with_site7(
+        self,
+        store_name: str = "",
+        store_url: str = "",
+        start_date: str = "0000-00-00",
+        end_date: str = "9999-99-99",
+    ) -> FullDaySite7CleanupSummary:
+        summary = FullDaySite7CleanupSummary()
+        try:
+            stores = self._full_day_site7_cleanup_target_stores(
+                store_name=store_name,
+                store_url=store_url,
+            )
+        except Exception as exc:  # noqa: BLE001
+            summary.messages.append(f"R2の店舗一覧確認に失敗しました。\n{exc}")
+            return summary
+
+        for store in stores:
+            current_store_name = str(store.get("store_name", "")).strip()
+            current_store_url = normalize_store_url(str(store.get("store_url", "")))
+            if not current_store_name and not current_store_url:
+                continue
+            summary.checked_store_count += 1
+            try:
+                saved_entries = self._find_saved_full_day_date_entries_r2(
+                    store_name=current_store_name,
+                    store_url=current_store_url,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+                removed_dates = self._clear_full_day_saved_r2_for_current_site7_dates(
+                    store_name=current_store_name,
+                    store_url=current_store_url,
+                    candidate_dates=set(saved_entries),
+                )
+            except Exception as exc:  # noqa: BLE001
+                display_name = current_store_name or current_store_url
+                summary.messages.append(f"{display_name} の取得済み印整理に失敗しました。\n{exc}")
+                continue
+
+            if not removed_dates:
+                continue
+            display_name = current_store_name or current_store_url
+            summary.updated_store_count += 1
+            summary.removed_date_count += len(removed_dates)
+            summary.removed_dates_by_store[display_name] = removed_dates
 
         return summary
 
@@ -1068,21 +1142,126 @@ class HistoryPersistenceService:
 
         now_text = datetime.now().astimezone().isoformat(timespec="seconds")
         saved_counts_by_date = self._full_day_saved_counts_by_date(snapshot)
+        source_counts_by_date = self._full_day_source_counts_by_date(snapshot)
+        target_dates: list[str] = []
         for date_page in snapshot.get("date_pages", []):
             if not isinstance(date_page, dict):
                 continue
             target_date = str(date_page.get("target_date", "")).strip()
             if not target_date:
                 continue
+            target_dates.append(target_date)
+
+        current_counts_by_date, current_site7_dates = self._full_day_current_saved_state_by_date(
+            store_name=store_name,
+            store_url=store_url,
+            target_dates=set(target_dates),
+        )
+
+        for target_date in target_dates:
             saved_counts = saved_counts_by_date.get(target_date, {"machine_count": 0, "record_count": 0})
+            source_counts = source_counts_by_date.get(target_date, {})
+            current_counts = current_counts_by_date.get(target_date, {"machine_count": 0, "record_count": 0})
+            if (
+                source_counts.get(DATA_SOURCE_SITE7, 0) > 0
+                or target_date in current_site7_dates
+                or saved_counts["record_count"] <= 0
+                or current_counts["record_count"] < saved_counts["record_count"]
+                or current_counts["machine_count"] < saved_counts["machine_count"]
+            ):
+                full_day_dates.pop(target_date, None)
+                continue
+
             full_day_dates[target_date] = {
                 "saved_at": now_text,
-                "machine_count": saved_counts["machine_count"],
-                "record_count": saved_counts["record_count"],
+                "machine_count": current_counts["machine_count"],
+                "record_count": current_counts["record_count"],
                 "snapshot_key": snapshot_key,
+                "data_source": DATA_SOURCE_MINREPO,
             }
 
         self.r2_storage.write_json(index_key, index_payload)
+
+    def _full_day_site7_cleanup_target_stores(
+        self,
+        *,
+        store_name: str = "",
+        store_url: str = "",
+    ) -> list[dict[str, str]]:
+        normalized_store_url = normalize_store_url(store_url)
+        if store_name or normalized_store_url:
+            return [{"store_name": str(store_name).strip(), "store_url": normalized_store_url}]
+
+        payload = self._load_r2_index_payload()
+        stores = payload.get("stores", [])
+        if not isinstance(stores, list):
+            return []
+
+        target_stores: list[dict[str, str]] = []
+        seen_keys: set[tuple[str, str]] = set()
+        for store in stores:
+            if not isinstance(store, dict):
+                continue
+            current_store_name = str(store.get("storeName", store.get("store_name", ""))).strip()
+            current_store_url = normalize_store_url(str(store.get("storeUrl", store.get("store_url", ""))))
+            if not current_store_name and not current_store_url:
+                continue
+            key = (normalize_store_name_key(current_store_name), current_store_url)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            target_stores.append({"store_name": current_store_name, "store_url": current_store_url})
+        return target_stores
+
+    def _clear_full_day_saved_r2_for_snapshot_site7_dates(self, snapshot: dict[str, Any]) -> list[str]:
+        site7_dates = self._full_day_snapshot_site7_dates(snapshot)
+        if not site7_dates:
+            return []
+
+        store_source = self._r2_store_source_from_snapshot(snapshot)
+        return self._clear_full_day_saved_r2_for_current_site7_dates(
+            store_name=store_source.store_name,
+            store_url=store_source.store_url,
+            candidate_dates=site7_dates,
+        )
+
+    def _clear_full_day_saved_r2_for_current_site7_dates(
+        self,
+        *,
+        store_name: str,
+        store_url: str,
+        candidate_dates: set[str],
+    ) -> list[str]:
+        normalized_dates = {str(target_date).strip() for target_date in candidate_dates if str(target_date).strip()}
+        if not normalized_dates:
+            return []
+
+        index_key = self._r2_full_day_index_key(store_name, store_url)
+        index_payload = self.r2_storage.read_json(index_key)
+        if not isinstance(index_payload, dict):
+            return []
+
+        full_day_dates = index_payload.get("full_day_dates", {})
+        if not isinstance(full_day_dates, dict):
+            return []
+
+        indexed_dates = {target_date for target_date in normalized_dates if target_date in full_day_dates}
+        if not indexed_dates:
+            return []
+
+        _, current_site7_dates = self._full_day_current_saved_state_by_date(
+            store_name=store_name,
+            store_url=store_url,
+            target_dates=indexed_dates,
+        )
+        removed_dates = sorted(indexed_dates.intersection(current_site7_dates))
+        if not removed_dates:
+            return []
+
+        for target_date in removed_dates:
+            full_day_dates.pop(target_date, None)
+        self.r2_storage.write_json(index_key, index_payload)
+        return removed_dates
 
     def resolve_preferred_store_by_name(self, store_name: str) -> dict[str, str] | None:
         store_name_key = normalize_store_name_key(store_name)
@@ -1471,9 +1650,20 @@ class HistoryPersistenceService:
         if not isinstance(records, list):
             return counts_by_date
 
+        records_by_key: dict[tuple[str, str], dict[str, Any]] = {}
         for record in records:
             if not isinstance(record, dict):
                 continue
+            if not _saved_record_should_be_kept(record):
+                continue
+            key = self._record_replace_key(record)
+            if key is None:
+                continue
+            existing_record = records_by_key.get(key)
+            if existing_record is None or self._incoming_record_should_replace(existing_record, record):
+                records_by_key[key] = record
+
+        for record in records_by_key.values():
             target_date = str(record.get("target_date", "")).strip()
             if not target_date:
                 continue
@@ -1490,15 +1680,87 @@ class HistoryPersistenceService:
 
         return counts_by_date
 
+    def _full_day_source_counts_by_date(self, snapshot: dict[str, Any]) -> dict[str, dict[str, int]]:
+        counts_by_date: dict[str, dict[str, int]] = {}
+        records = snapshot.get("records", [])
+        if not isinstance(records, list):
+            return counts_by_date
+
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            target_date = str(record.get("target_date", "")).strip()
+            if not target_date:
+                continue
+            data_source = DATA_SOURCE_SITE7 if _record_has_site7_source(record) else DATA_SOURCE_MINREPO
+            counts = counts_by_date.setdefault(
+                target_date,
+                {DATA_SOURCE_MINREPO: 0, DATA_SOURCE_SITE7: 0},
+            )
+            counts[data_source] = counts.get(data_source, 0) + 1
+        return counts_by_date
+
+    def _full_day_snapshot_site7_dates(self, snapshot: dict[str, Any]) -> set[str]:
+        return {
+            target_date
+            for target_date, source_counts in self._full_day_source_counts_by_date(snapshot).items()
+            if source_counts.get(DATA_SOURCE_SITE7, 0) > 0
+        }
+
+    def _full_day_current_saved_state_by_date(
+        self,
+        *,
+        store_name: str,
+        store_url: str,
+        target_dates: set[str],
+    ) -> tuple[dict[str, dict[str, int]], set[str]]:
+        normalized_dates = {str(target_date).strip() for target_date in target_dates if str(target_date).strip()}
+        if not normalized_dates:
+            return {}, set()
+
+        counts_by_date: dict[str, dict[str, int]] = {}
+        machine_names_by_date: dict[str, set[str]] = {}
+        site7_dates: set[str] = set()
+        for record in self._iter_r2_store_records(
+            store_name=store_name,
+            store_url=store_url,
+            start_date=min(normalized_dates),
+            end_date=max(normalized_dates),
+            include_empty_site7=True,
+        ):
+            target_date = str(record.get("target_date", "")).strip()
+            if target_date not in normalized_dates:
+                continue
+            if _record_has_site7_source(record):
+                site7_dates.add(target_date)
+                continue
+
+            counts = counts_by_date.setdefault(target_date, {"machine_count": 0, "record_count": 0})
+            counts["record_count"] += 1
+            machine_name = str(record.get("machine_name", "")).strip()
+            if machine_name:
+                machine_names_by_date.setdefault(target_date, set()).add(machine_name)
+
+        for target_date, machine_names in machine_names_by_date.items():
+            counts_by_date.setdefault(target_date, {"machine_count": 0, "record_count": 0})
+            counts_by_date[target_date]["machine_count"] = len(machine_names)
+        return counts_by_date, site7_dates
+
     def _find_incomplete_full_day_dates(
         self,
         saved_date_entries: dict[str, dict[str, Any]],
     ) -> set[str]:
         record_counts: dict[str, int] = {}
         machine_counts: dict[str, int] = {}
+        incomplete_dates: set[str] = set()
         for target_date, entry in saved_date_entries.items():
             if not isinstance(entry, dict):
                 continue
+            data_source = str(entry.get("data_source", "")).strip()
+            if data_source and data_source != DATA_SOURCE_MINREPO:
+                incomplete_dates.add(target_date)
+            if entry.get("has_site7_records") is True:
+                incomplete_dates.add(target_date)
             record_count = self._coerce_saved_full_day_record_count(entry.get("record_count"))
             if record_count is not None:
                 record_counts[target_date] = record_count
@@ -1506,10 +1768,12 @@ class HistoryPersistenceService:
             if machine_count is not None:
                 machine_counts[target_date] = machine_count
 
-        incomplete_dates = self._find_low_saved_count_dates(
-            record_counts,
-            ratio=FULL_DAY_INCOMPLETE_RECORD_RATIO,
-            min_reference_count=FULL_DAY_INCOMPLETE_MIN_REFERENCE_RECORD_COUNT,
+        incomplete_dates.update(
+            self._find_low_saved_count_dates(
+                record_counts,
+                ratio=FULL_DAY_INCOMPLETE_RECORD_RATIO,
+                min_reference_count=FULL_DAY_INCOMPLETE_MIN_REFERENCE_RECORD_COUNT,
+            )
         )
         incomplete_dates.update(
             self._find_low_saved_count_dates(
