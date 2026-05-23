@@ -98,37 +98,35 @@ function ScopedConditionRow({
   inputStep = "0.1",
 }) {
   return (
-    <div className="huntConditionRow">
-      <p className="huntConditionLabel">{label}</p>
-      <div className="huntConditionInputs">
-        <label className="storeReserveField backtestField huntConditionNumberField">
-          <span>{minLabel}</span>
-          <input
-            type="number"
-            name={minName}
-            min={inputMin}
-            max={inputMax}
-            step={inputStep}
-            defaultValue={minValue ?? ""}
-            className="storeReserveInput"
-          />
-        </label>
-        <label className="storeReserveField backtestField huntConditionNumberField">
-          <span>{maxLabel}</span>
-          <input
-            type="number"
-            name={maxName}
-            min={inputMin}
-            max={inputMax}
-            step={inputStep}
-            defaultValue={maxValue ?? ""}
-            className="storeReserveInput"
-          />
-        </label>
-      </div>
+    <div className="scopedConditionRow">
+      <p className="scopedConditionLabel">{label}</p>
+      <label className="scopedConditionField">
+        <span>{minLabel}</span>
+        <input
+          type="number"
+          name={minName}
+          min={inputMin}
+          max={inputMax}
+          step={inputStep}
+          defaultValue={minValue ?? ""}
+          className="storeReserveInput"
+        />
+      </label>
+      <label className="scopedConditionField">
+        <span>{maxLabel}</span>
+        <input
+          type="number"
+          name={maxName}
+          min={inputMin}
+          max={inputMax}
+          step={inputStep}
+          defaultValue={maxValue ?? ""}
+          className="storeReserveInput"
+        />
+      </label>
       <input type="hidden" name={requiredName} value="0" />
       <label
-        className={`metricToggleChip huntConditionRequired ${
+        className={`metricToggleChip scopedConditionRequired ${
           requiredValue ? "metricToggleChipActive" : ""
         }`}
       >
@@ -737,7 +735,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
           </div>
 
           <div className="huntConditionRows">
-            <div className="huntConditionRow">
+            <div className="huntConditionRow huntConditionRowCompact">
               <p className="huntConditionLabel">狙い度</p>
               <div className="huntConditionInputs">
                 <label className="storeReserveField backtestField huntConditionNumberField">

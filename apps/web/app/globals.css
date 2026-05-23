@@ -347,22 +347,75 @@ a {
 
 .scopedConditionColumns {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   width: 100%;
+  max-width: 70rem;
 }
 
 .scopedConditionColumn {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.72);
 }
 
 .scopedConditionColumnTitle {
   margin: 0;
   color: var(--text);
-  font-size: 0.86rem;
+  font-size: 0.9rem;
   font-weight: 900;
+  line-height: 1.2;
+}
+
+.scopedConditionRow {
+  display: grid;
+  grid-template-columns: minmax(5.2rem, 6.4rem) minmax(5.5rem, 1fr) minmax(5.5rem, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  min-width: 0;
+  padding-top: 6px;
+}
+
+.scopedConditionRow + .scopedConditionRow {
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.scopedConditionLabel {
+  display: flex;
+  align-items: center;
+  min-height: 2.35rem;
+  margin: 0;
+  padding-top: 1rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.scopedConditionField {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.scopedConditionField .storeReserveInput {
+  min-height: 2.35rem;
+  padding: 7px 10px;
+  font-size: 0.96rem;
+}
+
+.scopedConditionRequired {
+  align-self: end;
+  justify-content: center;
+  min-height: 2.35rem;
+  padding: 7px 10px;
+  white-space: nowrap;
 }
 
 .huntConditionRow {
@@ -370,6 +423,11 @@ a {
   grid-template-columns: minmax(5.5rem, 7rem) minmax(0, 1fr) auto;
   gap: 10px;
   align-items: end;
+}
+
+.huntConditionRowCompact {
+  grid-template-columns: minmax(5.5rem, 7rem) max-content auto;
+  justify-content: start;
 }
 
 .huntConditionLabel {
@@ -397,17 +455,13 @@ a {
   white-space: nowrap;
 }
 
-.scopedConditionColumns .huntConditionRow {
-  grid-template-columns: minmax(4.75rem, 5.6rem) minmax(0, 1fr) auto;
+.huntConditionRowCompact .huntConditionInputs {
+  flex-wrap: nowrap;
 }
 
-.scopedConditionColumns .huntConditionInputs {
-  gap: 8px;
-}
-
-.scopedConditionColumns .storeReserveField.huntConditionNumberField {
-  flex-basis: 6.25rem;
-  min-width: 5.75rem;
+.huntConditionRowCompact .storeReserveField.huntConditionNumberField {
+  flex: 0 0 12.5rem;
+  min-width: 8rem;
 }
 
 .storeReserveInput {
@@ -2347,6 +2401,16 @@ a {
 
   .scopedConditionColumns {
     grid-template-columns: 1fr;
+  }
+
+  .scopedConditionRow {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+
+  .scopedConditionLabel {
+    grid-column: 1 / -1;
+    min-height: 0;
+    padding-top: 0;
   }
 
   .huntConditionRow {
