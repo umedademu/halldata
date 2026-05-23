@@ -45,7 +45,73 @@ function turnMachineFilterCategoryOff(form, category) {
   );
 }
 
-export function AllMachineFilterButtons() {
+function turnMachineFilterSlotCountOn(form, minSlotCount) {
+  const threshold = Number(minSlotCount);
+  if (!Number.isFinite(threshold) || threshold <= 0) {
+    return;
+  }
+
+  updateMachineFilterChecks(form, (input, currentChecked) => {
+    const slotCount = Number(input.dataset.machineSlotCount);
+    return Number.isFinite(slotCount) && slotCount >= threshold ? true : currentChecked;
+  });
+}
+
+function SlotCountMachineFilterAction() {
+  const selectBySlotCount = (event) => {
+    const root = event.currentTarget.closest(".machineFilterSlotAction");
+    const input = root?.querySelector('input[data-machine-slot-threshold="1"]');
+    if (!input || !input.reportValidity()) {
+      return;
+    }
+
+    turnMachineFilterSlotCountOn(event.currentTarget.closest("form"), input.value);
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    event.preventDefault();
+    const button = event.currentTarget
+      .closest(".machineFilterSlotAction")
+      ?.querySelector('button[data-machine-slot-action="1"]');
+    button?.click();
+  };
+
+  return (
+    <div className="machineFilterSlotAction">
+      <label className="machineFilterSlotField">
+        <span>設置台数</span>
+        <span className="machineFilterSlotInputWrap">
+          <input
+            type="number"
+            min="1"
+            step="1"
+            placeholder="8"
+            inputMode="numeric"
+            className="machineFilterSlotInput"
+            data-machine-slot-threshold="1"
+            aria-label="ONにする機種の設置台数下限"
+            onKeyDown={handleKeyDown}
+          />
+          <span>台以上</span>
+        </span>
+      </label>
+      <button
+        type="button"
+        className="storeReserveButton storeReserveButtonSecondary machineFilterAction"
+        data-machine-slot-action="1"
+        onClick={selectBySlotCount}
+      >
+        該当機種をON
+      </button>
+    </div>
+  );
+}
+
+export function AllMachineFilterButtons({ enableSlotCountSelection = false }) {
   const selectAll = (event) => {
     setMachineFilterChecks(event.currentTarget.closest("form"), true);
   };
@@ -72,6 +138,7 @@ export function AllMachineFilterButtons() {
       >
         全てのチェックをOFF
       </button>
+      {enableSlotCountSelection ? <SlotCountMachineFilterAction /> : null}
     </div>
   );
 }

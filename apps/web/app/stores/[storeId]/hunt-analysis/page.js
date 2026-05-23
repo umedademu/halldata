@@ -693,7 +693,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   {hasHanabiGroupOption ? (
                     <input type="hidden" name="hanabiMachineGroup" value="0" />
                   ) : null}
-                  <AllMachineFilterButtons />
+                  <AllMachineFilterButtons enableSlotCountSelection />
                   <div className="machineFilterGroups">
                     {machineOptionGroups.map((group) => (
                       <div key={group.key} className="machineFilterGroup">
@@ -755,6 +755,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                                 defaultChecked={machine.checked}
                                 data-machine-filter-option="1"
                                 data-machine-category={machine.category}
+                                data-machine-slot-count={machine.slotCount ?? ""}
                               />
                               <span>{machine.optionLabel}</span>
                             </label>

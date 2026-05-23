@@ -790,7 +790,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                 <input type="hidden" name="machineTouched" value="1" />
                 <input type="hidden" name="aimMachineGroup" value="0" />
                 <input type="hidden" name="hanabiMachineGroup" value="0" />
-                <AllMachineFilterButtons />
+                <AllMachineFilterButtons enableSlotCountSelection />
                 <div className="machineFilterGroups">
                   {machineOptionGroups.map((group) => (
                     <div key={group.key} className="machineFilterGroup">
@@ -852,6 +852,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                               defaultChecked={machine.checked}
                               data-machine-filter-option="1"
                               data-machine-category={machine.category}
+                              data-machine-slot-count={machine.slotCount ?? ""}
                             />
                             <span>{machine.optionLabel}</span>
                           </label>

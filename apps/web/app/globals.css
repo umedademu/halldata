@@ -1247,6 +1247,52 @@ a {
   font-size: 0.9rem;
 }
 
+.machineFilterSlotAction {
+  display: inline-flex;
+  align-items: end;
+  gap: 8px;
+}
+
+.machineFilterSlotField {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.machineFilterSlotInputWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 2.4rem;
+  padding: 5px 10px;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--muted);
+}
+
+.machineFilterSlotInput {
+  width: 4.25rem;
+  min-height: 1.8rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.96rem;
+}
+
+.machineFilterSlotInput:focus {
+  outline: none;
+}
+
+.machineFilterSlotInputWrap:focus-within {
+  border-color: rgba(37, 99, 165, 0.46);
+  box-shadow: 0 0 0 3px rgba(37, 99, 165, 0.1);
+}
+
 .machineComparisonFilterPanel .machineFilterAction {
   min-height: 2.12rem;
   padding: 6px 9px;
