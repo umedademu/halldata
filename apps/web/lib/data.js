@@ -3,11 +3,10 @@ import { cache } from "react";
 import { createEventFilters } from "./event-filters";
 import { buildHuntScoreBacktestDetail } from "./hunt-backtest";
 import {
+  buildBoundaryGapFilters,
   buildConditionRequirementOptions,
-  buildNextGapFilter,
   buildScoreFilter,
   buildScopedRankFilters,
-  buildUpperGapFilter,
 } from "./hunt-bookmark";
 import {
   buildHuntScoreSnapshots,
@@ -87,6 +86,18 @@ function requireActiveConditionFilters(requirementOptions, filters = {}) {
     upperGapRequired: filters.hasUpperGapFilter
       ? true
       : Boolean(requirementOptions.upperGapRequired),
+    machineNextGapRequired: filters.hasMachineNextGapFilter
+      ? true
+      : Boolean(requirementOptions.machineNextGapRequired),
+    selectedNextGapRequired: filters.hasSelectedNextGapFilter
+      ? true
+      : Boolean(requirementOptions.selectedNextGapRequired),
+    machineUpperGapRequired: filters.hasMachineUpperGapFilter
+      ? true
+      : Boolean(requirementOptions.machineUpperGapRequired),
+    selectedUpperGapRequired: filters.hasSelectedUpperGapFilter
+      ? true
+      : Boolean(requirementOptions.selectedUpperGapRequired),
   };
 }
 
@@ -1831,39 +1842,36 @@ function buildInitialBacktestDetail(
     hasRankFilter,
   } = buildScopedRankFilters(defaultedOptions);
   const scoreFilter = buildScoreFilter(defaultedOptions?.scoreMin, defaultedOptions?.scoreMax);
-  const nextGapFilter = buildNextGapFilter(
-    defaultedOptions?.nextGapMin,
-    defaultedOptions?.nextGapMax,
-  );
-  const upperGapFilter = buildUpperGapFilter(
-    defaultedOptions?.upperGapMin,
-    defaultedOptions?.upperGapMax,
-  );
+  const {
+    machineNextGapFilter,
+    selectedNextGapFilter,
+    machineUpperGapFilter,
+    selectedUpperGapFilter,
+  } = buildBoundaryGapFilters(defaultedOptions);
   const dailySelectionMode = normalizeDailySelectionMode(defaultedOptions?.dailySelectionMode);
   const usesMachineTopNextGapSelection =
     dailySelectionMode === DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP;
-  const nextGapScope =
-    defaultedOptions?.nextGapScope === "selected" ||
-    defaultedOptions?.nextGapScope === "machine"
-      ? defaultedOptions.nextGapScope
-      : "machine";
   const baseRequirementOptions = buildConditionRequirementOptions(defaultedOptions, {
     rankRequired: DEFAULT_HUNT_RANK_REQUIRED,
     scoreRequired: DEFAULT_HUNT_SCORE_REQUIRED,
     nextGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
     upperGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
+    machineNextGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
+    selectedNextGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
+    machineUpperGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
+    selectedUpperGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
   });
   const hasScoreFilter = scoreFilter.hasScoreFilter;
-  const hasNextGapFilter = nextGapFilter.hasNextGapFilter;
-  const hasUpperGapFilter = upperGapFilter.hasUpperGapFilter;
   const requirementOptions = usesMachineTopNextGapSelection
     ? requireActiveConditionFilters(baseRequirementOptions, {
         hasRankFilter,
         hasMachineRankFilter: machineRankFilter.hasRankFilter,
         hasSelectedRankFilter: selectedRankFilter.hasRankFilter,
         hasScoreFilter,
-        hasNextGapFilter,
-        hasUpperGapFilter,
+        hasMachineNextGapFilter: machineNextGapFilter.hasNextGapFilter,
+        hasSelectedNextGapFilter: selectedNextGapFilter.hasNextGapFilter,
+        hasMachineUpperGapFilter: machineUpperGapFilter.hasUpperGapFilter,
+        hasSelectedUpperGapFilter: selectedUpperGapFilter.hasUpperGapFilter,
       })
     : baseRequirementOptions;
   const combineAimJuggler = normalizeEnabledOption(defaultedOptions?.combineAimJuggler, true);
@@ -1896,21 +1904,28 @@ function buildInitialBacktestDetail(
     scoreMin: scoreFilter.scoreMin,
     scoreMax: scoreFilter.scoreMax,
     hasScoreFilter,
-    nextGapMin: nextGapFilter.nextGapMin,
-    nextGapMax: nextGapFilter.nextGapMax,
-    hasNextGapFilter,
-    upperGapMin: upperGapFilter.upperGapMin,
-    upperGapMax: upperGapFilter.upperGapMax,
-    hasUpperGapFilter,
+    machineNextGapMin: machineNextGapFilter.nextGapMin,
+    machineNextGapMax: machineNextGapFilter.nextGapMax,
+    hasMachineNextGapFilter: machineNextGapFilter.hasNextGapFilter,
+    selectedNextGapMin: selectedNextGapFilter.nextGapMin,
+    selectedNextGapMax: selectedNextGapFilter.nextGapMax,
+    hasSelectedNextGapFilter: selectedNextGapFilter.hasNextGapFilter,
+    machineUpperGapMin: machineUpperGapFilter.upperGapMin,
+    machineUpperGapMax: machineUpperGapFilter.upperGapMax,
+    hasMachineUpperGapFilter: machineUpperGapFilter.hasUpperGapFilter,
+    selectedUpperGapMin: selectedUpperGapFilter.upperGapMin,
+    selectedUpperGapMax: selectedUpperGapFilter.upperGapMax,
+    hasSelectedUpperGapFilter: selectedUpperGapFilter.hasUpperGapFilter,
     rankRequired: requirementOptions.rankRequired,
     machineRankRequired: requirementOptions.machineRankRequired,
     selectedRankRequired: requirementOptions.selectedRankRequired,
     scoreRequired: requirementOptions.scoreRequired,
-    nextGapRequired: requirementOptions.nextGapRequired,
-    upperGapRequired: requirementOptions.upperGapRequired,
+    machineNextGapRequired: requirementOptions.machineNextGapRequired,
+    selectedNextGapRequired: requirementOptions.selectedNextGapRequired,
+    machineUpperGapRequired: requirementOptions.machineUpperGapRequired,
+    selectedUpperGapRequired: requirementOptions.selectedUpperGapRequired,
     dailySelectionMode,
     rankScope,
-    nextGapScope,
     showGraph: defaultedOptions?.showGraph === "off" ? "off" : "on",
     scoreDifferenceMode: normalizeDifferenceMode(defaultedOptions?.scoreDifferenceMode),
     differenceMode: normalizeDifferenceMode(defaultedOptions?.differenceMode),
@@ -2638,10 +2653,6 @@ function normalizeCrossStoreRankingMetric(value) {
   return value === "differenceTotal" ? "differenceTotal" : "payoutRate";
 }
 
-function normalizeCrossStoreRankScope(value, fallbackValue = "selected") {
-  return value === "machine" || value === "selected" ? value : fallbackValue;
-}
-
 function normalizeCrossStoreInitialMachineSelection(machineNames, options = {}) {
   const machineTouched =
     options?.machineTouched === true ||
@@ -2795,20 +2806,21 @@ function buildCrossStoreBacktestOptions(options = {}, availableMachineNames = nu
     scoreRequired: DEFAULT_HUNT_SCORE_REQUIRED,
     nextGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
     upperGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
+    machineNextGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
+    selectedNextGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
+    machineUpperGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
+    selectedUpperGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
   });
-  const nextGapScope = normalizeCrossStoreRankScope(options?.nextGapScope, "machine");
   const scoreFilter = buildScoreFilter(
     readNumberOption(options, "scoreMin", 70),
     readNumberOption(options, "scoreMax", null),
   );
-  const nextGapFilter = buildNextGapFilter(
-    readNumberOption(options, "nextGapMin", null),
-    readNumberOption(options, "nextGapMax", null),
-  );
-  const upperGapFilter = buildUpperGapFilter(
-    readNumberOption(options, "upperGapMin", null),
-    readNumberOption(options, "upperGapMax", null),
-  );
+  const {
+    machineNextGapFilter,
+    selectedNextGapFilter,
+    machineUpperGapFilter,
+    selectedUpperGapFilter,
+  } = buildBoundaryGapFilters(options);
 
   return {
     periodMode: options?.periodMode === "range" ? "range" : "recent",
@@ -2829,18 +2841,23 @@ function buildCrossStoreBacktestOptions(options = {}, availableMachineNames = nu
     selectedRankMax: scopedRankFilters.selectedRankFilter.rankMax,
     scoreMin: scoreFilter.scoreMin,
     scoreMax: scoreFilter.scoreMax,
-    nextGapMin: nextGapFilter.nextGapMin,
-    nextGapMax: nextGapFilter.nextGapMax,
-    upperGapMin: upperGapFilter.upperGapMin,
-    upperGapMax: upperGapFilter.upperGapMax,
+    machineNextGapMin: machineNextGapFilter.nextGapMin,
+    machineNextGapMax: machineNextGapFilter.nextGapMax,
+    selectedNextGapMin: selectedNextGapFilter.nextGapMin,
+    selectedNextGapMax: selectedNextGapFilter.nextGapMax,
+    machineUpperGapMin: machineUpperGapFilter.upperGapMin,
+    machineUpperGapMax: machineUpperGapFilter.upperGapMax,
+    selectedUpperGapMin: selectedUpperGapFilter.upperGapMin,
+    selectedUpperGapMax: selectedUpperGapFilter.upperGapMax,
     rankRequired: requirementOptions.rankRequired,
     machineRankRequired: requirementOptions.machineRankRequired,
     selectedRankRequired: requirementOptions.selectedRankRequired,
     scoreRequired: requirementOptions.scoreRequired,
-    nextGapRequired: requirementOptions.nextGapRequired,
-    upperGapRequired: requirementOptions.upperGapRequired,
+    machineNextGapRequired: requirementOptions.machineNextGapRequired,
+    selectedNextGapRequired: requirementOptions.selectedNextGapRequired,
+    machineUpperGapRequired: requirementOptions.machineUpperGapRequired,
+    selectedUpperGapRequired: requirementOptions.selectedUpperGapRequired,
     rankScope: scopedRankFilters.rankScope,
-    nextGapScope,
     scoreDifferenceMode: normalizeDifferenceMode(options?.scoreDifferenceMode),
     differenceMode: normalizeDifferenceMode(options?.differenceMode),
     combineAimJuggler: normalizeEnabledOption(options?.combineAimJuggler, true),
@@ -3241,18 +3258,23 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       selectedRankMax: backtestOptions.selectedRankMax,
       scoreMin: backtestOptions.scoreMin,
       scoreMax: backtestOptions.scoreMax,
-      nextGapMin: backtestOptions.nextGapMin,
-      nextGapMax: backtestOptions.nextGapMax,
-      upperGapMin: backtestOptions.upperGapMin,
-      upperGapMax: backtestOptions.upperGapMax,
+      machineNextGapMin: backtestOptions.machineNextGapMin,
+      machineNextGapMax: backtestOptions.machineNextGapMax,
+      selectedNextGapMin: backtestOptions.selectedNextGapMin,
+      selectedNextGapMax: backtestOptions.selectedNextGapMax,
+      machineUpperGapMin: backtestOptions.machineUpperGapMin,
+      machineUpperGapMax: backtestOptions.machineUpperGapMax,
+      selectedUpperGapMin: backtestOptions.selectedUpperGapMin,
+      selectedUpperGapMax: backtestOptions.selectedUpperGapMax,
       rankRequired: backtestOptions.rankRequired,
       machineRankRequired: backtestOptions.machineRankRequired,
       selectedRankRequired: backtestOptions.selectedRankRequired,
       scoreRequired: backtestOptions.scoreRequired,
-      nextGapRequired: backtestOptions.nextGapRequired,
-      upperGapRequired: backtestOptions.upperGapRequired,
+      machineNextGapRequired: backtestOptions.machineNextGapRequired,
+      selectedNextGapRequired: backtestOptions.selectedNextGapRequired,
+      machineUpperGapRequired: backtestOptions.machineUpperGapRequired,
+      selectedUpperGapRequired: backtestOptions.selectedUpperGapRequired,
       rankScope: backtestOptions.rankScope,
-      nextGapScope: backtestOptions.nextGapScope,
       scoreDifferenceMode: backtestOptions.scoreDifferenceMode,
       differenceMode: backtestOptions.differenceMode,
       combineAimJuggler: backtestOptions.combineAimJuggler,
@@ -3332,18 +3354,23 @@ export async function getCrossStoreBacktestDetail(options = {}) {
     selectedRankMax: backtestOptions.selectedRankMax,
     scoreMin: backtestOptions.scoreMin,
     scoreMax: backtestOptions.scoreMax,
-    nextGapMin: backtestOptions.nextGapMin,
-    nextGapMax: backtestOptions.nextGapMax,
-    upperGapMin: backtestOptions.upperGapMin,
-    upperGapMax: backtestOptions.upperGapMax,
+    machineNextGapMin: backtestOptions.machineNextGapMin,
+    machineNextGapMax: backtestOptions.machineNextGapMax,
+    selectedNextGapMin: backtestOptions.selectedNextGapMin,
+    selectedNextGapMax: backtestOptions.selectedNextGapMax,
+    machineUpperGapMin: backtestOptions.machineUpperGapMin,
+    machineUpperGapMax: backtestOptions.machineUpperGapMax,
+    selectedUpperGapMin: backtestOptions.selectedUpperGapMin,
+    selectedUpperGapMax: backtestOptions.selectedUpperGapMax,
     rankRequired: backtestOptions.rankRequired,
     machineRankRequired: backtestOptions.machineRankRequired,
     selectedRankRequired: backtestOptions.selectedRankRequired,
     scoreRequired: backtestOptions.scoreRequired,
-    nextGapRequired: backtestOptions.nextGapRequired,
-    upperGapRequired: backtestOptions.upperGapRequired,
+    machineNextGapRequired: backtestOptions.machineNextGapRequired,
+    selectedNextGapRequired: backtestOptions.selectedNextGapRequired,
+    machineUpperGapRequired: backtestOptions.machineUpperGapRequired,
+    selectedUpperGapRequired: backtestOptions.selectedUpperGapRequired,
     rankScope: backtestOptions.rankScope,
-    nextGapScope: backtestOptions.nextGapScope,
     scoreDifferenceMode: backtestOptions.scoreDifferenceMode,
     differenceMode: backtestOptions.differenceMode,
     combineAimJuggler: backtestOptions.combineAimJuggler,

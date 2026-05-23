@@ -96,6 +96,62 @@ function hasNonmatchingSummary(summary) {
   return Number(summary?.actualRowCount ?? 0) > 0;
 }
 
+function BoundaryGapConditionRow({
+  label,
+  minName,
+  maxName,
+  requiredName,
+  minValue,
+  maxValue,
+  requiredValue,
+}) {
+  return (
+    <div className="huntConditionRow">
+      <p className="huntConditionLabel">{label}</p>
+      <div className="huntConditionInputs">
+        <label className="storeReserveField backtestField huntConditionNumberField">
+          <span>下限</span>
+          <input
+            type="number"
+            name={minName}
+            min="0"
+            max="100"
+            step="0.1"
+            defaultValue={minValue ?? ""}
+            className="storeReserveInput"
+          />
+        </label>
+        <label className="storeReserveField backtestField huntConditionNumberField">
+          <span>上限</span>
+          <input
+            type="number"
+            name={maxName}
+            min="0"
+            max="100"
+            step="0.1"
+            defaultValue={maxValue ?? ""}
+            className="storeReserveInput"
+          />
+        </label>
+      </div>
+      <input type="hidden" name={requiredName} value="0" />
+      <label
+        className={`metricToggleChip huntConditionRequired ${
+          requiredValue ? "metricToggleChipActive" : ""
+        }`}
+      >
+        <input
+          type="checkbox"
+          name={requiredName}
+          value="1"
+          defaultChecked={requiredValue}
+        />
+        <span>必須</span>
+      </label>
+    </div>
+  );
+}
+
 function BacktestNonmatchingSummaryRow({ parentKey, summary, label }) {
   if (!hasNonmatchingSummary(summary)) {
     return null;
@@ -160,8 +216,8 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
               </SortableTableHeader>
               <SortableTableHeader columnIndex={1}>設置台数</SortableTableHeader>
               <SortableTableHeader columnIndex={2}>狙い度</SortableTableHeader>
-              <SortableTableHeader columnIndex={3}>上位境界差</SortableTableHeader>
-              <SortableTableHeader columnIndex={4}>下位境界差</SortableTableHeader>
+              <SortableTableHeader columnIndex={3}>上位境界差（同一）</SortableTableHeader>
+              <SortableTableHeader columnIndex={4}>下位境界差（同一）</SortableTableHeader>
               <SortableTableHeader columnIndex={5}>集計台数</SortableTableHeader>
               <SortableTableHeader columnIndex={6}>勝率</SortableTableHeader>
               <SortableTableHeader columnIndex={7}>合計差枚</SortableTableHeader>
@@ -196,8 +252,8 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
               </th>
               <td data-sort-value={readSortNumber(backtest.total.slotCount)}>{formatNumber(backtest.total.slotCount)}</td>
               <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageHuntScore)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="狙い度" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageHuntScore)}>{formatDecimal(backtest.total.averageHuntScore)}</BacktestMetricCell>
-              <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageUpperGap)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="上位境界差" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageUpperGap)}>{formatDecimal(backtest.total.averageUpperGap)}</BacktestMetricCell>
-              <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageNextGap)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="下位境界差" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageNextGap)}>{formatDecimal(backtest.total.averageNextGap)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageUpperGap)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="上位境界差（同一）" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageUpperGap)}>{formatDecimal(backtest.total.averageUpperGap)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageNextGap)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="下位境界差（同一）" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageNextGap)}>{formatDecimal(backtest.total.averageNextGap)}</BacktestMetricCell>
               <BacktestMetricCell sortValue={backtest.total.actualRowCount} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="集計台数" nonmatchingValue={formatNumber(totalNonmatchingSummary?.actualRowCount)}>{formatNumber(backtest.total.actualRowCount)}</BacktestMetricCell>
               <BacktestMetricCell sortValue={readSortNumber(backtest.total.winRate)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="勝率" nonmatchingValue={formatPercent(totalNonmatchingSummary?.winRate)}>{formatPercent(backtest.total.winRate)}</BacktestMetricCell>
               <BacktestMetricCell sortValue={backtest.total.differenceTotal} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="合計差枚" nonmatchingValue={formatSignedNumber(totalNonmatchingSummary?.differenceTotal)}>{formatSignedNumber(backtest.total.differenceTotal)}</BacktestMetricCell>
@@ -247,8 +303,8 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
                   </th>
                   <td data-sort-value={readSortNumber(summary.slotCount)}>{formatNumber(summary.slotCount)}</td>
                   <BacktestMetricCell sortValue={readSortNumber(summary.averageHuntScore)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="狙い度" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageHuntScore)}>{formatDecimal(summary.averageHuntScore)}</BacktestMetricCell>
-                  <BacktestMetricCell sortValue={readSortNumber(summary.averageUpperGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="上位境界差" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageUpperGap)}>{formatDecimal(summary.averageUpperGap)}</BacktestMetricCell>
-                  <BacktestMetricCell sortValue={readSortNumber(summary.averageNextGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="下位境界差" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageNextGap)}>{formatDecimal(summary.averageNextGap)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readSortNumber(summary.averageUpperGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="上位境界差（同一）" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageUpperGap)}>{formatDecimal(summary.averageUpperGap)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readSortNumber(summary.averageNextGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="下位境界差（同一）" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageNextGap)}>{formatDecimal(summary.averageNextGap)}</BacktestMetricCell>
                   <BacktestMetricCell sortValue={summary.actualRowCount} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="集計台数" nonmatchingValue={formatNumber(nonmatchingSummary?.actualRowCount)}>{formatNumber(summary.actualRowCount)}</BacktestMetricCell>
                   <BacktestMetricCell sortValue={readSortNumber(summary.winRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="勝率" nonmatchingValue={formatPercent(nonmatchingSummary?.winRate)}>{formatPercent(summary.winRate)}</BacktestMetricCell>
                   <BacktestMetricCell sortValue={summary.differenceTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="合計差枚" nonmatchingValue={formatSignedNumber(nonmatchingSummary?.differenceTotal)}>{formatSignedNumber(summary.differenceTotal)}</BacktestMetricCell>
@@ -328,12 +384,24 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     nextGapMax: readSingleSearchParam(resolvedSearchParams?.nextGapMax),
     upperGapMin: readSingleSearchParam(resolvedSearchParams?.upperGapMin),
     upperGapMax: readSingleSearchParam(resolvedSearchParams?.upperGapMax),
+    machineNextGapMin: readSingleSearchParam(resolvedSearchParams?.machineNextGapMin),
+    machineNextGapMax: readSingleSearchParam(resolvedSearchParams?.machineNextGapMax),
+    selectedNextGapMin: readSingleSearchParam(resolvedSearchParams?.selectedNextGapMin),
+    selectedNextGapMax: readSingleSearchParam(resolvedSearchParams?.selectedNextGapMax),
+    machineUpperGapMin: readSingleSearchParam(resolvedSearchParams?.machineUpperGapMin),
+    machineUpperGapMax: readSingleSearchParam(resolvedSearchParams?.machineUpperGapMax),
+    selectedUpperGapMin: readSingleSearchParam(resolvedSearchParams?.selectedUpperGapMin),
+    selectedUpperGapMax: readSingleSearchParam(resolvedSearchParams?.selectedUpperGapMax),
     rankRequired: readMultiSearchParam(resolvedSearchParams?.rankRequired),
     machineRankRequired: readMultiSearchParam(resolvedSearchParams?.machineRankRequired),
     selectedRankRequired: readMultiSearchParam(resolvedSearchParams?.selectedRankRequired),
     scoreRequired: readMultiSearchParam(resolvedSearchParams?.scoreRequired),
     nextGapRequired: readMultiSearchParam(resolvedSearchParams?.nextGapRequired),
     upperGapRequired: readMultiSearchParam(resolvedSearchParams?.upperGapRequired),
+    machineNextGapRequired: readMultiSearchParam(resolvedSearchParams?.machineNextGapRequired),
+    selectedNextGapRequired: readMultiSearchParam(resolvedSearchParams?.selectedNextGapRequired),
+    machineUpperGapRequired: readMultiSearchParam(resolvedSearchParams?.machineUpperGapRequired),
+    selectedUpperGapRequired: readMultiSearchParam(resolvedSearchParams?.selectedUpperGapRequired),
     dailySelectionMode: readMultiSearchParam(resolvedSearchParams?.dailySelectionMode),
     showGraph: readSingleSearchParam(resolvedSearchParams?.showGraph),
     eventTouched: readSingleSearchParam(resolvedSearchParams?.backtestEventTouched) === "1",
@@ -393,18 +461,23 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     selectedRankMax: detail.backtest.selectedRankMax,
     scoreMin: detail.backtest.scoreMin,
     scoreMax: detail.backtest.scoreMax,
-    nextGapMin: detail.backtest.nextGapMin,
-    nextGapMax: detail.backtest.nextGapMax,
-    upperGapMin: detail.backtest.upperGapMin,
-    upperGapMax: detail.backtest.upperGapMax,
+    machineNextGapMin: detail.backtest.machineNextGapMin,
+    machineNextGapMax: detail.backtest.machineNextGapMax,
+    selectedNextGapMin: detail.backtest.selectedNextGapMin,
+    selectedNextGapMax: detail.backtest.selectedNextGapMax,
+    machineUpperGapMin: detail.backtest.machineUpperGapMin,
+    machineUpperGapMax: detail.backtest.machineUpperGapMax,
+    selectedUpperGapMin: detail.backtest.selectedUpperGapMin,
+    selectedUpperGapMax: detail.backtest.selectedUpperGapMax,
     rankRequired: detail.backtest.rankRequired,
     machineRankRequired: detail.backtest.machineRankRequired,
     selectedRankRequired: detail.backtest.selectedRankRequired,
     scoreRequired: detail.backtest.scoreRequired,
-    nextGapRequired: detail.backtest.nextGapRequired,
-    upperGapRequired: detail.backtest.upperGapRequired,
+    machineNextGapRequired: detail.backtest.machineNextGapRequired,
+    selectedNextGapRequired: detail.backtest.selectedNextGapRequired,
+    machineUpperGapRequired: detail.backtest.machineUpperGapRequired,
+    selectedUpperGapRequired: detail.backtest.selectedUpperGapRequired,
     rankScope: detail.backtest.rankScope,
-    nextGapScope: detail.backtest.nextGapScope,
     scoreDifferenceMode: detail.backtest.scoreDifferenceMode,
     differenceMode: detail.backtest.differenceMode,
     eventDayTails: detail.backtest.eventFilters.dayTails,
@@ -440,20 +513,25 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     selectedRankMax: detail.backtest.selectedRankMax ?? "",
     scoreMin: detail.backtest.scoreMin ?? "",
     scoreMax: detail.backtest.scoreMax ?? "",
-    nextGapMin: detail.backtest.nextGapMin ?? "",
-    nextGapMax: detail.backtest.nextGapMax ?? "",
-    upperGapMin: detail.backtest.upperGapMin ?? "",
-    upperGapMax: detail.backtest.upperGapMax ?? "",
+    machineNextGapMin: detail.backtest.machineNextGapMin ?? "",
+    machineNextGapMax: detail.backtest.machineNextGapMax ?? "",
+    selectedNextGapMin: detail.backtest.selectedNextGapMin ?? "",
+    selectedNextGapMax: detail.backtest.selectedNextGapMax ?? "",
+    machineUpperGapMin: detail.backtest.machineUpperGapMin ?? "",
+    machineUpperGapMax: detail.backtest.machineUpperGapMax ?? "",
+    selectedUpperGapMin: detail.backtest.selectedUpperGapMin ?? "",
+    selectedUpperGapMax: detail.backtest.selectedUpperGapMax ?? "",
     rankRequired: detail.backtest.rankRequired,
     machineRankRequired: detail.backtest.machineRankRequired,
     selectedRankRequired: detail.backtest.selectedRankRequired,
     scoreRequired: detail.backtest.scoreRequired,
-    nextGapRequired: detail.backtest.nextGapRequired,
-    upperGapRequired: detail.backtest.upperGapRequired,
+    machineNextGapRequired: detail.backtest.machineNextGapRequired,
+    selectedNextGapRequired: detail.backtest.selectedNextGapRequired,
+    machineUpperGapRequired: detail.backtest.machineUpperGapRequired,
+    selectedUpperGapRequired: detail.backtest.selectedUpperGapRequired,
     scoreDifferenceMode: detail.backtest.scoreDifferenceMode,
     differenceMode: detail.backtest.differenceMode,
     rankScope: detail.backtest.rankScope,
-    nextGapScope: detail.backtest.nextGapScope,
     showGraph: detail.backtest.showGraph,
   });
 
@@ -888,92 +966,42 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                     <span>必須</span>
                   </label>
                 </div>
-                <div className="huntConditionRow">
-                  <p className="huntConditionLabel">上位境界差</p>
-                  <div className="huntConditionInputs">
-                    <label className="storeReserveField backtestField huntConditionNumberField">
-                      <span>下限</span>
-                      <input
-                        type="number"
-                        name="upperGapMin"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        defaultValue={detail.backtest.upperGapMin ?? ""}
-                        className="storeReserveInput"
-                      />
-                    </label>
-                    <label className="storeReserveField backtestField huntConditionNumberField">
-                      <span>上限</span>
-                      <input
-                        type="number"
-                        name="upperGapMax"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        defaultValue={detail.backtest.upperGapMax ?? ""}
-                        className="storeReserveInput"
-                      />
-                    </label>
-                  </div>
-                  <input type="hidden" name="upperGapRequired" value="0" />
-                  <label
-                    className={`metricToggleChip huntConditionRequired ${
-                      detail.backtest.upperGapRequired ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      name="upperGapRequired"
-                      value="1"
-                      defaultChecked={detail.backtest.upperGapRequired}
-                    />
-                    <span>必須</span>
-                  </label>
-                </div>
-                <div className="huntConditionRow">
-                  <p className="huntConditionLabel">下位境界差</p>
-                  <div className="huntConditionInputs">
-                    <label className="storeReserveField backtestField huntConditionNumberField">
-                      <span>下限</span>
-                      <input
-                        type="number"
-                        name="nextGapMin"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        defaultValue={detail.backtest.nextGapMin ?? ""}
-                        className="storeReserveInput"
-                      />
-                    </label>
-                    <label className="storeReserveField backtestField huntConditionNumberField">
-                      <span>上限</span>
-                      <input
-                        type="number"
-                        name="nextGapMax"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        defaultValue={detail.backtest.nextGapMax ?? ""}
-                        className="storeReserveInput"
-                      />
-                    </label>
-                  </div>
-                  <input type="hidden" name="nextGapRequired" value="0" />
-                  <label
-                    className={`metricToggleChip huntConditionRequired ${
-                      detail.backtest.nextGapRequired ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      name="nextGapRequired"
-                      value="1"
-                      defaultChecked={detail.backtest.nextGapRequired}
-                    />
-                    <span>必須</span>
-                  </label>
-                </div>
+                <BoundaryGapConditionRow
+                  label="上位境界差（同一機種内）"
+                  minName="machineUpperGapMin"
+                  maxName="machineUpperGapMax"
+                  requiredName="machineUpperGapRequired"
+                  minValue={detail.backtest.machineUpperGapMin}
+                  maxValue={detail.backtest.machineUpperGapMax}
+                  requiredValue={detail.backtest.machineUpperGapRequired}
+                />
+                <BoundaryGapConditionRow
+                  label="下位境界差（同一機種内）"
+                  minName="machineNextGapMin"
+                  maxName="machineNextGapMax"
+                  requiredName="machineNextGapRequired"
+                  minValue={detail.backtest.machineNextGapMin}
+                  maxValue={detail.backtest.machineNextGapMax}
+                  requiredValue={detail.backtest.machineNextGapRequired}
+                />
+                <BoundaryGapConditionRow
+                  label="上位境界差（全機種内）"
+                  minName="selectedUpperGapMin"
+                  maxName="selectedUpperGapMax"
+                  requiredName="selectedUpperGapRequired"
+                  minValue={detail.backtest.selectedUpperGapMin}
+                  maxValue={detail.backtest.selectedUpperGapMax}
+                  requiredValue={detail.backtest.selectedUpperGapRequired}
+                />
+                <BoundaryGapConditionRow
+                  label="下位境界差（全機種内）"
+                  minName="selectedNextGapMin"
+                  maxName="selectedNextGapMax"
+                  requiredName="selectedNextGapRequired"
+                  minValue={detail.backtest.selectedNextGapMin}
+                  maxValue={detail.backtest.selectedNextGapMax}
+                  requiredValue={detail.backtest.selectedNextGapRequired}
+                />
               </div>
 
               <div className="backtestBlock">
@@ -1070,38 +1098,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       defaultChecked={detail.backtest.differenceMode === "minrepo"}
                     />
                     <span>みんレポ基準</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="backtestBlock">
-                <p className="filterControlLabel">境界差の比較対象</p>
-                <div className="metricToggleRow">
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.nextGapScope === "selected" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="nextGapScope"
-                      value="selected"
-                      defaultChecked={detail.backtest.nextGapScope === "selected"}
-                    />
-                    <span>チェック機種内</span>
-                  </label>
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.nextGapScope === "machine" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="nextGapScope"
-                      value="machine"
-                      defaultChecked={detail.backtest.nextGapScope === "machine"}
-                    />
-                    <span>機種内</span>
                   </label>
                 </div>
               </div>

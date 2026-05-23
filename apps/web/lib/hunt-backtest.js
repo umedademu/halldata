@@ -1,7 +1,6 @@
 import { listHuntScoreTargetMachineNames } from "./hunt-score";
 import {
-  buildNextGapFilter,
-  buildUpperGapFilter,
+  buildBoundaryGapFilters,
   buildRankFilter,
   buildScoreFilter,
   calculateHuntScoreNextGapMap,
@@ -266,6 +265,18 @@ function requireActiveConditionFilters(requirementOptions, filters = {}) {
     upperGapRequired: filters.upperGapFilter?.hasUpperGapFilter
       ? true
       : Boolean(requirementOptions.upperGapRequired),
+    machineNextGapRequired: filters.machineNextGapFilter?.hasNextGapFilter
+      ? true
+      : Boolean(requirementOptions.machineNextGapRequired),
+    selectedNextGapRequired: filters.selectedNextGapFilter?.hasNextGapFilter
+      ? true
+      : Boolean(requirementOptions.selectedNextGapRequired),
+    machineUpperGapRequired: filters.machineUpperGapFilter?.hasUpperGapFilter
+      ? true
+      : Boolean(requirementOptions.machineUpperGapRequired),
+    selectedUpperGapRequired: filters.selectedUpperGapFilter?.hasUpperGapFilter
+      ? true
+      : Boolean(requirementOptions.selectedUpperGapRequired),
   };
 }
 
@@ -854,10 +865,11 @@ function buildBacktestAggregationDetail(
     machineRankFilter,
     selectedRankFilter,
     scoreFilter,
-    nextGapFilter,
-    upperGapFilter,
+    machineNextGapFilter,
+    selectedNextGapFilter,
+    machineUpperGapFilter,
+    selectedUpperGapFilter,
     requirementOptions,
-    nextGapScope,
     nextGapRankFilters,
     differenceMode,
     combineAimJuggler,
@@ -930,8 +942,10 @@ function buildBacktestAggregationDetail(
       const machineRank = (machineRankCounts.get(backtestMachineName) ?? 0) + 1;
       machineRankCounts.set(backtestMachineName, machineRank);
       const gapRow = gapRowsByRow.get(row) ?? row;
-      const nextGapValue = readNextGapForRankScope(gapRow, nextGapScope);
-      const upperGapValue = readUpperGapForRankScope(gapRow, nextGapScope);
+      const machineNextGapValue = readNextGapForRankScope(gapRow, "machine");
+      const selectedNextGapValue = readNextGapForRankScope(gapRow, "selected");
+      const machineUpperGapValue = readUpperGapForRankScope(gapRow, "machine");
+      const selectedUpperGapValue = readUpperGapForRankScope(gapRow, "selected");
 
       const matchesCondition =
         (!selectedRowSet || selectedRowSet.has(row)) &&
@@ -953,10 +967,32 @@ function buildBacktestAggregationDetail(
           scoreFilter,
           requirementOptions,
           true,
-          nextGapValue,
-          nextGapFilter,
-          upperGapValue,
-          upperGapFilter,
+          null,
+          { hasNextGapFilter: false, nextGapMin: null, nextGapMax: null },
+          null,
+          { hasUpperGapFilter: false, upperGapMin: null, upperGapMax: null },
+          [
+            {
+              value: machineUpperGapValue,
+              filter: machineUpperGapFilter,
+              required: requirementOptions.machineUpperGapRequired,
+            },
+            {
+              value: machineNextGapValue,
+              filter: machineNextGapFilter,
+              required: requirementOptions.machineNextGapRequired,
+            },
+            {
+              value: selectedUpperGapValue,
+              filter: selectedUpperGapFilter,
+              required: requirementOptions.selectedUpperGapRequired,
+            },
+            {
+              value: selectedNextGapValue,
+              filter: selectedNextGapFilter,
+              required: requirementOptions.selectedNextGapRequired,
+            },
+          ],
         );
 
       const actualDate = getActualDate(row, snapshot);
@@ -979,8 +1015,22 @@ function buildBacktestAggregationDetail(
       }
 
       const summary = targetSummariesByMachine.get(backtestMachineName);
-      addActualMetricsToSummary(summary, row.machineName, row, actualMetrics, nextGapValue, upperGapValue);
-      addActualMetricsToSummary(targetTotalSummary, row.machineName, row, actualMetrics, nextGapValue, upperGapValue);
+      addActualMetricsToSummary(
+        summary,
+        row.machineName,
+        row,
+        actualMetrics,
+        machineNextGapValue,
+        machineUpperGapValue,
+      );
+      addActualMetricsToSummary(
+        targetTotalSummary,
+        row.machineName,
+        row,
+        actualMetrics,
+        machineNextGapValue,
+        machineUpperGapValue,
+      );
 
       if (!matchesCondition) {
         continue;
@@ -1089,19 +1139,24 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     hasRankFilter,
   } = buildScopedRankFilters(options);
   const scoreFilter = buildScoreFilter(options.scoreMin, options.scoreMax);
-  const nextGapFilter = buildNextGapFilter(options.nextGapMin, options.nextGapMax);
-  const upperGapFilter = buildUpperGapFilter(options.upperGapMin, options.upperGapMax);
+  const {
+    machineNextGapFilter,
+    selectedNextGapFilter,
+    machineUpperGapFilter,
+    selectedUpperGapFilter,
+  } = buildBoundaryGapFilters(options);
   const baseRequirementOptions = buildConditionRequirementOptions(options);
   const selectionMode = normalizeDailySelectionMode(options.dailySelectionMode);
   const usesMachineTopNextGapSelection = isMachineTopNextGapSelectionMode(selectionMode);
-  const nextGapScope = normalizeBacktestRankScope(options.nextGapScope ?? "machine", "machine");
   const requirementOptions = usesMachineTopNextGapSelection
     ? requireActiveConditionFilters(baseRequirementOptions, {
         machineRankFilter,
         selectedRankFilter,
         scoreFilter,
-        nextGapFilter,
-        upperGapFilter,
+        machineNextGapFilter,
+        selectedNextGapFilter,
+        machineUpperGapFilter,
+        selectedUpperGapFilter,
       })
     : baseRequirementOptions;
   const nextGapRankFilters = usesMachineTopNextGapSelection
@@ -1126,10 +1181,11 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     machineRankFilter,
     selectedRankFilter,
     scoreFilter,
-    nextGapFilter,
-    upperGapFilter,
+    machineNextGapFilter,
+    selectedNextGapFilter,
+    machineUpperGapFilter,
+    selectedUpperGapFilter,
     requirementOptions,
-    nextGapScope,
     nextGapRankFilters,
     differenceMode,
     combineAimJuggler,
@@ -1176,21 +1232,28 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     scoreMin: scoreFilter.scoreMin,
     scoreMax: scoreFilter.scoreMax,
     hasScoreFilter: scoreFilter.hasScoreFilter,
-    nextGapMin: nextGapFilter.nextGapMin,
-    nextGapMax: nextGapFilter.nextGapMax,
-    hasNextGapFilter: nextGapFilter.hasNextGapFilter,
-    upperGapMin: upperGapFilter.upperGapMin,
-    upperGapMax: upperGapFilter.upperGapMax,
-    hasUpperGapFilter: upperGapFilter.hasUpperGapFilter,
+    machineNextGapMin: machineNextGapFilter.nextGapMin,
+    machineNextGapMax: machineNextGapFilter.nextGapMax,
+    hasMachineNextGapFilter: machineNextGapFilter.hasNextGapFilter,
+    selectedNextGapMin: selectedNextGapFilter.nextGapMin,
+    selectedNextGapMax: selectedNextGapFilter.nextGapMax,
+    hasSelectedNextGapFilter: selectedNextGapFilter.hasNextGapFilter,
+    machineUpperGapMin: machineUpperGapFilter.upperGapMin,
+    machineUpperGapMax: machineUpperGapFilter.upperGapMax,
+    hasMachineUpperGapFilter: machineUpperGapFilter.hasUpperGapFilter,
+    selectedUpperGapMin: selectedUpperGapFilter.upperGapMin,
+    selectedUpperGapMax: selectedUpperGapFilter.upperGapMax,
+    hasSelectedUpperGapFilter: selectedUpperGapFilter.hasUpperGapFilter,
     rankRequired: requirementOptions.rankRequired,
     machineRankRequired: requirementOptions.machineRankRequired,
     selectedRankRequired: requirementOptions.selectedRankRequired,
     scoreRequired: requirementOptions.scoreRequired,
-    nextGapRequired: requirementOptions.nextGapRequired,
-    upperGapRequired: requirementOptions.upperGapRequired,
+    machineNextGapRequired: requirementOptions.machineNextGapRequired,
+    selectedNextGapRequired: requirementOptions.selectedNextGapRequired,
+    machineUpperGapRequired: requirementOptions.machineUpperGapRequired,
+    selectedUpperGapRequired: requirementOptions.selectedUpperGapRequired,
     dailySelectionMode: selectionMode,
     rankScope,
-    nextGapScope,
     showGraph,
     scoreDifferenceMode,
     differenceMode,

@@ -205,6 +205,79 @@ export function buildUpperGapFilter(upperGapMinValue, upperGapMaxValue = null) {
   };
 }
 
+function hasProvidedFilterOption(source, key) {
+  return (
+    source &&
+    typeof source === "object" &&
+    Object.hasOwn(source, key) &&
+    source[key] !== undefined &&
+    source[key] !== ""
+  );
+}
+
+function hasAnyProvidedFilterOption(source, keys) {
+  return keys.some((key) => hasProvidedFilterOption(source, key));
+}
+
+function readScopedBoundaryValues(source, scope, minKey, maxKey, legacyMinKey, legacyMaxKey) {
+  const safeSource = source && typeof source === "object" ? source : {};
+  if (hasAnyProvidedFilterOption(safeSource, [minKey, maxKey])) {
+    return [safeSource[minKey], safeSource[maxKey]];
+  }
+
+  const legacyScope =
+    safeSource.nextGapScope === "selected" || safeSource.nextGapScope === "machine"
+      ? safeSource.nextGapScope
+      : "machine";
+  if (legacyScope === scope && hasAnyProvidedFilterOption(safeSource, [legacyMinKey, legacyMaxKey])) {
+    return [safeSource[legacyMinKey], safeSource[legacyMaxKey]];
+  }
+
+  return [null, null];
+}
+
+export function buildBoundaryGapFilters(source = {}) {
+  const [machineNextGapMin, machineNextGapMax] = readScopedBoundaryValues(
+    source,
+    "machine",
+    "machineNextGapMin",
+    "machineNextGapMax",
+    "nextGapMin",
+    "nextGapMax",
+  );
+  const [selectedNextGapMin, selectedNextGapMax] = readScopedBoundaryValues(
+    source,
+    "selected",
+    "selectedNextGapMin",
+    "selectedNextGapMax",
+    "nextGapMin",
+    "nextGapMax",
+  );
+  const [machineUpperGapMin, machineUpperGapMax] = readScopedBoundaryValues(
+    source,
+    "machine",
+    "machineUpperGapMin",
+    "machineUpperGapMax",
+    "upperGapMin",
+    "upperGapMax",
+  );
+  const [selectedUpperGapMin, selectedUpperGapMax] = readScopedBoundaryValues(
+    source,
+    "selected",
+    "selectedUpperGapMin",
+    "selectedUpperGapMax",
+    "upperGapMin",
+    "upperGapMax",
+  );
+
+  return {
+    machineNextGapFilter: buildNextGapFilter(machineNextGapMin, machineNextGapMax),
+    selectedNextGapFilter: buildNextGapFilter(selectedNextGapMin, selectedNextGapMax),
+    machineUpperGapFilter: buildUpperGapFilter(machineUpperGapMin, machineUpperGapMax),
+    selectedUpperGapFilter: buildUpperGapFilter(selectedUpperGapMin, selectedUpperGapMax),
+  };
+}
+
 export function normalizeMatchMode(value) {
   return value === "or" ? "or" : "and";
 }
@@ -231,6 +304,10 @@ export function buildConditionRequirementOptions(source = {}, fallback = {}) {
     !Object.hasOwn(safeSource, "scoreRequired") &&
     !Object.hasOwn(safeSource, "nextGapRequired") &&
     !Object.hasOwn(safeSource, "upperGapRequired") &&
+    !Object.hasOwn(safeSource, "machineNextGapRequired") &&
+    !Object.hasOwn(safeSource, "selectedNextGapRequired") &&
+    !Object.hasOwn(safeSource, "machineUpperGapRequired") &&
+    !Object.hasOwn(safeSource, "selectedUpperGapRequired") &&
     Object.hasOwn(safeSource, "matchMode")
   ) {
     const allRequired = normalizeMatchMode(safeSource.matchMode) === "and";
@@ -241,12 +318,24 @@ export function buildConditionRequirementOptions(source = {}, fallback = {}) {
       scoreRequired: allRequired,
       nextGapRequired: allRequired,
       upperGapRequired: allRequired,
+      machineNextGapRequired: allRequired,
+      selectedNextGapRequired: allRequired,
+      machineUpperGapRequired: allRequired,
+      selectedUpperGapRequired: allRequired,
     };
   }
 
   const rankRequired = normalizeRequiredOption(
     safeSource.rankRequired,
     Boolean(fallback.rankRequired),
+  );
+  const nextGapRequired = normalizeRequiredOption(
+    safeSource.nextGapRequired,
+    Boolean(fallback.nextGapRequired),
+  );
+  const upperGapRequired = normalizeRequiredOption(
+    safeSource.upperGapRequired,
+    Boolean(fallback.upperGapRequired),
   );
 
   return {
@@ -264,13 +353,31 @@ export function buildConditionRequirementOptions(source = {}, fallback = {}) {
         : rankRequired,
     ),
     scoreRequired: normalizeRequiredOption(safeSource.scoreRequired, Boolean(fallback.scoreRequired)),
-    nextGapRequired: normalizeRequiredOption(
-      safeSource.nextGapRequired,
-      Boolean(fallback.nextGapRequired),
+    nextGapRequired,
+    upperGapRequired,
+    machineNextGapRequired: normalizeRequiredOption(
+      safeSource.machineNextGapRequired,
+      Object.hasOwn(fallback, "machineNextGapRequired")
+        ? Boolean(fallback.machineNextGapRequired)
+        : nextGapRequired,
     ),
-    upperGapRequired: normalizeRequiredOption(
-      safeSource.upperGapRequired,
-      Boolean(fallback.upperGapRequired),
+    selectedNextGapRequired: normalizeRequiredOption(
+      safeSource.selectedNextGapRequired,
+      Object.hasOwn(fallback, "selectedNextGapRequired")
+        ? Boolean(fallback.selectedNextGapRequired)
+        : nextGapRequired,
+    ),
+    machineUpperGapRequired: normalizeRequiredOption(
+      safeSource.machineUpperGapRequired,
+      Object.hasOwn(fallback, "machineUpperGapRequired")
+        ? Boolean(fallback.machineUpperGapRequired)
+        : upperGapRequired,
+    ),
+    selectedUpperGapRequired: normalizeRequiredOption(
+      safeSource.selectedUpperGapRequired,
+      Object.hasOwn(fallback, "selectedUpperGapRequired")
+        ? Boolean(fallback.selectedUpperGapRequired)
+        : upperGapRequired,
     ),
   };
 }
@@ -295,6 +402,18 @@ function requireActiveConditionFilters(requirementOptions, filters = {}) {
     upperGapRequired: filters.upperGapFilter?.hasUpperGapFilter
       ? true
       : Boolean(requirementOptions.upperGapRequired),
+    machineNextGapRequired: filters.machineNextGapFilter?.hasNextGapFilter
+      ? true
+      : Boolean(requirementOptions.machineNextGapRequired),
+    selectedNextGapRequired: filters.selectedNextGapFilter?.hasNextGapFilter
+      ? true
+      : Boolean(requirementOptions.selectedNextGapRequired),
+    machineUpperGapRequired: filters.machineUpperGapFilter?.hasUpperGapFilter
+      ? true
+      : Boolean(requirementOptions.machineUpperGapRequired),
+    selectedUpperGapRequired: filters.selectedUpperGapFilter?.hasUpperGapFilter
+      ? true
+      : Boolean(requirementOptions.selectedUpperGapRequired),
   };
 }
 
@@ -344,16 +463,6 @@ function formatRankScopeLabel(rankScope) {
     return "チェック機種内順位";
   }
   return "チェック機種内順位";
-}
-
-function formatNextGapScopeLabel(nextGapScope) {
-  if (nextGapScope === "machine") {
-    return "機種内境界差";
-  }
-  if (nextGapScope === "selected") {
-    return "チェック機種内境界差";
-  }
-  return "チェック機種内境界差";
 }
 
 function findNextLowerHuntScore(sortedRows, startIndex, currentScore) {
@@ -577,6 +686,7 @@ export function matchesRequiredConditionFilters(
   nextGapFilter = { hasNextGapFilter: false, nextGapMin: null },
   upperGapValue = null,
   upperGapFilter = { hasUpperGapFilter: false, upperGapMax: null },
+  boundaryGapConditions = [],
 ) {
   const normalizedRequirements = buildConditionRequirementOptions(requirementOptions);
   const conditionEntries = [];
@@ -633,6 +743,25 @@ export function matchesRequiredConditionFilters(
       required: normalizedRequirements.upperGapRequired,
     });
   }
+  for (const boundaryGapCondition of Array.isArray(boundaryGapConditions)
+    ? boundaryGapConditions
+    : []) {
+    const filter = boundaryGapCondition?.filter ?? {};
+    const isUpperGapFilter = Boolean(filter.hasUpperGapFilter);
+    const isNextGapFilter = Boolean(filter.hasNextGapFilter);
+    if (!isUpperGapFilter && !isNextGapFilter) {
+      continue;
+    }
+
+    conditionEntries.push({
+      matched: matchesNumberRange(
+        boundaryGapCondition?.value,
+        isUpperGapFilter ? filter.upperGapMin : filter.nextGapMin,
+        isUpperGapFilter ? filter.upperGapMax : filter.nextGapMax,
+      ),
+      required: Boolean(boundaryGapCondition?.required),
+    });
+  }
 
   if (conditionEntries.length === 0) {
     return noFilterResult;
@@ -685,6 +814,13 @@ function formatRangeConditionText(label, minValue, maxValue, required) {
   return `${label}${maxText}以下${suffix}`;
 }
 
+function pushRangeConditionSummary(parts, enabled, label, minValue, maxValue, required) {
+  if (!enabled) {
+    return;
+  }
+  parts.push(formatRangeConditionText(label, minValue, maxValue, required));
+}
+
 export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
   if (!bookmark || typeof bookmark !== "object") {
     return null;
@@ -704,8 +840,12 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     hasRankFilter,
   } = buildScopedRankFilters(bookmark);
   const scoreFilter = buildScoreFilter(bookmark.scoreMin, bookmark.scoreMax);
-  const nextGapFilter = buildNextGapFilter(bookmark.nextGapMin, bookmark.nextGapMax);
-  const upperGapFilter = buildUpperGapFilter(bookmark.upperGapMin, bookmark.upperGapMax);
+  const {
+    machineNextGapFilter,
+    selectedNextGapFilter,
+    machineUpperGapFilter,
+    selectedUpperGapFilter,
+  } = buildBoundaryGapFilters(bookmark);
   const dailySelectionMode = normalizeDailySelectionMode(bookmark.dailySelectionMode);
   const usesMachineTopNextGapSelection = isMachineTopNextGapSelectionMode(dailySelectionMode);
   const baseRequirementOptions = buildConditionRequirementOptions(bookmark);
@@ -714,8 +854,10 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
         machineRankFilter,
         selectedRankFilter,
         scoreFilter,
-        nextGapFilter,
-        upperGapFilter,
+        machineNextGapFilter,
+        selectedNextGapFilter,
+        machineUpperGapFilter,
+        selectedUpperGapFilter,
       })
     : baseRequirementOptions;
   const allMachineCount = readPositiveInteger(bookmark.allMachineCount) ?? machineNames.length;
@@ -741,21 +883,28 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     scoreMin: scoreFilter.scoreMin,
     scoreMax: scoreFilter.scoreMax,
     hasScoreFilter: scoreFilter.hasScoreFilter,
-    nextGapMin: nextGapFilter.nextGapMin,
-    nextGapMax: nextGapFilter.nextGapMax,
-    hasNextGapFilter: nextGapFilter.hasNextGapFilter,
-    upperGapMin: upperGapFilter.upperGapMin,
-    upperGapMax: upperGapFilter.upperGapMax,
-    hasUpperGapFilter: upperGapFilter.hasUpperGapFilter,
+    machineNextGapMin: machineNextGapFilter.nextGapMin,
+    machineNextGapMax: machineNextGapFilter.nextGapMax,
+    hasMachineNextGapFilter: machineNextGapFilter.hasNextGapFilter,
+    selectedNextGapMin: selectedNextGapFilter.nextGapMin,
+    selectedNextGapMax: selectedNextGapFilter.nextGapMax,
+    hasSelectedNextGapFilter: selectedNextGapFilter.hasNextGapFilter,
+    machineUpperGapMin: machineUpperGapFilter.upperGapMin,
+    machineUpperGapMax: machineUpperGapFilter.upperGapMax,
+    hasMachineUpperGapFilter: machineUpperGapFilter.hasUpperGapFilter,
+    selectedUpperGapMin: selectedUpperGapFilter.upperGapMin,
+    selectedUpperGapMax: selectedUpperGapFilter.upperGapMax,
+    hasSelectedUpperGapFilter: selectedUpperGapFilter.hasUpperGapFilter,
     rankRequired: requirementOptions.rankRequired,
     machineRankRequired: requirementOptions.machineRankRequired,
     selectedRankRequired: requirementOptions.selectedRankRequired,
     scoreRequired: requirementOptions.scoreRequired,
-    nextGapRequired: requirementOptions.nextGapRequired,
-    upperGapRequired: requirementOptions.upperGapRequired,
+    machineNextGapRequired: requirementOptions.machineNextGapRequired,
+    selectedNextGapRequired: requirementOptions.selectedNextGapRequired,
+    machineUpperGapRequired: requirementOptions.machineUpperGapRequired,
+    selectedUpperGapRequired: requirementOptions.selectedUpperGapRequired,
     dailySelectionMode,
     rankScope,
-    nextGapScope: normalizeRankScope(bookmark.nextGapScope ?? "machine"),
     combineAimJuggler,
     combineHanabi,
     savedAt: normalizeText(bookmark.savedAt) || null,
@@ -792,19 +941,24 @@ export function areHuntBacktestBookmarksEqual(left, right) {
     normalizedLeft.selectedRankMax === normalizedRight.selectedRankMax &&
     normalizedLeft.scoreMin === normalizedRight.scoreMin &&
     normalizedLeft.scoreMax === normalizedRight.scoreMax &&
-    normalizedLeft.nextGapMin === normalizedRight.nextGapMin &&
-    normalizedLeft.nextGapMax === normalizedRight.nextGapMax &&
-    normalizedLeft.upperGapMin === normalizedRight.upperGapMin &&
-    normalizedLeft.upperGapMax === normalizedRight.upperGapMax &&
+    normalizedLeft.machineNextGapMin === normalizedRight.machineNextGapMin &&
+    normalizedLeft.machineNextGapMax === normalizedRight.machineNextGapMax &&
+    normalizedLeft.selectedNextGapMin === normalizedRight.selectedNextGapMin &&
+    normalizedLeft.selectedNextGapMax === normalizedRight.selectedNextGapMax &&
+    normalizedLeft.machineUpperGapMin === normalizedRight.machineUpperGapMin &&
+    normalizedLeft.machineUpperGapMax === normalizedRight.machineUpperGapMax &&
+    normalizedLeft.selectedUpperGapMin === normalizedRight.selectedUpperGapMin &&
+    normalizedLeft.selectedUpperGapMax === normalizedRight.selectedUpperGapMax &&
     normalizedLeft.rankRequired === normalizedRight.rankRequired &&
     normalizedLeft.machineRankRequired === normalizedRight.machineRankRequired &&
     normalizedLeft.selectedRankRequired === normalizedRight.selectedRankRequired &&
     normalizedLeft.scoreRequired === normalizedRight.scoreRequired &&
-    normalizedLeft.nextGapRequired === normalizedRight.nextGapRequired &&
-    normalizedLeft.upperGapRequired === normalizedRight.upperGapRequired &&
+    normalizedLeft.machineNextGapRequired === normalizedRight.machineNextGapRequired &&
+    normalizedLeft.selectedNextGapRequired === normalizedRight.selectedNextGapRequired &&
+    normalizedLeft.machineUpperGapRequired === normalizedRight.machineUpperGapRequired &&
+    normalizedLeft.selectedUpperGapRequired === normalizedRight.selectedUpperGapRequired &&
     normalizedLeft.dailySelectionMode === normalizedRight.dailySelectionMode &&
     normalizedLeft.rankScope === normalizedRight.rankScope &&
-    normalizedLeft.nextGapScope === normalizedRight.nextGapScope &&
     normalizedLeft.combineAimJuggler === normalizedRight.combineAimJuggler &&
     normalizedLeft.combineHanabi === normalizedRight.combineHanabi &&
     normalizedLeft.machineNames.length === normalizedRight.machineNames.length &&
@@ -849,8 +1003,6 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
     parts.push("各機種1位から機種内下位境界差1位を1台選抜");
   }
 
-  parts.push(formatNextGapScopeLabel(normalizedBookmark.nextGapScope));
-
   if (normalizedBookmark.hasMachineRankFilter) {
     parts.push(
       `機種内順位${normalizedBookmark.machineRankMin}〜${normalizedBookmark.machineRankMax}${
@@ -878,34 +1030,47 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
     );
   }
 
-  if (normalizedBookmark.hasNextGapFilter) {
-    parts.push(
-      formatRangeConditionText(
-        "下位境界差",
-        normalizedBookmark.nextGapMin,
-        normalizedBookmark.nextGapMax,
-        normalizedBookmark.nextGapRequired,
-      ),
-    );
-  }
-
-  if (normalizedBookmark.hasUpperGapFilter) {
-    parts.push(
-      formatRangeConditionText(
-        "上位境界差",
-        normalizedBookmark.upperGapMin,
-        normalizedBookmark.upperGapMax,
-        normalizedBookmark.upperGapRequired,
-      ),
-    );
-  }
+  pushRangeConditionSummary(
+    parts,
+    normalizedBookmark.hasMachineUpperGapFilter,
+    "同一機種内上位境界差",
+    normalizedBookmark.machineUpperGapMin,
+    normalizedBookmark.machineUpperGapMax,
+    normalizedBookmark.machineUpperGapRequired,
+  );
+  pushRangeConditionSummary(
+    parts,
+    normalizedBookmark.hasMachineNextGapFilter,
+    "同一機種内下位境界差",
+    normalizedBookmark.machineNextGapMin,
+    normalizedBookmark.machineNextGapMax,
+    normalizedBookmark.machineNextGapRequired,
+  );
+  pushRangeConditionSummary(
+    parts,
+    normalizedBookmark.hasSelectedUpperGapFilter,
+    "全機種内上位境界差",
+    normalizedBookmark.selectedUpperGapMin,
+    normalizedBookmark.selectedUpperGapMax,
+    normalizedBookmark.selectedUpperGapRequired,
+  );
+  pushRangeConditionSummary(
+    parts,
+    normalizedBookmark.hasSelectedNextGapFilter,
+    "全機種内下位境界差",
+    normalizedBookmark.selectedNextGapMin,
+    normalizedBookmark.selectedNextGapMax,
+    normalizedBookmark.selectedNextGapRequired,
+  );
 
   const activeFilterCount = [
     normalizedBookmark.hasMachineRankFilter,
     normalizedBookmark.hasSelectedRankFilter,
     normalizedBookmark.hasScoreFilter,
-    normalizedBookmark.hasNextGapFilter,
-    normalizedBookmark.hasUpperGapFilter,
+    normalizedBookmark.hasMachineNextGapFilter,
+    normalizedBookmark.hasSelectedNextGapFilter,
+    normalizedBookmark.hasMachineUpperGapFilter,
+    normalizedBookmark.hasSelectedUpperGapFilter,
   ].filter(Boolean).length;
 
   if (normalizedBookmark.combineAimJuggler) {
@@ -1025,22 +1190,18 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
   const machineRankCounts = new Map();
   const { machineRankFilter, selectedRankFilter } = buildScopedRankFilters(normalizedBookmark);
   const scoreFilter = buildScoreFilter(normalizedBookmark.scoreMin, normalizedBookmark.scoreMax);
-  const nextGapFilter = buildNextGapFilter(
-    normalizedBookmark.nextGapMin,
-    normalizedBookmark.nextGapMax,
-  );
-  const upperGapFilter = buildUpperGapFilter(
-    normalizedBookmark.upperGapMin,
-    normalizedBookmark.upperGapMax,
-  );
+  const {
+    machineNextGapFilter,
+    selectedNextGapFilter,
+    machineUpperGapFilter,
+    selectedUpperGapFilter,
+  } = buildBoundaryGapFilters(normalizedBookmark);
   const usesMachineTopNextGapSelection = isMachineTopNextGapSelectionMode(
     normalizedBookmark.dailySelectionMode,
   );
   const selectionRankFilter = buildRankFilter(1, 1);
   const selectedNextGapRankFilter = usesMachineTopNextGapSelection ? null : selectedRankFilter;
   const machineNextGapRankFilter = usesMachineTopNextGapSelection ? null : machineRankFilter;
-  const overallNextGapMap = calculateHuntScoreNextGapMap(safeRows, selectedNextGapRankFilter);
-  const overallUpperGapMap = calculateHuntScoreUpperGapMap(safeRows, selectedNextGapRankFilter);
   const selectedRows = safeRows.filter((row) =>
     includesBookmarkMachine(normalizeText(row?.machineName), selectedMachineNameSet),
   );
@@ -1121,19 +1282,10 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
     const rowOverallRank = readPositiveInteger(row?.overallRank) ?? readPositiveInteger(row?.rank);
     const rowSelectedRank = readPositiveInteger(row?.selectedRank) ?? selectedRank;
     const rowMachineRank = readPositiveInteger(row?.machineRank) ?? machineRank;
-    const calculatedNextGapValue =
-      normalizedBookmark.nextGapScope === "machine"
-        ? machineNextGapMap.get(row) ?? null
-        : normalizedBookmark.nextGapScope === "selected"
-          ? selectedNextGapMap.get(row) ?? null
-          : overallNextGapMap.get(row) ?? null;
-    const nextGapValue = calculatedNextGapValue;
-    const upperGapValue =
-      normalizedBookmark.nextGapScope === "machine"
-        ? machineUpperGapMap.get(row) ?? null
-        : normalizedBookmark.nextGapScope === "selected"
-          ? selectedUpperGapMap.get(row) ?? null
-          : overallUpperGapMap.get(row) ?? null;
+    const machineNextGapValue = machineNextGapMap.get(row) ?? null;
+    const selectedNextGapValue = selectedNextGapMap.get(row) ?? null;
+    const machineUpperGapValue = machineUpperGapMap.get(row) ?? null;
+    const selectedUpperGapValue = selectedUpperGapMap.get(row) ?? null;
     const matched = matchesRequiredConditionFilters(
       [
         {
@@ -1154,14 +1306,34 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
         machineRankRequired: normalizedBookmark.machineRankRequired,
         selectedRankRequired: normalizedBookmark.selectedRankRequired,
         scoreRequired: normalizedBookmark.scoreRequired,
-        nextGapRequired: normalizedBookmark.nextGapRequired,
-        upperGapRequired: normalizedBookmark.upperGapRequired,
       },
       true,
-      nextGapValue,
-      nextGapFilter,
-      upperGapValue,
-      upperGapFilter,
+      null,
+      { hasNextGapFilter: false, nextGapMin: null, nextGapMax: null },
+      null,
+      { hasUpperGapFilter: false, upperGapMin: null, upperGapMax: null },
+      [
+        {
+          value: machineUpperGapValue,
+          filter: machineUpperGapFilter,
+          required: normalizedBookmark.machineUpperGapRequired,
+        },
+        {
+          value: machineNextGapValue,
+          filter: machineNextGapFilter,
+          required: normalizedBookmark.machineNextGapRequired,
+        },
+        {
+          value: selectedUpperGapValue,
+          filter: selectedUpperGapFilter,
+          required: normalizedBookmark.selectedUpperGapRequired,
+        },
+        {
+          value: selectedNextGapValue,
+          filter: selectedNextGapFilter,
+          required: normalizedBookmark.selectedNextGapRequired,
+        },
+      ],
     );
 
     if (matched) {

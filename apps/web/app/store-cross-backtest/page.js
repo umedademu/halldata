@@ -83,6 +83,62 @@ function hasNonmatchingSummary(summary) {
   return Number(summary?.actualRowCount ?? 0) > 0;
 }
 
+function BoundaryGapConditionRow({
+  label,
+  minName,
+  maxName,
+  requiredName,
+  minValue,
+  maxValue,
+  requiredValue,
+}) {
+  return (
+    <div className="huntConditionRow">
+      <p className="huntConditionLabel">{label}</p>
+      <div className="huntConditionInputs">
+        <label className="storeReserveField backtestField huntConditionNumberField">
+          <span>下限</span>
+          <input
+            type="number"
+            name={minName}
+            min="0"
+            max="100"
+            step="0.1"
+            defaultValue={minValue ?? ""}
+            className="storeReserveInput"
+          />
+        </label>
+        <label className="storeReserveField backtestField huntConditionNumberField">
+          <span>上限</span>
+          <input
+            type="number"
+            name={maxName}
+            min="0"
+            max="100"
+            step="0.1"
+            defaultValue={maxValue ?? ""}
+            className="storeReserveInput"
+          />
+        </label>
+      </div>
+      <input type="hidden" name={requiredName} value="0" />
+      <label
+        className={`metricToggleChip huntConditionRequired ${
+          requiredValue ? "metricToggleChipActive" : ""
+        }`}
+      >
+        <input
+          type="checkbox"
+          name={requiredName}
+          value="1"
+          defaultChecked={requiredValue}
+        />
+        <span>必須</span>
+      </label>
+    </div>
+  );
+}
+
 function CrossStoreNonmatchingRow({ parentKey, summary }) {
   if (!hasNonmatchingSummary(summary)) {
     return null;
@@ -179,8 +235,8 @@ function StoreRankingTable({ rows, rankingMetric }) {
               <SortableTableHeader columnIndex={17}>対象機種</SortableTableHeader>
               <SortableTableHeader columnIndex={18}>設置台数</SortableTableHeader>
               <SortableTableHeader columnIndex={19}>狙い度</SortableTableHeader>
-              <SortableTableHeader columnIndex={20}>上位境界差</SortableTableHeader>
-              <SortableTableHeader columnIndex={21}>下位境界差</SortableTableHeader>
+              <SortableTableHeader columnIndex={20}>上位境界差（同一）</SortableTableHeader>
+              <SortableTableHeader columnIndex={21}>下位境界差（同一）</SortableTableHeader>
               <SortableTableHeader columnIndex={22}>BB</SortableTableHeader>
               <SortableTableHeader columnIndex={23}>RB</SortableTableHeader>
               <SortableTableHeader columnIndex={24} initialDirection="asc">
@@ -250,8 +306,8 @@ function StoreRankingTable({ rows, rankingMetric }) {
                 </td>
                 <td data-sort-value={row.slotCount}>{formatNumber(row.slotCount)}</td>
                 <BacktestMetricCell sortValue={readSortNumber(row.averageHuntScore)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="狙い度" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageHuntScore)}>{formatDecimal(row.averageHuntScore)}</BacktestMetricCell>
-                <BacktestMetricCell sortValue={readSortNumber(row.averageUpperGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="上位境界差" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageUpperGap)}>{formatDecimal(row.averageUpperGap)}</BacktestMetricCell>
-                <BacktestMetricCell sortValue={readSortNumber(row.averageNextGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="下位境界差" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageNextGap)}>{formatDecimal(row.averageNextGap)}</BacktestMetricCell>
+                <BacktestMetricCell sortValue={readSortNumber(row.averageUpperGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="上位境界差（同一）" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageUpperGap)}>{formatDecimal(row.averageUpperGap)}</BacktestMetricCell>
+                <BacktestMetricCell sortValue={readSortNumber(row.averageNextGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="下位境界差（同一）" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageNextGap)}>{formatDecimal(row.averageNextGap)}</BacktestMetricCell>
                 <BacktestMetricCell sortValue={row.bbTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="BB" nonmatchingValue={formatNumber(nonmatchingSummary?.bbTotal)}>{formatNumber(row.bbTotal)}</BacktestMetricCell>
                 <BacktestMetricCell sortValue={row.rbTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="RB" nonmatchingValue={formatNumber(nonmatchingSummary?.rbTotal)}>{formatNumber(row.rbTotal)}</BacktestMetricCell>
                 <BacktestMetricCell sortValue={readProbabilitySortValue(row.bbProbability)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="BB率" nonmatchingValue={nonmatchingSummary?.bbProbability ?? "-"}>{row.bbProbability ?? "-"}</BacktestMetricCell>
@@ -299,12 +355,24 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
     upperGapMax: readOptionalSearchParam(resolvedSearchParams, "upperGapMax"),
     nextGapMin: readOptionalSearchParam(resolvedSearchParams, "nextGapMin"),
     nextGapMax: readOptionalSearchParam(resolvedSearchParams, "nextGapMax"),
+    machineUpperGapMin: readOptionalSearchParam(resolvedSearchParams, "machineUpperGapMin"),
+    machineUpperGapMax: readOptionalSearchParam(resolvedSearchParams, "machineUpperGapMax"),
+    machineNextGapMin: readOptionalSearchParam(resolvedSearchParams, "machineNextGapMin"),
+    machineNextGapMax: readOptionalSearchParam(resolvedSearchParams, "machineNextGapMax"),
+    selectedUpperGapMin: readOptionalSearchParam(resolvedSearchParams, "selectedUpperGapMin"),
+    selectedUpperGapMax: readOptionalSearchParam(resolvedSearchParams, "selectedUpperGapMax"),
+    selectedNextGapMin: readOptionalSearchParam(resolvedSearchParams, "selectedNextGapMin"),
+    selectedNextGapMax: readOptionalSearchParam(resolvedSearchParams, "selectedNextGapMax"),
     rankRequired: readMultiSearchParam(resolvedSearchParams?.rankRequired),
     machineRankRequired: readMultiSearchParam(resolvedSearchParams?.machineRankRequired),
     selectedRankRequired: readMultiSearchParam(resolvedSearchParams?.selectedRankRequired),
     scoreRequired: readMultiSearchParam(resolvedSearchParams?.scoreRequired),
     upperGapRequired: readMultiSearchParam(resolvedSearchParams?.upperGapRequired),
     nextGapRequired: readMultiSearchParam(resolvedSearchParams?.nextGapRequired),
+    machineUpperGapRequired: readMultiSearchParam(resolvedSearchParams?.machineUpperGapRequired),
+    machineNextGapRequired: readMultiSearchParam(resolvedSearchParams?.machineNextGapRequired),
+    selectedUpperGapRequired: readMultiSearchParam(resolvedSearchParams?.selectedUpperGapRequired),
+    selectedNextGapRequired: readMultiSearchParam(resolvedSearchParams?.selectedNextGapRequired),
     prefectures: readMultiSearchParam(resolvedSearchParams?.prefecture),
     areaKeys: readMultiSearchParam(resolvedSearchParams?.area),
     dayTails: readMultiSearchParam(resolvedSearchParams?.backtestDayTail),
@@ -785,92 +853,42 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                 <span>必須</span>
               </label>
             </div>
-            <div className="huntConditionRow">
-              <p className="huntConditionLabel">上位境界差</p>
-              <div className="huntConditionInputs">
-                <label className="storeReserveField backtestField huntConditionNumberField">
-                  <span>下限</span>
-                  <input
-                    type="number"
-                    name="upperGapMin"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    defaultValue={detail.upperGapMin ?? ""}
-                    className="storeReserveInput"
-                  />
-                </label>
-                <label className="storeReserveField backtestField huntConditionNumberField">
-                  <span>上限</span>
-                  <input
-                    type="number"
-                    name="upperGapMax"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    defaultValue={detail.upperGapMax ?? ""}
-                    className="storeReserveInput"
-                  />
-                </label>
-              </div>
-              <input type="hidden" name="upperGapRequired" value="0" />
-              <label
-                className={`metricToggleChip huntConditionRequired ${
-                  detail.upperGapRequired ? "metricToggleChipActive" : ""
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  name="upperGapRequired"
-                  value="1"
-                  defaultChecked={detail.upperGapRequired}
-                />
-                <span>必須</span>
-              </label>
-            </div>
-            <div className="huntConditionRow">
-              <p className="huntConditionLabel">下位境界差</p>
-              <div className="huntConditionInputs">
-                <label className="storeReserveField backtestField huntConditionNumberField">
-                  <span>下限</span>
-                  <input
-                    type="number"
-                    name="nextGapMin"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    defaultValue={detail.nextGapMin ?? ""}
-                    className="storeReserveInput"
-                  />
-                </label>
-                <label className="storeReserveField backtestField huntConditionNumberField">
-                  <span>上限</span>
-                  <input
-                    type="number"
-                    name="nextGapMax"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    defaultValue={detail.nextGapMax ?? ""}
-                    className="storeReserveInput"
-                  />
-                </label>
-              </div>
-              <input type="hidden" name="nextGapRequired" value="0" />
-              <label
-                className={`metricToggleChip huntConditionRequired ${
-                  detail.nextGapRequired ? "metricToggleChipActive" : ""
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  name="nextGapRequired"
-                  value="1"
-                  defaultChecked={detail.nextGapRequired}
-                />
-                <span>必須</span>
-              </label>
-            </div>
+            <BoundaryGapConditionRow
+              label="上位境界差（同一機種内）"
+              minName="machineUpperGapMin"
+              maxName="machineUpperGapMax"
+              requiredName="machineUpperGapRequired"
+              minValue={detail.machineUpperGapMin}
+              maxValue={detail.machineUpperGapMax}
+              requiredValue={detail.machineUpperGapRequired}
+            />
+            <BoundaryGapConditionRow
+              label="下位境界差（同一機種内）"
+              minName="machineNextGapMin"
+              maxName="machineNextGapMax"
+              requiredName="machineNextGapRequired"
+              minValue={detail.machineNextGapMin}
+              maxValue={detail.machineNextGapMax}
+              requiredValue={detail.machineNextGapRequired}
+            />
+            <BoundaryGapConditionRow
+              label="上位境界差（全機種内）"
+              minName="selectedUpperGapMin"
+              maxName="selectedUpperGapMax"
+              requiredName="selectedUpperGapRequired"
+              minValue={detail.selectedUpperGapMin}
+              maxValue={detail.selectedUpperGapMax}
+              requiredValue={detail.selectedUpperGapRequired}
+            />
+            <BoundaryGapConditionRow
+              label="下位境界差（全機種内）"
+              minName="selectedNextGapMin"
+              maxName="selectedNextGapMax"
+              requiredName="selectedNextGapRequired"
+              minValue={detail.selectedNextGapMin}
+              maxValue={detail.selectedNextGapMax}
+              requiredValue={detail.selectedNextGapRequired}
+            />
           </div>
 
           <div className="backtestBlock">
@@ -963,30 +981,6 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
             </div>
           </div>
 
-          <div className="backtestBlock">
-            <p className="filterControlLabel">境界差の比較対象</p>
-            <div className="metricToggleRow">
-              {[
-                { value: "selected", label: "チェック機種内" },
-                { value: "machine", label: "機種内" },
-              ].map((scope) => (
-                <label
-                  key={scope.value}
-                  className={`metricToggleChip ${
-                    detail.nextGapScope === scope.value ? "metricToggleChipActive" : ""
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="nextGapScope"
-                    value={scope.value}
-                    defaultChecked={detail.nextGapScope === scope.value}
-                  />
-                  <span>{scope.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
             </div>
           </details>
 
