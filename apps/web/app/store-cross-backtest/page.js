@@ -83,7 +83,7 @@ function hasNonmatchingSummary(summary) {
   return Number(summary?.actualRowCount ?? 0) > 0;
 }
 
-function BoundaryGapConditionRow({
+function ScopedConditionRow({
   label,
   minName,
   maxName,
@@ -91,31 +91,36 @@ function BoundaryGapConditionRow({
   minValue,
   maxValue,
   requiredValue,
+  minLabel = "下限",
+  maxLabel = "上限",
+  inputMin = "0",
+  inputMax = "100",
+  inputStep = "0.1",
 }) {
   return (
     <div className="huntConditionRow">
       <p className="huntConditionLabel">{label}</p>
       <div className="huntConditionInputs">
         <label className="storeReserveField backtestField huntConditionNumberField">
-          <span>下限</span>
+          <span>{minLabel}</span>
           <input
             type="number"
             name={minName}
-            min="0"
-            max="100"
-            step="0.1"
+            min={inputMin}
+            max={inputMax}
+            step={inputStep}
             defaultValue={minValue ?? ""}
             className="storeReserveInput"
           />
         </label>
         <label className="storeReserveField backtestField huntConditionNumberField">
-          <span>上限</span>
+          <span>{maxLabel}</span>
           <input
             type="number"
             name={maxName}
-            min="0"
-            max="100"
-            step="0.1"
+            min={inputMin}
+            max={inputMax}
+            step={inputStep}
             defaultValue={maxValue ?? ""}
             className="storeReserveInput"
           />
@@ -733,84 +738,6 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
 
           <div className="huntConditionRows">
             <div className="huntConditionRow">
-              <p className="huntConditionLabel">機種内順位</p>
-              <div className="huntConditionInputs">
-                <label className="storeReserveField backtestField huntConditionNumberField">
-                  <span>開始</span>
-                  <input
-                    type="number"
-                    name="machineRankMin"
-                    min="1"
-                    defaultValue={detail.machineRankMin ?? ""}
-                    className="storeReserveInput"
-                  />
-                </label>
-                <label className="storeReserveField backtestField huntConditionNumberField">
-                  <span>終了</span>
-                  <input
-                    type="number"
-                    name="machineRankMax"
-                    min="1"
-                    defaultValue={detail.machineRankMax ?? ""}
-                    className="storeReserveInput"
-                  />
-                </label>
-              </div>
-              <input type="hidden" name="machineRankRequired" value="0" />
-              <label
-                className={`metricToggleChip huntConditionRequired ${
-                  detail.machineRankRequired ? "metricToggleChipActive" : ""
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  name="machineRankRequired"
-                  value="1"
-                  defaultChecked={detail.machineRankRequired}
-                />
-                <span>必須</span>
-              </label>
-            </div>
-            <div className="huntConditionRow">
-              <p className="huntConditionLabel">全機種内順位</p>
-              <div className="huntConditionInputs">
-                <label className="storeReserveField backtestField huntConditionNumberField">
-                  <span>開始</span>
-                  <input
-                    type="number"
-                    name="selectedRankMin"
-                    min="1"
-                    defaultValue={detail.selectedRankMin ?? ""}
-                    className="storeReserveInput"
-                  />
-                </label>
-                <label className="storeReserveField backtestField huntConditionNumberField">
-                  <span>終了</span>
-                  <input
-                    type="number"
-                    name="selectedRankMax"
-                    min="1"
-                    defaultValue={detail.selectedRankMax ?? ""}
-                    className="storeReserveInput"
-                  />
-                </label>
-              </div>
-              <input type="hidden" name="selectedRankRequired" value="0" />
-              <label
-                className={`metricToggleChip huntConditionRequired ${
-                  detail.selectedRankRequired ? "metricToggleChipActive" : ""
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  name="selectedRankRequired"
-                  value="1"
-                  defaultChecked={detail.selectedRankRequired}
-                />
-                <span>必須</span>
-              </label>
-            </div>
-            <div className="huntConditionRow">
               <p className="huntConditionLabel">狙い度</p>
               <div className="huntConditionInputs">
                 <label className="storeReserveField backtestField huntConditionNumberField">
@@ -853,10 +780,24 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                 <span>必須</span>
               </label>
             </div>
-            <div className="boundaryGapConditionColumns">
-              <div className="boundaryGapConditionColumn">
-                <p className="boundaryGapConditionColumnTitle">同一機種内</p>
-                <BoundaryGapConditionRow
+            <div className="scopedConditionColumns">
+              <div className="scopedConditionColumn">
+                <p className="scopedConditionColumnTitle">同一機種内</p>
+                <ScopedConditionRow
+                  label="順位"
+                  minName="machineRankMin"
+                  maxName="machineRankMax"
+                  requiredName="machineRankRequired"
+                  minValue={detail.machineRankMin}
+                  maxValue={detail.machineRankMax}
+                  requiredValue={detail.machineRankRequired}
+                  minLabel="開始"
+                  maxLabel="終了"
+                  inputMin="1"
+                  inputMax={undefined}
+                  inputStep={undefined}
+                />
+                <ScopedConditionRow
                   label="上位境界差"
                   minName="machineUpperGapMin"
                   maxName="machineUpperGapMax"
@@ -865,7 +806,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                   maxValue={detail.machineUpperGapMax}
                   requiredValue={detail.machineUpperGapRequired}
                 />
-                <BoundaryGapConditionRow
+                <ScopedConditionRow
                   label="下位境界差"
                   minName="machineNextGapMin"
                   maxName="machineNextGapMax"
@@ -875,9 +816,23 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                   requiredValue={detail.machineNextGapRequired}
                 />
               </div>
-              <div className="boundaryGapConditionColumn">
-                <p className="boundaryGapConditionColumnTitle">全機種内</p>
-                <BoundaryGapConditionRow
+              <div className="scopedConditionColumn">
+                <p className="scopedConditionColumnTitle">全機種内</p>
+                <ScopedConditionRow
+                  label="順位"
+                  minName="selectedRankMin"
+                  maxName="selectedRankMax"
+                  requiredName="selectedRankRequired"
+                  minValue={detail.selectedRankMin}
+                  maxValue={detail.selectedRankMax}
+                  requiredValue={detail.selectedRankRequired}
+                  minLabel="開始"
+                  maxLabel="終了"
+                  inputMin="1"
+                  inputMax={undefined}
+                  inputStep={undefined}
+                />
+                <ScopedConditionRow
                   label="上位境界差"
                   minName="selectedUpperGapMin"
                   maxName="selectedUpperGapMax"
@@ -886,7 +841,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                   maxValue={detail.selectedUpperGapMax}
                   requiredValue={detail.selectedUpperGapRequired}
                 />
-                <BoundaryGapConditionRow
+                <ScopedConditionRow
                   label="下位境界差"
                   minName="selectedNextGapMin"
                   maxName="selectedNextGapMax"
