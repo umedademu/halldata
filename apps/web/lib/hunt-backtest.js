@@ -1088,9 +1088,9 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     selectedRankFilter,
     hasRankFilter,
   } = buildScopedRankFilters(options);
-  const scoreFilter = buildScoreFilter(options.scoreMin);
-  const nextGapFilter = buildNextGapFilter(options.nextGapMin);
-  const upperGapFilter = buildUpperGapFilter(options.upperGapMax);
+  const scoreFilter = buildScoreFilter(options.scoreMin, options.scoreMax);
+  const nextGapFilter = buildNextGapFilter(options.nextGapMin, options.nextGapMax);
+  const upperGapFilter = buildUpperGapFilter(options.upperGapMin, options.upperGapMax);
   const baseRequirementOptions = buildConditionRequirementOptions(options);
   const selectionMode = normalizeDailySelectionMode(options.dailySelectionMode);
   const usesMachineTopNextGapSelection = isMachineTopNextGapSelectionMode(selectionMode);
@@ -1174,9 +1174,12 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     hasMachineRankFilter: machineRankFilter.hasRankFilter,
     hasSelectedRankFilter: selectedRankFilter.hasRankFilter,
     scoreMin: scoreFilter.scoreMin,
+    scoreMax: scoreFilter.scoreMax,
     hasScoreFilter: scoreFilter.hasScoreFilter,
     nextGapMin: nextGapFilter.nextGapMin,
+    nextGapMax: nextGapFilter.nextGapMax,
     hasNextGapFilter: nextGapFilter.hasNextGapFilter,
+    upperGapMin: upperGapFilter.upperGapMin,
     upperGapMax: upperGapFilter.upperGapMax,
     hasUpperGapFilter: upperGapFilter.hasUpperGapFilter,
     rankRequired: requirementOptions.rankRequired,

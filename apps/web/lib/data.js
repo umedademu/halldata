@@ -2,7 +2,13 @@ import { cache } from "react";
 
 import { createEventFilters } from "./event-filters";
 import { buildHuntScoreBacktestDetail } from "./hunt-backtest";
-import { buildConditionRequirementOptions, buildScopedRankFilters } from "./hunt-bookmark";
+import {
+  buildConditionRequirementOptions,
+  buildNextGapFilter,
+  buildScoreFilter,
+  buildScopedRankFilters,
+  buildUpperGapFilter,
+} from "./hunt-bookmark";
 import {
   buildHuntScoreSnapshots,
   canonicalHuntScoreTargetMachineName,
@@ -1824,9 +1830,15 @@ function buildInitialBacktestDetail(
     selectedRankFilter,
     hasRankFilter,
   } = buildScopedRankFilters(defaultedOptions);
-  const scoreMin = readNumber(defaultedOptions?.scoreMin);
-  const nextGapMin = readNumber(defaultedOptions?.nextGapMin);
-  const upperGapMax = readNumber(defaultedOptions?.upperGapMax);
+  const scoreFilter = buildScoreFilter(defaultedOptions?.scoreMin, defaultedOptions?.scoreMax);
+  const nextGapFilter = buildNextGapFilter(
+    defaultedOptions?.nextGapMin,
+    defaultedOptions?.nextGapMax,
+  );
+  const upperGapFilter = buildUpperGapFilter(
+    defaultedOptions?.upperGapMin,
+    defaultedOptions?.upperGapMax,
+  );
   const dailySelectionMode = normalizeDailySelectionMode(defaultedOptions?.dailySelectionMode);
   const usesMachineTopNextGapSelection =
     dailySelectionMode === DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP;
@@ -1841,9 +1853,9 @@ function buildInitialBacktestDetail(
     nextGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
     upperGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
   });
-  const hasScoreFilter = scoreMin !== null;
-  const hasNextGapFilter = nextGapMin !== null;
-  const hasUpperGapFilter = upperGapMax !== null;
+  const hasScoreFilter = scoreFilter.hasScoreFilter;
+  const hasNextGapFilter = nextGapFilter.hasNextGapFilter;
+  const hasUpperGapFilter = upperGapFilter.hasUpperGapFilter;
   const requirementOptions = usesMachineTopNextGapSelection
     ? requireActiveConditionFilters(baseRequirementOptions, {
         hasRankFilter,
@@ -1881,11 +1893,14 @@ function buildInitialBacktestDetail(
     hasRankFilter,
     hasMachineRankFilter: machineRankFilter.hasRankFilter,
     hasSelectedRankFilter: selectedRankFilter.hasRankFilter,
-    scoreMin,
+    scoreMin: scoreFilter.scoreMin,
+    scoreMax: scoreFilter.scoreMax,
     hasScoreFilter,
-    nextGapMin,
+    nextGapMin: nextGapFilter.nextGapMin,
+    nextGapMax: nextGapFilter.nextGapMax,
     hasNextGapFilter,
-    upperGapMax,
+    upperGapMin: upperGapFilter.upperGapMin,
+    upperGapMax: upperGapFilter.upperGapMax,
     hasUpperGapFilter,
     rankRequired: requirementOptions.rankRequired,
     machineRankRequired: requirementOptions.machineRankRequired,
@@ -2782,6 +2797,18 @@ function buildCrossStoreBacktestOptions(options = {}, availableMachineNames = nu
     upperGapRequired: DEFAULT_HUNT_NEXT_GAP_REQUIRED,
   });
   const nextGapScope = normalizeCrossStoreRankScope(options?.nextGapScope, "machine");
+  const scoreFilter = buildScoreFilter(
+    readNumberOption(options, "scoreMin", 70),
+    readNumberOption(options, "scoreMax", null),
+  );
+  const nextGapFilter = buildNextGapFilter(
+    readNumberOption(options, "nextGapMin", null),
+    readNumberOption(options, "nextGapMax", null),
+  );
+  const upperGapFilter = buildUpperGapFilter(
+    readNumberOption(options, "upperGapMin", null),
+    readNumberOption(options, "upperGapMax", null),
+  );
 
   return {
     periodMode: options?.periodMode === "range" ? "range" : "recent",
@@ -2800,9 +2827,12 @@ function buildCrossStoreBacktestOptions(options = {}, availableMachineNames = nu
     machineRankMax: scopedRankFilters.machineRankFilter.rankMax,
     selectedRankMin: scopedRankFilters.selectedRankFilter.rankMin,
     selectedRankMax: scopedRankFilters.selectedRankFilter.rankMax,
-    scoreMin: readNumberOption(options, "scoreMin", 70),
-    nextGapMin: readNumberOption(options, "nextGapMin", null),
-    upperGapMax: readNumberOption(options, "upperGapMax", null),
+    scoreMin: scoreFilter.scoreMin,
+    scoreMax: scoreFilter.scoreMax,
+    nextGapMin: nextGapFilter.nextGapMin,
+    nextGapMax: nextGapFilter.nextGapMax,
+    upperGapMin: upperGapFilter.upperGapMin,
+    upperGapMax: upperGapFilter.upperGapMax,
     rankRequired: requirementOptions.rankRequired,
     machineRankRequired: requirementOptions.machineRankRequired,
     selectedRankRequired: requirementOptions.selectedRankRequired,
@@ -3210,7 +3240,10 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       selectedRankMin: backtestOptions.selectedRankMin,
       selectedRankMax: backtestOptions.selectedRankMax,
       scoreMin: backtestOptions.scoreMin,
+      scoreMax: backtestOptions.scoreMax,
       nextGapMin: backtestOptions.nextGapMin,
+      nextGapMax: backtestOptions.nextGapMax,
+      upperGapMin: backtestOptions.upperGapMin,
       upperGapMax: backtestOptions.upperGapMax,
       rankRequired: backtestOptions.rankRequired,
       machineRankRequired: backtestOptions.machineRankRequired,
@@ -3298,7 +3331,10 @@ export async function getCrossStoreBacktestDetail(options = {}) {
     selectedRankMin: backtestOptions.selectedRankMin,
     selectedRankMax: backtestOptions.selectedRankMax,
     scoreMin: backtestOptions.scoreMin,
+    scoreMax: backtestOptions.scoreMax,
     nextGapMin: backtestOptions.nextGapMin,
+    nextGapMax: backtestOptions.nextGapMax,
+    upperGapMin: backtestOptions.upperGapMin,
     upperGapMax: backtestOptions.upperGapMax,
     rankRequired: backtestOptions.rankRequired,
     machineRankRequired: backtestOptions.machineRankRequired,

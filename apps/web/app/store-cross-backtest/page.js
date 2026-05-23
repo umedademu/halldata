@@ -293,9 +293,12 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
     selectedRankMin: readOptionalSearchParam(resolvedSearchParams, "selectedRankMin"),
     selectedRankMax: readOptionalSearchParam(resolvedSearchParams, "selectedRankMax"),
     scoreMin: readOptionalSearchParam(resolvedSearchParams, "scoreMin"),
+    scoreMax: readOptionalSearchParam(resolvedSearchParams, "scoreMax"),
     nextGapScope: readSingleSearchParam(resolvedSearchParams?.nextGapScope),
+    upperGapMin: readOptionalSearchParam(resolvedSearchParams, "upperGapMin"),
     upperGapMax: readOptionalSearchParam(resolvedSearchParams, "upperGapMax"),
     nextGapMin: readOptionalSearchParam(resolvedSearchParams, "nextGapMin"),
+    nextGapMax: readOptionalSearchParam(resolvedSearchParams, "nextGapMax"),
     rankRequired: readMultiSearchParam(resolvedSearchParams?.rankRequired),
     machineRankRequired: readMultiSearchParam(resolvedSearchParams?.machineRankRequired),
     selectedRankRequired: readMultiSearchParam(resolvedSearchParams?.selectedRankRequired),
@@ -754,6 +757,18 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                     className="storeReserveInput"
                   />
                 </label>
+                <label className="storeReserveField backtestField huntConditionNumberField">
+                  <span>上限</span>
+                  <input
+                    type="number"
+                    name="scoreMax"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    defaultValue={detail.scoreMax ?? ""}
+                    className="storeReserveInput"
+                  />
+                </label>
               </div>
               <input type="hidden" name="scoreRequired" value="0" />
               <label
@@ -773,6 +788,18 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
             <div className="huntConditionRow">
               <p className="huntConditionLabel">上位境界差</p>
               <div className="huntConditionInputs">
+                <label className="storeReserveField backtestField huntConditionNumberField">
+                  <span>下限</span>
+                  <input
+                    type="number"
+                    name="upperGapMin"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    defaultValue={detail.upperGapMin ?? ""}
+                    className="storeReserveInput"
+                  />
+                </label>
                 <label className="storeReserveField backtestField huntConditionNumberField">
                   <span>上限</span>
                   <input
@@ -813,6 +840,18 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                     max="100"
                     step="0.1"
                     defaultValue={detail.nextGapMin ?? ""}
+                    className="storeReserveInput"
+                  />
+                </label>
+                <label className="storeReserveField backtestField huntConditionNumberField">
+                  <span>上限</span>
+                  <input
+                    type="number"
+                    name="nextGapMax"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    defaultValue={detail.nextGapMax ?? ""}
                     className="storeReserveInput"
                   />
                 </label>

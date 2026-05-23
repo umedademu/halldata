@@ -322,8 +322,11 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     selectedRankMin: readSingleSearchParam(resolvedSearchParams?.selectedRankMin),
     selectedRankMax: readSingleSearchParam(resolvedSearchParams?.selectedRankMax),
     scoreMin: readSingleSearchParam(resolvedSearchParams?.scoreMin),
+    scoreMax: readSingleSearchParam(resolvedSearchParams?.scoreMax),
     nextGapScope: readSingleSearchParam(resolvedSearchParams?.nextGapScope),
     nextGapMin: readSingleSearchParam(resolvedSearchParams?.nextGapMin),
+    nextGapMax: readSingleSearchParam(resolvedSearchParams?.nextGapMax),
+    upperGapMin: readSingleSearchParam(resolvedSearchParams?.upperGapMin),
     upperGapMax: readSingleSearchParam(resolvedSearchParams?.upperGapMax),
     rankRequired: readMultiSearchParam(resolvedSearchParams?.rankRequired),
     machineRankRequired: readMultiSearchParam(resolvedSearchParams?.machineRankRequired),
@@ -389,7 +392,10 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     selectedRankMin: detail.backtest.selectedRankMin,
     selectedRankMax: detail.backtest.selectedRankMax,
     scoreMin: detail.backtest.scoreMin,
+    scoreMax: detail.backtest.scoreMax,
     nextGapMin: detail.backtest.nextGapMin,
+    nextGapMax: detail.backtest.nextGapMax,
+    upperGapMin: detail.backtest.upperGapMin,
     upperGapMax: detail.backtest.upperGapMax,
     rankRequired: detail.backtest.rankRequired,
     machineRankRequired: detail.backtest.machineRankRequired,
@@ -433,7 +439,10 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     selectedRankMin: detail.backtest.selectedRankMin ?? "",
     selectedRankMax: detail.backtest.selectedRankMax ?? "",
     scoreMin: detail.backtest.scoreMin ?? "",
+    scoreMax: detail.backtest.scoreMax ?? "",
     nextGapMin: detail.backtest.nextGapMin ?? "",
+    nextGapMax: detail.backtest.nextGapMax ?? "",
+    upperGapMin: detail.backtest.upperGapMin ?? "",
     upperGapMax: detail.backtest.upperGapMax ?? "",
     rankRequired: detail.backtest.rankRequired,
     machineRankRequired: detail.backtest.machineRankRequired,
@@ -851,6 +860,18 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                         className="storeReserveInput"
                       />
                     </label>
+                    <label className="storeReserveField backtestField huntConditionNumberField">
+                      <span>上限</span>
+                      <input
+                        type="number"
+                        name="scoreMax"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        defaultValue={detail.backtest.scoreMax ?? ""}
+                        className="storeReserveInput"
+                      />
+                    </label>
                   </div>
                   <input type="hidden" name="scoreRequired" value="0" />
                   <label
@@ -870,6 +891,18 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                 <div className="huntConditionRow">
                   <p className="huntConditionLabel">上位境界差</p>
                   <div className="huntConditionInputs">
+                    <label className="storeReserveField backtestField huntConditionNumberField">
+                      <span>下限</span>
+                      <input
+                        type="number"
+                        name="upperGapMin"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        defaultValue={detail.backtest.upperGapMin ?? ""}
+                        className="storeReserveInput"
+                      />
+                    </label>
                     <label className="storeReserveField backtestField huntConditionNumberField">
                       <span>上限</span>
                       <input
@@ -910,6 +943,18 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                         max="100"
                         step="0.1"
                         defaultValue={detail.backtest.nextGapMin ?? ""}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                    <label className="storeReserveField backtestField huntConditionNumberField">
+                      <span>上限</span>
+                      <input
+                        type="number"
+                        name="nextGapMax"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        defaultValue={detail.backtest.nextGapMax ?? ""}
                         className="storeReserveInput"
                       />
                     </label>
