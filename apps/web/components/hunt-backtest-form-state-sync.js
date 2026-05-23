@@ -35,6 +35,8 @@ const MANAGED_PARAM_KEYS = [
   "selectedRankRequired",
   "scoreMin",
   "scoreRequired",
+  "upperGapMax",
+  "upperGapRequired",
   "nextGapMin",
   "nextGapRequired",
   "scoreDifferenceMode",

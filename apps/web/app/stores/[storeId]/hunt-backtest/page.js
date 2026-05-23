@@ -111,6 +111,7 @@ function BacktestNonmatchingSummaryRow({ parentKey, summary, label }) {
       <th className="directoryNameCell" data-sort-value={label}>{label}</th>
       <td data-sort-value="">-</td>
       <BacktestMetricCell sortValue={readSortNumber(summary.averageHuntScore)}>{formatDecimal(summary.averageHuntScore)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.averageUpperGap)}>{formatDecimal(summary.averageUpperGap)}</BacktestMetricCell>
       <BacktestMetricCell sortValue={readSortNumber(summary.averageNextGap)}>{formatDecimal(summary.averageNextGap)}</BacktestMetricCell>
       <BacktestMetricCell sortValue={summary.actualRowCount}>{formatNumber(summary.actualRowCount)}</BacktestMetricCell>
       <BacktestMetricCell sortValue={readSortNumber(summary.winRate)}>{formatPercent(summary.winRate)}</BacktestMetricCell>
@@ -159,29 +160,30 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
               </SortableTableHeader>
               <SortableTableHeader columnIndex={1}>設置台数</SortableTableHeader>
               <SortableTableHeader columnIndex={2}>狙い度</SortableTableHeader>
-              <SortableTableHeader columnIndex={3}>次点差</SortableTableHeader>
-              <SortableTableHeader columnIndex={4}>集計台数</SortableTableHeader>
-              <SortableTableHeader columnIndex={5}>勝率</SortableTableHeader>
-              <SortableTableHeader columnIndex={6}>合計差枚</SortableTableHeader>
-              <SortableTableHeader columnIndex={7}>合計G数</SortableTableHeader>
-              <SortableTableHeader columnIndex={8}>平均G数</SortableTableHeader>
-              <SortableTableHeader columnIndex={9}>BB</SortableTableHeader>
-              <SortableTableHeader columnIndex={10}>RB</SortableTableHeader>
-              <SortableTableHeader columnIndex={11} initialDirection="asc">
+              <SortableTableHeader columnIndex={3}>上位境界差</SortableTableHeader>
+              <SortableTableHeader columnIndex={4}>下位境界差</SortableTableHeader>
+              <SortableTableHeader columnIndex={5}>集計台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={6}>勝率</SortableTableHeader>
+              <SortableTableHeader columnIndex={7}>合計差枚</SortableTableHeader>
+              <SortableTableHeader columnIndex={8}>合計G数</SortableTableHeader>
+              <SortableTableHeader columnIndex={9}>平均G数</SortableTableHeader>
+              <SortableTableHeader columnIndex={10}>BB</SortableTableHeader>
+              <SortableTableHeader columnIndex={11}>RB</SortableTableHeader>
+              <SortableTableHeader columnIndex={12} initialDirection="asc">
                 BB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={12} initialDirection="asc">
+              <SortableTableHeader columnIndex={13} initialDirection="asc">
                 RB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={13} initialDirection="asc">
+              <SortableTableHeader columnIndex={14} initialDirection="asc">
                 合成
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={14}>機械割</SortableTableHeader>
-              <SortableTableHeader columnIndex={15}>平均設定</SortableTableHeader>
-              <SortableTableHeader columnIndex={16}>推定3.5+</SortableTableHeader>
-              <SortableTableHeader columnIndex={17}>推定4.0+</SortableTableHeader>
-              <SortableTableHeader columnIndex={18}>推定4.5+</SortableTableHeader>
-              <SortableTableHeader columnIndex={19}>推定5.0+</SortableTableHeader>
+              <SortableTableHeader columnIndex={15}>機械割</SortableTableHeader>
+              <SortableTableHeader columnIndex={16}>平均設定</SortableTableHeader>
+              <SortableTableHeader columnIndex={17}>推定3.5+</SortableTableHeader>
+              <SortableTableHeader columnIndex={18}>推定4.0+</SortableTableHeader>
+              <SortableTableHeader columnIndex={19}>推定4.5+</SortableTableHeader>
+              <SortableTableHeader columnIndex={20}>推定5.0+</SortableTableHeader>
             </tr>
           </thead>
           <tbody>
@@ -194,7 +196,8 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
               </th>
               <td data-sort-value={readSortNumber(backtest.total.slotCount)}>{formatNumber(backtest.total.slotCount)}</td>
               <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageHuntScore)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="狙い度" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageHuntScore)}>{formatDecimal(backtest.total.averageHuntScore)}</BacktestMetricCell>
-              <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageNextGap)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="次点差" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageNextGap)}>{formatDecimal(backtest.total.averageNextGap)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageUpperGap)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="上位境界差" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageUpperGap)}>{formatDecimal(backtest.total.averageUpperGap)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageNextGap)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="下位境界差" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageNextGap)}>{formatDecimal(backtest.total.averageNextGap)}</BacktestMetricCell>
               <BacktestMetricCell sortValue={backtest.total.actualRowCount} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="集計台数" nonmatchingValue={formatNumber(totalNonmatchingSummary?.actualRowCount)}>{formatNumber(backtest.total.actualRowCount)}</BacktestMetricCell>
               <BacktestMetricCell sortValue={readSortNumber(backtest.total.winRate)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="勝率" nonmatchingValue={formatPercent(totalNonmatchingSummary?.winRate)}>{formatPercent(backtest.total.winRate)}</BacktestMetricCell>
               <BacktestMetricCell sortValue={backtest.total.differenceTotal} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="合計差枚" nonmatchingValue={formatSignedNumber(totalNonmatchingSummary?.differenceTotal)}>{formatSignedNumber(backtest.total.differenceTotal)}</BacktestMetricCell>
@@ -244,7 +247,8 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
                   </th>
                   <td data-sort-value={readSortNumber(summary.slotCount)}>{formatNumber(summary.slotCount)}</td>
                   <BacktestMetricCell sortValue={readSortNumber(summary.averageHuntScore)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="狙い度" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageHuntScore)}>{formatDecimal(summary.averageHuntScore)}</BacktestMetricCell>
-                  <BacktestMetricCell sortValue={readSortNumber(summary.averageNextGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="次点差" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageNextGap)}>{formatDecimal(summary.averageNextGap)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readSortNumber(summary.averageUpperGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="上位境界差" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageUpperGap)}>{formatDecimal(summary.averageUpperGap)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readSortNumber(summary.averageNextGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="下位境界差" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageNextGap)}>{formatDecimal(summary.averageNextGap)}</BacktestMetricCell>
                   <BacktestMetricCell sortValue={summary.actualRowCount} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="集計台数" nonmatchingValue={formatNumber(nonmatchingSummary?.actualRowCount)}>{formatNumber(summary.actualRowCount)}</BacktestMetricCell>
                   <BacktestMetricCell sortValue={readSortNumber(summary.winRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="勝率" nonmatchingValue={formatPercent(nonmatchingSummary?.winRate)}>{formatPercent(summary.winRate)}</BacktestMetricCell>
                   <BacktestMetricCell sortValue={summary.differenceTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="合計差枚" nonmatchingValue={formatSignedNumber(nonmatchingSummary?.differenceTotal)}>{formatSignedNumber(summary.differenceTotal)}</BacktestMetricCell>
@@ -320,11 +324,13 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     scoreMin: readSingleSearchParam(resolvedSearchParams?.scoreMin),
     nextGapScope: readSingleSearchParam(resolvedSearchParams?.nextGapScope),
     nextGapMin: readSingleSearchParam(resolvedSearchParams?.nextGapMin),
+    upperGapMax: readSingleSearchParam(resolvedSearchParams?.upperGapMax),
     rankRequired: readMultiSearchParam(resolvedSearchParams?.rankRequired),
     machineRankRequired: readMultiSearchParam(resolvedSearchParams?.machineRankRequired),
     selectedRankRequired: readMultiSearchParam(resolvedSearchParams?.selectedRankRequired),
     scoreRequired: readMultiSearchParam(resolvedSearchParams?.scoreRequired),
     nextGapRequired: readMultiSearchParam(resolvedSearchParams?.nextGapRequired),
+    upperGapRequired: readMultiSearchParam(resolvedSearchParams?.upperGapRequired),
     dailySelectionMode: readMultiSearchParam(resolvedSearchParams?.dailySelectionMode),
     showGraph: readSingleSearchParam(resolvedSearchParams?.showGraph),
     eventTouched: readSingleSearchParam(resolvedSearchParams?.backtestEventTouched) === "1",
@@ -384,11 +390,13 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     selectedRankMax: detail.backtest.selectedRankMax,
     scoreMin: detail.backtest.scoreMin,
     nextGapMin: detail.backtest.nextGapMin,
+    upperGapMax: detail.backtest.upperGapMax,
     rankRequired: detail.backtest.rankRequired,
     machineRankRequired: detail.backtest.machineRankRequired,
     selectedRankRequired: detail.backtest.selectedRankRequired,
     scoreRequired: detail.backtest.scoreRequired,
     nextGapRequired: detail.backtest.nextGapRequired,
+    upperGapRequired: detail.backtest.upperGapRequired,
     rankScope: detail.backtest.rankScope,
     nextGapScope: detail.backtest.nextGapScope,
     scoreDifferenceMode: detail.backtest.scoreDifferenceMode,
@@ -426,11 +434,13 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     selectedRankMax: detail.backtest.selectedRankMax ?? "",
     scoreMin: detail.backtest.scoreMin ?? "",
     nextGapMin: detail.backtest.nextGapMin ?? "",
+    upperGapMax: detail.backtest.upperGapMax ?? "",
     rankRequired: detail.backtest.rankRequired,
     machineRankRequired: detail.backtest.machineRankRequired,
     selectedRankRequired: detail.backtest.selectedRankRequired,
     scoreRequired: detail.backtest.scoreRequired,
     nextGapRequired: detail.backtest.nextGapRequired,
+    upperGapRequired: detail.backtest.upperGapRequired,
     scoreDifferenceMode: detail.backtest.scoreDifferenceMode,
     differenceMode: detail.backtest.differenceMode,
     rankScope: detail.backtest.rankScope,
@@ -739,11 +749,11 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       value="machineTopNextGap"
                       defaultChecked={detail.backtest.dailySelectionMode === "machineTopNextGap"}
                     />
-                    <span>各機種1位から機種内次点差1位を1台選抜</span>
+                    <span>各機種1位から機種内下位境界差1位を1台選抜</span>
                   </label>
                 </div>
                 <p className="storeReserveHelp">
-                  ONの場合、日ごとに各機種の機種内狙い度1位台を候補にし、その中で機種内次点差が最大の1台だけを選びます。入力済みの機種内順位、チェック機種内順位、狙い度、次点差条件は、その1台への追加条件としてすべて満たした場合だけ集計します。
+                  ONの場合、日ごとに各機種の機種内狙い度1位台を候補にし、その中で機種内下位境界差が最大の1台だけを選びます。入力済みの機種内順位、チェック機種内順位、狙い度、境界差条件は、その1台への追加条件としてすべて満たした場合だけ集計します。
                 </p>
               </div>
 
@@ -858,7 +868,38 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                   </label>
                 </div>
                 <div className="huntConditionRow">
-                  <p className="huntConditionLabel">次点差</p>
+                  <p className="huntConditionLabel">上位境界差</p>
+                  <div className="huntConditionInputs">
+                    <label className="storeReserveField backtestField huntConditionNumberField">
+                      <span>上限</span>
+                      <input
+                        type="number"
+                        name="upperGapMax"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        defaultValue={detail.backtest.upperGapMax ?? ""}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                  </div>
+                  <input type="hidden" name="upperGapRequired" value="0" />
+                  <label
+                    className={`metricToggleChip huntConditionRequired ${
+                      detail.backtest.upperGapRequired ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="upperGapRequired"
+                      value="1"
+                      defaultChecked={detail.backtest.upperGapRequired}
+                    />
+                    <span>必須</span>
+                  </label>
+                </div>
+                <div className="huntConditionRow">
+                  <p className="huntConditionLabel">下位境界差</p>
                   <div className="huntConditionInputs">
                     <label className="storeReserveField backtestField huntConditionNumberField">
                       <span>下限</span>
@@ -989,7 +1030,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
               </div>
 
               <div className="backtestBlock">
-                <p className="filterControlLabel">次点差の比較対象</p>
+                <p className="filterControlLabel">境界差の比較対象</p>
                 <div className="metricToggleRow">
                   <label
                     className={`metricToggleChip ${

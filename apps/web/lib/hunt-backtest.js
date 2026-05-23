@@ -1,15 +1,18 @@
 import { listHuntScoreTargetMachineNames } from "./hunt-score";
 import {
   buildNextGapFilter,
+  buildUpperGapFilter,
   buildRankFilter,
   buildScoreFilter,
   calculateHuntScoreNextGapMap,
+  calculateHuntScoreUpperGapMap,
   buildConditionRequirementOptions,
   matchesRequiredConditionFilters,
   buildScopedRankFilters,
   normalizeDateText,
   readFiniteNumber,
   readNextGapForRankScope,
+  readUpperGapForRankScope,
 } from "./hunt-bookmark";
 import {
   DEFAULT_DIFFERENCE_MODE,
@@ -260,6 +263,9 @@ function requireActiveConditionFilters(requirementOptions, filters = {}) {
     nextGapRequired: filters.nextGapFilter?.hasNextGapFilter
       ? true
       : Boolean(requirementOptions.nextGapRequired),
+    upperGapRequired: filters.upperGapFilter?.hasUpperGapFilter
+      ? true
+      : Boolean(requirementOptions.upperGapRequired),
   };
 }
 
@@ -620,8 +626,11 @@ function buildEmptySummary(machineName = "総計") {
     huntScoreTotal: 0,
     nextGapTotal: 0,
     nextGapSampleCount: 0,
+    upperGapTotal: 0,
+    upperGapSampleCount: 0,
     averageHuntScore: null,
     averageNextGap: null,
+    averageUpperGap: null,
     actualRowCount: 0,
     winCount: 0,
     winRate: null,
@@ -663,6 +672,7 @@ function finalizeSummary(summary) {
     ...publicSummary,
     averageHuntScore: calculateAverage(summary.huntScoreTotal, summary.actualRowCount),
     averageNextGap: calculateAverage(summary.nextGapTotal, summary.nextGapSampleCount),
+    averageUpperGap: calculateAverage(summary.upperGapTotal, summary.upperGapSampleCount),
     averageGames: calculateAverage(summary.gamesTotal, summary.actualRowCount),
     winRate: calculateAverage(summary.winCount * 100, summary.actualRowCount),
     payoutRate: calculatePayoutRate(summary.investedCoinsTotal, summary.differenceTotal),
@@ -677,7 +687,7 @@ function finalizeSummary(summary) {
   };
 }
 
-function addActualMetricsToSummary(summary, machineName, row, actualMetrics, nextGapValue) {
+function addActualMetricsToSummary(summary, machineName, row, actualMetrics, nextGapValue, upperGapValue) {
   summary.actualRowCount += 1;
   if (actualMetrics.differenceValue > 0) {
     summary.winCount += 1;
@@ -691,6 +701,10 @@ function addActualMetricsToSummary(summary, machineName, row, actualMetrics, nex
   if (Number.isFinite(nextGapValue)) {
     summary.nextGapTotal += nextGapValue;
     summary.nextGapSampleCount += 1;
+  }
+  if (Number.isFinite(upperGapValue)) {
+    summary.upperGapTotal += upperGapValue;
+    summary.upperGapSampleCount += 1;
   }
   addAggregateSettingMetrics(summary, machineName, actualMetrics);
   addSettingEstimateRateMetrics(summary, machineName, row.nextRecord);
@@ -711,6 +725,10 @@ function buildSnapshotGapRows(
     selectedRows,
     rankFilters.selectedRankFilter,
   );
+  const selectedUpperGapMap = calculateHuntScoreUpperGapMap(
+    selectedRows,
+    rankFilters.selectedRankFilter,
+  );
   const machineRowsByName = new Map();
 
   for (const row of selectedRows) {
@@ -726,14 +744,22 @@ function buildSnapshotGapRows(
   }
 
   const machineNextGapMap = new Map();
+  const machineUpperGapMap = new Map();
   for (const machineRows of machineRowsByName.values()) {
     const nextGapMap = calculateHuntScoreNextGapMap(
+      machineRows,
+      rankFilters.machineRankFilter,
+    );
+    const upperGapMap = calculateHuntScoreUpperGapMap(
       machineRows,
       rankFilters.machineRankFilter,
     );
     for (const row of machineRows) {
       if (nextGapMap.has(row)) {
         machineNextGapMap.set(row, nextGapMap.get(row));
+      }
+      if (upperGapMap.has(row)) {
+        machineUpperGapMap.set(row, upperGapMap.get(row));
       }
     }
   }
@@ -745,6 +771,8 @@ function buildSnapshotGapRows(
         ...row,
         selectedNextGap: selectedNextGapMap.get(row) ?? null,
         machineNextGap: machineNextGapMap.get(row) ?? null,
+        selectedUpperGap: selectedUpperGapMap.get(row) ?? null,
+        machineUpperGap: machineUpperGapMap.get(row) ?? null,
       },
     ]),
   );
@@ -827,6 +855,7 @@ function buildBacktestAggregationDetail(
     selectedRankFilter,
     scoreFilter,
     nextGapFilter,
+    upperGapFilter,
     requirementOptions,
     nextGapScope,
     nextGapRankFilters,
@@ -902,6 +931,7 @@ function buildBacktestAggregationDetail(
       machineRankCounts.set(backtestMachineName, machineRank);
       const gapRow = gapRowsByRow.get(row) ?? row;
       const nextGapValue = readNextGapForRankScope(gapRow, nextGapScope);
+      const upperGapValue = readUpperGapForRankScope(gapRow, nextGapScope);
 
       const matchesCondition =
         (!selectedRowSet || selectedRowSet.has(row)) &&
@@ -925,6 +955,8 @@ function buildBacktestAggregationDetail(
           true,
           nextGapValue,
           nextGapFilter,
+          upperGapValue,
+          upperGapFilter,
         );
 
       const actualDate = getActualDate(row, snapshot);
@@ -947,8 +979,8 @@ function buildBacktestAggregationDetail(
       }
 
       const summary = targetSummariesByMachine.get(backtestMachineName);
-      addActualMetricsToSummary(summary, row.machineName, row, actualMetrics, nextGapValue);
-      addActualMetricsToSummary(targetTotalSummary, row.machineName, row, actualMetrics, nextGapValue);
+      addActualMetricsToSummary(summary, row.machineName, row, actualMetrics, nextGapValue, upperGapValue);
+      addActualMetricsToSummary(targetTotalSummary, row.machineName, row, actualMetrics, nextGapValue, upperGapValue);
 
       if (!matchesCondition) {
         continue;
@@ -1058,6 +1090,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   } = buildScopedRankFilters(options);
   const scoreFilter = buildScoreFilter(options.scoreMin);
   const nextGapFilter = buildNextGapFilter(options.nextGapMin);
+  const upperGapFilter = buildUpperGapFilter(options.upperGapMax);
   const baseRequirementOptions = buildConditionRequirementOptions(options);
   const selectionMode = normalizeDailySelectionMode(options.dailySelectionMode);
   const usesMachineTopNextGapSelection = isMachineTopNextGapSelectionMode(selectionMode);
@@ -1068,6 +1101,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
         selectedRankFilter,
         scoreFilter,
         nextGapFilter,
+        upperGapFilter,
       })
     : baseRequirementOptions;
   const nextGapRankFilters = usesMachineTopNextGapSelection
@@ -1093,6 +1127,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     selectedRankFilter,
     scoreFilter,
     nextGapFilter,
+    upperGapFilter,
     requirementOptions,
     nextGapScope,
     nextGapRankFilters,
@@ -1142,11 +1177,14 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     hasScoreFilter: scoreFilter.hasScoreFilter,
     nextGapMin: nextGapFilter.nextGapMin,
     hasNextGapFilter: nextGapFilter.hasNextGapFilter,
+    upperGapMax: upperGapFilter.upperGapMax,
+    hasUpperGapFilter: upperGapFilter.hasUpperGapFilter,
     rankRequired: requirementOptions.rankRequired,
     machineRankRequired: requirementOptions.machineRankRequired,
     selectedRankRequired: requirementOptions.selectedRankRequired,
     scoreRequired: requirementOptions.scoreRequired,
     nextGapRequired: requirementOptions.nextGapRequired,
+    upperGapRequired: requirementOptions.upperGapRequired,
     dailySelectionMode: selectionMode,
     rankScope,
     nextGapScope,

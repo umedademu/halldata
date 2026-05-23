@@ -154,6 +154,15 @@ export function buildNextGapFilter(nextGapMinValue) {
   };
 }
 
+export function buildUpperGapFilter(upperGapMaxValue) {
+  const upperGapMax = readNumber(upperGapMaxValue);
+
+  return {
+    upperGapMax: upperGapMax === null ? null : Math.max(0, upperGapMax),
+    hasUpperGapFilter: upperGapMax !== null,
+  };
+}
+
 export function normalizeMatchMode(value) {
   return value === "or" ? "or" : "and";
 }
@@ -179,6 +188,7 @@ export function buildConditionRequirementOptions(source = {}, fallback = {}) {
     !Object.hasOwn(safeSource, "selectedRankRequired") &&
     !Object.hasOwn(safeSource, "scoreRequired") &&
     !Object.hasOwn(safeSource, "nextGapRequired") &&
+    !Object.hasOwn(safeSource, "upperGapRequired") &&
     Object.hasOwn(safeSource, "matchMode")
   ) {
     const allRequired = normalizeMatchMode(safeSource.matchMode) === "and";
@@ -188,6 +198,7 @@ export function buildConditionRequirementOptions(source = {}, fallback = {}) {
       selectedRankRequired: allRequired,
       scoreRequired: allRequired,
       nextGapRequired: allRequired,
+      upperGapRequired: allRequired,
     };
   }
 
@@ -215,6 +226,10 @@ export function buildConditionRequirementOptions(source = {}, fallback = {}) {
       safeSource.nextGapRequired,
       Boolean(fallback.nextGapRequired),
     ),
+    upperGapRequired: normalizeRequiredOption(
+      safeSource.upperGapRequired,
+      Boolean(fallback.upperGapRequired),
+    ),
   };
 }
 
@@ -235,6 +250,9 @@ function requireActiveConditionFilters(requirementOptions, filters = {}) {
     nextGapRequired: filters.nextGapFilter?.hasNextGapFilter
       ? true
       : Boolean(requirementOptions.nextGapRequired),
+    upperGapRequired: filters.upperGapFilter?.hasUpperGapFilter
+      ? true
+      : Boolean(requirementOptions.upperGapRequired),
   };
 }
 
@@ -288,18 +306,29 @@ function formatRankScopeLabel(rankScope) {
 
 function formatNextGapScopeLabel(nextGapScope) {
   if (nextGapScope === "machine") {
-    return "機種内次点差";
+    return "機種内境界差";
   }
   if (nextGapScope === "selected") {
-    return "チェック機種内次点差";
+    return "チェック機種内境界差";
   }
-  return "チェック機種内次点差";
+  return "チェック機種内境界差";
 }
 
 function findNextLowerHuntScore(sortedRows, startIndex, currentScore) {
   for (let index = startIndex + 1; index < sortedRows.length; index += 1) {
     const candidateScore = sortedRows[index].score;
     if (currentScore - candidateScore > SCORE_EPSILON) {
+      return candidateScore;
+    }
+  }
+
+  return null;
+}
+
+function findPreviousHigherHuntScore(sortedRows, startIndex, currentScore) {
+  for (let index = startIndex - 1; index >= 0; index -= 1) {
+    const candidateScore = sortedRows[index].score;
+    if (candidateScore - currentScore > SCORE_EPSILON) {
       return candidateScore;
     }
   }
@@ -360,6 +389,59 @@ export function calculateHuntScoreNextGapMap(rows, rankFilter = null) {
   );
 }
 
+export function calculateHuntScoreUpperGapMap(rows, rankFilter = null) {
+  const validRows = (Array.isArray(rows) ? rows : [])
+    .map((row, index) => ({
+      row,
+      index,
+      score: readNumber(row?.huntScore),
+    }))
+    .filter((entry) => entry.score !== null)
+    .sort((left, right) => right.score - left.score || left.index - right.index);
+
+  if (validRows.length < 2) {
+    return new Map();
+  }
+
+  if (rankFilter?.hasRankFilter) {
+    const rankMin = readPositiveInteger(rankFilter.rankMin) ?? 1;
+    const rankMax = readPositiveInteger(rankFilter.rankMax) ?? rankMin;
+    const normalizedRankMin = Math.min(rankMin, rankMax);
+    const normalizedRankMax = Math.max(rankMin, rankMax);
+    const previousHigherScore = findPreviousHigherHuntScore(
+      validRows,
+      normalizedRankMin - 1,
+      validRows[normalizedRankMin - 1]?.score ?? Number.POSITIVE_INFINITY,
+    );
+
+    if (previousHigherScore === null) {
+      return new Map();
+    }
+
+    return new Map(
+      validRows.map((entry, index) => {
+        const rank = index + 1;
+        return [
+          entry.row,
+          rank >= normalizedRankMin && rank <= normalizedRankMax
+            ? Math.max(0, previousHigherScore - entry.score)
+            : null,
+        ];
+      }),
+    );
+  }
+
+  return new Map(
+    validRows.map((entry, index) => {
+      const previousHigherScore = findPreviousHigherHuntScore(validRows, index, entry.score);
+      return [
+        entry.row,
+        previousHigherScore !== null ? Math.max(0, previousHigherScore - entry.score) : null,
+      ];
+    }),
+  );
+}
+
 export function readNextGapForRankScope(row, rankScope) {
   if (rankScope === "machine") {
     return readNumber(row?.machineNextGap);
@@ -368,6 +450,16 @@ export function readNextGapForRankScope(row, rankScope) {
     return readNumber(row?.selectedNextGap);
   }
   return readNumber(row?.overallNextGap);
+}
+
+export function readUpperGapForRankScope(row, rankScope) {
+  if (rankScope === "machine") {
+    return readNumber(row?.machineUpperGap);
+  }
+  if (rankScope === "selected") {
+    return readNumber(row?.selectedUpperGap);
+  }
+  return readNumber(row?.overallUpperGap);
 }
 
 function compareSelectionCandidates(left, right) {
@@ -429,6 +521,8 @@ export function matchesRequiredConditionFilters(
   noFilterResult = true,
   nextGapValue = null,
   nextGapFilter = { hasNextGapFilter: false, nextGapMin: null },
+  upperGapValue = null,
+  upperGapFilter = { hasUpperGapFilter: false, upperGapMax: null },
 ) {
   const normalizedRequirements = buildConditionRequirementOptions(requirementOptions);
   const conditionEntries = [];
@@ -472,6 +566,15 @@ export function matchesRequiredConditionFilters(
         normalizedNextGapValue !== null &&
         normalizedNextGapValue >= nextGapFilter.nextGapMin,
       required: normalizedRequirements.nextGapRequired,
+    });
+  }
+  if (upperGapFilter.hasUpperGapFilter) {
+    const normalizedUpperGapValue = readNumber(upperGapValue);
+    conditionEntries.push({
+      matched:
+        normalizedUpperGapValue !== null &&
+        normalizedUpperGapValue <= upperGapFilter.upperGapMax,
+      required: normalizedRequirements.upperGapRequired,
     });
   }
 
@@ -532,6 +635,7 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
   } = buildScopedRankFilters(bookmark);
   const scoreFilter = buildScoreFilter(bookmark.scoreMin);
   const nextGapFilter = buildNextGapFilter(bookmark.nextGapMin);
+  const upperGapFilter = buildUpperGapFilter(bookmark.upperGapMax);
   const dailySelectionMode = normalizeDailySelectionMode(bookmark.dailySelectionMode);
   const usesMachineTopNextGapSelection = isMachineTopNextGapSelectionMode(dailySelectionMode);
   const baseRequirementOptions = buildConditionRequirementOptions(bookmark);
@@ -541,6 +645,7 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
         selectedRankFilter,
         scoreFilter,
         nextGapFilter,
+        upperGapFilter,
       })
     : baseRequirementOptions;
   const allMachineCount = readPositiveInteger(bookmark.allMachineCount) ?? machineNames.length;
@@ -567,11 +672,14 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     hasScoreFilter: scoreFilter.hasScoreFilter,
     nextGapMin: nextGapFilter.nextGapMin,
     hasNextGapFilter: nextGapFilter.hasNextGapFilter,
+    upperGapMax: upperGapFilter.upperGapMax,
+    hasUpperGapFilter: upperGapFilter.hasUpperGapFilter,
     rankRequired: requirementOptions.rankRequired,
     machineRankRequired: requirementOptions.machineRankRequired,
     selectedRankRequired: requirementOptions.selectedRankRequired,
     scoreRequired: requirementOptions.scoreRequired,
     nextGapRequired: requirementOptions.nextGapRequired,
+    upperGapRequired: requirementOptions.upperGapRequired,
     dailySelectionMode,
     rankScope,
     nextGapScope: normalizeRankScope(bookmark.nextGapScope ?? "machine"),
@@ -611,11 +719,13 @@ export function areHuntBacktestBookmarksEqual(left, right) {
     normalizedLeft.selectedRankMax === normalizedRight.selectedRankMax &&
     normalizedLeft.scoreMin === normalizedRight.scoreMin &&
     normalizedLeft.nextGapMin === normalizedRight.nextGapMin &&
+    normalizedLeft.upperGapMax === normalizedRight.upperGapMax &&
     normalizedLeft.rankRequired === normalizedRight.rankRequired &&
     normalizedLeft.machineRankRequired === normalizedRight.machineRankRequired &&
     normalizedLeft.selectedRankRequired === normalizedRight.selectedRankRequired &&
     normalizedLeft.scoreRequired === normalizedRight.scoreRequired &&
     normalizedLeft.nextGapRequired === normalizedRight.nextGapRequired &&
+    normalizedLeft.upperGapRequired === normalizedRight.upperGapRequired &&
     normalizedLeft.dailySelectionMode === normalizedRight.dailySelectionMode &&
     normalizedLeft.rankScope === normalizedRight.rankScope &&
     normalizedLeft.nextGapScope === normalizedRight.nextGapScope &&
@@ -660,7 +770,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   const parts = [buildMachineSummaryText(normalizedBookmark)];
 
   if (isMachineTopNextGapSelectionMode(normalizedBookmark.dailySelectionMode)) {
-    parts.push("各機種1位から機種内次点差1位を1台選抜");
+    parts.push("各機種1位から機種内下位境界差1位を1台選抜");
   }
 
   parts.push(formatNextGapScopeLabel(normalizedBookmark.nextGapScope));
@@ -691,8 +801,16 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
 
   if (normalizedBookmark.hasNextGapFilter) {
     parts.push(
-      `次点差${trimDecimalText(normalizedBookmark.nextGapMin)}以上${
+      `下位境界差${trimDecimalText(normalizedBookmark.nextGapMin)}以上${
         normalizedBookmark.nextGapRequired ? "必須" : ""
+      }`,
+    );
+  }
+
+  if (normalizedBookmark.hasUpperGapFilter) {
+    parts.push(
+      `上位境界差${trimDecimalText(normalizedBookmark.upperGapMax)}以下${
+        normalizedBookmark.upperGapRequired ? "必須" : ""
       }`,
     );
   }
@@ -702,6 +820,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
     normalizedBookmark.hasSelectedRankFilter,
     normalizedBookmark.hasScoreFilter,
     normalizedBookmark.hasNextGapFilter,
+    normalizedBookmark.hasUpperGapFilter,
   ].filter(Boolean).length;
 
   if (normalizedBookmark.combineAimJuggler) {
@@ -713,7 +832,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   }
 
   if (activeFilterCount === 0) {
-    parts.push("順位、狙い度、次点差の指定なし");
+    parts.push("順位、狙い度、境界差の指定なし");
   }
 
   return parts.join(" / ");
@@ -822,6 +941,7 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
   const { machineRankFilter, selectedRankFilter } = buildScopedRankFilters(normalizedBookmark);
   const scoreFilter = buildScoreFilter(normalizedBookmark.scoreMin);
   const nextGapFilter = buildNextGapFilter(normalizedBookmark.nextGapMin);
+  const upperGapFilter = buildUpperGapFilter(normalizedBookmark.upperGapMax);
   const usesMachineTopNextGapSelection = isMachineTopNextGapSelectionMode(
     normalizedBookmark.dailySelectionMode,
   );
@@ -829,10 +949,15 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
   const selectedNextGapRankFilter = usesMachineTopNextGapSelection ? null : selectedRankFilter;
   const machineNextGapRankFilter = usesMachineTopNextGapSelection ? null : machineRankFilter;
   const overallNextGapMap = calculateHuntScoreNextGapMap(safeRows, selectedNextGapRankFilter);
+  const overallUpperGapMap = calculateHuntScoreUpperGapMap(safeRows, selectedNextGapRankFilter);
   const selectedRows = safeRows.filter((row) =>
     includesBookmarkMachine(normalizeText(row?.machineName), selectedMachineNameSet),
   );
   const selectedNextGapMap = calculateHuntScoreNextGapMap(
+    selectedRows,
+    selectedNextGapRankFilter,
+  );
+  const selectedUpperGapMap = calculateHuntScoreUpperGapMap(
     selectedRows,
     selectedNextGapRankFilter,
   );
@@ -855,15 +980,20 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
   }
 
   const machineNextGapMap = new Map();
+  const machineUpperGapMap = new Map();
   const selectionMachineNextGapMap = new Map();
   for (const machineRows of rowsByBookmarkMachineName.values()) {
     const nextGapMap = calculateHuntScoreNextGapMap(machineRows, machineNextGapRankFilter);
+    const upperGapMap = calculateHuntScoreUpperGapMap(machineRows, machineNextGapRankFilter);
     const selectionNextGapMap = usesMachineTopNextGapSelection
       ? calculateHuntScoreNextGapMap(machineRows, selectionRankFilter)
       : null;
     for (const row of machineRows) {
       if (nextGapMap.has(row)) {
         machineNextGapMap.set(row, nextGapMap.get(row));
+      }
+      if (upperGapMap.has(row)) {
+        machineUpperGapMap.set(row, upperGapMap.get(row));
       }
       if (selectionNextGapMap?.has(row)) {
         selectionMachineNextGapMap.set(row, selectionNextGapMap.get(row));
@@ -907,6 +1037,12 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
           ? selectedNextGapMap.get(row) ?? null
           : overallNextGapMap.get(row) ?? null;
     const nextGapValue = calculatedNextGapValue;
+    const upperGapValue =
+      normalizedBookmark.nextGapScope === "machine"
+        ? machineUpperGapMap.get(row) ?? null
+        : normalizedBookmark.nextGapScope === "selected"
+          ? selectedUpperGapMap.get(row) ?? null
+          : overallUpperGapMap.get(row) ?? null;
     const matched = matchesRequiredConditionFilters(
       [
         {
@@ -928,10 +1064,13 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
         selectedRankRequired: normalizedBookmark.selectedRankRequired,
         scoreRequired: normalizedBookmark.scoreRequired,
         nextGapRequired: normalizedBookmark.nextGapRequired,
+        upperGapRequired: normalizedBookmark.upperGapRequired,
       },
       true,
       nextGapValue,
       nextGapFilter,
+      upperGapValue,
+      upperGapFilter,
     );
 
     if (matched) {

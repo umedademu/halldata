@@ -115,6 +115,7 @@ function CrossStoreNonmatchingRow({ parentKey, summary }) {
       <td data-sort-value="">-</td>
       <td data-sort-value="">-</td>
       <BacktestMetricCell sortValue={readSortNumber(summary.averageHuntScore)}>{formatDecimal(summary.averageHuntScore)}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readSortNumber(summary.averageUpperGap)}>{formatDecimal(summary.averageUpperGap)}</BacktestMetricCell>
       <BacktestMetricCell sortValue={readSortNumber(summary.averageNextGap)}>{formatDecimal(summary.averageNextGap)}</BacktestMetricCell>
       <BacktestMetricCell sortValue={summary.bbTotal}>{formatNumber(summary.bbTotal)}</BacktestMetricCell>
       <BacktestMetricCell sortValue={summary.rbTotal}>{formatNumber(summary.rbTotal)}</BacktestMetricCell>
@@ -178,16 +179,17 @@ function StoreRankingTable({ rows, rankingMetric }) {
               <SortableTableHeader columnIndex={17}>対象機種</SortableTableHeader>
               <SortableTableHeader columnIndex={18}>設置台数</SortableTableHeader>
               <SortableTableHeader columnIndex={19}>狙い度</SortableTableHeader>
-              <SortableTableHeader columnIndex={20}>次点差</SortableTableHeader>
-              <SortableTableHeader columnIndex={21}>BB</SortableTableHeader>
-              <SortableTableHeader columnIndex={22}>RB</SortableTableHeader>
-              <SortableTableHeader columnIndex={23} initialDirection="asc">
+              <SortableTableHeader columnIndex={20}>上位境界差</SortableTableHeader>
+              <SortableTableHeader columnIndex={21}>下位境界差</SortableTableHeader>
+              <SortableTableHeader columnIndex={22}>BB</SortableTableHeader>
+              <SortableTableHeader columnIndex={23}>RB</SortableTableHeader>
+              <SortableTableHeader columnIndex={24} initialDirection="asc">
                 BB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={24} initialDirection="asc">
+              <SortableTableHeader columnIndex={25} initialDirection="asc">
                 RB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={25} initialDirection="asc">
+              <SortableTableHeader columnIndex={26} initialDirection="asc">
                 合成
               </SortableTableHeader>
             </tr>
@@ -248,7 +250,8 @@ function StoreRankingTable({ rows, rankingMetric }) {
                 </td>
                 <td data-sort-value={row.slotCount}>{formatNumber(row.slotCount)}</td>
                 <BacktestMetricCell sortValue={readSortNumber(row.averageHuntScore)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="狙い度" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageHuntScore)}>{formatDecimal(row.averageHuntScore)}</BacktestMetricCell>
-                <BacktestMetricCell sortValue={readSortNumber(row.averageNextGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="次点差" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageNextGap)}>{formatDecimal(row.averageNextGap)}</BacktestMetricCell>
+                <BacktestMetricCell sortValue={readSortNumber(row.averageUpperGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="上位境界差" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageUpperGap)}>{formatDecimal(row.averageUpperGap)}</BacktestMetricCell>
+                <BacktestMetricCell sortValue={readSortNumber(row.averageNextGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="下位境界差" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageNextGap)}>{formatDecimal(row.averageNextGap)}</BacktestMetricCell>
                 <BacktestMetricCell sortValue={row.bbTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="BB" nonmatchingValue={formatNumber(nonmatchingSummary?.bbTotal)}>{formatNumber(row.bbTotal)}</BacktestMetricCell>
                 <BacktestMetricCell sortValue={row.rbTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="RB" nonmatchingValue={formatNumber(nonmatchingSummary?.rbTotal)}>{formatNumber(row.rbTotal)}</BacktestMetricCell>
                 <BacktestMetricCell sortValue={readProbabilitySortValue(row.bbProbability)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="BB率" nonmatchingValue={nonmatchingSummary?.bbProbability ?? "-"}>{row.bbProbability ?? "-"}</BacktestMetricCell>
@@ -291,11 +294,13 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
     selectedRankMax: readOptionalSearchParam(resolvedSearchParams, "selectedRankMax"),
     scoreMin: readOptionalSearchParam(resolvedSearchParams, "scoreMin"),
     nextGapScope: readSingleSearchParam(resolvedSearchParams?.nextGapScope),
+    upperGapMax: readOptionalSearchParam(resolvedSearchParams, "upperGapMax"),
     nextGapMin: readOptionalSearchParam(resolvedSearchParams, "nextGapMin"),
     rankRequired: readMultiSearchParam(resolvedSearchParams?.rankRequired),
     machineRankRequired: readMultiSearchParam(resolvedSearchParams?.machineRankRequired),
     selectedRankRequired: readMultiSearchParam(resolvedSearchParams?.selectedRankRequired),
     scoreRequired: readMultiSearchParam(resolvedSearchParams?.scoreRequired),
+    upperGapRequired: readMultiSearchParam(resolvedSearchParams?.upperGapRequired),
     nextGapRequired: readMultiSearchParam(resolvedSearchParams?.nextGapRequired),
     prefectures: readMultiSearchParam(resolvedSearchParams?.prefecture),
     areaKeys: readMultiSearchParam(resolvedSearchParams?.area),
@@ -766,7 +771,38 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
               </label>
             </div>
             <div className="huntConditionRow">
-              <p className="huntConditionLabel">次点差</p>
+              <p className="huntConditionLabel">上位境界差</p>
+              <div className="huntConditionInputs">
+                <label className="storeReserveField backtestField huntConditionNumberField">
+                  <span>上限</span>
+                  <input
+                    type="number"
+                    name="upperGapMax"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    defaultValue={detail.upperGapMax ?? ""}
+                    className="storeReserveInput"
+                  />
+                </label>
+              </div>
+              <input type="hidden" name="upperGapRequired" value="0" />
+              <label
+                className={`metricToggleChip huntConditionRequired ${
+                  detail.upperGapRequired ? "metricToggleChipActive" : ""
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  name="upperGapRequired"
+                  value="1"
+                  defaultChecked={detail.upperGapRequired}
+                />
+                <span>必須</span>
+              </label>
+            </div>
+            <div className="huntConditionRow">
+              <p className="huntConditionLabel">下位境界差</p>
               <div className="huntConditionInputs">
                 <label className="storeReserveField backtestField huntConditionNumberField">
                   <span>下限</span>
@@ -889,7 +925,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
           </div>
 
           <div className="backtestBlock">
-            <p className="filterControlLabel">次点差の比較対象</p>
+            <p className="filterControlLabel">境界差の比較対象</p>
             <div className="metricToggleRow">
               {[
                 { value: "selected", label: "チェック機種内" },
