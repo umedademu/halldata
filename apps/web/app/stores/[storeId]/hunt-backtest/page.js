@@ -848,48 +848,17 @@ export default async function HuntBacktestPage({ params, searchParams }) {
               </div>
 
               <div className="huntConditionRows">
-                <div className="huntConditionRow huntConditionRowCompact">
-                  <p className="huntConditionLabel">狙い度</p>
-                  <div className="huntConditionInputs">
-                    <label className="storeReserveField backtestField huntConditionNumberField">
-                      <span>下限</span>
-                      <input
-                        type="number"
-                        name="scoreMin"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        defaultValue={detail.backtest.scoreMin ?? ""}
-                        className="storeReserveInput"
-                      />
-                    </label>
-                    <label className="storeReserveField backtestField huntConditionNumberField">
-                      <span>上限</span>
-                      <input
-                        type="number"
-                        name="scoreMax"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        defaultValue={detail.backtest.scoreMax ?? ""}
-                        className="storeReserveInput"
-                      />
-                    </label>
-                  </div>
-                  <input type="hidden" name="scoreRequired" value="0" />
-                  <label
-                    className={`metricToggleChip huntConditionRequired ${
-                      detail.backtest.scoreRequired ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      name="scoreRequired"
-                      value="1"
-                      defaultChecked={detail.backtest.scoreRequired}
-                    />
-                    <span>必須</span>
-                  </label>
+                <div className="commonConditionPanel">
+                  <p className="scopedConditionColumnTitle">共通条件</p>
+                  <ScopedConditionRow
+                    label="狙い度"
+                    minName="scoreMin"
+                    maxName="scoreMax"
+                    requiredName="scoreRequired"
+                    minValue={detail.backtest.scoreMin}
+                    maxValue={detail.backtest.scoreMax}
+                    requiredValue={detail.backtest.scoreRequired}
+                  />
                 </div>
                 <div className="scopedConditionColumns">
                   <div className="scopedConditionColumn">

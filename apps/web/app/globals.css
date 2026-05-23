@@ -353,6 +353,23 @@ a {
   max-width: 70rem;
 }
 
+.commonConditionPanel {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  max-width: 70rem;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.commonConditionPanel .scopedConditionRow {
+  grid-template-columns: minmax(5.2rem, 6.4rem) 10rem 10rem max-content;
+  justify-content: start;
+}
+
 .scopedConditionColumn {
   display: grid;
   gap: 8px;
@@ -373,7 +390,7 @@ a {
 
 .scopedConditionRow {
   display: grid;
-  grid-template-columns: minmax(5.2rem, 6.4rem) minmax(5.5rem, 1fr) minmax(5.5rem, 1fr) auto;
+  grid-template-columns: minmax(5.2rem, 6.4rem) minmax(5.5rem, 1fr) minmax(5.5rem, 1fr) max-content;
   gap: 8px;
   align-items: end;
   min-width: 0;
@@ -412,7 +429,9 @@ a {
 
 .scopedConditionRequired {
   align-self: end;
+  justify-self: start;
   justify-content: center;
+  width: max-content;
   min-height: 2.35rem;
   padding: 7px 10px;
   white-space: nowrap;
@@ -423,11 +442,6 @@ a {
   grid-template-columns: minmax(5.5rem, 7rem) minmax(0, 1fr) auto;
   gap: 10px;
   align-items: end;
-}
-
-.huntConditionRowCompact {
-  grid-template-columns: minmax(5.5rem, 7rem) max-content auto;
-  justify-content: start;
 }
 
 .huntConditionLabel {
@@ -453,15 +467,6 @@ a {
 .huntConditionRequired {
   align-self: end;
   white-space: nowrap;
-}
-
-.huntConditionRowCompact .huntConditionInputs {
-  flex-wrap: nowrap;
-}
-
-.huntConditionRowCompact .storeReserveField.huntConditionNumberField {
-  flex: 0 0 12.5rem;
-  min-width: 8rem;
 }
 
 .storeReserveInput {
@@ -2403,6 +2408,7 @@ a {
     grid-template-columns: 1fr;
   }
 
+  .commonConditionPanel .scopedConditionRow,
   .scopedConditionRow {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   }
