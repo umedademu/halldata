@@ -97,7 +97,7 @@
 - Web表示用JSONは店舗概要と機種別データに分けて生成し、Web側が全店舗を軽く表示できるようにします
 - R2上のWeb表示用JSONは、Webアプリが表示時に読む唯一のデータ元です
 - 既存のR2上Web表示用JSONへ `ボーナス数基準差枚` を追加する場合は、`python apps/gui/backfill_bonus_difference_values.py` を実行します
-- 既存のR2上Web表示用JSONへ `推定設定` と `推定設定基準差枚` を追加する場合は、`python apps/gui/backfill_estimated_setting_values.py` を実行します
+- 既存のR2上Web表示用JSONへ `推定設定` と `推定設定基準差枚` を追加または再計算する場合は、`python apps/gui/backfill_estimated_setting_values.py` を実行します。実行前に `--dry-run` で対象件数を確認でき、通常実行では更新前の機種別JSONを `local_data/backups` へ退避します
 - 保存前に、既存データ件数が最も多い `Aパーク春日店` または `GOGOアリーナ天神` の店舗情報へ寄せ直し、サイトセブン側の店舗表記で別店舗を増やさないようにします
 - 保存時は、`ゴーゴージャグラー３` や `ファンキージャグラー２ＫＴ` のような既存表記へ機種名も寄せ直し、表記ゆれで別機種を増やさないようにします
 - ただし `ネオアイムジャグラーEX` と `SアイムジャグラーＥＸ` は別機種として分けて保存します
