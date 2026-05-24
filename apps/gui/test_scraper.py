@@ -1406,9 +1406,9 @@ class MinRepoScraperTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(difference_value, -28)
+        self.assertEqual(difference_value, 823)
 
-    def test_calculate_estimated_coin_hold_difference_value_caps_juggler_machine_rate(self) -> None:
+    def test_calculate_estimated_coin_hold_difference_value_keeps_stronger_bonus_result(self) -> None:
         difference_value = calculate_estimated_coin_hold_difference_value(
             "ネオアイムジャグラーEX",
             {
@@ -1419,7 +1419,7 @@ class MinRepoScraperTests(unittest.TestCase):
             setting_average=6,
         )
 
-        self.assertEqual(difference_value, 5577)
+        self.assertEqual(difference_value, 22977)
 
     def test_canonical_machine_name_matches_site7_keyword(self) -> None:
         self.assertEqual(canonical_machine_name("SアイムジャグラーＥＸ", site7_only=True), "SアイムジャグラーＥＸ")
@@ -2244,7 +2244,7 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(record["setting_estimate_status"], "confirmed")
         self.assertEqual(record["setting_estimate_source"], "minrepo")
         self.assertEqual(record["setting_estimate_version"], SETTING_ESTIMATE_VALUE_VERSION)
-        self.assertEqual(record["estimated_difference_value"], -28)
+        self.assertEqual(record["estimated_difference_value"], 823)
         self.assertEqual(record["estimated_difference_status"], "confirmed")
         self.assertEqual(record["estimated_difference_source"], "minrepo")
         self.assertEqual(record["estimated_difference_version"], SETTING_ESTIMATE_VALUE_VERSION)

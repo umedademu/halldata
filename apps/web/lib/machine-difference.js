@@ -219,65 +219,6 @@ function interpolateSettingCoinHold(rule, settingAverage) {
   return null;
 }
 
-function readPayoutRateCapRows(rule) {
-  return Object.entries(rule?.cherry_aim_payout_rate_caps ?? {})
-    .map(([setting, payoutRate]) => ({
-      setting: readDifferenceNumber(setting),
-      payoutRate: readDifferenceNumber(payoutRate),
-    }))
-    .filter((row) => row.setting !== null && row.payoutRate !== null)
-    .sort((left, right) => left.setting - right.setting);
-}
-
-function interpolatePayoutRateCap(rule, settingAverage) {
-  const capRows = readPayoutRateCapRows(rule);
-  if (capRows.length === 0 || !Number.isFinite(settingAverage)) {
-    return null;
-  }
-
-  const firstRow = capRows[0];
-  const lastRow = capRows.at(-1);
-  if (settingAverage <= firstRow.setting) {
-    return firstRow.payoutRate;
-  }
-  if (settingAverage >= lastRow.setting) {
-    return lastRow.payoutRate;
-  }
-
-  for (let index = 0; index < capRows.length - 1; index += 1) {
-    const leftRow = capRows[index];
-    const rightRow = capRows[index + 1];
-    if (settingAverage < leftRow.setting || settingAverage > rightRow.setting) {
-      continue;
-    }
-    const settingWidth = rightRow.setting - leftRow.setting;
-    if (settingWidth <= 0) {
-      return leftRow.payoutRate;
-    }
-    const progress = (settingAverage - leftRow.setting) / settingWidth;
-    return leftRow.payoutRate + (rightRow.payoutRate - leftRow.payoutRate) * progress;
-  }
-
-  return null;
-}
-
-function capDifferenceByPayoutRate(rule, differenceValue, gamesCount, settingAverage) {
-  const payoutRateCap = interpolatePayoutRateCap(rule, settingAverage);
-  if (
-    differenceValue === null ||
-    gamesCount === null ||
-    !Number.isFinite(payoutRateCap)
-  ) {
-    return differenceValue;
-  }
-
-  const maxDifferenceValue = roundHalfUp(gamesCount * 3 * (payoutRateCap / 100 - 1));
-  if (maxDifferenceValue === null) {
-    return differenceValue;
-  }
-  return Math.min(differenceValue, maxDifferenceValue);
-}
-
 export function calculateEstimatedCoinHoldDifferenceValue(row, machineName = "") {
   const targetMachineName = String(
     machineName || row?.machine_name || row?.machineName || "",
@@ -294,12 +235,7 @@ export function calculateEstimatedCoinHoldDifferenceValue(row, machineName = "")
     precomputedDifferenceValue !== null &&
     precomputedVersion === SETTING_ESTIMATE_VALUE_VERSION
   ) {
-    return capDifferenceByPayoutRate(
-      rule,
-      precomputedDifferenceValue,
-      gamesCount,
-      settingEstimate?.average,
-    );
+    return precomputedDifferenceValue;
   }
 
   const coinHold = interpolateSettingCoinHold(rule, settingEstimate?.average);
@@ -316,12 +252,7 @@ export function calculateEstimatedCoinHoldDifferenceValue(row, machineName = "")
     return null;
   }
 
-  return capDifferenceByPayoutRate(
-    rule,
-    roundHalfUp(totalBonusPayout - (gamesCount * investmentCoins) / coinHold),
-    gamesCount,
-    settingEstimate?.average,
-  );
+  return roundHalfUp(totalBonusPayout - (gamesCount * investmentCoins) / coinHold);
 }
 
 export function selectDifferenceValue(row, differenceMode = "bonus", machineName = "") {

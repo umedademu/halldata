@@ -1,6 +1,6 @@
 import settingEstimatesPayload from "../config/setting_estimates.json" with { type: "json" };
 
-export const SETTING_ESTIMATE_VALUE_VERSION = 2;
+export const SETTING_ESTIMATE_VALUE_VERSION = 3;
 
 const SETTING_ESTIMATE_DEFINITIONS = Array.isArray(settingEstimatesPayload?.setting_estimates)
   ? settingEstimatesPayload.setting_estimates
