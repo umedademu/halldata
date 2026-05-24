@@ -692,8 +692,34 @@ function readHuntMachineOptionSlotCount(machine) {
   return Number.isFinite(slotCount) && slotCount > 0 ? slotCount : 0;
 }
 
+function readAimJugglerOptionOrder(machine) {
+  const machineName = machine?.name;
+  if (isSameHuntMachineName(machineName, AIM_JUGGLER_GROUP_NAME)) {
+    return 0;
+  }
+  if (isHuntMachineInGroup(machineName, ["ネオアイムジャグラーEX", "ネオアイムジャグラーＥＸ"])) {
+    return 1;
+  }
+  if (isHuntMachineInGroup(machineName, ["SアイムジャグラーＥＸ", "SアイムジャグラーEX"])) {
+    return 2;
+  }
+  return null;
+}
+
 function sortHuntMachineOptionsBySlotCount(options) {
   return [...(Array.isArray(options) ? options : [])].sort((left, right) => {
+    const leftAimOrder = readAimJugglerOptionOrder(left);
+    const rightAimOrder = readAimJugglerOptionOrder(right);
+    if (leftAimOrder !== null || rightAimOrder !== null) {
+      if (leftAimOrder === null) {
+        return 1;
+      }
+      if (rightAimOrder === null) {
+        return -1;
+      }
+      return leftAimOrder - rightAimOrder;
+    }
+
     const slotDifference =
       readHuntMachineOptionSlotCount(right) - readHuntMachineOptionSlotCount(left);
     if (slotDifference !== 0) {
