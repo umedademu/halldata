@@ -11,6 +11,7 @@ import { HuntRankingFormStateSync } from "../../../../components/hunt-ranking-fo
 import { HuntRankingTable } from "../../../../components/hunt-ranking-table";
 import { HuntScoreLogicSelector } from "../../../../components/hunt-score-logic-selector";
 import { NativeGetForm } from "../../../../components/native-get-form";
+import { ResultUrlTools } from "../../../../components/result-url-tools";
 import { StoreFavoriteButton } from "../../../../components/store-favorite-button";
 import {
   getHuntScoreInitialPageDetail,
@@ -938,6 +939,8 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               <p className="filterPanelStatus">最新日のため、翌営業日の実績はまだありません。</p>
             ) : null}
           </section>
+
+          <ResultUrlTools active={resultRequested} />
 
           {resultRequested ? (
             detail.rankingDates.length > 0 ? (

@@ -65,7 +65,7 @@ export function HuntBacktestBookmarkControl({ storeId, bookmark }) {
     <section className="filterPanel">
       <div className="backtestButtonRow">
         <button type="button" className="storeReserveButton" onClick={handleSave}>
-          この条件を目印にする
+          ★ この条件を保存
         </button>
         {savedBookmark ? (
           <button
@@ -73,7 +73,7 @@ export function HuntBacktestBookmarkControl({ storeId, bookmark }) {
             className="storeReserveButton storeReserveButtonSecondary"
             onClick={handleClear}
           >
-            目印を外す
+            保存を解除
           </button>
         ) : null}
       </div>
@@ -83,15 +83,15 @@ export function HuntBacktestBookmarkControl({ storeId, bookmark }) {
         }`}
       >
         {isCurrentSaved
-          ? `この目印条件を保存中です。${currentSummary}`
+          ? `この条件を保存中です。${currentSummary}`
           : savedBookmark
-            ? `保存中の目印があります。条件は ${savedSummary} です。`
-            : "まだ目印は保存していません。"}
+            ? `保存中の条件があります。条件は ${savedSummary} です。`
+            : "まだ条件は保存していません。"}
       </p>
       {isCurrentSaved && currentPeriod ? (
         <p className="storeReserveHelp">保存時のバックテスト期間: {currentPeriod}</p>
       ) : null}
-      {!isCurrentSaved ? <p className="storeReserveHelp">現在の目印条件: {currentSummary}</p> : null}
+      {!isCurrentSaved ? <p className="storeReserveHelp">現在の条件: {currentSummary}</p> : null}
       {!isCurrentSaved && savedPeriod ? (
         <p className="storeReserveHelp">保存中のバックテスト期間: {savedPeriod}</p>
       ) : null}

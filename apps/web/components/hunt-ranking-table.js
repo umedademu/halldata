@@ -885,7 +885,7 @@ export function HuntRankingTable({
         </div>
         {bookmarkState.bookmark ? (
           <p className="storeReserveNotice storeReserveNotice-info">
-            {`保存済み目印条件: ${bookmarkSummary} / 表示中${formatNumber(
+            {`保存済み条件: ${bookmarkSummary} / 表示中${formatNumber(
               bookmarkState.totalRowCount,
             )}台のうち${formatNumber(bookmarkState.matchedRowCount)}台が一致しています。`}
           </p>

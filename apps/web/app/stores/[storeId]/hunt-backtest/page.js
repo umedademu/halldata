@@ -14,6 +14,7 @@ import {
 } from "../../../../components/hunt-machine-filter-tools";
 import { HuntScoreLogicSelector } from "../../../../components/hunt-score-logic-selector";
 import { NativeGetForm } from "../../../../components/native-get-form";
+import { ResultUrlTools } from "../../../../components/result-url-tools";
 import { SpecialDayFilterSettings } from "../../../../components/special-day-filter-settings";
 import { SortableTableController } from "../../../../components/sortable-table-controller";
 import { SortableTableHeader } from "../../../../components/sortable-table-header";
@@ -934,6 +935,8 @@ export default async function HuntBacktestPage({ params, searchParams }) {
             </NativeGetForm>
             {backtestFallbackNotice ? <p className="storeReserveHelp">{backtestFallbackNotice}</p> : null}
           </section>
+
+          <ResultUrlTools active={resultRequested} />
 
           {resultRequested ? (
             detail.rankingDates.length > 0 ? (

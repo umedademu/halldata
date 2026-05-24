@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 const STORAGE_KEY_PREFIX = "hunt-backtest-form-state:";
 const LEGACY_EVENT_STORAGE_KEY_PREFIX = "hunt-backtest-event-filters:";
@@ -120,6 +120,48 @@ function readStateFromForm(form) {
   return entries;
 }
 
+function applyStateToForm(form, entries) {
+  if (!form) {
+    return;
+  }
+
+  const valuesByKey = new Map();
+  for (const [key, value] of normalizeStateEntries(entries)) {
+    if (!valuesByKey.has(key)) {
+      valuesByKey.set(key, []);
+    }
+    valuesByKey.get(key).push(value);
+  }
+
+  const controls = [...form.elements].filter((control) =>
+    MANAGED_PARAM_KEY_SET.has(String(control?.name ?? "")),
+  );
+  const controlsByName = new Map();
+  for (const control of controls) {
+    const name = String(control.name ?? "");
+    if (!controlsByName.has(name)) {
+      controlsByName.set(name, []);
+    }
+    controlsByName.get(name).push(control);
+  }
+
+  for (const [name, namedControls] of controlsByName.entries()) {
+    const values = valuesByKey.get(name) ?? [];
+    const valueSet = new Set(values);
+    for (const control of namedControls) {
+      if (control.type === "checkbox" || control.type === "radio") {
+        control.checked = valueSet.has(String(control.value ?? ""));
+      } else if (control.tagName === "SELECT" && control.multiple) {
+        for (const option of control.options) {
+          option.selected = valueSet.has(String(option.value ?? ""));
+        }
+      } else if (values.length > 0) {
+        control.value = values[0] ?? "";
+      }
+    }
+  }
+}
+
 function hasManagedSearchParams(searchParams) {
   return MANAGED_PARAM_KEYS.some((key) => searchParams.has(key));
 }
@@ -144,19 +186,6 @@ function mergeSavedEventEntries(entries, savedEntries) {
 
   const baseEntries = normalizeStateEntries(entries).filter(([key]) => !EVENT_PARAM_KEY_SET.has(key));
   return [...baseEntries, ...eventEntries];
-}
-
-function entriesAreEqual(leftEntries, rightEntries) {
-  const leftNormalizedEntries = normalizeStateEntries(leftEntries);
-  const rightNormalizedEntries = normalizeStateEntries(rightEntries);
-  if (leftNormalizedEntries.length !== rightNormalizedEntries.length) {
-    return false;
-  }
-
-  return leftNormalizedEntries.every(
-    ([key, value], index) =>
-      key === rightNormalizedEntries[index]?.[0] && value === rightNormalizedEntries[index]?.[1],
-  );
 }
 
 function saveState(storeId, entries) {
@@ -228,20 +257,7 @@ function readSavedState(storeId) {
   }
 }
 
-function applyStateToSearchParams(searchParams, entries) {
-  const nextSearchParams = new URLSearchParams(searchParams.toString());
-  for (const key of MANAGED_PARAM_KEYS) {
-    nextSearchParams.delete(key);
-  }
-  for (const [key, value] of entries) {
-    nextSearchParams.append(key, value);
-  }
-  return nextSearchParams;
-}
-
 export function HuntBacktestFormStateSync({ storeId, formId, formStateKey = "" }) {
-  const pathname = usePathname();
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -254,11 +270,6 @@ export function HuntBacktestFormStateSync({ storeId, formId, formStateKey = "" }
       const savedEntries = readSavedState(storeId);
       const mergedEntries = mergeSavedEventEntries(searchEntries, savedEntries);
       saveState(storeId, mergedEntries);
-      if (!entriesAreEqual(searchEntries, mergedEntries)) {
-        const nextSearchParams = applyStateToSearchParams(searchParams, mergedEntries);
-        const queryText = nextSearchParams.toString();
-        router.replace(queryText ? `${pathname}?${queryText}` : pathname, { scroll: false });
-      }
       return;
     }
 
@@ -267,10 +278,9 @@ export function HuntBacktestFormStateSync({ storeId, formId, formStateKey = "" }
       return;
     }
 
-    const nextSearchParams = applyStateToSearchParams(searchParams, savedEntries);
-    const queryText = nextSearchParams.toString();
-    router.replace(queryText ? `${pathname}?${queryText}` : pathname, { scroll: false });
-  }, [pathname, router, searchParams, storeId]);
+    const form = formId ? document.getElementById(formId) : null;
+    applyStateToForm(form, savedEntries);
+  }, [formId, formStateKey, searchParams, storeId]);
 
   useEffect(() => {
     if (!storeId || !formId) {

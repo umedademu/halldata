@@ -7,6 +7,7 @@ import {
   MachineFilterCategoryButton,
 } from "../../components/hunt-machine-filter-tools";
 import { NativeGetForm } from "../../components/native-get-form";
+import { ResultUrlTools } from "../../components/result-url-tools";
 import { SpecialDayFilterSettings } from "../../components/special-day-filter-settings";
 import { SortableTableController } from "../../components/sortable-table-controller";
 import { SortableTableHeader } from "../../components/sortable-table-header";
@@ -887,6 +888,8 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
           </div>
         </NativeGetForm>
       </section>
+
+      <ResultUrlTools active={resultRequested} />
 
       {resultRequested ? (
         detail.rows.length > 0 ? (
