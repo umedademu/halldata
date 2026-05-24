@@ -232,23 +232,22 @@ export function HuntBacktestBookmarkControl({ storeId, formId, allMachineCount =
         <div className="savedConditionList">
           {bookmarks.map((bookmark) => (
             <div key={bookmark.id} className="savedConditionItem">
-              <span className="savedConditionName">{bookmark.name}</span>
-              <div className="savedConditionActions">
-                <button
-                  type="button"
-                  className="storeReserveButton storeReserveButtonSecondary machineFilterAction"
-                  onClick={() => handleLoad(bookmark)}
-                >
-                  読み込む
-                </button>
-                <button
-                  type="button"
-                  className="storeReserveButton storeReserveButtonSecondary machineFilterAction"
-                  onClick={() => handleDelete(bookmark)}
-                >
-                  削除
-                </button>
-              </div>
+              <button
+                type="button"
+                className="savedConditionNameButton"
+                onClick={() => handleLoad(bookmark)}
+              >
+                {bookmark.name}
+              </button>
+              <button
+                type="button"
+                className="savedConditionDeleteButton"
+                aria-label={`${bookmark.name}を削除`}
+                title="削除"
+                onClick={() => handleDelete(bookmark)}
+              >
+                ×
+              </button>
             </div>
           ))}
         </div>
