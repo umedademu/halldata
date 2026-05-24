@@ -68,80 +68,116 @@ function buildBookmarkFromForm(form, storeId, allMachineCount, name) {
     scoreDifferenceMode: readFormValue(formData, "scoreDifferenceMode"),
     differenceMode: readFormValue(formData, "differenceMode"),
     dailySelectionMode: readFormValues(formData, "dailySelectionMode"),
-    eventDayTails: readFormValues(formData, "backtestDayTail"),
-    eventZoro: readFormValues(formData, "backtestZoro"),
-    eventWeekdays: readFormValues(formData, "backtestWeekday"),
-    eventMonthDays: readFormValues(formData, "backtestMonthDay"),
   };
 }
 
-function appendSearchParam(searchParams, key, value) {
-  const text = String(value ?? "").trim();
-  if (text) {
-    searchParams.append(key, text);
+function normalizeFieldValues(value) {
+  return (Array.isArray(value) ? value : [value])
+    .map((entry) => String(entry ?? "").trim())
+    .filter(Boolean);
+}
+
+function syncToggleLabel(control) {
+  const label = control.closest?.(".metricToggleChip");
+  if (label) {
+    label.classList.toggle("metricToggleChipActive", Boolean(control.checked));
   }
 }
 
-function appendSearchParams(searchParams, key, values) {
-  for (const value of Array.isArray(values) ? values : [values]) {
-    appendSearchParam(searchParams, key, value);
+function setFormFieldValues(form, name, values, changedControls) {
+  const controls = [...form.elements].filter((control) => control?.name === name);
+  if (controls.length === 0) {
+    return;
+  }
+
+  const normalizedValues = normalizeFieldValues(values);
+  const valueSet = new Set(normalizedValues);
+
+  for (const control of controls) {
+    if (control instanceof HTMLInputElement && control.type === "hidden") {
+      continue;
+    }
+
+    if (
+      control instanceof HTMLInputElement &&
+      (control.type === "checkbox" || control.type === "radio")
+    ) {
+      const nextChecked = valueSet.has(String(control.value ?? ""));
+      if (control.checked !== nextChecked) {
+        control.checked = nextChecked;
+        changedControls.add(control);
+      }
+      syncToggleLabel(control);
+      continue;
+    }
+
+    const nextValue = normalizedValues[0] ?? "";
+    if (control.value !== nextValue) {
+      control.value = nextValue;
+      changedControls.add(control);
+    }
   }
 }
 
-function buildBookmarkSearchParams(bookmark) {
-  const searchParams = new URLSearchParams();
+function dispatchFormChanges(changedControls) {
+  for (const control of changedControls) {
+    const eventName =
+      control instanceof HTMLInputElement &&
+      (control.type === "checkbox" || control.type === "radio")
+        ? "change"
+        : "input";
+    control.dispatchEvent(new Event(eventName, { bubbles: true }));
+  }
+}
 
-  appendSearchParam(searchParams, "periodMode", bookmark.periodMode);
-  if (bookmark.periodMode === "range") {
-    appendSearchParam(searchParams, "startDate", bookmark.startDate);
-    appendSearchParam(searchParams, "endDate", bookmark.endDate);
-  } else {
-    appendSearchParam(searchParams, "recentDays", bookmark.recentDays);
-  }
-  searchParams.set("machineTouched", "1");
-  appendSearchParams(searchParams, "machine", bookmark.machineNames);
-  if (bookmark.combineAimJuggler) {
-    searchParams.append("aimMachineGroup", "1");
-  }
-  if (bookmark.combineHanabi) {
-    searchParams.append("hanabiMachineGroup", "1");
-  }
-  appendSearchParam(searchParams, "scoreDifferenceMode", bookmark.scoreDifferenceMode);
-  appendSearchParam(searchParams, "differenceMode", bookmark.differenceMode);
-  appendSearchParam(searchParams, "rankMin", bookmark.rankMin);
-  appendSearchParam(searchParams, "rankMax", bookmark.rankMax);
-  appendSearchParam(searchParams, "rankScope", bookmark.rankScope);
-  appendSearchParam(searchParams, "machineRankMin", bookmark.machineRankMin);
-  appendSearchParam(searchParams, "machineRankMax", bookmark.machineRankMax);
-  appendSearchParam(searchParams, "selectedRankMin", bookmark.selectedRankMin);
-  appendSearchParam(searchParams, "selectedRankMax", bookmark.selectedRankMax);
-  appendSearchParam(searchParams, "scoreMin", bookmark.scoreMin);
-  appendSearchParam(searchParams, "scoreMax", bookmark.scoreMax);
-  appendSearchParam(searchParams, "machineNextGapMin", bookmark.machineNextGapMin);
-  appendSearchParam(searchParams, "machineNextGapMax", bookmark.machineNextGapMax);
-  appendSearchParam(searchParams, "selectedNextGapMin", bookmark.selectedNextGapMin);
-  appendSearchParam(searchParams, "selectedNextGapMax", bookmark.selectedNextGapMax);
-  appendSearchParam(searchParams, "machineUpperGapMin", bookmark.machineUpperGapMin);
-  appendSearchParam(searchParams, "machineUpperGapMax", bookmark.machineUpperGapMax);
-  appendSearchParam(searchParams, "selectedUpperGapMin", bookmark.selectedUpperGapMin);
-  appendSearchParam(searchParams, "selectedUpperGapMax", bookmark.selectedUpperGapMax);
-  appendSearchParam(searchParams, "machineRankRequired", bookmark.machineRankRequired ? "1" : "0");
-  appendSearchParam(searchParams, "selectedRankRequired", bookmark.selectedRankRequired ? "1" : "0");
-  appendSearchParam(searchParams, "scoreRequired", bookmark.scoreRequired ? "1" : "0");
-  appendSearchParam(searchParams, "machineNextGapRequired", bookmark.machineNextGapRequired ? "1" : "0");
-  appendSearchParam(searchParams, "selectedNextGapRequired", bookmark.selectedNextGapRequired ? "1" : "0");
-  appendSearchParam(searchParams, "machineUpperGapRequired", bookmark.machineUpperGapRequired ? "1" : "0");
-  appendSearchParam(searchParams, "selectedUpperGapRequired", bookmark.selectedUpperGapRequired ? "1" : "0");
-  appendSearchParam(searchParams, "dailySelectionMode", bookmark.dailySelectionMode);
-  searchParams.set("backtestEventTouched", "1");
-  appendSearchParams(searchParams, "backtestDayTail", bookmark.eventDayTails);
-  if (bookmark.eventZoro) {
-    searchParams.set("backtestZoro", "1");
-  }
-  appendSearchParams(searchParams, "backtestWeekday", bookmark.eventWeekdays);
-  appendSearchParams(searchParams, "backtestMonthDay", bookmark.eventMonthDays);
+function applyBookmarkToForm(form, bookmark) {
+  const changedControls = new Set();
+  const periodMode = bookmark.periodMode === "range" ? "range" : "recent";
+  const singleValueFields = {
+    periodMode,
+    recentDays: periodMode === "recent" ? bookmark.recentDays : "",
+    startDate: periodMode === "range" ? bookmark.startDate : "",
+    endDate: periodMode === "range" ? bookmark.endDate : "",
+    rankScope: bookmark.rankScope,
+    rankMin: bookmark.rankMin,
+    rankMax: bookmark.rankMax,
+    machineRankMin: bookmark.machineRankMin,
+    machineRankMax: bookmark.machineRankMax,
+    selectedRankMin: bookmark.selectedRankMin,
+    selectedRankMax: bookmark.selectedRankMax,
+    scoreMin: bookmark.scoreMin,
+    scoreMax: bookmark.scoreMax,
+    machineNextGapMin: bookmark.machineNextGapMin,
+    machineNextGapMax: bookmark.machineNextGapMax,
+    selectedNextGapMin: bookmark.selectedNextGapMin,
+    selectedNextGapMax: bookmark.selectedNextGapMax,
+    machineUpperGapMin: bookmark.machineUpperGapMin,
+    machineUpperGapMax: bookmark.machineUpperGapMax,
+    selectedUpperGapMin: bookmark.selectedUpperGapMin,
+    selectedUpperGapMax: bookmark.selectedUpperGapMax,
+    scoreDifferenceMode: bookmark.scoreDifferenceMode,
+    differenceMode: bookmark.differenceMode,
+  };
+  const multiValueFields = {
+    machine: bookmark.machineNames,
+    dailySelectionMode: bookmark.dailySelectionMode ? [bookmark.dailySelectionMode] : [],
+    machineRankRequired: bookmark.machineRankRequired ? ["1"] : [],
+    selectedRankRequired: bookmark.selectedRankRequired ? ["1"] : [],
+    scoreRequired: bookmark.scoreRequired ? ["1"] : [],
+    machineNextGapRequired: bookmark.machineNextGapRequired ? ["1"] : [],
+    selectedNextGapRequired: bookmark.selectedNextGapRequired ? ["1"] : [],
+    machineUpperGapRequired: bookmark.machineUpperGapRequired ? ["1"] : [],
+    selectedUpperGapRequired: bookmark.selectedUpperGapRequired ? ["1"] : [],
+  };
 
-  return searchParams;
+  for (const [fieldName, fieldValue] of Object.entries(singleValueFields)) {
+    setFormFieldValues(form, fieldName, fieldValue, changedControls);
+  }
+  for (const [fieldName, fieldValue] of Object.entries(multiValueFields)) {
+    setFormFieldValues(form, fieldName, fieldValue, changedControls);
+  }
+
+  dispatchFormChanges(changedControls);
 }
 
 export function HuntBacktestBookmarkControl({ storeId, formId, allMachineCount = 0 }) {
@@ -190,8 +226,14 @@ export function HuntBacktestBookmarkControl({ storeId, formId, allMachineCount =
   };
 
   const handleLoad = (bookmark) => {
-    const searchParams = buildBookmarkSearchParams(bookmark);
-    window.location.href = `${window.location.pathname}?${searchParams.toString()}`;
+    const form = formId ? document.getElementById(formId) : null;
+    if (!(form instanceof HTMLFormElement)) {
+      setMessage("条件を反映できる入力欄が見つかりません。");
+      return;
+    }
+
+    applyBookmarkToForm(form, bookmark);
+    setMessage(`「${bookmark.name}」を読み込みました。`);
   };
 
   const handleDelete = (bookmark) => {

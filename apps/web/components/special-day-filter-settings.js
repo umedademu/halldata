@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+const EVENT_STORAGE_KEY_PREFIX = "hunt-backtest-event-filters:";
+
+function storageKeyForStore(storeId) {
+  return `${EVENT_STORAGE_KEY_PREFIX}${storeId}`;
+}
 
 function normalizeIntegerValues(values, min, max) {
   const normalizedValues = new Set();
@@ -11,6 +17,67 @@ function normalizeIntegerValues(values, min, max) {
     }
   }
   return [...normalizedValues].sort((left, right) => left - right);
+}
+
+function hasActiveEventFilters(value) {
+  return (
+    normalizeIntegerValues(value?.dayTails ?? [], 0, 9).length > 0 ||
+    Boolean(value?.zoro) ||
+    normalizeIntegerValues(value?.weekdays ?? [], 0, 6).length > 0 ||
+    normalizeIntegerValues(value?.monthDays ?? [], 1, 31).length > 0
+  );
+}
+
+function normalizeStoredEventFilters(value) {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  if (value.version !== 2 && !hasActiveEventFilters(value)) {
+    return null;
+  }
+
+  return {
+    dayTails: normalizeIntegerValues(value.dayTails ?? [], 0, 9),
+    zoro: Boolean(value.zoro),
+    weekdays: normalizeIntegerValues(value.weekdays ?? [], 0, 6),
+    monthDays: normalizeIntegerValues(value.monthDays ?? [], 1, 31),
+  };
+}
+
+function readStoredEventFilters(storeId) {
+  if (!storeId || typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(storageKeyForStore(storeId));
+    return rawValue ? normalizeStoredEventFilters(JSON.parse(rawValue)) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredEventFilters(storeId, filters) {
+  if (!storeId || typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      storageKeyForStore(storeId),
+      JSON.stringify({
+        version: 2,
+        touched: true,
+        dayTails: normalizeIntegerValues(filters?.dayTails ?? [], 0, 9),
+        zoro: Boolean(filters?.zoro),
+        weekdays: normalizeIntegerValues(filters?.weekdays ?? [], 0, 6),
+        monthDays: normalizeIntegerValues(filters?.monthDays ?? [], 1, 31),
+      }),
+    );
+  } catch {
+    // 保存できない環境では、その場の入力だけを有効にします。
+  }
 }
 
 function weekdayLabelFor(value, weekdayOptions) {
@@ -40,12 +107,14 @@ function formatSummary({ dayTails, zoro, weekdays, monthDays, weekdayOptions }) 
 }
 
 export function SpecialDayFilterSettings({
+  storeId = "",
   dayTailOptions,
   weekdayOptions,
   selectedDayTails,
   selectedMonthDays,
   selectedWeekdays,
   zoro,
+  preferInitialValues = false,
 }) {
   const [dayTails, setDayTails] = useState(() =>
     normalizeIntegerValues(selectedDayTails, 0, 9),
@@ -70,22 +139,52 @@ export function SpecialDayFilterSettings({
     weekdayOptions,
   });
 
+  useEffect(() => {
+    if (!storeId || preferInitialValues) {
+      return;
+    }
+
+    const storedFilters = readStoredEventFilters(storeId);
+    if (!storedFilters) {
+      return;
+    }
+
+    setDayTails(storedFilters.dayTails);
+    setMonthDays(storedFilters.monthDays);
+    setWeekdays(storedFilters.weekdays);
+    setIsZoro(storedFilters.zoro);
+  }, [preferInitialValues, storeId]);
+
+  const persistFilters = (nextValues = {}) => {
+    writeStoredEventFilters(storeId, {
+      dayTails,
+      monthDays,
+      weekdays,
+      zoro: isZoro,
+      ...nextValues,
+    });
+  };
+
   const toggleDayTail = (dayTail) => {
     const numericValue = Number(dayTail);
-    setDayTails((currentValues) =>
-      currentValues.includes(numericValue)
+    setDayTails((currentValues) => {
+      const nextDayTails = currentValues.includes(numericValue)
         ? currentValues.filter((value) => value !== numericValue)
-        : [...currentValues, numericValue].sort((left, right) => left - right),
-    );
+        : [...currentValues, numericValue].sort((left, right) => left - right);
+      persistFilters({ dayTails: nextDayTails });
+      return nextDayTails;
+    });
   };
 
   const toggleWeekday = (weekday) => {
     const numericValue = Number(weekday);
-    setWeekdays((currentValues) =>
-      currentValues.includes(numericValue)
+    setWeekdays((currentValues) => {
+      const nextWeekdays = currentValues.includes(numericValue)
         ? currentValues.filter((value) => value !== numericValue)
-        : [...currentValues, numericValue].sort((left, right) => left - right),
-    );
+        : [...currentValues, numericValue].sort((left, right) => left - right);
+      persistFilters({ weekdays: nextWeekdays });
+      return nextWeekdays;
+    });
   };
 
   const registerMonthDay = () => {
@@ -95,11 +194,13 @@ export function SpecialDayFilterSettings({
       return;
     }
 
-    setMonthDays((currentValues) =>
-      currentValues.includes(numericValue)
+    setMonthDays((currentValues) => {
+      const nextMonthDays = currentValues.includes(numericValue)
         ? currentValues
-        : [...currentValues, numericValue].sort((left, right) => left - right),
-    );
+        : [...currentValues, numericValue].sort((left, right) => left - right);
+      persistFilters({ monthDays: nextMonthDays });
+      return nextMonthDays;
+    });
     setMonthDayInput("");
     setMonthDayError("");
   };
@@ -114,7 +215,11 @@ export function SpecialDayFilterSettings({
   };
 
   const removeMonthDay = (monthDay) => {
-    setMonthDays((currentValues) => currentValues.filter((value) => value !== monthDay));
+    setMonthDays((currentValues) => {
+      const nextMonthDays = currentValues.filter((value) => value !== monthDay);
+      persistFilters({ monthDays: nextMonthDays });
+      return nextMonthDays;
+    });
   };
 
   return (
@@ -152,7 +257,11 @@ export function SpecialDayFilterSettings({
                 name="backtestZoro"
                 value="1"
                 checked={isZoro}
-                onChange={(event) => setIsZoro(event.currentTarget.checked)}
+                onChange={(event) => {
+                  const nextIsZoro = event.currentTarget.checked;
+                  setIsZoro(nextIsZoro);
+                  persistFilters({ zoro: nextIsZoro });
+                }}
               />
               <span>ゾロ目</span>
             </label>

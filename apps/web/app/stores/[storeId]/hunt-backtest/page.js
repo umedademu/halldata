@@ -668,12 +668,14 @@ export default async function HuntBacktestPage({ params, searchParams }) {
               <div className="backtestBlock">
                 <p className="filterControlLabel">特定日</p>
                 <SpecialDayFilterSettings
+                  storeId={detail.store.id}
                   dayTailOptions={DAY_TAIL_OPTIONS}
                   weekdayOptions={WEEKDAY_OPTIONS}
                   selectedDayTails={detail.backtest.eventFilters.dayTails}
                   selectedMonthDays={detail.backtest.eventFilters.monthDays}
                   selectedWeekdays={detail.backtest.eventFilters.weekdays}
                   zoro={detail.backtest.eventFilters.zoro}
+                  preferInitialValues={requestedBacktestOptions.eventTouched}
                 />
               </div>
 

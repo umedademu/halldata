@@ -4,21 +4,12 @@ import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 
 const STORAGE_KEY_PREFIX = "hunt-backtest-form-state:";
-const LEGACY_EVENT_STORAGE_KEY_PREFIX = "hunt-backtest-event-filters:";
-const EVENT_PARAM_KEYS = [
-  "backtestEventTouched",
-  "backtestDayTail",
-  "backtestZoro",
-  "backtestWeekday",
-  "backtestMonthDay",
-];
 const MANAGED_PARAM_KEYS = [
   "show",
   "periodMode",
   "recentDays",
   "startDate",
   "endDate",
-  ...EVENT_PARAM_KEYS,
   "machineTouched",
   "machine",
   "dailySelectionMode",
@@ -58,14 +49,9 @@ const MANAGED_PARAM_KEYS = [
   "nextGapScope",
 ];
 const MANAGED_PARAM_KEY_SET = new Set(MANAGED_PARAM_KEYS);
-const EVENT_PARAM_KEY_SET = new Set(EVENT_PARAM_KEYS);
 
 function storageKeyForStore(storeId) {
   return `${STORAGE_KEY_PREFIX}${storeId}`;
-}
-
-function legacyEventStorageKeyForStore(storeId) {
-  return `${LEGACY_EVENT_STORAGE_KEY_PREFIX}${storeId}`;
 }
 
 function normalizeEntry(key, value) {
@@ -86,17 +72,6 @@ function normalizeStateEntries(entries) {
     }
   }
   return normalizedEntries;
-}
-
-function normalizeIntegerValues(values, min, max) {
-  const normalizedValues = new Set();
-  for (const value of Array.isArray(values) ? values : []) {
-    const parsedValue = Number(value);
-    if (Number.isInteger(parsedValue) && parsedValue >= min && parsedValue <= max) {
-      normalizedValues.add(parsedValue);
-    }
-  }
-  return [...normalizedValues].sort((left, right) => left - right);
 }
 
 function readStateFromSearchParams(searchParams) {
@@ -166,28 +141,6 @@ function hasManagedSearchParams(searchParams) {
   return MANAGED_PARAM_KEYS.some((key) => searchParams.has(key));
 }
 
-function hasEventEntries(entries) {
-  return normalizeStateEntries(entries).some(([key]) => EVENT_PARAM_KEY_SET.has(key));
-}
-
-function getEventEntries(entries) {
-  return normalizeStateEntries(entries).filter(([key]) => EVENT_PARAM_KEY_SET.has(key));
-}
-
-function mergeSavedEventEntries(entries, savedEntries) {
-  if (hasEventEntries(entries)) {
-    return normalizeStateEntries(entries);
-  }
-
-  const eventEntries = getEventEntries(savedEntries);
-  if (eventEntries.length === 0) {
-    return normalizeStateEntries(entries);
-  }
-
-  const baseEntries = normalizeStateEntries(entries).filter(([key]) => !EVENT_PARAM_KEY_SET.has(key));
-  return [...baseEntries, ...eventEntries];
-}
-
 function saveState(storeId, entries) {
   const normalizedEntries = normalizeStateEntries(entries);
   if (!storeId || normalizedEntries.length === 0) {
@@ -207,37 +160,6 @@ function saveState(storeId, entries) {
   }
 }
 
-function readLegacyEventState(storeId) {
-  if (!storeId) {
-    return [];
-  }
-
-  try {
-    const rawValue = window.localStorage.getItem(legacyEventStorageKeyForStore(storeId));
-    if (!rawValue) {
-      return [];
-    }
-
-    const parsedValue = JSON.parse(rawValue);
-    const entries = [["backtestEventTouched", "1"]];
-    for (const dayTail of normalizeIntegerValues(parsedValue?.dayTails ?? [], 0, 9)) {
-      entries.push(["backtestDayTail", String(dayTail)]);
-    }
-    if (parsedValue?.zoro) {
-      entries.push(["backtestZoro", "1"]);
-    }
-    for (const weekday of normalizeIntegerValues(parsedValue?.weekdays ?? [], 0, 6)) {
-      entries.push(["backtestWeekday", String(weekday)]);
-    }
-    for (const monthDay of normalizeIntegerValues(parsedValue?.monthDays ?? [], 1, 31)) {
-      entries.push(["backtestMonthDay", String(monthDay)]);
-    }
-    return entries;
-  } catch {
-    return [];
-  }
-}
-
 function readSavedState(storeId) {
   if (!storeId) {
     return [];
@@ -246,14 +168,13 @@ function readSavedState(storeId) {
   try {
     const rawValue = window.localStorage.getItem(storageKeyForStore(storeId));
     if (!rawValue) {
-      return readLegacyEventState(storeId);
+      return [];
     }
 
     const parsedValue = JSON.parse(rawValue);
-    const entries = normalizeStateEntries(parsedValue?.entries);
-    return entries.length > 0 ? entries : readLegacyEventState(storeId);
+    return normalizeStateEntries(parsedValue?.entries);
   } catch {
-    return readLegacyEventState(storeId);
+    return [];
   }
 }
 
@@ -267,9 +188,7 @@ export function HuntBacktestFormStateSync({ storeId, formId, formStateKey = "" }
 
     if (hasManagedSearchParams(searchParams)) {
       const searchEntries = readStateFromSearchParams(searchParams);
-      const savedEntries = readSavedState(storeId);
-      const mergedEntries = mergeSavedEventEntries(searchEntries, savedEntries);
-      saveState(storeId, mergedEntries);
+      saveState(storeId, searchEntries);
       return;
     }
 
