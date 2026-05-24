@@ -1260,6 +1260,51 @@ a {
   gap: 10px;
 }
 
+.savedConditionPanel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.7);
+}
+
+.savedConditionHeader {
+  display: grid;
+  gap: 10px;
+}
+
+.savedConditionSaveRow,
+.savedConditionItem,
+.savedConditionActions {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.savedConditionNameField {
+  min-width: min(260px, 100%);
+}
+
+.savedConditionList {
+  display: grid;
+  gap: 8px;
+}
+
+.savedConditionItem {
+  justify-content: space-between;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.savedConditionName {
+  color: var(--text);
+  font-weight: 800;
+}
+
 .machineGroupToggleRow {
   display: flex;
   flex-wrap: wrap;

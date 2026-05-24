@@ -1,4 +1,6 @@
 const HUNT_BACKTEST_BOOKMARK_STORAGE_PREFIX = "hunt-backtest-bookmark:";
+const HUNT_BACKTEST_BOOKMARKS_STORAGE_PREFIX = "hunt-backtest-bookmarks:";
+const HUNT_BACKTEST_BOOKMARK_SELECTION_STORAGE_PREFIX = "hunt-backtest-bookmark-selection:";
 const DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP = "machineTopNextGap";
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
@@ -7,9 +9,54 @@ const HANABI_MACHINE_NAMES = ["新ハナビ", "スマスロ ハナビ"];
 const SCORE_EPSILON = 0.000000001;
 
 export const HUNT_BACKTEST_BOOKMARK_EVENT = "hunt-backtest-bookmark-change";
+export const HUNT_BACKTEST_BOOKMARK_SELECTION_CUSTOM = "__custom";
+export const HUNT_BACKTEST_BOOKMARK_SELECTION_NONE = "__none";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
+}
+
+function normalizeBookmarkId(value) {
+  return normalizeText(value).replace(/[^\w:-]/gu, "");
+}
+
+function createBookmarkId() {
+  return `condition-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizeBookmarkName(value, fallback = "保存条件") {
+  const name = normalizeText(value);
+  return name || fallback;
+}
+
+function normalizePeriodMode(value, startDate, endDate) {
+  if (value === "range") {
+    return "range";
+  }
+  if (value === "recent") {
+    return "recent";
+  }
+  return startDate && endDate ? "range" : "recent";
+}
+
+function normalizeTextArray(value) {
+  return [
+    ...new Set(
+      (Array.isArray(value) ? value : [value])
+        .map((entry) => normalizeText(entry))
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function normalizeNumberTextArray(value, minValue = null, maxValue = null) {
+  return normalizeTextArray(value)
+    .map((entry) => Number(entry))
+    .filter((entry) => Number.isInteger(entry))
+    .filter((entry) => minValue === null || entry >= minValue)
+    .filter((entry) => maxValue === null || entry <= maxValue)
+    .sort((left, right) => left - right)
+    .map((entry) => String(entry));
 }
 
 function normalizeMachineNameText(value) {
@@ -863,12 +910,20 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
   const allMachineCount = readPositiveInteger(bookmark.allMachineCount) ?? machineNames.length;
   const combineAimJuggler = Boolean(bookmark.combineAimJuggler) || machineNames.some(isAimJugglerGroup);
   const combineHanabi = Boolean(bookmark.combineHanabi) || machineNames.some(isHanabiGroup);
+  const startDate = normalizeDateText(bookmark.startDate);
+  const endDate = normalizeDateText(bookmark.endDate);
+  const periodMode = normalizePeriodMode(bookmark.periodMode, startDate, endDate);
+  const recentDays = readPositiveInteger(bookmark.recentDays) ?? 90;
 
   return {
     version: 1,
+    id: normalizeBookmarkId(bookmark.id) || null,
+    name: normalizeBookmarkName(bookmark.name),
     storeId,
-    startDate: normalizeDateText(bookmark.startDate),
-    endDate: normalizeDateText(bookmark.endDate),
+    periodMode,
+    recentDays,
+    startDate: periodMode === "range" ? startDate : null,
+    endDate: periodMode === "range" ? endDate : null,
     allMachineCount,
     machineNames,
     rankMin: rankFilter.rankMin,
@@ -905,6 +960,12 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     selectedUpperGapRequired: requirementOptions.selectedUpperGapRequired,
     dailySelectionMode,
     rankScope,
+    scoreDifferenceMode: normalizeText(bookmark.scoreDifferenceMode) || "estimated",
+    differenceMode: normalizeText(bookmark.differenceMode) || "estimated",
+    eventDayTails: normalizeNumberTextArray(bookmark.eventDayTails, 0, 9),
+    eventZoro: normalizeRequiredOption(bookmark.eventZoro, false),
+    eventWeekdays: normalizeNumberTextArray(bookmark.eventWeekdays, 0, 6),
+    eventMonthDays: normalizeNumberTextArray(bookmark.eventMonthDays, 1, 31),
     combineAimJuggler,
     combineHanabi,
     savedAt: normalizeText(bookmark.savedAt) || null,
@@ -931,6 +992,8 @@ export function areHuntBacktestBookmarksEqual(left, right) {
 
   return (
     normalizedLeft.storeId === normalizedRight.storeId &&
+    normalizedLeft.periodMode === normalizedRight.periodMode &&
+    normalizedLeft.recentDays === normalizedRight.recentDays &&
     normalizedLeft.startDate === normalizedRight.startDate &&
     normalizedLeft.endDate === normalizedRight.endDate &&
     normalizedLeft.rankMin === normalizedRight.rankMin &&
@@ -959,8 +1022,17 @@ export function areHuntBacktestBookmarksEqual(left, right) {
     normalizedLeft.selectedUpperGapRequired === normalizedRight.selectedUpperGapRequired &&
     normalizedLeft.dailySelectionMode === normalizedRight.dailySelectionMode &&
     normalizedLeft.rankScope === normalizedRight.rankScope &&
+    normalizedLeft.scoreDifferenceMode === normalizedRight.scoreDifferenceMode &&
+    normalizedLeft.differenceMode === normalizedRight.differenceMode &&
+    normalizedLeft.eventZoro === normalizedRight.eventZoro &&
     normalizedLeft.combineAimJuggler === normalizedRight.combineAimJuggler &&
     normalizedLeft.combineHanabi === normalizedRight.combineHanabi &&
+    normalizedLeft.eventDayTails.length === normalizedRight.eventDayTails.length &&
+    normalizedLeft.eventDayTails.every((value, index) => value === normalizedRight.eventDayTails[index]) &&
+    normalizedLeft.eventWeekdays.length === normalizedRight.eventWeekdays.length &&
+    normalizedLeft.eventWeekdays.every((value, index) => value === normalizedRight.eventWeekdays[index]) &&
+    normalizedLeft.eventMonthDays.length === normalizedRight.eventMonthDays.length &&
+    normalizedLeft.eventMonthDays.every((value, index) => value === normalizedRight.eventMonthDays[index]) &&
     normalizedLeft.machineNames.length === normalizedRight.machineNames.length &&
     normalizedLeft.machineNames.every((machineName, index) => machineName === normalizedRight.machineNames[index])
   );
@@ -982,6 +1054,10 @@ export function formatHuntBacktestBookmarkPeriod(bookmark) {
   const normalizedBookmark = normalizeHuntBacktestBookmark(bookmark);
   if (!normalizedBookmark) {
     return "";
+  }
+
+  if (normalizedBookmark.periodMode === "recent") {
+    return `直近${normalizedBookmark.recentDays}日`;
   }
 
   if (normalizedBookmark.startDate && normalizedBookmark.endDate) {
@@ -1092,6 +1168,14 @@ export function getHuntBacktestBookmarkStorageKey(storeId) {
   return `${HUNT_BACKTEST_BOOKMARK_STORAGE_PREFIX}${normalizeText(storeId)}`;
 }
 
+export function getHuntBacktestBookmarksStorageKey(storeId) {
+  return `${HUNT_BACKTEST_BOOKMARKS_STORAGE_PREFIX}${normalizeText(storeId)}`;
+}
+
+export function getHuntBacktestBookmarkSelectionStorageKey(storeId) {
+  return `${HUNT_BACKTEST_BOOKMARK_SELECTION_STORAGE_PREFIX}${normalizeText(storeId)}`;
+}
+
 function dispatchHuntBacktestBookmarkEvent(storeId) {
   if (typeof window === "undefined") {
     return;
@@ -1104,29 +1188,136 @@ function dispatchHuntBacktestBookmarkEvent(storeId) {
   );
 }
 
-export function readSavedHuntBacktestBookmark(storeId) {
-  if (typeof window === "undefined") {
-    return null;
-  }
+function normalizeSavedBookmarkList(value, storeId) {
+  const entries = Array.isArray(value)
+    ? value
+    : Array.isArray(value?.bookmarks)
+      ? value.bookmarks
+      : value
+        ? [value]
+        : [];
+  return entries
+    .map((entry, index) =>
+      normalizeHuntBacktestBookmark(
+        {
+          ...entry,
+          id: normalizeBookmarkId(entry?.id) || `condition-${index + 1}`,
+          name: normalizeBookmarkName(entry?.name, `保存条件${index + 1}`),
+          storeId: normalizeText(entry?.storeId) || normalizeText(storeId),
+        },
+        storeId,
+      ),
+    )
+    .filter(Boolean);
+}
 
-  const storageKey = getHuntBacktestBookmarkStorageKey(storeId);
-  const rawValue = window.localStorage.getItem(storageKey);
-  if (!rawValue) {
-    return null;
+export function readSelectedHuntBacktestBookmarkId(storeId) {
+  if (typeof window === "undefined") {
+    return "";
   }
 
   try {
-    const parsedValue = JSON.parse(rawValue);
-    const normalizedBookmark = normalizeHuntBacktestBookmark(parsedValue, storeId);
-    if (!normalizedBookmark) {
-      window.localStorage.removeItem(storageKey);
-      return null;
-    }
-    return normalizedBookmark;
+    return normalizeText(
+      window.localStorage.getItem(getHuntBacktestBookmarkSelectionStorageKey(storeId)),
+    );
   } catch {
-    window.localStorage.removeItem(storageKey);
+    return "";
+  }
+}
+
+export function saveSelectedHuntBacktestBookmarkId(storeId, bookmarkId) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const normalizedId = normalizeText(bookmarkId);
+  try {
+    if (normalizedId) {
+      window.localStorage.setItem(
+        getHuntBacktestBookmarkSelectionStorageKey(storeId),
+        normalizedId,
+      );
+    } else {
+      window.localStorage.removeItem(getHuntBacktestBookmarkSelectionStorageKey(storeId));
+    }
+  } catch {
+    // 保存できない環境では、その場の選択だけを有効にします。
+  }
+  dispatchHuntBacktestBookmarkEvent(storeId);
+}
+
+export function readSavedHuntBacktestBookmarks(storeId) {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  const storageKey = getHuntBacktestBookmarksStorageKey(storeId);
+  const legacyStorageKey = getHuntBacktestBookmarkStorageKey(storeId);
+  const rawValue = window.localStorage.getItem(storageKey);
+  if (rawValue) {
+    try {
+      const normalizedBookmarks = normalizeSavedBookmarkList(JSON.parse(rawValue), storeId);
+      if (normalizedBookmarks.length === 0) {
+        window.localStorage.removeItem(storageKey);
+      }
+      return normalizedBookmarks;
+    } catch {
+      window.localStorage.removeItem(storageKey);
+      return [];
+    }
+  }
+
+  const legacyRawValue = window.localStorage.getItem(legacyStorageKey);
+  if (!legacyRawValue) {
+    return [];
+  }
+  try {
+    const legacyBookmarks = normalizeSavedBookmarkList(JSON.parse(legacyRawValue), storeId);
+    return legacyBookmarks.length > 0
+      ? [{ ...legacyBookmarks[0], id: legacyBookmarks[0].id || "condition-legacy" }]
+      : [];
+  } catch {
+    window.localStorage.removeItem(legacyStorageKey);
+    return [];
+  }
+}
+
+export function readSavedHuntBacktestBookmark(storeId) {
+  const bookmarks = readSavedHuntBacktestBookmarks(storeId);
+  if (bookmarks.length === 0) {
     return null;
   }
+
+  const selectedId = readSelectedHuntBacktestBookmarkId(storeId);
+  if (selectedId === HUNT_BACKTEST_BOOKMARK_SELECTION_NONE) {
+    return null;
+  }
+  if (selectedId && selectedId !== HUNT_BACKTEST_BOOKMARK_SELECTION_CUSTOM) {
+    return bookmarks.find((bookmark) => bookmark.id === selectedId) ?? bookmarks[0];
+  }
+  return bookmarks[0];
+}
+
+function writeSavedHuntBacktestBookmarks(storeId, bookmarks) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const normalizedBookmarks = normalizeSavedBookmarkList(bookmarks, storeId);
+  if (normalizedBookmarks.length === 0) {
+    window.localStorage.removeItem(getHuntBacktestBookmarksStorageKey(storeId));
+    window.localStorage.removeItem(getHuntBacktestBookmarkStorageKey(storeId));
+    return;
+  }
+
+  window.localStorage.setItem(
+    getHuntBacktestBookmarksStorageKey(storeId),
+    JSON.stringify({
+      version: 2,
+      bookmarks: normalizedBookmarks,
+    }),
+  );
+  window.localStorage.removeItem(getHuntBacktestBookmarkStorageKey(storeId));
 }
 
 export function saveHuntBacktestBookmark(storeId, bookmark) {
@@ -1134,9 +1325,13 @@ export function saveHuntBacktestBookmark(storeId, bookmark) {
     return null;
   }
 
+  const existingBookmarks = readSavedHuntBacktestBookmarks(storeId);
+  const bookmarkId = normalizeBookmarkId(bookmark?.id) || createBookmarkId();
   const normalizedBookmark = normalizeHuntBacktestBookmark(
     {
       ...bookmark,
+      id: bookmarkId,
+      name: normalizeBookmarkName(bookmark?.name, `保存条件${existingBookmarks.length + 1}`),
       storeId,
       savedAt: new Date().toISOString(),
     },
@@ -1147,12 +1342,38 @@ export function saveHuntBacktestBookmark(storeId, bookmark) {
     return null;
   }
 
-  window.localStorage.setItem(
-    getHuntBacktestBookmarkStorageKey(storeId),
-    JSON.stringify(normalizedBookmark),
+  writeSavedHuntBacktestBookmarks(
+    storeId,
+    [
+      normalizedBookmark,
+      ...existingBookmarks.filter((entry) => entry.id !== normalizedBookmark.id),
+    ],
   );
+  saveSelectedHuntBacktestBookmarkId(storeId, normalizedBookmark.id);
   dispatchHuntBacktestBookmarkEvent(storeId);
   return normalizedBookmark;
+}
+
+export function deleteSavedHuntBacktestBookmark(storeId, bookmarkId) {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  const normalizedId = normalizeBookmarkId(bookmarkId);
+  const nextBookmarks = readSavedHuntBacktestBookmarks(storeId).filter(
+    (bookmark) => bookmark.id !== normalizedId,
+  );
+  writeSavedHuntBacktestBookmarks(storeId, nextBookmarks);
+  const selectedId = readSelectedHuntBacktestBookmarkId(storeId);
+  if (selectedId === normalizedId) {
+    saveSelectedHuntBacktestBookmarkId(
+      storeId,
+      nextBookmarks[0]?.id ?? HUNT_BACKTEST_BOOKMARK_SELECTION_CUSTOM,
+    );
+  } else {
+    dispatchHuntBacktestBookmarkEvent(storeId);
+  }
+  return nextBookmarks;
 }
 
 export function clearSavedHuntBacktestBookmark(storeId) {
@@ -1161,6 +1382,8 @@ export function clearSavedHuntBacktestBookmark(storeId) {
   }
 
   window.localStorage.removeItem(getHuntBacktestBookmarkStorageKey(storeId));
+  window.localStorage.removeItem(getHuntBacktestBookmarksStorageKey(storeId));
+  window.localStorage.removeItem(getHuntBacktestBookmarkSelectionStorageKey(storeId));
   dispatchHuntBacktestBookmarkEvent(storeId);
 }
 

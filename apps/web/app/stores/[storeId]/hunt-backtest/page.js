@@ -491,46 +491,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
   const backtestFallbackNotice = resultRequested && detail.backtest.usedFallbackRange
     ? "期間指定が空欄だったため、直近日数の期間を日付範囲へ仮で入れています。"
     : "";
-  const backtestBookmark = {
-    startDate: detail.backtest.startDate,
-    endDate: detail.backtest.endDate,
-    allMachineCount: detail.backtest.machineOptions.length,
-    machineNames: detail.backtest.selectedMachineNames,
-    rankMin: detail.backtest.rankMin,
-    rankMax: detail.backtest.rankMax,
-    machineRankMin: detail.backtest.machineRankMin,
-    machineRankMax: detail.backtest.machineRankMax,
-    selectedRankMin: detail.backtest.selectedRankMin,
-    selectedRankMax: detail.backtest.selectedRankMax,
-    scoreMin: detail.backtest.scoreMin,
-    scoreMax: detail.backtest.scoreMax,
-    machineNextGapMin: detail.backtest.machineNextGapMin,
-    machineNextGapMax: detail.backtest.machineNextGapMax,
-    selectedNextGapMin: detail.backtest.selectedNextGapMin,
-    selectedNextGapMax: detail.backtest.selectedNextGapMax,
-    machineUpperGapMin: detail.backtest.machineUpperGapMin,
-    machineUpperGapMax: detail.backtest.machineUpperGapMax,
-    selectedUpperGapMin: detail.backtest.selectedUpperGapMin,
-    selectedUpperGapMax: detail.backtest.selectedUpperGapMax,
-    rankRequired: detail.backtest.rankRequired,
-    machineRankRequired: detail.backtest.machineRankRequired,
-    selectedRankRequired: detail.backtest.selectedRankRequired,
-    scoreRequired: detail.backtest.scoreRequired,
-    machineNextGapRequired: detail.backtest.machineNextGapRequired,
-    selectedNextGapRequired: detail.backtest.selectedNextGapRequired,
-    machineUpperGapRequired: detail.backtest.machineUpperGapRequired,
-    selectedUpperGapRequired: detail.backtest.selectedUpperGapRequired,
-    rankScope: detail.backtest.rankScope,
-    scoreDifferenceMode: detail.backtest.scoreDifferenceMode,
-    differenceMode: detail.backtest.differenceMode,
-    eventDayTails: detail.backtest.eventFilters.dayTails,
-    eventZoro: detail.backtest.eventFilters.zoro,
-    eventWeekdays: detail.backtest.eventFilters.weekdays,
-    eventMonthDays: detail.backtest.eventFilters.monthDays,
-    combineAimJuggler: detail.backtest.combineAimJuggler,
-    combineHanabi: detail.backtest.combineHanabi,
-    dailySelectionMode: detail.backtest.dailySelectionMode,
-  };
   const machineOptionGroups = groupHuntMachineOptions(detail.backtest.machineOptions, {
     combineAimJuggler: detail.backtest.combineAimJuggler,
     combineHanabi: detail.backtest.combineHanabi,
@@ -927,6 +887,12 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                 </div>
               </div>
 
+              <HuntBacktestBookmarkControl
+                storeId={detail.store.id}
+                formId={HUNT_BACKTEST_FORM_ID}
+                allMachineCount={detail.backtest.machineOptions.length}
+              />
+
               <div className="backtestButtonRow">
                 <button type="submit" className="storeReserveButton backtestPrimaryButton">
                   バックテストを実行
@@ -957,8 +923,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                     <strong className="metaValue">{formatNumber(detail.backtest.actualRowCount)}台</strong>
                   </article>
                 </section>
-
-                <HuntBacktestBookmarkControl storeId={detail.store.id} bookmark={backtestBookmark} />
 
                 {detail.backtest.graphPoints.length > 0 ? (
                   <HuntBacktestGraph

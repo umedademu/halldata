@@ -17,16 +17,19 @@ import {
 } from "../lib/format";
 import {
   HUNT_BACKTEST_BOOKMARK_EVENT,
+  HUNT_BACKTEST_BOOKMARK_SELECTION_CUSTOM,
+  HUNT_BACKTEST_BOOKMARK_SELECTION_NONE,
+  buildHuntBacktestBookmarkRowKey,
   buildNextGapFilter,
   buildHuntBacktestBookmarkMatches,
   buildScopedRankFilters,
   buildScoreFilter,
   buildConditionRequirementOptions,
   calculateHuntScoreNextGapMap,
-  formatHuntBacktestBookmarkSummary,
   matchesRequiredConditionFilters,
   readNextGapForRankScope,
-  readSavedHuntBacktestBookmark,
+  readSavedHuntBacktestBookmarks,
+  readSelectedHuntBacktestBookmarkId,
 } from "../lib/hunt-bookmark";
 import {
   formatSettingEstimateScore,
@@ -365,7 +368,13 @@ function isRankingConditionHighlighted(row, highlightCondition) {
   );
 }
 
-function getRankingConditionHighlightClass(row, highlightCondition) {
+function getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey = null) {
+  if (bookmarkMatchByRowKey) {
+    return bookmarkMatchByRowKey.get(buildHuntBacktestBookmarkRowKey(row))
+      ? "huntScoreConditionHighlighted"
+      : undefined;
+  }
+
   return isRankingConditionHighlighted(row, highlightCondition)
     ? "huntScoreConditionHighlighted"
     : undefined;
@@ -471,6 +480,7 @@ function OverallRankingTable({
   scoreColumnLabel,
   nextGapScope,
   highlightCondition,
+  bookmarkMatchByRowKey = null,
   sortable = false,
   tableId = "",
 }) {
@@ -578,19 +588,31 @@ function OverallRankingTable({
                   className={rowClassName}
                 >
                   <td
-                    className={getRankingConditionHighlightClass(row, highlightCondition)}
+                    className={getRankingConditionHighlightClass(
+                      row,
+                      highlightCondition,
+                      bookmarkMatchByRowKey,
+                    )}
                     data-sort-value={readRankingSortNumber(row.rank, "")}
                   >
                     {row.rank}
                   </td>
                   <td
-                    className={getRankingConditionHighlightClass(row, highlightCondition)}
+                    className={getRankingConditionHighlightClass(
+                      row,
+                      highlightCondition,
+                      bookmarkMatchByRowKey,
+                    )}
                     data-sort-value={readRankingSortNumber(row.huntScore, "")}
                   >
                     {formatNumber(row.huntScore)}
                   </td>
                   <td
-                    className={getRankingConditionHighlightClass(row, highlightCondition)}
+                    className={getRankingConditionHighlightClass(
+                      row,
+                      highlightCondition,
+                      bookmarkMatchByRowKey,
+                    )}
                     data-sort-value={readRankingSortNumber(
                       readNextGapForRankScope(row, normalizeNextGapScope(nextGapScope)),
                       "",
@@ -642,6 +664,7 @@ export function HuntRankingTable({
   predictionDate = null,
   actualDate = null,
   highlightOptions = {},
+  customHighlightBookmark = null,
   initialDifferenceMode = DEFAULT_DIFFERENCE_MODE,
   showMachineTopCandidates = false,
 }) {
@@ -649,24 +672,33 @@ export function HuntRankingTable({
   const [differenceMode, setDifferenceMode] = useState(() =>
     normalizeDifferenceMode(initialDifferenceMode),
   );
-  const [bookmark, setBookmark] = useState(null);
+  const [bookmarks, setBookmarks] = useState([]);
+  const [bookmarkSelection, setBookmarkSelection] = useState(HUNT_BACKTEST_BOOKMARK_SELECTION_CUSTOM);
 
   useEffect(() => {
     setDifferenceMode(normalizeDifferenceMode(initialDifferenceMode));
   }, [initialDifferenceMode]);
 
   useEffect(() => {
-    const syncBookmark = () => {
-      setBookmark(readSavedHuntBacktestBookmark(storeId));
+    const syncBookmarks = () => {
+      const nextBookmarks = readSavedHuntBacktestBookmarks(storeId);
+      const selectedId = readSelectedHuntBacktestBookmarkId(storeId);
+      setBookmarks(nextBookmarks);
+      setBookmarkSelection(
+        selectedId ||
+          (nextBookmarks.length > 0
+            ? nextBookmarks[0].id
+            : HUNT_BACKTEST_BOOKMARK_SELECTION_CUSTOM),
+      );
     };
 
-    syncBookmark();
-    window.addEventListener(HUNT_BACKTEST_BOOKMARK_EVENT, syncBookmark);
-    window.addEventListener("storage", syncBookmark);
+    syncBookmarks();
+    window.addEventListener(HUNT_BACKTEST_BOOKMARK_EVENT, syncBookmarks);
+    window.addEventListener("storage", syncBookmarks);
 
     return () => {
-      window.removeEventListener(HUNT_BACKTEST_BOOKMARK_EVENT, syncBookmark);
-      window.removeEventListener("storage", syncBookmark);
+      window.removeEventListener(HUNT_BACKTEST_BOOKMARK_EVENT, syncBookmarks);
+      window.removeEventListener("storage", syncBookmarks);
     };
   }, [storeId]);
 
@@ -789,18 +821,28 @@ export function HuntRankingTable({
         : [],
     [displayGroups, machineTopCandidateGapValueByRowKey, showMachineTopCandidates],
   );
+  const activeBookmark = useMemo(() => {
+    if (bookmarkSelection === HUNT_BACKTEST_BOOKMARK_SELECTION_NONE) {
+      return null;
+    }
+    if (bookmarkSelection === HUNT_BACKTEST_BOOKMARK_SELECTION_CUSTOM) {
+      return customHighlightBookmark;
+    }
+    return (
+      bookmarks.find((bookmark) => bookmark.id === bookmarkSelection) ??
+      bookmarks[0] ??
+      customHighlightBookmark
+    );
+  }, [bookmarkSelection, bookmarks, customHighlightBookmark]);
   const bookmarkState = useMemo(
     () =>
       buildHuntBacktestBookmarkMatches(
         decorateRowsWithSelectedRank(displayRowsWithGap, selectedRankValueByRowKey),
-        bookmark,
+        activeBookmark,
       ),
-    [displayRowsWithGap, bookmark, selectedRankValueByRowKey],
+    [activeBookmark, displayRowsWithGap, selectedRankValueByRowKey],
   );
-  const bookmarkSummary = useMemo(
-    () => formatHuntBacktestBookmarkSummary(bookmarkState.bookmark),
-    [bookmarkState.bookmark],
-  );
+  const bookmarkMatchByRowKey = bookmarkState.bookmark ? bookmarkState.matchByRowKey : null;
 
   const toggleColumn = (columnKey) => {
     setVisibleResultKeys((currentKeys) => {
@@ -883,13 +925,6 @@ export function HuntRankingTable({
             {`${resultColumnLead}ここは保存済み実績の表示だけを切り替えます。`}
           </p>
         </div>
-        {bookmarkState.bookmark ? (
-          <p className="storeReserveNotice storeReserveNotice-info">
-            {`保存済み条件: ${bookmarkSummary} / 表示中${formatNumber(
-              bookmarkState.totalRowCount,
-            )}台のうち${formatNumber(bookmarkState.matchedRowCount)}台が一致しています。`}
-          </p>
-        ) : null}
         <div className="metricToggleRow">
           {resultColumns.map((column) => {
             const isChecked = visibleResultKeys.includes(column.key);
@@ -922,6 +957,7 @@ export function HuntRankingTable({
           scoreColumnLabel={scoreColumnLabel}
           nextGapScope={nextGapScope}
           highlightCondition={highlightCondition}
+          bookmarkMatchByRowKey={bookmarkMatchByRowKey}
         />
       ) : (
         <section className="statusPanel">
@@ -942,6 +978,7 @@ export function HuntRankingTable({
             scoreColumnLabel={scoreColumnLabel}
             nextGapScope="machine"
             highlightCondition={highlightCondition}
+            bookmarkMatchByRowKey={bookmarkMatchByRowKey}
             sortable
             tableId="machine-top-candidates-ranking"
           />
@@ -1005,13 +1042,13 @@ export function HuntRankingTable({
                       key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${row.rank}`}
                       className={rowClassName}
                     >
-                      <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
+                      <td className={getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey)}>
                         {row.rank}
                       </td>
-                      <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
+                      <td className={getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey)}>
                         {formatNumber(row.huntScore)}
                       </td>
-                      <td className={getRankingConditionHighlightClass(row, highlightCondition)}>
+                      <td className={getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey)}>
                         {formatNextGapForScope(row, nextGapScope)}
                       </td>
                       <td>{row.slotNumber}</td>

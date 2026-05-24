@@ -8,6 +8,7 @@ import {
   MachineFilterCategoryButton,
 } from "../../../../components/hunt-machine-filter-tools";
 import { HuntRankingFormStateSync } from "../../../../components/hunt-ranking-form-state-sync";
+import { HuntRankingConditionSelector } from "../../../../components/hunt-ranking-condition-selector";
 import { HuntRankingTable } from "../../../../components/hunt-ranking-table";
 import { HuntScoreLogicSelector } from "../../../../components/hunt-score-logic-selector";
 import { NativeGetForm } from "../../../../components/native-get-form";
@@ -42,7 +43,11 @@ const DEFAULT_HIGHLIGHT_MACHINE_RANK_MAX = "";
 const DEFAULT_HIGHLIGHT_SELECTED_RANK_MIN = "1";
 const DEFAULT_HIGHLIGHT_SELECTED_RANK_MAX = "3";
 const DEFAULT_HIGHLIGHT_SCORE_MIN = "70";
+const DEFAULT_HIGHLIGHT_SCORE_MAX = "";
 const DEFAULT_HIGHLIGHT_NEXT_GAP_MIN = "";
+const DEFAULT_HIGHLIGHT_NEXT_GAP_MAX = "";
+const DEFAULT_HIGHLIGHT_UPPER_GAP_MIN = "";
+const DEFAULT_HIGHLIGHT_UPPER_GAP_MAX = "";
 const DEFAULT_HIGHLIGHT_RANK_SCOPE = "selected";
 const DEFAULT_HIGHLIGHT_NEXT_GAP_SCOPE = "machine";
 const DEFAULT_HIGHLIGHT_RANK_REQUIRED = true;
@@ -50,6 +55,7 @@ const DEFAULT_HIGHLIGHT_MACHINE_RANK_REQUIRED = false;
 const DEFAULT_HIGHLIGHT_SELECTED_RANK_REQUIRED = true;
 const DEFAULT_HIGHLIGHT_SCORE_REQUIRED = true;
 const DEFAULT_HIGHLIGHT_NEXT_GAP_REQUIRED = false;
+const DEFAULT_HIGHLIGHT_UPPER_GAP_REQUIRED = false;
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
 const HANABI_GROUP_NAME = "ハナビ";
@@ -108,6 +114,65 @@ function formatRankingDateOption(date, nextBusinessDate) {
   const scoreDateLabel = formatMonthDay(date);
   const actualDateLabel = nextBusinessDate ? `${formatMonthDay(nextBusinessDate)}実績` : "実績なし";
   return `${scoreDateLabel}狙い度 → ${actualDateLabel}`;
+}
+
+function ScopedConditionRow({
+  label,
+  minName,
+  maxName,
+  requiredName,
+  minValue,
+  maxValue,
+  requiredValue,
+  minLabel = "下限",
+  maxLabel = "上限",
+  inputMin = "0",
+  inputMax = "100",
+  inputStep = "0.1",
+}) {
+  return (
+    <div className="scopedConditionRow">
+      <p className="scopedConditionLabel">{label}</p>
+      <label className="scopedConditionField">
+        <span>{minLabel}</span>
+        <input
+          type="number"
+          name={minName}
+          min={inputMin}
+          max={inputMax}
+          step={inputStep}
+          defaultValue={minValue ?? ""}
+          className="storeReserveInput"
+        />
+      </label>
+      <label className="scopedConditionField">
+        <span>{maxLabel}</span>
+        <input
+          type="number"
+          name={maxName}
+          min={inputMin}
+          max={inputMax}
+          step={inputStep}
+          defaultValue={maxValue ?? ""}
+          className="storeReserveInput"
+        />
+      </label>
+      <input type="hidden" name={requiredName} value="0" />
+      <label
+        className={`metricToggleChip scopedConditionRequired ${
+          requiredValue ? "metricToggleChipActive" : ""
+        }`}
+      >
+        <input
+          type="checkbox"
+          name={requiredName}
+          value="1"
+          defaultChecked={requiredValue}
+        />
+        <span>必須</span>
+      </label>
+    </div>
+  );
 }
 
 function normalizeMachineNameText(value) {
@@ -343,6 +408,20 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
       : hasScopedRankCondition
         ? ""
         : DEFAULT_HIGHLIGHT_SELECTED_RANK_MAX;
+  const legacyNextGapScope = normalizeHighlightScope(
+    readSingleSearchParam(resolvedSearchParams?.nextGapScope),
+    DEFAULT_HIGHLIGHT_NEXT_GAP_SCOPE,
+  );
+  const legacyNextGapMin = readSearchParamWithDefault(
+    resolvedSearchParams,
+    "nextGapMin",
+    DEFAULT_HIGHLIGHT_NEXT_GAP_MIN,
+  );
+  const legacyNextGapMax = readSearchParamWithDefault(
+    resolvedSearchParams,
+    "nextGapMax",
+    DEFAULT_HIGHLIGHT_NEXT_GAP_MAX,
+  );
   const rankingHighlightOptions = {
     rankMin: legacyRankMin,
     rankMax: legacyRankMax,
@@ -371,10 +450,60 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
       "scoreMin",
       DEFAULT_HIGHLIGHT_SCORE_MIN,
     ),
+    scoreMax: readSearchParamWithDefault(
+      resolvedSearchParams,
+      "scoreMax",
+      DEFAULT_HIGHLIGHT_SCORE_MAX,
+    ),
     nextGapMin: readSearchParamWithDefault(
       resolvedSearchParams,
       "nextGapMin",
       DEFAULT_HIGHLIGHT_NEXT_GAP_MIN,
+    ),
+    nextGapMax: readSearchParamWithDefault(
+      resolvedSearchParams,
+      "nextGapMax",
+      DEFAULT_HIGHLIGHT_NEXT_GAP_MAX,
+    ),
+    machineNextGapMin: readSearchParamWithDefault(
+      resolvedSearchParams,
+      "machineNextGapMin",
+      legacyNextGapScope === "machine" ? legacyNextGapMin : DEFAULT_HIGHLIGHT_NEXT_GAP_MIN,
+    ),
+    machineNextGapMax: readSearchParamWithDefault(
+      resolvedSearchParams,
+      "machineNextGapMax",
+      legacyNextGapScope === "machine" ? legacyNextGapMax : DEFAULT_HIGHLIGHT_NEXT_GAP_MAX,
+    ),
+    selectedNextGapMin: readSearchParamWithDefault(
+      resolvedSearchParams,
+      "selectedNextGapMin",
+      legacyNextGapScope === "selected" ? legacyNextGapMin : DEFAULT_HIGHLIGHT_NEXT_GAP_MIN,
+    ),
+    selectedNextGapMax: readSearchParamWithDefault(
+      resolvedSearchParams,
+      "selectedNextGapMax",
+      legacyNextGapScope === "selected" ? legacyNextGapMax : DEFAULT_HIGHLIGHT_NEXT_GAP_MAX,
+    ),
+    machineUpperGapMin: readSearchParamWithDefault(
+      resolvedSearchParams,
+      "machineUpperGapMin",
+      DEFAULT_HIGHLIGHT_UPPER_GAP_MIN,
+    ),
+    machineUpperGapMax: readSearchParamWithDefault(
+      resolvedSearchParams,
+      "machineUpperGapMax",
+      DEFAULT_HIGHLIGHT_UPPER_GAP_MAX,
+    ),
+    selectedUpperGapMin: readSearchParamWithDefault(
+      resolvedSearchParams,
+      "selectedUpperGapMin",
+      DEFAULT_HIGHLIGHT_UPPER_GAP_MIN,
+    ),
+    selectedUpperGapMax: readSearchParamWithDefault(
+      resolvedSearchParams,
+      "selectedUpperGapMax",
+      DEFAULT_HIGHLIGHT_UPPER_GAP_MAX,
     ),
     rankRequired: readMultiSearchParamWithDefault(
       resolvedSearchParams,
@@ -413,14 +542,31 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
       "nextGapRequired",
       DEFAULT_HIGHLIGHT_NEXT_GAP_REQUIRED ? "1" : "0",
     ),
+    machineNextGapRequired: readMultiSearchParamWithDefault(
+      resolvedSearchParams,
+      "machineNextGapRequired",
+      DEFAULT_HIGHLIGHT_NEXT_GAP_REQUIRED ? "1" : "0",
+    ),
+    selectedNextGapRequired: readMultiSearchParamWithDefault(
+      resolvedSearchParams,
+      "selectedNextGapRequired",
+      DEFAULT_HIGHLIGHT_NEXT_GAP_REQUIRED ? "1" : "0",
+    ),
+    machineUpperGapRequired: readMultiSearchParamWithDefault(
+      resolvedSearchParams,
+      "machineUpperGapRequired",
+      DEFAULT_HIGHLIGHT_UPPER_GAP_REQUIRED ? "1" : "0",
+    ),
+    selectedUpperGapRequired: readMultiSearchParamWithDefault(
+      resolvedSearchParams,
+      "selectedUpperGapRequired",
+      DEFAULT_HIGHLIGHT_UPPER_GAP_REQUIRED ? "1" : "0",
+    ),
     rankScope: normalizeHighlightScope(
       readSingleSearchParam(resolvedSearchParams?.rankScope),
       DEFAULT_HIGHLIGHT_RANK_SCOPE,
     ),
-    nextGapScope: normalizeHighlightScope(
-      readSingleSearchParam(resolvedSearchParams?.nextGapScope),
-      DEFAULT_HIGHLIGHT_NEXT_GAP_SCOPE,
-    ),
+    nextGapScope: legacyNextGapScope,
   };
   const rankRequired = rankingHighlightOptions.rankRequired.some((value) =>
     ["1", "true", "on"].includes(String(value ?? "").trim()),
@@ -437,6 +583,18 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const nextGapRequired = rankingHighlightOptions.nextGapRequired.some((value) =>
     ["1", "true", "on"].includes(String(value ?? "").trim()),
   );
+  const machineNextGapRequired = rankingHighlightOptions.machineNextGapRequired.some((value) =>
+    ["1", "true", "on"].includes(String(value ?? "").trim()),
+  );
+  const selectedNextGapRequired = rankingHighlightOptions.selectedNextGapRequired.some((value) =>
+    ["1", "true", "on"].includes(String(value ?? "").trim()),
+  );
+  const machineUpperGapRequired = rankingHighlightOptions.machineUpperGapRequired.some((value) =>
+    ["1", "true", "on"].includes(String(value ?? "").trim()),
+  );
+  const selectedUpperGapRequired = rankingHighlightOptions.selectedUpperGapRequired.some((value) =>
+    ["1", "true", "on"].includes(String(value ?? "").trim()),
+  );
   const normalizedRankingHighlightOptions = {
     ...rankingHighlightOptions,
     rankRequired,
@@ -444,6 +602,10 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     selectedRankRequired,
     scoreRequired,
     nextGapRequired,
+    machineNextGapRequired,
+    selectedNextGapRequired,
+    machineUpperGapRequired,
+    selectedUpperGapRequired,
   };
 
   let detail;
@@ -537,6 +699,39 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     detail.limit,
   );
   const visibleRows = visibleRankingGroups.flatMap((group) => group.rows);
+  const customHighlightBookmark = {
+    storeId: detail.store.id,
+    name: "カスタム条件",
+    allMachineCount: availableMachineNames.length,
+    machineNames: [...selectedMachineNameSet],
+    rankMin: rankingHighlightOptions.rankMin,
+    rankMax: rankingHighlightOptions.rankMax,
+    machineRankMin: rankingHighlightOptions.machineRankMin,
+    machineRankMax: rankingHighlightOptions.machineRankMax,
+    selectedRankMin: rankingHighlightOptions.selectedRankMin,
+    selectedRankMax: rankingHighlightOptions.selectedRankMax,
+    scoreMin: rankingHighlightOptions.scoreMin,
+    scoreMax: rankingHighlightOptions.scoreMax,
+    machineNextGapMin: rankingHighlightOptions.machineNextGapMin,
+    machineNextGapMax: rankingHighlightOptions.machineNextGapMax,
+    selectedNextGapMin: rankingHighlightOptions.selectedNextGapMin,
+    selectedNextGapMax: rankingHighlightOptions.selectedNextGapMax,
+    machineUpperGapMin: rankingHighlightOptions.machineUpperGapMin,
+    machineUpperGapMax: rankingHighlightOptions.machineUpperGapMax,
+    selectedUpperGapMin: rankingHighlightOptions.selectedUpperGapMin,
+    selectedUpperGapMax: rankingHighlightOptions.selectedUpperGapMax,
+    rankRequired,
+    machineRankRequired,
+    selectedRankRequired,
+    scoreRequired,
+    nextGapRequired,
+    machineNextGapRequired,
+    selectedNextGapRequired,
+    machineUpperGapRequired,
+    selectedUpperGapRequired,
+    combineAimJuggler,
+    combineHanabi,
+  };
   const rankingFormStateKey = JSON.stringify({
     date: detail.selectedDate ?? "",
     limit: detail.limit,
@@ -551,12 +746,26 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     selectedRankMin: rankingHighlightOptions.selectedRankMin,
     selectedRankMax: rankingHighlightOptions.selectedRankMax,
     scoreMin: rankingHighlightOptions.scoreMin,
+    scoreMax: rankingHighlightOptions.scoreMax,
     nextGapMin: rankingHighlightOptions.nextGapMin,
+    nextGapMax: rankingHighlightOptions.nextGapMax,
+    machineNextGapMin: rankingHighlightOptions.machineNextGapMin,
+    machineNextGapMax: rankingHighlightOptions.machineNextGapMax,
+    selectedNextGapMin: rankingHighlightOptions.selectedNextGapMin,
+    selectedNextGapMax: rankingHighlightOptions.selectedNextGapMax,
+    machineUpperGapMin: rankingHighlightOptions.machineUpperGapMin,
+    machineUpperGapMax: rankingHighlightOptions.machineUpperGapMax,
+    selectedUpperGapMin: rankingHighlightOptions.selectedUpperGapMin,
+    selectedUpperGapMax: rankingHighlightOptions.selectedUpperGapMax,
     rankRequired,
     machineRankRequired,
     selectedRankRequired,
     scoreRequired,
     nextGapRequired,
+    machineNextGapRequired,
+    selectedNextGapRequired,
+    machineUpperGapRequired,
+    selectedUpperGapRequired,
     rankScope: rankingHighlightOptions.rankScope,
     nextGapScope: rankingHighlightOptions.nextGapScope,
   });
@@ -753,182 +962,105 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   </div>
                 </div>
               ) : null}
-              <div className="huntConditionRows rankingMachineFilter">
-                <div className="huntConditionRow">
-                  <p className="huntConditionLabel">機種内順位</p>
-                  <div className="huntConditionInputs">
-                    <label className="storeReserveField backtestField huntConditionNumberField">
-                      <span>開始</span>
-                      <input
-                        type="number"
-                        name="machineRankMin"
-                        min="1"
-                        defaultValue={rankingHighlightOptions.machineRankMin}
-                        className="storeReserveInput"
-                      />
-                    </label>
-                    <label className="storeReserveField backtestField huntConditionNumberField">
-                      <span>終了</span>
-                      <input
-                        type="number"
-                        name="machineRankMax"
-                        min="1"
-                        defaultValue={rankingHighlightOptions.machineRankMax}
-                        className="storeReserveInput"
-                      />
-                    </label>
-                  </div>
-                  <input type="hidden" name="machineRankRequired" value="0" />
-                  <label
-                    className={`metricToggleChip huntConditionRequired ${
-                      machineRankRequired ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      name="machineRankRequired"
-                      value="1"
-                      defaultChecked={machineRankRequired}
-                    />
-                    <span>必須</span>
-                  </label>
-                </div>
-                <div className="huntConditionRow">
-                  <p className="huntConditionLabel">全機種内順位</p>
-                  <div className="huntConditionInputs">
-                    <label className="storeReserveField backtestField huntConditionNumberField">
-                      <span>開始</span>
-                      <input
-                        type="number"
-                        name="selectedRankMin"
-                        min="1"
-                        defaultValue={rankingHighlightOptions.selectedRankMin}
-                        className="storeReserveInput"
-                      />
-                    </label>
-                    <label className="storeReserveField backtestField huntConditionNumberField">
-                      <span>終了</span>
-                      <input
-                        type="number"
-                        name="selectedRankMax"
-                        min="1"
-                        defaultValue={rankingHighlightOptions.selectedRankMax}
-                        className="storeReserveInput"
-                      />
-                    </label>
-                  </div>
-                  <input type="hidden" name="selectedRankRequired" value="0" />
-                  <label
-                    className={`metricToggleChip huntConditionRequired ${
-                      selectedRankRequired ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      name="selectedRankRequired"
-                      value="1"
-                      defaultChecked={selectedRankRequired}
-                    />
-                    <span>必須</span>
-                  </label>
-                </div>
-                <div className="huntConditionRow">
-                  <p className="huntConditionLabel">狙い度</p>
-                  <div className="huntConditionInputs">
-                    <label className="storeReserveField backtestField huntConditionNumberField">
-                      <span>下限</span>
-                      <input
-                        type="number"
-                        name="scoreMin"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        defaultValue={rankingHighlightOptions.scoreMin}
-                        className="storeReserveInput"
-                      />
-                    </label>
-                  </div>
-                  <input type="hidden" name="scoreRequired" value="0" />
-                  <label
-                    className={`metricToggleChip huntConditionRequired ${
-                      scoreRequired ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      name="scoreRequired"
-                      value="1"
-                      defaultChecked={scoreRequired}
-                    />
-                    <span>必須</span>
-                  </label>
-                </div>
-                <div className="huntConditionRow">
-                  <p className="huntConditionLabel">次点差</p>
-                  <div className="huntConditionInputs">
-                    <label className="storeReserveField backtestField huntConditionNumberField">
-                      <span>下限</span>
-                      <input
-                        type="number"
-                        name="nextGapMin"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        defaultValue={rankingHighlightOptions.nextGapMin}
-                        className="storeReserveInput"
-                      />
-                    </label>
-                  </div>
-                  <input type="hidden" name="nextGapRequired" value="0" />
-                  <label
-                    className={`metricToggleChip huntConditionRequired ${
-                      nextGapRequired ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      name="nextGapRequired"
-                      value="1"
-                      defaultChecked={nextGapRequired}
-                    />
-                    <span>必須</span>
-                  </label>
-                </div>
-              </div>
               <div className="backtestBlock rankingMachineFilter">
-                <p className="filterControlLabel">次点差の比較対象</p>
-                <div className="metricToggleRow">
-                  <label
-                    className={`metricToggleChip ${
-                      rankingHighlightOptions.nextGapScope === "selected"
-                        ? "metricToggleChipActive"
-                        : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="nextGapScope"
-                      value="selected"
-                      defaultChecked={rankingHighlightOptions.nextGapScope === "selected"}
-                    />
-                    <span>全機種内</span>
-                  </label>
-                  <label
-                    className={`metricToggleChip ${
-                      rankingHighlightOptions.nextGapScope === "machine"
-                        ? "metricToggleChipActive"
-                        : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="nextGapScope"
-                      value="machine"
-                      defaultChecked={rankingHighlightOptions.nextGapScope === "machine"}
-                    />
-                    <span>機種内</span>
-                  </label>
-                </div>
+                <p className="filterControlLabel">強調条件</p>
+                <HuntRankingConditionSelector storeId={detail.store.id} />
+                <details className="collapsibleControlGroup">
+                  <summary className="collapsibleControlHeader crossBacktestConditionSummary">
+                    <span>カスタム条件を直接指定</span>
+                    <span className="collapsibleControlStatus crossBacktestConditionStatus" />
+                  </summary>
+                  <div className="collapsibleControlBody">
+                    <div className="huntConditionRows">
+                      <div className="commonConditionPanel">
+                        <p className="scopedConditionColumnTitle">共通条件</p>
+                        <div className="commonConditionGrid">
+                          <ScopedConditionRow
+                            label="狙い度"
+                            minName="scoreMin"
+                            maxName="scoreMax"
+                            requiredName="scoreRequired"
+                            minValue={rankingHighlightOptions.scoreMin}
+                            maxValue={rankingHighlightOptions.scoreMax}
+                            requiredValue={scoreRequired}
+                          />
+                        </div>
+                      </div>
+                      <div className="scopedConditionColumns">
+                        <div className="scopedConditionColumn">
+                          <p className="scopedConditionColumnTitle">同一機種内</p>
+                          <ScopedConditionRow
+                            label="順位"
+                            minName="machineRankMin"
+                            maxName="machineRankMax"
+                            requiredName="machineRankRequired"
+                            minValue={rankingHighlightOptions.machineRankMin}
+                            maxValue={rankingHighlightOptions.machineRankMax}
+                            requiredValue={machineRankRequired}
+                            minLabel="開始"
+                            maxLabel="終了"
+                            inputMin="1"
+                            inputMax={undefined}
+                            inputStep={undefined}
+                          />
+                          <ScopedConditionRow
+                            label="上位境界差"
+                            minName="machineUpperGapMin"
+                            maxName="machineUpperGapMax"
+                            requiredName="machineUpperGapRequired"
+                            minValue={rankingHighlightOptions.machineUpperGapMin}
+                            maxValue={rankingHighlightOptions.machineUpperGapMax}
+                            requiredValue={machineUpperGapRequired}
+                          />
+                          <ScopedConditionRow
+                            label="下位境界差"
+                            minName="machineNextGapMin"
+                            maxName="machineNextGapMax"
+                            requiredName="machineNextGapRequired"
+                            minValue={rankingHighlightOptions.machineNextGapMin}
+                            maxValue={rankingHighlightOptions.machineNextGapMax}
+                            requiredValue={machineNextGapRequired}
+                          />
+                        </div>
+                        <div className="scopedConditionColumn">
+                          <p className="scopedConditionColumnTitle">全機種内</p>
+                          <ScopedConditionRow
+                            label="順位"
+                            minName="selectedRankMin"
+                            maxName="selectedRankMax"
+                            requiredName="selectedRankRequired"
+                            minValue={rankingHighlightOptions.selectedRankMin}
+                            maxValue={rankingHighlightOptions.selectedRankMax}
+                            requiredValue={selectedRankRequired}
+                            minLabel="開始"
+                            maxLabel="終了"
+                            inputMin="1"
+                            inputMax={undefined}
+                            inputStep={undefined}
+                          />
+                          <ScopedConditionRow
+                            label="上位境界差"
+                            minName="selectedUpperGapMin"
+                            maxName="selectedUpperGapMax"
+                            requiredName="selectedUpperGapRequired"
+                            minValue={rankingHighlightOptions.selectedUpperGapMin}
+                            maxValue={rankingHighlightOptions.selectedUpperGapMax}
+                            requiredValue={selectedUpperGapRequired}
+                          />
+                          <ScopedConditionRow
+                            label="下位境界差"
+                            minName="selectedNextGapMin"
+                            maxName="selectedNextGapMax"
+                            requiredName="selectedNextGapRequired"
+                            minValue={rankingHighlightOptions.selectedNextGapMin}
+                            maxValue={rankingHighlightOptions.selectedNextGapMax}
+                            requiredValue={selectedNextGapRequired}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </details>
               </div>
               <button type="submit" className="storeReserveButton">
                 表示する
@@ -952,6 +1084,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 predictionDate={detail.predictionDate}
                 actualDate={detail.nextBusinessDate}
                 highlightOptions={normalizedRankingHighlightOptions}
+                customHighlightBookmark={customHighlightBookmark}
                 initialDifferenceMode={detail.differenceMode}
                 showMachineTopCandidates={showMachineTopCandidates}
               />
