@@ -951,7 +951,7 @@ export function HuntRankingTable({
       {selectedOverallRows.length > 0 ? (
         <OverallRankingTable
           storeId={storeId}
-          title={`全機種内ランキング 上位${formatNumber(selectedOverallRows.length)}台`}
+          title={`選択機種内ランキング 上位${formatNumber(selectedOverallRows.length)}台`}
           rows={selectedOverallRows}
           visibleColumns={visibleColumns}
           scoreColumnLabel={scoreColumnLabel}
@@ -962,7 +962,7 @@ export function HuntRankingTable({
       ) : (
         <section className="statusPanel">
           <h2>チェック中の機種がありません</h2>
-          <p>機種名にチェックを入れると、ここに全機種内ランキングが表示されます。</p>
+          <p>機種名にチェックを入れると、ここに選択機種内ランキングが表示されます。</p>
         </section>
       )}
 

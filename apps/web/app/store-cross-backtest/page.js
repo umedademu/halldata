@@ -739,7 +739,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                 />
               </div>
               <div className="scopedConditionColumn">
-                <p className="scopedConditionColumnTitle">全機種内</p>
+                <p className="scopedConditionColumnTitle">選択機種内</p>
                 <ScopedConditionRow
                   label="順位"
                   minName="selectedRankMin"

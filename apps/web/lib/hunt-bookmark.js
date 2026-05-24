@@ -507,9 +507,9 @@ function formatRankScopeLabel(rankScope) {
     return "機種内順位";
   }
   if (rankScope === "selected") {
-    return "全機種内順位";
+    return "選択機種内順位";
   }
-  return "全機種内順位";
+  return "選択機種内順位";
 }
 
 function findNextLowerHuntScore(sortedRows, startIndex, currentScore) {
@@ -1089,7 +1089,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
 
   if (normalizedBookmark.hasSelectedRankFilter) {
     parts.push(
-      `全機種内順位${normalizedBookmark.selectedRankMin}〜${normalizedBookmark.selectedRankMax}${
+      `選択機種内順位${normalizedBookmark.selectedRankMin}〜${normalizedBookmark.selectedRankMax}${
         normalizedBookmark.selectedRankRequired ? "必須" : ""
       }`,
     );
@@ -1125,7 +1125,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   pushRangeConditionSummary(
     parts,
     normalizedBookmark.hasSelectedUpperGapFilter,
-    "全機種内上位境界差",
+    "選択機種内上位境界差",
     normalizedBookmark.selectedUpperGapMin,
     normalizedBookmark.selectedUpperGapMax,
     normalizedBookmark.selectedUpperGapRequired,
@@ -1133,7 +1133,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   pushRangeConditionSummary(
     parts,
     normalizedBookmark.hasSelectedNextGapFilter,
-    "全機種内下位境界差",
+    "選択機種内下位境界差",
     normalizedBookmark.selectedNextGapMin,
     normalizedBookmark.selectedNextGapMax,
     normalizedBookmark.selectedNextGapRequired,
