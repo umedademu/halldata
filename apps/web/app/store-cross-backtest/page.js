@@ -907,8 +907,8 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
           </details>
 
           <div className="backtestButtonRow crossBacktestActionRow">
-            <button type="submit" className="storeReserveButton">
-              店舗横断バックテストする
+            <button type="submit" className="storeReserveButton backtestPrimaryButton">
+              店舗横断バックテストを実行
             </button>
           </div>
         </NativeGetForm>

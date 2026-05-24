@@ -556,6 +556,40 @@ a {
   gap: 12px;
 }
 
+.backtestDisplaySettings {
+  display: grid;
+  grid-template-columns: max-content minmax(20rem, 1fr);
+  gap: 16px;
+  align-items: start;
+  width: 100%;
+  max-width: 70rem;
+}
+
+.backtestPrimaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 15rem;
+  min-height: 3.2rem;
+  padding: 12px 24px;
+  border-color: rgba(23, 67, 111, 0.72);
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(37, 99, 165, 0.22);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.backtestPrimaryButton:hover {
+  border-color: rgba(23, 67, 111, 0.9);
+  background: var(--accent-strong);
+}
+
+.backtestPrimaryButton:active {
+  transform: translateY(1px);
+  box-shadow: 0 6px 14px rgba(37, 99, 165, 0.18);
+}
+
 .backtestGraphToggleRow {
   display: flex;
   flex-wrap: wrap;
@@ -2552,6 +2586,11 @@ a {
     border-top: 1px solid rgba(15, 23, 42, 0.1);
     border-left: 0;
   }
+
+  .backtestDisplaySettings {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -2646,6 +2685,10 @@ a {
 
   .backtestFieldGrid {
     grid-template-columns: 1fr;
+  }
+
+  .backtestPrimaryButton {
+    width: 100%;
   }
 
   .scopedConditionColumns {

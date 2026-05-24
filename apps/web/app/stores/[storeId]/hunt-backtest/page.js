@@ -911,88 +911,90 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                 </div>
               </div>
 
-              <div className="backtestBlock">
-                <p className="filterControlLabel">実績差枚の集計基準</p>
-                <div className="metricToggleRow">
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.differenceMode === "bonus" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="differenceMode"
-                      value="bonus"
-                      defaultChecked={detail.backtest.differenceMode === "bonus"}
-                    />
-                    <span>設定1基準</span>
-                  </label>
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.differenceMode === "estimated"
-                        ? "metricToggleChipActive"
-                        : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="differenceMode"
-                      value="estimated"
-                      defaultChecked={detail.backtest.differenceMode === "estimated"}
-                    />
-                    <span>推定設定基準</span>
-                  </label>
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.differenceMode === "minrepo" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="differenceMode"
-                      value="minrepo"
-                      defaultChecked={detail.backtest.differenceMode === "minrepo"}
-                    />
-                    <span>みんレポ基準</span>
-                  </label>
+              <div className="backtestDisplaySettings">
+                <div className="backtestBlock">
+                  <p className="filterControlLabel">差枚グラフ表示</p>
+                  <div className="metricToggleRow">
+                    <label
+                      className={`metricToggleChip ${
+                        detail.backtest.showGraph === "on" ? "metricToggleChipActive" : ""
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="showGraph"
+                        value="on"
+                        defaultChecked={detail.backtest.showGraph === "on"}
+                      />
+                      <span>表示する</span>
+                    </label>
+                    <label
+                      className={`metricToggleChip ${
+                        detail.backtest.showGraph === "off" ? "metricToggleChipActive" : ""
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="showGraph"
+                        value="off"
+                        defaultChecked={detail.backtest.showGraph === "off"}
+                      />
+                      <span>表示しない</span>
+                    </label>
+                  </div>
                 </div>
-              </div>
 
-              <div className="backtestBlock">
-                <p className="filterControlLabel">グラフ表示</p>
-                <div className="metricToggleRow">
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.showGraph === "on" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="showGraph"
-                      value="on"
-                      defaultChecked={detail.backtest.showGraph === "on"}
-                    />
-                    <span>表示する</span>
-                  </label>
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.showGraph === "off" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="showGraph"
-                      value="off"
-                      defaultChecked={detail.backtest.showGraph === "off"}
-                    />
-                    <span>表示しない</span>
-                  </label>
+                <div className="backtestBlock">
+                  <p className="filterControlLabel">実績差枚の集計基準</p>
+                  <div className="metricToggleRow">
+                    <label
+                      className={`metricToggleChip ${
+                        detail.backtest.differenceMode === "bonus" ? "metricToggleChipActive" : ""
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="differenceMode"
+                        value="bonus"
+                        defaultChecked={detail.backtest.differenceMode === "bonus"}
+                      />
+                      <span>設定1基準</span>
+                    </label>
+                    <label
+                      className={`metricToggleChip ${
+                        detail.backtest.differenceMode === "estimated"
+                          ? "metricToggleChipActive"
+                          : ""
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="differenceMode"
+                        value="estimated"
+                        defaultChecked={detail.backtest.differenceMode === "estimated"}
+                      />
+                      <span>推定設定基準</span>
+                    </label>
+                    <label
+                      className={`metricToggleChip ${
+                        detail.backtest.differenceMode === "minrepo" ? "metricToggleChipActive" : ""
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="differenceMode"
+                        value="minrepo"
+                        defaultChecked={detail.backtest.differenceMode === "minrepo"}
+                      />
+                      <span>みんレポ基準</span>
+                    </label>
+                  </div>
                 </div>
               </div>
 
               <div className="backtestButtonRow">
-                <button type="submit" className="storeReserveButton">
-                  バックテストする
+                <button type="submit" className="storeReserveButton backtestPrimaryButton">
+                  バックテストを実行
                 </button>
               </div>
             </NativeGetForm>
