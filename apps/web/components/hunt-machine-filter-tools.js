@@ -99,16 +99,86 @@ function turnMachineFilterCategoryOff(form, category) {
   );
 }
 
+function readMachineFilterSlotCount(input) {
+  const slotCount = Number(input?.dataset?.machineSlotCount);
+  return Number.isFinite(slotCount) && slotCount > 0 ? slotCount : 0;
+}
+
 function turnMachineFilterSlotCountOn(form, minSlotCount) {
   const threshold = Number(minSlotCount);
-  if (!Number.isFinite(threshold) || threshold <= 0) {
+  if (!form || !Number.isFinite(threshold) || threshold <= 0) {
     return;
   }
 
-  updateMachineFilterChecks(form, (input, currentChecked) => {
-    const slotCount = Number(input.dataset.machineSlotCount);
-    return Number.isFinite(slotCount) && slotCount >= threshold ? true : currentChecked;
-  });
+  const inputs = [...form.querySelectorAll('input[data-machine-filter-option="1"]')];
+  const changedInputs = new Set();
+  const handledInputs = new Set();
+  const combinedGroupKeys = [
+    ...new Set(
+      inputs
+        .map((input) => String(input.dataset.machineCombinedGroupKey ?? "").trim())
+        .filter(Boolean),
+    ),
+  ];
+
+  for (const groupKey of combinedGroupKeys) {
+    const groupInputs = inputs.filter(
+      (input) =>
+        input.dataset.machineCombinedGroupKey === groupKey &&
+        input.dataset.machineCombinedRole === "group",
+    );
+    const memberInputs = inputs.filter(
+      (input) =>
+        input.dataset.machineCombinedGroupKey === groupKey &&
+        input.dataset.machineCombinedRole === "member",
+    );
+    if (groupInputs.length === 0 || memberInputs.length === 0) {
+      continue;
+    }
+
+    for (const input of [...groupInputs, ...memberInputs]) {
+      handledInputs.add(input);
+    }
+
+    const qualifyingMemberInputs = memberInputs.filter(
+      (input) => readMachineFilterSlotCount(input) >= threshold,
+    );
+    if (qualifyingMemberInputs.length > 0) {
+      for (const groupInput of groupInputs) {
+        setMachineFilterInputChecked(groupInput, false, changedInputs);
+      }
+      for (const memberInput of qualifyingMemberInputs) {
+        setMachineFilterInputChecked(memberInput, true, changedInputs);
+      }
+      continue;
+    }
+
+    const groupSlotCount = Math.max(...groupInputs.map(readMachineFilterSlotCount));
+    const memberSlotCount = memberInputs.reduce(
+      (sum, input) => sum + readMachineFilterSlotCount(input),
+      0,
+    );
+    if (Math.max(groupSlotCount, memberSlotCount) >= threshold) {
+      for (const groupInput of groupInputs) {
+        setMachineFilterInputChecked(groupInput, true, changedInputs);
+      }
+      for (const memberInput of memberInputs) {
+        setMachineFilterInputChecked(memberInput, false, changedInputs);
+      }
+    }
+  }
+
+  for (const input of inputs) {
+    if (handledInputs.has(input)) {
+      continue;
+    }
+    if (readMachineFilterSlotCount(input) >= threshold) {
+      setMachineFilterInputChecked(input, true, changedInputs);
+    }
+  }
+
+  syncCombinedMachineGroupChecks(form, null, changedInputs);
+  dispatchMachineFilterChanges(changedInputs);
 }
 
 function SlotCountMachineFilterAction() {
