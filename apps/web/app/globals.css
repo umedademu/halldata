@@ -550,6 +550,11 @@ a {
   flex: 1 1 100%;
 }
 
+.rankingCustomMachineFilter {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
 .backtestButtonRow {
   display: flex;
   flex-wrap: wrap;

@@ -914,63 +914,63 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   </label>
                 </div>
               </div>
-              {machineOptions.length > 0 ? (
-                <div className="backtestBlock rankingMachineFilter">
-                  <p className="filterControlLabel">機種名</p>
-                  <AllMachineFilterButtons enableSlotCountSelection />
-                  <div className="machineFilterGroups">
-                    {machineOptionGroups.map((group) => (
-                      <div key={group.key} className="machineFilterGroup">
-                        <p className="machineFilterGroupLabel">{group.label}</p>
-                        <div className="machineGroupToggleRow">
-                          <MachineFilterCategoryButton
-                            category={group.key}
-                            label={`${group.label}のみ選択`}
-                          />
-                          <MachineFilterCategoryButton
-                            category={group.key}
-                            label={`${group.label}のみ解除`}
-                            action="clear"
-                          />
-                        </div>
-                        <div className="metricToggleRow">
-                          {group.options.map((machine) => (
-                            <label
-                              key={machine.name}
-                              className={`metricToggleChip ${
-                                machine.checked ? "metricToggleChipActive" : ""
-                              }`}
-                              title={machine.name}
-                            >
-                              <input
-                                type="checkbox"
-                                name="machine"
-                                value={machine.name}
-                                defaultChecked={machine.checked}
-                                data-machine-filter-option="1"
-                                data-machine-category={machine.category}
-                                data-machine-slot-count={machine.slotCount ?? ""}
-                                data-machine-combined-group-key={machine.combinedGroupKey ?? ""}
-                                data-machine-combined-role={machine.combinedRole ?? ""}
-                              />
-                              <span>{machine.optionLabel}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
               <div className="backtestBlock rankingMachineFilter">
                 <p className="filterControlLabel">強調条件</p>
                 <HuntRankingConditionSelector storeId={detail.store.id} />
-                <details className="collapsibleControlGroup">
+                <details className="collapsibleControlGroup crossBacktestConditionGroup">
                   <summary className="collapsibleControlHeader crossBacktestConditionSummary">
-                    <span>カスタム条件を直接指定</span>
+                    <span>選択機種・カスタム条件を直接指定</span>
                     <span className="collapsibleControlStatus crossBacktestConditionStatus" />
                   </summary>
                   <div className="collapsibleControlBody">
+                    {machineOptions.length > 0 ? (
+                      <div className="backtestBlock rankingCustomMachineFilter">
+                        <p className="filterControlLabel">選択機種</p>
+                        <AllMachineFilterButtons enableSlotCountSelection />
+                        <div className="machineFilterGroups">
+                          {machineOptionGroups.map((group) => (
+                            <div key={group.key} className="machineFilterGroup">
+                              <p className="machineFilterGroupLabel">{group.label}</p>
+                              <div className="machineGroupToggleRow">
+                                <MachineFilterCategoryButton
+                                  category={group.key}
+                                  label={`${group.label}のみ選択`}
+                                />
+                                <MachineFilterCategoryButton
+                                  category={group.key}
+                                  label={`${group.label}のみ解除`}
+                                  action="clear"
+                                />
+                              </div>
+                              <div className="metricToggleRow">
+                                {group.options.map((machine) => (
+                                  <label
+                                    key={machine.name}
+                                    className={`metricToggleChip ${
+                                      machine.checked ? "metricToggleChipActive" : ""
+                                    }`}
+                                    title={machine.name}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      name="machine"
+                                      value={machine.name}
+                                      defaultChecked={machine.checked}
+                                      data-machine-filter-option="1"
+                                      data-machine-category={machine.category}
+                                      data-machine-slot-count={machine.slotCount ?? ""}
+                                      data-machine-combined-group-key={machine.combinedGroupKey ?? ""}
+                                      data-machine-combined-role={machine.combinedRole ?? ""}
+                                    />
+                                    <span>{machine.optionLabel}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                     <div className="huntConditionRows">
                       <div className="commonConditionPanel">
                         <p className="scopedConditionColumnTitle">共通条件</p>
