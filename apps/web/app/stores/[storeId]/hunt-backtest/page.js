@@ -791,31 +791,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                 </div>
               </div>
 
-              <div className="backtestBlock">
-                <p className="filterControlLabel">選抜方法</p>
-                <div className="metricToggleRow">
-                  <input type="hidden" name="dailySelectionMode" value="" />
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.dailySelectionMode === "machineTopNextGap"
-                        ? "metricToggleChipActive"
-                        : ""
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      name="dailySelectionMode"
-                      value="machineTopNextGap"
-                      defaultChecked={detail.backtest.dailySelectionMode === "machineTopNextGap"}
-                    />
-                    <span>各機種1位から機種内下位境界差1位を1台選抜</span>
-                  </label>
-                </div>
-                <p className="storeReserveHelp">
-                  ONの場合、日ごとに各機種の機種内狙い度1位台を候補にし、その中で機種内下位境界差が最大の1台だけを選びます。入力済みの機種内順位、全機種内順位、狙い度、境界差条件は、その1台への追加条件としてすべて満たした場合だけ集計します。
-                </p>
-              </div>
-
               <div className="huntConditionRows">
                 <div className="commonConditionPanel">
                   <p className="scopedConditionColumnTitle">共通条件</p>
@@ -952,6 +927,28 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       defaultChecked={detail.backtest.differenceMode === "minrepo"}
                     />
                     <span>みんレポ基準</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="backtestBlock">
+                <p className="filterControlLabel">選抜方法</p>
+                <div className="metricToggleRow">
+                  <input type="hidden" name="dailySelectionMode" value="" />
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.dailySelectionMode === "machineTopNextGap"
+                        ? "metricToggleChipActive"
+                        : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      name="dailySelectionMode"
+                      value="machineTopNextGap"
+                      defaultChecked={detail.backtest.dailySelectionMode === "machineTopNextGap"}
+                    />
+                    <span>各機種1位から機種内下位境界差1位を1台選抜</span>
                   </label>
                 </div>
               </div>
