@@ -339,6 +339,70 @@ a {
   min-width: 0;
 }
 
+.filterConditionBox {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.filterConditionBoxTitle {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.periodConditionRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px 14px;
+}
+
+.periodModeGroup {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 7px;
+}
+
+.periodInputGroup {
+  display: grid;
+  flex: 1 1 34rem;
+  grid-template-columns: repeat(3, minmax(10rem, 12rem));
+  gap: 10px;
+  align-items: end;
+}
+
+.periodInputGroup .storeReserveField {
+  flex: none;
+}
+
+.rankingConditionBox {
+  flex: 1 1 30rem;
+  max-width: 44rem;
+}
+
+.rankingConditionBoxWide {
+  flex: 1 1 100%;
+  max-width: 70rem;
+}
+
+.rankingDateGrid {
+  display: grid;
+  grid-template-columns: minmax(14rem, 18rem) minmax(12rem, 15rem);
+  gap: 12px;
+  align-items: end;
+}
+
+.rankingDateGrid .storeReserveField {
+  flex: none;
+}
+
 .huntConditionRows {
   display: grid;
   gap: 10px;
@@ -2761,6 +2825,16 @@ a {
 
   .backtestFieldGrid {
     grid-template-columns: 1fr;
+  }
+
+  .periodInputGroup,
+  .rankingDateGrid {
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .periodModeGroup {
+    width: 100%;
   }
 
   .backtestPrimaryButton {

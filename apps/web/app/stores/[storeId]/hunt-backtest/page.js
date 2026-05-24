@@ -602,71 +602,75 @@ export default async function HuntBacktestPage({ params, searchParams }) {
               <input type="hidden" name="show" value="1" />
               <input type="hidden" name="backtestEventTouched" value="1" />
 
-              <div className="backtestBlock">
-                <p className="filterControlLabel">期間の指定方法</p>
-                <div className="metricToggleRow">
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.periodMode === "recent" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="periodMode"
-                      value="recent"
-                      defaultChecked={detail.backtest.periodMode === "recent"}
-                    />
-                    <span>直近日数</span>
-                  </label>
-                  <label
-                    className={`metricToggleChip ${
-                      detail.backtest.periodMode === "range" ? "metricToggleChipActive" : ""
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="periodMode"
-                      value="range"
-                      defaultChecked={detail.backtest.periodMode === "range"}
-                    />
-                    <span>日付範囲</span>
-                  </label>
+              <div className="filterConditionBox">
+                <p className="filterConditionBoxTitle">期間指定</p>
+                <div className="periodConditionRow">
+                  <div className="periodModeGroup">
+                    <p className="filterControlLabel">指定方法</p>
+                    <div className="metricToggleRow">
+                      <label
+                        className={`metricToggleChip ${
+                          detail.backtest.periodMode === "recent" ? "metricToggleChipActive" : ""
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="periodMode"
+                          value="recent"
+                          defaultChecked={detail.backtest.periodMode === "recent"}
+                        />
+                        <span>直近日数</span>
+                      </label>
+                      <label
+                        className={`metricToggleChip ${
+                          detail.backtest.periodMode === "range" ? "metricToggleChipActive" : ""
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="periodMode"
+                          value="range"
+                          defaultChecked={detail.backtest.periodMode === "range"}
+                        />
+                        <span>日付範囲</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="periodInputGroup">
+                    <label className="storeReserveField backtestField">
+                      <span>直近日数</span>
+                      <input
+                        type="number"
+                        name="recentDays"
+                        min="1"
+                        defaultValue={detail.backtest.recentDays}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                    <label className="storeReserveField backtestField">
+                      <span>開始日</span>
+                      <input
+                        type="date"
+                        name="startDate"
+                        defaultValue={detail.backtest.startDate ?? ""}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                    <label className="storeReserveField backtestField">
+                      <span>終了日</span>
+                      <input
+                        type="date"
+                        name="endDate"
+                        defaultValue={detail.backtest.endDate ?? ""}
+                        className="storeReserveInput"
+                      />
+                    </label>
+                  </div>
                 </div>
               </div>
 
-              <div className="backtestFieldGrid">
-                <label className="storeReserveField backtestField">
-                  <span>直近日数</span>
-                  <input
-                    type="number"
-                    name="recentDays"
-                    min="1"
-                    defaultValue={detail.backtest.recentDays}
-                    className="storeReserveInput"
-                  />
-                </label>
-                <label className="storeReserveField backtestField">
-                  <span>開始日</span>
-                  <input
-                    type="date"
-                    name="startDate"
-                    defaultValue={detail.backtest.startDate ?? ""}
-                    className="storeReserveInput"
-                  />
-                </label>
-                <label className="storeReserveField backtestField">
-                  <span>終了日</span>
-                  <input
-                    type="date"
-                    name="endDate"
-                    defaultValue={detail.backtest.endDate ?? ""}
-                    className="storeReserveInput"
-                  />
-                </label>
-              </div>
-
-              <div className="backtestBlock">
-                <p className="filterControlLabel">特定日</p>
+              <div className="filterConditionBox">
+                <p className="filterConditionBoxTitle">特定日指定</p>
                 <SpecialDayFilterSettings
                   storeId={detail.store.id}
                   dayTailOptions={DAY_TAIL_OPTIONS}
@@ -679,8 +683,8 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                 />
               </div>
 
-              <div className="backtestBlock">
-                <p className="filterControlLabel">機種名</p>
+              <div className="filterConditionBox">
+                <p className="filterConditionBoxTitle">機種選択</p>
                 <input type="hidden" name="machineTouched" value="1" />
                 <AllMachineFilterButtons enableSlotCountSelection />
                 <div className="machineFilterGroups">

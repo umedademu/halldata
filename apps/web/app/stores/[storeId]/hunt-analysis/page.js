@@ -840,38 +840,43 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             >
               <input type="hidden" name="show" value="1" />
               <input type="hidden" name="machineTouched" value="1" />
-              <label className="storeReserveField">
-                <span>狙い度の日</span>
-                {resultRequested && rankingDateOptions.length > 0 ? (
-                  <select name="date" defaultValue={detail.selectedDate ?? ""} className="storeReserveInput">
-                    {rankingDateOptions.map((option) => (
-                      <option key={option.date} value={option.date}>
-                        {formatRankingDateOption(option.date, option.nextBusinessDate)}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type="date"
-                    name="date"
-                    defaultValue={detail.selectedDate ?? ""}
-                    className="storeReserveInput"
-                  />
-                )}
-              </label>
-              <label className="storeReserveField">
-                <span>各機種何位まで表示</span>
-                <input
-                  type="number"
-                  name="limit"
-                  min="1"
-                  max={Math.max(detail.totalCount, detail.limit, 1)}
-                  defaultValue={detail.limit}
-                  className="storeReserveInput"
-                />
-              </label>
-              <div className="backtestBlock rankingMachineFilter">
-                <p className="filterControlLabel">狙い度計算の差枚基準</p>
+              <div className="filterConditionBox rankingConditionBox">
+                <p className="filterConditionBoxTitle">集計条件</p>
+                <div className="rankingDateGrid">
+                  <label className="storeReserveField">
+                    <span>狙い度の日</span>
+                    {resultRequested && rankingDateOptions.length > 0 ? (
+                      <select name="date" defaultValue={detail.selectedDate ?? ""} className="storeReserveInput">
+                        {rankingDateOptions.map((option) => (
+                          <option key={option.date} value={option.date}>
+                            {formatRankingDateOption(option.date, option.nextBusinessDate)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="date"
+                        name="date"
+                        defaultValue={detail.selectedDate ?? ""}
+                        className="storeReserveInput"
+                      />
+                    )}
+                  </label>
+                  <label className="storeReserveField">
+                    <span>各機種何位まで表示</span>
+                    <input
+                      type="number"
+                      name="limit"
+                      min="1"
+                      max={Math.max(detail.totalCount, detail.limit, 1)}
+                      defaultValue={detail.limit}
+                      className="storeReserveInput"
+                    />
+                  </label>
+                </div>
+              </div>
+              <div className="filterConditionBox rankingConditionBox">
+                <p className="filterConditionBoxTitle">差枚基準</p>
                 <div className="metricToggleRow">
                   <label
                     className={`metricToggleChip ${
@@ -914,8 +919,8 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   </label>
                 </div>
               </div>
-              <div className="backtestBlock rankingMachineFilter">
-                <p className="filterControlLabel">強調条件</p>
+              <div className="filterConditionBox rankingConditionBoxWide">
+                <p className="filterConditionBoxTitle">強調条件</p>
                 <HuntRankingConditionSelector storeId={detail.store.id} />
                 <details className="collapsibleControlGroup crossBacktestConditionGroup">
                   <summary className="collapsibleControlHeader crossBacktestConditionSummary">
