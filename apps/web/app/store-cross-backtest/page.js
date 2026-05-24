@@ -7,6 +7,7 @@ import {
   MachineFilterCategoryButton,
 } from "../../components/hunt-machine-filter-tools";
 import { NativeGetForm } from "../../components/native-get-form";
+import { SpecialDayFilterSettings } from "../../components/special-day-filter-settings";
 import { SortableTableController } from "../../components/sortable-table-controller";
 import { SortableTableHeader } from "../../components/sortable-table-header";
 import { StoreFavoriteButton } from "../../components/store-favorite-button";
@@ -31,7 +32,6 @@ export const metadata = {
 };
 
 const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, index) => index);
-const MONTH_DAY_OPTIONS = Array.from({ length: 31 }, (_, index) => index + 1);
 const WEEKDAY_OPTIONS = [
   { value: 1, label: "月曜" },
   { value: 2, label: "火曜" },
@@ -429,9 +429,6 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
     limit: readSingleSearchParam(resolvedSearchParams?.limit),
     rankingMetric: readSingleSearchParam(resolvedSearchParams?.rankingMetric),
   });
-  const selectedDayTailSet = new Set(detail.eventFilters.dayTails);
-  const selectedWeekdaySet = new Set(detail.eventFilters.weekdays);
-  const selectedMonthDaySet = new Set(detail.eventFilters.monthDays);
   const machineOptionGroups = groupHuntMachineOptions(detail.machineOptions);
   const locationFilterOpen =
     detail.selectedPrefectures.length > 0 || detail.selectedAreaKeys.length > 0;
@@ -622,82 +619,15 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
           </div>
 
           <div className="backtestBlock">
-            <p className="filterControlLabel">特定日（翌営業日の末尾）</p>
-            <div className="metricToggleRow">
-              {DAY_TAIL_OPTIONS.map((dayTail) => (
-                <label
-                  key={dayTail}
-                  className={`metricToggleChip ${
-                    selectedDayTailSet.has(dayTail) ? "metricToggleChipActive" : ""
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    name="backtestDayTail"
-                    value={dayTail}
-                    defaultChecked={selectedDayTailSet.has(dayTail)}
-                  />
-                  <span>{dayTail}</span>
-                </label>
-              ))}
-              <label
-                className={`metricToggleChip ${
-                  detail.eventFilters.zoro ? "metricToggleChipActive" : ""
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  name="backtestZoro"
-                  value="1"
-                  defaultChecked={detail.eventFilters.zoro}
-                />
-                <span>ゾロ目</span>
-              </label>
-            </div>
-          </div>
-
-          <div className="backtestBlock">
-            <p className="filterControlLabel">特定日（翌営業日の日付）</p>
-            <div className="metricToggleRow">
-              {MONTH_DAY_OPTIONS.map((monthDay) => (
-                <label
-                  key={monthDay}
-                  className={`metricToggleChip ${
-                    selectedMonthDaySet.has(monthDay) ? "metricToggleChipActive" : ""
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    name="backtestMonthDay"
-                    value={monthDay}
-                    defaultChecked={selectedMonthDaySet.has(monthDay)}
-                  />
-                  <span>{monthDay}日</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="backtestBlock">
-            <p className="filterControlLabel">特定日（翌営業日の曜日）</p>
-            <div className="metricToggleRow">
-              {WEEKDAY_OPTIONS.map((weekday) => (
-                <label
-                  key={weekday.value}
-                  className={`metricToggleChip ${
-                    selectedWeekdaySet.has(weekday.value) ? "metricToggleChipActive" : ""
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    name="backtestWeekday"
-                    value={weekday.value}
-                    defaultChecked={selectedWeekdaySet.has(weekday.value)}
-                  />
-                  <span>{weekday.label}</span>
-                </label>
-              ))}
-            </div>
+            <p className="filterControlLabel">特定日</p>
+            <SpecialDayFilterSettings
+              dayTailOptions={DAY_TAIL_OPTIONS}
+              weekdayOptions={WEEKDAY_OPTIONS}
+              selectedDayTails={detail.eventFilters.dayTails}
+              selectedMonthDays={detail.eventFilters.monthDays}
+              selectedWeekdays={detail.eventFilters.weekdays}
+              zoro={detail.eventFilters.zoro}
+            />
           </div>
 
           <div className="backtestBlock">
