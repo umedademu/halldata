@@ -638,6 +638,15 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                 <div key={group.key} className="machineFilterGroup">
                   <p className="machineFilterGroupLabel">{group.label}</p>
                   <div className="machineGroupToggleRow">
+                    <MachineFilterCategoryButton
+                      category={group.key}
+                      label={`${group.label}のみ選択`}
+                    />
+                    <MachineFilterCategoryButton
+                      category={group.key}
+                      label={`${group.label}のみ解除`}
+                      action="clear"
+                    />
                     {group.key === "juggler" ? (
                       <label
                         className={`metricToggleChip ${
@@ -668,15 +677,6 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                         <span>ハナビをまとめる</span>
                       </label>
                     ) : null}
-                    <MachineFilterCategoryButton
-                      category={group.key}
-                      label={`${group.label}のみ選択`}
-                    />
-                    <MachineFilterCategoryButton
-                      category={group.key}
-                      label={`${group.label}のみ解除`}
-                      action="clear"
-                    />
                   </div>
                   <div className="metricToggleRow">
                     {group.options.map((machine) => (

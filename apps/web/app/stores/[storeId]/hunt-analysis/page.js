@@ -699,6 +699,15 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                       <div key={group.key} className="machineFilterGroup">
                         <p className="machineFilterGroupLabel">{group.label}</p>
                         <div className="machineGroupToggleRow">
+                          <MachineFilterCategoryButton
+                            category={group.key}
+                            label={`${group.label}のみ選択`}
+                          />
+                          <MachineFilterCategoryButton
+                            category={group.key}
+                            label={`${group.label}のみ解除`}
+                            action="clear"
+                          />
                           {group.key === "juggler" && hasAimJugglerGroupOption ? (
                             <label
                               className={`metricToggleChip ${
@@ -729,15 +738,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                               <span>ハナビをまとめる</span>
                             </label>
                           ) : null}
-                          <MachineFilterCategoryButton
-                            category={group.key}
-                            label={`${group.label}のみ選択`}
-                          />
-                          <MachineFilterCategoryButton
-                            category={group.key}
-                            label={`${group.label}のみ解除`}
-                            action="clear"
-                          />
                         </div>
                         <div className="metricToggleRow">
                           {group.options.map((machine) => (

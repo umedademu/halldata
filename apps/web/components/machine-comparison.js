@@ -1590,6 +1590,20 @@ function HuntScoreHighlightControls({
               <div key={group.key} className="machineFilterGroup">
                 <p className="machineFilterGroupLabel">{group.label}</p>
                 <div className="machineGroupToggleRow">
+                  <button
+                    type="button"
+                    className="storeReserveButton storeReserveButtonSecondary machineFilterAction"
+                    onClick={() => selectMachineCategory(group.key)}
+                  >
+                    {group.label}のみ選択
+                  </button>
+                  <button
+                    type="button"
+                    className="storeReserveButton storeReserveButtonSecondary machineFilterAction"
+                    onClick={() => clearMachineCategory(group.key)}
+                  >
+                    {group.label}のみ解除
+                  </button>
                   {group.key === "juggler" && hasAimJugglerGroupOption ? (
                     <label
                       className={`metricToggleChip ${
@@ -1618,20 +1632,6 @@ function HuntScoreHighlightControls({
                       <span>ハナビをまとめる</span>
                     </label>
                   ) : null}
-                  <button
-                    type="button"
-                    className="storeReserveButton storeReserveButtonSecondary machineFilterAction"
-                    onClick={() => selectMachineCategory(group.key)}
-                  >
-                    {group.label}のみ選択
-                  </button>
-                  <button
-                    type="button"
-                    className="storeReserveButton storeReserveButtonSecondary machineFilterAction"
-                    onClick={() => clearMachineCategory(group.key)}
-                  >
-                    {group.label}のみ解除
-                  </button>
                 </div>
                 <div className="metricToggleRow">
                   {group.options.map((machine) => (

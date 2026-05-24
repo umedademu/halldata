@@ -726,6 +726,15 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                     <div key={group.key} className="machineFilterGroup">
                       <p className="machineFilterGroupLabel">{group.label}</p>
                       <div className="machineGroupToggleRow">
+                        <MachineFilterCategoryButton
+                          category={group.key}
+                          label={`${group.label}のみ選択`}
+                        />
+                        <MachineFilterCategoryButton
+                          category={group.key}
+                          label={`${group.label}のみ解除`}
+                          action="clear"
+                        />
                         {group.key === "juggler" && detail.backtest.hasAimJugglerGroupOption ? (
                           <label
                             className={`metricToggleChip ${
@@ -742,29 +751,20 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                           </label>
                         ) : null}
                         {group.key === "hanabi" && detail.backtest.hasHanabiGroupOption ? (
-                            <label
-                              className={`metricToggleChip ${
-                                detail.backtest.combineHanabi ? "metricToggleChipActive" : ""
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                name="hanabiMachineGroup"
-                                value="1"
-                                defaultChecked={detail.backtest.combineHanabi}
-                              />
-                              <span>ハナビをまとめる</span>
-                            </label>
+                          <label
+                            className={`metricToggleChip ${
+                              detail.backtest.combineHanabi ? "metricToggleChipActive" : ""
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              name="hanabiMachineGroup"
+                              value="1"
+                              defaultChecked={detail.backtest.combineHanabi}
+                            />
+                            <span>ハナビをまとめる</span>
+                          </label>
                         ) : null}
-                        <MachineFilterCategoryButton
-                          category={group.key}
-                          label={`${group.label}のみ選択`}
-                        />
-                        <MachineFilterCategoryButton
-                          category={group.key}
-                          label={`${group.label}のみ解除`}
-                          action="clear"
-                        />
                       </div>
                       <div className="metricToggleRow">
                         {group.options.map((machine) => (
