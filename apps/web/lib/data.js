@@ -20,6 +20,7 @@ import {
   listHuntScoreTargetMachineNames,
   listHuntScoreTargetMachineNamesForStoreMachines,
 } from "./hunt-score";
+import { isHuntJugglerMachine } from "./hunt-machine-display";
 import {
   canonicalMachineName,
   normalizeDifferenceMode,
@@ -320,6 +321,67 @@ function withCombinedMachineEntries(machines) {
   }
 
   return entries;
+}
+
+function compareStoreMachineRows(left, right) {
+  const leftIsJuggler = isHuntJugglerMachine(left.machineName);
+  const rightIsJuggler = isHuntJugglerMachine(right.machineName);
+  if (leftIsJuggler !== rightIsJuggler) {
+    return leftIsJuggler ? -1 : 1;
+  }
+
+  if (leftIsJuggler && rightIsJuggler) {
+    const leftSlotCount = Number(left.slotCount ?? 0);
+    const rightSlotCount = Number(right.slotCount ?? 0);
+    if (leftSlotCount !== rightSlotCount) {
+      return rightSlotCount - leftSlotCount;
+    }
+
+    const leftLatestDate = String(left.latestDate ?? "");
+    const rightLatestDate = String(right.latestDate ?? "");
+    if (leftLatestDate !== rightLatestDate) {
+      return rightLatestDate.localeCompare(leftLatestDate, "ja");
+    }
+
+    return String(left.machineName ?? "").localeCompare(String(right.machineName ?? ""), "ja");
+  }
+
+  return Number(left.originalIndex ?? 0) - Number(right.originalIndex ?? 0);
+}
+
+function sortStoreMachineEntries(machines) {
+  const machineEntries = Array.isArray(machines) ? machines : [];
+  const blocks = [];
+
+  for (let index = 0; index < machineEntries.length; index += 1) {
+    const machine = machineEntries[index];
+    if (!machine?.isCombinedMachineGroup) {
+      blocks.push({ lead: machine, rows: [machine], originalIndex: index });
+      continue;
+    }
+
+    const rows = [machine];
+    let nextIndex = index + 1;
+    while (
+      nextIndex < machineEntries.length &&
+      machineEntries[nextIndex]?.isCombinedMachineChild &&
+      machineEntries[nextIndex]?.parentMachineName === machine.machineName
+    ) {
+      rows.push(machineEntries[nextIndex]);
+      nextIndex += 1;
+    }
+    blocks.push({ lead: machine, rows, originalIndex: index });
+    index = nextIndex - 1;
+  }
+
+  return blocks
+    .sort((left, right) =>
+      compareStoreMachineRows(
+        { ...left.lead, originalIndex: left.originalIndex },
+        { ...right.lead, originalIndex: right.originalIndex },
+      ),
+    )
+    .flatMap((block) => block.rows);
 }
 
 function parseCombinedSlotKey(slotKey) {
@@ -1837,7 +1899,7 @@ function buildStaticStoreDetail(staticStore) {
       machineCount: machines.length,
       latestDate,
     },
-    machines: withCombinedMachineEntries(machines),
+    machines: sortStoreMachineEntries(withCombinedMachineEntries(machines)),
   };
 }
 
