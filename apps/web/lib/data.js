@@ -194,8 +194,7 @@ function expandCombinedMachineNamesForOptions(machineNames, options = {}) {
   );
 
   for (const group of COMBINED_MACHINE_GROUPS) {
-    const optionKey = String(group.optionKey ?? "").trim();
-    if (!optionKey || !normalizeEnabledOption(options?.[optionKey], true)) {
+    if (!shouldCombineMachineGroupForOptions(group, machineNames, options)) {
       continue;
     }
     if (![...expandedMachineNames].some((machineName) => combinedMachineGroupContainsName(group, machineName))) {
@@ -807,6 +806,34 @@ function normalizeEnabledOption(value, fallbackValue = true) {
   return values.includes("1") || values.includes("true") || values.includes("on");
 }
 
+function normalizeMachineSelectionTouched(value) {
+  return value === true || value === "1" || value === "true" || value === "on";
+}
+
+function machineSelectionIncludesCombinedGroup(group, machineNames) {
+  return splitOptionValues(machineNames).some(
+    (machineName) =>
+      normalizeMachineNameForGrouping(machineName) === normalizeMachineNameForGrouping(group.groupName),
+  );
+}
+
+function shouldCombineMachineGroupForOptions(group, machineNames, options = {}) {
+  const optionKey = String(group?.optionKey ?? "").trim();
+  if (!optionKey) {
+    return false;
+  }
+  if (machineSelectionIncludesCombinedGroup(group, machineNames)) {
+    return true;
+  }
+
+  const optionValues = splitOptionValues(options?.[optionKey]);
+  if (optionValues.length > 0) {
+    return normalizeEnabledOption(options?.[optionKey], false);
+  }
+
+  return !normalizeMachineSelectionTouched(options?.machineTouched);
+}
+
 function normalizeDailySelectionMode(value) {
   return splitOptionValues(value).includes(DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP)
     ? DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP
@@ -814,17 +841,15 @@ function normalizeDailySelectionMode(value) {
 }
 
 function normalizeInitialMachineSelection(machineNames, options = {}) {
-  const machineTouched =
-    options?.machineTouched === true ||
-    options?.machineTouched === "1" ||
-    options?.machineTouched === "true" ||
-    options?.machineTouched === "on";
+  const machineTouched = normalizeMachineSelectionTouched(options?.machineTouched);
   if (!machineTouched) {
     return machineNames;
   }
 
   const machineNameSet = new Set(machineNames);
-  return splitOptionValues(options?.machineNames).filter((machineName) => machineNameSet.has(machineName));
+  return expandCombinedMachineNamesForOptions(splitOptionValues(options?.machineNames), options).filter(
+    (machineName) => machineNameSet.has(machineName),
+  );
 }
 
 function detailRecordHasMeaningfulResult(record) {
@@ -1874,8 +1899,16 @@ function buildInitialBacktestDetail(
         hasSelectedUpperGapFilter: selectedUpperGapFilter.hasUpperGapFilter,
       })
     : baseRequirementOptions;
-  const combineAimJuggler = normalizeEnabledOption(defaultedOptions?.combineAimJuggler, true);
-  const combineHanabi = normalizeEnabledOption(defaultedOptions?.combineHanabi, true);
+  const combineAimJuggler = shouldCombineMachineGroupForOptions(
+    COMBINED_MACHINE_GROUPS[0],
+    defaultedOptions?.machineNames,
+    defaultedOptions,
+  );
+  const combineHanabi = shouldCombineMachineGroupForOptions(
+    COMBINED_MACHINE_GROUPS[1],
+    defaultedOptions?.machineNames,
+    defaultedOptions,
+  );
 
   return {
     periodMode,
@@ -2654,11 +2687,7 @@ function normalizeCrossStoreRankingMetric(value) {
 }
 
 function normalizeCrossStoreInitialMachineSelection(machineNames, options = {}) {
-  const machineTouched =
-    options?.machineTouched === true ||
-    options?.machineTouched === "1" ||
-    options?.machineTouched === "true" ||
-    options?.machineTouched === "on";
+  const machineTouched = normalizeMachineSelectionTouched(options?.machineTouched);
   if (machineTouched) {
     return normalizeInitialMachineSelection(machineNames, options);
   }
@@ -2783,6 +2812,16 @@ function buildCrossStoreBacktestOptions(options = {}, availableMachineNames = nu
     : DEFAULT_CROSS_STORE_MACHINE_NAMES;
   const selectedMachineNames = normalizeCrossStoreInitialMachineSelection(machineNames, options);
   const selectedMachineNameSet = new Set(selectedMachineNames);
+  const combineAimJuggler = shouldCombineMachineGroupForOptions(
+    COMBINED_MACHINE_GROUPS[0],
+    options?.machineNames,
+    options,
+  );
+  const combineHanabi = shouldCombineMachineGroupForOptions(
+    COMBINED_MACHINE_GROUPS[1],
+    options?.machineNames,
+    options,
+  );
   const hasScopedRankOption =
     hasProvidedOption(options, "machineRankMin") ||
     hasProvidedOption(options, "machineRankMax") ||
@@ -2860,8 +2899,8 @@ function buildCrossStoreBacktestOptions(options = {}, availableMachineNames = nu
     rankScope: scopedRankFilters.rankScope,
     scoreDifferenceMode: normalizeDifferenceMode(options?.scoreDifferenceMode),
     differenceMode: normalizeDifferenceMode(options?.differenceMode),
-    combineAimJuggler: normalizeEnabledOption(options?.combineAimJuggler, true),
-    combineHanabi: normalizeEnabledOption(options?.combineHanabi, true),
+    combineAimJuggler,
+    combineHanabi,
     eventFilters: {
       dayTails: normalizeEventDayTails(options?.dayTails),
       zoro: Boolean(options?.zoro),

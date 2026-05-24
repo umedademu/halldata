@@ -429,7 +429,10 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
     limit: readSingleSearchParam(resolvedSearchParams?.limit),
     rankingMetric: readSingleSearchParam(resolvedSearchParams?.rankingMetric),
   });
-  const machineOptionGroups = groupHuntMachineOptions(detail.machineOptions);
+  const machineOptionGroups = groupHuntMachineOptions(detail.machineOptions, {
+    combineAimJuggler: detail.combineAimJuggler,
+    combineHanabi: detail.combineHanabi,
+  });
   const locationFilterOpen =
     detail.selectedPrefectures.length > 0 || detail.selectedAreaKeys.length > 0;
 
@@ -450,8 +453,6 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
         <NativeGetForm action="/store-cross-backtest" className="backtestForm">
           <input type="hidden" name="show" value="1" />
           <input type="hidden" name="machineTouched" value="1" />
-          <input type="hidden" name="aimMachineGroup" value="0" />
-          <input type="hidden" name="hanabiMachineGroup" value="0" />
 
           <details className="collapsibleControlGroup crossBacktestConditionGroup" open>
             <summary className="collapsibleControlHeader crossBacktestConditionSummary">
@@ -647,36 +648,6 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                       label={`${group.label}のみ解除`}
                       action="clear"
                     />
-                    {group.key === "juggler" ? (
-                      <label
-                        className={`metricToggleChip ${
-                          detail.combineAimJuggler ? "metricToggleChipActive" : ""
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          name="aimMachineGroup"
-                          value="1"
-                          defaultChecked={detail.combineAimJuggler}
-                        />
-                        <span>アイジャグをまとめる</span>
-                      </label>
-                    ) : null}
-                    {group.key === "hanabi" ? (
-                      <label
-                        className={`metricToggleChip ${
-                          detail.combineHanabi ? "metricToggleChipActive" : ""
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          name="hanabiMachineGroup"
-                          value="1"
-                          defaultChecked={detail.combineHanabi}
-                        />
-                        <span>ハナビをまとめる</span>
-                      </label>
-                    ) : null}
                   </div>
                   <div className="metricToggleRow">
                     {group.options.map((machine) => (
@@ -694,8 +665,11 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                           defaultChecked={machine.checked}
                           data-machine-filter-option="1"
                           data-machine-category={machine.category}
+                          data-machine-slot-count={machine.slotCount ?? ""}
+                          data-machine-combined-group-key={machine.combinedGroupKey ?? ""}
+                          data-machine-combined-role={machine.combinedRole ?? ""}
                         />
-                        <span>{machine.shortName}</span>
+                        <span>{machine.optionLabel}</span>
                       </label>
                     ))}
                   </div>

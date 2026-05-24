@@ -20,8 +20,6 @@ const MANAGED_PARAM_KEYS = [
   "endDate",
   ...EVENT_PARAM_KEYS,
   "machineTouched",
-  "aimMachineGroup",
-  "hanabiMachineGroup",
   "machine",
   "dailySelectionMode",
   "rankMin",

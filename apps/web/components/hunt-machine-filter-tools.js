@@ -1,36 +1,90 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
+function setMachineFilterInputChecked(input, checked, changedInputs) {
+  const nextChecked = Boolean(checked);
+  if (input.checked === nextChecked) {
+    return;
+  }
+  input.checked = nextChecked;
+  changedInputs.add(input);
+}
+
+function dispatchMachineFilterChanges(changedInputs) {
+  for (const input of changedInputs) {
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+}
+
+function syncCombinedMachineGroupChecks(form, changedInput = null, changedInputs = new Set()) {
+  if (!form) {
+    return changedInputs;
+  }
+
+  const inputs = [
+    ...form.querySelectorAll('input[data-machine-filter-option="1"][data-machine-combined-group-key]'),
+  ];
+  const groupKeys = [
+    ...new Set(
+      inputs
+        .map((input) => String(input.dataset.machineCombinedGroupKey ?? "").trim())
+        .filter(Boolean),
+    ),
+  ];
+
+  for (const groupKey of groupKeys) {
+    const groupInputs = inputs.filter(
+      (input) =>
+        input.dataset.machineCombinedGroupKey === groupKey &&
+        input.dataset.machineCombinedRole === "group",
+    );
+    const memberInputs = inputs.filter(
+      (input) =>
+        input.dataset.machineCombinedGroupKey === groupKey &&
+        input.dataset.machineCombinedRole === "member",
+    );
+    const changedRole =
+      changedInput?.dataset?.machineCombinedGroupKey === groupKey
+        ? changedInput.dataset.machineCombinedRole
+        : "";
+
+    if (changedRole === "member" && changedInput.checked) {
+      for (const groupInput of groupInputs) {
+        setMachineFilterInputChecked(groupInput, false, changedInputs);
+      }
+      continue;
+    }
+
+    if (
+      (changedRole === "group" && changedInput.checked) ||
+      (!changedRole && groupInputs.some((input) => input.checked))
+    ) {
+      for (const memberInput of memberInputs) {
+        setMachineFilterInputChecked(memberInput, false, changedInputs);
+      }
+    }
+  }
+
+  return changedInputs;
+}
+
 function updateMachineFilterChecks(form, resolveChecked) {
   if (!form) {
     return;
   }
 
+  const changedInputs = new Set();
   for (const input of form.querySelectorAll('input[data-machine-filter-option="1"]')) {
     const nextChecked = Boolean(resolveChecked(input, input.checked));
-    if (input.checked !== nextChecked) {
-      input.checked = nextChecked;
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    }
+    setMachineFilterInputChecked(input, nextChecked, changedInputs);
   }
+  syncCombinedMachineGroupChecks(form, null, changedInputs);
+  dispatchMachineFilterChanges(changedInputs);
 }
 
 function setMachineFilterChecks(form, checked) {
   updateMachineFilterChecks(form, () => checked);
-}
-
-function clearMachineGroupChecks(form) {
-  if (!form) {
-    return;
-  }
-
-  for (const input of form.querySelectorAll(
-    'input[type="checkbox"][name="aimMachineGroup"], input[type="checkbox"][name="hanabiMachineGroup"]',
-  )) {
-    if (input.checked) {
-      input.checked = false;
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-  }
 }
 
 function turnMachineFilterCategoryOn(form, category) {
@@ -112,18 +166,39 @@ function SlotCountMachineFilterAction() {
 }
 
 export function AllMachineFilterButtons({ enableSlotCountSelection = false }) {
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    const form = rootRef.current?.closest("form");
+    if (!form) {
+      return undefined;
+    }
+
+    const handleChange = (event) => {
+      const input = event.target;
+      if (!(input instanceof HTMLInputElement) || input.dataset.machineFilterOption !== "1") {
+        return;
+      }
+      const changedInputs = syncCombinedMachineGroupChecks(form, input);
+      dispatchMachineFilterChanges(changedInputs);
+    };
+
+    form.addEventListener("change", handleChange);
+    return () => {
+      form.removeEventListener("change", handleChange);
+    };
+  }, []);
+
   const selectAll = (event) => {
     setMachineFilterChecks(event.currentTarget.closest("form"), true);
   };
 
   const clearAll = (event) => {
-    const form = event.currentTarget.closest("form");
-    setMachineFilterChecks(form, false);
-    clearMachineGroupChecks(form);
+    setMachineFilterChecks(event.currentTarget.closest("form"), false);
   };
 
   return (
-    <div className="machineFilterActionRow">
+    <div ref={rootRef} className="machineFilterActionRow">
       <button
         type="button"
         className="storeReserveButton storeReserveButtonSecondary machineFilterAction"

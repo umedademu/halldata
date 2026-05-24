@@ -465,10 +465,30 @@ const HUNT_MACHINE_DISPLAY_DEFINITIONS = [
   },
 ];
 
-const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
-const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
-const HANABI_GROUP_NAME = "ハナビ";
-const HANABI_MACHINE_NAMES = ["新ハナビ", "スマスロ ハナビ"];
+export const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
+export const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
+export const HANABI_GROUP_NAME = "ハナビ";
+export const HANABI_MACHINE_NAMES = ["新ハナビ", "スマスロ ハナビ"];
+const COMBINED_HUNT_MACHINE_GROUPS = [
+  {
+    key: "aimJuggler",
+    groupName: AIM_JUGGLER_GROUP_NAME,
+    machineNames: AIM_JUGGLER_MACHINE_NAMES,
+    shortName: "アイム系",
+    category: "juggler",
+    optionKey: "combineAimJuggler",
+    allowPartial: true,
+  },
+  {
+    key: "hanabi",
+    groupName: HANABI_GROUP_NAME,
+    machineNames: HANABI_MACHINE_NAMES,
+    shortName: "ハナビ系",
+    category: "hanabi",
+    optionKey: "combineHanabi",
+    allowPartial: false,
+  },
+];
 
 function normalizeHuntMachineName(value) {
   return String(value ?? "").normalize("NFKC").replace(/\s+/gu, "").trim();
@@ -489,6 +509,65 @@ function isHuntMachineInGroup(machineName, groupMachineNames) {
   return groupMachineNames.some(
     (candidateName) => normalizeHuntMachineName(candidateName) === normalizeHuntMachineName(machineName),
   );
+}
+
+function isSameHuntMachineName(left, right) {
+  return normalizeHuntMachineName(left) === normalizeHuntMachineName(right);
+}
+
+function findCombinedHuntMachineGroup(machineName) {
+  return (
+    COMBINED_HUNT_MACHINE_GROUPS.find(
+      (group) =>
+        isSameHuntMachineName(machineName, group.groupName) ||
+        isHuntMachineInGroup(machineName, group.machineNames),
+    ) ?? null
+  );
+}
+
+function hasCombinedHuntMachineGroupOption(group, availableMachineNames) {
+  const matchingCount = group.machineNames.filter((machineName) =>
+    (Array.isArray(availableMachineNames) ? availableMachineNames : []).some((availableMachineName) =>
+      isHuntMachineInGroup(availableMachineName, [machineName]),
+    ),
+  ).length;
+  return matchingCount >= (group.allowPartial ? 1 : group.machineNames.length);
+}
+
+function buildCombinedHuntMachineOption(group, machineOptions, options = {}) {
+  const memberOptions = (Array.isArray(machineOptions) ? machineOptions : []).filter((machine) =>
+    isHuntMachineInGroup(machine?.name, group.machineNames),
+  );
+  const directGroupChecked = (Array.isArray(machineOptions) ? machineOptions : []).some(
+    (machine) => isSameHuntMachineName(machine?.name, group.groupName) && Boolean(machine?.checked),
+  );
+  if (!hasCombinedHuntMachineGroupOption(group, memberOptions.map((machine) => machine.name))) {
+    return null;
+  }
+
+  const optionEnabled = Boolean(options?.[group.optionKey]);
+  const allAvailableMembersChecked =
+    memberOptions.length > 0 && memberOptions.every((machine) => Boolean(machine?.checked));
+  const slotCount = memberOptions.reduce((sum, machine) => {
+    const value = Number(machine?.slotCount);
+    return Number.isFinite(value) && value > 0 ? sum + value : sum;
+  }, 0);
+  const checked = optionEnabled && (allAvailableMembersChecked || directGroupChecked);
+
+  return {
+    name: group.groupName,
+    checked,
+    slotCount: slotCount > 0 ? slotCount : null,
+    shortName: group.shortName,
+    optionLabel:
+      slotCount > 0
+        ? `${group.shortName}(${slotCount})`
+        : group.shortName,
+    category: group.category,
+    combinedGroupKey: group.key,
+    combinedRole: "group",
+    combinedMemberNames: group.machineNames,
+  };
 }
 
 function buildFallbackHuntMachineShortName(machineName) {
@@ -559,19 +638,42 @@ export function isHuntJugglerMachine(machineName) {
 }
 
 export function hasAimJugglerHuntMachineGroupOption(availableMachineNames) {
-  return AIM_JUGGLER_MACHINE_NAMES.some((machineName) =>
-    (Array.isArray(availableMachineNames) ? availableMachineNames : []).some((availableMachineName) =>
-      isHuntMachineInGroup(availableMachineName, [machineName]),
-    ),
-  );
+  return hasCombinedHuntMachineGroupOption(COMBINED_HUNT_MACHINE_GROUPS[0], availableMachineNames);
 }
 
 export function hasHanabiHuntMachineGroupOption(availableMachineNames) {
-  return HANABI_MACHINE_NAMES.every((machineName) =>
-    (Array.isArray(availableMachineNames) ? availableMachineNames : []).some((availableMachineName) =>
-      isHuntMachineInGroup(availableMachineName, [machineName]),
+  return hasCombinedHuntMachineGroupOption(COMBINED_HUNT_MACHINE_GROUPS[1], availableMachineNames);
+}
+
+export function isAimJugglerHuntMachineGroupName(machineName) {
+  return isSameHuntMachineName(machineName, AIM_JUGGLER_GROUP_NAME);
+}
+
+export function isHanabiHuntMachineGroupName(machineName) {
+  return isSameHuntMachineName(machineName, HANABI_GROUP_NAME);
+}
+
+export function selectionIncludesAimJugglerHuntMachineGroup(machineNames) {
+  return (Array.isArray(machineNames) ? machineNames : [machineNames]).some(isAimJugglerHuntMachineGroupName);
+}
+
+export function selectionIncludesHanabiHuntMachineGroup(machineNames) {
+  return (Array.isArray(machineNames) ? machineNames : [machineNames]).some(isHanabiHuntMachineGroupName);
+}
+
+export function expandHuntMachineCombinedGroupSelection(machineNames) {
+  return [
+    ...new Set(
+      (Array.isArray(machineNames) ? machineNames : [machineNames])
+        .flatMap((machineName) => {
+          const group = COMBINED_HUNT_MACHINE_GROUPS.find((entry) =>
+            isSameHuntMachineName(machineName, entry.groupName),
+          );
+          return group ? group.machineNames : [String(machineName ?? "").trim()];
+        })
+        .filter(Boolean),
     ),
-  );
+  ];
 }
 
 export function resolveHuntMachineGroupName(machineName, options = {}) {
@@ -585,7 +687,7 @@ export function resolveHuntMachineGroupName(machineName, options = {}) {
   return text;
 }
 
-export function groupHuntMachineOptions(machineOptions) {
+export function groupHuntMachineOptions(machineOptions, options = {}) {
   const groupsByKey = new Map(
     HUNT_MACHINE_CATEGORY_ORDER.map((categoryKey) => [
       categoryKey,
@@ -596,8 +698,24 @@ export function groupHuntMachineOptions(machineOptions) {
       },
     ]),
   );
+  const combinedGroupOptions = COMBINED_HUNT_MACHINE_GROUPS
+    .map((group) => buildCombinedHuntMachineOption(group, machineOptions, options))
+    .filter(Boolean);
+  const activeCombinedGroupKeys = new Set(
+    combinedGroupOptions
+      .filter((groupOption) => groupOption.checked)
+      .map((groupOption) => groupOption.combinedGroupKey),
+  );
+
+  for (const groupOption of combinedGroupOptions) {
+    groupsByKey.get(groupOption.category).options.push(groupOption);
+  }
 
   for (const machine of Array.isArray(machineOptions) ? machineOptions : []) {
+    const combinedGroup = findCombinedHuntMachineGroup(machine.name);
+    if (combinedGroup && isSameHuntMachineName(machine.name, combinedGroup.groupName)) {
+      continue;
+    }
     const slotCount = Number(machine.slotCount);
     const machineCategoryKey = getHuntMachineCategory(machine.name);
     let categoryKey = machineCategoryKey;
@@ -613,9 +731,15 @@ export function groupHuntMachineOptions(machineOptions) {
     const safeCategoryKey = groupsByKey.has(categoryKey) ? categoryKey : "other";
     groupsByKey.get(safeCategoryKey).options.push({
       ...machine,
+      checked:
+        combinedGroup && activeCombinedGroupKeys.has(combinedGroup.key)
+          ? false
+          : Boolean(machine.checked),
       shortName: getHuntMachineShortName(machine.name),
       optionLabel: getHuntMachineOptionLabel(machine.name, machine.slotCount),
       category: safeCategoryKey,
+      combinedGroupKey: combinedGroup?.key ?? "",
+      combinedRole: combinedGroup ? "member" : "",
     });
   }
 

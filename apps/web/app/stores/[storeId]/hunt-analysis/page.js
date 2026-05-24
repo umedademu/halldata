@@ -23,7 +23,12 @@ import {
   getHuntScoreLogicCookieName,
 } from "../../../../lib/hunt-score-logic-selection";
 import { listHuntScoreLogicOptions } from "../../../../lib/hunt-score";
-import { groupHuntMachineOptions } from "../../../../lib/hunt-machine-display";
+import {
+  expandHuntMachineCombinedGroupSelection,
+  groupHuntMachineOptions,
+  selectionIncludesAimJugglerHuntMachineGroup,
+  selectionIncludesHanabiHuntMachineGroup,
+} from "../../../../lib/hunt-machine-display";
 import { normalizeDifferenceMode } from "../../../../lib/machine-difference";
 
 export const dynamic = "force-dynamic";
@@ -122,22 +127,28 @@ function isHanabiMachine(machineName) {
   );
 }
 
-function normalizeCombineAimJuggler(values) {
+function normalizeCombineAimJuggler(values, machineNames = [], machineTouched = false) {
+  if (selectionIncludesAimJugglerHuntMachineGroup(machineNames)) {
+    return true;
+  }
   const safeValues = (Array.isArray(values) ? values : [])
     .map((value) => String(value ?? "").trim())
     .filter(Boolean);
   if (safeValues.length === 0) {
-    return true;
+    return !machineTouched;
   }
   return safeValues.includes("1") || safeValues.includes("true") || safeValues.includes("on");
 }
 
-function normalizeCombineHanabi(values) {
+function normalizeCombineHanabi(values, machineNames = [], machineTouched = false) {
+  if (selectionIncludesHanabiHuntMachineGroup(machineNames)) {
+    return true;
+  }
   const safeValues = (Array.isArray(values) ? values : [])
     .map((value) => String(value ?? "").trim())
     .filter(Boolean);
   if (safeValues.length === 0) {
-    return true;
+    return !machineTouched;
   }
   return safeValues.includes("1") || safeValues.includes("true") || safeValues.includes("on");
 }
@@ -282,9 +293,13 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const machineFilterTouched = readSingleSearchParam(resolvedSearchParams?.machineTouched) === "1";
   const requestedCombineAimJuggler = normalizeCombineAimJuggler(
     readMultiSearchParam(resolvedSearchParams?.aimMachineGroup),
+    requestedMachineNames,
+    machineFilterTouched,
   );
   const requestedCombineHanabi = normalizeCombineHanabi(
     readMultiSearchParam(resolvedSearchParams?.hanabiMachineGroup),
+    requestedMachineNames,
+    machineFilterTouched,
   );
   const hasMachineRankCondition =
     hasSearchParam(resolvedSearchParams, "machineRankMin") ||
@@ -443,6 +458,8 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
           {
             machineNames: requestedMachineNames,
             machineTouched: machineFilterTouched,
+            combineAimJuggler: requestedCombineAimJuggler,
+            combineHanabi: requestedCombineHanabi,
             requestedDate,
           },
         )
@@ -485,7 +502,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
           nextBusinessDate: date === detail.selectedDate ? detail.nextBusinessDate : null,
         }));
   const availableMachineNameSet = new Set(availableMachineNames);
-  const hasAimJugglerGroupOption = AIM_JUGGLER_MACHINE_NAMES.every((machineName) =>
+  const hasAimJugglerGroupOption = AIM_JUGGLER_MACHINE_NAMES.some((machineName) =>
     availableMachineNameSet.has(machineName),
   );
   const hasHanabiGroupOption = HANABI_MACHINE_NAMES.every((machineName) =>
@@ -494,7 +511,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const combineAimJuggler = hasAimJugglerGroupOption ? requestedCombineAimJuggler : false;
   const combineHanabi = hasHanabiGroupOption ? requestedCombineHanabi : false;
   const requestedMachineNameSet = new Set(
-    requestedMachineNames
+    expandHuntMachineCombinedGroupSelection(requestedMachineNames)
       .map((machineName) => String(machineName ?? "").trim())
       .filter((machineName) => availableMachineNameSet.has(machineName)),
   );
@@ -507,7 +524,10 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     checked: selectedMachineNameSet.has(machineName),
     slotCount: detail.machineSlotCounts?.[machineName] ?? null,
   }));
-  const machineOptionGroups = groupHuntMachineOptions(machineOptions);
+  const machineOptionGroups = groupHuntMachineOptions(machineOptions, {
+    combineAimJuggler,
+    combineHanabi,
+  });
   const visibleRankingGroups = buildVisibleRankingGroups(
     resultRequested ? detail.rankingGroups : [],
     selectedMachineNameSet,
@@ -687,12 +707,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               {machineOptions.length > 0 ? (
                 <div className="backtestBlock rankingMachineFilter">
                   <p className="filterControlLabel">機種名</p>
-                  {hasAimJugglerGroupOption ? (
-                    <input type="hidden" name="aimMachineGroup" value="0" />
-                  ) : null}
-                  {hasHanabiGroupOption ? (
-                    <input type="hidden" name="hanabiMachineGroup" value="0" />
-                  ) : null}
                   <AllMachineFilterButtons enableSlotCountSelection />
                   <div className="machineFilterGroups">
                     {machineOptionGroups.map((group) => (
@@ -708,36 +722,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                             label={`${group.label}のみ解除`}
                             action="clear"
                           />
-                          {group.key === "juggler" && hasAimJugglerGroupOption ? (
-                            <label
-                              className={`metricToggleChip ${
-                                combineAimJuggler ? "metricToggleChipActive" : ""
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                name="aimMachineGroup"
-                                value="1"
-                                defaultChecked={combineAimJuggler}
-                              />
-                              <span>アイジャグをまとめる</span>
-                            </label>
-                          ) : null}
-                          {group.key === "hanabi" && hasHanabiGroupOption ? (
-                            <label
-                              className={`metricToggleChip ${
-                                combineHanabi ? "metricToggleChipActive" : ""
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                name="hanabiMachineGroup"
-                                value="1"
-                                defaultChecked={combineHanabi}
-                              />
-                              <span>ハナビをまとめる</span>
-                            </label>
-                          ) : null}
                         </div>
                         <div className="metricToggleRow">
                           {group.options.map((machine) => (
@@ -756,6 +740,8 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                                 data-machine-filter-option="1"
                                 data-machine-category={machine.category}
                                 data-machine-slot-count={machine.slotCount ?? ""}
+                                data-machine-combined-group-key={machine.combinedGroupKey ?? ""}
+                                data-machine-combined-role={machine.combinedRole ?? ""}
                               />
                               <span>{machine.optionLabel}</span>
                             </label>

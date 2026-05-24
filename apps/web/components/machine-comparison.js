@@ -29,6 +29,8 @@ import {
   matchesRequiredConditionFilters,
 } from "../lib/hunt-bookmark";
 import {
+  AIM_JUGGLER_MACHINE_NAMES,
+  HANABI_MACHINE_NAMES,
   groupHuntMachineOptions,
   hasAimJugglerHuntMachineGroupOption,
   hasHanabiHuntMachineGroupOption,
@@ -349,8 +351,8 @@ function createDefaultHuntScoreHighlightOptions(machineNames, currentMachineName
     rankScope: DEFAULT_HUNT_SCORE_RANK_SCOPE,
     nextGapScope: DEFAULT_HUNT_SCORE_NEXT_GAP_SCOPE,
     selectedMachineNames: defaultMachineName ? [defaultMachineName] : [],
-    combineAimJuggler: hasAimJugglerHuntMachineGroupOption(availableMachineNames),
-    combineHanabi: hasHanabiHuntMachineGroupOption(availableMachineNames),
+    combineAimJuggler: false,
+    combineHanabi: false,
   };
 }
 
@@ -373,6 +375,18 @@ function normalizeSelectedHuntScoreMachineNames(machineNames, availableMachineNa
         .filter((machineName) => availableMachineNameSet.has(machineName)),
     ),
   ];
+}
+
+function selectedIncludesAllHuntMachineGroupMembers(selectedMachineNames, availableMachineNames, groupMachineNames) {
+  const selectedMachineNameSet = new Set(selectedMachineNames);
+  const availableMachineNameSet = new Set(availableMachineNames);
+  const availableGroupMachineNames = groupMachineNames.filter((machineName) =>
+    availableMachineNameSet.has(machineName),
+  );
+  return (
+    availableGroupMachineNames.length > 0 &&
+    availableGroupMachineNames.every((machineName) => selectedMachineNameSet.has(machineName))
+  );
 }
 
 function normalizeHuntScoreRankInputValue(value, fallbackValue) {
@@ -410,6 +424,11 @@ function normalizeHuntScoreHighlightOptions(value, availableMachineNames, curren
     nextGapRequired: defaults.nextGapRequired,
   });
 
+  const selectedMachineNames = normalizeSelectedHuntScoreMachineNames(
+    value.selectedMachineNames,
+    availableMachineNames,
+  );
+
   return {
     rankMin: Object.hasOwn(value, "rankMin")
       ? normalizeHuntScoreRankInputValue(value.rankMin, defaults.rankMin)
@@ -428,15 +447,22 @@ function normalizeHuntScoreHighlightOptions(value, availableMachineNames, curren
     nextGapRequired: requirementOptions.nextGapRequired,
     rankScope,
     nextGapScope,
-    selectedMachineNames: normalizeSelectedHuntScoreMachineNames(
-      value.selectedMachineNames,
-      availableMachineNames,
-    ),
+    selectedMachineNames,
     combineAimJuggler:
       hasAimJugglerHuntMachineGroupOption(availableMachineNames) &&
+      selectedIncludesAllHuntMachineGroupMembers(
+        selectedMachineNames,
+        availableMachineNames,
+        AIM_JUGGLER_MACHINE_NAMES,
+      ) &&
       normalizeEnabledOption(value.combineAimJuggler, defaults.combineAimJuggler),
     combineHanabi:
       hasHanabiHuntMachineGroupOption(availableMachineNames) &&
+      selectedIncludesAllHuntMachineGroupMembers(
+        selectedMachineNames,
+        availableMachineNames,
+        HANABI_MACHINE_NAMES,
+      ) &&
       normalizeEnabledOption(value.combineHanabi, defaults.combineHanabi),
   };
 }
@@ -1305,6 +1331,10 @@ function HuntScoreHighlightControls({
       checked: selectedMachineNameSet.has(machineName),
       slotCount: availableMachineSlotCounts?.[machineName] ?? null,
     })),
+    {
+      combineAimJuggler: options.combineAimJuggler,
+      combineHanabi: options.combineHanabi,
+    },
   );
 
   const updateOption = (key, value) => {
@@ -1312,8 +1342,10 @@ function HuntScoreHighlightControls({
   };
 
   const selectMachineCategory = (category) => {
-    const targetMachineNames =
-      machineOptionGroups.find((group) => group.key === category)?.options.map((machine) => machine.name) ?? [];
+    const targetOptions = machineOptionGroups.find((group) => group.key === category)?.options ?? [];
+    const targetMachineNames = targetOptions.flatMap((machine) =>
+      machine.combinedRole === "group" ? machine.combinedMemberNames ?? [] : [machine.name],
+    );
     if (targetMachineNames.length === 0) {
       return;
     }
@@ -1323,19 +1355,37 @@ function HuntScoreHighlightControls({
     }
     onChange({
       ...options,
+      combineAimJuggler:
+        targetOptions.some((machine) => machine.combinedGroupKey === "aimJuggler")
+          ? true
+          : options.combineAimJuggler,
+      combineHanabi:
+        targetOptions.some((machine) => machine.combinedGroupKey === "hanabi")
+          ? true
+          : options.combineHanabi,
       selectedMachineNames: availableMachineNames.filter((name) => nextMachineNameSet.has(name)),
     });
   };
 
   const clearMachineCategory = (category) => {
-    const targetMachineNames =
-      machineOptionGroups.find((group) => group.key === category)?.options.map((machine) => machine.name) ?? [];
+    const targetOptions = machineOptionGroups.find((group) => group.key === category)?.options ?? [];
+    const targetMachineNames = targetOptions.flatMap((machine) =>
+      machine.combinedRole === "group" ? machine.combinedMemberNames ?? [] : [machine.name],
+    );
     if (targetMachineNames.length === 0) {
       return;
     }
     const targetMachineNameSet = new Set(targetMachineNames);
     onChange({
       ...options,
+      combineAimJuggler:
+        targetOptions.some((machine) => machine.combinedGroupKey === "aimJuggler")
+          ? false
+          : options.combineAimJuggler,
+      combineHanabi:
+        targetOptions.some((machine) => machine.combinedGroupKey === "hanabi")
+          ? false
+          : options.combineHanabi,
       selectedMachineNames: options.selectedMachineNames.filter(
         (name) => !targetMachineNameSet.has(name),
       ),
@@ -1345,6 +1395,8 @@ function HuntScoreHighlightControls({
   const selectAllMachines = () => {
     onChange({
       ...options,
+      combineAimJuggler: hasAimJugglerGroupOption,
+      combineHanabi: hasHanabiGroupOption,
       selectedMachineNames: availableMachineNames,
     });
   };
@@ -1358,15 +1410,64 @@ function HuntScoreHighlightControls({
     });
   };
 
-  const toggleMachine = (machineName) => {
+  const toggleMachine = (machine) => {
+    const machineName = machine.name;
     const nextMachineNameSet = new Set(options.selectedMachineNames);
-    if (nextMachineNameSet.has(machineName)) {
+    const nextOptions = { ...options };
+
+    if (machine.combinedRole === "group") {
+      const memberNames = (machine.combinedMemberNames ?? []).filter((name) =>
+        availableMachineNames.includes(name),
+      );
+      if (machine.checked) {
+        for (const memberName of memberNames) {
+          nextMachineNameSet.delete(memberName);
+        }
+      } else {
+        for (const memberName of memberNames) {
+          nextMachineNameSet.add(memberName);
+        }
+      }
+      if (machine.combinedGroupKey === "aimJuggler") {
+        nextOptions.combineAimJuggler = !machine.checked;
+      }
+      if (machine.combinedGroupKey === "hanabi") {
+        nextOptions.combineHanabi = !machine.checked;
+      }
+    } else if (machine.combinedRole === "member") {
+      const groupActive =
+        (machine.combinedGroupKey === "aimJuggler" && options.combineAimJuggler) ||
+        (machine.combinedGroupKey === "hanabi" && options.combineHanabi);
+      const memberNames =
+        machine.combinedGroupKey === "aimJuggler"
+          ? AIM_JUGGLER_MACHINE_NAMES
+          : machine.combinedGroupKey === "hanabi"
+            ? HANABI_MACHINE_NAMES
+            : [];
+      if (groupActive) {
+        for (const memberName of memberNames) {
+          nextMachineNameSet.delete(memberName);
+        }
+        nextMachineNameSet.add(machineName);
+      } else if (nextMachineNameSet.has(machineName)) {
+        nextMachineNameSet.delete(machineName);
+      } else {
+        nextMachineNameSet.add(machineName);
+      }
+      if (machine.combinedGroupKey === "aimJuggler") {
+        nextOptions.combineAimJuggler = false;
+      }
+      if (machine.combinedGroupKey === "hanabi") {
+        nextOptions.combineHanabi = false;
+      }
+    } else if (nextMachineNameSet.has(machineName)) {
       nextMachineNameSet.delete(machineName);
     } else {
       nextMachineNameSet.add(machineName);
     }
+
     onChange({
-      ...options,
+      ...nextOptions,
       selectedMachineNames: availableMachineNames.filter((name) => nextMachineNameSet.has(name)),
     });
   };
@@ -1604,34 +1705,6 @@ function HuntScoreHighlightControls({
                   >
                     {group.label}のみ解除
                   </button>
-                  {group.key === "juggler" && hasAimJugglerGroupOption ? (
-                    <label
-                      className={`metricToggleChip ${
-                        options.combineAimJuggler ? "metricToggleChipActive" : ""
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={options.combineAimJuggler}
-                        onChange={(event) => updateOption("combineAimJuggler", event.target.checked)}
-                      />
-                      <span>アイジャグをまとめる</span>
-                    </label>
-                  ) : null}
-                  {group.key === "hanabi" && hasHanabiGroupOption ? (
-                    <label
-                      className={`metricToggleChip ${
-                        options.combineHanabi ? "metricToggleChipActive" : ""
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={options.combineHanabi}
-                        onChange={(event) => updateOption("combineHanabi", event.target.checked)}
-                      />
-                      <span>ハナビをまとめる</span>
-                    </label>
-                  ) : null}
                 </div>
                 <div className="metricToggleRow">
                   {group.options.map((machine) => (
@@ -1645,7 +1718,7 @@ function HuntScoreHighlightControls({
                       <input
                         type="checkbox"
                         checked={machine.checked}
-                        onChange={() => toggleMachine(machine.name)}
+                        onChange={() => toggleMachine(machine)}
                       />
                       <span>{machine.optionLabel}</span>
                     </label>

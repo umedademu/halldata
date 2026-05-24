@@ -11,8 +11,6 @@ const MANAGED_PARAM_KEYS = [
   "limit",
   "differenceMode",
   "machine",
-  "aimMachineGroup",
-  "hanabiMachineGroup",
   "rankMin",
   "rankMax",
   "machineRankMin",

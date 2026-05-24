@@ -158,18 +158,24 @@ function shiftDateText(dateText, days) {
   return baseDate.toISOString().slice(0, 10);
 }
 
-function normalizeCombineAimJuggler(value) {
+function normalizeCombineAimJuggler(value, machineNames = [], machineTouched = false) {
+  if ((Array.isArray(machineNames) ? machineNames : [machineNames]).some(isAimJugglerGroup)) {
+    return true;
+  }
   const values = splitOptionValues(value);
   if (values.length === 0) {
-    return true;
+    return !machineTouched;
   }
   return values.includes("1") || values.includes("true") || values.includes("on");
 }
 
-function normalizeCombineHanabi(value) {
+function normalizeCombineHanabi(value, machineNames = [], machineTouched = false) {
+  if ((Array.isArray(machineNames) ? machineNames : [machineNames]).some(isHanabiGroup)) {
+    return true;
+  }
   const values = splitOptionValues(value);
   if (values.length === 0) {
-    return true;
+    return !machineTouched;
   }
   return values.includes("1") || values.includes("true") || values.includes("on");
 }
@@ -1101,8 +1107,17 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const rankingDates = Array.isArray(snapshots) ? snapshots.map((snapshot) => snapshot.baseDate) : [];
   const latestDate = rankingDates[0] ?? null;
   const earliestDate = rankingDates.at(-1) ?? null;
-  const requestedCombineAimJuggler = normalizeCombineAimJuggler(options.combineAimJuggler);
-  const requestedCombineHanabi = normalizeCombineHanabi(options.combineHanabi);
+  const machineSelectionTouched = normalizeMachineSelectionTouched(options.machineTouched);
+  const requestedCombineAimJuggler = normalizeCombineAimJuggler(
+    options.combineAimJuggler,
+    options.machineNames,
+    machineSelectionTouched,
+  );
+  const requestedCombineHanabi = normalizeCombineHanabi(
+    options.combineHanabi,
+    options.machineNames,
+    machineSelectionTouched,
+  );
   const availableMachineNames = buildAvailableMachineNames(
     Array.isArray(snapshots) ? snapshots : [],
     Array.isArray(options.machineOrder) ? options.machineOrder : undefined,
@@ -1116,7 +1131,6 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const combineAimJuggler = hasAimJugglerGroupOption ? requestedCombineAimJuggler : false;
   const combineHanabi = hasHanabiGroupOption ? requestedCombineHanabi : false;
   const machineSlotCountLookup = buildMachineSlotCountLookup(options.machineSlotCounts);
-  const machineSelectionTouched = normalizeMachineSelectionTouched(options.machineTouched);
   const selectedMachineNames = buildSelectedMachineNames(
     expandRequestedMachineNamesForCombine(
       options.machineNames,

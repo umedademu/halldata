@@ -530,7 +530,10 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     combineHanabi: detail.backtest.combineHanabi,
     dailySelectionMode: detail.backtest.dailySelectionMode,
   };
-  const machineOptionGroups = groupHuntMachineOptions(detail.backtest.machineOptions);
+  const machineOptionGroups = groupHuntMachineOptions(detail.backtest.machineOptions, {
+    combineAimJuggler: detail.backtest.combineAimJuggler,
+    combineHanabi: detail.backtest.combineHanabi,
+  });
   const backtestFormStateKey = JSON.stringify({
     periodMode: detail.backtest.periodMode,
     recentDays: detail.backtest.recentDays,
@@ -716,8 +719,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
               <div className="backtestBlock">
                 <p className="filterControlLabel">機種名</p>
                 <input type="hidden" name="machineTouched" value="1" />
-                <input type="hidden" name="aimMachineGroup" value="0" />
-                <input type="hidden" name="hanabiMachineGroup" value="0" />
                 <AllMachineFilterButtons enableSlotCountSelection />
                 <div className="machineFilterGroups">
                   {machineOptionGroups.map((group) => (
@@ -733,36 +734,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                           label={`${group.label}のみ解除`}
                           action="clear"
                         />
-                        {group.key === "juggler" && detail.backtest.hasAimJugglerGroupOption ? (
-                          <label
-                            className={`metricToggleChip ${
-                              detail.backtest.combineAimJuggler ? "metricToggleChipActive" : ""
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              name="aimMachineGroup"
-                              value="1"
-                              defaultChecked={detail.backtest.combineAimJuggler}
-                            />
-                            <span>アイジャグをまとめる</span>
-                          </label>
-                        ) : null}
-                        {group.key === "hanabi" && detail.backtest.hasHanabiGroupOption ? (
-                          <label
-                            className={`metricToggleChip ${
-                              detail.backtest.combineHanabi ? "metricToggleChipActive" : ""
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              name="hanabiMachineGroup"
-                              value="1"
-                              defaultChecked={detail.backtest.combineHanabi}
-                            />
-                            <span>ハナビをまとめる</span>
-                          </label>
-                        ) : null}
                       </div>
                       <div className="metricToggleRow">
                         {group.options.map((machine) => (
@@ -781,6 +752,8 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                               data-machine-filter-option="1"
                               data-machine-category={machine.category}
                               data-machine-slot-count={machine.slotCount ?? ""}
+                              data-machine-combined-group-key={machine.combinedGroupKey ?? ""}
+                              data-machine-combined-role={machine.combinedRole ?? ""}
                             />
                             <span>{machine.optionLabel}</span>
                           </label>
