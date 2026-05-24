@@ -60,7 +60,7 @@ export function HuntRankingConditionSelector({ storeId }) {
   };
 
   return (
-    <div className="savedConditionPanel">
+    <div className="savedConditionPanel rankingConditionSelectorPanel">
       <label className="storeReserveField">
         <span>保存条件</span>
         <select

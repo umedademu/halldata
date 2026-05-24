@@ -1269,6 +1269,10 @@ a {
   background: rgba(248, 250, 252, 0.7);
 }
 
+.rankingConditionSelectorPanel {
+  width: min(460px, 100%);
+}
+
 .savedConditionHeader {
   display: grid;
   gap: 10px;
