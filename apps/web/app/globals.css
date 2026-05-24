@@ -1278,20 +1278,16 @@ a {
   width: min(460px, 100%);
 }
 
-.savedConditionHeader {
-  display: grid;
-  gap: 10px;
-}
-
 .savedConditionSaveRow {
   display: flex;
-  align-items: end;
+  align-items: center;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.savedConditionNameField {
-  min-width: min(260px, 100%);
+.savedConditionNameInput {
+  flex: 0 1 18rem;
+  max-width: 100%;
 }
 
 .savedConditionList {

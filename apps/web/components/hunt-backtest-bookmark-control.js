@@ -251,24 +251,19 @@ export function HuntBacktestBookmarkControl({ storeId, formId, allMachineCount =
 
   return (
     <section className="savedConditionPanel">
-      <div className="savedConditionHeader">
-        <p className="filterControlLabel">保存済み条件</p>
-        <div className="savedConditionSaveRow">
-          <label className="storeReserveField savedConditionNameField">
-            <span>条件名</span>
-            <input
-              type="text"
-              className="storeReserveInput"
-              placeholder={defaultName}
-              value={name}
-              onChange={(event) => setName(event.currentTarget.value)}
-              onKeyDown={handleNameKeyDown}
-            />
-          </label>
-          <button type="button" className="storeReserveButton" onClick={handleSave}>
-            ★ 条件を保存
-          </button>
-        </div>
+      <div className="savedConditionSaveRow">
+        <input
+          type="text"
+          className="storeReserveInput savedConditionNameInput"
+          aria-label="保存する条件名"
+          placeholder={defaultName}
+          value={name}
+          onChange={(event) => setName(event.currentTarget.value)}
+          onKeyDown={handleNameKeyDown}
+        />
+        <button type="button" className="storeReserveButton" onClick={handleSave}>
+          ★ 条件を保存
+        </button>
       </div>
       {bookmarks.length > 0 ? (
         <div className="savedConditionList">
