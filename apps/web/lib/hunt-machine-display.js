@@ -687,6 +687,25 @@ export function resolveHuntMachineGroupName(machineName, options = {}) {
   return text;
 }
 
+function readHuntMachineOptionSlotCount(machine) {
+  const slotCount = Number(machine?.slotCount);
+  return Number.isFinite(slotCount) && slotCount > 0 ? slotCount : 0;
+}
+
+function sortHuntMachineOptionsBySlotCount(options) {
+  return [...(Array.isArray(options) ? options : [])].sort((left, right) => {
+    const slotDifference =
+      readHuntMachineOptionSlotCount(right) - readHuntMachineOptionSlotCount(left);
+    if (slotDifference !== 0) {
+      return slotDifference;
+    }
+
+    const leftLabel = String(left?.optionLabel ?? left?.shortName ?? left?.name ?? "");
+    const rightLabel = String(right?.optionLabel ?? right?.shortName ?? right?.name ?? "");
+    return leftLabel.localeCompare(rightLabel, "ja");
+  });
+}
+
 export function groupHuntMachineOptions(machineOptions, options = {}) {
   const groupsByKey = new Map(
     HUNT_MACHINE_CATEGORY_ORDER.map((categoryKey) => [
@@ -743,5 +762,10 @@ export function groupHuntMachineOptions(machineOptions, options = {}) {
     });
   }
 
-  return [...groupsByKey.values()].filter((group) => group.options.length > 0);
+  return [...groupsByKey.values()]
+    .map((group) => ({
+      ...group,
+      options: sortHuntMachineOptionsBySlotCount(group.options),
+    }))
+    .filter((group) => group.options.length > 0);
 }
