@@ -112,6 +112,14 @@ def calculate_estimated_coin_hold_difference_value(
     )
     if difference_value == Decimal("-0"):
         difference_value = Decimal("0")
+    difference_value = _cap_difference_by_payout_rate(
+        rule,
+        difference_value,
+        games_count,
+        setting_average_decimal,
+    )
+    if difference_value == Decimal("-0"):
+        difference_value = Decimal("0")
     return int(difference_value)
 
 
@@ -221,6 +229,66 @@ def _interpolate_setting_coin_hold(
         return left_coin_hold + (right_coin_hold - left_coin_hold) * progress
 
     return None
+
+
+def _read_payout_rate_cap_rows(rule: dict[str, Any]) -> list[tuple[Decimal, Decimal]]:
+    payout_rate_caps = rule.get("cherry_aim_payout_rate_caps", {})
+    if not isinstance(payout_rate_caps, dict):
+        return []
+
+    rows: list[tuple[Decimal, Decimal]] = []
+    for setting, payout_rate in payout_rate_caps.items():
+        setting_value = _parse_decimal_value(setting)
+        payout_rate_value = _parse_decimal_value(payout_rate)
+        if setting_value is None or payout_rate_value is None:
+            continue
+        rows.append((setting_value, payout_rate_value))
+    return sorted(rows, key=lambda row: row[0])
+
+
+def _interpolate_payout_rate_cap(
+    rule: dict[str, Any],
+    setting_average: Decimal | None,
+) -> Decimal | None:
+    cap_rows = _read_payout_rate_cap_rows(rule)
+    if setting_average is None or not cap_rows:
+        return None
+
+    first_setting, first_payout_rate = cap_rows[0]
+    last_setting, last_payout_rate = cap_rows[-1]
+    if setting_average <= first_setting:
+        return first_payout_rate
+    if setting_average >= last_setting:
+        return last_payout_rate
+
+    for index in range(len(cap_rows) - 1):
+        left_setting, left_payout_rate = cap_rows[index]
+        right_setting, right_payout_rate = cap_rows[index + 1]
+        if setting_average < left_setting or setting_average > right_setting:
+            continue
+        setting_width = right_setting - left_setting
+        if setting_width <= 0:
+            return left_payout_rate
+        progress = (setting_average - left_setting) / setting_width
+        return left_payout_rate + (right_payout_rate - left_payout_rate) * progress
+
+    return None
+
+
+def _cap_difference_by_payout_rate(
+    rule: dict[str, Any],
+    difference_value: Decimal,
+    games_count: Decimal,
+    setting_average: Decimal | None,
+) -> Decimal:
+    payout_rate_cap = _interpolate_payout_rate_cap(rule, setting_average)
+    if payout_rate_cap is None:
+        return difference_value
+
+    max_difference_value = (
+        games_count * Decimal("3") * (payout_rate_cap / Decimal("100") - Decimal("1"))
+    ).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    return min(difference_value, max_difference_value)
 
 
 def _machine_name_matches_rule(normalized_machine_name: str, rule: dict[str, Any]) -> bool:

@@ -1373,7 +1373,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 "machine_name": "ネオアイムジャグラーEX",
                 "data_source": DATA_SOURCE_MINREPO,
                 "difference_value": -562,
-                "bonus_difference_value": -416,
+                "bonus_difference_value": -241,
                 "games_count": 5931,
                 "payout_rate": 96.8,
                 "bb_count": 22,
@@ -1394,7 +1394,7 @@ class MinRepoScraperTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(difference_value, -852)
+        self.assertEqual(difference_value, -615)
 
     def test_calculate_estimated_coin_hold_difference_value_for_registered_machine(self) -> None:
         difference_value = calculate_estimated_coin_hold_difference_value(
@@ -1406,7 +1406,20 @@ class MinRepoScraperTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(difference_value, 776)
+        self.assertEqual(difference_value, -28)
+
+    def test_calculate_estimated_coin_hold_difference_value_caps_juggler_machine_rate(self) -> None:
+        difference_value = calculate_estimated_coin_hold_difference_value(
+            "ネオアイムジャグラーEX",
+            {
+                "games_count": 25500,
+                "bb_count": 150,
+                "rb_count": 150,
+            },
+            setting_average=6,
+        )
+
+        self.assertEqual(difference_value, 5577)
 
     def test_canonical_machine_name_matches_site7_keyword(self) -> None:
         self.assertEqual(canonical_machine_name("SアイムジャグラーＥＸ", site7_only=True), "SアイムジャグラーＥＸ")
@@ -2020,7 +2033,7 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertTrue(all(dataset.machine_name == SITE7_TARGET_MACHINE_NAME for dataset in history_result.datasets))
         self.assertEqual(
             history_result.datasets[1].rows[0],
-            ["821", "336", "2163", "-", "10", "5", "1/144", "1/216", "1/432"],
+            ["821", "400", "2163", "-", "10", "5", "1/144", "1/216", "1/432"],
         )
 
     def test_site7_parse_machine_history_skips_blank_holiday_rows(self) -> None:
@@ -2094,8 +2107,8 @@ class MinRepoScraperTests(unittest.TestCase):
                 "slot_number": "821",
                 "machine_name": "ネオアイムジャグラーEX",
                 "data_source": DATA_SOURCE_SITE7,
-                "difference_value": 735,
-                "bonus_difference_value": 735,
+                "difference_value": 897,
+                "bonus_difference_value": 897,
                 "games_count": 5454,
                 "payout_rate": None,
                 "bb_count": 25,
@@ -2231,7 +2244,7 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(record["setting_estimate_status"], "confirmed")
         self.assertEqual(record["setting_estimate_source"], "minrepo")
         self.assertEqual(record["setting_estimate_version"], SETTING_ESTIMATE_VALUE_VERSION)
-        self.assertEqual(record["estimated_difference_value"], 776)
+        self.assertEqual(record["estimated_difference_value"], -28)
         self.assertEqual(record["estimated_difference_status"], "confirmed")
         self.assertEqual(record["estimated_difference_source"], "minrepo")
         self.assertEqual(record["estimated_difference_version"], SETTING_ESTIMATE_VALUE_VERSION)
