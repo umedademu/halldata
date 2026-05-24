@@ -446,7 +446,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     machineUpperGapRequired: readMultiSearchParam(resolvedSearchParams?.machineUpperGapRequired),
     selectedUpperGapRequired: readMultiSearchParam(resolvedSearchParams?.selectedUpperGapRequired),
     dailySelectionMode: readMultiSearchParam(resolvedSearchParams?.dailySelectionMode),
-    showGraph: readSingleSearchParam(resolvedSearchParams?.showGraph),
     eventTouched: readSingleSearchParam(resolvedSearchParams?.backtestEventTouched) === "1",
     dayTails: readMultiSearchParam(resolvedSearchParams?.backtestDayTail),
     zoro: readSingleSearchParam(resolvedSearchParams?.backtestZoro) === "1",
@@ -572,7 +571,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     scoreDifferenceMode: detail.backtest.scoreDifferenceMode,
     differenceMode: detail.backtest.differenceMode,
     rankScope: detail.backtest.rankScope,
-    showGraph: detail.backtest.showGraph,
   });
 
   return (
@@ -911,84 +909,50 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                 </div>
               </div>
 
-              <div className="backtestDisplaySettings">
-                <div className="backtestBlock">
-                  <p className="filterControlLabel">差枚グラフ表示</p>
-                  <div className="metricToggleRow">
-                    <label
-                      className={`metricToggleChip ${
-                        detail.backtest.showGraph === "on" ? "metricToggleChipActive" : ""
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="showGraph"
-                        value="on"
-                        defaultChecked={detail.backtest.showGraph === "on"}
-                      />
-                      <span>表示する</span>
-                    </label>
-                    <label
-                      className={`metricToggleChip ${
-                        detail.backtest.showGraph === "off" ? "metricToggleChipActive" : ""
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="showGraph"
-                        value="off"
-                        defaultChecked={detail.backtest.showGraph === "off"}
-                      />
-                      <span>表示しない</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="backtestBlock">
-                  <p className="filterControlLabel">実績差枚の集計基準</p>
-                  <div className="metricToggleRow">
-                    <label
-                      className={`metricToggleChip ${
-                        detail.backtest.differenceMode === "bonus" ? "metricToggleChipActive" : ""
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="differenceMode"
-                        value="bonus"
-                        defaultChecked={detail.backtest.differenceMode === "bonus"}
-                      />
-                      <span>設定1基準</span>
-                    </label>
-                    <label
-                      className={`metricToggleChip ${
-                        detail.backtest.differenceMode === "estimated"
-                          ? "metricToggleChipActive"
-                          : ""
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="differenceMode"
-                        value="estimated"
-                        defaultChecked={detail.backtest.differenceMode === "estimated"}
-                      />
-                      <span>推定設定基準</span>
-                    </label>
-                    <label
-                      className={`metricToggleChip ${
-                        detail.backtest.differenceMode === "minrepo" ? "metricToggleChipActive" : ""
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="differenceMode"
-                        value="minrepo"
-                        defaultChecked={detail.backtest.differenceMode === "minrepo"}
-                      />
-                      <span>みんレポ基準</span>
-                    </label>
-                  </div>
+              <div className="backtestBlock">
+                <p className="filterControlLabel">実績差枚の集計基準</p>
+                <div className="metricToggleRow">
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.differenceMode === "bonus" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="differenceMode"
+                      value="bonus"
+                      defaultChecked={detail.backtest.differenceMode === "bonus"}
+                    />
+                    <span>設定1基準</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.differenceMode === "estimated"
+                        ? "metricToggleChipActive"
+                        : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="differenceMode"
+                      value="estimated"
+                      defaultChecked={detail.backtest.differenceMode === "estimated"}
+                    />
+                    <span>推定設定基準</span>
+                  </label>
+                  <label
+                    className={`metricToggleChip ${
+                      detail.backtest.differenceMode === "minrepo" ? "metricToggleChipActive" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="differenceMode"
+                      value="minrepo"
+                      defaultChecked={detail.backtest.differenceMode === "minrepo"}
+                    />
+                    <span>みんレポ基準</span>
+                  </label>
                 </div>
               </div>
 
@@ -1023,7 +987,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
 
                 <HuntBacktestBookmarkControl storeId={detail.store.id} bookmark={backtestBookmark} />
 
-                {detail.backtest.showGraph === "on" && detail.backtest.graphPoints.length > 0 ? (
+                {detail.backtest.graphPoints.length > 0 ? (
                   <HuntBacktestGraph
                     groups={detail.backtest.breakdowns.map((breakdown) => ({
                       key: breakdown.key,

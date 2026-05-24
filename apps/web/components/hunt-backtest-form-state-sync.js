@@ -58,7 +58,6 @@ const MANAGED_PARAM_KEYS = [
   "differenceMode",
   "rankScope",
   "nextGapScope",
-  "showGraph",
 ];
 const MANAGED_PARAM_KEY_SET = new Set(MANAGED_PARAM_KEYS);
 const EVENT_PARAM_KEY_SET = new Set(EVENT_PARAM_KEYS);

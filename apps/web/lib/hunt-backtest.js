@@ -331,10 +331,6 @@ function calculateMachineSlotCountTotal(machineNames, machineSlotCountLookup) {
   return hasSlotCount ? slotCountTotal : null;
 }
 
-function normalizeShowGraph(value) {
-  return value === "off" ? "off" : "on";
-}
-
 function normalizeDifferenceMode(value) {
   return normalizeMachineDifferenceMode(value);
 }
@@ -1165,7 +1161,6 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
         machineRankFilter,
         selectedRankFilter,
       };
-  const showGraph = normalizeShowGraph(options.showGraph);
   const scoreDifferenceMode = normalizeDifferenceMode(options.scoreDifferenceMode);
   const differenceMode = normalizeDifferenceMode(options.differenceMode);
   const eventFilters = buildBacktestEventFilters(options);
@@ -1254,7 +1249,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     selectedUpperGapRequired: requirementOptions.selectedUpperGapRequired,
     dailySelectionMode: selectionMode,
     rankScope,
-    showGraph,
+    showGraph: "on",
     scoreDifferenceMode,
     differenceMode,
     combineAimJuggler,

@@ -1926,7 +1926,7 @@ function buildInitialBacktestDetail(
     selectedUpperGapRequired: requirementOptions.selectedUpperGapRequired,
     dailySelectionMode,
     rankScope,
-    showGraph: defaultedOptions?.showGraph === "off" ? "off" : "on",
+    showGraph: "on",
     scoreDifferenceMode: normalizeDifferenceMode(defaultedOptions?.scoreDifferenceMode),
     differenceMode: normalizeDifferenceMode(defaultedOptions?.differenceMode),
     combineAimJuggler,

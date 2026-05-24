@@ -556,15 +556,6 @@ a {
   gap: 12px;
 }
 
-.backtestDisplaySettings {
-  display: grid;
-  grid-template-columns: max-content minmax(20rem, 1fr);
-  gap: 16px;
-  align-items: start;
-  width: 100%;
-  max-width: 70rem;
-}
-
 .backtestPrimaryButton {
   display: inline-flex;
   align-items: center;
@@ -2587,10 +2578,6 @@ a {
     border-left: 0;
   }
 
-  .backtestDisplaySettings {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
 }
 
 @media (max-width: 640px) {
