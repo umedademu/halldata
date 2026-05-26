@@ -64,6 +64,13 @@ export default async function MachineDetailPage({ params, searchParams }) {
   const differenceMode = normalizeDifferenceMode(
     readSingleSearchParam(resolvedSearchParams?.differenceMode),
   );
+  const displayDifferenceMode = normalizeDifferenceMode(
+    readSingleSearchParam(resolvedSearchParams?.displayDifferenceMode),
+  );
+  const hasDisplayDifferenceModeSearchParam = hasSearchParamValue(
+    resolvedSearchParams,
+    "displayDifferenceMode",
+  );
   const eventFilters = parseEventFilters(resolvedSearchParams);
   const hasEventFilterSearchParams =
     hasSearchParamValue(resolvedSearchParams, "dayTail") ||
@@ -189,6 +196,8 @@ export default async function MachineDetailPage({ params, searchParams }) {
         huntScoreHighlight={detail.huntScoreHighlight}
         fullHuntScoreHighlightUrl={`/stores/${detail.store.id}/machines/${encodeURIComponent(displayMachineName)}/hunt-score-highlight`}
         initialDifferenceMode={detail.differenceMode}
+        initialDisplayDifferenceMode={displayDifferenceMode}
+        initialDisplayDifferenceModeFromSearchParams={hasDisplayDifferenceModeSearchParam}
         preferDefaultEstimateOptions={Boolean(detail.huntScoreHighlight)}
       />
     </main>

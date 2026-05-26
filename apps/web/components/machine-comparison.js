@@ -650,7 +650,14 @@ function readMachineComparisonOptions(storeId, defaults, options = {}) {
     eventFilters: options.preferInitialEventFilters
       ? defaults.eventFilters
       : normalizeStoredEventFilters(source.eventFilters, defaults.eventFilters),
-    differenceMode: normalizeDifferenceMode(source.differenceMode),
+    displayDifferenceMode: options.preferInitialDisplayDifferenceMode
+      ? defaults.displayDifferenceMode
+      : normalizeDifferenceMode(
+          source.displayDifferenceMode ?? source.differenceMode ?? defaults.displayDifferenceMode,
+        ),
+    huntScoreDifferenceMode: normalizeDifferenceMode(
+      source.huntScoreDifferenceMode ?? source.differenceMode ?? defaults.huntScoreDifferenceMode,
+    ),
     visibleMetricKeys: normalizeMachineComparisonMetricKeys(source, defaults),
     estimateOptions: options.preferDefaultEstimateOptions
       ? defaults.estimateOptions
@@ -683,7 +690,9 @@ function saveMachineComparisonOptions(storeId, options) {
           weekdays: options.eventFilters?.weekdays ?? [],
           monthDays: options.eventFilters?.monthDays ?? [],
         },
-        differenceMode: normalizeDifferenceMode(options.differenceMode),
+        differenceMode: normalizeDifferenceMode(options.huntScoreDifferenceMode),
+        displayDifferenceMode: normalizeDifferenceMode(options.displayDifferenceMode),
+        huntScoreDifferenceMode: normalizeDifferenceMode(options.huntScoreDifferenceMode),
         visibleMetricKeys: normalizeMetricKeys(options.visibleMetricKeys),
         estimateOptions: existingValue?.estimateOptions ?? options.estimateOptions,
         displayControlsOpen: Boolean(options.displayControlsOpen),
@@ -2023,6 +2032,8 @@ export function MachineComparison({
   huntScoreHighlight,
   fullHuntScoreHighlightUrl = "",
   initialDifferenceMode = DEFAULT_DIFFERENCE_MODE,
+  initialDisplayDifferenceMode = DEFAULT_DIFFERENCE_MODE,
+  initialDisplayDifferenceModeFromSearchParams = false,
   preferDefaultEstimateOptions = false,
 }) {
   const latestAvailableDate = dateRows[0]?.date ?? "";
@@ -2056,7 +2067,8 @@ export function MachineComparison({
       rangeStartInput: initialRangeStartDate,
       rangeEndInput: latestAvailableDate,
       eventFilters: defaultEventFilters,
-      differenceMode: normalizeDifferenceMode(initialDifferenceMode),
+      displayDifferenceMode: normalizeDifferenceMode(initialDisplayDifferenceMode),
+      huntScoreDifferenceMode: normalizeDifferenceMode(initialDifferenceMode),
       visibleMetricKeys: DEFAULT_VISIBLE_METRIC_KEYS,
       estimateOptions: defaultEstimateOptions,
       displayControlsOpen: true,
@@ -2066,6 +2078,7 @@ export function MachineComparison({
     [
       defaultEstimateOptions,
       defaultEventFilters,
+      initialDisplayDifferenceMode,
       initialDifferenceMode,
       initialRangeStartDate,
       latestAvailableDate,
@@ -2076,7 +2089,12 @@ export function MachineComparison({
   const [rangeStartInput, setRangeStartInput] = useState(defaultComparisonOptions.rangeStartInput);
   const [rangeEndInput, setRangeEndInput] = useState(defaultComparisonOptions.rangeEndInput);
   const [eventFilters, setEventFilters] = useState(defaultComparisonOptions.eventFilters);
-  const [differenceMode, setDifferenceMode] = useState(defaultComparisonOptions.differenceMode);
+  const [displayDifferenceMode, setDisplayDifferenceMode] = useState(
+    defaultComparisonOptions.displayDifferenceMode,
+  );
+  const [huntScoreDifferenceMode, setHuntScoreDifferenceMode] = useState(
+    defaultComparisonOptions.huntScoreDifferenceMode,
+  );
   const [visibleMetricKeys, setVisibleMetricKeys] = useState(defaultComparisonOptions.visibleMetricKeys);
   const [estimateOptions, setEstimateOptions] = useState(defaultComparisonOptions.estimateOptions);
   const [displayControlsOpen, setDisplayControlsOpen] = useState(
@@ -2257,11 +2275,11 @@ export function MachineComparison({
         getCompositeSettingEstimate,
         hasEstimatedGrape,
         hasHuntScore,
-        differenceMode,
+        displayDifferenceMode,
         getHuntScoreNextGapValue,
       ),
     [
-      differenceMode,
+      displayDifferenceMode,
       getCompositeSettingEstimate,
       getHuntScoreNextGapValue,
       hasEstimatedGrape,
@@ -2279,6 +2297,7 @@ export function MachineComparison({
       oldestAvailableDate,
       latestAvailableDate,
       preferInitialEventFilters: initialEventFiltersFromSearchParams,
+      preferInitialDisplayDifferenceMode: initialDisplayDifferenceModeFromSearchParams,
       preferDefaultEstimateOptions,
     });
     setPeriodMode(options.periodMode);
@@ -2286,7 +2305,8 @@ export function MachineComparison({
     setRangeStartInput(options.rangeStartInput);
     setRangeEndInput(options.rangeEndInput);
     setEventFilters(options.eventFilters);
-    setDifferenceMode(normalizeDifferenceMode(initialDifferenceMode));
+    setDisplayDifferenceMode(options.displayDifferenceMode);
+    setHuntScoreDifferenceMode(normalizeDifferenceMode(initialDifferenceMode));
     setVisibleMetricKeys(options.visibleMetricKeys);
     setEstimateOptions(options.estimateOptions);
     setDisplayControlsOpen(options.displayControlsOpen);
@@ -2296,9 +2316,11 @@ export function MachineComparison({
   }, [
     defaultComparisonOptions,
     initialEventFiltersFromSearchParams,
+    initialDisplayDifferenceModeFromSearchParams,
     latestAvailableDate,
     oldestAvailableDate,
     preferDefaultEstimateOptions,
+    initialDisplayDifferenceMode,
     initialDifferenceMode,
     storeId,
   ]);
@@ -2319,7 +2341,8 @@ export function MachineComparison({
       rangeStartInput,
       rangeEndInput,
       eventFilters,
-      differenceMode,
+      displayDifferenceMode,
+      huntScoreDifferenceMode,
       visibleMetricKeys,
       estimateOptions,
       preserveEstimateOptions: preferDefaultEstimateOptions && !estimateOptionsTouchedRef.current,
@@ -2329,10 +2352,11 @@ export function MachineComparison({
     });
   }, [
     displayControlsOpen,
-    differenceMode,
+    displayDifferenceMode,
     estimateOptions,
     eventFilters,
     huntScoreControlsOpen,
+    huntScoreDifferenceMode,
     machineComparisonOptionsLoadedStoreId,
     periodMode,
     rangeEndInput,
@@ -2458,9 +2482,22 @@ export function MachineComparison({
     });
   };
 
-  const updateDifferenceMode = (value) => {
+  const updateDisplayDifferenceMode = (value) => {
     const nextDifferenceMode = normalizeDifferenceMode(value);
-    setDifferenceMode(nextDifferenceMode);
+    setDisplayDifferenceMode(nextDifferenceMode);
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("displayDifferenceMode", nextDifferenceMode);
+    window.history.replaceState(window.history.state, "", url.toString());
+  };
+
+  const updateHuntScoreDifferenceMode = (value) => {
+    const nextDifferenceMode = normalizeDifferenceMode(value);
+    setHuntScoreDifferenceMode(nextDifferenceMode);
 
     if (typeof window === "undefined") {
       return;
@@ -2468,6 +2505,7 @@ export function MachineComparison({
 
     const url = new URL(window.location.href);
     url.searchParams.set("differenceMode", nextDifferenceMode);
+    url.searchParams.set("displayDifferenceMode", displayDifferenceMode);
     window.location.assign(url.toString());
   };
 
@@ -2604,7 +2642,7 @@ export function MachineComparison({
             throw new Error("全体比較データの取得先がありません。");
           }
           const fullHighlightUrl = new URL(fullHuntScoreHighlightUrl, window.location.href);
-          fullHighlightUrl.searchParams.set("differenceMode", differenceMode);
+          fullHighlightUrl.searchParams.set("differenceMode", huntScoreDifferenceMode);
           const response = await fetch(fullHighlightUrl.toString(), {
             method: "GET",
             headers: {
@@ -2635,7 +2673,7 @@ export function MachineComparison({
     fullHuntScoreHighlightUrl,
     huntScoreHighlight,
     huntScoreHighlightOptions,
-    differenceMode,
+    huntScoreDifferenceMode,
     machineName,
     startTransition,
   ]);
@@ -2782,52 +2820,101 @@ export function MachineComparison({
           </div>
         </div>
         <div className="filterControlGroup">
-          <p className="filterControlLabel">差枚・狙い度計算基準</p>
+          <p className="filterControlLabel">差枚列の表示基準</p>
           <div className="metricToggleRow">
             <label
               className={`metricToggleChip ${
-                differenceMode === "bonus" ? "metricToggleChipActive" : ""
+                displayDifferenceMode === "bonus" ? "metricToggleChipActive" : ""
               }`}
             >
               <input
                 type="radio"
-                name="machineDifferenceMode"
+                name="machineDisplayDifferenceMode"
                 value="bonus"
-                checked={differenceMode === "bonus"}
-                onChange={() => updateDifferenceMode("bonus")}
+                checked={displayDifferenceMode === "bonus"}
+                onChange={() => updateDisplayDifferenceMode("bonus")}
               />
               <span>設定1基準</span>
             </label>
             <label
               className={`metricToggleChip ${
-                differenceMode === "estimated" ? "metricToggleChipActive" : ""
+                displayDifferenceMode === "estimated" ? "metricToggleChipActive" : ""
               }`}
             >
               <input
                 type="radio"
-                name="machineDifferenceMode"
+                name="machineDisplayDifferenceMode"
                 value="estimated"
-                checked={differenceMode === "estimated"}
-                onChange={() => updateDifferenceMode("estimated")}
+                checked={displayDifferenceMode === "estimated"}
+                onChange={() => updateDisplayDifferenceMode("estimated")}
               />
               <span>推定設定基準</span>
             </label>
             <label
               className={`metricToggleChip ${
-                differenceMode === "minrepo" ? "metricToggleChipActive" : ""
+                displayDifferenceMode === "minrepo" ? "metricToggleChipActive" : ""
               }`}
             >
               <input
                 type="radio"
-                name="machineDifferenceMode"
+                name="machineDisplayDifferenceMode"
                 value="minrepo"
-                checked={differenceMode === "minrepo"}
-                onChange={() => updateDifferenceMode("minrepo")}
+                checked={displayDifferenceMode === "minrepo"}
+                onChange={() => updateDisplayDifferenceMode("minrepo")}
               />
               <span>みんレポ基準</span>
             </label>
           </div>
         </div>
+        {hasHuntScore ? (
+          <div className="filterControlGroup">
+            <p className="filterControlLabel">狙い度計算の差枚基準</p>
+            <div className="metricToggleRow">
+              <label
+                className={`metricToggleChip ${
+                  huntScoreDifferenceMode === "bonus" ? "metricToggleChipActive" : ""
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="machineHuntScoreDifferenceMode"
+                  value="bonus"
+                  checked={huntScoreDifferenceMode === "bonus"}
+                  onChange={() => updateHuntScoreDifferenceMode("bonus")}
+                />
+                <span>設定1基準</span>
+              </label>
+              <label
+                className={`metricToggleChip ${
+                  huntScoreDifferenceMode === "estimated" ? "metricToggleChipActive" : ""
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="machineHuntScoreDifferenceMode"
+                  value="estimated"
+                  checked={huntScoreDifferenceMode === "estimated"}
+                  onChange={() => updateHuntScoreDifferenceMode("estimated")}
+                />
+                <span>推定設定基準</span>
+              </label>
+              <label
+                className={`metricToggleChip ${
+                  huntScoreDifferenceMode === "minrepo" ? "metricToggleChipActive" : ""
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="machineHuntScoreDifferenceMode"
+                  value="minrepo"
+                  checked={huntScoreDifferenceMode === "minrepo"}
+                  onChange={() => updateHuntScoreDifferenceMode("minrepo")}
+                />
+                <span>みんレポ基準</span>
+              </label>
+            </div>
+          </div>
+        ) : null}
         <div className="filterControlGroup">
           <p className="filterControlLabel">表示する列</p>
           <div className="metricToggleRow">
