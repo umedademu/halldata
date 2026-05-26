@@ -1,8 +1,8 @@
 import differenceRulesPayload from "../config/machine_difference_rules.json" with { type: "json" };
 import {
-  SETTING_ESTIMATE_VALUE_VERSION,
   calculateSettingEstimate,
   getSettingEstimateDefinition,
+  isCurrentSettingEstimateVersion,
 } from "./setting-estimates.js";
 
 let cachedRules = null;
@@ -233,7 +233,7 @@ export function calculateEstimatedCoinHoldDifferenceValue(row, machineName = "")
   const precomputedVersion = readDifferenceNumber(row?.estimated_difference_version);
   if (
     precomputedDifferenceValue !== null &&
-    precomputedVersion === SETTING_ESTIMATE_VALUE_VERSION
+    isCurrentSettingEstimateVersion(settingDefinition, precomputedVersion)
   ) {
     return precomputedDifferenceValue;
   }

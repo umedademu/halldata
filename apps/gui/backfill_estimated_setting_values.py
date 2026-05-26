@@ -107,6 +107,7 @@ def collect_machine_file_targets(
     workers: int = 12,
     store_id_filter: str = "",
     store_name_filter: str = "",
+    machine_name_filter: str = "",
 ) -> tuple[int, list[MachineFileTarget]]:
     index_payload = storage.read_json("index.json")
     stores = index_payload.get("stores", []) if isinstance(index_payload, dict) else []
@@ -131,7 +132,7 @@ def collect_machine_file_targets(
     processed_count = 0
     with ThreadPoolExecutor(max_workers=safe_workers) as executor:
         futures = [
-            executor.submit(collect_store_machine_file_targets, root_dir, store_entry)
+            executor.submit(collect_store_machine_file_targets, root_dir, store_entry, machine_name_filter)
             for store_entry in matched_stores
         ]
         for future in as_completed(futures):
@@ -147,7 +148,11 @@ def collect_machine_file_targets(
     return len(matched_stores), targets
 
 
-def collect_store_machine_file_targets(root_dir: Path, store_entry: dict[str, Any]) -> StoreTargetsResult:
+def collect_store_machine_file_targets(
+    root_dir: Path,
+    store_entry: dict[str, Any],
+    machine_name_filter: str = "",
+) -> StoreTargetsResult:
     storage = R2JsonStorage.from_environment(root_dir)
     store_id = str(store_entry.get("id") or store_entry.get("storeId") or "").strip()
     store_name = str(store_entry.get("storeName") or "").strip()
@@ -164,6 +169,8 @@ def collect_store_machine_file_targets(root_dir: Path, store_entry: dict[str, An
         machine_data_file = str(machine_entry.get("dataFile") or "").strip()
         machine_name = str(machine_entry.get("machineName") or "").strip()
         if not machine_data_file:
+            continue
+        if machine_name_filter and machine_name_filter not in machine_name:
             continue
         if not get_setting_estimate_definition(machine_name):
             continue
@@ -217,6 +224,7 @@ def backfill_r2_web_data(
     backup_dir: Path | None = None,
     store_id_filter: str = "",
     store_name_filter: str = "",
+    machine_name_filter: str = "",
 ) -> BackfillSummary:
     storage = R2JsonStorage.from_environment(root_dir)
     storage.require_config()
@@ -227,6 +235,7 @@ def backfill_r2_web_data(
         workers=safe_workers,
         store_id_filter=store_id_filter,
         store_name_filter=store_name_filter,
+        machine_name_filter=machine_name_filter,
     )
     summary = BackfillSummary(store_count=store_count, machine_file_count=len(targets))
 
@@ -273,6 +282,7 @@ def main() -> int:
     parser.add_argument("--backup-dir", type=Path, default=None, help="更新前の機種JSONを退避するフォルダー")
     parser.add_argument("--store-id", default="", help="指定した店舗IDだけ処理します")
     parser.add_argument("--store-name", default="", help="指定した文字列を含む店舗名だけ処理します")
+    parser.add_argument("--machine-name", default="", help="指定した文字列を含む機種名だけ処理します")
     args = parser.parse_args()
     backup_dir = None if args.dry_run else args.backup_dir or make_default_backup_dir(ROOT_DIR)
     summary = backfill_r2_web_data(
@@ -282,6 +292,7 @@ def main() -> int:
         backup_dir=backup_dir,
         store_id_filter=args.store_id.strip(),
         store_name_filter=args.store_name.strip(),
+        machine_name_filter=args.machine_name.strip(),
     )
     action = "確認しました" if args.dry_run else "更新しました"
     print(

@@ -1,6 +1,8 @@
 import settingEstimatesPayload from "../config/setting_estimates.json" with { type: "json" };
 
-export const SETTING_ESTIMATE_VALUE_VERSION = 3;
+export const SETTING_ESTIMATE_VALUE_VERSION = 4;
+const PREVIOUS_SETTING_ESTIMATE_VALUE_VERSION = 3;
+const UPDATED_SETTING_ESTIMATE_KEYS = new Set(["neoim-juggler-ex"]);
 
 const SETTING_ESTIMATE_DEFINITIONS = Array.isArray(settingEstimatesPayload?.setting_estimates)
   ? settingEstimatesPayload.setting_estimates
@@ -99,10 +101,20 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function readPrecomputedSettingEstimate(record) {
+export function isCurrentSettingEstimateVersion(definition, version) {
+  if (version === SETTING_ESTIMATE_VALUE_VERSION) {
+    return true;
+  }
+  return (
+    version === PREVIOUS_SETTING_ESTIMATE_VALUE_VERSION &&
+    !UPDATED_SETTING_ESTIMATE_KEYS.has(String(definition?.key ?? ""))
+  );
+}
+
+function readPrecomputedSettingEstimate(definition, record) {
   const average = readNumber(record?.setting_estimate_average);
   const version = readNumber(record?.setting_estimate_version);
-  if (!Number.isFinite(average) || version !== SETTING_ESTIMATE_VALUE_VERSION) {
+  if (!Number.isFinite(average) || !isCurrentSettingEstimateVersion(definition, version)) {
     return null;
   }
 
@@ -202,7 +214,7 @@ export function calculateSettingEstimate(definition, record) {
     return null;
   }
 
-  const precomputedEstimate = readPrecomputedSettingEstimate(record);
+  const precomputedEstimate = readPrecomputedSettingEstimate(definition, record);
   if (precomputedEstimate) {
     return precomputedEstimate;
   }
