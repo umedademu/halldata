@@ -12,6 +12,7 @@ import tempfile
 from typing import Any
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
+from estimated_grape import ESTIMATED_GRAPE_VALUE_VERSION, calculate_estimated_grape_value
 from machine_difference import (
     calculate_estimated_coin_hold_difference_value,
     calculate_machine_difference_value,
@@ -33,6 +34,14 @@ WEB_DATA_VERSION = 1
 DATA_SOURCE_SITE7 = "site7"
 SETTING_ESTIMATE_STATUS_CONFIRMED = "confirmed"
 SETTING_ESTIMATE_STATUS_PROVISIONAL = "provisional"
+ESTIMATED_GRAPE_FIELD_NAMES = (
+    "estimated_grape_count",
+    "estimated_grape_denominator",
+    "estimated_grape_probability",
+    "estimated_grape_status",
+    "estimated_grape_source",
+    "estimated_grape_version",
+)
 
 
 class WebDataIndexMissingError(RuntimeError):
@@ -161,6 +170,32 @@ def add_setting_estimate_fields(
     record["estimated_difference_status"] = status
     record["estimated_difference_source"] = source
     record["estimated_difference_version"] = SETTING_ESTIMATE_VALUE_VERSION
+
+
+def add_estimated_grape_fields(
+    record: dict[str, Any],
+    machine_name: str,
+    data_source: str,
+) -> None:
+    if data_source.casefold() == DATA_SOURCE_SITE7:
+        return
+
+    setting_average = record.get("setting_estimate_average")
+    estimated_grape = calculate_estimated_grape_value(
+        machine_name,
+        record,
+        setting_average=setting_average if isinstance(setting_average, (int, float)) else None,
+    )
+    if estimated_grape is None:
+        return
+
+    source = data_source if data_source else "minrepo"
+    record["estimated_grape_count"] = estimated_grape["count"]
+    record["estimated_grape_denominator"] = estimated_grape["denominator"]
+    record["estimated_grape_probability"] = estimated_grape["probability"]
+    record["estimated_grape_status"] = SETTING_ESTIMATE_STATUS_CONFIRMED
+    record["estimated_grape_source"] = source
+    record["estimated_grape_version"] = ESTIMATED_GRAPE_VALUE_VERSION
 
 
 def read_prefecture_name(value: dict[str, Any]) -> str:
@@ -314,6 +349,7 @@ def safe_record(
     if not record_should_be_exported(record):
         return None
     add_setting_estimate_fields(record, machine_name, data_source)
+    add_estimated_grape_fields(record, machine_name, data_source)
     if store_id:
         record["store_id"] = store_id
     return record

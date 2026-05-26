@@ -51,6 +51,7 @@ from machine_difference import (
     canonical_machine_name,
     machine_is_site7_target,
 )
+from estimated_grape import ESTIMATED_GRAPE_VALUE_VERSION, calculate_estimated_grape_value
 from minrepo_scraper import (
     FetchProgress,
     MachineDataset,
@@ -2226,6 +2227,7 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(record["site7_fetched_at"], "2026-05-17T12:34:56+09:00")
         self.assertEqual(record["setting_estimate_status"], "provisional")
         self.assertEqual(record["estimated_difference_status"], "provisional")
+        self.assertNotIn("estimated_grape_denominator", record)
 
     def test_web_export_adds_setting_estimate_values(self) -> None:
         record = safe_record(
@@ -2248,6 +2250,42 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(record["estimated_difference_status"], "confirmed")
         self.assertEqual(record["estimated_difference_source"], "minrepo")
         self.assertEqual(record["estimated_difference_version"], SETTING_ESTIMATE_VALUE_VERSION)
+
+    def test_calculate_estimated_grape_value_for_aim_juggler(self) -> None:
+        estimated_grape = calculate_estimated_grape_value(
+            "ネオアイムジャグラーEX",
+            {
+                "games_count": 9264,
+                "difference_value": 4595,
+                "bb_count": 50,
+                "rb_count": 37,
+            },
+            setting_average=6,
+        )
+
+        self.assertIsNotNone(estimated_grape)
+        self.assertAlmostEqual(estimated_grape["count"], 1488.665)
+        self.assertAlmostEqual(estimated_grape["denominator"], 6.223)
+        self.assertAlmostEqual(estimated_grape["probability"], 0.16069356)
+
+    def test_web_export_adds_estimated_grape_values_for_aim_juggler(self) -> None:
+        record = safe_record(
+            {
+                "target_date": "2026-05-12",
+                "slot_number": "821",
+                "machine_name": "ネオアイムジャグラーEX",
+                "difference_value": 4595,
+                "games_count": 9264,
+                "bb_count": 50,
+                "rb_count": 37,
+            }
+        )
+
+        self.assertIsNotNone(record)
+        self.assertAlmostEqual(record["estimated_grape_denominator"], 6.2218)
+        self.assertEqual(record["estimated_grape_status"], "confirmed")
+        self.assertEqual(record["estimated_grape_source"], "minrepo")
+        self.assertEqual(record["estimated_grape_version"], ESTIMATED_GRAPE_VALUE_VERSION)
 
     def test_local_snapshot_export_uses_snapshot_saved_at_for_site7_records(self) -> None:
         with TemporaryDirectory() as temp_dir:

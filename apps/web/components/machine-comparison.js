@@ -70,10 +70,23 @@ const DEFAULT_VISIBLE_METRIC_KEYS = [
   "bb_count",
   "rb_count",
   "combined_ratio_text",
+  "estimated_grape_denominator",
   "setting_estimate",
   "hunt_score",
   "hunt_score_next_gap",
 ];
+const PREVIOUS_DEFAULT_VISIBLE_METRIC_KEYS = [
+  "difference_value",
+  "games_count",
+  "bb_count",
+  "rb_count",
+  "combined_ratio_text",
+  "setting_estimate",
+  "hunt_score",
+  "hunt_score_next_gap",
+];
+const ESTIMATED_GRAPE_METRIC_KEY = "estimated_grape_denominator";
+const MACHINE_COMPARISON_METRIC_DEFAULTS_VERSION = 3;
 const MATRIX_DATE_COLUMN_WIDTH_REM = 4.8;
 const MATRIX_WEEKDAY_COLUMN_WIDTH_REM = 2.4;
 const MATRIX_SLOT_WIDTH_REM = 16;
@@ -186,6 +199,13 @@ function normalizeMetricKeys(value, allowedMetricKeys = null, fallbackKeys = DEF
     return keys;
   }
   return fallbackKeys.filter((key) => !allowedMetricKeySet || allowedMetricKeySet.has(key));
+}
+
+function metricKeysMatch(leftKeys, rightKeys) {
+  if (!Array.isArray(leftKeys) || !Array.isArray(rightKeys) || leftKeys.length !== rightKeys.length) {
+    return false;
+  }
+  return leftKeys.every((key, index) => key === rightKeys[index]);
 }
 
 function normalizeStoredNumberInput(value, fallbackValue) {
@@ -580,7 +600,16 @@ function readMachineComparisonPeriodOptions(defaults) {
 }
 
 function normalizeMachineComparisonMetricKeys(source, defaults) {
-  return normalizeMetricKeys(source.visibleMetricKeys, null, defaults.visibleMetricKeys);
+  const metricKeys = normalizeMetricKeys(source.visibleMetricKeys, null, defaults.visibleMetricKeys);
+  const metricDefaultsVersion = Number(source.metricDefaultsVersion ?? 0);
+  if (
+    metricDefaultsVersion < MACHINE_COMPARISON_METRIC_DEFAULTS_VERSION &&
+    metricKeysMatch(metricKeys, PREVIOUS_DEFAULT_VISIBLE_METRIC_KEYS) &&
+    defaults.visibleMetricKeys.includes(ESTIMATED_GRAPE_METRIC_KEY)
+  ) {
+    return defaults.visibleMetricKeys;
+  }
+  return metricKeys;
 }
 
 function saveMachineComparisonPeriodOptions(options) {
@@ -647,7 +676,7 @@ function saveMachineComparisonOptions(storeId, options) {
       storageKey,
       JSON.stringify({
         version: 1,
-        metricDefaultsVersion: 2,
+        metricDefaultsVersion: MACHINE_COMPARISON_METRIC_DEFAULTS_VERSION,
         eventFilters: {
           dayTails: options.eventFilters?.dayTails ?? [],
           zoro: Boolean(options.eventFilters?.zoro),
@@ -1162,6 +1191,14 @@ function createHuntScoreNextGapMetric(getHuntScoreNextGapValue) {
   };
 }
 
+function formatEstimatedGrapeDenominator(value) {
+  const denominator = Number(value);
+  if (!Number.isFinite(denominator) || denominator <= 0) {
+    return "-";
+  }
+  return `1/${denominator.toFixed(2)}`;
+}
+
 const COMMON_METRICS = [
   {
     key: "difference_value",
@@ -1202,6 +1239,14 @@ const COMMON_METRICS = [
   { key: "combined_ratio_text", label: "合成", render: formatRatio, columnClass: "matrixColumnWide" },
 ];
 
+const ESTIMATED_GRAPE_METRIC = {
+  key: ESTIMATED_GRAPE_METRIC_KEY,
+  label: "推定ブドウ",
+  render: formatEstimatedGrapeDenominator,
+  csvRender: formatEstimatedGrapeDenominator,
+  columnClass: "matrixColumnWide",
+};
+
 const RATIO_METRICS = [
   { key: "bb_ratio_text", label: "BB率", render: formatRatio, columnClass: "matrixColumnWide" },
   { key: "rb_ratio_text", label: "RB率", render: formatRatio, columnClass: "matrixColumnWide" },
@@ -1220,6 +1265,7 @@ function createDifferenceMetric(differenceMode) {
 function getMetrics(
   hasSettingEstimate,
   getCompositeSettingEstimate,
+  hasEstimatedGrape,
   hasHuntScore,
   differenceMode,
   getHuntScoreNextGapValue,
@@ -1228,6 +1274,10 @@ function getMetrics(
     createDifferenceMetric(differenceMode),
     ...COMMON_METRICS.filter((metric) => metric.key !== "difference_value"),
   ];
+
+  if (hasEstimatedGrape) {
+    metrics.push(ESTIMATED_GRAPE_METRIC);
+  }
 
   if (hasSettingEstimate) {
     metrics.push(createSettingEstimateMetric(getCompositeSettingEstimate));
@@ -2191,11 +2241,21 @@ export function MachineComparison({
       ),
     [dateRows, slotNumbers],
   );
+  const hasEstimatedGrape = useMemo(
+    () =>
+      dateRows.some((row) =>
+        slotNumbers.some((slotNumber) =>
+          Number.isFinite(Number(row.recordsBySlot?.[slotNumber]?.estimated_grape_denominator)),
+        ),
+      ),
+    [dateRows, slotNumbers],
+  );
   const metrics = useMemo(
     () =>
       getMetrics(
         hasSettingEstimate,
         getCompositeSettingEstimate,
+        hasEstimatedGrape,
         hasHuntScore,
         differenceMode,
         getHuntScoreNextGapValue,
@@ -2204,6 +2264,7 @@ export function MachineComparison({
       differenceMode,
       getCompositeSettingEstimate,
       getHuntScoreNextGapValue,
+      hasEstimatedGrape,
       hasHuntScore,
       hasSettingEstimate,
       settingEstimateDefinition,
