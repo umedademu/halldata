@@ -1241,7 +1241,7 @@ const COMMON_METRICS = [
 
 const ESTIMATED_GRAPE_METRIC = {
   key: ESTIMATED_GRAPE_METRIC_KEY,
-  label: "推定ブドウ",
+  label: "ぶどう",
   render: formatEstimatedGrapeDenominator,
   csvRender: formatEstimatedGrapeDenominator,
   columnClass: "matrixColumnWide",
