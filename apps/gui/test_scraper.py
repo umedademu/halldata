@@ -1374,7 +1374,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 "machine_name": "ネオアイムジャグラーEX",
                 "data_source": DATA_SOURCE_MINREPO,
                 "difference_value": -562,
-                "bonus_difference_value": -312,
+                "bonus_difference_value": -276,
                 "games_count": 5931,
                 "payout_rate": 96.8,
                 "bb_count": 22,
@@ -1395,7 +1395,7 @@ class MinRepoScraperTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(difference_value, -711)
+        self.assertEqual(difference_value, -667)
 
     def test_calculate_estimated_coin_hold_difference_value_for_registered_machine(self) -> None:
         difference_value = calculate_estimated_coin_hold_difference_value(
@@ -1420,7 +1420,7 @@ class MinRepoScraperTests(unittest.TestCase):
             setting_average=6,
         )
 
-        self.assertEqual(difference_value, 22779)
+        self.assertEqual(difference_value, 23066)
 
     def test_canonical_machine_name_matches_site7_keyword(self) -> None:
         self.assertEqual(canonical_machine_name("SアイムジャグラーＥＸ", site7_only=True), "SアイムジャグラーＥＸ")
@@ -2034,7 +2034,7 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertTrue(all(dataset.machine_name == SITE7_TARGET_MACHINE_NAME for dataset in history_result.datasets))
         self.assertEqual(
             history_result.datasets[1].rows[0],
-            ["821", "374", "2163", "-", "10", "5", "1/144", "1/216", "1/432"],
+            ["821", "389", "2163", "-", "10", "5", "1/144", "1/216", "1/432"],
         )
 
     def test_site7_parse_machine_history_skips_blank_holiday_rows(self) -> None:
@@ -2108,8 +2108,8 @@ class MinRepoScraperTests(unittest.TestCase):
                 "slot_number": "821",
                 "machine_name": "ネオアイムジャグラーEX",
                 "data_source": DATA_SOURCE_SITE7,
-                "difference_value": 831,
-                "bonus_difference_value": 831,
+                "difference_value": 868,
+                "bonus_difference_value": 868,
                 "games_count": 5454,
                 "payout_rate": None,
                 "bb_count": 25,

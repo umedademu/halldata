@@ -13,6 +13,12 @@ from setting_estimates import calculate_setting_estimate, get_setting_estimate_d
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 MACHINE_DIFFERENCE_RULES_PATH = ROOT_DIR / "config" / "machine_difference_rules.json"
+AIM_POST_ANNOUNCEMENT_BONUS_RATIO = Decimal("0.75")
+MINREPO_ONE_BET_GAME_FACTOR = Decimal("0.3333333333333333333333333333")
+ONE_BET_GRAPE_DENOMINATOR = Decimal("10.3")
+ONE_BET_REPLAY_DENOMINATOR = Decimal("7.3")
+ONE_BET_GRAPE_PAYOUT = Decimal("15")
+ONE_BET_REPLAY_PAYOUT = Decimal("1")
 
 
 @lru_cache(maxsize=1)
@@ -56,27 +62,19 @@ def calculate_machine_difference_value(machine_name: str, row_values: dict[str, 
     ):
         return None
 
-    bonus_payouts = rule.get("bonus_payouts", {})
-    if not isinstance(bonus_payouts, dict) or not bonus_payouts:
+    bonus_values = _calculate_bonus_payout_and_count(rule, row_values)
+    if bonus_values is None:
         return None
+    total_bonus_payout, total_bonus_count = bonus_values
 
-    total_bonus_payout = Decimal("0")
-    for bonus_label, payout_value in bonus_payouts.items():
-        payout_coins = _parse_decimal_value(payout_value)
-        hit_count = _read_decimal_value(
-            row_values,
-            str(bonus_label),
-            f"{str(bonus_label).lower()}_count",
-        )
-        if payout_coins is None or hit_count is None:
-            return None
-        total_bonus_payout += hit_count * payout_coins
-
-    used_coins = games_count * investment_coins / games_per_investment
-    difference_value = (total_bonus_payout - used_coins).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-    if difference_value == Decimal("-0"):
-        difference_value = Decimal("0")
-    return int(difference_value)
+    return _calculate_coin_hold_difference_value(
+        rule,
+        games_count=games_count,
+        investment_coins=investment_coins,
+        coin_hold=games_per_investment,
+        total_bonus_payout=total_bonus_payout,
+        total_bonus_count=total_bonus_count,
+    )
 
 
 def calculate_estimated_coin_hold_difference_value(
@@ -97,19 +95,59 @@ def calculate_estimated_coin_hold_difference_value(
     coin_hold = _interpolate_setting_coin_hold(rule, setting_average_decimal)
     investment_coins = _parse_decimal_value(rule.get("investment_coins"))
     games_count = _read_decimal_value(row_values, "G数", "games_count")
-    total_bonus_payout = _calculate_bonus_payout(rule, row_values)
+    bonus_values = _calculate_bonus_payout_and_count(rule, row_values)
     if (
         coin_hold is None
         or investment_coins is None
         or games_count is None
-        or total_bonus_payout is None
+        or bonus_values is None
     ):
         return None
+    total_bonus_payout, total_bonus_count = bonus_values
 
-    difference_value = (total_bonus_payout - games_count * investment_coins / coin_hold).quantize(
-        Decimal("1"),
-        rounding=ROUND_HALF_UP,
+    return _calculate_coin_hold_difference_value(
+        rule,
+        games_count=games_count,
+        investment_coins=investment_coins,
+        coin_hold=coin_hold,
+        total_bonus_payout=total_bonus_payout,
+        total_bonus_count=total_bonus_count,
     )
+
+
+def _calculate_coin_hold_difference_value(
+    rule: dict[str, Any],
+    *,
+    games_count: Decimal,
+    investment_coins: Decimal,
+    coin_hold: Decimal,
+    total_bonus_payout: Decimal,
+    total_bonus_count: Decimal,
+) -> int | None:
+    if coin_hold <= 0:
+        return None
+
+    if _is_aim_juggler_ex_rule(rule):
+        one_bet_games = _calculate_aim_one_bet_games(total_bonus_count)
+        normal_games_count = games_count - one_bet_games * MINREPO_ONE_BET_GAME_FACTOR
+        if normal_games_count <= 0:
+            return None
+        one_bet_small_payout = one_bet_games * (
+            ONE_BET_GRAPE_PAYOUT / ONE_BET_GRAPE_DENOMINATOR
+            + ONE_BET_REPLAY_PAYOUT / ONE_BET_REPLAY_DENOMINATOR
+        )
+        difference_value = (
+            total_bonus_payout
+            - normal_games_count * investment_coins / coin_hold
+            + one_bet_small_payout
+            - one_bet_games
+        ).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    else:
+        difference_value = (total_bonus_payout - games_count * investment_coins / coin_hold).quantize(
+            Decimal("1"),
+            rounding=ROUND_HALF_UP,
+        )
+
     if difference_value == Decimal("-0"):
         difference_value = Decimal("0")
     return int(difference_value)
@@ -160,12 +198,16 @@ def machine_is_site7_target(machine_name: str) -> bool:
     return find_machine_difference_rule(machine_name, site7_only=True) is not None
 
 
-def _calculate_bonus_payout(rule: dict[str, Any], row_values: dict[str, Any]) -> Decimal | None:
+def _calculate_bonus_payout_and_count(
+    rule: dict[str, Any],
+    row_values: dict[str, Any],
+) -> tuple[Decimal, Decimal] | None:
     bonus_payouts = rule.get("bonus_payouts", {})
     if not isinstance(bonus_payouts, dict) or not bonus_payouts:
         return None
 
     total_bonus_payout = Decimal("0")
+    total_bonus_count = Decimal("0")
     for bonus_label, payout_value in bonus_payouts.items():
         payout_coins = _parse_decimal_value(payout_value)
         hit_count = _read_decimal_value(
@@ -176,7 +218,28 @@ def _calculate_bonus_payout(rule: dict[str, Any], row_values: dict[str, Any]) ->
         if payout_coins is None or hit_count is None:
             return None
         total_bonus_payout += hit_count * payout_coins
-    return total_bonus_payout
+        total_bonus_count += hit_count
+    return total_bonus_payout, total_bonus_count
+
+
+def _calculate_aim_one_bet_games(total_bonus_count: Decimal) -> Decimal:
+    if total_bonus_count <= 0:
+        return Decimal("0")
+    settle_probability = (
+        Decimal("1") - Decimal("1") / ONE_BET_GRAPE_DENOMINATOR - Decimal("1") / ONE_BET_REPLAY_DENOMINATOR
+    )
+    if settle_probability <= 0:
+        return Decimal("0")
+    return total_bonus_count * AIM_POST_ANNOUNCEMENT_BONUS_RATIO / settle_probability
+
+
+def _is_aim_juggler_ex_rule(rule: dict[str, Any]) -> bool:
+    candidate_texts = [
+        str(rule.get("canonical_name") or ""),
+        *[str(value) for value in rule.get("machine_names", [])],
+        *[str(value) for value in rule.get("match_keywords", [])],
+    ]
+    return any("アイムジャグラーex" in _normalize_machine_name(text) for text in candidate_texts)
 
 
 def _read_setting_coin_hold_rows(rule: dict[str, Any]) -> list[tuple[Decimal, Decimal]]:

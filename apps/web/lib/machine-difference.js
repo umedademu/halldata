@@ -8,6 +8,12 @@ import {
 let cachedRules = null;
 
 export const DEFAULT_DIFFERENCE_MODE = "estimated";
+const AIM_POST_ANNOUNCEMENT_BONUS_RATIO = 0.75;
+const MINREPO_ONE_BET_GAME_FACTOR = 1 / 3;
+const ONE_BET_GRAPE_DENOMINATOR = 10.3;
+const ONE_BET_REPLAY_DENOMINATOR = 7.3;
+const ONE_BET_GRAPE_PAYOUT = 15;
+const ONE_BET_REPLAY_PAYOUT = 1;
 
 export function normalizeDifferenceMode(value) {
   return value === "bonus" || value === "estimated" || value === "minrepo"
@@ -156,13 +162,14 @@ function readBonusCount(row, bonusLabel) {
   );
 }
 
-function calculateBonusPayout(rule, row) {
+function calculateBonusPayoutAndCount(rule, row) {
   const bonusPayouts = rule?.bonus_payouts;
   if (!bonusPayouts || typeof bonusPayouts !== "object") {
     return null;
   }
 
   let totalPayout = 0;
+  let totalCount = 0;
   let hasBonusRule = false;
   for (const [bonusLabel, payoutValue] of Object.entries(bonusPayouts)) {
     const payoutCoins = readDifferenceNumber(payoutValue);
@@ -172,9 +179,76 @@ function calculateBonusPayout(rule, row) {
     }
     hasBonusRule = true;
     totalPayout += hitCount * payoutCoins;
+    totalCount += hitCount;
   }
 
-  return hasBonusRule ? totalPayout : null;
+  return hasBonusRule ? { totalPayout, totalCount } : null;
+}
+
+function isAimJugglerExRule(rule) {
+  const candidateTexts = [
+    rule?.canonical_name,
+    ...(Array.isArray(rule?.machine_names) ? rule.machine_names : []),
+    ...(Array.isArray(rule?.match_keywords) ? rule.match_keywords : []),
+  ];
+  return candidateTexts.some((value) =>
+    String(value ?? "")
+      .normalize("NFKC")
+      .replace(/[\s\u3000・･_-]/gu, "")
+      .toLowerCase()
+      .includes("アイムジャグラーex"),
+  );
+}
+
+function calculateAimOneBetGames(totalBonusCount) {
+  if (!Number.isFinite(totalBonusCount) || totalBonusCount <= 0) {
+    return 0;
+  }
+  const settleProbability =
+    1 - 1 / ONE_BET_GRAPE_DENOMINATOR - 1 / ONE_BET_REPLAY_DENOMINATOR;
+  if (settleProbability <= 0) {
+    return 0;
+  }
+  return (totalBonusCount * AIM_POST_ANNOUNCEMENT_BONUS_RATIO) / settleProbability;
+}
+
+function calculateCoinHoldDifferenceValue({
+  rule,
+  gamesCount,
+  investmentCoins,
+  coinHold,
+  totalBonusPayout,
+  totalBonusCount,
+}) {
+  if (
+    !Number.isFinite(gamesCount) ||
+    !Number.isFinite(investmentCoins) ||
+    !Number.isFinite(coinHold) ||
+    coinHold <= 0 ||
+    !Number.isFinite(totalBonusPayout)
+  ) {
+    return null;
+  }
+
+  if (isAimJugglerExRule(rule)) {
+    const oneBetGames = calculateAimOneBetGames(totalBonusCount);
+    const normalGamesCount = gamesCount - oneBetGames * MINREPO_ONE_BET_GAME_FACTOR;
+    if (normalGamesCount <= 0) {
+      return null;
+    }
+    const oneBetSmallPayout =
+      oneBetGames *
+      (ONE_BET_GRAPE_PAYOUT / ONE_BET_GRAPE_DENOMINATOR +
+        ONE_BET_REPLAY_PAYOUT / ONE_BET_REPLAY_DENOMINATOR);
+    return roundHalfUp(
+      totalBonusPayout -
+        (normalGamesCount * investmentCoins) / coinHold +
+        oneBetSmallPayout -
+        oneBetGames,
+    );
+  }
+
+  return roundHalfUp(totalBonusPayout - (gamesCount * investmentCoins) / coinHold);
 }
 
 function readSettingCoinHoldRows(rule) {
@@ -240,19 +314,26 @@ export function calculateEstimatedCoinHoldDifferenceValue(row, machineName = "")
 
   const coinHold = interpolateSettingCoinHold(rule, settingEstimate?.average);
   const investmentCoins = readDifferenceNumber(rule?.investment_coins);
-  const totalBonusPayout = calculateBonusPayout(rule, row);
+  const bonusValues = calculateBonusPayoutAndCount(rule, row);
 
   if (
     !rule ||
     coinHold === null ||
     gamesCount === null ||
     investmentCoins === null ||
-    totalBonusPayout === null
+    bonusValues === null
   ) {
     return null;
   }
 
-  return roundHalfUp(totalBonusPayout - (gamesCount * investmentCoins) / coinHold);
+  return calculateCoinHoldDifferenceValue({
+    rule,
+    gamesCount,
+    investmentCoins,
+    coinHold,
+    totalBonusPayout: bonusValues.totalPayout,
+    totalBonusCount: bonusValues.totalCount,
+  });
 }
 
 export function selectDifferenceValue(row, differenceMode = "bonus", machineName = "") {

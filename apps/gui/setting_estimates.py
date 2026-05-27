@@ -11,7 +11,7 @@ import unicodedata
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 SETTING_ESTIMATES_PATH = ROOT_DIR / "config" / "setting_estimates.json"
-SETTING_ESTIMATE_VALUE_VERSION = 4
+SETTING_ESTIMATE_VALUE_VERSION = 5
 
 
 @lru_cache(maxsize=1)

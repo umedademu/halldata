@@ -1,7 +1,7 @@
 import settingEstimatesPayload from "../config/setting_estimates.json" with { type: "json" };
 
-export const SETTING_ESTIMATE_VALUE_VERSION = 4;
-const PREVIOUS_SETTING_ESTIMATE_VALUE_VERSION = 3;
+export const SETTING_ESTIMATE_VALUE_VERSION = 5;
+const PREVIOUS_SETTING_ESTIMATE_VALUE_VERSION = 4;
 const UPDATED_SETTING_ESTIMATE_KEYS = new Set(["neoim-juggler-ex"]);
 
 const SETTING_ESTIMATE_DEFINITIONS = Array.isArray(settingEstimatesPayload?.setting_estimates)
