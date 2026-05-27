@@ -25,6 +25,7 @@ import { groupHuntMachineOptions } from "../../lib/hunt-machine-display";
 import {
   formatSettingEstimateScore,
   getSettingEstimateHighlightClass,
+  SETTING_ESTIMATE_MODE_OPTIONS,
 } from "../../lib/setting-estimates";
 
 export const dynamic = "force-dynamic";
@@ -179,6 +180,29 @@ function ScoreDifferenceModeOptions({ value }) {
         />
         <span>みんレポ基準</span>
       </label>
+    </div>
+  );
+}
+
+function SettingEstimateModeOptions({ value }) {
+  return (
+    <div className="metricToggleRow commonConditionModeOptions">
+      {SETTING_ESTIMATE_MODE_OPTIONS.map((option) => (
+        <label
+          key={option.value}
+          className={`metricToggleChip ${
+            value === option.value ? "metricToggleChipActive" : ""
+          }`}
+        >
+          <input
+            type="radio"
+            name="settingEstimateMode"
+            value={option.value}
+            defaultChecked={value === option.value}
+          />
+          <span>{option.label}</span>
+        </label>
+      ))}
     </div>
   );
 }
@@ -385,6 +409,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
     combineHanabi: readMultiSearchParam(resolvedSearchParams?.hanabiMachineGroup),
     scoreDifferenceMode: readSingleSearchParam(resolvedSearchParams?.scoreDifferenceMode),
     differenceMode: readSingleSearchParam(resolvedSearchParams?.differenceMode),
+    settingEstimateMode: readSingleSearchParam(resolvedSearchParams?.settingEstimateMode),
     rankMin: readOptionalSearchParam(resolvedSearchParams, "rankMin"),
     rankMax: readOptionalSearchParam(resolvedSearchParams, "rankMax"),
     rankScope: readSingleSearchParam(resolvedSearchParams?.rankScope),
@@ -699,6 +724,10 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                 <div className="commonConditionMode">
                   <p className="commonConditionSubLabel">狙い度計算の差枚基準</p>
                   <ScoreDifferenceModeOptions value={detail.scoreDifferenceMode} />
+                </div>
+                <div className="commonConditionMode">
+                  <p className="commonConditionSubLabel">設定推定基準</p>
+                  <SettingEstimateModeOptions value={detail.settingEstimateMode} />
                 </div>
               </div>
             </div>

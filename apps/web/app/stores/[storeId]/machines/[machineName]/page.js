@@ -18,7 +18,10 @@ import {
   getHuntScoreLogicCookieName,
 } from "../../../../../lib/hunt-score-logic-selection";
 import { normalizeDifferenceMode } from "../../../../../lib/machine-difference";
-import { getSettingEstimateDefinition } from "../../../../../lib/setting-estimates";
+import {
+  getSettingEstimateDefinition,
+  normalizeSettingEstimateMode,
+} from "../../../../../lib/setting-estimates";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +70,9 @@ export default async function MachineDetailPage({ params, searchParams }) {
   const displayDifferenceMode = normalizeDifferenceMode(
     readSingleSearchParam(resolvedSearchParams?.displayDifferenceMode),
   );
+  const settingEstimateMode = normalizeSettingEstimateMode(
+    readSingleSearchParam(resolvedSearchParams?.settingEstimateMode),
+  );
   const hasDisplayDifferenceModeSearchParam = hasSearchParamValue(
     resolvedSearchParams,
     "displayDifferenceMode",
@@ -80,7 +86,13 @@ export default async function MachineDetailPage({ params, searchParams }) {
   let detail;
 
   try {
-    detail = await getMachineDetail(storeId, machineName, huntScoreLogicKey, differenceMode);
+    detail = await getMachineDetail(
+      storeId,
+      machineName,
+      huntScoreLogicKey,
+      differenceMode,
+      settingEstimateMode,
+    );
   } catch (error) {
     return (
       <main className="pageStack">
@@ -204,6 +216,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
         initialDifferenceMode={detail.differenceMode}
         initialDisplayDifferenceMode={displayDifferenceMode}
         initialDisplayDifferenceModeFromSearchParams={hasDisplayDifferenceModeSearchParam}
+        initialSettingEstimateMode={detail.settingEstimateMode}
         preferDefaultEstimateOptions={Boolean(detail.huntScoreHighlight)}
       />
     </main>

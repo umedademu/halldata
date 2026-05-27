@@ -1,3 +1,8 @@
+import {
+  formatSettingEstimateModeLabel,
+  normalizeSettingEstimateMode,
+} from "./setting-estimates";
+
 const HUNT_BACKTEST_BOOKMARK_STORAGE_PREFIX = "hunt-backtest-bookmark:";
 const HUNT_BACKTEST_BOOKMARKS_STORAGE_PREFIX = "hunt-backtest-bookmarks:";
 const HUNT_BACKTEST_BOOKMARK_SELECTION_STORAGE_PREFIX = "hunt-backtest-bookmark-selection:";
@@ -962,6 +967,7 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     rankScope,
     scoreDifferenceMode: normalizeText(bookmark.scoreDifferenceMode) || "estimated",
     differenceMode: normalizeText(bookmark.differenceMode) || "estimated",
+    settingEstimateMode: normalizeSettingEstimateMode(bookmark.settingEstimateMode),
     eventDayTails: normalizeNumberTextArray(bookmark.eventDayTails, 0, 9),
     eventZoro: normalizeRequiredOption(bookmark.eventZoro, false),
     eventWeekdays: normalizeNumberTextArray(bookmark.eventWeekdays, 0, 6),
@@ -1024,6 +1030,7 @@ export function areHuntBacktestBookmarksEqual(left, right) {
     normalizedLeft.rankScope === normalizedRight.rankScope &&
     normalizedLeft.scoreDifferenceMode === normalizedRight.scoreDifferenceMode &&
     normalizedLeft.differenceMode === normalizedRight.differenceMode &&
+    normalizedLeft.settingEstimateMode === normalizedRight.settingEstimateMode &&
     normalizedLeft.eventZoro === normalizedRight.eventZoro &&
     normalizedLeft.combineAimJuggler === normalizedRight.combineAimJuggler &&
     normalizedLeft.combineHanabi === normalizedRight.combineHanabi &&
@@ -1074,6 +1081,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   }
 
   const parts = [buildMachineSummaryText(normalizedBookmark)];
+  parts.push(`設定推定: ${formatSettingEstimateModeLabel(normalizedBookmark.settingEstimateMode)}`);
 
   if (isMachineTopNextGapSelectionMode(normalizedBookmark.dailySelectionMode)) {
     parts.push("各機種1位から機種内下位境界差1位を1台選抜");

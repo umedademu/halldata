@@ -10,6 +10,7 @@ const MANAGED_PARAM_KEYS = [
   "date",
   "limit",
   "differenceMode",
+  "settingEstimateMode",
   "machine",
   "rankMin",
   "rankMax",

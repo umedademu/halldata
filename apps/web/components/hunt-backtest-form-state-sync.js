@@ -45,6 +45,7 @@ const MANAGED_PARAM_KEYS = [
   "selectedNextGapRequired",
   "scoreDifferenceMode",
   "differenceMode",
+  "settingEstimateMode",
   "rankScope",
   "nextGapScope",
 ];

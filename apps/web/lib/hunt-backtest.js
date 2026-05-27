@@ -22,6 +22,9 @@ import {
 import {
   calculateSettingEstimate,
   getSettingEstimateDefinition,
+  normalizeSettingEstimateMode,
+  readGrapeSettingEstimateObservation,
+  SETTING_ESTIMATE_MODE_GRAPE,
 } from "./setting-estimates";
 
 const DEFAULT_RECENT_DAYS = 90;
@@ -546,7 +549,7 @@ function getSettingEstimateBucketKey(definition) {
   return String(definition?.displayName ?? "").trim();
 }
 
-function addAggregateSettingMetrics(summary, machineName, actualMetrics) {
+function addAggregateSettingMetrics(summary, machineName, actualMetrics, nextRecord, settingEstimateMode) {
   const definition = getSettingEstimateDefinition(machineName);
   const bucketKey = getSettingEstimateBucketKey(definition);
   if (!definition || !bucketKey) {
@@ -559,6 +562,9 @@ function addAggregateSettingMetrics(summary, machineName, actualMetrics) {
       gamesTotal: 0,
       bbTotal: 0,
       rbTotal: 0,
+      grapeCountTotal: 0,
+      grapeGameTotal: 0,
+      hasMissingGrapeObservation: false,
     });
   }
 
@@ -566,15 +572,27 @@ function addAggregateSettingMetrics(summary, machineName, actualMetrics) {
   bucket.gamesTotal += actualMetrics.gamesCount;
   bucket.bbTotal += actualMetrics.bbCount;
   bucket.rbTotal += actualMetrics.rbCount;
+
+  if (settingEstimateMode === SETTING_ESTIMATE_MODE_GRAPE) {
+    const grapeObservation = readGrapeSettingEstimateObservation(definition, nextRecord);
+    if (grapeObservation) {
+      bucket.grapeCountTotal += grapeObservation.successCount;
+      bucket.grapeGameTotal += grapeObservation.totalCount;
+    } else {
+      bucket.hasMissingGrapeObservation = true;
+    }
+  }
 }
 
-function addSettingEstimateRateMetrics(summary, machineName, nextRecord) {
+function addSettingEstimateRateMetrics(summary, machineName, nextRecord, settingEstimateMode) {
   const definition = getSettingEstimateDefinition(machineName);
   if (!definition) {
     return;
   }
 
-  const settingEstimate = calculateSettingEstimate(definition, nextRecord);
+  const settingEstimate = calculateSettingEstimate(definition, nextRecord, {
+    mode: settingEstimateMode,
+  });
   const settingAverage = settingEstimate?.average;
   if (!Number.isFinite(settingAverage)) {
     return;
@@ -595,13 +613,27 @@ function addSettingEstimateRateMetrics(summary, machineName, nextRecord) {
   }
 }
 
-function calculateAggregateSettingAverage(summary) {
+function calculateAggregateSettingAverage(summary, settingEstimateMode) {
   const estimates = [...summary.settingEstimateBuckets.values()]
     .map((bucket) => {
-      const estimate = calculateSettingEstimate(bucket.definition, {
+      const aggregateRecord = {
         games_count: bucket.gamesTotal,
         bb_count: bucket.bbTotal,
         rb_count: bucket.rbTotal,
+      };
+      if (
+        settingEstimateMode === SETTING_ESTIMATE_MODE_GRAPE &&
+        !bucket.hasMissingGrapeObservation &&
+        bucket.grapeCountTotal > 0 &&
+        bucket.grapeGameTotal > 0
+      ) {
+        aggregateRecord.estimated_grape_count = bucket.grapeCountTotal;
+        aggregateRecord.estimated_grape_probability = bucket.grapeCountTotal / bucket.grapeGameTotal;
+        aggregateRecord.estimated_grape_denominator = bucket.grapeGameTotal / bucket.grapeCountTotal;
+      }
+
+      const estimate = calculateSettingEstimate(bucket.definition, aggregateRecord, {
+        mode: settingEstimateMode,
       });
       return estimate?.average !== undefined
         ? {
@@ -679,7 +711,7 @@ function buildEmptyDailySummary(date, predictionDate) {
   };
 }
 
-function finalizeSummary(summary) {
+function finalizeSummary(summary, settingEstimateMode) {
   const { settingEstimateBuckets, ...publicSummary } = summary;
   return {
     ...publicSummary,
@@ -692,7 +724,7 @@ function finalizeSummary(summary) {
     bbProbability: formatProbability(summary.gamesTotal, summary.bbTotal),
     rbProbability: formatProbability(summary.gamesTotal, summary.rbTotal),
     combinedProbability: formatProbability(summary.gamesTotal, summary.bbTotal + summary.rbTotal),
-    averageSetting: calculateAggregateSettingAverage(summary),
+    averageSetting: calculateAggregateSettingAverage(summary, settingEstimateMode),
     setting35PlusRate: calculateAverage(summary.setting35PlusCount * 100, summary.settingEstimateSampleCount),
     setting4PlusRate: calculateAverage(summary.setting4PlusCount * 100, summary.settingEstimateSampleCount),
     setting45PlusRate: calculateAverage(summary.setting45PlusCount * 100, summary.settingEstimateSampleCount),
@@ -700,7 +732,15 @@ function finalizeSummary(summary) {
   };
 }
 
-function addActualMetricsToSummary(summary, machineName, row, actualMetrics, nextGapValue, upperGapValue) {
+function addActualMetricsToSummary(
+  summary,
+  machineName,
+  row,
+  actualMetrics,
+  nextGapValue,
+  upperGapValue,
+  settingEstimateMode,
+) {
   summary.actualRowCount += 1;
   if (actualMetrics.differenceValue > 0) {
     summary.winCount += 1;
@@ -719,8 +759,8 @@ function addActualMetricsToSummary(summary, machineName, row, actualMetrics, nex
     summary.upperGapTotal += upperGapValue;
     summary.upperGapSampleCount += 1;
   }
-  addAggregateSettingMetrics(summary, machineName, actualMetrics);
-  addSettingEstimateRateMetrics(summary, machineName, row.nextRecord);
+  addAggregateSettingMetrics(summary, machineName, actualMetrics, row.nextRecord, settingEstimateMode);
+  addSettingEstimateRateMetrics(summary, machineName, row.nextRecord, settingEstimateMode);
 }
 
 function buildSnapshotGapRows(
@@ -880,6 +920,7 @@ function buildBacktestAggregationDetail(
     gapRowsCache,
     selectionMode,
     selectionRowsCache,
+    settingEstimateMode,
     rowFilter = () => true,
   },
 ) {
@@ -1024,6 +1065,7 @@ function buildBacktestAggregationDetail(
         actualMetrics,
         machineNextGapValue,
         machineUpperGapValue,
+        settingEstimateMode,
       );
       addActualMetricsToSummary(
         targetTotalSummary,
@@ -1032,6 +1074,7 @@ function buildBacktestAggregationDetail(
         actualMetrics,
         machineNextGapValue,
         machineUpperGapValue,
+        settingEstimateMode,
       );
 
       if (!matchesCondition) {
@@ -1070,8 +1113,10 @@ function buildBacktestAggregationDetail(
       const nonmatchingSummary = nonmatchingSummariesByMachine.get(summary.machineName);
       return addSummarySlotCount(
         {
-          ...finalizeSummary(summary),
-          nonmatchingSummary: nonmatchingSummary ? finalizeSummary(nonmatchingSummary) : null,
+          ...finalizeSummary(summary, settingEstimateMode),
+          nonmatchingSummary: nonmatchingSummary
+            ? finalizeSummary(nonmatchingSummary, settingEstimateMode)
+            : null,
         },
         machineSlotCountLookup,
       );
@@ -1096,8 +1141,8 @@ function buildBacktestAggregationDetail(
     summaries,
     graphPoints,
     total: {
-      ...finalizeSummary(totalSummary),
-      nonmatchingSummary: finalizeSummary(nonmatchingTotalSummary),
+      ...finalizeSummary(totalSummary, settingEstimateMode),
+      nonmatchingSummary: finalizeSummary(nonmatchingTotalSummary, settingEstimateMode),
       slotCount: calculateMachineSlotCountTotal(summaryMachineNames, machineSlotCountLookup),
     },
   };
@@ -1177,6 +1222,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
       };
   const scoreDifferenceMode = normalizeDifferenceMode(options.scoreDifferenceMode);
   const differenceMode = normalizeDifferenceMode(options.differenceMode);
+  const settingEstimateMode = normalizeSettingEstimateMode(options.settingEstimateMode);
   const eventFilters = buildBacktestEventFilters(options);
   const periodState = buildPeriodState(options, latestDate);
   const snapshotsInPeriod = (Array.isArray(snapshots) ? snapshots : []).filter((snapshot) =>
@@ -1203,6 +1249,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     gapRowsCache,
     selectionMode,
     selectionRowsCache,
+    settingEstimateMode,
   };
   const allAggregation = buildBacktestAggregationDetail(snapshotsInPeriod, aggregationOptions);
   const breakdowns = BACKTEST_BREAKDOWN_DEFINITIONS.map((definition) => ({
@@ -1266,6 +1313,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     showGraph: "on",
     scoreDifferenceMode,
     differenceMode,
+    settingEstimateMode,
     combineAimJuggler,
     combineHanabi,
     hasAimJugglerGroupOption,

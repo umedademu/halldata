@@ -44,6 +44,7 @@ import { listHuntScoreLogicOptions } from "../../../../lib/hunt-score";
 import {
   formatSettingEstimateScore,
   getSettingEstimateHighlightClass,
+  SETTING_ESTIMATE_MODE_OPTIONS,
 } from "../../../../lib/setting-estimates";
 
 export const dynamic = "force-dynamic";
@@ -192,6 +193,29 @@ function ScoreDifferenceModeOptions({ value }) {
         />
         <span>みんレポ基準</span>
       </label>
+    </div>
+  );
+}
+
+function SettingEstimateModeOptions({ value }) {
+  return (
+    <div className="metricToggleRow commonConditionModeOptions">
+      {SETTING_ESTIMATE_MODE_OPTIONS.map((option) => (
+        <label
+          key={option.value}
+          className={`metricToggleChip ${
+            value === option.value ? "metricToggleChipActive" : ""
+          }`}
+        >
+          <input
+            type="radio"
+            name="settingEstimateMode"
+            value={option.value}
+            defaultChecked={value === option.value}
+          />
+          <span>{option.label}</span>
+        </label>
+      ))}
     </div>
   );
 }
@@ -414,6 +438,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     combineHanabi: readMultiSearchParam(resolvedSearchParams?.hanabiMachineGroup),
     scoreDifferenceMode: readSingleSearchParam(resolvedSearchParams?.scoreDifferenceMode),
     differenceMode: readSingleSearchParam(resolvedSearchParams?.differenceMode),
+    settingEstimateMode: readSingleSearchParam(resolvedSearchParams?.settingEstimateMode),
     rankMin: readSingleSearchParam(resolvedSearchParams?.rankMin),
     rankMax: readSingleSearchParam(resolvedSearchParams?.rankMax),
     rankScope: readSingleSearchParam(resolvedSearchParams?.rankScope),
@@ -534,6 +559,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     selectedUpperGapRequired: detail.backtest.selectedUpperGapRequired,
     scoreDifferenceMode: detail.backtest.scoreDifferenceMode,
     differenceMode: detail.backtest.differenceMode,
+    settingEstimateMode: detail.backtest.settingEstimateMode,
     rankScope: detail.backtest.rankScope,
   });
 
@@ -747,6 +773,10 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                     <div className="commonConditionMode">
                       <p className="commonConditionSubLabel">狙い度計算の差枚基準</p>
                       <ScoreDifferenceModeOptions value={detail.backtest.scoreDifferenceMode} />
+                    </div>
+                    <div className="commonConditionMode">
+                      <p className="commonConditionSubLabel">設定推定基準</p>
+                      <SettingEstimateModeOptions value={detail.backtest.settingEstimateMode} />
                     </div>
                   </div>
                 </div>

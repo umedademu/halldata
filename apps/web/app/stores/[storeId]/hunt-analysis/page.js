@@ -32,6 +32,7 @@ import {
   selectionIncludesHanabiHuntMachineGroup,
 } from "../../../../lib/hunt-machine-display";
 import { normalizeDifferenceMode } from "../../../../lib/machine-difference";
+import { SETTING_ESTIMATE_MODE_OPTIONS, normalizeSettingEstimateMode } from "../../../../lib/setting-estimates";
 
 export const dynamic = "force-dynamic";
 
@@ -171,6 +172,30 @@ function ScopedConditionRow({
         />
         <span>必須</span>
       </label>
+    </div>
+  );
+}
+
+function SettingEstimateModeOptions({ value }) {
+  const normalizedValue = normalizeSettingEstimateMode(value);
+  return (
+    <div className="metricToggleRow">
+      {SETTING_ESTIMATE_MODE_OPTIONS.map((option) => (
+        <label
+          key={option.value}
+          className={`metricToggleChip ${
+            normalizedValue === option.value ? "metricToggleChipActive" : ""
+          }`}
+        >
+          <input
+            type="radio"
+            name="settingEstimateMode"
+            value={option.value}
+            defaultChecked={normalizedValue === option.value}
+          />
+          <span>{option.label}</span>
+        </label>
+      ))}
     </div>
   );
 }
@@ -355,6 +380,9 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const huntScoreLogicKey = await readStoredHuntScoreLogicKey(storeId);
   const differenceMode = normalizeDifferenceMode(
     readSingleSearchParam(resolvedSearchParams?.differenceMode),
+  );
+  const settingEstimateMode = normalizeSettingEstimateMode(
+    readSingleSearchParam(resolvedSearchParams?.settingEstimateMode),
   );
   const machineFilterTouched = readSingleSearchParam(resolvedSearchParams?.machineTouched) === "1";
   const requestedCombineAimJuggler = normalizeCombineAimJuggler(
@@ -618,6 +646,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
           requestedLimit,
           huntScoreLogicKey,
           differenceMode,
+          settingEstimateMode,
           {
             machineNames: requestedMachineNames,
             machineTouched: machineFilterTouched,
@@ -626,7 +655,11 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             requestedDate,
           },
         )
-      : await getHuntScoreInitialPageDetail(storeId, { differenceMode }, huntScoreLogicKey);
+      : await getHuntScoreInitialPageDetail(
+          storeId,
+          { differenceMode, settingEstimateMode },
+          huntScoreLogicKey,
+        );
   } catch (error) {
     return (
       <main className="pageStack">
@@ -736,6 +769,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     date: detail.selectedDate ?? "",
     limit: detail.limit,
     differenceMode: detail.differenceMode,
+    settingEstimateMode: detail.settingEstimateMode,
     machines: [...selectedMachineNameSet].sort(),
     combineAimJuggler,
     combineHanabi,
@@ -918,6 +952,10 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                     <span>みんレポ基準</span>
                   </label>
                 </div>
+              </div>
+              <div className="filterConditionBox rankingConditionBox">
+                <p className="filterConditionBoxTitle">設定推定基準</p>
+                <SettingEstimateModeOptions value={detail.settingEstimateMode} />
               </div>
               <div className="filterConditionBox rankingConditionBoxWide">
                 <p className="filterConditionBoxTitle">強調条件</p>

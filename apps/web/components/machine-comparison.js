@@ -50,6 +50,8 @@ import {
   getSettingEstimateScoreRange,
   getSettingEstimateDefinition,
   getSettingEstimateHighlightClass,
+  normalizeSettingEstimateMode,
+  SETTING_ESTIMATE_MODE_OPTIONS,
 } from "../lib/setting-estimates";
 import { CsvExportButton } from "./csv-export-button";
 
@@ -658,6 +660,9 @@ function readMachineComparisonOptions(storeId, defaults, options = {}) {
     huntScoreDifferenceMode: normalizeDifferenceMode(
       source.huntScoreDifferenceMode ?? source.differenceMode ?? defaults.huntScoreDifferenceMode,
     ),
+    settingEstimateMode: normalizeSettingEstimateMode(
+      source.settingEstimateMode ?? defaults.settingEstimateMode,
+    ),
     visibleMetricKeys: normalizeMachineComparisonMetricKeys(source, defaults),
     estimateOptions: options.preferDefaultEstimateOptions
       ? defaults.estimateOptions
@@ -693,6 +698,7 @@ function saveMachineComparisonOptions(storeId, options) {
         differenceMode: normalizeDifferenceMode(options.huntScoreDifferenceMode),
         displayDifferenceMode: normalizeDifferenceMode(options.displayDifferenceMode),
         huntScoreDifferenceMode: normalizeDifferenceMode(options.huntScoreDifferenceMode),
+        settingEstimateMode: normalizeSettingEstimateMode(options.settingEstimateMode),
         visibleMetricKeys: normalizeMetricKeys(options.visibleMetricKeys),
         estimateOptions: existingValue?.estimateOptions ?? options.estimateOptions,
         displayControlsOpen: Boolean(options.displayControlsOpen),
@@ -910,7 +916,7 @@ function buildDisplayedPeriodLabel(startDate, endDate) {
   return `${formatCalendarDate(startDate)} ~ ${formatCalendarDate(endDate)}`;
 }
 
-function getSettingEstimate(definition, record) {
+function getSettingEstimate(definition, record, settingEstimateMode) {
   if (!record) {
     return null;
   }
@@ -918,11 +924,12 @@ function getSettingEstimate(definition, record) {
     settingEstimateCache.set(record, new Map());
   }
   const recordCache = settingEstimateCache.get(record);
-  if (recordCache.has(definition.key)) {
-    return recordCache.get(definition.key);
+  const cacheKey = `${definition.key}:${normalizeSettingEstimateMode(settingEstimateMode)}`;
+  if (recordCache.has(cacheKey)) {
+    return recordCache.get(cacheKey);
   }
-  const estimate = calculateSettingEstimate(definition, record);
-  recordCache.set(definition.key, estimate);
+  const estimate = calculateSettingEstimate(definition, record, { mode: settingEstimateMode });
+  recordCache.set(cacheKey, estimate);
   return estimate;
 }
 
@@ -972,8 +979,8 @@ function buildWeightedAverage(parts) {
   };
 }
 
-function calculateComparisonBaseScore(definition, record, options) {
-  const dataEstimate = getSettingEstimate(definition, record);
+function calculateComparisonBaseScore(definition, record, options, settingEstimateMode) {
+  const dataEstimate = getSettingEstimate(definition, record, settingEstimateMode);
   const gameEstimate = options.gameEnabled
     ? calculateGameCountEstimate(definition, record, options)
     : null;
@@ -995,7 +1002,14 @@ function calculateComparisonBaseScore(definition, record, options) {
   return weighted?.average ?? null;
 }
 
-function buildComparisonEstimateMap(definition, slotNumbers, dateRows, eventFilters, options) {
+function buildComparisonEstimateMap(
+  definition,
+  slotNumbers,
+  dateRows,
+  eventFilters,
+  options,
+  settingEstimateMode,
+) {
   const comparisonEstimateMap = new WeakMap();
 
   if (!definition || !options.comparisonEnabled || readWeight(options.comparisonWeight) <= 0) {
@@ -1017,7 +1031,12 @@ function buildComparisonEstimateMap(definition, slotNumbers, dateRows, eventFilt
       .filter((candidate) => candidate.record)
       .map((candidate) => ({
         ...candidate,
-        baseScore: calculateComparisonBaseScore(definition, candidate.record, options),
+        baseScore: calculateComparisonBaseScore(
+          definition,
+          candidate.record,
+          options,
+          settingEstimateMode,
+        ),
       }))
       .filter((candidate) => Number.isFinite(candidate.baseScore))
       .sort((left, right) => {
@@ -1065,7 +1084,13 @@ function buildComparisonEstimateMap(definition, slotNumbers, dateRows, eventFilt
   return comparisonEstimateMap;
 }
 
-function buildCompositeSettingEstimate(definition, record, comparisonEstimateMap, options) {
+function buildCompositeSettingEstimate(
+  definition,
+  record,
+  comparisonEstimateMap,
+  options,
+  settingEstimateMode,
+) {
   if (!record) {
     return null;
   }
@@ -1075,7 +1100,7 @@ function buildCompositeSettingEstimate(definition, record, comparisonEstimateMap
     return null;
   }
 
-  const dataEstimate = getSettingEstimate(resolvedDefinition, record);
+  const dataEstimate = getSettingEstimate(resolvedDefinition, record, settingEstimateMode);
   const gameEstimate = options.gameEnabled
     ? calculateGameCountEstimate(resolvedDefinition, record, options)
     : null;
@@ -1793,6 +1818,8 @@ function HuntScoreHighlightControls({
 }
 
 function SettingEstimateControls({
+  settingEstimateMode,
+  onSettingEstimateModeChange,
   options,
   onChange,
 }) {
@@ -1805,6 +1832,33 @@ function SettingEstimateControls({
 
   return (
     <div className="estimateControlGrid">
+      <div className="estimateMethodRow">
+        <div className="estimateMethodHeader">
+          <div>
+            <p className="estimateMethodTitle">設定推定基準</p>
+          </div>
+        </div>
+        <div className="metricToggleRow">
+          {SETTING_ESTIMATE_MODE_OPTIONS.map((option) => (
+            <label
+              key={option.value}
+              className={`metricToggleChip ${
+                settingEstimateMode === option.value ? "metricToggleChipActive" : ""
+              }`}
+            >
+              <input
+                type="radio"
+                name="machineSettingEstimateMode"
+                value={option.value}
+                checked={settingEstimateMode === option.value}
+                onChange={() => onSettingEstimateModeChange(option.value)}
+              />
+              <span>{option.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
       <div className="estimateControlHeader">
         <div>
           <p className="filterControlLabel">設定推測の比重</p>
@@ -2034,6 +2088,7 @@ export function MachineComparison({
   initialDifferenceMode = DEFAULT_DIFFERENCE_MODE,
   initialDisplayDifferenceMode = DEFAULT_DIFFERENCE_MODE,
   initialDisplayDifferenceModeFromSearchParams = false,
+  initialSettingEstimateMode = undefined,
   preferDefaultEstimateOptions = false,
 }) {
   const latestAvailableDate = dateRows[0]?.date ?? "";
@@ -2069,6 +2124,7 @@ export function MachineComparison({
       eventFilters: defaultEventFilters,
       displayDifferenceMode: normalizeDifferenceMode(initialDisplayDifferenceMode),
       huntScoreDifferenceMode: normalizeDifferenceMode(initialDifferenceMode),
+      settingEstimateMode: normalizeSettingEstimateMode(initialSettingEstimateMode),
       visibleMetricKeys: DEFAULT_VISIBLE_METRIC_KEYS,
       estimateOptions: defaultEstimateOptions,
       displayControlsOpen: true,
@@ -2080,6 +2136,7 @@ export function MachineComparison({
       defaultEventFilters,
       initialDisplayDifferenceMode,
       initialDifferenceMode,
+      initialSettingEstimateMode,
       initialRangeStartDate,
       latestAvailableDate,
     ],
@@ -2094,6 +2151,9 @@ export function MachineComparison({
   );
   const [huntScoreDifferenceMode, setHuntScoreDifferenceMode] = useState(
     defaultComparisonOptions.huntScoreDifferenceMode,
+  );
+  const [settingEstimateMode, setSettingEstimateMode] = useState(
+    defaultComparisonOptions.settingEstimateMode,
   );
   const [visibleMetricKeys, setVisibleMetricKeys] = useState(defaultComparisonOptions.visibleMetricKeys);
   const [estimateOptions, setEstimateOptions] = useState(defaultComparisonOptions.estimateOptions);
@@ -2216,8 +2276,16 @@ export function MachineComparison({
         dateRows,
         eventFilters,
         estimateOptions,
-    ),
-    [dateRows, estimateOptions, eventFilters, settingEstimateDefinition, slotNumbers],
+        settingEstimateMode,
+      ),
+    [
+      dateRows,
+      estimateOptions,
+      eventFilters,
+      settingEstimateDefinition,
+      settingEstimateMode,
+      slotNumbers,
+    ],
   );
   const hasSettingEstimate = useMemo(
     () =>
@@ -2236,8 +2304,9 @@ export function MachineComparison({
         record,
         comparisonEstimateMap,
         estimateOptions,
+        settingEstimateMode,
       ),
-    [comparisonEstimateMap, estimateOptions, settingEstimateDefinition],
+    [comparisonEstimateMap, estimateOptions, settingEstimateDefinition, settingEstimateMode],
   );
   const getHuntScoreNextGapValue = useCallback(
     (record, context) =>
@@ -2307,6 +2376,7 @@ export function MachineComparison({
     setEventFilters(options.eventFilters);
     setDisplayDifferenceMode(options.displayDifferenceMode);
     setHuntScoreDifferenceMode(normalizeDifferenceMode(initialDifferenceMode));
+    setSettingEstimateMode(normalizeSettingEstimateMode(initialSettingEstimateMode));
     setVisibleMetricKeys(options.visibleMetricKeys);
     setEstimateOptions(options.estimateOptions);
     setDisplayControlsOpen(options.displayControlsOpen);
@@ -2322,6 +2392,7 @@ export function MachineComparison({
     preferDefaultEstimateOptions,
     initialDisplayDifferenceMode,
     initialDifferenceMode,
+    initialSettingEstimateMode,
     storeId,
   ]);
 
@@ -2343,6 +2414,7 @@ export function MachineComparison({
       eventFilters,
       displayDifferenceMode,
       huntScoreDifferenceMode,
+      settingEstimateMode,
       visibleMetricKeys,
       estimateOptions,
       preserveEstimateOptions: preferDefaultEstimateOptions && !estimateOptionsTouchedRef.current,
@@ -2363,6 +2435,7 @@ export function MachineComparison({
     rangeStartInput,
     recentDaysInput,
     settingControlsOpen,
+    settingEstimateMode,
     storeId,
     visibleMetricKeys,
     preferDefaultEstimateOptions,
@@ -2509,6 +2582,21 @@ export function MachineComparison({
     window.location.assign(url.toString());
   };
 
+  const updateSettingEstimateMode = (value) => {
+    const nextSettingEstimateMode = normalizeSettingEstimateMode(value);
+    setSettingEstimateMode(nextSettingEstimateMode);
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("settingEstimateMode", nextSettingEstimateMode);
+    url.searchParams.set("differenceMode", huntScoreDifferenceMode);
+    url.searchParams.set("displayDifferenceMode", displayDifferenceMode);
+    window.location.assign(url.toString());
+  };
+
   const handleRangeStartChange = (value) => {
     const nextStart = clampDateText(
       value,
@@ -2643,6 +2731,7 @@ export function MachineComparison({
           }
           const fullHighlightUrl = new URL(fullHuntScoreHighlightUrl, window.location.href);
           fullHighlightUrl.searchParams.set("differenceMode", huntScoreDifferenceMode);
+          fullHighlightUrl.searchParams.set("settingEstimateMode", settingEstimateMode);
           const response = await fetch(fullHighlightUrl.toString(), {
             method: "GET",
             headers: {
@@ -2674,6 +2763,7 @@ export function MachineComparison({
     huntScoreHighlight,
     huntScoreHighlightOptions,
     huntScoreDifferenceMode,
+    settingEstimateMode,
     machineName,
     startTransition,
   ]);
@@ -2947,6 +3037,8 @@ export function MachineComparison({
             onOpenChange={setSettingControlsOpen}
           >
             <SettingEstimateControls
+              settingEstimateMode={settingEstimateMode}
+              onSettingEstimateModeChange={updateSettingEstimateMode}
               options={estimateOptions}
               onChange={updateEstimateOptions}
             />

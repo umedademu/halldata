@@ -1,4 +1,8 @@
-import { calculateSettingEstimate, getSettingEstimateDefinition } from "./setting-estimates";
+import {
+  calculateSettingEstimate,
+  getSettingEstimateDefinition,
+  normalizeSettingEstimateMode,
+} from "./setting-estimates";
 import {
   DEFAULT_DIFFERENCE_MODE,
   normalizeDifferenceMode,
@@ -857,7 +861,12 @@ export function getHuntScoreLogicDetail(logicKey = "", storeName = "") {
   };
 }
 
-function buildRuntimeHuntScoreConfig(config, logicKey = "", differenceMode = DEFAULT_DIFFERENCE_MODE) {
+function buildRuntimeHuntScoreConfig(
+  config,
+  logicKey = "",
+  differenceMode = DEFAULT_DIFFERENCE_MODE,
+  settingEstimateMode = undefined,
+) {
   const logicDefinition =
     findHuntScoreLogicDefinition(normalizeHuntScoreLogicKey(logicKey, config?.storeNames?.[0] ?? "")) ??
     findHuntScoreLogicDefinition(DEFAULT_HUNT_SCORE_LOGIC_KEY);
@@ -869,6 +878,7 @@ function buildRuntimeHuntScoreConfig(config, logicKey = "", differenceMode = DEF
     historyWindowDays:
       logicDefinition.historyWindowDays ?? logicDefinition.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
     differenceMode: normalizeDifferenceMode(differenceMode),
+    settingEstimateMode: normalizeSettingEstimateMode(settingEstimateMode),
     scoreCalculator: logicDefinition.scoreCalculator,
   };
 }
@@ -1007,7 +1017,9 @@ function getSettingEstimateAverage(settingDefinitionCache, row, config) {
     settingDefinitionCache,
     normalizeHuntScoreMachineName(row?.machine_name, config),
   );
-  const estimate = definition ? calculateSettingEstimate(definition, row) : null;
+  const estimate = definition
+    ? calculateSettingEstimate(definition, row, { mode: config?.settingEstimateMode })
+    : null;
   return {
     estimate,
     average: estimate?.average ?? null,
@@ -6238,7 +6250,12 @@ export function buildHuntScoreSnapshots(
   if (!storeConfig || !Array.isArray(targetRows) || targetRows.length === 0) {
     return [];
   }
-  const config = buildRuntimeHuntScoreConfig(storeConfig, logicKey, differenceMode);
+  const config = buildRuntimeHuntScoreConfig(
+    storeConfig,
+    logicKey,
+    differenceMode,
+    options?.settingEstimateMode,
+  );
 
   const businessDates = buildBusinessDates(allStoreRows, targetRows);
   if (businessDates.length === 0) {
@@ -6310,12 +6327,18 @@ export function attachHuntScores(
   storeName = "",
   logicKey = "",
   differenceMode = DEFAULT_DIFFERENCE_MODE,
+  settingEstimateMode = undefined,
 ) {
   const storeConfig = resolveHuntScoreStoreConfig(storeName);
   if (!storeConfig) {
     return;
   }
-  const config = buildRuntimeHuntScoreConfig(storeConfig, logicKey, differenceMode);
+  const config = buildRuntimeHuntScoreConfig(
+    storeConfig,
+    logicKey,
+    differenceMode,
+    settingEstimateMode,
+  );
 
   const snapshots = buildHuntScoreSnapshots(
     targetRows,
@@ -6323,6 +6346,7 @@ export function attachHuntScores(
     storeName,
     logicKey,
     differenceMode,
+    { settingEstimateMode },
   );
   const huntScoreByRowKey = new Map();
 

@@ -27,6 +27,7 @@ import {
   listEquivalentMachineNames,
   withCanonicalMachineName,
 } from "./machine-difference";
+import { normalizeSettingEstimateMode } from "./setting-estimates";
 
 const PAGE_SIZE = 1000;
 const DEFAULT_FETCH_CACHE_TTL_MS = 0;
@@ -2042,6 +2043,7 @@ function buildInitialBacktestDetail(
     showGraph: "on",
     scoreDifferenceMode: normalizeDifferenceMode(defaultedOptions?.scoreDifferenceMode),
     differenceMode: normalizeDifferenceMode(defaultedOptions?.differenceMode),
+    settingEstimateMode: normalizeSettingEstimateMode(defaultedOptions?.settingEstimateMode),
     combineAimJuggler,
     combineHanabi,
     hasAimJugglerGroupOption:
@@ -2088,6 +2090,7 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
   const storeDetail = buildStaticStoreDetail(staticStore);
   const storeMachineNames = readStaticStoreRecentMachineNames(staticStore);
   const differenceMode = normalizeDifferenceMode(backtestOptions?.differenceMode);
+  const settingEstimateMode = normalizeSettingEstimateMode(backtestOptions?.settingEstimateMode);
   const machineNames = listHuntScoreTargetMachineNamesForStoreMachines(
     store.storeName,
     storeMachineNames,
@@ -2099,6 +2102,7 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
     resultRequested: false,
     huntScoreLogic,
     differenceMode,
+    settingEstimateMode,
     store: {
       id: store.id,
       storeName: store.storeName,
@@ -2295,6 +2299,7 @@ async function buildStaticMachineHuntScoreHighlight(
   staticStore,
   huntScoreLogicKey = "",
   differenceMode = undefined,
+  settingEstimateMode = undefined,
 ) {
   const store = readStaticStoreIdentity(staticStore);
   if (!isHuntScoreTargetStore(store.storeName)) {
@@ -2309,6 +2314,7 @@ async function buildStaticMachineHuntScoreHighlight(
     store.storeName,
     huntScoreLogic.key,
     normalizeDifferenceMode(differenceMode),
+    { settingEstimateMode: normalizeSettingEstimateMode(settingEstimateMode) },
   );
   return buildMachineHuntScoreHighlightDetail(
     store.storeName,
@@ -2323,6 +2329,7 @@ async function buildStaticMachineDetail(
   machineName,
   huntScoreLogicKey = "",
   differenceMode = undefined,
+  settingEstimateMode = undefined,
 ) {
   const store = readStaticStoreIdentity(staticStore);
   const requestedMachineName = canonicalMachineName(machineName);
@@ -2376,6 +2383,7 @@ async function buildStaticMachineDetail(
       store.storeName,
       huntScoreLogic.key,
       normalizeDifferenceMode(differenceMode),
+      { settingEstimateMode: normalizeSettingEstimateMode(settingEstimateMode) },
     );
     applySnapshotHuntScores(snapshots);
     huntScoreHighlight = buildMachineHuntScoreHighlightDetail(
@@ -2428,6 +2436,7 @@ async function buildStaticMachineDetail(
       ? getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName)
       : null,
     differenceMode: normalizeDifferenceMode(differenceMode),
+    settingEstimateMode: normalizeSettingEstimateMode(settingEstimateMode),
     machineName: detailMachineName,
     slotNumbers: machineDetail.slotNumbers,
     slotLabels: machineDetail.slotLabels,
@@ -2462,10 +2471,17 @@ export const getMachineDetail = cache(async function getMachineDetail(
   machineName,
   huntScoreLogicKey = "",
   differenceMode = undefined,
+  settingEstimateMode = undefined,
 ) {
   const staticStore = await readStaticStoreById(storeId);
   if (staticStore) {
-    return await buildStaticMachineDetail(staticStore, machineName, huntScoreLogicKey, differenceMode);
+    return await buildStaticMachineDetail(
+      staticStore,
+      machineName,
+      huntScoreLogicKey,
+      differenceMode,
+      settingEstimateMode,
+    );
   }
 
   return null;
@@ -2475,10 +2491,16 @@ export const getMachineHuntScoreHighlight = cache(async function getMachineHuntS
   storeId,
   huntScoreLogicKey = "",
   differenceMode = undefined,
+  settingEstimateMode = undefined,
 ) {
   const staticStore = await readStaticStoreById(storeId);
   if (staticStore) {
-    return await buildStaticMachineHuntScoreHighlight(staticStore, huntScoreLogicKey, differenceMode);
+    return await buildStaticMachineHuntScoreHighlight(
+      staticStore,
+      huntScoreLogicKey,
+      differenceMode,
+      settingEstimateMode,
+    );
   }
 
   return null;
@@ -2503,12 +2525,14 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   requestedLimit = 20,
   huntScoreLogicKey = "",
   differenceMode = undefined,
+  settingEstimateMode = undefined,
   machineOptions = {},
 ) {
   const snapshotDetail = await getHuntScoreSnapshotsForStore(
     storeId,
     huntScoreLogicKey,
     differenceMode,
+    settingEstimateMode,
     {
       ...machineOptions,
       requestedDate,
@@ -2555,6 +2579,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     dataSource: snapshotDetail.dataSource ?? "json",
     huntScoreLogic: snapshotDetail.huntScoreLogic,
     differenceMode: snapshotDetail.differenceMode,
+    settingEstimateMode: snapshotDetail.settingEstimateMode,
     store: {
       id: store.id,
       storeName: store.store_name,
@@ -2581,6 +2606,7 @@ async function getHuntScoreSnapshotsForStore(
   storeId,
   huntScoreLogicKey = "",
   differenceMode = undefined,
+  settingEstimateMode = undefined,
   machineOptions = {},
 ) {
   const staticStore = await readStaticStoreById(storeId);
@@ -2591,6 +2617,7 @@ async function getHuntScoreSnapshotsForStore(
     }
     const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, staticIdentity.storeName);
     const normalizedDifferenceMode = normalizeDifferenceMode(differenceMode);
+    const normalizedSettingEstimateMode = normalizeSettingEstimateMode(settingEstimateMode);
     const storeMachineNames = readStaticStoreRecentMachineNames(staticStore);
     const availableMachineNames = listHuntScoreTargetMachineNamesForStoreMachines(
       staticIdentity.storeName,
@@ -2635,7 +2662,9 @@ async function getHuntScoreSnapshotsForStore(
       staticIdentity.storeName,
       huntScoreLogic.key,
       normalizedDifferenceMode,
-      targetDateOnly ? { targetDate: selectedDate } : { targetDateRange },
+      targetDateOnly
+        ? { targetDate: selectedDate, settingEstimateMode: normalizedSettingEstimateMode }
+        : { targetDateRange, settingEstimateMode: normalizedSettingEstimateMode },
     );
     const snapshotMachineNames = [
       ...new Set(
@@ -2653,6 +2682,7 @@ async function getHuntScoreSnapshotsForStore(
       dataSource: "json",
       huntScoreLogic,
       differenceMode: normalizedDifferenceMode,
+      settingEstimateMode: normalizedSettingEstimateMode,
       availableMachineNames: detailAvailableMachineNames,
       rankingMachineNames,
       rankingDateOptions,
@@ -2736,18 +2766,25 @@ function buildBacktestOptionsForStore(store, backtestOptions) {
     (Array.isArray(backtestOptions?.monthDays) && backtestOptions.monthDays.length > 0);
 
   if (hasRequestedEventFilters) {
-    return backtestOptions;
+    return {
+      ...backtestOptions,
+      settingEstimateMode: normalizeSettingEstimateMode(backtestOptions?.settingEstimateMode),
+    };
   }
 
   const storeEventFilters = store?.eventFilters?.isActive ? store.eventFilters : null;
   const defaultEventFilters =
     storeEventFilters ?? HUNT_BACKTEST_DEFAULT_EVENT_FILTERS[String(store?.store_name ?? store?.storeName ?? "").trim()];
   if (!defaultEventFilters) {
-    return backtestOptions;
+    return {
+      ...backtestOptions,
+      settingEstimateMode: normalizeSettingEstimateMode(backtestOptions?.settingEstimateMode),
+    };
   }
 
   return {
     ...backtestOptions,
+    settingEstimateMode: normalizeSettingEstimateMode(backtestOptions?.settingEstimateMode),
     dayTails: defaultEventFilters.dayTails,
     zoro: defaultEventFilters.zoro,
     weekdays: defaultEventFilters.weekdays,
@@ -2979,6 +3016,7 @@ function buildCrossStoreBacktestOptions(options = {}, availableMachineNames = nu
     rankScope: scopedRankFilters.rankScope,
     scoreDifferenceMode: normalizeDifferenceMode(options?.scoreDifferenceMode),
     differenceMode: normalizeDifferenceMode(options?.differenceMode),
+    settingEstimateMode: normalizeSettingEstimateMode(options?.settingEstimateMode),
     combineAimJuggler,
     combineHanabi,
     eventFilters: {
@@ -3361,6 +3399,7 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       store.storeName,
       huntScoreLogic.key,
       backtestOptions.scoreDifferenceMode,
+      { settingEstimateMode: backtestOptions.settingEstimateMode },
     );
     const backtest = buildHuntScoreBacktestDetail(snapshots, {
       periodMode: backtestOptions.periodMode,
@@ -3396,6 +3435,7 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       rankScope: backtestOptions.rankScope,
       scoreDifferenceMode: backtestOptions.scoreDifferenceMode,
       differenceMode: backtestOptions.differenceMode,
+      settingEstimateMode: backtestOptions.settingEstimateMode,
       combineAimJuggler: backtestOptions.combineAimJuggler,
       combineHanabi: backtestOptions.combineHanabi,
       dayTails: backtestOptions.eventFilters.dayTails,
@@ -3492,6 +3532,7 @@ export async function getCrossStoreBacktestDetail(options = {}) {
     rankScope: backtestOptions.rankScope,
     scoreDifferenceMode: backtestOptions.scoreDifferenceMode,
     differenceMode: backtestOptions.differenceMode,
+    settingEstimateMode: backtestOptions.settingEstimateMode,
     combineAimJuggler: backtestOptions.combineAimJuggler,
     combineHanabi: backtestOptions.combineHanabi,
     hasAimJugglerGroupOption: true,
@@ -3521,6 +3562,7 @@ export async function getHuntScoreAnalysisPageDetail(
     storeId,
     huntScoreLogicKey,
     normalizedBacktestOptions.scoreDifferenceMode,
+    normalizedBacktestOptions.settingEstimateMode,
     normalizedBacktestOptions,
   );
 
@@ -3546,6 +3588,7 @@ export async function getHuntScoreAnalysisPageDetail(
     ...buildHuntScoreBacktestDetail(snapshots, {
       ...buildBacktestOptionsForStore(store, normalizedBacktestOptions),
       scoreDifferenceMode: normalizedBacktestOptions.scoreDifferenceMode,
+      settingEstimateMode: normalizedBacktestOptions.settingEstimateMode,
       machineSlotCounts: snapshotDetail.machineSlotCounts,
       machineOrder:
         snapshotDetail.availableMachineNames ?? listHuntScoreTargetMachineNames(store.store_name),
@@ -3566,6 +3609,7 @@ export async function getHuntScoreAnalysisPageDetail(
     dataSource: snapshotDetail.dataSource ?? "json",
     huntScoreLogic: snapshotDetail.huntScoreLogic,
     differenceMode: snapshotDetail.differenceMode,
+    settingEstimateMode: snapshotDetail.settingEstimateMode,
     store: {
       id: store.id,
       storeName: store.store_name,

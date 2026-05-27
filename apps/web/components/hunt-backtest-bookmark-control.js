@@ -67,6 +67,7 @@ function buildBookmarkFromForm(form, storeId, allMachineCount, name) {
     selectedUpperGapRequired: readFormValues(formData, "selectedUpperGapRequired"),
     scoreDifferenceMode: readFormValue(formData, "scoreDifferenceMode"),
     differenceMode: readFormValue(formData, "differenceMode"),
+    settingEstimateMode: readFormValue(formData, "settingEstimateMode"),
     dailySelectionMode: readFormValues(formData, "dailySelectionMode"),
   };
 }
@@ -157,6 +158,7 @@ function applyBookmarkToForm(form, bookmark) {
     selectedUpperGapMax: bookmark.selectedUpperGapMax,
     scoreDifferenceMode: bookmark.scoreDifferenceMode,
     differenceMode: bookmark.differenceMode,
+    settingEstimateMode: bookmark.settingEstimateMode,
   };
   const multiValueFields = {
     machine: bookmark.machineNames,

@@ -21,9 +21,16 @@ async function readStoredHuntScoreLogicKey(storeId) {
 export async function GET(request, { params }) {
   const resolvedParams = await params;
   const storeId = String(resolvedParams.storeId ?? "").trim();
-  const differenceMode = new URL(request.url).searchParams.get("differenceMode") ?? undefined;
+  const searchParams = new URL(request.url).searchParams;
+  const differenceMode = searchParams.get("differenceMode") ?? undefined;
+  const settingEstimateMode = searchParams.get("settingEstimateMode") ?? undefined;
   const huntScoreLogicKey = await readStoredHuntScoreLogicKey(storeId);
-  const highlight = await getMachineHuntScoreHighlight(storeId, huntScoreLogicKey, differenceMode);
+  const highlight = await getMachineHuntScoreHighlight(
+    storeId,
+    huntScoreLogicKey,
+    differenceMode,
+    settingEstimateMode,
+  );
 
   if (!highlight) {
     return NextResponse.json({ error: "狙い度データがありません。" }, { status: 404 });
