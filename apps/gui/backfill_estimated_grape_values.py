@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from estimated_grape import is_aim_juggler_ex_machine
+from estimated_grape import is_estimated_grape_machine
 from r2_storage import R2JsonStorage, normalize_r2_key
 from web_data_export import ESTIMATED_GRAPE_FIELD_NAMES, add_estimated_grape_fields
 
@@ -162,7 +162,7 @@ def collect_store_machine_file_targets(
             continue
         if machine_name_filter and machine_name_filter not in machine_name:
             continue
-        if not is_aim_juggler_ex_machine(machine_name):
+        if not is_estimated_grape_machine(machine_name):
             continue
         targets.append(MachineFileTarget(store_id, store_name, machine_name, machine_data_file))
     return StoreTargetsResult(targets)
@@ -265,7 +265,7 @@ def backfill_r2_web_data(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="R2上のWeb表示用JSONへアイム系の推定ブドウを追加します。",
+        description="R2上のWeb表示用JSONへ対象ジャグラー系の推定ブドウを追加します。",
     )
     parser.add_argument("--workers", type=int, default=12, help="同時に処理する機種ファイル数")
     parser.add_argument("--dry-run", action="store_true", help="R2へ保存せず、変更対象の件数だけ確認します")

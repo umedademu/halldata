@@ -8,12 +8,15 @@ import {
 let cachedRules = null;
 
 export const DEFAULT_DIFFERENCE_MODE = "estimated";
-const AIM_POST_ANNOUNCEMENT_BONUS_RATIO = 0.75;
 const MINREPO_ONE_BET_GAME_FACTOR = 1 / 3;
 const ONE_BET_GRAPE_DENOMINATOR = 10.3;
 const ONE_BET_REPLAY_DENOMINATOR = 7.3;
 const ONE_BET_GRAPE_PAYOUT = 15;
 const ONE_BET_REPLAY_PAYOUT = 1;
+const ONE_BET_TARGET_MACHINE_RATIOS = [
+  { keyword: "アイムジャグラーex", postAnnouncementBonusRatio: 0.75 },
+  { keyword: "ゴーゴージャグラー3", postAnnouncementBonusRatio: 1 },
+];
 
 export function normalizeDifferenceMode(value) {
   return value === "bonus" || value === "estimated" || value === "minrepo"
@@ -185,22 +188,26 @@ function calculateBonusPayoutAndCount(rule, row) {
   return hasBonusRule ? { totalPayout, totalCount } : null;
 }
 
-function isAimJugglerExRule(rule) {
+function readOneBetBonusRatio(rule) {
   const candidateTexts = [
     rule?.canonical_name,
     ...(Array.isArray(rule?.machine_names) ? rule.machine_names : []),
     ...(Array.isArray(rule?.match_keywords) ? rule.match_keywords : []),
   ];
-  return candidateTexts.some((value) =>
+  const normalizedTexts = candidateTexts.map((value) =>
     String(value ?? "")
       .normalize("NFKC")
       .replace(/[\s\u3000・･_-]/gu, "")
       .toLowerCase()
-      .includes("アイムジャグラーex"),
+  );
+  return (
+    ONE_BET_TARGET_MACHINE_RATIOS.find((entry) =>
+      normalizedTexts.some((text) => text.includes(entry.keyword)),
+    )?.postAnnouncementBonusRatio ?? null
   );
 }
 
-function calculateAimOneBetGames(totalBonusCount) {
+function calculateOneBetGames(totalBonusCount, postAnnouncementBonusRatio) {
   if (!Number.isFinite(totalBonusCount) || totalBonusCount <= 0) {
     return 0;
   }
@@ -209,7 +216,7 @@ function calculateAimOneBetGames(totalBonusCount) {
   if (settleProbability <= 0) {
     return 0;
   }
-  return (totalBonusCount * AIM_POST_ANNOUNCEMENT_BONUS_RATIO) / settleProbability;
+  return (totalBonusCount * postAnnouncementBonusRatio) / settleProbability;
 }
 
 function calculateCoinHoldDifferenceValue({
@@ -230,8 +237,9 @@ function calculateCoinHoldDifferenceValue({
     return null;
   }
 
-  if (isAimJugglerExRule(rule)) {
-    const oneBetGames = calculateAimOneBetGames(totalBonusCount);
+  const oneBetBonusRatio = readOneBetBonusRatio(rule);
+  if (oneBetBonusRatio !== null) {
+    const oneBetGames = calculateOneBetGames(totalBonusCount, oneBetBonusRatio);
     const normalGamesCount = gamesCount - oneBetGames * MINREPO_ONE_BET_GAME_FACTOR;
     if (normalGamesCount <= 0) {
       return null;

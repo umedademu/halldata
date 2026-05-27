@@ -1,6 +1,6 @@
 import settingEstimatesPayload from "../config/setting_estimates.json" with { type: "json" };
 
-export const SETTING_ESTIMATE_VALUE_VERSION = 5;
+export const SETTING_ESTIMATE_VALUE_VERSION = 6;
 export const SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 1;
 export const SETTING_ESTIMATE_MODE_BONUS = "bonus";
 export const SETTING_ESTIMATE_MODE_GRAPE = "grape";
@@ -9,16 +9,19 @@ export const SETTING_ESTIMATE_MODE_OPTIONS = [
   { value: SETTING_ESTIMATE_MODE_BONUS, label: "ボーナス確率のみ" },
   { value: SETTING_ESTIMATE_MODE_GRAPE, label: "ブドウ確率を加味" },
 ];
-const PREVIOUS_SETTING_ESTIMATE_VALUE_VERSION = 4;
-const UPDATED_SETTING_ESTIMATE_KEYS = new Set(["neoim-juggler-ex"]);
-const GRAPE_SETTING_ESTIMATE_KEYS = new Set(["neoim-juggler-ex"]);
-const AIM_REPLAY_DENOMINATOR = 7.30;
-const AIM_REPLAY_PAYOUT = 3;
-const AIM_GRAPE_PAYOUT = 8;
-const AIM_CHERRY_PAYOUT = 2;
-const AIM_BB_PAYOUT = 252;
-const AIM_RB_PAYOUT = 96;
-const AIM_POST_ANNOUNCEMENT_BONUS_RATIO = 0.75;
+const SETTING_ESTIMATE_OUTDATED_KEYS_BY_VERSION = new Map([
+  [4, new Set(["neoim-juggler-ex", "gogo-juggler"])],
+  [5, new Set(["gogo-juggler"])],
+]);
+const GRAPE_SETTING_ESTIMATE_KEYS = new Set(["neoim-juggler-ex", "gogo-juggler"]);
+const GRAPE_ESTIMATE_MACHINE_SPECS = new Map([
+  ["neoim-juggler-ex", { bbPayout: 252, rbPayout: 96, postAnnouncementBonusRatio: 0.75 }],
+  ["gogo-juggler", { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 1 }],
+]);
+const GRAPE_ESTIMATE_REPLAY_DENOMINATOR = 7.30;
+const GRAPE_ESTIMATE_REPLAY_PAYOUT = 3;
+const GRAPE_ESTIMATE_GRAPE_PAYOUT = 8;
+const GRAPE_ESTIMATE_CHERRY_PAYOUT = 2;
 const MINREPO_ONE_BET_GAME_FACTOR = 1 / 3;
 const ONE_BET_GRAPE_DENOMINATOR = 10.3;
 const ONE_BET_REPLAY_DENOMINATOR = 7.3;
@@ -157,10 +160,8 @@ export function isCurrentSettingEstimateVersion(definition, version) {
   if (version === SETTING_ESTIMATE_VALUE_VERSION) {
     return true;
   }
-  return (
-    version === PREVIOUS_SETTING_ESTIMATE_VALUE_VERSION &&
-    !UPDATED_SETTING_ESTIMATE_KEYS.has(String(definition?.key ?? ""))
-  );
+  const outdatedKeys = SETTING_ESTIMATE_OUTDATED_KEYS_BY_VERSION.get(version);
+  return Boolean(outdatedKeys && !outdatedKeys.has(String(definition?.key ?? "")));
 }
 
 function readPrecomputedSettingEstimate(definition, record, mode = SETTING_ESTIMATE_MODE_BONUS) {
@@ -264,7 +265,12 @@ function interpolateSettingRate(definition, settingAverage, rateKey) {
   return lastRow[rateKey];
 }
 
-function calculateAimGrapeObservation(definition, record) {
+function calculateGrapeObservation(definition, record) {
+  const machineSpec = GRAPE_ESTIMATE_MACHINE_SPECS.get(String(definition?.key ?? ""));
+  if (!machineSpec) {
+    return null;
+  }
+
   const games = readNumber(record?.games_count);
   const bbCount = readNumber(record?.bb_count);
   const rbCount = readNumber(record?.rb_count);
@@ -295,7 +301,7 @@ function calculateAimGrapeObservation(definition, record) {
   }
 
   const oneBetGames =
-    (bonusCount * AIM_POST_ANNOUNCEMENT_BONUS_RATIO) / oneBetEndProbability;
+    (bonusCount * machineSpec.postAnnouncementBonusRatio) / oneBetEndProbability;
   const minrepoOneBetGames = oneBetGames * MINREPO_ONE_BET_GAME_FACTOR;
   const normalGames = games - minrepoOneBetGames;
   if (!Number.isFinite(normalGames) || normalGames <= 0) {
@@ -303,17 +309,18 @@ function calculateAimGrapeObservation(definition, record) {
   }
 
   const totalInvestment = games * 3;
-  const totalBonusPayout = bbCount * AIM_BB_PAYOUT + rbCount * AIM_RB_PAYOUT;
+  const totalBonusPayout = bbCount * machineSpec.bbPayout + rbCount * machineSpec.rbPayout;
   const totalSmallPayout = differenceValue + totalInvestment - totalBonusPayout;
-  const replayPayout = (normalGames / AIM_REPLAY_DENOMINATOR) * AIM_REPLAY_PAYOUT;
-  const cherryPayout = normalGames * cherryProbability * AIM_CHERRY_PAYOUT;
+  const replayPayout =
+    (normalGames / GRAPE_ESTIMATE_REPLAY_DENOMINATOR) * GRAPE_ESTIMATE_REPLAY_PAYOUT;
+  const cherryPayout = normalGames * cherryProbability * GRAPE_ESTIMATE_CHERRY_PAYOUT;
   const oneBetGrapePayout =
     (oneBetGames / ONE_BET_GRAPE_DENOMINATOR) * ONE_BET_GRAPE_PAYOUT;
   const oneBetReplayPayout =
     (oneBetGames / ONE_BET_REPLAY_DENOMINATOR) * ONE_BET_REPLAY_PAYOUT;
   const grapePayout =
     totalSmallPayout - replayPayout - cherryPayout - oneBetGrapePayout - oneBetReplayPayout;
-  const grapeCount = grapePayout / AIM_GRAPE_PAYOUT;
+  const grapeCount = grapePayout / GRAPE_ESTIMATE_GRAPE_PAYOUT;
 
   return normalizeGrapeObservation(grapeCount, normalGames, "calculated");
 }
@@ -326,7 +333,7 @@ export function readGrapeSettingEstimateObservation(definition, record) {
     return null;
   }
 
-  return readStoredGrapeObservation(record) ?? calculateAimGrapeObservation(definition, record);
+  return readStoredGrapeObservation(record) ?? calculateGrapeObservation(definition, record);
 }
 
 export function getSettingEstimateScoreRange(definition) {

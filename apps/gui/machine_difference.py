@@ -13,12 +13,15 @@ from setting_estimates import calculate_setting_estimate, get_setting_estimate_d
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 MACHINE_DIFFERENCE_RULES_PATH = ROOT_DIR / "config" / "machine_difference_rules.json"
-AIM_POST_ANNOUNCEMENT_BONUS_RATIO = Decimal("0.75")
 MINREPO_ONE_BET_GAME_FACTOR = Decimal("0.3333333333333333333333333333")
 ONE_BET_GRAPE_DENOMINATOR = Decimal("10.3")
 ONE_BET_REPLAY_DENOMINATOR = Decimal("7.3")
 ONE_BET_GRAPE_PAYOUT = Decimal("15")
 ONE_BET_REPLAY_PAYOUT = Decimal("1")
+ONE_BET_TARGET_MACHINE_RATIOS = (
+    ("アイムジャグラーex", Decimal("0.75")),
+    ("ゴーゴージャグラー3", Decimal("1")),
+)
 
 
 @lru_cache(maxsize=1)
@@ -127,8 +130,9 @@ def _calculate_coin_hold_difference_value(
     if coin_hold <= 0:
         return None
 
-    if _is_aim_juggler_ex_rule(rule):
-        one_bet_games = _calculate_aim_one_bet_games(total_bonus_count)
+    one_bet_bonus_ratio = _read_one_bet_bonus_ratio(rule)
+    if one_bet_bonus_ratio is not None:
+        one_bet_games = _calculate_one_bet_games(total_bonus_count, one_bet_bonus_ratio)
         normal_games_count = games_count - one_bet_games * MINREPO_ONE_BET_GAME_FACTOR
         if normal_games_count <= 0:
             return None
@@ -222,7 +226,7 @@ def _calculate_bonus_payout_and_count(
     return total_bonus_payout, total_bonus_count
 
 
-def _calculate_aim_one_bet_games(total_bonus_count: Decimal) -> Decimal:
+def _calculate_one_bet_games(total_bonus_count: Decimal, post_announcement_bonus_ratio: Decimal) -> Decimal:
     if total_bonus_count <= 0:
         return Decimal("0")
     settle_probability = (
@@ -230,16 +234,20 @@ def _calculate_aim_one_bet_games(total_bonus_count: Decimal) -> Decimal:
     )
     if settle_probability <= 0:
         return Decimal("0")
-    return total_bonus_count * AIM_POST_ANNOUNCEMENT_BONUS_RATIO / settle_probability
+    return total_bonus_count * post_announcement_bonus_ratio / settle_probability
 
 
-def _is_aim_juggler_ex_rule(rule: dict[str, Any]) -> bool:
+def _read_one_bet_bonus_ratio(rule: dict[str, Any]) -> Decimal | None:
     candidate_texts = [
         str(rule.get("canonical_name") or ""),
         *[str(value) for value in rule.get("machine_names", [])],
         *[str(value) for value in rule.get("match_keywords", [])],
     ]
-    return any("アイムジャグラーex" in _normalize_machine_name(text) for text in candidate_texts)
+    normalized_texts = [_normalize_machine_name(text) for text in candidate_texts]
+    for keyword, ratio in ONE_BET_TARGET_MACHINE_RATIOS:
+        if any(keyword in normalized_text for normalized_text in normalized_texts):
+            return ratio
+    return None
 
 
 def _read_setting_coin_hold_rows(rule: dict[str, Any]) -> list[tuple[Decimal, Decimal]]:

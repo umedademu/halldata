@@ -1397,6 +1397,18 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertEqual(difference_value, -667)
 
+    def test_calculate_machine_difference_value_for_gogo_juggler_uses_one_bet(self) -> None:
+        difference_value = calculate_machine_difference_value(
+            "ゴーゴージャグラー３",
+            {
+                "G数": "8000",
+                "BB": "30",
+                "RB": "15",
+            },
+        )
+
+        self.assertEqual(difference_value, -1294)
+
     def test_calculate_estimated_coin_hold_difference_value_for_registered_machine(self) -> None:
         difference_value = calculate_estimated_coin_hold_difference_value(
             "マイジャグラーV",
@@ -2270,6 +2282,23 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertAlmostEqual(estimated_grape["denominator"], 6.2684)
         self.assertAlmostEqual(estimated_grape["probability"], 0.15953)
 
+    def test_calculate_estimated_grape_value_for_gogo_juggler(self) -> None:
+        estimated_grape = calculate_estimated_grape_value(
+            "ゴーゴージャグラー３",
+            {
+                "games_count": 9283,
+                "difference_value": 4096,
+                "bb_count": 50,
+                "rb_count": 38,
+            },
+            setting_average=6,
+        )
+
+        self.assertIsNotNone(estimated_grape)
+        self.assertAlmostEqual(estimated_grape["count"], 1468.881)
+        self.assertAlmostEqual(estimated_grape["denominator"], 6.2937)
+        self.assertAlmostEqual(estimated_grape["probability"], 0.15888893)
+
     def test_web_export_adds_estimated_grape_values_for_aim_juggler(self) -> None:
         record = safe_record(
             {
@@ -2289,6 +2318,29 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(record["estimated_grape_source"], "minrepo")
         self.assertEqual(record["estimated_grape_version"], ESTIMATED_GRAPE_VALUE_VERSION)
         self.assertAlmostEqual(record["setting_estimate_grape_average"], 4.46170837843226)
+        self.assertEqual(record["setting_estimate_grape_status"], "confirmed")
+        self.assertEqual(record["setting_estimate_grape_source"], "minrepo")
+        self.assertEqual(record["setting_estimate_grape_version"], SETTING_ESTIMATE_GRAPE_VALUE_VERSION)
+
+    def test_web_export_adds_estimated_grape_values_for_gogo_juggler(self) -> None:
+        record = safe_record(
+            {
+                "target_date": "2026-05-12",
+                "slot_number": "821",
+                "machine_name": "ゴーゴージャグラー３",
+                "difference_value": 4096,
+                "games_count": 9283,
+                "bb_count": 50,
+                "rb_count": 38,
+            }
+        )
+
+        self.assertIsNotNone(record)
+        self.assertAlmostEqual(record["estimated_grape_denominator"], 6.2928)
+        self.assertEqual(record["estimated_grape_status"], "confirmed")
+        self.assertEqual(record["estimated_grape_source"], "minrepo")
+        self.assertEqual(record["estimated_grape_version"], ESTIMATED_GRAPE_VALUE_VERSION)
+        self.assertAlmostEqual(record["setting_estimate_grape_average"], 3.655883288321904)
         self.assertEqual(record["setting_estimate_grape_status"], "confirmed")
         self.assertEqual(record["setting_estimate_grape_source"], "minrepo")
         self.assertEqual(record["setting_estimate_grape_version"], SETTING_ESTIMATE_GRAPE_VALUE_VERSION)

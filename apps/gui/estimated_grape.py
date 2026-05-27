@@ -13,28 +13,65 @@ REPLAY_DENOMINATOR = 7.30
 REPLAY_PAYOUT = 3
 GRAPE_PAYOUT = 8
 CHERRY_PAYOUT = 2
-BB_PAYOUT = 252
-RB_PAYOUT = 96
-AIM_POST_ANNOUNCEMENT_BONUS_RATIO = 0.75
 MINREPO_ONE_BET_GAME_FACTOR = 1 / 3
 ONE_BET_GRAPE_DENOMINATOR = 10.3
 ONE_BET_REPLAY_DENOMINATOR = 7.3
 ONE_BET_GRAPE_PAYOUT = 15
 ONE_BET_REPLAY_PAYOUT = 1
 
-CHERRY_DENOMINATORS_BY_SETTING = (
-    (1.0, 36.36),
-    (2.0, 35.92),
-    (3.0, 36.00),
-    (4.0, 36.35),
-    (5.0, 35.92),
-    (6.0, 35.73),
+ESTIMATED_GRAPE_MACHINE_SPECS = (
+    {
+        "key": "aim-juggler-ex",
+        "keywords": ("アイムジャグラーEX",),
+        "bb_payout": 252,
+        "rb_payout": 96,
+        "post_announcement_bonus_ratio": 0.75,
+        "cherry_denominators_by_setting": (
+            (1.0, 36.36),
+            (2.0, 35.92),
+            (3.0, 36.00),
+            (4.0, 36.35),
+            (5.0, 35.92),
+            (6.0, 35.73),
+        ),
+    },
+    {
+        "key": "gogo-juggler-3",
+        "keywords": ("ゴーゴージャグラー3",),
+        "bb_payout": 240,
+        "rb_payout": 96,
+        "post_announcement_bonus_ratio": 1.0,
+        "cherry_denominators_by_setting": (
+            (1.0, 33.40),
+            (2.0, 33.30),
+            (3.0, 33.20),
+            (4.0, 33.10),
+            (5.0, 32.90),
+            (6.0, 32.80),
+        ),
+    },
 )
 
 
-def is_aim_juggler_ex_machine(machine_name: Any) -> bool:
+def find_estimated_grape_machine_spec(machine_name: Any) -> dict[str, Any] | None:
     normalized_name = _normalize_machine_name(machine_name)
-    return "アイムジャグラーEX" in normalized_name
+    if not normalized_name:
+        return None
+
+    for spec in ESTIMATED_GRAPE_MACHINE_SPECS:
+        for keyword in spec["keywords"]:
+            if _normalize_machine_name(keyword) in normalized_name:
+                return spec
+    return None
+
+
+def is_estimated_grape_machine(machine_name: Any) -> bool:
+    return find_estimated_grape_machine_spec(machine_name) is not None
+
+
+def is_aim_juggler_ex_machine(machine_name: Any) -> bool:
+    spec = find_estimated_grape_machine_spec(machine_name)
+    return spec is not None and spec["key"] == "aim-juggler-ex"
 
 
 def calculate_estimated_grape_value(
@@ -43,7 +80,8 @@ def calculate_estimated_grape_value(
     *,
     setting_average: float | int | None = None,
 ) -> dict[str, float] | None:
-    if not is_aim_juggler_ex_machine(machine_name):
+    machine_spec = find_estimated_grape_machine_spec(machine_name)
+    if machine_spec is None:
         return None
 
     games_count = _read_number(row_values, "G数", "games_count")
@@ -66,18 +104,24 @@ def calculate_estimated_grape_value(
         setting_estimate = calculate_setting_estimate(definition, row_values) if definition else None
         setting_average = setting_estimate.get("average") if setting_estimate else None
     setting_average_number = _read_raw_number(setting_average)
-    cherry_probability = _interpolate_setting_probability(setting_average_number)
+    cherry_probability = _interpolate_setting_probability(
+        setting_average_number,
+        machine_spec["cherry_denominators_by_setting"],
+    )
     if cherry_probability is None:
         return None
 
-    one_bet_games = _calculate_one_bet_games(bb_count + rb_count)
+    one_bet_games = _calculate_one_bet_games(
+        bb_count + rb_count,
+        machine_spec["post_announcement_bonus_ratio"],
+    )
     minrepo_one_bet_games = one_bet_games * MINREPO_ONE_BET_GAME_FACTOR
     normal_games_count = games_count - minrepo_one_bet_games
     if not math.isfinite(normal_games_count) or normal_games_count <= 0:
         return None
 
     total_investment = games_count * 3
-    total_bonus_payout = bb_count * BB_PAYOUT + rb_count * RB_PAYOUT
+    total_bonus_payout = bb_count * machine_spec["bb_payout"] + rb_count * machine_spec["rb_payout"]
     total_small_payout = difference_value + total_investment - total_bonus_payout
     replay_payout = normal_games_count * REPLAY_PAYOUT / REPLAY_DENOMINATOR
     cherry_payout = normal_games_count * CHERRY_PAYOUT * cherry_probability
@@ -111,22 +155,25 @@ def calculate_estimated_grape_value(
     }
 
 
-def _calculate_one_bet_games(bonus_count: float) -> float:
+def _calculate_one_bet_games(bonus_count: float, post_announcement_bonus_ratio: float) -> float:
     if bonus_count <= 0:
         return 0.0
 
-    one_bet_start_count = bonus_count * AIM_POST_ANNOUNCEMENT_BONUS_RATIO
+    one_bet_start_count = bonus_count * post_announcement_bonus_ratio
     settle_probability = 1 - (1 / ONE_BET_GRAPE_DENOMINATOR) - (1 / ONE_BET_REPLAY_DENOMINATOR)
     if settle_probability <= 0:
         return 0.0
     return one_bet_start_count / settle_probability
 
 
-def _interpolate_setting_probability(setting_average: float | None) -> float | None:
+def _interpolate_setting_probability(
+    setting_average: float | None,
+    denominator_rows: tuple[tuple[float, float], ...],
+) -> float | None:
     if setting_average is None or not math.isfinite(setting_average):
         return None
 
-    rows = [(setting, 1 / denominator) for setting, denominator in CHERRY_DENOMINATORS_BY_SETTING]
+    rows = [(setting, 1 / denominator) for setting, denominator in denominator_rows]
     first_setting, first_probability = rows[0]
     last_setting, last_probability = rows[-1]
     if setting_average <= first_setting:
