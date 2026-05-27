@@ -7,6 +7,11 @@ const UPDATED_SETTING_ESTIMATE_KEYS = new Set(["neoim-juggler-ex"]);
 const SETTING_ESTIMATE_DEFINITIONS = Array.isArray(settingEstimatesPayload?.setting_estimates)
   ? settingEstimatesPayload.setting_estimates
   : [];
+const RATE_TABLE_EXTRA_COLUMNS = [
+  { field: "grapeText", label: "ブドウ確率" },
+  { field: "cherryText", label: "チェリー確率" },
+  { field: "payoutRateText", label: "機械割" },
+];
 
 function parseRateText(value) {
   const denominator = Number(String(value).replace("1/", ""));
@@ -64,17 +69,25 @@ function buildDefinition(definition) {
       combined: bb + rb,
     };
   });
+  const rateTable = settingRates.map((row) => ({
+    setting: row.label,
+    bb: row.bbText,
+    rb: row.rbText,
+    combined: formatRateFromProbability(row.combined),
+    grapeText: row.grapeText,
+    cherryText: row.cherryText,
+    payoutRateText: row.payoutRateText,
+  }));
+  const rateTableExtraColumns = RATE_TABLE_EXTRA_COLUMNS.filter((column) =>
+    rateTable.some((row) => row[column.field]),
+  );
 
   return {
     ...definition,
     normalizedMatchNames: [definition.displayName, ...definition.matchNames].map(normalizeMachineName),
     settingRates,
-    rateTable: settingRates.map((row) => ({
-      setting: row.label,
-      bb: row.bbText,
-      rb: row.rbText,
-      combined: formatRateFromProbability(row.combined),
-    })),
+    rateTable,
+    rateTableExtraColumns,
   };
 }
 

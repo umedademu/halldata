@@ -11,37 +11,55 @@
           "setting": 1,
           "label": "設定1",
           "bbText": "1/273.1",
-          "rbText": "1/439.8"
+          "rbText": "1/439.8",
+          "grapeText": "1/6.06",
+          "cherryText": "1/36.36",
+          "payoutRateText": "97.6%"
         },
         {
           "setting": 2,
           "label": "設定2",
           "bbText": "1/269.7",
-          "rbText": "1/399.6"
+          "rbText": "1/399.6",
+          "grapeText": "1/6.04",
+          "cherryText": "1/35.92",
+          "payoutRateText": "98.9%"
         },
         {
           "setting": 3,
           "label": "設定3",
           "bbText": "1/269.7",
-          "rbText": "1/331.0"
+          "rbText": "1/331.0",
+          "grapeText": "1/6.04",
+          "cherryText": "1/36.00",
+          "payoutRateText": "100.5%"
         },
         {
           "setting": 4,
           "label": "設定4",
           "bbText": "1/259.0",
-          "rbText": "1/315.1"
+          "rbText": "1/315.1",
+          "grapeText": "1/6.04",
+          "cherryText": "1/36.35",
+          "payoutRateText": "102.3%"
         },
         {
           "setting": 5,
           "label": "設定5",
           "bbText": "1/259.0",
-          "rbText": "1/255.0"
+          "rbText": "1/255.0",
+          "grapeText": "1/6.02",
+          "cherryText": "1/35.92",
+          "payoutRateText": "104.8%"
         },
         {
           "setting": 6,
           "label": "設定6",
           "bbText": "1/255.0",
-          "rbText": "1/255.0"
+          "rbText": "1/255.0",
+          "grapeText": "1/5.80",
+          "cherryText": "1/35.73",
+          "payoutRateText": "107.0%"
         }
       ]
     },

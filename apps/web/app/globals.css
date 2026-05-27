@@ -2593,6 +2593,7 @@ a {
 }
 
 .neoSpecTable {
+  min-width: 720px;
   width: 100%;
 }
 

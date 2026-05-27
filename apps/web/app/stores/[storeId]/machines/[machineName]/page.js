@@ -167,6 +167,9 @@ export default async function MachineDetailPage({ params, searchParams }) {
                   <th>BIG確率</th>
                   <th>REG確率</th>
                   <th>合成確率</th>
+                  {settingEstimateDefinition.rateTableExtraColumns.map((column) => (
+                    <th key={column.field}>{column.label}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -176,6 +179,9 @@ export default async function MachineDetailPage({ params, searchParams }) {
                     <td>{row.bb}</td>
                     <td>{row.rb}</td>
                     <td>{row.combined}</td>
+                    {settingEstimateDefinition.rateTableExtraColumns.map((column) => (
+                      <td key={column.field}>{row[column.field] ?? "-"}</td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
