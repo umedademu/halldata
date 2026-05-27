@@ -11,11 +11,11 @@ import unicodedata
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 SETTING_ESTIMATES_PATH = ROOT_DIR / "config" / "setting_estimates.json"
-SETTING_ESTIMATE_VALUE_VERSION = 6
+SETTING_ESTIMATE_VALUE_VERSION = 7
 SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 1
 SETTING_ESTIMATE_MODE_BONUS = "bonus"
 SETTING_ESTIMATE_MODE_GRAPE = "grape"
-GRAPE_SETTING_ESTIMATE_KEYS = {"neoim-juggler-ex", "gogo-juggler"}
+GRAPE_SETTING_ESTIMATE_KEYS = {"neoim-juggler-ex", "gogo-juggler", "my-juggler-v"}
 
 
 @lru_cache(maxsize=1)

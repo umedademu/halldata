@@ -16,6 +16,7 @@ const ONE_BET_REPLAY_PAYOUT = 1;
 const ONE_BET_TARGET_MACHINE_RATIOS = [
   { keyword: "アイムジャグラーex", postAnnouncementBonusRatio: 0.75 },
   { keyword: "ゴーゴージャグラー3", postAnnouncementBonusRatio: 1 },
+  { keyword: "マイジャグラー", postAnnouncementBonusRatio: 0.75 },
 ];
 
 export function normalizeDifferenceMode(value) {

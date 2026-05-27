@@ -21,6 +21,7 @@ ONE_BET_REPLAY_PAYOUT = Decimal("1")
 ONE_BET_TARGET_MACHINE_RATIOS = (
     ("アイムジャグラーex", Decimal("0.75")),
     ("ゴーゴージャグラー3", Decimal("1")),
+    ("マイジャグラー", Decimal("0.75")),
 )
 
 

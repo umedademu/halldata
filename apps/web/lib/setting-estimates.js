@@ -1,6 +1,6 @@
 import settingEstimatesPayload from "../config/setting_estimates.json" with { type: "json" };
 
-export const SETTING_ESTIMATE_VALUE_VERSION = 6;
+export const SETTING_ESTIMATE_VALUE_VERSION = 7;
 export const SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 1;
 export const SETTING_ESTIMATE_MODE_BONUS = "bonus";
 export const SETTING_ESTIMATE_MODE_GRAPE = "grape";
@@ -10,13 +10,15 @@ export const SETTING_ESTIMATE_MODE_OPTIONS = [
   { value: SETTING_ESTIMATE_MODE_GRAPE, label: "ブドウ確率を加味" },
 ];
 const SETTING_ESTIMATE_OUTDATED_KEYS_BY_VERSION = new Map([
-  [4, new Set(["neoim-juggler-ex", "gogo-juggler"])],
-  [5, new Set(["gogo-juggler"])],
+  [4, new Set(["neoim-juggler-ex", "gogo-juggler", "my-juggler-v"])],
+  [5, new Set(["gogo-juggler", "my-juggler-v"])],
+  [6, new Set(["my-juggler-v"])],
 ]);
-const GRAPE_SETTING_ESTIMATE_KEYS = new Set(["neoim-juggler-ex", "gogo-juggler"]);
+const GRAPE_SETTING_ESTIMATE_KEYS = new Set(["neoim-juggler-ex", "gogo-juggler", "my-juggler-v"]);
 const GRAPE_ESTIMATE_MACHINE_SPECS = new Map([
   ["neoim-juggler-ex", { bbPayout: 252, rbPayout: 96, postAnnouncementBonusRatio: 0.75 }],
   ["gogo-juggler", { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 1 }],
+  ["my-juggler-v", { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 0.75 }],
 ]);
 const GRAPE_ESTIMATE_REPLAY_DENOMINATOR = 7.30;
 const GRAPE_ESTIMATE_REPLAY_PAYOUT = 3;

@@ -50,6 +50,21 @@ ESTIMATED_GRAPE_MACHINE_SPECS = (
             (6.0, 32.80),
         ),
     },
+    {
+        "key": "my-juggler-v",
+        "keywords": ("マイジャグラー",),
+        "bb_payout": 240,
+        "rb_payout": 96,
+        "post_announcement_bonus_ratio": 0.75,
+        "cherry_denominators_by_setting": (
+            (1.0, 38.43),
+            (2.0, 38.29),
+            (3.0, 37.04),
+            (4.0, 35.89),
+            (5.0, 35.82),
+            (6.0, 35.79),
+        ),
+    },
 )
 
 
