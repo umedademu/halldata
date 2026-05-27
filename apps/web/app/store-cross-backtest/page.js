@@ -73,6 +73,10 @@ function readProbabilitySortValue(value) {
   return match ? Number(match[1]) : "";
 }
 
+function formatBacktestGrapeDenominator(value) {
+  return Number.isFinite(value) ? value.toFixed(2) : "-";
+}
+
 function readSortNumber(value) {
   return Number.isFinite(value) ? value : "";
 }
@@ -207,7 +211,7 @@ function SettingEstimateModeOptions({ value }) {
   );
 }
 
-function CrossStoreNonmatchingRow({ parentKey, summary }) {
+function CrossStoreNonmatchingRow({ parentKey, summary, showGrapeColumn = false }) {
   if (!hasNonmatchingSummary(summary)) {
     return null;
   }
@@ -246,6 +250,9 @@ function CrossStoreNonmatchingRow({ parentKey, summary }) {
       <BacktestMetricCell sortValue={readProbabilitySortValue(summary.bbProbability)}>{summary.bbProbability ?? "-"}</BacktestMetricCell>
       <BacktestMetricCell sortValue={readProbabilitySortValue(summary.rbProbability)}>{summary.rbProbability ?? "-"}</BacktestMetricCell>
       <BacktestMetricCell sortValue={readProbabilitySortValue(summary.combinedProbability)}>{summary.combinedProbability ?? "-"}</BacktestMetricCell>
+      {showGrapeColumn ? (
+        <BacktestMetricCell sortValue={readSortNumber(summary.grapeDenominator)}>{formatBacktestGrapeDenominator(summary.grapeDenominator)}</BacktestMetricCell>
+      ) : null}
     </tr>
   );
 }
@@ -254,7 +261,7 @@ function formatCrossStoreRankingMetricLabel(rankingMetric) {
   return rankingMetric === "differenceTotal" ? "合計差枚" : "平均機械割";
 }
 
-function StoreRankingTable({ rows, rankingMetric }) {
+function StoreRankingTable({ rows, rankingMetric, showGrapeColumn = false }) {
   const tableId = "cross-store-backtest-results";
   const rankingMetricLabel = formatCrossStoreRankingMetricLabel(rankingMetric);
 
@@ -316,6 +323,11 @@ function StoreRankingTable({ rows, rankingMetric }) {
               <SortableTableHeader columnIndex={26} initialDirection="asc">
                 合成
               </SortableTableHeader>
+              {showGrapeColumn ? (
+                <SortableTableHeader columnIndex={27} initialDirection="asc">
+                  ブドウ
+                </SortableTableHeader>
+              ) : null}
             </tr>
           </thead>
           <tbody>
@@ -381,8 +393,11 @@ function StoreRankingTable({ rows, rankingMetric }) {
                 <BacktestMetricCell sortValue={readProbabilitySortValue(row.bbProbability)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="BB率" nonmatchingValue={nonmatchingSummary?.bbProbability ?? "-"}>{row.bbProbability ?? "-"}</BacktestMetricCell>
                 <BacktestMetricCell sortValue={readProbabilitySortValue(row.rbProbability)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="RB率" nonmatchingValue={nonmatchingSummary?.rbProbability ?? "-"}>{row.rbProbability ?? "-"}</BacktestMetricCell>
                 <BacktestMetricCell sortValue={readProbabilitySortValue(row.combinedProbability)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="合成" nonmatchingValue={nonmatchingSummary?.combinedProbability ?? "-"}>{row.combinedProbability ?? "-"}</BacktestMetricCell>
+                {showGrapeColumn ? (
+                  <BacktestMetricCell sortValue={readSortNumber(row.grapeDenominator)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="ブドウ" nonmatchingValue={formatBacktestGrapeDenominator(nonmatchingSummary?.grapeDenominator)}>{formatBacktestGrapeDenominator(row.grapeDenominator)}</BacktestMetricCell>
+                ) : null}
               </tr>
-              <CrossStoreNonmatchingRow parentKey={rowKey} summary={nonmatchingSummary} />
+              <CrossStoreNonmatchingRow parentKey={rowKey} summary={nonmatchingSummary} showGrapeColumn={showGrapeColumn} />
               </Fragment>
               );
             })}
@@ -960,6 +975,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
             <StoreRankingTable
               rows={detail.rows}
               rankingMetric={detail.rankingMetric}
+              showGrapeColumn={detail.showGrapeColumn}
             />
           </>
         ) : (

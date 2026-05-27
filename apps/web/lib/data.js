@@ -3329,6 +3329,7 @@ function buildCrossStoreBacktestRow(store, backtest, slotCount) {
     bbProbability: total.bbProbability,
     rbProbability: total.rbProbability,
     combinedProbability: total.combinedProbability,
+    grapeDenominator: total.grapeDenominator,
   };
 }
 
@@ -3545,6 +3546,7 @@ export async function getCrossStoreBacktestDetail(options = {}) {
     scoreDifferenceMode: backtestOptions.scoreDifferenceMode,
     differenceMode: backtestOptions.differenceMode,
     settingEstimateMode: backtestOptions.settingEstimateMode,
+    showGrapeColumn: backtestOptions.selectedMachineNames.some(isHuntJugglerMachine),
     combineAimJuggler: backtestOptions.combineAimJuggler,
     combineHanabi: backtestOptions.combineHanabi,
     hasAimJugglerGroupOption: true,

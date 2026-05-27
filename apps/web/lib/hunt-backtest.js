@@ -19,6 +19,7 @@ import {
   normalizeDifferenceMode as normalizeMachineDifferenceMode,
   selectDifferenceValue,
 } from "./machine-difference";
+import { isHuntJugglerMachine } from "./hunt-machine-display";
 import {
   calculateSettingEstimate,
   getSettingEstimateDefinition,
@@ -665,6 +666,28 @@ function calculateAggregateSettingAverage(summary, settingEstimateMode) {
   ) / weightedGamesTotal;
 }
 
+function calculateGrapeDenominator(summary) {
+  if (
+    !Number.isFinite(summary.grapeGameTotal) ||
+    !Number.isFinite(summary.grapeCountTotal) ||
+    summary.grapeGameTotal <= 0 ||
+    summary.grapeCountTotal <= 0
+  ) {
+    return null;
+  }
+  return summary.grapeGameTotal / summary.grapeCountTotal;
+}
+
+function addGrapeMetrics(summary, machineName, nextRecord) {
+  const definition = getSettingEstimateDefinition(machineName);
+  const grapeObservation = readGrapeSettingEstimateObservation(definition, nextRecord);
+  if (!grapeObservation) {
+    return;
+  }
+  summary.grapeCountTotal += grapeObservation.successCount;
+  summary.grapeGameTotal += grapeObservation.totalCount;
+}
+
 function buildEmptySummary(machineName = "総計") {
   return {
     machineName,
@@ -683,6 +706,9 @@ function buildEmptySummary(machineName = "総計") {
     gamesTotal: 0,
     bbTotal: 0,
     rbTotal: 0,
+    grapeCountTotal: 0,
+    grapeGameTotal: 0,
+    grapeDenominator: null,
     payoutRate: null,
     bbProbability: null,
     rbProbability: null,
@@ -724,6 +750,7 @@ function finalizeSummary(summary, settingEstimateMode) {
     bbProbability: formatProbability(summary.gamesTotal, summary.bbTotal),
     rbProbability: formatProbability(summary.gamesTotal, summary.rbTotal),
     combinedProbability: formatProbability(summary.gamesTotal, summary.bbTotal + summary.rbTotal),
+    grapeDenominator: calculateGrapeDenominator(summary),
     averageSetting: calculateAggregateSettingAverage(summary, settingEstimateMode),
     setting35PlusRate: calculateAverage(summary.setting35PlusCount * 100, summary.settingEstimateSampleCount),
     setting4PlusRate: calculateAverage(summary.setting4PlusCount * 100, summary.settingEstimateSampleCount),
@@ -761,6 +788,7 @@ function addActualMetricsToSummary(
   }
   addAggregateSettingMetrics(summary, machineName, actualMetrics, row.nextRecord, settingEstimateMode);
   addSettingEstimateRateMetrics(summary, machineName, row.nextRecord, settingEstimateMode);
+  addGrapeMetrics(summary, machineName, row.nextRecord);
 }
 
 function buildSnapshotGapRows(
@@ -1223,6 +1251,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const scoreDifferenceMode = normalizeDifferenceMode(options.scoreDifferenceMode);
   const differenceMode = normalizeDifferenceMode(options.differenceMode);
   const settingEstimateMode = normalizeSettingEstimateMode(options.settingEstimateMode);
+  const showGrapeColumn = selectedMachineNames.some(isHuntJugglerMachine);
   const eventFilters = buildBacktestEventFilters(options);
   const periodState = buildPeriodState(options, latestDate);
   const snapshotsInPeriod = (Array.isArray(snapshots) ? snapshots : []).filter((snapshot) =>
@@ -1314,6 +1343,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     scoreDifferenceMode,
     differenceMode,
     settingEstimateMode,
+    showGrapeColumn,
     combineAimJuggler,
     combineHanabi,
     hasAimJugglerGroupOption,

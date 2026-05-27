@@ -86,6 +86,10 @@ function readProbabilitySortValue(value) {
   return match ? Number(match[1]) : "";
 }
 
+function formatBacktestGrapeDenominator(value) {
+  return Number.isFinite(value) ? value.toFixed(2) : "-";
+}
+
 function readSortNumber(value) {
   return Number.isFinite(value) ? value : "";
 }
@@ -220,7 +224,7 @@ function SettingEstimateModeOptions({ value }) {
   );
 }
 
-function BacktestNonmatchingSummaryRow({ parentKey, summary, label }) {
+function BacktestNonmatchingSummaryRow({ parentKey, summary, label, showGrapeColumn = false }) {
   if (!hasNonmatchingSummary(summary)) {
     return null;
   }
@@ -247,6 +251,9 @@ function BacktestNonmatchingSummaryRow({ parentKey, summary, label }) {
       <BacktestMetricCell sortValue={readProbabilitySortValue(summary.bbProbability)}>{summary.bbProbability ?? "-"}</BacktestMetricCell>
       <BacktestMetricCell sortValue={readProbabilitySortValue(summary.rbProbability)}>{summary.rbProbability ?? "-"}</BacktestMetricCell>
       <BacktestMetricCell sortValue={readProbabilitySortValue(summary.combinedProbability)}>{summary.combinedProbability ?? "-"}</BacktestMetricCell>
+      {showGrapeColumn ? (
+        <BacktestMetricCell sortValue={readSortNumber(summary.grapeDenominator)}>{formatBacktestGrapeDenominator(summary.grapeDenominator)}</BacktestMetricCell>
+      ) : null}
       <BacktestMetricCell sortValue={readSortNumber(summary.payoutRate)}>{formatPercent(summary.payoutRate)}</BacktestMetricCell>
       <BacktestMetricCell sortValue={readSortNumber(summary.averageSetting)}>{formatSettingEstimateScore(summary.averageSetting)}</BacktestMetricCell>
       <BacktestMetricCell sortValue={readSortNumber(summary.setting35PlusRate)}>{formatPercent(summary.setting35PlusRate)}</BacktestMetricCell>
@@ -257,9 +264,10 @@ function BacktestNonmatchingSummaryRow({ parentKey, summary, label }) {
   );
 }
 
-function BacktestResultTable({ title, backtest, tableId, storeId }) {
+function BacktestResultTable({ title, backtest, tableId, storeId, showGrapeColumn = false }) {
   const totalNonmatchingSummary = backtest.total.nonmatchingSummary;
   const totalRowKey = `${tableId}:total`;
+  const grapeColumnOffset = showGrapeColumn ? 1 : 0;
 
   return (
     <section className="tablePanel directoryPanel">
@@ -302,12 +310,15 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
               <SortableTableHeader columnIndex={14} initialDirection="asc">
                 合成
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={15}>機械割</SortableTableHeader>
-              <SortableTableHeader columnIndex={16}>平均設定</SortableTableHeader>
-              <SortableTableHeader columnIndex={17}>推定3.5+</SortableTableHeader>
-              <SortableTableHeader columnIndex={18}>推定4.0+</SortableTableHeader>
-              <SortableTableHeader columnIndex={19}>推定4.5+</SortableTableHeader>
-              <SortableTableHeader columnIndex={20}>推定5.0+</SortableTableHeader>
+              {showGrapeColumn ? (
+                <SortableTableHeader columnIndex={15} initialDirection="asc">ブドウ</SortableTableHeader>
+              ) : null}
+              <SortableTableHeader columnIndex={15 + grapeColumnOffset}>機械割</SortableTableHeader>
+              <SortableTableHeader columnIndex={16 + grapeColumnOffset}>平均設定</SortableTableHeader>
+              <SortableTableHeader columnIndex={17 + grapeColumnOffset}>推定3.5+</SortableTableHeader>
+              <SortableTableHeader columnIndex={18 + grapeColumnOffset}>推定4.0+</SortableTableHeader>
+              <SortableTableHeader columnIndex={19 + grapeColumnOffset}>推定4.5+</SortableTableHeader>
+              <SortableTableHeader columnIndex={20 + grapeColumnOffset}>推定5.0+</SortableTableHeader>
             </tr>
           </thead>
           <tbody>
@@ -332,6 +343,9 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
               <BacktestMetricCell sortValue={readProbabilitySortValue(backtest.total.bbProbability)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="BB率" nonmatchingValue={totalNonmatchingSummary?.bbProbability ?? "-"}>{backtest.total.bbProbability ?? "-"}</BacktestMetricCell>
               <BacktestMetricCell sortValue={readProbabilitySortValue(backtest.total.rbProbability)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="RB率" nonmatchingValue={totalNonmatchingSummary?.rbProbability ?? "-"}>{backtest.total.rbProbability ?? "-"}</BacktestMetricCell>
               <BacktestMetricCell sortValue={readProbabilitySortValue(backtest.total.combinedProbability)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="合成" nonmatchingValue={totalNonmatchingSummary?.combinedProbability ?? "-"}>{backtest.total.combinedProbability ?? "-"}</BacktestMetricCell>
+              {showGrapeColumn ? (
+                <BacktestMetricCell sortValue={readSortNumber(backtest.total.grapeDenominator)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="ブドウ" nonmatchingValue={formatBacktestGrapeDenominator(totalNonmatchingSummary?.grapeDenominator)}>{formatBacktestGrapeDenominator(backtest.total.grapeDenominator)}</BacktestMetricCell>
+              ) : null}
               <BacktestMetricCell sortValue={readSortNumber(backtest.total.payoutRate)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="機械割" nonmatchingValue={formatPercent(totalNonmatchingSummary?.payoutRate)}>{formatPercent(backtest.total.payoutRate)}</BacktestMetricCell>
               <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageSetting)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="平均設定" nonmatchingValue={formatSettingEstimateScore(totalNonmatchingSummary?.averageSetting)}>{formatSettingEstimateScore(backtest.total.averageSetting)}</BacktestMetricCell>
               <BacktestMetricCell sortValue={readSortNumber(backtest.total.setting35PlusRate)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="推定3.5+" nonmatchingValue={formatPercent(totalNonmatchingSummary?.setting35PlusRate)}>{formatPercent(backtest.total.setting35PlusRate)}</BacktestMetricCell>
@@ -343,6 +357,7 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
               parentKey={totalRowKey}
               summary={totalNonmatchingSummary}
               label="非該当台 合計"
+              showGrapeColumn={showGrapeColumn}
             />
             {backtest.summaries.map((summary) => {
               const shortMachineName = getHuntMachineShortName(summary.machineName);
@@ -383,6 +398,9 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
                   <BacktestMetricCell sortValue={readProbabilitySortValue(summary.bbProbability)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="BB率" nonmatchingValue={nonmatchingSummary?.bbProbability ?? "-"}>{summary.bbProbability ?? "-"}</BacktestMetricCell>
                   <BacktestMetricCell sortValue={readProbabilitySortValue(summary.rbProbability)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="RB率" nonmatchingValue={nonmatchingSummary?.rbProbability ?? "-"}>{summary.rbProbability ?? "-"}</BacktestMetricCell>
                   <BacktestMetricCell sortValue={readProbabilitySortValue(summary.combinedProbability)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="合成" nonmatchingValue={nonmatchingSummary?.combinedProbability ?? "-"}>{summary.combinedProbability ?? "-"}</BacktestMetricCell>
+                  {showGrapeColumn ? (
+                    <BacktestMetricCell sortValue={readSortNumber(summary.grapeDenominator)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="ブドウ" nonmatchingValue={formatBacktestGrapeDenominator(nonmatchingSummary?.grapeDenominator)}>{formatBacktestGrapeDenominator(summary.grapeDenominator)}</BacktestMetricCell>
+                  ) : null}
                   <BacktestMetricCell sortValue={readSortNumber(summary.payoutRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="機械割" nonmatchingValue={formatPercent(nonmatchingSummary?.payoutRate)}>{formatPercent(summary.payoutRate)}</BacktestMetricCell>
                   <BacktestMetricCell sortValue={readSortNumber(summary.averageSetting)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="平均設定" nonmatchingValue={formatSettingEstimateScore(nonmatchingSummary?.averageSetting)}>{formatSettingEstimateScore(summary.averageSetting)}</BacktestMetricCell>
                   <BacktestMetricCell sortValue={readSortNumber(summary.setting35PlusRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="推定3.5+" nonmatchingValue={formatPercent(nonmatchingSummary?.setting35PlusRate)}>{formatPercent(summary.setting35PlusRate)}</BacktestMetricCell>
@@ -394,6 +412,7 @@ function BacktestResultTable({ title, backtest, tableId, storeId }) {
                   parentKey={rowKey}
                   summary={nonmatchingSummary}
                   label="非該当台"
+                  showGrapeColumn={showGrapeColumn}
                 />
                 </Fragment>
               );
@@ -978,6 +997,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       backtest={breakdown}
                       tableId={`store-backtest-${breakdown.key}-${index}`}
                       storeId={detail.store.id}
+                      showGrapeColumn={detail.backtest.showGrapeColumn}
                     />
                   ))
                 ) : (
