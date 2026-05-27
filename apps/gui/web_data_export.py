@@ -19,6 +19,8 @@ from machine_difference import (
 )
 from r2_storage import R2JsonStorage
 from setting_estimates import (
+    SETTING_ESTIMATE_GRAPE_VALUE_VERSION,
+    SETTING_ESTIMATE_MODE_GRAPE,
     SETTING_ESTIMATE_VALUE_VERSION,
     calculate_setting_estimate,
     get_setting_estimate_definition,
@@ -41,6 +43,12 @@ ESTIMATED_GRAPE_FIELD_NAMES = (
     "estimated_grape_status",
     "estimated_grape_source",
     "estimated_grape_version",
+)
+SETTING_ESTIMATE_GRAPE_FIELD_NAMES = (
+    "setting_estimate_grape_average",
+    "setting_estimate_grape_status",
+    "setting_estimate_grape_source",
+    "setting_estimate_grape_version",
 )
 
 
@@ -198,6 +206,33 @@ def add_estimated_grape_fields(
     record["estimated_grape_version"] = ESTIMATED_GRAPE_VALUE_VERSION
 
 
+def add_grape_setting_estimate_fields(
+    record: dict[str, Any],
+    machine_name: str,
+    data_source: str,
+) -> None:
+    definition = get_setting_estimate_definition(machine_name)
+    setting_estimate = (
+        calculate_setting_estimate(definition, record, mode=SETTING_ESTIMATE_MODE_GRAPE)
+        if definition
+        else None
+    )
+    if not setting_estimate or setting_estimate.get("source_mode") != SETTING_ESTIMATE_MODE_GRAPE:
+        return
+
+    setting_average = setting_estimate.get("average")
+    if not isinstance(setting_average, (int, float)):
+        return
+
+    is_site7 = data_source.casefold() == DATA_SOURCE_SITE7
+    status = SETTING_ESTIMATE_STATUS_PROVISIONAL if is_site7 else SETTING_ESTIMATE_STATUS_CONFIRMED
+    source = data_source if data_source else "minrepo"
+    record["setting_estimate_grape_average"] = setting_average
+    record["setting_estimate_grape_status"] = status
+    record["setting_estimate_grape_source"] = source
+    record["setting_estimate_grape_version"] = SETTING_ESTIMATE_GRAPE_VALUE_VERSION
+
+
 def read_prefecture_name(value: dict[str, Any]) -> str:
     return read_text(
         value.get("prefectureName")
@@ -350,6 +385,7 @@ def safe_record(
         return None
     add_setting_estimate_fields(record, machine_name, data_source)
     add_estimated_grape_fields(record, machine_name, data_source)
+    add_grape_setting_estimate_fields(record, machine_name, data_source)
     if store_id:
         record["store_id"] = store_id
     return record

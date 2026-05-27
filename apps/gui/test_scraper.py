@@ -81,7 +81,7 @@ from site7_scraper import (
     site7_store_is_known_unavailable,
 )
 from site7_scraper import build_site7_transition_wait_milliseconds
-from setting_estimates import SETTING_ESTIMATE_VALUE_VERSION
+from setting_estimates import SETTING_ESTIMATE_GRAPE_VALUE_VERSION, SETTING_ESTIMATE_VALUE_VERSION
 from web_data_export import (
     StoreSource,
     build_store_id,
@@ -2228,6 +2228,7 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(record["setting_estimate_status"], "provisional")
         self.assertEqual(record["estimated_difference_status"], "provisional")
         self.assertNotIn("estimated_grape_denominator", record)
+        self.assertNotIn("setting_estimate_grape_average", record)
 
     def test_web_export_adds_setting_estimate_values(self) -> None:
         record = safe_record(
@@ -2246,6 +2247,7 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(record["setting_estimate_status"], "confirmed")
         self.assertEqual(record["setting_estimate_source"], "minrepo")
         self.assertEqual(record["setting_estimate_version"], SETTING_ESTIMATE_VALUE_VERSION)
+        self.assertNotIn("setting_estimate_grape_average", record)
         self.assertEqual(record["estimated_difference_value"], 823)
         self.assertEqual(record["estimated_difference_status"], "confirmed")
         self.assertEqual(record["estimated_difference_source"], "minrepo")
@@ -2286,6 +2288,10 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(record["estimated_grape_status"], "confirmed")
         self.assertEqual(record["estimated_grape_source"], "minrepo")
         self.assertEqual(record["estimated_grape_version"], ESTIMATED_GRAPE_VALUE_VERSION)
+        self.assertAlmostEqual(record["setting_estimate_grape_average"], 4.46170837843226)
+        self.assertEqual(record["setting_estimate_grape_status"], "confirmed")
+        self.assertEqual(record["setting_estimate_grape_source"], "minrepo")
+        self.assertEqual(record["setting_estimate_grape_version"], SETTING_ESTIMATE_GRAPE_VALUE_VERSION)
 
     def test_local_snapshot_export_uses_snapshot_saved_at_for_site7_records(self) -> None:
         with TemporaryDirectory() as temp_dir:

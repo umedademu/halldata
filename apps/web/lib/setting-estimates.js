@@ -1,6 +1,7 @@
 import settingEstimatesPayload from "../config/setting_estimates.json" with { type: "json" };
 
 export const SETTING_ESTIMATE_VALUE_VERSION = 5;
+export const SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 1;
 export const SETTING_ESTIMATE_MODE_BONUS = "bonus";
 export const SETTING_ESTIMATE_MODE_GRAPE = "grape";
 export const DEFAULT_SETTING_ESTIMATE_MODE = SETTING_ESTIMATE_MODE_BONUS;
@@ -162,10 +163,24 @@ export function isCurrentSettingEstimateVersion(definition, version) {
   );
 }
 
-function readPrecomputedSettingEstimate(definition, record) {
-  const average = readNumber(record?.setting_estimate_average);
-  const version = readNumber(record?.setting_estimate_version);
-  if (!Number.isFinite(average) || !isCurrentSettingEstimateVersion(definition, version)) {
+function readPrecomputedSettingEstimate(definition, record, mode = SETTING_ESTIMATE_MODE_BONUS) {
+  const normalizedMode = normalizeSettingEstimateMode(mode);
+  const average = readNumber(
+    normalizedMode === SETTING_ESTIMATE_MODE_GRAPE
+      ? record?.setting_estimate_grape_average
+      : record?.setting_estimate_average,
+  );
+  const version = readNumber(
+    normalizedMode === SETTING_ESTIMATE_MODE_GRAPE
+      ? record?.setting_estimate_grape_version
+      : record?.setting_estimate_version,
+  );
+  const isCurrentVersion =
+    normalizedMode === SETTING_ESTIMATE_MODE_GRAPE
+      ? version === SETTING_ESTIMATE_GRAPE_VALUE_VERSION
+      : isCurrentSettingEstimateVersion(definition, version);
+
+  if (!Number.isFinite(average) || !isCurrentVersion) {
     return null;
   }
 
@@ -173,6 +188,8 @@ function readPrecomputedSettingEstimate(definition, record) {
     average,
     probabilities: [],
     precomputed: true,
+    mode: normalizedMode,
+    sourceMode: normalizedMode,
   };
 }
 
@@ -511,6 +528,10 @@ export function calculateSettingEstimate(definition, record, options = {}) {
   );
 
   if (mode === SETTING_ESTIMATE_MODE_GRAPE) {
+    const precomputedEstimate = readPrecomputedSettingEstimate(definition, record, SETTING_ESTIMATE_MODE_GRAPE);
+    if (precomputedEstimate) {
+      return precomputedEstimate;
+    }
     return calculateGrapeSettingEstimate(definition, record) ??
       calculateBonusSettingEstimate(definition, record);
   }

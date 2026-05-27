@@ -11,7 +11,13 @@ from typing import Any
 
 from r2_storage import R2JsonStorage, normalize_r2_key
 from setting_estimates import get_setting_estimate_definition
-from web_data_export import add_setting_estimate_fields
+from web_data_export import (
+    ESTIMATED_GRAPE_FIELD_NAMES,
+    SETTING_ESTIMATE_GRAPE_FIELD_NAMES,
+    add_estimated_grape_fields,
+    add_grape_setting_estimate_fields,
+    add_setting_estimate_fields,
+)
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -24,6 +30,8 @@ SETTING_ESTIMATE_FIELD_NAMES = (
     "estimated_difference_status",
     "estimated_difference_source",
     "estimated_difference_version",
+    *ESTIMATED_GRAPE_FIELD_NAMES,
+    *SETTING_ESTIMATE_GRAPE_FIELD_NAMES,
 )
 
 
@@ -69,7 +77,11 @@ def backfill_record(machine_name: str, record: dict[str, Any]) -> tuple[bool, bo
 
     data_source = str(record.get("data_source") or "").strip()
     add_setting_estimate_fields(record, machine_name, data_source)
-    updated = record.get("setting_estimate_average") not in (None, "")
+    add_estimated_grape_fields(record, machine_name, data_source)
+    add_grape_setting_estimate_fields(record, machine_name, data_source)
+    updated = record.get("setting_estimate_average") not in (None, "") or record.get(
+        "setting_estimate_grape_average",
+    ) not in (None, "")
     after_values = {field_name: record.get(field_name) for field_name in SETTING_ESTIMATE_FIELD_NAMES}
     changed = before_values != after_values
     return updated, changed
@@ -275,7 +287,7 @@ def backfill_r2_web_data(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="R2上のWeb表示用JSONへ推定設定と推定設定基準差枚を追加します。",
+        description="R2上のWeb表示用JSONへ推定設定、推定ブドウ、ブドウ加味推定設定、推定設定基準差枚を追加します。",
     )
     parser.add_argument("--workers", type=int, default=12, help="同時に処理する機種ファイル数")
     parser.add_argument("--dry-run", action="store_true", help="R2へ保存せず、変更対象の件数だけ確認します")
