@@ -1230,6 +1230,14 @@ function formatEstimatedGrapeDenominator(value) {
   if (!Number.isFinite(denominator) || denominator <= 0) {
     return "-";
   }
+  return denominator.toFixed(2);
+}
+
+function formatEstimatedGrapeRate(value) {
+  const denominator = Number(value);
+  if (!Number.isFinite(denominator) || denominator <= 0) {
+    return "-";
+  }
   return `1/${denominator.toFixed(2)}`;
 }
 
@@ -1277,7 +1285,7 @@ const ESTIMATED_GRAPE_METRIC = {
   key: ESTIMATED_GRAPE_METRIC_KEY,
   label: "ブドウ",
   render: formatEstimatedGrapeDenominator,
-  csvRender: formatEstimatedGrapeDenominator,
+  csvRender: formatEstimatedGrapeRate,
   columnClass: "matrixColumnWide",
 };
 
