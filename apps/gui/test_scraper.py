@@ -2264,9 +2264,9 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         self.assertIsNotNone(estimated_grape)
-        self.assertAlmostEqual(estimated_grape["count"], 1488.665)
-        self.assertAlmostEqual(estimated_grape["denominator"], 6.223)
-        self.assertAlmostEqual(estimated_grape["probability"], 0.16069356)
+        self.assertAlmostEqual(estimated_grape["count"], 1473.356)
+        self.assertAlmostEqual(estimated_grape["denominator"], 6.2684)
+        self.assertAlmostEqual(estimated_grape["probability"], 0.15953)
 
     def test_web_export_adds_estimated_grape_values_for_aim_juggler(self) -> None:
         record = safe_record(
@@ -2282,7 +2282,7 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         self.assertIsNotNone(record)
-        self.assertAlmostEqual(record["estimated_grape_denominator"], 6.2218)
+        self.assertAlmostEqual(record["estimated_grape_denominator"], 6.2672)
         self.assertEqual(record["estimated_grape_status"], "confirmed")
         self.assertEqual(record["estimated_grape_source"], "minrepo")
         self.assertEqual(record["estimated_grape_version"], ESTIMATED_GRAPE_VALUE_VERSION)

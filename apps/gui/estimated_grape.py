@@ -8,13 +8,19 @@ import unicodedata
 from setting_estimates import calculate_setting_estimate, get_setting_estimate_definition
 
 
-ESTIMATED_GRAPE_VALUE_VERSION = 1
+ESTIMATED_GRAPE_VALUE_VERSION = 2
 REPLAY_DENOMINATOR = 7.30
 REPLAY_PAYOUT = 3
 GRAPE_PAYOUT = 8
 CHERRY_PAYOUT = 2
 BB_PAYOUT = 252
 RB_PAYOUT = 96
+AIM_POST_ANNOUNCEMENT_BONUS_RATIO = 0.75
+MINREPO_ONE_BET_GAME_FACTOR = 1 / 3
+ONE_BET_GRAPE_DENOMINATOR = 10.3
+ONE_BET_REPLAY_DENOMINATOR = 7.3
+ONE_BET_GRAPE_PAYOUT = 15
+ONE_BET_REPLAY_PAYOUT = 1
 
 CHERRY_DENOMINATORS_BY_SETTING = (
     (1.0, 36.36),
@@ -64,18 +70,32 @@ def calculate_estimated_grape_value(
     if cherry_probability is None:
         return None
 
+    one_bet_games = _calculate_one_bet_games(bb_count + rb_count)
+    minrepo_one_bet_games = one_bet_games * MINREPO_ONE_BET_GAME_FACTOR
+    normal_games_count = games_count - minrepo_one_bet_games
+    if not math.isfinite(normal_games_count) or normal_games_count <= 0:
+        return None
+
     total_investment = games_count * 3
     total_bonus_payout = bb_count * BB_PAYOUT + rb_count * RB_PAYOUT
     total_small_payout = difference_value + total_investment - total_bonus_payout
-    replay_payout = games_count * REPLAY_PAYOUT / REPLAY_DENOMINATOR
-    cherry_payout = games_count * CHERRY_PAYOUT * cherry_probability
-    grape_payout = total_small_payout - replay_payout - cherry_payout
+    replay_payout = normal_games_count * REPLAY_PAYOUT / REPLAY_DENOMINATOR
+    cherry_payout = normal_games_count * CHERRY_PAYOUT * cherry_probability
+    one_bet_grape_payout = one_bet_games * ONE_BET_GRAPE_PAYOUT / ONE_BET_GRAPE_DENOMINATOR
+    one_bet_replay_payout = one_bet_games * ONE_BET_REPLAY_PAYOUT / ONE_BET_REPLAY_DENOMINATOR
+    grape_payout = (
+        total_small_payout
+        - replay_payout
+        - cherry_payout
+        - one_bet_grape_payout
+        - one_bet_replay_payout
+    )
     grape_count = grape_payout / GRAPE_PAYOUT
     if not math.isfinite(grape_count) or grape_count <= 0:
         return None
 
-    grape_denominator = games_count / grape_count
-    grape_probability = grape_count / games_count
+    grape_denominator = normal_games_count / grape_count
+    grape_probability = grape_count / normal_games_count
     if (
         not math.isfinite(grape_denominator)
         or not math.isfinite(grape_probability)
@@ -89,6 +109,17 @@ def calculate_estimated_grape_value(
         "denominator": round(grape_denominator, 4),
         "probability": round(grape_probability, 8),
     }
+
+
+def _calculate_one_bet_games(bonus_count: float) -> float:
+    if bonus_count <= 0:
+        return 0.0
+
+    one_bet_start_count = bonus_count * AIM_POST_ANNOUNCEMENT_BONUS_RATIO
+    settle_probability = 1 - (1 / ONE_BET_GRAPE_DENOMINATOR) - (1 / ONE_BET_REPLAY_DENOMINATOR)
+    if settle_probability <= 0:
+        return 0.0
+    return one_bet_start_count / settle_probability
 
 
 def _interpolate_setting_probability(setting_average: float | None) -> float | None:
