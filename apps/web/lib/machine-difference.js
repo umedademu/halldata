@@ -11,7 +11,7 @@ export const DEFAULT_DIFFERENCE_MODE = "estimated";
 const MINREPO_ONE_BET_GAME_FACTOR = 1 / 3;
 const ONE_BET_GRAPE_DENOMINATOR = 10.3;
 const ONE_BET_REPLAY_DENOMINATOR = 7.3;
-const ONE_BET_GRAPE_PAYOUT = 15;
+const ONE_BET_GRAPE_PAYOUT = 8;
 const ONE_BET_REPLAY_PAYOUT = 1;
 const ONE_BET_TARGET_MACHINE_RATIOS = [
   { keyword: "アイムジャグラーex", postAnnouncementBonusRatio: 0.75 },

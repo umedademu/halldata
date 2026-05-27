@@ -1,7 +1,7 @@
 import settingEstimatesPayload from "../config/setting_estimates.json" with { type: "json" };
 
-export const SETTING_ESTIMATE_VALUE_VERSION = 7;
-export const SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 1;
+export const SETTING_ESTIMATE_VALUE_VERSION = 8;
+export const SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 2;
 export const SETTING_ESTIMATE_MODE_BONUS = "bonus";
 export const SETTING_ESTIMATE_MODE_GRAPE = "grape";
 export const DEFAULT_SETTING_ESTIMATE_MODE = SETTING_ESTIMATE_MODE_BONUS;
@@ -13,6 +13,7 @@ const SETTING_ESTIMATE_OUTDATED_KEYS_BY_VERSION = new Map([
   [4, new Set(["neoim-juggler-ex", "gogo-juggler", "my-juggler-v"])],
   [5, new Set(["gogo-juggler", "my-juggler-v"])],
   [6, new Set(["my-juggler-v"])],
+  [7, new Set(["neoim-juggler-ex", "gogo-juggler", "my-juggler-v"])],
 ]);
 const GRAPE_SETTING_ESTIMATE_KEYS = new Set(["neoim-juggler-ex", "gogo-juggler", "my-juggler-v"]);
 const GRAPE_ESTIMATE_MACHINE_SPECS = new Map([
@@ -27,7 +28,7 @@ const GRAPE_ESTIMATE_CHERRY_PAYOUT = 2;
 const MINREPO_ONE_BET_GAME_FACTOR = 1 / 3;
 const ONE_BET_GRAPE_DENOMINATOR = 10.3;
 const ONE_BET_REPLAY_DENOMINATOR = 7.3;
-const ONE_BET_GRAPE_PAYOUT = 15;
+const ONE_BET_GRAPE_PAYOUT = 8;
 const ONE_BET_REPLAY_PAYOUT = 1;
 
 const SETTING_ESTIMATE_DEFINITIONS = Array.isArray(settingEstimatesPayload?.setting_estimates)
