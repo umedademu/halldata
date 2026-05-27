@@ -292,8 +292,8 @@ function BacktestResultTable({ title, backtest, tableId, storeId, showGrapeColum
               </SortableTableHeader>
               <SortableTableHeader columnIndex={1}>設置台数</SortableTableHeader>
               <SortableTableHeader columnIndex={2}>狙い度</SortableTableHeader>
-              <SortableTableHeader columnIndex={3}>上位境界差（同一）</SortableTableHeader>
-              <SortableTableHeader columnIndex={4}>下位境界差（同一）</SortableTableHeader>
+              <SortableTableHeader columnIndex={3}>上差(同)</SortableTableHeader>
+              <SortableTableHeader columnIndex={4}>下差(同)</SortableTableHeader>
               <SortableTableHeader columnIndex={5}>集計台数</SortableTableHeader>
               <SortableTableHeader columnIndex={6}>勝率</SortableTableHeader>
               <SortableTableHeader columnIndex={7}>合計差枚</SortableTableHeader>
@@ -331,8 +331,8 @@ function BacktestResultTable({ title, backtest, tableId, storeId, showGrapeColum
               </th>
               <td data-sort-value={readSortNumber(backtest.total.slotCount)}>{formatNumber(backtest.total.slotCount)}</td>
               <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageHuntScore)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="狙い度" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageHuntScore)}>{formatDecimal(backtest.total.averageHuntScore)}</BacktestMetricCell>
-              <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageUpperGap)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="上位境界差（同一）" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageUpperGap)}>{formatDecimal(backtest.total.averageUpperGap)}</BacktestMetricCell>
-              <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageNextGap)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="下位境界差（同一）" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageNextGap)}>{formatDecimal(backtest.total.averageNextGap)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageUpperGap)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="上差(同)" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageUpperGap)}>{formatDecimal(backtest.total.averageUpperGap)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageNextGap)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="下差(同)" nonmatchingValue={formatDecimal(totalNonmatchingSummary?.averageNextGap)}>{formatDecimal(backtest.total.averageNextGap)}</BacktestMetricCell>
               <BacktestMetricCell sortValue={backtest.total.actualRowCount} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="集計台数" nonmatchingValue={formatNumber(totalNonmatchingSummary?.actualRowCount)}>{formatNumber(backtest.total.actualRowCount)}</BacktestMetricCell>
               <BacktestMetricCell sortValue={readSortNumber(backtest.total.winRate)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="勝率" nonmatchingValue={formatPercent(totalNonmatchingSummary?.winRate)}>{formatPercent(backtest.total.winRate)}</BacktestMetricCell>
               <BacktestMetricCell sortValue={backtest.total.differenceTotal} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="合計差枚" nonmatchingValue={formatSignedNumber(totalNonmatchingSummary?.differenceTotal)}>{formatSignedNumber(backtest.total.differenceTotal)}</BacktestMetricCell>
@@ -386,8 +386,8 @@ function BacktestResultTable({ title, backtest, tableId, storeId, showGrapeColum
                   </th>
                   <td data-sort-value={readSortNumber(summary.slotCount)}>{formatNumber(summary.slotCount)}</td>
                   <BacktestMetricCell sortValue={readSortNumber(summary.averageHuntScore)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="狙い度" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageHuntScore)}>{formatDecimal(summary.averageHuntScore)}</BacktestMetricCell>
-                  <BacktestMetricCell sortValue={readSortNumber(summary.averageUpperGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="上位境界差（同一）" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageUpperGap)}>{formatDecimal(summary.averageUpperGap)}</BacktestMetricCell>
-                  <BacktestMetricCell sortValue={readSortNumber(summary.averageNextGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="下位境界差（同一）" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageNextGap)}>{formatDecimal(summary.averageNextGap)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readSortNumber(summary.averageUpperGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="上差(同)" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageUpperGap)}>{formatDecimal(summary.averageUpperGap)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readSortNumber(summary.averageNextGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="下差(同)" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageNextGap)}>{formatDecimal(summary.averageNextGap)}</BacktestMetricCell>
                   <BacktestMetricCell sortValue={summary.actualRowCount} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="集計台数" nonmatchingValue={formatNumber(nonmatchingSummary?.actualRowCount)}>{formatNumber(summary.actualRowCount)}</BacktestMetricCell>
                   <BacktestMetricCell sortValue={readSortNumber(summary.winRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="勝率" nonmatchingValue={formatPercent(nonmatchingSummary?.winRate)}>{formatPercent(summary.winRate)}</BacktestMetricCell>
                   <BacktestMetricCell sortValue={summary.differenceTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="合計差枚" nonmatchingValue={formatSignedNumber(nonmatchingSummary?.differenceTotal)}>{formatSignedNumber(summary.differenceTotal)}</BacktestMetricCell>
@@ -817,7 +817,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       inputStep={undefined}
                     />
                     <ScopedConditionRow
-                      label="上位境界差"
+                      label="上差(同)"
                       minName="machineUpperGapMin"
                       maxName="machineUpperGapMax"
                       requiredName="machineUpperGapRequired"
@@ -826,7 +826,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       requiredValue={detail.backtest.machineUpperGapRequired}
                     />
                     <ScopedConditionRow
-                      label="下位境界差"
+                      label="下差(同)"
                       minName="machineNextGapMin"
                       maxName="machineNextGapMax"
                       requiredName="machineNextGapRequired"
@@ -852,7 +852,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       inputStep={undefined}
                     />
                     <ScopedConditionRow
-                      label="上位境界差"
+                      label="上差(全)"
                       minName="selectedUpperGapMin"
                       maxName="selectedUpperGapMax"
                       requiredName="selectedUpperGapRequired"
@@ -861,7 +861,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       requiredValue={detail.backtest.selectedUpperGapRequired}
                     />
                     <ScopedConditionRow
-                      label="下位境界差"
+                      label="下差(全)"
                       minName="selectedNextGapMin"
                       maxName="selectedNextGapMax"
                       requiredName="selectedNextGapRequired"

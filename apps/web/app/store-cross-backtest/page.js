@@ -310,8 +310,8 @@ function StoreRankingTable({ rows, rankingMetric, showGrapeColumn = false }) {
               <SortableTableHeader columnIndex={17}>対象機種</SortableTableHeader>
               <SortableTableHeader columnIndex={18}>設置台数</SortableTableHeader>
               <SortableTableHeader columnIndex={19}>狙い度</SortableTableHeader>
-              <SortableTableHeader columnIndex={20}>上位境界差（同一）</SortableTableHeader>
-              <SortableTableHeader columnIndex={21}>下位境界差（同一）</SortableTableHeader>
+              <SortableTableHeader columnIndex={20}>上差(同)</SortableTableHeader>
+              <SortableTableHeader columnIndex={21}>下差(同)</SortableTableHeader>
               <SortableTableHeader columnIndex={22}>BB</SortableTableHeader>
               <SortableTableHeader columnIndex={23}>RB</SortableTableHeader>
               <SortableTableHeader columnIndex={24} initialDirection="asc">
@@ -386,8 +386,8 @@ function StoreRankingTable({ rows, rankingMetric, showGrapeColumn = false }) {
                 </td>
                 <td data-sort-value={row.slotCount}>{formatNumber(row.slotCount)}</td>
                 <BacktestMetricCell sortValue={readSortNumber(row.averageHuntScore)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="狙い度" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageHuntScore)}>{formatDecimal(row.averageHuntScore)}</BacktestMetricCell>
-                <BacktestMetricCell sortValue={readSortNumber(row.averageUpperGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="上位境界差（同一）" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageUpperGap)}>{formatDecimal(row.averageUpperGap)}</BacktestMetricCell>
-                <BacktestMetricCell sortValue={readSortNumber(row.averageNextGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="下位境界差（同一）" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageNextGap)}>{formatDecimal(row.averageNextGap)}</BacktestMetricCell>
+                <BacktestMetricCell sortValue={readSortNumber(row.averageUpperGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="上差(同)" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageUpperGap)}>{formatDecimal(row.averageUpperGap)}</BacktestMetricCell>
+                <BacktestMetricCell sortValue={readSortNumber(row.averageNextGap)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="下差(同)" nonmatchingValue={formatDecimal(nonmatchingSummary?.averageNextGap)}>{formatDecimal(row.averageNextGap)}</BacktestMetricCell>
                 <BacktestMetricCell sortValue={row.bbTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="BB" nonmatchingValue={formatNumber(nonmatchingSummary?.bbTotal)}>{formatNumber(row.bbTotal)}</BacktestMetricCell>
                 <BacktestMetricCell sortValue={row.rbTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="RB" nonmatchingValue={formatNumber(nonmatchingSummary?.rbTotal)}>{formatNumber(row.rbTotal)}</BacktestMetricCell>
                 <BacktestMetricCell sortValue={readProbabilitySortValue(row.bbProbability)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="BB率" nonmatchingValue={nonmatchingSummary?.bbProbability ?? "-"}>{row.bbProbability ?? "-"}</BacktestMetricCell>
@@ -764,7 +764,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                   inputStep={undefined}
                 />
                 <ScopedConditionRow
-                  label="上位境界差"
+                  label="上差(同)"
                   minName="machineUpperGapMin"
                   maxName="machineUpperGapMax"
                   requiredName="machineUpperGapRequired"
@@ -773,7 +773,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                   requiredValue={detail.machineUpperGapRequired}
                 />
                 <ScopedConditionRow
-                  label="下位境界差"
+                  label="下差(同)"
                   minName="machineNextGapMin"
                   maxName="machineNextGapMax"
                   requiredName="machineNextGapRequired"
@@ -799,7 +799,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                   inputStep={undefined}
                 />
                 <ScopedConditionRow
-                  label="上位境界差"
+                  label="上差(全)"
                   minName="selectedUpperGapMin"
                   maxName="selectedUpperGapMax"
                   requiredName="selectedUpperGapRequired"
@@ -808,7 +808,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                   requiredValue={detail.selectedUpperGapRequired}
                 />
                 <ScopedConditionRow
-                  label="下位境界差"
+                  label="下差(全)"
                   minName="selectedNextGapMin"
                   maxName="selectedNextGapMax"
                   requiredName="selectedNextGapRequired"

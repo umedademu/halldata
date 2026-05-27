@@ -1047,7 +1047,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                             inputStep={undefined}
                           />
                           <ScopedConditionRow
-                            label="上位境界差"
+                            label="上差(同)"
                             minName="machineUpperGapMin"
                             maxName="machineUpperGapMax"
                             requiredName="machineUpperGapRequired"
@@ -1056,7 +1056,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                             requiredValue={machineUpperGapRequired}
                           />
                           <ScopedConditionRow
-                            label="下位境界差"
+                            label="下差(同)"
                             minName="machineNextGapMin"
                             maxName="machineNextGapMax"
                             requiredName="machineNextGapRequired"
@@ -1082,7 +1082,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                             inputStep={undefined}
                           />
                           <ScopedConditionRow
-                            label="上位境界差"
+                            label="上差(全)"
                             minName="selectedUpperGapMin"
                             maxName="selectedUpperGapMax"
                             requiredName="selectedUpperGapRequired"
@@ -1091,7 +1091,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                             requiredValue={selectedUpperGapRequired}
                           />
                           <ScopedConditionRow
-                            label="下位境界差"
+                            label="下差(全)"
                             minName="selectedNextGapMin"
                             maxName="selectedNextGapMax"
                             requiredName="selectedNextGapRequired"

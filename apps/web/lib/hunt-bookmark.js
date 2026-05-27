@@ -1117,7 +1117,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   pushRangeConditionSummary(
     parts,
     normalizedBookmark.hasMachineUpperGapFilter,
-    "同一機種内上位境界差",
+    "上差(同)",
     normalizedBookmark.machineUpperGapMin,
     normalizedBookmark.machineUpperGapMax,
     normalizedBookmark.machineUpperGapRequired,
@@ -1125,7 +1125,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   pushRangeConditionSummary(
     parts,
     normalizedBookmark.hasMachineNextGapFilter,
-    "同一機種内下位境界差",
+    "下差(同)",
     normalizedBookmark.machineNextGapMin,
     normalizedBookmark.machineNextGapMax,
     normalizedBookmark.machineNextGapRequired,
@@ -1133,7 +1133,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   pushRangeConditionSummary(
     parts,
     normalizedBookmark.hasSelectedUpperGapFilter,
-    "選択機種内上位境界差",
+    "上差(全)",
     normalizedBookmark.selectedUpperGapMin,
     normalizedBookmark.selectedUpperGapMax,
     normalizedBookmark.selectedUpperGapRequired,
@@ -1141,7 +1141,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   pushRangeConditionSummary(
     parts,
     normalizedBookmark.hasSelectedNextGapFilter,
-    "選択機種内下位境界差",
+    "下差(全)",
     normalizedBookmark.selectedNextGapMin,
     normalizedBookmark.selectedNextGapMax,
     normalizedBookmark.selectedNextGapRequired,
