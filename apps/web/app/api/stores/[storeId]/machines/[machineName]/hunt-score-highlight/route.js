@@ -3,11 +3,11 @@ import { NextResponse } from "next/server";
 
 import {
   getMachineHuntScoreHighlight,
-} from "../../../../../../lib/data";
+} from "../../../../../../../lib/data";
 import {
   decodeHuntScoreLogicCookieValue,
   getHuntScoreLogicCookieName,
-} from "../../../../../../lib/hunt-score-logic-selection";
+} from "../../../../../../../lib/hunt-score-logic-selection";
 
 export const dynamic = "force-dynamic";
 

@@ -777,6 +777,51 @@ function buildHuntScoreNextGapValueMap(highlightDetail, options, useRankFilter =
   return valueMap;
 }
 
+function buildHuntScoreValueMap(highlightDetail) {
+  const valueMap = new Map();
+  const snapshots = Array.isArray(highlightDetail?.snapshots) ? highlightDetail.snapshots : [];
+
+  for (const snapshot of snapshots) {
+    const rows = Array.isArray(snapshot.rows) ? snapshot.rows : [];
+    for (const row of rows) {
+      const huntScore = Number(row?.huntScore);
+      if (!Number.isFinite(huntScore)) {
+        continue;
+      }
+      valueMap.set(
+        buildHuntScoreHighlightKey(snapshot.date, row.machineName, row.slotNumber),
+        huntScore,
+      );
+    }
+  }
+
+  return valueMap;
+}
+
+function filterHuntScoreHighlightByDateRange(highlightDetail, dateRange) {
+  const snapshots = Array.isArray(highlightDetail?.snapshots) ? highlightDetail.snapshots : [];
+  if (!dateRange?.startDate && !dateRange?.endDate) {
+    return highlightDetail;
+  }
+
+  return {
+    ...highlightDetail,
+    snapshots: snapshots.filter((snapshot) => {
+      const date = String(snapshot?.date ?? "").trim();
+      if (!date) {
+        return false;
+      }
+      if (dateRange.startDate && date < dateRange.startDate) {
+        return false;
+      }
+      if (dateRange.endDate && date > dateRange.endDate) {
+        return false;
+      }
+      return true;
+    }),
+  };
+}
+
 function buildHuntScoreRankValueMap(rows) {
   const valueMap = new Map();
   const rankedRows = (Array.isArray(rows) ? rows : [])
@@ -1200,12 +1245,17 @@ function createSettingEstimateMetric(getCompositeSettingEstimate) {
   };
 }
 
-function createHuntScoreMetric() {
+function createHuntScoreMetric(getHuntScoreValue) {
+  const renderHuntScore = (value, record, context) =>
+    formatNarrowInteger(getHuntScoreValue(record, context) ?? value);
+  const csvRenderHuntScore = (value, record, context) =>
+    formatNumber(getHuntScoreValue(record, context) ?? value);
+
   return {
     key: "hunt_score",
     label: "狙い度",
-    render: formatNarrowInteger,
-    csvRender: formatNumber,
+    render: renderHuntScore,
+    csvRender: csvRenderHuntScore,
     columnClass: "matrixColumnMedium",
   };
 }
@@ -1310,6 +1360,7 @@ function getMetrics(
   hasEstimatedGrape,
   hasHuntScore,
   differenceMode,
+  getHuntScoreValue,
   getHuntScoreNextGapValue,
 ) {
   const metrics = [
@@ -1326,7 +1377,7 @@ function getMetrics(
   }
 
   if (hasHuntScore) {
-    metrics.push(createHuntScoreMetric());
+    metrics.push(createHuntScoreMetric(getHuntScoreValue));
     metrics.push(createHuntScoreNextGapMetric(getHuntScoreNextGapValue));
   }
 
@@ -2199,40 +2250,6 @@ export function MachineComparison({
     useState("");
   const [, startTransition] = useTransition();
   const recentDays = useMemo(() => normalizeRecentDaysInput(recentDaysInput), [recentDaysInput]);
-  const huntScoreNextGapValueMap = useMemo(
-    () =>
-      buildHuntScoreNextGapValueMap(
-        activeHuntScoreHighlight,
-        appliedHuntScoreHighlightOptions,
-      ),
-    [activeHuntScoreHighlight, appliedHuntScoreHighlightOptions],
-  );
-  const huntScoreNextGapConditionValueMap = useMemo(
-    () =>
-      buildHuntScoreNextGapValueMap(
-        activeHuntScoreHighlight,
-        appliedHuntScoreHighlightOptions,
-        true,
-      ),
-    [activeHuntScoreHighlight, appliedHuntScoreHighlightOptions],
-  );
-  const huntScoreHighlightKeySet = useMemo(
-    () =>
-      buildHuntScoreHighlightKeySet(
-        activeHuntScoreHighlight,
-        appliedHuntScoreHighlightOptions,
-        huntScoreNextGapConditionValueMap,
-      ),
-    [
-      activeHuntScoreHighlight,
-      appliedHuntScoreHighlightOptions,
-      huntScoreNextGapConditionValueMap,
-    ],
-  );
-  const hasPendingHuntScoreHighlightOptions = useMemo(
-    () => !huntScoreHighlightOptionsEqual(huntScoreHighlightOptions, appliedHuntScoreHighlightOptions),
-    [appliedHuntScoreHighlightOptions, huntScoreHighlightOptions],
-  );
   const activeDateRange = useMemo(() => {
     if (!latestAvailableDate) {
       return {
@@ -2272,6 +2289,58 @@ export function MachineComparison({
     rangeStartInput,
     recentDays,
   ]);
+  const periodFilteredRows = useMemo(() => {
+    if (!activeDateRange.startDate || !activeDateRange.endDate) {
+      return dateRows;
+    }
+
+    return dateRows.filter((row) => {
+      const rowDate = String(row.date ?? "");
+      return rowDate >= activeDateRange.startDate && rowDate <= activeDateRange.endDate;
+    });
+  }, [activeDateRange.endDate, activeDateRange.startDate, dateRows]);
+  const visibleHuntScoreHighlight = useMemo(
+    () => filterHuntScoreHighlightByDateRange(activeHuntScoreHighlight, activeDateRange),
+    [activeDateRange, activeHuntScoreHighlight],
+  );
+  const huntScoreValueMap = useMemo(
+    () => buildHuntScoreValueMap(visibleHuntScoreHighlight),
+    [visibleHuntScoreHighlight],
+  );
+  const huntScoreNextGapValueMap = useMemo(
+    () =>
+      buildHuntScoreNextGapValueMap(
+        visibleHuntScoreHighlight,
+        appliedHuntScoreHighlightOptions,
+      ),
+    [visibleHuntScoreHighlight, appliedHuntScoreHighlightOptions],
+  );
+  const huntScoreNextGapConditionValueMap = useMemo(
+    () =>
+      buildHuntScoreNextGapValueMap(
+        visibleHuntScoreHighlight,
+        appliedHuntScoreHighlightOptions,
+        true,
+      ),
+    [visibleHuntScoreHighlight, appliedHuntScoreHighlightOptions],
+  );
+  const huntScoreHighlightKeySet = useMemo(
+    () =>
+      buildHuntScoreHighlightKeySet(
+        visibleHuntScoreHighlight,
+        appliedHuntScoreHighlightOptions,
+        huntScoreNextGapConditionValueMap,
+      ),
+    [
+      visibleHuntScoreHighlight,
+      appliedHuntScoreHighlightOptions,
+      huntScoreNextGapConditionValueMap,
+    ],
+  );
+  const hasPendingHuntScoreHighlightOptions = useMemo(
+    () => !huntScoreHighlightOptionsEqual(huntScoreHighlightOptions, appliedHuntScoreHighlightOptions),
+    [appliedHuntScoreHighlightOptions, huntScoreHighlightOptions],
+  );
   const settingEstimateDefinition = useMemo(
     () => getSettingEstimateDefinition(machineName),
     [machineName],
@@ -2281,15 +2350,15 @@ export function MachineComparison({
       buildComparisonEstimateMap(
         settingEstimateDefinition,
         slotNumbers,
-        dateRows,
+        periodFilteredRows,
         eventFilters,
         estimateOptions,
         settingEstimateMode,
       ),
     [
-      dateRows,
       estimateOptions,
       eventFilters,
+      periodFilteredRows,
       settingEstimateDefinition,
       settingEstimateMode,
       slotNumbers,
@@ -2298,12 +2367,12 @@ export function MachineComparison({
   const hasSettingEstimate = useMemo(
     () =>
       Boolean(settingEstimateDefinition) ||
-      dateRows.some((row) =>
+      periodFilteredRows.some((row) =>
         slotNumbers.some((slotNumber) =>
           Boolean(getSettingEstimateDefinition(row.recordsBySlot?.[slotNumber]?.machine_name)),
         ),
       ),
-    [dateRows, settingEstimateDefinition, slotNumbers],
+    [periodFilteredRows, settingEstimateDefinition, slotNumbers],
   );
   const getCompositeSettingEstimate = useCallback(
     (record) =>
@@ -2327,23 +2396,41 @@ export function MachineComparison({
       ) ?? null,
     [huntScoreNextGapValueMap],
   );
+  const getHuntScoreValue = useCallback(
+    (record, context) =>
+      huntScoreValueMap.get(
+        buildHuntScoreHighlightKey(
+          context?.row?.date ?? record?.target_date,
+          record?.machine_name,
+          record?.slot_number ?? context?.slotNumber,
+        ),
+      ) ?? null,
+    [huntScoreValueMap],
+  );
   const hasHuntScore = useMemo(
     () =>
-      dateRows.some((row) =>
+      periodFilteredRows.some((row) =>
         slotNumbers.some((slotNumber) =>
-          Number.isFinite(Number(row.recordsBySlot?.[slotNumber]?.hunt_score)),
+          Number.isFinite(
+            Number(
+              getHuntScoreValue(row.recordsBySlot?.[slotNumber], {
+                row,
+                slotNumber,
+              }) ?? row.recordsBySlot?.[slotNumber]?.hunt_score,
+            ),
+          ),
         ),
       ),
-    [dateRows, slotNumbers],
+    [getHuntScoreValue, periodFilteredRows, slotNumbers],
   );
   const hasEstimatedGrape = useMemo(
     () =>
-      dateRows.some((row) =>
+      periodFilteredRows.some((row) =>
         slotNumbers.some((slotNumber) =>
           Number.isFinite(Number(row.recordsBySlot?.[slotNumber]?.estimated_grape_denominator)),
         ),
       ),
-    [dateRows, slotNumbers],
+    [periodFilteredRows, slotNumbers],
   );
   const metrics = useMemo(
     () =>
@@ -2353,11 +2440,13 @@ export function MachineComparison({
         hasEstimatedGrape,
         hasHuntScore,
         displayDifferenceMode,
+        getHuntScoreValue,
         getHuntScoreNextGapValue,
       ),
     [
       displayDifferenceMode,
       getCompositeSettingEstimate,
+      getHuntScoreValue,
       getHuntScoreNextGapValue,
       hasEstimatedGrape,
       hasHuntScore,
@@ -2486,17 +2575,6 @@ export function MachineComparison({
     [metrics, visibleMetricKeys],
   );
 
-  const periodFilteredRows = useMemo(() => {
-    if (!activeDateRange.startDate || !activeDateRange.endDate) {
-      return dateRows;
-    }
-
-    return dateRows.filter((row) => {
-      const rowDate = String(row.date ?? "");
-      return rowDate >= activeDateRange.startDate && rowDate <= activeDateRange.endDate;
-    });
-  }, [activeDateRange.endDate, activeDateRange.startDate, dateRows]);
-
   const visibleRows = periodFilteredRows;
 
   const specialDateSet = useMemo(() => {
@@ -2539,6 +2617,66 @@ export function MachineComparison({
     };
   }, [slotNumbers.length, visibleMetrics.length]);
 
+  const loadHuntScoreHighlight = useCallback(
+    async (nextDifferenceMode, nextSettingEstimateMode, nextDateRange = activeDateRange) => {
+      if (typeof window === "undefined" || !fullHuntScoreHighlightUrl) {
+        return;
+      }
+
+      setIsHuntScoreHighlightApplying(true);
+      setHuntScoreHighlightApplyError("");
+
+      try {
+        const highlightUrl = new URL(fullHuntScoreHighlightUrl, window.location.href);
+        highlightUrl.searchParams.set("differenceMode", normalizeDifferenceMode(nextDifferenceMode));
+        highlightUrl.searchParams.set(
+          "settingEstimateMode",
+          normalizeSettingEstimateMode(nextSettingEstimateMode),
+        );
+        highlightUrl.searchParams.set(
+          "scope",
+          huntScoreHighlightNeedsFullData(appliedHuntScoreHighlightOptions, machineName)
+            ? "full"
+            : "machine",
+        );
+        if (nextDateRange?.startDate) {
+          highlightUrl.searchParams.set("startDate", nextDateRange.startDate);
+        }
+        if (nextDateRange?.endDate) {
+          highlightUrl.searchParams.set("endDate", nextDateRange.endDate);
+        }
+
+        const response = await fetch(highlightUrl.toString(), {
+          method: "GET",
+          headers: {
+            accept: "application/json",
+          },
+        });
+        if (!response.ok) {
+          throw new Error("狙い度データを読み込めませんでした。");
+        }
+
+        const nextHighlight = await response.json();
+        startTransition(() => {
+          setActiveHuntScoreHighlight(nextHighlight);
+        });
+      } catch (error) {
+        setHuntScoreHighlightApplyError(
+          error instanceof Error ? error.message : "狙い度データを読み込めませんでした。",
+        );
+      } finally {
+        setIsHuntScoreHighlightApplying(false);
+      }
+    },
+    [
+      activeDateRange,
+      appliedHuntScoreHighlightOptions,
+      fullHuntScoreHighlightUrl,
+      machineName,
+      startTransition,
+    ],
+  );
+
   const updatePeriodMode = (mode) => {
     startTransition(() => {
       if (mode === "range" && periodMode !== "range") {
@@ -2566,43 +2704,18 @@ export function MachineComparison({
   const updateDisplayDifferenceMode = (value) => {
     const nextDifferenceMode = normalizeDifferenceMode(value);
     setDisplayDifferenceMode(nextDifferenceMode);
-
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const url = new URL(window.location.href);
-    url.searchParams.set("displayDifferenceMode", nextDifferenceMode);
-    window.history.replaceState(window.history.state, "", url.toString());
   };
 
   const updateHuntScoreDifferenceMode = (value) => {
     const nextDifferenceMode = normalizeDifferenceMode(value);
     setHuntScoreDifferenceMode(nextDifferenceMode);
-
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const url = new URL(window.location.href);
-    url.searchParams.set("differenceMode", nextDifferenceMode);
-    url.searchParams.set("displayDifferenceMode", displayDifferenceMode);
-    window.location.assign(url.toString());
+    void loadHuntScoreHighlight(nextDifferenceMode, settingEstimateMode);
   };
 
   const updateSettingEstimateMode = (value) => {
     const nextSettingEstimateMode = normalizeSettingEstimateMode(value);
     setSettingEstimateMode(nextSettingEstimateMode);
-
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const url = new URL(window.location.href);
-    url.searchParams.set("settingEstimateMode", nextSettingEstimateMode);
-    url.searchParams.set("differenceMode", huntScoreDifferenceMode);
-    url.searchParams.set("displayDifferenceMode", displayDifferenceMode);
-    window.location.assign(url.toString());
+    void loadHuntScoreHighlight(huntScoreDifferenceMode, nextSettingEstimateMode);
   };
 
   const handleRangeStartChange = (value) => {
@@ -2731,27 +2844,29 @@ export function MachineComparison({
     try {
       let nextHighlight = huntScoreHighlight;
       if (needsFullData) {
-        if (fullHuntScoreHighlight) {
-          nextHighlight = fullHuntScoreHighlight;
-        } else {
-          if (!fullHuntScoreHighlightUrl) {
-            throw new Error("全体比較データの取得先がありません。");
-          }
-          const fullHighlightUrl = new URL(fullHuntScoreHighlightUrl, window.location.href);
-          fullHighlightUrl.searchParams.set("differenceMode", huntScoreDifferenceMode);
-          fullHighlightUrl.searchParams.set("settingEstimateMode", settingEstimateMode);
-          const response = await fetch(fullHighlightUrl.toString(), {
-            method: "GET",
-            headers: {
-              accept: "application/json",
-            },
-          });
-          if (!response.ok) {
-            throw new Error("全体比較データを読み込めませんでした。");
-          }
-          nextHighlight = await response.json();
-          setFullHuntScoreHighlight(nextHighlight);
+        if (!fullHuntScoreHighlightUrl) {
+          throw new Error("全体比較データの取得先がありません。");
         }
+        const fullHighlightUrl = new URL(fullHuntScoreHighlightUrl, window.location.href);
+        fullHighlightUrl.searchParams.set("differenceMode", huntScoreDifferenceMode);
+        fullHighlightUrl.searchParams.set("settingEstimateMode", settingEstimateMode);
+        fullHighlightUrl.searchParams.set("scope", "full");
+        if (activeDateRange.startDate) {
+          fullHighlightUrl.searchParams.set("startDate", activeDateRange.startDate);
+        }
+        if (activeDateRange.endDate) {
+          fullHighlightUrl.searchParams.set("endDate", activeDateRange.endDate);
+        }
+        const response = await fetch(fullHighlightUrl.toString(), {
+          method: "GET",
+          headers: {
+            accept: "application/json",
+          },
+        });
+        if (!response.ok) {
+          throw new Error("全体比較データを読み込めませんでした。");
+        }
+        nextHighlight = await response.json();
       }
 
       startTransition(() => {
@@ -2766,7 +2881,8 @@ export function MachineComparison({
       setIsHuntScoreHighlightApplying(false);
     }
   }, [
-    fullHuntScoreHighlight,
+    activeDateRange.endDate,
+    activeDateRange.startDate,
     fullHuntScoreHighlightUrl,
     huntScoreHighlight,
     huntScoreHighlightOptions,

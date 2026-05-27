@@ -212,7 +212,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
         initialEventFilters={initialEventFilters}
         initialEventFiltersFromSearchParams={hasEventFilterSearchParams}
         huntScoreHighlight={detail.huntScoreHighlight}
-        fullHuntScoreHighlightUrl={`/stores/${detail.store.id}/machines/${encodeURIComponent(displayMachineName)}/hunt-score-highlight`}
+        fullHuntScoreHighlightUrl={`/api/stores/${detail.store.id}/machines/${encodeURIComponent(displayMachineName)}/hunt-score-highlight`}
         initialDifferenceMode={detail.differenceMode}
         initialDisplayDifferenceMode={displayDifferenceMode}
         initialDisplayDifferenceModeFromSearchParams={hasDisplayDifferenceModeSearchParam}

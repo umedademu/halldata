@@ -60,6 +60,7 @@ const CROSS_STORE_BACKTEST_CONCURRENCY = 12;
 const CROSS_STORE_BACKTEST_WINDOW_BUFFER_DAYS = 18;
 const CROSS_STORE_BACKTEST_NEXT_RESULT_BUFFER_DAYS = 7;
 const HUNT_SCORE_ACTIVE_MACHINE_WINDOW_DAYS = 7;
+const MACHINE_DETAIL_HUNT_SCORE_LOOKBACK_DAYS = 90;
 const DEFAULT_CROSS_STORE_MACHINE_NAMES = [
   "SアイムジャグラーＥＸ",
   "ネオアイムジャグラーEX",
@@ -846,6 +847,40 @@ function shiftDateInput(value, days) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function normalizeDateRangeInput(dateRange = null) {
+  const startDate = normalizeDateInput(dateRange?.startDate);
+  const endDate = normalizeDateInput(dateRange?.endDate);
+
+  if (!startDate && !endDate) {
+    return null;
+  }
+  if (startDate && endDate && startDate > endDate) {
+    return {
+      startDate: endDate,
+      endDate: startDate,
+    };
+  }
+
+  return {
+    startDate,
+    endDate,
+  };
+}
+
+function expandDateRangeForHuntScoreSource(dateRange = null) {
+  const normalizedDateRange = normalizeDateRangeInput(dateRange);
+  if (!normalizedDateRange) {
+    return null;
+  }
+
+  return {
+    ...normalizedDateRange,
+    startDate: normalizedDateRange.startDate
+      ? shiftDateInput(normalizedDateRange.startDate, -MACHINE_DETAIL_HUNT_SCORE_LOOKBACK_DAYS)
+      : null,
+  };
 }
 
 function splitOptionValues(value) {
@@ -2296,7 +2331,7 @@ async function buildStaticHuntScoreSourceRowsForMachineNames(
   };
 }
 
-async function buildStaticHuntScoreSourceRows(staticStore) {
+async function buildStaticHuntScoreSourceRows(staticStore, dateRange = null) {
   const store = readStaticStoreIdentity(staticStore);
   return buildStaticHuntScoreSourceRowsForMachineNames(
     staticStore,
@@ -2304,6 +2339,7 @@ async function buildStaticHuntScoreSourceRows(staticStore) {
       store.storeName,
       readStaticStoreRecentMachineNames(staticStore),
     ),
+    dateRange,
   );
 }
 
@@ -2312,13 +2348,26 @@ async function buildStaticMachineHuntScoreHighlight(
   huntScoreLogicKey = "",
   differenceMode = undefined,
   settingEstimateMode = undefined,
+  dateRange = null,
+  sourceMachineNames = null,
 ) {
   const store = readStaticStoreIdentity(staticStore);
   if (!isHuntScoreTargetStore(store.storeName)) {
     return null;
   }
 
-  const { targetRows, storeRows } = await buildStaticHuntScoreSourceRows(staticStore);
+  const normalizedDateRange = normalizeDateRangeInput(dateRange);
+  const sourceDateRange = expandDateRangeForHuntScoreSource(normalizedDateRange);
+  const normalizedSourceMachineNames = (Array.isArray(sourceMachineNames) ? sourceMachineNames : [])
+    .map((name) => canonicalMachineName(name))
+    .filter(Boolean);
+  const { targetRows, storeRows } = normalizedSourceMachineNames.length > 0
+    ? await buildStaticHuntScoreSourceRowsForMachineNames(
+        staticStore,
+        normalizedSourceMachineNames,
+        sourceDateRange,
+      )
+    : await buildStaticHuntScoreSourceRows(staticStore, sourceDateRange);
   const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName);
   const snapshots = buildHuntScoreSnapshots(
     targetRows,
@@ -2326,7 +2375,10 @@ async function buildStaticMachineHuntScoreHighlight(
     store.storeName,
     huntScoreLogic.key,
     normalizeDifferenceMode(differenceMode),
-    { settingEstimateMode: normalizeSettingEstimateMode(settingEstimateMode) },
+    {
+      settingEstimateMode: normalizeSettingEstimateMode(settingEstimateMode),
+      targetDateRange: normalizedDateRange,
+    },
   );
   return buildMachineHuntScoreHighlightDetail(
     store.storeName,
@@ -2504,6 +2556,8 @@ export const getMachineHuntScoreHighlight = cache(async function getMachineHuntS
   huntScoreLogicKey = "",
   differenceMode = undefined,
   settingEstimateMode = undefined,
+  dateRange = null,
+  sourceMachineNames = null,
 ) {
   const staticStore = await readStaticStoreById(storeId);
   if (staticStore) {
@@ -2512,6 +2566,8 @@ export const getMachineHuntScoreHighlight = cache(async function getMachineHuntS
       huntScoreLogicKey,
       differenceMode,
       settingEstimateMode,
+      dateRange,
+      sourceMachineNames,
     );
   }
 
