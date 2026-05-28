@@ -10,7 +10,6 @@ import re
 import threading
 import time
 import tkinter as tk
-from tkinter import font as tkfont
 from tkinter import messagebox, ttk
 from typing import Callable, TypeVar
 from urllib.parse import urlparse
@@ -94,8 +93,6 @@ REGISTERED_STORE_COLUMNS = (
     "SS ID",
     "SS住所",
 )
-COMPARISON_SUBCOLUMNS = ("機種名", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率")
-COMPARISON_DAY_TAIL_OPTIONS = ("全て", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
 T = TypeVar("T")
 
 
@@ -483,7 +480,6 @@ class MinRepoApp:
         self.root = root
         self.root.title("Halldata Prototype")
         self.root.geometry("1320x900")
-        self.default_font = tkfont.nametofont("TkDefaultFont")
 
         self.scraper = MinRepoScraper()
         self.persistence_service = HistoryPersistenceService()
@@ -491,15 +487,6 @@ class MinRepoApp:
         self.result_queue: queue.Queue[tuple[str, object]] = queue.Queue()
         self.current_results: list[MachineDataset] = []
         self.current_history_result: MachineHistoryResult | None = None
-        self.comparison_sort_key = "日付"
-        self.comparison_sort_descending = False
-        self.comparison_slot_numbers: list[str] = []
-        self.comparison_rows: list[dict[str, str]] = []
-        self.comparison_display_rows: list[dict[str, str]] = []
-        self.comparison_selected_date: str | None = None
-        self.comparison_focus_mode = False
-        self.comparison_header_click_regions: list[tuple[int, int, int, int, str]] = []
-        self.comparison_text_cache: dict[tuple[str, int], str] = {}
         self.startup_store_warning: str | None = None
         self.registered_stores: list[RegisteredStore] = self._load_registered_stores_on_startup()
         self.selected_store_urls: set[str] = {
@@ -542,9 +529,7 @@ class MinRepoApp:
         self.summary_var = tk.StringVar(value="未取得")
         self.fetch_progress_value_var = tk.DoubleVar(value=0.0)
         self.fetch_progress_text_var = tk.StringVar(value="未開始")
-        self.skip_comparison_display_var = tk.BooleanVar(value=True)
         self.notify_fetch_complete_var = tk.BooleanVar(value=True)
-        self.comparison_day_tail_var = tk.StringVar(value="全て")
         self.register_store_url_var = tk.StringVar()
         self.register_store_site7_enabled_var = tk.BooleanVar(value=False)
         self.register_store_prefecture_var = tk.StringVar(value=DEFAULT_SITE7_PREFECTURE_NAME)
@@ -596,7 +581,7 @@ class MinRepoApp:
 
         self.fetch_tab = ttk.Frame(notebook, padding=12)
         self.fetch_tab.columnconfigure(0, weight=1)
-        self.fetch_tab.rowconfigure(2, weight=1)
+        self.fetch_tab.rowconfigure(2, weight=0)
         notebook.add(self.fetch_tab, text="データ取得")
 
         register_tab = ttk.Frame(notebook, padding=12)
@@ -671,20 +656,12 @@ class MinRepoApp:
         self.cancel_fetch_button = ttk.Button(button_row, text="中止", command=self.cancel_fetch)
         self.cancel_fetch_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
 
-        self.skip_comparison_display_button = ttk.Checkbutton(
-            button_row,
-            text="取得後に台データ表を表示しない",
-            variable=self.skip_comparison_display_var,
-            command=self._on_skip_comparison_display_changed,
-        )
-        self.skip_comparison_display_button.grid(row=0, column=2, sticky="w", padx=(12, 0))
-
         self.notify_fetch_complete_button = ttk.Checkbutton(
             button_row,
             text="取得完了時に音を鳴らす",
             variable=self.notify_fetch_complete_var,
         )
-        self.notify_fetch_complete_button.grid(row=0, column=3, sticky="w", padx=(12, 0))
+        self.notify_fetch_complete_button.grid(row=0, column=2, sticky="w", padx=(12, 0))
 
         schedule_row = ttk.Frame(self.fetch_form)
         schedule_row.grid(row=5, column=1, sticky="w", pady=(8, 0))
@@ -809,63 +786,18 @@ class MinRepoApp:
         self.fetch_progress_bar.grid(row=1, column=1, columnspan=2, sticky="ew", padx=(8, 12), pady=(8, 0))
         ttk.Label(self.fetch_info, textvariable=self.fetch_progress_text_var).grid(row=1, column=3, sticky="w", pady=(8, 0))
 
-        self.comparison_frame = ttk.LabelFrame(self.fetch_tab, text="台データ比較", padding=8)
-        self.comparison_frame.grid(row=2, column=0, sticky="nsew")
-        self.comparison_frame.columnconfigure(1, weight=1)
-        self.comparison_frame.rowconfigure(2, weight=1)
-
-        comparison_actions = ttk.Frame(self.comparison_frame)
-        comparison_actions.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 8))
-        comparison_actions.columnconfigure(0, weight=1)
-
-        ttk.Label(comparison_actions, text="日付末尾").grid(row=0, column=0, sticky="w")
-
-        self.comparison_day_tail_selector = ttk.Combobox(
-            comparison_actions,
-            textvariable=self.comparison_day_tail_var,
-            values=COMPARISON_DAY_TAIL_OPTIONS,
-            state="readonly",
-            width=5,
-        )
-        self.comparison_day_tail_selector.grid(row=0, column=1, sticky="w", padx=(8, 0))
-        self.comparison_day_tail_selector.bind("<<ComboboxSelected>>", self._on_comparison_day_tail_changed)
-
-        self.comparison_focus_button = ttk.Button(
-            comparison_actions,
-            text="台データ表を広く表示",
-            command=self.toggle_comparison_focus,
-        )
-        self.comparison_focus_button.grid(row=0, column=2, sticky="e")
-
-        self.comparison_fixed_header_canvas = tk.Canvas(self.comparison_frame, width=1, height=54, highlightthickness=0)
-        self.comparison_fixed_header_canvas.grid(row=1, column=0, sticky="nsw")
-
-        self.comparison_header_canvas = tk.Canvas(self.comparison_frame, height=54, highlightthickness=0)
-        self.comparison_header_canvas.grid(row=1, column=1, sticky="ew")
-
-        self.comparison_fixed_body_canvas = tk.Canvas(self.comparison_frame, width=1, highlightthickness=0)
-        self.comparison_fixed_body_canvas.grid(row=2, column=0, sticky="nsw")
-
-        self.comparison_body_canvas = tk.Canvas(self.comparison_frame, highlightthickness=0)
-        self.comparison_body_canvas.grid(row=2, column=1, sticky="nsew")
-        self.comparison_fixed_body_canvas.configure(yscrollincrement=self._comparison_body_row_height())
-        self.comparison_body_canvas.configure(yscrollincrement=self._comparison_body_row_height())
-        self.comparison_body_canvas.configure(yscrollcommand=self._on_comparison_yview_changed)
-
-        y_scroll = ttk.Scrollbar(self.comparison_frame, orient="vertical", command=self._scroll_comparison_y)
-        y_scroll.grid(row=2, column=2, sticky="ns")
-        self.comparison_y_scrollbar = y_scroll
-
-        x_scroll = ttk.Scrollbar(self.comparison_frame, orient="horizontal", command=self._scroll_comparison_x)
-        x_scroll.grid(row=3, column=1, sticky="ew")
-        self.comparison_body_canvas.configure(xscrollcommand=x_scroll.set)
-        self.comparison_x_scrollbar = x_scroll
-
-        self.comparison_fixed_header_canvas.bind("<Button-1>", self._on_comparison_fixed_header_click)
-        self.comparison_header_canvas.bind("<Button-1>", self._on_comparison_header_click)
-        self.comparison_fixed_body_canvas.bind("<Button-1>", self._on_comparison_fixed_body_click)
-        self.comparison_fixed_body_canvas.bind("<MouseWheel>", self._on_comparison_mousewheel)
-        self.comparison_body_canvas.bind("<MouseWheel>", self._on_comparison_mousewheel)
+        self.fetch_result_frame = ttk.LabelFrame(self.fetch_tab, text="取得結果", padding=12)
+        self.fetch_result_frame.grid(row=2, column=0, sticky="ew")
+        self.fetch_result_frame.columnconfigure(0, weight=1)
+        ttk.Label(
+            self.fetch_result_frame,
+            text=(
+                "GUIでの台データ表表示は廃止しました。"
+                "取得状況と保存結果だけをこの画面で確認し、詳細な台データや分析はWebアプリで確認してください。"
+            ),
+            wraplength=1000,
+            justify="left",
+        ).grid(row=0, column=0, sticky="w")
 
         self._build_register_tab(register_tab)
 
@@ -1231,11 +1163,7 @@ class MinRepoApp:
 
         self.current_results = []
         self.current_history_result = None
-        self.comparison_rows = []
-        self.comparison_slot_numbers = []
-        self.comparison_display_rows = []
-        self.comparison_selected_date = None
-        self._clear_comparison_table()
+        self._clear_fetch_result_details()
         self._begin_fetch_progress("定期実行: 登録店舗を更新中...")
         self.status_var.set("定期実行中...")
         self.summary_var.set("登録店舗を更新してから取得します")
@@ -1298,11 +1226,7 @@ class MinRepoApp:
 
         self.current_results = []
         self.current_history_result = None
-        self.comparison_rows = []
-        self.comparison_slot_numbers = []
-        self.comparison_display_rows = []
-        self.comparison_selected_date = None
-        self._clear_comparison_table()
+        self._clear_fetch_result_details()
         self._begin_fetch_progress("サイトセブン定期実行: 登録店舗を更新中...")
         self.status_var.set("サイトセブン定期実行中...")
         self.summary_var.set("登録店舗を更新してからサイトセブン取得します")
@@ -2262,11 +2186,7 @@ class MinRepoApp:
     def _begin_fetch_run(self, *, progress_message: str, status_message: str, summary_message: str) -> None:
         self.current_results = []
         self.current_history_result = None
-        self.comparison_rows = []
-        self.comparison_slot_numbers = []
-        self.comparison_display_rows = []
-        self.comparison_selected_date = None
-        self._clear_comparison_table()
+        self._clear_fetch_result_details()
         self._begin_fetch_progress(progress_message)
         self.status_var.set(status_message)
         self.summary_var.set(summary_message)
@@ -3019,11 +2939,8 @@ class MinRepoApp:
 
         self.current_history_result = history_result
         self.current_results = history_result.datasets
-        if self.skip_comparison_display_var.get():
-            self._clear_comparison_table()
-            self._apply_comparison_focus_mode()
-        else:
-            self._populate_comparison_table(history_result)
+        self._clear_fetch_result_details()
+        self._apply_fetch_result_layout()
         store_name = history_result.store_name
         self._finish_fetch_progress(
             success=True,
@@ -3044,7 +2961,6 @@ class MinRepoApp:
             f"{self._save_status_text(save_summary)}"
             f"{f' / 日付スキップ{skipped_date_count}日' if skipped_date_count else ''}"
             f"{f' / スキップ{skipped_count}件' if skipped_count else ''}"
-            f"{' / 表表示省略' if self.skip_comparison_display_var.get() else ''}"
         )
         self._update_button_states()
         self._notify_fetch_complete()
@@ -3060,11 +2976,8 @@ class MinRepoApp:
 
         self.current_history_result = history_result
         self.current_results = history_result.datasets
-        if self.skip_comparison_display_var.get():
-            self._clear_comparison_table()
-            self._apply_comparison_focus_mode()
-        else:
-            self._populate_comparison_table(history_result)
+        self._clear_fetch_result_details()
+        self._apply_fetch_result_layout()
 
         has_save_errors = any(
             store_result.save_summary is not None and store_result.save_summary.has_errors
@@ -3114,7 +3027,6 @@ class MinRepoApp:
             return self._single_fetch_summary_text(store_result.history_result, store_result.save_summary)
 
         first_history_result = fetch_many_result.results[0].history_result
-        last_history_result = fetch_many_result.results[-1].history_result
         fetched_machine_count = sum(
             len({dataset.machine_name for dataset in store_result.history_result.datasets})
             for store_result in fetch_many_result.results
@@ -3133,11 +3045,6 @@ class MinRepoApp:
         )
         failed_text = f" / 失敗{len(fetch_many_result.failures)}店舗" if fetch_many_result.failures else ""
         cancelled_text = " / 中止" if fetch_many_result.cancelled else ""
-        display_text = (
-            " / 表表示省略"
-            if self.skip_comparison_display_var.get()
-            else f" / 表表示は{last_history_result.store_name}"
-        )
         return (
             f"{len(fetch_many_result.results)}店舗完了{failed_text}{cancelled_text} / "
             f"{first_history_result.start_date} ～ {first_history_result.end_date} / "
@@ -3145,7 +3052,6 @@ class MinRepoApp:
             f"{self._many_save_status_text(fetch_many_result.results)}"
             f"{f' / 日付スキップ{skipped_date_count}日' if skipped_date_count else ''}"
             f"{f' / スキップ{skipped_count}件' if skipped_count else ''}"
-            f"{display_text}"
         )
 
     def _single_fetch_summary_text(
@@ -3162,7 +3068,6 @@ class MinRepoApp:
             f"{self._save_status_text(save_summary)}"
             f"{f' / 日付スキップ{skipped_date_count}日' if skipped_date_count else ''}"
             f"{f' / スキップ{skipped_count}件' if skipped_count else ''}"
-            f"{' / 表表示省略' if self.skip_comparison_display_var.get() else ''}"
         )
 
     def _many_save_status_text(self, store_results: list[StoreFetchResult]) -> str:
@@ -3179,268 +3084,8 @@ class MinRepoApp:
 
         return "保存なし"
 
-    def _populate_comparison_table(self, history_result: MachineHistoryResult) -> None:
-        self.comparison_sort_key = "日付"
-        self.comparison_sort_descending = False
-        self.comparison_slot_numbers = []
-        self.comparison_rows = []
-
-        row_map_by_date: dict[str, dict[str, str]] = {
-            date_page.target_date: {"日付": date_page.target_date}
-            for date_page in history_result.date_pages
-        }
-        slot_numbers: set[str] = set()
-
-        for result in history_result.datasets:
-            source_columns = [column for column in result.columns if not self._is_machine_name_column(column)]
-            for row in result.rows:
-                values = self._filter_machine_name_values(result.columns, row)
-                machine_row = dict(zip(source_columns, values, strict=False))
-                slot_number = machine_row.get("台番", "")
-                if not slot_number:
-                    continue
-
-                slot_numbers.add(slot_number)
-                target_row = row_map_by_date.setdefault(result.target_date, {"日付": result.target_date})
-                for subcolumn in COMPARISON_SUBCOLUMNS:
-                    key = self._comparison_key(slot_number, subcolumn)
-                    if subcolumn == "機種名":
-                        target_row[key] = result.machine_name
-                    elif subcolumn in machine_row:
-                        target_row[key] = machine_row[subcolumn]
-
-        self.comparison_slot_numbers = sorted(slot_numbers, key=self._slot_sort_key)
-        self.comparison_rows = [row_map_by_date[date_page.target_date] for date_page in history_result.date_pages]
-        available_dates = {row.get("日付", "") for row in self.comparison_rows}
-        if self.comparison_selected_date not in available_dates:
-            self.comparison_selected_date = None
-        self._refresh_comparison_table(preserve_scroll=False)
-
-    def _refresh_comparison_table(self, preserve_scroll: bool = True) -> None:
-        x_position = self.comparison_body_canvas.canvasx(0) if preserve_scroll else 0.0
-        y_position = self.comparison_body_canvas.canvasy(0) if preserve_scroll else 0.0
-        self.comparison_display_rows = self._sorted_comparison_rows()
-        self._clear_comparison_table(reset_view=not preserve_scroll)
-        self._draw_comparison_headers()
-        self._draw_comparison_body()
-        self._update_comparison_scrollregion()
-        self._restore_comparison_view(x_position if preserve_scroll else 0.0, y_position if preserve_scroll else 0.0)
-
-    def _draw_comparison_headers(self) -> None:
-        date_width = self._comparison_width("日付")
-        total_height = self._comparison_header_total_height()
-        subheader_y = self._comparison_header_group_height()
-
-        self._draw_canvas_box(
-            self.comparison_fixed_header_canvas,
-            0,
-            0,
-            date_width,
-            total_height,
-            self._heading_text("日付", self.comparison_sort_key, self.comparison_sort_descending),
-            "#eaeaea",
-            "center",
-        )
-
-        self.comparison_header_click_regions = []
-        x_position = 0
-        for slot_number in self.comparison_slot_numbers:
-            group_width = sum(self._comparison_width(subcolumn) for subcolumn in COMPARISON_SUBCOLUMNS)
-            self._draw_canvas_box(
-                self.comparison_header_canvas,
-                x_position,
-                0,
-                x_position + group_width,
-                subheader_y,
-                slot_number,
-                "#eaeaea",
-                "center",
-            )
-
-            subcolumn_x = x_position
-            for subcolumn in COMPARISON_SUBCOLUMNS:
-                column_width = self._comparison_width(subcolumn)
-                sort_key = self._comparison_key(slot_number, subcolumn)
-                header_text = self._heading_text(subcolumn, sort_key, self.comparison_sort_descending) if self.comparison_sort_key == sort_key else subcolumn
-                self._draw_canvas_box(
-                    self.comparison_header_canvas,
-                    subcolumn_x,
-                    subheader_y,
-                    subcolumn_x + column_width,
-                    total_height,
-                    header_text,
-                    "#eaeaea",
-                    "center",
-                )
-                self.comparison_header_click_regions.append(
-                    (subcolumn_x, subheader_y, subcolumn_x + column_width, total_height, sort_key)
-                )
-                subcolumn_x += column_width
-
-            x_position += group_width
-
-    def _draw_comparison_body(self) -> None:
-        date_width = self._comparison_width("日付")
-        row_height = self._comparison_body_row_height()
-        body_width = self._comparison_body_total_width()
-        flat_columns = self._comparison_flat_columns()
-
-        for row_index, row in enumerate(self.comparison_display_rows):
-            row_date = row.get("日付", "")
-            row_background = self._comparison_row_background(row_index, row_date)
-            y0 = row_index * row_height
-            y1 = y0 + row_height
-
-            self.comparison_fixed_body_canvas.create_rectangle(0, y0, date_width, y1, fill=row_background, outline="")
-            self._draw_canvas_text(
-                self.comparison_fixed_body_canvas,
-                0,
-                y0,
-                date_width,
-                y1,
-                row_date,
-                "center",
-            )
-
-            self.comparison_body_canvas.create_rectangle(0, y0, body_width, y1, fill=row_background, outline="")
-            x0 = 0
-            for slot_number, subcolumn in flat_columns:
-                column_width = self._comparison_width(subcolumn)
-                self._draw_canvas_text(
-                    self.comparison_body_canvas,
-                    x0,
-                    y0,
-                    x0 + column_width,
-                    y1,
-                    row.get(self._comparison_key(slot_number, subcolumn), ""),
-                    "center" if subcolumn != "機種名" else "w",
-                )
-                x0 += column_width
-
-        body_height = len(self.comparison_display_rows) * row_height
-        self._draw_canvas_grid(self.comparison_fixed_body_canvas, [0, date_width], body_height, row_height)
-        self._draw_canvas_grid(
-            self.comparison_body_canvas,
-            self._comparison_body_boundaries(),
-            body_height,
-            row_height,
-        )
-
-    def _draw_canvas_box(
-        self,
-        canvas: tk.Canvas,
-        x0: int,
-        y0: int,
-        x1: int,
-        y1: int,
-        text: str,
-        background: str,
-        anchor: str,
-    ) -> None:
-        canvas.create_rectangle(x0, y0, x1, y1, fill=background, outline="#2b2b2b")
-        self._draw_canvas_text(canvas, x0, y0, x1, y1, text, anchor)
-
-    def _draw_canvas_text(
-        self,
-        canvas: tk.Canvas,
-        x0: int,
-        y0: int,
-        x1: int,
-        y1: int,
-        text: str,
-        anchor: str,
-    ) -> None:
-        max_width = max(0, x1 - x0 - 8)
-        display_text = self._clip_comparison_text(text, max_width)
-        text_x = x0 + 4 if anchor == "w" else (x0 + x1) / 2
-        canvas.create_text(
-            text_x,
-            (y0 + y1) / 2,
-            text=display_text,
-            anchor=anchor,
-            font=self.default_font,
-        )
-
-    def _draw_canvas_grid(
-        self,
-        canvas: tk.Canvas,
-        boundaries: list[int],
-        body_height: int,
-        row_height: int,
-    ) -> None:
-        if not boundaries:
-            return
-
-        x_start = boundaries[0]
-        x_end = boundaries[-1]
-        for boundary in boundaries:
-            canvas.create_line(boundary, 0, boundary, body_height, fill="#2b2b2b")
-        for row_index in range(len(self.comparison_display_rows) + 1):
-            y_position = row_index * row_height
-            canvas.create_line(x_start, y_position, x_end, y_position, fill="#2b2b2b")
-
-    def _on_comparison_fixed_header_click(self, event: tk.Event[tk.Misc]) -> None:
-        if 0 <= event.x <= self._comparison_width("日付") and 0 <= event.y <= self._comparison_header_total_height():
-            self._sort_comparison_table("日付")
-
-    def _on_comparison_header_click(self, event: tk.Event[tk.Misc]) -> None:
-        x_position = int(self.comparison_header_canvas.canvasx(event.x))
-        y_position = int(self.comparison_header_canvas.canvasy(event.y))
-        for x0, y0, x1, y1, sort_key in self.comparison_header_click_regions:
-            if x0 <= x_position <= x1 and y0 <= y_position <= y1:
-                self._sort_comparison_table(sort_key)
-                return
-
-    def _on_comparison_fixed_body_click(self, event: tk.Event[tk.Misc]) -> None:
-        if not self.comparison_display_rows:
-            return
-        y_position = self.comparison_fixed_body_canvas.canvasy(event.y)
-        row_index = int(y_position // self._comparison_body_row_height())
-        if 0 <= row_index < len(self.comparison_display_rows):
-            target_date = self.comparison_display_rows[row_index].get("日付", "")
-            self._select_comparison_date(target_date)
-
-    def _sort_comparison_table(self, key: str) -> None:
-        if self.comparison_sort_key == key:
-            self.comparison_sort_descending = not self.comparison_sort_descending
-        else:
-            self.comparison_sort_key = key
-            self.comparison_sort_descending = False
-        self._refresh_comparison_table()
-
-    def _on_comparison_day_tail_changed(self, _: tk.Event[tk.Misc]) -> None:
-        self._refresh_comparison_table(preserve_scroll=False)
-
-    def _select_comparison_date(self, target_date: str) -> None:
-        if not target_date:
-            return
-        self.comparison_selected_date = target_date
-        self._refresh_comparison_table()
-
-    def _sorted_comparison_rows(self) -> list[dict[str, str]]:
-        filtered_rows = [
-            row
-            for row in self.comparison_rows
-            if matches_day_tail(row.get("日付", ""), self.comparison_day_tail_var.get())
-        ]
-        return self._sort_records(
-            filtered_rows,
-            value_getter=lambda row: row.get(self.comparison_sort_key, ""),
-            descending=self.comparison_sort_descending,
-        )
-
-    def _clear_comparison_table(self, reset_view: bool = True) -> None:
-        self.comparison_fixed_header_canvas.delete("all")
-        self.comparison_header_canvas.delete("all")
-        self.comparison_fixed_body_canvas.delete("all")
-        self.comparison_body_canvas.delete("all")
-        self.comparison_header_click_regions = []
-        self.comparison_fixed_header_canvas.configure(scrollregion=(0, 0, 0, 0))
-        self.comparison_fixed_body_canvas.configure(scrollregion=(0, 0, 0, 0))
-        self.comparison_header_canvas.configure(scrollregion=(0, 0, 0, 0))
-        self.comparison_body_canvas.configure(scrollregion=(0, 0, 0, 0))
-        if reset_view:
-            self.comparison_y_scrollbar.set(0, 1)
+    def _clear_fetch_result_details(self) -> None:
+        return
 
     def _on_registered_store_filter_changed(self, *_: object) -> None:
         if hasattr(self, "registered_store_tree"):
@@ -3958,55 +3603,20 @@ class MinRepoApp:
             for registered_store in registered_stores
         ]
 
-    def toggle_comparison_focus(self) -> None:
-        if self.skip_comparison_display_var.get():
-            return
-        self.comparison_focus_mode = not self.comparison_focus_mode
-        self._apply_comparison_focus_mode()
-
-    def _apply_comparison_focus_mode(self) -> None:
-        if self.skip_comparison_display_var.get():
-            self.fetch_form.grid()
-            self.fetch_info.grid()
-            self.comparison_frame.grid_remove()
-            self.fetch_tab.rowconfigure(2, weight=0)
-            self.comparison_focus_button.configure(text="台データ表を広く表示")
-            return
-
-        self.comparison_frame.grid()
-        if self.comparison_focus_mode:
-            self.fetch_form.grid_remove()
-            self.fetch_info.grid_remove()
-            self.fetch_tab.rowconfigure(2, weight=1)
-            self.comparison_focus_button.configure(text="元に戻す")
-        else:
-            self.fetch_form.grid()
-            self.fetch_info.grid()
-            self.fetch_tab.rowconfigure(2, weight=1)
-            self.comparison_focus_button.configure(text="台データ表を広く表示")
-
-    def _on_skip_comparison_display_changed(self) -> None:
-        if self.skip_comparison_display_var.get():
-            self.comparison_focus_mode = False
-            self._clear_comparison_table()
-        elif self.current_history_result is not None:
-            self._populate_comparison_table(self.current_history_result)
-
-        self._apply_comparison_focus_mode()
-        self._update_button_states()
+    def _apply_fetch_result_layout(self) -> None:
+        self.fetch_form.grid()
+        self.fetch_info.grid()
+        self.fetch_result_frame.grid()
+        self.fetch_tab.rowconfigure(2, weight=0)
 
     def _reset_fetch_display_for_store_change(self) -> None:
         self.current_results = []
         self.current_history_result = None
-        self.comparison_rows = []
-        self.comparison_slot_numbers = []
-        self.comparison_display_rows = []
-        self.comparison_selected_date = None
-        self._clear_comparison_table()
+        self._clear_fetch_result_details()
         self.summary_var.set("未取得")
         self.status_var.set("待機中")
         self._reset_fetch_progress()
-        self._apply_comparison_focus_mode()
+        self._apply_fetch_result_layout()
         self._update_button_states()
 
     def _begin_fetch_progress(self, message: str) -> None:
@@ -4135,182 +3745,6 @@ class MinRepoApp:
             MINREPO_FETCH_PARALLEL_OPTIONS[MINREPO_FETCH_MODE_NORMAL],
         )
 
-    def _build_table_columns(self, results: list[MachineDataset]) -> list[str]:
-        columns = ["機種名"]
-        seen_columns = set(columns)
-
-        for result in results:
-            for column in result.columns:
-                if self._is_machine_name_column(column) or column in seen_columns:
-                    continue
-                columns.append(column)
-                seen_columns.add(column)
-
-        return columns
-
-    def _filter_machine_name_values(self, source_columns: list[str], row: list[str]) -> list[str]:
-        values: list[str] = []
-        for column, value in zip(source_columns, row, strict=False):
-            if self._is_machine_name_column(column):
-                continue
-            values.append(value)
-        return values
-
-    def _is_machine_name_column(self, column: str) -> bool:
-        return normalize_text(column) in {"機種", "機種名"}
-
-    def _column_width(self, column: str) -> int:
-        if column == "機種名":
-            return 320
-        if column in {"台番", "差枚", "BB", "RB"}:
-            return 90
-        if column in {"G数", "出率", "合成", "BB率", "RB率"}:
-            return 100
-        return 120
-
-    def _comparison_key(self, slot_number: str, subcolumn: str) -> str:
-        return f"{slot_number}|{subcolumn}"
-
-    def _comparison_width(self, column: str) -> int:
-        widths = {
-            "日付": 110,
-            "機種名": 120,
-            "差枚": 82,
-            "G数": 82,
-            "出率": 82,
-            "BB": 66,
-            "RB": 66,
-            "合成": 82,
-            "BB率": 82,
-            "RB率": 82,
-        }
-        return widths.get(column, 82)
-
-    def _comparison_header_group_height(self) -> int:
-        return 26
-
-    def _comparison_header_total_height(self) -> int:
-        return 52
-
-    def _comparison_body_row_height(self) -> int:
-        return 24
-
-    def _comparison_flat_columns(self) -> list[tuple[str, str]]:
-        columns: list[tuple[str, str]] = []
-        for slot_number in self.comparison_slot_numbers:
-            for subcolumn in COMPARISON_SUBCOLUMNS:
-                columns.append((slot_number, subcolumn))
-        return columns
-
-    def _comparison_body_total_width(self) -> int:
-        return sum(self._comparison_width(subcolumn) for _, subcolumn in self._comparison_flat_columns())
-
-    def _comparison_body_boundaries(self) -> list[int]:
-        boundaries = [0]
-        current_x = 0
-        for _, subcolumn in self._comparison_flat_columns():
-            current_x += self._comparison_width(subcolumn)
-            boundaries.append(current_x)
-        return boundaries
-
-    def _clip_comparison_text(self, text: str, max_width: int) -> str:
-        plain_text = str(text)
-        cache_key = (plain_text, max_width)
-        cached_text = self.comparison_text_cache.get(cache_key)
-        if cached_text is not None:
-            return cached_text
-
-        if max_width <= 0 or self.default_font.measure(plain_text) <= max_width:
-            self.comparison_text_cache[cache_key] = plain_text
-            return plain_text
-
-        ellipsis = "..."
-        allowed_width = max_width - self.default_font.measure(ellipsis)
-        if allowed_width <= 0:
-            self.comparison_text_cache[cache_key] = ellipsis
-            return ellipsis
-
-        low = 0
-        high = len(plain_text)
-        while low < high:
-            middle = (low + high + 1) // 2
-            if self.default_font.measure(plain_text[:middle]) <= allowed_width:
-                low = middle
-            else:
-                high = middle - 1
-
-        clipped_text = plain_text[:low] + ellipsis
-        self.comparison_text_cache[cache_key] = clipped_text
-        return clipped_text
-
-    def _comparison_row_background(self, row_index: int, row_date: str) -> str:
-        if row_date and row_date == self.comparison_selected_date:
-            return "#fff2a8"
-        return "#ffffff" if row_index % 2 == 0 else "#f7f7f7"
-
-    def _slot_sort_key(self, slot_number: str) -> tuple[int, int | str]:
-        normalized = slot_number.replace(",", "").strip()
-        if normalized.isdigit():
-            return (0, int(normalized))
-        return (1, normalize_text(slot_number))
-
-    def _heading_text(self, column: str, current_column: str | None, descending: bool) -> str:
-        if column != current_column:
-            return column
-        return f"{column} {'▼' if descending else '▲'}"
-
-    def _scroll_comparison_x(self, *args: str) -> None:
-        self.comparison_header_canvas.xview(*args)
-        self.comparison_body_canvas.xview(*args)
-
-    def _scroll_comparison_y(self, *args: str) -> None:
-        self.comparison_fixed_body_canvas.yview(*args)
-        self.comparison_body_canvas.yview(*args)
-        self._update_comparison_y_scrollbar()
-
-    def _on_comparison_mousewheel(self, event: tk.Event[tk.Misc]) -> str:
-        if event.delta == 0:
-            return "break"
-        move = -1 if event.delta > 0 else 1
-        self._scroll_comparison_y("scroll", str(move), "units")
-        return "break"
-
-    def _update_comparison_scrollregion(self) -> None:
-        date_width = self._comparison_width("日付")
-        header_height = self._comparison_header_total_height()
-        body_height = max(1, len(self.comparison_display_rows) * self._comparison_body_row_height())
-        body_width = max(1, self._comparison_body_total_width())
-
-        self.comparison_fixed_header_canvas.configure(width=date_width, height=header_height, scrollregion=(0, 0, date_width, header_height))
-        self.comparison_fixed_body_canvas.configure(width=date_width, scrollregion=(0, 0, date_width, body_height))
-        self.comparison_header_canvas.configure(height=header_height, scrollregion=(0, 0, body_width, header_height))
-        self.comparison_body_canvas.configure(scrollregion=(0, 0, body_width, body_height))
-        self._update_comparison_y_scrollbar()
-
-    def _on_comparison_yview_changed(self, first: str, last: str) -> None:
-        self.comparison_y_scrollbar.set(float(first), float(last))
-
-    def _update_comparison_y_scrollbar(self) -> None:
-        first, last = self.comparison_body_canvas.yview()
-        self.comparison_y_scrollbar.set(first, last)
-
-    def _restore_comparison_view(self, x_position: float, y_position: float) -> None:
-        body_width = max(1, self._comparison_body_total_width())
-        body_height = max(1, len(self.comparison_display_rows) * self._comparison_body_row_height())
-        visible_width = max(1, self.comparison_body_canvas.winfo_width())
-        visible_height = max(1, self.comparison_body_canvas.winfo_height())
-
-        max_x = max(0, body_width - visible_width)
-        max_y = max(0, body_height - visible_height)
-        target_x = min(max(0.0, x_position), float(max_x))
-        target_y = min(max(0.0, y_position), float(max_y))
-
-        self.comparison_header_canvas.xview_moveto(target_x / body_width if body_width else 0.0)
-        self.comparison_body_canvas.xview_moveto(target_x / body_width if body_width else 0.0)
-        self.comparison_fixed_body_canvas.yview_moveto(target_y / body_height if body_height else 0.0)
-        self.comparison_body_canvas.yview_moveto(target_y / body_height if body_height else 0.0)
-        self._update_comparison_y_scrollbar()
-
     def _save_status_text(self, save_summary: PersistenceSummary | None) -> str:
         if save_summary is None:
             return "保存なし"
@@ -4432,8 +3866,13 @@ class MinRepoApp:
 
         return (1, normalize_text(text))
 
+    def _slot_sort_key(self, slot_number: str) -> tuple[int, int | str]:
+        normalized = slot_number.replace(",", "").strip()
+        if normalized.isdigit():
+            return (0, int(normalized))
+        return (1, normalize_text(slot_number))
+
     def _update_button_states(self) -> None:
-        has_comparison_data = self.current_history_result is not None and not self.skip_comparison_display_var.get()
         has_registered_store_row_selection = (
             hasattr(self, "registered_store_tree")
             and bool(self.registered_store_tree.selection())
@@ -4463,9 +3902,6 @@ class MinRepoApp:
         self.schedule_hour_entry.configure(state="disabled" if self.is_busy else "normal")
         self.apply_schedule_button.configure(state="disabled" if self.is_busy else "normal")
         self.clear_schedule_button.configure(state="disabled" if self.is_busy else "normal")
-        self.comparison_day_tail_selector.configure(state="readonly" if not self.is_busy and has_comparison_data else "disabled")
-        self.comparison_focus_button.configure(state="normal" if not self.is_busy and has_comparison_data else "disabled")
-        self.skip_comparison_display_button.configure(state="disabled" if self.is_busy else "normal")
         self.notify_fetch_complete_button.configure(state="disabled" if self.is_busy else "normal")
         self.site7_login_button.configure(state="disabled" if self.is_busy else "normal")
         self.site7_fetch_button.configure(state="disabled" if self.is_busy else "normal")
