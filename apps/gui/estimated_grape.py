@@ -69,6 +69,22 @@ ESTIMATED_GRAPE_MACHINE_SPECS = (
         ),
     },
     {
+        "key": "juggler-girls",
+        "keywords": ("ジャグラーガールズ",),
+        "bb_payout": 240,
+        "rb_payout": 96,
+        "post_announcement_bonus_ratio": 0.75,
+        "minrepo_one_bet_game_factor": -1.013,
+        "cherry_denominators_by_setting": (
+            (1.0, 33.56),
+            (2.0, 33.47),
+            (3.0, 33.32),
+            (4.0, 33.15),
+            (5.0, 33.10),
+            (6.0, 32.97),
+        ),
+    },
+    {
         "key": "my-juggler-v",
         "keywords": ("マイジャグラー",),
         "bb_payout": 240,

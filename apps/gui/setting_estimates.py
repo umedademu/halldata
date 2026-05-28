@@ -15,7 +15,13 @@ SETTING_ESTIMATE_VALUE_VERSION = 8
 SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 4
 SETTING_ESTIMATE_MODE_BONUS = "bonus"
 SETTING_ESTIMATE_MODE_GRAPE = "grape"
-GRAPE_SETTING_ESTIMATE_KEYS = {"neoim-juggler-ex", "gogo-juggler", "funky-juggler-2", "my-juggler-v"}
+GRAPE_SETTING_ESTIMATE_KEYS = {
+    "neoim-juggler-ex",
+    "gogo-juggler",
+    "funky-juggler-2",
+    "juggler-girls",
+    "my-juggler-v",
+}
 
 
 @lru_cache(maxsize=1)

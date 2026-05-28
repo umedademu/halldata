@@ -660,37 +660,49 @@
           "setting": 1,
           "label": "設定1",
           "bbText": "1/273.1",
-          "rbText": "1/381.0"
+          "rbText": "1/381.0",
+          "grapeText": "1/5.98",
+          "cherryText": "1/33.56"
         },
         {
           "setting": 2,
           "label": "設定2",
           "bbText": "1/270.8",
-          "rbText": "1/350.5"
+          "rbText": "1/350.5",
+          "grapeText": "1/5.98",
+          "cherryText": "1/33.47"
         },
         {
           "setting": 3,
           "label": "設定3",
           "bbText": "1/260.1",
-          "rbText": "1/316.6"
+          "rbText": "1/316.6",
+          "grapeText": "1/5.98",
+          "cherryText": "1/33.32"
         },
         {
           "setting": 4,
           "label": "設定4",
           "bbText": "1/250.1",
-          "rbText": "1/281.3"
+          "rbText": "1/281.3",
+          "grapeText": "1/5.98",
+          "cherryText": "1/33.15"
         },
         {
           "setting": 5,
           "label": "設定5",
           "bbText": "1/243.6",
-          "rbText": "1/270.8"
+          "rbText": "1/270.8",
+          "grapeText": "1/5.88",
+          "cherryText": "1/33.10"
         },
         {
           "setting": 6,
           "label": "設定6",
           "bbText": "1/226.0",
-          "rbText": "1/252.1"
+          "rbText": "1/252.1",
+          "grapeText": "1/5.83",
+          "cherryText": "1/32.97"
         }
       ]
     },

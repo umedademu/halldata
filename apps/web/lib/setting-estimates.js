@@ -19,6 +19,7 @@ const GRAPE_SETTING_ESTIMATE_KEYS = new Set([
   "neoim-juggler-ex",
   "gogo-juggler",
   "funky-juggler-2",
+  "juggler-girls",
   "my-juggler-v",
 ]);
 const GRAPE_ESTIMATE_MACHINE_SPECS = new Map([
@@ -33,6 +34,10 @@ const GRAPE_ESTIMATE_MACHINE_SPECS = new Map([
   [
     "funky-juggler-2",
     { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 0.75, minrepoOneBetGameFactor: 1.443 },
+  ],
+  [
+    "juggler-girls",
+    { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 0.75, minrepoOneBetGameFactor: -1.013 },
   ],
   [
     "my-juggler-v",
