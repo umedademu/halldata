@@ -15,7 +15,12 @@ const SETTING_ESTIMATE_OUTDATED_KEYS_BY_VERSION = new Map([
   [6, new Set(["my-juggler-v"])],
   [7, new Set(["neoim-juggler-ex", "gogo-juggler", "my-juggler-v"])],
 ]);
-const GRAPE_SETTING_ESTIMATE_KEYS = new Set(["neoim-juggler-ex", "gogo-juggler", "my-juggler-v"]);
+const GRAPE_SETTING_ESTIMATE_KEYS = new Set([
+  "neoim-juggler-ex",
+  "gogo-juggler",
+  "funky-juggler-2",
+  "my-juggler-v",
+]);
 const GRAPE_ESTIMATE_MACHINE_SPECS = new Map([
   [
     "neoim-juggler-ex",
@@ -24,6 +29,10 @@ const GRAPE_ESTIMATE_MACHINE_SPECS = new Map([
   [
     "gogo-juggler",
     { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 1, minrepoOneBetGameFactor: 0.725 },
+  ],
+  [
+    "funky-juggler-2",
+    { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 0.75, minrepoOneBetGameFactor: 1.443 },
   ],
   [
     "my-juggler-v",

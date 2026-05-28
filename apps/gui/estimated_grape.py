@@ -53,6 +53,22 @@ ESTIMATED_GRAPE_MACHINE_SPECS = (
         ),
     },
     {
+        "key": "funky-juggler-2",
+        "keywords": ("ファンキージャグラー2",),
+        "bb_payout": 240,
+        "rb_payout": 96,
+        "post_announcement_bonus_ratio": 0.75,
+        "minrepo_one_bet_game_factor": 1.443,
+        "cherry_denominators_by_setting": (
+            (1.0, 35.83),
+            (2.0, 35.46),
+            (3.0, 36.27),
+            (4.0, 35.68),
+            (5.0, 35.64),
+            (6.0, 36.02),
+        ),
+    },
+    {
         "key": "my-juggler-v",
         "keywords": ("マイジャグラー",),
         "bb_payout": 240,
