@@ -7,6 +7,7 @@ import hmac
 import json
 import os
 from pathlib import Path
+import time
 from typing import Any
 from urllib.parse import quote, urlsplit
 
@@ -221,13 +222,28 @@ class R2JsonStorage:
             f"SignedHeaders={signed_headers},Signature={signature}"
         )
 
-        return self.session.request(
-            method.upper(),
-            url,
-            data=body,
-            headers=headers,
-            timeout=60,
-        )
+        last_error: requests.RequestException | None = None
+        for attempt in range(3):
+            try:
+                response = self.session.request(
+                    method.upper(),
+                    url,
+                    data=body,
+                    headers=headers,
+                    timeout=60,
+                )
+            except requests.RequestException as exc:
+                last_error = exc
+                if attempt >= 2:
+                    raise
+            else:
+                if response.status_code < 500 or attempt >= 2:
+                    return response
+            time.sleep(1.5 * (attempt + 1))
+
+        if last_error is not None:
+            raise last_error
+        raise R2StorageError(f"R2への接続に失敗しました。{key}")
 
     @staticmethod
     def _signing_key(secret_access_key: str, date_stamp: str) -> bytes:

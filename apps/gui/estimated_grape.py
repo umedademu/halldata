@@ -8,12 +8,12 @@ import unicodedata
 from setting_estimates import calculate_setting_estimate, get_setting_estimate_definition
 
 
-ESTIMATED_GRAPE_VALUE_VERSION = 3
+ESTIMATED_GRAPE_VALUE_VERSION = 4
 REPLAY_DENOMINATOR = 7.30
 REPLAY_PAYOUT = 3
 GRAPE_PAYOUT = 8
 CHERRY_PAYOUT = 2
-MINREPO_ONE_BET_GAME_FACTOR = 1 / 3
+MINREPO_ONE_BET_GAME_FACTOR = 0.725
 ONE_BET_GRAPE_DENOMINATOR = 10.3
 ONE_BET_REPLAY_DENOMINATOR = 7.3
 ONE_BET_GRAPE_PAYOUT = 8
@@ -126,6 +126,7 @@ def calculate_estimated_grape_value(
     if cherry_probability is None:
         return None
 
+    post_announcement_bonus_count = (bb_count + rb_count) * machine_spec["post_announcement_bonus_ratio"]
     one_bet_games = _calculate_one_bet_games(
         bb_count + rb_count,
         machine_spec["post_announcement_bonus_ratio"],
@@ -135,9 +136,10 @@ def calculate_estimated_grape_value(
     if not math.isfinite(normal_games_count) or normal_games_count <= 0:
         return None
 
-    total_investment = games_count * 3
+    corrected_difference_value = difference_value - (post_announcement_bonus_count / ONE_BET_REPLAY_DENOMINATOR)
+    total_investment = (normal_games_count * 3) + one_bet_games
     total_bonus_payout = bb_count * machine_spec["bb_payout"] + rb_count * machine_spec["rb_payout"]
-    total_small_payout = difference_value + total_investment - total_bonus_payout
+    total_small_payout = corrected_difference_value + total_investment - total_bonus_payout
     replay_payout = normal_games_count * REPLAY_PAYOUT / REPLAY_DENOMINATOR
     cherry_payout = normal_games_count * CHERRY_PAYOUT * cherry_probability
     one_bet_grape_payout = one_bet_games * ONE_BET_GRAPE_PAYOUT / ONE_BET_GRAPE_DENOMINATOR

@@ -1,7 +1,7 @@
 import settingEstimatesPayload from "../config/setting_estimates.json" with { type: "json" };
 
 export const SETTING_ESTIMATE_VALUE_VERSION = 8;
-export const SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 2;
+export const SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 3;
 export const SETTING_ESTIMATE_MODE_BONUS = "bonus";
 export const SETTING_ESTIMATE_MODE_GRAPE = "grape";
 export const DEFAULT_SETTING_ESTIMATE_MODE = SETTING_ESTIMATE_MODE_BONUS;
@@ -25,7 +25,7 @@ const GRAPE_ESTIMATE_REPLAY_DENOMINATOR = 7.30;
 const GRAPE_ESTIMATE_REPLAY_PAYOUT = 3;
 const GRAPE_ESTIMATE_GRAPE_PAYOUT = 8;
 const GRAPE_ESTIMATE_CHERRY_PAYOUT = 2;
-const MINREPO_ONE_BET_GAME_FACTOR = 1 / 3;
+const MINREPO_ONE_BET_GAME_FACTOR = 0.725;
 const ONE_BET_GRAPE_DENOMINATOR = 10.3;
 const ONE_BET_REPLAY_DENOMINATOR = 7.3;
 const ONE_BET_GRAPE_PAYOUT = 8;
@@ -289,6 +289,7 @@ function calculateGrapeObservation(definition, record) {
   }
 
   const bonusCount = bbCount + rbCount;
+  const postAnnouncementBonusCount = bonusCount * machineSpec.postAnnouncementBonusRatio;
   const oneBetEndProbability =
     1 - 1 / ONE_BET_GRAPE_DENOMINATOR - 1 / ONE_BET_REPLAY_DENOMINATOR;
   if (oneBetEndProbability <= 0) {
@@ -303,17 +304,18 @@ function calculateGrapeObservation(definition, record) {
     return null;
   }
 
-  const oneBetGames =
-    (bonusCount * machineSpec.postAnnouncementBonusRatio) / oneBetEndProbability;
+  const oneBetGames = postAnnouncementBonusCount / oneBetEndProbability;
   const minrepoOneBetGames = oneBetGames * MINREPO_ONE_BET_GAME_FACTOR;
   const normalGames = games - minrepoOneBetGames;
   if (!Number.isFinite(normalGames) || normalGames <= 0) {
     return null;
   }
 
-  const totalInvestment = games * 3;
+  const correctedDifferenceValue =
+    differenceValue - postAnnouncementBonusCount / ONE_BET_REPLAY_DENOMINATOR;
+  const totalInvestment = normalGames * 3 + oneBetGames;
   const totalBonusPayout = bbCount * machineSpec.bbPayout + rbCount * machineSpec.rbPayout;
-  const totalSmallPayout = differenceValue + totalInvestment - totalBonusPayout;
+  const totalSmallPayout = correctedDifferenceValue + totalInvestment - totalBonusPayout;
   const replayPayout =
     (normalGames / GRAPE_ESTIMATE_REPLAY_DENOMINATOR) * GRAPE_ESTIMATE_REPLAY_PAYOUT;
   const cherryPayout = normalGames * cherryProbability * GRAPE_ESTIMATE_CHERRY_PAYOUT;
