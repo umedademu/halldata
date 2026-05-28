@@ -44,6 +44,7 @@ DEFAULT_RESULTS_TABLE = "machine_daily_results"
 DEFAULT_MACHINE_SUMMARIES_TABLE = "store_machine_summaries"
 DEFAULT_MACHINE_DAILY_DETAILS_TABLE = "store_machine_daily_details"
 REGISTERED_STORES_FILE_NAME = "registered_stores.json"
+GUI_SETTINGS_FILE_NAME = "gui_settings.json"
 REGISTERED_STORE_EXCLUDED_URLS_KEY = "excluded_store_urls"
 STORE_COLUMNS = {"機種", "機種名"}
 WINDOWS_FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]+')
@@ -557,6 +558,46 @@ class HistoryPersistenceService:
         except Exception as exc:  # noqa: BLE001
             summary.messages.append(f"ローカル退避に失敗しました。\n{exc}")
 
+        return summary
+
+    def delete_local_checkpoint_files(self, file_paths: list[str]) -> PersistenceSummary:
+        summary = PersistenceSummary()
+        local_dir = self._local_save_dir().resolve()
+        deleted_count = 0
+
+        for file_path_text in file_paths:
+            file_path = Path(file_path_text)
+            try:
+                resolved_path = file_path.resolve()
+            except OSError as exc:
+                summary.messages.append(f"ローカル退避の確認に失敗しました。\n{file_path}\n{exc}")
+                continue
+
+            if not _is_relative_to(resolved_path, local_dir):
+                summary.messages.append(f"ローカル退避以外のファイルは削除しませんでした。\n{resolved_path}")
+                continue
+
+            if resolved_path.name in {REGISTERED_STORES_FILE_NAME, GUI_SETTINGS_FILE_NAME}:
+                summary.messages.append(f"設定ファイルは削除しませんでした。\n{resolved_path}")
+                continue
+
+            if resolved_path.name == "_full_day_index.json" or resolved_path.parent.name == "backups":
+                summary.messages.append(f"管理用ファイルは削除しませんでした。\n{resolved_path}")
+                continue
+
+            if not resolved_path.exists():
+                continue
+            if not resolved_path.is_file() or resolved_path.suffix.lower() != ".json":
+                summary.messages.append(f"JSON退避ファイル以外は削除しませんでした。\n{resolved_path}")
+                continue
+
+            try:
+                resolved_path.unlink()
+                deleted_count += 1
+            except OSError as exc:
+                summary.messages.append(f"ローカル退避の削除に失敗しました。\n{resolved_path}\n{exc}")
+
+        summary.local_record_count = deleted_count
         return summary
 
     def mark_full_day_saved(self, history_result: MachineHistoryResult) -> PersistenceSummary:
@@ -3379,6 +3420,14 @@ def _sanitize_file_name(value: str) -> str:
     text = WINDOWS_FORBIDDEN_CHARS.sub("_", value.strip())
     text = re.sub(r"\s+", "_", text)
     return text or "store"
+
+
+def _is_relative_to(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
 
 
 def _chunk_items(items: list[dict[str, Any]], chunk_size: int) -> list[list[dict[str, Any]]]:

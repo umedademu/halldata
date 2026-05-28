@@ -2527,6 +2527,8 @@ class MinRepoApp:
             queue_progress(progress)
 
         save_summary: PersistenceSummary | None = None
+        checkpoint_paths_by_date: dict[str, list[str]] = {}
+        checkpoint_lock = threading.Lock()
 
         def merge_checkpoint_summary(checkpoint_summary: PersistenceSummary) -> None:
             nonlocal save_summary
@@ -2540,6 +2542,15 @@ class MinRepoApp:
             if dataset is not None:
                 step_callback(f"{dataset.target_date} の {dataset.machine_name} をローカル退避中")
             checkpoint_summary = self.persistence_service.save_history_result_local_checkpoint(dataset_result)
+            if checkpoint_summary.local_file_path:
+                checkpoint_dates = {date_page.target_date for date_page in dataset_result.date_pages}
+                if not checkpoint_dates and dataset is not None:
+                    checkpoint_dates = {dataset.target_date}
+                with checkpoint_lock:
+                    for checkpoint_date in checkpoint_dates:
+                        checkpoint_paths_by_date.setdefault(checkpoint_date, []).append(
+                            checkpoint_summary.local_file_path
+                        )
             merge_checkpoint_summary(checkpoint_summary)
 
         def fetch_date_page(date_index: int, date_page: object) -> MachineHistoryResult:
@@ -2598,6 +2609,23 @@ class MinRepoApp:
                 skipped_dates=skipped_batch_dates,
             )
 
+        def take_checkpoint_paths_for_publish_result(publish_result: MachineHistoryResult) -> list[str]:
+            publish_dates = [date_page.target_date for date_page in publish_result.date_pages]
+            with checkpoint_lock:
+                checkpoint_paths: list[str] = []
+                for publish_date in publish_dates:
+                    checkpoint_paths.extend(checkpoint_paths_by_date.pop(publish_date, []))
+            return checkpoint_paths
+
+        def mark_checkpoints_left_on_failure(
+            batch_save_summary: PersistenceSummary,
+            checkpoint_paths: list[str],
+        ) -> None:
+            if not checkpoint_paths or batch_save_summary.web_data_saved:
+                return
+            batch_save_summary.local_file_path = checkpoint_paths[-1]
+            batch_save_summary.messages.append("R2保存に失敗したため、取得中のローカル退避を復旧用に残しました。")
+
         def publish_batch(label: str) -> None:
             nonlocal save_summary, publish_batch_results
             if not publish_batch_results:
@@ -2609,7 +2637,13 @@ class MinRepoApp:
                 return
 
             step_callback(f"{label}のR2保存とWeb更新中")
+            batch_checkpoint_paths = take_checkpoint_paths_for_publish_result(publish_result)
             batch_save_summary = self.persistence_service.save_history_result(publish_result, full_day=True)
+            if batch_save_summary.web_data_saved:
+                delete_summary = self.persistence_service.delete_local_checkpoint_files(batch_checkpoint_paths)
+                batch_save_summary.messages.extend(delete_summary.messages)
+            else:
+                mark_checkpoints_left_on_failure(batch_save_summary, batch_checkpoint_paths)
             with save_summary_lock:
                 save_summary = self._merge_persistence_summary(save_summary, batch_save_summary)
             publish_batch_results = []

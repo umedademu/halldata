@@ -1190,6 +1190,7 @@ class MinRepoScraperTests(unittest.TestCase):
             def __init__(self) -> None:
                 self.checkpoint_results: list[MachineHistoryResult] = []
                 self.saved_results: list[tuple[MachineHistoryResult, bool]] = []
+                self.deleted_checkpoint_paths: list[str] = []
 
             def find_saved_full_day_dates(
                 self,
@@ -1215,6 +1216,10 @@ class MinRepoScraperTests(unittest.TestCase):
                 self.saved_results.append((history_result, full_day))
                 return PersistenceSummary(web_data_saved=True, web_data_record_count=1)
 
+            def delete_local_checkpoint_files(self, file_paths: list[str]) -> PersistenceSummary:
+                self.deleted_checkpoint_paths.extend(file_paths)
+                return PersistenceSummary()
+
         persistence_service = FakePersistenceService()
         app.persistence_service = persistence_service
 
@@ -1230,6 +1235,7 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         self.assertEqual(len(persistence_service.checkpoint_results), len(result.history_result.datasets))
+        self.assertEqual(len(persistence_service.deleted_checkpoint_paths), len(result.history_result.datasets))
         self.assertEqual(len(persistence_service.saved_results), 1)
         self.assertTrue(persistence_service.saved_results[0][1])
         self.assertEqual(
@@ -1261,6 +1267,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 self.lock = threading.Lock()
                 self.checkpoint_results: list[MachineHistoryResult] = []
                 self.saved_results: list[tuple[MachineHistoryResult, bool]] = []
+                self.deleted_checkpoint_paths: list[str] = []
 
             def find_saved_full_day_dates(
                 self,
@@ -1288,6 +1295,11 @@ class MinRepoScraperTests(unittest.TestCase):
                     self.saved_results.append((history_result, full_day))
                 return PersistenceSummary(web_data_saved=True, web_data_record_count=1)
 
+            def delete_local_checkpoint_files(self, file_paths: list[str]) -> PersistenceSummary:
+                with self.lock:
+                    self.deleted_checkpoint_paths.extend(file_paths)
+                return PersistenceSummary()
+
         persistence_service = FakePersistenceService()
         app.persistence_service = persistence_service
 
@@ -1311,6 +1323,7 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(len(persistence_service.saved_results), 2)
         self.assertTrue(all(full_day for _, full_day in persistence_service.saved_results))
         self.assertEqual(len(persistence_service.checkpoint_results), len(result.history_result.datasets))
+        self.assertEqual(len(persistence_service.deleted_checkpoint_paths), len(result.history_result.datasets))
 
     def test_fetch_machine_history_progress_from_saved_html(self) -> None:
         scraper = FixtureScraper()
@@ -2716,6 +2729,30 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertIsNotNone(summary.local_file_path)
             self.assertTrue(Path(str(summary.local_file_path)).exists())
             self.assertFalse(summary.web_data_saved)
+
+    def test_delete_local_checkpoint_files_removes_saved_snapshot_only(self) -> None:
+        scraper = FixtureScraper()
+        history_result = scraper.fetch_machine_history_datasets(
+            store_url="https://min-repo.com/tag/mj%E3%82%A2%E3%83%AA%E3%83%BC%E3%83%8A%E7%AE%B1%E5%B4%8E%E5%BA%97/",
+            target_date_input="2026-04-07 ～ 2026-04-08",
+            machine_names=["ネオアイムジャグラーEX"],
+        )
+
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+            checkpoint_summary = service.save_history_result_local_checkpoint(history_result)
+            checkpoint_path = Path(str(checkpoint_summary.local_file_path))
+            settings_path = Path(temp_dir) / "local_data" / "gui_settings.json"
+            settings_path.write_text("{}", encoding="utf-8")
+
+            delete_summary = service.delete_local_checkpoint_files(
+                [str(checkpoint_path), str(settings_path)]
+            )
+
+            self.assertFalse(checkpoint_path.exists())
+            self.assertTrue(settings_path.exists())
+            self.assertEqual(delete_summary.local_record_count, 1)
+            self.assertTrue(delete_summary.has_errors)
 
     def test_save_history_result_marks_full_day_index(self) -> None:
         scraper = FixtureScraper()
