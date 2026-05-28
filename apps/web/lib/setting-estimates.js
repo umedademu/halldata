@@ -1,7 +1,7 @@
 import settingEstimatesPayload from "../config/setting_estimates.json" with { type: "json" };
 
 export const SETTING_ESTIMATE_VALUE_VERSION = 8;
-export const SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 3;
+export const SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 4;
 export const SETTING_ESTIMATE_MODE_BONUS = "bonus";
 export const SETTING_ESTIMATE_MODE_GRAPE = "grape";
 export const DEFAULT_SETTING_ESTIMATE_MODE = SETTING_ESTIMATE_MODE_BONUS;
@@ -17,15 +17,24 @@ const SETTING_ESTIMATE_OUTDATED_KEYS_BY_VERSION = new Map([
 ]);
 const GRAPE_SETTING_ESTIMATE_KEYS = new Set(["neoim-juggler-ex", "gogo-juggler", "my-juggler-v"]);
 const GRAPE_ESTIMATE_MACHINE_SPECS = new Map([
-  ["neoim-juggler-ex", { bbPayout: 252, rbPayout: 96, postAnnouncementBonusRatio: 0.75 }],
-  ["gogo-juggler", { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 1 }],
-  ["my-juggler-v", { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 0.75 }],
+  [
+    "neoim-juggler-ex",
+    { bbPayout: 252, rbPayout: 96, postAnnouncementBonusRatio: 0.75, minrepoOneBetGameFactor: 0.30 },
+  ],
+  [
+    "gogo-juggler",
+    { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 1, minrepoOneBetGameFactor: 0.725 },
+  ],
+  [
+    "my-juggler-v",
+    { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 0.75, minrepoOneBetGameFactor: 0.725 },
+  ],
 ]);
 const GRAPE_ESTIMATE_REPLAY_DENOMINATOR = 7.30;
 const GRAPE_ESTIMATE_REPLAY_PAYOUT = 3;
 const GRAPE_ESTIMATE_GRAPE_PAYOUT = 8;
 const GRAPE_ESTIMATE_CHERRY_PAYOUT = 2;
-const MINREPO_ONE_BET_GAME_FACTOR = 0.725;
+const DEFAULT_MINREPO_ONE_BET_GAME_FACTOR = 0.725;
 const ONE_BET_GRAPE_DENOMINATOR = 10.3;
 const ONE_BET_REPLAY_DENOMINATOR = 7.3;
 const ONE_BET_GRAPE_PAYOUT = 8;
@@ -305,7 +314,8 @@ function calculateGrapeObservation(definition, record) {
   }
 
   const oneBetGames = postAnnouncementBonusCount / oneBetEndProbability;
-  const minrepoOneBetGames = oneBetGames * MINREPO_ONE_BET_GAME_FACTOR;
+  const minrepoOneBetGames =
+    oneBetGames * (machineSpec.minrepoOneBetGameFactor ?? DEFAULT_MINREPO_ONE_BET_GAME_FACTOR);
   const normalGames = games - minrepoOneBetGames;
   if (!Number.isFinite(normalGames) || normalGames <= 0) {
     return null;

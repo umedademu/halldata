@@ -8,12 +8,12 @@ import unicodedata
 from setting_estimates import calculate_setting_estimate, get_setting_estimate_definition
 
 
-ESTIMATED_GRAPE_VALUE_VERSION = 4
+ESTIMATED_GRAPE_VALUE_VERSION = 5
 REPLAY_DENOMINATOR = 7.30
 REPLAY_PAYOUT = 3
 GRAPE_PAYOUT = 8
 CHERRY_PAYOUT = 2
-MINREPO_ONE_BET_GAME_FACTOR = 0.725
+DEFAULT_MINREPO_ONE_BET_GAME_FACTOR = 0.725
 ONE_BET_GRAPE_DENOMINATOR = 10.3
 ONE_BET_REPLAY_DENOMINATOR = 7.3
 ONE_BET_GRAPE_PAYOUT = 8
@@ -26,6 +26,7 @@ ESTIMATED_GRAPE_MACHINE_SPECS = (
         "bb_payout": 252,
         "rb_payout": 96,
         "post_announcement_bonus_ratio": 0.75,
+        "minrepo_one_bet_game_factor": 0.30,
         "cherry_denominators_by_setting": (
             (1.0, 36.36),
             (2.0, 35.92),
@@ -41,6 +42,7 @@ ESTIMATED_GRAPE_MACHINE_SPECS = (
         "bb_payout": 240,
         "rb_payout": 96,
         "post_announcement_bonus_ratio": 1.0,
+        "minrepo_one_bet_game_factor": DEFAULT_MINREPO_ONE_BET_GAME_FACTOR,
         "cherry_denominators_by_setting": (
             (1.0, 33.40),
             (2.0, 33.30),
@@ -56,6 +58,7 @@ ESTIMATED_GRAPE_MACHINE_SPECS = (
         "bb_payout": 240,
         "rb_payout": 96,
         "post_announcement_bonus_ratio": 0.75,
+        "minrepo_one_bet_game_factor": DEFAULT_MINREPO_ONE_BET_GAME_FACTOR,
         "cherry_denominators_by_setting": (
             (1.0, 38.43),
             (2.0, 38.29),
@@ -131,7 +134,10 @@ def calculate_estimated_grape_value(
         bb_count + rb_count,
         machine_spec["post_announcement_bonus_ratio"],
     )
-    minrepo_one_bet_games = one_bet_games * MINREPO_ONE_BET_GAME_FACTOR
+    minrepo_one_bet_games = one_bet_games * machine_spec.get(
+        "minrepo_one_bet_game_factor",
+        DEFAULT_MINREPO_ONE_BET_GAME_FACTOR,
+    )
     normal_games_count = games_count - minrepo_one_bet_games
     if not math.isfinite(normal_games_count) or normal_games_count <= 0:
         return None
