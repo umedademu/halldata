@@ -21,6 +21,7 @@ const GRAPE_SETTING_ESTIMATE_KEYS = new Set([
   "funky-juggler-2",
   "juggler-girls",
   "my-juggler-v",
+  "mr-juggler",
 ]);
 const GRAPE_ESTIMATE_MACHINE_SPECS = new Map([
   [
@@ -42,6 +43,24 @@ const GRAPE_ESTIMATE_MACHINE_SPECS = new Map([
   [
     "my-juggler-v",
     { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 0.75, minrepoOneBetGameFactor: 0.725 },
+  ],
+  [
+    "mr-juggler",
+    {
+      bbPayout: 240,
+      rbPayout: 96,
+      postAnnouncementBonusRatio: 0.75,
+      minrepoOneBetGameFactor: 0.725,
+      cherryPayout: 4,
+      cherryAcquisitionRate: 0.97,
+      bellDenominator: 655.36,
+      bellPayout: 14,
+      pieroDenominator: 655.36,
+      pieroPayout: 10,
+      highSettingThreshold: 3.5,
+      highSettingBellPieroAcquisitionRate: 0.75,
+      lowSettingBellPieroAcquisitionRate: 0.0458817500129305,
+    },
   ],
 ]);
 const GRAPE_ESTIMATE_REPLAY_DENOMINATOR = 7.30;
@@ -291,6 +310,42 @@ function interpolateSettingRate(definition, settingAverage, rateKey) {
   return lastRow[rateKey];
 }
 
+function calculateExtraNormalSmallPayout(machineSpec, normalGames, settingAverage) {
+  const bellDenominator = readNumber(machineSpec?.bellDenominator);
+  const bellPayout = readNumber(machineSpec?.bellPayout);
+  const pieroDenominator = readNumber(machineSpec?.pieroDenominator);
+  const pieroPayout = readNumber(machineSpec?.pieroPayout);
+  if (
+    !Number.isFinite(bellDenominator) ||
+    bellDenominator <= 0 ||
+    !Number.isFinite(bellPayout) ||
+    !Number.isFinite(pieroDenominator) ||
+    pieroDenominator <= 0 ||
+    !Number.isFinite(pieroPayout)
+  ) {
+    return 0;
+  }
+
+  const acquisitionRate = selectExtraNormalSmallAcquisitionRate(machineSpec, settingAverage);
+  return normalGames * acquisitionRate * (bellPayout / bellDenominator + pieroPayout / pieroDenominator);
+}
+
+function selectExtraNormalSmallAcquisitionRate(machineSpec, settingAverage) {
+  const threshold = readNumber(machineSpec?.highSettingThreshold);
+  const highRate = readNumber(machineSpec?.highSettingBellPieroAcquisitionRate);
+  const lowRate = readNumber(machineSpec?.lowSettingBellPieroAcquisitionRate);
+  if (
+    !Number.isFinite(threshold) ||
+    !Number.isFinite(highRate) ||
+    !Number.isFinite(lowRate) ||
+    !Number.isFinite(settingAverage)
+  ) {
+    return 1;
+  }
+
+  return settingAverage >= threshold ? highRate : lowRate;
+}
+
 function calculateGrapeObservation(definition, record) {
   const machineSpec = GRAPE_ESTIMATE_MACHINE_SPECS.get(String(definition?.key ?? ""));
   if (!machineSpec) {
@@ -342,13 +397,27 @@ function calculateGrapeObservation(definition, record) {
   const totalSmallPayout = correctedDifferenceValue + totalInvestment - totalBonusPayout;
   const replayPayout =
     (normalGames / GRAPE_ESTIMATE_REPLAY_DENOMINATOR) * GRAPE_ESTIMATE_REPLAY_PAYOUT;
-  const cherryPayout = normalGames * cherryProbability * GRAPE_ESTIMATE_CHERRY_PAYOUT;
+  const cherryPayout =
+    normalGames *
+    cherryProbability *
+    (machineSpec.cherryPayout ?? GRAPE_ESTIMATE_CHERRY_PAYOUT) *
+    (machineSpec.cherryAcquisitionRate ?? 1);
+  const extraNormalSmallPayout = calculateExtraNormalSmallPayout(
+    machineSpec,
+    normalGames,
+    provisionalEstimate?.average,
+  );
   const oneBetGrapePayout =
     (oneBetGames / ONE_BET_GRAPE_DENOMINATOR) * ONE_BET_GRAPE_PAYOUT;
   const oneBetReplayPayout =
     (oneBetGames / ONE_BET_REPLAY_DENOMINATOR) * ONE_BET_REPLAY_PAYOUT;
   const grapePayout =
-    totalSmallPayout - replayPayout - cherryPayout - oneBetGrapePayout - oneBetReplayPayout;
+    totalSmallPayout -
+    replayPayout -
+    cherryPayout -
+    extraNormalSmallPayout -
+    oneBetGrapePayout -
+    oneBetReplayPayout;
   const grapeCount = grapePayout / GRAPE_ESTIMATE_GRAPE_PAYOUT;
 
   return normalizeGrapeObservation(grapeCount, normalGames, "calculated");

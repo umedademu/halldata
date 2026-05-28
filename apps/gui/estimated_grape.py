@@ -100,6 +100,31 @@ ESTIMATED_GRAPE_MACHINE_SPECS = (
             (6.0, 35.79),
         ),
     },
+    {
+        "key": "mr-juggler",
+        "keywords": ("ミスタージャグラー",),
+        "bb_payout": 240,
+        "rb_payout": 96,
+        "post_announcement_bonus_ratio": 0.75,
+        "minrepo_one_bet_game_factor": DEFAULT_MINREPO_ONE_BET_GAME_FACTOR,
+        "cherry_payout": 4,
+        "cherry_acquisition_rate": 0.97,
+        "bell_denominator": 655.36,
+        "bell_payout": 14,
+        "piero_denominator": 655.36,
+        "piero_payout": 10,
+        "high_setting_threshold": 3.5,
+        "high_setting_bell_piero_acquisition_rate": 0.75,
+        "low_setting_bell_piero_acquisition_rate": 0.0458817500129305,
+        "cherry_denominators_by_setting": (
+            (1.0, 37.24),
+            (2.0, 37.24),
+            (3.0, 37.24),
+            (4.0, 37.24),
+            (5.0, 37.24),
+            (6.0, 37.24),
+        ),
+    },
 )
 
 
@@ -179,13 +204,24 @@ def calculate_estimated_grape_value(
     total_bonus_payout = bb_count * machine_spec["bb_payout"] + rb_count * machine_spec["rb_payout"]
     total_small_payout = corrected_difference_value + total_investment - total_bonus_payout
     replay_payout = normal_games_count * REPLAY_PAYOUT / REPLAY_DENOMINATOR
-    cherry_payout = normal_games_count * CHERRY_PAYOUT * cherry_probability
+    cherry_payout = (
+        normal_games_count
+        * machine_spec.get("cherry_payout", CHERRY_PAYOUT)
+        * cherry_probability
+        * machine_spec.get("cherry_acquisition_rate", 1.0)
+    )
+    extra_normal_small_payout = _calculate_extra_normal_small_payout(
+        machine_spec,
+        normal_games_count,
+        setting_average_number,
+    )
     one_bet_grape_payout = one_bet_games * ONE_BET_GRAPE_PAYOUT / ONE_BET_GRAPE_DENOMINATOR
     one_bet_replay_payout = one_bet_games * ONE_BET_REPLAY_PAYOUT / ONE_BET_REPLAY_DENOMINATOR
     grape_payout = (
         total_small_payout
         - replay_payout
         - cherry_payout
+        - extra_normal_small_payout
         - one_bet_grape_payout
         - one_bet_replay_payout
     )
@@ -219,6 +255,50 @@ def _calculate_one_bet_games(bonus_count: float, post_announcement_bonus_ratio: 
     if settle_probability <= 0:
         return 0.0
     return one_bet_start_count / settle_probability
+
+
+def _calculate_extra_normal_small_payout(
+    machine_spec: dict[str, Any],
+    normal_games_count: float,
+    setting_average: float | None,
+) -> float:
+    bell_denominator = _read_raw_number(machine_spec.get("bell_denominator"))
+    bell_payout = _read_raw_number(machine_spec.get("bell_payout"))
+    piero_denominator = _read_raw_number(machine_spec.get("piero_denominator"))
+    piero_payout = _read_raw_number(machine_spec.get("piero_payout"))
+    if (
+        bell_denominator is None
+        or bell_denominator <= 0
+        or bell_payout is None
+        or piero_denominator is None
+        or piero_denominator <= 0
+        or piero_payout is None
+    ):
+        return 0.0
+
+    acquisition_rate = _select_extra_normal_small_acquisition_rate(machine_spec, setting_average)
+    return normal_games_count * acquisition_rate * (
+        bell_payout / bell_denominator + piero_payout / piero_denominator
+    )
+
+
+def _select_extra_normal_small_acquisition_rate(
+    machine_spec: dict[str, Any],
+    setting_average: float | None,
+) -> float:
+    threshold = _read_raw_number(machine_spec.get("high_setting_threshold"))
+    high_rate = _read_raw_number(machine_spec.get("high_setting_bell_piero_acquisition_rate"))
+    low_rate = _read_raw_number(machine_spec.get("low_setting_bell_piero_acquisition_rate"))
+    if (
+        threshold is None
+        or high_rate is None
+        or low_rate is None
+        or setting_average is None
+        or not math.isfinite(setting_average)
+    ):
+        return 1.0
+
+    return high_rate if setting_average >= threshold else low_rate
 
 
 def _interpolate_setting_probability(

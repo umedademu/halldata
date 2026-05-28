@@ -21,6 +21,7 @@ GRAPE_SETTING_ESTIMATE_KEYS = {
     "funky-juggler-2",
     "juggler-girls",
     "my-juggler-v",
+    "mr-juggler",
 }
 
 
