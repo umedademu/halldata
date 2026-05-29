@@ -663,14 +663,18 @@ function readMachineComparisonOptions(storeId, defaults, options = {}) {
       : normalizeDifferenceMode(
           source.displayDifferenceMode ?? source.differenceMode ?? defaults.displayDifferenceMode,
         ),
-    huntScoreDifferenceMode: normalizeDifferenceMode(
-      source.huntScoreDifferenceMode ?? source.differenceMode ?? defaults.huntScoreDifferenceMode,
-    ),
-    settingEstimateMode: normalizeSettingEstimateMode(
-      source.settingEstimateMode ?? defaults.settingEstimateMode,
-    ),
+    huntScoreDifferenceMode: options.preferInitialHuntScoreDifferenceMode
+      ? defaults.huntScoreDifferenceMode
+      : normalizeDifferenceMode(
+          source.huntScoreDifferenceMode ?? source.differenceMode ?? defaults.huntScoreDifferenceMode,
+        ),
+    settingEstimateMode: options.preferInitialSettingEstimateMode
+      ? defaults.settingEstimateMode
+      : normalizeSettingEstimateMode(
+          source.settingEstimateMode ?? defaults.settingEstimateMode,
+        ),
     visibleMetricKeys: normalizeMachineComparisonMetricKeys(source, defaults),
-    estimateOptions: options.preferDefaultEstimateOptions
+    estimateOptions: options.preferDefaultEstimateOptions && !source.estimateOptions
       ? defaults.estimateOptions
       : normalizeEstimateOptions(source.estimateOptions, defaults.estimateOptions),
     displayControlsOpen: normalizeEnabledOption(source.displayControlsOpen, defaults.displayControlsOpen),
@@ -2382,9 +2386,11 @@ export function MachineComparison({
   huntScoreHighlight,
   fullHuntScoreHighlightUrl = "",
   initialDifferenceMode = DEFAULT_DIFFERENCE_MODE,
+  initialHuntScoreDifferenceModeFromSearchParams = false,
   initialDisplayDifferenceMode = DEFAULT_DIFFERENCE_MODE,
   initialDisplayDifferenceModeFromSearchParams = false,
   initialSettingEstimateMode = undefined,
+  initialSettingEstimateModeFromSearchParams = false,
   preferDefaultEstimateOptions = false,
   verificationMode = false,
   huntScoreWindowDays = 7,
@@ -2479,6 +2485,7 @@ export function MachineComparison({
   );
   const [activeHuntScoreHighlight, setActiveHuntScoreHighlight] = useState(huntScoreHighlight);
   const [fullHuntScoreHighlight, setFullHuntScoreHighlight] = useState(null);
+  const initialHuntScoreHighlightLoadKeyRef = useRef("");
   const huntScoreHighlightMachineSlotCounts = useMemo(() => {
     const source = fullHuntScoreHighlight?.machineSlotCounts ?? huntScoreHighlight?.machineSlotCounts;
     return source && typeof source === "object" ? source : {};
@@ -2703,16 +2710,20 @@ export function MachineComparison({
       latestAvailableDate,
       preferInitialEventFilters: initialEventFiltersFromSearchParams,
       preferInitialDisplayDifferenceMode: initialDisplayDifferenceModeFromSearchParams,
+      preferInitialHuntScoreDifferenceMode: initialHuntScoreDifferenceModeFromSearchParams,
+      preferInitialSettingEstimateMode: initialSettingEstimateModeFromSearchParams,
       preferDefaultEstimateOptions,
     });
+    const nextHuntScoreDifferenceMode = normalizeDifferenceMode(options.huntScoreDifferenceMode);
+    const nextSettingEstimateMode = normalizeSettingEstimateMode(options.settingEstimateMode);
     setPeriodMode(options.periodMode);
     setRecentDaysInput(options.recentDaysInput);
     setRangeStartInput(options.rangeStartInput);
     setRangeEndInput(options.rangeEndInput);
     setEventFilters(options.eventFilters);
     setDisplayDifferenceMode(options.displayDifferenceMode);
-    setHuntScoreDifferenceMode(normalizeDifferenceMode(initialDifferenceMode));
-    setSettingEstimateMode(normalizeSettingEstimateMode(initialSettingEstimateMode));
+    setHuntScoreDifferenceMode(nextHuntScoreDifferenceMode);
+    setSettingEstimateMode(nextSettingEstimateMode);
     setVisibleMetricKeys(options.visibleMetricKeys);
     setEstimateOptions(options.estimateOptions);
     setDisplayControlsOpen(options.displayControlsOpen);
@@ -2723,6 +2734,8 @@ export function MachineComparison({
     defaultComparisonOptions,
     initialEventFiltersFromSearchParams,
     initialDisplayDifferenceModeFromSearchParams,
+    initialHuntScoreDifferenceModeFromSearchParams,
+    initialSettingEstimateModeFromSearchParams,
     latestAvailableDate,
     oldestAvailableDate,
     preferDefaultEstimateOptions,
@@ -2782,23 +2795,14 @@ export function MachineComparison({
     setActiveHuntScoreHighlight(huntScoreHighlight);
     setFullHuntScoreHighlight(null);
     setHuntScoreHighlightApplyError("");
+    initialHuntScoreHighlightLoadKeyRef.current = "";
     const loadedOptions = readHuntScoreHighlightOptions(
       storeId,
       huntScoreHighlightAvailableMachineNames,
       machineName,
     );
-    const machineOnlyDefaults = createDefaultHuntScoreHighlightOptions(
-      huntScoreHighlightAvailableMachineNames,
-      machineName,
-    );
-    const machineScopeOptions = {
-      ...loadedOptions,
-      rankScope: "machine",
-      nextGapScope: "machine",
-      selectedMachineNames: machineOnlyDefaults.selectedMachineNames,
-    };
-    setHuntScoreHighlightOptions(machineScopeOptions);
-    setAppliedHuntScoreHighlightOptions(machineScopeOptions);
+    setHuntScoreHighlightOptions(loadedOptions);
+    setAppliedHuntScoreHighlightOptions(loadedOptions);
     setHuntScoreHighlightOptionsLoadedStoreId(storeId);
   }, [huntScoreHighlight, huntScoreHighlightAvailableMachineNames, machineName, storeId]);
 
@@ -2806,8 +2810,8 @@ export function MachineComparison({
     if (huntScoreHighlightOptionsLoadedStoreId !== storeId) {
       return;
     }
-    saveHuntScoreHighlightOptions(storeId, appliedHuntScoreHighlightOptions);
-  }, [appliedHuntScoreHighlightOptions, huntScoreHighlightOptionsLoadedStoreId, storeId]);
+    saveHuntScoreHighlightOptions(storeId, huntScoreHighlightOptions);
+  }, [huntScoreHighlightOptions, huntScoreHighlightOptionsLoadedStoreId, storeId]);
 
   const visibleMetrics = useMemo(
     () => metrics.filter((metric) => visibleMetricKeys.includes(metric.key)),
@@ -2861,7 +2865,12 @@ export function MachineComparison({
   }, [slotNumbers.length, visibleMetrics]);
 
   const loadHuntScoreHighlight = useCallback(
-    async (nextDifferenceMode, nextSettingEstimateMode, nextDateRange = activeDateRange) => {
+    async (
+      nextDifferenceMode,
+      nextSettingEstimateMode,
+      nextDateRange = activeDateRange,
+      nextOptions = appliedHuntScoreHighlightOptions,
+    ) => {
       if (typeof window === "undefined" || !fullHuntScoreHighlightUrl) {
         return;
       }
@@ -2878,7 +2887,7 @@ export function MachineComparison({
         );
         highlightUrl.searchParams.set(
           "scope",
-          huntScoreHighlightNeedsFullData(appliedHuntScoreHighlightOptions, machineName)
+          huntScoreHighlightNeedsFullData(nextOptions, machineName)
             ? "full"
             : "machine",
         );
@@ -2919,6 +2928,49 @@ export function MachineComparison({
       startTransition,
     ],
   );
+
+  useEffect(() => {
+    if (
+      machineComparisonOptionsLoadedStoreId !== storeId ||
+      huntScoreHighlightOptionsLoadedStoreId !== storeId
+    ) {
+      return;
+    }
+
+    const loadKey = `${storeId}:${machineName}`;
+    if (initialHuntScoreHighlightLoadKeyRef.current === loadKey) {
+      return;
+    }
+    initialHuntScoreHighlightLoadKeyRef.current = loadKey;
+
+    const needsInitialReload =
+      huntScoreDifferenceMode !== normalizeDifferenceMode(initialDifferenceMode) ||
+      settingEstimateMode !== normalizeSettingEstimateMode(initialSettingEstimateMode) ||
+      huntScoreHighlightNeedsFullData(appliedHuntScoreHighlightOptions, machineName);
+
+    if (!needsInitialReload) {
+      return;
+    }
+
+    void loadHuntScoreHighlight(
+      huntScoreDifferenceMode,
+      settingEstimateMode,
+      activeDateRange,
+      appliedHuntScoreHighlightOptions,
+    );
+  }, [
+    activeDateRange,
+    appliedHuntScoreHighlightOptions,
+    huntScoreDifferenceMode,
+    huntScoreHighlightOptionsLoadedStoreId,
+    initialDifferenceMode,
+    initialSettingEstimateMode,
+    loadHuntScoreHighlight,
+    machineComparisonOptionsLoadedStoreId,
+    machineName,
+    settingEstimateMode,
+    storeId,
+  ]);
 
   const updatePeriodMode = (mode) => {
     startTransition(() => {

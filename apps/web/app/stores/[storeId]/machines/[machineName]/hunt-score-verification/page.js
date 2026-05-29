@@ -74,6 +74,14 @@ export default async function HuntScoreVerificationPage({ params, searchParams }
     resolvedSearchParams,
     "displayDifferenceMode",
   );
+  const hasHuntScoreDifferenceModeSearchParam = hasSearchParamValue(
+    resolvedSearchParams,
+    "differenceMode",
+  );
+  const hasSettingEstimateModeSearchParam = hasSearchParamValue(
+    resolvedSearchParams,
+    "settingEstimateMode",
+  );
   const eventFilters = parseEventFilters(resolvedSearchParams);
   const hasEventFilterSearchParams =
     hasSearchParamValue(resolvedSearchParams, "dayTail") ||
@@ -179,9 +187,11 @@ export default async function HuntScoreVerificationPage({ params, searchParams }
         huntScoreHighlight={detail.huntScoreHighlight}
         fullHuntScoreHighlightUrl={`/api/stores/${detail.store.id}/machines/${encodeURIComponent(displayMachineName)}/hunt-score-highlight`}
         initialDifferenceMode={detail.differenceMode}
+        initialHuntScoreDifferenceModeFromSearchParams={hasHuntScoreDifferenceModeSearchParam}
         initialDisplayDifferenceMode={displayDifferenceMode}
         initialDisplayDifferenceModeFromSearchParams={hasDisplayDifferenceModeSearchParam}
         initialSettingEstimateMode={detail.settingEstimateMode}
+        initialSettingEstimateModeFromSearchParams={hasSettingEstimateModeSearchParam}
         preferDefaultEstimateOptions={Boolean(detail.huntScoreHighlight)}
         verificationMode
         huntScoreWindowDays={detail.huntScoreLogic?.historyWindowDays ?? detail.huntScoreLogic?.windowDays ?? 7}
