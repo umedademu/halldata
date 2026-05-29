@@ -68,6 +68,7 @@ function buildBookmarkFromForm(form, storeId, allMachineCount, name) {
     scoreDifferenceMode: readFormValue(formData, "scoreDifferenceMode"),
     differenceMode: readFormValue(formData, "differenceMode"),
     settingEstimateMode: readFormValue(formData, "settingEstimateMode"),
+    settingDistribution: readFormValue(formData, "settingDistribution"),
     dailySelectionMode: readFormValues(formData, "dailySelectionMode"),
   };
 }
@@ -159,6 +160,7 @@ function applyBookmarkToForm(form, bookmark) {
     scoreDifferenceMode: bookmark.scoreDifferenceMode,
     differenceMode: bookmark.differenceMode,
     settingEstimateMode: bookmark.settingEstimateMode,
+    settingDistribution: bookmark.settingDistribution,
   };
   const multiValueFields = {
     machine: bookmark.machineNames,

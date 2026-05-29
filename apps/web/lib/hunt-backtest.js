@@ -41,6 +41,8 @@ const BACKTEST_BREAKDOWN_DEFINITIONS = [
   { key: "dayTail", title: "翌営業日が末尾の日" },
   { key: "weekday", title: "翌営業日が指定曜日" },
 ];
+export const SETTING_DISTRIBUTION_SHOW = "show";
+export const SETTING_DISTRIBUTION_HIDE = "hide";
 
 function readPositiveInteger(value) {
   const parsedValue = Number(value);
@@ -48,6 +50,14 @@ function readPositiveInteger(value) {
     return null;
   }
   return parsedValue;
+}
+
+export function normalizeSettingDistribution(value) {
+  return value === SETTING_DISTRIBUTION_HIDE ? SETTING_DISTRIBUTION_HIDE : SETTING_DISTRIBUTION_SHOW;
+}
+
+export function shouldShowSettingDistribution(value) {
+  return normalizeSettingDistribution(value) === SETTING_DISTRIBUTION_SHOW;
 }
 
 function normalizeMachineNameText(value) {
@@ -767,6 +777,7 @@ function addActualMetricsToSummary(
   nextGapValue,
   upperGapValue,
   settingEstimateMode,
+  showSettingDistribution,
 ) {
   summary.actualRowCount += 1;
   if (actualMetrics.differenceValue > 0) {
@@ -787,7 +798,9 @@ function addActualMetricsToSummary(
     summary.upperGapSampleCount += 1;
   }
   addAggregateSettingMetrics(summary, machineName, actualMetrics, row.nextRecord, settingEstimateMode);
-  addSettingEstimateRateMetrics(summary, machineName, row.nextRecord, settingEstimateMode);
+  if (showSettingDistribution) {
+    addSettingEstimateRateMetrics(summary, machineName, row.nextRecord, settingEstimateMode);
+  }
   addGrapeMetrics(summary, machineName, row.nextRecord);
 }
 
@@ -949,6 +962,7 @@ function buildBacktestAggregationDetail(
     selectionMode,
     selectionRowsCache,
     settingEstimateMode,
+    showSettingDistribution,
     rowFilter = () => true,
   },
 ) {
@@ -1094,6 +1108,7 @@ function buildBacktestAggregationDetail(
         machineNextGapValue,
         machineUpperGapValue,
         settingEstimateMode,
+        showSettingDistribution,
       );
       addActualMetricsToSummary(
         targetTotalSummary,
@@ -1103,6 +1118,7 @@ function buildBacktestAggregationDetail(
         machineNextGapValue,
         machineUpperGapValue,
         settingEstimateMode,
+        showSettingDistribution,
       );
 
       if (!matchesCondition) {
@@ -1251,6 +1267,8 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const scoreDifferenceMode = normalizeDifferenceMode(options.scoreDifferenceMode);
   const differenceMode = normalizeDifferenceMode(options.differenceMode);
   const settingEstimateMode = normalizeSettingEstimateMode(options.settingEstimateMode);
+  const settingDistribution = normalizeSettingDistribution(options.settingDistribution);
+  const showSettingDistribution = shouldShowSettingDistribution(settingDistribution);
   const showGrapeColumn = selectedMachineNames.some(isHuntJugglerMachine);
   const eventFilters = buildBacktestEventFilters(options);
   const periodState = buildPeriodState(options, latestDate);
@@ -1279,6 +1297,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     selectionMode,
     selectionRowsCache,
     settingEstimateMode,
+    showSettingDistribution,
   };
   const allAggregation = buildBacktestAggregationDetail(snapshotsInPeriod, aggregationOptions);
   const breakdowns = BACKTEST_BREAKDOWN_DEFINITIONS.map((definition) => ({
@@ -1343,6 +1362,8 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     scoreDifferenceMode,
     differenceMode,
     settingEstimateMode,
+    settingDistribution,
+    showSettingDistribution,
     showGrapeColumn,
     combineAimJuggler,
     combineHanabi,

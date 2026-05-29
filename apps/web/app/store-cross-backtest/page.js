@@ -34,6 +34,10 @@ export const metadata = {
 };
 
 const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, index) => index);
+const SETTING_DISTRIBUTION_OPTIONS = [
+  { value: "show", label: "表示" },
+  { value: "hide", label: "非表示" },
+];
 const WEEKDAY_OPTIONS = [
   { value: 1, label: "月曜" },
   { value: 2, label: "火曜" },
@@ -219,7 +223,35 @@ function SettingEstimateModeOptions({ value }) {
   );
 }
 
-function CrossStoreNonmatchingRow({ parentKey, summary, showGrapeColumn = false }) {
+function SettingDistributionOptions({ value }) {
+  return (
+    <div className="metricToggleRow commonConditionModeOptions">
+      {SETTING_DISTRIBUTION_OPTIONS.map((option) => (
+        <label
+          key={option.value}
+          className={`metricToggleChip ${
+            value === option.value ? "metricToggleChipActive" : ""
+          }`}
+        >
+          <input
+            type="radio"
+            name="settingDistribution"
+            value={option.value}
+            defaultChecked={value === option.value}
+          />
+          <span>{option.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function CrossStoreNonmatchingRow({
+  parentKey,
+  summary,
+  showGrapeColumn = false,
+  showSettingDistribution = true,
+}) {
   if (!hasNonmatchingSummary(summary)) {
     return null;
   }
@@ -240,10 +272,14 @@ function CrossStoreNonmatchingRow({ parentKey, summary, showGrapeColumn = false 
       <BacktestMetricCell sortValue={summary.gamesTotal}>{formatNumber(summary.gamesTotal)}</BacktestMetricCell>
       <BacktestMetricCell sortValue={readSortNumber(summary.averageGames)}>{formatAverageGames(summary.averageGames)}</BacktestMetricCell>
       <BacktestMetricCell sortValue={readSortNumber(summary.averageSetting)}>{formatSettingEstimateScore(summary.averageSetting)}</BacktestMetricCell>
-      <BacktestMetricCell sortValue={readSortNumber(summary.setting35PlusRate)}>{formatPercent(summary.setting35PlusRate)}</BacktestMetricCell>
-      <BacktestMetricCell sortValue={readSortNumber(summary.setting4PlusRate)}>{formatPercent(summary.setting4PlusRate)}</BacktestMetricCell>
-      <BacktestMetricCell sortValue={readSortNumber(summary.setting45PlusRate)}>{formatPercent(summary.setting45PlusRate)}</BacktestMetricCell>
-      <BacktestMetricCell sortValue={readSortNumber(summary.setting5PlusRate)}>{formatPercent(summary.setting5PlusRate)}</BacktestMetricCell>
+      {showSettingDistribution ? (
+        <>
+          <BacktestMetricCell sortValue={readSortNumber(summary.setting35PlusRate)}>{formatPercent(summary.setting35PlusRate)}</BacktestMetricCell>
+          <BacktestMetricCell sortValue={readSortNumber(summary.setting4PlusRate)}>{formatPercent(summary.setting4PlusRate)}</BacktestMetricCell>
+          <BacktestMetricCell sortValue={readSortNumber(summary.setting45PlusRate)}>{formatPercent(summary.setting45PlusRate)}</BacktestMetricCell>
+          <BacktestMetricCell sortValue={readSortNumber(summary.setting5PlusRate)}>{formatPercent(summary.setting5PlusRate)}</BacktestMetricCell>
+        </>
+      ) : null}
       <BacktestMetricCell sortValue={summary.actualRowCount}>{formatNumber(summary.actualRowCount)}</BacktestMetricCell>
       <BacktestMetricCell sortValue={readSortNumber(summary.winRate)}>{formatPercent(summary.winRate)}</BacktestMetricCell>
       <td data-sort-value="">-</td>
@@ -267,9 +303,15 @@ function formatCrossStoreRankingMetricLabel(rankingMetric) {
   return rankingMetric === "differenceTotal" ? "合計差枚" : "平均機械割";
 }
 
-function StoreRankingTable({ rows, rankingMetric, showGrapeColumn = false }) {
+function StoreRankingTable({
+  rows,
+  rankingMetric,
+  showGrapeColumn = false,
+  showSettingDistribution = true,
+}) {
   const tableId = "cross-store-backtest-results";
   const rankingMetricLabel = formatCrossStoreRankingMetricLabel(rankingMetric);
+  const settingDistributionColumnCount = showSettingDistribution ? 4 : 0;
 
   return (
     <section className="tablePanel directoryPanel">
@@ -305,30 +347,34 @@ function StoreRankingTable({ rows, rankingMetric, showGrapeColumn = false }) {
               <SortableTableHeader columnIndex={6}>合計G数</SortableTableHeader>
               <SortableTableHeader columnIndex={7}>平均G</SortableTableHeader>
               <SortableTableHeader columnIndex={8}>平均設定</SortableTableHeader>
-              <SortableTableHeader columnIndex={9}>推定3.5+</SortableTableHeader>
-              <SortableTableHeader columnIndex={10}>推定4.0+</SortableTableHeader>
-              <SortableTableHeader columnIndex={11}>推定4.5+</SortableTableHeader>
-              <SortableTableHeader columnIndex={12}>推定5.0+</SortableTableHeader>
-              <SortableTableHeader columnIndex={13}>集計数</SortableTableHeader>
-              <SortableTableHeader columnIndex={14}>勝率</SortableTableHeader>
-              <SortableTableHeader columnIndex={15}>対象日数</SortableTableHeader>
-              <SortableTableHeader columnIndex={16}>集計日数</SortableTableHeader>
-              <SortableTableHeader columnIndex={17}>対象機種</SortableTableHeader>
-              <SortableTableHeader columnIndex={18}>設置数</SortableTableHeader>
-              <SortableTableHeader columnIndex={19}>狙い度</SortableTableHeader>
-              <SortableTableHeader columnIndex={20}>上差(同)</SortableTableHeader>
-              <SortableTableHeader columnIndex={21}>下差(同)</SortableTableHeader>
-              <SortableTableHeader columnIndex={22} initialDirection="asc">
+              {showSettingDistribution ? (
+                <>
+                  <SortableTableHeader columnIndex={9}>推定3.5+</SortableTableHeader>
+                  <SortableTableHeader columnIndex={10}>推定4.0+</SortableTableHeader>
+                  <SortableTableHeader columnIndex={11}>推定4.5+</SortableTableHeader>
+                  <SortableTableHeader columnIndex={12}>推定5.0+</SortableTableHeader>
+                </>
+              ) : null}
+              <SortableTableHeader columnIndex={9 + settingDistributionColumnCount}>集計数</SortableTableHeader>
+              <SortableTableHeader columnIndex={10 + settingDistributionColumnCount}>勝率</SortableTableHeader>
+              <SortableTableHeader columnIndex={11 + settingDistributionColumnCount}>対象日数</SortableTableHeader>
+              <SortableTableHeader columnIndex={12 + settingDistributionColumnCount}>集計日数</SortableTableHeader>
+              <SortableTableHeader columnIndex={13 + settingDistributionColumnCount}>対象機種</SortableTableHeader>
+              <SortableTableHeader columnIndex={14 + settingDistributionColumnCount}>設置数</SortableTableHeader>
+              <SortableTableHeader columnIndex={15 + settingDistributionColumnCount}>狙い度</SortableTableHeader>
+              <SortableTableHeader columnIndex={16 + settingDistributionColumnCount}>上差(同)</SortableTableHeader>
+              <SortableTableHeader columnIndex={17 + settingDistributionColumnCount}>下差(同)</SortableTableHeader>
+              <SortableTableHeader columnIndex={18 + settingDistributionColumnCount} initialDirection="asc">
                 BB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={23} initialDirection="asc">
+              <SortableTableHeader columnIndex={19 + settingDistributionColumnCount} initialDirection="asc">
                 RB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={24} initialDirection="asc">
+              <SortableTableHeader columnIndex={20 + settingDistributionColumnCount} initialDirection="asc">
                 合成
               </SortableTableHeader>
               {showGrapeColumn ? (
-                <SortableTableHeader columnIndex={25} initialDirection="asc">
+                <SortableTableHeader columnIndex={21 + settingDistributionColumnCount} initialDirection="asc">
                   ブドウ
                 </SortableTableHeader>
               ) : null}
@@ -372,10 +418,14 @@ function StoreRankingTable({ rows, rankingMetric, showGrapeColumn = false }) {
                 <BacktestMetricCell sortValue={row.gamesTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="合計G数" nonmatchingValue={formatNumber(nonmatchingSummary?.gamesTotal)}>{formatNumber(row.gamesTotal)}</BacktestMetricCell>
                 <BacktestMetricCell sortValue={readSortNumber(row.averageGames)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="平均G" nonmatchingValue={formatAverageGames(nonmatchingSummary?.averageGames)}>{formatAverageGames(row.averageGames)}</BacktestMetricCell>
                 <BacktestMetricCell sortValue={readSortNumber(row.averageSetting)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="平均設定" nonmatchingValue={formatSettingEstimateScore(nonmatchingSummary?.averageSetting)}>{formatSettingEstimateScore(row.averageSetting)}</BacktestMetricCell>
-                <BacktestMetricCell sortValue={readSortNumber(row.setting35PlusRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="推定3.5+" nonmatchingValue={formatPercent(nonmatchingSummary?.setting35PlusRate)}>{formatPercent(row.setting35PlusRate)}</BacktestMetricCell>
-                <BacktestMetricCell sortValue={readSortNumber(row.setting4PlusRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="推定4.0+" nonmatchingValue={formatPercent(nonmatchingSummary?.setting4PlusRate)}>{formatPercent(row.setting4PlusRate)}</BacktestMetricCell>
-                <BacktestMetricCell sortValue={readSortNumber(row.setting45PlusRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="推定4.5+" nonmatchingValue={formatPercent(nonmatchingSummary?.setting45PlusRate)}>{formatPercent(row.setting45PlusRate)}</BacktestMetricCell>
-                <BacktestMetricCell sortValue={readSortNumber(row.setting5PlusRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="推定5.0+" nonmatchingValue={formatPercent(nonmatchingSummary?.setting5PlusRate)}>{formatPercent(row.setting5PlusRate)}</BacktestMetricCell>
+                {showSettingDistribution ? (
+                  <>
+                    <BacktestMetricCell sortValue={readSortNumber(row.setting35PlusRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="推定3.5+" nonmatchingValue={formatPercent(nonmatchingSummary?.setting35PlusRate)}>{formatPercent(row.setting35PlusRate)}</BacktestMetricCell>
+                    <BacktestMetricCell sortValue={readSortNumber(row.setting4PlusRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="推定4.0+" nonmatchingValue={formatPercent(nonmatchingSummary?.setting4PlusRate)}>{formatPercent(row.setting4PlusRate)}</BacktestMetricCell>
+                    <BacktestMetricCell sortValue={readSortNumber(row.setting45PlusRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="推定4.5+" nonmatchingValue={formatPercent(nonmatchingSummary?.setting45PlusRate)}>{formatPercent(row.setting45PlusRate)}</BacktestMetricCell>
+                    <BacktestMetricCell sortValue={readSortNumber(row.setting5PlusRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="推定5.0+" nonmatchingValue={formatPercent(nonmatchingSummary?.setting5PlusRate)}>{formatPercent(row.setting5PlusRate)}</BacktestMetricCell>
+                  </>
+                ) : null}
                 <BacktestMetricCell sortValue={row.actualRowCount} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="集計数" nonmatchingValue={formatNumber(nonmatchingSummary?.actualRowCount)}>{formatNumber(row.actualRowCount)}</BacktestMetricCell>
                 <BacktestMetricCell sortValue={readSortNumber(row.winRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="勝率" nonmatchingValue={formatPercent(nonmatchingSummary?.winRate)}>{formatPercent(row.winRate)}</BacktestMetricCell>
                 <td data-sort-value={row.targetDateCount}>{formatNumber(row.targetDateCount)}</td>
@@ -399,7 +449,12 @@ function StoreRankingTable({ rows, rankingMetric, showGrapeColumn = false }) {
                   <BacktestMetricCell sortValue={readSortNumber(row.grapeDenominator)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="ブドウ" nonmatchingValue={formatBacktestGrapeDenominator(nonmatchingSummary?.grapeDenominator)}>{formatBacktestGrapeDenominator(row.grapeDenominator)}</BacktestMetricCell>
                 ) : null}
               </tr>
-              <CrossStoreNonmatchingRow parentKey={rowKey} summary={nonmatchingSummary} showGrapeColumn={showGrapeColumn} />
+              <CrossStoreNonmatchingRow
+                parentKey={rowKey}
+                summary={nonmatchingSummary}
+                showGrapeColumn={showGrapeColumn}
+                showSettingDistribution={showSettingDistribution}
+              />
               </Fragment>
               );
             })}
@@ -427,6 +482,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
     scoreDifferenceMode: readSingleSearchParam(resolvedSearchParams?.scoreDifferenceMode),
     differenceMode: readSingleSearchParam(resolvedSearchParams?.differenceMode),
     settingEstimateMode: readSingleSearchParam(resolvedSearchParams?.settingEstimateMode),
+    settingDistribution: readSingleSearchParam(resolvedSearchParams?.settingDistribution),
     rankMin: readOptionalSearchParam(resolvedSearchParams, "rankMin"),
     rankMax: readOptionalSearchParam(resolvedSearchParams, "rankMax"),
     rankScope: readSingleSearchParam(resolvedSearchParams?.rankScope),
@@ -746,6 +802,10 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                   <p className="commonConditionSubLabel">設定推定基準</p>
                   <SettingEstimateModeOptions value={detail.settingEstimateMode} />
                 </div>
+                <div className="commonConditionMode">
+                  <p className="commonConditionSubLabel">設定分布を表示</p>
+                  <SettingDistributionOptions value={detail.settingDistribution} />
+                </div>
               </div>
             </div>
             <div className="scopedConditionColumns">
@@ -978,6 +1038,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
               rows={detail.rows}
               rankingMetric={detail.rankingMetric}
               showGrapeColumn={detail.showGrapeColumn}
+              showSettingDistribution={detail.showSettingDistribution}
             />
           </>
         ) : (

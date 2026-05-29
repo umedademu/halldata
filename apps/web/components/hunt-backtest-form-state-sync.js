@@ -46,6 +46,7 @@ const MANAGED_PARAM_KEYS = [
   "scoreDifferenceMode",
   "differenceMode",
   "settingEstimateMode",
+  "settingDistribution",
   "rankScope",
   "nextGapScope",
 ];

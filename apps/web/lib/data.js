@@ -1,7 +1,11 @@
 import { cache } from "react";
 
 import { createEventFilters } from "./event-filters";
-import { buildHuntScoreBacktestDetail } from "./hunt-backtest";
+import {
+  buildHuntScoreBacktestDetail,
+  normalizeSettingDistribution,
+  shouldShowSettingDistribution,
+} from "./hunt-backtest";
 import {
   buildBoundaryGapFilters,
   buildConditionRequirementOptions,
@@ -2091,6 +2095,8 @@ function buildInitialBacktestDetail(
     scoreDifferenceMode: normalizeDifferenceMode(defaultedOptions?.scoreDifferenceMode),
     differenceMode: normalizeDifferenceMode(defaultedOptions?.differenceMode),
     settingEstimateMode: normalizeSettingEstimateMode(defaultedOptions?.settingEstimateMode),
+    settingDistribution: normalizeSettingDistribution(defaultedOptions?.settingDistribution),
+    showSettingDistribution: shouldShowSettingDistribution(defaultedOptions?.settingDistribution),
     combineAimJuggler,
     combineHanabi,
     hasAimJugglerGroupOption:
@@ -2138,6 +2144,7 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
   const storeMachineNames = readStaticStoreRecentMachineNames(staticStore);
   const differenceMode = normalizeDifferenceMode(backtestOptions?.differenceMode);
   const settingEstimateMode = normalizeSettingEstimateMode(backtestOptions?.settingEstimateMode);
+  const settingDistribution = normalizeSettingDistribution(backtestOptions?.settingDistribution);
   const machineNames = listHuntScoreTargetMachineNamesForStoreMachines(
     store.storeName,
     storeMachineNames,
@@ -2150,6 +2157,8 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
     huntScoreLogic,
     differenceMode,
     settingEstimateMode,
+    settingDistribution,
+    showSettingDistribution: shouldShowSettingDistribution(settingDistribution),
     store: {
       id: store.id,
       storeName: store.storeName,
@@ -2837,6 +2846,7 @@ function buildBacktestOptionsForStore(store, backtestOptions) {
     return {
       ...backtestOptions,
       settingEstimateMode: normalizeSettingEstimateMode(backtestOptions?.settingEstimateMode),
+      settingDistribution: normalizeSettingDistribution(backtestOptions?.settingDistribution),
     };
   }
 
@@ -2847,12 +2857,14 @@ function buildBacktestOptionsForStore(store, backtestOptions) {
     return {
       ...backtestOptions,
       settingEstimateMode: normalizeSettingEstimateMode(backtestOptions?.settingEstimateMode),
+      settingDistribution: normalizeSettingDistribution(backtestOptions?.settingDistribution),
     };
   }
 
   return {
     ...backtestOptions,
     settingEstimateMode: normalizeSettingEstimateMode(backtestOptions?.settingEstimateMode),
+    settingDistribution: normalizeSettingDistribution(backtestOptions?.settingDistribution),
     dayTails: defaultEventFilters.dayTails,
     zoro: defaultEventFilters.zoro,
     weekdays: defaultEventFilters.weekdays,
@@ -3085,6 +3097,7 @@ function buildCrossStoreBacktestOptions(options = {}, availableMachineNames = nu
     scoreDifferenceMode: normalizeDifferenceMode(options?.scoreDifferenceMode),
     differenceMode: normalizeDifferenceMode(options?.differenceMode),
     settingEstimateMode: normalizeSettingEstimateMode(options?.settingEstimateMode),
+    settingDistribution: normalizeSettingDistribution(options?.settingDistribution),
     combineAimJuggler,
     combineHanabi,
     eventFilters: {
@@ -3505,6 +3518,7 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       scoreDifferenceMode: backtestOptions.scoreDifferenceMode,
       differenceMode: backtestOptions.differenceMode,
       settingEstimateMode: backtestOptions.settingEstimateMode,
+      settingDistribution: backtestOptions.settingDistribution,
       combineAimJuggler: backtestOptions.combineAimJuggler,
       combineHanabi: backtestOptions.combineHanabi,
       dayTails: backtestOptions.eventFilters.dayTails,
@@ -3602,6 +3616,8 @@ export async function getCrossStoreBacktestDetail(options = {}) {
     scoreDifferenceMode: backtestOptions.scoreDifferenceMode,
     differenceMode: backtestOptions.differenceMode,
     settingEstimateMode: backtestOptions.settingEstimateMode,
+    settingDistribution: backtestOptions.settingDistribution,
+    showSettingDistribution: shouldShowSettingDistribution(backtestOptions.settingDistribution),
     showGrapeColumn: backtestOptions.selectedMachineNames.some(isHuntJugglerMachine),
     combineAimJuggler: backtestOptions.combineAimJuggler,
     combineHanabi: backtestOptions.combineHanabi,
@@ -3659,6 +3675,7 @@ export async function getHuntScoreAnalysisPageDetail(
       ...buildBacktestOptionsForStore(store, normalizedBacktestOptions),
       scoreDifferenceMode: normalizedBacktestOptions.scoreDifferenceMode,
       settingEstimateMode: normalizedBacktestOptions.settingEstimateMode,
+      settingDistribution: normalizedBacktestOptions.settingDistribution,
       machineSlotCounts: snapshotDetail.machineSlotCounts,
       machineOrder:
         snapshotDetail.availableMachineNames ?? listHuntScoreTargetMachineNames(store.store_name),

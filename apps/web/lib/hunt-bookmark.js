@@ -16,6 +16,8 @@ const SCORE_EPSILON = 0.000000001;
 export const HUNT_BACKTEST_BOOKMARK_EVENT = "hunt-backtest-bookmark-change";
 export const HUNT_BACKTEST_BOOKMARK_SELECTION_CUSTOM = "__custom";
 export const HUNT_BACKTEST_BOOKMARK_SELECTION_NONE = "__none";
+const SETTING_DISTRIBUTION_HIDE = "hide";
+const SETTING_DISTRIBUTION_SHOW = "show";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -32,6 +34,12 @@ function createBookmarkId() {
 function normalizeBookmarkName(value, fallback = "保存条件") {
   const name = normalizeText(value);
   return name || fallback;
+}
+
+function normalizeSettingDistribution(value) {
+  return normalizeText(value) === SETTING_DISTRIBUTION_HIDE
+    ? SETTING_DISTRIBUTION_HIDE
+    : SETTING_DISTRIBUTION_SHOW;
 }
 
 function normalizePeriodMode(value, startDate, endDate) {
@@ -968,6 +976,7 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     scoreDifferenceMode: normalizeText(bookmark.scoreDifferenceMode) || "estimated",
     differenceMode: normalizeText(bookmark.differenceMode) || "estimated",
     settingEstimateMode: normalizeSettingEstimateMode(bookmark.settingEstimateMode),
+    settingDistribution: normalizeSettingDistribution(bookmark.settingDistribution),
     eventDayTails: normalizeNumberTextArray(bookmark.eventDayTails, 0, 9),
     eventZoro: normalizeRequiredOption(bookmark.eventZoro, false),
     eventWeekdays: normalizeNumberTextArray(bookmark.eventWeekdays, 0, 6),
@@ -1031,6 +1040,7 @@ export function areHuntBacktestBookmarksEqual(left, right) {
     normalizedLeft.scoreDifferenceMode === normalizedRight.scoreDifferenceMode &&
     normalizedLeft.differenceMode === normalizedRight.differenceMode &&
     normalizedLeft.settingEstimateMode === normalizedRight.settingEstimateMode &&
+    normalizedLeft.settingDistribution === normalizedRight.settingDistribution &&
     normalizedLeft.eventZoro === normalizedRight.eventZoro &&
     normalizedLeft.combineAimJuggler === normalizedRight.combineAimJuggler &&
     normalizedLeft.combineHanabi === normalizedRight.combineHanabi &&
@@ -1082,6 +1092,9 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
 
   const parts = [buildMachineSummaryText(normalizedBookmark)];
   parts.push(`設定推定: ${formatSettingEstimateModeLabel(normalizedBookmark.settingEstimateMode)}`);
+  if (normalizedBookmark.settingDistribution === SETTING_DISTRIBUTION_HIDE) {
+    parts.push("設定分布: 非表示");
+  }
 
   if (isMachineTopNextGapSelectionMode(normalizedBookmark.dailySelectionMode)) {
     parts.push("各機種1位から機種内下位境界差1位を1台選抜");
