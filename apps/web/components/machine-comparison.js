@@ -2202,7 +2202,7 @@ function buildVerificationBlocks(dateRows, targetRows, slotNumbers, huntScoreHig
       }
 
       const historyStartIndex = Math.max(0, dateIndex - normalizedWindowDays + 1);
-      const historyRows = rowsByDateAsc.slice(historyStartIndex, dateIndex + 1);
+      const historyRows = rowsByDateAsc.slice(historyStartIndex, dateIndex + 1).reverse();
       const nextRow = rowsByDateAsc[dateIndex + 1] ?? null;
       blocks.push({
         key: `${rowDate}-${slotNumber}`,
