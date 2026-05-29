@@ -11,6 +11,11 @@ import {
 
 const HUNT_SCORE_EPSILON = 0.000000001;
 const DEFAULT_HUNT_SCORE_WINDOW_DAYS = 7;
+const NET_LOSS_SCORE_TARGET_BY_WINDOW_DAYS = {
+  3: 15000,
+  5: 17500,
+  7: 20000,
+};
 const TAMAYA_ZASSHONOKUMA_HISTORY_WINDOW_DAYS = 30;
 const MILLION_TOBU_NERIMA_R30_WINDOW_DAYS = 30;
 const AMUSE_ASAKUSA_R30_WINDOW_DAYS = 30;
@@ -455,6 +460,24 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     name: "3日負け数",
     windowDays: 3,
     scoreCalculator: calculateLossDaysOnlyHuntScore,
+  },
+  {
+    key: "net-loss-7",
+    name: "7日差枚凹み",
+    windowDays: 7,
+    scoreCalculator: calculateNetLossOnlyHuntScore,
+  },
+  {
+    key: "net-loss-5",
+    name: "5日差枚凹み",
+    windowDays: 5,
+    scoreCalculator: calculateNetLossOnlyHuntScore,
+  },
+  {
+    key: "net-loss-3",
+    name: "3日差枚凹み",
+    windowDays: 3,
+    scoreCalculator: calculateNetLossOnlyHuntScore,
   },
   {
     key: "apark",
@@ -1245,6 +1268,16 @@ function calculateLosingStreakOnlyHuntScore(metrics, context = {}) {
 
 function calculateLossDaysOnlyHuntScore(metrics, context = {}) {
   return calculateCountOnlyHuntScore(metrics.lossDays, context);
+}
+
+function calculateNetLossOnlyHuntScore(metrics, context = {}) {
+  const windowDays = Math.max(1, Number(context.windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
+  const targetLoss = NET_LOSS_SCORE_TARGET_BY_WINDOW_DAYS[windowDays] || NET_LOSS_SCORE_TARGET_BY_WINDOW_DAYS[7];
+  const netTotal = Number(metrics.netTotal);
+  if (!Number.isFinite(netTotal)) {
+    return 0;
+  }
+  return clamp((-netTotal / targetLoss) * 100, 0, 100);
 }
 
 function calculateLossAbsScore(value) {
