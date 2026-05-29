@@ -94,8 +94,16 @@ function readSortNumber(value) {
   return Number.isFinite(value) ? value : "";
 }
 
-function BacktestMetricCell({ sortValue, children }) {
-  return <td data-sort-value={sortValue}>{children}</td>;
+function BacktestMetricCell({ sortValue, children, title }) {
+  return (
+    <td data-sort-value={sortValue} title={title || undefined}>
+      {children}
+    </td>
+  );
+}
+
+function formatBonusCountTitle(label, value) {
+  return `${label}: ${formatNumber(value)}`;
 }
 
 function hasNonmatchingSummary(summary) {
@@ -246,10 +254,8 @@ function BacktestNonmatchingSummaryRow({ parentKey, summary, label, showGrapeCol
       <BacktestMetricCell sortValue={summary.differenceTotal}>{formatSignedNumber(summary.differenceTotal)}</BacktestMetricCell>
       <BacktestMetricCell sortValue={summary.gamesTotal}>{formatNumber(summary.gamesTotal)}</BacktestMetricCell>
       <BacktestMetricCell sortValue={readSortNumber(summary.averageGames)}>{formatAverageGames(summary.averageGames)}</BacktestMetricCell>
-      <BacktestMetricCell sortValue={summary.bbTotal}>{formatNumber(summary.bbTotal)}</BacktestMetricCell>
-      <BacktestMetricCell sortValue={summary.rbTotal}>{formatNumber(summary.rbTotal)}</BacktestMetricCell>
-      <BacktestMetricCell sortValue={readProbabilitySortValue(summary.bbProbability)}>{summary.bbProbability ?? "-"}</BacktestMetricCell>
-      <BacktestMetricCell sortValue={readProbabilitySortValue(summary.rbProbability)}>{summary.rbProbability ?? "-"}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readProbabilitySortValue(summary.bbProbability)} title={formatBonusCountTitle("BB", summary.bbTotal)}>{summary.bbProbability ?? "-"}</BacktestMetricCell>
+      <BacktestMetricCell sortValue={readProbabilitySortValue(summary.rbProbability)} title={formatBonusCountTitle("RB", summary.rbTotal)}>{summary.rbProbability ?? "-"}</BacktestMetricCell>
       <BacktestMetricCell sortValue={readProbabilitySortValue(summary.combinedProbability)}>{summary.combinedProbability ?? "-"}</BacktestMetricCell>
       {showGrapeColumn ? (
         <BacktestMetricCell sortValue={readSortNumber(summary.grapeDenominator)}>{formatBacktestGrapeDenominator(summary.grapeDenominator)}</BacktestMetricCell>
@@ -279,7 +285,7 @@ function BacktestResultTable({ title, backtest, tableId, storeId, showGrapeColum
         </div>
       </div>
       <div className="tableScroller directoryScroller">
-        <table id={tableId} className="directoryTable huntCompactTable huntBacktestResultTable" data-sortable-table="1">
+        <table id={tableId} className="directoryTable huntCompactTable backtestResultTable huntBacktestResultTable" data-sortable-table="1">
           <thead>
             <tr>
               <SortableTableHeader
@@ -290,35 +296,33 @@ function BacktestResultTable({ title, backtest, tableId, storeId, showGrapeColum
               >
                 機種名
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={1}>設置台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={1}>設置数</SortableTableHeader>
               <SortableTableHeader columnIndex={2}>狙い度</SortableTableHeader>
               <SortableTableHeader columnIndex={3}>上差(同)</SortableTableHeader>
               <SortableTableHeader columnIndex={4}>下差(同)</SortableTableHeader>
-              <SortableTableHeader columnIndex={5}>集計台数</SortableTableHeader>
+              <SortableTableHeader columnIndex={5}>集計数</SortableTableHeader>
               <SortableTableHeader columnIndex={6}>勝率</SortableTableHeader>
               <SortableTableHeader columnIndex={7}>合計差枚</SortableTableHeader>
               <SortableTableHeader columnIndex={8}>合計G数</SortableTableHeader>
-              <SortableTableHeader columnIndex={9}>平均G数</SortableTableHeader>
-              <SortableTableHeader columnIndex={10}>BB</SortableTableHeader>
-              <SortableTableHeader columnIndex={11}>RB</SortableTableHeader>
-              <SortableTableHeader columnIndex={12} initialDirection="asc">
+              <SortableTableHeader columnIndex={9}>平均G</SortableTableHeader>
+              <SortableTableHeader columnIndex={10} initialDirection="asc">
                 BB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={13} initialDirection="asc">
+              <SortableTableHeader columnIndex={11} initialDirection="asc">
                 RB率
               </SortableTableHeader>
-              <SortableTableHeader columnIndex={14} initialDirection="asc">
+              <SortableTableHeader columnIndex={12} initialDirection="asc">
                 合成
               </SortableTableHeader>
               {showGrapeColumn ? (
-                <SortableTableHeader columnIndex={15} initialDirection="asc">ブドウ</SortableTableHeader>
+                <SortableTableHeader columnIndex={13} initialDirection="asc">ブドウ</SortableTableHeader>
               ) : null}
-              <SortableTableHeader columnIndex={15 + grapeColumnOffset}>機械割</SortableTableHeader>
-              <SortableTableHeader columnIndex={16 + grapeColumnOffset}>平均設定</SortableTableHeader>
-              <SortableTableHeader columnIndex={17 + grapeColumnOffset}>推定3.5+</SortableTableHeader>
-              <SortableTableHeader columnIndex={18 + grapeColumnOffset}>推定4.0+</SortableTableHeader>
-              <SortableTableHeader columnIndex={19 + grapeColumnOffset}>推定4.5+</SortableTableHeader>
-              <SortableTableHeader columnIndex={20 + grapeColumnOffset}>推定5.0+</SortableTableHeader>
+              <SortableTableHeader columnIndex={13 + grapeColumnOffset}>機械割</SortableTableHeader>
+              <SortableTableHeader columnIndex={14 + grapeColumnOffset}>平均設定</SortableTableHeader>
+              <SortableTableHeader columnIndex={15 + grapeColumnOffset}>推定3.5+</SortableTableHeader>
+              <SortableTableHeader columnIndex={16 + grapeColumnOffset}>推定4.0+</SortableTableHeader>
+              <SortableTableHeader columnIndex={17 + grapeColumnOffset}>推定4.5+</SortableTableHeader>
+              <SortableTableHeader columnIndex={18 + grapeColumnOffset}>推定5.0+</SortableTableHeader>
             </tr>
           </thead>
           <tbody>
@@ -337,11 +341,9 @@ function BacktestResultTable({ title, backtest, tableId, storeId, showGrapeColum
               <BacktestMetricCell sortValue={readSortNumber(backtest.total.winRate)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="勝率" nonmatchingValue={formatPercent(totalNonmatchingSummary?.winRate)}>{formatPercent(backtest.total.winRate)}</BacktestMetricCell>
               <BacktestMetricCell sortValue={backtest.total.differenceTotal} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="合計差枚" nonmatchingValue={formatSignedNumber(totalNonmatchingSummary?.differenceTotal)}>{formatSignedNumber(backtest.total.differenceTotal)}</BacktestMetricCell>
               <BacktestMetricCell sortValue={backtest.total.gamesTotal} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="合計G数" nonmatchingValue={formatNumber(totalNonmatchingSummary?.gamesTotal)}>{formatNumber(backtest.total.gamesTotal)}</BacktestMetricCell>
-              <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageGames)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="平均G数" nonmatchingValue={formatAverageGames(totalNonmatchingSummary?.averageGames)}>{formatAverageGames(backtest.total.averageGames)}</BacktestMetricCell>
-              <BacktestMetricCell sortValue={backtest.total.bbTotal} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="BB" nonmatchingValue={formatNumber(totalNonmatchingSummary?.bbTotal)}>{formatNumber(backtest.total.bbTotal)}</BacktestMetricCell>
-              <BacktestMetricCell sortValue={backtest.total.rbTotal} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="RB" nonmatchingValue={formatNumber(totalNonmatchingSummary?.rbTotal)}>{formatNumber(backtest.total.rbTotal)}</BacktestMetricCell>
-              <BacktestMetricCell sortValue={readProbabilitySortValue(backtest.total.bbProbability)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="BB率" nonmatchingValue={totalNonmatchingSummary?.bbProbability ?? "-"}>{backtest.total.bbProbability ?? "-"}</BacktestMetricCell>
-              <BacktestMetricCell sortValue={readProbabilitySortValue(backtest.total.rbProbability)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="RB率" nonmatchingValue={totalNonmatchingSummary?.rbProbability ?? "-"}>{backtest.total.rbProbability ?? "-"}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readSortNumber(backtest.total.averageGames)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="平均G" nonmatchingValue={formatAverageGames(totalNonmatchingSummary?.averageGames)}>{formatAverageGames(backtest.total.averageGames)}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readProbabilitySortValue(backtest.total.bbProbability)} title={formatBonusCountTitle("BB", backtest.total.bbTotal)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="BB率" nonmatchingValue={totalNonmatchingSummary?.bbProbability ?? "-"}>{backtest.total.bbProbability ?? "-"}</BacktestMetricCell>
+              <BacktestMetricCell sortValue={readProbabilitySortValue(backtest.total.rbProbability)} title={formatBonusCountTitle("RB", backtest.total.rbTotal)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="RB率" nonmatchingValue={totalNonmatchingSummary?.rbProbability ?? "-"}>{backtest.total.rbProbability ?? "-"}</BacktestMetricCell>
               <BacktestMetricCell sortValue={readProbabilitySortValue(backtest.total.combinedProbability)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="合成" nonmatchingValue={totalNonmatchingSummary?.combinedProbability ?? "-"}>{backtest.total.combinedProbability ?? "-"}</BacktestMetricCell>
               {showGrapeColumn ? (
                 <BacktestMetricCell sortValue={readSortNumber(backtest.total.grapeDenominator)} nonmatchingSummary={totalNonmatchingSummary} nonmatchingLabel="ブドウ" nonmatchingValue={formatBacktestGrapeDenominator(totalNonmatchingSummary?.grapeDenominator)}>{formatBacktestGrapeDenominator(backtest.total.grapeDenominator)}</BacktestMetricCell>
@@ -392,11 +394,9 @@ function BacktestResultTable({ title, backtest, tableId, storeId, showGrapeColum
                   <BacktestMetricCell sortValue={readSortNumber(summary.winRate)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="勝率" nonmatchingValue={formatPercent(nonmatchingSummary?.winRate)}>{formatPercent(summary.winRate)}</BacktestMetricCell>
                   <BacktestMetricCell sortValue={summary.differenceTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="合計差枚" nonmatchingValue={formatSignedNumber(nonmatchingSummary?.differenceTotal)}>{formatSignedNumber(summary.differenceTotal)}</BacktestMetricCell>
                   <BacktestMetricCell sortValue={summary.gamesTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="合計G数" nonmatchingValue={formatNumber(nonmatchingSummary?.gamesTotal)}>{formatNumber(summary.gamesTotal)}</BacktestMetricCell>
-                  <BacktestMetricCell sortValue={readSortNumber(summary.averageGames)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="平均G数" nonmatchingValue={formatAverageGames(nonmatchingSummary?.averageGames)}>{formatAverageGames(summary.averageGames)}</BacktestMetricCell>
-                  <BacktestMetricCell sortValue={summary.bbTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="BB" nonmatchingValue={formatNumber(nonmatchingSummary?.bbTotal)}>{formatNumber(summary.bbTotal)}</BacktestMetricCell>
-                  <BacktestMetricCell sortValue={summary.rbTotal} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="RB" nonmatchingValue={formatNumber(nonmatchingSummary?.rbTotal)}>{formatNumber(summary.rbTotal)}</BacktestMetricCell>
-                  <BacktestMetricCell sortValue={readProbabilitySortValue(summary.bbProbability)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="BB率" nonmatchingValue={nonmatchingSummary?.bbProbability ?? "-"}>{summary.bbProbability ?? "-"}</BacktestMetricCell>
-                  <BacktestMetricCell sortValue={readProbabilitySortValue(summary.rbProbability)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="RB率" nonmatchingValue={nonmatchingSummary?.rbProbability ?? "-"}>{summary.rbProbability ?? "-"}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readSortNumber(summary.averageGames)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="平均G" nonmatchingValue={formatAverageGames(nonmatchingSummary?.averageGames)}>{formatAverageGames(summary.averageGames)}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readProbabilitySortValue(summary.bbProbability)} title={formatBonusCountTitle("BB", summary.bbTotal)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="BB率" nonmatchingValue={nonmatchingSummary?.bbProbability ?? "-"}>{summary.bbProbability ?? "-"}</BacktestMetricCell>
+                  <BacktestMetricCell sortValue={readProbabilitySortValue(summary.rbProbability)} title={formatBonusCountTitle("RB", summary.rbTotal)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="RB率" nonmatchingValue={nonmatchingSummary?.rbProbability ?? "-"}>{summary.rbProbability ?? "-"}</BacktestMetricCell>
                   <BacktestMetricCell sortValue={readProbabilitySortValue(summary.combinedProbability)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="合成" nonmatchingValue={nonmatchingSummary?.combinedProbability ?? "-"}>{summary.combinedProbability ?? "-"}</BacktestMetricCell>
                   {showGrapeColumn ? (
                     <BacktestMetricCell sortValue={readSortNumber(summary.grapeDenominator)} nonmatchingSummary={nonmatchingSummary} nonmatchingLabel="ブドウ" nonmatchingValue={formatBacktestGrapeDenominator(nonmatchingSummary?.grapeDenominator)}>{formatBacktestGrapeDenominator(summary.grapeDenominator)}</BacktestMetricCell>

@@ -2095,6 +2095,24 @@ a {
   min-height: 1.25rem;
 }
 
+.directoryTable.backtestResultTable th,
+.directoryTable.backtestResultTable td {
+  padding: 5px 6px;
+  font-size: 0.76rem;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.directoryTable.backtestResultTable .sortableTableHeaderButton {
+  gap: 0.12rem;
+  min-height: 1rem;
+}
+
+.directoryTable.backtestResultTable .sortableTableHeaderIndicator {
+  min-width: 0.45rem;
+  font-size: 0.66rem;
+}
+
 .directoryTable thead th {
   position: sticky;
   top: 0;
@@ -2276,8 +2294,14 @@ a {
 
 .huntBacktestResultTable .directoryNameHeader,
 .huntBacktestResultTable .directoryNameCell {
-  min-width: 7rem;
-  max-width: 9rem;
+  min-width: 5.7rem;
+  max-width: 7.4rem;
+}
+
+.crossStoreBacktestResultTable .directoryNameHeader,
+.crossStoreBacktestResultTable .directoryNameCell {
+  min-width: 7.2rem;
+  max-width: 9.5rem;
 }
 
 .huntRankingTable .directoryNameHeader,
@@ -2794,10 +2818,22 @@ a {
     padding: 8px 9px;
   }
 
+  .directoryTable.backtestResultTable th,
+  .directoryTable.backtestResultTable td {
+    padding: 5px 5px;
+    font-size: 0.72rem;
+  }
+
   .huntBacktestResultTable .directoryNameHeader,
   .huntBacktestResultTable .directoryNameCell {
-    min-width: 6.5rem;
-    max-width: 8.5rem;
+    min-width: 5.4rem;
+    max-width: 7rem;
+  }
+
+  .crossStoreBacktestResultTable .directoryNameHeader,
+  .crossStoreBacktestResultTable .directoryNameCell {
+    min-width: 6.8rem;
+    max-width: 9rem;
   }
 
   .huntRankingTable .directoryNameHeader,
