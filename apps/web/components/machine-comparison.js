@@ -2328,16 +2328,21 @@ function buildSettingRankVerificationBlocks(
       continue;
     }
 
+    const nextRow = rowsByDateAsc[dateIndex + 1] ?? null;
+    if (!nextRow) {
+      continue;
+    }
+
     const rankedCandidates = slotNumbers
       .map((slotNumber, slotIndex) => {
-        const record = row.recordsBySlot?.[slotNumber] ?? null;
-        const settingEstimate = getCompositeSettingEstimate(record);
+        const nextRecord = nextRow.recordsBySlot?.[slotNumber] ?? null;
+        const settingEstimate = getCompositeSettingEstimate(nextRecord);
         const settingAverage = Number(settingEstimate?.average);
-        const games = Number(record?.games_count);
+        const games = Number(nextRecord?.games_count);
         return {
           slotNumber,
           slotIndex,
-          record,
+          record: nextRecord,
           settingAverage,
           games,
         };
@@ -2382,10 +2387,10 @@ function buildSettingRankVerificationBlocks(
 
       const historyStartIndex = Math.max(0, dateIndex - normalizedWindowDays + 1);
       const historyRows = rowsByDateAsc.slice(historyStartIndex, dateIndex + 1).reverse();
-      const nextRow = rowsByDateAsc[dateIndex + 1] ?? null;
       blocks.push({
-        key: `${rowDate}-${candidate.slotNumber}-setting-rank`,
+        key: `${rowDate}-${nextRow.date}-${candidate.slotNumber}-setting-rank`,
         targetDate: rowDate,
+        nextDate: nextRow.date,
         slotNumber: candidate.slotNumber,
         rank,
         settingAverage: candidate.settingAverage,
@@ -2637,11 +2642,13 @@ function MachineVerificationTable({
                   <div className="verificationBlockHeader">
                     <div>
                       <p className="verificationBlockTitle">
-                        {formatCalendarDate(block.targetDate)} / {formatSlotHeaderLabel(slotLabels, block.slotNumber)}
+                        {normalizedVerificationTargetMode === VERIFICATION_TARGET_MODE_SETTING_RANK
+                          ? `${formatCalendarDate(block.targetDate)} -> ${formatCalendarDate(block.nextDate)} / ${formatSlotHeaderLabel(slotLabels, block.slotNumber)}`
+                          : `${formatCalendarDate(block.targetDate)} / ${formatSlotHeaderLabel(slotLabels, block.slotNumber)}`}
                       </p>
                       <p className="verificationBlockMeta">
                         {normalizedVerificationTargetMode === VERIFICATION_TARGET_MODE_SETTING_RANK
-                          ? `設定${block.rank}位 / ${formatSettingEstimateScore(block.settingAverage)} / ${formatNumber(block.minGames)}G以上`
+                          ? `翌日設定${block.rank}位 / ${formatSettingEstimateScore(block.settingAverage)} / ${formatNumber(block.minGames)}G以上`
                           : `判定履歴${normalizeVerificationWindowDays(huntScoreWindowDays)}日 + 翌日実績`}
                       </p>
                       {normalizedVerificationTargetMode === VERIFICATION_TARGET_MODE_SETTING_RANK ? (
