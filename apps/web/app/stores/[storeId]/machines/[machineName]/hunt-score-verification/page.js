@@ -2,26 +2,23 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
-import { Breadcrumbs } from "../../../../../components/breadcrumbs";
-import { HuntScoreLogicSelector } from "../../../../../components/hunt-score-logic-selector";
-import { MachineComparison } from "../../../../../components/machine-comparison";
-import { StoreFavoriteButton } from "../../../../../components/store-favorite-button";
+import { Breadcrumbs } from "../../../../../../components/breadcrumbs";
+import { HuntScoreLogicSelector } from "../../../../../../components/hunt-score-logic-selector";
+import { MachineComparison } from "../../../../../../components/machine-comparison";
+import { StoreFavoriteButton } from "../../../../../../components/store-favorite-button";
 import {
   getMachineDetail,
   getStoreIdentity,
   readRouteSegment,
-} from "../../../../../lib/data";
-import { parseEventFilters } from "../../../../../lib/event-filters";
-import { listHuntScoreLogicOptions } from "../../../../../lib/hunt-score";
+} from "../../../../../../lib/data";
+import { parseEventFilters } from "../../../../../../lib/event-filters";
+import { listHuntScoreLogicOptions } from "../../../../../../lib/hunt-score";
 import {
   decodeHuntScoreLogicCookieValue,
   getHuntScoreLogicCookieName,
-} from "../../../../../lib/hunt-score-logic-selection";
-import { normalizeDifferenceMode } from "../../../../../lib/machine-difference";
-import {
-  getSettingEstimateDefinition,
-  normalizeSettingEstimateMode,
-} from "../../../../../lib/setting-estimates";
+} from "../../../../../../lib/hunt-score-logic-selection";
+import { normalizeDifferenceMode } from "../../../../../../lib/machine-difference";
+import { normalizeSettingEstimateMode } from "../../../../../../lib/setting-estimates";
 
 export const dynamic = "force-dynamic";
 
@@ -49,16 +46,16 @@ export async function generateMetadata({ params }) {
   try {
     const store = await getStoreIdentity(storeId);
     return {
-      title: store ? `${machineName}（${store.storeName}）` : machineName || "台データ",
+      title: store ? `${machineName}のロジック検証（${store.storeName}）` : `${machineName}のロジック検証`,
     };
   } catch {
     return {
-      title: machineName || "台データ",
+      title: `${machineName}のロジック検証`,
     };
   }
 }
 
-export default async function MachineDetailPage({ params, searchParams }) {
+export default async function HuntScoreVerificationPage({ params, searchParams }) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
   const storeId = resolvedParams.storeId;
@@ -100,11 +97,11 @@ export default async function MachineDetailPage({ params, searchParams }) {
           items={[
             { label: "店舗一覧", href: "/" },
             { label: "機種一覧", href: `/stores/${storeId}` },
-            { label: machineName },
+            { label: "ロジック検証" },
           ]}
         />
         <section className="statusPanel">
-          <h2>台データを読み込めませんでした</h2>
+          <h2>ロジック検証を読み込めませんでした</h2>
           <p>{error instanceof Error ? error.message : "設定を確認してください。"}</p>
         </section>
       </main>
@@ -116,7 +113,6 @@ export default async function MachineDetailPage({ params, searchParams }) {
   }
 
   const displayMachineName = detail.machineName ?? machineName;
-  const settingEstimateDefinition = getSettingEstimateDefinition(displayMachineName);
   const initialEventFilters = hasEventFilterSearchParams
     ? eventFilters
     : detail.store.eventFilters;
@@ -127,13 +123,14 @@ export default async function MachineDetailPage({ params, searchParams }) {
         items={[
           { label: "店舗一覧", href: "/" },
           { label: detail.store.storeName, href: `/stores/${detail.store.id}` },
-          { label: displayMachineName },
+          { label: displayMachineName, href: `/stores/${detail.store.id}/machines/${encodeURIComponent(displayMachineName)}` },
+          { label: "ロジック検証" },
         ]}
       />
 
       <section className="heroPanel">
         <div className="heroCopy">
-          <h1 className="pageTitle pageTitleCompact">{displayMachineName}</h1>
+          <h1 className="pageTitle pageTitleCompact">ロジック検証</h1>
           <div className="storeContextLine">
             <StoreFavoriteButton
               store={{ id: detail.store.id, storeName: detail.store.storeName }}
@@ -143,21 +140,17 @@ export default async function MachineDetailPage({ params, searchParams }) {
               {detail.store.storeName}
             </Link>
           </div>
-          {detail.huntScoreLogic ? (
-            <p className="dataSourceLabel">適用中: {detail.huntScoreLogic.name}</p>
-          ) : null}
+          <p className="dataSourceLabel">
+            {displayMachineName}
+            {detail.huntScoreLogic ? ` / 適用中: ${detail.huntScoreLogic.name}` : ""}
+          </p>
           <div className="heroLinks simpleHeroLinks">
+            <Link href={`/stores/${detail.store.id}/machines/${encodeURIComponent(displayMachineName)}`} className="externalLink">
+              通常表示へ戻る
+            </Link>
             <Link href={`/stores/${detail.store.id}`} className="externalLink">
               機種一覧へ戻る
             </Link>
-            {detail.huntScoreHighlight ? (
-              <Link
-                href={`/stores/${detail.store.id}/machines/${encodeURIComponent(displayMachineName)}/hunt-score-verification`}
-                className="externalLink"
-              >
-                ロジック検証
-              </Link>
-            ) : null}
             {detail.store.storeUrl ? (
               <a href={detail.store.storeUrl} target="_blank" rel="noreferrer" className="externalLink">
                 店舗ページを開く
@@ -173,42 +166,6 @@ export default async function MachineDetailPage({ params, searchParams }) {
           ) : null}
         </div>
       </section>
-
-      {settingEstimateDefinition ? (
-        <details className="tablePanel specDetailsPanel">
-          <summary className="specDetailsSummary">
-            {settingEstimateDefinition.displayName} 確率
-          </summary>
-          <div className="tableScroller directoryScroller">
-            <table className="directoryTable neoSpecTable">
-              <thead>
-                <tr>
-                  <th>設定</th>
-                  <th>BIG確率</th>
-                  <th>REG確率</th>
-                  <th>合成確率</th>
-                  {settingEstimateDefinition.rateTableExtraColumns.map((column) => (
-                    <th key={column.field}>{column.label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {settingEstimateDefinition.rateTable.map((row) => (
-                  <tr key={row.setting}>
-                    <th scope="row">{row.setting}</th>
-                    <td>{row.bb}</td>
-                    <td>{row.rb}</td>
-                    <td>{row.combined}</td>
-                    {settingEstimateDefinition.rateTableExtraColumns.map((column) => (
-                      <td key={column.field}>{row[column.field] ?? "-"}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
-      ) : null}
 
       <MachineComparison
         storeId={detail.store.id}
@@ -226,6 +183,8 @@ export default async function MachineDetailPage({ params, searchParams }) {
         initialDisplayDifferenceModeFromSearchParams={hasDisplayDifferenceModeSearchParam}
         initialSettingEstimateMode={detail.settingEstimateMode}
         preferDefaultEstimateOptions={Boolean(detail.huntScoreHighlight)}
+        verificationMode
+        huntScoreWindowDays={detail.huntScoreLogic?.historyWindowDays ?? detail.huntScoreLogic?.windowDays ?? 7}
       />
     </main>
   );

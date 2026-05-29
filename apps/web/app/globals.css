@@ -1059,6 +1059,26 @@ a {
   flex-wrap: nowrap;
 }
 
+.machineVerificationLink {
+  display: inline-grid;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border: 1px solid rgba(37, 99, 165, 0.24);
+  border-radius: 999px;
+  background: rgba(37, 99, 165, 0.08);
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.machineVerificationLink:hover {
+  border-color: rgba(37, 99, 165, 0.42);
+  background: rgba(37, 99, 165, 0.16);
+}
+
 .storeRowLink {
   min-width: 0;
 }
@@ -2001,6 +2021,85 @@ a {
   background: rgba(255, 255, 255, 0.72);
 }
 
+.verificationPanel {
+  display: grid;
+  gap: 14px;
+}
+
+.verificationCountLabel {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.verificationBlockList {
+  display: grid;
+  gap: 14px;
+}
+
+.verificationBlock {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.verificationBlockHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.verificationBlockTitle,
+.verificationBlockMeta {
+  margin: 0;
+}
+
+.verificationBlockTitle {
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.verificationBlockMeta {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.verificationScroller {
+  border-radius: 10px;
+}
+
+.verificationTable {
+  width: max-content;
+  min-width: 100%;
+}
+
+.verificationTable th,
+.verificationTable td {
+  text-align: center;
+}
+
+.verificationTable tbody th {
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.verificationTable tbody tr.verificationTargetRow th,
+.verificationTable tbody tr.verificationTargetRow td {
+  background: #eadcff;
+}
+
+.verificationTable tbody tr.verificationNextRow th,
+.verificationTable tbody tr.verificationNextRow td {
+  background: rgba(186, 230, 253, 0.42);
+}
+
 .matrixScroller {
   border-radius: 12px;
 }
@@ -2276,6 +2375,24 @@ a {
   color: #3b1a65;
   font-weight: 900;
   box-shadow: inset 0 0 0 1px rgba(91, 50, 142, 0.18);
+}
+
+.directoryTable.verificationTable tbody tr.verificationTargetRow th,
+.directoryTable.verificationTable tbody tr.verificationTargetRow td,
+.directoryTable.verificationTable tbody tr.verificationTargetRow:nth-child(odd) th,
+.directoryTable.verificationTable tbody tr.verificationTargetRow:nth-child(odd) td,
+.directoryTable.verificationTable tbody tr.verificationTargetRow:hover th,
+.directoryTable.verificationTable tbody tr.verificationTargetRow:hover td {
+  background: #eadcff;
+}
+
+.directoryTable.verificationTable tbody tr.verificationNextRow th,
+.directoryTable.verificationTable tbody tr.verificationNextRow td,
+.directoryTable.verificationTable tbody tr.verificationNextRow:nth-child(odd) th,
+.directoryTable.verificationTable tbody tr.verificationNextRow:nth-child(odd) td,
+.directoryTable.verificationTable tbody tr.verificationNextRow:hover th,
+.directoryTable.verificationTable tbody tr.verificationNextRow:hover td {
+  background: rgba(186, 230, 253, 0.42);
 }
 
 .directoryNameHeader,

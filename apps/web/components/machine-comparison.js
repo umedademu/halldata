@@ -2170,6 +2170,215 @@ const MatrixRow = memo(function MatrixRow({
   );
 });
 
+function normalizeVerificationWindowDays(value) {
+  const parsed = Number.parseInt(String(value ?? "").trim(), 10);
+  return Number.isInteger(parsed) && parsed >= 1 ? parsed : 7;
+}
+
+function buildVerificationBlocks(dateRows, targetRows, slotNumbers, huntScoreHighlightKeySet, windowDays) {
+  if (!(huntScoreHighlightKeySet instanceof Set) || huntScoreHighlightKeySet.size === 0) {
+    return [];
+  }
+
+  const normalizedWindowDays = normalizeVerificationWindowDays(windowDays);
+  const rowsByDateAsc = [...(Array.isArray(dateRows) ? dateRows : [])]
+    .filter((row) => isIsoDateText(row?.date))
+    .sort((left, right) => String(left.date).localeCompare(String(right.date)));
+  const dateIndexByDate = new Map(rowsByDateAsc.map((row, index) => [String(row.date), index]));
+  const blocks = [];
+
+  for (const row of Array.isArray(targetRows) ? targetRows : []) {
+    const rowDate = String(row?.date ?? "").trim();
+    const dateIndex = dateIndexByDate.get(rowDate);
+    if (dateIndex === undefined) {
+      continue;
+    }
+
+    for (const slotNumber of slotNumbers) {
+      const record = row.recordsBySlot?.[slotNumber] ?? null;
+      const rowKey = buildHuntScoreHighlightKey(rowDate, record?.machine_name, record?.slot_number ?? slotNumber);
+      if (!huntScoreHighlightKeySet.has(rowKey)) {
+        continue;
+      }
+
+      const historyStartIndex = Math.max(0, dateIndex - normalizedWindowDays + 1);
+      const historyRows = rowsByDateAsc.slice(historyStartIndex, dateIndex + 1);
+      const nextRow = rowsByDateAsc[dateIndex + 1] ?? null;
+      blocks.push({
+        key: `${rowDate}-${slotNumber}`,
+        targetDate: rowDate,
+        slotNumber,
+        rows: [
+          ...historyRows.map((historyRow) => ({
+            role: historyRow.date === rowDate ? "判定日" : "履歴",
+            row: historyRow,
+          })),
+          ...(nextRow ? [{ role: "翌日", row: nextRow }] : []),
+        ],
+      });
+    }
+  }
+
+  return blocks;
+}
+
+function VerificationMetricCell({
+  metric,
+  record,
+  row,
+  slotNumber,
+  settingEstimateDefinition,
+  getCompositeSettingEstimate,
+  huntScoreHighlightKeySet,
+}) {
+  if (!record) {
+    return <td className={metric.columnClass || undefined}>-</td>;
+  }
+
+  const settingEstimate =
+    settingEstimateDefinition && getCompositeSettingEstimate
+      ? getCompositeSettingEstimate(record)
+      : null;
+  const settingHighlightClass = getSettingEstimateHighlightClass(settingEstimate);
+  const settingTitle = formatCompositeSettingEstimateBreakdown(settingEstimate);
+  const value = record?.[metric.key];
+  const toneClass = metric.tone ? valueToneClass(metric.key, value) : "";
+  const isHuntScoreMetric = metric.key === "hunt_score" || metric.key === "hunt_score_next_gap";
+  const huntScoreHighlightClass =
+    isHuntScoreMetric &&
+    huntScoreHighlightKeySet.has(
+      buildHuntScoreHighlightKey(row.date, record?.machine_name, record?.slot_number ?? slotNumber),
+    )
+      ? "huntScoreHighlighted"
+      : "";
+  const className = [
+    metric.columnClass,
+    toneClass,
+    isHuntScoreMetric ? "" : settingHighlightClass,
+    huntScoreHighlightClass,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const title = settingTitle || (metric.title ? metric.title(value, record) : "");
+
+  return (
+    <td className={className || undefined} title={title || undefined}>
+      {metric.render(value, record, { row, slotNumber })}
+    </td>
+  );
+}
+
+function MachineVerificationTable({
+  machineName,
+  slotNumbers,
+  slotLabels,
+  dateRows,
+  visibleRows,
+  visibleMetrics,
+  settingEstimateDefinition,
+  getCompositeSettingEstimate,
+  huntScoreHighlightKeySet,
+  huntScoreWindowDays,
+}) {
+  const verificationBlocks = useMemo(
+    () => buildVerificationBlocks(dateRows, visibleRows, slotNumbers, huntScoreHighlightKeySet, huntScoreWindowDays),
+    [dateRows, huntScoreHighlightKeySet, huntScoreWindowDays, slotNumbers, visibleRows],
+  );
+
+  if (visibleRows.length === 0) {
+    return (
+      <section className="statusPanel">
+        <h2>条件に合う日付がありません</h2>
+        <p>表示期間か特定日条件を見直してください。</p>
+      </section>
+    );
+  }
+
+  if (verificationBlocks.length === 0) {
+    return (
+      <section className="statusPanel">
+        <h2>検証対象がありません</h2>
+        <p>狙い度条件に該当する紫強調の台がありません。</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="tablePanel verificationPanel">
+      <div className="tablePanelHeader">
+        <div>
+          <p className="sectionLabel">ロジック検証</p>
+          <h2 className="tablePanelTitle">{machineName}</h2>
+        </div>
+        <p className="verificationCountLabel">{verificationBlocks.length}件</p>
+      </div>
+      <div className="verificationBlockList">
+        {verificationBlocks.map((block) => (
+          <article key={block.key} className="verificationBlock">
+            <div className="verificationBlockHeader">
+              <div>
+                <p className="verificationBlockTitle">
+                  {formatCalendarDate(block.targetDate)} / {formatSlotHeaderLabel(slotLabels, block.slotNumber)}
+                </p>
+                <p className="verificationBlockMeta">
+                  判定履歴{normalizeVerificationWindowDays(huntScoreWindowDays)}日 + 翌日実績
+                </p>
+              </div>
+            </div>
+            <div className="tableScroller verificationScroller">
+              <table className="directoryTable huntCompactTable verificationTable">
+                <thead>
+                  <tr>
+                    <th>区分</th>
+                    <th>日付</th>
+                    <th>曜</th>
+                    {visibleMetrics.map((metric) => (
+                      <th key={metric.key}>{metric.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {block.rows.map(({ role, row }) => {
+                    const record = row.recordsBySlot?.[block.slotNumber] ?? null;
+                    return (
+                      <tr
+                        key={`${block.key}-${role}-${row.date}`}
+                        className={
+                          role === "判定日"
+                            ? "verificationTargetRow"
+                            : role === "翌日"
+                              ? "verificationNextRow"
+                              : undefined
+                        }
+                      >
+                        <th>{role}</th>
+                        <td>{formatShortDate(row.date)}</td>
+                        <td>{formatWeekday(row.date)}</td>
+                        {visibleMetrics.map((metric) => (
+                          <VerificationMetricCell
+                            key={`${block.key}-${row.date}-${metric.key}`}
+                            metric={metric}
+                            record={record}
+                            row={row}
+                            slotNumber={block.slotNumber}
+                            settingEstimateDefinition={settingEstimateDefinition}
+                            getCompositeSettingEstimate={getCompositeSettingEstimate}
+                            huntScoreHighlightKeySet={huntScoreHighlightKeySet}
+                          />
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function MachineComparison({
   storeId,
   storeName = "",
@@ -2186,6 +2395,8 @@ export function MachineComparison({
   initialDisplayDifferenceModeFromSearchParams = false,
   initialSettingEstimateMode = undefined,
   preferDefaultEstimateOptions = false,
+  verificationMode = false,
+  huntScoreWindowDays = 7,
 }) {
   const latestAvailableDate = dateRows[0]?.date ?? "";
   const oldestAvailableDate = dateRows.at(-1)?.date ?? latestAvailableDate;
@@ -3230,20 +3441,35 @@ export function MachineComparison({
         ) : null}
       </section>
 
-      <MachineComparisonTable
-        storeName={storeName}
-        machineName={machineName}
-        slotNumbers={slotNumbers}
-        slotLabels={slotLabels}
-        dateRows={visibleRows}
-        visibleMetrics={visibleMetrics}
-        highlightedDateSet={highlightedDateSet}
-        settingEstimateDefinition={settingEstimateDefinition}
-        getCompositeSettingEstimate={getCompositeSettingEstimate}
-        huntScoreHighlightKeySet={huntScoreHighlightKeySet}
-        csvRows={csvRows}
-        tableStyle={tableStyle}
-      />
+      {verificationMode ? (
+        <MachineVerificationTable
+          machineName={machineName}
+          slotNumbers={slotNumbers}
+          slotLabels={slotLabels}
+          dateRows={dateRows}
+          visibleRows={visibleRows}
+          visibleMetrics={visibleMetrics}
+          settingEstimateDefinition={settingEstimateDefinition}
+          getCompositeSettingEstimate={getCompositeSettingEstimate}
+          huntScoreHighlightKeySet={huntScoreHighlightKeySet}
+          huntScoreWindowDays={huntScoreWindowDays}
+        />
+      ) : (
+        <MachineComparisonTable
+          storeName={storeName}
+          machineName={machineName}
+          slotNumbers={slotNumbers}
+          slotLabels={slotLabels}
+          dateRows={visibleRows}
+          visibleMetrics={visibleMetrics}
+          highlightedDateSet={highlightedDateSet}
+          settingEstimateDefinition={settingEstimateDefinition}
+          getCompositeSettingEstimate={getCompositeSettingEstimate}
+          huntScoreHighlightKeySet={huntScoreHighlightKeySet}
+          csvRows={csvRows}
+          tableStyle={tableStyle}
+        />
+      )}
     </>
   );
 }

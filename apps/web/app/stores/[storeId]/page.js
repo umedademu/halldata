@@ -8,6 +8,7 @@ import { StoreFavoriteButton } from "../../../components/store-favorite-button";
 import { getStoreDetail, getStoreIdentity } from "../../../lib/data";
 import {
   getHuntScoreLogicDetail,
+  isHuntScoreSupported,
   isHuntScoreTargetStore,
   listHuntScoreLogicOptions,
 } from "../../../lib/hunt-score";
@@ -30,6 +31,15 @@ async function readStoredHuntScoreLogicKey(storeId) {
   return decodeHuntScoreLogicCookieValue(
     cookieStore.get(getHuntScoreLogicCookieName(storeId))?.value ?? "",
   );
+}
+
+function canOpenHuntScoreVerification(machine, storeName) {
+  if (machine?.isCombinedMachineGroup) {
+    return (Array.isArray(machine.childMachineNames) ? machine.childMachineNames : []).some((machineName) =>
+      isHuntScoreSupported(storeName, machineName),
+    );
+  }
+  return isHuntScoreSupported(storeName, machine?.machineName);
 }
 
 export async function generateMetadata({ params }) {
@@ -131,6 +141,7 @@ export default async function StoreDetailPage({ params }) {
                   <th className="directoryNameHeader">機種</th>
                   <th>最新日</th>
                   <th>台数</th>
+                  {hasHuntScoreAnalysis ? <th>検証</th> : null}
                   <th>平均差枚</th>
                   <th>平均G数</th>
                   <th>平均出率</th>
@@ -139,6 +150,8 @@ export default async function StoreDetailPage({ params }) {
               <tbody>
                 {machines.map((machine) => {
                   const machineHref = `/stores/${store.id}/machines/${encodeURIComponent(machine.machineName)}`;
+                  const verificationHref = `${machineHref}/hunt-score-verification`;
+                  const canVerify = hasHuntScoreAnalysis && canOpenHuntScoreVerification(machine, store.storeName);
 
                   return (
                     <tr
@@ -162,6 +175,22 @@ export default async function StoreDetailPage({ params }) {
                       </th>
                       <td>{machine.latestDate ? formatCompactDate(machine.latestDate) : "-"}</td>
                       <td>{formatNumber(machine.slotCount)}</td>
+                      {hasHuntScoreAnalysis ? (
+                        <td>
+                          {canVerify ? (
+                            <Link
+                              href={verificationHref}
+                              className="machineVerificationLink"
+                              title="ロジック検証"
+                              aria-label={`${machine.machineName}のロジック検証`}
+                            >
+                              <span aria-hidden="true">検</span>
+                            </Link>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+                      ) : null}
                       <td>{formatSignedNumber(machine.latestAverageDifference)}</td>
                       <td>{formatAverageGames(machine.latestAverageGames)}</td>
                       <td>{formatPercent(machine.latestAveragePayout)}</td>

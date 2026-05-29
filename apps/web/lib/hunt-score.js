@@ -905,6 +905,9 @@ export function getHuntScoreLogicDetail(logicKey = "", storeName = "") {
   return {
     key: definition.key,
     name: definition.name,
+    windowDays: definition.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
+    historyWindowDays:
+      definition.historyWindowDays ?? definition.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
   };
 }
 
