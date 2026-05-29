@@ -439,18 +439,6 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     scoreCalculator: calculateLosingStreakOnlyHuntScore,
   },
   {
-    key: "loss-streak-5",
-    name: "5日連敗数",
-    windowDays: 5,
-    scoreCalculator: calculateLosingStreakOnlyHuntScore,
-  },
-  {
-    key: "loss-streak-3",
-    name: "3日連敗数",
-    windowDays: 3,
-    scoreCalculator: calculateLosingStreakOnlyHuntScore,
-  },
-  {
     key: "loss-days-7",
     name: "7日負け数",
     windowDays: 7,
