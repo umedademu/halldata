@@ -2300,8 +2300,40 @@ a {
 
 .crossStoreBacktestResultTable .directoryNameHeader,
 .crossStoreBacktestResultTable .directoryNameCell {
-  min-width: 7.2rem;
-  max-width: 9.5rem;
+  min-width: 9.8rem;
+  width: 9.8rem;
+  max-width: 9.8rem;
+  overflow: hidden;
+}
+
+.crossStoreBacktestResultTable .storeNameWithFavorite {
+  width: 100%;
+  max-width: 100%;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.crossStoreBacktestResultTable .storeNameWithFavorite a {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.crossStoreBacktestResultTable .storeFavoriteButtonCompact {
+  width: 1.45rem;
+  min-height: 1.45rem;
+  font-size: 0.78rem;
+}
+
+.crossStoreBacktestResultTable .backtestExpandIndicator {
+  flex: 0 0 auto;
+  width: 0.95rem;
+  height: 0.95rem;
+  margin-right: 0;
+  font-size: 0.66rem;
 }
 
 .huntRankingTable .directoryNameHeader,
@@ -2848,8 +2880,9 @@ a {
 
   .crossStoreBacktestResultTable .directoryNameHeader,
   .crossStoreBacktestResultTable .directoryNameCell {
-    min-width: 6.8rem;
-    max-width: 9rem;
+    min-width: 9.2rem;
+    width: 9.2rem;
+    max-width: 9.2rem;
   }
 
   .huntRankingTable .directoryNameHeader,
