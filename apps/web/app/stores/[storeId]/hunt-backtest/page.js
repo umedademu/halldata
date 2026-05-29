@@ -687,6 +687,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
               storeId={detail.store.id}
               selectedLogicKey={detail.huntScoreLogic.key}
               options={listHuntScoreLogicOptions()}
+              refreshOnSave={false}
             />
           ) : null}
         </div>

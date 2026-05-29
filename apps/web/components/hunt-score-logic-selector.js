@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -14,7 +14,7 @@ function findOption(options, logicKey) {
   return options.find((option) => option.key === logicKey) ?? null;
 }
 
-export function HuntScoreLogicSelector({ storeId, selectedLogicKey, options }) {
+export function HuntScoreLogicSelector({ storeId, selectedLogicKey, options, refreshOnSave = true }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const safeOptions = useMemo(
@@ -28,9 +28,15 @@ export function HuntScoreLogicSelector({ storeId, selectedLogicKey, options }) {
     [options],
   );
   const initialLogicKey = findOption(safeOptions, selectedLogicKey)?.key ?? safeOptions[0]?.key ?? "";
+  const [appliedLogicKey, setAppliedLogicKey] = useState(initialLogicKey);
   const [logicKey, setLogicKey] = useState(initialLogicKey);
-  const selectedOption = findOption(safeOptions, initialLogicKey);
-  const isChanged = logicKey && logicKey !== initialLogicKey;
+  const selectedOption = findOption(safeOptions, appliedLogicKey);
+  const isChanged = logicKey && logicKey !== appliedLogicKey;
+
+  useEffect(() => {
+    setAppliedLogicKey(initialLogicKey);
+    setLogicKey(initialLogicKey);
+  }, [initialLogicKey]);
 
   if (!storeId || safeOptions.length === 0) {
     return null;
@@ -45,9 +51,12 @@ export function HuntScoreLogicSelector({ storeId, selectedLogicKey, options }) {
     document.cookie = `${cookieName}=${encodeHuntScoreLogicCookieValue(
       logicKey,
     )}; Max-Age=${COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax`;
-    startTransition(() => {
-      router.refresh();
-    });
+    setAppliedLogicKey(logicKey);
+    if (refreshOnSave) {
+      startTransition(() => {
+        router.refresh();
+      });
+    }
   };
 
   return (
