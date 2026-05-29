@@ -2599,6 +2599,21 @@ function MachineVerificationTable({
     );
   }
 
+  const verificationBlockGroups = [];
+  const verificationBlockGroupByDate = new Map();
+  for (const block of verificationBlocks) {
+    const targetDate = String(block.targetDate ?? "");
+    if (!verificationBlockGroupByDate.has(targetDate)) {
+      const group = {
+        date: targetDate,
+        blocks: [],
+      };
+      verificationBlockGroupByDate.set(targetDate, group);
+      verificationBlockGroups.push(group);
+    }
+    verificationBlockGroupByDate.get(targetDate).blocks.push(block);
+  }
+
   return (
     <section className="tablePanel verificationPanel">
       <div className="tablePanelHeader">
@@ -2609,64 +2624,75 @@ function MachineVerificationTable({
         <p className="verificationCountLabel">{verificationBlocks.length}件</p>
       </div>
       <div className="verificationBlockList">
-        {verificationBlocks.map((block) => (
-          <article key={block.key} className="verificationBlock">
-            <div className="verificationBlockHeader">
-              <div>
-                <p className="verificationBlockTitle">
-                  {formatCalendarDate(block.targetDate)} / {formatSlotHeaderLabel(slotLabels, block.slotNumber)}
-                </p>
-                <p className="verificationBlockMeta">
-                  {normalizedVerificationTargetMode === VERIFICATION_TARGET_MODE_SETTING_RANK
-                    ? `設定${block.rank}位 / ${formatSettingEstimateScore(block.settingAverage)} / ${formatNumber(block.minGames)}G以上`
-                    : `判定履歴${normalizeVerificationWindowDays(huntScoreWindowDays)}日 + 翌日実績`}
-                </p>
-                {normalizedVerificationTargetMode === VERIFICATION_TARGET_MODE_SETTING_RANK ? (
-                  <p className="verificationBlockMeta">
-                    判定履歴{normalizeVerificationWindowDays(huntScoreWindowDays)}日 + 翌日実績
-                  </p>
-                ) : null}
-              </div>
+        {verificationBlockGroups.map((group) => (
+          <section key={group.date} className="verificationDateGroup">
+            {group.blocks.length > 1 ? (
+              <p className="verificationDateGroupLabel">
+                {formatCalendarDate(group.date)} / {group.blocks.length}件
+              </p>
+            ) : null}
+            <div className="verificationDateBlockGrid">
+              {group.blocks.map((block) => (
+                <article key={block.key} className="verificationBlock">
+                  <div className="verificationBlockHeader">
+                    <div>
+                      <p className="verificationBlockTitle">
+                        {formatCalendarDate(block.targetDate)} / {formatSlotHeaderLabel(slotLabels, block.slotNumber)}
+                      </p>
+                      <p className="verificationBlockMeta">
+                        {normalizedVerificationTargetMode === VERIFICATION_TARGET_MODE_SETTING_RANK
+                          ? `設定${block.rank}位 / ${formatSettingEstimateScore(block.settingAverage)} / ${formatNumber(block.minGames)}G以上`
+                          : `判定履歴${normalizeVerificationWindowDays(huntScoreWindowDays)}日 + 翌日実績`}
+                      </p>
+                      {normalizedVerificationTargetMode === VERIFICATION_TARGET_MODE_SETTING_RANK ? (
+                        <p className="verificationBlockMeta">
+                          判定履歴{normalizeVerificationWindowDays(huntScoreWindowDays)}日 + 翌日実績
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="tableScroller verificationScroller">
+                    <table className="directoryTable huntCompactTable verificationTable">
+                      <thead>
+                        <tr>
+                          <th>区分</th>
+                          <th>日付</th>
+                          <th>曜</th>
+                          {visibleMetrics.map((metric) => (
+                            <th key={metric.key}>{metric.label}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {block.rows.map(({ role, row }) => {
+                          const record = row.recordsBySlot?.[block.slotNumber] ?? null;
+                          return (
+                            <tr key={`${block.key}-${role}-${row.date}`}>
+                              <th>{role}</th>
+                              <td>{formatShortDate(row.date)}</td>
+                              <td>{formatWeekday(row.date)}</td>
+                              {visibleMetrics.map((metric) => (
+                                <VerificationMetricCell
+                                  key={`${block.key}-${row.date}-${metric.key}`}
+                                  metric={metric}
+                                  record={record}
+                                  row={row}
+                                  slotNumber={block.slotNumber}
+                                  settingEstimateDefinition={settingEstimateDefinition}
+                                  getCompositeSettingEstimate={getCompositeSettingEstimate}
+                                  huntScoreHighlightKeySet={huntScoreHighlightKeySet}
+                                />
+                              ))}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </article>
+              ))}
             </div>
-            <div className="tableScroller verificationScroller">
-              <table className="directoryTable huntCompactTable verificationTable">
-                <thead>
-                  <tr>
-                    <th>区分</th>
-                    <th>日付</th>
-                    <th>曜</th>
-                    {visibleMetrics.map((metric) => (
-                      <th key={metric.key}>{metric.label}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {block.rows.map(({ role, row }) => {
-                    const record = row.recordsBySlot?.[block.slotNumber] ?? null;
-                    return (
-                      <tr key={`${block.key}-${role}-${row.date}`}>
-                        <th>{role}</th>
-                        <td>{formatShortDate(row.date)}</td>
-                        <td>{formatWeekday(row.date)}</td>
-                        {visibleMetrics.map((metric) => (
-                          <VerificationMetricCell
-                            key={`${block.key}-${row.date}-${metric.key}`}
-                            metric={metric}
-                            record={record}
-                            row={row}
-                            slotNumber={block.slotNumber}
-                            settingEstimateDefinition={settingEstimateDefinition}
-                            getCompositeSettingEstimate={getCompositeSettingEstimate}
-                            huntScoreHighlightKeySet={huntScoreHighlightKeySet}
-                          />
-                        ))}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </article>
+          </section>
         ))}
       </div>
     </section>
