@@ -1245,12 +1245,18 @@ function calculateStreakScore(value) {
   ]);
 }
 
-function calculateLosingStreakOnlyHuntScore(metrics) {
-  return metrics.streak ?? 0;
+function calculateCountOnlyHuntScore(count, context = {}) {
+  const windowDays = Math.max(1, Number(context.windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
+  const normalizedCount = Math.max(0, Number(count) || 0);
+  return (normalizedCount / windowDays) * 100;
 }
 
-function calculateLossDaysOnlyHuntScore(metrics) {
-  return metrics.lossDays ?? 0;
+function calculateLosingStreakOnlyHuntScore(metrics, context = {}) {
+  return calculateCountOnlyHuntScore(metrics.streak, context);
+}
+
+function calculateLossDaysOnlyHuntScore(metrics, context = {}) {
+  return calculateCountOnlyHuntScore(metrics.lossDays, context);
 }
 
 function calculateLossAbsScore(value) {
