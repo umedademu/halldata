@@ -108,6 +108,11 @@ const DEFAULT_HUNT_SCORE_RANK_MIN = 1;
 const DEFAULT_HUNT_SCORE_RANK_MAX = 1;
 const DEFAULT_HUNT_SCORE_RANK_SCOPE = "machine";
 const DEFAULT_HUNT_SCORE_NEXT_GAP_SCOPE = "machine";
+const VERIFICATION_TARGET_MODE_HIGHLIGHT = "highlight";
+const VERIFICATION_TARGET_MODE_SETTING_RANK = "setting_rank";
+const DEFAULT_VERIFICATION_SETTING_RANK_MIN = 1;
+const DEFAULT_VERIFICATION_SETTING_RANK_MAX = 1;
+const DEFAULT_VERIFICATION_SETTING_MIN_GAMES = 0;
 const DEFAULT_HUNT_RANK_REQUIRED = true;
 const DEFAULT_HUNT_SCORE_REQUIRED = false;
 const DEFAULT_HUNT_NEXT_GAP_REQUIRED = false;
@@ -309,6 +314,39 @@ function normalizeHuntScoreRankScope(value) {
     return value;
   }
   return DEFAULT_HUNT_SCORE_RANK_SCOPE;
+}
+
+function normalizeVerificationTargetMode(value) {
+  return value === VERIFICATION_TARGET_MODE_SETTING_RANK
+    ? VERIFICATION_TARGET_MODE_SETTING_RANK
+    : VERIFICATION_TARGET_MODE_HIGHLIGHT;
+}
+
+function normalizeVerificationRankInputValue(value, fallbackValue) {
+  if (String(value ?? "").trim() === "") {
+    return "";
+  }
+  return parsePositiveIntegerOption(value, fallbackValue);
+}
+
+function normalizeVerificationMinGamesInputValue(value, fallbackValue) {
+  if (String(value ?? "").trim() === "") {
+    return "";
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallbackValue;
+}
+
+function buildVerificationSettingRankFilter(rankMinValue, rankMaxValue, minGamesValue) {
+  const parsedRankMin = parsePositiveIntegerOption(rankMinValue, DEFAULT_VERIFICATION_SETTING_RANK_MIN);
+  const parsedRankMax = parsePositiveIntegerOption(rankMaxValue, parsedRankMin);
+  const minGames = Math.max(0, Number(minGamesValue) || 0);
+
+  return {
+    rankMin: Math.min(parsedRankMin, parsedRankMax),
+    rankMax: Math.max(parsedRankMin, parsedRankMax),
+    minGames,
+  };
 }
 
 function buildHuntScoreRankFilter(rankMinValue, rankMaxValue) {
@@ -677,8 +715,27 @@ function readMachineComparisonOptions(storeId, defaults, options = {}) {
     estimateOptions: options.preferDefaultEstimateOptions && !source.estimateOptions
       ? defaults.estimateOptions
       : normalizeEstimateOptions(source.estimateOptions, defaults.estimateOptions),
+    verificationTargetMode: normalizeVerificationTargetMode(
+      source.verificationTargetMode ?? defaults.verificationTargetMode,
+    ),
+    verificationSettingRankMin: normalizeVerificationRankInputValue(
+      source.verificationSettingRankMin,
+      defaults.verificationSettingRankMin,
+    ),
+    verificationSettingRankMax: normalizeVerificationRankInputValue(
+      source.verificationSettingRankMax,
+      defaults.verificationSettingRankMax,
+    ),
+    verificationSettingMinGames: normalizeVerificationMinGamesInputValue(
+      source.verificationSettingMinGames,
+      defaults.verificationSettingMinGames,
+    ),
     displayControlsOpen: normalizeEnabledOption(source.displayControlsOpen, defaults.displayControlsOpen),
     settingControlsOpen: normalizeEnabledOption(source.settingControlsOpen, defaults.settingControlsOpen),
+    verificationControlsOpen: normalizeEnabledOption(
+      source.verificationControlsOpen,
+      defaults.verificationControlsOpen,
+    ),
     huntScoreControlsOpen: normalizeEnabledOption(source.huntScoreControlsOpen, defaults.huntScoreControlsOpen),
   };
 }
@@ -711,8 +768,22 @@ function saveMachineComparisonOptions(storeId, options) {
         settingEstimateMode: normalizeSettingEstimateMode(options.settingEstimateMode),
         visibleMetricKeys: normalizeMetricKeys(options.visibleMetricKeys),
         estimateOptions: existingValue?.estimateOptions ?? options.estimateOptions,
+        verificationTargetMode: normalizeVerificationTargetMode(options.verificationTargetMode),
+        verificationSettingRankMin: normalizeVerificationRankInputValue(
+          options.verificationSettingRankMin,
+          DEFAULT_VERIFICATION_SETTING_RANK_MIN,
+        ),
+        verificationSettingRankMax: normalizeVerificationRankInputValue(
+          options.verificationSettingRankMax,
+          DEFAULT_VERIFICATION_SETTING_RANK_MAX,
+        ),
+        verificationSettingMinGames: normalizeVerificationMinGamesInputValue(
+          options.verificationSettingMinGames,
+          DEFAULT_VERIFICATION_SETTING_MIN_GAMES,
+        ),
         displayControlsOpen: Boolean(options.displayControlsOpen),
         settingControlsOpen: Boolean(options.settingControlsOpen),
+        verificationControlsOpen: Boolean(options.verificationControlsOpen),
         huntScoreControlsOpen: Boolean(options.huntScoreControlsOpen),
       }),
     );
@@ -2226,6 +2297,113 @@ function buildVerificationBlocks(dateRows, targetRows, slotNumbers, huntScoreHig
   return blocks;
 }
 
+function buildSettingRankVerificationBlocks(
+  dateRows,
+  targetRows,
+  slotNumbers,
+  getCompositeSettingEstimate,
+  windowDays,
+  rankOptions,
+) {
+  if (typeof getCompositeSettingEstimate !== "function") {
+    return [];
+  }
+
+  const normalizedWindowDays = normalizeVerificationWindowDays(windowDays);
+  const rankFilter = buildVerificationSettingRankFilter(
+    rankOptions?.rankMin,
+    rankOptions?.rankMax,
+    rankOptions?.minGames,
+  );
+  const rowsByDateAsc = [...(Array.isArray(dateRows) ? dateRows : [])]
+    .filter((row) => isIsoDateText(row?.date))
+    .sort((left, right) => String(left.date).localeCompare(String(right.date)));
+  const dateIndexByDate = new Map(rowsByDateAsc.map((row, index) => [String(row.date), index]));
+  const blocks = [];
+
+  for (const row of Array.isArray(targetRows) ? targetRows : []) {
+    const rowDate = String(row?.date ?? "").trim();
+    const dateIndex = dateIndexByDate.get(rowDate);
+    if (dateIndex === undefined) {
+      continue;
+    }
+
+    const rankedCandidates = slotNumbers
+      .map((slotNumber, slotIndex) => {
+        const record = row.recordsBySlot?.[slotNumber] ?? null;
+        const settingEstimate = getCompositeSettingEstimate(record);
+        const settingAverage = Number(settingEstimate?.average);
+        const games = Number(record?.games_count);
+        return {
+          slotNumber,
+          slotIndex,
+          record,
+          settingAverage,
+          games,
+        };
+      })
+      .filter(
+        (candidate) =>
+          candidate.record &&
+          Number.isFinite(candidate.settingAverage) &&
+          Number.isFinite(candidate.games) &&
+          candidate.games >= rankFilter.minGames,
+      )
+      .sort((left, right) => {
+        const settingDifference = right.settingAverage - left.settingAverage;
+        if (Math.abs(settingDifference) > COMPARISON_SCORE_EPSILON) {
+          return settingDifference;
+        }
+        return (
+          right.games - left.games ||
+          String(left.slotNumber).localeCompare(String(right.slotNumber), "ja", {
+            numeric: true,
+          }) ||
+          left.slotIndex - right.slotIndex
+        );
+      });
+
+    let previousSetting = null;
+    let previousRank = 0;
+    for (let index = 0; index < rankedCandidates.length; index += 1) {
+      const candidate = rankedCandidates[index];
+      const rank =
+        previousSetting !== null &&
+        Math.abs(candidate.settingAverage - previousSetting) <= COMPARISON_SCORE_EPSILON
+          ? previousRank
+          : index + 1;
+
+      previousSetting = candidate.settingAverage;
+      previousRank = rank;
+
+      if (rank < rankFilter.rankMin || rank > rankFilter.rankMax) {
+        continue;
+      }
+
+      const historyStartIndex = Math.max(0, dateIndex - normalizedWindowDays + 1);
+      const historyRows = rowsByDateAsc.slice(historyStartIndex, dateIndex + 1).reverse();
+      const nextRow = rowsByDateAsc[dateIndex + 1] ?? null;
+      blocks.push({
+        key: `${rowDate}-${candidate.slotNumber}-setting-rank`,
+        targetDate: rowDate,
+        slotNumber: candidate.slotNumber,
+        rank,
+        settingAverage: candidate.settingAverage,
+        minGames: rankFilter.minGames,
+        rows: [
+          ...(nextRow ? [{ role: "翌日", row: nextRow }] : []),
+          ...historyRows.map((historyRow) => ({
+            role: historyRow.date === rowDate ? "判定日" : "履歴",
+            row: historyRow,
+          })),
+        ],
+      });
+    }
+  }
+
+  return blocks;
+}
+
 function VerificationMetricCell({
   metric,
   record,
@@ -2272,6 +2450,86 @@ function VerificationMetricCell({
   );
 }
 
+function VerificationTargetControls({
+  targetMode,
+  onTargetModeChange,
+  rankMin,
+  rankMax,
+  minGames,
+  onRankMinChange,
+  onRankMaxChange,
+  onMinGamesChange,
+}) {
+  return (
+    <div className="estimateControlGrid">
+      <div className="filterControlGroup">
+        <p className="filterControlLabel">抽出方法</p>
+        <div className="metricToggleRow">
+          <label
+            className={`metricToggleChip ${
+              targetMode === VERIFICATION_TARGET_MODE_HIGHLIGHT ? "metricToggleChipActive" : ""
+            }`}
+          >
+            <input
+              type="radio"
+              name="verificationTargetMode"
+              value={VERIFICATION_TARGET_MODE_HIGHLIGHT}
+              checked={targetMode === VERIFICATION_TARGET_MODE_HIGHLIGHT}
+              onChange={() => onTargetModeChange(VERIFICATION_TARGET_MODE_HIGHLIGHT)}
+            />
+            <span>紫強調</span>
+          </label>
+          <label
+            className={`metricToggleChip ${
+              targetMode === VERIFICATION_TARGET_MODE_SETTING_RANK ? "metricToggleChipActive" : ""
+            }`}
+          >
+            <input
+              type="radio"
+              name="verificationTargetMode"
+              value={VERIFICATION_TARGET_MODE_SETTING_RANK}
+              checked={targetMode === VERIFICATION_TARGET_MODE_SETTING_RANK}
+              onChange={() => onTargetModeChange(VERIFICATION_TARGET_MODE_SETTING_RANK)}
+            />
+            <span>設定上位</span>
+          </label>
+        </div>
+      </div>
+
+      {targetMode === VERIFICATION_TARGET_MODE_SETTING_RANK ? (
+        <div className="estimateMethodRow">
+          <div className="estimateMethodHeader">
+            <div>
+              <p className="estimateMethodTitle">設定上位の条件</p>
+            </div>
+          </div>
+          <div className="estimateFields">
+            <EstimateNumberField
+              label="開始順位"
+              value={rankMin}
+              min={1}
+              onChange={onRankMinChange}
+            />
+            <EstimateNumberField
+              label="終了順位"
+              value={rankMax}
+              min={1}
+              onChange={onRankMaxChange}
+            />
+            <EstimateNumberField
+              label="最低G数"
+              value={minGames}
+              min={0}
+              suffix="G"
+              onChange={onMinGamesChange}
+            />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function MachineVerificationTable({
   machineName,
   slotNumbers,
@@ -2283,10 +2541,40 @@ function MachineVerificationTable({
   getCompositeSettingEstimate,
   huntScoreHighlightKeySet,
   huntScoreWindowDays,
+  verificationTargetMode,
+  verificationSettingRankMin,
+  verificationSettingRankMax,
+  verificationSettingMinGames,
 }) {
+  const normalizedVerificationTargetMode = normalizeVerificationTargetMode(verificationTargetMode);
   const verificationBlocks = useMemo(
-    () => buildVerificationBlocks(dateRows, visibleRows, slotNumbers, huntScoreHighlightKeySet, huntScoreWindowDays),
-    [dateRows, huntScoreHighlightKeySet, huntScoreWindowDays, slotNumbers, visibleRows],
+    () =>
+      normalizedVerificationTargetMode === VERIFICATION_TARGET_MODE_SETTING_RANK
+        ? buildSettingRankVerificationBlocks(
+            dateRows,
+            visibleRows,
+            slotNumbers,
+            getCompositeSettingEstimate,
+            huntScoreWindowDays,
+            {
+              rankMin: verificationSettingRankMin,
+              rankMax: verificationSettingRankMax,
+              minGames: verificationSettingMinGames,
+            },
+          )
+        : buildVerificationBlocks(dateRows, visibleRows, slotNumbers, huntScoreHighlightKeySet, huntScoreWindowDays),
+    [
+      dateRows,
+      getCompositeSettingEstimate,
+      huntScoreHighlightKeySet,
+      huntScoreWindowDays,
+      normalizedVerificationTargetMode,
+      slotNumbers,
+      verificationSettingMinGames,
+      verificationSettingRankMax,
+      verificationSettingRankMin,
+      visibleRows,
+    ],
   );
 
   if (visibleRows.length === 0) {
@@ -2302,7 +2590,11 @@ function MachineVerificationTable({
     return (
       <section className="statusPanel">
         <h2>検証対象がありません</h2>
-        <p>狙い度条件に該当する紫強調の台がありません。</p>
+        <p>
+          {normalizedVerificationTargetMode === VERIFICATION_TARGET_MODE_SETTING_RANK
+            ? "順位か最低G数の条件に該当する台がありません。"
+            : "狙い度条件に該当する紫強調の台がありません。"}
+        </p>
       </section>
     );
   }
@@ -2325,8 +2617,15 @@ function MachineVerificationTable({
                   {formatCalendarDate(block.targetDate)} / {formatSlotHeaderLabel(slotLabels, block.slotNumber)}
                 </p>
                 <p className="verificationBlockMeta">
-                  判定履歴{normalizeVerificationWindowDays(huntScoreWindowDays)}日 + 翌日実績
+                  {normalizedVerificationTargetMode === VERIFICATION_TARGET_MODE_SETTING_RANK
+                    ? `設定${block.rank}位 / ${formatSettingEstimateScore(block.settingAverage)} / ${formatNumber(block.minGames)}G以上`
+                    : `判定履歴${normalizeVerificationWindowDays(huntScoreWindowDays)}日 + 翌日実績`}
                 </p>
+                {normalizedVerificationTargetMode === VERIFICATION_TARGET_MODE_SETTING_RANK ? (
+                  <p className="verificationBlockMeta">
+                    判定履歴{normalizeVerificationWindowDays(huntScoreWindowDays)}日 + 翌日実績
+                  </p>
+                ) : null}
               </div>
             </div>
             <div className="tableScroller verificationScroller">
@@ -2431,8 +2730,13 @@ export function MachineComparison({
       settingEstimateMode: normalizeSettingEstimateMode(initialSettingEstimateMode),
       visibleMetricKeys: DEFAULT_VISIBLE_METRIC_KEYS,
       estimateOptions: defaultEstimateOptions,
+      verificationTargetMode: VERIFICATION_TARGET_MODE_HIGHLIGHT,
+      verificationSettingRankMin: DEFAULT_VERIFICATION_SETTING_RANK_MIN,
+      verificationSettingRankMax: DEFAULT_VERIFICATION_SETTING_RANK_MAX,
+      verificationSettingMinGames: DEFAULT_VERIFICATION_SETTING_MIN_GAMES,
       displayControlsOpen: true,
       settingControlsOpen: true,
+      verificationControlsOpen: true,
       huntScoreControlsOpen: true,
     }),
     [
@@ -2461,11 +2765,26 @@ export function MachineComparison({
   );
   const [visibleMetricKeys, setVisibleMetricKeys] = useState(defaultComparisonOptions.visibleMetricKeys);
   const [estimateOptions, setEstimateOptions] = useState(defaultComparisonOptions.estimateOptions);
+  const [verificationTargetMode, setVerificationTargetMode] = useState(
+    defaultComparisonOptions.verificationTargetMode,
+  );
+  const [verificationSettingRankMin, setVerificationSettingRankMin] = useState(
+    defaultComparisonOptions.verificationSettingRankMin,
+  );
+  const [verificationSettingRankMax, setVerificationSettingRankMax] = useState(
+    defaultComparisonOptions.verificationSettingRankMax,
+  );
+  const [verificationSettingMinGames, setVerificationSettingMinGames] = useState(
+    defaultComparisonOptions.verificationSettingMinGames,
+  );
   const [displayControlsOpen, setDisplayControlsOpen] = useState(
     defaultComparisonOptions.displayControlsOpen,
   );
   const [settingControlsOpen, setSettingControlsOpen] = useState(
     defaultComparisonOptions.settingControlsOpen,
+  );
+  const [verificationControlsOpen, setVerificationControlsOpen] = useState(
+    defaultComparisonOptions.verificationControlsOpen,
   );
   const [huntScoreControlsOpen, setHuntScoreControlsOpen] = useState(
     defaultComparisonOptions.huntScoreControlsOpen,
@@ -2726,8 +3045,13 @@ export function MachineComparison({
     setSettingEstimateMode(nextSettingEstimateMode);
     setVisibleMetricKeys(options.visibleMetricKeys);
     setEstimateOptions(options.estimateOptions);
+    setVerificationTargetMode(options.verificationTargetMode);
+    setVerificationSettingRankMin(options.verificationSettingRankMin);
+    setVerificationSettingRankMax(options.verificationSettingRankMax);
+    setVerificationSettingMinGames(options.verificationSettingMinGames);
     setDisplayControlsOpen(options.displayControlsOpen);
     setSettingControlsOpen(options.settingControlsOpen);
+    setVerificationControlsOpen(options.verificationControlsOpen);
     setHuntScoreControlsOpen(options.huntScoreControlsOpen);
     setMachineComparisonOptionsLoadedStoreId(storeId);
   }, [
@@ -2766,9 +3090,14 @@ export function MachineComparison({
       settingEstimateMode,
       visibleMetricKeys,
       estimateOptions,
+      verificationTargetMode,
+      verificationSettingRankMin,
+      verificationSettingRankMax,
+      verificationSettingMinGames,
       preserveEstimateOptions: preferDefaultEstimateOptions && !estimateOptionsTouchedRef.current,
       displayControlsOpen,
       settingControlsOpen,
+      verificationControlsOpen,
       huntScoreControlsOpen,
     });
   }, [
@@ -2786,6 +3115,11 @@ export function MachineComparison({
     settingControlsOpen,
     settingEstimateMode,
     storeId,
+    verificationSettingMinGames,
+    verificationSettingRankMax,
+    verificationSettingRankMin,
+    verificationTargetMode,
+    verificationControlsOpen,
     visibleMetricKeys,
     preferDefaultEstimateOptions,
   ]);
@@ -3011,6 +3345,28 @@ export function MachineComparison({
     const nextSettingEstimateMode = normalizeSettingEstimateMode(value);
     setSettingEstimateMode(nextSettingEstimateMode);
     void loadHuntScoreHighlight(huntScoreDifferenceMode, nextSettingEstimateMode);
+  };
+
+  const updateVerificationTargetMode = (value) => {
+    setVerificationTargetMode(normalizeVerificationTargetMode(value));
+  };
+
+  const updateVerificationSettingRankMin = (value) => {
+    setVerificationSettingRankMin(
+      normalizeVerificationRankInputValue(value, DEFAULT_VERIFICATION_SETTING_RANK_MIN),
+    );
+  };
+
+  const updateVerificationSettingRankMax = (value) => {
+    setVerificationSettingRankMax(
+      normalizeVerificationRankInputValue(value, DEFAULT_VERIFICATION_SETTING_RANK_MAX),
+    );
+  };
+
+  const updateVerificationSettingMinGames = (value) => {
+    setVerificationSettingMinGames(
+      normalizeVerificationMinGamesInputValue(value, DEFAULT_VERIFICATION_SETTING_MIN_GAMES),
+    );
   };
 
   const handleRangeStartChange = (value) => {
@@ -3463,6 +3819,24 @@ export function MachineComparison({
             />
           </CollapsibleControlGroup>
         ) : null}
+        {verificationMode ? (
+          <CollapsibleControlGroup
+            title="検証"
+            open={verificationControlsOpen}
+            onOpenChange={setVerificationControlsOpen}
+          >
+            <VerificationTargetControls
+              targetMode={verificationTargetMode}
+              onTargetModeChange={updateVerificationTargetMode}
+              rankMin={verificationSettingRankMin}
+              rankMax={verificationSettingRankMax}
+              minGames={verificationSettingMinGames}
+              onRankMinChange={updateVerificationSettingRankMin}
+              onRankMaxChange={updateVerificationSettingRankMax}
+              onMinGamesChange={updateVerificationSettingMinGames}
+            />
+          </CollapsibleControlGroup>
+        ) : null}
         {hasHuntScore ? (
           <CollapsibleControlGroup
             title="狙い度"
@@ -3496,6 +3870,10 @@ export function MachineComparison({
           getCompositeSettingEstimate={getCompositeSettingEstimate}
           huntScoreHighlightKeySet={huntScoreHighlightKeySet}
           huntScoreWindowDays={huntScoreWindowDays}
+          verificationTargetMode={verificationTargetMode}
+          verificationSettingRankMin={verificationSettingRankMin}
+          verificationSettingRankMax={verificationSettingRankMax}
+          verificationSettingMinGames={verificationSettingMinGames}
         />
       ) : (
         <MachineComparisonTable
