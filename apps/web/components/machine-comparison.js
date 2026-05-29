@@ -1268,7 +1268,7 @@ function createHuntScoreNextGapMetric(getHuntScoreNextGapValue) {
 
   return {
     key: "hunt_score_next_gap",
-    label: "次点差",
+    label: "次差",
     render: renderNextGap,
     csvRender: csvRenderNextGap,
     columnClass: "matrixColumnMedium",
