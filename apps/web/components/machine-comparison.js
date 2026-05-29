@@ -2209,11 +2209,11 @@ function buildVerificationBlocks(dateRows, targetRows, slotNumbers, huntScoreHig
         targetDate: rowDate,
         slotNumber,
         rows: [
+          ...(nextRow ? [{ role: "翌日", row: nextRow }] : []),
           ...historyRows.map((historyRow) => ({
             role: historyRow.date === rowDate ? "判定日" : "履歴",
             row: historyRow,
           })),
-          ...(nextRow ? [{ role: "翌日", row: nextRow }] : []),
         ],
       });
     }
@@ -2341,16 +2341,7 @@ function MachineVerificationTable({
                   {block.rows.map(({ role, row }) => {
                     const record = row.recordsBySlot?.[block.slotNumber] ?? null;
                     return (
-                      <tr
-                        key={`${block.key}-${role}-${row.date}`}
-                        className={
-                          role === "判定日"
-                            ? "verificationTargetRow"
-                            : role === "翌日"
-                              ? "verificationNextRow"
-                              : undefined
-                        }
-                      >
+                      <tr key={`${block.key}-${role}-${row.date}`}>
                         <th>{role}</th>
                         <td>{formatShortDate(row.date)}</td>
                         <td>{formatWeekday(row.date)}</td>
