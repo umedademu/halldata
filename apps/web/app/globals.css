@@ -2423,6 +2423,22 @@ a {
   width: var(--matrix-metric-column-width, 2rem);
 }
 
+.matrixMetricColumn.matrixColumnDifference {
+  width: 2.45rem;
+}
+
+.matrixMetricColumn.matrixColumnWide {
+  width: 1.65rem;
+}
+
+.matrixMetricColumn.matrixColumnMedium {
+  width: 1.8rem;
+}
+
+.matrixMetricColumn.matrixColumnNarrow {
+  width: 1.35rem;
+}
+
 .matrixTable thead th {
   position: relative;
   z-index: 1;

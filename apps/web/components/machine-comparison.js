@@ -91,7 +91,13 @@ const ESTIMATED_GRAPE_METRIC_KEY = "estimated_grape_denominator";
 const MACHINE_COMPARISON_METRIC_DEFAULTS_VERSION = 3;
 const MATRIX_DATE_COLUMN_WIDTH_REM = 4.8;
 const MATRIX_WEEKDAY_COLUMN_WIDTH_REM = 2.4;
-const MATRIX_SLOT_WIDTH_REM = 16;
+const MATRIX_DEFAULT_METRIC_COLUMN_WIDTH_REM = 1.6;
+const MATRIX_COLUMN_WIDTH_REM_BY_CLASS = {
+  matrixColumnDifference: 2.45,
+  matrixColumnWide: 1.65,
+  matrixColumnMedium: 1.8,
+  matrixColumnNarrow: 1.35,
+};
 const DEFAULT_GAME_MIN_GAMES = 6000;
 const DEFAULT_GAME_MAX_GAMES = 9000;
 const DEFAULT_GAME_EXPONENT = 1.5;
@@ -1253,10 +1259,10 @@ function createHuntScoreMetric(getHuntScoreValue) {
 
   return {
     key: "hunt_score",
-    label: "狙い度",
+    label: "狙度",
     render: renderHuntScore,
     csvRender: csvRenderHuntScore,
-    columnClass: "matrixColumnMedium",
+    columnClass: "matrixColumnNarrow",
   };
 }
 
@@ -1291,13 +1297,25 @@ function formatEstimatedGrapeRate(value) {
   return `1/${denominator.toFixed(2)}`;
 }
 
+function formatRatioDenominator(value) {
+  const ratio = formatRatio(value);
+  if (typeof ratio !== "string") {
+    return ratio;
+  }
+  return ratio.startsWith("1/") ? ratio.slice(2) : ratio;
+}
+
+function getMatrixColumnWidthRem(metric) {
+  return MATRIX_COLUMN_WIDTH_REM_BY_CLASS[metric.columnClass] ?? MATRIX_DEFAULT_METRIC_COLUMN_WIDTH_REM;
+}
+
 const COMMON_METRICS = [
   {
     key: "difference_value",
     label: "差枚",
     render: formatNarrowSignedNumber,
     csvRender: formatSignedNumber,
-    columnClass: "matrixColumnWide",
+    columnClass: "matrixColumnDifference",
   },
   {
     key: "games_count",
@@ -1328,7 +1346,13 @@ const COMMON_METRICS = [
     csvRender: formatAverageGames,
     columnClass: "matrixColumnNarrow",
   },
-  { key: "combined_ratio_text", label: "合成", render: formatRatio, columnClass: "matrixColumnWide" },
+  {
+    key: "combined_ratio_text",
+    label: "合成",
+    render: formatRatioDenominator,
+    csvRender: formatRatio,
+    columnClass: "matrixColumnNarrow",
+  },
 ];
 
 const ESTIMATED_GRAPE_METRIC = {
@@ -1340,8 +1364,20 @@ const ESTIMATED_GRAPE_METRIC = {
 };
 
 const RATIO_METRICS = [
-  { key: "bb_ratio_text", label: "BB率", render: formatRatio, columnClass: "matrixColumnWide" },
-  { key: "rb_ratio_text", label: "RB率", render: formatRatio, columnClass: "matrixColumnWide" },
+  {
+    key: "bb_ratio_text",
+    label: "BB率",
+    render: formatRatioDenominator,
+    csvRender: formatRatio,
+    columnClass: "matrixColumnNarrow",
+  },
+  {
+    key: "rb_ratio_text",
+    label: "RB率",
+    render: formatRatioDenominator,
+    csvRender: formatRatio,
+    columnClass: "matrixColumnNarrow",
+  },
 ];
 
 function createDifferenceMetric(differenceMode) {
@@ -1350,7 +1386,7 @@ function createDifferenceMetric(differenceMode) {
     label: "差枚",
     render: (_value, record) => formatNarrowSignedNumber(selectDifferenceValue(record, differenceMode)),
     csvRender: (_value, record) => formatSignedNumber(selectDifferenceValue(record, differenceMode)),
-    columnClass: "matrixColumnWide",
+    columnClass: "matrixColumnDifference",
   };
 }
 
@@ -2110,6 +2146,7 @@ const MatrixRow = memo(function MatrixRow({
               ? "huntScoreHighlighted"
               : "";
           const className = [
+            metric.columnClass,
             toneClass,
             isHuntScoreMetric ? "" : settingHighlightClass,
             huntScoreHighlightClass,
@@ -2598,6 +2635,10 @@ export function MachineComparison({
 
   const tableStyle = useMemo(() => {
     const visibleMetricCount = Math.max(visibleMetrics.length, 1);
+    const slotWidthRem = Math.max(
+      MATRIX_DEFAULT_METRIC_COLUMN_WIDTH_REM,
+      visibleMetrics.reduce((total, metric) => total + getMatrixColumnWidthRem(metric), 0),
+    );
     const cellFontSize = Math.min(0.96, Math.max(0.64, 1.08 - visibleMetricCount * 0.06));
     const headerFontSize = Math.min(0.88, Math.max(0.62, cellFontSize - 0.04));
     const dateFontSize = Math.min(0.8, cellFontSize);
@@ -2605,17 +2646,17 @@ export function MachineComparison({
     return {
       "--matrix-date-column-width": `${MATRIX_DATE_COLUMN_WIDTH_REM}rem`,
       "--matrix-weekday-column-width": `${MATRIX_WEEKDAY_COLUMN_WIDTH_REM}rem`,
-      "--matrix-metric-column-width": `${MATRIX_SLOT_WIDTH_REM / visibleMetricCount}rem`,
+      "--matrix-metric-column-width": `${MATRIX_DEFAULT_METRIC_COLUMN_WIDTH_REM}rem`,
       "--matrix-table-width": `${
         MATRIX_DATE_COLUMN_WIDTH_REM +
         MATRIX_WEEKDAY_COLUMN_WIDTH_REM +
-        slotNumbers.length * MATRIX_SLOT_WIDTH_REM
+        slotNumbers.length * slotWidthRem
       }rem`,
       "--matrix-cell-font-size": `${cellFontSize}rem`,
       "--matrix-header-font-size": `${headerFontSize}rem`,
       "--matrix-date-font-size": `${dateFontSize}rem`,
     };
-  }, [slotNumbers.length, visibleMetrics.length]);
+  }, [slotNumbers.length, visibleMetrics]);
 
   const loadHuntScoreHighlight = useCallback(
     async (nextDifferenceMode, nextSettingEstimateMode, nextDateRange = activeDateRange) => {
@@ -3250,7 +3291,10 @@ function MachineComparisonTable({
             <col className="matrixWeekdayColumn" />
             {slotNumbers.flatMap((slotNumber) =>
               visibleMetrics.map((metric) => (
-                <col key={`${slotNumber}-${metric.key}`} className="matrixMetricColumn" />
+                <col
+                  key={`${slotNumber}-${metric.key}`}
+                  className={["matrixMetricColumn", metric.columnClass ?? ""].filter(Boolean).join(" ")}
+                />
               )),
             )}
           </colgroup>
@@ -3279,7 +3323,7 @@ function MachineComparisonTable({
                 visibleMetrics.map((metric, metricIndex) => (
                   <th
                     key={`${slotNumber}-${metric.key}`}
-                    className={`metricHeader ${
+                    className={`metricHeader ${metric.columnClass ?? ""} ${
                       slotIndex !== slotNumbers.length - 1 &&
                       metricIndex === visibleMetrics.length - 1
                         ? "slotGroupBoundary"
