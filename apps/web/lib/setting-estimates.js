@@ -80,6 +80,8 @@ const RATE_TABLE_EXTRA_COLUMNS = [
   { field: "grapeText", label: "ブドウ確率" },
   { field: "cherryText", label: "チェリー確率" },
   { field: "payoutRateText", label: "機械割" },
+  { field: "cherryAttackPayoutRateText", label: "チェリー狙い" },
+  { field: "fullPayoutRateText", label: "フル攻略" },
 ];
 
 function parseRateText(value) {
@@ -164,6 +166,8 @@ function buildDefinition(definition) {
     grapeText: row.grapeText,
     cherryText: row.cherryText,
     payoutRateText: row.payoutRateText,
+    cherryAttackPayoutRateText: row.cherryAttackPayoutRateText,
+    fullPayoutRateText: row.fullPayoutRateText,
   }));
   const rateTableExtraColumns = RATE_TABLE_EXTRA_COLUMNS.filter((column) =>
     rateTable.some((row) => row[column.field]),
