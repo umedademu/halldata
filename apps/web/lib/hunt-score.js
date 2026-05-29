@@ -433,6 +433,42 @@ const AMUSE_ASAKUSA_TARGET_MACHINES = [
 
 const HUNT_SCORE_LOGIC_DEFINITIONS = [
   {
+    key: "loss-streak-7",
+    name: "7日連敗数",
+    windowDays: 7,
+    scoreCalculator: calculateLosingStreakOnlyHuntScore,
+  },
+  {
+    key: "loss-streak-5",
+    name: "5日連敗数",
+    windowDays: 5,
+    scoreCalculator: calculateLosingStreakOnlyHuntScore,
+  },
+  {
+    key: "loss-streak-3",
+    name: "3日連敗数",
+    windowDays: 3,
+    scoreCalculator: calculateLosingStreakOnlyHuntScore,
+  },
+  {
+    key: "loss-days-7",
+    name: "7日負け数",
+    windowDays: 7,
+    scoreCalculator: calculateLossDaysOnlyHuntScore,
+  },
+  {
+    key: "loss-days-5",
+    name: "5日負け数",
+    windowDays: 5,
+    scoreCalculator: calculateLossDaysOnlyHuntScore,
+  },
+  {
+    key: "loss-days-3",
+    name: "3日負け数",
+    windowDays: 3,
+    scoreCalculator: calculateLossDaysOnlyHuntScore,
+  },
+  {
     key: "apark",
     name: "Aパーク春日式",
     windowDays: 7,
@@ -1207,6 +1243,14 @@ function calculateStreakScore(value) {
     { minimum: 3, score: 8 },
     { minimum: 2, score: 4 },
   ]);
+}
+
+function calculateLosingStreakOnlyHuntScore(metrics) {
+  return metrics.streak ?? 0;
+}
+
+function calculateLossDaysOnlyHuntScore(metrics) {
+  return metrics.lossDays ?? 0;
 }
 
 function calculateLossAbsScore(value) {
