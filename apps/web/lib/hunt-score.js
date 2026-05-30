@@ -19,6 +19,9 @@ const NET_LOSS_SCORE_TARGET_BY_WINDOW_DAYS = {
 const HIGH_GAMES_SCORE_TARGET_BY_WINDOW_DAYS = {
   7: 70000,
 };
+const LOW_GAMES_SCORE_TARGET_BY_WINDOW_DAYS = {
+  7: 70000,
+};
 const TAMAYA_ZASSHONOKUMA_HISTORY_WINDOW_DAYS = 30;
 const MILLION_TOBU_NERIMA_R30_WINDOW_DAYS = 30;
 const AMUSE_ASAKUSA_R30_WINDOW_DAYS = 30;
@@ -488,6 +491,12 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     name: "7日高G数",
     windowDays: 7,
     scoreCalculator: calculateHighGamesOnlyHuntScore,
+  },
+  {
+    key: "low-games-reverse-7",
+    name: "7日低G数",
+    windowDays: 7,
+    scoreCalculator: calculateLowGamesOnlyHuntScore,
   },
   {
     key: "apark",
@@ -1323,6 +1332,17 @@ function calculateHighGamesOnlyHuntScore(metrics, context = {}) {
     return 0;
   }
   return clamp((gamesTotal / targetGames) * 100, 0, 100);
+}
+
+function calculateLowGamesOnlyHuntScore(metrics, context = {}) {
+  const windowDays = Math.max(1, Number(context.windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
+  const targetGames =
+    LOW_GAMES_SCORE_TARGET_BY_WINDOW_DAYS[windowDays] || LOW_GAMES_SCORE_TARGET_BY_WINDOW_DAYS[7];
+  const gamesTotal = Number(metrics.gamesTotal);
+  if (!Number.isFinite(gamesTotal)) {
+    return 0;
+  }
+  return clamp(((targetGames - gamesTotal) / targetGames) * 100, 0, 100);
 }
 
 function calculateLossAbsScore(value) {
