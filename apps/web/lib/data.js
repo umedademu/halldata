@@ -2161,10 +2161,18 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
   );
   const machineSlotCounts = buildStaticStoreMachineSlotCounts(staticStore);
   const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName);
+  const requestedRankingLogicKeys =
+    Array.isArray(backtestOptions?.huntScoreLogicKeys) && backtestOptions.huntScoreLogicKeys.length > 0
+      ? backtestOptions.huntScoreLogicKeys
+      : [huntScoreLogic.key];
+  const huntScoreLogics = getHuntScoreLogicDetails(requestedRankingLogicKeys, store.storeName);
   return {
     dataSource: "json",
     resultRequested: false,
     huntScoreLogic,
+    huntScoreLogicKeys: huntScoreLogics.map((logic) => logic.key),
+    huntScoreLogics,
+    usesCombinedHuntScoreLogic: huntScoreLogics.length > 1,
     differenceMode,
     settingEstimateMode,
     settingDistribution,
@@ -2665,6 +2673,9 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   return {
     dataSource: snapshotDetail.dataSource ?? "json",
     huntScoreLogic: snapshotDetail.huntScoreLogic,
+    huntScoreLogicKeys: snapshotDetail.huntScoreLogics?.map((logic) => logic.key) ?? [snapshotDetail.huntScoreLogic.key],
+    huntScoreLogics: snapshotDetail.huntScoreLogics ?? [snapshotDetail.huntScoreLogic],
+    usesCombinedHuntScoreLogic: (snapshotDetail.huntScoreLogics?.length ?? 1) > 1,
     differenceMode: snapshotDetail.differenceMode,
     settingEstimateMode: snapshotDetail.settingEstimateMode,
     store: {

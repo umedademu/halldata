@@ -377,6 +377,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const resultRequested = readSingleSearchParam(resolvedSearchParams?.show) === "1";
   const requestedLimit = parseRequestedLimit(readSingleSearchParam(resolvedSearchParams?.limit));
   const requestedMachineNames = readMultiSearchParam(resolvedSearchParams?.machine);
+  const requestedRankingLogicKeys = readMultiSearchParam(resolvedSearchParams?.huntScoreLogicKey);
   const huntScoreLogicKey = await readStoredHuntScoreLogicKey(storeId);
   const differenceMode = normalizeDifferenceMode(
     readSingleSearchParam(resolvedSearchParams?.differenceMode),
@@ -650,6 +651,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
           {
             machineNames: requestedMachineNames,
             machineTouched: machineFilterTouched,
+            huntScoreLogicKeys: requestedRankingLogicKeys,
             combineAimJuggler: requestedCombineAimJuggler,
             combineHanabi: requestedCombineHanabi,
             requestedDate,
@@ -657,7 +659,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
         )
       : await getHuntScoreInitialPageDetail(
           storeId,
-          { differenceMode, settingEstimateMode },
+          { differenceMode, settingEstimateMode, huntScoreLogicKeys: requestedRankingLogicKeys },
           huntScoreLogicKey,
         );
   } catch (error) {
@@ -724,6 +726,8 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     combineAimJuggler,
     combineHanabi,
   });
+  const huntScoreLogicOptions = listHuntScoreLogicOptions();
+  const selectedRankingLogicKeySet = new Set(detail.huntScoreLogicKeys ?? [detail.huntScoreLogic?.key].filter(Boolean));
   const visibleRankingGroups = buildVisibleRankingGroups(
     resultRequested ? detail.rankingGroups : [],
     selectedMachineNameSet,
@@ -770,6 +774,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     limit: detail.limit,
     differenceMode: detail.differenceMode,
     settingEstimateMode: detail.settingEstimateMode,
+    huntScoreLogicKeys: detail.huntScoreLogicKeys,
     machines: [...selectedMachineNameSet].sort(),
     combineAimJuggler,
     combineHanabi,
@@ -831,7 +836,11 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               {detail.store.storeName}
             </Link>
           </div>
-          {detail.huntScoreLogic ? (
+          {detail.huntScoreLogics?.length > 0 ? (
+            <p className="dataSourceLabel">
+              ランキング用: {detail.huntScoreLogics.map((logic) => logic.name).join(" + ")}
+            </p>
+          ) : detail.huntScoreLogic ? (
             <p className="dataSourceLabel">適用中: {detail.huntScoreLogic.name}</p>
           ) : null}
           <div className="heroLinks simpleHeroLinks">
@@ -851,7 +860,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             <HuntScoreLogicSelector
               storeId={detail.store.id}
               selectedLogicKey={detail.huntScoreLogic.key}
-              options={listHuntScoreLogicOptions()}
+              options={huntScoreLogicOptions}
             />
           ) : null}
         </div>
@@ -953,6 +962,27 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   </label>
                 </div>
               </div>
+              <div className="filterConditionBox rankingConditionBoxWide">
+                <p className="filterConditionBoxTitle">ランキング用ロジック</p>
+                <div className="metricToggleRow">
+                  {huntScoreLogicOptions.map((option) => (
+                    <label
+                      key={option.key}
+                      className={`metricToggleChip ${
+                        selectedRankingLogicKeySet.has(option.key) ? "metricToggleChipActive" : ""
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        name="huntScoreLogicKey"
+                        value={option.key}
+                        defaultChecked={selectedRankingLogicKeySet.has(option.key)}
+                      />
+                      <span>{option.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
               <div className="filterConditionBox rankingConditionBox">
                 <p className="filterConditionBoxTitle">設定推定基準</p>
                 <SettingEstimateModeOptions value={detail.settingEstimateMode} />
@@ -1026,6 +1056,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                             minValue={rankingHighlightOptions.scoreMin}
                             maxValue={rankingHighlightOptions.scoreMax}
                             requiredValue={scoreRequired}
+                            inputMax={undefined}
                           />
                         </div>
                       </div>
