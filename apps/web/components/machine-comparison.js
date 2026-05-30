@@ -533,30 +533,64 @@ function normalizeHuntScoreHighlightOptions(value, availableMachineNames, curren
   };
 }
 
-function readHuntScoreHighlightOptions(storeId, availableMachineNames, currentMachineName = "") {
+function buildScopedStorageKey(prefix, storeId, storageScopeKey = "") {
+  const normalizedStoreId = String(storeId ?? "").trim();
+  const normalizedScopeKey = String(storageScopeKey ?? "").trim();
+  return `${prefix}${normalizedScopeKey || normalizedStoreId}`;
+}
+
+function buildLegacyStoreStorageKey(prefix, storeId) {
+  return `${prefix}${String(storeId ?? "").trim()}`;
+}
+
+function buildScopedPeriodStorageKey(storageScopeKey = "") {
+  const normalizedScopeKey = String(storageScopeKey ?? "").trim();
+  return normalizedScopeKey
+    ? `${MACHINE_COMPARISON_PERIOD_STORAGE_KEY}:${normalizedScopeKey}`
+    : MACHINE_COMPARISON_PERIOD_STORAGE_KEY;
+}
+
+function readScopedLocalStorageJson(prefix, storeId, storageScopeKey = "") {
+  const storageKey = buildScopedStorageKey(prefix, storeId, storageScopeKey);
+  const legacyStorageKey = buildLegacyStoreStorageKey(prefix, storeId);
+  return (
+    readLocalStorageJson(storageKey) ??
+    (storageKey === legacyStorageKey ? null : readLocalStorageJson(legacyStorageKey))
+  );
+}
+
+function readHuntScoreHighlightOptions(
+  storeId,
+  availableMachineNames,
+  currentMachineName = "",
+  storageScopeKey = "",
+) {
   const defaults = createDefaultHuntScoreHighlightOptions(availableMachineNames, currentMachineName);
   if (typeof window === "undefined") {
     return defaults;
   }
 
   try {
-    const storageKey = `${HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX}${storeId}`;
-    const storedValue = window.localStorage.getItem(storageKey);
+    const storedValue = readScopedLocalStorageJson(
+      HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX,
+      storeId,
+      storageScopeKey,
+    );
     return storedValue
-      ? normalizeHuntScoreHighlightOptions(JSON.parse(storedValue), availableMachineNames, currentMachineName)
+      ? normalizeHuntScoreHighlightOptions(storedValue, availableMachineNames, currentMachineName)
       : defaults;
   } catch {
     return defaults;
   }
 }
 
-function saveHuntScoreHighlightOptions(storeId, options) {
+function saveHuntScoreHighlightOptions(storeId, options, storageScopeKey = "") {
   if (typeof window === "undefined") {
     return;
   }
 
   try {
-    const storageKey = `${HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX}${storeId}`;
+    const storageKey = buildScopedStorageKey(HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX, storeId, storageScopeKey);
     window.localStorage.setItem(storageKey, JSON.stringify(options));
   } catch {
     // 保存できない環境では、画面上の変更だけを有効にします。
@@ -640,8 +674,13 @@ function normalizeMachineComparisonPeriodOptions(value, defaults) {
   };
 }
 
-function readMachineComparisonPeriodOptions(defaults) {
-  const parsedValue = readLocalStorageJson(MACHINE_COMPARISON_PERIOD_STORAGE_KEY);
+function readMachineComparisonPeriodOptions(defaults, storageScopeKey = "") {
+  const storageKey = buildScopedPeriodStorageKey(storageScopeKey);
+  const parsedValue =
+    readLocalStorageJson(storageKey) ??
+    (storageKey === MACHINE_COMPARISON_PERIOD_STORAGE_KEY
+      ? null
+      : readLocalStorageJson(MACHINE_COMPARISON_PERIOD_STORAGE_KEY));
   return parsedValue ? normalizeMachineComparisonPeriodOptions(parsedValue, defaults) : null;
 }
 
@@ -658,14 +697,14 @@ function normalizeMachineComparisonMetricKeys(source, defaults) {
   return metricKeys;
 }
 
-function saveMachineComparisonPeriodOptions(options) {
+function saveMachineComparisonPeriodOptions(options, storageScopeKey = "") {
   if (typeof window === "undefined") {
     return;
   }
 
   try {
     window.localStorage.setItem(
-      MACHINE_COMPARISON_PERIOD_STORAGE_KEY,
+      buildScopedPeriodStorageKey(storageScopeKey),
       JSON.stringify({
         version: 1,
         periodMode: normalizePeriodMode(options.periodMode),
@@ -684,11 +723,15 @@ function readMachineComparisonOptions(storeId, defaults, options = {}) {
     return defaults;
   }
 
-  const storageKey = `${MACHINE_COMPARISON_STORAGE_PREFIX}${storeId}`;
-  const parsedValue = readLocalStorageJson(storageKey);
+  const storageScopeKey = options.storageScopeKey ?? "";
+  const parsedValue = readScopedLocalStorageJson(
+    MACHINE_COMPARISON_STORAGE_PREFIX,
+    storeId,
+    storageScopeKey,
+  );
   const source = parsedValue ?? {};
   const periodOptions =
-    readMachineComparisonPeriodOptions(defaults) ??
+    readMachineComparisonPeriodOptions(defaults, storageScopeKey) ??
     normalizeMachineComparisonPeriodOptions(source, defaults);
 
   return {
@@ -746,10 +789,13 @@ function saveMachineComparisonOptions(storeId, options) {
   }
 
   try {
-    saveMachineComparisonPeriodOptions(options);
-    const storageKey = `${MACHINE_COMPARISON_STORAGE_PREFIX}${storeId}`;
+    const storageScopeKey = options.storageScopeKey ?? "";
+    saveMachineComparisonPeriodOptions(options, storageScopeKey);
+    const storageKey = buildScopedStorageKey(MACHINE_COMPARISON_STORAGE_PREFIX, storeId, storageScopeKey);
+    const legacyStorageKey = buildLegacyStoreStorageKey(MACHINE_COMPARISON_STORAGE_PREFIX, storeId);
     const existingValue = options.preserveEstimateOptions
-      ? readLocalStorageJson(storageKey)
+      ? readLocalStorageJson(storageKey) ??
+        (storageKey === legacyStorageKey ? null : readLocalStorageJson(legacyStorageKey))
       : null;
     window.localStorage.setItem(
       storageKey,
@@ -2727,6 +2773,10 @@ export function MachineComparison({
   verificationMode = false,
   huntScoreWindowDays = 7,
 }) {
+  const machineComparisonStorageScopeKey = useMemo(
+    () => `${storeId}:${verificationMode ? "verification" : "machine-detail"}`,
+    [storeId, verificationMode],
+  );
   const latestAvailableDate = dateRows[0]?.date ?? "";
   const oldestAvailableDate = dateRows.at(-1)?.date ?? latestAvailableDate;
   const initialRangeStartDate = latestAvailableDate
@@ -3058,6 +3108,7 @@ export function MachineComparison({
     setMachineComparisonOptionsLoadedStoreId("");
     estimateOptionsTouchedRef.current = false;
     const options = readMachineComparisonOptions(storeId, defaultComparisonOptions, {
+      storageScopeKey: machineComparisonStorageScopeKey,
       oldestAvailableDate,
       latestAvailableDate,
       preferInitialEventFilters: initialEventFiltersFromSearchParams,
@@ -3086,7 +3137,7 @@ export function MachineComparison({
     setSettingControlsOpen(options.settingControlsOpen);
     setVerificationControlsOpen(options.verificationControlsOpen);
     setHuntScoreControlsOpen(options.huntScoreControlsOpen);
-    setMachineComparisonOptionsLoadedStoreId(storeId);
+    setMachineComparisonOptionsLoadedStoreId(machineComparisonStorageScopeKey);
   }, [
     defaultComparisonOptions,
     initialEventFiltersFromSearchParams,
@@ -3099,6 +3150,7 @@ export function MachineComparison({
     initialDisplayDifferenceMode,
     initialDifferenceMode,
     initialSettingEstimateMode,
+    machineComparisonStorageScopeKey,
     storeId,
   ]);
 
@@ -3109,10 +3161,11 @@ export function MachineComparison({
   }, [metricKeys]);
 
   useEffect(() => {
-    if (machineComparisonOptionsLoadedStoreId !== storeId) {
+    if (machineComparisonOptionsLoadedStoreId !== machineComparisonStorageScopeKey) {
       return;
     }
     saveMachineComparisonOptions(storeId, {
+      storageScopeKey: machineComparisonStorageScopeKey,
       periodMode,
       recentDaysInput,
       rangeStartInput,
@@ -3140,6 +3193,7 @@ export function MachineComparison({
     eventFilters,
     huntScoreControlsOpen,
     huntScoreDifferenceMode,
+    machineComparisonStorageScopeKey,
     machineComparisonOptionsLoadedStoreId,
     periodMode,
     rangeEndInput,
@@ -3167,18 +3221,30 @@ export function MachineComparison({
       storeId,
       huntScoreHighlightAvailableMachineNames,
       machineName,
+      machineComparisonStorageScopeKey,
     );
     setHuntScoreHighlightOptions(loadedOptions);
     setAppliedHuntScoreHighlightOptions(loadedOptions);
-    setHuntScoreHighlightOptionsLoadedStoreId(storeId);
-  }, [huntScoreHighlight, huntScoreHighlightAvailableMachineNames, machineName, storeId]);
+    setHuntScoreHighlightOptionsLoadedStoreId(machineComparisonStorageScopeKey);
+  }, [
+    huntScoreHighlight,
+    huntScoreHighlightAvailableMachineNames,
+    machineComparisonStorageScopeKey,
+    machineName,
+    storeId,
+  ]);
 
   useEffect(() => {
-    if (huntScoreHighlightOptionsLoadedStoreId !== storeId) {
+    if (huntScoreHighlightOptionsLoadedStoreId !== machineComparisonStorageScopeKey) {
       return;
     }
-    saveHuntScoreHighlightOptions(storeId, huntScoreHighlightOptions);
-  }, [huntScoreHighlightOptions, huntScoreHighlightOptionsLoadedStoreId, storeId]);
+    saveHuntScoreHighlightOptions(storeId, huntScoreHighlightOptions, machineComparisonStorageScopeKey);
+  }, [
+    huntScoreHighlightOptions,
+    huntScoreHighlightOptionsLoadedStoreId,
+    machineComparisonStorageScopeKey,
+    storeId,
+  ]);
 
   const visibleMetrics = useMemo(
     () => metrics.filter((metric) => visibleMetricKeys.includes(metric.key)),
@@ -3298,13 +3364,13 @@ export function MachineComparison({
 
   useEffect(() => {
     if (
-      machineComparisonOptionsLoadedStoreId !== storeId ||
-      huntScoreHighlightOptionsLoadedStoreId !== storeId
+      machineComparisonOptionsLoadedStoreId !== machineComparisonStorageScopeKey ||
+      huntScoreHighlightOptionsLoadedStoreId !== machineComparisonStorageScopeKey
     ) {
       return;
     }
 
-    const loadKey = `${storeId}:${machineName}`;
+    const loadKey = `${machineComparisonStorageScopeKey}:${machineName}`;
     if (initialHuntScoreHighlightLoadKeyRef.current === loadKey) {
       return;
     }
@@ -3333,6 +3399,7 @@ export function MachineComparison({
     initialDifferenceMode,
     initialSettingEstimateMode,
     loadHuntScoreHighlight,
+    machineComparisonStorageScopeKey,
     machineComparisonOptionsLoadedStoreId,
     machineName,
     settingEstimateMode,
