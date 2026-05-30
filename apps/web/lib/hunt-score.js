@@ -22,6 +22,7 @@ const AMUSE_ASAKUSA_R30_WINDOW_DAYS = 30;
 const DEFAULT_HUNT_SCORE_LOGIC_KEY = "apark";
 const APARK_KASUGA_KAI_RAW_MIN = -32;
 const APARK_KASUGA_KAI_RAW_MAX = 138;
+const APARK_KASUGA_SIX_DAY_SCALE = 6 / 7;
 
 const OTHER_TARGET_MACHINES = [
   {
@@ -490,6 +491,12 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     name: "Aパーク春日式・改",
     windowDays: 7,
     scoreCalculator: calculateAparkKasugaKaiHuntScore,
+  },
+  {
+    key: "apark-kai-6",
+    name: "Aパーク春日式・改 6日版",
+    windowDays: 6,
+    scoreCalculator: calculateAparkKasugaKaiSixDayHuntScore,
   },
   {
     key: "million-tobu-nerima",
@@ -1357,6 +1364,64 @@ function calculateAparkKasugaHuntScore(metrics) {
   return clamp(totalScore, 0, 100);
 }
 
+function scaleAparkKasugaSixDayThreshold(value) {
+  return Math.round(value * APARK_KASUGA_SIX_DAY_SCALE);
+}
+
+function calculateLossDaysSixDayScore(value) {
+  return scoreFromMinimums(value, [
+    { minimum: 6, score: 25 },
+    { minimum: 5, score: 21 },
+    { minimum: 4, score: 16 },
+    { minimum: 3, score: 10 },
+    { minimum: 2, score: 5 },
+  ]);
+}
+
+function calculateStreakSixDayScore(value) {
+  return scoreFromMinimums(value, [
+    { minimum: 6, score: 18 },
+    { minimum: 5, score: 16 },
+    { minimum: 4, score: 14 },
+    { minimum: 3, score: 11 },
+    { minimum: 2, score: 4 },
+  ]);
+}
+
+function calculateLossAbsSixDayScore(value) {
+  return scoreFromMinimums(value, [
+    { minimum: scaleAparkKasugaSixDayThreshold(6000), score: 18 },
+    { minimum: scaleAparkKasugaSixDayThreshold(5000), score: 15 },
+    { minimum: scaleAparkKasugaSixDayThreshold(4000), score: 12 },
+    { minimum: scaleAparkKasugaSixDayThreshold(3000), score: 8 },
+    { minimum: scaleAparkKasugaSixDayThreshold(2000), score: 4 },
+  ]);
+}
+
+function calculateNetTotalSixDayScore(value) {
+  return scoreFromMaximums(value, [
+    { maximum: scaleAparkKasugaSixDayThreshold(-5000), score: 14 },
+    { maximum: scaleAparkKasugaSixDayThreshold(-4000), score: 12 },
+    { maximum: scaleAparkKasugaSixDayThreshold(-3000), score: 9 },
+    { maximum: scaleAparkKasugaSixDayThreshold(-2000), score: 6 },
+    { maximum: scaleAparkKasugaSixDayThreshold(-1000), score: 3 },
+  ]);
+}
+
+function calculateAparkKasugaSixDayHuntScore(metrics) {
+  const totalScore =
+    calculateLossDaysSixDayScore(metrics.lossDays) +
+    calculateStreakSixDayScore(metrics.streak) +
+    calculateLossAbsSixDayScore(metrics.lossAbsTotal) +
+    calculateNetTotalSixDayScore(metrics.netTotal) +
+    calculateCompensationRateScore(metrics.compensationRate) +
+    calculateMaxWinScore(metrics.maxWin) +
+    calculateTodayDifferenceScore(metrics.todayDifference) +
+    calculateTodaySettingScore(metrics.todaySetting);
+
+  return clamp(totalScore, 0, 100);
+}
+
 function readMachineActiveSlotCount(metrics, context = {}) {
   const machineName = String(metrics?.machineName ?? "").trim();
   if (!machineName) {
@@ -1507,6 +1572,44 @@ function calculateAparkKasugaKaiHuntScore(metrics, context = {}) {
     rawScore -= 6;
   }
   if (metrics.netTotal > -2000) {
+    rawScore -= 6;
+  }
+  const activeSlotCount = readMachineActiveSlotCount(metrics, context);
+  if (activeSlotCount > 0 && activeSlotCount <= 4) {
+    rawScore -= 10;
+  }
+
+  return ((rawScore - APARK_KASUGA_KAI_RAW_MIN) /
+    (APARK_KASUGA_KAI_RAW_MAX - APARK_KASUGA_KAI_RAW_MIN)) * 100;
+}
+
+function calculateAparkKasugaKaiSixDayHuntScore(metrics, context = {}) {
+  let rawScore = calculateAparkKasugaSixDayHuntScore(metrics);
+
+  if (
+    metrics.lossDays >= 4 &&
+    metrics.lossDays <= 5 &&
+    metrics.streak >= 3 &&
+    metrics.netTotal <= scaleAparkKasugaSixDayThreshold(-3000)
+  ) {
+    rawScore += 18;
+  }
+  if (metrics.streak >= 4) {
+    rawScore += 8;
+  }
+  if (metrics.netTotal <= scaleAparkKasugaSixDayThreshold(-5000)) {
+    rawScore += 8;
+  }
+  if (metrics.compensationRate <= 0.35) {
+    rawScore += 4;
+  }
+  if (metrics.lossDays <= 3) {
+    rawScore -= 10;
+  }
+  if (metrics.streak <= 1) {
+    rawScore -= 6;
+  }
+  if (metrics.netTotal > scaleAparkKasugaSixDayThreshold(-2000)) {
     rawScore -= 6;
   }
   const activeSlotCount = readMachineActiveSlotCount(metrics, context);
