@@ -6637,6 +6637,11 @@ export function buildCombinedHuntScoreSnapshots(
       return {
         baseDate,
         nextBusinessDate: baseSnapshot.nextBusinessDate,
+        huntScoreLogicSnapshots: matchingSnapshots.map((snapshot, index) => ({
+          key: logicDetails[index].key,
+          name: logicDetails[index].name,
+          rows: Array.isArray(snapshot.rows) ? snapshot.rows : [],
+        })),
         rows: sortCombinedHuntScoreRows(rows),
       };
     })

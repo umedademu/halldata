@@ -512,6 +512,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     machineNames: readMultiSearchParam(resolvedSearchParams?.machine),
     machineTouched: readSingleSearchParam(resolvedSearchParams?.machineTouched),
     huntScoreLogicKeys: readMultiSearchParam(resolvedSearchParams?.huntScoreLogicKey),
+    logicConditionMode: readSingleSearchParam(resolvedSearchParams?.logicConditionMode),
     combineAimJuggler: readMultiSearchParam(resolvedSearchParams?.aimMachineGroup),
     combineHanabi: readMultiSearchParam(resolvedSearchParams?.hanabiMachineGroup),
     scoreDifferenceMode: readSingleSearchParam(resolvedSearchParams?.scoreDifferenceMode),
@@ -610,6 +611,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     monthDays: detail.backtest.eventFilters.monthDays,
     machineNames: detail.backtest.selectedMachineNames,
     huntScoreLogicKeys: detail.backtest.huntScoreLogicKeys,
+    logicConditionMode: detail.backtest.logicConditionMode,
     combineAimJuggler: detail.backtest.combineAimJuggler,
     combineHanabi: detail.backtest.combineHanabi,
     dailySelectionMode: detail.backtest.dailySelectionMode,
@@ -645,6 +647,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
   });
   const huntScoreLogicOptions = listHuntScoreLogicOptions();
   const selectedBacktestLogicKeySet = new Set(detail.backtest.huntScoreLogicKeys ?? []);
+  const logicConditionMode = detail.backtest.logicConditionMode === "and" ? "and" : "sum";
 
   return (
     <main className="pageStack">
@@ -874,6 +877,37 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                             <span>{option.name}</span>
                           </label>
                         ))}
+                      </div>
+                    </div>
+                    <div className="commonConditionMode">
+                      <p className="commonConditionSubLabel">複数ロジック判定</p>
+                      <div className="metricToggleRow commonConditionModeOptions">
+                        <label
+                          className={`metricToggleChip ${
+                            logicConditionMode === "sum" ? "metricToggleChipActive" : ""
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="logicConditionMode"
+                            value="sum"
+                            defaultChecked={logicConditionMode === "sum"}
+                          />
+                          <span>合計点</span>
+                        </label>
+                        <label
+                          className={`metricToggleChip ${
+                            logicConditionMode === "and" ? "metricToggleChipActive" : ""
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="logicConditionMode"
+                            value="and"
+                            defaultChecked={logicConditionMode === "and"}
+                          />
+                          <span>各ロジックAND</span>
+                        </label>
                       </div>
                     </div>
                     <div className="commonConditionMode">

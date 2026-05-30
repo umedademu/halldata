@@ -7,6 +7,8 @@ const HUNT_BACKTEST_BOOKMARK_STORAGE_PREFIX = "hunt-backtest-bookmark:";
 const HUNT_BACKTEST_BOOKMARKS_STORAGE_PREFIX = "hunt-backtest-bookmarks:";
 const HUNT_BACKTEST_BOOKMARK_SELECTION_STORAGE_PREFIX = "hunt-backtest-bookmark-selection:";
 const DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP = "machineTopNextGap";
+const LOGIC_CONDITION_MODE_AND = "and";
+const LOGIC_CONDITION_MODE_SUM = "sum";
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
 const HANABI_GROUP_NAME = "ハナビ";
@@ -111,6 +113,12 @@ function normalizeDailySelectionMode(value) {
   return values.includes(DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP)
     ? DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP
     : "";
+}
+
+function normalizeLogicConditionMode(value) {
+  return normalizeText(value) === LOGIC_CONDITION_MODE_AND
+    ? LOGIC_CONDITION_MODE_AND
+    : LOGIC_CONDITION_MODE_SUM;
 }
 
 function isMachineTopNextGapSelectionMode(value) {
@@ -908,6 +916,7 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     selectedUpperGapFilter,
   } = buildBoundaryGapFilters(bookmark);
   const dailySelectionMode = normalizeDailySelectionMode(bookmark.dailySelectionMode);
+  const logicConditionMode = normalizeLogicConditionMode(bookmark.logicConditionMode);
   const usesMachineTopNextGapSelection = isMachineTopNextGapSelectionMode(dailySelectionMode);
   const baseRequirementOptions = buildConditionRequirementOptions(bookmark);
   const requirementOptions = usesMachineTopNextGapSelection
@@ -941,6 +950,7 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     allMachineCount,
     machineNames,
     huntScoreLogicKeys,
+    logicConditionMode,
     rankMin: rankFilter.rankMin,
     rankMax: rankFilter.rankMax,
     machineRankMin: machineRankFilter.rankMin,
@@ -1038,6 +1048,7 @@ export function areHuntBacktestBookmarksEqual(left, right) {
     normalizedLeft.machineUpperGapRequired === normalizedRight.machineUpperGapRequired &&
     normalizedLeft.selectedUpperGapRequired === normalizedRight.selectedUpperGapRequired &&
     normalizedLeft.dailySelectionMode === normalizedRight.dailySelectionMode &&
+    normalizedLeft.logicConditionMode === normalizedRight.logicConditionMode &&
     normalizedLeft.rankScope === normalizedRight.rankScope &&
     normalizedLeft.scoreDifferenceMode === normalizedRight.scoreDifferenceMode &&
     normalizedLeft.differenceMode === normalizedRight.differenceMode &&
@@ -1096,7 +1107,11 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
 
   const parts = [buildMachineSummaryText(normalizedBookmark)];
   if (normalizedBookmark.huntScoreLogicKeys.length >= 2) {
-    parts.push(`ロジック${normalizedBookmark.huntScoreLogicKeys.length}件合算`);
+    parts.push(
+      normalizedBookmark.logicConditionMode === LOGIC_CONDITION_MODE_AND
+        ? `ロジック${normalizedBookmark.huntScoreLogicKeys.length}件AND`
+        : `ロジック${normalizedBookmark.huntScoreLogicKeys.length}件合算`,
+    );
   }
   parts.push(`設定推定: ${formatSettingEstimateModeLabel(normalizedBookmark.settingEstimateMode)}`);
   if (normalizedBookmark.settingDistribution === SETTING_DISTRIBUTION_HIDE) {

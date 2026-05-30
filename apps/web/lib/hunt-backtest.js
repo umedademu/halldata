@@ -30,6 +30,8 @@ import {
 
 const DEFAULT_RECENT_DAYS = 90;
 const DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP = "machineTopNextGap";
+const LOGIC_CONDITION_MODE_SUM = "sum";
+const LOGIC_CONDITION_MODE_AND = "and";
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
 const HANABI_GROUP_NAME = "ハナビ";
@@ -144,6 +146,10 @@ function splitOptionValues(value) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function normalizeLogicConditionMode(value) {
+  return value === LOGIC_CONDITION_MODE_AND ? LOGIC_CONDITION_MODE_AND : LOGIC_CONDITION_MODE_SUM;
 }
 
 function normalizeIntegerOptions(value, min, max) {
@@ -872,6 +878,193 @@ function buildSnapshotGapRows(
   );
 }
 
+function buildSnapshotConditionRowKey(row) {
+  return String(row?.rowKey ?? "").trim();
+}
+
+function buildSnapshotConditionRows(
+  snapshot,
+  selectedMachineNameSet,
+  combineAimJuggler,
+  combineHanabi,
+  rankFilters = {},
+  selectionMode = "",
+) {
+  const machineRankCounts = new Map();
+  const gapRowsByRow = buildSnapshotGapRows(
+    snapshot,
+    selectedMachineNameSet,
+    combineAimJuggler,
+    combineHanabi,
+    rankFilters,
+  );
+  const selectionRowsByRow = isMachineTopNextGapSelectionMode(selectionMode)
+    ? buildSnapshotGapRows(
+        snapshot,
+        selectedMachineNameSet,
+        combineAimJuggler,
+        combineHanabi,
+        { machineRankFilter: buildRankFilter(1, 1) },
+      )
+    : null;
+  const selectedRowSet = selectionRowsByRow
+    ? buildMachineTopNextGapSelectionRowSet(
+        snapshot,
+        selectedMachineNameSet,
+        combineAimJuggler,
+        combineHanabi,
+        selectionRowsByRow,
+      )
+    : null;
+  const rowsByKey = new Map();
+  let selectedRank = 0;
+
+  for (const row of Array.isArray(snapshot?.rows) ? snapshot.rows : []) {
+    const selectedMachineName = String(row.machineName ?? "").trim();
+    if (!selectedMachineNameSet.has(selectedMachineName)) {
+      continue;
+    }
+
+    const rowKey = buildSnapshotConditionRowKey(row);
+    if (!rowKey) {
+      continue;
+    }
+
+    selectedRank += 1;
+    const backtestMachineName = resolveBacktestMachineName(
+      selectedMachineName,
+      combineAimJuggler,
+      combineHanabi,
+    );
+    const machineRank = (machineRankCounts.get(backtestMachineName) ?? 0) + 1;
+    machineRankCounts.set(backtestMachineName, machineRank);
+
+    const gapRow = gapRowsByRow.get(row) ?? row;
+    rowsByKey.set(rowKey, {
+      row,
+      selectedRank,
+      machineRank,
+      huntScore: row.huntScore,
+      machineNextGapValue: readNextGapForRankScope(gapRow, "machine"),
+      selectedNextGapValue: readNextGapForRankScope(gapRow, "selected"),
+      machineUpperGapValue: readUpperGapForRankScope(gapRow, "machine"),
+      selectedUpperGapValue: readUpperGapForRankScope(gapRow, "selected"),
+      matchesSelectionMode: !selectedRowSet || selectedRowSet.has(row),
+    });
+  }
+
+  return rowsByKey;
+}
+
+function buildLogicConditionContexts(
+  snapshot,
+  selectedMachineNameSet,
+  combineAimJuggler,
+  combineHanabi,
+  rankFilters = {},
+  selectionMode = "",
+) {
+  const logicSnapshots = Array.isArray(snapshot?.huntScoreLogicSnapshots)
+    ? snapshot.huntScoreLogicSnapshots
+    : [];
+  if (logicSnapshots.length <= 1) {
+    return [];
+  }
+
+  return logicSnapshots.map((logicSnapshot) => ({
+    key: String(logicSnapshot?.key ?? "").trim(),
+    name: String(logicSnapshot?.name ?? "").trim(),
+    rowsByKey: buildSnapshotConditionRows(
+      {
+        baseDate: snapshot.baseDate,
+        nextBusinessDate: snapshot.nextBusinessDate,
+        rows: Array.isArray(logicSnapshot?.rows) ? logicSnapshot.rows : [],
+      },
+      selectedMachineNameSet,
+      combineAimJuggler,
+      combineHanabi,
+      rankFilters,
+      selectionMode,
+    ),
+  }));
+}
+
+function matchesConditionForRowContext(
+  rowContext,
+  {
+    machineRankFilter,
+    selectedRankFilter,
+    scoreFilter,
+    machineNextGapFilter,
+    selectedNextGapFilter,
+    machineUpperGapFilter,
+    selectedUpperGapFilter,
+    requirementOptions,
+  },
+) {
+  if (!rowContext?.matchesSelectionMode) {
+    return false;
+  }
+
+  return matchesRequiredConditionFilters(
+    [
+      {
+        rankValue: rowContext.machineRank,
+        rankFilter: machineRankFilter,
+        required: requirementOptions.machineRankRequired,
+      },
+      {
+        rankValue: rowContext.selectedRank,
+        rankFilter: selectedRankFilter,
+        required: requirementOptions.selectedRankRequired,
+      },
+    ],
+    rowContext.huntScore,
+    null,
+    scoreFilter,
+    requirementOptions,
+    true,
+    null,
+    { hasNextGapFilter: false, nextGapMin: null, nextGapMax: null },
+    null,
+    { hasUpperGapFilter: false, upperGapMin: null, upperGapMax: null },
+    [
+      {
+        value: rowContext.machineUpperGapValue,
+        filter: machineUpperGapFilter,
+        required: requirementOptions.machineUpperGapRequired,
+      },
+      {
+        value: rowContext.machineNextGapValue,
+        filter: machineNextGapFilter,
+        required: requirementOptions.machineNextGapRequired,
+      },
+      {
+        value: rowContext.selectedUpperGapValue,
+        filter: selectedUpperGapFilter,
+        required: requirementOptions.selectedUpperGapRequired,
+      },
+      {
+        value: rowContext.selectedNextGapValue,
+        filter: selectedNextGapFilter,
+        required: requirementOptions.selectedNextGapRequired,
+      },
+    ],
+  );
+}
+
+function matchesAllLogicConditions(row, logicConditionContexts, conditionOptions) {
+  const rowKey = buildSnapshotConditionRowKey(row);
+  if (!rowKey || logicConditionContexts.length === 0) {
+    return false;
+  }
+
+  return logicConditionContexts.every((logicContext) => {
+    const rowContext = logicContext.rowsByKey.get(rowKey);
+    return matchesConditionForRowContext(rowContext, conditionOptions);
+  });
+}
+
 function compareSelectionCandidates(left, right) {
   const nextGapDiff = right.nextGapValue - left.nextGapValue;
   if (Math.abs(nextGapDiff) > 0.000000001) {
@@ -963,6 +1156,7 @@ function buildBacktestAggregationDetail(
     selectionRowsCache,
     settingEstimateMode,
     showSettingDistribution,
+    logicConditionMode = LOGIC_CONDITION_MODE_SUM,
     rowFilter = () => true,
   },
 ) {
@@ -973,6 +1167,7 @@ function buildBacktestAggregationDetail(
   const nonmatchingTotalSummary = buildEmptySummary();
   const actualDates = new Set();
   let actualRowCount = 0;
+  const usesLogicAndConditions = logicConditionMode === LOGIC_CONDITION_MODE_AND;
 
   for (const snapshot of snapshotsInPeriod) {
     const machineRankCounts = new Map();
@@ -1010,6 +1205,26 @@ function buildBacktestAggregationDetail(
           selectionRowsByRow,
         )
       : null;
+    const logicConditionContexts = usesLogicAndConditions
+      ? buildLogicConditionContexts(
+          snapshot,
+          selectedMachineNameSet,
+          combineAimJuggler,
+          combineHanabi,
+          nextGapRankFilters,
+          selectionMode,
+        )
+      : [];
+    const conditionOptions = {
+      machineRankFilter,
+      selectedRankFilter,
+      scoreFilter,
+      machineNextGapFilter,
+      selectedNextGapFilter,
+      machineUpperGapFilter,
+      selectedUpperGapFilter,
+      requirementOptions,
+    };
     let selectedRank = 0;
 
     for (const row of snapshot.rows) {
@@ -1032,53 +1247,22 @@ function buildBacktestAggregationDetail(
       const machineUpperGapValue = readUpperGapForRankScope(gapRow, "machine");
       const selectedUpperGapValue = readUpperGapForRankScope(gapRow, "selected");
 
-      const matchesCondition =
-        (!selectedRowSet || selectedRowSet.has(row)) &&
-        matchesRequiredConditionFilters(
-          [
+      const matchesCondition = usesLogicAndConditions && logicConditionContexts.length > 1
+        ? matchesAllLogicConditions(row, logicConditionContexts, conditionOptions)
+        : matchesConditionForRowContext(
             {
-              rankValue: machineRank,
-              rankFilter: machineRankFilter,
-              required: requirementOptions.machineRankRequired,
+              row,
+              selectedRank,
+              machineRank,
+              huntScore: row.huntScore,
+              machineNextGapValue,
+              selectedNextGapValue,
+              machineUpperGapValue,
+              selectedUpperGapValue,
+              matchesSelectionMode: !selectedRowSet || selectedRowSet.has(row),
             },
-            {
-              rankValue: selectedRank,
-              rankFilter: selectedRankFilter,
-              required: requirementOptions.selectedRankRequired,
-            },
-          ],
-          row.huntScore,
-          null,
-          scoreFilter,
-          requirementOptions,
-          true,
-          null,
-          { hasNextGapFilter: false, nextGapMin: null, nextGapMax: null },
-          null,
-          { hasUpperGapFilter: false, upperGapMin: null, upperGapMax: null },
-          [
-            {
-              value: machineUpperGapValue,
-              filter: machineUpperGapFilter,
-              required: requirementOptions.machineUpperGapRequired,
-            },
-            {
-              value: machineNextGapValue,
-              filter: machineNextGapFilter,
-              required: requirementOptions.machineNextGapRequired,
-            },
-            {
-              value: selectedUpperGapValue,
-              filter: selectedUpperGapFilter,
-              required: requirementOptions.selectedUpperGapRequired,
-            },
-            {
-              value: selectedNextGapValue,
-              filter: selectedNextGapFilter,
-              required: requirementOptions.selectedNextGapRequired,
-            },
-          ],
-        );
+            conditionOptions,
+          );
 
       const actualDate = getActualDate(row, snapshot);
       if (!rowFilter({ snapshot, row, actualDate })) {
@@ -1275,6 +1459,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const huntScoreLogicKeys = huntScoreLogics.length > 0
     ? huntScoreLogics.map((logic) => String(logic?.key ?? "").trim()).filter(Boolean)
     : splitOptionValues(options.huntScoreLogicKeys);
+  const logicConditionMode = normalizeLogicConditionMode(options.logicConditionMode);
   const periodState = buildPeriodState(options, latestDate);
   const snapshotsInPeriod = (Array.isArray(snapshots) ? snapshots : []).filter((snapshot) =>
     isSnapshotInPeriod(snapshot, periodState.startDate, periodState.endDate),
@@ -1302,6 +1487,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     selectionRowsCache,
     settingEstimateMode,
     showSettingDistribution,
+    logicConditionMode,
   };
   const allAggregation = buildBacktestAggregationDetail(snapshotsInPeriod, aggregationOptions);
   const breakdowns = BACKTEST_BREAKDOWN_DEFINITIONS.map((definition) => ({
@@ -1325,6 +1511,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     huntScoreLogicKeys,
     huntScoreLogics,
     usesCombinedHuntScoreLogic: huntScoreLogicKeys.length > 1,
+    logicConditionMode,
     machineOptions: availableMachineNames.map((machineName) => ({
       name: machineName,
       checked: selectedMachineNameSet.has(machineName),

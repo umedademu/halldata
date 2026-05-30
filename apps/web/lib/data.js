@@ -2056,6 +2056,7 @@ function buildInitialBacktestDetail(
     huntScoreLogicKeys: huntScoreLogics.map((logic) => logic.key),
     huntScoreLogics,
     usesCombinedHuntScoreLogic: huntScoreLogics.length > 1,
+    logicConditionMode: defaultedOptions.logicConditionMode === "and" ? "and" : "sum",
     startDate: normalizeDateInput(defaultedOptions?.startDate),
     endDate: normalizeDateInput(defaultedOptions?.endDate),
     latestDate: null,
