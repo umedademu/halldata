@@ -33,6 +33,7 @@ function buildBookmarkFromForm(form, storeId, allMachineCount, name) {
     endDate: periodMode === "range" ? readFormValue(formData, "endDate") : "",
     allMachineCount,
     machineNames: readFormValues(formData, "machine"),
+    huntScoreLogicKeys: readFormValues(formData, "huntScoreLogicKey"),
     rankMin: readFormValue(formData, "rankMin"),
     rankMax: readFormValue(formData, "rankMax"),
     rankScope: readFormValue(formData, "rankScope"),
@@ -164,6 +165,7 @@ function applyBookmarkToForm(form, bookmark) {
   };
   const multiValueFields = {
     machine: bookmark.machineNames,
+    huntScoreLogicKey: bookmark.huntScoreLogicKeys,
     dailySelectionMode: bookmark.dailySelectionMode ? [bookmark.dailySelectionMode] : [],
     machineRankRequired: bookmark.machineRankRequired ? ["1"] : [],
     selectedRankRequired: bookmark.selectedRankRequired ? ["1"] : [],

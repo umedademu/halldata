@@ -888,6 +888,7 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
 
   const storeId = normalizeText(bookmark.storeId) || normalizeText(fallbackStoreId);
   const machineNames = normalizeMachineNames(bookmark.machineNames);
+  const huntScoreLogicKeys = normalizeMachineNames(bookmark.huntScoreLogicKeys);
   if (!storeId || machineNames.length === 0) {
     return null;
   }
@@ -939,6 +940,7 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     endDate: periodMode === "range" ? endDate : null,
     allMachineCount,
     machineNames,
+    huntScoreLogicKeys,
     rankMin: rankFilter.rankMin,
     rankMax: rankFilter.rankMax,
     machineRankMin: machineRankFilter.rankMin,
@@ -1050,6 +1052,8 @@ export function areHuntBacktestBookmarksEqual(left, right) {
     normalizedLeft.eventWeekdays.every((value, index) => value === normalizedRight.eventWeekdays[index]) &&
     normalizedLeft.eventMonthDays.length === normalizedRight.eventMonthDays.length &&
     normalizedLeft.eventMonthDays.every((value, index) => value === normalizedRight.eventMonthDays[index]) &&
+    normalizedLeft.huntScoreLogicKeys.length === normalizedRight.huntScoreLogicKeys.length &&
+    normalizedLeft.huntScoreLogicKeys.every((logicKey, index) => logicKey === normalizedRight.huntScoreLogicKeys[index]) &&
     normalizedLeft.machineNames.length === normalizedRight.machineNames.length &&
     normalizedLeft.machineNames.every((machineName, index) => machineName === normalizedRight.machineNames[index])
   );
@@ -1091,6 +1095,9 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   }
 
   const parts = [buildMachineSummaryText(normalizedBookmark)];
+  if (normalizedBookmark.huntScoreLogicKeys.length >= 2) {
+    parts.push(`ロジック${normalizedBookmark.huntScoreLogicKeys.length}件合算`);
+  }
   parts.push(`設定推定: ${formatSettingEstimateModeLabel(normalizedBookmark.settingEstimateMode)}`);
   if (normalizedBookmark.settingDistribution === SETTING_DISTRIBUTION_HIDE) {
     parts.push("設定分布: 非表示");

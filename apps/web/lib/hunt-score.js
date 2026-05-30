@@ -927,6 +927,21 @@ export function getHuntScoreLogicDetail(logicKey = "", storeName = "") {
   };
 }
 
+export function getHuntScoreLogicDetails(logicKeys = [], storeName = "") {
+  const normalizedKeys = [
+    ...new Set(
+      (Array.isArray(logicKeys) ? logicKeys : [logicKeys])
+        .map((logicKey) => String(logicKey ?? "").trim())
+        .filter(Boolean)
+        .map((logicKey) => normalizeHuntScoreLogicKey(logicKey, storeName)),
+    ),
+  ];
+
+  const fallbackKey = getDefaultHuntScoreLogicKey(storeName);
+  const keys = normalizedKeys.length > 0 ? normalizedKeys : [fallbackKey];
+  return keys.map((logicKey) => getHuntScoreLogicDetail(logicKey, storeName));
+}
+
 function buildRuntimeHuntScoreConfig(
   config,
   logicKey = "",
@@ -6493,6 +6508,119 @@ export function buildHuntScoreSnapshots(
       ),
     )
     .filter((snapshot) => snapshot.rows.length > 0)
+    .sort((left, right) => right.baseDate.localeCompare(left.baseDate));
+}
+
+function buildSnapshotDateMap(snapshots) {
+  return new Map(
+    (Array.isArray(snapshots) ? snapshots : [])
+      .map((snapshot) => [String(snapshot?.baseDate ?? "").trim(), snapshot])
+      .filter(([baseDate]) => Boolean(baseDate)),
+  );
+}
+
+function buildSnapshotRowMap(snapshot) {
+  return new Map(
+    (Array.isArray(snapshot?.rows) ? snapshot.rows : [])
+      .map((row) => [String(row?.rowKey ?? "").trim(), row])
+      .filter(([rowKey]) => Boolean(rowKey)),
+  );
+}
+
+function sortCombinedHuntScoreRows(rows) {
+  return rows
+    .sort((left, right) => {
+      if (Math.abs(right.huntScore - left.huntScore) > HUNT_SCORE_EPSILON) {
+        return right.huntScore - left.huntScore;
+      }
+      const machineComparison = left.machineName.localeCompare(right.machineName, "ja");
+      if (machineComparison !== 0) {
+        return machineComparison;
+      }
+      return String(left.slotNumber).localeCompare(String(right.slotNumber), "ja");
+    })
+    .map((row, index) => ({
+      ...row,
+      rank: index + 1,
+    }));
+}
+
+export function buildCombinedHuntScoreSnapshots(
+  targetRows,
+  allStoreRows = [],
+  storeName = "",
+  logicKeys = [],
+  differenceMode = DEFAULT_DIFFERENCE_MODE,
+  options = {},
+) {
+  const logicDetails = getHuntScoreLogicDetails(logicKeys, storeName);
+  if (logicDetails.length <= 1) {
+    return buildHuntScoreSnapshots(
+      targetRows,
+      allStoreRows,
+      storeName,
+      logicDetails[0]?.key ?? "",
+      differenceMode,
+      options,
+    );
+  }
+
+  const snapshotGroups = logicDetails.map((logic) =>
+    buildHuntScoreSnapshots(
+      targetRows,
+      allStoreRows,
+      storeName,
+      logic.key,
+      differenceMode,
+      options,
+    ),
+  );
+  const snapshotMaps = snapshotGroups.map(buildSnapshotDateMap);
+  const baseSnapshots = snapshotGroups[0] ?? [];
+
+  return baseSnapshots
+    .map((baseSnapshot) => {
+      const baseDate = String(baseSnapshot?.baseDate ?? "").trim();
+      const matchingSnapshots = snapshotMaps.map((snapshotMap) => snapshotMap.get(baseDate) ?? null);
+      if (!baseDate || matchingSnapshots.some((snapshot) => !snapshot)) {
+        return null;
+      }
+
+      const rowMaps = matchingSnapshots.map(buildSnapshotRowMap);
+      const rows = (Array.isArray(baseSnapshot.rows) ? baseSnapshot.rows : [])
+        .map((baseRow) => {
+          const rowKey = String(baseRow?.rowKey ?? "").trim();
+          const scoreParts = rowMaps.map((rowMap, index) => {
+            const partRow = rowMap.get(rowKey);
+            const huntScore = Number(partRow?.huntScore);
+            if (!Number.isFinite(huntScore)) {
+              return null;
+            }
+            return {
+              key: logicDetails[index].key,
+              name: logicDetails[index].name,
+              huntScore,
+            };
+          });
+          if (!rowKey || scoreParts.some((part) => !part)) {
+            return null;
+          }
+
+          return {
+            ...baseRow,
+            huntScore: scoreParts.reduce((total, part) => total + part.huntScore, 0),
+            huntScoreParts: scoreParts,
+          };
+        })
+        .filter(Boolean);
+
+      return {
+        baseDate,
+        nextBusinessDate: baseSnapshot.nextBusinessDate,
+        rows: sortCombinedHuntScoreRows(rows),
+      };
+    })
+    .filter((snapshot) => snapshot && snapshot.rows.length > 0)
     .sort((left, right) => right.baseDate.localeCompare(left.baseDate));
 }
 

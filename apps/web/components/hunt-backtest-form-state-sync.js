@@ -12,6 +12,7 @@ const MANAGED_PARAM_KEYS = [
   "endDate",
   "machineTouched",
   "machine",
+  "huntScoreLogicKey",
   "dailySelectionMode",
   "rankMin",
   "rankMax",

@@ -1271,6 +1271,10 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const showSettingDistribution = shouldShowSettingDistribution(settingDistribution);
   const showGrapeColumn = selectedMachineNames.some(isHuntJugglerMachine);
   const eventFilters = buildBacktestEventFilters(options);
+  const huntScoreLogics = Array.isArray(options.huntScoreLogics) ? options.huntScoreLogics : [];
+  const huntScoreLogicKeys = huntScoreLogics.length > 0
+    ? huntScoreLogics.map((logic) => String(logic?.key ?? "").trim()).filter(Boolean)
+    : splitOptionValues(options.huntScoreLogicKeys);
   const periodState = buildPeriodState(options, latestDate);
   const snapshotsInPeriod = (Array.isArray(snapshots) ? snapshots : []).filter((snapshot) =>
     isSnapshotInPeriod(snapshot, periodState.startDate, periodState.endDate),
@@ -1318,6 +1322,9 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     latestDate,
     earliestDate,
     usedFallbackRange: periodState.usedFallbackRange,
+    huntScoreLogicKeys,
+    huntScoreLogics,
+    usesCombinedHuntScoreLogic: huntScoreLogicKeys.length > 1,
     machineOptions: availableMachineNames.map((machineName) => ({
       name: machineName,
       checked: selectedMachineNameSet.has(machineName),

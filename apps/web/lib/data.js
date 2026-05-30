@@ -13,9 +13,11 @@ import {
   buildScopedRankFilters,
 } from "./hunt-bookmark";
 import {
+  buildCombinedHuntScoreSnapshots,
   buildHuntScoreSnapshots,
   canonicalHuntScoreTargetMachineName,
   getHuntScoreLogicDetail,
+  getHuntScoreLogicDetails,
   isHuntScoreTargetStore,
   listHuntScoreRankingDateOptions,
   listHuntScoreLogicOptions,
@@ -1990,6 +1992,11 @@ function buildInitialBacktestDetail(
   const selectedMachineNames = normalizeInitialMachineSelection(machineNames, options);
   const selectedMachineNameSet = new Set(selectedMachineNames);
   const defaultedOptions = buildBacktestOptionsForStore(store, options);
+  const requestedBacktestLogicKeys =
+    Array.isArray(defaultedOptions?.huntScoreLogicKeys) && defaultedOptions.huntScoreLogicKeys.length > 0
+      ? defaultedOptions.huntScoreLogicKeys
+      : [huntScoreLogicKey];
+  const huntScoreLogics = getHuntScoreLogicDetails(requestedBacktestLogicKeys, storeName);
   const periodMode = defaultedOptions?.periodMode === "range" ? "range" : "recent";
   const {
     rankScope,
@@ -2046,6 +2053,9 @@ function buildInitialBacktestDetail(
     periodMode,
     recentDays: readPositiveInteger(defaultedOptions?.recentDays, DEFAULT_HUNT_BACKTEST_RECENT_DAYS),
     huntScoreLogic: getHuntScoreLogicDetail(huntScoreLogicKey, storeName),
+    huntScoreLogicKeys: huntScoreLogics.map((logic) => logic.key),
+    huntScoreLogics,
+    usesCombinedHuntScoreLogic: huntScoreLogics.length > 1,
     startDate: normalizeDateInput(defaultedOptions?.startDate),
     endDate: normalizeDateInput(defaultedOptions?.endDate),
     latestDate: null,
@@ -2693,6 +2703,11 @@ async function getHuntScoreSnapshotsForStore(
       return null;
     }
     const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, staticIdentity.storeName);
+    const requestedBacktestLogicKeys =
+      Array.isArray(machineOptions?.huntScoreLogicKeys) && machineOptions.huntScoreLogicKeys.length > 0
+        ? machineOptions.huntScoreLogicKeys
+        : [huntScoreLogic.key];
+    const huntScoreLogics = getHuntScoreLogicDetails(requestedBacktestLogicKeys, staticIdentity.storeName);
     const normalizedDifferenceMode = normalizeDifferenceMode(differenceMode);
     const normalizedSettingEstimateMode = normalizeSettingEstimateMode(settingEstimateMode);
     const storeMachineNames = readStaticStoreRecentMachineNames(staticStore);
@@ -2733,11 +2748,11 @@ async function getHuntScoreSnapshotsForStore(
     const selectedDate = rankingDates.includes(requestedDate)
       ? requestedDate
       : rankingDates[0] ?? null;
-    const snapshots = buildHuntScoreSnapshots(
+    const snapshots = buildCombinedHuntScoreSnapshots(
       targetRows,
       storeRows,
       staticIdentity.storeName,
-      huntScoreLogic.key,
+      huntScoreLogics.map((logic) => logic.key),
       normalizedDifferenceMode,
       targetDateOnly
         ? { targetDate: selectedDate, settingEstimateMode: normalizedSettingEstimateMode }
@@ -2758,6 +2773,7 @@ async function getHuntScoreSnapshotsForStore(
     return {
       dataSource: "json",
       huntScoreLogic,
+      huntScoreLogics,
       differenceMode: normalizedDifferenceMode,
       settingEstimateMode: normalizedSettingEstimateMode,
       availableMachineNames: detailAvailableMachineNames,
@@ -3673,6 +3689,8 @@ export async function getHuntScoreAnalysisPageDetail(
   const backtest = {
     ...buildHuntScoreBacktestDetail(snapshots, {
       ...buildBacktestOptionsForStore(store, normalizedBacktestOptions),
+      huntScoreLogicKeys: snapshotDetail.huntScoreLogics?.map((logic) => logic.key) ?? [snapshotDetail.huntScoreLogic.key],
+      huntScoreLogics: snapshotDetail.huntScoreLogics ?? [snapshotDetail.huntScoreLogic],
       scoreDifferenceMode: normalizedBacktestOptions.scoreDifferenceMode,
       settingEstimateMode: normalizedBacktestOptions.settingEstimateMode,
       settingDistribution: normalizedBacktestOptions.settingDistribution,

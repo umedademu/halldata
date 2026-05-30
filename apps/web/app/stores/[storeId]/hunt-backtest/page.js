@@ -511,6 +511,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     endDate: readSingleSearchParam(resolvedSearchParams?.endDate),
     machineNames: readMultiSearchParam(resolvedSearchParams?.machine),
     machineTouched: readSingleSearchParam(resolvedSearchParams?.machineTouched),
+    huntScoreLogicKeys: readMultiSearchParam(resolvedSearchParams?.huntScoreLogicKey),
     combineAimJuggler: readMultiSearchParam(resolvedSearchParams?.aimMachineGroup),
     combineHanabi: readMultiSearchParam(resolvedSearchParams?.hanabiMachineGroup),
     scoreDifferenceMode: readSingleSearchParam(resolvedSearchParams?.scoreDifferenceMode),
@@ -608,6 +609,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     weekdays: detail.backtest.eventFilters.weekdays,
     monthDays: detail.backtest.eventFilters.monthDays,
     machineNames: detail.backtest.selectedMachineNames,
+    huntScoreLogicKeys: detail.backtest.huntScoreLogicKeys,
     combineAimJuggler: detail.backtest.combineAimJuggler,
     combineHanabi: detail.backtest.combineHanabi,
     dailySelectionMode: detail.backtest.dailySelectionMode,
@@ -641,6 +643,8 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     settingDistribution: detail.backtest.settingDistribution,
     rankScope: detail.backtest.rankScope,
   });
+  const huntScoreLogicOptions = listHuntScoreLogicOptions();
+  const selectedBacktestLogicKeySet = new Set(detail.backtest.huntScoreLogicKeys ?? []);
 
   return (
     <main className="pageStack">
@@ -686,7 +690,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
             <HuntScoreLogicSelector
               storeId={detail.store.id}
               selectedLogicKey={detail.huntScoreLogic.key}
-              options={listHuntScoreLogicOptions()}
+              options={huntScoreLogicOptions}
               refreshOnSave={false}
             />
           ) : null}
@@ -849,7 +853,29 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       minValue={detail.backtest.scoreMin}
                       maxValue={detail.backtest.scoreMax}
                       requiredValue={detail.backtest.scoreRequired}
+                      inputMax={undefined}
                     />
+                    <div className="commonConditionMode">
+                      <p className="commonConditionSubLabel">バックテスト用ロジック</p>
+                      <div className="metricToggleRow commonConditionModeOptions">
+                        {huntScoreLogicOptions.map((option) => (
+                          <label
+                            key={option.key}
+                            className={`metricToggleChip ${
+                              selectedBacktestLogicKeySet.has(option.key) ? "metricToggleChipActive" : ""
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              name="huntScoreLogicKey"
+                              value={option.key}
+                              defaultChecked={selectedBacktestLogicKeySet.has(option.key)}
+                            />
+                            <span>{option.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                     <div className="commonConditionMode">
                       <p className="commonConditionSubLabel">狙い度計算の差枚基準</p>
                       <ScoreDifferenceModeOptions value={detail.backtest.scoreDifferenceMode} />
