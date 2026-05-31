@@ -8,7 +8,7 @@ import unicodedata
 from setting_estimates import calculate_setting_estimate, get_setting_estimate_definition
 
 
-ESTIMATED_GRAPE_VALUE_VERSION = 6
+ESTIMATED_GRAPE_VALUE_VERSION = 7
 REPLAY_DENOMINATOR = 7.30
 REPLAY_PAYOUT = 3
 GRAPE_PAYOUT = 8
@@ -91,7 +91,7 @@ ESTIMATED_GRAPE_MACHINE_SPECS = (
         "bb_payout": 240,
         "rb_payout": 96,
         "post_announcement_bonus_ratio": 0.75,
-        "minrepo_one_bet_game_factor": DEFAULT_MINREPO_ONE_BET_GAME_FACTOR,
+        "minrepo_one_bet_game_factor": MINREPO_CUMULATIVE_ONE_BET_GAME_FACTOR,
         "cherry_denominators_by_setting": (
             (1.0, 38.43),
             (2.0, 38.29),

@@ -1,7 +1,7 @@
 import settingEstimatesPayload from "../config/setting_estimates.json" with { type: "json" };
 
 export const SETTING_ESTIMATE_VALUE_VERSION = 8;
-export const SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 5;
+export const SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 6;
 export const SETTING_ESTIMATE_MODE_BONUS = "bonus";
 export const SETTING_ESTIMATE_MODE_GRAPE = "grape";
 export const DEFAULT_SETTING_ESTIMATE_MODE = SETTING_ESTIMATE_MODE_BONUS;
@@ -14,6 +14,10 @@ const SETTING_ESTIMATE_OUTDATED_KEYS_BY_VERSION = new Map([
   [5, new Set(["gogo-juggler", "my-juggler-v"])],
   [6, new Set(["my-juggler-v"])],
   [7, new Set(["neoim-juggler-ex", "gogo-juggler", "my-juggler-v"])],
+]);
+const SETTING_ESTIMATE_GRAPE_OUTDATED_KEYS_BY_VERSION = new Map([
+  [4, new Set(["neoim-juggler-ex", "gogo-juggler", "my-juggler-v"])],
+  [5, new Set(["my-juggler-v"])],
 ]);
 const GRAPE_SETTING_ESTIMATE_KEYS = new Set([
   "neoim-juggler-ex",
@@ -42,7 +46,7 @@ const GRAPE_ESTIMATE_MACHINE_SPECS = new Map([
   ],
   [
     "my-juggler-v",
-    { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 0.75, minrepoOneBetGameFactor: 0.725 },
+    { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 0.75, minrepoOneBetGameFactor: 1 / 3 },
   ],
   [
     "mr-juggler",
@@ -227,7 +231,7 @@ function readPrecomputedSettingEstimate(definition, record, mode = SETTING_ESTIM
   );
   const isCurrentVersion =
     normalizedMode === SETTING_ESTIMATE_MODE_GRAPE
-      ? version === SETTING_ESTIMATE_GRAPE_VALUE_VERSION
+      ? isCurrentGrapeSettingEstimateVersion(definition, version)
       : isCurrentSettingEstimateVersion(definition, version);
 
   if (!Number.isFinite(average) || !isCurrentVersion) {
@@ -241,6 +245,14 @@ function readPrecomputedSettingEstimate(definition, record, mode = SETTING_ESTIM
     mode: normalizedMode,
     sourceMode: normalizedMode,
   };
+}
+
+function isCurrentGrapeSettingEstimateVersion(definition, version) {
+  if (version === SETTING_ESTIMATE_GRAPE_VALUE_VERSION) {
+    return true;
+  }
+  const outdatedKeys = SETTING_ESTIMATE_GRAPE_OUTDATED_KEYS_BY_VERSION.get(version);
+  return Boolean(outdatedKeys && !outdatedKeys.has(String(definition?.key ?? "")));
 }
 
 function normalizeGrapeObservation(grapeCount, games, source) {
