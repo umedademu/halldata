@@ -8,7 +8,7 @@ import unicodedata
 from setting_estimates import calculate_setting_estimate, get_setting_estimate_definition
 
 
-ESTIMATED_GRAPE_VALUE_VERSION = 7
+ESTIMATED_GRAPE_VALUE_VERSION = 8
 REPLAY_DENOMINATOR = 7.30
 REPLAY_PAYOUT = 3
 GRAPE_PAYOUT = 8
@@ -59,7 +59,7 @@ ESTIMATED_GRAPE_MACHINE_SPECS = (
         "bb_payout": 240,
         "rb_payout": 96,
         "post_announcement_bonus_ratio": 0.75,
-        "minrepo_one_bet_game_factor": 1.443,
+        "minrepo_one_bet_game_factor": MINREPO_CUMULATIVE_ONE_BET_GAME_FACTOR,
         "cherry_denominators_by_setting": (
             (1.0, 35.83),
             (2.0, 35.46),
@@ -75,7 +75,7 @@ ESTIMATED_GRAPE_MACHINE_SPECS = (
         "bb_payout": 240,
         "rb_payout": 96,
         "post_announcement_bonus_ratio": 0.75,
-        "minrepo_one_bet_game_factor": -1.013,
+        "minrepo_one_bet_game_factor": MINREPO_CUMULATIVE_ONE_BET_GAME_FACTOR,
         "cherry_denominators_by_setting": (
             (1.0, 33.56),
             (2.0, 33.47),
@@ -107,7 +107,7 @@ ESTIMATED_GRAPE_MACHINE_SPECS = (
         "bb_payout": 240,
         "rb_payout": 96,
         "post_announcement_bonus_ratio": 0.75,
-        "minrepo_one_bet_game_factor": DEFAULT_MINREPO_ONE_BET_GAME_FACTOR,
+        "minrepo_one_bet_game_factor": MINREPO_CUMULATIVE_ONE_BET_GAME_FACTOR,
         "cherry_payout": 4,
         "cherry_acquisition_rate": 0.97,
         "bell_denominator": 655.36,

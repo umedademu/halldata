@@ -1,7 +1,7 @@
 import settingEstimatesPayload from "../config/setting_estimates.json" with { type: "json" };
 
 export const SETTING_ESTIMATE_VALUE_VERSION = 8;
-export const SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 6;
+export const SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 7;
 export const SETTING_ESTIMATE_MODE_BONUS = "bonus";
 export const SETTING_ESTIMATE_MODE_GRAPE = "grape";
 export const DEFAULT_SETTING_ESTIMATE_MODE = SETTING_ESTIMATE_MODE_BONUS;
@@ -16,8 +16,19 @@ const SETTING_ESTIMATE_OUTDATED_KEYS_BY_VERSION = new Map([
   [7, new Set(["neoim-juggler-ex", "gogo-juggler", "my-juggler-v"])],
 ]);
 const SETTING_ESTIMATE_GRAPE_OUTDATED_KEYS_BY_VERSION = new Map([
-  [4, new Set(["neoim-juggler-ex", "gogo-juggler", "my-juggler-v"])],
-  [5, new Set(["my-juggler-v"])],
+  [
+    4,
+    new Set([
+      "neoim-juggler-ex",
+      "gogo-juggler",
+      "funky-juggler-2",
+      "juggler-girls",
+      "my-juggler-v",
+      "mr-juggler",
+    ]),
+  ],
+  [5, new Set(["funky-juggler-2", "juggler-girls", "my-juggler-v", "mr-juggler"])],
+  [6, new Set(["funky-juggler-2", "juggler-girls", "mr-juggler"])],
 ]);
 const GRAPE_SETTING_ESTIMATE_KEYS = new Set([
   "neoim-juggler-ex",
@@ -38,11 +49,11 @@ const GRAPE_ESTIMATE_MACHINE_SPECS = new Map([
   ],
   [
     "funky-juggler-2",
-    { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 0.75, minrepoOneBetGameFactor: 1.443 },
+    { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 0.75, minrepoOneBetGameFactor: 1 / 3 },
   ],
   [
     "juggler-girls",
-    { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 0.75, minrepoOneBetGameFactor: -1.013 },
+    { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 0.75, minrepoOneBetGameFactor: 1 / 3 },
   ],
   [
     "my-juggler-v",
@@ -54,7 +65,7 @@ const GRAPE_ESTIMATE_MACHINE_SPECS = new Map([
       bbPayout: 240,
       rbPayout: 96,
       postAnnouncementBonusRatio: 0.75,
-      minrepoOneBetGameFactor: 0.725,
+      minrepoOneBetGameFactor: 1 / 3,
       cherryPayout: 4,
       cherryAcquisitionRate: 0.97,
       bellDenominator: 655.36,
