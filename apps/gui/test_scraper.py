@@ -2303,9 +2303,9 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         self.assertIsNotNone(estimated_grape)
-        self.assertAlmostEqual(estimated_grape["count"], 1480.375)
-        self.assertAlmostEqual(estimated_grape["denominator"], 6.2406)
-        self.assertAlmostEqual(estimated_grape["probability"], 0.16024072)
+        self.assertAlmostEqual(estimated_grape["count"], 1479.476)
+        self.assertAlmostEqual(estimated_grape["denominator"], 6.2425)
+        self.assertAlmostEqual(estimated_grape["probability"], 0.16019263)
 
     def test_calculate_estimated_grape_value_for_gogo_juggler(self) -> None:
         estimated_grape = calculate_estimated_grape_value(
@@ -2320,9 +2320,9 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         self.assertIsNotNone(estimated_grape)
-        self.assertAlmostEqual(estimated_grape["count"], 1462.914)
-        self.assertAlmostEqual(estimated_grape["denominator"], 6.2886)
-        self.assertAlmostEqual(estimated_grape["probability"], 0.15901754)
+        self.assertAlmostEqual(estimated_grape["count"], 1477.134)
+        self.assertAlmostEqual(estimated_grape["denominator"], 6.2585)
+        self.assertAlmostEqual(estimated_grape["probability"], 0.15978171)
 
     def test_calculate_estimated_grape_value_for_my_juggler(self) -> None:
         estimated_grape = calculate_estimated_grape_value(
@@ -2406,11 +2406,11 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         self.assertIsNotNone(record)
-        self.assertAlmostEqual(record["estimated_grape_denominator"], 6.2394)
+        self.assertAlmostEqual(record["estimated_grape_denominator"], 6.2413)
         self.assertEqual(record["estimated_grape_status"], "confirmed")
         self.assertEqual(record["estimated_grape_source"], "minrepo")
         self.assertEqual(record["estimated_grape_version"], ESTIMATED_GRAPE_VALUE_VERSION)
-        self.assertAlmostEqual(record["setting_estimate_grape_average"], 4.477699758317662)
+        self.assertAlmostEqual(record["setting_estimate_grape_average"], 4.47600865437615)
         self.assertEqual(record["setting_estimate_grape_status"], "confirmed")
         self.assertEqual(record["setting_estimate_grape_source"], "minrepo")
         self.assertEqual(record["setting_estimate_grape_version"], SETTING_ESTIMATE_GRAPE_VALUE_VERSION)
@@ -2429,11 +2429,11 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         self.assertIsNotNone(record)
-        self.assertAlmostEqual(record["estimated_grape_denominator"], 6.2877)
+        self.assertAlmostEqual(record["estimated_grape_denominator"], 6.2577)
         self.assertEqual(record["estimated_grape_status"], "confirmed")
         self.assertEqual(record["estimated_grape_source"], "minrepo")
         self.assertEqual(record["estimated_grape_version"], ESTIMATED_GRAPE_VALUE_VERSION)
-        self.assertAlmostEqual(record["setting_estimate_grape_average"], 3.69060466253561)
+        self.assertAlmostEqual(record["setting_estimate_grape_average"], 3.8553623185503496)
         self.assertEqual(record["setting_estimate_grape_status"], "confirmed")
         self.assertEqual(record["setting_estimate_grape_source"], "minrepo")
         self.assertEqual(record["setting_estimate_grape_version"], SETTING_ESTIMATE_GRAPE_VALUE_VERSION)

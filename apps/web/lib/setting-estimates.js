@@ -1,7 +1,7 @@
 import settingEstimatesPayload from "../config/setting_estimates.json" with { type: "json" };
 
 export const SETTING_ESTIMATE_VALUE_VERSION = 8;
-export const SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 4;
+export const SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 5;
 export const SETTING_ESTIMATE_MODE_BONUS = "bonus";
 export const SETTING_ESTIMATE_MODE_GRAPE = "grape";
 export const DEFAULT_SETTING_ESTIMATE_MODE = SETTING_ESTIMATE_MODE_BONUS;
@@ -26,11 +26,11 @@ const GRAPE_SETTING_ESTIMATE_KEYS = new Set([
 const GRAPE_ESTIMATE_MACHINE_SPECS = new Map([
   [
     "neoim-juggler-ex",
-    { bbPayout: 252, rbPayout: 96, postAnnouncementBonusRatio: 0.75, minrepoOneBetGameFactor: 0.30 },
+    { bbPayout: 252, rbPayout: 96, postAnnouncementBonusRatio: 0.75, minrepoOneBetGameFactor: 1 / 3 },
   ],
   [
     "gogo-juggler",
-    { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 1, minrepoOneBetGameFactor: 0.725 },
+    { bbPayout: 240, rbPayout: 96, postAnnouncementBonusRatio: 1, minrepoOneBetGameFactor: 1 / 3 },
   ],
   [
     "funky-juggler-2",

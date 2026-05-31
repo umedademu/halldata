@@ -8,12 +8,13 @@ import unicodedata
 from setting_estimates import calculate_setting_estimate, get_setting_estimate_definition
 
 
-ESTIMATED_GRAPE_VALUE_VERSION = 5
+ESTIMATED_GRAPE_VALUE_VERSION = 6
 REPLAY_DENOMINATOR = 7.30
 REPLAY_PAYOUT = 3
 GRAPE_PAYOUT = 8
 CHERRY_PAYOUT = 2
 DEFAULT_MINREPO_ONE_BET_GAME_FACTOR = 0.725
+MINREPO_CUMULATIVE_ONE_BET_GAME_FACTOR = 1 / 3
 ONE_BET_GRAPE_DENOMINATOR = 10.3
 ONE_BET_REPLAY_DENOMINATOR = 7.3
 ONE_BET_GRAPE_PAYOUT = 8
@@ -26,7 +27,7 @@ ESTIMATED_GRAPE_MACHINE_SPECS = (
         "bb_payout": 252,
         "rb_payout": 96,
         "post_announcement_bonus_ratio": 0.75,
-        "minrepo_one_bet_game_factor": 0.30,
+        "minrepo_one_bet_game_factor": MINREPO_CUMULATIVE_ONE_BET_GAME_FACTOR,
         "cherry_denominators_by_setting": (
             (1.0, 36.36),
             (2.0, 35.92),
@@ -42,7 +43,7 @@ ESTIMATED_GRAPE_MACHINE_SPECS = (
         "bb_payout": 240,
         "rb_payout": 96,
         "post_announcement_bonus_ratio": 1.0,
-        "minrepo_one_bet_game_factor": DEFAULT_MINREPO_ONE_BET_GAME_FACTOR,
+        "minrepo_one_bet_game_factor": MINREPO_CUMULATIVE_ONE_BET_GAME_FACTOR,
         "cherry_denominators_by_setting": (
             (1.0, 33.40),
             (2.0, 33.30),
