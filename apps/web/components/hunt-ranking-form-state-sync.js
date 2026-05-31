@@ -12,6 +12,7 @@ const MANAGED_PARAM_KEYS = [
   "differenceMode",
   "settingEstimateMode",
   "huntScoreLogicKey",
+  "subHuntScoreLogicKey",
   "machine",
   "rankMin",
   "rankMax",

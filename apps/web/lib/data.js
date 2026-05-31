@@ -2145,6 +2145,16 @@ function buildInitialBacktestDetail(
   };
 }
 
+function resolveOptionalHuntScoreLogic(logicKey = "", storeName = "") {
+  const normalizedLogicKey = String(logicKey ?? "").trim();
+  if (!normalizedLogicKey) {
+    return null;
+  }
+
+  const exists = listHuntScoreLogicOptions().some((option) => option.key === normalizedLogicKey);
+  return exists ? getHuntScoreLogicDetail(normalizedLogicKey, storeName) : null;
+}
+
 function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScoreLogicKey = "") {
   const store = readStaticStoreIdentity(staticStore);
   if (!isHuntScoreTargetStore(store.storeName)) {
@@ -2167,12 +2177,17 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
       ? backtestOptions.huntScoreLogicKeys
       : [huntScoreLogic.key];
   const huntScoreLogics = getHuntScoreLogicDetails(requestedRankingLogicKeys, store.storeName);
+  const subHuntScoreLogic = resolveOptionalHuntScoreLogic(
+    backtestOptions?.subHuntScoreLogicKey,
+    store.storeName,
+  );
   return {
     dataSource: "json",
     resultRequested: false,
     huntScoreLogic,
     huntScoreLogicKeys: huntScoreLogics.map((logic) => logic.key),
     huntScoreLogics,
+    subHuntScoreLogic,
     usesCombinedHuntScoreLogic: huntScoreLogics.length > 1,
     differenceMode,
     settingEstimateMode,
@@ -2653,10 +2668,17 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   const selectedDate =
     snapshotDetail.selectedDate ?? (rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null);
   const snapshot = snapshots.find((entry) => entry.baseDate === selectedDate) ?? null;
-  const snapshotRows = decorateRowsWithSite7MachineData(
-    snapshot?.rows ?? [],
-    buildSnapshotSite7MachineNameSet(snapshot),
-    buildSnapshotSite7MachineFetchedAtMap(snapshot),
+  const subSnapshot =
+    snapshotDetail.subHuntScoreLogic && Array.isArray(snapshotDetail.subSnapshots)
+      ? snapshotDetail.subSnapshots.find((entry) => entry.baseDate === selectedDate) ?? null
+      : null;
+  const snapshotRows = decorateRowsWithSubHuntScore(
+    decorateRowsWithSite7MachineData(
+      snapshot?.rows ?? [],
+      buildSnapshotSite7MachineNameSet(snapshot),
+      buildSnapshotSite7MachineFetchedAtMap(snapshot),
+    ),
+    subSnapshot,
   );
   const fullRankingGroups = buildSelectedMachineRankingGroups(
     snapshotRows,
@@ -2676,6 +2698,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     huntScoreLogic: snapshotDetail.huntScoreLogic,
     huntScoreLogicKeys: snapshotDetail.huntScoreLogics?.map((logic) => logic.key) ?? [snapshotDetail.huntScoreLogic.key],
     huntScoreLogics: snapshotDetail.huntScoreLogics ?? [snapshotDetail.huntScoreLogic],
+    subHuntScoreLogic: snapshotDetail.subHuntScoreLogic ?? null,
     usesCombinedHuntScoreLogic: (snapshotDetail.huntScoreLogics?.length ?? 1) > 1,
     differenceMode: snapshotDetail.differenceMode,
     settingEstimateMode: snapshotDetail.settingEstimateMode,
@@ -2770,6 +2793,22 @@ async function getHuntScoreSnapshotsForStore(
         ? { targetDate: selectedDate, settingEstimateMode: normalizedSettingEstimateMode }
         : { targetDateRange, settingEstimateMode: normalizedSettingEstimateMode },
     );
+    const subHuntScoreLogic = resolveOptionalHuntScoreLogic(
+      machineOptions?.subHuntScoreLogicKey,
+      staticIdentity.storeName,
+    );
+    const subSnapshots = subHuntScoreLogic
+      ? buildHuntScoreSnapshots(
+          targetRows,
+          storeRows,
+          staticIdentity.storeName,
+          subHuntScoreLogic.key,
+          normalizedDifferenceMode,
+          targetDateOnly
+            ? { targetDate: selectedDate, settingEstimateMode: normalizedSettingEstimateMode }
+            : { targetDateRange, settingEstimateMode: normalizedSettingEstimateMode },
+        )
+      : [];
     const snapshotMachineNames = [
       ...new Set(
         snapshots
@@ -2786,6 +2825,7 @@ async function getHuntScoreSnapshotsForStore(
       dataSource: "json",
       huntScoreLogic,
       huntScoreLogics,
+      subHuntScoreLogic,
       differenceMode: normalizedDifferenceMode,
       settingEstimateMode: normalizedSettingEstimateMode,
       availableMachineNames: detailAvailableMachineNames,
@@ -2801,6 +2841,7 @@ async function getHuntScoreSnapshotsForStore(
         eventFilters: staticIdentity.eventFilters,
       },
       snapshots,
+      subSnapshots,
     };
   }
 
@@ -2809,6 +2850,36 @@ async function getHuntScoreSnapshotsForStore(
 
 function normalizeRankingLimit(requestedLimit) {
   return Number.isInteger(requestedLimit) && requestedLimit >= 1 ? requestedLimit : 20;
+}
+
+function buildHuntScoreMapByRowKey(snapshot) {
+  return new Map(
+    (Array.isArray(snapshot?.rows) ? snapshot.rows : [])
+      .map((row) => {
+        const rowKey = String(row?.rowKey ?? "").trim();
+        const huntScore = Number(row?.huntScore);
+        return rowKey && Number.isFinite(huntScore) ? [rowKey, huntScore] : null;
+      })
+      .filter(Boolean),
+  );
+}
+
+function decorateRowsWithSubHuntScore(rows, subSnapshot) {
+  const subHuntScoreByRowKey = buildHuntScoreMapByRowKey(subSnapshot);
+  if (subHuntScoreByRowKey.size === 0) {
+    return rows;
+  }
+
+  return rows.map((row) => {
+    const rowKey = String(row?.rowKey ?? "").trim();
+    const subHuntScore = subHuntScoreByRowKey.get(rowKey);
+    return Number.isFinite(subHuntScore)
+      ? {
+          ...row,
+          subHuntScore,
+        }
+      : row;
+  });
 }
 
 function buildSelectedMachineRankingGroups(rows, selectedMachineNames) {

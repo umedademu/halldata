@@ -378,6 +378,9 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const requestedLimit = parseRequestedLimit(readSingleSearchParam(resolvedSearchParams?.limit));
   const requestedMachineNames = readMultiSearchParam(resolvedSearchParams?.machine);
   const requestedRankingLogicKeys = readMultiSearchParam(resolvedSearchParams?.huntScoreLogicKey);
+  const requestedSubHuntScoreLogicKey = readSingleSearchParam(
+    resolvedSearchParams?.subHuntScoreLogicKey,
+  );
   const huntScoreLogicKey = await readStoredHuntScoreLogicKey(storeId);
   const differenceMode = normalizeDifferenceMode(
     readSingleSearchParam(resolvedSearchParams?.differenceMode),
@@ -652,6 +655,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             machineNames: requestedMachineNames,
             machineTouched: machineFilterTouched,
             huntScoreLogicKeys: requestedRankingLogicKeys,
+            subHuntScoreLogicKey: requestedSubHuntScoreLogicKey,
             combineAimJuggler: requestedCombineAimJuggler,
             combineHanabi: requestedCombineHanabi,
             requestedDate,
@@ -659,7 +663,12 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
         )
       : await getHuntScoreInitialPageDetail(
           storeId,
-          { differenceMode, settingEstimateMode, huntScoreLogicKeys: requestedRankingLogicKeys },
+          {
+            differenceMode,
+            settingEstimateMode,
+            huntScoreLogicKeys: requestedRankingLogicKeys,
+            subHuntScoreLogicKey: requestedSubHuntScoreLogicKey,
+          },
           huntScoreLogicKey,
         );
   } catch (error) {
@@ -775,6 +784,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     differenceMode: detail.differenceMode,
     settingEstimateMode: detail.settingEstimateMode,
     huntScoreLogicKeys: detail.huntScoreLogicKeys,
+    subHuntScoreLogicKey: detail.subHuntScoreLogic?.key ?? "",
     machines: [...selectedMachineNameSet].sort(),
     combineAimJuggler,
     combineHanabi,
@@ -842,6 +852,9 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             </p>
           ) : detail.huntScoreLogic ? (
             <p className="dataSourceLabel">適用中: {detail.huntScoreLogic.name}</p>
+          ) : null}
+          {detail.subHuntScoreLogic ? (
+            <p className="dataSourceLabel">表示用サブ: {detail.subHuntScoreLogic.name}</p>
           ) : null}
           <div className="heroLinks simpleHeroLinks">
             <Link href={`/stores/${detail.store.id}`} className="externalLink">
@@ -982,6 +995,24 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                     </label>
                   ))}
                 </div>
+              </div>
+              <div className="filterConditionBox rankingConditionBox">
+                <p className="filterConditionBoxTitle">表示用サブロジック</p>
+                <label className="storeReserveField">
+                  <span>追加表示する狙い度</span>
+                  <select
+                    name="subHuntScoreLogicKey"
+                    defaultValue={detail.subHuntScoreLogic?.key ?? ""}
+                    className="storeReserveInput"
+                  >
+                    <option value="">表示しない</option>
+                    {huntScoreLogicOptions.map((option) => (
+                      <option key={option.key} value={option.key}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
               <div className="filterConditionBox rankingConditionBox">
                 <p className="filterConditionBoxTitle">設定推定基準</p>
@@ -1161,6 +1192,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 customHighlightBookmark={customHighlightBookmark}
                 initialDifferenceMode={detail.differenceMode}
                 showMachineTopCandidates={showMachineTopCandidates}
+                subHuntScoreLogic={detail.subHuntScoreLogic}
               />
             ) : (
               <section className="statusPanel">

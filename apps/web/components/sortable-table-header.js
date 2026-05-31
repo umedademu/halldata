@@ -6,6 +6,7 @@ export function SortableTableHeader({
   className = "",
   activeDirection = null,
   onSort,
+  title = undefined,
 }) {
   const direction = activeDirection === "asc" || activeDirection === "desc"
     ? activeDirection
@@ -19,6 +20,7 @@ export function SortableTableHeader({
       data-sort-initial-direction={initialDirection}
       data-sort-direction={direction || undefined}
       aria-sort={direction ? (direction === "asc" ? "ascending" : "descending") : "none"}
+      title={title}
     >
       <button type="button" className="sortableTableHeaderButton" onClick={onSort}>
         <span>{children}</span>

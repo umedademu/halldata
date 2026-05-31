@@ -417,14 +417,21 @@ function readSortableTableNumber(value) {
   return Number.isFinite(parsedValue) ? parsedValue : null;
 }
 
-function readSortableTableValue(row, columnIndex, nextGapScope) {
+function readSortableTableValue(row, columnIndex, nextGapScope, hasSubHuntScoreColumn = false) {
   if (columnIndex === 0) {
     return { missing: false, value: readSortableTableNumber(row.rank), type: "number" };
   }
   if (columnIndex === 1) {
     return { missing: false, value: readSortableTableNumber(row.huntScore), type: "number" };
   }
-  if (columnIndex === 2) {
+  const nextGapColumnIndex = hasSubHuntScoreColumn ? 3 : 2;
+  const machineColumnIndex = hasSubHuntScoreColumn ? 4 : 3;
+  const slotColumnIndex = hasSubHuntScoreColumn ? 5 : 4;
+
+  if (hasSubHuntScoreColumn && columnIndex === 2) {
+    return { missing: false, value: readSortableTableNumber(row.subHuntScore), type: "number" };
+  }
+  if (columnIndex === nextGapColumnIndex) {
     return {
       missing: false,
       value: readSortableTableNumber(
@@ -433,19 +440,35 @@ function readSortableTableValue(row, columnIndex, nextGapScope) {
       type: "number",
     };
   }
-  if (columnIndex === 3) {
+  if (columnIndex === machineColumnIndex) {
     return { missing: false, value: String(row.machineName ?? ""), type: "text" };
   }
-  if (columnIndex === 4) {
+  if (columnIndex === slotColumnIndex) {
     return { missing: false, value: String(row.slotNumber ?? ""), type: "text" };
   }
 
   return { missing: true, value: null, type: "number" };
 }
 
-function compareSortableTableRows(leftEntry, rightEntry, sortState, nextGapScope) {
-  const leftValue = readSortableTableValue(leftEntry.row, sortState.columnIndex, nextGapScope);
-  const rightValue = readSortableTableValue(rightEntry.row, sortState.columnIndex, nextGapScope);
+function compareSortableTableRows(
+  leftEntry,
+  rightEntry,
+  sortState,
+  nextGapScope,
+  hasSubHuntScoreColumn = false,
+) {
+  const leftValue = readSortableTableValue(
+    leftEntry.row,
+    sortState.columnIndex,
+    nextGapScope,
+    hasSubHuntScoreColumn,
+  );
+  const rightValue = readSortableTableValue(
+    rightEntry.row,
+    sortState.columnIndex,
+    nextGapScope,
+    hasSubHuntScoreColumn,
+  );
   const leftMissing = leftValue.missing || leftValue.value === null || leftValue.value === "";
   const rightMissing = rightValue.missing || rightValue.value === null || rightValue.value === "";
 
@@ -483,7 +506,12 @@ function OverallRankingTable({
   bookmarkMatchByRowKey = null,
   sortable = false,
   tableId = "",
+  subHuntScoreLogic = null,
 }) {
+  const showSubHuntScoreColumn = Boolean(subHuntScoreLogic);
+  const subHuntScoreTitle = subHuntScoreLogic?.name
+    ? `表示用サブロジック: ${subHuntScoreLogic.name}`
+    : undefined;
   const [sortState, setSortState] = useState(() =>
     sortable ? { columnIndex: 1, direction: "desc", type: "number" } : null,
   );
@@ -494,9 +522,17 @@ function OverallRankingTable({
 
     return rows
       .map((row, originalIndex) => ({ row, originalIndex }))
-      .sort((left, right) => compareSortableTableRows(left, right, sortState, nextGapScope))
+      .sort((left, right) =>
+        compareSortableTableRows(
+          left,
+          right,
+          sortState,
+          nextGapScope,
+          showSubHuntScoreColumn,
+        ),
+      )
       .map((entry) => entry.row);
-  }, [nextGapScope, rows, sortState, sortable]);
+  }, [nextGapScope, rows, showSubHuntScoreColumn, sortState, sortable]);
   const tableProps = tableId ? { id: tableId } : {};
   const handleSort = (columnIndex, type, initialDirection) => {
     if (!sortable) {
@@ -524,6 +560,7 @@ function OverallRankingTable({
     type = "number",
     initialDirection = "desc",
     className = "",
+    title: headerTitle = undefined,
   }) => {
     const activeDirection =
       sortable && sortState?.columnIndex === columnIndex ? sortState.direction : null;
@@ -536,13 +573,17 @@ function OverallRankingTable({
           className={className}
           activeDirection={activeDirection}
           onSort={() => handleSort(columnIndex, type, initialDirection)}
+          title={headerTitle}
         >
           {children}
         </SortableTableHeader>
       ) : (
-        <th className={className || undefined}>{children}</th>
+        <th className={className || undefined} title={headerTitle}>{children}</th>
       );
   };
+  const nextGapColumnIndex = showSubHuntScoreColumn ? 3 : 2;
+  const machineColumnIndex = showSubHuntScoreColumn ? 4 : 3;
+  const slotColumnIndex = showSubHuntScoreColumn ? 5 : 4;
 
   return (
     <section className="tablePanel directoryPanel">
@@ -558,11 +599,14 @@ function OverallRankingTable({
             <tr>
               <HeaderCell columnIndex={0}>{rankColumnLabel}</HeaderCell>
               <HeaderCell columnIndex={1}>{scoreColumnLabel}</HeaderCell>
-              <HeaderCell columnIndex={2}>次点差</HeaderCell>
-              <HeaderCell columnIndex={3} type="text" initialDirection="asc" className="directoryNameHeader">
+              {showSubHuntScoreColumn ? (
+                <HeaderCell columnIndex={2} title={subHuntScoreTitle}>サブ狙度</HeaderCell>
+              ) : null}
+              <HeaderCell columnIndex={nextGapColumnIndex}>次点差</HeaderCell>
+              <HeaderCell columnIndex={machineColumnIndex} type="text" initialDirection="asc" className="directoryNameHeader">
                 機種名
               </HeaderCell>
-              <HeaderCell columnIndex={4} type="text" initialDirection="asc">台番</HeaderCell>
+              <HeaderCell columnIndex={slotColumnIndex} type="text" initialDirection="asc">台番</HeaderCell>
               {visibleColumns.map((column) => (
                 <th key={column.key}>{column.label}</th>
               ))}
@@ -607,6 +651,14 @@ function OverallRankingTable({
                   >
                     {formatNumber(row.huntScore)}
                   </td>
+                  {showSubHuntScoreColumn ? (
+                    <td
+                      title={subHuntScoreTitle}
+                      data-sort-value={readRankingSortNumber(row.subHuntScore, "")}
+                    >
+                      {formatNumber(row.subHuntScore)}
+                    </td>
+                  ) : null}
                   <td
                     className={getRankingConditionHighlightClass(
                       row,
@@ -667,6 +719,7 @@ export function HuntRankingTable({
   customHighlightBookmark = null,
   initialDifferenceMode = DEFAULT_DIFFERENCE_MODE,
   showMachineTopCandidates = false,
+  subHuntScoreLogic = null,
 }) {
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
   const [differenceMode, setDifferenceMode] = useState(() =>
@@ -711,6 +764,10 @@ export function HuntRankingTable({
     [resultColumns, visibleResultKeys],
   );
   const scoreColumnLabel = useMemo(() => formatScoreColumnLabel(predictionDate), [predictionDate]);
+  const showSubHuntScoreColumn = Boolean(subHuntScoreLogic);
+  const subHuntScoreTitle = subHuntScoreLogic?.name
+    ? `表示用サブロジック: ${subHuntScoreLogic.name}`
+    : undefined;
   const nextGapScope = normalizeNextGapScope(highlightOptions.nextGapScope ?? DEFAULT_NEXT_GAP_SCOPE);
   const highlightCondition = useMemo(
     () => {
@@ -958,6 +1015,7 @@ export function HuntRankingTable({
           nextGapScope={nextGapScope}
           highlightCondition={highlightCondition}
           bookmarkMatchByRowKey={bookmarkMatchByRowKey}
+          subHuntScoreLogic={subHuntScoreLogic}
         />
       ) : (
         <section className="statusPanel">
@@ -981,6 +1039,7 @@ export function HuntRankingTable({
             bookmarkMatchByRowKey={bookmarkMatchByRowKey}
             sortable
             tableId="machine-top-candidates-ranking"
+            subHuntScoreLogic={subHuntScoreLogic}
           />
         ) : (
           <section className="statusPanel">
@@ -1026,6 +1085,9 @@ export function HuntRankingTable({
                 <tr>
                   <th>順位</th>
                   <th>{scoreColumnLabel}</th>
+                  {showSubHuntScoreColumn ? (
+                    <th title={subHuntScoreTitle}>サブ狙度</th>
+                  ) : null}
                   <th>次点差</th>
                   <th>台番</th>
                   {visibleColumns.map((column) => (
@@ -1048,6 +1110,9 @@ export function HuntRankingTable({
                       <td className={getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey)}>
                         {formatNumber(row.huntScore)}
                       </td>
+                      {showSubHuntScoreColumn ? (
+                        <td title={subHuntScoreTitle}>{formatNumber(row.subHuntScore)}</td>
+                      ) : null}
                       <td className={getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey)}>
                         {formatNextGapForScope(row, nextGapScope)}
                       </td>
