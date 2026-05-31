@@ -12,7 +12,7 @@ import {
   AllMachineFilterButtons,
   MachineFilterCategoryButton,
 } from "../../../../components/hunt-machine-filter-tools";
-import { HuntScoreLogicSelector } from "../../../../components/hunt-score-logic-selector";
+import { HuntScoreLogicMultiSelect } from "../../../../components/hunt-score-logic-selector";
 import { NativeGetForm } from "../../../../components/native-get-form";
 import { ResultUrlTools } from "../../../../components/result-url-tools";
 import { SpecialDayFilterSettings } from "../../../../components/special-day-filter-settings";
@@ -646,7 +646,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     rankScope: detail.backtest.rankScope,
   });
   const huntScoreLogicOptions = listHuntScoreLogicOptions();
-  const selectedBacktestLogicKeySet = new Set(detail.backtest.huntScoreLogicKeys ?? []);
   const logicConditionMode = detail.backtest.logicConditionMode === "and" ? "and" : "sum";
 
   return (
@@ -689,14 +688,11 @@ export default async function HuntBacktestPage({ params, searchParams }) {
               </a>
             ) : null}
           </div>
-          {detail.huntScoreLogic ? (
-            <HuntScoreLogicSelector
-              storeId={detail.store.id}
-              selectedLogicKey={detail.huntScoreLogic.key}
-              options={huntScoreLogicOptions}
-              refreshOnSave={false}
-            />
-          ) : null}
+          <HuntScoreLogicMultiSelect
+            selectedLogicKeys={detail.backtest.huntScoreLogicKeys}
+            options={huntScoreLogicOptions}
+            formId={HUNT_BACKTEST_FORM_ID}
+          />
         </div>
       </section>
 
@@ -856,29 +852,8 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       minValue={detail.backtest.scoreMin}
                       maxValue={detail.backtest.scoreMax}
                       requiredValue={detail.backtest.scoreRequired}
-                      inputMax={undefined}
+                      inputMax={detail.backtest.scoreMaxLimit}
                     />
-                    <div className="commonConditionMode">
-                      <p className="commonConditionSubLabel">バックテスト用ロジック</p>
-                      <div className="metricToggleRow commonConditionModeOptions">
-                        {huntScoreLogicOptions.map((option) => (
-                          <label
-                            key={option.key}
-                            className={`metricToggleChip ${
-                              selectedBacktestLogicKeySet.has(option.key) ? "metricToggleChipActive" : ""
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              name="huntScoreLogicKey"
-                              value={option.key}
-                              defaultChecked={selectedBacktestLogicKeySet.has(option.key)}
-                            />
-                            <span>{option.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
                     <div className="commonConditionMode">
                       <p className="commonConditionSubLabel">複数ロジック判定</p>
                       <div className="metricToggleRow commonConditionModeOptions">

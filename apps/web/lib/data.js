@@ -3,6 +3,7 @@ import { cache } from "react";
 import { createEventFilters } from "./event-filters";
 import {
   buildHuntScoreBacktestDetail,
+  calculateBacktestScoreFilterMax,
   normalizeSettingDistribution,
   shouldShowSettingDistribution,
 } from "./hunt-backtest";
@@ -1997,6 +1998,11 @@ function buildInitialBacktestDetail(
       ? defaultedOptions.huntScoreLogicKeys
       : [huntScoreLogicKey];
   const huntScoreLogics = getHuntScoreLogicDetails(requestedBacktestLogicKeys, storeName);
+  const logicConditionMode = defaultedOptions.logicConditionMode === "and" ? "and" : "sum";
+  const scoreMaxLimit = calculateBacktestScoreFilterMax(
+    logicConditionMode,
+    Math.max(1, huntScoreLogics.length),
+  );
   const periodMode = defaultedOptions?.periodMode === "range" ? "range" : "recent";
   const {
     rankScope,
@@ -2005,7 +2011,7 @@ function buildInitialBacktestDetail(
     selectedRankFilter,
     hasRankFilter,
   } = buildScopedRankFilters(defaultedOptions);
-  const scoreFilter = buildScoreFilter(defaultedOptions?.scoreMin, defaultedOptions?.scoreMax);
+  const scoreFilter = buildScoreFilter(defaultedOptions?.scoreMin, defaultedOptions?.scoreMax, scoreMaxLimit);
   const {
     machineNextGapFilter,
     selectedNextGapFilter,
@@ -2056,7 +2062,7 @@ function buildInitialBacktestDetail(
     huntScoreLogicKeys: huntScoreLogics.map((logic) => logic.key),
     huntScoreLogics,
     usesCombinedHuntScoreLogic: huntScoreLogics.length > 1,
-    logicConditionMode: defaultedOptions.logicConditionMode === "and" ? "and" : "sum",
+    logicConditionMode,
     startDate: normalizeDateInput(defaultedOptions?.startDate),
     endDate: normalizeDateInput(defaultedOptions?.endDate),
     latestDate: null,
@@ -2079,6 +2085,7 @@ function buildInitialBacktestDetail(
     hasSelectedRankFilter: selectedRankFilter.hasRankFilter,
     scoreMin: scoreFilter.scoreMin,
     scoreMax: scoreFilter.scoreMax,
+    scoreMaxLimit,
     hasScoreFilter,
     machineNextGapMin: machineNextGapFilter.nextGapMin,
     machineNextGapMax: machineNextGapFilter.nextGapMax,

@@ -241,8 +241,10 @@ function buildNumberRange(minValue, maxValue, minLimit = null, maxLimit = null) 
   };
 }
 
-export function buildScoreFilter(scoreMinValue, scoreMaxValue = null) {
-  const range = buildNumberRange(scoreMinValue, scoreMaxValue, 0, 100);
+export function buildScoreFilter(scoreMinValue, scoreMaxValue = null, maxLimit = 100) {
+  const parsedMaxLimit = readNumber(maxLimit);
+  const scoreMaxLimit = parsedMaxLimit !== null && parsedMaxLimit >= 100 ? parsedMaxLimit : 100;
+  const range = buildNumberRange(scoreMinValue, scoreMaxValue, 0, scoreMaxLimit);
 
   return {
     scoreMin: range.min,

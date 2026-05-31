@@ -90,3 +90,105 @@ export function HuntScoreLogicSelector({ storeId, selectedLogicKey, options, ref
     </div>
   );
 }
+
+export function HuntScoreLogicMultiSelect({
+  selectedLogicKeys,
+  options,
+  name = "huntScoreLogicKey",
+  formId = "",
+}) {
+  const safeOptions = useMemo(
+    () =>
+      (Array.isArray(options) ? options : [])
+        .map((option) => ({
+          key: String(option?.key ?? "").trim(),
+          name: String(option?.name ?? "").trim(),
+        }))
+        .filter((option) => option.key && option.name),
+    [options],
+  );
+  const initialLogicKeys = useMemo(() => {
+    const selectedKeySet = new Set(
+      (Array.isArray(selectedLogicKeys) ? selectedLogicKeys : [selectedLogicKeys])
+        .map((key) => String(key ?? "").trim())
+        .filter(Boolean),
+    );
+    const selectedKeys = safeOptions
+      .filter((option) => selectedKeySet.has(option.key))
+      .map((option) => option.key);
+    return selectedKeys.length > 0 ? selectedKeys : safeOptions.slice(0, 1).map((option) => option.key);
+  }, [safeOptions, selectedLogicKeys]);
+  const [logicKeys, setLogicKeys] = useState(initialLogicKeys);
+  const selectedKeySet = new Set(logicKeys);
+  const selectedOptions = safeOptions.filter((option) => selectedKeySet.has(option.key));
+  const summaryText =
+    selectedOptions.length === 0
+      ? "未選択"
+      : selectedOptions.length === 1
+        ? selectedOptions[0].name
+        : `${selectedOptions[0].name} + ${selectedOptions.length - 1}件`;
+
+  useEffect(() => {
+    setLogicKeys(initialLogicKeys);
+  }, [initialLogicKeys]);
+
+  if (safeOptions.length === 0) {
+    return null;
+  }
+
+  const handleChange = (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) {
+      return;
+    }
+
+    const changedKey = String(target.value ?? "").trim();
+    if (!changedKey) {
+      return;
+    }
+
+    setLogicKeys((currentKeys) => {
+      const nextKeySet = new Set(currentKeys);
+      if (target.checked) {
+        nextKeySet.add(changedKey);
+      } else {
+        nextKeySet.delete(changedKey);
+      }
+
+      const orderedKeys = safeOptions
+        .filter((option) => nextKeySet.has(option.key))
+        .map((option) => option.key);
+      return orderedKeys.length > 0 ? orderedKeys : currentKeys;
+    });
+  };
+
+  return (
+    <div className="huntLogicControl">
+      <div className="huntLogicCurrent">
+        <p className="sectionLabel">狙い度ロジック</p>
+        <p className="dataSourceLabel">バックテスト用: {summaryText}</p>
+      </div>
+      <details className="huntLogicMultiSelect" onChange={handleChange}>
+        <summary className="huntLogicMultiSummary">
+          <span>{summaryText}</span>
+          <span aria-hidden="true">▼</span>
+        </summary>
+        <div className="huntLogicMultiMenu">
+          {safeOptions.map((option) => (
+            <label key={option.key} className="huntLogicMultiOption">
+              <input
+                type="checkbox"
+                name={name}
+                value={option.key}
+                form={formId || undefined}
+                checked={selectedKeySet.has(option.key)}
+                onChange={() => {}}
+              />
+              <span>{option.name}</span>
+            </label>
+          ))}
+        </div>
+      </details>
+    </div>
+  );
+}

@@ -46,6 +46,13 @@ const BACKTEST_BREAKDOWN_DEFINITIONS = [
 export const SETTING_DISTRIBUTION_SHOW = "show";
 export const SETTING_DISTRIBUTION_HIDE = "hide";
 
+export function calculateBacktestScoreFilterMax(logicConditionMode, logicCount = 1) {
+  const normalizedLogicCount = Number.isInteger(logicCount) && logicCount > 0 ? logicCount : 1;
+  return normalizeLogicConditionMode(logicConditionMode) === LOGIC_CONDITION_MODE_SUM
+    ? normalizedLogicCount * 100
+    : 100;
+}
+
 function readPositiveInteger(value) {
   const parsedValue = Number(value);
   if (!Number.isInteger(parsedValue) || parsedValue < 1) {
@@ -1421,7 +1428,6 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     selectedRankFilter,
     hasRankFilter,
   } = buildScopedRankFilters(options);
-  const scoreFilter = buildScoreFilter(options.scoreMin, options.scoreMax);
   const {
     machineNextGapFilter,
     selectedNextGapFilter,
@@ -1431,6 +1437,23 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const baseRequirementOptions = buildConditionRequirementOptions(options);
   const selectionMode = normalizeDailySelectionMode(options.dailySelectionMode);
   const usesMachineTopNextGapSelection = isMachineTopNextGapSelectionMode(selectionMode);
+  const scoreDifferenceMode = normalizeDifferenceMode(options.scoreDifferenceMode);
+  const differenceMode = normalizeDifferenceMode(options.differenceMode);
+  const settingEstimateMode = normalizeSettingEstimateMode(options.settingEstimateMode);
+  const settingDistribution = normalizeSettingDistribution(options.settingDistribution);
+  const showSettingDistribution = shouldShowSettingDistribution(settingDistribution);
+  const showGrapeColumn = selectedMachineNames.some(isHuntJugglerMachine);
+  const eventFilters = buildBacktestEventFilters(options);
+  const huntScoreLogics = Array.isArray(options.huntScoreLogics) ? options.huntScoreLogics : [];
+  const huntScoreLogicKeys = huntScoreLogics.length > 0
+    ? huntScoreLogics.map((logic) => String(logic?.key ?? "").trim()).filter(Boolean)
+    : splitOptionValues(options.huntScoreLogicKeys);
+  const logicConditionMode = normalizeLogicConditionMode(options.logicConditionMode);
+  const scoreMaxLimit = calculateBacktestScoreFilterMax(
+    logicConditionMode,
+    Math.max(1, huntScoreLogicKeys.length),
+  );
+  const scoreFilter = buildScoreFilter(options.scoreMin, options.scoreMax, scoreMaxLimit);
   const requirementOptions = usesMachineTopNextGapSelection
     ? requireActiveConditionFilters(baseRequirementOptions, {
         machineRankFilter,
@@ -1448,18 +1471,6 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
         machineRankFilter,
         selectedRankFilter,
       };
-  const scoreDifferenceMode = normalizeDifferenceMode(options.scoreDifferenceMode);
-  const differenceMode = normalizeDifferenceMode(options.differenceMode);
-  const settingEstimateMode = normalizeSettingEstimateMode(options.settingEstimateMode);
-  const settingDistribution = normalizeSettingDistribution(options.settingDistribution);
-  const showSettingDistribution = shouldShowSettingDistribution(settingDistribution);
-  const showGrapeColumn = selectedMachineNames.some(isHuntJugglerMachine);
-  const eventFilters = buildBacktestEventFilters(options);
-  const huntScoreLogics = Array.isArray(options.huntScoreLogics) ? options.huntScoreLogics : [];
-  const huntScoreLogicKeys = huntScoreLogics.length > 0
-    ? huntScoreLogics.map((logic) => String(logic?.key ?? "").trim()).filter(Boolean)
-    : splitOptionValues(options.huntScoreLogicKeys);
-  const logicConditionMode = normalizeLogicConditionMode(options.logicConditionMode);
   const periodState = buildPeriodState(options, latestDate);
   const snapshotsInPeriod = (Array.isArray(snapshots) ? snapshots : []).filter((snapshot) =>
     isSnapshotInPeriod(snapshot, periodState.startDate, periodState.endDate),
@@ -1529,6 +1540,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     hasSelectedRankFilter: selectedRankFilter.hasRankFilter,
     scoreMin: scoreFilter.scoreMin,
     scoreMax: scoreFilter.scoreMax,
+    scoreMaxLimit,
     hasScoreFilter: scoreFilter.hasScoreFilter,
     machineNextGapMin: machineNextGapFilter.nextGapMin,
     machineNextGapMax: machineNextGapFilter.nextGapMax,
