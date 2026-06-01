@@ -703,6 +703,7 @@ class MinRepoScraperTests(unittest.TestCase):
             "notify_fetch_complete_button",
             "site7_login_button",
             "site7_fetch_button",
+            "site7_difference_preview_button",
             "site7_cancel_button",
             "apply_site7_schedule_button",
             "clear_site7_schedule_button",
@@ -711,6 +712,7 @@ class MinRepoScraperTests(unittest.TestCase):
             "register_store_button",
             "register_store_url_entry",
             "register_store_site7_button",
+            "register_store_site7_difference_button",
             "register_store_prefecture_entry",
             "register_store_area_entry",
             "register_store_site7_store_name_entry",
@@ -767,6 +769,7 @@ class MinRepoScraperTests(unittest.TestCase):
         app = MinRepoApp.__new__(MinRepoApp)
         app.register_store_url_var = FakeTextVariable("https://example.com/store")
         app.register_store_site7_enabled_var = FakeVariable(True)
+        app.register_store_site7_difference_enabled_var = FakeVariable(False)
         app.register_store_prefecture_var = FakeTextVariable(DEFAULT_SITE7_PREFECTURE_NAME)
         app.register_store_area_var = FakeTextVariable("")
         app.register_store_site7_store_name_var = FakeTextVariable("")
@@ -778,7 +781,7 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertEqual(
             result,
-            ("https://example.com/store", True, DEFAULT_SITE7_PREFECTURE_NAME, "", "", "", ""),
+            ("https://example.com/store", True, False, DEFAULT_SITE7_PREFECTURE_NAME, "", "", "", ""),
         )
 
     def test_worker_register_store_auto_fills_prefecture_and_area(self) -> None:
@@ -794,6 +797,7 @@ class MinRepoScraperTests(unittest.TestCase):
         app._worker_register_store(
             "https://min-repo.com/tag/big-dipper/",
             True,
+            False,
             DEFAULT_SITE7_PREFECTURE_NAME,
             "",
             "",
@@ -804,11 +808,12 @@ class MinRepoScraperTests(unittest.TestCase):
         kind, payload = app.result_queue.get_nowait()
         self.assertEqual(kind, "register_store_success")
         self.assertEqual(
-            payload[:8],
+            payload[:9],
             (
                 "BIGディッパー門前仲町店",
                 "https://min-repo.com/tag/big-dipper/",
                 True,
+                False,
                 "東京都",
                 "江東区",
                 "",
@@ -816,7 +821,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 "",
             ),
         )
-        self.assertIsInstance(payload[8], StoreEventSettings)
+        self.assertIsInstance(payload[9], StoreEventSettings)
 
     def test_worker_update_registered_store_uses_auto_fill_but_keeps_manual_region(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -832,6 +837,7 @@ class MinRepoScraperTests(unittest.TestCase):
             "https://min-repo.com/tag/old-store/",
             "https://min-repo.com/tag/new-store/",
             True,
+            False,
             "佐賀県",
             "佐賀市",
             "",
@@ -842,12 +848,13 @@ class MinRepoScraperTests(unittest.TestCase):
         kind, payload = app.result_queue.get_nowait()
         self.assertEqual(kind, "update_registered_store_success")
         self.assertEqual(
-            payload[:9],
+            payload[:10],
             (
                 "https://min-repo.com/tag/old-store/",
                 "ワンダーランド三潴店",
                 "https://min-repo.com/tag/new-store/",
                 True,
+                False,
                 "佐賀県",
                 "佐賀市",
                 "",
@@ -855,7 +862,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 "",
             ),
         )
-        self.assertIsInstance(payload[9], StoreEventSettings)
+        self.assertIsInstance(payload[10], StoreEventSettings)
 
     def test_update_registered_store_same_url_uses_worker_for_auto_fill(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -866,6 +873,7 @@ class MinRepoScraperTests(unittest.TestCase):
         app.register_store_status_var = FakeTextVariable("")
         app.register_store_url_var = FakeTextVariable("https://min-repo.com/tag/123-hakata/")
         app.register_store_site7_enabled_var = FakeVariable(True)
+        app.register_store_site7_difference_enabled_var = FakeVariable(False)
         app.register_store_prefecture_var = FakeTextVariable(DEFAULT_SITE7_PREFECTURE_NAME)
         app.register_store_area_var = FakeTextVariable("")
         app.register_store_site7_store_name_var = FakeTextVariable("")
@@ -879,6 +887,7 @@ class MinRepoScraperTests(unittest.TestCase):
             "https://min-repo.com/tag/123-hakata/",
             "https://min-repo.com/tag/123-hakata/",
             True,
+            False,
             DEFAULT_SITE7_PREFECTURE_NAME,
             "",
             "",
@@ -1878,6 +1887,63 @@ class MinRepoScraperTests(unittest.TestCase):
             scraper.extract_area_link(html, find_site7_target_store("GOGOアリーナ天神")),
             "https://www.d-deltanet.com/pc/HallSearchByArea.do?prefecturecode=40&district=40133",
         )
+
+    def test_site7_extract_mobile_difference_preview_links_from_html(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        target_store = find_site7_target_store("Aパーク春日店")
+
+        self.assertEqual(
+            scraper.extract_mobile_prefecture_link(
+                '<a href="H0810.do?pan=1&spr=kc&kc=40">福岡</a>',
+                target_store,
+            ),
+            "https://m.site777.jp/db/H0810.do?pan=1&spr=kc&kc=40",
+        )
+        self.assertEqual(
+            scraper.extract_mobile_area_link(
+                '<a href="H0800.do?myj=&pan=1&spr=kc&ctc=40218">春日市</a>',
+                target_store,
+            ),
+            "https://m.site777.jp/db/H0800.do?myj=&pan=1&spr=kc&ctc=40218",
+        )
+        self.assertEqual(
+            scraper.extract_mobile_target_hall_link(
+                '<a href="D0100.do?pmc=40100003">Ａパーク春日店</a>',
+                target_store,
+            ),
+            "https://m.site777.jp/db/D0100.do?pmc=40100003",
+        )
+
+        hall_html = """
+<!DOCTYPE html>
+<html lang="ja">
+  <head><title>Site777｜Ａパーク春日店｜ホールTOP</title></head>
+  <body>
+    <a href="D0300.do?pmc=40100003&clc=01&urt=-1&pan=1">パチンコ すべて</a>
+    <a href="D0300.do?pmc=40100003&clc=03&urt=-1&pan=1">パチスロ すべて</a>
+  </body>
+</html>
+"""
+        self.assertEqual(scraper.extract_mobile_store_name(hall_html, target_store), "Ａパーク春日店")
+        self.assertEqual(
+            scraper.extract_mobile_slot_machine_list_link(hall_html),
+            "https://m.site777.jp/db/D0300.do?pmc=40100003&clc=03&urt=-1&pan=1",
+        )
+
+        machine_entry, machine_link = scraper.extract_mobile_target_machine_link(
+            '<a href="D3310.do?pmc=40100003&mdc=120312">ネオアイムジャグラーEX [25]</a>'
+        )
+        self.assertEqual(machine_entry.display_name, "ネオアイムジャグラーEX")
+        self.assertEqual(machine_entry.machine_name, "ネオアイムジャグラーEX")
+        self.assertEqual(machine_link, "https://m.site777.jp/db/D3310.do?pmc=40100003&mdc=120312")
+
+        self.assertEqual(
+            scraper.extract_mobile_slot_detail_link(
+                '<a href="D4020.do?pmc=40100003&mdc=120312&dtdd=0&dn=827">827</a>'
+            ),
+            ("827", "https://m.site777.jp/db/D4020.do?pmc=40100003&mdc=120312&dtdd=0&dn=827"),
+        )
+        self.assertTrue(scraper.mobile_page_requires_paid_login("<p>有料会員ログインはこちら</p>"))
 
     def test_site7_extract_target_hall_search_code_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
@@ -3319,6 +3385,7 @@ class MinRepoScraperTests(unittest.TestCase):
                         "store_name": "MJアリーナ箱崎店",
                         "store_url": "https://example.com/a/",
                         "site7_enabled": True,
+                        "site7_difference_enabled": False,
                         "site7_prefecture": "福岡県",
                         "site7_area": "東区",
                         "site7_store_name": "ＭＪアリーナ箱崎店",
@@ -3329,6 +3396,7 @@ class MinRepoScraperTests(unittest.TestCase):
                         "store_name": "ABCホール",
                         "store_url": "https://example.com/b/",
                         "site7_enabled": False,
+                        "site7_difference_enabled": False,
                         "site7_prefecture": DEFAULT_SITE7_PREFECTURE_NAME,
                         "site7_area": "",
                         "site7_store_name": "ABCホール",
@@ -3569,6 +3637,7 @@ class MinRepoScraperTests(unittest.TestCase):
                         "store_name": "Aパーク春日店",
                         "store_url": "https://example.com/kasuga/",
                         "site7_enabled": True,
+                        "site7_difference_enabled": False,
                         "site7_prefecture": "福岡県",
                         "site7_area": "春日市",
                         "site7_store_name": "Ａパーク春日店",
@@ -3598,6 +3667,7 @@ class MinRepoScraperTests(unittest.TestCase):
                         "store_name": "ビームヒカリ",
                         "store_url": "https://example.com/beam/",
                         "site7_enabled": False,
+                        "site7_difference_enabled": False,
                         "site7_prefecture": "福岡県",
                         "site7_area": "大野城市",
                         "site7_store_name": "ビームヒカリ",
@@ -3630,6 +3700,7 @@ class MinRepoScraperTests(unittest.TestCase):
                         "store_name": "HINODE大野城店",
                         "store_url": "https://example.com/hinode/",
                         "site7_enabled": True,
+                        "site7_difference_enabled": False,
                         "site7_prefecture": "福岡県",
                         "site7_area": "大野城市",
                         "site7_store_name": "HINODE大野城店",
@@ -3638,6 +3709,30 @@ class MinRepoScraperTests(unittest.TestCase):
                     }
                 ],
             )
+
+    def test_normalize_registered_stores_keeps_difference_flag_only_with_site7(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+
+            normalized_stores = service._normalize_registered_stores(  # type: ignore[attr-defined]
+                [
+                    {
+                        "store_name": "Aパーク春日店",
+                        "store_url": "https://example.com/kasuga",
+                        "site7_enabled": True,
+                        "site7_difference_enabled": True,
+                    },
+                    {
+                        "store_name": "ABCホール",
+                        "store_url": "https://example.com/abc",
+                        "site7_enabled": False,
+                        "site7_difference_enabled": True,
+                    },
+                ]
+            )
+
+            self.assertTrue(normalized_stores[0]["site7_difference_enabled"])
+            self.assertFalse(normalized_stores[1]["site7_difference_enabled"])
 
     def test_normalize_store_url_unifies_percent_case(self) -> None:
         self.assertEqual(
@@ -3702,6 +3797,7 @@ class MinRepoScraperTests(unittest.TestCase):
                         "store_name": "GOGOアリーナ天神",
                         "store_url": "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/",
                         "site7_enabled": True,
+                        "site7_difference_enabled": False,
                         "site7_prefecture": "福岡県",
                         "site7_area": "福岡市中央区",
                         "site7_store_name": "ＧＯＧＯアリーナ天神",

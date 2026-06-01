@@ -3143,6 +3143,7 @@ class HistoryPersistenceService:
             if is_known_unavailable:
                 site7_enabled = False
             should_fill_site7_defaults = site7_enabled or is_known_unavailable
+            site7_difference_enabled = _coerce_bool(store.get("site7_difference_enabled", False)) and site7_enabled
             site7_area = str(store.get("site7_area", "")).strip()
             site7_store_name = raw_site7_store_name
             site7_hall_id = str(store.get("site7_hall_id", "")).strip()
@@ -3157,6 +3158,7 @@ class HistoryPersistenceService:
                 "store_name": store_name,
                 "store_url": store_url,
                 "site7_enabled": site7_enabled,
+                "site7_difference_enabled": site7_difference_enabled,
                 "site7_prefecture": str(
                     store.get("site7_prefecture", site7_defaults["site7_prefecture"])
                 ).strip()

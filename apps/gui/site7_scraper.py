@@ -33,6 +33,12 @@ except ImportError:  # pragma: no cover
 ROOT_DIR = Path(__file__).resolve().parents[2]
 SITE7_TOP_URL = "https://www.d-deltanet.com/pc/Top.do"
 SITE7_LOGIN_URL = "https://www.d-deltanet.com/pc/MypageLoginTop.do?redirectLogin=0&skskb="
+SITE7_MOBILE_TOP_URL = "https://m.site777.jp/db/A0100.do"
+SITE7_MOBILE_USER_AGENT = (
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+    "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+)
+SITE7_MOBILE_VIEWPORT = {"width": 390, "height": 844}
 DEFAULT_SITE7_PREFECTURE_NAME = "福岡県"
 SITE7_TARGET_MACHINE_NAME = "ネオアイムジャグラーEX"
 SITE7_TARGET_MACHINE_KEYWORDS = tuple(list_site7_target_machine_keywords())
@@ -88,6 +94,15 @@ def build_site7_transition_wait_milliseconds(
 class Site7MachineEntry:
     display_name: str
     machine_name: str
+
+
+@dataclass(frozen=True)
+class Site7DifferencePreviewResult:
+    store_name: str
+    machine_name: str
+    slot_number: str
+    page_url: str
+    requires_paid_login: bool = False
 
 
 @dataclass(frozen=True)
@@ -436,12 +451,18 @@ class Site7Scraper:
     def __init__(self, root_dir: Path | None = None) -> None:
         self.root_dir = root_dir or ROOT_DIR
         self.browser_state_dir = self.root_dir / "local_data" / SITE7_BROWSER_STATE_DIR_NAME
+        self._visible_playwright: object | None = None
+        self._visible_context: object | None = None
 
     def has_saved_login_state(self) -> bool:
         return self.browser_state_dir.exists() and any(self.browser_state_dir.iterdir())
 
     def close_visible_browser(self) -> None:
-        return
+        try:
+            self._release_browser_context(self._visible_playwright, self._visible_context)
+        finally:
+            self._visible_playwright = None
+            self._visible_context = None
 
     def _launch_browser_context(self, browser_visible: bool) -> tuple[object, object]:
         playwright = sync_playwright().start()
@@ -450,6 +471,19 @@ class Site7Scraper:
             headless=not browser_visible,
             locale="ja-JP",
             viewport={"width": 1440, "height": 960},
+        )
+        return playwright, context
+
+    def _launch_mobile_browser_context(self, browser_visible: bool) -> tuple[object, object]:
+        playwright = sync_playwright().start()
+        context = playwright.chromium.launch_persistent_context(
+            str(self.browser_state_dir),
+            headless=not browser_visible,
+            locale="ja-JP",
+            viewport=SITE7_MOBILE_VIEWPORT,
+            user_agent=SITE7_MOBILE_USER_AGENT,
+            is_mobile=True,
+            has_touch=True,
         )
         return playwright, context
 
@@ -611,6 +645,87 @@ class Site7Scraper:
             fallback_store_name=store_name if "store_name" in locals() else resolved_target_store.display_name,
             store_url=hall_page_url if "hall_page_url" in locals() else resolved_target_store.direct_hall_url,
         )
+
+    def open_difference_preview_page(
+        self,
+        target_store: Site7TargetStore | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> Site7DifferencePreviewResult:
+        resolved_target_store = enrich_site7_target_store(target_store or SITE7_DEFAULT_TARGET_STORE)
+        self._require_playwright()
+        _raise_if_site7_cancel_requested(cancel_requested)
+        self.close_visible_browser()
+
+        playwright = None
+        context = None
+        try:
+            playwright, context = self._launch_mobile_browser_context(browser_visible=True)
+            page = self._prepare_fetch_page(context, browser_visible=True)
+            page.goto(SITE7_MOBILE_TOP_URL, wait_until="domcontentloaded", timeout=60_000)
+            self._accept_cookie_banner_if_present(page)
+            top_html = page.content()
+            self._wait_between_transitions(page, cancel_requested=cancel_requested)
+
+            prefecture_link = self.extract_mobile_prefecture_link(top_html, resolved_target_store)
+            _raise_if_site7_cancel_requested(cancel_requested)
+            page.goto(prefecture_link, wait_until="domcontentloaded", timeout=60_000)
+            self._accept_cookie_banner_if_present(page)
+            prefecture_html = page.content()
+            self._wait_between_transitions(page, cancel_requested=cancel_requested)
+
+            area_link = self.extract_mobile_area_link(prefecture_html, resolved_target_store)
+            _raise_if_site7_cancel_requested(cancel_requested)
+            page.goto(area_link, wait_until="domcontentloaded", timeout=60_000)
+            self._accept_cookie_banner_if_present(page)
+            area_html = page.content()
+            self._wait_between_transitions(page, cancel_requested=cancel_requested)
+
+            hall_link = self.extract_mobile_target_hall_link(area_html, resolved_target_store)
+            _raise_if_site7_cancel_requested(cancel_requested)
+            page.goto(hall_link, wait_until="domcontentloaded", timeout=60_000)
+            self._accept_cookie_banner_if_present(page)
+            hall_html = page.content()
+            store_name = self.extract_mobile_store_name(hall_html, resolved_target_store)
+            self._wait_between_transitions(page, cancel_requested=cancel_requested)
+
+            machine_list_link = self.extract_mobile_slot_machine_list_link(hall_html)
+            _raise_if_site7_cancel_requested(cancel_requested)
+            page.goto(machine_list_link, wait_until="domcontentloaded", timeout=60_000)
+            self._accept_cookie_banner_if_present(page)
+            machine_list_html = page.content()
+            self._wait_between_transitions(page, cancel_requested=cancel_requested)
+
+            machine_entry, machine_link = self.extract_mobile_target_machine_link(machine_list_html)
+            _raise_if_site7_cancel_requested(cancel_requested)
+            page.goto(machine_link, wait_until="domcontentloaded", timeout=60_000)
+            self._accept_cookie_banner_if_present(page)
+            machine_html = page.content()
+            self._wait_between_transitions(page, cancel_requested=cancel_requested)
+
+            slot_number, slot_detail_link = self.extract_mobile_slot_detail_link(machine_html)
+            _raise_if_site7_cancel_requested(cancel_requested)
+            page.goto(slot_detail_link, wait_until="domcontentloaded", timeout=60_000)
+            self._accept_cookie_banner_if_present(page)
+            page.wait_for_timeout(1_000)
+            page.bring_to_front()
+
+            preview_html = page.content()
+            result = Site7DifferencePreviewResult(
+                store_name=store_name,
+                machine_name=machine_entry.machine_name,
+                slot_number=slot_number,
+                page_url=str(page.url),
+                requires_paid_login=self.mobile_page_requires_paid_login(preview_html),
+            )
+            self._visible_playwright = playwright
+            self._visible_context = context
+            return result
+        except PlaywrightError as exc:
+            self._release_browser_context(playwright, context)
+            raise self._wrap_playwright_error(exc) from exc
+        except Exception:
+            self._release_browser_context(playwright, context)
+            raise
 
     def extract_store_name(self, html: str) -> str:
         soup = BeautifulSoup(html, "html.parser")
@@ -820,12 +935,28 @@ class Site7Scraper:
             href_keyword="HallMapSearch.do?",
         )
 
+    def extract_mobile_prefecture_link(self, html: str, target_store: Site7TargetStore | None = None) -> str:
+        resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
+        return self._extract_mobile_link_from_html(
+            html,
+            link_text=resolved_target_store.prefecture_name,
+            href_keyword="H0810.do?",
+        )
+
     def extract_area_link(self, html: str, target_store: Site7TargetStore | None = None) -> str:
         resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
         return self._extract_link_from_html(
             html,
             link_text=resolved_target_store.area_name,
             href_keyword="HallSearchByArea.do?",
+        )
+
+    def extract_mobile_area_link(self, html: str, target_store: Site7TargetStore | None = None) -> str:
+        resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
+        return self._extract_mobile_link_from_html(
+            html,
+            link_text=resolved_target_store.area_name,
+            href_keyword="H0800.do?",
         )
 
     def extract_target_hall_search_code(self, html: str, target_store: Site7TargetStore | None = None) -> str:
@@ -860,6 +991,115 @@ class Site7Scraper:
             f"サイトセブンで {resolved_target_store.display_name} を選ぶための情報が見つかりませんでした。"
         )
 
+    def extract_mobile_target_hall_link(self, html: str, target_store: Site7TargetStore | None = None) -> str:
+        resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
+        soup = BeautifulSoup(html, "html.parser")
+        for hall_link in soup.find_all("a"):
+            href = str(hall_link.get("href") or "").strip()
+            if "D0100.do?" not in href or "pmc=" not in href:
+                continue
+
+            if _site7_hall_id_matches(href, resolved_target_store.hall_id):
+                return urljoin(SITE7_MOBILE_TOP_URL, href)
+
+            hall_text = hall_link.get_text(" ", strip=True)
+            if _site7_lookup_keys_match(
+                _build_site7_lookup_keys(hall_text),
+                resolved_target_store.hall_match_keys,
+                allow_partial=True,
+            ):
+                return urljoin(SITE7_MOBILE_TOP_URL, href)
+
+        raise ScraperError(
+            f"スマホ版サイトセブンで {resolved_target_store.display_name} の店舗リンクが見つかりませんでした。"
+        )
+
+    def extract_mobile_store_name(
+        self,
+        html: str,
+        target_store: Site7TargetStore | None = None,
+    ) -> str:
+        resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
+        soup = BeautifulSoup(html, "html.parser")
+        title_text = soup.title.get_text(" ", strip=True) if soup.title is not None else ""
+        if "｜" in title_text:
+            title_parts = [part.strip() for part in title_text.split("｜") if part.strip()]
+            if len(title_parts) >= 2:
+                return title_parts[1]
+
+        page_text = soup.get_text("\n", strip=True)
+        for key_source in (resolved_target_store.site7_hall_name, resolved_target_store.display_name):
+            key = str(key_source).strip()
+            if key and key in page_text:
+                return key
+        return resolved_target_store.site7_hall_name or resolved_target_store.display_name
+
+    def extract_mobile_slot_machine_list_link(self, html: str) -> str:
+        soup = BeautifulSoup(html, "html.parser")
+        fallback_link = ""
+        for anchor in soup.find_all("a"):
+            href = str(anchor.get("href") or "").strip()
+            if "D0300.do?" not in href or "clc=03" not in href:
+                continue
+
+            text = anchor.get_text(" ", strip=True)
+            normalized_text = _normalize_site7_lookup_text(text)
+            absolute_href = urljoin(SITE7_MOBILE_TOP_URL, href)
+            if "パチスロ" in text and "すべて" in text:
+                return absolute_href
+            if "スロ" in normalized_text and not fallback_link:
+                fallback_link = absolute_href
+
+        if fallback_link:
+            return fallback_link
+        raise ScraperError("スマホ版サイトセブンでパチスロ機種一覧のリンクが見つかりませんでした。")
+
+    def extract_mobile_target_machine_link(self, html: str) -> tuple[Site7MachineEntry, str]:
+        soup = BeautifulSoup(html, "html.parser")
+        for anchor in soup.find_all("a"):
+            href = str(anchor.get("href") or "").strip()
+            if "D3310.do?" not in href:
+                continue
+
+            display_name = self._extract_mobile_machine_label(anchor.get_text(" ", strip=True))
+            if not display_name or not machine_is_site7_target(display_name):
+                continue
+
+            machine_entry = Site7MachineEntry(
+                display_name=display_name,
+                machine_name=canonical_machine_name(display_name, site7_only=True),
+            )
+            return machine_entry, urljoin(SITE7_MOBILE_TOP_URL, href)
+
+        raise ScraperError(
+            "スマホ版サイトセブンで対象機種のリンクが見つかりませんでした。\n"
+            f"対象語: {'、'.join(SITE7_TARGET_MACHINE_KEYWORDS)}"
+        )
+
+    def extract_mobile_slot_detail_link(self, html: str) -> tuple[str, str]:
+        soup = BeautifulSoup(html, "html.parser")
+        for anchor in soup.find_all("a"):
+            href = str(anchor.get("href") or "").strip()
+            if "D4020.do?" not in href:
+                continue
+
+            text = anchor.get_text(" ", strip=True)
+            slot_number = self._extract_slot_number(text)
+            if not slot_number:
+                continue
+            return slot_number, urljoin(SITE7_MOBILE_TOP_URL, href)
+
+        raise ScraperError("スマホ版サイトセブンで台別の出玉推移ページへのリンクが見つかりませんでした。")
+
+    def mobile_page_requires_paid_login(self, html: str) -> bool:
+        normalized_text = re.sub(r"\s+", "", BeautifulSoup(html, "html.parser").get_text(" ", strip=True))
+        return "有料会員ログインはこちら" in normalized_text or "有料ログイン" in normalized_text
+
+    def _extract_mobile_machine_label(self, text: str) -> str:
+        label = re.sub(r"\s+", " ", str(text)).strip()
+        label = re.sub(r"\s*[\[［]\d+[\]］]\s*$", "", label).strip()
+        return label
+
     def _extract_link_from_html(self, html: str, link_text: str, href_keyword: str = "") -> str:
         target_link_keys = _build_site7_lookup_keys(link_text)
         soup = BeautifulSoup(html, "html.parser")
@@ -880,6 +1120,27 @@ class Site7Scraper:
             return urljoin(SITE7_TOP_URL, href)
 
         raise ScraperError(f"サイトセブンで {link_text} のリンクが見つかりませんでした。")
+
+    def _extract_mobile_link_from_html(self, html: str, link_text: str, href_keyword: str = "") -> str:
+        target_link_keys = _build_site7_lookup_keys(link_text)
+        soup = BeautifulSoup(html, "html.parser")
+        for anchor in soup.find_all("a"):
+            text = anchor.get_text(" ", strip=True)
+            href = str(anchor.get("href") or "").strip()
+            if not _site7_lookup_keys_match(
+                _build_site7_lookup_keys(text),
+                target_link_keys,
+                allow_partial=True,
+                partial_min_length=2,
+            ):
+                continue
+            if not href:
+                continue
+            if href_keyword and href_keyword not in href:
+                continue
+            return urljoin(SITE7_MOBILE_TOP_URL, href)
+
+        raise ScraperError(f"スマホ版サイトセブンで {link_text} のリンクが見つかりませんでした。")
 
     def _open_target_hall_page(
         self,
