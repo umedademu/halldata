@@ -124,6 +124,9 @@ export default async function MachineDetailPage({ params, searchParams }) {
   }
 
   const displayMachineName = detail.machineName ?? machineName;
+  const machineBacktestHref = `/stores/${detail.store.id}/hunt-backtest?machine=${encodeURIComponent(
+    displayMachineName,
+  )}&machineTouched=1`;
   const settingEstimateDefinition = getSettingEstimateDefinition(displayMachineName);
   const initialEventFilters = hasEventFilterSearchParams
     ? eventFilters
@@ -157,6 +160,9 @@ export default async function MachineDetailPage({ params, searchParams }) {
           <div className="heroLinks simpleHeroLinks">
             <Link href={`/stores/${detail.store.id}`} className="externalLink">
               機種一覧へ戻る
+            </Link>
+            <Link href={machineBacktestHref} className="externalLink">
+              バックテストを見る
             </Link>
             {detail.huntScoreHighlight ? (
               <Link
