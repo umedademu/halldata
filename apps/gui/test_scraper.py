@@ -495,6 +495,26 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertAlmostEqual(parse_site7_graph_difference_value(buffer.getvalue()), 1000, delta=100)
 
+    def test_site7_parse_graph_difference_value_from_small_image(self) -> None:
+        image = Image.new("RGB", (150, 120), (245, 236, 231))
+        draw = ImageDraw.Draw(image)
+        axis_x = 7
+        graph_top = 10
+        graph_bottom = 108
+        zero_y = 59
+        grid_spacing = 12
+        for y in range(graph_top + 1, graph_bottom, grid_spacing):
+            draw.line((axis_x + 1, y, 139, y), fill=(204, 204, 204))
+        draw.line((axis_x, graph_top, axis_x, graph_bottom), fill=(0, 0, 0))
+        draw.line((axis_x, zero_y, 139, zero_y), fill=(108, 100, 100))
+        line_y = zero_y + grid_spacing
+        draw.line((10, zero_y, 70, line_y, 120, line_y), fill=(40, 150, 80), width=2)
+
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+
+        self.assertAlmostEqual(parse_site7_graph_difference_value(buffer.getvalue()), -1000, delta=120)
+
     def test_normalize_site7_browser_mode(self) -> None:
         self.assertEqual(normalize_site7_browser_mode("visible"), SITE7_BROWSER_MODE_VISIBLE)
         self.assertEqual(normalize_site7_browser_mode("hidden"), SITE7_BROWSER_MODE_HIDDEN)
@@ -1964,6 +1984,25 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(
             machine_link,
             "https://m.site777.jp/db/D2300.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1",
+        )
+
+        self.assertEqual(
+            scraper.extract_mobile_machine_graph_list_link(
+                '<a href="D2400.do?pmc=40100003&mdc=120312&bn=1&gc=1&pan=1&clc=03&urt=2173">出玉推移一覧</a>'
+            ),
+            "https://m.site777.jp/db/D2400.do?pmc=40100003&mdc=120312&bn=1&gc=1&pan=1&clc=03&urt=2173",
+        )
+        self.assertEqual(
+            scraper.extract_mobile_machine_graph_list_link(
+                '<a href="D2500.do?pmc=40100003&mdc=120312&bn=1&pan=1&clc=03&urt=2173">出玉推移一覧</a>'
+            ),
+            "https://m.site777.jp/db/D2500.do?pmc=40100003&mdc=120312&bn=1&pan=1&clc=03&urt=2173",
+        )
+        self.assertEqual(
+            scraper.extract_mobile_machine_graph_list_link(
+                '<a href="D2400.do?pmc=40100003&mdc=120312&bn=1&gc=2&pan=1&clc=03&urt=2173">出玉推移グラフ</a>'
+            ),
+            "https://m.site777.jp/db/D2400.do?pmc=40100003&mdc=120312&bn=1&gc=1&pan=1&clc=03&urt=2173",
         )
 
         self.assertEqual(

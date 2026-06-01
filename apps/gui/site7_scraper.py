@@ -48,6 +48,7 @@ SITE7_TARGET_MACHINE_KEYWORDS = tuple(list_site7_target_machine_keywords())
 SITE7_MAX_RECENT_DAYS = 8
 SITE7_TRANSITION_WAIT_MIN_SECONDS = 2.0
 SITE7_TRANSITION_WAIT_MAX_SECONDS = 4.0
+SITE7_GRAPH_LIST_DETAIL_THRESHOLD = 4500
 SITE7_BROWSER_STATE_DIR_NAME = "site7_browser"
 SITE7_DATE_BOUNDARY_HOUR = 4
 SITE7_UPDATE_DATE_PATTERN = re.compile(
@@ -137,6 +138,8 @@ def _detect_site7_graph_zero_y(
     graph_bottom: int,
 ) -> int | None:
     width, _ = image.size
+    graph_width = max(1, width - axis_x - 16)
+    minimum_line_pixels = max(20, int(graph_width * 0.35))
     candidates: list[tuple[int, int]] = []
     for y in range(graph_top, graph_bottom + 1):
         dark_count = sum(
@@ -144,7 +147,7 @@ def _detect_site7_graph_zero_y(
             for x in range(axis_x + 1, max(axis_x + 2, width - 15))
             if _site7_pixel_is_dark(image.getpixel((x, y)))
         )
-        if dark_count > 100:
+        if dark_count > minimum_line_pixels:
             candidates.append((y, dark_count))
     if not candidates:
         return None
@@ -159,6 +162,8 @@ def _detect_site7_graph_grid_spacing(
     zero_y: int,
 ) -> float | None:
     width, _ = image.size
+    graph_width = max(1, width - axis_x - 16)
+    minimum_grid_pixels = max(20, int(graph_width * 0.35))
     grid_rows: list[int] = []
     for y in range(graph_top, graph_bottom + 1):
         grid_count = sum(
@@ -166,7 +171,7 @@ def _detect_site7_graph_grid_spacing(
             for x in range(axis_x + 1, max(axis_x + 2, width - 15))
             if _site7_pixel_is_grid(image.getpixel((x, y)))
         )
-        if grid_count > 100:
+        if grid_count > minimum_grid_pixels:
             grid_rows.append(y)
 
     grid_rows = [row for row in grid_rows if abs(row - zero_y) > 2]
@@ -836,13 +841,8 @@ class Site7Scraper:
                 self._accept_cookie_banner_if_present(page)
                 machine_html = page.content()
                 self._wait_between_transitions(page, cancel_requested=cancel_requested)
+                graph_list_link = self.extract_mobile_machine_graph_list_link(machine_html)
                 graph_index_link = self.extract_mobile_machine_graph_index_link(machine_html)
-                _raise_if_site7_cancel_requested(cancel_requested)
-                page.goto(graph_index_link, wait_until="domcontentloaded", timeout=60_000)
-                self._accept_cookie_banner_if_present(page)
-                graph_index_html = page.content()
-                self._wait_between_transitions(page, cancel_requested=cancel_requested)
-                slot_graph_links = self.extract_mobile_slot_graph_links(graph_index_html)
                 latest_date = self._machine_result_latest_date(machine_result)
 
                 for dataset in machine_result.datasets:
@@ -851,10 +851,38 @@ class Site7Scraper:
                         current_graph_count += len(dataset.rows)
                         continue
 
+                    graph_list_url = self._replace_mobile_query_param(graph_list_link, "dtdd", str(day_index))
+                    _raise_if_site7_cancel_requested(cancel_requested)
+                    page.goto(graph_list_url, wait_until="domcontentloaded", timeout=60_000)
+                    self._accept_cookie_banner_if_present(page)
+                    graph_list_html = page.content()
+                    self._wait_between_transitions(page, cancel_requested=cancel_requested)
+                    slot_graph_links = self.extract_mobile_slot_graph_links(graph_list_html)
+                    list_difference_values = self._fetch_mobile_graph_list_difference_values(
+                        page=page,
+                        context=context,
+                        cancel_requested=cancel_requested,
+                    )
+                    detail_slot_numbers = {
+                        slot_number
+                        for slot_number, difference_value in list_difference_values.items()
+                        if self._mobile_graph_difference_needs_detail(difference_value)
+                    }
+                    if not slot_graph_links or detail_slot_numbers:
+                        graph_index_url = self._replace_mobile_query_param(graph_index_link, "dtdd", str(day_index))
+                        _raise_if_site7_cancel_requested(cancel_requested)
+                        page.goto(graph_index_url, wait_until="domcontentloaded", timeout=60_000)
+                        self._accept_cookie_banner_if_present(page)
+                        graph_index_html = page.content()
+                        self._wait_between_transitions(page, cancel_requested=cancel_requested)
+                        slot_graph_links.update(self.extract_mobile_slot_graph_links(graph_index_html))
+
                     self._apply_mobile_graph_differences_to_dataset(
                         page=page,
                         context=context,
                         dataset=dataset,
+                        list_difference_values=list_difference_values,
+                        detail_slot_numbers=detail_slot_numbers,
                         slot_graph_links=slot_graph_links,
                         day_index=day_index,
                         cancel_requested=cancel_requested,
@@ -870,12 +898,102 @@ class Site7Scraper:
 
         return machine_results
 
+    def _fetch_mobile_graph_list_difference_values(
+        self,
+        *,
+        page: object,
+        context: object,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> dict[str, int]:
+        difference_values: dict[str, int] = {}
+        for entry in self._extract_mobile_graph_list_image_entries(page):
+            _raise_if_site7_cancel_requested(cancel_requested)
+            slot_number = str(entry.get("slot_number") or "").strip()
+            image_url = str(entry.get("image_url") or "").strip()
+            if not slot_number or not image_url:
+                continue
+
+            image_bytes = self._download_mobile_graph_image(context, image_url, prefer_big=False)
+            difference_value = parse_site7_graph_difference_value(image_bytes)
+            if difference_value is None:
+                continue
+            difference_values[slot_number] = difference_value
+
+        return difference_values
+
+    def _extract_mobile_graph_list_image_entries(self, page: object) -> list[dict[str, str]]:
+        image_entries = page.evaluate(
+            """() => Array.from(document.querySelectorAll("a"))
+                .flatMap((anchor) => {
+                    const href = anchor.href || anchor.getAttribute("href") || "";
+                    if (!href.includes("D3000.do?")) {
+                        return [];
+                    }
+                    const images = Array.from(anchor.querySelectorAll("img"));
+                    return images.map((img) => {
+                        const rawSrc = img.currentSrc
+                            || img.src
+                            || img.getAttribute("src")
+                            || img.getAttribute("data-src")
+                            || img.getAttribute("data-original")
+                            || "";
+                        let slotNumber = "";
+                        try {
+                            slotNumber = new URL(href, document.baseURI).searchParams.get("dn") || "";
+                        } catch (error) {
+                            slotNumber = "";
+                        }
+                        if (!slotNumber) {
+                            const text = [
+                                anchor.textContent || "",
+                                img.getAttribute("alt") || "",
+                                img.getAttribute("title") || ""
+                            ].join(" ");
+                            const match = text.match(/\\d+/);
+                            slotNumber = match ? match[0] : "";
+                        }
+                        return {
+                            slot_number: slotNumber,
+                            graph_url: new URL(href, document.baseURI).href,
+                            image_url: rawSrc ? new URL(rawSrc, document.baseURI).href : ""
+                        };
+                    });
+                })
+                .filter((entry) => entry.slot_number && entry.image_url.includes("RequestSPDedamaTransitionChartForPortal"))"""
+        )
+        if not isinstance(image_entries, list):
+            return []
+
+        result: list[dict[str, str]] = []
+        seen_slots: set[str] = set()
+        for entry in image_entries:
+            if not isinstance(entry, dict):
+                continue
+            slot_number = str(entry.get("slot_number") or "").strip()
+            image_url = str(entry.get("image_url") or "").strip()
+            if not slot_number or not image_url or slot_number in seen_slots:
+                continue
+            seen_slots.add(slot_number)
+            result.append(
+                {
+                    "slot_number": slot_number,
+                    "graph_url": str(entry.get("graph_url") or "").strip(),
+                    "image_url": image_url,
+                }
+            )
+        return result
+
+    def _mobile_graph_difference_needs_detail(self, difference_value: int) -> bool:
+        return abs(difference_value) >= SITE7_GRAPH_LIST_DETAIL_THRESHOLD
+
     def _apply_mobile_graph_differences_to_dataset(
         self,
         *,
         page: object,
         context: object,
         dataset: MachineDataset,
+        list_difference_values: dict[str, int],
+        detail_slot_numbers: set[str],
         slot_graph_links: dict[str, str],
         day_index: int,
         cancel_requested: Callable[[], bool] | None,
@@ -895,8 +1013,15 @@ class Site7Scraper:
                 continue
 
             slot_number = str(row[slot_index]).strip()
+            list_difference_value = list_difference_values.get(slot_number)
+            if list_difference_value is not None and slot_number not in detail_slot_numbers:
+                row[difference_index] = str(list_difference_value)
+                continue
+
             graph_link = slot_graph_links.get(slot_number)
             if not graph_link:
+                if list_difference_value is not None:
+                    row[difference_index] = str(list_difference_value)
                 continue
 
             current_step = current_graph_count_ref() + row_index
@@ -915,6 +1040,8 @@ class Site7Scraper:
             )
             if difference_value is not None:
                 row[difference_index] = str(difference_value)
+            elif list_difference_value is not None:
+                row[difference_index] = str(list_difference_value)
 
     def _open_mobile_target_hall_page(
         self,
@@ -1426,6 +1553,34 @@ class Site7Scraper:
             machine_links.append((machine_entry, urljoin(SITE7_MOBILE_TOP_URL, href)))
 
         return machine_links
+
+    def extract_mobile_machine_graph_list_link(self, html: str) -> str:
+        soup = BeautifulSoup(html, "html.parser")
+        fallback_link = ""
+        graph_link = ""
+        for anchor in soup.find_all("a"):
+            href = str(anchor.get("href") or "").strip()
+            if not href:
+                continue
+
+            text = anchor.get_text(" ", strip=True)
+            absolute_href = urljoin(SITE7_MOBILE_TOP_URL, href)
+            if "出玉推移一覧" in text:
+                return absolute_href
+            if "D2400.do?" not in href:
+                continue
+            if "gc=1" in href:
+                return absolute_href
+            if "出玉推移グラフ" in text or "gc=2" in href:
+                graph_link = absolute_href
+            if not fallback_link:
+                fallback_link = absolute_href
+
+        if graph_link:
+            return self._replace_mobile_query_param(graph_link, "gc", "1")
+        if fallback_link:
+            return fallback_link
+        raise ScraperError("スマホ版サイトセブンで出玉推移一覧のリンクが見つかりませんでした。")
 
     def extract_mobile_machine_graph_index_link(self, html: str) -> str:
         soup = BeautifulSoup(html, "html.parser")
