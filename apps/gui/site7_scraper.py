@@ -49,6 +49,7 @@ SITE7_MAX_RECENT_DAYS = 8
 SITE7_TRANSITION_WAIT_MIN_SECONDS = 2.0
 SITE7_TRANSITION_WAIT_MAX_SECONDS = 4.0
 SITE7_GRAPH_LIST_DETAIL_THRESHOLD = 4500
+SITE7_GRAPH_LIST_MAX_PAGES = 20
 SITE7_BROWSER_STATE_DIR_NAME = "site7_browser"
 SITE7_DATE_BOUNDARY_HOUR = 4
 SITE7_UPDATE_DATE_PATTERN = re.compile(
@@ -852,15 +853,12 @@ class Site7Scraper:
                         continue
 
                     graph_list_url = self._replace_mobile_query_param(graph_list_link, "dtdd", str(day_index))
-                    _raise_if_site7_cancel_requested(cancel_requested)
-                    page.goto(graph_list_url, wait_until="domcontentloaded", timeout=60_000)
-                    self._accept_cookie_banner_if_present(page)
-                    graph_list_html = page.content()
-                    self._wait_between_transitions(page, cancel_requested=cancel_requested)
-                    slot_graph_links = self.extract_mobile_slot_graph_links(graph_list_html)
-                    list_difference_values = self._fetch_mobile_graph_list_difference_values(
+                    target_slot_numbers = self._dataset_slot_numbers(dataset)
+                    list_difference_values, slot_graph_links = self._fetch_mobile_graph_list_page_data(
                         page=page,
                         context=context,
+                        start_url=graph_list_url,
+                        target_slot_numbers=target_slot_numbers,
                         cancel_requested=cancel_requested,
                     )
                     detail_slot_numbers = {
@@ -897,6 +895,65 @@ class Site7Scraper:
             self._release_browser_context(playwright, context)
 
         return machine_results
+
+    def _fetch_mobile_graph_list_page_data(
+        self,
+        *,
+        page: object,
+        context: object,
+        start_url: str,
+        target_slot_numbers: set[str],
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> tuple[dict[str, int], dict[str, str]]:
+        list_difference_values: dict[str, int] = {}
+        slot_graph_links: dict[str, str] = {}
+        visited_urls: set[str] = set()
+        pending_urls = [start_url]
+        seen_page_slots: set[str] = set()
+
+        while pending_urls and len(visited_urls) < SITE7_GRAPH_LIST_MAX_PAGES:
+            _raise_if_site7_cancel_requested(cancel_requested)
+            graph_list_url = pending_urls.pop(0)
+            normalized_url = urljoin(SITE7_MOBILE_TOP_URL, graph_list_url)
+            if normalized_url in visited_urls:
+                continue
+            visited_urls.add(normalized_url)
+
+            page.goto(normalized_url, wait_until="domcontentloaded", timeout=60_000)
+            self._accept_cookie_banner_if_present(page)
+            graph_list_html = page.content()
+            self._wait_between_transitions(page, cancel_requested=cancel_requested)
+
+            page_slot_graph_links = self.extract_mobile_slot_graph_links(graph_list_html)
+            page_difference_values = self._fetch_mobile_graph_list_difference_values(
+                page=page,
+                context=context,
+                cancel_requested=cancel_requested,
+            )
+            page_slot_numbers = set(page_slot_graph_links) | set(page_difference_values)
+            new_page_slots = page_slot_numbers - seen_page_slots
+            if not page_slot_numbers:
+                break
+            if len(visited_urls) > 1 and not new_page_slots:
+                break
+
+            seen_page_slots.update(page_slot_numbers)
+            slot_graph_links.update(page_slot_graph_links)
+            list_difference_values.update(page_difference_values)
+            covered_slot_numbers = set(slot_graph_links) | set(list_difference_values)
+            if target_slot_numbers and target_slot_numbers.issubset(covered_slot_numbers):
+                break
+
+            next_urls = self.extract_mobile_graph_list_next_page_links(graph_list_html, normalized_url)
+            if not next_urls:
+                next_url = self._mobile_next_graph_list_page_url(normalized_url)
+                next_urls = [next_url] if next_url else []
+            for next_url in next_urls:
+                absolute_next_url = urljoin(SITE7_MOBILE_TOP_URL, next_url)
+                if absolute_next_url not in visited_urls and absolute_next_url not in pending_urls:
+                    pending_urls.append(absolute_next_url)
+
+        return list_difference_values, slot_graph_links
 
     def _fetch_mobile_graph_list_difference_values(
         self,
@@ -985,6 +1042,17 @@ class Site7Scraper:
 
     def _mobile_graph_difference_needs_detail(self, difference_value: int) -> bool:
         return abs(difference_value) >= SITE7_GRAPH_LIST_DETAIL_THRESHOLD
+
+    def _dataset_slot_numbers(self, dataset: MachineDataset) -> set[str]:
+        try:
+            slot_index = dataset.columns.index("台番")
+        except ValueError:
+            return set()
+        return {
+            str(row[slot_index]).strip()
+            for row in dataset.rows
+            if len(row) > slot_index and str(row[slot_index]).strip()
+        }
 
     def _apply_mobile_graph_differences_to_dataset(
         self,
@@ -1163,6 +1231,25 @@ class Site7Scraper:
         if day_index < 0 or day_index >= SITE7_MAX_RECENT_DAYS:
             return None
         return day_index
+
+    def _mobile_graph_list_page_number(self, url: str) -> int:
+        return self._mobile_graph_list_page_number_or_none(url) or 1
+
+    def _mobile_graph_list_page_number_or_none(self, url: str) -> int | None:
+        parts = urlsplit(urljoin(SITE7_MOBILE_TOP_URL, url))
+        query_items = dict(parse_qsl(parts.query, keep_blank_values=True))
+        for name in ("pan", "page", "pg", "p"):
+            value = str(query_items.get(name) or "").strip()
+            if not value.isdigit():
+                continue
+            return max(1, int(value))
+        return None
+
+    def _mobile_next_graph_list_page_url(self, url: str) -> str:
+        current_page_number = self._mobile_graph_list_page_number(url)
+        if current_page_number >= SITE7_GRAPH_LIST_MAX_PAGES:
+            return ""
+        return self._replace_mobile_query_param(url, "pan", str(current_page_number + 1))
 
     def _replace_mobile_query_param(self, url: str, name: str, value: str) -> str:
         parts = urlsplit(urljoin(SITE7_MOBILE_TOP_URL, url))
@@ -1600,6 +1687,51 @@ class Site7Scraper:
         if fallback_link:
             return fallback_link
         raise ScraperError("スマホ版サイトセブンで出玉推移グラフのリンクが見つかりませんでした。")
+
+    def extract_mobile_graph_list_next_page_links(self, html: str, current_url: str) -> list[str]:
+        current_parts = urlsplit(urljoin(SITE7_MOBILE_TOP_URL, current_url))
+        current_query = dict(parse_qsl(current_parts.query, keep_blank_values=True))
+        current_page_number = self._mobile_graph_list_page_number(current_url)
+        current_day_index = current_query.get("dtdd")
+        next_links: list[tuple[int, str]] = []
+        seen_links: set[str] = set()
+        soup = BeautifulSoup(html, "html.parser")
+        for anchor in soup.find_all("a"):
+            href = str(anchor.get("href") or "").strip()
+            if not href:
+                continue
+            absolute_href = urljoin(SITE7_MOBILE_TOP_URL, href)
+            parts = urlsplit(absolute_href)
+            if parts.path != current_parts.path:
+                continue
+
+            query = dict(parse_qsl(parts.query, keep_blank_values=True))
+            query_gc = query.get("gc")
+            current_gc = current_query.get("gc")
+            if query_gc not in {None, "", "1", current_gc}:
+                continue
+            if current_day_index is not None and query.get("dtdd") not in {None, "", current_day_index}:
+                continue
+
+            page_number = self._mobile_graph_list_page_number_or_none(absolute_href)
+            text = anchor.get_text(" ", strip=True)
+            normalized_text = re.sub(r"\s+", "", text).casefold()
+            if page_number is None and normalized_text.isdigit():
+                page_number = int(normalized_text)
+            if page_number is None:
+                if normalized_text in {"次", "次へ", "next", "＞", ">", ">>", "≫"} or "次" in normalized_text:
+                    page_number = current_page_number + 1
+                else:
+                    continue
+            if page_number <= current_page_number:
+                continue
+            if absolute_href in seen_links:
+                continue
+            seen_links.add(absolute_href)
+            next_links.append((page_number, absolute_href))
+
+        next_links.sort(key=lambda item: item[0])
+        return [link for _, link in next_links]
 
     def extract_mobile_slot_graph_link(self, html: str) -> tuple[str, str]:
         slot_graph_links = self.extract_mobile_slot_graph_links(html)

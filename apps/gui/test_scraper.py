@@ -2018,6 +2018,30 @@ class MinRepoScraperTests(unittest.TestCase):
             ),
             ("827", "https://m.site777.jp/db/D3000.do?pmc=40100003&gc=2&dtdd=0&urt=2173&mdc=120312&dsgk=0&dn=827"),
         )
+        self.assertEqual(
+            scraper.extract_mobile_graph_list_next_page_links(
+                """
+<a href="D2400.do?pmc=40100003&mdc=120312&bn=1&gc=1&dtdd=0&pan=1">1</a>
+<a href="D2400.do?pmc=40100003&mdc=120312&bn=1&gc=1&dtdd=0&pan=2">2</a>
+<a href="D2400.do?pmc=40100003&mdc=120312&bn=1&gc=1&dtdd=1&pan=2">別日</a>
+""",
+                "https://m.site777.jp/db/D2400.do?pmc=40100003&mdc=120312&bn=1&gc=1&dtdd=0&pan=1",
+            ),
+            ["https://m.site777.jp/db/D2400.do?pmc=40100003&mdc=120312&bn=1&gc=1&dtdd=0&pan=2"],
+        )
+        self.assertEqual(
+            scraper.extract_mobile_graph_list_next_page_links(
+                '<a href="D2400.do?pmc=40100003&mdc=120312&bn=1&dtdd=0&pan=3">次へ</a>',
+                "https://m.site777.jp/db/D2400.do?pmc=40100003&mdc=120312&bn=1&gc=1&dtdd=0&pan=2",
+            ),
+            ["https://m.site777.jp/db/D2400.do?pmc=40100003&mdc=120312&bn=1&dtdd=0&pan=3"],
+        )
+        self.assertEqual(
+            scraper._mobile_next_graph_list_page_url(
+                "https://m.site777.jp/db/D2400.do?pmc=40100003&mdc=120312&bn=1&gc=1&dtdd=0&pan=2"
+            ),
+            "https://m.site777.jp/db/D2400.do?pmc=40100003&mdc=120312&bn=1&gc=1&dtdd=0&pan=3",
+        )
 
     def test_site7_extract_target_hall_search_code_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
