@@ -814,10 +814,13 @@ class Site7Scraper:
             page = self._prepare_fetch_page(context, browser_visible=browser_visible)
             hall_html = self._open_mobile_target_hall_page(page, target_store, cancel_requested=cancel_requested)
             machine_list_link = self.extract_mobile_slot_machine_list_link(hall_html)
+            self._wait_between_transitions(page, cancel_requested=cancel_requested)
             _raise_if_site7_cancel_requested(cancel_requested)
             page.goto(machine_list_link, wait_until="domcontentloaded", timeout=60_000)
             self._accept_cookie_banner_if_present(page)
-            machine_link_items = self.extract_mobile_target_machine_links(page.content())
+            machine_list_html = page.content()
+            self._wait_between_transitions(page, cancel_requested=cancel_requested)
+            machine_link_items = self.extract_mobile_target_machine_links(machine_list_html)
             if not machine_link_items:
                 raise ScraperError("スマホ版サイトセブンで対象機種のリンクが見つかりませんでした。")
             machine_links = {entry.machine_name: machine_link for entry, machine_link in machine_link_items}
@@ -831,11 +834,15 @@ class Site7Scraper:
 
                 page.goto(machine_link, wait_until="domcontentloaded", timeout=60_000)
                 self._accept_cookie_banner_if_present(page)
-                graph_index_link = self.extract_mobile_machine_graph_index_link(page.content())
+                machine_html = page.content()
+                self._wait_between_transitions(page, cancel_requested=cancel_requested)
+                graph_index_link = self.extract_mobile_machine_graph_index_link(machine_html)
                 _raise_if_site7_cancel_requested(cancel_requested)
                 page.goto(graph_index_link, wait_until="domcontentloaded", timeout=60_000)
                 self._accept_cookie_banner_if_present(page)
-                slot_graph_links = self.extract_mobile_slot_graph_links(page.content())
+                graph_index_html = page.content()
+                self._wait_between_transitions(page, cancel_requested=cancel_requested)
+                slot_graph_links = self.extract_mobile_slot_graph_links(graph_index_html)
                 latest_date = self._machine_result_latest_date(machine_result)
 
                 for dataset in machine_result.datasets:
@@ -900,7 +907,12 @@ class Site7Scraper:
                 f"{dataset.machine_name} {dataset.target_date} {slot_number}番台の出玉推移グラフを読み取っています",
             )
             graph_page_url = self._replace_mobile_query_param(graph_link, "dtdd", str(day_index))
-            difference_value = self._fetch_mobile_graph_difference_value(page, context, graph_page_url)
+            difference_value = self._fetch_mobile_graph_difference_value(
+                page,
+                context,
+                graph_page_url,
+                cancel_requested=cancel_requested,
+            )
             if difference_value is not None:
                 row[difference_index] = str(difference_value)
 
@@ -935,9 +947,16 @@ class Site7Scraper:
         self._accept_cookie_banner_if_present(page)
         return page.content()
 
-    def _fetch_mobile_graph_difference_value(self, page: object, context: object, graph_page_url: str) -> int | None:
+    def _fetch_mobile_graph_difference_value(
+        self,
+        page: object,
+        context: object,
+        graph_page_url: str,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> int | None:
         page.goto(graph_page_url, wait_until="domcontentloaded", timeout=60_000)
         self._accept_cookie_banner_if_present(page)
+        self._wait_between_transitions(page, cancel_requested=cancel_requested)
         page.wait_for_selector("img[src*='RequestSPDedamaTransitionChartForPortal']", timeout=60_000)
         try:
             page.wait_for_load_state("networkidle", timeout=10_000)
