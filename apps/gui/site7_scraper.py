@@ -50,6 +50,13 @@ SITE7_TRANSITION_WAIT_MIN_SECONDS = 2.0
 SITE7_TRANSITION_WAIT_MAX_SECONDS = 4.0
 SITE7_GRAPH_LIST_DETAIL_THRESHOLD = 4500
 SITE7_GRAPH_LIST_MAX_PAGES = 20
+SITE7_MOBILE_STAT_LIST_MAX_PAGES = 8
+SITE7_MOBILE_STAT_COLUMNS = ("G数", "BB", "RB")
+SITE7_MOBILE_STAT_LINK_LABELS = {
+    "G数": "累計ゲーム",
+    "BB": "BB回数",
+    "RB": "RB回数",
+}
 SITE7_DIFFERENCE_SOURCE_GRAPH = "graph"
 SITE7_GRAPH_DIFFERENCE_SLOT_ATTR = "_site7_graph_difference_slots"
 SITE7_BROWSER_STATE_DIR_NAME = "site7_browser"
@@ -58,6 +65,7 @@ SITE7_UPDATE_DATE_PATTERN = re.compile(
     r"データ更新日時：\s*(\d{4})/(\d{1,2})/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?"
 )
 SITE7_SLOT_NUMBER_PATTERN = re.compile(r"(\d+)")
+SITE7_MOBILE_STAT_DATE_LABEL_PATTERN = re.compile(r"^(\d{1,2})/(\d{1,2})(?:\(.+?\))?$")
 SITE7_HALL_CLICK_PATTERN = re.compile(r"hallClick\('([^']+)'\)")
 SITE7_LOGIN_URL_PATTERN = re.compile(r"(?:Mypage)?Login", re.IGNORECASE)
 SITE7_LOGGED_IN_URL_KEYWORDS = (
@@ -866,7 +874,22 @@ class Site7Scraper:
                 self._wait_between_transitions(page, cancel_requested=cancel_requested)
                 graph_list_link = self.extract_mobile_machine_graph_list_link(machine_html)
                 graph_index_link = self.extract_mobile_machine_graph_index_link(machine_html)
+                stat_links = self.extract_mobile_machine_stat_list_links(machine_html)
                 latest_date = self._machine_result_latest_date(machine_result)
+                target_dates = {dataset.target_date for dataset in machine_result.datasets}
+                target_slot_numbers = {
+                    slot_number
+                    for dataset in machine_result.datasets
+                    for slot_number in self._dataset_slot_numbers(dataset)
+                }
+                mobile_stat_values = self._fetch_mobile_machine_stat_values(
+                    page=page,
+                    stat_links=stat_links,
+                    latest_date=latest_date,
+                    target_dates=target_dates,
+                    target_slot_numbers=target_slot_numbers,
+                    cancel_requested=cancel_requested,
+                )
 
                 for dataset in machine_result.datasets:
                     day_index = self._mobile_graph_day_index(latest_date, dataset.target_date)
@@ -874,6 +897,7 @@ class Site7Scraper:
                         current_graph_count += len(dataset.rows)
                         continue
 
+                    self._apply_mobile_machine_stat_values_to_dataset(dataset, mobile_stat_values)
                     graph_list_url = self._replace_mobile_query_param(graph_list_link, "dtdd", str(day_index))
                     target_slot_numbers = self._dataset_slot_numbers(dataset)
                     list_difference_values, slot_graph_links = self._fetch_mobile_graph_list_page_data(
@@ -1076,6 +1100,182 @@ class Site7Scraper:
             if len(row) > slot_index and str(row[slot_index]).strip()
         }
 
+    def _fetch_mobile_machine_stat_values(
+        self,
+        *,
+        page: object,
+        stat_links: dict[str, str],
+        latest_date: datetime | None,
+        target_dates: set[str],
+        target_slot_numbers: set[str],
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> dict[tuple[str, str], dict[str, str]]:
+        if latest_date is None or not stat_links:
+            return {}
+
+        stat_values: dict[tuple[str, str], dict[str, str]] = {}
+        for column_name in SITE7_MOBILE_STAT_COLUMNS:
+            start_url = stat_links.get(column_name, "")
+            if not start_url:
+                continue
+
+            visited_urls: set[str] = set()
+            pending_urls = [start_url]
+            while pending_urls and len(visited_urls) < SITE7_MOBILE_STAT_LIST_MAX_PAGES:
+                _raise_if_site7_cancel_requested(cancel_requested)
+                current_url = pending_urls.pop(0)
+                normalized_url = urljoin(SITE7_MOBILE_TOP_URL, current_url)
+                if normalized_url in visited_urls:
+                    continue
+                visited_urls.add(normalized_url)
+
+                page.goto(normalized_url, wait_until="domcontentloaded", timeout=60_000)
+                self._accept_cookie_banner_if_present(page)
+                stat_html = page.content()
+                self._wait_between_transitions(page, cancel_requested=cancel_requested)
+
+                page_values = self.extract_mobile_machine_stat_values(stat_html, latest_date=latest_date)
+                for key, value in page_values.items():
+                    target_date, slot_number = key
+                    if target_dates and target_date not in target_dates:
+                        continue
+                    if target_slot_numbers and slot_number not in target_slot_numbers:
+                        continue
+                    stat_values.setdefault(key, {})[column_name] = value
+
+                if self._mobile_machine_stat_values_cover_targets(
+                    stat_values,
+                    column_name=column_name,
+                    target_dates=target_dates,
+                    target_slot_numbers=target_slot_numbers,
+                ):
+                    break
+
+                next_urls = self.extract_mobile_machine_stat_next_page_links(stat_html, normalized_url)
+                for next_url in next_urls:
+                    absolute_next_url = urljoin(SITE7_MOBILE_TOP_URL, next_url)
+                    if absolute_next_url not in visited_urls and absolute_next_url not in pending_urls:
+                        pending_urls.append(absolute_next_url)
+
+        return stat_values
+
+    def _mobile_machine_stat_values_cover_targets(
+        self,
+        stat_values: dict[tuple[str, str], dict[str, str]],
+        *,
+        column_name: str,
+        target_dates: set[str],
+        target_slot_numbers: set[str],
+    ) -> bool:
+        if not target_dates or not target_slot_numbers:
+            return False
+        return all(
+            column_name in stat_values.get((target_date, slot_number), {})
+            for target_date in target_dates
+            for slot_number in target_slot_numbers
+        )
+
+    def _apply_mobile_machine_stat_values_to_dataset(
+        self,
+        dataset: MachineDataset,
+        stat_values: dict[tuple[str, str], dict[str, str]],
+    ) -> None:
+        if not stat_values:
+            return
+        try:
+            slot_index = dataset.columns.index("台番")
+        except ValueError:
+            return
+
+        column_indexes = {
+            column_name: dataset.columns.index(column_name)
+            for column_name in SITE7_MOBILE_STAT_COLUMNS
+            if column_name in dataset.columns
+        }
+        if not column_indexes:
+            return
+
+        for row in dataset.rows:
+            if len(row) <= slot_index:
+                continue
+            slot_number = str(row[slot_index]).strip()
+            row_stat_values = stat_values.get((dataset.target_date, slot_number), {})
+            self._apply_mobile_machine_stat_values_to_row(dataset, row, row_stat_values, column_indexes)
+
+    def _apply_mobile_machine_stat_values_to_row(
+        self,
+        dataset: MachineDataset,
+        row: list[str],
+        row_stat_values: dict[str, str],
+        column_indexes: dict[str, int] | None = None,
+    ) -> None:
+        if not row_stat_values:
+            return
+        resolved_column_indexes = column_indexes or {
+            column_name: dataset.columns.index(column_name)
+            for column_name in SITE7_MOBILE_STAT_COLUMNS
+            if column_name in dataset.columns
+        }
+
+        changed = False
+        for column_name, column_index in resolved_column_indexes.items():
+            if len(row) <= column_index:
+                continue
+            value = row_stat_values.get(column_name, "")
+            if not site7_value_has_data(value):
+                continue
+            row[column_index] = value
+            changed = True
+
+        if changed:
+            self._refresh_mobile_machine_stat_derived_values(dataset, row)
+
+    def _refresh_mobile_machine_stat_derived_values(self, dataset: MachineDataset, row: list[str]) -> None:
+        row_values = dict(zip(dataset.columns, row, strict=False))
+        games_count = self._parse_mobile_stat_int(row_values.get("G数", ""))
+        bb_count = self._parse_mobile_stat_int(row_values.get("BB", ""))
+        rb_count = self._parse_mobile_stat_int(row_values.get("RB", ""))
+
+        if "差枚" in dataset.columns:
+            difference_index = dataset.columns.index("差枚")
+            if len(row) > difference_index:
+                row[difference_index] = format_machine_difference_for_row(dataset.machine_name, row_values)
+
+        if games_count is None:
+            return
+
+        ratio_updates = {
+            "BB率": self._format_mobile_stat_ratio(games_count, bb_count),
+            "RB率": self._format_mobile_stat_ratio(games_count, rb_count),
+        }
+        if bb_count is not None or rb_count is not None:
+            ratio_updates["合成"] = self._format_mobile_stat_ratio(
+                games_count,
+                (bb_count or 0) + (rb_count or 0),
+            )
+
+        for column_name, value in ratio_updates.items():
+            if column_name not in dataset.columns:
+                continue
+            column_index = dataset.columns.index(column_name)
+            if len(row) <= column_index:
+                continue
+            row[column_index] = value
+
+    def _parse_mobile_stat_int(self, value: object) -> int | None:
+        text = str(value).strip().replace(",", "")
+        if not text or text in {"-", "--"}:
+            return None
+        match = re.search(r"-?\d+", text)
+        if match is None:
+            return None
+        return int(match.group(0))
+
+    def _format_mobile_stat_ratio(self, games_count: int, hit_count: int | None) -> str:
+        if games_count <= 0 or hit_count is None or hit_count <= 0:
+            return "-"
+        return f"1/{games_count // hit_count}"
+
     def _apply_mobile_graph_differences_to_dataset(
         self,
         *,
@@ -1128,12 +1328,15 @@ class Site7Scraper:
                 f"{dataset.machine_name} {dataset.target_date} {slot_number}番台の出玉推移グラフを読み取っています",
             )
             graph_page_url = self._replace_mobile_query_param(graph_link, "dtdd", str(day_index))
-            difference_value = self._fetch_mobile_graph_difference_value(
+            difference_value, graph_stat_values = self._fetch_mobile_graph_page_data(
                 page,
                 context,
                 graph_page_url,
+                slot_number=slot_number,
                 cancel_requested=cancel_requested,
             )
+            if graph_stat_values:
+                self._apply_mobile_machine_stat_values_to_row(dataset, row, graph_stat_values)
             if difference_value is not None:
                 self._set_mobile_graph_difference(dataset, row, difference_index, slot_number, difference_value)
             elif list_difference_value is not None:
@@ -1181,13 +1384,14 @@ class Site7Scraper:
         self._accept_cookie_banner_if_present(page)
         return page.content()
 
-    def _fetch_mobile_graph_difference_value(
+    def _fetch_mobile_graph_page_data(
         self,
         page: object,
         context: object,
         graph_page_url: str,
+        slot_number: str = "",
         cancel_requested: Callable[[], bool] | None = None,
-    ) -> int | None:
+    ) -> tuple[int | None, dict[str, str]]:
         page.goto(graph_page_url, wait_until="domcontentloaded", timeout=60_000)
         self._accept_cookie_banner_if_present(page)
         self._wait_between_transitions(page, cancel_requested=cancel_requested)
@@ -1196,12 +1400,14 @@ class Site7Scraper:
             page.wait_for_load_state("networkidle", timeout=10_000)
         except PlaywrightTimeoutError:
             pass
+        graph_html = page.content()
+        graph_stat_values = self.extract_mobile_slot_graph_page_stat_values(graph_html, slot_number)
         image_url = self._extract_visible_mobile_graph_image_url(page)
         if not image_url:
-            return None
+            return None, graph_stat_values
 
         image_bytes = self._download_mobile_graph_image(context, image_url, prefer_big=True)
-        return parse_site7_graph_difference_value(image_bytes)
+        return parse_site7_graph_difference_value(image_bytes), graph_stat_values
 
     def _extract_visible_mobile_graph_image_url(self, page: object) -> str:
         image_entries = page.evaluate(
@@ -1726,6 +1932,253 @@ class Site7Scraper:
         if fallback_link:
             return fallback_link
         raise ScraperError("スマホ版サイトセブンで出玉推移グラフのリンクが見つかりませんでした。")
+
+    def extract_mobile_machine_stat_list_links(self, html: str) -> dict[str, str]:
+        soup = BeautifulSoup(html, "html.parser")
+        stat_links: dict[str, str] = {}
+        for anchor in soup.find_all("a"):
+            href = str(anchor.get("href") or "").strip()
+            if "D2900.do?" not in href:
+                continue
+
+            text = anchor.get_text(" ", strip=True)
+            normalized_text = _normalize_site7_lookup_text(text)
+            for column_name, link_label in SITE7_MOBILE_STAT_LINK_LABELS.items():
+                if column_name in stat_links:
+                    continue
+                if _normalize_site7_lookup_text(link_label) not in normalized_text:
+                    continue
+                stat_links[column_name] = urljoin(SITE7_MOBILE_TOP_URL, href)
+
+        return stat_links
+
+    def extract_mobile_machine_stat_values(
+        self,
+        html: str,
+        latest_date: datetime | None,
+    ) -> dict[tuple[str, str], str]:
+        if latest_date is None:
+            return {}
+
+        soup = BeautifulSoup(html, "html.parser")
+        values = self._extract_mobile_machine_stat_values_from_tables(soup, latest_date)
+        if values:
+            return values
+        return self._extract_mobile_machine_stat_values_from_text(soup.get_text("\n", strip=True), latest_date)
+
+    def extract_mobile_slot_graph_page_stat_values(self, html: str, slot_number: str) -> dict[str, str]:
+        soup = BeautifulSoup(html, "html.parser")
+        page_text = soup.get_text("\n", strip=True)
+        block_text = self._extract_mobile_slot_graph_page_stat_block(page_text, slot_number)
+        if not block_text:
+            block_text = page_text
+
+        stat_patterns = {
+            "G数": r"累計ゲーム\s*([0-9,]+)\s*回",
+            "BB": r"BB回数\s*([0-9,]+)\s*回",
+            "RB": r"RB回数\s*([0-9,]+)\s*回",
+        }
+        stat_values: dict[str, str] = {}
+        for column_name, pattern in stat_patterns.items():
+            match = re.search(pattern, block_text)
+            if match is None:
+                continue
+            value = self._normalize_mobile_stat_cell_value(match.group(1))
+            if site7_value_has_data(value):
+                stat_values[column_name] = value
+        return stat_values
+
+    def _extract_mobile_slot_graph_page_stat_block(self, page_text: str, slot_number: str) -> str:
+        normalized_slot_number = str(slot_number).strip()
+        if not normalized_slot_number:
+            return ""
+
+        header_pattern = re.compile(rf"{re.escape(normalized_slot_number)}\s*番台")
+        match = header_pattern.search(page_text)
+        if match is None:
+            return ""
+
+        next_header_match = re.search(r"\n\s*\d+\s*番台", page_text[match.end() :])
+        if next_header_match is None:
+            return page_text[match.start() :]
+        return page_text[match.start() : match.end() + next_header_match.start()]
+
+    def _extract_mobile_machine_stat_values_from_tables(
+        self,
+        soup: BeautifulSoup,
+        latest_date: datetime,
+    ) -> dict[tuple[str, str], str]:
+        values: dict[tuple[str, str], str] = {}
+        for table in soup.find_all("table"):
+            date_columns: list[str] = []
+            for table_row in table.find_all("tr"):
+                cells = [cell.get_text(" ", strip=True) for cell in table_row.find_all(["th", "td"])]
+                if not cells:
+                    continue
+
+                parsed_dates = [
+                    self._mobile_stat_date_label_to_target_date(cell, latest_date)
+                    for cell in cells[1:]
+                ]
+                first_cell = re.sub(r"\s+", "", cells[0])
+                if "台番" in first_cell or any(parsed_dates):
+                    date_columns = [date_value for date_value in parsed_dates if date_value]
+                    continue
+
+                if not date_columns:
+                    continue
+                slot_number = self._extract_slot_number(cells[0])
+                if not slot_number:
+                    continue
+
+                for target_date, cell_value in zip(date_columns, cells[1:], strict=False):
+                    normalized_value = self._normalize_mobile_stat_cell_value(cell_value)
+                    if site7_value_has_data(normalized_value):
+                        values[(target_date, slot_number)] = normalized_value
+
+        return values
+
+    def _extract_mobile_machine_stat_values_from_text(
+        self,
+        text: str,
+        latest_date: datetime,
+    ) -> dict[tuple[str, str], str]:
+        lines = [
+            line.strip()
+            for line in str(text).splitlines()
+            if line.strip()
+        ]
+        values: dict[tuple[str, str], str] = {}
+        for index, line in enumerate(lines):
+            if re.sub(r"\s+", "", line) != "台番":
+                continue
+
+            date_columns: list[str] = []
+            cursor = index + 1
+            while cursor < len(lines):
+                target_date = self._mobile_stat_date_label_to_target_date(lines[cursor], latest_date)
+                if not target_date:
+                    break
+                date_columns.append(target_date)
+                cursor += 1
+            if not date_columns:
+                continue
+
+            while cursor < len(lines):
+                parts = [part.strip() for part in re.split(r"\t+", lines[cursor]) if part.strip()]
+                if len(parts) <= 1:
+                    parts = [part.strip() for part in re.split(r"\s+", lines[cursor]) if part.strip()]
+                if len(parts) > 1:
+                    slot_number = self._extract_slot_number(parts[0])
+                    if slot_number:
+                        for target_date, cell_value in zip(date_columns, parts[1:], strict=False):
+                            normalized_value = self._normalize_mobile_stat_cell_value(cell_value)
+                            if site7_value_has_data(normalized_value):
+                                values[(target_date, slot_number)] = normalized_value
+                    cursor += 1
+                    continue
+
+                slot_number = self._extract_slot_number(lines[cursor])
+                if not slot_number:
+                    cursor += 1
+                    continue
+                row_values = lines[cursor + 1 : cursor + 1 + len(date_columns)]
+                if len(row_values) < len(date_columns):
+                    break
+                for target_date, cell_value in zip(date_columns, row_values, strict=False):
+                    normalized_value = self._normalize_mobile_stat_cell_value(cell_value)
+                    if site7_value_has_data(normalized_value):
+                        values[(target_date, slot_number)] = normalized_value
+                cursor += len(date_columns) + 1
+
+            if values:
+                break
+
+        return values
+
+    def _normalize_mobile_stat_cell_value(self, value: object) -> str:
+        text = re.sub(r"\s+", "", unicodedata.normalize("NFKC", str(value))).replace(",", "")
+        if not text or text in {"-", "--"}:
+            return "-"
+        match = re.search(r"-?\d+", text)
+        return match.group(0) if match is not None else "-"
+
+    def _mobile_stat_date_label_to_target_date(self, label: object, latest_date: datetime) -> str:
+        text = re.sub(r"\s+", "", unicodedata.normalize("NFKC", str(label))).strip()
+        match = SITE7_MOBILE_STAT_DATE_LABEL_PATTERN.match(text)
+        if match is None:
+            return ""
+
+        month = int(match.group(1))
+        day = int(match.group(2))
+        candidates: list[tuple[int, datetime]] = []
+        for year in (latest_date.year - 1, latest_date.year, latest_date.year + 1):
+            try:
+                candidate = datetime(year, month, day)
+            except ValueError:
+                continue
+            days_from_latest = (latest_date.date() - candidate.date()).days
+            if days_from_latest < 0:
+                continue
+            candidates.append((days_from_latest, candidate))
+        if not candidates:
+            return ""
+
+        _, selected_date = min(candidates, key=lambda item: item[0])
+        return selected_date.strftime("%Y-%m-%d")
+
+    def extract_mobile_machine_stat_next_page_links(self, html: str, current_url: str) -> list[str]:
+        current_parts = urlsplit(urljoin(SITE7_MOBILE_TOP_URL, current_url))
+        current_query = dict(parse_qsl(current_parts.query, keep_blank_values=True))
+        current_page_number = self._mobile_graph_list_page_number(current_url)
+        next_links: list[tuple[int, str]] = []
+        seen_links: set[str] = set()
+        soup = BeautifulSoup(html, "html.parser")
+        for anchor in soup.find_all("a"):
+            href = str(anchor.get("href") or "").strip()
+            if "D2900.do?" not in href:
+                continue
+
+            absolute_href = urljoin(SITE7_MOBILE_TOP_URL, href)
+            parts = urlsplit(absolute_href)
+            if parts.path != current_parts.path:
+                continue
+
+            query = dict(parse_qsl(parts.query, keep_blank_values=True))
+            if not self._mobile_stat_link_matches_current_page(current_query, query):
+                continue
+
+            text = anchor.get_text(" ", strip=True)
+            normalized_text = re.sub(r"\s+", "", unicodedata.normalize("NFKC", text)).casefold()
+            page_number = self._mobile_graph_list_page_number_or_none(absolute_href)
+            if page_number is None and normalized_text.isdigit():
+                page_number = int(normalized_text)
+            if page_number is None:
+                data_page_match = re.search(r"データ(\d+)", normalized_text)
+                if data_page_match is not None:
+                    page_number = int(data_page_match.group(1))
+            if page_number is None and ("次" in normalized_text or ">" in normalized_text):
+                page_number = current_page_number + 1
+            if page_number is None or page_number <= current_page_number:
+                continue
+            if absolute_href in seen_links:
+                continue
+            seen_links.add(absolute_href)
+            next_links.append((page_number, absolute_href))
+
+        next_links.sort(key=lambda item: item[0])
+        return [link for _, link in next_links]
+
+    def _mobile_stat_link_matches_current_page(
+        self,
+        current_query: dict[str, str],
+        next_query: dict[str, str],
+    ) -> bool:
+        for key in ("pmc", "clc", "urt", "mdc", "bn", "dt"):
+            current_value = str(current_query.get(key) or "").strip()
+            if current_value and str(next_query.get(key) or "").strip() != current_value:
+                return False
+        return True
 
     def extract_mobile_graph_list_next_page_links(self, html: str, current_url: str) -> list[str]:
         current_parts = urlsplit(urljoin(SITE7_MOBILE_TOP_URL, current_url))

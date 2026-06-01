@@ -2116,6 +2116,123 @@ class MinRepoScraperTests(unittest.TestCase):
             "https://m.site777.jp/db/D2400.do?pmc=40100003&mdc=120312&bn=1&gc=1&dtdd=0&pan=3",
         )
 
+    def test_site7_extract_mobile_machine_stat_links_and_values(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        latest_date = datetime(2026, 6, 1)
+        machine_html = """
+<a href="D2900.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1&dt=1">累計ゲーム</a>
+<a href="D2900.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1&dt=2">BB回数</a>
+<a href="D2900.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1&dt=4">RB回数</a>
+"""
+
+        self.assertEqual(
+            scraper.extract_mobile_machine_stat_list_links(machine_html),
+            {
+                "G数": "https://m.site777.jp/db/D2900.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1&dt=1",
+                "BB": "https://m.site777.jp/db/D2900.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1&dt=2",
+                "RB": "https://m.site777.jp/db/D2900.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1&dt=4",
+            },
+        )
+
+        stat_html = """
+<table>
+  <tr><th>台番</th><th>6/1</th><th>5/31</th><th>5/30</th></tr>
+  <tr><td>827</td><td>7,867回</td><td>7470</td><td>7055</td></tr>
+  <tr><td>828</td><td>-</td><td>5517</td><td>4282</td></tr>
+</table>
+"""
+
+        self.assertEqual(
+            scraper.extract_mobile_machine_stat_values(stat_html, latest_date=latest_date),
+            {
+                ("2026-06-01", "827"): "7867",
+                ("2026-05-31", "827"): "7470",
+                ("2026-05-30", "827"): "7055",
+                ("2026-05-31", "828"): "5517",
+                ("2026-05-30", "828"): "4282",
+            },
+        )
+        self.assertEqual(
+            scraper.extract_mobile_machine_stat_next_page_links(
+                '<a href="D2900.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1&dt=1&pan=2">データ２&gt;&gt;</a>',
+                "https://m.site777.jp/db/D2900.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1&dt=1",
+            ),
+            ["https://m.site777.jp/db/D2900.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1&dt=1&pan=2"],
+        )
+
+    def test_site7_extract_mobile_machine_stat_values_from_text(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        latest_date = datetime(2026, 6, 1)
+        stat_text = """
+台番
+6/1
+5/31
+5/30
+827
+7867
+7470
+7055
+828
+4280
+5517
+4282
+"""
+
+        self.assertEqual(
+            scraper.extract_mobile_machine_stat_values(stat_text, latest_date=latest_date),
+            {
+                ("2026-06-01", "827"): "7867",
+                ("2026-05-31", "827"): "7470",
+                ("2026-05-30", "827"): "7055",
+                ("2026-06-01", "828"): "4280",
+                ("2026-05-31", "828"): "5517",
+                ("2026-05-30", "828"): "4282",
+            },
+        )
+
+    def test_site7_apply_mobile_machine_stat_values_refreshes_ratios(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        dataset = MachineDataset(
+            store_name="Ａパーク春日店",
+            store_url="https://example.com/site7-hall",
+            target_date="2026-06-01",
+            date_url="https://example.com/site7-hall#ata0",
+            machine_name=SITE7_TARGET_MACHINE_NAME,
+            machine_url="https://example.com/site7-machine",
+            columns=["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"],
+            rows=[["827", "-", "1000", "-", "1", "1", "1/500", "1/1000", "1/1000"]],
+        )
+
+        scraper._apply_mobile_machine_stat_values_to_dataset(
+            dataset,
+            {("2026-06-01", "827"): {"G数": "7867", "BB": "19", "RB": "40"}},
+        )
+
+        self.assertEqual(dataset.rows[0][2:9], ["7867", "-", "19", "40", "1/133", "1/414", "1/196"])
+
+    def test_site7_extract_mobile_slot_graph_page_stat_values_uses_target_slot_block(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = """
+<section>
+  <h3>821番台 /【1000円/46枚】スロ</h3>
+  <p>累計ゲーム 5285回</p>
+  <p>BB回数 15回</p>
+  <p>RB回数 13回</p>
+</section>
+<section>
+  <h3>827番台 /【1000円/46枚】スロ</h3>
+  <p>累計ゲーム 7,867回</p>
+  <p>最高出玉 1099</p>
+  <p>BB回数 19回</p>
+  <p>RB回数 40回</p>
+</section>
+"""
+
+        self.assertEqual(
+            scraper.extract_mobile_slot_graph_page_stat_values(html, "827"),
+            {"G数": "7867", "BB": "19", "RB": "40"},
+        )
+
     def test_site7_extract_target_hall_search_code_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = find_gui_fixture("site7_kasuga.html")
