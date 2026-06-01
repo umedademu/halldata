@@ -48,7 +48,6 @@ from site7_scraper import (
     DEFAULT_SITE7_PREFECTURE_NAME,
     SITE7_MAX_RECENT_DAYS,
     SITE7_TARGET_MACHINE_KEYWORDS,
-    Site7DifferencePreviewResult,
     Site7FetchCancelled,
     Site7Scraper,
     Site7TargetStore,
@@ -709,20 +708,13 @@ class MinRepoApp:
         )
         self.site7_fetch_button.grid(row=1, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
 
-        self.site7_difference_preview_button = ttk.Button(
-            site7_row,
-            text="差枚グラフを開く",
-            command=self.open_site7_difference_preview_page,
-        )
-        self.site7_difference_preview_button.grid(row=1, column=2, sticky="w", padx=(8, 0), pady=(8, 0))
-
         self.site7_cancel_button = ttk.Button(site7_row, text="中止", command=self.cancel_fetch)
-        self.site7_cancel_button.grid(row=1, column=3, sticky="w", padx=(8, 0), pady=(8, 0))
+        self.site7_cancel_button.grid(row=1, column=2, sticky="w", padx=(8, 0), pady=(8, 0))
 
-        ttk.Label(site7_row, textvariable=self.site7_status_var).grid(row=1, column=4, sticky="w", padx=(12, 0), pady=(8, 0))
+        ttk.Label(site7_row, textvariable=self.site7_status_var).grid(row=1, column=3, sticky="w", padx=(12, 0), pady=(8, 0))
 
         site7_schedule_row = ttk.Frame(site7_row)
-        site7_schedule_row.grid(row=2, column=0, columnspan=5, sticky="w", pady=(8, 0))
+        site7_schedule_row.grid(row=2, column=0, columnspan=4, sticky="w", pady=(8, 0))
         ttk.Label(site7_schedule_row, text="定期取得").grid(row=0, column=0, sticky="w")
         ttk.Label(site7_schedule_row, text="実行時刻").grid(row=0, column=1, sticky="w", padx=(8, 4))
         self.site7_schedule_hour_buttons: dict[int, ttk.Checkbutton] = {}
@@ -2014,68 +2006,6 @@ class MinRepoApp:
             operation_kind="site7_fetch",
         )
 
-    def open_site7_difference_preview_page(self) -> None:
-        if self.is_busy:
-            return
-
-        try:
-            target_store = self._selected_site7_difference_registered_store()
-        except ScraperError as exc:
-            self._show_error(exc)
-            return
-
-        self._start_site7_difference_preview(target_store)
-
-    def open_registered_store_site7_difference_preview_page(self, registered_store: RegisteredStore) -> None:
-        if self.is_busy:
-            return
-
-        try:
-            target_store = self._site7_registered_store_for_single_fetch(registered_store)
-        except ScraperError as exc:
-            self._show_error(exc)
-            return
-
-        self._start_site7_difference_preview(target_store)
-
-    def _start_site7_difference_preview(self, target_store: RegisteredStore) -> None:
-        if not self.site7_scraper.has_saved_login_state():
-            if messagebox.askyesno(
-                "サイトセブン",
-                "サイトセブンのログイン情報がまだありません。\n先にログイン画面を開きますか？",
-            ):
-                self.site7_login()
-            return
-
-        display_name = self._registered_store_display_name(target_store)
-        self._begin_fetch_run(
-            progress_message="スマホ版サイトセブンへ接続中...",
-            status_message="差枚グラフを表示中...",
-            summary_message=f"{display_name} の差枚グラフを開いています",
-        )
-        self._start_worker(
-            self._worker_open_site7_difference_preview,
-            target_store,
-            operation_kind="site7_difference_preview",
-        )
-
-    def _worker_open_site7_difference_preview(self, registered_store: RegisteredStore) -> None:
-        try:
-            self._queue_fetch_progress(
-                FetchProgress(current_step=0, total_steps=1, message=f"{registered_store.name} のスマホ版ページへ移動中")
-            )
-            result = self.site7_scraper.open_difference_preview_page(
-                target_store=registered_store.to_site7_target_store(),
-                cancel_requested=self.fetch_cancel_event.is_set,
-            )
-            self.result_queue.put(("site7_difference_preview_success", result))
-        except Site7FetchCancelled:
-            self.result_queue.put(("fetch_cancelled", None))
-        except FetchCancelled:
-            self.result_queue.put(("fetch_cancelled", None))
-        except Exception as exc:  # noqa: BLE001
-            self.result_queue.put(("fetch_error", exc))
-
     def _worker_fetch_site7(
         self,
         target_stores: list[RegisteredStore],
@@ -2350,7 +2280,6 @@ class MinRepoApp:
             "scheduled_fetch",
             "site7_fetch",
             "scheduled_site7_fetch",
-            "site7_difference_preview",
         }:
             return
 
@@ -2829,7 +2758,7 @@ class MinRepoApp:
         operation_kind = self.active_operation_kind
         self.is_busy = False
         self.active_operation_kind = ""
-        if operation_kind in {"fetch", "scheduled_fetch", "site7_fetch", "scheduled_site7_fetch", "site7_difference_preview"}:
+        if operation_kind in {"fetch", "scheduled_fetch", "site7_fetch", "scheduled_site7_fetch"}:
             self.fetch_cancel_event.clear()
         self._update_button_states()
 
@@ -2972,20 +2901,6 @@ class MinRepoApp:
                 self.register_store_status_var.set("削除結果を反映しました")
             return
 
-        if kind == "site7_difference_preview_success":
-            if not isinstance(payload, Site7DifferencePreviewResult):
-                self._finish_fetch_progress(success=False, message="表示失敗")
-                self.status_var.set("失敗")
-                self.summary_var.set("差枚グラフの結果形式が不正です")
-                return
-            self._finish_fetch_progress(success=True, message="表示完了")
-            self.status_var.set("表示完了")
-            self.summary_var.set(
-                f"{payload.store_name} / {payload.machine_name} / {payload.slot_number}番台を表示しました"
-            )
-            self.site7_status_var.set("差枚グラフを表示しました")
-            return
-
         if kind == "fetch_error":
             self._finish_fetch_progress(success=False, message="取得失敗")
             self.status_var.set("失敗")
@@ -2994,8 +2909,6 @@ class MinRepoApp:
                 self.schedule_status_var.set("定期実行に失敗しました")
             elif operation_kind == "scheduled_site7_fetch":
                 self.site7_schedule_status_var.set("サイトセブン定期実行に失敗しました")
-            elif operation_kind == "site7_difference_preview":
-                self.site7_status_var.set("差枚グラフを表示できませんでした")
             self._show_error(payload)
             return
 
@@ -3007,8 +2920,6 @@ class MinRepoApp:
                 self.schedule_status_var.set("定期実行を中止しました")
             elif operation_kind == "scheduled_site7_fetch":
                 self.site7_schedule_status_var.set("サイトセブン定期実行を中止しました")
-            elif operation_kind == "site7_difference_preview":
-                self.site7_status_var.set("差枚グラフの表示を中止しました")
             return
 
         if kind == "fetch_many_success":
@@ -3442,10 +3353,6 @@ class MinRepoApp:
             label="この店舗だけをサイトセブン取得",
             command=lambda store=registered_store: self.fetch_registered_store_site7_data(store),
         )
-        menu.add_command(
-            label="この店舗の差枚グラフを開く",
-            command=lambda store=registered_store: self.open_registered_store_site7_difference_preview_page(store),
-        )
         try:
             menu.tk_popup(event.x_root, event.y_root)
         finally:
@@ -3727,17 +3634,6 @@ class MinRepoApp:
 
     def _selected_site7_registered_stores(self) -> list[RegisteredStore]:
         return self._site7_registered_stores_from(self.registered_stores)
-
-    def _selected_site7_difference_registered_store(self) -> RegisteredStore:
-        target_stores = [
-            registered_store
-            for registered_store in self.registered_stores
-            if registered_store.site7_difference_enabled
-        ]
-        if not target_stores:
-            raise ScraperError("登録店舗タブで差枚取得列にチェックを入れた店舗を1つ以上用意してください。")
-
-        return self._site7_registered_store_for_single_fetch(target_stores[0])
 
     def _site7_registered_store_for_single_fetch(self, registered_store: RegisteredStore) -> RegisteredStore:
         if self._registered_store_is_known_site7_unavailable(registered_store):
@@ -4098,7 +3994,7 @@ class MinRepoApp:
         can_cancel_fetch = (
             self.is_busy
             and self.active_operation_kind
-            in {"fetch", "scheduled_fetch", "site7_fetch", "scheduled_site7_fetch", "site7_difference_preview"}
+            in {"fetch", "scheduled_fetch", "site7_fetch", "scheduled_site7_fetch"}
             and not self.fetch_cancel_event.is_set()
         )
         self.cancel_fetch_button.configure(state="normal" if can_cancel_fetch else "disabled")
@@ -4118,10 +4014,9 @@ class MinRepoApp:
         self.notify_fetch_complete_button.configure(state="disabled" if self.is_busy else "normal")
         self.site7_login_button.configure(state="disabled" if self.is_busy else "normal")
         self.site7_fetch_button.configure(state="disabled" if self.is_busy else "normal")
-        self.site7_difference_preview_button.configure(state="disabled" if self.is_busy else "normal")
         can_cancel_site7_fetch = (
             self.is_busy
-            and self.active_operation_kind in {"site7_fetch", "scheduled_site7_fetch", "site7_difference_preview"}
+            and self.active_operation_kind in {"site7_fetch", "scheduled_site7_fetch"}
             and not self.fetch_cancel_event.is_set()
         )
         self.site7_cancel_button.configure(state="normal" if can_cancel_site7_fetch else "disabled")

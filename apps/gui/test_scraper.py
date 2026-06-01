@@ -726,7 +726,6 @@ class MinRepoScraperTests(unittest.TestCase):
             "notify_fetch_complete_button",
             "site7_login_button",
             "site7_fetch_button",
-            "site7_difference_preview_button",
             "site7_cancel_button",
             "apply_site7_schedule_button",
             "clear_site7_schedule_button",
@@ -1911,7 +1910,7 @@ class MinRepoScraperTests(unittest.TestCase):
             "https://www.d-deltanet.com/pc/HallSearchByArea.do?prefecturecode=40&district=40133",
         )
 
-    def test_site7_extract_mobile_difference_preview_links_from_html(self) -> None:
+    def test_site7_extract_mobile_graph_links_from_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         target_store = find_site7_target_store("Aパーク春日店")
 
@@ -1980,7 +1979,6 @@ class MinRepoScraperTests(unittest.TestCase):
             ),
             ("827", "https://m.site777.jp/db/D3000.do?pmc=40100003&gc=2&dtdd=0&urt=2173&mdc=120312&dsgk=0&dn=827"),
         )
-        self.assertTrue(scraper.mobile_page_requires_paid_login("<p>有料会員ログインはこちら</p>"))
 
     def test_site7_extract_target_hall_search_code_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)

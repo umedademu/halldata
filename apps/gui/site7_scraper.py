@@ -231,15 +231,6 @@ class Site7MachineEntry:
 
 
 @dataclass(frozen=True)
-class Site7DifferencePreviewResult:
-    store_name: str
-    machine_name: str
-    slot_number: str
-    page_url: str
-    requires_paid_login: bool = False
-
-
-@dataclass(frozen=True)
 class Site7TargetStore:
     display_name: str
     site7_hall_name: str
@@ -798,94 +789,6 @@ class Site7Scraper:
             fallback_store_name=store_name if "store_name" in locals() else resolved_target_store.display_name,
             store_url=hall_page_url if "hall_page_url" in locals() else resolved_target_store.direct_hall_url,
         )
-
-    def open_difference_preview_page(
-        self,
-        target_store: Site7TargetStore | None = None,
-        cancel_requested: Callable[[], bool] | None = None,
-    ) -> Site7DifferencePreviewResult:
-        resolved_target_store = enrich_site7_target_store(target_store or SITE7_DEFAULT_TARGET_STORE)
-        self._require_playwright()
-        _raise_if_site7_cancel_requested(cancel_requested)
-        self.close_visible_browser()
-
-        playwright = None
-        context = None
-        try:
-            playwright, context = self._launch_mobile_browser_context(browser_visible=True)
-            page = self._prepare_fetch_page(context, browser_visible=True)
-            page.goto(SITE7_MOBILE_TOP_URL, wait_until="domcontentloaded", timeout=60_000)
-            self._accept_cookie_banner_if_present(page)
-            top_html = page.content()
-            self._wait_between_transitions(page, cancel_requested=cancel_requested)
-
-            prefecture_link = self.extract_mobile_prefecture_link(top_html, resolved_target_store)
-            _raise_if_site7_cancel_requested(cancel_requested)
-            page.goto(prefecture_link, wait_until="domcontentloaded", timeout=60_000)
-            self._accept_cookie_banner_if_present(page)
-            prefecture_html = page.content()
-            self._wait_between_transitions(page, cancel_requested=cancel_requested)
-
-            area_link = self.extract_mobile_area_link(prefecture_html, resolved_target_store)
-            _raise_if_site7_cancel_requested(cancel_requested)
-            page.goto(area_link, wait_until="domcontentloaded", timeout=60_000)
-            self._accept_cookie_banner_if_present(page)
-            area_html = page.content()
-            self._wait_between_transitions(page, cancel_requested=cancel_requested)
-
-            hall_link = self.extract_mobile_target_hall_link(area_html, resolved_target_store)
-            _raise_if_site7_cancel_requested(cancel_requested)
-            page.goto(hall_link, wait_until="domcontentloaded", timeout=60_000)
-            self._accept_cookie_banner_if_present(page)
-            hall_html = page.content()
-            store_name = self.extract_mobile_store_name(hall_html, resolved_target_store)
-            self._wait_between_transitions(page, cancel_requested=cancel_requested)
-
-            machine_list_link = self.extract_mobile_slot_machine_list_link(hall_html)
-            _raise_if_site7_cancel_requested(cancel_requested)
-            page.goto(machine_list_link, wait_until="domcontentloaded", timeout=60_000)
-            self._accept_cookie_banner_if_present(page)
-            machine_list_html = page.content()
-            self._wait_between_transitions(page, cancel_requested=cancel_requested)
-
-            machine_entry, machine_link = self.extract_mobile_target_machine_link(machine_list_html)
-            _raise_if_site7_cancel_requested(cancel_requested)
-            page.goto(machine_link, wait_until="domcontentloaded", timeout=60_000)
-            self._accept_cookie_banner_if_present(page)
-            machine_html = page.content()
-            self._wait_between_transitions(page, cancel_requested=cancel_requested)
-
-            graph_index_link = self.extract_mobile_machine_graph_index_link(machine_html)
-            _raise_if_site7_cancel_requested(cancel_requested)
-            page.goto(graph_index_link, wait_until="domcontentloaded", timeout=60_000)
-            self._accept_cookie_banner_if_present(page)
-            graph_index_html = page.content()
-            self._wait_between_transitions(page, cancel_requested=cancel_requested)
-
-            slot_number, slot_graph_link = self.extract_mobile_slot_graph_link(graph_index_html)
-            _raise_if_site7_cancel_requested(cancel_requested)
-            page.goto(slot_graph_link, wait_until="domcontentloaded", timeout=60_000)
-            self._accept_cookie_banner_if_present(page)
-            page.wait_for_timeout(1_000)
-            page.bring_to_front()
-
-            preview_html = page.content()
-            result = Site7DifferencePreviewResult(
-                store_name=store_name,
-                machine_name=machine_entry.machine_name,
-                slot_number=slot_number,
-                page_url=str(page.url),
-                requires_paid_login=self.mobile_page_requires_paid_login(preview_html),
-            )
-            self._visible_playwright = playwright
-            self._visible_context = context
-            return result
-        except PlaywrightError as exc:
-            self._release_browser_context(playwright, context)
-            raise self._wrap_playwright_error(exc) from exc
-        except Exception:
-            self._release_browser_context(playwright, context)
-            raise
 
     def _apply_mobile_graph_differences(
         self,
@@ -1543,10 +1446,6 @@ class Site7Scraper:
             slot_graph_links.setdefault(slot_number, urljoin(SITE7_MOBILE_TOP_URL, href))
 
         return slot_graph_links
-
-    def mobile_page_requires_paid_login(self, html: str) -> bool:
-        normalized_text = re.sub(r"\s+", "", BeautifulSoup(html, "html.parser").get_text(" ", strip=True))
-        return "有料会員ログインはこちら" in normalized_text or "有料ログイン" in normalized_text
 
     def _extract_mobile_machine_label(self, text: str) -> str:
         label = re.sub(r"\s+", " ", str(text)).strip()
