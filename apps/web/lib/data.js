@@ -3113,6 +3113,12 @@ function buildCrossStoreBacktestOptions(options = {}, availableMachineNames = nu
   const machineNames = Array.isArray(availableMachineNames) && availableMachineNames.length > 0
     ? availableMachineNames
     : DEFAULT_CROSS_STORE_MACHINE_NAMES;
+  const huntScoreLogics = getHuntScoreLogicDetails(options?.logicKey, "");
+  const huntScoreLogicKeys = huntScoreLogics.map((logic) => logic.key);
+  const scoreMaxLimit = calculateBacktestScoreFilterMax(
+    "sum",
+    Math.max(1, huntScoreLogicKeys.length),
+  );
   const selectedMachineNames = normalizeCrossStoreInitialMachineSelection(machineNames, options);
   const selectedMachineNameSet = new Set(selectedMachineNames);
   const combineAimJuggler = shouldCombineMachineGroupForOptions(
@@ -3156,6 +3162,7 @@ function buildCrossStoreBacktestOptions(options = {}, availableMachineNames = nu
   const scoreFilter = buildScoreFilter(
     readNumberOption(options, "scoreMin", 70),
     readNumberOption(options, "scoreMax", null),
+    scoreMaxLimit,
   );
   const {
     machineNextGapFilter,
@@ -3167,6 +3174,9 @@ function buildCrossStoreBacktestOptions(options = {}, availableMachineNames = nu
   return {
     periodMode: options?.periodMode === "range" ? "range" : "recent",
     recentDays: readPositiveInteger(options?.recentDays, DEFAULT_CROSS_STORE_BACKTEST_RECENT_DAYS),
+    huntScoreLogicKeys,
+    huntScoreLogics,
+    scoreMaxLimit,
     startDate: normalizeDateInput(options?.startDate),
     endDate: normalizeDateInput(options?.endDate),
     machineNames,
@@ -3526,7 +3536,7 @@ function compareCrossStoreBacktestRows(left, right, rankingMetric) {
   );
 }
 
-async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, huntScoreLogic) {
+async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions) {
   try {
     const staticStore = await readStaticStoreByEntry(storeEntry);
     if (!staticStore) {
@@ -3581,11 +3591,11 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       return null;
     }
 
-    const snapshots = buildHuntScoreSnapshots(
+    const snapshots = buildCombinedHuntScoreSnapshots(
       targetRowsInRange,
       storeRowsInRange,
       store.storeName,
-      huntScoreLogic.key,
+      backtestOptions.huntScoreLogicKeys,
       backtestOptions.scoreDifferenceMode,
       { settingEstimateMode: backtestOptions.settingEstimateMode },
     );
@@ -3621,6 +3631,8 @@ async function buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, 
       machineUpperGapRequired: backtestOptions.machineUpperGapRequired,
       selectedUpperGapRequired: backtestOptions.selectedUpperGapRequired,
       rankScope: backtestOptions.rankScope,
+      huntScoreLogicKeys: backtestOptions.huntScoreLogicKeys,
+      huntScoreLogics: backtestOptions.huntScoreLogics,
       scoreDifferenceMode: backtestOptions.scoreDifferenceMode,
       differenceMode: backtestOptions.differenceMode,
       settingEstimateMode: backtestOptions.settingEstimateMode,
@@ -3658,14 +3670,15 @@ export async function getCrossStoreBacktestDetail(options = {}) {
   );
   const machineNames = await listCrossStoreRecentHuntScoreMachineNames(storeEntries);
   const backtestOptions = buildCrossStoreBacktestOptions(options, machineNames);
-  const huntScoreLogic = getHuntScoreLogicDetail(options?.logicKey, "");
+  const huntScoreLogics = backtestOptions.huntScoreLogics;
+  const huntScoreLogic = huntScoreLogics[0] ?? getHuntScoreLogicDetail("", "");
   let rows = [];
 
   if (options?.resultRequested) {
     const evaluatedRows = await mapWithConcurrency(
       storeEntries,
       CROSS_STORE_BACKTEST_CONCURRENCY,
-      (storeEntry) => buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions, huntScoreLogic),
+      (storeEntry) => buildCrossStoreBacktestRowFromEntry(storeEntry, backtestOptions),
     );
     rows = evaluatedRows
       .filter(Boolean)
@@ -3683,6 +3696,9 @@ export async function getCrossStoreBacktestDetail(options = {}) {
     dataSource: "json",
     resultRequested: Boolean(options?.resultRequested),
     huntScoreLogic,
+    huntScoreLogicKeys: backtestOptions.huntScoreLogicKeys,
+    huntScoreLogics,
+    usesCombinedHuntScoreLogic: huntScoreLogics.length > 1,
     logicOptions: listHuntScoreLogicOptions(),
     prefectureOptions: locationDetail.prefectureOptions,
     areaOptionGroups: locationDetail.areaOptionGroups,
@@ -3702,6 +3718,7 @@ export async function getCrossStoreBacktestDetail(options = {}) {
     selectedRankMax: backtestOptions.selectedRankMax,
     scoreMin: backtestOptions.scoreMin,
     scoreMax: backtestOptions.scoreMax,
+    scoreMaxLimit: backtestOptions.scoreMaxLimit,
     machineNextGapMin: backtestOptions.machineNextGapMin,
     machineNextGapMax: backtestOptions.machineNextGapMax,
     selectedNextGapMin: backtestOptions.selectedNextGapMin,

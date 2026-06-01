@@ -10,7 +10,9 @@ import {
 import { HuntRankingFormStateSync } from "../../../../components/hunt-ranking-form-state-sync";
 import { HuntRankingConditionSelector } from "../../../../components/hunt-ranking-condition-selector";
 import { HuntRankingTable } from "../../../../components/hunt-ranking-table";
-import { HuntScoreLogicSelector } from "../../../../components/hunt-score-logic-selector";
+import {
+  HuntScoreLogicMultiSelect,
+} from "../../../../components/hunt-score-logic-selector";
 import { NativeGetForm } from "../../../../components/native-get-form";
 import { ResultUrlTools } from "../../../../components/result-url-tools";
 import { StoreFavoriteButton } from "../../../../components/store-favorite-button";
@@ -736,7 +738,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     combineHanabi,
   });
   const huntScoreLogicOptions = listHuntScoreLogicOptions();
-  const selectedRankingLogicKeySet = new Set(detail.huntScoreLogicKeys ?? [detail.huntScoreLogic?.key].filter(Boolean));
   const visibleRankingGroups = buildVisibleRankingGroups(
     resultRequested ? detail.rankingGroups : [],
     selectedMachineNameSet,
@@ -848,13 +849,13 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
           </div>
           {detail.huntScoreLogics?.length > 0 ? (
             <p className="dataSourceLabel">
-              ランキング用: {detail.huntScoreLogics.map((logic) => logic.name).join(" + ")}
+              使用するロジック: {detail.huntScoreLogics.map((logic) => logic.name).join(" + ")}
             </p>
           ) : detail.huntScoreLogic ? (
             <p className="dataSourceLabel">適用中: {detail.huntScoreLogic.name}</p>
           ) : null}
           {detail.subHuntScoreLogic ? (
-            <p className="dataSourceLabel">表示用サブ: {detail.subHuntScoreLogic.name}</p>
+            <p className="dataSourceLabel">表示用ロジック: {detail.subHuntScoreLogic.name}</p>
           ) : null}
           <div className="heroLinks simpleHeroLinks">
             <Link href={`/stores/${detail.store.id}`} className="externalLink">
@@ -869,13 +870,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               </a>
             ) : null}
           </div>
-          {detail.huntScoreLogic ? (
-            <HuntScoreLogicSelector
-              storeId={detail.store.id}
-              selectedLogicKey={detail.huntScoreLogic.key}
-              options={huntScoreLogicOptions}
-            />
-          ) : null}
         </div>
       </section>
 
@@ -976,30 +970,16 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 </div>
               </div>
               <div className="filterConditionBox rankingConditionBoxWide">
-                <p className="filterConditionBoxTitle">ランキング用ロジック</p>
-                <div className="metricToggleRow">
-                  {huntScoreLogicOptions.map((option) => (
-                    <label
-                      key={option.key}
-                      className={`metricToggleChip ${
-                        selectedRankingLogicKeySet.has(option.key) ? "metricToggleChipActive" : ""
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        name="huntScoreLogicKey"
-                        value={option.key}
-                        defaultChecked={selectedRankingLogicKeySet.has(option.key)}
-                      />
-                      <span>{option.name}</span>
-                    </label>
-                  ))}
-                </div>
+                <HuntScoreLogicMultiSelect
+                  selectedLogicKeys={detail.huntScoreLogicKeys}
+                  options={huntScoreLogicOptions}
+                  formId={HUNT_RANKING_FORM_ID}
+                />
               </div>
               <div className="filterConditionBox rankingConditionBox">
-                <p className="filterConditionBoxTitle">表示用サブロジック</p>
+                <p className="filterConditionBoxTitle">表示用ロジック</p>
                 <label className="storeReserveField">
-                  <span>追加表示する狙い度</span>
+                  <span>追加表示するロジック</span>
                   <select
                     name="subHuntScoreLogicKey"
                     defaultValue={detail.subHuntScoreLogic?.key ?? ""}

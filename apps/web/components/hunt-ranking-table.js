@@ -510,7 +510,7 @@ function OverallRankingTable({
 }) {
   const showSubHuntScoreColumn = Boolean(subHuntScoreLogic);
   const subHuntScoreTitle = subHuntScoreLogic?.name
-    ? `表示用サブロジック: ${subHuntScoreLogic.name}`
+    ? `表示用ロジック: ${subHuntScoreLogic.name}`
     : undefined;
   const [sortState, setSortState] = useState(() =>
     sortable ? { columnIndex: 1, direction: "desc", type: "number" } : null,
@@ -600,7 +600,7 @@ function OverallRankingTable({
               <HeaderCell columnIndex={0}>{rankColumnLabel}</HeaderCell>
               <HeaderCell columnIndex={1}>{scoreColumnLabel}</HeaderCell>
               {showSubHuntScoreColumn ? (
-                <HeaderCell columnIndex={2} title={subHuntScoreTitle}>サブ狙度</HeaderCell>
+                <HeaderCell columnIndex={2} title={subHuntScoreTitle}>表示狙度</HeaderCell>
               ) : null}
               <HeaderCell columnIndex={nextGapColumnIndex}>次点差</HeaderCell>
               <HeaderCell columnIndex={machineColumnIndex} type="text" initialDirection="asc" className="directoryNameHeader">
@@ -766,7 +766,7 @@ export function HuntRankingTable({
   const scoreColumnLabel = useMemo(() => formatScoreColumnLabel(predictionDate), [predictionDate]);
   const showSubHuntScoreColumn = Boolean(subHuntScoreLogic);
   const subHuntScoreTitle = subHuntScoreLogic?.name
-    ? `表示用サブロジック: ${subHuntScoreLogic.name}`
+    ? `表示用ロジック: ${subHuntScoreLogic.name}`
     : undefined;
   const nextGapScope = normalizeNextGapScope(highlightOptions.nextGapScope ?? DEFAULT_NEXT_GAP_SCOPE);
   const highlightCondition = useMemo(
@@ -1086,7 +1086,7 @@ export function HuntRankingTable({
                   <th>順位</th>
                   <th>{scoreColumnLabel}</th>
                   {showSubHuntScoreColumn ? (
-                    <th title={subHuntScoreTitle}>サブ狙度</th>
+                    <th title={subHuntScoreTitle}>表示狙度</th>
                   ) : null}
                   <th>次点差</th>
                   <th>台番</th>

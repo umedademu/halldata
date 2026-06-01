@@ -6,6 +6,7 @@ import {
   AllMachineFilterButtons,
   MachineFilterCategoryButton,
 } from "../../components/hunt-machine-filter-tools";
+import { HuntScoreLogicMultiSelect } from "../../components/hunt-score-logic-selector";
 import { NativeGetForm } from "../../components/native-get-form";
 import { ResultUrlTools } from "../../components/result-url-tools";
 import { SpecialDayFilterSettings } from "../../components/special-day-filter-settings";
@@ -470,7 +471,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
   const resultRequested = readSingleSearchParam(resolvedSearchParams?.show) === "1";
   const detail = await getCrossStoreBacktestDetail({
     resultRequested,
-    logicKey: readSingleSearchParam(resolvedSearchParams?.logicKey),
+    logicKey: readMultiSearchParam(resolvedSearchParams?.logicKey),
     periodMode: readSingleSearchParam(resolvedSearchParams?.periodMode),
     recentDays: readSingleSearchParam(resolvedSearchParams?.recentDays),
     startDate: readSingleSearchParam(resolvedSearchParams?.startDate),
@@ -562,21 +563,15 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
               />
             </summary>
             <div className="collapsibleControlBody crossBacktestConditionBody">
+              <div className="backtestBlock">
+                <HuntScoreLogicMultiSelect
+                  selectedLogicKeys={detail.huntScoreLogicKeys}
+                  options={detail.logicOptions}
+                  name="logicKey"
+                  label="使用するロジック"
+                />
+              </div>
               <div className="backtestFieldGrid">
-            <label className="storeReserveField backtestField">
-              <span>ロジック</span>
-              <select
-                name="logicKey"
-                defaultValue={detail.huntScoreLogic.key}
-                className="storeReserveInput"
-              >
-                {detail.logicOptions.map((logic) => (
-                  <option key={logic.key} value={logic.key}>
-                    {logic.name}
-                  </option>
-                ))}
-              </select>
-            </label>
             <label className="storeReserveField backtestField">
               <span>最低集計台数</span>
               <input
@@ -793,6 +788,7 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
                   minValue={detail.scoreMin}
                   maxValue={detail.scoreMax}
                   requiredValue={detail.scoreRequired}
+                  inputMax={detail.scoreMaxLimit}
                 />
                 <div className="commonConditionMode">
                   <p className="commonConditionSubLabel">狙い度計算の差枚基準</p>

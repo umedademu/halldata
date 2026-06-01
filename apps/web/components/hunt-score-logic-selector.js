@@ -96,6 +96,9 @@ export function HuntScoreLogicMultiSelect({
   options,
   name = "huntScoreLogicKey",
   formId = "",
+  label = "使用するロジック",
+  selectedLabel = "選択中",
+  summaryLabel = "ロジックを選ぶ",
 }) {
   const safeOptions = useMemo(
     () =>
@@ -121,12 +124,14 @@ export function HuntScoreLogicMultiSelect({
   const [logicKeys, setLogicKeys] = useState(initialLogicKeys);
   const selectedKeySet = new Set(logicKeys);
   const selectedOptions = safeOptions.filter((option) => selectedKeySet.has(option.key));
+  const selectedNames = selectedOptions.map((option) => option.name);
   const summaryText =
     selectedOptions.length === 0
       ? "未選択"
       : selectedOptions.length === 1
         ? selectedOptions[0].name
-        : `${selectedOptions[0].name} + ${selectedOptions.length - 1}件`;
+        : `${selectedOptions.length}件選択中`;
+  const selectedText = selectedNames.length > 0 ? selectedNames.join("、") : "未選択";
 
   useEffect(() => {
     setLogicKeys(initialLogicKeys);
@@ -163,15 +168,17 @@ export function HuntScoreLogicMultiSelect({
   };
 
   return (
-    <div className="huntLogicControl">
+    <div className="huntLogicControl huntLogicMultiControl">
       <div className="huntLogicCurrent">
-        <p className="sectionLabel">狙い度ロジック</p>
-        <p className="dataSourceLabel">バックテスト用: {summaryText}</p>
+        <p className="sectionLabel">{label}</p>
+        <p className="dataSourceLabel" title={selectedText}>
+          {selectedLabel}: {summaryText}
+        </p>
       </div>
       <details className="huntLogicMultiSelect" onChange={handleChange}>
         <summary className="huntLogicMultiSummary">
-          <span>{summaryText}</span>
-          <span aria-hidden="true">▼</span>
+          <span>{summaryLabel}</span>
+          <span className="huntLogicMultiStatus" aria-hidden="true" />
         </summary>
         <div className="huntLogicMultiMenu">
           {safeOptions.map((option) => (
