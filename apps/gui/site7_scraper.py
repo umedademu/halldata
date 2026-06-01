@@ -770,6 +770,7 @@ class Site7Scraper:
             machine_results = self._apply_mobile_graph_differences(
                 machine_results,
                 target_store=resolved_target_store,
+                browser_visible=browser_visible,
                 cancel_requested=cancel_requested,
                 progress_callback=progress_callback,
             )
@@ -794,6 +795,7 @@ class Site7Scraper:
         self,
         machine_results: list[MachineHistoryResult],
         target_store: Site7TargetStore,
+        browser_visible: bool,
         cancel_requested: Callable[[], bool] | None = None,
         progress_callback: Callable[[FetchProgress], None] | None = None,
     ) -> list[MachineHistoryResult]:
@@ -808,8 +810,8 @@ class Site7Scraper:
         context = None
         current_graph_count = 0
         try:
-            playwright, context = self._launch_mobile_browser_context(browser_visible=False)
-            page = self._prepare_fetch_page(context, browser_visible=False)
+            playwright, context = self._launch_mobile_browser_context(browser_visible=browser_visible)
+            page = self._prepare_fetch_page(context, browser_visible=browser_visible)
             hall_html = self._open_mobile_target_hall_page(page, target_store, cancel_requested=cancel_requested)
             machine_list_link = self.extract_mobile_slot_machine_list_link(hall_html)
             _raise_if_site7_cancel_requested(cancel_requested)
