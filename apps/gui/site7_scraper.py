@@ -702,9 +702,16 @@ class Site7Scraper:
             machine_html = page.content()
             self._wait_between_transitions(page, cancel_requested=cancel_requested)
 
-            slot_number, slot_detail_link = self.extract_mobile_slot_detail_link(machine_html)
+            graph_index_link = self.extract_mobile_machine_graph_index_link(machine_html)
             _raise_if_site7_cancel_requested(cancel_requested)
-            page.goto(slot_detail_link, wait_until="domcontentloaded", timeout=60_000)
+            page.goto(graph_index_link, wait_until="domcontentloaded", timeout=60_000)
+            self._accept_cookie_banner_if_present(page)
+            graph_index_html = page.content()
+            self._wait_between_transitions(page, cancel_requested=cancel_requested)
+
+            slot_number, slot_graph_link = self.extract_mobile_slot_graph_link(graph_index_html)
+            _raise_if_site7_cancel_requested(cancel_requested)
+            page.goto(slot_graph_link, wait_until="domcontentloaded", timeout=60_000)
             self._accept_cookie_banner_if_present(page)
             page.wait_for_timeout(1_000)
             page.bring_to_front()
@@ -1036,7 +1043,8 @@ class Site7Scraper:
 
     def extract_mobile_slot_machine_list_link(self, html: str) -> str:
         soup = BeautifulSoup(html, "html.parser")
-        fallback_link = ""
+        fallback_rate_link = ""
+        fallback_all_link = ""
         for anchor in soup.find_all("a"):
             href = str(anchor.get("href") or "").strip()
             if "D0300.do?" not in href or "clc=03" not in href:
@@ -1045,20 +1053,25 @@ class Site7Scraper:
             text = anchor.get_text(" ", strip=True)
             normalized_text = _normalize_site7_lookup_text(text)
             absolute_href = urljoin(SITE7_MOBILE_TOP_URL, href)
-            if "パチスロ" in text and "すべて" in text:
+            if "urt=2173" in href or "1000円46枚" in normalized_text:
                 return absolute_href
-            if "スロ" in normalized_text and not fallback_link:
-                fallback_link = absolute_href
+            if "urt=-1" not in href and not fallback_rate_link:
+                fallback_rate_link = absolute_href
+            if ("パチスロ" in text and "すべて" in text) or "urt=-1" in href:
+                fallback_all_link = absolute_href
 
-        if fallback_link:
-            return fallback_link
+        if fallback_rate_link:
+            return fallback_rate_link
+        if fallback_all_link:
+            return fallback_all_link
         raise ScraperError("スマホ版サイトセブンでパチスロ機種一覧のリンクが見つかりませんでした。")
 
     def extract_mobile_target_machine_link(self, html: str) -> tuple[Site7MachineEntry, str]:
         soup = BeautifulSoup(html, "html.parser")
+        fallback_result: tuple[Site7MachineEntry, str] | None = None
         for anchor in soup.find_all("a"):
             href = str(anchor.get("href") or "").strip()
-            if "D3310.do?" not in href:
+            if "D2300.do?" not in href:
                 continue
 
             display_name = self._extract_mobile_machine_label(anchor.get_text(" ", strip=True))
@@ -1069,18 +1082,44 @@ class Site7Scraper:
                 display_name=display_name,
                 machine_name=canonical_machine_name(display_name, site7_only=True),
             )
-            return machine_entry, urljoin(SITE7_MOBILE_TOP_URL, href)
+            result = machine_entry, urljoin(SITE7_MOBILE_TOP_URL, href)
+            if machine_entry.machine_name == SITE7_TARGET_MACHINE_NAME:
+                return result
+            if fallback_result is None:
+                fallback_result = result
+
+        if fallback_result is not None:
+            return fallback_result
 
         raise ScraperError(
             "スマホ版サイトセブンで対象機種のリンクが見つかりませんでした。\n"
             f"対象語: {'、'.join(SITE7_TARGET_MACHINE_KEYWORDS)}"
         )
 
-    def extract_mobile_slot_detail_link(self, html: str) -> tuple[str, str]:
+    def extract_mobile_machine_graph_index_link(self, html: str) -> str:
+        soup = BeautifulSoup(html, "html.parser")
+        fallback_link = ""
+        for anchor in soup.find_all("a"):
+            href = str(anchor.get("href") or "").strip()
+            if "D2400.do?" not in href:
+                continue
+
+            text = anchor.get_text(" ", strip=True)
+            absolute_href = urljoin(SITE7_MOBILE_TOP_URL, href)
+            if "出玉推移グラフ" in text or "gc=2" in href:
+                return absolute_href
+            if not fallback_link:
+                fallback_link = absolute_href
+
+        if fallback_link:
+            return fallback_link
+        raise ScraperError("スマホ版サイトセブンで出玉推移グラフのリンクが見つかりませんでした。")
+
+    def extract_mobile_slot_graph_link(self, html: str) -> tuple[str, str]:
         soup = BeautifulSoup(html, "html.parser")
         for anchor in soup.find_all("a"):
             href = str(anchor.get("href") or "").strip()
-            if "D4020.do?" not in href:
+            if "D3000.do?" not in href:
                 continue
 
             text = anchor.get_text(" ", strip=True)
@@ -1089,7 +1128,7 @@ class Site7Scraper:
                 continue
             return slot_number, urljoin(SITE7_MOBILE_TOP_URL, href)
 
-        raise ScraperError("スマホ版サイトセブンで台別の出玉推移ページへのリンクが見つかりませんでした。")
+        raise ScraperError("スマホ版サイトセブンで台別の出玉推移グラフへのリンクが見つかりませんでした。")
 
     def mobile_page_requires_paid_login(self, html: str) -> bool:
         normalized_text = re.sub(r"\s+", "", BeautifulSoup(html, "html.parser").get_text(" ", strip=True))

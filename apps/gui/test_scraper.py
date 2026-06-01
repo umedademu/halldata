@@ -1921,27 +1921,41 @@ class MinRepoScraperTests(unittest.TestCase):
   <body>
     <a href="D0300.do?pmc=40100003&clc=01&urt=-1&pan=1">パチンコ すべて</a>
     <a href="D0300.do?pmc=40100003&clc=03&urt=-1&pan=1">パチスロ すべて</a>
+    <a href="D0300.do?pmc=40100003&clc=03&urt=2173&pan=1">【1000円/46枚】スロ</a>
   </body>
 </html>
 """
         self.assertEqual(scraper.extract_mobile_store_name(hall_html, target_store), "Ａパーク春日店")
         self.assertEqual(
             scraper.extract_mobile_slot_machine_list_link(hall_html),
-            "https://m.site777.jp/db/D0300.do?pmc=40100003&clc=03&urt=-1&pan=1",
+            "https://m.site777.jp/db/D0300.do?pmc=40100003&clc=03&urt=2173&pan=1",
         )
 
         machine_entry, machine_link = scraper.extract_mobile_target_machine_link(
-            '<a href="D3310.do?pmc=40100003&mdc=120312">ネオアイムジャグラーEX [25]</a>'
+            """
+<a href="D2300.do?pmc=40100003&clc=03&urt=2173&mdc=120010&bn=1">マイジャグラーV [30]</a>
+<a href="D2300.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1">ネオアイムジャグラーEX [25]</a>
+"""
         )
         self.assertEqual(machine_entry.display_name, "ネオアイムジャグラーEX")
         self.assertEqual(machine_entry.machine_name, "ネオアイムジャグラーEX")
-        self.assertEqual(machine_link, "https://m.site777.jp/db/D3310.do?pmc=40100003&mdc=120312")
+        self.assertEqual(
+            machine_link,
+            "https://m.site777.jp/db/D2300.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1",
+        )
 
         self.assertEqual(
-            scraper.extract_mobile_slot_detail_link(
-                '<a href="D4020.do?pmc=40100003&mdc=120312&dtdd=0&dn=827">827</a>'
+            scraper.extract_mobile_machine_graph_index_link(
+                '<a href="D2400.do?pmc=40100003&mdc=120312&bn=1&gc=2&pan=1&clc=03&urt=2173">出玉推移グラフ</a>'
             ),
-            ("827", "https://m.site777.jp/db/D4020.do?pmc=40100003&mdc=120312&dtdd=0&dn=827"),
+            "https://m.site777.jp/db/D2400.do?pmc=40100003&mdc=120312&bn=1&gc=2&pan=1&clc=03&urt=2173",
+        )
+
+        self.assertEqual(
+            scraper.extract_mobile_slot_graph_link(
+                '<a href="D3000.do?pmc=40100003&gc=2&dtdd=0&urt=2173&mdc=120312&dsgk=0&dn=827">827</a>'
+            ),
+            ("827", "https://m.site777.jp/db/D3000.do?pmc=40100003&gc=2&dtdd=0&urt=2173&mdc=120312&dsgk=0&dn=827"),
         )
         self.assertTrue(scraper.mobile_page_requires_paid_login("<p>有料会員ログインはこちら</p>"))
 
