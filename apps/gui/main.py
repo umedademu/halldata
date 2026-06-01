@@ -86,7 +86,7 @@ JST = timezone(timedelta(hours=9))
 REGISTERED_STORE_COLUMNS = (
     "取得対象",
     "サイトセブン",
-    "推定差枚",
+    "差枚取得",
     "店舗名",
     "URL",
     "都道府県",
@@ -711,7 +711,7 @@ class MinRepoApp:
 
         self.site7_difference_preview_button = ttk.Button(
             site7_row,
-            text="推定差枚ページを開く",
+            text="差枚グラフを開く",
             command=self.open_site7_difference_preview_page,
         )
         self.site7_difference_preview_button.grid(row=1, column=2, sticky="w", padx=(8, 0), pady=(8, 0))
@@ -1428,7 +1428,7 @@ class MinRepoApp:
         self.register_store_site7_button.grid(row=0, column=0, sticky="w")
         self.register_store_site7_difference_button = ttk.Checkbutton(
             site7_option_row,
-            text="推定差枚取得の対象にする",
+            text="差枚取得の対象にする",
             variable=self.register_store_site7_difference_enabled_var,
         )
         self.register_store_site7_difference_button.grid(row=0, column=1, sticky="w", padx=(16, 0))
@@ -1537,7 +1537,7 @@ class MinRepoApp:
 
         for column in REGISTERED_STORE_COLUMNS:
             self.registered_store_tree.heading(column, text=column)
-            if column in {"取得対象", "サイトセブン", "推定差枚"}:
+            if column in {"取得対象", "サイトセブン", "差枚取得"}:
                 self.registered_store_tree.column(column, width=80, minwidth=80, anchor="center")
                 continue
             self.registered_store_tree.column(
@@ -2050,8 +2050,8 @@ class MinRepoApp:
         display_name = self._registered_store_display_name(target_store)
         self._begin_fetch_run(
             progress_message="スマホ版サイトセブンへ接続中...",
-            status_message="推定差枚ページを表示中...",
-            summary_message=f"{display_name} の差枚確認ページを開いています",
+            status_message="差枚グラフを表示中...",
+            summary_message=f"{display_name} の差枚グラフを開いています",
         )
         self._start_worker(
             self._worker_open_site7_difference_preview,
@@ -2203,6 +2203,7 @@ class MinRepoApp:
                     target_store=target_store,
                     cancel_requested=self.fetch_cancel_event.is_set,
                     machine_result_callback=save_machine_result,
+                    include_graph_differences=registered_store.site7_difference_enabled,
                 )
             except Site7FetchCancelled as exc:
                 raise FetchCancelled from exc
@@ -2975,15 +2976,14 @@ class MinRepoApp:
             if not isinstance(payload, Site7DifferencePreviewResult):
                 self._finish_fetch_progress(success=False, message="表示失敗")
                 self.status_var.set("失敗")
-                self.summary_var.set("差枚確認ページの結果形式が不正です")
+                self.summary_var.set("差枚グラフの結果形式が不正です")
                 return
             self._finish_fetch_progress(success=True, message="表示完了")
             self.status_var.set("表示完了")
-            warning_text = " / 有料ログインが必要な可能性あり" if payload.requires_paid_login else ""
             self.summary_var.set(
-                f"{payload.store_name} / {payload.machine_name} / {payload.slot_number}番台を表示しました{warning_text}"
+                f"{payload.store_name} / {payload.machine_name} / {payload.slot_number}番台を表示しました"
             )
-            self.site7_status_var.set("推定差枚ページを表示しました")
+            self.site7_status_var.set("差枚グラフを表示しました")
             return
 
         if kind == "fetch_error":
@@ -2995,7 +2995,7 @@ class MinRepoApp:
             elif operation_kind == "scheduled_site7_fetch":
                 self.site7_schedule_status_var.set("サイトセブン定期実行に失敗しました")
             elif operation_kind == "site7_difference_preview":
-                self.site7_status_var.set("推定差枚ページを表示できませんでした")
+                self.site7_status_var.set("差枚グラフを表示できませんでした")
             self._show_error(payload)
             return
 
@@ -3008,7 +3008,7 @@ class MinRepoApp:
             elif operation_kind == "scheduled_site7_fetch":
                 self.site7_schedule_status_var.set("サイトセブン定期実行を中止しました")
             elif operation_kind == "site7_difference_preview":
-                self.site7_status_var.set("推定差枚ページの表示を中止しました")
+                self.site7_status_var.set("差枚グラフの表示を中止しました")
             return
 
         if kind == "fetch_many_success":
@@ -3443,7 +3443,7 @@ class MinRepoApp:
             command=lambda store=registered_store: self.fetch_registered_store_site7_data(store),
         )
         menu.add_command(
-            label="この店舗の推定差枚ページを開く",
+            label="この店舗の差枚グラフを開く",
             command=lambda store=registered_store: self.open_registered_store_site7_difference_preview_page(store),
         )
         try:
@@ -3484,7 +3484,7 @@ class MinRepoApp:
         if not registered_store.site7_enabled:
             registered_store.site7_difference_enabled = False
         self.registered_store_tree.set(item_id, "サイトセブン", self._registered_store_site7_marker(registered_store))
-        self.registered_store_tree.set(item_id, "推定差枚", self._registered_store_difference_marker(registered_store))
+        self.registered_store_tree.set(item_id, "差枚取得", self._registered_store_difference_marker(registered_store))
         save_summary = self._persist_registered_stores()
         if save_summary.has_errors:
             messagebox.showwarning("登録店舗", "\n\n".join(save_summary.messages))
@@ -3497,11 +3497,11 @@ class MinRepoApp:
             return
 
         if not registered_store.site7_enabled:
-            messagebox.showwarning("登録店舗", "推定差枚取得を使う場合は、先にサイトセブン列をオンにしてください。")
+            messagebox.showwarning("登録店舗", "差枚取得を使う場合は、先にサイトセブン列をオンにしてください。")
             return
 
         registered_store.site7_difference_enabled = not registered_store.site7_difference_enabled
-        self.registered_store_tree.set(item_id, "推定差枚", self._registered_store_difference_marker(registered_store))
+        self.registered_store_tree.set(item_id, "差枚取得", self._registered_store_difference_marker(registered_store))
         save_summary = self._persist_registered_stores()
         if save_summary.has_errors:
             messagebox.showwarning("登録店舗", "\n\n".join(save_summary.messages))
@@ -3563,7 +3563,7 @@ class MinRepoApp:
         if not self._is_valid_url(store_url):
             raise ScraperError("店舗URLは http:// または https:// から入力してください。")
         if site7_difference_enabled and not site7_enabled:
-            raise ScraperError("推定差枚取得を使う場合は、サイトセブン取得もオンにしてください。")
+            raise ScraperError("差枚取得を使う場合は、サイトセブン取得もオンにしてください。")
 
         return (
             store_url,
@@ -3735,7 +3735,7 @@ class MinRepoApp:
             if registered_store.site7_difference_enabled
         ]
         if not target_stores:
-            raise ScraperError("登録店舗タブで推定差枚列にチェックを入れた店舗を1つ以上用意してください。")
+            raise ScraperError("登録店舗タブで差枚取得列にチェックを入れた店舗を1つ以上用意してください。")
 
         return self._site7_registered_store_for_single_fetch(target_stores[0])
 

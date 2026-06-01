@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from io import BytesIO
 import json
 import queue
 from types import SimpleNamespace
@@ -12,6 +13,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from bs4 import BeautifulSoup
+from PIL import Image, ImageDraw
 
 from data_persistence import (
     DATA_SOURCE_MINREPO,
@@ -78,6 +80,7 @@ from site7_scraper import (
     clamp_site7_recent_days,
     default_site7_store_settings,
     enrich_site7_target_store,
+    parse_site7_graph_difference_value,
     site7_store_is_known_unavailable,
 )
 from site7_scraper import build_site7_transition_wait_milliseconds
@@ -471,6 +474,26 @@ class MinRepoScraperTests(unittest.TestCase):
     def test_site7_transition_wait_milliseconds_clamps_min_and_max(self) -> None:
         self.assertEqual(build_site7_transition_wait_milliseconds(lambda start, end: 1.0), 2000)
         self.assertEqual(build_site7_transition_wait_milliseconds(lambda start, end: 9.0), 4000)
+
+    def test_site7_parse_graph_difference_value_from_image(self) -> None:
+        image = Image.new("RGB", (260, 226), (245, 236, 231))
+        draw = ImageDraw.Draw(image)
+        axis_x = 9
+        graph_top = 15
+        graph_bottom = 207
+        zero_y = 112
+        grid_spacing = 19
+        for y in range(graph_top + 1, graph_bottom, grid_spacing):
+            draw.line((axis_x + 1, y, 244, y), fill=(204, 204, 204))
+        draw.line((axis_x, graph_top, axis_x, graph_bottom), fill=(0, 0, 0))
+        draw.line((axis_x, zero_y, 244, zero_y), fill=(108, 100, 100))
+        line_y = zero_y - grid_spacing
+        draw.line((12, zero_y, 80, line_y, 150, line_y), fill=(255, 51, 0), width=2)
+
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+
+        self.assertAlmostEqual(parse_site7_graph_difference_value(buffer.getvalue()), 1000, delta=100)
 
     def test_normalize_site7_browser_mode(self) -> None:
         self.assertEqual(normalize_site7_browser_mode("visible"), SITE7_BROWSER_MODE_VISIBLE)
