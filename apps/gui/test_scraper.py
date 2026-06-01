@@ -1831,6 +1831,66 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(context.close_count, 1)
         self.assertEqual(playwright.stop_count, 1)
 
+    def test_site7_fetch_filters_machine_result_before_callback(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        page = FakeRetainedPage()
+        context = FakeRetainedContext(page)
+        playwright = FakePlayableBrowser()
+        raw_result = MachineHistoryResult(
+            store_name="Aパーク春日店",
+            store_url="https://example.com/hall",
+            start_date="2026-04-25",
+            end_date="2026-04-25",
+            date_pages=[StoreDatePage(target_date="2026-04-25", date_url="https://example.com/hall#ata0")],
+            datasets=[
+                MachineDataset(
+                    store_name="Aパーク春日店",
+                    store_url="https://example.com/hall",
+                    target_date="2026-04-25",
+                    date_url="https://example.com/hall#ata0",
+                    machine_name=SITE7_TARGET_MACHINE_NAME,
+                    machine_url="https://example.com/machine",
+                    columns=["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"],
+                    rows=[["821", "100", "1000", "-", "5", "2", "1/143", "1/200", "1/500"]],
+                )
+            ],
+        )
+        filtered_result = MachineHistoryResult(
+            store_name="Aパーク春日店",
+            store_url="https://example.com/hall",
+            start_date="2026-04-25",
+            end_date="2026-04-25",
+            date_pages=[],
+            datasets=[],
+            skipped_targets=[("2026-04-25", SITE7_TARGET_MACHINE_NAME)],
+            skipped_dates=["2026-04-25"],
+        )
+        scraper._launch_browser_context = mock.Mock(return_value=(playwright, context))
+        scraper._require_playwright = mock.Mock()
+        scraper._open_target_hall_page = mock.Mock(return_value=("https://example.com/hall", "<html></html>"))
+        scraper.extract_store_name = mock.Mock(return_value="Aパーク春日店")
+        scraper.extract_target_machine_entries = mock.Mock(
+            return_value=[Site7MachineEntry(display_name=SITE7_TARGET_MACHINE_NAME, machine_name=SITE7_TARGET_MACHINE_NAME)]
+        )
+        scraper._wait_between_transitions = mock.Mock()
+        scraper._accept_cookie_banner_if_present = mock.Mock()
+        scraper._open_target_machine_page = mock.Mock()
+        scraper.parse_machine_history_html = mock.Mock(return_value=raw_result)
+        scraper._merge_machine_history_results = mock.Mock(return_value=filtered_result)
+        filter_callback = mock.Mock(return_value=filtered_result)
+        partial_results: list[MachineHistoryResult] = []
+
+        result = scraper.fetch_target_machine_history(
+            recent_days=1,
+            browser_visible=True,
+            machine_result_callback=partial_results.append,
+            machine_result_filter_callback=filter_callback,
+        )
+
+        self.assertIs(result, filtered_result)
+        filter_callback.assert_called_once_with(raw_result)
+        self.assertEqual(partial_results, [filtered_result])
+
     def test_site7_visible_browser_closes_when_fetch_is_cancelled(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         page = FakeRetainedPage()
@@ -2186,6 +2246,97 @@ class MinRepoScraperTests(unittest.TestCase):
         kind, progress = app.result_queue.get_nowait()
         self.assertEqual(kind, "fetch_progress")
         self.assertEqual(progress.message, "1/1 Aパーク春日店 は取得失敗")
+
+    def test_fetch_single_site7_store_filters_saved_slots_before_saving(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.result_queue = queue.Queue()
+
+        raw_result = MachineHistoryResult(
+            store_name="サイトセブン店",
+            store_url="https://example.com/site7-hall",
+            start_date="2026-04-25",
+            end_date="2026-04-25",
+            date_pages=[StoreDatePage(target_date="2026-04-25", date_url="https://example.com/site7-hall#ata0")],
+            datasets=[
+                MachineDataset(
+                    store_name="サイトセブン店",
+                    store_url="https://example.com/site7-hall",
+                    target_date="2026-04-25",
+                    date_url="https://example.com/site7-hall#ata0",
+                    machine_name=SITE7_TARGET_MACHINE_NAME,
+                    machine_url="https://example.com/site7-machine",
+                    columns=["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"],
+                    rows=[
+                        ["821", "100", "1000", "-", "5", "2", "1/143", "1/200", "1/500"],
+                        ["822", "200", "2000", "-", "8", "3", "1/182", "1/250", "1/666"],
+                    ],
+                )
+            ],
+        )
+
+        class FakeSite7Scraper:
+            def fetch_target_machine_history(
+                self,
+                *,
+                recent_days: int,
+                browser_visible: bool,
+                progress_callback: object,
+                target_store: object,
+                cancel_requested: object,
+                machine_result_callback: object,
+                machine_result_filter_callback: object,
+                include_graph_differences: bool,
+            ) -> MachineHistoryResult:
+                filtered_result = machine_result_filter_callback(raw_result)
+                machine_result_callback(filtered_result)
+                return filtered_result
+
+        class FakePersistenceService:
+            def __init__(self) -> None:
+                self.saved_results: list[MachineHistoryResult] = []
+
+            def resolve_preferred_store_by_name(self, store_name: str) -> None:
+                return None
+
+            def find_saved_machine_slots(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+                slot_numbers: list[str],
+            ) -> SavedMachineSlotsSummary:
+                self.checked_slot_numbers = slot_numbers
+                return SavedMachineSlotsSummary(protected_slots={("2026-04-25", "821")})
+
+            def save_history_result(self, history_result: MachineHistoryResult) -> PersistenceSummary:
+                self.saved_results.append(history_result)
+                return PersistenceSummary(web_data_saved=True, web_data_record_count=len(history_result.datasets))
+
+        persistence_service = FakePersistenceService()
+        app.site7_scraper = FakeSite7Scraper()
+        app.persistence_service = persistence_service
+
+        store_result = app._fetch_single_site7_store(
+            registered_store=RegisteredStore(
+                name="Aパーク春日店",
+                url="https://example.com/minrepo-store",
+                site7_enabled=True,
+                site7_difference_enabled=True,
+            ),
+            recent_days=1,
+            store_index=1,
+            total_stores=1,
+            retry_delay_seconds=0,
+            browser_visible=True,
+        )
+
+        self.assertEqual(len(persistence_service.saved_results), 1)
+        self.assertEqual(persistence_service.checked_slot_numbers, ["821", "822"])
+        self.assertEqual(persistence_service.saved_results[0].datasets[0].rows, [raw_result.datasets[0].rows[1]])
+        self.assertEqual(store_result.history_result.datasets[0].rows, [raw_result.datasets[0].rows[1]])
+        self.assertEqual(store_result.save_summary.web_data_record_count, 1)
 
     def test_site7_registered_stores_from_skips_unlisted_store(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -4050,6 +4201,72 @@ class MinRepoScraperTests(unittest.TestCase):
                 summary.replaceable_targets,
                 {("2026-04-24", normalize_text("ゴーゴージャグラー３"))},
             )
+
+    def test_find_saved_machine_slots_treats_complete_site7_as_protected(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service, storage = make_r2_service(Path(temp_dir))
+            seed_r2_store(
+                storage,
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                records=[
+                    {
+                        "target_date": "2026-04-24",
+                        "slot_number": "737",
+                        "machine_name": "ゴーゴージャグラー３",
+                        "data_source": DATA_SOURCE_SITE7,
+                        "difference_value": 120,
+                        "games_count": 1200,
+                        "bb_count": 6,
+                        "rb_count": 4,
+                    },
+                ],
+            )
+
+            summary = service.find_saved_machine_slots(
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                start_date="2026-04-24",
+                end_date="2026-04-24",
+                slot_numbers=["737"],
+            )
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(summary.protected_slots, {("2026-04-24", "737")})
+            self.assertEqual(summary.replaceable_slots, set())
+
+    def test_find_saved_machine_slots_treats_incomplete_site7_as_replaceable(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service, storage = make_r2_service(Path(temp_dir))
+            seed_r2_store(
+                storage,
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                records=[
+                    {
+                        "target_date": "2026-04-24",
+                        "slot_number": "737",
+                        "machine_name": "ゴーゴージャグラー３",
+                        "data_source": DATA_SOURCE_SITE7,
+                        "difference_value": None,
+                        "games_count": 1200,
+                        "bb_count": 6,
+                        "rb_count": 4,
+                    },
+                ],
+            )
+
+            summary = service.find_saved_machine_slots(
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                start_date="2026-04-24",
+                end_date="2026-04-24",
+                slot_numbers=["737"],
+            )
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(summary.protected_slots, set())
+            self.assertEqual(summary.replaceable_slots, {("2026-04-24", "737")})
 
     def test_filter_site7_history_result_skips_saved_targets(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)

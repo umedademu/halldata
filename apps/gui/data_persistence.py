@@ -334,6 +334,19 @@ def _site7_record_has_meaningful_data(
     return any(str(value or "").strip() not in {"", "-", "--"} for value in text_values)
 
 
+def _saved_value_is_filled(value: Any) -> bool:
+    if value is None:
+        return False
+    return str(value).strip() not in {"", "-", "--"}
+
+
+def _site7_record_has_complete_fetch_data(record: dict[str, Any]) -> bool:
+    return all(
+        _saved_value_is_filled(record.get(field_name))
+        for field_name in ("difference_value", "games_count", "bb_count", "rb_count")
+    )
+
+
 def _saved_record_should_be_kept(record: dict[str, Any]) -> bool:
     if _infer_saved_result_data_source(record) != DATA_SOURCE_SITE7:
         return True
@@ -1528,7 +1541,10 @@ class HistoryPersistenceService:
 
             target_key = (target_date, slot_number)
             if _infer_saved_result_data_source(row) == DATA_SOURCE_SITE7:
-                if target_key not in protected_slots:
+                if _site7_record_has_complete_fetch_data(row):
+                    protected_slots.add(target_key)
+                    replaceable_slots.discard(target_key)
+                elif target_key not in protected_slots:
                     replaceable_slots.add(target_key)
                 continue
 
@@ -2265,7 +2281,10 @@ class HistoryPersistenceService:
 
             target_key = (target_date, slot_number)
             if _infer_saved_result_data_source(row) == DATA_SOURCE_SITE7:
-                if target_key not in protected_slots:
+                if _site7_record_has_complete_fetch_data(row):
+                    protected_slots.add(target_key)
+                    replaceable_slots.discard(target_key)
+                elif target_key not in protected_slots:
                     replaceable_slots.add(target_key)
                 continue
 

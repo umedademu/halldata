@@ -2097,17 +2097,23 @@ class MinRepoApp:
         def queue_progress(progress: FetchProgress) -> None:
             self._queue_fetch_progress(progress, store_index=store_index, total_stores=total_stores)
 
+        def filter_machine_result_for_fetch(machine_result: MachineHistoryResult) -> MachineHistoryResult:
+            nonlocal warning_summary
+            self._raise_if_fetch_cancelled()
+            partial_result = rewrite_history_result_store(
+                machine_result,
+                store_name=registered_store.name,
+                store_url=registered_store.url,
+            )
+            partial_result, partial_warning_summary = self._prepare_site7_history_result_for_save(partial_result)
+            warning_summary.messages.extend(partial_warning_summary.messages)
+            return partial_result
+
         def run_site7_fetch() -> MachineHistoryResult:
             def save_machine_result(machine_result: MachineHistoryResult) -> None:
-                nonlocal save_summary, warning_summary
+                nonlocal save_summary
                 self._raise_if_fetch_cancelled()
-                partial_result = rewrite_history_result_store(
-                    machine_result,
-                    store_name=registered_store.name,
-                    store_url=registered_store.url,
-                )
-                partial_result, partial_warning_summary = self._prepare_site7_history_result_for_save(partial_result)
-                warning_summary.messages.extend(partial_warning_summary.messages)
+                partial_result = machine_result
                 if not partial_result.datasets:
                     return
 
@@ -2133,6 +2139,7 @@ class MinRepoApp:
                     target_store=target_store,
                     cancel_requested=self.fetch_cancel_event.is_set,
                     machine_result_callback=save_machine_result,
+                    machine_result_filter_callback=filter_machine_result_for_fetch,
                     include_graph_differences=registered_store.site7_difference_enabled,
                 )
             except Site7FetchCancelled as exc:
@@ -2160,9 +2167,6 @@ class MinRepoApp:
             store_name=registered_store.name,
             store_url=registered_store.url,
         )
-        queue_progress(FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: 保存済み日付を確認中"))
-        history_result, final_warning_summary = self._prepare_site7_history_result_for_save(history_result)
-        warning_summary.messages.extend(final_warning_summary.messages)
         self._raise_if_fetch_cancelled()
         if history_result.datasets and save_summary is None:
             queue_progress(FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: 保存中"))

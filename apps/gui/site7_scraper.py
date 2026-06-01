@@ -701,6 +701,7 @@ class Site7Scraper:
         target_store: Site7TargetStore | None = None,
         cancel_requested: Callable[[], bool] | None = None,
         machine_result_callback: Callable[[MachineHistoryResult], None] | None = None,
+        machine_result_filter_callback: Callable[[MachineHistoryResult], MachineHistoryResult] | None = None,
         include_graph_differences: bool = False,
     ) -> MachineHistoryResult:
         resolved_target_store = enrich_site7_target_store(target_store or SITE7_DEFAULT_TARGET_STORE)
@@ -757,6 +758,8 @@ class Site7Scraper:
                     fallback_store_name=store_name,
                     machine_name_override=machine_entry.machine_name,
                 )
+                if machine_result_filter_callback is not None:
+                    machine_result = machine_result_filter_callback(machine_result)
                 machine_results.append(machine_result)
                 if machine_result_callback is not None and not include_graph_differences:
                     machine_result_callback(machine_result)
@@ -1947,6 +1950,25 @@ class Site7Scraper:
 
         datasets.sort(key=lambda dataset: (dataset.target_date, dataset.machine_name.casefold()))
         date_pages = sorted(date_pages_by_date.values(), key=lambda date_page: date_page.target_date)
+        if not date_pages:
+            candidate_dates = [
+                target_date
+                for result in machine_results
+                for target_date in (result.start_date, result.end_date, *result.skipped_dates)
+                if target_date
+            ]
+            start_date = min(candidate_dates) if candidate_dates else ""
+            end_date = max(candidate_dates) if candidate_dates else ""
+            return MachineHistoryResult(
+                store_name=fallback_store_name,
+                store_url=store_url,
+                start_date=start_date,
+                end_date=end_date,
+                date_pages=[],
+                datasets=[],
+                skipped_targets=skipped_targets,
+                skipped_dates=skipped_dates,
+            )
         return MachineHistoryResult(
             store_name=fallback_store_name,
             store_url=store_url,
