@@ -80,6 +80,7 @@ from site7_scraper import (
     clamp_site7_recent_days,
     default_site7_store_settings,
     enrich_site7_target_store,
+    mark_site7_dataset_graph_difference,
     parse_site7_graph_difference_value,
     site7_store_is_known_unavailable,
 )
@@ -2306,8 +2307,10 @@ class MinRepoScraperTests(unittest.TestCase):
                 start_date: str,
                 end_date: str,
                 slot_numbers: list[str],
+                require_source_difference: bool = True,
             ) -> SavedMachineSlotsSummary:
                 self.checked_slot_numbers = slot_numbers
+                self.require_source_difference = require_source_difference
                 return SavedMachineSlotsSummary(protected_slots={("2026-04-25", "821")})
 
             def save_history_result(self, history_result: MachineHistoryResult) -> PersistenceSummary:
@@ -2500,6 +2503,32 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertEqual(build_machine_daily_records(history_result), [])
 
+    def test_site7_build_machine_daily_records_marks_graph_difference_source(self) -> None:
+        dataset = MachineDataset(
+            store_name="Ａパーク春日店",
+            store_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=example",
+            target_date="2026-06-01",
+            date_url="https://www.d-deltanet.com/pc/BonusList.do?model=example#ata0",
+            machine_name="スマスロ ハナビ",
+            machine_url="https://www.d-deltanet.com/pc/BonusList.do?model=example",
+            columns=["台番", "差枚", "G数", "BB", "RB"],
+            rows=[["718", "-850", "1154", "3", "1"]],
+        )
+        mark_site7_dataset_graph_difference(dataset, "718")
+        history_result = MachineHistoryResult(
+            store_name="Ａパーク春日店",
+            store_url="https://www.d-deltanet.com/pc/HallSelectLink.do?hallcode=example",
+            start_date="2026-06-01",
+            end_date="2026-06-01",
+            date_pages=[StoreDatePage(target_date="2026-06-01", date_url=dataset.date_url)],
+            datasets=[dataset],
+        )
+
+        records = build_machine_daily_records(history_result)
+
+        self.assertEqual(records[0]["difference_value"], -850)
+        self.assertEqual(records[0]["site7_difference_source"], "graph")
+
     def test_r2_merge_removes_existing_blank_site7_rows(self) -> None:
         service = HistoryPersistenceService(root_dir=ROOT_DIR, r2_storage=FakeR2JsonStorage())
         existing_records = [
@@ -2572,11 +2601,13 @@ class MinRepoScraperTests(unittest.TestCase):
                 "bb_count": 8,
                 "rb_count": 6,
                 "site7_fetched_at": "2026-05-17T12:34:56+09:00",
+                "site7_difference_source": "graph",
             }
         )
 
         self.assertIsNotNone(record)
         self.assertEqual(record["site7_fetched_at"], "2026-05-17T12:34:56+09:00")
+        self.assertEqual(record["site7_difference_source"], "graph")
         self.assertEqual(record["setting_estimate_status"], "provisional")
         self.assertEqual(record["estimated_difference_status"], "provisional")
         self.assertNotIn("estimated_grape_denominator", record)
@@ -4216,6 +4247,8 @@ class MinRepoScraperTests(unittest.TestCase):
                         "machine_name": "ゴーゴージャグラー３",
                         "data_source": DATA_SOURCE_SITE7,
                         "difference_value": 120,
+                        "bonus_difference_value": 120,
+                        "site7_difference_source": "graph",
                         "games_count": 1200,
                         "bb_count": 6,
                         "rb_count": 4,
@@ -4234,6 +4267,40 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertFalse(summary.has_errors)
             self.assertEqual(summary.protected_slots, {("2026-04-24", "737")})
             self.assertEqual(summary.replaceable_slots, set())
+
+    def test_find_saved_machine_slots_treats_formula_site7_difference_as_replaceable(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service, storage = make_r2_service(Path(temp_dir))
+            seed_r2_store(
+                storage,
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                records=[
+                    {
+                        "target_date": "2026-04-24",
+                        "slot_number": "737",
+                        "machine_name": "ゴーゴージャグラー３",
+                        "data_source": DATA_SOURCE_SITE7,
+                        "difference_value": 120,
+                        "bonus_difference_value": 120,
+                        "games_count": 1200,
+                        "bb_count": 6,
+                        "rb_count": 4,
+                    },
+                ],
+            )
+
+            summary = service.find_saved_machine_slots(
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                start_date="2026-04-24",
+                end_date="2026-04-24",
+                slot_numbers=["737"],
+            )
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(summary.protected_slots, set())
+            self.assertEqual(summary.replaceable_slots, {("2026-04-24", "737")})
 
     def test_find_saved_machine_slots_treats_incomplete_site7_as_replaceable(self) -> None:
         with TemporaryDirectory() as temp_dir:
@@ -4334,7 +4401,9 @@ class MinRepoScraperTests(unittest.TestCase):
                 start_date: str,
                 end_date: str,
                 slot_numbers: list[str],
+                require_source_difference: bool = True,
             ) -> SavedMachineSlotsSummary:
+                self.require_source_difference = require_source_difference
                 return SavedMachineSlotsSummary(
                     protected_slots={("2026-04-24", "821")},
                     replaceable_slots={("2026-04-25", "821")},

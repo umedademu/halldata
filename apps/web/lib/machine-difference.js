@@ -8,6 +8,7 @@ import {
 let cachedRules = null;
 
 export const DEFAULT_DIFFERENCE_MODE = "estimated";
+const SITE7_DIFFERENCE_SOURCE_GRAPH = "graph";
 const MINREPO_ONE_BET_GAME_FACTOR = 1 / 3;
 const ONE_BET_GRAPE_DENOMINATOR = 10.3;
 const ONE_BET_REPLAY_DENOMINATOR = 7.3;
@@ -345,8 +346,22 @@ export function calculateEstimatedCoinHoldDifferenceValue(row, machineName = "")
   });
 }
 
+function readSite7GraphDifferenceValue(row) {
+  const differenceSource = String(
+    row?.site7_difference_source ?? row?.site7DifferenceSource ?? "",
+  ).trim().toLowerCase();
+  if (differenceSource !== SITE7_DIFFERENCE_SOURCE_GRAPH) {
+    return null;
+  }
+  return readDifferenceNumber(row?.difference_value);
+}
+
 export function selectDifferenceValue(row, differenceMode = "bonus", machineName = "") {
   const normalizedDifferenceMode = normalizeDifferenceMode(differenceMode);
+  const site7GraphDifferenceValue = readSite7GraphDifferenceValue(row);
+  if (site7GraphDifferenceValue !== null) {
+    return site7GraphDifferenceValue;
+  }
 
   if (normalizedDifferenceMode === "estimated") {
     const estimatedDifferenceValue = calculateEstimatedCoinHoldDifferenceValue(row, machineName);

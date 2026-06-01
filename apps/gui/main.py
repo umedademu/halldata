@@ -2105,7 +2105,10 @@ class MinRepoApp:
                 store_name=registered_store.name,
                 store_url=registered_store.url,
             )
-            partial_result, partial_warning_summary = self._prepare_site7_history_result_for_save(partial_result)
+            partial_result, partial_warning_summary = self._prepare_site7_history_result_for_save(
+                partial_result,
+                require_source_difference=registered_store.site7_difference_enabled,
+            )
             warning_summary.messages.extend(partial_warning_summary.messages)
             return partial_result
 
@@ -2180,6 +2183,7 @@ class MinRepoApp:
     def _prepare_site7_history_result_for_save(
         self,
         history_result: MachineHistoryResult,
+        require_source_difference: bool = True,
     ) -> tuple[MachineHistoryResult, SavedFullDayDatesSummary]:
         warning_messages: list[str] = []
         preferred_store = self.persistence_service.resolve_preferred_store_by_name(history_result.store_name)
@@ -2201,6 +2205,7 @@ class MinRepoApp:
             start_date=history_result.start_date,
             end_date=history_result.end_date,
             slot_numbers=slot_numbers,
+            require_source_difference=require_source_difference,
         )
         warning_messages.extend(saved_slots_summary.messages)
         history_result = filter_site7_history_result_by_saved_slots(

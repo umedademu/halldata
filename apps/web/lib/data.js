@@ -1006,6 +1006,7 @@ function buildRawRowsFromMachineDailyDetailRows(rows) {
         combined_ratio_text: record?.combined_ratio_text ?? null,
         bb_ratio_text: record?.bb_ratio_text ?? null,
         rb_ratio_text: record?.rb_ratio_text ?? null,
+        site7_difference_source: String(record?.site7_difference_source ?? record?.site7DifferenceSource ?? "").trim() || null,
       });
     }
   }
@@ -1437,6 +1438,8 @@ function buildMachineDetailFromDailyRows(rows) {
         bb_ratio_text: sourceRecord.bb_ratio_text ?? null,
         rb_ratio_text: sourceRecord.rb_ratio_text ?? null,
         data_source: String(sourceRecord.data_source ?? "").trim() || null,
+        site7_difference_source:
+          String(sourceRecord.site7_difference_source ?? sourceRecord.site7DifferenceSource ?? "").trim() || null,
         site7_fetched_at: readSite7FetchedAt(sourceRecord),
       });
       recordsBySlot[slotNumber] = record;
@@ -1838,6 +1841,8 @@ function readStaticStoreRecords(staticStore, dateRange = null) {
       bb_ratio_text: record.bb_ratio_text ?? null,
       rb_ratio_text: record.rb_ratio_text ?? null,
       data_source: String(record.data_source ?? "").trim() || null,
+      site7_difference_source:
+        String(record.site7_difference_source ?? record.site7DifferenceSource ?? "").trim() || null,
       site7_fetched_at: readSite7FetchedAt(record),
     }))
     .filter((record) => record.machine_name && record.target_date && record.slot_number)

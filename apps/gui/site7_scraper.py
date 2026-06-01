@@ -50,6 +50,8 @@ SITE7_TRANSITION_WAIT_MIN_SECONDS = 2.0
 SITE7_TRANSITION_WAIT_MAX_SECONDS = 4.0
 SITE7_GRAPH_LIST_DETAIL_THRESHOLD = 4500
 SITE7_GRAPH_LIST_MAX_PAGES = 20
+SITE7_DIFFERENCE_SOURCE_GRAPH = "graph"
+SITE7_GRAPH_DIFFERENCE_SLOT_ATTR = "_site7_graph_difference_slots"
 SITE7_BROWSER_STATE_DIR_NAME = "site7_browser"
 SITE7_DATE_BOUNDARY_HOUR = 4
 SITE7_UPDATE_DATE_PATTERN = re.compile(
@@ -228,6 +230,23 @@ def _site7_pixel_is_graph_line(pixel: tuple[int, int, int]) -> bool:
     if red > 170 and green < 150 and blue < 140 and red - green > 45 and red - blue > 45:
         return True
     return green > 110 and red < 170 and blue < 170 and green - red > 25 and green - blue > 20
+
+
+def mark_site7_dataset_graph_difference(dataset: MachineDataset, slot_number: str) -> None:
+    normalized_slot_number = str(slot_number).strip()
+    if not normalized_slot_number:
+        return
+    marked_slots = getattr(dataset, SITE7_GRAPH_DIFFERENCE_SLOT_ATTR, None)
+    if not isinstance(marked_slots, set):
+        marked_slots = set()
+        setattr(dataset, SITE7_GRAPH_DIFFERENCE_SLOT_ATTR, marked_slots)
+    marked_slots.add(normalized_slot_number)
+
+
+def dataset_has_site7_graph_difference(dataset: MachineDataset, slot_number: str) -> bool:
+    normalized_slot_number = str(slot_number).strip()
+    marked_slots = getattr(dataset, SITE7_GRAPH_DIFFERENCE_SLOT_ATTR, set())
+    return isinstance(marked_slots, set) and normalized_slot_number in marked_slots
 
 
 @dataclass(frozen=True)
@@ -1086,13 +1105,19 @@ class Site7Scraper:
             slot_number = str(row[slot_index]).strip()
             list_difference_value = list_difference_values.get(slot_number)
             if list_difference_value is not None and slot_number not in detail_slot_numbers:
-                row[difference_index] = str(list_difference_value)
+                self._set_mobile_graph_difference(dataset, row, difference_index, slot_number, list_difference_value)
                 continue
 
             graph_link = slot_graph_links.get(slot_number)
             if not graph_link:
                 if list_difference_value is not None:
-                    row[difference_index] = str(list_difference_value)
+                    self._set_mobile_graph_difference(
+                        dataset,
+                        row,
+                        difference_index,
+                        slot_number,
+                        list_difference_value,
+                    )
                 continue
 
             current_step = current_graph_count_ref() + row_index
@@ -1110,9 +1135,20 @@ class Site7Scraper:
                 cancel_requested=cancel_requested,
             )
             if difference_value is not None:
-                row[difference_index] = str(difference_value)
+                self._set_mobile_graph_difference(dataset, row, difference_index, slot_number, difference_value)
             elif list_difference_value is not None:
-                row[difference_index] = str(list_difference_value)
+                self._set_mobile_graph_difference(dataset, row, difference_index, slot_number, list_difference_value)
+
+    def _set_mobile_graph_difference(
+        self,
+        dataset: MachineDataset,
+        row: list[str],
+        difference_index: int,
+        slot_number: str,
+        difference_value: int,
+    ) -> None:
+        row[difference_index] = str(difference_value)
+        mark_site7_dataset_graph_difference(dataset, slot_number)
 
     def _open_mobile_target_hall_page(
         self,

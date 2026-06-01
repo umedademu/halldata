@@ -373,6 +373,11 @@ def safe_record(
     data_source = read_text(raw_record.get("data_source"))
     if data_source:
         record["data_source"] = data_source
+    site7_difference_source = read_text(
+        raw_record.get("site7_difference_source") or raw_record.get("site7DifferenceSource")
+    )
+    if data_source.casefold() == DATA_SOURCE_SITE7 and site7_difference_source:
+        record["site7_difference_source"] = site7_difference_source
     fetched_at = read_text(
         raw_record.get("site7_fetched_at")
         or raw_record.get("site7FetchedAt")

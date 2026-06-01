@@ -22,6 +22,8 @@ from minrepo_scraper import MachineHistoryResult, normalize_text
 from r2_storage import R2JsonStorage, R2StorageError
 from site7_scraper import (
     DEFAULT_SITE7_PREFECTURE_NAME,
+    SITE7_DIFFERENCE_SOURCE_GRAPH,
+    dataset_has_site7_graph_difference,
     default_site7_store_settings,
     site7_store_is_known_unavailable,
 )
@@ -273,6 +275,13 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
             combined_ratio_text = _parse_text_value(row_values.get("合成", ""))
             bb_ratio_text = _parse_text_value(row_values.get("BB率", ""))
             rb_ratio_text = _parse_text_value(row_values.get("RB率", ""))
+            site7_difference_source = ""
+            if (
+                data_source == DATA_SOURCE_SITE7
+                and source_difference_value is not None
+                and dataset_has_site7_graph_difference(dataset, slot_number)
+            ):
+                site7_difference_source = SITE7_DIFFERENCE_SOURCE_GRAPH
             if data_source == DATA_SOURCE_SITE7 and not _site7_record_has_meaningful_data(
                 difference_value=difference_value,
                 bonus_difference_value=bonus_difference_value,
@@ -286,23 +295,24 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
             ):
                 continue
 
-            records.append(
-                {
-                    "target_date": dataset.target_date,
-                    "slot_number": slot_number,
-                    "machine_name": stored_machine_name,
-                    "data_source": data_source,
-                    "difference_value": difference_value,
-                    "bonus_difference_value": bonus_difference_value,
-                    "games_count": games_count,
-                    "payout_rate": payout_rate,
-                    "bb_count": bb_count,
-                    "rb_count": rb_count,
-                    "combined_ratio_text": combined_ratio_text,
-                    "bb_ratio_text": bb_ratio_text,
-                    "rb_ratio_text": rb_ratio_text,
-                }
-            )
+            record = {
+                "target_date": dataset.target_date,
+                "slot_number": slot_number,
+                "machine_name": stored_machine_name,
+                "data_source": data_source,
+                "difference_value": difference_value,
+                "bonus_difference_value": bonus_difference_value,
+                "games_count": games_count,
+                "payout_rate": payout_rate,
+                "bb_count": bb_count,
+                "rb_count": rb_count,
+                "combined_ratio_text": combined_ratio_text,
+                "bb_ratio_text": bb_ratio_text,
+                "rb_ratio_text": rb_ratio_text,
+            }
+            if site7_difference_source:
+                record["site7_difference_source"] = site7_difference_source
+            records.append(record)
 
     return records
 
@@ -340,11 +350,40 @@ def _saved_value_is_filled(value: Any) -> bool:
     return str(value).strip() not in {"", "-", "--"}
 
 
-def _site7_record_has_complete_fetch_data(record: dict[str, Any]) -> bool:
-    return all(
+def _site7_record_has_complete_fetch_data(
+    record: dict[str, Any],
+    *,
+    require_source_difference: bool = True,
+) -> bool:
+    has_required_counts = all(
         _saved_value_is_filled(record.get(field_name))
-        for field_name in ("difference_value", "games_count", "bb_count", "rb_count")
+        for field_name in ("games_count", "bb_count", "rb_count")
     )
+    if not has_required_counts:
+        return False
+    if require_source_difference:
+        return _site7_record_has_source_difference_value(record)
+    return _saved_value_is_filled(record.get("difference_value"))
+
+
+def _site7_record_has_source_difference_value(record: dict[str, Any]) -> bool:
+    if not _saved_value_is_filled(record.get("difference_value")):
+        return False
+    difference_source = str(
+        record.get("site7_difference_source") or record.get("site7DifferenceSource") or ""
+    ).strip().casefold()
+    if difference_source == SITE7_DIFFERENCE_SOURCE_GRAPH:
+        return True
+
+    bonus_difference_value = record.get("bonus_difference_value")
+    if not _saved_value_is_filled(bonus_difference_value):
+        return True
+
+    difference_value = _parse_difference_value(str(record.get("difference_value")))
+    parsed_bonus_difference_value = _parse_difference_value(str(bonus_difference_value))
+    if difference_value is None or parsed_bonus_difference_value is None:
+        return str(record.get("difference_value")).strip() != str(bonus_difference_value).strip()
+    return difference_value != parsed_bonus_difference_value
 
 
 def _saved_record_should_be_kept(record: dict[str, Any]) -> bool:
@@ -492,6 +531,11 @@ def build_store_machine_daily_detail_payloads(
         data_source = _normalize_data_source(record.get("data_source"))
         if data_source == DATA_SOURCE_SITE7:
             slot_payload["data_source"] = data_source
+            site7_difference_source = str(
+                record.get("site7_difference_source") or record.get("site7DifferenceSource") or ""
+            ).strip()
+            if site7_difference_source:
+                slot_payload["site7_difference_source"] = site7_difference_source
         site7_fetched_at = str(record.get("site7_fetched_at") or record.get("site7FetchedAt") or "").strip()
         if data_source == DATA_SOURCE_SITE7 and site7_fetched_at:
             slot_payload["site7_fetched_at"] = site7_fetched_at
@@ -737,6 +781,7 @@ class HistoryPersistenceService:
         start_date: str,
         end_date: str,
         slot_numbers: list[str],
+        require_source_difference: bool = True,
     ) -> SavedMachineSlotsSummary:
         normalized_slot_numbers = {
             str(slot_number).strip()
@@ -754,6 +799,7 @@ class HistoryPersistenceService:
                 start_date=start_date,
                 end_date=end_date,
                 target_slot_numbers=normalized_slot_numbers,
+                require_source_difference=require_source_difference,
             )
             summary.protected_slots.update(protected_slots)
             summary.replaceable_slots.update(replaceable_slots)
@@ -783,6 +829,7 @@ class HistoryPersistenceService:
         start_date: str,
         end_date: str,
         slot_numbers: list[str],
+        require_source_difference: bool = True,
     ) -> SavedMachineSlotsSummary:
         return self.find_saved_machine_slots(
             store_name="",
@@ -790,6 +837,7 @@ class HistoryPersistenceService:
             start_date=start_date,
             end_date=end_date,
             slot_numbers=slot_numbers,
+            require_source_difference=require_source_difference,
         )
 
     def delete_machine_targets_from_supabase(
@@ -1524,6 +1572,7 @@ class HistoryPersistenceService:
         start_date: str,
         end_date: str,
         target_slot_numbers: set[str],
+        require_source_difference: bool = True,
     ) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
         protected_slots: set[tuple[str, str]] = set()
         replaceable_slots: set[tuple[str, str]] = set()
@@ -1541,7 +1590,10 @@ class HistoryPersistenceService:
 
             target_key = (target_date, slot_number)
             if _infer_saved_result_data_source(row) == DATA_SOURCE_SITE7:
-                if _site7_record_has_complete_fetch_data(row):
+                if _site7_record_has_complete_fetch_data(
+                    row,
+                    require_source_difference=require_source_difference,
+                ):
                     protected_slots.add(target_key)
                     replaceable_slots.discard(target_key)
                 elif target_key not in protected_slots:
@@ -2265,6 +2317,7 @@ class HistoryPersistenceService:
         start_date: str,
         end_date: str,
         target_slot_numbers: set[str],
+        require_source_difference: bool = True,
     ) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
         protected_slots: set[tuple[str, str]] = set()
         replaceable_slots: set[tuple[str, str]] = set()
@@ -2281,7 +2334,10 @@ class HistoryPersistenceService:
 
             target_key = (target_date, slot_number)
             if _infer_saved_result_data_source(row) == DATA_SOURCE_SITE7:
-                if _site7_record_has_complete_fetch_data(row):
+                if _site7_record_has_complete_fetch_data(
+                    row,
+                    require_source_difference=require_source_difference,
+                ):
                     protected_slots.add(target_key)
                     replaceable_slots.discard(target_key)
                 elif target_key not in protected_slots:
