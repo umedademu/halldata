@@ -2080,6 +2080,18 @@ class MinRepoScraperTests(unittest.TestCase):
             ("827", "https://m.site777.jp/db/D3000.do?pmc=40100003&gc=2&dtdd=0&urt=2173&mdc=120312&dsgk=0&dn=827"),
         )
         self.assertEqual(
+            scraper.extract_mobile_slot_graph_links(
+                '<a href="D3000.do?pmc=40100003&gc=2&dtdd=0&urt=2173&mdc=120345&dsgk=0&dn=1151">'
+                '<img alt="最大値:634"></a>'
+            ),
+            {
+                "1151": (
+                    "https://m.site777.jp/db/D3000.do?"
+                    "pmc=40100003&gc=2&dtdd=0&urt=2173&mdc=120345&dsgk=0&dn=1151"
+                )
+            },
+        )
+        self.assertEqual(
             scraper.extract_mobile_graph_list_next_page_links(
                 """
 <a href="D2400.do?pmc=40100003&mdc=120312&bn=1&gc=1&dtdd=0&pan=1">1</a>

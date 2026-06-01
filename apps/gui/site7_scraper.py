@@ -1786,11 +1786,15 @@ class Site7Scraper:
             if "D3000.do?" not in href:
                 continue
 
+            absolute_href = urljoin(SITE7_MOBILE_TOP_URL, href)
+            query = dict(parse_qsl(urlsplit(absolute_href).query, keep_blank_values=True))
+            slot_number = str(query.get("dn") or "").strip()
             text = anchor.get_text(" ", strip=True)
-            slot_number = self._extract_slot_number(text)
+            if not slot_number:
+                slot_number = self._extract_slot_number(text)
             if not slot_number:
                 continue
-            slot_graph_links.setdefault(slot_number, urljoin(SITE7_MOBILE_TOP_URL, href))
+            slot_graph_links.setdefault(slot_number, absolute_href)
 
         return slot_graph_links
 
