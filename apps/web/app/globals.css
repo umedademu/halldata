@@ -1290,17 +1290,25 @@ a {
   padding: 16px 18px;
 }
 
-.machineComparisonFilterPanel .sectionLabel {
+.machineComparisonPeriodPanel {
+  gap: 10px;
+  padding: 14px 18px;
+}
+
+.machineComparisonFilterPanel .sectionLabel,
+.machineComparisonPeriodPanel .sectionLabel {
   font-size: 0.74rem;
   letter-spacing: 0.04em;
 }
 
 .machineComparisonFilterPanel .filterControlGroup,
+.machineComparisonPeriodPanel .filterControlGroup,
 .machineComparisonFilterPanel .backtestBlock {
   gap: 6px;
 }
 
-.machineComparisonFilterPanel .filterControlLabel {
+.machineComparisonFilterPanel .filterControlLabel,
+.machineComparisonPeriodPanel .filterControlLabel {
   font-size: 0.76rem;
 }
 
@@ -1356,18 +1364,21 @@ a {
   cursor: pointer;
 }
 
-.machineComparisonFilterPanel .filterPanelStatus {
+.machineComparisonFilterPanel .filterPanelStatus,
+.machineComparisonPeriodPanel .filterPanelStatus {
   padding: 5px 8px;
   font-size: 0.78rem;
 }
 
 .machineComparisonFilterPanel .dayFilterRow,
+.machineComparisonPeriodPanel .dayFilterRow,
 .machineComparisonFilterPanel .metricToggleRow,
 .machineComparisonFilterPanel .machineGroupToggleRow {
   gap: 7px;
 }
 
-.machineComparisonFilterPanel .dayFilterChip {
+.machineComparisonFilterPanel .dayFilterChip,
+.machineComparisonPeriodPanel .dayFilterChip {
   padding: 7px 10px;
   font-size: 0.86rem;
 }

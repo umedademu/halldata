@@ -3645,13 +3645,8 @@ export function MachineComparison({
 
   return (
     <>
-      <section className="filterPanel machineComparisonFilterPanel">
-        <CollapsibleControlGroup
-          title="表示条件"
-          open={displayControlsOpen}
-          onOpenChange={setDisplayControlsOpen}
-        >
-          <div className="filterControlGroup">
+      <section className="filterPanel machineComparisonPeriodPanel">
+        <div className="filterControlGroup">
           <p className="filterControlLabel">表示期間</p>
           <div className="dayFilterRow">
             <button
@@ -3722,6 +3717,14 @@ export function MachineComparison({
             {periodFilteredRows.length}日分
           </p>
         </div>
+      </section>
+
+      <section className="filterPanel machineComparisonFilterPanel">
+        <CollapsibleControlGroup
+          title="表示条件"
+          open={displayControlsOpen}
+          onOpenChange={setDisplayControlsOpen}
+        >
         <div className="filterControlGroup">
           <p className="filterControlLabel">日付</p>
           <div className="dayFilterRow">
