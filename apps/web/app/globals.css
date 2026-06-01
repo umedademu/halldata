@@ -124,7 +124,9 @@ a {
   display: grid;
   gap: 20px;
   padding: 28px;
+  overflow: visible;
   background: var(--panel);
+  z-index: 4;
 }
 
 .heroPanel::after {
@@ -273,6 +275,10 @@ a {
   min-width: min(22rem, 100%);
 }
 
+.huntLogicMultiSelect[open] {
+  z-index: 80;
+}
+
 .huntLogicMultiSummary {
   display: flex;
   align-items: center;
@@ -302,7 +308,7 @@ a {
 
 .huntLogicMultiMenu {
   position: absolute;
-  z-index: 30;
+  z-index: 90;
   top: calc(100% + 6px);
   left: 0;
   display: grid;
