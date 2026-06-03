@@ -827,19 +827,6 @@ class MinRepoApp:
         self.fetch_progress_bar.grid(row=1, column=1, columnspan=2, sticky="ew", padx=(8, 12), pady=(8, 0))
         ttk.Label(self.fetch_info, textvariable=self.fetch_progress_text_var).grid(row=1, column=3, sticky="w", pady=(8, 0))
 
-        self.fetch_result_frame = ttk.LabelFrame(self.fetch_tab, text="取得結果", padding=12)
-        self.fetch_result_frame.grid(row=2, column=0, sticky="ew")
-        self.fetch_result_frame.columnconfigure(0, weight=1)
-        ttk.Label(
-            self.fetch_result_frame,
-            text=(
-                "GUIでの台データ表表示は廃止しました。"
-                "取得状況と保存結果だけをこの画面で確認し、詳細な台データや分析はWebアプリで確認してください。"
-            ),
-            wraplength=1000,
-            justify="left",
-        ).grid(row=0, column=0, sticky="w")
-
         self._build_register_tab(register_tab)
         self._build_site7_machine_settings_tab(site7_machine_tab)
 
@@ -3985,8 +3972,6 @@ class MinRepoApp:
     def _apply_fetch_result_layout(self) -> None:
         self.fetch_form.grid()
         self.fetch_info.grid()
-        self.fetch_result_frame.grid()
-        self.fetch_tab.rowconfigure(2, weight=0)
 
     def _reset_fetch_display_for_store_change(self) -> None:
         self.current_results = []
