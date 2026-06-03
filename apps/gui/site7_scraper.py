@@ -57,6 +57,7 @@ SITE7_MOBILE_STAT_LINK_LABELS = {
     "BB": "BB回数",
     "RB": "RB回数",
 }
+SITE7_DEBUG_LOG_DIR_NAME = "logs/site7"
 SITE7_DIFFERENCE_SOURCE_GRAPH = "graph"
 SITE7_GRAPH_DIFFERENCE_SLOT_ATTR = "_site7_graph_difference_slots"
 SITE7_BROWSER_STATE_DIR_NAME = "site7_browser"
@@ -740,10 +741,30 @@ def default_site7_store_settings(store_name: str) -> dict[str, object]:
     }
 
 
+def _site7_log_file_component(value: str) -> str:
+    text = str(value).strip() or "site7"
+    text = re.sub(r'[\\/:*?"<>|]+', "_", text)
+    text = re.sub(r"\s+", "_", text)
+    return text[:80] or "site7"
+
+
+def _site7_debug_field_value(value: object) -> str:
+    if isinstance(value, set):
+        value = sorted(value)
+    if isinstance(value, (list, tuple)):
+        return "[" + ",".join(_site7_debug_field_value(item) for item in value) + "]"
+    text = str(value).replace("\n", "\\n").replace("\r", "\\r").strip()
+    if " " in text:
+        return repr(text)
+    return text
+
+
 class Site7Scraper:
     def __init__(self, root_dir: Path | None = None) -> None:
         self.root_dir = root_dir or ROOT_DIR
         self.browser_state_dir = self.root_dir / "local_data" / SITE7_BROWSER_STATE_DIR_NAME
+        self.debug_log_dir = self.root_dir / "local_data" / SITE7_DEBUG_LOG_DIR_NAME
+        self._debug_log_path: Path | None = None
         self._visible_playwright: object | None = None
         self._visible_context: object | None = None
 
@@ -756,6 +777,40 @@ class Site7Scraper:
         finally:
             self._visible_playwright = None
             self._visible_context = None
+
+    def _start_debug_log(self, target_store: Site7TargetStore, recent_days: int, browser_visible: bool) -> None:
+        try:
+            self.debug_log_dir.mkdir(parents=True, exist_ok=True)
+            started_at = datetime.now()
+            file_store_name = _site7_log_file_component(target_store.display_name or target_store.site7_hall_name)
+            file_name = f"{started_at:%Y%m%d_%H%M%S}_{file_store_name}.log"
+            self._debug_log_path = self.debug_log_dir / file_name
+            self._write_debug_log(
+                "fetch_start",
+                store=target_store.display_name,
+                site7_store=target_store.site7_hall_name,
+                recent_days=recent_days,
+                browser_visible=browser_visible,
+            )
+        except Exception:  # noqa: BLE001
+            self._debug_log_path = None
+
+    def _write_debug_log(self, event: str, **fields: object) -> None:
+        if self._debug_log_path is None:
+            return
+        try:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            field_text = " ".join(
+                f"{key}={_site7_debug_field_value(value)}"
+                for key, value in fields.items()
+            )
+            line = f"[{timestamp}] {event}"
+            if field_text:
+                line = f"{line} {field_text}"
+            with self._debug_log_path.open("a", encoding="utf-8") as log_file:
+                log_file.write(line + "\n")
+        except Exception:  # noqa: BLE001
+            return
 
     def _launch_browser_context(self, browser_visible: bool) -> tuple[object, object]:
         playwright = sync_playwright().start()
@@ -893,6 +948,7 @@ class Site7Scraper:
     ) -> MachineHistoryResult:
         resolved_target_store = enrich_site7_target_store(target_store or SITE7_DEFAULT_TARGET_STORE)
         target_days = clamp_site7_recent_days(recent_days)
+        self._start_debug_log(resolved_target_store, target_days, browser_visible)
         self._notify_progress(
             progress_callback,
             0,
@@ -922,9 +978,22 @@ class Site7Scraper:
             if not target_machine_items:
                 raise ScraperError("スマホ版サイトセブンで対象機種のリンクが見つかりませんでした。")
             total_steps = len(target_machine_items) + 2
+            self._write_debug_log(
+                "machine_list_loaded",
+                store=store_name,
+                machine_count=len(target_machine_items),
+                machines=[machine_entry.machine_name for machine_entry, _ in target_machine_items],
+            )
 
             for machine_index, (machine_entry, machine_link) in enumerate(target_machine_items, start=1):
                 _raise_if_site7_cancel_requested(cancel_requested)
+                self._write_debug_log(
+                    "machine_fetch_start",
+                    machine=machine_entry.machine_name,
+                    link=machine_link,
+                    index=machine_index,
+                    total=len(target_machine_items),
+                )
                 self._notify_progress(
                     progress_callback,
                     machine_index,
@@ -943,6 +1012,14 @@ class Site7Scraper:
                 )
                 if machine_result_filter_callback is not None:
                     machine_result = machine_result_filter_callback(machine_result)
+                    self._write_debug_log(
+                        "machine_after_saved_filter",
+                        machine=machine_entry.machine_name,
+                        datasets=len(machine_result.datasets),
+                        rows=sum(len(dataset.rows) for dataset in machine_result.datasets),
+                        skipped_dates=machine_result.skipped_dates,
+                        skipped_targets=machine_result.skipped_targets,
+                    )
                 if include_graph_differences and machine_result.datasets:
                     self._apply_mobile_graph_differences_to_machine_result(
                         page=page,
@@ -956,7 +1033,11 @@ class Site7Scraper:
                 if machine_result_callback is not None:
                     machine_result_callback(machine_result)
         except PlaywrightError as exc:
+            self._write_debug_log("fetch_playwright_error", error=exc)
             raise self._wrap_playwright_error(exc) from exc
+        except Exception as exc:
+            self._write_debug_log("fetch_error", error=exc)
+            raise
         finally:
             self._release_browser_context(playwright, context)
 
@@ -1011,6 +1092,14 @@ class Site7Scraper:
         protected_slots: set[tuple[str, str]] = set()
         if machine_protected_slots_callback is not None and first_day_slot_numbers:
             protected_slots = set(machine_protected_slots_callback(machine_entry, target_dates, first_day_slot_numbers))
+        self._write_debug_log(
+            "machine_day_plan",
+            machine=machine_entry.machine_name,
+            target_dates=target_dates,
+            first_day_slots=first_day_slot_numbers,
+            protected_count=len(protected_slots),
+            protected_slots=sorted(protected_slots),
+        )
 
         datasets: list[MachineDataset] = []
         date_pages: list[StoreDatePage] = []
@@ -1019,6 +1108,13 @@ class Site7Scraper:
         for day_index, target_date in enumerate(target_dates):
             day_url = self._replace_mobile_query_param(bonus_list_link, "dtdd", str(day_index))
             if self._mobile_day_is_fully_protected(target_date, first_day_slot_numbers, protected_slots):
+                self._write_debug_log(
+                    "machine_day_skipped_before_open",
+                    machine=machine_entry.machine_name,
+                    target_date=target_date,
+                    reason="all_slots_protected",
+                    slot_count=len(first_day_slot_numbers),
+                )
                 skipped_targets.append((target_date, machine_entry.machine_name))
                 if target_date not in skipped_dates:
                     skipped_dates.append(target_date)
@@ -1044,6 +1140,13 @@ class Site7Scraper:
                 machine_url=machine_page_url,
             )
             self._filter_mobile_dataset_protected_rows(dataset, protected_slots)
+            self._write_debug_log(
+                "machine_day_loaded",
+                machine=machine_entry.machine_name,
+                target_date=target_date,
+                url=resolved_day_url or day_url,
+                rows=len(dataset.rows),
+            )
             if not dataset.rows:
                 if protected_slots:
                     skipped_targets.append((target_date, machine_entry.machine_name))
@@ -1118,16 +1221,39 @@ class Site7Scraper:
         graph_list_link = self.extract_mobile_machine_graph_list_link(machine_html, fallback_url=machine_page_url)
         graph_index_link = self.extract_mobile_machine_graph_index_link(machine_html, fallback_url=machine_page_url)
         latest_date = self._machine_result_latest_date(machine_result)
+        machine_names = sorted({dataset.machine_name for dataset in machine_result.datasets})
+        self._write_debug_log(
+            "graph_phase_start",
+            machines=machine_names,
+            dataset_count=len(machine_result.datasets),
+            total_rows=total_graph_count,
+            graph_list_link=graph_list_link,
+            graph_index_link=graph_index_link,
+        )
 
         current_graph_count = 0
         for dataset in machine_result.datasets:
             day_index = self._mobile_graph_day_index(latest_date, dataset.target_date)
             if day_index is None:
+                self._write_debug_log(
+                    "graph_day_skipped",
+                    machine=dataset.machine_name,
+                    target_date=dataset.target_date,
+                    reason="date_index_unknown",
+                )
                 current_graph_count += len(dataset.rows)
                 continue
 
             graph_list_url = self._replace_mobile_query_param(graph_list_link, "dtdd", str(day_index))
             target_slot_numbers = self._dataset_slot_numbers(dataset)
+            self._write_debug_log(
+                "graph_list_fetch_start",
+                machine=dataset.machine_name,
+                target_date=dataset.target_date,
+                day_index=day_index,
+                target_slots=sorted(target_slot_numbers),
+                url=graph_list_url,
+            )
             list_difference_values, slot_graph_links = self._fetch_mobile_graph_list_page_data(
                 page=page,
                 context=context,
@@ -1140,14 +1266,41 @@ class Site7Scraper:
                 for slot_number, difference_value in list_difference_values.items()
                 if self._mobile_graph_difference_needs_detail(difference_value)
             }
+            missing_list_slots = sorted(target_slot_numbers - set(list_difference_values))
+            self._write_debug_log(
+                "graph_list_fetch_summary",
+                machine=dataset.machine_name,
+                target_date=dataset.target_date,
+                target_count=len(target_slot_numbers),
+                list_difference_count=len(list_difference_values),
+                slot_graph_link_count=len(slot_graph_links),
+                detail_count=len(detail_slot_numbers),
+                missing_list_slots=missing_list_slots,
+                detail_slots=sorted(detail_slot_numbers),
+            )
             if not slot_graph_links or detail_slot_numbers:
                 graph_index_url = self._replace_mobile_query_param(graph_index_link, "dtdd", str(day_index))
+                self._write_debug_log(
+                    "graph_index_fetch_start",
+                    machine=dataset.machine_name,
+                    target_date=dataset.target_date,
+                    reason="no_slot_links" if not slot_graph_links else "detail_slots_exist",
+                    detail_slots=sorted(detail_slot_numbers),
+                    url=graph_index_url,
+                )
                 _raise_if_site7_cancel_requested(cancel_requested)
                 page.goto(graph_index_url, wait_until="domcontentloaded", timeout=60_000)
                 self._accept_cookie_banner_if_present(page)
                 graph_index_html = page.content()
                 self._wait_between_transitions(page, cancel_requested=cancel_requested)
                 slot_graph_links.update(self.extract_mobile_slot_graph_links(graph_index_html))
+                self._write_debug_log(
+                    "graph_index_fetch_summary",
+                    machine=dataset.machine_name,
+                    target_date=dataset.target_date,
+                    slot_graph_link_count=len(slot_graph_links),
+                    slot_graph_links=sorted(slot_graph_links),
+                )
 
             self._apply_mobile_graph_differences_to_dataset(
                 page=page,
@@ -1431,6 +1584,11 @@ class Site7Scraper:
             if normalized_url in visited_urls:
                 continue
             visited_urls.add(normalized_url)
+            self._write_debug_log(
+                "graph_list_page_open",
+                page_number=len(visited_urls),
+                url=normalized_url,
+            )
 
             page.goto(normalized_url, wait_until="domcontentloaded", timeout=60_000)
             self._accept_cookie_banner_if_present(page)
@@ -1445,9 +1603,27 @@ class Site7Scraper:
             )
             page_slot_numbers = set(page_slot_graph_links) | set(page_difference_values)
             new_page_slots = page_slot_numbers - seen_page_slots
+            self._write_debug_log(
+                "graph_list_page_summary",
+                page_number=len(visited_urls),
+                link_slots=sorted(page_slot_graph_links),
+                difference_slots=sorted(page_difference_values),
+                slot_count=len(page_slot_numbers),
+                new_slot_count=len(new_page_slots),
+            )
             if not page_slot_numbers:
+                self._write_debug_log(
+                    "graph_list_page_stop",
+                    reason="no_slots_detected",
+                    url=normalized_url,
+                )
                 break
             if len(visited_urls) > 1 and not new_page_slots:
+                self._write_debug_log(
+                    "graph_list_page_stop",
+                    reason="no_new_slots",
+                    url=normalized_url,
+                )
                 break
 
             seen_page_slots.update(page_slot_numbers)
@@ -1455,12 +1631,23 @@ class Site7Scraper:
             list_difference_values.update(page_difference_values)
             covered_slot_numbers = set(slot_graph_links) | set(list_difference_values)
             if target_slot_numbers and target_slot_numbers.issubset(covered_slot_numbers):
+                self._write_debug_log(
+                    "graph_list_page_stop",
+                    reason="target_slots_covered",
+                    covered_slots=sorted(covered_slot_numbers),
+                )
                 break
 
             next_urls = self.extract_mobile_graph_list_next_page_links(graph_list_html, normalized_url)
             if not next_urls:
                 next_url = self._mobile_next_graph_list_page_url(normalized_url)
                 next_urls = [next_url] if next_url else []
+            if not next_urls:
+                self._write_debug_log(
+                    "graph_list_page_stop",
+                    reason="no_next_page",
+                    url=normalized_url,
+                )
             for next_url in next_urls:
                 absolute_next_url = urljoin(SITE7_MOBILE_TOP_URL, next_url)
                 if absolute_next_url not in visited_urls and absolute_next_url not in pending_urls:
@@ -1476,18 +1663,51 @@ class Site7Scraper:
         cancel_requested: Callable[[], bool] | None = None,
     ) -> dict[str, int]:
         difference_values: dict[str, int] = {}
-        for entry in self._extract_mobile_graph_list_image_entries(page):
+        image_entries = self._extract_mobile_graph_list_image_entries(page)
+        self._write_debug_log(
+            "graph_list_image_entries",
+            count=len(image_entries),
+            slots=[entry.get("slot_number", "") for entry in image_entries],
+        )
+        for entry in image_entries:
             _raise_if_site7_cancel_requested(cancel_requested)
             slot_number = str(entry.get("slot_number") or "").strip()
             image_url = str(entry.get("image_url") or "").strip()
             if not slot_number or not image_url:
+                self._write_debug_log(
+                    "graph_list_image_skip",
+                    reason="missing_slot_or_image",
+                    slot=slot_number,
+                    image_url=image_url,
+                )
                 continue
 
-            image_bytes = self._download_mobile_graph_image(context, image_url, prefer_big=False)
-            difference_value = parse_site7_graph_difference_value(image_bytes)
+            try:
+                image_bytes = self._download_mobile_graph_image(context, image_url, prefer_big=False)
+                difference_value = parse_site7_graph_difference_value(image_bytes)
+            except Exception as exc:  # noqa: BLE001
+                self._write_debug_log(
+                    "graph_list_image_error",
+                    slot=slot_number,
+                    image_url=image_url,
+                    error=exc,
+                )
+                raise
             if difference_value is None:
+                self._write_debug_log(
+                    "graph_list_image_unreadable",
+                    slot=slot_number,
+                    image_url=image_url,
+                )
                 continue
             difference_values[slot_number] = difference_value
+            self._write_debug_log(
+                "graph_list_image_parsed",
+                slot=slot_number,
+                difference=difference_value,
+                needs_detail=self._mobile_graph_difference_needs_detail(difference_value),
+                image_url=image_url,
+            )
 
         return difference_values
 
@@ -1772,12 +1992,30 @@ class Site7Scraper:
             slot_number = str(row[slot_index]).strip()
             list_difference_value = list_difference_values.get(slot_number)
             if list_difference_value is not None and slot_number not in detail_slot_numbers:
+                self._write_debug_log(
+                    "graph_difference_apply",
+                    machine=dataset.machine_name,
+                    target_date=dataset.target_date,
+                    slot=slot_number,
+                    source="list",
+                    difference=list_difference_value,
+                    reason="list_value_available",
+                )
                 self._set_mobile_graph_difference(dataset, row, difference_index, slot_number, list_difference_value)
                 continue
 
             graph_link = slot_graph_links.get(slot_number)
             if not graph_link:
                 if list_difference_value is not None:
+                    self._write_debug_log(
+                        "graph_difference_apply",
+                        machine=dataset.machine_name,
+                        target_date=dataset.target_date,
+                        slot=slot_number,
+                        source="list",
+                        difference=list_difference_value,
+                        reason="detail_link_missing",
+                    )
                     self._set_mobile_graph_difference(
                         dataset,
                         row,
@@ -1785,9 +2023,26 @@ class Site7Scraper:
                         slot_number,
                         list_difference_value,
                     )
+                else:
+                    self._write_debug_log(
+                        "graph_difference_missing",
+                        machine=dataset.machine_name,
+                        target_date=dataset.target_date,
+                        slot=slot_number,
+                        reason="list_value_and_detail_link_missing",
+                    )
                 continue
 
             current_step = current_graph_count_ref() + row_index
+            self._write_debug_log(
+                "graph_detail_fetch_start",
+                machine=dataset.machine_name,
+                target_date=dataset.target_date,
+                slot=slot_number,
+                reason="list_value_missing" if list_difference_value is None else "list_value_needs_detail",
+                list_difference=list_difference_value,
+                graph_link=graph_link,
+            )
             self._notify_progress(
                 progress_callback,
                 current_step,
@@ -1805,9 +2060,35 @@ class Site7Scraper:
             if graph_stat_values:
                 self._apply_mobile_machine_stat_values_to_row(dataset, row, graph_stat_values)
             if difference_value is not None:
+                self._write_debug_log(
+                    "graph_difference_apply",
+                    machine=dataset.machine_name,
+                    target_date=dataset.target_date,
+                    slot=slot_number,
+                    source="detail",
+                    difference=difference_value,
+                    reason="detail_value_available",
+                )
                 self._set_mobile_graph_difference(dataset, row, difference_index, slot_number, difference_value)
             elif list_difference_value is not None:
+                self._write_debug_log(
+                    "graph_difference_apply",
+                    machine=dataset.machine_name,
+                    target_date=dataset.target_date,
+                    slot=slot_number,
+                    source="list",
+                    difference=list_difference_value,
+                    reason="detail_unreadable_fallback_to_list",
+                )
                 self._set_mobile_graph_difference(dataset, row, difference_index, slot_number, list_difference_value)
+            else:
+                self._write_debug_log(
+                    "graph_difference_missing",
+                    machine=dataset.machine_name,
+                    target_date=dataset.target_date,
+                    slot=slot_number,
+                    reason="detail_unreadable_and_no_list_value",
+                )
 
     def _set_mobile_graph_difference(
         self,
@@ -1871,10 +2152,24 @@ class Site7Scraper:
         graph_stat_values = self.extract_mobile_slot_graph_page_stat_values(graph_html, slot_number)
         image_url = self._extract_visible_mobile_graph_image_url(page)
         if not image_url:
+            self._write_debug_log(
+                "graph_detail_image_missing",
+                slot=slot_number,
+                url=graph_page_url,
+                stat_values=graph_stat_values,
+            )
             return None, graph_stat_values
 
         image_bytes = self._download_mobile_graph_image(context, image_url, prefer_big=True)
-        return parse_site7_graph_difference_value(image_bytes), graph_stat_values
+        difference_value = parse_site7_graph_difference_value(image_bytes)
+        self._write_debug_log(
+            "graph_detail_image_parsed",
+            slot=slot_number,
+            difference=difference_value,
+            image_url=image_url,
+            stat_values=graph_stat_values,
+        )
+        return difference_value, graph_stat_values
 
     def _extract_visible_mobile_graph_image_url(self, page: object) -> str:
         image_entries = page.evaluate(

@@ -481,6 +481,24 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(build_site7_transition_wait_milliseconds(lambda start, end: 1.0), 2000)
         self.assertEqual(build_site7_transition_wait_milliseconds(lambda start, end: 9.0), 4000)
 
+    def test_site7_debug_log_writes_to_local_data(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            scraper = Site7Scraper(root_dir=Path(temp_dir))
+            scraper._start_debug_log(
+                Site7TargetStore(display_name="Aパーク春日店", site7_hall_name="Ａパーク春日店"),
+                recent_days=3,
+                browser_visible=False,
+            )
+            scraper._write_debug_log("graph_list_image_parsed", slot="1026", difference=120)
+
+            log_files = list((Path(temp_dir) / "local_data" / "logs" / "site7").glob("*.log"))
+            self.assertEqual(len(log_files), 1)
+            log_text = log_files[0].read_text(encoding="utf-8")
+            self.assertIn("fetch_start", log_text)
+            self.assertIn("graph_list_image_parsed", log_text)
+            self.assertIn("slot=1026", log_text)
+            self.assertIn("difference=120", log_text)
+
     def test_site7_parse_graph_difference_value_from_image(self) -> None:
         image = Image.new("RGB", (260, 226), (245, 236, 231))
         draw = ImageDraw.Draw(image)
