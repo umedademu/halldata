@@ -3388,8 +3388,14 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(record["site7_difference_source"], "graph")
         self.assertEqual(record["setting_estimate_status"], "provisional")
         self.assertEqual(record["estimated_difference_status"], "provisional")
-        self.assertNotIn("estimated_grape_denominator", record)
-        self.assertNotIn("setting_estimate_grape_average", record)
+        self.assertAlmostEqual(record["estimated_grape_denominator"], 6.2269)
+        self.assertEqual(record["estimated_grape_status"], "provisional")
+        self.assertEqual(record["estimated_grape_source"], "site7")
+        self.assertEqual(record["estimated_grape_version"], ESTIMATED_GRAPE_VALUE_VERSION)
+        self.assertAlmostEqual(record["setting_estimate_grape_average"], 3.208417771027268)
+        self.assertEqual(record["setting_estimate_grape_status"], "provisional")
+        self.assertEqual(record["setting_estimate_grape_source"], "site7")
+        self.assertEqual(record["setting_estimate_grape_version"], SETTING_ESTIMATE_GRAPE_VALUE_VERSION)
 
     def test_web_export_adds_setting_estimate_values(self) -> None:
         record = safe_record(
@@ -3731,6 +3737,62 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertEqual(payload["summary"]["recordCount"], 1)
         self.assertEqual([record["target_date"] for record in machine_records], ["2026-05-12"])
+
+    def test_web_export_store_payload_adds_grape_values_for_incoming_minrepo_records(self) -> None:
+        store_source = StoreSource(
+            store_name="Aパーク春日店",
+            store_url="https://min-repo.com/tag/a-%E3%83%91%E3%83%BC%E3%82%AF%E6%98%A5%E6%97%A5%E5%BA%97/",
+        )
+        payload = build_store_payload(
+            store_source,
+            [
+                {
+                    "target_date": "2026-06-01",
+                    "slot_number": "1095",
+                    "machine_name": "マイジャグラーV",
+                    "difference_value": 2041,
+                    "games_count": 4808,
+                    "bb_count": 25,
+                    "rb_count": 18,
+                }
+            ],
+        )
+        machine_payloads = payload.get("_machineRecordsByFile", {})
+        machine_records = next(iter(machine_payloads.values()))["records"]
+
+        self.assertEqual(payload["summary"]["recordCount"], 1)
+        self.assertAlmostEqual(machine_records[0]["estimated_grape_denominator"], 5.94)
+        self.assertEqual(machine_records[0]["estimated_grape_status"], "confirmed")
+        self.assertEqual(machine_records[0]["estimated_grape_source"], "minrepo")
+
+    def test_web_export_store_payload_adds_grape_values_for_site7_graph_records(self) -> None:
+        store_source = StoreSource(
+            store_name="Aパーク春日店",
+            store_url="https://min-repo.com/tag/a-%E3%83%91%E3%83%BC%E3%82%AF%E6%98%A5%E6%97%A5%E5%BA%97/",
+        )
+        payload = build_store_payload(
+            store_source,
+            [
+                {
+                    "target_date": "2026-06-02",
+                    "slot_number": "821",
+                    "machine_name": SITE7_TARGET_MACHINE_NAME,
+                    "data_source": DATA_SOURCE_SITE7,
+                    "site7_difference_source": "graph",
+                    "difference_value": 100,
+                    "games_count": 2000,
+                    "bb_count": 8,
+                    "rb_count": 6,
+                }
+            ],
+        )
+        machine_payloads = payload.get("_machineRecordsByFile", {})
+        machine_records = next(iter(machine_payloads.values()))["records"]
+
+        self.assertEqual(payload["summary"]["recordCount"], 1)
+        self.assertAlmostEqual(machine_records[0]["estimated_grape_denominator"], 6.2269)
+        self.assertEqual(machine_records[0]["estimated_grape_status"], "provisional")
+        self.assertEqual(machine_records[0]["estimated_grape_source"], "site7")
 
     def test_site7_build_machine_daily_records_keeps_site7_source_after_store_rewrite(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)

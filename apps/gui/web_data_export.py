@@ -34,6 +34,7 @@ DEFAULT_STORES_CSV = ROOT_DIR / "stores_rows.csv"
 DEFAULT_RESULTS_CSV = ROOT_DIR / "machine_daily_results_rows.csv"
 WEB_DATA_VERSION = 1
 DATA_SOURCE_SITE7 = "site7"
+SITE7_DIFFERENCE_SOURCE_GRAPH = "graph"
 SETTING_ESTIMATE_STATUS_CONFIRMED = "confirmed"
 SETTING_ESTIMATE_STATUS_PROVISIONAL = "provisional"
 ESTIMATED_GRAPE_FIELD_NAMES = (
@@ -185,7 +186,8 @@ def add_estimated_grape_fields(
     machine_name: str,
     data_source: str,
 ) -> None:
-    if data_source.casefold() == DATA_SOURCE_SITE7:
+    is_site7 = data_source.casefold() == DATA_SOURCE_SITE7
+    if is_site7 and not _record_has_site7_graph_difference(record):
         return
 
     setting_average = record.get("setting_estimate_average")
@@ -198,12 +200,20 @@ def add_estimated_grape_fields(
         return
 
     source = data_source if data_source else "minrepo"
+    status = SETTING_ESTIMATE_STATUS_PROVISIONAL if is_site7 else SETTING_ESTIMATE_STATUS_CONFIRMED
     record["estimated_grape_count"] = estimated_grape["count"]
     record["estimated_grape_denominator"] = estimated_grape["denominator"]
     record["estimated_grape_probability"] = estimated_grape["probability"]
-    record["estimated_grape_status"] = SETTING_ESTIMATE_STATUS_CONFIRMED
+    record["estimated_grape_status"] = status
     record["estimated_grape_source"] = source
     record["estimated_grape_version"] = ESTIMATED_GRAPE_VALUE_VERSION
+
+
+def _record_has_site7_graph_difference(record: dict[str, Any]) -> bool:
+    difference_source = read_text(
+        record.get("site7_difference_source") or record.get("site7DifferenceSource")
+    ).casefold()
+    return difference_source == SITE7_DIFFERENCE_SOURCE_GRAPH and read_number(record.get("difference_value")) is not None
 
 
 def add_grape_setting_estimate_fields(
@@ -481,11 +491,7 @@ def load_existing_payload(
 def build_store_payload(store_source: StoreSource, records: list[dict[str, Any]]) -> dict[str, Any]:
     generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
     store_id = build_store_id(store_source.store_name, store_source.store_url)
-    export_records = [
-        record
-        for record in records
-        if isinstance(record, dict) and record_should_be_exported(record)
-    ]
+    export_records = prepare_export_records(records)
     sorted_records = sorted(
         export_records,
         key=lambda record: (
@@ -584,6 +590,17 @@ def build_machine_summaries(records: list[dict[str, Any]]) -> list[dict[str, Any
         ),
         reverse=True,
     )
+
+
+def prepare_export_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    export_records: list[dict[str, Any]] = []
+    for record in records:
+        if not isinstance(record, dict) or not record_should_be_exported(record):
+            continue
+        normalized_record = safe_record(record)
+        if normalized_record is not None:
+            export_records.append(normalized_record)
+    return export_records
 
 
 def build_index_store_entry(store_payload: dict[str, Any], data_file: str) -> dict[str, Any]:
