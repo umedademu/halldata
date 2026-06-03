@@ -640,6 +640,23 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertAlmostEqual(parse_site7_graph_difference_value(buffer.getvalue()), 1000, delta=140)
 
+    def test_site7_parse_graph_difference_value_uses_dark_list_right_edge_segment(self) -> None:
+        image = Image.new("RGB", (170, 170), (10, 17, 14))
+        draw = ImageDraw.Draw(image)
+        zero_y = 84
+        grid_spacing = 18
+        for y in range(zero_y - grid_spacing * 5, zero_y + grid_spacing * 6, grid_spacing):
+            draw.line((14, y, 154, y), fill=(65, 75, 70))
+        draw.line((14, zero_y, 154, zero_y), fill=(220, 220, 220))
+        draw.line((18, zero_y - grid_spacing, 100, zero_y - grid_spacing), fill=(255, 245, 0), width=2)
+        draw.line((116, zero_y - grid_spacing * 2, 145, zero_y - grid_spacing * 2), fill=(255, 245, 0), width=2)
+        draw.text((126, 158), "2969", fill=(255, 245, 0))
+
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+
+        self.assertAlmostEqual(parse_site7_graph_difference_value(buffer.getvalue()), 2000, delta=140)
+
     def test_normalize_site7_browser_mode(self) -> None:
         self.assertEqual(normalize_site7_browser_mode("visible"), SITE7_BROWSER_MODE_VISIBLE)
         self.assertEqual(normalize_site7_browser_mode("hidden"), SITE7_BROWSER_MODE_HIDDEN)

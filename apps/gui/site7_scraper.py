@@ -229,10 +229,11 @@ def _detect_site7_dark_graph_final_line_y(image: Image.Image, graph_top: int, gr
     if current_group:
         groups.append(current_group)
 
-    wide_groups = [group for group in groups if len(group) >= 12]
-    if not wide_groups:
+    candidate_groups = [group for group in groups if len(group) >= 6]
+    if not candidate_groups:
         return None
-    selected_group = max(wide_groups, key=lambda group: (len(group), max(group)))
+
+    selected_group = max(candidate_groups, key=lambda group: (max(group), len(group)))
     traced_rows: list[float] = []
     current_y: float | None = None
     for x in selected_group:
@@ -244,7 +245,7 @@ def _detect_site7_dark_graph_final_line_y(image: Image.Image, graph_top: int, gr
         traced_rows.append(current_y)
     if not traced_rows:
         return None
-    return float(statistics.fmean(traced_rows[-5:]))
+    return float(statistics.fmean(traced_rows[-3:]))
 
 
 def _detect_site7_graph_axis(image: Image.Image) -> tuple[int | None, int | None, int | None]:
