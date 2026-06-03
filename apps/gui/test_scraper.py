@@ -1697,6 +1697,28 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(canonical_machine_name("新ハナビ", site7_only=True), "新ハナビ")
         self.assertEqual(canonical_machine_name("スターハナハナ-30", site7_only=True), "スターハナハナ")
         self.assertEqual(canonical_machine_name("ドラゴンハナハナ～閃光～‐30", site7_only=True), "ドラゴンハナハナ～閃光～")
+        site7_a_park_kasuga_targets = {
+            "スマスロ 北斗の拳 転生の章2": "スマスロ北斗の拳 転生の章2",
+            "Lスマスロ　モンキーターンＶ": "スマスロモンキーターンV",
+            "スマスロ 沖ドキ!DUO アンコール": "スマスロ 沖ドキ!DUO アンコール",
+            "Lミリオンゴッド－神々の軌跡－": "スマスロ ミリオンゴッド",
+            "L 東京喰種": "L東京喰種",
+            "Lパチスロ 炎炎ノ消防隊2": "Lパチスロ炎炎ノ消防隊2",
+            "スマスロ 新鬼武者3": "スマスロ 新鬼武者3",
+            "沖ドキ！ＢＬＡＣＫ": "沖ドキ！ＢＬＡＣＫ",
+            "Lスマスロ北斗の拳": "Lスマスロ北斗の拳",
+            "沖ドキ！ＧＯＬＤ-30": "沖ドキ！ＧＯＬＤ-30",
+            "L機動戦士ガンダムユニコーン 覚醒DRIVE": "L機動戦士ガンダムユニコーン 覚醒DRIVE",
+            "LバイオハザードRE：3": "スマスロ バイオハザードRE:3",
+            "L真打吉宗": "L真打吉宗",
+            "L甲鉄城のカバネリ海門決戦": "スマスロ 甲鉄城のカバネリ 海門決戦",
+            "スマスロ 攻殻機動隊": "スマスロ 攻殻機動隊",
+            "スマスロ鉄拳6": "スマスロ鉄拳6",
+        }
+        for source_name, expected_name in site7_a_park_kasuga_targets.items():
+            with self.subTest(source_name=source_name):
+                self.assertEqual(canonical_machine_name(source_name, site7_only=True), expected_name)
+                self.assertTrue(machine_is_site7_target(source_name))
         self.assertTrue(machine_is_site7_target("ドラゴンハナハナ"))
 
     def test_site7_target_machine_names_are_listed_for_gui_settings(self) -> None:
@@ -1705,6 +1727,11 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertIn("マイジャグラーV", machine_names)
         self.assertIn("ネオアイムジャグラーEX", machine_names)
         self.assertIn("ニューキングハナハナ", machine_names)
+        self.assertIn("スマスロ北斗の拳 転生の章2", machine_names)
+        self.assertIn("スマスロモンキーターンV", machine_names)
+        self.assertIn("スマスロ 沖ドキ!DUO アンコール", machine_names)
+        self.assertIn("L機動戦士ガンダムユニコーン 覚醒DRIVE", machine_names)
+        self.assertIn("スマスロ鉄拳6", machine_names)
 
     def test_normalize_site7_enabled_machine_names_defaults_to_all_and_accepts_aliases(self) -> None:
         available_machine_names = ("マイジャグラーV", "ネオアイムジャグラーEX")
