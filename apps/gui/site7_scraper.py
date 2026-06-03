@@ -355,12 +355,13 @@ def _site7_pixel_is_grid(pixel: tuple[int, int, int]) -> bool:
 
 
 def _site7_pixel_is_graph_line(pixel: tuple[int, int, int]) -> bool:
-    red, green, blue = pixel
-    if red > 170 and green < 150 and blue < 140 and red - green > 45 and red - blue > 45:
-        return True
-    if red > 170 and green > 150 and blue < 90 and red - blue > 80 and green - blue > 70:
-        return True
-    return green > 110 and red < 170 and blue < 170 and green - red > 25 and green - blue > 20
+    strongest = max(pixel)
+    weakest = min(pixel)
+    if strongest < 120:
+        return False
+    if strongest - weakest < 55:
+        return False
+    return True
 
 
 def _site7_pixel_is_dark_graph_horizontal_line(pixel: tuple[int, int, int]) -> bool:

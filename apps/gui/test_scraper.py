@@ -623,6 +623,36 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertAlmostEqual(parse_site7_graph_difference_value(buffer.getvalue()), -1000, delta=120)
 
+    def test_site7_parse_graph_difference_value_from_date_colored_detail_images(self) -> None:
+        line_colors = [
+            (0, 174, 239),
+            (180, 55, 255),
+            (255, 51, 0),
+            (40, 150, 80),
+            (220, 160, 30),
+            (255, 70, 210),
+        ]
+        for line_color in line_colors:
+            with self.subTest(line_color=line_color):
+                image = Image.new("RGB", (260, 226), (245, 236, 231))
+                draw = ImageDraw.Draw(image)
+                axis_x = 9
+                graph_top = 15
+                graph_bottom = 207
+                zero_y = 112
+                grid_spacing = 19
+                for y in range(graph_top + 1, graph_bottom, grid_spacing):
+                    draw.line((axis_x + 1, y, 244, y), fill=(204, 204, 204))
+                draw.line((axis_x, graph_top, axis_x, graph_bottom), fill=(0, 0, 0))
+                draw.line((axis_x, zero_y, 244, zero_y), fill=(108, 100, 100))
+                line_y = zero_y - grid_spacing
+                draw.line((12, zero_y, 70, line_y + 4, 150, line_y), fill=line_color, width=2)
+
+                buffer = BytesIO()
+                image.save(buffer, format="PNG")
+
+                self.assertAlmostEqual(parse_site7_graph_difference_value(buffer.getvalue()), 1000, delta=120)
+
     def test_site7_parse_graph_difference_value_from_dark_list_image(self) -> None:
         image = Image.new("RGB", (170, 170), (10, 17, 14))
         draw = ImageDraw.Draw(image)
