@@ -506,13 +506,13 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
   },
   {
     key: "apark-kai",
-    name: "Aパーク春日式・改",
+    name: "Aパーク春日式v2.0",
     windowDays: 7,
     scoreCalculator: calculateAparkKasugaKaiHuntScore,
   },
   {
     key: "apark-kai-6",
-    name: "Aパーク春日式・改 6日版",
+    name: "Aパーク春日式v2.0 6日版",
     windowDays: 6,
     scoreCalculator: calculateAparkKasugaKaiSixDayHuntScore,
   },
