@@ -2098,6 +2098,51 @@ class MinRepoApp:
         def queue_progress(progress: FetchProgress) -> None:
             self._queue_fetch_progress(progress, store_index=store_index, total_stores=total_stores)
 
+        saved_lookup_store_cache: tuple[str, str] | None = None
+        minrepo_saved_dates_cache: dict[tuple[str, str], set[str]] = {}
+
+        def saved_lookup_store() -> tuple[str, str]:
+            nonlocal saved_lookup_store_cache
+            if saved_lookup_store_cache is not None:
+                return saved_lookup_store_cache
+
+            lookup_store_name = registered_store.name
+            lookup_store_url = registered_store.url
+            preferred_store = self.persistence_service.resolve_preferred_store_by_name(lookup_store_name)
+            if preferred_store is not None:
+                preferred_store_name = str(preferred_store.get("store_name", "")).strip()
+                preferred_store_url = str(preferred_store.get("store_url", "")).strip()
+                if preferred_store_name and preferred_store_url:
+                    lookup_store_name = preferred_store_name
+                    lookup_store_url = preferred_store_url
+
+            saved_lookup_store_cache = (lookup_store_name, lookup_store_url)
+            return saved_lookup_store_cache
+
+        def minrepo_saved_full_day_dates(target_dates: list[str]) -> set[str]:
+            nonlocal warning_summary
+            if not target_dates:
+                return set()
+
+            start_date = min(target_dates)
+            end_date = max(target_dates)
+            cache_key = (start_date, end_date)
+            cached_dates = minrepo_saved_dates_cache.get(cache_key)
+            if cached_dates is not None:
+                return cached_dates
+
+            lookup_store_name, lookup_store_url = saved_lookup_store()
+            saved_full_day_summary = self.persistence_service.find_saved_full_day_dates(
+                store_name=lookup_store_name,
+                store_url=lookup_store_url,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            warning_summary.messages.extend(saved_full_day_summary.messages)
+            saved_dates = set(saved_full_day_summary.saved_dates)
+            minrepo_saved_dates_cache[cache_key] = saved_dates
+            return saved_dates
+
         def filter_machine_result_for_fetch(machine_result: MachineHistoryResult) -> MachineHistoryResult:
             nonlocal warning_summary
             self._raise_if_fetch_cancelled()
@@ -2123,26 +2168,38 @@ class MinRepoApp:
             if not target_dates or not slot_numbers:
                 return set()
 
-            lookup_store_name = registered_store.name
-            lookup_store_url = registered_store.url
-            preferred_store = self.persistence_service.resolve_preferred_store_by_name(lookup_store_name)
-            if preferred_store is not None:
-                preferred_store_name = str(preferred_store.get("store_name", "")).strip()
-                preferred_store_url = str(preferred_store.get("store_url", "")).strip()
-                if preferred_store_name and preferred_store_url:
-                    lookup_store_name = preferred_store_name
-                    lookup_store_url = preferred_store_url
+            target_date_set = set(target_dates)
+            minrepo_saved_dates = minrepo_saved_full_day_dates(target_dates).intersection(target_date_set)
+            protected_slots = {
+                (target_date, slot_number)
+                for target_date in minrepo_saved_dates
+                for slot_number in slot_numbers
+            }
+            remaining_dates = [
+                target_date
+                for target_date in target_dates
+                if target_date not in minrepo_saved_dates
+            ]
+            if not remaining_dates:
+                return protected_slots
 
+            lookup_store_name, lookup_store_url = saved_lookup_store()
             saved_slots_summary = self.persistence_service.find_saved_machine_slots(
                 store_name=lookup_store_name,
                 store_url=lookup_store_url,
-                start_date=min(target_dates),
-                end_date=max(target_dates),
+                start_date=min(remaining_dates),
+                end_date=max(remaining_dates),
                 slot_numbers=slot_numbers,
                 require_source_difference=registered_store.site7_difference_enabled,
             )
             warning_summary.messages.extend(saved_slots_summary.messages)
-            return saved_slots_summary.protected_slots
+            remaining_date_set = set(remaining_dates)
+            protected_slots.update(
+                (target_date, slot_number)
+                for target_date, slot_number in saved_slots_summary.protected_slots
+                if target_date in remaining_date_set
+            )
+            return protected_slots
 
         def run_site7_fetch() -> MachineHistoryResult:
             def save_machine_result(machine_result: MachineHistoryResult) -> None:

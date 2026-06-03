@@ -2615,6 +2615,120 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(store_result.history_result.datasets[0].rows, [raw_result.datasets[0].rows[1]])
         self.assertEqual(store_result.save_summary.web_data_record_count, 1)
 
+    def test_fetch_single_site7_store_uses_full_day_index_before_slot_checks(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.result_queue = queue.Queue()
+        callback_results: list[set[tuple[str, str]]] = []
+
+        class FakeSite7Scraper:
+            def fetch_target_machine_history(
+                self,
+                *,
+                recent_days: int,
+                browser_visible: bool,
+                progress_callback: object,
+                target_store: object,
+                cancel_requested: object,
+                machine_result_callback: object,
+                machine_result_filter_callback: object,
+                machine_protected_slots_callback: object,
+                include_graph_differences: bool,
+            ) -> MachineHistoryResult:
+                first_result = machine_protected_slots_callback(
+                    Site7MachineEntry(display_name="マイジャグラーV", machine_name="マイジャグラーV"),
+                    ["2026-06-03", "2026-06-02", "2026-06-01"],
+                    ["821", "822"],
+                )
+                second_result = machine_protected_slots_callback(
+                    Site7MachineEntry(display_name="ネオアイムジャグラーEX", machine_name="ネオアイムジャグラーEX"),
+                    ["2026-06-03", "2026-06-02", "2026-06-01"],
+                    ["831"],
+                )
+                callback_results.extend([first_result, second_result])
+                return MachineHistoryResult(
+                    store_name="Aパーク春日店",
+                    store_url="https://example.com/store",
+                    start_date="2026-06-01",
+                    end_date="2026-06-03",
+                    date_pages=[],
+                    datasets=[],
+                    skipped_targets=[],
+                    skipped_dates=[],
+                )
+
+        class FakePersistenceService:
+            def __init__(self) -> None:
+                self.full_day_calls: list[tuple[str, str, str, str]] = []
+                self.slot_calls: list[tuple[str, str, tuple[str, ...]]] = []
+
+            def resolve_preferred_store_by_name(self, store_name: str) -> None:
+                return None
+
+            def find_saved_full_day_dates(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+            ) -> SavedFullDayDatesSummary:
+                self.full_day_calls.append((store_name, store_url, start_date, end_date))
+                return SavedFullDayDatesSummary(saved_dates={"2026-06-01"})
+
+            def find_saved_machine_slots(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+                slot_numbers: list[str],
+                require_source_difference: bool = True,
+            ) -> SavedMachineSlotsSummary:
+                self.slot_calls.append((start_date, end_date, tuple(slot_numbers)))
+                return SavedMachineSlotsSummary(protected_slots={(start_date, slot_numbers[0])})
+
+            def save_history_result(self, history_result: MachineHistoryResult) -> PersistenceSummary:
+                return PersistenceSummary(web_data_saved=True)
+
+        persistence_service = FakePersistenceService()
+        app.site7_scraper = FakeSite7Scraper()
+        app.persistence_service = persistence_service
+
+        app._fetch_single_site7_store(
+            registered_store=RegisteredStore(
+                name="Aパーク春日店",
+                url="https://example.com/store",
+                site7_enabled=True,
+                site7_difference_enabled=True,
+            ),
+            recent_days=3,
+            store_index=1,
+            total_stores=1,
+            retry_delay_seconds=0,
+            browser_visible=True,
+        )
+
+        self.assertEqual(
+            callback_results[0],
+            {
+                ("2026-06-01", "821"),
+                ("2026-06-01", "822"),
+                ("2026-06-02", "821"),
+            },
+        )
+        self.assertEqual(callback_results[1], {("2026-06-01", "831"), ("2026-06-02", "831")})
+        self.assertEqual(
+            persistence_service.full_day_calls,
+            [("Aパーク春日店", "https://example.com/store", "2026-06-01", "2026-06-03")],
+        )
+        self.assertEqual(
+            persistence_service.slot_calls,
+            [
+                ("2026-06-02", "2026-06-03", ("821", "822")),
+                ("2026-06-02", "2026-06-03", ("831",)),
+            ],
+        )
+
     def test_site7_registered_stores_from_skips_unlisted_store(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         beam_store = RegisteredStore(
