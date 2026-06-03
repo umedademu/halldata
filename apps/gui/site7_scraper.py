@@ -1593,8 +1593,6 @@ class Site7Scraper:
             page.goto(normalized_url, wait_until="domcontentloaded", timeout=60_000)
             self._accept_cookie_banner_if_present(page)
             graph_list_html = page.content()
-            self._wait_between_transitions(page, cancel_requested=cancel_requested)
-
             page_slot_graph_links = self.extract_mobile_slot_graph_links(graph_list_html)
             page_difference_values = self._fetch_mobile_graph_list_difference_values(
                 page=page,
@@ -1626,6 +1624,7 @@ class Site7Scraper:
                 )
                 break
 
+            self._wait_between_transitions(page, cancel_requested=cancel_requested)
             seen_page_slots.update(page_slot_numbers)
             slot_graph_links.update(page_slot_graph_links)
             list_difference_values.update(page_difference_values)
@@ -1668,17 +1667,22 @@ class Site7Scraper:
             "graph_list_image_entries",
             count=len(image_entries),
             slots=[entry.get("slot_number", "") for entry in image_entries],
+            image_sources=[
+                f"{entry.get('slot_number', '')}:{entry.get('image_source', '')}" for entry in image_entries
+            ],
         )
         for entry in image_entries:
             _raise_if_site7_cancel_requested(cancel_requested)
             slot_number = str(entry.get("slot_number") or "").strip()
             image_url = str(entry.get("image_url") or "").strip()
+            image_source = str(entry.get("image_source") or "").strip()
             if not slot_number or not image_url:
                 self._write_debug_log(
                     "graph_list_image_skip",
                     reason="missing_slot_or_image",
                     slot=slot_number,
                     image_url=image_url,
+                    image_source=image_source,
                 )
                 continue
 
@@ -1690,6 +1694,7 @@ class Site7Scraper:
                     "graph_list_image_error",
                     slot=slot_number,
                     image_url=image_url,
+                    image_source=image_source,
                     error=exc,
                 )
                 raise
@@ -1698,6 +1703,7 @@ class Site7Scraper:
                     "graph_list_image_unreadable",
                     slot=slot_number,
                     image_url=image_url,
+                    image_source=image_source,
                 )
                 continue
             difference_values[slot_number] = difference_value
@@ -1707,6 +1713,7 @@ class Site7Scraper:
                 difference=difference_value,
                 needs_detail=self._mobile_graph_difference_needs_detail(difference_value),
                 image_url=image_url,
+                image_source=image_source,
             )
 
         return difference_values
@@ -1721,12 +1728,18 @@ class Site7Scraper:
                     }
                     const images = Array.from(anchor.querySelectorAll("img"));
                     return images.map((img) => {
-                        const rawSrc = img.currentSrc
-                            || img.src
-                            || img.getAttribute("src")
-                            || img.getAttribute("data-src")
-                            || img.getAttribute("data-original")
-                            || "";
+                        const chartKeyword = "RequestSPDedamaTransitionChartForPortal";
+                        const srcCandidates = [
+                            ["data-src", img.getAttribute("data-src") || ""],
+                            ["data-original", img.getAttribute("data-original") || ""],
+                            ["data-lazy", img.getAttribute("data-lazy") || ""],
+                            ["data-url", img.getAttribute("data-url") || ""],
+                            ["currentSrc", img.currentSrc || ""],
+                            ["src", img.src || ""],
+                            ["src-attr", img.getAttribute("src") || ""],
+                        ];
+                        const selectedSrc = srcCandidates.find((candidate) => candidate[1].includes(chartKeyword))
+                            || srcCandidates.find((candidate) => candidate[1]);
                         let slotNumber = "";
                         try {
                             slotNumber = new URL(href, document.baseURI).searchParams.get("dn") || "";
@@ -1745,7 +1758,8 @@ class Site7Scraper:
                         return {
                             slot_number: slotNumber,
                             graph_url: new URL(href, document.baseURI).href,
-                            image_url: rawSrc ? new URL(rawSrc, document.baseURI).href : ""
+                            image_url: selectedSrc ? new URL(selectedSrc[1], document.baseURI).href : "",
+                            image_source: selectedSrc ? selectedSrc[0] : ""
                         };
                     });
                 })
@@ -1769,6 +1783,7 @@ class Site7Scraper:
                     "slot_number": slot_number,
                     "graph_url": str(entry.get("graph_url") or "").strip(),
                     "image_url": image_url,
+                    "image_source": str(entry.get("image_source") or "").strip(),
                 }
             )
         return result

@@ -499,6 +499,83 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertIn("slot=1026", log_text)
             self.assertIn("difference=120", log_text)
 
+    def test_site7_graph_list_image_entries_keep_lazy_image_url(self) -> None:
+        class FakeGraphListPage:
+            def __init__(self) -> None:
+                self.script = ""
+
+            def evaluate(self, script: str) -> list[dict[str, str]]:
+                self.script = script
+                return [
+                    {
+                        "slot_number": "1033",
+                        "graph_url": "https://m.site777.jp/db/D3000.do?dn=1033",
+                        "image_url": (
+                            "https://m.site777.jp/chart/"
+                            "RequestSPDedamaTransitionChartForPortal.do?param=lazy&list=1"
+                        ),
+                        "image_source": "data-src",
+                    }
+                ]
+
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        page = FakeGraphListPage()
+
+        entries = scraper._extract_mobile_graph_list_image_entries(page)
+
+        self.assertLess(page.script.index('["data-src"'), page.script.index('["currentSrc"'))
+        self.assertEqual(
+            entries,
+            [
+                {
+                    "slot_number": "1033",
+                    "graph_url": "https://m.site777.jp/db/D3000.do?dn=1033",
+                    "image_url": (
+                        "https://m.site777.jp/chart/"
+                        "RequestSPDedamaTransitionChartForPortal.do?param=lazy&list=1"
+                    ),
+                    "image_source": "data-src",
+                }
+            ],
+        )
+
+    def test_site7_graph_list_waits_after_reading_images(self) -> None:
+        events: list[str] = []
+
+        class FakeGraphListPage(FakeRetainedPage):
+            def goto(self, url: str, wait_until: str = "", timeout: int = 0) -> None:
+                events.append("goto")
+                super().goto(url, wait_until=wait_until, timeout=timeout)
+
+            def content(self) -> str:
+                events.append("content")
+                return "<a href='D3000.do?dn=1026'>1026</a>"
+
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        page = FakeGraphListPage()
+        scraper._accept_cookie_banner_if_present = mock.Mock()
+        scraper.extract_mobile_slot_graph_links = mock.Mock(
+            side_effect=lambda html: events.append("extract_links")
+            or {"1026": "https://m.site777.jp/db/D3000.do?dn=1026"}
+        )
+        scraper._fetch_mobile_graph_list_difference_values = mock.Mock(
+            side_effect=lambda **kwargs: events.append("read_images") or {"1026": 120}
+        )
+        scraper._wait_between_transitions = mock.Mock(
+            side_effect=lambda page, cancel_requested=None: events.append("wait")
+        )
+
+        difference_values, slot_graph_links = scraper._fetch_mobile_graph_list_page_data(
+            page=page,
+            context=object(),
+            start_url="https://m.site777.jp/db/D4300.do?pan=1",
+            target_slot_numbers={"1026"},
+        )
+
+        self.assertEqual(difference_values, {"1026": 120})
+        self.assertEqual(slot_graph_links, {"1026": "https://m.site777.jp/db/D3000.do?dn=1026"})
+        self.assertLess(events.index("read_images"), events.index("wait"))
+
     def test_site7_parse_graph_difference_value_from_image(self) -> None:
         image = Image.new("RGB", (260, 226), (245, 236, 231))
         draw = ImageDraw.Draw(image)
