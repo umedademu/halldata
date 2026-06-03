@@ -313,6 +313,7 @@ class FakeRetainedPage:
         self.closed = closed
         self.bring_to_front_count = 0
         self.wait_selector_calls: list[tuple[str, int]] = []
+        self.goto_calls: list[str] = []
         self.url = "https://example.com/machine"
 
     def bring_to_front(self) -> None:
@@ -323,6 +324,10 @@ class FakeRetainedPage:
 
     def wait_for_selector(self, selector: str, timeout: int = 0) -> None:
         self.wait_selector_calls.append((selector, timeout))
+
+    def goto(self, url: str, wait_until: str = "", timeout: int = 0) -> None:
+        self.goto_calls.append(url)
+        self.url = url
 
     def content(self) -> str:
         return "<html></html>"
@@ -515,6 +520,23 @@ class MinRepoScraperTests(unittest.TestCase):
         image.save(buffer, format="PNG")
 
         self.assertAlmostEqual(parse_site7_graph_difference_value(buffer.getvalue()), -1000, delta=120)
+
+    def test_site7_parse_graph_difference_value_from_dark_list_image(self) -> None:
+        image = Image.new("RGB", (170, 170), (10, 17, 14))
+        draw = ImageDraw.Draw(image)
+        zero_y = 84
+        grid_spacing = 18
+        for y in range(zero_y - grid_spacing * 5, zero_y + grid_spacing * 6, grid_spacing):
+            draw.line((14, y, 154, y), fill=(65, 75, 70))
+        draw.line((14, zero_y, 154, zero_y), fill=(220, 220, 220))
+        line_y = zero_y - grid_spacing
+        draw.line((18, zero_y, 70, line_y + 4, 145, line_y), fill=(255, 245, 0), width=2)
+        draw.text((126, 144), "785", fill=(255, 245, 0))
+
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+
+        self.assertAlmostEqual(parse_site7_graph_difference_value(buffer.getvalue()), 1000, delta=140)
 
     def test_normalize_site7_browser_mode(self) -> None:
         self.assertEqual(normalize_site7_browser_mode("visible"), SITE7_BROWSER_MODE_VISIBLE)
@@ -1804,17 +1826,22 @@ class MinRepoScraperTests(unittest.TestCase):
             date_pages=[],
             datasets=[],
         )
-        scraper._launch_browser_context = mock.Mock(return_value=(playwright, context))
+        scraper._launch_mobile_browser_context = mock.Mock(return_value=(playwright, context))
         scraper._require_playwright = mock.Mock()
-        scraper._open_target_hall_page = mock.Mock(return_value=("https://example.com/hall", "<html></html>"))
-        scraper.extract_store_name = mock.Mock(return_value="Aパーク春日店")
-        scraper.extract_target_machine_entries = mock.Mock(
-            return_value=[Site7MachineEntry(display_name=SITE7_TARGET_MACHINE_NAME, machine_name=SITE7_TARGET_MACHINE_NAME)]
+        scraper._open_mobile_target_hall_page = mock.Mock(return_value="<html></html>")
+        scraper.extract_mobile_store_name = mock.Mock(return_value="Aパーク春日店")
+        scraper.extract_mobile_slot_machine_list_link = mock.Mock(return_value="https://example.com/mobile-machines")
+        scraper.extract_mobile_target_machine_links = mock.Mock(
+            return_value=[
+                (
+                    Site7MachineEntry(display_name=SITE7_TARGET_MACHINE_NAME, machine_name=SITE7_TARGET_MACHINE_NAME),
+                    "https://example.com/mobile-machine",
+                )
+            ]
         )
         scraper._wait_between_transitions = mock.Mock()
         scraper._accept_cookie_banner_if_present = mock.Mock()
-        scraper._open_target_machine_page = mock.Mock()
-        scraper.parse_machine_history_html = mock.Mock(return_value=expected_result)
+        scraper._fetch_mobile_machine_history_result = mock.Mock(return_value=expected_result)
         scraper._merge_machine_history_results = mock.Mock(return_value=expected_result)
         partial_results: list[MachineHistoryResult] = []
 
@@ -1826,9 +1853,10 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertIs(result, expected_result)
         self.assertEqual(partial_results, [expected_result])
-        scraper._launch_browser_context.assert_called_once_with(True)
+        scraper._launch_mobile_browser_context.assert_called_once_with(browser_visible=True)
         self.assertEqual(page.bring_to_front_count, 1)
-        self.assertEqual(page.wait_selector_calls, [("#ata0", 60_000)])
+        self.assertEqual(page.goto_calls, ["https://example.com/mobile-machines"])
+        scraper._fetch_mobile_machine_history_result.assert_called_once()
         self.assertEqual(context.close_count, 1)
         self.assertEqual(playwright.stop_count, 1)
 
@@ -1866,17 +1894,22 @@ class MinRepoScraperTests(unittest.TestCase):
             skipped_targets=[("2026-04-25", SITE7_TARGET_MACHINE_NAME)],
             skipped_dates=["2026-04-25"],
         )
-        scraper._launch_browser_context = mock.Mock(return_value=(playwright, context))
+        scraper._launch_mobile_browser_context = mock.Mock(return_value=(playwright, context))
         scraper._require_playwright = mock.Mock()
-        scraper._open_target_hall_page = mock.Mock(return_value=("https://example.com/hall", "<html></html>"))
-        scraper.extract_store_name = mock.Mock(return_value="Aパーク春日店")
-        scraper.extract_target_machine_entries = mock.Mock(
-            return_value=[Site7MachineEntry(display_name=SITE7_TARGET_MACHINE_NAME, machine_name=SITE7_TARGET_MACHINE_NAME)]
+        scraper._open_mobile_target_hall_page = mock.Mock(return_value="<html></html>")
+        scraper.extract_mobile_store_name = mock.Mock(return_value="Aパーク春日店")
+        scraper.extract_mobile_slot_machine_list_link = mock.Mock(return_value="https://example.com/mobile-machines")
+        scraper.extract_mobile_target_machine_links = mock.Mock(
+            return_value=[
+                (
+                    Site7MachineEntry(display_name=SITE7_TARGET_MACHINE_NAME, machine_name=SITE7_TARGET_MACHINE_NAME),
+                    "https://example.com/mobile-machine",
+                )
+            ]
         )
         scraper._wait_between_transitions = mock.Mock()
         scraper._accept_cookie_banner_if_present = mock.Mock()
-        scraper._open_target_machine_page = mock.Mock()
-        scraper.parse_machine_history_html = mock.Mock(return_value=raw_result)
+        scraper._fetch_mobile_machine_history_result = mock.Mock(return_value=raw_result)
         scraper._merge_machine_history_results = mock.Mock(return_value=filtered_result)
         filter_callback = mock.Mock(return_value=filtered_result)
         partial_results: list[MachineHistoryResult] = []
@@ -1897,9 +1930,9 @@ class MinRepoScraperTests(unittest.TestCase):
         page = FakeRetainedPage()
         context = FakeRetainedContext(page)
         playwright = FakePlayableBrowser()
-        scraper._launch_browser_context = mock.Mock(return_value=(playwright, context))
+        scraper._launch_mobile_browser_context = mock.Mock(return_value=(playwright, context))
         scraper._require_playwright = mock.Mock()
-        scraper._open_target_hall_page = mock.Mock(side_effect=Site7FetchCancelled("中止しました"))
+        scraper._open_mobile_target_hall_page = mock.Mock(side_effect=Site7FetchCancelled("中止しました"))
 
         with self.assertRaises(Site7FetchCancelled):
             scraper.fetch_target_machine_history(recent_days=1, browser_visible=True)
@@ -2037,14 +2070,22 @@ class MinRepoScraperTests(unittest.TestCase):
         machine_entry, machine_link = scraper.extract_mobile_target_machine_link(
             """
 <a href="D2300.do?pmc=40100003&clc=03&urt=2173&mdc=120010&bn=1">マイジャグラーV [30]</a>
-<a href="D2300.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1">ネオアイムジャグラーEX [25]</a>
+<a href="D3310.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1">ネオアイムジャグラーEX [25]</a>
 """
         )
         self.assertEqual(machine_entry.display_name, "ネオアイムジャグラーEX")
         self.assertEqual(machine_entry.machine_name, "ネオアイムジャグラーEX")
         self.assertEqual(
             machine_link,
-            "https://m.site777.jp/db/D2300.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1",
+            "https://m.site777.jp/db/D3310.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1",
+        )
+
+        self.assertEqual(
+            scraper.extract_mobile_machine_bonus_list_link(
+                '<a href="D3300.do?pmc=40100003&mdc=120312&bn=1&dtdd=0&pan=1&urt=2173">大当り一覧</a>',
+                "https://m.site777.jp/db/D3310.do?pmc=40100003&mdc=120312&bn=1&dtdd=0&pan=1&urt=2173",
+            ),
+            "https://m.site777.jp/db/D3300.do?pmc=40100003&mdc=120312&bn=1&dtdd=0&pan=1&urt=2173",
         )
 
         self.assertEqual(
@@ -2058,6 +2099,12 @@ class MinRepoScraperTests(unittest.TestCase):
                 '<a href="D2500.do?pmc=40100003&mdc=120312&bn=1&pan=1&clc=03&urt=2173">出玉推移一覧</a>'
             ),
             "https://m.site777.jp/db/D2500.do?pmc=40100003&mdc=120312&bn=1&pan=1&clc=03&urt=2173",
+        )
+        self.assertEqual(
+            scraper.extract_mobile_machine_graph_list_link(
+                '<a href="D4300.do?pmc=40100003&mdc=120312&bn=1&pan=1&clc=03&urt=2173">出玉推移一覧</a>'
+            ),
+            "https://m.site777.jp/db/D4300.do?pmc=40100003&mdc=120312&bn=1&pan=1&clc=03&urt=2173",
         )
         self.assertEqual(
             scraper.extract_mobile_machine_graph_list_link(
@@ -2159,6 +2206,38 @@ class MinRepoScraperTests(unittest.TestCase):
             ),
             ["https://m.site777.jp/db/D2900.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1&dt=1&pan=2"],
         )
+
+    def test_site7_extract_mobile_machine_day_rows(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = """
+<table>
+  <tr><td></td><td>台番</td><td>累計ｹﾞｰﾑ</td><td>BB回数</td><td>RB回数</td><td>合成確率</td><td>ART回数</td></tr>
+  <tr><td></td><td>821</td><td>122</td><td>0</td><td>2</td><td>61</td><td>--</td></tr>
+  <tr><td></td><td>827</td><td>7,867</td><td>19</td><td>40</td><td>133</td><td>--</td></tr>
+  <tr><td></td><td>平均</td><td>121</td><td>0</td><td>0</td><td>160</td><td>--</td></tr>
+</table>
+"""
+
+        self.assertEqual(
+            scraper.extract_mobile_machine_day_rows(html),
+            {
+                "821": {"G数": "122", "BB": "0", "RB": "2"},
+                "827": {"G数": "7867", "BB": "19", "RB": "40"},
+            },
+        )
+
+        dataset = scraper._build_mobile_dataset_for_day(
+            html=html,
+            store_name="Ａパーク春日店",
+            store_url="https://example.com/hall",
+            target_date="2026-06-01",
+            date_url="https://example.com/day",
+            machine_name=SITE7_TARGET_MACHINE_NAME,
+            machine_url="https://example.com/machine",
+        )
+
+        self.assertEqual(dataset.rows[1][0], "827")
+        self.assertEqual(dataset.rows[1][2:9], ["7867", "-", "19", "40", "1/133", "1/414", "1/196"])
 
     def test_site7_extract_mobile_machine_stat_values_from_text(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)

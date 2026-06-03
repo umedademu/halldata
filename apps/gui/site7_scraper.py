@@ -111,6 +111,10 @@ def parse_site7_graph_difference_value(image_bytes: bytes) -> int | None:
     except (UnidentifiedImageError, OSError):
         return None
 
+    dark_value = _parse_site7_dark_graph_difference_value(image)
+    if dark_value is not None:
+        return dark_value
+
     axis_x, graph_top, graph_bottom = _detect_site7_graph_axis(image)
     if axis_x is None or graph_top is None or graph_bottom is None:
         return None
@@ -125,6 +129,121 @@ def parse_site7_graph_difference_value(image_bytes: bytes) -> int | None:
         return None
 
     return int(round((zero_y - final_line_y) * 1000 / grid_spacing))
+
+
+def _parse_site7_dark_graph_difference_value(image: Image.Image) -> int | None:
+    width, height = image.size
+    sampled_pixels = [
+        image.getpixel((x, y))
+        for x in range(0, width, max(1, width // 40))
+        for y in range(0, height, max(1, height // 40))
+    ]
+    if not sampled_pixels:
+        return None
+    dark_ratio = sum(1 for pixel in sampled_pixels if max(pixel) < 50) / len(sampled_pixels)
+    if dark_ratio < 0.45:
+        return None
+
+    horizontal_rows: list[int] = []
+    for y in range(height):
+        line_pixel_count = sum(
+            1
+            for x in range(width)
+            if _site7_pixel_is_dark_graph_horizontal_line(image.getpixel((x, y)))
+        )
+        if line_pixel_count >= width * 0.35:
+            horizontal_rows.append(y)
+    grid_rows = _merge_site7_row_runs(horizontal_rows)
+    if len(grid_rows) < 4:
+        return None
+
+    zero_candidates: list[tuple[int, int]] = []
+    for y in grid_rows:
+        white_count = sum(
+            1
+            for x in range(width)
+            if _site7_pixel_is_dark_graph_zero_line(image.getpixel((x, y)))
+        )
+        if white_count >= width * 0.25:
+            zero_candidates.append((white_count, y))
+    if not zero_candidates:
+        return None
+    _, zero_y = max(zero_candidates, key=lambda item: (item[0], -abs(item[1] - height // 2)))
+
+    grid_distances = [
+        bottom - top
+        for top, bottom in zip(grid_rows, grid_rows[1:], strict=False)
+        if bottom - top >= 4
+    ]
+    if not grid_distances:
+        return None
+    grid_spacing = statistics.median(grid_distances)
+    if grid_spacing <= 0:
+        return None
+
+    final_line_y = _detect_site7_dark_graph_final_line_y(image, grid_rows[0], grid_rows[-1])
+    if final_line_y is None:
+        return None
+
+    return int(round((zero_y - final_line_y) * 1000 / grid_spacing))
+
+
+def _merge_site7_row_runs(rows: list[int]) -> list[int]:
+    if not rows:
+        return []
+    merged_rows: list[int] = []
+    current_run = [rows[0]]
+    for row in rows[1:]:
+        if row - current_run[-1] <= 2:
+            current_run.append(row)
+            continue
+        merged_rows.append(round(statistics.fmean(current_run)))
+        current_run = [row]
+    merged_rows.append(round(statistics.fmean(current_run)))
+    return merged_rows
+
+
+def _detect_site7_dark_graph_final_line_y(image: Image.Image, graph_top: int, graph_bottom: int) -> float | None:
+    width, _ = image.size
+    line_columns: dict[int, list[int]] = {}
+    for x in range(width):
+        rows = [
+            y
+            for y in range(max(0, graph_top), min(image.size[1], graph_bottom + 1))
+            if _site7_pixel_is_graph_line(image.getpixel((x, y)))
+        ]
+        if 1 <= len(rows) <= 6:
+            line_columns[x] = rows
+    if not line_columns:
+        return None
+
+    groups: list[list[int]] = []
+    current_group: list[int] = []
+    for x in sorted(line_columns):
+        if not current_group or x - current_group[-1] <= 2:
+            current_group.append(x)
+            continue
+        groups.append(current_group)
+        current_group = [x]
+    if current_group:
+        groups.append(current_group)
+
+    wide_groups = [group for group in groups if len(group) >= 12]
+    if not wide_groups:
+        return None
+    selected_group = max(wide_groups, key=lambda group: (len(group), max(group)))
+    traced_rows: list[float] = []
+    current_y: float | None = None
+    for x in selected_group:
+        rows = line_columns[x]
+        if current_y is None:
+            current_y = float(statistics.median(rows))
+        else:
+            current_y = float(min(rows, key=lambda row: abs(row - current_y)))
+        traced_rows.append(current_y)
+    if not traced_rows:
+        return None
+    return float(statistics.fmean(traced_rows[-5:]))
 
 
 def _detect_site7_graph_axis(image: Image.Image) -> tuple[int | None, int | None, int | None]:
@@ -237,7 +356,23 @@ def _site7_pixel_is_graph_line(pixel: tuple[int, int, int]) -> bool:
     red, green, blue = pixel
     if red > 170 and green < 150 and blue < 140 and red - green > 45 and red - blue > 45:
         return True
+    if red > 170 and green > 150 and blue < 90 and red - blue > 80 and green - blue > 70:
+        return True
     return green > 110 and red < 170 and blue < 170 and green - red > 25 and green - blue > 20
+
+
+def _site7_pixel_is_dark_graph_horizontal_line(pixel: tuple[int, int, int]) -> bool:
+    red, green, blue = pixel
+    if max(pixel) < 45:
+        return False
+    if _site7_pixel_is_graph_line(pixel):
+        return False
+    return abs(red - green) <= 25 and abs(green - blue) <= 25
+
+
+def _site7_pixel_is_dark_graph_zero_line(pixel: tuple[int, int, int]) -> bool:
+    red, green, blue = pixel
+    return red >= 170 and green >= 170 and blue >= 170 and abs(red - green) <= 25 and abs(green - blue) <= 25
 
 
 def mark_site7_dataset_graph_difference(dataset: MachineDataset, slot_number: str) -> None:
@@ -731,13 +866,35 @@ class Site7Scraper:
         machine_result_filter_callback: Callable[[MachineHistoryResult], MachineHistoryResult] | None = None,
         include_graph_differences: bool = False,
     ) -> MachineHistoryResult:
+        return self._fetch_mobile_target_machine_history(
+            recent_days=recent_days,
+            browser_visible=browser_visible,
+            progress_callback=progress_callback,
+            target_store=target_store,
+            cancel_requested=cancel_requested,
+            machine_result_callback=machine_result_callback,
+            machine_result_filter_callback=machine_result_filter_callback,
+            include_graph_differences=include_graph_differences,
+        )
+
+    def _fetch_mobile_target_machine_history(
+        self,
+        recent_days: int,
+        browser_visible: bool = False,
+        progress_callback: Callable[[FetchProgress], None] | None = None,
+        target_store: Site7TargetStore | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
+        machine_result_callback: Callable[[MachineHistoryResult], None] | None = None,
+        machine_result_filter_callback: Callable[[MachineHistoryResult], MachineHistoryResult] | None = None,
+        include_graph_differences: bool = False,
+    ) -> MachineHistoryResult:
         resolved_target_store = enrich_site7_target_store(target_store or SITE7_DEFAULT_TARGET_STORE)
         target_days = clamp_site7_recent_days(recent_days)
         self._notify_progress(
             progress_callback,
             0,
             1,
-            f"{resolved_target_store.display_name} の店舗ページへ移動しています",
+            f"{resolved_target_store.display_name} のスマホ版店舗ページへ移動しています",
         )
         self._require_playwright()
         _raise_if_site7_cancel_requested(cancel_requested)
@@ -746,73 +903,58 @@ class Site7Scraper:
         context = None
         machine_results: list[MachineHistoryResult] = []
         try:
-            playwright, context = self._open_fetch_browser_context(browser_visible)
-            page = self._prepare_fetch_page(context, browser_visible)
-            hall_page_url, hall_html = self._open_target_hall_page(
-                page,
-                resolved_target_store,
-                cancel_requested=cancel_requested,
-            )
-            store_name = self.extract_store_name(hall_html)
-            target_machine_entries = self.extract_target_machine_entries(hall_html)
-            total_steps = len(target_machine_entries) + 2
+            playwright, context = self._launch_mobile_browser_context(browser_visible=browser_visible)
+            page = self._prepare_fetch_page(context, browser_visible=browser_visible)
+            hall_html = self._open_mobile_target_hall_page(page, resolved_target_store, cancel_requested=cancel_requested)
+            hall_page_url = str(page.url)
+            store_name = self.extract_mobile_store_name(hall_html, resolved_target_store)
+            machine_list_link = self.extract_mobile_slot_machine_list_link(hall_html)
+            self._wait_between_transitions(page, cancel_requested=cancel_requested)
+            _raise_if_site7_cancel_requested(cancel_requested)
+            page.goto(machine_list_link, wait_until="domcontentloaded", timeout=60_000)
+            self._accept_cookie_banner_if_present(page)
+            machine_list_html = page.content()
+            self._wait_between_transitions(page, cancel_requested=cancel_requested)
+            target_machine_items = self.extract_mobile_target_machine_links(machine_list_html)
+            if not target_machine_items:
+                raise ScraperError("スマホ版サイトセブンで対象機種のリンクが見つかりませんでした。")
+            total_steps = len(target_machine_items) + 2
 
-            for machine_index, machine_entry in enumerate(target_machine_entries, start=1):
+            for machine_index, (machine_entry, machine_link) in enumerate(target_machine_items, start=1):
                 _raise_if_site7_cancel_requested(cancel_requested)
-                if machine_index > 1:
-                    self._wait_between_transitions(page, cancel_requested=cancel_requested)
-                    _raise_if_site7_cancel_requested(cancel_requested)
-                    page.goto(hall_page_url, wait_until="domcontentloaded", timeout=60_000)
-                    self._accept_cookie_banner_if_present(page)
-
                 self._notify_progress(
                     progress_callback,
                     machine_index,
                     total_steps,
-                    f"{resolved_target_store.display_name} / {machine_entry.machine_name} のページを開いています",
+                    f"{resolved_target_store.display_name} / {machine_entry.machine_name} のスマホ版データを読んでいます",
                 )
-                self._wait_between_transitions(page, cancel_requested=cancel_requested)
-                self._open_target_machine_page(page, machine_entry, cancel_requested=cancel_requested)
-                _raise_if_site7_cancel_requested(cancel_requested)
-                page.wait_for_selector("#ata0", timeout=60_000)
-                machine_page_url = str(page.url)
-                machine_html = page.content()
-                machine_result = self.parse_machine_history_html(
-                    machine_html,
+                machine_result = self._fetch_mobile_machine_history_result(
+                    page=page,
                     store_url=hall_page_url,
-                    page_url=machine_page_url,
+                    store_name=store_name,
+                    machine_entry=machine_entry,
+                    machine_link=machine_link,
                     recent_days=target_days,
-                    fallback_store_name=store_name,
-                    machine_name_override=machine_entry.machine_name,
+                    cancel_requested=cancel_requested,
                 )
                 if machine_result_filter_callback is not None:
                     machine_result = machine_result_filter_callback(machine_result)
+                if include_graph_differences and machine_result.datasets:
+                    self._apply_mobile_graph_differences_to_machine_result(
+                        page=page,
+                        context=context,
+                        machine_result=machine_result,
+                        machine_link=machine_link,
+                        progress_callback=progress_callback,
+                        cancel_requested=cancel_requested,
+                    )
                 machine_results.append(machine_result)
-                if machine_result_callback is not None and not include_graph_differences:
+                if machine_result_callback is not None:
                     machine_result_callback(machine_result)
         except PlaywrightError as exc:
             raise self._wrap_playwright_error(exc) from exc
         finally:
             self._release_browser_context(playwright, context)
-
-        _raise_if_site7_cancel_requested(cancel_requested)
-        if include_graph_differences and machine_results:
-            self._notify_progress(
-                progress_callback,
-                len(machine_results),
-                len(machine_results) + 2,
-                f"{resolved_target_store.display_name} の出玉推移グラフを読み取っています",
-            )
-            machine_results = self._apply_mobile_graph_differences(
-                machine_results,
-                target_store=resolved_target_store,
-                browser_visible=browser_visible,
-                cancel_requested=cancel_requested,
-                progress_callback=progress_callback,
-            )
-            if machine_result_callback is not None:
-                for machine_result in machine_results:
-                    machine_result_callback(machine_result)
 
         _raise_if_site7_cancel_requested(cancel_requested)
         self._notify_progress(
@@ -826,6 +968,276 @@ class Site7Scraper:
             fallback_store_name=store_name if "store_name" in locals() else resolved_target_store.display_name,
             store_url=hall_page_url if "hall_page_url" in locals() else resolved_target_store.direct_hall_url,
         )
+
+    def _fetch_mobile_machine_history_result(
+        self,
+        *,
+        page: object,
+        store_url: str,
+        store_name: str,
+        machine_entry: Site7MachineEntry,
+        machine_link: str,
+        recent_days: int,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> MachineHistoryResult:
+        _raise_if_site7_cancel_requested(cancel_requested)
+        page.goto(machine_link, wait_until="domcontentloaded", timeout=60_000)
+        self._accept_cookie_banner_if_present(page)
+        self._wait_between_transitions(page, cancel_requested=cancel_requested)
+        machine_page_url = str(page.url)
+        machine_html = page.content()
+        bonus_list_link = self.extract_mobile_machine_bonus_list_link(machine_html, machine_page_url)
+
+        first_day_url = self._replace_mobile_query_param(bonus_list_link, "dtdd", "0")
+        _raise_if_site7_cancel_requested(cancel_requested)
+        page.goto(first_day_url, wait_until="domcontentloaded", timeout=60_000)
+        self._accept_cookie_banner_if_present(page)
+        self._wait_between_transitions(page, cancel_requested=cancel_requested)
+        first_day_html = page.content()
+        latest_date = self.extract_updated_date(first_day_html)
+
+        datasets: list[MachineDataset] = []
+        date_pages: list[StoreDatePage] = []
+        for day_index in range(recent_days):
+            target_date = (latest_date - timedelta(days=day_index)).strftime("%Y-%m-%d")
+            day_url = self._replace_mobile_query_param(bonus_list_link, "dtdd", str(day_index))
+            if day_index == 0:
+                day_html = first_day_html
+                resolved_day_url = str(page.url)
+            else:
+                _raise_if_site7_cancel_requested(cancel_requested)
+                page.goto(day_url, wait_until="domcontentloaded", timeout=60_000)
+                self._accept_cookie_banner_if_present(page)
+                self._wait_between_transitions(page, cancel_requested=cancel_requested)
+                day_html = page.content()
+                resolved_day_url = str(page.url)
+
+            dataset = self._build_mobile_dataset_for_day(
+                html=day_html,
+                store_name=store_name,
+                store_url=store_url,
+                target_date=target_date,
+                date_url=resolved_day_url or day_url,
+                machine_name=machine_entry.machine_name,
+                machine_url=machine_page_url,
+            )
+            if not dataset.rows:
+                continue
+            datasets.append(dataset)
+            date_pages.append(StoreDatePage(target_date=target_date, date_url=resolved_day_url or day_url))
+
+        if not datasets:
+            raise ScraperError(f"スマホ版サイトセブンで {machine_entry.machine_name} の台データが見つかりませんでした。")
+
+        datasets.sort(key=lambda dataset: dataset.target_date)
+        date_pages.sort(key=lambda date_page: date_page.target_date)
+        return MachineHistoryResult(
+            store_name=store_name,
+            store_url=store_url,
+            start_date=date_pages[0].target_date,
+            end_date=date_pages[-1].target_date,
+            date_pages=date_pages,
+            datasets=datasets,
+        )
+
+    def _apply_mobile_graph_differences_to_machine_result(
+        self,
+        *,
+        page: object,
+        context: object,
+        machine_result: MachineHistoryResult,
+        machine_link: str,
+        progress_callback: Callable[[FetchProgress], None] | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> None:
+        total_graph_count = sum(len(dataset.rows) for dataset in machine_result.datasets)
+        if total_graph_count <= 0:
+            return
+
+        _raise_if_site7_cancel_requested(cancel_requested)
+        page.goto(machine_link, wait_until="domcontentloaded", timeout=60_000)
+        self._accept_cookie_banner_if_present(page)
+        self._wait_between_transitions(page, cancel_requested=cancel_requested)
+        machine_html = page.content()
+        machine_page_url = str(page.url)
+        graph_list_link = self.extract_mobile_machine_graph_list_link(machine_html, fallback_url=machine_page_url)
+        graph_index_link = self.extract_mobile_machine_graph_index_link(machine_html, fallback_url=machine_page_url)
+        latest_date = self._machine_result_latest_date(machine_result)
+
+        current_graph_count = 0
+        for dataset in machine_result.datasets:
+            day_index = self._mobile_graph_day_index(latest_date, dataset.target_date)
+            if day_index is None:
+                current_graph_count += len(dataset.rows)
+                continue
+
+            graph_list_url = self._replace_mobile_query_param(graph_list_link, "dtdd", str(day_index))
+            target_slot_numbers = self._dataset_slot_numbers(dataset)
+            list_difference_values, slot_graph_links = self._fetch_mobile_graph_list_page_data(
+                page=page,
+                context=context,
+                start_url=graph_list_url,
+                target_slot_numbers=target_slot_numbers,
+                cancel_requested=cancel_requested,
+            )
+            detail_slot_numbers = {
+                slot_number
+                for slot_number, difference_value in list_difference_values.items()
+                if self._mobile_graph_difference_needs_detail(difference_value)
+            }
+            if not slot_graph_links or detail_slot_numbers:
+                graph_index_url = self._replace_mobile_query_param(graph_index_link, "dtdd", str(day_index))
+                _raise_if_site7_cancel_requested(cancel_requested)
+                page.goto(graph_index_url, wait_until="domcontentloaded", timeout=60_000)
+                self._accept_cookie_banner_if_present(page)
+                graph_index_html = page.content()
+                self._wait_between_transitions(page, cancel_requested=cancel_requested)
+                slot_graph_links.update(self.extract_mobile_slot_graph_links(graph_index_html))
+
+            self._apply_mobile_graph_differences_to_dataset(
+                page=page,
+                context=context,
+                dataset=dataset,
+                list_difference_values=list_difference_values,
+                detail_slot_numbers=detail_slot_numbers,
+                slot_graph_links=slot_graph_links,
+                day_index=day_index,
+                cancel_requested=cancel_requested,
+                progress_callback=progress_callback,
+                current_graph_count_ref=lambda current=current_graph_count: current,
+                total_graph_count=total_graph_count,
+            )
+            current_graph_count += len(dataset.rows)
+
+    def _build_mobile_dataset_for_day(
+        self,
+        *,
+        html: str,
+        store_name: str,
+        store_url: str,
+        target_date: str,
+        date_url: str,
+        machine_name: str,
+        machine_url: str,
+    ) -> MachineDataset:
+        source_rows = self.extract_mobile_machine_day_rows(html)
+        rows: list[list[str]] = []
+        for slot_number in sorted(source_rows, key=lambda value: int(value) if value.isdigit() else value):
+            row_values = source_rows[slot_number]
+            if not any(site7_value_has_data(row_values.get(column_name, "")) for column_name in SITE7_MOBILE_STAT_COLUMNS):
+                continue
+
+            games_count = self._parse_mobile_stat_int(row_values.get("G数", ""))
+            bb_count = self._parse_mobile_stat_int(row_values.get("BB", ""))
+            rb_count = self._parse_mobile_stat_int(row_values.get("RB", ""))
+            ratios = {
+                "合成": self._format_mobile_stat_ratio(games_count or 0, (bb_count or 0) + (rb_count or 0)),
+                "BB率": self._format_mobile_stat_ratio(games_count or 0, bb_count),
+                "RB率": self._format_mobile_stat_ratio(games_count or 0, rb_count),
+            }
+            rows.append(
+                [
+                    slot_number,
+                    format_machine_difference_for_row(machine_name, row_values),
+                    row_values.get("G数", "-"),
+                    "-",
+                    row_values.get("BB", "-"),
+                    row_values.get("RB", "-"),
+                    ratios["合成"],
+                    ratios["BB率"],
+                    ratios["RB率"],
+                ]
+            )
+
+        return MachineDataset(
+            store_name=store_name,
+            store_url=store_url,
+            target_date=target_date,
+            date_url=date_url,
+            machine_name=machine_name,
+            machine_url=machine_url,
+            columns=["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"],
+            rows=rows,
+        )
+
+    def extract_mobile_machine_day_rows(self, html: str) -> dict[str, dict[str, str]]:
+        soup = BeautifulSoup(html, "html.parser")
+        rows = self._extract_mobile_machine_day_rows_from_tables(soup)
+        if rows:
+            return rows
+        return self._extract_mobile_machine_day_rows_from_text(soup.get_text("\n", strip=True))
+
+    def _extract_mobile_machine_day_rows_from_tables(self, soup: BeautifulSoup) -> dict[str, dict[str, str]]:
+        rows: dict[str, dict[str, str]] = {}
+        for table in soup.find_all("table"):
+            header_indexes: dict[str, int] = {}
+            for table_row in table.find_all("tr"):
+                cells = [cell.get_text(" ", strip=True) for cell in table_row.find_all(["th", "td"])]
+                normalized_cells = [_normalize_site7_lookup_text(cell) for cell in cells]
+                if not cells:
+                    continue
+                if "台番" in normalized_cells and any(self._mobile_machine_day_header_is_games(cell) for cell in normalized_cells):
+                    header_indexes = self._mobile_machine_day_header_indexes(normalized_cells)
+                    continue
+                if not header_indexes:
+                    continue
+
+                slot_cell_index = header_indexes.get("台番")
+                if slot_cell_index is None or len(cells) <= slot_cell_index:
+                    continue
+                slot_number = self._extract_slot_number(cells[slot_cell_index])
+                if not slot_number or "平均" in cells[slot_cell_index]:
+                    continue
+                if slot_number in rows:
+                    continue
+
+                row_values: dict[str, str] = {}
+                for column_name in SITE7_MOBILE_STAT_COLUMNS:
+                    cell_index = header_indexes.get(column_name)
+                    if cell_index is None or len(cells) <= cell_index:
+                        row_values[column_name] = "-"
+                    else:
+                        row_values[column_name] = self._normalize_mobile_stat_cell_value(cells[cell_index])
+                rows[slot_number] = row_values
+
+        return rows
+
+    def _mobile_machine_day_header_indexes(self, normalized_cells: list[str]) -> dict[str, int]:
+        header_indexes: dict[str, int] = {}
+        for index, cell in enumerate(normalized_cells):
+            if cell == "台番":
+                header_indexes["台番"] = index
+            elif self._mobile_machine_day_header_is_games(cell):
+                header_indexes["G数"] = index
+            elif cell == "bb回数":
+                header_indexes["BB"] = index
+            elif cell == "rb回数":
+                header_indexes["RB"] = index
+        return header_indexes
+
+    def _mobile_machine_day_header_is_games(self, value: str) -> bool:
+        return "累計" in value and ("ゲーム" in value or "ゲム" in value)
+
+    def _extract_mobile_machine_day_rows_from_text(self, text: str) -> dict[str, dict[str, str]]:
+        rows: dict[str, dict[str, str]] = {}
+        lines = [line.strip() for line in str(text).splitlines() if line.strip()]
+        for line in lines:
+            parts = [part.strip() for part in re.split(r"\t+", line) if part.strip()]
+            if len(parts) <= 1:
+                parts = [part.strip() for part in re.split(r"\s+", line) if part.strip()]
+            if len(parts) < 4:
+                continue
+            slot_number = self._extract_slot_number(parts[0])
+            if not slot_number or "平均" in parts[0]:
+                continue
+            if slot_number in rows:
+                continue
+            rows[slot_number] = {
+                "G数": self._normalize_mobile_stat_cell_value(parts[1]),
+                "BB": self._normalize_mobile_stat_cell_value(parts[2]),
+                "RB": self._normalize_mobile_stat_cell_value(parts[3]),
+            }
+        return rows
 
     def _apply_mobile_graph_differences(
         self,
@@ -1867,7 +2279,7 @@ class Site7Scraper:
         seen_machine_names: set[str] = set()
         for anchor in soup.find_all("a"):
             href = str(anchor.get("href") or "").strip()
-            if "D2300.do?" not in href:
+            if not any(path in href for path in ("D2300.do?", "D3300.do?", "D3310.do?")):
                 continue
 
             display_name = self._extract_mobile_machine_label(anchor.get_text(" ", strip=True))
@@ -1886,7 +2298,30 @@ class Site7Scraper:
 
         return machine_links
 
-    def extract_mobile_machine_graph_list_link(self, html: str) -> str:
+    def extract_mobile_machine_bonus_list_link(self, html: str, fallback_url: str = "") -> str:
+        soup = BeautifulSoup(html, "html.parser")
+        fallback_link = ""
+        for anchor in soup.find_all("a"):
+            href = str(anchor.get("href") or "").strip()
+            if not any(path in href for path in ("D3300.do?", "D3310.do?")):
+                continue
+
+            text = anchor.get_text(" ", strip=True)
+            absolute_href = urljoin(SITE7_MOBILE_TOP_URL, href)
+            if "大当り一覧" in text:
+                return absolute_href
+            if not fallback_link:
+                fallback_link = absolute_href
+
+        if fallback_link:
+            return fallback_link
+        if any(path in fallback_url for path in ("D3300.do", "D3310.do")):
+            return urljoin(SITE7_MOBILE_TOP_URL, fallback_url)
+        if fallback_url:
+            return self._build_mobile_machine_related_url(fallback_url, "D3300.do", extra_query={"soc": "1", "sw": "1"})
+        raise ScraperError("スマホ版サイトセブンで大当り一覧のリンクが見つかりませんでした。")
+
+    def extract_mobile_machine_graph_list_link(self, html: str, fallback_url: str = "") -> str:
         soup = BeautifulSoup(html, "html.parser")
         fallback_link = ""
         graph_link = ""
@@ -1899,8 +2334,10 @@ class Site7Scraper:
             absolute_href = urljoin(SITE7_MOBILE_TOP_URL, href)
             if "出玉推移一覧" in text:
                 return absolute_href
-            if "D2400.do?" not in href:
+            if not any(path in href for path in ("D2400.do?", "D2500.do?", "D4300.do?")):
                 continue
+            if "D4300.do?" in href:
+                return absolute_href
             if "gc=1" in href:
                 return absolute_href
             if "出玉推移グラフ" in text or "gc=2" in href:
@@ -1912,9 +2349,11 @@ class Site7Scraper:
             return self._replace_mobile_query_param(graph_link, "gc", "1")
         if fallback_link:
             return fallback_link
+        if fallback_url:
+            return self._build_mobile_machine_related_url(fallback_url, "D4300.do", extra_query={"pan": "1"})
         raise ScraperError("スマホ版サイトセブンで出玉推移一覧のリンクが見つかりませんでした。")
 
-    def extract_mobile_machine_graph_index_link(self, html: str) -> str:
+    def extract_mobile_machine_graph_index_link(self, html: str, fallback_url: str = "") -> str:
         soup = BeautifulSoup(html, "html.parser")
         fallback_link = ""
         for anchor in soup.find_all("a"):
@@ -1931,7 +2370,32 @@ class Site7Scraper:
 
         if fallback_link:
             return fallback_link
+        if fallback_url:
+            return self._build_mobile_machine_related_url(fallback_url, "D2400.do", extra_query={"gc": "2", "pan": "1"})
         raise ScraperError("スマホ版サイトセブンで出玉推移グラフのリンクが見つかりませんでした。")
+
+    def _build_mobile_machine_related_url(
+        self,
+        source_url: str,
+        path_name: str,
+        extra_query: dict[str, str] | None = None,
+    ) -> str:
+        parts = urlsplit(urljoin(SITE7_MOBILE_TOP_URL, source_url))
+        query = dict(parse_qsl(parts.query, keep_blank_values=True))
+        kept_items: list[tuple[str, str]] = []
+        for key in ("pmc", "clc", "urt", "mdc", "bn", "dtdd", "pan"):
+            value = str(query.get(key) or "").strip()
+            if value:
+                kept_items.append((key, value))
+        current_keys = {key for key, _ in kept_items}
+        if "dtdd" not in current_keys:
+            kept_items.append(("dtdd", "0"))
+        if "pan" not in current_keys:
+            kept_items.append(("pan", "1"))
+        for key, value in (extra_query or {}).items():
+            kept_items = [(item_key, item_value) for item_key, item_value in kept_items if item_key != key]
+            kept_items.append((key, value))
+        return urlunsplit((parts.scheme, parts.netloc, f"/db/{path_name}", urlencode(kept_items), ""))
 
     def extract_mobile_machine_stat_list_links(self, html: str) -> dict[str, str]:
         soup = BeautifulSoup(html, "html.parser")
