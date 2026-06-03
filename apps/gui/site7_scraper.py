@@ -1209,6 +1209,25 @@ class Site7Scraper:
             if len(row) <= slot_index or (dataset.target_date, str(row[slot_index]).strip()) not in protected_slots
         ]
 
+    def _mobile_machine_graph_link_source_url(self, machine_result: MachineHistoryResult, fallback_url: str) -> str:
+        latest_date = self._machine_result_latest_date(machine_result)
+        latest_target_date = latest_date.strftime("%Y-%m-%d") if latest_date is not None else ""
+        if latest_target_date:
+            for dataset in machine_result.datasets:
+                if dataset.target_date == latest_target_date and dataset.date_url:
+                    return dataset.date_url
+            for date_page in machine_result.date_pages:
+                if date_page.target_date == latest_target_date and date_page.date_url:
+                    return date_page.date_url
+
+        for dataset in sorted(machine_result.datasets, key=lambda item: item.target_date, reverse=True):
+            if dataset.date_url:
+                return dataset.date_url
+        for date_page in sorted(machine_result.date_pages, key=lambda item: item.target_date, reverse=True):
+            if date_page.date_url:
+                return date_page.date_url
+        return fallback_url
+
     def _apply_mobile_graph_differences_to_machine_result(
         self,
         *,
@@ -1224,13 +1243,18 @@ class Site7Scraper:
             return
 
         _raise_if_site7_cancel_requested(cancel_requested)
-        page.goto(machine_link, wait_until="domcontentloaded", timeout=60_000)
-        self._accept_cookie_banner_if_present(page)
-        self._wait_between_transitions(page, cancel_requested=cancel_requested)
-        machine_html = page.content()
-        machine_page_url = str(page.url)
-        graph_list_link = self.extract_mobile_machine_graph_list_link(machine_html, fallback_url=machine_page_url)
-        graph_index_link = self.extract_mobile_machine_graph_index_link(machine_html, fallback_url=machine_page_url)
+        graph_source_url = self._mobile_machine_graph_link_source_url(machine_result, machine_link)
+        if str(getattr(page, "url", "")) == graph_source_url:
+            graph_source_html = page.content()
+            graph_source_page_url = str(getattr(page, "url", graph_source_url))
+        else:
+            page.goto(graph_source_url, wait_until="domcontentloaded", timeout=60_000)
+            self._accept_cookie_banner_if_present(page)
+            self._wait_between_transitions(page, cancel_requested=cancel_requested)
+            graph_source_html = page.content()
+            graph_source_page_url = str(page.url)
+        graph_list_link = self.extract_mobile_machine_graph_list_link(graph_source_html, fallback_url=graph_source_page_url)
+        graph_index_link = self.extract_mobile_machine_graph_index_link(graph_source_html, fallback_url=graph_source_page_url)
         latest_date = self._machine_result_latest_date(machine_result)
         machine_names = sorted({dataset.machine_name for dataset in machine_result.datasets})
         self._write_debug_log(
@@ -1238,6 +1262,8 @@ class Site7Scraper:
             machines=machine_names,
             dataset_count=len(machine_result.datasets),
             total_rows=total_graph_count,
+            graph_source_url=graph_source_url,
+            graph_source_page_url=graph_source_page_url,
             graph_list_link=graph_list_link,
             graph_index_link=graph_index_link,
         )

@@ -2462,6 +2462,74 @@ class MinRepoScraperTests(unittest.TestCase):
             "https://m.site777.jp/db/D2400.do?pmc=40100003&mdc=120312&bn=1&gc=1&dtdd=0&pan=3",
         )
 
+    def test_site7_graph_phase_uses_bonus_list_page_graph_link(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        machine_link = "https://m.site777.jp/db/D3310.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1"
+        bonus_url = (
+            "https://m.site777.jp/db/D3300.do?"
+            "pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1&dtdd=0&pan=1"
+        )
+        graph_list_url = (
+            "https://m.site777.jp/db/D4300.do?"
+            "pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1&dtdd=0&pan=1"
+        )
+
+        class FakeGraphSourcePage(FakeRetainedPage):
+            def __init__(self) -> None:
+                super().__init__()
+                self.html_by_url = {
+                    bonus_url: (
+                        '<a href="D4300.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1&dtdd=0&pan=1">'
+                        "出玉推移一覧</a>"
+                    )
+                }
+                self.current_html = ""
+
+            def goto(self, url: str, wait_until: str = "", timeout: int = 0) -> None:
+                super().goto(url, wait_until=wait_until, timeout=timeout)
+                self.current_html = self.html_by_url.get(url, "")
+
+            def content(self) -> str:
+                return self.current_html
+
+        page = FakeGraphSourcePage()
+        dataset = MachineDataset(
+            store_name="Ａパーク春日店",
+            store_url="https://example.com/site7-hall",
+            target_date="2026-06-03",
+            date_url=bonus_url,
+            machine_name=SITE7_TARGET_MACHINE_NAME,
+            machine_url=machine_link,
+            columns=["台番", "差枚", "G数", "BB", "RB"],
+            rows=[["821", "-", "122", "0", "2"]],
+        )
+        machine_result = MachineHistoryResult(
+            store_name="Ａパーク春日店",
+            store_url="https://example.com/site7-hall",
+            start_date="2026-06-03",
+            end_date="2026-06-03",
+            date_pages=[StoreDatePage(target_date="2026-06-03", date_url=bonus_url)],
+            datasets=[dataset],
+        )
+        scraper._accept_cookie_banner_if_present = mock.Mock()
+        scraper._wait_between_transitions = mock.Mock()
+        scraper._fetch_mobile_graph_list_page_data = mock.Mock(return_value=({"821": 123}, {"821": "graph"}))
+
+        scraper._apply_mobile_graph_differences_to_machine_result(
+            page=page,
+            context=object(),
+            machine_result=machine_result,
+            machine_link=machine_link,
+        )
+
+        self.assertEqual(page.goto_calls, [bonus_url])
+        self.assertNotIn(machine_link, page.goto_calls)
+        self.assertEqual(
+            scraper._fetch_mobile_graph_list_page_data.call_args.kwargs["start_url"],
+            graph_list_url,
+        )
+        self.assertEqual(dataset.rows[0][1], "123")
+
     def test_site7_extract_mobile_machine_stat_links_and_values(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         latest_date = datetime(2026, 6, 1)
