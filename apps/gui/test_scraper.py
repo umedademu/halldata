@@ -1728,6 +1728,48 @@ class MinRepoScraperTests(unittest.TestCase):
         app.site7_enabled_machine_names = {"マイジャグラーV"}
         self.assertEqual(app._site7_enabled_machine_names_for_fetch(), {"マイジャグラーV"})
 
+    def test_site7_machine_select_all_and_clear_updates_saved_selection(self) -> None:
+        class FakeBoolVar:
+            def __init__(self, value: bool) -> None:
+                self.value = value
+
+            def get(self) -> bool:
+                return self.value
+
+            def set(self, value: bool) -> None:
+                self.value = value
+
+        class FakeStringVar:
+            def __init__(self) -> None:
+                self.value = ""
+
+            def set(self, value: str) -> None:
+                self.value = value
+
+        saved_values: list[set[str]] = []
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.site7_target_machine_names = ("マイジャグラーV", "ネオアイムジャグラーEX")
+        app.site7_enabled_machine_names = {"マイジャグラーV"}
+        app.site7_machine_enabled_vars = {
+            "マイジャグラーV": FakeBoolVar(True),
+            "ネオアイムジャグラーEX": FakeBoolVar(False),
+        }
+        app.site7_machine_settings_status_var = FakeStringVar()
+        app._save_site7_enabled_machine_names = lambda: saved_values.append(set(app.site7_enabled_machine_names))
+        app._update_button_states = lambda: None
+
+        app._select_all_site7_target_machines()
+
+        self.assertEqual(app.site7_enabled_machine_names, {"マイジャグラーV", "ネオアイムジャグラーEX"})
+        self.assertEqual(saved_values[-1], {"マイジャグラーV", "ネオアイムジャグラーEX"})
+        self.assertEqual(app.site7_machine_settings_status_var.value, "2/2 機種を取得対象にしています")
+
+        app._clear_site7_target_machines()
+
+        self.assertEqual(app.site7_enabled_machine_names, set())
+        self.assertEqual(saved_values[-1], set())
+        self.assertEqual(app.site7_machine_settings_status_var.value, "0/2 機種を取得対象にしています")
+
     def test_site7_extract_store_name_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = find_gui_fixture("site7_machine.html")

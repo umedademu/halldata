@@ -626,7 +626,7 @@ class MinRepoApp:
 
         site7_machine_tab = ttk.Frame(notebook, padding=12)
         site7_machine_tab.columnconfigure(0, weight=1)
-        site7_machine_tab.rowconfigure(1, weight=1)
+        site7_machine_tab.rowconfigure(2, weight=1)
         notebook.add(site7_machine_tab, text="サイトセブン取得機種")
 
         self.fetch_form = ttk.LabelFrame(self.fetch_tab, text="取得条件", padding=12)
@@ -1507,8 +1507,29 @@ class MinRepoApp:
             justify="left",
         ).grid(row=0, column=0, sticky="w")
 
+        action_row = ttk.Frame(tab)
+        action_row.grid(row=1, column=0, sticky="w", pady=(12, 0))
+        self.select_all_site7_machines_button = ttk.Button(
+            action_row,
+            text="全選択",
+            command=self._select_all_site7_target_machines,
+        )
+        self.select_all_site7_machines_button.grid(row=0, column=0, sticky="w")
+        self.clear_site7_machines_button = ttk.Button(
+            action_row,
+            text="全解除",
+            command=self._clear_site7_target_machines,
+        )
+        self.clear_site7_machines_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
+        ttk.Label(action_row, textvariable=self.site7_machine_settings_status_var).grid(
+            row=0,
+            column=2,
+            sticky="w",
+            padx=(12, 0),
+        )
+
         machine_frame = ttk.LabelFrame(tab, text="取得する機種", padding=12)
-        machine_frame.grid(row=1, column=0, sticky="nsew", pady=(12, 0))
+        machine_frame.grid(row=2, column=0, sticky="nsew", pady=(12, 0))
         for column_index in range(3):
             machine_frame.columnconfigure(column_index, weight=1)
 
@@ -1524,27 +1545,6 @@ class MinRepoApp:
             )
             checkbutton.grid(row=row_index, column=column_index, sticky="w", padx=(0, 24), pady=3)
             self.site7_machine_checkbuttons[machine_name] = checkbutton
-
-        action_row = ttk.Frame(tab)
-        action_row.grid(row=2, column=0, sticky="w", pady=(12, 0))
-        self.select_all_site7_machines_button = ttk.Button(
-            action_row,
-            text="全て選択",
-            command=self._select_all_site7_target_machines,
-        )
-        self.select_all_site7_machines_button.grid(row=0, column=0, sticky="w")
-        self.clear_site7_machines_button = ttk.Button(
-            action_row,
-            text="全て外す",
-            command=self._clear_site7_target_machines,
-        )
-        self.clear_site7_machines_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
-        ttk.Label(action_row, textvariable=self.site7_machine_settings_status_var).grid(
-            row=0,
-            column=2,
-            sticky="w",
-            padx=(12, 0),
-        )
 
     def _build_register_tab(self, register_tab: ttk.Frame) -> None:
         guide = ttk.LabelFrame(register_tab, text="案内", padding=12)
