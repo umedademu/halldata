@@ -47,6 +47,7 @@ from main import (
     parse_recent_days,
     parse_retry_delay_seconds,
     rewrite_history_result_store,
+    scheduled_all_stores_due_date,
     scheduled_fetch_due_date,
     site7_schedule_due_hour,
 )
@@ -437,6 +438,37 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(scheduled_fetch_due_date(10, None, now), "2026-04-28")
         self.assertIsNone(scheduled_fetch_due_date(9, None, now))
         self.assertIsNone(scheduled_fetch_due_date(10, "2026-04-28", now))
+
+    def test_scheduled_all_stores_due_date_uses_interval_days(self) -> None:
+        now = datetime(2026, 4, 28, 1, 5, tzinfo=timezone.utc)
+
+        self.assertEqual(scheduled_all_stores_due_date(7, None, now), "2026-04-28")
+        self.assertEqual(scheduled_all_stores_due_date(7, "2026-04-21", now), "2026-04-28")
+        self.assertIsNone(scheduled_all_stores_due_date(7, "2026-04-22", now))
+
+    def test_scheduled_minrepo_registered_stores_uses_all_stores_only_on_cycle_day(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        daily_store = RegisteredStore(name="毎日店", url="https://example.com/daily/")
+        interval_store = RegisteredStore(name="間隔店", url="https://example.com/interval/")
+        stores = [daily_store, interval_store]
+        selected_store_urls = {normalize_store_url(daily_store.url)}
+
+        self.assertEqual(
+            app._scheduled_minrepo_registered_stores(
+                stores,
+                selected_store_urls=selected_store_urls,
+                include_all_stores=False,
+            ),
+            [daily_store],
+        )
+        self.assertEqual(
+            app._scheduled_minrepo_registered_stores(
+                stores,
+                selected_store_urls=selected_store_urls,
+                include_all_stores=True,
+            ),
+            stores,
+        )
 
     def test_site7_schedule_due_hour_runs_checked_hour_once_per_day(self) -> None:
         noon_now = datetime(2026, 4, 28, 3, 30, tzinfo=timezone.utc)
@@ -913,6 +945,8 @@ class MinRepoScraperTests(unittest.TestCase):
             "schedule_hour_entry",
             "apply_schedule_button",
             "clear_schedule_button",
+            "schedule_all_stores_interval_days_entry",
+            "apply_schedule_all_stores_button",
             "comparison_day_tail_selector",
             "comparison_focus_button",
             "skip_comparison_display_button",
@@ -927,7 +961,6 @@ class MinRepoScraperTests(unittest.TestCase):
             "register_store_button",
             "register_store_url_entry",
             "register_store_site7_button",
-            "register_store_site7_difference_button",
             "register_store_prefecture_entry",
             "register_store_area_entry",
             "register_store_site7_store_name_entry",
@@ -996,7 +1029,7 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertEqual(
             result,
-            ("https://example.com/store", True, False, DEFAULT_SITE7_PREFECTURE_NAME, "", "", "", ""),
+            ("https://example.com/store", True, True, DEFAULT_SITE7_PREFECTURE_NAME, "", "", "", ""),
         )
 
     def test_worker_register_store_auto_fills_prefecture_and_area(self) -> None:
@@ -1102,7 +1135,7 @@ class MinRepoScraperTests(unittest.TestCase):
             "https://min-repo.com/tag/123-hakata/",
             "https://min-repo.com/tag/123-hakata/",
             True,
-            False,
+            True,
             DEFAULT_SITE7_PREFECTURE_NAME,
             "",
             "",
@@ -4505,7 +4538,7 @@ class MinRepoScraperTests(unittest.TestCase):
                         "store_name": "MJアリーナ箱崎店",
                         "store_url": "https://example.com/a/",
                         "site7_enabled": True,
-                        "site7_difference_enabled": False,
+                        "site7_difference_enabled": True,
                         "site7_prefecture": "福岡県",
                         "site7_area": "東区",
                         "site7_store_name": "ＭＪアリーナ箱崎店",
@@ -4757,7 +4790,7 @@ class MinRepoScraperTests(unittest.TestCase):
                         "store_name": "Aパーク春日店",
                         "store_url": "https://example.com/kasuga/",
                         "site7_enabled": True,
-                        "site7_difference_enabled": False,
+                        "site7_difference_enabled": True,
                         "site7_prefecture": "福岡県",
                         "site7_area": "春日市",
                         "site7_store_name": "Ａパーク春日店",
@@ -4820,7 +4853,7 @@ class MinRepoScraperTests(unittest.TestCase):
                         "store_name": "HINODE大野城店",
                         "store_url": "https://example.com/hinode/",
                         "site7_enabled": True,
-                        "site7_difference_enabled": False,
+                        "site7_difference_enabled": True,
                         "site7_prefecture": "福岡県",
                         "site7_area": "大野城市",
                         "site7_store_name": "HINODE大野城店",
@@ -4917,7 +4950,7 @@ class MinRepoScraperTests(unittest.TestCase):
                         "store_name": "GOGOアリーナ天神",
                         "store_url": "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/",
                         "site7_enabled": True,
-                        "site7_difference_enabled": False,
+                        "site7_difference_enabled": True,
                         "site7_prefecture": "福岡県",
                         "site7_area": "福岡市中央区",
                         "site7_store_name": "ＧＯＧＯアリーナ天神",

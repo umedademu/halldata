@@ -79,6 +79,7 @@ WEB_PUBLISH_MODE_DAYS = "days"
 WEB_PUBLISH_MODE_STORE = "store"
 DEFAULT_WEB_PUBLISH_INTERVAL_DAYS = 1
 DEFAULT_SCHEDULE_HOUR = 2
+DEFAULT_SCHEDULE_ALL_STORES_INTERVAL_DAYS = 7
 SITE7_SCHEDULE_HOUR_OPTIONS = tuple(range(10, 24))
 DEFAULT_SITE7_SCHEDULE_HOURS = (12, 15, 18, 21)
 GUI_SETTINGS_FILE_NAME = "gui_settings.json"
@@ -87,8 +88,7 @@ SITE7_BROWSER_MODE_HIDDEN = "hidden"
 JST = timezone(timedelta(hours=9))
 REGISTERED_STORE_COLUMNS = (
     "取得対象",
-    "サイトセブン",
-    "差枚取得",
+    "サイセ",
     "店舗名",
     "URL",
     "都道府県",
@@ -220,6 +220,48 @@ def scheduled_fetch_due_date(
         return None
 
     return today_text
+
+
+def parse_schedule_all_stores_interval_days(value: str) -> int:
+    text = value.strip()
+    if not re.fullmatch(r"\d+", text):
+        raise ScraperError("全店舗取得の日数は 1 以上の整数で入力してください。")
+
+    interval_days = int(text)
+    if interval_days <= 0:
+        raise ScraperError("全店舗取得の日数は 1 以上の整数で入力してください。")
+
+    return interval_days
+
+
+def normalize_schedule_all_stores_interval_days(value: object) -> int:
+    try:
+        return parse_schedule_all_stores_interval_days(str(value))
+    except ScraperError:
+        return DEFAULT_SCHEDULE_ALL_STORES_INTERVAL_DAYS
+
+
+def scheduled_all_stores_due_date(
+    interval_days: int,
+    last_run_date: str | None,
+    now: datetime | None = None,
+) -> str | None:
+    current_time = (now or datetime.now(JST)).astimezone(JST)
+    today = current_time.date()
+    today_text = today.isoformat()
+    normalized_interval_days = max(1, interval_days)
+
+    if not last_run_date:
+        return today_text
+
+    try:
+        previous_date = datetime.strptime(last_run_date, "%Y-%m-%d").date()
+    except ValueError:
+        return today_text
+
+    if today >= previous_date + timedelta(days=normalized_interval_days):
+        return today_text
+    return None
 
 
 def normalize_site7_schedule_hours(value: object) -> tuple[int, ...]:
@@ -516,14 +558,14 @@ class MinRepoApp:
         self.current_history_result: MachineHistoryResult | None = None
         self.startup_store_warning: str | None = None
         self.registered_stores: list[RegisteredStore] = self._load_registered_stores_on_startup()
-        self.selected_store_urls: set[str] = {
-            normalize_store_url(registered_store.url)
-            for registered_store in self.registered_stores
-        }
+        self.selected_store_urls: set[str] = self._load_saved_selected_store_urls(self.registered_stores)
         self.is_busy = False
         self.active_operation_kind = ""
         self.fetch_cancel_event = threading.Event()
         self.scheduled_fetch_hour: int | None = self._load_saved_schedule_hour()
+        self.schedule_all_stores_interval_days = self._load_saved_schedule_all_stores_interval_days()
+        self.schedule_all_stores_last_run_date = self._load_saved_schedule_all_stores_last_run_date()
+        self.schedule_all_stores_running_date: str | None = None
         self.web_publish_mode = self._load_saved_web_publish_mode()
         self.web_publish_interval_days = self._load_saved_web_publish_interval_days()
         self.site7_browser_mode: str = self._load_saved_site7_browser_mode()
@@ -550,6 +592,8 @@ class MinRepoApp:
         self.schedule_status_var = tk.StringVar(value=f"毎日 {self.scheduled_fetch_hour} 時に実行")
         if self.scheduled_startup_prompt_date is not None:
             self.schedule_status_var.set(f"本日 {self.scheduled_fetch_hour} 時の定期実行を確認待ち")
+        self.schedule_all_stores_interval_days_var = tk.StringVar(value=str(self.schedule_all_stores_interval_days))
+        self.schedule_all_stores_status_var = tk.StringVar(value=self._schedule_all_stores_status_text())
         self.retry_delay_seconds_var = tk.StringVar(value=DEFAULT_RETRY_DELAY_SECONDS)
         self.minrepo_fetch_mode_var = tk.StringVar(value=DEFAULT_MINREPO_FETCH_MODE)
         self.web_publish_mode_var = tk.StringVar(value=self.web_publish_mode)
@@ -715,14 +759,37 @@ class MinRepoApp:
         self.clear_schedule_button.grid(row=0, column=4, sticky="w", padx=(8, 0))
         ttk.Label(schedule_row, textvariable=self.schedule_status_var).grid(row=0, column=5, sticky="w", padx=(12, 0))
 
+        all_store_schedule_row = ttk.Frame(self.fetch_form)
+        all_store_schedule_row.grid(row=6, column=1, sticky="w", pady=(8, 0))
+        ttk.Label(all_store_schedule_row, text="全店舗取得").grid(row=0, column=0, sticky="w")
+        self.schedule_all_stores_interval_days_entry = ttk.Entry(
+            all_store_schedule_row,
+            textvariable=self.schedule_all_stores_interval_days_var,
+            width=4,
+        )
+        self.schedule_all_stores_interval_days_entry.grid(row=0, column=1, sticky="w", padx=(8, 4))
+        ttk.Label(all_store_schedule_row, text="日に1回実行").grid(row=0, column=2, sticky="w")
+        self.apply_schedule_all_stores_button = ttk.Button(
+            all_store_schedule_row,
+            text="設定",
+            command=self.apply_schedule_all_stores_interval,
+        )
+        self.apply_schedule_all_stores_button.grid(row=0, column=3, sticky="w", padx=(8, 0))
+        ttk.Label(all_store_schedule_row, textvariable=self.schedule_all_stores_status_var).grid(
+            row=0,
+            column=4,
+            sticky="w",
+            padx=(12, 0),
+        )
+
         site7_row = ttk.LabelFrame(self.fetch_form, text="サイトセブン", padding=12)
-        site7_row.grid(row=6, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        site7_row.grid(row=7, column=0, columnspan=2, sticky="ew", pady=(12, 0))
         site7_row.columnconfigure(0, weight=1)
 
         ttk.Label(
             site7_row,
             text=(
-                "登録店舗タブでサイトセブン列にチェックを入れた店舗の対象機種を取得します。"
+                "登録店舗タブでサイセ列にチェックを入れた店舗の対象機種を取得します。"
                 " 取得機種はサイトセブン取得機種タブで全店舗共通に選べます。"
                 f" 判定語は {'、'.join(SITE7_TARGET_MACHINE_KEYWORDS)} です。"
                 f" 直近日数は最大 {SITE7_MAX_RECENT_DAYS} 日まで使えます。"
@@ -1004,6 +1071,23 @@ class MinRepoApp:
             messagebox.showwarning("設定保存", f"定期実行の時刻保存に失敗しました。\n{exc}")
         self.schedule_status_var.set(f"毎日 {scheduled_hour} 時に実行")
 
+    def apply_schedule_all_stores_interval(self) -> None:
+        try:
+            interval_days = parse_schedule_all_stores_interval_days(
+                self.schedule_all_stores_interval_days_var.get()
+            )
+        except ScraperError as exc:
+            messagebox.showwarning("入力不正", str(exc))
+            return
+
+        self.schedule_all_stores_interval_days = interval_days
+        self.schedule_all_stores_interval_days_var.set(str(interval_days))
+        try:
+            self._save_schedule_all_stores_interval_days(interval_days)
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showwarning("設定保存", f"全店舗取得の設定保存に失敗しました。\n{exc}")
+        self.schedule_all_stores_status_var.set(self._schedule_all_stores_status_text())
+
     def clear_daily_schedule(self) -> None:
         self.scheduled_fetch_hour = None
         self.scheduled_last_run_date = None
@@ -1060,6 +1144,75 @@ class MinRepoApp:
 
     def _save_schedule_hour(self, scheduled_hour: int) -> None:
         self._save_gui_settings(scheduled_fetch_hour=scheduled_hour)
+
+    def _load_saved_schedule_all_stores_interval_days(self) -> int:
+        try:
+            payload = self._load_gui_settings()
+        except Exception:  # noqa: BLE001
+            return DEFAULT_SCHEDULE_ALL_STORES_INTERVAL_DAYS
+        return normalize_schedule_all_stores_interval_days(
+            payload.get("schedule_all_stores_interval_days", DEFAULT_SCHEDULE_ALL_STORES_INTERVAL_DAYS)
+        )
+
+    def _save_schedule_all_stores_interval_days(self, interval_days: int) -> None:
+        self._save_gui_settings(
+            schedule_all_stores_interval_days=normalize_schedule_all_stores_interval_days(interval_days)
+        )
+
+    def _load_saved_schedule_all_stores_last_run_date(self) -> str | None:
+        try:
+            payload = self._load_gui_settings()
+        except Exception:  # noqa: BLE001
+            return None
+        date_text = str(payload.get("schedule_all_stores_last_run_date", "")).strip()
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_text):
+            return date_text
+        return None
+
+    def _save_schedule_all_stores_last_run_date(self) -> None:
+        self._save_gui_settings(schedule_all_stores_last_run_date=self.schedule_all_stores_last_run_date or "")
+
+    def _schedule_all_stores_due_date(self, now: datetime | None = None) -> str | None:
+        return scheduled_all_stores_due_date(
+            self.schedule_all_stores_interval_days,
+            self.schedule_all_stores_last_run_date,
+            now,
+        )
+
+    def _schedule_all_stores_status_text(self) -> str:
+        interval_days = getattr(
+            self,
+            "schedule_all_stores_interval_days",
+            DEFAULT_SCHEDULE_ALL_STORES_INTERVAL_DAYS,
+        )
+        last_run_date = getattr(self, "schedule_all_stores_last_run_date", None)
+        if last_run_date:
+            return f"{interval_days}日に1回 / 前回 {last_run_date}"
+        return f"{interval_days}日に1回 / 前回なし"
+
+    def _load_saved_selected_store_urls(self, registered_stores: list[RegisteredStore]) -> set[str]:
+        all_store_urls = {
+            normalize_store_url(registered_store.url)
+            for registered_store in registered_stores
+        }
+        try:
+            payload = self._load_gui_settings()
+        except Exception:  # noqa: BLE001
+            return all_store_urls
+
+        raw_urls = payload.get("selected_store_urls")
+        if not isinstance(raw_urls, list):
+            return all_store_urls
+
+        selected_urls = {
+            normalize_store_url(str(raw_url).strip())
+            for raw_url in raw_urls
+            if str(raw_url).strip()
+        }
+        return selected_urls.intersection(all_store_urls)
+
+    def _save_selected_store_urls(self) -> None:
+        self._save_gui_settings(selected_store_urls=sorted(self.selected_store_urls))
 
     def _load_saved_web_publish_mode(self) -> str:
         try:
@@ -1258,12 +1411,18 @@ class MinRepoApp:
             self._show_error(exc)
             return
 
+        all_stores_due_date = self._schedule_all_stores_due_date()
+        selected_store_urls = set(self.selected_store_urls)
+        self.schedule_all_stores_running_date = all_stores_due_date
         self.current_results = []
         self.current_history_result = None
         self._clear_fetch_result_details()
         self._begin_fetch_progress("定期実行: 登録店舗を更新中...")
         self.status_var.set("定期実行中...")
-        self.summary_var.set("登録店舗を更新してから取得します")
+        if all_stores_due_date is not None:
+            self.summary_var.set("登録店舗を更新してから全店舗取得します")
+        else:
+            self.summary_var.set("登録店舗を更新してから取得対象店舗を取得します")
         self.schedule_status_var.set("定期実行中")
         self.fetch_cancel_event.clear()
         self._start_worker(
@@ -1272,6 +1431,8 @@ class MinRepoApp:
             retry_delay_seconds,
             fetch_parallel_options,
             web_publish_options,
+            selected_store_urls,
+            all_stores_due_date is not None,
             operation_kind="scheduled_fetch",
         )
 
@@ -1564,16 +1725,10 @@ class MinRepoApp:
         site7_option_row.grid(row=1, column=1, sticky="w", pady=4)
         self.register_store_site7_button = ttk.Checkbutton(
             site7_option_row,
-            text="この店舗をサイトセブン取得の対象にする",
+            text="この店舗をサイセ取得の対象にする",
             variable=self.register_store_site7_enabled_var,
         )
         self.register_store_site7_button.grid(row=0, column=0, sticky="w")
-        self.register_store_site7_difference_button = ttk.Checkbutton(
-            site7_option_row,
-            text="差枚取得の対象にする",
-            variable=self.register_store_site7_difference_enabled_var,
-        )
-        self.register_store_site7_difference_button.grid(row=0, column=1, sticky="w", padx=(16, 0))
 
         ttk.Label(form, text="都道府県").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=4)
         self.register_store_prefecture_entry = ttk.Entry(form, textvariable=self.register_store_prefecture_var)
@@ -1679,7 +1834,7 @@ class MinRepoApp:
 
         for column in REGISTERED_STORE_COLUMNS:
             self.registered_store_tree.heading(column, text=column)
-            if column in {"取得対象", "サイトセブン", "差枚取得"}:
+            if column in {"取得対象", "サイセ"}:
                 self.registered_store_tree.column(column, width=80, minwidth=80, anchor="center")
                 continue
             self.registered_store_tree.column(
@@ -1794,12 +1949,21 @@ class MinRepoApp:
         retry_delay_seconds: int,
         fetch_parallel_options: MinRepoFetchParallelOptions,
         web_publish_options: WebPublishOptions,
+        selected_store_urls: set[str],
+        include_all_stores: bool,
     ) -> None:
         try:
             refresh_result = self._load_and_complete_registered_stores()
             self._raise_if_fetch_cancelled()
-            fetch_many_result = self._run_fetch_many(
+            target_stores = self._scheduled_minrepo_registered_stores(
                 refresh_result.registered_stores,
+                selected_store_urls=selected_store_urls,
+                include_all_stores=include_all_stores,
+            )
+            if not target_stores:
+                raise ScraperError("定期実行の対象店舗がありません。")
+            fetch_many_result = self._run_fetch_many(
+                target_stores,
                 target_date_input,
                 retry_delay_seconds,
                 fetch_parallel_options,
@@ -1825,7 +1989,7 @@ class MinRepoApp:
             self._raise_if_fetch_cancelled()
             target_stores = self._site7_registered_stores_from(registered_stores)
             if not target_stores:
-                raise ScraperError("登録店舗タブでサイトセブン列にチェックを入れた店舗を1つ以上用意してください。")
+                raise ScraperError("登録店舗タブでサイセ列にチェックを入れた店舗を1つ以上用意してください。")
 
             fetch_many_result = self._run_site7_fetch_many(
                 target_stores=target_stores,
@@ -2093,7 +2257,7 @@ class MinRepoApp:
             self._show_error(exc)
             return
         if not target_stores:
-            messagebox.showwarning("入力不足", "登録店舗タブでサイトセブン列にチェックを入れた店舗を1つ以上用意してください。")
+            messagebox.showwarning("入力不足", "登録店舗タブでサイセ列にチェックを入れた店舗を1つ以上用意してください。")
             return
         if not self._site7_has_enabled_target_machines():
             messagebox.showwarning("入力不足", "サイトセブン取得機種タブで取得する機種を1つ以上選択してください。")
@@ -2308,7 +2472,7 @@ class MinRepoApp:
             )
             partial_result, partial_warning_summary = self._prepare_site7_history_result_for_save(
                 partial_result,
-                require_source_difference=registered_store.site7_difference_enabled,
+                require_source_difference=True,
             )
             warning_summary.messages.extend(partial_warning_summary.messages)
             return partial_result
@@ -2345,7 +2509,7 @@ class MinRepoApp:
                 start_date=min(remaining_dates),
                 end_date=max(remaining_dates),
                 slot_numbers=slot_numbers,
-                require_source_difference=registered_store.site7_difference_enabled,
+                require_source_difference=True,
             )
             warning_summary.messages.extend(saved_slots_summary.messages)
             remaining_date_set = set(remaining_dates)
@@ -2388,7 +2552,7 @@ class MinRepoApp:
                     "machine_result_callback": save_machine_result,
                     "machine_result_filter_callback": filter_machine_result_for_fetch,
                     "machine_protected_slots_callback": find_protected_slots_before_fetch,
-                    "include_graph_differences": registered_store.site7_difference_enabled,
+                    "include_graph_differences": True,
                 }
                 enabled_machine_names = self._site7_enabled_machine_names_for_fetch()
                 if enabled_machine_names is not None:
@@ -2693,6 +2857,26 @@ class MinRepoApp:
 
     def _minrepo_fetch_ordered_stores(self, target_stores: list[RegisteredStore]) -> list[RegisteredStore]:
         return sorted(target_stores, key=lambda registered_store: 0 if registered_store.site7_enabled else 1)
+
+    def _scheduled_minrepo_registered_stores(
+        self,
+        registered_stores: list[RegisteredStore],
+        *,
+        selected_store_urls: set[str],
+        include_all_stores: bool,
+    ) -> list[RegisteredStore]:
+        if include_all_stores:
+            return list(registered_stores)
+
+        normalized_selected_urls = {
+            normalize_store_url(store_url)
+            for store_url in selected_store_urls
+        }
+        return [
+            registered_store
+            for registered_store in registered_stores
+            if normalize_store_url(registered_store.url) in normalized_selected_urls
+        ]
 
     def _fetch_single_store(
         self,
@@ -3164,6 +3348,7 @@ class MinRepoApp:
             self.status_var.set("失敗")
             self.summary_var.set("取得できませんでした")
             if operation_kind == "scheduled_fetch":
+                self.schedule_all_stores_running_date = None
                 self.schedule_status_var.set("定期実行に失敗しました")
             elif operation_kind == "scheduled_site7_fetch":
                 self.site7_schedule_status_var.set("サイトセブン定期実行に失敗しました")
@@ -3175,6 +3360,7 @@ class MinRepoApp:
             self.status_var.set("中止")
             self.summary_var.set("取得を中止しました")
             if operation_kind == "scheduled_fetch":
+                self.schedule_all_stores_running_date = None
                 self.schedule_status_var.set("定期実行を中止しました")
             elif operation_kind == "scheduled_site7_fetch":
                 self.site7_schedule_status_var.set("サイトセブン定期実行を中止しました")
@@ -3204,13 +3390,25 @@ class MinRepoApp:
                 messagebox.showerror("エラー", "定期実行の結果形式が不正です。")
                 return
             refresh_result, fetch_many_result = payload
-            self._replace_registered_stores(refresh_result.registered_stores, select_all=True, reset_fetch_display=False)
+            self._replace_registered_stores(refresh_result.registered_stores, select_all=False, reset_fetch_display=False)
             self._apply_fetch_many_result(fetch_many_result)
             if refresh_result.save_summary is not None and refresh_result.save_summary.has_errors:
                 messagebox.showwarning("登録店舗", "\n\n".join(refresh_result.save_summary.messages))
             if fetch_many_result.cancelled:
+                self.schedule_all_stores_running_date = None
                 self.schedule_status_var.set("定期実行を中止しました")
             else:
+                if self.schedule_all_stores_running_date is not None and not fetch_many_result.failures:
+                    self.schedule_all_stores_last_run_date = self.schedule_all_stores_running_date
+                    self.schedule_all_stores_running_date = None
+                    try:
+                        self._save_schedule_all_stores_last_run_date()
+                    except Exception as exc:  # noqa: BLE001
+                        self.schedule_status_var.set(f"全店舗取得の記録保存に失敗しました: {exc}")
+                        return
+                    self.schedule_all_stores_status_var.set(self._schedule_all_stores_status_text())
+                else:
+                    self.schedule_all_stores_running_date = None
                 self.schedule_status_var.set(f"定期実行完了: 毎日 {self.scheduled_fetch_hour} 時")
             return
 
@@ -3228,7 +3426,7 @@ class MinRepoApp:
                 messagebox.showerror("エラー", "サイトセブン定期実行の結果形式が不正です。")
                 return
             registered_stores, fetch_many_result = payload
-            self._replace_registered_stores(registered_stores, select_all=True, reset_fetch_display=False)
+            self._replace_registered_stores(registered_stores, select_all=False, reset_fetch_display=False)
             self._apply_fetch_many_result(fetch_many_result)
             if fetch_many_result.cancelled:
                 self.site7_schedule_status_var.set("サイトセブン定期実行を中止しました")
@@ -3436,7 +3634,6 @@ class MinRepoApp:
                 values=(
                     self._registered_store_target_marker(registered_store),
                     self._registered_store_site7_marker(registered_store),
-                    self._registered_store_difference_marker(registered_store),
                     display_name,
                     registered_store.url,
                     registered_store.site7_prefecture,
@@ -3485,6 +3682,11 @@ class MinRepoApp:
             }
 
         self._refresh_registered_store_table()
+        try:
+            self._save_selected_store_urls()
+        except Exception as exc:  # noqa: BLE001
+            if hasattr(self, "register_store_status_var"):
+                self.register_store_status_var.set(f"取得対象の保存に失敗しました: {exc}")
         if reset_fetch_display:
             self._reset_fetch_display_for_store_change()
 
@@ -3494,16 +3696,13 @@ class MinRepoApp:
     def _registered_store_site7_marker(self, registered_store: RegisteredStore) -> str:
         return "☑" if registered_store.site7_enabled else "☐"
 
-    def _registered_store_difference_marker(self, registered_store: RegisteredStore) -> str:
-        return "☑" if registered_store.site7_difference_enabled else "☐"
-
     def _registered_store_display_name(self, registered_store: RegisteredStore) -> str:
         return registered_store.name.strip() or "（店舗名未取得）"
 
     def _load_registered_store_form(self, registered_store: RegisteredStore) -> None:
         self.register_store_url_var.set(registered_store.url)
         self.register_store_site7_enabled_var.set(registered_store.site7_enabled)
-        self.register_store_site7_difference_enabled_var.set(registered_store.site7_difference_enabled)
+        self.register_store_site7_difference_enabled_var.set(registered_store.site7_enabled)
         self.register_store_prefecture_var.set(registered_store.site7_prefecture or DEFAULT_SITE7_PREFECTURE_NAME)
         self.register_store_area_var.set(registered_store.site7_area)
         self.register_store_site7_store_name_var.set(registered_store.resolved_site7_store_name())
@@ -3571,7 +3770,7 @@ class MinRepoApp:
             return None
 
         column_id = self.registered_store_tree.identify_column(event.x)
-        if column_id not in {"#1", "#2", "#3"}:
+        if column_id not in {"#1", "#2"}:
             return None
 
         item_id = self.registered_store_tree.identify_row(event.y)
@@ -3580,10 +3779,8 @@ class MinRepoApp:
 
         if column_id == "#1":
             self._toggle_registered_store_target(item_id)
-        elif column_id == "#2":
-            self._toggle_registered_store_site7(item_id)
         else:
-            self._toggle_registered_store_difference(item_id)
+            self._toggle_registered_store_site7(item_id)
         return "break"
 
     def _on_registered_store_tree_right_click(self, event: tk.Event[tk.Misc]) -> str | None:
@@ -3638,6 +3835,11 @@ class MinRepoApp:
             self.selected_store_urls.add(normalized_url)
 
         self.registered_store_tree.set(item_id, "取得対象", self._registered_store_target_marker(registered_store))
+        try:
+            self._save_selected_store_urls()
+        except Exception as exc:  # noqa: BLE001
+            if hasattr(self, "register_store_status_var"):
+                self.register_store_status_var.set(f"取得対象の保存に失敗しました: {exc}")
         self._reset_fetch_display_for_store_change()
 
     def _toggle_registered_store_site7(self, item_id: str) -> None:
@@ -3646,27 +3848,8 @@ class MinRepoApp:
             return
 
         registered_store.site7_enabled = not registered_store.site7_enabled
-        if not registered_store.site7_enabled:
-            registered_store.site7_difference_enabled = False
-        self.registered_store_tree.set(item_id, "サイトセブン", self._registered_store_site7_marker(registered_store))
-        self.registered_store_tree.set(item_id, "差枚取得", self._registered_store_difference_marker(registered_store))
-        save_summary = self._persist_registered_stores()
-        if save_summary.has_errors:
-            messagebox.showwarning("登録店舗", "\n\n".join(save_summary.messages))
-        self._load_registered_store_form(registered_store)
-        self._update_button_states()
-
-    def _toggle_registered_store_difference(self, item_id: str) -> None:
-        registered_store = self._registered_store_from_item_id(item_id)
-        if registered_store is None:
-            return
-
-        if not registered_store.site7_enabled:
-            messagebox.showwarning("登録店舗", "差枚取得を使う場合は、先にサイトセブン列をオンにしてください。")
-            return
-
-        registered_store.site7_difference_enabled = not registered_store.site7_difference_enabled
-        self.registered_store_tree.set(item_id, "差枚取得", self._registered_store_difference_marker(registered_store))
+        registered_store.site7_difference_enabled = registered_store.site7_enabled
+        self.registered_store_tree.set(item_id, "サイセ", self._registered_store_site7_marker(registered_store))
         save_summary = self._persist_registered_stores()
         if save_summary.has_errors:
             messagebox.showwarning("登録店舗", "\n\n".join(save_summary.messages))
@@ -3679,11 +3862,21 @@ class MinRepoApp:
             for registered_store in self.registered_stores
         }
         self._refresh_registered_store_table()
+        try:
+            self._save_selected_store_urls()
+        except Exception as exc:  # noqa: BLE001
+            if hasattr(self, "register_store_status_var"):
+                self.register_store_status_var.set(f"取得対象の保存に失敗しました: {exc}")
         self._reset_fetch_display_for_store_change()
 
     def _clear_registered_store_selection(self) -> None:
         self.selected_store_urls.clear()
         self._refresh_registered_store_table()
+        try:
+            self._save_selected_store_urls()
+        except Exception as exc:  # noqa: BLE001
+            if hasattr(self, "register_store_status_var"):
+                self.register_store_status_var.set(f"取得対象の保存に失敗しました: {exc}")
         self._reset_fetch_display_for_store_change()
 
     def _resolve_store_region_input(
@@ -3716,7 +3909,7 @@ class MinRepoApp:
     def _validated_register_store_form_input(self) -> tuple[str, bool, bool, str, str, str, str, str]:
         store_url = self.register_store_url_var.get().strip()
         site7_enabled = bool(self.register_store_site7_enabled_var.get())
-        site7_difference_enabled = bool(self.register_store_site7_difference_enabled_var.get())
+        site7_difference_enabled = site7_enabled
         site7_prefecture = self.register_store_prefecture_var.get().strip() or DEFAULT_SITE7_PREFECTURE_NAME
         site7_area = self.register_store_area_var.get().strip()
         site7_store_name = self.register_store_site7_store_name_var.get().strip()
@@ -3727,9 +3920,6 @@ class MinRepoApp:
             raise ScraperError("店舗URLを入力してください。")
         if not self._is_valid_url(store_url):
             raise ScraperError("店舗URLは http:// または https:// から入力してください。")
-        if site7_difference_enabled and not site7_enabled:
-            raise ScraperError("差枚取得を使う場合は、サイトセブン取得もオンにしてください。")
-
         return (
             store_url,
             site7_enabled,
@@ -3760,7 +3950,7 @@ class MinRepoApp:
     ) -> RegisteredStore:
         defaults = default_site7_store_settings(store_name)
         resolved_site7_enabled = defaults["site7_enabled"] if site7_enabled is None else bool(site7_enabled)
-        resolved_site7_difference_enabled = bool(site7_difference_enabled) and bool(resolved_site7_enabled)
+        resolved_site7_difference_enabled = bool(resolved_site7_enabled)
         resolved_site7_prefecture = site7_prefecture.strip() or str(defaults["site7_prefecture"]).strip() or DEFAULT_SITE7_PREFECTURE_NAME
         resolved_site7_area = site7_area.strip() or str(defaults["site7_area"]).strip()
         resolved_site7_store_name = site7_store_name.strip() or str(defaults["site7_store_name"]).strip() or store_name.strip()
@@ -3824,6 +4014,11 @@ class MinRepoApp:
         self.selected_store_urls.add(normalized_url)
         self.clear_register_store_form()
         self._refresh_registered_store_table()
+        try:
+            self._save_selected_store_urls()
+        except Exception as exc:  # noqa: BLE001
+            if hasattr(self, "register_store_status_var"):
+                self.register_store_status_var.set(f"取得対象の保存に失敗しました: {exc}")
         save_summary = self._persist_registered_stores()
         if save_summary.has_errors:
             self.register_store_status_var.set(f"{store_name} を登録しました（保存に注意）")
@@ -3882,6 +4077,11 @@ class MinRepoApp:
             self.selected_store_urls.add(normalize_store_url(updated_store.url))
         self.registered_stores = updated_registered_stores
         self._refresh_registered_store_table()
+        try:
+            self._save_selected_store_urls()
+        except Exception as exc:  # noqa: BLE001
+            if hasattr(self, "register_store_status_var"):
+                self.register_store_status_var.set(f"取得対象の保存に失敗しました: {exc}")
         save_summary = self._persist_registered_stores()
         if save_summary.has_errors:
             self.register_store_status_var.set(f"{store_name} を更新しました（保存に注意）")
@@ -3954,7 +4154,7 @@ class MinRepoApp:
                 "store_name": registered_store.name,
                 "store_url": registered_store.url,
                 "site7_enabled": registered_store.site7_enabled,
-                "site7_difference_enabled": registered_store.site7_difference_enabled,
+                "site7_difference_enabled": registered_store.site7_enabled,
                 "site7_prefecture": registered_store.site7_prefecture,
                 "site7_area": registered_store.site7_area,
                 "site7_store_name": registered_store.resolved_site7_store_name(),
@@ -4267,6 +4467,8 @@ class MinRepoApp:
         self.schedule_hour_entry.configure(state="disabled" if self.is_busy else "normal")
         self.apply_schedule_button.configure(state="disabled" if self.is_busy else "normal")
         self.clear_schedule_button.configure(state="disabled" if self.is_busy else "normal")
+        self.schedule_all_stores_interval_days_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.apply_schedule_all_stores_button.configure(state="disabled" if self.is_busy else "normal")
         self.notify_fetch_complete_button.configure(state="disabled" if self.is_busy else "normal")
         self.site7_login_button.configure(state="disabled" if self.is_busy else "normal")
         self.site7_fetch_button.configure(state="disabled" if self.is_busy else "normal")
@@ -4292,7 +4494,6 @@ class MinRepoApp:
         self.register_store_button.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_url_entry.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_site7_button.configure(state="disabled" if self.is_busy else "normal")
-        self.register_store_site7_difference_button.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_prefecture_entry.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_area_entry.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_site7_store_name_entry.configure(state="disabled" if self.is_busy else "normal")
