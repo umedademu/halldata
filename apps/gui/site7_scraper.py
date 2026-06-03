@@ -864,6 +864,7 @@ class Site7Scraper:
         cancel_requested: Callable[[], bool] | None = None,
         machine_result_callback: Callable[[MachineHistoryResult], None] | None = None,
         machine_result_filter_callback: Callable[[MachineHistoryResult], MachineHistoryResult] | None = None,
+        machine_protected_slots_callback: Callable[[Site7MachineEntry, list[str], list[str]], set[tuple[str, str]]] | None = None,
         include_graph_differences: bool = False,
     ) -> MachineHistoryResult:
         return self._fetch_mobile_target_machine_history(
@@ -874,6 +875,7 @@ class Site7Scraper:
             cancel_requested=cancel_requested,
             machine_result_callback=machine_result_callback,
             machine_result_filter_callback=machine_result_filter_callback,
+            machine_protected_slots_callback=machine_protected_slots_callback,
             include_graph_differences=include_graph_differences,
         )
 
@@ -886,6 +888,7 @@ class Site7Scraper:
         cancel_requested: Callable[[], bool] | None = None,
         machine_result_callback: Callable[[MachineHistoryResult], None] | None = None,
         machine_result_filter_callback: Callable[[MachineHistoryResult], MachineHistoryResult] | None = None,
+        machine_protected_slots_callback: Callable[[Site7MachineEntry, list[str], list[str]], set[tuple[str, str]]] | None = None,
         include_graph_differences: bool = False,
     ) -> MachineHistoryResult:
         resolved_target_store = enrich_site7_target_store(target_store or SITE7_DEFAULT_TARGET_STORE)
@@ -936,6 +939,7 @@ class Site7Scraper:
                     machine_link=machine_link,
                     recent_days=target_days,
                     cancel_requested=cancel_requested,
+                    machine_protected_slots_callback=machine_protected_slots_callback,
                 )
                 if machine_result_filter_callback is not None:
                     machine_result = machine_result_filter_callback(machine_result)
@@ -979,6 +983,7 @@ class Site7Scraper:
         machine_link: str,
         recent_days: int,
         cancel_requested: Callable[[], bool] | None = None,
+        machine_protected_slots_callback: Callable[[Site7MachineEntry, list[str], list[str]], set[tuple[str, str]]] | None = None,
     ) -> MachineHistoryResult:
         _raise_if_site7_cancel_requested(cancel_requested)
         page.goto(machine_link, wait_until="domcontentloaded", timeout=60_000)
@@ -995,12 +1000,29 @@ class Site7Scraper:
         self._wait_between_transitions(page, cancel_requested=cancel_requested)
         first_day_html = page.content()
         latest_date = self.extract_updated_date(first_day_html)
+        target_dates = [
+            (latest_date - timedelta(days=day_index)).strftime("%Y-%m-%d")
+            for day_index in range(recent_days)
+        ]
+        first_day_slot_numbers = sorted(
+            self.extract_mobile_machine_day_rows(first_day_html),
+            key=lambda value: int(value) if value.isdigit() else value,
+        )
+        protected_slots: set[tuple[str, str]] = set()
+        if machine_protected_slots_callback is not None and first_day_slot_numbers:
+            protected_slots = set(machine_protected_slots_callback(machine_entry, target_dates, first_day_slot_numbers))
 
         datasets: list[MachineDataset] = []
         date_pages: list[StoreDatePage] = []
-        for day_index in range(recent_days):
-            target_date = (latest_date - timedelta(days=day_index)).strftime("%Y-%m-%d")
+        skipped_targets: list[tuple[str, str]] = []
+        skipped_dates: list[str] = []
+        for day_index, target_date in enumerate(target_dates):
             day_url = self._replace_mobile_query_param(bonus_list_link, "dtdd", str(day_index))
+            if self._mobile_day_is_fully_protected(target_date, first_day_slot_numbers, protected_slots):
+                skipped_targets.append((target_date, machine_entry.machine_name))
+                if target_date not in skipped_dates:
+                    skipped_dates.append(target_date)
+                continue
             if day_index == 0:
                 day_html = first_day_html
                 resolved_day_url = str(page.url)
@@ -1021,24 +1043,57 @@ class Site7Scraper:
                 machine_name=machine_entry.machine_name,
                 machine_url=machine_page_url,
             )
+            self._filter_mobile_dataset_protected_rows(dataset, protected_slots)
             if not dataset.rows:
+                if protected_slots:
+                    skipped_targets.append((target_date, machine_entry.machine_name))
+                    if target_date not in skipped_dates:
+                        skipped_dates.append(target_date)
                 continue
             datasets.append(dataset)
             date_pages.append(StoreDatePage(target_date=target_date, date_url=resolved_day_url or day_url))
 
-        if not datasets:
+        if not datasets and not skipped_targets:
             raise ScraperError(f"スマホ版サイトセブンで {machine_entry.machine_name} の台データが見つかりませんでした。")
 
         datasets.sort(key=lambda dataset: dataset.target_date)
         date_pages.sort(key=lambda date_page: date_page.target_date)
+        candidate_dates = [*target_dates, *skipped_dates]
         return MachineHistoryResult(
             store_name=store_name,
             store_url=store_url,
-            start_date=date_pages[0].target_date,
-            end_date=date_pages[-1].target_date,
+            start_date=min(candidate_dates) if candidate_dates else "",
+            end_date=max(candidate_dates) if candidate_dates else "",
             date_pages=date_pages,
             datasets=datasets,
+            skipped_targets=skipped_targets,
+            skipped_dates=skipped_dates,
         )
+
+    def _mobile_day_is_fully_protected(
+        self,
+        target_date: str,
+        slot_numbers: list[str],
+        protected_slots: set[tuple[str, str]],
+    ) -> bool:
+        return bool(slot_numbers) and all((target_date, slot_number) in protected_slots for slot_number in slot_numbers)
+
+    def _filter_mobile_dataset_protected_rows(
+        self,
+        dataset: MachineDataset,
+        protected_slots: set[tuple[str, str]],
+    ) -> None:
+        if not protected_slots:
+            return
+        try:
+            slot_index = dataset.columns.index("台番")
+        except ValueError:
+            return
+        dataset.rows = [
+            row
+            for row in dataset.rows
+            if len(row) <= slot_index or (dataset.target_date, str(row[slot_index]).strip()) not in protected_slots
+        ]
 
     def _apply_mobile_graph_differences_to_machine_result(
         self,

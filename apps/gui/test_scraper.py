@@ -1925,6 +1925,71 @@ class MinRepoScraperTests(unittest.TestCase):
         filter_callback.assert_called_once_with(raw_result)
         self.assertEqual(partial_results, [filtered_result])
 
+    def test_site7_mobile_machine_history_skips_fully_protected_old_day_pages(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+
+        def day_html(date_text: str, games_821: str, games_822: str) -> str:
+            return f"""
+<p id="hall_date">データ更新日時：{date_text} 23:20</p>
+<table>
+<tr><th>台番</th><th>累計ｹﾞｰﾑ</th><th>BB回数</th><th>RB回数</th></tr>
+<tr><td>821</td><td>{games_821}</td><td>5</td><td>2</td></tr>
+<tr><td>822</td><td>{games_822}</td><td>6</td><td>3</td></tr>
+</table>
+"""
+
+        machine_link = "https://m.site777.jp/db/D3310.do?pmc=40100003&mdc=120312&bn=1&pan=1&urt=2173"
+        bonus_link = "https://m.site777.jp/db/D3300.do?pmc=40100003&mdc=120312&bn=1&dtdd=0&pan=1&urt=2173"
+        machine_html = f'<a href="{bonus_link}">大当り一覧</a>'
+
+        class FakeMobilePage:
+            def __init__(self) -> None:
+                self.url = machine_link
+                self.goto_calls: list[str] = []
+                self.html_by_url = {
+                    machine_link: machine_html,
+                    bonus_link: day_html("2026/06/03", "1000", "2000"),
+                    bonus_link.replace("dtdd=0", "dtdd=1"): day_html("2026/06/03", "1100", "2100"),
+                    bonus_link.replace("dtdd=0", "dtdd=2"): day_html("2026/06/03", "1200", "2200"),
+                }
+
+            def goto(self, url: str, wait_until: str = "", timeout: int = 0) -> None:
+                self.goto_calls.append(url)
+                self.url = url
+
+            def content(self) -> str:
+                return self.html_by_url.get(self.url, "")
+
+        page = FakeMobilePage()
+        scraper._wait_between_transitions = mock.Mock()
+        scraper._accept_cookie_banner_if_present = mock.Mock()
+        callback_calls: list[tuple[Site7MachineEntry, list[str], list[str]]] = []
+
+        def protected_slots_callback(
+            machine_entry: Site7MachineEntry,
+            target_dates: list[str],
+            slot_numbers: list[str],
+        ) -> set[tuple[str, str]]:
+            callback_calls.append((machine_entry, target_dates, slot_numbers))
+            return {("2026-06-01", "821"), ("2026-06-01", "822")}
+
+        result = scraper._fetch_mobile_machine_history_result(
+            page=page,
+            store_url="https://example.com/store",
+            store_name="Aパーク春日店",
+            machine_entry=Site7MachineEntry(display_name="マイジャグラーV", machine_name="マイジャグラーV"),
+            machine_link=machine_link,
+            recent_days=3,
+            machine_protected_slots_callback=protected_slots_callback,
+        )
+
+        self.assertEqual(callback_calls[0][1], ["2026-06-03", "2026-06-02", "2026-06-01"])
+        self.assertEqual(callback_calls[0][2], ["821", "822"])
+        self.assertEqual([dataset.target_date for dataset in result.datasets], ["2026-06-02", "2026-06-03"])
+        self.assertEqual(result.skipped_dates, ["2026-06-01"])
+        self.assertEqual(result.skipped_targets, [("2026-06-01", "マイジャグラーV")])
+        self.assertFalse(any("dtdd=2" in url for url in page.goto_calls))
+
     def test_site7_visible_browser_closes_when_fetch_is_cancelled(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         page = FakeRetainedPage()
@@ -2495,6 +2560,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 cancel_requested: object,
                 machine_result_callback: object,
                 machine_result_filter_callback: object,
+                machine_protected_slots_callback: object,
                 include_graph_differences: bool,
             ) -> MachineHistoryResult:
                 filtered_result = machine_result_filter_callback(raw_result)

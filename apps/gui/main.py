@@ -49,6 +49,7 @@ from site7_scraper import (
     SITE7_MAX_RECENT_DAYS,
     SITE7_TARGET_MACHINE_KEYWORDS,
     Site7FetchCancelled,
+    Site7MachineEntry,
     Site7Scraper,
     Site7TargetStore,
     default_site7_store_settings,
@@ -2112,6 +2113,37 @@ class MinRepoApp:
             warning_summary.messages.extend(partial_warning_summary.messages)
             return partial_result
 
+        def find_protected_slots_before_fetch(
+            machine_entry: Site7MachineEntry,
+            target_dates: list[str],
+            slot_numbers: list[str],
+        ) -> set[tuple[str, str]]:
+            nonlocal warning_summary
+            self._raise_if_fetch_cancelled()
+            if not target_dates or not slot_numbers:
+                return set()
+
+            lookup_store_name = registered_store.name
+            lookup_store_url = registered_store.url
+            preferred_store = self.persistence_service.resolve_preferred_store_by_name(lookup_store_name)
+            if preferred_store is not None:
+                preferred_store_name = str(preferred_store.get("store_name", "")).strip()
+                preferred_store_url = str(preferred_store.get("store_url", "")).strip()
+                if preferred_store_name and preferred_store_url:
+                    lookup_store_name = preferred_store_name
+                    lookup_store_url = preferred_store_url
+
+            saved_slots_summary = self.persistence_service.find_saved_machine_slots(
+                store_name=lookup_store_name,
+                store_url=lookup_store_url,
+                start_date=min(target_dates),
+                end_date=max(target_dates),
+                slot_numbers=slot_numbers,
+                require_source_difference=registered_store.site7_difference_enabled,
+            )
+            warning_summary.messages.extend(saved_slots_summary.messages)
+            return saved_slots_summary.protected_slots
+
         def run_site7_fetch() -> MachineHistoryResult:
             def save_machine_result(machine_result: MachineHistoryResult) -> None:
                 nonlocal save_summary
@@ -2143,6 +2175,7 @@ class MinRepoApp:
                     cancel_requested=self.fetch_cancel_event.is_set,
                     machine_result_callback=save_machine_result,
                     machine_result_filter_callback=filter_machine_result_for_fetch,
+                    machine_protected_slots_callback=find_protected_slots_before_fetch,
                     include_graph_differences=registered_store.site7_difference_enabled,
                 )
             except Site7FetchCancelled as exc:
