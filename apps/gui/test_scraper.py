@@ -41,6 +41,7 @@ from main import (
     filter_site7_history_result_by_saved_targets,
     matches_day_tail,
     normalize_site7_browser_mode,
+    normalize_site7_enabled_machine_names,
     parse_recent_days,
     parse_retry_delay_seconds,
     rewrite_history_result_store,
@@ -51,6 +52,7 @@ from machine_difference import (
     calculate_estimated_coin_hold_difference_value,
     calculate_machine_difference_value,
     canonical_machine_name,
+    list_site7_target_machine_names,
     machine_is_site7_target,
 )
 from estimated_grape import ESTIMATED_GRAPE_VALUE_VERSION, calculate_estimated_grape_value
@@ -1644,6 +1646,36 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(canonical_machine_name("ドラゴンハナハナ～閃光～‐30", site7_only=True), "ドラゴンハナハナ～閃光～")
         self.assertTrue(machine_is_site7_target("ドラゴンハナハナ"))
 
+    def test_site7_target_machine_names_are_listed_for_gui_settings(self) -> None:
+        machine_names = list_site7_target_machine_names()
+
+        self.assertIn("マイジャグラーV", machine_names)
+        self.assertIn("ネオアイムジャグラーEX", machine_names)
+        self.assertIn("ニューキングハナハナ", machine_names)
+
+    def test_normalize_site7_enabled_machine_names_defaults_to_all_and_accepts_aliases(self) -> None:
+        available_machine_names = ("マイジャグラーV", "ネオアイムジャグラーEX")
+
+        self.assertEqual(
+            normalize_site7_enabled_machine_names(None, available_machine_names),
+            {"マイジャグラーV", "ネオアイムジャグラーEX"},
+        )
+        self.assertEqual(
+            normalize_site7_enabled_machine_names(["マイジャグラー", "対象外"], available_machine_names),
+            {"マイジャグラーV"},
+        )
+        self.assertEqual(normalize_site7_enabled_machine_names([], available_machine_names), set())
+
+    def test_site7_enabled_machine_names_for_fetch_only_returns_partial_selection(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.site7_target_machine_names = ("マイジャグラーV", "ネオアイムジャグラーEX")
+        app.site7_enabled_machine_names = {"マイジャグラーV", "ネオアイムジャグラーEX"}
+
+        self.assertIsNone(app._site7_enabled_machine_names_for_fetch())
+
+        app.site7_enabled_machine_names = {"マイジャグラーV"}
+        self.assertEqual(app._site7_enabled_machine_names_for_fetch(), {"マイジャグラーV"})
+
     def test_site7_extract_store_name_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = find_gui_fixture("site7_machine.html")
@@ -2238,6 +2270,18 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(
             machine_link,
             "https://m.site777.jp/db/D3310.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1",
+        )
+        self.assertEqual(
+            scraper._filter_mobile_target_machine_links(
+                scraper.extract_mobile_target_machine_links(
+                    """
+<a href="D2300.do?pmc=40100003&clc=03&urt=2173&mdc=120010&bn=1">マイジャグラーV [30]</a>
+<a href="D3310.do?pmc=40100003&clc=03&urt=2173&mdc=120312&bn=1">ネオアイムジャグラーEX [25]</a>
+"""
+                ),
+                {"マイジャグラーV"},
+            )[0][0].machine_name,
+            "マイジャグラーV",
         )
 
         self.assertEqual(

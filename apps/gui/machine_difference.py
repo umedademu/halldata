@@ -199,6 +199,27 @@ def list_site7_target_machine_keywords() -> list[str]:
     return keywords
 
 
+def list_site7_target_machine_names() -> list[str]:
+    machine_names: list[str] = []
+    seen_machine_names: set[str] = set()
+    for rule in load_machine_difference_rules():
+        if not bool(rule.get("site7_enabled")):
+            continue
+
+        machine_name = str(rule.get("canonical_name", "")).strip()
+        if not machine_name:
+            for candidate_name in rule.get("machine_names", []):
+                machine_name = str(candidate_name).strip()
+                if machine_name:
+                    break
+        if not machine_name or machine_name in seen_machine_names:
+            continue
+
+        seen_machine_names.add(machine_name)
+        machine_names.append(machine_name)
+    return machine_names
+
+
 def machine_is_site7_target(machine_name: str) -> bool:
     return find_machine_difference_rule(machine_name, site7_only=True) is not None
 

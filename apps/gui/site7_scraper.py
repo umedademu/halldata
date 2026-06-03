@@ -921,6 +921,7 @@ class Site7Scraper:
         machine_result_filter_callback: Callable[[MachineHistoryResult], MachineHistoryResult] | None = None,
         machine_protected_slots_callback: Callable[[Site7MachineEntry, list[str], list[str]], set[tuple[str, str]]] | None = None,
         include_graph_differences: bool = False,
+        enabled_machine_names: set[str] | None = None,
     ) -> MachineHistoryResult:
         return self._fetch_mobile_target_machine_history(
             recent_days=recent_days,
@@ -932,6 +933,7 @@ class Site7Scraper:
             machine_result_filter_callback=machine_result_filter_callback,
             machine_protected_slots_callback=machine_protected_slots_callback,
             include_graph_differences=include_graph_differences,
+            enabled_machine_names=enabled_machine_names,
         )
 
     def _fetch_mobile_target_machine_history(
@@ -945,6 +947,7 @@ class Site7Scraper:
         machine_result_filter_callback: Callable[[MachineHistoryResult], MachineHistoryResult] | None = None,
         machine_protected_slots_callback: Callable[[Site7MachineEntry, list[str], list[str]], set[tuple[str, str]]] | None = None,
         include_graph_differences: bool = False,
+        enabled_machine_names: set[str] | None = None,
     ) -> MachineHistoryResult:
         resolved_target_store = enrich_site7_target_store(target_store or SITE7_DEFAULT_TARGET_STORE)
         target_days = clamp_site7_recent_days(recent_days)
@@ -974,9 +977,15 @@ class Site7Scraper:
             self._accept_cookie_banner_if_present(page)
             machine_list_html = page.content()
             self._wait_between_transitions(page, cancel_requested=cancel_requested)
-            target_machine_items = self.extract_mobile_target_machine_links(machine_list_html)
+            target_machine_items = self._filter_mobile_target_machine_links(
+                self.extract_mobile_target_machine_links(machine_list_html),
+                enabled_machine_names,
+            )
             if not target_machine_items:
-                raise ScraperError("スマホ版サイトセブンで対象機種のリンクが見つかりませんでした。")
+                raise ScraperError(
+                    "スマホ版サイトセブンで有効な取得機種のリンクが見つかりませんでした。\n"
+                    "サイトセブン取得機種タブで取得する機種を確認してください。"
+                )
             total_steps = len(target_machine_items) + 2
             self._write_debug_log(
                 "machine_list_loaded",
@@ -2662,6 +2671,28 @@ class Site7Scraper:
             machine_links.append((machine_entry, urljoin(SITE7_MOBILE_TOP_URL, href)))
 
         return machine_links
+
+    def _filter_mobile_target_machine_links(
+        self,
+        machine_links: list[tuple[Site7MachineEntry, str]],
+        enabled_machine_names: set[str] | None,
+    ) -> list[tuple[Site7MachineEntry, str]]:
+        if enabled_machine_names is None:
+            return machine_links
+
+        enabled_name_keys = {
+            canonical_machine_name(machine_name, site7_only=True).casefold()
+            for machine_name in enabled_machine_names
+            if str(machine_name).strip()
+        }
+        if not enabled_name_keys:
+            return []
+
+        return [
+            (machine_entry, machine_link)
+            for machine_entry, machine_link in machine_links
+            if canonical_machine_name(machine_entry.machine_name, site7_only=True).casefold() in enabled_name_keys
+        ]
 
     def extract_mobile_machine_bonus_list_link(self, html: str, fallback_url: str = "") -> str:
         soup = BeautifulSoup(html, "html.parser")

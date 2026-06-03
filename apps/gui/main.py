@@ -44,6 +44,7 @@ from minrepo_scraper import (
     StoreEventSettings,
     normalize_text,
 )
+from machine_difference import canonical_machine_name, list_site7_target_machine_names
 from site7_scraper import (
     DEFAULT_SITE7_PREFECTURE_NAME,
     SITE7_MAX_RECENT_DAYS,
@@ -249,6 +250,28 @@ def normalize_site7_schedule_run_dates(value: object) -> dict[int, str]:
         if hour in SITE7_SCHEDULE_HOUR_OPTIONS and re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_text):
             run_dates[hour] = date_text
     return run_dates
+
+
+def normalize_site7_enabled_machine_names(value: object, available_machine_names: tuple[str, ...]) -> set[str]:
+    available_names = tuple(str(machine_name).strip() for machine_name in available_machine_names if str(machine_name).strip())
+    if not available_names:
+        return set()
+    if not isinstance(value, (list, tuple, set)):
+        return set(available_names)
+
+    available_by_key = {
+        canonical_machine_name(machine_name, site7_only=True).casefold(): machine_name
+        for machine_name in available_names
+    }
+    enabled_names: set[str] = set()
+    for raw_machine_name in value:
+        machine_name = str(raw_machine_name).strip()
+        if not machine_name:
+            continue
+        machine_key = canonical_machine_name(machine_name, site7_only=True).casefold()
+        if machine_key in available_by_key:
+            enabled_names.add(available_by_key[machine_key])
+    return enabled_names
 
 
 def site7_schedule_due_hour(
@@ -503,6 +526,8 @@ class MinRepoApp:
         self.web_publish_mode = self._load_saved_web_publish_mode()
         self.web_publish_interval_days = self._load_saved_web_publish_interval_days()
         self.site7_browser_mode: str = self._load_saved_site7_browser_mode()
+        self.site7_target_machine_names = tuple(list_site7_target_machine_names())
+        self.site7_enabled_machine_names = self._load_saved_site7_enabled_machine_names()
         self.site7_schedule_hours = self._load_saved_site7_schedule_hours()
         self.site7_schedule_last_run_dates_by_hour = self._load_saved_site7_schedule_run_dates()
         self.scheduled_last_run_date: str | None = None
@@ -545,6 +570,11 @@ class MinRepoApp:
         self.registered_store_filter_var = tk.StringVar()
         self.registered_store_filter_status_var = tk.StringVar()
         self.site7_browser_mode_var = tk.StringVar(value=self.site7_browser_mode)
+        self.site7_machine_enabled_vars = {
+            machine_name: tk.BooleanVar(value=machine_name in self.site7_enabled_machine_names)
+            for machine_name in self.site7_target_machine_names
+        }
+        self.site7_machine_settings_status_var = tk.StringVar(value=self._site7_machine_settings_status_text())
         self.site7_status_var = tk.StringVar(
             value="保存済みのログイン情報あり" if self.site7_scraper.has_saved_login_state() else "初回ログインが必要"
         )
@@ -592,6 +622,11 @@ class MinRepoApp:
         register_tab.columnconfigure(0, weight=1)
         register_tab.rowconfigure(1, weight=1)
         notebook.add(register_tab, text="登録店舗")
+
+        site7_machine_tab = ttk.Frame(notebook, padding=12)
+        site7_machine_tab.columnconfigure(0, weight=1)
+        site7_machine_tab.rowconfigure(1, weight=1)
+        notebook.add(site7_machine_tab, text="サイトセブン取得機種")
 
         self.fetch_form = ttk.LabelFrame(self.fetch_tab, text="取得条件", padding=12)
         self.fetch_form.grid(row=0, column=0, sticky="ew")
@@ -687,7 +722,8 @@ class MinRepoApp:
             site7_row,
             text=(
                 "登録店舗タブでサイトセブン列にチェックを入れた店舗の対象機種を取得します。"
-                f" 対象語は {'、'.join(SITE7_TARGET_MACHINE_KEYWORDS)} です。"
+                " 取得機種はサイトセブン取得機種タブで全店舗共通に選べます。"
+                f" 判定語は {'、'.join(SITE7_TARGET_MACHINE_KEYWORDS)} です。"
                 f" 直近日数は最大 {SITE7_MAX_RECENT_DAYS} 日まで使えます。"
                 " ログイン操作は常に表示で開きます。"
             ),
@@ -804,6 +840,7 @@ class MinRepoApp:
         ).grid(row=0, column=0, sticky="w")
 
         self._build_register_tab(register_tab)
+        self._build_site7_machine_settings_tab(site7_machine_tab)
 
     def _prompt_site7_login_on_startup_if_needed(self) -> None:
         if self.site7_scraper.has_saved_login_state():
@@ -1083,6 +1120,74 @@ class MinRepoApp:
     def _save_site7_browser_mode(self, browser_mode: str) -> None:
         self._save_gui_settings(site7_browser_mode=normalize_site7_browser_mode(browser_mode))
 
+    def _load_saved_site7_enabled_machine_names(self) -> set[str]:
+        try:
+            payload = self._load_gui_settings()
+        except Exception:  # noqa: BLE001
+            return set(self.site7_target_machine_names)
+        return normalize_site7_enabled_machine_names(
+            payload.get("site7_enabled_machine_names", list(self.site7_target_machine_names)),
+            self.site7_target_machine_names,
+        )
+
+    def _save_site7_enabled_machine_names(self) -> None:
+        self._save_gui_settings(
+            site7_enabled_machine_names=sorted(
+                self.site7_enabled_machine_names,
+                key=normalize_text,
+            )
+        )
+
+    def _current_site7_enabled_machine_names(self) -> set[str]:
+        if not hasattr(self, "site7_machine_enabled_vars"):
+            return set(getattr(self, "site7_enabled_machine_names", set()))
+        return {
+            machine_name
+            for machine_name, enabled_var in self.site7_machine_enabled_vars.items()
+            if enabled_var.get()
+        }
+
+    def _site7_enabled_machine_names_for_fetch(self) -> set[str] | None:
+        if not hasattr(self, "site7_target_machine_names"):
+            return None
+        enabled_machine_names = set(getattr(self, "site7_enabled_machine_names", set(self.site7_target_machine_names)))
+        if enabled_machine_names == set(self.site7_target_machine_names):
+            return None
+        return enabled_machine_names
+
+    def _site7_has_enabled_target_machines(self) -> bool:
+        if not hasattr(self, "site7_target_machine_names"):
+            return True
+        return bool(getattr(self, "site7_enabled_machine_names", set(self.site7_target_machine_names)))
+
+    def _site7_machine_settings_status_text(self) -> str:
+        enabled_count = len(getattr(self, "site7_enabled_machine_names", set()))
+        total_count = len(getattr(self, "site7_target_machine_names", ()))
+        return f"{enabled_count}/{total_count} 機種を取得対象にしています"
+
+    def _update_site7_machine_settings_status(self) -> None:
+        if hasattr(self, "site7_machine_settings_status_var"):
+            self.site7_machine_settings_status_var.set(self._site7_machine_settings_status_text())
+
+    def _on_site7_machine_setting_changed(self) -> None:
+        self.site7_enabled_machine_names = self._current_site7_enabled_machine_names()
+        try:
+            self._save_site7_enabled_machine_names()
+            self._update_site7_machine_settings_status()
+        except Exception as exc:  # noqa: BLE001
+            self.site7_machine_settings_status_var.set(f"保存に失敗しました: {exc}")
+        self._update_button_states()
+
+    def _select_all_site7_target_machines(self) -> None:
+        for enabled_var in self.site7_machine_enabled_vars.values():
+            enabled_var.set(True)
+        self._on_site7_machine_setting_changed()
+
+    def _clear_site7_target_machines(self) -> None:
+        for enabled_var in self.site7_machine_enabled_vars.values():
+            enabled_var.set(False)
+        self._on_site7_machine_setting_changed()
+
     def _load_saved_site7_schedule_hours(self) -> tuple[int, ...]:
         try:
             payload = self._load_gui_settings()
@@ -1226,6 +1331,9 @@ class MinRepoApp:
         recent_days = min(recent_days, SITE7_MAX_RECENT_DAYS)
         if not self.site7_scraper.has_saved_login_state():
             self.site7_schedule_status_var.set("サイトセブン定期実行はログイン情報待ち")
+            return
+        if not self._site7_has_enabled_target_machines():
+            self.site7_schedule_status_var.set("サイトセブン定期実行は取得機種なし")
             return
 
         self.current_results = []
@@ -1383,6 +1491,59 @@ class MinRepoApp:
         self.tray_thread = None
         self.site7_scraper.close_visible_browser()
         self.root.destroy()
+
+    def _build_site7_machine_settings_tab(self, tab: ttk.Frame) -> None:
+        guide = ttk.LabelFrame(tab, text="案内", padding=12)
+        guide.grid(row=0, column=0, sticky="ew")
+        guide.columnconfigure(0, weight=1)
+        ttk.Label(
+            guide,
+            text=(
+                "サイトセブン取得で読む機種を選びます。"
+                "この設定は全店舗共通で使い、チェックを外した機種はサイトセブン取得時に開きません。"
+            ),
+            wraplength=900,
+            justify="left",
+        ).grid(row=0, column=0, sticky="w")
+
+        machine_frame = ttk.LabelFrame(tab, text="取得する機種", padding=12)
+        machine_frame.grid(row=1, column=0, sticky="nsew", pady=(12, 0))
+        for column_index in range(3):
+            machine_frame.columnconfigure(column_index, weight=1)
+
+        self.site7_machine_checkbuttons: dict[str, ttk.Checkbutton] = {}
+        for index, machine_name in enumerate(self.site7_target_machine_names):
+            row_index = index // 3
+            column_index = index % 3
+            checkbutton = ttk.Checkbutton(
+                machine_frame,
+                text=machine_name,
+                variable=self.site7_machine_enabled_vars[machine_name],
+                command=self._on_site7_machine_setting_changed,
+            )
+            checkbutton.grid(row=row_index, column=column_index, sticky="w", padx=(0, 24), pady=3)
+            self.site7_machine_checkbuttons[machine_name] = checkbutton
+
+        action_row = ttk.Frame(tab)
+        action_row.grid(row=2, column=0, sticky="w", pady=(12, 0))
+        self.select_all_site7_machines_button = ttk.Button(
+            action_row,
+            text="全て選択",
+            command=self._select_all_site7_target_machines,
+        )
+        self.select_all_site7_machines_button.grid(row=0, column=0, sticky="w")
+        self.clear_site7_machines_button = ttk.Button(
+            action_row,
+            text="全て外す",
+            command=self._clear_site7_target_machines,
+        )
+        self.clear_site7_machines_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
+        ttk.Label(action_row, textvariable=self.site7_machine_settings_status_var).grid(
+            row=0,
+            column=2,
+            sticky="w",
+            padx=(12, 0),
+        )
 
     def _build_register_tab(self, register_tab: ttk.Frame) -> None:
         guide = ttk.LabelFrame(register_tab, text="案内", padding=12)
@@ -1946,6 +2107,9 @@ class MinRepoApp:
         if not target_stores:
             messagebox.showwarning("入力不足", "登録店舗タブでサイトセブン列にチェックを入れた店舗を1つ以上用意してください。")
             return
+        if not self._site7_has_enabled_target_machines():
+            messagebox.showwarning("入力不足", "サイトセブン取得機種タブで取得する機種を1つ以上選択してください。")
+            return
 
         self._begin_fetch_run(
             progress_message="サイトセブンへ接続中...",
@@ -1989,6 +2153,9 @@ class MinRepoApp:
                 "サイトセブンのログイン情報がまだありません。\n先にログイン画面を開きますか？",
             ):
                 self.site7_login()
+            return
+        if not self._site7_has_enabled_target_machines():
+            messagebox.showwarning("入力不足", "サイトセブン取得機種タブで取得する機種を1つ以上選択してください。")
             return
 
         display_name = self._registered_store_display_name(target_store)
@@ -2218,23 +2385,27 @@ class MinRepoApp:
                 save_summary = self._merge_persistence_summary(save_summary, partial_save_summary)
 
             try:
-                return self.site7_scraper.fetch_target_machine_history(
-                    recent_days=recent_days,
-                    browser_visible=browser_visible,
-                    progress_callback=lambda progress: queue_progress(
+                fetch_kwargs = {
+                    "recent_days": recent_days,
+                    "browser_visible": browser_visible,
+                    "progress_callback": lambda progress: queue_progress(
                         FetchProgress(
                             current_step=progress.current_step,
                             total_steps=progress.total_steps,
                             message=f"{store_label}: {progress.message}",
                         )
                     ),
-                    target_store=target_store,
-                    cancel_requested=self.fetch_cancel_event.is_set,
-                    machine_result_callback=save_machine_result,
-                    machine_result_filter_callback=filter_machine_result_for_fetch,
-                    machine_protected_slots_callback=find_protected_slots_before_fetch,
-                    include_graph_differences=registered_store.site7_difference_enabled,
-                )
+                    "target_store": target_store,
+                    "cancel_requested": self.fetch_cancel_event.is_set,
+                    "machine_result_callback": save_machine_result,
+                    "machine_result_filter_callback": filter_machine_result_for_fetch,
+                    "machine_protected_slots_callback": find_protected_slots_before_fetch,
+                    "include_graph_differences": registered_store.site7_difference_enabled,
+                }
+                enabled_machine_names = self._site7_enabled_machine_names_for_fetch()
+                if enabled_machine_names is not None:
+                    fetch_kwargs["enabled_machine_names"] = enabled_machine_names
+                return self.site7_scraper.fetch_target_machine_history(**fetch_kwargs)
             except Site7FetchCancelled as exc:
                 raise FetchCancelled from exc
 
@@ -4125,6 +4296,13 @@ class MinRepoApp:
         self.clear_site7_schedule_button.configure(state="disabled" if self.is_busy else "normal")
         self.site7_browser_visible_radio.configure(state="disabled" if self.is_busy else "normal")
         self.site7_browser_hidden_radio.configure(state="disabled" if self.is_busy else "normal")
+        if hasattr(self, "site7_machine_checkbuttons"):
+            for checkbutton in self.site7_machine_checkbuttons.values():
+                checkbutton.configure(state="disabled" if self.is_busy else "normal")
+        if hasattr(self, "select_all_site7_machines_button"):
+            self.select_all_site7_machines_button.configure(state="disabled" if self.is_busy else "normal")
+        if hasattr(self, "clear_site7_machines_button"):
+            self.clear_site7_machines_button.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_button.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_url_entry.configure(state="disabled" if self.is_busy else "normal")
         self.register_store_site7_button.configure(state="disabled" if self.is_busy else "normal")
