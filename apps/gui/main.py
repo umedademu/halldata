@@ -74,6 +74,7 @@ MINREPO_FETCH_MODE_OPTIONS = (
     MINREPO_FETCH_MODE_FAST,
     MINREPO_FETCH_MODE_STRONG,
 )
+DEFAULT_MINREPO_FETCH_MODE = MINREPO_FETCH_MODE_STRONG
 WEB_PUBLISH_MODE_DAYS = "days"
 WEB_PUBLISH_MODE_STORE = "store"
 DEFAULT_WEB_PUBLISH_INTERVAL_DAYS = 1
@@ -550,7 +551,7 @@ class MinRepoApp:
         if self.scheduled_startup_prompt_date is not None:
             self.schedule_status_var.set(f"本日 {self.scheduled_fetch_hour} 時の定期実行を確認待ち")
         self.retry_delay_seconds_var = tk.StringVar(value=DEFAULT_RETRY_DELAY_SECONDS)
-        self.minrepo_fetch_mode_var = tk.StringVar(value=MINREPO_FETCH_MODE_NORMAL)
+        self.minrepo_fetch_mode_var = tk.StringVar(value=DEFAULT_MINREPO_FETCH_MODE)
         self.web_publish_mode_var = tk.StringVar(value=self.web_publish_mode)
         self.web_publish_interval_days_var = tk.StringVar(value=str(self.web_publish_interval_days))
         self.status_var = tk.StringVar(value="待機中")

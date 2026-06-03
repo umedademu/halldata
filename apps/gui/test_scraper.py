@@ -31,8 +31,10 @@ from data_persistence import (
     normalize_store_url,
 )
 from main import (
+    DEFAULT_MINREPO_FETCH_MODE,
     SITE7_BROWSER_MODE_HIDDEN,
     SITE7_BROWSER_MODE_VISIBLE,
+    MINREPO_FETCH_MODE_STRONG,
     MinRepoApp,
     MinRepoFetchParallelOptions,
     RegisteredStore,
@@ -475,6 +477,9 @@ class MinRepoScraperTests(unittest.TestCase):
     def test_clamp_site7_recent_days(self) -> None:
         self.assertEqual(clamp_site7_recent_days(3), 3)
         self.assertEqual(clamp_site7_recent_days(90), 8)
+
+    def test_default_minrepo_fetch_mode_is_strong_parallel(self) -> None:
+        self.assertEqual(DEFAULT_MINREPO_FETCH_MODE, MINREPO_FETCH_MODE_STRONG)
 
     def test_site7_transition_wait_milliseconds_uses_given_value(self) -> None:
         self.assertEqual(build_site7_transition_wait_milliseconds(lambda start, end: 2.5), 2500)
