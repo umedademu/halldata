@@ -2051,12 +2051,15 @@ class Site7Scraper:
                     )
                 else:
                     self._write_debug_log(
-                        "graph_difference_missing",
+                        "graph_difference_apply",
                         machine=dataset.machine_name,
                         target_date=dataset.target_date,
                         slot=slot_number,
+                        source="fallback",
+                        difference=0,
                         reason="list_value_and_detail_link_missing",
                     )
+                    self._set_mobile_graph_difference(dataset, row, difference_index, slot_number, 0)
                 continue
 
             current_step = current_graph_count_ref() + row_index
@@ -2109,12 +2112,15 @@ class Site7Scraper:
                 self._set_mobile_graph_difference(dataset, row, difference_index, slot_number, list_difference_value)
             else:
                 self._write_debug_log(
-                    "graph_difference_missing",
+                    "graph_difference_apply",
                     machine=dataset.machine_name,
                     target_date=dataset.target_date,
                     slot=slot_number,
+                    source="fallback",
+                    difference=0,
                     reason="detail_unreadable_and_no_list_value",
                 )
+                self._set_mobile_graph_difference(dataset, row, difference_index, slot_number, 0)
 
     def _set_mobile_graph_difference(
         self,

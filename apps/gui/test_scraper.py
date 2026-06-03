@@ -84,6 +84,7 @@ from site7_scraper import (
     clamp_site7_recent_days,
     default_site7_store_settings,
     enrich_site7_target_store,
+    dataset_has_site7_graph_difference,
     mark_site7_dataset_graph_difference,
     parse_site7_graph_difference_value,
     site7_store_is_known_unavailable,
@@ -2586,6 +2587,67 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         self.assertEqual(dataset.rows[0][2:9], ["7867", "-", "19", "40", "1/133", "1/414", "1/196"])
+
+    def test_site7_apply_mobile_graph_differences_uses_zero_when_graph_is_unreadable(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        dataset = MachineDataset(
+            store_name="Ａパーク春日店",
+            store_url="https://example.com/site7-hall",
+            target_date="2026-06-01",
+            date_url="https://example.com/site7-hall#ata0",
+            machine_name="スマスロ ハナビ",
+            machine_url="https://example.com/site7-machine",
+            columns=["台番", "差枚", "G数", "BB", "RB"],
+            rows=[["718", "-", "183", "0", "0"]],
+        )
+        scraper._fetch_mobile_graph_page_data = mock.Mock(return_value=(None, {}))
+
+        scraper._apply_mobile_graph_differences_to_dataset(
+            page=object(),
+            context=object(),
+            dataset=dataset,
+            list_difference_values={},
+            detail_slot_numbers=set(),
+            slot_graph_links={"718": "https://example.com/graph?dn=718"},
+            day_index=0,
+            cancel_requested=None,
+            progress_callback=None,
+            current_graph_count_ref=lambda: 0,
+            total_graph_count=1,
+        )
+
+        self.assertEqual(dataset.rows[0][1], "0")
+        self.assertTrue(dataset_has_site7_graph_difference(dataset, "718"))
+
+    def test_site7_apply_mobile_graph_differences_uses_zero_when_graph_link_is_missing(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        dataset = MachineDataset(
+            store_name="Ａパーク春日店",
+            store_url="https://example.com/site7-hall",
+            target_date="2026-06-01",
+            date_url="https://example.com/site7-hall#ata0",
+            machine_name="スマスロ ハナビ",
+            machine_url="https://example.com/site7-machine",
+            columns=["台番", "差枚", "G数", "BB", "RB"],
+            rows=[["718", "-", "183", "0", "0"]],
+        )
+
+        scraper._apply_mobile_graph_differences_to_dataset(
+            page=object(),
+            context=object(),
+            dataset=dataset,
+            list_difference_values={},
+            detail_slot_numbers=set(),
+            slot_graph_links={},
+            day_index=0,
+            cancel_requested=None,
+            progress_callback=None,
+            current_graph_count_ref=lambda: 0,
+            total_graph_count=1,
+        )
+
+        self.assertEqual(dataset.rows[0][1], "0")
+        self.assertTrue(dataset_has_site7_graph_difference(dataset, "718"))
 
     def test_site7_extract_mobile_slot_graph_page_stat_values_uses_target_slot_block(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
