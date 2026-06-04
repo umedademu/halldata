@@ -79,7 +79,7 @@ WEB_PUBLISH_MODE_DAYS = "days"
 WEB_PUBLISH_MODE_STORE = "store"
 DEFAULT_WEB_PUBLISH_INTERVAL_DAYS = 1
 DEFAULT_SCHEDULE_HOUR = 2
-DEFAULT_SCHEDULE_ALL_STORES_INTERVAL_DAYS = 7
+DEFAULT_SCHEDULE_ALL_STORES_INTERVAL_DAYS = 14
 SITE7_SCHEDULE_HOUR_OPTIONS = tuple(range(10, 24))
 DEFAULT_SITE7_SCHEDULE_HOURS = (12, 15, 18, 21)
 GUI_SETTINGS_FILE_NAME = "gui_settings.json"
@@ -241,27 +241,24 @@ def normalize_schedule_all_stores_interval_days(value: object) -> int:
         return DEFAULT_SCHEDULE_ALL_STORES_INTERVAL_DAYS
 
 
-def scheduled_all_stores_due_date(
-    interval_days: int,
-    last_run_date: str | None,
-    now: datetime | None = None,
-) -> str | None:
-    current_time = (now or datetime.now(JST)).astimezone(JST)
-    today = current_time.date()
-    today_text = today.isoformat()
+def normalize_schedule_store_run_dates(value: object) -> dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+
+    normalized_dates: dict[str, str] = {}
+    for raw_url, raw_date in value.items():
+        store_url = normalize_store_url(str(raw_url))
+        date_text = str(raw_date).strip()
+        if store_url and re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_text):
+            normalized_dates[store_url] = date_text
+    return normalized_dates
+
+
+def scheduled_supplemental_store_limit(store_count: int, interval_days: int) -> int:
+    if store_count <= 0:
+        return 0
     normalized_interval_days = max(1, interval_days)
-
-    if not last_run_date:
-        return today_text
-
-    try:
-        previous_date = datetime.strptime(last_run_date, "%Y-%m-%d").date()
-    except ValueError:
-        return today_text
-
-    if today >= previous_date + timedelta(days=normalized_interval_days):
-        return today_text
-    return None
+    return max(1, (store_count + normalized_interval_days - 1) // normalized_interval_days)
 
 
 def normalize_site7_schedule_hours(value: object) -> tuple[int, ...]:
@@ -539,6 +536,14 @@ class StoreRefreshResult:
 
 
 @dataclass
+class ScheduledFetchResult:
+    refresh_result: StoreRefreshResult
+    fetch_many_result: FetchManyResult
+    supplemental_store_urls: set[str]
+    run_date: str
+
+
+@dataclass
 class StoreDeleteResult:
     registered_stores: list[RegisteredStore]
     deleted_store_count: int
@@ -564,8 +569,7 @@ class MinRepoApp:
         self.fetch_cancel_event = threading.Event()
         self.scheduled_fetch_hour: int | None = self._load_saved_schedule_hour()
         self.schedule_all_stores_interval_days = self._load_saved_schedule_all_stores_interval_days()
-        self.schedule_all_stores_last_run_date = self._load_saved_schedule_all_stores_last_run_date()
-        self.schedule_all_stores_running_date: str | None = None
+        self.schedule_supplemental_store_last_run_dates = self._load_saved_schedule_supplemental_store_last_run_dates()
         self.web_publish_mode = self._load_saved_web_publish_mode()
         self.web_publish_interval_days = self._load_saved_web_publish_interval_days()
         self.site7_browser_mode: str = self._load_saved_site7_browser_mode()
@@ -761,14 +765,14 @@ class MinRepoApp:
 
         all_store_schedule_row = ttk.Frame(self.fetch_form)
         all_store_schedule_row.grid(row=6, column=1, sticky="w", pady=(8, 0))
-        ttk.Label(all_store_schedule_row, text="全店舗取得").grid(row=0, column=0, sticky="w")
+        ttk.Label(all_store_schedule_row, text="取得OFF補完").grid(row=0, column=0, sticky="w")
         self.schedule_all_stores_interval_days_entry = ttk.Entry(
             all_store_schedule_row,
             textvariable=self.schedule_all_stores_interval_days_var,
             width=4,
         )
         self.schedule_all_stores_interval_days_entry.grid(row=0, column=1, sticky="w", padx=(8, 4))
-        ttk.Label(all_store_schedule_row, text="日に1回実行").grid(row=0, column=2, sticky="w")
+        ttk.Label(all_store_schedule_row, text="日周期で分散").grid(row=0, column=2, sticky="w")
         self.apply_schedule_all_stores_button = ttk.Button(
             all_store_schedule_row,
             text="設定",
@@ -1085,7 +1089,7 @@ class MinRepoApp:
         try:
             self._save_schedule_all_stores_interval_days(interval_days)
         except Exception as exc:  # noqa: BLE001
-            messagebox.showwarning("設定保存", f"全店舗取得の設定保存に失敗しました。\n{exc}")
+            messagebox.showwarning("設定保存", f"取得OFF補完の設定保存に失敗しました。\n{exc}")
         self.schedule_all_stores_status_var.set(self._schedule_all_stores_status_text())
 
     def clear_daily_schedule(self) -> None:
@@ -1159,24 +1163,18 @@ class MinRepoApp:
             schedule_all_stores_interval_days=normalize_schedule_all_stores_interval_days(interval_days)
         )
 
-    def _load_saved_schedule_all_stores_last_run_date(self) -> str | None:
+    def _load_saved_schedule_supplemental_store_last_run_dates(self) -> dict[str, str]:
         try:
             payload = self._load_gui_settings()
         except Exception:  # noqa: BLE001
-            return None
-        date_text = str(payload.get("schedule_all_stores_last_run_date", "")).strip()
-        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_text):
-            return date_text
-        return None
+            return {}
+        return normalize_schedule_store_run_dates(payload.get("schedule_supplemental_store_last_run_dates"))
 
-    def _save_schedule_all_stores_last_run_date(self) -> None:
-        self._save_gui_settings(schedule_all_stores_last_run_date=self.schedule_all_stores_last_run_date or "")
-
-    def _schedule_all_stores_due_date(self, now: datetime | None = None) -> str | None:
-        return scheduled_all_stores_due_date(
-            self.schedule_all_stores_interval_days,
-            self.schedule_all_stores_last_run_date,
-            now,
+    def _save_schedule_supplemental_store_last_run_dates(self) -> None:
+        self._save_gui_settings(
+            schedule_supplemental_store_last_run_dates=dict(
+                sorted(self.schedule_supplemental_store_last_run_dates.items())
+            )
         )
 
     def _schedule_all_stores_status_text(self) -> str:
@@ -1185,10 +1183,9 @@ class MinRepoApp:
             "schedule_all_stores_interval_days",
             DEFAULT_SCHEDULE_ALL_STORES_INTERVAL_DAYS,
         )
-        last_run_date = getattr(self, "schedule_all_stores_last_run_date", None)
-        if last_run_date:
-            return f"{interval_days}日に1回 / 前回 {last_run_date}"
-        return f"{interval_days}日に1回 / 前回なし"
+        run_dates = getattr(self, "schedule_supplemental_store_last_run_dates", {})
+        run_count = len(run_dates) if isinstance(run_dates, dict) else 0
+        return f"{interval_days}日周期で分散 / 記録{run_count}店舗"
 
     def _load_saved_selected_store_urls(self, registered_stores: list[RegisteredStore]) -> set[str]:
         all_store_urls = {
@@ -1400,6 +1397,35 @@ class MinRepoApp:
         self.scheduled_last_run_date = due_date
         self._start_scheduled_fetch()
 
+    def _mark_successful_supplemental_stores(
+        self,
+        fetch_many_result: FetchManyResult,
+        supplemental_store_urls: set[str],
+        run_date: str,
+    ) -> None:
+        normalized_supplemental_urls = {
+            normalized_store_url
+            for store_url in supplemental_store_urls
+            if (normalized_store_url := normalize_store_url(store_url))
+        }
+        if not normalized_supplemental_urls:
+            self.schedule_all_stores_status_var.set(self._schedule_all_stores_status_text())
+            return
+
+        successful_urls = {
+            normalize_store_url(store_result.history_result.store_url)
+            for store_result in fetch_many_result.results
+        }
+        completed_urls = normalized_supplemental_urls.intersection(successful_urls)
+        if not completed_urls:
+            self.schedule_all_stores_status_var.set(self._schedule_all_stores_status_text())
+            return
+
+        for store_url in completed_urls:
+            self.schedule_supplemental_store_last_run_dates[store_url] = run_date
+        self._save_schedule_supplemental_store_last_run_dates()
+        self.schedule_all_stores_status_var.set(self._schedule_all_stores_status_text())
+
     def _start_scheduled_fetch(self) -> None:
         try:
             target_date_input = self._target_date_input_from_recent_days()
@@ -1411,18 +1437,15 @@ class MinRepoApp:
             self._show_error(exc)
             return
 
-        all_stores_due_date = self._schedule_all_stores_due_date()
         selected_store_urls = set(self.selected_store_urls)
-        self.schedule_all_stores_running_date = all_stores_due_date
+        supplemental_store_last_run_dates = dict(self.schedule_supplemental_store_last_run_dates)
+        supplemental_run_date = current_jst_date_text()
         self.current_results = []
         self.current_history_result = None
         self._clear_fetch_result_details()
         self._begin_fetch_progress("定期実行: 登録店舗を更新中...")
         self.status_var.set("定期実行中...")
-        if all_stores_due_date is not None:
-            self.summary_var.set("登録店舗を更新してから全店舗取得します")
-        else:
-            self.summary_var.set("登録店舗を更新してから取得対象店舗を取得します")
+        self.summary_var.set("登録店舗を更新してから取得対象店舗と補完店舗を取得します")
         self.schedule_status_var.set("定期実行中")
         self.fetch_cancel_event.clear()
         self._start_worker(
@@ -1432,7 +1455,9 @@ class MinRepoApp:
             fetch_parallel_options,
             web_publish_options,
             selected_store_urls,
-            all_stores_due_date is not None,
+            supplemental_store_last_run_dates,
+            self.schedule_all_stores_interval_days,
+            supplemental_run_date,
             operation_kind="scheduled_fetch",
         )
 
@@ -1950,15 +1975,18 @@ class MinRepoApp:
         fetch_parallel_options: MinRepoFetchParallelOptions,
         web_publish_options: WebPublishOptions,
         selected_store_urls: set[str],
-        include_all_stores: bool,
+        supplemental_store_last_run_dates: dict[str, str],
+        supplemental_interval_days: int,
+        supplemental_run_date: str,
     ) -> None:
         try:
             refresh_result = self._load_and_complete_registered_stores()
             self._raise_if_fetch_cancelled()
-            target_stores = self._scheduled_minrepo_registered_stores(
+            target_stores, supplemental_store_urls = self._scheduled_minrepo_registered_stores(
                 refresh_result.registered_stores,
                 selected_store_urls=selected_store_urls,
-                include_all_stores=include_all_stores,
+                supplemental_store_last_run_dates=supplemental_store_last_run_dates,
+                supplemental_interval_days=supplemental_interval_days,
             )
             if not target_stores:
                 raise ScraperError("定期実行の対象店舗がありません。")
@@ -1968,11 +1996,22 @@ class MinRepoApp:
                 retry_delay_seconds,
                 fetch_parallel_options,
                 web_publish_options,
+                preserve_order=True,
             )
             if fetch_many_result.cancelled and not fetch_many_result.results:
                 self.result_queue.put(("fetch_cancelled", None))
                 return
-            self.result_queue.put(("scheduled_fetch_many_success", (refresh_result, fetch_many_result)))
+            self.result_queue.put(
+                (
+                    "scheduled_fetch_many_success",
+                    ScheduledFetchResult(
+                        refresh_result=refresh_result,
+                        fetch_many_result=fetch_many_result,
+                        supplemental_store_urls=supplemental_store_urls,
+                        run_date=supplemental_run_date,
+                    ),
+                )
+            )
         except FetchCancelled:
             self.result_queue.put(("fetch_cancelled", None))
         except Exception as exc:  # noqa: BLE001
@@ -2776,10 +2815,11 @@ class MinRepoApp:
         retry_delay_seconds: int,
         fetch_parallel_options: MinRepoFetchParallelOptions | None = None,
         web_publish_options: WebPublishOptions | None = None,
+        preserve_order: bool = False,
     ) -> FetchManyResult:
         fetch_parallel_options = fetch_parallel_options or MINREPO_FETCH_PARALLEL_OPTIONS[MINREPO_FETCH_MODE_NORMAL]
         web_publish_options = web_publish_options or WebPublishOptions(mode=WEB_PUBLISH_MODE_DAYS)
-        target_stores = self._minrepo_fetch_ordered_stores(target_stores)
+        target_stores = list(target_stores) if preserve_order else self._minrepo_fetch_ordered_stores(target_stores)
         results: list[StoreFetchResult] = []
         failures: list[StoreFetchFailure] = []
         total_stores = len(target_stores)
@@ -2863,20 +2903,48 @@ class MinRepoApp:
         registered_stores: list[RegisteredStore],
         *,
         selected_store_urls: set[str],
-        include_all_stores: bool,
-    ) -> list[RegisteredStore]:
-        if include_all_stores:
-            return list(registered_stores)
-
+        supplemental_store_last_run_dates: dict[str, str] | None = None,
+        supplemental_interval_days: int | None = None,
+    ) -> tuple[list[RegisteredStore], set[str]]:
         normalized_selected_urls = {
             normalize_store_url(store_url)
             for store_url in selected_store_urls
         }
-        return [
+        primary_stores = [
             registered_store
             for registered_store in registered_stores
             if normalize_store_url(registered_store.url) in normalized_selected_urls
         ]
+        supplemental_candidates = [
+            registered_store
+            for registered_store in registered_stores
+            if normalize_store_url(registered_store.url) not in normalized_selected_urls
+        ]
+        interval_days = supplemental_interval_days or getattr(
+            self,
+            "schedule_all_stores_interval_days",
+            DEFAULT_SCHEDULE_ALL_STORES_INTERVAL_DAYS,
+        )
+        supplemental_limit = scheduled_supplemental_store_limit(len(supplemental_candidates), interval_days)
+        run_dates = supplemental_store_last_run_dates or {}
+
+        def supplemental_sort_key(registered_store: RegisteredStore) -> tuple[str, int, str, str]:
+            store_url = normalize_store_url(registered_store.url)
+            last_run_date = run_dates.get(store_url, "")
+            return (
+                last_run_date,
+                0 if registered_store.site7_enabled else 1,
+                normalize_text(registered_store.name),
+                store_url,
+            )
+
+        supplemental_stores = sorted(supplemental_candidates, key=supplemental_sort_key)[:supplemental_limit]
+        supplemental_store_urls = {
+            normalize_store_url(registered_store.url)
+            for registered_store in supplemental_stores
+        }
+        target_stores = self._minrepo_fetch_ordered_stores(primary_stores) + supplemental_stores
+        return target_stores, supplemental_store_urls
 
     def _fetch_single_store(
         self,
@@ -3348,7 +3416,6 @@ class MinRepoApp:
             self.status_var.set("失敗")
             self.summary_var.set("取得できませんでした")
             if operation_kind == "scheduled_fetch":
-                self.schedule_all_stores_running_date = None
                 self.schedule_status_var.set("定期実行に失敗しました")
             elif operation_kind == "scheduled_site7_fetch":
                 self.site7_schedule_status_var.set("サイトセブン定期実行に失敗しました")
@@ -3360,7 +3427,6 @@ class MinRepoApp:
             self.status_var.set("中止")
             self.summary_var.set("取得を中止しました")
             if operation_kind == "scheduled_fetch":
-                self.schedule_all_stores_running_date = None
                 self.schedule_status_var.set("定期実行を中止しました")
             elif operation_kind == "scheduled_site7_fetch":
                 self.site7_schedule_status_var.set("サイトセブン定期実行を中止しました")
@@ -3377,38 +3443,31 @@ class MinRepoApp:
             return
 
         if kind == "scheduled_fetch_many_success":
-            if (
-                not isinstance(payload, tuple)
-                or len(payload) != 2
-                or not isinstance(payload[0], StoreRefreshResult)
-                or not isinstance(payload[1], FetchManyResult)
-            ):
+            if not isinstance(payload, ScheduledFetchResult):
                 self._finish_fetch_progress(success=False, message="取得失敗")
                 self.status_var.set("失敗")
                 self.summary_var.set("不明な結果")
                 self.schedule_status_var.set("定期実行に失敗しました")
                 messagebox.showerror("エラー", "定期実行の結果形式が不正です。")
                 return
-            refresh_result, fetch_many_result = payload
+            refresh_result = payload.refresh_result
+            fetch_many_result = payload.fetch_many_result
             self._replace_registered_stores(refresh_result.registered_stores, select_all=False, reset_fetch_display=False)
             self._apply_fetch_many_result(fetch_many_result)
             if refresh_result.save_summary is not None and refresh_result.save_summary.has_errors:
                 messagebox.showwarning("登録店舗", "\n\n".join(refresh_result.save_summary.messages))
+            try:
+                self._mark_successful_supplemental_stores(
+                    fetch_many_result,
+                    payload.supplemental_store_urls,
+                    payload.run_date,
+                )
+            except Exception as exc:  # noqa: BLE001
+                self.schedule_status_var.set(f"取得OFF補完の記録保存に失敗しました: {exc}")
+                return
             if fetch_many_result.cancelled:
-                self.schedule_all_stores_running_date = None
                 self.schedule_status_var.set("定期実行を中止しました")
             else:
-                if self.schedule_all_stores_running_date is not None and not fetch_many_result.failures:
-                    self.schedule_all_stores_last_run_date = self.schedule_all_stores_running_date
-                    self.schedule_all_stores_running_date = None
-                    try:
-                        self._save_schedule_all_stores_last_run_date()
-                    except Exception as exc:  # noqa: BLE001
-                        self.schedule_status_var.set(f"全店舗取得の記録保存に失敗しました: {exc}")
-                        return
-                    self.schedule_all_stores_status_var.set(self._schedule_all_stores_status_text())
-                else:
-                    self.schedule_all_stores_running_date = None
                 self.schedule_status_var.set(f"定期実行完了: 毎日 {self.scheduled_fetch_hour} 時")
             return
 

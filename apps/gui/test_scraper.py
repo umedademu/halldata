@@ -37,7 +37,9 @@ from main import (
     MINREPO_FETCH_MODE_STRONG,
     MinRepoApp,
     MinRepoFetchParallelOptions,
+    FetchManyResult,
     RegisteredStore,
+    StoreFetchResult,
     build_recent_date_range_input,
     filter_site7_history_result_by_saved_slots,
     filter_site7_history_result_by_saved_targets,
@@ -47,8 +49,8 @@ from main import (
     parse_recent_days,
     parse_retry_delay_seconds,
     rewrite_history_result_store,
-    scheduled_all_stores_due_date,
     scheduled_fetch_due_date,
+    scheduled_supplemental_store_limit,
     site7_schedule_due_hour,
 )
 from machine_difference import (
@@ -439,36 +441,75 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertIsNone(scheduled_fetch_due_date(9, None, now))
         self.assertIsNone(scheduled_fetch_due_date(10, "2026-04-28", now))
 
-    def test_scheduled_all_stores_due_date_uses_interval_days(self) -> None:
-        now = datetime(2026, 4, 28, 1, 5, tzinfo=timezone.utc)
+    def test_scheduled_supplemental_store_limit_divides_stores_by_interval(self) -> None:
+        self.assertEqual(scheduled_supplemental_store_limit(0, 14), 0)
+        self.assertEqual(scheduled_supplemental_store_limit(1, 14), 1)
+        self.assertEqual(scheduled_supplemental_store_limit(350, 14), 25)
+        self.assertEqual(scheduled_supplemental_store_limit(351, 14), 26)
 
-        self.assertEqual(scheduled_all_stores_due_date(7, None, now), "2026-04-28")
-        self.assertEqual(scheduled_all_stores_due_date(7, "2026-04-21", now), "2026-04-28")
-        self.assertIsNone(scheduled_all_stores_due_date(7, "2026-04-22", now))
-
-    def test_scheduled_minrepo_registered_stores_uses_all_stores_only_on_cycle_day(self) -> None:
+    def test_scheduled_minrepo_registered_stores_adds_old_supplemental_stores_after_daily_targets(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         daily_store = RegisteredStore(name="毎日店", url="https://example.com/daily/")
-        interval_store = RegisteredStore(name="間隔店", url="https://example.com/interval/")
-        stores = [daily_store, interval_store]
+        never_store = RegisteredStore(name="未取得店", url="https://example.com/never/")
+        old_site7_store = RegisteredStore(name="古いサイセ店", url="https://example.com/old-site7/", site7_enabled=True)
+        fresh_store = RegisteredStore(name="新しい店", url="https://example.com/fresh/")
+        stores = [fresh_store, never_store, daily_store, old_site7_store]
         selected_store_urls = {normalize_store_url(daily_store.url)}
 
-        self.assertEqual(
-            app._scheduled_minrepo_registered_stores(
-                stores,
-                selected_store_urls=selected_store_urls,
-                include_all_stores=False,
-            ),
-            [daily_store],
-        )
-        self.assertEqual(
-            app._scheduled_minrepo_registered_stores(
-                stores,
-                selected_store_urls=selected_store_urls,
-                include_all_stores=True,
-            ),
+        target_stores, supplemental_store_urls = app._scheduled_minrepo_registered_stores(
             stores,
+            selected_store_urls=selected_store_urls,
+            supplemental_store_last_run_dates={
+                normalize_store_url(old_site7_store.url): "2026-04-20",
+                normalize_store_url(fresh_store.url): "2026-04-27",
+            },
+            supplemental_interval_days=2,
         )
+
+        self.assertEqual(target_stores, [daily_store, never_store, old_site7_store])
+        self.assertEqual(
+            supplemental_store_urls,
+            {normalize_store_url(never_store.url), normalize_store_url(old_site7_store.url)},
+        )
+
+    def test_mark_successful_supplemental_stores_updates_only_completed_stores(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.schedule_all_stores_interval_days = 14
+        app.schedule_supplemental_store_last_run_dates = {}
+        app.schedule_all_stores_status_var = FakeTextVariable()
+        save_calls: list[str] = []
+        app._save_schedule_supplemental_store_last_run_dates = lambda: save_calls.append("saved")
+        completed_url = "https://example.com/completed/"
+        failed_url = "https://example.com/failed/"
+        fetch_many_result = FetchManyResult(
+            results=[
+                StoreFetchResult(
+                    history_result=MachineHistoryResult(
+                        store_name="完了店",
+                        store_url=completed_url,
+                        start_date="2026-04-28",
+                        end_date="2026-04-28",
+                        date_pages=[],
+                        datasets=[],
+                    ),
+                    save_summary=None,
+                    saved_full_day_summary=SavedFullDayDatesSummary(),
+                )
+            ],
+            failures=[],
+        )
+
+        app._mark_successful_supplemental_stores(
+            fetch_many_result,
+            {normalize_store_url(completed_url), normalize_store_url(failed_url)},
+            "2026-04-28",
+        )
+
+        self.assertEqual(
+            app.schedule_supplemental_store_last_run_dates,
+            {normalize_store_url(completed_url): "2026-04-28"},
+        )
+        self.assertEqual(save_calls, ["saved"])
 
     def test_site7_schedule_due_hour_runs_checked_hour_once_per_day(self) -> None:
         noon_now = datetime(2026, 4, 28, 3, 30, tzinfo=timezone.utc)
