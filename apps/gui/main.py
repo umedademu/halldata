@@ -80,7 +80,7 @@ WEB_PUBLISH_MODE_STORE = "store"
 DEFAULT_WEB_PUBLISH_INTERVAL_DAYS = 1
 DEFAULT_SCHEDULE_HOUR = 2
 DEFAULT_SCHEDULE_ALL_STORES_INTERVAL_DAYS = 14
-SITE7_SCHEDULE_HOUR_OPTIONS = tuple(range(10, 24))
+SITE7_SCHEDULE_HOUR_OPTIONS = (0, 1, *range(10, 24))
 DEFAULT_SITE7_SCHEDULE_HOURS = (12, 15, 18, 21)
 GUI_SETTINGS_FILE_NAME = "gui_settings.json"
 SITE7_BROWSER_MODE_VISIBLE = "visible"
@@ -815,7 +815,7 @@ class MinRepoApp:
         ttk.Label(site7_schedule_row, text="実行時刻").grid(row=0, column=1, sticky="w", padx=(8, 4))
         self.site7_schedule_hour_buttons: dict[int, ttk.Checkbutton] = {}
         for index, hour in enumerate(SITE7_SCHEDULE_HOUR_OPTIONS):
-            row_index = 0 if index < 7 else 1
+            row_index = index // 7
             column_index = 2 + (index % 7)
             hour_button = ttk.Checkbutton(
                 site7_schedule_row,
@@ -845,7 +845,7 @@ class MinRepoApp:
         )
 
         mode_row = ttk.Frame(site7_row)
-        mode_row.grid(row=3, column=0, columnspan=5, sticky="w", pady=(8, 0))
+        mode_row.grid(row=2, column=0, columnspan=5, sticky="w", pady=(8, 0))
         ttk.Label(mode_row, text="取得時のブラウザ").grid(row=0, column=0, sticky="w")
         self.site7_browser_visible_radio = ttk.Radiobutton(
             mode_row,

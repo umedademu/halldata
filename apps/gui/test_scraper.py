@@ -780,20 +780,20 @@ class MinRepoScraperTests(unittest.TestCase):
 
             app._save_schedule_hour(5)
             app._save_site7_browser_mode(SITE7_BROWSER_MODE_HIDDEN)
-            app._save_site7_schedule_hours((10, 12, 21))
+            app._save_site7_schedule_hours((0, 1, 12, 21))
 
             self.assertEqual(app._load_saved_schedule_hour(), 5)
             self.assertEqual(app._load_saved_site7_browser_mode(), SITE7_BROWSER_MODE_HIDDEN)
-            self.assertEqual(app._load_saved_site7_schedule_hours(), (10, 12, 21))
+            self.assertEqual(app._load_saved_site7_schedule_hours(), (0, 1, 12, 21))
 
-            app.site7_schedule_last_run_dates_by_hour = {12: "2026-04-28", 24: "2026-04-28"}
+            app.site7_schedule_last_run_dates_by_hour = {0: "2026-04-28", 1: "2026-04-28", 24: "2026-04-28"}
             app._save_site7_schedule_run_dates()
             app._save_site7_schedule_hours(())
 
             self.assertEqual(app._load_saved_schedule_hour(), 5)
             self.assertEqual(app._load_saved_site7_browser_mode(), SITE7_BROWSER_MODE_HIDDEN)
             self.assertEqual(app._load_saved_site7_schedule_hours(), ())
-            self.assertEqual(app._load_saved_site7_schedule_run_dates(), {12: "2026-04-28"})
+            self.assertEqual(app._load_saved_site7_schedule_run_dates(), {0: "2026-04-28", 1: "2026-04-28"})
 
     def test_window_close_can_choose_exit(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
