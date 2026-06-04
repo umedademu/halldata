@@ -790,40 +790,27 @@ class MinRepoApp:
         site7_row.grid(row=7, column=0, columnspan=2, sticky="ew", pady=(12, 0))
         site7_row.columnconfigure(0, weight=1)
 
-        ttk.Label(
-            site7_row,
-            text=(
-                "登録店舗タブでサイセ列にチェックを入れた店舗の対象機種を取得します。"
-                " 取得機種はサイトセブン取得機種タブで全店舗共通に選べます。"
-                f" 判定語は {'、'.join(SITE7_TARGET_MACHINE_KEYWORDS)} です。"
-                f" 直近日数は最大 {SITE7_MAX_RECENT_DAYS} 日まで使えます。"
-                " ログイン操作は常に表示で開きます。"
-            ),
-            wraplength=900,
-            justify="left",
-        ).grid(row=0, column=0, columnspan=5, sticky="w")
-
         self.site7_login_button = ttk.Button(
             site7_row,
             text="サイトセブンにログイン",
             command=self.site7_login,
         )
-        self.site7_login_button.grid(row=1, column=0, sticky="w", pady=(8, 0))
+        self.site7_login_button.grid(row=0, column=0, sticky="w")
 
         self.site7_fetch_button = ttk.Button(
             site7_row,
             text="サイトセブン取得",
             command=self.fetch_site7_data,
         )
-        self.site7_fetch_button.grid(row=1, column=1, sticky="w", padx=(8, 0), pady=(8, 0))
+        self.site7_fetch_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
 
         self.site7_cancel_button = ttk.Button(site7_row, text="中止", command=self.cancel_fetch)
-        self.site7_cancel_button.grid(row=1, column=2, sticky="w", padx=(8, 0), pady=(8, 0))
+        self.site7_cancel_button.grid(row=0, column=2, sticky="w", padx=(8, 0))
 
-        ttk.Label(site7_row, textvariable=self.site7_status_var).grid(row=1, column=3, sticky="w", padx=(12, 0), pady=(8, 0))
+        ttk.Label(site7_row, textvariable=self.site7_status_var).grid(row=0, column=3, sticky="w", padx=(12, 0))
 
         site7_schedule_row = ttk.Frame(site7_row)
-        site7_schedule_row.grid(row=2, column=0, columnspan=4, sticky="w", pady=(8, 0))
+        site7_schedule_row.grid(row=1, column=0, columnspan=4, sticky="w", pady=(8, 0))
         ttk.Label(site7_schedule_row, text="定期取得").grid(row=0, column=0, sticky="w")
         ttk.Label(site7_schedule_row, text="実行時刻").grid(row=0, column=1, sticky="w", padx=(8, 4))
         self.site7_schedule_hour_buttons: dict[int, ttk.Checkbutton] = {}
