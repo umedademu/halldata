@@ -46,6 +46,8 @@ DEFAULT_RESULTS_TABLE = "machine_daily_results"
 DEFAULT_MACHINE_SUMMARIES_TABLE = "store_machine_summaries"
 DEFAULT_MACHINE_DAILY_DETAILS_TABLE = "store_machine_daily_details"
 REGISTERED_STORES_FILE_NAME = "registered_stores.json"
+FETCH_FREQUENCY_VALUES = {"高頻度", "毎日", "低頻度", "停止"}
+FETCH_SOURCE_VALUES = {"みんレポ", "サイセ", "両方"}
 GUI_SETTINGS_FILE_NAME = "gui_settings.json"
 REGISTERED_STORE_EXCLUDED_URLS_KEY = "excluded_store_urls"
 STORE_COLUMNS = {"機種", "機種名"}
@@ -3243,6 +3245,15 @@ class HistoryPersistenceService:
                 "site7_hall_id": site7_hall_id,
                 "site7_address": site7_address,
             }
+            fetch_frequency = str(store.get("fetch_frequency", "")).strip()
+            if fetch_frequency in FETCH_FREQUENCY_VALUES:
+                normalized_store["fetch_frequency"] = fetch_frequency
+            fetch_source = str(store.get("fetch_source", "")).strip()
+            if fetch_source in FETCH_SOURCE_VALUES:
+                normalized_store["fetch_source"] = fetch_source
+            fetch_order = _normalize_positive_int_or_none(store.get("fetch_order"))
+            if fetch_order is not None:
+                normalized_store["fetch_order"] = fetch_order
             event_day_tails = _normalize_event_values(store.get("event_day_tails", []), 0, 9)
             event_month_days = _normalize_event_values(store.get("event_month_days", []), 1, 31)
             event_zoro = _coerce_bool(store.get("event_zoro", False))
@@ -3447,6 +3458,16 @@ def _coerce_bool(value: Any) -> bool:
     if text in {"0", "false", "no", "off", "f", ""}:
         return False
     return bool(text)
+
+
+def _normalize_positive_int_or_none(value: Any) -> int | None:
+    text = str(value).strip()
+    if not text:
+        return None
+    if not re.fullmatch(r"\d+", text):
+        return None
+    number = int(text)
+    return number if number > 0 else None
 
 
 def _normalize_event_values(value: Any, minimum: int, maximum: int) -> list[int]:

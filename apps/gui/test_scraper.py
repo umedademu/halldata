@@ -32,6 +32,10 @@ from data_persistence import (
 )
 from main import (
     DEFAULT_MINREPO_FETCH_MODE,
+    FETCH_FREQUENCY_DAILY,
+    FETCH_FREQUENCY_LOW,
+    FETCH_SOURCE_BOTH,
+    FETCH_SOURCE_MINREPO,
     SITE7_BROWSER_MODE_HIDDEN,
     SITE7_BROWSER_MODE_VISIBLE,
     MINREPO_FETCH_MODE_STRONG,
@@ -449,10 +453,15 @@ class MinRepoScraperTests(unittest.TestCase):
 
     def test_scheduled_minrepo_registered_stores_adds_old_supplemental_stores_after_daily_targets(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
-        daily_store = RegisteredStore(name="毎日店", url="https://example.com/daily/")
-        never_store = RegisteredStore(name="未取得店", url="https://example.com/never/")
-        old_site7_store = RegisteredStore(name="古いサイセ店", url="https://example.com/old-site7/", site7_enabled=True)
-        fresh_store = RegisteredStore(name="新しい店", url="https://example.com/fresh/")
+        daily_store = RegisteredStore(name="毎日店", url="https://example.com/daily/", fetch_frequency=FETCH_FREQUENCY_DAILY)
+        never_store = RegisteredStore(name="未取得店", url="https://example.com/never/", fetch_frequency=FETCH_FREQUENCY_LOW)
+        old_site7_store = RegisteredStore(
+            name="古いサイセ店",
+            url="https://example.com/old-site7/",
+            fetch_frequency=FETCH_FREQUENCY_LOW,
+            site7_enabled=True,
+        )
+        fresh_store = RegisteredStore(name="新しい店", url="https://example.com/fresh/", fetch_frequency=FETCH_FREQUENCY_LOW)
         stores = [fresh_store, never_store, daily_store, old_site7_store]
         selected_store_urls = {normalize_store_url(daily_store.url)}
 
@@ -1057,6 +1066,9 @@ class MinRepoScraperTests(unittest.TestCase):
     def test_validated_register_store_form_input_allows_blank_area_for_auto_fill(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.register_store_url_var = FakeTextVariable("https://example.com/store")
+        app.register_store_frequency_var = FakeTextVariable(FETCH_FREQUENCY_DAILY)
+        app.register_store_source_var = FakeTextVariable(FETCH_SOURCE_BOTH)
+        app.register_store_order_var = FakeTextVariable("")
         app.register_store_site7_enabled_var = FakeVariable(True)
         app.register_store_site7_difference_enabled_var = FakeVariable(False)
         app.register_store_prefecture_var = FakeTextVariable(DEFAULT_SITE7_PREFECTURE_NAME)
@@ -1070,7 +1082,19 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertEqual(
             result,
-            ("https://example.com/store", True, True, DEFAULT_SITE7_PREFECTURE_NAME, "", "", "", ""),
+            (
+                "https://example.com/store",
+                FETCH_FREQUENCY_DAILY,
+                FETCH_SOURCE_BOTH,
+                None,
+                True,
+                True,
+                DEFAULT_SITE7_PREFECTURE_NAME,
+                "",
+                "",
+                "",
+                "",
+            ),
         )
 
     def test_worker_register_store_auto_fills_prefecture_and_area(self) -> None:
@@ -1085,6 +1109,9 @@ class MinRepoScraperTests(unittest.TestCase):
 
         app._worker_register_store(
             "https://min-repo.com/tag/big-dipper/",
+            FETCH_FREQUENCY_DAILY,
+            FETCH_SOURCE_BOTH,
+            None,
             True,
             False,
             DEFAULT_SITE7_PREFECTURE_NAME,
@@ -1097,10 +1124,13 @@ class MinRepoScraperTests(unittest.TestCase):
         kind, payload = app.result_queue.get_nowait()
         self.assertEqual(kind, "register_store_success")
         self.assertEqual(
-            payload[:9],
+            payload[:12],
             (
                 "BIGディッパー門前仲町店",
                 "https://min-repo.com/tag/big-dipper/",
+                FETCH_FREQUENCY_DAILY,
+                FETCH_SOURCE_BOTH,
+                None,
                 True,
                 False,
                 "東京都",
@@ -1110,7 +1140,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 "",
             ),
         )
-        self.assertIsInstance(payload[9], StoreEventSettings)
+        self.assertIsInstance(payload[12], StoreEventSettings)
 
     def test_worker_update_registered_store_uses_auto_fill_but_keeps_manual_region(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -1125,6 +1155,9 @@ class MinRepoScraperTests(unittest.TestCase):
         app._worker_update_registered_store(
             "https://min-repo.com/tag/old-store/",
             "https://min-repo.com/tag/new-store/",
+            FETCH_FREQUENCY_DAILY,
+            FETCH_SOURCE_BOTH,
+            None,
             True,
             False,
             "佐賀県",
@@ -1137,11 +1170,14 @@ class MinRepoScraperTests(unittest.TestCase):
         kind, payload = app.result_queue.get_nowait()
         self.assertEqual(kind, "update_registered_store_success")
         self.assertEqual(
-            payload[:10],
+            payload[:13],
             (
                 "https://min-repo.com/tag/old-store/",
                 "ワンダーランド三潴店",
                 "https://min-repo.com/tag/new-store/",
+                FETCH_FREQUENCY_DAILY,
+                FETCH_SOURCE_BOTH,
+                None,
                 True,
                 False,
                 "佐賀県",
@@ -1151,7 +1187,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 "",
             ),
         )
-        self.assertIsInstance(payload[10], StoreEventSettings)
+        self.assertIsInstance(payload[13], StoreEventSettings)
 
     def test_update_registered_store_same_url_uses_worker_for_auto_fill(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -1161,6 +1197,9 @@ class MinRepoScraperTests(unittest.TestCase):
         app._start_worker = mock.Mock()
         app.register_store_status_var = FakeTextVariable("")
         app.register_store_url_var = FakeTextVariable("https://min-repo.com/tag/123-hakata/")
+        app.register_store_frequency_var = FakeTextVariable(FETCH_FREQUENCY_DAILY)
+        app.register_store_source_var = FakeTextVariable(FETCH_SOURCE_BOTH)
+        app.register_store_order_var = FakeTextVariable("")
         app.register_store_site7_enabled_var = FakeVariable(True)
         app.register_store_site7_difference_enabled_var = FakeVariable(False)
         app.register_store_prefecture_var = FakeTextVariable(DEFAULT_SITE7_PREFECTURE_NAME)
@@ -1175,6 +1214,9 @@ class MinRepoScraperTests(unittest.TestCase):
             app._worker_update_registered_store,
             "https://min-repo.com/tag/123-hakata/",
             "https://min-repo.com/tag/123-hakata/",
+            FETCH_FREQUENCY_DAILY,
+            FETCH_SOURCE_BOTH,
+            None,
             True,
             True,
             DEFAULT_SITE7_PREFECTURE_NAME,
