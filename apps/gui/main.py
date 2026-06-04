@@ -519,6 +519,27 @@ def filter_site7_history_result_by_saved_slots(
     )
 
 
+def strip_site7_history_result_source_differences(history_result: MachineHistoryResult) -> MachineHistoryResult:
+    stripped_datasets: list[MachineDataset] = []
+    for dataset in history_result.datasets:
+        try:
+            difference_index = dataset.columns.index("差枚")
+        except ValueError:
+            stripped_datasets.append(dataset)
+            continue
+
+        stripped_rows: list[list[str]] = []
+        for row in dataset.rows:
+            stripped_row = list(row)
+            if len(stripped_row) > difference_index:
+                stripped_row[difference_index] = "-"
+            stripped_rows.append(stripped_row)
+
+        stripped_datasets.append(replace(dataset, rows=stripped_rows))
+
+    return replace(history_result, datasets=stripped_datasets)
+
+
 @dataclass
 class RegisteredStore:
     name: str
@@ -2771,7 +2792,7 @@ class MinRepoApp:
             return protected_slots
 
         def run_site7_fetch() -> MachineHistoryResult:
-            def save_machine_result(machine_result: MachineHistoryResult) -> None:
+            def save_machine_result(machine_result: MachineHistoryResult, save_label: str = "") -> None:
                 nonlocal save_summary
                 self._raise_if_fetch_cancelled()
                 partial_result = machine_result
@@ -2780,11 +2801,18 @@ class MinRepoApp:
 
                 machine_names = sorted({dataset.machine_name for dataset in partial_result.datasets}, key=normalize_text)
                 machine_label = "、".join(machine_names) if machine_names else "機種"
+                message_label = f"{machine_label} {save_label}".strip()
                 queue_progress(
-                    FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: {machine_label} を保存中")
+                    FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: {message_label} を保存中")
                 )
                 partial_save_summary = self.persistence_service.save_history_result(partial_result)
                 save_summary = self._merge_persistence_summary(save_summary, partial_save_summary)
+
+            def save_base_machine_result(machine_result: MachineHistoryResult) -> None:
+                save_machine_result(
+                    strip_site7_history_result_source_differences(machine_result),
+                    save_label="差枚以外",
+                )
 
             try:
                 fetch_kwargs = {
@@ -2799,10 +2827,12 @@ class MinRepoApp:
                     ),
                     "target_store": target_store,
                     "cancel_requested": self.fetch_cancel_event.is_set,
+                    "machine_base_result_callback": save_base_machine_result,
                     "machine_result_callback": save_machine_result,
                     "machine_result_filter_callback": filter_machine_result_for_fetch,
                     "machine_protected_slots_callback": find_protected_slots_before_fetch,
                     "include_graph_differences": True,
+                    "defer_graph_differences": True,
                 }
                 enabled_machine_names = self._site7_enabled_machine_names_for_fetch()
                 if enabled_machine_names is not None:

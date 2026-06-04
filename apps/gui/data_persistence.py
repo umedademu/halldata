@@ -266,11 +266,19 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
 
             source_difference_value = _parse_difference_value(row_values.get("差枚", ""))
             bonus_difference_value = calculate_machine_difference_value(stored_machine_name, row_values)
-            difference_value = (
-                source_difference_value
-                if source_difference_value is not None
-                else bonus_difference_value
+            has_site7_graph_difference = (
+                data_source == DATA_SOURCE_SITE7
+                and source_difference_value is not None
+                and dataset_has_site7_graph_difference(dataset, slot_number)
             )
+            if data_source == DATA_SOURCE_SITE7:
+                difference_value = source_difference_value if has_site7_graph_difference else None
+            else:
+                difference_value = (
+                    source_difference_value
+                    if source_difference_value is not None
+                    else bonus_difference_value
+                )
             games_count = _parse_int_value(row_values.get("G数", ""))
             payout_rate = _parse_percent_value(row_values.get("出率", ""))
             bb_count = _parse_int_value(row_values.get("BB", ""))
@@ -279,11 +287,7 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
             bb_ratio_text = _parse_text_value(row_values.get("BB率", ""))
             rb_ratio_text = _parse_text_value(row_values.get("RB率", ""))
             site7_difference_source = ""
-            if (
-                data_source == DATA_SOURCE_SITE7
-                and source_difference_value is not None
-                and dataset_has_site7_graph_difference(dataset, slot_number)
-            ):
+            if has_site7_graph_difference:
                 site7_difference_source = SITE7_DIFFERENCE_SOURCE_GRAPH
             if data_source == DATA_SOURCE_SITE7 and not _site7_record_has_meaningful_data(
                 difference_value=difference_value,
@@ -366,7 +370,7 @@ def _site7_record_has_complete_fetch_data(
         return False
     if require_source_difference:
         return _site7_record_has_source_difference_value(record)
-    return _saved_value_is_filled(record.get("difference_value"))
+    return True
 
 
 def _site7_record_has_source_difference_value(record: dict[str, Any]) -> bool:

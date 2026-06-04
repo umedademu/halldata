@@ -919,10 +919,12 @@ class Site7Scraper:
         progress_callback: Callable[[FetchProgress], None] | None = None,
         target_store: Site7TargetStore | None = None,
         cancel_requested: Callable[[], bool] | None = None,
+        machine_base_result_callback: Callable[[MachineHistoryResult], None] | None = None,
         machine_result_callback: Callable[[MachineHistoryResult], None] | None = None,
         machine_result_filter_callback: Callable[[MachineHistoryResult], MachineHistoryResult] | None = None,
         machine_protected_slots_callback: Callable[[Site7MachineEntry, list[str], list[str]], set[tuple[str, str]]] | None = None,
         include_graph_differences: bool = False,
+        defer_graph_differences: bool = False,
         enabled_machine_names: set[str] | None = None,
     ) -> MachineHistoryResult:
         return self._fetch_mobile_target_machine_history(
@@ -931,10 +933,12 @@ class Site7Scraper:
             progress_callback=progress_callback,
             target_store=target_store,
             cancel_requested=cancel_requested,
+            machine_base_result_callback=machine_base_result_callback,
             machine_result_callback=machine_result_callback,
             machine_result_filter_callback=machine_result_filter_callback,
             machine_protected_slots_callback=machine_protected_slots_callback,
             include_graph_differences=include_graph_differences,
+            defer_graph_differences=defer_graph_differences,
             enabled_machine_names=enabled_machine_names,
         )
 
@@ -945,10 +949,12 @@ class Site7Scraper:
         progress_callback: Callable[[FetchProgress], None] | None = None,
         target_store: Site7TargetStore | None = None,
         cancel_requested: Callable[[], bool] | None = None,
+        machine_base_result_callback: Callable[[MachineHistoryResult], None] | None = None,
         machine_result_callback: Callable[[MachineHistoryResult], None] | None = None,
         machine_result_filter_callback: Callable[[MachineHistoryResult], MachineHistoryResult] | None = None,
         machine_protected_slots_callback: Callable[[Site7MachineEntry, list[str], list[str]], set[tuple[str, str]]] | None = None,
         include_graph_differences: bool = False,
+        defer_graph_differences: bool = False,
         enabled_machine_names: set[str] | None = None,
     ) -> MachineHistoryResult:
         resolved_target_store = enrich_site7_target_store(target_store or SITE7_DEFAULT_TARGET_STORE)
@@ -966,6 +972,7 @@ class Site7Scraper:
         playwright = None
         context = None
         machine_results: list[MachineHistoryResult] = []
+        deferred_graph_targets: list[tuple[MachineHistoryResult, str, str]] = []
         try:
             playwright, context = self._launch_mobile_browser_context(browser_visible=browser_visible)
             page = self._prepare_fetch_page(context, browser_visible=browser_visible)
@@ -1031,7 +1038,11 @@ class Site7Scraper:
                         skipped_dates=machine_result.skipped_dates,
                         skipped_targets=machine_result.skipped_targets,
                     )
-                if include_graph_differences and machine_result.datasets:
+                if machine_base_result_callback is not None:
+                    machine_base_result_callback(machine_result)
+                if include_graph_differences and defer_graph_differences:
+                    deferred_graph_targets.append((machine_result, machine_link, machine_entry.machine_name))
+                elif include_graph_differences and machine_result.datasets:
                     self._apply_mobile_graph_differences_to_machine_result(
                         page=page,
                         context=context,
@@ -1041,8 +1052,31 @@ class Site7Scraper:
                         cancel_requested=cancel_requested,
                     )
                 machine_results.append(machine_result)
-                if machine_result_callback is not None:
+                if machine_result_callback is not None and not (include_graph_differences and defer_graph_differences):
                     machine_result_callback(machine_result)
+
+            if include_graph_differences and defer_graph_differences:
+                graph_total_steps = max(total_steps, len(target_machine_items) + 2)
+                for graph_index, (machine_result, machine_link, machine_name) in enumerate(deferred_graph_targets, start=1):
+                    _raise_if_site7_cancel_requested(cancel_requested)
+                    self._notify_progress(
+                        progress_callback,
+                        len(target_machine_items) + 1,
+                        graph_total_steps,
+                        f"{resolved_target_store.display_name} / {machine_name} の差枚グラフを読んでいます"
+                        f"（{graph_index}/{len(deferred_graph_targets)}）",
+                    )
+                    if machine_result.datasets:
+                        self._apply_mobile_graph_differences_to_machine_result(
+                            page=page,
+                            context=context,
+                            machine_result=machine_result,
+                            machine_link=machine_link,
+                            progress_callback=progress_callback,
+                            cancel_requested=cancel_requested,
+                        )
+                    if machine_result_callback is not None:
+                        machine_result_callback(machine_result)
         except PlaywrightError as exc:
             self._write_debug_log("fetch_playwright_error", error=exc)
             raise self._wrap_playwright_error(exc) from exc

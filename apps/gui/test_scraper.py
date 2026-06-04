@@ -3066,12 +3066,15 @@ class MinRepoScraperTests(unittest.TestCase):
                 progress_callback: object,
                 target_store: object,
                 cancel_requested: object,
+                machine_base_result_callback: object,
                 machine_result_callback: object,
                 machine_result_filter_callback: object,
                 machine_protected_slots_callback: object,
                 include_graph_differences: bool,
+                defer_graph_differences: bool,
             ) -> MachineHistoryResult:
                 filtered_result = machine_result_filter_callback(raw_result)
+                machine_base_result_callback(filtered_result)
                 machine_result_callback(filtered_result)
                 return filtered_result
 
@@ -3117,9 +3120,10 @@ class MinRepoScraperTests(unittest.TestCase):
             browser_visible=True,
         )
 
-        self.assertEqual(len(persistence_service.saved_results), 1)
+        self.assertEqual(len(persistence_service.saved_results), 2)
         self.assertEqual(persistence_service.checked_slot_numbers, ["821", "822"])
-        self.assertEqual(persistence_service.saved_results[0].datasets[0].rows, [raw_result.datasets[0].rows[1]])
+        self.assertEqual(persistence_service.saved_results[0].datasets[0].rows[0][1], "-")
+        self.assertEqual(persistence_service.saved_results[1].datasets[0].rows, [raw_result.datasets[0].rows[1]])
         self.assertEqual(store_result.history_result.datasets[0].rows, [raw_result.datasets[0].rows[1]])
         self.assertEqual(store_result.save_summary.web_data_record_count, 1)
 
@@ -3138,10 +3142,12 @@ class MinRepoScraperTests(unittest.TestCase):
                 progress_callback: object,
                 target_store: object,
                 cancel_requested: object,
+                machine_base_result_callback: object,
                 machine_result_callback: object,
                 machine_result_filter_callback: object,
                 machine_protected_slots_callback: object,
                 include_graph_differences: bool,
+                defer_graph_differences: bool,
             ) -> MachineHistoryResult:
                 first_result = machine_protected_slots_callback(
                     Site7MachineEntry(display_name="マイジャグラーV", machine_name="マイジャグラーV"),
@@ -3359,7 +3365,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 "slot_number": "821",
                 "machine_name": "ネオアイムジャグラーEX",
                 "data_source": DATA_SOURCE_SITE7,
-                "difference_value": 843,
+                "difference_value": None,
                 "bonus_difference_value": 843,
                 "games_count": 5454,
                 "payout_rate": None,
@@ -5344,6 +5350,41 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertFalse(summary.has_errors)
             self.assertEqual(summary.protected_slots, set())
             self.assertEqual(summary.replaceable_slots, {("2026-04-24", "737")})
+
+    def test_find_saved_machine_slots_can_protect_site7_base_rows_without_difference_requirement(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service, storage = make_r2_service(Path(temp_dir))
+            seed_r2_store(
+                storage,
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                records=[
+                    {
+                        "target_date": "2026-04-24",
+                        "slot_number": "737",
+                        "machine_name": "ゴーゴージャグラー３",
+                        "data_source": DATA_SOURCE_SITE7,
+                        "difference_value": None,
+                        "bonus_difference_value": 120,
+                        "games_count": 1200,
+                        "bb_count": 6,
+                        "rb_count": 4,
+                    },
+                ],
+            )
+
+            summary = service.find_saved_machine_slots(
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                start_date="2026-04-24",
+                end_date="2026-04-24",
+                slot_numbers=["737"],
+                require_source_difference=False,
+            )
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(summary.protected_slots, {("2026-04-24", "737")})
+            self.assertEqual(summary.replaceable_slots, set())
 
     def test_find_saved_machine_slots_treats_incomplete_site7_as_replaceable(self) -> None:
         with TemporaryDirectory() as temp_dir:
