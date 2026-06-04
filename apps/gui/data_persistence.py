@@ -35,6 +35,7 @@ from web_data_export import (
     build_store_payload,
     export_registered_store_payloads,
     export_store_payloads,
+    update_index,
 )
 
 
@@ -590,7 +591,15 @@ class HistoryPersistenceService:
             snapshot_key = self._save_r2_snapshot(snapshot)
             entry = self._save_r2_web_data(snapshot)
             if full_day:
-                self._mark_full_day_saved_r2(snapshot, snapshot_key)
+                if self._snapshot_is_minrepo_only(snapshot):
+                    self._mark_full_day_saved_r2(
+                        snapshot,
+                        snapshot_key,
+                        verified_current_counts_by_date=self._full_day_saved_counts_by_date(snapshot),
+                        verified_site7_dates=set(),
+                    )
+                else:
+                    self._mark_full_day_saved_r2(snapshot, snapshot_key)
             else:
                 self._clear_full_day_saved_r2_for_snapshot_site7_dates(snapshot)
             summary.web_data_saved = True
@@ -1082,6 +1091,12 @@ class HistoryPersistenceService:
             for record in snapshot.get("records", [])
             if isinstance(record, dict) and _saved_record_should_be_kept(record)
         ]
+        if incoming_records and self._records_are_minrepo_only(incoming_records):
+            return self._save_r2_web_data_minrepo_incremental(
+                store_source=store_source,
+                incoming_records=incoming_records,
+            )
+
         existing_records = self._load_r2_store_records(
             store_name=store_source.store_name,
             store_url=store_source.store_url,
@@ -1095,6 +1110,229 @@ class HistoryPersistenceService:
             allow_missing_r2_index=False,
         )
         return entries[0] if entries else {}
+
+    def _records_are_minrepo_only(self, records: list[dict[str, Any]]) -> bool:
+        for record in records:
+            if _infer_saved_result_data_source(record) != DATA_SOURCE_MINREPO:
+                return False
+            if _record_has_site7_source(record):
+                return False
+        return True
+
+    def _snapshot_is_minrepo_only(self, snapshot: dict[str, Any]) -> bool:
+        records = [
+            record
+            for record in snapshot.get("records", [])
+            if isinstance(record, dict) and _saved_record_should_be_kept(record)
+        ]
+        return bool(records) and self._records_are_minrepo_only(records)
+
+    def _save_r2_web_data_minrepo_incremental(
+        self,
+        *,
+        store_source: StoreSource,
+        incoming_records: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        existing_store_payload = self._load_r2_store_payload(
+            store_name=store_source.store_name,
+            store_url=store_source.store_url,
+        )
+        if existing_store_payload is None:
+            store_payload = build_store_payload(store_source, incoming_records)
+            entries = export_store_payloads(
+                self.root_dir / "apps" / "web" / "public" / "halldata-static",
+                [store_payload],
+                r2_storage=self.r2_storage,
+                allow_missing_r2_index=False,
+            )
+            return entries[0] if entries else {}
+
+        incoming_records_by_machine: dict[str, list[dict[str, Any]]] = {}
+        for record in incoming_records:
+            machine_name = str(record.get("machine_name", "")).strip()
+            machine_key = normalize_machine_name_key(machine_name)
+            if not machine_key:
+                continue
+            incoming_records_by_machine.setdefault(machine_key, []).append(record)
+
+        if not incoming_records_by_machine:
+            store_id = self._r2_store_id(store_source.store_name, store_source.store_url)
+            return build_index_store_entry(existing_store_payload, self._r2_store_key(store_id))
+
+        existing_machine_summaries = [
+            machine
+            for machine in existing_store_payload.get("machines", [])
+            if isinstance(machine, dict)
+        ]
+        existing_machine_summaries_by_key = {
+            normalize_machine_name_key(str(machine.get("machineName", "")).strip()): machine
+            for machine in existing_machine_summaries
+            if normalize_machine_name_key(str(machine.get("machineName", "")).strip())
+        }
+        updated_machine_summaries_by_key: dict[str, dict[str, Any]] = {
+            machine_key: dict(machine)
+            for machine_key, machine in existing_machine_summaries_by_key.items()
+        }
+        existing_total_record_count = self._read_store_record_count(existing_store_payload)
+        replaced_record_count = 0
+        added_record_count = 0
+
+        for machine_key, machine_incoming_records in incoming_records_by_machine.items():
+            existing_summary = existing_machine_summaries_by_key.get(machine_key)
+            existing_data_file = (
+                str(existing_summary.get("dataFile", "")).strip()
+                if isinstance(existing_summary, dict)
+                else ""
+            )
+            existing_machine_records = self._load_r2_machine_records(existing_data_file)
+            replaced_record_count += len(existing_machine_records)
+            merged_machine_records = self._merge_minrepo_machine_records(
+                existing_machine_records,
+                machine_incoming_records,
+            )
+            machine_payload, machine_summary = self._build_single_machine_payload(
+                store_source,
+                merged_machine_records,
+            )
+            data_file = str(machine_summary.get("dataFile", "")).strip()
+            if not data_file:
+                continue
+            added_record_count += len(machine_payload.get("records", []))
+            self.r2_storage.write_json(data_file, machine_payload)
+            updated_machine_summaries_by_key[machine_key] = machine_summary
+
+        store_payload = self._build_incremental_store_payload(
+            store_source=store_source,
+            machine_summaries=list(updated_machine_summaries_by_key.values()),
+            record_count=max(0, existing_total_record_count - replaced_record_count + added_record_count),
+        )
+        store_id = self._r2_store_id(store_source.store_name, store_source.store_url)
+        data_file = self._r2_store_key(store_id)
+        self.r2_storage.write_json(data_file, store_payload)
+        entry = build_index_store_entry(store_payload, data_file)
+        update_index(
+            self.root_dir / "apps" / "web" / "public" / "halldata-static",
+            [entry],
+            r2_storage=self.r2_storage,
+            allow_missing_r2_index=False,
+        )
+        return entry
+
+    def _load_r2_machine_records(self, data_file: str) -> list[dict[str, Any]]:
+        if not data_file:
+            return []
+        machine_payload = self.r2_storage.read_json(data_file)
+        if not isinstance(machine_payload, dict):
+            return []
+        records = machine_payload.get("records", [])
+        if not isinstance(records, list):
+            return []
+        return [
+            record
+            for record in records
+            if isinstance(record, dict) and _saved_record_should_be_kept(record)
+        ]
+
+    def _merge_minrepo_machine_records(
+        self,
+        existing_records: list[dict[str, Any]],
+        incoming_records: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        records_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+        for record in existing_records:
+            key = self._record_replace_key(record)
+            if key is not None:
+                records_by_key[key] = record
+        for record in incoming_records:
+            key = self._record_replace_key(record)
+            if key is not None:
+                records_by_key[key] = record
+        return list(records_by_key.values())
+
+    def _build_single_machine_payload(
+        self,
+        store_source: StoreSource,
+        records: list[dict[str, Any]],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        store_payload = build_store_payload(store_source, records)
+        machine_records_by_file = store_payload.get("_machineRecordsByFile", {})
+        machines = [
+            machine
+            for machine in store_payload.get("machines", [])
+            if isinstance(machine, dict)
+        ]
+        if not machines:
+            return {}, {}
+        machine_summary = machines[0]
+        data_file = str(machine_summary.get("dataFile", "")).strip()
+        machine_payload = (
+            machine_records_by_file.get(data_file, {})
+            if isinstance(machine_records_by_file, dict)
+            else {}
+        )
+        return (
+            machine_payload if isinstance(machine_payload, dict) else {},
+            machine_summary,
+        )
+
+    def _build_incremental_store_payload(
+        self,
+        *,
+        store_source: StoreSource,
+        machine_summaries: list[dict[str, Any]],
+        record_count: int,
+    ) -> dict[str, Any]:
+        generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
+        store_id = self._r2_store_id(store_source.store_name, store_source.store_url)
+        normalized_machine_summaries = [
+            dict(machine)
+            for machine in machine_summaries
+            if str(machine.get("machineName", "")).strip()
+        ]
+        normalized_machine_summaries.sort(
+            key=lambda machine: (
+                str(machine.get("latestDate") or ""),
+                int(machine.get("slotCount") or 0),
+                str(machine.get("machineName") or ""),
+            ),
+            reverse=True,
+        )
+        latest_date = max(
+            (str(machine.get("latestDate") or "") for machine in normalized_machine_summaries),
+            default=None,
+        )
+        return {
+            "version": WEB_DATA_VERSION,
+            "generatedAt": generated_at,
+            "store": {
+                "id": store_id,
+                "legacyIds": sorted(store_source.legacy_ids),
+                "storeName": store_source.store_name,
+                "storeUrl": normalize_store_url(store_source.store_url),
+                "prefectureName": str(store_source.prefecture_name or "").strip(),
+                "areaName": str(store_source.area_name or "").strip(),
+                "eventDayTails": _normalize_event_values(store_source.event_day_tails, 0, 9),
+                "eventMonthDays": _normalize_event_values(store_source.event_month_days, 1, 31),
+                "eventZoro": bool(store_source.event_zoro),
+                "eventWeekdays": _normalize_event_values(store_source.event_weekdays, 0, 6),
+                "eventSourceText": str(store_source.event_source_text or "").strip(),
+            },
+            "summary": {
+                "machineCount": len(normalized_machine_summaries),
+                "latestDate": latest_date,
+                "recordCount": record_count,
+            },
+            "machines": normalized_machine_summaries,
+        }
+
+    def _read_store_record_count(self, store_payload: dict[str, Any]) -> int:
+        summary = store_payload.get("summary", {})
+        if not isinstance(summary, dict):
+            return 0
+        try:
+            return int(summary.get("recordCount") or 0)
+        except (TypeError, ValueError):
+            return 0
 
     def _merge_r2_records(
         self,
@@ -1204,7 +1442,14 @@ class HistoryPersistenceService:
                     records.append(record)
         return records
 
-    def _mark_full_day_saved_r2(self, snapshot: dict[str, Any], snapshot_key: str) -> None:
+    def _mark_full_day_saved_r2(
+        self,
+        snapshot: dict[str, Any],
+        snapshot_key: str,
+        *,
+        verified_current_counts_by_date: dict[str, dict[str, int]] | None = None,
+        verified_site7_dates: set[str] | None = None,
+    ) -> None:
         store = snapshot.get("store", {})
         if not isinstance(store, dict):
             return
@@ -1256,11 +1501,15 @@ class HistoryPersistenceService:
                 continue
             target_dates.append(target_date)
 
-        current_counts_by_date, current_site7_dates = self._full_day_current_saved_state_by_date(
-            store_name=store_name,
-            store_url=store_url,
-            target_dates=set(target_dates),
-        )
+        if verified_current_counts_by_date is not None and verified_site7_dates is not None:
+            current_counts_by_date = verified_current_counts_by_date
+            current_site7_dates = verified_site7_dates
+        else:
+            current_counts_by_date, current_site7_dates = self._full_day_current_saved_state_by_date(
+                store_name=store_name,
+                store_url=store_url,
+                target_dates=set(target_dates),
+            )
 
         for target_date in target_dates:
             saved_counts = saved_counts_by_date.get(target_date, {"machine_count": 0, "record_count": 0})

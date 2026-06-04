@@ -116,6 +116,7 @@ GUI_FIXTURE_DIR = Path(__file__).resolve().parent / "test_fixtures"
 class FakeR2JsonStorage:
     def __init__(self) -> None:
         self.objects: dict[str, object] = {}
+        self.read_keys: list[str] = []
         self.is_configured = True
 
     def require_config(self) -> SimpleNamespace:
@@ -123,6 +124,7 @@ class FakeR2JsonStorage:
 
     def read_json(self, key: str) -> dict[str, object] | None:
         normalized_key = self._normalize_key(key)
+        self.read_keys.append(normalized_key)
         if normalized_key not in self.objects:
             return None
         payload = self.objects.get(normalized_key)
@@ -4114,6 +4116,91 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertIsNone(summary.local_file_path)
             self.assertTrue(summary.web_data_saved)
             self.assertIn("index.json", storage.objects)
+
+    def test_minrepo_web_data_save_reads_only_target_machine_files(self) -> None:
+        store_name = "テスト店"
+        store_url = "https://min-repo.com/tag/test-store/"
+        target_machine_name = "ネオアイムジャグラーEX"
+        untouched_machine_name = "マイジャグラーV"
+
+        with TemporaryDirectory() as temp_dir:
+            service, storage = make_r2_service(Path(temp_dir))
+            seed_r2_store(
+                storage,
+                store_name=store_name,
+                store_url=store_url,
+                records=[
+                    {
+                        "target_date": "2026-06-01",
+                        "slot_number": "101",
+                        "machine_name": target_machine_name,
+                        "data_source": DATA_SOURCE_MINREPO,
+                        "difference_value": 10,
+                        "games_count": 1000,
+                        "payout_rate": 101.0,
+                        "bb_count": 4,
+                        "rb_count": 3,
+                    },
+                    {
+                        "target_date": "2026-06-01",
+                        "slot_number": "201",
+                        "machine_name": untouched_machine_name,
+                        "data_source": DATA_SOURCE_MINREPO,
+                        "difference_value": 20,
+                        "games_count": 2000,
+                        "payout_rate": 102.0,
+                        "bb_count": 8,
+                        "rb_count": 5,
+                    },
+                ],
+            )
+            store_entry = storage.read_json("index.json")["stores"][0]  # type: ignore[index]
+            store_payload = storage.read_json(store_entry["dataFile"])  # type: ignore[index]
+            machine_files = {
+                machine["machineName"]: machine["dataFile"]
+                for machine in store_payload["machines"]  # type: ignore[index]
+            }
+            target_machine_file = machine_files[target_machine_name]
+            untouched_machine_file = machine_files[untouched_machine_name]
+            untouched_before = storage.read_json(untouched_machine_file)
+            storage.read_keys.clear()
+
+            history_result = MachineHistoryResult(
+                store_name=store_name,
+                store_url=store_url,
+                start_date="2026-06-01",
+                end_date="2026-06-01",
+                date_pages=[
+                    StoreDatePage(
+                        target_date="2026-06-01",
+                        date_url=f"{store_url}2026-06-01/",
+                    )
+                ],
+                datasets=[
+                    MachineDataset(
+                        store_name=store_name,
+                        store_url=store_url,
+                        target_date="2026-06-01",
+                        date_url=f"{store_url}2026-06-01/",
+                        machine_name=target_machine_name,
+                        machine_url=f"{store_url}?kishu=aim",
+                        columns=["台番", "差枚", "G数", "BB", "RB", "出率"],
+                        rows=[["101", "100", "1200", "5", "4", "103.0"]],
+                    )
+                ],
+            )
+
+            summary = service.save_history_result(history_result, full_day=True)
+            save_read_keys = list(storage.read_keys)
+            target_after = storage.read_json(target_machine_file)
+            untouched_after = storage.read_json(untouched_machine_file)
+
+            self.assertFalse(summary.has_errors)
+            self.assertTrue(summary.web_data_saved)
+            self.assertIn(target_machine_file, save_read_keys)
+            self.assertNotIn(untouched_machine_file, save_read_keys)
+            self.assertEqual(untouched_after, untouched_before)
+            self.assertEqual(target_after["records"][0]["difference_value"], 100)  # type: ignore[index]
 
     def test_save_history_result_does_not_recreate_missing_r2_index_from_single_store(self) -> None:
         scraper = FixtureScraper()
