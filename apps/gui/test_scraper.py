@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 import json
 import queue
@@ -1277,11 +1278,13 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertIsNone(app.site7_schedule_startup_prompt_hour)
         app._start_scheduled_site7_fetch.assert_called_once_with(12)
 
-    def test_update_button_states_enables_site7_cancel_button_while_site7_fetching(self) -> None:
+    def test_update_button_states_separates_site7_and_minrepo_fetch_buttons(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.current_history_result = None
         app.skip_comparison_display_var = FakeVariable(False)
         app.fetch_cancel_event = threading.Event()
+        app.minrepo_cancel_event = threading.Event()
+        app.site7_cancel_event = threading.Event()
         app.is_busy = True
         app.active_operation_kind = "site7_fetch"
         app.registered_store_tree = FakeTreeview()
@@ -1335,10 +1338,50 @@ class MinRepoScraperTests(unittest.TestCase):
 
         app._update_button_states()
 
-        self.assertEqual(app.cancel_fetch_button.state, "normal")
+        self.assertEqual(app.fetch_button.state, "normal")
+        self.assertEqual(app.cancel_fetch_button.state, "disabled")
         self.assertEqual(app.site7_fetch_button.state, "disabled")
         self.assertEqual(app.site7_cancel_button.state, "normal")
         self.assertTrue(all(widget.state == "disabled" for widget in app.site7_schedule_hour_buttons.values()))
+
+    def test_fetch_start_blocking_allows_minrepo_and_site7_to_run_together(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.is_busy = True
+        app.active_operation_kind = "site7_fetch"
+
+        self.assertFalse(app._minrepo_start_blocked())
+        self.assertTrue(app._site7_start_blocked())
+
+        app.active_operation_kind = "fetch"
+
+        self.assertTrue(app._minrepo_start_blocked())
+        self.assertFalse(app._site7_start_blocked())
+
+    def test_run_with_persistence_lock_serializes_actions(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.persistence_lock = threading.Lock()
+        events: list[str] = []
+
+        def locked_action(label: str) -> str:
+            def action() -> str:
+                events.append(f"{label}:start")
+                time.sleep(0.01)
+                events.append(f"{label}:end")
+                return label
+
+            return app._run_with_persistence_lock(action)
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(locked_action, ["a", "b"]))
+
+        self.assertEqual(sorted(results), ["a", "b"])
+        self.assertIn(
+            events,
+            [
+                ["a:start", "a:end", "b:start", "b:end"],
+                ["b:start", "b:end", "a:start", "a:end"],
+            ],
+        )
 
     def test_run_with_fetch_retries_retries_three_times(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)

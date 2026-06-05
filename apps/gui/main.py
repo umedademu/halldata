@@ -726,6 +726,26 @@ class FetchCancelled(Exception):
     pass
 
 
+MINREPO_OPERATION_KINDS = {"fetch", "scheduled_fetch", "minrepo_priority_watch"}
+SITE7_OPERATION_KINDS = {"site7_fetch", "scheduled_site7_fetch"}
+FETCH_OPERATION_KINDS = MINREPO_OPERATION_KINDS | SITE7_OPERATION_KINDS
+
+
+class OperationResultQueue(queue.Queue):
+    def __init__(self, operation_id_getter: Callable[[], int | None]) -> None:
+        super().__init__()
+        self.operation_id_getter = operation_id_getter
+        self.last_operation_id: int | None = None
+
+    def put(self, item: object, block: bool = True, timeout: float | None = None) -> None:  # type: ignore[override]
+        super().put((self.operation_id_getter(), item), block=block, timeout=timeout)
+
+    def get_nowait(self) -> object:  # type: ignore[override]
+        operation_id, item = super().get_nowait()
+        self.last_operation_id = operation_id
+        return item
+
+
 @dataclass
 class StoreFetchResult:
     history_result: MachineHistoryResult
@@ -814,7 +834,14 @@ class MinRepoApp:
         self.scraper = MinRepoScraper()
         self.persistence_service = HistoryPersistenceService()
         self.site7_scraper = Site7Scraper(self.persistence_service.root_dir)
-        self.result_queue: queue.Queue[tuple[str, object]] = queue.Queue()
+        self._worker_context = threading.local()
+        self._next_operation_id = 1
+        self.active_operations: dict[int, str] = {}
+        self.result_queue: queue.Queue[tuple[str, object]] = OperationResultQueue(
+            lambda: getattr(self._worker_context, "operation_id", None)
+        )
+        self.result_polling_active = False
+        self.persistence_lock = threading.Lock()
         self.current_results: list[MachineDataset] = []
         self.current_history_result: MachineHistoryResult | None = None
         self.startup_store_warning: str | None = None
@@ -822,7 +849,9 @@ class MinRepoApp:
         self.selected_store_urls: set[str] = self._load_saved_selected_store_urls(self.registered_stores)
         self.is_busy = False
         self.active_operation_kind = ""
-        self.fetch_cancel_event = threading.Event()
+        self.minrepo_cancel_event = threading.Event()
+        self.site7_cancel_event = threading.Event()
+        self.fetch_cancel_event = self.minrepo_cancel_event
         self.scheduled_fetch_hour: int | None = self._load_saved_schedule_hour()
         self.schedule_all_stores_interval_days = self._load_saved_schedule_all_stores_interval_days()
         self.schedule_supplemental_store_last_run_dates = self._load_saved_schedule_supplemental_store_last_run_dates()
@@ -1069,7 +1098,7 @@ class MinRepoApp:
         )
         self.site7_fetch_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
 
-        self.site7_cancel_button = ttk.Button(site7_row, text="中止", command=self.cancel_fetch)
+        self.site7_cancel_button = ttk.Button(site7_row, text="中止", command=self.cancel_site7_fetch)
         self.site7_cancel_button.grid(row=0, column=2, sticky="w", padx=(8, 0))
 
         ttk.Label(site7_row, textvariable=self.site7_status_var).grid(row=0, column=3, sticky="w", padx=(12, 0))
@@ -1158,7 +1187,7 @@ class MinRepoApp:
             self.site7_status_var.set("保存済みのログイン情報あり")
             return
 
-        if self.is_busy:
+        if self._has_active_operations():
             self.root.after(30_000, self._prompt_site7_login_on_startup_if_needed)
             return
 
@@ -1178,7 +1207,7 @@ class MinRepoApp:
         if prompt_date is None:
             return
 
-        if self.is_busy:
+        if self._minrepo_start_blocked():
             self.root.after(1_000, self._prompt_scheduled_fetch_on_startup_if_needed)
             return
 
@@ -1212,7 +1241,7 @@ class MinRepoApp:
         if prompt_hour is None:
             return
 
-        if self.is_busy:
+        if self._site7_start_blocked():
             self.root.after(1_000, self._prompt_scheduled_site7_fetch_on_startup_if_needed)
             return
 
@@ -1245,7 +1274,7 @@ class MinRepoApp:
         self._start_scheduled_site7_fetch(prompt_hour)
 
     def site7_login(self) -> None:
-        if self.is_busy:
+        if self._has_active_operations():
             return
 
         messagebox.showinfo(
@@ -1655,7 +1684,7 @@ class MinRepoApp:
             return
 
         if self.minrepo_priority_watch_pending:
-            if self.is_busy:
+            if self._minrepo_start_blocked():
                 self.schedule_status_var.set(f"{target_date} の取得順店舗みんレポ確認を待機中")
                 return
             self._start_minrepo_priority_watch(current_time, target_date)
@@ -1664,7 +1693,7 @@ class MinRepoApp:
         if self.minrepo_priority_watch_next_check_at is not None and current_time < self.minrepo_priority_watch_next_check_at:
             return
 
-        if self.is_busy:
+        if self._minrepo_start_blocked():
             self.minrepo_priority_watch_pending = True
             self.schedule_status_var.set(f"{target_date} の取得順店舗みんレポ確認を待機中")
             return
@@ -1691,7 +1720,7 @@ class MinRepoApp:
             summary_message=f"取得順店舗の {target_date} を確認中",
         )
         self.schedule_status_var.set(f"{target_date} の取得順店舗みんレポ確認中")
-        self.fetch_cancel_event.clear()
+        self.minrepo_cancel_event.clear()
         self._start_worker(
             self._worker_minrepo_priority_watch,
             target_date,
@@ -1710,7 +1739,7 @@ class MinRepoApp:
             now,
         )
         if self.scheduled_pending_date is not None:
-            if self.is_busy:
+            if self._minrepo_start_blocked():
                 self.schedule_status_var.set(f"{self.scheduled_pending_date} の定期実行を待機中")
                 return
             self.scheduled_last_run_date = self.scheduled_pending_date
@@ -1725,7 +1754,7 @@ class MinRepoApp:
             self.schedule_status_var.set(f"本日 {self.scheduled_fetch_hour} 時の定期実行を確認待ち")
             return
 
-        if self.is_busy:
+        if self._minrepo_start_blocked():
             self.scheduled_pending_date = due_date
             self.schedule_status_var.set(f"本日 {self.scheduled_fetch_hour} 時の定期実行を待機中")
             return
@@ -1880,7 +1909,7 @@ class MinRepoApp:
         self.status_var.set("定期実行中...")
         self.summary_var.set("登録店舗を更新してから毎日店舗と低頻度店舗を取得します")
         self.schedule_status_var.set("定期実行中")
-        self.fetch_cancel_event.clear()
+        self.minrepo_cancel_event.clear()
         self._start_worker(
             self._worker_scheduled_fetch,
             target_date_input,
@@ -1901,7 +1930,7 @@ class MinRepoApp:
 
         recheck_request = self._scheduled_site7_recheck_due_request(now)
         if recheck_request is not None:
-            if self.is_busy:
+            if self._site7_start_blocked():
                 self.site7_schedule_status_var.set(
                     f"{recheck_request.scheduled_hour}時台のサイトセブン更新再確認を待機中"
                 )
@@ -1933,7 +1962,7 @@ class MinRepoApp:
         if not self.site7_schedule_pending_hours:
             return
 
-        if self.is_busy:
+        if self._site7_start_blocked():
             pending_hours_text = "、".join(f"{hour}時台" for hour in sorted(self.site7_schedule_pending_hours))
             self.site7_schedule_status_var.set(f"{pending_hours_text}のサイトセブン定期実行を待機中")
             return
@@ -1978,7 +2007,7 @@ class MinRepoApp:
         self.status_var.set("サイトセブン定期実行中...")
         self.summary_var.set("登録店舗を更新してからサイトセブン取得します")
         self.site7_schedule_status_var.set("サイトセブン定期実行中")
-        self.fetch_cancel_event.clear()
+        self.site7_cancel_event.clear()
         browser_visible = self._site7_browser_visible()
         self._start_worker(
             self._worker_scheduled_site7_fetch,
@@ -2444,7 +2473,7 @@ class MinRepoApp:
         return FETCH_SOURCE_BOTH if bool(store.get("site7_enabled", False)) else FETCH_SOURCE_MINREPO
 
     def refresh_registered_stores(self) -> None:
-        if self.is_busy:
+        if self._has_active_operations():
             return
 
         self.register_store_status_var.set("登録店舗を更新中...")
@@ -2458,7 +2487,7 @@ class MinRepoApp:
             self.result_queue.put(("refresh_registered_stores_error", exc))
 
     def delete_registered_stores(self) -> None:
-        if self.is_busy:
+        if self._has_active_operations():
             return
 
         target_stores = self._selected_registered_store_rows()
@@ -2641,7 +2670,7 @@ class MinRepoApp:
                 updated_at = self.site7_scraper.fetch_mobile_hall_updated_datetime(
                     target_store=registered_store.to_site7_target_store(),
                     browser_visible=browser_visible,
-                    cancel_requested=self.fetch_cancel_event.is_set,
+                    cancel_requested=self._cancel_requested,
                 )
             except Site7FetchCancelled as exc:
                 raise FetchCancelled from exc
@@ -2911,6 +2940,9 @@ class MinRepoApp:
             self.result_queue.put(("update_registered_store_error", exc))
 
     def fetch_site7_data(self) -> None:
+        if self._site7_start_blocked():
+            return
+
         try:
             recent_days = parse_recent_days(self.target_date_var.get())
             retry_delay_seconds = self._retry_delay_seconds_input()
@@ -2967,7 +2999,7 @@ class MinRepoApp:
         )
 
     def fetch_registered_store_site7_data(self, registered_store: RegisteredStore) -> None:
-        if self.is_busy:
+        if self._site7_start_blocked():
             return
 
         try:
@@ -3066,7 +3098,7 @@ class MinRepoApp:
         cancelled = False
 
         for store_index, registered_store in enumerate(target_stores, start=1):
-            if self.fetch_cancel_event.is_set():
+            if self._cancel_requested():
                 cancelled = True
                 break
 
@@ -3114,7 +3146,7 @@ class MinRepoApp:
                     total_stores=total_stores,
                 )
 
-        if self.fetch_cancel_event.is_set():
+        if self._cancel_requested():
             cancelled = True
 
         if not results and failures:
@@ -3328,7 +3360,9 @@ class MinRepoApp:
                 queue_progress(
                     FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: {message_label} を保存中")
                 )
-                partial_save_summary = self.persistence_service.save_history_result(partial_result)
+                partial_save_summary = self._run_with_persistence_lock(
+                    lambda: self.persistence_service.save_history_result(partial_result)
+                )
                 save_summary = self._merge_persistence_summary(save_summary, partial_save_summary)
 
             def save_base_machine_result(machine_result: MachineHistoryResult) -> None:
@@ -3349,7 +3383,7 @@ class MinRepoApp:
                         )
                     ),
                     "target_store": target_store,
-                    "cancel_requested": self.fetch_cancel_event.is_set,
+                    "cancel_requested": self._cancel_requested,
                     "machine_base_result_callback": save_base_machine_result,
                     "machine_result_callback": save_machine_result,
                     "machine_result_filter_callback": filter_machine_result_for_fetch,
@@ -3389,7 +3423,9 @@ class MinRepoApp:
         self._raise_if_fetch_cancelled()
         if history_result.datasets and save_summary is None:
             queue_progress(FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: 保存中"))
-            save_summary = self.persistence_service.save_history_result(history_result)
+            save_summary = self._run_with_persistence_lock(
+                lambda: self.persistence_service.save_history_result(history_result)
+            )
         return StoreFetchResult(
             history_result=history_result,
             save_summary=save_summary,
@@ -3431,6 +3467,90 @@ class MinRepoApp:
 
         return history_result, SavedFullDayDatesSummary(messages=warning_messages)
 
+    def _ensure_operation_tracking(self) -> None:
+        if not hasattr(self, "_worker_context"):
+            self._worker_context = threading.local()
+        if not hasattr(self, "_next_operation_id"):
+            self._next_operation_id = 1
+        if not hasattr(self, "active_operations"):
+            self.active_operations = {}
+        if not hasattr(self, "active_operation_kind"):
+            self.active_operation_kind = ""
+        if not hasattr(self, "is_busy"):
+            self.is_busy = False
+        if not hasattr(self, "result_polling_active"):
+            self.result_polling_active = False
+        if not hasattr(self, "minrepo_cancel_event"):
+            self.minrepo_cancel_event = getattr(self, "fetch_cancel_event", threading.Event())
+        if not hasattr(self, "site7_cancel_event"):
+            self.site7_cancel_event = threading.Event()
+        if not hasattr(self, "fetch_cancel_event"):
+            self.fetch_cancel_event = self.minrepo_cancel_event
+        if not hasattr(self, "persistence_lock"):
+            self.persistence_lock = threading.Lock()
+
+    def _operation_kind_for_result(self, operation_id: int | None) -> str:
+        self._ensure_operation_tracking()
+        if operation_id is not None:
+            operation_kind = self.active_operations.get(operation_id)
+            if operation_kind:
+                return operation_kind
+        return self.active_operation_kind
+
+    def _refresh_busy_state(self) -> None:
+        self._ensure_operation_tracking()
+        active_kinds = list(self.active_operations.values())
+        self.is_busy = bool(active_kinds)
+        if not active_kinds:
+            self.active_operation_kind = ""
+        elif len(active_kinds) == 1:
+            self.active_operation_kind = active_kinds[0]
+        else:
+            self.active_operation_kind = "multiple"
+
+    def _has_active_operations(self) -> bool:
+        self._ensure_operation_tracking()
+        return bool(self.active_operations) or bool(getattr(self, "is_busy", False))
+
+    def _is_operation_kind_running(self, operation_kinds: set[str]) -> bool:
+        self._ensure_operation_tracking()
+        if any(operation_kind in operation_kinds for operation_kind in self.active_operations.values()):
+            return True
+        return self.active_operation_kind in operation_kinds
+
+    def _is_minrepo_busy(self) -> bool:
+        return self._is_operation_kind_running(MINREPO_OPERATION_KINDS)
+
+    def _is_site7_busy(self) -> bool:
+        return self._is_operation_kind_running(SITE7_OPERATION_KINDS)
+
+    def _is_general_busy(self) -> bool:
+        self._ensure_operation_tracking()
+        if self.active_operations:
+            return any(operation_kind not in FETCH_OPERATION_KINDS for operation_kind in self.active_operations.values())
+        return bool(self.is_busy and self.active_operation_kind not in FETCH_OPERATION_KINDS)
+
+    def _minrepo_start_blocked(self) -> bool:
+        return self._is_minrepo_busy() or self._is_general_busy()
+
+    def _site7_start_blocked(self) -> bool:
+        return self._is_site7_busy() or self._is_general_busy()
+
+    def _operation_cancel_event(self, operation_kind: str | None = None) -> threading.Event:
+        self._ensure_operation_tracking()
+        selected_kind = operation_kind or getattr(self._worker_context, "operation_kind", self.active_operation_kind)
+        if selected_kind in SITE7_OPERATION_KINDS:
+            return self.site7_cancel_event
+        return self.minrepo_cancel_event
+
+    def _cancel_requested(self) -> bool:
+        return self._operation_cancel_event().is_set()
+
+    def _run_with_persistence_lock(self, action: Callable[[], T]) -> T:
+        self._ensure_operation_tracking()
+        with self.persistence_lock:
+            return action()
+
     def _begin_fetch_run(self, *, progress_message: str, status_message: str, summary_message: str) -> None:
         self.current_results = []
         self.current_history_result = None
@@ -3438,9 +3558,11 @@ class MinRepoApp:
         self._begin_fetch_progress(progress_message)
         self.status_var.set(status_message)
         self.summary_var.set(summary_message)
-        self.fetch_cancel_event.clear()
 
     def fetch_data(self) -> None:
+        if self._minrepo_start_blocked():
+            return
+
         try:
             target_date_input = self._target_date_input_from_recent_days()
             retry_delay_seconds = self._retry_delay_seconds_input()
@@ -3471,7 +3593,7 @@ class MinRepoApp:
         )
 
     def fetch_registered_store_data(self, registered_store: RegisteredStore) -> None:
-        if self.is_busy:
+        if self._minrepo_start_blocked():
             return
 
         try:
@@ -3500,31 +3622,49 @@ class MinRepoApp:
         )
 
     def cancel_fetch(self) -> None:
-        if not self.is_busy or self.active_operation_kind not in {
-            "fetch",
-            "scheduled_fetch",
-            "minrepo_priority_watch",
-            "site7_fetch",
-            "scheduled_site7_fetch",
-        }:
+        if not self._is_minrepo_busy() or self.minrepo_cancel_event.is_set():
             return
 
-        self.fetch_cancel_event.set()
+        self.minrepo_cancel_event.set()
         self.status_var.set("中止中...")
-        self._set_fetch_progress_text("現在の処理が区切れたら中止します")
+        self._set_fetch_progress_text("みんレポ取得は現在の処理が区切れたら中止します")
+        self._update_button_states()
+
+    def cancel_site7_fetch(self) -> None:
+        if not self._is_site7_busy() or self.site7_cancel_event.is_set():
+            return
+
+        self.site7_cancel_event.set()
+        self.status_var.set("中止中...")
+        self._set_fetch_progress_text("サイトセブン取得は現在の処理が区切れたら中止します")
         self._update_button_states()
 
     def _start_worker(self, target: object, *args: object, operation_kind: str = "general") -> None:
-        self.is_busy = True
-        self.active_operation_kind = operation_kind
+        self._ensure_operation_tracking()
+        operation_id = self._next_operation_id
+        self._next_operation_id += 1
+        self.active_operations[operation_id] = operation_kind
+        self._operation_cancel_event(operation_kind).clear()
+        self._refresh_busy_state()
         self._update_button_states()
 
-        worker = threading.Thread(target=target, args=args, daemon=True)
+        def run_worker() -> None:
+            self._worker_context.operation_id = operation_id
+            self._worker_context.operation_kind = operation_kind
+            try:
+                target(*args)
+            finally:
+                self._worker_context.operation_id = None
+                self._worker_context.operation_kind = None
+
+        worker = threading.Thread(target=run_worker, daemon=True)
         worker.start()
-        self.root.after(100, self._poll_queue)
+        if not self.result_polling_active:
+            self.result_polling_active = True
+            self.root.after(100, self._poll_queue)
 
     def _raise_if_fetch_cancelled(self) -> None:
-        if self.fetch_cancel_event.is_set():
+        if self._cancel_requested():
             raise FetchCancelled
 
     def _run_with_fetch_retries(
@@ -3545,7 +3685,7 @@ class MinRepoApp:
 
                 retry_number = failed_count + 1
                 retry_status_callback(retry_number, MAX_FETCH_RETRY_COUNT, retry_delay_seconds)
-                if retry_delay_seconds > 0 and self.fetch_cancel_event.wait(retry_delay_seconds):
+                if retry_delay_seconds > 0 and self._operation_cancel_event().wait(retry_delay_seconds):
                     raise FetchCancelled
 
         raise ScraperError("取得の再試行に失敗しました。")
@@ -3697,7 +3837,7 @@ class MinRepoApp:
         cancelled = False
 
         for store_index, registered_store in enumerate(target_stores, start=1):
-            if self.fetch_cancel_event.is_set():
+            if self._cancel_requested():
                 cancelled = True
                 break
 
@@ -3729,7 +3869,7 @@ class MinRepoApp:
                     total_stores=total_stores,
                 )
 
-        if self.fetch_cancel_event.is_set():
+        if self._cancel_requested():
             cancelled = True
 
         if not results and failures:
@@ -4149,7 +4289,9 @@ class MinRepoApp:
 
             step_callback(f"{label}のR2保存とWeb更新中")
             batch_checkpoint_paths = take_checkpoint_paths_for_publish_result(publish_result)
-            batch_save_summary = self.persistence_service.save_history_result(publish_result, full_day=True)
+            batch_save_summary = self._run_with_persistence_lock(
+                lambda: self.persistence_service.save_history_result(publish_result, full_day=True)
+            )
             if batch_save_summary.web_data_saved:
                 delete_summary = self.persistence_service.delete_local_checkpoint_files(batch_checkpoint_paths)
                 batch_save_summary.messages.extend(delete_summary.messages)
@@ -4174,7 +4316,7 @@ class MinRepoApp:
 
         if date_parallel_workers <= 1:
             for date_index, date_page in enumerate(pending_date_pages, start=1):
-                if self.fetch_cancel_event.is_set():
+                if self._cancel_requested():
                     if day_results_by_date or save_summary is not None:
                         break
                     raise FetchCancelled
@@ -4197,7 +4339,7 @@ class MinRepoApp:
                         future.cancel()
                     raise
 
-        if publish_batch_results and not self.fetch_cancel_event.is_set():
+        if publish_batch_results and not self._cancel_requested():
             if web_publish_options.mode == WEB_PUBLISH_MODE_STORE:
                 publish_batch("店舗完了分")
             else:
@@ -4232,23 +4374,41 @@ class MinRepoApp:
         try:
             kind, payload = self.result_queue.get_nowait()
         except queue.Empty:
-            if self.is_busy:
+            if self._has_active_operations():
                 self.root.after(100, self._poll_queue)
+            else:
+                self.result_polling_active = False
             return
 
+        operation_id = getattr(self.result_queue, "last_operation_id", None)
         if kind == "fetch_progress":
             if isinstance(payload, FetchProgress):
                 self._apply_fetch_progress(payload)
-            if self.is_busy:
+            if self._has_active_operations():
                 self.root.after(100, self._poll_queue)
+            else:
+                self.result_polling_active = False
             return
 
-        operation_kind = self.active_operation_kind
-        self.is_busy = False
-        self.active_operation_kind = ""
-        if operation_kind in {"fetch", "scheduled_fetch", "minrepo_priority_watch", "site7_fetch", "scheduled_site7_fetch"}:
-            self.fetch_cancel_event.clear()
+        operation_kind = self._operation_kind_for_result(operation_id)
+        if operation_id is not None:
+            self.active_operations.pop(operation_id, None)
+        else:
+            self.active_operations = {
+                active_operation_id: active_operation_kind
+                for active_operation_id, active_operation_kind in self.active_operations.items()
+                if active_operation_kind != operation_kind
+            }
+        self._refresh_busy_state()
+        if operation_kind in MINREPO_OPERATION_KINDS and not self._is_minrepo_busy():
+            self.minrepo_cancel_event.clear()
+        if operation_kind in SITE7_OPERATION_KINDS and not self._is_site7_busy():
+            self.site7_cancel_event.clear()
         self._update_button_states()
+        if self._has_active_operations():
+            self.root.after(100, self._poll_queue)
+        else:
+            self.result_polling_active = False
 
         if kind == "site7_login_error":
             self.site7_status_var.set("ログイン未完了")
@@ -5629,8 +5789,10 @@ class MinRepoApp:
             return
 
         try:
-            entry = self.persistence_service.refresh_web_data_for_store(
-                store_result.history_result.store_name,
+            entry = self._run_with_persistence_lock(
+                lambda: self.persistence_service.refresh_web_data_for_store(
+                    store_result.history_result.store_name,
+                )
             )
         except Exception as exc:  # noqa: BLE001
             save_summary.messages.append(f"Web表示用データの生成に失敗しました。\n{exc}")
@@ -5744,77 +5906,79 @@ class MinRepoApp:
             and len(self.registered_store_tree.selection()) == 1
         )
 
-        self.fetch_button.configure(state="disabled" if self.is_busy else "normal")
+        minrepo_busy = self._is_minrepo_busy()
+        site7_busy = self._is_site7_busy()
+        general_busy = self._is_general_busy()
+        any_busy = self._has_active_operations()
+
+        self.fetch_button.configure(state="disabled" if minrepo_busy or general_busy else "normal")
         can_cancel_fetch = (
-            self.is_busy
-            and self.active_operation_kind
-            in {"fetch", "scheduled_fetch", "minrepo_priority_watch", "site7_fetch", "scheduled_site7_fetch"}
-            and not self.fetch_cancel_event.is_set()
+            minrepo_busy
+            and not self.minrepo_cancel_event.is_set()
         )
         self.cancel_fetch_button.configure(state="normal" if can_cancel_fetch else "disabled")
-        self.target_date_entry.configure(state="disabled" if self.is_busy else "normal")
-        self.retry_delay_entry.configure(state="disabled" if self.is_busy else "normal")
+        self.target_date_entry.configure(state="disabled" if any_busy else "normal")
+        self.retry_delay_entry.configure(state="disabled" if any_busy else "normal")
         if hasattr(self, "minrepo_fetch_mode_selector"):
-            self.minrepo_fetch_mode_selector.configure(state="disabled" if self.is_busy else "readonly")
+            self.minrepo_fetch_mode_selector.configure(state="disabled" if any_busy else "readonly")
         web_publish_days_selected = normalize_web_publish_mode(self.web_publish_mode_var.get()) == WEB_PUBLISH_MODE_DAYS
-        self.web_publish_days_radio.configure(state="disabled" if self.is_busy else "normal")
-        self.web_publish_store_radio.configure(state="disabled" if self.is_busy else "normal")
+        self.web_publish_days_radio.configure(state="disabled" if any_busy else "normal")
+        self.web_publish_store_radio.configure(state="disabled" if any_busy else "normal")
         self.web_publish_interval_days_entry.configure(
-            state="normal" if not self.is_busy and web_publish_days_selected else "disabled"
+            state="normal" if not any_busy and web_publish_days_selected else "disabled"
         )
-        self.schedule_hour_entry.configure(state="disabled" if self.is_busy else "normal")
-        self.apply_schedule_button.configure(state="disabled" if self.is_busy else "normal")
-        self.clear_schedule_button.configure(state="disabled" if self.is_busy else "normal")
-        self.schedule_all_stores_interval_days_entry.configure(state="disabled" if self.is_busy else "normal")
-        self.apply_schedule_all_stores_button.configure(state="disabled" if self.is_busy else "normal")
-        self.notify_fetch_complete_button.configure(state="disabled" if self.is_busy else "normal")
-        self.site7_login_button.configure(state="disabled" if self.is_busy else "normal")
-        self.site7_fetch_button.configure(state="disabled" if self.is_busy else "normal")
+        self.schedule_hour_entry.configure(state="disabled" if any_busy else "normal")
+        self.apply_schedule_button.configure(state="disabled" if any_busy else "normal")
+        self.clear_schedule_button.configure(state="disabled" if any_busy else "normal")
+        self.schedule_all_stores_interval_days_entry.configure(state="disabled" if any_busy else "normal")
+        self.apply_schedule_all_stores_button.configure(state="disabled" if any_busy else "normal")
+        self.notify_fetch_complete_button.configure(state="disabled" if any_busy else "normal")
+        self.site7_login_button.configure(state="disabled" if any_busy else "normal")
+        self.site7_fetch_button.configure(state="disabled" if site7_busy or general_busy else "normal")
         can_cancel_site7_fetch = (
-            self.is_busy
-            and self.active_operation_kind in {"site7_fetch", "scheduled_site7_fetch"}
-            and not self.fetch_cancel_event.is_set()
+            site7_busy
+            and not self.site7_cancel_event.is_set()
         )
         self.site7_cancel_button.configure(state="normal" if can_cancel_site7_fetch else "disabled")
         for hour_button in self.site7_schedule_hour_buttons.values():
-            hour_button.configure(state="disabled" if self.is_busy else "normal")
-        self.apply_site7_schedule_button.configure(state="disabled" if self.is_busy else "normal")
-        self.clear_site7_schedule_button.configure(state="disabled" if self.is_busy else "normal")
-        self.site7_browser_visible_radio.configure(state="disabled" if self.is_busy else "normal")
-        self.site7_browser_hidden_radio.configure(state="disabled" if self.is_busy else "normal")
+            hour_button.configure(state="disabled" if any_busy else "normal")
+        self.apply_site7_schedule_button.configure(state="disabled" if any_busy else "normal")
+        self.clear_site7_schedule_button.configure(state="disabled" if any_busy else "normal")
+        self.site7_browser_visible_radio.configure(state="disabled" if any_busy else "normal")
+        self.site7_browser_hidden_radio.configure(state="disabled" if any_busy else "normal")
         if hasattr(self, "site7_machine_checkbuttons"):
             for checkbutton in self.site7_machine_checkbuttons.values():
-                checkbutton.configure(state="disabled" if self.is_busy else "normal")
+                checkbutton.configure(state="disabled" if any_busy else "normal")
         if hasattr(self, "select_all_site7_machines_button"):
-            self.select_all_site7_machines_button.configure(state="disabled" if self.is_busy else "normal")
+            self.select_all_site7_machines_button.configure(state="disabled" if any_busy else "normal")
         if hasattr(self, "clear_site7_machines_button"):
-            self.clear_site7_machines_button.configure(state="disabled" if self.is_busy else "normal")
-        self.register_store_button.configure(state="disabled" if self.is_busy else "normal")
-        self.register_store_url_entry.configure(state="disabled" if self.is_busy else "normal")
+            self.clear_site7_machines_button.configure(state="disabled" if any_busy else "normal")
+        self.register_store_button.configure(state="disabled" if any_busy else "normal")
+        self.register_store_url_entry.configure(state="disabled" if any_busy else "normal")
         if hasattr(self, "register_store_frequency_selector"):
-            self.register_store_frequency_selector.configure(state="disabled" if self.is_busy else "readonly")
+            self.register_store_frequency_selector.configure(state="disabled" if any_busy else "readonly")
         if hasattr(self, "register_store_source_selector"):
-            self.register_store_source_selector.configure(state="disabled" if self.is_busy else "readonly")
+            self.register_store_source_selector.configure(state="disabled" if any_busy else "readonly")
         if hasattr(self, "register_store_order_entry"):
-            self.register_store_order_entry.configure(state="disabled" if self.is_busy else "normal")
-        self.register_store_prefecture_entry.configure(state="disabled" if self.is_busy else "normal")
-        self.register_store_area_entry.configure(state="disabled" if self.is_busy else "normal")
-        self.register_store_site7_store_name_entry.configure(state="disabled" if self.is_busy else "normal")
-        self.register_store_site7_hall_id_entry.configure(state="disabled" if self.is_busy else "normal")
-        self.register_store_site7_address_entry.configure(state="disabled" if self.is_busy else "normal")
+            self.register_store_order_entry.configure(state="disabled" if any_busy else "normal")
+        self.register_store_prefecture_entry.configure(state="disabled" if any_busy else "normal")
+        self.register_store_area_entry.configure(state="disabled" if any_busy else "normal")
+        self.register_store_site7_store_name_entry.configure(state="disabled" if any_busy else "normal")
+        self.register_store_site7_hall_id_entry.configure(state="disabled" if any_busy else "normal")
+        self.register_store_site7_address_entry.configure(state="disabled" if any_busy else "normal")
         self.update_registered_store_button.configure(
-            state="disabled" if self.is_busy or not has_single_registered_store_row_selection else "normal"
+            state="disabled" if any_busy or not has_single_registered_store_row_selection else "normal"
         )
-        self.clear_register_store_form_button.configure(state="disabled" if self.is_busy else "normal")
+        self.clear_register_store_form_button.configure(state="disabled" if any_busy else "normal")
         if hasattr(self, "registered_store_filter_entry"):
-            self.registered_store_filter_entry.configure(state="disabled" if self.is_busy else "normal")
+            self.registered_store_filter_entry.configure(state="disabled" if any_busy else "normal")
         if hasattr(self, "clear_registered_store_filter_button"):
-            self.clear_registered_store_filter_button.configure(state="disabled" if self.is_busy else "normal")
-        self.select_all_stores_button.configure(state="disabled" if self.is_busy else "normal")
-        self.clear_store_selection_button.configure(state="disabled" if self.is_busy else "normal")
-        self.refresh_registered_stores_button.configure(state="disabled" if self.is_busy else "normal")
+            self.clear_registered_store_filter_button.configure(state="disabled" if any_busy else "normal")
+        self.select_all_stores_button.configure(state="disabled" if any_busy else "normal")
+        self.clear_store_selection_button.configure(state="disabled" if any_busy else "normal")
+        self.refresh_registered_stores_button.configure(state="disabled" if any_busy else "normal")
         self.delete_registered_stores_button.configure(
-            state="disabled" if self.is_busy or not has_registered_store_row_selection else "normal"
+            state="disabled" if any_busy or not has_registered_store_row_selection else "normal"
         )
 
     def _show_error(self, exc: object) -> None:
