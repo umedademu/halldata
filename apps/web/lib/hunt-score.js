@@ -1189,6 +1189,19 @@ function sumDifferenceValues(rows) {
   return rows.reduce((total, row) => total + (readNumber(row?.differenceValue) ?? 0), 0);
 }
 
+function countConsecutiveRollingNetThresholdDays(rows, windowSize, threshold) {
+  if (!Array.isArray(rows) || rows.length < windowSize || windowSize <= 0) return 0;
+  let count = 0;
+  for (let endIndex = rows.length - 1; endIndex >= windowSize - 1; endIndex -= 1) {
+    const windowRows = rows.slice(endIndex - windowSize + 1, endIndex + 1);
+    if (sumDifferenceValues(windowRows) > threshold) {
+      break;
+    }
+    count += 1;
+  }
+  return count;
+}
+
 function calculateSettingAverageFromWindowRows(rows) {
   const settings = rows
     .map((row) => row?.settingAverage)
@@ -5853,6 +5866,8 @@ function calculateWindowMetrics(
   const recentFiveNetTotal = sumDifferenceValues(recentFiveRows);
   const recentSixNetTotal = sumDifferenceValues(recentSixRows);
   const recentFourteenNetTotal = sumDifferenceValues(recentFourteenRows);
+  const shortSevenSinkStayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -500);
+  const shortThreeSinkStayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 3, -300);
   const recentFourLossDays = recentFourRows.filter((windowRow) => windowRow.differenceValue < 0).length;
   const recentFourPositiveCount = recentFourRows.filter((windowRow) => windowRow.differenceValue > 0).length;
   const recentTwoGamesTotal = recentTwoRows.reduce((total, windowRow) => total + windowRow.games, 0);
@@ -6063,6 +6078,8 @@ function calculateWindowMetrics(
     recentFiveNetTotal,
     recentSixNetTotal,
     recentFourteenNetTotal,
+    shortSevenSinkStayDays,
+    shortThreeSinkStayDays,
     recentFourLossDays,
     recentFourPositiveCount,
     compensationRate: lossAbsTotal === 0 ? 999 : winAbsTotal / lossAbsTotal,

@@ -258,9 +258,10 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     conditions: [
       buildCondition(
         "main",
-        "65点以上＋強化2個以上＋危険0",
+        "1位＋65点以上＋強化2個以上＋危険0",
         "157件 / 105.59%",
         {
+          rankMax: 1,
           minScore: 65,
           minBoost: 2,
           maxDanger: 0,
@@ -283,12 +284,26 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     conditions: [
       buildCondition(
         "main",
-        "55点以上＋次点差5点以上＋処遇完了回避",
-        "55点以上付近 / 105%台",
+        "50点以上",
+        "302件 / 105.45%",
         {
-          minScore: 55,
-          minNextGap: 5,
-          maxDanger: 1,
+          minScore: 50,
+        },
+      ),
+      buildCondition(
+        "top4",
+        "上位4台",
+        "516件 / 104.58%",
+        {
+          rankMax: 4,
+        },
+      ),
+      buildCondition(
+        "top2",
+        "上位2台",
+        "258件 / 105.59%",
+        {
+          rankMax: 2,
         },
       ),
     ],
@@ -357,8 +372,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         {
           rankMax: 1,
           minScore: 70,
-          maxDanger: 1,
-          anyFlags: ["deepSink", "stayCore"],
+          requiredFlags: ["shortSinkStay2"],
         },
       ),
     ],
@@ -394,12 +408,21 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     conditions: [
       buildCondition(
         "main",
+        "1位＋70点以上＋3〜6連敗＋前回高内容8〜14日",
+        "42件 / 105.98% / RB1/280.5",
+        {
+          rankMax: 1,
+          minScore: 70,
+          requiredFlags: ["losingStreak3To6", "highRest8To14"],
+        },
+      ),
+      buildCondition(
+        "wide",
         "1位＋70点以上",
         "107件 / 103.79% / RB1/314.4",
         {
           rankMax: 1,
           minScore: 70,
-          maxDanger: 2,
         },
       ),
     ],
@@ -782,6 +805,8 @@ function buildFeatureState(metrics = {}) {
   const recentThreeNetTotal = readNumber(metrics.recentThreeNetTotal);
   const recentFiveNetTotal = readNumber(metrics.recentFiveNetTotal);
   const recentSixNetTotal = readNumber(metrics.recentSixNetTotal);
+  const shortSevenSinkStayDays = readNumber(metrics.shortSevenSinkStayDays);
+  const shortThreeSinkStayDays = readNumber(metrics.shortThreeSinkStayDays);
   const recentFourLossDays = readNumber(metrics.recentFourLossDays);
   const lossAbsTotal = readNumber(metrics.lossAbsTotal);
   const previousGames = readNumber(metrics.previousGames);
@@ -823,8 +848,12 @@ function buildFeatureState(metrics = {}) {
     (recentFiveGamesTotal >= 12000 && recentFiveRbTotal <= 18);
   const staleRest = Number.isFinite(bestRestDays) && bestRestDays >= 28;
   const highRest4To14 = Number.isFinite(bestRestDays) && bestRestDays >= 4 && bestRestDays <= 14;
+  const highRest8To14 = Number.isFinite(bestRestDays) && bestRestDays >= 8 && bestRestDays <= 14;
   const losingStreak3 = streak >= 3 || recentFourLossDays >= 3;
+  const losingStreak3To6 = streak >= 3 && streak <= 6;
   const recentFiveLoss3500 = recentFiveNetTotal <= -3500;
+  const shortSinkStay2 = shortSevenSinkStayDays >= 2 || shortThreeSinkStayDays >= 2;
+  const shortSinkStay3 = shortSevenSinkStayDays >= 3 || shortThreeSinkStayDays >= 3;
   const historyPositive3 = historyPositiveDays >= 3;
   const recentHigh =
     recentFiveHighSettingCandidateCount >= 2 ||
@@ -839,6 +868,8 @@ function buildFeatureState(metrics = {}) {
     weakBonus,
     staleRest,
     highRest4To14,
+    highRest8To14,
+    shortSinkStay2,
     historyPositive3,
     adjacentHighSettingCandidateCount7 > 0,
     historyNetTotal <= -8000,
@@ -857,8 +888,12 @@ function buildFeatureState(metrics = {}) {
     weakBonus,
     staleRest,
     highRest4To14,
+    highRest8To14,
     losingStreak3,
+    losingStreak3To6,
     recentFiveLoss3500,
+    shortSinkStay2,
+    shortSinkStay3,
     historyPositive3,
     recentHigh,
     boostCount: boostFlags.filter(Boolean).length,
@@ -886,7 +921,12 @@ function calculateRestScore(bestRestDays, profile) {
   return 10;
 }
 
-function calculateMachineScore(definition, metrics, features) {
+function calculateMachineScore(definition, metrics, features, row = null) {
+  const huntScore = readNullableNumber(row?.huntScore);
+  if (huntScore !== null) {
+    return Math.round(clamp(huntScore, 0, 100));
+  }
+
   const profile = definition?.profile ?? "juggler";
   const recentThreeNetTotal = readNumber(metrics.recentThreeNetTotal);
   const recentFiveNetTotal = readNumber(metrics.recentFiveNetTotal);
@@ -965,7 +1005,7 @@ function buildEvaluationForRow(row, settingByMachineKey) {
   const metrics = row?.machineEvaluationMetrics ?? {};
   const features = buildFeatureState(metrics);
   const condition = findConditionDefinition(definition, setting.conditionKey);
-  const score = calculateMachineScore(definition, metrics, features);
+  const score = calculateMachineScore(definition, metrics, features, row);
 
   return {
     machineKey: definition.machineKey,
