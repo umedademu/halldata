@@ -1438,10 +1438,13 @@ function calculateMachineScore(definition, metrics, features) {
   const recentSevenMachineHighContentCount = readNumber(metrics.recentSevenMachineHighContentCount);
   const recentFourteenMachineHighContentCount = readNumber(metrics.recentFourteenMachineHighContentCount);
   const recentThirtyMachineHighContentCount = readNumber(metrics.recentThirtyMachineHighContentCount);
+  const recentSevenMachineGoodContentCount = readNumber(metrics.recentSevenMachineGoodContentCount);
   const daysSinceMachineHighContent = readNullableNumber(metrics.daysSinceMachineHighContent);
   const previousMachineHighContent = Boolean(metrics.previousMachineHighContent);
   const previousMachineGoodContent = Boolean(metrics.previousMachineGoodContent);
   const previousMachineStrongHighContent = Boolean(metrics.previousMachineStrongHighContent);
+  const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
+  const machineGoodContentStreak = readNumber(metrics.machineGoodContentStreak);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
   const previousCombinedDenominator = features.previousCombinedDenominator;
   const previousRbDenominator = features.previousRbDenominator;
@@ -1538,15 +1541,20 @@ function calculateMachineScore(definition, metrics, features) {
     ]);
 
     let restScore = 0;
-    restScore += recentSevenHighSettingCandidateCount === 0 && features.bestRestDays >= 8 && features.bestRestDays <= 28 ? 10 : 0;
-    restScore += recentSevenHighSettingCandidateCount === 0 ? 7 : 0;
-    restScore += recentFourteenHighSettingCandidateCount <= 1 ? 4 : 0;
+    restScore += recentSevenMachineHighContentCount === 0 &&
+      Number.isFinite(daysSinceMachineHighContent) &&
+      daysSinceMachineHighContent >= 8 &&
+      daysSinceMachineHighContent <= 28
+      ? 10
+      : 0;
+    restScore += recentSevenMachineHighContentCount === 0 ? 7 : 0;
+    restScore += recentFourteenMachineHighContentCount <= 1 ? 4 : 0;
     restScore = Math.min(restScore, 10);
 
     let repayScore = 0;
-    repayScore += features.previousStrongHighContent && previousDifference < 0 ? 15 : 0;
-    repayScore += features.previousStrongHighContent && previousDifference < 500 && recentSevenNetTotal < 0 ? 12 : 0;
-    repayScore += features.previousHighContent && previousDifference < 500 && recentSevenNetTotal < 0 ? 10 : 0;
+    repayScore += previousMachineGoodContent && previousDifference < 0 ? 15 : 0;
+    repayScore += previousMachineGoodContent && previousDifference < 500 && recentSevenNetTotal < 0 ? 12 : 0;
+    repayScore += previousMachineHighContent && previousDifference < 500 && recentSevenNetTotal < 0 ? 10 : 0;
     repayScore += previousDifference > 0 && recentSevenNetTotal <= -2000 ? 5 : 0;
     repayScore = Math.min(repayScore, 15);
 
@@ -1566,12 +1574,17 @@ function calculateMachineScore(definition, metrics, features) {
     let penalty = 0;
     penalty += recentSevenNetTotal > 2800 ? 12 : recentSevenNetTotal > 1340 ? 6 : 0;
     penalty += recentFourteenNetTotal > 3800 ? 8 : recentFourteenNetTotal > 2026 ? 4 : 0;
-    penalty += recentSevenHighSettingCandidateCount >= 3 ? 7 : recentSevenHighSettingCandidateCount >= 2 ? 3 : 0;
-    penalty += features.previousStrongHighContent && previousDifference >= 1500 ? 8 : 0;
-    penalty += features.previousHighContent && previousDifference >= 1500 ? 5 : 0;
-    penalty += highSettingCandidateStreak >= 2 ? 5 : 0;
-    penalty += features.previousHighContent && previousDifference >= 500 && previousDifference < 1500 ? 3 : 0;
-    penalty += features.bestRestDays >= 45 && recentSevenNetTotal > -1000 ? 6 : 0;
+    penalty += recentSevenMachineGoodContentCount >= 3 ? 7 : recentSevenMachineGoodContentCount >= 2 ? 3 : 0;
+    penalty += previousMachineGoodContent && previousDifference >= 1500 ? 8 : 0;
+    penalty += previousMachineHighContent && previousDifference >= 1500 ? 5 : 0;
+    penalty += machineGoodContentStreak >= 2 ? 8 : 0;
+    penalty += machineHighContentStreak >= 2 ? 5 : 0;
+    penalty += previousMachineHighContent && previousDifference >= 500 && previousDifference < 1500 ? 3 : 0;
+    penalty += Number.isFinite(daysSinceMachineHighContent) &&
+      daysSinceMachineHighContent >= 29 &&
+      recentSevenNetTotal > -2000
+      ? 4
+      : 0;
 
     return Math.round(clamp(sinkScore + streakScore + restScore + repayScore + weakScore - penalty, 0, 100));
   }

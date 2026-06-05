@@ -1228,6 +1228,19 @@ function calculateCurrentHighSettingCandidateStreak(windowRows) {
   return streak;
 }
 
+function calculateCurrentMachineContentStreak(windowRows, predicate) {
+  let streak = 0;
+
+  for (let index = windowRows.length - 1; index >= 0; index -= 1) {
+    if (!predicate(windowRows[index])) {
+      break;
+    }
+    streak += 1;
+  }
+
+  return streak;
+}
+
 function sumDifferenceValues(rows) {
   return rows.reduce((total, row) => total + (readNumber(row?.differenceValue) ?? 0), 0);
 }
@@ -1285,6 +1298,9 @@ function isMachineHighContentWindowRow(row, machineName) {
   const rbDenominator = calculateRbDenominatorFromWindowRow(row);
   const differenceValue = readNumber(row?.differenceValue) ?? 0;
 
+  if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
+    return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
+  }
   if (normalizedMachineName === normalizeText("スターハナハナ")) {
     return games >= 5500 && rbDenominator <= 285 && combinedDenominator <= 123;
   }
@@ -1307,6 +1323,9 @@ function isMachineGoodContentWindowRow(row, machineName) {
   const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
   const rbDenominator = calculateRbDenominatorFromWindowRow(row);
 
+  if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
+    return games >= 5000 && rbDenominator <= 315 && combinedDenominator <= 145;
+  }
   if (normalizedMachineName === normalizeText("スターハナハナ")) {
     return games >= 4000 && rbDenominator <= 300 && combinedDenominator <= 135;
   }
@@ -6435,6 +6454,14 @@ function calculateWindowMetrics(
     highSettingStreak: calculateCurrentHighSettingStreak(metricWindowRows),
     highSettingEstimateStreak: calculateCurrentHighSettingEstimateStreak(metricWindowRows),
     highSettingCandidateStreak: calculateCurrentHighSettingCandidateStreak(metricWindowRows),
+    machineHighContentStreak: calculateCurrentMachineContentStreak(
+      metricWindowRows,
+      isHistoryMachineHighContentWindowRow,
+    ),
+    machineGoodContentStreak: calculateCurrentMachineContentStreak(
+      metricWindowRows,
+      isHistoryMachineGoodContentWindowRow,
+    ),
     recentThreeHighSettingCount,
     recentThreeHighSettingEstimateCount,
     recentThreeSettingFiveCount,
