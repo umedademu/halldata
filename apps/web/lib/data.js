@@ -59,6 +59,7 @@ const HUNT_BACKTEST_DEFAULT_EVENT_FILTERS = {
 };
 const DEFAULT_HUNT_RANKING_LIMIT = 20;
 const DEFAULT_HUNT_BACKTEST_RECENT_DAYS = 90;
+const MACHINE_EVALUATION_HISTORY_WINDOW_DAYS = 60;
 const DEFAULT_HUNT_RANK_REQUIRED = true;
 const DEFAULT_HUNT_SCORE_REQUIRED = true;
 const DEFAULT_HUNT_NEXT_GAP_REQUIRED = false;
@@ -84,6 +85,12 @@ const DEFAULT_CROSS_STORE_MACHINE_NAMES = [
   "ハッピージャグラーＶＩＩＩ",
   "ウルトラミラクルジャグラー",
 ];
+
+function hasConfiguredMachineEvaluationSettings(machineEvaluationSettings = []) {
+  return (Array.isArray(machineEvaluationSettings) ? machineEvaluationSettings : []).some((setting) =>
+    Boolean(setting?.logicKey && setting?.conditionKey),
+  );
+}
 
 function requireActiveConditionFilters(requirementOptions, filters = {}) {
   return {
@@ -2791,6 +2798,9 @@ async function getHuntScoreSnapshotsForStore(
       availableMachineNames,
       machineOptions?.machineEvaluationSettings,
     );
+    const machineEvaluationHistoryWindowDays = hasConfiguredMachineEvaluationSettings(machineEvaluationSettings)
+      ? MACHINE_EVALUATION_HISTORY_WINDOW_DAYS
+      : undefined;
     const rankingMachineNames = normalizeInitialMachineSelection(availableMachineNames, machineOptions);
     const targetDateOnly = machineOptions?.targetDateOnly === true;
     const requestedDate = String(machineOptions?.requestedDate ?? "").trim();
@@ -2802,9 +2812,13 @@ async function getHuntScoreSnapshotsForStore(
       staticIdentity.storeName,
       sourceRequestMachineNames,
     );
+    const sourceDateRangeOptions = {
+      ...machineOptions,
+      machineEvaluationHistoryWindowDays,
+    };
     const sourceDateRange = targetDateOnly
       ? null
-      : buildCrossStoreSourceDateRange(staticStore, sourceMachineNames, machineOptions);
+      : buildCrossStoreSourceDateRange(staticStore, sourceMachineNames, sourceDateRangeOptions);
     const targetDateRange = targetDateOnly
       ? null
       : buildBacktestSnapshotDateRange(staticStore, sourceMachineNames, machineOptions);
@@ -2824,6 +2838,17 @@ async function getHuntScoreSnapshotsForStore(
     const selectedDate = rankingDates.includes(requestedDate)
       ? requestedDate
       : rankingDates[0] ?? null;
+    const snapshotOptions = targetDateOnly
+      ? {
+          targetDate: selectedDate,
+          settingEstimateMode: normalizedSettingEstimateMode,
+          machineEvaluationHistoryWindowDays,
+        }
+      : {
+          targetDateRange,
+          settingEstimateMode: normalizedSettingEstimateMode,
+          machineEvaluationHistoryWindowDays,
+        };
     const snapshots = decorateSnapshotsWithMachineEvaluation(
       buildCombinedHuntScoreSnapshots(
         targetRows,
@@ -2831,9 +2856,7 @@ async function getHuntScoreSnapshotsForStore(
         staticIdentity.storeName,
         huntScoreLogics.map((logic) => logic.key),
         normalizedDifferenceMode,
-        targetDateOnly
-          ? { targetDate: selectedDate, settingEstimateMode: normalizedSettingEstimateMode }
-          : { targetDateRange, settingEstimateMode: normalizedSettingEstimateMode },
+        snapshotOptions,
       ),
       machineEvaluationSettings,
     );
@@ -2848,9 +2871,7 @@ async function getHuntScoreSnapshotsForStore(
           staticIdentity.storeName,
           subHuntScoreLogic.key,
           normalizedDifferenceMode,
-          targetDateOnly
-            ? { targetDate: selectedDate, settingEstimateMode: normalizedSettingEstimateMode }
-            : { targetDateRange, settingEstimateMode: normalizedSettingEstimateMode },
+          snapshotOptions,
         )
       : [];
     const snapshotMachineNames = [
@@ -3417,6 +3438,11 @@ function buildCrossStoreSourceDateRange(staticStore, sourceMachineNames, backtes
   if (!latestDate) {
     return null;
   }
+  const requestedHistoryWindowDays = Number(backtestOptions?.machineEvaluationHistoryWindowDays);
+  const sourceBufferDays = Math.max(
+    CROSS_STORE_BACKTEST_WINDOW_BUFFER_DAYS,
+    Number.isFinite(requestedHistoryWindowDays) ? requestedHistoryWindowDays : 0,
+  );
 
   if (backtestOptions.periodMode === "range") {
     let startDate = backtestOptions.startDate;
@@ -3432,7 +3458,7 @@ function buildCrossStoreSourceDateRange(staticStore, sourceMachineNames, backtes
       return {
         startDate: shiftDateInput(
           startDate <= endDate ? startDate : endDate,
-          -CROSS_STORE_BACKTEST_WINDOW_BUFFER_DAYS,
+          -sourceBufferDays,
         ),
         endDate: shiftDateInput(
           startDate <= endDate ? endDate : startDate,
@@ -3444,7 +3470,7 @@ function buildCrossStoreSourceDateRange(staticStore, sourceMachineNames, backtes
 
   const fallbackStartDate = shiftDateInput(
     latestDate,
-    -(backtestOptions.recentDays + CROSS_STORE_BACKTEST_WINDOW_BUFFER_DAYS),
+    -(backtestOptions.recentDays + sourceBufferDays),
   );
   return {
     startDate: fallbackStartDate,

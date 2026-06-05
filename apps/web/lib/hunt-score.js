@@ -852,6 +852,23 @@ function listHuntScoreTargetMachineNameCandidates(targetMachine) {
   ];
 }
 
+function buildTargetMachineNameLookup(targetMachines = []) {
+  const lookup = new Map();
+  for (const targetMachine of Array.isArray(targetMachines) ? targetMachines : []) {
+    const targetName = String(targetMachine?.name ?? "").trim();
+    if (!targetName) {
+      continue;
+    }
+    for (const candidateName of listHuntScoreTargetMachineNameCandidates(targetMachine)) {
+      const normalizedCandidateName = normalizeText(candidateName);
+      if (normalizedCandidateName && !lookup.has(normalizedCandidateName)) {
+        lookup.set(normalizedCandidateName, targetName);
+      }
+    }
+  }
+  return lookup;
+}
+
 export function findHuntScoreStoreConfig(storeName) {
   const normalizedStoreName = normalizeText(storeName);
   if (!normalizedStoreName) {
@@ -956,17 +973,23 @@ function buildRuntimeHuntScoreConfig(
   logicKey = "",
   differenceMode = DEFAULT_DIFFERENCE_MODE,
   settingEstimateMode = undefined,
+  runtimeOptions = {},
 ) {
   const logicDefinition =
     findHuntScoreLogicDefinition(normalizeHuntScoreLogicKey(logicKey, config?.storeNames?.[0] ?? "")) ??
     findHuntScoreLogicDefinition(DEFAULT_HUNT_SCORE_LOGIC_KEY);
+  const baseHistoryWindowDays =
+    logicDefinition.historyWindowDays ?? logicDefinition.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS;
+  const requestedHistoryWindowDays = Number(runtimeOptions?.historyWindowDays);
   return {
     ...config,
     logicKey: logicDefinition.key,
     logicName: logicDefinition.name,
+    targetMachineNameLookup: buildTargetMachineNameLookup(config?.targetMachines),
     windowDays: logicDefinition.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
-    historyWindowDays:
-      logicDefinition.historyWindowDays ?? logicDefinition.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
+    historyWindowDays: Number.isFinite(requestedHistoryWindowDays)
+      ? Math.max(baseHistoryWindowDays, requestedHistoryWindowDays)
+      : baseHistoryWindowDays,
     differenceMode: normalizeDifferenceMode(differenceMode),
     settingEstimateMode: normalizeSettingEstimateMode(settingEstimateMode),
     scoreCalculator: logicDefinition.scoreCalculator,
@@ -1051,7 +1074,11 @@ export function canonicalHuntScoreTargetMachineName(machineName, storeName = "")
 }
 
 function normalizeHuntScoreMachineName(machineName, config) {
-  return findTargetMachine(config, machineName)?.name ?? normalizeText(machineName);
+  const normalizedMachineName = normalizeText(machineName);
+  if (!normalizedMachineName) {
+    return "";
+  }
+  return config?.targetMachineNameLookup?.get(normalizedMachineName) ?? normalizedMachineName;
 }
 
 function readNumber(value) {
@@ -1103,6 +1130,19 @@ function getSettingDefinition(settingDefinitionCache, machineName) {
 }
 
 function getSettingEstimateAverage(settingDefinitionCache, row, config) {
+  const estimateCacheKey = `__estimateCache\u0000${config?.settingEstimateMode ?? ""}`;
+  let estimateCache = settingDefinitionCache.get(estimateCacheKey);
+  if (!estimateCache) {
+    estimateCache = new WeakMap();
+    settingDefinitionCache.set(estimateCacheKey, estimateCache);
+  }
+  if (row && typeof row === "object" && estimateCache.has(row)) {
+    const cachedEstimate = estimateCache.get(row);
+    return {
+      estimate: cachedEstimate,
+      average: cachedEstimate?.average ?? null,
+    };
+  }
   const definition = getSettingDefinition(
     settingDefinitionCache,
     normalizeHuntScoreMachineName(row?.machine_name, config),
@@ -1110,6 +1150,9 @@ function getSettingEstimateAverage(settingDefinitionCache, row, config) {
   const estimate = definition
     ? calculateSettingEstimate(definition, row, { mode: config?.settingEstimateMode })
     : null;
+  if (row && typeof row === "object") {
+    estimateCache.set(row, estimate);
+  }
   return {
     estimate,
     average: estimate?.average ?? null,
@@ -1208,6 +1251,23 @@ function sumWindowField(rows, fieldName) {
 
 function countBigShowRows(rows) {
   return rows.filter((row) => readWindowField(row, "games") >= 5000 && row.differenceValue >= 1000).length;
+}
+
+function countStrictHighContentRows(rows) {
+  return rows.filter((row) => {
+    const games = readWindowField(row, "games");
+    const bbCount = readWindowField(row, "bbCount");
+    const rbCount = readWindowField(row, "rbCount");
+    const bonusCount = bbCount + rbCount;
+    if (games < 5000 || bonusCount <= 0 || rbCount <= 0) {
+      return false;
+    }
+    return games / bonusCount <= 145 && games / rbCount <= 315;
+  }).length;
+}
+
+function countDifferenceAtLeastRows(rows, threshold) {
+  return rows.filter((row) => row.differenceValue >= threshold).length;
 }
 
 function countConsecutiveRollingNetThresholdDays(rows, windowSize, threshold) {
@@ -5901,6 +5961,8 @@ function calculateWindowMetrics(
   const recentFiftySixNetTotal = sumDifferenceValues(recentFiftySixRows);
   const shortSevenSinkStayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -500);
   const shortThreeSinkStayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 3, -300);
+  const recentSevenMinus2000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -2000);
+  const recentThreeMinus1700StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 3, -1700);
   const recentFourLossDays = recentFourRows.filter((windowRow) => windowRow.differenceValue < 0).length;
   const recentSevenLossDays = recentSevenRows.filter((windowRow) => windowRow.differenceValue < 0).length;
   const recentFourteenWinDays = recentFourteenRows.filter((windowRow) => windowRow.differenceValue > 0).length;
@@ -5916,6 +5978,10 @@ function calculateWindowMetrics(
   const recentFortyTwoGamesTotal = sumWindowField(recentFortyTwoRows, "games");
   const recentFiftySixGamesTotal = sumWindowField(recentFiftySixRows, "games");
   const recentThreeBonusTotal = recentThreeRows.reduce(
+    (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
+    0,
+  );
+  const recentTwoBonusTotal = recentTwoRows.reduce(
     (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
     0,
   );
@@ -6126,6 +6192,9 @@ function calculateWindowMetrics(
   const previousBonusTotal = (readNumber(row?.bb_count) ?? 0) + previousRbCount;
   const recentThreeBigShowDays = countBigShowRows(recentThreeRows);
   const recentSevenBigShowDays = countBigShowRows(recentSevenRows);
+  const recentThreeStrictHighContentDays = countStrictHighContentRows(recentThreeRows);
+  const recentSevenStrictHighContentDays = countStrictHighContentRows(recentSevenRows);
+  const recentFourteenGoldShowDays = countDifferenceAtLeastRows(recentFourteenRows, 1341);
   const previousBigShow = previousGames >= 5000 && todayDifference >= 1000;
 
   return {
@@ -6151,6 +6220,8 @@ function calculateWindowMetrics(
     recentFiftySixNetTotal,
     shortSevenSinkStayDays,
     shortThreeSinkStayDays,
+    recentSevenMinus2000StayDays,
+    recentThreeMinus1700StayDays,
     recentFourLossDays,
     recentSevenLossDays,
     recentFourteenWinDays,
@@ -6210,6 +6281,7 @@ function calculateWindowMetrics(
     recentTwentyEightGamesTotal,
     recentFortyTwoGamesTotal,
     recentFiftySixGamesTotal,
+    recentTwoBonusTotal,
     recentThreeBonusTotal,
     recentFiveBonusTotal,
     recentTwoRbTotal,
@@ -6243,6 +6315,9 @@ function calculateWindowMetrics(
     historyPositiveDays,
     recentThreeBigShowDays,
     recentSevenBigShowDays,
+    recentThreeStrictHighContentDays,
+    recentSevenStrictHighContentDays,
+    recentFourteenGoldShowDays,
     previousBigShow,
     bbTotal,
     rbTotal,
@@ -6592,6 +6667,7 @@ export function buildHuntScoreSnapshots(
     logicKey,
     differenceMode,
     options?.settingEstimateMode,
+    { historyWindowDays: options?.machineEvaluationHistoryWindowDays },
   );
 
   const businessDates = buildBusinessDates(allStoreRows, targetRows);
