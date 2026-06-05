@@ -727,12 +727,14 @@ class MinRepoScraperTests(unittest.TestCase):
 
     def test_site7_schedule_due_hour_runs_checked_hour_once_per_day(self) -> None:
         noon_now = datetime(2026, 4, 28, 3, 30, tzinfo=timezone.utc)
-        evening_now = datetime(2026, 4, 28, 9, 0, tzinfo=timezone.utc)
+        evening_before_update_margin = datetime(2026, 4, 28, 9, 19, tzinfo=timezone.utc)
+        evening_now = datetime(2026, 4, 28, 9, 20, tzinfo=timezone.utc)
         morning_now = datetime(2026, 4, 28, 0, 0, tzinfo=timezone.utc)
 
         self.assertEqual(site7_schedule_due_hour((12, 15, 18, 21), {}, noon_now), 12)
         self.assertIsNone(site7_schedule_due_hour((12, 15, 18, 21), {12: "2026-04-28"}, noon_now))
         self.assertEqual(site7_schedule_due_hour((12, 15, 18, 21), {12: "2026-04-27"}, noon_now), 12)
+        self.assertIsNone(site7_schedule_due_hour((12, 15, 18, 21), {}, evening_before_update_margin))
         self.assertEqual(site7_schedule_due_hour((12, 15, 18, 21), {}, evening_now), 18)
         self.assertIsNone(site7_schedule_due_hour((12, 15, 18, 21), {}, morning_now))
 
@@ -810,9 +812,9 @@ class MinRepoScraperTests(unittest.TestCase):
         app.is_busy = True
 
         with mock.patch("main.datetime") as mocked_datetime:
-            mocked_datetime.now.return_value = datetime(2026, 4, 28, 3, 0, tzinfo=timezone.utc)
+            mocked_datetime.now.return_value = datetime(2026, 4, 28, 3, 20, tzinfo=timezone.utc)
             app._run_scheduled_site7_fetch_if_due()
-            mocked_datetime.now.return_value = datetime(2026, 4, 28, 6, 0, tzinfo=timezone.utc)
+            mocked_datetime.now.return_value = datetime(2026, 4, 28, 6, 20, tzinfo=timezone.utc)
             app._run_scheduled_site7_fetch_if_due()
 
         self.assertEqual(app.site7_schedule_pending_hours, {12, 15})
@@ -820,7 +822,7 @@ class MinRepoScraperTests(unittest.TestCase):
 
         app.is_busy = False
         with mock.patch("main.datetime") as mocked_datetime:
-            current_time = datetime(2026, 4, 28, 7, 0, tzinfo=timezone.utc)
+            current_time = datetime(2026, 4, 28, 7, 20, tzinfo=timezone.utc)
             mocked_datetime.now.return_value = current_time
             app._run_scheduled_site7_fetch_if_due()
 
@@ -1183,7 +1185,7 @@ class MinRepoScraperTests(unittest.TestCase):
         app.is_busy = False
 
         with mock.patch("main.datetime") as mocked_datetime:
-            mocked_datetime.now.return_value = datetime(2026, 4, 28, 3, 0, tzinfo=timezone.utc)
+            mocked_datetime.now.return_value = datetime(2026, 4, 28, 3, 20, tzinfo=timezone.utc)
             app._run_scheduled_site7_fetch_if_due()
 
         self.assertEqual(app.site7_schedule_pending_hours, set())

@@ -88,6 +88,7 @@ MINREPO_PRIORITY_WATCH_END_HOUR = 10
 MINREPO_PRIORITY_WATCH_CHECK_INTERVAL_MINUTES = 15
 SITE7_SCHEDULE_HOUR_OPTIONS = (0, 1, *range(10, 24))
 DEFAULT_SITE7_SCHEDULE_HOURS = (12, 15, 18, 21)
+SITE7_SCHEDULE_INITIAL_CHECK_MINUTE = 20
 SITE7_FINAL_UPDATE_HOUR = 23
 SITE7_MORNING_SCHEDULE_LAST_HOUR = 10
 SITE7_MINREPO_FALLBACK_HOUR = 10
@@ -406,6 +407,8 @@ def site7_schedule_due_hour(
     current_time = (now or datetime.now(JST)).astimezone(JST)
     current_hour = current_time.hour
     if current_hour not in set(schedule_hours):
+        return None
+    if current_time.minute < SITE7_SCHEDULE_INITIAL_CHECK_MINUTE:
         return None
 
     today_text = current_time.date().isoformat()
