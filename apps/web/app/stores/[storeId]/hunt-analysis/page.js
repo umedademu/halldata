@@ -28,6 +28,14 @@ import {
 } from "../../../../lib/hunt-score-logic-selection";
 import { listHuntScoreLogicOptions } from "../../../../lib/hunt-score";
 import {
+  MACHINE_EVALUATION_RANKING_MODE_OPTIONS,
+  applyMachineEvaluationRankingMode,
+  decodeMachineEvaluationSettingsCookieValue,
+  getMachineEvaluationCookieName,
+  normalizeMachineEvaluationRankingMode,
+  shouldShowMachineEvaluationInRanking,
+} from "../../../../lib/machine-evaluation";
+import {
   expandHuntMachineCombinedGroupSelection,
   groupHuntMachineOptions,
   selectionIncludesAimJugglerHuntMachineGroup,
@@ -69,6 +77,13 @@ async function readStoredHuntScoreLogicKey(storeId) {
   const cookieStore = await cookies();
   return decodeHuntScoreLogicCookieValue(
     cookieStore.get(getHuntScoreLogicCookieName(storeId))?.value ?? "",
+  );
+}
+
+async function readStoredMachineEvaluationSettings(storeId) {
+  const cookieStore = await cookies();
+  return decodeMachineEvaluationSettingsCookieValue(
+    cookieStore.get(getMachineEvaluationCookieName(storeId))?.value ?? "",
   );
 }
 
@@ -192,6 +207,30 @@ function SettingEstimateModeOptions({ value }) {
           <input
             type="radio"
             name="settingEstimateMode"
+            value={option.value}
+            defaultChecked={normalizedValue === option.value}
+          />
+          <span>{option.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function MachineEvaluationRankingModeOptions({ value }) {
+  const normalizedValue = normalizeMachineEvaluationRankingMode(value);
+  return (
+    <div className="metricToggleRow commonConditionModeOptions">
+      {MACHINE_EVALUATION_RANKING_MODE_OPTIONS.map((option) => (
+        <label
+          key={option.value}
+          className={`metricToggleChip ${
+            normalizedValue === option.value ? "metricToggleChipActive" : ""
+          }`}
+        >
+          <input
+            type="radio"
+            name="machineEvaluationRankingMode"
             value={option.value}
             defaultChecked={normalizedValue === option.value}
           />
@@ -384,6 +423,10 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     resolvedSearchParams?.subHuntScoreLogicKey,
   );
   const huntScoreLogicKey = await readStoredHuntScoreLogicKey(storeId);
+  const machineEvaluationSettings = await readStoredMachineEvaluationSettings(storeId);
+  const machineEvaluationRankingMode = normalizeMachineEvaluationRankingMode(
+    readSingleSearchParam(resolvedSearchParams?.machineEvaluationRankingMode),
+  );
   const differenceMode = normalizeDifferenceMode(
     readSingleSearchParam(resolvedSearchParams?.differenceMode),
   );
@@ -660,6 +703,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             subHuntScoreLogicKey: requestedSubHuntScoreLogicKey,
             combineAimJuggler: requestedCombineAimJuggler,
             combineHanabi: requestedCombineHanabi,
+            machineEvaluationSettings,
             requestedDate,
           },
         )
@@ -670,6 +714,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             settingEstimateMode,
             huntScoreLogicKeys: requestedRankingLogicKeys,
             subHuntScoreLogicKey: requestedSubHuntScoreLogicKey,
+            machineEvaluationSettings,
           },
           huntScoreLogicKey,
         );
@@ -738,11 +783,15 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     combineHanabi,
   });
   const huntScoreLogicOptions = listHuntScoreLogicOptions();
-  const visibleRankingGroups = buildVisibleRankingGroups(
-    resultRequested ? detail.rankingGroups : [],
-    selectedMachineNameSet,
-    combineAimJuggler,
-    combineHanabi,
+  const visibleRankingGroups = applyMachineEvaluationRankingMode(
+    buildVisibleRankingGroups(
+      resultRequested ? detail.rankingGroups : [],
+      selectedMachineNameSet,
+      combineAimJuggler,
+      combineHanabi,
+      detail.limit,
+    ),
+    machineEvaluationRankingMode,
     detail.limit,
   );
   const visibleRows = visibleRankingGroups.flatMap((group) => group.rows);
@@ -818,6 +867,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     selectedUpperGapRequired,
     rankScope: rankingHighlightOptions.rankScope,
     nextGapScope: rankingHighlightOptions.nextGapScope,
+    machineEvaluationRankingMode,
   });
 
   return (
@@ -999,6 +1049,10 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 <SettingEstimateModeOptions value={detail.settingEstimateMode} />
               </div>
               <div className="filterConditionBox rankingConditionBoxWide">
+                <p className="filterConditionBoxTitle">機種別評価</p>
+                <MachineEvaluationRankingModeOptions value={machineEvaluationRankingMode} />
+              </div>
+              <div className="filterConditionBox rankingConditionBoxWide">
                 <p className="filterConditionBoxTitle">強調条件</p>
                 <HuntRankingConditionSelector storeId={detail.store.id} />
                 <details className="collapsibleControlGroup crossBacktestConditionGroup">
@@ -1173,6 +1227,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 initialDifferenceMode={detail.differenceMode}
                 showMachineTopCandidates={showMachineTopCandidates}
                 subHuntScoreLogic={detail.subHuntScoreLogic}
+                showMachineEvaluation={shouldShowMachineEvaluationInRanking(machineEvaluationRankingMode)}
               />
             ) : (
               <section className="statusPanel">

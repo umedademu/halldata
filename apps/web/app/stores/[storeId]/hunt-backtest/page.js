@@ -42,6 +42,12 @@ import {
 } from "../../../../lib/hunt-score-logic-selection";
 import { listHuntScoreLogicOptions } from "../../../../lib/hunt-score";
 import {
+  MACHINE_EVALUATION_BACKTEST_MODE_OPTIONS,
+  decodeMachineEvaluationSettingsCookieValue,
+  getMachineEvaluationCookieName,
+  normalizeMachineEvaluationBacktestMode,
+} from "../../../../lib/machine-evaluation";
+import {
   formatSettingEstimateScore,
   getSettingEstimateHighlightClass,
   SETTING_ESTIMATE_MODE_OPTIONS,
@@ -68,6 +74,13 @@ async function readStoredHuntScoreLogicKey(storeId) {
   const cookieStore = await cookies();
   return decodeHuntScoreLogicCookieValue(
     cookieStore.get(getHuntScoreLogicCookieName(storeId))?.value ?? "",
+  );
+}
+
+async function readStoredMachineEvaluationSettings(storeId) {
+  const cookieStore = await cookies();
+  return decodeMachineEvaluationSettingsCookieValue(
+    cookieStore.get(getMachineEvaluationCookieName(storeId))?.value ?? "",
   );
 }
 
@@ -251,6 +264,30 @@ function SettingDistributionOptions({ value }) {
             name="settingDistribution"
             value={option.value}
             defaultChecked={value === option.value}
+          />
+          <span>{option.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function MachineEvaluationBacktestModeOptions({ value }) {
+  const normalizedValue = normalizeMachineEvaluationBacktestMode(value);
+  return (
+    <div className="metricToggleRow commonConditionModeOptions">
+      {MACHINE_EVALUATION_BACKTEST_MODE_OPTIONS.map((option) => (
+        <label
+          key={option.value}
+          className={`metricToggleChip ${
+            normalizedValue === option.value ? "metricToggleChipActive" : ""
+          }`}
+        >
+          <input
+            type="radio"
+            name="machineEvaluationMode"
+            value={option.value}
+            defaultChecked={normalizedValue === option.value}
           />
           <span>{option.label}</span>
         </label>
@@ -504,6 +541,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
   const storeId = resolvedParams.storeId;
   const resultRequested = readSingleSearchParam(resolvedSearchParams?.show) === "1";
   const huntScoreLogicKey = await readStoredHuntScoreLogicKey(storeId);
+  const machineEvaluationSettings = await readStoredMachineEvaluationSettings(storeId);
   const requestedBacktestOptions = {
     periodMode: readSingleSearchParam(resolvedSearchParams?.periodMode),
     recentDays: readSingleSearchParam(resolvedSearchParams?.recentDays),
@@ -513,6 +551,8 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     machineTouched: readSingleSearchParam(resolvedSearchParams?.machineTouched),
     huntScoreLogicKeys: readMultiSearchParam(resolvedSearchParams?.huntScoreLogicKey),
     logicConditionMode: readSingleSearchParam(resolvedSearchParams?.logicConditionMode),
+    machineEvaluationMode: readSingleSearchParam(resolvedSearchParams?.machineEvaluationMode),
+    machineEvaluationSettings,
     combineAimJuggler: readMultiSearchParam(resolvedSearchParams?.aimMachineGroup),
     combineHanabi: readMultiSearchParam(resolvedSearchParams?.hanabiMachineGroup),
     scoreDifferenceMode: readSingleSearchParam(resolvedSearchParams?.scoreDifferenceMode),
@@ -612,6 +652,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     machineNames: detail.backtest.selectedMachineNames,
     huntScoreLogicKeys: detail.backtest.huntScoreLogicKeys,
     logicConditionMode: detail.backtest.logicConditionMode,
+    machineEvaluationBacktestMode: detail.backtest.machineEvaluationBacktestMode,
     combineAimJuggler: detail.backtest.combineAimJuggler,
     combineHanabi: detail.backtest.combineHanabi,
     dailySelectionMode: detail.backtest.dailySelectionMode,
@@ -896,6 +937,12 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                     <div className="commonConditionMode">
                       <p className="commonConditionSubLabel">設定分布を表示</p>
                       <SettingDistributionOptions value={detail.backtest.settingDistribution} />
+                    </div>
+                    <div className="commonConditionMode">
+                      <p className="commonConditionSubLabel">機種別評価の集計</p>
+                      <MachineEvaluationBacktestModeOptions
+                        value={detail.backtest.machineEvaluationBacktestMode}
+                      />
                     </div>
                   </div>
                 </div>

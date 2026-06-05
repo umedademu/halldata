@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "../../../components/breadcrumbs";
 import { HuntScoreLogicSelector } from "../../../components/hunt-score-logic-selector";
+import { MachineEvaluationSettings } from "../../../components/machine-evaluation-settings";
 import { StoreFavoriteButton } from "../../../components/store-favorite-button";
 import { getStoreDetail, getStoreIdentity } from "../../../lib/data";
 import {
@@ -16,6 +17,11 @@ import {
   decodeHuntScoreLogicCookieValue,
   getHuntScoreLogicCookieName,
 } from "../../../lib/hunt-score-logic-selection";
+import {
+  buildStoreMachineEvaluationSettings,
+  decodeMachineEvaluationSettingsCookieValue,
+  getMachineEvaluationCookieName,
+} from "../../../lib/machine-evaluation";
 import {
   formatAverageGames,
   formatCompactDate,
@@ -30,6 +36,13 @@ async function readStoredHuntScoreLogicKey(storeId) {
   const cookieStore = await cookies();
   return decodeHuntScoreLogicCookieValue(
     cookieStore.get(getHuntScoreLogicCookieName(storeId))?.value ?? "",
+  );
+}
+
+async function readStoredMachineEvaluationSettings(storeId) {
+  const cookieStore = await cookies();
+  return decodeMachineEvaluationSettingsCookieValue(
+    cookieStore.get(getMachineEvaluationCookieName(storeId))?.value ?? "",
   );
 }
 
@@ -84,6 +97,13 @@ export default async function StoreDetailPage({ params }) {
   const huntScoreLogic = hasHuntScoreAnalysis
     ? getHuntScoreLogicDetail(await readStoredHuntScoreLogicKey(store.id), store.storeName)
     : null;
+  const machineEvaluationSettings = hasHuntScoreAnalysis
+    ? buildStoreMachineEvaluationSettings(
+        store.storeName,
+        machines.map((machine) => machine.machineName),
+        await readStoredMachineEvaluationSettings(store.id),
+      )
+    : [];
 
   return (
     <main className="pageStack">
@@ -133,74 +153,82 @@ export default async function StoreDetailPage({ params }) {
           <p>GUIアプリ側でこの店舗の台データを取得すると、ここに機種一覧が並びます。</p>
         </section>
       ) : (
-        <section className="tablePanel directoryPanel">
-          <div className="tableScroller directoryScroller">
-            <table className="directoryTable">
-              <thead>
-                <tr>
-                  <th className="directoryNameHeader">機種</th>
-                  <th>最新日</th>
-                  <th>台数</th>
-                  {hasHuntScoreAnalysis ? <th>検証</th> : null}
-                  <th>平均差枚</th>
-                  <th>平均G数</th>
-                  <th>平均出率</th>
-                </tr>
-              </thead>
-              <tbody>
-                {machines.map((machine) => {
-                  const machineHref = `/stores/${store.id}/machines/${encodeURIComponent(machine.machineName)}`;
-                  const verificationHref = `${machineHref}/hunt-score-verification`;
-                  const canVerify = hasHuntScoreAnalysis && canOpenHuntScoreVerification(machine, store.storeName);
+        <>
+          {hasHuntScoreAnalysis ? (
+            <MachineEvaluationSettings
+              storeId={store.id}
+              settings={machineEvaluationSettings}
+            />
+          ) : null}
+          <section className="tablePanel directoryPanel">
+            <div className="tableScroller directoryScroller">
+              <table className="directoryTable">
+                <thead>
+                  <tr>
+                    <th className="directoryNameHeader">機種</th>
+                    <th>最新日</th>
+                    <th>台数</th>
+                    {hasHuntScoreAnalysis ? <th>検証</th> : null}
+                    <th>平均差枚</th>
+                    <th>平均G数</th>
+                    <th>平均出率</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {machines.map((machine) => {
+                    const machineHref = `/stores/${store.id}/machines/${encodeURIComponent(machine.machineName)}`;
+                    const verificationHref = `${machineHref}/hunt-score-verification`;
+                    const canVerify = hasHuntScoreAnalysis && canOpenHuntScoreVerification(machine, store.storeName);
 
-                  return (
-                    <tr
-                      key={`${machine.machineName}-${machine.isCombinedMachineGroup ? "group" : "machine"}`}
-                      className={
-                        machine.isCombinedMachineGroup
-                          ? "combinedMachineGroupRow"
-                          : machine.isCombinedMachineChild
-                            ? "combinedMachineChildRow"
-                            : undefined
-                      }
-                    >
-                      <th
-                        className={`directoryNameCell ${
-                          machine.isCombinedMachineChild ? "directoryNameCellIndented" : ""
-                        }`}
+                    return (
+                      <tr
+                        key={`${machine.machineName}-${machine.isCombinedMachineGroup ? "group" : "machine"}`}
+                        className={
+                          machine.isCombinedMachineGroup
+                            ? "combinedMachineGroupRow"
+                            : machine.isCombinedMachineChild
+                              ? "combinedMachineChildRow"
+                              : undefined
+                        }
                       >
-                        <Link href={machineHref} className="directoryPrimaryLink">
-                          {machine.machineName}
-                        </Link>
-                      </th>
-                      <td>{machine.latestDate ? formatCompactDate(machine.latestDate) : "-"}</td>
-                      <td>{formatNumber(machine.slotCount)}</td>
-                      {hasHuntScoreAnalysis ? (
-                        <td>
-                          {canVerify ? (
-                            <Link
-                              href={verificationHref}
-                              className="machineVerificationLink"
-                              title="ロジック検証"
-                              aria-label={`${machine.machineName}のロジック検証`}
-                            >
-                              <span aria-hidden="true">検</span>
-                            </Link>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                      ) : null}
-                      <td>{formatSignedNumber(machine.latestAverageDifference)}</td>
-                      <td>{formatAverageGames(machine.latestAverageGames)}</td>
-                      <td>{formatPercent(machine.latestAveragePayout)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                        <th
+                          className={`directoryNameCell ${
+                            machine.isCombinedMachineChild ? "directoryNameCellIndented" : ""
+                          }`}
+                        >
+                          <Link href={machineHref} className="directoryPrimaryLink">
+                            {machine.machineName}
+                          </Link>
+                        </th>
+                        <td>{machine.latestDate ? formatCompactDate(machine.latestDate) : "-"}</td>
+                        <td>{formatNumber(machine.slotCount)}</td>
+                        {hasHuntScoreAnalysis ? (
+                          <td>
+                            {canVerify ? (
+                              <Link
+                                href={verificationHref}
+                                className="machineVerificationLink"
+                                title="ロジック検証"
+                                aria-label={`${machine.machineName}のロジック検証`}
+                              >
+                                <span aria-hidden="true">検</span>
+                              </Link>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
+                        ) : null}
+                        <td>{formatSignedNumber(machine.latestAverageDifference)}</td>
+                        <td>{formatAverageGames(machine.latestAverageGames)}</td>
+                        <td>{formatPercent(machine.latestAveragePayout)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
       )}
     </main>
   );

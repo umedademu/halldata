@@ -21,6 +21,13 @@ import {
 } from "./machine-difference";
 import { isHuntJugglerMachine } from "./hunt-machine-display";
 import {
+  MACHINE_EVALUATION_BACKTEST_MODE_AND,
+  MACHINE_EVALUATION_BACKTEST_MODE_COMMON,
+  MACHINE_EVALUATION_BACKTEST_MODE_MACHINE,
+  MACHINE_EVALUATION_BACKTEST_MODE_OR,
+  normalizeMachineEvaluationBacktestMode,
+} from "./machine-evaluation";
+import {
   calculateSettingEstimate,
   getSettingEstimateDefinition,
   normalizeSettingEstimateMode,
@@ -1072,6 +1079,24 @@ function matchesAllLogicConditions(row, logicConditionContexts, conditionOptions
   });
 }
 
+function resolveMachineEvaluationConditionMatch(row) {
+  return Boolean(row?.machineEvaluation?.matchesAdoption);
+}
+
+function combineBacktestConditionMatches(commonMatchesCondition, machineMatchesCondition, mode) {
+  const normalizedMode = normalizeMachineEvaluationBacktestMode(mode);
+  if (normalizedMode === MACHINE_EVALUATION_BACKTEST_MODE_MACHINE) {
+    return machineMatchesCondition;
+  }
+  if (normalizedMode === MACHINE_EVALUATION_BACKTEST_MODE_AND) {
+    return commonMatchesCondition && machineMatchesCondition;
+  }
+  if (normalizedMode === MACHINE_EVALUATION_BACKTEST_MODE_OR) {
+    return commonMatchesCondition || machineMatchesCondition;
+  }
+  return commonMatchesCondition;
+}
+
 function compareSelectionCandidates(left, right) {
   const nextGapDiff = right.nextGapValue - left.nextGapValue;
   if (Math.abs(nextGapDiff) > 0.000000001) {
@@ -1164,6 +1189,7 @@ function buildBacktestAggregationDetail(
     settingEstimateMode,
     showSettingDistribution,
     logicConditionMode = LOGIC_CONDITION_MODE_SUM,
+    machineEvaluationBacktestMode = MACHINE_EVALUATION_BACKTEST_MODE_COMMON,
     rowFilter = () => true,
   },
 ) {
@@ -1254,7 +1280,7 @@ function buildBacktestAggregationDetail(
       const machineUpperGapValue = readUpperGapForRankScope(gapRow, "machine");
       const selectedUpperGapValue = readUpperGapForRankScope(gapRow, "selected");
 
-      const matchesCondition = usesLogicAndConditions && logicConditionContexts.length > 1
+      const commonMatchesCondition = usesLogicAndConditions && logicConditionContexts.length > 1
         ? matchesAllLogicConditions(row, logicConditionContexts, conditionOptions)
         : matchesConditionForRowContext(
             {
@@ -1270,6 +1296,11 @@ function buildBacktestAggregationDetail(
             },
             conditionOptions,
           );
+      const matchesCondition = combineBacktestConditionMatches(
+        commonMatchesCondition,
+        resolveMachineEvaluationConditionMatch(row),
+        machineEvaluationBacktestMode,
+      );
 
       const actualDate = getActualDate(row, snapshot);
       if (!rowFilter({ snapshot, row, actualDate })) {
@@ -1442,6 +1473,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const settingEstimateMode = normalizeSettingEstimateMode(options.settingEstimateMode);
   const settingDistribution = normalizeSettingDistribution(options.settingDistribution);
   const showSettingDistribution = shouldShowSettingDistribution(settingDistribution);
+  const machineEvaluationBacktestMode = normalizeMachineEvaluationBacktestMode(options.machineEvaluationMode);
   const showGrapeColumn = selectedMachineNames.some(isHuntJugglerMachine);
   const eventFilters = buildBacktestEventFilters(options);
   const huntScoreLogics = Array.isArray(options.huntScoreLogics) ? options.huntScoreLogics : [];
@@ -1499,6 +1531,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     settingEstimateMode,
     showSettingDistribution,
     logicConditionMode,
+    machineEvaluationBacktestMode,
   };
   const allAggregation = buildBacktestAggregationDetail(snapshotsInPeriod, aggregationOptions);
   const breakdowns = BACKTEST_BREAKDOWN_DEFINITIONS.map((definition) => ({
@@ -1523,6 +1556,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     huntScoreLogics,
     usesCombinedHuntScoreLogic: huntScoreLogicKeys.length > 1,
     logicConditionMode,
+    machineEvaluationBacktestMode,
     machineOptions: availableMachineNames.map((machineName) => ({
       name: machineName,
       checked: selectedMachineNameSet.has(machineName),

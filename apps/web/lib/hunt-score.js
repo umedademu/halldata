@@ -6367,6 +6367,7 @@ function buildSnapshotRowsForDate(
           config.logicKey === "amuse-asakusa" && Number.isFinite(rawHuntScore)
             ? rawHuntScore
             : huntScore,
+        machineEvaluationMetrics: candidate.metrics,
         currentRecord: candidate.row,
         nextRecord,
         nextSettingEstimate: nextSetting,

@@ -175,6 +175,24 @@ function readRankingSortNumber(value, fallbackValue = Number.MAX_SAFE_INTEGER) {
 }
 
 function compareRankingRows(left, right) {
+  const leftMachineEvaluationOrder = readRankingSortNumber(
+    left.machineEvaluationRankingOrder,
+    Number.POSITIVE_INFINITY,
+  );
+  const rightMachineEvaluationOrder = readRankingSortNumber(
+    right.machineEvaluationRankingOrder,
+    Number.POSITIVE_INFINITY,
+  );
+  if (
+    Number.isFinite(leftMachineEvaluationOrder) ||
+    Number.isFinite(rightMachineEvaluationOrder)
+  ) {
+    const orderDiff = leftMachineEvaluationOrder - rightMachineEvaluationOrder;
+    if (orderDiff !== 0) {
+      return orderDiff;
+    }
+  }
+
   return (
     readRankingSortNumber(right.huntScore, 0) - readRankingSortNumber(left.huntScore, 0) ||
     readRankingSortNumber(left.overallRank ?? left.selectedRank ?? left.rank) -
@@ -331,6 +349,32 @@ function formatNextGapForScope(row, nextGapScope) {
   return formatDecimal(readNextGapForRankScope(row, normalizeNextGapScope(nextGapScope)));
 }
 
+function MachineEvaluationCell({ evaluation }) {
+  if (!evaluation) {
+    return <td data-sort-value="">-</td>;
+  }
+
+  const statusLabel = evaluation.matchesAdoption ? "採用" : "見送り";
+  const titleParts = [
+    evaluation.logicName ? `機種別ロジック: ${evaluation.logicName}` : "",
+    evaluation.conditionName ? `採用条件: ${evaluation.conditionName}` : "",
+    evaluation.backtestLabel ? `目安: ${evaluation.backtestLabel}` : "",
+    Number.isFinite(evaluation.rank) ? `機種別順位: ${evaluation.rank}` : "",
+    Number.isFinite(evaluation.nextGap) ? `次点差: ${formatDecimal(evaluation.nextGap)}` : "",
+  ].filter(Boolean);
+
+  return (
+    <td
+      className={evaluation.matchesAdoption ? "machineEvaluationMatchedCell" : undefined}
+      title={titleParts.join("\n") || undefined}
+      data-sort-value={readRankingSortNumber(evaluation.score, "")}
+    >
+      <span className="machineEvaluationCellValue">{formatNumber(evaluation.score)}</span>
+      <span className="machineEvaluationCellStatus">{statusLabel}</span>
+    </td>
+  );
+}
+
 function isRankingConditionHighlighted(row, highlightCondition) {
   if (
     !highlightCondition.machineRankFilter.hasRankFilter &&
@@ -417,19 +461,33 @@ function readSortableTableNumber(value) {
   return Number.isFinite(parsedValue) ? parsedValue : null;
 }
 
-function readSortableTableValue(row, columnIndex, nextGapScope, hasSubHuntScoreColumn = false) {
+function readSortableTableValue(
+  row,
+  columnIndex,
+  nextGapScope,
+  hasSubHuntScoreColumn = false,
+  hasMachineEvaluationColumn = false,
+) {
   if (columnIndex === 0) {
     return { missing: false, value: readSortableTableNumber(row.rank), type: "number" };
   }
   if (columnIndex === 1) {
     return { missing: false, value: readSortableTableNumber(row.huntScore), type: "number" };
   }
-  const nextGapColumnIndex = hasSubHuntScoreColumn ? 3 : 2;
-  const machineColumnIndex = hasSubHuntScoreColumn ? 4 : 3;
-  const slotColumnIndex = hasSubHuntScoreColumn ? 5 : 4;
+  const machineEvaluationColumnIndex = 2 + (hasSubHuntScoreColumn ? 1 : 0);
+  const nextGapColumnIndex = 2 + (hasSubHuntScoreColumn ? 1 : 0) + (hasMachineEvaluationColumn ? 1 : 0);
+  const machineColumnIndex = nextGapColumnIndex + 1;
+  const slotColumnIndex = machineColumnIndex + 1;
 
   if (hasSubHuntScoreColumn && columnIndex === 2) {
     return { missing: false, value: readSortableTableNumber(row.subHuntScore), type: "number" };
+  }
+  if (hasMachineEvaluationColumn && columnIndex === machineEvaluationColumnIndex) {
+    return {
+      missing: false,
+      value: readSortableTableNumber(row.machineEvaluation?.score),
+      type: "number",
+    };
   }
   if (columnIndex === nextGapColumnIndex) {
     return {
@@ -456,18 +514,21 @@ function compareSortableTableRows(
   sortState,
   nextGapScope,
   hasSubHuntScoreColumn = false,
+  hasMachineEvaluationColumn = false,
 ) {
   const leftValue = readSortableTableValue(
     leftEntry.row,
     sortState.columnIndex,
     nextGapScope,
     hasSubHuntScoreColumn,
+    hasMachineEvaluationColumn,
   );
   const rightValue = readSortableTableValue(
     rightEntry.row,
     sortState.columnIndex,
     nextGapScope,
     hasSubHuntScoreColumn,
+    hasMachineEvaluationColumn,
   );
   const leftMissing = leftValue.missing || leftValue.value === null || leftValue.value === "";
   const rightMissing = rightValue.missing || rightValue.value === null || rightValue.value === "";
@@ -507,8 +568,11 @@ function OverallRankingTable({
   sortable = false,
   tableId = "",
   subHuntScoreLogic = null,
+  showMachineEvaluation = false,
 }) {
   const showSubHuntScoreColumn = Boolean(subHuntScoreLogic);
+  const hasMachineEvaluationColumn =
+    showMachineEvaluation && rows.some((row) => row?.machineEvaluation);
   const subHuntScoreTitle = subHuntScoreLogic?.name
     ? `表示用ロジック: ${subHuntScoreLogic.name}`
     : undefined;
@@ -529,10 +593,11 @@ function OverallRankingTable({
           sortState,
           nextGapScope,
           showSubHuntScoreColumn,
+          hasMachineEvaluationColumn,
         ),
       )
       .map((entry) => entry.row);
-  }, [nextGapScope, rows, showSubHuntScoreColumn, sortState, sortable]);
+  }, [hasMachineEvaluationColumn, nextGapScope, rows, showSubHuntScoreColumn, sortState, sortable]);
   const tableProps = tableId ? { id: tableId } : {};
   const handleSort = (columnIndex, type, initialDirection) => {
     if (!sortable) {
@@ -581,9 +646,10 @@ function OverallRankingTable({
         <th className={className || undefined} title={headerTitle}>{children}</th>
       );
   };
-  const nextGapColumnIndex = showSubHuntScoreColumn ? 3 : 2;
-  const machineColumnIndex = showSubHuntScoreColumn ? 4 : 3;
-  const slotColumnIndex = showSubHuntScoreColumn ? 5 : 4;
+  const machineEvaluationColumnIndex = 2 + (showSubHuntScoreColumn ? 1 : 0);
+  const nextGapColumnIndex = 2 + (showSubHuntScoreColumn ? 1 : 0) + (hasMachineEvaluationColumn ? 1 : 0);
+  const machineColumnIndex = nextGapColumnIndex + 1;
+  const slotColumnIndex = machineColumnIndex + 1;
 
   return (
     <section className="tablePanel directoryPanel">
@@ -601,6 +667,11 @@ function OverallRankingTable({
               <HeaderCell columnIndex={1}>{scoreColumnLabel}</HeaderCell>
               {showSubHuntScoreColumn ? (
                 <HeaderCell columnIndex={2} title={subHuntScoreTitle}>表示狙度</HeaderCell>
+              ) : null}
+              {hasMachineEvaluationColumn ? (
+                <HeaderCell columnIndex={machineEvaluationColumnIndex} title="機種別評価">
+                  機種別
+                </HeaderCell>
               ) : null}
               <HeaderCell columnIndex={nextGapColumnIndex}>次点差</HeaderCell>
               <HeaderCell columnIndex={machineColumnIndex} type="text" initialDirection="asc" className="directoryNameHeader">
@@ -658,6 +729,9 @@ function OverallRankingTable({
                     >
                       {formatNumber(row.subHuntScore)}
                     </td>
+                  ) : null}
+                  {hasMachineEvaluationColumn ? (
+                    <MachineEvaluationCell evaluation={row.machineEvaluation} />
                   ) : null}
                   <td
                     className={getRankingConditionHighlightClass(
@@ -720,6 +794,7 @@ export function HuntRankingTable({
   initialDifferenceMode = DEFAULT_DIFFERENCE_MODE,
   showMachineTopCandidates = false,
   subHuntScoreLogic = null,
+  showMachineEvaluation = false,
 }) {
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
   const [differenceMode, setDifferenceMode] = useState(() =>
@@ -1016,6 +1091,7 @@ export function HuntRankingTable({
           highlightCondition={highlightCondition}
           bookmarkMatchByRowKey={bookmarkMatchByRowKey}
           subHuntScoreLogic={subHuntScoreLogic}
+          showMachineEvaluation={showMachineEvaluation}
         />
       ) : (
         <section className="statusPanel">
@@ -1040,6 +1116,7 @@ export function HuntRankingTable({
             sortable
             tableId="machine-top-candidates-ranking"
             subHuntScoreLogic={subHuntScoreLogic}
+            showMachineEvaluation={showMachineEvaluation}
           />
         ) : (
           <section className="statusPanel">
@@ -1052,6 +1129,8 @@ export function HuntRankingTable({
       {displayGroupsWithGap.map((group) => {
         const groupHasSite7Data = group.rows.some((row) => row.predictionMachineHasSite7Data);
         const groupSite7FetchedAt = latestSite7FetchedAtFromRows(group.rows);
+        const showGroupMachineEvaluation =
+          showMachineEvaluation && group.rows.some((row) => row?.machineEvaluation);
 
         return (
           <section key={group.machineName} className="tablePanel directoryPanel">
@@ -1088,6 +1167,7 @@ export function HuntRankingTable({
                   {showSubHuntScoreColumn ? (
                     <th title={subHuntScoreTitle}>表示狙度</th>
                   ) : null}
+                  {showGroupMachineEvaluation ? <th title="機種別評価">機種別</th> : null}
                   <th>次点差</th>
                   <th>台番</th>
                   {visibleColumns.map((column) => (
@@ -1112,6 +1192,9 @@ export function HuntRankingTable({
                       </td>
                       {showSubHuntScoreColumn ? (
                         <td title={subHuntScoreTitle}>{formatNumber(row.subHuntScore)}</td>
+                      ) : null}
+                      {showGroupMachineEvaluation ? (
+                        <MachineEvaluationCell evaluation={row.machineEvaluation} />
                       ) : null}
                       <td className={getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey)}>
                         {formatNextGapForScope(row, nextGapScope)}

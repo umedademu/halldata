@@ -29,6 +29,11 @@ import {
 } from "./hunt-score";
 import { isHuntJugglerMachine } from "./hunt-machine-display";
 import {
+  buildStoreMachineEvaluationSettings,
+  decorateSnapshotsWithMachineEvaluation,
+  normalizeMachineEvaluationBacktestMode,
+} from "./machine-evaluation";
+import {
   canonicalMachineName,
   normalizeDifferenceMode,
   listEquivalentMachineNames,
@@ -2004,6 +2009,14 @@ function buildInitialBacktestDetail(
       : [huntScoreLogicKey];
   const huntScoreLogics = getHuntScoreLogicDetails(requestedBacktestLogicKeys, storeName);
   const logicConditionMode = defaultedOptions.logicConditionMode === "and" ? "and" : "sum";
+  const machineEvaluationBacktestMode = normalizeMachineEvaluationBacktestMode(
+    defaultedOptions?.machineEvaluationMode,
+  );
+  const machineEvaluationSettings = buildStoreMachineEvaluationSettings(
+    storeName,
+    machineNames,
+    defaultedOptions?.machineEvaluationSettings,
+  );
   const scoreMaxLimit = calculateBacktestScoreFilterMax(
     logicConditionMode,
     Math.max(1, huntScoreLogics.length),
@@ -2068,6 +2081,10 @@ function buildInitialBacktestDetail(
     huntScoreLogics,
     usesCombinedHuntScoreLogic: huntScoreLogics.length > 1,
     logicConditionMode,
+    machineEvaluationBacktestMode,
+    hasMachineEvaluationSettings: machineEvaluationSettings.some((setting) =>
+      Boolean(setting.logicKey && setting.conditionKey),
+    ),
     startDate: normalizeDateInput(defaultedOptions?.startDate),
     endDate: normalizeDateInput(defaultedOptions?.endDate),
     latestDate: null,
@@ -2183,6 +2200,11 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
     storeMachineNames,
   );
   const machineSlotCounts = buildStaticStoreMachineSlotCounts(staticStore);
+  const machineEvaluationSettings = buildStoreMachineEvaluationSettings(
+    store.storeName,
+    machineNames,
+    backtestOptions?.machineEvaluationSettings,
+  );
   const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName);
   const requestedRankingLogicKeys =
     Array.isArray(backtestOptions?.huntScoreLogicKeys) && backtestOptions.huntScoreLogicKeys.length > 0
@@ -2211,6 +2233,7 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
       storeUrl: store.storeUrl,
     },
     availableMachineNames: machineNames,
+    machineEvaluationSettings,
     rankingDates: [],
     rankingDateOptions: [],
     selectedDate: storeDetail.summary.latestDate,
@@ -2728,6 +2751,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     predictionDate: snapshot?.baseDate ?? null,
     nextBusinessDate: snapshot?.nextBusinessDate ?? null,
     machineSlotCounts: snapshotDetail.machineSlotCounts ?? {},
+    machineEvaluationSettings: snapshotDetail.machineEvaluationSettings ?? [],
     predictionHasSite7Data: snapshotUsesSite7Data(snapshot),
     rows: rankingRows,
     rankingGroups,
@@ -2762,6 +2786,11 @@ async function getHuntScoreSnapshotsForStore(
       staticIdentity.storeName,
       storeMachineNames,
     );
+    const machineEvaluationSettings = buildStoreMachineEvaluationSettings(
+      staticIdentity.storeName,
+      availableMachineNames,
+      machineOptions?.machineEvaluationSettings,
+    );
     const rankingMachineNames = normalizeInitialMachineSelection(availableMachineNames, machineOptions);
     const targetDateOnly = machineOptions?.targetDateOnly === true;
     const requestedDate = String(machineOptions?.requestedDate ?? "").trim();
@@ -2795,15 +2824,18 @@ async function getHuntScoreSnapshotsForStore(
     const selectedDate = rankingDates.includes(requestedDate)
       ? requestedDate
       : rankingDates[0] ?? null;
-    const snapshots = buildCombinedHuntScoreSnapshots(
-      targetRows,
-      storeRows,
-      staticIdentity.storeName,
-      huntScoreLogics.map((logic) => logic.key),
-      normalizedDifferenceMode,
-      targetDateOnly
-        ? { targetDate: selectedDate, settingEstimateMode: normalizedSettingEstimateMode }
-        : { targetDateRange, settingEstimateMode: normalizedSettingEstimateMode },
+    const snapshots = decorateSnapshotsWithMachineEvaluation(
+      buildCombinedHuntScoreSnapshots(
+        targetRows,
+        storeRows,
+        staticIdentity.storeName,
+        huntScoreLogics.map((logic) => logic.key),
+        normalizedDifferenceMode,
+        targetDateOnly
+          ? { targetDate: selectedDate, settingEstimateMode: normalizedSettingEstimateMode }
+          : { targetDateRange, settingEstimateMode: normalizedSettingEstimateMode },
+      ),
+      machineEvaluationSettings,
     );
     const subHuntScoreLogic = resolveOptionalHuntScoreLogic(
       machineOptions?.subHuntScoreLogicKey,
@@ -2846,6 +2878,7 @@ async function getHuntScoreSnapshotsForStore(
       rankingDates,
       selectedDate,
       machineSlotCounts: buildStaticStoreMachineSlotCounts(staticStore),
+      machineEvaluationSettings,
       store: {
         id: staticIdentity.id,
         store_name: staticIdentity.storeName,
