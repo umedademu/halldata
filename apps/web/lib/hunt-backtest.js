@@ -798,12 +798,13 @@ function addActualMetricsToSummary(
   upperGapValue,
   settingEstimateMode,
   showSettingDistribution,
+  huntScoreValue = row?.huntScore,
 ) {
   summary.actualRowCount += 1;
   if (actualMetrics.differenceValue > 0) {
     summary.winCount += 1;
   }
-  summary.huntScoreTotal += readFiniteNumber(row.huntScore);
+  summary.huntScoreTotal += readFiniteNumber(huntScoreValue);
   summary.differenceTotal += actualMetrics.differenceValue;
   summary.gamesTotal += actualMetrics.gamesCount;
   summary.bbTotal += actualMetrics.bbCount;
@@ -1201,6 +1202,9 @@ function buildBacktestAggregationDetail(
   const actualDates = new Set();
   let actualRowCount = 0;
   const usesLogicAndConditions = logicConditionMode === LOGIC_CONDITION_MODE_AND;
+  const usesMachineEvaluationOnly =
+    normalizeMachineEvaluationBacktestMode(machineEvaluationBacktestMode) ===
+    MACHINE_EVALUATION_BACKTEST_MODE_MACHINE;
 
   for (const snapshot of snapshotsInPeriod) {
     const machineRankCounts = new Map();
@@ -1322,25 +1326,36 @@ function buildBacktestAggregationDetail(
       }
 
       const summary = targetSummariesByMachine.get(backtestMachineName);
+      const summaryHuntScoreValue = usesMachineEvaluationOnly
+        ? row.machineEvaluation?.score
+        : row.huntScore;
+      const summaryNextGapValue = usesMachineEvaluationOnly
+        ? row.machineEvaluation?.nextGap
+        : machineNextGapValue;
+      const summaryUpperGapValue = usesMachineEvaluationOnly
+        ? null
+        : machineUpperGapValue;
       addActualMetricsToSummary(
         summary,
         row.machineName,
         row,
         actualMetrics,
-        machineNextGapValue,
-        machineUpperGapValue,
+        summaryNextGapValue,
+        summaryUpperGapValue,
         settingEstimateMode,
         showSettingDistribution,
+        summaryHuntScoreValue,
       );
       addActualMetricsToSummary(
         targetTotalSummary,
         row.machineName,
         row,
         actualMetrics,
-        machineNextGapValue,
-        machineUpperGapValue,
+        summaryNextGapValue,
+        summaryUpperGapValue,
         settingEstimateMode,
         showSettingDistribution,
+        summaryHuntScoreValue,
       );
 
       if (!matchesCondition) {
