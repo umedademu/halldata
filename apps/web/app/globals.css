@@ -382,42 +382,113 @@ a {
   opacity: 0.55;
 }
 
-.machineEvaluationPanel .tablePanelHeader {
-  align-items: end;
+.machineEvaluationControlCell {
+  overflow: visible;
 }
 
-.machineEvaluationActions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.machineEvaluationSubButton {
-  background: rgba(15, 23, 42, 0.04);
-  border-color: rgba(15, 23, 42, 0.12);
-  color: var(--muted);
-}
-
-.machineEvaluationSettingsTable {
-  min-width: 68rem;
-}
-
-.machineEvaluationSelect {
-  width: 100%;
-  min-width: 12rem;
+.machineEvaluationTableSelect,
+.machineEvaluationConditionSummary {
+  width: 10.5rem;
+  min-height: 2rem;
+  padding: 5px 8px;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--text);
+  font: inherit;
   font-weight: 800;
 }
 
-.machineEvaluationConditionSelect {
-  min-width: 28rem;
+.machineEvaluationTableSelect {
+  max-width: 10.5rem;
 }
 
-.machineEvaluationEstimateCell {
-  color: var(--muted);
-  font-size: 0.86rem;
-  font-weight: 850;
+.machineEvaluationConditionPicker {
+  position: relative;
+  width: 10.5rem;
+}
+
+.machineEvaluationConditionPicker[open] {
+  z-index: 8;
+}
+
+.machineEvaluationConditionSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.machineEvaluationConditionSummary::-webkit-details-marker {
+  display: none;
+}
+
+.machineEvaluationConditionSummary::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--muted);
+}
+
+.machineEvaluationConditionSummary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.machineEvaluationConditionSummary:disabled::after {
+  opacity: 0;
+}
+
+.machineEvaluationConditionSummary span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.machineEvaluationConditionMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  display: grid;
+  gap: 3px;
+  width: max-content;
+  min-width: 24rem;
+  max-width: min(44rem, calc(100vw - 48px));
+  max-height: 18rem;
+  padding: 6px;
+  overflow-y: auto;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+}
+
+.machineEvaluationConditionOption {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 850;
+  text-align: left;
+  cursor: pointer;
+  white-space: normal;
+}
+
+.machineEvaluationConditionOption:hover,
+.machineEvaluationConditionOptionActive {
+  background: rgba(37, 99, 165, 0.08);
+  color: var(--accent-strong);
 }
 
 .machineEvaluationCellValue {
