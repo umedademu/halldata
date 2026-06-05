@@ -7,7 +7,7 @@ import re
 import statistics
 import time
 import unicodedata
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
@@ -60,8 +60,10 @@ SITE7_MOBILE_STAT_LINK_LABELS = {
 SITE7_DEBUG_LOG_DIR_NAME = "logs/site7"
 SITE7_DIFFERENCE_SOURCE_GRAPH = "graph"
 SITE7_GRAPH_DIFFERENCE_SLOT_ATTR = "_site7_graph_difference_slots"
+SITE7_DATA_UPDATED_AT_ATTR = "_site7_data_updated_at"
 SITE7_BROWSER_STATE_DIR_NAME = "site7_browser"
 SITE7_DATE_BOUNDARY_HOUR = 4
+SITE7_JST = timezone(timedelta(hours=9))
 SITE7_UPDATE_DATE_PATTERN = re.compile(
     r"データ更新日時：\s*(\d{4})/(\d{1,2})/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?"
 )
@@ -393,6 +395,39 @@ def dataset_has_site7_graph_difference(dataset: MachineDataset, slot_number: str
     normalized_slot_number = str(slot_number).strip()
     marked_slots = getattr(dataset, SITE7_GRAPH_DIFFERENCE_SLOT_ATTR, set())
     return isinstance(marked_slots, set) and normalized_slot_number in marked_slots
+
+
+def format_site7_updated_datetime(updated_at: datetime) -> str:
+    if updated_at.tzinfo is None:
+        updated_at = updated_at.replace(tzinfo=SITE7_JST)
+    else:
+        updated_at = updated_at.astimezone(SITE7_JST)
+    return updated_at.isoformat(timespec="seconds")
+
+
+def set_site7_dataset_updated_at(dataset: MachineDataset, updated_at: str | datetime | None) -> None:
+    if updated_at is None:
+        return
+    if isinstance(updated_at, datetime):
+        updated_at_text = format_site7_updated_datetime(updated_at)
+    else:
+        updated_at_text = str(updated_at).strip()
+    if updated_at_text:
+        setattr(dataset, SITE7_DATA_UPDATED_AT_ATTR, updated_at_text)
+
+
+def site7_dataset_updated_at(dataset: MachineDataset) -> str:
+    return str(getattr(dataset, SITE7_DATA_UPDATED_AT_ATTR, "")).strip()
+
+
+def copy_site7_dataset_metadata(source: MachineDataset, target: MachineDataset) -> MachineDataset:
+    updated_at = site7_dataset_updated_at(source)
+    if updated_at:
+        set_site7_dataset_updated_at(target, updated_at)
+    marked_slots = getattr(source, SITE7_GRAPH_DIFFERENCE_SLOT_ATTR, None)
+    if isinstance(marked_slots, set):
+        setattr(target, SITE7_GRAPH_DIFFERENCE_SLOT_ATTR, set(marked_slots))
+    return target
 
 
 @dataclass(frozen=True)
@@ -942,6 +977,29 @@ class Site7Scraper:
             enabled_machine_names=enabled_machine_names,
         )
 
+    def fetch_mobile_hall_updated_datetime(
+        self,
+        *,
+        target_store: Site7TargetStore | None = None,
+        browser_visible: bool = False,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> datetime:
+        resolved_target_store = enrich_site7_target_store(target_store or SITE7_DEFAULT_TARGET_STORE)
+        self._require_playwright()
+        _raise_if_site7_cancel_requested(cancel_requested)
+
+        playwright = None
+        context = None
+        try:
+            playwright, context = self._launch_mobile_browser_context(browser_visible=browser_visible)
+            page = self._prepare_fetch_page(context, browser_visible=browser_visible)
+            hall_html = self._open_mobile_target_hall_page(page, resolved_target_store, cancel_requested=cancel_requested)
+            return self.extract_updated_datetime(hall_html)
+        except PlaywrightError as exc:
+            raise self._wrap_playwright_error(exc) from exc
+        finally:
+            self._release_browser_context(playwright, context)
+
     def _fetch_mobile_target_machine_history(
         self,
         recent_days: int,
@@ -1428,7 +1486,7 @@ class Site7Scraper:
                 ]
             )
 
-        return MachineDataset(
+        dataset = MachineDataset(
             store_name=store_name,
             store_url=store_url,
             target_date=target_date,
@@ -1438,6 +1496,11 @@ class Site7Scraper:
             columns=["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"],
             rows=rows,
         )
+        try:
+            set_site7_dataset_updated_at(dataset, self.extract_updated_datetime(html))
+        except ScraperError:
+            pass
+        return dataset
 
     def extract_mobile_machine_day_rows(self, html: str) -> dict[str, dict[str, str]]:
         soup = BeautifulSoup(html, "html.parser")
@@ -2443,6 +2506,12 @@ class Site7Scraper:
         return text or SITE7_TARGET_MACHINE_NAME
 
     def extract_updated_date(self, html: str) -> datetime:
+        updated_at = self.extract_updated_datetime(html)
+        if updated_at.hour < SITE7_DATE_BOUNDARY_HOUR:
+            updated_at -= timedelta(days=1)
+        return updated_at.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
+
+    def extract_updated_datetime(self, html: str) -> datetime:
         soup = BeautifulSoup(html, "html.parser")
         hall_date = soup.select_one("#hall_date")
         search_text = hall_date.get_text(" ", strip=True) if hall_date is not None else soup.get_text(" ", strip=True)
@@ -2458,10 +2527,7 @@ class Site7Scraper:
         if hour_text is None or minute_text is None:
             return datetime(year, month, day)
 
-        updated_at = datetime(year, month, day, int(hour_text), int(minute_text))
-        if updated_at.hour < SITE7_DATE_BOUNDARY_HOUR:
-            updated_at -= timedelta(days=1)
-        return updated_at.replace(hour=0, minute=0, second=0, microsecond=0)
+        return datetime(year, month, day, int(hour_text), int(minute_text))
 
     def extract_target_machine_entries(self, html: str) -> list[Site7MachineEntry]:
         soup = BeautifulSoup(html, "html.parser")

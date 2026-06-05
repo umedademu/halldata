@@ -25,6 +25,7 @@ from site7_scraper import (
     SITE7_DIFFERENCE_SOURCE_GRAPH,
     dataset_has_site7_graph_difference,
     default_site7_store_settings,
+    site7_dataset_updated_at,
     site7_store_is_known_unavailable,
 )
 from web_data_export import (
@@ -319,6 +320,9 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
             }
             if site7_difference_source:
                 record["site7_difference_source"] = site7_difference_source
+            site7_updated_at = site7_dataset_updated_at(dataset)
+            if data_source == DATA_SOURCE_SITE7 and site7_updated_at:
+                record["site7_fetched_at"] = site7_updated_at
             records.append(record)
 
     return records

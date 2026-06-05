@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
@@ -53,6 +53,7 @@ from site7_scraper import (
     Site7MachineEntry,
     Site7Scraper,
     Site7TargetStore,
+    copy_site7_dataset_metadata,
     default_site7_store_settings,
     enrich_site7_target_store,
     site7_store_is_known_unavailable,
@@ -82,6 +83,10 @@ DEFAULT_SCHEDULE_HOUR = 2
 DEFAULT_SCHEDULE_ALL_STORES_INTERVAL_DAYS = 14
 SITE7_SCHEDULE_HOUR_OPTIONS = (0, 1, *range(10, 24))
 DEFAULT_SITE7_SCHEDULE_HOURS = (12, 15, 18, 21)
+SITE7_FINAL_UPDATE_HOUR = 23
+SITE7_MORNING_SCHEDULE_LAST_HOUR = 10
+SITE7_SCHEDULE_RECHECK_INTERVAL_MINUTES = 10
+SITE7_SCHEDULE_RECHECK_LIMIT_MINUTES = 60
 GUI_SETTINGS_FILE_NAME = "gui_settings.json"
 SITE7_BROWSER_MODE_VISIBLE = "visible"
 SITE7_BROWSER_MODE_HIDDEN = "hidden"
@@ -381,13 +386,51 @@ def site7_schedule_due_hour(
     return current_hour
 
 
+def _as_jst_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=JST)
+    return value.astimezone(JST)
+
+
+def site7_update_satisfies_scheduled_hour(
+    updated_at: datetime,
+    scheduled_hour: int,
+    checked_at: datetime | None = None,
+) -> bool:
+    update_time = _as_jst_datetime(updated_at)
+    check_time = _as_jst_datetime(checked_at or datetime.now(JST))
+    if update_time > check_time:
+        return False
+
+    if 0 <= scheduled_hour <= SITE7_MORNING_SCHEDULE_LAST_HOUR:
+        previous_final_threshold = check_time.replace(
+            hour=SITE7_FINAL_UPDATE_HOUR,
+            minute=0,
+            second=0,
+            microsecond=0,
+        ) - timedelta(days=1)
+        return update_time >= previous_final_threshold
+
+    scheduled_threshold = check_time.replace(
+        hour=scheduled_hour,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+    return update_time.date() == check_time.date() and update_time >= scheduled_threshold
+
+
+def replace_dataset_preserving_site7_metadata(dataset: MachineDataset, **changes: object) -> MachineDataset:
+    return copy_site7_dataset_metadata(dataset, replace(dataset, **changes))
+
+
 def rewrite_history_result_store(
     history_result: MachineHistoryResult,
     store_name: str,
     store_url: str,
 ) -> MachineHistoryResult:
     rewritten_datasets = [
-        replace(
+        replace_dataset_preserving_site7_metadata(
             dataset,
             store_name=store_name,
             store_url=store_url,
@@ -499,7 +542,7 @@ def filter_site7_history_result_by_saved_slots(
             continue
 
         if removed_row_count > 0:
-            filtered_datasets.append(replace(dataset, rows=filtered_rows))
+            filtered_datasets.append(replace_dataset_preserving_site7_metadata(dataset, rows=filtered_rows))
             continue
 
         filtered_datasets.append(dataset)
@@ -535,7 +578,7 @@ def strip_site7_history_result_source_differences(history_result: MachineHistory
                 stripped_row[difference_index] = "-"
             stripped_rows.append(stripped_row)
 
-        stripped_datasets.append(replace(dataset, rows=stripped_rows))
+        stripped_datasets.append(replace_dataset_preserving_site7_metadata(dataset, rows=stripped_rows))
 
     return replace(history_result, datasets=stripped_datasets)
 
@@ -639,6 +682,28 @@ class ScheduledSite7FetchResult:
     fetch_many_result: FetchManyResult
     store_run_urls: set[str]
     run_date: str
+    scheduled_hour: int | None = None
+    waiting_store_urls: set[str] = field(default_factory=set)
+    waiting_started_at: datetime | None = None
+
+
+@dataclass
+class ScheduledSite7UpdateWaitingResult:
+    registered_stores: list[RegisteredStore]
+    scheduled_hour: int
+    waiting_store_urls: set[str]
+    run_date: str
+    waiting_started_at: datetime
+
+
+@dataclass
+class Site7ScheduleRecheckRequest:
+    scheduled_hour: int
+    store_urls: set[str]
+    run_date: str
+    first_checked_at: datetime
+    next_check_at: datetime
+    expires_at: datetime
 
 
 @dataclass
@@ -687,6 +752,7 @@ class MinRepoApp:
             self.site7_schedule_last_run_dates_by_hour,
         )
         self.site7_schedule_pending_hours: set[int] = set()
+        self.site7_schedule_recheck_requests: dict[int, Site7ScheduleRecheckRequest] = {}
         self.tray_icon: object | None = None
         self.tray_thread: threading.Thread | None = None
 
@@ -1130,6 +1196,11 @@ class MinRepoApp:
         self.site7_schedule_pending_hours = {
             hour for hour in self.site7_schedule_pending_hours if hour in self.site7_schedule_hours
         }
+        self.site7_schedule_recheck_requests = {
+            hour: request
+            for hour, request in getattr(self, "site7_schedule_recheck_requests", {}).items()
+            if hour in self.site7_schedule_hours
+        }
         try:
             self._save_site7_schedule_hours(self.site7_schedule_hours)
         except Exception as exc:  # noqa: BLE001
@@ -1139,6 +1210,7 @@ class MinRepoApp:
     def clear_site7_schedule(self) -> None:
         self.site7_schedule_hours = ()
         self.site7_schedule_pending_hours = set()
+        self.site7_schedule_recheck_requests = {}
         for hour_var in self.site7_schedule_hour_vars.values():
             hour_var.set(False)
         try:
@@ -1494,6 +1566,77 @@ class MinRepoApp:
         self.scheduled_last_run_date = due_date
         self._start_scheduled_fetch()
 
+    def _schedule_site7_update_recheck(
+        self,
+        *,
+        scheduled_hour: int,
+        waiting_store_urls: set[str],
+        run_date: str,
+        waiting_started_at: datetime,
+        now: datetime | None = None,
+    ) -> None:
+        normalized_urls = {
+            normalized_store_url
+            for store_url in waiting_store_urls
+            if (normalized_store_url := normalize_store_url(store_url))
+        }
+        if not normalized_urls:
+            return
+
+        if not hasattr(self, "site7_schedule_recheck_requests"):
+            self.site7_schedule_recheck_requests = {}
+        current_time = (now or datetime.now(JST)).astimezone(JST)
+        first_checked_at = _as_jst_datetime(waiting_started_at)
+        expires_at = first_checked_at + timedelta(minutes=SITE7_SCHEDULE_RECHECK_LIMIT_MINUTES)
+        if current_time >= expires_at:
+            self.site7_schedule_recheck_requests.pop(scheduled_hour, None)
+            self.site7_schedule_status_var.set(f"{scheduled_hour}時台のサイトセブン更新待ちは終了しました")
+            return
+
+        existing_request = getattr(self, "site7_schedule_recheck_requests", {}).get(scheduled_hour)
+        if existing_request is not None:
+            first_checked_at = min(existing_request.first_checked_at, first_checked_at)
+            expires_at = first_checked_at + timedelta(minutes=SITE7_SCHEDULE_RECHECK_LIMIT_MINUTES)
+            normalized_urls.update(existing_request.store_urls)
+
+        request = Site7ScheduleRecheckRequest(
+            scheduled_hour=scheduled_hour,
+            store_urls=normalized_urls,
+            run_date=run_date,
+            first_checked_at=first_checked_at,
+            next_check_at=current_time + timedelta(minutes=SITE7_SCHEDULE_RECHECK_INTERVAL_MINUTES),
+            expires_at=expires_at,
+        )
+        self.site7_schedule_recheck_requests[scheduled_hour] = request
+        self.site7_schedule_status_var.set(
+            f"{scheduled_hour}時台のサイトセブン更新待ち: 10分後に再確認"
+        )
+
+    def _scheduled_site7_recheck_due_request(self, now: datetime) -> Site7ScheduleRecheckRequest | None:
+        requests = getattr(self, "site7_schedule_recheck_requests", {})
+        if not requests:
+            return None
+
+        current_time = now.astimezone(JST)
+        expired_hours = [
+            hour
+            for hour, request in requests.items()
+            if current_time >= request.expires_at
+        ]
+        for hour in expired_hours:
+            requests.pop(hour, None)
+        if expired_hours:
+            self.site7_schedule_status_var.set("サイトセブン更新待ちを1時間で終了しました")
+
+        due_requests = [
+            request
+            for request in requests.values()
+            if current_time >= request.next_check_at
+        ]
+        if not due_requests:
+            return None
+        return min(due_requests, key=lambda request: request.next_check_at)
+
     def _mark_successful_supplemental_stores(
         self,
         fetch_many_result: FetchManyResult,
@@ -1589,6 +1732,23 @@ class MinRepoApp:
         if not self.site7_schedule_hours:
             return
 
+        recheck_request = self._scheduled_site7_recheck_due_request(now)
+        if recheck_request is not None:
+            if self.is_busy:
+                self.site7_schedule_status_var.set(
+                    f"{recheck_request.scheduled_hour}時台のサイトセブン更新再確認を待機中"
+                )
+                return
+            self.site7_schedule_recheck_requests.pop(recheck_request.scheduled_hour, None)
+            self._start_scheduled_site7_fetch(
+                recheck_request.scheduled_hour,
+                now,
+                target_store_urls=set(recheck_request.store_urls),
+                run_date=recheck_request.run_date,
+                waiting_started_at=recheck_request.first_checked_at,
+            )
+            return
+
         due_hour = site7_schedule_due_hour(
             self.site7_schedule_hours,
             self.site7_schedule_last_run_dates_by_hour,
@@ -1614,9 +1774,18 @@ class MinRepoApp:
         pending_hour = min(self.site7_schedule_pending_hours)
         self._start_scheduled_site7_fetch(pending_hour, now)
 
-    def _start_scheduled_site7_fetch(self, scheduled_hour: int, started_at: datetime | None = None) -> None:
+    def _start_scheduled_site7_fetch(
+        self,
+        scheduled_hour: int,
+        started_at: datetime | None = None,
+        *,
+        target_store_urls: set[str] | None = None,
+        run_date: str | None = None,
+        waiting_started_at: datetime | None = None,
+    ) -> None:
         self.site7_schedule_pending_hours.discard(scheduled_hour)
-        self._mark_site7_schedule_hour_started(scheduled_hour, started_at)
+        if target_store_urls is None:
+            self._mark_site7_schedule_hour_started(scheduled_hour, started_at)
         try:
             recent_days = parse_recent_days(self.target_date_var.get())
             retry_delay_seconds = self._retry_delay_seconds_input()
@@ -1649,7 +1818,9 @@ class MinRepoApp:
             browser_visible,
             scheduled_hour,
             dict(self.site7_schedule_store_last_run_dates),
-            current_jst_date_text(started_at),
+            run_date or current_jst_date_text(started_at),
+            target_store_urls,
+            waiting_started_at,
             operation_kind="scheduled_site7_fetch",
         )
 
@@ -2207,6 +2378,8 @@ class MinRepoApp:
         scheduled_hour: int,
         store_last_run_dates: dict[str, str],
         run_date: str,
+        target_store_urls: set[str] | None = None,
+        waiting_started_at: datetime | None = None,
     ) -> None:
         try:
             registered_stores = self._load_latest_registered_stores()
@@ -2216,9 +2389,34 @@ class MinRepoApp:
                 scheduled_hour=scheduled_hour,
                 store_last_run_dates=store_last_run_dates,
                 run_date=run_date,
+                target_store_urls=target_store_urls,
             )
             if not target_stores:
                 self.result_queue.put(("scheduled_site7_fetch_skipped", registered_stores))
+                return
+
+            checked_at = datetime.now(JST)
+            target_stores, waiting_store_urls = self._filter_scheduled_site7_stores_by_update_time(
+                target_stores=target_stores,
+                scheduled_hour=scheduled_hour,
+                checked_at=checked_at,
+                browser_visible=browser_visible,
+            )
+            if waiting_store_urls:
+                store_run_urls.difference_update(waiting_store_urls)
+            if not target_stores:
+                self.result_queue.put(
+                    (
+                        "scheduled_site7_fetch_waiting",
+                        ScheduledSite7UpdateWaitingResult(
+                            registered_stores=registered_stores,
+                            scheduled_hour=scheduled_hour,
+                            waiting_store_urls=waiting_store_urls,
+                            run_date=run_date,
+                            waiting_started_at=waiting_started_at or checked_at,
+                        ),
+                    )
+                )
                 return
 
             fetch_many_result = self._run_site7_fetch_many(
@@ -2238,6 +2436,9 @@ class MinRepoApp:
                         fetch_many_result=fetch_many_result,
                         store_run_urls=store_run_urls,
                         run_date=run_date,
+                        scheduled_hour=scheduled_hour,
+                        waiting_store_urls=waiting_store_urls,
+                        waiting_started_at=waiting_started_at or checked_at,
                     ),
                 )
             )
@@ -2245,6 +2446,39 @@ class MinRepoApp:
             self.result_queue.put(("fetch_cancelled", None))
         except Exception as exc:  # noqa: BLE001
             self.result_queue.put(("fetch_error", exc))
+
+    def _filter_scheduled_site7_stores_by_update_time(
+        self,
+        *,
+        target_stores: list[RegisteredStore],
+        scheduled_hour: int,
+        checked_at: datetime,
+        browser_visible: bool,
+    ) -> tuple[list[RegisteredStore], set[str]]:
+        eligible_stores: list[RegisteredStore] = []
+        waiting_store_urls: set[str] = set()
+        for registered_store in target_stores:
+            self._raise_if_fetch_cancelled()
+            try:
+                updated_at = self.site7_scraper.fetch_mobile_hall_updated_datetime(
+                    target_store=registered_store.to_site7_target_store(),
+                    browser_visible=browser_visible,
+                    cancel_requested=self.fetch_cancel_event.is_set,
+                )
+            except Site7FetchCancelled as exc:
+                raise FetchCancelled from exc
+            except Exception:
+                eligible_stores.append(registered_store)
+                continue
+
+            if site7_update_satisfies_scheduled_hour(updated_at, scheduled_hour, checked_at):
+                eligible_stores.append(registered_store)
+            else:
+                normalized_url = normalize_store_url(registered_store.url)
+                if normalized_url:
+                    waiting_store_urls.add(normalized_url)
+
+        return eligible_stores, waiting_store_urls
 
     def _load_and_complete_registered_stores(self) -> StoreRefreshResult:
         registered_stores = self._load_latest_registered_stores()
@@ -3767,7 +4001,35 @@ class MinRepoApp:
             if fetch_many_result.cancelled:
                 self.site7_schedule_status_var.set("サイトセブン定期実行を中止しました")
             else:
-                self.site7_schedule_status_var.set(f"サイトセブン定期実行完了: {self._site7_schedule_status_text()}")
+                if payload.waiting_store_urls and payload.scheduled_hour is not None and payload.waiting_started_at is not None:
+                    self._schedule_site7_update_recheck(
+                        scheduled_hour=payload.scheduled_hour,
+                        waiting_store_urls=payload.waiting_store_urls,
+                        run_date=payload.run_date,
+                        waiting_started_at=payload.waiting_started_at,
+                    )
+                else:
+                    self.site7_schedule_status_var.set(f"サイトセブン定期実行完了: {self._site7_schedule_status_text()}")
+            return
+
+        if kind == "scheduled_site7_fetch_waiting":
+            if not isinstance(payload, ScheduledSite7UpdateWaitingResult):
+                self._finish_fetch_progress(success=False, message="取得失敗")
+                self.status_var.set("失敗")
+                self.summary_var.set("不明な結果")
+                self.site7_schedule_status_var.set("サイトセブン定期実行に失敗しました")
+                messagebox.showerror("エラー", "サイトセブン更新待ちの結果形式が不正です。")
+                return
+            self._replace_registered_stores(payload.registered_stores, select_all=False, reset_fetch_display=False)
+            self._finish_fetch_progress(success=True, message="更新待ち")
+            self.status_var.set("待機中")
+            self.summary_var.set("サイトセブン更新待ちの店舗を10分後に再確認します")
+            self._schedule_site7_update_recheck(
+                scheduled_hour=payload.scheduled_hour,
+                waiting_store_urls=payload.waiting_store_urls,
+                run_date=payload.run_date,
+                waiting_started_at=payload.waiting_started_at,
+            )
             return
 
         if kind == "scheduled_site7_fetch_skipped":
@@ -4534,8 +4796,20 @@ class MinRepoApp:
         scheduled_hour: int,
         store_last_run_dates: dict[str, str],
         run_date: str,
+        target_store_urls: set[str] | None = None,
     ) -> tuple[list[RegisteredStore], set[str]]:
         candidates = self._site7_registered_stores_from(registered_stores)
+        if target_store_urls is not None:
+            normalized_target_urls = {
+                normalized_store_url
+                for store_url in target_store_urls
+                if (normalized_store_url := normalize_store_url(store_url))
+            }
+            candidates = [
+                registered_store
+                for registered_store in candidates
+                if normalize_store_url(registered_store.url) in normalized_target_urls
+            ]
         high_frequency_stores = [
             registered_store
             for registered_store in candidates

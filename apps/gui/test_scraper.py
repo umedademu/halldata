@@ -56,6 +56,8 @@ from main import (
     scheduled_fetch_due_date,
     scheduled_supplemental_store_limit,
     site7_schedule_due_hour,
+    site7_update_satisfies_scheduled_hour,
+    strip_site7_history_result_source_differences,
 )
 from machine_difference import (
     calculate_estimated_coin_hold_difference_value,
@@ -92,6 +94,8 @@ from site7_scraper import (
     default_site7_store_settings,
     enrich_site7_target_store,
     dataset_has_site7_graph_difference,
+    set_site7_dataset_updated_at,
+    site7_dataset_updated_at,
     mark_site7_dataset_graph_difference,
     parse_site7_graph_difference_value,
     site7_store_is_known_unavailable,
@@ -533,6 +537,50 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(site7_schedule_due_hour((12, 15, 18, 21), {}, evening_now), 18)
         self.assertIsNone(site7_schedule_due_hour((12, 15, 18, 21), {}, morning_now))
 
+    def test_site7_update_satisfies_scheduled_hour_uses_source_update_time(self) -> None:
+        checked_at = datetime(2026, 6, 5, 14, 5, tzinfo=timezone.utc)
+
+        self.assertFalse(
+            site7_update_satisfies_scheduled_hour(
+                datetime(2026, 6, 5, 22, 30),
+                23,
+                checked_at,
+            )
+        )
+        self.assertTrue(
+            site7_update_satisfies_scheduled_hour(
+                datetime(2026, 6, 5, 23, 8),
+                23,
+                datetime(2026, 6, 5, 14, 10, tzinfo=timezone.utc),
+            )
+        )
+
+    def test_site7_update_satisfies_morning_hour_after_previous_final_update(self) -> None:
+        midnight_checked_at = datetime(2026, 6, 5, 15, 5, tzinfo=timezone.utc)
+        one_oclock_checked_at = datetime(2026, 6, 5, 16, 5, tzinfo=timezone.utc)
+
+        self.assertTrue(
+            site7_update_satisfies_scheduled_hour(
+                datetime(2026, 6, 5, 23, 8),
+                0,
+                midnight_checked_at,
+            )
+        )
+        self.assertTrue(
+            site7_update_satisfies_scheduled_hour(
+                datetime(2026, 6, 6, 0, 45),
+                1,
+                one_oclock_checked_at,
+            )
+        )
+        self.assertFalse(
+            site7_update_satisfies_scheduled_hour(
+                datetime(2026, 6, 5, 22, 50),
+                1,
+                one_oclock_checked_at,
+            )
+        )
+
     def test_run_scheduled_site7_fetch_if_due_queues_checked_hours_while_busy(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.site7_schedule_hours = (12, 15, 18, 21)
@@ -558,6 +606,38 @@ class MinRepoScraperTests(unittest.TestCase):
             app._run_scheduled_site7_fetch_if_due()
 
         app._start_scheduled_site7_fetch.assert_called_once_with(12, current_time)
+
+    def test_site7_schedule_recheck_request_waits_ten_minutes_and_expires(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.site7_schedule_recheck_requests = {}
+        app.site7_schedule_status_var = FakeTextVariable()
+        first_checked_at = datetime(2026, 6, 5, 14, 5, tzinfo=timezone.utc)
+
+        app._schedule_site7_update_recheck(
+            scheduled_hour=23,
+            waiting_store_urls={"https://example.com/store"},
+            run_date="2026-06-05",
+            waiting_started_at=first_checked_at,
+            now=first_checked_at,
+        )
+
+        self.assertIsNone(
+            app._scheduled_site7_recheck_due_request(
+                datetime(2026, 6, 5, 14, 14, tzinfo=timezone.utc)
+            )
+        )
+        due_request = app._scheduled_site7_recheck_due_request(
+            datetime(2026, 6, 5, 14, 15, tzinfo=timezone.utc)
+        )
+        self.assertIsNotNone(due_request)
+        self.assertEqual(due_request.scheduled_hour, 23)
+
+        self.assertIsNone(
+            app._scheduled_site7_recheck_due_request(
+                datetime(2026, 6, 5, 15, 6, tzinfo=timezone.utc)
+            )
+        )
+        self.assertEqual(app.site7_schedule_recheck_requests, {})
 
     def test_clamp_site7_recent_days(self) -> None:
         self.assertEqual(clamp_site7_recent_days(3), 3)
@@ -3330,6 +3410,14 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertEqual(updated_date, datetime(2026, 4, 28))
 
+    def test_site7_extract_updated_datetime_keeps_source_time(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        html = '<p id="hall_date">データ更新日時：2026/04/28 23:08</p>'
+
+        updated_at = scraper.extract_updated_datetime(html)
+
+        self.assertEqual(updated_at, datetime(2026, 4, 28, 23, 8))
+
     def test_site7_parse_machine_history_uses_four_oclock_boundary(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = find_gui_fixture("site7_machine.html").replace("2026/04/25 15:15", "2026/04/28 01:00")
@@ -3520,6 +3608,58 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(record["setting_estimate_grape_status"], "provisional")
         self.assertEqual(record["setting_estimate_grape_source"], "site7")
         self.assertEqual(record["setting_estimate_grape_version"], SETTING_ESTIMATE_GRAPE_VALUE_VERSION)
+
+    def test_site7_build_machine_daily_records_uses_source_updated_at(self) -> None:
+        dataset = MachineDataset(
+            store_name="サイトセブン店",
+            store_url="https://example.com/site7",
+            target_date="2026-06-05",
+            date_url="https://m.site777.jp/db/D2300.do",
+            machine_name=SITE7_TARGET_MACHINE_NAME,
+            machine_url="https://m.site777.jp/db/D2300.do",
+            columns=["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"],
+            rows=[["821", "100", "1000", "-", "5", "2", "1/143", "1/200", "1/500"]],
+        )
+        set_site7_dataset_updated_at(dataset, datetime(2026, 6, 5, 23, 8))
+
+        records = build_machine_daily_records(
+            MachineHistoryResult(
+                store_name="サイトセブン店",
+                store_url="https://example.com/site7",
+                start_date="2026-06-05",
+                end_date="2026-06-05",
+                date_pages=[],
+                datasets=[dataset],
+            )
+        )
+
+        self.assertEqual(records[0]["site7_fetched_at"], "2026-06-05T23:08:00+09:00")
+
+    def test_site7_dataset_updated_at_survives_rewrite_and_strip(self) -> None:
+        dataset = MachineDataset(
+            store_name="サイトセブン店",
+            store_url="https://example.com/site7",
+            target_date="2026-06-05",
+            date_url="https://m.site777.jp/db/D2300.do",
+            machine_name=SITE7_TARGET_MACHINE_NAME,
+            machine_url="https://m.site777.jp/db/D2300.do",
+            columns=["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"],
+            rows=[["821", "100", "1000", "-", "5", "2", "1/143", "1/200", "1/500"]],
+        )
+        set_site7_dataset_updated_at(dataset, "2026-06-05T23:08:00+09:00")
+        history_result = MachineHistoryResult(
+            store_name="サイトセブン店",
+            store_url="https://example.com/site7",
+            start_date="2026-06-05",
+            end_date="2026-06-05",
+            date_pages=[],
+            datasets=[dataset],
+        )
+
+        rewritten_result = rewrite_history_result_store(history_result, "Aパーク春日店", "https://example.com/store")
+        stripped_result = strip_site7_history_result_source_differences(rewritten_result)
+
+        self.assertEqual(site7_dataset_updated_at(stripped_result.datasets[0]), "2026-06-05T23:08:00+09:00")
 
     def test_web_export_adds_setting_estimate_values(self) -> None:
         record = safe_record(
