@@ -1189,6 +1189,27 @@ function sumDifferenceValues(rows) {
   return rows.reduce((total, row) => total + (readNumber(row?.differenceValue) ?? 0), 0);
 }
 
+function readWindowField(row, fieldName) {
+  const directValue = Number(row?.[fieldName]);
+  if (Number.isFinite(directValue)) {
+    return directValue;
+  }
+  const rawFieldName =
+    fieldName === "games" ? "games_count" :
+    fieldName === "bbCount" ? "bb_count" :
+    fieldName === "rbCount" ? "rb_count" :
+    "";
+  return rawFieldName ? (readNumber(row?.row?.[rawFieldName]) ?? 0) : 0;
+}
+
+function sumWindowField(rows, fieldName) {
+  return rows.reduce((total, row) => total + readWindowField(row, fieldName), 0);
+}
+
+function countBigShowRows(rows) {
+  return rows.filter((row) => readWindowField(row, "games") >= 5000 && row.differenceValue >= 1000).length;
+}
+
 function countConsecutiveRollingNetThresholdDays(rows, windowSize, threshold) {
   if (!Array.isArray(rows) || rows.length < windowSize || windowSize <= 0) return 0;
   let count = 0;
@@ -5859,27 +5880,57 @@ function calculateWindowMetrics(
   const recentFourRows = metricWindowRows.slice(-4);
   const recentFiveRows = metricWindowRows.slice(-5);
   const recentSixRows = metricWindowRows.slice(-6);
+  const recentSevenRows = historyWindowRows.slice(-7);
+  const recentTenRows = historyWindowRows.slice(-10);
   const recentFourteenRows = historyWindowRows.slice(-14);
+  const recentTwentyOneRows = historyWindowRows.slice(-21);
+  const recentTwentyEightRows = historyWindowRows.slice(-28);
+  const recentFortyTwoRows = historyWindowRows.slice(-42);
+  const recentFiftySixRows = historyWindowRows.slice(-56);
   const recentTwoNetTotal = sumDifferenceValues(recentTwoRows);
   const recentThreeNetTotal = sumDifferenceValues(recentThreeRows);
   const recentFourNetTotal = sumDifferenceValues(recentFourRows);
   const recentFiveNetTotal = sumDifferenceValues(recentFiveRows);
   const recentSixNetTotal = sumDifferenceValues(recentSixRows);
+  const recentSevenNetTotal = sumDifferenceValues(recentSevenRows);
+  const recentTenNetTotal = sumDifferenceValues(recentTenRows);
   const recentFourteenNetTotal = sumDifferenceValues(recentFourteenRows);
+  const recentTwentyOneNetTotal = sumDifferenceValues(recentTwentyOneRows);
+  const recentTwentyEightNetTotal = sumDifferenceValues(recentTwentyEightRows);
+  const recentFortyTwoNetTotal = sumDifferenceValues(recentFortyTwoRows);
+  const recentFiftySixNetTotal = sumDifferenceValues(recentFiftySixRows);
   const shortSevenSinkStayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -500);
   const shortThreeSinkStayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 3, -300);
   const recentFourLossDays = recentFourRows.filter((windowRow) => windowRow.differenceValue < 0).length;
+  const recentSevenLossDays = recentSevenRows.filter((windowRow) => windowRow.differenceValue < 0).length;
+  const recentFourteenWinDays = recentFourteenRows.filter((windowRow) => windowRow.differenceValue > 0).length;
   const recentFourPositiveCount = recentFourRows.filter((windowRow) => windowRow.differenceValue > 0).length;
   const recentTwoGamesTotal = recentTwoRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentThreeGamesTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentFiveGamesTotal = recentFiveRows.reduce((total, windowRow) => total + windowRow.games, 0);
+  const recentSevenGamesTotal = sumWindowField(recentSevenRows, "games");
+  const recentTenGamesTotal = sumWindowField(recentTenRows, "games");
+  const recentFourteenGamesTotal = sumWindowField(recentFourteenRows, "games");
+  const recentTwentyOneGamesTotal = sumWindowField(recentTwentyOneRows, "games");
+  const recentTwentyEightGamesTotal = sumWindowField(recentTwentyEightRows, "games");
+  const recentFortyTwoGamesTotal = sumWindowField(recentFortyTwoRows, "games");
+  const recentFiftySixGamesTotal = sumWindowField(recentFiftySixRows, "games");
   const recentThreeBonusTotal = recentThreeRows.reduce(
+    (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
+    0,
+  );
+  const recentFiveBonusTotal = recentFiveRows.reduce(
     (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
     0,
   );
   const recentTwoRbTotal = recentTwoRows.reduce((total, windowRow) => total + windowRow.rbCount, 0);
   const recentThreeRbTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.rbCount, 0);
   const recentFiveRbTotal = recentFiveRows.reduce((total, windowRow) => total + windowRow.rbCount, 0);
+  const recentSevenRbTotal = sumWindowField(recentSevenRows, "rbCount");
+  const recentFourteenRbTotal = sumWindowField(recentFourteenRows, "rbCount");
+  const recentTwentyOneRbTotal = sumWindowField(recentTwentyOneRows, "rbCount");
+  const recentSevenBbTotal = sumWindowField(recentSevenRows, "bbCount");
+  const recentFourteenBbTotal = sumWindowField(recentFourteenRows, "bbCount");
   const recentTwoSettingAverage = calculateSettingAverageFromWindowRows(recentTwoRows);
   const recentFiveSettingAverage = calculateSettingAverageFromWindowRows(recentFiveRows);
   const windowSettingAverage = calculateSettingAverageFromWindowRows(metricWindowRows);
@@ -5937,6 +5988,12 @@ function calculateWindowMetrics(
   const threeDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-3));
   const fourDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-4));
   const recentFiveHighSettingCandidateCount = recentFiveRows.filter(isHighSettingCandidateWindowRow).length;
+  const recentSevenHighSettingCandidateCount = historyWindowRows
+    .slice(-7)
+    .filter(isHistoryHighSettingCandidateWindowRow).length;
+  const recentSevenHighSettingEstimateCount = historyWindowRows
+    .slice(-7)
+    .filter(isHistoryHighSettingEstimateWindowRow).length;
   const twoDaysAgoHighSettingEstimate = isHighSettingEstimateWindowRow(metricWindowRows.at(-2));
   const twoDaysAgoSettingFive = isSettingFiveWindowRow(metricWindowRows.at(-2));
   const recentThreeHighSettingEstimateCount = recentThreeRows.filter(isHighSettingEstimateWindowRow).length;
@@ -6062,9 +6119,17 @@ function calculateWindowMetrics(
     config,
     windowDays,
   );
+  const currentMachineName = normalizeHuntScoreMachineName(row?.machine_name, config);
+  const todayDifference = readHuntScoreDifferenceValue(row, config.differenceMode, currentMachineName);
+  const previousGames = readNumber(row?.games_count) ?? 0;
+  const previousRbCount = readNumber(row?.rb_count) ?? 0;
+  const previousBonusTotal = (readNumber(row?.bb_count) ?? 0) + previousRbCount;
+  const recentThreeBigShowDays = countBigShowRows(recentThreeRows);
+  const recentSevenBigShowDays = countBigShowRows(recentSevenRows);
+  const previousBigShow = previousGames >= 5000 && todayDifference >= 1000;
 
   return {
-    machineName: normalizeHuntScoreMachineName(row?.machine_name, config),
+    machineName: currentMachineName,
     slotNumber: String(row?.slot_number ?? "").trim(),
     windowRowCount: metricWindowRows.length,
     lossDays,
@@ -6077,23 +6142,27 @@ function calculateWindowMetrics(
     recentFourNetTotal,
     recentFiveNetTotal,
     recentSixNetTotal,
+    recentSevenNetTotal,
+    recentTenNetTotal,
     recentFourteenNetTotal,
+    recentTwentyOneNetTotal,
+    recentTwentyEightNetTotal,
+    recentFortyTwoNetTotal,
+    recentFiftySixNetTotal,
     shortSevenSinkStayDays,
     shortThreeSinkStayDays,
     recentFourLossDays,
+    recentSevenLossDays,
+    recentFourteenWinDays,
     recentFourPositiveCount,
     compensationRate: lossAbsTotal === 0 ? 999 : winAbsTotal / lossAbsTotal,
     maxWin,
-    todayDifference: readHuntScoreDifferenceValue(
-      row,
-      config.differenceMode,
-      normalizeHuntScoreMachineName(row?.machine_name, config),
-    ),
+    todayDifference,
     previousDifference: previousWindowRow?.differenceValue ?? 0,
-    previousGames: readNumber(row?.games_count) ?? 0,
+    previousGames,
     previousBbCount: readNumber(row?.bb_count) ?? 0,
-    previousRbCount: readNumber(row?.rb_count) ?? 0,
-    previousBonusTotal: (readNumber(row?.bb_count) ?? 0) + (readNumber(row?.rb_count) ?? 0),
+    previousRbCount,
+    previousBonusTotal,
     todaySetting,
     settingSampleCount,
     lowSettingCount,
@@ -6103,6 +6172,8 @@ function calculateWindowMetrics(
     settingFiveCount,
     strongHighSettingCandidateCount,
     recentFiveHighSettingCandidateCount,
+    recentSevenHighSettingCandidateCount,
+    recentSevenHighSettingEstimateCount,
     recentFiveHighSettingEstimateCount,
     recentFifteenHighSettingEstimateCount,
     recentFourteenHighSettingCandidateCount,
@@ -6132,10 +6203,23 @@ function calculateWindowMetrics(
     recentTwoGamesTotal,
     recentThreeGamesTotal,
     recentFiveGamesTotal,
+    recentSevenGamesTotal,
+    recentTenGamesTotal,
+    recentFourteenGamesTotal,
+    recentTwentyOneGamesTotal,
+    recentTwentyEightGamesTotal,
+    recentFortyTwoGamesTotal,
+    recentFiftySixGamesTotal,
     recentThreeBonusTotal,
+    recentFiveBonusTotal,
     recentTwoRbTotal,
     recentThreeRbTotal,
     recentFiveRbTotal,
+    recentSevenRbTotal,
+    recentFourteenRbTotal,
+    recentTwentyOneRbTotal,
+    recentSevenBbTotal,
+    recentFourteenBbTotal,
     recentTwoSettingAverage,
     recentFiveSettingAverage,
     windowSettingAverage,
@@ -6157,6 +6241,9 @@ function calculateWindowMetrics(
     adjacentHighSettingCandidateCount7,
     historyNetTotal,
     historyPositiveDays,
+    recentThreeBigShowDays,
+    recentSevenBigShowDays,
+    previousBigShow,
     bbTotal,
     rbTotal,
     amuseAsakusaRbSetting7,
