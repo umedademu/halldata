@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import json
 from pathlib import Path
 import queue
@@ -47,6 +47,7 @@ from minrepo_scraper import (
 from machine_difference import canonical_machine_name, list_site7_target_machine_names
 from site7_scraper import (
     DEFAULT_SITE7_PREFECTURE_NAME,
+    SITE7_DATE_BOUNDARY_HOUR,
     SITE7_MAX_RECENT_DAYS,
     SITE7_TARGET_MACHINE_KEYWORDS,
     Site7FetchCancelled,
@@ -85,6 +86,7 @@ SITE7_SCHEDULE_HOUR_OPTIONS = (0, 1, *range(10, 24))
 DEFAULT_SITE7_SCHEDULE_HOURS = (12, 15, 18, 21)
 SITE7_FINAL_UPDATE_HOUR = 23
 SITE7_MORNING_SCHEDULE_LAST_HOUR = 10
+SITE7_MINREPO_FALLBACK_HOUR = 10
 SITE7_SCHEDULE_RECHECK_INTERVAL_MINUTES = 10
 SITE7_SCHEDULE_RECHECK_LIMIT_MINUTES = 60
 GUI_SETTINGS_FILE_NAME = "gui_settings.json"
@@ -418,6 +420,59 @@ def site7_update_satisfies_scheduled_hour(
         microsecond=0,
     )
     return update_time.date() == check_time.date() and update_time >= scheduled_threshold
+
+
+def site7_business_date_from_updated_at(updated_at: datetime) -> date:
+    update_time = _as_jst_datetime(updated_at)
+    if update_time.hour < SITE7_DATE_BOUNDARY_HOUR:
+        update_time -= timedelta(days=1)
+    return update_time.date()
+
+
+def site7_target_date_texts(
+    recent_days: int,
+    *,
+    latest_date: date,
+) -> list[str]:
+    normalized_days = max(1, recent_days)
+    return [
+        (latest_date - timedelta(days=day_index)).isoformat()
+        for day_index in range(normalized_days)
+    ]
+
+
+def minrepo_fallback_date_texts_for_site7(
+    fetch_source: str,
+    recent_days: int,
+    *,
+    now: datetime | None = None,
+    site7_updated_at: datetime | None = None,
+) -> list[str]:
+    if not store_uses_minrepo(fetch_source):
+        return []
+
+    current_time = (now or datetime.now(JST)).astimezone(JST)
+    if current_time.hour < SITE7_MINREPO_FALLBACK_HOUR:
+        return []
+
+    latest_date = (
+        site7_business_date_from_updated_at(site7_updated_at)
+        if site7_updated_at is not None
+        else current_time.date()
+    )
+    previous_date = current_time.date() - timedelta(days=1)
+    return [
+        target_date
+        for target_date in site7_target_date_texts(recent_days, latest_date=latest_date)
+        if datetime.strptime(target_date, "%Y-%m-%d").date() <= previous_date
+    ]
+
+
+def date_range_input_from_date_texts(date_texts: list[str] | set[str] | tuple[str, ...]) -> str:
+    normalized_dates = sorted({date_text for date_text in date_texts if re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_text)})
+    if not normalized_dates:
+        raise ScraperError("対象日付がありません。")
+    return f"{normalized_dates[0]} ～ {normalized_dates[-1]}"
 
 
 def replace_dataset_preserving_site7_metadata(dataset: MachineDataset, **changes: object) -> MachineDataset:
@@ -1789,6 +1844,8 @@ class MinRepoApp:
         try:
             recent_days = parse_recent_days(self.target_date_var.get())
             retry_delay_seconds = self._retry_delay_seconds_input()
+            fetch_parallel_options = self._minrepo_fetch_parallel_options()
+            web_publish_options = self._web_publish_options_input()
         except ScraperError as exc:
             self.site7_schedule_status_var.set("サイトセブン定期実行を開始できません")
             self._show_error(exc)
@@ -1816,6 +1873,8 @@ class MinRepoApp:
             recent_days,
             retry_delay_seconds,
             browser_visible,
+            fetch_parallel_options,
+            web_publish_options,
             scheduled_hour,
             dict(self.site7_schedule_store_last_run_dates),
             run_date or current_jst_date_text(started_at),
@@ -2375,6 +2434,8 @@ class MinRepoApp:
         recent_days: int,
         retry_delay_seconds: int,
         browser_visible: bool,
+        fetch_parallel_options: MinRepoFetchParallelOptions,
+        web_publish_options: WebPublishOptions,
         scheduled_hour: int,
         store_last_run_dates: dict[str, str],
         run_date: str,
@@ -2396,7 +2457,7 @@ class MinRepoApp:
                 return
 
             checked_at = datetime.now(JST)
-            target_stores, waiting_store_urls = self._filter_scheduled_site7_stores_by_update_time(
+            target_stores, waiting_store_urls, site7_updated_at_by_store_url = self._filter_scheduled_site7_stores_by_update_time(
                 target_stores=target_stores,
                 scheduled_hour=scheduled_hour,
                 checked_at=checked_at,
@@ -2424,6 +2485,10 @@ class MinRepoApp:
                 recent_days=recent_days,
                 retry_delay_seconds=retry_delay_seconds,
                 browser_visible=browser_visible,
+                fetch_parallel_options=fetch_parallel_options,
+                web_publish_options=web_publish_options,
+                site7_updated_at_by_store_url=site7_updated_at_by_store_url,
+                now=checked_at,
             )
             if fetch_many_result.cancelled and not fetch_many_result.results:
                 self.result_queue.put(("fetch_cancelled", None))
@@ -2454,9 +2519,10 @@ class MinRepoApp:
         scheduled_hour: int,
         checked_at: datetime,
         browser_visible: bool,
-    ) -> tuple[list[RegisteredStore], set[str]]:
+    ) -> tuple[list[RegisteredStore], set[str], dict[str, datetime]]:
         eligible_stores: list[RegisteredStore] = []
         waiting_store_urls: set[str] = set()
+        updated_at_by_store_url: dict[str, datetime] = {}
         for registered_store in target_stores:
             self._raise_if_fetch_cancelled()
             try:
@@ -2471,14 +2537,16 @@ class MinRepoApp:
                 eligible_stores.append(registered_store)
                 continue
 
+            normalized_url = normalize_store_url(registered_store.url)
+            if normalized_url:
+                updated_at_by_store_url[normalized_url] = updated_at
             if site7_update_satisfies_scheduled_hour(updated_at, scheduled_hour, checked_at):
                 eligible_stores.append(registered_store)
             else:
-                normalized_url = normalize_store_url(registered_store.url)
                 if normalized_url:
                     waiting_store_urls.add(normalized_url)
 
-        return eligible_stores, waiting_store_urls
+        return eligible_stores, waiting_store_urls, updated_at_by_store_url
 
     def _load_and_complete_registered_stores(self) -> StoreRefreshResult:
         registered_stores = self._load_latest_registered_stores()
@@ -2734,6 +2802,8 @@ class MinRepoApp:
         try:
             recent_days = parse_recent_days(self.target_date_var.get())
             retry_delay_seconds = self._retry_delay_seconds_input()
+            fetch_parallel_options = self._minrepo_fetch_parallel_options()
+            web_publish_options = self._web_publish_options_input()
         except ScraperError as exc:
             self._show_error(exc)
             return
@@ -2779,6 +2849,8 @@ class MinRepoApp:
             recent_days,
             retry_delay_seconds,
             browser_visible,
+            fetch_parallel_options,
+            web_publish_options,
             operation_kind="site7_fetch",
         )
 
@@ -2789,6 +2861,8 @@ class MinRepoApp:
         try:
             recent_days = parse_recent_days(self.target_date_var.get())
             retry_delay_seconds = self._retry_delay_seconds_input()
+            fetch_parallel_options = self._minrepo_fetch_parallel_options()
+            web_publish_options = self._web_publish_options_input()
             target_store = self._site7_registered_store_for_single_fetch(registered_store)
         except ScraperError as exc:
             self._show_error(exc)
@@ -2827,6 +2901,8 @@ class MinRepoApp:
             recent_days,
             retry_delay_seconds,
             browser_visible,
+            fetch_parallel_options,
+            web_publish_options,
             operation_kind="site7_fetch",
         )
 
@@ -2836,6 +2912,8 @@ class MinRepoApp:
         recent_days: int,
         retry_delay_seconds: int,
         browser_visible: bool,
+        fetch_parallel_options: MinRepoFetchParallelOptions,
+        web_publish_options: WebPublishOptions,
     ) -> None:
         try:
             fetch_many_result = self._run_site7_fetch_many(
@@ -2843,6 +2921,8 @@ class MinRepoApp:
                 recent_days=recent_days,
                 retry_delay_seconds=retry_delay_seconds,
                 browser_visible=browser_visible,
+                fetch_parallel_options=fetch_parallel_options,
+                web_publish_options=web_publish_options,
             )
             if fetch_many_result.cancelled and not fetch_many_result.results:
                 self.result_queue.put(("fetch_cancelled", None))
@@ -2859,7 +2939,14 @@ class MinRepoApp:
         recent_days: int,
         retry_delay_seconds: int,
         browser_visible: bool,
+        fetch_parallel_options: MinRepoFetchParallelOptions | None = None,
+        web_publish_options: WebPublishOptions | None = None,
+        site7_updated_at_by_store_url: dict[str, datetime] | None = None,
+        now: datetime | None = None,
     ) -> FetchManyResult:
+        fetch_parallel_options = fetch_parallel_options or MINREPO_FETCH_PARALLEL_OPTIONS[MINREPO_FETCH_MODE_NORMAL]
+        web_publish_options = web_publish_options or WebPublishOptions(mode=WEB_PUBLISH_MODE_DAYS)
+        site7_updated_at_by_store_url = site7_updated_at_by_store_url or {}
         results: list[StoreFetchResult] = []
         failures: list[StoreFetchFailure] = []
         target_stores = self._registered_store_fetch_ordered(target_stores)
@@ -2872,6 +2959,24 @@ class MinRepoApp:
                 break
 
             try:
+                normalized_store_url = normalize_store_url(registered_store.url)
+                minrepo_prefetch_result, site7_should_be_skipped = self._try_minrepo_before_site7_fetch(
+                    registered_store=registered_store,
+                    recent_days=recent_days,
+                    store_index=store_index,
+                    total_stores=total_stores,
+                    retry_delay_seconds=retry_delay_seconds,
+                    fetch_parallel_options=fetch_parallel_options,
+                    web_publish_options=web_publish_options,
+                    site7_updated_at=site7_updated_at_by_store_url.get(normalized_store_url),
+                    now=now,
+                )
+                if minrepo_prefetch_result is not None:
+                    self._refresh_web_data_for_store_result(minrepo_prefetch_result)
+                    if site7_should_be_skipped:
+                        results.append(minrepo_prefetch_result)
+                        continue
+
                 store_result = self._fetch_single_site7_store(
                     registered_store=registered_store,
                     recent_days=recent_days,
@@ -2905,6 +3010,78 @@ class MinRepoApp:
             raise ScraperError(f"サイトセブンの対象店舗を取得できませんでした。\n{failure_lines}")
 
         return FetchManyResult(results=results, failures=failures, cancelled=cancelled)
+
+    def _try_minrepo_before_site7_fetch(
+        self,
+        *,
+        registered_store: RegisteredStore,
+        recent_days: int,
+        store_index: int,
+        total_stores: int,
+        retry_delay_seconds: int,
+        fetch_parallel_options: MinRepoFetchParallelOptions,
+        web_publish_options: WebPublishOptions,
+        site7_updated_at: datetime | None = None,
+        now: datetime | None = None,
+    ) -> tuple[StoreFetchResult | None, bool]:
+        self._raise_if_fetch_cancelled()
+        fallback_dates = minrepo_fallback_date_texts_for_site7(
+            registered_store.fetch_source,
+            recent_days,
+            now=now,
+            site7_updated_at=site7_updated_at,
+        )
+        if not fallback_dates:
+            return None, False
+
+        requested_dates = set(fallback_dates)
+        site7_latest_date = (
+            site7_business_date_from_updated_at(site7_updated_at)
+            if site7_updated_at is not None
+            else (now or datetime.now(JST)).astimezone(JST).date()
+        )
+        site7_target_dates = set(site7_target_date_texts(recent_days, latest_date=site7_latest_date))
+        target_date_input = date_range_input_from_date_texts(fallback_dates)
+        try:
+            minrepo_result = self._fetch_single_store(
+                registered_store=registered_store,
+                target_date_input=target_date_input,
+                store_index=store_index,
+                total_stores=total_stores,
+                retry_delay_seconds=retry_delay_seconds,
+                fetch_parallel_options=fetch_parallel_options,
+                web_publish_options=web_publish_options,
+                required_target_dates=requested_dates,
+            )
+        except FetchCancelled:
+            raise
+        except Exception:
+            return None, False
+
+        successful_dates = self._successful_minrepo_dates_for_site7_fallback(
+            minrepo_result,
+            requested_dates=requested_dates,
+        )
+        if not successful_dates:
+            return minrepo_result, False
+
+        return minrepo_result, site7_target_dates.issubset(successful_dates)
+
+    def _successful_minrepo_dates_for_site7_fallback(
+        self,
+        store_result: StoreFetchResult,
+        *,
+        requested_dates: set[str],
+    ) -> set[str]:
+        successful_dates = set(store_result.saved_full_day_summary.saved_dates).intersection(requested_dates)
+        save_summary = store_result.save_summary
+        if save_summary is not None and save_summary.web_data_saved:
+            successful_dates.update(
+                dataset.target_date
+                for dataset in store_result.history_result.datasets
+                if dataset.target_date in requested_dates and dataset.rows
+            )
+        return successful_dates
 
     def _fetch_single_site7_store(
         self,
@@ -3449,6 +3626,7 @@ class MinRepoApp:
         retry_delay_seconds: int,
         fetch_parallel_options: MinRepoFetchParallelOptions | None = None,
         web_publish_options: WebPublishOptions | None = None,
+        required_target_dates: set[str] | None = None,
     ) -> StoreFetchResult:
         fetch_parallel_options = fetch_parallel_options or MINREPO_FETCH_PARALLEL_OPTIONS[MINREPO_FETCH_MODE_NORMAL]
         web_publish_options = web_publish_options or WebPublishOptions(mode=WEB_PUBLISH_MODE_DAYS)
@@ -3473,6 +3651,27 @@ class MinRepoApp:
                 )
             ),
         )
+        if required_target_dates is not None:
+            context_date_pages = [
+                date_page
+                for date_page in context.date_pages
+                if date_page.target_date in required_target_dates
+            ]
+            if context_date_pages:
+                context = replace(
+                    context,
+                    start_date=context_date_pages[0].target_date,
+                    end_date=context_date_pages[-1].target_date,
+                    date_pages=context_date_pages,
+                )
+            else:
+                sorted_required_dates = sorted(required_target_dates)
+                context = replace(
+                    context,
+                    start_date=sorted_required_dates[0] if sorted_required_dates else context.start_date,
+                    end_date=sorted_required_dates[-1] if sorted_required_dates else context.end_date,
+                    date_pages=[],
+                )
         self._raise_if_fetch_cancelled()
         saved_full_day_summary = self.persistence_service.find_saved_full_day_dates(
             store_name=context.store_name,

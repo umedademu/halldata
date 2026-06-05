@@ -48,6 +48,7 @@ from main import (
     filter_site7_history_result_by_saved_slots,
     filter_site7_history_result_by_saved_targets,
     matches_day_tail,
+    minrepo_fallback_date_texts_for_site7,
     normalize_site7_browser_mode,
     normalize_site7_enabled_machine_names,
     parse_recent_days,
@@ -580,6 +581,26 @@ class MinRepoScraperTests(unittest.TestCase):
                 one_oclock_checked_at,
             )
         )
+
+    def test_minrepo_fallback_date_texts_for_site7_uses_previous_dates_after_ten(self) -> None:
+        fallback_dates = minrepo_fallback_date_texts_for_site7(
+            FETCH_SOURCE_BOTH,
+            3,
+            now=datetime(2026, 6, 5, 5, 5, tzinfo=timezone.utc),
+            site7_updated_at=datetime(2026, 6, 5, 13, 0),
+        )
+
+        self.assertEqual(fallback_dates, ["2026-06-04", "2026-06-03"])
+
+    def test_minrepo_fallback_date_texts_for_site7_uses_previous_site7_business_day(self) -> None:
+        fallback_dates = minrepo_fallback_date_texts_for_site7(
+            FETCH_SOURCE_BOTH,
+            1,
+            now=datetime(2026, 6, 6, 1, 5, tzinfo=timezone.utc),
+            site7_updated_at=datetime(2026, 6, 5, 23, 8),
+        )
+
+        self.assertEqual(fallback_dates, ["2026-06-05"])
 
     def test_run_scheduled_site7_fetch_if_due_queues_checked_hours_while_busy(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -3322,6 +3343,109 @@ class MinRepoScraperTests(unittest.TestCase):
                 ("2026-06-02", "2026-06-03", ("831",)),
             ],
         )
+
+    def test_run_site7_fetch_many_skips_site7_when_minrepo_covers_previous_business_day(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.result_queue = queue.Queue()
+        app._refresh_web_data_for_store_result = mock.Mock()
+        app._fetch_single_site7_store = mock.Mock()
+
+        dataset = MachineDataset(
+            store_name="Aパーク春日店",
+            store_url="https://example.com/store",
+            target_date="2026-06-05",
+            date_url="https://example.com/minrepo/2026-06-05",
+            machine_name=SITE7_TARGET_MACHINE_NAME,
+            machine_url="https://example.com/minrepo/machine",
+            columns=["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"],
+            rows=[["821", "100", "1000", "-", "5", "2", "1/143", "1/200", "1/500"]],
+        )
+        minrepo_result = StoreFetchResult(
+            history_result=MachineHistoryResult(
+                store_name="Aパーク春日店",
+                store_url="https://example.com/store",
+                start_date="2026-06-05",
+                end_date="2026-06-05",
+                date_pages=[StoreDatePage(target_date="2026-06-05", date_url="https://example.com/minrepo/2026-06-05")],
+                datasets=[dataset],
+            ),
+            save_summary=PersistenceSummary(web_data_saved=True),
+            saved_full_day_summary=SavedFullDayDatesSummary(),
+        )
+        app._fetch_single_store = mock.Mock(return_value=minrepo_result)
+
+        fetch_many_result = app._run_site7_fetch_many(
+            target_stores=[
+                RegisteredStore(
+                    name="Aパーク春日店",
+                    url="https://example.com/store",
+                    fetch_source=FETCH_SOURCE_BOTH,
+                )
+            ],
+            recent_days=1,
+            retry_delay_seconds=0,
+            browser_visible=False,
+            site7_updated_at_by_store_url={normalize_store_url("https://example.com/store"): datetime(2026, 6, 5, 23, 8)},
+            now=datetime(2026, 6, 6, 1, 5, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(fetch_many_result.results, [minrepo_result])
+        app._fetch_single_site7_store.assert_not_called()
+        app._fetch_single_store.assert_called_once()
+        self.assertEqual(app._fetch_single_store.call_args.kwargs["required_target_dates"], {"2026-06-05"})
+
+    def test_run_site7_fetch_many_falls_back_to_site7_when_minrepo_has_no_previous_day(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.result_queue = queue.Queue()
+        app._refresh_web_data_for_store_result = mock.Mock()
+        minrepo_result = StoreFetchResult(
+            history_result=MachineHistoryResult(
+                store_name="Aパーク春日店",
+                store_url="https://example.com/store",
+                start_date="2026-06-05",
+                end_date="2026-06-05",
+                date_pages=[],
+                datasets=[],
+            ),
+            save_summary=None,
+            saved_full_day_summary=SavedFullDayDatesSummary(),
+        )
+        app._fetch_single_store = mock.Mock(return_value=minrepo_result)
+        site7_result = StoreFetchResult(
+            history_result=MachineHistoryResult(
+                store_name="Aパーク春日店",
+                store_url="https://example.com/store",
+                start_date="2026-06-05",
+                end_date="2026-06-05",
+                date_pages=[StoreDatePage(target_date="2026-06-05", date_url="https://m.site777.jp/db/D2300.do")],
+                datasets=[],
+                skipped_dates=["2026-06-05"],
+            ),
+            save_summary=None,
+            saved_full_day_summary=SavedFullDayDatesSummary(),
+        )
+        app._fetch_single_site7_store = mock.Mock(return_value=site7_result)
+
+        fetch_many_result = app._run_site7_fetch_many(
+            target_stores=[
+                RegisteredStore(
+                    name="Aパーク春日店",
+                    url="https://example.com/store",
+                    fetch_source=FETCH_SOURCE_BOTH,
+                )
+            ],
+            recent_days=1,
+            retry_delay_seconds=0,
+            browser_visible=False,
+            site7_updated_at_by_store_url={normalize_store_url("https://example.com/store"): datetime(2026, 6, 5, 23, 8)},
+            now=datetime(2026, 6, 6, 1, 5, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(fetch_many_result.results, [site7_result])
+        app._fetch_single_store.assert_called_once()
+        app._fetch_single_site7_store.assert_called_once()
 
     def test_site7_registered_stores_from_skips_unlisted_store(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
