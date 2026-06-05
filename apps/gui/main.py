@@ -82,6 +82,10 @@ WEB_PUBLISH_MODE_STORE = "store"
 DEFAULT_WEB_PUBLISH_INTERVAL_DAYS = 1
 DEFAULT_SCHEDULE_HOUR = 2
 DEFAULT_SCHEDULE_ALL_STORES_INTERVAL_DAYS = 14
+MINREPO_PRIORITY_WATCH_START_HOUR = 0
+MINREPO_PRIORITY_WATCH_START_MINUTE = 30
+MINREPO_PRIORITY_WATCH_END_HOUR = 10
+MINREPO_PRIORITY_WATCH_CHECK_INTERVAL_MINUTES = 15
 SITE7_SCHEDULE_HOUR_OPTIONS = (0, 1, *range(10, 24))
 DEFAULT_SITE7_SCHEDULE_HOURS = (12, 15, 18, 21)
 SITE7_FINAL_UPDATE_HOUR = 23
@@ -285,6 +289,28 @@ def scheduled_supplemental_store_limit(store_count: int, interval_days: int) -> 
         return 0
     normalized_interval_days = max(1, interval_days)
     return max(1, (store_count + normalized_interval_days - 1) // normalized_interval_days)
+
+
+def minrepo_priority_watch_target_date(now: datetime | None = None) -> str:
+    current_time = (now or datetime.now(JST)).astimezone(JST)
+    return (current_time.date() - timedelta(days=1)).isoformat()
+
+
+def minrepo_priority_watch_is_active(now: datetime | None = None) -> bool:
+    current_time = (now or datetime.now(JST)).astimezone(JST)
+    start_time = current_time.replace(
+        hour=MINREPO_PRIORITY_WATCH_START_HOUR,
+        minute=MINREPO_PRIORITY_WATCH_START_MINUTE,
+        second=0,
+        microsecond=0,
+    )
+    end_time = current_time.replace(
+        hour=MINREPO_PRIORITY_WATCH_END_HOUR,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+    return start_time <= current_time <= end_time
 
 
 def normalize_fetch_frequency(value: object, default: str = FETCH_FREQUENCY_DAILY) -> str:
@@ -718,6 +744,15 @@ class FetchManyResult:
 
 
 @dataclass
+class MinRepoPriorityWatchResult:
+    registered_stores: list[RegisteredStore]
+    target_date: str
+    checked_store_count: int
+    available_store_count: int
+    fetch_many_result: FetchManyResult | None = None
+
+
+@dataclass
 class StoreRefreshResult:
     registered_stores: list[RegisteredStore]
     save_summary: RegisteredStoresPersistenceSummary | None = None
@@ -808,6 +843,10 @@ class MinRepoApp:
         )
         self.site7_schedule_pending_hours: set[int] = set()
         self.site7_schedule_recheck_requests: dict[int, Site7ScheduleRecheckRequest] = {}
+        self.minrepo_priority_watch_next_check_at: datetime | None = None
+        self.minrepo_priority_watch_pending = False
+        self.minrepo_priority_watch_target_date: str | None = None
+        self.minrepo_priority_watch_completed_store_dates: set[tuple[str, str]] = set()
         self.tray_icon: object | None = None
         self.tray_thread: threading.Thread | None = None
 
@@ -1586,9 +1625,79 @@ class MinRepoApp:
             self.site7_schedule_status_var.set(f"サイトセブン定期実行の記録保存に失敗しました: {exc}")
 
     def _schedule_timer_tick(self) -> None:
+        self._run_minrepo_priority_watch_if_due()
         self._run_scheduled_fetch_if_due()
         self._run_scheduled_site7_fetch_if_due()
         self.root.after(30_000, self._schedule_timer_tick)
+
+    def _run_minrepo_priority_watch_if_due(self, now: datetime | None = None) -> None:
+        current_time = (now or datetime.now(JST)).astimezone(JST)
+        target_date = minrepo_priority_watch_target_date(current_time)
+        if self.minrepo_priority_watch_target_date != target_date:
+            self.minrepo_priority_watch_target_date = target_date
+            self.minrepo_priority_watch_pending = False
+            self.minrepo_priority_watch_next_check_at = None
+            self.minrepo_priority_watch_completed_store_dates = set()
+
+        if not minrepo_priority_watch_is_active(current_time):
+            self.minrepo_priority_watch_pending = False
+            self.minrepo_priority_watch_next_check_at = None
+            return
+
+        if not self._minrepo_priority_watch_registered_stores(
+            self.registered_stores,
+            target_date=target_date,
+            completed_store_dates=self.minrepo_priority_watch_completed_store_dates,
+        ):
+            return
+
+        if self.minrepo_priority_watch_pending:
+            if self.is_busy:
+                self.schedule_status_var.set(f"{target_date} の取得順店舗みんレポ確認を待機中")
+                return
+            self._start_minrepo_priority_watch(current_time, target_date)
+            return
+
+        if self.minrepo_priority_watch_next_check_at is not None and current_time < self.minrepo_priority_watch_next_check_at:
+            return
+
+        if self.is_busy:
+            self.minrepo_priority_watch_pending = True
+            self.schedule_status_var.set(f"{target_date} の取得順店舗みんレポ確認を待機中")
+            return
+
+        self._start_minrepo_priority_watch(current_time, target_date)
+
+    def _start_minrepo_priority_watch(self, now: datetime, target_date: str) -> None:
+        try:
+            retry_delay_seconds = self._retry_delay_seconds_input()
+            fetch_parallel_options = self._minrepo_fetch_parallel_options()
+            web_publish_options = self._web_publish_options_input()
+        except ScraperError as exc:
+            self.schedule_status_var.set("早朝みんレポ確認を開始できません")
+            self._show_error(exc)
+            return
+
+        self.minrepo_priority_watch_pending = False
+        self.minrepo_priority_watch_next_check_at = now.astimezone(JST) + timedelta(
+            minutes=MINREPO_PRIORITY_WATCH_CHECK_INTERVAL_MINUTES
+        )
+        self._begin_fetch_run(
+            progress_message="早朝みんレポ更新を確認中...",
+            status_message="みんレポ確認中...",
+            summary_message=f"取得順店舗の {target_date} を確認中",
+        )
+        self.schedule_status_var.set(f"{target_date} の取得順店舗みんレポ確認中")
+        self.fetch_cancel_event.clear()
+        self._start_worker(
+            self._worker_minrepo_priority_watch,
+            target_date,
+            retry_delay_seconds,
+            fetch_parallel_options,
+            web_publish_options,
+            set(self.minrepo_priority_watch_completed_store_dates),
+            operation_kind="minrepo_priority_watch",
+        )
 
     def _run_scheduled_fetch_if_due(self) -> None:
         now = datetime.now(JST)
@@ -3391,6 +3500,7 @@ class MinRepoApp:
         if not self.is_busy or self.active_operation_kind not in {
             "fetch",
             "scheduled_fetch",
+            "minrepo_priority_watch",
             "site7_fetch",
             "scheduled_site7_fetch",
         }:
@@ -3460,6 +3570,111 @@ class MinRepoApp:
         except Exception as exc:  # noqa: BLE001
             self.result_queue.put(("fetch_error", exc))
 
+    def _worker_minrepo_priority_watch(
+        self,
+        target_date: str,
+        retry_delay_seconds: int,
+        fetch_parallel_options: MinRepoFetchParallelOptions,
+        web_publish_options: WebPublishOptions,
+        completed_store_dates: set[tuple[str, str]],
+    ) -> None:
+        try:
+            registered_stores = self._load_latest_registered_stores()
+            target_stores = self._minrepo_priority_watch_registered_stores(
+                registered_stores,
+                target_date=target_date,
+                completed_store_dates=completed_store_dates,
+            )
+            if not target_stores:
+                self.result_queue.put(
+                    (
+                        "minrepo_priority_watch_no_update",
+                        MinRepoPriorityWatchResult(
+                            registered_stores=registered_stores,
+                            target_date=target_date,
+                            checked_store_count=0,
+                            available_store_count=0,
+                        ),
+                    )
+                )
+                return
+
+            available_stores: list[RegisteredStore] = []
+            checked_count = 0
+            for store_index, registered_store in enumerate(target_stores, start=1):
+                self._raise_if_fetch_cancelled()
+                checked_count += 1
+                self.result_queue.put(
+                    (
+                        "fetch_progress",
+                        FetchProgress(
+                            current_step=store_index - 1,
+                            total_steps=max(1, len(target_stores)),
+                            message=f"{registered_store.name}: みんレポの {target_date} を確認中",
+                        ),
+                    )
+                )
+                if self._minrepo_store_has_target_date(
+                    registered_store,
+                    target_date=target_date,
+                    retry_delay_seconds=retry_delay_seconds,
+                ):
+                    available_stores.append(registered_store)
+
+            self.result_queue.put(
+                (
+                    "fetch_progress",
+                    FetchProgress(
+                        current_step=checked_count,
+                        total_steps=max(1, len(target_stores)),
+                        message=f"{target_date} の更新確認完了: {len(available_stores)}店舗",
+                    ),
+                )
+            )
+
+            if not available_stores:
+                self.result_queue.put(
+                    (
+                        "minrepo_priority_watch_no_update",
+                        MinRepoPriorityWatchResult(
+                            registered_stores=registered_stores,
+                            target_date=target_date,
+                            checked_store_count=checked_count,
+                            available_store_count=0,
+                        ),
+                    )
+                )
+                return
+
+            fetch_many_result = self._run_fetch_many(
+                available_stores,
+                target_date,
+                retry_delay_seconds,
+                fetch_parallel_options,
+                web_publish_options,
+                preserve_order=True,
+                required_target_dates={target_date},
+            )
+            if fetch_many_result.cancelled and not fetch_many_result.results:
+                self.result_queue.put(("fetch_cancelled", None))
+                return
+            self.result_queue.put(
+                (
+                    "minrepo_priority_watch_success",
+                    MinRepoPriorityWatchResult(
+                        registered_stores=registered_stores,
+                        target_date=target_date,
+                        checked_store_count=checked_count,
+                        available_store_count=len(available_stores),
+                        fetch_many_result=fetch_many_result,
+                    ),
+                )
+            )
+        except FetchCancelled:
+            self.result_queue.put(("fetch_cancelled", None))
+        except Exception as exc:  # noqa: BLE001
+            self.result_queue.put(("fetch_error", exc))
+
     def _run_fetch_many(
         self,
         target_stores: list[RegisteredStore],
@@ -3468,6 +3683,7 @@ class MinRepoApp:
         fetch_parallel_options: MinRepoFetchParallelOptions | None = None,
         web_publish_options: WebPublishOptions | None = None,
         preserve_order: bool = False,
+        required_target_dates: set[str] | None = None,
     ) -> FetchManyResult:
         fetch_parallel_options = fetch_parallel_options or MINREPO_FETCH_PARALLEL_OPTIONS[MINREPO_FETCH_MODE_NORMAL]
         web_publish_options = web_publish_options or WebPublishOptions(mode=WEB_PUBLISH_MODE_DAYS)
@@ -3491,6 +3707,7 @@ class MinRepoApp:
                     retry_delay_seconds=retry_delay_seconds,
                     fetch_parallel_options=fetch_parallel_options,
                     web_publish_options=web_publish_options,
+                    required_target_dates=required_target_dates,
                 )
                 self._refresh_web_data_for_store_result(store_result)
                 results.append(store_result)
@@ -3558,6 +3775,71 @@ class MinRepoApp:
         if fetch_order is not None:
             return (0, fetch_order, normalize_text(registered_store.name), normalize_store_url(registered_store.url))
         return (1, 0, normalize_text(registered_store.name), normalize_store_url(registered_store.url))
+
+    def _minrepo_priority_watch_registered_stores(
+        self,
+        registered_stores: list[RegisteredStore],
+        *,
+        target_date: str,
+        completed_store_dates: set[tuple[str, str]] | None = None,
+    ) -> list[RegisteredStore]:
+        completed_store_dates = completed_store_dates or set()
+        target_stores = [
+            registered_store
+            for registered_store in registered_stores
+            if registered_store.uses_minrepo()
+            and registered_store.fetch_frequency != FETCH_FREQUENCY_STOP
+            and normalize_fetch_order(registered_store.fetch_order) is not None
+            and (normalize_store_url(registered_store.url), target_date) not in completed_store_dates
+        ]
+        return self._registered_store_fetch_ordered(target_stores)
+
+    def _minrepo_store_has_target_date(
+        self,
+        registered_store: RegisteredStore,
+        *,
+        target_date: str,
+        retry_delay_seconds: int,
+    ) -> bool:
+        store_url = registered_store.url
+        try:
+            context = self._run_with_fetch_retries(
+                lambda: self.scraper.prepare_machine_history_context(store_url, target_date),
+                retry_delay_seconds=retry_delay_seconds,
+                retry_status_callback=lambda _retry_number, _max_retries, _delay_seconds: None,
+            )
+        except FetchCancelled:
+            raise
+        except Exception:  # noqa: BLE001
+            return False
+
+        return any(date_page.target_date == target_date for date_page in context.date_pages)
+
+    def _mark_minrepo_priority_watch_completed(
+        self,
+        fetch_many_result: FetchManyResult,
+        target_date: str,
+    ) -> None:
+        if not hasattr(self, "minrepo_priority_watch_completed_store_dates"):
+            self.minrepo_priority_watch_completed_store_dates = set()
+
+        for store_result in fetch_many_result.results:
+            store_url = normalize_store_url(store_result.history_result.store_url)
+            if not store_url:
+                continue
+            if self._store_result_covers_target_date(store_result, target_date):
+                self.minrepo_priority_watch_completed_store_dates.add((store_url, target_date))
+
+    def _store_result_covers_target_date(self, store_result: StoreFetchResult, target_date: str) -> bool:
+        if target_date in store_result.saved_full_day_summary.saved_dates:
+            return True
+        if target_date in store_result.history_result.skipped_dates:
+            return True
+        if any(date_page.target_date == target_date for date_page in store_result.history_result.date_pages):
+            save_summary = store_result.save_summary
+            if save_summary is None or not save_summary.has_errors:
+                return True
+        return any(dataset.target_date == target_date for dataset in store_result.history_result.datasets)
 
     def _scheduled_minrepo_registered_stores(
         self,
@@ -3961,7 +4243,7 @@ class MinRepoApp:
         operation_kind = self.active_operation_kind
         self.is_busy = False
         self.active_operation_kind = ""
-        if operation_kind in {"fetch", "scheduled_fetch", "site7_fetch", "scheduled_site7_fetch"}:
+        if operation_kind in {"fetch", "scheduled_fetch", "minrepo_priority_watch", "site7_fetch", "scheduled_site7_fetch"}:
             self.fetch_cancel_event.clear()
         self._update_button_states()
 
@@ -4122,6 +4404,8 @@ class MinRepoApp:
             self.summary_var.set("取得できませんでした")
             if operation_kind == "scheduled_fetch":
                 self.schedule_status_var.set("定期実行に失敗しました")
+            elif operation_kind == "minrepo_priority_watch":
+                self.schedule_status_var.set("早朝みんレポ確認に失敗しました")
             elif operation_kind == "scheduled_site7_fetch":
                 self.site7_schedule_status_var.set("サイトセブン定期実行に失敗しました")
             self._show_error(payload)
@@ -4133,8 +4417,52 @@ class MinRepoApp:
             self.summary_var.set("取得を中止しました")
             if operation_kind == "scheduled_fetch":
                 self.schedule_status_var.set("定期実行を中止しました")
+            elif operation_kind == "minrepo_priority_watch":
+                self.schedule_status_var.set("早朝みんレポ確認を中止しました")
             elif operation_kind == "scheduled_site7_fetch":
                 self.site7_schedule_status_var.set("サイトセブン定期実行を中止しました")
+            return
+
+        if kind == "minrepo_priority_watch_no_update":
+            if not isinstance(payload, MinRepoPriorityWatchResult):
+                self._finish_fetch_progress(success=False, message="確認失敗")
+                self.status_var.set("失敗")
+                self.summary_var.set("不明な結果")
+                self.schedule_status_var.set("早朝みんレポ確認に失敗しました")
+                messagebox.showerror("エラー", "早朝みんレポ確認の結果形式が不正です。")
+                return
+            self._replace_registered_stores(payload.registered_stores, select_all=False, reset_fetch_display=False)
+            self._finish_fetch_progress(success=True, message="更新なし")
+            self.status_var.set("待機中")
+            self.summary_var.set(
+                f"{payload.target_date} は未更新 / 確認{payload.checked_store_count}店舗"
+            )
+            self.schedule_status_var.set(
+                f"{payload.target_date} の取得順店舗は未更新。15分後に再確認"
+            )
+            return
+
+        if kind == "minrepo_priority_watch_success":
+            if (
+                not isinstance(payload, MinRepoPriorityWatchResult)
+                or not isinstance(payload.fetch_many_result, FetchManyResult)
+                or not payload.fetch_many_result.results
+            ):
+                self._finish_fetch_progress(success=False, message="取得失敗")
+                self.status_var.set("失敗")
+                self.summary_var.set("不明な結果")
+                self.schedule_status_var.set("早朝みんレポ取得に失敗しました")
+                messagebox.showerror("エラー", "早朝みんレポ取得の結果形式が不正です。")
+                return
+            self._replace_registered_stores(payload.registered_stores, select_all=False, reset_fetch_display=False)
+            self._apply_fetch_many_result(payload.fetch_many_result)
+            self._mark_minrepo_priority_watch_completed(payload.fetch_many_result, payload.target_date)
+            if payload.fetch_many_result.cancelled:
+                self.schedule_status_var.set("早朝みんレポ確認を中止しました")
+            else:
+                self.schedule_status_var.set(
+                    f"{payload.target_date} の取得順店舗を取得しました: {payload.available_store_count}店舗"
+                )
             return
 
         if kind == "fetch_many_success":
@@ -5417,7 +5745,7 @@ class MinRepoApp:
         can_cancel_fetch = (
             self.is_busy
             and self.active_operation_kind
-            in {"fetch", "scheduled_fetch", "site7_fetch", "scheduled_site7_fetch"}
+            in {"fetch", "scheduled_fetch", "minrepo_priority_watch", "site7_fetch", "scheduled_site7_fetch"}
             and not self.fetch_cancel_event.is_set()
         )
         self.cancel_fetch_button.configure(state="normal" if can_cancel_fetch else "disabled")

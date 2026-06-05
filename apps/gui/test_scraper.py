@@ -34,8 +34,10 @@ from main import (
     DEFAULT_MINREPO_FETCH_MODE,
     FETCH_FREQUENCY_DAILY,
     FETCH_FREQUENCY_LOW,
+    FETCH_FREQUENCY_STOP,
     FETCH_SOURCE_BOTH,
     FETCH_SOURCE_MINREPO,
+    FETCH_SOURCE_SITE7,
     SITE7_BROWSER_MODE_HIDDEN,
     SITE7_BROWSER_MODE_VISIBLE,
     MINREPO_FETCH_MODE_STRONG,
@@ -49,6 +51,8 @@ from main import (
     filter_site7_history_result_by_saved_targets,
     matches_day_tail,
     minrepo_fallback_date_texts_for_site7,
+    minrepo_priority_watch_is_active,
+    minrepo_priority_watch_target_date,
     normalize_site7_browser_mode,
     normalize_site7_enabled_machine_names,
     parse_recent_days,
@@ -457,6 +461,200 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(scheduled_supplemental_store_limit(1, 14), 1)
         self.assertEqual(scheduled_supplemental_store_limit(350, 14), 25)
         self.assertEqual(scheduled_supplemental_store_limit(351, 14), 26)
+
+    def test_minrepo_priority_watch_target_date_uses_previous_day(self) -> None:
+        one_oclock_jst = datetime(2026, 6, 4, 16, 0, tzinfo=timezone.utc)
+
+        self.assertEqual(minrepo_priority_watch_target_date(one_oclock_jst), "2026-06-04")
+
+    def test_minrepo_priority_watch_is_active_from_half_past_midnight_to_ten(self) -> None:
+        self.assertFalse(minrepo_priority_watch_is_active(datetime(2026, 6, 4, 15, 29, tzinfo=timezone.utc)))
+        self.assertTrue(minrepo_priority_watch_is_active(datetime(2026, 6, 4, 15, 30, tzinfo=timezone.utc)))
+        self.assertTrue(minrepo_priority_watch_is_active(datetime(2026, 6, 5, 1, 0, tzinfo=timezone.utc)))
+        self.assertFalse(minrepo_priority_watch_is_active(datetime(2026, 6, 5, 1, 1, tzinfo=timezone.utc)))
+
+    def test_minrepo_priority_watch_registered_stores_uses_fetch_order_only(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        later_store = RegisteredStore(
+            name="後の店",
+            url="https://example.com/later/",
+            fetch_source=FETCH_SOURCE_MINREPO,
+            fetch_order=2,
+        )
+        first_store = RegisteredStore(
+            name="先の店",
+            url="https://example.com/first/",
+            fetch_source=FETCH_SOURCE_BOTH,
+            fetch_order=1,
+        )
+        no_order_store = RegisteredStore(
+            name="順番なし",
+            url="https://example.com/no-order/",
+            fetch_source=FETCH_SOURCE_MINREPO,
+        )
+        site7_store = RegisteredStore(
+            name="サイセのみ",
+            url="https://example.com/site7/",
+            fetch_source=FETCH_SOURCE_SITE7,
+            fetch_order=1,
+        )
+        stopped_store = RegisteredStore(
+            name="停止店",
+            url="https://example.com/stopped/",
+            fetch_source=FETCH_SOURCE_MINREPO,
+            fetch_frequency=FETCH_FREQUENCY_STOP,
+            fetch_order=1,
+        )
+
+        target_stores = app._minrepo_priority_watch_registered_stores(
+            [later_store, no_order_store, site7_store, first_store, stopped_store],
+            target_date="2026-06-04",
+            completed_store_dates=set(),
+        )
+
+        self.assertEqual(target_stores, [first_store, later_store])
+
+    def test_run_minrepo_priority_watch_if_due_starts_in_active_window(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.registered_stores = [
+            RegisteredStore(
+                name="優先店",
+                url="https://example.com/priority/",
+                fetch_source=FETCH_SOURCE_MINREPO,
+                fetch_order=1,
+            )
+        ]
+        app.is_busy = False
+        app.minrepo_priority_watch_next_check_at = None
+        app.minrepo_priority_watch_pending = False
+        app.minrepo_priority_watch_target_date = None
+        app.minrepo_priority_watch_completed_store_dates = set()
+        app.schedule_status_var = FakeTextVariable()
+        app._start_minrepo_priority_watch = mock.Mock()
+
+        app._run_minrepo_priority_watch_if_due(datetime(2026, 6, 4, 16, 0, tzinfo=timezone.utc))
+
+        app._start_minrepo_priority_watch.assert_called_once()
+        self.assertEqual(app._start_minrepo_priority_watch.call_args.args[1], "2026-06-04")
+
+    def test_worker_minrepo_priority_watch_fetches_only_updated_stores(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.result_queue = queue.Queue()
+        app.fetch_cancel_event = threading.Event()
+        updated_store = RegisteredStore(
+            name="更新店",
+            url="https://example.com/updated/",
+            fetch_source=FETCH_SOURCE_MINREPO,
+            fetch_order=1,
+        )
+        waiting_store = RegisteredStore(
+            name="未更新店",
+            url="https://example.com/waiting/",
+            fetch_source=FETCH_SOURCE_MINREPO,
+            fetch_order=2,
+        )
+        app._load_latest_registered_stores = mock.Mock(return_value=[updated_store, waiting_store])
+        app._minrepo_store_has_target_date = mock.Mock(
+            side_effect=lambda registered_store, **_kwargs: registered_store is updated_store
+        )
+        fetch_many_result = FetchManyResult(
+            results=[
+                StoreFetchResult(
+                    history_result=MachineHistoryResult(
+                        store_name="更新店",
+                        store_url=updated_store.url,
+                        start_date="2026-06-04",
+                        end_date="2026-06-04",
+                        date_pages=[StoreDatePage(target_date="2026-06-04", date_url="https://example.com/date")],
+                        datasets=[],
+                    ),
+                    save_summary=None,
+                    saved_full_day_summary=SavedFullDayDatesSummary(),
+                )
+            ],
+            failures=[],
+        )
+        app._run_fetch_many = mock.Mock(return_value=fetch_many_result)
+
+        app._worker_minrepo_priority_watch(
+            "2026-06-04",
+            0,
+            mock.Mock(),
+            mock.Mock(),
+            set(),
+        )
+
+        app._run_fetch_many.assert_called_once()
+        call_args = app._run_fetch_many.call_args
+        self.assertEqual(call_args.args[0], [updated_store])
+        self.assertEqual(call_args.kwargs["required_target_dates"], {"2026-06-04"})
+        queued_kinds = []
+        queued_payload = None
+        while not app.result_queue.empty():
+            queued_kind, queued_payload = app.result_queue.get_nowait()
+            queued_kinds.append(queued_kind)
+        self.assertIn("minrepo_priority_watch_success", queued_kinds)
+        self.assertEqual(queued_payload.fetch_many_result, fetch_many_result)
+
+    def test_worker_minrepo_priority_watch_skips_when_no_store_updated(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.result_queue = queue.Queue()
+        app.fetch_cancel_event = threading.Event()
+        target_store = RegisteredStore(
+            name="未更新店",
+            url="https://example.com/waiting/",
+            fetch_source=FETCH_SOURCE_MINREPO,
+            fetch_order=1,
+        )
+        app._load_latest_registered_stores = mock.Mock(return_value=[target_store])
+        app._minrepo_store_has_target_date = mock.Mock(return_value=False)
+        app._run_fetch_many = mock.Mock()
+
+        app._worker_minrepo_priority_watch(
+            "2026-06-04",
+            0,
+            mock.Mock(),
+            mock.Mock(),
+            set(),
+        )
+
+        app._run_fetch_many.assert_not_called()
+        queued_kinds = []
+        queued_payload = None
+        while not app.result_queue.empty():
+            queued_kind, queued_payload = app.result_queue.get_nowait()
+            queued_kinds.append(queued_kind)
+        self.assertIn("minrepo_priority_watch_no_update", queued_kinds)
+        self.assertEqual(queued_payload.available_store_count, 0)
+
+    def test_mark_minrepo_priority_watch_completed_records_target_date(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.minrepo_priority_watch_completed_store_dates = set()
+        store_url = "https://example.com/completed/"
+        fetch_many_result = FetchManyResult(
+            results=[
+                StoreFetchResult(
+                    history_result=MachineHistoryResult(
+                        store_name="完了店",
+                        store_url=store_url,
+                        start_date="2026-06-04",
+                        end_date="2026-06-04",
+                        date_pages=[StoreDatePage(target_date="2026-06-04", date_url="https://example.com/date")],
+                        datasets=[],
+                    ),
+                    save_summary=None,
+                    saved_full_day_summary=SavedFullDayDatesSummary(),
+                )
+            ],
+            failures=[],
+        )
+
+        app._mark_minrepo_priority_watch_completed(fetch_many_result, "2026-06-04")
+
+        self.assertEqual(
+            app.minrepo_priority_watch_completed_store_dates,
+            {(normalize_store_url(store_url), "2026-06-04")},
+        )
 
     def test_scheduled_minrepo_registered_stores_adds_old_supplemental_stores_after_daily_targets(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
