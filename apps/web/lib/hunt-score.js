@@ -1359,6 +1359,13 @@ function isMachineHighContentWindowRow(row, machineName) {
   if (normalizedMachineName === normalizeText("SアイムジャグラーＥＸ")) {
     return games >= 4000 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
+  if (
+    normalizedMachineName === normalizeText("マイジャグラーV") ||
+    normalizedMachineName === normalizeText("マイジャグラーⅤ") ||
+    normalizedMachineName === normalizeText("マイジャグラー")
+  ) {
+    return games >= 6000 && rbDenominator <= 270 && combinedDenominator <= 135;
+  }
   if (normalizedMachineName === normalizeText("スターハナハナ")) {
     return games >= 5500 && rbDenominator <= 285 && combinedDenominator <= 123;
   }
@@ -1455,6 +1462,31 @@ function countConsecutiveRollingNetThresholdDays(rows, windowSize, threshold) {
     count += 1;
   }
   return count;
+}
+
+function countConsecutiveRollingAngleThresholdDays(rows, windowSize, threshold) {
+  if (!Array.isArray(rows) || rows.length < windowSize || windowSize <= 0) return 0;
+  let count = 0;
+  for (let endIndex = rows.length - 1; endIndex >= windowSize - 1; endIndex -= 1) {
+    const windowRows = rows.slice(endIndex - windowSize + 1, endIndex + 1);
+    const netTotal = sumDifferenceValues(windowRows);
+    const gamesTotal = sumWindowField(windowRows, "games");
+    if (netPerThousandGames(netTotal, gamesTotal) > threshold) {
+      break;
+    }
+    count += 1;
+  }
+  return count;
+}
+
+function findRecentDifferenceAtLeastDays(rows, threshold) {
+  if (!Array.isArray(rows)) return null;
+  for (let offset = 1; offset <= rows.length; offset += 1) {
+    if ((rows.at(-offset)?.differenceValue ?? 0) >= threshold) {
+      return offset;
+    }
+  }
+  return null;
 }
 
 function calculateSettingAverageFromWindowRows(rows) {
@@ -6227,11 +6259,13 @@ function calculateWindowMetrics(
   const recentFiveMinus1500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -1500);
   const recentFiveMinus2000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -2000);
   const recentFiveMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -3000);
+  const recentFiveMinus3500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -3500);
   const recentSevenMinus1500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -1500);
   const recentFiveMinus500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -500);
   const recentTenMinus5225StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 10, -5225);
   const recentFourteenMinus3218StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -3218);
   const recentTwentyOneMinus11333StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -11333);
+  const recentFiveAngleMinus80StayDays = countConsecutiveRollingAngleThresholdDays(historyWindowRows, 5, -80);
   const recentFourLossDays = recentFourRows.filter((windowRow) => windowRow.differenceValue < 0).length;
   const recentSevenLossDays = recentSevenRows.filter((windowRow) => windowRow.differenceValue < 0).length;
   const recentFourteenWinDays = recentFourteenRows.filter((windowRow) => windowRow.differenceValue > 0).length;
@@ -6508,6 +6542,7 @@ function calculateWindowMetrics(
     }
     return null;
   })();
+  const daysSinceMachineBigWin1500 = findRecentDifferenceAtLeastDays(historyWindowRows, 1500);
   const adjacentMachineHighContentCount7 = countAdjacentMachineHighContentRows(
     businessDates,
     dateIndex,
@@ -6533,6 +6568,15 @@ function calculateWindowMetrics(
     rowsByDate,
     config,
     7,
+    currentMachineName,
+  );
+  const adjacentMachineNetTotal3 = sumAdjacentMachineDifferenceRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    3,
     currentMachineName,
   );
   const todayDifference = readHuntScoreDifferenceValue(row, config.differenceMode, currentMachineName);
@@ -6575,11 +6619,13 @@ function calculateWindowMetrics(
     recentFiveMinus1500StayDays,
     recentFiveMinus2000StayDays,
     recentFiveMinus3000StayDays,
+    recentFiveMinus3500StayDays,
     recentSevenMinus1500StayDays,
     recentFiveMinus500StayDays,
     recentTenMinus5225StayDays,
     recentFourteenMinus3218StayDays,
     recentTwentyOneMinus11333StayDays,
+    recentFiveAngleMinus80StayDays,
     recentFourLossDays,
     recentSevenLossDays,
     recentFourteenWinDays,
@@ -6649,6 +6695,7 @@ function calculateWindowMetrics(
     previousMachineGoodContent,
     previousMachineStrongHighContent,
     daysSinceMachineHighContent,
+    daysSinceMachineBigWin1500,
     gamesTotal,
     averageGames: metricWindowRows.length > 0 ? gamesTotal / metricWindowRows.length : 0,
     recentTwoGamesTotal,
@@ -6693,6 +6740,7 @@ function calculateWindowMetrics(
     adjacentHighSettingCandidateCount7,
     adjacentMachineHighContentCount7,
     adjacentMachineHighContentCount14,
+    adjacentMachineNetTotal3,
     adjacentMachineNetTotal7,
     historyNetTotal,
     historyPositiveDays,

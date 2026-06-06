@@ -523,10 +523,8 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "82件 / 105.22% / RB1/271.3",
         {
           rankMax: 1,
-          minScore: 58,
           minNextGap: 3,
-          maxDanger: 1,
-          requiredFlags: ["losingStreak3", "recentFiveLoss3500"],
+          requiredFlags: ["myHistoryReady", "myLosingStreak3", "myRecentFiveLoss3500"],
         },
       ),
     ],
@@ -1152,12 +1150,14 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const adjacentHighSettingCandidateCount7 = readNumber(metrics.adjacentHighSettingCandidateCount7);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
+  const adjacentMachineNetTotal3 = readNumber(metrics.adjacentMachineNetTotal3);
   const adjacentMachineNetTotal7 = readNumber(metrics.adjacentMachineNetTotal7);
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
   const recentSevenMachineHighContentCount = readNumber(metrics.recentSevenMachineHighContentCount);
   const recentFourteenMachineHighContentCount = readNumber(metrics.recentFourteenMachineHighContentCount);
   const recentThirtyMachineHighContentCount = readNumber(metrics.recentThirtyMachineHighContentCount);
   const daysSinceMachineHighContent = readNullableNumber(metrics.daysSinceMachineHighContent);
+  const daysSinceMachineBigWin1500 = readNullableNumber(metrics.daysSinceMachineBigWin1500);
   const previousMachineHighContent = Boolean(metrics.previousMachineHighContent);
   const previousMachineGoodContent = Boolean(metrics.previousMachineGoodContent);
   const previousMachineStrongHighContent = Boolean(metrics.previousMachineStrongHighContent);
@@ -1484,6 +1484,74 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
     };
   }
 
+  if (machineKey === "my") {
+    const myHistoryReady = historyRowCount >= 30;
+    const myLosingStreak3 = streak >= 3;
+    const myRecentFiveLoss3500 = recentFiveNetTotal <= -3500;
+    const mySinkStayDays = readNumber(metrics.recentFiveMinus3500StayDays);
+    const myAngleStayDays = readNumber(metrics.recentFiveAngleMinus80StayDays);
+    const mySinkStayStrong = mySinkStayDays >= 1 || myAngleStayDays >= 3;
+    const myStrongAngle =
+      (features.recentFiveAngle <= -80 && recentFiveGamesTotal >= 20000) ||
+      (features.recentSevenAngle <= -80 && recentSevenGamesTotal >= 28000);
+    const myUnpaid =
+      (recentFourteenNetTotal < 0 && previousDifference > 0 && previousDifference < 1500) ||
+      (recentTwentyOneNetTotal < 0 && previousDifference > 0);
+    const myWeakBonusReturn =
+      (recentThreeGamesTotal >= 9000 && features.recentThreeCombinedDenominator >= 164) ||
+      (recentFiveGamesTotal >= 15000 && features.recentFiveCombinedDenominator >= 159);
+    const myTrustedGames =
+      (myLosingStreak3 && recentThreeGamesTotal >= 10000) ||
+      (recentFiveNetTotal <= -2500 && recentFiveGamesTotal >= 20000);
+    const myOutputOnlyStrong =
+      previousDifference >= 1500 &&
+      features.previousRbDenominator > 300 &&
+      features.previousCombinedDenominator > 140;
+    const myTreatmentDone =
+      previousMachineHighContent ||
+      myOutputOnlyStrong ||
+      recentThreeNetTotal >= 2800 ||
+      recentFiveNetTotal >= 3300 ||
+      recentSevenNetTotal >= 3500 ||
+      recentFourteenNetTotal >= 6000 ||
+      recentSevenMachineHighContentCount >= 2;
+    const myLowGamesUncertain = previousGames < 2000 && recentThreeGamesTotal < 10000;
+    const myLongNeglect =
+      (mySinkStayDays >= 6 || streak >= 6) &&
+      [mySinkStayStrong, myStrongAngle, myUnpaid, myWeakBonusReturn, myTrustedGames].filter(Boolean).length < 2;
+    const boostFlags = [
+      mySinkStayStrong,
+      myStrongAngle,
+      myUnpaid,
+      myWeakBonusReturn,
+      myTrustedGames,
+    ];
+    const dangerFlags = [
+      myTreatmentDone,
+      myLowGamesUncertain,
+      myLongNeglect,
+      myOutputOnlyStrong,
+      recentSevenMachineHighContentCount >= 2,
+    ];
+
+    return {
+      ...features,
+      myHistoryReady,
+      myLosingStreak3,
+      myRecentFiveLoss3500,
+      mySinkStayStrong,
+      myStrongAngle,
+      myUnpaid,
+      myWeakBonusReturn,
+      myTrustedGames,
+      myOutputOnlyStrong,
+      treatmentDone: myTreatmentDone,
+      lowConfidence: myLowGamesUncertain,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
+
   if (machineKey === "funky") {
     const funkyHistoryReady = historyRowCount >= 28;
     const funkyHighRest8To14 =
@@ -1590,11 +1658,13 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFiveMinus1500StayDays = readNumber(metrics.recentFiveMinus1500StayDays);
   const recentFiveMinus2000StayDays = readNumber(metrics.recentFiveMinus2000StayDays);
   const recentFiveMinus3000StayDays = readNumber(metrics.recentFiveMinus3000StayDays);
+  const recentFiveMinus3500StayDays = readNumber(metrics.recentFiveMinus3500StayDays);
   const recentSevenMinus1500StayDays = readNumber(metrics.recentSevenMinus1500StayDays);
   const recentFiveMinus500StayDays = readNumber(metrics.recentFiveMinus500StayDays);
   const recentTenMinus5225StayDays = readNumber(metrics.recentTenMinus5225StayDays);
   const recentFourteenMinus3218StayDays = readNumber(metrics.recentFourteenMinus3218StayDays);
   const recentTwentyOneMinus11333StayDays = readNumber(metrics.recentTwentyOneMinus11333StayDays);
+  const recentFiveAngleMinus80StayDays = readNumber(metrics.recentFiveAngleMinus80StayDays);
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
   const recentFiveMachineHighContentCount = readNumber(metrics.recentFiveMachineHighContentCount);
   const recentSevenMachineHighContentCount = readNumber(metrics.recentSevenMachineHighContentCount);
@@ -1604,6 +1674,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentSevenMachineGoodContentCount = readNumber(metrics.recentSevenMachineGoodContentCount);
   const recentSevenMachineWeakContentCount = readNumber(metrics.recentSevenMachineWeakContentCount);
   const daysSinceMachineHighContent = readNullableNumber(metrics.daysSinceMachineHighContent);
+  const daysSinceMachineBigWin1500 = readNullableNumber(metrics.daysSinceMachineBigWin1500);
   const previousMachineHighContent = Boolean(metrics.previousMachineHighContent);
   const previousMachineGoodContent = Boolean(metrics.previousMachineGoodContent);
   const previousMachineStrongHighContent = Boolean(metrics.previousMachineStrongHighContent);
@@ -1611,6 +1682,7 @@ function calculateMachineScore(definition, metrics, features) {
   const machineGoodContentStreak = readNumber(metrics.machineGoodContentStreak);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
+  const adjacentMachineNetTotal3 = readNumber(metrics.adjacentMachineNetTotal3);
   const adjacentMachineNetTotal7 = readNumber(metrics.adjacentMachineNetTotal7);
   const previousCombinedDenominator = features.previousCombinedDenominator;
   const previousRbDenominator = features.previousRbDenominator;
@@ -1898,20 +1970,57 @@ function calculateMachineScore(definition, metrics, features) {
           ])
         : 0,
     );
-    score += scoreInRange(features.bestRestDays, 7, 9, 10);
-    score += scoreInRange(features.bestRestDays, 10, 29, 7);
-    score += features.bestRestDays >= 30 || !Number.isFinite(features.bestRestDays) ? 8 : 0;
-    score += scoreInRange(features.bestRestDays, 4, 6, 5);
-    score -= scoreInRange(features.bestRestDays, 1, 3, 6);
-    score += features.shortSinkStay3 ? 8 : features.shortSinkStay2 ? 4 : 0;
+    score += scoreInRange(daysSinceMachineHighContent, 7, 9, 10);
+    score += scoreInRange(daysSinceMachineHighContent, 10, 29, 7);
+    score +=
+      daysSinceMachineHighContent >= 30 || !Number.isFinite(daysSinceMachineHighContent) ? 8 : 0;
+    score += scoreInRange(daysSinceMachineHighContent, 4, 6, 5);
+    score -= scoreInRange(daysSinceMachineHighContent, 1, 3, 6);
+    score += scoreInRange(daysSinceMachineBigWin1500, 10, 21, 8);
+    score += scoreInRange(daysSinceMachineBigWin1500, 7, 9, 6);
+    score += scoreInRange(daysSinceMachineBigWin1500, 4, 6, 3);
+    score -= scoreInRange(daysSinceMachineBigWin1500, 1, 2, 12);
+    score -= scoreInRange(daysSinceMachineBigWin1500, 3, 3, 5);
+    if (
+      adjacentMachineHighContentCount7 >= 2 &&
+      recentSevenMachineHighContentCount === 0 &&
+      recentSevenNetTotal < 0
+    ) {
+      score += 9;
+    }
+    if (adjacentMachineNetTotal3 >= 2000 && recentThreeNetTotal < 0) {
+      score += 4;
+    }
+    score +=
+      recentFiveMinus3500StayDays >= 6
+        ? -5
+        : recentFiveMinus3500StayDays >= 3
+          ? 5
+          : recentFiveMinus3500StayDays >= 1
+            ? 8
+            : 0;
+    score +=
+      recentFiveAngleMinus80StayDays >= 6
+        ? -4
+        : recentFiveAngleMinus80StayDays >= 3
+          ? 6
+          : recentFiveAngleMinus80StayDays >= 1
+            ? 3
+            : 0;
 
-    score -= features.previousHighContent ? 18 : 0;
-    score -= features.previousHighContent && previousDifference < 1000 ? 5 : 0;
+    score -= previousMachineHighContent ? 18 : 0;
+    score -= previousMachineHighContent && previousDifference < 1000 ? 5 : 0;
+    score -=
+      previousDifference >= 1500 &&
+      features.previousRbDenominator > 300 &&
+      features.previousCombinedDenominator > 140
+        ? 12
+        : 0;
     score -= recentThreeNetTotal >= 2800 ? 14 : 0;
     score -= recentFiveNetTotal >= 3300 ? 16 : 0;
     score -= recentSevenNetTotal >= 3500 ? 14 : 0;
     score -= recentFourteenNetTotal >= 6000 ? 8 : 0;
-    score -= recentSevenHighSettingCandidateCount >= 2 ? 5 : 0;
+    score -= recentSevenMachineHighContentCount >= 2 ? 5 : 0;
     score -= previousGames < 2000 && streak < 2 && recentFiveNetTotal > -1800 ? 5 : 0;
 
     return Math.round(clamp(score, 0, 100));
