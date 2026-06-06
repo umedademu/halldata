@@ -168,10 +168,12 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "130件 / 103.66% / RB1/261.6",
         {
           rankMax: 1,
-          minScore: 58,
-          maxDanger: 1,
-          requiredFlags: ["losingStreak3", "highRest4To14"],
-          anyFlags: ["strongAngle", "deepSink"],
+          requiredFlags: [
+            "gogoHistoryReady",
+            "gogoLosingStreak3",
+            "gogoHighRest4To14",
+            "gogoThreeDayAngleStrong",
+          ],
         },
       ),
     ],
@@ -1199,6 +1201,24 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
     };
   }
 
+  if (machineKey === "gogo") {
+    const gogoHistoryReady = historyRowCount >= 7;
+    const gogoLosingStreak3 = streak >= 3;
+    const gogoHighRest4To14 =
+      Number.isFinite(daysSinceMachineHighContent) &&
+      daysSinceMachineHighContent >= 4 &&
+      daysSinceMachineHighContent <= 14;
+    const gogoThreeDayAngleStrong = features.recentThreeAngle <= -150;
+
+    return {
+      ...features,
+      gogoHistoryReady,
+      gogoLosingStreak3,
+      gogoHighRest4To14,
+      gogoThreeDayAngleStrong,
+    };
+  }
+
   if (machineKey === "star-hana") {
     const starPreviousCut = previousGames >= 500 && previousGames <= 2500;
     const starStrongSinkStay =
@@ -1876,11 +1896,11 @@ function calculateMachineScore(definition, metrics, features) {
     angleScore = Math.min(angleScore, 18);
 
     let restScore = 0;
-    restScore += scoreInRange(features.bestRestDays, 4, 14, 16);
-    restScore += scoreInRange(features.bestRestDays, 15, 30, 8);
-    restScore += features.bestRestDays >= 31 ? 4 : 0;
-    restScore -= scoreInRange(features.bestRestDays, 1, 3, 8);
-    restScore -= recentSevenHighSettingCandidateCount >= 2 ? 5 : 0;
+    restScore += scoreInRange(daysSinceMachineHighContent, 4, 14, 16);
+    restScore += scoreInRange(daysSinceMachineHighContent, 15, 30, 8);
+    restScore += daysSinceMachineHighContent >= 31 ? 4 : 0;
+    restScore -= scoreInRange(daysSinceMachineHighContent, 1, 3, 8);
+    restScore -= recentSevenMachineHighContentCount >= 2 ? 5 : 0;
 
     let weakScore = 0;
     weakScore += scoreAtLeast(features.recentThreeCombinedDenominator, [
@@ -1900,7 +1920,7 @@ function calculateMachineScore(definition, metrics, features) {
     let penalty = 0;
     penalty += recentThreeNetTotal >= 2000 ? 12 : recentThreeNetTotal >= 1000 ? 8 : 0;
     penalty += recentFourteenNetTotal >= 0 ? 8 : 0;
-    penalty += previousDifference > 1000 && !features.previousHighContent ? 10 : 0;
+    penalty += previousDifference > 1000 && !previousMachineHighContent ? 10 : 0;
     penalty += previousDifference > 1500 && features.previousRbDenominator > 420 ? 6 : 0;
 
     return Math.round(clamp(sinkScore + angleScore + restScore + weakScore + activityScore - penalty, 0, 100));

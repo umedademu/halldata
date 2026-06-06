@@ -1360,6 +1360,14 @@ function isMachineHighContentWindowRow(row, machineName) {
     return games >= 4000 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
+    normalizedMachineName === normalizeText("ゴーゴージャグラー３") ||
+    normalizedMachineName === normalizeText("ゴーゴージャグラー3") ||
+    normalizedMachineName === normalizeText("ゴーゴージャグラー")
+  ) {
+    const rbCount = readWindowField(row, "rbCount");
+    return games >= 3000 && rbCount >= 15 && rbDenominator <= 240 && combinedDenominator <= 130;
+  }
+  if (
     normalizedMachineName === normalizeText("マイジャグラーV") ||
     normalizedMachineName === normalizeText("マイジャグラーⅤ") ||
     normalizedMachineName === normalizeText("マイジャグラー")
