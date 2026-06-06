@@ -1291,6 +1291,61 @@ function calculateRbDenominatorFromWindowRow(row) {
   return games > 0 && rbCount > 0 ? games / rbCount : 9999;
 }
 
+function isOkidokiDuoEncoreMachineName(machineName) {
+  const normalizedMachineName = normalizeText(machineName);
+  return [
+    "スマスロ 沖ドキ!DUO アンコール",
+    "スマスロ沖ドキ!DUOアンコール",
+    "L沖ドキ!DUO アンコール",
+  ].some((candidateName) => normalizedMachineName === normalizeText(candidateName));
+}
+
+function calculateOkidokiDuoHighContentScore(row) {
+  const games = readWindowField(row, "games");
+  const bbCount = readWindowField(row, "bbCount");
+  const rbCount = readWindowField(row, "rbCount");
+  const bonusCount = bbCount + rbCount;
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const differenceValue = readNumber(row?.differenceValue) ?? 0;
+  const rbRatio = bonusCount > 0 ? rbCount / bonusCount : 0;
+
+  let score = 0;
+  score += games >= 4500 ? 30 : games >= 3700 ? 25 : games >= 2400 ? 15 : games >= 1800 ? 8 : 0;
+  score += combinedDenominator <= 95
+    ? 30
+    : combinedDenominator <= 105
+      ? 25
+      : combinedDenominator <= 115
+        ? 20
+        : combinedDenominator <= 125
+          ? 12
+          : combinedDenominator <= 140
+            ? 5
+            : 0;
+  score += rbDenominator <= 285
+    ? 20
+    : rbDenominator <= 330
+      ? 15
+      : rbDenominator <= 400
+        ? 10
+        : rbDenominator <= 500
+          ? 5
+          : 0;
+  score += differenceValue >= 3200
+    ? 20
+    : differenceValue >= 750
+      ? 15
+      : differenceValue >= 0
+        ? 10
+        : differenceValue >= -500
+          ? 4
+          : 0;
+  score += rbRatio >= 0.3 ? 5 : rbRatio >= 0.25 ? 3 : 0;
+
+  return score;
+}
+
 function isMachineHighContentWindowRow(row, machineName) {
   const normalizedMachineName = normalizeText(machineName);
   const games = readWindowField(row, "games");
@@ -1309,6 +1364,9 @@ function isMachineHighContentWindowRow(row, machineName) {
   }
   if (normalizedMachineName === normalizeText("スマスロモンキーターンV")) {
     return games >= 3502 && combinedDenominator <= 434 && differenceValue >= -819;
+  }
+  if (isOkidokiDuoEncoreMachineName(machineName)) {
+    return games >= 2400 && calculateOkidokiDuoHighContentScore(row) >= 65;
   }
   if (normalizedMachineName === normalizeText("ハナハナホウオウ")) {
     return games >= 5000 && combinedDenominator <= 145 && rbDenominator <= 315;
@@ -6394,6 +6452,15 @@ function calculateWindowMetrics(
     windowDays,
     currentMachineName,
   );
+  const adjacentMachineHighContentCount14 = countAdjacentMachineHighContentRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    14,
+    currentMachineName,
+  );
   const todayDifference = readHuntScoreDifferenceValue(row, config.differenceMode, currentMachineName);
   const previousGames = readNumber(row?.games_count) ?? 0;
   const previousRbCount = readNumber(row?.rb_count) ?? 0;
@@ -6547,6 +6614,7 @@ function calculateWindowMetrics(
     historyThirtySettingFiveCount,
     adjacentHighSettingCandidateCount7,
     adjacentMachineHighContentCount7,
+    adjacentMachineHighContentCount14,
     historyNetTotal,
     historyPositiveDays,
     recentThreeBigShowDays,

@@ -1151,6 +1151,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const highSettingCandidateStreak = readNumber(metrics.highSettingCandidateStreak);
   const adjacentHighSettingCandidateCount7 = readNumber(metrics.adjacentHighSettingCandidateCount7);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
+  const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
   const recentSevenMachineHighContentCount = readNumber(metrics.recentSevenMachineHighContentCount);
   const recentFourteenMachineHighContentCount = readNumber(metrics.recentFourteenMachineHighContentCount);
@@ -1332,8 +1333,8 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         daysSinceMachineHighContent >= 5 &&
         daysSinceMachineHighContent <= 21);
     const okidokiDuoNearbyLeftBehind =
-      adjacentMachineHighContentCount7 >= 2 ||
-      (recentFiveNetTotal < 0 && adjacentMachineHighContentCount7 > 0);
+      adjacentMachineHighContentCount14 >= 2 ||
+      (recentFiveNetTotal < 0 && adjacentMachineHighContentCount14 > 0);
     const okidokiDuoUntreated =
       features.recentFourteenCombinedDenominator >= 130 ||
       features.recentFourteenRbDenominator >= 381;
@@ -1522,6 +1523,7 @@ function calculateMachineScore(definition, metrics, features) {
   const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
   const machineGoodContentStreak = readNumber(metrics.machineGoodContentStreak);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
+  const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
   const previousCombinedDenominator = features.previousCombinedDenominator;
   const previousRbDenominator = features.previousRbDenominator;
   const recentTwoCombinedDenominator = rateDenominator(recentTwoGamesTotal, recentTwoBonusTotal);
@@ -2367,9 +2369,9 @@ function calculateMachineScore(definition, metrics, features) {
     bonusScore = clamp(bonusScore, -9, 9);
 
     let nearbyScore = 0;
-    nearbyScore += adjacentMachineHighContentCount7 >= 2 && recentFourteenMachineHighContentCount === 0 ? 6 : 0;
-    nearbyScore += adjacentMachineHighContentCount7 > 0 && recentFiveNetTotal < 0 ? 2 : 0;
-    nearbyScore += adjacentMachineHighContentCount7 === 0 ? 1 : 0;
+    nearbyScore += adjacentMachineHighContentCount14 >= 2 && recentFourteenMachineHighContentCount === 0 ? 6 : 0;
+    nearbyScore += adjacentMachineHighContentCount14 > 0 && recentFiveNetTotal < 0 ? 2 : 0;
+    nearbyScore += adjacentMachineHighContentCount14 === 0 ? 1 : 0;
     nearbyScore = Math.min(nearbyScore, 7);
 
     let gamesScore = 0;
