@@ -402,7 +402,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     conditions: [
       buildCondition(
         "main",
-        "1位＋70点以上＋短期沈み滞在2日以上",
+        "1位＋70点以上＋7日沈み2日以上or3日沈み2日目",
         "132件 / 105.61% / RB1/271.3",
         {
           rankMax: 1,
@@ -1110,12 +1110,14 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const previousMachineStrongHighContent = Boolean(metrics.previousMachineStrongHighContent);
 
   if (machineKey === "neo-aim") {
+    const aimSevenSinkStayDays = readNumber(metrics.recentSevenMinus2000StayDays);
+    const aimThreeSinkStayDays = readNumber(metrics.recentThreeMinus1700StayDays);
     const aimShortSinkStay2 =
-      readNumber(metrics.recentSevenMinus2000StayDays) >= 2 ||
-      readNumber(metrics.recentThreeMinus1700StayDays) >= 2;
+      aimSevenSinkStayDays >= 2 ||
+      aimThreeSinkStayDays === 2;
     const aimShortSinkStay3 =
-      readNumber(metrics.recentSevenMinus2000StayDays) >= 3 ||
-      readNumber(metrics.recentThreeMinus1700StayDays) >= 3;
+      aimSevenSinkStayDays >= 3 ||
+      aimThreeSinkStayDays === 3;
 
     return {
       ...features,
