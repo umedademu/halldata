@@ -1308,7 +1308,7 @@ function isMachineHighContentWindowRow(row, machineName) {
     return games >= 3000 && combinedDenominator <= 165 && rbDenominator <= 420;
   }
   if (normalizedMachineName === normalizeText("スマスロモンキーターンV")) {
-    return games >= 3478 && combinedDenominator <= 436 && differenceValue >= -836;
+    return games >= 3502 && combinedDenominator <= 434 && differenceValue >= -819;
   }
   if (normalizedMachineName === normalizeText("ハナハナホウオウ")) {
     return games >= 5000 && combinedDenominator <= 145 && rbDenominator <= 315;
@@ -1354,7 +1354,7 @@ function isMachineStrongHighContentWindowRow(row, machineName) {
   const differenceValue = readNumber(row?.differenceValue) ?? 0;
 
   if (normalizedMachineName === normalizeText("スマスロモンキーターンV")) {
-    return games >= 4781 && combinedDenominator <= 414 && differenceValue >= -1389;
+    return games >= 4851 && combinedDenominator <= 422 && differenceValue >= -468;
   }
 
   return isMachineHighContentWindowRow(row, machineName) && rbDenominator <= 285;
@@ -6104,6 +6104,8 @@ function calculateWindowMetrics(
   const recentThreeMinus1700StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 3, -1700);
   const recentFiveMinus500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -500);
   const recentTenMinus5225StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 10, -5225);
+  const recentFourteenMinus3218StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -3218);
+  const recentTwentyOneMinus11333StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -11333);
   const recentFourLossDays = recentFourRows.filter((windowRow) => windowRow.differenceValue < 0).length;
   const recentSevenLossDays = recentSevenRows.filter((windowRow) => windowRow.differenceValue < 0).length;
   const recentFourteenWinDays = recentFourteenRows.filter((windowRow) => windowRow.differenceValue > 0).length;
@@ -6428,6 +6430,8 @@ function calculateWindowMetrics(
     recentThreeMinus1700StayDays,
     recentFiveMinus500StayDays,
     recentTenMinus5225StayDays,
+    recentFourteenMinus3218StayDays,
+    recentTwentyOneMinus11333StayDays,
     recentFourLossDays,
     recentSevenLossDays,
     recentFourteenWinDays,

@@ -288,19 +288,40 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     machineKey: "monkey",
     machineNames: ["スマスロモンキーターンV", "スマスロ モンキーターンV", "スマスロモンキーターンⅤ"],
     logicKey: "apark-monkey",
-    logicName: "モンキー春日式",
+    logicName: "モンキー春日式v2",
     profile: "smart",
     defaultConditionSuffix: "main",
     conditions: [
       buildCondition(
         "main",
+        "1位＋次点差10点以上",
+        "181件 / 104.26%",
+        {
+          rankMax: 1,
+          minNextGap: 10,
+          requiredFlags: ["monkeyHistoryReady"],
+        },
+      ),
+      buildCondition(
+        "safe",
+        "1位＋危険0",
+        "138件 / 105.63%",
+        {
+          rankMax: 1,
+          maxDanger: 0,
+          requiredFlags: ["monkeyHistoryReady"],
+        },
+      ),
+      buildCondition(
+        "strong",
         "1位＋65点以上＋強化2個以上＋危険0",
-        "157件 / 105.59%",
+        "99件 / 105.49%",
         {
           rankMax: 1,
           minScore: 65,
           minBoost: 2,
           maxDanger: 0,
+          requiredFlags: ["monkeyHistoryReady"],
         },
       ),
     ],
@@ -904,6 +925,7 @@ function buildFeatureState(metrics = {}) {
   const recentThreeAngle = netPerThousandGames(recentThreeNetTotal, recentThreeGamesTotal);
   const recentSevenAngle = netPerThousandGames(recentSevenNetTotal, recentSevenGamesTotal);
   const recentFourteenAngle = netPerThousandGames(recentFourteenNetTotal, recentFourteenGamesTotal);
+  const recentTwentyOneAngle = netPerThousandGames(recentTwentyOneNetTotal, recentTwentyOneGamesTotal);
   const recentFiveAngle = netPerThousandGames(recentFiveNetTotal, recentFiveGamesTotal);
   const recentThreeCombinedDenominator = rateDenominator(recentThreeGamesTotal, recentThreeBonusTotal);
   const recentFiveCombinedDenominator = rateDenominator(recentFiveGamesTotal, recentFiveBonusTotal);
@@ -1040,6 +1062,7 @@ function buildFeatureState(metrics = {}) {
     recentFiveAngle,
     recentSevenAngle,
     recentFourteenAngle,
+    recentTwentyOneAngle,
     recentThreeCombinedDenominator,
     recentFiveCombinedDenominator,
     recentSevenCombinedDenominator,
@@ -1077,6 +1100,7 @@ function calculateRestScore(bestRestDays, profile) {
 
 function buildMachineSpecificFeatureState(definition, metrics, features) {
   const machineKey = definition?.machineKey ?? "";
+  const historyRowCount = readNumber(metrics.historyRowCount);
   const previousDifference = readNumber(metrics.todayDifference);
   const previousGames = readNumber(metrics.previousGames);
   const streak = readNumber(metrics.streak);
@@ -1204,47 +1228,57 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "monkey") {
-    const angleBoost =
-      recentFiveGamesTotal >= 19617 &&
-      features.recentFiveAngle >= -205 &&
-      features.recentFiveAngle <= -75;
-    const sinkBoost =
-      (recentSevenNetTotal <= -4485 && recentSevenGamesTotal >= 27704) ||
-      (recentTenNetTotal <= -5225 && recentTenGamesTotal >= 39745) ||
-      readNumber(metrics.recentTenMinus5225StayDays) >= 3;
-    const repayBoost =
-      (previousDifference > 0 && recentFourteenNetTotal < 0) ||
-      (previousDifference >= 927 && recentFourteenNetTotal < 0);
-    const realContentBoost =
-      previousMachineHighContent ||
-      (previousGames >= 4816 && features.previousCombinedDenominator <= 434);
-    const streakBoost = streak >= 4;
+    const monkeyHistoryReady = historyRowCount >= 21;
+    const fourteenSinkStayDays = readNumber(metrics.recentFourteenMinus3218StayDays);
+    const twentyOneSinkStayDays = readNumber(metrics.recentTwentyOneMinus11333StayDays);
+    const monkeyFiveAngleBoost =
+      recentFiveGamesTotal >= 19917 &&
+      features.recentFiveAngle >= -261 &&
+      features.recentFiveAngle <= -101;
+    const monkeyMiddleSinkBoost =
+      (recentTwentyOneNetTotal <= -11333 && readNumber(metrics.recentTwentyOneGamesTotal) >= 79247) ||
+      (recentFourteenNetTotal <= -3218 && recentFourteenGamesTotal >= 51400) ||
+      ((fourteenSinkStayDays >= 2 && fourteenSinkStayDays <= 3) || fourteenSinkStayDays >= 7) ||
+      twentyOneSinkStayDays >= 2;
+    const monkeyPreviousContentBoost =
+      (previousMachineHighContent && previousDifference < 1000) ||
+      previousMachineStrongHighContent;
+    const monkeyRepayBoost =
+      previousDifference > 0 &&
+      (recentSevenNetTotal <= -3146 ||
+        recentFourteenNetTotal <= -2305 ||
+        recentTwentyOneNetTotal <= -394);
+    const monkeyStreakBoost = streak === 4 || (streak >= 6 && streak <= 8) || streak >= 9;
+    const monkeyRealContentBoost = previousGames >= 4852 && features.previousCombinedDenominator <= 411;
     const treatmentDone =
-      recentFourteenNetTotal >= 4807 ||
-      recentSevenNetTotal >= 4543 ||
-      (previousMachineHighContent && previousDifference >= 927);
-    const lowConfidence = previousGames < 1000 || recentTenGamesTotal < 34862;
+      recentFourteenNetTotal >= 4776 ||
+      recentTenNetTotal >= 4195 ||
+      recentSevenNetTotal >= 3310;
+    const lowConfidence = recentFiveGamesTotal < 16802 || recentTenGamesTotal < 35852;
     const restedAfterHigh =
       Number.isFinite(daysSinceMachineHighContent) &&
       daysSinceMachineHighContent >= 2 &&
       daysSinceMachineHighContent <= 6;
-    const outputOnly = previousDifference >= 1520 && !previousMachineHighContent;
-    const staleWithoutReason =
-      Number.isFinite(daysSinceMachineHighContent) &&
-      daysSinceMachineHighContent >= 45 &&
-      !angleBoost &&
-      !sinkBoost &&
-      recentFourteenNetTotal > -3000;
-    const boostFlags = [angleBoost, sinkBoost, repayBoost, realContentBoost, streakBoost];
-    const dangerFlags = [treatmentDone, lowConfidence, restedAfterHigh, outputOnly, staleWithoutReason];
+    const previousHighOutputDone = previousMachineHighContent && previousDifference >= 1000;
+    const boostFlags = [
+      monkeyFiveAngleBoost,
+      monkeyMiddleSinkBoost,
+      monkeyPreviousContentBoost,
+      monkeyRepayBoost,
+      monkeyStreakBoost,
+      monkeyRealContentBoost,
+    ];
+    const dangerFlags = [treatmentDone, lowConfidence, restedAfterHigh, previousHighOutputDone];
 
     return {
       ...features,
-      angleBoost,
-      sinkBoost,
-      repayBoost,
-      realContentBoost,
-      streakBoost,
+      monkeyHistoryReady,
+      monkeyFiveAngleBoost,
+      monkeyMiddleSinkBoost,
+      monkeyPreviousContentBoost,
+      monkeyRepayBoost,
+      monkeyStreakBoost,
+      monkeyRealContentBoost,
       treatmentDone,
       lowConfidence,
       boostCount: boostFlags.filter(Boolean).length,
@@ -1414,6 +1448,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentSevenGamesTotal = readNumber(metrics.recentSevenGamesTotal);
   const recentTenGamesTotal = readNumber(metrics.recentTenGamesTotal);
   const recentFourteenGamesTotal = readNumber(metrics.recentFourteenGamesTotal);
+  const recentTwentyOneGamesTotal = readNumber(metrics.recentTwentyOneGamesTotal);
   const recentTwentyEightGamesTotal = readNumber(metrics.recentTwentyEightGamesTotal);
   const recentFiftySixGamesTotal = readNumber(metrics.recentFiftySixGamesTotal);
   const recentTwoBonusTotal = readNumber(metrics.recentTwoBonusTotal);
@@ -1431,6 +1466,8 @@ function calculateMachineScore(definition, metrics, features) {
   const recentSevenMinus3000StayDays = readNumber(metrics.recentSevenMinus3000StayDays);
   const recentFiveMinus500StayDays = readNumber(metrics.recentFiveMinus500StayDays);
   const recentTenMinus5225StayDays = readNumber(metrics.recentTenMinus5225StayDays);
+  const recentFourteenMinus3218StayDays = readNumber(metrics.recentFourteenMinus3218StayDays);
+  const recentTwentyOneMinus11333StayDays = readNumber(metrics.recentTwentyOneMinus11333StayDays);
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
   const recentSevenMachineHighContentCount = readNumber(metrics.recentSevenMachineHighContentCount);
   const recentFourteenMachineHighContentCount = readNumber(metrics.recentFourteenMachineHighContentCount);
@@ -2633,32 +2670,70 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "monkey") {
-    let score = 30;
-    score += scoreInRange(features.recentFiveAngle, -205, -75, 30);
-    score += recentFiveGamesTotal >= 19617 && features.recentFiveAngle < -205 ? 4 : 0;
-    score += recentFiveNetTotal <= -3180 && recentFiveGamesTotal >= 19617 ? 6 : 0;
-    score += recentSevenNetTotal <= -4485 && recentSevenGamesTotal >= 27704 ? 8 : 0;
-    score += recentTenNetTotal <= -5225 && recentTenGamesTotal >= 39745 ? 8 : 0;
-    score += recentTenMinus5225StayDays >= 3 ? 6 : recentSevenNetTotal <= -4485 && recentSevenGamesTotal >= 27704 ? 3 : 0;
-    score += previousMachineHighContent && previousDifference >= 0 && previousDifference < 927 ? 10 : 0;
-    score += previousMachineStrongHighContent && previousDifference <= 0 ? 6 : 0;
-    score += previousGames >= 4816 && features.previousCombinedDenominator <= 434 ? 3 : 0;
-    score += previousDifference > 0 && recentFourteenNetTotal < 0 ? 8 : 0;
-    score += previousDifference >= 927 && recentFourteenNetTotal < 0 ? 4 : 0;
-    score += streak >= 3 && streak <= 5 ? 6 : 0;
-    score += streak >= 6 && streak <= 8 ? 14 : 0;
-    score += streak >= 9 ? 5 : 0;
-    score += Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 7 && daysSinceMachineHighContent <= 10 ? 4 : 0;
-    score += recentTenGamesTotal >= 39745 ? 3 : 0;
-    score += previousGames >= 3488 ? 2 : 0;
+    if (readNumber(metrics.historyRowCount) < 21) {
+      return 0;
+    }
 
-    score -= Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 2 && daysSinceMachineHighContent <= 6 ? 12 : 0;
-    score -= recentFourteenNetTotal >= 4807 ? 18 : 0;
-    score -= recentFourteenNetTotal < 4807 && recentSevenNetTotal >= 3350 ? 12 : 0;
-    score -= recentFourteenNetTotal >= 9847 ? 8 : 0;
-    score -= previousMachineHighContent && previousDifference >= 927 ? 14 : 0;
-    score -= !previousMachineHighContent && previousDifference >= 1520 ? 6 : 0;
-    score -= recentTenGamesTotal < 34862 ? 8 : 0;
+    let score = 30;
+    const fiveAngleBoost =
+      recentFiveGamesTotal >= 19917 &&
+      features.recentFiveAngle >= -261 &&
+      features.recentFiveAngle <= -101;
+    const fiveAngleCore =
+      recentFiveGamesTotal >= 19917 &&
+      features.recentFiveAngle >= -161 &&
+      features.recentFiveAngle <= -101;
+    const twentyOneDeepSink = recentTwentyOneNetTotal <= -11333 && recentTwentyOneGamesTotal >= 79247;
+    const fourteenDeepSink = recentFourteenNetTotal <= -3218 && recentFourteenGamesTotal >= 51400;
+    const fourteenSinkStay =
+      (recentFourteenMinus3218StayDays >= 2 && recentFourteenMinus3218StayDays <= 3) ||
+      recentFourteenMinus3218StayDays >= 7;
+
+    score += fiveAngleBoost ? 18 : 0;
+    score += fiveAngleCore ? 6 : 0;
+    score += recentSevenGamesTotal >= 28195 && features.recentSevenAngle >= 3 && features.recentSevenAngle <= 48 ? 8 : 0;
+    score += recentFourteenGamesTotal >= 57174 && features.recentFourteenAngle >= -100 && features.recentFourteenAngle <= -30 ? 10 : 0;
+    score += recentTwentyOneGamesTotal >= 86812 && features.recentTwentyOneAngle >= -164 && features.recentTwentyOneAngle <= -124 ? 6 : 0;
+    score += twentyOneDeepSink ? 18 : 0;
+    score += !twentyOneDeepSink && recentTwentyOneNetTotal <= -9189 && recentTwentyOneGamesTotal >= 79247 ? 6 : 0;
+    score += fourteenDeepSink ? 8 : 0;
+    score += fourteenSinkStay ? 5 : 0;
+    score += recentTwentyOneMinus11333StayDays >= 2 ? 7 : 0;
+    score += previousMachineHighContent && previousDifference < 0 ? 12 : 0;
+    score += previousMachineHighContent && previousDifference >= 0 && previousDifference < 1000 ? 22 : 0;
+    score += previousMachineStrongHighContent && previousDifference >= 0 && previousDifference < 1000 ? 6 : 0;
+    score += previousMachineStrongHighContent && previousDifference < 0 ? 4 : 0;
+    if (previousDifference > 0 && recentSevenNetTotal <= -3146) {
+      score += 8;
+    } else if (previousDifference > 0 && recentFourteenNetTotal <= -2305) {
+      score += 6;
+    } else if (previousDifference > 0 && recentTwentyOneNetTotal <= -394) {
+      score += 4;
+    }
+    score += streak === 4 ? 7 : 0;
+    score += streak >= 6 && streak <= 8 ? 13 : 0;
+    score += streak >= 9 ? 5 : 0;
+    score += Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 7 && daysSinceMachineHighContent <= 14 ? 3 : 0;
+    score += Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 22 ? 5 : 0;
+    score += previousGames >= 4852 && previousCombinedDenominator <= 411 ? 5 : 0;
+
+    score -= Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 2 && daysSinceMachineHighContent <= 6 ? 8 : 0;
+    score -= previousMachineHighContent && previousDifference >= 1000 ? 14 : 0;
+    score -= previousMachineStrongHighContent && previousDifference >= 1000 ? 4 : 0;
+    if (recentFourteenNetTotal >= 4776) {
+      score -= 16;
+    } else if (recentTenNetTotal >= 4195) {
+      score -= 8;
+    } else if (recentSevenNetTotal >= 3310) {
+      score -= 6;
+    }
+    score -= recentFourteenNetTotal >= 9664 ? 6 : 0;
+    score -= recentSevenNetTotal >= 5876 ? 3 : 0;
+    if (recentFiveGamesTotal < 16802) {
+      score -= 6;
+    } else if (recentTenGamesTotal < 35852) {
+      score -= 3;
+    }
 
     return Math.round(clamp(score, 0, 100));
   }
