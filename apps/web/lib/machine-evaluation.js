@@ -1542,23 +1542,23 @@ function calculateMachineScore(definition, metrics, features) {
       { minimum: 1, points: 2 },
     ]);
 
-    let restScore = 0;
-    restScore += recentSevenMachineHighContentCount === 0 &&
+    const restScore = recentSevenMachineHighContentCount === 0 &&
       Number.isFinite(daysSinceMachineHighContent) &&
       daysSinceMachineHighContent >= 8 &&
       daysSinceMachineHighContent <= 28
       ? 10
-      : 0;
-    restScore += recentSevenMachineHighContentCount === 0 ? 7 : 0;
-    restScore += recentFourteenMachineHighContentCount <= 1 ? 4 : 0;
-    restScore = Math.min(restScore, 10);
+      : recentSevenMachineHighContentCount === 0
+        ? 7
+        : recentFourteenMachineHighContentCount <= 1
+          ? 4
+          : 0;
 
-    let repayScore = 0;
-    repayScore += previousMachineGoodContent && previousDifference < 0 ? 15 : 0;
-    repayScore += previousMachineGoodContent && previousDifference < 500 && recentSevenNetTotal < 0 ? 12 : 0;
-    repayScore += previousMachineHighContent && previousDifference < 500 && recentSevenNetTotal < 0 ? 10 : 0;
-    repayScore += previousDifference > 0 && recentSevenNetTotal <= -2000 ? 5 : 0;
-    repayScore = Math.min(repayScore, 15);
+    const repayScore = Math.max(
+      previousMachineGoodContent && previousDifference < 0 ? 15 : 0,
+      previousMachineGoodContent && previousDifference < 500 && recentSevenNetTotal < 0 ? 12 : 0,
+      previousMachineHighContent && previousDifference < 500 && recentSevenNetTotal < 0 ? 10 : 0,
+      previousDifference > 0 && recentSevenNetTotal <= -2000 ? 5 : 0,
+    );
 
     let weakScore = 0;
     weakScore += scoreAtLeast(features.recentSevenCombinedDenominator, [
