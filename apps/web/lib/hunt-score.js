@@ -1365,6 +1365,14 @@ function isMachineHighContentWindowRow(row, machineName) {
   if (normalizedMachineName === normalizeText("ニューキングハナハナ")) {
     return games >= 4000 && combinedDenominator <= 165 && rbDenominator <= 420;
   }
+  if (
+    normalizedMachineName === normalizeText("ファンキージャグラー２ＫＴ") ||
+    normalizedMachineName === normalizeText("ファンキージャグラー２") ||
+    normalizedMachineName === normalizeText("ファンキージャグラー2")
+  ) {
+    const rbCount = readWindowField(row, "rbCount");
+    return games >= 4000 && rbCount >= 20 && rbDenominator <= 300 && combinedDenominator <= 133;
+  }
   if (normalizedMachineName === normalizeText("スマスロモンキーターンV")) {
     return games >= 3502 && combinedDenominator <= 434 && differenceValue >= -819;
   }
@@ -1389,6 +1397,14 @@ function isMachineGoodContentWindowRow(row, machineName) {
   }
   if (normalizedMachineName === normalizeText("スターハナハナ")) {
     return games >= 4000 && rbDenominator <= 300 && combinedDenominator <= 135;
+  }
+  if (
+    normalizedMachineName === normalizeText("ファンキージャグラー２ＫＴ") ||
+    normalizedMachineName === normalizeText("ファンキージャグラー２") ||
+    normalizedMachineName === normalizeText("ファンキージャグラー2")
+  ) {
+    const rbCount = readWindowField(row, "rbCount");
+    return games >= 3500 && rbCount >= 15 && rbDenominator <= 323 && combinedDenominator <= 140;
   }
 
   return isMachineHighContentWindowRow(row, machineName);
@@ -6208,6 +6224,10 @@ function calculateWindowMetrics(
   const recentSevenMinus2000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -2000);
   const recentSevenMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -3000);
   const recentThreeMinus1700StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 3, -1700);
+  const recentFiveMinus1500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -1500);
+  const recentFiveMinus2000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -2000);
+  const recentFiveMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -3000);
+  const recentSevenMinus1500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -1500);
   const recentFiveMinus500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -500);
   const recentTenMinus5225StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 10, -5225);
   const recentFourteenMinus3218StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -3218);
@@ -6552,6 +6572,10 @@ function calculateWindowMetrics(
     recentSevenMinus2000StayDays,
     recentSevenMinus3000StayDays,
     recentThreeMinus1700StayDays,
+    recentFiveMinus1500StayDays,
+    recentFiveMinus2000StayDays,
+    recentFiveMinus3000StayDays,
+    recentSevenMinus1500StayDays,
     recentFiveMinus500StayDays,
     recentTenMinus5225StayDays,
     recentFourteenMinus3218StayDays,
