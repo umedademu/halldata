@@ -19,6 +19,7 @@ import { SpecialDayFilterSettings } from "../../../../components/special-day-fil
 import { SortableTableController } from "../../../../components/sortable-table-controller";
 import { SortableTableHeader } from "../../../../components/sortable-table-header";
 import { StoreFavoriteButton } from "../../../../components/store-favorite-button";
+import { TableCopyButton } from "../../../../components/table-copy-button";
 import {
   getHuntScoreAnalysisPageDetail,
   getHuntScoreInitialPageDetail,
@@ -364,6 +365,7 @@ function BacktestResultTable({
         <div>
           <p className="tablePanelTitle">{title}</p>
         </div>
+        <TableCopyButton tableId={tableId} />
       </div>
       <div className="tableScroller directoryScroller">
         <table id={tableId} className="directoryTable huntCompactTable backtestResultTable huntBacktestResultTable" data-sortable-table="1">

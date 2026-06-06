@@ -13,6 +13,7 @@ import { SpecialDayFilterSettings } from "../../components/special-day-filter-se
 import { SortableTableController } from "../../components/sortable-table-controller";
 import { SortableTableHeader } from "../../components/sortable-table-header";
 import { StoreFavoriteButton } from "../../components/store-favorite-button";
+import { TableCopyButton } from "../../components/table-copy-button";
 import { getCrossStoreBacktestDetail } from "../../lib/data";
 import {
   formatAverageGames,
@@ -323,6 +324,7 @@ function StoreRankingTable({
           <p className="sectionLabel">{rankingMetricLabel}ランキング</p>
           <h2 className="tablePanelTitle">店舗横断バックテスト結果</h2>
         </div>
+        <TableCopyButton tableId={tableId} />
       </div>
       <div className="tableScroller directoryScroller">
         <table id={tableId} className="directoryTable huntCompactTable backtestResultTable crossStoreBacktestResultTable" data-sortable-table="1">

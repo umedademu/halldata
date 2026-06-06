@@ -2264,6 +2264,24 @@ a {
   transform: scale(0.96);
 }
 
+.tableCopyControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.tableCopyButton {
+  padding-inline: 12px;
+}
+
+.tableCopyStatus {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .tableScroller {
   overflow: auto;
   border: 1px solid var(--line);
