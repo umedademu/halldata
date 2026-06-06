@@ -274,12 +274,38 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     conditions: [
       buildCondition(
         "main",
-        "65点以上＋沈み核あり＋危険回避",
+        "上位2位",
         "284件 / 105.73%",
         {
+          rankMax: 2,
+          requiredFlags: ["okidokiDuoHistoryReady"],
+        },
+      ),
+      buildCondition(
+        "top1",
+        "1位",
+        "142件 / 106.54%",
+        {
+          rankMax: 1,
+          requiredFlags: ["okidokiDuoHistoryReady"],
+        },
+      ),
+      buildCondition(
+        "score65",
+        "65点以上",
+        "109件 / 104.71%",
+        {
           minScore: 65,
-          maxDanger: 1,
-          requiredFlags: ["okidokiDuoSinkCore"],
+          requiredFlags: ["okidokiDuoHistoryReady"],
+        },
+      ),
+      buildCondition(
+        "score70",
+        "70点以上",
+        "75件 / 107.74%",
+        {
+          minScore: 70,
+          requiredFlags: ["okidokiDuoHistoryReady"],
         },
       ),
     ],
@@ -1290,10 +1316,15 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "okidoki-duo") {
+    const okidokiDuoHistoryReady = historyRowCount >= 14;
     const okidokiDuoSinkCore =
       recentThreeNetTotal <= -4300 ||
       readNumber(metrics.recentTwoNetTotal) <= -4500 ||
       (features.recentFiveAngle <= -456 && recentFiveGamesTotal >= 4000);
+    const okidokiDuoShortDeepSink =
+      recentThreeNetTotal <= -5400 ||
+      readNumber(metrics.recentTwoNetTotal) <= -4500 ||
+      previousDifference <= -3000;
     const okidokiDuoRotationStrong =
       recentFourteenMachineHighContentCount === 0 ||
       (recentFourteenMachineHighContentCount <= 1 &&
@@ -1307,7 +1338,9 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       features.recentFourteenCombinedDenominator >= 130 ||
       features.recentFourteenRbDenominator >= 381;
     const boostFlags = [
+      okidokiDuoHistoryReady,
       okidokiDuoSinkCore,
+      okidokiDuoShortDeepSink,
       okidokiDuoRotationStrong,
       okidokiDuoNearbyLeftBehind,
       okidokiDuoUntreated,
@@ -1330,7 +1363,9 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
 
     return {
       ...features,
+      okidokiDuoHistoryReady,
       okidokiDuoSinkCore,
+      okidokiDuoShortDeepSink,
       okidokiDuoRotationStrong,
       okidokiDuoNearbyLeftBehind,
       okidokiDuoUntreated,
@@ -1443,6 +1478,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFiftySixNetTotal = readNumber(metrics.recentFiftySixNetTotal);
   const lossAbsTotal = readNumber(metrics.lossAbsTotal);
   const streak = readNumber(metrics.streak);
+  const winningStreak = readNumber(metrics.winningStreak);
   const historyNetTotal = readNumber(metrics.historyNetTotal);
   const historyPositiveDays = readNumber(metrics.historyPositiveDays);
   const recentTwoGamesTotal = readNumber(metrics.recentTwoGamesTotal);
@@ -1472,7 +1508,9 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFourteenMinus3218StayDays = readNumber(metrics.recentFourteenMinus3218StayDays);
   const recentTwentyOneMinus11333StayDays = readNumber(metrics.recentTwentyOneMinus11333StayDays);
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
+  const recentFiveMachineHighContentCount = readNumber(metrics.recentFiveMachineHighContentCount);
   const recentSevenMachineHighContentCount = readNumber(metrics.recentSevenMachineHighContentCount);
+  const recentTenMachineHighContentCount = readNumber(metrics.recentTenMachineHighContentCount);
   const recentFourteenMachineHighContentCount = readNumber(metrics.recentFourteenMachineHighContentCount);
   const recentThirtyMachineHighContentCount = readNumber(metrics.recentThirtyMachineHighContentCount);
   const recentSevenMachineGoodContentCount = readNumber(metrics.recentSevenMachineGoodContentCount);
@@ -2262,67 +2300,123 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "okidoki-duo") {
-    let sinkScore = 0;
-    sinkScore += scoreAtMost(recentTwoNetTotal, [
-      { maximum: -3000, points: 12 },
-      { maximum: -2000, points: 9 },
-      { maximum: -1000, points: 5 },
-    ]);
-    sinkScore += scoreAtMost(recentThreeNetTotal, [
-      { maximum: -4500, points: 12 },
-      { maximum: -3000, points: 9 },
-      { maximum: -1500, points: 5 },
-    ]);
-    sinkScore += scoreAtMost(recentFiveNetTotal, [
-      { maximum: -6500, points: 12 },
-      { maximum: -4500, points: 9 },
-      { maximum: -2500, points: 5 },
-    ]);
-    sinkScore = Math.min(sinkScore, 24);
+    if (readNumber(metrics.historyRowCount) < 14) {
+      return 0;
+    }
 
-    let angleScore = 0;
-    angleScore += scoreAtMost(features.recentThreeAngle, [
-      { maximum: -500, points: 10 },
-      { maximum: -350, points: 7 },
-      { maximum: -220, points: 4 },
-    ]);
-    angleScore += scoreAtMost(features.recentFiveAngle, [
-      { maximum: -450, points: 8 },
-      { maximum: -300, points: 5 },
-    ]);
-    angleScore = Math.min(angleScore, 16);
+    const sinkScore = Math.max(
+      scoreAtMost(recentThreeNetTotal, [
+        { maximum: -5400, points: 39 },
+        { maximum: -4300, points: 29 },
+        { maximum: -3000, points: 20 },
+        { maximum: -2100, points: 10 },
+      ]),
+      scoreAtMost(recentTwoNetTotal, [
+        { maximum: -4500, points: 37 },
+        { maximum: -3400, points: 25 },
+        { maximum: -2300, points: 14 },
+      ]),
+      scoreAtMost(recentFiveNetTotal, [
+        { maximum: -7500, points: 35 },
+        { maximum: -5800, points: 27 },
+        { maximum: -3850, points: 18 },
+        { maximum: -2600, points: 10 },
+      ]),
+      scoreAtMost(previousDifference, [
+        { maximum: -3000, points: 18 },
+        { maximum: -2300, points: 11 },
+        { maximum: -1425, points: 6 },
+      ]),
+    );
+
+    const angleScore = Math.max(
+      recentFiveGamesTotal >= 4000 && features.recentFiveAngle <= -553 ? 18 : 0,
+      recentFiveGamesTotal >= 4000 && features.recentFiveAngle <= -456 ? 14 : 0,
+      recentFiveGamesTotal >= 7000 && features.recentFiveAngle <= -323 ? 8 : 0,
+      recentFourteenGamesTotal >= 12000 && features.recentFourteenAngle <= -338 ? 7 : 0,
+      recentFourteenGamesTotal >= 12000 && features.recentFourteenAngle <= -173 ? 4 : 0,
+    );
 
     let rotationScore = 0;
-    rotationScore += scoreInRange(features.bestRestDays, 3, 7, 10);
-    rotationScore += scoreInRange(features.bestRestDays, 8, 14, 8);
-    rotationScore += scoreInRange(features.bestRestDays, 15, 28, 4);
-    rotationScore += recentSevenHighSettingCandidateCount === 0 ? 5 : 0;
-    rotationScore += recentFourteenHighSettingCandidateCount <= 1 ? 4 : 0;
-    rotationScore = Math.min(rotationScore, 25);
+    rotationScore += recentFourteenMachineHighContentCount === 0 ? 12 : recentFourteenMachineHighContentCount <= 1 ? 8 : 0;
+    rotationScore += recentTenMachineHighContentCount <= 1 ? 4 : 0;
+    rotationScore += recentFiveMachineHighContentCount === 0 ? 2 : 0;
+    rotationScore += scoreInRange(daysSinceMachineHighContent, 5, 10, 5);
+    rotationScore += scoreInRange(daysSinceMachineHighContent, 14, 21, 5);
+    rotationScore += scoreInRange(daysSinceMachineHighContent, 3, 5, 2);
+    rotationScore -= Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent > 21 ? 3 : 0;
+    rotationScore -= recentThreeMachineHighContentCount >= 2 ? 12 : 0;
+    rotationScore -= recentFourteenMachineHighContentCount >= 4 ? 8 : 0;
+    rotationScore = Math.min(rotationScore, 15);
 
-    let supportScore = 0;
-    supportScore += scoreAtLeast(streak, [
-      { minimum: 5, points: 10 },
-      { minimum: 4, points: 8 },
-      { minimum: 3, points: 5 },
-      { minimum: 2, points: 2 },
-    ]);
-    supportScore += scoreAtLeast(features.recentThreeCombinedDenominator, [
-      { minimum: 190, points: 6 },
-      { minimum: 170, points: 3 },
-    ]);
-    supportScore += recentThreeGamesTotal >= 12000 ? 4 : recentThreeGamesTotal >= 8000 ? 2 : 0;
-    supportScore += previousDifference <= -1500 ? 4 : 0;
-    supportScore = Math.min(supportScore, 20);
+    let streakScore = 0;
+    streakScore += streak === 3 ? 7 : streak === 2 ? 5 : streak >= 5 ? 2 : 0;
+    streakScore += previousDifference > 0 && winningStreak < 2 ? 1 : 0;
+    streakScore -= winningStreak >= 2 ? 7 : 0;
+    streakScore = clamp(streakScore, -7, 7);
 
-    let penalty = 0;
-    penalty += recentThreeNetTotal >= 3000 ? 12 : recentThreeNetTotal >= 1500 ? 7 : 0;
-    penalty += recentFiveNetTotal >= 5000 ? 14 : recentFiveNetTotal >= 3000 ? 8 : 0;
-    penalty += features.previousHighContent && previousDifference >= 1000 ? 8 : 0;
-    penalty += recentSevenHighSettingCandidateCount >= 3 ? 8 : 0;
-    penalty += recentThreeGamesTotal < 4000 ? 8 : 0;
+    let bonusScore = 0;
+    bonusScore += features.recentFourteenCombinedDenominator >= 136 ? 4 : features.recentFourteenCombinedDenominator >= 130 ? 2 : 0;
+    bonusScore += features.recentSevenCombinedDenominator >= 142 ? 2 : 0;
+    bonusScore += features.recentFourteenRbDenominator >= 424 ? 4 : features.recentFourteenRbDenominator >= 381 ? 3 : 0;
+    bonusScore += features.recentSevenRbDenominator >= 343 && features.recentSevenRbDenominator <= 384 ? 1 : 0;
+    bonusScore -= features.recentFourteenCombinedDenominator <= 104 ? 5 : 0;
+    bonusScore -= features.recentSevenCombinedDenominator <= 106 ? 3 : 0;
+    bonusScore -= features.recentFourteenRbDenominator <= 326 ? 5 : 0;
+    bonusScore -= features.recentSevenRbDenominator <= 300 ? 2 : 0;
+    bonusScore = clamp(bonusScore, -9, 9);
 
-    return Math.round(clamp(20 + sinkScore + angleScore + rotationScore + supportScore - penalty, 0, 100));
+    let nearbyScore = 0;
+    nearbyScore += adjacentMachineHighContentCount7 >= 2 && recentFourteenMachineHighContentCount === 0 ? 6 : 0;
+    nearbyScore += adjacentMachineHighContentCount7 > 0 && recentFiveNetTotal < 0 ? 2 : 0;
+    nearbyScore += adjacentMachineHighContentCount7 === 0 ? 1 : 0;
+    nearbyScore = Math.min(nearbyScore, 7);
+
+    let gamesScore = 0;
+    gamesScore += recentThreeGamesTotal >= 4000 ? 3 : 0;
+    gamesScore += recentFiveGamesTotal >= 7000 && recentFiveNetTotal < 0 ? 3 : 0;
+    gamesScore -= recentTwoGamesTotal < 1800 ? 6 : 0;
+    gamesScore -= recentThreeGamesTotal < 2500 ? 3 : 0;
+    gamesScore = clamp(gamesScore, -7, 7);
+
+    let treatmentPenalty = 0;
+    treatmentPenalty += recentTwoNetTotal >= 6600 ? 23 : 0;
+    treatmentPenalty += recentThreeNetTotal >= 7500 ? 22 : 0;
+    treatmentPenalty += previousDifference >= 5000 ? 19 : 0;
+    treatmentPenalty += recentFiveNetTotal >= 7100 ? 14 : 0;
+    treatmentPenalty += recentThreeNetTotal >= 5550 ? 11 : 0;
+    treatmentPenalty += previousMachineHighContent && previousDifference >= 3200 ? 12 : 0;
+    treatmentPenalty += previousMachineHighContent && previousDifference >= 750 ? 6 : 0;
+    treatmentPenalty += winningStreak >= 2 ? 10 : 0;
+    treatmentPenalty = Math.min(treatmentPenalty, 24);
+
+    const hasSinkCore =
+      recentThreeNetTotal <= -4300 ||
+      recentTwoNetTotal <= -4500 ||
+      recentFiveNetTotal <= -5800 ||
+      (recentFiveGamesTotal >= 4000 && features.recentFiveAngle <= -456);
+    const hasShortDeepSink =
+      recentThreeNetTotal <= -5400 ||
+      recentTwoNetTotal <= -4500 ||
+      previousDifference <= -3000;
+
+    let score =
+      sinkScore +
+      angleScore +
+      rotationScore +
+      streakScore +
+      bonusScore +
+      nearbyScore +
+      gamesScore -
+      treatmentPenalty;
+    if (!hasShortDeepSink) {
+      score = Math.min(score, 73);
+    }
+    if (!hasSinkCore) {
+      score = Math.min(score, 64);
+    }
+
+    return Math.round(clamp(score, 0, 100));
   }
 
   if (machineKey === "okidoki-gold") {
