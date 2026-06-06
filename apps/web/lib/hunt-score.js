@@ -6021,6 +6021,39 @@ function countAdjacentHighSettingCandidates(
   return count;
 }
 
+function listAdjacentSameMachineRowsByOrder(dateRows, row, config, machineName, distance = 2) {
+  const normalizedMachineName = normalizeText(machineName);
+  const slotText = String(row?.slot_number ?? "").trim();
+  const normalizedDistance = Math.max(1, Number(distance) || 2);
+  if (!Array.isArray(dateRows) || !normalizedMachineName || !slotText) {
+    return [];
+  }
+
+  const sameMachineRows = dateRows
+    .filter((dateRow) => {
+      const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
+      return normalizeText(rowMachineName) === normalizedMachineName;
+    })
+    .sort((left, right) => {
+      const leftSlotNumber = Number(left?.slot_number);
+      const rightSlotNumber = Number(right?.slot_number);
+      if (Number.isFinite(leftSlotNumber) && Number.isFinite(rightSlotNumber) && leftSlotNumber !== rightSlotNumber) {
+        return leftSlotNumber - rightSlotNumber;
+      }
+      return String(left?.slot_number ?? "").localeCompare(String(right?.slot_number ?? ""), "ja", { numeric: true });
+    });
+
+  const targetIndex = sameMachineRows.findIndex((dateRow) => String(dateRow?.slot_number ?? "").trim() === slotText);
+  if (targetIndex < 0) {
+    return [];
+  }
+
+  return sameMachineRows.filter((_, index) => {
+    const indexDistance = Math.abs(index - targetIndex);
+    return indexDistance >= 1 && indexDistance <= normalizedDistance;
+  });
+}
+
 function countAdjacentMachineHighContentRows(
   businessDates,
   dateIndex,
@@ -6034,27 +6067,14 @@ function countAdjacentMachineHighContentRows(
     return 0;
   }
 
-  const slotNumber = Number(row?.slot_number);
-  if (!Number.isFinite(slotNumber)) {
-    return 0;
-  }
-
   const normalizedWindowDays = Math.max(1, Number(windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
   const startIndex = Math.max(0, dateIndex - (normalizedWindowDays - 1));
   const windowDates = businessDates.slice(startIndex, dateIndex + 1);
   let count = 0;
 
   for (const date of windowDates) {
-    for (const dateRow of rowsByDate.get(date) ?? []) {
-      const dateRowSlotNumber = Number(dateRow?.slot_number);
-      if (!Number.isFinite(dateRowSlotNumber) || Math.abs(dateRowSlotNumber - slotNumber) !== 1) {
-        continue;
-      }
-
+    for (const dateRow of listAdjacentSameMachineRowsByOrder(rowsByDate.get(date) ?? [], row, config, machineName, 2)) {
       const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
-      if (normalizeText(rowMachineName) !== normalizeText(machineName)) {
-        continue;
-      }
       const differenceValue = readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
       if (isMachineHighContentWindowRow({ row: dateRow, differenceValue }, machineName)) {
         count += 1;
@@ -6078,28 +6098,14 @@ function sumAdjacentMachineDifferenceRows(
     return 0;
   }
 
-  const slotNumber = Number(row?.slot_number);
-  if (!Number.isFinite(slotNumber)) {
-    return 0;
-  }
-
   const normalizedWindowDays = Math.max(1, Number(windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
   const startIndex = Math.max(0, dateIndex - (normalizedWindowDays - 1));
   const windowDates = businessDates.slice(startIndex, dateIndex + 1);
   let total = 0;
 
   for (const date of windowDates) {
-    for (const dateRow of rowsByDate.get(date) ?? []) {
-      const dateRowSlotNumber = Number(dateRow?.slot_number);
-      if (!Number.isFinite(dateRowSlotNumber) || Math.abs(dateRowSlotNumber - slotNumber) !== 1) {
-        continue;
-      }
-
+    for (const dateRow of listAdjacentSameMachineRowsByOrder(rowsByDate.get(date) ?? [], row, config, machineName, 2)) {
       const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
-      if (normalizeText(rowMachineName) !== normalizeText(machineName)) {
-        continue;
-      }
-
       total += readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
     }
   }
