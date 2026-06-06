@@ -1356,6 +1356,9 @@ function isMachineHighContentWindowRow(row, machineName) {
   if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
     return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
   }
+  if (normalizedMachineName === normalizeText("SアイムジャグラーＥＸ")) {
+    return games >= 4000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
   if (normalizedMachineName === normalizeText("スターハナハナ")) {
     return games >= 5500 && rbDenominator <= 285 && combinedDenominator <= 123;
   }
@@ -6013,6 +6016,48 @@ function countAdjacentMachineHighContentRows(
   return count;
 }
 
+function sumAdjacentMachineDifferenceRows(
+  businessDates,
+  dateIndex,
+  row,
+  rowsByDate,
+  config,
+  windowDays,
+  machineName,
+) {
+  if (!(rowsByDate instanceof Map)) {
+    return 0;
+  }
+
+  const slotNumber = Number(row?.slot_number);
+  if (!Number.isFinite(slotNumber)) {
+    return 0;
+  }
+
+  const normalizedWindowDays = Math.max(1, Number(windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
+  const startIndex = Math.max(0, dateIndex - (normalizedWindowDays - 1));
+  const windowDates = businessDates.slice(startIndex, dateIndex + 1);
+  let total = 0;
+
+  for (const date of windowDates) {
+    for (const dateRow of rowsByDate.get(date) ?? []) {
+      const dateRowSlotNumber = Number(dateRow?.slot_number);
+      if (!Number.isFinite(dateRowSlotNumber) || Math.abs(dateRowSlotNumber - slotNumber) !== 1) {
+        continue;
+      }
+
+      const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
+      if (normalizeText(rowMachineName) !== normalizeText(machineName)) {
+        continue;
+      }
+
+      total += readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
+    }
+  }
+
+  return total;
+}
+
 function calculateWindowMetrics(
   businessDates,
   dateIndex,
@@ -6461,6 +6506,15 @@ function calculateWindowMetrics(
     14,
     currentMachineName,
   );
+  const adjacentMachineNetTotal7 = sumAdjacentMachineDifferenceRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    7,
+    currentMachineName,
+  );
   const todayDifference = readHuntScoreDifferenceValue(row, config.differenceMode, currentMachineName);
   const previousGames = readNumber(row?.games_count) ?? 0;
   const previousRbCount = readNumber(row?.rb_count) ?? 0;
@@ -6615,6 +6669,7 @@ function calculateWindowMetrics(
     adjacentHighSettingCandidateCount7,
     adjacentMachineHighContentCount7,
     adjacentMachineHighContentCount14,
+    adjacentMachineNetTotal7,
     historyNetTotal,
     historyPositiveDays,
     recentThreeBigShowDays,

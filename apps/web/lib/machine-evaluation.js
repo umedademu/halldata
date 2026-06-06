@@ -149,8 +149,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           rankMax: 1,
           minScore: 60,
           minNextGap: 5,
-          maxDanger: 1,
-          anyFlags: ["stayCore", "strongAngle", "deepSink"],
+          anyFlags: ["aimSinkStayStrong", "aimStrongAngle"],
         },
       ),
     ],
@@ -1152,6 +1151,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const adjacentHighSettingCandidateCount7 = readNumber(metrics.adjacentHighSettingCandidateCount7);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
+  const adjacentMachineNetTotal7 = readNumber(metrics.adjacentMachineNetTotal7);
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
   const recentSevenMachineHighContentCount = readNumber(metrics.recentSevenMachineHighContentCount);
   const recentFourteenMachineHighContentCount = readNumber(metrics.recentFourteenMachineHighContentCount);
@@ -1160,6 +1160,31 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const previousMachineHighContent = Boolean(metrics.previousMachineHighContent);
   const previousMachineGoodContent = Boolean(metrics.previousMachineGoodContent);
   const previousMachineStrongHighContent = Boolean(metrics.previousMachineStrongHighContent);
+
+  if (machineKey === "aim") {
+    const aimSinkStayStrong =
+      recentSevenNetTotal <= -2000 &&
+      features.recentSevenCombinedDenominator >= 155 &&
+      recentSevenGamesTotal >= 25000;
+    const aimStrongAngle =
+      features.recentSevenAngle <= -60 &&
+      recentSevenGamesTotal >= 25000;
+    const aimNearbyLeftBehind =
+      (recentSevenNetTotal <= -2000 && adjacentMachineHighContentCount14 > 0) ||
+      (recentSevenNetTotal <= -1000 && adjacentMachineNetTotal7 >= 3000);
+    const aimUnpaid =
+      previousDifference > 0 &&
+      recentSevenNetTotal <= -1500 &&
+      features.recentSevenCombinedDenominator >= 155;
+
+    return {
+      ...features,
+      aimSinkStayStrong,
+      aimStrongAngle,
+      aimNearbyLeftBehind,
+      aimUnpaid,
+    };
+  }
 
   if (machineKey === "neo-aim") {
     const aimThreeSinkStayDays = readNumber(metrics.recentThreeMinus1700StayDays);
@@ -1524,6 +1549,7 @@ function calculateMachineScore(definition, metrics, features) {
   const machineGoodContentStreak = readNumber(metrics.machineGoodContentStreak);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
+  const adjacentMachineNetTotal7 = readNumber(metrics.adjacentMachineNetTotal7);
   const previousCombinedDenominator = features.previousCombinedDenominator;
   const previousRbDenominator = features.previousRbDenominator;
   const recentTwoCombinedDenominator = rateDenominator(recentTwoGamesTotal, recentTwoBonusTotal);
@@ -1555,14 +1581,28 @@ function calculateMachineScore(definition, metrics, features) {
       { minimum: 2, points: 5 },
       { minimum: 1, points: 2 },
     ]);
-    score += scoreAtLeast(features.bestRestDays, [
+
+    const aimNearbyFull =
+      recentSevenNetTotal <= -2000 &&
+      adjacentMachineHighContentCount14 > 0 &&
+      adjacentMachineNetTotal7 >= 3000;
+    const aimNearbyPartial =
+      (recentSevenNetTotal <= -2000 && adjacentMachineHighContentCount14 > 0) ||
+      (recentSevenNetTotal <= -1000 && adjacentMachineNetTotal7 >= 3000);
+    const aimUnpaid =
+      previousDifference > 0 &&
+      recentSevenNetTotal <= -1500 &&
+      features.recentSevenCombinedDenominator >= 155;
+    score += aimNearbyFull ? 18 : aimNearbyPartial ? 12 : aimUnpaid ? 7 : 0;
+
+    score += scoreAtLeast(daysSinceMachineHighContent, [
       { minimum: 35, points: 8 },
       { minimum: 21, points: 6 },
       { minimum: 14, points: 4 },
       { minimum: 7, points: 2 },
     ]);
-    score += recentSevenHighSettingCandidateCount === 0 ? 4 : 0;
-    score -= recentSevenHighSettingCandidateCount >= 2 ? 4 : 0;
+    score += recentFourteenMachineHighContentCount === 0 ? 4 : 0;
+    score -= recentFourteenMachineHighContentCount >= 2 ? 4 : 0;
     score += scoreInRange(recentSevenGamesTotal, 25000, 45000, 8);
     score += recentSevenGamesTotal > 45000 ? 6 : 0;
     score += scoreInRange(recentSevenGamesTotal, 20000, 24999, 4);
@@ -1578,7 +1618,11 @@ function calculateMachineScore(definition, metrics, features) {
       { minimum: 2000, points: 7 },
     ]);
     score -= previousDifference >= 1500 ? 6 : 0;
-    score -= features.previousHighContent && recentSevenNetTotal > 0 ? 8 : 0;
+    const previousAimLooseHighContent =
+      previousGames >= 5000 &&
+      previousCombinedDenominator <= 145 &&
+      previousRbDenominator <= 315;
+    score -= previousAimLooseHighContent && recentSevenNetTotal > 0 ? 8 : 0;
     score -= recentSevenGamesTotal < 25000 ? 10 : 0;
     score -= previousGames < 1500 ? 5 : 0;
 
