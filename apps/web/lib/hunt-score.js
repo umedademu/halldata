@@ -1333,6 +1333,19 @@ function isMachineGoodContentWindowRow(row, machineName) {
   return isMachineHighContentWindowRow(row, machineName);
 }
 
+function isMachineWeakContentWindowRow(row, machineName) {
+  const normalizedMachineName = normalizeText(machineName);
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+
+  if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
+    return games >= 3000 && combinedDenominator >= 170 && rbDenominator >= 400;
+  }
+
+  return false;
+}
+
 function isMachineStrongHighContentWindowRow(row, machineName) {
   const normalizedMachineName = normalizeText(machineName);
   const games = readWindowField(row, "games");
@@ -6318,6 +6331,8 @@ function calculateWindowMetrics(
     isMachineHighContentWindowRow(historyWindowRow, currentMachineName);
   const isHistoryMachineGoodContentWindowRow = (historyWindowRow) =>
     isMachineGoodContentWindowRow(historyWindowRow, currentMachineName);
+  const isHistoryMachineWeakContentWindowRow = (historyWindowRow) =>
+    isMachineWeakContentWindowRow(historyWindowRow, currentMachineName);
   const isHistoryMachineStrongHighContentWindowRow = (historyWindowRow) =>
     isMachineStrongHighContentWindowRow(historyWindowRow, currentMachineName);
   const recentThreeMachineHighContentCount = recentThreeRows.filter((windowRow) =>
@@ -6341,6 +6356,9 @@ function calculateWindowMetrics(
   const recentSevenMachineGoodContentCount = historyWindowRows
     .slice(-7)
     .filter(isHistoryMachineGoodContentWindowRow).length;
+  const recentSevenMachineWeakContentCount = historyWindowRows
+    .slice(-7)
+    .filter(isHistoryMachineWeakContentWindowRow).length;
   const recentFourteenMachineGoodContentCount = historyWindowRows
     .slice(-14)
     .filter(isHistoryMachineGoodContentWindowRow).length;
@@ -6472,6 +6490,7 @@ function calculateWindowMetrics(
     recentFourteenMachineHighContentCount,
     recentThirtyMachineHighContentCount,
     recentSevenMachineGoodContentCount,
+    recentSevenMachineWeakContentCount,
     recentFourteenMachineGoodContentCount,
     recentThreeMachineStrongHighContentCount,
     previousMachineHighContent,

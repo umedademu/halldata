@@ -402,7 +402,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     conditions: [
       buildCondition(
         "main",
-        "1位＋70点以上＋7日沈み2日以上or3日沈み2日目",
+        "1位＋70点以上＋3日沈み2日以上",
         "132件 / 105.61% / RB1/271.3",
         {
           rankMax: 1,
@@ -1110,14 +1110,9 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const previousMachineStrongHighContent = Boolean(metrics.previousMachineStrongHighContent);
 
   if (machineKey === "neo-aim") {
-    const aimSevenSinkStayDays = readNumber(metrics.recentSevenMinus2000StayDays);
     const aimThreeSinkStayDays = readNumber(metrics.recentThreeMinus1700StayDays);
-    const aimShortSinkStay2 =
-      aimSevenSinkStayDays >= 2 ||
-      aimThreeSinkStayDays === 2;
-    const aimShortSinkStay3 =
-      aimSevenSinkStayDays >= 3 ||
-      aimThreeSinkStayDays === 3;
+    const aimShortSinkStay2 = aimThreeSinkStayDays >= 2;
+    const aimShortSinkStay3 = aimThreeSinkStayDays >= 3;
 
     return {
       ...features,
@@ -1441,6 +1436,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFourteenMachineHighContentCount = readNumber(metrics.recentFourteenMachineHighContentCount);
   const recentThirtyMachineHighContentCount = readNumber(metrics.recentThirtyMachineHighContentCount);
   const recentSevenMachineGoodContentCount = readNumber(metrics.recentSevenMachineGoodContentCount);
+  const recentSevenMachineWeakContentCount = readNumber(metrics.recentSevenMachineWeakContentCount);
   const daysSinceMachineHighContent = readNullableNumber(metrics.daysSinceMachineHighContent);
   const previousMachineHighContent = Boolean(metrics.previousMachineHighContent);
   const previousMachineGoodContent = Boolean(metrics.previousMachineGoodContent);
@@ -1566,12 +1562,17 @@ function calculateMachineScore(definition, metrics, features) {
       { minimum: 154, points: 5 },
       { minimum: 151, points: 2 },
     ]);
-    weakScore += scoreAtLeast(recentSevenGamesTotal, [
+    weakScore += recentSevenMachineWeakContentCount >= 3 ? 5 :
+      recentSevenMachineWeakContentCount === 2 ? 4 :
+      recentSevenMachineWeakContentCount === 1 ? 2 :
+      0;
+    weakScore = Math.min(weakScore, 10);
+
+    const gameTrustScore = scoreAtLeast(recentSevenGamesTotal, [
       { minimum: 42300, points: 5 },
       { minimum: 32400, points: 4 },
       { minimum: 20200, points: 2 },
     ]);
-    weakScore = Math.min(weakScore, 15);
 
     let penalty = 0;
     penalty += recentSevenNetTotal > 2800 ? 12 : recentSevenNetTotal > 1340 ? 6 : 0;
@@ -1588,7 +1589,11 @@ function calculateMachineScore(definition, metrics, features) {
       ? 4
       : 0;
 
-    return Math.round(clamp(sinkScore + streakScore + restScore + repayScore + weakScore - penalty, 0, 100));
+    return Math.round(clamp(
+      sinkScore + streakScore + restScore + repayScore + weakScore + gameTrustScore - penalty,
+      0,
+      100,
+    ));
   }
 
   if (machineKey === "gogo") {
