@@ -409,6 +409,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           minNextGap: 5,
           maxDanger: 0,
           minBoost: 3,
+          requiredFlags: ["newKingHistoryReady"],
         },
       ),
     ],
@@ -1181,6 +1182,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "new-king-hana") {
+    const newKingHistoryReady = historyRowCount >= 21;
     const newKingStrongSink =
       recentTwentyOneNetTotal <= -8000 ||
       recentFourteenNetTotal <= -6000 ||
@@ -1216,6 +1218,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
 
     return {
       ...features,
+      newKingHistoryReady,
       newKingStrongSink,
       newKingStrongAngle,
       newKingWeakBonus14,
@@ -2022,6 +2025,10 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "new-king-hana") {
+    if (readNumber(metrics.historyRowCount) < 21) {
+      return 0;
+    }
+
     let score = 0;
     score += Math.max(
       scoreAtMost(recentTwentyOneNetTotal, [{ maximum: -8000, points: 24 }]),
@@ -2036,21 +2043,27 @@ function calculateMachineScore(definition, metrics, features) {
       ]),
       scoreAtMost(recentFiveNetTotal, [{ maximum: -4000, points: 14 }]),
     );
-    score += recentFourteenGamesTotal >= 28000 && features.recentFourteenAngle <= -110 ? 14 : 0;
-    score += recentFourteenGamesTotal >= 25000 && features.recentFourteenAngle <= -80 ? 10 : 0;
-    score += recentSevenGamesTotal >= 14000 && features.recentSevenAngle <= -170 ? 8 : 0;
-    score += recentSevenGamesTotal >= 14000 && features.recentSevenAngle <= -120 ? 6 : 0;
-    score += recentSevenGamesTotal >= 14000 && features.recentSevenAngle <= -70 ? 3 : 0;
-    score += recentThreeNetTotal <= -3000 && recentThreeGamesTotal >= 6000 ? 13 : 0;
-    score += recentThreeNetTotal <= -2000 && recentThreeGamesTotal >= 6000 ? 6 : 0;
+    score += Math.max(
+      recentFourteenGamesTotal >= 28000 && features.recentFourteenAngle <= -110 ? 14 : 0,
+      recentFourteenGamesTotal >= 25000 && features.recentFourteenAngle <= -80 ? 10 : 0,
+      recentSevenGamesTotal >= 14000 && features.recentSevenAngle <= -170 ? 8 : 0,
+      recentSevenGamesTotal >= 14000 && features.recentSevenAngle <= -120 ? 6 : 0,
+      recentSevenGamesTotal >= 14000 && features.recentSevenAngle <= -70 ? 3 : 0,
+    );
+    score += Math.max(
+      recentThreeNetTotal <= -3000 && recentThreeGamesTotal >= 6000 ? 13 : 0,
+      recentThreeNetTotal <= -2000 && recentThreeGamesTotal >= 6000 ? 6 : 0,
+    );
     score += previousDifference <= -1000 && previousGames >= 1000 ? 5 : 0;
     score += scoreAtLeast(streak, [
       { minimum: 7, points: 15 },
       { minimum: 6, points: 12 },
       { minimum: 4, points: 6 },
     ]);
-    score += recentFourteenGamesTotal >= 28000 && features.recentFourteenCombinedDenominator >= 185 && features.recentFourteenRbDenominator >= 420 ? 12 : 0;
-    score += recentSevenGamesTotal >= 14000 && features.recentSevenCombinedDenominator >= 185 && features.recentSevenRbDenominator >= 420 ? 5 : 0;
+    score += Math.max(
+      recentFourteenGamesTotal >= 28000 && features.recentFourteenCombinedDenominator >= 185 && features.recentFourteenRbDenominator >= 420 ? 12 : 0,
+      recentSevenGamesTotal >= 14000 && features.recentSevenCombinedDenominator >= 185 && features.recentSevenRbDenominator >= 420 ? 5 : 0,
+    );
     score += recentSevenGamesTotal >= 17000 ? 5 : 0;
     score += recentSevenGamesTotal >= 28000 ? 2 : 0;
     score += recentThreeGamesTotal >= 9000 ? 3 : 0;

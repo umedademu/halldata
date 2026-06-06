@@ -1305,7 +1305,7 @@ function isMachineHighContentWindowRow(row, machineName) {
     return games >= 5500 && rbDenominator <= 285 && combinedDenominator <= 123;
   }
   if (normalizedMachineName === normalizeText("ニューキングハナハナ")) {
-    return games >= 3000 && combinedDenominator <= 165 && rbDenominator <= 420;
+    return games >= 4000 && combinedDenominator <= 165 && rbDenominator <= 420;
   }
   if (normalizedMachineName === normalizeText("スマスロモンキーターンV")) {
     return games >= 3502 && combinedDenominator <= 434 && differenceValue >= -819;
@@ -1355,6 +1355,9 @@ function isMachineStrongHighContentWindowRow(row, machineName) {
 
   if (normalizedMachineName === normalizeText("スマスロモンキーターンV")) {
     return games >= 4851 && combinedDenominator <= 422 && differenceValue >= -468;
+  }
+  if (normalizedMachineName === normalizeText("ニューキングハナハナ")) {
+    return games >= 6000 && combinedDenominator <= 155 && rbDenominator <= 420;
   }
 
   return isMachineHighContentWindowRow(row, machineName) && rbDenominator <= 285;
