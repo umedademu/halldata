@@ -1471,7 +1471,8 @@ function countConsecutiveRollingAngleThresholdDays(rows, windowSize, threshold) 
     const windowRows = rows.slice(endIndex - windowSize + 1, endIndex + 1);
     const netTotal = sumDifferenceValues(windowRows);
     const gamesTotal = sumWindowField(windowRows, "games");
-    if (netPerThousandGames(netTotal, gamesTotal) > threshold) {
+    const netPerThousand = gamesTotal > 0 ? (netTotal / gamesTotal) * 1000 : 0;
+    if (netPerThousand > threshold) {
       break;
     }
     count += 1;
