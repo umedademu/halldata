@@ -255,6 +255,9 @@ function buildAvailableMachineNames(snapshots, machineOrderNames) {
 
 function buildSelectedMachineNames(requestedMachineNames, availableMachineNames, fallbackToAll = true) {
   const availableMachineNameSet = new Set(availableMachineNames);
+  const availableMachineNameByCanonicalName = new Map(
+    availableMachineNames.map((machineName) => [canonicalMachineName(machineName), machineName]),
+  );
   const normalizedMachineNames = [
     ...new Set(
       (Array.isArray(requestedMachineNames) ? requestedMachineNames : [requestedMachineNames])
@@ -263,10 +266,15 @@ function buildSelectedMachineNames(requestedMachineNames, availableMachineNames,
         .filter(Boolean),
     ),
   ]
-    .filter((machineName) => availableMachineNameSet.has(machineName));
+    .map((machineName) =>
+      availableMachineNameSet.has(machineName)
+        ? machineName
+        : availableMachineNameByCanonicalName.get(canonicalMachineName(machineName)),
+    )
+    .filter(Boolean);
 
   if (normalizedMachineNames.length > 0) {
-    return normalizedMachineNames;
+    return [...new Set(normalizedMachineNames)];
   }
   return fallbackToAll ? availableMachineNames : [];
 }

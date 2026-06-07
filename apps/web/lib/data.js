@@ -1,5 +1,7 @@
 import { cache } from "react";
 
+import { createHash } from "node:crypto";
+
 import { createEventFilters } from "./event-filters";
 import {
   buildHuntScoreBacktestDetail,
@@ -964,9 +966,27 @@ function normalizeInitialMachineSelection(machineNames, options = {}) {
   }
 
   const machineNameSet = new Set(machineNames);
-  return expandCombinedMachineNamesForOptions(splitOptionValues(options?.machineNames), options).filter(
-    (machineName) => machineNameSet.has(machineName),
+  const machineNameByCanonicalName = new Map(
+    machineNames.map((machineName) => [canonicalMachineName(machineName), machineName]),
   );
+  const selectedMachineNames = [];
+  const selectedMachineNameSet = new Set();
+
+  for (const requestedMachineName of expandCombinedMachineNamesForOptions(
+    splitOptionValues(options?.machineNames),
+    options,
+  )) {
+    const machineName = machineNameSet.has(requestedMachineName)
+      ? requestedMachineName
+      : machineNameByCanonicalName.get(canonicalMachineName(requestedMachineName));
+    if (!machineName || selectedMachineNameSet.has(machineName)) {
+      continue;
+    }
+    selectedMachineNameSet.add(machineName);
+    selectedMachineNames.push(machineName);
+  }
+
+  return selectedMachineNames;
 }
 
 function detailRecordHasMeaningfulResult(record) {
@@ -1886,19 +1906,46 @@ function latestSite7FetchedAt(records) {
 }
 
 function findStaticMachineEntries(staticStore, machineNames) {
+  const store = readStaticStoreIdentity(staticStore);
   const machineNameSet = new Set(
     (Array.isArray(machineNames) ? machineNames : [machineNames])
       .flatMap((name) => listEquivalentMachineNames(name))
       .map(canonicalMachineName),
   );
 
-  return (Array.isArray(staticStore?.machines) ? staticStore.machines : [])
+  const entriesByDataFile = new Map();
+  const addEntry = (machineName, dataFile) => {
+    const normalizedMachineName = String(machineName ?? "").trim();
+    const normalizedDataFile = normalizeStaticDataPath(dataFile);
+    if (!normalizedMachineName || !normalizedDataFile || entriesByDataFile.has(normalizedDataFile)) {
+      return;
+    }
+    entriesByDataFile.set(normalizedDataFile, {
+      machineName: normalizedMachineName,
+      dataFile: normalizedDataFile,
+    });
+  };
+
+  (Array.isArray(staticStore?.machines) ? staticStore.machines : [])
     .filter((machine) => machineNameSet.has(canonicalMachineName(machine?.machineName)))
-    .map((machine) => ({
-      machineName: String(machine.machineName ?? "").trim(),
-      dataFile: String(machine.dataFile ?? "").trim(),
-    }))
-    .filter((machine) => machine.machineName);
+    .forEach((machine) => {
+      addEntry(machine.machineName, machine.dataFile);
+    });
+
+  if (entriesByDataFile.size > 0 && store.id) {
+    const equivalentMachineNames = new Set(
+      (Array.isArray(machineNames) ? machineNames : [machineNames])
+        .flatMap((name) => listEquivalentMachineNames(name))
+        .map((name) => String(name ?? "").trim())
+        .filter(Boolean),
+    );
+    for (const machineName of equivalentMachineNames) {
+      const digest = createHash("sha1").update(machineName, "utf8").digest("hex").slice(0, 12);
+      addEntry(machineName, `stores/${store.id}/machines/machine-${digest}.json`);
+    }
+  }
+
+  return [...entriesByDataFile.values()];
 }
 
 function buildStaticRecordKey(row) {
