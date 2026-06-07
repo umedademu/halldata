@@ -251,7 +251,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "main",
         "1位＋次点差10点以上＋危険0",
-        "32件 / 105.03% / RB1/314.2",
+        "32件 / 105.00% / RB1/315.2",
         {
           rankMax: 1,
           minNextGap: 10,
@@ -1155,6 +1155,8 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
   const adjacentMachineNetTotal3 = readNumber(metrics.adjacentMachineNetTotal3);
   const adjacentMachineNetTotal7 = readNumber(metrics.adjacentMachineNetTotal7);
+  const previousAdjacentMachineHighContentCount = readNumber(metrics.previousAdjacentMachineHighContentCount);
+  const previousOtherMachineHighContentCount = readNumber(metrics.previousOtherMachineHighContentCount);
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
   const recentSevenMachineHighContentCount = readNumber(metrics.recentSevenMachineHighContentCount);
   const recentFourteenMachineHighContentCount = readNumber(metrics.recentFourteenMachineHighContentCount);
@@ -1505,17 +1507,23 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
 
   if (machineKey === "smart-hanabi") {
     const dangerFlags = [
+      recentSevenMachineHighContentCount >= 4 ||
+        recentFourteenMachineHighContentCount >= 4 ||
+        previousDifference >= 3000,
+      previousGames < 1400 || recentSevenGamesTotal < 19000,
+      (streak >= 4 && streak <= 7 && features.recentThreeAngle < 0) ||
+        features.recentThreeAngle <= -160,
       features.previousCombinedDenominator >= 218,
       features.previousRbDenominator >= 539,
-      previousGames < 2000,
-      recentSevenHighSettingCandidateCount >= 4,
-      adjacentHighSettingCandidateCount7 === 1,
+      previousAdjacentMachineHighContentCount > 0,
     ];
     const boostFlags = [
       previousGames >= 2000 && features.previousCombinedDenominator <= 146 && features.previousRbDenominator <= 333,
       netPerThousandGames(recentTenNetTotal, recentTenGamesTotal) >= 30,
-      Number.isFinite(features.bestRestDays) && features.bestRestDays >= 8 && features.bestRestDays <= 12,
-      recentFourteenHighSettingCandidateCount === 3,
+      Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 8 &&
+        daysSinceMachineHighContent <= 12,
+      recentFourteenMachineHighContentCount === 3,
     ];
 
     return {
@@ -2581,14 +2589,14 @@ function calculateMachineScore(definition, metrics, features) {
     score += scoreInRange(features.recentSevenAngle, 30, 100, 5);
     score -= netPerThousandGames(recentTenNetTotal, recentTenGamesTotal) <= -75 ? 8 : 0;
     score -= features.recentThreeAngle <= -160 ? 8 : 0;
-    score += scoreInRange(features.bestRestDays, 0, 2, 5);
-    score += scoreInRange(features.bestRestDays, 8, 12, 6);
-    score += scoreInRange(features.bestRestDays, 13, 17, 2);
-    score += recentFourteenHighSettingCandidateCount === 3 ? 8 : 0;
-    score -= recentFourteenHighSettingCandidateCount === 2 ? 4 : 0;
-    score -= recentFourteenHighSettingCandidateCount >= 4 ? 6 : 0;
-    score += recentSevenHighSettingCandidateCount === 3 ? 4 : 0;
-    score -= recentSevenHighSettingCandidateCount >= 4 ? 8 : 0;
+    score += scoreInRange(daysSinceMachineHighContent, 0, 2, 5);
+    score += scoreInRange(daysSinceMachineHighContent, 8, 12, 6);
+    score += scoreInRange(daysSinceMachineHighContent, 13, 17, 2);
+    score += recentFourteenMachineHighContentCount === 3 ? 8 : 0;
+    score -= recentFourteenMachineHighContentCount === 2 ? 4 : 0;
+    score -= recentFourteenMachineHighContentCount >= 4 ? 6 : 0;
+    score += recentSevenMachineHighContentCount === 3 ? 4 : 0;
+    score -= recentSevenMachineHighContentCount >= 4 ? 8 : 0;
     score += scoreInRange(previousGames, 2000, 2999, 8);
     score += scoreInRange(previousGames, 3000, 6499, 3);
     score -= previousGames < 2000 ? 8 : 0;
@@ -2597,8 +2605,10 @@ function calculateMachineScore(definition, metrics, features) {
     score -= recentSevenGamesTotal < 19000 ? 5 : 0;
     score -= streak >= 4 && streak <= 7 ? 5 : 0;
     score += streak >= 8 ? 3 : 0;
-    score += readNumber(metrics.adjacentHighSettingCandidateCount7) === 0 ? 2 : 0;
-    score -= readNumber(metrics.adjacentHighSettingCandidateCount7) === 1 ? 4 : 0;
+    score += previousAdjacentMachineHighContentCount === 0 ? 2 : 0;
+    score -= previousAdjacentMachineHighContentCount === 1 ? 4 : 0;
+    score += previousOtherMachineHighContentCount === 2 ? 3 : 0;
+    score -= previousOtherMachineHighContentCount === 3 ? 3 : 0;
 
     return Math.round(clamp(score, 0, 100));
   }

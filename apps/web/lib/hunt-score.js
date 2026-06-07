@@ -6522,6 +6522,29 @@ function calculateWindowMetrics(
     windowDays,
   );
   const currentMachineName = normalizeHuntScoreMachineName(row?.machine_name, config);
+  const currentDateRows = rowsByDate.get(businessDates[dateIndex]) ?? [];
+  const previousAdjacentMachineHighContentCount = listAdjacentSameMachineRowsByOrder(
+    currentDateRows,
+    row,
+    config,
+    currentMachineName,
+    1,
+  ).filter((dateRow) => {
+    const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
+    const differenceValue = readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
+    return isMachineHighContentWindowRow({ row: dateRow, differenceValue }, currentMachineName);
+  }).length;
+  const previousOtherMachineHighContentCount = currentDateRows.filter((dateRow) => {
+    if (String(dateRow?.slot_number ?? "").trim() === String(row?.slot_number ?? "").trim()) {
+      return false;
+    }
+    const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
+    if (normalizeText(rowMachineName) !== normalizeText(currentMachineName)) {
+      return false;
+    }
+    const differenceValue = readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
+    return isMachineHighContentWindowRow({ row: dateRow, differenceValue }, currentMachineName);
+  }).length;
   const isHistoryMachineHighContentWindowRow = (historyWindowRow) =>
     isMachineHighContentWindowRow(historyWindowRow, currentMachineName);
   const isHistoryMachineGoodContentWindowRow = (historyWindowRow) =>
@@ -6786,6 +6809,8 @@ function calculateWindowMetrics(
     historyFortyFiveSettingSampleCount,
     historyThirtySettingFiveCount,
     adjacentHighSettingCandidateCount7,
+    previousAdjacentMachineHighContentCount,
+    previousOtherMachineHighContentCount,
     adjacentMachineHighContentCount7,
     adjacentMachineHighContentCount14,
     adjacentMachineNetTotal3,
