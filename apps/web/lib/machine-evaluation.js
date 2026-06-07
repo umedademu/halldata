@@ -1145,11 +1145,9 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentFourteenGamesTotal = readNumber(metrics.recentFourteenGamesTotal);
   const recentFourteenGoldShowDays = readNumber(metrics.recentFourteenGoldShowDays);
   const recentFourteenWinDays = readNumber(metrics.recentFourteenWinDays);
-  const recentFourteenHighSettingCandidateCount = readNumber(metrics.recentFourteenHighSettingCandidateCount);
   const recentSevenHighSettingCandidateCount = readNumber(metrics.recentSevenHighSettingCandidateCount);
   const recentSevenMinus1500StayDays = readNumber(metrics.recentSevenMinus1500StayDays);
   const recentThirtyMinus2700StayDays = readNumber(metrics.recentThirtyMinus2700StayDays);
-  const highSettingCandidateStreak = readNumber(metrics.highSettingCandidateStreak);
   const adjacentHighSettingCandidateCount7 = readNumber(metrics.adjacentHighSettingCandidateCount7);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
@@ -1168,6 +1166,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const previousMachineHighContent = Boolean(metrics.previousMachineHighContent);
   const previousMachineGoodContent = Boolean(metrics.previousMachineGoodContent);
   const previousMachineStrongHighContent = Boolean(metrics.previousMachineStrongHighContent);
+  const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
 
   if (machineKey === "aim") {
     const aimSinkStayStrong =
@@ -1485,12 +1484,12 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
     ];
     const dangerFlags = [
       previousDifference >= 2173,
-      features.previousStrongHighContent,
-      highSettingCandidateStreak >= 2,
+      previousMachineStrongHighContent,
+      machineHighContentStreak >= 2,
       recentFourteenGoldShowDays >= 6,
-      recentFourteenHighSettingCandidateCount >= 6,
+      recentFourteenMachineHighContentCount >= 6,
       recentSevenGamesTotal <= 23409,
-      Number.isFinite(features.bestRestDays) && features.bestRestDays >= 26,
+      Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 26,
     ];
 
     return {
@@ -1723,8 +1722,6 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFourteenWinDays = readNumber(metrics.recentFourteenWinDays);
   const recentFiveHighSettingCandidateCount = readNumber(metrics.recentFiveHighSettingCandidateCount);
   const recentSevenHighSettingCandidateCount = readNumber(metrics.recentSevenHighSettingCandidateCount);
-  const recentFourteenHighSettingCandidateCount = readNumber(metrics.recentFourteenHighSettingCandidateCount);
-  const highSettingCandidateStreak = readNumber(metrics.highSettingCandidateStreak);
   const recentThreeHighSettingEstimateCount = readNumber(metrics.recentThreeHighSettingEstimateCount);
   const recentThreeStrictHighContentDays = readNumber(metrics.recentThreeStrictHighContentDays);
   const recentSevenStrictHighContentDays = readNumber(metrics.recentSevenStrictHighContentDays);
@@ -2782,18 +2779,18 @@ function calculateMachineScore(definition, metrics, features) {
     score += scoreInRange(features.recentFourteenCombinedDenominator, 166.2, 180.1, 5);
     score += features.recentFourteenCombinedDenominator >= 180.1 ? 3 : 0;
     score += recentFourteenGoldShowDays === 0 ? 6 : recentFourteenGoldShowDays === 1 ? 3 : 0;
-    score += recentFourteenHighSettingCandidateCount === 0 ? 5 : recentFourteenHighSettingCandidateCount === 1 ? 3 : 0;
-    score += scoreInRange(features.bestRestDays, 17, 25, 6);
-    score += features.bestRestDays === 3 ? 3 : features.bestRestDays === 2 ? 2 : features.bestRestDays === 1 ? -7 : 0;
-    score += features.bestRestDays >= 26 ? -4 : 0;
-    score += features.previousHighContent && previousDifference < 0 ? 6 : 0;
+    score += recentFourteenMachineHighContentCount === 0 ? 5 : recentFourteenMachineHighContentCount === 1 ? 3 : 0;
+    score += scoreInRange(daysSinceMachineHighContent, 17, 25, 6);
+    score += daysSinceMachineHighContent === 3 ? 3 : daysSinceMachineHighContent === 2 ? 2 : daysSinceMachineHighContent === 1 ? -7 : 0;
+    score += daysSinceMachineHighContent >= 26 ? -4 : 0;
+    score += previousMachineHighContent && previousDifference < 0 ? 6 : 0;
 
     score -= previousDifference >= 2173 ? 8 : 0;
-    score -= features.previousStrongHighContent ? 6 : 0;
-    score -= features.previousHighContent ? 4 : 0;
-    score -= highSettingCandidateStreak >= 2 ? 10 : 0;
+    score -= previousMachineStrongHighContent ? 6 : 0;
+    score -= previousMachineHighContent ? 4 : 0;
+    score -= machineHighContentStreak >= 2 ? 10 : 0;
     score -= recentFourteenGoldShowDays >= 6 ? 9 : 0;
-    score -= recentFourteenHighSettingCandidateCount >= 6 ? 10 : 0;
+    score -= recentFourteenMachineHighContentCount >= 6 ? 10 : 0;
     score -= recentFourteenNetTotal >= 5463 ? 4 : 0;
     score -= recentFiftySixNetTotal >= 10077 ? 3 : 0;
     score -= recentSevenGamesTotal <= 23409 ? 5 : 0;
