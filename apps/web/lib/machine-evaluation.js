@@ -1694,6 +1694,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFourteenNetTotal = readNumber(metrics.recentFourteenNetTotal);
   const recentTwentyOneNetTotal = readNumber(metrics.recentTwentyOneNetTotal);
   const recentTwentyEightNetTotal = readNumber(metrics.recentTwentyEightNetTotal);
+  const recentThirtyNetTotal = readNumber(metrics.recentThirtyNetTotal);
   const recentFortyTwoNetTotal = readNumber(metrics.recentFortyTwoNetTotal);
   const recentFiftySixNetTotal = readNumber(metrics.recentFiftySixNetTotal);
   const lossAbsTotal = readNumber(metrics.lossAbsTotal);
