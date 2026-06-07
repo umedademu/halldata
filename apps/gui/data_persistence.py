@@ -1233,7 +1233,18 @@ class HistoryPersistenceService:
                 else ""
             )
             existing_machine_records = self._load_r2_machine_records(existing_data_file)
-            replaced_record_count += len(existing_machine_records)
+            original_existing_machine_record_count = len(existing_machine_records)
+            if self._machine_records_need_full_day_backfill(existing_machine_records, machine_incoming_records):
+                backfill_records = self._load_r2_full_day_machine_records(
+                    store_source=store_source,
+                    machine_key=machine_key,
+                    existing_records=existing_machine_records + machine_incoming_records,
+                )
+                existing_machine_records = self._merge_minrepo_machine_records(
+                    existing_machine_records,
+                    backfill_records,
+                )
+            replaced_record_count += original_existing_machine_record_count
             merged_machine_records = self._merge_minrepo_machine_records(
                 existing_machine_records,
                 machine_incoming_records,
@@ -1280,6 +1291,83 @@ class HistoryPersistenceService:
             for record in records
             if isinstance(record, dict) and _saved_record_should_be_kept(record)
         ]
+
+    def _machine_records_need_full_day_backfill(
+        self,
+        existing_records: list[dict[str, Any]],
+        incoming_records: list[dict[str, Any]],
+    ) -> bool:
+        incoming_dates = {
+            str(record.get("target_date", "")).strip()
+            for record in incoming_records
+            if str(record.get("target_date", "")).strip()
+        }
+        if not incoming_dates:
+            return False
+        existing_dates = {
+            str(record.get("target_date", "")).strip()
+            for record in existing_records
+            if str(record.get("target_date", "")).strip()
+        }
+        return len(existing_dates) <= len(incoming_dates)
+
+    def _load_r2_full_day_machine_records(
+        self,
+        *,
+        store_source: StoreSource,
+        machine_key: str,
+        existing_records: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        index_key = self._r2_full_day_index_key(store_source.store_name, store_source.store_url)
+        index_payload = self.r2_storage.read_json(index_key)
+        if not isinstance(index_payload, dict):
+            return []
+        full_day_dates = index_payload.get("full_day_dates", {})
+        if not isinstance(full_day_dates, dict):
+            return []
+
+        existing_dates = {
+            str(record.get("target_date", "")).strip()
+            for record in existing_records
+            if str(record.get("target_date", "")).strip()
+        }
+        existing_slots = {
+            str(record.get("slot_number", "")).strip()
+            for record in existing_records
+            if str(record.get("slot_number", "")).strip()
+        }
+        snapshot_dates_by_key: dict[str, set[str]] = {}
+        for target_date, raw_entry in full_day_dates.items():
+            normalized_date = str(target_date).strip()
+            if not normalized_date or normalized_date in existing_dates:
+                continue
+            entry = raw_entry if isinstance(raw_entry, dict) else {}
+            snapshot_key = str(entry.get("snapshot_key", "")).strip()
+            if not snapshot_key:
+                continue
+            snapshot_dates_by_key.setdefault(snapshot_key, set()).add(normalized_date)
+
+        records_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+        for snapshot_key, target_dates in snapshot_dates_by_key.items():
+            snapshot = self.r2_storage.read_json(snapshot_key)
+            if not isinstance(snapshot, dict):
+                continue
+            for record in snapshot.get("records", []):
+                if not isinstance(record, dict) or not _saved_record_should_be_kept(record):
+                    continue
+                target_date = str(record.get("target_date", "")).strip()
+                if target_date not in target_dates:
+                    continue
+                record_machine_key = normalize_machine_name_key(str(record.get("machine_name", "")).strip())
+                if record_machine_key != machine_key:
+                    continue
+                slot_number = str(record.get("slot_number", "")).strip()
+                if existing_slots and slot_number not in existing_slots:
+                    continue
+                key = self._record_replace_key(record)
+                if key is not None:
+                    records_by_key[key] = record
+        return list(records_by_key.values())
 
     def _merge_minrepo_machine_records(
         self,

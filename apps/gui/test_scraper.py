@@ -4722,6 +4722,109 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(untouched_after, untouched_before)
             self.assertEqual(target_after["records"][0]["difference_value"], 100)  # type: ignore[index]
 
+    def test_minrepo_web_data_save_backfills_thin_machine_file_from_full_day_snapshots(self) -> None:
+        store_name = "テスト店"
+        store_url = "https://min-repo.com/tag/test-store/"
+        target_machine_name = "ハナハナホウオウ"
+
+        with TemporaryDirectory() as temp_dir:
+            service, storage = make_r2_service(Path(temp_dir))
+            seed_r2_store(
+                storage,
+                store_name=store_name,
+                store_url=store_url,
+                records=[
+                    {
+                        "target_date": "2026-06-06",
+                        "slot_number": "1165",
+                        "machine_name": target_machine_name,
+                        "data_source": DATA_SOURCE_MINREPO,
+                        "difference_value": 10,
+                        "games_count": 1000,
+                        "payout_rate": 101.0,
+                    },
+                ],
+            )
+            store_entry = storage.read_json("index.json")["stores"][0]  # type: ignore[index]
+            store_payload = storage.read_json(store_entry["dataFile"])  # type: ignore[index]
+            machine_file = store_payload["machines"][0]["dataFile"]  # type: ignore[index]
+            full_day_index_key = service._r2_full_day_index_key(store_name, store_url)  # type: ignore[attr-defined]
+            storage.write_json(
+                full_day_index_key,
+                {
+                    "version": 1,
+                    "store": {"store_name": store_name, "store_url": store_url},
+                    "full_day_dates": {
+                        "2026-05-01": {
+                            "saved_at": "2026-05-02T00:00:00+09:00",
+                            "snapshot_key": "snapshots/test-store/2026-05-01.json",
+                        }
+                    },
+                },
+            )
+            storage.write_json(
+                "snapshots/test-store/2026-05-01.json",
+                {
+                    "records": [
+                        {
+                            "target_date": "2026-05-01",
+                            "slot_number": "1165",
+                            "machine_name": target_machine_name,
+                            "data_source": DATA_SOURCE_MINREPO,
+                            "difference_value": 500,
+                            "games_count": 3000,
+                            "payout_rate": 105.0,
+                        },
+                        {
+                            "target_date": "2026-05-01",
+                            "slot_number": "9999",
+                            "machine_name": "別機種",
+                            "data_source": DATA_SOURCE_MINREPO,
+                            "difference_value": 999,
+                            "games_count": 9999,
+                            "payout_rate": 110.0,
+                        },
+                        {
+                            "target_date": "2026-05-01",
+                            "slot_number": "1175",
+                            "machine_name": target_machine_name,
+                            "data_source": DATA_SOURCE_MINREPO,
+                            "difference_value": 888,
+                            "games_count": 8888,
+                            "payout_rate": 109.0,
+                        },
+                    ]
+                },
+            )
+
+            service._save_r2_web_data(  # type: ignore[attr-defined]
+                {
+                    "store": {"store_name": store_name, "store_url": store_url},
+                    "records": [
+                        {
+                            "target_date": "2026-06-07",
+                            "slot_number": "1165",
+                            "machine_name": target_machine_name,
+                            "data_source": DATA_SOURCE_MINREPO,
+                            "difference_value": 700,
+                            "games_count": 4000,
+                            "payout_rate": 106.0,
+                        }
+                    ],
+                }
+            )
+            machine_payload = storage.read_json(machine_file)
+            records = machine_payload["records"]  # type: ignore[index]
+            records_by_date = {
+                str(record["target_date"]): record  # type: ignore[index]
+                for record in records  # type: ignore[union-attr]
+            }
+
+            self.assertEqual(set(records_by_date), {"2026-05-01", "2026-06-06", "2026-06-07"})
+            self.assertEqual(records_by_date["2026-05-01"]["difference_value"], 500)
+            self.assertNotIn("9999", {str(record["slot_number"]) for record in records})  # type: ignore[union-attr]
+            self.assertNotIn("1175", {str(record["slot_number"]) for record in records})  # type: ignore[union-attr]
+
     def test_save_history_result_does_not_recreate_missing_r2_index_from_single_store(self) -> None:
         scraper = FixtureScraper()
         history_result = scraper.fetch_machine_history_datasets(
