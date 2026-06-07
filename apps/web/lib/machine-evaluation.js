@@ -235,7 +235,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         {
           minScore: 50,
           maxDanger: 1,
-          requiredFlags: ["strongAngle"],
+          requiredFlags: ["strongAngle", "thunderHistoryReady"],
         },
       ),
     ],
@@ -1131,6 +1131,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const previousGames = readNumber(metrics.previousGames);
   const streak = readNumber(metrics.streak);
   const historyLosingStreak = readNumber(metrics.historyLosingStreak);
+  const recentTwoNetTotal = readNumber(metrics.recentTwoNetTotal);
   const recentThreeNetTotal = readNumber(metrics.recentThreeNetTotal);
   const recentFiveNetTotal = readNumber(metrics.recentFiveNetTotal);
   const recentSevenNetTotal = readNumber(metrics.recentSevenNetTotal);
@@ -1140,6 +1141,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentTwentyEightNetTotal = readNumber(metrics.recentTwentyEightNetTotal);
   const recentThirtyNetTotal = readNumber(metrics.recentThirtyNetTotal);
   const recentFiftySixNetTotal = readNumber(metrics.recentFiftySixNetTotal);
+  const recentTwoGamesTotal = readNumber(metrics.recentTwoGamesTotal);
   const recentThreeGamesTotal = readNumber(metrics.recentThreeGamesTotal);
   const recentFiveGamesTotal = readNumber(metrics.recentFiveGamesTotal);
   const recentSevenGamesTotal = readNumber(metrics.recentSevenGamesTotal);
@@ -1317,6 +1319,48 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       starTrustedGames,
       boostCount: boostFlags.filter(Boolean).length,
       dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
+
+  if (machineKey === "thunder") {
+    const thunderHistoryReady = historyRowCount >= 14;
+    const thunderTwoAngle = netPerThousandGames(recentTwoNetTotal, recentTwoGamesTotal);
+    const thunderStrongAngle =
+      (recentTwoGamesTotal >= 4000 && thunderTwoAngle <= -350) ||
+      features.recentThreeAngle <= -300;
+    const thunderTreatmentDone =
+      previousMachineHighContent ||
+      previousDifference >= 1500 ||
+      recentThreeMachineHighContentCount >= 1;
+    const thunderLongNeglect =
+      streak >= 4 ||
+      (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent > 20);
+    const thunderLowInfo = recentThreeGamesTotal < 5000 || previousGames < 1000;
+    const thunderGamesDanger =
+      recentThreeGamesTotal > 14000 || (previousGames > 4000 && previousGames <= 5000);
+    const thunderBoostFlags = [
+      thunderStrongAngle,
+      recentTwoNetTotal <= -1600,
+      recentThreeNetTotal <= -1500,
+      streak >= 1 && streak <= 3,
+      features.recentFiveRbDenominator >= 490,
+      previousDifference > 0 && recentFourteenNetTotal < 0,
+    ];
+    const thunderDangerFlags = [
+      thunderTreatmentDone,
+      thunderLongNeglect,
+      thunderLowInfo,
+      thunderGamesDanger,
+    ];
+
+    return {
+      ...features,
+      strongAngle: thunderStrongAngle,
+      thunderHistoryReady,
+      treatmentDone: thunderTreatmentDone,
+      lowConfidence: thunderLowInfo,
+      boostCount: thunderBoostFlags.filter(Boolean).length,
+      dangerCount: thunderDangerFlags.filter(Boolean).length,
     };
   }
 
@@ -2639,18 +2683,25 @@ function calculateMachineScore(definition, metrics, features) {
       { minimum: 530, points: 5 },
       { minimum: 490, points: 2 },
     ]);
-    score += scoreInRange(features.bestRestDays, 4, 12, 8);
-    score += scoreInRange(features.bestRestDays, 13, 20, 3);
-    score += scoreInRange(features.bestRestDays, 2, 3, 2);
-    score += previousDifference > 0 && previousDifference < 1000 && recentFourteenNetTotal < 0 ? 7 : 0;
-    score += previousDifference > 0 && previousDifference < 1500 && recentFourteenNetTotal < 0 ? 4 : 0;
+    score += scoreInRange(daysSinceMachineHighContent, 4, 12, 8);
+    score += scoreInRange(daysSinceMachineHighContent, 13, 20, 3);
+    score += scoreInRange(daysSinceMachineHighContent, 2, 3, 2);
+    const thunderRepaymentScore =
+      (previousDifference > 0 &&
+      previousDifference < 1000 &&
+      (recentTenNetTotal < 0 || recentFourteenNetTotal < 0)
+        ? 7
+        : 0) +
+      (previousDifference > 0 && previousDifference < 1500 && recentFourteenNetTotal < 0 ? 4 : 0) +
+      (recentTwoNetTotal > 0 && recentFourteenNetTotal < 0 ? 4 : 0);
+    score += Math.min(thunderRepaymentScore, 10);
 
-    score -= features.previousHighContent ? 16 : 0;
+    score -= previousMachineHighContent ? 16 : 0;
     score -= previousDifference >= 2000 ? 22 : previousDifference >= 1500 ? 14 : 0;
-    score -= recentThreeHighSettingEstimateCount >= 1 ? 5 : 0;
+    score -= recentThreeMachineHighContentCount >= 1 ? 5 : 0;
     score -= streak >= 6 ? 20 : streak >= 4 ? 10 : 0;
-    score -= features.bestRestDays <= 1 ? 8 : 0;
-    score -= features.bestRestDays > 20 ? 8 : 0;
+    score -= Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent <= 1 ? 8 : 0;
+    score -= Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent > 20 ? 8 : 0;
     score -= recentThreeGamesTotal < 5000 ? 8 : 0;
     score -= recentThreeGamesTotal > 14000 ? 6 : 0;
     score -= previousGames < 1000 ? 5 : 0;

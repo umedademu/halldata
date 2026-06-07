@@ -1435,6 +1435,13 @@ function isMachineHighContentWindowRow(row, machineName) {
   ) {
     return games >= 4000 && combinedDenominator <= 155 && rbDenominator <= 330;
   }
+  if (
+    normalizedMachineName === normalizeText("スマスロ サンダーV") ||
+    normalizedMachineName === normalizeText("スマスロサンダーV") ||
+    normalizedMachineName === normalizeText("LサンダーV")
+  ) {
+    return games >= 4000 && combinedDenominator <= 154 && rbDenominator <= 350;
+  }
   if (isOkidokiDuoEncoreMachineName(machineName)) {
     return games >= 2400 && calculateOkidokiDuoHighContentScore(row) >= 65;
   }
