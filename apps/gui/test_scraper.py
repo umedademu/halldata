@@ -2674,14 +2674,15 @@ class MinRepoScraperTests(unittest.TestCase):
         page = FakeMobilePage()
         scraper._wait_between_transitions = mock.Mock()
         scraper._accept_cookie_banner_if_present = mock.Mock()
-        callback_calls: list[tuple[Site7MachineEntry, list[str], list[str]]] = []
+        callback_calls: list[tuple[Site7MachineEntry, list[str], list[str], str | None]] = []
 
         def protected_slots_callback(
             machine_entry: Site7MachineEntry,
             target_dates: list[str],
             slot_numbers: list[str],
+            site7_updated_at: str | None,
         ) -> set[tuple[str, str]]:
-            callback_calls.append((machine_entry, target_dates, slot_numbers))
+            callback_calls.append((machine_entry, target_dates, slot_numbers, site7_updated_at))
             return {("2026-06-01", "821"), ("2026-06-01", "822")}
 
         result = scraper._fetch_mobile_machine_history_result(
@@ -2696,6 +2697,7 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertEqual(callback_calls[0][1], ["2026-06-03", "2026-06-02", "2026-06-01"])
         self.assertEqual(callback_calls[0][2], ["821", "822"])
+        self.assertEqual(callback_calls[0][3], "2026-06-03T23:20:00+09:00")
         self.assertEqual([dataset.target_date for dataset in result.datasets], ["2026-06-02", "2026-06-03"])
         self.assertEqual(result.skipped_dates, ["2026-06-01"])
         self.assertEqual(result.skipped_targets, [("2026-06-01", "マイジャグラーV")])
@@ -3437,9 +3439,11 @@ class MinRepoScraperTests(unittest.TestCase):
                 end_date: str,
                 slot_numbers: list[str],
                 require_source_difference: bool = True,
+                site7_updated_at: str | datetime | None = None,
             ) -> SavedMachineSlotsSummary:
                 self.checked_slot_numbers = slot_numbers
                 self.require_source_difference = require_source_difference
+                self.site7_updated_at = site7_updated_at
                 return SavedMachineSlotsSummary(protected_slots={("2026-04-25", "821")})
 
             def save_history_result(self, history_result: MachineHistoryResult) -> PersistenceSummary:
@@ -3497,11 +3501,13 @@ class MinRepoScraperTests(unittest.TestCase):
                     Site7MachineEntry(display_name="マイジャグラーV", machine_name="マイジャグラーV"),
                     ["2026-06-03", "2026-06-02", "2026-06-01"],
                     ["821", "822"],
+                    "2026-06-03T23:20:00+09:00",
                 )
                 second_result = machine_protected_slots_callback(
                     Site7MachineEntry(display_name="ネオアイムジャグラーEX", machine_name="ネオアイムジャグラーEX"),
                     ["2026-06-03", "2026-06-02", "2026-06-01"],
                     ["831"],
+                    "2026-06-03T23:20:00+09:00",
                 )
                 callback_results.extend([first_result, second_result])
                 return MachineHistoryResult(
@@ -3518,7 +3524,7 @@ class MinRepoScraperTests(unittest.TestCase):
         class FakePersistenceService:
             def __init__(self) -> None:
                 self.full_day_calls: list[tuple[str, str, str, str]] = []
-                self.slot_calls: list[tuple[str, str, tuple[str, ...]]] = []
+                self.slot_calls: list[tuple[str, str, tuple[str, ...], str | datetime | None]] = []
 
             def resolve_preferred_store_by_name(self, store_name: str) -> None:
                 return None
@@ -3541,8 +3547,9 @@ class MinRepoScraperTests(unittest.TestCase):
                 end_date: str,
                 slot_numbers: list[str],
                 require_source_difference: bool = True,
+                site7_updated_at: str | datetime | None = None,
             ) -> SavedMachineSlotsSummary:
-                self.slot_calls.append((start_date, end_date, tuple(slot_numbers)))
+                self.slot_calls.append((start_date, end_date, tuple(slot_numbers), site7_updated_at))
                 return SavedMachineSlotsSummary(protected_slots={(start_date, slot_numbers[0])})
 
             def save_history_result(self, history_result: MachineHistoryResult) -> PersistenceSummary:
@@ -3582,8 +3589,8 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(
             persistence_service.slot_calls,
             [
-                ("2026-06-02", "2026-06-03", ("821", "822")),
-                ("2026-06-02", "2026-06-03", ("831",)),
+                ("2026-06-02", "2026-06-03", ("821", "822"), "2026-06-03T23:20:00+09:00"),
+                ("2026-06-02", "2026-06-03", ("831",), "2026-06-03T23:20:00+09:00"),
             ],
         )
 
@@ -5824,6 +5831,69 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(summary.protected_slots, {("2026-04-24", "737")})
             self.assertEqual(summary.replaceable_slots, set())
 
+    def test_find_saved_machine_slots_replaces_old_complete_site7_update(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service, storage = make_r2_service(Path(temp_dir))
+            seed_r2_store(
+                storage,
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                records=[
+                    {
+                        "target_date": "2026-06-07",
+                        "slot_number": "737",
+                        "machine_name": "ゴーゴージャグラー３",
+                        "data_source": DATA_SOURCE_SITE7,
+                        "difference_value": 120,
+                        "bonus_difference_value": 120,
+                        "site7_difference_source": "graph",
+                        "games_count": 1200,
+                        "bb_count": 6,
+                        "rb_count": 4,
+                        "site7_fetched_at": "2026-06-07T14:15:00+09:00",
+                    },
+                    {
+                        "target_date": "2026-06-07",
+                        "slot_number": "738",
+                        "machine_name": "ゴーゴージャグラー３",
+                        "data_source": DATA_SOURCE_SITE7,
+                        "difference_value": 80,
+                        "bonus_difference_value": 80,
+                        "site7_difference_source": "graph",
+                        "games_count": 900,
+                        "bb_count": 5,
+                        "rb_count": 2,
+                        "site7_fetched_at": "2026-06-07T15:15:00+09:00",
+                    },
+                    {
+                        "target_date": "2026-06-07",
+                        "slot_number": "739",
+                        "machine_name": "ゴーゴージャグラー３",
+                        "data_source": DATA_SOURCE_SITE7,
+                        "difference_value": -40,
+                        "bonus_difference_value": -40,
+                        "site7_difference_source": "graph",
+                        "games_count": 700,
+                        "bb_count": 3,
+                        "rb_count": 2,
+                        "site7_fetched_at": "2026-06-07T16:15:00+09:00",
+                    },
+                ],
+            )
+
+            summary = service.find_saved_machine_slots(
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                start_date="2026-06-07",
+                end_date="2026-06-07",
+                slot_numbers=["737", "738", "739"],
+                site7_updated_at="2026-06-07T15:15:00+09:00",
+            )
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(summary.protected_slots, {("2026-06-07", "738"), ("2026-06-07", "739")})
+            self.assertEqual(summary.replaceable_slots, {("2026-06-07", "737")})
+
     def test_find_saved_machine_slots_treats_formula_site7_difference_as_replaceable(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service, storage = make_r2_service(Path(temp_dir))
@@ -5993,14 +6063,17 @@ class MinRepoScraperTests(unittest.TestCase):
                 end_date: str,
                 slot_numbers: list[str],
                 require_source_difference: bool = True,
+                site7_updated_at: str | datetime | None = None,
             ) -> SavedMachineSlotsSummary:
                 self.require_source_difference = require_source_difference
+                self.site7_updated_at = site7_updated_at
                 return SavedMachineSlotsSummary(
                     protected_slots={("2026-04-24", "821")},
                     replaceable_slots={("2026-04-25", "821")},
                 )
 
-        app.persistence_service = FakePersistenceService()
+        persistence_service = FakePersistenceService()
+        app.persistence_service = persistence_service
 
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         html = find_gui_fixture("site7_machine.html")
@@ -6010,11 +6083,14 @@ class MinRepoScraperTests(unittest.TestCase):
             page_url="https://example.com/site7/machine",
             recent_days=2,
         )
+        for dataset in history_result.datasets:
+            set_site7_dataset_updated_at(dataset, "2026-04-25T15:15:00+09:00")
 
         filtered_result, warning_summary = app._prepare_site7_history_result_for_save(history_result)
 
         self.assertEqual(warning_summary.messages, [])
         self.assertEqual(deleted_calls, [])
+        self.assertEqual(persistence_service.site7_updated_at, "2026-04-25T15:15:00+09:00")
         self.assertEqual([dataset.target_date for dataset in filtered_result.datasets], ["2026-04-24", "2026-04-25"])
         self.assertEqual(
             [dataset.rows[0][0] for dataset in filtered_result.datasets],

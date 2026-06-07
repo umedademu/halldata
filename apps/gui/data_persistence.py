@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 import json
 import math
@@ -56,6 +56,7 @@ STORE_COLUMNS = {"機種", "機種名"}
 WINDOWS_FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]+')
 DATA_SOURCE_MINREPO = "minrepo"
 DATA_SOURCE_SITE7 = "site7"
+SITE7_SAVED_TIMEZONE = timezone(timedelta(hours=9))
 R2_SNAPSHOT_PREFIX = "snapshots"
 R2_FULL_DAY_INDEX_FILE_NAME = "full-day-index.json"
 FULL_DAY_INCOMPLETE_RECORD_RATIO = 0.8
@@ -218,6 +219,41 @@ def _record_has_site7_source(row: dict[str, Any]) -> bool:
     if _record_has_site7_data_source(row):
         return True
     return bool(str(row.get("site7_fetched_at", "")).strip())
+
+
+def _parse_site7_saved_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        text = str(value or "").strip()
+        if not text:
+            return None
+        if text.endswith("Z"):
+            text = f"{text[:-1]}+00:00"
+        try:
+            parsed = datetime.fromisoformat(text)
+        except ValueError:
+            return None
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=SITE7_SAVED_TIMEZONE)
+    return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _site7_record_update_is_current_or_newer(
+    record: dict[str, Any],
+    site7_updated_at: str | datetime | None,
+) -> bool:
+    current_updated_at = _parse_site7_saved_datetime(site7_updated_at)
+    if current_updated_at is None:
+        return True
+
+    saved_updated_at = _parse_site7_saved_datetime(
+        record.get("site7_fetched_at") or record.get("site7FetchedAt")
+    )
+    if saved_updated_at is None:
+        return False
+    return saved_updated_at >= current_updated_at
 
 
 def choose_preferred_store(candidates: list[dict[str, Any]]) -> dict[str, str] | None:
@@ -801,6 +837,7 @@ class HistoryPersistenceService:
         end_date: str,
         slot_numbers: list[str],
         require_source_difference: bool = True,
+        site7_updated_at: str | datetime | None = None,
     ) -> SavedMachineSlotsSummary:
         normalized_slot_numbers = {
             str(slot_number).strip()
@@ -819,6 +856,7 @@ class HistoryPersistenceService:
                 end_date=end_date,
                 target_slot_numbers=normalized_slot_numbers,
                 require_source_difference=require_source_difference,
+                site7_updated_at=site7_updated_at,
             )
             summary.protected_slots.update(protected_slots)
             summary.replaceable_slots.update(replaceable_slots)
@@ -849,6 +887,7 @@ class HistoryPersistenceService:
         end_date: str,
         slot_numbers: list[str],
         require_source_difference: bool = True,
+        site7_updated_at: str | datetime | None = None,
     ) -> SavedMachineSlotsSummary:
         return self.find_saved_machine_slots(
             store_name="",
@@ -857,6 +896,7 @@ class HistoryPersistenceService:
             end_date=end_date,
             slot_numbers=slot_numbers,
             require_source_difference=require_source_difference,
+            site7_updated_at=site7_updated_at,
         )
 
     def delete_machine_targets_from_supabase(
@@ -1832,6 +1872,7 @@ class HistoryPersistenceService:
         end_date: str,
         target_slot_numbers: set[str],
         require_source_difference: bool = True,
+        site7_updated_at: str | datetime | None = None,
     ) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
         protected_slots: set[tuple[str, str]] = set()
         replaceable_slots: set[tuple[str, str]] = set()
@@ -1852,7 +1893,7 @@ class HistoryPersistenceService:
                 if _site7_record_has_complete_fetch_data(
                     row,
                     require_source_difference=require_source_difference,
-                ):
+                ) and _site7_record_update_is_current_or_newer(row, site7_updated_at):
                     protected_slots.add(target_key)
                     replaceable_slots.discard(target_key)
                 elif target_key not in protected_slots:
@@ -2577,6 +2618,7 @@ class HistoryPersistenceService:
         end_date: str,
         target_slot_numbers: set[str],
         require_source_difference: bool = True,
+        site7_updated_at: str | datetime | None = None,
     ) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
         protected_slots: set[tuple[str, str]] = set()
         replaceable_slots: set[tuple[str, str]] = set()
@@ -2596,7 +2638,7 @@ class HistoryPersistenceService:
                 if _site7_record_has_complete_fetch_data(
                     row,
                     require_source_difference=require_source_difference,
-                ):
+                ) and _site7_record_update_is_current_or_newer(row, site7_updated_at):
                     protected_slots.add(target_key)
                     replaceable_slots.discard(target_key)
                 elif target_key not in protected_slots:
@@ -3225,6 +3267,7 @@ class HistoryPersistenceService:
         start_date: str,
         end_date: str,
         target_slot_numbers: set[str],
+        site7_updated_at: str | datetime | None = None,
     ) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
         return set(), set()
 

@@ -957,7 +957,7 @@ class Site7Scraper:
         machine_base_result_callback: Callable[[MachineHistoryResult], None] | None = None,
         machine_result_callback: Callable[[MachineHistoryResult], None] | None = None,
         machine_result_filter_callback: Callable[[MachineHistoryResult], MachineHistoryResult] | None = None,
-        machine_protected_slots_callback: Callable[[Site7MachineEntry, list[str], list[str]], set[tuple[str, str]]] | None = None,
+        machine_protected_slots_callback: Callable[[Site7MachineEntry, list[str], list[str], str | None], set[tuple[str, str]]] | None = None,
         include_graph_differences: bool = False,
         defer_graph_differences: bool = False,
         enabled_machine_names: set[str] | None = None,
@@ -1010,7 +1010,7 @@ class Site7Scraper:
         machine_base_result_callback: Callable[[MachineHistoryResult], None] | None = None,
         machine_result_callback: Callable[[MachineHistoryResult], None] | None = None,
         machine_result_filter_callback: Callable[[MachineHistoryResult], MachineHistoryResult] | None = None,
-        machine_protected_slots_callback: Callable[[Site7MachineEntry, list[str], list[str]], set[tuple[str, str]]] | None = None,
+        machine_protected_slots_callback: Callable[[Site7MachineEntry, list[str], list[str], str | None], set[tuple[str, str]]] | None = None,
         include_graph_differences: bool = False,
         defer_graph_differences: bool = False,
         enabled_machine_names: set[str] | None = None,
@@ -1167,7 +1167,7 @@ class Site7Scraper:
         machine_link: str,
         recent_days: int,
         cancel_requested: Callable[[], bool] | None = None,
-        machine_protected_slots_callback: Callable[[Site7MachineEntry, list[str], list[str]], set[tuple[str, str]]] | None = None,
+        machine_protected_slots_callback: Callable[[Site7MachineEntry, list[str], list[str], str | None], set[tuple[str, str]]] | None = None,
     ) -> MachineHistoryResult:
         _raise_if_site7_cancel_requested(cancel_requested)
         page.goto(machine_link, wait_until="domcontentloaded", timeout=60_000)
@@ -1183,6 +1183,7 @@ class Site7Scraper:
         self._accept_cookie_banner_if_present(page)
         self._wait_between_transitions(page, cancel_requested=cancel_requested)
         first_day_html = page.content()
+        site7_updated_at = format_site7_updated_datetime(self.extract_updated_datetime(first_day_html))
         latest_date = self.extract_updated_date(first_day_html)
         target_dates = [
             (latest_date - timedelta(days=day_index)).strftime("%Y-%m-%d")
@@ -1194,11 +1195,19 @@ class Site7Scraper:
         )
         protected_slots: set[tuple[str, str]] = set()
         if machine_protected_slots_callback is not None and first_day_slot_numbers:
-            protected_slots = set(machine_protected_slots_callback(machine_entry, target_dates, first_day_slot_numbers))
+            protected_slots = set(
+                machine_protected_slots_callback(
+                    machine_entry,
+                    target_dates,
+                    first_day_slot_numbers,
+                    site7_updated_at,
+                )
+            )
         self._write_debug_log(
             "machine_day_plan",
             machine=machine_entry.machine_name,
             target_dates=target_dates,
+            site7_updated_at=site7_updated_at,
             first_day_slots=first_day_slot_numbers,
             protected_count=len(protected_slots),
             protected_slots=sorted(protected_slots),

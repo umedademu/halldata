@@ -57,6 +57,7 @@ from site7_scraper import (
     copy_site7_dataset_metadata,
     default_site7_store_settings,
     enrich_site7_target_store,
+    site7_dataset_updated_at,
     site7_store_is_known_unavailable,
 )
 
@@ -587,6 +588,17 @@ def collect_history_result_slot_keys(history_result: MachineHistoryResult) -> se
                 slot_keys.add((dataset.target_date, slot_number))
 
     return slot_keys
+
+
+def site7_history_result_updated_at(history_result: MachineHistoryResult) -> str | None:
+    updated_at_values = [
+        updated_at
+        for dataset in history_result.datasets
+        if (updated_at := site7_dataset_updated_at(dataset))
+    ]
+    if not updated_at_values:
+        return None
+    return max(updated_at_values)
 
 
 def filter_site7_history_result_by_saved_slots(
@@ -3307,6 +3319,7 @@ class MinRepoApp:
             machine_entry: Site7MachineEntry,
             target_dates: list[str],
             slot_numbers: list[str],
+            site7_updated_at: str | None = None,
         ) -> set[tuple[str, str]]:
             nonlocal warning_summary
             self._raise_if_fetch_cancelled()
@@ -3336,6 +3349,7 @@ class MinRepoApp:
                 end_date=max(remaining_dates),
                 slot_numbers=slot_numbers,
                 require_source_difference=True,
+                site7_updated_at=site7_updated_at,
             )
             warning_summary.messages.extend(saved_slots_summary.messages)
             remaining_date_set = set(remaining_dates)
@@ -3458,6 +3472,7 @@ class MinRepoApp:
             end_date=history_result.end_date,
             slot_numbers=slot_numbers,
             require_source_difference=require_source_difference,
+            site7_updated_at=site7_history_result_updated_at(history_result),
         )
         warning_messages.extend(saved_slots_summary.messages)
         history_result = filter_site7_history_result_by_saved_slots(
