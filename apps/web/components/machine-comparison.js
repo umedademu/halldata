@@ -675,11 +675,7 @@ function normalizeMachineComparisonPeriodOptions(value, defaults) {
 
 function readMachineComparisonPeriodOptions(defaults, storageScopeKey = "") {
   const storageKey = buildScopedPeriodStorageKey(storageScopeKey);
-  const parsedValue =
-    readLocalStorageJson(storageKey) ??
-    (storageKey === MACHINE_COMPARISON_PERIOD_STORAGE_KEY
-      ? null
-      : readLocalStorageJson(MACHINE_COMPARISON_PERIOD_STORAGE_KEY));
+  const parsedValue = readLocalStorageJson(storageKey);
   return parsedValue ? normalizeMachineComparisonPeriodOptions(parsedValue, defaults) : null;
 }
 
@@ -2767,8 +2763,9 @@ export function MachineComparison({
   huntScoreWindowDays = 7,
 }) {
   const machineComparisonStorageScopeKey = useMemo(
-    () => `${storeId}:${verificationMode ? "verification" : "machine-detail"}`,
-    [storeId, verificationMode],
+    () =>
+      `${storeId}:${verificationMode ? "verification" : "machine-detail"}:${normalizeMachineNameText(machineName)}`,
+    [machineName, storeId, verificationMode],
   );
   const latestAvailableDate = dateRows[0]?.date ?? "";
   const oldestAvailableDate = dateRows.at(-1)?.date ?? latestAvailableDate;
