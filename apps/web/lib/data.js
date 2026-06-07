@@ -2571,6 +2571,8 @@ async function buildStaticMachineDetail(
     const { targetRows, storeRows } = await buildStaticHuntScoreSourceRowsForMachineNames(
       staticStore,
       requestedMachineNames,
+      null,
+      { preferMachineRows: true },
     );
     const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName);
     const snapshots = buildHuntScoreSnapshots(
