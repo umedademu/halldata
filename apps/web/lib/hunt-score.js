@@ -1405,6 +1405,9 @@ function isMachineHighContentWindowRow(row, machineName) {
   if (normalizedMachineName === normalizeText("ニューキングハナハナ")) {
     return games >= 4000 && combinedDenominator <= 165 && rbDenominator <= 420;
   }
+  if (normalizedMachineName === normalizeText("ドラゴンハナハナ～閃光～")) {
+    return games >= 5000 && rbDenominator <= 450 && combinedDenominator <= 148;
+  }
   if (
     normalizedMachineName === normalizeText("ファンキージャグラー２ＫＴ") ||
     normalizedMachineName === normalizeText("ファンキージャグラー２") ||
@@ -1459,6 +1462,9 @@ function isMachineGoodContentWindowRow(row, machineName) {
   }
   if (normalizedMachineName === normalizeText("スターハナハナ")) {
     return games >= 4000 && rbDenominator <= 300 && combinedDenominator <= 135;
+  }
+  if (normalizedMachineName === normalizeText("ドラゴンハナハナ～閃光～")) {
+    return games >= 4000 && rbDenominator <= 500 && combinedDenominator <= 155;
   }
   if (
     normalizedMachineName === normalizeText("ファンキージャグラー２ＫＴ") ||
@@ -6580,6 +6586,17 @@ function calculateWindowMetrics(
     const differenceValue = readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
     return isMachineHighContentWindowRow({ row: dateRow, differenceValue }, currentMachineName);
   }).length;
+  const previousAdjacentMachineGoodContentCount = listAdjacentSameMachineRowsByOrder(
+    currentDateRows,
+    row,
+    config,
+    currentMachineName,
+    1,
+  ).filter((dateRow) => {
+    const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
+    const differenceValue = readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
+    return isMachineGoodContentWindowRow({ row: dateRow, differenceValue }, currentMachineName);
+  }).length;
   const previousOtherMachineHighContentCount = currentDateRows.filter((dateRow) => {
     if (String(dateRow?.slot_number ?? "").trim() === String(row?.slot_number ?? "").trim()) {
       return false;
@@ -6591,6 +6608,13 @@ function calculateWindowMetrics(
     const differenceValue = readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
     return isMachineHighContentWindowRow({ row: dateRow, differenceValue }, currentMachineName);
   }).length;
+  const sameMachinePreviousNetTotal = currentDateRows.reduce((total, dateRow) => {
+    const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
+    if (normalizeText(rowMachineName) !== normalizeText(currentMachineName)) {
+      return total;
+    }
+    return total + readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
+  }, 0);
   const isHistoryMachineHighContentWindowRow = (historyWindowRow) =>
     isMachineHighContentWindowRow(historyWindowRow, currentMachineName);
   const isHistoryMachineGoodContentWindowRow = (historyWindowRow) =>
@@ -6784,6 +6808,7 @@ function calculateWindowMetrics(
     highSettingStreak: calculateCurrentHighSettingStreak(metricWindowRows),
     highSettingEstimateStreak: calculateCurrentHighSettingEstimateStreak(metricWindowRows),
     highSettingCandidateStreak: calculateCurrentHighSettingCandidateStreak(metricWindowRows),
+    historyLosingStreak: calculateCurrentLosingStreak(historyWindowRows),
     machineHighContentStreak: calculateCurrentMachineContentStreak(
       metricWindowRows,
       isHistoryMachineHighContentWindowRow,
@@ -6856,7 +6881,9 @@ function calculateWindowMetrics(
     historyThirtySettingFiveCount,
     adjacentHighSettingCandidateCount7,
     previousAdjacentMachineHighContentCount,
+    previousAdjacentMachineGoodContentCount,
     previousOtherMachineHighContentCount,
+    sameMachinePreviousNetTotal,
     adjacentMachineHighContentCount7,
     adjacentMachineHighContentCount14,
     adjacentMachineNetTotal3,

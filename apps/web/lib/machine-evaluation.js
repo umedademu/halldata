@@ -1130,6 +1130,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const previousDifference = readNumber(metrics.todayDifference);
   const previousGames = readNumber(metrics.previousGames);
   const streak = readNumber(metrics.streak);
+  const historyLosingStreak = readNumber(metrics.historyLosingStreak);
   const recentThreeNetTotal = readNumber(metrics.recentThreeNetTotal);
   const recentFiveNetTotal = readNumber(metrics.recentFiveNetTotal);
   const recentSevenNetTotal = readNumber(metrics.recentSevenNetTotal);
@@ -1137,6 +1138,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentFourteenNetTotal = readNumber(metrics.recentFourteenNetTotal);
   const recentTwentyOneNetTotal = readNumber(metrics.recentTwentyOneNetTotal);
   const recentTwentyEightNetTotal = readNumber(metrics.recentTwentyEightNetTotal);
+  const recentThirtyNetTotal = readNumber(metrics.recentThirtyNetTotal);
   const recentFiftySixNetTotal = readNumber(metrics.recentFiftySixNetTotal);
   const recentThreeGamesTotal = readNumber(metrics.recentThreeGamesTotal);
   const recentFiveGamesTotal = readNumber(metrics.recentFiveGamesTotal);
@@ -1154,7 +1156,9 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const adjacentMachineNetTotal3 = readNumber(metrics.adjacentMachineNetTotal3);
   const adjacentMachineNetTotal7 = readNumber(metrics.adjacentMachineNetTotal7);
   const previousAdjacentMachineHighContentCount = readNumber(metrics.previousAdjacentMachineHighContentCount);
+  const previousAdjacentMachineGoodContentCount = readNumber(metrics.previousAdjacentMachineGoodContentCount);
   const previousOtherMachineHighContentCount = readNumber(metrics.previousOtherMachineHighContentCount);
+  const sameMachinePreviousNetTotal = readNumber(metrics.sameMachinePreviousNetTotal);
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
   const recentSevenMachineHighContentCount = readNumber(metrics.recentSevenMachineHighContentCount);
   const recentFourteenMachineHighContentCount = readNumber(metrics.recentFourteenMachineHighContentCount);
@@ -1311,6 +1315,51 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       starUnpaid,
       starNearbyLeftBehind,
       starTrustedGames,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
+
+  if (machineKey === "dragon-hana") {
+    const dragonStreak = historyLosingStreak;
+    const dragonWeakBonus =
+      features.recentSevenCombinedDenominator >= 190 ||
+      features.recentSevenRbDenominator >= 800;
+    const dragonUnpaid = previousDifference > 0 && recentFourteenNetTotal <= -1000;
+    const dragonThirtySink = recentThirtyNetTotal <= -3000;
+    const dragonIslandLeftBehind = recentSevenNetTotal <= -1000 && sameMachinePreviousNetTotal > 0;
+    const dragonAdjacentSemiHigh = recentSevenNetTotal <= -1000 && previousAdjacentMachineGoodContentCount > 0;
+    const dragonTreatmentDone =
+      recentSevenNetTotal > 2000 ||
+      features.recentSevenAngle > 100 ||
+      previousDifference > 2500 ||
+      previousMachineHighContent ||
+      features.recentSevenCombinedDenominator <= 160 ||
+      recentSevenGamesTotal >= 30000;
+    const dragonLongNeglect =
+      Number.isFinite(daysSinceMachineHighContent) &&
+      daysSinceMachineHighContent >= 61 &&
+      recentFourteenNetTotal > 0;
+    const boostFlags = [
+      dragonWeakBonus,
+      dragonUnpaid,
+      dragonThirtySink,
+      dragonIslandLeftBehind,
+      dragonAdjacentSemiHigh,
+      dragonStreak >= 3,
+      features.recentSevenAngle <= -40,
+    ];
+    const dangerFlags = [dragonTreatmentDone, dragonLongNeglect];
+
+    return {
+      ...features,
+      weakBonus: dragonWeakBonus,
+      dragonWeakBonus,
+      dragonUnpaid,
+      dragonThirtySink,
+      dragonIslandLeftBehind,
+      dragonAdjacentSemiHigh,
+      treatmentDone: dragonTreatmentDone,
       boostCount: boostFlags.filter(Boolean).length,
       dangerCount: dangerFlags.filter(Boolean).length,
     };
@@ -1719,6 +1768,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFiftySixNetTotal = readNumber(metrics.recentFiftySixNetTotal);
   const lossAbsTotal = readNumber(metrics.lossAbsTotal);
   const streak = readNumber(metrics.streak);
+  const historyLosingStreak = readNumber(metrics.historyLosingStreak);
   const winningStreak = readNumber(metrics.winningStreak);
   const historyNetTotal = readNumber(metrics.historyNetTotal);
   const historyPositiveDays = readNumber(metrics.historyPositiveDays);
@@ -1775,7 +1825,9 @@ function calculateMachineScore(definition, metrics, features) {
   const adjacentMachineNetTotal3 = readNumber(metrics.adjacentMachineNetTotal3);
   const adjacentMachineNetTotal7 = readNumber(metrics.adjacentMachineNetTotal7);
   const previousAdjacentMachineHighContentCount = readNumber(metrics.previousAdjacentMachineHighContentCount);
+  const previousAdjacentMachineGoodContentCount = readNumber(metrics.previousAdjacentMachineGoodContentCount);
   const previousOtherMachineHighContentCount = readNumber(metrics.previousOtherMachineHighContentCount);
+  const sameMachinePreviousNetTotal = readNumber(metrics.sameMachinePreviousNetTotal);
   const previousCombinedDenominator = features.previousCombinedDenominator;
   const previousRbDenominator = features.previousRbDenominator;
   const recentTwoCombinedDenominator = rateDenominator(recentTwoGamesTotal, recentTwoBonusTotal);
@@ -2311,6 +2363,7 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "dragon-hana") {
+    const dragonStreak = historyLosingStreak;
     let score = 0;
     if (recentSevenNetTotal <= -3000) {
       score += 12;
@@ -2372,17 +2425,40 @@ function calculateMachineScore(definition, metrics, features) {
     score += scoreInRange(recentSevenGamesTotal, 25001, 30000, 1);
     score += scoreInRange(recentFourteenGamesTotal, 20000, 30000, 2);
     score += scoreInRange(recentFourteenGamesTotal, 30001, 40000, 3);
-    score += streak === 2 ? 1 : streak === 3 ? 4 : streak >= 4 && streak <= 5 ? 6 : streak >= 6 && streak <= 7 ? 8 : streak >= 8 ? 2 : 0;
-    score += scoreInRange(features.bestRestDays, 8, 14, 2);
-    score += scoreInRange(features.bestRestDays, 15, 30, 4);
-    score += scoreInRange(features.bestRestDays, 31, 60, 1);
+    score +=
+      dragonStreak === 2
+        ? 1
+        : dragonStreak === 3
+          ? 4
+          : dragonStreak >= 4 && dragonStreak <= 5
+            ? 6
+            : dragonStreak >= 6 && dragonStreak <= 7
+              ? 8
+              : dragonStreak >= 8
+                ? 2
+                : 0;
+    score += scoreInRange(daysSinceMachineHighContent, 8, 14, 2);
+    score += scoreInRange(daysSinceMachineHighContent, 15, 30, 4);
+    score += scoreInRange(daysSinceMachineHighContent, 31, 60, 1);
+    score += previousDifference > 0 && recentFourteenNetTotal <= -1000 ? 3 : 0;
+    score += recentThirtyNetTotal <= -3000 ? 2 : 0;
+    score += recentSevenNetTotal <= -1000 && sameMachinePreviousNetTotal > 0 ? 5 : 0;
+    score += recentSevenNetTotal <= -1000 && previousAdjacentMachineGoodContentCount > 0 ? 2 : 0;
 
     score -= recentSevenNetTotal > 2000 ? 15 : recentSevenNetTotal > 1000 ? 10 : recentSevenNetTotal > 0 ? 6 : 0;
-    score -= features.recentSevenAngle > 80 ? 8 : features.recentSevenAngle > 30 ? 5 : 0;
-    score -= previousDifference > 2500 ? 8 : previousDifference > 1500 ? 5 : 0;
-    score -= features.previousHighContent ? 4 : 0;
+    score -= features.recentSevenAngle > 100 ? 10 : features.recentSevenAngle > 40 ? 6 : features.recentSevenAngle > 0 ? 3 : 0;
+    score -= previousDifference > 2500 ? 8 : previousDifference > 1500 ? 5 : previousDifference > 800 ? 2 : 0;
+    score -= previousMachineHighContent ? 4 : 0;
+    score -= previousMachineHighContent && previousDifference >= 1500 ? 4 : 0;
+    score -= previousMachineGoodContent ? 2 : 0;
     score -= features.recentSevenCombinedDenominator <= 160 ? 6 : 0;
-    score -= recentSevenGamesTotal >= 30000 ? 3 : 0;
+    score -= recentSevenGamesTotal >= 30000 ? 4 : 0;
+    score -=
+      Number.isFinite(daysSinceMachineHighContent) &&
+      daysSinceMachineHighContent >= 61 &&
+      recentFourteenNetTotal > 0
+        ? 3
+        : 0;
 
     return Math.round(clamp(score, 0, 100));
   }
