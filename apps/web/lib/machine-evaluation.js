@@ -2983,11 +2983,11 @@ function calculateMachineScore(definition, metrics, features) {
     if (streak === 2) {
       streakScore -= 3;
     }
-    if (highSettingCandidateStreak >= 2) {
+    if (machineHighContentStreak >= 2) {
       streakScore += 12;
-    } else if (recentThreeHighSettingEstimateCount >= 2) {
+    } else if (recentThreeMachineHighContentCount >= 2) {
       streakScore += 5;
-    } else if (recentFiveHighSettingCandidateCount >= 3) {
+    } else if (recentFiveMachineHighContentCount >= 3) {
       streakScore += 3;
     }
     streakScore = clamp(streakScore, -3, 17);
@@ -3008,10 +3008,13 @@ function calculateMachineScore(definition, metrics, features) {
 
     let penalty = 0;
     penalty += recentFiveGamesTotal <= 18667 ? 8 : 0;
-    penalty += recentSevenHighSettingCandidateCount === 0 && !Number.isFinite(features.bestRestDays) ? 12 : 0;
-    penalty += Number.isFinite(features.bestRestDays) && features.bestRestDays >= 21 ? 12 : 0;
-    penalty += Number.isFinite(features.bestRestDays) && features.bestRestDays >= 13 && features.bestRestDays <= 20 ? 5 : 0;
-    penalty += features.previousHighContent && previousDifference >= 0 ? 8 : 0;
+    penalty +=
+      recentFourteenMachineHighContentCount === 0 ||
+      (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 21)
+        ? 12
+        : 0;
+    penalty += Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 13 && daysSinceMachineHighContent <= 20 ? 5 : 0;
+    penalty += previousMachineHighContent && previousDifference >= 0 ? 8 : 0;
     penalty += scoreAtLeast(recentFiveNetTotal, [
       { minimum: 5558, points: 14 },
       { minimum: 4355, points: 8 },
@@ -3020,7 +3023,7 @@ function calculateMachineScore(definition, metrics, features) {
       { minimum: 7746, points: 10 },
       { minimum: 6097, points: 6 },
     ]);
-    penalty += recentSevenHighSettingCandidateCount >= 2 && highSettingCandidateStreak < 2 ? 4 : 0;
+    penalty += recentSevenMachineHighContentCount >= 2 && machineHighContentStreak < 2 ? 4 : 0;
     penalty += recentFiveNetTotal < 0 && recentFiveGamesTotal < 18667 && !features.strongAngle && !features.weakBonus ? 6 : 0;
 
     return Math.round(clamp(30 + sinkScore + activityScore + bonusScore + streakScore + comboScore - penalty, 0, 100));
