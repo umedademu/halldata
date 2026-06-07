@@ -1281,7 +1281,19 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       adjacentMachineHighContentCount7 > 0 &&
       recentSevenNetTotal < 0 &&
       recentFourteenMachineHighContentCount === 0;
-    const boostFlags = [starStrongSinkStay, starStrongAngle, starPreviousCut, starNearbyLeftBehind];
+    const starUnpaid =
+      recentFourteenNetTotal < 0 &&
+      previousDifference > 0 &&
+      previousDifference < 1800;
+    const starTrustedGames = recentSevenGamesTotal >= 12000 && recentFourteenGamesTotal >= 25000;
+    const boostFlags = [
+      starStrongSinkStay,
+      starStrongAngle,
+      starUnpaid,
+      starNearbyLeftBehind,
+      starTrustedGames,
+      starPreviousCut,
+    ];
     const dangerFlags = [
       recentSevenNetTotal > 1500,
       recentFourteenNetTotal > 5000,
@@ -1296,7 +1308,9 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       starPreviousCut,
       starStrongSinkStay,
       starStrongAngle,
+      starUnpaid,
       starNearbyLeftBehind,
+      starTrustedGames,
       boostCount: boostFlags.filter(Boolean).length,
       dangerCount: dangerFlags.filter(Boolean).length,
     };
