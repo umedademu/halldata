@@ -547,6 +547,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           minScore: 60,
           minNextGap: 10,
           maxDanger: 1,
+          requiredFlags: ["misterHistoryReady"],
         },
       ),
     ],
@@ -1147,6 +1148,8 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentFourteenWinDays = readNumber(metrics.recentFourteenWinDays);
   const recentFourteenHighSettingCandidateCount = readNumber(metrics.recentFourteenHighSettingCandidateCount);
   const recentSevenHighSettingCandidateCount = readNumber(metrics.recentSevenHighSettingCandidateCount);
+  const recentSevenMinus1500StayDays = readNumber(metrics.recentSevenMinus1500StayDays);
+  const recentThirtyMinus2700StayDays = readNumber(metrics.recentThirtyMinus2700StayDays);
   const highSettingCandidateStreak = readNumber(metrics.highSettingCandidateStreak);
   const adjacentHighSettingCandidateCount7 = readNumber(metrics.adjacentHighSettingCandidateCount7);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
@@ -1156,8 +1159,10 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
   const recentSevenMachineHighContentCount = readNumber(metrics.recentSevenMachineHighContentCount);
   const recentFourteenMachineHighContentCount = readNumber(metrics.recentFourteenMachineHighContentCount);
+  const recentFourteenMachineStrongHighContentCount = readNumber(metrics.recentFourteenMachineStrongHighContentCount);
   const recentThirtyMachineHighContentCount = readNumber(metrics.recentThirtyMachineHighContentCount);
   const daysSinceMachineHighContent = readNullableNumber(metrics.daysSinceMachineHighContent);
+  const daysSinceMachineStrongHighContent = readNullableNumber(metrics.daysSinceMachineStrongHighContent);
   const daysSinceMachineBigWin1500 = readNullableNumber(metrics.daysSinceMachineBigWin1500);
   const previousMachineHighContent = Boolean(metrics.previousMachineHighContent);
   const previousMachineGoodContent = Boolean(metrics.previousMachineGoodContent);
@@ -1197,6 +1202,50 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       ...features,
       aimShortSinkStay2,
       aimShortSinkStay3,
+    };
+  }
+
+  if (machineKey === "mister") {
+    const misterHistoryReady = historyRowCount >= 30;
+    const misterTreatmentDone =
+      recentSevenNetTotal > 2500 ||
+      recentFourteenNetTotal > 3600 ||
+      previousDifference > 1500 ||
+      (previousMachineHighContent && previousDifference > 500);
+    const misterLongNeglect = recentSevenMinus1500StayDays >= 7 || recentThirtyMinus2700StayDays >= 7;
+    const misterLowUsage = recentThreeGamesTotal < 6000 || recentSevenGamesTotal < 18000;
+    const misterRecentHighDone = recentSevenMachineHighContentCount >= 2;
+    const misterPreviousHighPlus = previousMachineHighContent && previousDifference > 0;
+    const boostFlags = [
+      recentThreeNetTotal <= -1376 || streak >= 3,
+      features.recentThreeAngle <= -100 || features.recentSevenAngle <= -45,
+      recentFourteenNetTotal <= -1400 || recentTwentyOneNetTotal <= -2450,
+      recentThreeGamesTotal >= 12000 || recentSevenGamesTotal >= 30000,
+      (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 16) ||
+        (Number.isFinite(daysSinceMachineStrongHighContent) && daysSinceMachineStrongHighContent >= 30),
+      adjacentMachineHighContentCount7 > 0 && recentSevenNetTotal < 0,
+      features.previousCombinedDenominator <= 135 &&
+        features.previousRbDenominator <= 290 &&
+        previousDifference <= 1000,
+    ];
+    const dangerFlags = [
+      misterTreatmentDone,
+      misterLongNeglect,
+      misterLowUsage,
+      misterRecentHighDone,
+      misterPreviousHighPlus,
+    ];
+
+    return {
+      ...features,
+      misterHistoryReady,
+      misterTreatmentDone,
+      misterLongNeglect,
+      misterLowUsage,
+      misterRecentHighDone,
+      misterPreviousHighPlus,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
     };
   }
 
@@ -1679,6 +1728,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFiveMinus3000StayDays = readNumber(metrics.recentFiveMinus3000StayDays);
   const recentFiveMinus3500StayDays = readNumber(metrics.recentFiveMinus3500StayDays);
   const recentSevenMinus1500StayDays = readNumber(metrics.recentSevenMinus1500StayDays);
+  const recentThirtyMinus2700StayDays = readNumber(metrics.recentThirtyMinus2700StayDays);
   const recentFiveMinus500StayDays = readNumber(metrics.recentFiveMinus500StayDays);
   const recentTenMinus5225StayDays = readNumber(metrics.recentTenMinus5225StayDays);
   const recentFourteenMinus3218StayDays = readNumber(metrics.recentFourteenMinus3218StayDays);
@@ -1690,9 +1740,11 @@ function calculateMachineScore(definition, metrics, features) {
   const recentTenMachineHighContentCount = readNumber(metrics.recentTenMachineHighContentCount);
   const recentFourteenMachineHighContentCount = readNumber(metrics.recentFourteenMachineHighContentCount);
   const recentThirtyMachineHighContentCount = readNumber(metrics.recentThirtyMachineHighContentCount);
+  const recentFourteenMachineStrongHighContentCount = readNumber(metrics.recentFourteenMachineStrongHighContentCount);
   const recentSevenMachineGoodContentCount = readNumber(metrics.recentSevenMachineGoodContentCount);
   const recentSevenMachineWeakContentCount = readNumber(metrics.recentSevenMachineWeakContentCount);
   const daysSinceMachineHighContent = readNullableNumber(metrics.daysSinceMachineHighContent);
+  const daysSinceMachineStrongHighContent = readNullableNumber(metrics.daysSinceMachineStrongHighContent);
   const daysSinceMachineBigWin1500 = readNullableNumber(metrics.daysSinceMachineBigWin1500);
   const previousMachineHighContent = Boolean(metrics.previousMachineHighContent);
   const previousMachineGoodContent = Boolean(metrics.previousMachineGoodContent);
@@ -2136,15 +2188,18 @@ function calculateMachineScore(definition, metrics, features) {
     angleScore = Math.min(angleScore, 15);
 
     let restScore = 0;
-    restScore += scoreAtLeast(features.bestRestDays, [
-      { minimum: 30, points: 5 },
-      { minimum: 22, points: 3 },
+    restScore += scoreAtLeast(daysSinceMachineHighContent, [
       { minimum: 16, points: 6 },
       { minimum: 12, points: 4 },
       { minimum: 9, points: 2 },
     ]);
-    restScore += recentSevenHighSettingCandidateCount === 0 ? 2 : 0;
-    restScore += recentFourteenHighSettingCandidateCount === 0 ? 1 : 0;
+    restScore += scoreAtLeast(daysSinceMachineStrongHighContent, [
+      { minimum: 30, points: 5 },
+      { minimum: 22, points: 3 },
+      { minimum: 16, points: 1 },
+    ]);
+    restScore += recentSevenMachineHighContentCount === 0 ? 2 : 0;
+    restScore += recentFourteenMachineStrongHighContentCount === 0 ? 1 : 0;
     restScore = Math.min(restScore, 12);
 
     let repayScore = 0;
@@ -2153,9 +2208,11 @@ function calculateMachineScore(definition, metrics, features) {
       { maximum: -1400, points: 4 },
     ]);
     repayScore += recentTwentyOneNetTotal <= -2450 ? 3 : 0;
-    repayScore += recentTwentyEightNetTotal <= -2700 ? 2 : 0;
-    repayScore += previousDifference > 1000 && recentTwentyEightNetTotal < 0 ? 3 : 0;
-    repayScore += features.previousStrongHighContent && previousDifference <= 1000 ? 3 : 0;
+    repayScore += recentThirtyNetTotal <= -2700 ? 2 : 0;
+    repayScore += previousDifference > 1000 && recentThirtyNetTotal < 0 ? 3 : 0;
+    repayScore += adjacentMachineHighContentCount7 > 0 && recentSevenNetTotal < 0 ? 3 : 0;
+    repayScore += adjacentMachineNetTotal7 > 0 && recentSevenNetTotal < 0 ? 2 : 0;
+    repayScore += previousMachineStrongHighContent && previousDifference <= 1000 ? 3 : 0;
     repayScore += previousCombinedDenominator <= 135 && previousRbDenominator <= 290 && previousDifference < 0 ? 2 : 0;
     repayScore = Math.min(repayScore, 16);
 
@@ -2163,10 +2220,11 @@ function calculateMachineScore(definition, metrics, features) {
     penalty += recentSevenNetTotal > 2500 ? 14 : 0;
     penalty += recentFourteenNetTotal > 3600 ? 10 : 0;
     penalty += recentTwentyOneNetTotal > 4716 ? 6 : 0;
-    penalty += features.previousHighContent && previousDifference > 500 ? 8 : 0;
+    penalty += previousMachineHighContent && previousDifference > 500 ? 8 : 0;
     penalty += previousDifference > 1500 ? 5 : 0;
-    penalty += recentSevenHighSettingCandidateCount >= 2 ? 5 : 0;
-    penalty += features.bestRestDays >= 45 && recentSevenNetTotal > -1000 ? 6 : 0;
+    penalty += recentSevenMachineHighContentCount >= 2 ? 5 : 0;
+    penalty += recentSevenMinus1500StayDays >= 7 ? 8 : 0;
+    penalty += recentThirtyMinus2700StayDays >= 7 ? 6 : 0;
 
     return Math.round(clamp(shortSinkScore + streakScore + angleScore + restScore + repayScore - penalty, 0, 100));
   }

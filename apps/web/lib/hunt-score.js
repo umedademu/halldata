@@ -1395,6 +1395,9 @@ function isMachineHighContentWindowRow(row, machineName) {
     const rbCount = readWindowField(row, "rbCount");
     return games >= 4000 && rbCount >= 25 && rbDenominator <= 281 && combinedDenominator <= 128;
   }
+  if (normalizedMachineName === normalizeText("ミスタージャグラー")) {
+    return games >= 5000 && rbDenominator <= 290 && combinedDenominator <= 135;
+  }
   if (normalizedMachineName === normalizeText("スマスロモンキーターンV")) {
     return games >= 3502 && combinedDenominator <= 434 && differenceValue >= -819;
   }
@@ -1457,6 +1460,10 @@ function isMachineStrongHighContentWindowRow(row, machineName) {
   }
   if (normalizedMachineName === normalizeText("ニューキングハナハナ")) {
     return games >= 6000 && combinedDenominator <= 155 && rbDenominator <= 420;
+  }
+  if (normalizedMachineName === normalizeText("ミスタージャグラー")) {
+    const rbCount = readWindowField(row, "rbCount");
+    return rbCount >= 25 && rbDenominator <= 260 && combinedDenominator <= 140;
   }
 
   return isMachineHighContentWindowRow(row, machineName) && rbDenominator <= 285;
@@ -6259,6 +6266,7 @@ function calculateWindowMetrics(
   const recentFourteenRows = historyWindowRows.slice(-14);
   const recentTwentyOneRows = historyWindowRows.slice(-21);
   const recentTwentyEightRows = historyWindowRows.slice(-28);
+  const recentThirtyRows = historyWindowRows.slice(-30);
   const recentFortyTwoRows = historyWindowRows.slice(-42);
   const recentFiftySixRows = historyWindowRows.slice(-56);
   const recentTwoNetTotal = sumDifferenceValues(recentTwoRows);
@@ -6271,6 +6279,7 @@ function calculateWindowMetrics(
   const recentFourteenNetTotal = sumDifferenceValues(recentFourteenRows);
   const recentTwentyOneNetTotal = sumDifferenceValues(recentTwentyOneRows);
   const recentTwentyEightNetTotal = sumDifferenceValues(recentTwentyEightRows);
+  const recentThirtyNetTotal = sumDifferenceValues(recentThirtyRows);
   const recentFortyTwoNetTotal = sumDifferenceValues(recentFortyTwoRows);
   const recentFiftySixNetTotal = sumDifferenceValues(recentFiftySixRows);
   const shortSevenSinkStayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -500);
@@ -6283,6 +6292,7 @@ function calculateWindowMetrics(
   const recentFiveMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -3000);
   const recentFiveMinus3500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -3500);
   const recentSevenMinus1500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -1500);
+  const recentThirtyMinus2700StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 30, -2700);
   const recentFiveMinus500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -500);
   const recentTenMinus5225StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 10, -5225);
   const recentFourteenMinus3218StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -3218);
@@ -6300,6 +6310,7 @@ function calculateWindowMetrics(
   const recentFourteenGamesTotal = sumWindowField(recentFourteenRows, "games");
   const recentTwentyOneGamesTotal = sumWindowField(recentTwentyOneRows, "games");
   const recentTwentyEightGamesTotal = sumWindowField(recentTwentyEightRows, "games");
+  const recentThirtyGamesTotal = sumWindowField(recentThirtyRows, "games");
   const recentFortyTwoGamesTotal = sumWindowField(recentFortyTwoRows, "games");
   const recentFiftySixGamesTotal = sumWindowField(recentFiftySixRows, "games");
   const recentThreeBonusTotal = recentThreeRows.reduce(
@@ -6549,6 +6560,9 @@ function calculateWindowMetrics(
   const recentThreeMachineStrongHighContentCount = recentThreeRows.filter((windowRow) =>
     isMachineStrongHighContentWindowRow(windowRow, currentMachineName),
   ).length;
+  const recentFourteenMachineStrongHighContentCount = historyWindowRows
+    .slice(-14)
+    .filter(isHistoryMachineStrongHighContentWindowRow).length;
   const previousMachineHighContent = isMachineHighContentWindowRow(metricWindowRows.at(-1), currentMachineName);
   const previousMachineGoodContent = isMachineGoodContentWindowRow(metricWindowRows.at(-1), currentMachineName);
   const previousMachineStrongHighContent = isMachineStrongHighContentWindowRow(
@@ -6559,6 +6573,15 @@ function calculateWindowMetrics(
     for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
       const historyWindowRow = historyWindowRows.at(-offset);
       if (isHistoryMachineHighContentWindowRow(historyWindowRow)) {
+        return offset;
+      }
+    }
+    return null;
+  })();
+  const daysSinceMachineStrongHighContent = (() => {
+    for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
+      const historyWindowRow = historyWindowRows.at(-offset);
+      if (isHistoryMachineStrongHighContentWindowRow(historyWindowRow)) {
         return offset;
       }
     }
@@ -6713,10 +6736,12 @@ function calculateWindowMetrics(
     recentSevenMachineWeakContentCount,
     recentFourteenMachineGoodContentCount,
     recentThreeMachineStrongHighContentCount,
+    recentFourteenMachineStrongHighContentCount,
     previousMachineHighContent,
     previousMachineGoodContent,
     previousMachineStrongHighContent,
     daysSinceMachineHighContent,
+    daysSinceMachineStrongHighContent,
     daysSinceMachineBigWin1500,
     gamesTotal,
     averageGames: metricWindowRows.length > 0 ? gamesTotal / metricWindowRows.length : 0,
@@ -6728,6 +6753,7 @@ function calculateWindowMetrics(
     recentFourteenGamesTotal,
     recentTwentyOneGamesTotal,
     recentTwentyEightGamesTotal,
+    recentThirtyGamesTotal,
     recentFortyTwoGamesTotal,
     recentFiftySixGamesTotal,
     recentTwoBonusTotal,
@@ -6766,6 +6792,8 @@ function calculateWindowMetrics(
     adjacentMachineNetTotal7,
     historyNetTotal,
     historyPositiveDays,
+    recentThirtyNetTotal,
+    recentThirtyMinus2700StayDays,
     recentThreeBigShowDays,
     recentSevenBigShowDays,
     recentThreeStrictHighContentDays,
