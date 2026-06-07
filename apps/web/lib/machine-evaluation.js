@@ -194,7 +194,6 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           rankMax: 1,
           minScore: 70,
           minNextGap: 30,
-          maxDanger: 1,
         },
       ),
     ],
@@ -2049,8 +2048,8 @@ function calculateMachineScore(definition, metrics, features) {
   if (machineKey === "girls") {
     let score = 0;
     score += scoreAtLeast(streak, [
-      { minimum: 4, points: 28 },
-      { minimum: 3, points: 22 },
+      { minimum: 4, points: 30 },
+      { minimum: 3, points: 24 },
       { minimum: 2, points: 10 },
       { minimum: 1, points: 3 },
     ]);
@@ -2067,29 +2066,32 @@ function calculateMachineScore(definition, metrics, features) {
       { maximum: -50, points: 7 },
       { maximum: -25, points: 4 },
     ]);
-    score += scoreAtMost(features.recentThreeAngle, [
-      { maximum: -175, points: 10 },
-      { maximum: -100, points: 7 },
-    ]);
-    score += recentThreeNetTotal <= -1800 ? 4 : 0;
-    score += scoreInRange(features.bestRestDays, 11, 20, 14);
-    score += scoreInRange(features.bestRestDays, 6, 10, 9);
-    score += scoreInRange(features.bestRestDays, 21, 40, 4);
-    score += scoreInRange(features.bestRestDays, 3, 5, 3);
-    score += scoreInRange(features.bestRestDays, 1, 2, 1);
-    score += recentSevenHighSettingCandidateCount === 0 ? 6 : recentSevenHighSettingCandidateCount === 1 ? 1 : 0;
-    score -= recentSevenHighSettingCandidateCount >= 2 ? 8 : 0;
+    const girlsThreeDaySinkScore = Math.max(
+      scoreAtMost(features.recentThreeAngle, [
+        { maximum: -175, points: 10 },
+        { maximum: -100, points: 7 },
+      ]),
+      recentThreeNetTotal <= -1800 ? 4 : 0,
+    );
+    score += girlsThreeDaySinkScore;
+    score += scoreInRange(daysSinceMachineHighContent, 11, 20, 16);
+    score += scoreInRange(daysSinceMachineHighContent, 6, 10, 9);
+    score += scoreInRange(daysSinceMachineHighContent, 21, 40, 4);
+    score += scoreInRange(daysSinceMachineHighContent, 3, 5, 3);
+    score += scoreInRange(daysSinceMachineHighContent, 1, 2, 1);
+    score += recentSevenMachineHighContentCount === 0 ? 8 : recentSevenMachineHighContentCount === 1 ? 1 : 0;
+    score -= recentSevenMachineHighContentCount >= 2 ? 8 : 0;
     score += scoreInRange(recentSevenGamesTotal, 25000, 35000, 7);
     score += scoreInRange(recentSevenGamesTotal, 35001, 42000, 4);
     score += recentSevenGamesTotal >= 42001 ? 1 : 0;
     score -= recentSevenGamesTotal < 20000 ? 3 : 0;
-    score += features.previousHighContent && previousDifference <= 500 ? 8 : 0;
+    score += previousMachineHighContent && previousDifference <= 500 ? 8 : 0;
 
-    score -= features.previousHighContent && previousDifference >= 2500 ? 16 : 0;
+    score -= previousMachineHighContent && previousDifference >= 2500 ? 16 : 0;
     score -= recentThreeNetTotal >= 2500 ? 14 : 0;
     score -= recentSevenNetTotal >= 3500 ? 12 : recentSevenNetTotal >= 3000 ? 10 : 0;
     score -= recentFourteenNetTotal >= 5000 ? 6 : 0;
-    score -= features.bestRestDays >= 41 ? 6 : 0;
+    score -= !Number.isFinite(daysSinceMachineHighContent) || daysSinceMachineHighContent >= 41 ? 6 : 0;
 
     return Math.round(clamp(score, 0, 100));
   }
