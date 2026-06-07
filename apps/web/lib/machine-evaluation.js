@@ -1763,6 +1763,8 @@ function calculateMachineScore(definition, metrics, features) {
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
   const adjacentMachineNetTotal3 = readNumber(metrics.adjacentMachineNetTotal3);
   const adjacentMachineNetTotal7 = readNumber(metrics.adjacentMachineNetTotal7);
+  const previousAdjacentMachineHighContentCount = readNumber(metrics.previousAdjacentMachineHighContentCount);
+  const previousOtherMachineHighContentCount = readNumber(metrics.previousOtherMachineHighContentCount);
   const previousCombinedDenominator = features.previousCombinedDenominator;
   const previousRbDenominator = features.previousRbDenominator;
   const recentTwoCombinedDenominator = rateDenominator(recentTwoGamesTotal, recentTwoBonusTotal);
