@@ -2203,19 +2203,22 @@ function calculateMachineScore(definition, metrics, features) {
     restScore += recentFourteenMachineStrongHighContentCount === 0 ? 1 : 0;
     restScore = Math.min(restScore, 12);
 
-    let repayScore = 0;
-    repayScore += scoreAtMost(recentFourteenNetTotal, [
+    let unpaidScore = 0;
+    unpaidScore += scoreAtMost(recentFourteenNetTotal, [
       { maximum: -2487, points: 5 },
       { maximum: -1400, points: 4 },
     ]);
-    repayScore += recentTwentyOneNetTotal <= -2450 ? 3 : 0;
-    repayScore += recentThirtyNetTotal <= -2700 ? 2 : 0;
-    repayScore += previousDifference > 1000 && recentThirtyNetTotal < 0 ? 3 : 0;
-    repayScore += adjacentMachineHighContentCount7 > 0 && recentSevenNetTotal < 0 ? 3 : 0;
-    repayScore += adjacentMachineNetTotal7 > 0 && recentSevenNetTotal < 0 ? 2 : 0;
-    repayScore += previousMachineStrongHighContent && previousDifference <= 1000 ? 3 : 0;
-    repayScore += previousCombinedDenominator <= 135 && previousRbDenominator <= 290 && previousDifference < 0 ? 2 : 0;
-    repayScore = Math.min(repayScore, 16);
+    unpaidScore += recentTwentyOneNetTotal <= -2450 ? 3 : 0;
+    unpaidScore += recentThirtyNetTotal <= -2700 ? 2 : 0;
+    unpaidScore += previousDifference > 1000 && recentThirtyNetTotal < 0 ? 3 : 0;
+    unpaidScore += adjacentMachineHighContentCount7 > 0 && recentSevenNetTotal < 0 ? 3 : 0;
+    unpaidScore += adjacentMachineNetTotal7 > 0 && recentSevenNetTotal < 0 ? 2 : 0;
+    unpaidScore = Math.min(unpaidScore, 10);
+
+    let previousContentScore = 0;
+    previousContentScore += previousMachineStrongHighContent && previousDifference <= 1000 ? 3 : 0;
+    previousContentScore += previousCombinedDenominator <= 135 && previousRbDenominator <= 290 && previousDifference < 0 ? 2 : 0;
+    previousContentScore = Math.min(previousContentScore, 6);
 
     let penalty = 0;
     penalty += recentSevenNetTotal > 2500 ? 14 : 0;
@@ -2227,7 +2230,11 @@ function calculateMachineScore(definition, metrics, features) {
     penalty += recentSevenMinus1500StayDays >= 7 ? 8 : 0;
     penalty += recentThirtyMinus2700StayDays >= 7 ? 6 : 0;
 
-    return Math.round(clamp(shortSinkScore + streakScore + angleScore + restScore + repayScore - penalty, 0, 100));
+    return Math.round(clamp(
+      shortSinkScore + streakScore + angleScore + restScore + unpaidScore + previousContentScore - penalty,
+      0,
+      100,
+    ));
   }
 
   if (machineKey === "star-hana") {
