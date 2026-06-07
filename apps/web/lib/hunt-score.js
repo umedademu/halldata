@@ -1401,6 +1401,12 @@ function isMachineHighContentWindowRow(row, machineName) {
   if (normalizedMachineName === normalizeText("スマスロモンキーターンV")) {
     return games >= 3502 && combinedDenominator <= 434 && differenceValue >= -819;
   }
+  if (
+    normalizedMachineName === normalizeText("スマスロ ハナビ") ||
+    normalizedMachineName === normalizeText("スマスロハナビ")
+  ) {
+    return games >= 4000 && combinedDenominator <= 155 && rbDenominator <= 330;
+  }
   if (isOkidokiDuoEncoreMachineName(machineName)) {
     return games >= 2400 && calculateOkidokiDuoHighContentScore(row) >= 65;
   }
