@@ -1314,6 +1314,17 @@ function isOkidokiGoldMachineName(machineName) {
   );
 }
 
+function isHououMachineName(machineName) {
+  const normalizedMachineName = normalizeText(machineName);
+  return [
+    "ハナハナホウオウ",
+    "ハナハナホウオウ-30",
+    "ハナハナホウオウ‐30",
+    "ハナハナホウオウ～天翔～-30",
+    "ハナハナホウオウ～天翔～‐30",
+  ].some((candidateName) => normalizedMachineName === normalizeText(candidateName));
+}
+
 function calculateOkidokiDuoHighContentScore(row) {
   const games = readWindowField(row, "games");
   const bbCount = readWindowField(row, "bbCount");
@@ -1430,8 +1441,8 @@ function isMachineHighContentWindowRow(row, machineName) {
   if (isOkidokiBlackMachineName(machineName)) {
     return games >= 4181 && combinedDenominator <= 142.4 && (rbDenominator <= 367.8 || differenceValue >= 1032);
   }
-  if (normalizedMachineName === normalizeText("ハナハナホウオウ")) {
-    return games >= 5000 && combinedDenominator <= 145 && rbDenominator <= 315;
+  if (isHououMachineName(machineName)) {
+    return games >= 5000 && combinedDenominator <= 155 && rbDenominator <= 380;
   }
 
   return games >= 5000 && combinedDenominator <= 145 && rbDenominator <= 315;
@@ -1496,6 +1507,9 @@ function isMachineStrongHighContentWindowRow(row, machineName) {
   }
   if (isOkidokiBlackMachineName(machineName)) {
     return games >= 4698 && combinedDenominator <= 129.6 && (rbDenominator <= 334.6 || differenceValue >= 1297);
+  }
+  if (isHououMachineName(machineName)) {
+    return games >= 5500 && combinedDenominator <= 150 && rbDenominator <= 360;
   }
 
   return isMachineHighContentWindowRow(row, machineName) && rbDenominator <= 285;
