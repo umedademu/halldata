@@ -603,10 +603,9 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "main",
         "65点以上＋大見せ場3回以上",
-        "35件 / 104.11% / RB1/311.4",
+        "32件 / 103.75% / RB1/318.9",
         {
           minScore: 65,
-          maxDanger: 2,
           requiredFlags: ["bigShow3"],
         },
       ),
@@ -3026,9 +3025,8 @@ function calculateMachineScore(definition, metrics, features) {
     activityScore += previousGames >= 6500 ? 5 : 0;
     activityScore += readNumber(metrics.recentThreeGamesTotal) >= 15000 ? 6 : 0;
     activityScore += readNumber(metrics.recentThreeGamesTotal) >= 18000 ? 3 : 0;
-    activityScore += recentSevenGamesTotal >= 30000 ? 3 : 0;
-    activityScore += recentSevenGamesTotal >= 35000 ? 2 : 0;
-    activityScore = Math.min(activityScore, 25);
+    activityScore += recentSevenGamesTotal >= 30000 ? 5 : 0;
+    activityScore = Math.min(activityScore, 24);
 
     let upScore = 0;
     upScore += readNumber(metrics.recentTwoNetTotal) >= 1000 ? 6 : 0;
@@ -3044,30 +3042,29 @@ function calculateMachineScore(definition, metrics, features) {
     let showScore = 0;
     showScore += features.recentSevenBigShowDays >= 1 ? 5 : 0;
     showScore += features.recentSevenBigShowDays >= 2 ? 5 : 0;
-    showScore += features.recentSevenBigShowDays >= 3 ? 7 : 0;
-    showScore += features.previousBigShow ? 5 : 0;
-    showScore = Math.min(showScore, 22);
+    showScore += features.recentSevenBigShowDays >= 3 ? 6 : 0;
+    showScore += features.previousBigShow ? 4 : 0;
+    showScore = Math.min(showScore, 20);
 
     let bonusScore = 0;
-    bonusScore += previousStrictHighContent ? 9 : 0;
+    bonusScore += previousStrictHighContent ? 7 : 0;
     bonusScore +=
-      !previousStrictHighContent &&
       previousGames >= 4000 &&
       features.previousCombinedDenominator <= 145 &&
       features.previousRbDenominator <= 315
-        ? 6
+        ? 5
         : 0;
     bonusScore += recentThreeStrictHighContentDays >= 1 ? 5 : 0;
     bonusScore += recentSevenStrictHighContentDays >= 2 ? 4 : 0;
-    bonusScore = Math.min(bonusScore, 18);
+    bonusScore = Math.min(bonusScore, 16);
 
     let penalty = 0;
     penalty += previousGames < 2000 ? 8 : 0;
     penalty += readNumber(metrics.recentThreeGamesTotal) < 8000 ? 7 : 0;
     penalty += recentThreeNetTotal <= -2500 && features.recentThreeAngle <= -150 ? 10 : 0;
     penalty += streak >= 3 && readNumber(metrics.recentThreeGamesTotal) < 12000 ? 6 : 0;
-    penalty += Number.isFinite(features.bestRestDays) && features.bestRestDays >= 60 && recentFourteenGamesTotal < 40000 ? 6 : 0;
-    penalty += recentThreeNetTotal >= 4000 && recentThreeHighSettingEstimateCount === 0 && features.previousRbDenominator > 400 ? 5 : 0;
+    penalty += Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 60 && recentFourteenGamesTotal < 40000 ? 6 : 0;
+    penalty += recentThreeNetTotal >= 4000 && recentThreeStrictHighContentDays === 0 && features.previousRbDenominator > 400 ? 5 : 0;
     penalty = Math.min(penalty, 20);
 
     return Math.round(clamp(activityScore + upScore + showScore + bonusScore - penalty, 0, 100));
