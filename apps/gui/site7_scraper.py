@@ -855,7 +855,29 @@ class Site7Scraper:
         history_result: MachineHistoryResult,
     ) -> tuple[str, Site7NoPlayDayStats, datetime] | None:
         current_datetime = self._current_site7_datetime()
-        check_datetime = current_datetime.replace(
+        for stats in site7_result_no_play_day_stats(history_result).values():
+            detected_store_closed = self._detect_store_closed_date_from_no_play_stats(stats, current_datetime)
+            if detected_store_closed is not None:
+                return detected_store_closed
+        return None
+
+    def _detect_store_closed_date_from_no_play_stats(
+        self,
+        stats: Site7NoPlayDayStats,
+        current_datetime: datetime | None = None,
+    ) -> tuple[str, Site7NoPlayDayStats, datetime] | None:
+        updated_at = stats.updated_at
+        if updated_at is None or not stats.all_slots_no_play:
+            return None
+        if updated_at.hour != SITE7_STORE_CLOSED_STALE_UPDATE_HOUR:
+            return None
+
+        current_datetime = current_datetime or self._current_site7_datetime()
+        if updated_at.tzinfo is None or updated_at.utcoffset() is None:
+            updated_at_jst = updated_at.replace(tzinfo=SITE7_JST)
+        else:
+            updated_at_jst = updated_at.astimezone(SITE7_JST)
+        check_datetime = updated_at_jst.replace(
             hour=SITE7_STORE_CLOSED_CHECK_HOUR,
             minute=SITE7_STORE_CLOSED_CHECK_MINUTE,
             second=0,
@@ -864,16 +886,7 @@ class Site7Scraper:
         if current_datetime < check_datetime:
             return None
 
-        for stats in site7_result_no_play_day_stats(history_result).values():
-            updated_at = stats.updated_at
-            if updated_at is None or not stats.all_slots_no_play:
-                continue
-            if updated_at.date() != current_datetime.date():
-                continue
-            if updated_at.hour != SITE7_STORE_CLOSED_STALE_UPDATE_HOUR:
-                continue
-            return updated_at.strftime("%Y-%m-%d"), stats, current_datetime
-        return None
+        return updated_at_jst.strftime("%Y-%m-%d"), stats, current_datetime
 
     def has_saved_login_state(self) -> bool:
         return self.browser_state_dir.exists() and any(self.browser_state_dir.iterdir())
@@ -1158,6 +1171,7 @@ class Site7Scraper:
                     cancel_requested=cancel_requested,
                     machine_protected_slots_callback=machine_protected_slots_callback,
                     store_closed_dates=store_closed_dates,
+                    stop_on_first_day_store_closed=machine_index == 1,
                 )
                 if site7_result_no_play_day_stats(machine_result):
                     saw_no_play_day_stats = True
@@ -1323,6 +1337,7 @@ class Site7Scraper:
         cancel_requested: Callable[[], bool] | None = None,
         machine_protected_slots_callback: Callable[[Site7MachineEntry, list[str], list[str], str | None], set[tuple[str, str]]] | None = None,
         store_closed_dates: set[str] | None = None,
+        stop_on_first_day_store_closed: bool = False,
     ) -> MachineHistoryResult:
         _raise_if_site7_cancel_requested(cancel_requested)
         page.goto(machine_link, wait_until="domcontentloaded", timeout=60_000)
@@ -1342,6 +1357,37 @@ class Site7Scraper:
         site7_updated_at = format_site7_updated_datetime(first_day_updated_datetime)
         latest_date = self.extract_updated_date(first_day_html)
         first_day_source_rows = self.extract_mobile_machine_day_rows(first_day_html)
+        first_day_no_play_stats = self._build_mobile_no_play_day_stats(
+            first_day_source_rows,
+            first_day_updated_datetime,
+        )
+        first_day_store_closed = (
+            self._detect_store_closed_date_from_no_play_stats(first_day_no_play_stats)
+            if stop_on_first_day_store_closed
+            else None
+        )
+        if first_day_store_closed is not None:
+            detected_closed_date, no_play_stats, checked_at = first_day_store_closed
+            self._write_debug_log(
+                "machine_first_day_store_closed_detected",
+                target_date=detected_closed_date,
+                reason="stale_1am_no_play",
+                checked_at=format_site7_updated_datetime(checked_at.replace(tzinfo=None)),
+                site7_updated_at=format_site7_updated_datetime(no_play_stats.updated_at),
+                machine=machine_entry.machine_name,
+                observed_no_play_slots=no_play_stats.no_play_slot_count,
+                observed_slots=no_play_stats.slot_count,
+            )
+            result = MachineHistoryResult(
+                store_name=store_name,
+                store_url=store_url,
+                start_date=detected_closed_date,
+                end_date=detected_closed_date,
+                date_pages=[],
+                datasets=[],
+            )
+            set_site7_result_no_play_day_stats(result, {detected_closed_date: first_day_no_play_stats})
+            return result
         target_dates = [
             (latest_date - timedelta(days=day_index)).strftime("%Y-%m-%d")
             for day_index in range(recent_days)
@@ -1419,10 +1465,13 @@ class Site7Scraper:
                 except ScraperError:
                     updated_datetime = None
 
-            no_play_day_stats[target_date] = self._build_mobile_no_play_day_stats(
-                source_rows,
-                updated_datetime,
-            )
+            if day_index == 0:
+                no_play_day_stats[target_date] = first_day_no_play_stats
+            else:
+                no_play_day_stats[target_date] = self._build_mobile_no_play_day_stats(
+                    source_rows,
+                    updated_datetime,
+                )
             dataset = self._build_mobile_dataset_for_day(
                 html=day_html,
                 store_name=store_name,

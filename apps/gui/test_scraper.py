@@ -104,6 +104,7 @@ from site7_scraper import (
     set_site7_dataset_updated_at,
     set_site7_result_no_play_day_stats,
     site7_dataset_updated_at,
+    site7_result_no_play_day_stats,
     mark_site7_dataset_graph_difference,
     parse_site7_graph_difference_value,
     site7_store_is_known_unavailable,
@@ -2839,6 +2840,64 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(result.skipped_dates, ["2026-06-01"])
         self.assertEqual(result.skipped_targets, [("2026-06-01", "マイジャグラーV")])
         self.assertFalse(any("dtdd=2" in url for url in page.goto_calls))
+
+    def test_site7_mobile_machine_history_stops_on_first_day_store_closed(self) -> None:
+        scraper = Site7Scraper(
+            root_dir=ROOT_DIR,
+            current_datetime_fn=lambda: datetime(2026, 6, 9, 12, 0),
+        )
+
+        def day_html(date_text: str, games_text: str = "--") -> str:
+            return f"""
+<p id="hall_date">データ更新日時：{date_text}</p>
+<table>
+<tr><th>台番</th><th>累計ｹﾞｰﾑ</th><th>BB回数</th><th>RB回数</th></tr>
+<tr><td>1026</td><td>{games_text}</td><td>--</td><td>--</td></tr>
+<tr><td>1027</td><td>{games_text}</td><td>--</td><td>--</td></tr>
+</table>
+"""
+
+        machine_link = "https://m.site777.jp/db/D3310.do?pmc=40100003&mdc=120312&bn=1&pan=1&urt=2173"
+        bonus_link = "https://m.site777.jp/db/D3300.do?pmc=40100003&mdc=120312&bn=1&dtdd=0&pan=1&urt=2173"
+        machine_html = f'<a href="{bonus_link}">大当り一覧</a>'
+
+        class FakeMobilePage:
+            def __init__(self) -> None:
+                self.url = machine_link
+                self.goto_calls: list[str] = []
+                self.html_by_url = {
+                    machine_link: machine_html,
+                    bonus_link: day_html("2026/06/08 01:00"),
+                    bonus_link.replace("dtdd=0", "dtdd=1"): day_html("2026/06/07 23:20", "1200"),
+                }
+
+            def goto(self, url: str, wait_until: str = "", timeout: int = 0) -> None:
+                self.goto_calls.append(url)
+                self.url = url
+
+            def content(self) -> str:
+                return self.html_by_url.get(self.url, "")
+
+        page = FakeMobilePage()
+        scraper._wait_between_transitions = mock.Mock()
+        scraper._accept_cookie_banner_if_present = mock.Mock()
+
+        result = scraper._fetch_mobile_machine_history_result(
+            page=page,
+            store_url="https://example.com/store",
+            store_name="Aパーク春日店",
+            machine_entry=Site7MachineEntry(display_name="マイジャグラーV", machine_name="マイジャグラーV"),
+            machine_link=machine_link,
+            recent_days=3,
+            stop_on_first_day_store_closed=True,
+        )
+
+        self.assertEqual(result.start_date, "2026-06-08")
+        self.assertEqual(result.end_date, "2026-06-08")
+        self.assertEqual(result.datasets, [])
+        self.assertEqual(result.skipped_dates, [])
+        self.assertEqual(set(site7_result_no_play_day_stats(result)), {"2026-06-08"})
+        self.assertFalse(any("dtdd=1" in url for url in page.goto_calls))
 
     def test_site7_visible_browser_closes_when_fetch_is_cancelled(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
