@@ -61,8 +61,12 @@ SITE7_DEBUG_LOG_DIR_NAME = "logs/site7"
 SITE7_DIFFERENCE_SOURCE_GRAPH = "graph"
 SITE7_GRAPH_DIFFERENCE_SLOT_ATTR = "_site7_graph_difference_slots"
 SITE7_DATA_UPDATED_AT_ATTR = "_site7_data_updated_at"
+SITE7_NO_PLAY_DAY_STATS_ATTR = "_site7_no_play_day_stats"
 SITE7_BROWSER_STATE_DIR_NAME = "site7_browser"
 SITE7_DATE_BOUNDARY_HOUR = 4
+SITE7_STORE_CLOSED_SKIP_EMPTY_SLOT_THRESHOLD = 40
+SITE7_STORE_CLOSED_SKIP_UPDATED_HOUR = 11
+SITE7_STORE_CLOSED_SKIP_UPDATED_MINUTE = 15
 SITE7_JST = timezone(timedelta(hours=9))
 SITE7_UPDATE_DATE_PATTERN = re.compile(
     r"データ更新日時：\s*(\d{4})/(\d{1,2})/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?"
@@ -430,10 +434,40 @@ def copy_site7_dataset_metadata(source: MachineDataset, target: MachineDataset) 
     return target
 
 
+def set_site7_result_no_play_day_stats(
+    history_result: MachineHistoryResult,
+    stats_by_date: dict[str, Site7NoPlayDayStats],
+) -> None:
+    setattr(history_result, SITE7_NO_PLAY_DAY_STATS_ATTR, dict(stats_by_date))
+
+
+def site7_result_no_play_day_stats(history_result: MachineHistoryResult) -> dict[str, Site7NoPlayDayStats]:
+    stats_by_date = getattr(history_result, SITE7_NO_PLAY_DAY_STATS_ATTR, None)
+    if not isinstance(stats_by_date, dict):
+        return {}
+    return {
+        str(target_date): stats
+        for target_date, stats in stats_by_date.items()
+        if isinstance(stats, Site7NoPlayDayStats)
+    }
+
+
 @dataclass(frozen=True)
 class Site7MachineEntry:
     display_name: str
     machine_name: str
+
+
+@dataclass(frozen=True)
+class Site7NoPlayDayStats:
+    slot_count: int
+    no_play_slot_count: int
+    has_play_data: bool
+    updated_at: datetime | None = None
+
+    @property
+    def all_slots_no_play(self) -> bool:
+        return self.slot_count > 0 and self.no_play_slot_count == self.slot_count and not self.has_play_data
 
 
 @dataclass(frozen=True)
@@ -796,6 +830,56 @@ def _site7_debug_field_value(value: object) -> str:
     return text
 
 
+class Site7StoreClosedDayTracker:
+    def __init__(self) -> None:
+        self.closed_dates: set[str] = set()
+        self._observed_target_dates: set[str] = set()
+        self._slot_count_by_date: dict[str, int] = {}
+        self._has_play_data_by_date: dict[str, bool] = {}
+        self._machine_counts_by_date: dict[str, list[tuple[str, int]]] = {}
+
+    @property
+    def observed_target_dates(self) -> set[str]:
+        return set(self._observed_target_dates)
+
+    def observe(self, machine_name: str, history_result: MachineHistoryResult) -> list[str]:
+        detected_dates: list[str] = []
+        for target_date, stats in site7_result_no_play_day_stats(history_result).items():
+            self._observed_target_dates.add(target_date)
+            if target_date in self.closed_dates:
+                continue
+            if not self._stats_can_count_for_store_closed_skip(stats):
+                continue
+
+            if stats.has_play_data or not stats.all_slots_no_play:
+                self._has_play_data_by_date[target_date] = True
+                continue
+
+            self._slot_count_by_date[target_date] = self._slot_count_by_date.get(target_date, 0) + stats.no_play_slot_count
+            self._machine_counts_by_date.setdefault(target_date, []).append((machine_name, stats.no_play_slot_count))
+            if self._has_play_data_by_date.get(target_date):
+                continue
+            if self._slot_count_by_date[target_date] < SITE7_STORE_CLOSED_SKIP_EMPTY_SLOT_THRESHOLD:
+                continue
+
+            self.closed_dates.add(target_date)
+            detected_dates.append(target_date)
+        return detected_dates
+
+    def count_for_date(self, target_date: str) -> int:
+        return self._slot_count_by_date.get(target_date, 0)
+
+    def machine_counts_for_date(self, target_date: str) -> list[tuple[str, int]]:
+        return list(self._machine_counts_by_date.get(target_date, []))
+
+    def _stats_can_count_for_store_closed_skip(self, stats: Site7NoPlayDayStats) -> bool:
+        if stats.slot_count <= 0 or stats.updated_at is None:
+            return False
+        updated_minutes = stats.updated_at.hour * 60 + stats.updated_at.minute
+        threshold_minutes = SITE7_STORE_CLOSED_SKIP_UPDATED_HOUR * 60 + SITE7_STORE_CLOSED_SKIP_UPDATED_MINUTE
+        return updated_minutes >= threshold_minutes
+
+
 class Site7Scraper:
     def __init__(self, root_dir: Path | None = None) -> None:
         self.root_dir = root_dir or ROOT_DIR
@@ -1031,6 +1115,8 @@ class Site7Scraper:
         context = None
         machine_results: list[MachineHistoryResult] = []
         deferred_graph_targets: list[tuple[MachineHistoryResult, str, str]] = []
+        store_closed_tracker = Site7StoreClosedDayTracker()
+        saw_no_play_day_stats = False
         try:
             playwright, context = self._launch_mobile_browser_context(browser_visible=browser_visible)
             page = self._prepare_fetch_page(context, browser_visible=browser_visible)
@@ -1085,7 +1171,26 @@ class Site7Scraper:
                     recent_days=target_days,
                     cancel_requested=cancel_requested,
                     machine_protected_slots_callback=machine_protected_slots_callback,
+                    store_closed_dates=store_closed_tracker.closed_dates,
                 )
+                if site7_result_no_play_day_stats(machine_result):
+                    saw_no_play_day_stats = True
+                detected_closed_dates = store_closed_tracker.observe(machine_entry.machine_name, machine_result)
+                for detected_closed_date in detected_closed_dates:
+                    observed_count = store_closed_tracker.count_for_date(detected_closed_date)
+                    self._write_debug_log(
+                        "store_closed_day_detected",
+                        target_date=detected_closed_date,
+                        observed_no_play_slots=observed_count,
+                        threshold=SITE7_STORE_CLOSED_SKIP_EMPTY_SLOT_THRESHOLD,
+                        machines=store_closed_tracker.machine_counts_for_date(detected_closed_date),
+                    )
+                    self._notify_progress(
+                        progress_callback,
+                        machine_index,
+                        total_steps,
+                        f"{resolved_target_store.display_name} / {detected_closed_date} は店休日扱いでスキップします",
+                    )
                 if machine_result_filter_callback is not None:
                     machine_result = machine_result_filter_callback(machine_result)
                     self._write_debug_log(
@@ -1112,6 +1217,15 @@ class Site7Scraper:
                 machine_results.append(machine_result)
                 if machine_result_callback is not None and not (include_graph_differences and defer_graph_differences):
                     machine_result_callback(machine_result)
+                if (
+                    store_closed_tracker.observed_target_dates
+                    and store_closed_tracker.observed_target_dates.issubset(store_closed_tracker.closed_dates)
+                ):
+                    self._write_debug_log(
+                        "store_closed_all_observed_dates_skipped",
+                        closed_dates=store_closed_tracker.closed_dates,
+                    )
+                    break
 
             if include_graph_differences and defer_graph_differences:
                 graph_total_steps = max(total_steps, len(target_machine_items) + 2)
@@ -1135,6 +1249,14 @@ class Site7Scraper:
                         )
                     if machine_result_callback is not None:
                         machine_result_callback(machine_result)
+            if store_closed_tracker.closed_dates:
+                self._apply_store_closed_date_skips(
+                    machine_results=machine_results,
+                    target_machine_items=target_machine_items,
+                    closed_dates=store_closed_tracker.closed_dates,
+                    store_name=store_name,
+                    store_url=hall_page_url,
+                )
         except PlaywrightError as exc:
             self._write_debug_log("fetch_playwright_error", error=exc)
             raise self._wrap_playwright_error(exc) from exc
@@ -1145,6 +1267,13 @@ class Site7Scraper:
             self._release_browser_context(playwright, context)
 
         _raise_if_site7_cancel_requested(cancel_requested)
+        if (
+            machine_results
+            and not store_closed_tracker.closed_dates
+            and not any(result.datasets or result.skipped_targets for result in machine_results)
+            and saw_no_play_day_stats
+        ):
+            raise ScraperError("スマホ版サイトセブンで有効な台データが見つかりませんでした。")
         self._notify_progress(
             progress_callback,
             len(machine_results) + 1,
@@ -1155,6 +1284,45 @@ class Site7Scraper:
             machine_results,
             fallback_store_name=store_name if "store_name" in locals() else resolved_target_store.display_name,
             store_url=hall_page_url if "hall_page_url" in locals() else resolved_target_store.direct_hall_url,
+        )
+
+    def _apply_store_closed_date_skips(
+        self,
+        *,
+        machine_results: list[MachineHistoryResult],
+        target_machine_items: list[tuple[Site7MachineEntry, str]],
+        closed_dates: set[str],
+        store_name: str,
+        store_url: str,
+    ) -> None:
+        if not closed_dates:
+            return
+        closed_date_set = set(closed_dates)
+        for machine_result in machine_results:
+            machine_result.datasets = [
+                dataset for dataset in machine_result.datasets if dataset.target_date not in closed_date_set
+            ]
+            machine_result.date_pages = [
+                date_page for date_page in machine_result.date_pages if date_page.target_date not in closed_date_set
+            ]
+
+        machine_names = [machine_entry.machine_name for machine_entry, _ in target_machine_items]
+        skipped_targets = [
+            (target_date, machine_name)
+            for target_date in sorted(closed_date_set)
+            for machine_name in machine_names
+        ]
+        machine_results.append(
+            MachineHistoryResult(
+                store_name=store_name,
+                store_url=store_url,
+                start_date=min(closed_date_set),
+                end_date=max(closed_date_set),
+                date_pages=[],
+                datasets=[],
+                skipped_targets=skipped_targets,
+                skipped_dates=sorted(closed_date_set),
+            )
         )
 
     def _fetch_mobile_machine_history_result(
@@ -1168,6 +1336,7 @@ class Site7Scraper:
         recent_days: int,
         cancel_requested: Callable[[], bool] | None = None,
         machine_protected_slots_callback: Callable[[Site7MachineEntry, list[str], list[str], str | None], set[tuple[str, str]]] | None = None,
+        store_closed_dates: set[str] | None = None,
     ) -> MachineHistoryResult:
         _raise_if_site7_cancel_requested(cancel_requested)
         page.goto(machine_link, wait_until="domcontentloaded", timeout=60_000)
@@ -1183,14 +1352,16 @@ class Site7Scraper:
         self._accept_cookie_banner_if_present(page)
         self._wait_between_transitions(page, cancel_requested=cancel_requested)
         first_day_html = page.content()
-        site7_updated_at = format_site7_updated_datetime(self.extract_updated_datetime(first_day_html))
+        first_day_updated_datetime = self.extract_updated_datetime(first_day_html)
+        site7_updated_at = format_site7_updated_datetime(first_day_updated_datetime)
         latest_date = self.extract_updated_date(first_day_html)
+        first_day_source_rows = self.extract_mobile_machine_day_rows(first_day_html)
         target_dates = [
             (latest_date - timedelta(days=day_index)).strftime("%Y-%m-%d")
             for day_index in range(recent_days)
         ]
         first_day_slot_numbers = sorted(
-            self.extract_mobile_machine_day_rows(first_day_html),
+            first_day_source_rows,
             key=lambda value: int(value) if value.isdigit() else value,
         )
         protected_slots: set[tuple[str, str]] = set()
@@ -1217,8 +1388,21 @@ class Site7Scraper:
         date_pages: list[StoreDatePage] = []
         skipped_targets: list[tuple[str, str]] = []
         skipped_dates: list[str] = []
+        no_play_day_stats: dict[str, Site7NoPlayDayStats] = {}
+        store_closed_date_set = set(store_closed_dates or set())
         for day_index, target_date in enumerate(target_dates):
             day_url = self._replace_mobile_query_param(bonus_list_link, "dtdd", str(day_index))
+            if target_date in store_closed_date_set:
+                self._write_debug_log(
+                    "machine_day_skipped_store_closed",
+                    machine=machine_entry.machine_name,
+                    target_date=target_date,
+                    reason="store_closed_detected",
+                )
+                skipped_targets.append((target_date, machine_entry.machine_name))
+                if target_date not in skipped_dates:
+                    skipped_dates.append(target_date)
+                continue
             if self._mobile_day_is_fully_protected(target_date, first_day_slot_numbers, protected_slots):
                 self._write_debug_log(
                     "machine_day_skipped_before_open",
@@ -1234,6 +1418,8 @@ class Site7Scraper:
             if day_index == 0:
                 day_html = first_day_html
                 resolved_day_url = str(page.url)
+                source_rows = first_day_source_rows
+                updated_datetime = first_day_updated_datetime
             else:
                 _raise_if_site7_cancel_requested(cancel_requested)
                 page.goto(day_url, wait_until="domcontentloaded", timeout=60_000)
@@ -1241,7 +1427,16 @@ class Site7Scraper:
                 self._wait_between_transitions(page, cancel_requested=cancel_requested)
                 day_html = page.content()
                 resolved_day_url = str(page.url)
+                source_rows = self.extract_mobile_machine_day_rows(day_html)
+                try:
+                    updated_datetime = self.extract_updated_datetime(day_html)
+                except ScraperError:
+                    updated_datetime = None
 
+            no_play_day_stats[target_date] = self._build_mobile_no_play_day_stats(
+                source_rows,
+                updated_datetime,
+            )
             dataset = self._build_mobile_dataset_for_day(
                 html=day_html,
                 store_name=store_name,
@@ -1250,6 +1445,7 @@ class Site7Scraper:
                 date_url=resolved_day_url or day_url,
                 machine_name=machine_entry.machine_name,
                 machine_url=machine_page_url,
+                source_rows=source_rows,
             )
             self._filter_mobile_dataset_protected_rows(dataset, protected_slots)
             self._write_debug_log(
@@ -1269,12 +1465,24 @@ class Site7Scraper:
             date_pages.append(StoreDatePage(target_date=target_date, date_url=resolved_day_url or day_url))
 
         if not datasets and not skipped_targets:
+            if any(stats.slot_count > 0 for stats in no_play_day_stats.values()):
+                candidate_dates = [*target_dates, *no_play_day_stats.keys()]
+                result = MachineHistoryResult(
+                    store_name=store_name,
+                    store_url=store_url,
+                    start_date=min(candidate_dates) if candidate_dates else "",
+                    end_date=max(candidate_dates) if candidate_dates else "",
+                    date_pages=[],
+                    datasets=[],
+                )
+                set_site7_result_no_play_day_stats(result, no_play_day_stats)
+                return result
             raise ScraperError(f"スマホ版サイトセブンで {machine_entry.machine_name} の台データが見つかりませんでした。")
 
         datasets.sort(key=lambda dataset: dataset.target_date)
         date_pages.sort(key=lambda date_page: date_page.target_date)
         candidate_dates = [*target_dates, *skipped_dates]
-        return MachineHistoryResult(
+        result = MachineHistoryResult(
             store_name=store_name,
             store_url=store_url,
             start_date=min(candidate_dates) if candidate_dates else "",
@@ -1284,6 +1492,8 @@ class Site7Scraper:
             skipped_targets=skipped_targets,
             skipped_dates=skipped_dates,
         )
+        set_site7_result_no_play_day_stats(result, no_play_day_stats)
+        return result
 
     def _mobile_day_is_fully_protected(
         self,
@@ -1465,11 +1675,14 @@ class Site7Scraper:
         date_url: str,
         machine_name: str,
         machine_url: str,
+        source_rows: dict[str, dict[str, str]] | None = None,
     ) -> MachineDataset:
-        source_rows = self.extract_mobile_machine_day_rows(html)
+        source_rows = source_rows if source_rows is not None else self.extract_mobile_machine_day_rows(html)
         rows: list[list[str]] = []
         for slot_number in sorted(source_rows, key=lambda value: int(value) if value.isdigit() else value):
             row_values = source_rows[slot_number]
+            if self._mobile_machine_day_row_is_no_play(row_values):
+                continue
             if not any(site7_value_has_data(row_values.get(column_name, "")) for column_name in SITE7_MOBILE_STAT_COLUMNS):
                 continue
 
@@ -1510,6 +1723,35 @@ class Site7Scraper:
         except ScraperError:
             pass
         return dataset
+
+    def _build_mobile_no_play_day_stats(
+        self,
+        source_rows: dict[str, dict[str, str]],
+        updated_at: datetime | None,
+    ) -> Site7NoPlayDayStats:
+        no_play_slot_count = sum(
+            1
+            for row_values in source_rows.values()
+            if self._mobile_machine_day_row_is_no_play(row_values)
+        )
+        return Site7NoPlayDayStats(
+            slot_count=len(source_rows),
+            no_play_slot_count=no_play_slot_count,
+            has_play_data=no_play_slot_count < len(source_rows),
+            updated_at=updated_at,
+        )
+
+    def _mobile_machine_day_row_is_no_play(self, row_values: dict[str, str]) -> bool:
+        return all(
+            self._mobile_stat_value_is_empty_or_zero(row_values.get(column_name, ""))
+            for column_name in SITE7_MOBILE_STAT_COLUMNS
+        )
+
+    def _mobile_stat_value_is_empty_or_zero(self, value: object) -> bool:
+        if not site7_value_has_data(str(value)):
+            return True
+        parsed_value = self._parse_mobile_stat_int(value)
+        return parsed_value == 0
 
     def extract_mobile_machine_day_rows(self, html: str) -> dict[str, dict[str, str]]:
         soup = BeautifulSoup(html, "html.parser")
