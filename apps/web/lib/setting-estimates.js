@@ -461,6 +461,10 @@ export function readGrapeSettingEstimateObservation(definition, record) {
   return readStoredGrapeObservation(record) ?? calculateGrapeObservation(definition, record);
 }
 
+export function isJugglerSettingEstimateDefinition(definition) {
+  return String(definition?.key ?? "").includes("juggler");
+}
+
 export function getSettingEstimateScoreRange(definition) {
   const settings = definition?.settingRates
     ?.map((row) => row.setting)

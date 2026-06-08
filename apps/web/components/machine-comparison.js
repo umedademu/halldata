@@ -44,6 +44,7 @@ import {
   getSettingEstimateScoreRange,
   getSettingEstimateDefinition,
   getSettingEstimateHighlightClass,
+  isJugglerSettingEstimateDefinition,
   normalizeSettingEstimateMode,
   SETTING_ESTIMATE_MODE_OPTIONS,
 } from "../lib/setting-estimates";
@@ -682,7 +683,7 @@ function readMachineComparisonOptions(storeId, defaults, options = {}) {
           source.settingEstimateMode ?? defaults.settingEstimateMode,
         ),
     visibleMetricKeys: normalizeMachineComparisonMetricKeys(source, defaults),
-    estimateOptions: options.preferDefaultEstimateOptions && !source.estimateOptions
+    estimateOptions: options.forceDefaultEstimateOptions || (options.preferDefaultEstimateOptions && !source.estimateOptions)
       ? defaults.estimateOptions
       : normalizeEstimateOptions(source.estimateOptions, defaults.estimateOptions),
     verificationTargetMode: normalizeVerificationTargetMode(
@@ -1651,6 +1652,33 @@ function HuntScoreHighlightControls({
   );
 }
 
+function SettingEstimateModeOptions({
+  settingEstimateMode,
+  onSettingEstimateModeChange,
+}) {
+  return (
+    <div className="metricToggleRow">
+      {SETTING_ESTIMATE_MODE_OPTIONS.map((option) => (
+        <label
+          key={option.value}
+          className={`metricToggleChip ${
+            settingEstimateMode === option.value ? "metricToggleChipActive" : ""
+          }`}
+        >
+          <input
+            type="radio"
+            name="machineSettingEstimateMode"
+            value={option.value}
+            checked={settingEstimateMode === option.value}
+            onChange={() => onSettingEstimateModeChange(option.value)}
+          />
+          <span>{option.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
 function SettingEstimateControls({
   settingEstimateMode,
   onSettingEstimateModeChange,
@@ -1672,25 +1700,10 @@ function SettingEstimateControls({
             <p className="estimateMethodTitle">設定推定基準</p>
           </div>
         </div>
-        <div className="metricToggleRow">
-          {SETTING_ESTIMATE_MODE_OPTIONS.map((option) => (
-            <label
-              key={option.value}
-              className={`metricToggleChip ${
-                settingEstimateMode === option.value ? "metricToggleChipActive" : ""
-              }`}
-            >
-              <input
-                type="radio"
-                name="machineSettingEstimateMode"
-                value={option.value}
-                checked={settingEstimateMode === option.value}
-                onChange={() => onSettingEstimateModeChange(option.value)}
-              />
-              <span>{option.label}</span>
-            </label>
-          ))}
-        </div>
+        <SettingEstimateModeOptions
+          settingEstimateMode={settingEstimateMode}
+          onSettingEstimateModeChange={onSettingEstimateModeChange}
+        />
       </div>
 
       <div className="estimateControlHeader">
@@ -2488,6 +2501,7 @@ export function MachineComparison({
   const [machineComparisonOptionsLoadedStoreId, setMachineComparisonOptionsLoadedStoreId] =
     useState("");
   const estimateOptionsTouchedRef = useRef(false);
+  const effectiveEstimateOptions = verificationMode ? estimateOptions : defaultEstimateOptions;
   const huntScoreHighlightAvailableMachineNames = useMemo(
     () => normalizeAvailableHuntScoreMachineNames(huntScoreHighlight?.availableMachineNames),
     [huntScoreHighlight],
@@ -2608,11 +2622,11 @@ export function MachineComparison({
         slotNumbers,
         periodFilteredRows,
         eventFilters,
-        estimateOptions,
+        effectiveEstimateOptions,
         settingEstimateMode,
       ),
     [
-      estimateOptions,
+      effectiveEstimateOptions,
       eventFilters,
       periodFilteredRows,
       settingEstimateDefinition,
@@ -2630,16 +2644,28 @@ export function MachineComparison({
       ),
     [periodFilteredRows, settingEstimateDefinition, slotNumbers],
   );
+  const hasJugglerSettingEstimateMode = useMemo(
+    () =>
+      isJugglerSettingEstimateDefinition(settingEstimateDefinition) ||
+      periodFilteredRows.some((row) =>
+        slotNumbers.some((slotNumber) =>
+          isJugglerSettingEstimateDefinition(
+            getSettingEstimateDefinition(row.recordsBySlot?.[slotNumber]?.machine_name),
+          ),
+        ),
+      ),
+    [periodFilteredRows, settingEstimateDefinition, slotNumbers],
+  );
   const getCompositeSettingEstimate = useCallback(
     (record) =>
       buildCompositeSettingEstimate(
         settingEstimateDefinition,
         record,
         comparisonEstimateMap,
-        estimateOptions,
+        effectiveEstimateOptions,
         settingEstimateMode,
       ),
-    [comparisonEstimateMap, estimateOptions, settingEstimateDefinition, settingEstimateMode],
+    [comparisonEstimateMap, effectiveEstimateOptions, settingEstimateDefinition, settingEstimateMode],
   );
   const getHuntScoreNextGapValue = useCallback(
     (record, context) =>
@@ -2724,6 +2750,7 @@ export function MachineComparison({
       preferInitialHuntScoreDifferenceMode: initialHuntScoreDifferenceModeFromSearchParams,
       preferInitialSettingEstimateMode: initialSettingEstimateModeFromSearchParams,
       preferDefaultEstimateOptions,
+      forceDefaultEstimateOptions: !verificationMode,
     });
     const nextHuntScoreDifferenceMode = normalizeDifferenceMode(options.huntScoreDifferenceMode);
     const nextSettingEstimateMode = normalizeSettingEstimateMode(options.settingEstimateMode);
@@ -2760,6 +2787,7 @@ export function MachineComparison({
     initialSettingEstimateMode,
     machineComparisonStorageScopeKey,
     storeId,
+    verificationMode,
   ]);
 
   useEffect(() => {
@@ -2783,12 +2811,13 @@ export function MachineComparison({
       huntScoreDifferenceMode,
       settingEstimateMode,
       visibleMetricKeys,
-      estimateOptions,
+      estimateOptions: effectiveEstimateOptions,
       verificationTargetMode,
       verificationSettingRankMin,
       verificationSettingRankMax,
       verificationSettingMinGames,
-      preserveEstimateOptions: preferDefaultEstimateOptions && !estimateOptionsTouchedRef.current,
+      preserveEstimateOptions:
+        verificationMode && preferDefaultEstimateOptions && !estimateOptionsTouchedRef.current,
       displayControlsOpen,
       settingControlsOpen,
       verificationControlsOpen,
@@ -2797,7 +2826,7 @@ export function MachineComparison({
   }, [
     displayControlsOpen,
     displayDifferenceMode,
-    estimateOptions,
+    effectiveEstimateOptions,
     eventFilters,
     huntScoreControlsOpen,
     huntScoreDifferenceMode,
@@ -2817,6 +2846,7 @@ export function MachineComparison({
     verificationControlsOpen,
     visibleMetricKeys,
     preferDefaultEstimateOptions,
+    verificationMode,
   ]);
 
   useEffect(() => {
@@ -3349,6 +3379,15 @@ export function MachineComparison({
             ))}
           </div>
         </div>
+        {!verificationMode && hasJugglerSettingEstimateMode ? (
+          <div className="filterControlGroup">
+            <p className="filterControlLabel">設定推定基準</p>
+            <SettingEstimateModeOptions
+              settingEstimateMode={settingEstimateMode}
+              onSettingEstimateModeChange={updateSettingEstimateMode}
+            />
+          </div>
+        ) : null}
         <div className="filterControlGroup">
           <p className="filterControlLabel">差枚列の表示基準</p>
           <div className="metricToggleRow">
@@ -3470,7 +3509,7 @@ export function MachineComparison({
           </div>
           </div>
         </CollapsibleControlGroup>
-        {hasSettingEstimate ? (
+        {verificationMode && hasSettingEstimate ? (
           <CollapsibleControlGroup
             title="設定推測"
             open={settingControlsOpen}
