@@ -2639,12 +2639,16 @@ class MinRepoScraperTests(unittest.TestCase):
         filter_callback.assert_called_once_with(raw_result)
         self.assertEqual(partial_results, [filtered_result])
 
-    def test_site7_fetch_detects_store_closed_after_40_no_play_slots(self) -> None:
-        scraper = Site7Scraper(root_dir=ROOT_DIR)
+    def test_site7_fetch_detects_store_closed_after_first_no_play_stale_1am_update(self) -> None:
+        scraper = Site7Scraper(
+            root_dir=ROOT_DIR,
+            current_datetime_fn=lambda: datetime(2026, 6, 8, 11, 15),
+        )
         page = FakeRetainedPage()
         context = FakeRetainedContext(page)
         playwright = FakePlayableBrowser()
-        target_date = "2026-06-07"
+        site7_target_date = "2026-06-07"
+        closed_date = "2026-06-08"
         target_items = [
             (Site7MachineEntry(display_name="マイジャグラーV", machine_name="マイジャグラーV"), "https://example.com/my"),
             (Site7MachineEntry(display_name="SアイムジャグラーＥＸ", machine_name="SアイムジャグラーＥＸ"), "https://example.com/im"),
@@ -2658,19 +2662,19 @@ class MinRepoScraperTests(unittest.TestCase):
             result = MachineHistoryResult(
                 store_name="Aパーク春日店",
                 store_url="https://example.com/hall",
-                start_date=target_date,
-                end_date=target_date,
+                start_date=site7_target_date,
+                end_date=site7_target_date,
                 date_pages=[],
                 datasets=[],
             )
             set_site7_result_no_play_day_stats(
                 result,
                 {
-                    target_date: Site7NoPlayDayStats(
+                    site7_target_date: Site7NoPlayDayStats(
                         slot_count=slot_count,
                         no_play_slot_count=slot_count,
                         has_play_data=False,
-                        updated_at=datetime(2026, 6, 7, 11, 15),
+                        updated_at=datetime(2026, 6, 8, 1, 0),
                     )
                 },
             )
@@ -2686,23 +2690,28 @@ class MinRepoScraperTests(unittest.TestCase):
         scraper._accept_cookie_banner_if_present = mock.Mock()
         scraper._fetch_mobile_machine_history_result = mock.Mock(
             side_effect=[
-                no_play_result("マイジャグラーV", 30),
+                no_play_result("マイジャグラーV", 4),
                 no_play_result("SアイムジャグラーＥＸ", 10),
             ]
         )
 
         result = scraper.fetch_target_machine_history(recent_days=1)
 
-        self.assertEqual(scraper._fetch_mobile_machine_history_result.call_count, 2)
+        self.assertEqual(scraper._fetch_mobile_machine_history_result.call_count, 1)
         self.assertEqual(result.datasets, [])
-        self.assertEqual(result.skipped_dates, [target_date])
+        self.assertEqual(result.start_date, closed_date)
+        self.assertEqual(result.end_date, closed_date)
+        self.assertEqual(result.skipped_dates, [closed_date])
         self.assertEqual(
             set(result.skipped_targets),
-            {(target_date, machine_entry.machine_name) for machine_entry, _ in target_items},
+            {(closed_date, machine_entry.machine_name) for machine_entry, _ in target_items},
         )
 
     def test_site7_fetch_does_not_store_closed_skip_before_1115(self) -> None:
-        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        scraper = Site7Scraper(
+            root_dir=ROOT_DIR,
+            current_datetime_fn=lambda: datetime(2026, 6, 8, 11, 14),
+        )
         page = FakeRetainedPage()
         context = FakeRetainedContext(page)
         playwright = FakePlayableBrowser()
@@ -2724,7 +2733,7 @@ class MinRepoScraperTests(unittest.TestCase):
                         slot_count=slot_count,
                         no_play_slot_count=slot_count,
                         has_play_data=False,
-                        updated_at=datetime(2026, 6, 7, 11, 14),
+                        updated_at=datetime(2026, 6, 8, 1, 0),
                     )
                 },
             )
@@ -2762,6 +2771,7 @@ class MinRepoScraperTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ScraperError, "有効な台データ"):
             scraper.fetch_target_machine_history(recent_days=1, machine_result_filter_callback=drop_no_play_stats)
+        self.assertEqual(scraper._fetch_mobile_machine_history_result.call_count, 2)
 
     def test_site7_mobile_machine_history_skips_fully_protected_old_day_pages(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)

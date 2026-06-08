@@ -64,9 +64,9 @@ SITE7_DATA_UPDATED_AT_ATTR = "_site7_data_updated_at"
 SITE7_NO_PLAY_DAY_STATS_ATTR = "_site7_no_play_day_stats"
 SITE7_BROWSER_STATE_DIR_NAME = "site7_browser"
 SITE7_DATE_BOUNDARY_HOUR = 4
-SITE7_STORE_CLOSED_SKIP_EMPTY_SLOT_THRESHOLD = 40
-SITE7_STORE_CLOSED_SKIP_UPDATED_HOUR = 11
-SITE7_STORE_CLOSED_SKIP_UPDATED_MINUTE = 15
+SITE7_STORE_CLOSED_CHECK_HOUR = 11
+SITE7_STORE_CLOSED_CHECK_MINUTE = 15
+SITE7_STORE_CLOSED_STALE_UPDATE_HOUR = 1
 SITE7_JST = timezone(timedelta(hours=9))
 SITE7_UPDATE_DATE_PATTERN = re.compile(
     r"データ更新日時：\s*(\d{4})/(\d{1,2})/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?"
@@ -830,64 +830,50 @@ def _site7_debug_field_value(value: object) -> str:
     return text
 
 
-class Site7StoreClosedDayTracker:
-    def __init__(self) -> None:
-        self.closed_dates: set[str] = set()
-        self._observed_target_dates: set[str] = set()
-        self._slot_count_by_date: dict[str, int] = {}
-        self._has_play_data_by_date: dict[str, bool] = {}
-        self._machine_counts_by_date: dict[str, list[tuple[str, int]]] = {}
-
-    @property
-    def observed_target_dates(self) -> set[str]:
-        return set(self._observed_target_dates)
-
-    def observe(self, machine_name: str, history_result: MachineHistoryResult) -> list[str]:
-        detected_dates: list[str] = []
-        for target_date, stats in site7_result_no_play_day_stats(history_result).items():
-            self._observed_target_dates.add(target_date)
-            if target_date in self.closed_dates:
-                continue
-            if not self._stats_can_count_for_store_closed_skip(stats):
-                continue
-
-            if stats.has_play_data or not stats.all_slots_no_play:
-                self._has_play_data_by_date[target_date] = True
-                continue
-
-            self._slot_count_by_date[target_date] = self._slot_count_by_date.get(target_date, 0) + stats.no_play_slot_count
-            self._machine_counts_by_date.setdefault(target_date, []).append((machine_name, stats.no_play_slot_count))
-            if self._has_play_data_by_date.get(target_date):
-                continue
-            if self._slot_count_by_date[target_date] < SITE7_STORE_CLOSED_SKIP_EMPTY_SLOT_THRESHOLD:
-                continue
-
-            self.closed_dates.add(target_date)
-            detected_dates.append(target_date)
-        return detected_dates
-
-    def count_for_date(self, target_date: str) -> int:
-        return self._slot_count_by_date.get(target_date, 0)
-
-    def machine_counts_for_date(self, target_date: str) -> list[tuple[str, int]]:
-        return list(self._machine_counts_by_date.get(target_date, []))
-
-    def _stats_can_count_for_store_closed_skip(self, stats: Site7NoPlayDayStats) -> bool:
-        if stats.slot_count <= 0 or stats.updated_at is None:
-            return False
-        updated_minutes = stats.updated_at.hour * 60 + stats.updated_at.minute
-        threshold_minutes = SITE7_STORE_CLOSED_SKIP_UPDATED_HOUR * 60 + SITE7_STORE_CLOSED_SKIP_UPDATED_MINUTE
-        return updated_minutes >= threshold_minutes
-
-
 class Site7Scraper:
-    def __init__(self, root_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        root_dir: Path | None = None,
+        current_datetime_fn: Callable[[], datetime] | None = None,
+    ) -> None:
         self.root_dir = root_dir or ROOT_DIR
         self.browser_state_dir = self.root_dir / "local_data" / SITE7_BROWSER_STATE_DIR_NAME
         self.debug_log_dir = self.root_dir / "local_data" / SITE7_DEBUG_LOG_DIR_NAME
         self._debug_log_path: Path | None = None
         self._visible_playwright: object | None = None
         self._visible_context: object | None = None
+        self._current_datetime_fn = current_datetime_fn
+
+    def _current_site7_datetime(self) -> datetime:
+        current_datetime = self._current_datetime_fn() if self._current_datetime_fn is not None else datetime.now(SITE7_JST)
+        if current_datetime.tzinfo is None or current_datetime.utcoffset() is None:
+            return current_datetime.replace(tzinfo=SITE7_JST)
+        return current_datetime.astimezone(SITE7_JST)
+
+    def _detect_store_closed_date_from_first_machine(
+        self,
+        history_result: MachineHistoryResult,
+    ) -> tuple[str, Site7NoPlayDayStats, datetime] | None:
+        current_datetime = self._current_site7_datetime()
+        check_datetime = current_datetime.replace(
+            hour=SITE7_STORE_CLOSED_CHECK_HOUR,
+            minute=SITE7_STORE_CLOSED_CHECK_MINUTE,
+            second=0,
+            microsecond=0,
+        )
+        if current_datetime < check_datetime:
+            return None
+
+        for stats in site7_result_no_play_day_stats(history_result).values():
+            updated_at = stats.updated_at
+            if updated_at is None or not stats.all_slots_no_play:
+                continue
+            if updated_at.date() != current_datetime.date():
+                continue
+            if updated_at.hour != SITE7_STORE_CLOSED_STALE_UPDATE_HOUR:
+                continue
+            return updated_at.strftime("%Y-%m-%d"), stats, current_datetime
+        return None
 
     def has_saved_login_state(self) -> bool:
         return self.browser_state_dir.exists() and any(self.browser_state_dir.iterdir())
@@ -1115,7 +1101,7 @@ class Site7Scraper:
         context = None
         machine_results: list[MachineHistoryResult] = []
         deferred_graph_targets: list[tuple[MachineHistoryResult, str, str]] = []
-        store_closed_tracker = Site7StoreClosedDayTracker()
+        store_closed_dates: set[str] = set()
         saw_no_play_day_stats = False
         try:
             playwright, context = self._launch_mobile_browser_context(browser_visible=browser_visible)
@@ -1171,19 +1157,27 @@ class Site7Scraper:
                     recent_days=target_days,
                     cancel_requested=cancel_requested,
                     machine_protected_slots_callback=machine_protected_slots_callback,
-                    store_closed_dates=store_closed_tracker.closed_dates,
+                    store_closed_dates=store_closed_dates,
                 )
                 if site7_result_no_play_day_stats(machine_result):
                     saw_no_play_day_stats = True
-                detected_closed_dates = store_closed_tracker.observe(machine_entry.machine_name, machine_result)
-                for detected_closed_date in detected_closed_dates:
-                    observed_count = store_closed_tracker.count_for_date(detected_closed_date)
+                detected_store_closed = (
+                    self._detect_store_closed_date_from_first_machine(machine_result)
+                    if machine_index == 1
+                    else None
+                )
+                if detected_store_closed is not None:
+                    detected_closed_date, no_play_stats, checked_at = detected_store_closed
+                    store_closed_dates.add(detected_closed_date)
                     self._write_debug_log(
                         "store_closed_day_detected",
                         target_date=detected_closed_date,
-                        observed_no_play_slots=observed_count,
-                        threshold=SITE7_STORE_CLOSED_SKIP_EMPTY_SLOT_THRESHOLD,
-                        machines=store_closed_tracker.machine_counts_for_date(detected_closed_date),
+                        reason="first_machine_stale_1am_no_play",
+                        checked_at=format_site7_updated_datetime(checked_at.replace(tzinfo=None)),
+                        site7_updated_at=format_site7_updated_datetime(no_play_stats.updated_at),
+                        machine=machine_entry.machine_name,
+                        observed_no_play_slots=no_play_stats.no_play_slot_count,
+                        observed_slots=no_play_stats.slot_count,
                     )
                     self._notify_progress(
                         progress_callback,
@@ -1191,6 +1185,7 @@ class Site7Scraper:
                         total_steps,
                         f"{resolved_target_store.display_name} / {detected_closed_date} は店休日扱いでスキップします",
                     )
+                    break
                 if machine_result_filter_callback is not None:
                     machine_result = machine_result_filter_callback(machine_result)
                     self._write_debug_log(
@@ -1217,17 +1212,8 @@ class Site7Scraper:
                 machine_results.append(machine_result)
                 if machine_result_callback is not None and not (include_graph_differences and defer_graph_differences):
                     machine_result_callback(machine_result)
-                if (
-                    store_closed_tracker.observed_target_dates
-                    and store_closed_tracker.observed_target_dates.issubset(store_closed_tracker.closed_dates)
-                ):
-                    self._write_debug_log(
-                        "store_closed_all_observed_dates_skipped",
-                        closed_dates=store_closed_tracker.closed_dates,
-                    )
-                    break
 
-            if include_graph_differences and defer_graph_differences:
+            if include_graph_differences and defer_graph_differences and not store_closed_dates:
                 graph_total_steps = max(total_steps, len(target_machine_items) + 2)
                 for graph_index, (machine_result, machine_link, machine_name) in enumerate(deferred_graph_targets, start=1):
                     _raise_if_site7_cancel_requested(cancel_requested)
@@ -1249,11 +1235,11 @@ class Site7Scraper:
                         )
                     if machine_result_callback is not None:
                         machine_result_callback(machine_result)
-            if store_closed_tracker.closed_dates:
+            if store_closed_dates:
                 self._apply_store_closed_date_skips(
                     machine_results=machine_results,
                     target_machine_items=target_machine_items,
-                    closed_dates=store_closed_tracker.closed_dates,
+                    closed_dates=store_closed_dates,
                     store_name=store_name,
                     store_url=hall_page_url,
                 )
@@ -1269,7 +1255,7 @@ class Site7Scraper:
         _raise_if_site7_cancel_requested(cancel_requested)
         if (
             machine_results
-            and not store_closed_tracker.closed_dates
+            and not store_closed_dates
             and not any(result.datasets or result.skipped_targets for result in machine_results)
             and saw_no_play_day_stats
         ):
