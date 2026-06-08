@@ -48,13 +48,23 @@ const DEFAULT_VISIBLE_RESULT_KEYS = [
   "bb_count",
   "rb_count",
   "combined_ratio_text",
+  "estimated_grape_denominator",
   "setting_estimate",
 ];
+const ESTIMATED_GRAPE_RESULT_KEY = "estimated_grape_denominator";
 const DEFAULT_RANK_SCOPE = "selected";
 const DEFAULT_NEXT_GAP_SCOPE = "machine";
 const DEFAULT_HIGHLIGHT_RANK_MIN = 1;
 const DEFAULT_HIGHLIGHT_RANK_MAX = 3;
 const DEFAULT_HIGHLIGHT_SCORE_MIN = 70;
+
+function formatEstimatedGrapeDenominator(value) {
+  const denominator = Number(value);
+  if (!Number.isFinite(denominator) || denominator <= 0) {
+    return "-";
+  }
+  return denominator.toFixed(2);
+}
 
 const RESULT_COLUMN_DEFINITIONS = [
   {
@@ -84,6 +94,11 @@ const RESULT_COLUMN_DEFINITIONS = [
     render: (row) => formatRatio(row.nextRecord?.combined_ratio_text),
   },
   {
+    key: ESTIMATED_GRAPE_RESULT_KEY,
+    label: "ブドウ",
+    render: (row) => formatEstimatedGrapeDenominator(row.nextRecord?.estimated_grape_denominator),
+  },
+  {
     key: "setting_estimate",
     label: "設定",
     render: (row) => formatSettingEstimateScore(row.nextSettingEstimate?.average),
@@ -105,9 +120,13 @@ const RESULT_COLUMN_DEFINITIONS = [
   },
 ];
 
-function buildResultColumns(actualDate, differenceMode) {
+function buildResultColumns(actualDate, differenceMode, showGrapeColumn) {
   const actualDatePrefix = actualDate ? formatMonthDay(actualDate) : "実績";
-  return RESULT_COLUMN_DEFINITIONS.map((column) => ({
+  const columnDefinitions = showGrapeColumn
+    ? RESULT_COLUMN_DEFINITIONS
+    : RESULT_COLUMN_DEFINITIONS.filter((column) => column.key !== ESTIMATED_GRAPE_RESULT_KEY);
+
+  return columnDefinitions.map((column) => ({
     ...column,
     label: `${actualDatePrefix}${column.label}`,
     render: (row) => column.render(row, differenceMode),
@@ -795,6 +814,7 @@ export function HuntRankingTable({
   showMachineTopCandidates = false,
   subHuntScoreLogic = null,
   showMachineEvaluation = false,
+  showGrapeColumn = false,
 }) {
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
   const [differenceMode, setDifferenceMode] = useState(() =>
@@ -806,6 +826,17 @@ export function HuntRankingTable({
   useEffect(() => {
     setDifferenceMode(normalizeDifferenceMode(initialDifferenceMode));
   }, [initialDifferenceMode]);
+
+  useEffect(() => {
+    if (!showGrapeColumn) {
+      return;
+    }
+    setVisibleResultKeys((currentKeys) =>
+      currentKeys.includes(ESTIMATED_GRAPE_RESULT_KEY)
+        ? currentKeys
+        : [...currentKeys, ESTIMATED_GRAPE_RESULT_KEY],
+    );
+  }, [showGrapeColumn]);
 
   useEffect(() => {
     const syncBookmarks = () => {
@@ -831,8 +862,8 @@ export function HuntRankingTable({
   }, [storeId]);
 
   const resultColumns = useMemo(
-    () => buildResultColumns(actualDate, differenceMode),
-    [actualDate, differenceMode],
+    () => buildResultColumns(actualDate, differenceMode, showGrapeColumn),
+    [actualDate, differenceMode, showGrapeColumn],
   );
   const visibleColumns = useMemo(
     () => resultColumns.filter((column) => visibleResultKeys.includes(column.key)),

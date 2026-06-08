@@ -38,6 +38,7 @@ import {
 import {
   expandHuntMachineCombinedGroupSelection,
   groupHuntMachineOptions,
+  isHuntJugglerMachine,
   selectionIncludesAimJugglerHuntMachineGroup,
   selectionIncludesHanabiHuntMachineGroup,
 } from "../../../../lib/hunt-machine-display";
@@ -773,6 +774,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     ? requestedMachineNameSet
     : new Set(availableMachineNames);
   const showMachineTopCandidates = selectedMachineNameSet.size >= 2;
+  const showGrapeColumn = [...selectedMachineNameSet].some(isHuntJugglerMachine);
   const machineOptions = availableMachineNames.map((machineName) => ({
     name: machineName,
     checked: selectedMachineNameSet.has(machineName),
@@ -1228,6 +1230,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 showMachineTopCandidates={showMachineTopCandidates}
                 subHuntScoreLogic={detail.subHuntScoreLogic}
                 showMachineEvaluation={shouldShowMachineEvaluationInRanking(machineEvaluationRankingMode)}
+                showGrapeColumn={showGrapeColumn}
               />
             ) : (
               <section className="statusPanel">
