@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta, timezone
 import json
@@ -3360,9 +3360,19 @@ class MinRepoApp:
             )
             return protected_slots
 
+        save_summary: PersistenceSummary | None = None
+        warning_summary = SavedFullDayDatesSummary()
+        site7_save_futures: list[Future[PersistenceSummary]] = []
+        site7_save_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="site7-save")
+
+        def wait_for_site7_save_futures() -> None:
+            nonlocal save_summary
+            while site7_save_futures:
+                partial_save_summary = site7_save_futures.pop(0).result()
+                save_summary = self._merge_persistence_summary(save_summary, partial_save_summary)
+
         def run_site7_fetch() -> MachineHistoryResult:
             def save_machine_result(machine_result: MachineHistoryResult, save_label: str = "") -> None:
-                nonlocal save_summary
                 self._raise_if_fetch_cancelled()
                 partial_result = machine_result
                 if not partial_result.datasets:
@@ -3374,10 +3384,13 @@ class MinRepoApp:
                 queue_progress(
                     FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: {message_label} を保存中")
                 )
-                partial_save_summary = self._run_with_persistence_lock(
-                    lambda: self.persistence_service.save_history_result(partial_result)
+                site7_save_futures.append(
+                    site7_save_executor.submit(
+                        lambda: self._run_with_persistence_lock(
+                            lambda: self.persistence_service.save_history_result(partial_result)
+                        )
+                    )
                 )
-                save_summary = self._merge_persistence_summary(save_summary, partial_save_summary)
 
             def save_base_machine_result(machine_result: MachineHistoryResult) -> None:
                 save_machine_result(
@@ -3412,22 +3425,24 @@ class MinRepoApp:
             except Site7FetchCancelled as exc:
                 raise FetchCancelled from exc
 
-        save_summary: PersistenceSummary | None = None
-        warning_summary = SavedFullDayDatesSummary()
-        history_result = self._run_with_fetch_retries(
-            run_site7_fetch,
-            retry_delay_seconds=retry_delay_seconds,
-            retry_status_callback=lambda retry_number, max_retries, delay_seconds: queue_progress(
-                FetchProgress(
-                    current_step=0,
-                    total_steps=4,
-                    message=(
-                        f"{store_label}: サイトセブン取得に失敗しました。"
-                        f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
+        try:
+            history_result = self._run_with_fetch_retries(
+                run_site7_fetch,
+                retry_delay_seconds=retry_delay_seconds,
+                retry_status_callback=lambda retry_number, max_retries, delay_seconds: queue_progress(
+                    FetchProgress(
+                        current_step=0,
+                        total_steps=4,
+                        message=(
+                            f"{store_label}: サイトセブン取得に失敗しました。"
+                            f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
+                        ),
                     ),
                 ),
-            ),
-        )
+            )
+            wait_for_site7_save_futures()
+        finally:
+            site7_save_executor.shutdown(wait=True)
         self._raise_if_fetch_cancelled()
         history_result = rewrite_history_result_store(
             history_result,
