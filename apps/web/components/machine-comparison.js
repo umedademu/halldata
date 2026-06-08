@@ -2707,12 +2707,13 @@ export function MachineComparison({
   );
   const hasEstimatedGrape = useMemo(
     () =>
+      hasJugglerSettingEstimateMode &&
       periodFilteredRows.some((row) =>
         slotNumbers.some((slotNumber) =>
           Number.isFinite(Number(row.recordsBySlot?.[slotNumber]?.estimated_grape_denominator)),
         ),
       ),
-    [periodFilteredRows, slotNumbers],
+    [hasJugglerSettingEstimateMode, periodFilteredRows, slotNumbers],
   );
   const metrics = useMemo(
     () =>
