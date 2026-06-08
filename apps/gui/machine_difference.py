@@ -220,6 +220,28 @@ def list_site7_target_machine_names() -> list[str]:
     return machine_names
 
 
+def list_equivalent_machine_names(machine_name: str, site7_only: bool = False) -> list[str]:
+    rule = find_machine_difference_rule(machine_name, site7_only=site7_only)
+    if rule is None:
+        text = str(machine_name or "").strip()
+        return [text] if text else []
+
+    machine_names: list[str] = []
+    seen_machine_names: set[str] = set()
+    candidates = [
+        str(rule.get("canonical_name", "")),
+        *[str(candidate_name) for candidate_name in rule.get("machine_names", [])],
+        str(machine_name or ""),
+    ]
+    for candidate_name in candidates:
+        text = candidate_name.strip()
+        if not text or text in seen_machine_names:
+            continue
+        seen_machine_names.add(text)
+        machine_names.append(text)
+    return machine_names
+
+
 def machine_is_site7_target(machine_name: str) -> bool:
     return find_machine_difference_rule(machine_name, site7_only=True) is not None
 

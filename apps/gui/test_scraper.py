@@ -110,6 +110,7 @@ from site7_scraper import build_site7_transition_wait_milliseconds
 from setting_estimates import SETTING_ESTIMATE_GRAPE_VALUE_VERSION, SETTING_ESTIMATE_VALUE_VERSION
 from web_data_export import (
     StoreSource,
+    build_machine_data_file,
     build_store_id,
     build_store_payload,
     collect_store_records_from_local_store_dir,
@@ -4824,6 +4825,83 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(records_by_date["2026-05-01"]["difference_value"], 500)
             self.assertNotIn("9999", {str(record["slot_number"]) for record in records})  # type: ignore[union-attr]
             self.assertNotIn("1175", {str(record["slot_number"]) for record in records})  # type: ignore[union-attr]
+
+    def test_minrepo_web_data_save_merges_equivalent_machine_files(self) -> None:
+        store_name = "テスト店"
+        store_url = "https://min-repo.com/tag/test-store/"
+        canonical_name = "スマスロ北斗の拳 転生の章2"
+        alias_name = "スマスロ北斗の拳 転生の章"
+
+        with TemporaryDirectory() as temp_dir:
+            service, storage = make_r2_service(Path(temp_dir))
+            seed_r2_store(
+                storage,
+                store_name=store_name,
+                store_url=store_url,
+                records=[
+                    {
+                        "target_date": "2026-06-06",
+                        "slot_number": "1100",
+                        "machine_name": canonical_name,
+                        "data_source": DATA_SOURCE_MINREPO,
+                        "difference_value": 100,
+                        "games_count": 1000,
+                        "payout_rate": 103.0,
+                    },
+                ],
+            )
+            store_id = build_store_id(store_name, normalize_store_url(store_url))
+            alias_file = build_machine_data_file(store_id, alias_name)
+            storage.write_json(
+                alias_file,
+                {
+                    "version": 1,
+                    "store": {"storeName": store_name, "storeUrl": store_url},
+                    "machineName": alias_name,
+                    "records": [
+                        {
+                            "target_date": "2026-05-01",
+                            "slot_number": "1100",
+                            "machine_name": alias_name,
+                            "data_source": DATA_SOURCE_MINREPO,
+                            "difference_value": 500,
+                            "games_count": 3000,
+                            "payout_rate": 105.0,
+                        }
+                    ],
+                },
+            )
+
+            service._save_r2_web_data(  # type: ignore[attr-defined]
+                {
+                    "store": {"store_name": store_name, "store_url": store_url},
+                    "records": [
+                        {
+                            "target_date": "2026-06-07",
+                            "slot_number": "1100",
+                            "machine_name": canonical_name,
+                            "data_source": DATA_SOURCE_MINREPO,
+                            "difference_value": 700,
+                            "games_count": 4000,
+                            "payout_rate": 106.0,
+                        }
+                    ],
+                }
+            )
+
+            store_entry = storage.read_json("index.json")["stores"][0]  # type: ignore[index]
+            store_payload = storage.read_json(store_entry["dataFile"])  # type: ignore[index]
+            machine_file = store_payload["machines"][0]["dataFile"]  # type: ignore[index]
+            machine_payload = storage.read_json(machine_file)
+            records = machine_payload["records"]  # type: ignore[index]
+            records_by_date = {
+                str(record["target_date"]): record  # type: ignore[index]
+                for record in records  # type: ignore[union-attr]
+            }
+
+            self.assertEqual(set(records_by_date), {"2026-05-01", "2026-06-06", "2026-06-07"})
+            self.assertEqual(records_by_date["2026-05-01"]["machine_name"], canonical_name)
+            self.assertEqual(records_by_date["2026-05-01"]["difference_value"], 500)
 
     def test_save_history_result_does_not_recreate_missing_r2_index_from_single_store(self) -> None:
         scraper = FixtureScraper()

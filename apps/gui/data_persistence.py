@@ -17,6 +17,7 @@ import requests
 from machine_difference import (
     calculate_machine_difference_value,
     canonical_machine_name,
+    list_equivalent_machine_names,
 )
 from minrepo_scraper import MachineHistoryResult, normalize_text
 from r2_storage import R2JsonStorage, R2StorageError
@@ -32,6 +33,7 @@ from web_data_export import (
     WEB_DATA_VERSION,
     StoreSource,
     build_index_store_entry,
+    build_machine_data_file,
     build_store_id,
     build_store_payload,
     export_registered_store_payloads,
@@ -1232,7 +1234,16 @@ class HistoryPersistenceService:
                 if isinstance(existing_summary, dict)
                 else ""
             )
-            existing_machine_records = self._load_r2_machine_records(existing_data_file)
+            incoming_machine_name = str(machine_incoming_records[0].get("machine_name", "")).strip()
+            canonical_incoming_machine_name = (
+                canonical_machine_name(incoming_machine_name).strip()
+                or incoming_machine_name
+            )
+            existing_machine_records = self._load_r2_equivalent_machine_records(
+                store_source=store_source,
+                machine_name=canonical_incoming_machine_name,
+                primary_data_file=existing_data_file,
+            )
             original_existing_machine_record_count = len(existing_machine_records)
             if self._machine_records_need_full_day_backfill(existing_machine_records, machine_incoming_records):
                 backfill_records = self._load_r2_full_day_machine_records(
@@ -1248,6 +1259,10 @@ class HistoryPersistenceService:
             merged_machine_records = self._merge_minrepo_machine_records(
                 existing_machine_records,
                 machine_incoming_records,
+            )
+            merged_machine_records = self._rewrite_machine_records_name(
+                merged_machine_records,
+                canonical_incoming_machine_name,
             )
             machine_payload, machine_summary = self._build_single_machine_payload(
                 store_source,
@@ -1290,6 +1305,55 @@ class HistoryPersistenceService:
             record
             for record in records
             if isinstance(record, dict) and _saved_record_should_be_kept(record)
+        ]
+
+    def _load_r2_equivalent_machine_records(
+        self,
+        *,
+        store_source: StoreSource,
+        machine_name: str,
+        primary_data_file: str,
+    ) -> list[dict[str, Any]]:
+        store_id = self._r2_store_id(store_source.store_name, store_source.store_url)
+        data_files: list[str] = []
+        seen_data_files: set[str] = set()
+
+        for candidate_name in list_equivalent_machine_names(machine_name):
+            data_file = build_machine_data_file(store_id, candidate_name)
+            if not data_file or data_file in seen_data_files:
+                continue
+            seen_data_files.add(data_file)
+            data_files.append(data_file)
+
+        if primary_data_file and primary_data_file not in seen_data_files:
+            data_files.append(primary_data_file)
+            seen_data_files.add(primary_data_file)
+        elif primary_data_file:
+            data_files = [data_file for data_file in data_files if data_file != primary_data_file]
+            data_files.append(primary_data_file)
+
+        records: list[dict[str, Any]] = []
+        for data_file in data_files:
+            records = self._merge_minrepo_machine_records(
+                records,
+                self._load_r2_machine_records(data_file),
+            )
+        return records
+
+    def _rewrite_machine_records_name(
+        self,
+        records: list[dict[str, Any]],
+        machine_name: str,
+    ) -> list[dict[str, Any]]:
+        normalized_machine_name = str(machine_name or "").strip()
+        if not normalized_machine_name:
+            return records
+        return [
+            {
+                **record,
+                "machine_name": normalized_machine_name,
+            }
+            for record in records
         ]
 
     def _machine_records_need_full_day_backfill(
