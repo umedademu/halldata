@@ -3672,7 +3672,11 @@ class HistoryPersistenceService:
             if is_known_unavailable:
                 site7_enabled = False
             should_fill_site7_defaults = site7_enabled or is_known_unavailable
-            site7_difference_enabled = site7_enabled
+            fetch_order = _normalize_positive_int_or_none(store.get("fetch_order"))
+            site7_difference_enabled = bool(
+                site7_enabled
+                and _coerce_bool(store.get("site7_difference_enabled", fetch_order is not None))
+            )
             site7_area = str(store.get("site7_area", "")).strip()
             site7_store_name = raw_site7_store_name
             site7_hall_id = str(store.get("site7_hall_id", "")).strip()
@@ -3703,7 +3707,6 @@ class HistoryPersistenceService:
             fetch_source = str(store.get("fetch_source", "")).strip()
             if fetch_source in FETCH_SOURCE_VALUES:
                 normalized_store["fetch_source"] = fetch_source
-            fetch_order = _normalize_positive_int_or_none(store.get("fetch_order"))
             if fetch_order is not None:
                 normalized_store["fetch_order"] = fetch_order
             event_day_tails = _normalize_event_values(store.get("event_day_tails", []), 0, 9)

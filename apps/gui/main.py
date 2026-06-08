@@ -102,6 +102,7 @@ JST = timezone(timedelta(hours=9))
 REGISTERED_STORE_COLUMNS = (
     "頻度",
     "取得元",
+    "S差枚",
     "取得順",
     "店舗名",
     "URL",
@@ -706,7 +707,7 @@ class RegisteredStore:
         self.fetch_source = normalize_fetch_source(self.fetch_source)
         self.fetch_order = normalize_fetch_order(self.fetch_order)
         self.site7_enabled = self.uses_site7()
-        self.site7_difference_enabled = self.site7_enabled
+        self.site7_difference_enabled = bool(self.site7_enabled and self.site7_difference_enabled)
 
     def resolved_site7_store_name(self) -> str:
         return self.site7_store_name.strip() or self.name.strip()
@@ -2282,7 +2283,13 @@ class MinRepoApp:
             textvariable=self.register_store_order_var,
             width=8,
         )
-        self.register_store_order_entry.grid(row=0, column=5, sticky="w", padx=(6, 0))
+        self.register_store_order_entry.grid(row=0, column=5, sticky="w", padx=(6, 14))
+        self.register_store_site7_difference_checkbutton = ttk.Checkbutton(
+            fetch_option_row,
+            text="S差枚",
+            variable=self.register_store_site7_difference_enabled_var,
+        )
+        self.register_store_site7_difference_checkbutton.grid(row=0, column=6, sticky="w")
 
         ttk.Label(form, text="都道府県").grid(row=2, column=0, sticky="w", padx=(0, 8), pady=4)
         self.register_store_prefecture_entry = ttk.Entry(form, textvariable=self.register_store_prefecture_var)
@@ -2388,7 +2395,7 @@ class MinRepoApp:
 
         for column in REGISTERED_STORE_COLUMNS:
             self.registered_store_tree.heading(column, text=column)
-            if column in {"頻度", "取得元", "取得順"}:
+            if column in {"頻度", "取得元", "S差枚", "取得順"}:
                 self.registered_store_tree.column(column, width=80, minwidth=80, anchor="center")
                 continue
             self.registered_store_tree.column(
@@ -3250,6 +3257,7 @@ class MinRepoApp:
     ) -> StoreFetchResult:
         self._raise_if_fetch_cancelled()
         target_store = registered_store.to_site7_target_store()
+        site7_difference_enabled = bool(registered_store.site7_enabled and registered_store.site7_difference_enabled)
         store_label = f"{store_index}/{total_stores} {registered_store.name}"
 
         def queue_progress(progress: FetchProgress) -> None:
@@ -3310,7 +3318,7 @@ class MinRepoApp:
             )
             partial_result, partial_warning_summary = self._prepare_site7_history_result_for_save(
                 partial_result,
-                require_source_difference=True,
+                require_source_difference=site7_difference_enabled,
             )
             warning_summary.messages.extend(partial_warning_summary.messages)
             return partial_result
@@ -3348,7 +3356,7 @@ class MinRepoApp:
                 start_date=min(remaining_dates),
                 end_date=max(remaining_dates),
                 slot_numbers=slot_numbers,
-                require_source_difference=True,
+                require_source_difference=site7_difference_enabled,
                 site7_updated_at=site7_updated_at,
             )
             warning_summary.messages.extend(saved_slots_summary.messages)
@@ -3411,12 +3419,12 @@ class MinRepoApp:
                     ),
                     "target_store": target_store,
                     "cancel_requested": self._cancel_requested,
-                    "machine_base_result_callback": save_base_machine_result,
+                    "machine_base_result_callback": save_base_machine_result if site7_difference_enabled else None,
                     "machine_result_callback": save_machine_result,
                     "machine_result_filter_callback": filter_machine_result_for_fetch,
                     "machine_protected_slots_callback": find_protected_slots_before_fetch,
-                    "include_graph_differences": True,
-                    "defer_graph_differences": True,
+                    "include_graph_differences": site7_difference_enabled,
+                    "defer_graph_differences": site7_difference_enabled,
                 }
                 enabled_machine_names = self._site7_enabled_machine_names_for_fetch()
                 if enabled_machine_names is not None:
@@ -4961,6 +4969,7 @@ class MinRepoApp:
                 values=(
                     self._registered_store_frequency_text(registered_store),
                     self._registered_store_source_text(registered_store),
+                    self._registered_store_site7_difference_text(registered_store),
                     self._registered_store_order_text(registered_store),
                     display_name,
                     registered_store.url,
@@ -5024,6 +5033,9 @@ class MinRepoApp:
     def _registered_store_source_text(self, registered_store: RegisteredStore) -> str:
         return normalize_fetch_source(registered_store.fetch_source)
 
+    def _registered_store_site7_difference_text(self, registered_store: RegisteredStore) -> str:
+        return "ON" if registered_store.site7_enabled and registered_store.site7_difference_enabled else "OFF"
+
     def _registered_store_order_text(self, registered_store: RegisteredStore) -> str:
         return "" if registered_store.fetch_order is None else str(registered_store.fetch_order)
 
@@ -5036,7 +5048,7 @@ class MinRepoApp:
         self.register_store_source_var.set(self._registered_store_source_text(registered_store))
         self.register_store_order_var.set(self._registered_store_order_text(registered_store))
         self.register_store_site7_enabled_var.set(registered_store.site7_enabled)
-        self.register_store_site7_difference_enabled_var.set(registered_store.site7_enabled)
+        self.register_store_site7_difference_enabled_var.set(registered_store.site7_difference_enabled)
         self.register_store_prefecture_var.set(registered_store.site7_prefecture or DEFAULT_SITE7_PREFECTURE_NAME)
         self.register_store_area_var.set(registered_store.site7_area)
         self.register_store_site7_store_name_var.set(registered_store.resolved_site7_store_name())
@@ -5105,7 +5117,7 @@ class MinRepoApp:
             return None
 
         column_id = self.registered_store_tree.identify_column(event.x)
-        if column_id not in {"#1", "#2", "#3"}:
+        if column_id not in {"#1", "#2", "#3", "#4"}:
             return None
 
         item_id = self.registered_store_tree.identify_row(event.y)
@@ -5116,6 +5128,8 @@ class MinRepoApp:
             self._cycle_registered_store_frequency(item_id)
         elif column_id == "#2":
             self._cycle_registered_store_source(item_id)
+        elif column_id == "#3":
+            self._toggle_registered_store_site7_difference(item_id)
         else:
             self._edit_registered_store_order(item_id)
         return "break"
@@ -5171,11 +5185,32 @@ class MinRepoApp:
         if registered_store is None:
             return
 
+        was_site7_enabled = registered_store.site7_enabled
         current_index = FETCH_SOURCE_OPTIONS.index(normalize_fetch_source(registered_store.fetch_source))
         registered_store.fetch_source = FETCH_SOURCE_OPTIONS[(current_index + 1) % len(FETCH_SOURCE_OPTIONS)]
         registered_store.site7_enabled = registered_store.uses_site7()
-        registered_store.site7_difference_enabled = registered_store.site7_enabled
+        if not registered_store.site7_enabled:
+            registered_store.site7_difference_enabled = False
+        elif not was_site7_enabled:
+            registered_store.site7_difference_enabled = registered_store.fetch_order is not None
         self.registered_store_tree.set(item_id, "取得元", self._registered_store_source_text(registered_store))
+        self.registered_store_tree.set(item_id, "S差枚", self._registered_store_site7_difference_text(registered_store))
+        save_summary = self._persist_registered_stores()
+        if save_summary.has_errors:
+            messagebox.showwarning("登録店舗", "\n\n".join(save_summary.messages))
+        self._load_registered_store_form(registered_store)
+        self._update_button_states()
+
+    def _toggle_registered_store_site7_difference(self, item_id: str) -> None:
+        registered_store = self._registered_store_from_item_id(item_id)
+        if registered_store is None:
+            return
+        if not registered_store.site7_enabled:
+            self.register_store_status_var.set("取得元にサイセを含む店舗だけS差枚をONにできます")
+            return
+
+        registered_store.site7_difference_enabled = not registered_store.site7_difference_enabled
+        self.registered_store_tree.set(item_id, "S差枚", self._registered_store_site7_difference_text(registered_store))
         save_summary = self._persist_registered_stores()
         if save_summary.has_errors:
             messagebox.showwarning("登録店舗", "\n\n".join(save_summary.messages))
@@ -5302,7 +5337,7 @@ class MinRepoApp:
         if raw_fetch_order and fetch_order is None:
             raise ScraperError("取得順は1以上の整数、または空欄で入力してください。")
         site7_enabled = store_uses_site7(fetch_source)
-        site7_difference_enabled = site7_enabled
+        site7_difference_enabled = bool(site7_enabled and self.register_store_site7_difference_enabled_var.get())
         site7_prefecture = self.register_store_prefecture_var.get().strip() or DEFAULT_SITE7_PREFECTURE_NAME
         site7_area = self.register_store_area_var.get().strip()
         site7_store_name = self.register_store_site7_store_name_var.get().strip()
@@ -5354,7 +5389,7 @@ class MinRepoApp:
             FETCH_SOURCE_BOTH if resolved_site7_enabled else FETCH_SOURCE_MINREPO,
         )
         resolved_site7_enabled = store_uses_site7(resolved_fetch_source)
-        resolved_site7_difference_enabled = bool(resolved_site7_enabled)
+        resolved_site7_difference_enabled = bool(resolved_site7_enabled and site7_difference_enabled)
         resolved_site7_prefecture = site7_prefecture.strip() or str(defaults["site7_prefecture"]).strip() or DEFAULT_SITE7_PREFECTURE_NAME
         resolved_site7_area = site7_area.strip() or str(defaults["site7_area"]).strip()
         resolved_site7_store_name = site7_store_name.strip() or str(defaults["site7_store_name"]).strip() or store_name.strip()
@@ -5642,7 +5677,7 @@ class MinRepoApp:
                 "fetch_source": normalize_fetch_source(registered_store.fetch_source),
                 "fetch_order": registered_store.fetch_order,
                 "site7_enabled": registered_store.site7_enabled,
-                "site7_difference_enabled": registered_store.site7_enabled,
+                "site7_difference_enabled": registered_store.site7_difference_enabled,
                 "site7_prefecture": registered_store.site7_prefecture,
                 "site7_area": registered_store.site7_area,
                 "site7_store_name": registered_store.resolved_site7_store_name(),
@@ -5991,6 +6026,8 @@ class MinRepoApp:
             self.register_store_source_selector.configure(state="disabled" if any_busy else "readonly")
         if hasattr(self, "register_store_order_entry"):
             self.register_store_order_entry.configure(state="disabled" if any_busy else "normal")
+        if hasattr(self, "register_store_site7_difference_checkbutton"):
+            self.register_store_site7_difference_checkbutton.configure(state="disabled" if any_busy else "normal")
         self.register_store_prefecture_entry.configure(state="disabled" if any_busy else "normal")
         self.register_store_area_entry.configure(state="disabled" if any_busy else "normal")
         self.register_store_site7_store_name_entry.configure(state="disabled" if any_busy else "normal")

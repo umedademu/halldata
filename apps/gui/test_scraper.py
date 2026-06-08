@@ -1438,7 +1438,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 FETCH_SOURCE_BOTH,
                 None,
                 True,
-                True,
+                False,
                 DEFAULT_SITE7_PREFECTURE_NAME,
                 "",
                 "",
@@ -1568,7 +1568,7 @@ class MinRepoScraperTests(unittest.TestCase):
             FETCH_SOURCE_BOTH,
             None,
             True,
-            True,
+            False,
             DEFAULT_SITE7_PREFECTURE_NAME,
             "",
             "",
@@ -3627,6 +3627,15 @@ class MinRepoScraperTests(unittest.TestCase):
             def resolve_preferred_store_by_name(self, store_name: str) -> None:
                 return None
 
+            def find_saved_full_day_dates(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+            ) -> SavedFullDayDatesSummary:
+                return SavedFullDayDatesSummary()
+
             def find_saved_machine_slots(
                 self,
                 store_name: str,
@@ -3726,6 +3735,15 @@ class MinRepoScraperTests(unittest.TestCase):
             def resolve_preferred_store_by_name(self, store_name: str) -> None:
                 return None
 
+            def find_saved_full_day_dates(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+            ) -> SavedFullDayDatesSummary:
+                return SavedFullDayDatesSummary()
+
             def find_saved_machine_slots(
                 self,
                 store_name: str,
@@ -3767,6 +3785,120 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertLess(events.index("after_base_callback"), events.index("save_finish_base"))
         self.assertLess(events.index("save_finish_base"), events.index("save_start_graph"))
         self.assertIn("after_graph_callback", events)
+        self.assertEqual(store_result.save_summary.web_data_record_count, 1)
+
+    def test_fetch_single_site7_store_skips_graph_when_store_difference_is_off(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.result_queue = queue.Queue()
+
+        raw_result = MachineHistoryResult(
+            store_name="サイトセブン店",
+            store_url="https://example.com/site7-hall",
+            start_date="2026-04-25",
+            end_date="2026-04-25",
+            date_pages=[StoreDatePage(target_date="2026-04-25", date_url="https://example.com/site7-hall#ata0")],
+            datasets=[
+                MachineDataset(
+                    store_name="サイトセブン店",
+                    store_url="https://example.com/site7-hall",
+                    target_date="2026-04-25",
+                    date_url="https://example.com/site7-hall#ata0",
+                    machine_name=SITE7_TARGET_MACHINE_NAME,
+                    machine_url="https://example.com/site7-machine",
+                    columns=["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"],
+                    rows=[["821", "-", "1000", "-", "5", "2", "1/143", "1/200", "1/500"]],
+                )
+            ],
+        )
+
+        class FakeSite7Scraper:
+            def fetch_target_machine_history(
+                self,
+                *,
+                recent_days: int,
+                browser_visible: bool,
+                progress_callback: object,
+                target_store: object,
+                cancel_requested: object,
+                machine_base_result_callback: object,
+                machine_result_callback: object,
+                machine_result_filter_callback: object,
+                machine_protected_slots_callback: object,
+                include_graph_differences: bool,
+                defer_graph_differences: bool,
+            ) -> MachineHistoryResult:
+                self.machine_base_result_callback = machine_base_result_callback
+                self.include_graph_differences = include_graph_differences
+                self.defer_graph_differences = defer_graph_differences
+                machine_protected_slots_callback(
+                    Site7MachineEntry(display_name=SITE7_TARGET_MACHINE_NAME, machine_name=SITE7_TARGET_MACHINE_NAME),
+                    ["2026-04-25"],
+                    ["821"],
+                    "2026-04-25T23:20:00+09:00",
+                )
+                filtered_result = machine_result_filter_callback(raw_result)
+                machine_result_callback(filtered_result)
+                return filtered_result
+
+        class FakePersistenceService:
+            def __init__(self) -> None:
+                self.require_source_difference_values: list[bool] = []
+                self.saved_results: list[MachineHistoryResult] = []
+
+            def resolve_preferred_store_by_name(self, store_name: str) -> None:
+                return None
+
+            def find_saved_full_day_dates(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+            ) -> SavedFullDayDatesSummary:
+                return SavedFullDayDatesSummary()
+
+            def find_saved_machine_slots(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+                slot_numbers: list[str],
+                require_source_difference: bool = True,
+                site7_updated_at: str | datetime | None = None,
+            ) -> SavedMachineSlotsSummary:
+                self.require_source_difference_values.append(require_source_difference)
+                return SavedMachineSlotsSummary()
+
+            def save_history_result(self, history_result: MachineHistoryResult) -> PersistenceSummary:
+                self.saved_results.append(history_result)
+                return PersistenceSummary(web_data_saved=True, web_data_record_count=len(history_result.datasets))
+
+        site7_scraper = FakeSite7Scraper()
+        persistence_service = FakePersistenceService()
+        app.site7_scraper = site7_scraper
+        app.persistence_service = persistence_service
+
+        store_result = app._fetch_single_site7_store(
+            registered_store=RegisteredStore(
+                name="Aパーク春日店",
+                url="https://example.com/minrepo-store",
+                fetch_source=FETCH_SOURCE_BOTH,
+                site7_difference_enabled=False,
+            ),
+            recent_days=1,
+            store_index=1,
+            total_stores=1,
+            retry_delay_seconds=0,
+            browser_visible=True,
+        )
+
+        self.assertFalse(site7_scraper.include_graph_differences)
+        self.assertFalse(site7_scraper.defer_graph_differences)
+        self.assertIsNone(site7_scraper.machine_base_result_callback)
+        self.assertEqual(persistence_service.require_source_difference_values, [False, False])
+        self.assertEqual(len(persistence_service.saved_results), 1)
         self.assertEqual(store_result.save_summary.web_data_record_count, 1)
 
     def test_fetch_single_site7_store_uses_full_day_index_before_slot_checks(self) -> None:
@@ -5702,7 +5834,7 @@ class MinRepoScraperTests(unittest.TestCase):
                         "store_name": "MJアリーナ箱崎店",
                         "store_url": "https://example.com/a/",
                         "site7_enabled": True,
-                        "site7_difference_enabled": True,
+                        "site7_difference_enabled": False,
                         "site7_prefecture": "福岡県",
                         "site7_area": "東区",
                         "site7_store_name": "ＭＪアリーナ箱崎店",
@@ -5954,7 +6086,7 @@ class MinRepoScraperTests(unittest.TestCase):
                         "store_name": "Aパーク春日店",
                         "store_url": "https://example.com/kasuga/",
                         "site7_enabled": True,
-                        "site7_difference_enabled": True,
+                        "site7_difference_enabled": False,
                         "site7_prefecture": "福岡県",
                         "site7_area": "春日市",
                         "site7_store_name": "Ａパーク春日店",
@@ -6017,7 +6149,7 @@ class MinRepoScraperTests(unittest.TestCase):
                         "store_name": "HINODE大野城店",
                         "store_url": "https://example.com/hinode/",
                         "site7_enabled": True,
-                        "site7_difference_enabled": True,
+                        "site7_difference_enabled": False,
                         "site7_prefecture": "福岡県",
                         "site7_area": "大野城市",
                         "site7_store_name": "HINODE大野城店",
@@ -6044,6 +6176,29 @@ class MinRepoScraperTests(unittest.TestCase):
                         "store_url": "https://example.com/abc",
                         "site7_enabled": False,
                         "site7_difference_enabled": True,
+                    },
+                ]
+            )
+
+            self.assertTrue(normalized_stores[0]["site7_difference_enabled"])
+            self.assertFalse(normalized_stores[1]["site7_difference_enabled"])
+
+    def test_normalize_registered_stores_defaults_difference_flag_from_fetch_order(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+
+            normalized_stores = service._normalize_registered_stores(  # type: ignore[attr-defined]
+                [
+                    {
+                        "store_name": "Aパーク春日店",
+                        "store_url": "https://example.com/kasuga",
+                        "site7_enabled": True,
+                        "fetch_order": 1,
+                    },
+                    {
+                        "store_name": "123博多店",
+                        "store_url": "https://example.com/hakata",
+                        "site7_enabled": True,
                     },
                 ]
             )
@@ -6114,7 +6269,7 @@ class MinRepoScraperTests(unittest.TestCase):
                         "store_name": "GOGOアリーナ天神",
                         "store_url": "https://min-repo.com/tag/mj%E5%A4%A9%E7%A5%9Eiii/",
                         "site7_enabled": True,
-                        "site7_difference_enabled": True,
+                        "site7_difference_enabled": False,
                         "site7_prefecture": "福岡県",
                         "site7_area": "福岡市中央区",
                         "site7_store_name": "ＧＯＧＯアリーナ天神",
