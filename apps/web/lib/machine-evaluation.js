@@ -371,6 +371,19 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "302件 / 105.45%",
         {
           minScore: 50,
+          requiredFlags: ["hokutoHistoryReady"],
+        },
+      ),
+      buildCondition(
+        "strong",
+        "1位＋55点以上＋次点差5点以上＋危険1以下",
+        "82件 / 107.84%",
+        {
+          rankMax: 1,
+          minScore: 55,
+          minNextGap: 5,
+          maxDanger: 1,
+          requiredFlags: ["hokutoHistoryReady"],
         },
       ),
       buildCondition(
@@ -379,6 +392,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "516件 / 104.58%",
         {
           rankMax: 4,
+          requiredFlags: ["hokutoHistoryReady"],
         },
       ),
       buildCondition(
@@ -387,6 +401,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "258件 / 105.59%",
         {
           rankMax: 2,
+          requiredFlags: ["hokutoHistoryReady"],
         },
       ),
     ],
@@ -1153,6 +1168,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentSevenMinus1500StayDays = readNumber(metrics.recentSevenMinus1500StayDays);
   const recentThirtyMinus2700StayDays = readNumber(metrics.recentThirtyMinus2700StayDays);
   const adjacentHighSettingCandidateCount7 = readNumber(metrics.adjacentHighSettingCandidateCount7);
+  const adjacentMachineHighContentCount3 = readNumber(metrics.adjacentMachineHighContentCount3);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
   const adjacentMachineNetTotal3 = readNumber(metrics.adjacentMachineNetTotal3);
@@ -1361,6 +1377,41 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       lowConfidence: thunderLowInfo,
       boostCount: thunderBoostFlags.filter(Boolean).length,
       dangerCount: thunderDangerFlags.filter(Boolean).length,
+    };
+  }
+
+  if (machineKey === "hokuto-tensei") {
+    const hokutoHistoryReady = historyRowCount >= 14;
+    const hokutoSevenAngle = features.recentSevenAngle;
+    const hokutoRestStrong =
+      Number.isFinite(daysSinceMachineHighContent) &&
+      daysSinceMachineHighContent >= 7 &&
+      daysSinceMachineHighContent <= 10;
+    const boostFlags = [
+      recentSevenNetTotal <= -4850,
+      hokutoSevenAngle <= -125,
+      recentFourteenNetTotal <= -5660,
+      streak >= 4,
+      hokutoRestStrong,
+      recentSevenGamesTotal >= 37800,
+      previousMachineHighContent && previousDifference < 0,
+    ];
+    const dangerFlags = [
+      recentSevenGamesTotal < 26955,
+      recentSevenNetTotal > 5420,
+      recentFourteenNetTotal > 10000,
+      previousDifference >= 2500,
+      previousMachineHighContent && previousDifference >= 2000,
+      recentSevenMachineHighContentCount >= 4,
+    ];
+
+    return {
+      ...features,
+      hokutoHistoryReady,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
+      treatmentDone: dangerFlags.slice(1, 5).some(Boolean),
+      lowConfidence: recentSevenGamesTotal < 26955,
     };
   }
 
@@ -1864,6 +1915,7 @@ function calculateMachineScore(definition, metrics, features) {
   const previousMachineStrongHighContent = Boolean(metrics.previousMachineStrongHighContent);
   const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
   const machineGoodContentStreak = readNumber(metrics.machineGoodContentStreak);
+  const adjacentMachineHighContentCount3 = readNumber(metrics.adjacentMachineHighContentCount3);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
   const adjacentMachineNetTotal3 = readNumber(metrics.adjacentMachineNetTotal3);
@@ -3258,14 +3310,14 @@ function calculateMachineScore(definition, metrics, features) {
     ]);
 
     let restScore = 2;
-    if (Number.isFinite(features.bestRestDays)) {
-      if (features.bestRestDays >= 7 && features.bestRestDays <= 10) {
+    if (Number.isFinite(daysSinceMachineHighContent)) {
+      if (daysSinceMachineHighContent >= 7 && daysSinceMachineHighContent <= 10) {
         restScore = 12;
-      } else if (features.bestRestDays >= 4 && features.bestRestDays <= 6) {
+      } else if (daysSinceMachineHighContent >= 4 && daysSinceMachineHighContent <= 6) {
         restScore = 6;
-      } else if (features.bestRestDays >= 11 && features.bestRestDays <= 20) {
+      } else if (daysSinceMachineHighContent >= 11 && daysSinceMachineHighContent <= 20) {
         restScore = 3;
-      } else if (features.bestRestDays >= 21) {
+      } else if (daysSinceMachineHighContent >= 21) {
         restScore = 4;
       }
     }
@@ -3289,20 +3341,20 @@ function calculateMachineScore(definition, metrics, features) {
       { maximum: -1250, points: 3 },
     ]);
     const previousHighMissScore =
-      features.previousHighContent && previousDifference < -1000
+      previousMachineHighContent && previousDifference < -1000
         ? 4
-        : features.previousHighContent && previousDifference < 0
+        : previousMachineHighContent && previousDifference < 0
           ? 2
           : 0;
-    const adjacentScore = readNumber(metrics.adjacentHighSettingCandidateCount7) > 0 ? 2 : 0;
+    const adjacentScore = adjacentMachineHighContentCount3 === 1 ? 2 : 0;
 
     let penalty = 0;
     penalty += recentSevenNetTotal > 5420 ? 10 : 0;
     penalty += recentFourteenNetTotal > 10000 ? 8 : 0;
     penalty += previousDifference >= 2500 ? 8 : 0;
-    penalty += features.previousHighContent && previousDifference >= 2000 ? 8 : 0;
-    penalty += features.previousHighContent && previousDifference >= 4000 ? 4 : 0;
-    penalty += recentSevenHighSettingCandidateCount >= 4 ? 12 : 0;
+    penalty += previousMachineHighContent && previousDifference >= 2000 ? 8 : 0;
+    penalty += previousMachineHighContent && previousDifference >= 4000 ? 4 : 0;
+    penalty += recentSevenMachineHighContentCount >= 4 ? 12 : 0;
     penalty += recentSevenGamesTotal < 26955 ? 4 : 0;
 
     return Math.round(

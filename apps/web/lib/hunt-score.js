@@ -1430,6 +1430,18 @@ function isMachineHighContentWindowRow(row, machineName) {
     return games >= 3502 && combinedDenominator <= 434 && differenceValue >= -819;
   }
   if (
+    normalizedMachineName === normalizeText("スマスロ北斗の拳 転生の章") ||
+    normalizedMachineName === normalizeText("スマスロ北斗の拳 転生の章2") ||
+    normalizedMachineName === normalizeText("スマスロ北斗の拳転生の章") ||
+    normalizedMachineName === normalizeText("スマスロ北斗の拳転生の章2")
+  ) {
+    return (
+      games >= 5000 &&
+      ((combinedDenominator <= 425 && differenceValue >= -1500) ||
+        (combinedDenominator <= 475 && differenceValue >= 2000))
+    );
+  }
+  if (
     normalizedMachineName === normalizeText("スマスロ ハナビ") ||
     normalizedMachineName === normalizeText("スマスロハナビ")
   ) {
@@ -6697,6 +6709,15 @@ function calculateWindowMetrics(
     windowDays,
     currentMachineName,
   );
+  const adjacentMachineHighContentCount3 = countAdjacentMachineHighContentRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    3,
+    currentMachineName,
+  );
   const adjacentMachineHighContentCount14 = countAdjacentMachineHighContentRows(
     businessDates,
     dateIndex,
@@ -6833,6 +6854,7 @@ function calculateWindowMetrics(
     recentTenMachineHighContentCount,
     recentFourteenMachineHighContentCount,
     recentThirtyMachineHighContentCount,
+    adjacentMachineHighContentCount3,
     recentSevenMachineGoodContentCount,
     recentSevenMachineWeakContentCount,
     recentFourteenMachineGoodContentCount,
