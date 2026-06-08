@@ -293,9 +293,9 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "score65",
         "65点以上",
-        "109件 / 104.71%",
+        "114件 / 104.53%",
         {
-          minScore: 65,
+          minScore: 64,
           requiredFlags: ["okidokiDuoHistoryReady"],
         },
       ),
@@ -1171,7 +1171,11 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const adjacentMachineHighContentCount3 = readNumber(metrics.adjacentMachineHighContentCount3);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
+  const adjacentMachineHighContentCount7Near2 = readNumber(metrics.adjacentMachineHighContentCount7Near2);
+  const adjacentMachineHighContentCount14Near2 = readNumber(metrics.adjacentMachineHighContentCount14Near2);
   const adjacentMachineNetTotal3 = readNumber(metrics.adjacentMachineNetTotal3);
+  const adjacentMachineNetTotal5 = readNumber(metrics.adjacentMachineNetTotal5);
+  const adjacentMachineNetTotal5Near2 = readNumber(metrics.adjacentMachineNetTotal5Near2);
   const adjacentMachineNetTotal7 = readNumber(metrics.adjacentMachineNetTotal7);
   const previousAdjacentMachineHighContentCount = readNumber(metrics.previousAdjacentMachineHighContentCount);
   const previousAdjacentMachineGoodContentCount = readNumber(metrics.previousAdjacentMachineGoodContentCount);
@@ -1585,8 +1589,8 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         daysSinceMachineHighContent >= 5 &&
         daysSinceMachineHighContent <= 21);
     const okidokiDuoNearbyLeftBehind =
-      adjacentMachineHighContentCount14 >= 2 ||
-      (recentFiveNetTotal < 0 && adjacentMachineHighContentCount14 > 0);
+      adjacentMachineHighContentCount14Near2 >= 2 ||
+      (recentFiveNetTotal < 0 && adjacentMachineNetTotal5Near2 > 0);
     const okidokiDuoUntreated =
       features.recentFourteenCombinedDenominator >= 130 ||
       features.recentFourteenRbDenominator >= 381;
@@ -1918,7 +1922,11 @@ function calculateMachineScore(definition, metrics, features) {
   const adjacentMachineHighContentCount3 = readNumber(metrics.adjacentMachineHighContentCount3);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
+  const adjacentMachineHighContentCount7Near2 = readNumber(metrics.adjacentMachineHighContentCount7Near2);
+  const adjacentMachineHighContentCount14Near2 = readNumber(metrics.adjacentMachineHighContentCount14Near2);
   const adjacentMachineNetTotal3 = readNumber(metrics.adjacentMachineNetTotal3);
+  const adjacentMachineNetTotal5 = readNumber(metrics.adjacentMachineNetTotal5);
+  const adjacentMachineNetTotal5Near2 = readNumber(metrics.adjacentMachineNetTotal5Near2);
   const adjacentMachineNetTotal7 = readNumber(metrics.adjacentMachineNetTotal7);
   const previousAdjacentMachineHighContentCount = readNumber(metrics.previousAdjacentMachineHighContentCount);
   const previousAdjacentMachineGoodContentCount = readNumber(metrics.previousAdjacentMachineGoodContentCount);
@@ -2847,10 +2855,12 @@ function calculateMachineScore(definition, metrics, features) {
     rotationScore += recentFourteenMachineHighContentCount === 0 ? 12 : recentFourteenMachineHighContentCount <= 1 ? 8 : 0;
     rotationScore += recentTenMachineHighContentCount <= 1 ? 4 : 0;
     rotationScore += recentFiveMachineHighContentCount === 0 ? 2 : 0;
-    rotationScore += scoreInRange(daysSinceMachineHighContent, 5, 10, 5);
-    rotationScore += scoreInRange(daysSinceMachineHighContent, 14, 21, 5);
-    rotationScore += scoreInRange(daysSinceMachineHighContent, 3, 5, 2);
-    rotationScore -= Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent > 21 ? 3 : 0;
+    rotationScore += Math.max(
+      scoreInRange(daysSinceMachineHighContent, 5, 10, 5),
+      scoreInRange(daysSinceMachineHighContent, 14, 21, 5),
+      scoreInRange(daysSinceMachineHighContent, 3, 5, 2),
+    );
+    rotationScore -= !Number.isFinite(daysSinceMachineHighContent) || daysSinceMachineHighContent > 21 ? 3 : 0;
     rotationScore -= recentThreeMachineHighContentCount >= 2 ? 12 : 0;
     rotationScore -= recentFourteenMachineHighContentCount >= 4 ? 8 : 0;
     rotationScore = Math.min(rotationScore, 15);
@@ -2873,14 +2883,16 @@ function calculateMachineScore(definition, metrics, features) {
     bonusScore = clamp(bonusScore, -9, 9);
 
     let nearbyScore = 0;
-    nearbyScore += adjacentMachineHighContentCount14 >= 2 && recentFourteenMachineHighContentCount === 0 ? 6 : 0;
-    nearbyScore += adjacentMachineHighContentCount14 > 0 && recentFiveNetTotal < 0 ? 2 : 0;
-    nearbyScore += adjacentMachineHighContentCount14 === 0 ? 1 : 0;
+    nearbyScore += adjacentMachineHighContentCount14Near2 >= 2 && recentFourteenMachineHighContentCount === 0 ? 6 : 0;
+    nearbyScore += adjacentMachineNetTotal5Near2 > 0 && recentFiveNetTotal < 0 ? 2 : 0;
+    nearbyScore += adjacentMachineHighContentCount7Near2 === 0 ? 1 : 0;
     nearbyScore = Math.min(nearbyScore, 7);
 
     let gamesScore = 0;
-    gamesScore += recentThreeGamesTotal >= 4000 ? 3 : 0;
-    gamesScore += recentFiveGamesTotal >= 7000 && recentFiveNetTotal < 0 ? 3 : 0;
+    gamesScore += Math.max(
+      recentThreeGamesTotal >= 4000 ? 3 : 0,
+      recentFiveGamesTotal >= 7000 && recentFiveNetTotal < 0 ? 3 : 0,
+    );
     gamesScore -= recentTwoGamesTotal < 1800 ? 6 : 0;
     gamesScore -= recentThreeGamesTotal < 2500 ? 3 : 0;
     gamesScore = clamp(gamesScore, -7, 7);
