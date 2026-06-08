@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Fragment } from "react";
 
+import { CrossStoreBacktestFormStateSync } from "../../components/cross-store-backtest-form-state-sync";
 import { ExpandableTableRowsController } from "../../components/expandable-table-rows-controller";
 import {
   AllMachineFilterButtons,
@@ -36,6 +37,7 @@ export const metadata = {
 };
 
 const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, index) => index);
+const CROSS_STORE_BACKTEST_FORM_ID = "cross-store-backtest-condition-form";
 const SETTING_DISTRIBUTION_OPTIONS = [
   { value: "show", label: "表示" },
   { value: "hide", label: "非表示" },
@@ -537,9 +539,39 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
   });
   const locationFilterOpen =
     detail.selectedPrefectures.length > 0 || detail.selectedAreaKeys.length > 0;
+  const crossStoreFormStateKey = JSON.stringify({
+    periodMode: detail.periodMode,
+    recentDays: detail.recentDays,
+    startDate: detail.startDate ?? "",
+    endDate: detail.endDate ?? "",
+    machineNames: detail.selectedMachineNames,
+    huntScoreLogicKeys: detail.huntScoreLogicKeys,
+    combineAimJuggler: detail.combineAimJuggler,
+    combineHanabi: detail.combineHanabi,
+    scoreDifferenceMode: detail.scoreDifferenceMode,
+    differenceMode: detail.differenceMode,
+    settingEstimateMode: detail.settingEstimateMode,
+    settingDistribution: detail.settingDistribution,
+    selectedPrefectures: detail.selectedPrefectures,
+    selectedAreaKeys: detail.selectedAreaKeys,
+    dayTails: detail.eventFilters.dayTails,
+    zoro: detail.eventFilters.zoro,
+    weekdays: detail.eventFilters.weekdays,
+    monthDays: detail.eventFilters.monthDays,
+    minActualRows: detail.minActualRows,
+    minMatchedDateCount: detail.minMatchedDateCount,
+    minSlotCount: detail.minSlotCount ?? "",
+    maxSlotCount: detail.maxSlotCount ?? "",
+    limit: detail.limit,
+    rankingMetric: detail.rankingMetric,
+  });
 
   return (
     <main className="pageStack">
+      <CrossStoreBacktestFormStateSync
+        formId={CROSS_STORE_BACKTEST_FORM_ID}
+        formStateKey={crossStoreFormStateKey}
+      />
       <section className="heroPanel">
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">店舗横断バックテスト</h1>
@@ -552,7 +584,11 @@ export default async function CrossStoreBacktestPage({ searchParams }) {
       </section>
 
       <section className="filterPanel">
-        <NativeGetForm action="/store-cross-backtest" className="backtestForm">
+        <NativeGetForm
+          action="/store-cross-backtest"
+          id={CROSS_STORE_BACKTEST_FORM_ID}
+          className="backtestForm"
+        >
           <input type="hidden" name="show" value="1" />
           <input type="hidden" name="machineTouched" value="1" />
 

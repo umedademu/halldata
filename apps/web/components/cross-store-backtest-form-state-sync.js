@@ -3,17 +3,22 @@
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-const STORAGE_KEY_PREFIX = "hunt-ranking-form-state:";
+const STORAGE_KEY = "cross-store-backtest-form-state";
 const MANAGED_PARAM_KEYS = [
   "show",
+  "periodMode",
+  "recentDays",
+  "startDate",
+  "endDate",
   "machineTouched",
-  "date",
-  "limit",
+  "machine",
+  "aimMachineGroup",
+  "hanabiMachineGroup",
+  "logicKey",
+  "scoreDifferenceMode",
   "differenceMode",
   "settingEstimateMode",
-  "huntScoreLogicKey",
-  "subHuntScoreLogicKey",
-  "machine",
+  "settingDistribution",
   "rankMin",
   "rankMax",
   "machineRankMin",
@@ -22,33 +27,44 @@ const MANAGED_PARAM_KEYS = [
   "selectedRankMax",
   "scoreMin",
   "scoreMax",
+  "upperGapMin",
+  "upperGapMax",
   "nextGapMin",
   "nextGapMax",
-  "machineNextGapMin",
-  "machineNextGapMax",
-  "selectedNextGapMin",
-  "selectedNextGapMax",
   "machineUpperGapMin",
   "machineUpperGapMax",
+  "machineNextGapMin",
+  "machineNextGapMax",
   "selectedUpperGapMin",
   "selectedUpperGapMax",
+  "selectedNextGapMin",
+  "selectedNextGapMax",
   "rankRequired",
   "machineRankRequired",
   "selectedRankRequired",
   "scoreRequired",
+  "upperGapRequired",
   "nextGapRequired",
-  "machineNextGapRequired",
-  "selectedNextGapRequired",
   "machineUpperGapRequired",
+  "machineNextGapRequired",
   "selectedUpperGapRequired",
+  "selectedNextGapRequired",
   "rankScope",
   "nextGapScope",
+  "prefecture",
+  "area",
+  "backtestDayTail",
+  "backtestZoro",
+  "backtestWeekday",
+  "backtestMonthDay",
+  "minActualRows",
+  "minMatchedDateCount",
+  "minSlotCount",
+  "maxSlotCount",
+  "limit",
+  "rankingMetric",
 ];
 const MANAGED_PARAM_KEY_SET = new Set(MANAGED_PARAM_KEYS);
-
-function storageKeyForStore(storeId) {
-  return `${STORAGE_KEY_PREFIX}${storeId}`;
-}
 
 function normalizeEntry(key, value) {
   const normalizedKey = String(key ?? "").trim();
@@ -91,48 +107,6 @@ function readStateFromForm(form) {
   return entries;
 }
 
-function applyStateToForm(form, entries) {
-  if (!form) {
-    return;
-  }
-
-  const valuesByKey = new Map();
-  for (const [key, value] of normalizeStateEntries(entries)) {
-    if (!valuesByKey.has(key)) {
-      valuesByKey.set(key, []);
-    }
-    valuesByKey.get(key).push(value);
-  }
-
-  const controls = [...form.elements].filter((control) =>
-    MANAGED_PARAM_KEY_SET.has(String(control?.name ?? "")),
-  );
-  const controlsByName = new Map();
-  for (const control of controls) {
-    const name = String(control.name ?? "");
-    if (!controlsByName.has(name)) {
-      controlsByName.set(name, []);
-    }
-    controlsByName.get(name).push(control);
-  }
-
-  for (const [name, namedControls] of controlsByName.entries()) {
-    const values = valuesByKey.get(name) ?? [];
-    const valueSet = new Set(values);
-    for (const control of namedControls) {
-      if (control.type === "checkbox" || control.type === "radio") {
-        control.checked = valueSet.has(String(control.value ?? ""));
-      } else if (control.tagName === "SELECT" && control.multiple) {
-        for (const option of control.options) {
-          option.selected = valueSet.has(String(option.value ?? ""));
-        }
-      } else if (values.length > 0) {
-        control.value = values[0] ?? "";
-      }
-    }
-  }
-}
-
 function hasManagedSearchParams(searchParams) {
   return MANAGED_PARAM_KEYS.some((key) => searchParams.has(key));
 }
@@ -145,15 +119,15 @@ function buildSearchText(entries) {
   return searchParams.toString();
 }
 
-function saveState(storeId, entries) {
+function saveState(entries) {
   const normalizedEntries = normalizeStateEntries(entries);
-  if (!storeId || normalizedEntries.length === 0) {
+  if (normalizedEntries.length === 0) {
     return;
   }
 
   try {
     window.localStorage.setItem(
-      storageKeyForStore(storeId),
+      STORAGE_KEY,
       JSON.stringify({
         version: 1,
         entries: normalizedEntries,
@@ -164,13 +138,9 @@ function saveState(storeId, entries) {
   }
 }
 
-function readSavedState(storeId) {
-  if (!storeId) {
-    return [];
-  }
-
+function readSavedState() {
   try {
-    const rawValue = window.localStorage.getItem(storageKeyForStore(storeId));
+    const rawValue = window.localStorage.getItem(STORAGE_KEY);
     if (!rawValue) {
       return [];
     }
@@ -182,20 +152,16 @@ function readSavedState(storeId) {
   }
 }
 
-export function HuntRankingFormStateSync({ storeId, formId, formStateKey = "" }) {
+export function CrossStoreBacktestFormStateSync({ formId, formStateKey = "" }) {
   const hasSeenManagedParamsRef = useRef(false);
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (!storeId) {
-      return;
-    }
-
     if (hasManagedSearchParams(searchParams)) {
       hasSeenManagedParamsRef.current = true;
-      saveState(storeId, readStateFromSearchParams(searchParams));
+      saveState(readStateFromSearchParams(searchParams));
       return;
     }
 
@@ -203,23 +169,14 @@ export function HuntRankingFormStateSync({ storeId, formId, formStateKey = "" })
       return;
     }
 
-    const savedEntries = readSavedState(storeId);
-    if (savedEntries.length === 0) {
-      return;
-    }
-
-    const savedSearchText = buildSearchText(savedEntries);
+    const savedSearchText = buildSearchText(readSavedState());
     if (savedSearchText) {
       router.replace(`${pathname}?${savedSearchText}`, { scroll: false });
-      return;
     }
-
-    const form = formId ? document.getElementById(formId) : null;
-    applyStateToForm(form, savedEntries);
-  }, [formId, formStateKey, pathname, router, searchParams, storeId]);
+  }, [formStateKey, pathname, router, searchParams]);
 
   useEffect(() => {
-    if (!storeId || !formId) {
+    if (!formId) {
       return undefined;
     }
 
@@ -229,7 +186,7 @@ export function HuntRankingFormStateSync({ storeId, formId, formStateKey = "" })
     }
 
     const saveFormState = () => {
-      saveState(storeId, readStateFromForm(form));
+      saveState(readStateFromForm(form));
     };
 
     form.addEventListener("change", saveFormState);
@@ -241,7 +198,7 @@ export function HuntRankingFormStateSync({ storeId, formId, formStateKey = "" })
       form.removeEventListener("input", saveFormState);
       form.removeEventListener("submit", saveFormState);
     };
-  }, [formId, formStateKey, storeId]);
+  }, [formId, formStateKey]);
 
   return null;
 }

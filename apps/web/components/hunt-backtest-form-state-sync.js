@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useRef } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const STORAGE_KEY_PREFIX = "hunt-backtest-form-state:";
 const MANAGED_PARAM_KEYS = [
@@ -145,6 +145,14 @@ function hasManagedSearchParams(searchParams) {
   return MANAGED_PARAM_KEYS.some((key) => searchParams.has(key));
 }
 
+function buildSearchText(entries) {
+  const searchParams = new URLSearchParams();
+  for (const [key, value] of normalizeStateEntries(entries)) {
+    searchParams.append(key, value);
+  }
+  return searchParams.toString();
+}
+
 function saveState(storeId, entries) {
   const normalizedEntries = normalizeStateEntries(entries);
   if (!storeId || normalizedEntries.length === 0) {
@@ -183,6 +191,9 @@ function readSavedState(storeId) {
 }
 
 export function HuntBacktestFormStateSync({ storeId, formId, formStateKey = "" }) {
+  const hasSeenManagedParamsRef = useRef(false);
+  const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -191,8 +202,13 @@ export function HuntBacktestFormStateSync({ storeId, formId, formStateKey = "" }
     }
 
     if (hasManagedSearchParams(searchParams)) {
+      hasSeenManagedParamsRef.current = true;
       const searchEntries = readStateFromSearchParams(searchParams);
       saveState(storeId, searchEntries);
+      return;
+    }
+
+    if (hasSeenManagedParamsRef.current) {
       return;
     }
 
@@ -201,9 +217,15 @@ export function HuntBacktestFormStateSync({ storeId, formId, formStateKey = "" }
       return;
     }
 
+    const savedSearchText = buildSearchText(savedEntries);
+    if (savedSearchText) {
+      router.replace(`${pathname}?${savedSearchText}`, { scroll: false });
+      return;
+    }
+
     const form = formId ? document.getElementById(formId) : null;
     applyStateToForm(form, savedEntries);
-  }, [formId, formStateKey, searchParams, storeId]);
+  }, [formId, formStateKey, pathname, router, searchParams, storeId]);
 
   useEffect(() => {
     if (!storeId || !formId) {

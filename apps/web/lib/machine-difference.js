@@ -7,7 +7,7 @@ import {
 
 let cachedRules = null;
 
-export const DEFAULT_DIFFERENCE_MODE = "estimated";
+export const DEFAULT_DIFFERENCE_MODE = "minrepo";
 const SITE7_DIFFERENCE_SOURCE_GRAPH = "graph";
 const MINREPO_ONE_BET_GAME_FACTOR = 1 / 3;
 const ONE_BET_GRAPE_DENOMINATOR = 10.3;
@@ -356,7 +356,7 @@ function readSite7GraphDifferenceValue(row) {
   return readDifferenceNumber(row?.difference_value);
 }
 
-export function selectDifferenceValue(row, differenceMode = "bonus", machineName = "") {
+export function selectDifferenceValue(row, differenceMode = DEFAULT_DIFFERENCE_MODE, machineName = "") {
   const normalizedDifferenceMode = normalizeDifferenceMode(differenceMode);
   const site7GraphDifferenceValue = readSite7GraphDifferenceValue(row);
   if (site7GraphDifferenceValue !== null) {
