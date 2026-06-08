@@ -54,6 +54,7 @@ from site7_scraper import (
     Site7MachineEntry,
     Site7Scraper,
     Site7TargetStore,
+    clamp_site7_recent_days,
     copy_site7_dataset_metadata,
     default_site7_store_settings,
     enrich_site7_target_store,
@@ -2971,14 +2972,7 @@ class MinRepoApp:
             self._show_error(exc)
             return
 
-        if recent_days > SITE7_MAX_RECENT_DAYS:
-            if not messagebox.askyesno(
-                "サイトセブン",
-                f"サイトセブンは直近 {SITE7_MAX_RECENT_DAYS} 日までです。\n"
-                f"{SITE7_MAX_RECENT_DAYS} 日として取得しますか？",
-            ):
-                return
-            recent_days = SITE7_MAX_RECENT_DAYS
+        recent_days = clamp_site7_recent_days(recent_days)
 
         if not self.site7_scraper.has_saved_login_state():
             if messagebox.askyesno(
@@ -3031,14 +3025,7 @@ class MinRepoApp:
             self._show_error(exc)
             return
 
-        if recent_days > SITE7_MAX_RECENT_DAYS:
-            if not messagebox.askyesno(
-                "サイトセブン",
-                f"サイトセブンは直近 {SITE7_MAX_RECENT_DAYS} 日までです。\n"
-                f"{SITE7_MAX_RECENT_DAYS} 日として取得しますか？",
-            ):
-                return
-            recent_days = SITE7_MAX_RECENT_DAYS
+        recent_days = clamp_site7_recent_days(recent_days)
 
         if not self.site7_scraper.has_saved_login_state():
             if messagebox.askyesno(

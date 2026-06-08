@@ -1361,6 +1361,65 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertTrue(app._minrepo_start_blocked())
         self.assertFalse(app._site7_start_blocked())
 
+    def test_fetch_site7_data_clamps_recent_days_without_prompt(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        target_store = RegisteredStore(
+            name="Aパーク春日店",
+            url="https://example.com/store",
+            fetch_source=FETCH_SOURCE_SITE7,
+        )
+        app.target_date_var = FakeTextVariable("90")
+        app.site7_scraper = SimpleNamespace(has_saved_login_state=mock.Mock(return_value=True))
+        app._site7_start_blocked = mock.Mock(return_value=False)
+        app._retry_delay_seconds_input = mock.Mock(return_value=0)
+        app._minrepo_fetch_parallel_options = mock.Mock(
+            return_value=MinRepoFetchParallelOptions(date_workers=1, machine_workers=1)
+        )
+        app._web_publish_options_input = mock.Mock(return_value=object())
+        app._selected_site7_registered_stores = mock.Mock(return_value=[target_store])
+        app._site7_has_enabled_target_machines = mock.Mock(return_value=True)
+        app._begin_fetch_run = mock.Mock()
+        app._site7_browser_visible = mock.Mock(return_value=False)
+        app._start_worker = mock.Mock()
+
+        with mock.patch("main.messagebox.askyesno") as askyesno:
+            app.fetch_site7_data()
+
+        askyesno.assert_not_called()
+        app._start_worker.assert_called_once()
+        self.assertEqual(app._start_worker.call_args.args[1], [target_store])
+        self.assertEqual(app._start_worker.call_args.args[2], 8)
+
+    def test_fetch_registered_store_site7_data_clamps_recent_days_without_prompt(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        target_store = RegisteredStore(
+            name="Aパーク春日店",
+            url="https://example.com/store",
+            fetch_source=FETCH_SOURCE_SITE7,
+        )
+        app.target_date_var = FakeTextVariable("90")
+        app.site7_scraper = SimpleNamespace(has_saved_login_state=mock.Mock(return_value=True))
+        app._site7_start_blocked = mock.Mock(return_value=False)
+        app._retry_delay_seconds_input = mock.Mock(return_value=0)
+        app._minrepo_fetch_parallel_options = mock.Mock(
+            return_value=MinRepoFetchParallelOptions(date_workers=1, machine_workers=1)
+        )
+        app._web_publish_options_input = mock.Mock(return_value=object())
+        app._site7_registered_store_for_single_fetch = mock.Mock(return_value=target_store)
+        app._site7_has_enabled_target_machines = mock.Mock(return_value=True)
+        app._registered_store_display_name = mock.Mock(return_value=target_store.name)
+        app._begin_fetch_run = mock.Mock()
+        app._site7_browser_visible = mock.Mock(return_value=False)
+        app._start_worker = mock.Mock()
+
+        with mock.patch("main.messagebox.askyesno") as askyesno:
+            app.fetch_registered_store_site7_data(target_store)
+
+        askyesno.assert_not_called()
+        app._start_worker.assert_called_once()
+        self.assertEqual(app._start_worker.call_args.args[1], [target_store])
+        self.assertEqual(app._start_worker.call_args.args[2], 8)
+
     def test_run_with_persistence_lock_serializes_actions(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.persistence_lock = threading.Lock()
