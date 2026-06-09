@@ -120,21 +120,21 @@ const RESULT_COLUMN_DEFINITIONS = [
   },
 ];
 
-function buildResultColumns(actualDate, differenceMode, showGrapeColumn) {
-  const actualDatePrefix = actualDate ? formatMonthDay(actualDate) : "実績";
+function buildResultColumns(differenceMode, showGrapeColumn) {
   const columnDefinitions = showGrapeColumn
     ? RESULT_COLUMN_DEFINITIONS
     : RESULT_COLUMN_DEFINITIONS.filter((column) => column.key !== ESTIMATED_GRAPE_RESULT_KEY);
 
   return columnDefinitions.map((column) => ({
     ...column,
-    label: `${actualDatePrefix}${column.label}`,
     render: (row) => column.render(row, differenceMode),
   }));
 }
 
-function formatScoreColumnLabel(predictionDate) {
-  return predictionDate ? `${formatMonthDay(predictionDate)}狙い度` : "狙い度";
+function formatRankingDateFlowLabel(predictionDate, actualDate) {
+  const scoreDateLabel = predictionDate ? `${formatMonthDay(predictionDate)}狙い度` : "狙い度";
+  const actualDateLabel = actualDate ? `${formatMonthDay(actualDate)}実績` : "実績なし";
+  return `${scoreDateLabel} → ${actualDateLabel}`;
 }
 
 function latestSite7FetchedAtFromRows(rows) {
@@ -373,7 +373,6 @@ function MachineEvaluationCell({ evaluation }) {
     return <td data-sort-value="">-</td>;
   }
 
-  const statusLabel = evaluation.matchesAdoption ? "採用" : "見送り";
   const titleParts = [
     evaluation.logicName ? `機種別ロジック: ${evaluation.logicName}` : "",
     evaluation.conditionName ? `採用条件: ${evaluation.conditionName}` : "",
@@ -389,7 +388,6 @@ function MachineEvaluationCell({ evaluation }) {
       data-sort-value={readRankingSortNumber(evaluation.score, "")}
     >
       <span className="machineEvaluationCellValue">{formatNumber(evaluation.score)}</span>
-      <span className="machineEvaluationCellStatus">{statusLabel}</span>
     </td>
   );
 }
@@ -581,6 +579,7 @@ function OverallRankingTable({
   rows,
   visibleColumns,
   scoreColumnLabel,
+  dateFlowLabel,
   nextGapScope,
   highlightCondition,
   bookmarkMatchByRowKey = null,
@@ -675,7 +674,10 @@ function OverallRankingTable({
       <div className="tablePanelHeader">
         <div>
           <p className="sectionLabel">{sectionLabel}</p>
-          <h2 className="tablePanelTitle">{title}</h2>
+          <h2 className="tablePanelTitle">
+            <span>{title}</span>
+            {dateFlowLabel ? <span className="tablePanelDateFlow">{dateFlowLabel}</span> : null}
+          </h2>
         </div>
       </div>
       <div className="tableScroller directoryScroller">
@@ -862,14 +864,18 @@ export function HuntRankingTable({
   }, [storeId]);
 
   const resultColumns = useMemo(
-    () => buildResultColumns(actualDate, differenceMode, showGrapeColumn),
-    [actualDate, differenceMode, showGrapeColumn],
+    () => buildResultColumns(differenceMode, showGrapeColumn),
+    [differenceMode, showGrapeColumn],
   );
   const visibleColumns = useMemo(
     () => resultColumns.filter((column) => visibleResultKeys.includes(column.key)),
     [resultColumns, visibleResultKeys],
   );
-  const scoreColumnLabel = useMemo(() => formatScoreColumnLabel(predictionDate), [predictionDate]);
+  const scoreColumnLabel = "狙い度";
+  const dateFlowLabel = useMemo(
+    () => formatRankingDateFlowLabel(predictionDate, actualDate),
+    [actualDate, predictionDate],
+  );
   const showSubHuntScoreColumn = Boolean(subHuntScoreLogic);
   const subHuntScoreTitle = subHuntScoreLogic?.name
     ? `表示用ロジック: ${subHuntScoreLogic.name}`
@@ -926,9 +932,6 @@ export function HuntRankingTable({
       highlightOptions.scoreRequired,
     ],
   );
-  const resultColumnLead = actualDate
-    ? `${formatMonthDay(actualDate)}の実績列だけを切り替えられます。`
-    : "実績列だけを切り替えられます。";
   const displayGroups = useMemo(
     () => (rankingGroups.length > 0 ? rankingGroups : buildFallbackRankingGroups(rows)),
     [rankingGroups, rows],
@@ -1085,7 +1088,7 @@ export function HuntRankingTable({
         <div>
           <p className="sectionLabel">表示する列</p>
           <p className="filterLead">
-            {`${resultColumnLead}ここは保存済み実績の表示だけを切り替えます。`}
+            ここは保存済み実績の表示だけを切り替えます。
           </p>
         </div>
         <div className="metricToggleRow">
@@ -1118,6 +1121,7 @@ export function HuntRankingTable({
           rows={selectedOverallRows}
           visibleColumns={visibleColumns}
           scoreColumnLabel={scoreColumnLabel}
+          dateFlowLabel={dateFlowLabel}
           nextGapScope={nextGapScope}
           highlightCondition={highlightCondition}
           bookmarkMatchByRowKey={bookmarkMatchByRowKey}
@@ -1141,6 +1145,7 @@ export function HuntRankingTable({
             rows={machineTopCandidateRows}
             visibleColumns={visibleColumns}
             scoreColumnLabel={scoreColumnLabel}
+            dateFlowLabel={dateFlowLabel}
             nextGapScope="machine"
             highlightCondition={highlightCondition}
             bookmarkMatchByRowKey={bookmarkMatchByRowKey}
@@ -1169,23 +1174,26 @@ export function HuntRankingTable({
               <div>
                 <p className="sectionLabel">狙い度上位</p>
                 <h2 className="tablePanelTitle">
-                  {group.isCombinedGroup ? (
-                    <span>{group.machineName}</span>
-                  ) : (
-                    <Link
-                      href={`/stores/${storeId}/machines/${encodeURIComponent(group.machineName)}`}
-                      className="directoryPrimaryLink"
-                    >
-                      {group.machineName}
-                    </Link>
-                  )}
-                  {groupHasSite7Data ? (
-                    <Site7RankingBadge
-                      fetchedAt={groupSite7FetchedAt}
-                      title="この機種にSセブン暫定データが含まれます"
-                    />
-                  ) : null}
-                  {` 上位${formatNumber(group.rows.length)}台`}
+                  <span>
+                    {group.isCombinedGroup ? (
+                      <span>{group.machineName}</span>
+                    ) : (
+                      <Link
+                        href={`/stores/${storeId}/machines/${encodeURIComponent(group.machineName)}`}
+                        className="directoryPrimaryLink"
+                      >
+                        {group.machineName}
+                      </Link>
+                    )}
+                    {groupHasSite7Data ? (
+                      <Site7RankingBadge
+                        fetchedAt={groupSite7FetchedAt}
+                        title="この機種にSセブン暫定データが含まれます"
+                      />
+                    ) : null}
+                    {` 上位${formatNumber(group.rows.length)}台`}
+                  </span>
+                  <span className="tablePanelDateFlow">{dateFlowLabel}</span>
                 </h2>
               </div>
             </div>

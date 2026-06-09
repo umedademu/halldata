@@ -497,31 +497,11 @@ a {
   font-weight: 950;
 }
 
-.machineEvaluationCellStatus {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 3.1rem;
-  margin-left: 6px;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: rgba(100, 116, 139, 0.12);
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 950;
-  line-height: 1.2;
-}
-
 .directoryTable tbody td.machineEvaluationMatchedCell,
 .directoryTable tbody tr:nth-child(odd) td.machineEvaluationMatchedCell,
 .directoryTable tbody tr:hover td.machineEvaluationMatchedCell {
-  background: rgba(22, 101, 52, 0.1);
-  color: #166534;
-}
-
-.machineEvaluationMatchedCell .machineEvaluationCellStatus {
-  background: rgba(22, 101, 52, 0.14);
-  color: #166534;
+  background: rgba(124, 58, 237, 0.16);
+  color: #5b21b6;
 }
 
 .machineStoreName {
@@ -2217,6 +2197,18 @@ a {
 .tablePanelTitle {
   margin: 0;
   font-size: 1.3rem;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.tablePanelDateFlow {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 .specDetailsPanel {
