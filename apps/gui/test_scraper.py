@@ -1291,7 +1291,7 @@ class MinRepoScraperTests(unittest.TestCase):
         app.site7_cancel_event = threading.Event()
         app.is_busy = True
         app.active_operation_kind = "site7_fetch"
-        app.registered_store_tree = FakeTreeview()
+        app.registered_store_tree = FakeTreeview(("row1",))
         app.web_publish_mode_var = FakeTextVariable("days")
 
         widget_names = (
@@ -1299,6 +1299,7 @@ class MinRepoScraperTests(unittest.TestCase):
             "cancel_fetch_button",
             "target_date_entry",
             "retry_delay_entry",
+            "minrepo_fetch_mode_selector",
             "web_publish_days_radio",
             "web_publish_store_radio",
             "web_publish_interval_days_entry",
@@ -1320,7 +1321,11 @@ class MinRepoScraperTests(unittest.TestCase):
             "site7_browser_hidden_radio",
             "register_store_button",
             "register_store_url_entry",
+            "register_store_frequency_selector",
+            "register_store_source_selector",
+            "register_store_order_entry",
             "register_store_site7_button",
+            "register_store_site7_difference_checkbutton",
             "register_store_prefecture_entry",
             "register_store_area_entry",
             "register_store_site7_store_name_entry",
@@ -1328,13 +1333,18 @@ class MinRepoScraperTests(unittest.TestCase):
             "register_store_site7_address_entry",
             "update_registered_store_button",
             "clear_register_store_form_button",
+            "registered_store_filter_entry",
+            "clear_registered_store_filter_button",
             "select_all_stores_button",
             "clear_store_selection_button",
             "refresh_registered_stores_button",
             "delete_registered_stores_button",
+            "select_all_site7_machines_button",
+            "clear_site7_machines_button",
         )
         for widget_name in widget_names:
             setattr(app, widget_name, FakeStateWidget())
+        app.site7_machine_checkbuttons = {"machine": FakeStateWidget()}
         app.site7_schedule_hour_buttons = {
             hour: FakeStateWidget()
             for hour in range(10, 24)
@@ -1346,7 +1356,80 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(app.cancel_fetch_button.state, "disabled")
         self.assertEqual(app.site7_fetch_button.state, "disabled")
         self.assertEqual(app.site7_cancel_button.state, "normal")
-        self.assertTrue(all(widget.state == "disabled" for widget in app.site7_schedule_hour_buttons.values()))
+        self.assertEqual(app.target_date_entry.state, "normal")
+        self.assertEqual(app.retry_delay_entry.state, "normal")
+        self.assertEqual(app.minrepo_fetch_mode_selector.state, "readonly")
+        self.assertEqual(app.web_publish_days_radio.state, "normal")
+        self.assertEqual(app.web_publish_store_radio.state, "normal")
+        self.assertEqual(app.web_publish_interval_days_entry.state, "normal")
+        self.assertEqual(app.schedule_hour_entry.state, "normal")
+        self.assertEqual(app.apply_schedule_button.state, "normal")
+        self.assertEqual(app.clear_schedule_button.state, "normal")
+        self.assertEqual(app.schedule_all_stores_interval_days_entry.state, "normal")
+        self.assertEqual(app.apply_schedule_all_stores_button.state, "normal")
+        self.assertEqual(app.notify_fetch_complete_button.state, "normal")
+        self.assertEqual(app.site7_login_button.state, "disabled")
+        self.assertTrue(all(widget.state == "normal" for widget in app.site7_schedule_hour_buttons.values()))
+        self.assertEqual(app.apply_site7_schedule_button.state, "normal")
+        self.assertEqual(app.clear_site7_schedule_button.state, "normal")
+        self.assertEqual(app.site7_browser_visible_radio.state, "normal")
+        self.assertEqual(app.site7_browser_hidden_radio.state, "normal")
+        self.assertEqual(app.site7_machine_checkbuttons["machine"].state, "normal")
+        self.assertEqual(app.select_all_site7_machines_button.state, "normal")
+        self.assertEqual(app.clear_site7_machines_button.state, "normal")
+        self.assertEqual(app.register_store_button.state, "normal")
+        self.assertEqual(app.register_store_url_entry.state, "normal")
+        self.assertEqual(app.register_store_frequency_selector.state, "readonly")
+        self.assertEqual(app.register_store_source_selector.state, "readonly")
+        self.assertEqual(app.register_store_order_entry.state, "normal")
+        self.assertEqual(app.register_store_site7_difference_checkbutton.state, "normal")
+        self.assertEqual(app.register_store_prefecture_entry.state, "normal")
+        self.assertEqual(app.register_store_area_entry.state, "normal")
+        self.assertEqual(app.register_store_site7_store_name_entry.state, "normal")
+        self.assertEqual(app.register_store_site7_hall_id_entry.state, "normal")
+        self.assertEqual(app.register_store_site7_address_entry.state, "normal")
+        self.assertEqual(app.update_registered_store_button.state, "normal")
+        self.assertEqual(app.clear_register_store_form_button.state, "normal")
+        self.assertEqual(app.registered_store_filter_entry.state, "normal")
+        self.assertEqual(app.clear_registered_store_filter_button.state, "normal")
+        self.assertEqual(app.select_all_stores_button.state, "normal")
+        self.assertEqual(app.clear_store_selection_button.state, "normal")
+        self.assertEqual(app.refresh_registered_stores_button.state, "normal")
+        self.assertEqual(app.delete_registered_stores_button.state, "normal")
+
+    def test_registered_store_table_click_allows_edit_while_fetching(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.is_busy = True
+        app._cycle_registered_store_frequency = mock.Mock()
+
+        class ClickableTree:
+            def identify_region(self, x: int, y: int) -> str:
+                return "cell"
+
+            def identify_column(self, x: int) -> str:
+                return "#1"
+
+            def identify_row(self, y: int) -> str:
+                return "row1"
+
+        app.registered_store_tree = ClickableTree()
+
+        result = app._on_registered_store_tree_click(SimpleNamespace(x=1, y=1))
+
+        self.assertEqual(result, "break")
+        app._cycle_registered_store_frequency.assert_called_once_with("row1")
+
+    def test_refresh_registered_stores_can_start_while_fetching(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.is_busy = True
+        app.active_operation_kind = "site7_fetch"
+        app.register_store_status_var = FakeTextVariable()
+        app._start_worker = mock.Mock()
+
+        app.refresh_registered_stores()
+
+        self.assertEqual(app.register_store_status_var.get(), "登録店舗を更新中...")
+        app._start_worker.assert_called_once_with(app._worker_refresh_registered_stores, operation_kind="refresh_stores")
 
     def test_fetch_start_blocking_allows_minrepo_and_site7_to_run_together(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)

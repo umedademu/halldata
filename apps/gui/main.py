@@ -2493,7 +2493,7 @@ class MinRepoApp:
         return FETCH_SOURCE_BOTH if bool(store.get("site7_enabled", False)) else FETCH_SOURCE_MINREPO
 
     def refresh_registered_stores(self) -> None:
-        if self._has_active_operations():
+        if self._is_general_busy():
             return
 
         self.register_store_status_var.set("登録店舗を更新中...")
@@ -2507,7 +2507,7 @@ class MinRepoApp:
             self.result_queue.put(("refresh_registered_stores_error", exc))
 
     def delete_registered_stores(self) -> None:
-        if self._has_active_operations():
+        if self._is_general_busy():
             return
 
         target_stores = self._selected_registered_store_rows()
@@ -2762,6 +2762,9 @@ class MinRepoApp:
         return StoreRefreshResult(registered_stores=completed_stores, save_summary=save_summary)
 
     def register_store(self) -> None:
+        if self._is_general_busy():
+            return
+
         try:
             (
                 store_url,
@@ -2803,6 +2806,9 @@ class MinRepoApp:
         )
 
     def update_registered_store(self) -> None:
+        if self._is_general_busy():
+            return
+
         target_stores = self._selected_registered_store_rows()
         if len(target_stores) != 1:
             messagebox.showwarning("入力不足", "更新する店舗を一覧から1つだけ選んでください。")
@@ -3669,7 +3675,10 @@ class MinRepoApp:
         operation_id = self._next_operation_id
         self._next_operation_id += 1
         self.active_operations[operation_id] = operation_kind
-        self._operation_cancel_event(operation_kind).clear()
+        if operation_kind in MINREPO_OPERATION_KINDS:
+            self.minrepo_cancel_event.clear()
+        elif operation_kind in SITE7_OPERATION_KINDS:
+            self.site7_cancel_event.clear()
         self._refresh_busy_state()
         self._update_button_states()
 
@@ -5097,9 +5106,6 @@ class MinRepoApp:
         self._update_button_states()
 
     def _on_registered_store_tree_click(self, event: tk.Event[tk.Misc]) -> str | None:
-        if self.is_busy:
-            return None
-
         if self.registered_store_tree.identify_region(event.x, event.y) != "cell":
             return None
 
@@ -5122,9 +5128,6 @@ class MinRepoApp:
         return "break"
 
     def _on_registered_store_tree_right_click(self, event: tk.Event[tk.Misc]) -> str | None:
-        if self.is_busy:
-            return "break"
-
         item_id = self.registered_store_tree.identify_row(event.y)
         if not item_id:
             return None
@@ -5646,13 +5649,15 @@ class MinRepoApp:
         return self._persist_registered_store_list(self.registered_stores)
 
     def _persist_registered_store_list(self, registered_stores: list[RegisteredStore]) -> RegisteredStoresPersistenceSummary:
-        return self.persistence_service.save_registered_stores(
-            self._registered_store_payloads(registered_stores)
+        payloads = self._registered_store_payloads(registered_stores)
+        return self._run_with_persistence_lock(
+            lambda: self.persistence_service.save_registered_stores(payloads)
         )
 
     def _sync_registered_store_web_data(self, registered_stores: list[RegisteredStore]) -> RegisteredStoresPersistenceSummary:
-        return self.persistence_service.sync_registered_stores_to_web_data(
-            self._registered_store_payloads(registered_stores)
+        payloads = self._registered_store_payloads(registered_stores)
+        return self._run_with_persistence_lock(
+            lambda: self.persistence_service.sync_registered_stores_to_web_data(payloads)
         )
 
     def _registered_store_payloads(self, registered_stores: list[RegisteredStore]) -> list[dict[str, object]]:
@@ -5961,31 +5966,29 @@ class MinRepoApp:
         minrepo_busy = self._is_minrepo_busy()
         site7_busy = self._is_site7_busy()
         general_busy = self._is_general_busy()
-        any_busy = self._has_active_operations()
-
         self.fetch_button.configure(state="disabled" if minrepo_busy or general_busy else "normal")
         can_cancel_fetch = (
             minrepo_busy
             and not self.minrepo_cancel_event.is_set()
         )
         self.cancel_fetch_button.configure(state="normal" if can_cancel_fetch else "disabled")
-        self.target_date_entry.configure(state="disabled" if any_busy else "normal")
-        self.retry_delay_entry.configure(state="disabled" if any_busy else "normal")
+        self.target_date_entry.configure(state="normal")
+        self.retry_delay_entry.configure(state="normal")
         if hasattr(self, "minrepo_fetch_mode_selector"):
-            self.minrepo_fetch_mode_selector.configure(state="disabled" if any_busy else "readonly")
+            self.minrepo_fetch_mode_selector.configure(state="readonly")
         web_publish_days_selected = normalize_web_publish_mode(self.web_publish_mode_var.get()) == WEB_PUBLISH_MODE_DAYS
-        self.web_publish_days_radio.configure(state="disabled" if any_busy else "normal")
-        self.web_publish_store_radio.configure(state="disabled" if any_busy else "normal")
+        self.web_publish_days_radio.configure(state="normal")
+        self.web_publish_store_radio.configure(state="normal")
         self.web_publish_interval_days_entry.configure(
-            state="normal" if not any_busy and web_publish_days_selected else "disabled"
+            state="normal" if web_publish_days_selected else "disabled"
         )
-        self.schedule_hour_entry.configure(state="disabled" if any_busy else "normal")
-        self.apply_schedule_button.configure(state="disabled" if any_busy else "normal")
-        self.clear_schedule_button.configure(state="disabled" if any_busy else "normal")
-        self.schedule_all_stores_interval_days_entry.configure(state="disabled" if any_busy else "normal")
-        self.apply_schedule_all_stores_button.configure(state="disabled" if any_busy else "normal")
-        self.notify_fetch_complete_button.configure(state="disabled" if any_busy else "normal")
-        self.site7_login_button.configure(state="disabled" if any_busy else "normal")
+        self.schedule_hour_entry.configure(state="normal")
+        self.apply_schedule_button.configure(state="normal")
+        self.clear_schedule_button.configure(state="normal")
+        self.schedule_all_stores_interval_days_entry.configure(state="normal")
+        self.apply_schedule_all_stores_button.configure(state="normal")
+        self.notify_fetch_complete_button.configure(state="normal")
+        self.site7_login_button.configure(state="disabled" if site7_busy or general_busy else "normal")
         self.site7_fetch_button.configure(state="disabled" if site7_busy or general_busy else "normal")
         can_cancel_site7_fetch = (
             site7_busy
@@ -5993,46 +5996,46 @@ class MinRepoApp:
         )
         self.site7_cancel_button.configure(state="normal" if can_cancel_site7_fetch else "disabled")
         for hour_button in self.site7_schedule_hour_buttons.values():
-            hour_button.configure(state="disabled" if any_busy else "normal")
-        self.apply_site7_schedule_button.configure(state="disabled" if any_busy else "normal")
-        self.clear_site7_schedule_button.configure(state="disabled" if any_busy else "normal")
-        self.site7_browser_visible_radio.configure(state="disabled" if any_busy else "normal")
-        self.site7_browser_hidden_radio.configure(state="disabled" if any_busy else "normal")
+            hour_button.configure(state="normal")
+        self.apply_site7_schedule_button.configure(state="normal")
+        self.clear_site7_schedule_button.configure(state="normal")
+        self.site7_browser_visible_radio.configure(state="normal")
+        self.site7_browser_hidden_radio.configure(state="normal")
         if hasattr(self, "site7_machine_checkbuttons"):
             for checkbutton in self.site7_machine_checkbuttons.values():
-                checkbutton.configure(state="disabled" if any_busy else "normal")
+                checkbutton.configure(state="normal")
         if hasattr(self, "select_all_site7_machines_button"):
-            self.select_all_site7_machines_button.configure(state="disabled" if any_busy else "normal")
+            self.select_all_site7_machines_button.configure(state="normal")
         if hasattr(self, "clear_site7_machines_button"):
-            self.clear_site7_machines_button.configure(state="disabled" if any_busy else "normal")
-        self.register_store_button.configure(state="disabled" if any_busy else "normal")
-        self.register_store_url_entry.configure(state="disabled" if any_busy else "normal")
+            self.clear_site7_machines_button.configure(state="normal")
+        self.register_store_button.configure(state="disabled" if general_busy else "normal")
+        self.register_store_url_entry.configure(state="normal")
         if hasattr(self, "register_store_frequency_selector"):
-            self.register_store_frequency_selector.configure(state="disabled" if any_busy else "readonly")
+            self.register_store_frequency_selector.configure(state="readonly")
         if hasattr(self, "register_store_source_selector"):
-            self.register_store_source_selector.configure(state="disabled" if any_busy else "readonly")
+            self.register_store_source_selector.configure(state="readonly")
         if hasattr(self, "register_store_order_entry"):
-            self.register_store_order_entry.configure(state="disabled" if any_busy else "normal")
+            self.register_store_order_entry.configure(state="normal")
         if hasattr(self, "register_store_site7_difference_checkbutton"):
-            self.register_store_site7_difference_checkbutton.configure(state="disabled" if any_busy else "normal")
-        self.register_store_prefecture_entry.configure(state="disabled" if any_busy else "normal")
-        self.register_store_area_entry.configure(state="disabled" if any_busy else "normal")
-        self.register_store_site7_store_name_entry.configure(state="disabled" if any_busy else "normal")
-        self.register_store_site7_hall_id_entry.configure(state="disabled" if any_busy else "normal")
-        self.register_store_site7_address_entry.configure(state="disabled" if any_busy else "normal")
+            self.register_store_site7_difference_checkbutton.configure(state="normal")
+        self.register_store_prefecture_entry.configure(state="normal")
+        self.register_store_area_entry.configure(state="normal")
+        self.register_store_site7_store_name_entry.configure(state="normal")
+        self.register_store_site7_hall_id_entry.configure(state="normal")
+        self.register_store_site7_address_entry.configure(state="normal")
         self.update_registered_store_button.configure(
-            state="disabled" if any_busy or not has_single_registered_store_row_selection else "normal"
+            state="disabled" if general_busy or not has_single_registered_store_row_selection else "normal"
         )
-        self.clear_register_store_form_button.configure(state="disabled" if any_busy else "normal")
+        self.clear_register_store_form_button.configure(state="normal")
         if hasattr(self, "registered_store_filter_entry"):
-            self.registered_store_filter_entry.configure(state="disabled" if any_busy else "normal")
+            self.registered_store_filter_entry.configure(state="normal")
         if hasattr(self, "clear_registered_store_filter_button"):
-            self.clear_registered_store_filter_button.configure(state="disabled" if any_busy else "normal")
-        self.select_all_stores_button.configure(state="disabled" if any_busy else "normal")
-        self.clear_store_selection_button.configure(state="disabled" if any_busy else "normal")
-        self.refresh_registered_stores_button.configure(state="disabled" if any_busy else "normal")
+            self.clear_registered_store_filter_button.configure(state="normal")
+        self.select_all_stores_button.configure(state="normal")
+        self.clear_store_selection_button.configure(state="normal")
+        self.refresh_registered_stores_button.configure(state="disabled" if general_busy else "normal")
         self.delete_registered_stores_button.configure(
-            state="disabled" if any_busy or not has_registered_store_row_selection else "normal"
+            state="disabled" if general_busy or not has_registered_store_row_selection else "normal"
         )
 
     def _show_error(self, exc: object) -> None:
