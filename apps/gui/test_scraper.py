@@ -3145,17 +3145,53 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(set(site7_result_no_play_day_stats(result)), {"2026-06-08"})
         self.assertFalse(any("dtdd=1" in url for url in page.goto_calls))
 
-    def test_site7_visible_browser_closes_when_fetch_is_cancelled(self) -> None:
+    def test_site7_visible_browser_stays_open_when_fetch_is_cancelled(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
         page = FakeRetainedPage()
         context = FakeRetainedContext(page)
         playwright = FakePlayableBrowser()
+        cancel_event = threading.Event()
         scraper._launch_mobile_browser_context = mock.Mock(return_value=(playwright, context))
         scraper._require_playwright = mock.Mock()
-        scraper._open_mobile_target_hall_page = mock.Mock(side_effect=Site7FetchCancelled("中止しました"))
+
+        def cancel_after_browser_launch(*args: object, **kwargs: object) -> str:
+            cancel_event.set()
+            raise Site7FetchCancelled("中止しました")
+
+        scraper._open_mobile_target_hall_page = mock.Mock(side_effect=cancel_after_browser_launch)
 
         with self.assertRaises(Site7FetchCancelled):
-            scraper.fetch_target_machine_history(recent_days=1, browser_visible=True)
+            scraper.fetch_target_machine_history(
+                recent_days=1,
+                browser_visible=True,
+                cancel_requested=cancel_event.is_set,
+            )
+
+        self.assertEqual(context.close_count, 0)
+        self.assertEqual(playwright.stop_count, 0)
+        self.assertIs(scraper._visible_context, context)
+        self.assertIs(scraper._visible_playwright, playwright)
+
+    def test_site7_hidden_browser_closes_when_fetch_is_cancelled(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        context = FakeRetainedContext(FakeRetainedPage())
+        playwright = FakePlayableBrowser()
+        cancel_event = threading.Event()
+        scraper._launch_mobile_browser_context = mock.Mock(return_value=(playwright, context))
+        scraper._require_playwright = mock.Mock()
+
+        def cancel_after_browser_launch(*args: object, **kwargs: object) -> str:
+            cancel_event.set()
+            raise Site7FetchCancelled("中止しました")
+
+        scraper._open_mobile_target_hall_page = mock.Mock(side_effect=cancel_after_browser_launch)
+
+        with self.assertRaises(Site7FetchCancelled):
+            scraper.fetch_target_machine_history(
+                recent_days=1,
+                browser_visible=False,
+                cancel_requested=cancel_event.is_set,
+            )
 
         self.assertEqual(context.close_count, 1)
         self.assertEqual(playwright.stop_count, 1)

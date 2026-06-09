@@ -898,6 +898,11 @@ class Site7Scraper:
             self._visible_playwright = None
             self._visible_context = None
 
+    def _close_retained_visible_browser_before_launch(self) -> None:
+        if self._visible_playwright is None and self._visible_context is None:
+            return
+        self.close_visible_browser()
+
     def _start_debug_log(self, target_store: Site7TargetStore, recent_days: int, browser_visible: bool) -> None:
         try:
             self.debug_log_dir.mkdir(parents=True, exist_ok=True)
@@ -933,6 +938,7 @@ class Site7Scraper:
             return
 
     def _launch_browser_context(self, browser_visible: bool) -> tuple[object, object]:
+        self._close_retained_visible_browser_before_launch()
         playwright = sync_playwright().start()
         context = playwright.chromium.launch_persistent_context(
             str(self.browser_state_dir),
@@ -943,6 +949,7 @@ class Site7Scraper:
         return playwright, context
 
     def _launch_mobile_browser_context(self, browser_visible: bool) -> tuple[object, object]:
+        self._close_retained_visible_browser_before_launch()
         playwright = sync_playwright().start()
         context = playwright.chromium.launch_persistent_context(
             str(self.browser_state_dir),
@@ -1081,7 +1088,12 @@ class Site7Scraper:
         except PlaywrightError as exc:
             raise self._wrap_playwright_error(exc) from exc
         finally:
-            self._release_browser_context(playwright, context)
+            self._release_fetch_browser_context(
+                playwright,
+                context,
+                browser_visible=browser_visible,
+                cancel_requested=cancel_requested,
+            )
 
     def _fetch_mobile_target_machine_history(
         self,
@@ -1264,7 +1276,12 @@ class Site7Scraper:
             self._write_debug_log("fetch_error", error=exc)
             raise
         finally:
-            self._release_browser_context(playwright, context)
+            self._release_fetch_browser_context(
+                playwright,
+                context,
+                browser_visible=browser_visible,
+                cancel_requested=cancel_requested,
+            )
 
         _raise_if_site7_cancel_requested(cancel_requested)
         if (
@@ -1978,7 +1995,12 @@ class Site7Scraper:
         except PlaywrightError as exc:
             raise self._wrap_playwright_error(exc) from exc
         finally:
-            self._release_browser_context(playwright, context)
+            self._release_fetch_browser_context(
+                playwright,
+                context,
+                browser_visible=browser_visible,
+                cancel_requested=cancel_requested,
+            )
 
         return machine_results
 
@@ -3637,6 +3659,32 @@ class Site7Scraper:
     def _release_browser_context(self, playwright: object | None, context: object | None) -> None:
         self._close_browser_context(context)
         self._stop_playwright(playwright)
+        if self._visible_playwright is playwright and self._visible_context is context:
+            self._visible_playwright = None
+            self._visible_context = None
+
+    def _release_fetch_browser_context(
+        self,
+        playwright: object | None,
+        context: object | None,
+        *,
+        browser_visible: bool,
+        cancel_requested: Callable[[], bool] | None,
+    ) -> None:
+        if browser_visible and self._site7_cancel_is_requested(cancel_requested):
+            self._visible_playwright = playwright
+            self._visible_context = context
+            self._write_debug_log("visible_browser_retained_after_cancel")
+            return
+        self._release_browser_context(playwright, context)
+
+    def _site7_cancel_is_requested(self, cancel_requested: Callable[[], bool] | None) -> bool:
+        if cancel_requested is None:
+            return False
+        try:
+            return bool(cancel_requested())
+        except Exception:  # noqa: BLE001
+            return False
 
     def _close_browser_context(self, context: object | None) -> None:
         if context is None:
