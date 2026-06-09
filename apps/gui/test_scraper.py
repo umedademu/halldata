@@ -6118,7 +6118,7 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(saved_dates_summary.saved_dates, {"2026-05-02"})
             self.assertEqual(saved_dates_summary.incomplete_dates, set())
 
-    def test_find_saved_full_day_dates_rechecks_legacy_source_missing_entry(self) -> None:
+    def test_find_saved_full_day_dates_keeps_legacy_source_missing_entry(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service, storage = make_r2_service(Path(temp_dir))
             storage.write_json(
@@ -6148,8 +6148,8 @@ class MinRepoScraperTests(unittest.TestCase):
             )
 
             self.assertFalse(saved_dates_summary.has_errors)
-            self.assertEqual(saved_dates_summary.saved_dates, set())
-            self.assertEqual(saved_dates_summary.incomplete_dates, {"2026-06-03"})
+            self.assertEqual(saved_dates_summary.saved_dates, {"2026-06-03"})
+            self.assertEqual(saved_dates_summary.incomplete_dates, set())
 
     def test_clear_full_day_saved_dates_with_site7_removes_only_site7_dates(self) -> None:
         store_name = "テスト店"

@@ -2319,7 +2319,7 @@ class HistoryPersistenceService:
             if not isinstance(entry, dict):
                 continue
             data_source = str(entry.get("data_source", "")).strip()
-            if data_source != DATA_SOURCE_MINREPO:
+            if data_source and data_source != DATA_SOURCE_MINREPO:
                 incomplete_dates.add(target_date)
             if entry.get("has_site7_records") is True:
                 incomplete_dates.add(target_date)
