@@ -1505,6 +1505,12 @@ a {
   font-size: 0.86rem;
 }
 
+.machineComparisonPeriodPanel .csvExportBtn {
+  min-height: 2.12rem;
+  padding: 7px 10px;
+  font-size: 0.8rem;
+}
+
 .machineComparisonFilterPanel .metricToggleChip,
 .machineComparisonFilterPanel .estimateToggle {
   gap: 6px;
@@ -1530,6 +1536,15 @@ a {
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   gap: 10px;
   max-width: 34rem;
+}
+
+.periodInputGrid .recentDaysField {
+  width: max-content;
+}
+
+.estimateInputWrap .recentDaysInput {
+  flex: 0 0 6ch;
+  width: 6ch;
 }
 
 .metricToggleRow {

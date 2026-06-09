@@ -3258,13 +3258,19 @@ export function MachineComparison({
             >
               期間指定
             </button>
+            <CsvExportButton
+              storeName={storeName}
+              machineName={machineName}
+              csvRows={csvRows}
+            />
           </div>
           <div className="periodInputGrid">
             {periodMode === "recent" ? (
-              <label className="estimateField">
+              <label className="estimateField recentDaysField">
                 <span>直近日数</span>
                 <span className="estimateInputWrap">
                   <input
+                    className="recentDaysInput"
                     type="number"
                     min="1"
                     step="1"
@@ -3579,7 +3585,6 @@ export function MachineComparison({
         />
       ) : (
         <MachineComparisonTable
-          storeName={storeName}
           machineName={machineName}
           slotNumbers={slotNumbers}
           slotLabels={slotLabels}
@@ -3589,7 +3594,6 @@ export function MachineComparison({
           settingEstimateDefinition={settingEstimateDefinition}
           getCompositeSettingEstimate={getCompositeSettingEstimate}
           huntScoreHighlightKeySet={huntScoreHighlightKeySet}
-          csvRows={csvRows}
           tableStyle={tableStyle}
         />
       )}
@@ -3598,7 +3602,6 @@ export function MachineComparison({
 }
 
 function MachineComparisonTable({
-  storeName,
   machineName,
   slotNumbers,
   slotLabels,
@@ -3608,7 +3611,6 @@ function MachineComparisonTable({
   settingEstimateDefinition,
   getCompositeSettingEstimate,
   huntScoreHighlightKeySet,
-  csvRows,
   tableStyle,
 }) {
   if (dateRows.length === 0) {
@@ -3627,11 +3629,6 @@ function MachineComparisonTable({
           <p className="sectionLabel">台データ比較</p>
           <h2 className="tablePanelTitle">{machineName}</h2>
         </div>
-        <CsvExportButton
-          storeName={storeName}
-          machineName={machineName}
-          csvRows={csvRows}
-        />
       </div>
       <div className="tableScroller matrixScroller">
         <table className="matrixTable" style={tableStyle}>
