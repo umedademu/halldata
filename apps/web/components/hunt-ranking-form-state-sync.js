@@ -45,6 +45,7 @@ const MANAGED_PARAM_KEYS = [
   "nextGapScope",
 ];
 const MANAGED_PARAM_KEY_SET = new Set(MANAGED_PARAM_KEYS);
+const DEFAULTED_DIFFERENCE_PARAM_KEYS = new Set(["differenceMode"]);
 
 function storageKeyForStore(storeId) {
   return `${STORAGE_KEY_PREFIX}${storeId}`;
@@ -68,6 +69,10 @@ function normalizeStateEntries(entries) {
     }
   }
   return normalizedEntries;
+}
+
+function omitDefaultedDifferenceEntries(entries) {
+  return normalizeStateEntries(entries).filter(([key]) => !DEFAULTED_DIFFERENCE_PARAM_KEYS.has(key));
 }
 
 function readStateFromSearchParams(searchParams) {
@@ -146,7 +151,7 @@ function buildSearchText(entries) {
 }
 
 function saveState(storeId, entries) {
-  const normalizedEntries = normalizeStateEntries(entries);
+  const normalizedEntries = omitDefaultedDifferenceEntries(entries);
   if (!storeId || normalizedEntries.length === 0) {
     return;
   }
@@ -176,7 +181,7 @@ function readSavedState(storeId) {
     }
 
     const parsedValue = JSON.parse(rawValue);
-    return normalizeStateEntries(parsedValue?.entries);
+    return omitDefaultedDifferenceEntries(parsedValue?.entries);
   } catch {
     return [];
   }

@@ -667,16 +667,8 @@ function readMachineComparisonOptions(storeId, defaults, options = {}) {
     eventFilters: options.preferInitialEventFilters
       ? defaults.eventFilters
       : normalizeStoredEventFilters(source.eventFilters, defaults.eventFilters),
-    displayDifferenceMode: options.preferInitialDisplayDifferenceMode
-      ? defaults.displayDifferenceMode
-      : normalizeDifferenceMode(
-          source.displayDifferenceMode ?? source.differenceMode ?? defaults.displayDifferenceMode,
-        ),
-    huntScoreDifferenceMode: options.preferInitialHuntScoreDifferenceMode
-      ? defaults.huntScoreDifferenceMode
-      : normalizeDifferenceMode(
-          source.huntScoreDifferenceMode ?? source.differenceMode ?? defaults.huntScoreDifferenceMode,
-        ),
+    displayDifferenceMode: defaults.displayDifferenceMode,
+    huntScoreDifferenceMode: defaults.huntScoreDifferenceMode,
     settingEstimateMode: options.preferInitialSettingEstimateMode
       ? defaults.settingEstimateMode
       : normalizeSettingEstimateMode(
@@ -736,9 +728,9 @@ function saveMachineComparisonOptions(storeId, options) {
           weekdays: options.eventFilters?.weekdays ?? [],
           monthDays: options.eventFilters?.monthDays ?? [],
         },
-        differenceMode: normalizeDifferenceMode(options.huntScoreDifferenceMode),
-        displayDifferenceMode: normalizeDifferenceMode(options.displayDifferenceMode),
-        huntScoreDifferenceMode: normalizeDifferenceMode(options.huntScoreDifferenceMode),
+        differenceMode: DEFAULT_DIFFERENCE_MODE,
+        displayDifferenceMode: DEFAULT_DIFFERENCE_MODE,
+        huntScoreDifferenceMode: DEFAULT_DIFFERENCE_MODE,
         settingEstimateMode: normalizeSettingEstimateMode(options.settingEstimateMode),
         visibleMetricKeys: normalizeMetricKeys(options.visibleMetricKeys),
         estimateOptions: existingValue?.estimateOptions ?? options.estimateOptions,
