@@ -156,6 +156,36 @@ function site7BadgeTitle(fetchedAt, fallbackTitle) {
   return fetchedDateTime ? `${fallbackTitle}\n取得: ${fetchedDateTime}` : fallbackTitle;
 }
 
+function combineTitleParts(...parts) {
+  return parts.map((part) => String(part ?? "").trim()).filter(Boolean).join("\n");
+}
+
+function isSite7Record(record) {
+  return String(record?.data_source ?? record?.dataSource ?? "").trim().toLowerCase() === "site7";
+}
+
+function readSite7FetchedAt(record) {
+  return String(record?.site7_fetched_at ?? record?.site7FetchedAt ?? "").trim();
+}
+
+function buildSite7RecordTitle(label, record) {
+  if (!isSite7Record(record)) {
+    return "";
+  }
+
+  const fetchedDateTime = formatSite7FetchedDateTime(readSite7FetchedAt(record));
+  return fetchedDateTime
+    ? `${label}: Sセブン暫定データ\n取得: ${fetchedDateTime}`
+    : `${label}: Sセブン暫定データ`;
+}
+
+function buildRankingRowSite7Title(row) {
+  return combineTitleParts(
+    buildSite7RecordTitle("狙い度の日", row?.currentRecord),
+    buildSite7RecordTitle("実績の日", row?.nextRecord),
+  );
+}
+
 function Site7RankingBadge({ fetchedAt, title }) {
   const fetchedTime = formatSite7FetchedTime(fetchedAt);
   return (
@@ -368,9 +398,9 @@ function formatNextGapForScope(row, nextGapScope) {
   return formatDecimal(readNextGapForRankScope(row, normalizeNextGapScope(nextGapScope)));
 }
 
-function MachineEvaluationCell({ evaluation }) {
+function MachineEvaluationCell({ evaluation, extraTitle = "" }) {
   if (!evaluation) {
-    return <td data-sort-value="">-</td>;
+    return <td title={extraTitle || undefined} data-sort-value="">-</td>;
   }
 
   const titleParts = [
@@ -384,7 +414,7 @@ function MachineEvaluationCell({ evaluation }) {
   return (
     <td
       className={evaluation.matchesAdoption ? "machineEvaluationMatchedCell" : undefined}
-      title={titleParts.join("\n") || undefined}
+      title={combineTitleParts(titleParts.join("\n"), extraTitle) || undefined}
       data-sort-value={readRankingSortNumber(evaluation.score, "")}
     >
       <span className="machineEvaluationCellValue">{formatNumber(evaluation.score)}</span>
@@ -711,17 +741,20 @@ function OverallRankingTable({
               const machineSite7FetchedAt = row.predictionMachineSite7FetchedAt ?? null;
               const machineFullName = String(row.machineName ?? "").trim();
               const machineShortName = getHuntMachineShortName(machineFullName);
+              const rowSite7Title = buildRankingRowSite7Title(row);
               const machineTitle = machineHasSite7Data
                 ? site7BadgeTitle(
                     machineSite7FetchedAt,
                     `${machineFullName}\nこの機種にSセブン暫定データが含まれます`,
                   )
                 : machineFullName;
+              const machineCellTitle = combineTitleParts(machineTitle, rowSite7Title);
 
               return (
                 <tr
                   key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${title}-${row.rank}`}
                   className={rowClassName}
+                  title={rowSite7Title || undefined}
                 >
                   <td
                     className={getRankingConditionHighlightClass(
@@ -730,6 +763,7 @@ function OverallRankingTable({
                       bookmarkMatchByRowKey,
                     )}
                     data-sort-value={readRankingSortNumber(row.rank, "")}
+                    title={rowSite7Title || undefined}
                   >
                     {row.rank}
                   </td>
@@ -740,19 +774,23 @@ function OverallRankingTable({
                       bookmarkMatchByRowKey,
                     )}
                     data-sort-value={readRankingSortNumber(row.huntScore, "")}
+                    title={rowSite7Title || undefined}
                   >
                     {formatNumber(row.huntScore)}
                   </td>
                   {showSubHuntScoreColumn ? (
                     <td
-                      title={subHuntScoreTitle}
+                      title={combineTitleParts(subHuntScoreTitle, rowSite7Title)}
                       data-sort-value={readRankingSortNumber(row.subHuntScore, "")}
                     >
                       {formatNumber(row.subHuntScore)}
                     </td>
                   ) : null}
                   {hasMachineEvaluationColumn ? (
-                    <MachineEvaluationCell evaluation={row.machineEvaluation} />
+                    <MachineEvaluationCell
+                      evaluation={row.machineEvaluation}
+                      extraTitle={rowSite7Title}
+                    />
                   ) : null}
                   <td
                     className={getRankingConditionHighlightClass(
@@ -764,12 +802,13 @@ function OverallRankingTable({
                       readNextGapForRankScope(row, normalizeNextGapScope(nextGapScope)),
                       "",
                     )}
+                    title={rowSite7Title || undefined}
                   >
                     {formatNextGapForScope(row, nextGapScope)}
                   </td>
                   <th
                     className={`directoryNameCell ${machineHasSite7Data ? "site7MachineCell" : ""}`}
-                    title={machineTitle}
+                    title={machineCellTitle || undefined}
                     data-sort-value={row.machineName}
                   >
                     <span className="directoryNameContent">
@@ -787,9 +826,14 @@ function OverallRankingTable({
                       ) : null}
                     </span>
                   </th>
-                  <td data-sort-value={row.slotNumber}>{row.slotNumber}</td>
+                  <td data-sort-value={row.slotNumber} title={rowSite7Title || undefined}>
+                    {row.slotNumber}
+                  </td>
                   {visibleColumns.map((column) => (
-                    <td key={`${row.machineName}-${row.slotNumber}-${title}-${column.key}`}>
+                    <td
+                      key={`${row.machineName}-${row.slotNumber}-${title}-${column.key}`}
+                      title={rowSite7Title || undefined}
+                    >
                       {column.render(row)}
                     </td>
                   ))}
@@ -1217,30 +1261,49 @@ export function HuntRankingTable({
               <tbody>
                 {group.rows.map((row) => {
                   const rowClassName = getSettingEstimateHighlightClass(row.nextSettingEstimate?.average);
+                  const rowSite7Title = buildRankingRowSite7Title(row);
 
                   return (
                     <tr
                       key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${row.rank}`}
                       className={rowClassName}
+                      title={rowSite7Title || undefined}
                     >
-                      <td className={getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey)}>
+                      <td
+                        className={getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey)}
+                        title={rowSite7Title || undefined}
+                      >
                         {row.rank}
                       </td>
-                      <td className={getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey)}>
+                      <td
+                        className={getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey)}
+                        title={rowSite7Title || undefined}
+                      >
                         {formatNumber(row.huntScore)}
                       </td>
                       {showSubHuntScoreColumn ? (
-                        <td title={subHuntScoreTitle}>{formatNumber(row.subHuntScore)}</td>
+                        <td title={combineTitleParts(subHuntScoreTitle, rowSite7Title)}>
+                          {formatNumber(row.subHuntScore)}
+                        </td>
                       ) : null}
                       {showGroupMachineEvaluation ? (
-                        <MachineEvaluationCell evaluation={row.machineEvaluation} />
+                        <MachineEvaluationCell
+                          evaluation={row.machineEvaluation}
+                          extraTitle={rowSite7Title}
+                        />
                       ) : null}
-                      <td className={getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey)}>
+                      <td
+                        className={getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey)}
+                        title={rowSite7Title || undefined}
+                      >
                         {formatNextGapForScope(row, nextGapScope)}
                       </td>
-                      <td>{row.slotNumber}</td>
+                      <td title={rowSite7Title || undefined}>{row.slotNumber}</td>
                       {visibleColumns.map((column) => (
-                        <td key={`${row.machineName}-${row.slotNumber}-${column.key}`}>
+                        <td
+                          key={`${row.machineName}-${row.slotNumber}-${column.key}`}
+                          title={rowSite7Title || undefined}
+                        >
                           {column.render(row)}
                         </td>
                       ))}
