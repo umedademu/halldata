@@ -719,7 +719,8 @@ class HistoryPersistenceService:
         summary = PersistenceSummary()
 
         try:
-            self._mark_full_day_saved_r2(snapshot, "")
+            snapshot_key = self._save_r2_snapshot(snapshot)
+            self._mark_full_day_saved_r2(snapshot, snapshot_key)
         except Exception as exc:  # noqa: BLE001
             summary.messages.append(f"R2の全機種取得済み記録に失敗しました。\n{exc}")
 
@@ -2318,7 +2319,7 @@ class HistoryPersistenceService:
             if not isinstance(entry, dict):
                 continue
             data_source = str(entry.get("data_source", "")).strip()
-            if data_source and data_source != DATA_SOURCE_MINREPO:
+            if data_source != DATA_SOURCE_MINREPO:
                 incomplete_dates.add(target_date)
             if entry.get("has_site7_records") is True:
                 incomplete_dates.add(target_date)

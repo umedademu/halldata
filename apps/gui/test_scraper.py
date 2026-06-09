@@ -5999,12 +5999,14 @@ class MinRepoScraperTests(unittest.TestCase):
                             "machine_count": 2,
                             "record_count": 20,
                             "snapshot_key": "dummy-1.json",
+                            "data_source": DATA_SOURCE_MINREPO,
                         },
                         "2026-04-27": {
                             "saved_at": "2026-04-27T12:00:00+09:00",
                             "machine_count": 2,
                             "record_count": 20,
                             "snapshot_key": "dummy-2.json",
+                            "data_source": DATA_SOURCE_MINREPO,
                         },
                     },
                 },
@@ -6037,18 +6039,21 @@ class MinRepoScraperTests(unittest.TestCase):
                             "machine_count": 41,
                             "record_count": 290,
                             "snapshot_key": "dummy-1.json",
+                            "data_source": DATA_SOURCE_MINREPO,
                         },
                         "2026-05-02": {
                             "saved_at": "2026-05-02T12:00:00+09:00",
                             "machine_count": 13,
                             "record_count": 131,
                             "snapshot_key": "dummy-2.json",
+                            "data_source": DATA_SOURCE_MINREPO,
                         },
                         "2026-05-03": {
                             "saved_at": "2026-05-03T12:00:00+09:00",
                             "machine_count": 41,
                             "record_count": 290,
                             "snapshot_key": "dummy-3.json",
+                            "data_source": DATA_SOURCE_MINREPO,
                         },
                     },
                 },
@@ -6082,18 +6087,21 @@ class MinRepoScraperTests(unittest.TestCase):
                             "machine_count": 80,
                             "record_count": 580,
                             "snapshot_key": "dummy-1.json",
+                            "data_source": DATA_SOURCE_MINREPO,
                         },
                         "2026-05-02": {
                             "saved_at": "2026-05-02T12:00:00+09:00",
                             "machine_count": 41,
                             "record_count": 290,
                             "snapshot_key": "dummy-2.json",
+                            "data_source": DATA_SOURCE_MINREPO,
                         },
                         "2026-05-03": {
                             "saved_at": "2026-05-03T12:00:00+09:00",
                             "machine_count": 41,
                             "record_count": 290,
                             "snapshot_key": "dummy-3.json",
+                            "data_source": DATA_SOURCE_MINREPO,
                         },
                     },
                 },
@@ -6109,6 +6117,39 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertFalse(saved_dates_summary.has_errors)
             self.assertEqual(saved_dates_summary.saved_dates, {"2026-05-02"})
             self.assertEqual(saved_dates_summary.incomplete_dates, set())
+
+    def test_find_saved_full_day_dates_rechecks_legacy_source_missing_entry(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service, storage = make_r2_service(Path(temp_dir))
+            storage.write_json(
+                service._r2_full_day_index_key("テスト店", "https://example.com/store/"),  # type: ignore[attr-defined]
+                {
+                    "version": 1,
+                    "store": {
+                        "store_name": "テスト店",
+                        "store_url": "https://example.com/store/",
+                    },
+                    "full_day_dates": {
+                        "2026-06-03": {
+                            "saved_at": "2026-06-08T13:51:11+09:00",
+                            "machine_count": 31,
+                            "record_count": 217,
+                            "snapshot_key": "",
+                        },
+                    },
+                },
+            )
+
+            saved_dates_summary = service.find_saved_full_day_dates(
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                start_date="2026-06-03",
+                end_date="2026-06-03",
+            )
+
+            self.assertFalse(saved_dates_summary.has_errors)
+            self.assertEqual(saved_dates_summary.saved_dates, set())
+            self.assertEqual(saved_dates_summary.incomplete_dates, {"2026-06-03"})
 
     def test_clear_full_day_saved_dates_with_site7_removes_only_site7_dates(self) -> None:
         store_name = "テスト店"
@@ -6155,12 +6196,14 @@ class MinRepoScraperTests(unittest.TestCase):
                             "machine_count": 1,
                             "record_count": 1,
                             "snapshot_key": "dummy-1.json",
+                            "data_source": DATA_SOURCE_MINREPO,
                         },
                         "2026-04-23": {
                             "saved_at": "2026-04-23T12:00:00+09:00",
                             "machine_count": 1,
                             "record_count": 1,
                             "snapshot_key": "dummy-2.json",
+                            "data_source": DATA_SOURCE_MINREPO,
                         },
                     },
                 },

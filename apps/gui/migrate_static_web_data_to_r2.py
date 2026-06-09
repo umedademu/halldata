@@ -12,6 +12,13 @@ from web_data_export import normalize_store_url
 ROOT_DIR = Path(__file__).resolve().parents[2]
 STATIC_WEB_DATA_DIR = ROOT_DIR / "apps" / "web" / "public" / "halldata-static"
 FULL_DAY_INDEX_FILE_NAME = "full-day-index.json"
+DATA_SOURCE_MINREPO = "minrepo"
+DATA_SOURCE_SITE7 = "site7"
+
+
+def record_has_site7_source(record: dict[str, Any]) -> bool:
+    data_source = str(record.get("data_source", "")).strip().casefold()
+    return data_source == DATA_SOURCE_SITE7 or bool(str(record.get("site7_fetched_at", "")).strip())
 
 
 def read_json(path: Path) -> dict[str, Any] | None:
@@ -34,6 +41,7 @@ def build_full_day_index(static_dir: Path, store_entry: dict[str, Any]) -> tuple
 
     records_by_date: dict[str, int] = {}
     machines_by_date: dict[str, set[str]] = {}
+    site7_dates: set[str] = set()
     for machine in store_payload.get("machines", []):
         if not isinstance(machine, dict):
             continue
@@ -50,6 +58,9 @@ def build_full_day_index(static_dir: Path, store_entry: dict[str, Any]) -> tuple
             target_date = str(record.get("target_date", "")).strip()
             record_machine_name = str(record.get("machine_name", "")).strip() or machine_name
             if not target_date:
+                continue
+            if record_has_site7_source(record):
+                site7_dates.add(target_date)
                 continue
             records_by_date[target_date] = records_by_date.get(target_date, 0) + 1
             machines_by_date.setdefault(target_date, set()).add(record_machine_name)
@@ -73,8 +84,10 @@ def build_full_day_index(static_dir: Path, store_entry: dict[str, Any]) -> tuple
                 "machine_count": len(machines_by_date.get(target_date, set())),
                 "record_count": record_count,
                 "snapshot_key": "",
+                "data_source": DATA_SOURCE_MINREPO,
             }
             for target_date, record_count in sorted(records_by_date.items())
+            if target_date not in site7_dates
         },
     }
     return f"stores/{store_id}/{FULL_DAY_INDEX_FILE_NAME}", index_payload
