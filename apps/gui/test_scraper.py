@@ -42,6 +42,7 @@ from main import (
     SITE7_BROWSER_MODE_HIDDEN,
     SITE7_BROWSER_MODE_VISIBLE,
     MINREPO_FETCH_MODE_STRONG,
+    FetchCancelled,
     MinRepoApp,
     MinRepoFetchParallelOptions,
     FetchManyResult,
@@ -2012,7 +2013,7 @@ class MinRepoScraperTests(unittest.TestCase):
             sorted(result.datasets[0].machine_name for result in partial_results),
         )
 
-    def test_fetch_single_store_uses_local_checkpoints_and_daily_r2_save(self) -> None:
+    def test_fetch_single_store_uses_local_checkpoints_and_store_r2_save(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.scraper = FixtureScraper()
         app.fetch_cancel_event = threading.Event()
@@ -2088,7 +2089,7 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertGreater(day_progress[0].total_steps, 41)
         self.assertLess(day_progress[0].current_step, day_progress[0].total_steps)
 
-    def test_fetch_single_store_strong_parallel_saves_each_day(self) -> None:
+    def test_fetch_single_store_strong_parallel_saves_after_store_complete(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.scraper = FixtureScraper()
         app.fetch_cancel_event = threading.Event()
@@ -2152,10 +2153,113 @@ class MinRepoScraperTests(unittest.TestCase):
             sorted({dataset.target_date for dataset in result.history_result.datasets}),
             ["2026-04-07", "2026-04-08"],
         )
-        self.assertEqual(len(persistence_service.saved_results), 2)
+        self.assertEqual(len(persistence_service.saved_results), 1)
         self.assertTrue(all(full_day for _, full_day in persistence_service.saved_results))
+        self.assertEqual(
+            sorted({dataset.target_date for dataset in persistence_service.saved_results[0][0].datasets}),
+            ["2026-04-07", "2026-04-08"],
+        )
         self.assertEqual(len(persistence_service.checkpoint_results), len(result.history_result.datasets))
         self.assertEqual(len(persistence_service.deleted_checkpoint_paths), len(result.history_result.datasets))
+
+    def test_fetch_single_store_discards_checkpoints_when_cancelled_mid_store(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.result_queue = queue.Queue()
+
+        date_page = StoreDatePage(target_date="2026-04-07", date_url="https://example.com/day")
+        dataset_result = MachineHistoryResult(
+            store_name="途中店舗",
+            store_url="https://example.com/store",
+            start_date="2026-04-07",
+            end_date="2026-04-07",
+            date_pages=[date_page],
+            datasets=[
+                MachineDataset(
+                    store_name="途中店舗",
+                    store_url="https://example.com/store",
+                    target_date="2026-04-07",
+                    date_url="https://example.com/day",
+                    machine_name="ネオアイムジャグラーEX",
+                    machine_url="https://example.com/machine",
+                    columns=["台番", "差枚", "G数"],
+                    rows=[["821", "100", "1000"]],
+                )
+            ],
+        )
+
+        class FakeScraper:
+            def prepare_machine_history_context(self, store_url: str, target_date_input: str) -> MachineHistoryResult:
+                return MachineHistoryResult(
+                    store_name="途中店舗",
+                    store_url=store_url,
+                    start_date="2026-04-07",
+                    end_date="2026-04-07",
+                    date_pages=[date_page],
+                    datasets=[],
+                )
+
+            def fetch_all_machine_history_for_date_page(
+                self,
+                *,
+                context: MachineHistoryResult,
+                date_page: StoreDatePage,
+                step_callback: object,
+                date_index: int,
+                total_dates: int,
+                dataset_callback: object,
+                day_total_callback: object,
+                machine_parallel_workers: int,
+            ) -> MachineHistoryResult:
+                dataset_callback(dataset_result)
+                app.fetch_cancel_event.set()
+                step_callback("中止確認")
+                return dataset_result
+
+        class FakePersistenceService:
+            def __init__(self) -> None:
+                self.deleted_checkpoint_paths: list[str] = []
+                self.saved_results: list[MachineHistoryResult] = []
+
+            def find_saved_full_day_dates(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+            ) -> SavedFullDayDatesSummary:
+                return SavedFullDayDatesSummary()
+
+            def save_history_result_local_checkpoint(self, history_result: MachineHistoryResult) -> PersistenceSummary:
+                return PersistenceSummary(local_file_path="checkpoint-1.json", local_record_count=1)
+
+            def save_history_result(
+                self,
+                history_result: MachineHistoryResult,
+                full_day: bool = False,
+            ) -> PersistenceSummary:
+                self.saved_results.append(history_result)
+                return PersistenceSummary(web_data_saved=True, web_data_record_count=1)
+
+            def delete_local_checkpoint_files(self, file_paths: list[str]) -> PersistenceSummary:
+                self.deleted_checkpoint_paths.extend(file_paths)
+                return PersistenceSummary()
+
+        persistence_service = FakePersistenceService()
+        app.scraper = FakeScraper()
+        app.persistence_service = persistence_service
+
+        with self.assertRaises(FetchCancelled):
+            app._fetch_single_store(
+                registered_store=RegisteredStore(name="途中店舗", url="https://example.com/store"),
+                target_date_input="2026-04-07",
+                store_index=1,
+                total_stores=1,
+                retry_delay_seconds=0,
+            )
+
+        self.assertEqual(persistence_service.deleted_checkpoint_paths, ["checkpoint-1.json"])
+        self.assertEqual(persistence_service.saved_results, [])
 
     def test_fetch_machine_history_progress_from_saved_html(self) -> None:
         scraper = FixtureScraper()
@@ -3758,8 +3862,10 @@ class MinRepoScraperTests(unittest.TestCase):
                 defer_graph_differences: bool,
             ) -> MachineHistoryResult:
                 filtered_result = machine_result_filter_callback(raw_result)
-                machine_base_result_callback(filtered_result)
-                machine_result_callback(filtered_result)
+                if machine_base_result_callback is not None:
+                    machine_base_result_callback(filtered_result)
+                if machine_result_callback is not None:
+                    machine_result_callback(filtered_result)
                 return filtered_result
 
         class FakePersistenceService:
@@ -3815,19 +3921,17 @@ class MinRepoScraperTests(unittest.TestCase):
             browser_visible=True,
         )
 
-        self.assertEqual(len(persistence_service.saved_results), 2)
+        self.assertEqual(len(persistence_service.saved_results), 1)
         self.assertEqual(persistence_service.checked_slot_numbers, ["821", "822"])
-        self.assertEqual(persistence_service.saved_results[0].datasets[0].rows[0][1], "-")
-        self.assertEqual(persistence_service.saved_results[1].datasets[0].rows, [raw_result.datasets[0].rows[1]])
+        self.assertEqual(persistence_service.saved_results[0].datasets[0].rows, [raw_result.datasets[0].rows[1]])
         self.assertEqual(store_result.history_result.datasets[0].rows, [raw_result.datasets[0].rows[1]])
         self.assertEqual(store_result.save_summary.web_data_record_count, 1)
 
-    def test_fetch_single_site7_store_saves_machine_results_without_blocking_next_fetch_step(self) -> None:
+    def test_fetch_single_site7_store_saves_after_fetch_completes(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.fetch_cancel_event = threading.Event()
         app.result_queue = queue.Queue()
         events: list[str] = []
-        allow_base_save_finish = threading.Event()
 
         raw_result = MachineHistoryResult(
             store_name="サイトセブン店",
@@ -3865,12 +3969,11 @@ class MinRepoScraperTests(unittest.TestCase):
                 include_graph_differences: bool,
                 defer_graph_differences: bool,
             ) -> MachineHistoryResult:
+                self.machine_base_result_callback = machine_base_result_callback
+                self.machine_result_callback = machine_result_callback
+                events.append("fetch_start")
                 filtered_result = machine_result_filter_callback(raw_result)
-                machine_base_result_callback(filtered_result)
-                events.append("after_base_callback")
-                allow_base_save_finish.set()
-                machine_result_callback(filtered_result)
-                events.append("after_graph_callback")
+                events.append("fetch_finish")
                 return filtered_result
 
         class FakePersistenceService:
@@ -3899,15 +4002,11 @@ class MinRepoScraperTests(unittest.TestCase):
                 return SavedMachineSlotsSummary()
 
             def save_history_result(self, history_result: MachineHistoryResult) -> PersistenceSummary:
-                difference_value = history_result.datasets[0].rows[0][1]
-                label = "base" if difference_value == "-" else "graph"
-                events.append(f"save_start_{label}")
-                if label == "base":
-                    allow_base_save_finish.wait(1)
-                events.append(f"save_finish_{label}")
+                events.append("save")
                 return PersistenceSummary(web_data_saved=True, web_data_record_count=len(history_result.datasets))
 
-        app.site7_scraper = FakeSite7Scraper()
+        site7_scraper = FakeSite7Scraper()
+        app.site7_scraper = site7_scraper
         app.persistence_service = FakePersistenceService()
 
         store_result = app._fetch_single_site7_store(
@@ -3924,10 +4023,101 @@ class MinRepoScraperTests(unittest.TestCase):
             browser_visible=True,
         )
 
-        self.assertLess(events.index("after_base_callback"), events.index("save_finish_base"))
-        self.assertLess(events.index("save_finish_base"), events.index("save_start_graph"))
-        self.assertIn("after_graph_callback", events)
+        self.assertIsNone(site7_scraper.machine_base_result_callback)
+        self.assertIsNone(site7_scraper.machine_result_callback)
+        self.assertEqual(events, ["fetch_start", "fetch_finish", "save"])
         self.assertEqual(store_result.save_summary.web_data_record_count, 1)
+
+    def test_fetch_single_site7_store_discards_partial_result_when_cancelled_mid_store(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.site7_cancel_event = threading.Event()
+        app.active_operation_kind = "site7_fetch"
+        app.result_queue = queue.Queue()
+
+        raw_result = MachineHistoryResult(
+            store_name="サイトセブン店",
+            store_url="https://example.com/site7-hall",
+            start_date="2026-04-25",
+            end_date="2026-04-25",
+            date_pages=[StoreDatePage(target_date="2026-04-25", date_url="https://example.com/site7-hall#ata0")],
+            datasets=[
+                MachineDataset(
+                    store_name="サイトセブン店",
+                    store_url="https://example.com/site7-hall",
+                    target_date="2026-04-25",
+                    date_url="https://example.com/site7-hall#ata0",
+                    machine_name=SITE7_TARGET_MACHINE_NAME,
+                    machine_url="https://example.com/site7-machine",
+                    columns=["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"],
+                    rows=[["821", "100", "1000", "-", "5", "2", "1/143", "1/200", "1/500"]],
+                )
+            ],
+        )
+
+        class FakeSite7Scraper:
+            def fetch_target_machine_history(
+                self,
+                *,
+                recent_days: int,
+                browser_visible: bool,
+                progress_callback: object,
+                target_store: object,
+                cancel_requested: object,
+                machine_base_result_callback: object,
+                machine_result_callback: object,
+                machine_result_filter_callback: object,
+                machine_protected_slots_callback: object,
+                include_graph_differences: bool,
+                defer_graph_differences: bool,
+            ) -> MachineHistoryResult:
+                machine_result_filter_callback(raw_result)
+                app.site7_cancel_event.set()
+                raise Site7FetchCancelled("サイトセブン取得を中止しました。")
+
+        class FakePersistenceService:
+            def __init__(self) -> None:
+                self.saved_results: list[MachineHistoryResult] = []
+
+            def resolve_preferred_store_by_name(self, store_name: str) -> None:
+                return None
+
+            def find_saved_machine_slots(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+                slot_numbers: list[str],
+                require_source_difference: bool = True,
+                site7_updated_at: str | datetime | None = None,
+            ) -> SavedMachineSlotsSummary:
+                return SavedMachineSlotsSummary()
+
+            def save_history_result(self, history_result: MachineHistoryResult) -> PersistenceSummary:
+                self.saved_results.append(history_result)
+                return PersistenceSummary(web_data_saved=True, web_data_record_count=len(history_result.datasets))
+
+        persistence_service = FakePersistenceService()
+        app.site7_scraper = FakeSite7Scraper()
+        app.persistence_service = persistence_service
+
+        with self.assertRaises(FetchCancelled):
+            app._fetch_single_site7_store(
+                registered_store=RegisteredStore(
+                    name="Aパーク春日店",
+                    url="https://example.com/minrepo-store",
+                    site7_enabled=True,
+                    site7_difference_enabled=True,
+                ),
+                recent_days=1,
+                store_index=1,
+                total_stores=1,
+                retry_delay_seconds=0,
+                browser_visible=True,
+            )
+
+        self.assertEqual(persistence_service.saved_results, [])
 
     def test_fetch_single_site7_store_skips_graph_when_store_difference_is_off(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -3980,7 +4170,8 @@ class MinRepoScraperTests(unittest.TestCase):
                     "2026-04-25T23:20:00+09:00",
                 )
                 filtered_result = machine_result_filter_callback(raw_result)
-                machine_result_callback(filtered_result)
+                if machine_result_callback is not None:
+                    machine_result_callback(filtered_result)
                 return filtered_result
 
         class FakePersistenceService:

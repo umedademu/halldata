@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta, timezone
 import json
@@ -3361,44 +3361,9 @@ class MinRepoApp:
             )
             return protected_slots
 
-        save_summary: PersistenceSummary | None = None
         warning_summary = SavedFullDayDatesSummary()
-        site7_save_futures: list[Future[PersistenceSummary]] = []
-        site7_save_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="site7-save")
-
-        def wait_for_site7_save_futures() -> None:
-            nonlocal save_summary
-            while site7_save_futures:
-                partial_save_summary = site7_save_futures.pop(0).result()
-                save_summary = self._merge_persistence_summary(save_summary, partial_save_summary)
 
         def run_site7_fetch() -> MachineHistoryResult:
-            def save_machine_result(machine_result: MachineHistoryResult, save_label: str = "") -> None:
-                self._raise_if_fetch_cancelled()
-                partial_result = machine_result
-                if not partial_result.datasets:
-                    return
-
-                machine_names = sorted({dataset.machine_name for dataset in partial_result.datasets}, key=normalize_text)
-                machine_label = "、".join(machine_names) if machine_names else "機種"
-                message_label = f"{machine_label} {save_label}".strip()
-                queue_progress(
-                    FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: {message_label} を保存中")
-                )
-                site7_save_futures.append(
-                    site7_save_executor.submit(
-                        lambda: self._run_with_persistence_lock(
-                            lambda: self.persistence_service.save_history_result(partial_result)
-                        )
-                    )
-                )
-
-            def save_base_machine_result(machine_result: MachineHistoryResult) -> None:
-                save_machine_result(
-                    strip_site7_history_result_source_differences(machine_result),
-                    save_label="差枚以外",
-                )
-
             try:
                 fetch_kwargs = {
                     "recent_days": recent_days,
@@ -3412,8 +3377,8 @@ class MinRepoApp:
                     ),
                     "target_store": target_store,
                     "cancel_requested": self._cancel_requested,
-                    "machine_base_result_callback": save_base_machine_result if site7_difference_enabled else None,
-                    "machine_result_callback": save_machine_result,
+                    "machine_base_result_callback": None,
+                    "machine_result_callback": None,
                     "machine_result_filter_callback": filter_machine_result_for_fetch,
                     "machine_protected_slots_callback": find_protected_slots_before_fetch,
                     "include_graph_differences": site7_difference_enabled,
@@ -3426,24 +3391,20 @@ class MinRepoApp:
             except Site7FetchCancelled as exc:
                 raise FetchCancelled from exc
 
-        try:
-            history_result = self._run_with_fetch_retries(
-                run_site7_fetch,
-                retry_delay_seconds=retry_delay_seconds,
-                retry_status_callback=lambda retry_number, max_retries, delay_seconds: queue_progress(
-                    FetchProgress(
-                        current_step=0,
-                        total_steps=4,
-                        message=(
-                            f"{store_label}: サイトセブン取得に失敗しました。"
-                            f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
-                        ),
+        history_result = self._run_with_fetch_retries(
+            run_site7_fetch,
+            retry_delay_seconds=retry_delay_seconds,
+            retry_status_callback=lambda retry_number, max_retries, delay_seconds: queue_progress(
+                FetchProgress(
+                    current_step=0,
+                    total_steps=4,
+                    message=(
+                        f"{store_label}: サイトセブン取得に失敗しました。"
+                        f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
                     ),
                 ),
-            )
-            wait_for_site7_save_futures()
-        finally:
-            site7_save_executor.shutdown(wait=True)
+            ),
+        )
         self._raise_if_fetch_cancelled()
         history_result = rewrite_history_result_store(
             history_result,
@@ -3451,6 +3412,7 @@ class MinRepoApp:
             store_url=registered_store.url,
         )
         self._raise_if_fetch_cancelled()
+        save_summary: PersistenceSummary | None = None
         if history_result.datasets and save_summary is None:
             queue_progress(FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: 保存中"))
             save_summary = self._run_with_persistence_lock(
@@ -3658,7 +3620,7 @@ class MinRepoApp:
 
         self.minrepo_cancel_event.set()
         self.status_var.set("中止中...")
-        self._set_fetch_progress_text("みんレポ取得は現在の処理が区切れたら中止します")
+        self._set_fetch_progress_text("みんレポ取得は処理中の店舗を破棄して中止します")
         self._update_button_states()
 
     def cancel_site7_fetch(self) -> None:
@@ -3667,7 +3629,7 @@ class MinRepoApp:
 
         self.site7_cancel_event.set()
         self.status_var.set("中止中...")
-        self._set_fetch_progress_text("サイトセブン取得は現在の処理が区切れたら中止します")
+        self._set_fetch_progress_text("サイトセブン取得は処理中の店舗を破棄して中止します")
         self._update_button_states()
 
     def _start_worker(self, target: object, *args: object, operation_kind: str = "general") -> None:
@@ -4088,7 +4050,6 @@ class MinRepoApp:
         required_target_dates: set[str] | None = None,
     ) -> StoreFetchResult:
         fetch_parallel_options = fetch_parallel_options or MINREPO_FETCH_PARALLEL_OPTIONS[MINREPO_FETCH_MODE_NORMAL]
-        web_publish_options = web_publish_options or WebPublishOptions(mode=WEB_PUBLISH_MODE_DAYS)
         self._raise_if_fetch_cancelled()
         store_url = registered_store.url
         store_label = f"{store_index}/{total_stores} {self._registered_store_display_name(registered_store)}"
@@ -4302,6 +4263,16 @@ class MinRepoApp:
                     checkpoint_paths.extend(checkpoint_paths_by_date.pop(publish_date, []))
             return checkpoint_paths
 
+        def take_all_checkpoint_paths() -> list[str]:
+            with checkpoint_lock:
+                checkpoint_paths = [
+                    checkpoint_path
+                    for checkpoint_paths in checkpoint_paths_by_date.values()
+                    for checkpoint_path in checkpoint_paths
+                ]
+                checkpoint_paths_by_date.clear()
+            return checkpoint_paths
+
         def mark_checkpoints_left_on_failure(
             batch_save_summary: PersistenceSummary,
             checkpoint_paths: list[str],
@@ -4340,44 +4311,41 @@ class MinRepoApp:
             day_results_by_date[date_page.target_date] = day_result
             if day_result.datasets:
                 publish_batch_results.append(day_result)
-                if (
-                    web_publish_options.mode == WEB_PUBLISH_MODE_DAYS
-                    and len(publish_batch_results) >= web_publish_options.interval_days
-                ):
-                    publish_batch(f"{len(publish_batch_results)}日分")
             else:
                 step_callback(f"{date_page.target_date} は保存対象なし")
 
-        if date_parallel_workers <= 1:
-            for date_index, date_page in enumerate(pending_date_pages, start=1):
-                if self._cancel_requested():
-                    if day_results_by_date or save_summary is not None:
-                        break
-                    raise FetchCancelled
-
-                day_result = fetch_date_page(date_index, date_page)
-                save_day_result(date_page, day_result)
-        else:
-            with ThreadPoolExecutor(max_workers=date_parallel_workers, thread_name_prefix="minrepo-day") as executor:
-                futures_by_date_page = {
-                    executor.submit(fetch_date_page, date_index, date_page): date_page
-                    for date_index, date_page in enumerate(pending_date_pages, start=1)
-                }
-                try:
-                    for future in as_completed(futures_by_date_page):
-                        date_page = futures_by_date_page[future]
-                        day_result = future.result()
-                        save_day_result(date_page, day_result)
-                except Exception:
-                    for future in futures_by_date_page:
-                        future.cancel()
-                    raise
-
-        if publish_batch_results and not self._cancel_requested():
-            if web_publish_options.mode == WEB_PUBLISH_MODE_STORE:
-                publish_batch("店舗完了分")
+        try:
+            if date_parallel_workers <= 1:
+                for date_index, date_page in enumerate(pending_date_pages, start=1):
+                    self._raise_if_fetch_cancelled()
+                    day_result = fetch_date_page(date_index, date_page)
+                    self._raise_if_fetch_cancelled()
+                    save_day_result(date_page, day_result)
             else:
-                publish_batch(f"残り{len(publish_batch_results)}日分")
+                with ThreadPoolExecutor(max_workers=date_parallel_workers, thread_name_prefix="minrepo-day") as executor:
+                    futures_by_date_page = {
+                        executor.submit(fetch_date_page, date_index, date_page): date_page
+                        for date_index, date_page in enumerate(pending_date_pages, start=1)
+                    }
+                    try:
+                        for future in as_completed(futures_by_date_page):
+                            date_page = futures_by_date_page[future]
+                            day_result = future.result()
+                            self._raise_if_fetch_cancelled()
+                            save_day_result(date_page, day_result)
+                    except Exception:
+                        for future in futures_by_date_page:
+                            future.cancel()
+                        raise
+
+            self._raise_if_fetch_cancelled()
+            if publish_batch_results:
+                publish_batch("店舗完了分")
+        except FetchCancelled:
+            checkpoint_paths = take_all_checkpoint_paths()
+            if checkpoint_paths:
+                self.persistence_service.delete_local_checkpoint_files(checkpoint_paths)
+            raise
 
         datasets: list[MachineDataset] = []
         skipped_targets: list[tuple[str, str]] = []
