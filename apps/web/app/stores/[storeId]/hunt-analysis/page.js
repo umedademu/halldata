@@ -1203,9 +1203,11 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                   </div>
                 </details>
               </div>
-              <button type="submit" className="storeReserveButton">
-                表示する
-              </button>
+              <div className="backtestButtonRow">
+                <button type="submit" className="storeReserveButton backtestPrimaryButton">
+                  表示する
+                </button>
+              </div>
             </NativeGetForm>
             {fallbackNotice ? <p className="storeReserveHelp">{fallbackNotice}</p> : null}
             {resultRequested && !detail.nextBusinessDate ? (
