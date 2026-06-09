@@ -14,7 +14,7 @@
           "rbText": "1/439.8",
           "grapeText": "1/6.06",
           "cherryText": "1/36.36",
-          "payoutRateText": "97.6%"
+          "payoutRateText": "97.60%"
         },
         {
           "setting": 2,
@@ -23,7 +23,7 @@
           "rbText": "1/399.6",
           "grapeText": "1/6.04",
           "cherryText": "1/35.92",
-          "payoutRateText": "98.9%"
+          "payoutRateText": "98.90%"
         },
         {
           "setting": 3,
@@ -32,7 +32,7 @@
           "rbText": "1/331.0",
           "grapeText": "1/6.04",
           "cherryText": "1/36.00",
-          "payoutRateText": "100.5%"
+          "payoutRateText": "100.50%"
         },
         {
           "setting": 4,
@@ -41,7 +41,7 @@
           "rbText": "1/315.1",
           "grapeText": "1/6.04",
           "cherryText": "1/36.35",
-          "payoutRateText": "102.3%"
+          "payoutRateText": "102.30%"
         },
         {
           "setting": 5,
@@ -50,7 +50,7 @@
           "rbText": "1/255.0",
           "grapeText": "1/6.02",
           "cherryText": "1/35.92",
-          "payoutRateText": "104.8%"
+          "payoutRateText": "104.80%"
         },
         {
           "setting": 6,
@@ -59,7 +59,7 @@
           "rbText": "1/255.0",
           "grapeText": "1/5.80",
           "cherryText": "1/35.73",
-          "payoutRateText": "107.0%"
+          "payoutRateText": "107.00%"
         }
       ]
     },
@@ -433,7 +433,8 @@
           "bbText": "1/266.4",
           "rbText": "1/439.8",
           "grapeText": "1/5.96",
-          "cherryText": "1/35.83"
+          "cherryText": "1/35.83",
+          "payoutRateText": "98.00%"
         },
         {
           "setting": 2,
@@ -441,7 +442,8 @@
           "bbText": "1/259.0",
           "rbText": "1/407.1",
           "grapeText": "1/5.92",
-          "cherryText": "1/35.46"
+          "cherryText": "1/35.46",
+          "payoutRateText": "99.40%"
         },
         {
           "setting": 3,
@@ -449,7 +451,8 @@
           "bbText": "1/256.0",
           "rbText": "1/366.1",
           "grapeText": "1/5.88",
-          "cherryText": "1/36.27"
+          "cherryText": "1/36.27",
+          "payoutRateText": "101.20%"
         },
         {
           "setting": 4,
@@ -457,7 +460,8 @@
           "bbText": "1/249.2",
           "rbText": "1/322.8",
           "grapeText": "1/5.87",
-          "cherryText": "1/35.68"
+          "cherryText": "1/35.68",
+          "payoutRateText": "103.50%"
         },
         {
           "setting": 5,
@@ -465,7 +469,8 @@
           "bbText": "1/240.1",
           "rbText": "1/299.3",
           "grapeText": "1/5.79",
-          "cherryText": "1/35.64"
+          "cherryText": "1/35.64",
+          "payoutRateText": "106.10%"
         },
         {
           "setting": 6,
@@ -473,7 +478,8 @@
           "bbText": "1/219.9",
           "rbText": "1/262.1",
           "grapeText": "1/5.72",
-          "cherryText": "1/36.02"
+          "cherryText": "1/36.02",
+          "payoutRateText": "111.30%"
         }
       ]
     },
@@ -491,7 +497,7 @@
           "rbText": "1/409.6",
           "grapeText": "1/5.90",
           "cherryText": "1/38.43",
-          "payoutRateText": "97.7%"
+          "payoutRateText": "97.70%"
         },
         {
           "setting": 2,
@@ -500,7 +506,7 @@
           "rbText": "1/385.5",
           "grapeText": "1/5.88",
           "cherryText": "1/38.29",
-          "payoutRateText": "98.6%"
+          "payoutRateText": "98.60%"
         },
         {
           "setting": 3,
@@ -509,7 +515,7 @@
           "rbText": "1/336.1",
           "grapeText": "1/5.82",
           "cherryText": "1/37.04",
-          "payoutRateText": "100.9%"
+          "payoutRateText": "100.90%"
         },
         {
           "setting": 4,
@@ -518,7 +524,7 @@
           "rbText": "1/290.0",
           "grapeText": "1/5.81",
           "cherryText": "1/35.89",
-          "payoutRateText": "104.0%"
+          "payoutRateText": "104.00%"
         },
         {
           "setting": 5,
@@ -527,7 +533,7 @@
           "rbText": "1/268.6",
           "grapeText": "1/5.79",
           "cherryText": "1/35.82",
-          "payoutRateText": "106.9%"
+          "payoutRateText": "106.90%"
         },
         {
           "setting": 6,
@@ -536,7 +542,7 @@
           "rbText": "1/229.1",
           "grapeText": "1/5.69",
           "cherryText": "1/35.79",
-          "payoutRateText": "111.3%"
+          "payoutRateText": "111.30%"
         }
       ]
     },
@@ -599,7 +605,7 @@
           "rbText": "1/354.2",
           "grapeText": "1/6.25",
           "cherryText": "1/33.40",
-          "payoutRateText": "98.3%"
+          "payoutRateText": "98.30%"
         },
         {
           "setting": 2,
@@ -608,7 +614,7 @@
           "rbText": "1/332.7",
           "grapeText": "1/6.20",
           "cherryText": "1/33.30",
-          "payoutRateText": "99.3%"
+          "payoutRateText": "99.30%"
         },
         {
           "setting": 3,
@@ -617,7 +623,7 @@
           "rbText": "1/306.2",
           "grapeText": "1/6.15",
           "cherryText": "1/33.20",
-          "payoutRateText": "100.7%"
+          "payoutRateText": "100.70%"
         },
         {
           "setting": 4,
@@ -626,7 +632,7 @@
           "rbText": "1/268.6",
           "grapeText": "1/6.07",
           "cherryText": "1/33.10",
-          "payoutRateText": "103.1%"
+          "payoutRateText": "103.10%"
         },
         {
           "setting": 5,
@@ -635,7 +641,7 @@
           "rbText": "1/247.3",
           "grapeText": "1/6.00",
           "cherryText": "1/32.90",
-          "payoutRateText": "105.5%"
+          "payoutRateText": "105.50%"
         },
         {
           "setting": 6,
@@ -644,7 +650,7 @@
           "rbText": "1/234.9",
           "grapeText": "1/5.92",
           "cherryText": "1/32.80",
-          "payoutRateText": "108.5%"
+          "payoutRateText": "108.50%"
         }
       ]
     },
