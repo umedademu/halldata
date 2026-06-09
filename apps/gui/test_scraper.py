@@ -45,6 +45,7 @@ from main import (
     FetchCancelled,
     MinRepoApp,
     MinRepoFetchParallelOptions,
+    OperationResultQueue,
     FetchManyResult,
     RegisteredStore,
     StoreFetchResult,
@@ -2303,6 +2304,59 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(app.fetch_progress_value_var.get(), 25.0)
         self.assertIn("25.0%", app.fetch_progress_text_var.get())
         self.assertIn("経過 01:05", app.fetch_progress_text_var.get())
+
+    def test_apply_fetch_progress_can_update_site7_progress_separately(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_progress_bar = FakeProgressbar()
+        app.fetch_progress_value_var = FakeNumberVariable()
+        app.fetch_progress_text_var = FakeTextVariable("みんレポ進捗")
+        app.fetch_progress_started_at = time.monotonic() - 65
+        app.site7_fetch_progress_bar = FakeProgressbar()
+        app.site7_fetch_progress_value_var = FakeNumberVariable()
+        app.site7_fetch_progress_text_var = FakeTextVariable()
+        app.site7_fetch_progress_started_at = time.monotonic() - 5
+
+        app._apply_fetch_progress(
+            FetchProgress(current_step=40, total_steps=100, message="サイセ取得中"),
+            progress_kind="site7",
+        )
+
+        self.assertEqual(app.site7_fetch_progress_value_var.get(), 40.0)
+        self.assertIn("40.0%", app.site7_fetch_progress_text_var.get())
+        self.assertIn("サイセ取得中", app.site7_fetch_progress_text_var.get())
+        self.assertEqual(app.fetch_progress_value_var.get(), 0.0)
+        self.assertEqual(app.fetch_progress_text_var.get(), "みんレポ進捗")
+
+    def test_poll_queue_routes_site7_progress_to_site7_bar(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_progress_bar = FakeProgressbar()
+        app.fetch_progress_value_var = FakeNumberVariable()
+        app.fetch_progress_text_var = FakeTextVariable("みんレポ進捗")
+        app.fetch_progress_started_at = time.monotonic() - 65
+        app.site7_fetch_progress_bar = FakeProgressbar()
+        app.site7_fetch_progress_value_var = FakeNumberVariable()
+        app.site7_fetch_progress_text_var = FakeTextVariable()
+        app.site7_fetch_progress_started_at = time.monotonic() - 5
+        app._worker_context = threading.local()
+        app._next_operation_id = 3
+        app.active_operations = {1: "fetch", 2: "site7_fetch"}
+        app.active_operation_kind = "multiple"
+        app.is_busy = True
+        app.result_polling_active = True
+        app.minrepo_cancel_event = threading.Event()
+        app.site7_cancel_event = threading.Event()
+        app.fetch_cancel_event = app.minrepo_cancel_event
+        app.persistence_lock = threading.Lock()
+        app.root = SimpleNamespace(after=lambda *args: None)
+        app.result_queue = OperationResultQueue(lambda: 2)
+
+        app.result_queue.put(("fetch_progress", FetchProgress(50, 100, "サイセ取得中")))
+        app._poll_queue()
+
+        self.assertEqual(app.site7_fetch_progress_value_var.get(), 50.0)
+        self.assertIn("サイセ取得中", app.site7_fetch_progress_text_var.get())
+        self.assertEqual(app.fetch_progress_value_var.get(), 0.0)
+        self.assertEqual(app.fetch_progress_text_var.get(), "みんレポ進捗")
 
     def test_build_machine_daily_records_from_history_result(self) -> None:
         scraper = FixtureScraper()

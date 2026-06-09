@@ -743,6 +743,9 @@ class FetchCancelled(Exception):
 MINREPO_OPERATION_KINDS = {"fetch", "scheduled_fetch", "minrepo_priority_watch"}
 SITE7_OPERATION_KINDS = {"site7_fetch", "scheduled_site7_fetch"}
 FETCH_OPERATION_KINDS = MINREPO_OPERATION_KINDS | SITE7_OPERATION_KINDS
+PROGRESS_KIND_MINREPO = "minrepo"
+PROGRESS_KIND_SITE7 = "site7"
+FETCH_PROGRESS_STARTED_AT_UNSET = object()
 
 
 class OperationResultQueue(queue.Queue):
@@ -911,6 +914,8 @@ class MinRepoApp:
         self.summary_var = tk.StringVar(value="未取得")
         self.fetch_progress_value_var = tk.DoubleVar(value=0.0)
         self.fetch_progress_text_var = tk.StringVar(value="未開始")
+        self.site7_fetch_progress_value_var = tk.DoubleVar(value=0.0)
+        self.site7_fetch_progress_text_var = tk.StringVar(value="未開始")
         self.notify_fetch_complete_var = tk.BooleanVar(value=True)
         self.register_store_url_var = tk.StringVar()
         self.register_store_frequency_var = tk.StringVar(value=FETCH_FREQUENCY_DAILY)
@@ -948,6 +953,10 @@ class MinRepoApp:
         self.fetch_progress_total = 0
         self.fetch_progress_started_at: float | None = None
         self.fetch_progress_last_message = "未開始"
+        self.site7_fetch_progress_current = 0
+        self.site7_fetch_progress_total = 0
+        self.site7_fetch_progress_started_at: float | None = None
+        self.site7_fetch_progress_last_message = "未開始"
 
         self._build_ui()
         self._reset_fetch_progress()
@@ -1183,7 +1192,7 @@ class MinRepoApp:
         ttk.Label(self.fetch_info, text="概要").grid(row=0, column=2, sticky="w")
         ttk.Label(self.fetch_info, textvariable=self.summary_var).grid(row=0, column=3, sticky="w", padx=(8, 0))
 
-        ttk.Label(self.fetch_info, text="進捗").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(self.fetch_info, text="みんレポ進捗").grid(row=1, column=0, sticky="w", pady=(8, 0))
         self.fetch_progress_bar = ttk.Progressbar(
             self.fetch_info,
             variable=self.fetch_progress_value_var,
@@ -1192,6 +1201,21 @@ class MinRepoApp:
         )
         self.fetch_progress_bar.grid(row=1, column=1, columnspan=2, sticky="ew", padx=(8, 12), pady=(8, 0))
         ttk.Label(self.fetch_info, textvariable=self.fetch_progress_text_var).grid(row=1, column=3, sticky="w", pady=(8, 0))
+
+        ttk.Label(self.fetch_info, text="サイセ進捗").grid(row=2, column=0, sticky="w", pady=(8, 0))
+        self.site7_fetch_progress_bar = ttk.Progressbar(
+            self.fetch_info,
+            variable=self.site7_fetch_progress_value_var,
+            maximum=100,
+            mode="determinate",
+        )
+        self.site7_fetch_progress_bar.grid(row=2, column=1, columnspan=2, sticky="ew", padx=(8, 12), pady=(8, 0))
+        ttk.Label(self.fetch_info, textvariable=self.site7_fetch_progress_text_var).grid(
+            row=2,
+            column=3,
+            sticky="w",
+            pady=(8, 0),
+        )
 
         self._build_register_tab(register_tab)
         self._build_site7_machine_settings_tab(site7_machine_tab)
@@ -2017,7 +2041,10 @@ class MinRepoApp:
         self.current_results = []
         self.current_history_result = None
         self._clear_fetch_result_details()
-        self._begin_fetch_progress("サイトセブン定期実行: 登録店舗を更新中...")
+        self._begin_fetch_progress(
+            "サイトセブン定期実行: 登録店舗を更新中...",
+            progress_kind=PROGRESS_KIND_SITE7,
+        )
         self.status_var.set("サイトセブン定期実行中...")
         self.summary_var.set("登録店舗を更新してからサイトセブン取得します")
         self.site7_schedule_status_var.set("サイトセブン定期実行中")
@@ -3004,6 +3031,7 @@ class MinRepoApp:
             progress_message="サイトセブンへ接続中...",
             status_message="サイトセブン取得中...",
             summary_message=f"{len(target_stores)}店舗の対象機種をサイトセブンから取得中",
+            progress_kind=PROGRESS_KIND_SITE7,
         )
         browser_visible = self._site7_browser_visible()
         self._start_worker(
@@ -3049,6 +3077,7 @@ class MinRepoApp:
             progress_message="サイトセブンへ接続中...",
             status_message="サイトセブン取得中...",
             summary_message=f"{display_name} をサイトセブンから取得中",
+            progress_kind=PROGRESS_KIND_SITE7,
         )
         browser_visible = self._site7_browser_visible()
         self._start_worker(
@@ -3490,6 +3519,11 @@ class MinRepoApp:
                 return operation_kind
         return self.active_operation_kind
 
+    def _progress_kind_for_operation(self, operation_kind: str) -> str:
+        if operation_kind in SITE7_OPERATION_KINDS:
+            return PROGRESS_KIND_SITE7
+        return PROGRESS_KIND_MINREPO
+
     def _refresh_busy_state(self) -> None:
         self._ensure_operation_tracking()
         active_kinds = list(self.active_operations.values())
@@ -3544,11 +3578,18 @@ class MinRepoApp:
         with self.persistence_lock:
             return action()
 
-    def _begin_fetch_run(self, *, progress_message: str, status_message: str, summary_message: str) -> None:
+    def _begin_fetch_run(
+        self,
+        *,
+        progress_message: str,
+        status_message: str,
+        summary_message: str,
+        progress_kind: str = PROGRESS_KIND_MINREPO,
+    ) -> None:
         self.current_results = []
         self.current_history_result = None
         self._clear_fetch_result_details()
-        self._begin_fetch_progress(progress_message)
+        self._begin_fetch_progress(progress_message, progress_kind=progress_kind)
         self.status_var.set(status_message)
         self.summary_var.set(summary_message)
 
@@ -3620,7 +3661,10 @@ class MinRepoApp:
 
         self.minrepo_cancel_event.set()
         self.status_var.set("中止中...")
-        self._set_fetch_progress_text("みんレポ取得は処理中の店舗を破棄して中止します")
+        self._set_fetch_progress_text(
+            "みんレポ取得は処理中の店舗を破棄して中止します",
+            progress_kind=PROGRESS_KIND_MINREPO,
+        )
         self._update_button_states()
 
     def cancel_site7_fetch(self) -> None:
@@ -3629,7 +3673,10 @@ class MinRepoApp:
 
         self.site7_cancel_event.set()
         self.status_var.set("中止中...")
-        self._set_fetch_progress_text("サイトセブン取得は処理中の店舗を破棄して中止します")
+        self._set_fetch_progress_text(
+            "サイトセブン取得は処理中の店舗を破棄して中止します",
+            progress_kind=PROGRESS_KIND_SITE7,
+        )
         self._update_button_states()
 
     def _start_worker(self, target: object, *args: object, operation_kind: str = "general") -> None:
@@ -4383,16 +4430,17 @@ class MinRepoApp:
             return
 
         operation_id = getattr(self.result_queue, "last_operation_id", None)
+        operation_kind = self._operation_kind_for_result(operation_id)
+        progress_kind = self._progress_kind_for_operation(operation_kind)
         if kind == "fetch_progress":
             if isinstance(payload, FetchProgress):
-                self._apply_fetch_progress(payload)
+                self._apply_fetch_progress(payload, progress_kind=progress_kind)
             if self._has_active_operations():
                 self.root.after(100, self._poll_queue)
             else:
                 self.result_polling_active = False
             return
 
-        operation_kind = self._operation_kind_for_result(operation_id)
         if operation_id is not None:
             self.active_operations.pop(operation_id, None)
         else:
@@ -4564,7 +4612,7 @@ class MinRepoApp:
             return
 
         if kind == "fetch_error":
-            self._finish_fetch_progress(success=False, message="取得失敗")
+            self._finish_fetch_progress(success=False, message="取得失敗", progress_kind=progress_kind)
             self.status_var.set("失敗")
             self.summary_var.set("取得できませんでした")
             if operation_kind == "scheduled_fetch":
@@ -4577,7 +4625,7 @@ class MinRepoApp:
             return
 
         if kind == "fetch_cancelled":
-            self._finish_fetch_progress(success=False, message="中止しました")
+            self._finish_fetch_progress(success=False, message="中止しました", progress_kind=progress_kind)
             self.status_var.set("中止")
             self.summary_var.set("取得を中止しました")
             if operation_kind == "scheduled_fetch":
@@ -4590,14 +4638,14 @@ class MinRepoApp:
 
         if kind == "minrepo_priority_watch_no_update":
             if not isinstance(payload, MinRepoPriorityWatchResult):
-                self._finish_fetch_progress(success=False, message="確認失敗")
+                self._finish_fetch_progress(success=False, message="確認失敗", progress_kind=progress_kind)
                 self.status_var.set("失敗")
                 self.summary_var.set("不明な結果")
                 self.schedule_status_var.set("早朝みんレポ確認に失敗しました")
                 messagebox.showerror("エラー", "早朝みんレポ確認の結果形式が不正です。")
                 return
             self._replace_registered_stores(payload.registered_stores, select_all=False, reset_fetch_display=False)
-            self._finish_fetch_progress(success=True, message="更新なし")
+            self._finish_fetch_progress(success=True, message="更新なし", progress_kind=progress_kind)
             self.status_var.set("待機中")
             self.summary_var.set(
                 f"{payload.target_date} は未更新 / 確認{payload.checked_store_count}店舗"
@@ -4613,14 +4661,14 @@ class MinRepoApp:
                 or not isinstance(payload.fetch_many_result, FetchManyResult)
                 or not payload.fetch_many_result.results
             ):
-                self._finish_fetch_progress(success=False, message="取得失敗")
+                self._finish_fetch_progress(success=False, message="取得失敗", progress_kind=progress_kind)
                 self.status_var.set("失敗")
                 self.summary_var.set("不明な結果")
                 self.schedule_status_var.set("早朝みんレポ取得に失敗しました")
                 messagebox.showerror("エラー", "早朝みんレポ取得の結果形式が不正です。")
                 return
             self._replace_registered_stores(payload.registered_stores, select_all=False, reset_fetch_display=False)
-            self._apply_fetch_many_result(payload.fetch_many_result)
+            self._apply_fetch_many_result(payload.fetch_many_result, progress_kind=progress_kind)
             self._mark_minrepo_priority_watch_completed(payload.fetch_many_result, payload.target_date)
             if payload.fetch_many_result.cancelled:
                 self.schedule_status_var.set("早朝みんレポ確認を中止しました")
@@ -4632,17 +4680,17 @@ class MinRepoApp:
 
         if kind == "fetch_many_success":
             if not isinstance(payload, FetchManyResult) or not payload.results:
-                self._finish_fetch_progress(success=False, message="取得失敗")
+                self._finish_fetch_progress(success=False, message="取得失敗", progress_kind=progress_kind)
                 self.status_var.set("失敗")
                 self.summary_var.set("不明な結果")
                 messagebox.showerror("エラー", "取得結果の形式が不正です。")
                 return
-            self._apply_fetch_many_result(payload)
+            self._apply_fetch_many_result(payload, progress_kind=progress_kind)
             return
 
         if kind == "scheduled_fetch_many_success":
             if not isinstance(payload, ScheduledFetchResult):
-                self._finish_fetch_progress(success=False, message="取得失敗")
+                self._finish_fetch_progress(success=False, message="取得失敗", progress_kind=progress_kind)
                 self.status_var.set("失敗")
                 self.summary_var.set("不明な結果")
                 self.schedule_status_var.set("定期実行に失敗しました")
@@ -4651,7 +4699,7 @@ class MinRepoApp:
             refresh_result = payload.refresh_result
             fetch_many_result = payload.fetch_many_result
             self._replace_registered_stores(refresh_result.registered_stores, select_all=False, reset_fetch_display=False)
-            self._apply_fetch_many_result(fetch_many_result)
+            self._apply_fetch_many_result(fetch_many_result, progress_kind=progress_kind)
             if refresh_result.save_summary is not None and refresh_result.save_summary.has_errors:
                 messagebox.showwarning("登録店舗", "\n\n".join(refresh_result.save_summary.messages))
             try:
@@ -4671,7 +4719,7 @@ class MinRepoApp:
 
         if kind == "scheduled_site7_fetch_many_success":
             if not isinstance(payload, ScheduledSite7FetchResult):
-                self._finish_fetch_progress(success=False, message="取得失敗")
+                self._finish_fetch_progress(success=False, message="取得失敗", progress_kind=progress_kind)
                 self.status_var.set("失敗")
                 self.summary_var.set("不明な結果")
                 self.site7_schedule_status_var.set("サイトセブン定期実行に失敗しました")
@@ -4680,7 +4728,7 @@ class MinRepoApp:
             registered_stores = payload.registered_stores
             fetch_many_result = payload.fetch_many_result
             self._replace_registered_stores(registered_stores, select_all=False, reset_fetch_display=False)
-            self._apply_fetch_many_result(fetch_many_result)
+            self._apply_fetch_many_result(fetch_many_result, progress_kind=progress_kind)
             try:
                 self._mark_successful_site7_schedule_stores(
                     fetch_many_result,
@@ -4706,14 +4754,14 @@ class MinRepoApp:
 
         if kind == "scheduled_site7_fetch_waiting":
             if not isinstance(payload, ScheduledSite7UpdateWaitingResult):
-                self._finish_fetch_progress(success=False, message="取得失敗")
+                self._finish_fetch_progress(success=False, message="取得失敗", progress_kind=progress_kind)
                 self.status_var.set("失敗")
                 self.summary_var.set("不明な結果")
                 self.site7_schedule_status_var.set("サイトセブン定期実行に失敗しました")
                 messagebox.showerror("エラー", "サイトセブン更新待ちの結果形式が不正です。")
                 return
             self._replace_registered_stores(payload.registered_stores, select_all=False, reset_fetch_display=False)
-            self._finish_fetch_progress(success=True, message="更新待ち")
+            self._finish_fetch_progress(success=True, message="更新待ち", progress_kind=progress_kind)
             self.status_var.set("待機中")
             self.summary_var.set("サイトセブン更新待ちの店舗を10分後に再確認します")
             self._schedule_site7_update_recheck(
@@ -4727,7 +4775,7 @@ class MinRepoApp:
         if kind == "scheduled_site7_fetch_skipped":
             if isinstance(payload, list):
                 self._replace_registered_stores(payload, select_all=False, reset_fetch_display=False)
-            self._finish_fetch_progress(success=True, message="取得対象なし")
+            self._finish_fetch_progress(success=True, message="取得対象なし", progress_kind=progress_kind)
             self.status_var.set("完了")
             self.summary_var.set("サイトセブン定期実行の対象店舗はありません")
             self.site7_schedule_status_var.set(f"サイトセブン定期実行完了: {self._site7_schedule_status_text()}")
@@ -4747,7 +4795,7 @@ class MinRepoApp:
             save_summary = payload[1]
             saved_full_day_summary = payload[2]
         if not isinstance(history_result, MachineHistoryResult):
-            self._finish_fetch_progress(success=False, message="取得失敗")
+            self._finish_fetch_progress(success=False, message="取得失敗", progress_kind=progress_kind)
             self.status_var.set("失敗")
             self.summary_var.set("不明な結果")
             messagebox.showerror("エラー", "取得結果の形式が不正です。")
@@ -4761,6 +4809,7 @@ class MinRepoApp:
         self._finish_fetch_progress(
             success=True,
             message="取得完了（保存に注意）" if save_summary is not None and save_summary.has_errors else "取得完了",
+            progress_kind=progress_kind,
         )
         if save_summary is not None and save_summary.has_errors:
             self.status_var.set("完了（保存に注意）")
@@ -4786,7 +4835,12 @@ class MinRepoApp:
         if warning_messages:
             messagebox.showwarning("自動処理", "\n\n".join(warning_messages))
 
-    def _apply_fetch_many_result(self, fetch_many_result: FetchManyResult) -> None:
+    def _apply_fetch_many_result(
+        self,
+        fetch_many_result: FetchManyResult,
+        *,
+        progress_kind: str = PROGRESS_KIND_MINREPO,
+    ) -> None:
         last_store_result = fetch_many_result.results[-1]
         history_result = last_store_result.history_result
 
@@ -4810,7 +4864,7 @@ class MinRepoApp:
         else:
             finish_message = "取得完了（保存に注意）" if has_save_errors else "取得完了"
 
-        self._finish_fetch_progress(success=True, message=finish_message)
+        self._finish_fetch_progress(success=True, message=finish_message, progress_kind=progress_kind)
         if fetch_many_result.cancelled:
             self.status_var.set("中止（一部取得済み）")
         elif fetch_many_result.failures:
@@ -5666,67 +5720,166 @@ class MinRepoApp:
         self._apply_fetch_result_layout()
         self._update_button_states()
 
-    def _begin_fetch_progress(self, message: str) -> None:
-        self.fetch_progress_current = 0
-        self.fetch_progress_total = 0
-        self.fetch_progress_started_at = time.monotonic()
-        self.fetch_progress_last_message = message
-        self.fetch_progress_bar.stop()
-        self.fetch_progress_bar.configure(mode="indeterminate", maximum=100)
-        self.fetch_progress_value_var.set(0.0)
-        self._set_fetch_progress_text(message)
-        self.fetch_progress_bar.start(12)
+    def _fetch_progress_bar_for(self, progress_kind: str) -> object:
+        if progress_kind == PROGRESS_KIND_SITE7:
+            return self.site7_fetch_progress_bar
+        return self.fetch_progress_bar
+
+    def _fetch_progress_value_var_for(self, progress_kind: str) -> object:
+        if progress_kind == PROGRESS_KIND_SITE7:
+            return self.site7_fetch_progress_value_var
+        return self.fetch_progress_value_var
+
+    def _fetch_progress_text_var_for(self, progress_kind: str) -> object:
+        if progress_kind == PROGRESS_KIND_SITE7:
+            return self.site7_fetch_progress_text_var
+        return self.fetch_progress_text_var
+
+    def _fetch_progress_controls_ready(self, progress_kind: str) -> bool:
+        if progress_kind == PROGRESS_KIND_SITE7:
+            return (
+                hasattr(self, "site7_fetch_progress_bar")
+                and hasattr(self, "site7_fetch_progress_value_var")
+                and hasattr(self, "site7_fetch_progress_text_var")
+            )
+        return (
+            hasattr(self, "fetch_progress_bar")
+            and hasattr(self, "fetch_progress_value_var")
+            and hasattr(self, "fetch_progress_text_var")
+        )
+
+    def _set_fetch_progress_state(
+        self,
+        progress_kind: str,
+        *,
+        current: int | None = None,
+        total: int | None = None,
+        started_at: float | None | object = FETCH_PROGRESS_STARTED_AT_UNSET,
+        last_message: str | None = None,
+    ) -> None:
+        is_site7_progress = progress_kind == PROGRESS_KIND_SITE7
+        if current is not None:
+            if is_site7_progress:
+                self.site7_fetch_progress_current = current
+            else:
+                self.fetch_progress_current = current
+        if total is not None:
+            if is_site7_progress:
+                self.site7_fetch_progress_total = total
+            else:
+                self.fetch_progress_total = total
+        if started_at is not FETCH_PROGRESS_STARTED_AT_UNSET:
+            if is_site7_progress:
+                self.site7_fetch_progress_started_at = started_at if isinstance(started_at, float) else None
+            else:
+                self.fetch_progress_started_at = started_at if isinstance(started_at, float) else None
+        if last_message is not None:
+            if is_site7_progress:
+                self.site7_fetch_progress_last_message = last_message
+            else:
+                self.fetch_progress_last_message = last_message
+
+    def _fetch_progress_total_for(self, progress_kind: str) -> int:
+        if progress_kind == PROGRESS_KIND_SITE7:
+            return getattr(self, "site7_fetch_progress_total", 0)
+        return getattr(self, "fetch_progress_total", 0)
+
+    def _fetch_progress_started_at_for(self, progress_kind: str) -> float | None:
+        if progress_kind == PROGRESS_KIND_SITE7:
+            return getattr(self, "site7_fetch_progress_started_at", None)
+        return getattr(self, "fetch_progress_started_at", None)
+
+    def _fetch_progress_last_message_for(self, progress_kind: str) -> str:
+        if progress_kind == PROGRESS_KIND_SITE7:
+            return getattr(self, "site7_fetch_progress_last_message", "未開始")
+        return getattr(self, "fetch_progress_last_message", "未開始")
+
+    def _begin_fetch_progress(self, message: str, *, progress_kind: str = PROGRESS_KIND_MINREPO) -> None:
+        self._set_fetch_progress_state(
+            progress_kind,
+            current=0,
+            total=0,
+            started_at=time.monotonic(),
+            last_message=message,
+        )
+        progress_bar = self._fetch_progress_bar_for(progress_kind)
+        progress_bar.stop()
+        progress_bar.configure(mode="indeterminate", maximum=100)
+        self._fetch_progress_value_var_for(progress_kind).set(0.0)
+        self._set_fetch_progress_text(message, progress_kind=progress_kind)
+        progress_bar.start(12)
         self._schedule_fetch_elapsed_tick()
 
-    def _apply_fetch_progress(self, progress: FetchProgress) -> None:
+    def _apply_fetch_progress(self, progress: FetchProgress, *, progress_kind: str = PROGRESS_KIND_MINREPO) -> None:
         total_steps = max(1, progress.total_steps)
         current_step = min(max(0, progress.current_step), total_steps)
         progress_percent = current_step * 100 / total_steps
-        self.fetch_progress_current = current_step
-        self.fetch_progress_total = total_steps
-        self.fetch_progress_bar.stop()
-        self.fetch_progress_bar.configure(mode="determinate", maximum=100)
-        self.fetch_progress_value_var.set(progress_percent)
-        self._set_fetch_progress_text(f"{progress_percent:.1f}% {progress.message}")
+        self._set_fetch_progress_state(progress_kind, current=current_step, total=total_steps)
+        progress_bar = self._fetch_progress_bar_for(progress_kind)
+        progress_bar.stop()
+        progress_bar.configure(mode="determinate", maximum=100)
+        self._fetch_progress_value_var_for(progress_kind).set(progress_percent)
+        self._set_fetch_progress_text(f"{progress_percent:.1f}% {progress.message}", progress_kind=progress_kind)
 
-    def _finish_fetch_progress(self, success: bool, message: str) -> None:
-        self.fetch_progress_bar.stop()
-        self.fetch_progress_bar.configure(mode="determinate", maximum=100)
+    def _finish_fetch_progress(
+        self,
+        success: bool,
+        message: str,
+        *,
+        progress_kind: str = PROGRESS_KIND_MINREPO,
+    ) -> None:
+        progress_bar = self._fetch_progress_bar_for(progress_kind)
+        progress_bar.stop()
+        progress_bar.configure(mode="determinate", maximum=100)
         if success:
-            total_steps = self.fetch_progress_total or 1
-            self.fetch_progress_current = total_steps
-            self.fetch_progress_total = total_steps
-            self.fetch_progress_value_var.set(100.0)
-            self._set_fetch_progress_text(f"100.0% {message}")
-            self.fetch_progress_started_at = None
+            total_steps = self._fetch_progress_total_for(progress_kind) or 1
+            self._set_fetch_progress_state(progress_kind, current=total_steps, total=total_steps)
+            self._fetch_progress_value_var_for(progress_kind).set(100.0)
+            self._set_fetch_progress_text(f"100.0% {message}", progress_kind=progress_kind)
+            self._set_fetch_progress_state(progress_kind, started_at=None)
             return
 
-        self.fetch_progress_current = 0
-        self.fetch_progress_total = 0
-        self.fetch_progress_value_var.set(0.0)
-        self._set_fetch_progress_text(message)
-        self.fetch_progress_started_at = None
+        self._set_fetch_progress_state(progress_kind, current=0, total=0, started_at=None)
+        self._fetch_progress_value_var_for(progress_kind).set(0.0)
+        self._set_fetch_progress_text(message, progress_kind=progress_kind)
 
-    def _reset_fetch_progress(self) -> None:
-        self.fetch_progress_bar.stop()
-        self.fetch_progress_bar.configure(mode="determinate", maximum=100)
-        self.fetch_progress_current = 0
-        self.fetch_progress_total = 0
-        self.fetch_progress_started_at = None
-        self.fetch_progress_last_message = "未開始"
-        self.fetch_progress_value_var.set(0.0)
-        self.fetch_progress_text_var.set("未開始")
+    def _reset_fetch_progress(self, *, progress_kind: str | None = None) -> None:
+        progress_kinds = (
+            (PROGRESS_KIND_MINREPO, PROGRESS_KIND_SITE7)
+            if progress_kind is None
+            else (progress_kind,)
+        )
+        for current_progress_kind in progress_kinds:
+            if not self._fetch_progress_controls_ready(current_progress_kind):
+                continue
+            progress_bar = self._fetch_progress_bar_for(current_progress_kind)
+            progress_bar.stop()
+            progress_bar.configure(mode="determinate", maximum=100)
+            self._set_fetch_progress_state(
+                current_progress_kind,
+                current=0,
+                total=0,
+                started_at=None,
+                last_message="未開始",
+            )
+            self._fetch_progress_value_var_for(current_progress_kind).set(0.0)
+            self._fetch_progress_text_var_for(current_progress_kind).set("未開始")
 
-    def _set_fetch_progress_text(self, message: str) -> None:
-        self.fetch_progress_last_message = message
-        elapsed_text = self._fetch_elapsed_text()
+    def _set_fetch_progress_text(
+        self,
+        message: str,
+        *,
+        progress_kind: str = PROGRESS_KIND_MINREPO,
+    ) -> None:
+        self._set_fetch_progress_state(progress_kind, last_message=message)
+        elapsed_text = self._fetch_elapsed_text(progress_kind=progress_kind)
         if elapsed_text:
-            self.fetch_progress_text_var.set(f"{message} / {elapsed_text}")
+            self._fetch_progress_text_var_for(progress_kind).set(f"{message} / {elapsed_text}")
             return
-        self.fetch_progress_text_var.set(message)
+        self._fetch_progress_text_var_for(progress_kind).set(message)
 
-    def _fetch_elapsed_text(self) -> str:
-        fetch_progress_started_at = getattr(self, "fetch_progress_started_at", None)
+    def _fetch_elapsed_text(self, *, progress_kind: str = PROGRESS_KIND_MINREPO) -> str:
+        fetch_progress_started_at = self._fetch_progress_started_at_for(progress_kind)
         if fetch_progress_started_at is None:
             return ""
         elapsed_seconds = max(0, int(time.monotonic() - fetch_progress_started_at))
@@ -5742,10 +5895,19 @@ class MinRepoApp:
         self.root.after(1000, self._refresh_fetch_elapsed_text)
 
     def _refresh_fetch_elapsed_text(self) -> None:
-        if getattr(self, "fetch_progress_started_at", None) is None:
-            return
-        self._set_fetch_progress_text(self.fetch_progress_last_message)
-        self._schedule_fetch_elapsed_tick()
+        has_active_progress = False
+        for progress_kind in (PROGRESS_KIND_MINREPO, PROGRESS_KIND_SITE7):
+            if (
+                self._fetch_progress_controls_ready(progress_kind)
+                and self._fetch_progress_started_at_for(progress_kind) is not None
+            ):
+                self._set_fetch_progress_text(
+                    self._fetch_progress_last_message_for(progress_kind),
+                    progress_kind=progress_kind,
+                )
+                has_active_progress = True
+        if has_active_progress:
+            self._schedule_fetch_elapsed_tick()
 
     def _notify_fetch_complete(self) -> None:
         if not self.notify_fetch_complete_var.get():
