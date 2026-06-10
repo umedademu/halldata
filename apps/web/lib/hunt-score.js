@@ -6212,7 +6212,7 @@ function buildAvailableWindowRows(businessDates, dateIndex, recordMapByDate, win
   return windowRows;
 }
 
-function buildNearCompleteInitialWindowRows(businessDates, dateIndex, recordMapByDate, windowDays, config) {
+function buildIncompleteWindowRows(businessDates, dateIndex, recordMapByDate, windowDays, config) {
   const normalizedWindowDays = Math.max(1, Number(windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
   if (dateIndex < normalizedWindowDays - 1) {
     return null;
@@ -6220,19 +6220,11 @@ function buildNearCompleteInitialWindowRows(businessDates, dateIndex, recordMapB
 
   const windowDates = businessDates.slice(dateIndex - (normalizedWindowDays - 1), dateIndex + 1);
   const windowRows = [];
-  let foundFirstRow = false;
 
   for (const date of windowDates) {
     const row = recordMapByDate.get(date);
-    if (!foundFirstRow) {
-      if (!row || !hasMeaningfulResult(row)) {
-        continue;
-      }
-      foundFirstRow = true;
-    }
-
     if (!row || !hasMeaningfulResult(row)) {
-      return null;
+      continue;
     }
 
     windowRows.push({
@@ -6245,7 +6237,7 @@ function buildNearCompleteInitialWindowRows(businessDates, dateIndex, recordMapB
     });
   }
 
-  return windowRows.length >= normalizedWindowDays - 1 ? windowRows : null;
+  return windowRows.length > 0 ? windowRows : null;
 }
 
 function countAdjacentHighSettingCandidates(
@@ -6428,7 +6420,7 @@ function calculateWindowMetrics(
     ? buildAvailableWindowRows(businessDates, dateIndex, recordMapByDate, windowDays, config)
     : buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays, config);
   if (!windowRows && !useAvailableRows) {
-    windowRows = buildNearCompleteInitialWindowRows(
+    windowRows = buildIncompleteWindowRows(
       businessDates,
       dateIndex,
       recordMapByDate,
