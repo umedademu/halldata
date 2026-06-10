@@ -823,6 +823,8 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "マイジャグラーV": "mj-arena-kurume-my",
       "マイジャグラーⅤ": "mj-arena-kurume-my",
       "マイジャグラー": "mj-arena-kurume-my",
+      "ジャグラーガールズSS": "mj-arena-kurume-girls",
+      "ジャグラーガールズ": "mj-arena-kurume-girls",
     },
   },
   {
@@ -1533,6 +1535,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ジャグラーガールズSS") ||
     normalizedMachineName === normalizeText("ジャグラーガールズ")
   ) {
+    if (readMachineContentRule(config, machineName) === "mj-arena-kurume-girls") {
+      return games >= 1500 && combinedDenominator <= 130 && rbDenominator <= 315;
+    }
     const rbCount = readWindowField(row, "rbCount");
     return games >= 4000 && rbCount >= 25 && rbDenominator <= 281 && combinedDenominator <= 128;
   }
@@ -1650,6 +1655,14 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   if (normalizedMachineName === normalizeText("ミスタージャグラー")) {
     const rbCount = readWindowField(row, "rbCount");
     return rbCount >= 25 && rbDenominator <= 260 && combinedDenominator <= 140;
+  }
+  if (
+    normalizedMachineName === normalizeText("ジャグラーガールズSS") ||
+    normalizedMachineName === normalizeText("ジャグラーガールズ")
+  ) {
+    if (readMachineContentRule(config, machineName) === "mj-arena-kurume-girls") {
+      return games >= 2000 && combinedDenominator <= 132 && rbDenominator <= 278;
+    }
   }
   if (isOkidokiGoldMachineName(machineName)) {
     return games >= 4299 && combinedDenominator <= 140.8 && rbDenominator <= 465.7;
@@ -6817,6 +6830,16 @@ function calculateWindowMetrics(
     const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
     return readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName) >= 1000;
   }).length;
+  const previousAdjacentMachineNetTotal = listAdjacentSameMachineRowsByOrder(
+    currentDateRows,
+    row,
+    config,
+    currentMachineName,
+    1,
+  ).reduce((total, dateRow) => {
+    const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
+    return total + readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
+  }, 0);
   const sameMachinePreviousNetTotal = currentDateRows.reduce((total, dateRow) => {
     const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
     if (normalizeText(rowMachineName) !== normalizeText(currentMachineName)) {
@@ -7180,6 +7203,7 @@ function calculateWindowMetrics(
     previousAdjacentMachineHighContentCount,
     previousAdjacentMachineGoodContentCount,
     previousAdjacentMachineBigWin1000Count,
+    previousAdjacentMachineNetTotal,
     previousOtherMachineHighContentCount,
     sameMachinePreviousNetTotal,
     adjacentMachineHighContentCount7,

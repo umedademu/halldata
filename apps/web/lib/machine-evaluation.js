@@ -306,6 +306,10 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     machineNames: ["ジャグラーガールズSS", "ジャグラーガールズ"],
     logicKey: "apark-girls",
     logicName: "ガールズ春日式",
+    logics: [
+      buildLogicVariant("apark-girls", "ガールズ春日式", "main"),
+      buildLogicVariant("mj-kurume-girls", "ガールズMJ久留米式", "mj-kurume-main"),
+    ],
     profile: "juggler",
     defaultConditionSuffix: "main",
     conditions: [
@@ -318,6 +322,60 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           minScore: 70,
           minNextGap: 30,
         },
+        ["apark-girls"],
+      ),
+      buildCondition(
+        "mj-kurume-main",
+        "実戦見送り型（70点以上または1位＋60点以上＋強化3個以上＋危険0）",
+        "46件 / 105.36% / RB1/283.4",
+        {
+          anyOf: [
+            {
+              minScore: 70,
+              maxDanger: 0,
+              requiredFlags: ["kurumeGirlsHistoryReady"],
+            },
+            {
+              rankMax: 1,
+              minScore: 60,
+              minBoost: 3,
+              maxDanger: 0,
+              requiredFlags: ["kurumeGirlsHistoryReady"],
+            },
+          ],
+        },
+        ["mj-kurume-girls"],
+      ),
+      buildCondition(
+        "mj-kurume-score70",
+        "70点以上",
+        "34件 / 105.30% / RB1/277.4",
+        {
+          minScore: 70,
+          requiredFlags: ["kurumeGirlsHistoryReady"],
+        },
+        ["mj-kurume-girls"],
+      ),
+      buildCondition(
+        "mj-kurume-score60",
+        "60点以上",
+        "67件 / 104.35% / RB1/294.5",
+        {
+          minScore: 60,
+          requiredFlags: ["kurumeGirlsHistoryReady"],
+        },
+        ["mj-kurume-girls"],
+      ),
+      buildCondition(
+        "mj-kurume-gap12",
+        "1位＋次点差12点以上",
+        "36件 / 103.86% / RB1/291.2",
+        {
+          rankMax: 1,
+          minNextGap: 12,
+          requiredFlags: ["kurumeGirlsHistoryReady"],
+        },
+        ["mj-kurume-girls"],
       ),
     ],
   },
@@ -952,6 +1010,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-funky");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "my") {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-my");
+  } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "girls") {
+    defaultLogic = findLogicDefinition(definition, "mj-kurume-girls");
   } else if (isAparkKasugaStore(storeName)) {
     defaultLogic = findLogicDefinition(definition, definition.logicKey);
   }
@@ -1492,6 +1552,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const previousAdjacentMachineHighContentCount = readNumber(metrics.previousAdjacentMachineHighContentCount);
   const previousAdjacentMachineGoodContentCount = readNumber(metrics.previousAdjacentMachineGoodContentCount);
   const previousAdjacentMachineBigWin1000Count = readNumber(metrics.previousAdjacentMachineBigWin1000Count);
+  const previousAdjacentMachineNetTotal = readNumber(metrics.previousAdjacentMachineNetTotal);
   const previousOtherMachineHighContentCount = readNumber(metrics.previousOtherMachineHighContentCount);
   const sameMachinePreviousNetTotal = readNumber(metrics.sameMachinePreviousNetTotal);
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
@@ -1677,6 +1738,70 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       aimShortSinkStay2,
       aimShortSinkStay3,
     };
+  }
+
+  if (machineKey === "girls") {
+    if (activeLogicKey === "mj-kurume-girls") {
+      const kurumeGirlsHistoryReady = historyRowCount >= 14;
+      const kurumeGirlsSinkStayStrong =
+        recentSevenNetTotal <= -1500 ||
+        recentFourteenNetTotal <= -1500 ||
+        recentTwentyOneNetTotal <= -1500;
+      const kurumeGirlsAngleStrong =
+        features.recentSevenAngle <= -70 || features.recentFourteenAngle <= -20;
+      const kurumeGirlsTreatmentDone =
+        recentFiveNetTotal >= 1500 ||
+        recentSevenNetTotal >= 2500 ||
+        (previousMachineHighContent && previousDifference >= 2000);
+      const kurumeGirlsUnpaid =
+        (recentFourteenNetTotal <= 0 || recentTwentyOneNetTotal <= 0) && !kurumeGirlsTreatmentDone;
+      const kurumeGirlsGenuineBonus =
+        (previousMachineHighContent && previousDifference <= 1000) ||
+        (previousMachineStrongHighContent && previousDifference <= 1500) ||
+        (recentThreeGamesTotal >= 3000 &&
+          features.recentThreeCombinedDenominator <= 170 &&
+          features.recentThreeRbDenominator <= 360);
+      const kurumeGirlsTrustedGames =
+        recentSevenGamesTotal >= 8000 && recentFourteenGamesTotal >= 25000;
+      const kurumeGirlsPreviousHighOutput =
+        previousMachineHighContent && previousDifference >= 2000;
+      const kurumeGirlsLongNeglect =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 15;
+      const kurumeGirlsLowConfidence = !kurumeGirlsHistoryReady || recentSevenGamesTotal < 8000;
+      const kurumeGirlsOverVisible = recentSevenGamesTotal >= 25000 && recentFiveNetTotal >= 1500;
+      const boostFlags = [
+        kurumeGirlsSinkStayStrong,
+        kurumeGirlsAngleStrong,
+        kurumeGirlsUnpaid,
+        kurumeGirlsGenuineBonus,
+      ];
+      const dangerFlags = [
+        kurumeGirlsTreatmentDone,
+        kurumeGirlsPreviousHighOutput,
+        kurumeGirlsLongNeglect,
+        kurumeGirlsLowConfidence,
+        kurumeGirlsOverVisible,
+      ];
+
+      return {
+        ...features,
+        kurumeGirlsHistoryReady,
+        kurumeGirlsSinkStayStrong,
+        kurumeGirlsAngleStrong,
+        kurumeGirlsUnpaid,
+        kurumeGirlsGenuineBonus,
+        kurumeGirlsTrustedGames,
+        kurumeGirlsTreatmentDone,
+        kurumeGirlsPreviousHighOutput,
+        kurumeGirlsLongNeglect,
+        kurumeGirlsLowConfidence,
+        kurumeGirlsOverVisible,
+        treatmentDone: kurumeGirlsTreatmentDone,
+        lowConfidence: kurumeGirlsLowConfidence,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
   }
 
   if (machineKey === "mister") {
@@ -2588,6 +2713,7 @@ function calculateMachineScore(definition, metrics, features) {
   const previousAdjacentMachineHighContentCount = readNumber(metrics.previousAdjacentMachineHighContentCount);
   const previousAdjacentMachineGoodContentCount = readNumber(metrics.previousAdjacentMachineGoodContentCount);
   const previousAdjacentMachineBigWin1000Count = readNumber(metrics.previousAdjacentMachineBigWin1000Count);
+  const previousAdjacentMachineNetTotal = readNumber(metrics.previousAdjacentMachineNetTotal);
   const previousOtherMachineHighContentCount = readNumber(metrics.previousOtherMachineHighContentCount);
   const sameMachinePreviousNetTotal = readNumber(metrics.sameMachinePreviousNetTotal);
   const previousCombinedDenominator = features.previousCombinedDenominator;
@@ -3392,6 +3518,128 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "girls") {
+    if (activeLogicKey === "mj-kurume-girls") {
+      if (historyRowCount < 14) {
+        return 0;
+      }
+
+      let sinkScore = 0;
+      sinkScore += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -3000, points: 20 },
+        { maximum: -1500, points: 17 },
+        { maximum: -500, points: 13 },
+        { maximum: 0, points: 8 },
+        { maximum: 1000, points: 3 },
+      ]);
+      sinkScore += scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -3000, points: 8 },
+        { maximum: -1500, points: 6 },
+        { maximum: -500, points: 4 },
+        { maximum: 0, points: 2 },
+      ]);
+      sinkScore += scoreAtMost(recentTwentyOneNetTotal, [
+        { maximum: -3000, points: 5 },
+        { maximum: -1000, points: 4 },
+        { maximum: 0, points: 2 },
+      ]);
+      sinkScore = Math.min(sinkScore, 30);
+
+      let angleScore = 0;
+      angleScore += scoreAtMost(features.recentSevenAngle, [
+        { maximum: -120, points: 10 },
+        { maximum: -70, points: 8 },
+        { maximum: -30, points: 5 },
+        { maximum: 0, points: 2 },
+      ]);
+      angleScore += scoreAtMost(features.recentFourteenAngle, [
+        { maximum: -56, points: 5 },
+        { maximum: -20, points: 4 },
+        { maximum: 0, points: 2 },
+      ]);
+      angleScore = Math.min(angleScore, 15);
+
+      let lossScore = 0;
+      lossScore +=
+        streak >= 4 ? 10 :
+        streak === 3 ? 8 :
+        streak === 2 ? 5 :
+        streak === 1 ? 2 :
+        0;
+      lossScore += scoreAtMost(previousDifference, [
+        { maximum: -800, points: 4 },
+        { maximum: -500, points: 3 },
+        { maximum: -1, points: 1 },
+      ]);
+      const previousPayout = previousGames > 0 ? 100 + (previousDifference / previousGames / 3) * 100 : 100;
+      lossScore += previousPayout <= 85 ? 3 : previousPayout <= 93 ? 1 : 0;
+      lossScore += previousCombinedDenominator >= 200 ? 3 : previousCombinedDenominator >= 170 ? 1 : 0;
+      lossScore = Math.min(lossScore, 14);
+
+      let rotationScore = 0;
+      rotationScore += scoreInRange(daysSinceMachineHighContent, 6, 10, 10);
+      rotationScore += scoreInRange(daysSinceMachineHighContent, 4, 5, 7);
+      rotationScore += scoreInRange(daysSinceMachineHighContent, 2, 3, 5);
+      rotationScore += daysSinceMachineHighContent === 1 ? 3 : 0;
+      rotationScore += scoreInRange(daysSinceMachineHighContent, 11, 14, 2);
+      rotationScore += recentFourteenMachineHighContentCount <= 1 ? 3 : 0;
+      rotationScore = Math.min(rotationScore, 13);
+
+      let unpaidScore = 0;
+      if (previousMachineHighContent) {
+        unpaidScore += previousDifference <= 1000 ? 8 : 0;
+        unpaidScore += previousDifference >= 1001 && previousDifference <= 2000 ? 5 : 0;
+      }
+      unpaidScore += previousMachineStrongHighContent && previousDifference <= 1500 ? 2 : 0;
+      unpaidScore = Math.min(unpaidScore, 10);
+
+      let gamesScore = 0;
+      gamesScore += recentSevenGamesTotal >= 8000 ? 2 : 0;
+      gamesScore += recentFourteenGamesTotal >= 25000 ? 2 : 0;
+      gamesScore +=
+        recentSevenGamesTotal < 18000 ? 3 :
+        recentSevenGamesTotal >= 18000 && recentSevenGamesTotal <= 23000 ? 1 :
+        0;
+      gamesScore = Math.min(gamesScore, 8);
+
+      const nearbyScore = Math.min(
+        5,
+        (previousAdjacentMachineNetTotal >= 1700 ? 3 : 0) +
+          (adjacentMachineNetTotal7 >= 780 ? 2 : 0),
+      );
+
+      const completionScore =
+        features.boostCount >= 3 && features.dangerCount === 0
+          ? 5
+          : features.boostCount >= 2 && features.dangerCount === 0
+            ? 2
+            : 0;
+
+      let penalty = 0;
+      penalty += recentFiveNetTotal >= 2500 ? 20 : recentFiveNetTotal >= 1500 ? 15 : recentFiveNetTotal >= 1000 ? 8 : 0;
+      penalty += recentSevenNetTotal >= 2500 ? 10 : recentSevenNetTotal >= 1500 ? 6 : 0;
+      penalty += previousMachineHighContent && previousDifference >= 2000 ? 12 : 0;
+      penalty += Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 15 ? 8 : 0;
+      penalty += recentSevenGamesTotal >= 25000 && recentFiveNetTotal >= 1500 ? 5 : 0;
+      penalty += recentSevenGamesTotal < 8000 ? 5 : 0;
+      penalty = Math.min(penalty, 35);
+
+      return Math.round(
+        clamp(
+          sinkScore +
+            angleScore +
+            lossScore +
+            rotationScore +
+            unpaidScore +
+            gamesScore +
+            nearbyScore +
+            completionScore -
+            penalty,
+          0,
+          100,
+        ),
+      );
+    }
+
     let score = 0;
     score += scoreAtLeast(streak, [
       { minimum: 4, points: 30 },
@@ -4704,6 +4952,9 @@ function matchesAnyFlag(features, flags = []) {
 function matchesCondition(matcher, evaluation) {
   if (!matcher || !evaluation) {
     return false;
+  }
+  if (Array.isArray(matcher.anyOf) && matcher.anyOf.length > 0) {
+    return matcher.anyOf.some((candidateMatcher) => matchesCondition(candidateMatcher, evaluation));
   }
   if (Number.isFinite(matcher.minScore) && evaluation.score < matcher.minScore) {
     return false;
