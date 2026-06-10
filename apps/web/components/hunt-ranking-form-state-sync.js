@@ -46,6 +46,7 @@ const MANAGED_PARAM_KEYS = [
 ];
 const MANAGED_PARAM_KEY_SET = new Set(MANAGED_PARAM_KEYS);
 const DEFAULTED_DIFFERENCE_PARAM_KEYS = new Set(["differenceMode"]);
+const DEFAULTED_MACHINE_PARAM_KEYS = new Set(["machineTouched", "machine"]);
 
 function storageKeyForStore(storeId) {
   return `${STORAGE_KEY_PREFIX}${storeId}`;
@@ -71,8 +72,10 @@ function normalizeStateEntries(entries) {
   return normalizedEntries;
 }
 
-function omitDefaultedDifferenceEntries(entries) {
-  return normalizeStateEntries(entries).filter(([key]) => !DEFAULTED_DIFFERENCE_PARAM_KEYS.has(key));
+function omitDefaultedEntries(entries) {
+  return normalizeStateEntries(entries).filter(
+    ([key]) => !DEFAULTED_DIFFERENCE_PARAM_KEYS.has(key) && !DEFAULTED_MACHINE_PARAM_KEYS.has(key),
+  );
 }
 
 function readStateFromSearchParams(searchParams) {
@@ -151,7 +154,7 @@ function buildSearchText(entries) {
 }
 
 function saveState(storeId, entries) {
-  const normalizedEntries = omitDefaultedDifferenceEntries(entries);
+  const normalizedEntries = omitDefaultedEntries(entries);
   if (!storeId || normalizedEntries.length === 0) {
     return;
   }
@@ -181,7 +184,7 @@ function readSavedState(storeId) {
     }
 
     const parsedValue = JSON.parse(rawValue);
-    return omitDefaultedDifferenceEntries(parsedValue?.entries);
+    return omitDefaultedEntries(parsedValue?.entries);
   } catch {
     return [];
   }
