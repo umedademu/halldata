@@ -123,13 +123,60 @@ function isAparkKasugaStore(storeName) {
   return normalizeMachineNameText(storeName) === normalizeMachineNameText("Aパーク春日店");
 }
 
-function buildCondition(keySuffix, name, backtestLabel, matcher) {
+function isMjArenaKurumeStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "MJアリーナ久留米店",
+    "MJアリーナ久留米",
+    "ＭＪアリーナ久留米店",
+    "ＭＪアリーナ久留米",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
+function buildCondition(keySuffix, name, backtestLabel, matcher, logicKeys = []) {
   return {
     keySuffix,
     name,
     backtestLabel,
     matcher,
+    logicKeys,
   };
+}
+
+function buildLogicVariant(logicKey, logicName, defaultConditionSuffix = "main") {
+  return {
+    key: logicKey,
+    name: logicName,
+    defaultConditionSuffix,
+  };
+}
+
+function listDefinitionLogics(definition) {
+  if (!definition) {
+    return [];
+  }
+  if (Array.isArray(definition.logics) && definition.logics.length > 0) {
+    return definition.logics;
+  }
+  return [buildLogicVariant(definition.logicKey, definition.logicName, definition.defaultConditionSuffix)];
+}
+
+function findLogicDefinition(definition, logicKey) {
+  const normalizedLogicKey = normalizeText(logicKey);
+  if (!definition || !normalizedLogicKey) {
+    return null;
+  }
+  return listDefinitionLogics(definition).find((logic) => logic.key === normalizedLogicKey) ?? null;
+}
+
+function listConditionDefinitions(definition, logicKey = "") {
+  const normalizedLogicKey = normalizeText(logicKey);
+  return (Array.isArray(definition?.conditions) ? definition.conditions : []).filter((condition) => {
+    if (!Array.isArray(condition.logicKeys) || condition.logicKeys.length === 0) {
+      return true;
+    }
+    return condition.logicKeys.includes(normalizedLogicKey);
+  });
 }
 
 const MACHINE_EVALUATION_DEFINITIONS = [
@@ -460,6 +507,10 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     machineNames: ["ネオアイムジャグラーEX", "ネオアイムジャグラーＥＸ"],
     logicKey: "apark-neo-aim",
     logicName: "ネオアイム春日式",
+    logics: [
+      buildLogicVariant("apark-neo-aim", "ネオアイム春日式", "main"),
+      buildLogicVariant("mj-kurume-neo-aim", "ネオアイムMJ久留米式", "mj-kurume-main"),
+    ],
     profile: "juggler",
     defaultConditionSuffix: "main",
     conditions: [
@@ -472,6 +523,38 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           minScore: 70,
           requiredFlags: ["aimShortSinkStay2"],
         },
+        ["apark-neo-aim"],
+      ),
+      buildCondition(
+        "mj-kurume-main",
+        "1位＋75点以上",
+        "73件 / 105.69% / RB1/260.7",
+        {
+          rankMax: 1,
+          minScore: 75,
+        },
+        ["mj-kurume-neo-aim"],
+      ),
+      buildCondition(
+        "mj-kurume-strong",
+        "1位＋75点以上＋次点差8点以上",
+        "50件 / 106.35% / RB1/256.3",
+        {
+          rankMax: 1,
+          minScore: 75,
+          minNextGap: 8,
+        },
+        ["mj-kurume-neo-aim"],
+      ),
+      buildCondition(
+        "mj-kurume-wide",
+        "上位3位以内＋75点以上",
+        "85件 / 104.86% / RB1/266.3",
+        {
+          rankMax: 3,
+          minScore: 75,
+        },
+        ["mj-kurume-neo-aim"],
       ),
     ],
   },
@@ -633,7 +716,9 @@ const DEFINITIONS_BY_MACHINE_KEY = new Map(
 );
 
 const DEFINITIONS_BY_LOGIC_KEY = new Map(
-  MACHINE_EVALUATION_DEFINITIONS.map((definition) => [definition.logicKey, definition]),
+  MACHINE_EVALUATION_DEFINITIONS.flatMap((definition) =>
+    listDefinitionLogics(definition).map((logic) => [logic.key, definition]),
+  ),
 );
 
 function buildMachineNameDefinitionEntries() {
@@ -655,19 +740,35 @@ function buildConditionKey(definition, condition) {
   return `${definition.machineKey}-${condition.keySuffix}`;
 }
 
-function findConditionDefinition(definition, conditionKey) {
+function findConditionDefinition(definition, conditionKey, logicKey = "") {
   if (!definition) {
     return null;
   }
   const normalizedConditionKey = normalizeText(conditionKey);
   return (
-    definition.conditions.find((condition) => buildConditionKey(definition, condition) === normalizedConditionKey) ??
+    listConditionDefinitions(definition, logicKey).find(
+      (condition) => buildConditionKey(definition, condition) === normalizedConditionKey,
+    ) ??
     null
   );
 }
 
 function getDefaultSetting(definition, storeName) {
-  if (!definition || !isAparkKasugaStore(storeName)) {
+  if (!definition) {
+    return {
+      logicKey: "",
+      conditionKey: "",
+    };
+  }
+
+  let defaultLogic = null;
+  if (isMjArenaKurumeStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "mj-kurume-neo-aim");
+  } else if (isAparkKasugaStore(storeName)) {
+    defaultLogic = findLogicDefinition(definition, definition.logicKey);
+  }
+
+  if (!defaultLogic) {
     return {
       logicKey: "",
       conditionKey: "",
@@ -675,12 +776,14 @@ function getDefaultSetting(definition, storeName) {
   }
 
   const defaultCondition =
-    definition.conditions.find((condition) => condition.keySuffix === definition.defaultConditionSuffix) ??
-    definition.conditions[0] ??
+    listConditionDefinitions(definition, defaultLogic.key).find(
+      (condition) => condition.keySuffix === defaultLogic.defaultConditionSuffix,
+    ) ??
+    listConditionDefinitions(definition, defaultLogic.key)[0] ??
     null;
 
   return {
-    logicKey: definition.logicKey,
+    logicKey: defaultLogic.key,
     conditionKey: defaultCondition ? buildConditionKey(definition, defaultCondition) : "",
   };
 }
@@ -757,31 +860,25 @@ export function shouldShowMachineEvaluationInRanking(value) {
 function buildLogicOptions(definition) {
   return [
     { key: "", name: "未設定" },
-    ...(definition
-      ? [
-          {
-            key: definition.logicKey,
-            name: definition.logicName,
-          },
-        ]
-      : []),
+    ...listDefinitionLogics(definition).map((logic) => ({
+      key: logic.key,
+      name: logic.name,
+    })),
   ];
 }
 
-function buildConditionOptions(definition) {
+function buildConditionOptions(definition, logicKey = "") {
   return [
     {
       key: "",
       name: "未設定",
       backtestLabel: "",
     },
-    ...(definition
-      ? definition.conditions.map((condition) => ({
-          key: buildConditionKey(definition, condition),
-          name: condition.name,
-          backtestLabel: condition.backtestLabel,
-        }))
-      : []),
+    ...listConditionDefinitions(definition, logicKey).map((condition) => ({
+      key: buildConditionKey(definition, condition),
+      name: condition.name,
+      backtestLabel: condition.backtestLabel,
+    })),
   ];
 }
 
@@ -795,10 +892,19 @@ function normalizeSettingForDefinition(definition, setting) {
 
   const requestedLogicKey = normalizeText(setting?.logicKey);
   const requestedConditionKey = normalizeText(setting?.conditionKey);
-  const logicKey = requestedLogicKey === definition.logicKey ? requestedLogicKey : "";
-  const conditionKey = findConditionDefinition(definition, requestedConditionKey)
+  const logicDefinition = findLogicDefinition(definition, requestedLogicKey);
+  const logicKey = logicDefinition ? logicDefinition.key : "";
+  const defaultCondition =
+    logicDefinition
+      ? listConditionDefinitions(definition, logicDefinition.key).find(
+          (condition) => condition.keySuffix === logicDefinition.defaultConditionSuffix,
+        ) ?? null
+      : null;
+  const conditionKey = findConditionDefinition(definition, requestedConditionKey, logicKey)
     ? requestedConditionKey
-    : "";
+    : defaultCondition
+      ? buildConditionKey(definition, defaultCondition)
+      : "";
 
   return {
     logicKey,
@@ -832,7 +938,7 @@ export function buildStoreMachineEvaluationSettings(storeName, machineNames = []
       overrideSetting ?? defaultSetting,
     );
     const defaultNormalizedSetting = normalizeSettingForDefinition(definition, defaultSetting);
-    const condition = findConditionDefinition(definition, currentSetting.conditionKey);
+    const condition = findConditionDefinition(definition, currentSetting.conditionKey, currentSetting.logicKey);
 
     return {
       machineKey,
@@ -843,7 +949,7 @@ export function buildStoreMachineEvaluationSettings(storeName, machineNames = []
       defaultLogicKey: defaultNormalizedSetting.logicKey,
       defaultConditionKey: defaultNormalizedSetting.conditionKey,
       logicOptions: buildLogicOptions(definition),
-      conditionOptions: buildConditionOptions(definition),
+      conditionOptions: buildConditionOptions(definition, currentSetting.logicKey),
       selectedConditionLabel: condition?.name ?? "",
       selectedBacktestLabel: condition?.backtestLabel ?? "",
     };
@@ -1141,6 +1247,7 @@ function calculateRestScore(bestRestDays, profile) {
 
 function buildMachineSpecificFeatureState(definition, metrics, features) {
   const machineKey = definition?.machineKey ?? "";
+  const activeLogicKey = definition?.activeLogicKey ?? definition?.logicKey ?? "";
   const historyRowCount = readNumber(metrics.historyRowCount);
   const previousDifference = readNumber(metrics.todayDifference);
   const previousGames = readNumber(metrics.previousGames);
@@ -1167,6 +1274,8 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentSevenHighSettingCandidateCount = readNumber(metrics.recentSevenHighSettingCandidateCount);
   const recentSevenMinus1500StayDays = readNumber(metrics.recentSevenMinus1500StayDays);
   const recentThirtyMinus2700StayDays = readNumber(metrics.recentThirtyMinus2700StayDays);
+  const recentFourteenMinus1800StayDays = readNumber(metrics.recentFourteenMinus1800StayDays);
+  const recentTwentyOneMinus2000StayDays = readNumber(metrics.recentTwentyOneMinus2000StayDays);
   const adjacentHighSettingCandidateCount7 = readNumber(metrics.adjacentHighSettingCandidateCount7);
   const adjacentMachineHighContentCount3 = readNumber(metrics.adjacentMachineHighContentCount3);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
@@ -1220,6 +1329,77 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "mj-kurume-neo-aim") {
+      const recentTwentyOneRbDenominator = rateDenominator(
+        readNumber(metrics.recentTwentyOneGamesTotal),
+        readNumber(metrics.recentTwentyOneRbTotal),
+      );
+      const kurumeNeoSinkStayStrong =
+        recentFourteenMinus1800StayDays >= 7 ||
+        recentTwentyOneMinus2000StayDays >= 7 ||
+        recentFiveNetTotal <= -2000;
+      const kurumeNeoStrongAngle =
+        features.recentTwentyOneAngle <= -50 ||
+        features.recentSevenAngle <= -150 ||
+        features.recentFourteenAngle <= -50;
+      const kurumeNeoGenuine =
+        (recentFourteenNetTotal <= 0 && features.recentFourteenRbDenominator <= 300) ||
+        (recentTwentyOneNetTotal <= 0 && recentTwentyOneRbDenominator <= 320);
+      const kurumeNeoUnpaid =
+        (previousDifference >= 1200 && recentTwentyOneNetTotal <= 1000) ||
+        (previousDifference >= 800 && recentTwentyOneNetTotal <= 0);
+      const kurumeNeoTrustedGames = recentFiveGamesTotal >= 10000 && recentFourteenGamesTotal >= 30000;
+      const kurumeNeoTreatmentDone =
+        recentFourteenNetTotal >= 3000 ||
+        recentSevenNetTotal >= 3000 ||
+        recentTwentyOneNetTotal >= 3000;
+      const kurumeNeoLowGameSink = recentFiveGamesTotal < 8000 && recentFourteenGamesTotal < 25000;
+      const kurumeNeoLongNeglect =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent > 21 &&
+        recentFourteenNetTotal > -1000 &&
+        streak < 3;
+      const kurumeNeoBbOnly =
+        previousDifference >= 1000 &&
+        features.previousRbDenominator >= 400 &&
+        features.previousCombinedDenominator >= 150;
+      const kurumeNeoRecentShowWeak =
+        recentSevenNetTotal >= 2000 &&
+        features.recentSevenRbDenominator >= 360;
+      const boostFlags = [
+        kurumeNeoSinkStayStrong,
+        kurumeNeoStrongAngle,
+        kurumeNeoGenuine,
+        kurumeNeoUnpaid,
+        kurumeNeoTrustedGames,
+      ];
+      const dangerFlags = [
+        kurumeNeoTreatmentDone,
+        kurumeNeoLowGameSink,
+        kurumeNeoLongNeglect,
+        kurumeNeoBbOnly,
+        kurumeNeoRecentShowWeak,
+      ];
+
+      return {
+        ...features,
+        kurumeNeoSinkStayStrong,
+        kurumeNeoStrongAngle,
+        kurumeNeoGenuine,
+        kurumeNeoUnpaid,
+        kurumeNeoTrustedGames,
+        kurumeNeoTreatmentDone,
+        kurumeNeoLowGameSink,
+        kurumeNeoLongNeglect,
+        kurumeNeoBbOnly,
+        kurumeNeoRecentShowWeak,
+        treatmentDone: kurumeNeoTreatmentDone,
+        lowConfidence: kurumeNeoLowGameSink,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     const aimThreeSinkStayDays = readNumber(metrics.recentThreeMinus1700StayDays);
     const aimShortSinkStay2 = aimThreeSinkStayDays >= 2;
     const aimShortSinkStay3 = aimThreeSinkStayDays >= 3;
@@ -1851,6 +2031,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
 function calculateMachineScore(definition, metrics, features) {
   const profile = definition?.profile ?? "juggler";
   const machineKey = definition?.machineKey ?? "";
+  const activeLogicKey = definition?.activeLogicKey ?? definition?.logicKey ?? "";
   const previousDifference = readNumber(metrics.todayDifference);
   const previousGames = readNumber(metrics.previousGames);
   const recentTwoNetTotal = readNumber(metrics.recentTwoNetTotal);
@@ -1899,7 +2080,9 @@ function calculateMachineScore(definition, metrics, features) {
   const recentThirtyMinus2700StayDays = readNumber(metrics.recentThirtyMinus2700StayDays);
   const recentFiveMinus500StayDays = readNumber(metrics.recentFiveMinus500StayDays);
   const recentTenMinus5225StayDays = readNumber(metrics.recentTenMinus5225StayDays);
+  const recentFourteenMinus1800StayDays = readNumber(metrics.recentFourteenMinus1800StayDays);
   const recentFourteenMinus3218StayDays = readNumber(metrics.recentFourteenMinus3218StayDays);
+  const recentTwentyOneMinus2000StayDays = readNumber(metrics.recentTwentyOneMinus2000StayDays);
   const recentTwentyOneMinus11333StayDays = readNumber(metrics.recentTwentyOneMinus11333StayDays);
   const recentFiveAngleMinus80StayDays = readNumber(metrics.recentFiveAngleMinus80StayDays);
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
@@ -2012,6 +2195,113 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "mj-kurume-neo-aim") {
+      const recentTwentyOneRbDenominator = rateDenominator(
+        recentTwentyOneGamesTotal,
+        readNumber(metrics.recentTwentyOneRbTotal),
+      );
+
+      let sinkScore = 0;
+      sinkScore += scoreAtMost(recentFiveNetTotal, [
+        { maximum: -2000, points: 18 },
+        { maximum: -1500, points: 12 },
+        { maximum: -1000, points: 8 },
+        { maximum: -500, points: 4 },
+      ]);
+      sinkScore += scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -2000, points: 14 },
+        { maximum: -1000, points: 10 },
+        { maximum: 0, points: 6 },
+      ]);
+      sinkScore += scoreAtMost(recentTwentyOneNetTotal, [
+        { maximum: -3000, points: 10 },
+        { maximum: -2000, points: 8 },
+        { maximum: 0, points: 4 },
+      ]);
+      sinkScore = Math.min(sinkScore, 35);
+
+      let angleScore = 0;
+      angleScore += scoreAtMost(features.recentSevenAngle, [
+        { maximum: -150, points: 7 },
+        { maximum: -100, points: 5 },
+        { maximum: -50, points: 3 },
+      ]);
+      angleScore += scoreAtMost(features.recentFourteenAngle, [
+        { maximum: -50, points: 6 },
+        { maximum: 0, points: 3 },
+      ]);
+      angleScore += scoreAtMost(features.recentTwentyOneAngle, [
+        { maximum: -50, points: 6 },
+        { maximum: 0, points: 3 },
+      ]);
+      angleScore = Math.min(angleScore, 15);
+
+      let genuineScore = 0;
+      genuineScore +=
+        recentFourteenNetTotal <= 0 && features.recentFourteenRbDenominator <= 300
+          ? 12
+          : recentFourteenNetTotal <= 0 && features.recentFourteenRbDenominator <= 340
+            ? 8
+            : 0;
+      genuineScore +=
+        recentTwentyOneNetTotal <= 0 && recentTwentyOneRbDenominator <= 320
+          ? 8
+          : recentTwentyOneNetTotal <= 0 && recentTwentyOneRbDenominator <= 340
+            ? 5
+            : 0;
+      genuineScore +=
+        previousDifference >= 1200 && recentTwentyOneNetTotal <= 1000
+          ? 8
+          : previousDifference >= 800 && recentTwentyOneNetTotal <= 0
+            ? 6
+            : 0;
+      genuineScore += previousMachineHighContent && previousDifference <= 1500 ? 4 : 0;
+      genuineScore = Math.min(genuineScore, 25);
+
+      let gamesScore = 0;
+      gamesScore += recentFiveGamesTotal >= 10000 ? 4 : recentFiveGamesTotal >= 8000 ? 2 : 0;
+      gamesScore += recentFourteenGamesTotal >= 30000 ? 4 : recentFourteenGamesTotal >= 25000 ? 2 : 0;
+      gamesScore += previousGames >= 1500 ? 2 : 0;
+      gamesScore = Math.min(gamesScore, 10);
+
+      let rotationScore = 0;
+      rotationScore += scoreAtLeast(streak, [
+        { minimum: 7, points: 12 },
+        { minimum: 5, points: 9 },
+        { minimum: 4, points: 6 },
+        { minimum: 3, points: 4 },
+      ]);
+      rotationScore += recentFourteenMachineHighContentCount === 0 ? 4 : 0;
+      rotationScore += scoreInRange(daysSinceMachineHighContent, 15, 20, 4);
+      rotationScore +=
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent > 21 &&
+        recentFourteenNetTotal <= -1000
+          ? 2
+          : 0;
+      rotationScore = Math.min(rotationScore, 15);
+
+      let penalty = 0;
+      penalty += scoreAtLeast(recentFourteenNetTotal, [
+        { minimum: 4700, points: 14 },
+        { minimum: 3000, points: 8 },
+        { minimum: 2000, points: 5 },
+      ]);
+      penalty += scoreAtLeast(recentSevenNetTotal, [
+        { minimum: 3000, points: 8 },
+        { minimum: 2000, points: 5 },
+      ]);
+      penalty += scoreAtLeast(recentTwentyOneNetTotal, [
+        { minimum: 3000, points: 6 },
+        { minimum: 1500, points: 3 },
+      ]);
+      penalty += features.recentSevenAngle >= 100 ? 5 : 0;
+      penalty += recentFiveGamesTotal < 8000 && sinkScore >= 20 ? 5 : 0;
+      penalty = Math.min(penalty, 25);
+
+      return Math.round(clamp(sinkScore + angleScore + genuineScore + gamesScore + rotationScore - penalty, 0, 100));
+    }
+
     let sinkScore = 0;
     sinkScore += scoreAtMost(recentSevenNetTotal, [
       { maximum: -2000, points: 22 },
@@ -3521,15 +3811,25 @@ function buildEvaluationForRow(row, settingByMachineKey) {
     return null;
   }
 
+  const logic = findLogicDefinition(definition, setting.logicKey);
+  if (!logic) {
+    return null;
+  }
+
+  const runtimeDefinition = {
+    ...definition,
+    activeLogicKey: logic.key,
+    activeLogicName: logic.name,
+  };
   const metrics = row?.machineEvaluationMetrics ?? {};
-  const features = buildMachineSpecificFeatureState(definition, metrics, buildFeatureState(metrics));
-  const condition = findConditionDefinition(definition, setting.conditionKey);
-  const score = calculateMachineScore(definition, metrics, features);
+  const features = buildMachineSpecificFeatureState(runtimeDefinition, metrics, buildFeatureState(metrics));
+  const condition = findConditionDefinition(definition, setting.conditionKey, logic.key);
+  const score = calculateMachineScore(runtimeDefinition, metrics, features);
 
   return {
     machineKey: definition.machineKey,
-    logicKey: definition.logicKey,
-    logicName: definition.logicName,
+    logicKey: logic.key,
+    logicName: logic.name,
     conditionKey: condition ? buildConditionKey(definition, condition) : "",
     conditionName: condition?.name ?? "",
     backtestLabel: condition?.backtestLabel ?? "",
@@ -3601,7 +3901,11 @@ function attachMachineEvaluationRanks(rows) {
       nextGap: context.nextGap ?? null,
     };
     const definition = DEFINITIONS_BY_MACHINE_KEY.get(updatedEvaluation.machineKey);
-    const condition = findConditionDefinition(definition, updatedEvaluation.conditionKey);
+    const condition = findConditionDefinition(
+      definition,
+      updatedEvaluation.conditionKey,
+      updatedEvaluation.logicKey,
+    );
     return {
       ...row,
       machineEvaluation: {
