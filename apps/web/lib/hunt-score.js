@@ -227,6 +227,10 @@ const MJ_ARENA_AIRPORT_TARGET_MACHINES = [
 
 const MJ_ARENA_KURUME_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  {
+    name: "ファンキージャグラー２ＫＴ",
+    aliases: ["ファンキージャグラー２", "ファンキージャグラー2", "ファンキージャグラー"],
+  },
 ];
 
 const SLOT_MARUMITSU_OHASHI_TARGET_MACHINES = [
@@ -807,6 +811,7 @@ const HUNT_SCORE_STORE_CONFIGS = [
     defaultLogicKey: "apark",
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "mj-arena-kurume-neo-aim",
+      "ファンキージャグラー２ＫＴ": "mj-arena-kurume-funky",
     },
   },
   {
@@ -1443,6 +1448,14 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ファンキージャグラー２") ||
     normalizedMachineName === normalizeText("ファンキージャグラー2")
   ) {
+    if (readMachineContentRule(config, machineName) === "mj-arena-kurume-funky") {
+      return (
+        games >= 3000 &&
+        ((combinedDenominator <= 138 && rbDenominator <= 320) ||
+          (combinedDenominator <= 145 && rbDenominator <= 285) ||
+          (combinedDenominator <= 125 && rbDenominator <= 360))
+      );
+    }
     const rbCount = readWindowField(row, "rbCount");
     return games >= 4000 && rbCount >= 20 && rbDenominator <= 300 && combinedDenominator <= 133;
   }
@@ -1523,6 +1536,14 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ファンキージャグラー２") ||
     normalizedMachineName === normalizeText("ファンキージャグラー2")
   ) {
+    if (readMachineContentRule(config, machineName) === "mj-arena-kurume-funky") {
+      return (
+        games >= 3000 &&
+        ((combinedDenominator <= 138 && rbDenominator <= 320) ||
+          (combinedDenominator <= 145 && rbDenominator <= 285) ||
+          (combinedDenominator <= 125 && rbDenominator <= 360))
+      );
+    }
     const rbCount = readWindowField(row, "rbCount");
     return games >= 3500 && rbCount >= 15 && rbDenominator <= 323 && combinedDenominator <= 140;
   }
@@ -6433,13 +6454,19 @@ function calculateWindowMetrics(
     (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
     0,
   );
+  const recentTenBonusTotal = recentTenRows.reduce(
+    (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
+    0,
+  );
   const recentTwoRbTotal = recentTwoRows.reduce((total, windowRow) => total + windowRow.rbCount, 0);
   const recentThreeRbTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.rbCount, 0);
   const recentFiveRbTotal = recentFiveRows.reduce((total, windowRow) => total + windowRow.rbCount, 0);
   const recentSevenRbTotal = sumWindowField(recentSevenRows, "rbCount");
+  const recentTenRbTotal = sumWindowField(recentTenRows, "rbCount");
   const recentFourteenRbTotal = sumWindowField(recentFourteenRows, "rbCount");
   const recentTwentyOneRbTotal = sumWindowField(recentTwentyOneRows, "rbCount");
   const recentSevenBbTotal = sumWindowField(recentSevenRows, "bbCount");
+  const recentTenBbTotal = sumWindowField(recentTenRows, "bbCount");
   const recentFourteenBbTotal = sumWindowField(recentFourteenRows, "bbCount");
   const recentTwoSettingAverage = calculateSettingAverageFromWindowRows(recentTwoRows);
   const recentFiveSettingAverage = calculateSettingAverageFromWindowRows(recentFiveRows);
@@ -6694,6 +6721,9 @@ function calculateWindowMetrics(
   const recentFourteenMachineHighContentCount = historyWindowRows
     .slice(-14)
     .filter(isHistoryMachineHighContentWindowRow).length;
+  const recentTwentyOneMachineHighContentCount = historyWindowRows
+    .slice(-21)
+    .filter(isHistoryMachineHighContentWindowRow).length;
   const recentThirtyMachineHighContentCount = historyWindowRows
     .slice(-30)
     .filter(isHistoryMachineHighContentWindowRow).length;
@@ -6793,6 +6823,16 @@ function calculateWindowMetrics(
     config,
     7,
     currentMachineName,
+  );
+  const adjacentMachineNetTotal14 = sumAdjacentMachineDifferenceRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    14,
+    currentMachineName,
+    1,
   );
   const adjacentMachineNetTotal5 = sumAdjacentMachineDifferenceRows(
     businessDates,
@@ -6932,6 +6972,7 @@ function calculateWindowMetrics(
     recentSevenMachineHighContentCount,
     recentTenMachineHighContentCount,
     recentFourteenMachineHighContentCount,
+    recentTwentyOneMachineHighContentCount,
     recentThirtyMachineHighContentCount,
     adjacentMachineHighContentCount3,
     recentSevenMachineGoodContentCount,
@@ -6961,13 +7002,16 @@ function calculateWindowMetrics(
     recentTwoBonusTotal,
     recentThreeBonusTotal,
     recentFiveBonusTotal,
+    recentTenBonusTotal,
     recentTwoRbTotal,
     recentThreeRbTotal,
     recentFiveRbTotal,
     recentSevenRbTotal,
+    recentTenRbTotal,
     recentFourteenRbTotal,
     recentTwentyOneRbTotal,
     recentSevenBbTotal,
+    recentTenBbTotal,
     recentFourteenBbTotal,
     recentTwoSettingAverage,
     recentFiveSettingAverage,
@@ -7000,6 +7044,7 @@ function calculateWindowMetrics(
     adjacentMachineNetTotal5,
     adjacentMachineNetTotal5Near2,
     adjacentMachineNetTotal7,
+    adjacentMachineNetTotal14,
     historyNetTotal,
     historyPositiveDays,
     recentThirtyNetTotal,
