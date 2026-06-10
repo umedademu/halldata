@@ -185,6 +185,10 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     machineNames: ["SアイムジャグラーＥＸ", "SアイムジャグラーEX"],
     logicKey: "apark-aim",
     logicName: "Sアイム春日式",
+    logics: [
+      buildLogicVariant("apark-aim", "Sアイム春日式", "main"),
+      buildLogicVariant("mj-kurume-aim", "SアイムMJ久留米式", "mj-kurume-main"),
+    ],
     profile: "juggler",
     defaultConditionSuffix: "main",
     conditions: [
@@ -198,6 +202,39 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           minNextGap: 5,
           anyFlags: ["aimSinkStayStrong", "aimStrongAngle"],
         },
+        ["apark-aim"],
+      ),
+      buildCondition(
+        "mj-kurume-main",
+        "70点以上",
+        "62件 / 104.80% / RB1/280.0",
+        {
+          minScore: 70,
+          requiredFlags: ["kurumeAimHistoryReady"],
+        },
+        ["mj-kurume-aim"],
+      ),
+      buildCondition(
+        "mj-kurume-high",
+        "80点以上",
+        "21件 / 104.33% / RB1/259.9",
+        {
+          minScore: 80,
+          requiredFlags: ["kurumeAimHistoryReady"],
+        },
+        ["mj-kurume-aim"],
+      ),
+      buildCondition(
+        "mj-kurume-boost",
+        "1位＋50点以上＋強化2個以上",
+        "122件 / 103.83% / RB1/275.7",
+        {
+          rankMax: 1,
+          minScore: 50,
+          minBoost: 2,
+          requiredFlags: ["kurumeAimHistoryReady"],
+        },
+        ["mj-kurume-aim"],
       ),
     ],
   },
@@ -805,7 +842,9 @@ function getDefaultSetting(definition, storeName) {
   }
 
   let defaultLogic = null;
-  if (isMjArenaKurumeStore(storeName) && definition.machineKey === "neo-aim") {
+  if (isMjArenaKurumeStore(storeName) && definition.machineKey === "aim") {
+    defaultLogic = findLogicDefinition(definition, "mj-kurume-aim");
+  } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-neo-aim");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "funky") {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-funky");
@@ -1294,9 +1333,12 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const machineKey = definition?.machineKey ?? "";
   const activeLogicKey = definition?.activeLogicKey ?? definition?.logicKey ?? "";
   const historyRowCount = readNumber(metrics.historyRowCount);
+  const targetRangeHistoryRowCount = readNumber(metrics.targetRangeHistoryRowCount, historyRowCount);
   const previousDifference = readNumber(metrics.todayDifference);
   const previousGames = readNumber(metrics.previousGames);
+  const previousRbCount = readNumber(metrics.previousRbCount);
   const streak = readNumber(metrics.streak);
+  const winningStreak = readNumber(metrics.winningStreak);
   const historyLosingStreak = readNumber(metrics.historyLosingStreak);
   const recentTwoNetTotal = readNumber(metrics.recentTwoNetTotal);
   const recentThreeNetTotal = readNumber(metrics.recentThreeNetTotal);
@@ -1318,9 +1360,13 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentFourteenGoldShowDays = readNumber(metrics.recentFourteenGoldShowDays);
   const recentFourteenWinDays = readNumber(metrics.recentFourteenWinDays);
   const recentSevenHighSettingCandidateCount = readNumber(metrics.recentSevenHighSettingCandidateCount);
+  const recentFiveMinus2000StayDays = readNumber(metrics.recentFiveMinus2000StayDays);
   const recentSevenMinus1500StayDays = readNumber(metrics.recentSevenMinus1500StayDays);
+  const recentTenMinus3000StayDays = readNumber(metrics.recentTenMinus3000StayDays);
+  const recentTenMinus2500StayDays = readNumber(metrics.recentTenMinus2500StayDays);
   const recentThirtyMinus2700StayDays = readNumber(metrics.recentThirtyMinus2700StayDays);
   const recentFourteenMinus1800StayDays = readNumber(metrics.recentFourteenMinus1800StayDays);
+  const recentTwentyOneMinus1500StayDays = readNumber(metrics.recentTwentyOneMinus1500StayDays);
   const recentTwentyOneMinus2000StayDays = readNumber(metrics.recentTwentyOneMinus2000StayDays);
   const adjacentHighSettingCandidateCount7 = readNumber(metrics.adjacentHighSettingCandidateCount7);
   const adjacentMachineHighContentCount3 = readNumber(metrics.adjacentMachineHighContentCount3);
@@ -1353,6 +1399,66 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
 
   if (machineKey === "aim") {
+    if (activeLogicKey === "mj-kurume-aim") {
+      const kurumeAimHistoryReady = targetRangeHistoryRowCount >= 14;
+      const kurumeAimDeepSink = recentTenNetTotal <= -3000 || recentSevenNetTotal <= -2500;
+      const kurumeAimSinkStay =
+        recentTenMinus3000StayDays >= 1 ||
+        recentTenMinus2500StayDays >= 1 ||
+        recentTwentyOneMinus1500StayDays >= 6 ||
+        (recentTwentyOneMinus1500StayDays >= 3 && recentFiveMinus2000StayDays >= 2);
+      const kurumeAimLosing = streak >= 5;
+      const kurumeAimPreviousHighFail = previousMachineHighContent && previousDifference <= 0;
+      const kurumeAimGenuineBonus = features.recentFiveRbDenominator <= 270;
+      const kurumeAimTrustedGames =
+        (recentSevenNetTotal <= -2000 || recentTenNetTotal <= -2500) &&
+        recentSevenGamesTotal >= 15000;
+      const kurumeAimTreatmentDone = recentSevenNetTotal >= 1500 || recentFourteenNetTotal >= 2000;
+      const kurumeAimPreviousHighPlus = previousMachineHighContent && previousDifference >= 1200;
+      const kurumeAimHighStreak = machineHighContentStreak >= 2;
+      const kurumeAimWinStreak = winningStreak >= 3;
+      const kurumeAimPreviousBbOnly =
+        previousDifference > 800 && (features.previousRbDenominator > 350 || previousRbCount === 0);
+      const kurumeAimLowConfidence = recentSevenGamesTotal < 7000 && streak < 5;
+      const boostFlags = [
+        kurumeAimDeepSink,
+        kurumeAimSinkStay,
+        kurumeAimLosing,
+        kurumeAimPreviousHighFail,
+        kurumeAimGenuineBonus,
+        kurumeAimTrustedGames,
+      ];
+      const dangerFlags = [
+        kurumeAimTreatmentDone,
+        kurumeAimPreviousHighPlus,
+        kurumeAimHighStreak,
+        kurumeAimWinStreak,
+        kurumeAimPreviousBbOnly,
+        kurumeAimLowConfidence,
+      ];
+
+      return {
+        ...features,
+        kurumeAimHistoryReady,
+        kurumeAimDeepSink,
+        kurumeAimSinkStay,
+        kurumeAimLosing,
+        kurumeAimPreviousHighFail,
+        kurumeAimGenuineBonus,
+        kurumeAimTrustedGames,
+        kurumeAimTreatmentDone,
+        kurumeAimPreviousHighPlus,
+        kurumeAimHighStreak,
+        kurumeAimWinStreak,
+        kurumeAimPreviousBbOnly,
+        kurumeAimLowConfidence,
+        treatmentDone: kurumeAimTreatmentDone,
+        lowConfidence: kurumeAimLowConfidence,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     const aimSinkStayStrong =
       recentSevenNetTotal <= -2000 &&
       features.recentSevenCombinedDenominator >= 155 &&
@@ -2145,6 +2251,7 @@ function calculateMachineScore(definition, metrics, features) {
   const activeLogicKey = definition?.activeLogicKey ?? definition?.logicKey ?? "";
   const previousDifference = readNumber(metrics.todayDifference);
   const previousGames = readNumber(metrics.previousGames);
+  const previousRbCount = readNumber(metrics.previousRbCount);
   const recentTwoNetTotal = readNumber(metrics.recentTwoNetTotal);
   const recentThreeNetTotal = readNumber(metrics.recentThreeNetTotal);
   const recentFiveNetTotal = readNumber(metrics.recentFiveNetTotal);
@@ -2190,9 +2297,12 @@ function calculateMachineScore(definition, metrics, features) {
   const recentSevenMinus1500StayDays = readNumber(metrics.recentSevenMinus1500StayDays);
   const recentThirtyMinus2700StayDays = readNumber(metrics.recentThirtyMinus2700StayDays);
   const recentFiveMinus500StayDays = readNumber(metrics.recentFiveMinus500StayDays);
+  const recentTenMinus3000StayDays = readNumber(metrics.recentTenMinus3000StayDays);
+  const recentTenMinus2500StayDays = readNumber(metrics.recentTenMinus2500StayDays);
   const recentTenMinus5225StayDays = readNumber(metrics.recentTenMinus5225StayDays);
   const recentFourteenMinus1800StayDays = readNumber(metrics.recentFourteenMinus1800StayDays);
   const recentFourteenMinus3218StayDays = readNumber(metrics.recentFourteenMinus3218StayDays);
+  const recentTwentyOneMinus1500StayDays = readNumber(metrics.recentTwentyOneMinus1500StayDays);
   const recentTwentyOneMinus2000StayDays = readNumber(metrics.recentTwentyOneMinus2000StayDays);
   const recentTwentyOneMinus11333StayDays = readNumber(metrics.recentTwentyOneMinus11333StayDays);
   const recentFiveAngleMinus80StayDays = readNumber(metrics.recentFiveAngleMinus80StayDays);
@@ -2233,6 +2343,76 @@ function calculateMachineScore(definition, metrics, features) {
   const recentTwoCombinedDenominator = rateDenominator(recentTwoGamesTotal, recentTwoBonusTotal);
 
   if (machineKey === "aim") {
+    if (activeLogicKey === "mj-kurume-aim") {
+      let sinkScore = 0;
+      sinkScore += scoreAtMost(recentTenNetTotal, [
+        { maximum: -3000, points: 22 },
+        { maximum: -2500, points: 18 },
+        { maximum: -2000, points: 13 },
+        { maximum: -1500, points: 8 },
+        { maximum: -1000, points: 4 },
+      ]);
+      sinkScore += scoreAtMost(recentTwentyOneNetTotal, [
+        { maximum: -3000, points: 12 },
+        { maximum: -2000, points: 9 },
+        { maximum: -1000, points: 5 },
+      ]);
+      sinkScore += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -2500, points: 8 },
+        { maximum: -2000, points: 5 },
+      ]);
+      sinkScore += features.recentTwentyOneAngle <= -50 ? 5 : 0;
+      sinkScore = Math.min(sinkScore, 45);
+
+      let stayScore = 0;
+      stayScore += recentTenMinus3000StayDays >= 1 ? 10 : recentTenMinus2500StayDays >= 1 ? 6 : 0;
+      stayScore +=
+        recentTwentyOneMinus1500StayDays >= 6
+          ? 8
+          : recentTwentyOneMinus1500StayDays >= 3
+            ? 5
+            : 0;
+      stayScore += recentFiveMinus2000StayDays >= 2 ? 5 : 0;
+      stayScore = Math.min(stayScore, 20);
+
+      const losingScore = scoreAtLeast(streak, [
+        { minimum: 7, points: 15 },
+        { minimum: 5, points: 10 },
+        { minimum: 3, points: 5 },
+      ]);
+
+      let bonusScore = 0;
+      bonusScore += previousMachineHighContent && previousDifference <= 0 ? 9 : 0;
+      bonusScore +=
+        features.recentFiveRbDenominator <= 270
+          ? 8
+          : features.recentFiveRbDenominator <= 300
+            ? 4
+            : 0;
+      bonusScore += recentFiveMachineHighContentCount >= 2 ? 3 : 0;
+      bonusScore = Math.min(bonusScore, 15);
+
+      let gamesScore = 0;
+      gamesScore +=
+        (recentSevenNetTotal <= -2000 || recentTenNetTotal <= -2500) && recentSevenGamesTotal >= 15000
+          ? 5
+          : recentFiveGamesTotal >= 15000
+            ? 2
+            : 0;
+      gamesScore -= recentSevenGamesTotal < 7000 && streak < 5 ? 5 : 0;
+
+      let penalty = 0;
+      penalty += recentSevenNetTotal >= 1500 ? 8 : 0;
+      penalty += recentFourteenNetTotal >= 2000 ? 8 : 0;
+      penalty += previousMachineHighContent && previousDifference >= 1200 ? 8 : 0;
+      penalty += machineHighContentStreak >= 2 ? 10 : 0;
+      penalty += winningStreak >= 3 ? 8 : 0;
+      penalty += previousDifference > 800 && (previousRbDenominator > 350 || previousRbCount === 0) ? 8 : 0;
+      penalty = Math.min(penalty, 25);
+
+      return Math.round(clamp(sinkScore + stayScore + losingScore + bonusScore + gamesScore - penalty, 0, 100));
+    }
+
     let score = 0;
     score += scoreAtMost(recentSevenNetTotal, [
       { maximum: -3000, points: 24 },

@@ -811,6 +811,8 @@ const HUNT_SCORE_STORE_CONFIGS = [
     defaultLogicKey: "apark",
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "mj-arena-kurume-neo-aim",
+      "SアイムジャグラーＥＸ": "mj-arena-kurume-aim",
+      "SアイムジャグラーEX": "mj-arena-kurume-aim",
       "ファンキージャグラー２ＫＴ": "mj-arena-kurume-funky",
     },
   },
@@ -1416,7 +1418,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     }
     return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
   }
-  if (normalizedMachineName === normalizeText("SアイムジャグラーＥＸ")) {
+  if (
+    normalizedMachineName === normalizeText("SアイムジャグラーＥＸ") ||
+    normalizedMachineName === normalizeText("SアイムジャグラーEX")
+  ) {
+    if (readMachineContentRule(config, machineName) === "mj-arena-kurume-aim") {
+      return games >= 2000 && rbDenominator <= 300 && combinedDenominator <= 155;
+    }
     return games >= 4000 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
@@ -6412,6 +6420,13 @@ function calculateWindowMetrics(
       }
     }
   }
+  const targetRangeStartDate = String(config?.targetRangeStartDate ?? "").trim();
+  const targetRangeHistoryRowCount = targetRangeStartDate
+    ? historyWindowRows.filter((historyWindowRow) => {
+        const rowDate = String(historyWindowRow?.row?.target_date ?? "").trim();
+        return rowDate && rowDate >= targetRangeStartDate;
+      }).length
+    : historyRowCount;
 
   const todaySetting = getSettingEstimateAverage(settingDefinitionCache, row, config).average;
   const previousWindowRow = metricWindowRows.at(-2) ?? null;
@@ -6453,9 +6468,12 @@ function calculateWindowMetrics(
   const recentSevenMinus1500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -1500);
   const recentThirtyMinus2700StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 30, -2700);
   const recentFiveMinus500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -500);
+  const recentTenMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 10, -3000);
+  const recentTenMinus2500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 10, -2500);
   const recentTenMinus5225StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 10, -5225);
   const recentFourteenMinus1800StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -1800);
   const recentFourteenMinus3218StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -3218);
+  const recentTwentyOneMinus1500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -1500);
   const recentTwentyOneMinus2000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -2000);
   const recentTwentyOneMinus11333StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -11333);
   const recentFiveAngleMinus80StayDays = countConsecutiveRollingAngleThresholdDays(historyWindowRows, 5, -80);
@@ -6948,9 +6966,12 @@ function calculateWindowMetrics(
     recentFiveMinus3500StayDays,
     recentSevenMinus1500StayDays,
     recentFiveMinus500StayDays,
+    recentTenMinus3000StayDays,
+    recentTenMinus2500StayDays,
     recentTenMinus5225StayDays,
     recentFourteenMinus1800StayDays,
     recentFourteenMinus3218StayDays,
+    recentTwentyOneMinus1500StayDays,
     recentTwentyOneMinus2000StayDays,
     recentTwentyOneMinus11333StayDays,
     recentFiveAngleMinus80StayDays,
@@ -7060,6 +7081,7 @@ function calculateWindowMetrics(
     recentFiveSettingAverage,
     windowSettingAverage,
     historyRowCount,
+    targetRangeHistoryRowCount,
     historySettingSampleCount,
     historyHighSettingCount,
     historyHighSettingRate:
@@ -7462,6 +7484,9 @@ export function buildHuntScoreSnapshots(
   const targetDateRange = options?.targetDateRange ?? null;
   const targetStartDate = String(targetDateRange?.startDate ?? "").trim();
   const targetEndDate = String(targetDateRange?.endDate ?? "").trim();
+  if (targetStartDate) {
+    config.targetRangeStartDate = targetStartDate;
+  }
   const dateIndexes = targetDate
     ? [businessDates.indexOf(targetDate)].filter((dateIndex) => dateIndex >= 0)
     : businessDates
