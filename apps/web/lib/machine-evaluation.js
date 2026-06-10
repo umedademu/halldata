@@ -532,6 +532,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         {
           rankMax: 1,
           minScore: 75,
+          requiredFlags: ["kurumeNeoHistoryReady"],
         },
         ["mj-kurume-neo-aim"],
       ),
@@ -543,6 +544,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           rankMax: 1,
           minScore: 75,
           minNextGap: 8,
+          requiredFlags: ["kurumeNeoHistoryReady"],
         },
         ["mj-kurume-neo-aim"],
       ),
@@ -553,6 +555,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         {
           rankMax: 3,
           minScore: 75,
+          requiredFlags: ["kurumeNeoHistoryReady"],
         },
         ["mj-kurume-neo-aim"],
       ),
@@ -1330,6 +1333,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
 
   if (machineKey === "neo-aim") {
     if (activeLogicKey === "mj-kurume-neo-aim") {
+      const kurumeNeoHistoryReady = historyRowCount >= 14;
       const recentTwentyOneRbDenominator = rateDenominator(
         readNumber(metrics.recentTwentyOneGamesTotal),
         readNumber(metrics.recentTwentyOneRbTotal),
@@ -1383,6 +1387,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
 
       return {
         ...features,
+        kurumeNeoHistoryReady,
         kurumeNeoSinkStayStrong,
         kurumeNeoStrongAngle,
         kurumeNeoGenuine,
