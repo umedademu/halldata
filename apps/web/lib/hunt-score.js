@@ -6233,6 +6233,38 @@ function countAdjacentMachineHighContentRows(
   return count;
 }
 
+function countAdjacentMachineDifferenceAtLeastRows(
+  businessDates,
+  dateIndex,
+  row,
+  rowsByDate,
+  config,
+  windowDays,
+  machineName,
+  minimumDifference,
+  distance = 2,
+) {
+  if (!(rowsByDate instanceof Map)) {
+    return 0;
+  }
+
+  const normalizedWindowDays = Math.max(1, Number(windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
+  const startIndex = Math.max(0, dateIndex - (normalizedWindowDays - 1));
+  const windowDates = businessDates.slice(startIndex, dateIndex + 1);
+  let count = 0;
+
+  for (const date of windowDates) {
+    for (const dateRow of listAdjacentSameMachineRowsByOrder(rowsByDate.get(date) ?? [], row, config, machineName, distance)) {
+      const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
+      if (readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName) >= minimumDifference) {
+        count += 1;
+      }
+    }
+  }
+
+  return count;
+}
+
 function sumAdjacentMachineDifferenceRows(
   businessDates,
   dateIndex,
@@ -6815,6 +6847,17 @@ function calculateWindowMetrics(
     currentMachineName,
     1,
   );
+  const adjacentMachineBigWin1000Count7Near2 = countAdjacentMachineDifferenceAtLeastRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    7,
+    currentMachineName,
+    1000,
+    2,
+  );
   const adjacentMachineNetTotal7 = sumAdjacentMachineDifferenceRows(
     businessDates,
     dateIndex,
@@ -7040,6 +7083,7 @@ function calculateWindowMetrics(
     adjacentMachineHighContentCount14,
     adjacentMachineHighContentCount7Near2,
     adjacentMachineHighContentCount14Near2,
+    adjacentMachineBigWin1000Count7Near2,
     adjacentMachineNetTotal3,
     adjacentMachineNetTotal5,
     adjacentMachineNetTotal5Near2,

@@ -1328,6 +1328,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
   const adjacentMachineHighContentCount7Near2 = readNumber(metrics.adjacentMachineHighContentCount7Near2);
   const adjacentMachineHighContentCount14Near2 = readNumber(metrics.adjacentMachineHighContentCount14Near2);
+  const adjacentMachineBigWin1000Count7Near2 = readNumber(metrics.adjacentMachineBigWin1000Count7Near2);
   const adjacentMachineNetTotal3 = readNumber(metrics.adjacentMachineNetTotal3);
   const adjacentMachineNetTotal5 = readNumber(metrics.adjacentMachineNetTotal5);
   const adjacentMachineNetTotal5Near2 = readNumber(metrics.adjacentMachineNetTotal5Near2);
@@ -2034,7 +2035,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         features.recentFourteenCombinedDenominator >= 170 &&
         features.recentFourteenRbDenominator >= 400;
       const kurumeFunkyNearbyLeftBehind =
-        (adjacentMachineHighContentCount7Near2 >= 2 && recentFourteenNetTotal <= -1000) ||
+        (adjacentMachineBigWin1000Count7Near2 >= 2 && recentFourteenNetTotal <= -1000) ||
         (adjacentMachineNetTotal14 > 0 && recentTwentyOneNetTotal <= -2000);
       const kurumeFunkyTrustedGames =
         [
@@ -2217,6 +2218,7 @@ function calculateMachineScore(definition, metrics, features) {
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
   const adjacentMachineHighContentCount7Near2 = readNumber(metrics.adjacentMachineHighContentCount7Near2);
   const adjacentMachineHighContentCount14Near2 = readNumber(metrics.adjacentMachineHighContentCount14Near2);
+  const adjacentMachineBigWin1000Count7Near2 = readNumber(metrics.adjacentMachineBigWin1000Count7Near2);
   const adjacentMachineNetTotal3 = readNumber(metrics.adjacentMachineNetTotal3);
   const adjacentMachineNetTotal5 = readNumber(metrics.adjacentMachineNetTotal5);
   const adjacentMachineNetTotal5Near2 = readNumber(metrics.adjacentMachineNetTotal5Near2);
@@ -3450,14 +3452,13 @@ function calculateMachineScore(definition, metrics, features) {
           ),
       );
 
-      const bonusWeakScore = Math.min(
-        15,
-        (features.recentFourteenCombinedDenominator >= 170 &&
-        features.recentFourteenRbDenominator >= 400
+      const bonusWeakScore = Math.max(
+        features.recentFourteenCombinedDenominator >= 170 &&
+          features.recentFourteenRbDenominator >= 400
           ? 10
-          : 0) +
-          (recentTenCombinedDenominator >= 180 ? 7 : 0) +
-          (features.recentSevenCombinedDenominator >= 190 ? 5 : 0),
+          : 0,
+        recentTenCombinedDenominator >= 180 ? 7 : 0,
+        features.recentSevenCombinedDenominator >= 190 ? 5 : 0,
       );
 
       const streakBaseScore =
@@ -3471,11 +3472,11 @@ function calculateMachineScore(definition, metrics, features) {
         restScore += daysSinceMachineHighContent >= 15 && daysSinceMachineHighContent <= 21 ? 2 : 0;
         restScore += daysSinceMachineHighContent >= 36 ? 2 : 0;
       }
-      const streakRestScore = Math.min(10, streakBaseScore + restScore);
+      const streakRestScore = Math.min(10, Math.max(streakBaseScore, restScore));
 
       const nearbyScore = Math.min(
         10,
-        (adjacentMachineHighContentCount7Near2 >= 2 && recentFourteenNetTotal <= -1000 ? 7 : 0) +
+        (adjacentMachineBigWin1000Count7Near2 >= 2 && recentFourteenNetTotal <= -1000 ? 7 : 0) +
           (adjacentMachineNetTotal14 > 0 && recentTwentyOneNetTotal <= -2000 ? 3 : 0),
       );
 
@@ -3493,18 +3494,19 @@ function calculateMachineScore(definition, metrics, features) {
         (streak >= 6 ? 5 : 0) +
         (recentTwentyOneMachineHighContentCount >= 6 ? 5 : 0);
 
-      const rawScore =
-        sinkScore +
-        angleScore +
-        bonusWeakScore +
-        streakRestScore +
-        nearbyScore +
-        gamesTrustScore -
-        dangerScore -
-        2;
-      const adjustedScore = rawScore >= 68 ? rawScore + 1 : rawScore - 2;
-
-      return Math.round(clamp(adjustedScore, 0, 100));
+      return Math.round(
+        clamp(
+          sinkScore +
+            angleScore +
+            bonusWeakScore +
+            streakRestScore +
+            nearbyScore +
+            gamesTrustScore -
+            dangerScore,
+          0,
+          100,
+        ),
+      );
     }
 
     if (readNumber(metrics.historyRowCount) < 28) {
