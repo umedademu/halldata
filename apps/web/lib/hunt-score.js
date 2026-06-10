@@ -6214,11 +6214,8 @@ function buildAvailableWindowRows(businessDates, dateIndex, recordMapByDate, win
 
 function buildIncompleteWindowRows(businessDates, dateIndex, recordMapByDate, windowDays, config) {
   const normalizedWindowDays = Math.max(1, Number(windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
-  if (dateIndex < normalizedWindowDays - 1) {
-    return null;
-  }
-
-  const windowDates = businessDates.slice(dateIndex - (normalizedWindowDays - 1), dateIndex + 1);
+  const startIndex = Math.max(0, dateIndex - (normalizedWindowDays - 1));
+  const windowDates = businessDates.slice(startIndex, dateIndex + 1);
   const windowRows = [];
 
   for (const date of windowDates) {
