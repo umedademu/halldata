@@ -226,11 +226,14 @@ const MJ_ARENA_AIRPORT_TARGET_MACHINES = [
 ];
 
 const MJ_ARENA_KURUME_TARGET_MACHINES = [
+  { name: "SアイムジャグラーＥＸ", aliases: ["SアイムジャグラーEX"] },
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  { name: "ゴーゴージャグラー３", aliases: ["ゴーゴージャグラー3", "ゴーゴージャグラー"] },
   {
     name: "ファンキージャグラー２ＫＴ",
     aliases: ["ファンキージャグラー２", "ファンキージャグラー2", "ファンキージャグラー"],
   },
+  { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
 ];
 
 const SLOT_MARUMITSU_OHASHI_TARGET_MACHINES = [
@@ -817,6 +820,9 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "ゴーゴージャグラー3": "mj-arena-kurume-gogo",
       "ゴーゴージャグラー": "mj-arena-kurume-gogo",
       "ファンキージャグラー２ＫＴ": "mj-arena-kurume-funky",
+      "マイジャグラーV": "mj-arena-kurume-my",
+      "マイジャグラーⅤ": "mj-arena-kurume-my",
+      "マイジャグラー": "mj-arena-kurume-my",
     },
   },
   {
@@ -1394,6 +1400,49 @@ function calculateOkidokiDuoHighContentScore(row) {
   return score;
 }
 
+function calculateKurumeMyHighContentScore(row) {
+  const games = readWindowField(row, "games");
+  const bbCount = readWindowField(row, "bbCount");
+  const rbCount = readWindowField(row, "rbCount");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const differenceValue = readNumber(row?.differenceValue) ?? 0;
+  const rbToBbRatio = bbCount > 0 ? rbCount / bbCount : 0;
+
+  let score = 0;
+  score += games >= 7000 ? 15 : games >= 5000 ? 12 : games >= 3000 ? 8 : 0;
+  score += combinedDenominator <= 125
+    ? 30
+    : combinedDenominator <= 130
+      ? 26
+      : combinedDenominator <= 140
+        ? 18
+        : combinedDenominator <= 150
+          ? 10
+          : 0;
+  score += rbDenominator <= 260
+    ? 30
+    : rbDenominator <= 285
+      ? 26
+      : rbDenominator <= 320
+        ? 18
+        : rbDenominator <= 360
+          ? 10
+          : 0;
+  score += differenceValue >= 2000
+    ? 12
+    : differenceValue >= 1000
+      ? 9
+      : differenceValue >= 0
+        ? 5
+        : differenceValue >= -500
+          ? 2
+          : 0;
+  score += rbToBbRatio >= 0.65 ? 5 : 0;
+
+  return score;
+}
+
 function readMachineContentRule(config, machineName) {
   const rules = config?.machineHighContentRules;
   if (!rules || typeof rules !== "object") {
@@ -1450,6 +1499,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("マイジャグラーⅤ") ||
     normalizedMachineName === normalizeText("マイジャグラー")
   ) {
+    if (readMachineContentRule(config, machineName) === "mj-arena-kurume-my") {
+      return games >= 3000 && calculateKurumeMyHighContentScore(row) >= 60;
+    }
     return games >= 6000 && rbDenominator <= 270 && combinedDenominator <= 135;
   }
   if (normalizedMachineName === normalizeText("スターハナハナ")) {
@@ -6470,6 +6522,7 @@ function calculateWindowMetrics(
   const shortThreeSinkStayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 3, -300);
   const recentSevenMinus2000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -2000);
   const recentSevenMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -3000);
+  const recentThreeMinus1000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 3, -1000);
   const recentThreeMinus1700StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 3, -1700);
   const recentFiveMinus1500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -1500);
   const recentFiveMinus2000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -2000);
@@ -6482,6 +6535,8 @@ function calculateWindowMetrics(
   const recentTenMinus2500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 10, -2500);
   const recentTenMinus5225StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 10, -5225);
   const recentFourteenMinus1800StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -1800);
+  const recentFourteenMinus2000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -2000);
+  const recentFourteenMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -3000);
   const recentFourteenMinus3218StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -3218);
   const recentFourteenNegativeStayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -1);
   const recentTwentyOneMinus1500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -1500);
@@ -6980,6 +7035,7 @@ function calculateWindowMetrics(
     shortThreeSinkStayDays,
     recentSevenMinus2000StayDays,
     recentSevenMinus3000StayDays,
+    recentThreeMinus1000StayDays,
     recentThreeMinus1700StayDays,
     recentFiveMinus1500StayDays,
     recentFiveMinus2000StayDays,
@@ -6991,6 +7047,8 @@ function calculateWindowMetrics(
     recentTenMinus2500StayDays,
     recentTenMinus5225StayDays,
     recentFourteenMinus1800StayDays,
+    recentFourteenMinus2000StayDays,
+    recentFourteenMinus3000StayDays,
     recentFourteenMinus3218StayDays,
     recentFourteenNegativeStayDays,
     recentTwentyOneMinus1500StayDays,
