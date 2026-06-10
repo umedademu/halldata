@@ -6212,6 +6212,42 @@ function buildAvailableWindowRows(businessDates, dateIndex, recordMapByDate, win
   return windowRows;
 }
 
+function buildNearCompleteInitialWindowRows(businessDates, dateIndex, recordMapByDate, windowDays, config) {
+  const normalizedWindowDays = Math.max(1, Number(windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
+  if (dateIndex < normalizedWindowDays - 1) {
+    return null;
+  }
+
+  const windowDates = businessDates.slice(dateIndex - (normalizedWindowDays - 1), dateIndex + 1);
+  const windowRows = [];
+  let foundFirstRow = false;
+
+  for (const date of windowDates) {
+    const row = recordMapByDate.get(date);
+    if (!foundFirstRow) {
+      if (!row || !hasMeaningfulResult(row)) {
+        continue;
+      }
+      foundFirstRow = true;
+    }
+
+    if (!row || !hasMeaningfulResult(row)) {
+      return null;
+    }
+
+    windowRows.push({
+      row,
+      differenceValue: readHuntScoreDifferenceValue(
+        row,
+        config.differenceMode,
+        normalizeHuntScoreMachineName(row?.machine_name, config),
+      ),
+    });
+  }
+
+  return windowRows.length >= normalizedWindowDays - 1 ? windowRows : null;
+}
+
 function countAdjacentHighSettingCandidates(
   businessDates,
   dateIndex,
@@ -6388,9 +6424,18 @@ function calculateWindowMetrics(
 ) {
   const windowDays = config.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS;
   const useAvailableRows = config?.logicKey === "amuse-asakusa";
-  const windowRows = useAvailableRows
+  let windowRows = useAvailableRows
     ? buildAvailableWindowRows(businessDates, dateIndex, recordMapByDate, windowDays, config)
     : buildWindowRows(businessDates, dateIndex, recordMapByDate, windowDays, config);
+  if (!windowRows && !useAvailableRows) {
+    windowRows = buildNearCompleteInitialWindowRows(
+      businessDates,
+      dateIndex,
+      recordMapByDate,
+      windowDays,
+      config,
+    );
+  }
   if (!windowRows || windowRows.length === 0) {
     return null;
   }
