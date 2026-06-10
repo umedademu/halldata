@@ -813,6 +813,9 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "ネオアイムジャグラーEX": "mj-arena-kurume-neo-aim",
       "SアイムジャグラーＥＸ": "mj-arena-kurume-aim",
       "SアイムジャグラーEX": "mj-arena-kurume-aim",
+      "ゴーゴージャグラー３": "mj-arena-kurume-gogo",
+      "ゴーゴージャグラー3": "mj-arena-kurume-gogo",
+      "ゴーゴージャグラー": "mj-arena-kurume-gogo",
       "ファンキージャグラー２ＫＴ": "mj-arena-kurume-funky",
     },
   },
@@ -1432,6 +1435,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ゴーゴージャグラー3") ||
     normalizedMachineName === normalizeText("ゴーゴージャグラー")
   ) {
+    if (readMachineContentRule(config, machineName) === "mj-arena-kurume-gogo") {
+      return (
+        games >= 3000 &&
+        ((combinedDenominator <= 130 && rbDenominator <= 300) ||
+          (combinedDenominator <= 138 && rbDenominator <= 265))
+      );
+    }
     const rbCount = readWindowField(row, "rbCount");
     return games >= 3000 && rbCount >= 15 && rbDenominator <= 240 && combinedDenominator <= 130;
   }
@@ -6473,6 +6483,7 @@ function calculateWindowMetrics(
   const recentTenMinus5225StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 10, -5225);
   const recentFourteenMinus1800StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -1800);
   const recentFourteenMinus3218StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -3218);
+  const recentFourteenNegativeStayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -1);
   const recentTwentyOneMinus1500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -1500);
   const recentTwentyOneMinus2000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -2000);
   const recentTwentyOneMinus11333StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -11333);
@@ -6741,6 +6752,16 @@ function calculateWindowMetrics(
     const differenceValue = readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
     return isMachineHighContentWindowRow({ row: dateRow, differenceValue }, currentMachineName, config);
   }).length;
+  const previousAdjacentMachineBigWin1000Count = listAdjacentSameMachineRowsByOrder(
+    currentDateRows,
+    row,
+    config,
+    currentMachineName,
+    1,
+  ).filter((dateRow) => {
+    const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
+    return readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName) >= 1000;
+  }).length;
   const sameMachinePreviousNetTotal = currentDateRows.reduce((total, dateRow) => {
     const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
     if (normalizeText(rowMachineName) !== normalizeText(currentMachineName)) {
@@ -6971,6 +6992,7 @@ function calculateWindowMetrics(
     recentTenMinus5225StayDays,
     recentFourteenMinus1800StayDays,
     recentFourteenMinus3218StayDays,
+    recentFourteenNegativeStayDays,
     recentTwentyOneMinus1500StayDays,
     recentTwentyOneMinus2000StayDays,
     recentTwentyOneMinus11333StayDays,
@@ -7099,6 +7121,7 @@ function calculateWindowMetrics(
     adjacentHighSettingCandidateCount7,
     previousAdjacentMachineHighContentCount,
     previousAdjacentMachineGoodContentCount,
+    previousAdjacentMachineBigWin1000Count,
     previousOtherMachineHighContentCount,
     sameMachinePreviousNetTotal,
     adjacentMachineHighContentCount7,

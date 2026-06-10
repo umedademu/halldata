@@ -243,6 +243,10 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     machineNames: ["ゴーゴージャグラー３", "ゴーゴージャグラー3", "ゴーゴージャグラー"],
     logicKey: "apark-gogo",
     logicName: "ゴージャグ春日式",
+    logics: [
+      buildLogicVariant("apark-gogo", "ゴージャグ春日式", "main"),
+      buildLogicVariant("mj-kurume-gogo", "ゴージャグMJ久留米式", "mj-kurume-main"),
+    ],
     profile: "juggler",
     defaultConditionSuffix: "main",
     conditions: [
@@ -259,6 +263,41 @@ const MACHINE_EVALUATION_DEFINITIONS = [
             "gogoThreeDayAngleStrong",
           ],
         },
+        ["apark-gogo"],
+      ),
+      buildCondition(
+        "mj-kurume-main",
+        "90点以上＋複合強化＋危険1個以下",
+        "61件 / 104.01% / RB1/277.2",
+        {
+          minScore: 90,
+          maxDanger: 1,
+          requiredFlags: ["kurumeGogoHistoryReady", "kurumeGogoComposite"],
+        },
+        ["mj-kurume-gogo"],
+      ),
+      buildCondition(
+        "mj-kurume-boost",
+        "90点以上＋強化3個以上＋危険1個以下",
+        "73件 / 103.73% / RB1/285.3",
+        {
+          minScore: 90,
+          minBoost: 3,
+          maxDanger: 1,
+          requiredFlags: ["kurumeGogoHistoryReady"],
+        },
+        ["mj-kurume-gogo"],
+      ),
+      buildCondition(
+        "mj-kurume-gap5",
+        "1位＋次点差5点以上",
+        "146件 / 102.50% / RB1/284.4",
+        {
+          rankMax: 1,
+          minNextGap: 5,
+          requiredFlags: ["kurumeGogoHistoryReady"],
+        },
+        ["mj-kurume-gogo"],
       ),
     ],
   },
@@ -844,6 +883,8 @@ function getDefaultSetting(definition, storeName) {
   let defaultLogic = null;
   if (isMjArenaKurumeStore(storeName) && definition.machineKey === "aim") {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-aim");
+  } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "gogo") {
+    defaultLogic = findLogicDefinition(definition, "mj-kurume-gogo");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-neo-aim");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "funky") {
@@ -1359,6 +1400,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentTwentyOneGamesTotal = readNumber(metrics.recentTwentyOneGamesTotal);
   const recentFourteenGoldShowDays = readNumber(metrics.recentFourteenGoldShowDays);
   const recentFourteenWinDays = readNumber(metrics.recentFourteenWinDays);
+  const recentSevenLossDays = readNumber(metrics.recentSevenLossDays);
   const recentSevenHighSettingCandidateCount = readNumber(metrics.recentSevenHighSettingCandidateCount);
   const recentFiveMinus2000StayDays = readNumber(metrics.recentFiveMinus2000StayDays);
   const recentSevenMinus1500StayDays = readNumber(metrics.recentSevenMinus1500StayDays);
@@ -1366,6 +1408,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentTenMinus2500StayDays = readNumber(metrics.recentTenMinus2500StayDays);
   const recentThirtyMinus2700StayDays = readNumber(metrics.recentThirtyMinus2700StayDays);
   const recentFourteenMinus1800StayDays = readNumber(metrics.recentFourteenMinus1800StayDays);
+  const recentFourteenNegativeStayDays = readNumber(metrics.recentFourteenNegativeStayDays);
   const recentTwentyOneMinus1500StayDays = readNumber(metrics.recentTwentyOneMinus1500StayDays);
   const recentTwentyOneMinus2000StayDays = readNumber(metrics.recentTwentyOneMinus2000StayDays);
   const adjacentHighSettingCandidateCount7 = readNumber(metrics.adjacentHighSettingCandidateCount7);
@@ -1382,6 +1425,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const adjacentMachineNetTotal14 = readNumber(metrics.adjacentMachineNetTotal14);
   const previousAdjacentMachineHighContentCount = readNumber(metrics.previousAdjacentMachineHighContentCount);
   const previousAdjacentMachineGoodContentCount = readNumber(metrics.previousAdjacentMachineGoodContentCount);
+  const previousAdjacentMachineBigWin1000Count = readNumber(metrics.previousAdjacentMachineBigWin1000Count);
   const previousOtherMachineHighContentCount = readNumber(metrics.previousOtherMachineHighContentCount);
   const sameMachinePreviousNetTotal = readNumber(metrics.sameMachinePreviousNetTotal);
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
@@ -1613,6 +1657,73 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "gogo") {
+    if (activeLogicKey === "mj-kurume-gogo") {
+      const kurumeGogoHistoryReady = targetRangeHistoryRowCount >= 14;
+      const kurumeGogoPreviousRbGood = previousGames >= 2000 && features.previousRbDenominator <= 255;
+      const kurumeGogoComposite =
+        recentFourteenNetTotal >= -3000 &&
+        recentFourteenNetTotal <= 0 &&
+        kurumeGogoPreviousRbGood &&
+        recentTwentyOneNetTotal < 3500;
+      const kurumeGogoRepay = recentFourteenNetTotal < 0 && recentTwentyOneNetTotal < 0;
+      const kurumeGogoSinkStay = recentFourteenNegativeStayDays >= 7;
+      const kurumeGogoGentleAngle = features.recentFourteenAngle >= -60 && features.recentFourteenAngle <= 0;
+      const kurumeGogoPreviousHighFail = previousMachineHighContent && previousDifference <= 500;
+      const kurumeGogoTrustedGames = recentFourteenGamesTotal >= 33000 && recentSevenGamesTotal >= 18000;
+      const kurumeGogoNearbyLeftBehind = adjacentMachineNetTotal14 > 0 && recentFourteenNetTotal < 0;
+      const kurumeGogoTreatmentDone = recentFourteenNetTotal >= 3000;
+      const kurumeGogoAngleTooUp = features.recentFourteenAngle >= 70;
+      const kurumeGogoPreviousHighOut = previousMachineHighContent && previousDifference >= 1000;
+      const kurumeGogoPreviousLowUsage = previousGames < 800;
+      const kurumeGogoRecentLowUsage = recentSevenGamesTotal < 12000;
+      const kurumeGogoShowTooMany = recentSevenMachineHighContentCount >= 3;
+      const kurumeGogoLongNeglect = streak >= 8 && recentFourteenGamesTotal < 33000;
+      const kurumeGogoHistoryShort = targetRangeHistoryRowCount < 14;
+      const boostFlags = [
+        kurumeGogoRepay,
+        kurumeGogoSinkStay,
+        kurumeGogoGentleAngle,
+        kurumeGogoPreviousHighFail,
+        kurumeGogoTrustedGames,
+        kurumeGogoNearbyLeftBehind,
+        kurumeGogoComposite,
+      ];
+      const dangerFlags = [
+        kurumeGogoTreatmentDone,
+        kurumeGogoAngleTooUp,
+        kurumeGogoPreviousHighOut,
+        kurumeGogoPreviousLowUsage,
+        kurumeGogoRecentLowUsage,
+        kurumeGogoShowTooMany,
+        kurumeGogoLongNeglect,
+        kurumeGogoHistoryShort,
+      ];
+
+      return {
+        ...features,
+        kurumeGogoHistoryReady,
+        kurumeGogoPreviousRbGood,
+        kurumeGogoComposite,
+        kurumeGogoRepay,
+        kurumeGogoSinkStay,
+        kurumeGogoGentleAngle,
+        kurumeGogoPreviousHighFail,
+        kurumeGogoTrustedGames,
+        kurumeGogoNearbyLeftBehind,
+        kurumeGogoTreatmentDone,
+        kurumeGogoAngleTooUp,
+        kurumeGogoPreviousHighOut,
+        kurumeGogoPreviousLowUsage,
+        kurumeGogoRecentLowUsage,
+        kurumeGogoShowTooMany,
+        kurumeGogoLongNeglect,
+        treatmentDone: kurumeGogoTreatmentDone,
+        lowConfidence: kurumeGogoPreviousLowUsage || kurumeGogoRecentLowUsage,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     const gogoHistoryReady = historyRowCount >= 7;
     const gogoLosingStreak3 = streak >= 3;
     const gogoHighRest4To14 =
@@ -2270,6 +2381,8 @@ function calculateMachineScore(definition, metrics, features) {
   const winningStreak = readNumber(metrics.winningStreak);
   const historyNetTotal = readNumber(metrics.historyNetTotal);
   const historyPositiveDays = readNumber(metrics.historyPositiveDays);
+  const historyRowCount = readNumber(metrics.historyRowCount);
+  const targetRangeHistoryRowCount = readNumber(metrics.targetRangeHistoryRowCount, historyRowCount);
   const recentTwoGamesTotal = readNumber(metrics.recentTwoGamesTotal);
   const recentThreeGamesTotal = readNumber(metrics.recentThreeGamesTotal);
   const recentFiveGamesTotal = readNumber(metrics.recentFiveGamesTotal);
@@ -2282,6 +2395,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentTwoBonusTotal = readNumber(metrics.recentTwoBonusTotal);
   const recentFourteenGoldShowDays = readNumber(metrics.recentFourteenGoldShowDays);
   const recentFourteenWinDays = readNumber(metrics.recentFourteenWinDays);
+  const recentSevenLossDays = readNumber(metrics.recentSevenLossDays);
   const recentFiveHighSettingCandidateCount = readNumber(metrics.recentFiveHighSettingCandidateCount);
   const recentSevenHighSettingCandidateCount = readNumber(metrics.recentSevenHighSettingCandidateCount);
   const recentThreeHighSettingEstimateCount = readNumber(metrics.recentThreeHighSettingEstimateCount);
@@ -2302,6 +2416,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentTenMinus5225StayDays = readNumber(metrics.recentTenMinus5225StayDays);
   const recentFourteenMinus1800StayDays = readNumber(metrics.recentFourteenMinus1800StayDays);
   const recentFourteenMinus3218StayDays = readNumber(metrics.recentFourteenMinus3218StayDays);
+  const recentFourteenNegativeStayDays = readNumber(metrics.recentFourteenNegativeStayDays);
   const recentTwentyOneMinus1500StayDays = readNumber(metrics.recentTwentyOneMinus1500StayDays);
   const recentTwentyOneMinus2000StayDays = readNumber(metrics.recentTwentyOneMinus2000StayDays);
   const recentTwentyOneMinus11333StayDays = readNumber(metrics.recentTwentyOneMinus11333StayDays);
@@ -2336,6 +2451,7 @@ function calculateMachineScore(definition, metrics, features) {
   const adjacentMachineNetTotal14 = readNumber(metrics.adjacentMachineNetTotal14);
   const previousAdjacentMachineHighContentCount = readNumber(metrics.previousAdjacentMachineHighContentCount);
   const previousAdjacentMachineGoodContentCount = readNumber(metrics.previousAdjacentMachineGoodContentCount);
+  const previousAdjacentMachineBigWin1000Count = readNumber(metrics.previousAdjacentMachineBigWin1000Count);
   const previousOtherMachineHighContentCount = readNumber(metrics.previousOtherMachineHighContentCount);
   const sameMachinePreviousNetTotal = readNumber(metrics.sameMachinePreviousNetTotal);
   const previousCombinedDenominator = features.previousCombinedDenominator;
@@ -2686,6 +2802,159 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "gogo") {
+    if (activeLogicKey === "mj-kurume-gogo") {
+      let repayScore = 0;
+      if (recentFourteenNetTotal >= -3000 && recentFourteenNetTotal <= 0) {
+        repayScore += 14;
+      } else if (recentFourteenNetTotal >= -6000 && recentFourteenNetTotal <= -3001) {
+        repayScore += 8;
+      } else if (recentFourteenNetTotal < -6000) {
+        repayScore += 3;
+      } else if (recentFourteenNetTotal >= 1 && recentFourteenNetTotal <= 1500) {
+        repayScore += 1;
+      } else if (recentFourteenNetTotal >= 1501 && recentFourteenNetTotal <= 2999) {
+        repayScore -= 6;
+      } else if (recentFourteenNetTotal >= 3000) {
+        repayScore -= 18;
+      }
+      if (recentTwentyOneNetTotal >= -6000 && recentTwentyOneNetTotal <= -1000) {
+        repayScore += 10;
+      } else if (recentTwentyOneNetTotal < -6000) {
+        repayScore += 5;
+      } else if (recentTwentyOneNetTotal >= -999 && recentTwentyOneNetTotal <= -1) {
+        repayScore += 6;
+      } else if (recentTwentyOneNetTotal >= 1801 && recentTwentyOneNetTotal <= 3499) {
+        repayScore -= 6;
+      } else if (recentTwentyOneNetTotal >= 3500) {
+        repayScore -= 14;
+      }
+      repayScore += recentSevenNetTotal <= -1500 ? 3 : 0;
+      repayScore -= recentSevenNetTotal >= 2200 ? 5 : 0;
+      repayScore = clamp(repayScore, -25, 25);
+
+      let bonusScore = 0;
+      bonusScore +=
+        previousGames >= 2000 && previousRbDenominator <= 255
+          ? 18
+          : previousGames >= 2000 && previousRbDenominator <= 300
+            ? 6
+            : 0;
+      bonusScore +=
+        previousGames >= 2000 && previousCombinedDenominator <= 130
+          ? 5
+          : previousGames >= 2000 && previousCombinedDenominator <= 145
+            ? 2
+            : 0;
+      if (previousMachineHighContent && previousDifference < 0) {
+        bonusScore += 12;
+      } else if (previousMachineHighContent && previousDifference <= 500) {
+        bonusScore += 9;
+      } else if (previousMachineHighContent && previousDifference <= 1000) {
+        bonusScore += 2;
+      } else if (previousMachineHighContent && previousDifference >= 1500) {
+        bonusScore -= 12;
+      }
+      bonusScore -= previousGames >= 3000 && previousDifference >= 1000 && previousRbDenominator > 330 ? 9 : 0;
+      bonusScore = clamp(bonusScore, -15, 25);
+
+      const compositeCore =
+        recentFourteenNetTotal >= -3000 &&
+        recentFourteenNetTotal <= 0 &&
+        previousGames >= 2000 &&
+        previousRbDenominator <= 255 &&
+        recentTwentyOneNetTotal < 3500;
+      let compositeScore = 0;
+      compositeScore += compositeCore ? 15 : 0;
+      compositeScore += compositeCore && recentTwentyOneNetTotal < 0 ? 3 : 0;
+      compositeScore +=
+        recentTwentyOneNetTotal >= -6000 &&
+        recentTwentyOneNetTotal <= -1000 &&
+        recentFourteenNetTotal >= -3000 &&
+        recentFourteenNetTotal <= 0 &&
+        recentFourteenGamesTotal >= 33000
+          ? 4
+          : 0;
+      compositeScore +=
+        recentFourteenNetTotal < 0 && previousMachineHighContent && previousDifference <= 500 ? 8 : 0;
+      compositeScore -= recentFourteenNetTotal >= 3000 ? 6 : 0;
+      compositeScore = clamp(compositeScore, -10, 18);
+
+      let gamesScore = 0;
+      gamesScore += scoreInRange(recentFourteenGamesTotal, 33000, 62000, 6);
+      gamesScore +=
+        scoreInRange(recentFourteenGamesTotal, 24000, 32999, 3) ||
+        scoreInRange(recentFourteenGamesTotal, 62001, 70000, 3);
+      gamesScore -= recentFourteenGamesTotal < 18000 ? 7 : 0;
+      gamesScore += recentSevenGamesTotal >= 18000 ? 3 : 0;
+      gamesScore -= recentSevenGamesTotal < 12000 ? 5 : 0;
+      gamesScore += scoreInRange(previousGames, 2000, 4500, 2);
+      gamesScore -= previousGames < 800 ? 4 : 0;
+      gamesScore = clamp(gamesScore, -12, 10);
+
+      let sinkStayScore = 0;
+      sinkStayScore += streak >= 7 ? 6 :
+        streak >= 5 ? 8 :
+        streak >= 4 ? 7 :
+        streak >= 3 ? 5 :
+        streak >= 2 ? 2 :
+        0;
+      sinkStayScore += recentSevenLossDays >= 6 ? 5 : recentSevenLossDays === 5 ? 3 : recentSevenLossDays <= 3 ? -4 : 0;
+      sinkStayScore += recentFourteenNegativeStayDays >= 15 ? 5 :
+        recentFourteenNegativeStayDays >= 7 ? 4 :
+        recentFourteenNegativeStayDays >= 3 ? 2 :
+        0;
+      sinkStayScore = clamp(sinkStayScore, -8, 12);
+
+      let angleScore = 0;
+      if (features.recentFourteenAngle >= -60 && features.recentFourteenAngle <= 0) {
+        angleScore += 7;
+      } else if (features.recentFourteenAngle >= -120 && features.recentFourteenAngle <= -61) {
+        angleScore += 3;
+      } else if (features.recentFourteenAngle >= 1 && features.recentFourteenAngle <= 35) {
+        angleScore += 1;
+      } else if (features.recentFourteenAngle > 35 && features.recentFourteenAngle < 70) {
+        angleScore -= 5;
+      } else if (features.recentFourteenAngle >= 70) {
+        angleScore -= 12;
+      }
+      angleScore -= features.recentSevenAngle >= 90 ? 4 : 0;
+      angleScore = clamp(angleScore, -14, 8);
+
+      let nearbyScore = 0;
+      nearbyScore +=
+        !Number.isFinite(daysSinceMachineHighContent) &&
+        historyRowCount >= 14 &&
+        recentTwentyOneNetTotal < 0
+          ? 2
+          : 0;
+      nearbyScore += scoreInRange(daysSinceMachineHighContent, 2, 7, 3);
+      nearbyScore += scoreInRange(daysSinceMachineHighContent, 8, 14, 1);
+      nearbyScore -= previousMachineHighContent ? 2 : 0;
+      nearbyScore += adjacentMachineNetTotal14 > 0 && recentFourteenNetTotal < 0 ? 3 : 0;
+      nearbyScore += adjacentMachineNetTotal14 > 0 && recentFourteenNetTotal < 0 && streak >= 2 ? 2 : 0;
+      nearbyScore -= recentSevenMachineHighContentCount >= 3 ? 7 : recentSevenMachineHighContentCount >= 2 ? 3 : 0;
+      nearbyScore -= previousAdjacentMachineBigWin1000Count > 0 ? 2 : 0;
+      nearbyScore = clamp(nearbyScore, -10, 7);
+
+      let dangerPenalty = 0;
+      dangerPenalty += targetRangeHistoryRowCount < 7 ? 25 : 0;
+      dangerPenalty += previousGames < 500 ? 5 : 0;
+      dangerPenalty += recentFourteenNetTotal >= 3500 && features.recentFourteenAngle >= 70 ? 10 : 0;
+      dangerPenalty += recentTwentyOneNetTotal >= 6000 ? 7 : 0;
+      dangerPenalty +=
+        recentSevenGamesTotal < 10000 &&
+        !(previousGames >= 2000 && previousRbDenominator <= 300) &&
+        !previousMachineHighContent
+          ? 5
+          : 0;
+
+      return Math.round(clamp(
+        25 + repayScore + bonusScore + compositeScore + gamesScore + sinkStayScore + angleScore + nearbyScore - dangerPenalty,
+        0,
+        100,
+      ));
+    }
+
     let sinkScore = 0;
     sinkScore += scoreAtLeast(streak, [
       { minimum: 4, points: 24 },
