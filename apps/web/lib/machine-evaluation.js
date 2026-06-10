@@ -752,11 +752,12 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "mj-kurume-main",
-        "1位＋次点差8点以上＋低稼働危険なし",
+        "1位＋次点差8点以上＋低稼働・危険条件なし",
         "80件 / 104.38% / RB1/317.7",
         {
           rankMax: 1,
           minNextGap: 8,
+          maxDanger: 0,
           requiredFlags: ["kurumeMyHistoryReady", "kurumeMyNoLowUsage"],
         },
         ["mj-kurume-my"],
@@ -2236,7 +2237,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
 
   if (machineKey === "my") {
     if (activeLogicKey === "mj-kurume-my") {
-      const kurumeMyHistoryReady = targetRangeHistoryRowCount >= 14;
+      const kurumeMyHistoryReady = historyRowCount >= 14;
       const kurumeMySinkStayStrong =
         recentFourteenMinus3000StayDays >= 3 || recentFiveMinus2000StayDays >= 2;
       const kurumeMyAngleStrong =
@@ -2290,6 +2291,9 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         kurumeMyPreviousHighFail,
         kurumeMyNearbyLeftBehind,
         kurumeMyLowUsage,
+        kurumeMyHighContentBurst,
+        kurumeMyLongNeglect,
+        kurumeMyBbLeanOutput,
         kurumeMyNoLowUsage: !kurumeMyLowUsage,
         treatmentDone: kurumeMyTreatmentDone,
         lowConfidence: kurumeMyLowUsage,
