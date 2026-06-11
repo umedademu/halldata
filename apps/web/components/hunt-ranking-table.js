@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { SortableTableHeader } from "./sortable-table-header";
 import {
   formatAverageGames,
+  formatCompactDate,
   formatDecimal,
   formatMonthDay,
   formatNumber,
@@ -41,6 +42,9 @@ import {
   selectDifferenceValue,
 } from "../lib/machine-difference";
 import { getHuntMachineShortName } from "../lib/hunt-machine-display";
+import {
+  getCommonHuntScoreMachineTopBacktestResult,
+} from "../lib/hunt-score-top-backtest-results";
 
 const DEFAULT_VISIBLE_RESULT_KEYS = [
   "difference_value",
@@ -421,6 +425,73 @@ function getMachineEvaluationPayoutClass(payoutRate) {
   return "";
 }
 
+function isMachineTopRankRow(row) {
+  return readRankingSortNumber(row?.machineRank ?? row?.bookmarkRank ?? row?.rank, null) === 1;
+}
+
+function readCommonHuntScoreMachineTopBacktestResult(storeId, storeName, row) {
+  if (!isMachineTopRankRow(row)) {
+    return null;
+  }
+
+  return getCommonHuntScoreMachineTopBacktestResult({
+    storeId,
+    storeName,
+    machineName: row?.machineName,
+  });
+}
+
+function buildBacktestMetricTitleLine(label, value, formatter) {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+  const formattedValue = formatter(value);
+  return formattedValue && formattedValue !== "-" ? `${label}: ${formattedValue}` : "";
+}
+
+function buildCommonHuntScoreBacktestTitleParts(backtestResult) {
+  if (!backtestResult) {
+    return [];
+  }
+
+  const periodLabel = Number.isFinite(backtestResult.periodDays)
+    ? `直近${formatNumber(backtestResult.periodDays)}日`
+    : "";
+  const dateRangeLabel =
+    backtestResult.targetStartDate && backtestResult.targetEndDate
+      ? `対象期間: ${formatCompactDate(backtestResult.targetStartDate)} 〜 ${formatCompactDate(backtestResult.targetEndDate)}`
+      : "";
+  const sourceLabel = backtestResult.sourceLabel ? `保存元: ${backtestResult.sourceLabel}` : "";
+
+  return [
+    "共通狙い度1位バックテスト:",
+    `条件: ${backtestResult.conditionLabel}`,
+    periodLabel ? `期間: ${periodLabel}` : "",
+    dateRangeLabel,
+    buildBacktestMetricTitleLine("対象日数", backtestResult.targetDateCount, formatNumber),
+    buildBacktestMetricTitleLine("一致日数", backtestResult.matchedDateCount, formatNumber),
+    buildBacktestMetricTitleLine("集計台数", backtestResult.actualRowCount, formatNumber),
+    buildBacktestMetricTitleLine("機械割", backtestResult.payoutRate, formatPercent),
+    buildBacktestMetricTitleLine("平均差枚", backtestResult.averageDifference, formatSignedNumber),
+    buildBacktestMetricTitleLine("勝率", backtestResult.winRate, formatPercent),
+    buildBacktestMetricTitleLine("平均G", backtestResult.averageGames, formatAverageGames),
+    buildBacktestMetricTitleLine("平均設定", backtestResult.averageSetting, formatSettingEstimateScore),
+    buildBacktestMetricTitleLine("平均狙い度", backtestResult.averageHuntScore, formatDecimal),
+    buildBacktestMetricTitleLine("上差(同)", backtestResult.averageUpperGap, formatDecimal),
+    buildBacktestMetricTitleLine("下差(同)", backtestResult.averageNextGap, formatDecimal),
+    backtestResult.combinedProbability ? `合成: ${backtestResult.combinedProbability}` : "",
+    backtestResult.bbProbability ? `BB率: ${backtestResult.bbProbability}` : "",
+    backtestResult.rbProbability ? `RB率: ${backtestResult.rbProbability}` : "",
+    buildBacktestMetricTitleLine("ブドウ", backtestResult.grapeDenominator, formatDecimal),
+    backtestResult.savedAt ? `保存日: ${formatCompactDate(backtestResult.savedAt)}` : "",
+    sourceLabel,
+  ].filter(Boolean);
+}
+
+function formatCommonHuntScoreBacktestCellMeta(backtestResult) {
+  return Number.isFinite(backtestResult?.payoutRate) ? formatPercent(backtestResult.payoutRate) : "";
+}
+
 function buildMatchedConditionTitleParts(evaluation) {
   const matchedConditions = Array.isArray(evaluation?.matchedConditions)
     ? evaluation.matchedConditions
@@ -657,8 +728,42 @@ function compareSortableTableRows(
   return sortState.direction === "asc" ? baseResult : -baseResult;
 }
 
+function HuntScoreCell({
+  storeId,
+  storeName,
+  row,
+  highlightCondition,
+  bookmarkMatchByRowKey = null,
+  extraTitle = "",
+  sortable = false,
+}) {
+  const backtestResult = readCommonHuntScoreMachineTopBacktestResult(storeId, storeName, row);
+  const backtestTitle = buildCommonHuntScoreBacktestTitleParts(backtestResult).join("\n");
+  const backtestMeta = formatCommonHuntScoreBacktestCellMeta(backtestResult);
+  const className = [
+    getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey),
+    backtestResult ? "huntScoreBacktestMatchedCell" : "",
+    getMachineEvaluationPayoutClass(backtestResult?.payoutRate),
+  ].filter(Boolean).join(" ");
+  const sortProps = sortable
+    ? { "data-sort-value": readRankingSortNumber(row.huntScore, "") }
+    : {};
+
+  return (
+    <td
+      className={className || undefined}
+      title={combineTitleParts(backtestTitle, extraTitle) || undefined}
+      {...sortProps}
+    >
+      <span className="huntScoreBacktestCellValue">{formatNumber(row.huntScore)}</span>
+      {backtestMeta ? <span className="huntScoreBacktestCellMeta">{backtestMeta}</span> : null}
+    </td>
+  );
+}
+
 function OverallRankingTable({
   storeId,
+  storeName,
   sectionLabel = "狙い度上位",
   rankColumnLabel = "順位",
   title,
@@ -818,17 +923,15 @@ function OverallRankingTable({
                   >
                     {row.rank}
                   </td>
-                  <td
-                    className={getRankingConditionHighlightClass(
-                      row,
-                      highlightCondition,
-                      bookmarkMatchByRowKey,
-                    )}
-                    data-sort-value={readRankingSortNumber(row.huntScore, "")}
-                    title={rowSite7Title || undefined}
-                  >
-                    {formatNumber(row.huntScore)}
-                  </td>
+                  <HuntScoreCell
+                    storeId={storeId}
+                    storeName={storeName}
+                    row={row}
+                    highlightCondition={highlightCondition}
+                    bookmarkMatchByRowKey={bookmarkMatchByRowKey}
+                    extraTitle={rowSite7Title}
+                    sortable
+                  />
                   {showSubHuntScoreColumn ? (
                     <td
                       title={combineTitleParts(subHuntScoreTitle, rowSite7Title)}
@@ -895,6 +998,7 @@ function OverallRankingTable({
 
 export function HuntRankingTable({
   storeId,
+  storeName = "",
   rows = [],
   rankingGroups = [],
   overallLimit = 20,
@@ -1224,6 +1328,7 @@ export function HuntRankingTable({
       {selectedOverallRows.length > 0 ? (
         <OverallRankingTable
           storeId={storeId}
+          storeName={storeName}
           title={`選択機種内ランキング 上位${formatNumber(selectedOverallRows.length)}台`}
           rows={selectedOverallRows}
           visibleColumns={visibleColumns}
@@ -1246,6 +1351,7 @@ export function HuntRankingTable({
         machineTopCandidateRows.length > 0 ? (
           <OverallRankingTable
             storeId={storeId}
+            storeName={storeName}
             sectionLabel="各機種1位"
             rankColumnLabel="順位"
             title={`各機種1位 ${formatNumber(machineTopCandidateRows.length)}台`}
@@ -1337,12 +1443,14 @@ export function HuntRankingTable({
                       >
                         {row.rank}
                       </td>
-                      <td
-                        className={getRankingConditionHighlightClass(row, tableHighlightCondition, bookmarkMatchByRowKey)}
-                        title={rowSite7Title || undefined}
-                      >
-                        {formatNumber(row.huntScore)}
-                      </td>
+                      <HuntScoreCell
+                        storeId={storeId}
+                        storeName={storeName}
+                        row={row}
+                        highlightCondition={tableHighlightCondition}
+                        bookmarkMatchByRowKey={bookmarkMatchByRowKey}
+                        extraTitle={rowSite7Title}
+                      />
                       {showSubHuntScoreColumn ? (
                         <td title={combineTitleParts(subHuntScoreTitle, rowSite7Title)}>
                           {formatNumber(row.subHuntScore)}

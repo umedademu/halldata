@@ -720,6 +720,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             detail.rankingDates.length > 0 ? (
               <HuntRankingTable
                 storeId={detail.store.id}
+                storeName={detail.store.storeName}
                 rows={visibleRows}
                 rankingGroups={visibleRankingGroups}
                 overallLimit={detail.limit}
