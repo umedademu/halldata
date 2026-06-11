@@ -846,6 +846,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logicName: "マイジャグ春日式",
     logics: [
       buildLogicVariant("apark-my", "マイジャグ春日式", "main"),
+      buildLogicVariant("apark-yakatabaru-my", "マイジャグ屋形原式", "apark-yakatabaru-main"),
       buildLogicVariant("mj-kurume-my", "マイジャグMJ久留米式", "mj-kurume-main"),
     ],
     profile: "juggler",
@@ -861,6 +862,68 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["myHistoryReady", "myLosingStreak3", "myRecentFiveLoss3500"],
         },
         ["apark-my"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-main",
+        "90点以上＋直近3日G数9000〜16000",
+        "109件 / 104.39% / RB1/291.4",
+        {
+          minScore: 90,
+          requiredFlags: ["yakatabaruMyHistoryReady", "yakatabaruMyGamesCore"],
+        },
+        ["apark-yakatabaru-my"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-strict",
+        "90点以上＋直近3日G数9000〜16000＋直近7日高内容0回",
+        "84件 / 104.75% / RB1/287.5",
+        {
+          minScore: 90,
+          requiredFlags: ["yakatabaruMyHistoryReady", "yakatabaruMyGamesCore", "yakatabaruMyNoRecentHigh"],
+        },
+        ["apark-yakatabaru-my"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-score90",
+        "90点以上",
+        "155件 / 103.45% / RB1/295.0",
+        {
+          minScore: 90,
+          requiredFlags: ["yakatabaruMyHistoryReady"],
+        },
+        ["apark-yakatabaru-my"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-score80",
+        "80点以上",
+        "397件 / 103.17% / RB1/295.2",
+        {
+          minScore: 80,
+          requiredFlags: ["yakatabaruMyHistoryReady"],
+        },
+        ["apark-yakatabaru-my"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-score70",
+        "70点以上",
+        "676件 / 102.82% / RB1/300.3",
+        {
+          minScore: 70,
+          requiredFlags: ["yakatabaruMyHistoryReady"],
+        },
+        ["apark-yakatabaru-my"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-rank3-danger0",
+        "上位3位以内＋70点以上＋危険0",
+        "597件 / 102.81% / RB1/297.9",
+        {
+          rankMax: 3,
+          minScore: 70,
+          maxDanger: 0,
+          requiredFlags: ["yakatabaruMyHistoryReady"],
+        },
+        ["apark-yakatabaru-my"],
       ),
       buildCondition(
         "mj-kurume-main",
@@ -1068,6 +1131,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-girls");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-neo-aim");
+  } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "my") {
+    defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-my");
   } else if (isAparkKasugaStore(storeName)) {
     defaultLogic = findLogicDefinition(definition, definition.logicKey);
   }
@@ -1595,6 +1660,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentTwentyOneMinus2000StayDays = readNumber(metrics.recentTwentyOneMinus2000StayDays);
   const adjacentHighSettingCandidateCount7 = readNumber(metrics.adjacentHighSettingCandidateCount7);
   const adjacentMachineHighContentCount3 = readNumber(metrics.adjacentMachineHighContentCount3);
+  const adjacentMachineHighContentCount3Near2 = readNumber(metrics.adjacentMachineHighContentCount3Near2);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
   const adjacentMachineHighContentCount7Near2 = readNumber(metrics.adjacentMachineHighContentCount7Near2);
@@ -2489,6 +2555,70 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "my") {
+    if (activeLogicKey === "apark-yakatabaru-my") {
+      const yakatabaruMyHistoryReady = historyRowCount >= 21;
+      const yakatabaruMyGamesCore = recentThreeGamesTotal >= 9000 && recentThreeGamesTotal <= 16000;
+      const yakatabaruMyNoRecentHigh = recentSevenMachineHighContentCount === 0;
+      const yakatabaruMyStrongSink =
+        recentThreeNetTotal <= -2000 || streak >= 3 || features.recentThreeAngle <= -100;
+      const yakatabaruMyWeakBonus =
+        features.recentThreeCombinedDenominator >= 170 ||
+        (features.recentThreeCombinedDenominator >= 160 && features.recentThreeRbDenominator >= 420);
+      const yakatabaruMyUnpaidSink =
+        recentSevenNetTotal <= -2500 ||
+        (recentFourteenNetTotal <= -3000 && recentSevenMachineHighContentCount <= 1);
+      const yakatabaruMyRestOpen =
+        recentSevenMachineHighContentCount === 0 &&
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 5;
+      const yakatabaruMyTrustedGames = recentThreeGamesTotal >= 9000 && recentSevenGamesTotal >= 25000;
+      const yakatabaruMyTreatmentDone =
+        previousDifference >= 2000 ||
+        (previousMachineHighContent && previousDifference >= 1000) ||
+        recentThreeNetTotal >= 3000 ||
+        recentFourteenNetTotal >= 7000;
+      const yakatabaruMyLowGames = recentThreeGamesTotal < 6000 || recentSevenGamesTotal < 18000;
+      const yakatabaruMyRecentTooStrong = features.recentThreeCombinedDenominator <= 135;
+      const yakatabaruMyLongNeglect =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 35 &&
+        recentTwentyOneMachineHighContentCount === 0 &&
+        !yakatabaruMyStrongSink;
+      const boostFlags = [
+        yakatabaruMyStrongSink,
+        yakatabaruMyWeakBonus,
+        yakatabaruMyUnpaidSink,
+        yakatabaruMyRestOpen,
+        yakatabaruMyTrustedGames,
+      ];
+      const dangerFlags = [
+        yakatabaruMyTreatmentDone,
+        yakatabaruMyLowGames,
+        yakatabaruMyRecentTooStrong,
+        yakatabaruMyLongNeglect,
+      ];
+
+      return {
+        ...features,
+        yakatabaruMyHistoryReady,
+        yakatabaruMyGamesCore,
+        yakatabaruMyNoRecentHigh,
+        yakatabaruMyStrongSink,
+        yakatabaruMyWeakBonus,
+        yakatabaruMyUnpaidSink,
+        yakatabaruMyRestOpen,
+        yakatabaruMyTrustedGames,
+        yakatabaruMyTreatmentDone,
+        yakatabaruMyLowGames,
+        yakatabaruMyRecentTooStrong,
+        yakatabaruMyLongNeglect,
+        treatmentDone: yakatabaruMyTreatmentDone,
+        lowConfidence: yakatabaruMyLowGames,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "mj-kurume-my") {
       const kurumeMyHistoryReady = historyRowCount >= 14;
       const kurumeMySinkStayStrong =
@@ -2829,6 +2959,7 @@ function calculateMachineScore(definition, metrics, features) {
   const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
   const machineGoodContentStreak = readNumber(metrics.machineGoodContentStreak);
   const adjacentMachineHighContentCount3 = readNumber(metrics.adjacentMachineHighContentCount3);
+  const adjacentMachineHighContentCount3Near2 = readNumber(metrics.adjacentMachineHighContentCount3Near2);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
   const adjacentMachineHighContentCount7Near2 = readNumber(metrics.adjacentMachineHighContentCount7Near2);
@@ -3469,6 +3600,83 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "my") {
+    if (activeLogicKey === "apark-yakatabaru-my") {
+      if (historyRowCount < 21) {
+        return 0;
+      }
+
+      let score = 0;
+      score += scoreAtLeast(streak, [
+        { minimum: 3, points: 25 },
+        { minimum: 2, points: 16 },
+        { minimum: 1, points: 5 },
+      ]);
+      score += scoreAtMost(recentThreeNetTotal, [
+        { maximum: -3000, points: 22 },
+        { maximum: -2000, points: 18 },
+        { maximum: -1500, points: 13 },
+        { maximum: -1000, points: 8 },
+        { maximum: -500, points: 4 },
+      ]);
+      score += scoreAtLeast(features.recentThreeCombinedDenominator, [
+        { minimum: 180, points: 18 },
+        { minimum: 170, points: 15 },
+        { minimum: 160, points: 10 },
+        { minimum: 155, points: 6 },
+      ]);
+      score += scoreAtLeast(features.recentThreeRbDenominator, [
+        { minimum: 500, points: 5 },
+        { minimum: 420, points: 3 },
+        { minimum: 380, points: 1 },
+      ]);
+      score += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -5000, points: 12 },
+        { maximum: -3000, points: 9 },
+        { maximum: -1500, points: 5 },
+      ]);
+      score += scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -5000, points: 5 },
+        { maximum: -3000, points: 3 },
+      ]);
+      score +=
+        recentSevenMachineHighContentCount === 0
+          ? 8
+          : recentSevenMachineHighContentCount === 1
+            ? 3
+            : 0;
+      score +=
+        recentFourteenMachineHighContentCount === 0
+          ? 4
+          : recentFourteenMachineHighContentCount === 1
+            ? 2
+            : 0;
+      score += scoreAtLeast(daysSinceMachineHighContent, [
+        { minimum: 10, points: 6 },
+        { minimum: 6, points: 4 },
+        { minimum: 4, points: 2 },
+      ]);
+      score +=
+        recentThreeGamesTotal >= 9000 && recentThreeGamesTotal <= 16000
+          ? 5
+          : recentThreeGamesTotal >= 6000 && recentThreeGamesTotal < 9000
+            ? 2
+            : recentThreeGamesTotal < 6000
+              ? -10
+              : 0;
+      score += recentSevenGamesTotal >= 25000 ? 2 : 0;
+      score += adjacentMachineHighContentCount3Near2 === 1 ? 2 : 0;
+      score += adjacentMachineHighContentCount3 === 2 ? 1 : 0;
+
+      let penalty = 0;
+      penalty += previousDifference >= 2000 ? 15 : previousDifference >= 1500 ? 8 : 0;
+      penalty += previousMachineHighContent && previousDifference >= 1000 ? 10 : 0;
+      penalty += recentThreeNetTotal >= 3000 ? 12 : recentThreeNetTotal >= 2000 ? 7 : 0;
+      penalty += recentFourteenNetTotal >= 7000 ? 6 : 0;
+      penalty += features.recentThreeCombinedDenominator <= 140 ? 7 : 0;
+
+      return Math.round(clamp(score - penalty, 0, 100));
+    }
+
     if (activeLogicKey === "mj-kurume-my") {
       let score = 20;
 

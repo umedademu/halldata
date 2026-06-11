@@ -755,6 +755,8 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "apark-yakatabaru-neo-aim",
       "ネオアイムジャグラーＥＸ": "apark-yakatabaru-neo-aim",
+      "マイジャグラーV": "apark-yakatabaru-my",
+      "マイジャグラーⅤ": "apark-yakatabaru-my",
     },
   },
   {
@@ -1509,7 +1511,16 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("マイジャグラーⅤ") ||
     normalizedMachineName === normalizeText("マイジャグラー")
   ) {
-    if (readMachineContentRule(config, machineName) === "mj-arena-kurume-my") {
+    const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "apark-yakatabaru-my") {
+      return (
+        games >= 5000 &&
+        ((combinedDenominator <= 135 && rbDenominator <= 300) ||
+          (combinedDenominator <= 140 && rbDenominator <= 270) ||
+          (combinedDenominator <= 130 && rbDenominator <= 330))
+      );
+    }
+    if (contentRule === "mj-arena-kurume-my") {
       return games >= 3000 && calculateKurumeMyHighContentScore(row) >= 60;
     }
     return games >= 6000 && rbDenominator <= 270 && combinedDenominator <= 135;
@@ -6987,6 +6998,16 @@ function calculateWindowMetrics(
     3,
     currentMachineName,
   );
+  const adjacentMachineHighContentCount3Near2 = countAdjacentMachineHighContentRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    3,
+    currentMachineName,
+    1,
+  );
   const adjacentMachineHighContentCount14 = countAdjacentMachineHighContentRows(
     businessDates,
     dateIndex,
@@ -7223,6 +7244,7 @@ function calculateWindowMetrics(
     recentTwentyOneMachineHighContentCount,
     recentThirtyMachineHighContentCount,
     adjacentMachineHighContentCount3,
+    adjacentMachineHighContentCount3Near2,
     recentSevenMachineGoodContentCount,
     recentSevenMachineWeakContentCount,
     recentFourteenMachineGoodContentCount,
