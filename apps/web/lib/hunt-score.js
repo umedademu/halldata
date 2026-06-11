@@ -7611,19 +7611,32 @@ function buildSnapshotRowsForDate(
     };
   });
   const validCandidates = candidates.filter((candidate) => candidate.metrics);
+  const metricsList = validCandidates.map((candidate) => candidate.metrics);
+  let machineActiveSlotCountByName = null;
+  let machineHighSettingCandidateRateByName = null;
   const context = {
     baseDate,
     nextBusinessDate,
     windowDays: config.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
-    metricsList: validCandidates.map((candidate) => candidate.metrics),
-    machineActiveSlotCountByName: buildMachineActiveSlotCountMap(dateRows, config),
-    machineHighSettingCandidateRateByName: buildMachineHighSettingCandidateRateMap(
-      businessDates,
-      dateIndex,
-      rowsByDate,
-      settingDefinitionCache,
-      config,
-    ),
+    metricsList,
+    get machineActiveSlotCountByName() {
+      if (machineActiveSlotCountByName === null) {
+        machineActiveSlotCountByName = buildMachineActiveSlotCountMap(dateRows, config);
+      }
+      return machineActiveSlotCountByName;
+    },
+    get machineHighSettingCandidateRateByName() {
+      if (machineHighSettingCandidateRateByName === null) {
+        machineHighSettingCandidateRateByName = buildMachineHighSettingCandidateRateMap(
+          businessDates,
+          dateIndex,
+          rowsByDate,
+          settingDefinitionCache,
+          config,
+        );
+      }
+      return machineHighSettingCandidateRateByName;
+    },
   };
 
   const rows = validCandidates
