@@ -398,22 +398,74 @@ function formatNextGapForScope(row, nextGapScope) {
   return formatDecimal(readNextGapForRankScope(row, normalizeNextGapScope(nextGapScope)));
 }
 
+function getMachineEvaluationPayoutClass(payoutRate) {
+  const rate = Number(payoutRate);
+  if (!Number.isFinite(rate)) {
+    return "";
+  }
+  if (rate >= 106) {
+    return "machineEvaluationPayoutPurple";
+  }
+  if (rate >= 105) {
+    return "machineEvaluationPayoutRed";
+  }
+  if (rate >= 104) {
+    return "machineEvaluationPayoutGreen";
+  }
+  if (rate >= 103) {
+    return "machineEvaluationPayoutYellow";
+  }
+  if (rate >= 102) {
+    return "machineEvaluationPayoutBlue";
+  }
+  return "";
+}
+
+function buildMatchedConditionTitleParts(evaluation) {
+  const matchedConditions = Array.isArray(evaluation?.matchedConditions)
+    ? evaluation.matchedConditions
+    : [];
+  if (matchedConditions.length === 0) {
+    return [];
+  }
+
+  return [
+    "一致した採用条件:",
+    ...matchedConditions.map((condition) => {
+      const selectedLabel = condition.isSelected ? " / 選択中" : "";
+      const backtestLabel = condition.backtestLabel ? ` / ${condition.backtestLabel}` : "";
+      return `・${condition.conditionName}${backtestLabel}${selectedLabel}`;
+    }),
+  ];
+}
+
 function MachineEvaluationCell({ evaluation, extraTitle = "" }) {
   if (!evaluation) {
     return <td title={extraTitle || undefined} data-sort-value="">-</td>;
   }
 
+  const matchedConditionTitleParts = buildMatchedConditionTitleParts(evaluation);
   const titleParts = [
     evaluation.logicName ? `機種別ロジック: ${evaluation.logicName}` : "",
-    evaluation.conditionName ? `採用条件: ${evaluation.conditionName}` : "",
-    evaluation.backtestLabel ? `目安: ${evaluation.backtestLabel}` : "",
+    matchedConditionTitleParts.length > 0
+      ? matchedConditionTitleParts.join("\n")
+      : evaluation.conditionName
+        ? `採用条件: ${evaluation.conditionName}`
+        : "",
+    matchedConditionTitleParts.length === 0 && evaluation.backtestLabel
+      ? `目安: ${evaluation.backtestLabel}`
+      : "",
     Number.isFinite(evaluation.rank) ? `機種別順位: ${evaluation.rank}` : "",
     Number.isFinite(evaluation.nextGap) ? `次点差: ${formatDecimal(evaluation.nextGap)}` : "",
   ].filter(Boolean);
+  const cellClassNames = [
+    evaluation.matchesAnyCondition ? "machineEvaluationMatchedCell" : "",
+    getMachineEvaluationPayoutClass(evaluation.bestMatchedBacktestPayoutRate),
+  ].filter(Boolean).join(" ");
 
   return (
     <td
-      className={evaluation.matchesAdoption ? "machineEvaluationMatchedCell" : undefined}
+      className={cellClassNames || undefined}
       title={combineTitleParts(titleParts.join("\n"), extraTitle) || undefined}
       data-sort-value={readRankingSortNumber(evaluation.score, "")}
     >
@@ -757,11 +809,6 @@ function OverallRankingTable({
                   title={rowSite7Title || undefined}
                 >
                   <td
-                    className={getRankingConditionHighlightClass(
-                      row,
-                      highlightCondition,
-                      bookmarkMatchByRowKey,
-                    )}
                     data-sort-value={readRankingSortNumber(row.rank, "")}
                     title={rowSite7Title || undefined}
                   >
@@ -793,11 +840,6 @@ function OverallRankingTable({
                     />
                   ) : null}
                   <td
-                    className={getRankingConditionHighlightClass(
-                      row,
-                      highlightCondition,
-                      bookmarkMatchByRowKey,
-                    )}
                     data-sort-value={readRankingSortNumber(
                       readNextGapForRankScope(row, normalizeNextGapScope(nextGapScope)),
                       "",
@@ -1270,7 +1312,6 @@ export function HuntRankingTable({
                       title={rowSite7Title || undefined}
                     >
                       <td
-                        className={getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey)}
                         title={rowSite7Title || undefined}
                       >
                         {row.rank}
@@ -1293,7 +1334,6 @@ export function HuntRankingTable({
                         />
                       ) : null}
                       <td
-                        className={getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey)}
                         title={rowSite7Title || undefined}
                       >
                         {formatNextGapForScope(row, nextGapScope)}

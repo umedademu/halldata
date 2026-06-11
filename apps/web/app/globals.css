@@ -499,9 +499,53 @@ a {
 
 .directoryTable tbody td.machineEvaluationMatchedCell,
 .directoryTable tbody tr:nth-child(odd) td.machineEvaluationMatchedCell,
-.directoryTable tbody tr:hover td.machineEvaluationMatchedCell {
-  background: rgba(124, 58, 237, 0.16);
-  color: #5b21b6;
+.directoryTable tbody tr:hover td.machineEvaluationMatchedCell,
+.directoryTable tbody tr.settingEstimateLevel0 td.machineEvaluationMatchedCell,
+.directoryTable tbody tr.settingEstimateLevel0:nth-child(odd) td.machineEvaluationMatchedCell,
+.directoryTable tbody tr.settingEstimateLevel0:hover td.machineEvaluationMatchedCell,
+.directoryTable tbody tr.settingEstimateLevel1 td.machineEvaluationMatchedCell,
+.directoryTable tbody tr.settingEstimateLevel1:nth-child(odd) td.machineEvaluationMatchedCell,
+.directoryTable tbody tr.settingEstimateLevel1:hover td.machineEvaluationMatchedCell,
+.directoryTable tbody tr.settingEstimateLevel2 td.machineEvaluationMatchedCell,
+.directoryTable tbody tr.settingEstimateLevel2:nth-child(odd) td.machineEvaluationMatchedCell,
+.directoryTable tbody tr.settingEstimateLevel2:hover td.machineEvaluationMatchedCell,
+.directoryTable tbody tr.settingEstimateLevel3 td.machineEvaluationMatchedCell,
+.directoryTable tbody tr.settingEstimateLevel3:nth-child(odd) td.machineEvaluationMatchedCell,
+.directoryTable tbody tr.settingEstimateLevel3:hover td.machineEvaluationMatchedCell {
+  background: var(--machine-evaluation-bg, rgba(124, 58, 237, 0.16));
+  color: var(--machine-evaluation-color, #5b21b6);
+  font-weight: 900;
+  box-shadow: inset 0 0 0 1px var(--machine-evaluation-ring, rgba(91, 50, 142, 0.18));
+}
+
+.machineEvaluationPayoutBlue {
+  --machine-evaluation-bg: #dbeafe;
+  --machine-evaluation-color: #1d4ed8;
+  --machine-evaluation-ring: rgba(29, 78, 216, 0.2);
+}
+
+.machineEvaluationPayoutYellow {
+  --machine-evaluation-bg: #fef3c7;
+  --machine-evaluation-color: #92400e;
+  --machine-evaluation-ring: rgba(146, 64, 14, 0.22);
+}
+
+.machineEvaluationPayoutGreen {
+  --machine-evaluation-bg: #dcfce7;
+  --machine-evaluation-color: #166534;
+  --machine-evaluation-ring: rgba(22, 101, 52, 0.22);
+}
+
+.machineEvaluationPayoutRed {
+  --machine-evaluation-bg: #fee2e2;
+  --machine-evaluation-color: #b91c1c;
+  --machine-evaluation-ring: rgba(185, 28, 28, 0.22);
+}
+
+.machineEvaluationPayoutPurple {
+  --machine-evaluation-bg: #eadcff;
+  --machine-evaluation-color: #5b21b6;
+  --machine-evaluation-ring: rgba(91, 50, 142, 0.22);
 }
 
 .machineStoreName {

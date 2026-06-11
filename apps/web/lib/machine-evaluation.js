@@ -140,11 +140,21 @@ function isMjArenaKurumeStore(storeName) {
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
+function readBacktestPayoutRate(backtestLabel) {
+  const match = String(backtestLabel ?? "").match(/(\d+(?:\.\d+)?)%/u);
+  if (!match) {
+    return null;
+  }
+  const value = Number(match[1]);
+  return Number.isFinite(value) ? value : null;
+}
+
 function buildCondition(keySuffix, name, backtestLabel, matcher, logicKeys = []) {
   return {
     keySuffix,
     name,
     backtestLabel,
+    backtestPayoutRate: readBacktestPayoutRate(backtestLabel),
     matcher,
     logicKeys,
   };
@@ -1550,6 +1560,7 @@ function buildConditionOptions(definition, logicKey = "") {
       key: buildConditionKey(definition, condition),
       name: condition.name,
       backtestLabel: condition.backtestLabel,
+      backtestPayoutRate: condition.backtestPayoutRate,
     })),
   ];
 }
@@ -6223,6 +6234,7 @@ function buildEvaluationForRow(row, settingByMachineKey) {
     conditionKey: condition ? buildConditionKey(definition, condition) : "",
     conditionName: condition?.name ?? "",
     backtestLabel: condition?.backtestLabel ?? "",
+    backtestPayoutRate: condition?.backtestPayoutRate ?? null,
     score,
     rank: null,
     nextGap: null,
@@ -6231,6 +6243,32 @@ function buildEvaluationForRow(row, settingByMachineKey) {
     matchesAdoption: false,
     features,
   };
+}
+
+function buildMatchedConditionSummaries(definition, logicKey, evaluation) {
+  if (!definition || !evaluation) {
+    return [];
+  }
+
+  return listConditionDefinitions(definition, logicKey)
+    .filter((condition) => matchesCondition(condition.matcher, evaluation))
+    .map((condition) => {
+      const conditionKey = buildConditionKey(definition, condition);
+      return {
+        conditionKey,
+        conditionName: condition.name,
+        backtestLabel: condition.backtestLabel,
+        backtestPayoutRate: condition.backtestPayoutRate ?? null,
+        isSelected: conditionKey === evaluation.conditionKey,
+      };
+    });
+}
+
+function readBestMatchedBacktestPayoutRate(matchedConditions) {
+  const values = (Array.isArray(matchedConditions) ? matchedConditions : [])
+    .map((condition) => readNullableNumber(condition?.backtestPayoutRate))
+    .filter((value) => value !== null);
+  return values.length > 0 ? Math.max(...values) : null;
 }
 
 function compareMachineEvaluationRows(left, right) {
@@ -6296,11 +6334,19 @@ function attachMachineEvaluationRanks(rows) {
       updatedEvaluation.conditionKey,
       updatedEvaluation.logicKey,
     );
+    const matchedConditions = buildMatchedConditionSummaries(
+      definition,
+      updatedEvaluation.logicKey,
+      updatedEvaluation,
+    );
     return {
       ...row,
       machineEvaluation: {
         ...updatedEvaluation,
         matchesAdoption: matchesCondition(condition?.matcher, updatedEvaluation),
+        matchedConditions,
+        matchesAnyCondition: matchedConditions.length > 0,
+        bestMatchedBacktestPayoutRate: readBestMatchedBacktestPayoutRate(matchedConditions),
       },
     };
   });
