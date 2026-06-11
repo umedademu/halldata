@@ -9,6 +9,9 @@ import {
   formatCompactDate,
   formatDecimal,
   formatMonthDay,
+  formatNarrowInteger,
+  formatNarrowPercent,
+  formatNarrowSignedNumber,
   formatNumber,
   formatPercent,
   formatRatio,
@@ -488,8 +491,23 @@ function buildCommonHuntScoreBacktestTitleParts(backtestResult) {
   ].filter(Boolean);
 }
 
-function formatCommonHuntScoreBacktestCellMeta(backtestResult) {
-  return Number.isFinite(backtestResult?.payoutRate) ? formatPercent(backtestResult.payoutRate) : "";
+function formatCommonHuntScoreBacktestCellMetaParts(backtestResult) {
+  if (!backtestResult) {
+    return [];
+  }
+
+  const payoutRate = Number.isFinite(backtestResult.payoutRate)
+    ? formatNarrowPercent(backtestResult.payoutRate)
+    : "";
+  const actualRowCount = Number.isFinite(backtestResult.actualRowCount)
+    ? `${formatNarrowInteger(backtestResult.actualRowCount)}件`
+    : "";
+  const averageDifference = Number.isFinite(backtestResult.averageDifference)
+    ? `${formatNarrowSignedNumber(backtestResult.averageDifference)}枚`
+    : "";
+  const resultSummary = [actualRowCount, averageDifference].filter(Boolean).join(" ");
+
+  return [payoutRate, resultSummary].filter(Boolean);
 }
 
 function buildMatchedConditionTitleParts(evaluation) {
@@ -739,7 +757,7 @@ function HuntScoreCell({
 }) {
   const backtestResult = readCommonHuntScoreMachineTopBacktestResult(storeId, storeName, row);
   const backtestTitle = buildCommonHuntScoreBacktestTitleParts(backtestResult).join("\n");
-  const backtestMeta = formatCommonHuntScoreBacktestCellMeta(backtestResult);
+  const backtestMetaParts = formatCommonHuntScoreBacktestCellMetaParts(backtestResult);
   const className = [
     getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey),
     backtestResult ? "huntScoreBacktestMatchedCell" : "",
@@ -756,7 +774,11 @@ function HuntScoreCell({
       {...sortProps}
     >
       <span className="huntScoreBacktestCellValue">{formatNumber(row.huntScore)}</span>
-      {backtestMeta ? <span className="huntScoreBacktestCellMeta">{backtestMeta}</span> : null}
+      {backtestMetaParts.map((backtestMeta) => (
+        <span key={backtestMeta} className="huntScoreBacktestCellMeta">
+          {backtestMeta}
+        </span>
+      ))}
     </td>
   );
 }

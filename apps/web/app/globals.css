@@ -2785,6 +2785,11 @@ a {
   white-space: nowrap;
 }
 
+.huntScoreBacktestCellMeta + .huntScoreBacktestCellMeta {
+  margin-top: 1px;
+  font-size: 0.68rem;
+}
+
 .directoryNameHeader,
 .directoryNameCell {
   position: sticky;
