@@ -776,6 +776,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logicName: "ファンキー春日式",
     logics: [
       buildLogicVariant("apark-funky", "ファンキー春日式", "main"),
+      buildLogicVariant("apark-yakatabaru-funky", "ファンキー屋形原式", "apark-yakatabaru-main"),
       buildLogicVariant("mj-kurume-funky", "ファンキーMJ久留米式", "mj-kurume-main"),
     ],
     profile: "juggler",
@@ -802,6 +803,90 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["funkyHistoryReady"],
         },
         ["apark-funky"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-main",
+        "1位＋60点以上＋沈み強",
+        "128件 / 102.46% / RB1/327.7",
+        {
+          rankMax: 1,
+          minScore: 60,
+          requiredFlags: ["yakatabaruFunkyHistoryReady", "yakatabaruFunkySinkStrong"],
+        },
+        ["apark-yakatabaru-funky"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-bonus",
+        "1位＋60点以上＋沈み強＋ボーナス弱化",
+        "92件 / 102.80% / RB1/322.8",
+        {
+          rankMax: 1,
+          minScore: 60,
+          requiredFlags: [
+            "yakatabaruFunkyHistoryReady",
+            "yakatabaruFunkySinkStrong",
+            "yakatabaruFunkyBonusWeak",
+          ],
+        },
+        ["apark-yakatabaru-funky"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-gap30",
+        "1位＋60点以上＋沈み強＋次点差30点以上",
+        "48件 / 103.19% / RB1/325.1",
+        {
+          rankMax: 1,
+          minScore: 60,
+          minNextGap: 30,
+          requiredFlags: ["yakatabaruFunkyHistoryReady", "yakatabaruFunkySinkStrong"],
+        },
+        ["apark-yakatabaru-funky"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-score70",
+        "70点以上",
+        "152件 / 101.94% / RB1/334.6",
+        {
+          minScore: 70,
+          requiredFlags: ["yakatabaruFunkyHistoryReady"],
+        },
+        ["apark-yakatabaru-funky"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-top1-score60",
+        "1位＋60点以上",
+        "175件 / 101.48% / RB1/334.7",
+        {
+          rankMax: 1,
+          minScore: 60,
+          requiredFlags: ["yakatabaruFunkyHistoryReady"],
+        },
+        ["apark-yakatabaru-funky"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-boost2",
+        "1位＋60点以上＋強化2個以上",
+        "155件 / 101.91% / RB1/335.0",
+        {
+          rankMax: 1,
+          minScore: 60,
+          minBoost: 2,
+          requiredFlags: ["yakatabaruFunkyHistoryReady"],
+        },
+        ["apark-yakatabaru-funky"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-boost2-safe",
+        "1位＋60点以上＋強化2個以上＋危険0",
+        "133件 / 101.93% / RB1/335.9",
+        {
+          rankMax: 1,
+          minScore: 60,
+          minBoost: 2,
+          maxDanger: 0,
+          requiredFlags: ["yakatabaruFunkyHistoryReady"],
+        },
+        ["apark-yakatabaru-funky"],
       ),
       buildCondition(
         "mj-kurume-main",
@@ -1133,6 +1218,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-neo-aim");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "my") {
     defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-my");
+  } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "funky") {
+    defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-funky");
   } else if (isAparkKasugaStore(storeName)) {
     defaultLogic = findLogicDefinition(definition, definition.logicKey);
   }
@@ -1665,6 +1752,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
   const adjacentMachineHighContentCount7Near2 = readNumber(metrics.adjacentMachineHighContentCount7Near2);
   const adjacentMachineHighContentCount14Near2 = readNumber(metrics.adjacentMachineHighContentCount14Near2);
+  const otherSameMachineHighContentCount7 = readNumber(metrics.otherSameMachineHighContentCount7);
   const adjacentMachineBigWin1000Count7Near2 = readNumber(metrics.adjacentMachineBigWin1000Count7Near2);
   const adjacentMachineNetTotal3 = readNumber(metrics.adjacentMachineNetTotal3);
   const adjacentMachineNetTotal3Near2 = readNumber(metrics.adjacentMachineNetTotal3Near2);
@@ -2753,6 +2841,61 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "funky") {
+    if (activeLogicKey === "apark-yakatabaru-funky") {
+      const yakatabaruFunkyHistoryReady = historyRowCount >= 21;
+      const yakatabaruFunkySinkStrong =
+        streak >= 3 ||
+        (features.recentThreeAngle <= -180 && recentThreeGamesTotal >= 10000);
+      const yakatabaruFunkyAngleStrong = features.recentThreeAngle <= -180;
+      const yakatabaruFunkyUnpaid =
+        (recentSevenNetTotal <= -2500 || recentFourteenNetTotal <= -2780) &&
+        recentTwentyOneNetTotal <= 0;
+      const yakatabaruFunkyBonusWeak =
+        features.recentSevenCombinedDenominator >= 161 && streak >= 2;
+      const yakatabaruFunkyNearbyLeftBehind =
+        recentThreeNetTotal <= -1300 && otherSameMachineHighContentCount7 >= 6;
+      const yakatabaruFunkyTreatmentDone =
+        (previousMachineHighContent && previousDifference >= 1500) ||
+        previousDifference >= 2200;
+      const yakatabaruFunkyLowInfo =
+        recentThreeGamesTotal < 9000 || recentSevenGamesTotal < 25000;
+      const yakatabaruFunkyRecentHigh =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent <= 2;
+      const yakatabaruFunkyRecentTooStrong =
+        features.recentThreeAngle >= 146 || recentSevenNetTotal >= 3430;
+      const boostFlags = [
+        yakatabaruFunkySinkStrong,
+        yakatabaruFunkyAngleStrong,
+        yakatabaruFunkyUnpaid,
+        yakatabaruFunkyBonusWeak,
+        yakatabaruFunkyNearbyLeftBehind,
+      ];
+      const dangerFlags = [
+        yakatabaruFunkyTreatmentDone,
+        yakatabaruFunkyLowInfo,
+        yakatabaruFunkyRecentHigh,
+        yakatabaruFunkyRecentTooStrong,
+      ];
+
+      return {
+        ...features,
+        yakatabaruFunkyHistoryReady,
+        yakatabaruFunkySinkStrong,
+        yakatabaruFunkyAngleStrong,
+        yakatabaruFunkyUnpaid,
+        yakatabaruFunkyBonusWeak,
+        yakatabaruFunkyNearbyLeftBehind,
+        yakatabaruFunkyTreatmentDone,
+        yakatabaruFunkyLowInfo,
+        yakatabaruFunkyRecentHigh,
+        yakatabaruFunkyRecentTooStrong,
+        treatmentDone: yakatabaruFunkyTreatmentDone,
+        lowConfidence: yakatabaruFunkyLowInfo,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "mj-kurume-funky") {
       const kurumeFunkyHistoryReady = historyRowCount >= 21;
       const kurumeFunkySinkStrong =
@@ -2964,6 +3107,7 @@ function calculateMachineScore(definition, metrics, features) {
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
   const adjacentMachineHighContentCount7Near2 = readNumber(metrics.adjacentMachineHighContentCount7Near2);
   const adjacentMachineHighContentCount14Near2 = readNumber(metrics.adjacentMachineHighContentCount14Near2);
+  const otherSameMachineHighContentCount7 = readNumber(metrics.otherSameMachineHighContentCount7);
   const adjacentMachineBigWin1000Count7Near2 = readNumber(metrics.adjacentMachineBigWin1000Count7Near2);
   const adjacentMachineNetTotal3 = readNumber(metrics.adjacentMachineNetTotal3);
   const adjacentMachineNetTotal3Near2 = readNumber(metrics.adjacentMachineNetTotal3Near2);
@@ -4778,6 +4922,127 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "funky") {
+    if (activeLogicKey === "apark-yakatabaru-funky") {
+      if (readNumber(metrics.historyRowCount) < 21) {
+        return 0;
+      }
+
+      let shortSinkScore = 0;
+      shortSinkScore += scoreAtLeast(streak, [
+        { minimum: 4, points: 24 },
+        { minimum: 3, points: 18 },
+        { minimum: 2, points: 10 },
+      ]);
+      shortSinkScore += scoreAtMost(features.recentThreeAngle, [
+        { maximum: -180, points: 12 },
+        { maximum: -90, points: 6 },
+      ]);
+      shortSinkScore += scoreAtMost(recentThreeNetTotal, [
+        { maximum: -2350, points: 8 },
+        { maximum: -1300, points: 4 },
+      ]);
+      shortSinkScore += scoreAtMost(recentFiveNetTotal, [
+        { maximum: -3100, points: 6 },
+        { maximum: -1600, points: 3 },
+      ]);
+      shortSinkScore += previousDifference <= -1000 ? 4 : 0;
+      shortSinkScore = Math.min(shortSinkScore, 34);
+
+      let middleSinkScore = 0;
+      middleSinkScore += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -2500, points: 8 },
+        { maximum: -2050, points: 6 },
+        { maximum: 0, points: 3 },
+      ]);
+      middleSinkScore +=
+        recentFourteenNetTotal >= -5300 && recentFourteenNetTotal <= -2780
+          ? 8
+          : recentFourteenNetTotal < -5300
+            ? 5
+            : recentFourteenNetTotal <= 0
+              ? 3
+              : 0;
+      middleSinkScore += recentTwentyOneNetTotal <= 0 ? 4 : 0;
+      middleSinkScore = Math.min(middleSinkScore, 18);
+
+      let bonusWeakScore = 0;
+      bonusWeakScore += scoreAtLeast(features.recentSevenCombinedDenominator, [
+        { minimum: 166, points: 10 },
+        { minimum: 161, points: 7 },
+      ]);
+      bonusWeakScore += scoreAtLeast(features.recentFourteenCombinedDenominator, [
+        { minimum: 162, points: 6 },
+        { minimum: 158, points: 4 },
+      ]);
+      bonusWeakScore += features.recentSevenCombinedDenominator >= 161 && streak >= 2 ? 4 : 0;
+      bonusWeakScore = Math.min(bonusWeakScore, 16);
+
+      let rotationScore = 0;
+      if (Number.isFinite(daysSinceMachineHighContent)) {
+        rotationScore += scoreInRange(daysSinceMachineHighContent, 5, 6, 9);
+        rotationScore += scoreInRange(daysSinceMachineHighContent, 10, 14, 8);
+        rotationScore += scoreInRange(daysSinceMachineHighContent, 15, 21, 4);
+        rotationScore += scoreInRange(daysSinceMachineHighContent, 3, 4, 3);
+      }
+      rotationScore +=
+        recentTwentyOneMachineHighContentCount >= 1 && recentTwentyOneMachineHighContentCount <= 2
+          ? 5
+          : recentTwentyOneMachineHighContentCount === 0
+            ? 2
+            : recentTwentyOneMachineHighContentCount >= 5
+              ? 2
+              : 0;
+      rotationScore += recentFourteenMachineHighContentCount <= 1 ? 3 : 0;
+      rotationScore = Math.min(rotationScore, 15);
+
+      const gamesTrustScore = Math.min(
+        9,
+        (recentThreeGamesTotal >= 10000 ? 3 : 0) +
+          (recentSevenGamesTotal >= 26600 ? 3 : 0) +
+          (recentFourteenGamesTotal >= 55100 ? 3 : 0),
+      );
+
+      const ownSinkForNearby = recentThreeNetTotal <= -1300;
+      const nearbyScore = Math.min(
+        8,
+        (otherSameMachineHighContentCount7 >= 8 ? 5 : 0) +
+          (ownSinkForNearby && otherSameMachineHighContentCount7 >= 6 ? 3 : 0) +
+          (ownSinkForNearby && adjacentMachineHighContentCount7Near2 >= 4 ? 2 : 0),
+      );
+
+      let dangerScore = 0;
+      if (Number.isFinite(daysSinceMachineHighContent)) {
+        dangerScore += daysSinceMachineHighContent <= 1 ? 10 : daysSinceMachineHighContent <= 2 ? 4 : 0;
+      }
+      dangerScore += previousMachineHighContent ? 5 : 0;
+      dangerScore += previousMachineHighContent && previousDifference >= 1500 ? 8 : 0;
+      dangerScore += previousDifference >= 2200 ? 10 : 0;
+      dangerScore += features.previousBigShow ? 4 : 0;
+      dangerScore += winningStreak >= 3 ? 12 : winningStreak >= 2 ? 8 : 0;
+      dangerScore += features.recentThreeAngle >= 146 ? 10 : 0;
+      dangerScore += recentThreeNetTotal >= 2400 ? 8 : 0;
+      dangerScore += recentSevenNetTotal >= 3430 ? 6 : 0;
+      dangerScore += recentFourteenNetTotal >= 5560 ? 4 : 0;
+      dangerScore +=
+        recentTwentyOneMachineHighContentCount >= 3 && recentTwentyOneMachineHighContentCount <= 4
+          ? 4
+          : 0;
+
+      return Math.round(
+        clamp(
+          shortSinkScore +
+            middleSinkScore +
+            bonusWeakScore +
+            rotationScore +
+            gamesTrustScore +
+            nearbyScore -
+            dangerScore,
+          0,
+          100,
+        ),
+      );
+    }
+
     if (activeLogicKey === "mj-kurume-funky") {
       if (readNumber(metrics.historyRowCount) < 21) {
         return 0;

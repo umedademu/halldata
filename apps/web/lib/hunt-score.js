@@ -757,6 +757,9 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "ネオアイムジャグラーＥＸ": "apark-yakatabaru-neo-aim",
       "マイジャグラーV": "apark-yakatabaru-my",
       "マイジャグラーⅤ": "apark-yakatabaru-my",
+      "ファンキージャグラー２ＫＴ": "apark-yakatabaru-funky",
+      "ファンキージャグラー２": "apark-yakatabaru-funky",
+      "ファンキージャグラー2": "apark-yakatabaru-funky",
     },
   },
   {
@@ -1539,7 +1542,15 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ファンキージャグラー２") ||
     normalizedMachineName === normalizeText("ファンキージャグラー2")
   ) {
-    if (readMachineContentRule(config, machineName) === "mj-arena-kurume-funky") {
+    const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "apark-yakatabaru-funky") {
+      return (
+        games >= 3500 &&
+        ((combinedDenominator <= 138 && rbDenominator <= 330) ||
+          (combinedDenominator <= 145 && rbDenominator <= 280))
+      );
+    }
+    if (contentRule === "mj-arena-kurume-funky") {
       return (
         games >= 3000 &&
         ((combinedDenominator <= 138 && rbDenominator <= 320) ||
@@ -1634,7 +1645,15 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ファンキージャグラー２") ||
     normalizedMachineName === normalizeText("ファンキージャグラー2")
   ) {
-    if (readMachineContentRule(config, machineName) === "mj-arena-kurume-funky") {
+    const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "apark-yakatabaru-funky") {
+      return (
+        games >= 3500 &&
+        ((combinedDenominator <= 138 && rbDenominator <= 330) ||
+          (combinedDenominator <= 145 && rbDenominator <= 280))
+      );
+    }
+    if (contentRule === "mj-arena-kurume-funky") {
       return (
         games >= 3000 &&
         ((combinedDenominator <= 138 && rbDenominator <= 320) ||
@@ -6370,6 +6389,45 @@ function countAdjacentMachineHighContentRows(
   return count;
 }
 
+function countOtherSameMachineHighContentRows(
+  businessDates,
+  dateIndex,
+  row,
+  rowsByDate,
+  config,
+  windowDays,
+  machineName,
+) {
+  if (!(rowsByDate instanceof Map)) {
+    return 0;
+  }
+
+  const normalizedMachineName = normalizeText(machineName);
+  const slotText = String(row?.slot_number ?? "").trim();
+  const normalizedWindowDays = Math.max(1, Number(windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
+  const startIndex = Math.max(0, dateIndex - (normalizedWindowDays - 1));
+  const windowDates = businessDates.slice(startIndex, dateIndex + 1);
+  let count = 0;
+
+  for (const date of windowDates) {
+    for (const dateRow of rowsByDate.get(date) ?? []) {
+      if (String(dateRow?.slot_number ?? "").trim() === slotText) {
+        continue;
+      }
+      const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
+      if (normalizeText(rowMachineName) !== normalizedMachineName) {
+        continue;
+      }
+      const differenceValue = readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
+      if (isMachineHighContentWindowRow({ row: dateRow, differenceValue }, machineName, config)) {
+        count += 1;
+      }
+    }
+  }
+
+  return count;
+}
+
 function countAdjacentMachineDifferenceAtLeastRows(
   businessDates,
   dateIndex,
@@ -7037,6 +7095,15 @@ function calculateWindowMetrics(
     currentMachineName,
     1,
   );
+  const otherSameMachineHighContentCount7 = countOtherSameMachineHighContentRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    7,
+    currentMachineName,
+  );
   const adjacentMachineBigWin1000Count7Near2 = countAdjacentMachineDifferenceAtLeastRows(
     businessDates,
     dateIndex,
@@ -7313,6 +7380,7 @@ function calculateWindowMetrics(
     adjacentMachineHighContentCount14,
     adjacentMachineHighContentCount7Near2,
     adjacentMachineHighContentCount14Near2,
+    otherSameMachineHighContentCount7,
     adjacentMachineBigWin1000Count7Near2,
     adjacentMachineNetTotal3,
     adjacentMachineNetTotal3Near2,
