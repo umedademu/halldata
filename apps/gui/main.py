@@ -223,6 +223,20 @@ def normalize_site7_browser_mode(value: object) -> str:
     return SITE7_BROWSER_MODE_VISIBLE
 
 
+def normalize_schedule_enabled(value: object, default: bool = True) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+
+    text = str(value).strip().lower()
+    if text in {"0", "false", "off", "no", "停止"}:
+        return False
+    if text in {"1", "true", "on", "yes", "有効"}:
+        return True
+    return default
+
+
 def normalize_int_tuple(value: object, minimum: int, maximum: int) -> tuple[int, ...]:
     values = value if isinstance(value, (list, tuple, set)) else []
     normalized_values: set[int] = set()
@@ -869,6 +883,7 @@ class MinRepoApp:
         self.minrepo_cancel_event = threading.Event()
         self.site7_cancel_event = threading.Event()
         self.fetch_cancel_event = self.minrepo_cancel_event
+        self.minrepo_schedule_enabled = self._load_saved_minrepo_schedule_enabled()
         self.scheduled_fetch_hour: int | None = self._load_saved_schedule_hour()
         self.schedule_all_stores_interval_days = self._load_saved_schedule_all_stores_interval_days()
         self.schedule_supplemental_store_last_run_dates = self._load_saved_schedule_supplemental_store_last_run_dates()
@@ -877,18 +892,27 @@ class MinRepoApp:
         self.site7_browser_mode: str = self._load_saved_site7_browser_mode()
         self.site7_target_machine_names = tuple(list_site7_target_machine_names())
         self.site7_enabled_machine_names = self._load_saved_site7_enabled_machine_names()
+        self.site7_schedule_enabled = self._load_saved_site7_schedule_enabled()
         self.site7_schedule_hours = self._load_saved_site7_schedule_hours()
         self.site7_schedule_last_run_dates_by_hour = self._load_saved_site7_schedule_run_dates()
         self.site7_schedule_store_last_run_dates = self._load_saved_site7_schedule_store_last_run_dates()
         self.scheduled_last_run_date: str | None = None
         self.scheduled_pending_date: str | None = None
-        self.scheduled_startup_prompt_date: str | None = scheduled_fetch_due_date(
-            self.scheduled_fetch_hour,
-            self.scheduled_last_run_date,
+        self.scheduled_startup_prompt_date: str | None = (
+            scheduled_fetch_due_date(
+                self.scheduled_fetch_hour,
+                self.scheduled_last_run_date,
+            )
+            if self.minrepo_schedule_enabled
+            else None
         )
-        self.site7_schedule_startup_prompt_hour: int | None = site7_schedule_due_hour(
-            self.site7_schedule_hours,
-            self.site7_schedule_last_run_dates_by_hour,
+        self.site7_schedule_startup_prompt_hour: int | None = (
+            site7_schedule_due_hour(
+                self.site7_schedule_hours,
+                self.site7_schedule_last_run_dates_by_hour,
+            )
+            if self.site7_schedule_enabled
+            else None
         )
         self.site7_schedule_pending_hours: set[int] = set()
         self.site7_schedule_recheck_requests: dict[int, Site7ScheduleRecheckRequest] = {}
@@ -900,8 +924,9 @@ class MinRepoApp:
         self.tray_thread: threading.Thread | None = None
 
         self.target_date_var = tk.StringVar(value=DEFAULT_RECENT_DAYS)
+        self.minrepo_schedule_enabled_var = tk.BooleanVar(value=self.minrepo_schedule_enabled)
         self.schedule_hour_var = tk.StringVar(value=str(self.scheduled_fetch_hour))
-        self.schedule_status_var = tk.StringVar(value=f"毎日 {self.scheduled_fetch_hour} 時に実行")
+        self.schedule_status_var = tk.StringVar(value=self._schedule_status_text())
         if self.scheduled_startup_prompt_date is not None:
             self.schedule_status_var.set(f"本日 {self.scheduled_fetch_hour} 時の定期実行を確認待ち")
         self.schedule_all_stores_interval_days_var = tk.StringVar(value=str(self.schedule_all_stores_interval_days))
@@ -940,6 +965,7 @@ class MinRepoApp:
         self.site7_status_var = tk.StringVar(
             value="保存済みのログイン情報あり" if self.site7_scraper.has_saved_login_state() else "初回ログインが必要"
         )
+        self.site7_schedule_enabled_var = tk.BooleanVar(value=self.site7_schedule_enabled)
         self.site7_schedule_hour_vars = {
             hour: tk.BooleanVar(value=hour in self.site7_schedule_hours)
             for hour in SITE7_SCHEDULE_HOUR_OPTIONS
@@ -1070,15 +1096,22 @@ class MinRepoApp:
 
         schedule_row = ttk.Frame(self.fetch_form)
         schedule_row.grid(row=5, column=1, sticky="w", pady=(8, 0))
-        ttk.Label(schedule_row, text="毎日").grid(row=0, column=0, sticky="w")
+        self.minrepo_schedule_enabled_checkbutton = ttk.Checkbutton(
+            schedule_row,
+            text="みんレポ定期ON",
+            variable=self.minrepo_schedule_enabled_var,
+            command=self._on_minrepo_schedule_enabled_changed,
+        )
+        self.minrepo_schedule_enabled_checkbutton.grid(row=0, column=0, sticky="w")
+        ttk.Label(schedule_row, text="毎日").grid(row=0, column=1, sticky="w", padx=(12, 0))
         self.schedule_hour_entry = ttk.Entry(schedule_row, textvariable=self.schedule_hour_var, width=4)
-        self.schedule_hour_entry.grid(row=0, column=1, sticky="w", padx=(6, 4))
-        ttk.Label(schedule_row, text="時に実行").grid(row=0, column=2, sticky="w")
+        self.schedule_hour_entry.grid(row=0, column=2, sticky="w", padx=(6, 4))
+        ttk.Label(schedule_row, text="時に実行").grid(row=0, column=3, sticky="w")
         self.apply_schedule_button = ttk.Button(schedule_row, text="設定", command=self.apply_daily_schedule)
-        self.apply_schedule_button.grid(row=0, column=3, sticky="w", padx=(8, 0))
+        self.apply_schedule_button.grid(row=0, column=4, sticky="w", padx=(8, 0))
         self.clear_schedule_button = ttk.Button(schedule_row, text="解除", command=self.clear_daily_schedule)
-        self.clear_schedule_button.grid(row=0, column=4, sticky="w", padx=(8, 0))
-        ttk.Label(schedule_row, textvariable=self.schedule_status_var).grid(row=0, column=5, sticky="w", padx=(12, 0))
+        self.clear_schedule_button.grid(row=0, column=5, sticky="w", padx=(8, 0))
+        ttk.Label(schedule_row, textvariable=self.schedule_status_var).grid(row=0, column=6, sticky="w", padx=(12, 0))
 
         all_store_schedule_row = ttk.Frame(self.fetch_form)
         all_store_schedule_row.grid(row=6, column=1, sticky="w", pady=(8, 0))
@@ -1128,7 +1161,13 @@ class MinRepoApp:
 
         site7_schedule_row = ttk.Frame(site7_row)
         site7_schedule_row.grid(row=1, column=0, columnspan=4, sticky="w", pady=(8, 0))
-        ttk.Label(site7_schedule_row, text="定期取得").grid(row=0, column=0, sticky="w")
+        self.site7_schedule_enabled_checkbutton = ttk.Checkbutton(
+            site7_schedule_row,
+            text="定期取得ON",
+            variable=self.site7_schedule_enabled_var,
+            command=self._on_site7_schedule_enabled_changed,
+        )
+        self.site7_schedule_enabled_checkbutton.grid(row=0, column=0, sticky="w")
         ttk.Label(site7_schedule_row, text="実行時刻").grid(row=0, column=1, sticky="w", padx=(8, 4))
         self.site7_schedule_hour_buttons: dict[int, ttk.Checkbutton] = {}
         for index, hour in enumerate(SITE7_SCHEDULE_HOUR_OPTIONS):
@@ -1241,6 +1280,10 @@ class MinRepoApp:
         self.site7_login()
 
     def _prompt_scheduled_fetch_on_startup_if_needed(self) -> None:
+        if not self.minrepo_schedule_enabled:
+            self.scheduled_startup_prompt_date = None
+            return
+
         prompt_date = self.scheduled_startup_prompt_date
         if prompt_date is None:
             return
@@ -1275,6 +1318,10 @@ class MinRepoApp:
         self._start_scheduled_fetch()
 
     def _prompt_scheduled_site7_fetch_on_startup_if_needed(self) -> None:
+        if not self.site7_schedule_enabled:
+            self.site7_schedule_startup_prompt_hour = None
+            return
+
         prompt_hour = self.site7_schedule_startup_prompt_hour
         if prompt_hour is None:
             return
@@ -1345,11 +1392,50 @@ class MinRepoApp:
         self.site7_browser_mode = browser_mode
         return browser_mode == SITE7_BROWSER_MODE_VISIBLE
 
+    def _schedule_status_text(self) -> str:
+        if self.scheduled_fetch_hour is None:
+            base_text = "定期実行なし"
+        else:
+            base_text = f"毎日 {self.scheduled_fetch_hour} 時に実行"
+        if not self.minrepo_schedule_enabled:
+            return f"みんレポ定期OFF（{base_text}）"
+        return base_text
+
     def _site7_schedule_status_text(self) -> str:
+        if not self.site7_schedule_enabled:
+            if not self.site7_schedule_hours:
+                return "サイトセブン定期OFF（実行時刻なし）"
+            hours_text = "、".join(f"{hour}時" for hour in self.site7_schedule_hours)
+            return f"サイトセブン定期OFF（{hours_text} 設定）"
         if not self.site7_schedule_hours:
             return "サイトセブン定期実行なし"
         hours_text = "、".join(f"{hour}時" for hour in self.site7_schedule_hours)
         return f"毎日 {hours_text} に実行"
+
+    def _on_minrepo_schedule_enabled_changed(self) -> None:
+        self.minrepo_schedule_enabled = bool(self.minrepo_schedule_enabled_var.get())
+        if not self.minrepo_schedule_enabled:
+            self.scheduled_pending_date = None
+            self.scheduled_startup_prompt_date = None
+            self.minrepo_priority_watch_pending = False
+            self.minrepo_priority_watch_next_check_at = None
+        try:
+            self._save_minrepo_schedule_enabled(self.minrepo_schedule_enabled)
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showwarning("設定保存", f"みんレポ定期実行のON/OFF保存に失敗しました。\n{exc}")
+        self.schedule_status_var.set(self._schedule_status_text())
+
+    def _on_site7_schedule_enabled_changed(self) -> None:
+        self.site7_schedule_enabled = bool(self.site7_schedule_enabled_var.get())
+        if not self.site7_schedule_enabled:
+            self.site7_schedule_startup_prompt_hour = None
+            self.site7_schedule_pending_hours = set()
+            self.site7_schedule_recheck_requests = {}
+        try:
+            self._save_site7_schedule_enabled(self.site7_schedule_enabled)
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showwarning("設定保存", f"サイトセブン定期実行のON/OFF保存に失敗しました。\n{exc}")
+        self.site7_schedule_status_var.set(self._site7_schedule_status_text())
 
     def apply_site7_schedule(self) -> None:
         self.site7_schedule_hours = tuple(
@@ -1381,7 +1467,7 @@ class MinRepoApp:
             self._save_site7_schedule_hours(self.site7_schedule_hours)
         except Exception as exc:  # noqa: BLE001
             messagebox.showwarning("設定保存", f"サイトセブン定期実行の設定保存に失敗しました。\n{exc}")
-        self.site7_schedule_status_var.set("サイトセブン定期実行なし")
+        self.site7_schedule_status_var.set(self._site7_schedule_status_text())
 
     def apply_daily_schedule(self) -> None:
         try:
@@ -1398,7 +1484,7 @@ class MinRepoApp:
             self._save_schedule_hour(scheduled_hour)
         except Exception as exc:  # noqa: BLE001
             messagebox.showwarning("設定保存", f"定期実行の時刻保存に失敗しました。\n{exc}")
-        self.schedule_status_var.set(f"毎日 {scheduled_hour} 時に実行")
+        self.schedule_status_var.set(self._schedule_status_text())
 
     def apply_schedule_all_stores_interval(self) -> None:
         try:
@@ -1422,7 +1508,7 @@ class MinRepoApp:
         self.scheduled_last_run_date = None
         self.scheduled_pending_date = None
         self.scheduled_startup_prompt_date = None
-        self.schedule_status_var.set("定期実行なし")
+        self.schedule_status_var.set(self._schedule_status_text())
 
     def _parse_schedule_hour(self) -> int:
         text = self.schedule_hour_var.get().strip()
@@ -1459,6 +1545,16 @@ class MinRepoApp:
             json.dumps(payload, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
+
+    def _load_saved_minrepo_schedule_enabled(self) -> bool:
+        try:
+            payload = self._load_gui_settings()
+        except Exception:  # noqa: BLE001
+            return True
+        return normalize_schedule_enabled(payload.get("minrepo_schedule_enabled"), True)
+
+    def _save_minrepo_schedule_enabled(self, enabled: bool) -> None:
+        self._save_gui_settings(minrepo_schedule_enabled=bool(enabled))
 
     def _load_saved_schedule_hour(self) -> int:
         try:
@@ -1652,6 +1748,16 @@ class MinRepoApp:
             return DEFAULT_SITE7_SCHEDULE_HOURS
         return normalize_site7_schedule_hours(payload.get("site7_schedule_hours", DEFAULT_SITE7_SCHEDULE_HOURS))
 
+    def _load_saved_site7_schedule_enabled(self) -> bool:
+        try:
+            payload = self._load_gui_settings()
+        except Exception:  # noqa: BLE001
+            return True
+        return normalize_schedule_enabled(payload.get("site7_schedule_enabled"), True)
+
+    def _save_site7_schedule_enabled(self, enabled: bool) -> None:
+        self._save_gui_settings(site7_schedule_enabled=bool(enabled))
+
     def _save_site7_schedule_hours(self, schedule_hours: tuple[int, ...]) -> None:
         self._save_gui_settings(site7_schedule_hours=list(schedule_hours))
 
@@ -1701,6 +1807,11 @@ class MinRepoApp:
         self.root.after(30_000, self._schedule_timer_tick)
 
     def _run_minrepo_priority_watch_if_due(self, now: datetime | None = None) -> None:
+        if not self.minrepo_schedule_enabled:
+            self.minrepo_priority_watch_pending = False
+            self.minrepo_priority_watch_next_check_at = None
+            return
+
         current_time = (now or datetime.now(JST)).astimezone(JST)
         target_date = minrepo_priority_watch_target_date(current_time)
         if self.minrepo_priority_watch_target_date != target_date:
@@ -1739,6 +1850,12 @@ class MinRepoApp:
         self._start_minrepo_priority_watch(current_time, target_date)
 
     def _start_minrepo_priority_watch(self, now: datetime, target_date: str) -> None:
+        if not self.minrepo_schedule_enabled:
+            self.minrepo_priority_watch_pending = False
+            self.minrepo_priority_watch_next_check_at = None
+            self.schedule_status_var.set(self._schedule_status_text())
+            return
+
         try:
             retry_delay_seconds = self._retry_delay_seconds_input()
             fetch_parallel_options = self._minrepo_fetch_parallel_options()
@@ -1770,6 +1887,11 @@ class MinRepoApp:
         )
 
     def _run_scheduled_fetch_if_due(self) -> None:
+        if not self.minrepo_schedule_enabled:
+            self.scheduled_pending_date = None
+            self.scheduled_startup_prompt_date = None
+            return
+
         now = datetime.now(JST)
         due_date = scheduled_fetch_due_date(
             self.scheduled_fetch_hour,
@@ -1927,6 +2049,11 @@ class MinRepoApp:
         self._save_site7_schedule_store_last_run_dates()
 
     def _start_scheduled_fetch(self) -> None:
+        if not self.minrepo_schedule_enabled:
+            self.scheduled_pending_date = None
+            self.schedule_status_var.set(self._schedule_status_text())
+            return
+
         try:
             target_date_input = self._target_date_input_from_recent_days()
             retry_delay_seconds = self._retry_delay_seconds_input()
@@ -1962,6 +2089,12 @@ class MinRepoApp:
         )
 
     def _run_scheduled_site7_fetch_if_due(self) -> None:
+        if not self.site7_schedule_enabled:
+            self.site7_schedule_startup_prompt_hour = None
+            self.site7_schedule_pending_hours = set()
+            self.site7_schedule_recheck_requests = {}
+            return
+
         now = datetime.now(JST)
         if not self.site7_schedule_hours:
             return
@@ -2017,6 +2150,11 @@ class MinRepoApp:
         run_date: str | None = None,
         waiting_started_at: datetime | None = None,
     ) -> None:
+        if not self.site7_schedule_enabled:
+            self.site7_schedule_pending_hours.discard(scheduled_hour)
+            self.site7_schedule_status_var.set(self._site7_schedule_status_text())
+            return
+
         self.site7_schedule_pending_hours.discard(scheduled_hour)
         if target_store_urls is None:
             self._mark_site7_schedule_hour_started(scheduled_hour, started_at)
@@ -6113,6 +6251,8 @@ class MinRepoApp:
             state="normal" if web_publish_days_selected else "disabled"
         )
         self.schedule_hour_entry.configure(state="normal")
+        if hasattr(self, "minrepo_schedule_enabled_checkbutton"):
+            self.minrepo_schedule_enabled_checkbutton.configure(state="normal")
         self.apply_schedule_button.configure(state="normal")
         self.clear_schedule_button.configure(state="normal")
         self.schedule_all_stores_interval_days_entry.configure(state="normal")
@@ -6127,6 +6267,8 @@ class MinRepoApp:
         self.site7_cancel_button.configure(state="normal" if can_cancel_site7_fetch else "disabled")
         for hour_button in self.site7_schedule_hour_buttons.values():
             hour_button.configure(state="normal")
+        if hasattr(self, "site7_schedule_enabled_checkbutton"):
+            self.site7_schedule_enabled_checkbutton.configure(state="normal")
         self.apply_site7_schedule_button.configure(state="normal")
         self.clear_site7_schedule_button.configure(state="normal")
         self.site7_browser_visible_radio.configure(state="normal")
