@@ -765,6 +765,7 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "ハッピージャグラーＶ": "apark-yakatabaru-happy",
       "ハッピージャグラーV": "apark-yakatabaru-happy",
       "ハッピージャグラー": "apark-yakatabaru-happy",
+      "ウルトラミラクルジャグラー": "apark-yakatabaru-ultra-miracle",
     },
   },
   {
@@ -1575,6 +1576,12 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
   ) {
     if (readMachineContentRule(config, machineName) === "apark-yakatabaru-happy") {
       return games >= 3500 && combinedDenominator <= 135 && rbDenominator <= 310;
+    }
+    return games >= 5000 && combinedDenominator <= 145 && rbDenominator <= 315;
+  }
+  if (normalizedMachineName === normalizeText("ウルトラミラクルジャグラー")) {
+    if (readMachineContentRule(config, machineName) === "apark-yakatabaru-ultra-miracle") {
+      return games >= 3000 && combinedDenominator <= 134 && rbDenominator <= 300;
     }
     return games >= 5000 && combinedDenominator <= 145 && rbDenominator <= 315;
   }

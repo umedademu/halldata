@@ -1061,6 +1061,82 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     ],
   },
   {
+    machineKey: "ultra-miracle",
+    machineNames: ["ウルトラミラクルジャグラー"],
+    logicKey: "apark-yakatabaru-ultra-miracle",
+    logicName: "ウルトラ屋形原式",
+    logics: [
+      buildLogicVariant("apark-yakatabaru-ultra-miracle", "ウルトラ屋形原式", "apark-yakatabaru-main"),
+    ],
+    profile: "juggler",
+    defaultConditionSuffix: "apark-yakatabaru-main",
+    conditions: [
+      buildCondition(
+        "apark-yakatabaru-main",
+        "70点以上＋角度強化",
+        "33件 / 105.41% / RB1/304.2",
+        {
+          minScore: 70,
+          requiredFlags: ["yakatabaruUltraHistoryReady", "yakatabaruUltraAngleBoost"],
+        },
+        ["apark-yakatabaru-ultra-miracle"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-strong",
+        "70点以上＋角度強化＋次点差20点以上",
+        "20件 / 105.88% / RB1/294.4",
+        {
+          minScore: 70,
+          minNextGap: 20,
+          requiredFlags: ["yakatabaruUltraHistoryReady", "yakatabaruUltraAngleBoost"],
+        },
+        ["apark-yakatabaru-ultra-miracle"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-score70",
+        "70点以上",
+        "39件 / 104.11% / RB1/314.3",
+        {
+          minScore: 70,
+          requiredFlags: ["yakatabaruUltraHistoryReady"],
+        },
+        ["apark-yakatabaru-ultra-miracle"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-top1-score70",
+        "1位＋70点以上",
+        "34件 / 105.12% / RB1/306.9",
+        {
+          rankMax: 1,
+          minScore: 70,
+          requiredFlags: ["yakatabaruUltraHistoryReady"],
+        },
+        ["apark-yakatabaru-ultra-miracle"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-top1-score60",
+        "1位＋60点以上",
+        "85件 / 102.73% / RB1/321.7",
+        {
+          rankMax: 1,
+          minScore: 60,
+          requiredFlags: ["yakatabaruUltraHistoryReady"],
+        },
+        ["apark-yakatabaru-ultra-miracle"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-daily-top",
+        "毎日1位",
+        "329件 / 101.16% / RB1/343.6",
+        {
+          rankMax: 1,
+          requiredFlags: ["yakatabaruUltraHistoryReady"],
+        },
+        ["apark-yakatabaru-ultra-miracle"],
+      ),
+    ],
+  },
+  {
     machineKey: "my",
     machineNames: ["マイジャグラーV", "マイジャグラーⅤ", "マイジャグラー"],
     logicKey: "apark-my",
@@ -1358,6 +1434,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-funky");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "happy") {
     defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-happy");
+  } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "ultra-miracle") {
+    defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-ultra-miracle");
   } else if (isAparkKasugaStore(storeName)) {
     defaultLogic = findLogicDefinition(definition, definition.logicKey);
   }
@@ -3203,6 +3281,75 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       yakatabaruHappyLongNeglect,
       treatmentDone: yakatabaruHappyTreatmentDone,
       lowConfidence: yakatabaruHappyLowGames,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
+
+  if (machineKey === "ultra-miracle" && activeLogicKey === "apark-yakatabaru-ultra-miracle") {
+    const yakatabaruUltraHistoryReady = historyRowCount >= 21;
+    const yakatabaruUltraAngleBoost =
+      features.recentThreeAngle <= -225 || features.recentSevenAngle <= -135;
+    const yakatabaruUltraAngleStrongest = features.recentThreeAngle <= -225;
+    const yakatabaruUltraDeepSink = recentThreeNetTotal <= -1300 || recentFiveNetTotal <= -1600;
+    const yakatabaruUltraUnpaid =
+      recentSevenMachineHighContentCount === 0 &&
+      recentSevenNetTotal <= 0 &&
+      Number.isFinite(daysSinceMachineHighContent) &&
+      daysSinceMachineHighContent >= 8;
+    const yakatabaruUltraTrustedGames =
+      recentThreeGamesTotal >= 3000 && recentSevenGamesTotal >= 12000;
+    const yakatabaruUltraNearbyLeftBehind =
+      recentSevenNetTotal <= 0 &&
+      (adjacentMachineHighContentCount3 > 0 || adjacentMachineBigWin1000Count7Near2 >= 2);
+    const yakatabaruUltraTreatmentDone =
+      previousMachineHighContent ||
+      recentThreeNetTotal >= 1500 ||
+      recentSevenNetTotal >= 2800 ||
+      previousDifference >= 800;
+    const yakatabaruUltraLowConfidence =
+      recentThreeGamesTotal < 3000 || recentSevenGamesTotal < 12000;
+    const yakatabaruUltraLongNeglect =
+      Number.isFinite(daysSinceMachineHighContent) &&
+      daysSinceMachineHighContent >= 36 &&
+      recentTwentyOneMachineHighContentCount === 0 &&
+      recentTwentyOneNetTotal < -9000;
+    const yakatabaruUltraOverused = previousGames >= 6200;
+    const yakatabaruUltraOutputOnly =
+      previousDifference >= 1275 &&
+      (features.previousCombinedDenominator > 134 || features.previousRbDenominator > 300);
+    const boostFlags = [
+      yakatabaruUltraAngleBoost,
+      yakatabaruUltraAngleStrongest,
+      yakatabaruUltraDeepSink,
+      yakatabaruUltraUnpaid,
+      yakatabaruUltraTrustedGames,
+      yakatabaruUltraNearbyLeftBehind,
+    ];
+    const dangerFlags = [
+      yakatabaruUltraTreatmentDone,
+      yakatabaruUltraLowConfidence,
+      yakatabaruUltraLongNeglect,
+      yakatabaruUltraOverused,
+      yakatabaruUltraOutputOnly,
+    ];
+
+    return {
+      ...features,
+      yakatabaruUltraHistoryReady,
+      yakatabaruUltraAngleBoost,
+      yakatabaruUltraAngleStrongest,
+      yakatabaruUltraDeepSink,
+      yakatabaruUltraUnpaid,
+      yakatabaruUltraTrustedGames,
+      yakatabaruUltraNearbyLeftBehind,
+      yakatabaruUltraTreatmentDone,
+      yakatabaruUltraLowConfidence,
+      yakatabaruUltraLongNeglect,
+      yakatabaruUltraOverused,
+      yakatabaruUltraOutputOnly,
+      treatmentDone: yakatabaruUltraTreatmentDone,
+      lowConfidence: yakatabaruUltraLowConfidence,
       boostCount: boostFlags.filter(Boolean).length,
       dangerCount: dangerFlags.filter(Boolean).length,
     };
@@ -5536,6 +5683,131 @@ function calculateMachineScore(definition, metrics, features) {
     rawScore -= recentFourteenMachineHighContentCount >= 4 ? 6 : 0;
 
     return Math.round(clamp((rawScore / 98) * 100, 0, 100));
+  }
+
+  if (machineKey === "ultra-miracle" && activeLogicKey === "apark-yakatabaru-ultra-miracle") {
+    if (readNumber(metrics.historyRowCount) < 21) {
+      return 0;
+    }
+
+    let rawScore = 0;
+    rawScore += scoreAtLeast(streak, [
+      { minimum: 6, points: 45 },
+      { minimum: 5, points: 38 },
+      { minimum: 4, points: 30 },
+      { minimum: 3, points: 22 },
+      { minimum: 2, points: 12 },
+      { minimum: 1, points: 5 },
+    ]);
+
+    let sinkAngleScore = 0;
+    sinkAngleScore += scoreAtMost(recentThreeNetTotal, [
+      { maximum: -1900, points: 7 },
+      { maximum: -1300, points: 5 },
+      { maximum: -500, points: 2 },
+    ]);
+    sinkAngleScore += scoreAtMost(recentFiveNetTotal, [
+      { maximum: -2600, points: 5 },
+      { maximum: -1600, points: 3 },
+    ]);
+    sinkAngleScore += scoreAtMost(features.recentThreeAngle, [
+      { maximum: -225, points: 6 },
+      { maximum: -130, points: 4 },
+    ]);
+    sinkAngleScore += scoreAtMost(features.recentSevenAngle, [
+      { maximum: -135, points: 2 },
+      { maximum: -80, points: 1 },
+    ]);
+    rawScore += Math.min(sinkAngleScore, 20);
+
+    let activityScore = 0;
+    activityScore +=
+      recentThreeGamesTotal <= 6400 && streak >= 3
+        ? 8
+        : recentThreeGamesTotal <= 8500 && streak >= 2
+          ? 5
+          : 0;
+    activityScore += previousGames <= 1300 && streak >= 1 ? 4 : 0;
+    activityScore += recentSevenGamesTotal <= 21000 ? 3 : recentSevenGamesTotal <= 30000 ? 2 : 0;
+    rawScore += Math.min(activityScore, 15);
+
+    let unpaidScore = 0;
+    if (Number.isFinite(daysSinceMachineHighContent)) {
+      if (daysSinceMachineHighContent >= 22 && daysSinceMachineHighContent <= 35) {
+        unpaidScore += 7;
+      } else if (daysSinceMachineHighContent >= 15 && daysSinceMachineHighContent <= 21) {
+        unpaidScore += 6;
+      } else if (daysSinceMachineHighContent >= 8 && daysSinceMachineHighContent <= 14) {
+        unpaidScore += 4;
+      } else if (daysSinceMachineHighContent >= 36) {
+        unpaidScore += 4;
+      }
+    }
+    unpaidScore += recentSevenMachineHighContentCount === 0 && recentSevenNetTotal <= 0 ? 3 : 0;
+    unpaidScore +=
+      recentFourteenMachineHighContentCount === 0 && recentFourteenNetTotal <= -1500 ? 3 : 0;
+    unpaidScore +=
+      recentTwentyOneMachineHighContentCount === 0 &&
+      recentTwentyOneNetTotal <= -1500 &&
+      recentTwentyOneNetTotal >= -9000
+        ? 2
+        : 0;
+    rawScore += Math.min(unpaidScore, 15);
+
+    let nearbyScore = 0;
+    nearbyScore += adjacentMachineHighContentCount3 > 0 && recentThreeNetTotal <= 0 ? 2 : 0;
+    nearbyScore += adjacentMachineBigWin1000Count7Near2 >= 2 && recentSevenNetTotal <= 0 ? 2 : 0;
+    nearbyScore += adjacentMachineNetTotal7Near2 > 0 && recentSevenNetTotal < 0 ? 1 : 0;
+    rawScore += Math.min(nearbyScore, 5);
+
+    let treatmentCap = 100;
+    const applyTreatmentCap = (capValue) => {
+      treatmentCap = Math.min(treatmentCap, capValue);
+    };
+    if (previousMachineHighContent) {
+      applyTreatmentCap(55);
+    }
+    if (previousMachineHighContent && previousDifference >= 1000) {
+      applyTreatmentCap(45);
+    }
+    if (previousMachineHighContent && previousDifference >= 1800) {
+      applyTreatmentCap(35);
+    }
+    if (previousMachineHighContent && previousDifference < 500) {
+      applyTreatmentCap(45);
+    }
+    if (previousGames >= 3000 && previousCombinedDenominator <= 134) {
+      applyTreatmentCap(60);
+    }
+    if (previousGames >= 3000 && previousCombinedDenominator <= 134 && previousDifference < 500) {
+      applyTreatmentCap(50);
+    }
+    if (previousDifference >= 1275) {
+      applyTreatmentCap(48);
+    }
+    if (previousDifference >= 800) {
+      applyTreatmentCap(60);
+    }
+    if (previousGames >= 6200) {
+      applyTreatmentCap(58);
+    }
+    if (previousGames >= 4900 && previousDifference > 0) {
+      applyTreatmentCap(60);
+    }
+    if (recentThreeMachineHighContentCount >= 1) {
+      applyTreatmentCap(60);
+    }
+    if (recentSevenMachineHighContentCount >= 1 && recentSevenNetTotal > 0) {
+      applyTreatmentCap(65);
+    }
+    if (recentThreeNetTotal >= 1500) {
+      applyTreatmentCap(60);
+    }
+    if (recentSevenNetTotal >= 2800) {
+      applyTreatmentCap(55);
+    }
+
+    return Math.round(clamp(Math.min(rawScore, treatmentCap), 0, 100));
   }
 
   if (machineKey === "okidoki-black") {
