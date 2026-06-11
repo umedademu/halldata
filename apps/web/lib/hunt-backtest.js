@@ -1275,9 +1275,9 @@ function hasMachineEvaluationConditionFilters({
   );
 }
 
-function resolveMachineEvaluationConditionMatch(row, machineEvaluationContext, conditionOptions) {
+function resolveMachineEvaluationFilterMatch(row, machineEvaluationContext, conditionOptions) {
   if (!hasMachineEvaluationConditionFilters(conditionOptions)) {
-    return Boolean(row?.machineEvaluation?.matchesAdoption);
+    return true;
   }
 
   return matchesRequiredConditionFilters(
@@ -1329,18 +1329,22 @@ function resolveMachineEvaluationConditionMatch(row, machineEvaluationContext, c
   );
 }
 
-function combineBacktestConditionMatches(commonMatchesCondition, machineMatchesCondition, mode) {
+function resolveMachineEvaluationAdoptionMatch(row) {
+  return Boolean(row?.machineEvaluation?.matchesAdoption);
+}
+
+function combineBacktestConditionMatches(inputMatchesCondition, adoptionMatchesCondition, mode) {
   const normalizedMode = normalizeMachineEvaluationBacktestMode(mode);
   if (normalizedMode === MACHINE_EVALUATION_BACKTEST_MODE_MACHINE) {
-    return machineMatchesCondition;
+    return adoptionMatchesCondition;
   }
   if (normalizedMode === MACHINE_EVALUATION_BACKTEST_MODE_AND) {
-    return commonMatchesCondition && machineMatchesCondition;
+    return inputMatchesCondition && adoptionMatchesCondition;
   }
   if (normalizedMode === MACHINE_EVALUATION_BACKTEST_MODE_OR) {
-    return commonMatchesCondition || machineMatchesCondition;
+    return inputMatchesCondition || adoptionMatchesCondition;
   }
-  return commonMatchesCondition;
+  return inputMatchesCondition;
 }
 
 function compareSelectionCandidates(left, right) {
@@ -1565,13 +1569,13 @@ function buildBacktestAggregationDetail(
             },
             conditionOptions,
           );
+      const machineEvaluationContext = machineEvaluationRowsByRow.get(row) ?? null;
+      const inputMatchesCondition =
+        commonMatchesCondition &&
+        resolveMachineEvaluationFilterMatch(row, machineEvaluationContext, conditionOptions);
       const matchesCondition = combineBacktestConditionMatches(
-        commonMatchesCondition,
-        resolveMachineEvaluationConditionMatch(
-          row,
-          machineEvaluationRowsByRow.get(row) ?? null,
-          conditionOptions,
-        ),
+        inputMatchesCondition,
+        resolveMachineEvaluationAdoptionMatch(row),
         machineEvaluationBacktestMode,
       );
 

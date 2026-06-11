@@ -636,6 +636,20 @@ a {
   max-width: 70rem;
 }
 
+.backtestNumericConditionSet {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.backtestNumericConditionSet:disabled {
+  opacity: 0.58;
+}
+
 .commonConditionPanel {
   display: grid;
   gap: 8px;

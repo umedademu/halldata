@@ -15,19 +15,19 @@ export const MACHINE_EVALUATION_RANKING_MODE_SCORE = "score";
 export const MACHINE_EVALUATION_BACKTEST_MODE_OPTIONS = [
   {
     value: MACHINE_EVALUATION_BACKTEST_MODE_COMMON,
-    label: "共通条件のみ",
+    label: "使用しない",
   },
   {
     value: MACHINE_EVALUATION_BACKTEST_MODE_MACHINE,
-    label: "機種別条件のみ",
+    label: "機種別採用条件のみ",
   },
   {
     value: MACHINE_EVALUATION_BACKTEST_MODE_AND,
-    label: "共通条件 AND 機種別条件",
+    label: "共通条件 AND 機種別採用条件",
   },
   {
     value: MACHINE_EVALUATION_BACKTEST_MODE_OR,
-    label: "共通条件 OR 機種別条件",
+    label: "共通条件 OR 機種別採用条件",
   },
 ];
 

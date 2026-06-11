@@ -55,7 +55,7 @@ function formatMachineEvaluationBacktestModeLabel(value) {
   const normalizedValue = normalizeMachineEvaluationBacktestMode(value);
   return (
     MACHINE_EVALUATION_BACKTEST_MODE_OPTIONS.find((option) => option.value === normalizedValue)
-      ?.label ?? "共通条件のみ"
+      ?.label ?? "使用しない"
   );
 }
 
@@ -1310,7 +1310,7 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
     parts.push("設定分布: 非表示");
   }
   parts.push(
-    `機種別集計: ${formatMachineEvaluationBacktestModeLabel(
+    `機種別採用条件: ${formatMachineEvaluationBacktestModeLabel(
       normalizedBookmark.machineEvaluationBacktestMode,
     )}`,
   );
@@ -1744,18 +1744,18 @@ function hasMachineEvaluationBookmarkFilters(bookmark) {
   );
 }
 
-function combineBookmarkConditionMatches(commonMatched, machineEvaluationMatched, mode) {
+function combineBookmarkConditionMatches(inputMatched, adoptionMatched, mode) {
   const normalizedMode = normalizeMachineEvaluationBacktestMode(mode);
   if (normalizedMode === MACHINE_EVALUATION_BACKTEST_MODE_MACHINE) {
-    return machineEvaluationMatched;
+    return adoptionMatched;
   }
   if (normalizedMode === MACHINE_EVALUATION_BACKTEST_MODE_AND) {
-    return commonMatched && machineEvaluationMatched;
+    return inputMatched && adoptionMatched;
   }
   if (normalizedMode === MACHINE_EVALUATION_BACKTEST_MODE_OR) {
-    return commonMatched || machineEvaluationMatched;
+    return inputMatched || adoptionMatched;
   }
-  return commonMatched;
+  return inputMatched;
 }
 
 export function buildHuntBacktestBookmarkRowKey(row) {
@@ -1967,7 +1967,7 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
         },
       ],
     );
-    const machineEvaluationMatched = usesMachineEvaluationFilters
+    const machineEvaluationFilterMatched = usesMachineEvaluationFilters
       ? matchesRequiredConditionFilters(
           [
             {
@@ -2015,10 +2015,12 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
             },
           ],
         )
-      : Boolean(row?.machineEvaluation?.matchesAdoption);
+      : true;
+    const inputMatched = commonMatched && machineEvaluationFilterMatched;
+    const adoptionMatched = Boolean(row?.machineEvaluation?.matchesAdoption);
     const matched = combineBookmarkConditionMatches(
-      commonMatched,
-      machineEvaluationMatched,
+      inputMatched,
+      adoptionMatched,
       normalizedBookmark.machineEvaluationBacktestMode,
     );
 

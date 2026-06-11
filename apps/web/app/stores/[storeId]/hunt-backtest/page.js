@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 
 import { ExpandableTableRowsController } from "../../../../components/expandable-table-rows-controller";
 import { HuntBacktestBookmarkControl } from "../../../../components/hunt-backtest-bookmark-control";
+import { HuntBacktestAdoptionModeControl } from "../../../../components/hunt-backtest-adoption-mode-control";
 import { HuntBacktestFormStateSync } from "../../../../components/hunt-backtest-form-state-sync";
 import { Breadcrumbs } from "../../../../components/breadcrumbs";
 import { HuntBacktestGraph } from "../../../../components/hunt-backtest-graph";
@@ -44,6 +45,7 @@ import {
 import { listHuntScoreLogicOptions } from "../../../../lib/hunt-score";
 import {
   MACHINE_EVALUATION_BACKTEST_MODE_OPTIONS,
+  MACHINE_EVALUATION_BACKTEST_MODE_MACHINE,
   decodeMachineEvaluationSettingsCookieValue,
   getMachineEvaluationCookieName,
   normalizeMachineEvaluationBacktestMode,
@@ -783,6 +785,8 @@ export default async function HuntBacktestPage({ params, searchParams }) {
   });
   const huntScoreLogicOptions = listHuntScoreLogicOptions();
   const logicConditionMode = detail.backtest.logicConditionMode === "and" ? "and" : "sum";
+  const numericConditionsDisabled =
+    detail.backtest.machineEvaluationBacktestMode === MACHINE_EVALUATION_BACKTEST_MODE_MACHINE;
 
   return (
     <main className="pageStack">
@@ -791,6 +795,7 @@ export default async function HuntBacktestPage({ params, searchParams }) {
         formId={HUNT_BACKTEST_FORM_ID}
         formStateKey={backtestFormStateKey}
       />
+      <HuntBacktestAdoptionModeControl formId={HUNT_BACKTEST_FORM_ID} />
       <Breadcrumbs
         items={[
           { label: "店舗一覧", href: "/" },
@@ -1024,185 +1029,192 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       <SettingEstimateModeOptions value={detail.backtest.settingEstimateMode} />
                     </div>
                     <div className="commonConditionMode">
-                      <p className="commonConditionSubLabel">機種別評価の集計</p>
+                      <p className="commonConditionSubLabel">機種別採用条件</p>
                       <MachineEvaluationBacktestModeOptions
                         value={detail.backtest.machineEvaluationBacktestMode}
                       />
                     </div>
                   </div>
                 </div>
-                <div className="scopedConditionColumns">
-                  <div className="scopedConditionColumn">
-                    <p className="scopedConditionColumnTitle">狙い度</p>
-                    <ScopedConditionRow
-                      label="点数"
-                      minName="scoreMin"
-                      maxName="scoreMax"
-                      requiredName="scoreRequired"
-                      minValue={detail.backtest.scoreMin}
-                      maxValue={detail.backtest.scoreMax}
-                      requiredValue={detail.backtest.scoreRequired}
-                      inputMax={detail.backtest.scoreMaxLimit}
-                    />
+                <fieldset
+                  className="backtestNumericConditionSet"
+                  data-backtest-numeric-condition-panel="1"
+                  disabled={numericConditionsDisabled}
+                  aria-disabled={numericConditionsDisabled ? "true" : "false"}
+                >
+                  <div className="scopedConditionColumns">
+                    <div className="scopedConditionColumn">
+                      <p className="scopedConditionColumnTitle">狙い度</p>
+                      <ScopedConditionRow
+                        label="点数"
+                        minName="scoreMin"
+                        maxName="scoreMax"
+                        requiredName="scoreRequired"
+                        minValue={detail.backtest.scoreMin}
+                        maxValue={detail.backtest.scoreMax}
+                        requiredValue={detail.backtest.scoreRequired}
+                        inputMax={detail.backtest.scoreMaxLimit}
+                      />
+                    </div>
+                    <div className="scopedConditionColumn">
+                      <p className="scopedConditionColumnTitle">機種別</p>
+                      <ScopedConditionRow
+                        label="点数"
+                        minName="machineEvaluationScoreMin"
+                        maxName="machineEvaluationScoreMax"
+                        requiredName="machineEvaluationScoreRequired"
+                        minValue={detail.backtest.machineEvaluationScoreMin}
+                        maxValue={detail.backtest.machineEvaluationScoreMax}
+                        requiredValue={detail.backtest.machineEvaluationScoreRequired}
+                        inputMax="100"
+                      />
+                    </div>
                   </div>
-                  <div className="scopedConditionColumn">
-                    <p className="scopedConditionColumnTitle">機種別</p>
-                    <ScopedConditionRow
-                      label="点数"
-                      minName="machineEvaluationScoreMin"
-                      maxName="machineEvaluationScoreMax"
-                      requiredName="machineEvaluationScoreRequired"
-                      minValue={detail.backtest.machineEvaluationScoreMin}
-                      maxValue={detail.backtest.machineEvaluationScoreMax}
-                      requiredValue={detail.backtest.machineEvaluationScoreRequired}
-                      inputMax="100"
-                    />
+                  <div className="scopedConditionColumns">
+                    <div className="scopedConditionColumn">
+                      <p className="scopedConditionColumnTitle">同一機種内</p>
+                      <ScopedConditionRow
+                        label="順位"
+                        minName="machineRankMin"
+                        maxName="machineRankMax"
+                        requiredName="machineRankRequired"
+                        minValue={detail.backtest.machineRankMin}
+                        maxValue={detail.backtest.machineRankMax}
+                        requiredValue={detail.backtest.machineRankRequired}
+                        minLabel="開始"
+                        maxLabel="終了"
+                        inputMin="1"
+                        inputMax={undefined}
+                        inputStep={undefined}
+                      />
+                      <ScopedConditionRow
+                        label="上差(同)"
+                        minName="machineUpperGapMin"
+                        maxName="machineUpperGapMax"
+                        requiredName="machineUpperGapRequired"
+                        minValue={detail.backtest.machineUpperGapMin}
+                        maxValue={detail.backtest.machineUpperGapMax}
+                        requiredValue={detail.backtest.machineUpperGapRequired}
+                      />
+                      <ScopedConditionRow
+                        label="下差(同)"
+                        minName="machineNextGapMin"
+                        maxName="machineNextGapMax"
+                        requiredName="machineNextGapRequired"
+                        minValue={detail.backtest.machineNextGapMin}
+                        maxValue={detail.backtest.machineNextGapMax}
+                        requiredValue={detail.backtest.machineNextGapRequired}
+                      />
+                    </div>
+                    <div className="scopedConditionColumn">
+                      <p className="scopedConditionColumnTitle">同一機種内(機種別)</p>
+                      <ScopedConditionRow
+                        label="順位"
+                        minName="machineEvaluationRankMin"
+                        maxName="machineEvaluationRankMax"
+                        requiredName="machineEvaluationRankRequired"
+                        minValue={detail.backtest.machineEvaluationRankMin}
+                        maxValue={detail.backtest.machineEvaluationRankMax}
+                        requiredValue={detail.backtest.machineEvaluationRankRequired}
+                        minLabel="開始"
+                        maxLabel="終了"
+                        inputMin="1"
+                        inputMax={undefined}
+                        inputStep={undefined}
+                      />
+                      <ScopedConditionRow
+                        label="上差(同)"
+                        minName="machineEvaluationUpperGapMin"
+                        maxName="machineEvaluationUpperGapMax"
+                        requiredName="machineEvaluationUpperGapRequired"
+                        minValue={detail.backtest.machineEvaluationUpperGapMin}
+                        maxValue={detail.backtest.machineEvaluationUpperGapMax}
+                        requiredValue={detail.backtest.machineEvaluationUpperGapRequired}
+                      />
+                      <ScopedConditionRow
+                        label="下差(同)"
+                        minName="machineEvaluationNextGapMin"
+                        maxName="machineEvaluationNextGapMax"
+                        requiredName="machineEvaluationNextGapRequired"
+                        minValue={detail.backtest.machineEvaluationNextGapMin}
+                        maxValue={detail.backtest.machineEvaluationNextGapMax}
+                        requiredValue={detail.backtest.machineEvaluationNextGapRequired}
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="scopedConditionColumns">
-                  <div className="scopedConditionColumn">
-                    <p className="scopedConditionColumnTitle">同一機種内</p>
-                    <ScopedConditionRow
-                      label="順位"
-                      minName="machineRankMin"
-                      maxName="machineRankMax"
-                      requiredName="machineRankRequired"
-                      minValue={detail.backtest.machineRankMin}
-                      maxValue={detail.backtest.machineRankMax}
-                      requiredValue={detail.backtest.machineRankRequired}
-                      minLabel="開始"
-                      maxLabel="終了"
-                      inputMin="1"
-                      inputMax={undefined}
-                      inputStep={undefined}
-                    />
-                    <ScopedConditionRow
-                      label="上差(同)"
-                      minName="machineUpperGapMin"
-                      maxName="machineUpperGapMax"
-                      requiredName="machineUpperGapRequired"
-                      minValue={detail.backtest.machineUpperGapMin}
-                      maxValue={detail.backtest.machineUpperGapMax}
-                      requiredValue={detail.backtest.machineUpperGapRequired}
-                    />
-                    <ScopedConditionRow
-                      label="下差(同)"
-                      minName="machineNextGapMin"
-                      maxName="machineNextGapMax"
-                      requiredName="machineNextGapRequired"
-                      minValue={detail.backtest.machineNextGapMin}
-                      maxValue={detail.backtest.machineNextGapMax}
-                      requiredValue={detail.backtest.machineNextGapRequired}
-                    />
+                  <div className="scopedConditionColumns">
+                    <div className="scopedConditionColumn">
+                      <p className="scopedConditionColumnTitle">選択機種内</p>
+                      <ScopedConditionRow
+                        label="順位"
+                        minName="selectedRankMin"
+                        maxName="selectedRankMax"
+                        requiredName="selectedRankRequired"
+                        minValue={detail.backtest.selectedRankMin}
+                        maxValue={detail.backtest.selectedRankMax}
+                        requiredValue={detail.backtest.selectedRankRequired}
+                        minLabel="開始"
+                        maxLabel="終了"
+                        inputMin="1"
+                        inputMax={undefined}
+                        inputStep={undefined}
+                      />
+                      <ScopedConditionRow
+                        label="上差(全)"
+                        minName="selectedUpperGapMin"
+                        maxName="selectedUpperGapMax"
+                        requiredName="selectedUpperGapRequired"
+                        minValue={detail.backtest.selectedUpperGapMin}
+                        maxValue={detail.backtest.selectedUpperGapMax}
+                        requiredValue={detail.backtest.selectedUpperGapRequired}
+                      />
+                      <ScopedConditionRow
+                        label="下差(全)"
+                        minName="selectedNextGapMin"
+                        maxName="selectedNextGapMax"
+                        requiredName="selectedNextGapRequired"
+                        minValue={detail.backtest.selectedNextGapMin}
+                        maxValue={detail.backtest.selectedNextGapMax}
+                        requiredValue={detail.backtest.selectedNextGapRequired}
+                      />
+                    </div>
+                    <div className="scopedConditionColumn">
+                      <p className="scopedConditionColumnTitle">選択機種内(機種別)</p>
+                      <ScopedConditionRow
+                        label="順位"
+                        minName="selectedMachineEvaluationRankMin"
+                        maxName="selectedMachineEvaluationRankMax"
+                        requiredName="selectedMachineEvaluationRankRequired"
+                        minValue={detail.backtest.selectedMachineEvaluationRankMin}
+                        maxValue={detail.backtest.selectedMachineEvaluationRankMax}
+                        requiredValue={detail.backtest.selectedMachineEvaluationRankRequired}
+                        minLabel="開始"
+                        maxLabel="終了"
+                        inputMin="1"
+                        inputMax={undefined}
+                        inputStep={undefined}
+                      />
+                      <ScopedConditionRow
+                        label="上差(全)"
+                        minName="selectedMachineEvaluationUpperGapMin"
+                        maxName="selectedMachineEvaluationUpperGapMax"
+                        requiredName="selectedMachineEvaluationUpperGapRequired"
+                        minValue={detail.backtest.selectedMachineEvaluationUpperGapMin}
+                        maxValue={detail.backtest.selectedMachineEvaluationUpperGapMax}
+                        requiredValue={detail.backtest.selectedMachineEvaluationUpperGapRequired}
+                      />
+                      <ScopedConditionRow
+                        label="下差(全)"
+                        minName="selectedMachineEvaluationNextGapMin"
+                        maxName="selectedMachineEvaluationNextGapMax"
+                        requiredName="selectedMachineEvaluationNextGapRequired"
+                        minValue={detail.backtest.selectedMachineEvaluationNextGapMin}
+                        maxValue={detail.backtest.selectedMachineEvaluationNextGapMax}
+                        requiredValue={detail.backtest.selectedMachineEvaluationNextGapRequired}
+                      />
+                    </div>
                   </div>
-                  <div className="scopedConditionColumn">
-                    <p className="scopedConditionColumnTitle">同一機種内(機種別)</p>
-                    <ScopedConditionRow
-                      label="順位"
-                      minName="machineEvaluationRankMin"
-                      maxName="machineEvaluationRankMax"
-                      requiredName="machineEvaluationRankRequired"
-                      minValue={detail.backtest.machineEvaluationRankMin}
-                      maxValue={detail.backtest.machineEvaluationRankMax}
-                      requiredValue={detail.backtest.machineEvaluationRankRequired}
-                      minLabel="開始"
-                      maxLabel="終了"
-                      inputMin="1"
-                      inputMax={undefined}
-                      inputStep={undefined}
-                    />
-                    <ScopedConditionRow
-                      label="上差(同)"
-                      minName="machineEvaluationUpperGapMin"
-                      maxName="machineEvaluationUpperGapMax"
-                      requiredName="machineEvaluationUpperGapRequired"
-                      minValue={detail.backtest.machineEvaluationUpperGapMin}
-                      maxValue={detail.backtest.machineEvaluationUpperGapMax}
-                      requiredValue={detail.backtest.machineEvaluationUpperGapRequired}
-                    />
-                    <ScopedConditionRow
-                      label="下差(同)"
-                      minName="machineEvaluationNextGapMin"
-                      maxName="machineEvaluationNextGapMax"
-                      requiredName="machineEvaluationNextGapRequired"
-                      minValue={detail.backtest.machineEvaluationNextGapMin}
-                      maxValue={detail.backtest.machineEvaluationNextGapMax}
-                      requiredValue={detail.backtest.machineEvaluationNextGapRequired}
-                    />
-                  </div>
-                </div>
-                <div className="scopedConditionColumns">
-                  <div className="scopedConditionColumn">
-                    <p className="scopedConditionColumnTitle">選択機種内</p>
-                    <ScopedConditionRow
-                      label="順位"
-                      minName="selectedRankMin"
-                      maxName="selectedRankMax"
-                      requiredName="selectedRankRequired"
-                      minValue={detail.backtest.selectedRankMin}
-                      maxValue={detail.backtest.selectedRankMax}
-                      requiredValue={detail.backtest.selectedRankRequired}
-                      minLabel="開始"
-                      maxLabel="終了"
-                      inputMin="1"
-                      inputMax={undefined}
-                      inputStep={undefined}
-                    />
-                    <ScopedConditionRow
-                      label="上差(全)"
-                      minName="selectedUpperGapMin"
-                      maxName="selectedUpperGapMax"
-                      requiredName="selectedUpperGapRequired"
-                      minValue={detail.backtest.selectedUpperGapMin}
-                      maxValue={detail.backtest.selectedUpperGapMax}
-                      requiredValue={detail.backtest.selectedUpperGapRequired}
-                    />
-                    <ScopedConditionRow
-                      label="下差(全)"
-                      minName="selectedNextGapMin"
-                      maxName="selectedNextGapMax"
-                      requiredName="selectedNextGapRequired"
-                      minValue={detail.backtest.selectedNextGapMin}
-                      maxValue={detail.backtest.selectedNextGapMax}
-                      requiredValue={detail.backtest.selectedNextGapRequired}
-                    />
-                  </div>
-                  <div className="scopedConditionColumn">
-                    <p className="scopedConditionColumnTitle">選択機種内(機種別)</p>
-                    <ScopedConditionRow
-                      label="順位"
-                      minName="selectedMachineEvaluationRankMin"
-                      maxName="selectedMachineEvaluationRankMax"
-                      requiredName="selectedMachineEvaluationRankRequired"
-                      minValue={detail.backtest.selectedMachineEvaluationRankMin}
-                      maxValue={detail.backtest.selectedMachineEvaluationRankMax}
-                      requiredValue={detail.backtest.selectedMachineEvaluationRankRequired}
-                      minLabel="開始"
-                      maxLabel="終了"
-                      inputMin="1"
-                      inputMax={undefined}
-                      inputStep={undefined}
-                    />
-                    <ScopedConditionRow
-                      label="上差(全)"
-                      minName="selectedMachineEvaluationUpperGapMin"
-                      maxName="selectedMachineEvaluationUpperGapMax"
-                      requiredName="selectedMachineEvaluationUpperGapRequired"
-                      minValue={detail.backtest.selectedMachineEvaluationUpperGapMin}
-                      maxValue={detail.backtest.selectedMachineEvaluationUpperGapMax}
-                      requiredValue={detail.backtest.selectedMachineEvaluationUpperGapRequired}
-                    />
-                    <ScopedConditionRow
-                      label="下差(全)"
-                      minName="selectedMachineEvaluationNextGapMin"
-                      maxName="selectedMachineEvaluationNextGapMax"
-                      requiredName="selectedMachineEvaluationNextGapRequired"
-                      minValue={detail.backtest.selectedMachineEvaluationNextGapMin}
-                      maxValue={detail.backtest.selectedMachineEvaluationNextGapMax}
-                      requiredValue={detail.backtest.selectedMachineEvaluationNextGapRequired}
-                    />
-                  </div>
-                </div>
+                </fieldset>
               </div>
 
               <div className="backtestBlock">
