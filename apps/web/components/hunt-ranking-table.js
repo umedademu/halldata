@@ -475,6 +475,10 @@ function MachineEvaluationCell({ evaluation, extraTitle = "" }) {
 }
 
 function isRankingConditionHighlighted(row, highlightCondition) {
+  if (!highlightCondition) {
+    return false;
+  }
+
   if (
     !highlightCondition.machineRankFilter.hasRankFilter &&
     !highlightCondition.selectedRankFilter.hasRankFilter &&
@@ -898,6 +902,7 @@ export function HuntRankingTable({
   actualDate = null,
   highlightOptions = {},
   customHighlightBookmark = null,
+  enableConditionHighlight = true,
   initialDifferenceMode = DEFAULT_DIFFERENCE_MODE,
   showMachineTopCandidates = false,
   subHuntScoreLogic = null,
@@ -927,6 +932,12 @@ export function HuntRankingTable({
   }, [showGrapeColumn]);
 
   useEffect(() => {
+    if (!enableConditionHighlight) {
+      setBookmarks([]);
+      setBookmarkSelection(HUNT_BACKTEST_BOOKMARK_SELECTION_CUSTOM);
+      return undefined;
+    }
+
     const syncBookmarks = () => {
       const nextBookmarks = readSavedHuntBacktestBookmarks(storeId);
       const selectedId = readSelectedHuntBacktestBookmarkId(storeId);
@@ -947,7 +958,7 @@ export function HuntRankingTable({
       window.removeEventListener(HUNT_BACKTEST_BOOKMARK_EVENT, syncBookmarks);
       window.removeEventListener("storage", syncBookmarks);
     };
-  }, [storeId]);
+  }, [enableConditionHighlight, storeId]);
 
   const resultColumns = useMemo(
     () => buildResultColumns(differenceMode, showGrapeColumn),
@@ -1074,6 +1085,9 @@ export function HuntRankingTable({
     [displayGroups, machineTopCandidateGapValueByRowKey, showMachineTopCandidates],
   );
   const activeBookmark = useMemo(() => {
+    if (!enableConditionHighlight) {
+      return null;
+    }
     if (bookmarkSelection === HUNT_BACKTEST_BOOKMARK_SELECTION_NONE) {
       return null;
     }
@@ -1085,16 +1099,23 @@ export function HuntRankingTable({
       bookmarks[0] ??
       customHighlightBookmark
     );
-  }, [bookmarkSelection, bookmarks, customHighlightBookmark]);
+  }, [bookmarkSelection, bookmarks, customHighlightBookmark, enableConditionHighlight]);
   const bookmarkState = useMemo(
-    () =>
-      buildHuntBacktestBookmarkMatches(
+    () => {
+      if (!enableConditionHighlight) {
+        return { bookmark: null, matchByRowKey: null };
+      }
+
+      return buildHuntBacktestBookmarkMatches(
         decorateRowsWithSelectedRank(displayRowsWithGap, selectedRankValueByRowKey),
         activeBookmark,
-      ),
-    [activeBookmark, displayRowsWithGap, selectedRankValueByRowKey],
+      );
+    },
+    [activeBookmark, displayRowsWithGap, enableConditionHighlight, selectedRankValueByRowKey],
   );
-  const bookmarkMatchByRowKey = bookmarkState.bookmark ? bookmarkState.matchByRowKey : null;
+  const bookmarkMatchByRowKey =
+    enableConditionHighlight && bookmarkState.bookmark ? bookmarkState.matchByRowKey : null;
+  const tableHighlightCondition = enableConditionHighlight ? highlightCondition : null;
 
   const toggleColumn = (columnKey) => {
     setVisibleResultKeys((currentKeys) => {
@@ -1209,7 +1230,7 @@ export function HuntRankingTable({
           scoreColumnLabel={scoreColumnLabel}
           dateFlowLabel={dateFlowLabel}
           nextGapScope={nextGapScope}
-          highlightCondition={highlightCondition}
+          highlightCondition={tableHighlightCondition}
           bookmarkMatchByRowKey={bookmarkMatchByRowKey}
           subHuntScoreLogic={subHuntScoreLogic}
           showMachineEvaluation={showMachineEvaluation}
@@ -1233,7 +1254,7 @@ export function HuntRankingTable({
             scoreColumnLabel={scoreColumnLabel}
             dateFlowLabel={dateFlowLabel}
             nextGapScope="machine"
-            highlightCondition={highlightCondition}
+            highlightCondition={tableHighlightCondition}
             bookmarkMatchByRowKey={bookmarkMatchByRowKey}
             sortable
             tableId="machine-top-candidates-ranking"
@@ -1317,7 +1338,7 @@ export function HuntRankingTable({
                         {row.rank}
                       </td>
                       <td
-                        className={getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey)}
+                        className={getRankingConditionHighlightClass(row, tableHighlightCondition, bookmarkMatchByRowKey)}
                         title={rowSite7Title || undefined}
                       >
                         {formatNumber(row.huntScore)}
