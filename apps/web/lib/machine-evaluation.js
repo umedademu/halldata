@@ -123,6 +123,13 @@ function isAparkKasugaStore(storeName) {
   return normalizeMachineNameText(storeName) === normalizeMachineNameText("Aパーク春日店");
 }
 
+function isAparkYakatabaruStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["A-PARK屋形原", "A-PARK屋形原店", "Aパーク屋形原", "Aパーク屋形原店"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function isMjArenaKurumeStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return [
@@ -643,6 +650,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logicName: "ネオアイム春日式",
     logics: [
       buildLogicVariant("apark-neo-aim", "ネオアイム春日式", "main"),
+      buildLogicVariant("apark-yakatabaru-neo-aim", "ネオアイム屋形原式", "apark-yakatabaru-main"),
       buildLogicVariant("mj-kurume-neo-aim", "ネオアイムMJ久留米式", "mj-kurume-main"),
     ],
     profile: "juggler",
@@ -658,6 +666,52 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["aimShortSinkStay2"],
         },
         ["apark-neo-aim"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-main",
+        "1位＋70点以上＋次点差10点以上",
+        "44件 / 104.34% / RB1/254.5",
+        {
+          rankMax: 1,
+          minScore: 70,
+          minNextGap: 10,
+          requiredFlags: ["yakatabaruNeoHistoryReady"],
+        },
+        ["apark-yakatabaru-neo-aim"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-wide",
+        "1位＋70点以上",
+        "78件 / 103.53% / RB1/266.1",
+        {
+          rankMax: 1,
+          minScore: 70,
+          requiredFlags: ["yakatabaruNeoHistoryReady"],
+        },
+        ["apark-yakatabaru-neo-aim"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-strong",
+        "1位＋80点以上",
+        "19件 / 105.30% / RB1/255.6",
+        {
+          rankMax: 1,
+          minScore: 80,
+          requiredFlags: ["yakatabaruNeoHistoryReady"],
+        },
+        ["apark-yakatabaru-neo-aim"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-gap15",
+        "1位＋70点以上＋次点差15点以上",
+        "30件 / 103.88% / RB1/249.9",
+        {
+          rankMax: 1,
+          minScore: 70,
+          minNextGap: 15,
+          requiredFlags: ["yakatabaruNeoHistoryReady"],
+        },
+        ["apark-yakatabaru-neo-aim"],
       ),
       buildCondition(
         "mj-kurume-main",
@@ -1012,6 +1066,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-my");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "girls") {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-girls");
+  } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-neo-aim");
   } else if (isAparkKasugaStore(storeName)) {
     defaultLogic = findLogicDefinition(definition, definition.logicKey);
   }
@@ -1545,9 +1601,11 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const adjacentMachineHighContentCount14Near2 = readNumber(metrics.adjacentMachineHighContentCount14Near2);
   const adjacentMachineBigWin1000Count7Near2 = readNumber(metrics.adjacentMachineBigWin1000Count7Near2);
   const adjacentMachineNetTotal3 = readNumber(metrics.adjacentMachineNetTotal3);
+  const adjacentMachineNetTotal3Near2 = readNumber(metrics.adjacentMachineNetTotal3Near2);
   const adjacentMachineNetTotal5 = readNumber(metrics.adjacentMachineNetTotal5);
   const adjacentMachineNetTotal5Near2 = readNumber(metrics.adjacentMachineNetTotal5Near2);
   const adjacentMachineNetTotal7 = readNumber(metrics.adjacentMachineNetTotal7);
+  const adjacentMachineNetTotal7Near2 = readNumber(metrics.adjacentMachineNetTotal7Near2);
   const adjacentMachineNetTotal14 = readNumber(metrics.adjacentMachineNetTotal14);
   const previousAdjacentMachineHighContentCount = readNumber(metrics.previousAdjacentMachineHighContentCount);
   const previousAdjacentMachineGoodContentCount = readNumber(metrics.previousAdjacentMachineGoodContentCount);
@@ -1656,6 +1714,76 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "apark-yakatabaru-neo-aim") {
+      const yakatabaruNeoHistoryReady = historyRowCount >= 21;
+      const yakatabaruNeoSinkStrength = features.recentThreeAngle <= -113 || streak >= 3;
+
+      let yakatabaruNeoRotationCoreScore = 0;
+      yakatabaruNeoRotationCoreScore += scoreInRange(daysSinceMachineHighContent, 11, 14, 9);
+      yakatabaruNeoRotationCoreScore += scoreInRange(daysSinceMachineHighContent, 4, 10, 6);
+      yakatabaruNeoRotationCoreScore += scoreInRange(daysSinceMachineHighContent, 3, 3, 3);
+      yakatabaruNeoRotationCoreScore += scoreInRange(daysSinceMachineHighContent, 15, 21, 2);
+      yakatabaruNeoRotationCoreScore +=
+        recentFourteenNetTotal <= -4238 || recentTwentyOneNetTotal <= -5032
+          ? 6
+          : recentFourteenNetTotal <= -2736 || recentTwentyOneNetTotal <= -3210
+            ? 4
+            : 0;
+      yakatabaruNeoRotationCoreScore += recentFourteenMachineHighContentCount === 1 ? 3 : 0;
+      yakatabaruNeoRotationCoreScore += recentTwentyOneMachineHighContentCount === 2 ? 3 : 0;
+      yakatabaruNeoRotationCoreScore = Math.min(yakatabaruNeoRotationCoreScore, 17);
+
+      const yakatabaruNeoUnpaid =
+        yakatabaruNeoRotationCoreScore >= 10 ||
+        (Number.isFinite(daysSinceMachineHighContent) &&
+          daysSinceMachineHighContent >= 4 &&
+          daysSinceMachineHighContent <= 14 &&
+          previousMachineHighContent &&
+          (recentFourteenNetTotal <= -2736 || recentTwentyOneNetTotal <= -3210));
+      const yakatabaruNeoPreviousFail =
+        (previousMachineHighContent && previousDifference < 0) ||
+        (previousGames >= 6000 && previousDifference < 0);
+      const yakatabaruNeoNearbyLeftBehind =
+        (recentThreeNetTotal < 0 && adjacentMachineNetTotal3Near2 > 0) ||
+        (recentSevenNetTotal < 0 && adjacentMachineNetTotal7Near2 > 0);
+      const yakatabaruNeoTreatmentDone =
+        (previousMachineHighContent && previousDifference > 0) ||
+        previousDifference >= 1800 ||
+        recentThreeNetTotal > 2509 ||
+        recentSevenNetTotal > 3704 ||
+        (previousDifference > 0 &&
+          features.previousCombinedDenominator <= 150 &&
+          features.previousRbDenominator >= 350);
+      const yakatabaruNeoLowConfidence = previousGames < 500 || recentThreeGamesTotal < 5000;
+      const yakatabaruNeoOverheated =
+        previousGames >= 7000 ||
+        recentThreeGamesTotal > 17024 ||
+        recentFourteenMachineHighContentCount >= 4;
+      const boostFlags = [
+        yakatabaruNeoSinkStrength,
+        yakatabaruNeoUnpaid,
+        yakatabaruNeoPreviousFail,
+        yakatabaruNeoNearbyLeftBehind,
+      ];
+      const dangerFlags = [yakatabaruNeoTreatmentDone, yakatabaruNeoLowConfidence, yakatabaruNeoOverheated];
+
+      return {
+        ...features,
+        yakatabaruNeoHistoryReady,
+        yakatabaruNeoSinkStrength,
+        yakatabaruNeoUnpaid,
+        yakatabaruNeoPreviousFail,
+        yakatabaruNeoNearbyLeftBehind,
+        yakatabaruNeoTreatmentDone,
+        yakatabaruNeoLowConfidence,
+        yakatabaruNeoOverheated,
+        treatmentDone: yakatabaruNeoTreatmentDone,
+        lowConfidence: yakatabaruNeoLowConfidence,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "mj-kurume-neo-aim") {
       const kurumeNeoHistoryReady = historyRowCount >= 14;
       const recentTwentyOneRbDenominator = rateDenominator(
@@ -2687,6 +2815,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentSevenMachineHighContentCount = readNumber(metrics.recentSevenMachineHighContentCount);
   const recentTenMachineHighContentCount = readNumber(metrics.recentTenMachineHighContentCount);
   const recentFourteenMachineHighContentCount = readNumber(metrics.recentFourteenMachineHighContentCount);
+  const recentTwentyOneMachineHighContentCount = readNumber(metrics.recentTwentyOneMachineHighContentCount);
   const recentThirtyMachineHighContentCount = readNumber(metrics.recentThirtyMachineHighContentCount);
   const recentFourteenMachineStrongHighContentCount = readNumber(metrics.recentFourteenMachineStrongHighContentCount);
   const recentSevenMachineGoodContentCount = readNumber(metrics.recentSevenMachineGoodContentCount);
@@ -2706,10 +2835,13 @@ function calculateMachineScore(definition, metrics, features) {
   const adjacentMachineHighContentCount14Near2 = readNumber(metrics.adjacentMachineHighContentCount14Near2);
   const adjacentMachineBigWin1000Count7Near2 = readNumber(metrics.adjacentMachineBigWin1000Count7Near2);
   const adjacentMachineNetTotal3 = readNumber(metrics.adjacentMachineNetTotal3);
+  const adjacentMachineNetTotal3Near2 = readNumber(metrics.adjacentMachineNetTotal3Near2);
   const adjacentMachineNetTotal5 = readNumber(metrics.adjacentMachineNetTotal5);
   const adjacentMachineNetTotal5Near2 = readNumber(metrics.adjacentMachineNetTotal5Near2);
   const adjacentMachineNetTotal7 = readNumber(metrics.adjacentMachineNetTotal7);
+  const adjacentMachineNetTotal7Near2 = readNumber(metrics.adjacentMachineNetTotal7Near2);
   const adjacentMachineNetTotal14 = readNumber(metrics.adjacentMachineNetTotal14);
+  const adjacentMachineNetTotal14Near2 = readNumber(metrics.adjacentMachineNetTotal14Near2);
   const previousAdjacentMachineHighContentCount = readNumber(metrics.previousAdjacentMachineHighContentCount);
   const previousAdjacentMachineGoodContentCount = readNumber(metrics.previousAdjacentMachineGoodContentCount);
   const previousAdjacentMachineBigWin1000Count = readNumber(metrics.previousAdjacentMachineBigWin1000Count);
@@ -2866,6 +2998,74 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "apark-yakatabaru-neo-aim") {
+      if (historyRowCount < 21) {
+        return 0;
+      }
+
+      let angleScore = 0;
+      angleScore += scoreAtMost(features.recentThreeAngle, [
+        { maximum: -178, points: 24 },
+        { maximum: -113, points: 17 },
+        { maximum: -60, points: 10 },
+        { maximum: -0.000001, points: 4 },
+      ]);
+      angleScore += features.recentFiveAngle <= -121 ? 6 : 0;
+      angleScore += features.recentSevenAngle <= -97 ? 4 : 0;
+      angleScore = Math.min(angleScore, 30);
+
+      let losingScore = scoreAtLeast(streak, [
+        { minimum: 5, points: 22 },
+        { minimum: 4, points: 17 },
+        { minimum: 3, points: 13 },
+        { minimum: 2, points: 8 },
+        { minimum: 1, points: 1 },
+      ]);
+      losingScore += previousDifference <= -1200 ? 3 : 0;
+      losingScore += previousGames >= 6000 && previousDifference < 0 ? 4 : 0;
+      losingScore = Math.min(losingScore, 22);
+
+      let previousFailScore = 0;
+      previousFailScore += previousMachineHighContent && previousDifference < 0 ? 14 : 0;
+      previousFailScore += previousGames >= 6000 && previousDifference < 0 ? 10 : 0;
+      previousFailScore += previousMachineStrongHighContent && previousDifference < 0 ? 4 : 0;
+      previousFailScore = Math.min(previousFailScore, 18);
+
+      let rotationScore = 0;
+      rotationScore += scoreInRange(daysSinceMachineHighContent, 11, 14, 9);
+      rotationScore += scoreInRange(daysSinceMachineHighContent, 4, 10, 6);
+      rotationScore += scoreInRange(daysSinceMachineHighContent, 3, 3, 3);
+      rotationScore += scoreInRange(daysSinceMachineHighContent, 15, 21, 2);
+      rotationScore +=
+        recentFourteenNetTotal <= -4238 || recentTwentyOneNetTotal <= -5032
+          ? 6
+          : recentFourteenNetTotal <= -2736 || recentTwentyOneNetTotal <= -3210
+            ? 4
+            : 0;
+      rotationScore += recentFourteenMachineHighContentCount === 1 ? 3 : 0;
+      rotationScore += recentTwentyOneMachineHighContentCount === 2 ? 3 : 0;
+      rotationScore = Math.min(rotationScore, 17);
+
+      const gamesScore =
+        recentThreeGamesTotal <= 11340
+          ? 6
+          : recentThreeGamesTotal <= 14125
+            ? 4
+            : recentThreeGamesTotal <= 17024
+              ? 2
+              : 0;
+
+      let nearbyScore = 0;
+      nearbyScore += recentThreeNetTotal < 0 && adjacentMachineNetTotal3Near2 > 0 ? 6 : 0;
+      nearbyScore += recentSevenNetTotal < 0 && adjacentMachineNetTotal7Near2 > 0 ? 4 : 0;
+      nearbyScore += recentFourteenNetTotal < 0 && adjacentMachineNetTotal14Near2 > 0 ? 2 : 0;
+      nearbyScore = Math.min(nearbyScore, 7);
+
+      return Math.round(
+        clamp(angleScore + losingScore + previousFailScore + rotationScore + gamesScore + nearbyScore, 0, 100),
+      );
+    }
+
     if (activeLogicKey === "mj-kurume-neo-aim") {
       const recentTwentyOneRbDenominator = rateDenominator(
         recentTwentyOneGamesTotal,

@@ -752,6 +752,10 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["A-PARK屋形原", "A-PARK屋形原店", "Aパーク屋形原", "Aパーク屋形原店"],
     targetMachines: APARK_YAKATABARU_TARGET_MACHINES,
     defaultLogicKey: "apark-yakatabaru-a",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "apark-yakatabaru-neo-aim",
+      "ネオアイムジャグラーＥＸ": "apark-yakatabaru-neo-aim",
+    },
   },
   {
     key: "gogo-arena-tenjin",
@@ -1467,7 +1471,11 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
   const differenceValue = readNumber(row?.differenceValue) ?? 0;
 
   if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
-    if (readMachineContentRule(config, machineName) === "mj-arena-kurume-neo-aim") {
+    const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "apark-yakatabaru-neo-aim") {
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 150;
+    }
+    if (contentRule === "mj-arena-kurume-neo-aim") {
       return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 135;
     }
     return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
@@ -1595,7 +1603,11 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
   const rbDenominator = calculateRbDenominatorFromWindowRow(row);
 
   if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
-    if (readMachineContentRule(config, machineName) === "mj-arena-kurume-neo-aim") {
+    const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "apark-yakatabaru-neo-aim") {
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 150;
+    }
+    if (contentRule === "mj-arena-kurume-neo-aim") {
       return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 135;
     }
     return games >= 5000 && rbDenominator <= 315 && combinedDenominator <= 145;
@@ -1663,6 +1675,12 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     if (readMachineContentRule(config, machineName) === "mj-arena-kurume-girls") {
       return games >= 2000 && combinedDenominator <= 132 && rbDenominator <= 278;
     }
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "apark-yakatabaru-neo-aim"
+  ) {
+    return games >= 4000 && combinedDenominator <= 140 && rbDenominator <= 300;
   }
   if (isOkidokiGoldMachineName(machineName)) {
     return games >= 4299 && combinedDenominator <= 140.8 && rbDenominator <= 465.7;
@@ -7018,7 +7036,26 @@ function calculateWindowMetrics(
     7,
     currentMachineName,
   );
+  const adjacentMachineNetTotal7Near2 = sumAdjacentMachineDifferenceRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    7,
+    currentMachineName,
+    1,
+  );
   const adjacentMachineNetTotal14 = sumAdjacentMachineDifferenceRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    14,
+    currentMachineName,
+  );
+  const adjacentMachineNetTotal14Near2 = sumAdjacentMachineDifferenceRows(
     businessDates,
     dateIndex,
     row,
@@ -7055,6 +7092,16 @@ function calculateWindowMetrics(
     config,
     3,
     currentMachineName,
+  );
+  const adjacentMachineNetTotal3Near2 = sumAdjacentMachineDifferenceRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    3,
+    currentMachineName,
+    1,
   );
   const todayDifference = readHuntScoreDifferenceValue(row, config.differenceMode, currentMachineName);
   const previousGames = readNumber(row?.games_count) ?? 0;
@@ -7246,10 +7293,13 @@ function calculateWindowMetrics(
     adjacentMachineHighContentCount14Near2,
     adjacentMachineBigWin1000Count7Near2,
     adjacentMachineNetTotal3,
+    adjacentMachineNetTotal3Near2,
     adjacentMachineNetTotal5,
     adjacentMachineNetTotal5Near2,
     adjacentMachineNetTotal7,
+    adjacentMachineNetTotal7Near2,
     adjacentMachineNetTotal14,
+    adjacentMachineNetTotal14Near2,
     historyNetTotal,
     historyPositiveDays,
     recentThirtyNetTotal,
