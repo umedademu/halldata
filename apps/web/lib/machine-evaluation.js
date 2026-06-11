@@ -925,6 +925,142 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     ],
   },
   {
+    machineKey: "happy",
+    machineNames: [
+      "ハッピージャグラーＶＩＩＩ",
+      "ハッピージャグラーVIII",
+      "ハッピージャグラーＶ",
+      "ハッピージャグラーV",
+      "ハッピージャグラー",
+    ],
+    logicKey: "apark-yakatabaru-happy",
+    logicName: "ハッピー屋形原式",
+    logics: [
+      buildLogicVariant("apark-yakatabaru-happy", "ハッピー屋形原式", "apark-yakatabaru-main"),
+    ],
+    profile: "juggler",
+    defaultConditionSuffix: "apark-yakatabaru-main",
+    conditions: [
+      buildCondition(
+        "apark-yakatabaru-main",
+        "1位＋70点以上＋次点差25点以上",
+        "48件 / 106.34% / RB1/285.1",
+        {
+          rankMax: 1,
+          minScore: 70,
+          minNextGap: 25,
+          requiredFlags: ["yakatabaruHappyHistoryReady"],
+        },
+        ["apark-yakatabaru-happy"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-strong",
+        "1位＋70点以上＋次点差30点以上",
+        "38件 / 107.03% / RB1/287.3",
+        {
+          rankMax: 1,
+          minScore: 70,
+          minNextGap: 30,
+          requiredFlags: ["yakatabaruHappyHistoryReady"],
+        },
+        ["apark-yakatabaru-happy"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-daily-top",
+        "毎日1位",
+        "329件 / 101.84% / RB1/313.6",
+        {
+          rankMax: 1,
+          requiredFlags: ["yakatabaruHappyHistoryReady"],
+        },
+        ["apark-yakatabaru-happy"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-score70",
+        "70点以上",
+        "127件 / 103.39% / RB1/300.9",
+        {
+          minScore: 70,
+          requiredFlags: ["yakatabaruHappyHistoryReady"],
+        },
+        ["apark-yakatabaru-happy"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-top1-score70",
+        "1位＋70点以上",
+        "101件 / 103.90% / RB1/297.7",
+        {
+          rankMax: 1,
+          minScore: 70,
+          requiredFlags: ["yakatabaruHappyHistoryReady"],
+        },
+        ["apark-yakatabaru-happy"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-gap25",
+        "1位＋次点差25点以上",
+        "81件 / 104.61% / RB1/301.4",
+        {
+          rankMax: 1,
+          minNextGap: 25,
+          requiredFlags: ["yakatabaruHappyHistoryReady"],
+        },
+        ["apark-yakatabaru-happy"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-gap30",
+        "1位＋次点差30点以上",
+        "59件 / 105.04% / RB1/300.9",
+        {
+          rankMax: 1,
+          minNextGap: 30,
+          requiredFlags: ["yakatabaruHappyHistoryReady"],
+        },
+        ["apark-yakatabaru-happy"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-strong-sink",
+        "1位＋強沈み",
+        "48件 / 104.38% / RB1/283.3",
+        {
+          rankMax: 1,
+          requiredFlags: ["yakatabaruHappyHistoryReady", "yakatabaruHappyStrongSink"],
+        },
+        ["apark-yakatabaru-happy"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-unpaid",
+        "1位＋返済未完了",
+        "133件 / 102.51% / RB1/311.8",
+        {
+          rankMax: 1,
+          requiredFlags: ["yakatabaruHappyHistoryReady", "yakatabaruHappyUnpaid"],
+        },
+        ["apark-yakatabaru-happy"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-angle",
+        "1位＋角度強",
+        "204件 / 102.22% / RB1/316.0",
+        {
+          rankMax: 1,
+          requiredFlags: ["yakatabaruHappyHistoryReady", "yakatabaruHappyAngleStrong"],
+        },
+        ["apark-yakatabaru-happy"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-bonus",
+        "1位＋ボナ弱",
+        "257件 / 101.98% / RB1/315.3",
+        {
+          rankMax: 1,
+          requiredFlags: ["yakatabaruHappyHistoryReady", "yakatabaruHappyBonusWeak"],
+        },
+        ["apark-yakatabaru-happy"],
+      ),
+    ],
+  },
+  {
     machineKey: "my",
     machineNames: ["マイジャグラーV", "マイジャグラーⅤ", "マイジャグラー"],
     logicKey: "apark-my",
@@ -1220,6 +1356,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-my");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "funky") {
     defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-funky");
+  } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "happy") {
+    defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-happy");
   } else if (isAparkKasugaStore(storeName)) {
     defaultLogic = findLogicDefinition(definition, definition.logicKey);
   }
@@ -3007,6 +3145,64 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       funkyBonusWeak,
       funkyPreviousBroadFail,
       treatmentDone: funkyTreatmentDone,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
+
+  if (machineKey === "happy" && activeLogicKey === "apark-yakatabaru-happy") {
+    const yakatabaruHappyHistoryReady = historyRowCount >= 21;
+    const yakatabaruHappyStrongSink =
+      streak >= 4 && recentSevenNetTotal <= -1500 && recentSevenGamesTotal >= 25000;
+    const yakatabaruHappyAngleStrong =
+      recentSevenGamesTotal >= 20000 && features.recentSevenAngle <= -70;
+    const yakatabaruHappyUnpaid =
+      recentTwentyOneNetTotal <= -3000 && recentSevenNetTotal <= 0;
+    const yakatabaruHappyBonusWeak =
+      features.recentSevenCombinedDenominator >= 153 && recentSevenGamesTotal >= 20000;
+    const yakatabaruHappyNearbyShow =
+      recentSevenNetTotal <= 0 && otherSameMachineHighContentCount7 >= 7;
+    const yakatabaruHappyPreviousHigh = previousMachineHighContent;
+    const yakatabaruHappyTreatmentDone =
+      recentSevenNetTotal >= 2500 || recentFourteenNetTotal >= 3500;
+    const yakatabaruHappyOverused = recentFourteenMachineHighContentCount >= 4;
+    const yakatabaruHappyLowGames = recentSevenGamesTotal < 20000;
+    const yakatabaruHappyLongNeglect =
+      Number.isFinite(daysSinceMachineHighContent) &&
+      daysSinceMachineHighContent >= 22 &&
+      !yakatabaruHappyStrongSink &&
+      !yakatabaruHappyUnpaid &&
+      recentSevenNetTotal > -1500;
+    const boostFlags = [
+      yakatabaruHappyStrongSink,
+      yakatabaruHappyAngleStrong,
+      yakatabaruHappyUnpaid,
+      yakatabaruHappyBonusWeak,
+      yakatabaruHappyNearbyShow,
+    ];
+    const dangerFlags = [
+      yakatabaruHappyPreviousHigh,
+      yakatabaruHappyTreatmentDone,
+      yakatabaruHappyOverused,
+      yakatabaruHappyLowGames,
+      yakatabaruHappyLongNeglect,
+    ];
+
+    return {
+      ...features,
+      yakatabaruHappyHistoryReady,
+      yakatabaruHappyStrongSink,
+      yakatabaruHappyAngleStrong,
+      yakatabaruHappyUnpaid,
+      yakatabaruHappyBonusWeak,
+      yakatabaruHappyNearbyShow,
+      yakatabaruHappyPreviousHigh,
+      yakatabaruHappyTreatmentDone,
+      yakatabaruHappyOverused,
+      yakatabaruHappyLowGames,
+      yakatabaruHappyLongNeglect,
+      treatmentDone: yakatabaruHappyTreatmentDone,
+      lowConfidence: yakatabaruHappyLowGames,
       boostCount: boostFlags.filter(Boolean).length,
       dangerCount: dangerFlags.filter(Boolean).length,
     };
@@ -5270,6 +5466,76 @@ function calculateMachineScore(definition, metrics, features) {
       dangerScore;
 
     return Math.round(clamp(restoredScore - 2, 0, 100));
+  }
+
+  if (machineKey === "happy" && activeLogicKey === "apark-yakatabaru-happy") {
+    if (readNumber(metrics.historyRowCount) < 21) {
+      return 0;
+    }
+
+    let rawScore = 0;
+    rawScore += scoreAtLeast(streak, [
+      { minimum: 5, points: 28 },
+      { minimum: 4, points: 23 },
+      { minimum: 3, points: 17 },
+      { minimum: 2, points: 8 },
+      { minimum: 1, points: 1 },
+    ]);
+    rawScore += scoreAtMost(recentSevenNetTotal, [
+      { maximum: -3000, points: 25 },
+      { maximum: -2500, points: 22 },
+      { maximum: -2000, points: 18 },
+      { maximum: -1500, points: 13 },
+      { maximum: -1000, points: 8 },
+      { maximum: -1, points: 3 },
+    ]);
+    rawScore += scoreAtMost(recentTwentyOneNetTotal, [
+      { maximum: -5000, points: 12 },
+      { maximum: -3000, points: 9 },
+      { maximum: -1500, points: 5 },
+      { maximum: 0, points: 2 },
+    ]);
+    if (Number.isFinite(daysSinceMachineHighContent)) {
+      if (daysSinceMachineHighContent === 1) {
+        rawScore -= 32;
+      } else if (daysSinceMachineHighContent >= 2 && daysSinceMachineHighContent <= 4) {
+        rawScore += 3;
+      } else if (daysSinceMachineHighContent >= 5 && daysSinceMachineHighContent <= 14) {
+        rawScore += 12;
+      } else if (daysSinceMachineHighContent >= 15 && daysSinceMachineHighContent <= 21) {
+        rawScore += 8;
+      }
+    }
+    rawScore += scoreAtLeast(features.recentSevenCombinedDenominator, [
+      { minimum: 160, points: 7 },
+      { minimum: 153, points: 4 },
+      { minimum: 148, points: 2 },
+    ]);
+    rawScore +=
+      recentSevenGamesTotal >= 25000 && recentSevenGamesTotal <= 32000
+        ? 9
+        : recentSevenGamesTotal >= 20000 && recentSevenGamesTotal <= 24999
+          ? 7
+          : recentSevenGamesTotal >= 32001 && recentSevenGamesTotal <= 36000
+            ? 4
+            : recentSevenGamesTotal >= 36001
+              ? 1
+              : -5;
+    rawScore +=
+      previousDifference >= 1500
+        ? -8
+        : previousDifference >= 800
+          ? -4
+          : previousDifference <= -800
+            ? 5
+            : previousDifference < 0
+              ? 3
+              : 0;
+    rawScore -= recentSevenNetTotal >= 2500 ? 12 : 0;
+    rawScore -= recentFourteenNetTotal >= 3500 ? 10 : 0;
+    rawScore -= recentFourteenMachineHighContentCount >= 4 ? 6 : 0;
+
+    return Math.round(clamp((rawScore / 98) * 100, 0, 100));
   }
 
   if (machineKey === "okidoki-black") {

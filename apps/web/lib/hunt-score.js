@@ -760,6 +760,11 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "ファンキージャグラー２ＫＴ": "apark-yakatabaru-funky",
       "ファンキージャグラー２": "apark-yakatabaru-funky",
       "ファンキージャグラー2": "apark-yakatabaru-funky",
+      "ハッピージャグラーＶＩＩＩ": "apark-yakatabaru-happy",
+      "ハッピージャグラーVIII": "apark-yakatabaru-happy",
+      "ハッピージャグラーＶ": "apark-yakatabaru-happy",
+      "ハッピージャグラーV": "apark-yakatabaru-happy",
+      "ハッピージャグラー": "apark-yakatabaru-happy",
     },
   },
   {
@@ -1560,6 +1565,18 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     }
     const rbCount = readWindowField(row, "rbCount");
     return games >= 4000 && rbCount >= 20 && rbDenominator <= 300 && combinedDenominator <= 133;
+  }
+  if (
+    normalizedMachineName === normalizeText("ハッピージャグラーＶＩＩＩ") ||
+    normalizedMachineName === normalizeText("ハッピージャグラーVIII") ||
+    normalizedMachineName === normalizeText("ハッピージャグラーＶ") ||
+    normalizedMachineName === normalizeText("ハッピージャグラーV") ||
+    normalizedMachineName === normalizeText("ハッピージャグラー")
+  ) {
+    if (readMachineContentRule(config, machineName) === "apark-yakatabaru-happy") {
+      return games >= 3500 && combinedDenominator <= 135 && rbDenominator <= 310;
+    }
+    return games >= 5000 && combinedDenominator <= 145 && rbDenominator <= 315;
   }
   if (
     normalizedMachineName === normalizeText("ジャグラーガールズSS") ||
