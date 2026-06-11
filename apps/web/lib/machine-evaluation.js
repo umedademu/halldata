@@ -260,7 +260,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "main",
         "1位＋3連敗以上＋前回高内容4〜14日＋3日角度強",
-        "130件 / 103.66% / RB1/261.6",
+        "132件 / 103.6% / RB1/260.8",
         {
           rankMax: 1,
           requiredFlags: [
@@ -323,7 +323,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "main",
         "1位＋70点以上＋次点差30点以上",
-        "47件 / 103.30% / RB1/276.6",
+        "50件 / 103.6% / RB1/270.1",
         {
           rankMax: 1,
           minScore: 70,
@@ -397,7 +397,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "main",
         "1位＋80点以上＋強化2個以上＋危険0＋前日500〜2500G",
-        "53件 / 104.59% / RB1/269.4",
+        "48件 / 103.6% / RB1/278.1",
         {
           rankMax: 1,
           minScore: 80,
@@ -419,7 +419,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "main",
         "50点以上＋強角度＋処遇完了回避",
-        "20件 / 106.50% / RB1/383.2",
+        "18件 / 107.10% / RB1/377.3",
         {
           minScore: 50,
           maxDanger: 1,
@@ -463,7 +463,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "main",
         "上位2位",
-        "284件 / 105.73%",
+        "284件 / 105.67%",
         {
           rankMax: 2,
           requiredFlags: ["okidokiDuoHistoryReady"],
@@ -472,7 +472,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "top1",
         "1位",
-        "142件 / 106.54%",
+        "142件 / 106.42%",
         {
           rankMax: 1,
           requiredFlags: ["okidokiDuoHistoryReady"],
@@ -490,7 +490,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "score70",
         "70点以上",
-        "75件 / 107.74%",
+        "75件 / 107.79%",
         {
           minScore: 70,
           requiredFlags: ["okidokiDuoHistoryReady"],
@@ -556,7 +556,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "main",
         "50点以上",
-        "302件 / 105.45%",
+        "320件 / 105.0%",
         {
           minScore: 50,
           requiredFlags: ["hokutoHistoryReady"],
@@ -565,7 +565,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "strong",
         "1位＋55点以上＋次点差5点以上＋危険1以下",
-        "82件 / 107.84%",
+        "84件 / 107.1%",
         {
           rankMax: 1,
           minScore: 55,
@@ -577,7 +577,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "top4",
         "上位4台",
-        "516件 / 104.58%",
+        "500件 / 103.9%",
         {
           rankMax: 4,
           requiredFlags: ["hokutoHistoryReady"],
@@ -586,7 +586,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "top2",
         "上位2台",
-        "258件 / 105.59%",
+        "250件 / 106.4%",
         {
           rankMax: 2,
           requiredFlags: ["hokutoHistoryReady"],
@@ -610,7 +610,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "main",
         "1位＋65点以上＋弱ボーナス＋次点差12点以上",
-        "26件 / 105.47% / RB1/440.3",
+        "26件 / 105.65% / RB1/446.6",
         {
           rankMax: 1,
           minScore: 65,
@@ -659,7 +659,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "main",
         "1位＋70点以上＋3日沈み2日以上",
-        "132件 / 105.61% / RB1/271.3",
+        "128件 / 105.7% / RB1/271.4",
         {
           rankMax: 1,
           minScore: 70,
@@ -760,7 +760,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "main",
         "1位＋70点以上＋28日未返済＋7日合成弱",
-        "41件 / 103.20% / RB1/366.8",
+        "39件 / 103.23% / RB1/375.8",
         {
           rankMax: 1,
           minScore: 70,
@@ -1291,7 +1291,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "main",
         "1位＋60点以上＋次点差10点以上＋危険少",
-        "94件 / 104.73% / RB1/288.6",
+        "99件 / 104.4% / RB1/293.8",
         {
           rankMax: 1,
           minScore: 60,
@@ -1313,7 +1313,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "main",
         "80点以上",
-        "51件 / 105.00%",
+        "60件 / 104.5%",
         {
           minScore: 80,
           maxDanger: 2,
@@ -1332,7 +1332,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "main",
         "1位＋次点差12点以上＋強化2つ以上＋危険なし",
-        "105件 / 104.54%",
+        "105件 / 103.8%",
         {
           rankMax: 1,
           minNextGap: 12,
