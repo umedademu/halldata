@@ -69,7 +69,55 @@ function syncCombinedMachineGroupChecks(form, changedInput = null, changedInputs
   return changedInputs;
 }
 
-function updateMachineFilterChecks(form, resolveChecked) {
+function preferCombinedMachineGroupMembers(form, changedInputs) {
+  if (!form) {
+    return changedInputs;
+  }
+
+  const inputs = [
+    ...form.querySelectorAll('input[data-machine-filter-option="1"][data-machine-combined-group-key]'),
+  ];
+  const groupKeys = [
+    ...new Set(
+      inputs
+        .map((input) => String(input.dataset.machineCombinedGroupKey ?? "").trim())
+        .filter(Boolean),
+    ),
+  ];
+
+  for (const groupKey of groupKeys) {
+    const groupInputs = inputs.filter(
+      (input) =>
+        input.dataset.machineCombinedGroupKey === groupKey &&
+        input.dataset.machineCombinedRole === "group",
+    );
+    const memberInputs = inputs.filter(
+      (input) =>
+        input.dataset.machineCombinedGroupKey === groupKey &&
+        input.dataset.machineCombinedRole === "member",
+    );
+
+    if (
+      groupInputs.length === 0 ||
+      memberInputs.length === 0 ||
+      !groupInputs.some((input) => input.checked) ||
+      !memberInputs.some((input) => input.checked)
+    ) {
+      continue;
+    }
+
+    for (const groupInput of groupInputs) {
+      setMachineFilterInputChecked(groupInput, false, changedInputs);
+    }
+    for (const memberInput of memberInputs) {
+      setMachineFilterInputChecked(memberInput, true, changedInputs);
+    }
+  }
+
+  return changedInputs;
+}
+
+function updateMachineFilterChecks(form, resolveChecked, options = {}) {
   if (!form) {
     return;
   }
@@ -79,17 +127,25 @@ function updateMachineFilterChecks(form, resolveChecked) {
     const nextChecked = Boolean(resolveChecked(input, input.checked));
     setMachineFilterInputChecked(input, nextChecked, changedInputs);
   }
+  if (options.preferCombinedMembers) {
+    preferCombinedMachineGroupMembers(form, changedInputs);
+  }
   syncCombinedMachineGroupChecks(form, null, changedInputs);
   dispatchMachineFilterChanges(changedInputs);
 }
 
 function setMachineFilterChecks(form, checked) {
-  updateMachineFilterChecks(form, () => checked);
+  updateMachineFilterChecks(form, () => checked, {
+    preferCombinedMembers: Boolean(checked),
+  });
 }
 
 function turnMachineFilterCategoryOn(form, category) {
-  updateMachineFilterChecks(form, (input, currentChecked) =>
-    input.dataset.machineCategory === category ? true : currentChecked,
+  updateMachineFilterChecks(
+    form,
+    (input, currentChecked) =>
+      input.dataset.machineCategory === category ? true : currentChecked,
+    { preferCombinedMembers: true },
   );
 }
 
@@ -160,10 +216,10 @@ function turnMachineFilterSlotCountOn(form, minSlotCount) {
     );
     if (Math.max(groupSlotCount, memberSlotCount) >= threshold) {
       for (const groupInput of groupInputs) {
-        setMachineFilterInputChecked(groupInput, true, changedInputs);
+        setMachineFilterInputChecked(groupInput, false, changedInputs);
       }
       for (const memberInput of memberInputs) {
-        setMachineFilterInputChecked(memberInput, false, changedInputs);
+        setMachineFilterInputChecked(memberInput, true, changedInputs);
       }
     }
   }
