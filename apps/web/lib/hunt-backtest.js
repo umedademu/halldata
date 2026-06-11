@@ -1,8 +1,10 @@
 import { listHuntScoreTargetMachineNames } from "./hunt-score";
 import {
   buildBoundaryGapFilters,
+  buildNextGapFilter,
   buildRankFilter,
   buildScoreFilter,
+  buildUpperGapFilter,
   calculateHuntScoreNextGapMap,
   calculateHuntScoreUpperGapMap,
   buildConditionRequirementOptions,
@@ -60,12 +62,51 @@ export function calculateBacktestScoreFilterMax(logicConditionMode, logicCount =
     : 100;
 }
 
+function buildMachineEvaluationConditionFilters(options = {}) {
+  return {
+    machineEvaluationScoreFilter: buildScoreFilter(
+      options?.machineEvaluationScoreMin,
+      options?.machineEvaluationScoreMax,
+      100,
+    ),
+    machineEvaluationRankFilter: buildRankFilter(
+      options?.machineEvaluationRankMin,
+      options?.machineEvaluationRankMax,
+    ),
+    selectedMachineEvaluationRankFilter: buildRankFilter(
+      options?.selectedMachineEvaluationRankMin,
+      options?.selectedMachineEvaluationRankMax,
+    ),
+    machineEvaluationNextGapFilter: buildNextGapFilter(
+      options?.machineEvaluationNextGapMin,
+      options?.machineEvaluationNextGapMax,
+    ),
+    selectedMachineEvaluationNextGapFilter: buildNextGapFilter(
+      options?.selectedMachineEvaluationNextGapMin,
+      options?.selectedMachineEvaluationNextGapMax,
+    ),
+    machineEvaluationUpperGapFilter: buildUpperGapFilter(
+      options?.machineEvaluationUpperGapMin,
+      options?.machineEvaluationUpperGapMax,
+    ),
+    selectedMachineEvaluationUpperGapFilter: buildUpperGapFilter(
+      options?.selectedMachineEvaluationUpperGapMin,
+      options?.selectedMachineEvaluationUpperGapMax,
+    ),
+  };
+}
+
 function readPositiveInteger(value) {
   const parsedValue = Number(value);
   if (!Number.isInteger(parsedValue) || parsedValue < 1) {
     return null;
   }
   return parsedValue;
+}
+
+function readNullableFiniteNumber(value) {
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) ? parsedValue : null;
 }
 
 export function normalizeSettingDistribution(value) {
@@ -325,6 +366,30 @@ function requireActiveConditionFilters(requirementOptions, filters = {}) {
     selectedUpperGapRequired: filters.selectedUpperGapFilter?.hasUpperGapFilter
       ? true
       : Boolean(requirementOptions.selectedUpperGapRequired),
+    machineEvaluationScoreRequired: filters.machineEvaluationScoreFilter?.hasScoreFilter
+      ? true
+      : Boolean(requirementOptions.machineEvaluationScoreRequired),
+    machineEvaluationRankRequired: filters.machineEvaluationRankFilter?.hasRankFilter
+      ? true
+      : Boolean(requirementOptions.machineEvaluationRankRequired),
+    selectedMachineEvaluationRankRequired:
+      filters.selectedMachineEvaluationRankFilter?.hasRankFilter
+        ? true
+        : Boolean(requirementOptions.selectedMachineEvaluationRankRequired),
+    machineEvaluationNextGapRequired: filters.machineEvaluationNextGapFilter?.hasNextGapFilter
+      ? true
+      : Boolean(requirementOptions.machineEvaluationNextGapRequired),
+    selectedMachineEvaluationNextGapRequired:
+      filters.selectedMachineEvaluationNextGapFilter?.hasNextGapFilter
+        ? true
+        : Boolean(requirementOptions.selectedMachineEvaluationNextGapRequired),
+    machineEvaluationUpperGapRequired: filters.machineEvaluationUpperGapFilter?.hasUpperGapFilter
+      ? true
+      : Boolean(requirementOptions.machineEvaluationUpperGapRequired),
+    selectedMachineEvaluationUpperGapRequired:
+      filters.selectedMachineEvaluationUpperGapFilter?.hasUpperGapFilter
+        ? true
+        : Boolean(requirementOptions.selectedMachineEvaluationUpperGapRequired),
   };
 }
 
@@ -901,6 +966,101 @@ function buildSnapshotGapRows(
   );
 }
 
+function compareMachineEvaluationConditionRows(left, right) {
+  const leftScore = readNullableFiniteNumber(left?.row?.machineEvaluation?.score);
+  const rightScore = readNullableFiniteNumber(right?.row?.machineEvaluation?.score);
+  const scoreDiff = (rightScore ?? Number.NEGATIVE_INFINITY) -
+    (leftScore ?? Number.NEGATIVE_INFINITY);
+  if (Math.abs(scoreDiff) > 0.000000001) {
+    return scoreDiff;
+  }
+
+  return (
+    String(left?.machineName ?? "").localeCompare(String(right?.machineName ?? ""), "ja") ||
+    String(left?.row?.slotNumber ?? "").localeCompare(String(right?.row?.slotNumber ?? ""), "ja", {
+      numeric: true,
+    })
+  );
+}
+
+function buildMachineEvaluationRankContexts(conditionRows) {
+  const sortedRows = [...conditionRows].sort(compareMachineEvaluationConditionRows);
+  const contextByRow = new Map();
+
+  sortedRows.forEach((entry, index) => {
+    const previousEntry = sortedRows[index - 1] ?? null;
+    const nextEntry = sortedRows[index + 1] ?? null;
+    const score = readNullableFiniteNumber(entry?.row?.machineEvaluation?.score);
+    const previousScore = readNullableFiniteNumber(previousEntry?.row?.machineEvaluation?.score);
+    const nextScore = readNullableFiniteNumber(nextEntry?.row?.machineEvaluation?.score);
+
+    contextByRow.set(entry.row, {
+      rank: index + 1,
+      upperGap: score !== null && previousScore !== null ? previousScore - score : null,
+      nextGap: score !== null && nextScore !== null ? score - nextScore : null,
+    });
+  });
+
+  return contextByRow;
+}
+
+function buildSnapshotMachineEvaluationRows(
+  snapshot,
+  selectedMachineNameSet,
+  combineAimJuggler,
+  combineHanabi,
+) {
+  const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
+  const selectedEntries = [];
+  const entriesByMachineName = new Map();
+
+  for (const row of rows) {
+    const selectedMachineName = String(row?.machineName ?? "").trim();
+    if (!selectedMachineNameSet.has(selectedMachineName) || !row?.machineEvaluation) {
+      continue;
+    }
+
+    const machineName = resolveBacktestMachineName(
+      selectedMachineName,
+      combineAimJuggler,
+      combineHanabi,
+    );
+    const entry = { row, machineName };
+    selectedEntries.push(entry);
+    if (!entriesByMachineName.has(machineName)) {
+      entriesByMachineName.set(machineName, []);
+    }
+    entriesByMachineName.get(machineName).push(entry);
+  }
+
+  const selectedContexts = buildMachineEvaluationRankContexts(selectedEntries);
+  const machineContexts = new Map();
+  for (const machineEntries of entriesByMachineName.values()) {
+    const contextByRow = buildMachineEvaluationRankContexts(machineEntries);
+    for (const [row, context] of contextByRow.entries()) {
+      machineContexts.set(row, context);
+    }
+  }
+
+  return new Map(
+    selectedEntries.map(({ row }) => {
+      const machineContext = machineContexts.get(row) ?? {};
+      const selectedContext = selectedContexts.get(row) ?? {};
+      return [
+        row,
+        {
+          machineEvaluationRank: machineContext.rank ?? null,
+          machineEvaluationUpperGapValue: machineContext.upperGap ?? null,
+          machineEvaluationNextGapValue: machineContext.nextGap ?? null,
+          selectedMachineEvaluationRank: selectedContext.rank ?? null,
+          selectedMachineEvaluationUpperGapValue: selectedContext.upperGap ?? null,
+          selectedMachineEvaluationNextGapValue: selectedContext.nextGap ?? null,
+        },
+      ];
+    }),
+  );
+}
+
 function buildSnapshotConditionRowKey(row) {
   return String(row?.rowKey ?? "").trim();
 }
@@ -1018,10 +1178,17 @@ function matchesConditionForRowContext(
     machineRankFilter,
     selectedRankFilter,
     scoreFilter,
+    machineEvaluationScoreFilter,
+    machineEvaluationRankFilter,
+    selectedMachineEvaluationRankFilter,
     machineNextGapFilter,
     selectedNextGapFilter,
     machineUpperGapFilter,
     selectedUpperGapFilter,
+    machineEvaluationNextGapFilter,
+    selectedMachineEvaluationNextGapFilter,
+    machineEvaluationUpperGapFilter,
+    selectedMachineEvaluationUpperGapFilter,
     requirementOptions,
   },
 ) {
@@ -1088,8 +1255,78 @@ function matchesAllLogicConditions(row, logicConditionContexts, conditionOptions
   });
 }
 
-function resolveMachineEvaluationConditionMatch(row) {
-  return Boolean(row?.machineEvaluation?.matchesAdoption);
+function hasMachineEvaluationConditionFilters({
+  machineEvaluationScoreFilter,
+  machineEvaluationRankFilter,
+  selectedMachineEvaluationRankFilter,
+  machineEvaluationNextGapFilter,
+  selectedMachineEvaluationNextGapFilter,
+  machineEvaluationUpperGapFilter,
+  selectedMachineEvaluationUpperGapFilter,
+} = {}) {
+  return Boolean(
+    machineEvaluationScoreFilter?.hasScoreFilter ||
+      machineEvaluationRankFilter?.hasRankFilter ||
+      selectedMachineEvaluationRankFilter?.hasRankFilter ||
+      machineEvaluationNextGapFilter?.hasNextGapFilter ||
+      selectedMachineEvaluationNextGapFilter?.hasNextGapFilter ||
+      machineEvaluationUpperGapFilter?.hasUpperGapFilter ||
+      selectedMachineEvaluationUpperGapFilter?.hasUpperGapFilter,
+  );
+}
+
+function resolveMachineEvaluationConditionMatch(row, machineEvaluationContext, conditionOptions) {
+  if (!hasMachineEvaluationConditionFilters(conditionOptions)) {
+    return Boolean(row?.machineEvaluation?.matchesAdoption);
+  }
+
+  return matchesRequiredConditionFilters(
+    [
+      {
+        rankValue: machineEvaluationContext?.machineEvaluationRank,
+        rankFilter: conditionOptions.machineEvaluationRankFilter,
+        required: conditionOptions.requirementOptions.machineEvaluationRankRequired,
+      },
+      {
+        rankValue: machineEvaluationContext?.selectedMachineEvaluationRank,
+        rankFilter: conditionOptions.selectedMachineEvaluationRankFilter,
+        required: conditionOptions.requirementOptions.selectedMachineEvaluationRankRequired,
+      },
+    ],
+    row?.machineEvaluation?.score,
+    null,
+    conditionOptions.machineEvaluationScoreFilter,
+    {
+      scoreRequired: conditionOptions.requirementOptions.machineEvaluationScoreRequired,
+    },
+    false,
+    null,
+    { hasNextGapFilter: false, nextGapMin: null, nextGapMax: null },
+    null,
+    { hasUpperGapFilter: false, upperGapMin: null, upperGapMax: null },
+    [
+      {
+        value: machineEvaluationContext?.machineEvaluationUpperGapValue,
+        filter: conditionOptions.machineEvaluationUpperGapFilter,
+        required: conditionOptions.requirementOptions.machineEvaluationUpperGapRequired,
+      },
+      {
+        value: machineEvaluationContext?.machineEvaluationNextGapValue,
+        filter: conditionOptions.machineEvaluationNextGapFilter,
+        required: conditionOptions.requirementOptions.machineEvaluationNextGapRequired,
+      },
+      {
+        value: machineEvaluationContext?.selectedMachineEvaluationUpperGapValue,
+        filter: conditionOptions.selectedMachineEvaluationUpperGapFilter,
+        required: conditionOptions.requirementOptions.selectedMachineEvaluationUpperGapRequired,
+      },
+      {
+        value: machineEvaluationContext?.selectedMachineEvaluationNextGapValue,
+        filter: conditionOptions.selectedMachineEvaluationNextGapFilter,
+        required: conditionOptions.requirementOptions.selectedMachineEvaluationNextGapRequired,
+      },
+    ],
+  );
 }
 
 function combineBacktestConditionMatches(commonMatchesCondition, machineMatchesCondition, mode) {
@@ -1260,14 +1497,27 @@ function buildBacktestAggregationDetail(
           selectionMode,
         )
       : [];
+    const machineEvaluationRowsByRow = buildSnapshotMachineEvaluationRows(
+      snapshot,
+      selectedMachineNameSet,
+      combineAimJuggler,
+      combineHanabi,
+    );
     const conditionOptions = {
       machineRankFilter,
       selectedRankFilter,
       scoreFilter,
+      machineEvaluationScoreFilter,
+      machineEvaluationRankFilter,
+      selectedMachineEvaluationRankFilter,
       machineNextGapFilter,
       selectedNextGapFilter,
       machineUpperGapFilter,
       selectedUpperGapFilter,
+      machineEvaluationNextGapFilter,
+      selectedMachineEvaluationNextGapFilter,
+      machineEvaluationUpperGapFilter,
+      selectedMachineEvaluationUpperGapFilter,
       requirementOptions,
     };
     let selectedRank = 0;
@@ -1310,7 +1560,11 @@ function buildBacktestAggregationDetail(
           );
       const matchesCondition = combineBacktestConditionMatches(
         commonMatchesCondition,
-        resolveMachineEvaluationConditionMatch(row),
+        resolveMachineEvaluationConditionMatch(
+          row,
+          machineEvaluationRowsByRow.get(row) ?? null,
+          conditionOptions,
+        ),
         machineEvaluationBacktestMode,
       );
 
@@ -1338,10 +1592,11 @@ function buildBacktestAggregationDetail(
         ? row.machineEvaluation?.score
         : row.huntScore;
       const summaryNextGapValue = usesMachineEvaluationOnly
-        ? row.machineEvaluation?.nextGap
+        ? (machineEvaluationRowsByRow.get(row)?.machineEvaluationNextGapValue ??
+          row.machineEvaluation?.nextGap)
         : machineNextGapValue;
       const summaryUpperGapValue = usesMachineEvaluationOnly
-        ? null
+        ? machineEvaluationRowsByRow.get(row)?.machineEvaluationUpperGapValue
         : machineUpperGapValue;
       addActualMetricsToSummary(
         summary,
@@ -1509,6 +1764,15 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     Math.max(1, huntScoreLogicKeys.length),
   );
   const scoreFilter = buildScoreFilter(options.scoreMin, options.scoreMax, scoreMaxLimit);
+  const {
+    machineEvaluationScoreFilter,
+    machineEvaluationRankFilter,
+    selectedMachineEvaluationRankFilter,
+    machineEvaluationNextGapFilter,
+    selectedMachineEvaluationNextGapFilter,
+    machineEvaluationUpperGapFilter,
+    selectedMachineEvaluationUpperGapFilter,
+  } = buildMachineEvaluationConditionFilters(options);
   const requirementOptions = usesMachineTopNextGapSelection
     ? requireActiveConditionFilters(baseRequirementOptions, {
         machineRankFilter,
@@ -1518,6 +1782,13 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
         selectedNextGapFilter,
         machineUpperGapFilter,
         selectedUpperGapFilter,
+        machineEvaluationScoreFilter,
+        machineEvaluationRankFilter,
+        selectedMachineEvaluationRankFilter,
+        machineEvaluationNextGapFilter,
+        selectedMachineEvaluationNextGapFilter,
+        machineEvaluationUpperGapFilter,
+        selectedMachineEvaluationUpperGapFilter,
       })
     : baseRequirementOptions;
   const nextGapRankFilters = usesMachineTopNextGapSelection
@@ -1538,10 +1809,17 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     machineRankFilter,
     selectedRankFilter,
     scoreFilter,
+    machineEvaluationScoreFilter,
+    machineEvaluationRankFilter,
+    selectedMachineEvaluationRankFilter,
     machineNextGapFilter,
     selectedNextGapFilter,
     machineUpperGapFilter,
     selectedUpperGapFilter,
+    machineEvaluationNextGapFilter,
+    selectedMachineEvaluationNextGapFilter,
+    machineEvaluationUpperGapFilter,
+    selectedMachineEvaluationUpperGapFilter,
     requirementOptions,
     nextGapRankFilters,
     differenceMode,
@@ -1599,6 +1877,29 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     scoreMax: scoreFilter.scoreMax,
     scoreMaxLimit,
     hasScoreFilter: scoreFilter.hasScoreFilter,
+    machineEvaluationScoreMin: machineEvaluationScoreFilter.scoreMin,
+    machineEvaluationScoreMax: machineEvaluationScoreFilter.scoreMax,
+    hasMachineEvaluationScoreFilter: machineEvaluationScoreFilter.hasScoreFilter,
+    machineEvaluationRankMin: machineEvaluationRankFilter.rankMin,
+    machineEvaluationRankMax: machineEvaluationRankFilter.rankMax,
+    hasMachineEvaluationRankFilter: machineEvaluationRankFilter.hasRankFilter,
+    selectedMachineEvaluationRankMin: selectedMachineEvaluationRankFilter.rankMin,
+    selectedMachineEvaluationRankMax: selectedMachineEvaluationRankFilter.rankMax,
+    hasSelectedMachineEvaluationRankFilter: selectedMachineEvaluationRankFilter.hasRankFilter,
+    machineEvaluationNextGapMin: machineEvaluationNextGapFilter.nextGapMin,
+    machineEvaluationNextGapMax: machineEvaluationNextGapFilter.nextGapMax,
+    hasMachineEvaluationNextGapFilter: machineEvaluationNextGapFilter.hasNextGapFilter,
+    selectedMachineEvaluationNextGapMin: selectedMachineEvaluationNextGapFilter.nextGapMin,
+    selectedMachineEvaluationNextGapMax: selectedMachineEvaluationNextGapFilter.nextGapMax,
+    hasSelectedMachineEvaluationNextGapFilter:
+      selectedMachineEvaluationNextGapFilter.hasNextGapFilter,
+    machineEvaluationUpperGapMin: machineEvaluationUpperGapFilter.upperGapMin,
+    machineEvaluationUpperGapMax: machineEvaluationUpperGapFilter.upperGapMax,
+    hasMachineEvaluationUpperGapFilter: machineEvaluationUpperGapFilter.hasUpperGapFilter,
+    selectedMachineEvaluationUpperGapMin: selectedMachineEvaluationUpperGapFilter.upperGapMin,
+    selectedMachineEvaluationUpperGapMax: selectedMachineEvaluationUpperGapFilter.upperGapMax,
+    hasSelectedMachineEvaluationUpperGapFilter:
+      selectedMachineEvaluationUpperGapFilter.hasUpperGapFilter,
     machineNextGapMin: machineNextGapFilter.nextGapMin,
     machineNextGapMax: machineNextGapFilter.nextGapMax,
     hasMachineNextGapFilter: machineNextGapFilter.hasNextGapFilter,
@@ -1615,6 +1916,16 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     machineRankRequired: requirementOptions.machineRankRequired,
     selectedRankRequired: requirementOptions.selectedRankRequired,
     scoreRequired: requirementOptions.scoreRequired,
+    machineEvaluationScoreRequired: requirementOptions.machineEvaluationScoreRequired,
+    machineEvaluationRankRequired: requirementOptions.machineEvaluationRankRequired,
+    selectedMachineEvaluationRankRequired:
+      requirementOptions.selectedMachineEvaluationRankRequired,
+    machineEvaluationNextGapRequired: requirementOptions.machineEvaluationNextGapRequired,
+    selectedMachineEvaluationNextGapRequired:
+      requirementOptions.selectedMachineEvaluationNextGapRequired,
+    machineEvaluationUpperGapRequired: requirementOptions.machineEvaluationUpperGapRequired,
+    selectedMachineEvaluationUpperGapRequired:
+      requirementOptions.selectedMachineEvaluationUpperGapRequired,
     machineNextGapRequired: requirementOptions.machineNextGapRequired,
     selectedNextGapRequired: requirementOptions.selectedNextGapRequired,
     machineUpperGapRequired: requirementOptions.machineUpperGapRequired,

@@ -12,8 +12,11 @@ import {
 import {
   buildBoundaryGapFilters,
   buildConditionRequirementOptions,
+  buildNextGapFilter,
+  buildRankFilter,
   buildScoreFilter,
   buildScopedRankFilters,
+  buildUpperGapFilter,
 } from "./hunt-bookmark";
 import {
   buildCombinedHuntScoreSnapshots,
@@ -122,6 +125,61 @@ function requireActiveConditionFilters(requirementOptions, filters = {}) {
     selectedUpperGapRequired: filters.hasSelectedUpperGapFilter
       ? true
       : Boolean(requirementOptions.selectedUpperGapRequired),
+    machineEvaluationScoreRequired: filters.hasMachineEvaluationScoreFilter
+      ? true
+      : Boolean(requirementOptions.machineEvaluationScoreRequired),
+    machineEvaluationRankRequired: filters.hasMachineEvaluationRankFilter
+      ? true
+      : Boolean(requirementOptions.machineEvaluationRankRequired),
+    selectedMachineEvaluationRankRequired: filters.hasSelectedMachineEvaluationRankFilter
+      ? true
+      : Boolean(requirementOptions.selectedMachineEvaluationRankRequired),
+    machineEvaluationNextGapRequired: filters.hasMachineEvaluationNextGapFilter
+      ? true
+      : Boolean(requirementOptions.machineEvaluationNextGapRequired),
+    selectedMachineEvaluationNextGapRequired: filters.hasSelectedMachineEvaluationNextGapFilter
+      ? true
+      : Boolean(requirementOptions.selectedMachineEvaluationNextGapRequired),
+    machineEvaluationUpperGapRequired: filters.hasMachineEvaluationUpperGapFilter
+      ? true
+      : Boolean(requirementOptions.machineEvaluationUpperGapRequired),
+    selectedMachineEvaluationUpperGapRequired: filters.hasSelectedMachineEvaluationUpperGapFilter
+      ? true
+      : Boolean(requirementOptions.selectedMachineEvaluationUpperGapRequired),
+  };
+}
+
+function buildMachineEvaluationConditionFilters(options = {}) {
+  return {
+    machineEvaluationScoreFilter: buildScoreFilter(
+      options?.machineEvaluationScoreMin,
+      options?.machineEvaluationScoreMax,
+      100,
+    ),
+    machineEvaluationRankFilter: buildRankFilter(
+      options?.machineEvaluationRankMin,
+      options?.machineEvaluationRankMax,
+    ),
+    selectedMachineEvaluationRankFilter: buildRankFilter(
+      options?.selectedMachineEvaluationRankMin,
+      options?.selectedMachineEvaluationRankMax,
+    ),
+    machineEvaluationNextGapFilter: buildNextGapFilter(
+      options?.machineEvaluationNextGapMin,
+      options?.machineEvaluationNextGapMax,
+    ),
+    selectedMachineEvaluationNextGapFilter: buildNextGapFilter(
+      options?.selectedMachineEvaluationNextGapMin,
+      options?.selectedMachineEvaluationNextGapMax,
+    ),
+    machineEvaluationUpperGapFilter: buildUpperGapFilter(
+      options?.machineEvaluationUpperGapMin,
+      options?.machineEvaluationUpperGapMax,
+    ),
+    selectedMachineEvaluationUpperGapFilter: buildUpperGapFilter(
+      options?.selectedMachineEvaluationUpperGapMin,
+      options?.selectedMachineEvaluationUpperGapMax,
+    ),
   };
 }
 
@@ -2085,6 +2143,15 @@ function buildInitialBacktestDetail(
   } = buildScopedRankFilters(defaultedOptions);
   const scoreFilter = buildScoreFilter(defaultedOptions?.scoreMin, defaultedOptions?.scoreMax, scoreMaxLimit);
   const {
+    machineEvaluationScoreFilter,
+    machineEvaluationRankFilter,
+    selectedMachineEvaluationRankFilter,
+    machineEvaluationNextGapFilter,
+    selectedMachineEvaluationNextGapFilter,
+    machineEvaluationUpperGapFilter,
+    selectedMachineEvaluationUpperGapFilter,
+  } = buildMachineEvaluationConditionFilters(defaultedOptions);
+  const {
     machineNextGapFilter,
     selectedNextGapFilter,
     machineUpperGapFilter,
@@ -2114,6 +2181,16 @@ function buildInitialBacktestDetail(
         hasSelectedNextGapFilter: selectedNextGapFilter.hasNextGapFilter,
         hasMachineUpperGapFilter: machineUpperGapFilter.hasUpperGapFilter,
         hasSelectedUpperGapFilter: selectedUpperGapFilter.hasUpperGapFilter,
+        hasMachineEvaluationScoreFilter: machineEvaluationScoreFilter.hasScoreFilter,
+        hasMachineEvaluationRankFilter: machineEvaluationRankFilter.hasRankFilter,
+        hasSelectedMachineEvaluationRankFilter:
+          selectedMachineEvaluationRankFilter.hasRankFilter,
+        hasMachineEvaluationNextGapFilter: machineEvaluationNextGapFilter.hasNextGapFilter,
+        hasSelectedMachineEvaluationNextGapFilter:
+          selectedMachineEvaluationNextGapFilter.hasNextGapFilter,
+        hasMachineEvaluationUpperGapFilter: machineEvaluationUpperGapFilter.hasUpperGapFilter,
+        hasSelectedMachineEvaluationUpperGapFilter:
+          selectedMachineEvaluationUpperGapFilter.hasUpperGapFilter,
       })
     : baseRequirementOptions;
   const combineAimJuggler = shouldCombineMachineGroupForOptions(
@@ -2163,6 +2240,29 @@ function buildInitialBacktestDetail(
     scoreMax: scoreFilter.scoreMax,
     scoreMaxLimit,
     hasScoreFilter,
+    machineEvaluationScoreMin: machineEvaluationScoreFilter.scoreMin,
+    machineEvaluationScoreMax: machineEvaluationScoreFilter.scoreMax,
+    hasMachineEvaluationScoreFilter: machineEvaluationScoreFilter.hasScoreFilter,
+    machineEvaluationRankMin: machineEvaluationRankFilter.rankMin,
+    machineEvaluationRankMax: machineEvaluationRankFilter.rankMax,
+    hasMachineEvaluationRankFilter: machineEvaluationRankFilter.hasRankFilter,
+    selectedMachineEvaluationRankMin: selectedMachineEvaluationRankFilter.rankMin,
+    selectedMachineEvaluationRankMax: selectedMachineEvaluationRankFilter.rankMax,
+    hasSelectedMachineEvaluationRankFilter: selectedMachineEvaluationRankFilter.hasRankFilter,
+    machineEvaluationNextGapMin: machineEvaluationNextGapFilter.nextGapMin,
+    machineEvaluationNextGapMax: machineEvaluationNextGapFilter.nextGapMax,
+    hasMachineEvaluationNextGapFilter: machineEvaluationNextGapFilter.hasNextGapFilter,
+    selectedMachineEvaluationNextGapMin: selectedMachineEvaluationNextGapFilter.nextGapMin,
+    selectedMachineEvaluationNextGapMax: selectedMachineEvaluationNextGapFilter.nextGapMax,
+    hasSelectedMachineEvaluationNextGapFilter:
+      selectedMachineEvaluationNextGapFilter.hasNextGapFilter,
+    machineEvaluationUpperGapMin: machineEvaluationUpperGapFilter.upperGapMin,
+    machineEvaluationUpperGapMax: machineEvaluationUpperGapFilter.upperGapMax,
+    hasMachineEvaluationUpperGapFilter: machineEvaluationUpperGapFilter.hasUpperGapFilter,
+    selectedMachineEvaluationUpperGapMin: selectedMachineEvaluationUpperGapFilter.upperGapMin,
+    selectedMachineEvaluationUpperGapMax: selectedMachineEvaluationUpperGapFilter.upperGapMax,
+    hasSelectedMachineEvaluationUpperGapFilter:
+      selectedMachineEvaluationUpperGapFilter.hasUpperGapFilter,
     machineNextGapMin: machineNextGapFilter.nextGapMin,
     machineNextGapMax: machineNextGapFilter.nextGapMax,
     hasMachineNextGapFilter: machineNextGapFilter.hasNextGapFilter,
@@ -2179,6 +2279,16 @@ function buildInitialBacktestDetail(
     machineRankRequired: requirementOptions.machineRankRequired,
     selectedRankRequired: requirementOptions.selectedRankRequired,
     scoreRequired: requirementOptions.scoreRequired,
+    machineEvaluationScoreRequired: requirementOptions.machineEvaluationScoreRequired,
+    machineEvaluationRankRequired: requirementOptions.machineEvaluationRankRequired,
+    selectedMachineEvaluationRankRequired:
+      requirementOptions.selectedMachineEvaluationRankRequired,
+    machineEvaluationNextGapRequired: requirementOptions.machineEvaluationNextGapRequired,
+    selectedMachineEvaluationNextGapRequired:
+      requirementOptions.selectedMachineEvaluationNextGapRequired,
+    machineEvaluationUpperGapRequired: requirementOptions.machineEvaluationUpperGapRequired,
+    selectedMachineEvaluationUpperGapRequired:
+      requirementOptions.selectedMachineEvaluationUpperGapRequired,
     machineNextGapRequired: requirementOptions.machineNextGapRequired,
     selectedNextGapRequired: requirementOptions.selectedNextGapRequired,
     machineUpperGapRequired: requirementOptions.machineUpperGapRequired,

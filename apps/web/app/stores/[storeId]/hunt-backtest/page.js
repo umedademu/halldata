@@ -570,6 +570,48 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     selectedRankMax: readSingleSearchParam(resolvedSearchParams?.selectedRankMax),
     scoreMin: readSingleSearchParam(resolvedSearchParams?.scoreMin),
     scoreMax: readSingleSearchParam(resolvedSearchParams?.scoreMax),
+    machineEvaluationScoreMin: readSingleSearchParam(
+      resolvedSearchParams?.machineEvaluationScoreMin,
+    ),
+    machineEvaluationScoreMax: readSingleSearchParam(
+      resolvedSearchParams?.machineEvaluationScoreMax,
+    ),
+    machineEvaluationRankMin: readSingleSearchParam(
+      resolvedSearchParams?.machineEvaluationRankMin,
+    ),
+    machineEvaluationRankMax: readSingleSearchParam(
+      resolvedSearchParams?.machineEvaluationRankMax,
+    ),
+    selectedMachineEvaluationRankMin: readSingleSearchParam(
+      resolvedSearchParams?.selectedMachineEvaluationRankMin,
+    ),
+    selectedMachineEvaluationRankMax: readSingleSearchParam(
+      resolvedSearchParams?.selectedMachineEvaluationRankMax,
+    ),
+    machineEvaluationNextGapMin: readSingleSearchParam(
+      resolvedSearchParams?.machineEvaluationNextGapMin,
+    ),
+    machineEvaluationNextGapMax: readSingleSearchParam(
+      resolvedSearchParams?.machineEvaluationNextGapMax,
+    ),
+    selectedMachineEvaluationNextGapMin: readSingleSearchParam(
+      resolvedSearchParams?.selectedMachineEvaluationNextGapMin,
+    ),
+    selectedMachineEvaluationNextGapMax: readSingleSearchParam(
+      resolvedSearchParams?.selectedMachineEvaluationNextGapMax,
+    ),
+    machineEvaluationUpperGapMin: readSingleSearchParam(
+      resolvedSearchParams?.machineEvaluationUpperGapMin,
+    ),
+    machineEvaluationUpperGapMax: readSingleSearchParam(
+      resolvedSearchParams?.machineEvaluationUpperGapMax,
+    ),
+    selectedMachineEvaluationUpperGapMin: readSingleSearchParam(
+      resolvedSearchParams?.selectedMachineEvaluationUpperGapMin,
+    ),
+    selectedMachineEvaluationUpperGapMax: readSingleSearchParam(
+      resolvedSearchParams?.selectedMachineEvaluationUpperGapMax,
+    ),
     nextGapScope: readSingleSearchParam(resolvedSearchParams?.nextGapScope),
     nextGapMin: readSingleSearchParam(resolvedSearchParams?.nextGapMin),
     nextGapMax: readSingleSearchParam(resolvedSearchParams?.nextGapMax),
@@ -587,6 +629,27 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     machineRankRequired: readMultiSearchParam(resolvedSearchParams?.machineRankRequired),
     selectedRankRequired: readMultiSearchParam(resolvedSearchParams?.selectedRankRequired),
     scoreRequired: readMultiSearchParam(resolvedSearchParams?.scoreRequired),
+    machineEvaluationScoreRequired: readMultiSearchParam(
+      resolvedSearchParams?.machineEvaluationScoreRequired,
+    ),
+    machineEvaluationRankRequired: readMultiSearchParam(
+      resolvedSearchParams?.machineEvaluationRankRequired,
+    ),
+    selectedMachineEvaluationRankRequired: readMultiSearchParam(
+      resolvedSearchParams?.selectedMachineEvaluationRankRequired,
+    ),
+    machineEvaluationNextGapRequired: readMultiSearchParam(
+      resolvedSearchParams?.machineEvaluationNextGapRequired,
+    ),
+    selectedMachineEvaluationNextGapRequired: readMultiSearchParam(
+      resolvedSearchParams?.selectedMachineEvaluationNextGapRequired,
+    ),
+    machineEvaluationUpperGapRequired: readMultiSearchParam(
+      resolvedSearchParams?.machineEvaluationUpperGapRequired,
+    ),
+    selectedMachineEvaluationUpperGapRequired: readMultiSearchParam(
+      resolvedSearchParams?.selectedMachineEvaluationUpperGapRequired,
+    ),
     nextGapRequired: readMultiSearchParam(resolvedSearchParams?.nextGapRequired),
     upperGapRequired: readMultiSearchParam(resolvedSearchParams?.upperGapRequired),
     machineNextGapRequired: readMultiSearchParam(resolvedSearchParams?.machineNextGapRequired),
@@ -666,6 +729,26 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     selectedRankMax: detail.backtest.selectedRankMax ?? "",
     scoreMin: detail.backtest.scoreMin ?? "",
     scoreMax: detail.backtest.scoreMax ?? "",
+    machineEvaluationScoreMin: detail.backtest.machineEvaluationScoreMin ?? "",
+    machineEvaluationScoreMax: detail.backtest.machineEvaluationScoreMax ?? "",
+    machineEvaluationRankMin: detail.backtest.machineEvaluationRankMin ?? "",
+    machineEvaluationRankMax: detail.backtest.machineEvaluationRankMax ?? "",
+    selectedMachineEvaluationRankMin:
+      detail.backtest.selectedMachineEvaluationRankMin ?? "",
+    selectedMachineEvaluationRankMax:
+      detail.backtest.selectedMachineEvaluationRankMax ?? "",
+    machineEvaluationNextGapMin: detail.backtest.machineEvaluationNextGapMin ?? "",
+    machineEvaluationNextGapMax: detail.backtest.machineEvaluationNextGapMax ?? "",
+    selectedMachineEvaluationNextGapMin:
+      detail.backtest.selectedMachineEvaluationNextGapMin ?? "",
+    selectedMachineEvaluationNextGapMax:
+      detail.backtest.selectedMachineEvaluationNextGapMax ?? "",
+    machineEvaluationUpperGapMin: detail.backtest.machineEvaluationUpperGapMin ?? "",
+    machineEvaluationUpperGapMax: detail.backtest.machineEvaluationUpperGapMax ?? "",
+    selectedMachineEvaluationUpperGapMin:
+      detail.backtest.selectedMachineEvaluationUpperGapMin ?? "",
+    selectedMachineEvaluationUpperGapMax:
+      detail.backtest.selectedMachineEvaluationUpperGapMax ?? "",
     machineNextGapMin: detail.backtest.machineNextGapMin ?? "",
     machineNextGapMax: detail.backtest.machineNextGapMax ?? "",
     selectedNextGapMin: detail.backtest.selectedNextGapMin ?? "",
@@ -678,6 +761,16 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     machineRankRequired: detail.backtest.machineRankRequired,
     selectedRankRequired: detail.backtest.selectedRankRequired,
     scoreRequired: detail.backtest.scoreRequired,
+    machineEvaluationScoreRequired: detail.backtest.machineEvaluationScoreRequired,
+    machineEvaluationRankRequired: detail.backtest.machineEvaluationRankRequired,
+    selectedMachineEvaluationRankRequired:
+      detail.backtest.selectedMachineEvaluationRankRequired,
+    machineEvaluationNextGapRequired: detail.backtest.machineEvaluationNextGapRequired,
+    selectedMachineEvaluationNextGapRequired:
+      detail.backtest.selectedMachineEvaluationNextGapRequired,
+    machineEvaluationUpperGapRequired: detail.backtest.machineEvaluationUpperGapRequired,
+    selectedMachineEvaluationUpperGapRequired:
+      detail.backtest.selectedMachineEvaluationUpperGapRequired,
     machineNextGapRequired: detail.backtest.machineNextGapRequired,
     selectedNextGapRequired: detail.backtest.selectedNextGapRequired,
     machineUpperGapRequired: detail.backtest.machineUpperGapRequired,
@@ -887,16 +980,14 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                 <div className="commonConditionPanel">
                   <p className="scopedConditionColumnTitle">共通条件</p>
                   <div className="commonConditionGrid">
-                    <ScopedConditionRow
-                      label="狙い度"
-                      minName="scoreMin"
-                      maxName="scoreMax"
-                      requiredName="scoreRequired"
-                      minValue={detail.backtest.scoreMin}
-                      maxValue={detail.backtest.scoreMax}
-                      requiredValue={detail.backtest.scoreRequired}
-                      inputMax={detail.backtest.scoreMaxLimit}
-                    />
+                    <div className="commonConditionMode">
+                      <p className="commonConditionSubLabel">狙い度計算の差枚基準</p>
+                      <ScoreDifferenceModeOptions value={detail.backtest.scoreDifferenceMode} />
+                    </div>
+                    <div className="commonConditionMode">
+                      <p className="commonConditionSubLabel">設定分布を表示</p>
+                      <SettingDistributionOptions value={detail.backtest.settingDistribution} />
+                    </div>
                     <div className="commonConditionMode">
                       <p className="commonConditionSubLabel">複数ロジック判定</p>
                       <div className="metricToggleRow commonConditionModeOptions">
@@ -929,16 +1020,8 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       </div>
                     </div>
                     <div className="commonConditionMode">
-                      <p className="commonConditionSubLabel">狙い度計算の差枚基準</p>
-                      <ScoreDifferenceModeOptions value={detail.backtest.scoreDifferenceMode} />
-                    </div>
-                    <div className="commonConditionMode">
                       <p className="commonConditionSubLabel">設定推定基準</p>
                       <SettingEstimateModeOptions value={detail.backtest.settingEstimateMode} />
-                    </div>
-                    <div className="commonConditionMode">
-                      <p className="commonConditionSubLabel">設定分布を表示</p>
-                      <SettingDistributionOptions value={detail.backtest.settingDistribution} />
                     </div>
                     <div className="commonConditionMode">
                       <p className="commonConditionSubLabel">機種別評価の集計</p>
@@ -946,6 +1029,34 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                         value={detail.backtest.machineEvaluationBacktestMode}
                       />
                     </div>
+                  </div>
+                </div>
+                <div className="scopedConditionColumns">
+                  <div className="scopedConditionColumn">
+                    <p className="scopedConditionColumnTitle">狙い度</p>
+                    <ScopedConditionRow
+                      label="点数"
+                      minName="scoreMin"
+                      maxName="scoreMax"
+                      requiredName="scoreRequired"
+                      minValue={detail.backtest.scoreMin}
+                      maxValue={detail.backtest.scoreMax}
+                      requiredValue={detail.backtest.scoreRequired}
+                      inputMax={detail.backtest.scoreMaxLimit}
+                    />
+                  </div>
+                  <div className="scopedConditionColumn">
+                    <p className="scopedConditionColumnTitle">機種別</p>
+                    <ScopedConditionRow
+                      label="点数"
+                      minName="machineEvaluationScoreMin"
+                      maxName="machineEvaluationScoreMax"
+                      requiredName="machineEvaluationScoreRequired"
+                      minValue={detail.backtest.machineEvaluationScoreMin}
+                      maxValue={detail.backtest.machineEvaluationScoreMax}
+                      requiredValue={detail.backtest.machineEvaluationScoreRequired}
+                      inputMax="100"
+                    />
                   </div>
                 </div>
                 <div className="scopedConditionColumns">
@@ -985,6 +1096,43 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                     />
                   </div>
                   <div className="scopedConditionColumn">
+                    <p className="scopedConditionColumnTitle">同一機種内(機種別)</p>
+                    <ScopedConditionRow
+                      label="順位"
+                      minName="machineEvaluationRankMin"
+                      maxName="machineEvaluationRankMax"
+                      requiredName="machineEvaluationRankRequired"
+                      minValue={detail.backtest.machineEvaluationRankMin}
+                      maxValue={detail.backtest.machineEvaluationRankMax}
+                      requiredValue={detail.backtest.machineEvaluationRankRequired}
+                      minLabel="開始"
+                      maxLabel="終了"
+                      inputMin="1"
+                      inputMax={undefined}
+                      inputStep={undefined}
+                    />
+                    <ScopedConditionRow
+                      label="上差(同)"
+                      minName="machineEvaluationUpperGapMin"
+                      maxName="machineEvaluationUpperGapMax"
+                      requiredName="machineEvaluationUpperGapRequired"
+                      minValue={detail.backtest.machineEvaluationUpperGapMin}
+                      maxValue={detail.backtest.machineEvaluationUpperGapMax}
+                      requiredValue={detail.backtest.machineEvaluationUpperGapRequired}
+                    />
+                    <ScopedConditionRow
+                      label="下差(同)"
+                      minName="machineEvaluationNextGapMin"
+                      maxName="machineEvaluationNextGapMax"
+                      requiredName="machineEvaluationNextGapRequired"
+                      minValue={detail.backtest.machineEvaluationNextGapMin}
+                      maxValue={detail.backtest.machineEvaluationNextGapMax}
+                      requiredValue={detail.backtest.machineEvaluationNextGapRequired}
+                    />
+                  </div>
+                </div>
+                <div className="scopedConditionColumns">
+                  <div className="scopedConditionColumn">
                     <p className="scopedConditionColumnTitle">選択機種内</p>
                     <ScopedConditionRow
                       label="順位"
@@ -1017,6 +1165,41 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                       minValue={detail.backtest.selectedNextGapMin}
                       maxValue={detail.backtest.selectedNextGapMax}
                       requiredValue={detail.backtest.selectedNextGapRequired}
+                    />
+                  </div>
+                  <div className="scopedConditionColumn">
+                    <p className="scopedConditionColumnTitle">選択機種内(機種別)</p>
+                    <ScopedConditionRow
+                      label="順位"
+                      minName="selectedMachineEvaluationRankMin"
+                      maxName="selectedMachineEvaluationRankMax"
+                      requiredName="selectedMachineEvaluationRankRequired"
+                      minValue={detail.backtest.selectedMachineEvaluationRankMin}
+                      maxValue={detail.backtest.selectedMachineEvaluationRankMax}
+                      requiredValue={detail.backtest.selectedMachineEvaluationRankRequired}
+                      minLabel="開始"
+                      maxLabel="終了"
+                      inputMin="1"
+                      inputMax={undefined}
+                      inputStep={undefined}
+                    />
+                    <ScopedConditionRow
+                      label="上差(全)"
+                      minName="selectedMachineEvaluationUpperGapMin"
+                      maxName="selectedMachineEvaluationUpperGapMax"
+                      requiredName="selectedMachineEvaluationUpperGapRequired"
+                      minValue={detail.backtest.selectedMachineEvaluationUpperGapMin}
+                      maxValue={detail.backtest.selectedMachineEvaluationUpperGapMax}
+                      requiredValue={detail.backtest.selectedMachineEvaluationUpperGapRequired}
+                    />
+                    <ScopedConditionRow
+                      label="下差(全)"
+                      minName="selectedMachineEvaluationNextGapMin"
+                      maxName="selectedMachineEvaluationNextGapMax"
+                      requiredName="selectedMachineEvaluationNextGapRequired"
+                      minValue={detail.backtest.selectedMachineEvaluationNextGapMin}
+                      maxValue={detail.backtest.selectedMachineEvaluationNextGapMax}
+                      requiredValue={detail.backtest.selectedMachineEvaluationNextGapRequired}
                     />
                   </div>
                 </div>

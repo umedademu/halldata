@@ -2,6 +2,13 @@ import {
   formatSettingEstimateModeLabel,
   normalizeSettingEstimateMode,
 } from "./setting-estimates";
+import {
+  MACHINE_EVALUATION_BACKTEST_MODE_AND,
+  MACHINE_EVALUATION_BACKTEST_MODE_MACHINE,
+  MACHINE_EVALUATION_BACKTEST_MODE_OR,
+  MACHINE_EVALUATION_BACKTEST_MODE_OPTIONS,
+  normalizeMachineEvaluationBacktestMode,
+} from "./machine-evaluation";
 
 const HUNT_BACKTEST_BOOKMARK_STORAGE_PREFIX = "hunt-backtest-bookmark:";
 const HUNT_BACKTEST_BOOKMARKS_STORAGE_PREFIX = "hunt-backtest-bookmarks:";
@@ -42,6 +49,14 @@ function normalizeSettingDistribution(value) {
   return normalizeText(value) === SETTING_DISTRIBUTION_HIDE
     ? SETTING_DISTRIBUTION_HIDE
     : SETTING_DISTRIBUTION_SHOW;
+}
+
+function formatMachineEvaluationBacktestModeLabel(value) {
+  const normalizedValue = normalizeMachineEvaluationBacktestMode(value);
+  return (
+    MACHINE_EVALUATION_BACKTEST_MODE_OPTIONS.find((option) => option.value === normalizedValue)
+      ?.label ?? "共通条件のみ"
+  );
 }
 
 function normalizePeriodMode(value, startDate, endDate) {
@@ -378,6 +393,13 @@ export function buildConditionRequirementOptions(source = {}, fallback = {}) {
     !Object.hasOwn(safeSource, "selectedNextGapRequired") &&
     !Object.hasOwn(safeSource, "machineUpperGapRequired") &&
     !Object.hasOwn(safeSource, "selectedUpperGapRequired") &&
+    !Object.hasOwn(safeSource, "machineEvaluationScoreRequired") &&
+    !Object.hasOwn(safeSource, "machineEvaluationRankRequired") &&
+    !Object.hasOwn(safeSource, "selectedMachineEvaluationRankRequired") &&
+    !Object.hasOwn(safeSource, "machineEvaluationNextGapRequired") &&
+    !Object.hasOwn(safeSource, "selectedMachineEvaluationNextGapRequired") &&
+    !Object.hasOwn(safeSource, "machineEvaluationUpperGapRequired") &&
+    !Object.hasOwn(safeSource, "selectedMachineEvaluationUpperGapRequired") &&
     Object.hasOwn(safeSource, "matchMode")
   ) {
     const allRequired = normalizeMatchMode(safeSource.matchMode) === "and";
@@ -392,6 +414,13 @@ export function buildConditionRequirementOptions(source = {}, fallback = {}) {
       selectedNextGapRequired: allRequired,
       machineUpperGapRequired: allRequired,
       selectedUpperGapRequired: allRequired,
+      machineEvaluationScoreRequired: allRequired,
+      machineEvaluationRankRequired: allRequired,
+      selectedMachineEvaluationRankRequired: allRequired,
+      machineEvaluationNextGapRequired: allRequired,
+      selectedMachineEvaluationNextGapRequired: allRequired,
+      machineEvaluationUpperGapRequired: allRequired,
+      selectedMachineEvaluationUpperGapRequired: allRequired,
     };
   }
 
@@ -449,6 +478,34 @@ export function buildConditionRequirementOptions(source = {}, fallback = {}) {
         ? Boolean(fallback.selectedUpperGapRequired)
         : upperGapRequired,
     ),
+    machineEvaluationScoreRequired: normalizeRequiredOption(
+      safeSource.machineEvaluationScoreRequired,
+      Boolean(fallback.machineEvaluationScoreRequired),
+    ),
+    machineEvaluationRankRequired: normalizeRequiredOption(
+      safeSource.machineEvaluationRankRequired,
+      Boolean(fallback.machineEvaluationRankRequired),
+    ),
+    selectedMachineEvaluationRankRequired: normalizeRequiredOption(
+      safeSource.selectedMachineEvaluationRankRequired,
+      Boolean(fallback.selectedMachineEvaluationRankRequired),
+    ),
+    machineEvaluationNextGapRequired: normalizeRequiredOption(
+      safeSource.machineEvaluationNextGapRequired,
+      Boolean(fallback.machineEvaluationNextGapRequired),
+    ),
+    selectedMachineEvaluationNextGapRequired: normalizeRequiredOption(
+      safeSource.selectedMachineEvaluationNextGapRequired,
+      Boolean(fallback.selectedMachineEvaluationNextGapRequired),
+    ),
+    machineEvaluationUpperGapRequired: normalizeRequiredOption(
+      safeSource.machineEvaluationUpperGapRequired,
+      Boolean(fallback.machineEvaluationUpperGapRequired),
+    ),
+    selectedMachineEvaluationUpperGapRequired: normalizeRequiredOption(
+      safeSource.selectedMachineEvaluationUpperGapRequired,
+      Boolean(fallback.selectedMachineEvaluationUpperGapRequired),
+    ),
   };
 }
 
@@ -484,6 +541,30 @@ function requireActiveConditionFilters(requirementOptions, filters = {}) {
     selectedUpperGapRequired: filters.selectedUpperGapFilter?.hasUpperGapFilter
       ? true
       : Boolean(requirementOptions.selectedUpperGapRequired),
+    machineEvaluationScoreRequired: filters.machineEvaluationScoreFilter?.hasScoreFilter
+      ? true
+      : Boolean(requirementOptions.machineEvaluationScoreRequired),
+    machineEvaluationRankRequired: filters.machineEvaluationRankFilter?.hasRankFilter
+      ? true
+      : Boolean(requirementOptions.machineEvaluationRankRequired),
+    selectedMachineEvaluationRankRequired:
+      filters.selectedMachineEvaluationRankFilter?.hasRankFilter
+        ? true
+        : Boolean(requirementOptions.selectedMachineEvaluationRankRequired),
+    machineEvaluationNextGapRequired: filters.machineEvaluationNextGapFilter?.hasNextGapFilter
+      ? true
+      : Boolean(requirementOptions.machineEvaluationNextGapRequired),
+    selectedMachineEvaluationNextGapRequired:
+      filters.selectedMachineEvaluationNextGapFilter?.hasNextGapFilter
+        ? true
+        : Boolean(requirementOptions.selectedMachineEvaluationNextGapRequired),
+    machineEvaluationUpperGapRequired: filters.machineEvaluationUpperGapFilter?.hasUpperGapFilter
+      ? true
+      : Boolean(requirementOptions.machineEvaluationUpperGapRequired),
+    selectedMachineEvaluationUpperGapRequired:
+      filters.selectedMachineEvaluationUpperGapFilter?.hasUpperGapFilter
+        ? true
+        : Boolean(requirementOptions.selectedMachineEvaluationUpperGapRequired),
   };
 }
 
@@ -911,6 +992,34 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     hasRankFilter,
   } = buildScopedRankFilters(bookmark);
   const scoreFilter = buildScoreFilter(bookmark.scoreMin, bookmark.scoreMax);
+  const machineEvaluationScoreFilter = buildScoreFilter(
+    bookmark.machineEvaluationScoreMin,
+    bookmark.machineEvaluationScoreMax,
+  );
+  const machineEvaluationRankFilter = buildRankFilter(
+    bookmark.machineEvaluationRankMin,
+    bookmark.machineEvaluationRankMax,
+  );
+  const selectedMachineEvaluationRankFilter = buildRankFilter(
+    bookmark.selectedMachineEvaluationRankMin,
+    bookmark.selectedMachineEvaluationRankMax,
+  );
+  const machineEvaluationNextGapFilter = buildNextGapFilter(
+    bookmark.machineEvaluationNextGapMin,
+    bookmark.machineEvaluationNextGapMax,
+  );
+  const selectedMachineEvaluationNextGapFilter = buildNextGapFilter(
+    bookmark.selectedMachineEvaluationNextGapMin,
+    bookmark.selectedMachineEvaluationNextGapMax,
+  );
+  const machineEvaluationUpperGapFilter = buildUpperGapFilter(
+    bookmark.machineEvaluationUpperGapMin,
+    bookmark.machineEvaluationUpperGapMax,
+  );
+  const selectedMachineEvaluationUpperGapFilter = buildUpperGapFilter(
+    bookmark.selectedMachineEvaluationUpperGapMin,
+    bookmark.selectedMachineEvaluationUpperGapMax,
+  );
   const {
     machineNextGapFilter,
     selectedNextGapFilter,
@@ -930,6 +1039,13 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
         selectedNextGapFilter,
         machineUpperGapFilter,
         selectedUpperGapFilter,
+        machineEvaluationScoreFilter,
+        machineEvaluationRankFilter,
+        selectedMachineEvaluationRankFilter,
+        machineEvaluationNextGapFilter,
+        selectedMachineEvaluationNextGapFilter,
+        machineEvaluationUpperGapFilter,
+        selectedMachineEvaluationUpperGapFilter,
       })
     : baseRequirementOptions;
   const allMachineCount = readPositiveInteger(bookmark.allMachineCount) ?? machineNames.length;
@@ -953,6 +1069,9 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     machineNames,
     huntScoreLogicKeys,
     logicConditionMode,
+    machineEvaluationBacktestMode: normalizeMachineEvaluationBacktestMode(
+      bookmark.machineEvaluationMode ?? bookmark.machineEvaluationBacktestMode,
+    ),
     rankMin: rankFilter.rankMin,
     rankMax: rankFilter.rankMax,
     machineRankMin: machineRankFilter.rankMin,
@@ -965,6 +1084,29 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     scoreMin: scoreFilter.scoreMin,
     scoreMax: scoreFilter.scoreMax,
     hasScoreFilter: scoreFilter.hasScoreFilter,
+    machineEvaluationScoreMin: machineEvaluationScoreFilter.scoreMin,
+    machineEvaluationScoreMax: machineEvaluationScoreFilter.scoreMax,
+    hasMachineEvaluationScoreFilter: machineEvaluationScoreFilter.hasScoreFilter,
+    machineEvaluationRankMin: machineEvaluationRankFilter.rankMin,
+    machineEvaluationRankMax: machineEvaluationRankFilter.rankMax,
+    hasMachineEvaluationRankFilter: machineEvaluationRankFilter.hasRankFilter,
+    selectedMachineEvaluationRankMin: selectedMachineEvaluationRankFilter.rankMin,
+    selectedMachineEvaluationRankMax: selectedMachineEvaluationRankFilter.rankMax,
+    hasSelectedMachineEvaluationRankFilter: selectedMachineEvaluationRankFilter.hasRankFilter,
+    machineEvaluationNextGapMin: machineEvaluationNextGapFilter.nextGapMin,
+    machineEvaluationNextGapMax: machineEvaluationNextGapFilter.nextGapMax,
+    hasMachineEvaluationNextGapFilter: machineEvaluationNextGapFilter.hasNextGapFilter,
+    selectedMachineEvaluationNextGapMin: selectedMachineEvaluationNextGapFilter.nextGapMin,
+    selectedMachineEvaluationNextGapMax: selectedMachineEvaluationNextGapFilter.nextGapMax,
+    hasSelectedMachineEvaluationNextGapFilter:
+      selectedMachineEvaluationNextGapFilter.hasNextGapFilter,
+    machineEvaluationUpperGapMin: machineEvaluationUpperGapFilter.upperGapMin,
+    machineEvaluationUpperGapMax: machineEvaluationUpperGapFilter.upperGapMax,
+    hasMachineEvaluationUpperGapFilter: machineEvaluationUpperGapFilter.hasUpperGapFilter,
+    selectedMachineEvaluationUpperGapMin: selectedMachineEvaluationUpperGapFilter.upperGapMin,
+    selectedMachineEvaluationUpperGapMax: selectedMachineEvaluationUpperGapFilter.upperGapMax,
+    hasSelectedMachineEvaluationUpperGapFilter:
+      selectedMachineEvaluationUpperGapFilter.hasUpperGapFilter,
     machineNextGapMin: machineNextGapFilter.nextGapMin,
     machineNextGapMax: machineNextGapFilter.nextGapMax,
     hasMachineNextGapFilter: machineNextGapFilter.hasNextGapFilter,
@@ -981,6 +1123,16 @@ export function normalizeHuntBacktestBookmark(bookmark, fallbackStoreId = "") {
     machineRankRequired: requirementOptions.machineRankRequired,
     selectedRankRequired: requirementOptions.selectedRankRequired,
     scoreRequired: requirementOptions.scoreRequired,
+    machineEvaluationScoreRequired: requirementOptions.machineEvaluationScoreRequired,
+    machineEvaluationRankRequired: requirementOptions.machineEvaluationRankRequired,
+    selectedMachineEvaluationRankRequired:
+      requirementOptions.selectedMachineEvaluationRankRequired,
+    machineEvaluationNextGapRequired: requirementOptions.machineEvaluationNextGapRequired,
+    selectedMachineEvaluationNextGapRequired:
+      requirementOptions.selectedMachineEvaluationNextGapRequired,
+    machineEvaluationUpperGapRequired: requirementOptions.machineEvaluationUpperGapRequired,
+    selectedMachineEvaluationUpperGapRequired:
+      requirementOptions.selectedMachineEvaluationUpperGapRequired,
     machineNextGapRequired: requirementOptions.machineNextGapRequired,
     selectedNextGapRequired: requirementOptions.selectedNextGapRequired,
     machineUpperGapRequired: requirementOptions.machineUpperGapRequired,
@@ -1033,6 +1185,28 @@ export function areHuntBacktestBookmarksEqual(left, right) {
     normalizedLeft.selectedRankMax === normalizedRight.selectedRankMax &&
     normalizedLeft.scoreMin === normalizedRight.scoreMin &&
     normalizedLeft.scoreMax === normalizedRight.scoreMax &&
+    normalizedLeft.machineEvaluationScoreMin === normalizedRight.machineEvaluationScoreMin &&
+    normalizedLeft.machineEvaluationScoreMax === normalizedRight.machineEvaluationScoreMax &&
+    normalizedLeft.machineEvaluationRankMin === normalizedRight.machineEvaluationRankMin &&
+    normalizedLeft.machineEvaluationRankMax === normalizedRight.machineEvaluationRankMax &&
+    normalizedLeft.selectedMachineEvaluationRankMin ===
+      normalizedRight.selectedMachineEvaluationRankMin &&
+    normalizedLeft.selectedMachineEvaluationRankMax ===
+      normalizedRight.selectedMachineEvaluationRankMax &&
+    normalizedLeft.machineEvaluationNextGapMin === normalizedRight.machineEvaluationNextGapMin &&
+    normalizedLeft.machineEvaluationNextGapMax === normalizedRight.machineEvaluationNextGapMax &&
+    normalizedLeft.selectedMachineEvaluationNextGapMin ===
+      normalizedRight.selectedMachineEvaluationNextGapMin &&
+    normalizedLeft.selectedMachineEvaluationNextGapMax ===
+      normalizedRight.selectedMachineEvaluationNextGapMax &&
+    normalizedLeft.machineEvaluationUpperGapMin ===
+      normalizedRight.machineEvaluationUpperGapMin &&
+    normalizedLeft.machineEvaluationUpperGapMax ===
+      normalizedRight.machineEvaluationUpperGapMax &&
+    normalizedLeft.selectedMachineEvaluationUpperGapMin ===
+      normalizedRight.selectedMachineEvaluationUpperGapMin &&
+    normalizedLeft.selectedMachineEvaluationUpperGapMax ===
+      normalizedRight.selectedMachineEvaluationUpperGapMax &&
     normalizedLeft.machineNextGapMin === normalizedRight.machineNextGapMin &&
     normalizedLeft.machineNextGapMax === normalizedRight.machineNextGapMax &&
     normalizedLeft.selectedNextGapMin === normalizedRight.selectedNextGapMin &&
@@ -1045,12 +1219,28 @@ export function areHuntBacktestBookmarksEqual(left, right) {
     normalizedLeft.machineRankRequired === normalizedRight.machineRankRequired &&
     normalizedLeft.selectedRankRequired === normalizedRight.selectedRankRequired &&
     normalizedLeft.scoreRequired === normalizedRight.scoreRequired &&
+    normalizedLeft.machineEvaluationScoreRequired ===
+      normalizedRight.machineEvaluationScoreRequired &&
+    normalizedLeft.machineEvaluationRankRequired ===
+      normalizedRight.machineEvaluationRankRequired &&
+    normalizedLeft.selectedMachineEvaluationRankRequired ===
+      normalizedRight.selectedMachineEvaluationRankRequired &&
+    normalizedLeft.machineEvaluationNextGapRequired ===
+      normalizedRight.machineEvaluationNextGapRequired &&
+    normalizedLeft.selectedMachineEvaluationNextGapRequired ===
+      normalizedRight.selectedMachineEvaluationNextGapRequired &&
+    normalizedLeft.machineEvaluationUpperGapRequired ===
+      normalizedRight.machineEvaluationUpperGapRequired &&
+    normalizedLeft.selectedMachineEvaluationUpperGapRequired ===
+      normalizedRight.selectedMachineEvaluationUpperGapRequired &&
     normalizedLeft.machineNextGapRequired === normalizedRight.machineNextGapRequired &&
     normalizedLeft.selectedNextGapRequired === normalizedRight.selectedNextGapRequired &&
     normalizedLeft.machineUpperGapRequired === normalizedRight.machineUpperGapRequired &&
     normalizedLeft.selectedUpperGapRequired === normalizedRight.selectedUpperGapRequired &&
     normalizedLeft.dailySelectionMode === normalizedRight.dailySelectionMode &&
     normalizedLeft.logicConditionMode === normalizedRight.logicConditionMode &&
+    normalizedLeft.machineEvaluationBacktestMode ===
+      normalizedRight.machineEvaluationBacktestMode &&
     normalizedLeft.rankScope === normalizedRight.rankScope &&
     normalizedLeft.scoreDifferenceMode === normalizedRight.scoreDifferenceMode &&
     normalizedLeft.differenceMode === normalizedRight.differenceMode &&
@@ -1119,6 +1309,11 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
   if (normalizedBookmark.settingDistribution === SETTING_DISTRIBUTION_HIDE) {
     parts.push("設定分布: 非表示");
   }
+  parts.push(
+    `機種別集計: ${formatMachineEvaluationBacktestModeLabel(
+      normalizedBookmark.machineEvaluationBacktestMode,
+    )}`,
+  );
 
   if (isMachineTopNextGapSelectionMode(normalizedBookmark.dailySelectionMode)) {
     parts.push("各機種1位から機種内下位境界差1位を1台選抜");
@@ -1148,6 +1343,33 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
         normalizedBookmark.scoreMax,
         normalizedBookmark.scoreRequired,
       ),
+    );
+  }
+
+  if (normalizedBookmark.hasMachineEvaluationScoreFilter) {
+    parts.push(
+      formatRangeConditionText(
+        "機種別",
+        normalizedBookmark.machineEvaluationScoreMin,
+        normalizedBookmark.machineEvaluationScoreMax,
+        normalizedBookmark.machineEvaluationScoreRequired,
+      ),
+    );
+  }
+
+  if (normalizedBookmark.hasMachineEvaluationRankFilter) {
+    parts.push(
+      `機種別同一機種内順位${normalizedBookmark.machineEvaluationRankMin}〜${normalizedBookmark.machineEvaluationRankMax}${
+        normalizedBookmark.machineEvaluationRankRequired ? "必須" : ""
+      }`,
+    );
+  }
+
+  if (normalizedBookmark.hasSelectedMachineEvaluationRankFilter) {
+    parts.push(
+      `機種別選択機種内順位${normalizedBookmark.selectedMachineEvaluationRankMin}〜${normalizedBookmark.selectedMachineEvaluationRankMax}${
+        normalizedBookmark.selectedMachineEvaluationRankRequired ? "必須" : ""
+      }`,
     );
   }
 
@@ -1183,15 +1405,54 @@ export function formatHuntBacktestBookmarkSummary(bookmark) {
     normalizedBookmark.selectedNextGapMax,
     normalizedBookmark.selectedNextGapRequired,
   );
+  pushRangeConditionSummary(
+    parts,
+    normalizedBookmark.hasMachineEvaluationUpperGapFilter,
+    "機種別上差(同)",
+    normalizedBookmark.machineEvaluationUpperGapMin,
+    normalizedBookmark.machineEvaluationUpperGapMax,
+    normalizedBookmark.machineEvaluationUpperGapRequired,
+  );
+  pushRangeConditionSummary(
+    parts,
+    normalizedBookmark.hasMachineEvaluationNextGapFilter,
+    "機種別下差(同)",
+    normalizedBookmark.machineEvaluationNextGapMin,
+    normalizedBookmark.machineEvaluationNextGapMax,
+    normalizedBookmark.machineEvaluationNextGapRequired,
+  );
+  pushRangeConditionSummary(
+    parts,
+    normalizedBookmark.hasSelectedMachineEvaluationUpperGapFilter,
+    "機種別上差(全)",
+    normalizedBookmark.selectedMachineEvaluationUpperGapMin,
+    normalizedBookmark.selectedMachineEvaluationUpperGapMax,
+    normalizedBookmark.selectedMachineEvaluationUpperGapRequired,
+  );
+  pushRangeConditionSummary(
+    parts,
+    normalizedBookmark.hasSelectedMachineEvaluationNextGapFilter,
+    "機種別下差(全)",
+    normalizedBookmark.selectedMachineEvaluationNextGapMin,
+    normalizedBookmark.selectedMachineEvaluationNextGapMax,
+    normalizedBookmark.selectedMachineEvaluationNextGapRequired,
+  );
 
   const activeFilterCount = [
     normalizedBookmark.hasMachineRankFilter,
     normalizedBookmark.hasSelectedRankFilter,
     normalizedBookmark.hasScoreFilter,
+    normalizedBookmark.hasMachineEvaluationScoreFilter,
+    normalizedBookmark.hasMachineEvaluationRankFilter,
+    normalizedBookmark.hasSelectedMachineEvaluationRankFilter,
     normalizedBookmark.hasMachineNextGapFilter,
     normalizedBookmark.hasSelectedNextGapFilter,
     normalizedBookmark.hasMachineUpperGapFilter,
     normalizedBookmark.hasSelectedUpperGapFilter,
+    normalizedBookmark.hasMachineEvaluationNextGapFilter,
+    normalizedBookmark.hasSelectedMachineEvaluationNextGapFilter,
+    normalizedBookmark.hasMachineEvaluationUpperGapFilter,
+    normalizedBookmark.hasSelectedMachineEvaluationUpperGapFilter,
   ].filter(Boolean).length;
 
   if (normalizedBookmark.combineAimJuggler) {
@@ -1432,6 +1693,71 @@ export function clearSavedHuntBacktestBookmark(storeId) {
   dispatchHuntBacktestBookmarkEvent(storeId);
 }
 
+function compareMachineEvaluationBookmarkRows(left, right) {
+  const leftScore = readNumber(left?.machineEvaluation?.score);
+  const rightScore = readNumber(right?.machineEvaluation?.score);
+  const scoreDiff = (rightScore ?? Number.NEGATIVE_INFINITY) -
+    (leftScore ?? Number.NEGATIVE_INFINITY);
+  if (Math.abs(scoreDiff) > SCORE_EPSILON) {
+    return scoreDiff;
+  }
+
+  return (
+    normalizeText(left?.machineName).localeCompare(normalizeText(right?.machineName), "ja") ||
+    normalizeText(left?.slotNumber).localeCompare(normalizeText(right?.slotNumber), "ja", {
+      numeric: true,
+    })
+  );
+}
+
+function calculateMachineEvaluationBookmarkContextMap(rows) {
+  const sortedRows = [...(Array.isArray(rows) ? rows : [])]
+    .filter((row) => row?.machineEvaluation)
+    .sort(compareMachineEvaluationBookmarkRows);
+  const contextMap = new Map();
+
+  sortedRows.forEach((row, index) => {
+    const previousRow = sortedRows[index - 1] ?? null;
+    const nextRow = sortedRows[index + 1] ?? null;
+    const score = readNumber(row?.machineEvaluation?.score);
+    const previousScore = readNumber(previousRow?.machineEvaluation?.score);
+    const nextScore = readNumber(nextRow?.machineEvaluation?.score);
+    contextMap.set(row, {
+      rank: index + 1,
+      upperGap: score !== null && previousScore !== null ? previousScore - score : null,
+      nextGap: score !== null && nextScore !== null ? score - nextScore : null,
+    });
+  });
+
+  return contextMap;
+}
+
+function hasMachineEvaluationBookmarkFilters(bookmark) {
+  return Boolean(
+    bookmark?.hasMachineEvaluationScoreFilter ||
+      bookmark?.hasMachineEvaluationRankFilter ||
+      bookmark?.hasSelectedMachineEvaluationRankFilter ||
+      bookmark?.hasMachineEvaluationNextGapFilter ||
+      bookmark?.hasSelectedMachineEvaluationNextGapFilter ||
+      bookmark?.hasMachineEvaluationUpperGapFilter ||
+      bookmark?.hasSelectedMachineEvaluationUpperGapFilter,
+  );
+}
+
+function combineBookmarkConditionMatches(commonMatched, machineEvaluationMatched, mode) {
+  const normalizedMode = normalizeMachineEvaluationBacktestMode(mode);
+  if (normalizedMode === MACHINE_EVALUATION_BACKTEST_MODE_MACHINE) {
+    return machineEvaluationMatched;
+  }
+  if (normalizedMode === MACHINE_EVALUATION_BACKTEST_MODE_AND) {
+    return commonMatched && machineEvaluationMatched;
+  }
+  if (normalizedMode === MACHINE_EVALUATION_BACKTEST_MODE_OR) {
+    return commonMatched || machineEvaluationMatched;
+  }
+  return commonMatched;
+}
+
 export function buildHuntBacktestBookmarkRowKey(row) {
   return [
     normalizeText(row?.machineName),
@@ -1458,6 +1784,35 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
   const machineRankCounts = new Map();
   const { machineRankFilter, selectedRankFilter } = buildScopedRankFilters(normalizedBookmark);
   const scoreFilter = buildScoreFilter(normalizedBookmark.scoreMin, normalizedBookmark.scoreMax);
+  const machineEvaluationScoreFilter = buildScoreFilter(
+    normalizedBookmark.machineEvaluationScoreMin,
+    normalizedBookmark.machineEvaluationScoreMax,
+  );
+  const machineEvaluationRankFilter = buildRankFilter(
+    normalizedBookmark.machineEvaluationRankMin,
+    normalizedBookmark.machineEvaluationRankMax,
+  );
+  const selectedMachineEvaluationRankFilter = buildRankFilter(
+    normalizedBookmark.selectedMachineEvaluationRankMin,
+    normalizedBookmark.selectedMachineEvaluationRankMax,
+  );
+  const machineEvaluationNextGapFilter = buildNextGapFilter(
+    normalizedBookmark.machineEvaluationNextGapMin,
+    normalizedBookmark.machineEvaluationNextGapMax,
+  );
+  const selectedMachineEvaluationNextGapFilter = buildNextGapFilter(
+    normalizedBookmark.selectedMachineEvaluationNextGapMin,
+    normalizedBookmark.selectedMachineEvaluationNextGapMax,
+  );
+  const machineEvaluationUpperGapFilter = buildUpperGapFilter(
+    normalizedBookmark.machineEvaluationUpperGapMin,
+    normalizedBookmark.machineEvaluationUpperGapMax,
+  );
+  const selectedMachineEvaluationUpperGapFilter = buildUpperGapFilter(
+    normalizedBookmark.selectedMachineEvaluationUpperGapMin,
+    normalizedBookmark.selectedMachineEvaluationUpperGapMax,
+  );
+  const usesMachineEvaluationFilters = hasMachineEvaluationBookmarkFilters(normalizedBookmark);
   const {
     machineNextGapFilter,
     selectedNextGapFilter,
@@ -1481,6 +1836,8 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
     selectedRows,
     selectedNextGapRankFilter,
   );
+  const selectedMachineEvaluationContextMap =
+    calculateMachineEvaluationBookmarkContextMap(selectedRows);
   const rowsByBookmarkMachineName = new Map();
   let matchedRowCount = 0;
   let selectedRank = 0;
@@ -1502,9 +1859,11 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
   const machineNextGapMap = new Map();
   const machineUpperGapMap = new Map();
   const selectionMachineNextGapMap = new Map();
+  const machineEvaluationContextMap = new Map();
   for (const machineRows of rowsByBookmarkMachineName.values()) {
     const nextGapMap = calculateHuntScoreNextGapMap(machineRows, machineNextGapRankFilter);
     const upperGapMap = calculateHuntScoreUpperGapMap(machineRows, machineNextGapRankFilter);
+    const machineEvaluationMap = calculateMachineEvaluationBookmarkContextMap(machineRows);
     const selectionNextGapMap = usesMachineTopNextGapSelection
       ? calculateHuntScoreNextGapMap(machineRows, selectionRankFilter)
       : null;
@@ -1517,6 +1876,9 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
       }
       if (selectionNextGapMap?.has(row)) {
         selectionMachineNextGapMap.set(row, selectionNextGapMap.get(row));
+      }
+      if (machineEvaluationMap.has(row)) {
+        machineEvaluationContextMap.set(row, machineEvaluationMap.get(row));
       }
     }
   }
@@ -1554,7 +1916,9 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
     const selectedNextGapValue = selectedNextGapMap.get(row) ?? null;
     const machineUpperGapValue = machineUpperGapMap.get(row) ?? null;
     const selectedUpperGapValue = selectedUpperGapMap.get(row) ?? null;
-    const matched = matchesRequiredConditionFilters(
+    const machineEvaluationContext = machineEvaluationContextMap.get(row) ?? {};
+    const selectedMachineEvaluationContext = selectedMachineEvaluationContextMap.get(row) ?? {};
+    const commonMatched = matchesRequiredConditionFilters(
       [
         {
           rankValue: rowMachineRank,
@@ -1602,6 +1966,60 @@ export function buildHuntBacktestBookmarkMatches(rows, bookmark) {
           required: normalizedBookmark.selectedNextGapRequired,
         },
       ],
+    );
+    const machineEvaluationMatched = usesMachineEvaluationFilters
+      ? matchesRequiredConditionFilters(
+          [
+            {
+              rankValue: machineEvaluationContext.rank,
+              rankFilter: machineEvaluationRankFilter,
+              required: normalizedBookmark.machineEvaluationRankRequired,
+            },
+            {
+              rankValue: selectedMachineEvaluationContext.rank,
+              rankFilter: selectedMachineEvaluationRankFilter,
+              required: normalizedBookmark.selectedMachineEvaluationRankRequired,
+            },
+          ],
+          row?.machineEvaluation?.score,
+          null,
+          machineEvaluationScoreFilter,
+          {
+            scoreRequired: normalizedBookmark.machineEvaluationScoreRequired,
+          },
+          false,
+          null,
+          { hasNextGapFilter: false, nextGapMin: null, nextGapMax: null },
+          null,
+          { hasUpperGapFilter: false, upperGapMin: null, upperGapMax: null },
+          [
+            {
+              value: machineEvaluationContext.upperGap,
+              filter: machineEvaluationUpperGapFilter,
+              required: normalizedBookmark.machineEvaluationUpperGapRequired,
+            },
+            {
+              value: machineEvaluationContext.nextGap,
+              filter: machineEvaluationNextGapFilter,
+              required: normalizedBookmark.machineEvaluationNextGapRequired,
+            },
+            {
+              value: selectedMachineEvaluationContext.upperGap,
+              filter: selectedMachineEvaluationUpperGapFilter,
+              required: normalizedBookmark.selectedMachineEvaluationUpperGapRequired,
+            },
+            {
+              value: selectedMachineEvaluationContext.nextGap,
+              filter: selectedMachineEvaluationNextGapFilter,
+              required: normalizedBookmark.selectedMachineEvaluationNextGapRequired,
+            },
+          ],
+        )
+      : Boolean(row?.machineEvaluation?.matchesAdoption);
+    const matched = combineBookmarkConditionMatches(
+      commonMatched,
+      machineEvaluationMatched,
+      normalizedBookmark.machineEvaluationBacktestMode,
     );
 
     if (matched) {
