@@ -499,9 +499,12 @@ function MachineEvaluationCell({ evaluation, extraTitle = "" }) {
     Number.isFinite(evaluation.rank) ? `機種別順位: ${evaluation.rank}` : "",
     Number.isFinite(evaluation.nextGap) ? `次点差: ${formatDecimal(evaluation.nextGap)}` : "",
   ].filter(Boolean);
+  const evaluationPayoutClass = getMachineEvaluationPayoutClass(
+    evaluation.bestMatchedBacktestPayoutRate,
+  );
   const cellClassNames = [
-    evaluation.matchesAnyCondition ? "machineEvaluationMatchedCell" : "",
-    getMachineEvaluationPayoutClass(evaluation.bestMatchedBacktestPayoutRate),
+    evaluationPayoutClass ? "machineEvaluationMatchedCell" : "",
+    evaluationPayoutClass,
   ].filter(Boolean).join(" ");
 
   return (

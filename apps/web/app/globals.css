@@ -512,10 +512,10 @@ a {
 .directoryTable tbody tr.settingEstimateLevel3 td.machineEvaluationMatchedCell,
 .directoryTable tbody tr.settingEstimateLevel3:nth-child(odd) td.machineEvaluationMatchedCell,
 .directoryTable tbody tr.settingEstimateLevel3:hover td.machineEvaluationMatchedCell {
-  background: var(--machine-evaluation-bg, rgba(124, 58, 237, 0.16));
-  color: var(--machine-evaluation-color, #5b21b6);
+  background: var(--machine-evaluation-bg, inherit);
+  color: var(--machine-evaluation-color, inherit);
   font-weight: 900;
-  box-shadow: inset 0 0 0 1px var(--machine-evaluation-ring, rgba(91, 50, 142, 0.18));
+  box-shadow: inset 0 0 0 1px var(--machine-evaluation-ring, transparent);
 }
 
 .machineEvaluationPayoutBlue {
