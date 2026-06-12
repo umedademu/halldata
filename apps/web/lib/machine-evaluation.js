@@ -147,6 +147,13 @@ function isBeamHikariStore(storeName) {
   );
 }
 
+function isAmuseAsakusaStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["アミューズ浅草店", "アミューズ浅草", "AMUSE浅草店", "AMUSE浅草", "ＡＭＵＳＥ浅草店", "ＡＭＵＳＥ浅草"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function readBacktestPayoutRate(backtestLabel) {
   const match = String(backtestLabel ?? "").match(/(\d+(?:\.\d+)?)%/u);
   if (!match) {
@@ -670,6 +677,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildLogicVariant("apark-yakatabaru-neo-aim", "ネオアイム屋形原式", "apark-yakatabaru-main"),
       buildLogicVariant("mj-kurume-neo-aim", "ネオアイムMJ久留米式", "mj-kurume-main"),
       buildLogicVariant("beam-hikari-neo-aim", "ネオアイムビームヒカリ式", "beam-hikari-main"),
+      buildLogicVariant("amuse-asakusa-neo-aim", "ネオアイムアミューズ浅草式", "amuse-asakusa-main"),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
@@ -776,6 +784,20 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["beamHikariNeoHistoryReady"],
         },
         ["beam-hikari-neo-aim"],
+      ),
+      buildCondition(
+        "amuse-asakusa-main",
+        "1位＋70点以上＋次点差10点以上＋強化2個以上＋危険1以下",
+        "35件 / 104.67% / RB1/269.5",
+        {
+          rankMax: 1,
+          minScore: 70,
+          minNextGap: 10,
+          minBoost: 2,
+          maxDanger: 1,
+          requiredFlags: ["amuseAsakusaNeoHistoryReady"],
+        },
+        ["amuse-asakusa-neo-aim"],
       ),
     ],
   },
@@ -1456,6 +1478,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-my");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "girls") {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-girls");
+  } else if (isAmuseAsakusaStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "amuse-asakusa-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "neo-aim") {
@@ -1989,6 +2013,8 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentTenMinus3000StayDays = readNumber(metrics.recentTenMinus3000StayDays);
   const recentTenMinus2500StayDays = readNumber(metrics.recentTenMinus2500StayDays);
   const recentThirtyMinus2700StayDays = readNumber(metrics.recentThirtyMinus2700StayDays);
+  const recentFourteenMinus500StayDays = readNumber(metrics.recentFourteenMinus500StayDays);
+  const recentFourteenMinus1500StayDays = readNumber(metrics.recentFourteenMinus1500StayDays);
   const recentFourteenMinus1800StayDays = readNumber(metrics.recentFourteenMinus1800StayDays);
   const recentFourteenMinus2000StayDays = readNumber(metrics.recentFourteenMinus2000StayDays);
   const recentFourteenMinus3000StayDays = readNumber(metrics.recentFourteenMinus3000StayDays);
@@ -1996,6 +2022,8 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentThreeMinus1000StayDays = readNumber(metrics.recentThreeMinus1000StayDays);
   const recentTwentyOneMinus1500StayDays = readNumber(metrics.recentTwentyOneMinus1500StayDays);
   const recentTwentyOneMinus2000StayDays = readNumber(metrics.recentTwentyOneMinus2000StayDays);
+  const recentTwentyOneMinus3000StayDays = readNumber(metrics.recentTwentyOneMinus3000StayDays);
+  const recentTwentyOneMinus5000StayDays = readNumber(metrics.recentTwentyOneMinus5000StayDays);
   const adjacentHighSettingCandidateCount7 = readNumber(metrics.adjacentHighSettingCandidateCount7);
   const adjacentMachineHighContentCount3 = readNumber(metrics.adjacentMachineHighContentCount3);
   const adjacentMachineHighContentCount3Near2 = readNumber(metrics.adjacentMachineHighContentCount3Near2);
@@ -2119,6 +2147,71 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "amuse-asakusa-neo-aim") {
+      const amuseAsakusaNeoHistoryReady = historyRowCount >= 21;
+      const recentTenAngle = netPerThousandGames(recentTenNetTotal, recentTenGamesTotal);
+      const recentTwentyOneCombinedDenominator = rateDenominator(
+        recentTwentyOneGamesTotal,
+        readNumber(metrics.recentTwentyOneBonusTotal),
+      );
+      const amuseAsakusaNeoSinkStayStrong =
+        recentFourteenMinus1500StayDays >= 7 || recentTwentyOneMinus2000StayDays >= 5;
+      const amuseAsakusaNeoAngleStrong =
+        recentTenAngle <= -30 || features.recentTwentyOneAngle <= -20;
+      const amuseAsakusaNeoUnpaid =
+        (recentTwentyOneNetTotal <= -2000 && recentThreeNetTotal > 0) ||
+        (previousMachineHighContent && recentFourteenNetTotal <= 0);
+      const amuseAsakusaNeoGenuine =
+        (previousMachineHighContent && previousDifference <= 2000) || features.previousRbDenominator <= 250;
+      const amuseAsakusaNeoTrustedGames = recentTenGamesTotal >= 15000 && recentFiveGamesTotal >= 6000;
+      const amuseAsakusaNeoTreatmentDone =
+        recentSevenNetTotal >= 5000 || recentFiveNetTotal >= 4000 || recentTwentyOneNetTotal >= 10000;
+      const amuseAsakusaNeoLowGames = recentTenGamesTotal < 8000 || recentFiveGamesTotal < 4000;
+      const amuseAsakusaNeoLongNeglect =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 22 &&
+        recentTwentyOneMachineHighContentCount === 0 &&
+        recentTwentyOneNetTotal > -2000;
+      const amuseAsakusaNeoOutputOnly =
+        previousDifference >= 2000 && features.previousRbDenominator > 300;
+      const amuseAsakusaNeoNearbyTooHot = adjacentMachineHighContentCount3Near2 >= 3;
+      const boostFlags = [
+        amuseAsakusaNeoSinkStayStrong,
+        amuseAsakusaNeoAngleStrong,
+        amuseAsakusaNeoUnpaid,
+        amuseAsakusaNeoGenuine,
+        amuseAsakusaNeoTrustedGames,
+      ];
+      const dangerFlags = [
+        amuseAsakusaNeoTreatmentDone,
+        amuseAsakusaNeoLowGames,
+        amuseAsakusaNeoLongNeglect,
+        amuseAsakusaNeoOutputOnly,
+        amuseAsakusaNeoNearbyTooHot,
+      ];
+
+      return {
+        ...features,
+        recentTenAngle,
+        recentTwentyOneCombinedDenominator,
+        amuseAsakusaNeoHistoryReady,
+        amuseAsakusaNeoSinkStayStrong,
+        amuseAsakusaNeoAngleStrong,
+        amuseAsakusaNeoUnpaid,
+        amuseAsakusaNeoGenuine,
+        amuseAsakusaNeoTrustedGames,
+        amuseAsakusaNeoTreatmentDone,
+        amuseAsakusaNeoLowGames,
+        amuseAsakusaNeoLongNeglect,
+        amuseAsakusaNeoOutputOnly,
+        amuseAsakusaNeoNearbyTooHot,
+        treatmentDone: amuseAsakusaNeoTreatmentDone,
+        lowConfidence: amuseAsakusaNeoLowGames,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "beam-hikari-neo-aim") {
       const beamHikariNeoHistoryReady = historyRowCount >= 21;
       const recentTwoRbTotal = readNumber(metrics.recentTwoRbTotal);
@@ -3521,6 +3614,8 @@ function calculateMachineScore(definition, metrics, features) {
   const recentTenMinus3000StayDays = readNumber(metrics.recentTenMinus3000StayDays);
   const recentTenMinus2500StayDays = readNumber(metrics.recentTenMinus2500StayDays);
   const recentTenMinus5225StayDays = readNumber(metrics.recentTenMinus5225StayDays);
+  const recentFourteenMinus500StayDays = readNumber(metrics.recentFourteenMinus500StayDays);
+  const recentFourteenMinus1500StayDays = readNumber(metrics.recentFourteenMinus1500StayDays);
   const recentFourteenMinus1800StayDays = readNumber(metrics.recentFourteenMinus1800StayDays);
   const recentFourteenMinus2000StayDays = readNumber(metrics.recentFourteenMinus2000StayDays);
   const recentFourteenMinus3000StayDays = readNumber(metrics.recentFourteenMinus3000StayDays);
@@ -3528,6 +3623,8 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFourteenNegativeStayDays = readNumber(metrics.recentFourteenNegativeStayDays);
   const recentTwentyOneMinus1500StayDays = readNumber(metrics.recentTwentyOneMinus1500StayDays);
   const recentTwentyOneMinus2000StayDays = readNumber(metrics.recentTwentyOneMinus2000StayDays);
+  const recentTwentyOneMinus3000StayDays = readNumber(metrics.recentTwentyOneMinus3000StayDays);
+  const recentTwentyOneMinus5000StayDays = readNumber(metrics.recentTwentyOneMinus5000StayDays);
   const recentTwentyOneMinus11333StayDays = readNumber(metrics.recentTwentyOneMinus11333StayDays);
   const recentFiveAngleMinus80StayDays = readNumber(metrics.recentFiveAngleMinus80StayDays);
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
@@ -3720,6 +3817,163 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "amuse-asakusa-neo-aim") {
+      if (historyRowCount < 21) {
+        return 0;
+      }
+
+      const recentTenAngle = Number.isFinite(features.recentTenAngle)
+        ? features.recentTenAngle
+        : netPerThousandGames(recentTenNetTotal, recentTenGamesTotal);
+      const recentTwentyOneCombinedDenominator = rateDenominator(
+        recentTwentyOneGamesTotal,
+        readNumber(metrics.recentTwentyOneBonusTotal),
+      );
+
+      let repayScore = 0;
+      repayScore +=
+        recentTenNetTotal <= -4000 && recentTenGamesTotal >= 15000
+          ? 12
+          : recentTenNetTotal <= -2250
+            ? 10
+            : recentTenNetTotal <= -1000
+              ? 8
+              : recentTenNetTotal <= 0
+                ? 4
+                : 0;
+      repayScore +=
+        recentTwentyOneNetTotal <= -5000 && recentTwentyOneGamesTotal >= 30000
+          ? 10
+          : recentTwentyOneNetTotal <= -3000
+            ? 8
+            : recentTwentyOneNetTotal <= -1500
+              ? 6
+              : recentTwentyOneNetTotal <= 0
+                ? 3
+                : 0;
+      repayScore = Math.min(repayScore, 24);
+
+      const sinkStayScore = Math.max(
+        recentFourteenMinus1500StayDays >= 7 ? 12 : 0,
+        recentFourteenMinus2000StayDays >= 10 ? 15 : 0,
+        recentFourteenMinus500StayDays >= 14 ? 14 : 0,
+        recentTwentyOneMinus1500StayDays >= 5 ? 10 : 0,
+        recentTwentyOneMinus2000StayDays >= 7 ? 14 : 0,
+        recentTwentyOneMinus3000StayDays >= 7 ? 16 : 0,
+        recentTwentyOneMinus5000StayDays >= 4 ? 15 : 0,
+      );
+
+      const angleScore = Math.min(
+        (recentTenAngle <= -70 ? 8 : recentTenAngle <= -30 ? 6 : recentTenAngle <= -10 ? 3 : 0) +
+          (features.recentTwentyOneAngle <= -50
+            ? 7
+            : features.recentTwentyOneAngle <= -20
+              ? 5
+              : features.recentTwentyOneAngle <= 0
+                ? 2
+                : 0),
+        14,
+      );
+
+      const intervalScore = Math.max(
+        Number.isFinite(daysSinceMachineHighContent)
+          ? daysSinceMachineHighContent >= 21
+            ? 8
+            : daysSinceMachineHighContent >= 16
+              ? 7
+              : daysSinceMachineHighContent >= 11
+                ? 4
+                : daysSinceMachineHighContent === 6
+                  ? 3
+                  : 0
+          : 0,
+        recentFourteenMachineHighContentCount === 0 ? 6 : 0,
+        recentTwentyOneMachineHighContentCount === 0 ? 8 : 0,
+      );
+
+      let genuineScore = 0;
+      genuineScore += previousMachineHighContent ? 4 : 0;
+      genuineScore += previousMachineHighContent
+        ? previousDifference <= 500
+          ? 8
+          : previousDifference <= 1500
+            ? 7
+            : previousDifference <= 2000
+              ? 6
+              : previousDifference <= 2500
+                ? 3
+                : 0
+        : 0;
+      genuineScore += previousMachineHighContent && previousRbDenominator <= 250 ? 3 : 0;
+      genuineScore += previousMachineHighContent && recentTwentyOneNetTotal <= 0 ? 5 : 0;
+      genuineScore += previousMachineHighContent && recentFourteenNetTotal <= 0 ? 3 : 0;
+      genuineScore += previousGames >= 4000 && previousRbDenominator <= 250 ? 4 : 0;
+      genuineScore += previousGames >= 4000 && previousRbDenominator <= 270 ? 2 : 0;
+      genuineScore = Math.min(genuineScore, 16);
+
+      const bonusWeakScore = Math.min(
+        (recentTwentyOneCombinedDenominator >= 150 && recentTwentyOneGamesTotal >= 30000 ? 4 : 0) +
+          (features.recentFourteenRbDenominator >= 360 && recentFourteenGamesTotal >= 21000 ? 4 : 0) +
+          (features.recentSevenCombinedDenominator >= 150 && recentSevenGamesTotal >= 10500 ? 2 : 0),
+        8,
+      );
+
+      const losingScore = streak === 3 ? 8 : streak === 2 ? 3 : streak >= 5 ? 2 : 0;
+      const gamesScore = Math.min(
+        (recentFiveGamesTotal >= 6000 && recentFiveGamesTotal <= 19500 ? 5 : 0) +
+          (recentFiveGamesTotal >= 19501 && recentFiveGamesTotal <= 24000 ? 2 : 0) +
+          (recentTenGamesTotal >= 15000 ? 2 : 0) +
+          (previousGames >= 1500 ? 1 : 0) -
+          (recentFiveGamesTotal < 4000 ? 3 : 0),
+        8,
+      );
+
+      const nearbyScore = Math.min(
+        (adjacentMachineNetTotal7Near2 >= 3000 && recentSevenNetTotal <= 0 ? 4 : 0) +
+          (adjacentMachineHighContentCount3Near2 === 1 ? 2 : 0),
+        6,
+      );
+
+      let penaltyScore = 0;
+      penaltyScore +=
+        recentSevenNetTotal >= 7000
+          ? 16
+          : recentSevenNetTotal >= 5000
+            ? 12
+            : recentSevenNetTotal >= 3000
+              ? 7
+              : 0;
+      penaltyScore += recentFiveNetTotal >= 5000 ? 10 : recentFiveNetTotal >= 4000 ? 6 : 0;
+      penaltyScore +=
+        recentTwentyOneNetTotal >= 12000 ? 12 : recentTwentyOneNetTotal >= 10000 ? 8 : 0;
+      penaltyScore +=
+        previousMachineHighContent && previousDifference >= 3000
+          ? 10
+          : previousMachineHighContent && previousDifference >= 2500
+            ? 6
+            : 0;
+      penaltyScore += adjacentMachineHighContentCount3Near2 >= 4 ? 5 : adjacentMachineHighContentCount3Near2 >= 3 ? 3 : 0;
+      penaltyScore += recentTenGamesTotal < 8000 ? 5 : 0;
+      penaltyScore = Math.min(penaltyScore, 24);
+
+      return Math.round(
+        clamp(
+          repayScore +
+            sinkStayScore +
+            angleScore +
+            intervalScore +
+            genuineScore +
+            bonusWeakScore +
+            losingScore +
+            gamesScore +
+            nearbyScore -
+            penaltyScore,
+          0,
+          100,
+        ),
+      );
+    }
+
     if (activeLogicKey === "beam-hikari-neo-aim") {
       if (historyRowCount < 21) {
         return 0;

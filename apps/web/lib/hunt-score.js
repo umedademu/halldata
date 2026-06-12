@@ -746,6 +746,10 @@ const HUNT_SCORE_STORE_CONFIGS = [
     ],
     targetMachines: AMUSE_ASAKUSA_TARGET_MACHINES,
     defaultLogicKey: "amuse-asakusa",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "amuse-asakusa-neo-aim",
+      "ネオアイムジャグラーＥＸ": "amuse-asakusa-neo-aim",
+    },
   },
   {
     key: "apark-yakatabaru",
@@ -1487,6 +1491,15 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
 
   if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
     const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "amuse-asakusa-neo-aim") {
+      return (
+        games >= 5000 &&
+        differenceValue >= -1200 &&
+        ((rbDenominator <= 270 && combinedDenominator <= 135) ||
+          (rbDenominator <= 285 && combinedDenominator <= 128) ||
+          (games >= 7000 && rbDenominator <= 300 && combinedDenominator <= 125))
+      );
+    }
     if (contentRule === "beam-hikari-neo-aim") {
       return games >= 3000 && combinedDenominator <= 150 && rbDenominator <= 300;
     }
@@ -1657,6 +1670,9 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
 
   if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
     const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "amuse-asakusa-neo-aim") {
+      return isMachineHighContentWindowRow(row, machineName, config);
+    }
     if (contentRule === "beam-hikari-neo-aim") {
       return games >= 3000 && combinedDenominator <= 150 && rbDenominator <= 300;
     }
@@ -1739,6 +1755,12 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     if (readMachineContentRule(config, machineName) === "mj-arena-kurume-girls") {
       return games >= 2000 && combinedDenominator <= 132 && rbDenominator <= 278;
     }
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "amuse-asakusa-neo-aim"
+  ) {
+    return games >= 5000 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
@@ -6708,6 +6730,8 @@ function calculateWindowMetrics(
   const recentTenMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 10, -3000);
   const recentTenMinus2500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 10, -2500);
   const recentTenMinus5225StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 10, -5225);
+  const recentFourteenMinus500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -500);
+  const recentFourteenMinus1500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -1500);
   const recentFourteenMinus1800StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -1800);
   const recentFourteenMinus2000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -2000);
   const recentFourteenMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -3000);
@@ -6715,6 +6739,8 @@ function calculateWindowMetrics(
   const recentFourteenNegativeStayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -1);
   const recentTwentyOneMinus1500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -1500);
   const recentTwentyOneMinus2000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -2000);
+  const recentTwentyOneMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -3000);
+  const recentTwentyOneMinus5000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -5000);
   const recentTwentyOneMinus11333StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -11333);
   const recentFiveAngleMinus80StayDays = countConsecutiveRollingAngleThresholdDays(historyWindowRows, 5, -80);
   const recentFourLossDays = recentFourRows.filter((windowRow) => windowRow.differenceValue < 0).length;
@@ -6745,6 +6771,10 @@ function calculateWindowMetrics(
     0,
   );
   const recentTenBonusTotal = recentTenRows.reduce(
+    (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
+    0,
+  );
+  const recentTwentyOneBonusTotal = recentTwentyOneRows.reduce(
     (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
     0,
   );
@@ -7278,6 +7308,8 @@ function calculateWindowMetrics(
     recentTenMinus3000StayDays,
     recentTenMinus2500StayDays,
     recentTenMinus5225StayDays,
+    recentFourteenMinus500StayDays,
+    recentFourteenMinus1500StayDays,
     recentFourteenMinus1800StayDays,
     recentFourteenMinus2000StayDays,
     recentFourteenMinus3000StayDays,
@@ -7285,6 +7317,8 @@ function calculateWindowMetrics(
     recentFourteenNegativeStayDays,
     recentTwentyOneMinus1500StayDays,
     recentTwentyOneMinus2000StayDays,
+    recentTwentyOneMinus3000StayDays,
+    recentTwentyOneMinus5000StayDays,
     recentTwentyOneMinus11333StayDays,
     recentFiveAngleMinus80StayDays,
     recentFourLossDays,
@@ -7380,6 +7414,7 @@ function calculateWindowMetrics(
     recentThreeBonusTotal,
     recentFiveBonusTotal,
     recentTenBonusTotal,
+    recentTwentyOneBonusTotal,
     recentTwoRbTotal,
     recentThreeRbTotal,
     recentFiveRbTotal,
