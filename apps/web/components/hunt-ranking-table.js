@@ -702,14 +702,15 @@ function HuntScoreCell({
   huntScoreLogicLabel = "",
 }) {
   const backtestResult = readCommonHuntScoreMachineTopBacktestResult(storeId, storeName, row);
+  const backtestPayoutClass = getMachineEvaluationPayoutClass(backtestResult?.payoutRate);
   const backtestTitle = buildCommonHuntScoreBacktestTitleParts(
     backtestResult,
     huntScoreLogicLabel,
   ).join("\n");
   const className = [
     getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey),
-    backtestResult ? "huntScoreBacktestMatchedCell" : "",
-    getMachineEvaluationPayoutClass(backtestResult?.payoutRate),
+    backtestPayoutClass ? "huntScoreBacktestMatchedCell" : "",
+    backtestPayoutClass,
   ].filter(Boolean).join(" ");
   const sortProps = sortable
     ? { "data-sort-value": readRankingSortNumber(row.huntScore, "") }

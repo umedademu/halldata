@@ -2682,10 +2682,10 @@ a {
 .directoryTable tbody tr.settingEstimateLevel3 td.huntScoreBacktestMatchedCell,
 .directoryTable tbody tr.settingEstimateLevel3:nth-child(odd) td.huntScoreBacktestMatchedCell,
 .directoryTable tbody tr.settingEstimateLevel3:hover td.huntScoreBacktestMatchedCell {
-  background: var(--machine-evaluation-bg, #eadcff);
-  color: var(--machine-evaluation-color, #3b1a65);
+  background: var(--machine-evaluation-bg, inherit);
+  color: var(--machine-evaluation-color, inherit);
   font-weight: 900;
-  box-shadow: inset 0 0 0 1px var(--machine-evaluation-ring, rgba(91, 50, 142, 0.18));
+  box-shadow: inset 0 0 0 1px var(--machine-evaluation-ring, transparent);
 }
 
 .huntScoreBacktestCellValue {
