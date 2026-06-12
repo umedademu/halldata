@@ -192,6 +192,7 @@ export default async function HuntScoreVerificationPage({ params, searchParams }
         initialDisplayDifferenceModeFromSearchParams={hasDisplayDifferenceModeSearchParam}
         initialSettingEstimateMode={detail.settingEstimateMode}
         initialSettingEstimateModeFromSearchParams={hasSettingEstimateModeSearchParam}
+        huntScoreAvailable={detail.huntScoreEnabled}
         preferDefaultEstimateOptions={Boolean(detail.huntScoreHighlight)}
         verificationMode
         huntScoreWindowDays={detail.huntScoreLogic?.historyWindowDays ?? detail.huntScoreLogic?.windowDays ?? 7}

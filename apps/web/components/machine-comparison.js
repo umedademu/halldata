@@ -96,7 +96,7 @@ const MATRIX_COLUMN_WIDTH_REM_BY_CLASS = {
 const DEFAULT_GAME_MIN_GAMES = 6000;
 const DEFAULT_GAME_MAX_GAMES = 9000;
 const DEFAULT_GAME_EXPONENT = 1.5;
-const DEFAULT_COMPARISON_RECENT_DAYS = 90;
+const DEFAULT_COMPARISON_RECENT_DAYS = 14;
 const DEFAULT_HUNT_SCORE_HIGHLIGHT_THRESHOLD = "";
 const DEFAULT_HUNT_SCORE_NEXT_GAP_MIN = "";
 const DEFAULT_HUNT_SCORE_RANK_MIN = 1;
@@ -491,11 +491,8 @@ function buildLegacyStoreStorageKey(prefix, storeId) {
   return `${prefix}${String(storeId ?? "").trim()}`;
 }
 
-function buildScopedPeriodStorageKey(storageScopeKey = "") {
-  const normalizedScopeKey = String(storageScopeKey ?? "").trim();
-  return normalizedScopeKey
-    ? `${MACHINE_COMPARISON_PERIOD_STORAGE_KEY}:${normalizedScopeKey}`
-    : MACHINE_COMPARISON_PERIOD_STORAGE_KEY;
+function buildScopedPeriodStorageKey() {
+  return MACHINE_COMPARISON_PERIOD_STORAGE_KEY;
 }
 
 function readScopedLocalStorageJson(prefix, storeId, storageScopeKey = "") {
@@ -606,9 +603,53 @@ function normalizeMachineComparisonPeriodOptions(value, defaults) {
   };
 }
 
+function normalizeComparisonPeriodState(value, oldestAvailableDate, latestAvailableDate, defaults) {
+  const source = value && typeof value === "object" ? value : {};
+  const fallbackStartDate = defaults?.rangeStartInput ?? oldestAvailableDate ?? "";
+  const fallbackEndDate = defaults?.rangeEndInput ?? latestAvailableDate ?? fallbackStartDate;
+  const rangeStartInput = clampDateText(
+    source.rangeStartInput,
+    oldestAvailableDate,
+    latestAvailableDate,
+    fallbackStartDate,
+  );
+  const rangeEndInput = clampDateText(
+    source.rangeEndInput,
+    oldestAvailableDate,
+    latestAvailableDate,
+    fallbackEndDate,
+  );
+  const [startDate, endDate] = rangeStartInput <= rangeEndInput
+    ? [rangeStartInput, rangeEndInput]
+    : [rangeEndInput, rangeStartInput];
+
+  return {
+    periodMode: normalizePeriodMode(source.periodMode ?? defaults?.periodMode),
+    recentDaysInput: normalizeRecentDaysInputText(
+      source.recentDaysInput,
+      defaults?.recentDaysInput ?? DEFAULT_COMPARISON_RECENT_DAYS,
+    ),
+    rangeStartInput: startDate,
+    rangeEndInput: endDate,
+  };
+}
+
+function buildPeriodStateKey(value) {
+  return JSON.stringify({
+    periodMode: normalizePeriodMode(value?.periodMode),
+    recentDaysInput: normalizeRecentDaysInputText(value?.recentDaysInput),
+    rangeStartInput: String(value?.rangeStartInput ?? ""),
+    rangeEndInput: String(value?.rangeEndInput ?? ""),
+  });
+}
+
 function readMachineComparisonPeriodOptions(defaults, storageScopeKey = "") {
-  const storageKey = buildScopedPeriodStorageKey(storageScopeKey);
-  const parsedValue = readLocalStorageJson(storageKey);
+  const legacyStorageKey = String(storageScopeKey ?? "").trim()
+    ? `${MACHINE_COMPARISON_PERIOD_STORAGE_KEY}:${String(storageScopeKey ?? "").trim()}`
+    : "";
+  const parsedValue =
+    readLocalStorageJson(buildScopedPeriodStorageKey()) ??
+    (legacyStorageKey ? readLocalStorageJson(legacyStorageKey) : null);
   return parsedValue ? normalizeMachineComparisonPeriodOptions(parsedValue, defaults) : null;
 }
 
@@ -625,7 +666,7 @@ function normalizeMachineComparisonMetricKeys(source, defaults) {
   return metricKeys;
 }
 
-function saveMachineComparisonPeriodOptions(options, storageScopeKey = "") {
+function saveMachineComparisonPeriodOptions(options) {
   if (typeof window === "undefined") {
     return;
   }
@@ -1644,33 +1685,6 @@ function HuntScoreHighlightControls({
   );
 }
 
-function HuntScoreHighlightLoadControls({
-  hasHuntScore,
-  isLoading,
-  loadError,
-  onLoad,
-}) {
-  return (
-    <div className="huntHighlightControls">
-      <div className="huntHighlightApplyRow">
-        <button
-          type="button"
-          className="storeReserveButton"
-          disabled={isLoading}
-          onClick={onLoad}
-        >
-          {isLoading
-            ? "読み込み中"
-            : hasHuntScore
-              ? "表示期間の狙い度を読み込む"
-              : "狙い度を表示する"}
-        </button>
-        {loadError ? <p className="formErrorText">{loadError}</p> : null}
-      </div>
-    </div>
-  );
-}
-
 function SettingEstimateModeOptions({
   settingEstimateMode,
   onSettingEstimateModeChange,
@@ -2482,6 +2496,16 @@ export function MachineComparison({
   const [recentDaysInput, setRecentDaysInput] = useState(defaultComparisonOptions.recentDaysInput);
   const [rangeStartInput, setRangeStartInput] = useState(defaultComparisonOptions.rangeStartInput);
   const [rangeEndInput, setRangeEndInput] = useState(defaultComparisonOptions.rangeEndInput);
+  const [appliedPeriodMode, setAppliedPeriodMode] = useState(defaultComparisonOptions.periodMode);
+  const [appliedRecentDaysInput, setAppliedRecentDaysInput] = useState(
+    defaultComparisonOptions.recentDaysInput,
+  );
+  const [appliedRangeStartInput, setAppliedRangeStartInput] = useState(
+    defaultComparisonOptions.rangeStartInput,
+  );
+  const [appliedRangeEndInput, setAppliedRangeEndInput] = useState(
+    defaultComparisonOptions.rangeEndInput,
+  );
   const [eventFilters, setEventFilters] = useState(defaultComparisonOptions.eventFilters);
   const [displayDifferenceMode, setDisplayDifferenceMode] = useState(
     defaultComparisonOptions.displayDifferenceMode,
@@ -2533,13 +2557,71 @@ export function MachineComparison({
     createDefaultHuntScoreHighlightOptions(huntScoreHighlightAvailableMachineNames, machineName),
   );
   const [activeHuntScoreHighlight, setActiveHuntScoreHighlight] = useState(huntScoreHighlight);
+  const [activeHuntScoreDifferenceMode, setActiveHuntScoreDifferenceMode] = useState(() =>
+    normalizeDifferenceMode(initialDifferenceMode),
+  );
+  const [activeHuntScoreSettingEstimateMode, setActiveHuntScoreSettingEstimateMode] = useState(() =>
+    normalizeSettingEstimateMode(initialSettingEstimateMode),
+  );
   const initialHuntScoreHighlightLoadKeyRef = useRef("");
   const [isHuntScoreHighlightApplying, setIsHuntScoreHighlightApplying] = useState(false);
   const [huntScoreHighlightApplyError, setHuntScoreHighlightApplyError] = useState("");
   const [huntScoreHighlightOptionsLoadedStoreId, setHuntScoreHighlightOptionsLoadedStoreId] =
     useState("");
   const [, startTransition] = useTransition();
-  const recentDays = useMemo(() => normalizeRecentDaysInput(recentDaysInput), [recentDaysInput]);
+  const recentDays = useMemo(
+    () => normalizeRecentDaysInput(appliedRecentDaysInput),
+    [appliedRecentDaysInput],
+  );
+  const normalizedDraftPeriodState = useMemo(
+    () =>
+      normalizeComparisonPeriodState(
+        {
+          periodMode,
+          recentDaysInput,
+          rangeStartInput,
+          rangeEndInput,
+        },
+        oldestAvailableDate,
+        latestAvailableDate,
+        defaultComparisonOptions,
+      ),
+    [
+      defaultComparisonOptions,
+      latestAvailableDate,
+      oldestAvailableDate,
+      periodMode,
+      rangeEndInput,
+      rangeStartInput,
+      recentDaysInput,
+    ],
+  );
+  const normalizedAppliedPeriodState = useMemo(
+    () =>
+      normalizeComparisonPeriodState(
+        {
+          periodMode: appliedPeriodMode,
+          recentDaysInput: appliedRecentDaysInput,
+          rangeStartInput: appliedRangeStartInput,
+          rangeEndInput: appliedRangeEndInput,
+        },
+        oldestAvailableDate,
+        latestAvailableDate,
+        defaultComparisonOptions,
+      ),
+    [
+      appliedPeriodMode,
+      appliedRangeEndInput,
+      appliedRangeStartInput,
+      appliedRecentDaysInput,
+      defaultComparisonOptions,
+      latestAvailableDate,
+      oldestAvailableDate,
+    ],
+  );
+  const hasPendingPeriodChanges =
+    buildPeriodStateKey(normalizedDraftPeriodState) !==
+    buildPeriodStateKey(normalizedAppliedPeriodState);
   const activeDateRange = useMemo(() => {
     if (!latestAvailableDate) {
       return {
@@ -2548,15 +2630,15 @@ export function MachineComparison({
       };
     }
 
-    if (periodMode === "range") {
+    if (appliedPeriodMode === "range") {
       const startDate = clampDateText(
-        rangeStartInput,
+        appliedRangeStartInput,
         oldestAvailableDate,
         latestAvailableDate,
         oldestAvailableDate,
       );
       const endDate = clampDateText(
-        rangeEndInput,
+        appliedRangeEndInput,
         oldestAvailableDate,
         latestAvailableDate,
         latestAvailableDate,
@@ -2574,9 +2656,9 @@ export function MachineComparison({
   }, [
     latestAvailableDate,
     oldestAvailableDate,
-    periodMode,
-    rangeEndInput,
-    rangeStartInput,
+    appliedPeriodMode,
+    appliedRangeEndInput,
+    appliedRangeStartInput,
     recentDays,
   ]);
   const periodFilteredRows = useMemo(() => {
@@ -2593,6 +2675,31 @@ export function MachineComparison({
     () => filterHuntScoreHighlightByDateRange(activeHuntScoreHighlight, activeDateRange),
     [activeDateRange, activeHuntScoreHighlight],
   );
+  const visibleHuntScoreDateSet = useMemo(
+    () =>
+      new Set(
+        (Array.isArray(visibleHuntScoreHighlight?.snapshots)
+          ? visibleHuntScoreHighlight.snapshots
+          : []
+        )
+          .map((snapshot) => String(snapshot?.date ?? "").trim())
+          .filter(Boolean),
+      ),
+    [visibleHuntScoreHighlight],
+  );
+  const hasActiveRangeHuntScore = useMemo(() => {
+    const rowDates = [
+      ...new Set(
+        periodFilteredRows
+          .map((row) => String(row?.date ?? "").trim())
+          .filter(Boolean),
+      ),
+    ];
+    if (rowDates.length === 0) {
+      return true;
+    }
+    return rowDates.every((date) => visibleHuntScoreDateSet.has(date));
+  }, [periodFilteredRows, visibleHuntScoreDateSet]);
   const huntScoreValueMap = useMemo(
     () => buildHuntScoreValueMap(visibleHuntScoreHighlight),
     [visibleHuntScoreHighlight],
@@ -2783,6 +2890,10 @@ export function MachineComparison({
     setRecentDaysInput(options.recentDaysInput);
     setRangeStartInput(options.rangeStartInput);
     setRangeEndInput(options.rangeEndInput);
+    setAppliedPeriodMode(options.periodMode);
+    setAppliedRecentDaysInput(options.recentDaysInput);
+    setAppliedRangeStartInput(options.rangeStartInput);
+    setAppliedRangeEndInput(options.rangeEndInput);
     setEventFilters(options.eventFilters);
     setDisplayDifferenceMode(options.displayDifferenceMode);
     setHuntScoreDifferenceMode(nextHuntScoreDifferenceMode);
@@ -2827,10 +2938,10 @@ export function MachineComparison({
     }
     saveMachineComparisonOptions(storeId, {
       storageScopeKey: machineComparisonStorageScopeKey,
-      periodMode,
-      recentDaysInput,
-      rangeStartInput,
-      rangeEndInput,
+      periodMode: appliedPeriodMode,
+      recentDaysInput: appliedRecentDaysInput,
+      rangeStartInput: appliedRangeStartInput,
+      rangeEndInput: appliedRangeEndInput,
       eventFilters,
       displayDifferenceMode,
       huntScoreDifferenceMode,
@@ -2855,12 +2966,12 @@ export function MachineComparison({
     eventFilters,
     huntScoreControlsOpen,
     huntScoreDifferenceMode,
+    appliedPeriodMode,
+    appliedRangeEndInput,
+    appliedRangeStartInput,
+    appliedRecentDaysInput,
     machineComparisonStorageScopeKey,
     machineComparisonOptionsLoadedStoreId,
-    periodMode,
-    rangeEndInput,
-    rangeStartInput,
-    recentDaysInput,
     settingControlsOpen,
     settingEstimateMode,
     storeId,
@@ -2877,6 +2988,8 @@ export function MachineComparison({
   useEffect(() => {
     setHuntScoreHighlightOptionsLoadedStoreId("");
     setActiveHuntScoreHighlight(huntScoreHighlight);
+    setActiveHuntScoreDifferenceMode(normalizeDifferenceMode(initialDifferenceMode));
+    setActiveHuntScoreSettingEstimateMode(normalizeSettingEstimateMode(initialSettingEstimateMode));
     setHuntScoreHighlightApplyError("");
     initialHuntScoreHighlightLoadKeyRef.current = "";
     const loadedOptions = readHuntScoreHighlightOptions(
@@ -2891,6 +3004,8 @@ export function MachineComparison({
   }, [
     huntScoreHighlight,
     huntScoreHighlightAvailableMachineNames,
+    initialDifferenceMode,
+    initialSettingEstimateMode,
     machineComparisonStorageScopeKey,
     machineName,
     storeId,
@@ -3004,8 +3119,12 @@ export function MachineComparison({
         }
 
         const nextHighlight = await response.json();
+        const loadedDifferenceMode = normalizeDifferenceMode(nextDifferenceMode);
+        const loadedSettingEstimateMode = normalizeSettingEstimateMode(nextSettingEstimateMode);
         startTransition(() => {
           setActiveHuntScoreHighlight(nextHighlight);
+          setActiveHuntScoreDifferenceMode(loadedDifferenceMode);
+          setActiveHuntScoreSettingEstimateMode(loadedSettingEstimateMode);
           setVisibleMetricKeys((currentKeys) => {
             const nextKeys = [...currentKeys];
             for (const key of ["hunt_score", "hunt_score_next_gap"]) {
@@ -3035,27 +3154,38 @@ export function MachineComparison({
 
   useEffect(() => {
     if (
-      !verificationMode ||
       machineComparisonOptionsLoadedStoreId !== machineComparisonStorageScopeKey ||
       huntScoreHighlightOptionsLoadedStoreId !== machineComparisonStorageScopeKey
     ) {
       return;
     }
+    if (!canLoadHuntScore || !activeDateRange.startDate || !activeDateRange.endDate) {
+      return;
+    }
 
-    const loadKey = `${machineComparisonStorageScopeKey}:${machineName}`;
+    const loadKey = [
+      machineComparisonStorageScopeKey,
+      machineName,
+      huntScoreDifferenceMode,
+      settingEstimateMode,
+      activeDateRange.startDate,
+      activeDateRange.endDate,
+      normalizeHuntScoreOptionSignature(appliedHuntScoreHighlightOptions),
+    ].join(":");
     if (initialHuntScoreHighlightLoadKeyRef.current === loadKey) {
       return;
     }
-    initialHuntScoreHighlightLoadKeyRef.current = loadKey;
 
     const needsInitialReload =
-      huntScoreDifferenceMode !== normalizeDifferenceMode(initialDifferenceMode) ||
-      settingEstimateMode !== normalizeSettingEstimateMode(initialSettingEstimateMode) ||
+      !hasActiveRangeHuntScore ||
+      huntScoreDifferenceMode !== activeHuntScoreDifferenceMode ||
+      settingEstimateMode !== activeHuntScoreSettingEstimateMode ||
       huntScoreHighlightNeedsFullData(appliedHuntScoreHighlightOptions, machineName);
 
     if (!needsInitialReload) {
       return;
     }
+    initialHuntScoreHighlightLoadKeyRef.current = loadKey;
 
     void loadHuntScoreHighlight(
       huntScoreDifferenceMode,
@@ -3065,18 +3195,19 @@ export function MachineComparison({
     );
   }, [
     activeDateRange,
+    activeHuntScoreDifferenceMode,
+    activeHuntScoreSettingEstimateMode,
     appliedHuntScoreHighlightOptions,
+    canLoadHuntScore,
+    hasActiveRangeHuntScore,
     huntScoreDifferenceMode,
     huntScoreHighlightOptionsLoadedStoreId,
-    initialDifferenceMode,
-    initialSettingEstimateMode,
     loadHuntScoreHighlight,
     machineComparisonStorageScopeKey,
     machineComparisonOptionsLoadedStoreId,
     machineName,
     settingEstimateMode,
     storeId,
-    verificationMode,
   ]);
 
   const updatePeriodMode = (mode) => {
@@ -3103,6 +3234,19 @@ export function MachineComparison({
     });
   };
 
+  const applyPeriodOptions = () => {
+    startTransition(() => {
+      setPeriodMode(normalizedDraftPeriodState.periodMode);
+      setRecentDaysInput(normalizedDraftPeriodState.recentDaysInput);
+      setRangeStartInput(normalizedDraftPeriodState.rangeStartInput);
+      setRangeEndInput(normalizedDraftPeriodState.rangeEndInput);
+      setAppliedPeriodMode(normalizedDraftPeriodState.periodMode);
+      setAppliedRecentDaysInput(normalizedDraftPeriodState.recentDaysInput);
+      setAppliedRangeStartInput(normalizedDraftPeriodState.rangeStartInput);
+      setAppliedRangeEndInput(normalizedDraftPeriodState.rangeEndInput);
+    });
+  };
+
   const updateDisplayDifferenceMode = (value) => {
     const nextDifferenceMode = normalizeDifferenceMode(value);
     setDisplayDifferenceMode(nextDifferenceMode);
@@ -3111,22 +3255,11 @@ export function MachineComparison({
   const updateHuntScoreDifferenceMode = (value) => {
     const nextDifferenceMode = normalizeDifferenceMode(value);
     setHuntScoreDifferenceMode(nextDifferenceMode);
-    void loadHuntScoreHighlight(nextDifferenceMode, settingEstimateMode);
   };
 
   const updateSettingEstimateMode = (value) => {
     const nextSettingEstimateMode = normalizeSettingEstimateMode(value);
     setSettingEstimateMode(nextSettingEstimateMode);
-    void loadHuntScoreHighlight(huntScoreDifferenceMode, nextSettingEstimateMode);
-  };
-
-  const loadCurrentHuntScoreHighlight = () => {
-    void loadHuntScoreHighlight(
-      huntScoreDifferenceMode,
-      settingEstimateMode,
-      activeDateRange,
-      appliedHuntScoreHighlightOptions,
-    );
   };
 
   const updateVerificationTargetMode = (value) => {
@@ -3321,7 +3454,7 @@ export function MachineComparison({
                     inputMode="numeric"
                     value={recentDaysInput}
                     onChange={(event) => setRecentDaysInput(event.target.value)}
-                    onBlur={() => setRecentDaysInput(String(recentDays))}
+                    onBlur={() => setRecentDaysInput(normalizedDraftPeriodState.recentDaysInput)}
                   />
                   <span className="estimateInputSuffix">日</span>
                 </span>
@@ -3354,8 +3487,17 @@ export function MachineComparison({
                 </label>
               </>
             )}
+            <button
+              type="button"
+              className="storeReserveButton storeReserveButtonSecondary"
+              disabled={!hasPendingPeriodChanges}
+              onClick={applyPeriodOptions}
+            >
+              表示
+            </button>
           </div>
           <p className="filterPanelStatus">
+            {hasPendingPeriodChanges ? "未反映の変更があります / " : ""}
             {buildDisplayedPeriodLabel(activeDateRange.startDate, activeDateRange.endDate)} /{" "}
             {periodFilteredRows.length}日分
           </p>
@@ -3598,12 +3740,12 @@ export function MachineComparison({
             open={huntScoreControlsOpen}
             onOpenChange={setHuntScoreControlsOpen}
           >
-            <HuntScoreHighlightLoadControls
-              hasHuntScore={hasHuntScore}
-              isLoading={isHuntScoreHighlightApplying}
-              loadError={hasHuntScore ? "" : huntScoreHighlightApplyError}
-              onLoad={loadCurrentHuntScoreHighlight}
-            />
+            {isHuntScoreHighlightApplying ? (
+              <p className="filterPanelStatus">狙い度を作成中です</p>
+            ) : null}
+            {!hasHuntScore && huntScoreHighlightApplyError ? (
+              <p className="formErrorText">{huntScoreHighlightApplyError}</p>
+            ) : null}
             {hasHuntScore ? (
               <HuntScoreHighlightControls
                 options={huntScoreHighlightOptions}
