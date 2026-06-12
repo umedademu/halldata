@@ -776,7 +776,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-rank1",
         "1位のみ",
-        "185件 / 103.84% / RB1/283.9",
+        "186件 / 103.4% / RB1/285.6",
         {
           rankMax: 1,
           requiredFlags: ["beamHikariNeoHistoryReady"],
@@ -786,7 +786,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-score80",
         "1位＋80点以上",
-        "177件 / 103.48% / RB1/286.6",
+        "177件 / 103.6% / RB1/286.7",
         {
           rankMax: 1,
           minScore: 80,
@@ -797,7 +797,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-main",
         "1位＋80点以上＋次点差5点以上",
-        "92件 / 104.43% / RB1/278.0",
+        "93件 / 104.6% / RB1/276.1",
         {
           rankMax: 1,
           minScore: 80,
@@ -809,7 +809,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-boost2",
         "1位＋強化2個以上",
-        "178件 / 103.98% / RB1/282.6",
+        "177件 / 103.5% / RB1/283.6",
         {
           rankMax: 1,
           minBoost: 2,
@@ -820,7 +820,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-wide",
         "上位3＋60点以上＋強化2個以上＋危険1以下",
-        "487件 / 103.07% / RB1/284.3",
+        "478件 / 103.3% / RB1/285.3",
         {
           rankMax: 3,
           minScore: 60,
@@ -833,7 +833,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "amuse-asakusa-rank1",
         "1位のみ",
-        "196件 / 102.71% / RB1/291.0",
+        "196件 / 102.7% / RB1/292.1",
         {
           rankMax: 1,
           requiredFlags: ["amuseAsakusaNeoHistoryReady"],
@@ -843,7 +843,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "amuse-asakusa-gap5",
         "1位＋次点差5点以上",
-        "129件 / 102.84% / RB1/289.2",
+        "125件 / 102.5% / RB1/290.5",
         {
           rankMax: 1,
           minNextGap: 5,
@@ -854,7 +854,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "amuse-asakusa-main",
         "1位＋70点以上＋次点差10点以上＋強化2個以上＋危険1以下",
-        "35件 / 104.67% / RB1/269.5",
+        "34件 / 104.8% / RB1/270.4",
         {
           rankMax: 1,
           minScore: 70,
@@ -868,7 +868,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "amuse-asakusa-gap15",
         "1位＋70点以上＋次点差15点以上",
-        "20件 / 105.67% / RB1/257.2",
+        "21件 / 105.9% / RB1/261.4",
         {
           rankMax: 1,
           minScore: 70,
@@ -880,7 +880,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "amuse-asakusa-wide",
         "70点以上＋強化2個以上＋危険1以下",
-        "72件 / 103.86% / RB1/288.6",
+        "76件 / 103.0% / RB1/295.8",
         {
           minScore: 70,
           minBoost: 2,
