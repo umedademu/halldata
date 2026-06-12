@@ -46,7 +46,6 @@ const MANAGED_PARAM_KEYS = [
 ];
 const MANAGED_PARAM_KEY_SET = new Set(MANAGED_PARAM_KEYS);
 const DEFAULTED_DIFFERENCE_PARAM_KEYS = new Set(["differenceMode"]);
-const DEFAULTED_MACHINE_PARAM_KEYS = new Set(["machineTouched", "machine"]);
 
 function storageKeyForStore(storeId) {
   return `${STORAGE_KEY_PREFIX}${storeId}`;
@@ -74,7 +73,7 @@ function normalizeStateEntries(entries) {
 
 function omitDefaultedEntries(entries) {
   return normalizeStateEntries(entries).filter(
-    ([key]) => !DEFAULTED_DIFFERENCE_PARAM_KEYS.has(key) && !DEFAULTED_MACHINE_PARAM_KEYS.has(key),
+    ([key]) => !DEFAULTED_DIFFERENCE_PARAM_KEYS.has(key),
   );
 }
 
