@@ -4,7 +4,6 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { ExpandableTableRowsController } from "../../../../components/expandable-table-rows-controller";
-import { HuntBacktestBookmarkControl } from "../../../../components/hunt-backtest-bookmark-control";
 import { HuntBacktestAdoptionModeControl } from "../../../../components/hunt-backtest-adoption-mode-control";
 import { HuntBacktestFormStateSync } from "../../../../components/hunt-backtest-form-state-sync";
 import { Breadcrumbs } from "../../../../components/breadcrumbs";
@@ -1285,12 +1284,6 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                   </label>
                 </div>
               </div>
-
-              <HuntBacktestBookmarkControl
-                storeId={detail.store.id}
-                formId={HUNT_BACKTEST_FORM_ID}
-                allMachineCount={detail.backtest.machineOptions.length}
-              />
 
               <div className="backtestButtonRow">
                 <button type="submit" className="storeReserveButton backtestPrimaryButton">
