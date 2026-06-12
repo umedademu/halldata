@@ -809,6 +809,10 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["ビームヒカリ店", "ビームヒカリ", "BEAM HIKARI", "BEAMHIKARI", "ＢＥＡＭヒカリ店"],
     targetMachines: BEAM_HIKARI_TARGET_MACHINES,
     defaultLogicKey: "beam-hikari-a",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "beam-hikari-neo-aim",
+      "ネオアイムジャグラーＥＸ": "beam-hikari-neo-aim",
+    },
   },
   {
     key: "mj-arena-ijiri",
@@ -1483,6 +1487,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
 
   if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
     const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "beam-hikari-neo-aim") {
+      return games >= 3000 && combinedDenominator <= 150 && rbDenominator <= 300;
+    }
     if (contentRule === "apark-yakatabaru-neo-aim") {
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 150;
     }
@@ -1650,6 +1657,9 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
 
   if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
     const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "beam-hikari-neo-aim") {
+      return games >= 3000 && combinedDenominator <= 150 && rbDenominator <= 300;
+    }
     if (contentRule === "apark-yakatabaru-neo-aim") {
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 150;
     }
@@ -1735,6 +1745,12 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     readMachineContentRule(config, machineName) === "apark-yakatabaru-neo-aim"
   ) {
     return games >= 4000 && combinedDenominator <= 140 && rbDenominator <= 300;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "beam-hikari-neo-aim"
+  ) {
+    return games >= 5000 && combinedDenominator <= 135 && rbDenominator <= 285;
   }
   if (isOkidokiGoldMachineName(machineName)) {
     return games >= 4299 && combinedDenominator <= 140.8 && rbDenominator <= 465.7;
