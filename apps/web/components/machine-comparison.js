@@ -1644,6 +1644,33 @@ function HuntScoreHighlightControls({
   );
 }
 
+function HuntScoreHighlightLoadControls({
+  hasHuntScore,
+  isLoading,
+  loadError,
+  onLoad,
+}) {
+  return (
+    <div className="huntHighlightControls">
+      <div className="huntHighlightApplyRow">
+        <button
+          type="button"
+          className="storeReserveButton"
+          disabled={isLoading}
+          onClick={onLoad}
+        >
+          {isLoading
+            ? "読み込み中"
+            : hasHuntScore
+              ? "表示期間の狙い度を読み込む"
+              : "狙い度を表示する"}
+        </button>
+        {loadError ? <p className="formErrorText">{loadError}</p> : null}
+      </div>
+    </div>
+  );
+}
+
 function SettingEstimateModeOptions({
   settingEstimateMode,
   onSettingEstimateModeChange,
@@ -2387,6 +2414,7 @@ export function MachineComparison({
   initialSettingEstimateMode = undefined,
   initialSettingEstimateModeFromSearchParams = false,
   preferDefaultEstimateOptions = false,
+  huntScoreAvailable = false,
   verificationMode = false,
   huntScoreWindowDays = 7,
 }) {
@@ -2697,6 +2725,10 @@ export function MachineComparison({
       ),
     [getHuntScoreValue, periodFilteredRows, slotNumbers],
   );
+  const canLoadHuntScore = Boolean(
+    fullHuntScoreHighlightUrl && (huntScoreAvailable || huntScoreHighlight || activeHuntScoreHighlight),
+  );
+  const canUseHuntScore = hasHuntScore || canLoadHuntScore;
   const hasEstimatedGrape = useMemo(
     () =>
       hasJugglerSettingEstimateMode &&
@@ -2974,6 +3006,15 @@ export function MachineComparison({
         const nextHighlight = await response.json();
         startTransition(() => {
           setActiveHuntScoreHighlight(nextHighlight);
+          setVisibleMetricKeys((currentKeys) => {
+            const nextKeys = [...currentKeys];
+            for (const key of ["hunt_score", "hunt_score_next_gap"]) {
+              if (!nextKeys.includes(key)) {
+                nextKeys.push(key);
+              }
+            }
+            return nextKeys;
+          });
         });
       } catch (error) {
         setHuntScoreHighlightApplyError(
@@ -2994,6 +3035,7 @@ export function MachineComparison({
 
   useEffect(() => {
     if (
+      !verificationMode ||
       machineComparisonOptionsLoadedStoreId !== machineComparisonStorageScopeKey ||
       huntScoreHighlightOptionsLoadedStoreId !== machineComparisonStorageScopeKey
     ) {
@@ -3034,6 +3076,7 @@ export function MachineComparison({
     machineName,
     settingEstimateMode,
     storeId,
+    verificationMode,
   ]);
 
   const updatePeriodMode = (mode) => {
@@ -3075,6 +3118,15 @@ export function MachineComparison({
     const nextSettingEstimateMode = normalizeSettingEstimateMode(value);
     setSettingEstimateMode(nextSettingEstimateMode);
     void loadHuntScoreHighlight(huntScoreDifferenceMode, nextSettingEstimateMode);
+  };
+
+  const loadCurrentHuntScoreHighlight = () => {
+    void loadHuntScoreHighlight(
+      huntScoreDifferenceMode,
+      settingEstimateMode,
+      activeDateRange,
+      appliedHuntScoreHighlightOptions,
+    );
   };
 
   const updateVerificationTargetMode = (value) => {
@@ -3540,20 +3592,28 @@ export function MachineComparison({
             />
           </CollapsibleControlGroup>
         ) : null}
-        {hasHuntScore ? (
+        {canUseHuntScore ? (
           <CollapsibleControlGroup
             title="狙い度"
             open={huntScoreControlsOpen}
             onOpenChange={setHuntScoreControlsOpen}
           >
-            <HuntScoreHighlightControls
-              options={huntScoreHighlightOptions}
-              onChange={setHuntScoreHighlightOptions}
-              onApply={applyHuntScoreHighlightOptions}
-              hasPendingChanges={hasPendingHuntScoreHighlightOptions}
-              isApplying={isHuntScoreHighlightApplying}
-              applyError={huntScoreHighlightApplyError}
+            <HuntScoreHighlightLoadControls
+              hasHuntScore={hasHuntScore}
+              isLoading={isHuntScoreHighlightApplying}
+              loadError={hasHuntScore ? "" : huntScoreHighlightApplyError}
+              onLoad={loadCurrentHuntScoreHighlight}
             />
+            {hasHuntScore ? (
+              <HuntScoreHighlightControls
+                options={huntScoreHighlightOptions}
+                onChange={setHuntScoreHighlightOptions}
+                onApply={applyHuntScoreHighlightOptions}
+                hasPendingChanges={hasPendingHuntScoreHighlightOptions}
+                isApplying={isHuntScoreHighlightApplying}
+                applyError={huntScoreHighlightApplyError}
+              />
+            ) : null}
           </CollapsibleControlGroup>
         ) : null}
       </section>

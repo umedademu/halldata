@@ -1,6 +1,6 @@
 import { cache } from "react";
 
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 
 import { createEventFilters } from "./event-filters";
 import {
@@ -65,6 +65,9 @@ const HUNT_BACKTEST_DEFAULT_EVENT_FILTERS = {
 const DEFAULT_HUNT_RANKING_LIMIT = 20;
 const DEFAULT_HUNT_BACKTEST_RECENT_DAYS = 90;
 const MACHINE_EVALUATION_HISTORY_WINDOW_DAYS = 60;
+const HUNT_SCORE_CACHE_VERSION = 1;
+const HUNT_SCORE_INITIAL_CACHE_DAYS = 3;
+const HUNT_SCORE_CACHE_PREFIX = `hunt-score-cache/v${HUNT_SCORE_CACHE_VERSION}`;
 const DEFAULT_HUNT_RANK_REQUIRED = true;
 const DEFAULT_HUNT_SCORE_REQUIRED = true;
 const DEFAULT_HUNT_NEXT_GAP_REQUIRED = false;
@@ -662,6 +665,102 @@ async function readStaticWebDataPayload(relativePath) {
   }
 
   return readStaticJsonFromPublicUrl(normalizedPath);
+}
+
+function hashText(value) {
+  return createHash("sha1").update(String(value ?? ""), "utf8").digest("hex");
+}
+
+function hashJson(value) {
+  return hashText(JSON.stringify(value));
+}
+
+function formatAmzDate(date) {
+  return date.toISOString().replace(/[:-]|\.\d{3}/gu, "");
+}
+
+function formatDateStamp(date) {
+  return date.toISOString().slice(0, 10).replaceAll("-", "");
+}
+
+function hmacSha256(key, value, encoding = undefined) {
+  const digest = createHmac("sha256", key).update(value, "utf8");
+  return encoding ? digest.digest(encoding) : digest.digest();
+}
+
+function buildR2SigningKey(secretAccessKey, dateStamp, region, service) {
+  const dateKey = hmacSha256(`AWS4${secretAccessKey}`, dateStamp);
+  const regionKey = hmacSha256(dateKey, region);
+  const serviceKey = hmacSha256(regionKey, service);
+  return hmacSha256(serviceKey, "aws4_request");
+}
+
+async function writeJsonToR2(relativePath, payload) {
+  const [
+    endpoint,
+    bucketName,
+    accessKeyId,
+    secretAccessKey,
+  ] = await Promise.all([
+    readSetting("CLOUDFLARE_R2_ENDPOINT"),
+    readSetting("CLOUDFLARE_R2_BUCKET_NAME"),
+    readSetting("CLOUDFLARE_R2_ACCESS_KEY_ID"),
+    readSetting("CLOUDFLARE_R2_SECRET_ACCESS_KEY"),
+  ]);
+  const normalizedPath = normalizeStaticDataPath(relativePath);
+  if (!endpoint || !bucketName || !accessKeyId || !secretAccessKey || !normalizedPath) {
+    return false;
+  }
+
+  const endpointUrl = endpoint.replace(/\/+$/u, "");
+  const url = new URL(`${bucketName}/${normalizedPath}`, `${endpointUrl}/`);
+  const body = JSON.stringify(payload);
+  const payloadHash = createHash("sha256").update(body, "utf8").digest("hex");
+  const now = new Date();
+  const amzDate = formatAmzDate(now);
+  const dateStamp = formatDateStamp(now);
+  const region = "auto";
+  const service = "s3";
+  const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
+  const signedHeaders = "host;x-amz-content-sha256;x-amz-date";
+  const canonicalHeaders = [
+    `host:${url.host}`,
+    `x-amz-content-sha256:${payloadHash}`,
+    `x-amz-date:${amzDate}`,
+    "",
+  ].join("\n");
+  const canonicalRequest = [
+    "PUT",
+    url.pathname,
+    "",
+    canonicalHeaders,
+    signedHeaders,
+    payloadHash,
+  ].join("\n");
+  const stringToSign = [
+    "AWS4-HMAC-SHA256",
+    amzDate,
+    credentialScope,
+    createHash("sha256").update(canonicalRequest, "utf8").digest("hex"),
+  ].join("\n");
+  const signature = hmacSha256(
+    buildR2SigningKey(secretAccessKey, dateStamp, region, service),
+    stringToSign,
+    "hex",
+  );
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      authorization: `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+      "cache-control": "public, max-age=31536000, immutable",
+      "content-type": "application/json; charset=utf-8",
+      "x-amz-content-sha256": payloadHash,
+      "x-amz-date": amzDate,
+    },
+    body,
+  });
+
+  return response.ok;
 }
 
 async function readStaticWebDataIndex() {
@@ -2519,6 +2618,306 @@ function buildMachineHuntScoreHighlightDetail(
   };
 }
 
+function normalizeHuntScoreCacheMachineNames(sourceMachineNames, storeName = "") {
+  if (!Array.isArray(sourceMachineNames) || sourceMachineNames.length === 0) {
+    return ["__store__"];
+  }
+  return [
+    ...new Set(
+      sourceMachineNames
+        .map((machineName) => {
+          const canonicalName = canonicalMachineName(machineName);
+          return canonicalHuntScoreTargetMachineName(canonicalName, storeName) ?? canonicalName;
+        })
+        .filter(Boolean),
+    ),
+  ].sort((left, right) => left.localeCompare(right, "ja"));
+}
+
+function normalizeHuntScoreCacheLogicKeys(logicKeys) {
+  return [
+    ...new Set(
+      (Array.isArray(logicKeys) ? logicKeys : [logicKeys])
+        .map((logicKey) => String(logicKey ?? "").trim())
+        .filter(Boolean),
+    ),
+  ].sort();
+}
+
+function buildHuntScoreCacheSignature(
+  staticStore,
+  {
+    sourceMachineNames = null,
+    logicKeys = [],
+    differenceMode = undefined,
+    settingEstimateMode = undefined,
+    dateRange = null,
+  } = {},
+) {
+  const store = readStaticStoreIdentity(staticStore);
+  const normalizedDateRange = normalizeDateRangeInput(dateRange);
+  return {
+    version: HUNT_SCORE_CACHE_VERSION,
+    storeId: store.id,
+    storeName: store.storeName,
+    dataVersion: {
+      generatedAt: String(staticStore?.generatedAt ?? "").trim(),
+      latestDate: normalizeDateInput(staticStore?.summary?.latestDate),
+      recordCount: readNumber(staticStore?.summary?.recordCount),
+      machineCount: readNumber(staticStore?.summary?.machineCount),
+    },
+    sourceMachineNames: normalizeHuntScoreCacheMachineNames(sourceMachineNames, store.storeName),
+    logicKeys: normalizeHuntScoreCacheLogicKeys(logicKeys),
+    differenceMode: normalizeDifferenceMode(differenceMode),
+    settingEstimateMode: normalizeSettingEstimateMode(settingEstimateMode),
+    dateRange: normalizedDateRange
+      ? {
+          startDate: normalizedDateRange.startDate,
+          endDate: normalizedDateRange.endDate,
+        }
+      : {
+          startDate: "",
+          endDate: "",
+        },
+  };
+}
+
+function buildHuntScoreCachePath(staticStore, signature, kind = "ranges") {
+  const store = readStaticStoreIdentity(staticStore);
+  const storeId = store.id || hashText(store.storeName).slice(0, 12);
+  const digest = hashJson(signature);
+  if (kind === "dates") {
+    const date = signature.dateRange.startDate || signature.dateRange.endDate || "all";
+    return `${HUNT_SCORE_CACHE_PREFIX}/stores/${storeId}/dates/${date}/${digest}.json`;
+  }
+  return `${HUNT_SCORE_CACHE_PREFIX}/stores/${storeId}/ranges/${digest}.json`;
+}
+
+function cloneHuntScoreSnapshotsForCache(snapshots) {
+  if (!Array.isArray(snapshots) || snapshots.length === 0) {
+    return null;
+  }
+  try {
+    return JSON.parse(JSON.stringify(snapshots));
+  } catch {
+    return null;
+  }
+}
+
+function buildHuntScoreCachePayload(signature, highlight, kind = "range", snapshots = null) {
+  const cachedSnapshots = cloneHuntScoreSnapshotsForCache(snapshots);
+  return {
+    version: HUNT_SCORE_CACHE_VERSION,
+    kind,
+    signatureHash: hashJson(signature),
+    signature,
+    createdAt: new Date().toISOString(),
+    highlight,
+    ...(cachedSnapshots ? { snapshots: cachedSnapshots } : {}),
+  };
+}
+
+async function readHuntScoreCachePayload(staticStore, signature, kind = "ranges") {
+  const path = buildHuntScoreCachePath(staticStore, signature, kind);
+  const payload = await readStaticWebDataPayload(path);
+  if (
+    !payload ||
+    payload.version !== HUNT_SCORE_CACHE_VERSION ||
+    payload.signatureHash !== hashJson(signature) ||
+    !payload.highlight ||
+    typeof payload.highlight !== "object"
+  ) {
+    return null;
+  }
+  return payload;
+}
+
+async function readHuntScoreHighlightCache(staticStore, signature, kind = "ranges") {
+  const payload = await readHuntScoreCachePayload(staticStore, signature, kind);
+  return payload?.highlight ?? null;
+}
+
+async function readHuntScoreSnapshotCache(staticStore, signature, kind = "ranges") {
+  const payload = await readHuntScoreCachePayload(staticStore, signature, kind);
+  return Array.isArray(payload?.snapshots) && payload.snapshots.length > 0
+    ? payload.snapshots
+    : null;
+}
+
+function mergeHuntScoreHighlightDetails(highlights, storeName, storeMachineNames, machineSlotCounts) {
+  const snapshots = (Array.isArray(highlights) ? highlights : [])
+    .flatMap((highlight) => (Array.isArray(highlight?.snapshots) ? highlight.snapshots : []))
+    .filter((snapshot) => String(snapshot?.date ?? "").trim())
+    .sort((left, right) => String(right.date).localeCompare(String(left.date)));
+  if (snapshots.length === 0) {
+    return null;
+  }
+  const availableMachineNames = [
+    ...new Set(
+      highlights
+        .flatMap((highlight) =>
+          Array.isArray(highlight?.availableMachineNames) ? highlight.availableMachineNames : [],
+        )
+        .map((machineName) => String(machineName ?? "").trim())
+        .filter(Boolean),
+    ),
+  ];
+  const fallbackDetail = buildMachineHuntScoreHighlightDetail(
+    storeName,
+    [],
+    storeMachineNames,
+    machineSlotCounts,
+  );
+  return {
+    availableMachineNames: availableMachineNames.length
+      ? availableMachineNames
+      : fallbackDetail.availableMachineNames,
+    machineSlotCounts: fallbackDetail.machineSlotCounts,
+    snapshots,
+  };
+}
+
+async function readHuntScoreHighlightDateCaches(
+  staticStore,
+  signature,
+  dates,
+  storeName,
+  storeMachineNames,
+  machineSlotCounts,
+) {
+  const uniqueDates = [
+    ...new Set((Array.isArray(dates) ? dates : []).map(normalizeDateInput).filter(Boolean)),
+  ];
+  if (uniqueDates.length === 0) {
+    return null;
+  }
+  const highlights = [];
+  for (const date of uniqueDates) {
+    const dateSignature = {
+      ...signature,
+      dateRange: {
+        startDate: date,
+        endDate: date,
+      },
+    };
+    const highlight = await readHuntScoreHighlightCache(staticStore, dateSignature, "dates");
+    if (!highlight) {
+      return null;
+    }
+    highlights.push(highlight);
+  }
+  return mergeHuntScoreHighlightDetails(
+    highlights,
+    storeName,
+    storeMachineNames,
+    machineSlotCounts,
+  );
+}
+
+function mergeHuntScoreSnapshots(snapshotGroups) {
+  const snapshots = (Array.isArray(snapshotGroups) ? snapshotGroups : [])
+    .flatMap((group) => (Array.isArray(group) ? group : []))
+    .filter((snapshot) => String(snapshot?.baseDate ?? snapshot?.date ?? "").trim())
+    .sort((left, right) =>
+      String(right.baseDate ?? right.date).localeCompare(String(left.baseDate ?? left.date)),
+    );
+  return snapshots.length > 0 ? snapshots : null;
+}
+
+async function readHuntScoreSnapshotDateCaches(staticStore, signature, dates) {
+  const uniqueDates = [
+    ...new Set((Array.isArray(dates) ? dates : []).map(normalizeDateInput).filter(Boolean)),
+  ];
+  if (uniqueDates.length === 0) {
+    return null;
+  }
+  const snapshotGroups = [];
+  for (const date of uniqueDates) {
+    const dateSignature = {
+      ...signature,
+      dateRange: {
+        startDate: date,
+        endDate: date,
+      },
+    };
+    const snapshots = await readHuntScoreSnapshotCache(staticStore, dateSignature, "dates");
+    if (!snapshots) {
+      return null;
+    }
+    snapshotGroups.push(snapshots);
+  }
+  return mergeHuntScoreSnapshots(snapshotGroups);
+}
+
+async function writeHuntScoreHighlightCache(staticStore, signature, highlight, snapshots = null) {
+  if (!highlight || !Array.isArray(highlight.snapshots) || highlight.snapshots.length === 0) {
+    return;
+  }
+  await Promise.resolve();
+
+  const cachedSnapshots = cloneHuntScoreSnapshotsForCache(snapshots);
+  const cachedSnapshotByDate = new Map(
+    (cachedSnapshots ?? [])
+      .map((snapshot) => [
+        normalizeDateInput(snapshot?.baseDate ?? snapshot?.date),
+        snapshot,
+      ])
+      .filter(([date]) => Boolean(date)),
+  );
+
+  const writes = [
+    writeJsonToR2(
+      buildHuntScoreCachePath(staticStore, signature, "ranges"),
+      buildHuntScoreCachePayload(signature, highlight, "range", cachedSnapshots),
+    ),
+  ];
+
+  for (const snapshot of highlight.snapshots) {
+    const date = normalizeDateInput(snapshot?.date);
+    if (!date) {
+      continue;
+    }
+    const dateSignature = {
+      ...signature,
+      dateRange: {
+        startDate: date,
+        endDate: date,
+      },
+    };
+    writes.push(
+      writeJsonToR2(
+        buildHuntScoreCachePath(staticStore, dateSignature, "dates"),
+        buildHuntScoreCachePayload(
+          dateSignature,
+          {
+            ...highlight,
+            snapshots: [snapshot],
+          },
+          "date",
+          cachedSnapshotByDate.has(date) ? [cachedSnapshotByDate.get(date)] : null,
+        ),
+      ),
+    );
+  }
+
+  await Promise.allSettled(writes);
+}
+
+function buildLatestDateRangeFromRows(dateRows, limit = HUNT_SCORE_INITIAL_CACHE_DAYS) {
+  const dates = (Array.isArray(dateRows) ? dateRows : [])
+    .map((row) => normalizeDateInput(row?.date))
+    .filter(Boolean)
+    .slice(0, Math.max(1, limit));
+  if (dates.length === 0) {
+    return null;
+  }
+  return {
+    startDate: dates.at(-1),
+    endDate: dates[0],
+    dates,
+  };
+}
+
 function getHuntScoreRecordMachineName(row, storeName) {
   return (
     canonicalHuntScoreTargetMachineName(canonicalMachineName(row?.machine_name), storeName) ??
@@ -2592,6 +2991,7 @@ async function buildStaticMachineHuntScoreHighlight(
   settingEstimateMode = undefined,
   dateRange = null,
   sourceMachineNames = null,
+  options = {},
 ) {
   const store = readStaticStoreIdentity(staticStore);
   if (!isHuntScoreTargetStore(store.storeName)) {
@@ -2603,6 +3003,40 @@ async function buildStaticMachineHuntScoreHighlight(
   const normalizedSourceMachineNames = (Array.isArray(sourceMachineNames) ? sourceMachineNames : [])
     .map((name) => canonicalMachineName(name))
     .filter(Boolean);
+  const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName);
+  const cacheSignature = buildHuntScoreCacheSignature(staticStore, {
+    sourceMachineNames: normalizedSourceMachineNames.length > 0 ? normalizedSourceMachineNames : null,
+    logicKeys: [huntScoreLogic.key],
+    differenceMode,
+    settingEstimateMode,
+    dateRange: normalizedDateRange,
+  });
+  const storeMachineNames = readStaticStoreRecentMachineNames(staticStore);
+  const machineSlotCounts = buildStaticStoreMachineSlotCounts(staticStore);
+
+  if (options.useCache !== false) {
+    const cachedHighlight = await readHuntScoreHighlightCache(staticStore, cacheSignature);
+    if (cachedHighlight) {
+      return cachedHighlight;
+    }
+
+    const cachedDateHighlight = await readHuntScoreHighlightDateCaches(
+      staticStore,
+      cacheSignature,
+      options.cacheDates,
+      store.storeName,
+      storeMachineNames,
+      machineSlotCounts,
+    );
+    if (cachedDateHighlight) {
+      return cachedDateHighlight;
+    }
+  }
+
+  if (options.cacheOnly === true) {
+    return null;
+  }
+
   const { targetRows, storeRows } = normalizedSourceMachineNames.length > 0
     ? await buildStaticHuntScoreSourceRowsForMachineNames(
         staticStore,
@@ -2610,7 +3044,6 @@ async function buildStaticMachineHuntScoreHighlight(
         sourceDateRange,
       )
     : await buildStaticHuntScoreSourceRows(staticStore, sourceDateRange);
-  const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName);
   const snapshots = buildHuntScoreSnapshots(
     targetRows,
     storeRows,
@@ -2622,12 +3055,16 @@ async function buildStaticMachineHuntScoreHighlight(
       targetDateRange: normalizedDateRange,
     },
   );
-  return buildMachineHuntScoreHighlightDetail(
+  const highlight = buildMachineHuntScoreHighlightDetail(
     store.storeName,
     snapshots,
-    readStaticStoreRecentMachineNames(staticStore),
-    buildStaticStoreMachineSlotCounts(staticStore),
+    storeMachineNames,
+    machineSlotCounts,
   );
+  if (options.writeCache !== false) {
+    await writeHuntScoreHighlightCache(staticStore, cacheSignature, highlight, snapshots);
+  }
+  return highlight;
 }
 
 async function buildStaticMachineDetail(
@@ -2675,56 +3112,21 @@ async function buildStaticMachineDetail(
       )
     : activeHuntScoreMachineNameSet.has(canonicalMachineName(requestedHuntScoreMachineName));
   let huntScoreHighlight = null;
-  let rows = [];
+  let rows = await readStaticMachineRecords(staticStore, requestedMachineNames);
 
   if (huntScoreEnabled) {
-    const { targetRows, storeRows } = await buildStaticHuntScoreSourceRowsForMachineNames(
-      staticStore,
-      requestedMachineNames,
-      null,
-      { preferMachineRows: true },
-    );
-    const huntScoreLogic = getHuntScoreLogicDetail(huntScoreLogicKey, store.storeName);
-    const snapshots = buildHuntScoreSnapshots(
-      targetRows,
-      storeRows,
-      store.storeName,
-      huntScoreLogic.key,
-      normalizeDifferenceMode(differenceMode),
-      { settingEstimateMode: normalizeSettingEstimateMode(settingEstimateMode) },
-    );
-    applySnapshotHuntScores(snapshots);
-    huntScoreHighlight = buildMachineHuntScoreHighlightDetail(
-      store.storeName,
-      snapshots,
-      activeMachineNames,
-      buildStaticStoreMachineSlotCounts(staticStore),
-    );
-    const targetMachineRows = targetRows.filter((row) =>
-      requestedHuntScoreMachineNames.has(getHuntScoreRecordMachineName(row, store.storeName)),
-    );
-    if (combinedChildMachines) {
-      const huntScoreByRecordKey = new Map(
-        targetMachineRows
-          .map((row) => [buildHuntScoreRecordKey(row, store.storeName), readNumber(row.hunt_score)])
-          .filter(([, huntScore]) => Number.isFinite(huntScore)),
-      );
-      rows = (await readStaticMachineRecords(staticStore, requestedMachineNames)).map((row) => {
-        const huntScore = huntScoreByRecordKey.get(buildHuntScoreRecordKey(row, store.storeName));
-        return {
-          ...row,
-          machine_name: getHuntScoreRecordMachineName(row, store.storeName),
-          ...(Number.isFinite(huntScore) ? { hunt_score: huntScore } : {}),
-        };
-      });
-    } else {
-      rows = targetMachineRows.map((row) => ({
+    rows = rows
+      .map((row) => ({
         ...row,
-        machine_name: requestedHuntScoreMachineName,
-      }));
-    }
-  } else {
-    rows = await readStaticMachineRecords(staticStore, requestedMachineNames);
+        machine_name: combinedChildMachines
+          ? getHuntScoreRecordMachineName(row, store.storeName)
+          : requestedHuntScoreMachineName,
+      }))
+      .filter((row) =>
+        combinedChildMachines
+          ? requestedHuntScoreMachineNames.has(getHuntScoreRecordMachineName(row, store.storeName))
+          : true,
+      );
   }
 
   if (rows.length === 0) {
@@ -2732,6 +3134,26 @@ async function buildStaticMachineDetail(
   }
 
   const machineDetail = buildMachineDetail(rows);
+  const initialCacheRange = huntScoreEnabled
+    ? buildLatestDateRangeFromRows(machineDetail.dateRows, HUNT_SCORE_INITIAL_CACHE_DAYS)
+    : null;
+  if (initialCacheRange) {
+    huntScoreHighlight = await buildStaticMachineHuntScoreHighlight(
+      staticStore,
+      huntScoreLogicKey,
+      differenceMode,
+      settingEstimateMode,
+      {
+        startDate: initialCacheRange.startDate,
+        endDate: initialCacheRange.endDate,
+      },
+      requestedMachineNames,
+      {
+        cacheOnly: true,
+        cacheDates: initialCacheRange.dates,
+      },
+    );
+  }
   return {
     dataSource: "json",
     store: {
@@ -2753,6 +3175,8 @@ async function buildStaticMachineDetail(
     isCombinedMachineGroup: Boolean(combinedChildMachines),
     childMachineNames: combinedChildMachines?.map((machine) => machine.machineName) ?? [],
     huntScoreHighlight,
+    huntScoreEnabled,
+    initialHuntScoreDays: HUNT_SCORE_INITIAL_CACHE_DAYS,
   };
 }
 
@@ -3008,15 +3432,45 @@ async function getHuntScoreSnapshotsForStore(
           settingEstimateMode: normalizedSettingEstimateMode,
           machineEvaluationHistoryWindowDays,
         };
-    const snapshots = decorateSnapshotsWithMachineEvaluation(
-      buildCombinedHuntScoreSnapshots(
+    const cacheDateRange = targetDateOnly && selectedDate
+      ? {
+          startDate: selectedDate,
+          endDate: selectedDate,
+        }
+      : targetDateRange;
+    const cacheSignature = cacheDateRange
+      ? buildHuntScoreCacheSignature(staticStore, {
+          sourceMachineNames: sourceRequestMachineNames.length > 0 ? sourceRequestMachineNames : null,
+          logicKeys: huntScoreLogics.map((logic) => logic.key),
+          differenceMode: normalizedDifferenceMode,
+          settingEstimateMode: normalizedSettingEstimateMode,
+          dateRange: cacheDateRange,
+        })
+      : null;
+    const cacheDates = cacheDateRange
+      ? rankingDates.filter((date) =>
+          (!cacheDateRange.startDate || date >= cacheDateRange.startDate) &&
+          (!cacheDateRange.endDate || date <= cacheDateRange.endDate),
+        )
+      : [];
+    let baseSnapshots = cacheSignature
+      ? await readHuntScoreSnapshotCache(staticStore, cacheSignature)
+      : null;
+    if (!baseSnapshots && cacheSignature) {
+      baseSnapshots = await readHuntScoreSnapshotDateCaches(staticStore, cacheSignature, cacheDates);
+    }
+    if (!baseSnapshots) {
+      baseSnapshots = buildCombinedHuntScoreSnapshots(
         targetRows,
         storeRows,
         staticIdentity.storeName,
         huntScoreLogics.map((logic) => logic.key),
         normalizedDifferenceMode,
         snapshotOptions,
-      ),
+      );
+    }
+    const snapshots = decorateSnapshotsWithMachineEvaluation(
+      baseSnapshots,
       machineEvaluationSettings,
     );
     const subHuntScoreLogic = resolveOptionalHuntScoreLogic(
@@ -3033,6 +3487,15 @@ async function getHuntScoreSnapshotsForStore(
           snapshotOptions,
         )
       : [];
+    if (cacheSignature && baseSnapshots.length > 0) {
+      const cacheHighlight = buildMachineHuntScoreHighlightDetail(
+        staticIdentity.storeName,
+        baseSnapshots,
+        storeMachineNames,
+        buildStaticStoreMachineSlotCounts(staticStore),
+      );
+      void writeHuntScoreHighlightCache(staticStore, cacheSignature, cacheHighlight, baseSnapshots).catch(() => {});
+    }
     const snapshotMachineNames = [
       ...new Set(
         snapshots

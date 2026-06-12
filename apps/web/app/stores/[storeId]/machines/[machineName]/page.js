@@ -241,6 +241,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
         initialDisplayDifferenceModeFromSearchParams={hasDisplayDifferenceModeSearchParam}
         initialSettingEstimateMode={detail.settingEstimateMode}
         initialSettingEstimateModeFromSearchParams={hasSettingEstimateModeSearchParam}
+        huntScoreAvailable={detail.huntScoreEnabled}
         preferDefaultEstimateOptions={Boolean(detail.huntScoreHighlight)}
       />
     </main>
