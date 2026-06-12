@@ -91,6 +91,52 @@ export function HuntScoreLogicSelector({ storeId, selectedLogicKey, options, ref
   );
 }
 
+export function HuntScoreLogicSingleSelect({
+  selectedLogicKey,
+  options,
+  name = "huntScoreLogicKey",
+  label = "使用するロジック",
+}) {
+  const safeOptions = useMemo(
+    () =>
+      (Array.isArray(options) ? options : [])
+        .map((option) => ({
+          key: String(option?.key ?? "").trim(),
+          name: String(option?.name ?? "").trim(),
+        }))
+        .filter((option) => option.key && option.name),
+    [options],
+  );
+  const initialLogicKey =
+    findOption(safeOptions, selectedLogicKey)?.key ?? safeOptions[0]?.key ?? "";
+
+  if (safeOptions.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="huntLogicControl">
+      <div className="huntLogicCurrent">
+        <p className="sectionLabel">{label}</p>
+      </div>
+      <label className="huntLogicSelectLabel">
+        <span>選択</span>
+        <select
+          name={name}
+          className="huntLogicSelect"
+          defaultValue={initialLogicKey}
+        >
+          {safeOptions.map((option) => (
+            <option key={option.key} value={option.key}>
+              {option.name}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
+  );
+}
+
 export function HuntScoreLogicMultiSelect({
   selectedLogicKeys,
   options,

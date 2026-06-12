@@ -10,7 +10,7 @@ import {
 import { HuntRankingFormStateSync } from "../../../../components/hunt-ranking-form-state-sync";
 import { HuntRankingTable } from "../../../../components/hunt-ranking-table";
 import {
-  HuntScoreLogicMultiSelect,
+  HuntScoreLogicSingleSelect,
 } from "../../../../components/hunt-score-logic-selector";
 import { NativeGetForm } from "../../../../components/native-get-form";
 import { ResultUrlTools } from "../../../../components/result-url-tools";
@@ -320,10 +320,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const resultRequested = readSingleSearchParam(resolvedSearchParams?.show) === "1";
   const requestedLimit = parseRequestedLimit(readSingleSearchParam(resolvedSearchParams?.limit));
   const requestedMachineNames = readMultiSearchParam(resolvedSearchParams?.machine);
-  const requestedRankingLogicKeys = readMultiSearchParam(resolvedSearchParams?.huntScoreLogicKey);
-  const requestedSubHuntScoreLogicKey = readSingleSearchParam(
-    resolvedSearchParams?.subHuntScoreLogicKey,
-  );
+  const requestedRankingLogicKey = readSingleSearchParam(resolvedSearchParams?.huntScoreLogicKey);
   const huntScoreLogicKey = await readStoredHuntScoreLogicKey(storeId);
   const machineEvaluationSettings = await readStoredMachineEvaluationSettings(storeId);
   const machineEvaluationRankingMode = normalizeMachineEvaluationRankingMode(
@@ -360,8 +357,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
           {
             machineNames: requestedMachineNames,
             machineTouched: machineFilterTouched,
-            huntScoreLogicKeys: requestedRankingLogicKeys,
-            subHuntScoreLogicKey: requestedSubHuntScoreLogicKey,
+            huntScoreLogicKeys: requestedRankingLogicKey ? [requestedRankingLogicKey] : [],
             combineAimJuggler: requestedCombineAimJuggler,
             combineHanabi: requestedCombineHanabi,
             machineEvaluationSettings,
@@ -373,8 +369,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
           {
             differenceMode,
             settingEstimateMode,
-            huntScoreLogicKeys: requestedRankingLogicKeys,
-            subHuntScoreLogicKey: requestedSubHuntScoreLogicKey,
+            huntScoreLogicKeys: requestedRankingLogicKey ? [requestedRankingLogicKey] : [],
             machineEvaluationSettings,
           },
           huntScoreLogicKey,
@@ -467,7 +462,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     differenceMode: detail.differenceMode,
     settingEstimateMode: detail.settingEstimateMode,
     huntScoreLogicKeys: detail.huntScoreLogicKeys,
-    subHuntScoreLogicKey: detail.subHuntScoreLogic?.key ?? "",
     machines: [...selectedMachineNameSet].sort(),
     combineAimJuggler,
     combineHanabi,
@@ -507,9 +501,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             </p>
           ) : detail.huntScoreLogic ? (
             <p className="dataSourceLabel">適用中: {detail.huntScoreLogic.name}</p>
-          ) : null}
-          {detail.subHuntScoreLogic ? (
-            <p className="dataSourceLabel">表示用ロジック: {detail.subHuntScoreLogic.name}</p>
           ) : null}
           <div className="heroLinks simpleHeroLinks">
             <Link href={`/stores/${detail.store.id}`} className="externalLink">
@@ -624,29 +615,10 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 </div>
               </div>
               <div className="filterConditionBox rankingConditionBoxWide">
-                <HuntScoreLogicMultiSelect
-                  selectedLogicKeys={detail.huntScoreLogicKeys}
+                <HuntScoreLogicSingleSelect
+                  selectedLogicKey={detail.huntScoreLogicKeys?.[0] ?? detail.huntScoreLogic?.key ?? ""}
                   options={huntScoreLogicOptions}
-                  formId={HUNT_RANKING_FORM_ID}
                 />
-              </div>
-              <div className="filterConditionBox rankingConditionBox">
-                <p className="filterConditionBoxTitle">表示用ロジック</p>
-                <label className="storeReserveField">
-                  <span>追加表示するロジック</span>
-                  <select
-                    name="subHuntScoreLogicKey"
-                    defaultValue={detail.subHuntScoreLogic?.key ?? ""}
-                    className="storeReserveInput"
-                  >
-                    <option value="">表示しない</option>
-                    {huntScoreLogicOptions.map((option) => (
-                      <option key={option.key} value={option.key}>
-                        {option.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
               </div>
               <div className="filterConditionBox rankingConditionBox">
                 <p className="filterConditionBoxTitle">設定推定基準</p>
@@ -733,7 +705,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 enableConditionHighlight={false}
                 initialDifferenceMode={detail.differenceMode}
                 showMachineTopCandidates={showMachineTopCandidates}
-                subHuntScoreLogic={detail.subHuntScoreLogic}
                 showMachineEvaluation={shouldShowMachineEvaluationInRanking(machineEvaluationRankingMode)}
                 showGrapeColumn={showGrapeColumn}
                 huntScoreLogicLabel={huntScoreLogicLabel}

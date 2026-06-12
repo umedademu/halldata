@@ -12,7 +12,6 @@ const MANAGED_PARAM_KEYS = [
   "differenceMode",
   "settingEstimateMode",
   "huntScoreLogicKey",
-  "subHuntScoreLogicKey",
   "machine",
   "rankMin",
   "rankMax",
@@ -62,9 +61,17 @@ function normalizeEntry(key, value) {
 
 function normalizeStateEntries(entries) {
   const normalizedEntries = [];
+  const seenSingleValueKeys = new Set();
   for (const entry of Array.isArray(entries) ? entries : []) {
     const normalizedEntry = Array.isArray(entry) ? normalizeEntry(entry[0], entry[1]) : null;
     if (normalizedEntry) {
+      const [key] = normalizedEntry;
+      if (key === "huntScoreLogicKey") {
+        if (seenSingleValueKeys.has(key)) {
+          continue;
+        }
+        seenSingleValueKeys.add(key);
+      }
       normalizedEntries.push(normalizedEntry);
     }
   }
