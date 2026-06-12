@@ -1601,8 +1601,8 @@ a {
 }
 
 .estimateInputWrap .recentDaysInput {
-  flex: 0 0 6ch;
-  width: 6ch;
+  flex: 0 0 12ch;
+  width: 12ch;
 }
 
 .metricToggleRow {
