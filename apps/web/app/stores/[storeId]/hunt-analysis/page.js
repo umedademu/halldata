@@ -435,6 +435,10 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     : new Set(availableMachineNames);
   const showMachineTopCandidates = selectedMachineNameSet.size >= 2;
   const showGrapeColumn = [...selectedMachineNameSet].some(isHuntJugglerMachine);
+  const huntScoreLogicLabel =
+    detail.huntScoreLogics?.length > 0
+      ? detail.huntScoreLogics.map((logic) => logic.name).join(" + ")
+      : detail.huntScoreLogic?.name ?? "狙い度";
   const machineOptions = availableMachineNames.map((machineName) => ({
     name: machineName,
     checked: selectedMachineNameSet.has(machineName),
@@ -732,6 +736,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 subHuntScoreLogic={detail.subHuntScoreLogic}
                 showMachineEvaluation={shouldShowMachineEvaluationInRanking(machineEvaluationRankingMode)}
                 showGrapeColumn={showGrapeColumn}
+                huntScoreLogicLabel={huntScoreLogicLabel}
               />
             ) : (
               <section className="statusPanel">

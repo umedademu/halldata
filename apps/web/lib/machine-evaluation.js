@@ -519,7 +519,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "main",
         "1位＋次点差10点以上",
-        "台番ベース再検証: 182件 / 104.34%",
+        "182件 / 104.34%",
         {
           rankMax: 1,
           minNextGap: 10,
@@ -529,7 +529,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "safe",
         "1位＋危険0",
-        "台番ベース再検証: 137件 / 105.87%",
+        "137件 / 105.87%",
         {
           rankMax: 1,
           maxDanger: 0,
@@ -539,7 +539,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "strong",
         "1位＋65点以上＋強化2個以上＋危険0",
-        "台番ベース再検証: 98件 / 105.75%",
+        "98件 / 105.75%",
         {
           rankMax: 1,
           minScore: 65,

@@ -6,12 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { SortableTableHeader } from "./sortable-table-header";
 import {
   formatAverageGames,
-  formatCompactDate,
   formatDecimal,
   formatMonthDay,
-  formatNarrowInteger,
-  formatNarrowPercent,
-  formatNarrowSignedNumber,
   formatNumber,
   formatPercent,
   formatRatio,
@@ -444,70 +440,26 @@ function readCommonHuntScoreMachineTopBacktestResult(storeId, storeName, row) {
   });
 }
 
-function buildBacktestMetricTitleLine(label, value, formatter) {
-  if (value === null || value === undefined || value === "") {
-    return "";
-  }
-  const formattedValue = formatter(value);
-  return formattedValue && formattedValue !== "-" ? `${label}: ${formattedValue}` : "";
-}
-
-function buildCommonHuntScoreBacktestTitleParts(backtestResult) {
+function buildCommonHuntScoreBacktestTitleParts(backtestResult, huntScoreLogicLabel) {
   if (!backtestResult) {
     return [];
   }
 
-  const periodLabel = Number.isFinite(backtestResult.periodDays)
-    ? `直近${formatNumber(backtestResult.periodDays)}日`
-    : "";
-  const dateRangeLabel =
-    backtestResult.targetStartDate && backtestResult.targetEndDate
-      ? `対象期間: ${formatCompactDate(backtestResult.targetStartDate)} 〜 ${formatCompactDate(backtestResult.targetEndDate)}`
-      : "";
-  const sourceLabel = backtestResult.sourceLabel ? `保存元: ${backtestResult.sourceLabel}` : "";
+  const logicLabel = String(huntScoreLogicLabel || "狙い度").trim();
+  const countLabel = Number.isFinite(backtestResult.actualRowCount)
+    ? `${formatNumber(backtestResult.actualRowCount)}件`
+    : "-";
+  const payoutLabel = Number.isFinite(backtestResult.payoutRate)
+    ? formatPercent(backtestResult.payoutRate)
+    : "-";
+  const bbLabel = backtestResult.bbProbability || "-";
+  const rbLabel = backtestResult.rbProbability || "-";
 
   return [
-    "共通狙い度1位バックテスト:",
-    `条件: ${backtestResult.conditionLabel}`,
-    periodLabel ? `期間: ${periodLabel}` : "",
-    dateRangeLabel,
-    buildBacktestMetricTitleLine("対象日数", backtestResult.targetDateCount, formatNumber),
-    buildBacktestMetricTitleLine("一致日数", backtestResult.matchedDateCount, formatNumber),
-    buildBacktestMetricTitleLine("集計台数", backtestResult.actualRowCount, formatNumber),
-    buildBacktestMetricTitleLine("機械割", backtestResult.payoutRate, formatPercent),
-    buildBacktestMetricTitleLine("平均差枚", backtestResult.averageDifference, formatSignedNumber),
-    buildBacktestMetricTitleLine("勝率", backtestResult.winRate, formatPercent),
-    buildBacktestMetricTitleLine("平均G", backtestResult.averageGames, formatAverageGames),
-    buildBacktestMetricTitleLine("平均設定", backtestResult.averageSetting, formatSettingEstimateScore),
-    buildBacktestMetricTitleLine("平均狙い度", backtestResult.averageHuntScore, formatDecimal),
-    buildBacktestMetricTitleLine("上差(同)", backtestResult.averageUpperGap, formatDecimal),
-    buildBacktestMetricTitleLine("下差(同)", backtestResult.averageNextGap, formatDecimal),
-    backtestResult.combinedProbability ? `合成: ${backtestResult.combinedProbability}` : "",
-    backtestResult.bbProbability ? `BB率: ${backtestResult.bbProbability}` : "",
-    backtestResult.rbProbability ? `RB率: ${backtestResult.rbProbability}` : "",
-    buildBacktestMetricTitleLine("ブドウ", backtestResult.grapeDenominator, formatDecimal),
-    backtestResult.savedAt ? `保存日: ${formatCompactDate(backtestResult.savedAt)}` : "",
-    sourceLabel,
+    `${logicLabel} / 狙い度 機種内1位`,
+    `件数: ${countLabel} / ${payoutLabel}`,
+    `BB率: ${bbLabel} / RB率: ${rbLabel}`,
   ].filter(Boolean);
-}
-
-function formatCommonHuntScoreBacktestCellMetaParts(backtestResult) {
-  if (!backtestResult) {
-    return [];
-  }
-
-  const payoutRate = Number.isFinite(backtestResult.payoutRate)
-    ? formatNarrowPercent(backtestResult.payoutRate)
-    : "";
-  const actualRowCount = Number.isFinite(backtestResult.actualRowCount)
-    ? `${formatNarrowInteger(backtestResult.actualRowCount)}件`
-    : "";
-  const averageDifference = Number.isFinite(backtestResult.averageDifference)
-    ? `${formatNarrowSignedNumber(backtestResult.averageDifference)}枚`
-    : "";
-  const resultSummary = [actualRowCount, averageDifference].filter(Boolean).join(" ");
-
-  return [payoutRate, resultSummary].filter(Boolean);
 }
 
 function buildMatchedConditionTitleParts(evaluation) {
@@ -754,10 +706,13 @@ function HuntScoreCell({
   bookmarkMatchByRowKey = null,
   extraTitle = "",
   sortable = false,
+  huntScoreLogicLabel = "",
 }) {
   const backtestResult = readCommonHuntScoreMachineTopBacktestResult(storeId, storeName, row);
-  const backtestTitle = buildCommonHuntScoreBacktestTitleParts(backtestResult).join("\n");
-  const backtestMetaParts = formatCommonHuntScoreBacktestCellMetaParts(backtestResult);
+  const backtestTitle = buildCommonHuntScoreBacktestTitleParts(
+    backtestResult,
+    huntScoreLogicLabel,
+  ).join("\n");
   const className = [
     getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey),
     backtestResult ? "huntScoreBacktestMatchedCell" : "",
@@ -774,11 +729,6 @@ function HuntScoreCell({
       {...sortProps}
     >
       <span className="huntScoreBacktestCellValue">{formatNumber(row.huntScore)}</span>
-      {backtestMetaParts.map((backtestMeta) => (
-        <span key={backtestMeta} className="huntScoreBacktestCellMeta">
-          {backtestMeta}
-        </span>
-      ))}
     </td>
   );
 }
@@ -800,6 +750,7 @@ function OverallRankingTable({
   tableId = "",
   subHuntScoreLogic = null,
   showMachineEvaluation = false,
+  huntScoreLogicLabel = "",
 }) {
   const showSubHuntScoreColumn = Boolean(subHuntScoreLogic);
   const hasMachineEvaluationColumn =
@@ -953,6 +904,7 @@ function OverallRankingTable({
                     bookmarkMatchByRowKey={bookmarkMatchByRowKey}
                     extraTitle={rowSite7Title}
                     sortable
+                    huntScoreLogicLabel={huntScoreLogicLabel}
                   />
                   {showSubHuntScoreColumn ? (
                     <td
@@ -1034,6 +986,7 @@ export function HuntRankingTable({
   subHuntScoreLogic = null,
   showMachineEvaluation = false,
   showGrapeColumn = false,
+  huntScoreLogicLabel = "",
 }) {
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
   const [differenceMode, setDifferenceMode] = useState(() =>
@@ -1361,6 +1314,7 @@ export function HuntRankingTable({
           bookmarkMatchByRowKey={bookmarkMatchByRowKey}
           subHuntScoreLogic={subHuntScoreLogic}
           showMachineEvaluation={showMachineEvaluation}
+          huntScoreLogicLabel={huntScoreLogicLabel}
         />
       ) : (
         <section className="statusPanel">
@@ -1388,6 +1342,7 @@ export function HuntRankingTable({
             tableId="machine-top-candidates-ranking"
             subHuntScoreLogic={subHuntScoreLogic}
             showMachineEvaluation={showMachineEvaluation}
+            huntScoreLogicLabel={huntScoreLogicLabel}
           />
         ) : (
           <section className="statusPanel">
@@ -1472,6 +1427,7 @@ export function HuntRankingTable({
                         highlightCondition={tableHighlightCondition}
                         bookmarkMatchByRowKey={bookmarkMatchByRowKey}
                         extraTitle={rowSite7Title}
+                        huntScoreLogicLabel={huntScoreLogicLabel}
                       />
                       {showSubHuntScoreColumn ? (
                         <td title={combineTitleParts(subHuntScoreTitle, rowSite7Title)}>
