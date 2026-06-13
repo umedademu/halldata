@@ -832,6 +832,7 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "ハッピージャグラーＶ": "beam-hikari-happy-content",
       "ハッピージャグラーV": "beam-hikari-happy-content",
       "ハッピージャグラー": "beam-hikari-happy-content",
+      "ウルトラミラクルジャグラー": "beam-hikari-ultra-miracle-content",
     },
   },
   {
@@ -1681,6 +1682,11 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
   ) {
     return games >= 4000 && combinedDenominator <= 154 && rbDenominator <= 350;
   }
+  if (normalizedMachineName === normalizeText("ウルトラミラクルジャグラー")) {
+    if (readMachineContentRule(config, machineName) === "beam-hikari-ultra-miracle-content") {
+      return games >= 3000 && combinedDenominator <= 150 && rbDenominator <= 350;
+    }
+  }
   if (isOkidokiDuoEncoreMachineName(machineName)) {
     return games >= 2400 && calculateOkidokiDuoHighContentScore(row) >= 65;
   }
@@ -1755,6 +1761,11 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     }
     const rbCount = readWindowField(row, "rbCount");
     return games >= 3500 && rbCount >= 15 && rbDenominator <= 323 && combinedDenominator <= 140;
+  }
+  if (normalizedMachineName === normalizeText("ウルトラミラクルジャグラー")) {
+    if (readMachineContentRule(config, machineName) === "beam-hikari-ultra-miracle-content") {
+      return games >= 3000 && combinedDenominator <= 134 && rbDenominator <= 300;
+    }
   }
   if (
     normalizedMachineName === normalizeText("ハッピージャグラーＶＩＩＩ") ||

@@ -1781,11 +1781,82 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logicKey: "apark-yakatabaru-ultra-miracle",
     logicName: "ウルトラ屋形原式",
     logics: [
+      buildLogicVariant("beam-hikari-ultra-normal", "ウルトラビームヒカリ通常日式", "beam-hikari-normal-main"),
+      buildLogicVariant("beam-hikari-ultra-event", "ウルトラビームヒカリイベント日式", "beam-hikari-event-main"),
       buildLogicVariant("apark-yakatabaru-ultra-miracle", "ウルトラ屋形原式", "apark-yakatabaru-main"),
     ],
     profile: "juggler",
     defaultConditionSuffix: "apark-yakatabaru-main",
     conditions: [
+      buildCondition(
+        "beam-hikari-normal-main",
+        "1位＋70点以上＋強化2＋危険1以下",
+        "14件 / 106.5% / RB1/338.4",
+        {
+          rankMax: 1,
+          minScore: 70,
+          minBoost: 2,
+          maxDanger: 1,
+          requiredFlags: ["beamHikariUltraNormalHistoryReady"],
+        },
+        ["beam-hikari-ultra-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-boost2",
+        "1位＋強化2以上",
+        "40件 / 105.0% / RB1/369.1",
+        {
+          rankMax: 1,
+          minBoost: 2,
+          requiredFlags: ["beamHikariUltraNormalHistoryReady"],
+        },
+        ["beam-hikari-ultra-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-rank1-score70",
+        "1位＋70点以上",
+        "16件 / 105.8% / RB1/342.1",
+        {
+          rankMax: 1,
+          minScore: 70,
+          requiredFlags: ["beamHikariUltraNormalHistoryReady"],
+        },
+        ["beam-hikari-ultra-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-event-main",
+        "1位＋70点以上＋強化2＋危険1以下",
+        "40件 / 105.0% / RB1/354.3",
+        {
+          rankMax: 1,
+          minScore: 70,
+          minBoost: 2,
+          maxDanger: 1,
+          requiredFlags: ["beamHikariUltraEventHistoryReady"],
+        },
+        ["beam-hikari-ultra-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-score70",
+        "70点以上",
+        "50件 / 105.1% / RB1/353.3",
+        {
+          minScore: 70,
+          requiredFlags: ["beamHikariUltraEventHistoryReady"],
+        },
+        ["beam-hikari-ultra-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-rank1-score70",
+        "1位＋70点以上",
+        "41件 / 105.0% / RB1/357.5",
+        {
+          rankMax: 1,
+          minScore: 70,
+          requiredFlags: ["beamHikariUltraEventHistoryReady"],
+        },
+        ["beam-hikari-ultra-event"],
+      ),
       buildCondition(
         "apark-yakatabaru-main",
         "70点以上＋角度強化",
@@ -2334,6 +2405,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-girls-normal");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "happy") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-happy-normal");
+  } else if (isBeamHikariStore(storeName) && definition.machineKey === "ultra-miracle") {
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-ultra-normal");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-neo-aim");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "my") {
@@ -4898,6 +4971,87 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
     };
   }
 
+  if (machineKey === "ultra-miracle" && (activeLogicKey === "beam-hikari-ultra-normal" || activeLogicKey === "beam-hikari-ultra-event")) {
+    const beamHikariUltraHistoryReady = historyRowCount >= 21;
+    const beamHikariUltraMediumSink =
+      (recentSevenNetTotal <= -1000 && recentSevenNetTotal > -2900) ||
+      (recentFiveNetTotal <= -1300 && recentFiveNetTotal > -2300);
+    const beamHikariUltraWeakComposite =
+      features.recentThreeCombinedDenominator > 205 ||
+      features.recentFiveCombinedDenominator > 185 ||
+      features.recentFiveAngle <= -226.9;
+    const beamHikariUltraPreviousRegStrong = features.previousRbDenominator <= 280;
+    const beamHikariUltraPreviousUnfinished =
+      previousMachineHighContent && previousDifference < 1000;
+    const beamHikariUltraRecentUseStrong =
+      recentFourteenMachineHighContentCount >= 4 || recentTwentyOneMachineHighContentCount >= 5;
+    const beamHikariUltraGamesTrust =
+      recentTwentyOneGamesTotal >= 63600 || recentFourteenGamesTotal >= 43200;
+    const beamHikariUltraNearbyPreviousHigh = previousAdjacentMachineHighContentCount > 0;
+    const beamHikariUltraEventRotation =
+      (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 4 && daysSinceMachineHighContent <= 13) ||
+      recentFourteenMachineHighContentCount >= 2;
+    const beamHikariUltraEventBusinessSink = recentFiveNetTotal <= -1500;
+    const beamHikariUltraPreviousSupport =
+      beamHikariUltraPreviousUnfinished || previousDifference <= -800;
+    const beamHikariUltraTreatmentDone =
+      previousDifference >= 900 ||
+      previousMachineHighContent && previousDifference >= 1500;
+    const beamHikariUltraHighUsage =
+      previousGames >= 5500 || recentThreeGamesTotal >= 10700 || recentSevenGamesTotal >= 24300;
+    const beamHikariUltraLongNeglect =
+      recentTwentyOneMachineHighContentCount === 0 ||
+      (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 14);
+    const beamHikariUltraDeepSink = recentSevenNetTotal <= -2900 || recentFiveNetTotal <= -2300;
+    const beamHikariUltraNearbyBad = previousAdjacentMachineNetTotal <= -1000;
+    const normalBoostFlags = [
+      beamHikariUltraRecentUseStrong,
+      beamHikariUltraPreviousUnfinished || beamHikariUltraPreviousRegStrong,
+      beamHikariUltraMediumSink,
+      beamHikariUltraWeakComposite,
+      beamHikariUltraGamesTrust,
+    ];
+    const eventBoostFlags = [
+      beamHikariUltraMediumSink,
+      beamHikariUltraWeakComposite || beamHikariUltraPreviousRegStrong,
+      beamHikariUltraEventRotation,
+      beamHikariUltraEventBusinessSink,
+      beamHikariUltraNearbyPreviousHigh,
+    ];
+    const dangerFlags = [
+      beamHikariUltraTreatmentDone,
+      beamHikariUltraHighUsage,
+      beamHikariUltraLongNeglect,
+      beamHikariUltraDeepSink || beamHikariUltraNearbyBad,
+    ];
+    const isEventLogic = activeLogicKey === "beam-hikari-ultra-event";
+
+    return {
+      ...features,
+      beamHikariUltraNormalHistoryReady: beamHikariUltraHistoryReady,
+      beamHikariUltraEventHistoryReady: beamHikariUltraHistoryReady,
+      beamHikariUltraMediumSink,
+      beamHikariUltraWeakComposite,
+      beamHikariUltraPreviousRegStrong,
+      beamHikariUltraPreviousUnfinished,
+      beamHikariUltraRecentUseStrong,
+      beamHikariUltraGamesTrust,
+      beamHikariUltraNearbyPreviousHigh,
+      beamHikariUltraEventRotation,
+      beamHikariUltraEventBusinessSink,
+      beamHikariUltraPreviousSupport,
+      beamHikariUltraTreatmentDone,
+      beamHikariUltraHighUsage,
+      beamHikariUltraLongNeglect,
+      beamHikariUltraDeepSink,
+      beamHikariUltraNearbyBad,
+      treatmentDone: beamHikariUltraTreatmentDone,
+      lowConfidence: !beamHikariUltraGamesTrust && !beamHikariUltraWeakComposite,
+      boostCount: (isEventLogic ? eventBoostFlags : normalBoostFlags).filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
+
   if (machineKey === "ultra-miracle" && activeLogicKey === "apark-yakatabaru-ultra-miracle") {
     const yakatabaruUltraHistoryReady = historyRowCount >= 21;
     const yakatabaruUltraAngleBoost =
@@ -5085,6 +5239,114 @@ function calculateMachineScore(definition, metrics, features) {
   const previousCombinedDenominator = features.previousCombinedDenominator;
   const previousRbDenominator = features.previousRbDenominator;
   const recentTwoCombinedDenominator = rateDenominator(recentTwoGamesTotal, recentTwoBonusTotal);
+
+  if (machineKey === "ultra-miracle" && (activeLogicKey === "beam-hikari-ultra-normal" || activeLogicKey === "beam-hikari-ultra-event")) {
+    if (historyRowCount < 21) {
+      return 0;
+    }
+
+    if (activeLogicKey === "beam-hikari-ultra-event") {
+      let intervalScore = 0;
+      if (Number.isFinite(daysSinceMachineHighContent)) {
+        intervalScore +=
+          daysSinceMachineHighContent >= 8 && daysSinceMachineHighContent <= 13
+            ? 12
+            : daysSinceMachineHighContent >= 4 && daysSinceMachineHighContent <= 7
+              ? 6
+              : daysSinceMachineHighContent >= 1 && daysSinceMachineHighContent <= 3
+                ? 4
+                : 0;
+      }
+      intervalScore += scoreAtLeast(recentFourteenMachineHighContentCount, [
+        { minimum: 4, points: 8 },
+        { minimum: 3, points: 5 },
+        { minimum: 2, points: 3 },
+      ]);
+      intervalScore = Math.min(intervalScore, 24);
+
+      let sinkScore = 0;
+      sinkScore += recentSevenNetTotal <= -1000 && recentSevenNetTotal > -2900 ? 14 : 0;
+      sinkScore += recentFiveNetTotal <= -1300 && recentFiveNetTotal > -2300 ? 10 : 0;
+      sinkScore += recentFiveNetTotal <= -1500 ? 8 : 0;
+      sinkScore += features.recentFiveCombinedDenominator > 185 ? 8 : 0;
+      sinkScore += features.recentThreeCombinedDenominator > 205 ? 6 : 0;
+      sinkScore += features.recentFiveAngle <= -226.9 ? 4 : 0;
+      sinkScore = Math.min(sinkScore, 28);
+
+      let contextScore = 0;
+      contextScore += previousAdjacentMachineHighContentCount > 0 ? 8 : 0;
+      contextScore += recentTwentyOneGamesTotal >= 63600 ? 5 : 0;
+      contextScore += recentFourteenGamesTotal >= 43200 ? 3 : 0;
+      contextScore += previousRbDenominator <= 280 ? 5 : 0;
+      contextScore = Math.min(contextScore, 15);
+
+      let previousScore = 0;
+      previousScore += previousMachineHighContent && previousDifference < 1000 ? 5 : 0;
+      previousScore += previousDifference <= -800 ? 4 : 0;
+      previousScore = Math.min(previousScore, 10);
+
+      let penalty = 0;
+      penalty += previousDifference >= 900 ? 16 : 0;
+      penalty += previousDifference >= 1500 ? 8 : 0;
+      penalty += previousMachineHighContent && previousDifference >= 1500 ? 12 : 0;
+      penalty += previousGames >= 5500 ? 6 : 0;
+      penalty += recentThreeGamesTotal >= 10700 ? 8 : 0;
+      penalty += recentSevenGamesTotal >= 24300 ? 16 : 0;
+      penalty += recentTwentyOneMachineHighContentCount === 0 ? 18 : 0;
+      penalty += Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 14 ? 12 : 0;
+      penalty += Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 21 ? 8 : 0;
+      penalty += recentSevenNetTotal <= -2900 ? 12 : 0;
+      penalty += previousAdjacentMachineNetTotal <= -1000 ? 5 : 0;
+
+      return Math.round(clamp(45 + intervalScore + sinkScore + contextScore + previousScore - Math.min(penalty, 60), 0, 100));
+    }
+
+    let recentUseScore = 0;
+    recentUseScore += scoreAtLeast(recentFourteenMachineHighContentCount, [
+      { minimum: 4, points: 20 },
+      { minimum: 3, points: 12 },
+      { minimum: 2, points: 7 },
+      { minimum: 1, points: 3 },
+    ]);
+    recentUseScore += recentTwentyOneMachineHighContentCount >= 5 ? 5 : 0;
+    recentUseScore = Math.min(recentUseScore, 28);
+
+    let previousContentScore = 0;
+    previousContentScore += previousMachineHighContent && previousDifference < 1000 ? 18 : 0;
+    previousContentScore += previousMachineHighContent && previousDifference >= 1000 && previousDifference < 1500 ? 8 : 0;
+    previousContentScore += previousRbDenominator <= 280 ? 8 : 0;
+    previousContentScore = Math.min(previousContentScore, 24);
+
+    let sinkScore = 0;
+    sinkScore += recentFiveNetTotal <= -1300 && recentFiveNetTotal > -2300 ? 9 : 0;
+    sinkScore += recentSevenNetTotal <= -1000 && recentSevenNetTotal > -2900 ? 7 : 0;
+    sinkScore += features.recentThreeCombinedDenominator > 205 ? 8 : 0;
+    sinkScore += features.recentFiveCombinedDenominator > 185 ? 4 : 0;
+    sinkScore += recentThreeNetTotal <= -600 ? 4 : 0;
+    sinkScore = Math.min(sinkScore, 22);
+
+    let contextScore = 0;
+    contextScore += recentTwentyOneGamesTotal >= 63600 ? 7 : 0;
+    contextScore += recentFourteenGamesTotal >= 43200 ? 3 : 0;
+    contextScore += previousAdjacentMachineHighContentCount > 0 ? 3 : 0;
+    contextScore = Math.min(contextScore, 12);
+
+    let penalty = 0;
+    penalty += previousDifference >= 900 ? 12 : 0;
+    penalty += previousDifference >= 1500 ? 10 : 0;
+    penalty += previousMachineHighContent && previousDifference >= 1500 ? 8 : 0;
+    penalty += previousGames >= 5500 ? 8 : 0;
+    penalty += recentThreeGamesTotal >= 10700 ? 10 : 0;
+    penalty += recentSevenGamesTotal >= 24300 ? 8 : 0;
+    penalty += recentTwentyOneMachineHighContentCount === 0 ? 16 : 0;
+    penalty += Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 14 ? 12 : 0;
+    penalty += Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 21 ? 8 : 0;
+    penalty += recentSevenNetTotal <= -2900 ? 12 : 0;
+    penalty += recentFiveNetTotal <= -2300 ? 5 : 0;
+    penalty += previousAdjacentMachineNetTotal <= -1000 ? 6 : 0;
+
+    return Math.round(clamp(45 + recentUseScore + previousContentScore + sinkScore + contextScore - Math.min(penalty, 60), 0, 100));
+  }
 
   if (machineKey === "aim") {
     if (activeLogicKey === "mj-kurume-aim") {
@@ -9054,6 +9316,10 @@ function buildBeamHikariDateSetting(definition, dateText) {
               ? isEventDate
                 ? "beam-hikari-happy-event"
                 : "beam-hikari-happy-normal"
+              : definition?.machineKey === "ultra-miracle"
+                ? isEventDate
+                  ? "beam-hikari-ultra-event"
+                  : "beam-hikari-ultra-normal"
         : "";
   if (!logicKey) {
     return null;
@@ -9078,7 +9344,7 @@ function resolveRankingDateSpecificSetting(definition, setting, options = {}) {
   if (
     !options?.dateSpecificRanking ||
     !isBeamHikariStore(options?.storeName) ||
-    !["neo-aim", "funky", "gogo", "my", "girls", "happy"].includes(definition?.machineKey)
+    !["neo-aim", "funky", "gogo", "my", "girls", "happy", "ultra-miracle"].includes(definition?.machineKey)
   ) {
     return setting;
   }

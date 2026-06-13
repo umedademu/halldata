@@ -1863,6 +1863,31 @@ function readStaticStoreRecentMachineNames(staticStore) {
     .map((machine) => machine.machineName);
 }
 
+function readStaticStoreMachineNamesForBacktest(staticStore, options = {}) {
+  const recentMachineNames = readStaticStoreRecentMachineNames(staticStore);
+  if (!normalizeMachineSelectionTouched(options?.machineTouched)) {
+    return recentMachineNames;
+  }
+
+  const allMachineNames = readStaticStoreMachineNames(staticStore);
+  const allMachineNameSet = new Set(allMachineNames);
+  const machineNameByCanonicalName = new Map(
+    allMachineNames.map((machineName) => [canonicalMachineName(machineName), machineName]),
+  );
+  const requestedMachineNames = expandCombinedMachineNamesForOptions(
+    splitOptionValues(options?.machineNames),
+    options,
+  )
+    .map((machineName) =>
+      allMachineNameSet.has(machineName)
+        ? machineName
+        : machineNameByCanonicalName.get(canonicalMachineName(machineName)),
+    )
+    .filter(Boolean);
+
+  return [...new Set([...recentMachineNames, ...requestedMachineNames])];
+}
+
 function setMachineSlotCount(machineSlotCounts, machineName, rawSlotCount) {
   const normalizedMachineName = String(machineName ?? "").trim();
   const slotCount = Number(rawSlotCount ?? 0);
@@ -3371,7 +3396,7 @@ async function getHuntScoreSnapshotsForStore(
     const huntScoreLogics = getHuntScoreLogicDetails(requestedBacktestLogicKeys, staticIdentity.storeName);
     const normalizedDifferenceMode = normalizeDifferenceMode(differenceMode);
     const normalizedSettingEstimateMode = normalizeSettingEstimateMode(settingEstimateMode);
-    const storeMachineNames = readStaticStoreRecentMachineNames(staticStore);
+    const storeMachineNames = readStaticStoreMachineNamesForBacktest(staticStore, machineOptions);
     const availableMachineNames = listHuntScoreTargetMachineNamesForStoreMachines(
       staticIdentity.storeName,
       storeMachineNames,
