@@ -819,6 +819,9 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "ファンキージャグラー２ＫＴ": "beam-hikari-funky-content",
       "ファンキージャグラー２": "beam-hikari-funky-content",
       "ファンキージャグラー2": "beam-hikari-funky-content",
+      "マイジャグラーV": "beam-hikari-my-content",
+      "マイジャグラーⅤ": "beam-hikari-my-content",
+      "マイジャグラー": "beam-hikari-my-content",
     },
   },
   {
@@ -1554,6 +1557,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     }
     if (contentRule === "mj-arena-kurume-my") {
       return games >= 3000 && calculateKurumeMyHighContentScore(row) >= 60;
+    }
+    if (contentRule === "beam-hikari-my-content") {
+      return games >= 5000 && combinedDenominator <= 135 && rbDenominator <= 300;
     }
     return games >= 6000 && rbDenominator <= 270 && combinedDenominator <= 135;
   }
