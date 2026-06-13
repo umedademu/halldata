@@ -75,51 +75,62 @@ const RESULT_COLUMN_DEFINITIONS = [
     label: "差枚",
     render: (row, differenceMode) =>
       formatSignedNumber(selectDifferenceValue(row.nextRecord, differenceMode, row.machineName)),
+    sortValue: (row, differenceMode) =>
+      selectDifferenceValue(row.nextRecord, differenceMode, row.machineName),
   },
   {
     key: "games_count",
     label: "G数",
     render: (row) => formatAverageGames(row.nextRecord?.games_count),
+    sortValue: (row) => row.nextRecord?.games_count,
   },
   {
     key: "bb_count",
     label: "BB",
     render: (row) => formatAverageGames(row.nextRecord?.bb_count),
+    sortValue: (row) => row.nextRecord?.bb_count,
   },
   {
     key: "rb_count",
     label: "RB",
     render: (row) => formatAverageGames(row.nextRecord?.rb_count),
+    sortValue: (row) => row.nextRecord?.rb_count,
   },
   {
     key: "combined_ratio_text",
     label: "合成",
     render: (row) => formatRatio(row.nextRecord?.combined_ratio_text),
+    sortValue: (row) => row.nextRecord?.combined_ratio_text,
   },
   {
     key: ESTIMATED_GRAPE_RESULT_KEY,
     label: "ブドウ",
     render: (row) => formatEstimatedGrapeDenominator(row.nextRecord?.estimated_grape_denominator),
+    sortValue: (row) => row.nextRecord?.estimated_grape_denominator,
   },
   {
     key: "setting_estimate",
     label: "設定",
     render: (row) => formatSettingEstimateScore(row.nextSettingEstimate?.average),
+    sortValue: (row) => row.nextSettingEstimate?.average,
   },
   {
     key: "payout_rate",
     label: "出率",
     render: (row) => formatPercent(row.nextRecord?.payout_rate),
+    sortValue: (row) => row.nextRecord?.payout_rate,
   },
   {
     key: "bb_ratio_text",
     label: "BB率",
     render: (row) => formatRatio(row.nextRecord?.bb_ratio_text),
+    sortValue: (row) => row.nextRecord?.bb_ratio_text,
   },
   {
     key: "rb_ratio_text",
     label: "RB率",
     render: (row) => formatRatio(row.nextRecord?.rb_ratio_text),
+    sortValue: (row) => row.nextRecord?.rb_ratio_text,
   },
 ];
 
@@ -131,6 +142,10 @@ function buildResultColumns(differenceMode, showGrapeColumn) {
   return columnDefinitions.map((column) => ({
     ...column,
     render: (row) => column.render(row, differenceMode),
+    sortValue: (row) =>
+      typeof column.sortValue === "function"
+        ? column.sortValue(row, differenceMode)
+        : column.render(row, differenceMode),
   }));
 }
 
@@ -604,15 +619,39 @@ function readSortableTableNumber(value) {
     return null;
   }
 
-  const parsedValue = Number(text.replace(/,/g, "").replace(/%$/u, ""));
+  const normalizedText = text.replace(/,/g, "").replace(/%$/u, "");
+  const ratioMatch = normalizedText.match(/^1\s*\/\s*([+-]?\d+(?:\.\d+)?)$/u);
+  if (ratioMatch) {
+    const ratioValue = Number(ratioMatch[1]);
+    return Number.isFinite(ratioValue) ? ratioValue : null;
+  }
+
+  const parsedValue = Number(normalizedText);
   return Number.isFinite(parsedValue) ? parsedValue : null;
+}
+
+function readSortableResultColumnValue(row, column) {
+  const type = column.type ?? "number";
+  const rawValue = typeof column.sortValue === "function"
+    ? column.sortValue(row)
+    : column.render(row);
+
+  return {
+    missing: false,
+    value: type === "text" ? String(rawValue ?? "") : readSortableTableNumber(rawValue),
+    type,
+  };
 }
 
 function readSortableTableValue(
   row,
   columnIndex,
   nextGapScope,
-  hasMachineEvaluationColumn = false,
+  {
+    hasMachineEvaluationColumn = false,
+    visibleColumns = [],
+    includeMachineColumn = true,
+  } = {},
 ) {
   if (columnIndex === 0) {
     return { missing: false, value: readSortableTableNumber(row.rank), type: "number" };
@@ -620,19 +659,20 @@ function readSortableTableValue(
   if (columnIndex === 1) {
     return { missing: false, value: readSortableTableNumber(row.huntScore), type: "number" };
   }
-  const machineEvaluationColumnIndex = 2;
-  const nextGapColumnIndex = 2 + (hasMachineEvaluationColumn ? 1 : 0);
-  const machineColumnIndex = nextGapColumnIndex + 1;
-  const slotColumnIndex = machineColumnIndex + 1;
+  let nextColumnIndex = 2;
 
-  if (hasMachineEvaluationColumn && columnIndex === machineEvaluationColumnIndex) {
+  if (hasMachineEvaluationColumn && columnIndex === nextColumnIndex) {
     return {
       missing: false,
       value: readSortableTableNumber(row.machineEvaluation?.score),
       type: "number",
     };
   }
-  if (columnIndex === nextGapColumnIndex) {
+  if (hasMachineEvaluationColumn) {
+    nextColumnIndex += 1;
+  }
+
+  if (columnIndex === nextColumnIndex) {
     return {
       missing: false,
       value: readSortableTableNumber(
@@ -641,11 +681,23 @@ function readSortableTableValue(
       type: "number",
     };
   }
-  if (columnIndex === machineColumnIndex) {
+  nextColumnIndex += 1;
+
+  if (includeMachineColumn && columnIndex === nextColumnIndex) {
     return { missing: false, value: String(row.machineName ?? ""), type: "text" };
   }
-  if (columnIndex === slotColumnIndex) {
+  if (includeMachineColumn) {
+    nextColumnIndex += 1;
+  }
+
+  if (columnIndex === nextColumnIndex) {
     return { missing: false, value: String(row.slotNumber ?? ""), type: "text" };
+  }
+  nextColumnIndex += 1;
+
+  const resultColumn = visibleColumns[columnIndex - nextColumnIndex];
+  if (resultColumn) {
+    return readSortableResultColumnValue(row, resultColumn);
   }
 
   return { missing: true, value: null, type: "number" };
@@ -656,19 +708,19 @@ function compareSortableTableRows(
   rightEntry,
   sortState,
   nextGapScope,
-  hasMachineEvaluationColumn = false,
+  options = {},
 ) {
   const leftValue = readSortableTableValue(
     leftEntry.row,
     sortState.columnIndex,
     nextGapScope,
-    hasMachineEvaluationColumn,
+    options,
   );
   const rightValue = readSortableTableValue(
     rightEntry.row,
     sortState.columnIndex,
     nextGapScope,
-    hasMachineEvaluationColumn,
+    options,
   );
   const leftMissing = leftValue.missing || leftValue.value === null || leftValue.value === "";
   const rightMissing = rightValue.missing || rightValue.value === null || rightValue.value === "";
@@ -766,11 +818,15 @@ function OverallRankingTable({
           right,
           sortState,
           nextGapScope,
-          hasMachineEvaluationColumn,
+          {
+            hasMachineEvaluationColumn,
+            visibleColumns,
+            includeMachineColumn: true,
+          },
         ),
       )
       .map((entry) => entry.row);
-  }, [hasMachineEvaluationColumn, nextGapScope, rows, sortState, sortable]);
+  }, [hasMachineEvaluationColumn, nextGapScope, rows, sortState, sortable, visibleColumns]);
   const tableProps = tableId ? { id: tableId } : {};
   const handleSort = (columnIndex, type, initialDirection) => {
     if (!sortable) {
@@ -823,6 +879,7 @@ function OverallRankingTable({
   const nextGapColumnIndex = 2 + (hasMachineEvaluationColumn ? 1 : 0);
   const machineColumnIndex = nextGapColumnIndex + 1;
   const slotColumnIndex = machineColumnIndex + 1;
+  const resultColumnStartIndex = slotColumnIndex + 1;
 
   return (
     <section className="tablePanel directoryPanel">
@@ -851,8 +908,14 @@ function OverallRankingTable({
                 機種名
               </HeaderCell>
               <HeaderCell columnIndex={slotColumnIndex} type="text" initialDirection="asc">台番</HeaderCell>
-              {visibleColumns.map((column) => (
-                <th key={column.key}>{column.label}</th>
+              {visibleColumns.map((column, index) => (
+                <HeaderCell
+                  key={column.key}
+                  columnIndex={resultColumnStartIndex + index}
+                  type={column.type ?? "number"}
+                >
+                  {column.label}
+                </HeaderCell>
               ))}
             </tr>
           </thead>
@@ -944,6 +1007,203 @@ function OverallRankingTable({
                   {visibleColumns.map((column) => (
                     <td
                       key={`${row.machineName}-${row.slotNumber}-${title}-${column.key}`}
+                      className={settingEstimateCellClassName || undefined}
+                      title={rowSite7Title || undefined}
+                    >
+                      {column.render(row)}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function MachineRankingGroupTable({
+  group,
+  storeId,
+  storeName,
+  visibleColumns,
+  scoreColumnLabel,
+  dateFlowLabel,
+  nextGapScope,
+  highlightCondition,
+  bookmarkMatchByRowKey = null,
+  showMachineEvaluation = false,
+  huntScoreLogicLabel = "",
+}) {
+  const groupHasSite7Data = group.rows.some((row) => row.predictionMachineHasSite7Data);
+  const groupSite7FetchedAt = latestSite7FetchedAtFromRows(group.rows);
+  const hasMachineEvaluationColumn =
+    showMachineEvaluation && group.rows.some((row) => row?.machineEvaluation);
+  const [sortState, setSortState] = useState(() => ({
+    columnIndex: 0,
+    direction: "asc",
+    type: "number",
+  }));
+  const sortedRows = useMemo(
+    () =>
+      group.rows
+        .map((row, originalIndex) => ({ row, originalIndex }))
+        .sort((left, right) =>
+          compareSortableTableRows(
+            left,
+            right,
+            sortState,
+            nextGapScope,
+            {
+              hasMachineEvaluationColumn,
+              visibleColumns,
+              includeMachineColumn: false,
+            },
+          ),
+        )
+        .map((entry) => entry.row),
+    [group.rows, hasMachineEvaluationColumn, nextGapScope, sortState, visibleColumns],
+  );
+  const handleSort = (columnIndex, type, initialDirection) => {
+    setSortState((currentState) => {
+      const nextDirection =
+        currentState?.columnIndex === columnIndex && currentState.direction === "desc"
+          ? "asc"
+          : currentState?.columnIndex === columnIndex && currentState.direction === "asc"
+            ? "desc"
+            : initialDirection;
+
+      return {
+        columnIndex,
+        direction: nextDirection,
+        type,
+      };
+    });
+  };
+  const HeaderCell = ({
+    children,
+    columnIndex,
+    type = "number",
+    initialDirection = "desc",
+    title: headerTitle = undefined,
+  }) => {
+    const activeDirection = sortState?.columnIndex === columnIndex ? sortState.direction : null;
+
+    return (
+      <SortableTableHeader
+        columnIndex={columnIndex}
+        type={type}
+        initialDirection={initialDirection}
+        activeDirection={activeDirection}
+        onSort={() => handleSort(columnIndex, type, initialDirection)}
+        title={headerTitle}
+      >
+        {children}
+      </SortableTableHeader>
+    );
+  };
+  const machineEvaluationColumnIndex = 2;
+  const nextGapColumnIndex = 2 + (hasMachineEvaluationColumn ? 1 : 0);
+  const slotColumnIndex = nextGapColumnIndex + 1;
+  const resultColumnStartIndex = slotColumnIndex + 1;
+
+  return (
+    <section className="tablePanel directoryPanel">
+      <div className="tablePanelHeader">
+        <div>
+          <p className="sectionLabel">狙い度上位</p>
+          <h2 className="tablePanelTitle">
+            <span>
+              {group.isCombinedGroup ? (
+                <span>{group.machineName}</span>
+              ) : (
+                <Link
+                  href={`/stores/${storeId}/machines/${encodeURIComponent(group.machineName)}`}
+                  className="directoryPrimaryLink"
+                >
+                  {group.machineName}
+                </Link>
+              )}
+              {groupHasSite7Data ? (
+                <Site7RankingBadge
+                  fetchedAt={groupSite7FetchedAt}
+                  title="この機種にSセブン暫定データが含まれます"
+                />
+              ) : null}
+              {` 上位${formatNumber(group.rows.length)}台`}
+            </span>
+            <span className="tablePanelDateFlow">{dateFlowLabel}</span>
+          </h2>
+        </div>
+      </div>
+      <div className="tableScroller directoryScroller">
+        <table className="directoryTable huntCompactTable huntRankingTable">
+          <thead>
+            <tr>
+              <HeaderCell columnIndex={0} initialDirection="asc">順位</HeaderCell>
+              <HeaderCell columnIndex={1}>{scoreColumnLabel}</HeaderCell>
+              {hasMachineEvaluationColumn ? (
+                <HeaderCell columnIndex={machineEvaluationColumnIndex} title="機種別評価">
+                  機種別
+                </HeaderCell>
+              ) : null}
+              <HeaderCell columnIndex={nextGapColumnIndex}>次点差</HeaderCell>
+              <HeaderCell columnIndex={slotColumnIndex} type="text" initialDirection="asc">
+                台番
+              </HeaderCell>
+              {visibleColumns.map((column, index) => (
+                <HeaderCell
+                  key={column.key}
+                  columnIndex={resultColumnStartIndex + index}
+                  type={column.type ?? "number"}
+                >
+                  {column.label}
+                </HeaderCell>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sortedRows.map((row) => {
+              const settingEstimateCellClassName = getSettingEstimateHighlightClass(
+                row.nextSettingEstimate?.average,
+              );
+              const rowSite7Title = buildRankingRowSite7Title(row);
+
+              return (
+                <tr
+                  key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${row.rank}`}
+                  title={rowSite7Title || undefined}
+                >
+                  <td title={rowSite7Title || undefined}>{row.rank}</td>
+                  <HuntScoreCell
+                    storeId={storeId}
+                    storeName={storeName}
+                    row={row}
+                    highlightCondition={highlightCondition}
+                    bookmarkMatchByRowKey={bookmarkMatchByRowKey}
+                    extraTitle={rowSite7Title}
+                    sortable
+                    huntScoreLogicLabel={huntScoreLogicLabel}
+                  />
+                  {hasMachineEvaluationColumn ? (
+                    <MachineEvaluationCell
+                      evaluation={row.machineEvaluation}
+                      extraTitle={rowSite7Title}
+                    />
+                  ) : null}
+                  <td title={rowSite7Title || undefined}>
+                    {formatNextGapForScope(row, nextGapScope)}
+                  </td>
+                  <td
+                    className={settingEstimateCellClassName || undefined}
+                    title={rowSite7Title || undefined}
+                  >
+                    {row.slotNumber}
+                  </td>
+                  {visibleColumns.map((column) => (
+                    <td
+                      key={`${row.machineName}-${row.slotNumber}-${column.key}`}
                       className={settingEstimateCellClassName || undefined}
                       title={rowSite7Title || undefined}
                     >
@@ -1285,28 +1545,6 @@ export function HuntRankingTable({
         </div>
       </section>
 
-      {selectedOverallRows.length > 0 ? (
-        <OverallRankingTable
-          storeId={storeId}
-          storeName={storeName}
-          title={`選択機種内ランキング 上位${formatNumber(selectedOverallRows.length)}台`}
-          rows={selectedOverallRows}
-          visibleColumns={visibleColumns}
-          scoreColumnLabel={scoreColumnLabel}
-          dateFlowLabel={dateFlowLabel}
-          nextGapScope={nextGapScope}
-          highlightCondition={tableHighlightCondition}
-          bookmarkMatchByRowKey={bookmarkMatchByRowKey}
-          showMachineEvaluation={showMachineEvaluation}
-          huntScoreLogicLabel={huntScoreLogicLabel}
-        />
-      ) : (
-        <section className="statusPanel">
-          <h2>チェック中の機種がありません</h2>
-          <p>機種名にチェックを入れると、ここに選択機種内ランキングが表示されます。</p>
-        </section>
-      )}
-
       {showMachineTopCandidates ? (
         machineTopCandidateRows.length > 0 ? (
           <OverallRankingTable
@@ -1335,116 +1573,45 @@ export function HuntRankingTable({
         )
       ) : null}
 
-      {displayGroupsWithGap.map((group) => {
-        const groupHasSite7Data = group.rows.some((row) => row.predictionMachineHasSite7Data);
-        const groupSite7FetchedAt = latestSite7FetchedAtFromRows(group.rows);
-        const showGroupMachineEvaluation =
-          showMachineEvaluation && group.rows.some((row) => row?.machineEvaluation);
-
-        return (
-          <section key={group.machineName} className="tablePanel directoryPanel">
-            <div className="tablePanelHeader">
-              <div>
-                <p className="sectionLabel">狙い度上位</p>
-                <h2 className="tablePanelTitle">
-                  <span>
-                    {group.isCombinedGroup ? (
-                      <span>{group.machineName}</span>
-                    ) : (
-                      <Link
-                        href={`/stores/${storeId}/machines/${encodeURIComponent(group.machineName)}`}
-                        className="directoryPrimaryLink"
-                      >
-                        {group.machineName}
-                      </Link>
-                    )}
-                    {groupHasSite7Data ? (
-                      <Site7RankingBadge
-                        fetchedAt={groupSite7FetchedAt}
-                        title="この機種にSセブン暫定データが含まれます"
-                      />
-                    ) : null}
-                    {` 上位${formatNumber(group.rows.length)}台`}
-                  </span>
-                  <span className="tablePanelDateFlow">{dateFlowLabel}</span>
-                </h2>
-              </div>
-            </div>
-          <div className="tableScroller directoryScroller">
-            <table className="directoryTable huntCompactTable huntRankingTable">
-              <thead>
-                <tr>
-                  <th>順位</th>
-                  <th>{scoreColumnLabel}</th>
-                  {showGroupMachineEvaluation ? <th title="機種別評価">機種別</th> : null}
-                  <th>次点差</th>
-                  <th>台番</th>
-                  {visibleColumns.map((column) => (
-                    <th key={column.key}>{column.label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {group.rows.map((row) => {
-                  const settingEstimateCellClassName = getSettingEstimateHighlightClass(
-                    row.nextSettingEstimate?.average,
-                  );
-                  const rowSite7Title = buildRankingRowSite7Title(row);
-
-                  return (
-                    <tr
-                      key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${row.rank}`}
-                      title={rowSite7Title || undefined}
-                    >
-                      <td
-                        title={rowSite7Title || undefined}
-                      >
-                        {row.rank}
-                      </td>
-                      <HuntScoreCell
-                        storeId={storeId}
-                        storeName={storeName}
-                        row={row}
-                        highlightCondition={tableHighlightCondition}
-                        bookmarkMatchByRowKey={bookmarkMatchByRowKey}
-                        extraTitle={rowSite7Title}
-                        huntScoreLogicLabel={huntScoreLogicLabel}
-                      />
-                      {showGroupMachineEvaluation ? (
-                        <MachineEvaluationCell
-                          evaluation={row.machineEvaluation}
-                          extraTitle={rowSite7Title}
-                        />
-                      ) : null}
-                      <td
-                        title={rowSite7Title || undefined}
-                      >
-                        {formatNextGapForScope(row, nextGapScope)}
-                      </td>
-                      <td
-                        className={settingEstimateCellClassName || undefined}
-                        title={rowSite7Title || undefined}
-                      >
-                        {row.slotNumber}
-                      </td>
-                      {visibleColumns.map((column) => (
-                        <td
-                          key={`${row.machineName}-${row.slotNumber}-${column.key}`}
-                          className={settingEstimateCellClassName || undefined}
-                          title={rowSite7Title || undefined}
-                        >
-                          {column.render(row)}
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+      {selectedOverallRows.length > 0 ? (
+        <OverallRankingTable
+          storeId={storeId}
+          storeName={storeName}
+          title={`選択機種内ランキング 上位${formatNumber(selectedOverallRows.length)}台`}
+          rows={selectedOverallRows}
+          visibleColumns={visibleColumns}
+          scoreColumnLabel={scoreColumnLabel}
+          dateFlowLabel={dateFlowLabel}
+          nextGapScope={nextGapScope}
+          highlightCondition={tableHighlightCondition}
+          bookmarkMatchByRowKey={bookmarkMatchByRowKey}
+          sortable
+          showMachineEvaluation={showMachineEvaluation}
+          huntScoreLogicLabel={huntScoreLogicLabel}
+        />
+      ) : (
+        <section className="statusPanel">
+          <h2>チェック中の機種がありません</h2>
+          <p>機種名にチェックを入れると、ここに選択機種内ランキングが表示されます。</p>
         </section>
-        );
-      })}
+      )}
+
+      {displayGroupsWithGap.map((group) => (
+        <MachineRankingGroupTable
+          key={group.machineName}
+          group={group}
+          storeId={storeId}
+          storeName={storeName}
+          visibleColumns={visibleColumns}
+          scoreColumnLabel={scoreColumnLabel}
+          dateFlowLabel={dateFlowLabel}
+          nextGapScope={nextGapScope}
+          highlightCondition={tableHighlightCondition}
+          bookmarkMatchByRowKey={bookmarkMatchByRowKey}
+          showMachineEvaluation={showMachineEvaluation}
+          huntScoreLogicLabel={huntScoreLogicLabel}
+        />
+      ))}
     </>
   );
 }
