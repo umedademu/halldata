@@ -794,9 +794,81 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["mj-kurume-neo-aim"],
       ),
       buildCondition(
+        "beam-hikari-normal-rank1",
+        "通常日：1位のみ",
+        "147件 / 103.8% / RB1/279.3",
+        {
+          rankMax: 1,
+          requiredFlags: ["beamHikariNeoNormalHistoryReady"],
+        },
+        ["beam-hikari-neo-aim-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-top2",
+        "通常日：上位2台",
+        "294件 / 103.6% / RB1/285.7",
+        {
+          rankMax: 2,
+          requiredFlags: ["beamHikariNeoNormalHistoryReady"],
+        },
+        ["beam-hikari-neo-aim-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-top3",
+        "通常日：上位3台",
+        "441件 / 103.3% / RB1/287.5",
+        {
+          rankMax: 3,
+          requiredFlags: ["beamHikariNeoNormalHistoryReady"],
+        },
+        ["beam-hikari-neo-aim-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-score80",
+        "通常日：80点以上",
+        "534件 / 102.7% / RB1/293.3",
+        {
+          minScore: 80,
+          requiredFlags: ["beamHikariNeoNormalHistoryReady"],
+        },
+        ["beam-hikari-neo-aim-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-score90",
+        "通常日：90点以上",
+        "300件 / 103.9% / RB1/286.2",
+        {
+          minScore: 90,
+          requiredFlags: ["beamHikariNeoNormalHistoryReady"],
+        },
+        ["beam-hikari-neo-aim-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-rank1-score80",
+        "通常日：1位＋80点以上",
+        "139件 / 103.9% / RB1/277.7",
+        {
+          rankMax: 1,
+          minScore: 80,
+          requiredFlags: ["beamHikariNeoNormalHistoryReady"],
+        },
+        ["beam-hikari-neo-aim-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-rank1-score90",
+        "通常日：1位＋90点以上",
+        "122件 / 103.9% / RB1/282.4",
+        {
+          rankMax: 1,
+          minScore: 90,
+          requiredFlags: ["beamHikariNeoNormalHistoryReady"],
+        },
+        ["beam-hikari-neo-aim-normal"],
+      ),
+      buildCondition(
         "beam-hikari-normal-main",
         "通常日：1位＋80点以上＋次点差3点以上＋強化2個以上",
-        "91件 / 105.43% / RB1/275.4",
+        "91件 / 105.5% / RB1/271.2",
         {
           rankMax: 1,
           minScore: 80,
@@ -807,11 +879,109 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["beam-hikari-neo-aim-normal"],
       ),
       buildCondition(
+        "beam-hikari-normal-gap5",
+        "通常日：1位＋80点以上＋次点差5点以上",
+        "73件 / 105.3% / RB1/274.3",
+        {
+          rankMax: 1,
+          minScore: 80,
+          minNextGap: 5,
+          requiredFlags: ["beamHikariNeoNormalHistoryReady"],
+        },
+        ["beam-hikari-neo-aim-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-boost2",
+        "通常日：1位＋強化2個以上",
+        "143件 / 103.9% / RB1/279.3",
+        {
+          rankMax: 1,
+          minBoost: 2,
+          requiredFlags: ["beamHikariNeoNormalHistoryReady"],
+        },
+        ["beam-hikari-neo-aim-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-safe",
+        "通常日：1位＋危険なし",
+        "139件 / 103.9% / RB1/276.8",
+        {
+          rankMax: 1,
+          maxDanger: 0,
+          requiredFlags: ["beamHikariNeoNormalHistoryReady"],
+        },
+        ["beam-hikari-neo-aim-normal"],
+      ),
+      buildCondition(
         "beam-hikari-event-main",
         "イベント日：1位のみ",
         "38件 / 105.0% / RB1/283.2",
         {
           rankMax: 1,
+          requiredFlags: ["beamHikariNeoEventHistoryReady"],
+        },
+        ["beam-hikari-neo-aim-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-top2",
+        "イベント日：上位2台",
+        "76件 / 103.5% / RB1/288.8",
+        {
+          rankMax: 2,
+          requiredFlags: ["beamHikariNeoEventHistoryReady"],
+        },
+        ["beam-hikari-neo-aim-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-top3",
+        "イベント日：上位3台",
+        "114件 / 103.3% / RB1/282.3",
+        {
+          rankMax: 3,
+          requiredFlags: ["beamHikariNeoEventHistoryReady"],
+        },
+        ["beam-hikari-neo-aim-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-score70",
+        "イベント日：70点以上",
+        "158件 / 102.7% / RB1/293.3",
+        {
+          minScore: 70,
+          requiredFlags: ["beamHikariNeoEventHistoryReady"],
+        },
+        ["beam-hikari-neo-aim-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-rank1-score70",
+        "イベント日：1位＋70点以上",
+        "37件 / 105.1% / RB1/282.1",
+        {
+          rankMax: 1,
+          minScore: 70,
+          requiredFlags: ["beamHikariNeoEventHistoryReady"],
+        },
+        ["beam-hikari-neo-aim-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-rank1-score70-gap1",
+        "イベント日：1位＋70点以上＋次点差1点以上",
+        "31件 / 103.4% / RB1/292.3",
+        {
+          rankMax: 1,
+          minScore: 70,
+          minNextGap: 1,
+          requiredFlags: ["beamHikariNeoEventHistoryReady"],
+        },
+        ["beam-hikari-neo-aim-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-boost2",
+        "イベント日：1位＋強化2個以上",
+        "37件 / 105.1% / RB1/282.1",
+        {
+          rankMax: 1,
+          minBoost: 2,
           requiredFlags: ["beamHikariNeoEventHistoryReady"],
         },
         ["beam-hikari-neo-aim-event"],
