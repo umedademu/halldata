@@ -814,8 +814,8 @@ const HUNT_SCORE_STORE_CONFIGS = [
     targetMachines: BEAM_HIKARI_TARGET_MACHINES,
     defaultLogicKey: "beam-hikari-a",
     machineHighContentRules: {
-      "ネオアイムジャグラーEX": "beam-hikari-neo-aim",
-      "ネオアイムジャグラーＥＸ": "beam-hikari-neo-aim",
+      "ネオアイムジャグラーEX": "beam-hikari-neo-aim-content",
+      "ネオアイムジャグラーＥＸ": "beam-hikari-neo-aim-content",
     },
   },
   {
@@ -1500,7 +1500,7 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
           (games >= 7000 && rbDenominator <= 300 && combinedDenominator <= 125))
       );
     }
-    if (contentRule === "beam-hikari-neo-aim") {
+    if (contentRule === "beam-hikari-neo-aim-content") {
       return games >= 3000 && combinedDenominator <= 150 && rbDenominator <= 300;
     }
     if (contentRule === "apark-yakatabaru-neo-aim") {
@@ -1673,7 +1673,7 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     if (contentRule === "amuse-asakusa-neo-aim") {
       return isMachineHighContentWindowRow(row, machineName, config);
     }
-    if (contentRule === "beam-hikari-neo-aim") {
+    if (contentRule === "beam-hikari-neo-aim-content") {
       return games >= 3000 && combinedDenominator <= 150 && rbDenominator <= 300;
     }
     if (contentRule === "apark-yakatabaru-neo-aim") {
@@ -1770,7 +1770,7 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
-    readMachineContentRule(config, machineName) === "beam-hikari-neo-aim"
+    readMachineContentRule(config, machineName) === "beam-hikari-neo-aim-content"
   ) {
     return games >= 5000 && combinedDenominator <= 135 && rbDenominator <= 285;
   }

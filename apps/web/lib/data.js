@@ -3472,6 +3472,10 @@ async function getHuntScoreSnapshotsForStore(
     const snapshots = decorateSnapshotsWithMachineEvaluation(
       baseSnapshots,
       machineEvaluationSettings,
+      {
+        storeName: staticIdentity.storeName,
+        dateSpecificRanking: targetDateOnly,
+      },
     );
     const subHuntScoreLogic = resolveOptionalHuntScoreLogic(
       machineOptions?.subHuntScoreLogicKey,

@@ -147,6 +147,25 @@ function isBeamHikariStore(storeName) {
   );
 }
 
+function readDateDayNumber(dateText) {
+  const normalized = normalizeText(dateText);
+  const match = normalized.match(/^\d{4}-\d{2}-(\d{2})$/u) ?? normalized.match(/^\d{2}\/\d{2}\/(\d{2})$/u);
+  if (!match) {
+    return null;
+  }
+  const dayNumber = Number(match[1]);
+  return Number.isFinite(dayNumber) ? dayNumber : null;
+}
+
+function isBeamHikariEventDate(dateText) {
+  const dayNumber = readDateDayNumber(dateText);
+  if (!Number.isFinite(dayNumber)) {
+    return false;
+  }
+  const dayTail = dayNumber % 10;
+  return dayTail === 3 || dayTail === 6;
+}
+
 function isAmuseAsakusaStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["アミューズ浅草店", "アミューズ浅草", "AMUSE浅草店", "AMUSE浅草", "ＡＭＵＳＥ浅草店", "ＡＭＵＳＥ浅草"].some(
@@ -240,7 +259,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "70点以上",
         "62件 / 104.80% / RB1/280.0",
         {
-          minScore: 70,
+          minScore: 81,
           requiredFlags: ["kurumeAimHistoryReady"],
         },
         ["mj-kurume-aim"],
@@ -302,7 +321,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "61件 / 104.01% / RB1/277.2",
         {
           minScore: 90,
-          maxDanger: 1,
+          maxDanger: 0,
           requiredFlags: ["kurumeGogoHistoryReady", "kurumeGogoComposite"],
         },
         ["mj-kurume-gogo"],
@@ -676,7 +695,8 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildLogicVariant("apark-neo-aim", "ネオアイム春日式", "main"),
       buildLogicVariant("apark-yakatabaru-neo-aim", "ネオアイム屋形原式", "apark-yakatabaru-main"),
       buildLogicVariant("mj-kurume-neo-aim", "ネオアイムMJ久留米式", "mj-kurume-main"),
-      buildLogicVariant("beam-hikari-neo-aim", "ネオアイムビームヒカリ式", "beam-hikari-main"),
+      buildLogicVariant("beam-hikari-neo-aim-normal", "ネオアイムビームヒカリ通常日式", "beam-hikari-normal-main"),
+      buildLogicVariant("beam-hikari-neo-aim-event", "ネオアイムビームヒカリイベント日式", "beam-hikari-event-main"),
       buildLogicVariant("amuse-asakusa-neo-aim", "ネオアイムアミューズ浅草式", "amuse-asakusa-main"),
     ],
     profile: "juggler",
@@ -774,61 +794,27 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["mj-kurume-neo-aim"],
       ),
       buildCondition(
-        "beam-hikari-rank1",
-        "1位のみ",
-        "186件 / 103.4% / RB1/285.6",
-        {
-          rankMax: 1,
-          requiredFlags: ["beamHikariNeoHistoryReady"],
-        },
-        ["beam-hikari-neo-aim"],
-      ),
-      buildCondition(
-        "beam-hikari-score80",
-        "1位＋80点以上",
-        "177件 / 103.6% / RB1/286.7",
+        "beam-hikari-normal-main",
+        "通常日：1位＋80点以上＋次点差3点以上＋強化2個以上",
+        "91件 / 105.43% / RB1/275.4",
         {
           rankMax: 1,
           minScore: 80,
-          requiredFlags: ["beamHikariNeoHistoryReady"],
+          minNextGap: 3,
+          minBoost: 2,
+          requiredFlags: ["beamHikariNeoNormalHistoryReady"],
         },
-        ["beam-hikari-neo-aim"],
+        ["beam-hikari-neo-aim-normal"],
       ),
       buildCondition(
-        "beam-hikari-main",
-        "1位＋80点以上＋次点差5点以上",
-        "93件 / 104.6% / RB1/276.1",
+        "beam-hikari-event-main",
+        "イベント日：1位のみ",
+        "38件 / 105.0% / RB1/283.2",
         {
           rankMax: 1,
-          minScore: 80,
-          minNextGap: 5,
-          requiredFlags: ["beamHikariNeoHistoryReady"],
+          requiredFlags: ["beamHikariNeoEventHistoryReady"],
         },
-        ["beam-hikari-neo-aim"],
-      ),
-      buildCondition(
-        "beam-hikari-boost2",
-        "1位＋強化2個以上",
-        "177件 / 103.5% / RB1/283.6",
-        {
-          rankMax: 1,
-          minBoost: 2,
-          requiredFlags: ["beamHikariNeoHistoryReady"],
-        },
-        ["beam-hikari-neo-aim"],
-      ),
-      buildCondition(
-        "beam-hikari-wide",
-        "上位3＋60点以上＋強化2個以上＋危険1以下",
-        "478件 / 103.3% / RB1/285.3",
-        {
-          rankMax: 3,
-          minScore: 60,
-          minBoost: 2,
-          maxDanger: 1,
-          requiredFlags: ["beamHikariNeoHistoryReady"],
-        },
-        ["beam-hikari-neo-aim"],
+        ["beam-hikari-neo-aim-event"],
       ),
       buildCondition(
         "amuse-asakusa-rank1",
@@ -1571,7 +1557,7 @@ function getDefaultSetting(definition, storeName) {
   } else if (isAmuseAsakusaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "amuse-asakusa-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
-    defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim");
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim-normal");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-neo-aim");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "my") {
@@ -1752,11 +1738,13 @@ export function buildStoreMachineEvaluationSettings(storeName, machineNames = []
           conditionKey: rawOverride[1],
         }
       : null;
-    const currentSetting = normalizeSettingForDefinition(
-      definition,
-      overrideSetting ?? defaultSetting,
-    );
     const defaultNormalizedSetting = normalizeSettingForDefinition(definition, defaultSetting);
+    const overrideNormalizedSetting = overrideSetting
+      ? normalizeSettingForDefinition(definition, overrideSetting)
+      : null;
+    const currentSetting = overrideNormalizedSetting?.logicKey
+      ? overrideNormalizedSetting
+      : defaultNormalizedSetting;
     const condition = findConditionDefinition(definition, currentSetting.conditionKey, currentSetting.logicKey);
 
     return {
@@ -2302,70 +2290,119 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       };
     }
 
-    if (activeLogicKey === "beam-hikari-neo-aim") {
+    if (activeLogicKey === "beam-hikari-neo-aim-event" || activeLogicKey === "beam-hikari-neo-aim-normal") {
       const beamHikariNeoHistoryReady = historyRowCount >= 21;
       const recentTwoRbTotal = readNumber(metrics.recentTwoRbTotal);
       const recentTwoBonusTotal = readNumber(metrics.recentTwoBonusTotal);
       const recentTwoCombinedDenominator = rateDenominator(recentTwoGamesTotal, recentTwoBonusTotal);
       const recentTwoRbDenominator = rateDenominator(recentTwoGamesTotal, recentTwoRbTotal);
-      const beamHikariNeoSteepSink =
+      const recentTwoBonusWeak = recentTwoCombinedDenominator >= 194 || recentTwoRbDenominator >= 540;
+      const recentSevenBonusWeak =
+        features.recentSevenCombinedDenominator >= 155 || features.recentSevenRbDenominator >= 350;
+
+      if (activeLogicKey === "beam-hikari-neo-aim-event") {
+        const beamHikariNeoEventHistoryReady = beamHikariNeoHistoryReady;
+        const beamHikariNeoEventTwoDayUntreated =
+          recentTwoGamesTotal >= 1000 && recentTwoGamesTotal <= 3500 && recentTwoBonusWeak;
+        const beamHikariNeoEventSevenDayUntreated =
+          recentSevenGamesTotal >= 15000 && recentSevenGamesTotal <= 25000 && recentSevenBonusWeak;
+        const beamHikariNeoEventNearbyLeftBehind =
+          previousDifference < 0 &&
+          (previousAdjacentMachineHighContentCount >= 1 || previousAdjacentMachineNetTotal >= 1563);
+        const beamHikariNeoEventTwoDaySink =
+          features.recentTwoAngle <= -300 && recentTwoGamesTotal <= 6000;
+        const beamHikariNeoEventTreatmentDone =
+          previousDifference >= 500 || recentTwoNetTotal >= 1000;
+        const beamHikariNeoEventTooStrong =
+          recentTwoCombinedDenominator <= 150 ||
+          recentTwoRbDenominator <= 330 ||
+          previousMachineHighContent;
+        const beamHikariNeoEventHighActivity = recentTwoGamesTotal >= 8000;
+        const boostFlags = [
+          beamHikariNeoEventTwoDayUntreated,
+          beamHikariNeoEventSevenDayUntreated,
+          beamHikariNeoEventNearbyLeftBehind,
+          beamHikariNeoEventTwoDaySink,
+        ];
+        const dangerFlags = [
+          beamHikariNeoEventTreatmentDone,
+          beamHikariNeoEventTooStrong,
+          beamHikariNeoEventHighActivity,
+        ];
+
+        return {
+          ...features,
+          beamHikariNeoHistoryReady,
+          beamHikariNeoEventHistoryReady,
+          beamHikariNeoEventTwoDayUntreated,
+          beamHikariNeoEventSevenDayUntreated,
+          beamHikariNeoEventNearbyLeftBehind,
+          beamHikariNeoEventTwoDaySink,
+          beamHikariNeoEventTreatmentDone,
+          beamHikariNeoEventTooStrong,
+          beamHikariNeoEventHighActivity,
+          treatmentDone: beamHikariNeoEventTreatmentDone,
+          lowConfidence: !beamHikariNeoEventTwoDayUntreated && !beamHikariNeoEventSevenDayUntreated,
+          boostCount: boostFlags.filter(Boolean).length,
+          dangerCount: dangerFlags.filter(Boolean).length,
+        };
+      }
+
+      const beamHikariNeoNormalHistoryReady = beamHikariNeoHistoryReady;
+      const beamHikariNeoNormalSteepSink =
         recentTwoGamesTotal >= 1000 &&
         recentTwoGamesTotal <= 6000 &&
-        features.recentTwoAngle <= -400;
-      const beamHikariNeoMediumUnpaid =
-        (features.recentFiveAngle <= -122 || recentFiveNetTotal <= -2000) &&
-        recentTwoNetTotal < 1000;
-      const beamHikariNeoUntreated =
-        recentTwoGamesTotal >= 1000 &&
-        recentTwoGamesTotal <= 3500 &&
-        (recentTwoCombinedDenominator >= 194 || recentTwoRbDenominator >= 540) &&
-        previousDifference <= 0;
-      const beamHikariNeoPreviousBonusWeak =
-        previousGames >= 900 &&
-        (features.previousCombinedDenominator >= 184 || features.previousRbDenominator >= 452);
-      const beamHikariNeoNearbyLeftBehind =
-        previousDifference < 0 &&
-        (previousAdjacentMachineHighContentCount >= 2 || previousAdjacentMachineNetTotal >= 1563);
-      const beamHikariNeoTreatmentDone =
-        previousDifference >= 500 ||
-        recentTwoNetTotal >= 1000 ||
+        features.recentTwoAngle <= -500;
+      const beamHikariNeoNormalTwoDayBonusWeak = recentTwoBonusWeak;
+      const beamHikariNeoNormalLowMiddleGames =
+        recentTwoGamesTotal >= 1000 && recentTwoGamesTotal <= 3500;
+      const beamHikariNeoNormalMediumUnpaid =
+        features.recentFiveAngle <= -122 || recentFiveNetTotal <= -2000;
+      const beamHikariNeoNormalRotationReturn =
+        daysSinceMachineHighContent === 3 ||
+        (Number.isFinite(daysSinceMachineHighContent) &&
+          daysSinceMachineHighContent >= 6 &&
+          daysSinceMachineHighContent <= 17);
+      const beamHikariNeoNormalTreatmentDone =
+        previousDifference >= 500 || recentTwoNetTotal >= 1000;
+      const beamHikariNeoNormalTooStrong =
         recentTwoCombinedDenominator <= 150 ||
         recentTwoRbDenominator <= 330 ||
         previousMachineHighContent;
-      const beamHikariNeoLowConfidence = recentFiveGamesTotal < 9000;
-      const beamHikariNeoLongNeglect =
+      const beamHikariNeoNormalHighActivity = recentTwoGamesTotal >= 8000;
+      const beamHikariNeoNormalLongNeglect =
         Number.isFinite(daysSinceMachineHighContent) &&
         daysSinceMachineHighContent >= 18 &&
         recentFourteenMachineHighContentCount === 0;
-      const beamHikariNeoRecentHighTooMany = recentSevenMachineHighContentCount >= 2;
       const boostFlags = [
-        beamHikariNeoSteepSink,
-        beamHikariNeoMediumUnpaid,
-        beamHikariNeoUntreated,
-        beamHikariNeoPreviousBonusWeak,
-        beamHikariNeoNearbyLeftBehind,
+        beamHikariNeoNormalSteepSink,
+        beamHikariNeoNormalTwoDayBonusWeak,
+        beamHikariNeoNormalLowMiddleGames,
+        beamHikariNeoNormalMediumUnpaid,
+        beamHikariNeoNormalRotationReturn,
       ];
       const dangerFlags = [
-        beamHikariNeoTreatmentDone,
-        beamHikariNeoLowConfidence,
-        beamHikariNeoLongNeglect,
-        beamHikariNeoRecentHighTooMany,
+        beamHikariNeoNormalTreatmentDone,
+        beamHikariNeoNormalTooStrong,
+        beamHikariNeoNormalHighActivity,
+        beamHikariNeoNormalLongNeglect,
       ];
 
       return {
         ...features,
         beamHikariNeoHistoryReady,
-        beamHikariNeoSteepSink,
-        beamHikariNeoMediumUnpaid,
-        beamHikariNeoUntreated,
-        beamHikariNeoPreviousBonusWeak,
-        beamHikariNeoNearbyLeftBehind,
-        beamHikariNeoTreatmentDone,
-        beamHikariNeoLowConfidence,
-        beamHikariNeoLongNeglect,
-        beamHikariNeoRecentHighTooMany,
-        treatmentDone: beamHikariNeoTreatmentDone,
-        lowConfidence: beamHikariNeoLowConfidence,
+        beamHikariNeoNormalHistoryReady,
+        beamHikariNeoNormalSteepSink,
+        beamHikariNeoNormalTwoDayBonusWeak,
+        beamHikariNeoNormalLowMiddleGames,
+        beamHikariNeoNormalMediumUnpaid,
+        beamHikariNeoNormalRotationReturn,
+        beamHikariNeoNormalTreatmentDone,
+        beamHikariNeoNormalTooStrong,
+        beamHikariNeoNormalHighActivity,
+        beamHikariNeoNormalLongNeglect,
+        treatmentDone: beamHikariNeoNormalTreatmentDone,
+        lowConfidence: !beamHikariNeoNormalLowMiddleGames,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -4064,7 +4101,7 @@ function calculateMachineScore(definition, metrics, features) {
       );
     }
 
-    if (activeLogicKey === "beam-hikari-neo-aim") {
+    if (activeLogicKey === "beam-hikari-neo-aim-event" || activeLogicKey === "beam-hikari-neo-aim-normal") {
       if (historyRowCount < 21) {
         return 0;
       }
@@ -4073,32 +4110,128 @@ function calculateMachineScore(definition, metrics, features) {
       const recentTwoRbDenominator = rateDenominator(recentTwoGamesTotal, recentTwoRbTotal);
       let score = 0;
 
+      if (activeLogicKey === "beam-hikari-neo-aim-event") {
+        score += scoreInRange(recentTwoGamesTotal, 1000, 2499, 18);
+        score += scoreInRange(recentTwoGamesTotal, 2500, 3499, 15.3);
+        score += recentTwoGamesTotal <= 999 ? 11.7 : 0;
+        score += scoreInRange(recentTwoGamesTotal, 3500, 4999, 8.1);
+        score += scoreInRange(recentTwoGamesTotal, 5000, 5999, 3.6);
+
+        score +=
+          features.recentTwoAngle <= -500
+            ? 9
+            : features.recentTwoAngle <= -400
+              ? 10
+              : features.recentTwoAngle <= -300
+                ? 8.5
+                : features.recentTwoAngle <= -200
+                  ? 5.5
+                  : features.recentTwoAngle <= -100
+                    ? 3
+                    : features.recentTwoAngle <= 0
+                      ? 1.5
+                      : 0;
+
+        if (recentTwoCombinedDenominator >= 264 || recentTwoRbDenominator >= 869) {
+          score += 16.2;
+        } else if (recentTwoCombinedDenominator >= 226 || recentTwoRbDenominator >= 673) {
+          score += 18;
+        } else if (recentTwoCombinedDenominator >= 194 || recentTwoRbDenominator >= 540) {
+          score += 13.5;
+        } else if (recentTwoCombinedDenominator >= 178 || recentTwoRbDenominator >= 468) {
+          score += 8.1;
+        } else if (recentTwoCombinedDenominator >= 168 || recentTwoRbDenominator >= 423) {
+          score += 4.5;
+        }
+
+        score += scoreInRange(recentSevenGamesTotal, 15000, 25000, 14);
+        score += scoreInRange(recentSevenGamesTotal, 10000, 14999, 9.8);
+        score += scoreInRange(recentSevenGamesTotal, 25001, 30000, 7);
+        score += recentSevenGamesTotal < 10000 ? 2.8 : 0;
+        score -= recentSevenGamesTotal > 30000 ? 4.2 : 0;
+
+        if (features.recentSevenCombinedDenominator >= 180 || features.recentSevenRbDenominator >= 500) {
+          score += 11;
+        } else if (features.recentSevenCombinedDenominator >= 165 || features.recentSevenRbDenominator >= 400) {
+          score += 8.25;
+        } else if (features.recentSevenCombinedDenominator >= 155 || features.recentSevenRbDenominator >= 350) {
+          score += 4.4;
+        }
+
+        if (!Number.isFinite(daysSinceMachineHighContent)) {
+          score += 2.8;
+        } else if (daysSinceMachineHighContent === 3) {
+          score += 7;
+        } else if (daysSinceMachineHighContent >= 4 && daysSinceMachineHighContent <= 9) {
+          score += 5.25;
+        } else if (daysSinceMachineHighContent >= 18) {
+          score += 4.55;
+        } else if (daysSinceMachineHighContent >= 10 && daysSinceMachineHighContent <= 17) {
+          score += 3.15;
+        }
+
+        if (previousDifference < 0) {
+          score +=
+            previousAdjacentMachineHighContentCount >= 2
+              ? 7
+              : previousAdjacentMachineNetTotal >= 1563
+                ? 4.9
+                : previousAdjacentMachineHighContentCount >= 1
+                  ? 2.1
+                  : 0;
+        }
+
+        score += previousDifference <= -669 ? 8 : previousDifference <= -345 ? 5.6 : previousDifference < 0 ? 2.4 : 0;
+        score +=
+          previousCombinedDenominator >= 234 || previousRbDenominator >= 617
+            ? 4
+            : previousCombinedDenominator >= 184 || previousRbDenominator >= 452
+              ? 2.4
+              : 0;
+
+        score -= recentTwoNetTotal >= 1500 ? 8 : recentTwoNetTotal >= 1000 ? 6 : 0;
+        score -= previousDifference >= 1500 ? 6.4 : previousDifference >= 500 ? 4.4 : 0;
+        score -=
+          recentTwoCombinedDenominator <= 140 || recentTwoRbDenominator <= 300
+            ? 10
+            : recentTwoCombinedDenominator <= 150 || recentTwoRbDenominator <= 330
+              ? 7.5
+              : 0;
+        score -= previousMachineHighContent ? 8 : 0;
+        score -= recentSevenMachineHighContentCount >= 2 ? 5 : 0;
+        score -= recentTwoGamesTotal >= 10000 ? 6 : recentTwoGamesTotal >= 8000 ? 4.8 : recentTwoGamesTotal >= 6000 ? 2.4 : 0;
+        score -= previousGames >= 5350 ? 2.4 : 0;
+
+        return Math.round(clamp(score, 0, 100));
+      }
+
       score += scoreAtMost(features.recentTwoAngle, [
-        { maximum: -500, points: 30 },
-        { maximum: -400, points: 25 },
+        { maximum: -500, points: 32 },
+        { maximum: -400, points: 26 },
         { maximum: -300, points: 20 },
-        { maximum: -200, points: 14 },
-        { maximum: -100, points: 8 },
+        { maximum: -200, points: 13 },
+        { maximum: -100, points: 7 },
         { maximum: 0, points: 3 },
       ]);
 
       if (recentTwoCombinedDenominator >= 264 || recentTwoRbDenominator >= 869) {
-        score += 20;
+        score += 22;
       } else if (recentTwoCombinedDenominator >= 226 || recentTwoRbDenominator >= 673) {
-        score += 17;
+        score += 18;
       } else if (recentTwoCombinedDenominator >= 194 || recentTwoRbDenominator >= 540) {
-        score += 13;
+        score += 14;
       } else if (recentTwoCombinedDenominator >= 178 || recentTwoRbDenominator >= 468) {
         score += 9;
       } else if (recentTwoCombinedDenominator >= 168 || recentTwoRbDenominator >= 423) {
         score += 5;
       }
 
-      score += scoreInRange(recentTwoGamesTotal, 1000, 3000, 15);
-      score += scoreInRange(recentTwoGamesTotal, 3001, 5000, 10);
-      score += scoreInRange(recentTwoGamesTotal, 500, 999, 8);
-      score += scoreInRange(recentTwoGamesTotal, 5001, 6000, 5);
-      score += recentTwoGamesTotal <= 499 ? 4 : 0;
+      score += scoreInRange(recentTwoGamesTotal, 1000, 2499, 15);
+      score += scoreInRange(recentTwoGamesTotal, 2500, 3499, 13);
+      score += scoreInRange(recentTwoGamesTotal, 500, 999, 9);
+      score += scoreInRange(recentTwoGamesTotal, 3500, 4999, 8);
+      score += recentTwoGamesTotal <= 499 ? 5 : 0;
+      score += scoreInRange(recentTwoGamesTotal, 5000, 5999, 3);
 
       score += scoreInRange(streak, 2, 4, 12);
       score += scoreInRange(streak, 5, 7, 8);
@@ -4106,31 +4239,32 @@ function calculateMachineScore(definition, metrics, features) {
       score += streak === 1 ? 4 : 0;
 
       if (!Number.isFinite(daysSinceMachineHighContent)) {
-        score += 5;
+        score += 3;
       } else if (daysSinceMachineHighContent === 3) {
         score += 10;
-      } else if (daysSinceMachineHighContent >= 4 && daysSinceMachineHighContent <= 9) {
-        score += 8;
-      } else if (daysSinceMachineHighContent >= 10) {
+      } else if (daysSinceMachineHighContent >= 6 && daysSinceMachineHighContent <= 17) {
+        score += 7;
+      } else if (daysSinceMachineHighContent >= 4 && daysSinceMachineHighContent <= 5) {
         score += 5;
+      } else if (daysSinceMachineHighContent >= 18) {
+        score += 1;
       }
-      score += recentSevenMachineHighContentCount === 0 ? 3 : recentSevenMachineHighContentCount === 1 ? 2 : 0;
 
       const middleSinkScore = Math.min(
         10,
         scoreAtMost(features.recentFiveAngle, [
-          { maximum: -179, points: 10 },
+          { maximum: -179, points: 9 },
           { maximum: -122, points: 7 },
           { maximum: -78, points: 4 },
         ]) +
-          scoreAtMost(features.recentSevenAngle, [
-            { maximum: -147, points: 7 },
-            { maximum: -99, points: 4 },
-          ]) +
           scoreAtMost(recentFiveNetTotal, [
-            { maximum: -3000, points: 5 },
-            { maximum: -2000, points: 4 },
+            { maximum: -3000, points: 6 },
+            { maximum: -2000, points: 5 },
             { maximum: -1000, points: 2 },
+          ]) +
+          scoreAtMost(features.recentSevenAngle, [
+            { maximum: -147, points: 5 },
+            { maximum: -99, points: 3 },
           ]),
       );
       score += middleSinkScore;
@@ -4138,27 +4272,27 @@ function calculateMachineScore(definition, metrics, features) {
       score += previousDifference <= -669 ? 5 : previousDifference <= -345 ? 3 : previousDifference < 0 ? 1 : 0;
       score +=
         previousCombinedDenominator >= 234 || previousRbDenominator >= 617
-          ? 3
+          ? 4
           : previousCombinedDenominator >= 184 || previousRbDenominator >= 452
             ? 2
             : 0;
       if (previousDifference < 0) {
-        score += previousAdjacentMachineHighContentCount >= 2 ? 3 : 0;
-        score += previousAdjacentMachineNetTotal >= 1563 ? 2 : 0;
+        score += previousAdjacentMachineHighContentCount >= 2 ? 2 : previousAdjacentMachineNetTotal >= 1563 ? 1 : 0;
       }
+      score += recentSevenMachineHighContentCount === 0 ? 3 : recentSevenMachineHighContentCount === 1 ? 1 : 0;
 
-      score -= recentTwoNetTotal >= 1500 ? 24 : recentTwoNetTotal >= 1000 ? 18 : 0;
-      score -= previousDifference >= 1500 ? 20 : previousDifference >= 500 ? 14 : 0;
+      score -= recentTwoNetTotal >= 1500 ? 26 : recentTwoNetTotal >= 1000 ? 19 : 0;
+      score -= previousDifference >= 1500 ? 22 : previousDifference >= 500 ? 16 : 0;
       score -=
         recentTwoCombinedDenominator <= 140 || recentTwoRbDenominator <= 300
-          ? 18
+          ? 20
           : recentTwoCombinedDenominator <= 150 || recentTwoRbDenominator <= 330
-            ? 12
+            ? 14
             : 0;
-      score -= recentTwoGamesTotal >= 10000 ? 10 : recentTwoGamesTotal >= 8000 ? 7 : 0;
-      score -= previousGames >= 5350 ? 7 : 0;
-      score -= previousMachineStrongHighContent ? 16 : previousMachineHighContent ? 12 : 0;
-      score -= recentSevenMachineHighContentCount >= 3 ? 8 : recentSevenMachineHighContentCount >= 2 ? 4 : 0;
+      score -= recentTwoGamesTotal >= 10000 ? 12 : recentTwoGamesTotal >= 8000 ? 8 : recentTwoGamesTotal >= 6000 ? 4 : 0;
+      score -= previousGames >= 5350 ? 7 : previousGames >= 4500 ? 4 : 0;
+      score -= previousMachineStrongHighContent ? 18 : previousMachineHighContent ? 14 : 0;
+      score -= recentSevenMachineHighContentCount >= 3 ? 8 : recentSevenMachineHighContentCount >= 2 ? 5 : 0;
 
       return Math.round(clamp(score, 0, 100));
     }
@@ -6741,9 +6875,42 @@ function matchesCondition(matcher, evaluation) {
   return true;
 }
 
-function buildEvaluationForRow(row, settingByMachineKey) {
+function buildBeamHikariNeoAimDateSetting(definition, dateText) {
+  const logicKey = isBeamHikariEventDate(dateText)
+    ? "beam-hikari-neo-aim-event"
+    : "beam-hikari-neo-aim-normal";
+  const logic = findLogicDefinition(definition, logicKey);
+  if (!logic) {
+    return null;
+  }
+  const condition =
+    listConditionDefinitions(definition, logic.key).find(
+      (candidate) => candidate.keySuffix === logic.defaultConditionSuffix,
+    ) ??
+    listConditionDefinitions(definition, logic.key)[0] ??
+    null;
+  return {
+    logicKey: logic.key,
+    conditionKey: condition ? buildConditionKey(definition, condition) : "",
+  };
+}
+
+function resolveRankingDateSpecificSetting(definition, setting, options = {}) {
+  if (
+    !options?.dateSpecificRanking ||
+    !isBeamHikariStore(options?.storeName) ||
+    definition?.machineKey !== "neo-aim"
+  ) {
+    return setting;
+  }
+  const targetDate = options?.snapshot?.nextBusinessDate ?? options?.snapshot?.baseDate ?? options?.snapshot?.date ?? "";
+  return buildBeamHikariNeoAimDateSetting(definition, targetDate) ?? setting;
+}
+
+function buildEvaluationForRow(row, settingByMachineKey, options = {}) {
   const definition = findMachineDefinition(row?.machineName);
-  const setting = definition ? settingByMachineKey.get(definition.machineKey) : null;
+  const rawSetting = definition ? settingByMachineKey.get(definition.machineKey) : null;
+  const setting = definition ? resolveRankingDateSpecificSetting(definition, rawSetting, options) : null;
   if (!definition || !setting?.logicKey) {
     return null;
   }
@@ -6888,7 +7055,7 @@ function attachMachineEvaluationRanks(rows) {
   });
 }
 
-export function decorateSnapshotsWithMachineEvaluation(snapshots, settingRows = []) {
+export function decorateSnapshotsWithMachineEvaluation(snapshots, settingRows = [], options = {}) {
   if (!hasAnyConfiguredSetting(settingRows)) {
     return snapshots;
   }
@@ -6897,7 +7064,10 @@ export function decorateSnapshotsWithMachineEvaluation(snapshots, settingRows = 
   return (Array.isArray(snapshots) ? snapshots : []).map((snapshot) => {
     const rowsWithEvaluation = (Array.isArray(snapshot?.rows) ? snapshot.rows : []).map((row) => ({
       ...row,
-      machineEvaluation: buildEvaluationForRow(row, settingByMachineKey),
+      machineEvaluation: buildEvaluationForRow(row, settingByMachineKey, {
+        ...options,
+        snapshot,
+      }),
     }));
 
     return {
