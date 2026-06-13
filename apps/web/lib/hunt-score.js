@@ -827,6 +827,11 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "マイジャグラー": "beam-hikari-my-content",
       "ジャグラーガールズSS": "beam-hikari-girls-content",
       "ジャグラーガールズ": "beam-hikari-girls-content",
+      "ハッピージャグラーＶＩＩＩ": "beam-hikari-happy-content",
+      "ハッピージャグラーVIII": "beam-hikari-happy-content",
+      "ハッピージャグラーＶ": "beam-hikari-happy-content",
+      "ハッピージャグラーV": "beam-hikari-happy-content",
+      "ハッピージャグラー": "beam-hikari-happy-content",
     },
   },
   {
@@ -1618,6 +1623,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ハッピージャグラーV") ||
     normalizedMachineName === normalizeText("ハッピージャグラー")
   ) {
+    if (readMachineContentRule(config, machineName) === "beam-hikari-happy-content") {
+      return games >= 3000 && combinedDenominator <= 135 && rbDenominator <= 290;
+    }
     if (readMachineContentRule(config, machineName) === "apark-yakatabaru-happy") {
       return games >= 3500 && combinedDenominator <= 135 && rbDenominator <= 310;
     }
@@ -1747,6 +1755,17 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     }
     const rbCount = readWindowField(row, "rbCount");
     return games >= 3500 && rbCount >= 15 && rbDenominator <= 323 && combinedDenominator <= 140;
+  }
+  if (
+    normalizedMachineName === normalizeText("ハッピージャグラーＶＩＩＩ") ||
+    normalizedMachineName === normalizeText("ハッピージャグラーVIII") ||
+    normalizedMachineName === normalizeText("ハッピージャグラーＶ") ||
+    normalizedMachineName === normalizeText("ハッピージャグラーV") ||
+    normalizedMachineName === normalizeText("ハッピージャグラー")
+  ) {
+    if (readMachineContentRule(config, machineName) === "beam-hikari-happy-content") {
+      return games >= 3500 && combinedDenominator <= 145 && rbDenominator <= 310;
+    }
   }
 
   return isMachineHighContentWindowRow(row, machineName, config);

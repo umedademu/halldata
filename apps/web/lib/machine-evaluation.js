@@ -1585,10 +1585,77 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logicName: "ハッピー屋形原式",
     logics: [
       buildLogicVariant("apark-yakatabaru-happy", "ハッピー屋形原式", "apark-yakatabaru-main"),
+      buildLogicVariant("beam-hikari-happy-normal", "ハッピービームヒカリ通常日式", "beam-hikari-normal-main"),
+      buildLogicVariant("beam-hikari-happy-event", "ハッピービームヒカリイベント日式", "beam-hikari-event-main"),
     ],
     profile: "juggler",
     defaultConditionSuffix: "apark-yakatabaru-main",
     conditions: [
+      buildCondition(
+        "beam-hikari-normal-main",
+        "1位＋70点以上＋次点差25点以上",
+        "14件 / 102.49% / RB1/349.8",
+        {
+          rankMax: 1,
+          minScore: 70,
+          minNextGap: 25,
+          requiredFlags: ["beamHikariHappyNormalHistoryReady"],
+        },
+        ["beam-hikari-happy-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-event-main",
+        "65点以上＋イベントローテ強化",
+        "41件 / 102.84% / RB1/301.7",
+        {
+          minScore: 65,
+          requiredFlags: ["beamHikariHappyEventHistoryReady", "beamHikariHappyEventRotationBoost"],
+        },
+        ["beam-hikari-happy-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-unpaid-rank1",
+        "1位＋未返済強化",
+        "8件 / 104.72% / RB1/281.4",
+        {
+          rankMax: 1,
+          minScore: 60,
+          requiredFlags: ["beamHikariHappyEventHistoryReady", "beamHikariHappyUnpaid"],
+        },
+        ["beam-hikari-happy-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-unpaid-rank2",
+        "上位2＋未返済強化",
+        "11件 / 103.73% / RB1/285.0",
+        {
+          rankMax: 2,
+          minScore: 60,
+          requiredFlags: ["beamHikariHappyEventHistoryReady", "beamHikariHappyUnpaid"],
+        },
+        ["beam-hikari-happy-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-unpaid-score80",
+        "80点以上＋未返済強化",
+        "7件 / 102.75% / RB1/283.4",
+        {
+          minScore: 80,
+          requiredFlags: ["beamHikariHappyEventHistoryReady", "beamHikariHappyUnpaid"],
+        },
+        ["beam-hikari-happy-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-rotation-safe",
+        "1位＋イベントローテ強化＋危険0",
+        "17件 / 103.04% / RB1/292.0",
+        {
+          rankMax: 1,
+          maxDanger: 0,
+          requiredFlags: ["beamHikariHappyEventHistoryReady", "beamHikariHappyEventRotationBoost"],
+        },
+        ["beam-hikari-happy-event"],
+      ),
       buildCondition(
         "apark-yakatabaru-main",
         "1位＋70点以上＋次点差25点以上",
@@ -2265,6 +2332,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-my-normal");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "girls") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-girls-normal");
+  } else if (isBeamHikariStore(storeName) && definition.machineKey === "happy") {
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-happy-normal");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-neo-aim");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "my") {
@@ -2838,6 +2907,8 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentTwentyOneMachineHighContentCount = readNumber(metrics.recentTwentyOneMachineHighContentCount);
   const recentFourteenMachineStrongHighContentCount = readNumber(metrics.recentFourteenMachineStrongHighContentCount);
   const recentThirtyMachineHighContentCount = readNumber(metrics.recentThirtyMachineHighContentCount);
+  const recentSevenMachineGoodContentCount = readNumber(metrics.recentSevenMachineGoodContentCount);
+  const recentFourteenMachineGoodContentCount = readNumber(metrics.recentFourteenMachineGoodContentCount);
   const daysSinceMachineHighContent = readNullableNumber(metrics.daysSinceMachineHighContent);
   const daysSinceMachineStrongHighContent = readNullableNumber(metrics.daysSinceMachineStrongHighContent);
   const daysSinceMachineBigWin1500 = readNullableNumber(metrics.daysSinceMachineBigWin1500);
@@ -4658,6 +4729,114 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       treatmentDone: funkyTreatmentDone,
       boostCount: boostFlags.filter(Boolean).length,
       dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
+
+  if (machineKey === "happy" && (activeLogicKey === "beam-hikari-happy-normal" || activeLogicKey === "beam-hikari-happy-event")) {
+    const beamHikariHappyHistoryReady = targetRangeHistoryRowCount >= 21;
+    const previousCombinedDenominator = features.previousCombinedDenominator;
+    const beamHikariHappyPreviousWeak =
+      previousGames >= 500 &&
+      previousGames <= 3000 &&
+      previousDifference < 0 &&
+      previousCombinedDenominator > 170;
+    const beamHikariHappyNormalLosingSink =
+      streak >= 5 || (streak >= 3 && recentSevenLossDays >= 5);
+    const beamHikariHappyUnpaid =
+      (recentTwentyOneNetTotal <= -8000 && recentTwentyOneGamesTotal >= 48000) ||
+      (recentFourteenNetTotal <= -6000 && recentSevenLossDays >= 4);
+    const beamHikariHappyUnfinished =
+      recentFourteenGoldShowDays === 0 && recentFourteenNetTotal < 0;
+    const beamHikariHappyGamesTrust =
+      recentSevenGamesTotal >= 8000 &&
+      recentSevenGamesTotal <= 20000 &&
+      recentFourteenGamesTotal >= 25000 &&
+      recentFourteenGamesTotal <= 45000;
+    const beamHikariHappyTreatmentDone =
+      previousMachineHighContent ||
+      previousMachineGoodContent ||
+      previousDifference >= 1500 ||
+      recentSevenNetTotal > 1500 ||
+      recentTwentyOneNetTotal > 4000;
+    const beamHikariHappyWatchedTooMuch =
+      previousGames >= 3000 && previousCombinedDenominator <= 150;
+    const beamHikariHappyLowInfo =
+      previousGames < 500 && recentSevenGamesTotal < 14000;
+    const beamHikariHappyRecentGoodTooClose =
+      recentSevenMachineGoodContentCount >= 2 ||
+      (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent <= 3);
+    const beamHikariHappyEventRotationBoost =
+      Number.isFinite(daysSinceMachineHighContent) &&
+      daysSinceMachineHighContent >= 18 &&
+      daysSinceMachineHighContent <= 36 &&
+      recentFourteenMachineHighContentCount === 0 &&
+      recentFourteenMachineGoodContentCount <= 1;
+    const beamHikariHappyEventSink =
+      recentFourteenNetTotal <= -6000 ||
+      (recentTwentyOneNetTotal <= -5000 && recentSevenLossDays >= 4);
+    const beamHikariHappyEventLeftBehind =
+      adjacentMachineHighContentCount14Near2 === 0 ||
+      adjacentMachineBigWin1000Count7Near2 === 0 ||
+      recentTwentyOneNetTotal < 0;
+    const beamHikariHappyEventDanger =
+      previousDifference >= 1000 ||
+      previousMachineHighContent ||
+      previousMachineGoodContent ||
+      beamHikariHappyWatchedTooMuch ||
+      recentSevenNetTotal > 1500 ||
+      recentTwentyOneNetTotal > 4000 ||
+      beamHikariHappyLowInfo ||
+      (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent <= 6);
+    const normalBoostFlags = [
+      beamHikariHappyPreviousWeak,
+      beamHikariHappyNormalLosingSink,
+      beamHikariHappyUnpaid,
+      beamHikariHappyUnfinished,
+      beamHikariHappyGamesTrust,
+    ];
+    const normalDangerFlags = [
+      beamHikariHappyTreatmentDone,
+      beamHikariHappyWatchedTooMuch,
+      beamHikariHappyLowInfo,
+      beamHikariHappyRecentGoodTooClose,
+    ];
+    const eventBoostFlags = [
+      beamHikariHappyEventRotationBoost,
+      beamHikariHappyPreviousWeak,
+      beamHikariHappyEventSink,
+      beamHikariHappyUnfinished,
+      beamHikariHappyEventLeftBehind,
+      beamHikariHappyGamesTrust,
+    ];
+    const eventDangerFlags = [
+      beamHikariHappyEventDanger,
+      beamHikariHappyWatchedTooMuch,
+      beamHikariHappyLowInfo,
+    ];
+    const isEventLogic = activeLogicKey === "beam-hikari-happy-event";
+
+    return {
+      ...features,
+      beamHikariHappyNormalHistoryReady: beamHikariHappyHistoryReady,
+      beamHikariHappyEventHistoryReady: beamHikariHappyHistoryReady,
+      beamHikariHappyPreviousWeak,
+      beamHikariHappyNormalLosingSink,
+      beamHikariHappyUnpaid,
+      beamHikariHappyUnfinished,
+      beamHikariHappyGamesTrust,
+      beamHikariHappyTreatmentDone,
+      beamHikariHappyWatchedTooMuch,
+      beamHikariHappyLowInfo,
+      beamHikariHappyRecentGoodTooClose,
+      beamHikariHappyEventRotationBoost,
+      beamHikariHappyEventPreviousWeak: beamHikariHappyPreviousWeak,
+      beamHikariHappyEventSink,
+      beamHikariHappyEventLeftBehind,
+      beamHikariHappyEventDanger,
+      treatmentDone: isEventLogic ? beamHikariHappyEventDanger : beamHikariHappyTreatmentDone,
+      lowConfidence: beamHikariHappyLowInfo,
+      boostCount: (isEventLogic ? eventBoostFlags : normalBoostFlags).filter(Boolean).length,
+      dangerCount: (isEventLogic ? eventDangerFlags : normalDangerFlags).filter(Boolean).length,
     };
   }
 
@@ -8871,6 +9050,10 @@ function buildBeamHikariDateSetting(definition, dateText) {
             ? isEventDate
               ? "beam-hikari-girls-event"
               : "beam-hikari-girls-normal"
+            : definition?.machineKey === "happy"
+              ? isEventDate
+                ? "beam-hikari-happy-event"
+                : "beam-hikari-happy-normal"
         : "";
   if (!logicKey) {
     return null;
@@ -8895,7 +9078,7 @@ function resolveRankingDateSpecificSetting(definition, setting, options = {}) {
   if (
     !options?.dateSpecificRanking ||
     !isBeamHikariStore(options?.storeName) ||
-    !["neo-aim", "funky", "gogo", "my", "girls"].includes(definition?.machineKey)
+    !["neo-aim", "funky", "gogo", "my", "girls", "happy"].includes(definition?.machineKey)
   ) {
     return setting;
   }
