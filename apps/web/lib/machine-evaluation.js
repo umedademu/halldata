@@ -296,6 +296,8 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logics: [
       buildLogicVariant("apark-gogo", "ゴージャグ春日式", "main"),
       buildLogicVariant("mj-kurume-gogo", "ゴージャグMJ久留米式", "mj-kurume-main"),
+      buildLogicVariant("beam-hikari-gogo-normal", "ゴージャグビームヒカリ通常日式", "beam-hikari-normal-main"),
+      buildLogicVariant("beam-hikari-gogo-event", "ゴージャグビームヒカリイベント日式", "beam-hikari-event-main"),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
@@ -348,6 +350,133 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["kurumeGogoHistoryReady"],
         },
         ["mj-kurume-gogo"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-main",
+        "1位＋75点以上＋次点差8点以上",
+        "39件 / 104.26% / RB1/294.9",
+        {
+          rankMax: 1,
+          minScore: 75,
+          minNextGap: 8,
+          requiredFlags: ["beamHikariGogoNormalHistoryReady"],
+        },
+        ["beam-hikari-gogo-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-score75",
+        "75点以上",
+        "42件 / 104.32% / RB1/296.7",
+        {
+          minScore: 75,
+          requiredFlags: ["beamHikariGogoNormalHistoryReady"],
+        },
+        ["beam-hikari-gogo-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-score80",
+        "80点以上",
+        "31件 / 105.23% / RB1/287.7",
+        {
+          minScore: 80,
+          requiredFlags: ["beamHikariGogoNormalHistoryReady"],
+        },
+        ["beam-hikari-gogo-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-rank1-score80",
+        "1位＋80点以上",
+        "30件 / 105.13% / RB1/288.8",
+        {
+          rankMax: 1,
+          minScore: 80,
+          requiredFlags: ["beamHikariGogoNormalHistoryReady"],
+        },
+        ["beam-hikari-gogo-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-sink-games",
+        "75点以上＋21日沈み帯＋3日G中間",
+        "33件 / 105.52% / RB1/288.3",
+        {
+          minScore: 75,
+          requiredFlags: [
+            "beamHikariGogoNormalHistoryReady",
+            "beamHikariGogoTwentyOneSinkBand",
+            "beamHikariGogoRecentThreeGamesMiddle",
+          ],
+        },
+        ["beam-hikari-gogo-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-event-main",
+        "1位＋70点以上＋次点差8点以上",
+        "23件 / 106.17% / RB1/257.5",
+        {
+          rankMax: 1,
+          minScore: 70,
+          minNextGap: 8,
+          requiredFlags: ["beamHikariGogoEventHistoryReady"],
+        },
+        ["beam-hikari-gogo-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-score65-gap8",
+        "1位＋65点以上＋次点差8点以上",
+        "30件 / 105.50% / RB1/263.3",
+        {
+          rankMax: 1,
+          minScore: 65,
+          minNextGap: 8,
+          requiredFlags: ["beamHikariGogoEventHistoryReady"],
+        },
+        ["beam-hikari-gogo-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-score70",
+        "70点以上",
+        "38件 / 104.76% / RB1/263.4",
+        {
+          minScore: 70,
+          requiredFlags: ["beamHikariGogoEventHistoryReady"],
+        },
+        ["beam-hikari-gogo-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-score75",
+        "75点以上",
+        "20件 / 105.08% / RB1/258.8",
+        {
+          minScore: 75,
+          requiredFlags: ["beamHikariGogoEventHistoryReady"],
+        },
+        ["beam-hikari-gogo-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-rank1-score75-gap8",
+        "1位＋75点以上＋次点差8点以上",
+        "16件 / 106.43% / RB1/249.2",
+        {
+          rankMax: 1,
+          minScore: 75,
+          minNextGap: 8,
+          requiredFlags: ["beamHikariGogoEventHistoryReady"],
+        },
+        ["beam-hikari-gogo-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-sink-nearby",
+        "65点以上＋21日沈み帯＋近隣見せ場",
+        "20件 / 105.18% / RB1/262.6",
+        {
+          minScore: 65,
+          requiredFlags: [
+            "beamHikariGogoEventHistoryReady",
+            "beamHikariGogoTwentyOneSinkBand",
+            "beamHikariGogoNearbyShow",
+          ],
+        },
+        ["beam-hikari-gogo-event"],
       ),
     ],
   },
@@ -1979,6 +2108,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim-normal");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-funky-normal");
+  } else if (isBeamHikariStore(storeName) && definition.machineKey === "gogo") {
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-gogo-normal");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "my") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-my-normal");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "neo-aim") {
@@ -3094,6 +3225,77 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "gogo") {
+    if (activeLogicKey === "beam-hikari-gogo-normal" || activeLogicKey === "beam-hikari-gogo-event") {
+      const beamHikariGogoHistoryReady = targetRangeHistoryRowCount >= 7;
+      const beamHikariGogoPreviousWeak =
+        previousGames >= 1500 &&
+        (previousDifference <= -500 ||
+          features.previousCombinedDenominator >= 170 ||
+          features.previousRbDenominator >= 450);
+      const beamHikariGogoBonusWeak =
+        features.recentThreeCombinedDenominator >= 180 ||
+        features.recentThreeRbDenominator >= 500 ||
+        beamHikariGogoPreviousWeak;
+      const beamHikariGogoAngleStrong = features.recentThreeAngle <= -200;
+      const beamHikariGogoTwentyOneSinkBand =
+        recentTwentyOneNetTotal >= -8000 && recentTwentyOneNetTotal <= -4000;
+      const beamHikariGogoRecentThreeGamesMiddle =
+        recentThreeGamesTotal >= 2000 && recentThreeGamesTotal <= 7000;
+      const beamHikariGogoNearbyShow =
+        adjacentMachineHighContentCount7 > 0 ||
+        adjacentMachineHighContentCount7Near2 > 0 ||
+        previousAdjacentMachineHighContentCount > 0;
+      const beamHikariGogoTreatmentDone =
+        previousMachineHighContent ||
+        previousDifference >= 1500 ||
+        recentSevenNetTotal >= 1500 ||
+        recentTwentyOneNetTotal >= 6000;
+      const beamHikariGogoLowInfo = recentThreeGamesTotal < 2000;
+      const beamHikariGogoLongRest =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 21 &&
+        daysSinceMachineHighContent <= 30;
+      const beamHikariGogoNormalHistoryReady = beamHikariGogoHistoryReady;
+      const beamHikariGogoEventHistoryReady = beamHikariGogoHistoryReady;
+      const boostFlags = [
+        beamHikariGogoBonusWeak,
+        beamHikariGogoAngleStrong,
+        beamHikariGogoTwentyOneSinkBand,
+        beamHikariGogoRecentThreeGamesMiddle,
+        beamHikariGogoNearbyShow && (recentTwentyOneNetTotal < 0 || features.recentThreeAngle <= -200),
+        streak >= 2 && streak <= 4,
+        activeLogicKey === "beam-hikari-gogo-event" && beamHikariGogoLongRest,
+      ];
+      const dangerFlags = [
+        beamHikariGogoTreatmentDone,
+        beamHikariGogoLowInfo,
+        recentFiveGamesTotal >= 20000,
+        recentSevenGamesTotal >= 26000,
+        features.recentThreeAngle >= 100,
+        activeLogicKey === "beam-hikari-gogo-normal" && streak >= 6,
+      ];
+
+      return {
+        ...features,
+        beamHikariGogoHistoryReady,
+        beamHikariGogoNormalHistoryReady,
+        beamHikariGogoEventHistoryReady,
+        beamHikariGogoPreviousWeak,
+        beamHikariGogoBonusWeak,
+        beamHikariGogoAngleStrong,
+        beamHikariGogoTwentyOneSinkBand,
+        beamHikariGogoRecentThreeGamesMiddle,
+        beamHikariGogoNearbyShow,
+        beamHikariGogoTreatmentDone,
+        beamHikariGogoLowInfo,
+        beamHikariGogoLongRest,
+        treatmentDone: beamHikariGogoTreatmentDone,
+        lowConfidence: beamHikariGogoLowInfo,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "mj-kurume-gogo") {
       const kurumeGogoHistoryReady = targetRangeHistoryRowCount >= 14;
       const kurumeGogoPreviousRbGood = previousGames >= 2000 && features.previousRbDenominator <= 255;
@@ -5219,6 +5421,215 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "gogo") {
+    if (activeLogicKey === "beam-hikari-gogo-normal" || activeLogicKey === "beam-hikari-gogo-event") {
+      if (targetRangeHistoryRowCount < 7) {
+        return 0;
+      }
+
+      let score = 0;
+      const recentThreeAngle = features.recentThreeAngle;
+      const recentFiveAngle = features.recentFiveAngle;
+      const recentThreeCombined = features.recentThreeCombinedDenominator;
+      const recentThreeRb = features.recentThreeRbDenominator;
+      const previousWeak =
+        previousGames >= 1500 &&
+        (previousDifference <= -500 || previousCombinedDenominator >= 170 || previousRbDenominator >= 450);
+      const twentyOneSinkBand = recentTwentyOneNetTotal >= -8000 && recentTwentyOneNetTotal <= -4000;
+      const recentThreeGamesMiddle = recentThreeGamesTotal >= 2000 && recentThreeGamesTotal <= 7000;
+      const nearbyHigh = adjacentMachineHighContentCount7 > 0 || adjacentMachineHighContentCount7Near2 > 0;
+
+      if (activeLogicKey === "beam-hikari-gogo-event") {
+        score += scoreAtLeast(recentThreeCombined, [
+          { minimum: 200, points: 14 },
+          { minimum: 180, points: 12 },
+          { minimum: 160, points: 7 },
+          { minimum: 150, points: 4 },
+        ]);
+        score += scoreAtLeast(recentThreeRb, [
+          { minimum: 500, points: 5 },
+          { minimum: 380, points: 4 },
+          { minimum: 320, points: 2 },
+        ]);
+        score += previousWeak ? 3 : 0;
+
+        score += scoreAtMost(recentThreeAngle, [
+          { maximum: -300, points: 13 },
+          { maximum: -250, points: 12 },
+          { maximum: -200, points: 10 },
+          { maximum: -150, points: 7 },
+          { maximum: -100, points: 4 },
+        ]);
+        score += scoreAtMost(recentFiveAngle, [
+          { maximum: -250, points: 5 },
+          { maximum: -150, points: 3 },
+          { maximum: -100, points: 1 },
+        ]);
+
+        if (twentyOneSinkBand) {
+          score += 12;
+        } else if (recentTwentyOneNetTotal < -8000) {
+          score += 6;
+        } else {
+          score += scoreAtMost(recentTwentyOneNetTotal, [
+            { maximum: -3000, points: 9 },
+            { maximum: -2000, points: 5 },
+            { maximum: -1000, points: 2 },
+          ]);
+        }
+        score += scoreAtMost(recentFourteenNetTotal, [
+          { maximum: -5000, points: 7 },
+          { maximum: -3000, points: 5 },
+          { maximum: -1500, points: 3 },
+        ]);
+        score += scoreAtMost(recentSevenNetTotal, [
+          { maximum: -2500, points: 4 },
+          { maximum: -1500, points: 2 },
+        ]);
+
+        score +=
+          streak === 2 ? 7 :
+          streak === 3 ? 9 :
+          streak === 4 ? 10 :
+          streak === 5 ? 5 :
+          streak >= 6 ? 2 :
+          0;
+        if (Number.isFinite(daysSinceMachineHighContent)) {
+          score +=
+            daysSinceMachineHighContent === 1 ? -8 :
+            daysSinceMachineHighContent >= 4 && daysSinceMachineHighContent <= 6 ? 5 :
+            daysSinceMachineHighContent >= 7 && daysSinceMachineHighContent <= 13 ? 1 :
+            daysSinceMachineHighContent >= 14 && daysSinceMachineHighContent <= 20 ? 2 :
+            daysSinceMachineHighContent >= 21 && daysSinceMachineHighContent <= 30 ? 5 :
+            0;
+        }
+        score += recentSevenMachineHighContentCount === 0 ? 2 : 0;
+
+        score += scoreInRange(recentThreeGamesTotal, 2000, 4999, 7);
+        score += scoreInRange(recentThreeGamesTotal, 5000, 6999, 4);
+        score += scoreInRange(recentThreeGamesTotal, 7000, 8999, 2);
+        score -= recentThreeGamesTotal >= 12000 ? 3 : 0;
+        score += scoreInRange(recentFiveGamesTotal, 5000, 12999, 5);
+        score += scoreInRange(recentFiveGamesTotal, 13000, 15999, 2);
+        score -= recentFiveGamesTotal >= 20000 ? 4 : 0;
+        score += scoreInRange(recentSevenGamesTotal, 11000, 13999, 6);
+        score -= recentSevenGamesTotal >= 26000 ? 5 : 0;
+
+        score += adjacentMachineHighContentCount7Near2 >= 2 || adjacentMachineHighContentCount7 >= 2 ? 2 : 0;
+        score += recentTwentyOneNetTotal <= -4000 && nearbyHigh ? 3 : 0;
+        score += recentThreeAngle <= -200 && nearbyHigh ? 2 : 0;
+        score -= adjacentMachineNetTotal14 >= 3000 && recentTwentyOneNetTotal > -4000 && recentThreeAngle > -200 ? 2 : 0;
+
+        score +=
+          targetRangeHistoryRowCount >= 21 ? 5 :
+          targetRangeHistoryRowCount >= 14 ? 3 :
+          targetRangeHistoryRowCount >= 7 ? 1 :
+          0;
+
+        score -= previousDifference >= 1500 ? 12 : 0;
+        score -= previousMachineHighContent ? 8 : 0;
+        score -= previousMachineHighContent && previousDifference >= 1500 ? 5 : 0;
+        score -= recentSevenNetTotal >= 1500 ? 8 : 0;
+        score -= recentTwentyOneNetTotal >= 6000 ? 7 : 0;
+        score -= recentThreeAngle >= 100 ? 4 : 0;
+        score -= streak >= 6 ? 3 : 0;
+        score -= recentThreeGamesTotal < 2000 ? 4 : 0;
+
+        return Math.round(clamp(score, 0, 100));
+      }
+
+      if (twentyOneSinkBand) {
+        score += 18;
+      } else if (recentTwentyOneNetTotal < -8000) {
+        score += 6;
+      } else {
+        score += scoreAtMost(recentTwentyOneNetTotal, [
+          { maximum: -3000, points: 12 },
+          { maximum: -2000, points: 6 },
+          { maximum: -1000, points: 2 },
+        ]);
+      }
+      if (recentFourteenNetTotal >= -5000 && recentFourteenNetTotal <= -1500) {
+        score += 5;
+      } else if (recentFourteenNetTotal <= -5000) {
+        score -= 3;
+      }
+      score += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -2500, points: 5 },
+        { maximum: -1500, points: 2 },
+      ]);
+      score += twentyOneSinkBand && recentThreeGamesMiddle ? 10 : 0;
+      score += twentyOneSinkBand && recentThreeCombined >= 180 ? 5 : 0;
+
+      score += scoreAtLeast(recentThreeCombined, [
+        { minimum: 200, points: 12 },
+        { minimum: 180, points: 10 },
+        { minimum: 160, points: 6 },
+        { minimum: 150, points: 3 },
+      ]);
+      score += scoreAtLeast(recentThreeRb, [
+        { minimum: 500, points: 3 },
+        { minimum: 380, points: 2 },
+      ]);
+      score += previousWeak ? 3 : 0;
+
+      score += scoreAtMost(recentThreeAngle, [
+        { maximum: -300, points: 13 },
+        { maximum: -250, points: 11 },
+        { maximum: -200, points: 8 },
+        { maximum: -150, points: 5 },
+        { maximum: -100, points: 2 },
+      ]);
+      score += scoreAtMost(recentFiveAngle, [
+        { maximum: -250, points: 3 },
+        { maximum: -150, points: 2 },
+      ]);
+
+      score +=
+        streak === 2 ? 6 :
+        streak === 3 ? 8 :
+        streak === 4 ? 8 :
+        streak === 5 ? 1 :
+        streak >= 6 ? -3 :
+        0;
+      if (Number.isFinite(daysSinceMachineHighContent)) {
+        score +=
+          daysSinceMachineHighContent === 1 ? -12 :
+          daysSinceMachineHighContent === 2 ? -6 :
+          daysSinceMachineHighContent >= 4 && daysSinceMachineHighContent <= 6 ? 3 :
+          daysSinceMachineHighContent >= 7 && daysSinceMachineHighContent <= 13 ? -1 :
+          daysSinceMachineHighContent >= 14 && daysSinceMachineHighContent <= 20 ? -2 :
+          daysSinceMachineHighContent >= 21 ? -2 :
+          0;
+      }
+      score += recentSevenMachineHighContentCount === 0 ? 1 : 0;
+
+      score += scoreInRange(recentThreeGamesTotal, 2000, 4999, 8);
+      score += scoreInRange(recentThreeGamesTotal, 5000, 6999, 6);
+      score += scoreInRange(recentThreeGamesTotal, 7000, 8999, 1);
+      score -= recentThreeGamesTotal >= 12000 ? 5 : 0;
+      score += scoreInRange(recentFiveGamesTotal, 5000, 12999, 4);
+      score -= recentFiveGamesTotal >= 20000 ? 6 : 0;
+      score -= recentSevenGamesTotal >= 26000 ? 5 : 0;
+
+      score += (recentTwentyOneNetTotal < 0 || recentFourteenNetTotal < 0) && nearbyHigh ? 3 : 0;
+      score -= adjacentMachineNetTotal14 >= 3000 && recentTwentyOneNetTotal > -4000 ? 2 : 0;
+      score +=
+        targetRangeHistoryRowCount >= 21 ? 5 :
+        targetRangeHistoryRowCount >= 14 ? 3 :
+        targetRangeHistoryRowCount >= 7 ? 1 :
+        0;
+
+      score -= previousDifference >= 1500 ? 12 : 0;
+      score -= previousMachineHighContent ? 12 : 0;
+      score -= previousMachineHighContent && previousDifference >= 1500 ? 4 : 0;
+      score -= recentSevenNetTotal >= 1500 ? 8 : 0;
+      score -= recentTwentyOneNetTotal >= 6000 ? 8 : 0;
+      score -= recentThreeAngle >= 100 ? 4 : 0;
+      score -= recentThreeGamesTotal < 2000 ? 6 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (activeLogicKey === "mj-kurume-gogo") {
       let repayScore = 0;
       if (recentFourteenNetTotal >= -3000 && recentFourteenNetTotal <= 0) {
@@ -7982,6 +8393,10 @@ function buildBeamHikariDateSetting(definition, dateText) {
         ? isEventDate
           ? "beam-hikari-funky-event"
           : "beam-hikari-funky-normal"
+        : definition?.machineKey === "gogo"
+          ? isEventDate
+            ? "beam-hikari-gogo-event"
+            : "beam-hikari-gogo-normal"
         : definition?.machineKey === "my"
           ? isEventDate
             ? "beam-hikari-my-event"
@@ -8010,7 +8425,7 @@ function resolveRankingDateSpecificSetting(definition, setting, options = {}) {
   if (
     !options?.dateSpecificRanking ||
     !isBeamHikariStore(options?.storeName) ||
-    !["neo-aim", "funky", "my"].includes(definition?.machineKey)
+    !["neo-aim", "funky", "gogo", "my"].includes(definition?.machineKey)
   ) {
     return setting;
   }

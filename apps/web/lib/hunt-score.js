@@ -819,6 +819,9 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "ファンキージャグラー２ＫＴ": "beam-hikari-funky-content",
       "ファンキージャグラー２": "beam-hikari-funky-content",
       "ファンキージャグラー2": "beam-hikari-funky-content",
+      "ゴーゴージャグラー３": "beam-hikari-gogo-content",
+      "ゴーゴージャグラー3": "beam-hikari-gogo-content",
+      "ゴーゴージャグラー": "beam-hikari-gogo-content",
       "マイジャグラーV": "beam-hikari-my-content",
       "マイジャグラーⅤ": "beam-hikari-my-content",
       "マイジャグラー": "beam-hikari-my-content",
@@ -1531,7 +1534,11 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ゴーゴージャグラー3") ||
     normalizedMachineName === normalizeText("ゴーゴージャグラー")
   ) {
-    if (readMachineContentRule(config, machineName) === "mj-arena-kurume-gogo") {
+    const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "beam-hikari-gogo-content") {
+      return games >= 3500 && combinedDenominator <= 135 && rbDenominator <= 280 && differenceValue >= -1000;
+    }
+    if (contentRule === "mj-arena-kurume-gogo") {
       return (
         games >= 3000 &&
         ((combinedDenominator <= 130 && rbDenominator <= 300) ||
