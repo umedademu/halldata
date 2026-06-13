@@ -858,7 +858,9 @@ function OverallRankingTable({
           </thead>
           <tbody>
             {sortedRows.map((row) => {
-              const rowClassName = getSettingEstimateHighlightClass(row.nextSettingEstimate?.average);
+              const settingEstimateCellClassName = getSettingEstimateHighlightClass(
+                row.nextSettingEstimate?.average,
+              );
               const machineHasSite7Data = Boolean(row.predictionMachineHasSite7Data);
               const machineSite7FetchedAt = row.predictionMachineSite7FetchedAt ?? null;
               const machineFullName = String(row.machineName ?? "").trim();
@@ -875,7 +877,6 @@ function OverallRankingTable({
               return (
                 <tr
                   key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${title}-${row.rank}`}
-                  className={rowClassName}
                   title={rowSite7Title || undefined}
                 >
                   <td
@@ -910,7 +911,11 @@ function OverallRankingTable({
                     {formatNextGapForScope(row, nextGapScope)}
                   </td>
                   <th
-                    className={`directoryNameCell ${machineHasSite7Data ? "site7MachineCell" : ""}`}
+                    className={[
+                      "directoryNameCell",
+                      machineHasSite7Data ? "site7MachineCell" : "",
+                      settingEstimateCellClassName,
+                    ].filter(Boolean).join(" ")}
                     title={machineCellTitle || undefined}
                     data-sort-value={row.machineName}
                   >
@@ -929,12 +934,17 @@ function OverallRankingTable({
                       ) : null}
                     </span>
                   </th>
-                  <td data-sort-value={row.slotNumber} title={rowSite7Title || undefined}>
+                  <td
+                    className={settingEstimateCellClassName || undefined}
+                    data-sort-value={row.slotNumber}
+                    title={rowSite7Title || undefined}
+                  >
                     {row.slotNumber}
                   </td>
                   {visibleColumns.map((column) => (
                     <td
                       key={`${row.machineName}-${row.slotNumber}-${title}-${column.key}`}
+                      className={settingEstimateCellClassName || undefined}
                       title={rowSite7Title || undefined}
                     >
                       {column.render(row)}
@@ -1376,13 +1386,14 @@ export function HuntRankingTable({
               </thead>
               <tbody>
                 {group.rows.map((row) => {
-                  const rowClassName = getSettingEstimateHighlightClass(row.nextSettingEstimate?.average);
+                  const settingEstimateCellClassName = getSettingEstimateHighlightClass(
+                    row.nextSettingEstimate?.average,
+                  );
                   const rowSite7Title = buildRankingRowSite7Title(row);
 
                   return (
                     <tr
                       key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${row.rank}`}
-                      className={rowClassName}
                       title={rowSite7Title || undefined}
                     >
                       <td
@@ -1410,10 +1421,16 @@ export function HuntRankingTable({
                       >
                         {formatNextGapForScope(row, nextGapScope)}
                       </td>
-                      <td title={rowSite7Title || undefined}>{row.slotNumber}</td>
+                      <td
+                        className={settingEstimateCellClassName || undefined}
+                        title={rowSite7Title || undefined}
+                      >
+                        {row.slotNumber}
+                      </td>
                       {visibleColumns.map((column) => (
                         <td
                           key={`${row.machineName}-${row.slotNumber}-${column.key}`}
+                          className={settingEstimateCellClassName || undefined}
                           title={rowSite7Title || undefined}
                         >
                           {column.render(row)}

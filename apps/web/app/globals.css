@@ -2646,6 +2646,34 @@ a {
   font-weight: 800;
 }
 
+.directoryTable.huntRankingTable tbody tr td.settingEstimateLevel0,
+.directoryTable.huntRankingTable tbody tr th.settingEstimateLevel0 {
+  background: #cfe8ff;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.directoryTable.huntRankingTable tbody tr td.settingEstimateLevel1,
+.directoryTable.huntRankingTable tbody tr th.settingEstimateLevel1 {
+  background: #ffe8a3;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.directoryTable.huntRankingTable tbody tr td.settingEstimateLevel2,
+.directoryTable.huntRankingTable tbody tr th.settingEstimateLevel2 {
+  background: #b9e7c8;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.directoryTable.huntRankingTable tbody tr td.settingEstimateLevel3,
+.directoryTable.huntRankingTable tbody tr th.settingEstimateLevel3 {
+  background: #f4a6a6;
+  color: var(--text);
+  font-weight: 800;
+}
+
 .directoryTable tbody tr td.huntScoreConditionHighlighted,
 .directoryTable tbody tr:nth-child(odd) td.huntScoreConditionHighlighted,
 .directoryTable tbody tr:hover td.huntScoreConditionHighlighted,
