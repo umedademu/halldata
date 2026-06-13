@@ -816,6 +816,9 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "beam-hikari-neo-aim-content",
       "ネオアイムジャグラーＥＸ": "beam-hikari-neo-aim-content",
+      "ファンキージャグラー２ＫＴ": "beam-hikari-funky-content",
+      "ファンキージャグラー２": "beam-hikari-funky-content",
+      "ファンキージャグラー2": "beam-hikari-funky-content",
     },
   },
   {
@@ -1569,6 +1572,12 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ファンキージャグラー2")
   ) {
     const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "beam-hikari-funky-content") {
+      return (
+        (games >= 4000 && combinedDenominator <= 138 && rbDenominator <= 300) ||
+        (games >= 5500 && combinedDenominator <= 145 && rbDenominator <= 320 && differenceValue > 0)
+      );
+    }
     if (contentRule === "apark-yakatabaru-funky") {
       return (
         games >= 3500 &&
@@ -1667,6 +1676,7 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
   const games = readWindowField(row, "games");
   const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
   const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const differenceValue = readNumber(row?.differenceValue) ?? 0;
 
   if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
     const contentRule = readMachineContentRule(config, machineName);
@@ -1696,6 +1706,12 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ファンキージャグラー2")
   ) {
     const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "beam-hikari-funky-content") {
+      return (
+        (games >= 4000 && combinedDenominator <= 138 && rbDenominator <= 300) ||
+        (games >= 5500 && combinedDenominator <= 145 && rbDenominator <= 320 && differenceValue > 0)
+      );
+    }
     if (contentRule === "apark-yakatabaru-funky") {
       return (
         games >= 3500 &&
@@ -1773,6 +1789,14 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     readMachineContentRule(config, machineName) === "beam-hikari-neo-aim-content"
   ) {
     return games >= 5000 && combinedDenominator <= 135 && rbDenominator <= 285;
+  }
+  if (
+    (normalizedMachineName === normalizeText("ファンキージャグラー２ＫＴ") ||
+      normalizedMachineName === normalizeText("ファンキージャグラー２") ||
+      normalizedMachineName === normalizeText("ファンキージャグラー2")) &&
+    readMachineContentRule(config, machineName) === "beam-hikari-funky-content"
+  ) {
+    return games >= 5000 && combinedDenominator <= 132 && rbDenominator <= 285 && differenceValue > -500;
   }
   if (isOkidokiGoldMachineName(machineName)) {
     return games >= 4299 && combinedDenominator <= 140.8 && rbDenominator <= 465.7;
