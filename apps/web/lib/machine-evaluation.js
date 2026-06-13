@@ -1651,7 +1651,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-normal-core",
         "1位＋2連敗＋14日沈み強",
-        "50件 / 105.24% / RB1/282.0",
+        "33件 / 105.60% / RB1/284.2",
         {
           rankMax: 1,
           requiredFlags: [
@@ -1665,7 +1665,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-normal-core-safe",
         "1位＋2連敗＋14日沈み強＋危険0",
-        "31件 / 105.24% / RB1/287.7",
+        "22件 / 105.38% / RB1/287.4",
         {
           rankMax: 1,
           maxDanger: 0,
@@ -1680,7 +1680,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-normal-gap20",
         "1位＋次点差20点以上",
-        "63件 / 104.30% / RB1/297.3",
+        "38件 / 104.55% / RB1/291.3",
         {
           rankMax: 1,
           minNextGap: 20,
@@ -1691,7 +1691,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-normal-score90",
         "90点以上",
-        "107件 / 103.40% / RB1/300.3",
+        "67件 / 103.85% / RB1/303.4",
         {
           minScore: 90,
           requiredFlags: ["beamHikariMyNormalHistoryReady"],
@@ -1701,7 +1701,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-normal-score85",
         "85点以上",
-        "149件 / 103.27% / RB1/300.4",
+        "93件 / 103.83% / RB1/302.8",
         {
           minScore: 85,
           requiredFlags: ["beamHikariMyNormalHistoryReady"],
@@ -1711,7 +1711,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-normal-rank1-two-loss-gap15",
         "1位＋2連敗＋次点差15点以上",
-        "73件 / 103.38% / RB1/306.7",
+        "42件 / 103.73% / RB1/305.5",
         {
           rankMax: 1,
           minNextGap: 15,
@@ -1722,7 +1722,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-normal-rank1-two-loss-weak",
         "1位＋2連敗＋弱内容",
-        "135件 / 102.89% / RB1/304.9",
+        "85件 / 102.99% / RB1/309.8",
         {
           rankMax: 1,
           requiredFlags: [
@@ -1736,7 +1736,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-normal-score80",
         "80点以上",
-        "196件 / 102.62% / RB1/308.5",
+        "115件 / 103.79% / RB1/300.7",
         {
           minScore: 80,
           requiredFlags: ["beamHikariMyNormalHistoryReady"],
@@ -1746,7 +1746,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-event-rank1",
         "1位",
-        "68件 / 104.60% / RB1/304.5",
+        "38件 / 104.04% / RB1/301.4",
         {
           rankMax: 1,
           requiredFlags: ["beamHikariMyEventHistoryReady"],
@@ -1756,7 +1756,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-event-gap10",
         "1位＋次点差10点以上",
-        "20件 / 104.63% / RB1/291.3",
+        "10件 / 106.84% / RB1/283.3",
         {
           rankMax: 1,
           minNextGap: 10,
@@ -1767,7 +1767,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-event-reuse",
         "1位＋再投入筋あり",
-        "42件 / 104.68% / RB1/307.4",
+        "22件 / 105.01% / RB1/295.6",
         {
           rankMax: 1,
           requiredFlags: ["beamHikariMyEventHistoryReady", "beamHikariMyEventReuseLine"],
@@ -1777,7 +1777,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-event-reuse-safe",
         "1位＋再投入筋あり＋危険0",
-        "30件 / 103.90% / RB1/309.9",
+        "13件 / 102.96% / RB1/303.1",
         {
           rankMax: 1,
           maxDanger: 0,
@@ -1788,7 +1788,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-event-score90",
         "90点以上",
-        "19件 / 103.59% / RB1/308.3",
+        "9件 / 104.58% / RB1/299.0",
         {
           minScore: 90,
           requiredFlags: ["beamHikariMyEventHistoryReady"],
@@ -1798,7 +1798,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-event-score85",
         "85点以上",
-        "50件 / 104.98% / RB1/289.4",
+        "27件 / 104.84% / RB1/283.3",
         {
           minScore: 85,
           requiredFlags: ["beamHikariMyEventHistoryReady"],
@@ -1808,7 +1808,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-event-top2",
         "上位2台",
-        "136件 / 104.28% / RB1/303.3",
+        "76件 / 104.19% / RB1/301.5",
         {
           rankMax: 2,
           requiredFlags: ["beamHikariMyEventHistoryReady"],
@@ -1818,7 +1818,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-event-score70",
         "70点以上",
-        "214件 / 103.35% / RB1/311.0",
+        "107件 / 103.17% / RB1/311.3",
         {
           minScore: 70,
           requiredFlags: ["beamHikariMyEventHistoryReady"],
