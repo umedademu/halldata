@@ -825,6 +825,8 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "マイジャグラーV": "beam-hikari-my-content",
       "マイジャグラーⅤ": "beam-hikari-my-content",
       "マイジャグラー": "beam-hikari-my-content",
+      "ジャグラーガールズSS": "beam-hikari-girls-content",
+      "ジャグラーガールズ": "beam-hikari-girls-content",
     },
   },
   {
@@ -1631,6 +1633,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ジャグラーガールズSS") ||
     normalizedMachineName === normalizeText("ジャグラーガールズ")
   ) {
+    if (readMachineContentRule(config, machineName) === "beam-hikari-girls-content") {
+      return games >= 3500 && combinedDenominator <= 132 && rbDenominator <= 278;
+    }
     if (readMachineContentRule(config, machineName) === "mj-arena-kurume-girls") {
       return games >= 1500 && combinedDenominator <= 130 && rbDenominator <= 315;
     }
@@ -1781,6 +1786,9 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ジャグラーガールズSS") ||
     normalizedMachineName === normalizeText("ジャグラーガールズ")
   ) {
+    if (readMachineContentRule(config, machineName) === "beam-hikari-girls-content") {
+      return games >= 3000 && combinedDenominator <= 145 && rbDenominator <= 320;
+    }
     if (readMachineContentRule(config, machineName) === "mj-arena-kurume-girls") {
       return games >= 2000 && combinedDenominator <= 132 && rbDenominator <= 278;
     }

@@ -488,6 +488,8 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logics: [
       buildLogicVariant("apark-girls", "ガールズ春日式", "main"),
       buildLogicVariant("mj-kurume-girls", "ガールズMJ久留米式", "mj-kurume-main"),
+      buildLogicVariant("beam-hikari-girls-normal", "ガールズビームヒカリ通常日式", "beam-hikari-normal-main"),
+      buildLogicVariant("beam-hikari-girls-event", "ガールズビームヒカリイベント日式", "beam-hikari-event-main"),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
@@ -555,6 +557,155 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["kurumeGirlsHistoryReady"],
         },
         ["mj-kurume-girls"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-main",
+        "1位＋85点以上＋次点差10点以上",
+        "17件 / 103.08% / RB1/256.0",
+        {
+          rankMax: 1,
+          minScore: 85,
+          minNextGap: 10,
+          requiredFlags: ["beamHikariGirlsNormalHistoryReady"],
+        },
+        ["beam-hikari-girls-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-rank1-score85",
+        "1位＋85点以上",
+        "20件 / 102.52% / RB1/256.6",
+        {
+          rankMax: 1,
+          minScore: 85,
+          requiredFlags: ["beamHikariGirlsNormalHistoryReady"],
+        },
+        ["beam-hikari-girls-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-rank1-score90",
+        "1位＋90点以上",
+        "7件 / 106.70% / RB1/237.1",
+        {
+          rankMax: 1,
+          minScore: 90,
+          requiredFlags: ["beamHikariGirlsNormalHistoryReady"],
+        },
+        ["beam-hikari-girls-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-rank1-score85-boost4",
+        "1位＋85点以上＋強化4個以上",
+        "20件 / 102.52% / RB1/256.6",
+        {
+          rankMax: 1,
+          minScore: 85,
+          minBoost: 4,
+          requiredFlags: ["beamHikariGirlsNormalHistoryReady"],
+        },
+        ["beam-hikari-girls-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-event-main",
+        "1位＋75点以上＋次点差10点以上または強化4個以上",
+        "35件 / 103.95% / RB1/290.5",
+        {
+          anyOf: [
+            {
+              rankMax: 1,
+              minScore: 75,
+              minNextGap: 10,
+              requiredFlags: ["beamHikariGirlsEventHistoryReady"],
+            },
+            {
+              rankMax: 1,
+              minScore: 75,
+              minBoost: 4,
+              requiredFlags: ["beamHikariGirlsEventHistoryReady"],
+            },
+          ],
+        },
+        ["beam-hikari-girls-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-rank1-score75",
+        "1位＋75点以上",
+        "35件 / 103.95% / RB1/290.5",
+        {
+          rankMax: 1,
+          minScore: 75,
+          requiredFlags: ["beamHikariGirlsEventHistoryReady"],
+        },
+        ["beam-hikari-girls-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-rank1-score75-gap10",
+        "1位＋75点以上＋次点差10点以上",
+        "28件 / 104.71% / RB1/280.4",
+        {
+          rankMax: 1,
+          minScore: 75,
+          minNextGap: 10,
+          requiredFlags: ["beamHikariGirlsEventHistoryReady"],
+        },
+        ["beam-hikari-girls-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-rank1-score75-boost4",
+        "1位＋75点以上＋強化4個以上",
+        "35件 / 103.95% / RB1/290.5",
+        {
+          rankMax: 1,
+          minScore: 75,
+          minBoost: 4,
+          requiredFlags: ["beamHikariGirlsEventHistoryReady"],
+        },
+        ["beam-hikari-girls-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-rank1-score80",
+        "1位＋80点以上",
+        "27件 / 105.33% / RB1/283.3",
+        {
+          rankMax: 1,
+          minScore: 80,
+          requiredFlags: ["beamHikariGirlsEventHistoryReady"],
+        },
+        ["beam-hikari-girls-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-rank1-score85",
+        "1位＋85点以上",
+        "21件 / 105.57% / RB1/278.5",
+        {
+          rankMax: 1,
+          minScore: 85,
+          requiredFlags: ["beamHikariGirlsEventHistoryReady"],
+        },
+        ["beam-hikari-girls-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-rank1-score80-gap10",
+        "1位＋80点以上＋次点差10点以上",
+        "22件 / 106.13% / RB1/271.9",
+        {
+          rankMax: 1,
+          minScore: 80,
+          minNextGap: 10,
+          requiredFlags: ["beamHikariGirlsEventHistoryReady"],
+        },
+        ["beam-hikari-girls-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-safe",
+        "1位＋75点以上＋危険0",
+        "35件 / 103.95% / RB1/290.5",
+        {
+          rankMax: 1,
+          minScore: 75,
+          maxDanger: 0,
+          requiredFlags: ["beamHikariGirlsEventHistoryReady"],
+        },
+        ["beam-hikari-girls-event"],
       ),
     ],
   },
@@ -2112,6 +2263,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-gogo-normal");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "my") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-my-normal");
+  } else if (isBeamHikariStore(storeName) && definition.machineKey === "girls") {
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-girls-normal");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-neo-aim");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "my") {
@@ -3117,6 +3270,104 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "girls") {
+    if (activeLogicKey === "beam-hikari-girls-normal" || activeLogicKey === "beam-hikari-girls-event") {
+      const beamHikariGirlsHistoryReady = targetRangeHistoryRowCount >= 7;
+      const beamHikariGirlsPreviousShow = previousMachineHighContent || previousMachineGoodContent;
+      const beamHikariGirlsShortBonusWeak =
+        (features.recentThreeCombinedDenominator >= 180 && features.recentThreeRbDenominator >= 400) ||
+        features.recentThreeRbDenominator >= 500;
+      const beamHikariGirlsSevenBonusWeak =
+        (features.recentSevenCombinedDenominator >= 170 && features.recentSevenRbDenominator >= 350) ||
+        features.recentSevenRbDenominator >= 470;
+      const beamHikariGirlsFiveBonusWeak =
+        features.recentFiveCombinedDenominator >= 170 && features.recentFiveRbDenominator >= 350;
+      const beamHikariGirlsShortSink =
+        recentThreeNetTotal <= -1050 ||
+        features.recentThreeAngle <= -205 ||
+        (activeLogicKey === "beam-hikari-girls-event" &&
+          (recentFiveNetTotal <= -2100 || features.recentFiveAngle <= -160));
+      const beamHikariGirlsMiddleSink =
+        recentSevenNetTotal <= -1700 ||
+        (activeLogicKey === "beam-hikari-girls-event" && recentSevenNetTotal <= -2500) ||
+        features.recentSevenAngle <= -110;
+      const beamHikariGirlsRotationGood =
+        (Number.isFinite(daysSinceMachineHighContent) &&
+          daysSinceMachineHighContent >= 8 &&
+          daysSinceMachineHighContent <= 14) ||
+        (activeLogicKey === "beam-hikari-girls-event" &&
+          Number.isFinite(daysSinceMachineHighContent) &&
+          daysSinceMachineHighContent >= 15 &&
+          daysSinceMachineHighContent <= 28);
+      const beamHikariGirlsStreakGood =
+        activeLogicKey === "beam-hikari-girls-event"
+          ? streak >= 2 && streak <= 9 && streak !== 5
+          : streak >= 2 && streak <= 9;
+      const beamHikariGirlsGamesTrusted =
+        activeLogicKey === "beam-hikari-girls-event"
+          ? recentSevenGamesTotal >= 7000 && recentSevenGamesTotal <= 21000
+          : recentSevenGamesTotal >= 4500 && recentSevenGamesTotal <= 18000;
+      const beamHikariGirlsNearbyLeftBehind =
+        recentSevenNetTotal < 0 &&
+        (previousAdjacentMachineHighContentCount > 0 ||
+          adjacentMachineHighContentCount7Near2 > 0 ||
+          adjacentMachineNetTotal7Near2 > 0);
+      const beamHikariGirlsUnpaid =
+        recentFourteenNetTotal < 0 &&
+        recentTwentyOneNetTotal < 500 &&
+        recentSevenMachineHighContentCount <= 1;
+      const beamHikariGirlsTreatmentDone =
+        beamHikariGirlsPreviousShow ||
+        previousDifference >= 1000 ||
+        recentThreeNetTotal >= 1200 ||
+        recentSevenMachineHighContentCount >= 2;
+      const beamHikariGirlsOverVisible =
+        (activeLogicKey === "beam-hikari-girls-event" &&
+          recentSevenGamesTotal >= 23000 &&
+          recentSevenNetTotal > 0) ||
+        (activeLogicKey === "beam-hikari-girls-normal" && recentSevenGamesTotal >= 20500);
+      const beamHikariGirlsBadStreak = streak === 0 || streak >= 10;
+      const beamHikariGirlsEventHistoryReady = beamHikariGirlsHistoryReady;
+      const beamHikariGirlsNormalHistoryReady = beamHikariGirlsHistoryReady;
+      const boostFlags = [
+        beamHikariGirlsShortSink,
+        beamHikariGirlsShortBonusWeak || beamHikariGirlsSevenBonusWeak || beamHikariGirlsFiveBonusWeak,
+        beamHikariGirlsRotationGood,
+        beamHikariGirlsStreakGood,
+        beamHikariGirlsUnpaid,
+        beamHikariGirlsNearbyLeftBehind,
+        beamHikariGirlsGamesTrusted,
+      ];
+      const dangerFlags = [
+        beamHikariGirlsTreatmentDone,
+        beamHikariGirlsOverVisible,
+        beamHikariGirlsBadStreak,
+        previousDifference >= 500,
+      ];
+
+      return {
+        ...features,
+        beamHikariGirlsHistoryReady,
+        beamHikariGirlsEventHistoryReady,
+        beamHikariGirlsNormalHistoryReady,
+        beamHikariGirlsShortBonusWeak,
+        beamHikariGirlsSevenBonusWeak,
+        beamHikariGirlsFiveBonusWeak,
+        beamHikariGirlsShortSink,
+        beamHikariGirlsMiddleSink,
+        beamHikariGirlsRotationGood,
+        beamHikariGirlsStreakGood,
+        beamHikariGirlsGamesTrusted,
+        beamHikariGirlsNearbyLeftBehind,
+        beamHikariGirlsUnpaid,
+        beamHikariGirlsTreatmentDone,
+        beamHikariGirlsOverVisible,
+        treatmentDone: beamHikariGirlsTreatmentDone,
+        lowConfidence: !beamHikariGirlsHistoryReady,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "mj-kurume-girls") {
       const kurumeGirlsHistoryReady = historyRowCount >= 14;
       const kurumeGirlsSinkStayStrong =
@@ -6382,6 +6633,221 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "girls") {
+    if (activeLogicKey === "beam-hikari-girls-normal" || activeLogicKey === "beam-hikari-girls-event") {
+      if (targetRangeHistoryRowCount < 7) {
+        return 0;
+      }
+
+      let score = 0;
+
+      if (activeLogicKey === "beam-hikari-girls-event") {
+        let sinkScore = 0;
+        sinkScore += scoreAtMost(recentThreeNetTotal, [
+          { maximum: -1800, points: 10 },
+          { maximum: -1400, points: 8 },
+          { maximum: -1000, points: 6 },
+          { maximum: -600, points: 3 },
+        ]);
+        sinkScore += scoreAtMost(recentFiveNetTotal, [
+          { maximum: -2500, points: 12 },
+          { maximum: -2100, points: 10 },
+          { maximum: -1500, points: 7 },
+          { maximum: -1000, points: 4 },
+        ]);
+        sinkScore += scoreAtMost(recentSevenNetTotal, [
+          { maximum: -3000, points: 9 },
+          { maximum: -2500, points: 8 },
+          { maximum: -1800, points: 6 },
+          { maximum: -1200, points: 3 },
+        ]);
+        score += Math.min(sinkScore, 28);
+
+        let angleScore = 0;
+        angleScore += scoreAtMost(features.recentThreeAngle, [
+          { maximum: -320, points: 7 },
+          { maximum: -200, points: 5 },
+          { maximum: -130, points: 3 },
+        ]);
+        angleScore += scoreAtMost(features.recentFiveAngle, [
+          { maximum: -230, points: 10 },
+          { maximum: -160, points: 7 },
+          { maximum: -100, points: 4 },
+        ]);
+        angleScore += scoreAtMost(features.recentSevenAngle, [
+          { maximum: -190, points: 8 },
+          { maximum: -120, points: 5 },
+          { maximum: -80, points: 3 },
+        ]);
+        score += Math.min(angleScore, 18);
+
+        let bonusWeakScore = 0;
+        bonusWeakScore +=
+          features.recentSevenCombinedDenominator >= 180 && features.recentSevenRbDenominator >= 400
+            ? 14
+            : features.recentSevenCombinedDenominator >= 170 && features.recentSevenRbDenominator >= 350
+              ? 9
+              : features.recentSevenCombinedDenominator >= 160 && features.recentSevenRbDenominator >= 330
+                ? 5
+                : 0;
+        bonusWeakScore +=
+          features.recentFiveCombinedDenominator >= 180 && features.recentFiveRbDenominator >= 400
+            ? 12
+            : features.recentFiveCombinedDenominator >= 170 && features.recentFiveRbDenominator >= 350
+              ? 7
+              : 0;
+        bonusWeakScore +=
+          features.recentThreeCombinedDenominator >= 200 && features.recentThreeRbDenominator >= 500
+            ? 6
+            : features.recentThreeCombinedDenominator >= 180 && features.recentThreeRbDenominator >= 400
+              ? 4
+              : 0;
+        bonusWeakScore += features.recentSevenRbDenominator >= 470 ? 4 : 0;
+        score += Math.min(bonusWeakScore, 20);
+
+        let rotationScore = 0;
+        rotationScore += scoreInRange(daysSinceMachineHighContent, 8, 14, 10);
+        rotationScore += scoreInRange(daysSinceMachineHighContent, 15, 28, 5);
+        rotationScore += scoreInRange(daysSinceMachineHighContent, 4, 7, 3);
+        rotationScore += recentSevenMachineHighContentCount === 0 ? 4 : 0;
+        rotationScore += recentSevenMachineGoodContentCount === 0 ? 3 : 0;
+        score += Math.min(rotationScore, 16);
+
+        score +=
+          streak >= 6 && streak <= 9
+            ? 10
+            : streak >= 2 && streak <= 3
+              ? 6
+              : streak === 4
+                ? 4
+                : streak === 5
+                  ? 2
+                  : streak === 1
+                    ? 1
+                    : 0;
+
+        let trustScore = 0;
+        trustScore += targetRangeHistoryRowCount >= 21 ? 4 : targetRangeHistoryRowCount >= 14 ? 3 : 2;
+        trustScore += scoreInRange(recentSevenGamesTotal, 7000, 21000, 3);
+        trustScore += scoreInRange(recentFiveGamesTotal, 5000, 16000, 2);
+        trustScore += scoreInRange(previousGames, 800, 5500, 1);
+        score += Math.min(trustScore, 8);
+
+        let nearbyScore = 0;
+        nearbyScore +=
+          adjacentMachineHighContentCount7Near2 >= 3 && recentSevenNetTotal < 0
+            ? 4
+            : adjacentMachineHighContentCount7Near2 >= 1 && recentSevenNetTotal < 0
+              ? 2
+              : 0;
+        score += Math.min(nearbyScore, 5);
+
+        score -= previousMachineHighContent ? 22 : previousMachineGoodContent ? 18 : 0;
+        score -= previousDifference >= 1700 ? 13 : previousDifference >= 1000 ? 9 : previousDifference >= 500 ? 5 : 0;
+        score -= recentThreeNetTotal >= 2400 ? 9 : recentThreeNetTotal >= 1200 ? 5 : 0;
+        score -= recentSevenMachineGoodContentCount >= 2 ? 8 : 0;
+        score -= recentSevenMachineHighContentCount >= 2 ? 8 : 0;
+        score -= streak === 0 ? 5 : streak >= 10 ? 6 : 0;
+        score -= recentSevenGamesTotal >= 23000 && recentSevenNetTotal > 0 ? 5 : 0;
+
+        return Math.round(clamp(score, 0, 100));
+      }
+
+      let sinkScore = 0;
+      sinkScore += scoreAtMost(recentThreeNetTotal, [
+        { maximum: -1850, points: 10 },
+        { maximum: -1500, points: 8 },
+        { maximum: -1050, points: 6 },
+        { maximum: -650, points: 3 },
+      ]);
+      sinkScore += scoreAtMost(recentFiveNetTotal, [
+        { maximum: -2000, points: 6 },
+        { maximum: -1400, points: 4 },
+        { maximum: -900, points: 2 },
+      ]);
+      sinkScore += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -2800, points: 3 },
+        { maximum: -1700, points: 2 },
+      ]);
+      score += Math.min(sinkScore, 18);
+
+      let angleScore = 0;
+      angleScore += scoreAtMost(features.recentThreeAngle, [
+        { maximum: -430, points: 12 },
+        { maximum: -320, points: 10 },
+        { maximum: -205, points: 7 },
+        { maximum: -130, points: 4 },
+      ]);
+      angleScore += scoreAtMost(features.recentFiveAngle, [
+        { maximum: -205, points: 6 },
+        { maximum: -135, points: 4 },
+        { maximum: -90, points: 2 },
+      ]);
+      angleScore += scoreAtMost(features.recentSevenAngle, [
+        { maximum: -160, points: 4 },
+        { maximum: -110, points: 2 },
+      ]);
+      score += Math.min(angleScore, 22);
+
+      let bonusWeakScore = 0;
+      bonusWeakScore +=
+        features.recentThreeCombinedDenominator >= 200 && features.recentThreeRbDenominator >= 540
+          ? 10
+          : features.recentThreeCombinedDenominator >= 180 && features.recentThreeRbDenominator >= 400
+            ? 7
+            : features.recentThreeCombinedDenominator >= 170 && features.recentThreeRbDenominator >= 350
+              ? 4
+              : 0;
+      bonusWeakScore +=
+        features.recentSevenCombinedDenominator >= 180 && features.recentSevenRbDenominator >= 400
+          ? 9
+          : features.recentSevenCombinedDenominator >= 170 && features.recentSevenRbDenominator >= 350
+            ? 5
+            : 0;
+      bonusWeakScore += features.recentFiveCombinedDenominator >= 180 && features.recentFiveRbDenominator >= 400 ? 5 : 0;
+      bonusWeakScore += features.recentSevenRbDenominator >= 470 ? 4 : 0;
+      score += Math.min(bonusWeakScore, 22);
+
+      score +=
+        streak === 4
+          ? 16
+          : streak >= 6 && streak <= 9
+            ? 12
+            : streak >= 2 && streak <= 3
+              ? 11
+              : streak === 1
+                ? 4
+                : streak === 5 || streak >= 10
+                  ? 2
+                  : 0;
+
+      let intervalScore = 0;
+      intervalScore += scoreInRange(daysSinceMachineHighContent, 8, 14, 8);
+      intervalScore += scoreInRange(daysSinceMachineHighContent, 4, 7, 3);
+      intervalScore += scoreInRange(daysSinceMachineHighContent, 15, 28, 4);
+      intervalScore += recentSevenMachineHighContentCount === 0 ? 2 : 0;
+      score += Math.min(intervalScore, 10);
+
+      let gamesScore = 0;
+      gamesScore += targetRangeHistoryRowCount >= 21 ? 4 : targetRangeHistoryRowCount >= 14 ? 3 : 2;
+      gamesScore += scoreInRange(recentSevenGamesTotal, 4500, 15500, 4);
+      gamesScore += scoreInRange(recentSevenGamesTotal, 15501, 18000, 2);
+      gamesScore += scoreInRange(previousGames, 500, 5000, 2);
+      score += Math.min(gamesScore, 10);
+
+      score += adjacentMachineHighContentCount7Near2 >= 1 && recentSevenNetTotal < 0 ? 1 : 0;
+
+      score -= previousMachineHighContent ? 22 : previousMachineGoodContent ? 18 : 0;
+      score -= previousDifference >= 1700 ? 12 : previousDifference >= 1000 ? 8 : previousDifference >= 500 ? 4 : 0;
+      score -= recentThreeNetTotal >= 2400 ? 10 : recentThreeNetTotal >= 1000 ? 6 : 0;
+      score -= recentSevenNetTotal >= 2600 ? 6 : recentSevenNetTotal >= 1200 ? 4 : 0;
+      score -= recentSevenMachineGoodContentCount >= 2 ? 9 : 0;
+      score -= recentSevenMachineHighContentCount >= 2 ? 8 : 0;
+      score -= streak === 0 ? 8 : streak >= 10 ? 5 : 0;
+      score -= recentSevenGamesTotal >= 20500 ? 5 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (activeLogicKey === "mj-kurume-girls") {
       if (historyRowCount < 14) {
         return 0;
@@ -8401,6 +8867,10 @@ function buildBeamHikariDateSetting(definition, dateText) {
           ? isEventDate
             ? "beam-hikari-my-event"
             : "beam-hikari-my-normal"
+          : definition?.machineKey === "girls"
+            ? isEventDate
+              ? "beam-hikari-girls-event"
+              : "beam-hikari-girls-normal"
         : "";
   if (!logicKey) {
     return null;
@@ -8425,7 +8895,7 @@ function resolveRankingDateSpecificSetting(definition, setting, options = {}) {
   if (
     !options?.dateSpecificRanking ||
     !isBeamHikariStore(options?.storeName) ||
-    !["neo-aim", "funky", "gogo", "my"].includes(definition?.machineKey)
+    !["neo-aim", "funky", "gogo", "my", "girls"].includes(definition?.machineKey)
   ) {
     return setting;
   }
