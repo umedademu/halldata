@@ -826,6 +826,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     machineNames: ["スマスロモンキーターンV", "スマスロ モンキーターンV", "スマスロモンキーターンⅤ"],
     logicKey: "apark-monkey",
     logicName: "モンキー春日式v2",
+    logics: [
+      buildLogicVariant("apark-monkey", "モンキー春日式v2", "main"),
+      buildLogicVariant("beam-hikari-monkey-normal", "モンキービームヒカリ通常日式", "beam-hikari-normal-main"),
+      buildLogicVariant("beam-hikari-monkey-event", "モンキービームヒカリイベント日式", "beam-hikari-event-score70"),
+    ],
     profile: "smart",
     defaultConditionSuffix: "main",
     conditions: [
@@ -838,6 +843,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           minNextGap: 10,
           requiredFlags: ["monkeyHistoryReady"],
         },
+        ["apark-monkey"],
       ),
       buildCondition(
         "safe",
@@ -848,6 +854,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           maxDanger: 0,
           requiredFlags: ["monkeyHistoryReady"],
         },
+        ["apark-monkey"],
       ),
       buildCondition(
         "strong",
@@ -860,6 +867,97 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           maxDanger: 0,
           requiredFlags: ["monkeyHistoryReady"],
         },
+        ["apark-monkey"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-main",
+        "1位＋60点以上＋次点差4点以上",
+        "128件 / 107.0%",
+        {
+          rankMax: 1,
+          minScore: 60,
+          minNextGap: 4,
+          requiredFlags: ["beamHikariMonkeyNormalHistoryReady"],
+        },
+        ["beam-hikari-monkey-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-gap6",
+        "1位＋60点以上＋次点差6点以上",
+        "108件 / 107.6%",
+        {
+          rankMax: 1,
+          minScore: 60,
+          minNextGap: 6,
+          requiredFlags: ["beamHikariMonkeyNormalHistoryReady"],
+        },
+        ["beam-hikari-monkey-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-rank1-score60",
+        "1位＋60点以上",
+        "173件 / 105.4%",
+        {
+          rankMax: 1,
+          minScore: 60,
+          requiredFlags: ["beamHikariMonkeyNormalHistoryReady"],
+        },
+        ["beam-hikari-monkey-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-rank1-score70",
+        "1位＋70点以上",
+        "80件 / 108.3%",
+        {
+          rankMax: 1,
+          minScore: 70,
+          requiredFlags: ["beamHikariMonkeyNormalHistoryReady"],
+        },
+        ["beam-hikari-monkey-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-event-main",
+        "1位＋70点以上",
+        "25件 / 102.6%",
+        {
+          rankMax: 1,
+          minScore: 70,
+          requiredFlags: ["beamHikariMonkeyEventHistoryReady"],
+        },
+        ["beam-hikari-monkey-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-gap4",
+        "1位＋70点以上＋次点差4点以上",
+        "20件 / 104.6%",
+        {
+          rankMax: 1,
+          minScore: 70,
+          minNextGap: 4,
+          requiredFlags: ["beamHikariMonkeyEventHistoryReady"],
+        },
+        ["beam-hikari-monkey-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-score70",
+        "70点以上",
+        "41件 / 105.1%",
+        {
+          minScore: 70,
+          requiredFlags: ["beamHikariMonkeyEventHistoryReady"],
+        },
+        ["beam-hikari-monkey-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-score75",
+        "1位＋75点以上",
+        "14件 / 102.9%",
+        {
+          rankMax: 1,
+          minScore: 75,
+          requiredFlags: ["beamHikariMonkeyEventHistoryReady"],
+        },
+        ["beam-hikari-monkey-event"],
       ),
     ],
   },
@@ -2407,6 +2505,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-happy-normal");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "ultra-miracle") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-ultra-normal");
+  } else if (isBeamHikariStore(storeName) && definition.machineKey === "monkey") {
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-monkey-normal");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-neo-aim");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "my") {
@@ -3996,6 +4096,79 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "monkey") {
+    if (activeLogicKey === "beam-hikari-monkey-normal" || activeLogicKey === "beam-hikari-monkey-event") {
+      const beamHikariMonkeyHistoryReady = targetRangeHistoryRowCount >= 14;
+      const beamHikariMonkeyNormalUnpaid14 =
+        recentFourteenNetTotal > -6500 && recentFourteenNetTotal <= 1900;
+      const beamHikariMonkeyNormalCore14 =
+        recentFourteenNetTotal > -2200 && recentFourteenNetTotal <= 1900;
+      const beamHikariMonkeyNormalGapOk =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        ((daysSinceMachineHighContent >= 3 && daysSinceMachineHighContent <= 4) ||
+          (daysSinceMachineHighContent >= 8 && daysSinceMachineHighContent <= 14));
+      const beamHikariMonkeyNormalDanger =
+        recentFourteenNetTotal <= -10000 ||
+        recentFourteenNetTotal > 1900 ||
+        (recentSevenNetTotal > -7000 && recentSevenNetTotal <= -1750) ||
+        recentSevenNetTotal > 4430 ||
+        (streak >= 4 && streak <= 5) ||
+        streak >= 8 ||
+        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 15) ||
+        (features.recentFiveCombinedDenominator >= 424 && features.recentFiveCombinedDenominator <= 481) ||
+        previousDifference > 3000;
+      const beamHikariMonkeyEventSink14 =
+        recentFourteenNetTotal > -10000 && recentFourteenNetTotal <= -2200;
+      const beamHikariMonkeyEventNearbyCold =
+        adjacentMachineHighContentCount3 <= 1 ||
+        (adjacentMachineNetTotal3 >= -5500 && adjacentMachineNetTotal3 <= -1800);
+      const beamHikariMonkeyEventInterval =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 18 &&
+        daysSinceMachineHighContent <= 42;
+      const beamHikariMonkeyEventDanger =
+        recentFourteenNetTotal > 5800 ||
+        recentThreeNetTotal > 3000 ||
+        previousDifference > 3000 ||
+        previousGames > 7000 ||
+        adjacentMachineHighContentCount3 >= 2;
+      const normalBoostFlags = [
+        beamHikariMonkeyNormalUnpaid14,
+        beamHikariMonkeyNormalCore14,
+        beamHikariMonkeyNormalGapOk,
+        streak === 2,
+        previousGames >= 2900 && previousGames <= 5800,
+        recentFiveGamesTotal >= 8000 && recentFiveGamesTotal <= 17999,
+        recentSevenMachineHighContentCount >= 1 && recentSevenMachineHighContentCount <= 2,
+        adjacentMachineHighContentCount3 <= 1,
+      ];
+      const eventBoostFlags = [
+        beamHikariMonkeyEventSink14,
+        recentThreeNetTotal <= -3000,
+        beamHikariMonkeyEventInterval,
+        beamHikariMonkeyEventNearbyCold,
+        recentSevenMachineHighContentCount <= 2,
+      ];
+      const isEventLogic = activeLogicKey === "beam-hikari-monkey-event";
+
+      return {
+        ...features,
+        beamHikariMonkeyNormalHistoryReady: beamHikariMonkeyHistoryReady,
+        beamHikariMonkeyEventHistoryReady: beamHikariMonkeyHistoryReady,
+        beamHikariMonkeyNormalUnpaid14,
+        beamHikariMonkeyNormalCore14,
+        beamHikariMonkeyNormalGapOk,
+        beamHikariMonkeyNormalDanger,
+        beamHikariMonkeyEventSink14,
+        beamHikariMonkeyEventNearbyCold,
+        beamHikariMonkeyEventInterval,
+        beamHikariMonkeyEventDanger,
+        treatmentDone: isEventLogic ? beamHikariMonkeyEventDanger : beamHikariMonkeyNormalDanger,
+        lowConfidence: targetRangeHistoryRowCount < 14,
+        boostCount: (isEventLogic ? eventBoostFlags : normalBoostFlags).filter(Boolean).length,
+        dangerCount: (isEventLogic ? [beamHikariMonkeyEventDanger] : [beamHikariMonkeyNormalDanger]).filter(Boolean).length,
+      };
+    }
+
     const monkeyHistoryReady = historyRowCount >= 21;
     const fourteenSinkStayDays = readNumber(metrics.recentFourteenMinus3218StayDays);
     const twentyOneSinkStayDays = readNumber(metrics.recentTwentyOneMinus11333StayDays);
@@ -9159,6 +9332,276 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "monkey") {
+    if (activeLogicKey === "beam-hikari-monkey-normal" || activeLogicKey === "beam-hikari-monkey-event") {
+      if (targetRangeHistoryRowCount < 14) {
+        return 0;
+      }
+
+      let score = 0;
+      let penalty = 0;
+
+      if (activeLogicKey === "beam-hikari-monkey-event") {
+        if (recentFourteenNetTotal <= -10000) {
+          score += 14;
+        } else if (recentFourteenNetTotal <= -6500) {
+          score += 20;
+        } else if (recentFourteenNetTotal <= -2200) {
+          score += 14;
+        } else if (recentFourteenNetTotal <= 1900) {
+          score += 6;
+        } else if (recentFourteenNetTotal <= 5800) {
+          score += 3;
+        } else {
+          penalty += 8;
+        }
+
+        if (recentThreeNetTotal <= -3000) {
+          score += 12;
+        } else if (recentThreeNetTotal <= -1500) {
+          score += 2;
+        } else if (recentThreeNetTotal <= 300) {
+          score += 8;
+        } else if (recentThreeNetTotal <= 3000) {
+          score += 8;
+        } else {
+          penalty += 8;
+        }
+
+        if (recentSevenNetTotal <= -7000) {
+          score += 4;
+        } else if (recentSevenNetTotal <= -1750) {
+          score += 8;
+        } else if (recentSevenNetTotal <= 1070) {
+          score += 5;
+        } else if (recentSevenNetTotal <= 4430) {
+          score += 4;
+        } else {
+          penalty += 5;
+        }
+
+        if (!Number.isFinite(daysSinceMachineHighContent)) {
+          score += 4;
+        } else if (daysSinceMachineHighContent <= 8) {
+          penalty += 6;
+        } else if (daysSinceMachineHighContent <= 16) {
+          score += 10;
+        } else if (daysSinceMachineHighContent <= 30) {
+          score += 16;
+        } else if (daysSinceMachineHighContent <= 60) {
+          score += 10;
+        } else {
+          score += 2;
+        }
+
+        if (streak === 1) {
+          score += 3;
+        } else if (streak >= 2 && streak <= 3) {
+          score += 8;
+        } else if (streak >= 4 && streak <= 5) {
+          score += 5;
+        } else if (streak >= 6 && streak <= 7) {
+          score += 10;
+        } else if (streak >= 8) {
+          score += 4;
+          penalty += 2;
+        }
+
+        if (previousGames < 800) {
+          score += 4;
+        } else if (previousGames < 1600) {
+          score += 1;
+        } else if (previousGames < 2900) {
+          score += 6;
+        } else if (previousGames <= 5800) {
+          score += 5;
+        } else if (previousGames <= 7000) {
+          score += 1;
+          penalty += 4;
+        } else {
+          penalty += 7;
+        }
+
+        if (recentFiveGamesTotal < 8000) {
+          score += 2;
+        } else if (recentFiveGamesTotal < 12000) {
+          score += 3;
+        } else if (recentFiveGamesTotal <= 23500) {
+          score += 6;
+        } else if (recentFiveGamesTotal <= 26000) {
+          score += 2;
+          penalty += 2;
+        } else {
+          penalty += 4;
+        }
+
+        if (features.recentFiveCombinedDenominator <= 398) {
+          score += 5;
+        } else if (features.recentFiveCombinedDenominator <= 423) {
+          score += 3;
+        } else if (features.recentFiveCombinedDenominator <= 481) {
+          score += 4;
+        } else {
+          score += 2;
+        }
+
+        if (adjacentMachineHighContentCount3 <= 1) {
+          score += 8;
+        } else if (adjacentMachineHighContentCount3 <= 3) {
+          score += 1;
+          penalty += 4;
+        } else if (adjacentMachineHighContentCount3 <= 6) {
+          score += 3;
+        } else {
+          penalty += 5;
+        }
+
+        if (adjacentMachineNetTotal3 >= -5500 && adjacentMachineNetTotal3 <= -1800) {
+          score += 4;
+        } else if (adjacentMachineNetTotal3 < -5500) {
+          score += 2;
+        } else if (adjacentMachineNetTotal3 > 5000) {
+          score += 3;
+        } else if (adjacentMachineNetTotal3 >= 0) {
+          penalty += 3;
+        }
+
+        score += recentSevenMachineHighContentCount <= 2 ? 3 : 0;
+        score += previousDifference < 5000 && recentSevenNetTotal <= 4430 ? 2 : 0;
+        penalty += previousDifference > 3000 ? 8 : 0;
+
+        return Math.round(clamp(score - penalty, 0, 100));
+      }
+
+      if (recentFourteenNetTotal <= -10000) {
+        penalty += 8;
+      } else if (recentFourteenNetTotal <= -6500) {
+        score += 8;
+      } else if (recentFourteenNetTotal <= -2200) {
+        score += 16;
+      } else if (recentFourteenNetTotal <= 1900) {
+        score += 24;
+      } else if (recentFourteenNetTotal <= 5800) {
+        score += 2;
+        penalty += 6;
+      } else {
+        score += 4;
+        penalty += 4;
+      }
+
+      if (recentSevenNetTotal <= -7000) {
+        score += 12;
+      } else if (recentSevenNetTotal <= -1750) {
+        score += 1;
+        penalty += 5;
+      } else if (recentSevenNetTotal <= 1070) {
+        score += 8;
+      } else if (recentSevenNetTotal <= 4430) {
+        score += 7;
+      } else {
+        penalty += 6;
+      }
+
+      if (recentThreeNetTotal <= -3000) {
+        score += 3;
+      } else if (recentThreeNetTotal <= -1500) {
+        score += 2;
+      } else if (recentThreeNetTotal <= 300) {
+        score += 8;
+      } else if (recentThreeNetTotal <= 3000) {
+        score += 5;
+      } else {
+        score += 2;
+      }
+
+      if (!Number.isFinite(daysSinceMachineHighContent)) {
+        score += 4;
+      } else if (daysSinceMachineHighContent === 1) {
+        score += 5;
+      } else if (daysSinceMachineHighContent === 2) {
+        score += 4;
+      } else if (daysSinceMachineHighContent >= 3 && daysSinceMachineHighContent <= 4) {
+        score += 14;
+      } else if (daysSinceMachineHighContent >= 5 && daysSinceMachineHighContent <= 7) {
+        score += 3;
+      } else if (daysSinceMachineHighContent >= 8 && daysSinceMachineHighContent <= 14) {
+        score += 10;
+      } else {
+        penalty += 6;
+      }
+
+      if (streak === 0) {
+        score += 4;
+      } else if (streak === 1) {
+        score += 3;
+      } else if (streak === 2) {
+        score += 10;
+      } else if (streak === 3) {
+        score += 1;
+        penalty += 3;
+      } else if (streak >= 4 && streak <= 5) {
+        penalty += 5;
+      } else if (streak >= 6 && streak <= 7) {
+        score += 6;
+      } else if (streak >= 8) {
+        penalty += 6;
+      }
+
+      if (previousGames < 800) {
+        score += 1;
+      } else if (previousGames < 1600) {
+        score += 4;
+      } else if (previousGames < 2900) {
+        score += 5;
+      } else if (previousGames <= 5800) {
+        score += 8;
+      } else if (previousGames <= 7000) {
+        score += 3;
+      } else {
+        score += 2;
+        penalty += 2;
+      }
+
+      if (recentFiveGamesTotal < 8000) {
+        score += 2;
+      } else if (recentFiveGamesTotal < 12000) {
+        score += 5;
+      } else if (recentFiveGamesTotal < 18000) {
+        score += 6;
+      } else if (recentFiveGamesTotal <= 23500) {
+        score += 3;
+      } else if (recentFiveGamesTotal <= 26000) {
+        score += 2;
+      } else {
+        score += 4;
+      }
+
+      if (features.recentFiveCombinedDenominator <= 398) {
+        score += 8;
+      } else if (features.recentFiveCombinedDenominator <= 423) {
+        score += 4;
+      } else if (features.recentFiveCombinedDenominator <= 481) {
+        penalty += 4;
+      } else {
+        score += 8;
+      }
+
+      if (recentSevenMachineHighContentCount === 0) {
+        score += 2;
+      } else if (recentSevenMachineHighContentCount <= 2) {
+        score += 6;
+      } else if (recentSevenMachineHighContentCount === 3) {
+        score += 2;
+      } else {
+        score += 3;
+      }
+      penalty += previousDifference > 3000 ? 2 : 0;
+
+      score += adjacentMachineHighContentCount3 <= 1 ? 3 : adjacentMachineHighContentCount3 <= 3 ? 2 : 1;
+      score += adjacentMachineNetTotal3 >= -1800 && adjacentMachineNetTotal3 <= 0 ? 1 : 0;
+
+      return Math.round(clamp(score - penalty, 0, 100));
+    }
+
     if (readNumber(metrics.historyRowCount) < 21) {
       return 0;
     }
@@ -9320,6 +9763,10 @@ function buildBeamHikariDateSetting(definition, dateText) {
                 ? isEventDate
                   ? "beam-hikari-ultra-event"
                   : "beam-hikari-ultra-normal"
+                : definition?.machineKey === "monkey"
+                  ? isEventDate
+                    ? "beam-hikari-monkey-event"
+                    : "beam-hikari-monkey-normal"
         : "";
   if (!logicKey) {
     return null;
@@ -9344,7 +9791,7 @@ function resolveRankingDateSpecificSetting(definition, setting, options = {}) {
   if (
     !options?.dateSpecificRanking ||
     !isBeamHikariStore(options?.storeName) ||
-    !["neo-aim", "funky", "gogo", "my", "girls", "happy", "ultra-miracle"].includes(definition?.machineKey)
+    !["neo-aim", "funky", "gogo", "my", "girls", "happy", "ultra-miracle", "monkey"].includes(definition?.machineKey)
   ) {
     return setting;
   }
