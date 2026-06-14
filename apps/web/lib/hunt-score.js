@@ -833,6 +833,9 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "ハッピージャグラーV": "beam-hikari-happy-content",
       "ハッピージャグラー": "beam-hikari-happy-content",
       "ウルトラミラクルジャグラー": "beam-hikari-ultra-miracle-content",
+      "Lスマスロ北斗の拳": "beam-hikari-hokuto-base-content",
+      "L スマスロ北斗の拳": "beam-hikari-hokuto-base-content",
+      "スマスロ北斗の拳": "beam-hikari-hokuto-base-content",
     },
   },
   {
@@ -1656,6 +1659,16 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
   }
   if (normalizedMachineName === normalizeText("スマスロモンキーターンV")) {
     return games >= 3502 && combinedDenominator <= 434 && differenceValue >= -819;
+  }
+  if (
+    normalizedMachineName === normalizeText("Lスマスロ北斗の拳") ||
+    normalizedMachineName === normalizeText("L スマスロ北斗の拳") ||
+    normalizedMachineName === normalizeText("スマスロ北斗の拳")
+  ) {
+    if (readMachineContentRule(config, machineName) === "beam-hikari-hokuto-base-content") {
+      return games >= 4000 && combinedDenominator <= 105;
+    }
+    return games >= 4000 && combinedDenominator <= 105;
   }
   if (
     normalizedMachineName === normalizeText("スマスロ北斗の拳 転生の章") ||

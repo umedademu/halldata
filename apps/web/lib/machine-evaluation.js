@@ -1131,6 +1131,129 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     ],
   },
   {
+    machineKey: "hokuto-base",
+    machineNames: ["Lスマスロ北斗の拳", "L スマスロ北斗の拳", "スマスロ北斗の拳"],
+    logicKey: "beam-hikari-hokuto-base-normal",
+    logicName: "L北斗ビームヒカリ通常日式",
+    logics: [
+      buildLogicVariant("beam-hikari-hokuto-base-normal", "L北斗ビームヒカリ通常日式", "beam-hikari-normal-top2-score80"),
+      buildLogicVariant("beam-hikari-hokuto-base-event", "L北斗ビームヒカリイベント日式", "beam-hikari-event-main"),
+    ],
+    profile: "smart",
+    defaultConditionSuffix: "beam-hikari-normal-top2-score80",
+    conditions: [
+      buildCondition(
+        "beam-hikari-normal-top2-score80",
+        "上位2台＋80点以上",
+        "87件 / 104.61%",
+        {
+          rankMax: 2,
+          minScore: 80,
+          requiredFlags: ["beamHikariHokutoBaseNormalHistoryReady"],
+        },
+        ["beam-hikari-hokuto-base-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-score80",
+        "80点以上",
+        "89件 / 104.40%",
+        {
+          minScore: 80,
+          requiredFlags: ["beamHikariHokutoBaseNormalHistoryReady"],
+        },
+        ["beam-hikari-hokuto-base-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-normal-rank1-score80",
+        "1位＋80点以上",
+        "76件 / 103.79%",
+        {
+          rankMax: 1,
+          minScore: 80,
+          requiredFlags: ["beamHikariHokutoBaseNormalHistoryReady"],
+        },
+        ["beam-hikari-hokuto-base-normal"],
+      ),
+      buildCondition(
+        "beam-hikari-event-main",
+        "1位＋75点以上",
+        "65件 / 103.48%",
+        {
+          rankMax: 1,
+          minScore: 75,
+          requiredFlags: ["beamHikariHokutoBaseEventHistoryReady"],
+        },
+        ["beam-hikari-hokuto-base-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-rank1-score75-safe",
+        "1位＋75点以上＋危険0",
+        "52件 / 104.93%",
+        {
+          rankMax: 1,
+          minScore: 75,
+          maxDanger: 0,
+          requiredFlags: ["beamHikariHokutoBaseEventHistoryReady"],
+        },
+        ["beam-hikari-hokuto-base-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-rank1-score75-gap3",
+        "1位＋75点以上＋次点差3点以上",
+        "48件 / 104.70%",
+        {
+          rankMax: 1,
+          minScore: 75,
+          minNextGap: 3,
+          requiredFlags: ["beamHikariHokutoBaseEventHistoryReady"],
+        },
+        ["beam-hikari-hokuto-base-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-top2-score80",
+        "上位2台＋80点以上",
+        "103件 / 103.41%",
+        {
+          rankMax: 2,
+          minScore: 80,
+          requiredFlags: ["beamHikariHokutoBaseEventHistoryReady"],
+        },
+        ["beam-hikari-hokuto-base-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-rank1",
+        "1位",
+        "69件 / 102.79%",
+        {
+          rankMax: 1,
+          requiredFlags: ["beamHikariHokutoBaseEventHistoryReady"],
+        },
+        ["beam-hikari-hokuto-base-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-score80",
+        "80点以上",
+        "158件 / 104.17%",
+        {
+          minScore: 80,
+          requiredFlags: ["beamHikariHokutoBaseEventHistoryReady"],
+        },
+        ["beam-hikari-hokuto-base-event"],
+      ),
+      buildCondition(
+        "beam-hikari-event-top2-score75",
+        "上位2台＋75点以上",
+        "120件 / 103.47%",
+        {
+          rankMax: 2,
+          minScore: 75,
+          requiredFlags: ["beamHikariHokutoBaseEventHistoryReady"],
+        },
+        ["beam-hikari-hokuto-base-event"],
+      ),
+    ],
+  },
+  {
     machineKey: "dragon-hana",
     machineNames: [
       "ドラゴンハナハナ～閃光～",
@@ -2624,6 +2747,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-monkey-normal");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "hokuto-tensei") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-hokuto-tensei-normal");
+  } else if (isBeamHikariStore(storeName) && definition.machineKey === "hokuto-base") {
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-hokuto-base-normal");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-neo-aim");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "my") {
@@ -4187,6 +4312,65 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       treatmentDone: dangerFlags.slice(1, 5).some(Boolean),
       lowConfidence: recentSevenGamesTotal < 26955,
     };
+  }
+
+  if (machineKey === "hokuto-base") {
+    const isBeamHikariHokutoBaseLogic =
+      activeLogicKey === "beam-hikari-hokuto-base-normal" ||
+      activeLogicKey === "beam-hikari-hokuto-base-event";
+    if (isBeamHikariHokutoBaseLogic) {
+      const beamHikariHokutoBaseHistoryReady = targetRangeHistoryRowCount >= 14;
+      const weakContent5 = features.recentFiveCombinedDenominator > 150;
+      const weakContent5Semi = features.recentFiveCombinedDenominator > 130;
+      const previousWeakContent = features.previousCombinedDenominator > 162;
+      const previousNearbyShow =
+        previousAdjacentMachineHighContentCount > 0 || previousAdjacentMachineBigWin1000Count > 0;
+      const eventBoostFlags = [
+        recentFiveNetTotal <= -2300 || (recentFiveGamesTotal >= 4000 && features.recentFiveAngle <= -350),
+        recentFourteenGamesTotal >= 15000 && features.recentFourteenAngle <= -195,
+        weakContent5 || previousWeakContent,
+        Number.isFinite(daysSinceMachineHighContent) &&
+          daysSinceMachineHighContent >= 8 &&
+          !previousMachineHighContent,
+        (recentFiveGamesTotal >= 4500 && recentFiveGamesTotal <= 9000) || recentFourteenGamesTotal >= 17000,
+      ];
+      const eventDangerFlags = [
+        previousMachineHighContent,
+        previousDifference >= 1500 || recentFiveNetTotal > 2100 || recentFourteenNetTotal > 3888,
+        features.previousCombinedDenominator <= 73 && previousGames >= 500,
+        previousNearbyShow,
+        recentFiveGamesTotal < 3000 || recentFourteenGamesTotal < 12000,
+      ];
+      const normalBoostFlags = [
+        streak >= 6 || (recentFiveGamesTotal >= 3000 && features.recentFiveAngle <= -500) || previousDifference <= -2000,
+        weakContent5 || previousWeakContent,
+        recentFourteenNetTotal <= -3000 && recentFiveNetTotal <= -2300 && streak >= 4,
+        recentFourteenMachineHighContentCount >= 4,
+        (recentFiveGamesTotal >= 3000 && recentFiveGamesTotal <= 9000) ||
+          (recentFourteenGamesTotal >= 12000 && recentFourteenGamesTotal <= 30000),
+      ];
+      const normalDangerFlags = [
+        previousDifference > 0 || recentThreeNetTotal > 1000 || recentFiveNetTotal > 2100,
+        features.previousCombinedDenominator <= 90 && previousGames >= 500,
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 30,
+        recentFiveGamesTotal < 2000 || recentFourteenGamesTotal < 8000,
+        previousNearbyShow,
+      ];
+      const isEventLogic = activeLogicKey === "beam-hikari-hokuto-base-event";
+      const boostFlags = isEventLogic ? eventBoostFlags : normalBoostFlags;
+      const dangerFlags = isEventLogic ? eventDangerFlags : normalDangerFlags;
+
+      return {
+        ...features,
+        beamHikariHokutoBaseNormalHistoryReady: beamHikariHokutoBaseHistoryReady,
+        beamHikariHokutoBaseEventHistoryReady: beamHikariHokutoBaseHistoryReady,
+        beamHikariHokutoBasePreviousNearbyShow: previousNearbyShow,
+        treatmentDone: dangerFlags.some(Boolean),
+        lowConfidence: !beamHikariHokutoBaseHistoryReady,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
   }
 
   if (machineKey === "dragon-hana") {
@@ -9795,6 +9979,242 @@ function calculateMachineScore(definition, metrics, features) {
     );
   }
 
+  if (machineKey === "hokuto-base") {
+    if (
+      activeLogicKey === "beam-hikari-hokuto-base-normal" ||
+      activeLogicKey === "beam-hikari-hokuto-base-event"
+    ) {
+      if (targetRangeHistoryRowCount < 14) {
+        return 0;
+      }
+
+      const previousNearbyShow = Boolean(features.beamHikariHokutoBasePreviousNearbyShow);
+      let score = 0;
+
+      if (activeLogicKey === "beam-hikari-hokuto-base-event") {
+        if (recentFiveNetTotal <= -2300) {
+          score += 16;
+        } else if (recentFiveNetTotal <= -1000) {
+          score += 10;
+        } else if (recentFiveNetTotal <= 0) {
+          score += 5;
+        }
+
+        if (recentThreeNetTotal <= -1600) {
+          score += 7;
+        } else if (recentThreeNetTotal <= -700) {
+          score += 4;
+        }
+
+        if (previousDifference <= -800) {
+          score += 5;
+        } else if (previousDifference <= -250) {
+          score += 2;
+        }
+
+        if (recentFourteenNetTotal <= -4000) {
+          score += 4;
+        } else if (recentFourteenNetTotal <= -1600) {
+          score += 2;
+        }
+
+        if (recentFiveGamesTotal >= 4000 && features.recentFiveAngle <= -350) {
+          score += 12;
+        } else if (recentFiveGamesTotal >= 4000 && features.recentFiveAngle <= -150) {
+          score += 7;
+        }
+        score += recentThreeGamesTotal >= 2000 && features.recentThreeAngle <= -470 ? 5 : 0;
+        score += recentFourteenGamesTotal >= 15000 && features.recentFourteenAngle <= -195 ? 4 : 0;
+
+        if (streak >= 4) {
+          score += 10;
+        } else if (streak === 3) {
+          score += 7;
+        } else if (streak === 2) {
+          score += 4;
+        }
+
+        if (Number.isFinite(daysSinceMachineHighContent)) {
+          if (daysSinceMachineHighContent >= 8 && daysSinceMachineHighContent <= 11) {
+            score += 6;
+          } else if (daysSinceMachineHighContent >= 20) {
+            score += 5;
+          } else if (daysSinceMachineHighContent >= 12 && daysSinceMachineHighContent <= 19) {
+            score += 2;
+          }
+        }
+
+        score += recentSevenMachineHighContentCount === 0 ? 4 : 0;
+        score += recentFourteenMachineHighContentCount <= 1 ? 2 : 0;
+        score -= recentSevenMachineHighContentCount >= 2 ? 4 : 0;
+
+        if (features.recentFiveCombinedDenominator > 119) {
+          score += 8;
+        } else if (features.recentFiveCombinedDenominator > 103) {
+          score += 4;
+        }
+        if (previousCombinedDenominator > 162) {
+          score += 4;
+        } else if (previousCombinedDenominator > 116) {
+          score += 2;
+        }
+
+        if (recentFiveGamesTotal >= 4500 && recentFiveGamesTotal <= 9000) {
+          score += 6;
+        } else if (recentFiveGamesTotal >= 3000) {
+          score += 3;
+        }
+        score -= recentFourteenGamesTotal < 12000 ? 3 : 0;
+
+        if (recentFourteenNetTotal <= -1655 && recentFiveNetTotal <= -1000 && recentSevenMachineHighContentCount === 0) {
+          score += 8;
+        } else if (recentFourteenNetTotal <= -1655 && recentFiveNetTotal <= 0) {
+          score += 4;
+        }
+
+        score += adjacentMachineHighContentCount3Near2 >= 2 && recentFiveNetTotal <= 0 ? 2 : 0;
+        score -= previousNearbyShow ? 3 : 0;
+        score -= previousMachineHighContent ? 10 : 0;
+        if (previousDifference >= 1500) {
+          score -= 8;
+        } else if (previousDifference >= 357) {
+          score -= 5;
+        }
+        if (recentFiveNetTotal > 2100) {
+          score -= 8;
+        } else if (recentFiveNetTotal > 0) {
+          score -= 3;
+        }
+        score -= recentFourteenNetTotal > 3888 ? 4 : 0;
+        score -= previousCombinedDenominator <= 73 && previousGames >= 500 ? 5 : 0;
+        score -= previousGames > 2630 && previousDifference > 0 ? 3 : 0;
+
+        return Math.round(clamp(score, 0, 100));
+      }
+
+      if (previousDifference <= -2000) {
+        score += 14;
+      } else if (previousDifference <= -1500) {
+        score += 10;
+      } else if (previousDifference <= -1000) {
+        score += 7;
+      } else if (previousDifference <= -800) {
+        score += 4;
+      }
+
+      if (recentFiveNetTotal <= -3000) {
+        score += 12;
+      } else if (recentFiveNetTotal <= -2300) {
+        score += 8;
+      } else if (recentFiveNetTotal <= -1000) {
+        score += 4;
+      }
+
+      if (recentThreeNetTotal <= -2200) {
+        score += 7;
+      } else if (recentThreeNetTotal <= -1600) {
+        score += 5;
+      } else if (recentThreeNetTotal <= -700) {
+        score += 2;
+      }
+
+      if (recentFourteenNetTotal <= -6000) {
+        score += 6;
+      } else if (recentFourteenNetTotal <= -4000) {
+        score += 4;
+      } else if (recentFourteenNetTotal <= -1600) {
+        score += 1;
+      }
+
+      if (recentFiveGamesTotal >= 3000 && features.recentFiveAngle <= -500) {
+        score += 13;
+      } else if (recentFiveGamesTotal >= 3000 && features.recentFiveAngle <= -350) {
+        score += 8;
+      }
+      score += recentThreeGamesTotal >= 1500 && features.recentThreeAngle <= -470 ? 4 : 0;
+      score += recentFourteenGamesTotal >= 12000 && features.recentFourteenAngle <= -195 ? 3 : 0;
+
+      if (streak >= 8) {
+        score += 12;
+      } else if (streak >= 6) {
+        score += 10;
+      } else if (streak === 5) {
+        score += 7;
+      } else if (streak === 4) {
+        score += 5;
+      } else if (streak === 3) {
+        score += 2;
+      }
+
+      if (Number.isFinite(daysSinceMachineHighContent)) {
+        if (daysSinceMachineHighContent >= 8 && daysSinceMachineHighContent <= 14) {
+          score += 2;
+        } else if (daysSinceMachineHighContent >= 15 && daysSinceMachineHighContent <= 24) {
+          score += 1;
+        }
+        score -= daysSinceMachineHighContent >= 30 ? 4 : 0;
+      }
+
+      score += recentFourteenMachineHighContentCount >= 4 ? 7 : 0;
+      score += recentFourteenMachineHighContentCount === 3 ? 4 : 0;
+      score += recentSevenMachineHighContentCount >= 3 ? 5 : 0;
+
+      const recentFiveWeak = features.recentFiveCombinedDenominator > 119;
+      if (features.recentFiveCombinedDenominator > 150) {
+        score += 12;
+      } else if (features.recentFiveCombinedDenominator > 130) {
+        score += 7;
+      } else if (recentFiveWeak) {
+        score += 4;
+      }
+      score += !recentFiveWeak && previousCombinedDenominator > 162 ? 3 : 0;
+
+      if (recentFiveGamesTotal >= 3000 && recentFiveGamesTotal <= 9000) {
+        score += 6;
+      } else if (recentFiveGamesTotal > 9000 && recentFiveGamesTotal <= 18000) {
+        score += 4;
+      } else if (recentFiveGamesTotal >= 2000) {
+        score += 2;
+      }
+      score -= recentFourteenGamesTotal < 8000 ? 2 : 0;
+
+      if (recentFourteenNetTotal <= -3000 && recentFiveNetTotal <= -2300 && streak >= 4) {
+        score += 8;
+      } else if (recentFourteenNetTotal <= -1600 && recentFiveNetTotal <= -1000) {
+        score += 4;
+      }
+
+      score -= previousMachineHighContent ? 8 : 0;
+      if (previousDifference > 2000) {
+        score -= 10;
+      } else if (previousDifference > 1500) {
+        score -= 8;
+      } else if (previousDifference > 500) {
+        score -= 6;
+      } else if (previousDifference > 0) {
+        score -= 4;
+      }
+      if (recentThreeNetTotal > 2000) {
+        score -= 9;
+      } else if (recentThreeNetTotal > 1000) {
+        score -= 5;
+      }
+      if (recentFiveNetTotal > 3000) {
+        score -= 8;
+      } else if (recentFiveNetTotal > 2100) {
+        score -= 6;
+      } else if (recentFiveNetTotal > 0) {
+        score -= 3;
+      }
+      score -= recentFourteenNetTotal > 3888 ? 5 : 0;
+      score -= previousCombinedDenominator <= 90 && previousGames >= 500 ? 5 : 0;
+      score -= previousGames > 2630 && previousDifference > 0 ? 4 : 0;
+      score -= previousNearbyShow ? 2 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+  }
+
   if (machineKey === "monkey") {
     if (activeLogicKey === "beam-hikari-monkey-normal" || activeLogicKey === "beam-hikari-monkey-event") {
       if (targetRangeHistoryRowCount < 14) {
@@ -10235,6 +10655,10 @@ function buildBeamHikariDateSetting(definition, dateText) {
                     ? isEventDate
                       ? "beam-hikari-hokuto-tensei-event"
                       : "beam-hikari-hokuto-tensei-normal"
+                    : definition?.machineKey === "hokuto-base"
+                      ? isEventDate
+                        ? "beam-hikari-hokuto-base-event"
+                        : "beam-hikari-hokuto-base-normal"
         : "";
   if (!logicKey) {
     return null;
@@ -10269,6 +10693,7 @@ function resolveRankingDateSpecificSetting(definition, setting, options = {}) {
       "ultra-miracle",
       "monkey",
       "hokuto-tensei",
+      "hokuto-base",
     ].includes(definition?.machineKey)
   ) {
     return setting;
