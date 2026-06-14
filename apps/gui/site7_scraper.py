@@ -68,6 +68,7 @@ SITE7_STORE_CLOSED_CHECK_HOUR = 11
 SITE7_STORE_CLOSED_CHECK_MINUTE = 15
 SITE7_STORE_CLOSED_STALE_UPDATE_HOUR = 1
 SITE7_JST = timezone(timedelta(hours=9))
+SITE7_MANUAL_CONFIRMATION_WAIT_MILLISECONDS = 500
 SITE7_UPDATE_DATE_PATTERN = re.compile(
     r"データ更新日時：\s*(\d{4})/(\d{1,2})/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?"
 )
@@ -79,6 +80,12 @@ SITE7_LOGGED_IN_URL_KEYWORDS = (
     "PCCreditAuth.do",
     "MypageTop.do",
     "MypageRegistProfile.do",
+)
+SITE7_MANUAL_CONFIRMATION_TEXT_KEYWORDS = (
+    "プログラムや自動取得ツール",
+    "私はロボットではありません",
+    "利用規約に同意する",
+    "識別番号",
 )
 SITE7_LOOKUP_DROP_PATTERN = re.compile(r"[\s\u3000'\"`´’‘“”.,，．:：;；/／\\|｜!?！？\-_－ー―ｰ~〜～・･·•()\[\]{}（）［］｛｝【】「」『』〈〉<>]")
 
@@ -1138,7 +1145,7 @@ class Site7Scraper:
             self._wait_between_transitions(page, cancel_requested=cancel_requested)
             _raise_if_site7_cancel_requested(cancel_requested)
             page.goto(machine_list_link, wait_until="domcontentloaded", timeout=60_000)
-            self._accept_cookie_banner_if_present(page)
+            self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
             machine_list_html = page.content()
             self._wait_between_transitions(page, cancel_requested=cancel_requested)
             target_machine_items = self._filter_mobile_target_machine_links(
@@ -1358,7 +1365,7 @@ class Site7Scraper:
     ) -> MachineHistoryResult:
         _raise_if_site7_cancel_requested(cancel_requested)
         page.goto(machine_link, wait_until="domcontentloaded", timeout=60_000)
-        self._accept_cookie_banner_if_present(page)
+        self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
         self._wait_between_transitions(page, cancel_requested=cancel_requested)
         machine_page_url = str(page.url)
         machine_html = page.content()
@@ -1367,7 +1374,7 @@ class Site7Scraper:
         first_day_url = self._replace_mobile_query_param(bonus_list_link, "dtdd", "0")
         _raise_if_site7_cancel_requested(cancel_requested)
         page.goto(first_day_url, wait_until="domcontentloaded", timeout=60_000)
-        self._accept_cookie_banner_if_present(page)
+        self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
         self._wait_between_transitions(page, cancel_requested=cancel_requested)
         first_day_html = page.content()
         first_day_updated_datetime = self.extract_updated_datetime(first_day_html)
@@ -1472,7 +1479,7 @@ class Site7Scraper:
             else:
                 _raise_if_site7_cancel_requested(cancel_requested)
                 page.goto(day_url, wait_until="domcontentloaded", timeout=60_000)
-                self._accept_cookie_banner_if_present(page)
+                self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
                 self._wait_between_transitions(page, cancel_requested=cancel_requested)
                 day_html = page.content()
                 resolved_day_url = str(page.url)
@@ -1612,7 +1619,7 @@ class Site7Scraper:
             graph_source_page_url = str(getattr(page, "url", graph_source_url))
         else:
             page.goto(graph_source_url, wait_until="domcontentloaded", timeout=60_000)
-            self._accept_cookie_banner_if_present(page)
+            self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
             self._wait_between_transitions(page, cancel_requested=cancel_requested)
             graph_source_html = page.content()
             graph_source_page_url = str(page.url)
@@ -1690,7 +1697,7 @@ class Site7Scraper:
                 )
                 _raise_if_site7_cancel_requested(cancel_requested)
                 page.goto(graph_index_url, wait_until="domcontentloaded", timeout=60_000)
-                self._accept_cookie_banner_if_present(page)
+                self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
                 graph_index_html = page.content()
                 self._wait_between_transitions(page, cancel_requested=cancel_requested)
                 slot_graph_links.update(self.extract_mobile_slot_graph_links(graph_index_html))
@@ -1910,7 +1917,7 @@ class Site7Scraper:
             self._wait_between_transitions(page, cancel_requested=cancel_requested)
             _raise_if_site7_cancel_requested(cancel_requested)
             page.goto(machine_list_link, wait_until="domcontentloaded", timeout=60_000)
-            self._accept_cookie_banner_if_present(page)
+            self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
             machine_list_html = page.content()
             self._wait_between_transitions(page, cancel_requested=cancel_requested)
             machine_link_items = self.extract_mobile_target_machine_links(machine_list_html)
@@ -1926,7 +1933,7 @@ class Site7Scraper:
                     raise ScraperError(f"スマホ版サイトセブンで {machine_name} の出玉推移グラフ入口が見つかりませんでした。")
 
                 page.goto(machine_link, wait_until="domcontentloaded", timeout=60_000)
-                self._accept_cookie_banner_if_present(page)
+                self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
                 machine_html = page.content()
                 self._wait_between_transitions(page, cancel_requested=cancel_requested)
                 graph_list_link = self.extract_mobile_machine_graph_list_link(machine_html)
@@ -1973,7 +1980,7 @@ class Site7Scraper:
                         graph_index_url = self._replace_mobile_query_param(graph_index_link, "dtdd", str(day_index))
                         _raise_if_site7_cancel_requested(cancel_requested)
                         page.goto(graph_index_url, wait_until="domcontentloaded", timeout=60_000)
-                        self._accept_cookie_banner_if_present(page)
+                        self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
                         graph_index_html = page.content()
                         self._wait_between_transitions(page, cancel_requested=cancel_requested)
                         slot_graph_links.update(self.extract_mobile_slot_graph_links(graph_index_html))
@@ -2033,7 +2040,7 @@ class Site7Scraper:
             )
 
             page.goto(normalized_url, wait_until="domcontentloaded", timeout=60_000)
-            self._accept_cookie_banner_if_present(page)
+            self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
             graph_list_html = page.content()
             page_slot_graph_links = self.extract_mobile_slot_graph_links(graph_list_html)
             page_difference_values = self._fetch_mobile_graph_list_difference_values(
@@ -2274,7 +2281,7 @@ class Site7Scraper:
                 visited_urls.add(normalized_url)
 
                 page.goto(normalized_url, wait_until="domcontentloaded", timeout=60_000)
-                self._accept_cookie_banner_if_present(page)
+                self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
                 stat_html = page.content()
                 self._wait_between_transitions(page, cancel_requested=cancel_requested)
 
@@ -2571,28 +2578,28 @@ class Site7Scraper:
         cancel_requested: Callable[[], bool] | None = None,
     ) -> str:
         page.goto(SITE7_MOBILE_TOP_URL, wait_until="domcontentloaded", timeout=60_000)
-        self._accept_cookie_banner_if_present(page)
+        self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
         top_html = page.content()
         self._wait_between_transitions(page, cancel_requested=cancel_requested)
 
         prefecture_link = self.extract_mobile_prefecture_link(top_html, target_store)
         _raise_if_site7_cancel_requested(cancel_requested)
         page.goto(prefecture_link, wait_until="domcontentloaded", timeout=60_000)
-        self._accept_cookie_banner_if_present(page)
+        self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
         prefecture_html = page.content()
         self._wait_between_transitions(page, cancel_requested=cancel_requested)
 
         area_link = self.extract_mobile_area_link(prefecture_html, target_store)
         _raise_if_site7_cancel_requested(cancel_requested)
         page.goto(area_link, wait_until="domcontentloaded", timeout=60_000)
-        self._accept_cookie_banner_if_present(page)
+        self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
         area_html = page.content()
         self._wait_between_transitions(page, cancel_requested=cancel_requested)
 
         hall_link = self.extract_mobile_target_hall_link(area_html, target_store)
         _raise_if_site7_cancel_requested(cancel_requested)
         page.goto(hall_link, wait_until="domcontentloaded", timeout=60_000)
-        self._accept_cookie_banner_if_present(page)
+        self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
         return page.content()
 
     def _fetch_mobile_graph_page_data(
@@ -2604,7 +2611,7 @@ class Site7Scraper:
         cancel_requested: Callable[[], bool] | None = None,
     ) -> tuple[int | None, dict[str, str]]:
         page.goto(graph_page_url, wait_until="domcontentloaded", timeout=60_000)
-        self._accept_cookie_banner_if_present(page)
+        self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
         self._wait_between_transitions(page, cancel_requested=cancel_requested)
         page.wait_for_selector("img[src*='RequestSPDedamaTransitionChartForPortal']", timeout=60_000)
         try:
@@ -3609,21 +3616,21 @@ class Site7Scraper:
         resolved_target_store = target_store or SITE7_DEFAULT_TARGET_STORE
         _raise_if_site7_cancel_requested(cancel_requested)
         page.goto(SITE7_TOP_URL, wait_until="domcontentloaded", timeout=60_000)
-        self._accept_cookie_banner_if_present(page)
+        self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
         top_html = page.content()
         self._wait_between_transitions(page, cancel_requested=cancel_requested)
 
         prefecture_link = self.extract_prefecture_link(top_html, resolved_target_store)
         _raise_if_site7_cancel_requested(cancel_requested)
         page.goto(prefecture_link, wait_until="domcontentloaded", timeout=60_000)
-        self._accept_cookie_banner_if_present(page)
+        self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
         prefecture_html = page.content()
         self._wait_between_transitions(page, cancel_requested=cancel_requested)
 
         area_link = self.extract_area_link(prefecture_html, resolved_target_store)
         _raise_if_site7_cancel_requested(cancel_requested)
         page.goto(area_link, wait_until="domcontentloaded", timeout=60_000)
-        self._accept_cookie_banner_if_present(page)
+        self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
         area_html = page.content()
         target_hall_search_code = self.extract_target_hall_search_code(area_html, resolved_target_store)
         self._wait_between_transitions(page, cancel_requested=cancel_requested)
@@ -3636,7 +3643,7 @@ class Site7Scraper:
             pass
 
         self._wait_between_transitions(page, cancel_requested=cancel_requested)
-        self._accept_cookie_banner_if_present(page)
+        self._accept_cookie_banner_if_present(page, cancel_requested=cancel_requested)
         hall_html = page.content()
         hall_page_url = str(page.url)
 
@@ -3648,6 +3655,7 @@ class Site7Scraper:
         return hall_page_url, hall_html
 
     def _wait_between_transitions(self, page: object, cancel_requested: Callable[[], bool] | None = None) -> None:
+        self._wait_for_site7_manual_confirmation_if_present(page, cancel_requested=cancel_requested)
         remaining_milliseconds = build_site7_transition_wait_milliseconds()
         while remaining_milliseconds > 0:
             _raise_if_site7_cancel_requested(cancel_requested)
@@ -3655,6 +3663,7 @@ class Site7Scraper:
             page.wait_for_timeout(wait_milliseconds)
             remaining_milliseconds -= wait_milliseconds
         _raise_if_site7_cancel_requested(cancel_requested)
+        self._wait_for_site7_manual_confirmation_if_present(page, cancel_requested=cancel_requested)
 
     def _release_browser_context(self, playwright: object | None, context: object | None) -> None:
         self._close_browser_context(context)
@@ -3702,15 +3711,71 @@ class Site7Scraper:
         except Exception:  # noqa: BLE001
             pass
 
-    def _accept_cookie_banner_if_present(self, page: object) -> None:
+    def _accept_cookie_banner_if_present(
+        self,
+        page: object,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> None:
         try:
             button_locator = page.locator("button").filter(has_text="承諾する").first
             if button_locator.count() == 0 or not button_locator.is_visible():
+                self._wait_for_site7_manual_confirmation_if_present(page, cancel_requested=cancel_requested)
                 return
             button_locator.click(timeout=2_000)
             page.wait_for_timeout(300)
         except Exception:  # noqa: BLE001
             pass
+        self._wait_for_site7_manual_confirmation_if_present(page, cancel_requested=cancel_requested)
+
+    def _wait_for_site7_manual_confirmation_if_present(
+        self,
+        page: object,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> None:
+        waiting = False
+        while True:
+            _raise_if_site7_cancel_requested(cancel_requested)
+            html = self._safe_page_content(page)
+            if not self._html_has_site7_manual_confirmation(html):
+                if waiting:
+                    self._write_debug_log(
+                        "manual_confirmation_wait_end",
+                        url=self._safe_page_url(page),
+                    )
+                return
+
+            if not waiting:
+                waiting = True
+                self._write_debug_log(
+                    "manual_confirmation_wait_start",
+                    url=self._safe_page_url(page),
+                )
+                try:
+                    page.bring_to_front()
+                except Exception:  # noqa: BLE001
+                    pass
+            page.wait_for_timeout(SITE7_MANUAL_CONFIRMATION_WAIT_MILLISECONDS)
+
+    def _html_has_site7_manual_confirmation(self, html: str) -> bool:
+        if not html:
+            return False
+        try:
+            text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
+        except Exception:  # noqa: BLE001
+            text = html
+        normalized_text = re.sub(r"\s+", "", text)
+        keyword_count = sum(
+            1
+            for keyword in SITE7_MANUAL_CONFIRMATION_TEXT_KEYWORDS
+            if keyword in normalized_text or keyword in html
+        )
+        if keyword_count >= 3:
+            return True
+        return (
+            "プログラムや自動取得ツール" in normalized_text
+            and "利用規約に同意する" in normalized_text
+            and "recaptcha" in html.casefold()
+        )
 
     def _open_target_machine_page(
         self,

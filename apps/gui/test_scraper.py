@@ -338,6 +338,35 @@ class FakeWaitingPage:
         self.wait_calls.append(milliseconds)
 
 
+class FakeSite7ManualConfirmationPage:
+    def __init__(self, release_after_waits: int | None = 1) -> None:
+        self.release_after_waits = release_after_waits
+        self.wait_calls: list[int] = []
+        self.bring_to_front_count = 0
+        self.url = "https://m.site777.jp/db/D2300.do"
+
+    def content(self) -> str:
+        if self.release_after_waits is None or len(self.wait_calls) < self.release_after_waits:
+            return """
+<html>
+  <body>
+    <p>サイトセブンでは利用規約第9条に記載のとおり、プログラムや自動取得ツールでのアクセスを禁止しております。</p>
+    <p>識別番号：00000000-235225732</p>
+    <div>私はロボットではありません</div>
+    <input type="submit" value="利用規約に同意する">
+    <script src="https://www.google.com/recaptcha/api.js"></script>
+  </body>
+</html>
+"""
+        return "<html><body><a href=\"D2300.do\">大当り一覧</a></body></html>"
+
+    def wait_for_timeout(self, milliseconds: int) -> None:
+        self.wait_calls.append(milliseconds)
+
+    def bring_to_front(self) -> None:
+        self.bring_to_front_count += 1
+
+
 class FakeRetainedPage:
     def __init__(self, closed: bool = False) -> None:
         self.closed = closed
@@ -3886,7 +3915,31 @@ class MinRepoScraperTests(unittest.TestCase):
             with self.assertRaises(Site7FetchCancelled):
                 scraper._wait_between_transitions(page, cancel_requested=cancel_requested)
 
-        self.assertEqual(page.wait_calls, [100, 100])
+        self.assertEqual(page.wait_calls, [100])
+
+    def test_site7_manual_confirmation_waits_until_screen_is_cleared(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        page = FakeSite7ManualConfirmationPage(release_after_waits=2)
+
+        scraper._wait_for_site7_manual_confirmation_if_present(page, cancel_requested=None)
+
+        self.assertEqual(page.wait_calls, [500, 500])
+        self.assertEqual(page.bring_to_front_count, 1)
+
+    def test_site7_manual_confirmation_wait_can_be_cancelled(self) -> None:
+        scraper = Site7Scraper(root_dir=ROOT_DIR)
+        page = FakeSite7ManualConfirmationPage(release_after_waits=None)
+        calls = 0
+
+        def cancel_requested() -> bool:
+            nonlocal calls
+            calls += 1
+            return calls >= 2
+
+        with self.assertRaises(Site7FetchCancelled):
+            scraper._wait_for_site7_manual_confirmation_if_present(page, cancel_requested=cancel_requested)
+
+        self.assertEqual(page.wait_calls, [500])
 
     def test_run_site7_fetch_many_reports_registered_store_name_when_store_fetch_fails(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
