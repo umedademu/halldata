@@ -5,7 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const STORAGE_KEY_PREFIX = "hunt-ranking-form-state:";
 const MANAGED_PARAM_KEYS = [
-  "show",
   "machineTouched",
   "date",
   "limit",
