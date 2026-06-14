@@ -673,7 +673,7 @@ function saveMachineComparisonPeriodOptions(options) {
 
   try {
     window.localStorage.setItem(
-      buildScopedPeriodStorageKey(storageScopeKey),
+      buildScopedPeriodStorageKey(),
       JSON.stringify({
         version: 1,
         periodMode: normalizePeriodMode(options.periodMode),
@@ -751,7 +751,7 @@ function saveMachineComparisonOptions(storeId, options) {
 
   try {
     const storageScopeKey = options.storageScopeKey ?? "";
-    saveMachineComparisonPeriodOptions(options, storageScopeKey);
+    saveMachineComparisonPeriodOptions(options);
     const storageKey = buildScopedStorageKey(MACHINE_COMPARISON_STORAGE_PREFIX, storeId, storageScopeKey);
     const legacyStorageKey = buildLegacyStoreStorageKey(MACHINE_COMPARISON_STORAGE_PREFIX, storeId);
     const existingValue = options.preserveEstimateOptions
