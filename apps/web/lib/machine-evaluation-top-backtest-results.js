@@ -1,0 +1,129 @@
+export const MACHINE_EVALUATION_TOP_BACKTEST_LABEL = "機種別点数が機種内1位";
+export const MACHINE_EVALUATION_TOP_BACKTEST_PERIOD_DAYS = 365;
+
+const STORED_MACHINE_EVALUATION_TOP_BACKTEST_RESULTS = [
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"SアイムジャグラーＥＸ","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":350,"actualRowCount":350,"payoutRate":101.78888525469438,"averageDifference":326.28285714285715,"winRate":53.42857142857143,"averageGames":6079.817142857143,"averageHuntScore":48.642857142857146,"averageNextGap":16.69164265129683,"averageUpperGap":6.538461538461538,"averageSetting":3.990416236631363,"bbProbability":"1/260.7","rbProbability":"1/322.8","combinedProbability":"1/144.2","grapeDenominator":6.058757558721887,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"ゴーゴージャグラー３","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":350,"actualRowCount":350,"payoutRate":102.45143082718116,"averageDifference":506.7342857142857,"winRate":62,"averageGames":6890.32,"averageHuntScore":54.07714285714286,"averageNextGap":12.189655172413794,"averageUpperGap":7.064171122994653,"averageSetting":3.999999999698729,"bbProbability":"1/254.6","rbProbability":"1/269.8","combinedProbability":"1/131","grapeDenominator":6.157269550782851,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"ジャグラーガールズSS","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":350,"actualRowCount":350,"payoutRate":101.92498731952023,"averageDifference":337.33714285714285,"winRate":53.42857142857143,"averageGames":5841.374285714286,"averageHuntScore":43.52,"averageNextGap":18.976047904191617,"averageUpperGap":7.29126213592233,"averageSetting":3.166787038864971,"bbProbability":"1/257.3","rbProbability":"1/297.8","combinedProbability":"1/138","grapeDenominator":6.021124910331309,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"スターハナハナ","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":350,"actualRowCount":350,"payoutRate":100.87677079895319,"averageDifference":95.40571428571428,"winRate":40.57142857142857,"averageGames":3627.1628571428573,"averageHuntScore":53.73428571428571,"averageNextGap":18.402898550724636,"averageUpperGap":11.684615384615384,"averageSetting":3.0000001438411634,"bbProbability":"1/251.3","rbProbability":"1/315.3","combinedProbability":"1/139.9","grapeDenominator":null,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"スマスロ サンダーV","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":97,"actualRowCount":97,"payoutRate":101.58479110945451,"averageDifference":194.61855670103094,"winRate":52.577319587628864,"averageGames":4093.463917525773,"averageHuntScore":37.16494845360825,"averageNextGap":19.5,"averageUpperGap":26.918367346938776,"averageSetting":1.8279488293015658,"bbProbability":"1/274","rbProbability":"1/407.2","combinedProbability":"1/163.8","grapeDenominator":null,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"スマスロ ハナビ","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":124,"actualRowCount":124,"payoutRate":102.66355952521742,"averageDifference":332.38709677419354,"winRate":51.61290322580645,"averageGames":4159.685483870968,"averageHuntScore":17.870967741935484,"averageNextGap":6.311111111111111,"averageUpperGap":8.796747967479675,"averageSetting":5.046545686959056,"bbProbability":"1/283.6","rbProbability":"1/346.6","combinedProbability":"1/156","grapeDenominator":null,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"スマスロ 沖ドキ!DUO アンコール","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":164,"actualRowCount":164,"payoutRate":103.94462574694145,"averageDifference":403.5243902439024,"winRate":43.292682926829265,"averageGames":3409.9085365853657,"averageHuntScore":66.70121951219512,"averageNextGap":12.122699386503067,"averageUpperGap":9.108695652173912,"averageSetting":null,"bbProbability":"1/167.1","rbProbability":"1/372.3","combinedProbability":"1/115.4","grapeDenominator":null,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"スマスロモンキーターンV","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":350,"actualRowCount":349,"payoutRate":102.28948334088699,"averageDifference":302.6618911174785,"winRate":42.40687679083094,"averageGames":4406.553008595988,"averageHuntScore":57.134670487106014,"averageNextGap":9.44767441860465,"averageUpperGap":7.666666666666667,"averageSetting":null,"bbProbability":null,"rbProbability":"1/438.4","combinedProbability":"1/438.4","grapeDenominator":null,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"スマスロ北斗の拳 転生の章","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":147,"actualRowCount":147,"payoutRate":107.96716519404592,"averageDifference":1841.1224489795918,"winRate":59.863945578231295,"averageGames":7702.959183673469,"averageHuntScore":76.08843537414965,"averageNextGap":10.047619047619047,"averageUpperGap":5.606060606060606,"averageSetting":null,"bbProbability":null,"rbProbability":"1/430.4","combinedProbability":"1/430.4","grapeDenominator":null,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"ドラゴンハナハナ～閃光～","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":311,"actualRowCount":310,"payoutRate":101.41317914026502,"averageDifference":165.3483870967742,"winRate":44.193548387096776,"averageGames":3900.1516129032257,"averageHuntScore":51.88709677419355,"averageNextGap":17.714285714285715,"averageUpperGap":10.789915966386555,"averageSetting":3.0011984877571085,"bbProbability":"1/230.5","rbProbability":"1/525.4","combinedProbability":"1/160.2","grapeDenominator":null,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"ニューキングハナハナ","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":112,"actualRowCount":112,"payoutRate":101.69408172810527,"averageDifference":245.13392857142858,"winRate":48.214285714285715,"averageGames":4823.339285714285,"averageHuntScore":61.419642857142854,"averageNextGap":12.00943396226415,"averageUpperGap":7.24,"averageSetting":3.008522280143841,"bbProbability":"1/272.8","rbProbability":"1/446.1","combinedProbability":"1/169.3","grapeDenominator":null,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"ネオアイムジャグラーEX","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":350,"actualRowCount":350,"payoutRate":104.42363939152217,"averageDifference":903.1428571428571,"winRate":68.57142857142857,"averageGames":6805.428571428572,"averageHuntScore":61.74857142857143,"averageNextGap":9.711428571428572,"averageUpperGap":6.625,"averageSetting":4.000000751471214,"bbProbability":"1/254.6","rbProbability":"1/287.7","combinedProbability":"1/135.1","grapeDenominator":5.971463754822009,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"ハナハナホウオウ","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":350,"actualRowCount":350,"payoutRate":100.97959696095377,"averageDifference":124.84571428571428,"winRate":43.714285714285715,"averageGames":4248.2,"averageHuntScore":62.28285714285714,"averageNextGap":14.819484240687679,"averageUpperGap":6.739726027397261,"averageSetting":3.005014699442557,"bbProbability":"1/271.6","rbProbability":"1/413.6","combinedProbability":"1/164","grapeDenominator":null,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"ファンキージャグラー２ＫＴ","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":350,"actualRowCount":349,"payoutRate":102.45429452771448,"averageDifference":443.3896848137536,"winRate":53.86819484240688,"averageGames":6021.957020057306,"averageHuntScore":50.55300859598854,"averageNextGap":14.880813953488373,"averageUpperGap":6.088888888888889,"averageSetting":3.999999999984486,"bbProbability":"1/250.9","rbProbability":"1/332.9","combinedProbability":"1/143.1","grapeDenominator":5.886316551851914,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"マイジャグラーV","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":350,"actualRowCount":350,"payoutRate":104.35377333995856,"averageDifference":1010.8857142857142,"winRate":73.71428571428571,"averageGames":7739.5371428571425,"averageHuntScore":59.02285714285714,"averageNextGap":8.22,"averageUpperGap":5.219512195121951,"averageSetting":4,"bbProbability":"1/251.8","rbProbability":"1/290.2","combinedProbability":"1/134.8","grapeDenominator":5.805421581917749,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"ミスタージャグラー","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":350,"actualRowCount":350,"payoutRate":102.59497721755884,"averageDifference":451.3142857142857,"winRate":57.142857142857146,"averageGames":5797.28,"averageHuntScore":41.22,"averageNextGap":16.064705882352943,"averageUpperGap":7.670329670329671,"averageSetting":3.000000000001023,"bbProbability":"1/254.2","rbProbability":"1/311.6","combinedProbability":"1/140","grapeDenominator":6.178803621246437,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"沖ドキ！BLACK","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":350,"actualRowCount":350,"payoutRate":99.73418941326709,"averageDifference":-38.097142857142856,"winRate":46.285714285714285,"averageGames":4777.48,"averageHuntScore":64.29428571428572,"averageNextGap":15.405172413793103,"averageUpperGap":8.263157894736842,"averageSetting":null,"bbProbability":"1/241.6","rbProbability":"1/390","combinedProbability":"1/149.2","grapeDenominator":null,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"沖ドキ！ＧＯＬＤ","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":350,"actualRowCount":350,"payoutRate":101.11535492592876,"averageDifference":155.38857142857142,"winRate":50.57142857142857,"averageGames":4643.92,"averageHuntScore":57.76857142857143,"averageNextGap":12.0945558739255,"averageUpperGap":9.028571428571428,"averageSetting":null,"bbProbability":"1/236.3","rbProbability":"1/482.7","combinedProbability":"1/158.7","grapeDenominator":null,"sourceLabel":"アプリ内バックテスト 2026-06-14"},
+  {"storeId":"store-e0f6c17d91d1","storeName":"Aパーク春日店","machineName":"新ハナビ","conditionLabel":"機種別点数が機種内1位","periodDays":365,"savedAt":"2026-06-14","targetStartDate":"2025-06-12","targetEndDate":"2026-06-11","targetDateCount":350,"actualRowCount":349,"payoutRate":101.1939651918779,"averageDifference":156.36103151862463,"winRate":48.137535816618914,"averageGames":4365.315186246418,"averageHuntScore":16.277936962750715,"averageNextGap":11.761904761904763,"averageUpperGap":22.46090534979424,"averageSetting":1.0000175811993084,"bbProbability":"1/274.6","rbProbability":"1/354.1","combinedProbability":"1/154.7","grapeDenominator":null,"sourceLabel":"アプリ内バックテスト 2026-06-14"}
+];
+
+function normalizeText(value) {
+  return String(value ?? "").normalize("NFKC").trim();
+}
+
+function normalizeKeyText(value) {
+  return normalizeText(value).replace(/\s+/gu, "");
+}
+
+function readNumber(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function readPositiveInteger(value) {
+  const numberValue = readNumber(value);
+  return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : null;
+}
+
+function normalizeBacktestResult(entry) {
+  const storeId = normalizeText(entry?.storeId);
+  const storeName = normalizeText(entry?.storeName);
+  const machineName = normalizeText(entry?.machineName);
+  if ((!storeId && !storeName) || !machineName) {
+    return null;
+  }
+
+  const result = {
+    storeId,
+    storeName,
+    storeKey: normalizeKeyText(storeName),
+    machineName,
+    machineKey: normalizeKeyText(machineName),
+    conditionLabel: normalizeText(entry?.conditionLabel) || MACHINE_EVALUATION_TOP_BACKTEST_LABEL,
+    periodDays:
+      readPositiveInteger(entry?.periodDays) ?? MACHINE_EVALUATION_TOP_BACKTEST_PERIOD_DAYS,
+    savedAt: normalizeText(entry?.savedAt),
+    targetStartDate: normalizeText(entry?.targetStartDate),
+    targetEndDate: normalizeText(entry?.targetEndDate),
+    targetDateCount: readPositiveInteger(entry?.targetDateCount),
+    actualRowCount: readPositiveInteger(entry?.actualRowCount),
+    payoutRate: readNumber(entry?.payoutRate),
+    averageDifference: readNumber(entry?.averageDifference),
+    winRate: readNumber(entry?.winRate),
+    averageGames: readNumber(entry?.averageGames),
+    averageHuntScore: readNumber(entry?.averageHuntScore),
+    averageNextGap: readNumber(entry?.averageNextGap),
+    averageUpperGap: readNumber(entry?.averageUpperGap),
+    averageSetting: readNumber(entry?.averageSetting),
+    bbProbability: normalizeText(entry?.bbProbability),
+    rbProbability: normalizeText(entry?.rbProbability),
+    combinedProbability: normalizeText(entry?.combinedProbability),
+    grapeDenominator: readNumber(entry?.grapeDenominator),
+    sourceLabel: normalizeText(entry?.sourceLabel),
+  };
+
+  const hasMetric = [
+    result.actualRowCount,
+    result.payoutRate,
+    result.averageDifference,
+    result.winRate,
+    result.averageGames,
+    result.averageHuntScore,
+    result.averageNextGap,
+    result.averageUpperGap,
+    result.averageSetting,
+    result.grapeDenominator,
+  ].some((value) => Number.isFinite(value));
+
+  return hasMetric ? result : null;
+}
+
+const NORMALIZED_MACHINE_EVALUATION_TOP_BACKTEST_RESULTS =
+  STORED_MACHINE_EVALUATION_TOP_BACKTEST_RESULTS
+    .map(normalizeBacktestResult)
+    .filter(Boolean);
+
+export function listMachineEvaluationTopBacktestResults() {
+  return NORMALIZED_MACHINE_EVALUATION_TOP_BACKTEST_RESULTS;
+}
+
+export function getMachineEvaluationTopBacktestResult({
+  storeId = "",
+  storeName = "",
+  machineName = "",
+} = {}) {
+  const targetStoreId = normalizeText(storeId);
+  const targetStoreKey = normalizeKeyText(storeName);
+  const targetMachineKey = normalizeKeyText(machineName);
+  if (!targetMachineKey || (!targetStoreId && !targetStoreKey)) {
+    return null;
+  }
+
+  return (
+    NORMALIZED_MACHINE_EVALUATION_TOP_BACKTEST_RESULTS.find((result) => {
+      const storeMatched = result.storeId
+        ? result.storeId === targetStoreId
+        : result.storeKey === targetStoreKey;
+      return storeMatched && result.machineKey === targetMachineKey;
+    }) ?? null
+  );
+}

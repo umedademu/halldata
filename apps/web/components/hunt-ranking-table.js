@@ -44,6 +44,9 @@ import { getHuntMachineShortName } from "../lib/hunt-machine-display";
 import {
   getCommonHuntScoreMachineTopBacktestResult,
 } from "../lib/hunt-score-top-backtest-results";
+import {
+  getMachineEvaluationTopBacktestResult,
+} from "../lib/machine-evaluation-top-backtest-results";
 
 const DEFAULT_VISIBLE_RESULT_KEYS = [
   "difference_value",
@@ -455,6 +458,22 @@ function readCommonHuntScoreMachineTopBacktestResult(storeId, storeName, row) {
   });
 }
 
+function isMachineEvaluationTopRank(evaluation) {
+  return readRankingSortNumber(evaluation?.rank, null) === 1;
+}
+
+function readMachineEvaluationTopBacktestResult(storeId, storeName, row) {
+  if (!isMachineEvaluationTopRank(row?.machineEvaluation)) {
+    return null;
+  }
+
+  return getMachineEvaluationTopBacktestResult({
+    storeId,
+    storeName,
+    machineName: row?.machineName,
+  });
+}
+
 function buildCommonHuntScoreBacktestTitleParts(backtestResult, huntScoreLogicLabel) {
   if (!backtestResult) {
     return [];
@@ -472,6 +491,28 @@ function buildCommonHuntScoreBacktestTitleParts(backtestResult, huntScoreLogicLa
 
   return [
     `${logicLabel} / 狙い度 機種内1位`,
+    `件数: ${countLabel} / ${payoutLabel}`,
+    `BB率: ${bbLabel} / RB率: ${rbLabel}`,
+  ].filter(Boolean);
+}
+
+function buildMachineEvaluationTopBacktestTitleParts(backtestResult, evaluation) {
+  if (!backtestResult) {
+    return [];
+  }
+
+  const logicLabel = String(evaluation?.logicName || "機種別ロジック").trim();
+  const countLabel = Number.isFinite(backtestResult.actualRowCount)
+    ? `${formatNumber(backtestResult.actualRowCount)}件`
+    : "-";
+  const payoutLabel = Number.isFinite(backtestResult.payoutRate)
+    ? formatPercent(backtestResult.payoutRate)
+    : "-";
+  const bbLabel = backtestResult.bbProbability || "-";
+  const rbLabel = backtestResult.rbProbability || "-";
+
+  return [
+    `${logicLabel} / 機種別点数 機種内1位`,
     `件数: ${countLabel} / ${payoutLabel}`,
     `BB率: ${bbLabel} / RB率: ${rbLabel}`,
   ].filter(Boolean);
@@ -495,12 +536,22 @@ function buildMatchedConditionTitleParts(evaluation) {
   ];
 }
 
-function MachineEvaluationCell({ evaluation, extraTitle = "" }) {
+function readHighestFiniteValue(values) {
+  const finiteValues = values.map((value) => Number(value)).filter(Number.isFinite);
+  return finiteValues.length > 0 ? Math.max(...finiteValues) : null;
+}
+
+function MachineEvaluationCell({ storeId, storeName, row, evaluation, extraTitle = "" }) {
   if (!evaluation) {
     return <td title={extraTitle || undefined} data-sort-value="">-</td>;
   }
 
   const matchedConditionTitleParts = buildMatchedConditionTitleParts(evaluation);
+  const topBacktestResult = readMachineEvaluationTopBacktestResult(storeId, storeName, row);
+  const topBacktestTitleParts = buildMachineEvaluationTopBacktestTitleParts(
+    topBacktestResult,
+    evaluation,
+  );
   const titleParts = [
     evaluation.logicName ? `機種別ロジック: ${evaluation.logicName}` : "",
     matchedConditionTitleParts.length > 0
@@ -511,11 +562,15 @@ function MachineEvaluationCell({ evaluation, extraTitle = "" }) {
     matchedConditionTitleParts.length === 0 && evaluation.backtestLabel
       ? `目安: ${evaluation.backtestLabel}`
       : "",
+    topBacktestTitleParts.length > 0 ? topBacktestTitleParts.join("\n") : "",
     Number.isFinite(evaluation.rank) ? `機種別順位: ${evaluation.rank}` : "",
     Number.isFinite(evaluation.nextGap) ? `次点差: ${formatDecimal(evaluation.nextGap)}` : "",
   ].filter(Boolean);
   const evaluationPayoutClass = getMachineEvaluationPayoutClass(
-    evaluation.bestMatchedBacktestPayoutRate,
+    readHighestFiniteValue([
+      evaluation.bestMatchedBacktestPayoutRate,
+      topBacktestResult?.payoutRate,
+    ]),
   );
   const cellClassNames = [
     evaluationPayoutClass ? "machineEvaluationMatchedCell" : "",
@@ -960,6 +1015,9 @@ function OverallRankingTable({
                   />
                   {hasMachineEvaluationColumn ? (
                     <MachineEvaluationCell
+                      storeId={storeId}
+                      storeName={storeName}
+                      row={row}
                       evaluation={row.machineEvaluation}
                       extraTitle={rowSite7Title}
                     />
@@ -1188,6 +1246,9 @@ function MachineRankingGroupTable({
                   />
                   {hasMachineEvaluationColumn ? (
                     <MachineEvaluationCell
+                      storeId={storeId}
+                      storeName={storeName}
+                      row={row}
                       evaluation={row.machineEvaluation}
                       extraTitle={rowSite7Title}
                     />
