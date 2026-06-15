@@ -36,6 +36,12 @@ import {
   selectDifferenceValue,
 } from "../lib/machine-difference";
 import {
+  encodeMachineComparisonPeriodCookieValue,
+  MACHINE_COMPARISON_PERIOD_COOKIE_MAX_AGE_SECONDS,
+  MACHINE_COMPARISON_PERIOD_COOKIE_NAME,
+  MACHINE_COMPARISON_PERIOD_STORAGE_KEY,
+} from "../lib/machine-comparison-period";
+import {
   calculateGameCountEstimate,
   calculateSettingEstimate,
   formatSettingEstimateAverage,
@@ -113,7 +119,6 @@ const DEFAULT_HUNT_SCORE_REQUIRED = false;
 const DEFAULT_HUNT_NEXT_GAP_REQUIRED = false;
 const HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX = "machine-hunt-score-highlight:v2:";
 const MACHINE_COMPARISON_STORAGE_PREFIX = "machine-comparison-options:";
-const MACHINE_COMPARISON_PERIOD_STORAGE_KEY = "machine-comparison-period-options";
 const COMPARISON_SCORE_EPSILON = 0.000000001;
 const settingEstimateCache = new WeakMap();
 
@@ -672,16 +677,20 @@ function saveMachineComparisonPeriodOptions(options) {
   }
 
   try {
+    const normalizedOptions = {
+      version: 1,
+      periodMode: normalizePeriodMode(options.periodMode),
+      recentDaysInput: String(options.recentDaysInput ?? ""),
+      rangeStartInput: String(options.rangeStartInput ?? ""),
+      rangeEndInput: String(options.rangeEndInput ?? ""),
+    };
     window.localStorage.setItem(
       buildScopedPeriodStorageKey(),
-      JSON.stringify({
-        version: 1,
-        periodMode: normalizePeriodMode(options.periodMode),
-        recentDaysInput: String(options.recentDaysInput ?? ""),
-        rangeStartInput: String(options.rangeStartInput ?? ""),
-        rangeEndInput: String(options.rangeEndInput ?? ""),
-      }),
+      JSON.stringify(normalizedOptions),
     );
+    document.cookie = `${MACHINE_COMPARISON_PERIOD_COOKIE_NAME}=${encodeMachineComparisonPeriodCookieValue(
+      normalizedOptions,
+    )}; Max-Age=${MACHINE_COMPARISON_PERIOD_COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax`;
   } catch {
     // 保存できない環境では、画面上の変更だけを有効にします。
   }
@@ -2427,6 +2436,7 @@ export function MachineComparison({
   initialDisplayDifferenceModeFromSearchParams = false,
   initialSettingEstimateMode = undefined,
   initialSettingEstimateModeFromSearchParams = false,
+  initialPeriodOptions = null,
   preferDefaultEstimateOptions = false,
   huntScoreAvailable = false,
   verificationMode = false,
@@ -2462,29 +2472,40 @@ export function MachineComparison({
     [],
   );
   const defaultComparisonOptions = useMemo(
-    () => ({
-      periodMode: "recent",
-      recentDaysInput: String(DEFAULT_COMPARISON_RECENT_DAYS),
-      rangeStartInput: initialRangeStartDate,
-      rangeEndInput: latestAvailableDate,
-      eventFilters: defaultEventFilters,
-      displayDifferenceMode: normalizeDifferenceMode(initialDisplayDifferenceMode),
-      huntScoreDifferenceMode: normalizeDifferenceMode(initialDifferenceMode),
-      settingEstimateMode: normalizeSettingEstimateMode(initialSettingEstimateMode),
-      visibleMetricKeys: DEFAULT_VISIBLE_METRIC_KEYS,
-      estimateOptions: defaultEstimateOptions,
-      verificationTargetMode: VERIFICATION_TARGET_MODE_HIGHLIGHT,
-      verificationSettingRankMin: DEFAULT_VERIFICATION_SETTING_RANK_MIN,
-      verificationSettingRankMax: DEFAULT_VERIFICATION_SETTING_RANK_MAX,
-      verificationSettingMinGames: DEFAULT_VERIFICATION_SETTING_MIN_GAMES,
-      displayControlsOpen: true,
-      settingControlsOpen: true,
-      verificationControlsOpen: true,
-      huntScoreControlsOpen: true,
-    }),
+    () => {
+      const fallbackPeriodOptions = {
+        periodMode: "recent",
+        recentDaysInput: String(DEFAULT_COMPARISON_RECENT_DAYS),
+        rangeStartInput: initialRangeStartDate,
+        rangeEndInput: latestAvailableDate,
+      };
+      const periodOptions = normalizeMachineComparisonPeriodOptions(
+        initialPeriodOptions,
+        fallbackPeriodOptions,
+      );
+
+      return {
+        ...periodOptions,
+        eventFilters: defaultEventFilters,
+        displayDifferenceMode: normalizeDifferenceMode(initialDisplayDifferenceMode),
+        huntScoreDifferenceMode: normalizeDifferenceMode(initialDifferenceMode),
+        settingEstimateMode: normalizeSettingEstimateMode(initialSettingEstimateMode),
+        visibleMetricKeys: DEFAULT_VISIBLE_METRIC_KEYS,
+        estimateOptions: defaultEstimateOptions,
+        verificationTargetMode: VERIFICATION_TARGET_MODE_HIGHLIGHT,
+        verificationSettingRankMin: DEFAULT_VERIFICATION_SETTING_RANK_MIN,
+        verificationSettingRankMax: DEFAULT_VERIFICATION_SETTING_RANK_MAX,
+        verificationSettingMinGames: DEFAULT_VERIFICATION_SETTING_MIN_GAMES,
+        displayControlsOpen: true,
+        settingControlsOpen: true,
+        verificationControlsOpen: true,
+        huntScoreControlsOpen: true,
+      };
+    },
     [
       defaultEstimateOptions,
       defaultEventFilters,
+      initialPeriodOptions,
       initialDisplayDifferenceMode,
       initialDifferenceMode,
       initialSettingEstimateMode,
@@ -2869,6 +2890,11 @@ export function MachineComparison({
     ],
   );
   const metricKeys = useMemo(() => metrics.map((metric) => metric.key), [metrics]);
+  const hasLoadedMachineComparisonOptions =
+    machineComparisonOptionsLoadedStoreId === machineComparisonStorageScopeKey;
+  const hasLoadedHuntScoreHighlightOptions =
+    huntScoreHighlightOptionsLoadedStoreId === machineComparisonStorageScopeKey;
+  const canRenderWithInitialPeriodOptions = Boolean(initialPeriodOptions);
 
   useEffect(() => {
     setMachineComparisonOptionsLoadedStoreId("");
@@ -3412,6 +3438,18 @@ export function MachineComparison({
     huntScoreHighlightOptions,
     startTransition,
   ]);
+
+  if (
+    !canRenderWithInitialPeriodOptions &&
+    (!hasLoadedMachineComparisonOptions || !hasLoadedHuntScoreHighlightOptions)
+  ) {
+    return (
+      <section className="statusPanel">
+        <h2>表示条件を読み込んでいます</h2>
+        <p>保存済みの表示期間を確認しています。</p>
+      </section>
+    );
+  }
 
   return (
     <>

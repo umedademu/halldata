@@ -17,6 +17,10 @@ import {
   decodeHuntScoreLogicCookieValue,
   getHuntScoreLogicCookieName,
 } from "../../../../../lib/hunt-score-logic-selection";
+import {
+  decodeMachineComparisonPeriodCookieValue,
+  MACHINE_COMPARISON_PERIOD_COOKIE_NAME,
+} from "../../../../../lib/machine-comparison-period";
 import { normalizeDifferenceMode } from "../../../../../lib/machine-difference";
 import {
   getSettingEstimateDefinition,
@@ -29,6 +33,13 @@ async function readStoredHuntScoreLogicKey(storeId) {
   const cookieStore = await cookies();
   return decodeHuntScoreLogicCookieValue(
     cookieStore.get(getHuntScoreLogicCookieName(storeId))?.value ?? "",
+  );
+}
+
+async function readStoredMachineComparisonPeriodOptions() {
+  const cookieStore = await cookies();
+  return decodeMachineComparisonPeriodCookieValue(
+    cookieStore.get(MACHINE_COMPARISON_PERIOD_COOKIE_NAME)?.value ?? "",
   );
 }
 
@@ -64,6 +75,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
   const storeId = resolvedParams.storeId;
   const machineName = readRouteSegment(resolvedParams.machineName);
   const huntScoreLogicKey = await readStoredHuntScoreLogicKey(storeId);
+  const initialPeriodOptions = await readStoredMachineComparisonPeriodOptions();
   const differenceMode = normalizeDifferenceMode(
     readSingleSearchParam(resolvedSearchParams?.differenceMode),
   );
@@ -241,6 +253,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
         initialDisplayDifferenceModeFromSearchParams={hasDisplayDifferenceModeSearchParam}
         initialSettingEstimateMode={detail.settingEstimateMode}
         initialSettingEstimateModeFromSearchParams={hasSettingEstimateModeSearchParam}
+        initialPeriodOptions={initialPeriodOptions}
         huntScoreAvailable={detail.huntScoreEnabled}
         preferDefaultEstimateOptions={Boolean(detail.huntScoreHighlight)}
       />
