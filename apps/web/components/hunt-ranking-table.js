@@ -571,9 +571,123 @@ function buildMatchedConditionTitleParts(evaluation) {
   ];
 }
 
-function readHighestFiniteValue(values) {
-  const finiteValues = values.map((value) => Number(value)).filter(Number.isFinite);
-  return finiteValues.length > 0 ? Math.max(...finiteValues) : null;
+function readFiniteNumber(value) {
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) ? parsedValue : null;
+}
+
+function readProbabilityDenominator(value) {
+  const normalizedText = String(value ?? "").normalize("NFKC").replace(/,/g, "").trim();
+  if (!normalizedText || normalizedText === "-") {
+    return null;
+  }
+
+  const ratioMatch = normalizedText.match(/1\s*\/\s*(\d+(?:\.\d+)?)/u);
+  if (ratioMatch) {
+    return readFiniteNumber(ratioMatch[1]);
+  }
+
+  return readFiniteNumber(normalizedText);
+}
+
+function formatExpectedPayoutRate(value) {
+  const rate = readFiniteNumber(value);
+  return rate === null ? "-" : `${rate.toFixed(2)}%`;
+}
+
+function formatExpectedRbDenominator(value) {
+  const denominator = readFiniteNumber(value);
+  if (denominator === null || denominator <= 0) {
+    return "-";
+  }
+  return denominator.toFixed(1).replace(/\.0$/u, "");
+}
+
+function selectBestExpectationCandidate(candidates) {
+  const validCandidates = candidates
+    .map((candidate) => ({
+      ...candidate,
+      payoutRate: readFiniteNumber(candidate?.payoutRate),
+      rbDenominator: readFiniteNumber(candidate?.rbDenominator),
+    }))
+    .filter((candidate) => candidate.payoutRate !== null);
+
+  if (validCandidates.length === 0) {
+    return null;
+  }
+
+  return validCandidates.sort((left, right) => {
+    if (right.payoutRate !== left.payoutRate) {
+      return right.payoutRate - left.payoutRate;
+    }
+    if (left.rbDenominator !== null && right.rbDenominator !== null) {
+      return left.rbDenominator - right.rbDenominator;
+    }
+    if (left.rbDenominator !== null) {
+      return -1;
+    }
+    if (right.rbDenominator !== null) {
+      return 1;
+    }
+    return 0;
+  })[0];
+}
+
+function readBestMatchedConditionExpectationCandidate(evaluation) {
+  const matchedConditions = Array.isArray(evaluation?.matchedConditions)
+    ? evaluation.matchedConditions
+    : [];
+
+  return selectBestExpectationCandidate(
+    matchedConditions.map((condition) => ({
+      label: condition?.conditionName,
+      payoutRate: condition?.backtestPayoutRate,
+      rbDenominator: condition?.backtestRbDenominator,
+    })),
+  );
+}
+
+function buildBacktestResultExpectationCandidate(backtestResult, label) {
+  if (!backtestResult) {
+    return null;
+  }
+
+  return {
+    label,
+    payoutRate: backtestResult.payoutRate,
+    rbDenominator: readProbabilityDenominator(backtestResult.rbProbability),
+  };
+}
+
+function readMachineEvaluationExpectationDetail(storeId, storeName, row) {
+  const evaluation = row?.machineEvaluation;
+  if (!evaluation) {
+    return null;
+  }
+
+  return selectBestExpectationCandidate([
+    readBestMatchedConditionExpectationCandidate(evaluation),
+    buildBacktestResultExpectationCandidate(
+      readCommonAndMachineEvaluationTopBacktestResult(storeId, storeName, row),
+      "春日式2.0＋機種別点数ともに機種内1位",
+    ),
+    buildBacktestResultExpectationCandidate(
+      readMachineEvaluationTopBacktestResult(storeId, storeName, row),
+      "機種別点数 機種内1位",
+    ),
+  ]);
+}
+
+function buildMachineEvaluationExpectationTitle(detail) {
+  if (!detail) {
+    return "";
+  }
+
+  return combineTitleParts(
+    detail.label ? `採用目安: ${detail.label}` : "",
+    `期待割: ${formatExpectedPayoutRate(detail.payoutRate)}`,
+    `期待RB: ${formatExpectedRbDenominator(detail.rbDenominator)}`,
+  );
 }
 
 function MachineEvaluationCell({ storeId, storeName, row, evaluation, extraTitle = "" }) {
@@ -596,6 +710,7 @@ function MachineEvaluationCell({ storeId, storeName, row, evaluation, extraTitle
     combinedTopBacktestResult,
     evaluation,
   );
+  const expectationDetail = readMachineEvaluationExpectationDetail(storeId, storeName, row);
   const titleParts = [
     evaluation.logicName ? `機種別ロジック: ${evaluation.logicName}` : "",
     matchedConditionTitleParts.length > 0
@@ -611,13 +726,7 @@ function MachineEvaluationCell({ storeId, storeName, row, evaluation, extraTitle
     Number.isFinite(evaluation.rank) ? `機種別順位: ${evaluation.rank}` : "",
     Number.isFinite(evaluation.nextGap) ? `次点差: ${formatDecimal(evaluation.nextGap)}` : "",
   ].filter(Boolean);
-  const evaluationPayoutClass = getMachineEvaluationPayoutClass(
-    readHighestFiniteValue([
-      evaluation.bestMatchedBacktestPayoutRate,
-      combinedTopBacktestResult?.payoutRate,
-      topBacktestResult?.payoutRate,
-    ]),
-  );
+  const evaluationPayoutClass = getMachineEvaluationPayoutClass(expectationDetail?.payoutRate);
   const cellClassNames = [
     evaluationPayoutClass ? "machineEvaluationMatchedCell" : "",
     evaluationPayoutClass,
@@ -630,6 +739,38 @@ function MachineEvaluationCell({ storeId, storeName, row, evaluation, extraTitle
       data-sort-value={readRankingSortNumber(evaluation.score, "")}
     >
       <span className="machineEvaluationCellValue">{formatNumber(evaluation.score)}</span>
+    </td>
+  );
+}
+
+function MachineEvaluationExpectedPayoutCell({ storeId, storeName, row, extraTitle = "" }) {
+  const expectationDetail = readMachineEvaluationExpectationDetail(storeId, storeName, row);
+  const title = combineTitleParts(
+    buildMachineEvaluationExpectationTitle(expectationDetail),
+    extraTitle,
+  );
+  return (
+    <td
+      title={title || undefined}
+      data-sort-value={expectationDetail?.payoutRate ?? ""}
+    >
+      {formatExpectedPayoutRate(expectationDetail?.payoutRate)}
+    </td>
+  );
+}
+
+function MachineEvaluationExpectedRbCell({ storeId, storeName, row, extraTitle = "" }) {
+  const expectationDetail = readMachineEvaluationExpectationDetail(storeId, storeName, row);
+  const title = combineTitleParts(
+    buildMachineEvaluationExpectationTitle(expectationDetail),
+    extraTitle,
+  );
+  return (
+    <td
+      title={title || undefined}
+      data-sort-value={expectationDetail?.rbDenominator ?? ""}
+    >
+      {formatExpectedRbDenominator(expectationDetail?.rbDenominator)}
     </td>
   );
 }
@@ -752,20 +893,41 @@ function readSortableTableValue(
     hasMachineEvaluationColumn = false,
     visibleColumns = [],
     includeMachineColumn = true,
+    storeId = "",
+    storeName = "",
   } = {},
 ) {
   if (columnIndex === 0) {
-    return { missing: false, value: readSortableTableNumber(row.rank), type: "number" };
-  }
-  if (columnIndex === 1) {
     return { missing: false, value: readSortableTableNumber(row.huntScore), type: "number" };
   }
-  let nextColumnIndex = 2;
+  let nextColumnIndex = 1;
 
   if (hasMachineEvaluationColumn && columnIndex === nextColumnIndex) {
     return {
       missing: false,
       value: readSortableTableNumber(row.machineEvaluation?.score),
+      type: "number",
+    };
+  }
+  if (hasMachineEvaluationColumn) {
+    nextColumnIndex += 1;
+  }
+
+  if (hasMachineEvaluationColumn && columnIndex === nextColumnIndex) {
+    return {
+      missing: false,
+      value: readMachineEvaluationExpectationDetail(storeId, storeName, row)?.payoutRate ?? null,
+      type: "number",
+    };
+  }
+  if (hasMachineEvaluationColumn) {
+    nextColumnIndex += 1;
+  }
+
+  if (hasMachineEvaluationColumn && columnIndex === nextColumnIndex) {
+    return {
+      missing: false,
+      value: readMachineEvaluationExpectationDetail(storeId, storeName, row)?.rbDenominator ?? null,
       type: "number",
     };
   }
@@ -887,7 +1049,6 @@ function OverallRankingTable({
   storeId,
   storeName,
   sectionLabel = "狙い度上位",
-  rankColumnLabel = "順位",
   title,
   rows,
   visibleColumns,
@@ -904,7 +1065,7 @@ function OverallRankingTable({
   const hasMachineEvaluationColumn =
     showMachineEvaluation && rows.some((row) => row?.machineEvaluation);
   const [sortState, setSortState] = useState(() =>
-    sortable ? { columnIndex: 1, direction: "desc", type: "number" } : null,
+    sortable ? { columnIndex: 0, direction: "desc", type: "number" } : null,
   );
   const sortedRows = useMemo(() => {
     if (!sortable || !sortState) {
@@ -923,11 +1084,13 @@ function OverallRankingTable({
             hasMachineEvaluationColumn,
             visibleColumns,
             includeMachineColumn: true,
+            storeId,
+            storeName,
           },
         ),
       )
       .map((entry) => entry.row);
-  }, [hasMachineEvaluationColumn, nextGapScope, rows, sortState, sortable, visibleColumns]);
+  }, [hasMachineEvaluationColumn, nextGapScope, rows, sortState, sortable, storeId, storeName, visibleColumns]);
   const tableProps = tableId ? { id: tableId } : {};
   const handleSort = (columnIndex, type, initialDirection) => {
     if (!sortable) {
@@ -976,8 +1139,11 @@ function OverallRankingTable({
         <th className={className || undefined} title={headerTitle}>{children}</th>
       );
   };
-  const machineEvaluationColumnIndex = 2;
-  const nextGapColumnIndex = 2 + (hasMachineEvaluationColumn ? 1 : 0);
+  const scoreColumnIndex = 0;
+  const machineEvaluationColumnIndex = 1;
+  const expectedPayoutColumnIndex = hasMachineEvaluationColumn ? 2 : null;
+  const expectedRbColumnIndex = hasMachineEvaluationColumn ? 3 : null;
+  const nextGapColumnIndex = hasMachineEvaluationColumn ? 4 : 1;
   const machineColumnIndex = nextGapColumnIndex + 1;
   const slotColumnIndex = machineColumnIndex + 1;
   const resultColumnStartIndex = slotColumnIndex + 1;
@@ -997,11 +1163,27 @@ function OverallRankingTable({
         <table className="directoryTable huntCompactTable huntRankingTable" {...tableProps}>
           <thead>
             <tr>
-              <HeaderCell columnIndex={0}>{rankColumnLabel}</HeaderCell>
-              <HeaderCell columnIndex={1}>{scoreColumnLabel}</HeaderCell>
+              <HeaderCell columnIndex={scoreColumnIndex}>{scoreColumnLabel}</HeaderCell>
               {hasMachineEvaluationColumn ? (
                 <HeaderCell columnIndex={machineEvaluationColumnIndex} title="機種別評価">
                   機種別
+                </HeaderCell>
+              ) : null}
+              {hasMachineEvaluationColumn ? (
+                <HeaderCell
+                  columnIndex={expectedPayoutColumnIndex}
+                  title="ホバー表示に使う目安のうち、最も高い機械割"
+                >
+                  期待割
+                </HeaderCell>
+              ) : null}
+              {hasMachineEvaluationColumn ? (
+                <HeaderCell
+                  columnIndex={expectedRbColumnIndex}
+                  initialDirection="asc"
+                  title="期待割に採用した目安のRB分母"
+                >
+                  期待RB
                 </HeaderCell>
               ) : null}
               <HeaderCell columnIndex={nextGapColumnIndex}>次点差</HeaderCell>
@@ -1043,12 +1225,6 @@ function OverallRankingTable({
                   key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${title}-${row.rank}`}
                   title={rowSite7Title || undefined}
                 >
-                  <td
-                    data-sort-value={readRankingSortNumber(row.rank, "")}
-                    title={rowSite7Title || undefined}
-                  >
-                    {row.rank}
-                  </td>
                   <HuntScoreCell
                     storeId={storeId}
                     storeName={storeName}
@@ -1065,6 +1241,22 @@ function OverallRankingTable({
                       storeName={storeName}
                       row={row}
                       evaluation={row.machineEvaluation}
+                      extraTitle={rowSite7Title}
+                    />
+                  ) : null}
+                  {hasMachineEvaluationColumn ? (
+                    <MachineEvaluationExpectedPayoutCell
+                      storeId={storeId}
+                      storeName={storeName}
+                      row={row}
+                      extraTitle={rowSite7Title}
+                    />
+                  ) : null}
+                  {hasMachineEvaluationColumn ? (
+                    <MachineEvaluationExpectedRbCell
+                      storeId={storeId}
+                      storeName={storeName}
+                      row={row}
                       extraTitle={rowSite7Title}
                     />
                   ) : null}
@@ -1146,7 +1338,7 @@ function MachineRankingGroupTable({
     showMachineEvaluation && group.rows.some((row) => row?.machineEvaluation);
   const [sortState, setSortState] = useState(() => ({
     columnIndex: 0,
-    direction: "asc",
+    direction: "desc",
     type: "number",
   }));
   const sortedRows = useMemo(
@@ -1163,11 +1355,13 @@ function MachineRankingGroupTable({
               hasMachineEvaluationColumn,
               visibleColumns,
               includeMachineColumn: false,
+              storeId,
+              storeName,
             },
           ),
         )
         .map((entry) => entry.row),
-    [group.rows, hasMachineEvaluationColumn, nextGapScope, sortState, visibleColumns],
+    [group.rows, hasMachineEvaluationColumn, nextGapScope, sortState, storeId, storeName, visibleColumns],
   );
   const handleSort = (columnIndex, type, initialDirection) => {
     setSortState((currentState) => {
@@ -1207,8 +1401,11 @@ function MachineRankingGroupTable({
       </SortableTableHeader>
     );
   };
-  const machineEvaluationColumnIndex = 2;
-  const nextGapColumnIndex = 2 + (hasMachineEvaluationColumn ? 1 : 0);
+  const scoreColumnIndex = 0;
+  const machineEvaluationColumnIndex = 1;
+  const expectedPayoutColumnIndex = hasMachineEvaluationColumn ? 2 : null;
+  const expectedRbColumnIndex = hasMachineEvaluationColumn ? 3 : null;
+  const nextGapColumnIndex = hasMachineEvaluationColumn ? 4 : 1;
   const slotColumnIndex = nextGapColumnIndex + 1;
   const resultColumnStartIndex = slotColumnIndex + 1;
 
@@ -1245,11 +1442,27 @@ function MachineRankingGroupTable({
         <table className="directoryTable huntCompactTable huntRankingTable">
           <thead>
             <tr>
-              <HeaderCell columnIndex={0} initialDirection="asc">順位</HeaderCell>
-              <HeaderCell columnIndex={1}>{scoreColumnLabel}</HeaderCell>
+              <HeaderCell columnIndex={scoreColumnIndex}>{scoreColumnLabel}</HeaderCell>
               {hasMachineEvaluationColumn ? (
                 <HeaderCell columnIndex={machineEvaluationColumnIndex} title="機種別評価">
                   機種別
+                </HeaderCell>
+              ) : null}
+              {hasMachineEvaluationColumn ? (
+                <HeaderCell
+                  columnIndex={expectedPayoutColumnIndex}
+                  title="ホバー表示に使う目安のうち、最も高い機械割"
+                >
+                  期待割
+                </HeaderCell>
+              ) : null}
+              {hasMachineEvaluationColumn ? (
+                <HeaderCell
+                  columnIndex={expectedRbColumnIndex}
+                  initialDirection="asc"
+                  title="期待割に採用した目安のRB分母"
+                >
+                  期待RB
                 </HeaderCell>
               ) : null}
               <HeaderCell columnIndex={nextGapColumnIndex}>次点差</HeaderCell>
@@ -1279,7 +1492,6 @@ function MachineRankingGroupTable({
                   key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${row.rank}`}
                   title={rowSite7Title || undefined}
                 >
-                  <td title={rowSite7Title || undefined}>{row.rank}</td>
                   <HuntScoreCell
                     storeId={storeId}
                     storeName={storeName}
@@ -1296,6 +1508,22 @@ function MachineRankingGroupTable({
                       storeName={storeName}
                       row={row}
                       evaluation={row.machineEvaluation}
+                      extraTitle={rowSite7Title}
+                    />
+                  ) : null}
+                  {hasMachineEvaluationColumn ? (
+                    <MachineEvaluationExpectedPayoutCell
+                      storeId={storeId}
+                      storeName={storeName}
+                      row={row}
+                      extraTitle={rowSite7Title}
+                    />
+                  ) : null}
+                  {hasMachineEvaluationColumn ? (
+                    <MachineEvaluationExpectedRbCell
+                      storeId={storeId}
+                      storeName={storeName}
+                      row={row}
                       extraTitle={rowSite7Title}
                     />
                   ) : null}
@@ -1658,7 +1886,6 @@ export function HuntRankingTable({
             storeId={storeId}
             storeName={storeName}
             sectionLabel="各機種1位"
-            rankColumnLabel="順位"
             title={`各機種1位 ${formatNumber(machineTopCandidateRows.length)}台`}
             rows={machineTopCandidateRows}
             visibleColumns={visibleColumns}

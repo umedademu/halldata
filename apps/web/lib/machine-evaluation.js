@@ -182,12 +182,23 @@ function readBacktestPayoutRate(backtestLabel) {
   return Number.isFinite(value) ? value : null;
 }
 
+function readBacktestRbDenominator(backtestLabel) {
+  const normalizedLabel = String(backtestLabel ?? "").normalize("NFKC");
+  const match = normalizedLabel.match(/RB(?:率)?\s*(?:1\s*\/)?\s*(\d+(?:\.\d+)?)/iu);
+  if (!match) {
+    return null;
+  }
+  const value = Number(match[1]);
+  return Number.isFinite(value) ? value : null;
+}
+
 function buildCondition(keySuffix, name, backtestLabel, matcher, logicKeys = []) {
   return {
     keySuffix,
     name,
     backtestLabel,
     backtestPayoutRate: readBacktestPayoutRate(backtestLabel),
+    backtestRbDenominator: readBacktestRbDenominator(backtestLabel),
     matcher,
     logicKeys,
   };
@@ -2874,6 +2885,7 @@ function buildConditionOptions(definition, logicKey = "") {
       name: condition.name,
       backtestLabel: condition.backtestLabel,
       backtestPayoutRate: condition.backtestPayoutRate,
+      backtestRbDenominator: condition.backtestRbDenominator,
     })),
   ];
 }
@@ -10733,6 +10745,7 @@ function buildEvaluationForRow(row, settingByMachineKey, options = {}) {
     conditionName: condition?.name ?? "",
     backtestLabel: condition?.backtestLabel ?? "",
     backtestPayoutRate: condition?.backtestPayoutRate ?? null,
+    backtestRbDenominator: condition?.backtestRbDenominator ?? null,
     score,
     rank: null,
     nextGap: null,
@@ -10757,6 +10770,7 @@ function buildMatchedConditionSummaries(definition, logicKey, evaluation) {
         conditionName: condition.name,
         backtestLabel: condition.backtestLabel,
         backtestPayoutRate: condition.backtestPayoutRate ?? null,
+        backtestRbDenominator: condition.backtestRbDenominator ?? null,
         isSelected: conditionKey === evaluation.conditionKey,
       };
     });
