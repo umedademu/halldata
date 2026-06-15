@@ -45,6 +45,7 @@ import {
   getCommonHuntScoreMachineTopBacktestResult,
 } from "../lib/hunt-score-top-backtest-results";
 import {
+  getCommonAndMachineEvaluationTopBacktestResult,
   getMachineEvaluationTopBacktestResult,
 } from "../lib/machine-evaluation-top-backtest-results";
 
@@ -474,6 +475,18 @@ function readMachineEvaluationTopBacktestResult(storeId, storeName, row) {
   });
 }
 
+function readCommonAndMachineEvaluationTopBacktestResult(storeId, storeName, row) {
+  if (!isMachineTopRankRow(row) || !isMachineEvaluationTopRank(row?.machineEvaluation)) {
+    return null;
+  }
+
+  return getCommonAndMachineEvaluationTopBacktestResult({
+    storeId,
+    storeName,
+    machineName: row?.machineName,
+  });
+}
+
 function buildCommonHuntScoreBacktestTitleParts(backtestResult, huntScoreLogicLabel) {
   if (!backtestResult) {
     return [];
@@ -518,6 +531,28 @@ function buildMachineEvaluationTopBacktestTitleParts(backtestResult, evaluation)
   ].filter(Boolean);
 }
 
+function buildCommonAndMachineEvaluationTopBacktestTitleParts(backtestResult, evaluation) {
+  if (!backtestResult) {
+    return [];
+  }
+
+  const logicLabel = String(evaluation?.logicName || "機種別ロジック").trim();
+  const countLabel = Number.isFinite(backtestResult.actualRowCount)
+    ? `${formatNumber(backtestResult.actualRowCount)}件`
+    : "-";
+  const payoutLabel = Number.isFinite(backtestResult.payoutRate)
+    ? formatPercent(backtestResult.payoutRate)
+    : "-";
+  const bbLabel = backtestResult.bbProbability || "-";
+  const rbLabel = backtestResult.rbProbability || "-";
+
+  return [
+    `春日式2.0 + ${logicLabel} / ともに機種内1位`,
+    `件数: ${countLabel} / ${payoutLabel}`,
+    `BB率: ${bbLabel} / RB率: ${rbLabel}`,
+  ].filter(Boolean);
+}
+
 function buildMatchedConditionTitleParts(evaluation) {
   const matchedConditions = Array.isArray(evaluation?.matchedConditions)
     ? evaluation.matchedConditions
@@ -552,6 +587,15 @@ function MachineEvaluationCell({ storeId, storeName, row, evaluation, extraTitle
     topBacktestResult,
     evaluation,
   );
+  const combinedTopBacktestResult = readCommonAndMachineEvaluationTopBacktestResult(
+    storeId,
+    storeName,
+    row,
+  );
+  const combinedTopBacktestTitleParts = buildCommonAndMachineEvaluationTopBacktestTitleParts(
+    combinedTopBacktestResult,
+    evaluation,
+  );
   const titleParts = [
     evaluation.logicName ? `機種別ロジック: ${evaluation.logicName}` : "",
     matchedConditionTitleParts.length > 0
@@ -562,6 +606,7 @@ function MachineEvaluationCell({ storeId, storeName, row, evaluation, extraTitle
     matchedConditionTitleParts.length === 0 && evaluation.backtestLabel
       ? `目安: ${evaluation.backtestLabel}`
       : "",
+    combinedTopBacktestTitleParts.length > 0 ? combinedTopBacktestTitleParts.join("\n") : "",
     topBacktestTitleParts.length > 0 ? topBacktestTitleParts.join("\n") : "",
     Number.isFinite(evaluation.rank) ? `機種別順位: ${evaluation.rank}` : "",
     Number.isFinite(evaluation.nextGap) ? `次点差: ${formatDecimal(evaluation.nextGap)}` : "",
@@ -569,6 +614,7 @@ function MachineEvaluationCell({ storeId, storeName, row, evaluation, extraTitle
   const evaluationPayoutClass = getMachineEvaluationPayoutClass(
     readHighestFiniteValue([
       evaluation.bestMatchedBacktestPayoutRate,
+      combinedTopBacktestResult?.payoutRate,
       topBacktestResult?.payoutRate,
     ]),
   );
