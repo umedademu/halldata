@@ -59,6 +59,7 @@ const DEFAULT_VISIBLE_RESULT_KEYS = [
   "setting_estimate",
 ];
 const ESTIMATED_GRAPE_RESULT_KEY = "estimated_grape_denominator";
+const SETTING_ESTIMATE_RESULT_HIGHLIGHT_START_KEY = "games_count";
 const DEFAULT_RANK_SCOPE = "selected";
 const DEFAULT_NEXT_GAP_SCOPE = "machine";
 const DEFAULT_HIGHLIGHT_RANK_MIN = 1;
@@ -137,6 +138,20 @@ const RESULT_COLUMN_DEFINITIONS = [
     sortValue: (row) => row.nextRecord?.rb_ratio_text,
   },
 ];
+
+const SETTING_ESTIMATE_RESULT_HIGHLIGHT_KEYS = new Set(
+  RESULT_COLUMN_DEFINITIONS.slice(
+    RESULT_COLUMN_DEFINITIONS.findIndex(
+      (column) => column.key === SETTING_ESTIMATE_RESULT_HIGHLIGHT_START_KEY,
+    ),
+  ).map((column) => column.key),
+);
+
+function getSettingEstimateResultCellClassName(column, settingEstimateCellClassName) {
+  return SETTING_ESTIMATE_RESULT_HIGHLIGHT_KEYS.has(column?.key)
+    ? settingEstimateCellClassName
+    : "";
+}
 
 function buildResultColumns(differenceMode, showGrapeColumn) {
   const columnDefinitions = showGrapeColumn
@@ -690,6 +705,20 @@ function buildMachineEvaluationExpectationTitle(detail) {
   );
 }
 
+function getMachineEvaluationExpectationClassName(expectationDetail) {
+  const payoutClass = getMachineEvaluationPayoutClass(expectationDetail?.payoutRate);
+  return [
+    payoutClass ? "machineEvaluationMatchedCell" : "",
+    payoutClass,
+  ].filter(Boolean).join(" ");
+}
+
+function getMachineEvaluationExpectationCellClassName(storeId, storeName, row) {
+  return getMachineEvaluationExpectationClassName(
+    readMachineEvaluationExpectationDetail(storeId, storeName, row),
+  );
+}
+
 function MachineEvaluationCell({ storeId, storeName, row, evaluation, extraTitle = "" }) {
   if (!evaluation) {
     return <td title={extraTitle || undefined} data-sort-value="">-</td>;
@@ -726,11 +755,7 @@ function MachineEvaluationCell({ storeId, storeName, row, evaluation, extraTitle
     Number.isFinite(evaluation.rank) ? `機種別順位: ${evaluation.rank}` : "",
     Number.isFinite(evaluation.nextGap) ? `次点差: ${formatDecimal(evaluation.nextGap)}` : "",
   ].filter(Boolean);
-  const evaluationPayoutClass = getMachineEvaluationPayoutClass(expectationDetail?.payoutRate);
-  const cellClassNames = [
-    evaluationPayoutClass ? "machineEvaluationMatchedCell" : "",
-    evaluationPayoutClass,
-  ].filter(Boolean).join(" ");
+  const cellClassNames = getMachineEvaluationExpectationClassName(expectationDetail);
 
   return (
     <td
@@ -1219,6 +1244,11 @@ function OverallRankingTable({
                   )
                 : machineFullName;
               const machineCellTitle = combineTitleParts(machineTitle, rowSite7Title);
+              const slotExpectedPayoutClassName = getMachineEvaluationExpectationCellClassName(
+                storeId,
+                storeName,
+                row,
+              );
 
               return (
                 <tr
@@ -1273,7 +1303,6 @@ function OverallRankingTable({
                     className={[
                       "directoryNameCell",
                       machineHasSite7Data ? "site7MachineCell" : "",
-                      settingEstimateCellClassName,
                     ].filter(Boolean).join(" ")}
                     title={machineCellTitle || undefined}
                     data-sort-value={row.machineName}
@@ -1294,7 +1323,7 @@ function OverallRankingTable({
                     </span>
                   </th>
                   <td
-                    className={settingEstimateCellClassName || undefined}
+                    className={slotExpectedPayoutClassName || undefined}
                     data-sort-value={row.slotNumber}
                     title={rowSite7Title || undefined}
                   >
@@ -1303,7 +1332,12 @@ function OverallRankingTable({
                   {visibleColumns.map((column) => (
                     <td
                       key={`${row.machineName}-${row.slotNumber}-${title}-${column.key}`}
-                      className={settingEstimateCellClassName || undefined}
+                      className={
+                        getSettingEstimateResultCellClassName(
+                          column,
+                          settingEstimateCellClassName,
+                        ) || undefined
+                      }
                       title={rowSite7Title || undefined}
                     >
                       {column.render(row)}
@@ -1486,6 +1520,11 @@ function MachineRankingGroupTable({
                 row.nextSettingEstimate?.average,
               );
               const rowSite7Title = buildRankingRowSite7Title(row);
+              const slotExpectedPayoutClassName = getMachineEvaluationExpectationCellClassName(
+                storeId,
+                storeName,
+                row,
+              );
 
               return (
                 <tr
@@ -1531,7 +1570,7 @@ function MachineRankingGroupTable({
                     {formatNextGapForScope(row, nextGapScope)}
                   </td>
                   <td
-                    className={settingEstimateCellClassName || undefined}
+                    className={slotExpectedPayoutClassName || undefined}
                     title={rowSite7Title || undefined}
                   >
                     {row.slotNumber}
@@ -1539,7 +1578,12 @@ function MachineRankingGroupTable({
                   {visibleColumns.map((column) => (
                     <td
                       key={`${row.machineName}-${row.slotNumber}-${column.key}`}
-                      className={settingEstimateCellClassName || undefined}
+                      className={
+                        getSettingEstimateResultCellClassName(
+                          column,
+                          settingEstimateCellClassName,
+                        ) || undefined
+                      }
                       title={rowSite7Title || undefined}
                     >
                       {column.render(row)}
