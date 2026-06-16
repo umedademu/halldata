@@ -157,6 +157,37 @@ function readDateDayNumber(dateText) {
   return Number.isFinite(dayNumber) ? dayNumber : null;
 }
 
+function addDaysToDateText(dateText, days) {
+  const normalized = normalizeText(dateText);
+  const match =
+    normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/u) ??
+    normalized.match(/^(\d{2})\/(\d{2})\/(\d{2})$/u);
+  if (!match) {
+    return "";
+  }
+  const year = match[1].length === 2 ? 2000 + Number(match[1]) : Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return "";
+  }
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function readRankingTargetDate(snapshot) {
+  const nextBusinessDate = normalizeText(snapshot?.nextBusinessDate);
+  if (nextBusinessDate) {
+    return nextBusinessDate;
+  }
+  const baseDate = normalizeText(snapshot?.baseDate ?? snapshot?.date);
+  return addDaysToDateText(baseDate, 1) || baseDate;
+}
+
 function isBeamHikariEventDate(dateText) {
   const dayNumber = readDateDayNumber(dateText);
   if (!Number.isFinite(dayNumber)) {
@@ -10891,7 +10922,7 @@ function resolveRankingDateSpecificSetting(definition, setting, options = {}) {
   ) {
     return setting;
   }
-  const targetDate = options?.snapshot?.nextBusinessDate ?? options?.snapshot?.baseDate ?? options?.snapshot?.date ?? "";
+  const targetDate = readRankingTargetDate(options?.snapshot);
   return buildBeamHikariDateSetting(definition, targetDate) ?? setting;
 }
 
@@ -10977,7 +11008,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
     return null;
   }
 
-  const targetDate = options?.snapshot?.nextBusinessDate ?? options?.snapshot?.baseDate ?? options?.snapshot?.date ?? "";
+  const targetDate = readRankingTargetDate(options?.snapshot);
   const setting = buildBeamHikariDateSetting(definition, targetDate);
   const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
   if (!evaluation) {
