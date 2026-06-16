@@ -1427,15 +1427,73 @@ const MACHINE_EVALUATION_DEFINITIONS = [
   {
     machineKey: "hokuto-base",
     machineNames: ["Lスマスロ北斗の拳", "L スマスロ北斗の拳", "スマスロ北斗の拳"],
-    logicKey: "beam-hikari-hokuto-base-normal",
-    logicName: "L北斗ビームヒカリ通常日式",
+    logicKey: "beam-hikari-hokuto-base",
+    logicName: "L北斗ビームヒカリ全日式",
     logics: [
+      buildLogicVariant("beam-hikari-hokuto-base", "L北斗ビームヒカリ全日式", "beam-hikari-main"),
       buildLogicVariant("beam-hikari-hokuto-base-normal", "L北斗ビームヒカリ通常日式", "beam-hikari-normal-top2-score80"),
       buildLogicVariant("beam-hikari-hokuto-base-event", "L北斗ビームヒカリイベント日式", "beam-hikari-event-main"),
     ],
     profile: "smart",
-    defaultConditionSuffix: "beam-hikari-normal-top2-score80",
+    defaultConditionSuffix: "beam-hikari-main",
     conditions: [
+      buildCondition(
+        "beam-hikari-main",
+        "1位＋70点以上＋次点差5点以上",
+        "196件 / 104.49% / RB1/482.3",
+        {
+          rankMax: 1,
+          minScore: 70,
+          minNextGap: 5,
+          requiredFlags: ["beamHikariHokutoBaseMainHistoryReady"],
+        },
+        ["beam-hikari-hokuto-base"],
+      ),
+      buildCondition(
+        "beam-hikari-gap5",
+        "1位＋次点差5点以上",
+        "200件 / 104.45% / RB1/483.4",
+        {
+          rankMax: 1,
+          minNextGap: 5,
+          requiredFlags: ["beamHikariHokutoBaseMainHistoryReady"],
+        },
+        ["beam-hikari-hokuto-base"],
+      ),
+      buildCondition(
+        "beam-hikari-gap5-safe",
+        "1位＋次点差5点以上＋危険0",
+        "153件 / 105.09% / RB1/484.9",
+        {
+          rankMax: 1,
+          minNextGap: 5,
+          maxDanger: 0,
+          requiredFlags: ["beamHikariHokutoBaseMainHistoryReady"],
+        },
+        ["beam-hikari-hokuto-base"],
+      ),
+      buildCondition(
+        "beam-hikari-gap4",
+        "1位＋次点差4点以上",
+        "232件 / 103.96% / RB1/487.9",
+        {
+          rankMax: 1,
+          minNextGap: 4,
+          requiredFlags: ["beamHikariHokutoBaseMainHistoryReady"],
+        },
+        ["beam-hikari-hokuto-base"],
+      ),
+      buildCondition(
+        "beam-hikari-gap10",
+        "1位＋次点差10点以上",
+        "102件 / 103.08% / RB1/499.5",
+        {
+          rankMax: 1,
+          minNextGap: 10,
+          requiredFlags: ["beamHikariHokutoBaseMainHistoryReady"],
+        },
+        ["beam-hikari-hokuto-base"],
+      ),
       buildCondition(
         "beam-hikari-normal-top2-score80",
         "上位2台＋80点以上",
@@ -3213,7 +3271,7 @@ function getDefaultSetting(definition, storeName) {
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "hokuto-tensei") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-hokuto-tensei");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "hokuto-base") {
-    defaultLogic = findLogicDefinition(definition, "beam-hikari-hokuto-base-normal");
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-hokuto-base");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-neo-aim");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "my") {
@@ -5086,6 +5144,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
 
   if (machineKey === "hokuto-base") {
     const isBeamHikariHokutoBaseLogic =
+      activeLogicKey === "beam-hikari-hokuto-base" ||
       activeLogicKey === "beam-hikari-hokuto-base-normal" ||
       activeLogicKey === "beam-hikari-hokuto-base-event";
     if (isBeamHikariHokutoBaseLogic) {
@@ -5126,12 +5185,14 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         recentFiveGamesTotal < 2000 || recentFourteenGamesTotal < 8000,
         previousNearbyShow,
       ];
-      const isEventLogic = activeLogicKey === "beam-hikari-hokuto-base-event";
-      const boostFlags = isEventLogic ? eventBoostFlags : normalBoostFlags;
-      const dangerFlags = isEventLogic ? eventDangerFlags : normalDangerFlags;
+      const isMainOrEventLogic =
+        activeLogicKey === "beam-hikari-hokuto-base" || activeLogicKey === "beam-hikari-hokuto-base-event";
+      const boostFlags = isMainOrEventLogic ? eventBoostFlags : normalBoostFlags;
+      const dangerFlags = isMainOrEventLogic ? eventDangerFlags : normalDangerFlags;
 
       return {
         ...features,
+        beamHikariHokutoBaseMainHistoryReady: beamHikariHokutoBaseHistoryReady,
         beamHikariHokutoBaseNormalHistoryReady: beamHikariHokutoBaseHistoryReady,
         beamHikariHokutoBaseEventHistoryReady: beamHikariHokutoBaseHistoryReady,
         beamHikariHokutoBasePreviousNearbyShow: previousNearbyShow,
@@ -11600,6 +11661,7 @@ function calculateMachineScore(definition, metrics, features) {
 
   if (machineKey === "hokuto-base") {
     if (
+      activeLogicKey === "beam-hikari-hokuto-base" ||
       activeLogicKey === "beam-hikari-hokuto-base-normal" ||
       activeLogicKey === "beam-hikari-hokuto-base-event"
     ) {
@@ -11610,7 +11672,7 @@ function calculateMachineScore(definition, metrics, features) {
       const previousNearbyShow = Boolean(features.beamHikariHokutoBasePreviousNearbyShow);
       let score = 0;
 
-      if (activeLogicKey === "beam-hikari-hokuto-base-event") {
+      if (activeLogicKey === "beam-hikari-hokuto-base" || activeLogicKey === "beam-hikari-hokuto-base-event") {
         if (recentFiveNetTotal <= -2300) {
           score += 16;
         } else if (recentFiveNetTotal <= -1000) {
@@ -12462,6 +12524,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       "ultra-miracle",
       "monkey",
       "hokuto-tensei",
+      "hokuto-base",
     ].includes(definition?.machineKey)
   ) {
     const baseLogicKeyByMachineKey = {
@@ -12474,6 +12537,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       "ultra-miracle": "beam-hikari-ultra",
       monkey: "beam-hikari-monkey",
       "hokuto-tensei": "beam-hikari-hokuto-tensei",
+      "hokuto-base": "beam-hikari-hokuto-base",
     };
     const logic = findLogicDefinition(definition, baseLogicKeyByMachineKey[definition.machineKey]);
     const condition =
@@ -12558,6 +12622,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
       "ultra-miracle",
       "monkey",
       "hokuto-tensei",
+      "hokuto-base",
     ].includes(definition?.machineKey)
   ) {
     return null;
