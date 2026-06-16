@@ -6833,6 +6833,7 @@ function calculateWindowMetrics(
   const recentFiveAngleMinus80StayDays = countConsecutiveRollingAngleThresholdDays(historyWindowRows, 5, -80);
   const recentFourLossDays = recentFourRows.filter((windowRow) => windowRow.differenceValue < 0).length;
   const recentSevenLossDays = recentSevenRows.filter((windowRow) => windowRow.differenceValue < 0).length;
+  const recentFourteenLossDays = recentFourteenRows.filter((windowRow) => windowRow.differenceValue < 0).length;
   const recentFourteenWinDays = recentFourteenRows.filter((windowRow) => windowRow.differenceValue > 0).length;
   const recentFourPositiveCount = recentFourRows.filter((windowRow) => windowRow.differenceValue > 0).length;
   const recentTwoGamesTotal = recentTwoRows.reduce((total, windowRow) => total + windowRow.games, 0);
@@ -7357,6 +7358,7 @@ function calculateWindowMetrics(
   const recentSevenBigShowDays = countBigShowRows(recentSevenRows);
   const recentThreeStrictHighContentDays = countStrictHighContentRows(recentThreeRows);
   const recentSevenStrictHighContentDays = countStrictHighContentRows(recentSevenRows);
+  const recentSevenGoldShowDays = countDifferenceAtLeastRows(recentSevenRows, 1500);
   const recentFourteenGoldShowDays = countDifferenceAtLeastRows(recentFourteenRows, 1341);
   const previousBigShow = previousGames >= 5000 && todayDifference >= 1000;
 
@@ -7411,6 +7413,7 @@ function calculateWindowMetrics(
     recentFiveAngleMinus80StayDays,
     recentFourLossDays,
     recentSevenLossDays,
+    recentFourteenLossDays,
     recentFourteenWinDays,
     recentFourPositiveCount,
     compensationRate: lossAbsTotal === 0 ? 999 : winAbsTotal / lossAbsTotal,
@@ -7561,6 +7564,7 @@ function calculateWindowMetrics(
     recentSevenBigShowDays,
     recentThreeStrictHighContentDays,
     recentSevenStrictHighContentDays,
+    recentSevenGoldShowDays,
     recentFourteenGoldShowDays,
     previousBigShow,
     bbTotal,

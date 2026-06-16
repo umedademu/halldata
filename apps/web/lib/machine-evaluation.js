@@ -2146,12 +2146,56 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logicName: "ハッピー屋形原式",
     logics: [
       buildLogicVariant("apark-yakatabaru-happy", "ハッピー屋形原式", "apark-yakatabaru-main"),
+      buildLogicVariant("beam-hikari-happy", "ハッピービームヒカリ式", "beam-hikari-main"),
       buildLogicVariant("beam-hikari-happy-normal", "ハッピービームヒカリ通常日式", "beam-hikari-normal-main"),
       buildLogicVariant("beam-hikari-happy-event", "ハッピービームヒカリイベント日式", "beam-hikari-event-main"),
     ],
     profile: "juggler",
     defaultConditionSuffix: "apark-yakatabaru-main",
     conditions: [
+      buildCondition(
+        "beam-hikari-main",
+        "1位＋60点以上＋強化1個以上＋危険0",
+        "259件 / 101.98% / RB1/329.9",
+        {
+          rankMax: 1,
+          minScore: 60,
+          minBoost: 1,
+          maxDanger: 0,
+          requiredFlags: ["beamHikariHappyMainHistoryReady"],
+        },
+        ["beam-hikari-happy"],
+      ),
+      buildCondition(
+        "beam-hikari-score80",
+        "80点以上",
+        "72件 / 100.57% / RB1/319.8",
+        {
+          minScore: 80,
+          requiredFlags: ["beamHikariHappyMainHistoryReady"],
+        },
+        ["beam-hikari-happy"],
+      ),
+      buildCondition(
+        "beam-hikari-rank1-previous-weak",
+        "1位＋前日弱さ強化",
+        "250件 / 101.71% / RB1/322.7",
+        {
+          rankMax: 1,
+          requiredFlags: ["beamHikariHappyMainHistoryReady", "beamHikariHappyPreviousWeak"],
+        },
+        ["beam-hikari-happy"],
+      ),
+      buildCondition(
+        "beam-hikari-rank1-sink",
+        "1位＋沈み強化",
+        "47件 / 102.22% / RB1/310.2",
+        {
+          rankMax: 1,
+          requiredFlags: ["beamHikariHappyMainHistoryReady", "beamHikariHappyMainSinkBoost"],
+        },
+        ["beam-hikari-happy"],
+      ),
       buildCondition(
         "beam-hikari-normal-main",
         "1位＋70点以上＋次点差25点以上",
@@ -2167,7 +2211,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-event-main",
         "65点以上＋イベントローテ強化",
-        "166件 / 101.33% / RB1/320.7",
+        "167件 / 101.34% / RB1/320.9",
         {
           minScore: 65,
           requiredFlags: ["beamHikariHappyEventHistoryReady", "beamHikariHappyEventRotationBoost"],
@@ -2188,7 +2232,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-event-unpaid-rank2",
         "上位2＋未返済強化",
-        "65件 / 100.66% / RB1/322.3",
+        "66件 / 100.60% / RB1/325.5",
         {
           rankMax: 2,
           minScore: 60,
@@ -2199,7 +2243,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "beam-hikari-event-unpaid-score80",
         "80点以上＋未返済強化",
-        "34件 / 101.83% / RB1/305.6",
+        "35件 / 101.70% / RB1/310.7",
         {
           minScore: 80,
           requiredFlags: ["beamHikariHappyEventHistoryReady", "beamHikariHappyUnpaid"],
@@ -2988,7 +3032,7 @@ function getDefaultSetting(definition, storeName) {
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "girls") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-girls");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "happy") {
-    defaultLogic = findLogicDefinition(definition, "beam-hikari-happy-normal");
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-happy");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "ultra-miracle") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-ultra-normal");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "monkey") {
@@ -3523,6 +3567,8 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentFourteenGamesTotal = readNumber(metrics.recentFourteenGamesTotal);
   const recentTwentyOneGamesTotal = readNumber(metrics.recentTwentyOneGamesTotal);
   const recentFourteenGoldShowDays = readNumber(metrics.recentFourteenGoldShowDays);
+  const recentSevenGoldShowDays = readNumber(metrics.recentSevenGoldShowDays, readNumber(metrics.recentSevenBigShowDays));
+  const recentFourteenLossDays = readNumber(metrics.recentFourteenLossDays);
   const recentFourteenWinDays = readNumber(metrics.recentFourteenWinDays);
   const recentSevenLossDays = readNumber(metrics.recentSevenLossDays);
   const recentSevenHighSettingCandidateCount = readNumber(metrics.recentSevenHighSettingCandidateCount);
@@ -5958,7 +6004,12 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
     };
   }
 
-  if (machineKey === "happy" && (activeLogicKey === "beam-hikari-happy-normal" || activeLogicKey === "beam-hikari-happy-event")) {
+  if (
+    machineKey === "happy" &&
+    (activeLogicKey === "beam-hikari-happy" ||
+      activeLogicKey === "beam-hikari-happy-normal" ||
+      activeLogicKey === "beam-hikari-happy-event")
+  ) {
     const beamHikariHappyHistoryReady = targetRangeHistoryRowCount >= 21;
     const previousCombinedDenominator = features.previousCombinedDenominator;
     const beamHikariHappyPreviousWeak =
@@ -6039,10 +6090,48 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       beamHikariHappyWatchedTooMuch,
       beamHikariHappyLowInfo,
     ];
+    if (activeLogicKey === "beam-hikari-happy") {
+      const beamHikariHappyMainSinkBoost =
+        beamHikariHappyUnpaid ||
+        (recentTwentyOneNetTotal <= -8000 && recentTwentyOneGamesTotal >= 48000) ||
+        (recentFourteenNetTotal <= -6000 && recentSevenLossDays >= 4);
+      const mainBoostFlags = [
+        beamHikariHappyPreviousWeak,
+        beamHikariHappyMainSinkBoost,
+        beamHikariHappyUnfinished,
+        beamHikariHappyGamesTrust,
+        beamHikariHappyNormalLosingSink,
+      ];
+      const mainDangerFlags = [
+        beamHikariHappyTreatmentDone,
+        beamHikariHappyWatchedTooMuch,
+        beamHikariHappyLowInfo,
+        beamHikariHappyRecentGoodTooClose,
+      ];
+
+      return {
+        ...features,
+        beamHikariHappyMainHistoryReady: beamHikariHappyHistoryReady,
+        beamHikariHappyPreviousWeak,
+        beamHikariHappyMainSinkBoost,
+        beamHikariHappyUnpaid,
+        beamHikariHappyUnfinished,
+        beamHikariHappyGamesTrust,
+        beamHikariHappyTreatmentDone,
+        beamHikariHappyWatchedTooMuch,
+        beamHikariHappyLowInfo,
+        beamHikariHappyRecentGoodTooClose,
+        treatmentDone: beamHikariHappyTreatmentDone,
+        lowConfidence: beamHikariHappyLowInfo,
+        boostCount: mainBoostFlags.filter(Boolean).length,
+        dangerCount: mainDangerFlags.filter(Boolean).length,
+      };
+    }
     const isEventLogic = activeLogicKey === "beam-hikari-happy-event";
 
     return {
       ...features,
+      beamHikariHappyMainHistoryReady: beamHikariHappyHistoryReady,
       beamHikariHappyNormalHistoryReady: beamHikariHappyHistoryReady,
       beamHikariHappyEventHistoryReady: beamHikariHappyHistoryReady,
       beamHikariHappyPreviousWeak,
@@ -6315,6 +6404,8 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFiftySixGamesTotal = readNumber(metrics.recentFiftySixGamesTotal);
   const recentTwoBonusTotal = readNumber(metrics.recentTwoBonusTotal);
   const recentFourteenGoldShowDays = readNumber(metrics.recentFourteenGoldShowDays);
+  const recentSevenGoldShowDays = readNumber(metrics.recentSevenGoldShowDays, readNumber(metrics.recentSevenBigShowDays));
+  const recentFourteenLossDays = readNumber(metrics.recentFourteenLossDays);
   const recentFourteenWinDays = readNumber(metrics.recentFourteenWinDays);
   const recentSevenLossDays = readNumber(metrics.recentSevenLossDays);
   const recentFiveHighSettingCandidateCount = readNumber(metrics.recentFiveHighSettingCandidateCount);
@@ -10202,6 +10293,116 @@ function calculateMachineScore(definition, metrics, features) {
     return Math.round(clamp(restoredScore - 2, 0, 100));
   }
 
+  if (machineKey === "happy" && activeLogicKey === "beam-hikari-happy") {
+    if (targetRangeHistoryRowCount < 21) {
+      return 0;
+    }
+
+    let previousWeakScore = 0;
+    previousWeakScore +=
+      previousGames >= 500 && previousGames <= 2999
+        ? 10
+        : previousGames >= 300 && previousGames <= 499
+          ? 3
+          : 0;
+    previousWeakScore +=
+      previousDifference <= -1200
+        ? 3
+        : previousDifference <= -500
+          ? 8
+          : previousDifference < 0
+            ? 5
+            : 0;
+    previousWeakScore +=
+      previousCombinedDenominator > 200
+        ? 6
+        : previousCombinedDenominator > 170
+          ? 4
+          : 0;
+    previousWeakScore += previousRbDenominator > 700 ? 3 : previousRbDenominator > 500 ? 2 : 0;
+
+    let unpaidScore = scoreAtMost(recentTwentyOneNetTotal, [
+      { maximum: -8000, points: 19 },
+      { maximum: -5000, points: 13 },
+      { maximum: -2500, points: 7 },
+      { maximum: -1, points: 3 },
+    ]);
+    if (recentTwentyOneGamesTotal < 48000) {
+      unpaidScore = Math.min(unpaidScore, 11);
+    }
+
+    const unfinishedScore = Math.min(
+      18,
+      (recentFourteenGoldShowDays === 0 ? 6 : 0) +
+        (recentSevenGoldShowDays === 0 ? 5 : 0) +
+        (recentSevenNetTotal <= 1500 ? 4 : 0) +
+        (previousDifference < 1000 ? 3 : 0),
+    );
+
+    const gamesTrustScore = Math.min(
+      19,
+      scoreInRange(recentSevenGamesTotal, 8000, 20000, 10) +
+        scoreInRange(recentSevenGamesTotal, 20001, 28000, 5) +
+        scoreInRange(recentFourteenGamesTotal, 25000, 45000, 9) +
+        scoreInRange(recentFourteenGamesTotal, 45001, 60000, 5),
+    );
+
+    const losingScore = Math.min(
+      9,
+      (streak >= 5 ? 6 : streak >= 3 ? 4 : streak >= 2 ? 3 : 0) +
+        (recentSevenLossDays >= 6 ? 3 : recentSevenLossDays >= 5 ? 2 : 0) +
+        (recentFourteenLossDays >= 11 ? 2 : recentFourteenLossDays >= 10 ? 1 : 0),
+    );
+
+    const angleScore = Math.min(
+      6,
+      scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -6000, points: 4 },
+        { maximum: -3500, points: 3 },
+        { maximum: -1500, points: 2 },
+        { maximum: -1, points: 1 },
+      ]) +
+        (features.recentFourteenAngle <= -180 ? 2 : features.recentFourteenAngle <= -120 ? 1 : 0),
+    );
+
+    let intervalScore = 0;
+    if (Number.isFinite(daysSinceMachineHighContent)) {
+      intervalScore +=
+        daysSinceMachineHighContent >= 10 && daysSinceMachineHighContent <= 21
+          ? 1.5
+          : (daysSinceMachineHighContent >= 7 && daysSinceMachineHighContent < 10) ||
+              (daysSinceMachineHighContent > 21 && daysSinceMachineHighContent <= 30)
+            ? 1
+            : 0;
+      intervalScore += daysSinceMachineHighContent >= 21 && daysSinceMachineHighContent <= 60 ? 0.5 : 0;
+    }
+    intervalScore = Math.min(intervalScore, 2);
+
+    const penalty = Math.min(
+      16,
+      (previousMachineHighContent || previousMachineGoodContent ? 5 : 0) +
+        (previousDifference >= 1500 || (previousGames >= 3000 && previousCombinedDenominator <= 150) ? 5 : 0) +
+        (recentTwentyOneNetTotal > 4000 ? 4 : 0) +
+        (recentSevenNetTotal > 1500 ? 3 : 0) +
+        (recentSevenGamesTotal < 8000 ? 3 : 0),
+    );
+
+    return Math.round(
+      clamp(
+        Math.min(previousWeakScore, 27) +
+          unpaidScore +
+          unfinishedScore +
+          gamesTrustScore +
+          losingScore +
+          angleScore +
+          intervalScore -
+          penalty,
+        0,
+        100,
+      ),
+    );
+  }
+
   if (machineKey === "happy" && activeLogicKey === "apark-yakatabaru-happy") {
     if (readNumber(metrics.historyRowCount) < 21) {
       return 0;
@@ -11653,7 +11854,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
   if (
     options?.dateSpecificRanking &&
     isBeamHikariStore(options?.storeName) &&
-    ["neo-aim", "funky", "gogo", "my", "girls"].includes(definition?.machineKey)
+    ["neo-aim", "funky", "gogo", "my", "girls", "happy"].includes(definition?.machineKey)
   ) {
     const baseLogicKeyByMachineKey = {
       "neo-aim": "beam-hikari-neo-aim",
@@ -11661,6 +11862,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       gogo: "beam-hikari-gogo",
       my: "beam-hikari-my",
       girls: "beam-hikari-girls",
+      happy: "beam-hikari-happy",
     };
     const logic = findLogicDefinition(definition, baseLogicKeyByMachineKey[definition.machineKey]);
     const condition =
@@ -11734,7 +11936,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   }
 
   const definition = findMachineDefinition(row?.machineName);
-  if (!["neo-aim", "funky", "gogo", "my", "girls"].includes(definition?.machineKey)) {
+  if (!["neo-aim", "funky", "gogo", "my", "girls", "happy"].includes(definition?.machineKey)) {
     return null;
   }
 
