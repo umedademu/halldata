@@ -2386,6 +2386,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logicKey: "apark-yakatabaru-ultra-miracle",
     logicName: "ウルトラ屋形原式",
     logics: [
+      buildLogicVariant("beam-hikari-ultra", "ウルトラビームヒカリ式", "beam-hikari-main"),
       buildLogicVariant("beam-hikari-ultra-normal", "ウルトラビームヒカリ通常日式", "beam-hikari-normal-main"),
       buildLogicVariant("beam-hikari-ultra-event", "ウルトラビームヒカリイベント日式", "beam-hikari-event-main"),
       buildLogicVariant("apark-yakatabaru-ultra-miracle", "ウルトラ屋形原式", "apark-yakatabaru-main"),
@@ -2393,6 +2394,42 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     profile: "juggler",
     defaultConditionSuffix: "apark-yakatabaru-main",
     conditions: [
+      buildCondition(
+        "beam-hikari-main",
+        "1位＋70点以上＋強化2＋危険1以下",
+        "4件 / 110.35% / RB1/384.8",
+        {
+          rankMax: 1,
+          minScore: 70,
+          minBoost: 2,
+          maxDanger: 1,
+          requiredFlags: ["beamHikariUltraMainHistoryReady"],
+        },
+        ["beam-hikari-ultra"],
+      ),
+      buildCondition(
+        "beam-hikari-score70-boost2-safe",
+        "70点以上＋強化2＋危険1以下",
+        "4件 / 110.35% / RB1/384.8",
+        {
+          minScore: 70,
+          minBoost: 2,
+          maxDanger: 1,
+          requiredFlags: ["beamHikariUltraMainHistoryReady"],
+        },
+        ["beam-hikari-ultra"],
+      ),
+      buildCondition(
+        "beam-hikari-rank1-boost2",
+        "1位＋強化2以上",
+        "23件 / 103.29% / RB1/365.5",
+        {
+          rankMax: 1,
+          minBoost: 2,
+          requiredFlags: ["beamHikariUltraMainHistoryReady"],
+        },
+        ["beam-hikari-ultra"],
+      ),
       buildCondition(
         "beam-hikari-normal-main",
         "1位＋70点以上＋強化2＋危険1以下",
@@ -3034,7 +3071,7 @@ function getDefaultSetting(definition, storeName) {
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "happy") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-happy");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "ultra-miracle") {
-    defaultLogic = findLogicDefinition(definition, "beam-hikari-ultra-normal");
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-ultra");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "monkey") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-monkey-normal");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "hokuto-tensei") {
@@ -6213,7 +6250,12 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
     };
   }
 
-  if (machineKey === "ultra-miracle" && (activeLogicKey === "beam-hikari-ultra-normal" || activeLogicKey === "beam-hikari-ultra-event")) {
+  if (
+    machineKey === "ultra-miracle" &&
+    (activeLogicKey === "beam-hikari-ultra" ||
+      activeLogicKey === "beam-hikari-ultra-normal" ||
+      activeLogicKey === "beam-hikari-ultra-event")
+  ) {
     const beamHikariUltraHistoryReady = historyRowCount >= 21;
     const beamHikariUltraMediumSink =
       (recentSevenNetTotal <= -1000 && recentSevenNetTotal > -2900) ||
@@ -6253,6 +6295,20 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       beamHikariUltraWeakComposite,
       beamHikariUltraGamesTrust,
     ];
+    const mainRecentUseStrong =
+      recentFourteenMachineHighContentCount >= 3 || recentTwentyOneMachineHighContentCount >= 5;
+    const mainBonusWeak =
+      beamHikariUltraPreviousUnfinished ||
+      beamHikariUltraPreviousRegStrong ||
+      features.recentThreeCombinedDenominator > 205 ||
+      features.recentFiveCombinedDenominator > 185;
+    const mainBoostFlags = [
+      beamHikariUltraMediumSink,
+      mainBonusWeak,
+      mainRecentUseStrong,
+      recentTwentyOneGamesTotal >= 63600,
+      beamHikariUltraNearbyPreviousHigh,
+    ];
     const eventBoostFlags = [
       beamHikariUltraMediumSink,
       beamHikariUltraWeakComposite || beamHikariUltraPreviousRegStrong,
@@ -6267,9 +6323,11 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       beamHikariUltraDeepSink || beamHikariUltraNearbyBad,
     ];
     const isEventLogic = activeLogicKey === "beam-hikari-ultra-event";
+    const isMainLogic = activeLogicKey === "beam-hikari-ultra";
 
     return {
       ...features,
+      beamHikariUltraMainHistoryReady: beamHikariUltraHistoryReady,
       beamHikariUltraNormalHistoryReady: beamHikariUltraHistoryReady,
       beamHikariUltraEventHistoryReady: beamHikariUltraHistoryReady,
       beamHikariUltraMediumSink,
@@ -6289,7 +6347,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       beamHikariUltraNearbyBad,
       treatmentDone: beamHikariUltraTreatmentDone,
       lowConfidence: !beamHikariUltraGamesTrust && !beamHikariUltraWeakComposite,
-      boostCount: (isEventLogic ? eventBoostFlags : normalBoostFlags).filter(Boolean).length,
+      boostCount: (isMainLogic ? mainBoostFlags : isEventLogic ? eventBoostFlags : normalBoostFlags).filter(Boolean).length,
       dangerCount: dangerFlags.filter(Boolean).length,
     };
   }
@@ -6483,6 +6541,59 @@ function calculateMachineScore(definition, metrics, features) {
   const previousCombinedDenominator = features.previousCombinedDenominator;
   const previousRbDenominator = features.previousRbDenominator;
   const recentTwoCombinedDenominator = rateDenominator(recentTwoGamesTotal, recentTwoBonusTotal);
+
+  if (machineKey === "ultra-miracle" && activeLogicKey === "beam-hikari-ultra") {
+    if (historyRowCount < 21) {
+      return 0;
+    }
+
+    let recentUseScore = 0;
+    recentUseScore += scoreAtLeast(recentFourteenMachineHighContentCount, [
+      { minimum: 4, points: 22 },
+      { minimum: 3, points: 15 },
+      { minimum: 2, points: 8 },
+      { minimum: 1, points: 4 },
+    ]);
+    recentUseScore += recentTwentyOneMachineHighContentCount >= 5 ? 4 : 0;
+    recentUseScore = Math.min(recentUseScore, 26);
+
+    let previousContentScore = 0;
+    previousContentScore += previousMachineHighContent && previousDifference < 1000 ? 14 : 0;
+    previousContentScore += previousMachineHighContent && previousDifference >= 1000 && previousDifference < 1500 ? 8 : 0;
+    previousContentScore += previousRbDenominator <= 280 ? 8 : 0;
+    previousContentScore = Math.min(previousContentScore, 18);
+
+    let sinkScore = 0;
+    sinkScore += features.recentThreeCombinedDenominator > 205 ? 10 : 0;
+    sinkScore += features.recentFiveCombinedDenominator > 185 ? 7 : 0;
+    sinkScore += recentFiveNetTotal <= -1300 && recentFiveNetTotal > -2300 ? 10 : 0;
+    sinkScore += recentSevenNetTotal <= -1000 && recentSevenNetTotal > -2900 ? 8 : 0;
+    sinkScore += recentThreeNetTotal <= -600 ? 4 : 0;
+    sinkScore += features.recentFiveAngle <= -226.9 ? 4 : 0;
+    sinkScore = Math.min(sinkScore, 25);
+
+    let contextScore = 0;
+    contextScore += recentTwentyOneGamesTotal >= 63600 ? 6 : 0;
+    contextScore += recentFourteenGamesTotal >= 43200 ? 3 : 0;
+    contextScore += previousAdjacentMachineHighContentCount > 0 ? 4 : 0;
+    contextScore = Math.min(contextScore, 12);
+
+    let penalty = 0;
+    penalty += previousDifference >= 900 ? 12 : 0;
+    penalty += previousDifference >= 1500 ? 10 : 0;
+    penalty += previousGames >= 5500 ? 8 : 0;
+    penalty += recentThreeGamesTotal >= 10700 ? 10 : 0;
+    penalty += recentSevenGamesTotal >= 24300 ? 8 : 0;
+    penalty += recentTwentyOneMachineHighContentCount === 0 ? 16 : 0;
+    penalty += Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 14 ? 12 : 0;
+    penalty += Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 21 ? 8 : 0;
+    penalty += recentTwentyOneNetTotal <= -1600 ? 6 : 0;
+    penalty += recentSevenNetTotal <= -2900 ? 12 : 0;
+    penalty += recentFiveNetTotal <= -2300 ? 5 : 0;
+    penalty += previousAdjacentMachineNetTotal <= -1000 ? 6 : 0;
+
+    return Math.round(clamp(45 + recentUseScore + previousContentScore + sinkScore + contextScore - Math.min(penalty, 60), 0, 100));
+  }
 
   if (machineKey === "ultra-miracle" && (activeLogicKey === "beam-hikari-ultra-normal" || activeLogicKey === "beam-hikari-ultra-event")) {
     if (historyRowCount < 21) {
@@ -11854,7 +11965,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
   if (
     options?.dateSpecificRanking &&
     isBeamHikariStore(options?.storeName) &&
-    ["neo-aim", "funky", "gogo", "my", "girls", "happy"].includes(definition?.machineKey)
+    ["neo-aim", "funky", "gogo", "my", "girls", "happy", "ultra-miracle"].includes(definition?.machineKey)
   ) {
     const baseLogicKeyByMachineKey = {
       "neo-aim": "beam-hikari-neo-aim",
@@ -11863,6 +11974,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       my: "beam-hikari-my",
       girls: "beam-hikari-girls",
       happy: "beam-hikari-happy",
+      "ultra-miracle": "beam-hikari-ultra",
     };
     const logic = findLogicDefinition(definition, baseLogicKeyByMachineKey[definition.machineKey]);
     const condition =
