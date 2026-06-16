@@ -338,6 +338,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logics: [
       buildLogicVariant("apark-gogo", "ゴージャグ春日式", "main"),
       buildLogicVariant("mj-kurume-gogo", "ゴージャグMJ久留米式", "mj-kurume-main"),
+      buildLogicVariant("beam-hikari-gogo", "ゴージャグビームヒカリ式", "beam-hikari-main"),
       buildLogicVariant("beam-hikari-gogo-normal", "ゴージャグビームヒカリ通常日式", "beam-hikari-normal-main"),
       buildLogicVariant("beam-hikari-gogo-event", "ゴージャグビームヒカリイベント日式", "beam-hikari-event-main"),
     ],
@@ -392,6 +393,75 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["kurumeGogoHistoryReady"],
         },
         ["mj-kurume-gogo"],
+      ),
+      buildCondition(
+        "beam-hikari-main",
+        "1位＋75点以上＋次点差8点以上",
+        "69件 / 103.4% / RB1/278.4",
+        {
+          rankMax: 1,
+          minScore: 75,
+          minNextGap: 8,
+          requiredFlags: ["beamHikariGogoMainHistoryReady"],
+        },
+        ["beam-hikari-gogo"],
+      ),
+      buildCondition(
+        "beam-hikari-score75",
+        "75点以上",
+        "94件 / 103.2% / RB1/282.2",
+        {
+          minScore: 75,
+          requiredFlags: ["beamHikariGogoMainHistoryReady"],
+        },
+        ["beam-hikari-gogo"],
+      ),
+      buildCondition(
+        "beam-hikari-rank1-score75-gap12",
+        "1位＋75点以上＋次点差12点以上",
+        "60件 / 102.6% / RB1/282.3",
+        {
+          rankMax: 1,
+          minScore: 75,
+          minNextGap: 12,
+          requiredFlags: ["beamHikariGogoMainHistoryReady"],
+        },
+        ["beam-hikari-gogo"],
+      ),
+      buildCondition(
+        "beam-hikari-score75-rb-weak",
+        "75点以上＋3日RB極端悪化",
+        "25件 / 103.1% / RB1/273.3",
+        {
+          minScore: 75,
+          requiredFlags: ["beamHikariGogoMainHistoryReady", "beamHikariGogoRecentThreeRbVeryWeak"],
+        },
+        ["beam-hikari-gogo"],
+      ),
+      buildCondition(
+        "beam-hikari-score65-sink-nearby",
+        "65点以上＋21日沈み帯＋近隣見せ場",
+        "95件 / 103.6% / RB1/286.4",
+        {
+          minScore: 65,
+          requiredFlags: [
+            "beamHikariGogoMainHistoryReady",
+            "beamHikariGogoTwentyOneSinkBand",
+            "beamHikariGogoNearbyShow",
+          ],
+        },
+        ["beam-hikari-gogo"],
+      ),
+      buildCondition(
+        "beam-hikari-rank1-gap20",
+        "1位＋次点差20点以上",
+        "101件 / 102.5% / RB1/284.2",
+        {
+          rankMax: 1,
+          minNextGap: 20,
+          requiredFlags: ["beamHikariGogoMainHistoryReady"],
+        },
+        ["beam-hikari-gogo"],
       ),
       buildCondition(
         "beam-hikari-normal-main",
@@ -2843,7 +2913,7 @@ function getDefaultSetting(definition, storeName) {
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-funky");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "gogo") {
-    defaultLogic = findLogicDefinition(definition, "beam-hikari-gogo-normal");
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-gogo");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "my") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-my-normal");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "girls") {
@@ -4240,7 +4310,11 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "gogo") {
-    if (activeLogicKey === "beam-hikari-gogo-normal" || activeLogicKey === "beam-hikari-gogo-event") {
+    if (
+      activeLogicKey === "beam-hikari-gogo" ||
+      activeLogicKey === "beam-hikari-gogo-normal" ||
+      activeLogicKey === "beam-hikari-gogo-event"
+    ) {
       const beamHikariGogoHistoryReady = targetRangeHistoryRowCount >= 7;
       const beamHikariGogoPreviousWeak =
         previousGames >= 1500 &&
@@ -4256,6 +4330,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         recentTwentyOneNetTotal >= -8000 && recentTwentyOneNetTotal <= -4000;
       const beamHikariGogoRecentThreeGamesMiddle =
         recentThreeGamesTotal >= 2000 && recentThreeGamesTotal <= 7000;
+      const beamHikariGogoRecentThreeRbVeryWeak = features.recentThreeRbDenominator >= 500;
       const beamHikariGogoNearbyShow =
         adjacentMachineHighContentCount7 > 0 ||
         adjacentMachineHighContentCount7Near2 > 0 ||
@@ -4270,6 +4345,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         Number.isFinite(daysSinceMachineHighContent) &&
         daysSinceMachineHighContent >= 21 &&
         daysSinceMachineHighContent <= 30;
+      const beamHikariGogoMainHistoryReady = beamHikariGogoHistoryReady;
       const beamHikariGogoNormalHistoryReady = beamHikariGogoHistoryReady;
       const beamHikariGogoEventHistoryReady = beamHikariGogoHistoryReady;
       const boostFlags = [
@@ -4287,12 +4363,14 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         recentFiveGamesTotal >= 20000,
         recentSevenGamesTotal >= 26000,
         features.recentThreeAngle >= 100,
-        activeLogicKey === "beam-hikari-gogo-normal" && streak >= 6,
+        (activeLogicKey === "beam-hikari-gogo" || activeLogicKey === "beam-hikari-gogo-normal") &&
+          streak >= 6,
       ];
 
       return {
         ...features,
         beamHikariGogoHistoryReady,
+        beamHikariGogoMainHistoryReady,
         beamHikariGogoNormalHistoryReady,
         beamHikariGogoEventHistoryReady,
         beamHikariGogoPreviousWeak,
@@ -4300,6 +4378,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         beamHikariGogoAngleStrong,
         beamHikariGogoTwentyOneSinkBand,
         beamHikariGogoRecentThreeGamesMiddle,
+        beamHikariGogoRecentThreeRbVeryWeak,
         beamHikariGogoNearbyShow,
         beamHikariGogoTreatmentDone,
         beamHikariGogoLowInfo,
@@ -6980,7 +7059,11 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "gogo") {
-    if (activeLogicKey === "beam-hikari-gogo-normal" || activeLogicKey === "beam-hikari-gogo-event") {
+    if (
+      activeLogicKey === "beam-hikari-gogo" ||
+      activeLogicKey === "beam-hikari-gogo-normal" ||
+      activeLogicKey === "beam-hikari-gogo-event"
+    ) {
       if (targetRangeHistoryRowCount < 7) {
         return 0;
       }
@@ -6997,7 +7080,7 @@ function calculateMachineScore(definition, metrics, features) {
       const recentThreeGamesMiddle = recentThreeGamesTotal >= 2000 && recentThreeGamesTotal <= 7000;
       const nearbyHigh = adjacentMachineHighContentCount7 > 0 || adjacentMachineHighContentCount7Near2 > 0;
 
-      if (activeLogicKey === "beam-hikari-gogo-event") {
+      if (activeLogicKey === "beam-hikari-gogo" || activeLogicKey === "beam-hikari-gogo-event") {
         score += scoreAtLeast(recentThreeCombined, [
           { minimum: 200, points: 14 },
           { minimum: 180, points: 12 },
@@ -11139,11 +11222,12 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
   if (
     options?.dateSpecificRanking &&
     isBeamHikariStore(options?.storeName) &&
-    ["neo-aim", "funky"].includes(definition?.machineKey)
+    ["neo-aim", "funky", "gogo"].includes(definition?.machineKey)
   ) {
     const baseLogicKeyByMachineKey = {
       "neo-aim": "beam-hikari-neo-aim",
       funky: "beam-hikari-funky",
+      gogo: "beam-hikari-gogo",
     };
     const logic = findLogicDefinition(definition, baseLogicKeyByMachineKey[definition.machineKey]);
     const condition =
@@ -11217,7 +11301,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   }
 
   const definition = findMachineDefinition(row?.machineName);
-  if (!["neo-aim", "funky"].includes(definition?.machineKey)) {
+  if (!["neo-aim", "funky", "gogo"].includes(definition?.machineKey)) {
     return null;
   }
 
