@@ -474,6 +474,21 @@ function readCommonHuntScoreMachineTopBacktestResult(storeId, storeName, row) {
   });
 }
 
+function shouldUseCommonHuntScoreMachineTopExpectation(storeId, storeName, machineName) {
+  return (
+    (storeId === "store-e0f6c17d91d1" || storeName === "Aパーク春日店") &&
+    machineName === "ネオアイムジャグラーEX"
+  );
+}
+
+function readCommonHuntScoreMachineTopExpectationBacktestResult(storeId, storeName, row) {
+  if (!shouldUseCommonHuntScoreMachineTopExpectation(storeId, storeName, row?.machineName)) {
+    return null;
+  }
+
+  return readCommonHuntScoreMachineTopBacktestResult(storeId, storeName, row);
+}
+
 function isMachineEvaluationTopRank(evaluation) {
   return readRankingSortNumber(evaluation?.rank, null) === 1;
 }
@@ -720,6 +735,10 @@ function readMachineEvaluationExpectationDetail(storeId, storeName, row) {
       row,
       row?.machineEvaluationDaySpecific,
       false,
+    ),
+    buildBacktestResultExpectationCandidate(
+      readCommonHuntScoreMachineTopExpectationBacktestResult(storeId, storeName, row),
+      "Aパーク春日式2.0 機種内1位",
     ),
     buildBacktestResultExpectationCandidate(
       readCommonAndMachineEvaluationTopBacktestResult(storeId, storeName, row),
