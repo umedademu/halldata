@@ -674,14 +674,53 @@ function buildBacktestResultExpectationCandidate(backtestResult, label) {
   };
 }
 
-function readMachineEvaluationExpectationDetail(storeId, storeName, row) {
-  const evaluation = row?.machineEvaluation;
+function readMachineEvaluationExpectationDetailForEvaluation(
+  storeId,
+  storeName,
+  row,
+  evaluation,
+  includeStoredTopBacktests = true,
+) {
   if (!evaluation) {
     return null;
   }
 
-  return selectBestExpectationCandidate([
+  const candidates = [
     readBestMatchedConditionExpectationCandidate(evaluation),
+  ];
+
+  if (includeStoredTopBacktests) {
+    candidates.push(
+      buildBacktestResultExpectationCandidate(
+        readCommonAndMachineEvaluationTopBacktestResult(storeId, storeName, row),
+        "春日式2.0＋機種別点数ともに機種内1位",
+      ),
+      buildBacktestResultExpectationCandidate(
+        readMachineEvaluationTopBacktestResult(storeId, storeName, row),
+        "機種別点数 機種内1位",
+      ),
+    );
+  }
+
+  return selectBestExpectationCandidate(candidates);
+}
+
+function readMachineEvaluationExpectationDetail(storeId, storeName, row) {
+  return selectBestExpectationCandidate([
+    readMachineEvaluationExpectationDetailForEvaluation(
+      storeId,
+      storeName,
+      row,
+      row?.machineEvaluation,
+      false,
+    ),
+    readMachineEvaluationExpectationDetailForEvaluation(
+      storeId,
+      storeName,
+      row,
+      row?.machineEvaluationDaySpecific,
+      false,
+    ),
     buildBacktestResultExpectationCandidate(
       readCommonAndMachineEvaluationTopBacktestResult(storeId, storeName, row),
       "春日式2.0＋機種別点数ともに機種内1位",
@@ -719,27 +758,51 @@ function getMachineEvaluationExpectationCellClassName(storeId, storeName, row) {
   );
 }
 
-function MachineEvaluationCell({ storeId, storeName, row, evaluation, extraTitle = "" }) {
+function readDaySpecificMachineEvaluationColumnLabel(rows) {
+  const evaluation = (Array.isArray(rows) ? rows : [])
+    .map((row) => row?.machineEvaluationDaySpecific)
+    .find(Boolean);
+  return String(evaluation?.displayLabel ?? "").trim() || "日別";
+}
+
+function MachineEvaluationCell({
+  storeId,
+  storeName,
+  row,
+  evaluation,
+  extraTitle = "",
+  includeStoredTopBacktests = true,
+}) {
   if (!evaluation) {
     return <td title={extraTitle || undefined} data-sort-value="">-</td>;
   }
 
   const matchedConditionTitleParts = buildMatchedConditionTitleParts(evaluation);
-  const topBacktestResult = readMachineEvaluationTopBacktestResult(storeId, storeName, row);
+  const topBacktestResult = includeStoredTopBacktests
+    ? readMachineEvaluationTopBacktestResult(storeId, storeName, row)
+    : null;
   const topBacktestTitleParts = buildMachineEvaluationTopBacktestTitleParts(
     topBacktestResult,
     evaluation,
   );
-  const combinedTopBacktestResult = readCommonAndMachineEvaluationTopBacktestResult(
-    storeId,
-    storeName,
-    row,
-  );
+  const combinedTopBacktestResult = includeStoredTopBacktests
+    ? readCommonAndMachineEvaluationTopBacktestResult(
+        storeId,
+        storeName,
+        row,
+      )
+    : null;
   const combinedTopBacktestTitleParts = buildCommonAndMachineEvaluationTopBacktestTitleParts(
     combinedTopBacktestResult,
     evaluation,
   );
-  const expectationDetail = readMachineEvaluationExpectationDetail(storeId, storeName, row);
+  const expectationDetail = readMachineEvaluationExpectationDetailForEvaluation(
+    storeId,
+    storeName,
+    row,
+    evaluation,
+    includeStoredTopBacktests,
+  );
   const titleParts = [
     evaluation.logicName ? `機種別ロジック: ${evaluation.logicName}` : "",
     matchedConditionTitleParts.length > 0
@@ -916,6 +979,7 @@ function readSortableTableValue(
   nextGapScope,
   {
     hasMachineEvaluationColumn = false,
+    hasDaySpecificMachineEvaluationColumn = false,
     visibleColumns = [],
     includeMachineColumn = true,
     storeId = "",
@@ -935,6 +999,17 @@ function readSortableTableValue(
     };
   }
   if (hasMachineEvaluationColumn) {
+    nextColumnIndex += 1;
+  }
+
+  if (hasDaySpecificMachineEvaluationColumn && columnIndex === nextColumnIndex) {
+    return {
+      missing: false,
+      value: readSortableTableNumber(row.machineEvaluationDaySpecific?.score),
+      type: "number",
+    };
+  }
+  if (hasDaySpecificMachineEvaluationColumn) {
     nextColumnIndex += 1;
   }
 
@@ -1089,6 +1164,10 @@ function OverallRankingTable({
 }) {
   const hasMachineEvaluationColumn =
     showMachineEvaluation && rows.some((row) => row?.machineEvaluation);
+  const hasDaySpecificMachineEvaluationColumn =
+    hasMachineEvaluationColumn && rows.some((row) => row?.machineEvaluationDaySpecific);
+  const daySpecificMachineEvaluationColumnLabel =
+    readDaySpecificMachineEvaluationColumnLabel(rows);
   const [sortState, setSortState] = useState(() =>
     sortable ? { columnIndex: 0, direction: "desc", type: "number" } : null,
   );
@@ -1107,6 +1186,7 @@ function OverallRankingTable({
           nextGapScope,
           {
             hasMachineEvaluationColumn,
+            hasDaySpecificMachineEvaluationColumn,
             visibleColumns,
             includeMachineColumn: true,
             storeId,
@@ -1115,7 +1195,17 @@ function OverallRankingTable({
         ),
       )
       .map((entry) => entry.row);
-  }, [hasMachineEvaluationColumn, nextGapScope, rows, sortState, sortable, storeId, storeName, visibleColumns]);
+  }, [
+    hasDaySpecificMachineEvaluationColumn,
+    hasMachineEvaluationColumn,
+    nextGapScope,
+    rows,
+    sortState,
+    sortable,
+    storeId,
+    storeName,
+    visibleColumns,
+  ]);
   const tableProps = tableId ? { id: tableId } : {};
   const handleSort = (columnIndex, type, initialDirection) => {
     if (!sortable) {
@@ -1166,9 +1256,22 @@ function OverallRankingTable({
   };
   const scoreColumnIndex = 0;
   const machineEvaluationColumnIndex = 1;
-  const expectedPayoutColumnIndex = hasMachineEvaluationColumn ? 2 : null;
-  const expectedRbColumnIndex = hasMachineEvaluationColumn ? 3 : null;
-  const nextGapColumnIndex = hasMachineEvaluationColumn ? 4 : 1;
+  const daySpecificMachineEvaluationColumnIndex = hasDaySpecificMachineEvaluationColumn ? 2 : null;
+  const expectedPayoutColumnIndex = hasMachineEvaluationColumn
+    ? hasDaySpecificMachineEvaluationColumn
+      ? 3
+      : 2
+    : null;
+  const expectedRbColumnIndex = hasMachineEvaluationColumn
+    ? hasDaySpecificMachineEvaluationColumn
+      ? 4
+      : 3
+    : null;
+  const nextGapColumnIndex = hasMachineEvaluationColumn
+    ? hasDaySpecificMachineEvaluationColumn
+      ? 5
+      : 4
+    : 1;
   const machineColumnIndex = nextGapColumnIndex + 1;
   const slotColumnIndex = machineColumnIndex + 1;
   const resultColumnStartIndex = slotColumnIndex + 1;
@@ -1192,6 +1295,14 @@ function OverallRankingTable({
               {hasMachineEvaluationColumn ? (
                 <HeaderCell columnIndex={machineEvaluationColumnIndex} title="機種別評価">
                   機種別
+                </HeaderCell>
+              ) : null}
+              {hasDaySpecificMachineEvaluationColumn ? (
+                <HeaderCell
+                  columnIndex={daySpecificMachineEvaluationColumnIndex}
+                  title={`${daySpecificMachineEvaluationColumnLabel}専用評価`}
+                >
+                  {daySpecificMachineEvaluationColumnLabel}
                 </HeaderCell>
               ) : null}
               {hasMachineEvaluationColumn ? (
@@ -1272,6 +1383,16 @@ function OverallRankingTable({
                       row={row}
                       evaluation={row.machineEvaluation}
                       extraTitle={rowSite7Title}
+                    />
+                  ) : null}
+                  {hasDaySpecificMachineEvaluationColumn ? (
+                    <MachineEvaluationCell
+                      storeId={storeId}
+                      storeName={storeName}
+                      row={row}
+                      evaluation={row.machineEvaluationDaySpecific}
+                      extraTitle={rowSite7Title}
+                      includeStoredTopBacktests={false}
                     />
                   ) : null}
                   {hasMachineEvaluationColumn ? (
@@ -1370,6 +1491,10 @@ function MachineRankingGroupTable({
   const groupSite7FetchedAt = latestSite7FetchedAtFromRows(group.rows);
   const hasMachineEvaluationColumn =
     showMachineEvaluation && group.rows.some((row) => row?.machineEvaluation);
+  const hasDaySpecificMachineEvaluationColumn =
+    hasMachineEvaluationColumn && group.rows.some((row) => row?.machineEvaluationDaySpecific);
+  const daySpecificMachineEvaluationColumnLabel =
+    readDaySpecificMachineEvaluationColumnLabel(group.rows);
   const [sortState, setSortState] = useState(() => ({
     columnIndex: 0,
     direction: "desc",
@@ -1385,17 +1510,27 @@ function MachineRankingGroupTable({
             right,
             sortState,
             nextGapScope,
-            {
-              hasMachineEvaluationColumn,
-              visibleColumns,
-              includeMachineColumn: false,
-              storeId,
+          {
+            hasMachineEvaluationColumn,
+            hasDaySpecificMachineEvaluationColumn,
+            visibleColumns,
+            includeMachineColumn: false,
+            storeId,
               storeName,
             },
           ),
         )
         .map((entry) => entry.row),
-    [group.rows, hasMachineEvaluationColumn, nextGapScope, sortState, storeId, storeName, visibleColumns],
+    [
+      group.rows,
+      hasDaySpecificMachineEvaluationColumn,
+      hasMachineEvaluationColumn,
+      nextGapScope,
+      sortState,
+      storeId,
+      storeName,
+      visibleColumns,
+    ],
   );
   const handleSort = (columnIndex, type, initialDirection) => {
     setSortState((currentState) => {
@@ -1437,9 +1572,22 @@ function MachineRankingGroupTable({
   };
   const scoreColumnIndex = 0;
   const machineEvaluationColumnIndex = 1;
-  const expectedPayoutColumnIndex = hasMachineEvaluationColumn ? 2 : null;
-  const expectedRbColumnIndex = hasMachineEvaluationColumn ? 3 : null;
-  const nextGapColumnIndex = hasMachineEvaluationColumn ? 4 : 1;
+  const daySpecificMachineEvaluationColumnIndex = hasDaySpecificMachineEvaluationColumn ? 2 : null;
+  const expectedPayoutColumnIndex = hasMachineEvaluationColumn
+    ? hasDaySpecificMachineEvaluationColumn
+      ? 3
+      : 2
+    : null;
+  const expectedRbColumnIndex = hasMachineEvaluationColumn
+    ? hasDaySpecificMachineEvaluationColumn
+      ? 4
+      : 3
+    : null;
+  const nextGapColumnIndex = hasMachineEvaluationColumn
+    ? hasDaySpecificMachineEvaluationColumn
+      ? 5
+      : 4
+    : 1;
   const slotColumnIndex = nextGapColumnIndex + 1;
   const resultColumnStartIndex = slotColumnIndex + 1;
 
@@ -1480,6 +1628,14 @@ function MachineRankingGroupTable({
               {hasMachineEvaluationColumn ? (
                 <HeaderCell columnIndex={machineEvaluationColumnIndex} title="機種別評価">
                   機種別
+                </HeaderCell>
+              ) : null}
+              {hasDaySpecificMachineEvaluationColumn ? (
+                <HeaderCell
+                  columnIndex={daySpecificMachineEvaluationColumnIndex}
+                  title={`${daySpecificMachineEvaluationColumnLabel}専用評価`}
+                >
+                  {daySpecificMachineEvaluationColumnLabel}
                 </HeaderCell>
               ) : null}
               {hasMachineEvaluationColumn ? (
@@ -1548,6 +1704,16 @@ function MachineRankingGroupTable({
                       row={row}
                       evaluation={row.machineEvaluation}
                       extraTitle={rowSite7Title}
+                    />
+                  ) : null}
+                  {hasDaySpecificMachineEvaluationColumn ? (
+                    <MachineEvaluationCell
+                      storeId={storeId}
+                      storeName={storeName}
+                      row={row}
+                      evaluation={row.machineEvaluationDaySpecific}
+                      extraTitle={rowSite7Title}
+                      includeStoredTopBacktests={false}
                     />
                   ) : null}
                   {hasMachineEvaluationColumn ? (
