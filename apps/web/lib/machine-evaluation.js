@@ -986,6 +986,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logicName: "モンキー春日式v2",
     logics: [
       buildLogicVariant("apark-monkey", "モンキー春日式v2", "main"),
+      buildLogicVariant("beam-hikari-monkey", "モンキービームヒカリ全日式", "beam-hikari-main"),
       buildLogicVariant("beam-hikari-monkey-normal", "モンキービームヒカリ通常日式", "beam-hikari-normal-main"),
       buildLogicVariant("beam-hikari-monkey-event", "モンキービームヒカリイベント日式", "beam-hikari-event-score70"),
     ],
@@ -1026,6 +1027,74 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["monkeyHistoryReady"],
         },
         ["apark-monkey"],
+      ),
+      buildCondition(
+        "beam-hikari-main",
+        "1位＋80点以上＋14日未返済",
+        "36件 / 109.36% / RB1/458",
+        {
+          rankMax: 1,
+          minScore: 80,
+          requiredFlags: ["beamHikariMonkeyMainHistoryReady", "beamHikariMonkeyMainUnpaid14"],
+        },
+        ["beam-hikari-monkey"],
+      ),
+      buildCondition(
+        "beam-hikari-rank1-score80",
+        "1位＋80点以上",
+        "43件 / 109.39% / RB1/444.3",
+        {
+          rankMax: 1,
+          minScore: 80,
+          requiredFlags: ["beamHikariMonkeyMainHistoryReady"],
+        },
+        ["beam-hikari-monkey"],
+      ),
+      buildCondition(
+        "beam-hikari-score80",
+        "80点以上",
+        "62件 / 106.23% / RB1/430.1",
+        {
+          minScore: 80,
+          requiredFlags: ["beamHikariMonkeyMainHistoryReady"],
+        },
+        ["beam-hikari-monkey"],
+      ),
+      buildCondition(
+        "beam-hikari-strong",
+        "1位＋80点以上＋14日未返済＋近隣冷え",
+        "32件 / 111.55% / RB1/461.4",
+        {
+          rankMax: 1,
+          minScore: 80,
+          requiredFlags: [
+            "beamHikariMonkeyMainHistoryReady",
+            "beamHikariMonkeyMainUnpaid14",
+            "beamHikariMonkeyMainNearbyCold",
+          ],
+        },
+        ["beam-hikari-monkey"],
+      ),
+      buildCondition(
+        "beam-hikari-score85",
+        "85点以上",
+        "23件 / 107.34% / RB1/425.2",
+        {
+          minScore: 85,
+          requiredFlags: ["beamHikariMonkeyMainHistoryReady"],
+        },
+        ["beam-hikari-monkey"],
+      ),
+      buildCondition(
+        "beam-hikari-rank1-score85",
+        "1位＋85点以上",
+        "20件 / 105.79% / RB1/424",
+        {
+          rankMax: 1,
+          minScore: 85,
+          requiredFlags: ["beamHikariMonkeyMainHistoryReady"],
+        },
+        ["beam-hikari-monkey"],
       ),
       buildCondition(
         "beam-hikari-normal-main",
@@ -3073,7 +3142,7 @@ function getDefaultSetting(definition, storeName) {
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "ultra-miracle") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-ultra");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "monkey") {
-    defaultLogic = findLogicDefinition(definition, "beam-hikari-monkey-normal");
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-monkey");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "hokuto-tensei") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-hokuto-tensei-normal");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "hokuto-base") {
@@ -5051,6 +5120,50 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "monkey") {
+    if (activeLogicKey === "beam-hikari-monkey") {
+      const beamHikariMonkeyMainHistoryReady = targetRangeHistoryRowCount >= 14;
+      const beamHikariMonkeyMainUnpaid14 =
+        recentFourteenNetTotal >= -6500 && recentFourteenNetTotal <= 1900;
+      const beamHikariMonkeyMainNearbyCold = adjacentMachineHighContentCount3 <= 1;
+      const recentFiveMaxDifference = readNumber(metrics.recentFiveMaxDifference, previousDifference);
+      const beamHikariMonkeyMainTreatmentDone =
+        recentFourteenNetTotal > 5800 || recentSevenNetTotal > 4430 || previousDifference > 3000;
+      const beamHikariMonkeyMainLowConfidence = recentFiveGamesTotal < 8000 || targetRangeHistoryRowCount < 14;
+      const beamHikariMonkeyMainLongLosing = streak >= 8;
+      const boostFlags = [
+        beamHikariMonkeyMainUnpaid14,
+        beamHikariMonkeyMainNearbyCold,
+        Number.isFinite(daysSinceMachineHighContent) &&
+          daysSinceMachineHighContent >= 3 &&
+          daysSinceMachineHighContent <= 14,
+        streak === 2 || (streak >= 6 && streak <= 7),
+        previousGames >= 2900 && previousGames <= 5800,
+        recentFiveGamesTotal >= 8000 && recentFiveGamesTotal <= 23500,
+        recentSevenMachineHighContentCount <= 2,
+        recentFiveMaxDifference < 5000 && recentSevenNetTotal <= 4430,
+      ];
+      const dangerFlags = [
+        beamHikariMonkeyMainTreatmentDone,
+        previousGames > 7000,
+        recentSevenMachineHighContentCount >= 4,
+        beamHikariMonkeyMainLongLosing,
+        beamHikariMonkeyMainLowConfidence,
+      ];
+
+      return {
+        ...features,
+        beamHikariMonkeyMainHistoryReady,
+        beamHikariMonkeyMainUnpaid14,
+        beamHikariMonkeyMainNearbyCold,
+        beamHikariMonkeyMainTreatmentDone,
+        beamHikariMonkeyMainLowConfidence,
+        treatmentDone: beamHikariMonkeyMainTreatmentDone,
+        lowConfidence: beamHikariMonkeyMainLowConfidence,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "beam-hikari-monkey-normal" || activeLogicKey === "beam-hikari-monkey-event") {
       const beamHikariMonkeyHistoryReady = targetRangeHistoryRowCount >= 14;
       const beamHikariMonkeyNormalUnpaid14 =
@@ -11475,6 +11588,133 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "monkey") {
+    if (activeLogicKey === "beam-hikari-monkey") {
+      if (targetRangeHistoryRowCount < 14) {
+        return 0;
+      }
+
+      let score = 0;
+      let penalty = 0;
+      const recentFiveMaxDifference = readNumber(metrics.recentFiveMaxDifference, previousDifference);
+
+      if (recentFourteenNetTotal <= -10000) {
+        score += 8;
+      } else if (recentFourteenNetTotal <= -6500) {
+        score += 12;
+      } else if (recentFourteenNetTotal <= -2200) {
+        score += 18;
+      } else if (recentFourteenNetTotal <= 1900) {
+        score += 20;
+      } else if (recentFourteenNetTotal <= 5800) {
+        score += 8;
+      }
+
+      if (recentSevenNetTotal <= -7000) {
+        score += 8;
+      } else if (recentSevenNetTotal <= -1750) {
+        score += 12;
+      } else if (recentSevenNetTotal <= 1070) {
+        score += 10;
+      } else if (recentSevenNetTotal <= 4430) {
+        score += 6;
+      }
+
+      if (recentThreeNetTotal <= -3000) {
+        score += 6;
+      } else if (recentThreeNetTotal <= -1500) {
+        score += 5;
+      } else if (recentThreeNetTotal <= 300) {
+        score += 8;
+      } else if (recentThreeNetTotal <= 3000) {
+        score += 5;
+      }
+
+      if (!Number.isFinite(daysSinceMachineHighContent)) {
+        score += 4;
+      } else if (daysSinceMachineHighContent === 2) {
+        score += 3;
+      } else if (daysSinceMachineHighContent >= 3 && daysSinceMachineHighContent <= 4) {
+        score += 14;
+      } else if (daysSinceMachineHighContent >= 5 && daysSinceMachineHighContent <= 7) {
+        score += 8;
+      } else if (daysSinceMachineHighContent >= 8 && daysSinceMachineHighContent <= 14) {
+        score += 12;
+      } else if (daysSinceMachineHighContent >= 15) {
+        score += 2;
+      }
+
+      if (streak === 0) {
+        score += 1;
+      } else if (streak === 1) {
+        score += 3;
+      } else if (streak === 2) {
+        score += 10;
+      } else if (streak === 3) {
+        score += 5;
+      } else if (streak >= 6 && streak <= 7) {
+        score += 8;
+      }
+
+      if (previousGames < 800) {
+        score += 1;
+      } else if (previousGames < 1600) {
+        score += 4;
+      } else if (previousGames < 2900) {
+        score += 6;
+      } else if (previousGames <= 5800) {
+        score += 8;
+      }
+
+      if (recentFiveGamesTotal >= 8000 && recentFiveGamesTotal < 12000) {
+        score += 4;
+      } else if (recentFiveGamesTotal >= 12000 && recentFiveGamesTotal <= 23500) {
+        score += 6;
+      } else if (recentFiveGamesTotal >= 23501 && recentFiveGamesTotal <= 26000) {
+        score += 2;
+      }
+
+      if (features.previousCombinedDenominator < 358) {
+        score += 0;
+      } else if (features.previousCombinedDenominator <= 462) {
+        score += 5;
+      } else if (features.previousCombinedDenominator <= 535) {
+        score += 3;
+      } else {
+        score += 4;
+      }
+
+      if (features.recentFiveCombinedDenominator <= 398) {
+        score += 5;
+      } else if (features.recentFiveCombinedDenominator <= 423) {
+        score += 3;
+      } else if (features.recentFiveCombinedDenominator <= 481) {
+        score += 0;
+      } else {
+        score += 4;
+      }
+
+      if (adjacentMachineHighContentCount3 <= 1) {
+        score += 6;
+      } else if (adjacentMachineNetTotal3 >= -5500 && adjacentMachineNetTotal3 <= -1800) {
+        score += 4;
+      } else if (adjacentMachineHighContentCount3 >= 4) {
+        score += 2;
+      }
+
+      score += recentSevenMachineHighContentCount <= 2 ? 3 : 0;
+      score += recentFiveMaxDifference < 5000 && recentSevenNetTotal <= 4430 ? 3 : 0;
+
+      penalty += recentFourteenNetTotal > 5800 ? 8 : 0;
+      penalty += recentSevenNetTotal > 4430 ? 6 : 0;
+      penalty += previousDifference > 3000 ? 6 : 0;
+      penalty += previousGames > 7000 ? 4 : 0;
+      penalty += recentSevenMachineHighContentCount >= 4 ? 5 : 0;
+      penalty += streak >= 8 ? 5 : 0;
+      penalty += recentFiveGamesTotal < 8000 ? 4 : 0;
+
+      return Math.round(clamp(score - penalty, 0, 100));
+    }
+
     if (activeLogicKey === "beam-hikari-monkey-normal" || activeLogicKey === "beam-hikari-monkey-event") {
       if (targetRangeHistoryRowCount < 14) {
         return 0;
@@ -11965,7 +12205,9 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
   if (
     options?.dateSpecificRanking &&
     isBeamHikariStore(options?.storeName) &&
-    ["neo-aim", "funky", "gogo", "my", "girls", "happy", "ultra-miracle"].includes(definition?.machineKey)
+    ["neo-aim", "funky", "gogo", "my", "girls", "happy", "ultra-miracle", "monkey"].includes(
+      definition?.machineKey,
+    )
   ) {
     const baseLogicKeyByMachineKey = {
       "neo-aim": "beam-hikari-neo-aim",
@@ -11975,6 +12217,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       girls: "beam-hikari-girls",
       happy: "beam-hikari-happy",
       "ultra-miracle": "beam-hikari-ultra",
+      monkey: "beam-hikari-monkey",
     };
     const logic = findLogicDefinition(definition, baseLogicKeyByMachineKey[definition.machineKey]);
     const condition =
@@ -12048,7 +12291,11 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   }
 
   const definition = findMachineDefinition(row?.machineName);
-  if (!["neo-aim", "funky", "gogo", "my", "girls", "happy"].includes(definition?.machineKey)) {
+  if (
+    !["neo-aim", "funky", "gogo", "my", "girls", "happy", "ultra-miracle", "monkey"].includes(
+      definition?.machineKey,
+    )
+  ) {
     return null;
   }
 
