@@ -477,6 +477,7 @@ function readCommonHuntScoreMachineTopBacktestResult(storeId, storeName, row) {
 const A_PARK_KASUGA_COMMON_HUNT_SCORE_TOP_EXPECTATION_MACHINE_NAMES = new Set([
   "ファンキージャグラー２ＫＴ",
   "ゴーゴージャグラー３",
+  "ミスタージャグラー",
   "ネオアイムジャグラーEX",
   "マイジャグラーV",
 ]);
