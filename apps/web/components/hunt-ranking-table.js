@@ -480,6 +480,7 @@ const A_PARK_KASUGA_COMMON_HUNT_SCORE_TOP_EXPECTATION_MACHINE_NAMES = new Set([
   "ジャグラーガールズSS",
   "ミスタージャグラー",
   "ネオアイムジャグラーEX",
+  "ニューキングハナハナ",
   "マイジャグラーV",
   "スマスロ北斗の拳 転生の章",
 ]);
