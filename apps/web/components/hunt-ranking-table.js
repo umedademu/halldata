@@ -474,10 +474,15 @@ function readCommonHuntScoreMachineTopBacktestResult(storeId, storeName, row) {
   });
 }
 
+const A_PARK_KASUGA_COMMON_HUNT_SCORE_TOP_EXPECTATION_MACHINE_NAMES = new Set([
+  "ネオアイムジャグラーEX",
+  "マイジャグラーV",
+]);
+
 function shouldUseCommonHuntScoreMachineTopExpectation(storeId, storeName, machineName) {
   return (
     (storeId === "store-e0f6c17d91d1" || storeName === "Aパーク春日店") &&
-    machineName === "ネオアイムジャグラーEX"
+    A_PARK_KASUGA_COMMON_HUNT_SCORE_TOP_EXPECTATION_MACHINE_NAMES.has(machineName)
   );
 }
 
