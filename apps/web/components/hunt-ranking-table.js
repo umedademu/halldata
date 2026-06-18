@@ -475,6 +475,7 @@ function readCommonHuntScoreMachineTopBacktestResult(storeId, storeName, row) {
 }
 
 const A_PARK_KASUGA_COMMON_HUNT_SCORE_TOP_EXPECTATION_MACHINE_NAMES = new Set([
+  "SアイムジャグラーＥＸ",
   "ファンキージャグラー２ＫＴ",
   "ゴーゴージャグラー３",
   "ジャグラーガールズSS",
@@ -482,6 +483,7 @@ const A_PARK_KASUGA_COMMON_HUNT_SCORE_TOP_EXPECTATION_MACHINE_NAMES = new Set([
   "ネオアイムジャグラーEX",
   "ニューキングハナハナ",
   "マイジャグラーV",
+  "新ハナビ",
   "スマスロモンキーターンV",
   "スマスロ北斗の拳 転生の章",
 ]);
