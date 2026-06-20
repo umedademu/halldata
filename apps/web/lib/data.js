@@ -62,7 +62,7 @@ const HUNT_BACKTEST_DEFAULT_EVENT_FILTERS = {
     weekdays: [0, 6],
   },
 };
-const DEFAULT_HUNT_RANKING_LIMIT = 20;
+const DEFAULT_HUNT_RANKING_LIMIT = 30;
 const DEFAULT_HUNT_BACKTEST_RECENT_DAYS = 90;
 const MACHINE_EVALUATION_HISTORY_WINDOW_DAYS = 60;
 const HUNT_SCORE_CACHE_VERSION = 1;
@@ -3362,7 +3362,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     rankingDates,
     selectedDate,
     requestedDate,
-    limit: displayLimit,
+    limit: rankingLimit,
     predictionDate: snapshot?.baseDate ?? null,
     nextBusinessDate: snapshot?.nextBusinessDate ?? null,
     machineSlotCounts: snapshotDetail.machineSlotCounts ?? {},
@@ -3566,7 +3566,7 @@ async function getHuntScoreSnapshotsForStore(
 }
 
 function normalizeRankingLimit(requestedLimit) {
-  return Number.isInteger(requestedLimit) && requestedLimit >= 1 ? requestedLimit : 20;
+  return Number.isInteger(requestedLimit) && requestedLimit >= 1 ? requestedLimit : DEFAULT_HUNT_RANKING_LIMIT;
 }
 
 function buildHuntScoreMapByRowKey(snapshot) {
@@ -4546,7 +4546,7 @@ export async function getHuntScoreAnalysisPageDetail(
     rankingDates,
     selectedDate,
     requestedDate,
-    limit: displayLimit,
+    limit: rankingLimit,
     predictionDate: snapshot?.baseDate ?? null,
     nextBusinessDate: snapshot?.nextBusinessDate ?? null,
     machineSlotCounts: snapshotDetail.machineSlotCounts ?? {},

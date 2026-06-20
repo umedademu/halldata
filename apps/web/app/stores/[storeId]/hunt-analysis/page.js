@@ -46,7 +46,7 @@ import { SETTING_ESTIMATE_MODE_OPTIONS, normalizeSettingEstimateMode } from "../
 
 export const dynamic = "force-dynamic";
 
-const DEFAULT_RANKING_LIMIT = 20;
+const DEFAULT_RANKING_LIMIT = 30;
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
 const HANABI_GROUP_NAME = "ハナビ";
@@ -563,7 +563,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                       type="number"
                       name="limit"
                       min="1"
-                      max={Math.max(detail.totalCount, detail.limit, 1)}
                       defaultValue={detail.limit}
                       className="storeReserveInput"
                     />

@@ -44,6 +44,7 @@ const MANAGED_PARAM_KEYS = [
 ];
 const MANAGED_PARAM_KEY_SET = new Set(MANAGED_PARAM_KEYS);
 const DEFAULTED_DIFFERENCE_PARAM_KEYS = new Set(["differenceMode"]);
+const OLD_DEFAULT_LIMIT = "20";
 
 function storageKeyForStore(storeId) {
   return `${STORAGE_KEY_PREFIX}${storeId}`;
@@ -168,7 +169,7 @@ function saveState(storeId, entries) {
     window.localStorage.setItem(
       storageKeyForStore(storeId),
       JSON.stringify({
-        version: 1,
+        version: 2,
         entries: normalizedEntries,
       }),
     );
@@ -189,7 +190,19 @@ function readSavedState(storeId) {
     }
 
     const parsedValue = JSON.parse(rawValue);
-    return omitDefaultedEntries(parsedValue?.entries);
+    const entries = Array.isArray(parsedValue?.entries) ? parsedValue.entries : [];
+    const savedVersion = Number(parsedValue?.version);
+    const migratedEntries =
+      Number.isInteger(savedVersion) && savedVersion >= 2
+        ? entries
+        : entries.filter((entry) => {
+            if (!Array.isArray(entry)) {
+              return true;
+            }
+            const [key, value] = entry;
+            return !(key === "limit" && String(value ?? "") === OLD_DEFAULT_LIMIT);
+          });
+    return omitDefaultedEntries(migratedEntries);
   } catch {
     return [];
   }
