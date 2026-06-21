@@ -597,10 +597,33 @@ function buildCommonAndMachineEvaluationTopBacktestTitleParts(backtestResult, ev
   ].filter(Boolean);
 }
 
-function buildMatchedConditionTitleParts(evaluation) {
+function buildMatchedConditionEntriesForEvaluation(evaluation, fallbackLabel = "") {
   const matchedConditions = Array.isArray(evaluation?.matchedConditions)
     ? evaluation.matchedConditions
     : [];
+  const evaluationLabel = String(
+    evaluation?.displayLabel ?? evaluation?.logicName ?? fallbackLabel ?? "",
+  ).trim();
+
+  return matchedConditions.map((condition) => ({
+    ...condition,
+    evaluationLabel,
+  }));
+}
+
+function readMatchedConditionEntries(row) {
+  return [
+    ...buildMatchedConditionEntriesForEvaluation(row?.machineEvaluation, "機種別"),
+    ...buildMatchedConditionEntriesForEvaluation(row?.machineEvaluationDaySpecific, "日別"),
+  ];
+}
+
+function readMatchedConditionCount(row) {
+  return readMatchedConditionEntries(row).length;
+}
+
+function buildMatchedConditionTitleParts(row) {
+  const matchedConditions = readMatchedConditionEntries(row);
   if (matchedConditions.length === 0) {
     return [];
   }
@@ -608,9 +631,10 @@ function buildMatchedConditionTitleParts(evaluation) {
   return [
     "一致した採用条件:",
     ...matchedConditions.map((condition) => {
+      const evaluationLabel = condition.evaluationLabel ? `${condition.evaluationLabel}: ` : "";
       const selectedLabel = condition.isSelected ? " / 選択中" : "";
       const backtestLabel = condition.backtestLabel ? ` / ${condition.backtestLabel}` : "";
-      return `・${condition.conditionName}${backtestLabel}${selectedLabel}`;
+      return `・${evaluationLabel}${condition.conditionName}${backtestLabel}${selectedLabel}`;
     }),
   ];
 }
@@ -677,17 +701,25 @@ function selectBestExpectationCandidate(candidates) {
   })[0];
 }
 
-function readBestMatchedConditionExpectationCandidate(evaluation) {
-  const matchedConditions = Array.isArray(evaluation?.matchedConditions)
-    ? evaluation.matchedConditions
-    : [];
-
+function readBestMatchedConditionExpectationCandidateFromEntries(matchedConditions) {
   return selectBestExpectationCandidate(
-    matchedConditions.map((condition) => ({
+    (Array.isArray(matchedConditions) ? matchedConditions : []).map((condition) => ({
       label: condition?.conditionName,
       payoutRate: condition?.backtestPayoutRate,
       rbDenominator: condition?.backtestRbDenominator,
     })),
+  );
+}
+
+function readBestMatchedConditionExpectationCandidate(evaluation) {
+  return readBestMatchedConditionExpectationCandidateFromEntries(
+    buildMatchedConditionEntriesForEvaluation(evaluation),
+  );
+}
+
+function readMatchedConditionExpectationDetail(row) {
+  return readBestMatchedConditionExpectationCandidateFromEntries(
+    readMatchedConditionEntries(row),
   );
 }
 
@@ -709,14 +741,15 @@ function readMachineEvaluationExpectationDetailForEvaluation(
   row,
   evaluation,
   includeStoredTopBacktests = true,
+  includeMatchedConditions = true,
 ) {
   if (!evaluation) {
     return null;
   }
 
-  const candidates = [
-    readBestMatchedConditionExpectationCandidate(evaluation),
-  ];
+  const candidates = includeMatchedConditions
+    ? [readBestMatchedConditionExpectationCandidate(evaluation)]
+    : [];
 
   if (includeStoredTopBacktests) {
     candidates.push(
@@ -810,7 +843,6 @@ function MachineEvaluationCell({
     return <td title={extraTitle || undefined} data-sort-value="">-</td>;
   }
 
-  const matchedConditionTitleParts = buildMatchedConditionTitleParts(evaluation);
   const topBacktestResult = includeStoredTopBacktests
     ? readMachineEvaluationTopBacktestResult(storeId, storeName, row)
     : null;
@@ -835,17 +867,10 @@ function MachineEvaluationCell({
     row,
     evaluation,
     includeStoredTopBacktests,
+    false,
   );
   const titleParts = [
     evaluation.logicName ? `機種別ロジック: ${evaluation.logicName}` : "",
-    matchedConditionTitleParts.length > 0
-      ? matchedConditionTitleParts.join("\n")
-      : evaluation.conditionName
-        ? `採用条件: ${evaluation.conditionName}`
-        : "",
-    matchedConditionTitleParts.length === 0 && evaluation.backtestLabel
-      ? `目安: ${evaluation.backtestLabel}`
-      : "",
     combinedTopBacktestTitleParts.length > 0 ? combinedTopBacktestTitleParts.join("\n") : "",
     topBacktestTitleParts.length > 0 ? topBacktestTitleParts.join("\n") : "",
     Number.isFinite(evaluation.rank) ? `機種別順位: ${evaluation.rank}` : "",
@@ -860,6 +885,30 @@ function MachineEvaluationCell({
       data-sort-value={readRankingSortNumber(evaluation.score, "")}
     >
       <span className="machineEvaluationCellValue">{formatNumber(evaluation.score)}</span>
+    </td>
+  );
+}
+
+function MachineEvaluationConditionCell({ row, extraTitle = "" }) {
+  const matchedConditionCount = readMatchedConditionCount(row);
+  const expectationDetail = readMatchedConditionExpectationDetail(row);
+  const expectationClassName = getMachineEvaluationExpectationClassName(expectationDetail);
+  const className = [
+    "conditionCountCell",
+    expectationClassName || (matchedConditionCount > 0 ? "conditionCountMatchedCell" : ""),
+  ].filter(Boolean).join(" ");
+  const matchedConditionTitleParts = buildMatchedConditionTitleParts(row);
+  const title = matchedConditionTitleParts.length > 0
+    ? matchedConditionTitleParts.join("\n")
+    : "一致した採用条件はありません";
+
+  return (
+    <td
+      className={className || undefined}
+      title={combineTitleParts(title, extraTitle) || undefined}
+      data-sort-value={matchedConditionCount}
+    >
+      <span className="conditionCountCellValue">{formatNumber(matchedConditionCount)}</span>
     </td>
   );
 }
@@ -1043,6 +1092,17 @@ function readSortableTableValue(
     };
   }
   if (hasDaySpecificMachineEvaluationColumn) {
+    nextColumnIndex += 1;
+  }
+
+  if (hasMachineEvaluationColumn && columnIndex === nextColumnIndex) {
+    return {
+      missing: false,
+      value: readMatchedConditionCount(row),
+      type: "number",
+    };
+  }
+  if (hasMachineEvaluationColumn) {
     nextColumnIndex += 1;
   }
 
@@ -1290,20 +1350,25 @@ function OverallRankingTable({
   const scoreColumnIndex = 0;
   const machineEvaluationColumnIndex = 1;
   const daySpecificMachineEvaluationColumnIndex = hasDaySpecificMachineEvaluationColumn ? 2 : null;
-  const expectedPayoutColumnIndex = hasMachineEvaluationColumn
+  const conditionColumnIndex = hasMachineEvaluationColumn
     ? hasDaySpecificMachineEvaluationColumn
       ? 3
       : 2
     : null;
-  const expectedRbColumnIndex = hasMachineEvaluationColumn
+  const expectedPayoutColumnIndex = hasMachineEvaluationColumn
     ? hasDaySpecificMachineEvaluationColumn
       ? 4
       : 3
     : null;
-  const nextGapColumnIndex = hasMachineEvaluationColumn
+  const expectedRbColumnIndex = hasMachineEvaluationColumn
     ? hasDaySpecificMachineEvaluationColumn
       ? 5
       : 4
+    : null;
+  const nextGapColumnIndex = hasMachineEvaluationColumn
+    ? hasDaySpecificMachineEvaluationColumn
+      ? 6
+      : 5
     : 1;
   const machineColumnIndex = nextGapColumnIndex + 1;
   const slotColumnIndex = machineColumnIndex + 1;
@@ -1336,6 +1401,14 @@ function OverallRankingTable({
                   title={`${daySpecificMachineEvaluationColumnLabel}専用評価`}
                 >
                   {daySpecificMachineEvaluationColumnLabel}
+                </HeaderCell>
+              ) : null}
+              {hasMachineEvaluationColumn ? (
+                <HeaderCell
+                  columnIndex={conditionColumnIndex}
+                  title="一致した採用条件の件数"
+                >
+                  条件
                 </HeaderCell>
               ) : null}
               {hasMachineEvaluationColumn ? (
@@ -1426,6 +1499,12 @@ function OverallRankingTable({
                       evaluation={row.machineEvaluationDaySpecific}
                       extraTitle={rowSite7Title}
                       includeStoredTopBacktests={false}
+                    />
+                  ) : null}
+                  {hasMachineEvaluationColumn ? (
+                    <MachineEvaluationConditionCell
+                      row={row}
+                      extraTitle={rowSite7Title}
                     />
                   ) : null}
                   {hasMachineEvaluationColumn ? (
@@ -1606,20 +1685,25 @@ function MachineRankingGroupTable({
   const scoreColumnIndex = 0;
   const machineEvaluationColumnIndex = 1;
   const daySpecificMachineEvaluationColumnIndex = hasDaySpecificMachineEvaluationColumn ? 2 : null;
-  const expectedPayoutColumnIndex = hasMachineEvaluationColumn
+  const conditionColumnIndex = hasMachineEvaluationColumn
     ? hasDaySpecificMachineEvaluationColumn
       ? 3
       : 2
     : null;
-  const expectedRbColumnIndex = hasMachineEvaluationColumn
+  const expectedPayoutColumnIndex = hasMachineEvaluationColumn
     ? hasDaySpecificMachineEvaluationColumn
       ? 4
       : 3
     : null;
-  const nextGapColumnIndex = hasMachineEvaluationColumn
+  const expectedRbColumnIndex = hasMachineEvaluationColumn
     ? hasDaySpecificMachineEvaluationColumn
       ? 5
       : 4
+    : null;
+  const nextGapColumnIndex = hasMachineEvaluationColumn
+    ? hasDaySpecificMachineEvaluationColumn
+      ? 6
+      : 5
     : 1;
   const slotColumnIndex = nextGapColumnIndex + 1;
   const resultColumnStartIndex = slotColumnIndex + 1;
@@ -1669,6 +1753,14 @@ function MachineRankingGroupTable({
                   title={`${daySpecificMachineEvaluationColumnLabel}専用評価`}
                 >
                   {daySpecificMachineEvaluationColumnLabel}
+                </HeaderCell>
+              ) : null}
+              {hasMachineEvaluationColumn ? (
+                <HeaderCell
+                  columnIndex={conditionColumnIndex}
+                  title="一致した採用条件の件数"
+                >
+                  条件
                 </HeaderCell>
               ) : null}
               {hasMachineEvaluationColumn ? (
@@ -1747,6 +1839,12 @@ function MachineRankingGroupTable({
                       evaluation={row.machineEvaluationDaySpecific}
                       extraTitle={rowSite7Title}
                       includeStoredTopBacktests={false}
+                    />
+                  ) : null}
+                  {hasMachineEvaluationColumn ? (
+                    <MachineEvaluationConditionCell
+                      row={row}
+                      extraTitle={rowSite7Title}
                     />
                   ) : null}
                   {hasMachineEvaluationColumn ? (
