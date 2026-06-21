@@ -1683,6 +1683,33 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["apark-neo-aim"],
       ),
       buildCondition(
+        "apark-kasuga-trigger-middle-miss",
+        "中間不発最強型",
+        "20件 / 106.06% / RB1/250.6",
+        {
+          requiredFlags: ["neoAimKasugaMiddleMissTrigger"],
+        },
+        ["apark-neo-aim"],
+      ),
+      buildCondition(
+        "apark-kasuga-trigger-deep-losing",
+        "深連敗＋前日不発",
+        "80件 / 106.14% / RB1/269.9",
+        {
+          requiredFlags: ["neoAimKasugaDeepLosingTrigger"],
+        },
+        ["apark-neo-aim"],
+      ),
+      buildCondition(
+        "apark-kasuga-trigger-seven-sink",
+        "7日超凹み返済",
+        "52件 / 106.63% / RB1/264.5",
+        {
+          requiredFlags: ["neoAimKasugaSevenSinkTrigger"],
+        },
+        ["apark-neo-aim"],
+      ),
+      buildCondition(
         "apark-yakatabaru-main",
         "1位＋70点以上＋次点差10点以上",
         "44件 / 104.34% / RB1/254.5",
@@ -4441,11 +4468,32 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
     const aimThreeSinkStayDays = readNumber(metrics.recentThreeMinus1700StayDays);
     const aimShortSinkStay2 = aimThreeSinkStayDays >= 2;
     const aimShortSinkStay3 = aimThreeSinkStayDays >= 3;
+    const neoAimKasugaMiddleMissTrigger =
+      previousGames >= 4500 &&
+      features.previousRbDenominator >= 300 &&
+      features.previousRbDenominator <= 360 &&
+      features.previousCombinedDenominator >= 155 &&
+      previousDifference < 0 &&
+      recentSevenGamesTotal >= 35000 &&
+      recentSevenLossDays >= 6 &&
+      streak >= 4;
+    const neoAimKasugaDeepLosingTrigger =
+      streak >= 5 &&
+      recentThreeNetTotal <= -1500 &&
+      previousGames > 0 &&
+      features.previousCombinedDenominator >= 155;
+    const neoAimKasugaSevenSinkTrigger =
+      recentSevenNetTotal <= -4500 &&
+      streak >= 3 &&
+      recentSevenGamesTotal >= 35000;
 
     return {
       ...features,
       aimShortSinkStay2,
       aimShortSinkStay3,
+      neoAimKasugaMiddleMissTrigger,
+      neoAimKasugaDeepLosingTrigger,
+      neoAimKasugaSevenSinkTrigger,
     };
   }
 
