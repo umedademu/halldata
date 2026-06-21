@@ -552,6 +552,7 @@ class MinRepoScraperTests(unittest.TestCase):
 
     def test_run_minrepo_priority_watch_if_due_starts_in_active_window(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
+        app.minrepo_schedule_enabled = True
         app.registered_stores = [
             RegisteredStore(
                 name="優先店",
@@ -792,6 +793,63 @@ class MinRepoScraperTests(unittest.TestCase):
             )
         )
 
+    def test_scheduled_site7_update_check_starts_fetch_from_first_store_when_later_store_is_updated(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app._raise_if_fetch_cancelled = mock.Mock()
+        first_store = RegisteredStore(name="1番店", url="https://example.com/first/", fetch_order=1)
+        second_store = RegisteredStore(name="2番店", url="https://example.com/second/", fetch_order=2)
+        third_store = RegisteredStore(name="3番店", url="https://example.com/third/", fetch_order=3)
+        checked_updates = [
+            datetime(2026, 6, 5, 22, 40),
+            datetime(2026, 6, 5, 22, 50),
+            datetime(2026, 6, 5, 23, 5),
+        ]
+        app.site7_scraper = SimpleNamespace(
+            fetch_mobile_hall_updated_datetime=mock.Mock(side_effect=checked_updates)
+        )
+
+        target_stores, waiting_store_urls, updated_at_by_store_url = app._filter_scheduled_site7_stores_by_update_time(
+            target_stores=[first_store, second_store, third_store],
+            scheduled_hour=23,
+            checked_at=datetime(2026, 6, 5, 23, 20),
+            browser_visible=False,
+        )
+
+        self.assertEqual(target_stores, [first_store, second_store, third_store])
+        self.assertEqual(waiting_store_urls, set())
+        self.assertEqual(
+            updated_at_by_store_url,
+            {
+                normalize_store_url(first_store.url): checked_updates[0],
+                normalize_store_url(second_store.url): checked_updates[1],
+                normalize_store_url(third_store.url): checked_updates[2],
+            },
+        )
+
+    def test_scheduled_site7_update_check_waits_when_no_store_is_updated(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app._raise_if_fetch_cancelled = mock.Mock()
+        first_store = RegisteredStore(name="1番店", url="https://example.com/first/", fetch_order=1)
+        second_store = RegisteredStore(name="2番店", url="https://example.com/second/", fetch_order=2)
+        app.site7_scraper = SimpleNamespace(
+            fetch_mobile_hall_updated_datetime=mock.Mock(
+                side_effect=[datetime(2026, 6, 5, 22, 40), datetime(2026, 6, 5, 22, 50)]
+            )
+        )
+
+        target_stores, waiting_store_urls, _updated_at_by_store_url = app._filter_scheduled_site7_stores_by_update_time(
+            target_stores=[first_store, second_store],
+            scheduled_hour=23,
+            checked_at=datetime(2026, 6, 5, 23, 20),
+            browser_visible=False,
+        )
+
+        self.assertEqual(target_stores, [])
+        self.assertEqual(
+            waiting_store_urls,
+            {normalize_store_url(first_store.url), normalize_store_url(second_store.url)},
+        )
+
     def test_site7_update_satisfies_morning_hour_after_previous_final_update(self) -> None:
         midnight_checked_at = datetime(2026, 6, 5, 15, 5, tzinfo=timezone.utc)
         one_oclock_checked_at = datetime(2026, 6, 5, 16, 5, tzinfo=timezone.utc)
@@ -840,6 +898,7 @@ class MinRepoScraperTests(unittest.TestCase):
 
     def test_run_scheduled_site7_fetch_if_due_queues_checked_hours_while_busy(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
+        app.site7_schedule_enabled = True
         app.site7_schedule_hours = (12, 15, 18, 21)
         app.site7_schedule_last_run_dates_by_hour = {}
         app.site7_schedule_pending_hours = set()
@@ -1194,6 +1253,7 @@ class MinRepoScraperTests(unittest.TestCase):
 
     def test_run_scheduled_fetch_if_due_waits_for_startup_confirmation(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
+        app.minrepo_schedule_enabled = True
         app.scheduled_fetch_hour = 10
         app.scheduled_last_run_date = None
         app.scheduled_pending_date = None
@@ -1212,6 +1272,7 @@ class MinRepoScraperTests(unittest.TestCase):
 
     def test_run_scheduled_site7_fetch_if_due_waits_for_startup_confirmation(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
+        app.site7_schedule_enabled = True
         app.site7_schedule_hours = (12, 15, 18, 21)
         app.site7_schedule_last_run_dates_by_hour = {}
         app.site7_schedule_pending_hours = set()
@@ -1230,6 +1291,7 @@ class MinRepoScraperTests(unittest.TestCase):
 
     def test_prompt_scheduled_fetch_on_startup_can_skip_today(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
+        app.minrepo_schedule_enabled = True
         app.scheduled_fetch_hour = 10
         app.scheduled_last_run_date = None
         app.scheduled_pending_date = None
@@ -1251,6 +1313,7 @@ class MinRepoScraperTests(unittest.TestCase):
 
     def test_prompt_scheduled_site7_fetch_on_startup_can_skip_today(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
+        app.site7_schedule_enabled = True
         app.site7_schedule_hours = (12, 15, 18, 21)
         app.site7_schedule_last_run_dates_by_hour = {}
         app.site7_schedule_pending_hours = {12}
@@ -1276,6 +1339,7 @@ class MinRepoScraperTests(unittest.TestCase):
 
     def test_prompt_scheduled_fetch_on_startup_can_start_now(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
+        app.minrepo_schedule_enabled = True
         app.scheduled_fetch_hour = 10
         app.scheduled_last_run_date = None
         app.scheduled_pending_date = None
@@ -1296,6 +1360,7 @@ class MinRepoScraperTests(unittest.TestCase):
 
     def test_prompt_scheduled_site7_fetch_on_startup_can_start_now(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
+        app.site7_schedule_enabled = True
         app.site7_schedule_hours = (12, 15, 18, 21)
         app.site7_schedule_last_run_dates_by_hour = {}
         app.site7_schedule_pending_hours = set()

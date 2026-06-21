@@ -2846,7 +2846,6 @@ class MinRepoApp:
         checked_at: datetime,
         browser_visible: bool,
     ) -> tuple[list[RegisteredStore], set[str], dict[str, datetime]]:
-        eligible_stores: list[RegisteredStore] = []
         waiting_store_urls: set[str] = set()
         updated_at_by_store_url: dict[str, datetime] = {}
         for registered_store in target_stores:
@@ -2860,19 +2859,18 @@ class MinRepoApp:
             except Site7FetchCancelled as exc:
                 raise FetchCancelled from exc
             except Exception:
-                eligible_stores.append(registered_store)
-                continue
+                return list(target_stores), set(), updated_at_by_store_url
 
             normalized_url = normalize_store_url(registered_store.url)
             if normalized_url:
                 updated_at_by_store_url[normalized_url] = updated_at
             if site7_update_satisfies_scheduled_hour(updated_at, scheduled_hour, checked_at):
-                eligible_stores.append(registered_store)
+                return list(target_stores), set(), updated_at_by_store_url
             else:
                 if normalized_url:
                     waiting_store_urls.add(normalized_url)
 
-        return eligible_stores, waiting_store_urls, updated_at_by_store_url
+        return [], waiting_store_urls, updated_at_by_store_url
 
     def _load_and_complete_registered_stores(self) -> StoreRefreshResult:
         registered_stores = self._load_latest_registered_stores()
