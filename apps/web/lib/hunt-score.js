@@ -1614,6 +1614,10 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       return games >= 3000 && combinedDenominator <= 150 && rbDenominator <= 300;
     }
     if (contentRule === "apark-yakatabaru-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 150;
     }
     if (contentRule === "mj-arena-kurume-neo-aim") {
@@ -1834,7 +1838,14 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       return games >= 3000 && combinedDenominator <= 150 && rbDenominator <= 300;
     }
     if (contentRule === "apark-yakatabaru-neo-aim") {
-      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 150;
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return (
+          (games >= 3000 && settingFivePlusProbability >= 0.5) ||
+          (games >= 5000 && rbDenominator <= 300 && combinedDenominator <= 140)
+        );
+      }
+      return games >= 5000 && rbDenominator <= 300 && combinedDenominator <= 140;
     }
     if (contentRule === "mj-arena-kurume-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -1952,7 +1963,11 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "apark-yakatabaru-neo-aim"
   ) {
-    return games >= 4000 && combinedDenominator <= 140 && rbDenominator <= 300;
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
@@ -6928,6 +6943,7 @@ function calculateWindowMetrics(
   const recentSevenMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -3000);
   const recentThreeMinus1000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 3, -1000);
   const recentThreeMinus1700StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 3, -1700);
+  const recentFiveMinus1000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -1000);
   const recentFiveMinus1500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -1500);
   const recentFiveMinus2000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -2000);
   const recentFiveMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -3000);
@@ -7300,6 +7316,9 @@ function calculateWindowMetrics(
   const recentFourteenMachineGoodContentCount = historyWindowRows
     .slice(-14)
     .filter(isHistoryMachineGoodContentWindowRow).length;
+  const recentTwentyOneMachineGoodContentCount = historyWindowRows
+    .slice(-21)
+    .filter(isHistoryMachineGoodContentWindowRow).length;
   const recentThreeMachineStrongHighContentCount = recentThreeRows.filter((windowRow) =>
     isMachineStrongHighContentWindowRow(windowRow, currentMachineName, config),
   ).length;
@@ -7524,6 +7543,7 @@ function calculateWindowMetrics(
     recentSevenMinus3000StayDays,
     recentThreeMinus1000StayDays,
     recentThreeMinus1700StayDays,
+    recentFiveMinus1000StayDays,
     recentFiveMinus1500StayDays,
     recentFiveMinus2000StayDays,
     recentFiveMinus3000StayDays,
@@ -7617,6 +7637,7 @@ function calculateWindowMetrics(
     recentSevenMachineGoodContentCount,
     recentSevenMachineWeakContentCount,
     recentFourteenMachineGoodContentCount,
+    recentTwentyOneMachineGoodContentCount,
     recentThreeMachineStrongHighContentCount,
     recentFourteenMachineStrongHighContentCount,
     previousMachineHighContent,

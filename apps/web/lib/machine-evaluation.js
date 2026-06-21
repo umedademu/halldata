@@ -1719,46 +1719,86 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "apark-yakatabaru-main",
-        "1位＋70点以上＋次点差10点以上",
-        "44件 / 104.34% / RB1/254.5",
+        "自由実戦主軸",
+        "116件 / 103.40% / RB1/265.4 / p56 50.0%",
         {
-          rankMax: 1,
-          minScore: 70,
-          minNextGap: 10,
-          requiredFlags: ["yakatabaruNeoHistoryReady"],
+          requiredFlags: ["yakatabaruNeoHistoryReady", "yakatabaruNeoFreeMain"],
         },
         ["apark-yakatabaru-neo-aim"],
       ),
       buildCondition(
-        "apark-yakatabaru-wide",
-        "1位＋70点以上",
-        "78件 / 103.53% / RB1/266.1",
+        "apark-yakatabaru-best106",
+        "最本命106",
+        "30件 / 106.65% / RB1/250.5 / p56 58.1%",
         {
-          rankMax: 1,
-          minScore: 70,
-          requiredFlags: ["yakatabaruNeoHistoryReady"],
+          requiredFlags: ["yakatabaruNeoHistoryReady", "yakatabaruNeoBest106"],
         },
         ["apark-yakatabaru-neo-aim"],
       ),
       buildCondition(
-        "apark-yakatabaru-strong",
-        "1位＋80点以上",
-        "19件 / 105.30% / RB1/255.6",
+        "apark-yakatabaru-strong105",
+        "強105",
+        "30件 / 105.99% / RB1/249.0 / p56 57.9%",
         {
-          rankMax: 1,
-          minScore: 80,
-          requiredFlags: ["yakatabaruNeoHistoryReady"],
+          requiredFlags: ["yakatabaruNeoHistoryReady", "yakatabaruNeoStrong105"],
         },
         ["apark-yakatabaru-neo-aim"],
       ),
       buildCondition(
-        "apark-yakatabaru-gap15",
-        "1位＋70点以上＋次点差15点以上",
-        "30件 / 103.88% / RB1/249.9",
+        "apark-yakatabaru-free-strong",
+        "自由強",
+        "122件 / 103.75% / RB1/265.7 / p56 50.7%",
+        {
+          requiredFlags: ["yakatabaruNeoHistoryReady", "yakatabaruNeoFreeStrong"],
+        },
+        ["apark-yakatabaru-neo-aim"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-main104",
+        "本命104",
+        "40件 / 104.36% / RB1/292.9 / p56 38.9%",
+        {
+          maxDanger: 0,
+          requiredFlags: ["yakatabaruNeoHistoryReady", "yakatabaruNeoPreviousFail"],
+        },
+        ["apark-yakatabaru-neo-aim"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-rank-gap15",
+        "弱め本命103",
+        "23件 / 103.24% / RB1/277.8 / p56 45.6%",
         {
           rankMax: 1,
-          minScore: 70,
           minNextGap: 15,
+          requiredFlags: ["yakatabaruNeoHistoryReady"],
+        },
+        ["apark-yakatabaru-neo-aim"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-free-balanced",
+        "自由強・打てる日多め",
+        "226件 / 103.38% / RB1/278.7 / p56 44.7%",
+        {
+          requiredFlags: ["yakatabaruNeoHistoryReady", "yakatabaruNeoFreeBalanced"],
+        },
+        ["apark-yakatabaru-neo-aim"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-top",
+        "広め102",
+        "294件 / 102.66% / RB1/290.0 / p56 40.3%",
+        {
+          rankMax: 1,
+          requiredFlags: ["yakatabaruNeoHistoryReady"],
+        },
+        ["apark-yakatabaru-neo-aim"],
+      ),
+      buildCondition(
+        "apark-yakatabaru-score90",
+        "弱め102",
+        "440件 / 102.05% / RB1/299.0 / p56 36.7%",
+        {
+          minScore: 90,
           requiredFlags: ["yakatabaruNeoHistoryReady"],
         },
         ["apark-yakatabaru-neo-aim"],
@@ -3976,6 +4016,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentFourteenMinus3000StayDays = readNumber(metrics.recentFourteenMinus3000StayDays);
   const recentFourteenNegativeStayDays = readNumber(metrics.recentFourteenNegativeStayDays);
   const recentThreeMinus1000StayDays = readNumber(metrics.recentThreeMinus1000StayDays);
+  const recentFiveMinus1000StayDays = readNumber(metrics.recentFiveMinus1000StayDays);
   const recentTwentyOneMinus1500StayDays = readNumber(metrics.recentTwentyOneMinus1500StayDays);
   const recentTwentyOneMinus2000StayDays = readNumber(metrics.recentTwentyOneMinus2000StayDays);
   const recentTwentyOneMinus3000StayDays = readNumber(metrics.recentTwentyOneMinus3000StayDays);
@@ -4011,6 +4052,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentThirtyMachineHighContentCount = readNumber(metrics.recentThirtyMachineHighContentCount);
   const recentSevenMachineGoodContentCount = readNumber(metrics.recentSevenMachineGoodContentCount);
   const recentFourteenMachineGoodContentCount = readNumber(metrics.recentFourteenMachineGoodContentCount);
+  const recentTwentyOneMachineGoodContentCount = readNumber(metrics.recentTwentyOneMachineGoodContentCount);
   const daysSinceMachineHighContent = readNullableNumber(metrics.daysSinceMachineHighContent);
   const daysSinceMachineStrongHighContent = readNullableNumber(metrics.daysSinceMachineStrongHighContent);
   const daysSinceMachineBigWin1500 = readNullableNumber(metrics.daysSinceMachineBigWin1500);
@@ -4418,68 +4460,86 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
     }
 
     if (activeLogicKey === "apark-yakatabaru-neo-aim") {
-      const yakatabaruNeoHistoryReady = historyRowCount >= 21;
-      const yakatabaruNeoSinkStrength = features.recentThreeAngle <= -113 || streak >= 3;
-
-      let yakatabaruNeoRotationCoreScore = 0;
-      yakatabaruNeoRotationCoreScore += scoreInRange(daysSinceMachineHighContent, 11, 14, 9);
-      yakatabaruNeoRotationCoreScore += scoreInRange(daysSinceMachineHighContent, 4, 10, 6);
-      yakatabaruNeoRotationCoreScore += scoreInRange(daysSinceMachineHighContent, 3, 3, 3);
-      yakatabaruNeoRotationCoreScore += scoreInRange(daysSinceMachineHighContent, 15, 21, 2);
-      yakatabaruNeoRotationCoreScore +=
-        recentFourteenNetTotal <= -4238 || recentTwentyOneNetTotal <= -5032
-          ? 6
-          : recentFourteenNetTotal <= -2736 || recentTwentyOneNetTotal <= -3210
-            ? 4
-            : 0;
-      yakatabaruNeoRotationCoreScore += recentFourteenMachineHighContentCount === 1 ? 3 : 0;
-      yakatabaruNeoRotationCoreScore += recentTwentyOneMachineHighContentCount === 2 ? 3 : 0;
-      yakatabaruNeoRotationCoreScore = Math.min(yakatabaruNeoRotationCoreScore, 17);
-
+      const yakatabaruNeoHistoryReady = targetRangeHistoryRowCount >= 21;
+      const yakatabaruNeoDeepSink =
+        streak >= 2 && (recentThreeNetTotal <= -1450 || recentFiveNetTotal <= -1780);
+      const yakatabaruNeoPreviousFail = previousMachineHighContent && previousDifference < 0;
       const yakatabaruNeoUnpaid =
-        yakatabaruNeoRotationCoreScore >= 10 ||
+        recentFourteenNetTotal <= -3000 ||
+        recentTwentyOneNetTotal <= -5000 ||
+        recentFiveMinus1000StayDays >= 2;
+      const yakatabaruNeoWeakBonus =
+        features.recentFiveCombinedDenominator >= 160 || features.recentSevenCombinedDenominator >= 162;
+      const yakatabaruNeoTrustedGames = recentFiveGamesTotal >= 12000 && recentFiveGamesTotal <= 24000;
+      const yakatabaruNeoIntervalGood =
+        recentSevenMachineHighContentCount === 0 ||
         (Number.isFinite(daysSinceMachineHighContent) &&
-          daysSinceMachineHighContent >= 4 &&
-          daysSinceMachineHighContent <= 14 &&
-          previousMachineHighContent &&
-          (recentFourteenNetTotal <= -2736 || recentTwentyOneNetTotal <= -3210));
-      const yakatabaruNeoPreviousFail =
-        (previousMachineHighContent && previousDifference < 0) ||
-        (previousGames >= 6000 && previousDifference < 0);
-      const yakatabaruNeoNearbyLeftBehind =
-        (recentThreeNetTotal < 0 && adjacentMachineNetTotal3Near2 > 0) ||
-        (recentSevenNetTotal < 0 && adjacentMachineNetTotal7Near2 > 0);
+          daysSinceMachineHighContent >= 3 &&
+          daysSinceMachineHighContent <= 13);
+      const yakatabaruNeoFreeMain = streak >= 4 && features.recentFiveCombinedDenominator >= 165;
+      const yakatabaruNeoFreeStrong =
+        streak >= 4 && features.recentFiveCombinedDenominator >= 160 && features.recentFiveAngle <= -120;
+      const yakatabaruNeoFreeBalanced =
+        streak >= 3 && features.recentFiveCombinedDenominator >= 160 && features.recentFiveAngle <= -90;
+      const yakatabaruNeoBest106 =
+        recentFiveNetTotal <= -1780 && features.recentFiveCombinedDenominator >= 160 && yakatabaruNeoPreviousFail;
+      const yakatabaruNeoStrong105 =
+        streak >= 3 && features.recentFiveAngle <= -120 && yakatabaruNeoPreviousFail;
+      const yakatabaruNeoPreviousSmallShow =
+        previousMachineHighContent && previousDifference >= 0 && previousDifference < 500;
+      const yakatabaruNeoGoodPreviousSmallShow =
+        previousMachineGoodContent && previousDifference >= 0 && previousDifference < 500;
       const yakatabaruNeoTreatmentDone =
-        (previousMachineHighContent && previousDifference > 0) ||
-        previousDifference >= 1800 ||
-        recentThreeNetTotal > 2509 ||
-        recentSevenNetTotal > 3704 ||
-        (previousDifference > 0 &&
-          features.previousCombinedDenominator <= 150 &&
-          features.previousRbDenominator >= 350);
-      const yakatabaruNeoLowConfidence = previousGames < 500 || recentThreeGamesTotal < 5000;
-      const yakatabaruNeoOverheated =
-        previousGames >= 7000 ||
-        recentThreeGamesTotal > 17024 ||
-        recentFourteenMachineHighContentCount >= 4;
+        (previousMachineHighContent && previousDifference >= 1000) ||
+        (previousMachineGoodContent && previousDifference >= 1000) ||
+        previousDifference >= 1500 ||
+        recentThreeNetTotal >= 1500 ||
+        recentFiveNetTotal >= 2500 ||
+        recentTwentyOneMachineGoodContentCount >= 4;
+      const yakatabaruNeoPreviousHighOutput = previousMachineHighContent && previousDifference >= 1000;
+      const yakatabaruNeoRecentOutput = recentThreeNetTotal >= 1500 || recentFiveNetTotal >= 2500;
+      const yakatabaruNeoLowConfidence = targetRangeHistoryRowCount < 21 || recentFiveGamesTotal < 9000;
+      const yakatabaruNeoNoLosing = streak === 0;
+      const yakatabaruNeoOverused = recentTwentyOneMachineGoodContentCount >= 4;
       const boostFlags = [
-        yakatabaruNeoSinkStrength,
-        yakatabaruNeoUnpaid,
+        yakatabaruNeoDeepSink,
         yakatabaruNeoPreviousFail,
-        yakatabaruNeoNearbyLeftBehind,
+        yakatabaruNeoUnpaid,
+        yakatabaruNeoWeakBonus,
+        yakatabaruNeoTrustedGames,
+        yakatabaruNeoIntervalGood,
       ];
-      const dangerFlags = [yakatabaruNeoTreatmentDone, yakatabaruNeoLowConfidence, yakatabaruNeoOverheated];
+      const dangerFlags = [
+        yakatabaruNeoTreatmentDone,
+        yakatabaruNeoPreviousHighOutput,
+        yakatabaruNeoRecentOutput,
+        yakatabaruNeoLowConfidence,
+        yakatabaruNeoNoLosing,
+        yakatabaruNeoOverused,
+      ];
 
       return {
         ...features,
         yakatabaruNeoHistoryReady,
-        yakatabaruNeoSinkStrength,
-        yakatabaruNeoUnpaid,
+        yakatabaruNeoDeepSink,
         yakatabaruNeoPreviousFail,
-        yakatabaruNeoNearbyLeftBehind,
+        yakatabaruNeoUnpaid,
+        yakatabaruNeoWeakBonus,
+        yakatabaruNeoTrustedGames,
+        yakatabaruNeoIntervalGood,
+        yakatabaruNeoFreeMain,
+        yakatabaruNeoFreeStrong,
+        yakatabaruNeoFreeBalanced,
+        yakatabaruNeoBest106,
+        yakatabaruNeoStrong105,
+        yakatabaruNeoPreviousSmallShow,
+        yakatabaruNeoGoodPreviousSmallShow,
         yakatabaruNeoTreatmentDone,
+        yakatabaruNeoPreviousHighOutput,
+        yakatabaruNeoRecentOutput,
         yakatabaruNeoLowConfidence,
-        yakatabaruNeoOverheated,
+        yakatabaruNeoNoLosing,
+        yakatabaruNeoOverused,
         treatmentDone: yakatabaruNeoTreatmentDone,
         lowConfidence: yakatabaruNeoLowConfidence,
         boostCount: boostFlags.filter(Boolean).length,
@@ -6956,6 +7016,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentThreeMinus1000StayDays = readNumber(metrics.recentThreeMinus1000StayDays);
   const recentThreeMinus1700StayDays = readNumber(metrics.recentThreeMinus1700StayDays);
   const recentSevenMinus3000StayDays = readNumber(metrics.recentSevenMinus3000StayDays);
+  const recentFiveMinus1000StayDays = readNumber(metrics.recentFiveMinus1000StayDays);
   const recentFiveMinus1500StayDays = readNumber(metrics.recentFiveMinus1500StayDays);
   const recentFiveMinus2000StayDays = readNumber(metrics.recentFiveMinus2000StayDays);
   const recentFiveMinus3000StayDays = readNumber(metrics.recentFiveMinus3000StayDays);
@@ -6989,6 +7050,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFourteenMachineStrongHighContentCount = readNumber(metrics.recentFourteenMachineStrongHighContentCount);
   const recentSevenMachineGoodContentCount = readNumber(metrics.recentSevenMachineGoodContentCount);
   const recentSevenMachineWeakContentCount = readNumber(metrics.recentSevenMachineWeakContentCount);
+  const recentTwentyOneMachineGoodContentCount = readNumber(metrics.recentTwentyOneMachineGoodContentCount);
   const daysSinceMachineHighContent = readNullableNumber(metrics.daysSinceMachineHighContent);
   const daysSinceMachineStrongHighContent = readNullableNumber(metrics.daysSinceMachineStrongHighContent);
   const daysSinceMachineBigWin1500 = readNullableNumber(metrics.daysSinceMachineBigWin1500);
@@ -7670,71 +7732,120 @@ function calculateMachineScore(definition, metrics, features) {
     }
 
     if (activeLogicKey === "apark-yakatabaru-neo-aim") {
-      if (historyRowCount < 21) {
-        return 0;
-      }
-
-      let angleScore = 0;
-      angleScore += scoreAtMost(features.recentThreeAngle, [
-        { maximum: -178, points: 24 },
-        { maximum: -113, points: 17 },
-        { maximum: -60, points: 10 },
-        { maximum: -0.000001, points: 4 },
-      ]);
-      angleScore += features.recentFiveAngle <= -121 ? 6 : 0;
-      angleScore += features.recentSevenAngle <= -97 ? 4 : 0;
-      angleScore = Math.min(angleScore, 30);
-
       let losingScore = scoreAtLeast(streak, [
-        { minimum: 5, points: 22 },
-        { minimum: 4, points: 17 },
-        { minimum: 3, points: 13 },
-        { minimum: 2, points: 8 },
-        { minimum: 1, points: 1 },
+        { minimum: 4, points: 24 },
+        { minimum: 3, points: 22 },
+        { minimum: 2, points: 16 },
+        { minimum: 1, points: 5 },
       ]);
-      losingScore += previousDifference <= -1200 ? 3 : 0;
-      losingScore += previousGames >= 6000 && previousDifference < 0 ? 4 : 0;
-      losingScore = Math.min(losingScore, 22);
 
-      let previousFailScore = 0;
-      previousFailScore += previousMachineHighContent && previousDifference < 0 ? 14 : 0;
-      previousFailScore += previousGames >= 6000 && previousDifference < 0 ? 10 : 0;
-      previousFailScore += previousMachineStrongHighContent && previousDifference < 0 ? 4 : 0;
-      previousFailScore = Math.min(previousFailScore, 18);
+      let shortSinkScore = 0;
+      shortSinkScore += scoreAtMost(recentThreeNetTotal, [
+        { maximum: -2200, points: 12 },
+        { maximum: -1450, points: 9 },
+        { maximum: -900, points: 6 },
+        { maximum: -400, points: 3 },
+      ]);
+      shortSinkScore += scoreAtMost(recentFiveNetTotal, [
+        { maximum: -2700, points: 8 },
+        { maximum: -1780, points: 6 },
+        { maximum: -1110, points: 3 },
+      ]);
+      shortSinkScore += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -3000, points: 5 },
+        { maximum: -2000, points: 3 },
+      ]);
+      shortSinkScore += scoreAtMost(features.recentFiveAngle, [
+        { maximum: -120, points: 6 },
+        { maximum: -90, points: 4 },
+        { maximum: -60, points: 2 },
+      ]);
+      shortSinkScore = Math.min(shortSinkScore, 24);
+
+      let unpaidScore = 0;
+      unpaidScore += scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -5000, points: 9 },
+        { maximum: -3000, points: 6 },
+        { maximum: -1500, points: 3 },
+      ]);
+      unpaidScore += scoreAtMost(recentTwentyOneNetTotal, [
+        { maximum: -7000, points: 8 },
+        { maximum: -5000, points: 5 },
+        { maximum: -2500, points: 2 },
+      ]);
+      unpaidScore += scoreAtLeast(recentFiveMinus1000StayDays, [
+        { minimum: 3, points: 5 },
+        { minimum: 2, points: 4 },
+        { minimum: 1, points: 2 },
+      ]);
+      unpaidScore = Math.min(unpaidScore, 16);
+
+      let previousScore = 0;
+      previousScore += previousMachineHighContent && previousDifference < 0 ? 12 : 0;
+      previousScore += previousMachineHighContent && previousDifference >= 0 && previousDifference < 500 ? 5 : 0;
+      previousScore += previousMachineGoodContent && previousDifference < 500 ? 4 : 0;
+      previousScore += previousGames >= 5000 && previousDifference <= -1000 ? 4 : 0;
+      previousScore = Math.min(previousScore, 14);
+
+      let weakBonusScore = 0;
+      weakBonusScore += scoreAtLeast(features.recentFiveCombinedDenominator, [
+        { minimum: 165, points: 7 },
+        { minimum: 160, points: 5 },
+        { minimum: 156, points: 3 },
+      ]);
+      weakBonusScore += scoreAtLeast(features.recentSevenCombinedDenominator, [
+        { minimum: 162, points: 4 },
+        { minimum: 158, points: 2 },
+      ]);
+      weakBonusScore +=
+        recentFiveGamesTotal >= 12000 && recentFiveGamesTotal <= 24000
+          ? 4
+          : recentFiveGamesTotal >= 9000 && recentFiveGamesTotal < 12000
+            ? 1
+            : 0;
+      weakBonusScore = Math.min(weakBonusScore, 12);
 
       let rotationScore = 0;
-      rotationScore += scoreInRange(daysSinceMachineHighContent, 11, 14, 9);
-      rotationScore += scoreInRange(daysSinceMachineHighContent, 4, 10, 6);
-      rotationScore += scoreInRange(daysSinceMachineHighContent, 3, 3, 3);
-      rotationScore += scoreInRange(daysSinceMachineHighContent, 15, 21, 2);
-      rotationScore +=
-        recentFourteenNetTotal <= -4238 || recentTwentyOneNetTotal <= -5032
-          ? 6
-          : recentFourteenNetTotal <= -2736 || recentTwentyOneNetTotal <= -3210
-            ? 4
-            : 0;
-      rotationScore += recentFourteenMachineHighContentCount === 1 ? 3 : 0;
-      rotationScore += recentTwentyOneMachineHighContentCount === 2 ? 3 : 0;
-      rotationScore = Math.min(rotationScore, 17);
+      rotationScore += scoreInRange(daysSinceMachineHighContent, 3, 13, 3);
+      rotationScore += scoreInRange(daysSinceMachineHighContent, 14, 28, 1);
 
-      const gamesScore =
-        recentThreeGamesTotal <= 11340
-          ? 6
-          : recentThreeGamesTotal <= 14125
-            ? 4
-            : recentThreeGamesTotal <= 17024
-              ? 2
-              : 0;
+      let penaltyScore = 0;
+      penaltyScore += previousMachineHighContent && previousDifference >= 1000 ? 18 : 0;
+      penaltyScore += previousMachineGoodContent && previousDifference >= 1000 ? 14 : 0;
+      penaltyScore += scoreAtLeast(previousDifference, [
+        { minimum: 2500, points: 12 },
+        { minimum: 1500, points: 8 },
+        { minimum: 1000, points: 4 },
+      ]);
+      penaltyScore += scoreAtLeast(recentThreeNetTotal, [
+        { minimum: 2500, points: 10 },
+        { minimum: 1500, points: 7 },
+        { minimum: 800, points: 4 },
+      ]);
+      penaltyScore += scoreAtLeast(recentFiveNetTotal, [
+        { minimum: 4000, points: 8 },
+        { minimum: 2500, points: 5 },
+      ]);
+      penaltyScore += streak === 0 ? 8 : 0;
+      penaltyScore += winningStreak >= 2 ? 5 : 0;
+      penaltyScore += scoreAtLeast(recentTwentyOneMachineGoodContentCount, [
+        { minimum: 5, points: 7 },
+        { minimum: 4, points: 4 },
+      ]);
+      penaltyScore += recentFiveGamesTotal < 9000 ? 5 : 0;
+      penaltyScore += targetRangeHistoryRowCount < 21 ? 20 : 0;
 
-      let nearbyScore = 0;
-      nearbyScore += recentThreeNetTotal < 0 && adjacentMachineNetTotal3Near2 > 0 ? 6 : 0;
-      nearbyScore += recentSevenNetTotal < 0 && adjacentMachineNetTotal7Near2 > 0 ? 4 : 0;
-      nearbyScore += recentFourteenNetTotal < 0 && adjacentMachineNetTotal14Near2 > 0 ? 2 : 0;
-      nearbyScore = Math.min(nearbyScore, 7);
+      const rawScore =
+        35 +
+        losingScore +
+        shortSinkScore +
+        unpaidScore +
+        previousScore +
+        weakBonusScore +
+        rotationScore -
+        penaltyScore;
 
-      return Math.round(
-        clamp(angleScore + losingScore + previousFailScore + rotationScore + gamesScore + nearbyScore, 0, 100),
-      );
+      return Math.round(clamp(rawScore, 0, 100));
     }
 
     if (activeLogicKey === "mj-kurume-neo-aim") {
@@ -12877,11 +12988,37 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
       compareMachineEvaluationRows(left, right, evaluationKey),
     );
     sortedRows.forEach((row, index) => {
-      const nextRow = sortedRows[index + 1] ?? null;
       const score = readNullableNumber(row?.[evaluationKey]?.score);
-      const nextScore = readNullableNumber(nextRow?.[evaluationKey]?.score);
+      let firstSameScoreIndex = index;
+      let lastSameScoreIndex = index;
+      if (score !== null) {
+        while (
+          firstSameScoreIndex > 0 &&
+          Math.abs(
+            (readNullableNumber(sortedRows[firstSameScoreIndex - 1]?.[evaluationKey]?.score) ?? Number.NaN) - score,
+          ) <= 0.000000001
+        ) {
+          firstSameScoreIndex -= 1;
+        }
+        while (
+          lastSameScoreIndex + 1 < sortedRows.length &&
+          Math.abs(
+            (readNullableNumber(sortedRows[lastSameScoreIndex + 1]?.[evaluationKey]?.score) ?? Number.NaN) - score,
+          ) <= 0.000000001
+        ) {
+          lastSameScoreIndex += 1;
+        }
+      }
+      let nextScore = null;
+      for (let nextIndex = lastSameScoreIndex + 1; nextIndex < sortedRows.length; nextIndex += 1) {
+        const candidateScore = readNullableNumber(sortedRows[nextIndex]?.[evaluationKey]?.score);
+        if (candidateScore !== null && (score === null || Math.abs(candidateScore - score) > 0.000000001)) {
+          nextScore = candidateScore;
+          break;
+        }
+      }
       contextByRowKey.set(normalizeText(row?.rowKey), {
-        rank: index + 1,
+        rank: score !== null ? firstSameScoreIndex + 1 : index + 1,
         nextGap: score !== null && nextScore !== null ? score - nextScore : null,
       });
     });
