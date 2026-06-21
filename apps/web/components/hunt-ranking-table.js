@@ -59,6 +59,35 @@ const DEFAULT_VISIBLE_RESULT_KEYS = [
   "setting_estimate",
 ];
 const ESTIMATED_GRAPE_RESULT_KEY = "estimated_grape_denominator";
+const FIXED_COLUMN_KEYS = {
+  common: "common",
+  machineEvaluation: "machine_evaluation",
+  condition: "condition",
+  expectedPayout: "expected_payout",
+  expectedRb: "expected_rb",
+  nextGap: "next_gap",
+  machineName: "machine_name",
+};
+const DEFAULT_VISIBLE_FIXED_COLUMN_KEYS = [
+  FIXED_COLUMN_KEYS.common,
+  FIXED_COLUMN_KEYS.machineEvaluation,
+  FIXED_COLUMN_KEYS.condition,
+  FIXED_COLUMN_KEYS.expectedPayout,
+  FIXED_COLUMN_KEYS.expectedRb,
+  FIXED_COLUMN_KEYS.machineName,
+];
+const SORT_COLUMN_INDEX = {
+  common: 0,
+  machineEvaluation: 1,
+  daySpecificMachineEvaluation: 2,
+  condition: 3,
+  expectedPayout: 4,
+  expectedRb: 5,
+  nextGap: 6,
+  machineName: 7,
+  slot: 8,
+  resultStart: 9,
+};
 const SETTING_ESTIMATE_RESULT_HIGHLIGHT_START_KEY = "games_count";
 const DEFAULT_RANK_SCOPE = "selected";
 const DEFAULT_NEXT_GAP_SCOPE = "machine";
@@ -1068,67 +1097,54 @@ function readSortableTableValue(
     storeName = "",
   } = {},
 ) {
-  if (columnIndex === 0) {
+  if (columnIndex === SORT_COLUMN_INDEX.common) {
     return { missing: false, value: readSortableTableNumber(row.huntScore), type: "number" };
   }
-  let nextColumnIndex = 1;
 
-  if (hasMachineEvaluationColumn && columnIndex === nextColumnIndex) {
+  if (hasMachineEvaluationColumn && columnIndex === SORT_COLUMN_INDEX.machineEvaluation) {
     return {
       missing: false,
       value: readSortableTableNumber(row.machineEvaluation?.score),
       type: "number",
     };
   }
-  if (hasMachineEvaluationColumn) {
-    nextColumnIndex += 1;
-  }
 
-  if (hasDaySpecificMachineEvaluationColumn && columnIndex === nextColumnIndex) {
+  if (
+    hasDaySpecificMachineEvaluationColumn &&
+    columnIndex === SORT_COLUMN_INDEX.daySpecificMachineEvaluation
+  ) {
     return {
       missing: false,
       value: readSortableTableNumber(row.machineEvaluationDaySpecific?.score),
       type: "number",
     };
   }
-  if (hasDaySpecificMachineEvaluationColumn) {
-    nextColumnIndex += 1;
-  }
 
-  if (hasMachineEvaluationColumn && columnIndex === nextColumnIndex) {
+  if (hasMachineEvaluationColumn && columnIndex === SORT_COLUMN_INDEX.condition) {
     return {
       missing: false,
       value: readMatchedConditionCount(row),
       type: "number",
     };
   }
-  if (hasMachineEvaluationColumn) {
-    nextColumnIndex += 1;
-  }
 
-  if (hasMachineEvaluationColumn && columnIndex === nextColumnIndex) {
+  if (hasMachineEvaluationColumn && columnIndex === SORT_COLUMN_INDEX.expectedPayout) {
     return {
       missing: false,
       value: readMachineEvaluationExpectationDetail(storeId, storeName, row)?.payoutRate ?? null,
       type: "number",
     };
   }
-  if (hasMachineEvaluationColumn) {
-    nextColumnIndex += 1;
-  }
 
-  if (hasMachineEvaluationColumn && columnIndex === nextColumnIndex) {
+  if (hasMachineEvaluationColumn && columnIndex === SORT_COLUMN_INDEX.expectedRb) {
     return {
       missing: false,
       value: readMachineEvaluationExpectationDetail(storeId, storeName, row)?.rbDenominator ?? null,
       type: "number",
     };
   }
-  if (hasMachineEvaluationColumn) {
-    nextColumnIndex += 1;
-  }
 
-  if (columnIndex === nextColumnIndex) {
+  if (columnIndex === SORT_COLUMN_INDEX.nextGap) {
     return {
       missing: false,
       value: readSortableTableNumber(
@@ -1137,21 +1153,16 @@ function readSortableTableValue(
       type: "number",
     };
   }
-  nextColumnIndex += 1;
 
-  if (includeMachineColumn && columnIndex === nextColumnIndex) {
+  if (includeMachineColumn && columnIndex === SORT_COLUMN_INDEX.machineName) {
     return { missing: false, value: String(row.machineName ?? ""), type: "text" };
   }
-  if (includeMachineColumn) {
-    nextColumnIndex += 1;
-  }
 
-  if (columnIndex === nextColumnIndex) {
+  if (columnIndex === SORT_COLUMN_INDEX.slot) {
     return { missing: false, value: String(row.slotNumber ?? ""), type: "text" };
   }
-  nextColumnIndex += 1;
 
-  const resultColumn = visibleColumns[columnIndex - nextColumnIndex];
+  const resultColumn = visibleColumns[columnIndex - SORT_COLUMN_INDEX.resultStart];
   if (resultColumn) {
     return readSortableResultColumnValue(row, resultColumn);
   }
@@ -1245,6 +1256,7 @@ function OverallRankingTable({
   title,
   rows,
   visibleColumns,
+  visibleFixedColumnKeys = DEFAULT_VISIBLE_FIXED_COLUMN_KEYS,
   scoreColumnLabel,
   dateFlowLabel,
   nextGapScope,
@@ -1261,8 +1273,31 @@ function OverallRankingTable({
     hasMachineEvaluationColumn && rows.some((row) => row?.machineEvaluationDaySpecific);
   const daySpecificMachineEvaluationColumnLabel =
     readDaySpecificMachineEvaluationColumnLabel(rows);
+  const visibleFixedColumnSet = useMemo(
+    () => new Set(visibleFixedColumnKeys),
+    [visibleFixedColumnKeys],
+  );
+  const showCommonColumn = visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.common);
+  const showMachineEvaluationColumn =
+    hasMachineEvaluationColumn && visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.machineEvaluation);
+  const showDaySpecificMachineEvaluationColumn =
+    showMachineEvaluationColumn && hasDaySpecificMachineEvaluationColumn;
+  const showConditionColumn =
+    hasMachineEvaluationColumn && visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.condition);
+  const showExpectedPayoutColumn =
+    hasMachineEvaluationColumn && visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.expectedPayout);
+  const showExpectedRbColumn =
+    hasMachineEvaluationColumn && visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.expectedRb);
+  const showNextGapColumn = visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.nextGap);
+  const showMachineNameColumn = visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.machineName);
   const [sortState, setSortState] = useState(() =>
-    sortable ? { columnIndex: 0, direction: "desc", type: "number" } : null,
+    sortable
+      ? {
+          columnIndex: SORT_COLUMN_INDEX.common,
+          direction: "desc",
+          type: "number",
+        }
+      : null,
   );
   const sortedRows = useMemo(() => {
     if (!sortable || !sortState) {
@@ -1347,32 +1382,16 @@ function OverallRankingTable({
         <th className={className || undefined} title={headerTitle}>{children}</th>
       );
   };
-  const scoreColumnIndex = 0;
-  const machineEvaluationColumnIndex = 1;
-  const daySpecificMachineEvaluationColumnIndex = hasDaySpecificMachineEvaluationColumn ? 2 : null;
-  const conditionColumnIndex = hasMachineEvaluationColumn
-    ? hasDaySpecificMachineEvaluationColumn
-      ? 3
-      : 2
-    : null;
-  const expectedPayoutColumnIndex = hasMachineEvaluationColumn
-    ? hasDaySpecificMachineEvaluationColumn
-      ? 4
-      : 3
-    : null;
-  const expectedRbColumnIndex = hasMachineEvaluationColumn
-    ? hasDaySpecificMachineEvaluationColumn
-      ? 5
-      : 4
-    : null;
-  const nextGapColumnIndex = hasMachineEvaluationColumn
-    ? hasDaySpecificMachineEvaluationColumn
-      ? 6
-      : 5
-    : 1;
-  const machineColumnIndex = nextGapColumnIndex + 1;
-  const slotColumnIndex = machineColumnIndex + 1;
-  const resultColumnStartIndex = slotColumnIndex + 1;
+  const scoreColumnIndex = SORT_COLUMN_INDEX.common;
+  const machineEvaluationColumnIndex = SORT_COLUMN_INDEX.machineEvaluation;
+  const daySpecificMachineEvaluationColumnIndex = SORT_COLUMN_INDEX.daySpecificMachineEvaluation;
+  const conditionColumnIndex = SORT_COLUMN_INDEX.condition;
+  const expectedPayoutColumnIndex = SORT_COLUMN_INDEX.expectedPayout;
+  const expectedRbColumnIndex = SORT_COLUMN_INDEX.expectedRb;
+  const nextGapColumnIndex = SORT_COLUMN_INDEX.nextGap;
+  const machineColumnIndex = SORT_COLUMN_INDEX.machineName;
+  const slotColumnIndex = SORT_COLUMN_INDEX.slot;
+  const resultColumnStartIndex = SORT_COLUMN_INDEX.resultStart;
 
   return (
     <section className="tablePanel directoryPanel">
@@ -1389,13 +1408,15 @@ function OverallRankingTable({
         <table className="directoryTable huntCompactTable huntRankingTable" {...tableProps}>
           <thead>
             <tr>
-              <HeaderCell columnIndex={scoreColumnIndex}>{scoreColumnLabel}</HeaderCell>
-              {hasMachineEvaluationColumn ? (
+              {showCommonColumn ? (
+                <HeaderCell columnIndex={scoreColumnIndex}>{scoreColumnLabel}</HeaderCell>
+              ) : null}
+              {showMachineEvaluationColumn ? (
                 <HeaderCell columnIndex={machineEvaluationColumnIndex} title="機種別評価">
                   機種別
                 </HeaderCell>
               ) : null}
-              {hasDaySpecificMachineEvaluationColumn ? (
+              {showDaySpecificMachineEvaluationColumn ? (
                 <HeaderCell
                   columnIndex={daySpecificMachineEvaluationColumnIndex}
                   title={`${daySpecificMachineEvaluationColumnLabel}専用評価`}
@@ -1403,7 +1424,7 @@ function OverallRankingTable({
                   {daySpecificMachineEvaluationColumnLabel}
                 </HeaderCell>
               ) : null}
-              {hasMachineEvaluationColumn ? (
+              {showConditionColumn ? (
                 <HeaderCell
                   columnIndex={conditionColumnIndex}
                   title="一致した採用条件の件数"
@@ -1411,7 +1432,7 @@ function OverallRankingTable({
                   条件
                 </HeaderCell>
               ) : null}
-              {hasMachineEvaluationColumn ? (
+              {showExpectedPayoutColumn ? (
                 <HeaderCell
                   columnIndex={expectedPayoutColumnIndex}
                   title="ホバー表示に使う目安のうち、最も高い機械割"
@@ -1419,7 +1440,7 @@ function OverallRankingTable({
                   期待割
                 </HeaderCell>
               ) : null}
-              {hasMachineEvaluationColumn ? (
+              {showExpectedRbColumn ? (
                 <HeaderCell
                   columnIndex={expectedRbColumnIndex}
                   initialDirection="asc"
@@ -1428,10 +1449,19 @@ function OverallRankingTable({
                   期待RB
                 </HeaderCell>
               ) : null}
-              <HeaderCell columnIndex={nextGapColumnIndex}>次点差</HeaderCell>
-              <HeaderCell columnIndex={machineColumnIndex} type="text" initialDirection="asc" className="directoryNameHeader">
-                機種名
-              </HeaderCell>
+              {showNextGapColumn ? (
+                <HeaderCell columnIndex={nextGapColumnIndex}>次点差</HeaderCell>
+              ) : null}
+              {showMachineNameColumn ? (
+                <HeaderCell
+                  columnIndex={machineColumnIndex}
+                  type="text"
+                  initialDirection="asc"
+                  className="directoryNameHeader"
+                >
+                  機種名
+                </HeaderCell>
+              ) : null}
               <HeaderCell columnIndex={slotColumnIndex} type="text" initialDirection="asc">台番</HeaderCell>
               {visibleColumns.map((column, index) => (
                 <HeaderCell
@@ -1472,17 +1502,19 @@ function OverallRankingTable({
                   key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${title}-${row.rank}`}
                   title={rowSite7Title || undefined}
                 >
-                  <HuntScoreCell
-                    storeId={storeId}
-                    storeName={storeName}
-                    row={row}
-                    highlightCondition={highlightCondition}
-                    bookmarkMatchByRowKey={bookmarkMatchByRowKey}
-                    extraTitle={rowSite7Title}
-                    sortable
-                    huntScoreLogicLabel={huntScoreLogicLabel}
-                  />
-                  {hasMachineEvaluationColumn ? (
+                  {showCommonColumn ? (
+                    <HuntScoreCell
+                      storeId={storeId}
+                      storeName={storeName}
+                      row={row}
+                      highlightCondition={highlightCondition}
+                      bookmarkMatchByRowKey={bookmarkMatchByRowKey}
+                      extraTitle={rowSite7Title}
+                      sortable
+                      huntScoreLogicLabel={huntScoreLogicLabel}
+                    />
+                  ) : null}
+                  {showMachineEvaluationColumn ? (
                     <MachineEvaluationCell
                       storeId={storeId}
                       storeName={storeName}
@@ -1491,7 +1523,7 @@ function OverallRankingTable({
                       extraTitle={rowSite7Title}
                     />
                   ) : null}
-                  {hasDaySpecificMachineEvaluationColumn ? (
+                  {showDaySpecificMachineEvaluationColumn ? (
                     <MachineEvaluationCell
                       storeId={storeId}
                       storeName={storeName}
@@ -1501,13 +1533,13 @@ function OverallRankingTable({
                       includeStoredTopBacktests={false}
                     />
                   ) : null}
-                  {hasMachineEvaluationColumn ? (
+                  {showConditionColumn ? (
                     <MachineEvaluationConditionCell
                       row={row}
                       extraTitle={rowSite7Title}
                     />
                   ) : null}
-                  {hasMachineEvaluationColumn ? (
+                  {showExpectedPayoutColumn ? (
                     <MachineEvaluationExpectedPayoutCell
                       storeId={storeId}
                       storeName={storeName}
@@ -1515,7 +1547,7 @@ function OverallRankingTable({
                       extraTitle={rowSite7Title}
                     />
                   ) : null}
-                  {hasMachineEvaluationColumn ? (
+                  {showExpectedRbColumn ? (
                     <MachineEvaluationExpectedRbCell
                       storeId={storeId}
                       storeName={storeName}
@@ -1523,38 +1555,42 @@ function OverallRankingTable({
                       extraTitle={rowSite7Title}
                     />
                   ) : null}
-                  <td
-                    data-sort-value={readRankingSortNumber(
-                      readNextGapForRankScope(row, normalizeNextGapScope(nextGapScope)),
-                      "",
-                    )}
-                    title={rowSite7Title || undefined}
-                  >
-                    {formatNextGapForScope(row, nextGapScope)}
-                  </td>
-                  <th
-                    className={[
-                      "directoryNameCell",
-                      machineHasSite7Data ? "site7MachineCell" : "",
-                    ].filter(Boolean).join(" ")}
-                    title={machineCellTitle || undefined}
-                    data-sort-value={row.machineName}
-                  >
-                    <span className="directoryNameContent">
-                      <Link
-                        href={`/stores/${storeId}/machines/${encodeURIComponent(row.machineName)}`}
-                        className="directoryPrimaryLink"
-                      >
-                        {machineShortName}
-                      </Link>
-                      {machineHasSite7Data ? (
-                        <Site7RankingBadge
-                          fetchedAt={machineSite7FetchedAt}
-                          title="この機種にSセブン暫定データが含まれます"
-                        />
-                      ) : null}
-                    </span>
-                  </th>
+                  {showNextGapColumn ? (
+                    <td
+                      data-sort-value={readRankingSortNumber(
+                        readNextGapForRankScope(row, normalizeNextGapScope(nextGapScope)),
+                        "",
+                      )}
+                      title={rowSite7Title || undefined}
+                    >
+                      {formatNextGapForScope(row, nextGapScope)}
+                    </td>
+                  ) : null}
+                  {showMachineNameColumn ? (
+                    <th
+                      className={[
+                        "directoryNameCell",
+                        machineHasSite7Data ? "site7MachineCell" : "",
+                      ].filter(Boolean).join(" ")}
+                      title={machineCellTitle || undefined}
+                      data-sort-value={row.machineName}
+                    >
+                      <span className="directoryNameContent">
+                        <Link
+                          href={`/stores/${storeId}/machines/${encodeURIComponent(row.machineName)}`}
+                          className="directoryPrimaryLink"
+                        >
+                          {machineShortName}
+                        </Link>
+                        {machineHasSite7Data ? (
+                          <Site7RankingBadge
+                            fetchedAt={machineSite7FetchedAt}
+                            title="この機種にSセブン暫定データが含まれます"
+                          />
+                        ) : null}
+                      </span>
+                    </th>
+                  ) : null}
                   <td
                     className={slotExpectedPayoutClassName || undefined}
                     data-sort-value={row.slotNumber}
@@ -1591,6 +1627,7 @@ function MachineRankingGroupTable({
   storeId,
   storeName,
   visibleColumns,
+  visibleFixedColumnKeys = DEFAULT_VISIBLE_FIXED_COLUMN_KEYS,
   scoreColumnLabel,
   dateFlowLabel,
   nextGapScope,
@@ -1607,8 +1644,24 @@ function MachineRankingGroupTable({
     hasMachineEvaluationColumn && group.rows.some((row) => row?.machineEvaluationDaySpecific);
   const daySpecificMachineEvaluationColumnLabel =
     readDaySpecificMachineEvaluationColumnLabel(group.rows);
+  const visibleFixedColumnSet = useMemo(
+    () => new Set(visibleFixedColumnKeys),
+    [visibleFixedColumnKeys],
+  );
+  const showCommonColumn = visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.common);
+  const showMachineEvaluationColumn =
+    hasMachineEvaluationColumn && visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.machineEvaluation);
+  const showDaySpecificMachineEvaluationColumn =
+    showMachineEvaluationColumn && hasDaySpecificMachineEvaluationColumn;
+  const showConditionColumn =
+    hasMachineEvaluationColumn && visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.condition);
+  const showExpectedPayoutColumn =
+    hasMachineEvaluationColumn && visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.expectedPayout);
+  const showExpectedRbColumn =
+    hasMachineEvaluationColumn && visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.expectedRb);
+  const showNextGapColumn = visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.nextGap);
   const [sortState, setSortState] = useState(() => ({
-    columnIndex: 0,
+    columnIndex: SORT_COLUMN_INDEX.common,
     direction: "desc",
     type: "number",
   }));
@@ -1682,31 +1735,15 @@ function MachineRankingGroupTable({
       </SortableTableHeader>
     );
   };
-  const scoreColumnIndex = 0;
-  const machineEvaluationColumnIndex = 1;
-  const daySpecificMachineEvaluationColumnIndex = hasDaySpecificMachineEvaluationColumn ? 2 : null;
-  const conditionColumnIndex = hasMachineEvaluationColumn
-    ? hasDaySpecificMachineEvaluationColumn
-      ? 3
-      : 2
-    : null;
-  const expectedPayoutColumnIndex = hasMachineEvaluationColumn
-    ? hasDaySpecificMachineEvaluationColumn
-      ? 4
-      : 3
-    : null;
-  const expectedRbColumnIndex = hasMachineEvaluationColumn
-    ? hasDaySpecificMachineEvaluationColumn
-      ? 5
-      : 4
-    : null;
-  const nextGapColumnIndex = hasMachineEvaluationColumn
-    ? hasDaySpecificMachineEvaluationColumn
-      ? 6
-      : 5
-    : 1;
-  const slotColumnIndex = nextGapColumnIndex + 1;
-  const resultColumnStartIndex = slotColumnIndex + 1;
+  const scoreColumnIndex = SORT_COLUMN_INDEX.common;
+  const machineEvaluationColumnIndex = SORT_COLUMN_INDEX.machineEvaluation;
+  const daySpecificMachineEvaluationColumnIndex = SORT_COLUMN_INDEX.daySpecificMachineEvaluation;
+  const conditionColumnIndex = SORT_COLUMN_INDEX.condition;
+  const expectedPayoutColumnIndex = SORT_COLUMN_INDEX.expectedPayout;
+  const expectedRbColumnIndex = SORT_COLUMN_INDEX.expectedRb;
+  const nextGapColumnIndex = SORT_COLUMN_INDEX.nextGap;
+  const slotColumnIndex = SORT_COLUMN_INDEX.slot;
+  const resultColumnStartIndex = SORT_COLUMN_INDEX.resultStart;
 
   return (
     <section className="tablePanel directoryPanel">
@@ -1741,13 +1778,15 @@ function MachineRankingGroupTable({
         <table className="directoryTable huntCompactTable huntRankingTable">
           <thead>
             <tr>
-              <HeaderCell columnIndex={scoreColumnIndex}>{scoreColumnLabel}</HeaderCell>
-              {hasMachineEvaluationColumn ? (
+              {showCommonColumn ? (
+                <HeaderCell columnIndex={scoreColumnIndex}>{scoreColumnLabel}</HeaderCell>
+              ) : null}
+              {showMachineEvaluationColumn ? (
                 <HeaderCell columnIndex={machineEvaluationColumnIndex} title="機種別評価">
                   機種別
                 </HeaderCell>
               ) : null}
-              {hasDaySpecificMachineEvaluationColumn ? (
+              {showDaySpecificMachineEvaluationColumn ? (
                 <HeaderCell
                   columnIndex={daySpecificMachineEvaluationColumnIndex}
                   title={`${daySpecificMachineEvaluationColumnLabel}専用評価`}
@@ -1755,7 +1794,7 @@ function MachineRankingGroupTable({
                   {daySpecificMachineEvaluationColumnLabel}
                 </HeaderCell>
               ) : null}
-              {hasMachineEvaluationColumn ? (
+              {showConditionColumn ? (
                 <HeaderCell
                   columnIndex={conditionColumnIndex}
                   title="一致した採用条件の件数"
@@ -1763,7 +1802,7 @@ function MachineRankingGroupTable({
                   条件
                 </HeaderCell>
               ) : null}
-              {hasMachineEvaluationColumn ? (
+              {showExpectedPayoutColumn ? (
                 <HeaderCell
                   columnIndex={expectedPayoutColumnIndex}
                   title="ホバー表示に使う目安のうち、最も高い機械割"
@@ -1771,7 +1810,7 @@ function MachineRankingGroupTable({
                   期待割
                 </HeaderCell>
               ) : null}
-              {hasMachineEvaluationColumn ? (
+              {showExpectedRbColumn ? (
                 <HeaderCell
                   columnIndex={expectedRbColumnIndex}
                   initialDirection="asc"
@@ -1780,7 +1819,9 @@ function MachineRankingGroupTable({
                   期待RB
                 </HeaderCell>
               ) : null}
-              <HeaderCell columnIndex={nextGapColumnIndex}>次点差</HeaderCell>
+              {showNextGapColumn ? (
+                <HeaderCell columnIndex={nextGapColumnIndex}>次点差</HeaderCell>
+              ) : null}
               <HeaderCell columnIndex={slotColumnIndex} type="text" initialDirection="asc">
                 台番
               </HeaderCell>
@@ -1812,17 +1853,19 @@ function MachineRankingGroupTable({
                   key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${row.rank}`}
                   title={rowSite7Title || undefined}
                 >
-                  <HuntScoreCell
-                    storeId={storeId}
-                    storeName={storeName}
-                    row={row}
-                    highlightCondition={highlightCondition}
-                    bookmarkMatchByRowKey={bookmarkMatchByRowKey}
-                    extraTitle={rowSite7Title}
-                    sortable
-                    huntScoreLogicLabel={huntScoreLogicLabel}
-                  />
-                  {hasMachineEvaluationColumn ? (
+                  {showCommonColumn ? (
+                    <HuntScoreCell
+                      storeId={storeId}
+                      storeName={storeName}
+                      row={row}
+                      highlightCondition={highlightCondition}
+                      bookmarkMatchByRowKey={bookmarkMatchByRowKey}
+                      extraTitle={rowSite7Title}
+                      sortable
+                      huntScoreLogicLabel={huntScoreLogicLabel}
+                    />
+                  ) : null}
+                  {showMachineEvaluationColumn ? (
                     <MachineEvaluationCell
                       storeId={storeId}
                       storeName={storeName}
@@ -1831,7 +1874,7 @@ function MachineRankingGroupTable({
                       extraTitle={rowSite7Title}
                     />
                   ) : null}
-                  {hasDaySpecificMachineEvaluationColumn ? (
+                  {showDaySpecificMachineEvaluationColumn ? (
                     <MachineEvaluationCell
                       storeId={storeId}
                       storeName={storeName}
@@ -1841,13 +1884,13 @@ function MachineRankingGroupTable({
                       includeStoredTopBacktests={false}
                     />
                   ) : null}
-                  {hasMachineEvaluationColumn ? (
+                  {showConditionColumn ? (
                     <MachineEvaluationConditionCell
                       row={row}
                       extraTitle={rowSite7Title}
                     />
                   ) : null}
-                  {hasMachineEvaluationColumn ? (
+                  {showExpectedPayoutColumn ? (
                     <MachineEvaluationExpectedPayoutCell
                       storeId={storeId}
                       storeName={storeName}
@@ -1855,7 +1898,7 @@ function MachineRankingGroupTable({
                       extraTitle={rowSite7Title}
                     />
                   ) : null}
-                  {hasMachineEvaluationColumn ? (
+                  {showExpectedRbColumn ? (
                     <MachineEvaluationExpectedRbCell
                       storeId={storeId}
                       storeName={storeName}
@@ -1863,9 +1906,11 @@ function MachineRankingGroupTable({
                       extraTitle={rowSite7Title}
                     />
                   ) : null}
-                  <td title={rowSite7Title || undefined}>
-                    {formatNextGapForScope(row, nextGapScope)}
-                  </td>
+                  {showNextGapColumn ? (
+                    <td title={rowSite7Title || undefined}>
+                      {formatNextGapForScope(row, nextGapScope)}
+                    </td>
+                  ) : null}
                   <td
                     className={slotExpectedPayoutClassName || undefined}
                     title={rowSite7Title || undefined}
@@ -1914,6 +1959,9 @@ export function HuntRankingTable({
   huntScoreLogicLabel = "",
 }) {
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
+  const [visibleFixedColumnKeys, setVisibleFixedColumnKeys] = useState(
+    DEFAULT_VISIBLE_FIXED_COLUMN_KEYS,
+  );
   const [differenceMode, setDifferenceMode] = useState(() =>
     normalizeDifferenceMode(initialDifferenceMode),
   );
@@ -1973,6 +2021,43 @@ export function HuntRankingTable({
     [resultColumns, visibleResultKeys],
   );
   const scoreColumnLabel = "共通";
+  const fixedColumnOptions = useMemo(
+    () => [
+      {
+        key: FIXED_COLUMN_KEYS.common,
+        label: scoreColumnLabel,
+      },
+      ...(showMachineEvaluation
+        ? [
+            {
+              key: FIXED_COLUMN_KEYS.machineEvaluation,
+              label: "機種別",
+            },
+            {
+              key: FIXED_COLUMN_KEYS.condition,
+              label: "条件",
+            },
+            {
+              key: FIXED_COLUMN_KEYS.expectedPayout,
+              label: "期待割",
+            },
+            {
+              key: FIXED_COLUMN_KEYS.expectedRb,
+              label: "期待RB",
+            },
+          ]
+        : []),
+      {
+        key: FIXED_COLUMN_KEYS.nextGap,
+        label: "次点差",
+      },
+      {
+        key: FIXED_COLUMN_KEYS.machineName,
+        label: "機種名",
+      },
+    ],
+    [scoreColumnLabel, showMachineEvaluation],
+  );
   const dateFlowLabel = useMemo(
     () => formatRankingDateFlowLabel(predictionDate, actualDate),
     [actualDate, predictionDate],
@@ -2117,13 +2202,29 @@ export function HuntRankingTable({
     enableConditionHighlight && bookmarkState.bookmark ? bookmarkState.matchByRowKey : null;
   const tableHighlightCondition = enableConditionHighlight ? highlightCondition : null;
 
-  const toggleColumn = (columnKey) => {
+  const toggleFixedColumn = (columnKey) => {
+    setVisibleFixedColumnKeys((currentKeys) => {
+      const nextKeys = new Set(currentKeys);
+      if (nextKeys.has(columnKey)) {
+        nextKeys.delete(columnKey);
+      } else {
+        nextKeys.add(columnKey);
+      }
+
+      return DEFAULT_VISIBLE_FIXED_COLUMN_KEYS
+        .filter((key) => nextKeys.has(key))
+        .concat(
+          Object.values(FIXED_COLUMN_KEYS).filter(
+            (key) => !DEFAULT_VISIBLE_FIXED_COLUMN_KEYS.includes(key) && nextKeys.has(key),
+          ),
+        );
+    });
+  };
+
+  const toggleResultColumn = (columnKey) => {
     setVisibleResultKeys((currentKeys) => {
       const nextKeys = new Set(currentKeys);
       if (nextKeys.has(columnKey)) {
-        if (nextKeys.size === 1) {
-          return currentKeys;
-        }
         nextKeys.delete(columnKey);
       } else {
         nextKeys.add(columnKey);
@@ -2195,13 +2296,12 @@ export function HuntRankingTable({
         <div>
           <p className="sectionLabel">表示する列</p>
           <p className="filterLead">
-            ここは保存済み実績の表示だけを切り替えます。
+            表の列表示だけを切り替えます。
           </p>
         </div>
         <div className="metricToggleRow">
-          {resultColumns.map((column) => {
-            const isChecked = visibleResultKeys.includes(column.key);
-            const isLastVisible = isChecked && visibleColumns.length === 1;
+          {fixedColumnOptions.map((column) => {
+            const isChecked = visibleFixedColumnKeys.includes(column.key);
 
             return (
               <label
@@ -2211,8 +2311,24 @@ export function HuntRankingTable({
                 <input
                   type="checkbox"
                   checked={isChecked}
-                  disabled={isLastVisible}
-                  onChange={() => toggleColumn(column.key)}
+                  onChange={() => toggleFixedColumn(column.key)}
+                />
+                <span>{column.label}</span>
+              </label>
+            );
+          })}
+          {resultColumns.map((column) => {
+            const isChecked = visibleResultKeys.includes(column.key);
+
+            return (
+              <label
+                key={column.key}
+                className={`metricToggleChip ${isChecked ? "metricToggleChipActive" : ""}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => toggleResultColumn(column.key)}
                 />
                 <span>{column.label}</span>
               </label>
@@ -2230,6 +2346,7 @@ export function HuntRankingTable({
             title={`各機種1位 ${formatNumber(machineTopCandidateRows.length)}台`}
             rows={machineTopCandidateRows}
             visibleColumns={visibleColumns}
+            visibleFixedColumnKeys={visibleFixedColumnKeys}
             scoreColumnLabel={scoreColumnLabel}
             dateFlowLabel={dateFlowLabel}
             nextGapScope="machine"
@@ -2255,6 +2372,7 @@ export function HuntRankingTable({
           title={`選択機種内ランキング 上位${formatNumber(selectedOverallRows.length)}台`}
           rows={selectedOverallRows}
           visibleColumns={visibleColumns}
+          visibleFixedColumnKeys={visibleFixedColumnKeys}
           scoreColumnLabel={scoreColumnLabel}
           dateFlowLabel={dateFlowLabel}
           nextGapScope={nextGapScope}
@@ -2278,6 +2396,7 @@ export function HuntRankingTable({
           storeId={storeId}
           storeName={storeName}
           visibleColumns={visibleColumns}
+          visibleFixedColumnKeys={visibleFixedColumnKeys}
           scoreColumnLabel={scoreColumnLabel}
           dateFlowLabel={dateFlowLabel}
           nextGapScope={nextGapScope}
