@@ -2677,10 +2677,12 @@ function buildHuntScoreCacheSignature(
     differenceMode = undefined,
     settingEstimateMode = undefined,
     dateRange = null,
+    machineEvaluationHistoryWindowDays = null,
   } = {},
 ) {
   const store = readStaticStoreIdentity(staticStore);
   const normalizedDateRange = normalizeDateRangeInput(dateRange);
+  const normalizedMachineEvaluationHistoryWindowDays = Number(machineEvaluationHistoryWindowDays);
   return {
     version: HUNT_SCORE_CACHE_VERSION,
     storeId: store.id,
@@ -2695,6 +2697,11 @@ function buildHuntScoreCacheSignature(
     logicKeys: normalizeHuntScoreCacheLogicKeys(logicKeys),
     differenceMode: normalizeDifferenceMode(differenceMode),
     settingEstimateMode: normalizeSettingEstimateMode(settingEstimateMode),
+    machineEvaluationHistoryWindowDays:
+      Number.isFinite(normalizedMachineEvaluationHistoryWindowDays) &&
+      normalizedMachineEvaluationHistoryWindowDays > 0
+        ? normalizedMachineEvaluationHistoryWindowDays
+        : null,
     dateRange: normalizedDateRange
       ? {
           startDate: normalizedDateRange.startDate,
@@ -3470,6 +3477,7 @@ async function getHuntScoreSnapshotsForStore(
           differenceMode: normalizedDifferenceMode,
           settingEstimateMode: normalizedSettingEstimateMode,
           dateRange: cacheDateRange,
+          machineEvaluationHistoryWindowDays,
         })
       : null;
     const cacheDates = cacheDateRange
