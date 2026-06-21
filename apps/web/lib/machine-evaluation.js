@@ -130,6 +130,13 @@ function isAparkYakatabaruStore(storeName) {
   );
 }
 
+function isGogoArenaTenjinStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["GOGOアリーナ天神", "GOGOアリーナ天神店", "ＧＯＧＯアリーナ天神", "ＧＯＧＯアリーナ天神店"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function isMjArenaKurumeStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return [
@@ -1667,6 +1674,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildLogicVariant("beam-hikari-neo-aim-normal", "ネオアイムビームヒカリ通常日式", "beam-hikari-normal-main"),
       buildLogicVariant("beam-hikari-neo-aim-event", "ネオアイムビームヒカリイベント日式", "beam-hikari-event-main"),
       buildLogicVariant("amuse-asakusa-neo-aim", "ネオアイムアミューズ浅草式", "amuse-asakusa-main"),
+      buildLogicVariant("gogo-tenjin-neo-aim", "ネオアイムGOGO天神式", "gogo-tenjin-main"),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
@@ -1788,6 +1796,26 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["kurumeNeoHistoryReady"],
         },
         ["mj-kurume-neo-aim"],
+      ),
+      buildCondition(
+        "gogo-tenjin-main",
+        "S1/S2本命",
+        "57件 / 106.03% / RB1/256.1",
+        {
+          requiredFlags: ["gogoTenjinNeoHistoryReady"],
+          anyFlags: ["gogoTenjinNeoS1", "gogoTenjinNeoS2"],
+        },
+        ["gogo-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "gogo-tenjin-wide",
+        "S1/S2/S3広め",
+        "78件 / 105.98% / RB1/263.9",
+        {
+          requiredFlags: ["gogoTenjinNeoHistoryReady"],
+          anyFlags: ["gogoTenjinNeoS1", "gogoTenjinNeoS2", "gogoTenjinNeoS3"],
+        },
+        ["gogo-tenjin-neo-aim"],
       ),
       buildCondition(
         "beam-hikari-main",
@@ -3279,6 +3307,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-girls");
   } else if (isAmuseAsakusaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "amuse-asakusa-neo-aim");
+  } else if (isGogoArenaTenjinStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "gogo-tenjin-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
@@ -3824,6 +3854,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentTenGamesTotal = readNumber(metrics.recentTenGamesTotal);
   const recentFourteenGamesTotal = readNumber(metrics.recentFourteenGamesTotal);
   const recentTwentyOneGamesTotal = readNumber(metrics.recentTwentyOneGamesTotal);
+  const recentTwentyEightGamesTotal = readNumber(metrics.recentTwentyEightGamesTotal);
   const recentFourteenGoldShowDays = readNumber(metrics.recentFourteenGoldShowDays);
   const recentSevenGoldShowDays = readNumber(metrics.recentSevenGoldShowDays, readNumber(metrics.recentSevenBigShowDays));
   const recentFourteenLossDays = readNumber(metrics.recentFourteenLossDays);
@@ -3880,6 +3911,8 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const daysSinceMachineHighContent = readNullableNumber(metrics.daysSinceMachineHighContent);
   const daysSinceMachineStrongHighContent = readNullableNumber(metrics.daysSinceMachineStrongHighContent);
   const daysSinceMachineBigWin1500 = readNullableNumber(metrics.daysSinceMachineBigWin1500);
+  const daysSinceHistoryRbLight = readNullableNumber(metrics.daysSinceHistoryRbLight);
+  const recentTwentyEightRbLightCount = readNumber(metrics.recentTwentyEightRbLightCount);
   const previousMachineHighContent = Boolean(metrics.previousMachineHighContent);
   const previousMachineGoodContent = Boolean(metrics.previousMachineGoodContent);
   const previousMachineStrongHighContent = Boolean(metrics.previousMachineStrongHighContent);
@@ -3971,6 +4004,75 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "gogo-tenjin-neo-aim") {
+      const gogoTenjinNeoHistoryReady = historyRowCount >= 28;
+      const recentTwentyEightAngleRaw =
+        recentTwentyEightGamesTotal > 0 ? recentTwentyEightNetTotal / recentTwentyEightGamesTotal : 0;
+      const gogoTenjinNeoS1 =
+        gogoTenjinNeoHistoryReady &&
+        recentTwentyEightAngleRaw <= -0.06 &&
+        Number.isFinite(daysSinceHistoryRbLight) &&
+        daysSinceHistoryRbLight >= 4 &&
+        daysSinceHistoryRbLight <= 7;
+      const gogoTenjinNeoS2 =
+        gogoTenjinNeoHistoryReady &&
+        recentTwentyEightNetTotal <= -7000 &&
+        recentFourteenNetTotal <= -5000;
+      const gogoTenjinNeoS3 =
+        gogoTenjinNeoHistoryReady &&
+        recentTwentyEightAngleRaw <= -0.06 &&
+        recentTwentyEightRbLightCount <= 2;
+      const gogoTenjinNeoPreviousRbFail =
+        previousGames >= 3000 &&
+        features.previousRbDenominator <= 300 &&
+        previousDifference < 1000;
+      const gogoTenjinNeoPreviousCombinedFail =
+        previousGames >= 3000 &&
+        features.previousCombinedDenominator <= 140 &&
+        previousDifference < 1500;
+      const gogoTenjinNeoPreviousHighFail = previousMachineHighContent && previousDifference < 0;
+      const gogoTenjinNeoTreatmentDone =
+        recentTwentyEightNetTotal >= 4000 ||
+        recentTwentyOneNetTotal >= 5000 ||
+        previousDifference >= 2500;
+      const gogoTenjinNeoLowGames = recentFourteenGamesTotal < 30000;
+      const gogoTenjinNeoOverused = recentFourteenMachineHighContentCount >= 3;
+      const boostFlags = [
+        gogoTenjinNeoS1,
+        gogoTenjinNeoS2,
+        gogoTenjinNeoS3,
+        gogoTenjinNeoPreviousRbFail,
+        gogoTenjinNeoPreviousCombinedFail,
+        gogoTenjinNeoPreviousHighFail,
+      ];
+      const dangerFlags = [
+        gogoTenjinNeoTreatmentDone,
+        gogoTenjinNeoLowGames,
+        gogoTenjinNeoOverused,
+      ];
+
+      return {
+        ...features,
+        recentTwentyEightAngleRaw,
+        daysSinceHistoryRbLight,
+        recentTwentyEightRbLightCount,
+        gogoTenjinNeoHistoryReady,
+        gogoTenjinNeoS1,
+        gogoTenjinNeoS2,
+        gogoTenjinNeoS3,
+        gogoTenjinNeoPreviousRbFail,
+        gogoTenjinNeoPreviousCombinedFail,
+        gogoTenjinNeoPreviousHighFail,
+        gogoTenjinNeoTreatmentDone,
+        gogoTenjinNeoLowGames,
+        gogoTenjinNeoOverused,
+        treatmentDone: gogoTenjinNeoTreatmentDone,
+        lowConfidence: gogoTenjinNeoLowGames,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "amuse-asakusa-neo-aim") {
       const amuseAsakusaNeoHistoryReady = historyRowCount >= 21;
       const recentTenAngle = netPerThousandGames(recentTenNetTotal, recentTenGamesTotal);
@@ -7189,6 +7291,85 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "gogo-tenjin-neo-aim") {
+      if (historyRowCount < 28) {
+        return 0;
+      }
+
+      const recentTwentyEightAngleRaw =
+        recentTwentyEightGamesTotal > 0 ? recentTwentyEightNetTotal / recentTwentyEightGamesTotal : 0;
+      let score = 0;
+
+      score += scoreAtMost(recentTwentyEightNetTotal, [
+        { maximum: -7000, points: 36 },
+        { maximum: -5000, points: 32 },
+        { maximum: -3000, points: 26 },
+        { maximum: -1500, points: 18 },
+        { maximum: 0, points: 12 },
+        { maximum: 3000, points: 5 },
+      ]);
+      score += scoreAtMost(recentTwentyEightAngleRaw, [
+        { maximum: -0.055, points: 18 },
+        { maximum: -0.04, points: 15 },
+        { maximum: -0.025, points: 12 },
+        { maximum: -0.01, points: 8 },
+        { maximum: 0, points: 5 },
+      ]);
+      score += scoreAtMost(recentTwentyOneNetTotal, [
+        { maximum: -5000, points: 10 },
+        { maximum: -3000, points: 8 },
+        { maximum: -1500, points: 5 },
+        { maximum: 0, points: 2 },
+      ]);
+      score += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -1500, points: 6 },
+        { maximum: -500, points: 4 },
+        { maximum: 0, points: 2 },
+      ]);
+
+      score += scoreInRange(streak, 5, 7, 7);
+      score += scoreInRange(streak, 3, 4, 5);
+      score += streak === 2 ? 2 : 0;
+
+      score += scoreInRange(daysSinceMachineHighContent, 4, 6, 5);
+      score += scoreInRange(daysSinceMachineHighContent, 7, 10, 3);
+      score += Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 25 ? 2 : 0;
+
+      score +=
+        recentFourteenMachineHighContentCount === 1
+          ? 3
+          : recentFourteenMachineHighContentCount === 2
+            ? 2
+            : recentFourteenMachineHighContentCount >= 3
+              ? -3
+              : 0;
+
+      score +=
+        previousGames >= 3000 && previousRbDenominator <= 300 && previousDifference < 1000
+          ? 5
+          : 0;
+      score +=
+        previousGames >= 3000 && previousCombinedDenominator <= 140 && previousDifference < 1500
+          ? 3
+          : 0;
+      score += previousMachineHighContent && previousDifference < 0 ? 6 : 0;
+
+      const treatmentPenalty =
+        recentTwentyEightNetTotal >= 7000
+          ? 20
+          : recentTwentyEightNetTotal >= 4000
+            ? 12
+            : recentTwentyOneNetTotal >= 5000
+              ? 8
+              : previousDifference >= 2500
+                ? 4
+                : 0;
+      score -= treatmentPenalty;
+      score -= recentFourteenGamesTotal < 30000 ? 4 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (activeLogicKey === "amuse-asakusa-neo-aim") {
       if (historyRowCount < 21) {
         return 0;

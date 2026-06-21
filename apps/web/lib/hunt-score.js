@@ -6930,6 +6930,11 @@ function calculateWindowMetrics(
     const settingAverage = getSettingEstimateAverage(settingDefinitionCache, historyWindowRow.row, config).average;
     return Number.isFinite(settingAverage) && settingAverage >= 5;
   };
+  const isHistoryRbLightWindowRow = (historyWindowRow) => {
+    const games = readWindowField(historyWindowRow, "games");
+    const rbDenominator = calculateRbDenominatorFromWindowRow(historyWindowRow);
+    return games >= 4000 && rbDenominator <= 270;
+  };
   const twoDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-2));
   const threeDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-3));
   const fourDaysAgoHighSettingCandidate = isHighSettingCandidateWindowRow(metricWindowRows.at(-4));
@@ -6951,6 +6956,7 @@ function calculateWindowMetrics(
   const recentFourteenHighSettingCandidateCount = historyWindowRows
     .slice(-14)
     .filter(isHistoryHighSettingCandidateWindowRow).length;
+  const recentTwentyEightRbLightCount = recentTwentyEightRows.filter(isHistoryRbLightWindowRow).length;
   const historyThirtyRows = historyWindowRows.slice(-30);
   const historyFortyFiveRows = historyWindowRows.slice(-45);
   const historySixtyRows = historyWindowRows.slice(-60);
@@ -7044,6 +7050,15 @@ function calculateWindowMetrics(
     for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
       const historyWindowRow = historyWindowRows.at(-offset);
       if (isHistorySettingFiveWindowRow(historyWindowRow)) {
+        return offset;
+      }
+    }
+    return null;
+  })();
+  const daysSinceHistoryRbLight = (() => {
+    for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
+      const historyWindowRow = historyWindowRows.at(-offset);
+      if (isHistoryRbLightWindowRow(historyWindowRow)) {
         return offset;
       }
     }
@@ -7453,6 +7468,7 @@ function calculateWindowMetrics(
     ),
     daysSinceHistoryStrongHighSettingCandidate,
     daysSinceHistorySettingFive,
+    daysSinceHistoryRbLight,
     highSettingStreak: calculateCurrentHighSettingStreak(metricWindowRows),
     highSettingEstimateStreak: calculateCurrentHighSettingEstimateStreak(metricWindowRows),
     highSettingCandidateStreak: calculateCurrentHighSettingCandidateStreak(metricWindowRows),
@@ -7475,6 +7491,7 @@ function calculateWindowMetrics(
     recentFourteenMachineHighContentCount,
     recentTwentyOneMachineHighContentCount,
     recentThirtyMachineHighContentCount,
+    recentTwentyEightRbLightCount,
     adjacentMachineHighContentCount3,
     adjacentMachineHighContentCount3Near2,
     recentSevenMachineGoodContentCount,
