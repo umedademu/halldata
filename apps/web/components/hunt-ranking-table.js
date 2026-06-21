@@ -1874,7 +1874,7 @@ export function HuntRankingTable({
     () => resultColumns.filter((column) => visibleResultKeys.includes(column.key)),
     [resultColumns, visibleResultKeys],
   );
-  const scoreColumnLabel = "狙い度";
+  const scoreColumnLabel = "共通";
   const dateFlowLabel = useMemo(
     () => formatRankingDateFlowLabel(predictionDate, actualDate),
     [actualDate, predictionDate],
