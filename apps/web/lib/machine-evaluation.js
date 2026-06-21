@@ -1818,6 +1818,113 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["gogo-tenjin-neo-aim"],
       ),
       buildCondition(
+        "gogo-tenjin-score75-safe",
+        "75点以上＋危険0",
+        "85件 / 105.15% / RB1/280.1",
+        {
+          minScore: 75,
+          maxDanger: 0,
+          requiredFlags: ["gogoTenjinNeoHistoryReady"],
+        },
+        ["gogo-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "gogo-tenjin-score70-genuine-unpaid",
+        "70点以上＋本物感＋返済未完",
+        "41件 / 104.85% / RB1/267.6",
+        {
+          minScore: 70,
+          requiredFlags: [
+            "gogoTenjinNeoHistoryReady",
+            "gogoTenjinNeoGenuinePrevious",
+            "gogoTenjinNeoUnpaid",
+          ],
+        },
+        ["gogo-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "gogo-tenjin-score75",
+        "75点以上",
+        "93件 / 104.88% / RB1/282.7",
+        {
+          minScore: 75,
+          requiredFlags: ["gogoTenjinNeoHistoryReady"],
+        },
+        ["gogo-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "gogo-tenjin-rank1-gap10",
+        "1位＋次点差10以上",
+        "62件 / 104.32% / RB1/283.3",
+        {
+          rankMax: 1,
+          minNextGap: 10,
+          requiredFlags: ["gogoTenjinNeoHistoryReady"],
+        },
+        ["gogo-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "gogo-tenjin-rank1-gap8",
+        "1位＋次点差8以上",
+        "77件 / 104.08% / RB1/286.5",
+        {
+          rankMax: 1,
+          minNextGap: 8,
+          requiredFlags: ["gogoTenjinNeoHistoryReady"],
+        },
+        ["gogo-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "gogo-tenjin-score70",
+        "70点以上",
+        "195件 / 103.97% / RB1/284.0",
+        {
+          minScore: 70,
+          requiredFlags: ["gogoTenjinNeoHistoryReady"],
+        },
+        ["gogo-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "gogo-tenjin-rank1",
+        "1位",
+        "188件 / 103.79% / RB1/288.6",
+        {
+          rankMax: 1,
+          requiredFlags: ["gogoTenjinNeoHistoryReady"],
+        },
+        ["gogo-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "gogo-tenjin-top2",
+        "上位2台",
+        "376件 / 103.36% / RB1/288.0",
+        {
+          rankMax: 2,
+          requiredFlags: ["gogoTenjinNeoHistoryReady"],
+        },
+        ["gogo-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "gogo-tenjin-top3",
+        "上位3台",
+        "564件 / 102.74% / RB1/289.1",
+        {
+          rankMax: 3,
+          requiredFlags: ["gogoTenjinNeoHistoryReady"],
+        },
+        ["gogo-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "gogo-tenjin-top5",
+        "上位5台",
+        "940件 / 102.31% / RB1/293.2",
+        {
+          rankMax: 5,
+          requiredFlags: ["gogoTenjinNeoHistoryReady"],
+        },
+        ["gogo-tenjin-neo-aim"],
+      ),
+      buildCondition(
         "beam-hikari-main",
         "1位＋80点以上＋次点差5点以上",
         "25件 / 99.91% / RB1/336.2",
@@ -4034,9 +4141,24 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       const gogoTenjinNeoTreatmentDone =
         recentTwentyEightNetTotal >= 4000 ||
         recentTwentyOneNetTotal >= 5000 ||
+        recentFourteenNetTotal >= 4000 ||
         previousDifference >= 2500;
-      const gogoTenjinNeoLowGames = recentFourteenGamesTotal < 30000;
+      const gogoTenjinNeoLowGames = recentFourteenGamesTotal < 30000 || recentTwentyEightGamesTotal < 70000;
       const gogoTenjinNeoOverused = recentFourteenMachineHighContentCount >= 3;
+      const gogoTenjinNeoGenuinePrevious =
+        previousGames >= 3000 &&
+        features.previousRbDenominator <= 300 &&
+        features.previousCombinedDenominator <= 150 &&
+        previousDifference < 1500;
+      const gogoTenjinNeoUnpaid =
+        recentTwentyEightNetTotal <= -3000 &&
+        (recentFourteenMachineHighContentCount >= 1 || previousMachineHighContent);
+      const gogoTenjinNeoLongNeglect =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 14 &&
+        recentFourteenMachineHighContentCount === 0 &&
+        recentTwentyEightNetTotal > -3000;
+      const gogoTenjinNeoBbBiasedOutput = previousDifference >= 2000 && features.previousRbDenominator > 350;
       const boostFlags = [
         gogoTenjinNeoS1,
         gogoTenjinNeoS2,
@@ -4044,11 +4166,15 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         gogoTenjinNeoPreviousRbFail,
         gogoTenjinNeoPreviousCombinedFail,
         gogoTenjinNeoPreviousHighFail,
+        gogoTenjinNeoGenuinePrevious,
+        gogoTenjinNeoUnpaid,
       ];
       const dangerFlags = [
         gogoTenjinNeoTreatmentDone,
         gogoTenjinNeoLowGames,
         gogoTenjinNeoOverused,
+        gogoTenjinNeoLongNeglect,
+        gogoTenjinNeoBbBiasedOutput,
       ];
 
       return {
@@ -4066,6 +4192,10 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         gogoTenjinNeoTreatmentDone,
         gogoTenjinNeoLowGames,
         gogoTenjinNeoOverused,
+        gogoTenjinNeoGenuinePrevious,
+        gogoTenjinNeoUnpaid,
+        gogoTenjinNeoLongNeglect,
+        gogoTenjinNeoBbBiasedOutput,
         treatmentDone: gogoTenjinNeoTreatmentDone,
         lowConfidence: gogoTenjinNeoLowGames,
         boostCount: boostFlags.filter(Boolean).length,
