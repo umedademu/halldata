@@ -1502,6 +1502,92 @@ function readMachineContentRule(config, machineName) {
   return "";
 }
 
+const NEO_AIM_BONUS_SETTING_RATES = [
+  { setting: 1, bb: 1 / 273.1, rb: 1 / 439.8 },
+  { setting: 2, bb: 1 / 269.7, rb: 1 / 399.6 },
+  { setting: 3, bb: 1 / 269.7, rb: 1 / 331.0 },
+  { setting: 4, bb: 1 / 259.0, rb: 1 / 315.1 },
+  { setting: 5, bb: 1 / 259.0, rb: 1 / 255.0 },
+  { setting: 6, bb: 1 / 255.0, rb: 1 / 255.0 },
+];
+
+function calculateLogBinomialProbabilityForHuntScore(successCount, totalCount, probability) {
+  if (
+    totalCount < 0 ||
+    successCount < 0 ||
+    successCount > totalCount ||
+    probability < 0 ||
+    probability > 1
+  ) {
+    return Number.NEGATIVE_INFINITY;
+  }
+  if (totalCount === 0) {
+    return successCount === 0 ? 0 : Number.NEGATIVE_INFINITY;
+  }
+  if (probability === 0) {
+    return successCount === 0 ? 0 : Number.NEGATIVE_INFINITY;
+  }
+  if (probability === 1) {
+    return successCount === totalCount ? 0 : Number.NEGATIVE_INFINITY;
+  }
+
+  const smallerSide = Math.min(successCount, totalCount - successCount);
+  let logCombination = 0;
+  for (let count = 1; count <= smallerSide; count += 1) {
+    logCombination += Math.log(totalCount - smallerSide + count) - Math.log(count);
+  }
+  return (
+    logCombination +
+    successCount * Math.log(probability) +
+    (totalCount - successCount) * Math.log(1 - probability)
+  );
+}
+
+function calculateNeoAimSettingFivePlusProbability(row) {
+  const games = Math.round(readWindowField(row, "games"));
+  const bbCount = Math.round(readWindowField(row, "bbCount"));
+  const rbCount = Math.round(readWindowField(row, "rbCount"));
+
+  if (
+    !Number.isInteger(games) ||
+    !Number.isInteger(bbCount) ||
+    !Number.isInteger(rbCount) ||
+    games <= 0 ||
+    bbCount < 0 ||
+    rbCount < 0 ||
+    bbCount > games ||
+    rbCount > games
+  ) {
+    return null;
+  }
+
+  const logRows = NEO_AIM_BONUS_SETTING_RATES.map((rate) => ({
+    setting: rate.setting,
+    logValue:
+      calculateLogBinomialProbabilityForHuntScore(bbCount, games, rate.bb) +
+      calculateLogBinomialProbabilityForHuntScore(rbCount, games, rate.rb),
+  }));
+  const maxLogValue = Math.max(...logRows.map((rowValue) => rowValue.logValue));
+  if (!Number.isFinite(maxLogValue)) {
+    return null;
+  }
+
+  const weightedRows = logRows.map((rowValue) => ({
+    ...rowValue,
+    weight: Math.exp(rowValue.logValue - maxLogValue),
+  }));
+  const totalWeight = weightedRows.reduce((total, rowValue) => total + rowValue.weight, 0);
+  if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
+    return null;
+  }
+
+  return (
+    weightedRows
+      .filter((rowValue) => rowValue.setting >= 5)
+      .reduce((total, rowValue) => total + rowValue.weight, 0) / totalWeight
+  );
+}
+
 function isMachineHighContentWindowRow(row, machineName, config = null) {
   const normalizedMachineName = normalizeText(machineName);
   const games = readWindowField(row, "games");
@@ -1521,6 +1607,10 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       );
     }
     if (contentRule === "beam-hikari-neo-aim-content") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
       return games >= 3000 && combinedDenominator <= 150 && rbDenominator <= 300;
     }
     if (contentRule === "apark-yakatabaru-neo-aim") {
@@ -1729,6 +1819,14 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       return isMachineHighContentWindowRow(row, machineName, config);
     }
     if (contentRule === "beam-hikari-neo-aim-content") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return (
+          games >= 3000 &&
+          settingFivePlusProbability >= 0.35 &&
+          (rbDenominator <= 330 || combinedDenominator <= 135)
+        );
+      }
       return games >= 3000 && combinedDenominator <= 150 && rbDenominator <= 300;
     }
     if (contentRule === "apark-yakatabaru-neo-aim") {
@@ -1852,6 +1950,10 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "beam-hikari-neo-aim-content"
   ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 4000 && settingFivePlusProbability >= 0.7;
+    }
     return games >= 5000 && combinedDenominator <= 135 && rbDenominator <= 285;
   }
   if (
