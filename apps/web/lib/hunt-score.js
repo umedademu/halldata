@@ -1617,6 +1617,10 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 150;
     }
     if (contentRule === "mj-arena-kurume-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
       return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 135;
     }
     return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
@@ -1833,6 +1837,10 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 150;
     }
     if (contentRule === "mj-arena-kurume-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 2500 && settingFivePlusProbability >= 0.35;
+      }
       return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 135;
     }
     return games >= 5000 && rbDenominator <= 315 && combinedDenominator <= 145;
@@ -1945,6 +1953,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     readMachineContentRule(config, machineName) === "apark-yakatabaru-neo-aim"
   ) {
     return games >= 4000 && combinedDenominator <= 140 && rbDenominator <= 300;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "mj-arena-kurume-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&

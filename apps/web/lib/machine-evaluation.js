@@ -1765,35 +1765,91 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "mj-kurume-main",
-        "1位＋75点以上",
-        "73件 / 105.69% / RB1/260.7",
+        "広め90点",
+        "307件 / 102.37% / RB1/296.9 / p56 34.9%",
         {
-          rankMax: 1,
-          minScore: 75,
+          minScore: 90,
           requiredFlags: ["kurumeNeoHistoryReady"],
         },
         ["mj-kurume-neo-aim"],
       ),
       buildCondition(
-        "mj-kurume-strong",
-        "1位＋75点以上＋次点差8点以上",
-        "50件 / 106.35% / RB1/256.3",
+        "mj-kurume-rank1-boost2",
+        "弱本命1位強化2",
+        "220件 / 102.66% / RB1/286.1 / p56 37.2%",
         {
           rankMax: 1,
-          minScore: 75,
+          minBoost: 2,
+          maxDanger: 0,
+          requiredFlags: ["kurumeNeoHistoryReady"],
+        },
+        ["mj-kurume-neo-aim"],
+      ),
+      buildCondition(
+        "mj-kurume-rank1-gap8-boost2",
+        "本命1位差8強化2",
+        "93件 / 103.19% / RB1/278.0 / p56 39.9%",
+        {
+          rankMax: 1,
           minNextGap: 8,
+          minBoost: 2,
+          maxDanger: 0,
           requiredFlags: ["kurumeNeoHistoryReady"],
         },
         ["mj-kurume-neo-aim"],
       ),
       buildCondition(
-        "mj-kurume-wide",
-        "上位3位以内＋75点以上",
-        "85件 / 104.86% / RB1/266.3",
+        "mj-kurume-nearby-gap8",
+        "強条件1位周辺差8",
+        "53件 / 104.13% / RB1/270.9 / p56 42.2%",
         {
-          rankMax: 3,
+          rankMax: 1,
+          minNextGap: 8,
+          maxDanger: 0,
+          requiredFlags: ["kurumeNeoHistoryReady", "kurumeNeoNearbyLeftBehind"],
+        },
+        ["mj-kurume-neo-aim"],
+      ),
+      buildCondition(
+        "mj-kurume-genuine-3g",
+        "最本命1位本物3G",
+        "29件 / 105.88% / RB1/264.8 / p56 43.7%",
+        {
+          rankMax: 1,
+          maxDanger: 0,
+          requiredFlags: ["kurumeNeoHistoryReady", "kurumeNeoGenuine", "kurumeNeoThreeDayHighGames"],
+        },
+        ["mj-kurume-neo-aim"],
+      ),
+      buildCondition(
+        "mj-kurume-max-sink-losing",
+        "MAX_14沈み+連敗5+1位",
+        "79件 / 103.25% / RB1/259.2 / p56 45.0%",
+        {
+          rankMax: 1,
+          requiredFlags: ["kurumeNeoHistoryReady", "kurumeNeoStrongSink", "kurumeNeoLosingReturn"],
+        },
+        ["mj-kurume-neo-aim"],
+      ),
+      buildCondition(
+        "mj-kurume-max-cluster75",
+        "MAX_クラスタ未払い+75+危険0",
+        "97件 / 104.93% / RB1/274.0 / p56 41.2%",
+        {
           minScore: 75,
-          requiredFlags: ["kurumeNeoHistoryReady"],
+          maxDanger: 0,
+          requiredFlags: ["kurumeNeoHistoryReady", "kurumeNeoClusterUnpaid"],
+        },
+        ["mj-kurume-neo-aim"],
+      ),
+      buildCondition(
+        "mj-kurume-max-sink-gap15",
+        "MAX_14沈み+次点差15",
+        "52件 / 104.53% / RB1/266.8 / p56 43.2%",
+        {
+          rankMax: 1,
+          minNextGap: 15,
+          requiredFlags: ["kurumeNeoHistoryReady", "kurumeNeoStrongSink"],
         },
         ["mj-kurume-neo-aim"],
       ),
@@ -4432,73 +4488,119 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
     }
 
     if (activeLogicKey === "mj-kurume-neo-aim") {
-      const kurumeNeoHistoryReady = historyRowCount >= 14;
-      const recentTwentyOneRbDenominator = rateDenominator(
-        readNumber(metrics.recentTwentyOneGamesTotal),
-        readNumber(metrics.recentTwentyOneRbTotal),
-      );
-      const kurumeNeoSinkStayStrong =
-        recentFourteenMinus1800StayDays >= 7 ||
-        recentTwentyOneMinus2000StayDays >= 7 ||
-        recentFiveNetTotal <= -2000;
-      const kurumeNeoStrongAngle =
-        features.recentTwentyOneAngle <= -50 ||
-        features.recentSevenAngle <= -150 ||
-        features.recentFourteenAngle <= -50;
+      const kurumeNeoHistoryReady = targetRangeHistoryRowCount >= 14;
+      const kurumeNeoStrongSink =
+        recentTwentyEightNetTotal <= -5000 ||
+        recentTwentyOneNetTotal <= -3000 ||
+        recentFourteenNetTotal <= -4000;
+      const kurumeNeoSinkStay =
+        recentSevenLossDays >= 7 ||
+        recentFourteenLossDays >= 12 ||
+        recentFourteenMinus2000StayDays >= 10 ||
+        (streak >= 4 && recentFourteenNetTotal <= -1500);
+      const kurumeNeoLosingReturn = streak >= 5 && recentFourteenNetTotal <= -1500 && recentFourteenGamesTotal >= 15000;
+      const kurumeNeoPreviousHighUnpaid =
+        previousGames >= 3000 && previousMachineHighContent && previousDifference < 500;
+      const kurumeNeoPreviousStrongHighUnpaid =
+        previousGames >= 3000 && previousMachineStrongHighContent && previousDifference < 500;
+      const kurumeNeoGenuineBonus =
+        previousGames >= 3000 &&
+        features.previousRbDenominator <= 300 &&
+        features.previousCombinedDenominator <= 140;
+      const kurumeNeoRecentGenuine = recentThreeMachineHighContentCount >= 2 || recentSevenMachineHighContentCount >= 3;
       const kurumeNeoGenuine =
-        (recentFourteenNetTotal <= 0 && features.recentFourteenRbDenominator <= 300) ||
-        (recentTwentyOneNetTotal <= 0 && recentTwentyOneRbDenominator <= 320);
-      const kurumeNeoUnpaid =
-        (previousDifference >= 1200 && recentTwentyOneNetTotal <= 1000) ||
-        (previousDifference >= 800 && recentTwentyOneNetTotal <= 0);
-      const kurumeNeoTrustedGames = recentFiveGamesTotal >= 10000 && recentFourteenGamesTotal >= 30000;
-      const kurumeNeoTreatmentDone =
-        recentFourteenNetTotal >= 3000 ||
-        recentSevenNetTotal >= 3000 ||
-        recentTwentyOneNetTotal >= 3000;
-      const kurumeNeoLowGameSink = recentFiveGamesTotal < 8000 && recentFourteenGamesTotal < 25000;
-      const kurumeNeoLongNeglect =
+        kurumeNeoPreviousHighUnpaid || kurumeNeoPreviousStrongHighUnpaid || kurumeNeoGenuineBonus || kurumeNeoRecentGenuine;
+      const kurumeNeoThreeDayHighGames = recentThreeGamesTotal >= 12000;
+      const kurumeNeoGamesTrusted =
+        recentThreeGamesTotal >= 10500 ||
+        (recentFourteenGamesTotal >= 18000 && recentFourteenGamesTotal <= 45000);
+      const kurumeNeoNearbyLeftBehind =
+        adjacentMachineHighContentCount7 >= 2 && recentSevenMachineHighContentCount <= 1 && recentFourteenNetTotal <= 0;
+      const kurumeNeoClusterUnpaid =
+        recentFourteenMachineHighContentCount >= 3 &&
+        recentFourteenMachineHighContentCount <= 5 &&
+        recentFourteenNetTotal <= 0;
+      const kurumeNeoRecentHighUnpaid = recentSevenMachineHighContentCount >= 2 && recentFourteenNetTotal <= 0;
+      const kurumeNeoPostHighUnpaid =
         Number.isFinite(daysSinceMachineHighContent) &&
-        daysSinceMachineHighContent > 21 &&
-        recentFourteenNetTotal > -1000 &&
-        streak < 3;
+        daysSinceMachineHighContent >= 1 &&
+        daysSinceMachineHighContent <= 3 &&
+        recentFourteenNetTotal <= 0;
+      const kurumeNeoRotationReturn =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 14 &&
+        daysSinceMachineHighContent <= 21 &&
+        recentTwentyOneNetTotal <= 0;
+      const kurumeNeoStrongRotationReturn =
+        Number.isFinite(daysSinceMachineStrongHighContent) &&
+        daysSinceMachineStrongHighContent >= 28 &&
+        recentTwentyEightNetTotal <= 0;
+      const kurumeNeoTreatmentDone =
+        recentTwentyOneNetTotal >= 5000 || recentFourteenNetTotal >= 4000 || recentSevenNetTotal >= 3000;
+      const kurumeNeoPreviousHighOutput =
+        previousGames >= 3000 && previousMachineHighContent && previousDifference >= 1500;
+      const kurumeNeoOverheated =
+        recentTwentyEightNetTotal >= 4000 || (recentFourteenLossDays <= 4 && recentFourteenNetTotal >= 1000);
+      const kurumeNeoLowEvidence =
+        (recentThreeMachineHighContentCount === 0 && recentFourteenNetTotal > -1000) ||
+        (recentFourteenGamesTotal < 8000 && recentFourteenNetTotal > -2000);
       const kurumeNeoBbOnly =
         previousDifference >= 1000 &&
-        features.previousRbDenominator >= 400 &&
-        features.previousCombinedDenominator >= 150;
-      const kurumeNeoRecentShowWeak =
-        recentSevenNetTotal >= 2000 &&
-        features.recentSevenRbDenominator >= 360;
+        !previousMachineHighContent &&
+        features.previousRbDenominator >= 400;
+      const kurumeNeoNearbyLead = previousAdjacentMachineHighContentCount >= 2;
       const boostFlags = [
-        kurumeNeoSinkStayStrong,
-        kurumeNeoStrongAngle,
-        kurumeNeoGenuine,
-        kurumeNeoUnpaid,
-        kurumeNeoTrustedGames,
+        kurumeNeoStrongSink,
+        kurumeNeoSinkStay,
+        kurumeNeoLosingReturn,
+        kurumeNeoPreviousHighUnpaid,
+        kurumeNeoPreviousStrongHighUnpaid,
+        kurumeNeoGenuineBonus,
+        kurumeNeoRecentGenuine,
+        kurumeNeoGamesTrusted,
+        kurumeNeoNearbyLeftBehind,
+        kurumeNeoClusterUnpaid,
+        kurumeNeoRecentHighUnpaid,
+        kurumeNeoPostHighUnpaid,
+        kurumeNeoRotationReturn,
+        kurumeNeoStrongRotationReturn,
       ];
       const dangerFlags = [
         kurumeNeoTreatmentDone,
-        kurumeNeoLowGameSink,
-        kurumeNeoLongNeglect,
+        kurumeNeoPreviousHighOutput,
+        kurumeNeoOverheated,
+        kurumeNeoLowEvidence,
         kurumeNeoBbOnly,
-        kurumeNeoRecentShowWeak,
+        kurumeNeoNearbyLead,
       ];
 
       return {
         ...features,
         kurumeNeoHistoryReady,
-        kurumeNeoSinkStayStrong,
-        kurumeNeoStrongAngle,
+        kurumeNeoStrongSink,
+        kurumeNeoSinkStay,
+        kurumeNeoLosingReturn,
+        kurumeNeoPreviousHighUnpaid,
+        kurumeNeoPreviousStrongHighUnpaid,
+        kurumeNeoGenuineBonus,
+        kurumeNeoRecentGenuine,
         kurumeNeoGenuine,
-        kurumeNeoUnpaid,
-        kurumeNeoTrustedGames,
+        kurumeNeoThreeDayHighGames,
+        kurumeNeoGamesTrusted,
+        kurumeNeoNearbyLeftBehind,
+        kurumeNeoClusterUnpaid,
+        kurumeNeoRecentHighUnpaid,
+        kurumeNeoPostHighUnpaid,
+        kurumeNeoRotationReturn,
+        kurumeNeoStrongRotationReturn,
         kurumeNeoTreatmentDone,
-        kurumeNeoLowGameSink,
-        kurumeNeoLongNeglect,
+        kurumeNeoPreviousHighOutput,
+        kurumeNeoOverheated,
+        kurumeNeoLowEvidence,
         kurumeNeoBbOnly,
-        kurumeNeoRecentShowWeak,
+        kurumeNeoNearbyLead,
         treatmentDone: kurumeNeoTreatmentDone,
-        lowConfidence: kurumeNeoLowGameSink,
+        lowConfidence: kurumeNeoLowEvidence,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -7636,110 +7738,106 @@ function calculateMachineScore(definition, metrics, features) {
     }
 
     if (activeLogicKey === "mj-kurume-neo-aim") {
-      const recentTwentyOneRbDenominator = rateDenominator(
-        recentTwentyOneGamesTotal,
-        readNumber(metrics.recentTwentyOneRbTotal),
-      );
-
       let sinkScore = 0;
-      sinkScore += scoreAtMost(recentFiveNetTotal, [
-        { maximum: -2000, points: 18 },
-        { maximum: -1500, points: 12 },
-        { maximum: -1000, points: 8 },
-        { maximum: -500, points: 4 },
-      ]);
-      sinkScore += scoreAtMost(recentFourteenNetTotal, [
-        { maximum: -2000, points: 14 },
-        { maximum: -1000, points: 10 },
-        { maximum: 0, points: 6 },
+      sinkScore += scoreAtMost(recentTwentyEightNetTotal, [
+        { maximum: -5000, points: 16 },
+        { maximum: -4000, points: 12 },
+        { maximum: -3000, points: 8 },
+        { maximum: 0, points: 3 },
       ]);
       sinkScore += scoreAtMost(recentTwentyOneNetTotal, [
         { maximum: -3000, points: 10 },
-        { maximum: -2000, points: 8 },
-        { maximum: 0, points: 4 },
+        { maximum: -2000, points: 7 },
+        { maximum: 0, points: 3 },
+      ]);
+      sinkScore += scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -4000, points: 8 },
+        { maximum: -2000, points: 6 },
+        { maximum: -1000, points: 4 },
+        { maximum: 0, points: 2 },
+      ]);
+      sinkScore += scoreAtMost(recentFiveNetTotal, [
+        { maximum: -3000, points: 6 },
+        { maximum: -2000, points: 4 },
+        { maximum: -1000, points: 2 },
       ]);
       sinkScore = Math.min(sinkScore, 35);
 
-      let angleScore = 0;
-      angleScore += scoreAtMost(features.recentSevenAngle, [
-        { maximum: -150, points: 7 },
-        { maximum: -100, points: 5 },
-        { maximum: -50, points: 3 },
-      ]);
-      angleScore += scoreAtMost(features.recentFourteenAngle, [
-        { maximum: -50, points: 6 },
-        { maximum: 0, points: 3 },
-      ]);
-      angleScore += scoreAtMost(features.recentTwentyOneAngle, [
-        { maximum: -50, points: 6 },
-        { maximum: 0, points: 3 },
-      ]);
-      angleScore = Math.min(angleScore, 15);
+      let stayScore = 0;
+      stayScore += recentSevenLossDays >= 7 ? 14 : 0;
+      stayScore +=
+        recentFourteenLossDays >= 12
+          ? 10
+          : recentFourteenLossDays >= 11
+            ? 7
+            : recentFourteenLossDays >= 10
+              ? 4
+              : 0;
+      stayScore += recentFourteenMinus2000StayDays >= 10 ? 4 : 0;
+      stayScore += streak >= 4 ? 4 : streak === 3 ? 3 : streak === 2 ? 1 : 0;
+      stayScore = Math.min(stayScore, 22);
 
       let genuineScore = 0;
-      genuineScore +=
-        recentFourteenNetTotal <= 0 && features.recentFourteenRbDenominator <= 300
-          ? 12
-          : recentFourteenNetTotal <= 0 && features.recentFourteenRbDenominator <= 340
-            ? 8
-            : 0;
-      genuineScore +=
-        recentTwentyOneNetTotal <= 0 && recentTwentyOneRbDenominator <= 320
-          ? 8
-          : recentTwentyOneNetTotal <= 0 && recentTwentyOneRbDenominator <= 340
-            ? 5
-            : 0;
-      genuineScore +=
-        previousDifference >= 1200 && recentTwentyOneNetTotal <= 1000
-          ? 8
-          : previousDifference >= 800 && recentTwentyOneNetTotal <= 0
-            ? 6
-            : 0;
-      genuineScore += previousMachineHighContent && previousDifference <= 1500 ? 4 : 0;
-      genuineScore = Math.min(genuineScore, 25);
+      genuineScore += previousMachineStrongHighContent && previousGames >= 3000 && previousDifference < 500 ? 14 : 0;
+      genuineScore += previousMachineHighContent && previousGames >= 3000 && previousDifference < 0 ? 10 : 0;
+      genuineScore += previousMachineHighContent && previousGames >= 3000 && previousDifference < 500 ? 6 : 0;
+      genuineScore += previousGames >= 3000 && previousRbDenominator <= 300 && previousCombinedDenominator <= 140 ? 6 : 0;
+      genuineScore += recentThreeMachineHighContentCount >= 2 ? 5 : recentThreeMachineHighContentCount >= 1 ? 4 : 0;
+      genuineScore += recentSevenMachineHighContentCount >= 3 ? 3 : 0;
+      genuineScore = Math.min(genuineScore, 22);
 
       let gamesScore = 0;
-      gamesScore += recentFiveGamesTotal >= 10000 ? 4 : recentFiveGamesTotal >= 8000 ? 2 : 0;
-      gamesScore += recentFourteenGamesTotal >= 30000 ? 4 : recentFourteenGamesTotal >= 25000 ? 2 : 0;
-      gamesScore += previousGames >= 1500 ? 2 : 0;
+      gamesScore += recentThreeGamesTotal >= 12000 ? 4 : recentThreeGamesTotal >= 10500 ? 2 : 0;
+      gamesScore += recentFourteenGamesTotal >= 18000 && recentFourteenGamesTotal <= 45000 ? 3 : 0;
+      gamesScore += adjacentMachineHighContentCount7 >= 2 && recentSevenMachineHighContentCount <= 1 ? 3 : 0;
       gamesScore = Math.min(gamesScore, 10);
 
       let rotationScore = 0;
-      rotationScore += scoreAtLeast(streak, [
-        { minimum: 7, points: 12 },
-        { minimum: 5, points: 9 },
-        { minimum: 4, points: 6 },
-        { minimum: 3, points: 4 },
-      ]);
-      rotationScore += recentFourteenMachineHighContentCount === 0 ? 4 : 0;
-      rotationScore += scoreInRange(daysSinceMachineHighContent, 15, 20, 4);
       rotationScore +=
         Number.isFinite(daysSinceMachineHighContent) &&
-        daysSinceMachineHighContent > 21 &&
-        recentFourteenNetTotal <= -1000
-          ? 2
+        daysSinceMachineHighContent >= 14 &&
+        daysSinceMachineHighContent <= 21 &&
+        recentTwentyOneNetTotal <= 0
+          ? 4
           : 0;
-      rotationScore = Math.min(rotationScore, 15);
+      rotationScore +=
+        Number.isFinite(daysSinceMachineStrongHighContent) &&
+        daysSinceMachineStrongHighContent >= 28 &&
+        recentTwentyEightNetTotal <= 0
+          ? 3
+          : 0;
+      rotationScore += recentFourteenMachineHighContentCount >= 3 && recentFourteenMachineHighContentCount <= 5 ? 2 : 0;
+      rotationScore = Math.min(rotationScore, 6);
+
+      let nearbyScore = 0;
+      nearbyScore += adjacentMachineHighContentCount7 >= 2 && recentFourteenNetTotal <= 0 ? 5 : 0;
+      nearbyScore += previousAdjacentMachineHighContentCount >= 1 && recentSevenNetTotal <= 0 ? 2 : 0;
+      nearbyScore = Math.min(nearbyScore, 5);
 
       let penalty = 0;
-      penalty += scoreAtLeast(recentFourteenNetTotal, [
-        { minimum: 4700, points: 14 },
-        { minimum: 3000, points: 8 },
-        { minimum: 2000, points: 5 },
-      ]);
-      penalty += scoreAtLeast(recentSevenNetTotal, [
-        { minimum: 3000, points: 8 },
-        { minimum: 2000, points: 5 },
-      ]);
-      penalty += scoreAtLeast(recentTwentyOneNetTotal, [
-        { minimum: 3000, points: 6 },
-        { minimum: 1500, points: 3 },
-      ]);
-      penalty += features.recentSevenAngle >= 100 ? 5 : 0;
-      penalty += recentFiveGamesTotal < 8000 && sinkScore >= 20 ? 5 : 0;
-      penalty = Math.min(penalty, 25);
+      penalty += scoreAtLeast(recentTwentyOneNetTotal, [{ minimum: 5000, points: 18 }]);
+      penalty += scoreAtLeast(recentFourteenNetTotal, [{ minimum: 4000, points: 14 }]);
+      penalty += scoreAtLeast(recentSevenNetTotal, [{ minimum: 3000, points: 10 }]);
+      penalty += previousMachineHighContent && previousGames >= 3000 && previousDifference >= 1500 ? 12 : 0;
+      penalty += previousDifference >= 2500 ? 8 : 0;
+      penalty +=
+        recentTwentyEightNetTotal >= 4000 || (recentFourteenLossDays <= 4 && recentFourteenNetTotal >= 1000)
+          ? 8
+          : 0;
+      penalty += recentThreeMachineHighContentCount === 0 && recentFourteenNetTotal > -1000 ? 8 : 0;
+      penalty += recentFourteenGamesTotal < 8000 && recentFourteenNetTotal > -2000 ? 6 : 0;
+      penalty += previousDifference >= 1000 && !previousMachineHighContent && previousRbDenominator >= 400 ? 6 : 0;
+      penalty += previousAdjacentMachineHighContentCount >= 2 ? 5 : 0;
+      penalty = Math.min(penalty, 35);
 
-      return Math.round(clamp(sinkScore + angleScore + genuineScore + gamesScore + rotationScore - penalty, 0, 100));
+      const rawScore =
+        45 + sinkScore + stayScore + genuineScore + gamesScore + rotationScore + nearbyScore - penalty;
+      const cappedScore =
+        targetRangeHistoryRowCount < 7 ? Math.min(rawScore, 40) :
+        targetRangeHistoryRowCount < 14 ? Math.min(rawScore, 55) :
+        rawScore;
+
+      return Math.round(clamp(cappedScore, 0, 100));
     }
 
     let sinkScore = 0;
