@@ -131,6 +131,18 @@ FETCH_SOURCE_OPTIONS = (
     FETCH_SOURCE_SITE7,
     FETCH_SOURCE_BOTH,
 )
+SITE7_MACHINE_SOURCE_GROUPS = (
+    FETCH_SOURCE_BOTH,
+    FETCH_SOURCE_SITE7,
+)
+SITE7_MACHINE_SOURCE_GROUP_TITLES = {
+    FETCH_SOURCE_BOTH: "取得元が両方の店舗",
+    FETCH_SOURCE_SITE7: "取得元がサイセのみの店舗",
+}
+SITE7_MACHINE_SOURCE_GROUP_HELP = {
+    FETCH_SOURCE_BOTH: "登録店舗の取得元が両方の店舗に使います。",
+    FETCH_SOURCE_SITE7: "登録店舗の取得元がサイセの店舗に使います。",
+}
 T = TypeVar("T")
 
 
@@ -343,6 +355,13 @@ def normalize_fetch_source(value: object, default: str = FETCH_SOURCE_MINREPO) -
     if text in FETCH_SOURCE_OPTIONS:
         return text
     return default if default in FETCH_SOURCE_OPTIONS else FETCH_SOURCE_MINREPO
+
+
+def site7_machine_source_group(fetch_source: object) -> str:
+    normalized_source = normalize_fetch_source(fetch_source, FETCH_SOURCE_BOTH)
+    if normalized_source == FETCH_SOURCE_SITE7:
+        return FETCH_SOURCE_SITE7
+    return FETCH_SOURCE_BOTH
 
 
 def normalize_fetch_order(value: object) -> int | None:
@@ -891,7 +910,7 @@ class MinRepoApp:
         self.web_publish_interval_days = self._load_saved_web_publish_interval_days()
         self.site7_browser_mode: str = self._load_saved_site7_browser_mode()
         self.site7_target_machine_names = tuple(list_site7_target_machine_names())
-        self.site7_enabled_machine_names = self._load_saved_site7_enabled_machine_names()
+        self.site7_enabled_machine_names_by_source = self._load_saved_site7_enabled_machine_names_by_source()
         self.site7_schedule_enabled = self._load_saved_site7_schedule_enabled()
         self.site7_schedule_hours = self._load_saved_site7_schedule_hours()
         self.site7_schedule_last_run_dates_by_hour = self._load_saved_site7_schedule_run_dates()
@@ -957,9 +976,14 @@ class MinRepoApp:
         self.registered_store_filter_var = tk.StringVar()
         self.registered_store_filter_status_var = tk.StringVar()
         self.site7_browser_mode_var = tk.StringVar(value=self.site7_browser_mode)
-        self.site7_machine_enabled_vars = {
-            machine_name: tk.BooleanVar(value=machine_name in self.site7_enabled_machine_names)
-            for machine_name in self.site7_target_machine_names
+        self.site7_machine_enabled_vars_by_source = {
+            source_group: {
+                machine_name: tk.BooleanVar(
+                    value=machine_name in self.site7_enabled_machine_names_by_source.get(source_group, set())
+                )
+                for machine_name in self.site7_target_machine_names
+            }
+            for source_group in SITE7_MACHINE_SOURCE_GROUPS
         }
         self.site7_machine_settings_status_var = tk.StringVar(value=self._site7_machine_settings_status_text())
         self.site7_status_var = tk.StringVar(
@@ -1673,57 +1697,124 @@ class MinRepoApp:
     def _save_site7_browser_mode(self, browser_mode: str) -> None:
         self._save_gui_settings(site7_browser_mode=normalize_site7_browser_mode(browser_mode))
 
-    def _load_saved_site7_enabled_machine_names(self) -> set[str]:
+    def _load_saved_site7_enabled_machine_names_by_source(self) -> dict[str, set[str]]:
         try:
             payload = self._load_gui_settings()
         except Exception:  # noqa: BLE001
-            return set(self.site7_target_machine_names)
-        return normalize_site7_enabled_machine_names(
+            return {
+                source_group: set(self.site7_target_machine_names)
+                for source_group in SITE7_MACHINE_SOURCE_GROUPS
+            }
+
+        legacy_enabled_machine_names = normalize_site7_enabled_machine_names(
             payload.get("site7_enabled_machine_names", list(self.site7_target_machine_names)),
             self.site7_target_machine_names,
         )
+        source_payload = payload.get("site7_enabled_machine_names_by_source")
+        enabled_names_by_source: dict[str, set[str]] = {}
+        for source_group in SITE7_MACHINE_SOURCE_GROUPS:
+            if isinstance(source_payload, dict) and source_group in source_payload:
+                raw_machine_names = source_payload.get(source_group)
+            else:
+                raw_machine_names = list(legacy_enabled_machine_names)
+            enabled_names_by_source[source_group] = normalize_site7_enabled_machine_names(
+                raw_machine_names,
+                self.site7_target_machine_names,
+            )
+        return enabled_names_by_source
 
     def _save_site7_enabled_machine_names(self) -> None:
-        self._save_gui_settings(
-            site7_enabled_machine_names=sorted(
-                self.site7_enabled_machine_names,
+        source_payload = {
+            source_group: sorted(
+                self.site7_enabled_machine_names_by_source.get(source_group, set()),
                 key=normalize_text,
             )
+            for source_group in SITE7_MACHINE_SOURCE_GROUPS
+        }
+        legacy_machine_names = sorted(
+            {
+                machine_name
+                for enabled_machine_names in source_payload.values()
+                for machine_name in enabled_machine_names
+            },
+            key=normalize_text,
+        )
+        self._save_gui_settings(
+            site7_enabled_machine_names=legacy_machine_names,
+            site7_enabled_machine_names_by_source=source_payload,
         )
 
-    def _current_site7_enabled_machine_names(self) -> set[str]:
-        if not hasattr(self, "site7_machine_enabled_vars"):
-            return set(getattr(self, "site7_enabled_machine_names", set()))
+    def _current_site7_enabled_machine_names(self, source_group: str) -> set[str]:
+        normalized_source_group = site7_machine_source_group(source_group)
+        if not hasattr(self, "site7_machine_enabled_vars_by_source"):
+            return set(
+                getattr(self, "site7_enabled_machine_names_by_source", {}).get(
+                    normalized_source_group,
+                    set(),
+                )
+            )
         return {
             machine_name
-            for machine_name, enabled_var in self.site7_machine_enabled_vars.items()
+            for machine_name, enabled_var in self.site7_machine_enabled_vars_by_source.get(
+                normalized_source_group,
+                {},
+            ).items()
             if enabled_var.get()
         }
 
-    def _site7_enabled_machine_names_for_fetch(self) -> set[str] | None:
+    def _site7_enabled_machine_names_for_fetch(self, registered_store: RegisteredStore | None = None) -> set[str] | None:
         if not hasattr(self, "site7_target_machine_names"):
             return None
-        enabled_machine_names = set(getattr(self, "site7_enabled_machine_names", set(self.site7_target_machine_names)))
+        source_group = site7_machine_source_group(
+            registered_store.fetch_source if registered_store is not None else FETCH_SOURCE_BOTH
+        )
+        enabled_machine_names = set(
+            getattr(self, "site7_enabled_machine_names_by_source", {}).get(
+                source_group,
+                set(self.site7_target_machine_names),
+            )
+        )
         if enabled_machine_names == set(self.site7_target_machine_names):
             return None
         return enabled_machine_names
 
-    def _site7_has_enabled_target_machines(self) -> bool:
+    def _site7_has_enabled_target_machines(self, target_stores: list[RegisteredStore] | None = None) -> bool:
         if not hasattr(self, "site7_target_machine_names"):
             return True
-        return bool(getattr(self, "site7_enabled_machine_names", set(self.site7_target_machine_names)))
+        enabled_by_source = getattr(self, "site7_enabled_machine_names_by_source", {})
+        if target_stores is None:
+            source_groups = SITE7_MACHINE_SOURCE_GROUPS
+        else:
+            source_groups = tuple(
+                sorted(
+                    {
+                        site7_machine_source_group(registered_store.fetch_source)
+                        for registered_store in target_stores
+                    },
+                    key=lambda source_group: SITE7_MACHINE_SOURCE_GROUPS.index(source_group),
+                )
+            )
+        return any(bool(enabled_by_source.get(source_group, set())) for source_group in source_groups)
 
     def _site7_machine_settings_status_text(self) -> str:
-        enabled_count = len(getattr(self, "site7_enabled_machine_names", set()))
         total_count = len(getattr(self, "site7_target_machine_names", ()))
-        return f"{enabled_count}/{total_count} 機種を取得対象にしています"
+        enabled_by_source = getattr(self, "site7_enabled_machine_names_by_source", {})
+        parts = []
+        for source_group in SITE7_MACHINE_SOURCE_GROUPS:
+            source_label = "両方" if source_group == FETCH_SOURCE_BOTH else "サイセのみ"
+            enabled_count = len(enabled_by_source.get(source_group, set()))
+            parts.append(f"{source_label} {enabled_count}/{total_count}")
+        return "、".join(parts) + " 機種を取得対象にしています"
 
     def _update_site7_machine_settings_status(self) -> None:
         if hasattr(self, "site7_machine_settings_status_var"):
             self.site7_machine_settings_status_var.set(self._site7_machine_settings_status_text())
 
-    def _on_site7_machine_setting_changed(self) -> None:
-        self.site7_enabled_machine_names = self._current_site7_enabled_machine_names()
+    def _on_site7_machine_setting_changed(self, source_group: str) -> None:
+        normalized_source_group = site7_machine_source_group(source_group)
+        self.site7_enabled_machine_names_by_source[normalized_source_group] = (
+            self._current_site7_enabled_machine_names(normalized_source_group)
+        )
         try:
             self._save_site7_enabled_machine_names()
             self._update_site7_machine_settings_status()
@@ -1731,15 +1822,17 @@ class MinRepoApp:
             self.site7_machine_settings_status_var.set(f"保存に失敗しました: {exc}")
         self._update_button_states()
 
-    def _select_all_site7_target_machines(self) -> None:
-        for enabled_var in self.site7_machine_enabled_vars.values():
+    def _select_all_site7_target_machines(self, source_group: str) -> None:
+        normalized_source_group = site7_machine_source_group(source_group)
+        for enabled_var in self.site7_machine_enabled_vars_by_source.get(normalized_source_group, {}).values():
             enabled_var.set(True)
-        self._on_site7_machine_setting_changed()
+        self._on_site7_machine_setting_changed(normalized_source_group)
 
-    def _clear_site7_target_machines(self) -> None:
-        for enabled_var in self.site7_machine_enabled_vars.values():
+    def _clear_site7_target_machines(self, source_group: str) -> None:
+        normalized_source_group = site7_machine_source_group(source_group)
+        for enabled_var in self.site7_machine_enabled_vars_by_source.get(normalized_source_group, {}).values():
             enabled_var.set(False)
-        self._on_site7_machine_setting_changed()
+        self._on_site7_machine_setting_changed(normalized_source_group)
 
     def _load_saved_site7_schedule_hours(self) -> tuple[int, ...]:
         try:
@@ -2350,50 +2443,69 @@ class MinRepoApp:
             guide,
             text=(
                 "サイトセブン取得で読む機種を選びます。"
-                "この設定は全店舗共通で使い、チェックを外した機種はサイトセブン取得時に開きません。"
+                "取得元が両方の店舗と、サイセのみの店舗で別々に使います。"
+                "チェックを外した機種は、対応する店舗のサイトセブン取得時に開きません。"
             ),
             wraplength=900,
             justify="left",
         ).grid(row=0, column=0, sticky="w")
 
-        action_row = ttk.Frame(tab)
-        action_row.grid(row=1, column=0, sticky="w", pady=(12, 0))
-        self.select_all_site7_machines_button = ttk.Button(
-            action_row,
-            text="全選択",
-            command=self._select_all_site7_target_machines,
-        )
-        self.select_all_site7_machines_button.grid(row=0, column=0, sticky="w")
-        self.clear_site7_machines_button = ttk.Button(
-            action_row,
-            text="全解除",
-            command=self._clear_site7_target_machines,
-        )
-        self.clear_site7_machines_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
-        ttk.Label(action_row, textvariable=self.site7_machine_settings_status_var).grid(
-            row=0,
-            column=2,
+        ttk.Label(tab, textvariable=self.site7_machine_settings_status_var).grid(
+            row=1,
+            column=0,
             sticky="w",
-            padx=(12, 0),
+            pady=(12, 0),
         )
 
-        machine_frame = ttk.LabelFrame(tab, text="取得する機種", padding=12)
-        machine_frame.grid(row=2, column=0, sticky="nsew", pady=(12, 0))
-        for column_index in range(3):
-            machine_frame.columnconfigure(column_index, weight=1)
+        machine_container = ttk.Frame(tab)
+        machine_container.grid(row=2, column=0, sticky="nsew", pady=(12, 0))
+        machine_container.columnconfigure(0, weight=1)
 
-        self.site7_machine_checkbuttons: dict[str, ttk.Checkbutton] = {}
-        for index, machine_name in enumerate(self.site7_target_machine_names):
-            row_index = index // 3
-            column_index = index % 3
-            checkbutton = ttk.Checkbutton(
-                machine_frame,
-                text=machine_name,
-                variable=self.site7_machine_enabled_vars[machine_name],
-                command=self._on_site7_machine_setting_changed,
+        self.site7_machine_checkbuttons: dict[tuple[str, str], ttk.Checkbutton] = {}
+        self.site7_machine_action_buttons: list[ttk.Button] = []
+        for group_index, source_group in enumerate(SITE7_MACHINE_SOURCE_GROUPS):
+            machine_frame = ttk.LabelFrame(
+                machine_container,
+                text=SITE7_MACHINE_SOURCE_GROUP_TITLES[source_group],
+                padding=12,
             )
-            checkbutton.grid(row=row_index, column=column_index, sticky="w", padx=(0, 24), pady=3)
-            self.site7_machine_checkbuttons[machine_name] = checkbutton
+            machine_frame.grid(row=group_index, column=0, sticky="ew", pady=(0 if group_index == 0 else 12, 0))
+            for column_index in range(3):
+                machine_frame.columnconfigure(column_index, weight=1)
+
+            ttk.Label(
+                machine_frame,
+                text=SITE7_MACHINE_SOURCE_GROUP_HELP[source_group],
+                justify="left",
+            ).grid(row=0, column=0, columnspan=3, sticky="w")
+
+            action_row = ttk.Frame(machine_frame)
+            action_row.grid(row=1, column=0, columnspan=3, sticky="w", pady=(8, 6))
+            select_button = ttk.Button(
+                action_row,
+                text="全選択",
+                command=lambda source_group=source_group: self._select_all_site7_target_machines(source_group),
+            )
+            select_button.grid(row=0, column=0, sticky="w")
+            clear_button = ttk.Button(
+                action_row,
+                text="全解除",
+                command=lambda source_group=source_group: self._clear_site7_target_machines(source_group),
+            )
+            clear_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
+            self.site7_machine_action_buttons.extend([select_button, clear_button])
+
+            for index, machine_name in enumerate(self.site7_target_machine_names):
+                row_index = 2 + index // 3
+                column_index = index % 3
+                checkbutton = ttk.Checkbutton(
+                    machine_frame,
+                    text=machine_name,
+                    variable=self.site7_machine_enabled_vars_by_source[source_group][machine_name],
+                    command=lambda source_group=source_group: self._on_site7_machine_setting_changed(source_group),
+                )
+                checkbutton.grid(row=row_index, column=column_index, sticky="w", padx=(0, 24), pady=3)
+                self.site7_machine_checkbuttons[(source_group, machine_name)] = checkbutton
 
     def _build_register_tab(self, register_tab: ttk.Frame) -> None:
         guide = ttk.LabelFrame(register_tab, text="案内", padding=12)
@@ -2781,6 +2893,9 @@ class MinRepoApp:
             if not target_stores:
                 self.result_queue.put(("scheduled_site7_fetch_skipped", registered_stores))
                 return
+            if not self._site7_has_enabled_target_machines(target_stores):
+                self.result_queue.put(("scheduled_site7_fetch_skipped", registered_stores))
+                return
 
             checked_at = datetime.now(JST)
             target_stores, waiting_store_urls, site7_updated_at_by_store_url = self._filter_scheduled_site7_stores_by_update_time(
@@ -2804,6 +2919,9 @@ class MinRepoApp:
                         ),
                     )
                 )
+                return
+            if not self._site7_has_enabled_target_machines(target_stores):
+                self.result_queue.put(("scheduled_site7_fetch_skipped", registered_stores))
                 return
 
             fetch_many_result = self._run_site7_fetch_many(
@@ -3159,8 +3277,8 @@ class MinRepoApp:
         if not target_stores:
             messagebox.showwarning("入力不足", "登録店舗タブで取得元にサイセを含む店舗を1つ以上用意してください。")
             return
-        if not self._site7_has_enabled_target_machines():
-            messagebox.showwarning("入力不足", "サイトセブン取得機種タブで取得する機種を1つ以上選択してください。")
+        if not self._site7_has_enabled_target_machines(target_stores):
+            messagebox.showwarning("入力不足", "対象店舗の取得元に対応するサイトセブン取得機種を1つ以上選択してください。")
             return
 
         self._begin_fetch_run(
@@ -3204,8 +3322,8 @@ class MinRepoApp:
             ):
                 self.site7_login()
             return
-        if not self._site7_has_enabled_target_machines():
-            messagebox.showwarning("入力不足", "サイトセブン取得機種タブで取得する機種を1つ以上選択してください。")
+        if not self._site7_has_enabled_target_machines([target_store]):
+            messagebox.showwarning("入力不足", "対象店舗の取得元に対応するサイトセブン取得機種を1つ以上選択してください。")
             return
 
         display_name = self._registered_store_display_name(target_store)
@@ -3549,7 +3667,12 @@ class MinRepoApp:
                     "include_graph_differences": site7_difference_enabled,
                     "defer_graph_differences": site7_difference_enabled,
                 }
-                enabled_machine_names = self._site7_enabled_machine_names_for_fetch()
+                enabled_machine_names = self._site7_enabled_machine_names_for_fetch(registered_store)
+                if enabled_machine_names == set():
+                    source_group = site7_machine_source_group(registered_store.fetch_source)
+                    raise ScraperError(
+                        f"{SITE7_MACHINE_SOURCE_GROUP_TITLES[source_group]}の取得機種が未選択です。"
+                    )
                 if enabled_machine_names is not None:
                     fetch_kwargs["enabled_machine_names"] = enabled_machine_names
                 return self.site7_scraper.fetch_target_machine_history(**fetch_kwargs)
@@ -6274,10 +6397,9 @@ class MinRepoApp:
         if hasattr(self, "site7_machine_checkbuttons"):
             for checkbutton in self.site7_machine_checkbuttons.values():
                 checkbutton.configure(state="normal")
-        if hasattr(self, "select_all_site7_machines_button"):
-            self.select_all_site7_machines_button.configure(state="normal")
-        if hasattr(self, "clear_site7_machines_button"):
-            self.clear_site7_machines_button.configure(state="normal")
+        if hasattr(self, "site7_machine_action_buttons"):
+            for button in self.site7_machine_action_buttons:
+                button.configure(state="normal")
         self.register_store_button.configure(state="disabled" if general_busy else "normal")
         self.register_store_url_entry.configure(state="normal")
         if hasattr(self, "register_store_frequency_selector"):
