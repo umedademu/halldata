@@ -287,6 +287,10 @@ const IIDABASHI_PRESAS_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const YASUDA_HIBARIGAOKA_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const APARK_YAKATABARU_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -885,6 +889,23 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "iidabashi-presas-neo-aim",
       "ネオアイムジャグラーＥＸ": "iidabashi-presas-neo-aim",
+    },
+  },
+  {
+    key: "yasuda-hibarigaoka",
+    storeNames: [
+      "やすだひばりヶ丘店",
+      "やすだひばりヶ丘",
+      "やすだひばりケ丘店",
+      "やすだひばりケ丘",
+      "やすだひばりが丘店",
+      "やすだひばりが丘",
+    ],
+    targetMachines: YASUDA_HIBARIGAOKA_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "yasuda-hibarigaoka-neo-aim",
+      "ネオアイムジャグラーＥＸ": "yasuda-hibarigaoka-neo-aim",
     },
   },
   {
@@ -1872,6 +1893,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
+    if (contentRule === "yasuda-hibarigaoka-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
   }
   if (
@@ -2146,6 +2174,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 360 && combinedDenominator <= 160;
     }
+    if (contentRule === "yasuda-hibarigaoka-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.35;
+      }
+      return games >= 3000 && rbDenominator <= 360 && combinedDenominator <= 160;
+    }
     return games >= 5000 && rbDenominator <= 315 && combinedDenominator <= 145;
   }
   if (normalizedMachineName === normalizeText("スターハナハナ")) {
@@ -2367,6 +2402,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "iidabashi-presas-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "yasuda-hibarigaoka-neo-aim"
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     if (Number.isFinite(settingFivePlusProbability)) {
@@ -7696,6 +7741,17 @@ function calculateWindowMetrics(
     const differenceValue = readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
     return isMachineHighContentWindowRow({ row: dateRow, differenceValue }, currentMachineName, config);
   }).length;
+  const previousAdjacentMachineStrongHighContentCount = listAdjacentSameMachineRowsByOrder(
+    currentDateRows,
+    row,
+    config,
+    currentMachineName,
+    1,
+  ).filter((dateRow) => {
+    const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
+    const differenceValue = readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
+    return isMachineStrongHighContentWindowRow({ row: dateRow, differenceValue }, currentMachineName, config);
+  }).length;
   const previousAdjacentMachineGoodContentCount = listAdjacentSameMachineRowsByOrder(
     currentDateRows,
     row,
@@ -8218,6 +8274,7 @@ function calculateWindowMetrics(
     adjacentHighSettingCandidateCount7,
     previousAdjacentMachineHighContentCount,
     previousAdjacentMachineHighContentCountNear2,
+    previousAdjacentMachineStrongHighContentCount,
     previousAdjacentMachineGoodContentCount,
     previousAdjacentMachineWeakContentCount,
     previousAdjacentMachineBigWin1000Count,
