@@ -1010,6 +1010,10 @@ const HUNT_SCORE_STORE_CONFIGS = [
     ],
     targetMachines: WONDERLAND_MINAMIGAOKA_TARGET_MACHINES,
     defaultLogicKey: "wonderland-minamigaoka-b",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "wonderland-minamigaoka-neo-aim",
+      "ネオアイムジャグラーＥＸ": "wonderland-minamigaoka-neo-aim",
+    },
   },
   {
     key: "wonderland-sue",
@@ -1909,6 +1913,19 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
+    if (contentRule === "wonderland-minamigaoka-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return (
+          (games >= 3000 && settingFivePlusProbability >= 0.5) ||
+          (games >= 4000 && rbDenominator <= 300 && combinedDenominator <= 145)
+        );
+      }
+      return (
+        (games >= 3000 && rbDenominator <= 310 && combinedDenominator <= 140) ||
+        (games >= 4000 && rbDenominator <= 300 && combinedDenominator <= 145)
+      );
+    }
     return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
   }
   if (
@@ -2201,6 +2218,16 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 360 && combinedDenominator <= 160;
     }
+    if (contentRule === "wonderland-minamigaoka-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return (
+          (games >= 3000 && settingFivePlusProbability >= 0.35) ||
+          (games >= 4000 && rbDenominator <= 330 && combinedDenominator <= 150)
+        );
+      }
+      return games >= 3000 && rbDenominator <= 350 && combinedDenominator <= 160;
+    }
     return games >= 5000 && rbDenominator <= 315 && combinedDenominator <= 145;
   }
   if (normalizedMachineName === normalizeText("スターハナハナ")) {
@@ -2265,7 +2292,12 @@ function isMachineLowContentWindowRow(row, machineName, config = null) {
 
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
-    ["million-tobu-nerima-neo-aim", "chikushino-neo-aim", "iidabashi-presas-neo-aim"].includes(
+    [
+      "million-tobu-nerima-neo-aim",
+      "chikushino-neo-aim",
+      "iidabashi-presas-neo-aim",
+      "wonderland-minamigaoka-neo-aim",
+    ].includes(
       readMachineContentRule(config, machineName),
     )
   ) {
@@ -2302,6 +2334,15 @@ function isMachineWeakContentWindowRow(row, machineName, config = null) {
       );
     }
     if (readMachineContentRule(config, machineName) === "iidabashi-presas-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        games >= 2500 &&
+        ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability < 0.3) ||
+          rbDenominator > 400 ||
+          combinedDenominator > 170)
+      );
+    }
+    if (readMachineContentRule(config, machineName) === "wonderland-minamigaoka-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       return (
         games >= 2500 &&
@@ -2457,6 +2498,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "yasuda-hibarigaoka-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "wonderland-minamigaoka-neo-aim"
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     if (Number.isFinite(settingFivePlusProbability)) {

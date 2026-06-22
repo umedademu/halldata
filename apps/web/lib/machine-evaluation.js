@@ -225,6 +225,18 @@ function isYasudaHibarigaokaStore(storeName) {
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
+function isWonderlandMinamigaokaStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "ワンダーランド南ヶ丘店",
+    "ワンダーランド南ヶ丘",
+    "ワンダーランド南が丘店",
+    "ワンダーランド南が丘",
+    "ワンダーランド南ケ丘店",
+    "ワンダーランド南ケ丘",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
 function readDateDayNumber(dateText) {
   const normalized = normalizeText(dateText);
   const match = normalized.match(/^\d{4}-\d{2}-(\d{2})$/u) ?? normalized.match(/^\d{2}\/\d{2}\/(\d{2})$/u);
@@ -1912,6 +1924,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "やすだひばりヶ丘店_ネオアイムEX_沈み返済未完ロジック_v1",
         "yasuda-hibarigaoka-free-b",
       ),
+      buildLogicVariant(
+        "wonderland-minamigaoka-neo-aim",
+        "WL南ヶ丘_ネオアイムEX_返済未完了スコア_v1",
+        "wonderland-minamigaoka-neo-strong-rb280",
+      ),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
@@ -3526,6 +3543,115 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["yasuda-hibarigaoka-neo-aim"],
       ),
       buildCondition(
+        "wonderland-minamigaoka-neo-wide-rb310",
+        "広めRB310",
+        "対象124日 / 124台 / 492,864G / BB1/270.8 / RB1/303.5 / 合算1/143.1 / 平均+187枚 / 101.57% / 勝率40.3% / 平均56 34.2% / 中央56 27.2% / 56>=50% 21.8% / 56<30% 56.5% / RB1/300以下34.7% / RB1/400超27.4%",
+        {
+          rankMax: 1,
+          requiredFlags: ["wonderlandMinamigaokaNeoHistoryReady"],
+        },
+        ["wonderland-minamigaoka-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-neo-weak-rb300",
+        "弱本命RB300",
+        "対象102日 / 102台 / 412,574G / BB1/270.9 / RB1/299.6 / 合算1/142.3 / 平均+193枚 / 101.59% / 勝率39.2% / 平均56 35.3% / 中央56 27.6% / 56>=50% 22.5% / 56<30% 52.9% / RB1/300以下38.2% / RB1/400超23.5%",
+        {
+          rankMax: 1,
+          maxDanger: 0,
+          requiredFlags: ["wonderlandMinamigaokaNeoHistoryReady"],
+        },
+        ["wonderland-minamigaoka-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-neo-honmei-rb290",
+        "本命RB290",
+        "対象38日 / 38台 / 165,650G / BB1/260.0 / RB1/284.6 / 合算1/135.9 / 平均+454枚 / 103.47% / 勝率52.6% / 平均56 39.4% / 中央56 27.8% / 56>=50% 26.3% / 56<30% 52.6% / RB1/300以下39.5% / RB1/400超21.1%",
+        {
+          rankMax: 1,
+          requiredFlags: ["wonderlandMinamigaokaNeoHistoryReady", "wonderlandMinamigaokaNeoHighBlank"],
+        },
+        ["wonderland-minamigaoka-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-neo-strong-rb280",
+        "強RB280",
+        "対象31日 / 31台 / 146,710G / BB1/258.7 / RB1/277.3 / 合算1/133.9 / 平均+544枚 / 103.83% / 勝率58.1% / 平均56 42.6% / 中央56 32.8% / 56>=50% 32.3% / 56<30% 48.4% / RB1/300以下48.4% / RB1/400超22.6%",
+        {
+          rankMax: 1,
+          requiredFlags: [
+            "wonderlandMinamigaokaNeoHistoryReady",
+            "wonderlandMinamigaokaNeoSevenSink",
+            "wonderlandMinamigaokaNeoHighBlank",
+          ],
+        },
+        ["wonderland-minamigaoka-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-neo-best-rb270",
+        "最本命RB270_少数注意",
+        "対象17日 / 19台 / 95,207G / BB1/242.3 / RB1/254.6 / 合算1/124.1 / 平均+1090枚 / 107.25% / 勝率68.4% / 平均56 51.9% / 中央56 58.4% / 56>=50% 57.9% / 56<30% 31.6% / RB1/300以下57.9% / RB1/400超10.5%",
+        {
+          minScore: 95,
+          minBoost: 3,
+          requiredFlags: [
+            "wonderlandMinamigaokaNeoHistoryReady",
+            "wonderlandMinamigaokaNeoTwentyOneDeep",
+            "wonderlandMinamigaokaNeoHighGamesSeven",
+          ],
+        },
+        ["wonderland-minamigaoka-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-neo-play-more",
+        "打てる日増",
+        "対象123日 / 763台 / RB1/319.5 / 合算1/144.4 / 平均+198枚 / 101.87% / 平均56 31.0% / 中央56 24.6% / 56>=50% 18.5%",
+        {
+          minScore: 80,
+          minBoost: 2,
+          maxDanger: 0,
+          requiredFlags: ["wonderlandMinamigaokaNeoHistoryReady"],
+        },
+        ["wonderland-minamigaoka-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-neo-watch-treatment",
+        "見送り_処遇完了危険",
+        "2134台 / RB1/386.2 / 合算1/159.4 / 平均-42枚 / 99.44% / 平均56 23.3% / 56>=50% 4.8%",
+        {
+          requiredFlags: ["wonderlandMinamigaokaNeoTreatmentDone"],
+        },
+        ["wonderland-minamigaoka-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-neo-watch-crash",
+        "見送り_急落罠",
+        "59台 / RB1/357.5 / 合算1/158.5 / 平均-201枚 / 98.30% / 平均56 23.8% / 56>=50% 10.2%",
+        {
+          requiredFlags: ["wonderlandMinamigaokaNeoCrashTrap"],
+        },
+        ["wonderland-minamigaoka-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-neo-watch-danger2",
+        "見送り_危険2個以上",
+        "処遇完了、直近強合算、履歴不足、急落などの危険が2個以上",
+        {
+          minDanger: 2,
+          requiredFlags: ["wonderlandMinamigaokaNeoHistoryReady"],
+        },
+        ["wonderland-minamigaoka-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-neo-watch-history-short",
+        "見送り_履歴不足",
+        "台番履歴7日未満",
+        {
+          requiredFlags: ["wonderlandMinamigaokaNeoHistoryShort"],
+        },
+        ["wonderland-minamigaoka-neo-aim"],
+      ),
+      buildCondition(
         "beam-hikari-main",
         "70点以上",
         "388件 / 103.33% / RB1/287.6 / p56 32.7%",
@@ -5048,6 +5174,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "iidabashi-presas-neo-aim");
   } else if (isYasudaHibarigaokaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "yasuda-hibarigaoka-neo-aim");
+  } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
@@ -5779,6 +5907,97 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "wonderland-minamigaoka-neo-aim") {
+      const recentTenBonusTotal = readNumber(metrics.recentTenBonusTotal);
+      const recentTenCombinedDenominator = rateDenominator(recentTenGamesTotal, recentTenBonusTotal);
+      const noPreviousHighContent = !Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 21;
+      const wonderlandMinamigaokaNeoHistoryReady = historyRowCount >= 7;
+      const wonderlandMinamigaokaNeoHistoryShort = historyRowCount < 7;
+      const wonderlandMinamigaokaNeoSevenSink =
+        recentSevenNetTotal <= -2000 && recentSevenGamesTotal >= 12000;
+      const wonderlandMinamigaokaNeoAngleGood =
+        recentSevenGamesTotal >= 12000 &&
+        features.recentSevenAngle >= -250 &&
+        features.recentSevenAngle <= -50;
+      const wonderlandMinamigaokaNeoHighBlank =
+        noPreviousHighContent ||
+        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 21);
+      const wonderlandMinamigaokaNeoPreviousHighOneDay =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent === 1;
+      const wonderlandMinamigaokaNeoTenWeakCombined =
+        recentTenGamesTotal >= 14000 && recentTenCombinedDenominator >= 165;
+      const wonderlandMinamigaokaNeoPreviousMiss =
+        previousGames >= 3500 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5 &&
+        previousDifference < 1000;
+      const wonderlandMinamigaokaNeoPreviousOutput =
+        previousGames >= 3500 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5 &&
+        previousDifference >= 1500;
+      const wonderlandMinamigaokaNeoTwentyOneDeep =
+        historyRowCount >= 21 && recentTwentyOneNetTotal <= -7000;
+      const wonderlandMinamigaokaNeoHighGamesSeven = recentSevenGamesTotal >= 18000;
+      const wonderlandMinamigaokaNeoTreatmentDone =
+        recentSevenNetTotal >= 1000 ||
+        recentFiveNetTotal >= 2000 ||
+        features.recentSevenCombinedDenominator <= 150;
+      const wonderlandMinamigaokaNeoStrongCombinedAfter =
+        features.recentSevenCombinedDenominator <= 140 ||
+        features.recentTwentyOneCombinedDenominator <= 140;
+      const wonderlandMinamigaokaNeoLowInfo =
+        recentSevenGamesTotal < 8000 || (previousGames < 1000 && recentThreeGamesTotal < 5000);
+      const wonderlandMinamigaokaNeoRbBad =
+        previousGames >= 3000 && features.previousRbDenominator > 400;
+      const wonderlandMinamigaokaNeoCrashTrap = recentThreeNetTotal <= -3000;
+      const wonderlandMinamigaokaNeoLongNeglect = streak >= 7;
+      const boostFlags = [
+        wonderlandMinamigaokaNeoSevenSink,
+        wonderlandMinamigaokaNeoAngleGood,
+        streak >= 3 && streak <= 6,
+        wonderlandMinamigaokaNeoTenWeakCombined,
+        wonderlandMinamigaokaNeoHighBlank,
+        wonderlandMinamigaokaNeoPreviousHighOneDay,
+        wonderlandMinamigaokaNeoPreviousMiss,
+      ];
+      const dangerFlags = [
+        wonderlandMinamigaokaNeoTreatmentDone,
+        wonderlandMinamigaokaNeoStrongCombinedAfter,
+        wonderlandMinamigaokaNeoLowInfo,
+        wonderlandMinamigaokaNeoRbBad,
+        wonderlandMinamigaokaNeoCrashTrap,
+        wonderlandMinamigaokaNeoLongNeglect,
+      ];
+
+      return {
+        ...features,
+        wonderlandMinamigaokaNeoHistoryReady,
+        wonderlandMinamigaokaNeoHistoryShort,
+        wonderlandMinamigaokaNeoSevenSink,
+        wonderlandMinamigaokaNeoAngleGood,
+        wonderlandMinamigaokaNeoHighBlank,
+        wonderlandMinamigaokaNeoPreviousHighOneDay,
+        wonderlandMinamigaokaNeoTenWeakCombined,
+        wonderlandMinamigaokaNeoPreviousMiss,
+        wonderlandMinamigaokaNeoPreviousOutput,
+        wonderlandMinamigaokaNeoTwentyOneDeep,
+        wonderlandMinamigaokaNeoHighGamesSeven,
+        wonderlandMinamigaokaNeoTreatmentDone,
+        wonderlandMinamigaokaNeoStrongCombinedAfter,
+        wonderlandMinamigaokaNeoLowInfo,
+        wonderlandMinamigaokaNeoRbBad,
+        wonderlandMinamigaokaNeoCrashTrap,
+        wonderlandMinamigaokaNeoLongNeglect,
+        recentTenCombinedDenominator,
+        treatmentDone: wonderlandMinamigaokaNeoTreatmentDone,
+        lowConfidence: wonderlandMinamigaokaNeoLowInfo,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+        previousMachineSettingFivePlusProbability,
+      };
+    }
+
     if (activeLogicKey === "million-tobu-nerima-neo-aim") {
       const millionTobuNerimaNeoHistoryReady = historyRowCount >= 7;
       const millionTobuNerimaNeoHistoryShort = historyRowCount < 7;
@@ -9707,6 +9926,109 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "wonderland-minamigaoka-neo-aim") {
+      let score = 40;
+      const scoreCap = historyRowCount < 7 ? 55 : 100;
+      const recentTenBonusTotal = readNumber(metrics.recentTenBonusTotal);
+      const recentTenCombinedDenominator = rateDenominator(recentTenGamesTotal, recentTenBonusTotal);
+
+      score += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -3000, points: 24 },
+        { maximum: -2000, points: 20 },
+        { maximum: -1000, points: 14 },
+        { maximum: -500, points: 8 },
+      ]);
+
+      let angleScore = 0;
+      if (recentSevenGamesTotal >= 12000 && features.recentSevenAngle >= -250 && features.recentSevenAngle <= -50) {
+        angleScore = 16;
+      } else if (
+        recentSevenGamesTotal >= 10000 &&
+        features.recentSevenAngle >= -450 &&
+        features.recentSevenAngle < -250
+      ) {
+        angleScore = 8;
+      } else if (recentSevenGamesTotal >= 10000 && features.recentSevenAngle > -50 && features.recentSevenAngle <= 0) {
+        angleScore = 6;
+      }
+      score += angleScore;
+
+      if (streak >= 7) {
+        score += 6;
+      } else if (streak >= 5) {
+        score += 12;
+      } else if (streak >= 3) {
+        score += 8;
+      } else if (streak >= 1) {
+        score += 3;
+      }
+
+      if (recentTenGamesTotal >= 14000 && recentTenCombinedDenominator >= 170) {
+        score += 12;
+      } else if (recentTenGamesTotal >= 14000 && recentTenCombinedDenominator >= 165) {
+        score += 10;
+      } else if (recentTenGamesTotal >= 12000 && recentTenCombinedDenominator >= 155) {
+        score += 6;
+      }
+
+      if (
+        (!Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 21) ||
+        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 21)
+      ) {
+        score += 8;
+      } else if (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 10) {
+        score += 4;
+      } else if (daysSinceMachineHighContent === 1) {
+        score += 4;
+      }
+
+      if (recentSevenGamesTotal >= 18000) {
+        score += 8;
+      } else if (recentSevenGamesTotal >= 12000) {
+        score += 5;
+      }
+
+      const previousFivePlus =
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5 &&
+        previousGames >= 3500;
+      if (previousFivePlus && previousDifference < 1000) {
+        score += 4;
+      } else if (previousFivePlus && previousDifference >= 1500) {
+        score += 2;
+      }
+
+      score -= scoreAtLeast(recentSevenNetTotal, [
+        { minimum: 5000, points: 22 },
+        { minimum: 3000, points: 18 },
+        { minimum: 1000, points: 12 },
+      ]);
+      score -= scoreAtLeast(recentFiveNetTotal, [
+        { minimum: 3000, points: 10 },
+        { minimum: 2000, points: 6 },
+      ]);
+      score -= scoreAtMost(features.recentSevenCombinedDenominator, [
+        { maximum: 130, points: 18 },
+        { maximum: 140, points: 16 },
+        { maximum: 150, points: 10 },
+      ]);
+      score -=
+        features.recentTwentyOneCombinedDenominator <= 140
+          ? 12
+          : features.recentFourteenCombinedDenominator <= 140
+            ? 8
+            : 0;
+      score -= scoreAtMost(recentThreeNetTotal, [
+        { maximum: -3000, points: 8 },
+        { maximum: -2000, points: 4 },
+      ]);
+      score -= previousGames >= 3000 && previousRbDenominator > 400 ? 6 : 0;
+      score -= recentSevenGamesTotal < 8000 ? 20 : 0;
+      score -= streak >= 7 ? 4 : 0;
+
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
     if (activeLogicKey === "million-tobu-nerima-neo-aim") {
       let score = 45;
       const scoreCap = historyRowCount < 7 ? 40 : 100;
