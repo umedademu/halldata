@@ -154,6 +154,13 @@ function isBeamHikariStore(storeName) {
   );
 }
 
+function isHinodeOnojoStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["HINODE大野城店", "HINODE大野城"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function readDateDayNumber(dateText) {
   const normalized = normalizeText(dateText);
   const match = normalized.match(/^\d{4}-\d{2}-(\d{2})$/u) ?? normalized.match(/^\d{2}\/\d{2}\/(\d{2})$/u);
@@ -1675,6 +1682,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildLogicVariant("beam-hikari-neo-aim-event", "ネオアイムビームヒカリイベント日式", "beam-hikari-event-main"),
       buildLogicVariant("amuse-asakusa-neo-aim", "ネオアイムアミューズ浅草式", "amuse-asakusa-main"),
       buildLogicVariant("gogo-tenjin-neo-aim", "ネオアイムGOGO天神式", "gogo-tenjin-main"),
+      buildLogicVariant(
+        "hinode-onojo-neo-aim",
+        "HINODE大野城ネオアイム沈み返済56狙い式v1",
+        "hinode-onojo-short-core",
+      ),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
@@ -2019,6 +2031,160 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["gogoTenjinNeoHistoryReady"],
         },
         ["gogo-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "hinode-onojo-six-losing-nearby",
+        "6連敗+近隣見せ場",
+        "31件 / 104.08% / RB1/268.9 / p56 51.5%",
+        {
+          requiredFlags: ["hinodeNeoHistoryReady", "hinodeNeoSixLosingNearby"],
+        },
+        ["hinode-onojo-neo-aim"],
+      ),
+      buildCondition(
+        "hinode-onojo-three4000-five5000",
+        "3日-4000×5日-5000",
+        "39件 / 103.39% / RB1/273.0 / p56 48.7%",
+        {
+          requiredFlags: ["hinodeNeoHistoryReady", "hinodeNeoThree4000Five5000"],
+        },
+        ["hinode-onojo-neo-aim"],
+      ),
+      buildCondition(
+        "hinode-onojo-three-sink-five-loss",
+        "3日沈み+5連敗",
+        "40件 / 104.70% / RB1/282.6 / p56 45.2%",
+        {
+          requiredFlags: ["hinodeNeoHistoryReady", "hinodeNeoThreeSinkFiveLoss"],
+        },
+        ["hinode-onojo-neo-aim"],
+      ),
+      buildCondition(
+        "hinode-onojo-five-loss-bonus-weak",
+        "5連敗+7合算悪化",
+        "62件 / 104.24% / RB1/295.7 / p56 40.2%",
+        {
+          requiredFlags: ["hinodeNeoHistoryReady", "hinodeNeoFiveLossBonusWeak"],
+        },
+        ["hinode-onojo-neo-aim"],
+      ),
+      buildCondition(
+        "hinode-onojo-deep-sink-57",
+        "深沈み5×7",
+        "652件 / 101.54% / RB1/303.8 / p56 35.5%",
+        {
+          requiredFlags: ["hinodeNeoHistoryReady", "hinodeNeoDeepSink57"],
+        },
+        ["hinode-onojo-neo-aim"],
+      ),
+      buildCondition(
+        "hinode-onojo-short-core",
+        "短期沈み本命",
+        "45件 / 103.94% / RB1/271.7 / p56 49.3%",
+        {
+          rankMax: 1,
+          minScore: 75,
+          minNextGap: 5,
+          minBoost: 3,
+          requiredFlags: ["hinodeNeoHistoryReady", "hinodeNeoDiff3Deep"],
+        },
+        ["hinode-onojo-neo-aim"],
+      ),
+      buildCondition(
+        "hinode-onojo-rank1-score75-boost3-gap5",
+        "1位75+強3+差5",
+        "83件 / 104.00% / RB1/280.2 / p56 45.4%",
+        {
+          rankMax: 1,
+          minScore: 75,
+          minNextGap: 5,
+          minBoost: 3,
+          requiredFlags: ["hinodeNeoHistoryReady"],
+        },
+        ["hinode-onojo-neo-aim"],
+      ),
+      buildCondition(
+        "hinode-onojo-score85-boost3",
+        "85+強化3",
+        "114件 / 103.33% / RB1/289.4 / p56 41.6%",
+        {
+          minScore: 85,
+          minBoost: 3,
+          requiredFlags: ["hinodeNeoHistoryReady"],
+        },
+        ["hinode-onojo-neo-aim"],
+      ),
+      buildCondition(
+        "hinode-onojo-score85",
+        "85点以上",
+        "174件 / 102.39% / RB1/292.4 / p56 40.0%",
+        {
+          minScore: 85,
+          requiredFlags: ["hinodeNeoHistoryReady"],
+        },
+        ["hinode-onojo-neo-aim"],
+      ),
+      buildCondition(
+        "hinode-onojo-rank1-score60",
+        "1位60+",
+        "236件 / 102.18% / RB1/296.4 / p56 38.2%",
+        {
+          rankMax: 1,
+          minScore: 60,
+          requiredFlags: ["hinodeNeoHistoryReady"],
+        },
+        ["hinode-onojo-neo-aim"],
+      ),
+      buildCondition(
+        "hinode-onojo-score80",
+        "広め80+",
+        "245件 / 101.99% / RB1/295.5 / p56 38.6%",
+        {
+          minScore: 80,
+          requiredFlags: ["hinodeNeoHistoryReady"],
+        },
+        ["hinode-onojo-neo-aim"],
+      ),
+      buildCondition(
+        "hinode-onojo-watch-close-rank1",
+        "見送り：1位僅差",
+        "44件 / 100.63% / RB1/325.3 / p56 29.1%",
+        {
+          rankMax: 1,
+          maxNextGap: 2.999,
+          requiredFlags: ["hinodeNeoHistoryReady"],
+        },
+        ["hinode-onojo-neo-aim"],
+      ),
+      buildCondition(
+        "hinode-onojo-watch-low-score-rank1",
+        "見送り：低スコア1位",
+        "見送り / 100.01% / p56 29.8%",
+        {
+          rankMax: 1,
+          maxScore: 59.999,
+          requiredFlags: ["hinodeNeoHistoryReady"],
+        },
+        ["hinode-onojo-neo-aim"],
+      ),
+      buildCondition(
+        "hinode-onojo-watch-history-short",
+        "見送り：履歴不足",
+        "履歴7日未満",
+        {
+          requiredFlags: ["hinodeNeoHistoryShort"],
+        },
+        ["hinode-onojo-neo-aim"],
+      ),
+      buildCondition(
+        "hinode-onojo-watch-danger2",
+        "見送り：危険複数",
+        "危険条件2個以上",
+        {
+          minDanger: 2,
+          requiredFlags: ["hinodeNeoHistoryReady"],
+        },
+        ["hinode-onojo-neo-aim"],
       ),
       buildCondition(
         "beam-hikari-main",
@@ -3452,6 +3618,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "amuse-asakusa-neo-aim");
   } else if (isGogoArenaTenjinStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "gogo-tenjin-neo-aim");
+  } else if (isHinodeOnojoStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "hinode-onojo-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
@@ -4061,7 +4229,11 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const previousMachineHighContent = Boolean(metrics.previousMachineHighContent);
   const previousMachineGoodContent = Boolean(metrics.previousMachineGoodContent);
   const previousMachineStrongHighContent = Boolean(metrics.previousMachineStrongHighContent);
+  const previousMachineSettingFivePlusProbability = readNullableNumber(
+    metrics.previousMachineSettingFivePlusProbability,
+  );
   const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
+  const recentFiveBigWin1200Count = readNumber(metrics.recentFiveBigWin1200Count);
 
   if (machineKey === "aim") {
     if (activeLogicKey === "mj-kurume-aim") {
@@ -4149,6 +4321,67 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "hinode-onojo-neo-aim") {
+      const hinodeNeoHistoryReady = historyRowCount >= 7;
+      const hinodeNeoHistoryShort = !hinodeNeoHistoryReady;
+      const hinodeNeoDeepSink57 = recentFiveNetTotal <= -3000 && recentSevenNetTotal <= -2500;
+      const hinodeNeoLosing4 = streak >= 4;
+      const hinodeNeoBonusWeak7 = features.recentSevenCombinedDenominator >= 170;
+      const hinodeNeoNearbyLeftBehind =
+        previousAdjacentMachineHighContentCount > 0 && recentFiveNetTotal <= -3000;
+      const hinodeNeoDiff3Deep = recentThreeNetTotal <= -3000;
+      const hinodeNeoFiveLossBonusWeak =
+        streak >= 5 && features.recentSevenCombinedDenominator >= 170 && recentSevenGamesTotal >= 25000;
+      const hinodeNeoThreeSinkFiveLoss =
+        recentThreeNetTotal <= -3000 && streak >= 5 && features.recentSevenCombinedDenominator >= 170;
+      const hinodeNeoThree4000Five5000 = recentThreeNetTotal <= -4000 && recentFiveNetTotal <= -5000;
+      const hinodeNeoSixLosingNearby =
+        recentSevenNetTotal <= -2500 && streak >= 6 && previousAdjacentMachineHighContentCount > 0;
+      const hinodeNeoTreatmentDoneDiff = recentFiveNetTotal >= 3000 || recentSevenNetTotal >= 3500;
+      const hinodeNeoRecentBigWins = recentFiveBigWin1200Count >= 2 && recentFiveNetTotal >= 1000;
+      const hinodeNeoLowHistoryGames = recentFiveGamesTotal < 12000;
+      const hinodeNeoOverVisible =
+        features.recentSevenCombinedDenominator <= 140 && recentSevenNetTotal >= 0;
+      const hinodeNeoHighContentDone = recentSevenMachineHighContentCount >= 2 && recentSevenNetTotal >= 0;
+      const boostFlags = [
+        hinodeNeoDeepSink57,
+        hinodeNeoLosing4,
+        hinodeNeoBonusWeak7,
+        hinodeNeoNearbyLeftBehind,
+      ];
+      const dangerFlags = [
+        hinodeNeoTreatmentDoneDiff,
+        hinodeNeoRecentBigWins,
+        hinodeNeoLowHistoryGames,
+        hinodeNeoOverVisible,
+      ];
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability,
+        hinodeNeoHistoryReady,
+        hinodeNeoHistoryShort,
+        hinodeNeoDeepSink57,
+        hinodeNeoLosing4,
+        hinodeNeoBonusWeak7,
+        hinodeNeoNearbyLeftBehind,
+        hinodeNeoDiff3Deep,
+        hinodeNeoFiveLossBonusWeak,
+        hinodeNeoThreeSinkFiveLoss,
+        hinodeNeoThree4000Five5000,
+        hinodeNeoSixLosingNearby,
+        hinodeNeoTreatmentDoneDiff,
+        hinodeNeoRecentBigWins,
+        hinodeNeoLowHistoryGames,
+        hinodeNeoOverVisible,
+        hinodeNeoHighContentDone,
+        treatmentDone: hinodeNeoTreatmentDoneDiff || hinodeNeoHighContentDone,
+        lowConfidence: hinodeNeoLowHistoryGames || hinodeNeoHistoryShort,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "gogo-tenjin-neo-aim") {
       const gogoTenjinNeoHistoryReady = historyRowCount >= 28;
       const recentTwentyEightAngleRaw =
@@ -7057,8 +7290,12 @@ function calculateMachineScore(definition, metrics, features) {
   const previousMachineHighContent = Boolean(metrics.previousMachineHighContent);
   const previousMachineGoodContent = Boolean(metrics.previousMachineGoodContent);
   const previousMachineStrongHighContent = Boolean(metrics.previousMachineStrongHighContent);
+  const previousMachineSettingFivePlusProbability = readNullableNumber(
+    metrics.previousMachineSettingFivePlusProbability,
+  );
   const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
   const machineGoodContentStreak = readNumber(metrics.machineGoodContentStreak);
+  const recentFiveBigWin1200Count = readNumber(metrics.recentFiveBigWin1200Count);
   const adjacentMachineHighContentCount3 = readNumber(metrics.adjacentMachineHighContentCount3);
   const adjacentMachineHighContentCount3Near2 = readNumber(metrics.adjacentMachineHighContentCount3Near2);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
@@ -7392,6 +7629,94 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "hinode-onojo-neo-aim") {
+      let score = 0;
+
+      score += scoreAtMost(recentFiveNetTotal, [
+        { maximum: -5000, points: 35 },
+        { maximum: -4000, points: 32 },
+        { maximum: -3000, points: 27 },
+        { maximum: -2000, points: 21 },
+        { maximum: -1000, points: 13 },
+        { maximum: 0, points: 6 },
+      ]);
+      score += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -5000, points: 18 },
+        { maximum: -3500, points: 15 },
+        { maximum: -2500, points: 12 },
+        { maximum: -1500, points: 8 },
+        { maximum: 0, points: 3 },
+      ]);
+      score += scoreAtLeast(streak, [
+        { minimum: 7, points: 22 },
+        { minimum: 6, points: 20 },
+        { minimum: 5, points: 18 },
+        { minimum: 4, points: 14 },
+        { minimum: 3, points: 10 },
+        { minimum: 2, points: 5 },
+        { minimum: 1, points: 1 },
+      ]);
+      score += scoreAtMost(recentThreeNetTotal, [
+        { maximum: -4000, points: 12 },
+        { maximum: -3000, points: 9 },
+        { maximum: -2000, points: 6 },
+        { maximum: -1000, points: 3 },
+      ]);
+      score += scoreAtLeast(features.recentSevenCombinedDenominator, [
+        { minimum: 180, points: 10 },
+        { minimum: 170, points: 8 },
+        { minimum: 160, points: 4 },
+      ]);
+      score += scoreAtLeast(features.recentFiveCombinedDenominator, [
+        { minimum: 180, points: 6 },
+        { minimum: 170, points: 4 },
+      ]);
+
+      if (recentSevenGamesTotal >= 25000) {
+        score += 6;
+      } else if (recentFiveGamesTotal >= 18000) {
+        score += 4;
+      } else if (recentFiveGamesTotal >= 12000) {
+        score += 2;
+      }
+
+      score +=
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.7 &&
+        previousDifference <= 500 &&
+        recentFiveNetTotal <= 0
+          ? 5
+          : 0;
+      score +=
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.9 &&
+        previousDifference <= 1000
+          ? 3
+          : 0;
+      score += previousAdjacentMachineHighContentCount > 0 && recentFiveNetTotal <= -3000 ? 4 : 0;
+
+      score -= scoreAtLeast(recentFiveNetTotal, [
+        { minimum: 4500, points: 24 },
+        { minimum: 3000, points: 18 },
+        { minimum: 2000, points: 10 },
+      ]);
+      score -= scoreAtLeast(recentSevenNetTotal, [
+        { minimum: 5000, points: 18 },
+        { minimum: 3500, points: 12 },
+        { minimum: 2500, points: 8 },
+      ]);
+      score -= scoreAtLeast(recentThreeNetTotal, [
+        { minimum: 2500, points: 12 },
+        { minimum: 1500, points: 8 },
+      ]);
+      score -= recentFiveBigWin1200Count >= 2 && recentFiveNetTotal >= 1000 ? 8 : 0;
+      score -= recentSevenMachineHighContentCount >= 2 && recentSevenNetTotal >= 0 ? 8 : 0;
+      score -= recentFiveGamesTotal < 12000 ? 10 : 0;
+
+      const roundedScore = Math.round(clamp(score, 0, 100));
+      return historyRowCount < 7 ? Math.min(roundedScore, 40) : roundedScore;
+    }
+
     if (activeLogicKey === "gogo-tenjin-neo-aim") {
       if (historyRowCount < 28) {
         return 0;
@@ -12682,6 +13007,9 @@ function matchesCondition(matcher, evaluation) {
   if (Number.isFinite(matcher.minScore) && evaluation.score < matcher.minScore) {
     return false;
   }
+  if (Number.isFinite(matcher.maxScore) && evaluation.score > matcher.maxScore) {
+    return false;
+  }
   if (Number.isFinite(matcher.rankMax) && (!Number.isFinite(evaluation.rank) || evaluation.rank > matcher.rankMax)) {
     return false;
   }
@@ -12691,7 +13019,16 @@ function matchesCondition(matcher, evaluation) {
   ) {
     return false;
   }
+  if (
+    Number.isFinite(matcher.maxNextGap) &&
+    (!Number.isFinite(evaluation.nextGap) || evaluation.nextGap > matcher.maxNextGap)
+  ) {
+    return false;
+  }
   if (Number.isFinite(matcher.minBoost) && evaluation.boostCount < matcher.minBoost) {
+    return false;
+  }
+  if (Number.isFinite(matcher.minDanger) && evaluation.dangerCount < matcher.minDanger) {
     return false;
   }
   if (Number.isFinite(matcher.maxDanger) && evaluation.dangerCount > matcher.maxDanger) {

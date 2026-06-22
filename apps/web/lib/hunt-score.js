@@ -789,6 +789,10 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["HINODE大野城店", "HINODE大野城"],
     targetMachines: HINODE_ONOJO_TARGET_MACHINES,
     defaultLogicKey: "hinode-onojo",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "hinode-onojo-neo-aim",
+      "ネオアイムジャグラーＥＸ": "hinode-onojo-neo-aim",
+    },
   },
   {
     key: "tamaya-ohashi",
@@ -1627,6 +1631,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 135;
     }
+    if (contentRule === "hinode-onojo-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 150;
+    }
     return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
   }
   if (
@@ -1854,6 +1865,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       }
       return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 135;
     }
+    if (contentRule === "hinode-onojo-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.35;
+      }
+      return games >= 3000 && rbDenominator <= 330 && combinedDenominator <= 150;
+    }
     return games >= 5000 && rbDenominator <= 315 && combinedDenominator <= 145;
   }
   if (normalizedMachineName === normalizeText("スターハナハナ")) {
@@ -1988,6 +2006,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 4000 && settingFivePlusProbability >= 0.7;
     }
     return games >= 5000 && combinedDenominator <= 135 && rbDenominator <= 285;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "hinode-onojo-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
     (normalizedMachineName === normalizeText("ファンキージャグラー２ＫＴ") ||
@@ -7217,6 +7245,10 @@ function calculateWindowMetrics(
     windowDays,
   );
   const currentMachineName = normalizeHuntScoreMachineName(row?.machine_name, config);
+  const previousMachineSettingFivePlusProbability = calculateNeoAimSettingFivePlusProbability({
+    row,
+    differenceValue: readHuntScoreDifferenceValue(row, config.differenceMode, currentMachineName),
+  });
   const currentDateRows = rowsByDate.get(businessDates[dateIndex]) ?? [];
   const previousAdjacentMachineHighContentCount = listAdjacentSameMachineRowsByOrder(
     currentDateRows,
@@ -7512,6 +7544,7 @@ function calculateWindowMetrics(
   const recentSevenBigShowDays = countBigShowRows(recentSevenRows);
   const recentThreeStrictHighContentDays = countStrictHighContentRows(recentThreeRows);
   const recentSevenStrictHighContentDays = countStrictHighContentRows(recentSevenRows);
+  const recentFiveBigWin1200Count = countDifferenceAtLeastRows(recentFiveRows, 1200);
   const recentSevenGoldShowDays = countDifferenceAtLeastRows(recentSevenRows, 1500);
   const recentFourteenGoldShowDays = countDifferenceAtLeastRows(recentFourteenRows, 1341);
   const previousBigShow = previousGames >= 5000 && todayDifference >= 1000;
@@ -7643,6 +7676,7 @@ function calculateWindowMetrics(
     previousMachineHighContent,
     previousMachineGoodContent,
     previousMachineStrongHighContent,
+    previousMachineSettingFivePlusProbability,
     daysSinceMachineHighContent,
     daysSinceMachineStrongHighContent,
     daysSinceMachineBigWin1500,
@@ -7720,6 +7754,7 @@ function calculateWindowMetrics(
     recentThirtyMinus2700StayDays,
     recentThreeBigShowDays,
     recentSevenBigShowDays,
+    recentFiveBigWin1200Count,
     recentThreeStrictHighContentDays,
     recentSevenStrictHighContentDays,
     recentSevenGoldShowDays,
