@@ -487,6 +487,44 @@ function getMachineEvaluationPayoutClass(payoutRate) {
   return "";
 }
 
+function getMachineEvaluationRbClass(rbDenominator) {
+  const denominator = Number(rbDenominator);
+  if (!Number.isFinite(denominator) || denominator <= 0) {
+    return "";
+  }
+  if (denominator <= 270) {
+    return "machineEvaluationPayoutPurple";
+  }
+  if (denominator <= 280) {
+    return "machineEvaluationPayoutRed";
+  }
+  if (denominator <= 290) {
+    return "machineEvaluationPayoutGreen";
+  }
+  if (denominator <= 300) {
+    return "machineEvaluationPayoutYellow";
+  }
+  if (denominator <= 310) {
+    return "machineEvaluationPayoutBlue";
+  }
+  return "";
+}
+
+function isNeoAimMachineName(machineName) {
+  const normalizedName = String(machineName ?? "")
+    .normalize("NFKC")
+    .replace(/\s+/gu, "")
+    .toLowerCase();
+  return normalizedName.includes("ネオアイムジャグラーex") || normalizedName.includes("ネオアイム");
+}
+
+function buildMachineEvaluationClassName(highlightClass) {
+  return [
+    highlightClass ? "machineEvaluationMatchedCell" : "",
+    highlightClass,
+  ].filter(Boolean).join(" ");
+}
+
 function isMachineTopRankRow(row) {
   return readRankingSortNumber(row?.machineRank ?? row?.bookmarkRank ?? row?.rank, null) === 1;
 }
@@ -839,17 +877,32 @@ function buildMachineEvaluationExpectationTitle(detail) {
   );
 }
 
-function getMachineEvaluationExpectationClassName(expectationDetail) {
-  const payoutClass = getMachineEvaluationPayoutClass(expectationDetail?.payoutRate);
-  return [
-    payoutClass ? "machineEvaluationMatchedCell" : "",
-    payoutClass,
-  ].filter(Boolean).join(" ");
+function getMachineEvaluationExpectationClassName(expectationDetail, machineName) {
+  const highlightClass = isNeoAimMachineName(machineName)
+    ? getMachineEvaluationRbClass(expectationDetail?.rbDenominator)
+    : getMachineEvaluationPayoutClass(expectationDetail?.payoutRate);
+  return buildMachineEvaluationClassName(highlightClass);
+}
+
+function getMachineEvaluationExpectedPayoutClassName(expectationDetail) {
+  return buildMachineEvaluationClassName(
+    getMachineEvaluationPayoutClass(expectationDetail?.payoutRate),
+  );
+}
+
+function getMachineEvaluationExpectedRbClassName(expectationDetail, machineName) {
+  if (!isNeoAimMachineName(machineName)) {
+    return "";
+  }
+  return buildMachineEvaluationClassName(
+    getMachineEvaluationRbClass(expectationDetail?.rbDenominator),
+  );
 }
 
 function getMachineEvaluationExpectationCellClassName(storeId, storeName, row) {
   return getMachineEvaluationExpectationClassName(
     readMachineEvaluationExpectationDetail(storeId, storeName, row),
+    row?.machineName,
   );
 }
 
@@ -905,7 +958,10 @@ function MachineEvaluationCell({
     Number.isFinite(evaluation.rank) ? `機種別順位: ${evaluation.rank}` : "",
     Number.isFinite(evaluation.nextGap) ? `次点差: ${formatDecimal(evaluation.nextGap)}` : "",
   ].filter(Boolean);
-  const cellClassNames = getMachineEvaluationExpectationClassName(expectationDetail);
+  const cellClassNames = getMachineEvaluationExpectationClassName(
+    expectationDetail,
+    row?.machineName,
+  );
 
   return (
     <td
@@ -921,7 +977,10 @@ function MachineEvaluationCell({
 function MachineEvaluationConditionCell({ row, extraTitle = "" }) {
   const matchedConditionCount = readMatchedConditionCount(row);
   const expectationDetail = readMatchedConditionExpectationDetail(row);
-  const expectationClassName = getMachineEvaluationExpectationClassName(expectationDetail);
+  const expectationClassName = getMachineEvaluationExpectationClassName(
+    expectationDetail,
+    row?.machineName,
+  );
   const className = [
     "conditionCountCell",
     expectationClassName || (matchedConditionCount > 0 ? "conditionCountMatchedCell" : ""),
@@ -944,12 +1003,14 @@ function MachineEvaluationConditionCell({ row, extraTitle = "" }) {
 
 function MachineEvaluationExpectedPayoutCell({ storeId, storeName, row, extraTitle = "" }) {
   const expectationDetail = readMachineEvaluationExpectationDetail(storeId, storeName, row);
+  const className = getMachineEvaluationExpectedPayoutClassName(expectationDetail);
   const title = combineTitleParts(
     buildMachineEvaluationExpectationTitle(expectationDetail),
     extraTitle,
   );
   return (
     <td
+      className={className || undefined}
       title={title || undefined}
       data-sort-value={expectationDetail?.payoutRate ?? ""}
     >
@@ -960,12 +1021,14 @@ function MachineEvaluationExpectedPayoutCell({ storeId, storeName, row, extraTit
 
 function MachineEvaluationExpectedRbCell({ storeId, storeName, row, extraTitle = "" }) {
   const expectationDetail = readMachineEvaluationExpectationDetail(storeId, storeName, row);
+  const className = getMachineEvaluationExpectedRbClassName(expectationDetail, row?.machineName);
   const title = combineTitleParts(
     buildMachineEvaluationExpectationTitle(expectationDetail),
     extraTitle,
   );
   return (
     <td
+      className={className || undefined}
       title={title || undefined}
       data-sort-value={expectationDetail?.rbDenominator ?? ""}
     >
