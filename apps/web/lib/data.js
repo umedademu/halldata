@@ -3508,6 +3508,7 @@ async function getHuntScoreSnapshotsForStore(
       {
         storeName: staticIdentity.storeName,
         dateSpecificRanking: targetDateOnly,
+        eventFilters: staticIdentity.eventFilters,
       },
     );
     const subHuntScoreLogic = resolveOptionalHuntScoreLogic(

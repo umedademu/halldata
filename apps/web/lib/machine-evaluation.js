@@ -196,6 +196,13 @@ function isKintokiKamataStore(storeName) {
   );
 }
 
+function isIidabashiPresasStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["飯田橋プレサス", "飯田橋プレサス店", "プレサス飯田橋", "プレサス飯田橋店"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function readDateDayNumber(dateText) {
   const normalized = normalizeText(dateText);
   const match = normalized.match(/^\d{4}-\d{2}-(\d{2})$/u) ?? normalized.match(/^\d{2}\/\d{2}\/(\d{2})$/u);
@@ -244,6 +251,108 @@ function isBeamHikariEventDate(dateText) {
   }
   const dayTail = dayNumber % 10;
   return dayTail === 3 || dayTail === 6;
+}
+
+function readDateWeekday(dateText) {
+  const normalized = normalizeText(dateText);
+  const match =
+    normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/u) ??
+    normalized.match(/^(\d{2})\/(\d{2})\/(\d{2})$/u);
+  if (!match) {
+    return null;
+  }
+  const year = match[1].length === 2 ? 2000 + Number(match[1]) : Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  return Number.isNaN(date.getTime()) ? null : date.getDay();
+}
+
+function readDateMonthDay(dateText) {
+  const dayNumber = readDateDayNumber(dateText);
+  return Number.isInteger(dayNumber) && dayNumber >= 1 && dayNumber <= 31 ? dayNumber : null;
+}
+
+function isZoromeDate(dateText) {
+  const normalized = normalizeText(dateText);
+  const match = normalized.match(/^\d{4}-(\d{2})-(\d{2})$/u);
+  return Boolean(match) && Number(match[1]) === Number(match[2]);
+}
+
+function readNullableBooleanFlag(value) {
+  if (value === true || value === false) {
+    return value;
+  }
+  const normalized = normalizeText(value).toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  if (["はい", "有", "あり", "true", "1", "yes", "y"].includes(normalized)) {
+    return true;
+  }
+  if (["いいえ", "無", "なし", "false", "0", "no", "n"].includes(normalized)) {
+    return false;
+  }
+  return null;
+}
+
+function readTargetEventFlag(row) {
+  const currentRecord = row?.currentRecord ?? {};
+  const nextRecord = row?.nextRecord ?? {};
+  const candidates = [
+    row?.targetIsEvent,
+    row?.targetEvent,
+    row?.isEvent,
+    row?.is_event,
+    row?.specialDay,
+    row?.special_day,
+    row?.["特定日"],
+    nextRecord?.isEvent,
+    nextRecord?.is_event,
+    nextRecord?.specialDay,
+    nextRecord?.special_day,
+    nextRecord?.eventDay,
+    nextRecord?.event_day,
+    nextRecord?.["特定日"],
+    currentRecord?.nextIsEvent,
+    currentRecord?.next_is_event,
+    currentRecord?.targetIsEvent,
+    currentRecord?.target_is_event,
+  ];
+  for (const candidate of candidates) {
+    const parsedFlag = readNullableBooleanFlag(candidate);
+    if (parsedFlag !== null) {
+      return parsedFlag;
+    }
+  }
+  return null;
+}
+
+function matchesMachineEvaluationEventFilters(dateText, filters) {
+  if (!filters?.isActive) {
+    return false;
+  }
+  const dayNumber = readDateDayNumber(dateText);
+  if (Number.isFinite(dayNumber) && Array.isArray(filters.dayTails) && filters.dayTails.includes(dayNumber % 10)) {
+    return true;
+  }
+  const weekday = readDateWeekday(dateText);
+  if (weekday !== null && Array.isArray(filters.weekdays) && filters.weekdays.includes(weekday)) {
+    return true;
+  }
+  const monthDay = readDateMonthDay(dateText);
+  if (monthDay !== null && Array.isArray(filters.monthDays) && filters.monthDays.includes(monthDay)) {
+    return true;
+  }
+  return Boolean(filters.zoro) && isZoromeDate(dateText);
+}
+
+function isIidabashiPresasEventDate(dateText, row, options = {}) {
+  const rowFlag = readTargetEventFlag(row);
+  if (rowFlag !== null) {
+    return rowFlag;
+  }
+  return matchesMachineEvaluationEventFilters(dateText, options?.eventFilters);
 }
 
 function isAmuseAsakusaStore(storeName) {
@@ -1742,6 +1851,21 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "金時蒲田東口店_ネオアイムEX_全日共通100点ロジック",
         "kintoki-kamata-free-a",
       ),
+      buildLogicVariant(
+        "iidabashi-presas-neo-aim",
+        "飯田橋プレサス_ネオアイムEX_全日共通_沈み返済ローテ_v1",
+        "iidabashi-presas-free-all-rank-gap-sink",
+      ),
+      buildLogicVariant(
+        "iidabashi-presas-neo-aim-normal",
+        "飯田橋プレサス_ネオアイムEX_通常日_長期沈み返済_v1",
+        "iidabashi-presas-normal-21angle",
+      ),
+      buildLogicVariant(
+        "iidabashi-presas-neo-aim-event",
+        "飯田橋プレサス_ネオアイムEX_特定日_短期深沈み連敗_v1",
+        "iidabashi-presas-event-score90",
+      ),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
@@ -2837,6 +2961,225 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["kintokiNeoHistoryReady", "kintokiNeoNoFree"],
         },
         ["kintoki-kamata-neo-aim"],
+      ),
+      buildCondition(
+        "iidabashi-presas-rank1-gap4",
+        "1位gap4+",
+        "64台 / 102.61% / RB1/310.89 / 合算1/140.86 / 平均56 33.71% / 56>=50 21.88%",
+        {
+          rankMax: 1,
+          minNextGap: 4,
+          requiredFlags: ["iidabashiNeoHistoryReady"],
+        },
+        ["iidabashi-presas-neo-aim"],
+      ),
+      buildCondition(
+        "iidabashi-presas-free-all-rank-gap-sink",
+        "全日_1位gap4+短期沈み",
+        "57台 / 103.19% / RB1/310.24 / 合算1/139.51 / 平均56 34.03%",
+        {
+          rankMax: 1,
+          minNextGap: 4,
+          requiredFlags: ["iidabashiNeoHistoryReady", "iidabashiNeoAllShortSink"],
+        },
+        ["iidabashi-presas-neo-aim"],
+      ),
+      buildCondition(
+        "iidabashi-presas-streak4-danger0",
+        "連敗4+危険0",
+        "43台 / 101.96% / RB1/292.82 / 合算1/139.19 / 平均56 39.05%",
+        {
+          maxDanger: 0,
+          requiredFlags: ["iidabashiNeoHistoryReady", "iidabashiNeoLosingStreak4"],
+        },
+        ["iidabashi-presas-neo-aim"],
+      ),
+      buildCondition(
+        "iidabashi-presas-streak5",
+        "連敗5+",
+        "23台 / 102.23% / RB1/281.23 / 合算1/137.38 / 平均56 42.02%",
+        {
+          requiredFlags: ["iidabashiNeoHistoryReady", "iidabashiNeoLosingStreak5"],
+        },
+        ["iidabashi-presas-neo-aim"],
+      ),
+      buildCondition(
+        "iidabashi-presas-free-streak5-score80-danger0",
+        "全日_連敗5+score80+危険0",
+        "17台 / 103.07% / RB1/269.96 / 合算1/133.58 / 平均56 47.22%",
+        {
+          minScore: 80,
+          maxDanger: 0,
+          requiredFlags: ["iidabashiNeoHistoryReady", "iidabashiNeoLosingStreak5"],
+        },
+        ["iidabashi-presas-neo-aim"],
+      ),
+      buildCondition(
+        "iidabashi-presas-streak5-score85-danger0",
+        "連敗5+score85+危険0",
+        "13台 / 104.64% / RB1/262.72 / 合算1/128.59 / 平均56 52.02%",
+        {
+          minScore: 85,
+          maxDanger: 0,
+          requiredFlags: ["iidabashiNeoHistoryReady", "iidabashiNeoLosingStreak5"],
+        },
+        ["iidabashi-presas-neo-aim"],
+      ),
+      buildCondition(
+        "iidabashi-presas-normal70",
+        "通常70+",
+        "99台 / 101.09% / RB1/313.58 / 合算1/144.40 / 平均56 31.86%",
+        {
+          minScore: 70,
+          requiredFlags: ["iidabashiNeoHistoryReady"],
+        },
+        ["iidabashi-presas-neo-aim-normal"],
+      ),
+      buildCondition(
+        "iidabashi-presas-normal-21angle",
+        "通常_21日角度<=-50",
+        "37台 / 102.28% / RB1/312.05 / 合算1/140.64 / 平均56 32.48%",
+        {
+          requiredFlags: ["iidabashiNeoHistoryReady", "iidabashiNeoNormal21AngleStrong"],
+        },
+        ["iidabashi-presas-neo-aim-normal"],
+      ),
+      buildCondition(
+        "iidabashi-presas-normal-streak5",
+        "通常連敗5+",
+        "15台 / 102.18% / RB1/291.32 / 合算1/138.49 / 平均56 36.90%",
+        {
+          requiredFlags: ["iidabashiNeoHistoryReady", "iidabashiNeoLosingStreak5"],
+        },
+        ["iidabashi-presas-neo-aim-normal"],
+      ),
+      buildCondition(
+        "iidabashi-presas-event70",
+        "特定event70+",
+        "76台 / 102.12% / RB1/314.52 / 合算1/142.63 / 平均56 33.55%",
+        {
+          minScore: 70,
+          requiredFlags: ["iidabashiNeoHistoryReady"],
+        },
+        ["iidabashi-presas-neo-aim-event"],
+      ),
+      buildCondition(
+        "iidabashi-presas-event80",
+        "特定event80+",
+        "37台 / 103.54% / RB1/295.35 / 合算1/135.89 / 平均56 41.08%",
+        {
+          minScore: 80,
+          requiredFlags: ["iidabashiNeoHistoryReady"],
+        },
+        ["iidabashi-presas-neo-aim-event"],
+      ),
+      buildCondition(
+        "iidabashi-presas-event-rank1-gap4",
+        "特定1位gap4+",
+        "35台 / 102.56% / RB1/291.89 / 合算1/138.70 / 平均56 41.58%",
+        {
+          rankMax: 1,
+          minNextGap: 4,
+          requiredFlags: ["iidabashiNeoHistoryReady"],
+        },
+        ["iidabashi-presas-neo-aim-event"],
+      ),
+      buildCondition(
+        "iidabashi-presas-event-score90",
+        "特定_event90+",
+        "20台 / 103.46% / RB1/276.83 / 合算1/133.25 / 平均56 48.16%",
+        {
+          minScore: 90,
+          requiredFlags: ["iidabashiNeoHistoryReady"],
+        },
+        ["iidabashi-presas-neo-aim-event"],
+      ),
+      buildCondition(
+        "iidabashi-presas-event-score95",
+        "特定event95+",
+        "11台 / 103.85% / RB1/254.53 / 合算1/129.42 / 平均56 59.47%",
+        {
+          minScore: 95,
+          requiredFlags: ["iidabashiNeoHistoryReady"],
+        },
+        ["iidabashi-presas-neo-aim-event"],
+      ),
+      buildCondition(
+        "iidabashi-presas-event-losing4-sink-danger0",
+        "特定_連敗4+7日差枚<=-3000+危険0",
+        "6台 / 105.07% / RB1/257.33 / 合算1/127.48 / 平均56 58.84%",
+        {
+          maxDanger: 0,
+          requiredFlags: ["iidabashiNeoHistoryReady", "iidabashiNeoEventLosingDeep"],
+        },
+        ["iidabashi-presas-neo-aim-event"],
+      ),
+      buildCondition(
+        "iidabashi-presas-watch-history-short",
+        "見送り：履歴不足",
+        "同一台番履歴21営業日未満 / 点数-20",
+        {
+          requiredFlags: ["iidabashiNeoHistoryShort"],
+        },
+        ["iidabashi-presas-neo-aim", "iidabashi-presas-neo-aim-normal", "iidabashi-presas-neo-aim-event"],
+      ),
+      buildCondition(
+        "iidabashi-presas-watch-weak-boost",
+        "強化不足",
+        "70点以上でも強化1個以下",
+        {
+          minScore: 70,
+          maxBoost: 1,
+          requiredFlags: ["iidabashiNeoHistoryReady"],
+        },
+        ["iidabashi-presas-neo-aim", "iidabashi-presas-neo-aim-normal", "iidabashi-presas-neo-aim-event"],
+      ),
+      buildCondition(
+        "iidabashi-presas-watch-danger-many",
+        "危険過多",
+        "危険2個以上",
+        {
+          minDanger: 2,
+          requiredFlags: ["iidabashiNeoHistoryReady"],
+        },
+        ["iidabashi-presas-neo-aim", "iidabashi-presas-neo-aim-normal", "iidabashi-presas-neo-aim-event"],
+      ),
+      buildCondition(
+        "iidabashi-presas-watch-treatment-done",
+        "処遇完了優勢",
+        "処遇完了かつ強化2個以下",
+        {
+          maxBoost: 2,
+          requiredFlags: ["iidabashiNeoHistoryReady", "iidabashiNeoTreatmentDone"],
+        },
+        ["iidabashi-presas-neo-aim", "iidabashi-presas-neo-aim-normal", "iidabashi-presas-neo-aim-event"],
+      ),
+      buildCondition(
+        "iidabashi-presas-watch-prev-high-too-much",
+        "前日高50出過ぎ",
+        "52台 / 99.34% / RB1/355.56 / 合算1/153.77 / 平均56 23.68% / 56<30 76.92%",
+        {
+          requiredFlags: ["iidabashiNeoHistoryReady", "iidabashiNeoPreviousHighTooMuch"],
+        },
+        ["iidabashi-presas-neo-aim", "iidabashi-presas-neo-aim-normal", "iidabashi-presas-neo-aim-event"],
+      ),
+      buildCondition(
+        "iidabashi-presas-watch-low-games",
+        "G数不足",
+        "直近7日10000G未満",
+        {
+          requiredFlags: ["iidabashiNeoVeryLowGames"],
+        },
+        ["iidabashi-presas-neo-aim", "iidabashi-presas-neo-aim-normal", "iidabashi-presas-neo-aim-event"],
+      ),
+      buildCondition(
+        "iidabashi-presas-watch-long-neglect",
+        "長期放置",
+        "前回高内容から30日以上で返済根拠が弱い",
+        {
+          requiredFlags: ["iidabashiNeoHistoryReady", "iidabashiNeoLongNeglectNoSupport"],
+        },
+        ["iidabashi-presas-neo-aim", "iidabashi-presas-neo-aim-normal", "iidabashi-presas-neo-aim-event"],
       ),
       buildCondition(
         "beam-hikari-main",
@@ -4280,6 +4623,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "messe-minamisenju-neo-aim");
   } else if (isKintokiKamataStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "kintoki-kamata-neo-aim");
+  } else if (isIidabashiPresasStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "iidabashi-presas-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
@@ -4589,6 +4934,7 @@ function buildFeatureState(metrics = {}) {
   const recentSevenRbTotal = readNumber(metrics.recentSevenRbTotal);
   const recentFourteenRbTotal = readNumber(metrics.recentFourteenRbTotal);
   const recentTwentyOneRbTotal = readNumber(metrics.recentTwentyOneRbTotal);
+  const recentTwentyOneBonusTotal = readNumber(metrics.recentTwentyOneBonusTotal);
   const recentSevenBbTotal = readNumber(metrics.recentSevenBbTotal);
   const recentFourteenBbTotal = readNumber(metrics.recentFourteenBbTotal);
   const daysSinceHistoryHighSettingCandidate = readNullableNumber(
@@ -4635,10 +4981,15 @@ function buildFeatureState(metrics = {}) {
     recentFourteenGamesTotal,
     recentFourteenBbTotal + recentFourteenRbTotal,
   );
+  const recentTwentyOneCombinedDenominator = rateDenominator(
+    recentTwentyOneGamesTotal,
+    recentTwentyOneBonusTotal,
+  );
   const recentThreeRbDenominator = rateDenominator(recentThreeGamesTotal, recentThreeRbTotal);
   const recentFiveRbDenominator = rateDenominator(recentFiveGamesTotal, recentFiveRbTotal);
   const recentSevenRbDenominator = rateDenominator(recentSevenGamesTotal, recentSevenRbTotal);
   const recentFourteenRbDenominator = rateDenominator(recentFourteenGamesTotal, recentFourteenRbTotal);
+  const recentTwentyOneRbDenominator = rateDenominator(recentTwentyOneGamesTotal, recentTwentyOneRbTotal);
   const previousCombinedDenominator = rateDenominator(previousGames, previousBonusTotal);
   const previousRbDenominator = rateDenominator(previousGames, previousRbCount);
   const previousSetting = readNullableNumber(metrics.todaySetting);
@@ -4766,10 +5117,12 @@ function buildFeatureState(metrics = {}) {
     recentFiveCombinedDenominator,
     recentSevenCombinedDenominator,
     recentFourteenCombinedDenominator,
+    recentTwentyOneCombinedDenominator,
     recentThreeRbDenominator,
     recentFiveRbDenominator,
     recentSevenRbDenominator,
     recentFourteenRbDenominator,
+    recentTwentyOneRbDenominator,
     previousCombinedDenominator,
     previousRbDenominator,
     recentThreeBigShowDays,
@@ -4999,6 +5352,99 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (
+      activeLogicKey === "iidabashi-presas-neo-aim" ||
+      activeLogicKey === "iidabashi-presas-neo-aim-normal" ||
+      activeLogicKey === "iidabashi-presas-neo-aim-event"
+    ) {
+      const iidabashiNeoHistoryReady = historyRowCount >= 21;
+      const iidabashiNeoHistoryShort = historyRowCount < 21;
+      const iidabashiNeoDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : historyRowCount >= 30
+          ? historyRowCount
+          : null;
+      const iidabashiNeoDeepSink =
+        (recentSevenNetTotal <= -3000 && recentSevenGamesTotal >= 15000) ||
+        (recentFourteenNetTotal <= -5000 && recentFourteenGamesTotal >= 35000);
+      const iidabashiNeoSteepSink = features.recentSevenAngle <= -150 && recentSevenGamesTotal >= 15000;
+      const iidabashiNeoUnrepaid =
+        (recentFourteenNetTotal <= -2500 && recentThreeNetTotal <= 1000) ||
+        (previousMachineHighContent && previousDifference <= 600);
+      const iidabashiNeoGenuineReturn =
+        (previousMachineHighContent && previousDifference <= 1200) ||
+        (features.recentSevenRbDenominator >= 430 && features.recentSevenCombinedDenominator >= 160);
+      const iidabashiNeoGamesTrusted = recentSevenGamesTotal >= 22000 && recentFourteenGamesTotal >= 42000;
+      const iidabashiNeoAllShortSink = recentSevenNetTotal <= -2000;
+      const iidabashiNeoLosingStreak4 = streak >= 4;
+      const iidabashiNeoLosingStreak5 = streak >= 5;
+      const iidabashiNeoNormal21AngleStrong = features.recentTwentyOneAngle <= -50;
+      const iidabashiNeoEventLosingDeep = streak >= 4 && recentSevenNetTotal <= -3000;
+      const iidabashiNeoPreviousHighTooMuch = previousMachineHighContent && previousDifference >= 1800;
+      const iidabashiNeoTreatmentDone =
+        recentThreeNetTotal >= 3000 ||
+        iidabashiNeoPreviousHighTooMuch ||
+        (features.recentSevenRbDenominator <= 270 &&
+          features.recentSevenCombinedDenominator <= 135 &&
+          recentSevenNetTotal >= 1000);
+      const iidabashiNeoLowGames = recentSevenGamesTotal < 15000 || previousGames < 1800;
+      const iidabashiNeoVeryLowGames = recentSevenGamesTotal < 10000;
+      const iidabashiNeoLongNeglect =
+        streak >= 7 ||
+        (Number.isFinite(iidabashiNeoDaysSinceHigh) && iidabashiNeoDaysSinceHigh >= 30);
+      const iidabashiNeoOutputOnlyStrong =
+        (recentThreeNetTotal >= 1500 && features.recentThreeRbDenominator >= 430) ||
+        (previousDifference >= 1200 && previousRbDenominator >= 450);
+      const iidabashiNeoLongNeglectNoSupport =
+        Number.isFinite(iidabashiNeoDaysSinceHigh) &&
+        iidabashiNeoDaysSinceHigh >= 30 &&
+        !iidabashiNeoDeepSink &&
+        !iidabashiNeoUnrepaid;
+      const boostFlags = [
+        iidabashiNeoDeepSink,
+        iidabashiNeoSteepSink,
+        iidabashiNeoUnrepaid,
+        iidabashiNeoGenuineReturn,
+        iidabashiNeoGamesTrusted,
+        adjacentMachineHighContentCount7 >= 2 && recentSevenNetTotal <= -1000,
+      ];
+      const dangerFlags = [
+        iidabashiNeoTreatmentDone,
+        iidabashiNeoLowGames,
+        iidabashiNeoLongNeglect,
+        iidabashiNeoOutputOnlyStrong,
+      ];
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability,
+        iidabashiNeoDaysSinceHigh,
+        iidabashiNeoHistoryReady,
+        iidabashiNeoHistoryShort,
+        iidabashiNeoDeepSink,
+        iidabashiNeoSteepSink,
+        iidabashiNeoUnrepaid,
+        iidabashiNeoGenuineReturn,
+        iidabashiNeoGamesTrusted,
+        iidabashiNeoAllShortSink,
+        iidabashiNeoLosingStreak4,
+        iidabashiNeoLosingStreak5,
+        iidabashiNeoNormal21AngleStrong,
+        iidabashiNeoEventLosingDeep,
+        iidabashiNeoPreviousHighTooMuch,
+        iidabashiNeoTreatmentDone,
+        iidabashiNeoLowGames,
+        iidabashiNeoVeryLowGames,
+        iidabashiNeoLongNeglect,
+        iidabashiNeoOutputOnlyStrong,
+        iidabashiNeoLongNeglectNoSupport,
+        treatmentDone: iidabashiNeoTreatmentDone,
+        lowConfidence: iidabashiNeoHistoryShort || iidabashiNeoLowGames,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "kintoki-kamata-neo-aim") {
       const kintokiNeoHistoryReady = historyRowCount >= 14;
       const kintokiNeoHistoryShort = historyRowCount < 14;
@@ -8673,6 +9119,195 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (
+      activeLogicKey === "iidabashi-presas-neo-aim" ||
+      activeLogicKey === "iidabashi-presas-neo-aim-normal" ||
+      activeLogicKey === "iidabashi-presas-neo-aim-event"
+    ) {
+      const iidabashiDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : historyRowCount >= 30
+          ? historyRowCount
+          : null;
+      const historyPenalty = historyRowCount < 21 ? 20 : 0;
+      let score = 45;
+
+      if (activeLogicKey === "iidabashi-presas-neo-aim") {
+        const sinkScore = Math.min(
+          scoreAtMost(recentSevenNetTotal, [
+            { maximum: -4500, points: 16 },
+            { maximum: -3000, points: 12 },
+            { maximum: -1500, points: 8 },
+            { maximum: 0, points: 4 },
+          ]) +
+            scoreAtMost(recentFourteenNetTotal, [
+              { maximum: -7500, points: 12 },
+              { maximum: -5000, points: 9 },
+              { maximum: -2500, points: 6 },
+              { maximum: 0, points: 2 },
+            ]),
+          24,
+        );
+        score += sinkScore;
+        score += scoreAtMost(features.recentSevenAngle, [
+          { maximum: -220, points: 10 },
+          { maximum: -150, points: 7 },
+          { maximum: -80, points: 4 },
+        ]);
+        score += scoreAtLeast(recentSevenGamesTotal, [
+          { minimum: 30000, points: 10 },
+          { minimum: 22000, points: 7 },
+          { minimum: 15000, points: 4 },
+        ]);
+        score += scoreAtLeast(recentFourteenGamesTotal, [
+          { minimum: 56000, points: 5 },
+          { minimum: 42000, points: 3 },
+        ]);
+        score += previousMachineHighContent && previousDifference <= 600 ? 9 : 0;
+        score += previousMachineStrongHighContent && previousDifference <= 1200 ? 5 : 0;
+        score += scoreAtLeast(features.recentSevenRbDenominator, [
+          { minimum: 520, points: 8 },
+          { minimum: 430, points: 5 },
+          { minimum: 360, points: 2 },
+        ]);
+        score += scoreAtLeast(features.recentSevenCombinedDenominator, [
+          { minimum: 180, points: 4 },
+          { minimum: 165, points: 2 },
+        ]);
+        score += scoreInRange(iidabashiDaysSinceHigh, 5, 10, 8);
+        score += scoreInRange(iidabashiDaysSinceHigh, 11, 18, 5);
+        score += scoreInRange(iidabashiDaysSinceHigh, 3, 4, 3);
+        score += adjacentMachineHighContentCount7 >= 2 && recentSevenNetTotal <= -1000 ? 4 : 0;
+
+        score -= Number.isFinite(iidabashiDaysSinceHigh) && iidabashiDaysSinceHigh >= 30 ? 8 : 0;
+        score -= Number.isFinite(iidabashiDaysSinceHigh) && iidabashiDaysSinceHigh <= 1 ? 6 : 0;
+        score -= scoreAtLeast(recentThreeNetTotal, [
+          { minimum: 4500, points: 18 },
+          { minimum: 3000, points: 12 },
+        ]);
+        score -= scoreAtLeast(recentSevenNetTotal, [
+          { minimum: 5500, points: 12 },
+          { minimum: 3000, points: 8 },
+        ]);
+        score -= previousMachineHighContent && previousDifference >= 1800 ? 10 : 0;
+        score -=
+          features.recentSevenRbDenominator <= 270 &&
+          features.recentSevenCombinedDenominator <= 135 &&
+          recentSevenNetTotal >= 1000
+            ? 8
+            : 0;
+        score -= streak >= 7 ? 7 : 0;
+        score -= recentSevenGamesTotal < 10000 ? 10 : recentSevenGamesTotal < 15000 ? 5 : 0;
+        score -= historyPenalty;
+        return Math.round(clamp(score, 0, 100));
+      }
+
+      if (activeLogicKey === "iidabashi-presas-neo-aim-normal") {
+        score += scoreAtMost(recentTwentyOneNetTotal, [
+          { maximum: -7000, points: 18 },
+          { maximum: -5000, points: 14 },
+          { maximum: -3000, points: 10 },
+          { maximum: -1000, points: 6 },
+          { maximum: 0, points: 3 },
+        ]);
+        score += scoreAtMost(features.recentTwentyOneAngle, [
+          { maximum: -70, points: 12 },
+          { maximum: -50, points: 9 },
+          { maximum: 0, points: 4 },
+        ]);
+        score += scoreAtLeast(streak, [
+          { minimum: 5, points: 14 },
+          { minimum: 4, points: 10 },
+          { minimum: 3, points: 6 },
+          { minimum: 2, points: 3 },
+        ]);
+        score += scoreAtMost(recentFourteenNetTotal, [
+          { maximum: -4000, points: 7 },
+          { maximum: -2500, points: 5 },
+        ]);
+        score += scoreAtMost(recentSevenNetTotal, [
+          { maximum: -3000, points: 5 },
+          { maximum: -1500, points: 3 },
+        ]);
+        score += scoreAtLeast(iidabashiDaysSinceHigh, [
+          { minimum: 14, points: 6 },
+          { minimum: 10, points: 4 },
+        ]);
+        score += scoreInRange(iidabashiDaysSinceHigh, 3, 5, 2);
+        score += scoreAtLeast(recentTwentyOneGamesTotal, [
+          { minimum: 105000, points: 6 },
+          { minimum: 85000, points: 4 },
+        ]);
+        score += recentSevenGamesTotal >= 22000 ? 3 : 0;
+        score +=
+          features.recentTwentyOneRbDenominator >= 380 &&
+          features.recentTwentyOneCombinedDenominator >= 155
+            ? 4
+            : 0;
+
+        score -= scoreAtLeast(recentThreeNetTotal, [
+          { minimum: 3500, points: 14 },
+          { minimum: 2000, points: 8 },
+        ]);
+        score -= recentSevenNetTotal >= 3500 ? 8 : 0;
+        score -= previousMachineHighContent && previousDifference >= 1800 ? 10 : 0;
+        score -= recentSevenGamesTotal < 12000 ? 8 : 0;
+        score -= streak >= 8 ? 6 : 0;
+        score -= Number.isFinite(iidabashiDaysSinceHigh) && iidabashiDaysSinceHigh >= 35 ? 5 : 0;
+        score -= historyPenalty;
+        return Math.round(clamp(score, 0, 100));
+      }
+
+      score += scoreAtLeast(streak, [
+        { minimum: 4, points: 18 },
+        { minimum: 3, points: 12 },
+        { minimum: 2, points: 5 },
+      ]);
+      score += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -4000, points: 16 },
+        { maximum: -3000, points: 12 },
+        { maximum: -2000, points: 8 },
+        { maximum: -1000, points: 4 },
+      ]);
+      score += scoreAtMost(features.recentSevenAngle, [
+        { maximum: -150, points: 10 },
+        { maximum: -100, points: 8 },
+        { maximum: -50, points: 4 },
+      ]);
+      score += scoreAtMost(recentTenNetTotal, [
+        { maximum: -4000, points: 8 },
+        { maximum: -3000, points: 6 },
+      ]);
+      score += scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -4000, points: 6 },
+        { maximum: -3000, points: 4 },
+      ]);
+      score += scoreAtMost(recentTwentyOneNetTotal, [
+        { maximum: -5000, points: 8 },
+        { maximum: -3000, points: 5 },
+      ]);
+      score += previousMachineHighContent && previousDifference <= 600 ? 8 : 0;
+      score += scoreAtLeast(iidabashiDaysSinceHigh, [
+        { minimum: 14, points: 5 },
+        { minimum: 7, points: 3 },
+      ]);
+      score += scoreAtLeast(recentSevenGamesTotal, [
+        { minimum: 30000, points: 6 },
+        { minimum: 22000, points: 4 },
+      ]);
+
+      score -= scoreAtLeast(recentThreeNetTotal, [
+        { minimum: 3500, points: 16 },
+        { minimum: 2000, points: 10 },
+      ]);
+      score -= recentSevenNetTotal >= 3500 ? 8 : 0;
+      score -= previousMachineHighContent && previousDifference >= 1800 ? 12 : 0;
+      score -= recentSevenGamesTotal < 12000 ? 8 : 0;
+      score -= Number.isFinite(iidabashiDaysSinceHigh) && iidabashiDaysSinceHigh <= 1 ? 6 : 0;
+      score -= historyPenalty;
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (activeLogicKey === "kintoki-kamata-neo-aim") {
       const previousFivePlus = previousMachineSettingFivePlusProbability;
       const hasPreviousFivePlus = Number.isFinite(previousFivePlus);
@@ -14659,6 +15294,27 @@ function buildBeamHikariDateSetting(definition, dateText) {
   };
 }
 
+function buildIidabashiPresasDateSetting(definition, isEventDate) {
+  if (definition?.machineKey !== "neo-aim") {
+    return null;
+  }
+  const logicKey = isEventDate ? "iidabashi-presas-neo-aim-event" : "iidabashi-presas-neo-aim-normal";
+  const logic = findLogicDefinition(definition, logicKey);
+  if (!logic) {
+    return null;
+  }
+  const condition =
+    listConditionDefinitions(definition, logic.key).find(
+      (candidate) => candidate.keySuffix === logic.defaultConditionSuffix,
+    ) ??
+    listConditionDefinitions(definition, logic.key)[0] ??
+    null;
+  return {
+    logicKey: logic.key,
+    conditionKey: condition ? buildConditionKey(definition, condition) : "",
+  };
+}
+
 function resolveRankingDateSpecificSetting(definition, setting, options = {}) {
   if (
     !options?.dateSpecificRanking ||
@@ -14778,12 +15434,28 @@ function buildEvaluationForRow(row, settingByMachineKey, options = {}) {
 }
 
 function buildDaySpecificEvaluationForRow(row, options = {}) {
-  if (!options?.dateSpecificRanking || !isBeamHikariStore(options?.storeName)) {
+  if (!options?.dateSpecificRanking) {
     return null;
   }
 
   const definition = findMachineDefinition(row?.machineName);
+  if (isIidabashiPresasStore(options?.storeName) && definition?.machineKey === "neo-aim") {
+    const targetDate = readRankingTargetDate(options?.snapshot);
+    const isEventDate = isIidabashiPresasEventDate(targetDate, row, options);
+    const setting = buildIidabashiPresasDateSetting(definition, isEventDate);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    if (!evaluation) {
+      return null;
+    }
+
+    return {
+      ...evaluation,
+      displayLabel: isEventDate ? "特定日" : "通常日",
+    };
+  }
+
   if (
+    !isBeamHikariStore(options?.storeName) ||
     ![
       "neo-aim",
       "funky",

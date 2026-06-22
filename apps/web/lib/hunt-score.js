@@ -283,6 +283,10 @@ const KINTOKI_KAMATA_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const IIDABASHI_PRESAS_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const APARK_YAKATABARU_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -866,6 +870,21 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "kintoki-kamata-neo-aim",
       "ネオアイムジャグラーＥＸ": "kintoki-kamata-neo-aim",
+    },
+  },
+  {
+    key: "iidabashi-presas",
+    storeNames: ["飯田橋プレサス", "飯田橋プレサス店", "プレサス飯田橋", "プレサス飯田橋店"],
+    targetMachines: IIDABASHI_PRESAS_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    adjacentSameMachineMode: "slot-number-gap",
+    adjacentSlotNumberGroups: [
+      [164, 168],
+      [193, 197],
+    ],
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "iidabashi-presas-neo-aim",
+      "ネオアイムジャグラーＥＸ": "iidabashi-presas-neo-aim",
     },
   },
   {
@@ -1846,6 +1865,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
         (games >= 4500 && rbDenominator <= 310 && combinedDenominator <= 145)
       );
     }
+    if (contentRule === "iidabashi-presas-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
   }
   if (
@@ -2113,6 +2139,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 350 && combinedDenominator <= 160;
     }
+    if (contentRule === "iidabashi-presas-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.35;
+      }
+      return games >= 3000 && rbDenominator <= 360 && combinedDenominator <= 160;
+    }
     return games >= 5000 && rbDenominator <= 315 && combinedDenominator <= 145;
   }
   if (normalizedMachineName === normalizeText("スターハナハナ")) {
@@ -2177,7 +2210,7 @@ function isMachineLowContentWindowRow(row, machineName, config = null) {
 
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
-    readMachineContentRule(config, machineName) === "chikushino-neo-aim"
+    ["chikushino-neo-aim", "iidabashi-presas-neo-aim"].includes(readMachineContentRule(config, machineName))
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     return Number.isFinite(settingFivePlusProbability) && games >= 2000 && settingFivePlusProbability < 0.3;
@@ -2194,6 +2227,15 @@ function isMachineWeakContentWindowRow(row, machineName, config = null) {
 
   if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
     if (readMachineContentRule(config, machineName) === "chikushino-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        games >= 2500 &&
+        ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability < 0.3) ||
+          rbDenominator > 400 ||
+          combinedDenominator > 170)
+      );
+    }
+    if (readMachineContentRule(config, machineName) === "iidabashi-presas-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       return (
         games >= 2500 &&
@@ -2315,6 +2357,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "kintoki-kamata-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "iidabashi-presas-neo-aim"
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     if (Number.isFinite(settingFivePlusProbability)) {
