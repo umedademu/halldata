@@ -1144,6 +1144,17 @@ a {
   white-space: nowrap;
 }
 
+.storeResultCount {
+  padding: 6px 10px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.04);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
 .myHallList {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -1241,6 +1252,34 @@ a {
   font-weight: 800;
 }
 
+.storeFavoriteMatches {
+  display: grid;
+  gap: 8px;
+}
+
+.storeSubsectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px;
+}
+
+.storeSubsectionTitle {
+  margin: 0;
+  color: #805300;
+  font-size: 0.92rem;
+  font-weight: 900;
+  line-height: 1.5;
+}
+
+.storeSubsectionHeader span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .storeLinkList {
   display: grid;
   gap: 0;
@@ -1284,6 +1323,10 @@ a {
 
 .storeLinkItemDraggable {
   grid-template-columns: 2.2rem 2.5rem minmax(0, 1fr);
+}
+
+.storeLinkItemFavorite {
+  background: rgba(209, 138, 0, 0.06);
 }
 
 .storeDragHandle {
@@ -1367,6 +1410,33 @@ a {
 
 .storeNameWithFavorite {
   flex-wrap: nowrap;
+}
+
+.storeSwitcher {
+  display: grid;
+  gap: 7px;
+  width: min(100%, 32rem);
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.storeSwitcherLabel {
+  line-height: 1.4;
+}
+
+.storeSwitcherSelect {
+  width: 100%;
+  min-height: 2.7rem;
+  padding: 9px 12px;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 800;
 }
 
 .machineVerificationLink {

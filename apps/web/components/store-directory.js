@@ -78,6 +78,7 @@ function StoreListItem({ store, isFavorite, onToggle, compact = false, reorderab
     "storeLinkItem",
     compact ? "storeLinkItemCompact" : "",
     reorderable ? "storeLinkItemDraggable" : "",
+    isFavorite ? "storeLinkItemFavorite" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -122,8 +123,26 @@ export function StoreDirectory({ completeStores, pendingStores }) {
       normalizeText(store.storeName).includes(normalizedQuery),
     );
   }, [completeStores, normalizedQuery]);
-  const storeGroups = useMemo(() => buildStoreGroups(filteredStores), [filteredStores]);
+  const favoriteFilteredStores = useMemo(
+    () =>
+      normalizedQuery
+        ? filteredStores.filter((store) => myHallStoreIdSet.has(normalizeStoreId(store.id)))
+        : [],
+    [filteredStores, myHallStoreIdSet, normalizedQuery],
+  );
+  const otherFilteredStores = useMemo(
+    () => filteredStores.filter((store) => !myHallStoreIdSet.has(normalizeStoreId(store.id))),
+    [filteredStores, myHallStoreIdSet],
+  );
+  const storeGroups = useMemo(() => buildStoreGroups(otherFilteredStores), [otherFilteredStores]);
   const shouldOpenMatchedRegions = Boolean(normalizedQuery);
+  const directoryTitle = myHallStores.length > 0 ? "その他の店舗" : "保存済み店舗";
+  const emptyListText =
+    normalizedQuery && favoriteFilteredStores.length > 0
+      ? "その他に一致する店舗はありません。"
+      : normalizedQuery
+        ? "該当する店舗はありません。"
+        : "その他の店舗はありません。";
 
   useEffect(() => {
     const syncMyHallStoreIds = () => {
@@ -284,8 +303,9 @@ export function StoreDirectory({ completeStores, pendingStores }) {
           <div className="tablePanelHeader storeDirectoryHeader">
             <div>
               <p className="sectionLabel">店舗一覧</p>
-              <h2 className="tablePanelTitle">保存済み店舗</h2>
+              <h2 className="tablePanelTitle">{directoryTitle}</h2>
             </div>
+            <span className="storeResultCount">{otherFilteredStores.length}店舗</span>
           </div>
           <div className="storeSearchRow">
             <label className="storeSearchField">
@@ -304,8 +324,27 @@ export function StoreDirectory({ completeStores, pendingStores }) {
               </button>
             ) : null}
           </div>
-          {filteredStores.length === 0 ? (
-            <div className="emptyListPanel">該当する店舗はありません。</div>
+          {favoriteFilteredStores.length > 0 ? (
+            <div className="storeFavoriteMatches">
+              <div className="storeSubsectionHeader">
+                <p className="storeSubsectionTitle">マイホールの一致店舗</p>
+                <span>{favoriteFilteredStores.length}店舗</span>
+              </div>
+              <ul className="storeLinkList">
+                {favoriteFilteredStores.map((store) => (
+                  <li key={store.id}>
+                    <StoreListItem
+                      store={store}
+                      isFavorite={myHallStoreIdSet.has(normalizeStoreId(store.id))}
+                      onToggle={handleToggleMyHall}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {otherFilteredStores.length === 0 ? (
+            <div className="emptyListPanel">{emptyListText}</div>
           ) : (
             <div className="storeGroupList">
               {storeGroups.map((prefecture) => (

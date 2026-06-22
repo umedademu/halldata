@@ -15,9 +15,11 @@ import {
 import { NativeGetForm } from "../../../../components/native-get-form";
 import { ResultUrlTools } from "../../../../components/result-url-tools";
 import { StoreFavoriteButton } from "../../../../components/store-favorite-button";
+import { StoreSwitcher } from "../../../../components/store-switcher";
 import {
   getHuntScoreInitialPageDetail,
   getHuntScoreRankingDetail,
+  getStoreList,
   getStoreIdentity,
 } from "../../../../lib/data";
 import { formatMonthDay } from "../../../../lib/format";
@@ -344,10 +346,11 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     machineFilterTouched,
   );
   let detail;
+  let storeOptions = [];
 
   try {
-    detail = resultRequested
-      ? await getHuntScoreRankingDetail(
+    const detailPromise = resultRequested
+      ? getHuntScoreRankingDetail(
           storeId,
           requestedDate,
           requestedLimit,
@@ -364,7 +367,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             requestedDate,
           },
         )
-      : await getHuntScoreInitialPageDetail(
+      : getHuntScoreInitialPageDetail(
           storeId,
           {
             differenceMode,
@@ -374,6 +377,9 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
           },
           huntScoreLogicKey,
         );
+    const [nextDetail, stores] = await Promise.all([detailPromise, getStoreList()]);
+    detail = nextDetail;
+    storeOptions = stores.filter((store) => !store.isPendingRegistration);
   } catch (error) {
     return (
       <main className="pageStack">
@@ -495,6 +501,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               {detail.store.storeName}
             </Link>
           </div>
+          <StoreSwitcher stores={storeOptions} currentStoreId={detail.store.id} />
           {detail.huntScoreLogics?.length > 0 ? (
             <p className="dataSourceLabel">
               使用するロジック: {detail.huntScoreLogics.map((logic) => logic.name).join(" + ")}
