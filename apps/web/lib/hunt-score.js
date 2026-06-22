@@ -267,6 +267,10 @@ const HINODE_ONOJO_TARGET_MACHINES = [
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
 ];
 
+const SUPER_DSTATION_CHIKUSHINO_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const APARK_YAKATABARU_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -795,6 +799,23 @@ const HUNT_SCORE_STORE_CONFIGS = [
     },
   },
   {
+    key: "super-dstation-chikushino",
+    storeNames: [
+      "スーパーDステーション39筑紫野店",
+      "スーパーDステーション筑紫野店",
+      "スーパーＤステーション３９筑紫野店",
+      "スーパーＤステーション筑紫野店",
+      "スーパーＤ’ステーション３９筑紫野店",
+    ],
+    targetMachines: SUPER_DSTATION_CHIKUSHINO_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    resetHistoryGapDays: 7,
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "chikushino-neo-aim",
+      "ネオアイムジャグラーＥＸ": "chikushino-neo-aim",
+    },
+  },
+  {
     key: "tamaya-ohashi",
     storeNames: ["玉屋555大橋店"],
     targetMachines: TAMAYA_OHASHI_TARGET_MACHINES,
@@ -1182,6 +1203,41 @@ function readHuntScoreDifferenceValue(row, differenceMode = DEFAULT_DIFFERENCE_M
   return selectDifferenceValue(row, differenceMode, machineName || row?.machine_name) ?? 0;
 }
 
+function readRawHuntScoreDifferenceValue(row) {
+  return readNumber(row?.difference_value);
+}
+
+function readWindowRowDateTime(windowRow) {
+  const dateText = String(windowRow?.row?.target_date ?? windowRow?.target_date ?? "").trim();
+  if (!dateText) {
+    return null;
+  }
+  const time = Date.parse(dateText);
+  return Number.isFinite(time) ? time : null;
+}
+
+function filterWindowRowsAfterLargeDateGap(windowRows, resetHistoryGapDays) {
+  const normalizedGapDays = Number(resetHistoryGapDays);
+  if (!Array.isArray(windowRows) || !Number.isFinite(normalizedGapDays) || normalizedGapDays <= 0) {
+    return windowRows;
+  }
+
+  let startIndex = 0;
+  for (let index = 1; index < windowRows.length; index += 1) {
+    const previousTime = readWindowRowDateTime(windowRows[index - 1]);
+    const currentTime = readWindowRowDateTime(windowRows[index]);
+    if (!Number.isFinite(previousTime) || !Number.isFinite(currentTime)) {
+      continue;
+    }
+    const gapDays = (currentTime - previousTime) / 86400000;
+    if (gapDays > normalizedGapDays) {
+      startIndex = index;
+    }
+  }
+
+  return startIndex > 0 ? windowRows.slice(startIndex) : windowRows;
+}
+
 function buildRowKey(row, config) {
   return [
     String(row?.target_date ?? "").trim(),
@@ -1321,6 +1377,33 @@ function calculateCurrentMachineContentStreak(windowRows, predicate) {
 
 function sumDifferenceValues(rows) {
   return rows.reduce((total, row) => total + (readNumber(row?.differenceValue) ?? 0), 0);
+}
+
+function readWindowRawDifferenceValue(row) {
+  return readRawHuntScoreDifferenceValue(row?.row);
+}
+
+function sumRawDifferenceValues(rows) {
+  return rows.reduce((total, row) => {
+    const differenceValue = readWindowRawDifferenceValue(row);
+    return total + (Number.isFinite(differenceValue) ? differenceValue : 0);
+  }, 0);
+}
+
+function countRawDifferenceValueRows(rows) {
+  return rows.filter((row) => Number.isFinite(readWindowRawDifferenceValue(row))).length;
+}
+
+function calculateCurrentRawDifferenceLosingStreak(rows) {
+  let streak = 0;
+  for (let index = rows.length - 1; index >= 0; index -= 1) {
+    const differenceValue = readWindowRawDifferenceValue(rows[index]);
+    if (!Number.isFinite(differenceValue) || differenceValue >= 0) {
+      break;
+    }
+    streak += 1;
+  }
+  return streak;
 }
 
 function readWindowField(row, fieldName) {
@@ -1638,6 +1721,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 150;
     }
+    if (contentRule === "chikushino-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 150;
+    }
     return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
   }
   if (
@@ -1872,6 +1962,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 330 && combinedDenominator <= 150;
     }
+    if (contentRule === "chikushino-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.35;
+      }
+      return games >= 3000 && rbDenominator <= 330 && combinedDenominator <= 150;
+    }
     return games >= 5000 && rbDenominator <= 315 && combinedDenominator <= 145;
   }
   if (normalizedMachineName === normalizeText("スターハナハナ")) {
@@ -1930,6 +2027,21 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
   return isMachineHighContentWindowRow(row, machineName, config);
 }
 
+function isMachineLowContentWindowRow(row, machineName, config = null) {
+  const normalizedMachineName = normalizeText(machineName);
+  const games = readWindowField(row, "games");
+
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "chikushino-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    return Number.isFinite(settingFivePlusProbability) && games >= 2000 && settingFivePlusProbability < 0.3;
+  }
+
+  return false;
+}
+
 function isMachineWeakContentWindowRow(row, machineName, config = null) {
   const normalizedMachineName = normalizeText(machineName);
   const games = readWindowField(row, "games");
@@ -1937,6 +2049,15 @@ function isMachineWeakContentWindowRow(row, machineName, config = null) {
   const rbDenominator = calculateRbDenominatorFromWindowRow(row);
 
   if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
+    if (readMachineContentRule(config, machineName) === "chikushino-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        games >= 2500 &&
+        ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability < 0.3) ||
+          rbDenominator > 400 ||
+          combinedDenominator > 170)
+      );
+    }
     return games >= 3000 && combinedDenominator >= 170 && rbDenominator >= 400;
   }
 
@@ -2010,6 +2131,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "hinode-onojo-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "chikushino-neo-aim"
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     if (Number.isFinite(settingFivePlusProbability)) {
@@ -6702,6 +6833,38 @@ function countAdjacentMachineHighContentRows(
   return count;
 }
 
+function countAdjacentMachineWeakContentRows(
+  businessDates,
+  dateIndex,
+  row,
+  rowsByDate,
+  config,
+  windowDays,
+  machineName,
+  distance = 2,
+) {
+  if (!(rowsByDate instanceof Map)) {
+    return 0;
+  }
+
+  const normalizedWindowDays = Math.max(1, Number(windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
+  const startIndex = Math.max(0, dateIndex - (normalizedWindowDays - 1));
+  const windowDates = businessDates.slice(startIndex, dateIndex + 1);
+  let count = 0;
+
+  for (const date of windowDates) {
+    for (const dateRow of listAdjacentSameMachineRowsByOrder(rowsByDate.get(date) ?? [], row, config, machineName, distance)) {
+      const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
+      const differenceValue = readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
+      if (isMachineWeakContentWindowRow({ row: dateRow, differenceValue }, machineName, config)) {
+        count += 1;
+      }
+    }
+  }
+
+  return count;
+}
+
 function countOtherSameMachineHighContentRows(
   businessDates,
   dateIndex,
@@ -6825,6 +6988,7 @@ function calculateWindowMetrics(
       config,
     );
   }
+  windowRows = filterWindowRowsAfterLargeDateGap(windowRows, config?.resetHistoryGapDays);
   if (!windowRows || windowRows.length === 0) {
     return null;
   }
@@ -6901,12 +7065,15 @@ function calculateWindowMetrics(
     });
   }
 
-  const historyWindowRows = buildAvailableWindowRows(
-    businessDates,
-    dateIndex,
-    recordMapByDate,
-    config.historyWindowDays ?? config.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
-    config,
+  const historyWindowRows = filterWindowRowsAfterLargeDateGap(
+    buildAvailableWindowRows(
+      businessDates,
+      dateIndex,
+      recordMapByDate,
+      config.historyWindowDays ?? config.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
+      config,
+    ),
+    config?.resetHistoryGapDays,
   );
   for (const historyWindowRow of historyWindowRows) {
     historyRowCount += 1;
@@ -7272,6 +7439,17 @@ function calculateWindowMetrics(
     const differenceValue = readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
     return isMachineGoodContentWindowRow({ row: dateRow, differenceValue }, currentMachineName, config);
   }).length;
+  const previousAdjacentMachineWeakContentCount = listAdjacentSameMachineRowsByOrder(
+    currentDateRows,
+    row,
+    config,
+    currentMachineName,
+    2,
+  ).filter((dateRow) => {
+    const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
+    const differenceValue = readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
+    return isMachineWeakContentWindowRow({ row: dateRow, differenceValue }, currentMachineName, config);
+  }).length;
   const previousOtherMachineHighContentCount = currentDateRows.filter((dateRow) => {
     if (String(dateRow?.slot_number ?? "").trim() === String(row?.slot_number ?? "").trim()) {
       return false;
@@ -7314,6 +7492,8 @@ function calculateWindowMetrics(
     isMachineHighContentWindowRow(historyWindowRow, currentMachineName, config);
   const isHistoryMachineGoodContentWindowRow = (historyWindowRow) =>
     isMachineGoodContentWindowRow(historyWindowRow, currentMachineName, config);
+  const isHistoryMachineLowContentWindowRow = (historyWindowRow) =>
+    isMachineLowContentWindowRow(historyWindowRow, currentMachineName, config);
   const isHistoryMachineWeakContentWindowRow = (historyWindowRow) =>
     isMachineWeakContentWindowRow(historyWindowRow, currentMachineName, config);
   const isHistoryMachineStrongHighContentWindowRow = (historyWindowRow) =>
@@ -7342,6 +7522,18 @@ function calculateWindowMetrics(
   const recentSevenMachineGoodContentCount = historyWindowRows
     .slice(-7)
     .filter(isHistoryMachineGoodContentWindowRow).length;
+  const recentThreeMachineLowContentCount = recentThreeRows.filter((windowRow) =>
+    isMachineLowContentWindowRow(windowRow, currentMachineName, config),
+  ).length;
+  const recentFiveMachineLowContentCount = recentFiveRows.filter((windowRow) =>
+    isMachineLowContentWindowRow(windowRow, currentMachineName, config),
+  ).length;
+  const recentSevenMachineLowContentCount = historyWindowRows
+    .slice(-7)
+    .filter(isHistoryMachineLowContentWindowRow).length;
+  const recentFiveMachineWeakContentCount = recentFiveRows.filter((windowRow) =>
+    isMachineWeakContentWindowRow(windowRow, currentMachineName, config),
+  ).length;
   const recentSevenMachineWeakContentCount = historyWindowRows
     .slice(-7)
     .filter(isHistoryMachineWeakContentWindowRow).length;
@@ -7359,6 +7551,7 @@ function calculateWindowMetrics(
     .filter(isHistoryMachineStrongHighContentWindowRow).length;
   const previousMachineHighContent = isMachineHighContentWindowRow(metricWindowRows.at(-1), currentMachineName, config);
   const previousMachineGoodContent = isMachineGoodContentWindowRow(metricWindowRows.at(-1), currentMachineName, config);
+  const previousMachineWeakContent = isMachineWeakContentWindowRow(metricWindowRows.at(-1), currentMachineName, config);
   const previousMachineStrongHighContent = isMachineStrongHighContentWindowRow(
     metricWindowRows.at(-1),
     currentMachineName,
@@ -7545,6 +7738,12 @@ function calculateWindowMetrics(
   const recentThreeStrictHighContentDays = countStrictHighContentRows(recentThreeRows);
   const recentSevenStrictHighContentDays = countStrictHighContentRows(recentSevenRows);
   const recentFiveBigWin1200Count = countDifferenceAtLeastRows(recentFiveRows, 1200);
+  const recentThreeRawDifferenceTotal = sumRawDifferenceValues(recentThreeRows);
+  const recentFiveRawDifferenceTotal = sumRawDifferenceValues(recentFiveRows);
+  const recentThreeRawDifferenceCount = countRawDifferenceValueRows(recentThreeRows);
+  const recentFiveRawDifferenceCount = countRawDifferenceValueRows(recentFiveRows);
+  const previousRawDifferenceValue = readWindowRawDifferenceValue(metricWindowRows.at(-1));
+  const rawDifferenceLosingStreak = calculateCurrentRawDifferenceLosingStreak(historyWindowRows);
   const recentSevenGoldShowDays = countDifferenceAtLeastRows(recentSevenRows, 1500);
   const recentFourteenGoldShowDays = countDifferenceAtLeastRows(recentFourteenRows, 1341);
   const previousBigShow = previousGames >= 5000 && todayDifference >= 1000;
@@ -7654,6 +7853,10 @@ function calculateWindowMetrics(
       metricWindowRows,
       isHistoryMachineGoodContentWindowRow,
     ),
+    machineWeakContentStreak: calculateCurrentMachineContentStreak(
+      metricWindowRows,
+      isHistoryMachineWeakContentWindowRow,
+    ),
     recentThreeHighSettingCount,
     recentThreeHighSettingEstimateCount,
     recentThreeSettingFiveCount,
@@ -7668,6 +7871,10 @@ function calculateWindowMetrics(
     adjacentMachineHighContentCount3,
     adjacentMachineHighContentCount3Near2,
     recentSevenMachineGoodContentCount,
+    recentThreeMachineLowContentCount,
+    recentFiveMachineLowContentCount,
+    recentSevenMachineLowContentCount,
+    recentFiveMachineWeakContentCount,
     recentSevenMachineWeakContentCount,
     recentFourteenMachineGoodContentCount,
     recentTwentyOneMachineGoodContentCount,
@@ -7675,6 +7882,7 @@ function calculateWindowMetrics(
     recentFourteenMachineStrongHighContentCount,
     previousMachineHighContent,
     previousMachineGoodContent,
+    previousMachineWeakContent,
     previousMachineStrongHighContent,
     previousMachineSettingFivePlusProbability,
     daysSinceMachineHighContent,
@@ -7730,6 +7938,7 @@ function calculateWindowMetrics(
     adjacentHighSettingCandidateCount7,
     previousAdjacentMachineHighContentCount,
     previousAdjacentMachineGoodContentCount,
+    previousAdjacentMachineWeakContentCount,
     previousAdjacentMachineBigWin1000Count,
     previousAdjacentMachineNetTotal,
     previousOtherMachineHighContentCount,
@@ -7755,6 +7964,12 @@ function calculateWindowMetrics(
     recentThreeBigShowDays,
     recentSevenBigShowDays,
     recentFiveBigWin1200Count,
+    recentThreeRawDifferenceTotal,
+    recentFiveRawDifferenceTotal,
+    recentThreeRawDifferenceCount,
+    recentFiveRawDifferenceCount,
+    previousRawDifferenceValue,
+    rawDifferenceLosingStreak,
     recentThreeStrictHighContentDays,
     recentSevenStrictHighContentDays,
     recentSevenGoldShowDays,

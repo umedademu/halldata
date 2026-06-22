@@ -161,6 +161,17 @@ function isHinodeOnojoStore(storeName) {
   );
 }
 
+function isSuperDstationChikushinoStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "スーパーDステーション39筑紫野店",
+    "スーパーDステーション筑紫野店",
+    "スーパーＤステーション３９筑紫野店",
+    "スーパーＤステーション筑紫野店",
+    "スーパーＤ’ステーション３９筑紫野店",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
 function readDateDayNumber(dateText) {
   const normalized = normalizeText(dateText);
   const match = normalized.match(/^\d{4}-\d{2}-(\d{2})$/u) ?? normalized.match(/^\d{2}\/\d{2}\/(\d{2})$/u);
@@ -1687,6 +1698,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "HINODE大野城ネオアイム沈み返済56狙い式v1",
         "hinode-onojo-short-core",
       ),
+      buildLogicVariant(
+        "chikushino-neo-aim",
+        "筑紫野ネオアイム_56推定ローテスコア",
+        "chikushino-rank1-gap3",
+      ),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
@@ -2185,6 +2201,161 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["hinodeNeoHistoryReady"],
         },
         ["hinode-onojo-neo-aim"],
+      ),
+      buildCondition(
+        "chikushino-rank1-gap3",
+        "1位＋次点差3",
+        "9台 / RB1/278.8 / 合成1/134.0 / 平均56 43.5 / 56が50以上55.6",
+        {
+          rankMax: 1,
+          minNextGap: 3,
+          requiredFlags: ["chikushinoNeoHistoryReady"],
+        },
+        ["chikushino-neo-aim"],
+      ),
+      buildCondition(
+        "chikushino-score85-low0-prev1500",
+        "85点＋低内容5日ゼロ＋前日1500G以下",
+        "21台 / 105.02% / RB1/267.5 / 合成1/130.5 / 平均56 46.4%",
+        {
+          minScore: 85,
+          requiredFlags: [
+            "chikushinoNeoHistoryReady",
+            "chikushinoNeoLowContentFiveZero",
+            "chikushinoNeoPreviousGames1500",
+          ],
+        },
+        ["chikushino-neo-aim"],
+      ),
+      buildCondition(
+        "chikushino-score85-prev2500-diff1000",
+        "85点＋前日2500G以下＋3日差枚-1000以下",
+        "20台 / 106.73% / RB1/277.3 / 合成1/126.2 / 平均56 44.0%",
+        {
+          minScore: 85,
+          requiredFlags: [
+            "chikushinoNeoHistoryReady",
+            "chikushinoNeoPreviousGames2500",
+            "chikushinoNeoThreeDiffSink1000",
+          ],
+        },
+        ["chikushino-neo-aim"],
+      ),
+      buildCondition(
+        "chikushino-score80-diff1000",
+        "80点＋3日差枚-1000以下",
+        "35台 / 104.43% / RB1/291.4 / 合成1/132.6 / 平均56 38.9%",
+        {
+          minScore: 80,
+          requiredFlags: ["chikushinoNeoHistoryReady", "chikushinoNeoThreeDiffSink1000"],
+        },
+        ["chikushino-neo-aim"],
+      ),
+      buildCondition(
+        "chikushino-rank2",
+        "毎日上位2",
+        "44台 / 104.84% / RB1/309.4 / 合成1/138.1 / 平均56 34.6%",
+        {
+          rankMax: 2,
+          requiredFlags: ["chikushinoNeoHistoryReady"],
+        },
+        ["chikushino-neo-aim"],
+      ),
+      buildCondition(
+        "chikushino-score90",
+        "90点以上",
+        "114台 / 102.51% / RB1/305.4 / 合成1/140.1 / 平均56 34.5%",
+        {
+          minScore: 90,
+          requiredFlags: ["chikushinoNeoHistoryReady"],
+        },
+        ["chikushino-neo-aim"],
+      ),
+      buildCondition(
+        "chikushino-score85",
+        "85点以上",
+        "170台 / 103.68% / RB1/308.9 / 合成1/140.7 / 平均56 33.4%",
+        {
+          minScore: 85,
+          requiredFlags: ["chikushinoNeoHistoryReady"],
+        },
+        ["chikushino-neo-aim"],
+      ),
+      buildCondition(
+        "chikushino-score80",
+        "80点以上",
+        "240台 / 103.17% / RB1/310.7 / 合成1/141.7 / 平均56 32.8%",
+        {
+          minScore: 80,
+          requiredFlags: ["chikushinoNeoHistoryReady"],
+        },
+        ["chikushino-neo-aim"],
+      ),
+      buildCondition(
+        "chikushino-score75",
+        "75点以上",
+        "339台 / 102.37% / RB1/316.8 / 合成1/143.4 / 平均56 31.5%",
+        {
+          minScore: 75,
+          requiredFlags: ["chikushinoNeoHistoryReady"],
+        },
+        ["chikushino-neo-aim"],
+      ),
+      buildCondition(
+        "chikushino-low5-zero",
+        "低内容5日ゼロ",
+        "76台 / 104.79% / RB1/307.4 / 合成1/139.6 / 平均56 34.0%",
+        {
+          requiredFlags: ["chikushinoNeoHistoryReady", "chikushinoNeoLowContentFiveZero"],
+        },
+        ["chikushino-neo-aim"],
+      ),
+      buildCondition(
+        "chikushino-weak7-zero",
+        "弱内容7日ゼロ",
+        "54台 / 104.19% / RB1/320.5 / 合成1/144.6 / 平均56 31.2%",
+        {
+          requiredFlags: ["chikushinoNeoHistoryReady", "chikushinoNeoWeakContentSevenZero"],
+        },
+        ["chikushino-neo-aim"],
+      ),
+      buildCondition(
+        "chikushino-watch-low-score",
+        "見送り：50点未満",
+        "230台 / 99.53% / RB1/369.3 / 合成1/155.5 / 平均56 23.2%",
+        {
+          maxScore: 49.999,
+        },
+        ["chikushino-neo-aim"],
+      ),
+      buildCondition(
+        "chikushino-watch-long-weak",
+        "見送り：危険長期弱",
+        "225台 / RB1/359.5 / 合成1/152.3 / 平均56 24.8",
+        {
+          requiredFlags: ["chikushinoNeoLongWeakContent"],
+        },
+        ["chikushino-neo-aim"],
+      ),
+      buildCondition(
+        "chikushino-watch-games-over",
+        "見送り：直近5日G過多25000超",
+        "70台 / 99.16% / RB1/371.8 / 合成1/157.4 / 平均56 22.1%",
+        {
+          requiredFlags: ["chikushinoNeoOverWorked"],
+        },
+        ["chikushino-neo-aim"],
+      ),
+      buildCondition(
+        "chikushino-watch-high-danger",
+        "見送り：高点数でも危険多め",
+        "70点以上でも危険2個以上かつ強化1個以下",
+        {
+          minScore: 70,
+          minDanger: 2,
+          maxBoost: 1,
+        },
+        ["chikushino-neo-aim"],
       ),
       buildCondition(
         "beam-hikari-main",
@@ -3620,6 +3791,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "gogo-tenjin-neo-aim");
   } else if (isHinodeOnojoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "hinode-onojo-neo-aim");
+  } else if (isSuperDstationChikushinoStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "chikushino-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
@@ -4219,6 +4392,11 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentFourteenMachineStrongHighContentCount = readNumber(metrics.recentFourteenMachineStrongHighContentCount);
   const recentThirtyMachineHighContentCount = readNumber(metrics.recentThirtyMachineHighContentCount);
   const recentSevenMachineGoodContentCount = readNumber(metrics.recentSevenMachineGoodContentCount);
+  const recentThreeMachineLowContentCount = readNumber(metrics.recentThreeMachineLowContentCount);
+  const recentFiveMachineLowContentCount = readNumber(metrics.recentFiveMachineLowContentCount);
+  const recentSevenMachineLowContentCount = readNumber(metrics.recentSevenMachineLowContentCount);
+  const recentFiveMachineWeakContentCount = readNumber(metrics.recentFiveMachineWeakContentCount);
+  const recentSevenMachineWeakContentCount = readNumber(metrics.recentSevenMachineWeakContentCount);
   const recentFourteenMachineGoodContentCount = readNumber(metrics.recentFourteenMachineGoodContentCount);
   const recentTwentyOneMachineGoodContentCount = readNumber(metrics.recentTwentyOneMachineGoodContentCount);
   const daysSinceMachineHighContent = readNullableNumber(metrics.daysSinceMachineHighContent);
@@ -4228,12 +4406,21 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentTwentyEightRbLightCount = readNumber(metrics.recentTwentyEightRbLightCount);
   const previousMachineHighContent = Boolean(metrics.previousMachineHighContent);
   const previousMachineGoodContent = Boolean(metrics.previousMachineGoodContent);
+  const previousMachineWeakContent = Boolean(metrics.previousMachineWeakContent);
   const previousMachineStrongHighContent = Boolean(metrics.previousMachineStrongHighContent);
   const previousMachineSettingFivePlusProbability = readNullableNumber(
     metrics.previousMachineSettingFivePlusProbability,
   );
   const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
+  const machineWeakContentStreak = readNumber(metrics.machineWeakContentStreak);
   const recentFiveBigWin1200Count = readNumber(metrics.recentFiveBigWin1200Count);
+  const previousAdjacentMachineWeakContentCount = readNumber(metrics.previousAdjacentMachineWeakContentCount);
+  const recentThreeRawDifferenceTotal = readNumber(metrics.recentThreeRawDifferenceTotal);
+  const recentFiveRawDifferenceTotal = readNumber(metrics.recentFiveRawDifferenceTotal);
+  const recentThreeRawDifferenceCount = readNumber(metrics.recentThreeRawDifferenceCount);
+  const recentFiveRawDifferenceCount = readNumber(metrics.recentFiveRawDifferenceCount);
+  const previousRawDifferenceValue = readNullableNumber(metrics.previousRawDifferenceValue);
+  const rawDifferenceLosingStreak = readNumber(metrics.rawDifferenceLosingStreak);
 
   if (machineKey === "aim") {
     if (activeLogicKey === "mj-kurume-aim") {
@@ -4321,6 +4508,89 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "chikushino-neo-aim") {
+      const chikushinoNeoHistoryReady = historyRowCount >= 5;
+      const chikushinoNeoHistoryShort = historyRowCount < 5;
+      const chikushinoNeoLowContentFiveZero =
+        historyRowCount >= 5 && recentFiveMachineLowContentCount === 0;
+      const chikushinoNeoWeakContentSevenZero =
+        historyRowCount >= 7 && recentSevenMachineWeakContentCount === 0;
+      const chikushinoNeoLowWeakAvoid =
+        historyRowCount >= 5 &&
+        recentFiveMachineLowContentCount <= 1 &&
+        recentFiveMachineWeakContentCount <= 1;
+      const chikushinoNeoPreviousGames1500 = previousGames > 0 && previousGames <= 1500;
+      const chikushinoNeoPreviousGames2500 = previousGames > 0 && previousGames <= 2500;
+      const chikushinoNeoPreviousReset =
+        chikushinoNeoPreviousGames2500 ||
+        (previousGames >= 1000 && features.previousRbDenominator >= 500);
+      const chikushinoNeoIntervalReady =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 3;
+      const chikushinoNeoNearbyTailwind = adjacentMachineHighContentCount3Near2 >= 2;
+      const chikushinoNeoHasThreeDifference = recentThreeRawDifferenceCount >= 3;
+      const chikushinoNeoHasFiveDifference = recentFiveRawDifferenceCount >= 5;
+      const chikushinoNeoThreeDiffSink1000 =
+        chikushinoNeoHasThreeDifference && recentThreeRawDifferenceTotal <= -1000;
+      const chikushinoNeoShortSinkBoost =
+        chikushinoNeoThreeDiffSink1000 || rawDifferenceLosingStreak >= 2;
+      const chikushinoNeoLongWeakContent =
+        machineWeakContentStreak >= 2 ||
+        recentSevenMachineLowContentCount >= 5 ||
+        recentSevenMachineWeakContentCount >= 5;
+      const chikushinoNeoOverWorked = recentThreeGamesTotal > 15000 || recentFiveGamesTotal > 25000;
+      const chikushinoNeoImmediateFollow =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 1 &&
+        daysSinceMachineHighContent <= 2;
+      const chikushinoNeoTreatmentDone =
+        (chikushinoNeoHasThreeDifference && recentThreeRawDifferenceTotal >= 3000) ||
+        (chikushinoNeoHasFiveDifference && recentFiveRawDifferenceTotal >= 3000);
+      const chikushinoNeoNearbyWeak = previousAdjacentMachineWeakContentCount >= 3;
+      const boostFlags = [
+        chikushinoNeoShortSinkBoost,
+        chikushinoNeoPreviousReset,
+        chikushinoNeoIntervalReady,
+        chikushinoNeoLowWeakAvoid,
+        chikushinoNeoNearbyTailwind,
+      ];
+      const dangerFlags = [
+        chikushinoNeoHistoryShort,
+        chikushinoNeoLongWeakContent,
+        chikushinoNeoOverWorked,
+        chikushinoNeoImmediateFollow,
+        chikushinoNeoTreatmentDone,
+        chikushinoNeoNearbyWeak,
+      ];
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability,
+        chikushinoNeoHistoryReady,
+        chikushinoNeoHistoryShort,
+        chikushinoNeoLowContentFiveZero,
+        chikushinoNeoWeakContentSevenZero,
+        chikushinoNeoLowWeakAvoid,
+        chikushinoNeoPreviousGames1500,
+        chikushinoNeoPreviousGames2500,
+        chikushinoNeoPreviousReset,
+        chikushinoNeoIntervalReady,
+        chikushinoNeoNearbyTailwind,
+        chikushinoNeoHasThreeDifference,
+        chikushinoNeoHasFiveDifference,
+        chikushinoNeoThreeDiffSink1000,
+        chikushinoNeoShortSinkBoost,
+        chikushinoNeoLongWeakContent,
+        chikushinoNeoOverWorked,
+        chikushinoNeoImmediateFollow,
+        chikushinoNeoTreatmentDone,
+        chikushinoNeoNearbyWeak,
+        treatmentDone: chikushinoNeoTreatmentDone,
+        lowConfidence: chikushinoNeoHistoryShort,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "hinode-onojo-neo-aim") {
       const hinodeNeoHistoryReady = historyRowCount >= 7;
       const hinodeNeoHistoryShort = !hinodeNeoHistoryReady;
@@ -7283,18 +7553,24 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFourteenMachineStrongHighContentCount = readNumber(metrics.recentFourteenMachineStrongHighContentCount);
   const recentSevenMachineGoodContentCount = readNumber(metrics.recentSevenMachineGoodContentCount);
   const recentSevenMachineWeakContentCount = readNumber(metrics.recentSevenMachineWeakContentCount);
+  const recentThreeMachineLowContentCount = readNumber(metrics.recentThreeMachineLowContentCount);
+  const recentFiveMachineLowContentCount = readNumber(metrics.recentFiveMachineLowContentCount);
+  const recentSevenMachineLowContentCount = readNumber(metrics.recentSevenMachineLowContentCount);
+  const recentFiveMachineWeakContentCount = readNumber(metrics.recentFiveMachineWeakContentCount);
   const recentTwentyOneMachineGoodContentCount = readNumber(metrics.recentTwentyOneMachineGoodContentCount);
   const daysSinceMachineHighContent = readNullableNumber(metrics.daysSinceMachineHighContent);
   const daysSinceMachineStrongHighContent = readNullableNumber(metrics.daysSinceMachineStrongHighContent);
   const daysSinceMachineBigWin1500 = readNullableNumber(metrics.daysSinceMachineBigWin1500);
   const previousMachineHighContent = Boolean(metrics.previousMachineHighContent);
   const previousMachineGoodContent = Boolean(metrics.previousMachineGoodContent);
+  const previousMachineWeakContent = Boolean(metrics.previousMachineWeakContent);
   const previousMachineStrongHighContent = Boolean(metrics.previousMachineStrongHighContent);
   const previousMachineSettingFivePlusProbability = readNullableNumber(
     metrics.previousMachineSettingFivePlusProbability,
   );
   const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
   const machineGoodContentStreak = readNumber(metrics.machineGoodContentStreak);
+  const machineWeakContentStreak = readNumber(metrics.machineWeakContentStreak);
   const recentFiveBigWin1200Count = readNumber(metrics.recentFiveBigWin1200Count);
   const adjacentMachineHighContentCount3 = readNumber(metrics.adjacentMachineHighContentCount3);
   const adjacentMachineHighContentCount3Near2 = readNumber(metrics.adjacentMachineHighContentCount3Near2);
@@ -7314,6 +7590,7 @@ function calculateMachineScore(definition, metrics, features) {
   const adjacentMachineNetTotal14Near2 = readNumber(metrics.adjacentMachineNetTotal14Near2);
   const previousAdjacentMachineHighContentCount = readNumber(metrics.previousAdjacentMachineHighContentCount);
   const previousAdjacentMachineGoodContentCount = readNumber(metrics.previousAdjacentMachineGoodContentCount);
+  const previousAdjacentMachineWeakContentCount = readNumber(metrics.previousAdjacentMachineWeakContentCount);
   const previousAdjacentMachineBigWin1000Count = readNumber(metrics.previousAdjacentMachineBigWin1000Count);
   const previousAdjacentMachineNetTotal = readNumber(metrics.previousAdjacentMachineNetTotal);
   const previousOtherMachineHighContentCount = readNumber(metrics.previousOtherMachineHighContentCount);
@@ -7321,6 +7598,12 @@ function calculateMachineScore(definition, metrics, features) {
   const previousCombinedDenominator = features.previousCombinedDenominator;
   const previousRbDenominator = features.previousRbDenominator;
   const recentTwoCombinedDenominator = rateDenominator(recentTwoGamesTotal, recentTwoBonusTotal);
+  const recentThreeRawDifferenceTotal = readNumber(metrics.recentThreeRawDifferenceTotal);
+  const recentFiveRawDifferenceTotal = readNumber(metrics.recentFiveRawDifferenceTotal);
+  const recentThreeRawDifferenceCount = readNumber(metrics.recentThreeRawDifferenceCount);
+  const recentFiveRawDifferenceCount = readNumber(metrics.recentFiveRawDifferenceCount);
+  const previousRawDifferenceValue = readNullableNumber(metrics.previousRawDifferenceValue);
+  const rawDifferenceLosingStreak = readNumber(metrics.rawDifferenceLosingStreak);
 
   if (machineKey === "ultra-miracle" && activeLogicKey === "beam-hikari-ultra") {
     if (historyRowCount < 21) {
@@ -7629,6 +7912,93 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "chikushino-neo-aim") {
+      let score = 40;
+      let scoreCap = 100;
+
+      if (historyRowCount >= 7) {
+        score += 4;
+      } else if (historyRowCount >= 5) {
+        score += 2;
+      } else if (historyRowCount >= 3) {
+        score -= 4;
+        scoreCap = Math.min(scoreCap, 49);
+      } else {
+        score -= 12;
+        scoreCap = Math.min(scoreCap, 39);
+      }
+
+      score += scoreInRange(recentThreeGamesTotal, 7000, 11000, 10);
+      score += scoreInRange(recentThreeGamesTotal, 3000, 6999, 6);
+      score += scoreInRange(recentThreeGamesTotal, 11001, 13000, 3);
+      score -= recentThreeGamesTotal > 15000 ? 8 : 0;
+      score -= recentThreeGamesTotal < 3000 ? 4 : 0;
+
+      score += scoreInRange(recentFiveGamesTotal, 11000, 21000, 8);
+      score += scoreInRange(recentFiveGamesTotal, 9000, 10999, 4);
+      score -= scoreInRange(recentFiveGamesTotal, 21001, 25000, 5);
+      score -= recentFiveGamesTotal > 25000 ? 10 : 0;
+      score -= recentFiveGamesTotal < 9000 ? 6 : 0;
+
+      score += historyRowCount >= 3 && recentThreeMachineLowContentCount === 0 ? 10 : 0;
+      score -= recentThreeMachineLowContentCount >= 2 ? 4 : 0;
+      score += historyRowCount >= 5 && recentFiveMachineLowContentCount === 0 ? 8 : 0;
+      score -= recentFiveMachineLowContentCount >= 4 ? 8 : 0;
+      score += historyRowCount >= 5 && recentFiveMachineWeakContentCount === 0 ? 7 : 0;
+      score -= recentFiveMachineWeakContentCount >= 4 ? 8 : 0;
+      score += historyRowCount >= 7 && recentSevenMachineLowContentCount <= 1 ? 6 : 0;
+      score -= recentSevenMachineLowContentCount >= 5 ? 6 : 0;
+
+      if (Number.isFinite(daysSinceMachineHighContent)) {
+        score += daysSinceMachineHighContent >= 8 ? 12 : 0;
+        score += daysSinceMachineHighContent >= 3 && daysSinceMachineHighContent <= 7 ? 8 : 0;
+        score -= daysSinceMachineHighContent >= 1 && daysSinceMachineHighContent <= 2 ? 8 : 0;
+      }
+      score -= machineHighContentStreak >= 2 ? 4 : 0;
+      score -= recentSevenMachineHighContentCount >= 3 ? 4 : 0;
+
+      if (previousGames > 0) {
+        score += previousGames <= 1500 ? 8 : 0;
+        score += previousGames >= 1501 && previousGames <= 2500 ? 6 : 0;
+        score += previousGames >= 2501 && previousGames <= 3500 ? 3 : 0;
+        score -= previousGames >= 6000 ? 3 : 0;
+      }
+
+      score += previousGames >= 1000 && previousRbDenominator >= 500 ? 5 : 0;
+      score -= previousGames >= 2500 && previousRbDenominator <= 260 ? 3 : 0;
+      score += previousGames >= 1000 && previousCombinedDenominator >= 250 ? 4 : 0;
+      score -= previousGames >= 3000 && previousCombinedDenominator <= 130 ? 2 : 0;
+
+      score +=
+        adjacentMachineHighContentCount3Near2 >= 3
+          ? 10
+          : adjacentMachineHighContentCount3Near2 >= 2
+            ? 7
+            : adjacentMachineHighContentCount3Near2 >= 1
+              ? 2
+              : 0;
+      score += previousAdjacentMachineHighContentCount >= 2 ? 4 : 0;
+      score -= previousAdjacentMachineWeakContentCount >= 3 ? 4 : 0;
+
+      if (recentThreeRawDifferenceCount >= 3) {
+        score +=
+          recentThreeRawDifferenceTotal <= -1500
+            ? 8
+            : recentThreeRawDifferenceTotal <= -1000
+              ? 6
+              : recentThreeRawDifferenceTotal <= 0
+                ? 3
+                : 0;
+        score -= recentThreeRawDifferenceTotal >= 3000 ? 8 : recentThreeRawDifferenceTotal >= 1500 ? 4 : 0;
+      }
+      score += rawDifferenceLosingStreak >= 3 ? 6 : rawDifferenceLosingStreak >= 2 ? 4 : 0;
+      score += Number.isFinite(previousRawDifferenceValue) && previousRawDifferenceValue <= -1000 ? 4 : 0;
+      score -= Number.isFinite(previousRawDifferenceValue) && previousRawDifferenceValue >= 1000 ? 4 : 0;
+      score -= recentFiveRawDifferenceCount >= 5 && recentFiveRawDifferenceTotal >= 3000 ? 7 : 0;
+
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
     if (activeLogicKey === "hinode-onojo-neo-aim") {
       let score = 0;
 
@@ -13026,6 +13396,9 @@ function matchesCondition(matcher, evaluation) {
     return false;
   }
   if (Number.isFinite(matcher.minBoost) && evaluation.boostCount < matcher.minBoost) {
+    return false;
+  }
+  if (Number.isFinite(matcher.maxBoost) && evaluation.boostCount > matcher.maxBoost) {
     return false;
   }
   if (Number.isFinite(matcher.minDanger) && evaluation.dangerCount < matcher.minDanger) {
