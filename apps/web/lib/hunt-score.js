@@ -271,6 +271,10 @@ const SUPER_DSTATION_CHIKUSHINO_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const ESPACE_UENO_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const APARK_YAKATABARU_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -813,6 +817,21 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "chikushino-neo-aim",
       "ネオアイムジャグラーＥＸ": "chikushino-neo-aim",
+    },
+  },
+  {
+    key: "espace-ueno",
+    storeNames: [
+      "エスパス日拓上野本館",
+      "エスパス日拓上野本館店",
+      "エスパス上野本館",
+      "エスパス上野本館店",
+    ],
+    targetMachines: ESPACE_UENO_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "espace-ueno-neo-aim",
+      "ネオアイムジャグラーＥＸ": "espace-ueno-neo-aim",
     },
   },
   {
@@ -1728,6 +1747,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 150;
     }
+    if (contentRule === "espace-ueno-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 150;
+    }
     return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
   }
   if (
@@ -1969,6 +1995,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 330 && combinedDenominator <= 150;
     }
+    if (contentRule === "espace-ueno-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.35;
+      }
+      return games >= 3000 && rbDenominator <= 330 && combinedDenominator <= 150;
+    }
     return games >= 5000 && rbDenominator <= 315 && combinedDenominator <= 145;
   }
   if (normalizedMachineName === normalizeText("スターハナハナ")) {
@@ -2141,6 +2174,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "chikushino-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "espace-ueno-neo-aim"
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     if (Number.isFinite(settingFivePlusProbability)) {

@@ -172,6 +172,16 @@ function isSuperDstationChikushinoStore(storeName) {
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
+function isEspaceUenoStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "エスパス日拓上野本館",
+    "エスパス日拓上野本館店",
+    "エスパス上野本館",
+    "エスパス上野本館店",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
 function readDateDayNumber(dateText) {
   const normalized = normalizeText(dateText);
   const match = normalized.match(/^\d{4}-\d{2}-(\d{2})$/u) ?? normalized.match(/^\d{2}\/\d{2}\/(\d{2})$/u);
@@ -1703,6 +1713,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "筑紫野ネオアイム_56推定ローテスコア",
         "chikushino-rank1-gap3",
       ),
+      buildLogicVariant(
+        "espace-ueno-neo-aim",
+        "エスパス上野本館ネオアイム低中稼働RB残り式",
+        "espace-ueno-wide310",
+      ),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
@@ -2356,6 +2371,150 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           maxBoost: 1,
         },
         ["chikushino-neo-aim"],
+      ),
+      buildCondition(
+        "espace-ueno-best270",
+        "最本命270/自由A",
+        "20台 / 103.03% / RB1/240.2 / 合成1/130.6 / 平均56 54.8%",
+        {
+          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoFreeABestRb"],
+        },
+        ["espace-ueno-neo-aim"],
+      ),
+      buildCondition(
+        "espace-ueno-strong280",
+        "強280/自由B",
+        "35台 / 102.33% / RB1/266.3 / 合成1/135.8 / 平均56 46.2%",
+        {
+          minScore: 85,
+          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoFreeBBalanced"],
+        },
+        ["espace-ueno-neo-aim"],
+      ),
+      buildCondition(
+        "espace-ueno-main290",
+        "本命290",
+        "41台 / 101.86% / RB1/270.1 / 合成1/137.3 / 平均56 44.0%",
+        {
+          minScore: 85,
+          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoLowMidGames3", "espaceUenoNeoRb21Strong"],
+        },
+        ["espace-ueno-neo-aim"],
+      ),
+      buildCondition(
+        "espace-ueno-weak300",
+        "弱本命300",
+        "122台 / 102.01% / RB1/296.7 / 合成1/140.8 / 平均56 36.0%",
+        {
+          minScore: 90,
+          requiredFlags: ["espaceUenoNeoHistoryReady"],
+        },
+        ["espace-ueno-neo-aim"],
+      ),
+      buildCondition(
+        "espace-ueno-wide310",
+        "広め310",
+        "667台 / 101.94% / RB1/307.9 / 合成1/142.7 / 平均56 33.2%",
+        {
+          minScore: 80,
+          requiredFlags: ["espaceUenoNeoHistoryReady"],
+        },
+        ["espace-ueno-neo-aim"],
+      ),
+      buildCondition(
+        "espace-ueno-free-c-wide",
+        "自由C 広め代替",
+        "1641台 / 101.58% / RB1/316.1 / 合成1/144.7 / 平均56 31.2%",
+        {
+          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoGames3Under10000"],
+        },
+        ["espace-ueno-neo-aim"],
+      ),
+      buildCondition(
+        "espace-ueno-free-d-compromise",
+        "自由D 妥協",
+        "599台 / 101.89% / RB1/311.6 / 合成1/143.3 / 平均56 32.5%",
+        {
+          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoCompromise"],
+        },
+        ["espace-ueno-neo-aim"],
+      ),
+      buildCondition(
+        "espace-ueno-watch-history-short",
+        "見送り：履歴不足",
+        "履歴7営業日未満 / 点数上限45",
+        {
+          requiredFlags: ["espaceUenoNeoHistoryShort"],
+        },
+        ["espace-ueno-neo-aim"],
+      ),
+      buildCondition(
+        "espace-ueno-watch-over-visible",
+        "見送り：高稼働見え切り",
+        "G3 15000以上",
+        {
+          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoGames3TooHigh"],
+        },
+        ["espace-ueno-neo-aim"],
+      ),
+      buildCondition(
+        "espace-ueno-watch-deep-sink",
+        "見送り：深沈み",
+        "diff7 -5000以下",
+        {
+          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoDiff7TooDeep"],
+        },
+        ["espace-ueno-neo-aim"],
+      ),
+      buildCondition(
+        "espace-ueno-watch-previous-big",
+        "見送り：前日大出し",
+        "前日+2000枚以上",
+        {
+          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoPreviousBigWin"],
+        },
+        ["espace-ueno-neo-aim"],
+      ),
+      buildCondition(
+        "espace-ueno-watch-previous-high",
+        "見送り：前日高内容",
+        "前日高内容",
+        {
+          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoPreviousHigh"],
+        },
+        ["espace-ueno-neo-aim"],
+      ),
+      buildCondition(
+        "espace-ueno-watch-overworked",
+        "見送り：G3高稼働＋G5過多",
+        "G3 15000以上かつG5 25000以上",
+        {
+          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoHighVisibleAndOverworked"],
+        },
+        ["espace-ueno-neo-aim"],
+      ),
+      buildCondition(
+        "espace-ueno-watch-thin80",
+        "見送り：80未満強化薄",
+        "80点未満かつ強化1個以下",
+        {
+          maxScore: 79.999,
+          maxBoost: 1,
+          requiredFlags: ["espaceUenoNeoHistoryReady"],
+        },
+        ["espace-ueno-neo-aim"],
+      ),
+      buildCondition(
+        "espace-ueno-watch-high-risk",
+        "見送り：高点数危険",
+        "90点以上でも強化0個＋危険2個以上",
+        {
+          minScore: 90,
+          maxBoost: 0,
+          minDanger: 2,
+          requiredFlags: ["espaceUenoNeoHistoryReady"],
+        },
+        ["espace-ueno-neo-aim"],
       ),
       buildCondition(
         "beam-hikari-main",
@@ -3793,6 +3952,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "hinode-onojo-neo-aim");
   } else if (isSuperDstationChikushinoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "chikushino-neo-aim");
+  } else if (isEspaceUenoStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "espace-ueno-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
@@ -4508,6 +4669,104 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "espace-ueno-neo-aim") {
+      const recentTwentyOneRbTotal = readNumber(metrics.recentTwentyOneRbTotal);
+      const recentTwentyOneRbDenominator = rateDenominator(recentTwentyOneGamesTotal, recentTwentyOneRbTotal);
+      const espaceUenoNeoHistoryReady = historyRowCount >= 7;
+      const espaceUenoNeoHistoryShort = historyRowCount < 7;
+      const espaceUenoNeoLowMidGames3 = recentThreeGamesTotal >= 3000 && recentThreeGamesTotal <= 12000;
+      const espaceUenoNeoGames3TooHigh = recentThreeGamesTotal >= 15000;
+      const espaceUenoNeoGames3Under10000 = recentThreeGamesTotal < 10000;
+      const espaceUenoNeoGames5TooHigh = recentFiveGamesTotal >= 25000;
+      const espaceUenoNeoGames5Compromise = recentFiveGamesTotal >= 10000 && recentFiveGamesTotal <= 18000;
+      const espaceUenoNeoGames14Middle = recentFourteenGamesTotal >= 40000 && recentFourteenGamesTotal <= 70000;
+      const espaceUenoNeoDiff5Shallow = recentFiveNetTotal >= -1500 && recentFiveNetTotal <= 500;
+      const espaceUenoNeoDiff7TooDeep = recentSevenNetTotal <= -5000;
+      const espaceUenoNeoRb21Strong =
+        recentTwentyOneGamesTotal >= 30000 && recentTwentyOneRbDenominator <= 290;
+      const espaceUenoNeoRb14Strong =
+        recentFourteenGamesTotal >= 20000 && features.recentFourteenRbDenominator <= 290;
+      const espaceUenoNeoRb14Best =
+        recentFourteenGamesTotal >= 20000 && features.recentFourteenRbDenominator <= 270;
+      const espaceUenoNeoIntervalGood =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        ((daysSinceMachineHighContent >= 5 && daysSinceMachineHighContent <= 7) ||
+          daysSinceMachineHighContent >= 14);
+      const espaceUenoNeoPreviousBigWin = previousDifference >= 2000;
+      const espaceUenoNeoPreviousHigh = previousMachineHighContent;
+      const espaceUenoNeoPreviousHighPlus = previousMachineHighContent && previousDifference > 1500;
+      const espaceUenoNeoSameMachinePreviousHighCount =
+        previousOtherMachineHighContentCount + (previousMachineHighContent ? 1 : 0);
+      const espaceUenoNeoSameMachinePreviousHighMany = espaceUenoNeoSameMachinePreviousHighCount >= 8;
+      const espaceUenoNeoDangerZero =
+        !espaceUenoNeoPreviousBigWin &&
+        !previousMachineHighContent &&
+        !espaceUenoNeoGames3TooHigh &&
+        !espaceUenoNeoDiff7TooDeep;
+      const espaceUenoNeoLowGames = recentThreeGamesTotal < 3000 || recentFiveGamesTotal < 10000;
+      const espaceUenoNeoHighVisibleAndOverworked = espaceUenoNeoGames3TooHigh && espaceUenoNeoGames5TooHigh;
+      const espaceUenoNeoFreeABestRb =
+        espaceUenoNeoLowMidGames3 && espaceUenoNeoGames14Middle && espaceUenoNeoRb14Best;
+      const espaceUenoNeoFreeBBalanced =
+        espaceUenoNeoLowMidGames3 && espaceUenoNeoGames14Middle && espaceUenoNeoRb21Strong;
+      const espaceUenoNeoCompromise = espaceUenoNeoGames5Compromise && espaceUenoNeoDiff5Shallow;
+      const boostFlags = [
+        espaceUenoNeoLowMidGames3,
+        espaceUenoNeoDiff5Shallow,
+        espaceUenoNeoRb21Strong,
+        espaceUenoNeoRb14Strong,
+        espaceUenoNeoIntervalGood,
+        espaceUenoNeoDangerZero,
+      ];
+      const dangerFlags = [
+        espaceUenoNeoGames3TooHigh,
+        espaceUenoNeoDiff7TooDeep,
+        espaceUenoNeoPreviousBigWin,
+        previousMachineHighContent,
+        espaceUenoNeoHistoryShort,
+        espaceUenoNeoLowGames,
+      ];
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability,
+        recentTwentyOneRbDenominator,
+        espaceUenoNeoHistoryReady,
+        espaceUenoNeoHistoryShort,
+        espaceUenoNeoLowMidGames3,
+        espaceUenoNeoGames3TooHigh,
+        espaceUenoNeoGames3Under10000,
+        espaceUenoNeoGames5TooHigh,
+        espaceUenoNeoGames5Compromise,
+        espaceUenoNeoGames14Middle,
+        espaceUenoNeoDiff5Shallow,
+        espaceUenoNeoDiff7TooDeep,
+        espaceUenoNeoRb21Strong,
+        espaceUenoNeoRb14Strong,
+        espaceUenoNeoRb14Best,
+        espaceUenoNeoIntervalGood,
+        espaceUenoNeoPreviousBigWin,
+        espaceUenoNeoPreviousHigh,
+        espaceUenoNeoPreviousHighPlus,
+        espaceUenoNeoSameMachinePreviousHighCount,
+        espaceUenoNeoSameMachinePreviousHighMany,
+        espaceUenoNeoDangerZero,
+        espaceUenoNeoLowGames,
+        espaceUenoNeoHighVisibleAndOverworked,
+        espaceUenoNeoFreeABestRb,
+        espaceUenoNeoFreeBBalanced,
+        espaceUenoNeoCompromise,
+        treatmentDone: espaceUenoNeoPreviousBigWin || espaceUenoNeoPreviousHighPlus,
+        lowConfidence:
+          espaceUenoNeoHistoryShort ||
+          historyRowCount < 14 ||
+          recentFourteenGamesTotal < 30000 ||
+          espaceUenoNeoLowGames,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "chikushino-neo-aim") {
       const chikushinoNeoHistoryReady = historyRowCount >= 5;
       const chikushinoNeoHistoryShort = historyRowCount < 5;
@@ -7912,6 +8171,158 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "espace-ueno-neo-aim") {
+      const recentTwentyOneRbTotal = readNumber(metrics.recentTwentyOneRbTotal);
+      const recentTwentyOneRbDenominator = rateDenominator(recentTwentyOneGamesTotal, recentTwentyOneRbTotal);
+      let score = 35;
+      let scoreCap = 100;
+
+      if (historyRowCount < 7) {
+        scoreCap = 45;
+      }
+
+      if (recentThreeGamesTotal < 3000) {
+        score += 3;
+      } else if (recentThreeGamesTotal <= 6999) {
+        score += 10;
+      } else if (recentThreeGamesTotal <= 11999) {
+        score += 12;
+      } else if (recentThreeGamesTotal <= 14999) {
+        score += 6;
+      } else if (recentThreeGamesTotal <= 17999) {
+        score -= 4;
+      } else {
+        score -= 8;
+      }
+
+      if (recentFiveGamesTotal < 10000) {
+        score += 2;
+      } else if (recentFiveGamesTotal <= 14999) {
+        score += 10;
+      } else if (recentFiveGamesTotal <= 19999) {
+        score += 7;
+      } else if (recentFiveGamesTotal <= 24999) {
+        score += 3;
+      } else if (recentFiveGamesTotal <= 29999) {
+        score -= 5;
+      } else {
+        score -= 9;
+      }
+
+      if (recentFourteenGamesTotal >= 40000 && recentFourteenGamesTotal <= 59999) {
+        score += 5;
+      } else if (recentFourteenGamesTotal >= 60000 && recentFourteenGamesTotal <= 69999) {
+        score += 2;
+      } else if (recentFourteenGamesTotal >= 80000) {
+        score -= 6;
+      }
+
+      if (recentFiveNetTotal >= -1500 && recentFiveNetTotal <= 500) {
+        score += 10;
+      } else if (
+        (recentFiveNetTotal >= -2500 && recentFiveNetTotal <= -1501) ||
+        (recentFiveNetTotal >= 501 && recentFiveNetTotal <= 1500)
+      ) {
+        score += 5;
+      } else if (recentFiveNetTotal <= -4000) {
+        score -= 6;
+      } else if (recentFiveNetTotal >= 2500) {
+        score -= 5;
+      }
+
+      if (recentSevenNetTotal >= -2500 && recentSevenNetTotal <= 0) {
+        score += 7;
+      } else if (recentSevenNetTotal >= 1 && recentSevenNetTotal <= 1500) {
+        score += 3;
+      } else if (recentSevenNetTotal <= -5000) {
+        score -= 8;
+      } else if (recentSevenNetTotal >= 4000) {
+        score -= 3;
+      }
+
+      if (recentTwentyOneNetTotal >= 8000) {
+        score += 3;
+      } else if (recentTwentyOneNetTotal >= -7000 && recentTwentyOneNetTotal <= -5000) {
+        score += 2;
+      } else if (recentTwentyOneNetTotal <= -10000) {
+        score -= 4;
+      }
+
+      if (recentTwentyOneGamesTotal >= 30000) {
+        if (recentTwentyOneRbDenominator <= 270) {
+          score += 13;
+        } else if (recentTwentyOneRbDenominator <= 290) {
+          score += 11;
+        } else if (recentTwentyOneRbDenominator <= 300) {
+          score += 8;
+        } else if (recentTwentyOneRbDenominator <= 315) {
+          score += 5;
+        } else if (recentTwentyOneRbDenominator >= 400) {
+          score -= 3;
+        }
+      }
+
+      if (recentFourteenGamesTotal >= 20000) {
+        if (features.recentFourteenRbDenominator <= 270) {
+          score += 10;
+        } else if (features.recentFourteenRbDenominator <= 290) {
+          score += 8;
+        } else if (features.recentFourteenRbDenominator <= 315) {
+          score += 4;
+        } else if (features.recentFourteenRbDenominator >= 400) {
+          score -= 2;
+        }
+      }
+
+      if (recentFiveGamesTotal >= 10000) {
+        if (features.recentFiveCombinedDenominator <= 130) {
+          score += 3;
+        } else if (features.recentFiveCombinedDenominator >= 180) {
+          score += 2;
+        }
+      }
+
+      if (Number.isFinite(daysSinceMachineHighContent)) {
+        if (daysSinceMachineHighContent >= 5 && daysSinceMachineHighContent <= 7) {
+          score += 8;
+        } else if (daysSinceMachineHighContent >= 14) {
+          score += 6;
+        } else if (daysSinceMachineHighContent >= 3 && daysSinceMachineHighContent <= 4) {
+          score += 3;
+        } else if (daysSinceMachineHighContent >= 1 && daysSinceMachineHighContent <= 2) {
+          score -= 5;
+        }
+      }
+
+      if (recentFourteenMachineHighContentCount === 0) {
+        score += 5;
+      } else if (recentFourteenMachineHighContentCount === 1) {
+        score += 2;
+      } else if (recentFourteenMachineHighContentCount >= 4) {
+        score -= 2;
+      }
+
+      if (streak >= 3 && streak <= 6) {
+        score += 5;
+      } else if (streak >= 7) {
+        score += 1;
+      }
+
+      if (previousDifference >= 1500 && previousDifference <= 1999) {
+        score -= 4;
+      } else if (previousDifference >= 2000) {
+        score -= 8;
+      }
+      score -= previousMachineHighContent ? 5 : 0;
+      score -= previousMachineGoodContent && previousDifference > 1500 ? 5 : 0;
+      score -= previousAdjacentMachineHighContentCount >= 2 ? 4 : 0;
+      score -= previousOtherMachineHighContentCount + (previousMachineHighContent ? 1 : 0) >= 8 ? 3 : 0;
+      score -= historyRowCount < 14 ? 4 : 0;
+      score -= recentFourteenGamesTotal < 30000 ? 4 : 0;
+
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
     if (activeLogicKey === "chikushino-neo-aim") {
       let score = 40;
       let scoreCap = 100;
