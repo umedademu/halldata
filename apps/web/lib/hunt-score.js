@@ -279,6 +279,10 @@ const MESSE_MINAMISENJU_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const KINTOKI_KAMATA_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const APARK_YAKATABARU_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -847,6 +851,21 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "messe-minamisenju-neo-aim",
       "ネオアイムジャグラーＥＸ": "messe-minamisenju-neo-aim",
+    },
+  },
+  {
+    key: "kintoki-kamata",
+    storeNames: ["金時蒲田東口店", "金時蒲田東口"],
+    targetMachines: KINTOKI_KAMATA_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    adjacentSameMachineMode: "slot-number-gap",
+    adjacentSlotNumberGroups: [
+      [651, 664],
+      [703, 708],
+    ],
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "kintoki-kamata-neo-aim",
+      "ネオアイムジャグラーＥＸ": "kintoki-kamata-neo-aim",
     },
   },
   {
@@ -1811,6 +1830,22 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 150;
     }
+    if (contentRule === "kintoki-kamata-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return (
+          (games >= 3000 && settingFivePlusProbability >= 0.5) ||
+          (games >= 4500 &&
+            settingFivePlusProbability >= 0.35 &&
+            rbDenominator <= 310 &&
+            combinedDenominator <= 145)
+        );
+      }
+      return (
+        (games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145) ||
+        (games >= 4500 && rbDenominator <= 310 && combinedDenominator <= 145)
+      );
+    }
     return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
   }
   if (
@@ -2066,6 +2101,18 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       }
       return games >= 2500 && rbDenominator <= 330 && combinedDenominator <= 150;
     }
+    if (contentRule === "kintoki-kamata-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return (
+          games >= 3000 &&
+          settingFivePlusProbability >= 0.35 &&
+          rbDenominator <= 350 &&
+          combinedDenominator <= 160
+        );
+      }
+      return games >= 3000 && rbDenominator <= 350 && combinedDenominator <= 160;
+    }
     return games >= 5000 && rbDenominator <= 315 && combinedDenominator <= 145;
   }
   if (normalizedMachineName === normalizeText("スターハナハナ")) {
@@ -2258,6 +2305,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "messe-minamisenju-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "kintoki-kamata-neo-aim"
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     if (Number.isFinite(settingFivePlusProbability)) {
@@ -6907,6 +6964,37 @@ function listAdjacentSameMachineRowsByOrder(dateRows, row, config, machineName, 
       return String(left?.slot_number ?? "").localeCompare(String(right?.slot_number ?? ""), "ja", { numeric: true });
     });
 
+  if (config?.adjacentSameMachineMode === "slot-number-gap") {
+    const targetSlotNumber = Number(row?.slot_number);
+    if (!Number.isFinite(targetSlotNumber)) {
+      return [];
+    }
+    const findSlotGroup = (slotNumber) => {
+      const groups = Array.isArray(config?.adjacentSlotNumberGroups) ? config.adjacentSlotNumberGroups : [];
+      return groups.find((group) => {
+        const start = Number(group?.[0]);
+        const end = Number(group?.[1]);
+        return Number.isFinite(start) && Number.isFinite(end) && slotNumber >= start && slotNumber <= end;
+      });
+    };
+    const targetGroup = findSlotGroup(targetSlotNumber);
+
+    return sameMachineRows.filter((dateRow) => {
+      const candidateSlotNumber = Number(dateRow?.slot_number);
+      if (!Number.isFinite(candidateSlotNumber) || candidateSlotNumber === targetSlotNumber) {
+        return false;
+      }
+      if (targetGroup) {
+        const candidateGroup = findSlotGroup(candidateSlotNumber);
+        if (!candidateGroup || candidateGroup !== targetGroup) {
+          return false;
+        }
+      }
+      const slotDistance = Math.abs(candidateSlotNumber - targetSlotNumber);
+      return slotDistance >= 1 && slotDistance <= normalizedDistance;
+    });
+  }
+
   const targetIndex = sameMachineRows.findIndex((dateRow) => String(dateRow?.slot_number ?? "").trim() === slotText);
   if (targetIndex < 0) {
     return [];
@@ -7545,6 +7633,17 @@ function calculateWindowMetrics(
     const differenceValue = readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
     return isMachineHighContentWindowRow({ row: dateRow, differenceValue }, currentMachineName, config);
   }).length;
+  const previousAdjacentMachineHighContentCountNear2 = listAdjacentSameMachineRowsByOrder(
+    currentDateRows,
+    row,
+    config,
+    currentMachineName,
+    2,
+  ).filter((dateRow) => {
+    const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
+    const differenceValue = readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
+    return isMachineHighContentWindowRow({ row: dateRow, differenceValue }, currentMachineName, config);
+  }).length;
   const previousAdjacentMachineGoodContentCount = listAdjacentSameMachineRowsByOrder(
     currentDateRows,
     row,
@@ -7594,6 +7693,16 @@ function calculateWindowMetrics(
     config,
     currentMachineName,
     1,
+  ).reduce((total, dateRow) => {
+    const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
+    return total + readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
+  }, 0);
+  const previousAdjacentMachineNetTotalNear2 = listAdjacentSameMachineRowsByOrder(
+    currentDateRows,
+    row,
+    config,
+    currentMachineName,
+    2,
   ).reduce((total, dateRow) => {
     const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
     return total + readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
@@ -8056,10 +8165,12 @@ function calculateWindowMetrics(
     historyThirtySettingFiveCount,
     adjacentHighSettingCandidateCount7,
     previousAdjacentMachineHighContentCount,
+    previousAdjacentMachineHighContentCountNear2,
     previousAdjacentMachineGoodContentCount,
     previousAdjacentMachineWeakContentCount,
     previousAdjacentMachineBigWin1000Count,
     previousAdjacentMachineNetTotal,
+    previousAdjacentMachineNetTotalNear2,
     previousOtherMachineHighContentCount,
     sameMachinePreviousNetTotal,
     adjacentMachineHighContentCount7,

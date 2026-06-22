@@ -189,6 +189,13 @@ function isMesseMinamisenjuStore(storeName) {
   );
 }
 
+function isKintokiKamataStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["金時蒲田東口店", "金時蒲田東口"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function readDateDayNumber(dateText) {
   const normalized = normalizeText(dateText);
   const match = normalized.match(/^\d{4}-\d{2}-(\d{2})$/u) ?? normalized.match(/^\d{2}\/\d{2}\/(\d{2})$/u);
@@ -1730,6 +1737,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "メッセ南千住_ネオアイムEX_全日共通_未返済沈み滞在ロジック_v1",
         "messe-minamisenju-free-14rb",
       ),
+      buildLogicVariant(
+        "kintoki-kamata-neo-aim",
+        "金時蒲田東口店_ネオアイムEX_全日共通100点ロジック",
+        "kintoki-kamata-free-a",
+      ),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
@@ -2680,6 +2692,151 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["messeNeoHistoryReady", "messeNeoLowGames"],
         },
         ["messe-minamisenju-neo-aim"],
+      ),
+      buildCondition(
+        "kintoki-kamata-free-a",
+        "自由A_上位3前日弱3日内",
+        "21日 / 23台 / 総G92,634 / BB347/REG344 / RB1/269.3 / 合算1/134.1 / 平均差枚+340.9 / 102.82% / 勝率39.1% / 平均56 43.1% / 中央56 28.9% / 56>=50 39.1% / 56<30 52.2% / RB<=300 47.8% / RB>400 34.8% / 合成<=130 30.4% / 合成<=140 47.8%",
+        {
+          rankMax: 3,
+          requiredFlags: ["kintokiNeoHistoryReady", "kintokiNeoPreviousWeak", "kintokiNeoShortHighLeft"],
+        },
+        ["kintoki-kamata-neo-aim"],
+      ),
+      buildCondition(
+        "kintoki-kamata-free-b",
+        "自由B_沈み高稼働前日弱",
+        "23日 / 27台 / 総G92,999 / BB324/REG337 / RB1/276.0 / 合算1/140.7 / 平均差枚+57.3 / 100.55% / 勝率37.0% / 平均56 41.2% / 中央56 33.9% / 56>=50 37.0% / 56<30 40.7% / RB<=300 51.9% / RB>400 25.9% / 合成<=130 22.2% / 合成<=140 48.1%",
+        {
+          requiredFlags: ["kintokiNeoHistoryReady", "kintokiNeoSinkHighGames", "kintokiNeoPreviousWeak"],
+        },
+        ["kintoki-kamata-neo-aim"],
+      ),
+      buildCondition(
+        "kintoki-kamata-free-c",
+        "自由C_近隣2台見せ場後沈み",
+        "15日 / 21台 / 総G70,640 / BB262/REG257 / RB1/274.9 / 合算1/136.1 / 平均差枚+283.4 / 102.81% / 勝率66.7% / 平均56 39.4% / 中央56 35.6% / 56>=50 23.8% / 56<30 33.3% / RB<=300 47.6% / RB>400 23.8% / 合成<=130 19.0% / 合成<=140 38.1%",
+        {
+          requiredFlags: ["kintokiNeoHistoryReady", "kintokiNeoNearbyTwoHighSink"],
+        },
+        ["kintoki-kamata-neo-aim"],
+      ),
+      buildCondition(
+        "kintoki-kamata-free-d",
+        "自由D_前日BB寄り出玉",
+        "30日 / 40台 / 総G110,103 / BB391/REG381 / BB1/281.6 / RB1/289.0 / 合算1/142.6 / 平均差枚+62.2 / 100.75% / 勝率40.0% / 平均56 36.0% / 中央56 30.4% / 56>=50 20.0% / 56<30 50.0% / RB<=300 40.0% / RB>400 32.5% / 合成<=130 25.0% / 合成<=140 27.5%",
+        {
+          requiredFlags: ["kintokiNeoHistoryReady", "kintokiNeoBbOutputContinue"],
+        },
+        ["kintoki-kamata-neo-aim"],
+      ),
+      buildCondition(
+        "kintoki-kamata-free-e",
+        "自由E_上位3前日弱",
+        "51日 / 69台 / 総G206,775 / BB772/REG690 / BB1/267.8 / RB1/299.7 / 合算1/141.4 / 平均差枚+137.2 / 101.53% / 勝率39.1% / 平均56 34.6% / 中央56 28.9% / 56>=50 21.7% / 56<30 53.6% / RB<=300 39.1% / RB>400 39.1% / 合成<=130 23.2% / 合成<=140 36.2%",
+        {
+          rankMax: 3,
+          requiredFlags: ["kintokiNeoHistoryReady", "kintokiNeoPreviousWeak"],
+        },
+        ["kintoki-kamata-neo-aim"],
+      ),
+      buildCondition(
+        "kintoki-kamata-rank1",
+        "全日1位",
+        "103日 / 103台 / 総G349,003 / BB1260/REG1129 / BB1/277.0 / RB1/309.1 / 合算1/146.1 / 平均差枚+25.9 / 100.25% / 勝率39.8% / 平均56 32.9% / 中央56 27.8% / 56>=50 20.4% / 56<30 57.3% / RB<=300 37.9% / RB>400 39.8% / 合成<=130 16.5% / 合成<=140 30.1%",
+        {
+          rankMax: 1,
+          requiredFlags: ["kintokiNeoHistoryReady"],
+        },
+        ["kintoki-kamata-neo-aim"],
+      ),
+      buildCondition(
+        "kintoki-kamata-top3-prev-weak",
+        "上位3＋前日弱",
+        "51日 / 69台 / 総G206,775 / BB772/REG690 / BB1/267.8 / RB1/299.7 / 合算1/141.4 / 平均差枚+137.2 / 101.53% / 勝率39.1% / 平均56 34.6% / 中央56 28.9% / 56>=50 21.7% / 56<30 53.6% / RB<=300 39.1% / RB>400 39.1% / 合成<=130 23.2% / 合成<=140 36.2%",
+        {
+          rankMax: 3,
+          requiredFlags: ["kintokiNeoHistoryReady", "kintokiNeoPreviousWeak"],
+        },
+        ["kintoki-kamata-neo-aim"],
+      ),
+      buildCondition(
+        "kintoki-kamata-previous-bb-output",
+        "前日BB寄り出玉",
+        "30日 / 40台 / 総G110,103 / BB391/REG381 / BB1/281.6 / RB1/289.0 / 合算1/142.6 / 平均差枚+62.2 / 100.75% / 勝率40.0% / 平均56 36.0% / 中央56 30.4% / 56>=50 20.0% / 56<30 50.0% / RB<=300 40.0% / RB>400 32.5% / 合成<=130 25.0% / 合成<=140 27.5%",
+        {
+          requiredFlags: ["kintokiNeoHistoryReady", "kintokiNeoBbOutputContinue"],
+        },
+        ["kintoki-kamata-neo-aim"],
+      ),
+      buildCondition(
+        "kintoki-kamata-sink-high-games-prev-weak",
+        "沈み高稼働＋前日弱",
+        "23日 / 27台 / 総G92,999 / BB324/REG337 / RB1/276.0 / 合算1/140.7 / 平均差枚+57.3 / 100.55% / 勝率37.0% / 平均56 41.2% / 中央56 33.9% / 56>=50 37.0% / 56<30 40.7% / RB<=300 51.9% / RB>400 25.9% / 合成<=130 22.2% / 合成<=140 48.1%",
+        {
+          requiredFlags: ["kintokiNeoHistoryReady", "kintokiNeoSinkHighGames", "kintokiNeoPreviousWeak"],
+        },
+        ["kintoki-kamata-neo-aim"],
+      ),
+      buildCondition(
+        "kintoki-kamata-top3-prev-weak-3d",
+        "上位3＋前日弱＋3日内",
+        "21日 / 23台 / 総G92,634 / BB347/REG344 / BB1/267.0 / RB1/269.3 / 合算1/134.1 / 平均差枚+340.9 / 102.82% / 勝率39.1% / 平均56 43.1% / 中央56 28.9% / 56>=70 17.4% / 56>=50 39.1% / 56<30 52.2% / RB<=300 47.8% / RB>400 34.8% / 合成<=130 30.4% / 合成<=140 47.8%",
+        {
+          rankMax: 3,
+          requiredFlags: ["kintokiNeoHistoryReady", "kintokiNeoPreviousWeak", "kintokiNeoShortHighLeft"],
+        },
+        ["kintoki-kamata-neo-aim"],
+      ),
+      buildCondition(
+        "kintoki-kamata-watch-history-short",
+        "見送り：履歴不足",
+        "同一台番履歴14営業日未満 / 点数上限35",
+        {
+          requiredFlags: ["kintokiNeoHistoryShort"],
+        },
+        ["kintoki-kamata-neo-aim"],
+      ),
+      buildCondition(
+        "kintoki-kamata-watch-long-neglect",
+        "見送り：長期放置",
+        "前回高内容から29日以上、直近14日高内容0回 / 自由条件なし",
+        {
+          requiredFlags: ["kintokiNeoHistoryReady", "kintokiNeoLongNeglect", "kintokiNeoNoFree"],
+        },
+        ["kintoki-kamata-neo-aim"],
+      ),
+      buildCondition(
+        "kintoki-kamata-watch-risk-without-free",
+        "見送り：危険あり自由なし",
+        "45点以上でも危険条件あり、自由度MAX条件なし",
+        {
+          minScore: 45,
+          minDanger: 1,
+          requiredFlags: ["kintokiNeoHistoryReady", "kintokiNeoNoFree"],
+        },
+        ["kintoki-kamata-neo-aim"],
+      ),
+      buildCondition(
+        "kintoki-kamata-watch-low-score",
+        "見送り：40点未満自由なし",
+        "スコア40点未満、自由度MAX条件なし",
+        {
+          maxScore: 39.999,
+          requiredFlags: ["kintokiNeoHistoryReady", "kintokiNeoNoFree"],
+        },
+        ["kintoki-kamata-neo-aim"],
+      ),
+      buildCondition(
+        "kintoki-kamata-watch-rank1-small-gap",
+        "慎重：1位次点差小",
+        "1位でも次点差8点以下、自由度MAX条件なし",
+        {
+          rankMax: 1,
+          maxNextGap: 8,
+          requiredFlags: ["kintokiNeoHistoryReady", "kintokiNeoNoFree"],
+        },
+        ["kintoki-kamata-neo-aim"],
       ),
       buildCondition(
         "beam-hikari-main",
@@ -4121,6 +4278,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "espace-ueno-neo-aim");
   } else if (isMesseMinamisenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "messe-minamisenju-neo-aim");
+  } else if (isKintokiKamataStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "kintoki-kamata-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
@@ -4708,9 +4867,11 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const adjacentMachineNetTotal7Near2 = readNumber(metrics.adjacentMachineNetTotal7Near2);
   const adjacentMachineNetTotal14 = readNumber(metrics.adjacentMachineNetTotal14);
   const previousAdjacentMachineHighContentCount = readNumber(metrics.previousAdjacentMachineHighContentCount);
+  const previousAdjacentMachineHighContentCountNear2 = readNumber(metrics.previousAdjacentMachineHighContentCountNear2);
   const previousAdjacentMachineGoodContentCount = readNumber(metrics.previousAdjacentMachineGoodContentCount);
   const previousAdjacentMachineBigWin1000Count = readNumber(metrics.previousAdjacentMachineBigWin1000Count);
   const previousAdjacentMachineNetTotal = readNumber(metrics.previousAdjacentMachineNetTotal);
+  const previousAdjacentMachineNetTotalNear2 = readNumber(metrics.previousAdjacentMachineNetTotalNear2);
   const previousOtherMachineHighContentCount = readNumber(metrics.previousOtherMachineHighContentCount);
   const sameMachinePreviousNetTotal = readNumber(metrics.sameMachinePreviousNetTotal);
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
@@ -4838,6 +4999,80 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "kintoki-kamata-neo-aim") {
+      const kintokiNeoHistoryReady = historyRowCount >= 14;
+      const kintokiNeoHistoryShort = historyRowCount < 14;
+      const hasPreviousFivePlus = Number.isFinite(previousMachineSettingFivePlusProbability);
+      const kintokiNeoPreviousWeak =
+        hasPreviousFivePlus && previousMachineSettingFivePlusProbability < 0.2;
+      const kintokiNeoBbOutputContinue =
+        previousDifference >= 1500 &&
+        hasPreviousFivePlus &&
+        previousMachineSettingFivePlusProbability < 0.3;
+      const kintokiNeoSinkHighGames = recentSevenNetTotal <= -2500 && recentFiveGamesTotal >= 14000;
+      const kintokiNeoShortHighLeft =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent <= 3;
+      const kintokiNeoNearbyTwoHighSink =
+        recentSevenNetTotal <= -2500 && previousAdjacentMachineHighContentCountNear2 >= 2;
+      const kintokiNeoLongNeglect =
+        recentFourteenMachineHighContentCount === 0 &&
+        ((Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 29) ||
+          (!Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 29));
+      const kintokiNeoTreatmentDone = recentFourteenNetTotal > 3000 && recentSevenNetTotal > 1500;
+      const kintokiNeoLowGamesHistory = recentFiveGamesTotal < 9000 && recentFourteenGamesTotal < 25000;
+      const kintokiNeoPreviousStrongDone =
+        previousDifference >= 2500 &&
+        hasPreviousFivePlus &&
+        previousMachineSettingFivePlusProbability >= 0.5 &&
+        recentFourteenNetTotal > 0;
+      const kintokiNeoBadCombinedLowGames =
+        features.recentThreeCombinedDenominator > 180 && recentSevenGamesTotal < 16000;
+      const dangerFlags = [
+        kintokiNeoLongNeglect,
+        kintokiNeoTreatmentDone,
+        kintokiNeoLowGamesHistory,
+        kintokiNeoPreviousStrongDone,
+        kintokiNeoBadCombinedLowGames,
+      ];
+      const dangerCount = dangerFlags.filter(Boolean).length;
+      const kintokiNeoFreeNonRank =
+        (kintokiNeoSinkHighGames && kintokiNeoPreviousWeak) ||
+        kintokiNeoNearbyTwoHighSink ||
+        kintokiNeoBbOutputContinue;
+      const kintokiNeoNoFree = !kintokiNeoFreeNonRank && !kintokiNeoPreviousWeak;
+      const boostFlags = [
+        kintokiNeoSinkHighGames,
+        kintokiNeoPreviousWeak,
+        kintokiNeoBbOutputContinue,
+        kintokiNeoShortHighLeft,
+        kintokiNeoNearbyTwoHighSink,
+        dangerCount === 0,
+      ];
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability,
+        kintokiNeoHistoryReady,
+        kintokiNeoHistoryShort,
+        kintokiNeoPreviousWeak,
+        kintokiNeoBbOutputContinue,
+        kintokiNeoSinkHighGames,
+        kintokiNeoShortHighLeft,
+        kintokiNeoNearbyTwoHighSink,
+        kintokiNeoLongNeglect,
+        kintokiNeoTreatmentDone,
+        kintokiNeoLowGamesHistory,
+        kintokiNeoPreviousStrongDone,
+        kintokiNeoBadCombinedLowGames,
+        kintokiNeoFreeNonRank,
+        kintokiNeoNoFree,
+        treatmentDone: kintokiNeoTreatmentDone || kintokiNeoPreviousStrongDone,
+        lowConfidence: kintokiNeoHistoryShort || kintokiNeoLowGamesHistory,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount,
+      };
+    }
+
     if (activeLogicKey === "messe-minamisenju-neo-aim") {
       const messeNeoHistoryReady = historyRowCount >= 5;
       const messeNeoHistoryShort = historyRowCount < 5;
@@ -8113,10 +8348,12 @@ function calculateMachineScore(definition, metrics, features) {
   const adjacentMachineNetTotal14 = readNumber(metrics.adjacentMachineNetTotal14);
   const adjacentMachineNetTotal14Near2 = readNumber(metrics.adjacentMachineNetTotal14Near2);
   const previousAdjacentMachineHighContentCount = readNumber(metrics.previousAdjacentMachineHighContentCount);
+  const previousAdjacentMachineHighContentCountNear2 = readNumber(metrics.previousAdjacentMachineHighContentCountNear2);
   const previousAdjacentMachineGoodContentCount = readNumber(metrics.previousAdjacentMachineGoodContentCount);
   const previousAdjacentMachineWeakContentCount = readNumber(metrics.previousAdjacentMachineWeakContentCount);
   const previousAdjacentMachineBigWin1000Count = readNumber(metrics.previousAdjacentMachineBigWin1000Count);
   const previousAdjacentMachineNetTotal = readNumber(metrics.previousAdjacentMachineNetTotal);
+  const previousAdjacentMachineNetTotalNear2 = readNumber(metrics.previousAdjacentMachineNetTotalNear2);
   const previousOtherMachineHighContentCount = readNumber(metrics.previousOtherMachineHighContentCount);
   const sameMachinePreviousNetTotal = readNumber(metrics.sameMachinePreviousNetTotal);
   const previousCombinedDenominator = features.previousCombinedDenominator;
@@ -8436,6 +8673,175 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "kintoki-kamata-neo-aim") {
+      const previousFivePlus = previousMachineSettingFivePlusProbability;
+      const hasPreviousFivePlus = Number.isFinite(previousFivePlus);
+
+      let gamesTrustScore = 0;
+      if (recentFiveGamesTotal >= 18000) {
+        gamesTrustScore += 8;
+      } else if (recentFiveGamesTotal >= 14000) {
+        gamesTrustScore += 5;
+      } else if (recentFiveGamesTotal >= 9000) {
+        gamesTrustScore += 2;
+      } else {
+        gamesTrustScore -= 3;
+      }
+      if (recentSevenGamesTotal >= 22000) {
+        gamesTrustScore += 4;
+      } else if (recentSevenGamesTotal >= 16000) {
+        gamesTrustScore += 2;
+      }
+      gamesTrustScore += previousGames >= 5000 ? 2 : 0;
+      gamesTrustScore -= previousGames < 1000 ? 2 : 0;
+      gamesTrustScore = clamp(gamesTrustScore, 0, 12);
+
+      let sinkScore = 0;
+      if (recentSevenNetTotal <= -2500 && recentFiveGamesTotal >= 14000) {
+        sinkScore += 14;
+      } else if (recentSevenNetTotal <= -3000) {
+        sinkScore += 10;
+      } else if (recentSevenNetTotal <= -1500) {
+        sinkScore += 6;
+      }
+      sinkScore -= recentSevenNetTotal > 1500 ? 3 : 0;
+      if (recentTenNetTotal <= -4000) {
+        sinkScore += 7;
+      } else if (recentTenNetTotal <= -2500) {
+        sinkScore += 5;
+      } else if (recentTenNetTotal > 2000) {
+        sinkScore -= 2;
+      }
+      if (recentFourteenNetTotal >= -2000 && recentFourteenNetTotal <= 0) {
+        sinkScore += 4;
+      } else if (recentFourteenNetTotal > 3000) {
+        sinkScore -= 4;
+      }
+      if (streak === 2) {
+        sinkScore += 5;
+      } else if (streak === 1) {
+        sinkScore += 2;
+      }
+      sinkScore -= streak >= 5 ? 3 : 0;
+      sinkScore += recentSevenGamesTotal >= 14000 && recentSevenNetTotal / recentSevenGamesTotal <= -0.12 ? 4 : 0;
+      sinkScore = clamp(sinkScore, 0, 25);
+
+      let momentumScore = 0;
+      if (previousDifference >= 2000) {
+        momentumScore += 8;
+      } else if (previousDifference >= 1500) {
+        momentumScore += 7;
+      } else if (previousDifference >= 1000) {
+        momentumScore += 3;
+      } else if (previousDifference >= 0) {
+        momentumScore -= 1;
+      }
+      if (recentTwoNetTotal >= 2000) {
+        momentumScore += 7;
+      } else if (recentTwoNetTotal >= 1500) {
+        momentumScore += 2;
+      }
+      if (features.recentThreeCombinedDenominator <= 130) {
+        momentumScore += 5;
+      } else if (features.recentThreeCombinedDenominator <= 145) {
+        momentumScore += 2;
+      } else if (features.recentThreeCombinedDenominator > 160) {
+        momentumScore -= 3;
+      }
+      momentumScore = clamp(momentumScore, 0, 18);
+
+      let bonusScore = 0;
+      if (hasPreviousFivePlus) {
+        if (previousFivePlus >= 0.7) {
+          bonusScore += 5;
+        } else if (previousFivePlus >= 0.5) {
+          bonusScore += 7;
+        } else if (previousFivePlus < 0.2) {
+          bonusScore += 2;
+        }
+      }
+      if (previousCombinedDenominator <= 130) {
+        bonusScore += 4;
+      } else if (previousCombinedDenominator <= 145) {
+        bonusScore += 2;
+      }
+      if (previousRbDenominator <= 300) {
+        bonusScore += 4;
+      } else if (previousRbDenominator <= 350) {
+        bonusScore += 2;
+      }
+      bonusScore -= previousGames >= 3000 && previousRbDenominator > 600 ? 2 : 0;
+      if (hasPreviousFivePlus && previousFivePlus >= 0.5) {
+        bonusScore += previousDifference < 1000 ? 4 : 2;
+      }
+      bonusScore += previousDifference >= 1500 && hasPreviousFivePlus && previousFivePlus < 0.3 ? 3 : 0;
+      bonusScore = clamp(bonusScore, 0, 20);
+
+      let rotationScore = 0;
+      if (Number.isFinite(daysSinceMachineHighContent)) {
+        if (daysSinceMachineHighContent === 1) {
+          rotationScore += 5;
+        } else if (daysSinceMachineHighContent >= 2 && daysSinceMachineHighContent <= 3) {
+          rotationScore += 3;
+        } else if (daysSinceMachineHighContent >= 15 && daysSinceMachineHighContent <= 28) {
+          rotationScore += 5;
+        } else if (daysSinceMachineHighContent >= 29) {
+          rotationScore -= 5;
+        }
+      }
+      if (recentFourteenMachineHighContentCount === 1) {
+        rotationScore += 5;
+      } else if (recentFourteenMachineHighContentCount === 2) {
+        rotationScore += 2;
+      } else if (recentFourteenMachineHighContentCount >= 3) {
+        rotationScore -= 2;
+      }
+      rotationScore += recentTwentyOneMachineHighContentCount === 1 ? 3 : 0;
+      rotationScore -=
+        recentTwentyOneMachineHighContentCount === 0 &&
+        ((Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 21) ||
+          (!Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 21))
+          ? 2
+          : 0;
+      rotationScore = clamp(rotationScore, 0, 15);
+
+      let nearbyScore = 0;
+      if (previousAdjacentMachineHighContentCountNear2 >= 1 && recentSevenNetTotal <= -2500) {
+        nearbyScore += 7;
+      } else if (
+        previousAdjacentMachineHighContentCountNear2 >= 1 &&
+        recentSevenNetTotal <= 0 &&
+        recentFiveGamesTotal >= 14000
+      ) {
+        nearbyScore += 4;
+      }
+      nearbyScore += previousAdjacentMachineHighContentCountNear2 >= 2 ? 3 : 0;
+      nearbyScore -= previousAdjacentMachineNetTotalNear2 >= 2000 ? 2 : 0;
+      nearbyScore = clamp(nearbyScore, 0, 10);
+
+      let dangerPenalty = 0;
+      dangerPenalty += recentFiveGamesTotal < 9000 && recentFourteenGamesTotal < 25000 ? 4 : 0;
+      dangerPenalty +=
+        recentFourteenMachineHighContentCount === 0 &&
+        ((Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 29) ||
+          (!Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 29))
+          ? 5
+          : 0;
+      dangerPenalty += recentFourteenNetTotal > 3000 && recentSevenNetTotal > 1500 ? 4 : 0;
+      dangerPenalty +=
+        previousDifference >= 2500 &&
+        hasPreviousFivePlus &&
+        previousFivePlus >= 0.5 &&
+        recentFourteenNetTotal > 0
+          ? 4
+          : 0;
+      dangerPenalty += features.recentThreeCombinedDenominator > 180 && recentSevenGamesTotal < 16000 ? 3 : 0;
+
+      const score =
+        gamesTrustScore + sinkScore + momentumScore + bonusScore + rotationScore + nearbyScore - dangerPenalty;
+      return Math.round(clamp(score, 0, historyRowCount < 14 ? 35 : 100));
+    }
+
     if (activeLogicKey === "messe-minamisenju-neo-aim") {
       const previousPayoutRate = previousGames > 0 ? 100 + (previousDifference / previousGames / 3) * 100 : 100;
       const previousBbTailwind =
