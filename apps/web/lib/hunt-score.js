@@ -1813,13 +1813,11 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
   if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
     const contentRule = readMachineContentRule(config, machineName);
     if (contentRule === "amuse-asakusa-neo-aim") {
-      return (
-        games >= 5000 &&
-        differenceValue >= -1200 &&
-        ((rbDenominator <= 270 && combinedDenominator <= 135) ||
-          (rbDenominator <= 285 && combinedDenominator <= 128) ||
-          (games >= 7000 && rbDenominator <= 300 && combinedDenominator <= 125))
-      );
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
     if (contentRule === "beam-hikari-neo-aim-content") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -2097,7 +2095,11 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
   if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
     const contentRule = readMachineContentRule(config, machineName);
     if (contentRule === "amuse-asakusa-neo-aim") {
-      return isMachineHighContentWindowRow(row, machineName, config);
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.35;
+      }
+      return games >= 3000 && rbDenominator <= 360 && combinedDenominator <= 160;
     }
     if (contentRule === "beam-hikari-neo-aim-content") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -2317,7 +2319,11 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "amuse-asakusa-neo-aim"
   ) {
-    return games >= 5000 && rbDenominator <= 270 && combinedDenominator <= 130;
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&

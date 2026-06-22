@@ -1836,7 +1836,21 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildLogicVariant("beam-hikari-neo-aim", "ネオアイムビームヒカリ式", "beam-hikari-main"),
       buildLogicVariant("beam-hikari-neo-aim-normal", "ネオアイムビームヒカリ通常日式", "beam-hikari-normal-main"),
       buildLogicVariant("beam-hikari-neo-aim-event", "ネオアイムビームヒカリイベント日式", "beam-hikari-event-main"),
-      buildLogicVariant("amuse-asakusa-neo-aim", "ネオアイムアミューズ浅草式", "amuse-asakusa-main"),
+      buildLogicVariant(
+        "amuse-asakusa-neo-aim",
+        "アミューズ浅草_ネオアイム_全日共通_返済未完ロジック",
+        "amuse-asakusa-wide-rb310",
+      ),
+      buildLogicVariant(
+        "amuse-asakusa-neo-aim-normal",
+        "アミューズ浅草_ネオアイム_通常日_長期沈み優先ロジック",
+        "amuse-asakusa-normal-rank1",
+      ),
+      buildLogicVariant(
+        "amuse-asakusa-neo-aim-event",
+        "アミューズ浅草_ネオアイム_特定日_低見え返済ロジック",
+        "amuse-asakusa-event-rank1-gap2",
+      ),
       buildLogicVariant("gogo-tenjin-neo-aim", "ネオアイムGOGO天神式", "gogo-tenjin-main"),
       buildLogicVariant(
         "hinode-onojo-neo-aim",
@@ -3488,63 +3502,138 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["beam-hikari-neo-aim", "beam-hikari-neo-aim-normal", "beam-hikari-neo-aim-event"],
       ),
       buildCondition(
-        "amuse-asakusa-rank1",
-        "1位のみ",
-        "196件 / 102.7% / RB1/292.1",
+        "amuse-asakusa-wide-rb310",
+        "広めRB310",
+        "201日 / 892台 / 101.32% / RB1/301.4 / 合算1/142.1 / 平均56 35.1% / 中央56 27.2%",
         {
-          rankMax: 1,
+          minScore: 75,
           requiredFlags: ["amuseAsakusaNeoHistoryReady"],
         },
         ["amuse-asakusa-neo-aim"],
       ),
       buildCondition(
-        "amuse-asakusa-gap5",
-        "1位＋次点差5点以上",
-        "125件 / 102.5% / RB1/290.5",
+        "amuse-asakusa-rank2-rb300",
+        "弱本命RB300",
+        "207日 / 414台 / 101.70% / RB1/298.7 / 合算1/140.8 / 平均56 35.9% / 中央56 26.7%",
         {
-          rankMax: 1,
-          minNextGap: 5,
+          rankMax: 2,
           requiredFlags: ["amuseAsakusaNeoHistoryReady"],
         },
         ["amuse-asakusa-neo-aim"],
       ),
       buildCondition(
-        "amuse-asakusa-main",
-        "1位＋70点以上＋次点差10点以上＋強化2個以上＋危険1以下",
-        "34件 / 104.8% / RB1/270.4",
+        "amuse-asakusa-daily-rank1-rb290",
+        "本命RB290",
+        "207日 / 207台 / 102.60% / RB1/287.5 / 合算1/137.3 / 平均56 39.9% / 中央56 31.0%",
         {
           rankMax: 1,
-          minScore: 70,
-          minNextGap: 10,
-          minBoost: 2,
-          maxDanger: 1,
           requiredFlags: ["amuseAsakusaNeoHistoryReady"],
         },
-        ["amuse-asakusa-neo-aim"],
+        ["amuse-asakusa-neo-aim-normal", "amuse-asakusa-neo-aim-event"],
       ),
       buildCondition(
-        "amuse-asakusa-gap15",
-        "1位＋70点以上＋次点差15点以上",
-        "21件 / 105.9% / RB1/261.4",
+        "amuse-asakusa-event-rank1",
+        "強RB280",
+        "59日 / 59台 / 102.41% / RB1/277.7 / 合算1/136.5 / 平均56 46.8% / 中央56 46.7%",
         {
           rankMax: 1,
-          minScore: 70,
-          minNextGap: 15,
           requiredFlags: ["amuseAsakusaNeoHistoryReady"],
         },
-        ["amuse-asakusa-neo-aim"],
+        ["amuse-asakusa-neo-aim-event"],
       ),
       buildCondition(
-        "amuse-asakusa-wide",
-        "70点以上＋強化2個以上＋危険1以下",
-        "76件 / 103.0% / RB1/295.8",
+        "amuse-asakusa-event-rank1-gap2",
+        "最本命RB270",
+        "36日 / 36台 / 103.70% / RB1/266.4 / 合算1/132.3 / 平均56 52.9% / 中央56 58.4%",
         {
-          minScore: 70,
-          minBoost: 2,
-          maxDanger: 1,
+          rankMax: 1,
+          minNextGap: 2,
           requiredFlags: ["amuseAsakusaNeoHistoryReady"],
         },
-        ["amuse-asakusa-neo-aim"],
+        ["amuse-asakusa-neo-aim-event"],
+      ),
+      buildCondition(
+        "amuse-asakusa-normal-rank1",
+        "通常日補助",
+        "148日 / 148台 / 102.70% / RB1/293.3 / 合算1/137.8 / 平均56 37.2% / 中央56 27.7%",
+        {
+          rankMax: 1,
+          requiredFlags: ["amuseAsakusaNeoHistoryReady"],
+        },
+        ["amuse-asakusa-neo-aim-normal"],
+      ),
+      buildCondition(
+        "amuse-asakusa-event-lowg-14combined",
+        "特定21低G＋14合成悪",
+        "31日 / 42台 / 103.57% / RB1/260.3 / 合算1/131.3 / 平均56 55.4% / 中央56 61.7%",
+        {
+          requiredFlags: ["amuseAsakusaNeoEventLowGames14CombinedWeak"],
+        },
+        ["amuse-asakusa-neo-aim-event"],
+      ),
+      buildCondition(
+        "amuse-asakusa-event-14sink-lowg",
+        "特定14沈み＋21低G",
+        "32日 / 48台 / 103.90% / RB1/261.8 / 合算1/131.3 / 平均56 54.9% / 中央56 61.7%",
+        {
+          requiredFlags: ["amuseAsakusaNeoEvent14Sink21LowGames"],
+        },
+        ["amuse-asakusa-neo-aim-event"],
+      ),
+      buildCondition(
+        "amuse-asakusa-event-5sink-lowg",
+        "特定5深沈み＋21低G",
+        "36日 / 72台 / 102.80% / RB1/272.7 / 合算1/135.5 / 平均56 48.8% / 中央56 52.0%",
+        {
+          requiredFlags: ["amuseAsakusaNeoEvent5Deep21LowGames"],
+        },
+        ["amuse-asakusa-neo-aim-event"],
+      ),
+      buildCondition(
+        "amuse-asakusa-event-prev56-miss",
+        "特定前日56不発＋危険0",
+        "38日 / 52台 / 103.31% / RB1/275.6 / 合算1/134.2 / 平均56 46.9% / 中央56 46.3%",
+        {
+          maxDanger: 0,
+          requiredFlags: ["amuseAsakusaNeoPreviousMiss"],
+        },
+        ["amuse-asakusa-neo-aim-event"],
+      ),
+      buildCondition(
+        "amuse-asakusa-all-lowg-long-bonus",
+        "全日低G＋長期ボナ悪",
+        "46日 / 59台 / 102.91% / RB1/270.9 / 合算1/134.3 / 平均56 43.1% / 中央56 31.9%",
+        {
+          requiredFlags: ["amuseAsakusaNeoLowGamesLongBonusWeak"],
+        },
+        ["amuse-asakusa-neo-aim", "amuse-asakusa-neo-aim-normal", "amuse-asakusa-neo-aim-event"],
+      ),
+      buildCondition(
+        "amuse-asakusa-watch-normal-treatment",
+        "通常処遇完了",
+        "144日 / 932台 / 100.78% / RB1/326.2 / 合算1/146.6 / 平均56 29.2%",
+        {
+          requiredFlags: ["amuseAsakusaNeoTreatmentDone"],
+        },
+        ["amuse-asakusa-neo-aim-normal"],
+      ),
+      buildCondition(
+        "amuse-asakusa-watch-danger2",
+        "見送り_危険2個以上",
+        "危険条件2個以上は見送り寄り",
+        {
+          minDanger: 2,
+        },
+        ["amuse-asakusa-neo-aim", "amuse-asakusa-neo-aim-normal", "amuse-asakusa-neo-aim-event"],
+      ),
+      buildCondition(
+        "amuse-asakusa-watch-history-short",
+        "履歴不足",
+        "21日履歴不足は低信頼",
+        {
+          requiredFlags: ["amuseAsakusaNeoHistoryShort"],
+        },
+        ["amuse-asakusa-neo-aim", "amuse-asakusa-neo-aim-normal", "amuse-asakusa-neo-aim-event"],
       ),
     ],
   },
@@ -6181,66 +6270,82 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       };
     }
 
-    if (activeLogicKey === "amuse-asakusa-neo-aim") {
+    if (
+      activeLogicKey === "amuse-asakusa-neo-aim" ||
+      activeLogicKey === "amuse-asakusa-neo-aim-normal" ||
+      activeLogicKey === "amuse-asakusa-neo-aim-event"
+    ) {
       const amuseAsakusaNeoHistoryReady = historyRowCount >= 21;
-      const recentTenAngle = netPerThousandGames(recentTenNetTotal, recentTenGamesTotal);
+      const amuseAsakusaNeoHistoryShort = historyRowCount < 21;
       const recentTwentyOneCombinedDenominator = rateDenominator(
         recentTwentyOneGamesTotal,
         readNumber(metrics.recentTwentyOneBonusTotal),
       );
-      const amuseAsakusaNeoSinkStayStrong =
-        recentFourteenMinus1500StayDays >= 7 || recentTwentyOneMinus2000StayDays >= 5;
-      const amuseAsakusaNeoAngleStrong =
-        recentTenAngle <= -30 || features.recentTwentyOneAngle <= -20;
+      const amuseAsakusaNeoDeepSink =
+        (recentTwentyOneNetTotal <= -3000 && features.recentTwentyOneAngle <= -25) ||
+        (recentFourteenNetTotal <= -3000 && features.recentFourteenAngle <= -50);
       const amuseAsakusaNeoUnpaid =
-        (recentTwentyOneNetTotal <= -2000 && recentThreeNetTotal > 0) ||
-        (previousMachineHighContent && recentFourteenNetTotal <= 0);
-      const amuseAsakusaNeoGenuine =
-        (previousMachineHighContent && previousDifference <= 2000) || features.previousRbDenominator <= 250;
-      const amuseAsakusaNeoTrustedGames = recentTenGamesTotal >= 15000 && recentFiveGamesTotal >= 6000;
+        recentTwentyOneNetTotal <= -3000 || (recentFourteenNetTotal <= -1500 && recentFiveNetTotal <= -500);
+      const amuseAsakusaNeoBonusWeak =
+        features.recentFiveRbDenominator >= 400 || features.recentFourteenCombinedDenominator >= 155;
+      const amuseAsakusaNeoPreviousMiss =
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5 &&
+        previousDifference <= 500;
+      const amuseAsakusaNeoRealMiss = amuseAsakusaNeoPreviousMiss && recentFourteenNetTotal <= 0;
+      const amuseAsakusaNeoInterval =
+        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 10) ||
+        recentFourteenMachineHighContentCount === 0;
       const amuseAsakusaNeoTreatmentDone =
-        recentSevenNetTotal >= 5000 || recentFiveNetTotal >= 4000 || recentTwentyOneNetTotal >= 10000;
-      const amuseAsakusaNeoLowGames = recentTenGamesTotal < 8000 || recentFiveGamesTotal < 4000;
-      const amuseAsakusaNeoLongNeglect =
-        Number.isFinite(daysSinceMachineHighContent) &&
-        daysSinceMachineHighContent >= 22 &&
-        recentTwentyOneMachineHighContentCount === 0 &&
-        recentTwentyOneNetTotal > -2000;
-      const amuseAsakusaNeoOutputOnly =
-        previousDifference >= 2000 && features.previousRbDenominator > 300;
-      const amuseAsakusaNeoNearbyTooHot = adjacentMachineHighContentCount3Near2 >= 3;
+        (previousDifference >= 2000 && recentFourteenNetTotal >= 3000) || recentFourteenNetTotal >= 5000;
+      const amuseAsakusaNeoBigAfter = previousDifference >= 2500 && recentTwentyOneNetTotal >= 5000;
+      const amuseAsakusaNeoTooHot = features.recentFiveCombinedDenominator <= 136 && recentFiveNetTotal >= 2000;
+      const amuseAsakusaNeoLowTrust = recentFiveGamesTotal <= 8000 || previousGames <= 300;
+      const amuseAsakusaNeoLowGamesLongBonusWeak =
+        recentTwentyOneGamesTotal <= 90000 &&
+        features.recentFourteenCombinedDenominator >= 155 &&
+        recentTwentyOneCombinedDenominator >= 155;
+      const amuseAsakusaNeoEventLowGames14CombinedWeak =
+        recentTwentyOneGamesTotal <= 90000 && features.recentFourteenCombinedDenominator >= 155;
+      const amuseAsakusaNeoEvent14Sink21LowGames =
+        recentFourteenNetTotal <= -3000 && recentTwentyOneGamesTotal <= 90000;
+      const amuseAsakusaNeoEvent5Deep21LowGames =
+        recentFiveNetTotal <= -2000 && recentTwentyOneGamesTotal <= 90000;
       const boostFlags = [
-        amuseAsakusaNeoSinkStayStrong,
-        amuseAsakusaNeoAngleStrong,
+        amuseAsakusaNeoDeepSink,
         amuseAsakusaNeoUnpaid,
-        amuseAsakusaNeoGenuine,
-        amuseAsakusaNeoTrustedGames,
+        amuseAsakusaNeoBonusWeak,
+        amuseAsakusaNeoRealMiss,
+        amuseAsakusaNeoInterval,
       ];
       const dangerFlags = [
         amuseAsakusaNeoTreatmentDone,
-        amuseAsakusaNeoLowGames,
-        amuseAsakusaNeoLongNeglect,
-        amuseAsakusaNeoOutputOnly,
-        amuseAsakusaNeoNearbyTooHot,
+        amuseAsakusaNeoBigAfter,
+        amuseAsakusaNeoTooHot,
+        amuseAsakusaNeoLowTrust,
       ];
 
       return {
         ...features,
-        recentTenAngle,
         recentTwentyOneCombinedDenominator,
         amuseAsakusaNeoHistoryReady,
-        amuseAsakusaNeoSinkStayStrong,
-        amuseAsakusaNeoAngleStrong,
+        amuseAsakusaNeoHistoryShort,
+        amuseAsakusaNeoDeepSink,
         amuseAsakusaNeoUnpaid,
-        amuseAsakusaNeoGenuine,
-        amuseAsakusaNeoTrustedGames,
+        amuseAsakusaNeoBonusWeak,
+        amuseAsakusaNeoPreviousMiss,
+        amuseAsakusaNeoRealMiss,
+        amuseAsakusaNeoInterval,
         amuseAsakusaNeoTreatmentDone,
-        amuseAsakusaNeoLowGames,
-        amuseAsakusaNeoLongNeglect,
-        amuseAsakusaNeoOutputOnly,
-        amuseAsakusaNeoNearbyTooHot,
+        amuseAsakusaNeoBigAfter,
+        amuseAsakusaNeoTooHot,
+        amuseAsakusaNeoLowTrust,
+        amuseAsakusaNeoLowGamesLongBonusWeak,
+        amuseAsakusaNeoEventLowGames14CombinedWeak,
+        amuseAsakusaNeoEvent14Sink21LowGames,
+        amuseAsakusaNeoEvent5Deep21LowGames,
         treatmentDone: amuseAsakusaNeoTreatmentDone,
-        lowConfidence: amuseAsakusaNeoLowGames,
+        lowConfidence: amuseAsakusaNeoLowTrust || amuseAsakusaNeoHistoryShort,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -10287,160 +10392,269 @@ function calculateMachineScore(definition, metrics, features) {
       return Math.round(clamp(score, 0, 100));
     }
 
-    if (activeLogicKey === "amuse-asakusa-neo-aim") {
-      if (historyRowCount < 21) {
-        return 0;
-      }
-
-      const recentTenAngle = Number.isFinite(features.recentTenAngle)
-        ? features.recentTenAngle
-        : netPerThousandGames(recentTenNetTotal, recentTenGamesTotal);
+    if (
+      activeLogicKey === "amuse-asakusa-neo-aim" ||
+      activeLogicKey === "amuse-asakusa-neo-aim-normal" ||
+      activeLogicKey === "amuse-asakusa-neo-aim-event"
+    ) {
+      const previousFivePlus = previousMachineSettingFivePlusProbability;
+      const previousIsFivePlus = Number.isFinite(previousFivePlus) && previousFivePlus >= 0.5;
+      const previousIsStrongFivePlus = Number.isFinite(previousFivePlus) && previousFivePlus >= 0.7;
       const recentTwentyOneCombinedDenominator = rateDenominator(
         recentTwentyOneGamesTotal,
         readNumber(metrics.recentTwentyOneBonusTotal),
       );
+      const scoreCap = historyRowCount < 21 ? 60 : 100;
 
-      let repayScore = 0;
-      repayScore +=
-        recentTenNetTotal <= -4000 && recentTenGamesTotal >= 15000
-          ? 12
-          : recentTenNetTotal <= -2250
-            ? 10
-            : recentTenNetTotal <= -1000
-              ? 8
-              : recentTenNetTotal <= 0
-                ? 4
-                : 0;
-      repayScore +=
-        recentTwentyOneNetTotal <= -5000 && recentTwentyOneGamesTotal >= 30000
-          ? 10
-          : recentTwentyOneNetTotal <= -3000
-            ? 8
-            : recentTwentyOneNetTotal <= -1500
-              ? 6
-              : recentTwentyOneNetTotal <= 0
-                ? 3
-                : 0;
-      repayScore = Math.min(repayScore, 24);
+      if (activeLogicKey === "amuse-asakusa-neo-aim-normal") {
+        const longScore = Math.min(
+          scoreAtMost(recentTwentyOneNetTotal, [
+            { maximum: -5000, points: 16 },
+            { maximum: -3000, points: 13 },
+            { maximum: -1500, points: 8 },
+            { maximum: -500, points: 4 },
+          ]) +
+            scoreAtMost(features.recentTwentyOneAngle, [
+              { maximum: -50, points: 9 },
+              { maximum: -25, points: 6 },
+              { maximum: -0.000001, points: 2 },
+            ]) +
+            scoreAtMost(recentFourteenNetTotal, [
+              { maximum: -5000, points: 13 },
+              { maximum: -3000, points: 10 },
+              { maximum: -1500, points: 6 },
+              { maximum: -500, points: 3 },
+            ]),
+          35,
+        );
+        const recentScore = Math.min(
+          scoreAtMost(recentFiveNetTotal, [
+            { maximum: -3000, points: 7 },
+            { maximum: -1500, points: 5 },
+            { maximum: -500, points: 2 },
+          ]) +
+            scoreAtMost(features.recentFiveAngle, [
+              { maximum: -75, points: 5 },
+              { maximum: -25, points: 2 },
+            ]) +
+            scoreAtLeast(streak, [
+              { minimum: 5, points: 3 },
+              { minimum: 3, points: 1 },
+            ]),
+          13,
+        );
+        const bonusScore = Math.min(
+          (features.recentFiveRbDenominator >= 400 ? 4 : 0) +
+            (features.recentFourteenCombinedDenominator >= 155 ? 5 : 0) +
+            (recentTwentyOneCombinedDenominator >= 155 ? 4 : 0) +
+            (recentFourteenMachineHighContentCount === 0 ? 4 : 0),
+          12,
+        );
+        const lowLookScore = Math.min(
+          (recentFiveGamesTotal <= 15000 ? 2 : 0) + (recentTwentyOneGamesTotal <= 90000 ? 2 : 0),
+          4,
+        );
+        const previousScore = Math.min(
+          (previousIsFivePlus && previousDifference <= 0 ? 10 : 0) +
+            (previousIsFivePlus && recentFourteenNetTotal <= 0 ? 5 : 0) +
+            (previousIsFivePlus && recentTwentyOneNetTotal <= -3000 ? 4 : 0),
+          12,
+        );
+        const intervalScore = Math.min(
+          scoreAtLeast(daysSinceMachineHighContent, [
+            { minimum: 14, points: 5 },
+            { minimum: 10, points: 3 },
+            { minimum: 7, points: 1 },
+          ]) +
+            (recentFourteenMachineHighContentCount === 0 ? 4 : 0),
+          8,
+        );
+        const penaltyScore = Math.min(
+          (previousDifference >= 2000 && recentFourteenNetTotal >= 3000 ? 12 : 0) +
+            (recentFourteenNetTotal >= 5000 ? 10 : 0) +
+            (recentTwentyOneNetTotal >= 10000 ? 10 : 0) +
+            (features.recentFiveCombinedDenominator <= 136 && recentFiveNetTotal >= 2000 ? 7 : 0) +
+            (previousIsFivePlus && previousDifference >= 1500 && recentFourteenNetTotal >= 0 ? 6 : 0) +
+            (recentFiveGamesTotal <= 8000 ? 3 : 0),
+          28,
+        );
 
-      const sinkStayScore = Math.max(
-        recentFourteenMinus1500StayDays >= 7 ? 12 : 0,
-        recentFourteenMinus2000StayDays >= 10 ? 15 : 0,
-        recentFourteenMinus500StayDays >= 14 ? 14 : 0,
-        recentTwentyOneMinus1500StayDays >= 5 ? 10 : 0,
-        recentTwentyOneMinus2000StayDays >= 7 ? 14 : 0,
-        recentTwentyOneMinus3000StayDays >= 7 ? 16 : 0,
-        recentTwentyOneMinus5000StayDays >= 4 ? 15 : 0,
+        return Math.round(
+          clamp(42 + longScore + recentScore + bonusScore + lowLookScore + previousScore + intervalScore - penaltyScore, 0, scoreCap),
+        );
+      }
+
+      if (activeLogicKey === "amuse-asakusa-neo-aim-event") {
+        const longScore = Math.min(
+          scoreAtMost(recentTwentyOneNetTotal, [
+            { maximum: -5000, points: 12 },
+            { maximum: -3000, points: 10 },
+            { maximum: -1500, points: 7 },
+            { maximum: -500, points: 3 },
+          ]) +
+            scoreAtMost(features.recentTwentyOneAngle, [
+              { maximum: -50, points: 7 },
+              { maximum: -25, points: 5 },
+              { maximum: -0.000001, points: 2 },
+            ]) +
+            scoreAtMost(recentFourteenNetTotal, [
+              { maximum: -5000, points: 11 },
+              { maximum: -3000, points: 9 },
+              { maximum: -1500, points: 6 },
+              { maximum: -500, points: 3 },
+            ]),
+          28,
+        );
+        const recentScore = Math.min(
+          scoreAtMost(recentFiveNetTotal, [
+            { maximum: -3000, points: 12 },
+            { maximum: -2000, points: 10 },
+            { maximum: -1000, points: 8 },
+            { maximum: -500, points: 5 },
+          ]) +
+            scoreAtMost(features.recentFiveAngle, [
+              { maximum: -100, points: 8 },
+              { maximum: -50, points: 5 },
+              { maximum: -25, points: 2 },
+            ]) +
+            scoreAtLeast(streak, [
+              { minimum: 5, points: 8 },
+              { minimum: 4, points: 6 },
+              { minimum: 3, points: 3 },
+            ]),
+          22,
+        );
+        const bonusScore = Math.min(
+          (features.recentFiveRbDenominator >= 400 ? 8 : 0) +
+            (features.recentFiveCombinedDenominator >= 155 ? 6 : 0) +
+            (features.recentFourteenCombinedDenominator >= 155 ? 7 : 0) +
+            (recentTwentyOneCombinedDenominator >= 155 ? 5 : 0) +
+            (recentFourteenMachineHighContentCount === 0 ? 4 : 0),
+          18,
+        );
+        const lowLookScore = Math.min(
+          (recentThreeGamesTotal <= 7000 ? 7 : 0) +
+            (recentFiveGamesTotal <= 15000 ? 6 : recentFiveGamesTotal <= 20000 ? 3 : 0) +
+            (recentTwentyOneGamesTotal <= 90000 ? 4 : 0),
+          12,
+        );
+        const previousScore = Math.min(
+          (previousIsFivePlus && previousDifference <= 500 ? 8 : 0) +
+            (previousIsFivePlus && recentFourteenNetTotal <= 0 ? 7 : 0) +
+            (previousIsStrongFivePlus && previousDifference >= 1500 ? 3 : 0),
+          14,
+        );
+        const intervalScore = Math.min(
+          scoreAtLeast(daysSinceMachineHighContent, [
+            { minimum: 14, points: 5 },
+            { minimum: 10, points: 3 },
+            { minimum: 7, points: 1 },
+          ]) +
+            (recentFourteenMachineHighContentCount === 0 ? 3 : 0),
+          8,
+        );
+        const penaltyScore = Math.min(
+          (previousDifference >= 2500 && recentTwentyOneNetTotal >= 10000 ? 8 : 0) +
+            (recentFourteenNetTotal >= 8000 && previousDifference >= 1500 ? 6 : 0) +
+            (features.recentFiveCombinedDenominator <= 136 && recentFiveNetTotal >= 3000 ? 5 : 0),
+          18,
+        );
+
+        return Math.round(
+          clamp(38 + longScore + recentScore + bonusScore + lowLookScore + previousScore + intervalScore - penaltyScore, 0, scoreCap),
+        );
+      }
+
+      const longScore = Math.min(
+        scoreAtMost(recentTwentyOneNetTotal, [
+          { maximum: -5000, points: 14 },
+          { maximum: -3000, points: 11 },
+          { maximum: -1500, points: 7 },
+          { maximum: -500, points: 4 },
+        ]) +
+          scoreAtMost(features.recentTwentyOneAngle, [
+            { maximum: -50, points: 8 },
+            { maximum: -25, points: 5 },
+            { maximum: -0.000001, points: 2 },
+          ]) +
+          scoreAtMost(recentFourteenNetTotal, [
+            { maximum: -5000, points: 12 },
+            { maximum: -3000, points: 10 },
+            { maximum: -1500, points: 7 },
+            { maximum: -500, points: 4 },
+          ]),
+        30,
       );
-
-      const angleScore = Math.min(
-        (recentTenAngle <= -70 ? 8 : recentTenAngle <= -30 ? 6 : recentTenAngle <= -10 ? 3 : 0) +
-          (features.recentTwentyOneAngle <= -50
-            ? 7
-            : features.recentTwentyOneAngle <= -20
-              ? 5
-              : features.recentTwentyOneAngle <= 0
-                ? 2
-                : 0),
-        14,
+      const recentScore = Math.min(
+        scoreAtMost(recentFiveNetTotal, [
+          { maximum: -3000, points: 11 },
+          { maximum: -2000, points: 9 },
+          { maximum: -1000, points: 7 },
+          { maximum: -500, points: 4 },
+        ]) +
+          scoreAtMost(features.recentFiveAngle, [
+            { maximum: -100, points: 7 },
+            { maximum: -75, points: 6 },
+            { maximum: -50, points: 4 },
+            { maximum: -25, points: 2 },
+          ]) +
+          scoreAtLeast(streak, [
+            { minimum: 5, points: 6 },
+            { minimum: 4, points: 4 },
+            { minimum: 3, points: 2 },
+          ]),
+        18,
       );
-
-      const intervalScore = Math.max(
-        Number.isFinite(daysSinceMachineHighContent)
-          ? daysSinceMachineHighContent >= 21
-            ? 8
-            : daysSinceMachineHighContent >= 16
-              ? 7
-              : daysSinceMachineHighContent >= 11
-                ? 4
-                : daysSinceMachineHighContent === 6
-                  ? 3
-                  : 0
-          : 0,
-        recentFourteenMachineHighContentCount === 0 ? 6 : 0,
-        recentTwentyOneMachineHighContentCount === 0 ? 8 : 0,
+      const bonusScore = Math.min(
+        (features.recentFiveRbDenominator >= 400 ? 6 : 0) +
+          (features.recentFiveCombinedDenominator >= 155 ? 5 : 0) +
+          (features.recentFourteenCombinedDenominator >= 155 ? 5 : 0) +
+          (recentTwentyOneCombinedDenominator >= 155 ? 4 : 0) +
+          (recentFourteenMachineHighContentCount === 0 ? 4 : 0),
+        16,
       );
-
-      let genuineScore = 0;
-      genuineScore += previousMachineHighContent ? 4 : 0;
-      genuineScore += previousMachineHighContent
-        ? previousDifference <= 500
-          ? 8
-          : previousDifference <= 1500
-            ? 7
-            : previousDifference <= 2000
-              ? 6
-              : previousDifference <= 2500
-                ? 3
-                : 0
-        : 0;
-      genuineScore += previousMachineHighContent && previousRbDenominator <= 250 ? 3 : 0;
-      genuineScore += previousMachineHighContent && recentTwentyOneNetTotal <= 0 ? 5 : 0;
-      genuineScore += previousMachineHighContent && recentFourteenNetTotal <= 0 ? 3 : 0;
-      genuineScore += previousGames >= 4000 && previousRbDenominator <= 250 ? 4 : 0;
-      genuineScore += previousGames >= 4000 && previousRbDenominator <= 270 ? 2 : 0;
-      genuineScore = Math.min(genuineScore, 16);
-
-      const bonusWeakScore = Math.min(
-        (recentTwentyOneCombinedDenominator >= 150 && recentTwentyOneGamesTotal >= 30000 ? 4 : 0) +
-          (features.recentFourteenRbDenominator >= 360 && recentFourteenGamesTotal >= 21000 ? 4 : 0) +
-          (features.recentSevenCombinedDenominator >= 150 && recentSevenGamesTotal >= 10500 ? 2 : 0),
+      const lowLookScore = Math.min(
+        scoreAtMost(recentFiveGamesTotal, [
+          { maximum: 15000, points: 6 },
+          { maximum: 20000, points: 4 },
+          { maximum: 25000, points: 2 },
+        ]) +
+          scoreAtMost(recentFourteenGamesTotal, [
+            { maximum: 55000, points: 4 },
+            { maximum: 60000, points: 3 },
+          ]) +
+          (recentTwentyOneGamesTotal <= 90000 ? 3 : 0),
         8,
       );
-
-      const losingScore = streak === 3 ? 8 : streak === 2 ? 3 : streak >= 5 ? 2 : 0;
-      const gamesScore = Math.min(
-        (recentFiveGamesTotal >= 6000 && recentFiveGamesTotal <= 19500 ? 5 : 0) +
-          (recentFiveGamesTotal >= 19501 && recentFiveGamesTotal <= 24000 ? 2 : 0) +
-          (recentTenGamesTotal >= 15000 ? 2 : 0) +
-          (previousGames >= 1500 ? 1 : 0) -
-          (recentFiveGamesTotal < 4000 ? 3 : 0),
-        8,
+      const previousScore = Math.min(
+        (previousIsFivePlus && previousDifference <= 0 ? 9 : 0) +
+          (previousIsFivePlus && previousDifference <= 500 ? 4 : 0) +
+          (previousIsFivePlus && recentFourteenNetTotal <= 0 ? 5 : 0) +
+          (previousIsStrongFivePlus && previousDifference <= 1000 ? 3 : 0),
+        12,
       );
-
-      const nearbyScore = Math.min(
-        (adjacentMachineNetTotal7Near2 >= 3000 && recentSevenNetTotal <= 0 ? 4 : 0) +
-          (adjacentMachineHighContentCount3Near2 === 1 ? 2 : 0),
-        6,
+      const intervalScore = Math.min(
+        scoreAtLeast(daysSinceMachineHighContent, [
+          { minimum: 14, points: 6 },
+          { minimum: 10, points: 4 },
+          { minimum: 7, points: 2 },
+        ]) +
+          (recentFourteenMachineHighContentCount === 0 ? 4 : 0) +
+          (recentTwentyOneMachineHighContentCount <= 1 ? 3 : 0),
+        10,
       );
-
-      let penaltyScore = 0;
-      penaltyScore +=
-        recentSevenNetTotal >= 7000
-          ? 16
-          : recentSevenNetTotal >= 5000
-            ? 12
-            : recentSevenNetTotal >= 3000
-              ? 7
-              : 0;
-      penaltyScore += recentFiveNetTotal >= 5000 ? 10 : recentFiveNetTotal >= 4000 ? 6 : 0;
-      penaltyScore +=
-        recentTwentyOneNetTotal >= 12000 ? 12 : recentTwentyOneNetTotal >= 10000 ? 8 : 0;
-      penaltyScore +=
-        previousMachineHighContent && previousDifference >= 3000
-          ? 10
-          : previousMachineHighContent && previousDifference >= 2500
-            ? 6
-            : 0;
-      penaltyScore += adjacentMachineHighContentCount3Near2 >= 4 ? 5 : adjacentMachineHighContentCount3Near2 >= 3 ? 3 : 0;
-      penaltyScore += recentTenGamesTotal < 8000 ? 5 : 0;
-      penaltyScore = Math.min(penaltyScore, 24);
+      const penaltyScore = Math.min(
+        (previousDifference >= 2000 && recentFourteenNetTotal >= 3000 ? 10 : 0) +
+          (previousDifference >= 2500 && recentTwentyOneNetTotal >= 5000 ? 8 : 0) +
+          (recentFourteenNetTotal >= 5000 ? 6 : 0) +
+          (recentTwentyOneNetTotal >= 10000 ? 6 : 0) +
+          (features.recentFiveCombinedDenominator <= 136 && recentFiveNetTotal >= 2000 ? 5 : 0) +
+          (previousIsFivePlus && previousDifference >= 1500 && recentFourteenNetTotal >= 0 ? 4 : 0),
+        25,
+      );
 
       return Math.round(
-        clamp(
-          repayScore +
-            sinkStayScore +
-            angleScore +
-            intervalScore +
-            genuineScore +
-            bonusWeakScore +
-            losingScore +
-            gamesScore +
-            nearbyScore -
-            penaltyScore,
-          0,
-          100,
-        ),
+        clamp(40 + longScore + recentScore + bonusScore + lowLookScore + previousScore + intervalScore - penaltyScore, 0, scoreCap),
       );
     }
 
@@ -15621,6 +15835,27 @@ function buildIidabashiPresasDateSetting(definition, isEventDate) {
   };
 }
 
+function buildAmuseAsakusaDateSetting(definition, isEventDate) {
+  if (definition?.machineKey !== "neo-aim") {
+    return null;
+  }
+  const logicKey = isEventDate ? "amuse-asakusa-neo-aim-event" : "amuse-asakusa-neo-aim-normal";
+  const logic = findLogicDefinition(definition, logicKey);
+  if (!logic) {
+    return null;
+  }
+  const condition =
+    listConditionDefinitions(definition, logic.key).find(
+      (candidate) => candidate.keySuffix === logic.defaultConditionSuffix,
+    ) ??
+    listConditionDefinitions(definition, logic.key)[0] ??
+    null;
+  return {
+    logicKey: logic.key,
+    conditionKey: condition ? buildConditionKey(definition, condition) : "",
+  };
+}
+
 function resolveRankingDateSpecificSetting(definition, setting, options = {}) {
   if (
     !options?.dateSpecificRanking ||
@@ -15749,6 +15984,20 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
     const targetDate = readRankingTargetDate(options?.snapshot);
     const isEventDate = isIidabashiPresasEventDate(targetDate, row, options);
     const setting = buildIidabashiPresasDateSetting(definition, isEventDate);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    if (!evaluation) {
+      return null;
+    }
+
+    return {
+      ...evaluation,
+      displayLabel: isEventDate ? "特定日" : "通常日",
+    };
+  }
+
+  if (isAmuseAsakusaStore(options?.storeName) && definition?.machineKey === "neo-aim") {
+    const isEventDate = readTargetEventFlag(row) === true;
+    const setting = buildAmuseAsakusaDateSetting(definition, isEventDate);
     const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
     if (!evaluation) {
       return null;
