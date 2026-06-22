@@ -728,7 +728,7 @@ function buildMatchedConditionTitleParts(row, highlightedDetail = null) {
         },
         highlightedDetail,
       );
-      const marker = isHighlighted ? "【色判定】" : "";
+      const marker = isHighlighted ? "★" : "";
       return `・${marker}${evaluationLabel}${condition.conditionName}${backtestLabel}${selectedLabel}`;
     }),
   ];
@@ -943,10 +943,10 @@ function buildMachineEvaluationExpectationTitle(detail, metric = "") {
 
   return combineTitleParts(
     detail.label ? `採用目安: ${detail.label}` : "",
-    `${metric === MACHINE_EVALUATION_HIGHLIGHT_METRIC_PAYOUT ? "【色判定】" : ""}期待割: ${
+    `${metric === MACHINE_EVALUATION_HIGHLIGHT_METRIC_PAYOUT ? "★" : ""}期待割: ${
       formatExpectedPayoutRate(detail.payoutRate)
     }`,
-    `${metric === MACHINE_EVALUATION_HIGHLIGHT_METRIC_RB ? "【色判定】" : ""}期待RB: ${
+    `${metric === MACHINE_EVALUATION_HIGHLIGHT_METRIC_RB ? "★" : ""}期待RB: ${
       formatExpectedRbDenominator(detail.rbDenominator)
     }`,
   );
