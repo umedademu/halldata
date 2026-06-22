@@ -275,6 +275,10 @@ const ESPACE_UENO_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const MESSE_MINAMISENJU_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const APARK_YAKATABARU_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -835,6 +839,17 @@ const HUNT_SCORE_STORE_CONFIGS = [
     },
   },
   {
+    key: "messe-minamisenju",
+    storeNames: ["メッセ南千住店", "メッセ南千住"],
+    targetMachines: MESSE_MINAMISENJU_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    resetHistoryDates: ["2026-06-01"],
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "messe-minamisenju-neo-aim",
+      "ネオアイムジャグラーＥＸ": "messe-minamisenju-neo-aim",
+    },
+  },
+  {
     key: "tamaya-ohashi",
     storeNames: ["玉屋555大橋店"],
     targetMachines: TAMAYA_OHASHI_TARGET_MACHINES,
@@ -1255,6 +1270,41 @@ function filterWindowRowsAfterLargeDateGap(windowRows, resetHistoryGapDays) {
   }
 
   return startIndex > 0 ? windowRows.slice(startIndex) : windowRows;
+}
+
+function filterWindowRowsAfterResetHistoryDates(windowRows, resetHistoryDates) {
+  if (!Array.isArray(windowRows) || !Array.isArray(resetHistoryDates) || resetHistoryDates.length === 0) {
+    return windowRows;
+  }
+
+  const resetTimes = resetHistoryDates
+    .map((dateText) => Date.parse(String(dateText ?? "").trim()))
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
+  if (resetTimes.length === 0) {
+    return windowRows;
+  }
+
+  let startIndex = 0;
+  for (let index = 0; index < windowRows.length; index += 1) {
+    const currentTime = readWindowRowDateTime(windowRows[index]);
+    if (!Number.isFinite(currentTime)) {
+      continue;
+    }
+    const previousTime = index > 0 ? readWindowRowDateTime(windowRows[index - 1]) : null;
+    if (resetTimes.some((resetTime) => currentTime >= resetTime && (!Number.isFinite(previousTime) || previousTime < resetTime))) {
+      startIndex = index;
+    }
+  }
+
+  return startIndex > 0 ? windowRows.slice(startIndex) : windowRows;
+}
+
+function filterWindowRowsForHistoryReset(windowRows, config = {}) {
+  return filterWindowRowsAfterResetHistoryDates(
+    filterWindowRowsAfterLargeDateGap(windowRows, config?.resetHistoryGapDays),
+    config?.resetHistoryDates,
+  );
 }
 
 function buildRowKey(row, config) {
@@ -1754,6 +1804,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 150;
     }
+    if (contentRule === "messe-minamisenju-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 2500 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 150;
+    }
     return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
   }
   if (
@@ -2002,6 +2059,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 330 && combinedDenominator <= 150;
     }
+    if (contentRule === "messe-minamisenju-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 2500 && settingFivePlusProbability >= 0.35;
+      }
+      return games >= 2500 && rbDenominator <= 330 && combinedDenominator <= 150;
+    }
     return games >= 5000 && rbDenominator <= 315 && combinedDenominator <= 145;
   }
   if (normalizedMachineName === normalizeText("スターハナハナ")) {
@@ -2184,6 +2248,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "espace-ueno-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "messe-minamisenju-neo-aim"
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     if (Number.isFinite(settingFivePlusProbability)) {
@@ -7031,7 +7105,7 @@ function calculateWindowMetrics(
       config,
     );
   }
-  windowRows = filterWindowRowsAfterLargeDateGap(windowRows, config?.resetHistoryGapDays);
+  windowRows = filterWindowRowsForHistoryReset(windowRows, config);
   if (!windowRows || windowRows.length === 0) {
     return null;
   }
@@ -7108,7 +7182,7 @@ function calculateWindowMetrics(
     });
   }
 
-  const historyWindowRows = filterWindowRowsAfterLargeDateGap(
+  const historyWindowRows = filterWindowRowsForHistoryReset(
     buildAvailableWindowRows(
       businessDates,
       dateIndex,
@@ -7116,7 +7190,7 @@ function calculateWindowMetrics(
       config.historyWindowDays ?? config.windowDays ?? DEFAULT_HUNT_SCORE_WINDOW_DAYS,
       config,
     ),
-    config?.resetHistoryGapDays,
+    config,
   );
   for (const historyWindowRow of historyWindowRows) {
     historyRowCount += 1;
@@ -7780,6 +7854,7 @@ function calculateWindowMetrics(
   const recentSevenBigShowDays = countBigShowRows(recentSevenRows);
   const recentThreeStrictHighContentDays = countStrictHighContentRows(recentThreeRows);
   const recentSevenStrictHighContentDays = countStrictHighContentRows(recentSevenRows);
+  const recentFiveBigWin1000Count = countDifferenceAtLeastRows(recentFiveRows, 1000);
   const recentFiveBigWin1200Count = countDifferenceAtLeastRows(recentFiveRows, 1200);
   const recentThreeRawDifferenceTotal = sumRawDifferenceValues(recentThreeRows);
   const recentFiveRawDifferenceTotal = sumRawDifferenceValues(recentFiveRows);
@@ -7928,6 +8003,7 @@ function calculateWindowMetrics(
     previousMachineWeakContent,
     previousMachineStrongHighContent,
     previousMachineSettingFivePlusProbability,
+    recentFiveBigWin1000Count,
     daysSinceMachineHighContent,
     daysSinceMachineStrongHighContent,
     daysSinceMachineBigWin1500,
