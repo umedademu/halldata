@@ -5,7 +5,7 @@ import re
 import threading
 import unicodedata
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Callable, List
 from urllib.parse import urljoin
 
@@ -33,6 +33,12 @@ DEFAULT_HEADERS = {
         "Chrome/135.0.0.0 Safari/537.36"
     )
 }
+MAX_FALLBACK_DATE_LOOKBACK_DAYS = 3
+MACHINE_DATA_UNAVAILABLE_MESSAGES = (
+    "機種別のデータ一覧テーブルが見つかりませんでした。",
+    "テーブルのヘッダーが見つかりませんでした。",
+    "台データが見つかりませんでした。",
+)
 
 
 class ScraperError(RuntimeError):
@@ -370,6 +376,7 @@ class MinRepoScraper:
                 store_soup,
                 store_url,
                 requested_end_date,
+                min_date=self._fallback_min_date_for_end_date(requested_end_date),
             )
             date_pages = [fallback_date_page]
         start_date = date_pages[0].target_date
@@ -470,6 +477,7 @@ class MinRepoScraper:
             step_callback(f"{day_prefix}全機種一覧を確認中")
 
         datasets: List[MachineDataset] = []
+        skipped_targets_for_day: List[tuple[str, str]] = []
         machine_worker_count = max(1, min(int(machine_parallel_workers), len(machine_entries) or 1))
         if machine_worker_count > 1:
             datasets_by_index: list[MachineDataset | None] = [None] * len(machine_entries)
@@ -481,9 +489,19 @@ class MinRepoScraper:
                 }
                 for future in as_completed(futures_by_index):
                     machine_index = futures_by_index[future]
-                    dataset = future.result()
-                    datasets_by_index[machine_index] = dataset
+                    machine_entry = machine_entries[machine_index]
                     completed_count += 1
+                    try:
+                        dataset = future.result()
+                    except ScraperError as exc:
+                        if not self._is_machine_data_unavailable_error(exc):
+                            raise
+                        skipped_targets_for_day.append((date_page.target_date, machine_entry.name))
+                        if step_callback is not None:
+                            step_callback(f"{date_page.target_date} の {completed_count}/{len(machine_entries)}機種目は台データなし")
+                        continue
+
+                    datasets_by_index[machine_index] = dataset
                     if step_callback is not None:
                         step_callback(f"{date_page.target_date} の {completed_count}/{len(machine_entries)}機種目を取得中")
                     if dataset_callback is not None:
@@ -505,10 +523,20 @@ class MinRepoScraper:
                 end_date=date_page.target_date,
                 date_pages=[date_page],
                 datasets=datasets,
+                skipped_targets=skipped_targets_for_day,
             )
 
         for machine_index, machine_entry in enumerate(machine_entries, start=1):
-            dataset = self.fetch_machine_dataset_from_entry(machine_list, machine_entry)
+            try:
+                dataset = self.fetch_machine_dataset_from_entry(machine_list, machine_entry)
+            except ScraperError as exc:
+                if not self._is_machine_data_unavailable_error(exc):
+                    raise
+                skipped_targets_for_day.append((date_page.target_date, machine_entry.name))
+                if step_callback is not None:
+                    step_callback(f"{date_page.target_date} の {machine_index}/{len(machine_entries)}機種目は台データなし")
+                continue
+
             datasets.append(dataset)
             if step_callback is not None:
                 step_callback(f"{date_page.target_date} の {machine_index}/{len(machine_entries)}機種目を取得中")
@@ -531,6 +559,7 @@ class MinRepoScraper:
             end_date=date_page.target_date,
             date_pages=[date_page],
             datasets=datasets,
+            skipped_targets=skipped_targets_for_day,
         )
 
     def fetch_machine_datasets(
@@ -726,6 +755,13 @@ class MinRepoScraper:
             break
         return trimmed_date_pages
 
+    def _fallback_min_date_for_end_date(self, end_date: datetime) -> datetime:
+        return end_date - timedelta(days=MAX_FALLBACK_DATE_LOOKBACK_DAYS)
+
+    def _is_machine_data_unavailable_error(self, error: ScraperError) -> bool:
+        error_text = str(error)
+        return any(message in error_text for message in MACHINE_DATA_UNAVAILABLE_MESSAGES)
+
     def _load_latest_available_date_page_on_or_before(
         self,
         soup: BeautifulSoup,
@@ -772,7 +808,12 @@ class MinRepoScraper:
         ]
 
         if not date_pages:
-            fallback_date_page = self.find_latest_date_page_on_or_before(soup, base_url, end_date)
+            fallback_date_page = self.find_latest_date_page_on_or_before(
+                soup,
+                base_url,
+                end_date,
+                min_date=self._fallback_min_date_for_end_date(end_date),
+            )
             date_pages = [fallback_date_page]
 
         date_pages.sort(key=lambda date_page: date_page.target_date)

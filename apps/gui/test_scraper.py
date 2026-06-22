@@ -2108,6 +2108,79 @@ class MinRepoScraperTests(unittest.TestCase):
             sorted(result.datasets[0].machine_name for result in partial_results),
         )
 
+    def test_fetch_all_machine_history_skips_machine_without_data_table(self) -> None:
+        store_url = "https://example.com/tag/test-store/"
+        date_url = "https://example.com/20260428/"
+        ok_machine_url = "https://example.com/machine-ok/"
+        empty_machine_url = "https://example.com/machine-empty/"
+        scraper = MappingScraper(
+            {
+                store_url: """
+                    <html>
+                      <body>
+                        <h1>テスト店</h1>
+                        <time class="date">2026年4月28日</time>
+                        <div class="table_wrap">
+                          <table>
+                            <tr><td><a href="https://example.com/20260428/">2026/4/28(火)</a></td></tr>
+                          </table>
+                        </div>
+                      </body>
+                    </html>
+                """,
+                date_url: """
+                    <html>
+                      <body>
+                        <div class="tab_content">
+                          <h2>機種別データ（2台以上設置機種）</h2>
+                          <table>
+                            <tr data-count="1">
+                              <td><a href="https://example.com/machine-ok/">取れる機種</a></td>
+                              <td>100</td><td>2000</td><td>1/1</td><td>101%</td>
+                            </tr>
+                            <tr data-count="1">
+                              <td><a href="https://example.com/machine-empty/">空の機種</a></td>
+                              <td>-</td><td>-</td><td>-</td><td>-</td>
+                            </tr>
+                          </table>
+                        </div>
+                      </body>
+                    </html>
+                """,
+                ok_machine_url: """
+                    <html>
+                      <body>
+                        <h2>データ一覧</h2>
+                        <table>
+                          <tr><th>台番</th><th>差枚</th><th>G数</th><th>出率</th></tr>
+                          <tr><td>101</td><td>100</td><td>2000</td><td>101%</td></tr>
+                        </table>
+                      </body>
+                    </html>
+                """,
+                empty_machine_url: """
+                    <html>
+                      <body>
+                        <p>現在表示できる台データはありません。</p>
+                      </body>
+                    </html>
+                """,
+            }
+        )
+        context = scraper.prepare_machine_history_context(store_url=store_url, target_date_input="2026-04-28")
+        partial_results: list[MachineHistoryResult] = []
+
+        result = scraper.fetch_all_machine_history_for_date_page(
+            context=context,
+            date_page=context.date_pages[0],
+            dataset_callback=partial_results.append,
+            machine_parallel_workers=2,
+        )
+
+        self.assertEqual([dataset.machine_name for dataset in result.datasets], ["取れる機種"])
+        self.assertEqual(result.skipped_targets, [("2026-04-28", "空の機種")])
+        self.assertEqual(len(partial_results), 1)
+
     def test_fetch_single_store_uses_local_checkpoints_and_store_r2_save(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.scraper = FixtureScraper()
@@ -2256,6 +2329,146 @@ class MinRepoScraperTests(unittest.TestCase):
         )
         self.assertEqual(len(persistence_service.checkpoint_results), len(result.history_result.datasets))
         self.assertEqual(len(persistence_service.deleted_checkpoint_paths), len(result.history_result.datasets))
+
+    def test_fetch_single_store_treats_no_recent_date_pages_as_empty_result(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.minrepo_cancel_event = app.fetch_cancel_event
+        app.site7_cancel_event = threading.Event()
+        app.result_queue = queue.Queue()
+
+        class FakeScraper:
+            def prepare_machine_history_context(self, store_url: str, target_date_input: str) -> MachineHistoryResult:
+                raise ScraperError("2026-06-18 ～ 2026-06-21 の日付ページが見つかりませんでした。")
+
+        app.scraper = FakeScraper()
+
+        result = app._fetch_single_store(
+            registered_store=RegisteredStore(name="古い店舗", url="https://example.com/store"),
+            target_date_input="2026-03-25 ～ 2026-06-21",
+            store_index=1,
+            total_stores=1,
+            retry_delay_seconds=0,
+            fetch_parallel_options=MinRepoFetchParallelOptions(date_workers=1, machine_workers=1),
+        )
+
+        self.assertEqual(result.history_result.store_name, "古い店舗")
+        self.assertEqual(result.history_result.start_date, "2026-03-25")
+        self.assertEqual(result.history_result.end_date, "2026-06-21")
+        self.assertEqual(result.history_result.date_pages, [])
+        self.assertEqual(result.history_result.datasets, [])
+        self.assertIsNone(result.save_summary)
+
+    def test_fetch_single_store_does_not_mark_partial_day_as_full_day_saved(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.minrepo_cancel_event = app.fetch_cancel_event
+        app.site7_cancel_event = threading.Event()
+        app.result_queue = queue.Queue()
+        app.persistence_lock = threading.Lock()
+        date_page = StoreDatePage(target_date="2026-04-28", date_url="https://example.com/day")
+        dataset = MachineDataset(
+            store_name="一部欠け店舗",
+            store_url="https://example.com/store",
+            target_date="2026-04-28",
+            date_url="https://example.com/day",
+            machine_name="取れる機種",
+            machine_url="https://example.com/machine",
+            columns=["台番", "差枚", "G数"],
+            rows=[["101", "100", "2000"]],
+        )
+
+        class FakeScraper:
+            def prepare_machine_history_context(self, store_url: str, target_date_input: str) -> MachineHistoryResult:
+                return MachineHistoryResult(
+                    store_name="一部欠け店舗",
+                    store_url=store_url,
+                    start_date="2026-04-28",
+                    end_date="2026-04-28",
+                    date_pages=[date_page],
+                    datasets=[],
+                )
+
+            def fetch_all_machine_history_for_date_page(
+                self,
+                *,
+                context: MachineHistoryResult,
+                date_page: StoreDatePage,
+                step_callback: object,
+                date_index: int,
+                total_dates: int,
+                dataset_callback: object,
+                day_total_callback: object,
+                machine_parallel_workers: int,
+            ) -> MachineHistoryResult:
+                day_total_callback(date_page.target_date, 2)
+                dataset_result = MachineHistoryResult(
+                    store_name=context.store_name,
+                    store_url=context.store_url,
+                    start_date=date_page.target_date,
+                    end_date=date_page.target_date,
+                    date_pages=[date_page],
+                    datasets=[dataset],
+                )
+                dataset_callback(dataset_result)
+                return MachineHistoryResult(
+                    store_name=context.store_name,
+                    store_url=context.store_url,
+                    start_date=date_page.target_date,
+                    end_date=date_page.target_date,
+                    date_pages=[date_page],
+                    datasets=[dataset],
+                    skipped_targets=[(date_page.target_date, "空の機種")],
+                )
+
+        class FakePersistenceService:
+            def __init__(self) -> None:
+                self.saved_full_day_flags: list[bool] = []
+                self.marked_results: list[MachineHistoryResult] = []
+
+            def find_saved_full_day_dates(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+            ) -> SavedFullDayDatesSummary:
+                return SavedFullDayDatesSummary()
+
+            def save_history_result_local_checkpoint(self, history_result: MachineHistoryResult) -> PersistenceSummary:
+                return PersistenceSummary(local_file_path="checkpoint.json", local_record_count=1)
+
+            def save_history_result(
+                self,
+                history_result: MachineHistoryResult,
+                full_day: bool = False,
+            ) -> PersistenceSummary:
+                self.saved_full_day_flags.append(full_day)
+                return PersistenceSummary(web_data_saved=True, web_data_record_count=1)
+
+            def mark_full_day_saved(self, history_result: MachineHistoryResult) -> PersistenceSummary:
+                self.marked_results.append(history_result)
+                return PersistenceSummary()
+
+            def delete_local_checkpoint_files(self, file_paths: list[str]) -> PersistenceSummary:
+                return PersistenceSummary()
+
+        persistence_service = FakePersistenceService()
+        app.scraper = FakeScraper()
+        app.persistence_service = persistence_service
+
+        result = app._fetch_single_store(
+            registered_store=RegisteredStore(name="一部欠け店舗", url="https://example.com/store"),
+            target_date_input="2026-04-28",
+            store_index=1,
+            total_stores=1,
+            retry_delay_seconds=0,
+            fetch_parallel_options=MinRepoFetchParallelOptions(date_workers=1, machine_workers=1),
+        )
+
+        self.assertEqual(result.history_result.skipped_targets, [("2026-04-28", "空の機種")])
+        self.assertEqual(persistence_service.saved_full_day_flags, [False])
+        self.assertEqual(persistence_service.marked_results, [])
 
     def test_fetch_single_store_discards_checkpoints_when_cancelled_mid_store(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -7491,6 +7704,31 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         self.assertEqual([page.target_date for page in result], ["2026-04-13"])
+
+    def test_find_date_pages_does_not_fallback_far_before_end_date(self) -> None:
+        scraper = MinRepoScraper()
+        soup = BeautifulSoup(
+            """
+            <html>
+              <body>
+                <time class="date">2026年6月21日</time>
+                <div class="table_wrap">
+                  <table>
+                    <tr><td><a href="/old">2025/5/18(日)</a></td></tr>
+                  </table>
+                </div>
+              </body>
+            </html>
+            """,
+            "html.parser",
+        )
+
+        with self.assertRaisesRegex(ScraperError, "2026-06-18 ～ 2026-06-21"):
+            scraper.find_date_pages_in_range(
+                soup=soup,
+                base_url="https://example.com/tag/store/",
+                target_date_input="2026-03-25 ～ 2026-06-21",
+            )
 
 
 if __name__ == "__main__":

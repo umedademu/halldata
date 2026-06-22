@@ -43,6 +43,7 @@ from minrepo_scraper import (
     StoreDatePage,
     StoreEventSettings,
     normalize_text,
+    parse_date_range_input,
 )
 from machine_difference import canonical_machine_name, list_site7_target_machine_names
 from site7_scraper import (
@@ -312,6 +313,52 @@ def normalize_schedule_store_run_dates(value: object) -> dict[str, str]:
         if store_url and re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_text):
             normalized_dates[store_url] = date_text
     return normalized_dates
+
+
+def minrepo_error_is_no_date_pages(error: Exception) -> bool:
+    error_text = str(error)
+    return (
+        "日付ページが見つかりませんでした。" in error_text
+        or "取得可能な日付ページが見つかりませんでした。" in error_text
+    )
+
+
+def filter_history_result_dates(
+    history_result: MachineHistoryResult,
+    target_dates: set[str],
+) -> MachineHistoryResult:
+    date_pages = [
+        date_page
+        for date_page in history_result.date_pages
+        if date_page.target_date in target_dates
+    ]
+    datasets = [
+        dataset
+        for dataset in history_result.datasets
+        if dataset.target_date in target_dates
+    ]
+    skipped_targets = [
+        skipped_target
+        for skipped_target in history_result.skipped_targets
+        if skipped_target[0] in target_dates
+    ]
+    skipped_dates = [
+        skipped_date
+        for skipped_date in history_result.skipped_dates
+        if skipped_date in target_dates
+    ]
+    start_date = date_pages[0].target_date if date_pages else history_result.start_date
+    end_date = date_pages[-1].target_date if date_pages else history_result.end_date
+    return MachineHistoryResult(
+        store_name=history_result.store_name,
+        store_url=history_result.store_url,
+        start_date=start_date,
+        end_date=end_date,
+        date_pages=date_pages,
+        datasets=datasets,
+        skipped_targets=skipped_targets,
+        skipped_dates=skipped_dates,
+    )
 
 
 def scheduled_supplemental_store_limit(store_count: int, interval_days: int) -> int:
@@ -3981,7 +4028,9 @@ class MinRepoApp:
                 return action()
             except FetchCancelled:
                 raise
-            except Exception:
+            except Exception as exc:
+                if isinstance(exc, ScraperError) and minrepo_error_is_no_date_pages(exc):
+                    raise
                 if failed_count >= MAX_FETCH_RETRY_COUNT:
                     raise
 
@@ -4363,20 +4412,45 @@ class MinRepoApp:
         def queue_progress(progress: FetchProgress) -> None:
             self._queue_fetch_progress(progress, store_index=store_index, total_stores=total_stores)
 
-        context = self._run_with_fetch_retries(
-            lambda: self.scraper.prepare_machine_history_context(store_url, target_date_input),
-            retry_delay_seconds=retry_delay_seconds,
-            retry_status_callback=lambda retry_number, max_retries, delay_seconds: queue_progress(
+        try:
+            context = self._run_with_fetch_retries(
+                lambda: self.scraper.prepare_machine_history_context(store_url, target_date_input),
+                retry_delay_seconds=retry_delay_seconds,
+                retry_status_callback=lambda retry_number, max_retries, delay_seconds: queue_progress(
+                    FetchProgress(
+                        current_step=0,
+                        total_steps=1,
+                        message=(
+                            f"{store_label}: 対象期間の確認に失敗しました。"
+                            f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
+                        ),
+                    )
+                ),
+            )
+        except ScraperError as exc:
+            if not minrepo_error_is_no_date_pages(exc):
+                raise
+
+            start_date, end_date = parse_date_range_input(target_date_input)
+            queue_progress(
                 FetchProgress(
-                    current_step=0,
+                    current_step=1,
                     total_steps=1,
-                    message=(
-                        f"{store_label}: 対象期間の確認に失敗しました。"
-                        f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
-                    ),
+                    message=f"{store_label}: 対象期間に取得できる日付なし",
                 )
-            ),
-        )
+            )
+            return StoreFetchResult(
+                history_result=MachineHistoryResult(
+                    store_name=registered_store.name,
+                    store_url=store_url,
+                    start_date=start_date.strftime("%Y-%m-%d"),
+                    end_date=end_date.strftime("%Y-%m-%d"),
+                    date_pages=[],
+                    datasets=[],
+                ),
+                save_summary=None,
+                saved_full_day_summary=SavedFullDayDatesSummary(),
+            )
         if required_target_dates is not None:
             context_date_pages = [
                 date_page
@@ -4561,6 +4635,17 @@ class MinRepoApp:
                 skipped_dates=skipped_batch_dates,
             )
 
+        def complete_dates_for_full_day_mark(publish_result: MachineHistoryResult) -> set[str]:
+            incomplete_dates = {
+                target_date
+                for target_date, _machine_name in publish_result.skipped_targets
+            }
+            return {
+                date_page.target_date
+                for date_page in publish_result.date_pages
+                if date_page.target_date not in incomplete_dates
+            }
+
         def take_checkpoint_paths_for_publish_result(publish_result: MachineHistoryResult) -> list[str]:
             publish_dates = [date_page.target_date for date_page in publish_result.date_pages]
             with checkpoint_lock:
@@ -4600,9 +4685,17 @@ class MinRepoApp:
 
             step_callback(f"{label}のR2保存とWeb更新中")
             batch_checkpoint_paths = take_checkpoint_paths_for_publish_result(publish_result)
+            complete_dates = complete_dates_for_full_day_mark(publish_result)
+            full_day_save = len(complete_dates) == len(publish_result.date_pages)
             batch_save_summary = self._run_with_persistence_lock(
-                lambda: self.persistence_service.save_history_result(publish_result, full_day=True)
+                lambda: self.persistence_service.save_history_result(publish_result, full_day=full_day_save)
             )
+            if batch_save_summary.web_data_saved and complete_dates and not full_day_save:
+                complete_result = filter_history_result_dates(publish_result, complete_dates)
+                mark_summary = self._run_with_persistence_lock(
+                    lambda: self.persistence_service.mark_full_day_saved(complete_result)
+                )
+                batch_save_summary = self._merge_persistence_summary(batch_save_summary, mark_summary)
             if batch_save_summary.web_data_saved:
                 delete_summary = self.persistence_service.delete_local_checkpoint_files(batch_checkpoint_paths)
                 batch_save_summary.messages.extend(delete_summary.messages)
