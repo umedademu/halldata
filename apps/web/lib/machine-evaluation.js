@@ -123,6 +123,16 @@ function isAparkKasugaStore(storeName) {
   return normalizeMachineNameText(storeName) === normalizeMachineNameText("Aパーク春日店");
 }
 
+function isMillionTobuNerimaStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "ミリオン東武練馬店スロット館",
+    "ミリオン東武練馬スロット館",
+    "ミリオン東武練馬店",
+    "ミリオン東武練馬",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
 function isAparkYakatabaruStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["A-PARK屋形原", "A-PARK屋形原店", "Aパーク屋形原", "Aパーク屋形原店"].some(
@@ -1837,6 +1847,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildLogicVariant("beam-hikari-neo-aim-normal", "ネオアイムビームヒカリ通常日式", "beam-hikari-normal-main"),
       buildLogicVariant("beam-hikari-neo-aim-event", "ネオアイムビームヒカリイベント日式", "beam-hikari-event-main"),
       buildLogicVariant(
+        "million-tobu-nerima-neo-aim",
+        "東武練馬ネオアイムEX 全日共通・沈み返済ロジック",
+        "million-tobu-nerima-neo-best-rb270",
+      ),
+      buildLogicVariant(
         "amuse-asakusa-neo-aim",
         "アミューズ浅草_ネオアイム_全日共通_返済未完ロジック",
         "amuse-asakusa-wide-rb310",
@@ -1938,6 +1953,160 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["neoAimKasugaSevenSinkTrigger"],
         },
         ["apark-neo-aim"],
+      ),
+      buildCondition(
+        "million-tobu-nerima-neo-wide-rb310",
+        "広めRB310",
+        "対象206日 / 1526台 / 6,183,362G / BB1/263.4 / RB1/310.2 / 合算1/142.4 / BB数23479 / RB数19933 / 平均+193.2枚 / 101.59% / 勝率46.7% / 平均56 32.7% / 中央56 26.7% / 56>=50% 21.6% / 56>=70% 10.3% / 56<30% 58.1% / RB1/300以下33.0% / RB1/400超37.4%",
+        {
+          minScore: 55,
+          requiredFlags: ["millionTobuNerimaNeoHistoryReady"],
+        },
+        ["million-tobu-nerima-neo-aim"],
+      ),
+      buildCondition(
+        "million-tobu-nerima-neo-weak-rb300",
+        "弱本命RB300",
+        "対象204日 / 847台 / 3,723,919G / BB1/263.2 / RB1/300.0 / 合算1/140.2 / BB数14150 / RB数12414 / 平均+266.2枚 / 102.02% / 勝率49.8% / 平均56 35.4% / 中央56 28.2% / 56>=50% 26.9% / 56>=70% 12.4% / 56<30% 53.5% / RB1/300以下37.5% / RB1/400超33.3%",
+        {
+          minScore: 70,
+          requiredFlags: ["millionTobuNerimaNeoHistoryReady"],
+        },
+        ["million-tobu-nerima-neo-aim"],
+      ),
+      buildCondition(
+        "million-tobu-nerima-neo-main-rb290",
+        "本命RB290",
+        "対象206日 / 206台 / 1,028,158G / BB1/256.0 / RB1/285.7 / 合算1/135.0 / BB数4017 / RB数3599 / 平均+503.2枚 / 103.36% / 勝率54.4% / 平均56 40.4% / 中央56 33.1% / 56>=50% 34.5% / 56>=70% 18.4% / 56<30% 43.2% / RB1/300以下44.7% / RB1/400超24.8%",
+        {
+          rankMax: 1,
+          requiredFlags: ["millionTobuNerimaNeoHistoryReady"],
+        },
+        ["million-tobu-nerima-neo-aim"],
+      ),
+      buildCondition(
+        "million-tobu-nerima-neo-strong-rb280",
+        "強RB280",
+        "対象133日 / 133台 / 673,019G / BB1/256.1 / RB1/278.0 / 合算1/133.3 / BB数2628 / RB数2421 / 平均+559.0枚 / 103.68% / 勝率54.1% / 平均56 43.6% / 中央56 37.5% / 56>=50% 39.8% / 56>=70% 21.1% / 56<30% 35.3% / RB1/300以下52.6% / RB1/400超19.5%",
+        {
+          rankMax: 1,
+          minNextGap: 2,
+          requiredFlags: ["millionTobuNerimaNeoHistoryReady"],
+        },
+        ["million-tobu-nerima-neo-aim"],
+      ),
+      buildCondition(
+        "million-tobu-nerima-neo-best-rb270",
+        "最本命RB270",
+        "対象57日 / 57台 / 304,393G / BB1/250.5 / RB1/266.3 / 合算1/129.1 / BB数1215 / RB数1143 / 平均+829.2枚 / 105.18% / 勝率61.4% / 平均56 49.5% / 中央56 52.0% / 56>=50% 52.6% / 56>=70% 29.8% / 56<30% 26.3% / RB1/300以下64.9% / RB1/400超19.3%",
+        {
+          rankMax: 1,
+          minNextGap: 4,
+          maxDanger: 0,
+          requiredFlags: ["millionTobuNerimaNeoHistoryReady", "millionTobuNerimaNeoAngleStrong"],
+        },
+        ["million-tobu-nerima-neo-aim"],
+      ),
+      buildCondition(
+        "million-tobu-nerima-neo-free-five-losing",
+        "単独5連敗",
+        "94日 / 128台 / 103.05% / RB1/287.4 / 合算1/135.6 / 平均+419.9枚 / 平均56 39.2% / 56>=50% 34.4%",
+        {
+          requiredFlags: ["millionTobuNerimaNeoHistoryReady", "millionTobuNerimaNeoFiveLosing"],
+        },
+        ["million-tobu-nerima-neo-aim"],
+      ),
+      buildCondition(
+        "million-tobu-nerima-neo-free-previous-miss",
+        "前日56級不発",
+        "87日 / 120台 / 102.98% / RB1/294.4 / 合算1/137.4 / 平均+432.4枚 / 平均56 37.4% / 56>=50% 30.8%",
+        {
+          requiredFlags: ["millionTobuNerimaNeoHistoryReady", "millionTobuNerimaNeoPreviousMiss"],
+        },
+        ["million-tobu-nerima-neo-aim"],
+      ),
+      buildCondition(
+        "million-tobu-nerima-neo-free-five-losing-unshown-safe",
+        "自由本命_5連敗+未見せ+危険0",
+        "71日 / 85台 / 103.70% / RB1/278.6 / 合算1/133.0 / 平均+514.7枚 / 平均56 41.9% / 56>=50% 38.8%",
+        {
+          maxDanger: 0,
+          requiredFlags: [
+            "millionTobuNerimaNeoHistoryReady",
+            "millionTobuNerimaNeoFiveLosing",
+            "millionTobuNerimaNeoUnshown",
+          ],
+        },
+        ["million-tobu-nerima-neo-aim"],
+      ),
+      buildCondition(
+        "million-tobu-nerima-neo-free-three-losing-angle-unshown",
+        "自由本命_3連敗+5日角度+未見せ",
+        "103日 / 147台 / 103.59% / RB1/286.8 / 合算1/135.1 / 平均+523.7枚 / 平均56 39.6% / 56>=50% 34.0%",
+        {
+          requiredFlags: [
+            "millionTobuNerimaNeoHistoryReady",
+            "millionTobuNerimaNeoThreeLosing",
+            "millionTobuNerimaNeoAngleStrong",
+            "millionTobuNerimaNeoUnshown",
+          ],
+        },
+        ["million-tobu-nerima-neo-aim"],
+      ),
+      buildCondition(
+        "million-tobu-nerima-neo-free-previous-miss-boost3",
+        "自由高p56_前日不発+強化3",
+        "41日 / 45台 / 104.25% / RB1/281.7 / 合算1/132.7 / 平均+736.6枚 / 平均56 43.8% / 56>=50% 44.4%",
+        {
+          minBoost: 3,
+          requiredFlags: ["millionTobuNerimaNeoHistoryReady", "millionTobuNerimaNeoPreviousMiss"],
+        },
+        ["million-tobu-nerima-neo-aim"],
+      ),
+      buildCondition(
+        "million-tobu-nerima-neo-watch-prev-plus1000",
+        "見送り_前日+1000以上",
+        "451台 / 98.25% / RB1/390.6 / 合算1/161.2 / 平均-135.1枚 / 平均56 22.9% / 56>=50% 4.7%",
+        {
+          requiredFlags: ["millionTobuNerimaNeoPreviousPlus1000"],
+        },
+        ["million-tobu-nerima-neo-aim"],
+      ),
+      buildCondition(
+        "million-tobu-nerima-neo-watch-win3",
+        "見送り_3連勝以上",
+        "146台 / 97.98% / RB1/397.6 / 合算1/162.5 / 平均-170.3枚 / 平均56 21.6% / 56>=50% 5.5%",
+        {
+          requiredFlags: ["millionTobuNerimaNeoWinningThree"],
+        },
+        ["million-tobu-nerima-neo-aim"],
+      ),
+      buildCondition(
+        "million-tobu-nerima-neo-watch-prev-strong-combined",
+        "見送り_前日合成1/130以下",
+        "401台 / 98.69% / RB1/376.6 / 合算1/158.4 / 平均-107.5枚 / 平均56 23.8% / 56>=50% 7.0%",
+        {
+          requiredFlags: ["millionTobuNerimaNeoTooVisible"],
+        },
+        ["million-tobu-nerima-neo-aim"],
+      ),
+      buildCondition(
+        "million-tobu-nerima-neo-watch-danger2",
+        "見送り_危険2個以上",
+        "危険条件2個以上は見送り寄り",
+        {
+          minDanger: 2,
+        },
+        ["million-tobu-nerima-neo-aim"],
+      ),
+      buildCondition(
+        "million-tobu-nerima-neo-watch-history-short",
+        "履歴不足",
+        "セグメント開始後7営業日未満は最大40点",
+        {
+          requiredFlags: ["millionTobuNerimaNeoHistoryShort"],
+        },
+        ["million-tobu-nerima-neo-aim"],
       ),
       buildCondition(
         "apark-yakatabaru-main",
@@ -4853,6 +5022,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-gogo");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-neo-aim");
+  } else if (isMillionTobuNerimaStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "million-tobu-nerima-neo-aim");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "funky") {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-funky");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "my") {
@@ -5499,6 +5670,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentTwentyOneMachineGoodContentCount = readNumber(metrics.recentTwentyOneMachineGoodContentCount);
   const daysSinceMachineHighContent = readNullableNumber(metrics.daysSinceMachineHighContent);
   const daysSinceMachineStrongHighContent = readNullableNumber(metrics.daysSinceMachineStrongHighContent);
+  const daysSinceMachineBigWin1000 = readNullableNumber(metrics.daysSinceMachineBigWin1000);
   const daysSinceMachineBigWin1500 = readNullableNumber(metrics.daysSinceMachineBigWin1500);
   const daysSinceHistoryRbLight = readNullableNumber(metrics.daysSinceHistoryRbLight);
   const recentTwentyEightRbLightCount = readNumber(metrics.recentTwentyEightRbLightCount);
@@ -5607,6 +5779,80 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "million-tobu-nerima-neo-aim") {
+      const millionTobuNerimaNeoHistoryReady = historyRowCount >= 7;
+      const millionTobuNerimaNeoHistoryShort = historyRowCount < 7;
+      const millionTobuNerimaNeoThreeLosing = streak >= 3;
+      const millionTobuNerimaNeoFiveLosing = streak >= 5;
+      const millionTobuNerimaNeoSinkStrong =
+        streak >= 3 || recentTwoNetTotal <= -1500 || recentThreeNetTotal <= -1500;
+      const millionTobuNerimaNeoAngleStrong =
+        recentFiveGamesTotal >= 10000 && features.recentFiveAngle <= -120;
+      const millionTobuNerimaNeoUnpaid =
+        (recentSevenGamesTotal >= 14000 && recentSevenNetTotal <= -2500) ||
+        (recentFourteenGamesTotal >= 20000 && recentFourteenNetTotal <= -3000);
+      const millionTobuNerimaNeoUnshown =
+        Number.isFinite(daysSinceMachineBigWin1000) &&
+        daysSinceMachineBigWin1000 >= 5 &&
+        daysSinceMachineBigWin1000 <= 21;
+      const millionTobuNerimaNeoPreviousMiss =
+        previousGames >= 3000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5 &&
+        previousDifference <= 500;
+      const millionTobuNerimaNeoPreviousPlus1000 = previousDifference >= 1000;
+      const millionTobuNerimaNeoTreatmentDone =
+        millionTobuNerimaNeoPreviousPlus1000 || recentFiveNetTotal >= 2500;
+      const millionTobuNerimaNeoWinningFlow = winningStreak >= 2;
+      const millionTobuNerimaNeoWinningThree = winningStreak >= 3;
+      const millionTobuNerimaNeoLongNeglect =
+        (Number.isFinite(daysSinceMachineHighContent) &&
+          daysSinceMachineHighContent >= 14 &&
+          daysSinceMachineHighContent <= 21) ||
+        (recentTwentyOneGamesTotal >= 40000 && features.recentTwentyOneRbDenominator >= 420);
+      const millionTobuNerimaNeoTooVisible =
+        previousGames >= 3000 && features.previousCombinedDenominator <= 130;
+      const boostFlags = [
+        millionTobuNerimaNeoSinkStrong,
+        millionTobuNerimaNeoAngleStrong,
+        millionTobuNerimaNeoUnpaid,
+        millionTobuNerimaNeoUnshown,
+        millionTobuNerimaNeoPreviousMiss,
+      ];
+      const dangerFlags = [
+        millionTobuNerimaNeoTreatmentDone,
+        millionTobuNerimaNeoWinningFlow,
+        millionTobuNerimaNeoLongNeglect,
+        millionTobuNerimaNeoHistoryShort,
+        millionTobuNerimaNeoTooVisible,
+      ];
+
+      return {
+        ...features,
+        daysSinceMachineBigWin1000,
+        previousMachineSettingFivePlusProbability,
+        millionTobuNerimaNeoHistoryReady,
+        millionTobuNerimaNeoHistoryShort,
+        millionTobuNerimaNeoThreeLosing,
+        millionTobuNerimaNeoFiveLosing,
+        millionTobuNerimaNeoSinkStrong,
+        millionTobuNerimaNeoAngleStrong,
+        millionTobuNerimaNeoUnpaid,
+        millionTobuNerimaNeoUnshown,
+        millionTobuNerimaNeoPreviousMiss,
+        millionTobuNerimaNeoPreviousPlus1000,
+        millionTobuNerimaNeoTreatmentDone,
+        millionTobuNerimaNeoWinningFlow,
+        millionTobuNerimaNeoWinningThree,
+        millionTobuNerimaNeoLongNeglect,
+        millionTobuNerimaNeoTooVisible,
+        treatmentDone: millionTobuNerimaNeoTreatmentDone,
+        lowConfidence: millionTobuNerimaNeoHistoryShort,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "yasuda-hibarigaoka-neo-aim") {
       const yasudaNeoHistoryReady = historyRowCount >= 14;
       const yasudaNeoHistoryThin = historyRowCount < 7;
@@ -9102,6 +9348,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentTwentyOneMachineGoodContentCount = readNumber(metrics.recentTwentyOneMachineGoodContentCount);
   const daysSinceMachineHighContent = readNullableNumber(metrics.daysSinceMachineHighContent);
   const daysSinceMachineStrongHighContent = readNullableNumber(metrics.daysSinceMachineStrongHighContent);
+  const daysSinceMachineBigWin1000 = readNullableNumber(metrics.daysSinceMachineBigWin1000);
   const daysSinceMachineBigWin1500 = readNullableNumber(metrics.daysSinceMachineBigWin1500);
   const previousMachineHighContent = Boolean(metrics.previousMachineHighContent);
   const previousMachineGoodContent = Boolean(metrics.previousMachineGoodContent);
@@ -9460,6 +9707,101 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "million-tobu-nerima-neo-aim") {
+      let score = 45;
+      const scoreCap = historyRowCount < 7 ? 40 : 100;
+
+      score += scoreAtLeast(streak, [
+        { minimum: 5, points: 24 },
+        { minimum: 4, points: 20 },
+        { minimum: 3, points: 16 },
+        { minimum: 2, points: 8 },
+      ]);
+      score -= scoreAtLeast(winningStreak, [
+        { minimum: 3, points: 14 },
+        { minimum: 2, points: 9 },
+        { minimum: 1, points: 4 },
+      ]);
+
+      const shortSinkScore = Math.min(
+        scoreAtMost(recentTwoNetTotal, [
+          { maximum: -2000, points: 18 },
+          { maximum: -1500, points: 14 },
+          { maximum: -1000, points: 8 },
+          { maximum: -500, points: 4 },
+        ]) +
+          scoreAtMost(recentThreeNetTotal, [
+            { maximum: -2500, points: 10 },
+            { maximum: -1500, points: 8 },
+            { maximum: -1000, points: 5 },
+          ]),
+        22,
+      );
+      score += shortSinkScore;
+
+      const angleAndUnpaidScore = Math.min(
+        (recentFiveGamesTotal >= 10000
+          ? scoreAtMost(features.recentFiveAngle, [
+              { maximum: -150, points: 14 },
+              { maximum: -120, points: 10 },
+              { maximum: -80, points: 6 },
+            ])
+          : 0) +
+          (recentSevenGamesTotal >= 14000
+            ? scoreAtMost(recentSevenNetTotal, [
+                { maximum: -3000, points: 8 },
+                { maximum: -2500, points: 6 },
+                { maximum: -1500, points: 4 },
+              ])
+            : 0),
+        18,
+      );
+      score += angleAndUnpaidScore;
+
+      const unshownDays = Number.isFinite(daysSinceMachineBigWin1000)
+        ? daysSinceMachineBigWin1000
+        : historyRowCount >= 22
+          ? historyRowCount
+          : null;
+      if (Number.isFinite(unshownDays)) {
+        score += scoreInRange(unshownDays, 3, 4, 5);
+        score += scoreInRange(unshownDays, 5, 21, 10);
+        score += unshownDays >= 22 ? 2 : 0;
+        score -= scoreInRange(unshownDays, 1, 2, 10);
+      }
+
+      let previousScore = 0;
+      const previousFivePlus =
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5;
+      if (previousGames >= 3000 && previousFivePlus && previousDifference <= 500) {
+        previousScore += previousDifference < 0 ? 18 : 14;
+      }
+      if (previousGames >= 3000 && previousFivePlus && previousDifference >= 1000) {
+        previousScore -= 18;
+      }
+      previousScore -= scoreAtLeast(previousDifference, [
+        { minimum: 2500, points: 12 },
+        { minimum: 1500, points: 10 },
+        { minimum: 1000, points: 8 },
+        { minimum: 500, points: 5 },
+      ]);
+      score += clamp(previousScore, -24, 18);
+
+      let dangerPenalty = 0;
+      dangerPenalty += scoreInRange(daysSinceMachineHighContent, 14, 21, 5);
+      dangerPenalty += Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 22 ? 3 : 0;
+      dangerPenalty +=
+        features.recentThreeCombinedDenominator <= 130 && recentThreeNetTotal >= 1000 ? 8 : 0;
+      dangerPenalty += recentFiveNetTotal >= 2500 ? 8 : 0;
+      dangerPenalty += recentSevenNetTotal >= 4000 ? 10 : 0;
+      dangerPenalty +=
+        recentTwentyOneGamesTotal >= 40000 && features.recentTwentyOneRbDenominator >= 420 ? 4 : 0;
+      score -= Math.min(dangerPenalty, 18);
+
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
     if (activeLogicKey === "yasuda-hibarigaoka-neo-aim") {
       let score = historyRowCount >= 14 ? 20 : 0;
 
