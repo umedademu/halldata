@@ -252,6 +252,16 @@ function isMjArenaAirportStore(storeName) {
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
+function isMegaBeamAsakuraStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "メガビーム朝倉999",
+    "メガビーム朝倉999店",
+    "メガビーム朝倉９９９",
+    "メガビーム朝倉９９９店",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
 function isBeamHikariStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["ビームヒカリ店", "ビームヒカリ", "BEAM HIKARI", "BEAMHIKARI", "ＢＥＡＭヒカリ店"].some(
@@ -2053,6 +2063,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "MJ空港ネオアイムEX_特定_強沈み連敗補助_v1",
         "mj-airport-neo-event-best",
       ),
+      buildLogicVariant(
+        "mega-beam-asakura-neo-aim",
+        "メガビーム朝倉999_ネオアイムジャグラーEX_全日共通56継続スコア_v1",
+        "mega-beam-asakura-neo-wide55",
+      ),
       buildLogicVariant("beam-hikari-neo-aim", "ネオアイムビームヒカリ式", "beam-hikari-main"),
       buildLogicVariant("beam-hikari-neo-aim-normal", "ネオアイムビームヒカリ通常日式", "beam-hikari-normal-main"),
       buildLogicVariant("beam-hikari-neo-aim-event", "ネオアイムビームヒカリイベント日式", "beam-hikari-event-main"),
@@ -2790,6 +2805,187 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["mjAirportNeoHistoryReady", "mjAirportNeoDangerBbOnly"],
         },
         ["mj-airport-neo-aim", "mj-airport-neo-aim-normal", "mj-airport-neo-aim-event"],
+      ),
+      buildCondition(
+        "mega-beam-asakura-neo-watch-no-go",
+        "見送り",
+        "危険条件2個以上、前日処遇完了、7日G数3,500未満、長期放置、55点未満かつ強化1個以下は見送り優先",
+        {
+          anyOf: [
+            { minDanger: 2, requiredFlags: ["megaBeamAsakuraNeoHistoryReady"] },
+            { requiredFlags: ["megaBeamAsakuraNeoHistoryReady", "megaBeamAsakuraNeoPreviousTreatmentDone"] },
+            { requiredFlags: ["megaBeamAsakuraNeoHistoryReady", "megaBeamAsakuraNeoLowG3500"] },
+            { requiredFlags: ["megaBeamAsakuraNeoHistoryReady", "megaBeamAsakuraNeoLongNeglect"] },
+            { maxScore: 54, maxBoost: 1, requiredFlags: ["megaBeamAsakuraNeoHistoryReady"] },
+          ],
+        },
+        ["mega-beam-asakura-neo-aim"],
+      ),
+      buildCondition(
+        "mega-beam-asakura-neo-island-wave",
+        "最本命島波",
+        "対象17日 / 選択18台 / 総G55,508 / BB1/221.1 / RB1/269.5 / 合算1/121.5 / 平均+833枚 / 機械割109.00% / 勝率61.1% / 平均56 43.1% / 中央56 33.8% / 56>=70% 16.7% / 56>=50% 38.9% / 56<30% 38.9% / 設定4以下70%以上38.9% / RB<=300 44.4% / RB>400 38.9% / 合算<=130 38.9% / 合算<=140 50.0%",
+        {
+          requiredFlags: ["megaBeamAsakuraNeoHistoryReady", "megaBeamAsakuraNeoIslandWave"],
+        },
+        ["mega-beam-asakura-neo-aim"],
+      ),
+      buildCondition(
+        "mega-beam-asakura-neo-high21-neighbor",
+        "21日高内容×近隣",
+        "対象13日 / 選択15台 / RB1/271.4 / 合算1/121.0 / 平均+868枚 / 機械割109.24% / 勝率53.3% / 平均56 41.9% / 56>=50% 40.0%",
+        {
+          requiredFlags: ["megaBeamAsakuraNeoHistoryReady", "megaBeamAsakuraNeoHigh21Neighbor"],
+        },
+        ["mega-beam-asakura-neo-aim"],
+      ),
+      buildCondition(
+        "mega-beam-asakura-neo-rb7-rb14",
+        "65点×RB7/RB14",
+        "対象22日 / 選択32台 / RB1/275.9 / 合算1/129.3 / 平均+504枚 / 機械割105.65% / 勝率40.6% / 平均56 39.1% / 56>=50% 25.0%",
+        {
+          minScore: 65,
+          requiredFlags: [
+            "megaBeamAsakuraNeoHistoryReady",
+            "megaBeamAsakuraNeoRb7Strong",
+            "megaBeamAsakuraNeoRb14VeryStrong",
+          ],
+        },
+        ["mega-beam-asakura-neo-aim"],
+      ),
+      buildCondition(
+        "mega-beam-asakura-neo-strong65-boost3-rb21",
+        "強65+3強RB21",
+        "対象25日 / 選択30台 / 総G90,811 / BB1/235.9 / RB1/277.7 / 合算1/127.5 / 平均+578枚 / 機械割106.36% / 勝率46.7% / 平均56 38.8% / 中央56 29.3% / 56>=70% 20.0% / 56>=50% 26.7% / 56<30% 53.3% / 設定4以下70%以上53.3% / RB<=300 36.7% / RB>400 46.7% / 合算<=130 26.7% / 合算<=140 33.3%",
+        {
+          minScore: 65,
+          minBoost: 3,
+          requiredFlags: ["megaBeamAsakuraNeoHistoryReady", "megaBeamAsakuraNeoRb21Strong"],
+        },
+        ["mega-beam-asakura-neo-aim"],
+      ),
+      buildCondition(
+        "mega-beam-asakura-neo-main65-rb21",
+        "本命65+RB21",
+        "対象29日 / 選択36台 / 総G105,278 / BB1/230.9 / RB1/288.4 / 合算1/128.2 / 平均+594枚 / 機械割106.77% / 勝率47.2% / 平均56 36.5% / 中央56 28.6% / 56>=70% 16.7% / 56>=50% 25.0% / 56<30% 55.6% / 設定4以下70%以上55.6% / RB<=300 33.3% / RB>400 50.0% / 合算<=130 25.0% / 合算<=140 30.6%",
+        {
+          minScore: 65,
+          requiredFlags: ["megaBeamAsakuraNeoHistoryReady", "megaBeamAsakuraNeoRb21Strong"],
+        },
+        ["mega-beam-asakura-neo-aim"],
+      ),
+      buildCondition(
+        "mega-beam-asakura-neo-rank1-gap6",
+        "1位＋次点差6点以上",
+        "RB1/288.0 / 合算1/134.4 / 平均+341枚 / 機械割103.92% / 平均56 35.6% / 56>=50% 23.5%",
+        {
+          rankMax: 1,
+          minNextGap: 6,
+          requiredFlags: ["megaBeamAsakuraNeoHistoryReady"],
+        },
+        ["mega-beam-asakura-neo-aim"],
+      ),
+      buildCondition(
+        "mega-beam-asakura-neo-rank1-gap4",
+        "1位＋次点差4点以上",
+        "RB1/294.9 / 合算1/135.5 / 平均+313枚 / 機械割103.90% / 平均56 34.4% / 56>=50% 20.9%",
+        {
+          rankMax: 1,
+          minNextGap: 4,
+          requiredFlags: ["megaBeamAsakuraNeoHistoryReady"],
+        },
+        ["mega-beam-asakura-neo-aim"],
+      ),
+      buildCondition(
+        "mega-beam-asakura-neo-weak60",
+        "弱本命60+",
+        "対象76日 / 選択171台 / 総G443,282 / BB1/259.8 / RB1/299.9 / 合算1/139.2 / 平均+200枚 / 機械割102.57% / 勝率36.3% / 平均56 34.0% / 中央56 28.4% / 56>=70% 11.1% / 56>=50% 18.7% / 56<30% 56.1% / 設定4以下70%以上56.1% / RB<=300 32.2% / RB>400 42.1% / 合算<=130 20.5% / 合算<=140 27.5%",
+        {
+          minScore: 60,
+          requiredFlags: ["megaBeamAsakuraNeoHistoryReady"],
+        },
+        ["mega-beam-asakura-neo-aim"],
+      ),
+      buildCondition(
+        "mega-beam-asakura-neo-wide55",
+        "広め55+",
+        "対象89日 / 選択252台 / 総G651,310 / BB1/259.6 / RB1/310.3 / 合算1/141.3 / 平均+166枚 / 機械割102.15% / 勝率35.3% / 平均56 32.4% / 中央56 27.0% / 56>=70% 9.5% / 56>=50% 17.1% / 56<30% 61.1% / 設定4以下70%以上61.1% / RB<=300 27.8% / RB>400 47.6% / 合算<=130 19.4% / 合算<=140 26.6%",
+        {
+          minScore: 55,
+          requiredFlags: ["megaBeamAsakuraNeoHistoryReady"],
+        },
+        ["mega-beam-asakura-neo-aim"],
+      ),
+      buildCondition(
+        "mega-beam-asakura-neo-rb21-high3",
+        "RB21×高内容3",
+        "対象70日 / 選択169台 / RB1/303.2 / 合算1/142.2 / 平均+99枚 / 機械割101.33% / 勝率32.0% / 平均56 33.3% / 56>=50% 17.8% / 広めの代替条件",
+        {
+          requiredFlags: [
+            "megaBeamAsakuraNeoHistoryReady",
+            "megaBeamAsakuraNeoRb21Wide",
+            "megaBeamAsakuraNeoHigh14Rhythm",
+          ],
+        },
+        ["mega-beam-asakura-neo-aim"],
+      ),
+      buildCondition(
+        "mega-beam-asakura-neo-angle-high",
+        "急沈み×高内容",
+        "対象25日 / 選択26台 / RB1/306.6 / 合算1/141.7 / 平均+160枚 / 機械割102.11% / 勝率42.3% / 平均56 33.7% / 56>=50% 23.1% / 急沈み補助",
+        {
+          requiredFlags: [
+            "megaBeamAsakuraNeoHistoryReady",
+            "megaBeamAsakuraNeoSharpSink",
+            "megaBeamAsakuraNeoHigh14AtLeast1",
+          ],
+        },
+        ["mega-beam-asakura-neo-aim"],
+      ),
+      buildCondition(
+        "mega-beam-asakura-neo-watch-previous-treatment",
+        "見送り：前日処遇",
+        "対象93日 / 選択219台 / RB1/373.6 / 合算1/160.9 / 平均-120枚 / 機械割97.81% / 勝率26.5% / 平均56 26.5% / 56>=50% 5.9%",
+        {
+          requiredFlags: ["megaBeamAsakuraNeoHistoryReady", "megaBeamAsakuraNeoPreviousTreatmentDone"],
+        },
+        ["mega-beam-asakura-neo-aim"],
+      ),
+      buildCondition(
+        "mega-beam-asakura-neo-watch-low-games",
+        "見送り_低稼働",
+        "直近7日G数5,000未満は履歴信頼度が低い",
+        {
+          requiredFlags: ["megaBeamAsakuraNeoHistoryReady", "megaBeamAsakuraNeoLowGames"],
+        },
+        ["mega-beam-asakura-neo-aim"],
+      ),
+      buildCondition(
+        "mega-beam-asakura-neo-watch-long-neglect",
+        "見送り_長期放置",
+        "直近21日高内容0回かつ前回高内容なし、または前回高内容から21営業日以上",
+        {
+          requiredFlags: ["megaBeamAsakuraNeoHistoryReady", "megaBeamAsakuraNeoLongNeglect"],
+        },
+        ["mega-beam-asakura-neo-aim"],
+      ),
+      buildCondition(
+        "mega-beam-asakura-neo-watch-bb-biased",
+        "見送り_BB寄り出玉",
+        "前日+1,500枚以上かつRB1/400超、またはRBなし",
+        {
+          requiredFlags: ["megaBeamAsakuraNeoHistoryReady", "megaBeamAsakuraNeoBbBiasedOutput"],
+        },
+        ["mega-beam-asakura-neo-aim"],
+      ),
+      buildCondition(
+        "mega-beam-asakura-neo-watch-history-short",
+        "見送り_履歴不足",
+        "履歴7営業日未満は最大40点。旧台番と新台番はつなげない",
+        {
+          requiredFlags: ["megaBeamAsakuraNeoHistoryShort"],
+        },
+        ["mega-beam-asakura-neo-aim"],
       ),
       buildCondition(
         "gogo-tenjin-main",
@@ -7414,6 +7610,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-neo-aim");
   } else if (isMjArenaAirportStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "mj-airport-neo-aim");
+  } else if (isMegaBeamAsakuraStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "mega-beam-asakura-neo-aim");
   } else if (isMillionTobuNerimaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "million-tobu-nerima-neo-aim");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "funky") {
@@ -8110,6 +8308,9 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentThreeMachineSettingFivePlusProbabilityAverage = readNullableNumber(
     metrics.recentThreeMachineSettingFivePlusProbabilityAverage,
   );
+  const recentSevenMachineSettingFivePlusProbabilityAverage = readNullableNumber(
+    metrics.recentSevenMachineSettingFivePlusProbabilityAverage,
+  );
   const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
   const machineLowContentStreak = readNumber(metrics.machineLowContentStreak);
   const machineWeakContentStreak = readNumber(metrics.machineWeakContentStreak);
@@ -8593,6 +8794,98 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         treatmentDone: mjAirportNeoDangerDone,
         lowConfidence: mjAirportNeoHistoryShort || mjAirportNeoDangerLowG,
         boostCount: strengthCount,
+        dangerCount,
+      };
+    }
+
+    if (activeLogicKey === "mega-beam-asakura-neo-aim") {
+      const megaBeamAsakuraNeoHistoryReady = historyRowCount >= 7;
+      const megaBeamAsakuraNeoHistoryShort = historyRowCount < 7;
+      const megaBeamAsakuraNeoRb7Strong = features.recentSevenRbDenominator <= 270;
+      const megaBeamAsakuraNeoRb14VeryStrong = features.recentFourteenRbDenominator <= 270;
+      const megaBeamAsakuraNeoRb14Strong = features.recentFourteenRbDenominator <= 300;
+      const megaBeamAsakuraNeoRb21Strong = features.recentTwentyOneRbDenominator <= 270;
+      const megaBeamAsakuraNeoRb21Wide = features.recentTwentyOneRbDenominator <= 300;
+      const megaBeamAsakuraNeoHigh14Rhythm = recentFourteenMachineHighContentCount === 3;
+      const megaBeamAsakuraNeoHigh14AtLeast1 = recentFourteenMachineHighContentCount >= 1;
+      const megaBeamAsakuraNeoHigh21Thick = recentTwentyOneMachineHighContentCount >= 5;
+      const megaBeamAsakuraNeoNeighborStrong = adjacentMachineHighContentCount3Near2 >= 4;
+      const megaBeamAsakuraNeoSharpSink = features.recentFiveAngle <= -500 && recentFiveGamesTotal >= 2500;
+      const megaBeamAsakuraNeoLosingThree = streak >= 3;
+      const megaBeamAsakuraNeoPreviousUnfinished =
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.4 &&
+        previousDifference <= 500;
+      const megaBeamAsakuraNeoPreviousTreatmentDone =
+        previousMachineHighContent && previousDifference >= 1000;
+      const megaBeamAsakuraNeoLowGames = recentSevenGamesTotal < 5000;
+      const megaBeamAsakuraNeoLowG3500 = recentSevenGamesTotal < 3500;
+      const megaBeamAsakuraNeoLongNeglect =
+        (recentTwentyOneMachineHighContentCount === 0 && !Number.isFinite(daysSinceMachineHighContent)) ||
+        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 21);
+      const megaBeamAsakuraNeoBbBiasedOutput =
+        previousDifference >= 1500 && (features.previousRbDenominator > 400 || previousRbCount === 0);
+      const megaBeamAsakuraNeoLongLosing = streak >= 7;
+      const dangerFlags = [
+        megaBeamAsakuraNeoPreviousTreatmentDone,
+        megaBeamAsakuraNeoLowGames,
+        megaBeamAsakuraNeoLongNeglect,
+        megaBeamAsakuraNeoBbBiasedOutput,
+        megaBeamAsakuraNeoLongLosing,
+      ];
+      const boostFlags = [
+        megaBeamAsakuraNeoRb7Strong,
+        megaBeamAsakuraNeoRb14Strong,
+        megaBeamAsakuraNeoHigh14Rhythm,
+        megaBeamAsakuraNeoHigh21Thick,
+        megaBeamAsakuraNeoNeighborStrong,
+        megaBeamAsakuraNeoSharpSink,
+        megaBeamAsakuraNeoLosingThree,
+        megaBeamAsakuraNeoPreviousUnfinished,
+      ];
+      const dangerCount = dangerFlags.filter(Boolean).length;
+      const megaBeamAsakuraNeoNoGo =
+        dangerCount >= 2 ||
+        megaBeamAsakuraNeoPreviousTreatmentDone ||
+        megaBeamAsakuraNeoLowG3500 ||
+        megaBeamAsakuraNeoLongNeglect;
+      const megaBeamAsakuraNeoIslandWave =
+        features.recentFourteenCombinedDenominator <= 140 &&
+        previousAdjacentMachineHighContentCountNear2 >= 2 &&
+        recentFourteenNetTotal >= 3000 &&
+        dangerCount === 0;
+      const megaBeamAsakuraNeoHigh21Neighbor =
+        megaBeamAsakuraNeoHigh21Thick && previousAdjacentMachineHighContentCountNear2 >= 2;
+
+      return {
+        ...features,
+        megaBeamAsakuraNeoHistoryReady,
+        megaBeamAsakuraNeoHistoryShort,
+        megaBeamAsakuraNeoP56Hist7: recentSevenMachineSettingFivePlusProbabilityAverage,
+        megaBeamAsakuraNeoRb7Strong,
+        megaBeamAsakuraNeoRb14VeryStrong,
+        megaBeamAsakuraNeoRb14Strong,
+        megaBeamAsakuraNeoRb21Strong,
+        megaBeamAsakuraNeoRb21Wide,
+        megaBeamAsakuraNeoHigh14Rhythm,
+        megaBeamAsakuraNeoHigh14AtLeast1,
+        megaBeamAsakuraNeoHigh21Thick,
+        megaBeamAsakuraNeoNeighborStrong,
+        megaBeamAsakuraNeoSharpSink,
+        megaBeamAsakuraNeoLosingThree,
+        megaBeamAsakuraNeoPreviousUnfinished,
+        megaBeamAsakuraNeoPreviousTreatmentDone,
+        megaBeamAsakuraNeoLowGames,
+        megaBeamAsakuraNeoLowG3500,
+        megaBeamAsakuraNeoLongNeglect,
+        megaBeamAsakuraNeoBbBiasedOutput,
+        megaBeamAsakuraNeoLongLosing,
+        megaBeamAsakuraNeoNoGo,
+        megaBeamAsakuraNeoIslandWave,
+        megaBeamAsakuraNeoHigh21Neighbor,
+        treatmentDone: megaBeamAsakuraNeoPreviousTreatmentDone,
+        lowConfidence: megaBeamAsakuraNeoHistoryShort || megaBeamAsakuraNeoLowGames,
+        boostCount: boostFlags.filter(Boolean).length,
         dangerCount,
       };
     }
@@ -13078,6 +13371,9 @@ function calculateMachineScore(definition, metrics, features) {
   const recentThreeMachineSettingFivePlusProbabilityAverage = readNullableNumber(
     metrics.recentThreeMachineSettingFivePlusProbabilityAverage,
   );
+  const recentSevenMachineSettingFivePlusProbabilityAverage = readNullableNumber(
+    metrics.recentSevenMachineSettingFivePlusProbabilityAverage,
+  );
   const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
   const machineGoodContentStreak = readNumber(metrics.machineGoodContentStreak);
   const machineLowContentStreak = readNumber(metrics.machineLowContentStreak);
@@ -13760,6 +14056,128 @@ function calculateMachineScore(definition, metrics, features) {
         score = Math.min(score, 45);
       } else if (historyRowCount < 14) {
         score = Math.min(score, 50);
+      }
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === "mega-beam-asakura-neo-aim") {
+      let historyTrustScore = 0;
+      historyTrustScore += scoreAtLeast(recentSevenGamesTotal, [
+        { minimum: 14000, points: 8 },
+        { minimum: 9000, points: 5 },
+        { minimum: 5000, points: 2 },
+      ]);
+      historyTrustScore += scoreAtLeast(recentFourteenGamesTotal, [
+        { minimum: 24000, points: 5 },
+        { minimum: 16000, points: 3 },
+      ]);
+      historyTrustScore += previousGames >= 3000 ? 2 : previousGames >= 1800 ? 1 : 0;
+      historyTrustScore = Math.min(historyTrustScore, 15);
+
+      let bonusScore = 0;
+      bonusScore += scoreAtMost(features.recentSevenRbDenominator, [
+        { maximum: 250, points: 12 },
+        { maximum: 270, points: 10 },
+        { maximum: 300, points: 7 },
+        { maximum: 330, points: 4 },
+      ]);
+      bonusScore += scoreAtMost(features.recentFourteenRbDenominator, [
+        { maximum: 270, points: 9 },
+        { maximum: 300, points: 7 },
+        { maximum: 330, points: 4 },
+        { maximum: 360, points: 2 },
+      ]);
+      bonusScore += scoreAtMost(features.recentTwentyOneRbDenominator, [
+        { maximum: 270, points: 5 },
+        { maximum: 300, points: 3 },
+      ]);
+      bonusScore += scoreAtMost(features.recentFourteenCombinedDenominator, [
+        { maximum: 130, points: 5 },
+        { maximum: 140, points: 4 },
+        { maximum: 150, points: 2 },
+      ]);
+      bonusScore += features.recentTwentyOneCombinedDenominator <= 140 ? 2 : 0;
+      bonusScore += Number.isFinite(recentSevenMachineSettingFivePlusProbabilityAverage)
+        ? recentSevenMachineSettingFivePlusProbabilityAverage >= 0.35
+          ? 3
+          : recentSevenMachineSettingFivePlusProbabilityAverage >= 0.3
+            ? 1
+            : 0
+        : 0;
+      bonusScore = Math.min(bonusScore, 30);
+
+      let rhythmScore = 0;
+      if (recentFourteenMachineHighContentCount === 3) {
+        rhythmScore += 12;
+      } else if (recentFourteenMachineHighContentCount >= 5) {
+        rhythmScore += 8;
+      } else if (recentFourteenMachineHighContentCount >= 3) {
+        rhythmScore += 6;
+      }
+      rhythmScore += scoreAtLeast(recentTwentyOneMachineHighContentCount, [
+        { minimum: 6, points: 8 },
+        { minimum: 5, points: 6 },
+        { minimum: 3, points: 3 },
+      ]);
+      if (Number.isFinite(daysSinceMachineHighContent)) {
+        rhythmScore += scoreInRange(daysSinceMachineHighContent, 2, 6, 4);
+        rhythmScore += scoreInRange(daysSinceMachineHighContent, 1, 10, 2);
+        rhythmScore -= daysSinceMachineHighContent >= 21 ? 4 : 0;
+      } else {
+        rhythmScore -= 4;
+      }
+      rhythmScore +=
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.4 &&
+        previousDifference <= 500
+          ? 4
+          : 0;
+      rhythmScore = Math.min(rhythmScore, 25);
+
+      let sinkScore = 0;
+      sinkScore += features.recentFiveAngle <= -500 && recentFiveGamesTotal >= 2500 ? 9 : 0;
+      sinkScore += features.recentFiveAngle <= -250 && recentFiveGamesTotal >= 5000 ? 3 : 0;
+      sinkScore += streak >= 3 ? 5 : 0;
+      sinkScore += streak >= 6 ? 3 : 0;
+      sinkScore -= streak >= 7 ? 3 : 0;
+      sinkScore +=
+        recentTwentyOneNetTotal <= -3000 &&
+        recentTwentyOneMachineHighContentCount >= 3 &&
+        recentTwentyOneGamesTotal >= 25000
+          ? 5
+          : 0;
+      sinkScore +=
+        recentFourteenNetTotal <= -2500 &&
+        recentFourteenMachineHighContentCount >= 2 &&
+        recentFourteenGamesTotal >= 15000
+          ? 3
+          : 0;
+      sinkScore = Math.min(sinkScore, 17);
+
+      let neighborScore = 0;
+      neighborScore += adjacentMachineHighContentCount3Near2 >= 4 ? 10 : adjacentMachineHighContentCount3Near2 >= 2 ? 5 : 0;
+      neighborScore += previousAdjacentMachineHighContentCountNear2 >= 2 ? 3 : 0;
+      neighborScore = Math.min(neighborScore, 13);
+
+      let penalty = 0;
+      penalty += previousMachineHighContent && previousDifference >= 1500 ? 15 : 0;
+      penalty += previousMachineHighContent && previousDifference >= 1000 ? 10 : 0;
+      penalty +=
+        previousDifference >= 1500 && (features.previousRbDenominator > 400 || previousRbCount === 0)
+          ? 6
+          : 0;
+      penalty += recentSevenGamesTotal < 3500 ? 12 : recentSevenGamesTotal < 5000 ? 6 : 0;
+      penalty +=
+        (recentTwentyOneMachineHighContentCount === 0 && !Number.isFinite(daysSinceMachineHighContent)) ||
+        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 21)
+          ? 8
+          : 0;
+      penalty += previousDifference >= 2500 ? 6 : 0;
+
+      let score = historyTrustScore + bonusScore + rhythmScore + sinkScore + neighborScore - penalty;
+      if (historyRowCount < 7) {
+        score = Math.min(score, 40);
       }
 
       return Math.round(clamp(score, 0, 100));
