@@ -72,6 +72,8 @@ DEFAULT_RETRY_DELAY_SECONDS = "10"
 MAX_FETCH_RETRY_COUNT = 3
 DEFAULT_MINREPO_DAY_PROGRESS_STEPS = 40
 FETCH_PROGRESS_GLOBAL_SCALE = 1000
+FETCH_PROGRESS_QUEUE_MIN_INTERVAL_SECONDS = 0.2
+FETCH_PROGRESS_BAR_ANIMATION_INTERVAL_MS = 100
 MINREPO_FETCH_MODE_NORMAL = "通常"
 MINREPO_FETCH_MODE_FAST = "高速"
 MINREPO_FETCH_MODE_STRONG = "強並列"
@@ -1061,6 +1063,8 @@ class MinRepoApp:
         self.site7_fetch_progress_total = 0
         self.site7_fetch_progress_started_at: float | None = None
         self.site7_fetch_progress_last_message = "未開始"
+        self._last_queued_fetch_progress_by_operation: dict[object, tuple[float, int, int, str]] = {}
+        self._fetch_progress_bar_modes: dict[str, str] = {}
 
         self._build_ui()
         self._reset_fetch_progress()
@@ -4044,6 +4048,10 @@ class MinRepoApp:
             self.fetch_cancel_event = self.minrepo_cancel_event
         if not hasattr(self, "persistence_lock"):
             self.persistence_lock = threading.Lock()
+        if not hasattr(self, "_last_queued_fetch_progress_by_operation"):
+            self._last_queued_fetch_progress_by_operation = {}
+        if not hasattr(self, "_fetch_progress_bar_modes"):
+            self._fetch_progress_bar_modes = {}
 
     def _operation_kind_for_result(self, operation_id: int | None) -> str:
         self._ensure_operation_tracking()
@@ -4464,7 +4472,58 @@ class MinRepoApp:
         store_index: int | None = None,
         total_stores: int | None = None,
     ) -> None:
-        self.result_queue.put(("fetch_progress", self._scaled_fetch_progress(progress, store_index, total_stores)))
+        scaled_progress = self._scaled_fetch_progress(progress, store_index, total_stores)
+        if not self._should_queue_fetch_progress(scaled_progress):
+            return
+        self.result_queue.put(("fetch_progress", scaled_progress))
+
+    def _fetch_progress_queue_key(self) -> object:
+        operation_id = getattr(self._worker_context, "operation_id", None)
+        if operation_id is not None:
+            return operation_id
+
+        operation_kind = getattr(self._worker_context, "operation_kind", None) or self.active_operation_kind
+        if operation_kind:
+            return operation_kind
+
+        return threading.get_ident()
+
+    def _should_queue_fetch_progress(self, progress: FetchProgress) -> bool:
+        total_steps = max(1, progress.total_steps)
+        current_step = min(max(0, progress.current_step), total_steps)
+        message = progress.message
+        if current_step <= 0 or current_step >= total_steps:
+            return True
+
+        progress_key = self._fetch_progress_queue_key()
+        now = time.monotonic()
+        last_progress = self._last_queued_fetch_progress_by_operation.get(progress_key)
+        if last_progress is None:
+            self._last_queued_fetch_progress_by_operation[progress_key] = (
+                now,
+                current_step,
+                total_steps,
+                message,
+            )
+            return True
+
+        last_queued_at, last_current_step, last_total_steps, last_message = last_progress
+        if (
+            current_step == last_current_step
+            and total_steps == last_total_steps
+            and message == last_message
+        ):
+            return False
+        if now - last_queued_at < FETCH_PROGRESS_QUEUE_MIN_INTERVAL_SECONDS:
+            return False
+
+        self._last_queued_fetch_progress_by_operation[progress_key] = (
+            now,
+            current_step,
+            total_steps,
+            message,
+        )
+        return True
 
     def _scaled_fetch_progress(
         self,
@@ -5021,6 +5080,10 @@ class MinRepoApp:
                 self.result_polling_active = False
             return
 
+        if operation_id is not None:
+            self._last_queued_fetch_progress_by_operation.pop(operation_id, None)
+        if operation_kind:
+            self._last_queued_fetch_progress_by_operation.pop(operation_kind, None)
         if operation_id is not None:
             self.active_operations.pop(operation_id, None)
         else:
@@ -6345,6 +6408,41 @@ class MinRepoApp:
             and hasattr(self, "fetch_progress_text_var")
         )
 
+    def _set_fetch_progress_bar_mode(self, progress_kind: str, mode: str) -> None:
+        progress_bar = self._fetch_progress_bar_for(progress_kind)
+        if not hasattr(self, "_fetch_progress_bar_modes"):
+            self._fetch_progress_bar_modes = {}
+        current_mode = self._fetch_progress_bar_modes.get(progress_kind)
+        if current_mode == mode:
+            return
+
+        if mode == "determinate":
+            progress_bar.stop()
+            progress_bar.configure(mode="determinate", maximum=100)
+        else:
+            progress_bar.stop()
+            progress_bar.configure(mode="indeterminate", maximum=100)
+            progress_bar.start(FETCH_PROGRESS_BAR_ANIMATION_INTERVAL_MS)
+        self._fetch_progress_bar_modes[progress_kind] = mode
+
+    def _set_fetch_progress_value(self, progress_kind: str, value: float) -> None:
+        progress_value_var = self._fetch_progress_value_var_for(progress_kind)
+        try:
+            current_value = float(progress_value_var.get())
+        except (tk.TclError, TypeError, ValueError):
+            current_value = None
+        if current_value is None or abs(current_value - value) >= 0.05:
+            progress_value_var.set(value)
+
+    def _set_fetch_progress_display_text(self, progress_kind: str, text: str) -> None:
+        progress_text_var = self._fetch_progress_text_var_for(progress_kind)
+        try:
+            current_text = progress_text_var.get()
+        except tk.TclError:
+            current_text = None
+        if current_text != text:
+            progress_text_var.set(text)
+
     def _set_fetch_progress_state(
         self,
         progress_kind: str,
@@ -6399,12 +6497,9 @@ class MinRepoApp:
             started_at=time.monotonic(),
             last_message=message,
         )
-        progress_bar = self._fetch_progress_bar_for(progress_kind)
-        progress_bar.stop()
-        progress_bar.configure(mode="indeterminate", maximum=100)
-        self._fetch_progress_value_var_for(progress_kind).set(0.0)
+        self._set_fetch_progress_bar_mode(progress_kind, "indeterminate")
+        self._set_fetch_progress_value(progress_kind, 0.0)
         self._set_fetch_progress_text(message, progress_kind=progress_kind)
-        progress_bar.start(12)
         self._schedule_fetch_elapsed_tick()
 
     def _apply_fetch_progress(self, progress: FetchProgress, *, progress_kind: str = PROGRESS_KIND_MINREPO) -> None:
@@ -6412,10 +6507,8 @@ class MinRepoApp:
         current_step = min(max(0, progress.current_step), total_steps)
         progress_percent = current_step * 100 / total_steps
         self._set_fetch_progress_state(progress_kind, current=current_step, total=total_steps)
-        progress_bar = self._fetch_progress_bar_for(progress_kind)
-        progress_bar.stop()
-        progress_bar.configure(mode="determinate", maximum=100)
-        self._fetch_progress_value_var_for(progress_kind).set(progress_percent)
+        self._set_fetch_progress_bar_mode(progress_kind, "determinate")
+        self._set_fetch_progress_value(progress_kind, progress_percent)
         self._set_fetch_progress_text(f"{progress_percent:.1f}% {progress.message}", progress_kind=progress_kind)
 
     def _finish_fetch_progress(
@@ -6425,19 +6518,17 @@ class MinRepoApp:
         *,
         progress_kind: str = PROGRESS_KIND_MINREPO,
     ) -> None:
-        progress_bar = self._fetch_progress_bar_for(progress_kind)
-        progress_bar.stop()
-        progress_bar.configure(mode="determinate", maximum=100)
+        self._set_fetch_progress_bar_mode(progress_kind, "determinate")
         if success:
             total_steps = self._fetch_progress_total_for(progress_kind) or 1
             self._set_fetch_progress_state(progress_kind, current=total_steps, total=total_steps)
-            self._fetch_progress_value_var_for(progress_kind).set(100.0)
+            self._set_fetch_progress_value(progress_kind, 100.0)
             self._set_fetch_progress_text(f"100.0% {message}", progress_kind=progress_kind)
             self._set_fetch_progress_state(progress_kind, started_at=None)
             return
 
         self._set_fetch_progress_state(progress_kind, current=0, total=0, started_at=None)
-        self._fetch_progress_value_var_for(progress_kind).set(0.0)
+        self._set_fetch_progress_value(progress_kind, 0.0)
         self._set_fetch_progress_text(message, progress_kind=progress_kind)
 
     def _reset_fetch_progress(self, *, progress_kind: str | None = None) -> None:
@@ -6449,9 +6540,7 @@ class MinRepoApp:
         for current_progress_kind in progress_kinds:
             if not self._fetch_progress_controls_ready(current_progress_kind):
                 continue
-            progress_bar = self._fetch_progress_bar_for(current_progress_kind)
-            progress_bar.stop()
-            progress_bar.configure(mode="determinate", maximum=100)
+            self._set_fetch_progress_bar_mode(current_progress_kind, "determinate")
             self._set_fetch_progress_state(
                 current_progress_kind,
                 current=0,
@@ -6459,8 +6548,8 @@ class MinRepoApp:
                 started_at=None,
                 last_message="未開始",
             )
-            self._fetch_progress_value_var_for(current_progress_kind).set(0.0)
-            self._fetch_progress_text_var_for(current_progress_kind).set("未開始")
+            self._set_fetch_progress_value(current_progress_kind, 0.0)
+            self._set_fetch_progress_display_text(current_progress_kind, "未開始")
 
     def _set_fetch_progress_text(
         self,
@@ -6471,9 +6560,9 @@ class MinRepoApp:
         self._set_fetch_progress_state(progress_kind, last_message=message)
         elapsed_text = self._fetch_elapsed_text(progress_kind=progress_kind)
         if elapsed_text:
-            self._fetch_progress_text_var_for(progress_kind).set(f"{message} / {elapsed_text}")
+            self._set_fetch_progress_display_text(progress_kind, f"{message} / {elapsed_text}")
             return
-        self._fetch_progress_text_var_for(progress_kind).set(message)
+        self._set_fetch_progress_display_text(progress_kind, message)
 
     def _fetch_elapsed_text(self, *, progress_kind: str = PROGRESS_KIND_MINREPO) -> str:
         fetch_progress_started_at = self._fetch_progress_started_at_for(progress_kind)
@@ -6680,93 +6769,112 @@ class MinRepoApp:
             return (0, int(normalized))
         return (1, normalize_text(slot_number))
 
+    def _configure_widget_state(self, widget: object, state: str) -> None:
+        try:
+            if str(widget.cget("state")) == state:
+                return
+        except (AttributeError, tk.TclError):
+            pass
+        widget.configure(state=state)
+
     def _update_button_states(self) -> None:
-        has_registered_store_row_selection = (
-            hasattr(self, "registered_store_tree")
-            and bool(self.registered_store_tree.selection())
+        registered_store_selection = (
+            self.registered_store_tree.selection()
+            if hasattr(self, "registered_store_tree")
+            else ()
         )
-        has_single_registered_store_row_selection = (
-            hasattr(self, "registered_store_tree")
-            and len(self.registered_store_tree.selection()) == 1
-        )
+        has_registered_store_row_selection = bool(registered_store_selection)
+        has_single_registered_store_row_selection = len(registered_store_selection) == 1
 
         minrepo_busy = self._is_minrepo_busy()
         site7_busy = self._is_site7_busy()
         general_busy = self._is_general_busy()
-        self.fetch_button.configure(state="disabled" if minrepo_busy or general_busy else "normal")
+        self._configure_widget_state(self.fetch_button, "disabled" if minrepo_busy or general_busy else "normal")
         can_cancel_fetch = (
             minrepo_busy
             and not self.minrepo_cancel_event.is_set()
         )
-        self.cancel_fetch_button.configure(state="normal" if can_cancel_fetch else "disabled")
-        self.target_date_entry.configure(state="normal")
-        self.retry_delay_entry.configure(state="normal")
+        self._configure_widget_state(self.cancel_fetch_button, "normal" if can_cancel_fetch else "disabled")
+        self._configure_widget_state(self.target_date_entry, "normal")
+        self._configure_widget_state(self.retry_delay_entry, "normal")
         if hasattr(self, "minrepo_fetch_mode_selector"):
-            self.minrepo_fetch_mode_selector.configure(state="readonly")
+            self._configure_widget_state(self.minrepo_fetch_mode_selector, "readonly")
         web_publish_days_selected = normalize_web_publish_mode(self.web_publish_mode_var.get()) == WEB_PUBLISH_MODE_DAYS
-        self.web_publish_days_radio.configure(state="normal")
-        self.web_publish_store_radio.configure(state="normal")
-        self.web_publish_interval_days_entry.configure(
-            state="normal" if web_publish_days_selected else "disabled"
+        self._configure_widget_state(self.web_publish_days_radio, "normal")
+        self._configure_widget_state(self.web_publish_store_radio, "normal")
+        self._configure_widget_state(
+            self.web_publish_interval_days_entry,
+            "normal" if web_publish_days_selected else "disabled",
         )
-        self.schedule_hour_entry.configure(state="normal")
+        self._configure_widget_state(self.schedule_hour_entry, "normal")
         if hasattr(self, "minrepo_schedule_enabled_checkbutton"):
-            self.minrepo_schedule_enabled_checkbutton.configure(state="normal")
-        self.apply_schedule_button.configure(state="normal")
-        self.clear_schedule_button.configure(state="normal")
-        self.schedule_all_stores_interval_days_entry.configure(state="normal")
-        self.apply_schedule_all_stores_button.configure(state="normal")
-        self.notify_fetch_complete_button.configure(state="normal")
-        self.site7_login_button.configure(state="disabled" if site7_busy or general_busy else "normal")
-        self.site7_fetch_button.configure(state="disabled" if site7_busy or general_busy else "normal")
-        self.site7_neo_im_fetch_button.configure(state="disabled" if site7_busy or general_busy else "normal")
+            self._configure_widget_state(self.minrepo_schedule_enabled_checkbutton, "normal")
+        self._configure_widget_state(self.apply_schedule_button, "normal")
+        self._configure_widget_state(self.clear_schedule_button, "normal")
+        self._configure_widget_state(self.schedule_all_stores_interval_days_entry, "normal")
+        self._configure_widget_state(self.apply_schedule_all_stores_button, "normal")
+        self._configure_widget_state(self.notify_fetch_complete_button, "normal")
+        self._configure_widget_state(
+            self.site7_login_button,
+            "disabled" if site7_busy or general_busy else "normal",
+        )
+        self._configure_widget_state(
+            self.site7_fetch_button,
+            "disabled" if site7_busy or general_busy else "normal",
+        )
+        self._configure_widget_state(
+            self.site7_neo_im_fetch_button,
+            "disabled" if site7_busy or general_busy else "normal",
+        )
         can_cancel_site7_fetch = (
             site7_busy
             and not self.site7_cancel_event.is_set()
         )
-        self.site7_cancel_button.configure(state="normal" if can_cancel_site7_fetch else "disabled")
+        self._configure_widget_state(self.site7_cancel_button, "normal" if can_cancel_site7_fetch else "disabled")
         for hour_button in self.site7_schedule_hour_buttons.values():
-            hour_button.configure(state="normal")
+            self._configure_widget_state(hour_button, "normal")
         if hasattr(self, "site7_schedule_enabled_checkbutton"):
-            self.site7_schedule_enabled_checkbutton.configure(state="normal")
-        self.apply_site7_schedule_button.configure(state="normal")
-        self.clear_site7_schedule_button.configure(state="normal")
-        self.site7_browser_visible_radio.configure(state="normal")
-        self.site7_browser_hidden_radio.configure(state="normal")
+            self._configure_widget_state(self.site7_schedule_enabled_checkbutton, "normal")
+        self._configure_widget_state(self.apply_site7_schedule_button, "normal")
+        self._configure_widget_state(self.clear_site7_schedule_button, "normal")
+        self._configure_widget_state(self.site7_browser_visible_radio, "normal")
+        self._configure_widget_state(self.site7_browser_hidden_radio, "normal")
         if hasattr(self, "site7_machine_checkbuttons"):
             for checkbutton in self.site7_machine_checkbuttons.values():
-                checkbutton.configure(state="normal")
+                self._configure_widget_state(checkbutton, "normal")
         if hasattr(self, "site7_machine_action_buttons"):
             for button in self.site7_machine_action_buttons:
-                button.configure(state="normal")
-        self.register_store_button.configure(state="disabled" if general_busy else "normal")
-        self.register_store_url_entry.configure(state="normal")
+                self._configure_widget_state(button, "normal")
+        self._configure_widget_state(self.register_store_button, "disabled" if general_busy else "normal")
+        self._configure_widget_state(self.register_store_url_entry, "normal")
         if hasattr(self, "register_store_frequency_selector"):
-            self.register_store_frequency_selector.configure(state="readonly")
+            self._configure_widget_state(self.register_store_frequency_selector, "readonly")
         if hasattr(self, "register_store_source_selector"):
-            self.register_store_source_selector.configure(state="readonly")
+            self._configure_widget_state(self.register_store_source_selector, "readonly")
         if hasattr(self, "register_store_order_entry"):
-            self.register_store_order_entry.configure(state="normal")
+            self._configure_widget_state(self.register_store_order_entry, "normal")
         if hasattr(self, "register_store_site7_difference_checkbutton"):
-            self.register_store_site7_difference_checkbutton.configure(state="normal")
-        self.register_store_prefecture_entry.configure(state="normal")
-        self.register_store_area_entry.configure(state="normal")
-        self.register_store_site7_store_name_entry.configure(state="normal")
-        self.register_store_site7_hall_id_entry.configure(state="normal")
-        self.register_store_site7_address_entry.configure(state="normal")
-        self.update_registered_store_button.configure(
-            state="disabled" if general_busy or not has_single_registered_store_row_selection else "normal"
+            self._configure_widget_state(self.register_store_site7_difference_checkbutton, "normal")
+        self._configure_widget_state(self.register_store_prefecture_entry, "normal")
+        self._configure_widget_state(self.register_store_area_entry, "normal")
+        self._configure_widget_state(self.register_store_site7_store_name_entry, "normal")
+        self._configure_widget_state(self.register_store_site7_hall_id_entry, "normal")
+        self._configure_widget_state(self.register_store_site7_address_entry, "normal")
+        self._configure_widget_state(
+            self.update_registered_store_button,
+            "disabled" if general_busy or not has_single_registered_store_row_selection else "normal",
         )
-        self.clear_register_store_form_button.configure(state="normal")
+        self._configure_widget_state(self.clear_register_store_form_button, "normal")
         if hasattr(self, "registered_store_filter_entry"):
-            self.registered_store_filter_entry.configure(state="normal")
+            self._configure_widget_state(self.registered_store_filter_entry, "normal")
         if hasattr(self, "clear_registered_store_filter_button"):
-            self.clear_registered_store_filter_button.configure(state="normal")
-        self.select_all_stores_button.configure(state="normal")
-        self.clear_store_selection_button.configure(state="normal")
-        self.refresh_registered_stores_button.configure(state="disabled" if general_busy else "normal")
-        self.delete_registered_stores_button.configure(
-            state="disabled" if general_busy or not has_registered_store_row_selection else "normal"
+            self._configure_widget_state(self.clear_registered_store_filter_button, "normal")
+        self._configure_widget_state(self.select_all_stores_button, "normal")
+        self._configure_widget_state(self.clear_store_selection_button, "normal")
+        self._configure_widget_state(self.refresh_registered_stores_button, "disabled" if general_busy else "normal")
+        self._configure_widget_state(
+            self.delete_registered_stores_button,
+            "disabled" if general_busy or not has_registered_store_row_selection else "normal",
         )
 
     def _show_error(self, exc: object) -> None:

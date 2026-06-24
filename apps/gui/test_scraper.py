@@ -275,8 +275,15 @@ class FakeJsonResponse:
 class FakeStateWidget:
     def __init__(self) -> None:
         self.state = ""
+        self.configure_count = 0
+
+    def cget(self, option: str) -> object:
+        if option == "state":
+            return self.state
+        raise KeyError(option)
 
     def configure(self, **kwargs: object) -> None:
+        self.configure_count += 1
         if "state" in kwargs:
             self.state = str(kwargs["state"])
 
@@ -286,16 +293,22 @@ class FakeProgressbar:
         self.config: dict[str, object] = {}
         self.started = False
         self.stopped = False
+        self.configure_count = 0
+        self.start_count = 0
+        self.stop_count = 0
 
     def stop(self) -> None:
+        self.stop_count += 1
         self.stopped = True
         self.started = False
 
     def start(self, interval: int) -> None:
+        self.start_count += 1
         self.config["interval"] = interval
         self.started = True
 
     def configure(self, **kwargs: object) -> None:
+        self.configure_count += 1
         self.config.update(kwargs)
 
 
@@ -1505,6 +1518,17 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(app.refresh_registered_stores_button.state, "normal")
         self.assertEqual(app.delete_registered_stores_button.state, "normal")
 
+    def test_configure_widget_state_skips_unchanged_state(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        widget = FakeStateWidget()
+
+        app._configure_widget_state(widget, "normal")
+        app._configure_widget_state(widget, "normal")
+        app._configure_widget_state(widget, "disabled")
+
+        self.assertEqual(widget.configure_count, 2)
+        self.assertEqual(widget.state, "disabled")
+
     def test_registered_store_table_click_allows_edit_while_fetching(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.is_busy = True
@@ -2664,6 +2688,26 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(progress.current_step, 1500)
         self.assertEqual(progress.message, "2店舗目")
 
+    def test_queue_fetch_progress_throttles_frequent_updates(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app._worker_context = threading.local()
+        app.active_operation_kind = "fetch"
+        app._last_queued_fetch_progress_by_operation = {}
+        app.result_queue = queue.Queue()
+
+        with mock.patch("main.time.monotonic", side_effect=[100.0, 100.1, 100.3]):
+            app._queue_fetch_progress(FetchProgress(current_step=10, total_steps=100, message="10%"))
+            app._queue_fetch_progress(FetchProgress(current_step=11, total_steps=100, message="11%"))
+            app._queue_fetch_progress(FetchProgress(current_step=12, total_steps=100, message="12%"))
+
+        self.assertEqual(app.result_queue.qsize(), 2)
+        first_kind, first_progress = app.result_queue.get_nowait()
+        second_kind, second_progress = app.result_queue.get_nowait()
+        self.assertEqual(first_kind, "fetch_progress")
+        self.assertEqual(first_progress.current_step, 10)
+        self.assertEqual(second_kind, "fetch_progress")
+        self.assertEqual(second_progress.current_step, 12)
+
     def test_apply_fetch_progress_shows_percent_and_elapsed_time(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.fetch_progress_bar = FakeProgressbar()
@@ -2698,6 +2742,23 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertIn("サイセ取得中", app.site7_fetch_progress_text_var.get())
         self.assertEqual(app.fetch_progress_value_var.get(), 0.0)
         self.assertEqual(app.fetch_progress_text_var.get(), "みんレポ進捗")
+
+    def test_apply_fetch_progress_does_not_reconfigure_same_progress_bar_mode(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_progress_bar = FakeProgressbar()
+        app.fetch_progress_value_var = FakeNumberVariable()
+        app.fetch_progress_text_var = FakeTextVariable()
+        app.fetch_progress_started_at = None
+
+        app._apply_fetch_progress(FetchProgress(current_step=20, total_steps=100, message="取得中"))
+        configure_count = app.fetch_progress_bar.configure_count
+        stop_count = app.fetch_progress_bar.stop_count
+
+        app._apply_fetch_progress(FetchProgress(current_step=40, total_steps=100, message="取得中"))
+
+        self.assertEqual(app.fetch_progress_bar.configure_count, configure_count)
+        self.assertEqual(app.fetch_progress_bar.stop_count, stop_count)
+        self.assertEqual(app.fetch_progress_value_var.get(), 40.0)
 
     def test_poll_queue_routes_site7_progress_to_site7_bar(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
