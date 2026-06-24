@@ -119,6 +119,91 @@ function scoreInRange(value, minimum, maximum, points) {
   return Number.isFinite(value) && value >= minimum && value <= maximum ? points : 0;
 }
 
+const NEO_AIM_BONUS_SETTING_RATES = [
+  { setting: 1, bb: 1 / 273.1, rb: 1 / 439.8 },
+  { setting: 2, bb: 1 / 269.7, rb: 1 / 399.6 },
+  { setting: 3, bb: 1 / 269.7, rb: 1 / 331.0 },
+  { setting: 4, bb: 1 / 259.0, rb: 1 / 315.1 },
+  { setting: 5, bb: 1 / 259.0, rb: 1 / 255.0 },
+  { setting: 6, bb: 1 / 255.0, rb: 1 / 255.0 },
+];
+
+function calculateLogBinomialProbability(successCount, totalCount, probability) {
+  if (
+    totalCount < 0 ||
+    successCount < 0 ||
+    successCount > totalCount ||
+    probability < 0 ||
+    probability > 1
+  ) {
+    return Number.NEGATIVE_INFINITY;
+  }
+  if (totalCount === 0) {
+    return successCount === 0 ? 0 : Number.NEGATIVE_INFINITY;
+  }
+  if (probability === 0) {
+    return successCount === 0 ? 0 : Number.NEGATIVE_INFINITY;
+  }
+  if (probability === 1) {
+    return successCount === totalCount ? 0 : Number.NEGATIVE_INFINITY;
+  }
+
+  const smallerSide = Math.min(successCount, totalCount - successCount);
+  let logCombination = 0;
+  for (let count = 1; count <= smallerSide; count += 1) {
+    logCombination += Math.log(totalCount - smallerSide + count) - Math.log(count);
+  }
+  return (
+    logCombination +
+    successCount * Math.log(probability) +
+    (totalCount - successCount) * Math.log(1 - probability)
+  );
+}
+
+function calculateNeoAimSettingFivePlusProbabilityFromTotals(games, bbCount, rbCount) {
+  const roundedGames = Math.round(readNumber(games));
+  const roundedBbCount = Math.round(readNumber(bbCount));
+  const roundedRbCount = Math.round(readNumber(rbCount));
+  if (
+    !Number.isInteger(roundedGames) ||
+    !Number.isInteger(roundedBbCount) ||
+    !Number.isInteger(roundedRbCount) ||
+    roundedGames <= 0 ||
+    roundedBbCount < 0 ||
+    roundedRbCount < 0 ||
+    roundedBbCount > roundedGames ||
+    roundedRbCount > roundedGames
+  ) {
+    return null;
+  }
+
+  const logRows = NEO_AIM_BONUS_SETTING_RATES.map((rate) => ({
+    setting: rate.setting,
+    logValue:
+      calculateLogBinomialProbability(roundedBbCount, roundedGames, rate.bb) +
+      calculateLogBinomialProbability(roundedRbCount, roundedGames, rate.rb),
+  }));
+  const maxLogValue = Math.max(...logRows.map((row) => row.logValue));
+  if (!Number.isFinite(maxLogValue)) {
+    return null;
+  }
+
+  const weightedRows = logRows.map((row) => ({
+    ...row,
+    weight: Math.exp(row.logValue - maxLogValue),
+  }));
+  const totalWeight = weightedRows.reduce((total, row) => total + row.weight, 0);
+  if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
+    return null;
+  }
+
+  return (
+    weightedRows
+      .filter((row) => row.setting >= 5)
+      .reduce((total, row) => total + row.weight, 0) / totalWeight
+  );
+}
+
 function isAparkKasugaStore(storeName) {
   return normalizeMachineNameText(storeName) === normalizeMachineNameText("Aパーク春日店");
 }
@@ -282,6 +367,13 @@ function isPlaza3Store(storeName) {
 function isSlotMarumitsuOhashiStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["スロットまるみつ大橋店", "スロットまるみつ大橋", "まるみつ大橋店", "まるみつ大橋"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
+function isTamayaOhashiStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["玉屋555大橋店", "玉屋555大橋", "玉屋５５５大橋店", "玉屋５５５大橋"].some(
     (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
   );
 }
@@ -2012,6 +2104,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "plaza3-neo-aim-event",
         "プラザ3_ネオアイムEX_特定日_間隔補助_v1",
         "plaza3-neo-event-rank1-gap5",
+      ),
+      buildLogicVariant(
+        "tamaya-ohashi-neo-aim",
+        "玉屋555大橋店_ネオアイムEX_全日共通_継続本物感スコア",
+        "tamaya-ohashi-neo-free-continuation",
       ),
       buildLogicVariant(
         "slot-marumitsu-ohashi-neo-aim",
@@ -4660,6 +4757,167 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["plaza3-neo-aim-event"],
       ),
       buildCondition(
+        "tamaya-ohashi-neo-free-best",
+        "自由_継続最本命",
+        "対象8日 / 選択9台 / RB1/265.5 / 合算1/136.7 / 平均+195.8枚 / 機械割101.29% / 平均56 48.5% / 56>=50 44.4% / 56<30 22.2% / 9台のみで過剰最適化注意",
+        {
+          requiredFlags: ["tamayaOhashiNeoHistoryReady", "tamayaOhashiNeoFreeBest"],
+        },
+        ["tamaya-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-ohashi-neo-free-strong",
+        "自由_継続強",
+        "対象13日 / 選択16台 / RB1/279.7 / 合算1/139.1 / 平均+199.3枚 / 機械割101.41% / 平均56 42.5% / 56>=50 37.5% / 56<30 31.2%",
+        {
+          requiredFlags: ["tamayaOhashiNeoHistoryReady", "tamayaOhashiNeoFreeStrong"],
+        },
+        ["tamaya-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-ohashi-neo-free-continuation",
+        "自由_継続本命",
+        "対象26日 / 選択30台 / RB1/286.4 / 合算1/138.6 / 平均+273.2枚 / 機械割101.91% / 平均56 39.9% / 56>=50 30.0% / 56<30 40.0% / 点数より優先する主軸条件",
+        {
+          requiredFlags: ["tamayaOhashiNeoHistoryReady", "tamayaOhashiNeoFreeContinuation"],
+        },
+        ["tamaya-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-ohashi-neo-best-rb270",
+        "最本命RB270",
+        "対象8日 / 選択9台 / 総G45,670 / BB1/281.9 / RB1/265.5 / 合算1/136.7 / 平均+195.8枚 / 機械割101.29% / 勝率33.3% / 平均56 48.5% / 中央56 45.5% / 56>=70 22.2% / 56>=50 44.4% / 56<30 22.2% / 設定4以下>=70 22.2% / RB<=300 66.7% / RB>400 0.0% / 合成<=130 22.2% / 合成<=140 33.3% / 小サンプル注意",
+        {
+          requiredFlags: ["tamayaOhashiNeoHistoryReady", "tamayaOhashiNeoFreeBest"],
+        },
+        ["tamaya-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-ohashi-neo-strong-rb280",
+        "強RB280",
+        "対象13日 / 選択16台 / 総G75,234 / BB1/276.6 / RB1/279.7 / 合算1/139.1 / 平均+199.3枚 / 機械割101.41% / 勝率50.0% / 平均56 42.5% / 中央56 43.0% / 56>=70 18.8% / 56>=50 37.5% / 56<30 31.2% / 設定4以下>=70 31.2% / RB<=300 56.2% / RB>400 12.5% / 合成<=130 12.5% / 合成<=140 37.5%",
+        {
+          requiredFlags: ["tamayaOhashiNeoHistoryReady", "tamayaOhashiNeoFreeStrong"],
+        },
+        ["tamaya-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-ohashi-neo-main-rb290",
+        "本命RB290",
+        "対象26日 / 選択30台 / 総G142,927 / BB1/268.7 / RB1/286.4 / 合算1/138.6 / 平均+273.2枚 / 機械割101.91% / 勝率56.7% / 平均56 39.9% / 中央56 34.2% / 56>=70 16.7% / 56>=50 30.0% / 56<30 40.0% / 設定4以下>=70 40.0% / RB<=300 43.3% / RB>400 20.0% / 合成<=130 23.3% / 合成<=140 40.0%",
+        {
+          requiredFlags: ["tamayaOhashiNeoHistoryReady", "tamayaOhashiNeoFreeContinuation"],
+        },
+        ["tamaya-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-ohashi-neo-weak-rb300",
+        "弱め本命RB300",
+        "対象18日 / 選択25台 / 総G113,686 / BB1/262.6 / RB1/290.0 / 合算1/137.8 / 平均+386.4枚 / 機械割102.83% / 勝率48.0% / 平均56 38.5% / 中央56 30.5% / 56>=70 16.0% / 56>=50 32.0% / 56<30 48.0% / 設定4以下>=70 48.0% / RB<=300 44.0% / RB>400 32.0% / 合成<=130 28.0% / 合成<=140 40.0%",
+        {
+          minScore: 70,
+          requiredFlags: [
+            "tamayaOhashiNeoHistoryReady",
+            "tamayaOhashiNeoG5AtLeast25000",
+            "tamayaOhashiNeoAngle5AtLeast140",
+          ],
+        },
+        ["tamaya-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-ohashi-neo-wide-rb310",
+        "広めRB310",
+        "対象32日 / 選択47台 / 総G218,006 / BB1/262.0 / RB1/308.4 / 合算1/141.7 / 平均+282.9枚 / 機械割102.03% / 勝率53.2% / 平均56 33.6% / 中央56 23.2% / 56>=70 14.9% / 56>=50 27.7% / 56<30 59.6% / 設定4以下>=70 59.6% / RB<=300 34.0% / RB>400 42.6% / 合成<=130 17.0% / 合成<=140 38.3%",
+        {
+          minScore: 75,
+          maxDanger: 0,
+          requiredFlags: ["tamayaOhashiNeoHistoryReady", "tamayaOhashiNeoNoComplete"],
+        },
+        ["tamaya-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-ohashi-neo-near-reaction",
+        "自由_近隣反動",
+        "対象34日 / 選択41台 / RB1/318.8 / 合算1/140.6 / 平均+325.7枚 / 機械割102.51% / 平均56 31.4% / 56>=50 22.0% / 56<30 63.4% / RB主軸では本命未満の代替条件",
+        {
+          requiredFlags: ["tamayaOhashiNeoHistoryReady", "tamayaOhashiNeoNearReaction"],
+        },
+        ["tamaya-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-ohashi-neo-watch-history-short",
+        "見送り_履歴不足",
+        "21営業日履歴未満は採用条件から外し、スコア上限35点",
+        {
+          requiredFlags: ["tamayaOhashiNeoHistoryShort"],
+        },
+        ["tamaya-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-ohashi-neo-watch-previous-deep",
+        "見送り_前日大凹み",
+        "対象52日 / 選択65台 / RB1/398.9 / 合算1/163.5 / 平均-291.4枚 / 機械割97.44% / 平均56 17.9%",
+        {
+          requiredFlags: ["tamayaOhashiNeoHistoryReady", "tamayaOhashiNeoPreviousDeepDanger"],
+        },
+        ["tamaya-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-ohashi-neo-watch-five-deep",
+        "見送り_5日深沈み",
+        "対象53日 / 選択63台 / RB1/371.0 / 合算1/159.1 / 平均-257.4枚 / 機械割97.76% / 平均56 22.4% / 凹み返し狙いを否定",
+        {
+          requiredFlags: ["tamayaOhashiNeoHistoryReady", "tamayaOhashiNeoFiveDeepSink"],
+        },
+        ["tamaya-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-ohashi-neo-watch-seven-deep",
+        "見送り_7日深沈み",
+        "対象53日 / 選択61台 / RB1/385.9 / 合算1/157.9 / 平均-145.1枚 / 機械割98.68% / 平均56 20.2% / 長期沈みは放置寄り",
+        {
+          requiredFlags: ["tamayaOhashiNeoHistoryReady", "tamayaOhashiNeoSevenDeepSink"],
+        },
+        ["tamaya-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-ohashi-neo-watch-low-content",
+        "見送り_低内容連続",
+        "直近3日で合算1/200以上かつG3>=7,000は低内容連続として警告",
+        {
+          requiredFlags: ["tamayaOhashiNeoHistoryReady", "tamayaOhashiNeoLowContentContinuous"],
+        },
+        ["tamaya-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-ohashi-neo-watch-treatment-done",
+        "見送り_処遇完了",
+        "21日差枚+7,200枚以上、または10万G以上で+3,000枚以上は見えすぎ処遇完了として警告",
+        {
+          requiredFlags: ["tamayaOhashiNeoHistoryReady", "tamayaOhashiNeoTreatmentAnyDone"],
+        },
+        ["tamaya-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-ohashi-neo-watch-low-activity",
+        "見送り_低稼働",
+        "G7<12,000またはG14<26,000は情報不足として警告",
+        {
+          requiredFlags: ["tamayaOhashiNeoHistoryReady", "tamayaOhashiNeoLowActivity"],
+        },
+        ["tamaya-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-ohashi-neo-watch-danger2",
+        "見送り_危険2個以上",
+        "危険条件が2個以上ある台は高スコアでも見送り寄り",
+        {
+          minDanger: 2,
+          requiredFlags: ["tamayaOhashiNeoHistoryReady"],
+        },
+        ["tamaya-ohashi-neo-aim"],
+      ),
+      buildCondition(
         "slot-marumitsu-ohashi-neo-free-a",
         "自由A バランス",
         "対象76日 / 選択105台 / RB1/306.2 / 合算1/142.6 / 平均+446枚 / 機械割102.48% / 平均56 35.2% / 中央56 30.2% / 56>=50 27.6% / RB<=300 41.9% / RB>400 18.1% / 段階条件より実戦優先",
@@ -6355,6 +6613,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "plaza-honten-ii-neo-aim");
   } else if (isPlaza3Store(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "plaza3-neo-aim");
+  } else if (isTamayaOhashiStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "tamaya-ohashi-neo-aim");
   } else if (isSlotMarumitsuOhashiStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "slot-marumitsu-ohashi-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
@@ -7095,6 +7355,112 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "tamaya-ohashi-neo-aim") {
+      const tamayaRecentFiveBonusTotal = readNumber(metrics.recentFiveBonusTotal);
+      const tamayaRecentFiveRbTotal = readNumber(metrics.recentFiveRbTotal);
+      const tamayaRecentFiveBbTotal = Math.max(0, tamayaRecentFiveBonusTotal - tamayaRecentFiveRbTotal);
+      const tamayaOhashiNeoP56Hist5 = calculateNeoAimSettingFivePlusProbabilityFromTotals(
+        recentFiveGamesTotal,
+        tamayaRecentFiveBbTotal,
+        tamayaRecentFiveRbTotal,
+      );
+      const tamayaOhashiNeoHistoryReady = historyRowCount >= 21;
+      const tamayaOhashiNeoHistoryShort = historyRowCount < 21;
+      const tamayaOhashiNeoHighGames5 = recentFiveGamesTotal >= 28000;
+      const tamayaOhashiNeoG5AtLeast25000 = recentFiveGamesTotal >= 25000;
+      const tamayaOhashiNeoAngle5AtLeast140 =
+        features.recentFiveAngle >= 140 && recentFiveGamesTotal >= 18000;
+      const tamayaOhashiNeoHighContentContinuation = recentSevenMachineHighContentCount >= 2;
+      const tamayaOhashiNeoStrongUpAngle =
+        recentFiveNetTotal >= 3000 || tamayaOhashiNeoAngle5AtLeast140;
+      const tamayaOhashiNeoBonusReal =
+        features.recentFiveCombinedDenominator <= 145 && features.recentFiveRbDenominator <= 340;
+      const tamayaOhashiNeoStrongBonus =
+        features.recentFiveCombinedDenominator <= 135 && features.recentFiveRbDenominator <= 300;
+      const tamayaOhashiNeoVisibleTreatmentDone =
+        recentTwentyOneGamesTotal >= 100000 && recentTwentyOneNetTotal >= 3000;
+      const tamayaOhashiNeoTreatmentDone = recentTwentyOneNetTotal >= 7200;
+      const tamayaOhashiNeoTreatmentAnyDone =
+        tamayaOhashiNeoTreatmentDone || tamayaOhashiNeoVisibleTreatmentDone;
+      const tamayaOhashiNeoUnpaid =
+        recentTwentyOneNetTotal < 5500 && !tamayaOhashiNeoVisibleTreatmentDone;
+      const tamayaOhashiNeoPreviousDeepDanger = previousDifference <= -1300;
+      const tamayaOhashiNeoFiveDeepSink = recentFiveNetTotal <= -3500;
+      const tamayaOhashiNeoSevenDeepSink = recentSevenNetTotal <= -4300;
+      const tamayaOhashiNeoDeepSinkDanger =
+        tamayaOhashiNeoFiveDeepSink || tamayaOhashiNeoSevenDeepSink;
+      const tamayaOhashiNeoBigLossRisk = recentFourteenMinus1500StayDays >= 4;
+      const tamayaOhashiNeoLowContentContinuous =
+        features.recentThreeCombinedDenominator >= 200 && recentThreeGamesTotal >= 7000;
+      const tamayaOhashiNeoLowActivity =
+        recentSevenGamesTotal < 12000 || recentFourteenGamesTotal < 26000;
+      const tamayaOhashiNeoLongNeglect =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent > 60 &&
+        recentFourteenGamesTotal < 32000;
+      const dangerFlags = [
+        tamayaOhashiNeoPreviousDeepDanger,
+        tamayaOhashiNeoDeepSinkDanger,
+        tamayaOhashiNeoLowContentContinuous,
+        tamayaOhashiNeoTreatmentDone,
+        tamayaOhashiNeoVisibleTreatmentDone,
+        tamayaOhashiNeoLowActivity,
+        tamayaOhashiNeoLongNeglect,
+      ];
+      const dangerCount = dangerFlags.filter(Boolean).length;
+      const tamayaOhashiNeoNearReaction = adjacentMachineNetTotal3 <= -3800 && dangerCount === 0;
+      const tamayaOhashiNeoFreeContinuation =
+        tamayaOhashiNeoHighGames5 && tamayaOhashiNeoHighContentContinuation;
+      const tamayaOhashiNeoFreeStrong =
+        tamayaOhashiNeoFreeContinuation && recentFiveNetTotal >= 3000;
+      const tamayaOhashiNeoFreeBest =
+        tamayaOhashiNeoFreeContinuation && tamayaOhashiNeoAngle5AtLeast140;
+      const boostFlags = [
+        tamayaOhashiNeoHighGames5,
+        tamayaOhashiNeoHighContentContinuation,
+        tamayaOhashiNeoStrongUpAngle,
+        tamayaOhashiNeoBonusReal,
+        tamayaOhashiNeoStrongBonus,
+        tamayaOhashiNeoUnpaid,
+        tamayaOhashiNeoNearReaction,
+      ];
+
+      return {
+        ...features,
+        tamayaOhashiNeoP56Hist5,
+        tamayaOhashiNeoHistoryReady,
+        tamayaOhashiNeoHistoryShort,
+        tamayaOhashiNeoHighGames5,
+        tamayaOhashiNeoG5AtLeast25000,
+        tamayaOhashiNeoAngle5AtLeast140,
+        tamayaOhashiNeoHighContentContinuation,
+        tamayaOhashiNeoStrongUpAngle,
+        tamayaOhashiNeoBonusReal,
+        tamayaOhashiNeoStrongBonus,
+        tamayaOhashiNeoUnpaid,
+        tamayaOhashiNeoPreviousDeepDanger,
+        tamayaOhashiNeoFiveDeepSink,
+        tamayaOhashiNeoSevenDeepSink,
+        tamayaOhashiNeoDeepSinkDanger,
+        tamayaOhashiNeoBigLossRisk,
+        tamayaOhashiNeoLowContentContinuous,
+        tamayaOhashiNeoTreatmentDone,
+        tamayaOhashiNeoVisibleTreatmentDone,
+        tamayaOhashiNeoTreatmentAnyDone,
+        tamayaOhashiNeoLowActivity,
+        tamayaOhashiNeoLongNeglect,
+        tamayaOhashiNeoNearReaction,
+        tamayaOhashiNeoFreeContinuation,
+        tamayaOhashiNeoFreeStrong,
+        tamayaOhashiNeoFreeBest,
+        tamayaOhashiNeoNoComplete: !tamayaOhashiNeoTreatmentAnyDone,
+        treatmentDone: tamayaOhashiNeoTreatmentAnyDone,
+        lowConfidence: tamayaOhashiNeoHistoryShort || tamayaOhashiNeoLowActivity,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount,
+      };
+    }
+
     if (activeLogicKey === "slot-marumitsu-ohashi-neo-aim") {
       const slotMarumitsuOhashiNeoEffectiveDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
         ? daysSinceMachineHighContent
@@ -11724,6 +12090,100 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "tamaya-ohashi-neo-aim") {
+      const p56Hist5 = Number.isFinite(features.tamayaOhashiNeoP56Hist5)
+        ? features.tamayaOhashiNeoP56Hist5
+        : null;
+      let score = 25;
+
+      score += scoreAtLeast(recentFiveGamesTotal, [
+        { minimum: 28000, points: 15 },
+        { minimum: 25000, points: 13 },
+        { minimum: 20000, points: 9 },
+        { minimum: 15000, points: 5 },
+      ]);
+      score -= recentFiveGamesTotal < 10000 ? 8 : 0;
+
+      if (features.recentFiveCombinedDenominator <= 135 && features.recentFiveRbDenominator <= 300) {
+        score += 24;
+      } else if (features.recentFiveCombinedDenominator <= 138 && features.recentFiveRbDenominator <= 320) {
+        score += 18;
+      } else if (features.recentFiveCombinedDenominator <= 145 && features.recentFiveRbDenominator <= 340) {
+        score += 12;
+      } else if (features.recentFiveCombinedDenominator <= 155 && features.recentFiveRbDenominator <= 370) {
+        score += 5;
+      }
+
+      if (features.recentSevenCombinedDenominator <= 140) {
+        score += 8;
+      } else if (features.recentSevenCombinedDenominator <= 145) {
+        score += 5;
+      } else if (features.recentSevenCombinedDenominator >= 170) {
+        score -= 8;
+      }
+
+      if (Number.isFinite(p56Hist5)) {
+        if (p56Hist5 >= 0.45) {
+          score += 7;
+        } else if (p56Hist5 >= 0.25) {
+          score += 4;
+        } else if (p56Hist5 < 0.05 && recentFiveGamesTotal >= 15000) {
+          score -= 5;
+        }
+      }
+
+      score += scoreAtLeast(recentFiveNetTotal, [
+        { minimum: 4300, points: 10 },
+        { minimum: 3000, points: 8 },
+        { minimum: 1500, points: 4 },
+      ]);
+      score += recentThreeNetTotal >= 2500 ? 4 : 0;
+      score += features.recentFiveAngle >= 140 && recentFiveGamesTotal >= 18000 ? 3 : 0;
+      score += recentSevenMachineHighContentCount >= 3 ? 4 : recentSevenMachineHighContentCount >= 2 ? 2 : 0;
+      score += scoreInRange(daysSinceMachineHighContent, 8, 28, 4);
+      score += scoreInRange(daysSinceMachineHighContent, 29, 60, 2);
+      score += adjacentMachineNetTotal3 <= -3800 ? 6 : adjacentMachineNetTotal3 <= -2500 ? 3 : 0;
+
+      score -= scoreAtMost(previousDifference, [
+        { maximum: -1300, points: 16 },
+        { maximum: -900, points: 10 },
+      ]);
+      score -= scoreAtMost(recentThreeNetTotal, [
+        { maximum: -2200, points: 12 },
+        { maximum: -1500, points: 7 },
+      ]);
+      score -= scoreAtMost(recentFiveNetTotal, [
+        { maximum: -3500, points: 14 },
+        { maximum: -2500, points: 9 },
+      ]);
+      score -= scoreAtMost(recentSevenNetTotal, [
+        { maximum: -4300, points: 12 },
+        { maximum: -3300, points: 8 },
+      ]);
+      score -= recentFourteenNetTotal <= -6000 ? 8 : 0;
+      score -= recentFourteenMinus1500StayDays >= 4 ? 7 : 0;
+      score -= features.recentThreeCombinedDenominator >= 200 && recentThreeGamesTotal >= 7000 ? 6 : 0;
+      score -= scoreAtLeast(recentTwentyOneNetTotal, [
+        { minimum: 7200, points: 10 },
+        { minimum: 5500, points: 5 },
+      ]);
+      score -= recentTwentyOneGamesTotal >= 100000 && recentTwentyOneNetTotal >= 3000 ? 6 : 0;
+      score -= recentSevenGamesTotal < 12000 ? 8 : 0;
+      score -= recentFourteenGamesTotal < 26000 ? 5 : 0;
+      score -=
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent > 60 &&
+        recentFourteenGamesTotal < 32000
+          ? 8
+          : 0;
+
+      if (historyRowCount < 21) {
+        score = Math.min(score, 35);
+      }
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (activeLogicKey === "slot-marumitsu-ohashi-neo-aim") {
       const slotMarumitsuOhashiNeoEffectiveDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
         ? daysSinceMachineHighContent
