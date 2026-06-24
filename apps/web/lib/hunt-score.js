@@ -186,6 +186,10 @@ const KING2_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const WONDERLAND_1188_TACHIARAI_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const GOGO_ARENA_TENJIN_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -1088,6 +1092,21 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "king2-neo-aim",
       "ネオアイムジャグラーＥＸ": "king2-neo-aim",
+    },
+  },
+  {
+    key: "wonderland-1188-tachiarai",
+    storeNames: [
+      "ワンダーランド1188大刀洗店",
+      "ワンダーランド1188大刀洗",
+      "ワンダーランド１１８８大刀洗店",
+      "ワンダーランド１１８８大刀洗",
+    ],
+    targetMachines: WONDERLAND_1188_TACHIARAI_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "wonderland-1188-tachiarai-neo-aim",
+      "ネオアイムジャグラーＥＸ": "wonderland-1188-tachiarai-neo-aim",
     },
   },
   {
@@ -2176,6 +2195,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 140;
     }
+    if (contentRule === "wonderland-1188-tachiarai-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 4000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 4000 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     if (contentRule === "sengawa-uno-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -2608,6 +2634,16 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 140;
     }
+    if (contentRule === "wonderland-1188-tachiarai-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return (
+          (games >= 4000 && settingFivePlusProbability >= 0.5) ||
+          (games >= 3000 && settingFivePlusProbability >= 0.35 && rbDenominator <= 330 && combinedDenominator <= 150)
+        );
+      }
+      return games >= 3000 && rbDenominator <= 330 && combinedDenominator <= 150;
+    }
     if (contentRule === "super-hollywood-1120-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -2735,6 +2771,7 @@ function isMachineLowContentWindowRow(row, machineName, config = null) {
       "iidabashi-presas-neo-aim",
       "wonderland-minamigaoka-neo-aim",
       "wonderland-sue-neo-aim",
+      "wonderland-1188-tachiarai-neo-aim",
       "nakagawa-king-neo-aim",
       "king2-neo-aim",
       "sengawa-uno-neo-aim",
@@ -2816,6 +2853,15 @@ function isMachineWeakContentWindowRow(row, machineName, config = null) {
       );
     }
     if (readMachineContentRule(config, machineName) === "wonderland-sue-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        games >= 2500 &&
+        ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability < 0.3) ||
+          rbDenominator > 400 ||
+          combinedDenominator > 170)
+      );
+    }
+    if (readMachineContentRule(config, machineName) === "wonderland-1188-tachiarai-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       return (
         games >= 2500 &&
@@ -3146,6 +3192,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 4000 && settingFivePlusProbability >= 0.7 && rbDenominator <= 270 && combinedDenominator <= 135;
     }
     return games >= 4000 && rbDenominator <= 270 && combinedDenominator <= 135;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "wonderland-1188-tachiarai-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 5000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 5000 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&

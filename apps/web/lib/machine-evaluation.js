@@ -276,6 +276,16 @@ function isKing2Store(storeName) {
   );
 }
 
+function isWonderland1188TachiaraiStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "ワンダーランド1188大刀洗店",
+    "ワンダーランド1188大刀洗",
+    "ワンダーランド１１８８大刀洗店",
+    "ワンダーランド１１８８大刀洗",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
 function isBeamHikariStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["ビームヒカリ店", "ビームヒカリ", "BEAM HIKARI", "BEAMHIKARI", "ＢＥＡＭヒカリ店"].some(
@@ -2167,6 +2177,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "wonderland-sue-neo-aim",
         "須恵ネオアイム_連敗返済据え周辺ロジック_v1",
         "wonderland-sue-neo-free-a",
+      ),
+      buildLogicVariant(
+        "wonderland-1188-tachiarai-neo-aim",
+        "WL1188大刀洗_ネオアイムEX_深沈み未返済ロジック",
+        "wl1188-neo-free-unpaid-rest",
       ),
       buildLogicVariant(
         "nakagawa-king-neo-aim",
@@ -4544,6 +4559,160 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["wonderlandSueNeoHistoryReady", "wonderlandSueNeoBbBiased"],
         },
         ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wl1188-neo-free-unpaid-rest",
+        "未返済＋間隔",
+        "25台 / RB1/276.2 / 合算1/132.1 / 平均+941枚 / 104.88% / 勝率76.0% / 平均56 47.7% / 56>=50% 48.0% / 自由探索の最有力",
+        {
+          requiredFlags: ["wl1188NeoHistoryReady", "wl1188NeoFreeUnpaidInterval"],
+        },
+        ["wonderland-1188-tachiarai-neo-aim"],
+      ),
+      buildCondition(
+        "wl1188-neo-rb270",
+        "最本命RB270_件数少",
+        "9台 / RB1/248.0 / 合算1/124.9 / 平均+1230枚 / 106.99% / 勝率77.8% / 平均56 57.6% / 56>=50% 55.6% / 件数9のため過信禁止",
+        {
+          minScore: 75,
+          requiredFlags: ["wl1188NeoHistoryReady", "wl1188NeoVeryDeep14"],
+        },
+        ["wonderland-1188-tachiarai-neo-aim"],
+      ),
+      buildCondition(
+        "wl1188-neo-rb280",
+        "強RB280/点数＋未返済",
+        "30台 / RB1/276.9 / 合算1/133.8 / 平均+789枚 / 104.13% / 勝率70.0% / 平均56 46.6% / 56>=50% 46.7%",
+        {
+          minScore: 75,
+          requiredFlags: ["wl1188NeoHistoryReady", "wl1188NeoDeep14"],
+        },
+        ["wonderland-1188-tachiarai-neo-aim"],
+      ),
+      buildCondition(
+        "wl1188-neo-rb290",
+        "本命RB290",
+        "42台 / RB1/283.5 / 合算1/136.1 / 平均+639枚 / 103.44% / 勝率59.5% / 平均56 42.6% / 56>=50% 40.5%",
+        {
+          minScore: 75,
+          maxDanger: 0,
+          requiredFlags: ["wl1188NeoHistoryReady"],
+        },
+        ["wonderland-1188-tachiarai-neo-aim"],
+      ),
+      buildCondition(
+        "wl1188-neo-rb300",
+        "弱本命RB300",
+        "73台 / RB1/298.6 / 合算1/140.3 / 平均+449枚 / 102.47% / 勝率54.8% / 平均56 36.4% / 56>=50% 30.1%",
+        {
+          minScore: 70,
+          maxDanger: 0,
+          requiredFlags: ["wl1188NeoHistoryReady"],
+        },
+        ["wonderland-1188-tachiarai-neo-aim"],
+      ),
+      buildCondition(
+        "wl1188-neo-rb310",
+        "広めRB310",
+        "120台 / RB1/304.2 / 合算1/140.9 / 平均+485枚 / 102.75% / 勝率56.7% / 平均56 34.6% / 56>=50% 25.8%",
+        {
+          minScore: 65,
+          requiredFlags: ["wl1188NeoHistoryReady"],
+        },
+        ["wonderland-1188-tachiarai-neo-aim"],
+      ),
+      buildCondition(
+        "wl1188-neo-free-deep-unpaid",
+        "深沈み未返済",
+        "41台 / RB1/288.6 / 合算1/136.2 / 平均+696枚 / 103.84% / 勝率73.2% / 平均56 41.1% / 56>=50% 36.6%",
+        {
+          requiredFlags: ["wl1188NeoHistoryReady", "wl1188NeoFreeDeepUnpaid"],
+        },
+        ["wonderland-1188-tachiarai-neo-aim"],
+      ),
+      buildCondition(
+        "wl1188-neo-free-deep-single",
+        "深沈み単独",
+        "71台 / RB1/307.5 / 合算1/143.1 / 平均+306枚 / 101.76% / 勝率53.5% / 平均56 33.3% / 56>=50% 21.1%",
+        {
+          requiredFlags: ["wl1188NeoHistoryReady", "wl1188NeoFreeDeepSingle"],
+        },
+        ["wonderland-1188-tachiarai-neo-aim"],
+      ),
+      buildCondition(
+        "wl1188-neo-free-prev-deep",
+        "前日大凹み重複",
+        "19台 / RB1/288.3 / 合算1/137.3 / 平均+637枚 / 103.19% / 勝率52.6% / 平均56 40.7% / 件数少なめ",
+        {
+          minScore: 70,
+          requiredFlags: ["wl1188NeoHistoryReady", "wl1188NeoPreviousDeepLoss"],
+        },
+        ["wonderland-1188-tachiarai-neo-aim"],
+      ),
+      buildCondition(
+        "wl1188-neo-gap10",
+        "次点差10+",
+        "58台 / RB1/305.7 / 合算1/142.5 / 平均+358枚 / 102.07% / 勝率55.2% / 補助ラベル",
+        {
+          rankMax: 1,
+          minNextGap: 10,
+          requiredFlags: ["wl1188NeoHistoryReady"],
+        },
+        ["wonderland-1188-tachiarai-neo-aim"],
+      ),
+      buildCondition(
+        "wl1188-neo-watch-no-go",
+        "見送り",
+        "履歴不足、危険2個以上、低稼働、処遇完了支えなし、出過ぎ、高スコアでも強化不足は見送り寄り",
+        {
+          anyOf: [
+            { requiredFlags: ["wl1188NeoHistoryShort"] },
+            { minDanger: 2, requiredFlags: ["wl1188NeoHistoryReady"] },
+            { maxScore: 77, requiredFlags: ["wl1188NeoHistoryReady", "wl1188NeoLowActivity"] },
+            { requiredFlags: ["wl1188NeoHistoryReady", "wl1188NeoTreatmentDoneNoSupport"] },
+            { requiredFlags: ["wl1188NeoHistoryReady", "wl1188NeoPlusTooMuch"] },
+            { minScore: 70, maxBoost: 1, requiredFlags: ["wl1188NeoHistoryReady"] },
+          ],
+        },
+        ["wonderland-1188-tachiarai-neo-aim"],
+      ),
+      buildCondition(
+        "wl1188-neo-watch-danger2",
+        "危険複数",
+        "危険条件2個以上は原則見送り",
+        {
+          minDanger: 2,
+          requiredFlags: ["wl1188NeoHistoryReady"],
+        },
+        ["wonderland-1188-tachiarai-neo-aim"],
+      ),
+      buildCondition(
+        "wl1188-neo-watch-low-activity",
+        "低稼働高リスク",
+        "直近3日G数5000G未満かつ7日G数14000G未満。78点未満は見送り",
+        {
+          maxScore: 77,
+          requiredFlags: ["wl1188NeoHistoryReady", "wl1188NeoLowActivity"],
+        },
+        ["wonderland-1188-tachiarai-neo-aim"],
+      ),
+      buildCondition(
+        "wl1188-neo-watch-treatment",
+        "処遇完了優先",
+        "前日または直近3日で大きく返しており、返済未完や高内容不発の支えがない台",
+        {
+          requiredFlags: ["wl1188NeoHistoryReady", "wl1188NeoTreatmentDoneNoSupport"],
+        },
+        ["wonderland-1188-tachiarai-neo-aim"],
+      ),
+      buildCondition(
+        "wl1188-neo-watch-history-short",
+        "履歴不足",
+        "同一台番の履歴7営業日未満は採用条件から外し、点数上限45点",
+        {
+          requiredFlags: ["wl1188NeoHistoryShort"],
+        },
+        ["wonderland-1188-tachiarai-neo-aim"],
       ),
       buildCondition(
         "nakagawa-king-neo-watch-no-go",
@@ -8149,6 +8318,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "nakagawa-king-neo-aim");
   } else if (isKing2Store(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "king2-neo-aim");
+  } else if (isWonderland1188TachiaraiStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "wonderland-1188-tachiarai-neo-aim");
   } else if (isMillionTobuNerimaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "million-tobu-nerima-neo-aim");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "funky") {
@@ -10329,6 +10500,109 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         wonderlandSueNeoBbBiasedNoSupport,
         treatmentDone: wonderlandSueNeoTreatmentDone || wonderlandSueNeoShortTreatment,
         lowConfidence: wonderlandSueNeoHistoryShort || wonderlandSueNeoLowActivity,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === "wonderland-1188-tachiarai-neo-aim") {
+      const wl1188NeoHistoryReady = historyRowCount >= 7;
+      const wl1188NeoHistoryShort = historyRowCount < 7;
+      const wl1188NeoLosingStreak = Math.max(historyLosingStreak, nonPositiveStreak);
+      const wl1188NeoDeepSink = recentSevenNetTotal <= -2000 && recentSevenGamesTotal >= 18000;
+      const wl1188NeoUnpaid = recentFourteenNetTotal <= -3500 && recentFourteenGamesTotal >= 35000;
+      const wl1188NeoSteepSink = recentFiveGamesTotal >= 12000 && features.recentFiveAngle <= -100;
+      const wl1188NeoGoodInterval =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 4 &&
+        daysSinceMachineHighContent <= 14;
+      const wl1188NeoInterval4To28 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 4 &&
+        daysSinceMachineHighContent <= 28;
+      const wl1188NeoPreviousHighUnfinished =
+        previousGames >= 5000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5 &&
+        previousDifference <= 500;
+      const wl1188NeoGamesTrust = recentSevenGamesTotal >= 22000 && recentThreeGamesTotal >= 8000;
+      const wl1188NeoRecentWeakImpression =
+        recentThreeGamesTotal >= 9000 &&
+        features.recentThreeRbDenominator > 360 &&
+        features.recentThreeCombinedDenominator > 155;
+      const wl1188NeoTreatmentDone = previousDifference >= 1500 || recentThreeNetTotal >= 2800;
+      const wl1188NeoLowActivity = recentThreeGamesTotal < 5000 && recentSevenGamesTotal < 14000;
+      const wl1188NeoLongNeglect =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 29 &&
+        recentFourteenGamesTotal < 35000;
+      const wl1188NeoBbBiasedOutput =
+        previousGames >= 5000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability < 0.3 &&
+        previousDifference >= 1500;
+      const wl1188NeoLongLosingNeglect = wl1188NeoLosingStreak >= 8;
+      const wl1188NeoRecentShowMany = recentSevenMachineHighContentCount >= 3 && recentSevenNetTotal > 0;
+      const wl1188NeoFreeDeepSingle = recentSevenNetTotal <= -5000;
+      const wl1188NeoFreeDeepUnpaid = recentSevenNetTotal <= -4000 && recentFourteenNetTotal <= -6000;
+      const wl1188NeoFreeUnpaidInterval = wl1188NeoFreeDeepUnpaid && wl1188NeoInterval4To28;
+      const wl1188NeoDeep14 = recentFourteenNetTotal <= -6000;
+      const wl1188NeoVeryDeep14 = recentFourteenNetTotal <= -8000;
+      const wl1188NeoPreviousDeepLoss = previousDifference <= -1500;
+      const wl1188NeoPlusTooMuch = recentFourteenNetTotal >= 4500 && recentSevenNetTotal >= 2500;
+      const wl1188NeoTreatmentDoneNoSupport =
+        wl1188NeoTreatmentDone && !wl1188NeoUnpaid && !wl1188NeoPreviousHighUnfinished;
+      const boostFlags = [
+        wl1188NeoDeepSink,
+        wl1188NeoUnpaid,
+        wl1188NeoSteepSink,
+        wl1188NeoGoodInterval,
+        wl1188NeoPreviousHighUnfinished,
+        wl1188NeoGamesTrust,
+        wl1188NeoRecentWeakImpression,
+        wl1188NeoFreeDeepSingle,
+        wl1188NeoFreeDeepUnpaid,
+      ];
+      const dangerFlags = [
+        wl1188NeoTreatmentDone,
+        wl1188NeoLowActivity,
+        wl1188NeoLongNeglect,
+        wl1188NeoBbBiasedOutput,
+        wl1188NeoLongLosingNeglect,
+        wl1188NeoRecentShowMany,
+        wl1188NeoPlusTooMuch,
+      ];
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability,
+        wl1188NeoHistoryReady,
+        wl1188NeoHistoryShort,
+        wl1188NeoLosingStreak,
+        wl1188NeoDeepSink,
+        wl1188NeoUnpaid,
+        wl1188NeoSteepSink,
+        wl1188NeoGoodInterval,
+        wl1188NeoInterval4To28,
+        wl1188NeoPreviousHighUnfinished,
+        wl1188NeoGamesTrust,
+        wl1188NeoRecentWeakImpression,
+        wl1188NeoTreatmentDone,
+        wl1188NeoLowActivity,
+        wl1188NeoLongNeglect,
+        wl1188NeoBbBiasedOutput,
+        wl1188NeoLongLosingNeglect,
+        wl1188NeoRecentShowMany,
+        wl1188NeoFreeDeepSingle,
+        wl1188NeoFreeDeepUnpaid,
+        wl1188NeoFreeUnpaidInterval,
+        wl1188NeoDeep14,
+        wl1188NeoVeryDeep14,
+        wl1188NeoPreviousDeepLoss,
+        wl1188NeoPlusTooMuch,
+        wl1188NeoTreatmentDoneNoSupport,
+        treatmentDone: wl1188NeoTreatmentDone,
+        lowConfidence: wl1188NeoHistoryShort || wl1188NeoLowActivity,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -16076,6 +16350,120 @@ function calculateMachineScore(definition, metrics, features) {
 
       if (historyRowCount < 21) {
         score = Math.min(score, 40);
+      }
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === "wonderland-1188-tachiarai-neo-aim") {
+      let score = 0;
+      const wl1188NeoLosingStreak = Math.max(historyLosingStreak, nonPositiveStreak);
+
+      score += historyRowCount >= 14 ? 8 : historyRowCount >= 7 ? 5 : 0;
+      score += scoreAtLeast(recentSevenGamesTotal, [
+        { minimum: 26000, points: 7 },
+        { minimum: 22000, points: 5 },
+        { minimum: 18000, points: 3 },
+      ]);
+      score -= recentSevenGamesTotal < 12000 ? 8 : 0;
+      score += scoreAtLeast(recentThreeGamesTotal, [
+        { minimum: 10000, points: 5 },
+        { minimum: 8000, points: 3 },
+      ]);
+      score -= recentThreeGamesTotal < 4500 ? 5 : 0;
+
+      score += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -5000, points: 18 },
+        { maximum: -4000, points: 15 },
+        { maximum: -2500, points: 10 },
+        { maximum: -1000, points: 6 },
+      ]);
+      score -= recentSevenNetTotal >= 2500 ? 8 : 0;
+      score += scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -6000, points: 16 },
+        { maximum: -4500, points: 12 },
+        { maximum: -3000, points: 8 },
+        { maximum: -1500, points: 5 },
+      ]);
+      score -= recentFourteenNetTotal >= 4500 ? 10 : 0;
+      score += recentSevenNetTotal <= -4000 && recentFourteenNetTotal <= -6000 ? 8 : 0;
+      score += recentFiveNetTotal <= -3500 && recentFourteenNetTotal <= -5000 ? 6 : 0;
+
+      score += scoreAtMost(features.recentSevenAngle, [
+        { maximum: -150, points: 7 },
+        { maximum: -100, points: 5 },
+      ]);
+      score -= features.recentSevenAngle >= 120 ? 5 : 0;
+      if (recentFourteenGamesTotal >= 30000 && features.recentFourteenRbDenominator >= 380) {
+        score += 7;
+      } else if (recentFourteenGamesTotal >= 25000 && features.recentFourteenRbDenominator >= 360) {
+        score += 5;
+      }
+      score += recentSevenGamesTotal >= 18000 && features.recentSevenCombinedDenominator >= 170 ? 4 : 0;
+
+      if (
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 4 &&
+        daysSinceMachineHighContent <= 14
+      ) {
+        score += 9;
+      } else if (
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 15 &&
+        daysSinceMachineHighContent <= 28
+      ) {
+        score += 6;
+      } else if (
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 2 &&
+        daysSinceMachineHighContent <= 3
+      ) {
+        score += 3;
+      } else if (daysSinceMachineHighContent === 1) {
+        score -= 5;
+      } else if (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 29) {
+        score -= 7;
+      }
+
+      if (wl1188NeoLosingStreak >= 8) {
+        score -= 5;
+      } else if (wl1188NeoLosingStreak >= 4) {
+        score += 8;
+      } else if (wl1188NeoLosingStreak >= 2) {
+        score += 6;
+      } else if (wl1188NeoLosingStreak >= 1) {
+        score += 2;
+      }
+
+      const previousFivePlus =
+        previousGames >= 4500 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5;
+      score += previousFivePlus && previousDifference <= 500 ? 10 : 0;
+      score += previousFivePlus && previousDifference <= 1200 && recentFourteenNetTotal < 0 ? 5 : 0;
+      score -= previousFivePlus && previousDifference >= 1800 ? 8 : 0;
+
+      if (previousDifference >= 1800) {
+        score -= 12;
+      } else if (previousDifference >= 1000) {
+        score -= 7;
+      }
+      if (recentThreeNetTotal >= 3000) {
+        score -= 10;
+      } else if (recentThreeNetTotal >= 2000) {
+        score -= 6;
+      }
+      score -= recentSevenMachineHighContentCount >= 3 && recentSevenNetTotal > 0 ? 8 : 0;
+      score -= recentThreeGamesTotal < 4500 && recentSevenGamesTotal < 14000 ? 7 : 0;
+      score -=
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 36 &&
+        recentFourteenGamesTotal < 35000
+          ? 5
+          : 0;
+
+      if (historyRowCount < 7) {
+        score = Math.min(score, 45);
       }
 
       return Math.round(clamp(score, 0, 100));
