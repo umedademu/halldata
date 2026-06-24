@@ -201,6 +201,10 @@ const TAMAYA_OHASHI_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const TAMAYA_HONTEN_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const HAKATA_123_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -930,6 +934,17 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "tamaya-ohashi-neo-aim",
       "ネオアイムジャグラーＥＸ": "tamaya-ohashi-neo-aim",
+    },
+  },
+  {
+    key: "tamaya-honten",
+    storeNames: ["玉屋本店", "玉屋本店店", "TAMAYA本店", "ＴＡＭＡＹＡ本店"],
+    targetMachines: TAMAYA_HONTEN_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    resetHistoryDates: ["2026-03-18"],
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "tamaya-honten-neo-aim",
+      "ネオアイムジャグラーＥＸ": "tamaya-honten-neo-aim",
     },
   },
   {
@@ -2040,6 +2055,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3500 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
+    if (contentRule === "tamaya-honten-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     if (contentRule === "tamaya-ohashi-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -2413,6 +2435,14 @@ function isMachineLowContentWindowRow(row, machineName, config = null) {
 
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "tamaya-honten-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    return Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability < 0.3;
+  }
+
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     [
       "million-tobu-nerima-neo-aim",
       "chikushino-neo-aim",
@@ -2530,6 +2560,15 @@ function isMachineWeakContentWindowRow(row, machineName, config = null) {
         games >= 2500 &&
         ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability < 0.3) ||
           rbDenominator > 400 ||
+          combinedDenominator > 170)
+      );
+    }
+    if (readMachineContentRule(config, machineName) === "tamaya-honten-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        games >= 3000 &&
+        ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability < 0.3) ||
+          rbDenominator > 420 ||
           combinedDenominator > 170)
       );
     }
@@ -2765,6 +2804,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 5000 && settingFivePlusProbability >= 0.7;
     }
     return games >= 5000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "tamaya-honten-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3500 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3500 && rbDenominator <= 270 && combinedDenominator <= 135;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&

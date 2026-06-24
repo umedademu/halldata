@@ -378,6 +378,13 @@ function isTamayaOhashiStore(storeName) {
   );
 }
 
+function isTamayaHontenStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["玉屋本店", "玉屋本店店", "TAMAYA本店", "ＴＡＭＡＹＡ本店"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function readDateDayNumber(dateText) {
   const normalized = normalizeText(dateText);
   const match = normalized.match(/^\d{4}-\d{2}-(\d{2})$/u) ?? normalized.match(/^\d{2}\/\d{2}\/(\d{2})$/u);
@@ -2109,6 +2116,21 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "tamaya-ohashi-neo-aim",
         "玉屋555大橋店_ネオアイムEX_全日共通_継続本物感スコア",
         "tamaya-ohashi-neo-free-continuation",
+      ),
+      buildLogicVariant(
+        "tamaya-honten-neo-aim",
+        "玉屋本店_ネオアイムEX_低稼働REG枯れ返済ロジック_v1",
+        "tamaya-honten-neo-main305",
+      ),
+      buildLogicVariant(
+        "tamaya-honten-neo-aim-normal",
+        "玉屋本店_ネオアイムEX_通常日_低GREG枯れ参考ロジック_v1",
+        "tamaya-honten-neo-normal-reference",
+      ),
+      buildLogicVariant(
+        "tamaya-honten-neo-aim-event",
+        "玉屋本店_ネオアイムEX_特定日_前日低GREG枯れ最本命ロジック_v1",
+        "tamaya-honten-neo-event-best280",
       ),
       buildLogicVariant(
         "slot-marumitsu-ohashi-neo-aim",
@@ -4918,6 +4940,235 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["tamaya-ohashi-neo-aim"],
       ),
       buildCondition(
+        "tamaya-honten-neo-watch-history-short",
+        "見送り_履歴不足",
+        "5営業日履歴未満は玉屋本店ネオアイムの採用条件から外し、スコア上限35点",
+        {
+          requiredFlags: ["tamayaHontenNeoHistoryShort"],
+        },
+        ["tamaya-honten-neo-aim", "tamaya-honten-neo-aim-normal", "tamaya-honten-neo-aim-event"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-watch-low-trust",
+        "参考_履歴7日未満",
+        "5営業日以上7営業日未満は参考扱い。旧配置と新配置の履歴はつなげない",
+        {
+          requiredFlags: ["tamayaHontenNeoLowTrust"],
+        },
+        ["tamaya-honten-neo-aim", "tamaya-honten-neo-aim-normal", "tamaya-honten-neo-aim-event"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-free-a-all",
+        "自由A_全日本命",
+        "G5<=12,000、REG枯れ、直近7日で設定5/6級なしを重視 / 機械割116%",
+        {
+          requiredFlags: ["tamayaHontenNeoFreeAAllMain"],
+        },
+        ["tamaya-honten-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-free-b-all",
+        "自由B_全日返済未完",
+        "前日G<1,500、直近高内容から4〜14日、5日差枚-2,500枚以下 / 機械割110%",
+        {
+          requiredFlags: ["tamayaHontenNeoFreeBAllUnpaid"],
+        },
+        ["tamaya-honten-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-wide310",
+        "全日広め310",
+        "低稼働REG枯れを広めに拾う全日候補 / 機械割104%",
+        {
+          minScore: 85,
+          requiredFlags: ["tamayaHontenNeoHistoryReady", "tamayaHontenNeoLowG5", "tamayaHontenNeoRb3Depleted450"],
+        },
+        ["tamaya-honten-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-weak305",
+        "全日弱め305",
+        "全日広めからスコアを上げた弱め候補 / 機械割108%",
+        {
+          minScore: 95,
+          requiredFlags: ["tamayaHontenNeoHistoryReady", "tamayaHontenNeoLowG5", "tamayaHontenNeoRb3Depleted450"],
+        },
+        ["tamaya-honten-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-main305",
+        "全日本命305",
+        "低稼働REG枯れ、直近7日で設定5/6級なしを満たす全日本命 / 機械割116%",
+        {
+          requiredFlags: [
+            "tamayaHontenNeoHistoryReady",
+            "tamayaHontenNeoLowG5",
+            "tamayaHontenNeoRb3Depleted450",
+            "tamayaHontenNeoNoHigh7",
+          ],
+        },
+        ["tamaya-honten-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-strong300",
+        "全日強め300",
+        "全日本命に前日G<1,000を重ねた強め条件 / 機械割120%",
+        {
+          minScore: 95,
+          requiredFlags: [
+            "tamayaHontenNeoHistoryReady",
+            "tamayaHontenNeoLowG5",
+            "tamayaHontenNeoRb3Depleted450",
+            "tamayaHontenNeoPreviousLowG1000",
+          ],
+        },
+        ["tamaya-honten-neo-aim"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-watch-danger2",
+        "見送り_危険2個以上",
+        "高内容直後、高G直後、近隣処遇済みなど危険条件が2個以上ある台は見送り寄り",
+        {
+          minDanger: 2,
+          requiredFlags: ["tamayaHontenNeoHistoryReady"],
+        },
+        ["tamaya-honten-neo-aim", "tamaya-honten-neo-aim-normal", "tamaya-honten-neo-aim-event"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-normal-reference",
+        "通常日_参考候補",
+        "通常日は弱め。前日低G、REG枯れ、直近7日沈みを満たす参考候補 / 機械割101%",
+        {
+          requiredFlags: ["tamayaHontenNeoNormalReference"],
+        },
+        ["tamaya-honten-neo-aim-normal"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-normal-compromise",
+        "通常日_妥協候補",
+        "通常日の妥協候補。前日G<1,000、REG枯れ、5日差枚-1,000枚以下 / 機械割98%",
+        {
+          requiredFlags: ["tamayaHontenNeoNormalCompromise"],
+        },
+        ["tamaya-honten-neo-aim-normal"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-normal-danger",
+        "通常日_危険寄り",
+        "通常日の高G後、直近高内容後、近隣処遇済みは危険寄り / 機械割86%",
+        {
+          requiredFlags: ["tamayaHontenNeoHistoryReady", "tamayaHontenNeoNormalDanger"],
+        },
+        ["tamaya-honten-neo-aim-normal"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-normal-weak-boost",
+        "通常日_根拠薄",
+        "通常日で根拠が1個以下の台は採用を落とす / 機械割91%",
+        {
+          maxBoost: 1,
+          requiredFlags: ["tamayaHontenNeoHistoryReady"],
+        },
+        ["tamaya-honten-neo-aim-normal"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-event-free-c-best",
+        "自由C_特定最本命",
+        "特定日の最本命。前日G<1,000、R5>=420、直近7日沈み、7日高内容なし / 機械割124%",
+        {
+          requiredFlags: ["tamayaHontenNeoEventBest280"],
+        },
+        ["tamaya-honten-neo-aim-event"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-event-free-d-strong",
+        "自由D_特定本命補助",
+        "特定日の補助本命。前日低G、低稼働REG枯れ、14日高内容1回以下 / 機械割118%",
+        {
+          requiredFlags: ["tamayaHontenNeoEventStrong285"],
+        },
+        ["tamaya-honten-neo-aim-event"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-event-wide310",
+        "特定日_広め310",
+        "特定日はREG枯れを広めに拾う候補 / 機械割107%",
+        {
+          minScore: 80,
+          requiredFlags: ["tamayaHontenNeoHistoryReady", "tamayaHontenNeoRb3Depleted450"],
+        },
+        ["tamaya-honten-neo-aim-event"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-event-weak303",
+        "特定日_弱め303",
+        "特定日の弱め候補。低稼働を残した台を優先 / 機械割110%",
+        {
+          minScore: 90,
+          requiredFlags: ["tamayaHontenNeoHistoryReady", "tamayaHontenNeoLowG5"],
+        },
+        ["tamaya-honten-neo-aim-event"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-event-main285",
+        "特定日_本命285",
+        "前日G<1,000、R5>=420、直近7日沈みを満たす特定日本命 / 機械割119%",
+        {
+          requiredFlags: [
+            "tamayaHontenNeoHistoryReady",
+            "tamayaHontenNeoPreviousLowG1000",
+            "tamayaHontenNeoRb5Depleted420",
+            "tamayaHontenNeoRecent7Sink2000",
+          ],
+        },
+        ["tamaya-honten-neo-aim-event"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-event-strong285",
+        "特定日_強め285",
+        "特定日本命に低稼働REG枯れと14日高内容1回以下を重ねる / 機械割121%",
+        {
+          requiredFlags: [
+            "tamayaHontenNeoHistoryReady",
+            "tamayaHontenNeoPreviousLowG1000",
+            "tamayaHontenNeoLowG5",
+            "tamayaHontenNeoRb3Depleted450",
+            "tamayaHontenNeoHigh14AtMost1",
+          ],
+        },
+        ["tamaya-honten-neo-aim-event"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-event-best280",
+        "特定日_最本命280",
+        "前日G<1,000、R5>=420、7日高内容なし、直近7日沈みの最本命 / 機械割126%",
+        {
+          requiredFlags: [
+            "tamayaHontenNeoHistoryReady",
+            "tamayaHontenNeoPreviousLowG1000",
+            "tamayaHontenNeoRb5Depleted420",
+            "tamayaHontenNeoNoHigh7",
+            "tamayaHontenNeoRecent7Sink2000",
+          ],
+        },
+        ["tamaya-honten-neo-aim-event"],
+      ),
+      buildCondition(
+        "tamaya-honten-neo-event-reference270",
+        "特定日_参考270",
+        "G3<=5,000、G5<=10,000、REG枯れ、14日高内容1回以下の参考線 / 機械割115%",
+        {
+          requiredFlags: [
+            "tamayaHontenNeoHistoryReady",
+            "tamayaHontenNeoLowG3Reference",
+            "tamayaHontenNeoLowG5Reference",
+            "tamayaHontenNeoRb3Depleted450",
+            "tamayaHontenNeoHigh14AtMost1",
+          ],
+        },
+        ["tamaya-honten-neo-aim-event"],
+      ),
+      buildCondition(
         "slot-marumitsu-ohashi-neo-free-a",
         "自由A バランス",
         "対象76日 / 選択105台 / RB1/306.2 / 合算1/142.6 / 平均+446枚 / 機械割102.48% / 平均56 35.2% / 中央56 30.2% / 56>=50 27.6% / RB<=300 41.9% / RB>400 18.1% / 段階条件より実戦優先",
@@ -6615,6 +6866,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "plaza3-neo-aim");
   } else if (isTamayaOhashiStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "tamaya-ohashi-neo-aim");
+  } else if (isTamayaHontenStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "tamaya-honten-neo-aim");
   } else if (isSlotMarumitsuOhashiStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "slot-marumitsu-ohashi-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
@@ -7456,6 +7709,196 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         tamayaOhashiNeoNoComplete: !tamayaOhashiNeoTreatmentAnyDone,
         treatmentDone: tamayaOhashiNeoTreatmentAnyDone,
         lowConfidence: tamayaOhashiNeoHistoryShort || tamayaOhashiNeoLowActivity,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount,
+      };
+    }
+
+    if (
+      activeLogicKey === "tamaya-honten-neo-aim" ||
+      activeLogicKey === "tamaya-honten-neo-aim-normal" ||
+      activeLogicKey === "tamaya-honten-neo-aim-event"
+    ) {
+      const tamayaHontenRecentFiveBonusTotal = readNumber(metrics.recentFiveBonusTotal);
+      const tamayaHontenRecentFiveRbTotal = readNumber(metrics.recentFiveRbTotal);
+      const tamayaHontenRecentFiveBbTotal = Math.max(
+        0,
+        tamayaHontenRecentFiveBonusTotal - tamayaHontenRecentFiveRbTotal,
+      );
+      const tamayaHontenNeoP56Hist5 = calculateNeoAimSettingFivePlusProbabilityFromTotals(
+        recentFiveGamesTotal,
+        tamayaHontenRecentFiveBbTotal,
+        tamayaHontenRecentFiveRbTotal,
+      );
+      const tamayaHontenNeoHistoryReady = historyRowCount >= 5;
+      const tamayaHontenNeoHistoryShort = historyRowCount < 5;
+      const tamayaHontenNeoLowTrust = historyRowCount >= 5 && historyRowCount < 7;
+      const tamayaHontenNeoLowG5 = recentFiveGamesTotal <= 12000;
+      const tamayaHontenNeoLowG5Reference = recentFiveGamesTotal <= 10000;
+      const tamayaHontenNeoLowG3 = recentThreeGamesTotal <= 6500;
+      const tamayaHontenNeoLowG3Reference = recentThreeGamesTotal <= 5000;
+      const tamayaHontenNeoPreviousLowG1000 = previousGames < 1000;
+      const tamayaHontenNeoPreviousLowG1500 = previousGames < 1500;
+      const tamayaHontenNeoPreviousHighG4500 = previousGames >= 4500;
+      const tamayaHontenNeoPreviousHighG6000 = previousGames >= 6000;
+      const tamayaHontenNeoRb3Depleted450 =
+        recentThreeGamesTotal >= 1500 && features.recentThreeRbDenominator >= 450;
+      const tamayaHontenNeoRb5Depleted420 =
+        recentFiveGamesTotal >= 3000 && features.recentFiveRbDenominator >= 420;
+      const tamayaHontenNeoNoHigh7 = recentSevenMachineHighContentCount === 0;
+      const tamayaHontenNeoHigh14AtMost1 = recentFourteenMachineHighContentCount <= 1;
+      const tamayaHontenNeoHighTooMany7 = recentSevenMachineHighContentCount >= 2;
+      const tamayaHontenNeoDaysSinceHigh4To14 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 4 &&
+        daysSinceMachineHighContent <= 14;
+      const tamayaHontenNeoDaysSinceHigh8To14 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 8 &&
+        daysSinceMachineHighContent <= 14;
+      const tamayaHontenNeoNoPastHigh14 =
+        !Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 14;
+      const tamayaHontenNeoRecent7Sink2000 =
+        recentSevenNetTotal <= -2000 && recentSevenGamesTotal >= 6000;
+      const tamayaHontenNeoRecent7Sink3000 =
+        recentSevenNetTotal <= -3000 && recentSevenGamesTotal >= 8000;
+      const tamayaHontenNeoRecent5Sink1000 = recentFiveNetTotal <= -1000;
+      const tamayaHontenNeoRecent5Sink2500 = recentFiveNetTotal <= -2500;
+      const tamayaHontenNeoRecent14Sink4500 =
+        recentFourteenNetTotal <= -4500 && recentFourteenGamesTotal >= 12000;
+      const tamayaHontenNeoTreatmentDone =
+        recentFiveNetTotal >= 2500 || recentFourteenNetTotal >= 4000;
+      const tamayaHontenNeoPreviousStrongP56 =
+        previousGames >= 3000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.7;
+      const tamayaHontenNeoPreviousPlus2000 = previousDifference >= 2000;
+      const tamayaHontenNeoPreviousPlus3500 = previousDifference >= 3500;
+      const tamayaHontenNeoNearbyTreatment3 = adjacentMachineHighContentCount3Near2 >= 2;
+      const tamayaHontenNeoNearbyTreatment7 = adjacentMachineHighContentCount7Near2 >= 3;
+      const tamayaHontenNeoLosingThree = streak === 3;
+      const tamayaHontenNeoLosingFourFive = streak >= 4 && streak <= 5;
+      const tamayaHontenNeoWinningTwo = winningStreak >= 2;
+      const tamayaHontenNeoRegDepleted =
+        tamayaHontenNeoRb3Depleted450 || tamayaHontenNeoRb5Depleted420;
+      const tamayaHontenNeoFreeAAllMain =
+        tamayaHontenNeoHistoryReady &&
+        tamayaHontenNeoLowG5 &&
+        tamayaHontenNeoRb3Depleted450 &&
+        tamayaHontenNeoNoHigh7;
+      const tamayaHontenNeoFreeBAllUnpaid =
+        tamayaHontenNeoHistoryReady &&
+        tamayaHontenNeoPreviousLowG1500 &&
+        tamayaHontenNeoDaysSinceHigh4To14 &&
+        tamayaHontenNeoRecent5Sink2500;
+      const tamayaHontenNeoEventMain285 =
+        tamayaHontenNeoHistoryReady &&
+        tamayaHontenNeoPreviousLowG1000 &&
+        tamayaHontenNeoRb5Depleted420 &&
+        tamayaHontenNeoRecent7Sink2000;
+      const tamayaHontenNeoEventBest280 =
+        tamayaHontenNeoEventMain285 && tamayaHontenNeoNoHigh7;
+      const tamayaHontenNeoEventStrong285 =
+        tamayaHontenNeoHistoryReady &&
+        tamayaHontenNeoPreviousLowG1000 &&
+        tamayaHontenNeoLowG5 &&
+        tamayaHontenNeoRb3Depleted450 &&
+        tamayaHontenNeoHigh14AtMost1;
+      const tamayaHontenNeoEventReference270 =
+        tamayaHontenNeoHistoryReady &&
+        tamayaHontenNeoLowG3Reference &&
+        tamayaHontenNeoLowG5Reference &&
+        tamayaHontenNeoRb3Depleted450 &&
+        tamayaHontenNeoHigh14AtMost1;
+      const tamayaHontenNeoNormalReference =
+        tamayaHontenNeoHistoryReady &&
+        tamayaHontenNeoPreviousLowG1500 &&
+        tamayaHontenNeoRb3Depleted450 &&
+        tamayaHontenNeoRecent7Sink2000;
+      const tamayaHontenNeoNormalCompromise =
+        tamayaHontenNeoHistoryReady &&
+        tamayaHontenNeoPreviousLowG1000 &&
+        tamayaHontenNeoRb3Depleted450 &&
+        tamayaHontenNeoRecent5Sink1000;
+      const tamayaHontenNeoNormalDanger =
+        tamayaHontenNeoPreviousHighG6000 ||
+        previousMachineHighContent ||
+        tamayaHontenNeoNearbyTreatment3;
+      const dangerFlags = [
+        previousMachineHighContent,
+        tamayaHontenNeoPreviousHighG6000,
+        tamayaHontenNeoHighTooMany7,
+        tamayaHontenNeoTreatmentDone,
+        tamayaHontenNeoNearbyTreatment3,
+        tamayaHontenNeoPreviousPlus2000,
+        tamayaHontenNeoPreviousPlus3500,
+        tamayaHontenNeoPreviousStrongP56,
+      ];
+      const boostFlags = [
+        tamayaHontenNeoLowG5,
+        tamayaHontenNeoLowG3,
+        tamayaHontenNeoRegDepleted,
+        tamayaHontenNeoRb3Depleted450,
+        tamayaHontenNeoRb5Depleted420,
+        tamayaHontenNeoNoHigh7,
+        tamayaHontenNeoPreviousLowG1000,
+        tamayaHontenNeoRecent7Sink2000,
+        tamayaHontenNeoRecent7Sink3000,
+        tamayaHontenNeoRecent14Sink4500,
+        tamayaHontenNeoDaysSinceHigh8To14,
+        tamayaHontenNeoNoPastHigh14,
+        tamayaHontenNeoLosingThree || tamayaHontenNeoLosingFourFive,
+      ];
+      const dangerCount = dangerFlags.filter(Boolean).length;
+
+      return {
+        ...features,
+        tamayaHontenNeoP56Hist5,
+        tamayaHontenNeoHistoryReady,
+        tamayaHontenNeoHistoryShort,
+        tamayaHontenNeoLowTrust,
+        tamayaHontenNeoLowG5,
+        tamayaHontenNeoLowG5Reference,
+        tamayaHontenNeoLowG3,
+        tamayaHontenNeoLowG3Reference,
+        tamayaHontenNeoPreviousLowG1000,
+        tamayaHontenNeoPreviousLowG1500,
+        tamayaHontenNeoPreviousHighG4500,
+        tamayaHontenNeoPreviousHighG6000,
+        tamayaHontenNeoRb3Depleted450,
+        tamayaHontenNeoRb5Depleted420,
+        tamayaHontenNeoNoHigh7,
+        tamayaHontenNeoHigh14AtMost1,
+        tamayaHontenNeoHighTooMany7,
+        tamayaHontenNeoDaysSinceHigh4To14,
+        tamayaHontenNeoDaysSinceHigh8To14,
+        tamayaHontenNeoNoPastHigh14,
+        tamayaHontenNeoRecent7Sink2000,
+        tamayaHontenNeoRecent7Sink3000,
+        tamayaHontenNeoRecent5Sink1000,
+        tamayaHontenNeoRecent5Sink2500,
+        tamayaHontenNeoRecent14Sink4500,
+        tamayaHontenNeoTreatmentDone,
+        tamayaHontenNeoPreviousStrongP56,
+        tamayaHontenNeoPreviousPlus2000,
+        tamayaHontenNeoPreviousPlus3500,
+        tamayaHontenNeoNearbyTreatment3,
+        tamayaHontenNeoNearbyTreatment7,
+        tamayaHontenNeoLosingThree,
+        tamayaHontenNeoLosingFourFive,
+        tamayaHontenNeoWinningTwo,
+        tamayaHontenNeoRegDepleted,
+        tamayaHontenNeoFreeAAllMain,
+        tamayaHontenNeoFreeBAllUnpaid,
+        tamayaHontenNeoEventMain285,
+        tamayaHontenNeoEventBest280,
+        tamayaHontenNeoEventStrong285,
+        tamayaHontenNeoEventReference270,
+        tamayaHontenNeoNormalReference,
+        tamayaHontenNeoNormalCompromise,
+        tamayaHontenNeoNormalDanger,
+        treatmentDone: tamayaHontenNeoTreatmentDone,
+        lowConfidence: tamayaHontenNeoHistoryShort || tamayaHontenNeoLowTrust,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount,
       };
@@ -12179,6 +12622,112 @@ function calculateMachineScore(definition, metrics, features) {
 
       if (historyRowCount < 21) {
         score = Math.min(score, 35);
+      }
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
+    if (
+      activeLogicKey === "tamaya-honten-neo-aim" ||
+      activeLogicKey === "tamaya-honten-neo-aim-normal" ||
+      activeLogicKey === "tamaya-honten-neo-aim-event"
+    ) {
+      let score = 50;
+
+      if (recentFiveGamesTotal <= 12000) {
+        score += 20;
+      } else if (recentFiveGamesTotal <= 13500) {
+        score += 16;
+      } else if (recentFiveGamesTotal <= 15365) {
+        score += 10;
+      } else if (recentFiveGamesTotal <= 16800) {
+        score += 6;
+      } else if (recentFiveGamesTotal >= 26000) {
+        score -= 8;
+      }
+
+      if (recentThreeGamesTotal <= 6500) {
+        score += 10;
+      } else if (recentThreeGamesTotal <= 8500) {
+        score += 5;
+      }
+
+      score += previousGames < 1000 ? 8 : previousGames < 1500 ? 4 : 0;
+      score -= previousGames >= 6000 ? 13 : previousGames >= 4500 ? 6 : 0;
+
+      if (recentFiveGamesTotal >= 3000) {
+        if (features.recentFiveRbDenominator >= 500) {
+          score += 14;
+        } else if (features.recentFiveRbDenominator >= 450) {
+          score += 10;
+        } else if (features.recentFiveRbDenominator >= 400) {
+          score += 5;
+        } else if (features.recentFiveRbDenominator <= 280 && recentFiveNetTotal >= 800) {
+          score -= 6;
+        }
+      }
+
+      if (recentThreeGamesTotal >= 1500) {
+        if (features.recentThreeRbDenominator >= 600) {
+          score += 10;
+        } else if (features.recentThreeRbDenominator >= 500) {
+          score += 7;
+        } else if (features.recentThreeRbDenominator >= 450) {
+          score += 4;
+        }
+      }
+
+      score +=
+        recentSevenMachineHighContentCount === 0
+          ? 10
+          : recentSevenMachineHighContentCount === 1
+            ? 2
+            : recentSevenMachineHighContentCount >= 2
+              ? -8
+              : 0;
+
+      if (Number.isFinite(daysSinceMachineHighContent)) {
+        if (daysSinceMachineHighContent >= 8 && daysSinceMachineHighContent <= 14) {
+          score += 10;
+        } else if (daysSinceMachineHighContent >= 15 && daysSinceMachineHighContent <= 24) {
+          score += 5;
+        } else if (daysSinceMachineHighContent === 1) {
+          score -= 12;
+        } else if (daysSinceMachineHighContent >= 2 && daysSinceMachineHighContent <= 3) {
+          score -= 5;
+        }
+      } else if (historyRowCount >= 14) {
+        score += 3;
+      }
+
+      score += streak === 3 ? 10 : streak >= 4 && streak <= 5 ? 7 : streak >= 1 && streak <= 2 ? 3 : streak >= 6 ? 2 : 0;
+      score -= winningStreak >= 2 ? 8 : 0;
+
+      if (recentSevenNetTotal <= -3000 && recentSevenGamesTotal >= 8000) {
+        score += 6;
+      } else if (recentSevenNetTotal <= -1500 && recentSevenGamesTotal >= 6000) {
+        score += 4;
+      }
+      score += recentFourteenNetTotal <= -4500 && recentFourteenGamesTotal >= 12000 ? 5 : 0;
+      score -= recentFourteenNetTotal >= 4000 ? 8 : 0;
+      score -= recentFiveNetTotal >= 2500 ? 7 : 0;
+
+      score -= previousMachineHighContent ? 10 : 0;
+      score -=
+        previousGames >= 3000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.7
+          ? 4
+          : 0;
+      score -= previousDifference >= 2000 ? 6 : 0;
+      score -= previousDifference >= 3500 ? 6 : 0;
+      score -= adjacentMachineHighContentCount3Near2 >= 2 ? 4 : 0;
+      score -= adjacentMachineHighContentCount7Near2 >= 3 ? 3 : 0;
+
+      if (historyRowCount < 5) {
+        score = Math.min(score, 35);
+      } else if (historyRowCount < 7) {
+        score = Math.min(score, 70);
       }
 
       return Math.round(clamp(score, 0, 100));
@@ -19364,6 +19913,27 @@ function buildPlaza3DateSetting(definition, isEventDate) {
   };
 }
 
+function buildTamayaHontenDateSetting(definition, isEventDate) {
+  if (definition?.machineKey !== "neo-aim") {
+    return null;
+  }
+  const logicKey = isEventDate ? "tamaya-honten-neo-aim-event" : "tamaya-honten-neo-aim-normal";
+  const logic = findLogicDefinition(definition, logicKey);
+  if (!logic) {
+    return null;
+  }
+  const condition =
+    listConditionDefinitions(definition, logic.key).find(
+      (candidate) => candidate.keySuffix === logic.defaultConditionSuffix,
+    ) ??
+    listConditionDefinitions(definition, logic.key)[0] ??
+    null;
+  return {
+    logicKey: logic.key,
+    conditionKey: condition ? buildConditionKey(definition, condition) : "",
+  };
+}
+
 function resolveRankingDateSpecificSetting(definition, setting, options = {}) {
   if (
     !options?.dateSpecificRanking ||
@@ -19520,6 +20090,20 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   if (isPlaza3Store(options?.storeName) && definition?.machineKey === "neo-aim") {
     const isEventDate = readTargetEventFlag(row) === true;
     const setting = buildPlaza3DateSetting(definition, isEventDate);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    if (!evaluation) {
+      return null;
+    }
+
+    return {
+      ...evaluation,
+      displayLabel: isEventDate ? "特定日" : "通常日",
+    };
+  }
+
+  if (isTamayaHontenStore(options?.storeName) && definition?.machineKey === "neo-aim") {
+    const isEventDate = readTargetEventFlag(row) === true;
+    const setting = buildTamayaHontenDateSetting(definition, isEventDate);
     const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
     if (!evaluation) {
       return null;
