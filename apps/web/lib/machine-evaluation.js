@@ -380,6 +380,18 @@ function isSengawaUnoStore(storeName) {
   );
 }
 
+function isBoomTenjinStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "BOOM天神本店",
+    "BOOM天神店",
+    "BOOM天神",
+    "ＢＯＯＭ天神本店",
+    "ＢＯＯＭ天神店",
+    "ＢＯＯＭ天神",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
 function isPlazaTenjinStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["プラザ天神", "プラザ天神店", "PLAZA天神", "ＰＬＡＺＡ天神"].some(
@@ -606,6 +618,14 @@ function matchesMachineEvaluationEventFilters(dateText, filters) {
 }
 
 function isIidabashiPresasEventDate(dateText, row, options = {}) {
+  const rowFlag = readTargetEventFlag(row);
+  if (rowFlag !== null) {
+    return rowFlag;
+  }
+  return matchesMachineEvaluationEventFilters(dateText, options?.eventFilters);
+}
+
+function isBoomTenjinEventDate(dateText, row, options = {}) {
   const rowFlag = readTargetEventFlag(row);
   if (rowFlag !== null) {
     return rowFlag;
@@ -2108,6 +2128,21 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "million-tobu-nerima-neo-best-rb270",
       ),
       buildLogicVariant(
+        "boom-tenjin-neo-aim",
+        "BOOM天神本店_ネオアイムEX_8-14返済未完ロジック_v1",
+        "boom-tenjin-neo-rb290",
+      ),
+      buildLogicVariant(
+        "boom-tenjin-neo-aim-normal",
+        "BOOM天神ネオアイム_通常日厳選返済",
+        "boom-tenjin-neo-normal-mini-main",
+      ),
+      buildLogicVariant(
+        "boom-tenjin-neo-aim-event",
+        "BOOM天神ネオアイム_特定日返済強化",
+        "boom-tenjin-neo-event-rank1-gap8",
+      ),
+      buildLogicVariant(
         "amuse-asakusa-neo-aim",
         "アミューズ浅草_ネオアイム_全日共通_返済未完ロジック",
         "amuse-asakusa-wide-rb310",
@@ -2458,6 +2493,221 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["millionTobuNerimaNeoHistoryShort"],
         },
         ["million-tobu-nerima-neo-aim"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-rb310",
+        "RB310広め",
+        "50日 / 54台 / 総G145,100 / BB1/278.0 / RB1/308.7 / 合算1/146.3 / 平均-1.1枚 / 機械割99.99% / 勝率46.3% / 平均56 32.8% / 中央56 27.2% / 56>=50 16.7% / 56<30 59.3% / RB<=300 31.5% / RB>400 33.3% / 合算<=140 35.2%",
+        {
+          minScore: 65,
+          requiredFlags: [
+            "boomTenjinNeoHistoryReady",
+            "boomTenjinNeoSinceStrong8To14",
+            "boomTenjinNeoAngle7Le200",
+          ],
+        },
+        ["boom-tenjin-neo-aim", "boom-tenjin-neo-aim-normal", "boom-tenjin-neo-aim-event"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-rb300",
+        "RB300弱本命",
+        "22日 / 24台 / 総G80,514 / BB1/271.1 / RB1/298.2 / 合算1/142.0 / 平均+118.4枚 / 機械割101.18% / 勝率58.3% / 平均56 35.3% / 中央56 24.6% / 56>=50 25.0% / 56<30 58.3% / RB<=300 41.7% / RB>400 33.3% / 合算<=140 50.0%",
+        {
+          minScore: 75,
+          requiredFlags: [
+            "boomTenjinNeoHistoryReady",
+            "boomTenjinNeoSinceStrong8To14",
+            "boomTenjinNeoAngle7Le200",
+          ],
+        },
+        ["boom-tenjin-neo-aim", "boom-tenjin-neo-aim-normal", "boom-tenjin-neo-aim-event"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-rb290",
+        "RB290本命",
+        "25日 / 25台 / 総G75,071 / BB1/263.4 / RB1/284.4 / 合算1/136.7 / 平均+199.7枚 / 機械割102.22% / 勝率56.0% / 平均56 38.5% / 中央56 30.9% / 56>=50 32.0% / 56<30 48.0% / RB<=300 40.0% / RB>400 36.0% / 合算<=140 44.0%",
+        {
+          requiredFlags: [
+            "boomTenjinNeoHistoryReady",
+            "boomTenjinNeoSinceStrong8To14",
+            "boomTenjinNeoAngle7Le200",
+            "boomTenjinNeoDiff14Le3000",
+          ],
+        },
+        ["boom-tenjin-neo-aim", "boom-tenjin-neo-aim-normal", "boom-tenjin-neo-aim-event"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-rb280",
+        "RB280強",
+        "21日 / 21台 / 総G69,948 / BB1/261.0 / RB1/279.8 / 合算1/135.0 / 平均+279.5枚 / 機械割102.80% / 勝率61.9% / 平均56 40.5% / 中央56 32.4% / 56>=50 38.1% / 56<30 47.6% / RB<=300 47.6% / RB>400 33.3% / 合算<=140 52.4%",
+        {
+          requiredFlags: [
+            "boomTenjinNeoHistoryReady",
+            "boomTenjinNeoSinceStrong8To14",
+            "boomTenjinNeoAngle7Le200",
+            "boomTenjinNeoDiff14Le3000",
+            "boomTenjinNeoSinkStay7AtLeast2",
+          ],
+        },
+        ["boom-tenjin-neo-aim", "boom-tenjin-neo-aim-normal", "boom-tenjin-neo-aim-event"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-rb270",
+        "RB270最本命",
+        "10日 / 10台 / 総G40,798 / BB1/272.0 / RB1/250.3 / 合算1/130.3 / 平均+364.0枚 / 機械割102.97% / 勝率50.0% / 平均56 52.2% / 中央56 52.7% / 56>=50 60.0% / 56<30 30.0% / RB<=300 70.0% / RB>400 20.0% / 合算<=140 70.0% / 少数サンプル",
+        {
+          requiredFlags: [
+            "boomTenjinNeoHistoryReady",
+            "boomTenjinNeoSinceStrong8To14",
+            "boomTenjinNeoAngle7Le200",
+            "boomTenjinNeoDiff14Le5000",
+          ],
+        },
+        ["boom-tenjin-neo-aim", "boom-tenjin-neo-aim-normal", "boom-tenjin-neo-aim-event"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-free-a",
+        "自由A_8-14返済角度",
+        "高内容後8〜14日かつ7日角度-200以下。広め候補",
+        {
+          requiredFlags: [
+            "boomTenjinNeoHistoryReady",
+            "boomTenjinNeoSinceStrong8To14",
+            "boomTenjinNeoAngle7Le200",
+          ],
+        },
+        ["boom-tenjin-neo-aim", "boom-tenjin-neo-aim-normal", "boom-tenjin-neo-aim-event"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-free-b",
+        "自由B_14沈み返済",
+        "高内容後8〜14日、7日角度-200以下、14日差枚-3000以下",
+        {
+          requiredFlags: [
+            "boomTenjinNeoHistoryReady",
+            "boomTenjinNeoSinceStrong8To14",
+            "boomTenjinNeoAngle7Le200",
+            "boomTenjinNeoDiff14Le3000",
+          ],
+        },
+        ["boom-tenjin-neo-aim", "boom-tenjin-neo-aim-normal", "boom-tenjin-neo-aim-event"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-free-c",
+        "自由C_沈み滞在返済",
+        "自由Bに7日沈み滞在2回以上を追加",
+        {
+          requiredFlags: [
+            "boomTenjinNeoHistoryReady",
+            "boomTenjinNeoSinceStrong8To14",
+            "boomTenjinNeoAngle7Le200",
+            "boomTenjinNeoDiff14Le3000",
+            "boomTenjinNeoSinkStay7AtLeast2",
+          ],
+        },
+        ["boom-tenjin-neo-aim", "boom-tenjin-neo-aim-normal", "boom-tenjin-neo-aim-event"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-free-d",
+        "自由D_14深沈み返済",
+        "高内容後8〜14日、7日角度-200以下、14日差枚-5000以下。RB270級の少数精鋭",
+        {
+          requiredFlags: [
+            "boomTenjinNeoHistoryReady",
+            "boomTenjinNeoSinceStrong8To14",
+            "boomTenjinNeoAngle7Le200",
+            "boomTenjinNeoDiff14Le5000",
+          ],
+        },
+        ["boom-tenjin-neo-aim", "boom-tenjin-neo-aim-normal", "boom-tenjin-neo-aim-event"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-event-rank1-gap8",
+        "自由E_特定日専用1位gap8",
+        "特定日補助。1位かつ次点差8点以上を優先",
+        {
+          rankMax: 1,
+          minNextGap: 8,
+          requiredFlags: ["boomTenjinNeoHistoryReady"],
+        },
+        ["boom-tenjin-neo-aim-event"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-normal-mini-main",
+        "自由F_通常日ミニ本命",
+        "通常日補助。7日-3000以下、21日-3000以下、高内容後8〜14日",
+        {
+          requiredFlags: [
+            "boomTenjinNeoHistoryReady",
+            "boomTenjinNeoDiff7Le3000",
+            "boomTenjinNeoDiff21Le3000",
+            "boomTenjinNeoSinceStrong8To14",
+          ],
+        },
+        ["boom-tenjin-neo-aim-normal"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-watch-previous-big-win",
+        "見送り_前日大勝ち",
+        "前日+1800枚以上かつ2500G以上は返済済み寄り",
+        {
+          requiredFlags: ["boomTenjinNeoHistoryReady", "boomTenjinNeoPreviousBigWin"],
+        },
+        ["boom-tenjin-neo-aim", "boom-tenjin-neo-aim-normal", "boom-tenjin-neo-aim-event"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-watch-previous-weak",
+        "見送り_前日弱内容",
+        "前日1500G以上でRB400超かつ合算170超は本物感なし",
+        {
+          requiredFlags: ["boomTenjinNeoHistoryReady", "boomTenjinNeoPreviousWeak"],
+        },
+        ["boom-tenjin-neo-aim", "boom-tenjin-neo-aim-normal", "boom-tenjin-neo-aim-event"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-watch-long-gap",
+        "見送り_長期放置",
+        "高内容後42日以上はローテ外として減点",
+        {
+          requiredFlags: ["boomTenjinNeoHistoryReady", "boomTenjinNeoLongGap"],
+        },
+        ["boom-tenjin-neo-aim", "boom-tenjin-neo-aim-normal", "boom-tenjin-neo-aim-event"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-watch-treated",
+        "見送り_処遇完了",
+        "直近3日+1800、7日+2500、14日+4000のいずれかは返済済み寄り",
+        {
+          requiredFlags: ["boomTenjinNeoHistoryReady", "boomTenjinNeoTreatmentDone"],
+        },
+        ["boom-tenjin-neo-aim", "boom-tenjin-neo-aim-normal", "boom-tenjin-neo-aim-event"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-watch-low-games",
+        "見送り_低稼働",
+        "直近3日2500G未満は履歴信頼度が落ちる",
+        {
+          requiredFlags: ["boomTenjinNeoLowRecentGames"],
+        },
+        ["boom-tenjin-neo-aim", "boom-tenjin-neo-aim-normal", "boom-tenjin-neo-aim-event"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-watch-losing-without-cycle",
+        "見送り_連敗だけ",
+        "連敗のみで高内容後8〜14日の周期がない台は評価を抑える",
+        {
+          requiredFlags: ["boomTenjinNeoHistoryReady", "boomTenjinNeoLosingOnly"],
+        },
+        ["boom-tenjin-neo-aim", "boom-tenjin-neo-aim-normal", "boom-tenjin-neo-aim-event"],
+      ),
+      buildCondition(
+        "boom-tenjin-neo-watch-history-short",
+        "見送り_履歴不足",
+        "履歴14営業日未満は採用条件対象外。21営業日未満は上限を抑える",
+        {
+          requiredFlags: ["boomTenjinNeoHistoryShort"],
+        },
+        ["boom-tenjin-neo-aim", "boom-tenjin-neo-aim-normal", "boom-tenjin-neo-aim-event"],
       ),
       buildCondition(
         "apark-yakatabaru-main",
@@ -8322,6 +8572,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "wonderland-1188-tachiarai-neo-aim");
   } else if (isMillionTobuNerimaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "million-tobu-nerima-neo-aim");
+  } else if (isBoomTenjinStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "boom-tenjin-neo-aim");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "funky") {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-funky");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "my") {
@@ -11022,6 +11274,149 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         millionTobuNerimaNeoTooVisible,
         treatmentDone: millionTobuNerimaNeoTreatmentDone,
         lowConfidence: millionTobuNerimaNeoHistoryShort,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (
+      activeLogicKey === "boom-tenjin-neo-aim" ||
+      activeLogicKey === "boom-tenjin-neo-aim-normal" ||
+      activeLogicKey === "boom-tenjin-neo-aim-event"
+    ) {
+      const boomTenjinNeoHistoryReady = historyRowCount >= 14;
+      const boomTenjinNeoHistoryShort = historyRowCount < 14;
+      const boomTenjinNeoHistoryThin = historyRowCount < 21;
+      const boomTenjinNeoSinceStrong8To14 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 8 &&
+        daysSinceMachineHighContent <= 14;
+      const boomTenjinNeoSinceStrong5To7 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 5 &&
+        daysSinceMachineHighContent <= 7;
+      const boomTenjinNeoSinceStrong15To28 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 15 &&
+        daysSinceMachineHighContent <= 28;
+      const boomTenjinNeoLongGap =
+        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 42) ||
+        (!Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 42);
+      const boomTenjinNeoAngle7Le100 = recentSevenGamesTotal > 0 && features.recentSevenAngle <= -100;
+      const boomTenjinNeoAngle7Le200 = recentSevenGamesTotal > 0 && features.recentSevenAngle <= -200;
+      const boomTenjinNeoAngle7Le300 = recentSevenGamesTotal > 0 && features.recentSevenAngle <= -300;
+      const boomTenjinNeoDiff7Le1000 = recentSevenNetTotal <= -1000;
+      const boomTenjinNeoDiff7Le2000 = recentSevenNetTotal <= -2000;
+      const boomTenjinNeoDiff7Le3000 = recentSevenNetTotal <= -3000;
+      const boomTenjinNeoDiff7Le4000 = recentSevenNetTotal <= -4000;
+      const boomTenjinNeoDiff14Le1500 = recentFourteenNetTotal <= -1500;
+      const boomTenjinNeoDiff14Le3000 = recentFourteenNetTotal <= -3000;
+      const boomTenjinNeoDiff14Le5000 = recentFourteenNetTotal <= -5000;
+      const boomTenjinNeoDiff21Le3000 = recentTwentyOneNetTotal <= -3000;
+      const boomTenjinNeoSinkStay7AtLeast2 = recentSevenMinus1500StayDays >= 2;
+      const boomTenjinNeoSinkStay7AtLeast4 = recentSevenMinus1500StayDays >= 4;
+      const boomTenjinNeoSinkStay14AtLeast3 = recentFourteenMinus1500StayDays >= 3;
+      const boomTenjinNeoPreviousStrongUnpaid = previousMachineHighContent && previousDifference <= 500;
+      const boomTenjinNeoPreviousGoodUnpaid = previousMachineGoodContent && previousDifference <= 500;
+      const boomTenjinNeoRecentStrong5 = recentFiveMachineHighContentCount >= 1;
+      const boomTenjinNeoRecentGood10 =
+        Number.isFinite(daysSinceMachineGoodContent) && daysSinceMachineGoodContent <= 10;
+      const boomTenjinNeoHigh14Single = recentFourteenMachineHighContentCount === 1;
+      const boomTenjinNeoHigh14Multiple = recentFourteenMachineHighContentCount >= 2;
+      const boomTenjinNeoGood14 = recentFourteenMachineGoodContentCount >= 1;
+      const boomTenjinNeoTrustedG3 = recentThreeGamesTotal >= 7000;
+      const boomTenjinNeoStrongG3 = recentThreeGamesTotal >= 10000;
+      const boomTenjinNeoVeryStrongG3 = recentThreeGamesTotal >= 12000;
+      const boomTenjinNeoTrustedG5 = recentFiveGamesTotal >= 10000;
+      const boomTenjinNeoStrongG5 = recentFiveGamesTotal >= 15000;
+      const boomTenjinNeoPreviousTrustedG = previousGames >= 2500;
+      const boomTenjinNeoPreviousBigWin = previousDifference >= 1800 && previousGames >= 2500;
+      const boomTenjinNeoPreviousWeak =
+        previousGames >= 1500 && features.previousRbDenominator > 400 && features.previousCombinedDenominator > 170;
+      const boomTenjinNeoTreatmentDone =
+        recentThreeNetTotal >= 1800 || recentSevenNetTotal >= 2500 || recentFourteenNetTotal >= 4000;
+      const boomTenjinNeoDiff3PositiveDone = recentThreeNetTotal >= 1800;
+      const boomTenjinNeoDiff7PositiveDone = recentSevenNetTotal >= 2500;
+      const boomTenjinNeoDiff14PositiveDone = recentFourteenNetTotal >= 4000;
+      const boomTenjinNeoLowRecentGames = recentThreeGamesTotal < 2500;
+      const boomTenjinNeoLosingOnly = streak >= 4 && !boomTenjinNeoSinceStrong8To14;
+      const boomTenjinNeoNormalMiniMain =
+        boomTenjinNeoDiff7Le3000 && boomTenjinNeoDiff21Le3000 && boomTenjinNeoSinceStrong8To14;
+      const boostFlags = [
+        boomTenjinNeoDiff7Le2000,
+        boomTenjinNeoDiff14Le3000,
+        boomTenjinNeoAngle7Le200,
+        boomTenjinNeoSinkStay7AtLeast2,
+        boomTenjinNeoSinceStrong8To14,
+        boomTenjinNeoPreviousStrongUnpaid,
+        boomTenjinNeoPreviousGoodUnpaid,
+        boomTenjinNeoRecentStrong5,
+        boomTenjinNeoGood14,
+        boomTenjinNeoTrustedG3,
+      ];
+      const dangerFlags = [
+        boomTenjinNeoPreviousBigWin,
+        boomTenjinNeoPreviousWeak,
+        boomTenjinNeoTreatmentDone,
+        boomTenjinNeoLongGap,
+        boomTenjinNeoLowRecentGames,
+        boomTenjinNeoLosingOnly,
+        boomTenjinNeoHistoryShort,
+      ];
+
+      return {
+        ...features,
+        daysSinceMachineHighContent,
+        daysSinceMachineGoodContent,
+        daysSinceMachineStrongHighContent,
+        previousMachineHighContent,
+        previousMachineGoodContent,
+        previousMachineStrongHighContent,
+        boomTenjinNeoHistoryReady,
+        boomTenjinNeoHistoryShort,
+        boomTenjinNeoHistoryThin,
+        boomTenjinNeoSinceStrong8To14,
+        boomTenjinNeoSinceStrong5To7,
+        boomTenjinNeoSinceStrong15To28,
+        boomTenjinNeoLongGap,
+        boomTenjinNeoAngle7Le100,
+        boomTenjinNeoAngle7Le200,
+        boomTenjinNeoAngle7Le300,
+        boomTenjinNeoDiff7Le1000,
+        boomTenjinNeoDiff7Le2000,
+        boomTenjinNeoDiff7Le3000,
+        boomTenjinNeoDiff7Le4000,
+        boomTenjinNeoDiff14Le1500,
+        boomTenjinNeoDiff14Le3000,
+        boomTenjinNeoDiff14Le5000,
+        boomTenjinNeoDiff21Le3000,
+        boomTenjinNeoSinkStay7AtLeast2,
+        boomTenjinNeoSinkStay7AtLeast4,
+        boomTenjinNeoSinkStay14AtLeast3,
+        boomTenjinNeoPreviousStrongUnpaid,
+        boomTenjinNeoPreviousGoodUnpaid,
+        boomTenjinNeoRecentStrong5,
+        boomTenjinNeoRecentGood10,
+        boomTenjinNeoHigh14Single,
+        boomTenjinNeoHigh14Multiple,
+        boomTenjinNeoGood14,
+        boomTenjinNeoTrustedG3,
+        boomTenjinNeoStrongG3,
+        boomTenjinNeoVeryStrongG3,
+        boomTenjinNeoTrustedG5,
+        boomTenjinNeoStrongG5,
+        boomTenjinNeoPreviousTrustedG,
+        boomTenjinNeoPreviousBigWin,
+        boomTenjinNeoPreviousWeak,
+        boomTenjinNeoTreatmentDone,
+        boomTenjinNeoDiff3PositiveDone,
+        boomTenjinNeoDiff7PositiveDone,
+        boomTenjinNeoDiff14PositiveDone,
+        boomTenjinNeoLowRecentGames,
+        boomTenjinNeoLosingOnly,
+        boomTenjinNeoNormalMiniMain,
+        treatmentDone: boomTenjinNeoTreatmentDone,
+        lowConfidence: boomTenjinNeoHistoryShort || boomTenjinNeoLowRecentGames,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -14531,6 +14926,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFiveMachineLowContentCount = readNumber(metrics.recentFiveMachineLowContentCount);
   const recentSevenMachineLowContentCount = readNumber(metrics.recentSevenMachineLowContentCount);
   const recentFiveMachineWeakContentCount = readNumber(metrics.recentFiveMachineWeakContentCount);
+  const recentFourteenMachineGoodContentCount = readNumber(metrics.recentFourteenMachineGoodContentCount);
   const recentTwentyOneMachineGoodContentCount = readNumber(metrics.recentTwentyOneMachineGoodContentCount);
   const daysSinceMachineHighContent = readNullableNumber(metrics.daysSinceMachineHighContent);
   const daysSinceMachineGoodContent = readNullableNumber(metrics.daysSinceMachineGoodContent);
@@ -16800,6 +17196,102 @@ function calculateMachineScore(definition, metrics, features) {
       dangerPenalty +=
         recentTwentyOneGamesTotal >= 40000 && features.recentTwentyOneRbDenominator >= 420 ? 4 : 0;
       score -= Math.min(dangerPenalty, 18);
+
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
+    if (
+      activeLogicKey === "boom-tenjin-neo-aim" ||
+      activeLogicKey === "boom-tenjin-neo-aim-normal" ||
+      activeLogicKey === "boom-tenjin-neo-aim-event"
+    ) {
+      const isNormalLogic = activeLogicKey === "boom-tenjin-neo-aim-normal";
+      const isEventLogic = activeLogicKey === "boom-tenjin-neo-aim-event";
+      let score = isNormalLogic ? 25 : isEventLogic ? 30 : 35;
+      const scoreCap = historyRowCount < 14 ? 45 : historyRowCount < 21 ? 85 : 100;
+
+      let sinkScore = 0;
+      sinkScore += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -4000, points: 16 },
+        { maximum: -3000, points: 12 },
+        { maximum: -2000, points: 8 },
+        { maximum: -1000, points: 4 },
+      ]);
+      sinkScore += scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -5000, points: 8 },
+        { maximum: -3000, points: 5 },
+        { maximum: -1500, points: 3 },
+      ]);
+      sinkScore +=
+        recentSevenGamesTotal > 0
+          ? scoreAtMost(features.recentSevenAngle, [
+              { maximum: -300, points: 6 },
+              { maximum: -200, points: 4 },
+              { maximum: -100, points: 2 },
+            ])
+          : 0;
+      sinkScore += recentSevenMinus1500StayDays >= 4 ? 4 : recentSevenMinus1500StayDays >= 2 ? 3 : 0;
+      sinkScore += recentFourteenMinus1500StayDays >= 3 ? 2 : 0;
+      score += Math.min(sinkScore, 34);
+
+      let intervalScore = 0;
+      intervalScore += scoreInRange(daysSinceMachineHighContent, 8, 14, 16);
+      intervalScore += scoreInRange(daysSinceMachineHighContent, 5, 7, 8);
+      intervalScore += scoreInRange(daysSinceMachineHighContent, 15, 28, 5);
+      intervalScore += scoreInRange(daysSinceMachineHighContent, 1, 4, 3);
+      intervalScore += recentFourteenMachineHighContentCount === 1 ? 4 : 0;
+      intervalScore += recentFourteenMachineHighContentCount >= 2 ? 2 : 0;
+      intervalScore += recentFourteenMachineGoodContentCount >= 1 ? 2 : 0;
+      score += Math.min(intervalScore, 20);
+
+      let genuineScore = 0;
+      genuineScore += previousMachineHighContent && previousDifference <= 500 ? 7 : 0;
+      genuineScore += previousMachineGoodContent && previousDifference <= 500 ? 5 : 0;
+      genuineScore += recentFiveMachineHighContentCount >= 1 ? 5 : 0;
+      genuineScore += Number.isFinite(daysSinceMachineGoodContent) && daysSinceMachineGoodContent <= 10 ? 3 : 0;
+      score += Math.min(genuineScore, 14);
+
+      let activityScore = 0;
+      activityScore += scoreAtLeast(recentThreeGamesTotal, [
+        { minimum: 12000, points: 7 },
+        { minimum: 10000, points: 5 },
+        { minimum: 7000, points: 3 },
+      ]);
+      activityScore += scoreAtLeast(recentFiveGamesTotal, [
+        { minimum: 15000, points: 3 },
+        { minimum: 10000, points: 2 },
+      ]);
+      activityScore += previousGames >= 2500 ? 2 : 0;
+      score += Math.min(activityScore, 12);
+
+      let penaltyScore = 0;
+      penaltyScore += previousDifference >= 1800 && previousGames >= 2500 ? 8 : 0;
+      penaltyScore += previousGames >= 1500 && previousRbDenominator > 400 && previousCombinedDenominator > 170 ? 5 : 0;
+      penaltyScore += recentThreeNetTotal >= 1800 ? 6 : 0;
+      penaltyScore += recentSevenNetTotal >= 2500 ? 8 : 0;
+      penaltyScore += recentFourteenNetTotal >= 4000 ? 8 : 0;
+      penaltyScore += streak >= 4 ? 4 : 0;
+      penaltyScore +=
+        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 42) ||
+        (!Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 42)
+          ? 8
+          : 0;
+      penaltyScore += recentThreeGamesTotal < 2500 ? 6 : 0;
+      score -= Math.min(penaltyScore, 30);
+
+      if (isNormalLogic) {
+        score += recentSevenNetTotal <= -3000 ? 7 : recentSevenNetTotal <= -2000 ? 4 : 0;
+        score += recentTwentyOneNetTotal <= -3000 ? 6 : recentTwentyOneNetTotal <= -2000 ? 3 : 0;
+        score += scoreInRange(daysSinceMachineHighContent, 8, 14, 6);
+        score += recentSevenGamesTotal > 0 && features.recentSevenAngle <= -200 ? 4 : 0;
+        score -= recentSevenNetTotal >= 1500 || recentFourteenNetTotal >= 2500 ? 7 : 0;
+      } else if (isEventLogic) {
+        score += scoreInRange(daysSinceMachineHighContent, 8, 14, 6);
+        score += recentFourteenNetTotal <= -3000 ? 5 : 0;
+        score += recentSevenGamesTotal > 0 && features.recentSevenAngle <= -200 ? 5 : 0;
+        score += recentSevenMinus1500StayDays >= 2 ? 3 : 0;
+        score -= recentFourteenNetTotal >= 3000 ? 6 : 0;
+      }
 
       return Math.round(clamp(score, 0, scoreCap));
     }
@@ -23179,6 +23671,27 @@ function buildIidabashiPresasDateSetting(definition, isEventDate) {
   };
 }
 
+function buildBoomTenjinDateSetting(definition, isEventDate) {
+  if (definition?.machineKey !== "neo-aim") {
+    return null;
+  }
+  const logicKey = isEventDate ? "boom-tenjin-neo-aim-event" : "boom-tenjin-neo-aim-normal";
+  const logic = findLogicDefinition(definition, logicKey);
+  if (!logic) {
+    return null;
+  }
+  const condition =
+    listConditionDefinitions(definition, logic.key).find(
+      (candidate) => candidate.keySuffix === logic.defaultConditionSuffix,
+    ) ??
+    listConditionDefinitions(definition, logic.key)[0] ??
+    null;
+  return {
+    logicKey: logic.key,
+    conditionKey: condition ? buildConditionKey(definition, condition) : "",
+  };
+}
+
 function buildAmuseAsakusaDateSetting(definition, isEventDate) {
   if (definition?.machineKey !== "neo-aim") {
     return null;
@@ -23391,6 +23904,21 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
     const targetDate = readRankingTargetDate(options?.snapshot);
     const isEventDate = isIidabashiPresasEventDate(targetDate, row, options);
     const setting = buildIidabashiPresasDateSetting(definition, isEventDate);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    if (!evaluation) {
+      return null;
+    }
+
+    return {
+      ...evaluation,
+      displayLabel: isEventDate ? "特定日" : "通常日",
+    };
+  }
+
+  if (isBoomTenjinStore(options?.storeName) && definition?.machineKey === "neo-aim") {
+    const targetDate = readRankingTargetDate(options?.snapshot);
+    const isEventDate = isBoomTenjinEventDate(targetDate, row, options);
+    const setting = buildBoomTenjinDateSetting(definition, isEventDate);
     const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
     if (!evaluation) {
       return null;

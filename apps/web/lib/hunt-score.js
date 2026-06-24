@@ -1014,9 +1014,20 @@ const HUNT_SCORE_STORE_CONFIGS = [
   },
   {
     key: "boom-tenjin",
-    storeNames: ["BOOM天神店", "BOOM天神", "ＢＯＯＭ天神店", "ＢＯＯＭ天神"],
+    storeNames: [
+      "BOOM天神本店",
+      "BOOM天神店",
+      "BOOM天神",
+      "ＢＯＯＭ天神本店",
+      "ＢＯＯＭ天神店",
+      "ＢＯＯＭ天神",
+    ],
     targetMachines: BOOM_TENJIN_TARGET_MACHINES,
     defaultLogicKey: "boom-tenjin",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "boom-tenjin-neo-aim",
+      "ネオアイムジャグラーＥＸ": "boom-tenjin-neo-aim",
+    },
   },
   {
     key: "beam-hikari",
@@ -2039,6 +2050,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
+    if (contentRule === "boom-tenjin-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 2500 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     if (contentRule === "amuse-asakusa-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -2475,6 +2493,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 360 && combinedDenominator <= 160;
     }
+    if (contentRule === "boom-tenjin-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 2500 && settingFivePlusProbability >= 0.3 && rbDenominator <= 350 && combinedDenominator <= 160;
+      }
+      return games >= 2500 && rbDenominator <= 350 && combinedDenominator <= 160;
+    }
     if (contentRule === "amuse-asakusa-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -2767,6 +2792,7 @@ function isMachineLowContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     [
       "million-tobu-nerima-neo-aim",
+      "boom-tenjin-neo-aim",
       "chikushino-neo-aim",
       "iidabashi-presas-neo-aim",
       "wonderland-minamigaoka-neo-aim",
@@ -2803,6 +2829,15 @@ function isMachineWeakContentWindowRow(row, machineName, config = null) {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       return (
         games >= 2500 &&
+        ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability < 0.3) ||
+          rbDenominator > 400 ||
+          combinedDenominator > 170)
+      );
+    }
+    if (readMachineContentRule(config, machineName) === "boom-tenjin-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        games >= 1500 &&
         ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability < 0.3) ||
           rbDenominator > 400 ||
           combinedDenominator > 170)
@@ -3021,6 +3056,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 5000 && settingFivePlusProbability >= 0.7;
     }
     return games >= 5000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "boom-tenjin-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
