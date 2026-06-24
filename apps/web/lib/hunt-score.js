@@ -1044,6 +1044,16 @@ const HUNT_SCORE_STORE_CONFIGS = [
     defaultLogicKey: "apark",
   },
   {
+    key: "plaza-tenjin",
+    storeNames: ["プラザ天神", "プラザ天神店", "PLAZA天神", "ＰＬＡＺＡ天神"],
+    targetMachines: APARK_KASUGA_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "plaza-tenjin-neo-aim",
+      "ネオアイムジャグラーＥＸ": "plaza-tenjin-neo-aim",
+    },
+  },
+  {
     key: "plaza3",
     storeNames: ["プラザ3"],
     targetMachines: APARK_KASUGA_TARGET_MACHINES,
@@ -1953,6 +1963,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
+    if (contentRule === "plaza-tenjin-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
   }
   if (
@@ -2325,6 +2342,7 @@ function isMachineLowContentWindowRow(row, machineName, config = null) {
       "iidabashi-presas-neo-aim",
       "wonderland-minamigaoka-neo-aim",
       "sengawa-uno-neo-aim",
+      "plaza-tenjin-neo-aim",
     ].includes(
       readMachineContentRule(config, machineName),
     )
@@ -2380,6 +2398,15 @@ function isMachineWeakContentWindowRow(row, machineName, config = null) {
       );
     }
     if (readMachineContentRule(config, machineName) === "sengawa-uno-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        games >= 2500 &&
+        ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability < 0.3) ||
+          rbDenominator > 400 ||
+          combinedDenominator > 170)
+      );
+    }
+    if (readMachineContentRule(config, machineName) === "plaza-tenjin-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       return (
         games >= 2500 &&
@@ -2561,6 +2588,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 4000 && settingFivePlusProbability >= 0.7;
     }
     return games >= 4000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "plaza-tenjin-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
     (normalizedMachineName === normalizeText("ファンキージャグラー２ＫＴ") ||

@@ -244,6 +244,13 @@ function isSengawaUnoStore(storeName) {
   );
 }
 
+function isPlazaTenjinStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["プラザ天神", "プラザ天神店", "PLAZA天神", "ＰＬＡＺＡ天神"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function readDateDayNumber(dateText) {
   const normalized = normalizeText(dateText);
   const match = normalized.match(/^\d{4}-\d{2}-(\d{2})$/u) ?? normalized.match(/^\d{2}\/\d{2}\/(\d{2})$/u);
@@ -1940,6 +1947,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "sengawa-uno-neo-aim",
         "仙川UNO ネオアイムEX 未返済×本物感スコア v1",
         "sengawa-uno-free-e",
+      ),
+      buildLogicVariant(
+        "plaza-tenjin-neo-aim",
+        "プラザ天神_ネオアイムEX_返済未完ボーナス不足ロジック",
+        "plaza-tenjin-neo-free-b",
       ),
     ],
     profile: "juggler",
@@ -3882,6 +3894,238 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["sengawa-uno-neo-aim"],
       ),
       buildCondition(
+        "plaza-tenjin-neo-score85",
+        "85点以上",
+        "対象日数214日 / 選択362台 / 総G 2,270,847 / BB 8,864 / RB 7,371 / BB 1/256.2 / RB 1/308.1 / 合成 1/139.9 / 平均差枚 +514枚 / 機械割 102.73% / 勝率 59.9% / 平均56推定率 34.8% / 中央56推定率 27.3% / 56推定50%以上 29.8% / 56推定70%以上 16.6% / 56推定30%未満 53.9% / RB1/300以下 40.9% / RB1/400超 29.8%",
+        {
+          minScore: 85,
+          requiredFlags: ["plazaTenjinNeoHistoryReady"],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-prev2000-combined160",
+        "前日-2000＋2日弱内容",
+        "対象日数142日 / 選択238台 / 総G 1,472,850 / BB 5,639 / RB 4,914 / BB 1/261.2 / RB 1/299.7 / 合成 1/139.6 / 平均差枚 +435枚 / 機械割 102.35% / 勝率 55.9% / 平均56推定率 36.4% / 中央56推定率 26.6% / 56推定50%以上 31.1% / 56推定70%以上 18.5% / 56推定30%未満 53.4% / RB1/300以下 42.0% / RB1/400超 25.2%",
+        {
+          requiredFlags: [
+            "plazaTenjinNeoHistoryReady",
+            "plazaTenjinNeoPreviousDeep2000",
+            "plazaTenjinNeoRecentTwoCombined160",
+          ],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-prev2000-combined180",
+        "前日-2000＋2日合成180",
+        "対象日数109日 / 選択154台 / 総G 969,719 / BB 3,782 / RB 3,309 / BB 1/256.4 / RB 1/293.1 / 合成 1/136.8 / 平均差枚 +601枚 / 機械割 103.18% / 勝率 59.7% / 平均56推定率 38.8% / 中央56推定率 31.9% / 56推定50%以上 32.5% / 56推定70%以上 19.5% / 56推定30%未満 47.4% / RB1/300以下 46.1% / RB1/400超 24.7%",
+        {
+          requiredFlags: [
+            "plazaTenjinNeoHistoryReady",
+            "plazaTenjinNeoPreviousDeep2000",
+            "plazaTenjinNeoRecentTwoCombined180",
+          ],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-main-unpaid",
+        "返済未完本命",
+        "対象日数95日 / 選択127台 / 総G 825,045 / BB 3,215 / RB 2,852 / BB 1/256.6 / RB 1/289.3 / 合成 1/136.0 / 平均差枚 +648枚 / 機械割 103.33% / 勝率 60.6% / 平均56推定率 40.7% / 中央56推定率 34.1% / 56推定50%以上 34.6% / 56推定70%以上 21.3% / 56推定30%未満 44.1% / RB1/300以下 49.6% / RB1/400超 23.6%",
+        {
+          minBoost: 2,
+          requiredFlags: [
+            "plazaTenjinNeoHistoryReady",
+            "plazaTenjinNeoPreviousDeep2000",
+            "plazaTenjinNeoRecentTwoCombined180",
+          ],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-score95-prev2000",
+        "95点以上＋前日-2000",
+        "対象日数49日 / 選択55台 / 総G 352,709 / BB 1,396 / RB 1,238 / BB 1/252.7 / RB 1/284.9 / 合成 1/133.9 / 平均差枚 +762枚 / 機械割 103.96% / 勝率 61.8% / 平均56推定率 42.2% / 中央56推定率 31.5% / 56推定50%以上 40.0% / 56推定70%以上 29.1% / 56推定30%未満 47.3% / RB1/300以下 47.3% / RB1/400超 25.5%",
+        {
+          minScore: 95,
+          requiredFlags: ["plazaTenjinNeoHistoryReady", "plazaTenjinNeoPreviousDeep2000"],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-rank1-gap15-prev2000-combined180",
+        "1位差15＋前日-2000＋2日合成180",
+        "対象日数17日 / 選択17台 / 総G 119,007 / BB 483 / RB 421 / BB 1/246.4 / RB 1/282.7 / 合成 1/131.6 / 平均差枚 +1,066枚 / 機械割 105.08% / 勝率 82.4% / 平均56推定率 44.6% / 中央56推定率 43.1% / 56推定50%以上 47.1% / 56推定70%以上 17.6% / 56推定30%未満 41.2% / RB1/300以下 52.9% / RB1/400超 17.6% / 件数注意",
+        {
+          rankMax: 1,
+          minNextGap: 15,
+          requiredFlags: [
+            "plazaTenjinNeoHistoryReady",
+            "plazaTenjinNeoPreviousDeep2000",
+            "plazaTenjinNeoRecentTwoCombined180",
+          ],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-free-a",
+        "自由A_返済未完本命",
+        "対象日数95日 / 選択127台 / RB 1/289.3 / 合成 1/136.0 / 平均差枚 +648枚 / 機械割 103.33% / 平均56推定率 40.7% / 56推定50%以上 34.6%",
+        {
+          minBoost: 2,
+          requiredFlags: [
+            "plazaTenjinNeoHistoryReady",
+            "plazaTenjinNeoPreviousDeep2000",
+            "plazaTenjinNeoRecentTwoCombined180",
+          ],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-free-b",
+        "自由B_高スコア大凹み",
+        "対象日数49日 / 選択55台 / RB 1/284.9 / 合成 1/133.9 / 平均差枚 +762枚 / 機械割 103.96% / 平均56推定率 42.2% / 56推定50%以上 40.0%",
+        {
+          minScore: 95,
+          requiredFlags: ["plazaTenjinNeoHistoryReady", "plazaTenjinNeoPreviousDeep2000"],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-free-c",
+        "自由C_前日ボーナス枯れ",
+        "対象日数82日 / 選択110台 / RB 1/291.1 / 合成 1/133.9 / 平均差枚 +747枚 / 機械割 104.34% / 平均56推定率 39.2% / 56推定50%以上 34.5%",
+        {
+          requiredFlags: [
+            "plazaTenjinNeoHistoryReady",
+            "plazaTenjinNeoRecentTwoCombined180",
+            "plazaTenjinNeoPreviousCombined280",
+            "plazaTenjinNeoPreviousRb800",
+          ],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-free-d",
+        "自由D_2日深沈み",
+        "対象日数136日 / 選択179台 / RB 1/307.3 / 合成 1/139.5 / 平均差枚 +518枚 / 機械割 102.72% / 平均56推定率 34.8%",
+        {
+          requiredFlags: [
+            "plazaTenjinNeoHistoryReady",
+            "plazaTenjinNeoRecentTwoDeep3000",
+            "plazaTenjinNeoRecentTwoCombined180",
+          ],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-free-e",
+        "自由E_1位差付き強条件",
+        "対象日数17日 / 選択17台 / RB 1/282.7 / 合成 1/131.6 / 平均差枚 +1,066枚 / 機械割 105.08% / 平均56推定率 44.6% / 56推定50%以上 47.1% / 件数注意",
+        {
+          rankMax: 1,
+          minNextGap: 15,
+          requiredFlags: [
+            "plazaTenjinNeoHistoryReady",
+            "plazaTenjinNeoPreviousDeep2000",
+            "plazaTenjinNeoRecentTwoCombined180",
+          ],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-score85-safe",
+        "85点以上＋危険0",
+        "85点以上、危険条件なし",
+        {
+          minScore: 85,
+          maxDanger: 0,
+          requiredFlags: ["plazaTenjinNeoHistoryReady"],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-top3",
+        "上位3台",
+        "上位3台を広めに確認する補助条件",
+        {
+          rankMax: 3,
+          requiredFlags: ["plazaTenjinNeoHistoryReady"],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-rank1",
+        "毎日1位",
+        "対象324日 / 選択324台 / RB 1/308.8 / 合成 1/141.0 / 平均差枚 +438枚 / 機械割 102.37% / 平均56推定率 35.0% / 56推定50%以上 30.9%",
+        {
+          rankMax: 1,
+          requiredFlags: ["plazaTenjinNeoHistoryReady"],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-watch-score-low",
+        "見送り_70点未満",
+        "70点未満は基本見送り",
+        {
+          maxScore: 69,
+          requiredFlags: ["plazaTenjinNeoHistoryReady"],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-watch-no-boost",
+        "見送り_強化0",
+        "70点以上でも強化条件0個",
+        {
+          minScore: 70,
+          maxBoost: 0,
+          requiredFlags: ["plazaTenjinNeoHistoryReady"],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-watch-danger2",
+        "見送り_危険2個以上",
+        "危険条件2個以上、かつ85点未満",
+        {
+          maxScore: 84,
+          minDanger: 2,
+          requiredFlags: ["plazaTenjinNeoHistoryReady"],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-watch-output-good-combined",
+        "見送り_出玉＋好合成",
+        "前日+2,000枚以上、かつ直近2日合成1/150以下",
+        {
+          requiredFlags: ["plazaTenjinNeoHistoryReady", "plazaTenjinNeoPreviousOutput2000GoodCombined"],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-watch-low-games-score",
+        "見送り_低G",
+        "直近2日G数3,000未満、かつ85点未満",
+        {
+          maxScore: 84,
+          requiredFlags: ["plazaTenjinNeoHistoryReady", "plazaTenjinNeoRecentTwoGamesLow"],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-tenjin-neo-watch-history-short",
+        "見送り_履歴不足",
+        "台番履歴21日未満",
+        {
+          requiredFlags: ["plazaTenjinNeoHistoryShort"],
+        },
+        ["plaza-tenjin-neo-aim"],
+      ),
+      buildCondition(
         "beam-hikari-main",
         "70点以上",
         "388件 / 103.33% / RB1/287.6 / p56 32.7%",
@@ -5408,6 +5652,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-neo-aim");
   } else if (isSengawaUnoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "sengawa-uno-neo-aim");
+  } else if (isPlazaTenjinStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "plaza-tenjin-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
@@ -6142,6 +6388,108 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "plaza-tenjin-neo-aim") {
+      const recentTwoRbTotal = readNumber(metrics.recentTwoRbTotal);
+      const recentTwoBonusTotal = readNumber(metrics.recentTwoBonusTotal);
+      const recentTwoCombinedDenominator = rateDenominator(recentTwoGamesTotal, recentTwoBonusTotal);
+      const recentTwoRbDenominator = rateDenominator(recentTwoGamesTotal, recentTwoRbTotal);
+      const plazaTenjinNeoHistoryReady = historyRowCount >= 21;
+      const plazaTenjinNeoHistoryShort = historyRowCount < 21;
+      const plazaTenjinNeoHistoryVeryShort = historyRowCount < 7;
+      const plazaTenjinNeoPreviousFivePlus =
+        previousGames >= 3000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5;
+      const plazaTenjinNeoPreviousStrongFivePlus =
+        previousGames >= 3000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.7;
+      const plazaTenjinNeoPreviousHighGamesDeepSink =
+        previousDifference <= -1500 && previousGames >= 3000;
+      const plazaTenjinNeoTwoDaySinkWeakCombined =
+        recentTwoNetTotal <= -2500 && recentTwoCombinedDenominator >= 180;
+      const plazaTenjinNeoTwoDayCombinedVeryBad = recentTwoCombinedDenominator >= 200;
+      const plazaTenjinNeoUnpaid = recentSevenNetTotal <= -4000 || recentFourteenNetTotal <= -6000;
+      const plazaTenjinNeoLosingStrong = streak >= 6;
+      const plazaTenjinNeoPreviousHighMiss =
+        plazaTenjinNeoPreviousFivePlus && previousDifference < 1000;
+      const plazaTenjinNeoPreviousOutput = previousDifference >= 1500;
+      const plazaTenjinNeoPreviousHighOutput =
+        plazaTenjinNeoPreviousFivePlus && previousDifference >= 1000;
+      const plazaTenjinNeoRecentTwoTooGood = recentTwoCombinedDenominator <= 140;
+      const plazaTenjinNeoSevenTreatmentDone = recentSevenNetTotal >= 4000;
+      const plazaTenjinNeoRecentHighImmediately =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent <= 2;
+      const boostFlags = [
+        plazaTenjinNeoPreviousHighGamesDeepSink,
+        plazaTenjinNeoTwoDaySinkWeakCombined,
+        plazaTenjinNeoTwoDayCombinedVeryBad,
+        plazaTenjinNeoUnpaid,
+        plazaTenjinNeoLosingStrong,
+        plazaTenjinNeoPreviousHighMiss,
+      ];
+      const boostCount = boostFlags.filter(Boolean).length;
+      const plazaTenjinNeoLowGamesNoBoost = recentTwoGamesTotal < 3000 && boostCount === 0;
+      const dangerFlags = [
+        plazaTenjinNeoPreviousOutput,
+        plazaTenjinNeoPreviousHighOutput,
+        plazaTenjinNeoRecentTwoTooGood,
+        plazaTenjinNeoSevenTreatmentDone,
+        plazaTenjinNeoRecentHighImmediately,
+        plazaTenjinNeoLowGamesNoBoost,
+      ];
+      const plazaTenjinNeoPreviousDeep2000 = previousDifference <= -2000;
+      const plazaTenjinNeoRecentTwoCombined160 = recentTwoCombinedDenominator >= 160;
+      const plazaTenjinNeoRecentTwoCombined180 = recentTwoCombinedDenominator >= 180;
+      const plazaTenjinNeoRecentTwoDeep3000 = recentTwoNetTotal <= -3000;
+      const plazaTenjinNeoPreviousCombined280 = features.previousCombinedDenominator >= 280;
+      const plazaTenjinNeoPreviousRb800 = features.previousRbDenominator >= 800;
+      const plazaTenjinNeoPreviousOutput2000GoodCombined =
+        previousDifference >= 2000 && recentTwoCombinedDenominator <= 150;
+      const plazaTenjinNeoRecentTwoGamesLow = recentTwoGamesTotal < 3000;
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability,
+        recentTwoCombinedDenominator,
+        recentTwoRbDenominator,
+        plazaTenjinNeoHistoryReady,
+        plazaTenjinNeoHistoryShort,
+        plazaTenjinNeoHistoryVeryShort,
+        plazaTenjinNeoPreviousFivePlus,
+        plazaTenjinNeoPreviousStrongFivePlus,
+        plazaTenjinNeoPreviousHighGamesDeepSink,
+        plazaTenjinNeoTwoDaySinkWeakCombined,
+        plazaTenjinNeoTwoDayCombinedVeryBad,
+        plazaTenjinNeoUnpaid,
+        plazaTenjinNeoLosingStrong,
+        plazaTenjinNeoPreviousHighMiss,
+        plazaTenjinNeoPreviousOutput,
+        plazaTenjinNeoPreviousHighOutput,
+        plazaTenjinNeoRecentTwoTooGood,
+        plazaTenjinNeoSevenTreatmentDone,
+        plazaTenjinNeoRecentHighImmediately,
+        plazaTenjinNeoLowGamesNoBoost,
+        plazaTenjinNeoPreviousDeep2000,
+        plazaTenjinNeoRecentTwoCombined160,
+        plazaTenjinNeoRecentTwoCombined180,
+        plazaTenjinNeoRecentTwoDeep3000,
+        plazaTenjinNeoPreviousCombined280,
+        plazaTenjinNeoPreviousRb800,
+        plazaTenjinNeoPreviousOutput2000GoodCombined,
+        plazaTenjinNeoRecentTwoGamesLow,
+        treatmentDone:
+          plazaTenjinNeoPreviousOutput ||
+          plazaTenjinNeoPreviousHighOutput ||
+          plazaTenjinNeoRecentTwoTooGood ||
+          plazaTenjinNeoSevenTreatmentDone ||
+          plazaTenjinNeoRecentHighImmediately,
+        lowConfidence: plazaTenjinNeoHistoryShort || plazaTenjinNeoLowGamesNoBoost,
+        boostCount,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "wonderland-minamigaoka-neo-aim") {
       const recentTenBonusTotal = readNumber(metrics.recentTenBonusTotal);
       const recentTenCombinedDenominator = rateDenominator(recentTenGamesTotal, recentTenBonusTotal);
@@ -10261,6 +10609,132 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "plaza-tenjin-neo-aim") {
+      let score = 30;
+      const scoreCap = historyRowCount < 7 ? 50 : historyRowCount < 14 ? 70 : historyRowCount < 21 ? 85 : 100;
+      const recentTwoRbTotal = readNumber(metrics.recentTwoRbTotal);
+      const recentTwoRbDenominator = rateDenominator(recentTwoGamesTotal, recentTwoRbTotal);
+
+      const sinkScore = Math.min(
+        scoreAtMost(previousDifference, [
+          { maximum: -2000, points: 18 },
+          { maximum: -1500, points: 15 },
+          { maximum: -1000, points: 10 },
+          { maximum: -500, points: 5 },
+        ]) +
+          scoreAtMost(recentTwoNetTotal, [
+            { maximum: -3000, points: 10 },
+            { maximum: -2500, points: 8 },
+            { maximum: -2000, points: 6 },
+            { maximum: -1000, points: 3 },
+          ]),
+        26,
+      );
+      score += sinkScore;
+
+      const bonusShortageScore = Math.min(
+        scoreAtLeast(recentTwoCombinedDenominator, [
+          { minimum: 200, points: 16 },
+          { minimum: 190, points: 14 },
+          { minimum: 180, points: 10 },
+          { minimum: 170, points: 6 },
+          { minimum: 160, points: 3 },
+        ]) +
+          scoreAtLeast(previousCombinedDenominator, [
+            { minimum: 300, points: 7 },
+            { minimum: 280, points: 6 },
+            { minimum: 250, points: 4 },
+            { minimum: 220, points: 2 },
+          ]) +
+          scoreAtLeast(recentTwoRbDenominator, [
+            { minimum: 600, points: 5 },
+            { minimum: 500, points: 3 },
+            { minimum: 400, points: 1 },
+          ]),
+        24,
+      );
+      score += bonusShortageScore;
+
+      const unpaidScore = Math.min(
+        scoreAtMost(recentSevenNetTotal, [
+          { maximum: -5000, points: 9 },
+          { maximum: -4000, points: 8 },
+          { maximum: -3000, points: 6 },
+          { maximum: -2000, points: 4 },
+          { maximum: -1000, points: 2 },
+        ]) +
+          scoreAtMost(recentFourteenNetTotal, [
+            { maximum: -7000, points: 9 },
+            { maximum: -6000, points: 8 },
+            { maximum: -4000, points: 5 },
+            { maximum: -2000, points: 3 },
+          ]) +
+          scoreAtLeast(streak, [
+            { minimum: 7, points: 8 },
+            { minimum: 6, points: 7 },
+            { minimum: 5, points: 5 },
+            { minimum: 3, points: 2 },
+          ]),
+        20,
+      );
+      score += unpaidScore;
+
+      const previousFivePlus =
+        previousGames >= 3000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5;
+      const previousStrongFivePlus =
+        previousGames >= 3000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.7;
+      const previousMissScore =
+        (previousStrongFivePlus && previousDifference < 1000 ? 6 : previousFivePlus && previousDifference < 1000 ? 4 : 0) +
+        (previousFivePlus && previousDifference < 0 ? 4 : 0);
+      const intervalScore =
+        scoreInRange(daysSinceMachineHighContent, 4, 14, 4) +
+        scoreInRange(daysSinceMachineHighContent, 15, 28, 2) +
+        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 29 ? 1 : 0);
+      score += Math.min(previousMissScore + intervalScore, 12);
+
+      score += Math.min(
+        (previousGames >= 3000 ? 2 : 0) +
+          (recentTwoGamesTotal >= 5000 ? 3 : 0) +
+          (recentSevenGamesTotal >= 25000 ? 2 : 0) +
+          (recentFourteenGamesTotal >= 50000 ? 1 : 0),
+        8,
+      );
+
+      const penaltyScore = Math.min(
+        scoreAtLeast(previousDifference, [
+          { minimum: 3000, points: 18 },
+          { minimum: 2000, points: 15 },
+          { minimum: 1500, points: 12 },
+          { minimum: 1000, points: 8 },
+        ]) +
+          (previousStrongFivePlus && previousDifference >= 1000
+            ? 8
+            : previousFivePlus && previousDifference >= 1000
+              ? 6
+              : 0) +
+          scoreAtMost(recentTwoCombinedDenominator, [
+            { maximum: 130, points: 10 },
+            { maximum: 140, points: 8 },
+            { maximum: 150, points: 5 },
+          ]) +
+          scoreAtLeast(recentSevenNetTotal, [
+            { minimum: 4000, points: 8 },
+            { minimum: 3000, points: 5 },
+          ]) +
+          (recentFourteenNetTotal >= 6000 ? 4 : 0) +
+          (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent <= 2 ? 5 : 0) +
+          (recentTwoGamesTotal < 3000 && sinkScore + bonusShortageScore + unpaidScore < 20 ? 4 : 0),
+        35,
+      );
+      score -= penaltyScore;
+
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
     if (activeLogicKey === "wonderland-minamigaoka-neo-aim") {
       let score = 40;
       const scoreCap = historyRowCount < 7 ? 55 : 100;
