@@ -23,6 +23,7 @@ from minrepo_scraper import MachineHistoryResult, normalize_text
 from r2_storage import R2JsonStorage, R2StorageError
 from site7_scraper import (
     DEFAULT_SITE7_PREFECTURE_NAME,
+    SITE7_DATE_BOUNDARY_HOUR,
     SITE7_DIFFERENCE_SOURCE_GRAPH,
     dataset_has_site7_graph_difference,
     default_site7_store_settings,
@@ -59,6 +60,7 @@ WINDOWS_FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]+')
 DATA_SOURCE_MINREPO = "minrepo"
 DATA_SOURCE_SITE7 = "site7"
 SITE7_SAVED_TIMEZONE = timezone(timedelta(hours=9))
+SITE7_COMPLETE_FETCH_HOUR = 23
 R2_SNAPSHOT_PREFIX = "snapshots"
 R2_FULL_DAY_INDEX_FILE_NAME = "full-day-index.json"
 FULL_DAY_INCOMPLETE_RECORD_RATIO = 0.8
@@ -242,6 +244,31 @@ def _parse_site7_saved_datetime(value: Any) -> datetime | None:
     return parsed.astimezone(timezone.utc).replace(tzinfo=None)
 
 
+def _site7_business_date_from_updated_at(updated_at_utc: datetime) -> str:
+    updated_at = updated_at_utc.replace(tzinfo=timezone.utc).astimezone(SITE7_SAVED_TIMEZONE)
+    if updated_at.hour < SITE7_DATE_BOUNDARY_HOUR:
+        updated_at -= timedelta(days=1)
+    return updated_at.strftime("%Y-%m-%d")
+
+
+def _site7_complete_fetch_threshold(target_date: Any) -> datetime | None:
+    target_date_text = str(target_date or "").strip()
+    if not target_date_text:
+        return None
+    try:
+        parsed_date = datetime.strptime(target_date_text, "%Y-%m-%d")
+    except ValueError:
+        return None
+    threshold = parsed_date.replace(
+        hour=SITE7_COMPLETE_FETCH_HOUR,
+        minute=0,
+        second=0,
+        microsecond=0,
+        tzinfo=SITE7_SAVED_TIMEZONE,
+    )
+    return threshold.astimezone(timezone.utc).replace(tzinfo=None)
+
+
 def _site7_record_update_is_current_or_newer(
     record: dict[str, Any],
     site7_updated_at: str | datetime | None,
@@ -255,6 +282,14 @@ def _site7_record_update_is_current_or_newer(
     )
     if saved_updated_at is None:
         return False
+
+    target_date = str(record.get("target_date", "")).strip()
+    current_business_date = _site7_business_date_from_updated_at(current_updated_at)
+    if target_date and target_date < current_business_date:
+        complete_fetch_threshold = _site7_complete_fetch_threshold(target_date)
+        if complete_fetch_threshold is not None:
+            return saved_updated_at >= complete_fetch_threshold
+
     return saved_updated_at >= current_updated_at
 
 

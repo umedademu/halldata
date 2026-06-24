@@ -7320,6 +7320,61 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(summary.protected_slots, {("2026-06-07", "738"), ("2026-06-07", "739")})
             self.assertEqual(summary.replaceable_slots, {("2026-06-07", "737")})
 
+    def test_find_saved_machine_slots_protects_past_site7_after_close(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service, storage = make_r2_service(Path(temp_dir))
+            seed_r2_store(
+                storage,
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                records=[
+                    {
+                        "target_date": "2026-06-07",
+                        "slot_number": "737",
+                        "machine_name": "ゴーゴージャグラー３",
+                        "data_source": DATA_SOURCE_SITE7,
+                        "games_count": 1200,
+                        "bb_count": 6,
+                        "rb_count": 4,
+                        "site7_fetched_at": "2026-06-07T22:59:00+09:00",
+                    },
+                    {
+                        "target_date": "2026-06-07",
+                        "slot_number": "738",
+                        "machine_name": "ゴーゴージャグラー３",
+                        "data_source": DATA_SOURCE_SITE7,
+                        "games_count": 900,
+                        "bb_count": 5,
+                        "rb_count": 2,
+                        "site7_fetched_at": "2026-06-07T23:00:00+09:00",
+                    },
+                    {
+                        "target_date": "2026-06-07",
+                        "slot_number": "739",
+                        "machine_name": "ゴーゴージャグラー３",
+                        "data_source": DATA_SOURCE_SITE7,
+                        "games_count": 700,
+                        "bb_count": 3,
+                        "rb_count": 2,
+                        "site7_fetched_at": "2026-06-08T12:00:00+09:00",
+                    },
+                ],
+            )
+
+            summary = service.find_saved_machine_slots(
+                store_name="テスト店",
+                store_url="https://example.com/store/",
+                start_date="2026-06-07",
+                end_date="2026-06-07",
+                slot_numbers=["737", "738", "739"],
+                require_source_difference=False,
+                site7_updated_at="2026-06-08T23:15:00+09:00",
+            )
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(summary.protected_slots, {("2026-06-07", "738"), ("2026-06-07", "739")})
+            self.assertEqual(summary.replaceable_slots, {("2026-06-07", "737")})
+
     def test_find_saved_machine_slots_treats_formula_site7_difference_as_replaceable(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service, storage = make_r2_service(Path(temp_dir))
