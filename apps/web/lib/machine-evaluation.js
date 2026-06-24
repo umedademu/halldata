@@ -242,6 +242,16 @@ function isMjArenaKurumeStore(storeName) {
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
+function isMjArenaAirportStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "MJアリーナ空港店",
+    "MJアリーナ空港",
+    "ＭＪアリーナ空港店",
+    "ＭＪアリーナ空港",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
 function isBeamHikariStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["ビームヒカリ店", "ビームヒカリ", "BEAM HIKARI", "BEAMHIKARI", "ＢＥＡＭヒカリ店"].some(
@@ -2028,6 +2038,21 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildLogicVariant("apark-neo-aim", "ネオアイム春日式", "main"),
       buildLogicVariant("apark-yakatabaru-neo-aim", "ネオアイム屋形原式", "apark-yakatabaru-main"),
       buildLogicVariant("mj-kurume-neo-aim", "ネオアイムMJ久留米式", "mj-kurume-main"),
+      buildLogicVariant(
+        "mj-airport-neo-aim",
+        "MJ空港ネオアイムEX_全日_返済沈みRB本物ロジック_v1",
+        "mj-airport-neo-free-best",
+      ),
+      buildLogicVariant(
+        "mj-airport-neo-aim-normal",
+        "MJ空港ネオアイムEX_通常_深沈み本物補助_v1",
+        "mj-airport-neo-normal-strong",
+      ),
+      buildLogicVariant(
+        "mj-airport-neo-aim-event",
+        "MJ空港ネオアイムEX_特定_強沈み連敗補助_v1",
+        "mj-airport-neo-event-best",
+      ),
       buildLogicVariant("beam-hikari-neo-aim", "ネオアイムビームヒカリ式", "beam-hikari-main"),
       buildLogicVariant("beam-hikari-neo-aim-normal", "ネオアイムビームヒカリ通常日式", "beam-hikari-normal-main"),
       buildLogicVariant("beam-hikari-neo-aim-event", "ネオアイムビームヒカリイベント日式", "beam-hikari-event-main"),
@@ -2543,6 +2568,228 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["kurumeNeoHistoryReady", "kurumeNeoStrongSink"],
         },
         ["mj-kurume-neo-aim"],
+      ),
+      buildCondition(
+        "mj-airport-neo-no-go",
+        "見送り",
+        "663台 / RB1/378 / 合算1/158 / 平均-77枚 / 機械割98.85% / 平均56 25.3% / 56>=50 5.9% / 56<30 74.2% / 高得点でも原則見送り",
+        {
+          anyOf: [
+            { requiredFlags: ["mjAirportNeoHistoryReady", "mjAirportNeoNoGo"] },
+            { minScore: 70, minDanger: 2, requiredFlags: ["mjAirportNeoHistoryReady"] },
+          ],
+        },
+        ["mj-airport-neo-aim", "mj-airport-neo-aim-normal", "mj-airport-neo-aim-event"],
+      ),
+      buildCondition(
+        "mj-airport-neo-free-best",
+        "自由最本命",
+        "39台 / RB1/262 / 合算1/132 / 平均+457枚 / 機械割103.52% / 平均56 45.9% / 中央56 41.0% / 56>=50 35.9% / 56<30 35.9% / 点数より優先",
+        {
+          requiredFlags: ["mjAirportNeoHistoryReady", "mjAirportNeoFreeBest"],
+        },
+        ["mj-airport-neo-aim", "mj-airport-neo-aim-normal", "mj-airport-neo-aim-event"],
+      ),
+      buildCondition(
+        "mj-airport-neo-free-main",
+        "自由本命",
+        "68台 / RB1/285 / 合算1/134 / 平均+592枚 / 機械割104.23% / 平均56 39.9% / 中央56 33.2% / 56>=50 29.4% / 56<30 45.6% / 自由最本命がない日の本命",
+        {
+          requiredFlags: ["mjAirportNeoHistoryReady", "mjAirportNeoFreeMain"],
+        },
+        ["mj-airport-neo-aim", "mj-airport-neo-aim-normal", "mj-airport-neo-aim-event"],
+      ),
+      buildCondition(
+        "mj-airport-neo-free-balance",
+        "自由バランス",
+        "226台 / RB1/298 / 合算1/138 / 平均+310枚 / 機械割102.92% / 平均56 35.5% / 中央56 27.6% / 56>=50 21.7% / 56<30 54.0% / 高頻度で使える",
+        {
+          requiredFlags: ["mjAirportNeoHistoryReady", "mjAirportNeoFreeBalance"],
+        },
+        ["mj-airport-neo-aim", "mj-airport-neo-aim-normal", "mj-airport-neo-aim-event"],
+      ),
+      buildCondition(
+        "mj-airport-neo-best-rb270",
+        "最本命RB270",
+        "34日 / 39台 / 総G168,950 / BB1/266 / RB1/262 / 合算1/132 / 平均+457枚 / 機械割103.52% / 勝率64.1% / 平均56 45.9% / 中央56 41.0% / 56>=50 35.9% / 56<30 35.9%",
+        {
+          requiredFlags: ["mjAirportNeoHistoryReady", "mjAirportNeoFreeBest"],
+        },
+        ["mj-airport-neo-aim"],
+      ),
+      buildCondition(
+        "mj-airport-neo-strong-rb280",
+        "強RB280",
+        "41日 / 45台 / 総G203,441 / BB1/270 / RB1/267 / 合算1/134 / 平均+361枚 / 機械割102.66% / 勝率62.2% / 平均56 44.2% / 中央56 34.6% / 56>=50 28.9% / 56<30 40.0%",
+        {
+          rankMax: 4,
+          requiredFlags: ["mjAirportNeoHistoryReady", "mjAirportNeoRb250", "mjAirportNeoSink14Deep2500"],
+        },
+        ["mj-airport-neo-aim"],
+      ),
+      buildCondition(
+        "mj-airport-neo-main-rb290",
+        "本命RB290",
+        "53日 / 68台 / 総G317,316 / BB1/254 / RB1/285 / 合算1/134 / 平均+592枚 / 機械割104.23% / 勝率63.2% / 平均56 39.9% / 中央56 33.2% / 56>=50 29.4% / 56<30 45.6%",
+        {
+          requiredFlags: ["mjAirportNeoHistoryReady", "mjAirportNeoFreeMain"],
+        },
+        ["mj-airport-neo-aim"],
+      ),
+      buildCondition(
+        "mj-airport-neo-weak-rb300",
+        "弱本命RB300",
+        "132日 / 226台 / 総G802,249 / BB1/258 / RB1/298 / 合算1/138 / 平均+310枚 / 機械割102.92% / 勝率47.3% / 平均56 35.5% / 中央56 27.6% / 56>=50 21.7% / 56<30 54.0%",
+        {
+          requiredFlags: ["mjAirportNeoHistoryReady", "mjAirportNeoFreeBalance"],
+        },
+        ["mj-airport-neo-aim"],
+      ),
+      buildCondition(
+        "mj-airport-neo-wide-rb310",
+        "広めRB310",
+        "198日 / 855台 / 総G2,877,748 / BB1/261 / RB1/308 / 合算1/141 / 平均+212枚 / 機械割102.10% / 勝率44.9% / 平均56 32.9% / 中央56 26.4% / 56>=50 18.0% / 56<30 59.3%",
+        {
+          minScore: 65,
+          maxDanger: 0,
+          requiredFlags: ["mjAirportNeoHistoryReady"],
+        },
+        ["mj-airport-neo-aim"],
+      ),
+      buildCondition(
+        "mj-airport-neo-normal-wide75",
+        "通常広め75",
+        "315台 / RB1/307 / 合算1/140 / 平均+263枚 / 機械割102.76% / 平均56 33.3%",
+        {
+          minScore: 75,
+          requiredFlags: ["mjAirportNeoHistoryReady"],
+        },
+        ["mj-airport-neo-aim-normal"],
+      ),
+      buildCondition(
+        "mj-airport-neo-normal-main80",
+        "通常本命80",
+        "219台 / RB1/305 / 合算1/140 / 平均+251枚 / 機械割102.61% / 平均56 33.5%",
+        {
+          minScore: 80,
+          requiredFlags: ["mjAirportNeoHistoryReady"],
+        },
+        ["mj-airport-neo-aim-normal"],
+      ),
+      buildCondition(
+        "mj-airport-neo-normal-strong",
+        "通常強",
+        "54台 / RB1/288 / 合算1/135 / 平均+540枚 / 機械割104.06% / 平均56 38.4% / 通常日は前日RB250以下＋沈み7滞在を優先",
+        {
+          requiredFlags: ["mjAirportNeoHistoryReady", "mjAirportNeoFreeMain"],
+        },
+        ["mj-airport-neo-aim-normal"],
+      ),
+      buildCondition(
+        "mj-airport-neo-normal-best",
+        "通常最本命",
+        "35台 / RB1/269 / 合算1/133 / 平均+397枚 / 機械割103.37% / 平均56 42.0%",
+        {
+          requiredFlags: ["mjAirportNeoHistoryReady", "mjAirportNeoRb250", "mjAirportNeoSink14Deep4000"],
+        },
+        ["mj-airport-neo-aim-normal"],
+      ),
+      buildCondition(
+        "mj-airport-neo-event-wide70",
+        "特定広め70",
+        "146台 / RB1/288 / 合算1/137 / 平均+428枚 / 機械割102.65% / 平均56 39.7%",
+        {
+          minScore: 70,
+          requiredFlags: ["mjAirportNeoHistoryReady"],
+        },
+        ["mj-airport-neo-aim-event"],
+      ),
+      buildCondition(
+        "mj-airport-neo-event-main80",
+        "特定本命80",
+        "59台 / RB1/285 / 合算1/136 / 平均+455枚 / 機械割102.80% / 平均56 40.7%",
+        {
+          minScore: 80,
+          requiredFlags: ["mjAirportNeoHistoryReady"],
+        },
+        ["mj-airport-neo-aim-event"],
+      ),
+      buildCondition(
+        "mj-airport-neo-event-strong85",
+        "特定強85",
+        "44台 / RB1/280 / 合算1/134 / 平均+587枚 / 機械割103.35% / 平均56 43.0%",
+        {
+          minScore: 85,
+          requiredFlags: ["mjAirportNeoHistoryReady"],
+        },
+        ["mj-airport-neo-aim-event"],
+      ),
+      buildCondition(
+        "mj-airport-neo-event-best",
+        "特定最本命",
+        "45台 / RB1/272 / 合算1/131 / 平均+754枚 / 機械割104.31% / 平均56 47.3% / 特定日は強沈み＋強連敗を最優先",
+        {
+          requiredFlags: ["mjAirportNeoHistoryReady", "mjAirportNeoFreeBalance"],
+        },
+        ["mj-airport-neo-aim-event"],
+      ),
+      buildCondition(
+        "mj-airport-neo-rank1-gap8",
+        "1位+次点差8",
+        "82台 / RB1/314 / 合算1/140 / 平均+368枚 / 機械割103.59% / 平均56 31.7% / 補助強化ラベル",
+        {
+          rankMax: 1,
+          minNextGap: 8,
+          requiredFlags: ["mjAirportNeoHistoryReady"],
+        },
+        ["mj-airport-neo-aim"],
+      ),
+      buildCondition(
+        "mj-airport-neo-rank1-gap10",
+        "1位+次点差10",
+        "63台 / RB1/306 / 合算1/140 / 平均+329枚 / 機械割103.10% / 平均56 33.0% / さらに絞る補助ラベル",
+        {
+          rankMax: 1,
+          minNextGap: 10,
+          requiredFlags: ["mjAirportNeoHistoryReady"],
+        },
+        ["mj-airport-neo-aim"],
+      ),
+      buildCondition(
+        "mj-airport-neo-watch-history-short",
+        "見送り_履歴不足",
+        "履歴14営業日未満は採用条件対象外。7営業日未満は最大45点、14営業日未満は最大50点",
+        {
+          requiredFlags: ["mjAirportNeoHistoryShort"],
+        },
+        ["mj-airport-neo-aim", "mj-airport-neo-aim-normal", "mj-airport-neo-aim-event"],
+      ),
+      buildCondition(
+        "mj-airport-neo-watch-done",
+        "見送り_処遇完了",
+        "前日+1,500枚以上、14日差枚+3,000枚以上かつ前日+1,000枚以上、前日高内容かつ+1,500枚以上は注意",
+        {
+          requiredFlags: ["mjAirportNeoHistoryReady", "mjAirportNeoDangerDone"],
+        },
+        ["mj-airport-neo-aim", "mj-airport-neo-aim-normal", "mj-airport-neo-aim-event"],
+      ),
+      buildCondition(
+        "mj-airport-neo-watch-low-g",
+        "見送り_低G数危険",
+        "14日G数20,000未満、または6連敗以上で14日G数25,000未満は信頼不足",
+        {
+          requiredFlags: ["mjAirportNeoHistoryReady", "mjAirportNeoDangerLowG"],
+        },
+        ["mj-airport-neo-aim", "mj-airport-neo-aim-normal", "mj-airport-neo-aim-event"],
+      ),
+      buildCondition(
+        "mj-airport-neo-watch-bb-only",
+        "見送り_BB寄り出玉",
+        "前日+1,000枚以上かつ前日RB1/380以上はBB寄り出玉として見送り寄り",
+        {
+          requiredFlags: ["mjAirportNeoHistoryReady", "mjAirportNeoDangerBbOnly"],
+        },
+        ["mj-airport-neo-aim", "mj-airport-neo-aim-normal", "mj-airport-neo-aim-event"],
       ),
       buildCondition(
         "gogo-tenjin-main",
@@ -7165,6 +7412,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-gogo");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-neo-aim");
+  } else if (isMjArenaAirportStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "mj-airport-neo-aim");
   } else if (isMillionTobuNerimaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "million-tobu-nerima-neo-aim");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "funky") {
@@ -7782,7 +8031,9 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentFourteenMinus1500StayDays = readNumber(metrics.recentFourteenMinus1500StayDays);
   const recentFourteenMinus1800StayDays = readNumber(metrics.recentFourteenMinus1800StayDays);
   const recentFourteenMinus2000StayDays = readNumber(metrics.recentFourteenMinus2000StayDays);
+  const recentFourteenMinus2500StayDays = readNumber(metrics.recentFourteenMinus2500StayDays);
   const recentFourteenMinus3000StayDays = readNumber(metrics.recentFourteenMinus3000StayDays);
+  const recentFourteenMinus4000StayDays = readNumber(metrics.recentFourteenMinus4000StayDays);
   const recentFourteenMinus5000StayDays = readNumber(metrics.recentFourteenMinus5000StayDays);
   const recentFourteenNegativeStayDays = readNumber(metrics.recentFourteenNegativeStayDays);
   const recentSevenMinus1200StayDays = readNumber(metrics.recentSevenMinus1200StayDays);
@@ -8250,6 +8501,98 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         treatmentDone: tamayaHontenNeoTreatmentDone,
         lowConfidence: tamayaHontenNeoHistoryShort || tamayaHontenNeoLowTrust,
         boostCount: boostFlags.filter(Boolean).length,
+        dangerCount,
+      };
+    }
+
+    if (
+      activeLogicKey === "mj-airport-neo-aim" ||
+      activeLogicKey === "mj-airport-neo-aim-normal" ||
+      activeLogicKey === "mj-airport-neo-aim-event"
+    ) {
+      const mjAirportNeoHistoryReady = historyRowCount >= 14;
+      const mjAirportNeoHistoryShort = historyRowCount < 14;
+      const mjAirportNeoHistoryVeryShort = historyRowCount < 7;
+      const mjAirportNeoGapHigh = Number.isFinite(daysSinceMachineHighContent)
+        ? Math.max(0, daysSinceMachineHighContent - 1)
+        : null;
+      const mjAirportNeoNeighborHighAverage3 = adjacentMachineHighContentCount3Near2 / 3;
+      const mjAirportNeoRb250 = features.previousRbDenominator <= 250;
+      const mjAirportNeoSink14Deep2500 = recentFourteenMinus2500StayDays >= 2;
+      const mjAirportNeoSink14Deep4000 = recentFourteenMinus4000StayDays >= 1;
+      const mjAirportNeoStrongSink = mjAirportNeoSink14Deep2500 || mjAirportNeoSink14Deep4000;
+      const mjAirportNeoStrongLoss = streak >= 5;
+      const mjAirportNeoStrongGap = Number.isFinite(mjAirportNeoGapHigh) && mjAirportNeoGapHigh >= 12;
+      const mjAirportNeoRealBonus =
+        features.previousRbDenominator <= 300 && previousDifference <= 0 && previousGames >= 1500;
+      const mjAirportNeoNeighborSupport =
+        mjAirportNeoNeighborHighAverage3 >= 1 && recentFourteenMinus2500StayDays >= 1;
+      const boostFlags = [
+        mjAirportNeoStrongSink,
+        mjAirportNeoStrongLoss,
+        mjAirportNeoStrongGap,
+        mjAirportNeoRealBonus,
+        mjAirportNeoNeighborSupport,
+      ];
+      const strengthCount = boostFlags.filter(Boolean).length;
+      const mjAirportNeoDangerDone =
+        previousDifference >= 1500 ||
+        (recentFourteenNetTotal >= 3000 && previousDifference >= 1000) ||
+        (previousMachineHighContent && previousDifference >= 1500);
+      const mjAirportNeoDangerLowG =
+        recentFourteenGamesTotal < 20000 || (streak >= 6 && recentFourteenGamesTotal < 25000);
+      const mjAirportNeoDangerBbOnly =
+        previousDifference >= 1000 && features.previousRbDenominator >= 380;
+      const dangerFlags = [
+        mjAirportNeoDangerDone,
+        mjAirportNeoDangerLowG,
+        mjAirportNeoDangerBbOnly,
+      ];
+      const dangerCount = dangerFlags.filter(Boolean).length;
+      const mjAirportNeoNoGo =
+        (mjAirportNeoDangerDone && strengthCount <= 1) ||
+        (mjAirportNeoDangerLowG && strengthCount <= 1) ||
+        mjAirportNeoDangerBbOnly;
+      const mjAirportNeoFreeBest =
+        mjAirportNeoRb250 && mjAirportNeoSink14Deep4000 && dangerCount === 0;
+      const mjAirportNeoFreeMain =
+        mjAirportNeoRb250 && recentSevenMinus1500StayDays >= 4;
+      const mjAirportNeoFreeBalance = mjAirportNeoStrongSink && mjAirportNeoStrongLoss;
+      const mjAirportNeoFreeDiffMax =
+        streak >= 7 && recentSevenMinus1500StayDays >= 5;
+      const mjAirportNeoLongGapOnly =
+        mjAirportNeoStrongGap &&
+        !mjAirportNeoStrongSink &&
+        !mjAirportNeoStrongLoss &&
+        !mjAirportNeoRealBonus;
+
+      return {
+        ...features,
+        mjAirportNeoHistoryReady,
+        mjAirportNeoHistoryShort,
+        mjAirportNeoHistoryVeryShort,
+        mjAirportNeoGapHigh,
+        mjAirportNeoNeighborHighAverage3,
+        mjAirportNeoRb250,
+        mjAirportNeoSink14Deep2500,
+        mjAirportNeoSink14Deep4000,
+        mjAirportNeoStrongSink,
+        mjAirportNeoStrongLoss,
+        mjAirportNeoStrongGap,
+        mjAirportNeoRealBonus,
+        mjAirportNeoNeighborSupport,
+        mjAirportNeoDangerDone,
+        mjAirportNeoDangerLowG,
+        mjAirportNeoDangerBbOnly,
+        mjAirportNeoNoGo,
+        mjAirportNeoFreeBest,
+        mjAirportNeoFreeMain,
+        mjAirportNeoFreeBalance,
+        mjAirportNeoFreeDiffMax,
+        mjAirportNeoLongGapOnly,
+        treatmentDone: mjAirportNeoDangerDone,
+        lowConfidence: mjAirportNeoHistoryShort || mjAirportNeoDangerLowG,
+        boostCount: strengthCount,
         dangerCount,
       };
     }
@@ -12690,7 +13033,9 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFourteenMinus1500StayDays = readNumber(metrics.recentFourteenMinus1500StayDays);
   const recentFourteenMinus1800StayDays = readNumber(metrics.recentFourteenMinus1800StayDays);
   const recentFourteenMinus2000StayDays = readNumber(metrics.recentFourteenMinus2000StayDays);
+  const recentFourteenMinus2500StayDays = readNumber(metrics.recentFourteenMinus2500StayDays);
   const recentFourteenMinus3000StayDays = readNumber(metrics.recentFourteenMinus3000StayDays);
+  const recentFourteenMinus4000StayDays = readNumber(metrics.recentFourteenMinus4000StayDays);
   const recentFourteenMinus5000StayDays = readNumber(metrics.recentFourteenMinus5000StayDays);
   const recentFourteenMinus3218StayDays = readNumber(metrics.recentFourteenMinus3218StayDays);
   const recentFourteenNegativeStayDays = readNumber(metrics.recentFourteenNegativeStayDays);
@@ -13281,6 +13626,140 @@ function calculateMachineScore(definition, metrics, features) {
         score = Math.min(score, 35);
       } else if (historyRowCount < 7) {
         score = Math.min(score, 70);
+      }
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
+    if (
+      activeLogicKey === "mj-airport-neo-aim" ||
+      activeLogicKey === "mj-airport-neo-aim-normal" ||
+      activeLogicKey === "mj-airport-neo-aim-event"
+    ) {
+      const mjAirportNeoGapHigh = Number.isFinite(daysSinceMachineHighContent)
+        ? Math.max(0, daysSinceMachineHighContent - 1)
+        : null;
+      const mjAirportNeoNeighborHighAverage3 = adjacentMachineHighContentCount3Near2 / 3;
+      const mjAirportNeoStrongSink =
+        recentFourteenMinus2500StayDays >= 2 || recentFourteenMinus4000StayDays >= 1;
+      const mjAirportNeoStrongLoss = streak >= 5;
+      const mjAirportNeoStrongGap = Number.isFinite(mjAirportNeoGapHigh) && mjAirportNeoGapHigh >= 12;
+      const mjAirportNeoRealBonus =
+        features.previousRbDenominator <= 300 && previousDifference <= 0 && previousGames >= 1500;
+      const mjAirportNeoDangerDone =
+        previousDifference >= 1500 ||
+        (recentFourteenNetTotal >= 3000 && previousDifference >= 1000) ||
+        (previousMachineHighContent && previousDifference >= 1500);
+      const mjAirportNeoDangerLowG =
+        recentFourteenGamesTotal < 20000 || (streak >= 6 && recentFourteenGamesTotal < 25000);
+
+      let sinkScore = 0;
+      sinkScore += scoreAtLeast(recentFourteenMinus2500StayDays, [
+        { minimum: 5, points: 16 },
+        { minimum: 3, points: 14 },
+        { minimum: 2, points: 12 },
+        { minimum: 1, points: 8 },
+      ]);
+      sinkScore += scoreAtLeast(recentFourteenMinus4000StayDays, [
+        { minimum: 3, points: 10 },
+        { minimum: 2, points: 7 },
+        { minimum: 1, points: 4 },
+      ]);
+      sinkScore += recentFourteenNetTotal <= -2500 && recentFourteenGamesTotal >= 30000 ? 4 : 0;
+      sinkScore += recentSevenNetTotal <= -1500 && recentSevenGamesTotal >= 15000 ? 3 : 0;
+      sinkScore = Math.min(sinkScore, 32);
+
+      const lossScore = scoreAtLeast(streak, [
+        { minimum: 7, points: 22 },
+        { minimum: 6, points: 18 },
+        { minimum: 5, points: 14 },
+        { minimum: 4, points: 10 },
+        { minimum: 3, points: 6 },
+        { minimum: 2, points: 3 },
+      ]);
+
+      let intervalScore = 0;
+      intervalScore += scoreAtLeast(mjAirportNeoGapHigh, [
+        { minimum: 18, points: 11 },
+        { minimum: 12, points: 8 },
+        { minimum: 8, points: 5 },
+        { minimum: 5, points: 3 },
+      ]);
+      intervalScore +=
+        recentFourteenMachineHighContentCount === 0 &&
+        (streak >= 3 || recentFourteenMinus2500StayDays >= 1)
+          ? 3
+          : 0;
+      intervalScore = Math.min(intervalScore, 14);
+
+      let realnessScore = 0;
+      realnessScore += mjAirportNeoRealBonus ? 7 : 0;
+      if (features.recentFourteenRbDenominator <= 312 && recentFourteenGamesTotal >= 28000) {
+        realnessScore += 6;
+      } else if (features.recentFourteenRbDenominator <= 330 && recentFourteenGamesTotal >= 25000) {
+        realnessScore += 3;
+      }
+      realnessScore += features.recentFourteenCombinedDenominator <= 145 && recentFourteenGamesTotal >= 25000 ? 3 : 0;
+      realnessScore = Math.min(realnessScore, 13);
+
+      let neighborScore = 0;
+      neighborScore +=
+        mjAirportNeoNeighborHighAverage3 >= 1 && recentFourteenMinus2500StayDays >= 1
+          ? 6
+          : 0;
+      neighborScore +=
+        mjAirportNeoNeighborHighAverage3 >= 0.5 && streak >= 4
+          ? 3
+          : 0;
+      neighborScore = Math.min(neighborScore, 7);
+
+      const gamesTrustScore = recentFourteenGamesTotal >= 40000 ? 4 : recentFourteenGamesTotal >= 30000 ? 2 : 0;
+
+      let dangerPenalty = 0;
+      dangerPenalty += previousDifference >= 2000 ? 18 : previousDifference >= 1500 ? 12 : previousDifference >= 1000 ? 6 : 0;
+      dangerPenalty +=
+        recentFourteenNetTotal >= 4000 && previousDifference >= 1000
+          ? 10
+          : recentFourteenNetTotal >= 3000
+            ? 6
+            : 0;
+      dangerPenalty += previousMachineHighContent && previousDifference >= 1500 ? 6 : 0;
+      dangerPenalty += recentFourteenGamesTotal < 20000 ? 8 : recentFourteenGamesTotal < 25000 ? 4 : 0;
+      dangerPenalty += streak >= 6 && recentFourteenGamesTotal < 25000 ? 6 : 0;
+      dangerPenalty += previousDifference >= 1000 && features.previousRbDenominator >= 380 ? 6 : 0;
+
+      let score =
+        35 +
+        sinkScore +
+        lossScore +
+        intervalScore +
+        realnessScore +
+        neighborScore +
+        gamesTrustScore -
+        dangerPenalty;
+      const allDayScore = score;
+
+      if (activeLogicKey === "mj-airport-neo-aim-normal") {
+        score += features.previousRbDenominator <= 250 && recentSevenMinus1500StayDays >= 4 ? 10 : 0;
+        score += features.previousRbDenominator <= 250 && recentFourteenMinus4000StayDays >= 1 ? 8 : 0;
+        score += mjAirportNeoStrongSink && mjAirportNeoStrongLoss ? 4 : 0;
+        score += mjAirportNeoRealBonus && mjAirportNeoStrongSink ? 4 : 0;
+        score -= mjAirportNeoStrongGap && !mjAirportNeoStrongSink && !mjAirportNeoStrongLoss ? 5 : 0;
+        score -= mjAirportNeoDangerDone ? 6 : 0;
+        score -= mjAirportNeoDangerLowG ? 4 : 0;
+      } else if (activeLogicKey === "mj-airport-neo-aim-event") {
+        score += mjAirportNeoStrongSink && mjAirportNeoStrongLoss ? 8 : 0;
+        score += mjAirportNeoStrongLoss ? 4 : 0;
+        score += allDayScore >= 80 && mjAirportNeoStrongSink ? 5 : 0;
+        score += mjAirportNeoStrongGap && mjAirportNeoStrongSink ? 4 : 0;
+        score -= mjAirportNeoDangerDone ? 5 : 0;
+        score -= mjAirportNeoDangerLowG ? 5 : 0;
+      }
+
+      if (historyRowCount < 7) {
+        score = Math.min(score, 45);
+      } else if (historyRowCount < 14) {
+        score = Math.min(score, 50);
       }
 
       return Math.round(clamp(score, 0, 100));
@@ -20718,6 +21197,27 @@ function buildAmuseAsakusaDateSetting(definition, isEventDate) {
   };
 }
 
+function buildMjArenaAirportDateSetting(definition, isEventDate) {
+  if (definition?.machineKey !== "neo-aim") {
+    return null;
+  }
+  const logicKey = isEventDate ? "mj-airport-neo-aim-event" : "mj-airport-neo-aim-normal";
+  const logic = findLogicDefinition(definition, logicKey);
+  if (!logic) {
+    return null;
+  }
+  const condition =
+    listConditionDefinitions(definition, logic.key).find(
+      (candidate) => candidate.keySuffix === logic.defaultConditionSuffix,
+    ) ??
+    listConditionDefinitions(definition, logic.key)[0] ??
+    null;
+  return {
+    logicKey: logic.key,
+    conditionKey: condition ? buildConditionKey(definition, condition) : "",
+  };
+}
+
 function buildPlaza3DateSetting(definition, isEventDate) {
   if (definition?.machineKey !== "neo-aim") {
     return null;
@@ -20902,6 +21402,20 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   if (isAmuseAsakusaStore(options?.storeName) && definition?.machineKey === "neo-aim") {
     const isEventDate = readTargetEventFlag(row) === true;
     const setting = buildAmuseAsakusaDateSetting(definition, isEventDate);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    if (!evaluation) {
+      return null;
+    }
+
+    return {
+      ...evaluation,
+      displayLabel: isEventDate ? "特定日" : "通常日",
+    };
+  }
+
+  if (isMjArenaAirportStore(options?.storeName) && definition?.machineKey === "neo-aim") {
+    const isEventDate = readTargetEventFlag(row) === true;
+    const setting = buildMjArenaAirportDateSetting(definition, isEventDate);
     const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
     if (!evaluation) {
       return null;

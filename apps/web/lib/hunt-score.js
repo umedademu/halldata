@@ -1043,6 +1043,10 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["MJアリーナ空港店", "MJアリーナ空港", "ＭＪアリーナ空港店", "ＭＪアリーナ空港"],
     targetMachines: MJ_ARENA_AIRPORT_TARGET_MACHINES,
     defaultLogicKey: "mj-arena-airport-a",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "mj-arena-airport-neo-aim",
+      "ネオアイムジャグラーＥＸ": "mj-arena-airport-neo-aim",
+    },
   },
   {
     key: "mj-arena-kurume",
@@ -1985,6 +1989,22 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 135;
     }
+    if (contentRule === "mj-arena-airport-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return (
+          (games >= 3500 && settingFivePlusProbability >= 0.5) ||
+          (games >= 2500 &&
+            settingFivePlusProbability >= 0.35 &&
+            rbDenominator <= 340 &&
+            combinedDenominator <= 150)
+        );
+      }
+      return (
+        (games >= 3500 && rbDenominator <= 300 && combinedDenominator <= 145) ||
+        (games >= 2500 && rbDenominator <= 340 && combinedDenominator <= 150)
+      );
+    }
     if (contentRule === "hinode-onojo-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -2364,6 +2384,22 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       }
       return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 135;
     }
+    if (contentRule === "mj-arena-airport-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return (
+          (games >= 3500 && settingFivePlusProbability >= 0.5) ||
+          (games >= 2500 &&
+            settingFivePlusProbability >= 0.35 &&
+            rbDenominator <= 340 &&
+            combinedDenominator <= 150)
+        );
+      }
+      return (
+        (games >= 3500 && rbDenominator <= 300 && combinedDenominator <= 145) ||
+        (games >= 2500 && rbDenominator <= 340 && combinedDenominator <= 150)
+      );
+    }
     if (contentRule === "hinode-onojo-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -2522,6 +2558,14 @@ function isMachineLowContentWindowRow(row, machineName, config = null) {
 
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "mj-arena-airport-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    return Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability < 0.3;
+  }
+
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "tamaya-honten-neo-aim"
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -2570,6 +2614,15 @@ function isMachineWeakContentWindowRow(row, machineName, config = null) {
       );
     }
     if (readMachineContentRule(config, machineName) === "chikushino-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        games >= 2500 &&
+        ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability < 0.3) ||
+          rbDenominator > 400 ||
+          combinedDenominator > 170)
+      );
+    }
+    if (readMachineContentRule(config, machineName) === "mj-arena-airport-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       return (
         games >= 2500 &&
@@ -2759,6 +2812,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 3000 && settingFivePlusProbability >= 0.7;
     }
     return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "mj-arena-airport-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3500 && settingFivePlusProbability >= 0.5;
+    }
+    return games >= 3500 && rbDenominator <= 300 && combinedDenominator <= 145;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
@@ -8064,7 +8127,9 @@ function calculateWindowMetrics(
   const recentFourteenMinus1500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -1500);
   const recentFourteenMinus1800StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -1800);
   const recentFourteenMinus2000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -2000);
+  const recentFourteenMinus2500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -2500);
   const recentFourteenMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -3000);
+  const recentFourteenMinus4000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -4000);
   const recentFourteenMinus5000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -5000);
   const recentFourteenMinus3218StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -3218);
   const recentFourteenNegativeStayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -1);
@@ -8785,7 +8850,9 @@ function calculateWindowMetrics(
     recentFourteenMinus1500StayDays,
     recentFourteenMinus1800StayDays,
     recentFourteenMinus2000StayDays,
+    recentFourteenMinus2500StayDays,
     recentFourteenMinus3000StayDays,
+    recentFourteenMinus4000StayDays,
     recentFourteenMinus5000StayDays,
     recentFourteenMinus3218StayDays,
     recentFourteenNegativeStayDays,
