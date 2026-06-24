@@ -237,6 +237,13 @@ function isWonderlandMinamigaokaStore(storeName) {
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
+function isSengawaUnoStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["仙川UNO", "仙川UNO店", "仙川ＵＮＯ", "仙川ＵＮＯ店"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function readDateDayNumber(dateText) {
   const normalized = normalizeText(dateText);
   const match = normalized.match(/^\d{4}-\d{2}-(\d{2})$/u) ?? normalized.match(/^\d{2}\/\d{2}\/(\d{2})$/u);
@@ -1928,6 +1935,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "wonderland-minamigaoka-neo-aim",
         "WL南ヶ丘_ネオアイムEX_返済未完了スコア_v1",
         "wonderland-minamigaoka-neo-strong-rb280",
+      ),
+      buildLogicVariant(
+        "sengawa-uno-neo-aim",
+        "仙川UNO ネオアイムEX 未返済×本物感スコア v1",
+        "sengawa-uno-free-e",
       ),
     ],
     profile: "juggler",
@@ -3652,6 +3664,224 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["wonderland-minamigaoka-neo-aim"],
       ),
       buildCondition(
+        "sengawa-uno-wide-rb310",
+        "広め310",
+        "対象68日 / 97台 / 410,840G / BB1/261.0 / RB1/308.7 / 合算1/141.4 / 平均+269.6枚 / 102.1% / 勝率48.5% / 平均56 33.8% / 中央56 29.5% / 56>=70% 7.2% / 56>=50% 23.7% / 56<30% 50.5% / RB1/300以下36.1% / RB1/400超27.8% / 合成1/130以下25.8% / 合成1/140以下42.3%",
+        {
+          minBoost: 5,
+          maxDanger: 0,
+          requiredFlags: ["sengawaUnoNeoHistoryReady", "sengawaUnoNeoDeep14", "sengawaUnoNeoRb3Good"],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
+        "sengawa-uno-weak-rb300",
+        "弱本命300",
+        "対象43日 / 54台 / 212,945G / BB1/262.9 / RB1/299.5 / 合算1/140.0 / 平均+295.0枚 / 102.5% / 勝率51.9% / 平均56 36.4% / 中央56 31.1% / 56>=70% 7.4% / 56>=50% 29.6% / 56<30% 46.3% / RB1/300以下40.7% / RB1/400超31.5% / 合成1/130以下33.3% / 合成1/140以下40.7%",
+        {
+          rankMax: 3,
+          requiredFlags: ["sengawaUnoNeoHistoryReady", "sengawaUnoNeoAngle7Strong", "sengawaUnoNeoLosing4"],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
+        "sengawa-uno-main-rb290",
+        "本命290",
+        "対象20日 / 22台 / 103,697G / BB1/247.5 / RB1/284.9 / 合算1/132.4 / 平均+690.9枚 / 104.9% / 勝率59.1% / 平均56 41.0% / 中央56 32.5% / 56>=70% 22.7% / 56>=50% 31.8% / 56<30% 36.4% / RB1/300以下36.4% / RB1/400超13.6% / 合成1/130以下40.9% / 合成1/140以下54.5%",
+        {
+          rankMax: 3,
+          requiredFlags: [
+            "sengawaUnoNeoHistoryReady",
+            "sengawaUnoNeoDeep21",
+            "sengawaUnoNeoAngle7Strong",
+            "sengawaUnoNeoCombined3Good",
+          ],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
+        "sengawa-uno-strong-rb280",
+        "強280",
+        "対象17日 / 18台 / 73,605G / BB1/266.7 / RB1/275.7 / 合算1/135.6 / 平均+401.1枚 / 103.3% / 勝率44.4% / 平均56 41.1% / 中央56 30.6% / 56>=70% 16.7% / 56>=50% 27.8% / 56<30% 44.4% / RB1/300以下44.4% / RB1/400超11.1% / 合成1/130以下33.3% / 合成1/140以下38.9% / 件数注意",
+        {
+          rankMax: 3,
+          minBoost: 5,
+          requiredFlags: [
+            "sengawaUnoNeoHistoryReady",
+            "sengawaUnoNeoAngle7Mild",
+            "sengawaUnoNeoCombined3Strong",
+          ],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
+        "sengawa-uno-reference-rb270",
+        "270級参考",
+        "対象11日 / 11台 / 58,629G / BB1/249.5 / RB1/270.2 / 合算1/129.7 / 平均+740.9枚 / 104.6% / 勝率54.5% / 平均56 47.7% / 中央56 36.8% / 56>=70% 36.4% / 56>=50% 45.5% / 56<30% 45.5% / RB1/300以下54.5% / RB1/400超9.1% / 合成1/130以下45.5% / 合成1/140以下45.5% / 件数注意",
+        {
+          rankMax: 3,
+          requiredFlags: [
+            "sengawaUnoNeoHistoryReady",
+            "sengawaUnoNeoDeep21",
+            "sengawaUnoNeoAngle7Strong",
+            "sengawaUnoNeoCombined3Good",
+            "sengawaUnoNeoP56ThreeStrong",
+          ],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
+        "sengawa-uno-free-a",
+        "自由A_深沈み本物",
+        "対象51日 / 59台 / RB1/305.3 / 合算1/139.6 / 平均+369.5枚 / 102.9% / 平均56 35.5% / 中央56 31.3% / 56>=50% 30.5%",
+        {
+          requiredFlags: [
+            "sengawaUnoNeoHistoryReady",
+            "sengawaUnoNeoDeep14",
+            "sengawaUnoNeoGames3Trusted",
+            "sengawaUnoNeoRb3Good",
+            "sengawaUnoNeoP56ThreeGood",
+          ],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
+        "sengawa-uno-free-b",
+        "自由B_角度＋直近高内容",
+        "対象35日 / 43台 / RB1/302.8 / 合算1/139.1 / 平均+345.1枚 / 102.7% / 平均56 34.7% / 中央56 28.5% / 56>=50% 18.6%",
+        {
+          requiredFlags: [
+            "sengawaUnoNeoHistoryReady",
+            "sengawaUnoNeoAngle7Strong",
+            "sengawaUnoNeoDaysSince56Near",
+            "sengawaUnoNeoCombined3Good",
+          ],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
+        "sengawa-uno-free-c",
+        "自由C_深沈み連敗",
+        "対象30日 / 31台 / RB1/299.1 / 合算1/143.7 / 平均+72.6枚 / 100.6% / 平均56 36.0% / 中央56 31.2% / 56>=50% 32.3%",
+        {
+          requiredFlags: [
+            "sengawaUnoNeoHistoryReady",
+            "sengawaUnoNeoDeep14Medium",
+            "sengawaUnoNeoGames3Trusted",
+            "sengawaUnoNeoLosing4",
+          ],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
+        "sengawa-uno-free-d",
+        "自由D_21日未返済＋本物感",
+        "対象13日 / 13台 / RB1/275.5 / 合算1/130.9 / 平均+599.2枚 / 104.3% / 平均56 43.7% / 中央56 28.0% / 56>=50% 38.5% / 件数注意",
+        {
+          requiredFlags: [
+            "sengawaUnoNeoHistoryReady",
+            "sengawaUnoNeoDeep21",
+            "sengawaUnoNeoAngle7Strong",
+            "sengawaUnoNeoCombined3Good",
+            "sengawaUnoNeoP56ThreeStrong",
+          ],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
+        "sengawa-uno-free-e",
+        "自由E_上位置き去り",
+        "対象28日 / 30台 / 128,122G / BB1/241.7 / RB1/296.6 / 合算1/133.2 / 平均+644.7枚 / 105.0% / 勝率60.0% / 平均56 40.1% / 中央56 37.0% / 56>=70% 13.3% / 56>=50% 40.0% / 56<30% 40.0% / RB1/300以下56.7% / RB1/400超26.7% / 合成1/130以下43.3% / 合成1/140以下56.7% / 件数注意",
+        {
+          rankMax: 3,
+          requiredFlags: [
+            "sengawaUnoNeoHistoryReady",
+            "sengawaUnoNeoDeep21",
+            "sengawaUnoNeoAngle7Mild",
+            "sengawaUnoNeoAdjacentLeftBehind",
+          ],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
+        "sengawa-uno-score85-safe",
+        "85点以上＋危険0",
+        "85点以上、危険条件なし",
+        {
+          minScore: 85,
+          maxDanger: 0,
+          requiredFlags: ["sengawaUnoNeoHistoryReady"],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
+        "sengawa-uno-top3-safe-boost5",
+        "上位3＋危険0＋強化5以上",
+        "上位3、危険条件なし、強化5個以上",
+        {
+          rankMax: 3,
+          minBoost: 5,
+          maxDanger: 0,
+          requiredFlags: ["sengawaUnoNeoHistoryReady"],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
+        "sengawa-uno-watch-treatment",
+        "見送り_処遇完了",
+        "14日差枚+2600枚以上、または7日差枚+2000枚以上",
+        {
+          requiredFlags: ["sengawaUnoNeoHistoryReady"],
+          anyFlags: ["sengawaUnoNeoTreatmentDone14", "sengawaUnoNeoTreatmentDone7"],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
+        "sengawa-uno-watch-rb-bad",
+        "見送り_3日RB重い",
+        "3日RB1/444以上",
+        {
+          requiredFlags: ["sengawaUnoNeoHistoryReady", "sengawaUnoNeoRb3Bad"],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
+        "sengawa-uno-watch-p56-low",
+        "見送り_3日56薄い",
+        "3日平均56推定率0.168以下",
+        {
+          requiredFlags: ["sengawaUnoNeoHistoryReady", "sengawaUnoNeoP56ThreeLow"],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
+        "sengawa-uno-watch-games-low",
+        "見送り_3日G数不足",
+        "3日G数7380未満",
+        {
+          requiredFlags: ["sengawaUnoNeoHistoryReady", "sengawaUnoNeoGames3Low"],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
+        "sengawa-uno-watch-previous-output-only",
+        "見送り_前日出玉だけ",
+        "前日3000G以上、+2500枚以上、前日56推定率0.35未満",
+        {
+          requiredFlags: ["sengawaUnoNeoHistoryReady", "sengawaUnoNeoPreviousOutputOnly"],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
+        "sengawa-uno-watch-history-short",
+        "見送り_履歴不足",
+        "台番履歴21日未満",
+        {
+          requiredFlags: ["sengawaUnoNeoHistoryShort"],
+        },
+        ["sengawa-uno-neo-aim"],
+      ),
+      buildCondition(
         "beam-hikari-main",
         "70点以上",
         "388件 / 103.33% / RB1/287.6 / p56 32.7%",
@@ -5176,6 +5406,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "yasuda-hibarigaoka-neo-aim");
   } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-neo-aim");
+  } else if (isSengawaUnoStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "sengawa-uno-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
@@ -5809,6 +6041,9 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const previousMachineSettingFivePlusProbability = readNullableNumber(
     metrics.previousMachineSettingFivePlusProbability,
   );
+  const recentThreeMachineSettingFivePlusProbabilityAverage = readNullableNumber(
+    metrics.recentThreeMachineSettingFivePlusProbabilityAverage,
+  );
   const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
   const machineWeakContentStreak = readNumber(metrics.machineWeakContentStreak);
   const recentFiveBigWin1200Count = readNumber(metrics.recentFiveBigWin1200Count);
@@ -5995,6 +6230,103 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
         previousMachineSettingFivePlusProbability,
+      };
+    }
+
+    if (activeLogicKey === "sengawa-uno-neo-aim") {
+      const sengawaUnoNeoHistoryReady = historyRowCount >= 21;
+      const sengawaUnoNeoHistoryShort = historyRowCount < 21;
+      const sengawaUnoNeoDeep14 = recentFourteenNetTotal <= -4000;
+      const sengawaUnoNeoDeep14Medium = recentFourteenNetTotal <= -3000;
+      const sengawaUnoNeoDeep21 = recentTwentyOneNetTotal <= -4000;
+      const sengawaUnoNeoAngle7Strong = recentSevenGamesTotal > 0 && features.recentSevenAngle <= -100;
+      const sengawaUnoNeoAngle7Mild = recentSevenGamesTotal > 0 && features.recentSevenAngle <= -40;
+      const sengawaUnoNeoGames3Trusted = recentThreeGamesTotal >= 11700;
+      const sengawaUnoNeoGames3Strong = recentThreeGamesTotal >= 14120;
+      const sengawaUnoNeoGames3Low = recentThreeGamesTotal < 7380;
+      const sengawaUnoNeoRb3Good = features.recentThreeRbDenominator <= 337;
+      const sengawaUnoNeoRb3Bad = features.recentThreeRbDenominator >= 444;
+      const sengawaUnoNeoP56ThreeGood =
+        Number.isFinite(recentThreeMachineSettingFivePlusProbabilityAverage) &&
+        recentThreeMachineSettingFivePlusProbabilityAverage >= 0.273;
+      const sengawaUnoNeoP56ThreeStrong =
+        Number.isFinite(recentThreeMachineSettingFivePlusProbabilityAverage) &&
+        recentThreeMachineSettingFivePlusProbabilityAverage >= 0.35;
+      const sengawaUnoNeoP56ThreeLow =
+        Number.isFinite(recentThreeMachineSettingFivePlusProbabilityAverage) &&
+        recentThreeMachineSettingFivePlusProbabilityAverage <= 0.168;
+      const sengawaUnoNeoCombined3Good = features.recentThreeCombinedDenominator <= 153;
+      const sengawaUnoNeoCombined3Strong = features.recentThreeCombinedDenominator <= 140;
+      const sengawaUnoNeoDaysSince56Near =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 1 &&
+        daysSinceMachineHighContent <= 3;
+      const sengawaUnoNeoDaysSince56Long =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent > 14;
+      const sengawaUnoNeoLosing4 = streak >= 4;
+      const sengawaUnoNeoAdjacentLeftBehind =
+        previousAdjacentMachineNetTotal >= -560 && previousAdjacentMachineNetTotal <= 50;
+      const sengawaUnoNeoTreatmentDone14 = recentFourteenNetTotal >= 2600;
+      const sengawaUnoNeoTreatmentDone7 = recentSevenNetTotal >= 2000;
+      const sengawaUnoNeoPreviousOutputOnly =
+        previousGames >= 3000 &&
+        previousDifference >= 2500 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability < 0.35;
+      const sengawaUnoNeoTreatmentDone = sengawaUnoNeoTreatmentDone14 || sengawaUnoNeoTreatmentDone7;
+      const boostFlags = [
+        sengawaUnoNeoDeep14,
+        sengawaUnoNeoAngle7Strong,
+        sengawaUnoNeoGames3Trusted,
+        sengawaUnoNeoRb3Good,
+        sengawaUnoNeoP56ThreeGood,
+        sengawaUnoNeoCombined3Good,
+        sengawaUnoNeoDaysSince56Near,
+        sengawaUnoNeoLosing4,
+        sengawaUnoNeoDeep21,
+      ];
+      const dangerFlags = [
+        sengawaUnoNeoTreatmentDone14,
+        sengawaUnoNeoTreatmentDone7,
+        sengawaUnoNeoRb3Bad,
+        sengawaUnoNeoP56ThreeLow,
+        sengawaUnoNeoGames3Low,
+        sengawaUnoNeoPreviousOutputOnly,
+      ];
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability,
+        recentThreeMachineSettingFivePlusProbabilityAverage,
+        sengawaUnoNeoHistoryReady,
+        sengawaUnoNeoHistoryShort,
+        sengawaUnoNeoDeep14,
+        sengawaUnoNeoDeep14Medium,
+        sengawaUnoNeoDeep21,
+        sengawaUnoNeoAngle7Strong,
+        sengawaUnoNeoAngle7Mild,
+        sengawaUnoNeoGames3Trusted,
+        sengawaUnoNeoGames3Strong,
+        sengawaUnoNeoGames3Low,
+        sengawaUnoNeoRb3Good,
+        sengawaUnoNeoRb3Bad,
+        sengawaUnoNeoP56ThreeGood,
+        sengawaUnoNeoP56ThreeStrong,
+        sengawaUnoNeoP56ThreeLow,
+        sengawaUnoNeoCombined3Good,
+        sengawaUnoNeoCombined3Strong,
+        sengawaUnoNeoDaysSince56Near,
+        sengawaUnoNeoDaysSince56Long,
+        sengawaUnoNeoLosing4,
+        sengawaUnoNeoAdjacentLeftBehind,
+        sengawaUnoNeoTreatmentDone14,
+        sengawaUnoNeoTreatmentDone7,
+        sengawaUnoNeoTreatmentDone,
+        sengawaUnoNeoPreviousOutputOnly,
+        treatmentDone: sengawaUnoNeoTreatmentDone,
+        lowConfidence: sengawaUnoNeoHistoryShort,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
       };
     }
 
@@ -9576,6 +9908,9 @@ function calculateMachineScore(definition, metrics, features) {
   const previousMachineSettingFivePlusProbability = readNullableNumber(
     metrics.previousMachineSettingFivePlusProbability,
   );
+  const recentThreeMachineSettingFivePlusProbabilityAverage = readNullableNumber(
+    metrics.recentThreeMachineSettingFivePlusProbabilityAverage,
+  );
   const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
   const machineGoodContentStreak = readNumber(metrics.machineGoodContentStreak);
   const machineWeakContentStreak = readNumber(metrics.machineWeakContentStreak);
@@ -10025,6 +10360,61 @@ function calculateMachineScore(definition, metrics, features) {
       score -= previousGames >= 3000 && previousRbDenominator > 400 ? 6 : 0;
       score -= recentSevenGamesTotal < 8000 ? 20 : 0;
       score -= streak >= 7 ? 4 : 0;
+
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
+    if (activeLogicKey === "sengawa-uno-neo-aim") {
+      let score = 40;
+      const scoreCap = historyRowCount < 21 ? 60 : 100;
+      const hasRecentThreeP56 = Number.isFinite(recentThreeMachineSettingFivePlusProbabilityAverage);
+
+      if (historyRowCount < 21) {
+        score -= 10;
+      }
+
+      score += scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -4000, points: 18 },
+        { maximum: -3000, points: 14 },
+        { maximum: -1500, points: 8 },
+      ]);
+      score += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -2500, points: 8 },
+        { maximum: -1000, points: 5 },
+      ]);
+      score += recentTwentyOneNetTotal <= -4000 ? 6 : 0;
+      score +=
+        recentSevenGamesTotal > 0
+          ? scoreAtMost(features.recentSevenAngle, [
+              { maximum: -100, points: 16 },
+              { maximum: -40, points: 10 },
+            ])
+          : 0;
+      score += scoreAtLeast(recentThreeGamesTotal, [
+        { minimum: 14120, points: 16 },
+        { minimum: 11700, points: 12 },
+      ]);
+      score -= recentThreeGamesTotal < 7380 ? 6 : 0;
+      score += features.recentThreeRbDenominator <= 337 ? 12 : 0;
+      score +=
+        hasRecentThreeP56 && recentThreeMachineSettingFivePlusProbabilityAverage >= 0.273 ? 10 : 0;
+      score -=
+        hasRecentThreeP56 && recentThreeMachineSettingFivePlusProbabilityAverage <= 0.168 ? 6 : 0;
+      score += features.recentThreeCombinedDenominator <= 153 ? 6 : 0;
+      score += scoreInRange(daysSinceMachineHighContent, 1, 3, 8);
+      score -= Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent > 14 ? 4 : 0;
+      score += streak >= 4 ? 6 : 0;
+      score += previousAdjacentMachineNetTotal >= -560 && previousAdjacentMachineNetTotal <= 50 ? 3 : 0;
+      score -= recentFourteenNetTotal >= 2600 ? 16 : 0;
+      score -= recentSevenNetTotal >= 2000 ? 10 : 0;
+      score -= features.recentThreeRbDenominator >= 444 ? 8 : 0;
+      score -=
+        previousGames >= 3000 &&
+        previousDifference >= 2500 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability < 0.35
+          ? 6
+          : 0;
 
       return Math.round(clamp(score, 0, scoreCap));
     }

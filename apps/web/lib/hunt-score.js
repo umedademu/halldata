@@ -913,6 +913,16 @@ const HUNT_SCORE_STORE_CONFIGS = [
     },
   },
   {
+    key: "sengawa-uno",
+    storeNames: ["仙川UNO", "仙川UNO店", "仙川ＵＮＯ", "仙川ＵＮＯ店"],
+    targetMachines: APARK_KASUGA_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "sengawa-uno-neo-aim",
+      "ネオアイムジャグラーＥＸ": "sengawa-uno-neo-aim",
+    },
+  },
+  {
     key: "tamaya-ohashi",
     storeNames: ["玉屋555大橋店"],
     targetMachines: TAMAYA_OHASHI_TARGET_MACHINES,
@@ -1811,6 +1821,16 @@ function calculateNeoAimSettingFivePlusProbability(row) {
   );
 }
 
+function calculateNeoAimSettingFivePlusProbabilityAverage(rows) {
+  const values = (Array.isArray(rows) ? rows : [])
+    .map((row) => calculateNeoAimSettingFivePlusProbability(row))
+    .filter((value) => Number.isFinite(value));
+  if (values.length === 0) {
+    return null;
+  }
+  return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
 function isMachineHighContentWindowRow(row, machineName, config = null) {
   const normalizedMachineName = normalizeText(machineName);
   const games = readWindowField(row, "games");
@@ -1925,6 +1945,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
         (games >= 3000 && rbDenominator <= 310 && combinedDenominator <= 140) ||
         (games >= 4000 && rbDenominator <= 300 && combinedDenominator <= 145)
       );
+    }
+    if (contentRule === "sengawa-uno-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
     return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
   }
@@ -2297,6 +2324,7 @@ function isMachineLowContentWindowRow(row, machineName, config = null) {
       "chikushino-neo-aim",
       "iidabashi-presas-neo-aim",
       "wonderland-minamigaoka-neo-aim",
+      "sengawa-uno-neo-aim",
     ].includes(
       readMachineContentRule(config, machineName),
     )
@@ -2343,6 +2371,15 @@ function isMachineWeakContentWindowRow(row, machineName, config = null) {
       );
     }
     if (readMachineContentRule(config, machineName) === "wonderland-minamigaoka-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        games >= 2500 &&
+        ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability < 0.3) ||
+          rbDenominator > 400 ||
+          combinedDenominator > 170)
+      );
+    }
+    if (readMachineContentRule(config, machineName) === "sengawa-uno-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       return (
         games >= 2500 &&
@@ -2514,6 +2551,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 3000 && settingFivePlusProbability >= 0.7;
     }
     return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "sengawa-uno-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 4000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 4000 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
     (normalizedMachineName === normalizeText("ファンキージャグラー２ＫＴ") ||
@@ -7814,6 +7861,8 @@ function calculateWindowMetrics(
     row,
     differenceValue: readHuntScoreDifferenceValue(row, config.differenceMode, currentMachineName),
   });
+  const recentThreeMachineSettingFivePlusProbabilityAverage =
+    calculateNeoAimSettingFivePlusProbabilityAverage(recentThreeRows);
   const currentDateRows = rowsByDate.get(businessDates[dateIndex]) ?? [];
   const previousAdjacentMachineHighContentCount = listAdjacentSameMachineRowsByOrder(
     currentDateRows,
@@ -8317,6 +8366,7 @@ function calculateWindowMetrics(
     previousMachineWeakContent,
     previousMachineStrongHighContent,
     previousMachineSettingFivePlusProbability,
+    recentThreeMachineSettingFivePlusProbabilityAverage,
     recentFiveBigWin1000Count,
     daysSinceMachineHighContent,
     daysSinceMachineStrongHighContent,
