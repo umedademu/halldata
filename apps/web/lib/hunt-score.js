@@ -1054,6 +1054,16 @@ const HUNT_SCORE_STORE_CONFIGS = [
     },
   },
   {
+    key: "plaza-honten",
+    storeNames: ["プラザ本店", "プラザ本店店", "PLAZA本店", "ＰＬＡＺＡ本店"],
+    targetMachines: APARK_KASUGA_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "plaza-honten-neo-aim",
+      "ネオアイムジャグラーＥＸ": "plaza-honten-neo-aim",
+    },
+  },
+  {
     key: "plaza-honten-ii",
     storeNames: [
       "プラザ本店II",
@@ -1997,6 +2007,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
+    if (contentRule === "plaza-honten-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
   }
   if (
@@ -2371,6 +2388,7 @@ function isMachineLowContentWindowRow(row, machineName, config = null) {
       "sengawa-uno-neo-aim",
       "plaza-tenjin-neo-aim",
       "plaza-honten-ii-neo-aim",
+      "plaza-honten-neo-aim",
     ].includes(
       readMachineContentRule(config, machineName),
     )
@@ -2444,6 +2462,15 @@ function isMachineWeakContentWindowRow(row, machineName, config = null) {
       );
     }
     if (readMachineContentRule(config, machineName) === "plaza-honten-ii-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        games >= 2500 &&
+        ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability < 0.3) ||
+          rbDenominator > 400 ||
+          combinedDenominator > 170)
+      );
+    }
+    if (readMachineContentRule(config, machineName) === "plaza-honten-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       return (
         games >= 2500 &&
@@ -2639,6 +2666,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "plaza-honten-ii-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "plaza-honten-neo-aim"
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     if (Number.isFinite(settingFivePlusProbability)) {
@@ -7684,6 +7721,7 @@ function calculateWindowMetrics(
   const recentFourteenMinus1800StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -1800);
   const recentFourteenMinus2000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -2000);
   const recentFourteenMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -3000);
+  const recentFourteenMinus5000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -5000);
   const recentFourteenMinus3218StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -3218);
   const recentFourteenNegativeStayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 14, -1);
   const recentTwentyOneMinus1500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -1500);
@@ -8358,6 +8396,7 @@ function calculateWindowMetrics(
     recentFourteenMinus1800StayDays,
     recentFourteenMinus2000StayDays,
     recentFourteenMinus3000StayDays,
+    recentFourteenMinus5000StayDays,
     recentFourteenMinus3218StayDays,
     recentFourteenNegativeStayDays,
     recentTwentyOneMinus1500StayDays,
