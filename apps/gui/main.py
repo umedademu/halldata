@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta, timezone
 import json
@@ -857,6 +857,7 @@ class StoreFetchResult:
     history_result: MachineHistoryResult
     save_summary: PersistenceSummary | None
     saved_full_day_summary: SavedFullDayDatesSummary
+    pending_save_futures: list[Future[PersistenceSummary]] = field(default_factory=list)
 
 
 @dataclass
@@ -3599,58 +3600,69 @@ class MinRepoApp:
         target_stores = self._registered_store_fetch_ordered(target_stores)
         total_stores = len(target_stores)
         cancelled = False
+        save_executor = (
+            ThreadPoolExecutor(max_workers=1, thread_name_prefix="r2-save")
+            if total_stores > 1
+            else None
+        )
 
-        for store_index, registered_store in enumerate(target_stores, start=1):
-            if self._cancel_requested():
-                cancelled = True
-                break
+        try:
+            for store_index, registered_store in enumerate(target_stores, start=1):
+                if self._cancel_requested():
+                    cancelled = True
+                    break
 
-            try:
-                normalized_store_url = normalize_store_url(registered_store.url)
-                if minrepo_prefetch_enabled:
-                    minrepo_prefetch_result, site7_should_be_skipped = self._try_minrepo_before_site7_fetch(
+                try:
+                    normalized_store_url = normalize_store_url(registered_store.url)
+                    if minrepo_prefetch_enabled:
+                        minrepo_prefetch_result, site7_should_be_skipped = self._try_minrepo_before_site7_fetch(
+                            registered_store=registered_store,
+                            recent_days=recent_days,
+                            store_index=store_index,
+                            total_stores=total_stores,
+                            retry_delay_seconds=retry_delay_seconds,
+                            fetch_parallel_options=fetch_parallel_options,
+                            web_publish_options=web_publish_options,
+                            site7_updated_at=site7_updated_at_by_store_url.get(normalized_store_url),
+                            now=now,
+                        )
+                        if minrepo_prefetch_result is not None:
+                            self._refresh_web_data_for_store_result(minrepo_prefetch_result)
+                            if site7_should_be_skipped:
+                                results.append(minrepo_prefetch_result)
+                                continue
+
+                    store_result = self._fetch_single_site7_store(
                         registered_store=registered_store,
                         recent_days=recent_days,
                         store_index=store_index,
                         total_stores=total_stores,
                         retry_delay_seconds=retry_delay_seconds,
-                        fetch_parallel_options=fetch_parallel_options,
-                        web_publish_options=web_publish_options,
-                        site7_updated_at=site7_updated_at_by_store_url.get(normalized_store_url),
-                        now=now,
+                        browser_visible=browser_visible,
+                        enabled_machine_names=enabled_machine_names,
+                        force_site7_difference=force_site7_difference,
+                        async_save_executor=save_executor,
                     )
-                    if minrepo_prefetch_result is not None:
-                        self._refresh_web_data_for_store_result(minrepo_prefetch_result)
-                        if site7_should_be_skipped:
-                            results.append(minrepo_prefetch_result)
-                            continue
-
-                store_result = self._fetch_single_site7_store(
-                    registered_store=registered_store,
-                    recent_days=recent_days,
-                    store_index=store_index,
-                    total_stores=total_stores,
-                    retry_delay_seconds=retry_delay_seconds,
-                    browser_visible=browser_visible,
-                    enabled_machine_names=enabled_machine_names,
-                    force_site7_difference=force_site7_difference,
-                )
-                self._refresh_web_data_for_store_result(store_result)
-                results.append(store_result)
-            except FetchCancelled:
-                cancelled = True
-                break
-            except Exception as exc:  # noqa: BLE001
-                failures.append(StoreFetchFailure(store=registered_store, error=exc))
-                self._queue_fetch_progress(
-                    FetchProgress(
-                        current_step=1,
-                        total_steps=1,
-                        message=f"{store_index}/{total_stores} {registered_store.name} は取得失敗",
-                    ),
-                    store_index=store_index,
-                    total_stores=total_stores,
-                )
+                    self._refresh_web_data_for_store_result(store_result)
+                    results.append(store_result)
+                except FetchCancelled:
+                    cancelled = True
+                    break
+                except Exception as exc:  # noqa: BLE001
+                    failures.append(StoreFetchFailure(store=registered_store, error=exc))
+                    self._queue_fetch_progress(
+                        FetchProgress(
+                            current_step=1,
+                            total_steps=1,
+                            message=f"{store_index}/{total_stores} {registered_store.name} は取得失敗",
+                        ),
+                        store_index=store_index,
+                        total_stores=total_stores,
+                    )
+        finally:
+            self._wait_for_pending_store_saves(results)
+            if save_executor is not None:
+                save_executor.shutdown(wait=True)
 
         if self._cancel_requested():
             cancelled = True
@@ -3742,6 +3754,7 @@ class MinRepoApp:
         retry_delay_seconds: int,
         browser_visible: bool,
         enabled_machine_names: set[str] | None = None,
+        async_save_executor: ThreadPoolExecutor | None = None,
     ) -> StoreFetchResult:
         self._raise_if_fetch_cancelled()
         store_label = f"{store_index}/{total_stores} {registered_store.name}"
@@ -3796,15 +3809,34 @@ class MinRepoApp:
         )
         self._raise_if_fetch_cancelled()
         save_summary: PersistenceSummary | None = None
+        pending_save_futures: list[Future[PersistenceSummary]] = []
         if history_result.datasets:
-            queue_progress(FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: 保存中"))
-            save_summary = self._run_with_persistence_lock(
-                lambda: self.persistence_service.save_history_result(history_result)
+            queue_progress(
+                FetchProgress(
+                    current_step=3,
+                    total_steps=4,
+                    message=(
+                        f"{store_label}: R2保存を開始"
+                        if async_save_executor is not None
+                        else f"{store_label}: 保存中"
+                    ),
+                )
             )
+
+            def run_save() -> PersistenceSummary:
+                return self._run_with_persistence_lock(
+                    lambda: self.persistence_service.save_history_result(history_result)
+                )
+
+            if async_save_executor is not None:
+                pending_save_futures.append(async_save_executor.submit(run_save))
+            else:
+                save_summary = run_save()
         return StoreFetchResult(
             history_result=history_result,
             save_summary=save_summary,
             saved_full_day_summary=warning_summary,
+            pending_save_futures=pending_save_futures,
         )
 
     def _fetch_single_site7_store(
@@ -3817,6 +3849,7 @@ class MinRepoApp:
         browser_visible: bool,
         enabled_machine_names: set[str] | None = None,
         force_site7_difference: bool = False,
+        async_save_executor: ThreadPoolExecutor | None = None,
     ) -> StoreFetchResult:
         self._raise_if_fetch_cancelled()
         if registered_store_uses_daidata_online(registered_store):
@@ -3828,6 +3861,7 @@ class MinRepoApp:
                 retry_delay_seconds=retry_delay_seconds,
                 browser_visible=browser_visible,
                 enabled_machine_names=enabled_machine_names,
+                async_save_executor=async_save_executor,
             )
 
         target_store = registered_store.to_site7_target_store()
@@ -4004,15 +4038,34 @@ class MinRepoApp:
         )
         self._raise_if_fetch_cancelled()
         save_summary: PersistenceSummary | None = None
+        pending_save_futures: list[Future[PersistenceSummary]] = []
         if history_result.datasets and save_summary is None:
-            queue_progress(FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: 保存中"))
-            save_summary = self._run_with_persistence_lock(
-                lambda: self.persistence_service.save_history_result(history_result)
+            queue_progress(
+                FetchProgress(
+                    current_step=3,
+                    total_steps=4,
+                    message=(
+                        f"{store_label}: R2保存を開始"
+                        if async_save_executor is not None
+                        else f"{store_label}: 保存中"
+                    ),
+                )
             )
+
+            def run_save() -> PersistenceSummary:
+                return self._run_with_persistence_lock(
+                    lambda: self.persistence_service.save_history_result(history_result)
+                )
+
+            if async_save_executor is not None:
+                pending_save_futures.append(async_save_executor.submit(run_save))
+            else:
+                save_summary = run_save()
         return StoreFetchResult(
             history_result=history_result,
             save_summary=save_summary,
             saved_full_day_summary=warning_summary,
+            pending_save_futures=pending_save_futures,
         )
 
     def _prepare_site7_history_result_for_save(
@@ -4143,6 +4196,38 @@ class MinRepoApp:
         self._ensure_operation_tracking()
         with self.persistence_lock:
             return action()
+
+    def _pending_save_error_summary(self, exc: Exception) -> PersistenceSummary:
+        return PersistenceSummary(messages=[f"R2保存の完了待ちに失敗しました。\n{exc}"])
+
+    def _wait_for_pending_store_saves(self, store_results: list[StoreFetchResult]) -> None:
+        pending_saves = [
+            (store_result, future)
+            for store_result in store_results
+            for future in store_result.pending_save_futures
+        ]
+        if not pending_saves:
+            return
+
+        total_saves = len(pending_saves)
+        for save_index, (store_result, future) in enumerate(pending_saves, start=1):
+            self._queue_fetch_progress(
+                FetchProgress(
+                    current_step=save_index - 1,
+                    total_steps=total_saves,
+                    message=f"R2保存の完了待ち {save_index}/{total_saves}",
+                )
+            )
+            try:
+                save_summary = future.result()
+            except Exception as exc:  # noqa: BLE001
+                save_summary = self._pending_save_error_summary(exc)
+            store_result.save_summary = self._merge_persistence_summary(
+                store_result.save_summary,
+                save_summary,
+            )
+        for store_result in store_results:
+            store_result.pending_save_futures.clear()
 
     def _begin_fetch_run(
         self,
@@ -4446,39 +4531,50 @@ class MinRepoApp:
         failures: list[StoreFetchFailure] = []
         total_stores = len(target_stores)
         cancelled = False
+        save_executor = (
+            ThreadPoolExecutor(max_workers=1, thread_name_prefix="r2-save")
+            if total_stores > 1
+            else None
+        )
 
-        for store_index, registered_store in enumerate(target_stores, start=1):
-            if self._cancel_requested():
-                cancelled = True
-                break
+        try:
+            for store_index, registered_store in enumerate(target_stores, start=1):
+                if self._cancel_requested():
+                    cancelled = True
+                    break
 
-            try:
-                store_result = self._fetch_single_store(
-                    registered_store=registered_store,
-                    target_date_input=target_date_input,
-                    store_index=store_index,
-                    total_stores=total_stores,
-                    retry_delay_seconds=retry_delay_seconds,
-                    fetch_parallel_options=fetch_parallel_options,
-                    web_publish_options=web_publish_options,
-                    required_target_dates=required_target_dates,
-                )
-                self._refresh_web_data_for_store_result(store_result)
-                results.append(store_result)
-            except FetchCancelled:
-                cancelled = True
-                break
-            except Exception as exc:  # noqa: BLE001
-                failures.append(StoreFetchFailure(store=registered_store, error=exc))
-                self._queue_fetch_progress(
-                    FetchProgress(
-                        current_step=1,
-                        total_steps=1,
-                        message=f"{store_index}/{total_stores} {registered_store.name} は取得失敗",
-                    ),
-                    store_index=store_index,
-                    total_stores=total_stores,
-                )
+                try:
+                    store_result = self._fetch_single_store(
+                        registered_store=registered_store,
+                        target_date_input=target_date_input,
+                        store_index=store_index,
+                        total_stores=total_stores,
+                        retry_delay_seconds=retry_delay_seconds,
+                        fetch_parallel_options=fetch_parallel_options,
+                        web_publish_options=web_publish_options,
+                        required_target_dates=required_target_dates,
+                        async_save_executor=save_executor,
+                    )
+                    self._refresh_web_data_for_store_result(store_result)
+                    results.append(store_result)
+                except FetchCancelled:
+                    cancelled = True
+                    break
+                except Exception as exc:  # noqa: BLE001
+                    failures.append(StoreFetchFailure(store=registered_store, error=exc))
+                    self._queue_fetch_progress(
+                        FetchProgress(
+                            current_step=1,
+                            total_steps=1,
+                            message=f"{store_index}/{total_stores} {registered_store.name} は取得失敗",
+                        ),
+                        store_index=store_index,
+                        total_stores=total_stores,
+                    )
+        finally:
+            self._wait_for_pending_store_saves(results)
+            if save_executor is not None:
+                save_executor.shutdown(wait=True)
 
         if self._cancel_requested():
             cancelled = True
@@ -4714,6 +4810,7 @@ class MinRepoApp:
         fetch_parallel_options: MinRepoFetchParallelOptions | None = None,
         web_publish_options: WebPublishOptions | None = None,
         required_target_dates: set[str] | None = None,
+        async_save_executor: ThreadPoolExecutor | None = None,
     ) -> StoreFetchResult:
         fetch_parallel_options = fetch_parallel_options or MINREPO_FETCH_PARALLEL_OPTIONS[MINREPO_FETCH_MODE_NORMAL]
         self._raise_if_fetch_cancelled()
@@ -4864,6 +4961,7 @@ class MinRepoApp:
             queue_progress(progress)
 
         save_summary: PersistenceSummary | None = None
+        pending_save_futures: list[Future[PersistenceSummary]] = []
         checkpoint_paths_by_date: dict[str, list[str]] = {}
         checkpoint_lock = threading.Lock()
 
@@ -4994,26 +5092,38 @@ class MinRepoApp:
                 publish_batch_results = []
                 return
 
-            step_callback(f"{label}のR2保存とWeb更新中")
+            step_callback(
+                f"{label}のR2保存とWeb更新を開始"
+                if async_save_executor is not None
+                else f"{label}のR2保存とWeb更新中"
+            )
             batch_checkpoint_paths = take_checkpoint_paths_for_publish_result(publish_result)
             complete_dates = complete_dates_for_full_day_mark(publish_result)
             full_day_save = len(complete_dates) == len(publish_result.date_pages)
-            batch_save_summary = self._run_with_persistence_lock(
-                lambda: self.persistence_service.save_history_result(publish_result, full_day=full_day_save)
-            )
-            if batch_save_summary.web_data_saved and complete_dates and not full_day_save:
-                complete_result = filter_history_result_dates(publish_result, complete_dates)
-                mark_summary = self._run_with_persistence_lock(
-                    lambda: self.persistence_service.mark_full_day_saved(complete_result)
+
+            def run_batch_save() -> PersistenceSummary:
+                batch_save_summary = self._run_with_persistence_lock(
+                    lambda: self.persistence_service.save_history_result(publish_result, full_day=full_day_save)
                 )
-                batch_save_summary = self._merge_persistence_summary(batch_save_summary, mark_summary)
-            if batch_save_summary.web_data_saved:
-                delete_summary = self.persistence_service.delete_local_checkpoint_files(batch_checkpoint_paths)
-                batch_save_summary.messages.extend(delete_summary.messages)
+                if batch_save_summary.web_data_saved and complete_dates and not full_day_save:
+                    complete_result = filter_history_result_dates(publish_result, complete_dates)
+                    mark_summary = self._run_with_persistence_lock(
+                        lambda: self.persistence_service.mark_full_day_saved(complete_result)
+                    )
+                    batch_save_summary = self._merge_persistence_summary(batch_save_summary, mark_summary)
+                if batch_save_summary.web_data_saved:
+                    delete_summary = self.persistence_service.delete_local_checkpoint_files(batch_checkpoint_paths)
+                    batch_save_summary.messages.extend(delete_summary.messages)
+                else:
+                    mark_checkpoints_left_on_failure(batch_save_summary, batch_checkpoint_paths)
+                return batch_save_summary
+
+            if async_save_executor is not None:
+                pending_save_futures.append(async_save_executor.submit(run_batch_save))
             else:
-                mark_checkpoints_left_on_failure(batch_save_summary, batch_checkpoint_paths)
-            with save_summary_lock:
-                save_summary = self._merge_persistence_summary(save_summary, batch_save_summary)
+                batch_save_summary = run_batch_save()
+                with save_summary_lock:
+                    save_summary = self._merge_persistence_summary(save_summary, batch_save_summary)
             publish_batch_results = []
 
         def save_day_result(date_page: object, day_result: MachineHistoryResult) -> None:
@@ -5080,6 +5190,7 @@ class MinRepoApp:
             history_result=result,
             save_summary=save_summary,
             saved_full_day_summary=saved_full_day_summary,
+            pending_save_futures=pending_save_futures,
         )
 
     def _poll_queue(self) -> None:

@@ -2457,6 +2457,74 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(len(persistence_service.checkpoint_results), len(result.history_result.datasets))
         self.assertEqual(len(persistence_service.deleted_checkpoint_paths), len(result.history_result.datasets))
 
+    def test_run_fetch_many_fetches_next_store_while_previous_r2_save_waits(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.minrepo_cancel_event = app.fetch_cancel_event
+        app.site7_cancel_event = threading.Event()
+        app.active_operation_kind = "fetch"
+        app.result_queue = queue.Queue()
+        app._worker_context = threading.local()
+        app._last_queued_fetch_progress_by_operation = {}
+        app._refresh_web_data_for_store_result = mock.Mock()
+        events: list[str] = []
+        save_started = threading.Event()
+        release_save = threading.Event()
+        future_holder: dict[str, object] = {}
+
+        def build_result(store_name: str, pending_save_futures: list[object] | None = None) -> StoreFetchResult:
+            return StoreFetchResult(
+                history_result=MachineHistoryResult(
+                    store_name=store_name,
+                    store_url=f"https://example.com/{store_name}",
+                    start_date="2026-04-07",
+                    end_date="2026-04-07",
+                    date_pages=[],
+                    datasets=[],
+                ),
+                save_summary=None,
+                saved_full_day_summary=SavedFullDayDatesSummary(),
+                pending_save_futures=list(pending_save_futures or []),
+            )
+
+        def save_job() -> PersistenceSummary:
+            events.append("save_start")
+            save_started.set()
+            self.assertTrue(release_save.wait(5))
+            events.append("save_done")
+            return PersistenceSummary(web_data_saved=True, web_data_record_count=1)
+
+        def fake_fetch_single_store(*_: object, **kwargs: object) -> StoreFetchResult:
+            registered_store = kwargs["registered_store"]
+            store_name = registered_store.name
+            events.append(f"fetch_{store_name}")
+            async_save_executor = kwargs.get("async_save_executor")
+            if store_name == "A店":
+                self.assertIsNotNone(async_save_executor)
+                future = async_save_executor.submit(save_job)
+                future_holder["future"] = future
+                return build_result(store_name, [future])
+
+            self.assertTrue(save_started.wait(5))
+            self.assertFalse(future_holder["future"].done())
+            release_save.set()
+            return build_result(store_name)
+
+        app._fetch_single_store = fake_fetch_single_store
+
+        result = app._run_fetch_many(
+            target_stores=[
+                RegisteredStore(name="A店", url="https://example.com/a"),
+                RegisteredStore(name="B店", url="https://example.com/b"),
+            ],
+            target_date_input="2026-04-07",
+            retry_delay_seconds=0,
+        )
+
+        self.assertEqual(events, ["fetch_A店", "save_start", "fetch_B店", "save_done"])
+        self.assertEqual(len(result.results), 2)
+        self.assertTrue(result.results[0].save_summary.web_data_saved)
+
     def test_fetch_single_store_treats_no_recent_date_pages_as_empty_result(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.fetch_cancel_event = threading.Event()
@@ -4412,6 +4480,76 @@ class MinRepoScraperTests(unittest.TestCase):
         kind, progress = app.result_queue.get_nowait()
         self.assertEqual(kind, "fetch_progress")
         self.assertEqual(progress.message, "1/1 Aパーク春日店 は取得失敗")
+
+    def test_run_site7_fetch_many_fetches_next_store_while_previous_r2_save_waits(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.minrepo_cancel_event = threading.Event()
+        app.site7_cancel_event = app.fetch_cancel_event
+        app.active_operation_kind = "site7_fetch"
+        app.result_queue = queue.Queue()
+        app._worker_context = threading.local()
+        app._last_queued_fetch_progress_by_operation = {}
+        app._refresh_web_data_for_store_result = mock.Mock()
+        events: list[str] = []
+        save_started = threading.Event()
+        release_save = threading.Event()
+        future_holder: dict[str, object] = {}
+
+        def build_result(store_name: str, pending_save_futures: list[object] | None = None) -> StoreFetchResult:
+            return StoreFetchResult(
+                history_result=MachineHistoryResult(
+                    store_name=store_name,
+                    store_url=f"https://example.com/{store_name}",
+                    start_date="2026-04-07",
+                    end_date="2026-04-07",
+                    date_pages=[],
+                    datasets=[],
+                ),
+                save_summary=None,
+                saved_full_day_summary=SavedFullDayDatesSummary(),
+                pending_save_futures=list(pending_save_futures or []),
+            )
+
+        def save_job() -> PersistenceSummary:
+            events.append("save_start")
+            save_started.set()
+            self.assertTrue(release_save.wait(5))
+            events.append("save_done")
+            return PersistenceSummary(web_data_saved=True, web_data_record_count=1)
+
+        def fake_fetch_single_site7_store(*_: object, **kwargs: object) -> StoreFetchResult:
+            registered_store = kwargs["registered_store"]
+            store_name = registered_store.name
+            events.append(f"fetch_{store_name}")
+            async_save_executor = kwargs.get("async_save_executor")
+            if store_name == "A店":
+                self.assertIsNotNone(async_save_executor)
+                future = async_save_executor.submit(save_job)
+                future_holder["future"] = future
+                return build_result(store_name, [future])
+
+            self.assertTrue(save_started.wait(5))
+            self.assertFalse(future_holder["future"].done())
+            release_save.set()
+            return build_result(store_name)
+
+        app._fetch_single_site7_store = fake_fetch_single_site7_store
+
+        result = app._run_site7_fetch_many(
+            target_stores=[
+                RegisteredStore(name="A店", url="https://example.com/a", fetch_source=FETCH_SOURCE_SITE7),
+                RegisteredStore(name="B店", url="https://example.com/b", fetch_source=FETCH_SOURCE_SITE7),
+            ],
+            recent_days=1,
+            retry_delay_seconds=0,
+            browser_visible=True,
+            minrepo_prefetch_enabled=False,
+        )
+
+        self.assertEqual(events, ["fetch_A店", "save_start", "fetch_B店", "save_done"])
+        self.assertEqual(len(result.results), 2)
+        self.assertTrue(result.results[0].save_summary.web_data_saved)
 
     def test_fetch_single_site7_store_filters_saved_slots_before_saving(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
