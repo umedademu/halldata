@@ -770,20 +770,16 @@ function selectBestExpectationCandidate(
   candidates,
   metric = MACHINE_EVALUATION_HIGHLIGHT_METRIC_PAYOUT,
 ) {
-  const validCandidates = candidates
+  const normalizedCandidates = candidates
     .map((candidate) => ({
       ...candidate,
       payoutRate: readFiniteNumber(candidate?.payoutRate),
       rbDenominator: readFiniteNumber(candidate?.rbDenominator),
     }))
-    .filter((candidate) => candidate.payoutRate !== null);
-
-  if (validCandidates.length === 0) {
-    return null;
-  }
+    .filter((candidate) => candidate.payoutRate !== null || candidate.rbDenominator !== null);
 
   if (metric === MACHINE_EVALUATION_HIGHLIGHT_METRIC_RB) {
-    const validRbCandidates = validCandidates.filter(
+    const validRbCandidates = normalizedCandidates.filter(
       (candidate) => candidate.rbDenominator !== null,
     );
     if (validRbCandidates.length === 0) {
@@ -794,13 +790,24 @@ function selectBestExpectationCandidate(
         return left.rbDenominator - right.rbDenominator;
       }
       if (right.payoutRate !== left.payoutRate) {
+        if (right.payoutRate === null) {
+          return -1;
+        }
+        if (left.payoutRate === null) {
+          return 1;
+        }
         return right.payoutRate - left.payoutRate;
       }
       return 0;
     })[0];
   }
 
-  return validCandidates.sort((left, right) => {
+  const validPayoutCandidates = normalizedCandidates.filter((candidate) => candidate.payoutRate !== null);
+  if (validPayoutCandidates.length === 0) {
+    return null;
+  }
+
+  return validPayoutCandidates.sort((left, right) => {
     if (right.payoutRate !== left.payoutRate) {
       return right.payoutRate - left.payoutRate;
     }
