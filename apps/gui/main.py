@@ -34,6 +34,7 @@ from data_persistence import (
     SavedFullDayDatesSummary,
     normalize_store_url,
 )
+from daidata_online_scraper import DaidataOnlineScraper, daidata_store_is_beam_hikari
 from minrepo_scraper import (
     FetchProgress,
     MachineDataset,
@@ -428,6 +429,10 @@ def store_uses_minrepo(fetch_source: str) -> bool:
 
 def store_uses_site7(fetch_source: str) -> bool:
     return fetch_source in {FETCH_SOURCE_SITE7, FETCH_SOURCE_BOTH}
+
+
+def registered_store_uses_daidata_online(registered_store: "RegisteredStore") -> bool:
+    return daidata_store_is_beam_hikari(registered_store.name, registered_store.url)
 
 
 def normalize_site7_schedule_hours(value: object) -> tuple[int, ...]:
@@ -932,6 +937,7 @@ class MinRepoApp:
         self.scraper = MinRepoScraper()
         self.persistence_service = HistoryPersistenceService()
         self.site7_scraper = Site7Scraper(self.persistence_service.root_dir)
+        self.daidata_online_scraper = DaidataOnlineScraper(self.persistence_service.root_dir)
         self._worker_context = threading.local()
         self._next_operation_id = 1
         self.active_operations: dict[int, str] = {}
@@ -1833,6 +1839,9 @@ class MinRepoApp:
             return None
         return enabled_machine_names
 
+    def _site7_fetch_requires_login(self, target_stores: list[RegisteredStore]) -> bool:
+        return any(not registered_store_uses_daidata_online(registered_store) for registered_store in target_stores)
+
     def _site7_has_enabled_target_machines(self, target_stores: list[RegisteredStore] | None = None) -> bool:
         if not hasattr(self, "site7_target_machine_names"):
             return True
@@ -1840,11 +1849,18 @@ class MinRepoApp:
         if target_stores is None:
             source_groups = SITE7_MACHINE_SOURCE_GROUPS
         else:
+            real_site7_stores = [
+                registered_store
+                for registered_store in target_stores
+                if not registered_store_uses_daidata_online(registered_store)
+            ]
+            if not real_site7_stores:
+                return True
             source_groups = tuple(
                 sorted(
                     {
                         site7_machine_source_group(registered_store.fetch_source)
-                        for registered_store in target_stores
+                        for registered_store in real_site7_stores
                     },
                     key=lambda source_group: SITE7_MACHINE_SOURCE_GROUPS.index(source_group),
                 )
@@ -3316,14 +3332,6 @@ class MinRepoApp:
 
         recent_days = clamp_site7_recent_days(recent_days)
 
-        if not self.site7_scraper.has_saved_login_state():
-            if messagebox.askyesno(
-                "サイトセブン",
-                "サイトセブンのログイン情報がまだありません。\n先にログイン画面を開きますか？",
-            ):
-                self.site7_login()
-            return
-
         try:
             target_stores = self._selected_site7_registered_stores()
         except ScraperError as exc:
@@ -3331,6 +3339,13 @@ class MinRepoApp:
             return
         if not target_stores:
             messagebox.showwarning("入力不足", "登録店舗タブで取得元にサイセを含む店舗を1つ以上用意してください。")
+            return
+        if self._site7_fetch_requires_login(target_stores) and not self.site7_scraper.has_saved_login_state():
+            if messagebox.askyesno(
+                "サイトセブン",
+                "サイトセブンのログイン情報がまだありません。\n先にログイン画面を開きますか？",
+            ):
+                self.site7_login()
             return
         if not self._site7_has_enabled_target_machines(target_stores):
             messagebox.showwarning("入力不足", "対象店舗の取得元に対応するサイトセブン取得機種を1つ以上選択してください。")
@@ -3369,14 +3384,6 @@ class MinRepoApp:
 
         recent_days = clamp_site7_recent_days(recent_days)
 
-        if not self.site7_scraper.has_saved_login_state():
-            if messagebox.askyesno(
-                "サイトセブン",
-                "サイトセブンのログイン情報がまだありません。\n先にログイン画面を開きますか？",
-            ):
-                self.site7_login()
-            return
-
         try:
             target_stores = self._selected_site7_registered_stores()
         except ScraperError as exc:
@@ -3384,6 +3391,13 @@ class MinRepoApp:
             return
         if not target_stores:
             messagebox.showwarning("入力不足", "登録店舗タブで取得元にサイセを含む店舗を1つ以上用意してください。")
+            return
+        if self._site7_fetch_requires_login(target_stores) and not self.site7_scraper.has_saved_login_state():
+            if messagebox.askyesno(
+                "サイトセブン",
+                "サイトセブンのログイン情報がまだありません。\n先にログイン画面を開きますか？",
+            ):
+                self.site7_login()
             return
 
         self._begin_fetch_run(
@@ -3403,7 +3417,7 @@ class MinRepoApp:
             web_publish_options,
             {SITE7_NEO_IM_MACHINE_NAME},
             False,
-            True,
+            False,
             operation_kind="site7_fetch",
         )
 
@@ -3423,7 +3437,7 @@ class MinRepoApp:
 
         recent_days = clamp_site7_recent_days(recent_days)
 
-        if not self.site7_scraper.has_saved_login_state():
+        if self._site7_fetch_requires_login([target_store]) and not self.site7_scraper.has_saved_login_state():
             if messagebox.askyesno(
                 "サイトセブン",
                 "サイトセブンのログイン情報がまだありません。\n先にログイン画面を開きますか？",
@@ -3472,7 +3486,7 @@ class MinRepoApp:
 
         recent_days = clamp_site7_recent_days(recent_days)
 
-        if not self.site7_scraper.has_saved_login_state():
+        if self._site7_fetch_requires_login([target_store]) and not self.site7_scraper.has_saved_login_state():
             if messagebox.askyesno(
                 "サイトセブン",
                 "サイトセブンのログイン情報がまだありません。\n先にログイン画面を開きますか？",
@@ -3498,7 +3512,7 @@ class MinRepoApp:
             web_publish_options,
             {SITE7_NEO_IM_MACHINE_NAME},
             False,
-            True,
+            False,
             operation_kind="site7_fetch",
         )
 
@@ -3691,6 +3705,80 @@ class MinRepoApp:
             )
         return successful_dates
 
+    def _fetch_single_daidata_online_store(
+        self,
+        registered_store: RegisteredStore,
+        recent_days: int,
+        store_index: int,
+        total_stores: int,
+        retry_delay_seconds: int,
+        browser_visible: bool,
+        enabled_machine_names: set[str] | None = None,
+    ) -> StoreFetchResult:
+        self._raise_if_fetch_cancelled()
+        store_label = f"{store_index}/{total_stores} {registered_store.name}"
+
+        def queue_progress(progress: FetchProgress) -> None:
+            self._queue_fetch_progress(progress, store_index=store_index, total_stores=total_stores)
+
+        fetch_enabled_machine_names = enabled_machine_names
+        if fetch_enabled_machine_names is None:
+            fetch_enabled_machine_names = self._site7_enabled_machine_names_for_fetch(registered_store)
+        if fetch_enabled_machine_names == set():
+            fetch_enabled_machine_names = None
+
+        def run_daidata_fetch() -> MachineHistoryResult:
+            return self.daidata_online_scraper.fetch_beam_hikari_juggler_history(
+                recent_days=recent_days,
+                browser_visible=browser_visible,
+                progress_callback=lambda progress: queue_progress(
+                    FetchProgress(
+                        current_step=progress.current_step,
+                        total_steps=progress.total_steps,
+                        message=f"{store_label}: {progress.message}",
+                    )
+                ),
+                enabled_machine_names=fetch_enabled_machine_names,
+                cancel_requested=self._cancel_requested,
+            )
+
+        history_result = self._run_with_fetch_retries(
+            run_daidata_fetch,
+            retry_delay_seconds=retry_delay_seconds,
+            retry_status_callback=lambda retry_number, max_retries, delay_seconds: queue_progress(
+                FetchProgress(
+                    current_step=0,
+                    total_steps=4,
+                    message=(
+                        f"{store_label}: 台データオンライン取得に失敗しました。"
+                        f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
+                    ),
+                ),
+            ),
+        )
+        self._raise_if_fetch_cancelled()
+        history_result = rewrite_history_result_store(
+            history_result,
+            store_name=registered_store.name,
+            store_url=registered_store.url,
+        )
+        history_result, warning_summary = self._prepare_site7_history_result_for_save(
+            history_result,
+            require_source_difference=False,
+        )
+        self._raise_if_fetch_cancelled()
+        save_summary: PersistenceSummary | None = None
+        if history_result.datasets:
+            queue_progress(FetchProgress(current_step=3, total_steps=4, message=f"{store_label}: 保存中"))
+            save_summary = self._run_with_persistence_lock(
+                lambda: self.persistence_service.save_history_result(history_result)
+            )
+        return StoreFetchResult(
+            history_result=history_result,
+            save_summary=save_summary,
+            saved_full_day_summary=warning_summary,
+        )
+
     def _fetch_single_site7_store(
         self,
         registered_store: RegisteredStore,
@@ -3703,6 +3791,17 @@ class MinRepoApp:
         force_site7_difference: bool = False,
     ) -> StoreFetchResult:
         self._raise_if_fetch_cancelled()
+        if registered_store_uses_daidata_online(registered_store):
+            return self._fetch_single_daidata_online_store(
+                registered_store=registered_store,
+                recent_days=recent_days,
+                store_index=store_index,
+                total_stores=total_stores,
+                retry_delay_seconds=retry_delay_seconds,
+                browser_visible=browser_visible,
+                enabled_machine_names=enabled_machine_names,
+            )
+
         target_store = registered_store.to_site7_target_store()
         site7_difference_enabled = bool(
             force_site7_difference
@@ -6115,6 +6214,8 @@ class MinRepoApp:
         if require_site7_source and not registered_store.uses_site7():
             display_name = self._registered_store_display_name(registered_store)
             raise ScraperError(f"{display_name} の取得元にサイセを含めてください。")
+        if registered_store_uses_daidata_online(registered_store):
+            return registered_store
         if self._registered_store_is_known_site7_unavailable(registered_store):
             display_name = self._registered_store_display_name(registered_store)
             raise ScraperError(
@@ -6134,12 +6235,14 @@ class MinRepoApp:
         unavailable_stores = [
             registered_store.name
             for registered_store in target_stores
-            if self._registered_store_is_known_site7_unavailable(registered_store)
+            if not registered_store_uses_daidata_online(registered_store)
+            and self._registered_store_is_known_site7_unavailable(registered_store)
         ]
         target_stores = [
             registered_store
             for registered_store in target_stores
-            if not self._registered_store_is_known_site7_unavailable(registered_store)
+            if registered_store_uses_daidata_online(registered_store)
+            or not self._registered_store_is_known_site7_unavailable(registered_store)
         ]
         if unavailable_stores and not target_stores:
             raise ScraperError(
@@ -6149,7 +6252,8 @@ class MinRepoApp:
         invalid_stores = [
             registered_store.name
             for registered_store in target_stores
-            if not registered_store.site7_area.strip()
+            if not registered_store_uses_daidata_online(registered_store)
+            and not registered_store.site7_area.strip()
         ]
         if invalid_stores:
             raise ScraperError("サイトセブン取得を使う店舗は地域を入力してください。\n" + "\n".join(invalid_stores))

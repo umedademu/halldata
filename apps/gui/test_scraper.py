@@ -31,6 +31,12 @@ from data_persistence import (
     normalize_store_name_key,
     normalize_store_url,
 )
+from daidata_online_scraper import (
+    DAIDATA_BEAM_HIKARI_URL,
+    DaidataOnlineScraper,
+    build_daidata_machine_dataset,
+    daidata_store_is_beam_hikari,
+)
 from main import (
     DEFAULT_MINREPO_FETCH_MODE,
     FETCH_FREQUENCY_DAILY,
@@ -1411,6 +1417,7 @@ class MinRepoScraperTests(unittest.TestCase):
             "notify_fetch_complete_button",
             "site7_login_button",
             "site7_fetch_button",
+            "site7_neo_im_fetch_button",
             "site7_cancel_button",
             "apply_site7_schedule_button",
             "clear_site7_schedule_button",
@@ -1442,6 +1449,10 @@ class MinRepoScraperTests(unittest.TestCase):
         for widget_name in widget_names:
             setattr(app, widget_name, FakeStateWidget())
         app.site7_machine_checkbuttons = {"machine": FakeStateWidget()}
+        app.site7_machine_action_buttons = [
+            app.select_all_site7_machines_button,
+            app.clear_site7_machines_button,
+        ]
         app.site7_schedule_hour_buttons = {
             hour: FakeStateWidget()
             for hour in range(10, 24)
@@ -1599,6 +1610,59 @@ class MinRepoScraperTests(unittest.TestCase):
         app._start_worker.assert_called_once()
         self.assertEqual(app._start_worker.call_args.args[1], [target_store])
         self.assertEqual(app._start_worker.call_args.args[2], 8)
+
+    def test_fetch_site7_neo_im_data_does_not_force_difference_fetch(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        target_store = RegisteredStore(
+            name="Aパーク春日店",
+            url="https://example.com/store",
+            fetch_source=FETCH_SOURCE_SITE7,
+        )
+        app.target_date_var = FakeTextVariable("90")
+        app.site7_scraper = SimpleNamespace(has_saved_login_state=mock.Mock(return_value=True))
+        app._site7_start_blocked = mock.Mock(return_value=False)
+        app._retry_delay_seconds_input = mock.Mock(return_value=0)
+        app._minrepo_fetch_parallel_options = mock.Mock(
+            return_value=MinRepoFetchParallelOptions(date_workers=1, machine_workers=1)
+        )
+        app._web_publish_options_input = mock.Mock(return_value=object())
+        app._selected_site7_registered_stores = mock.Mock(return_value=[target_store])
+        app._begin_fetch_run = mock.Mock()
+        app._site7_browser_visible = mock.Mock(return_value=False)
+        app._start_worker = mock.Mock()
+
+        app.fetch_site7_neo_im_data()
+
+        app._start_worker.assert_called_once()
+        self.assertEqual(app._start_worker.call_args.args[7], {SITE7_NEO_IM_MACHINE_NAME})
+        self.assertFalse(app._start_worker.call_args.args[9])
+
+    def test_fetch_registered_store_site7_neo_im_data_does_not_force_difference_fetch(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        target_store = RegisteredStore(
+            name="Aパーク春日店",
+            url="https://example.com/store",
+            fetch_source=FETCH_SOURCE_SITE7,
+        )
+        app.target_date_var = FakeTextVariable("90")
+        app.site7_scraper = SimpleNamespace(has_saved_login_state=mock.Mock(return_value=True))
+        app._site7_start_blocked = mock.Mock(return_value=False)
+        app._retry_delay_seconds_input = mock.Mock(return_value=0)
+        app._minrepo_fetch_parallel_options = mock.Mock(
+            return_value=MinRepoFetchParallelOptions(date_workers=1, machine_workers=1)
+        )
+        app._web_publish_options_input = mock.Mock(return_value=object())
+        app._site7_registered_store_for_single_fetch = mock.Mock(return_value=target_store)
+        app._registered_store_display_name = mock.Mock(return_value=target_store.name)
+        app._begin_fetch_run = mock.Mock()
+        app._site7_browser_visible = mock.Mock(return_value=False)
+        app._start_worker = mock.Mock()
+
+        app.fetch_registered_store_site7_neo_im_data(target_store)
+
+        app._start_worker.assert_called_once()
+        self.assertEqual(app._start_worker.call_args.args[7], {SITE7_NEO_IM_MACHINE_NAME})
+        self.assertFalse(app._start_worker.call_args.args[9])
 
     def test_run_with_persistence_lock_serializes_actions(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -2823,11 +2887,14 @@ class MinRepoScraperTests(unittest.TestCase):
     def test_site7_enabled_machine_names_for_fetch_only_returns_partial_selection(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.site7_target_machine_names = ("マイジャグラーV", "ネオアイムジャグラーEX")
-        app.site7_enabled_machine_names = {"マイジャグラーV", "ネオアイムジャグラーEX"}
+        app.site7_enabled_machine_names_by_source = {
+            FETCH_SOURCE_BOTH: {"マイジャグラーV", "ネオアイムジャグラーEX"},
+            FETCH_SOURCE_SITE7: {"マイジャグラーV", "ネオアイムジャグラーEX"},
+        }
 
         self.assertIsNone(app._site7_enabled_machine_names_for_fetch())
 
-        app.site7_enabled_machine_names = {"マイジャグラーV"}
+        app.site7_enabled_machine_names_by_source[FETCH_SOURCE_BOTH] = {"マイジャグラーV"}
         self.assertEqual(app._site7_enabled_machine_names_for_fetch(), {"マイジャグラーV"})
 
     def test_site7_machine_select_all_and_clear_updates_saved_selection(self) -> None:
@@ -2851,26 +2918,34 @@ class MinRepoScraperTests(unittest.TestCase):
         saved_values: list[set[str]] = []
         app = MinRepoApp.__new__(MinRepoApp)
         app.site7_target_machine_names = ("マイジャグラーV", "ネオアイムジャグラーEX")
-        app.site7_enabled_machine_names = {"マイジャグラーV"}
-        app.site7_machine_enabled_vars = {
-            "マイジャグラーV": FakeBoolVar(True),
-            "ネオアイムジャグラーEX": FakeBoolVar(False),
+        app.site7_enabled_machine_names_by_source = {
+            FETCH_SOURCE_BOTH: {"マイジャグラーV"},
+            FETCH_SOURCE_SITE7: set(),
+        }
+        app.site7_machine_enabled_vars_by_source = {
+            FETCH_SOURCE_BOTH: {
+                "マイジャグラーV": FakeBoolVar(True),
+                "ネオアイムジャグラーEX": FakeBoolVar(False),
+            },
+            FETCH_SOURCE_SITE7: {},
         }
         app.site7_machine_settings_status_var = FakeStringVar()
-        app._save_site7_enabled_machine_names = lambda: saved_values.append(set(app.site7_enabled_machine_names))
+        app._save_site7_enabled_machine_names = lambda: saved_values.append(
+            set(app.site7_enabled_machine_names_by_source[FETCH_SOURCE_BOTH])
+        )
         app._update_button_states = lambda: None
 
-        app._select_all_site7_target_machines()
+        app._select_all_site7_target_machines(FETCH_SOURCE_BOTH)
 
-        self.assertEqual(app.site7_enabled_machine_names, {"マイジャグラーV", "ネオアイムジャグラーEX"})
+        self.assertEqual(app.site7_enabled_machine_names_by_source[FETCH_SOURCE_BOTH], {"マイジャグラーV", "ネオアイムジャグラーEX"})
         self.assertEqual(saved_values[-1], {"マイジャグラーV", "ネオアイムジャグラーEX"})
-        self.assertEqual(app.site7_machine_settings_status_var.value, "2/2 機種を取得対象にしています")
+        self.assertEqual(app.site7_machine_settings_status_var.value, "両方 2/2、サイセのみ 0/2 機種を取得対象にしています")
 
-        app._clear_site7_target_machines()
+        app._clear_site7_target_machines(FETCH_SOURCE_BOTH)
 
-        self.assertEqual(app.site7_enabled_machine_names, set())
+        self.assertEqual(app.site7_enabled_machine_names_by_source[FETCH_SOURCE_BOTH], set())
         self.assertEqual(saved_values[-1], set())
-        self.assertEqual(app.site7_machine_settings_status_var.value, "0/2 機種を取得対象にしています")
+        self.assertEqual(app.site7_machine_settings_status_var.value, "両方 0/2、サイセのみ 0/2 機種を取得対象にしています")
 
     def test_site7_extract_store_name_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
@@ -5020,7 +5095,7 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(fetch_call_kwargs["enabled_machine_names"], {SITE7_NEO_IM_MACHINE_NAME})
         self.assertTrue(fetch_call_kwargs["force_site7_difference"])
 
-    def test_site7_registered_stores_from_skips_unlisted_store(self) -> None:
+    def test_site7_registered_stores_from_keeps_beam_hikari_daidata_online_store(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         beam_store = RegisteredStore(
             name="ビームヒカリ",
@@ -5035,9 +5110,9 @@ class MinRepoScraperTests(unittest.TestCase):
             site7_area="大野城市",
         )
 
-        self.assertEqual(app._site7_registered_stores_from([beam_store, hinode_store]), [hinode_store])
+        self.assertEqual(app._site7_registered_stores_from([beam_store, hinode_store]), [hinode_store, beam_store])
 
-    def test_site7_registered_stores_from_errors_when_only_unlisted_store(self) -> None:
+    def test_site7_registered_stores_from_keeps_only_beam_hikari_daidata_online_store(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         beam_store = RegisteredStore(
             name="ビームヒカリ",
@@ -5046,8 +5121,7 @@ class MinRepoScraperTests(unittest.TestCase):
             site7_area="大野城市",
         )
 
-        with self.assertRaisesRegex(ScraperError, "サイトセブンの店舗一覧にない"):
-            app._site7_registered_stores_from([beam_store])
+        self.assertEqual(app._site7_registered_stores_from([beam_store]), [beam_store])
 
     def test_site7_parse_machine_history_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
@@ -5161,6 +5235,98 @@ class MinRepoScraperTests(unittest.TestCase):
                 "rb_ratio_text": "1/454",
             },
         )
+
+    def test_daidata_machine_dataset_uses_total_start_without_difference(self) -> None:
+        html = """
+        <html>
+          <body>
+            <p>データ更新 2026.06.25 00:07</p>
+            <select name="hist_num">
+              <option value="0" selected>2026/06/24</option>
+            </select>
+            <table>
+              <tr>
+                <th>台番号</th>
+                <th>スタート回数</th>
+                <th>BB回数</th>
+                <th>RB回数</th>
+                <th>合成確率</th>
+                <th>BB確率</th>
+                <th>RB確率</th>
+                <th>累計スタート</th>
+                <th>前日最終スタート</th>
+              </tr>
+              <tr>
+                <td>821</td>
+                <td>56</td>
+                <td>4</td>
+                <td>3</td>
+                <td>176.2</td>
+                <td>308.5</td>
+                <td>411.3</td>
+                <td>1,234</td>
+                <td>99</td>
+              </tr>
+            </table>
+          </body>
+        </html>
+        """
+
+        dataset = build_daidata_machine_dataset(
+            html,
+            store_name="ビームヒカリ",
+            store_url=DAIDATA_BEAM_HIKARI_URL,
+            machine_name=SITE7_NEO_IM_MACHINE_NAME,
+            machine_url=f"{DAIDATA_BEAM_HIKARI_URL}/unit_list?model=neo",
+            hist_num=0,
+        )
+
+        self.assertEqual(dataset.target_date, "2026-06-24")
+        self.assertEqual(dataset.rows[0], ["821", "-", "1234", "-", "4", "3", "1/176.2", "1/308.5", "1/411.3"])
+        self.assertEqual(site7_dataset_updated_at(dataset), "2026-06-25T00:07:00+09:00")
+
+    def test_daidata_build_machine_daily_records_is_site7_provisional_source(self) -> None:
+        dataset = MachineDataset(
+            store_name="ビームヒカリ",
+            store_url=DAIDATA_BEAM_HIKARI_URL,
+            target_date="2026-06-24",
+            date_url=f"{DAIDATA_BEAM_HIKARI_URL}/unit_list?model=neo&hist_num=0",
+            machine_name=SITE7_NEO_IM_MACHINE_NAME,
+            machine_url=f"{DAIDATA_BEAM_HIKARI_URL}/unit_list?model=neo",
+            columns=["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"],
+            rows=[["821", "-", "1234", "-", "4", "3", "1/176.2", "1/308.5", "1/411.3"]],
+        )
+        set_site7_dataset_updated_at(dataset, "2026-06-25T00:07:00+09:00")
+        history_result = MachineHistoryResult(
+            store_name="ビームヒカリ",
+            store_url=DAIDATA_BEAM_HIKARI_URL,
+            start_date="2026-06-24",
+            end_date="2026-06-24",
+            date_pages=[StoreDatePage(target_date="2026-06-24", date_url=dataset.date_url)],
+            datasets=[dataset],
+        )
+
+        records = build_machine_daily_records(history_result)
+
+        self.assertEqual(records[0]["data_source"], DATA_SOURCE_SITE7)
+        self.assertIsNone(records[0]["difference_value"])
+        self.assertEqual(records[0]["games_count"], 1234)
+        self.assertEqual(records[0]["site7_fetched_at"], "2026-06-25T00:07:00+09:00")
+
+    def test_daidata_store_and_machine_link_filters_beam_jugglers(self) -> None:
+        html = """
+        <a href="/100619/unit_list?model=neo&ballPrice=20.00&ps=S">ネオアイムジャグラーEX 20円スロット |</a>
+        <a href="/100619/unit_list?model=hokuto&ballPrice=20.00&ps=S">スマスロ北斗の拳 20円スロット |</a>
+        """
+
+        entries = DaidataOnlineScraper().extract_juggler_machine_links(
+            html,
+            DAIDATA_BEAM_HIKARI_URL,
+            enabled_machine_names={SITE7_NEO_IM_MACHINE_NAME},
+        )
+
+        self.assertTrue(daidata_store_is_beam_hikari("ビームヒカリ", ""))
+        self.assertEqual([entry.machine_name for entry in entries], [SITE7_NEO_IM_MACHINE_NAME])
 
     def test_site7_build_machine_daily_records_skips_blank_rows(self) -> None:
         history_result = MachineHistoryResult(
@@ -7036,7 +7202,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 ],
             )
 
-    def test_normalize_registered_stores_disables_unlisted_site7_store(self) -> None:
+    def test_normalize_registered_stores_keeps_beam_hikari_daidata_online_source(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))
 
@@ -7055,7 +7221,7 @@ class MinRepoScraperTests(unittest.TestCase):
                     {
                         "store_name": "ビームヒカリ",
                         "store_url": "https://example.com/beam/",
-                        "site7_enabled": False,
+                        "site7_enabled": True,
                         "site7_difference_enabled": False,
                         "site7_prefecture": "福岡県",
                         "site7_area": "大野城市",

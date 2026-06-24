@@ -14,6 +14,7 @@ from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 import requests
 
+from daidata_online_scraper import daidata_store_is_beam_hikari
 from machine_difference import (
     calculate_machine_difference_value,
     canonical_machine_name,
@@ -194,7 +195,12 @@ def _infer_history_data_source(*urls: str) -> str:
     has_minrepo_url = False
     for url in urls:
         normalized_url = str(url or "").strip().lower()
-        if "d-deltanet.com" in normalized_url or "/site7" in normalized_url or "site7" in normalized_url:
+        if (
+            "d-deltanet.com" in normalized_url
+            or "daidata.goraggio.com" in normalized_url
+            or "/site7" in normalized_url
+            or "site7" in normalized_url
+        ):
             return DATA_SOURCE_SITE7
         if "min-repo.com" in normalized_url:
             has_minrepo_url = True
@@ -3702,8 +3708,19 @@ class HistoryPersistenceService:
             seen_store_urls.add(store_url)
             site7_enabled = _coerce_bool(store.get("site7_enabled", site7_defaults["site7_enabled"]))
             raw_site7_store_name = str(store.get("site7_store_name", "")).strip()
-            is_known_unavailable = site7_store_is_known_unavailable(store_name) or site7_store_is_known_unavailable(
-                raw_site7_store_name
+            is_daidata_online_store = daidata_store_is_beam_hikari(
+                store_name,
+                store_url,
+            ) or daidata_store_is_beam_hikari(
+                raw_site7_store_name,
+                store_url,
+            )
+            is_known_unavailable = (
+                not is_daidata_online_store
+                and (
+                    site7_store_is_known_unavailable(store_name)
+                    or site7_store_is_known_unavailable(raw_site7_store_name)
+                )
             )
             if is_known_unavailable:
                 site7_enabled = False
