@@ -735,8 +735,19 @@ function buildMatchedConditionTitleParts(row, highlightedDetail = null) {
 }
 
 function readFiniteNumber(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === "string" && value.trim() === "") {
+    return null;
+  }
   const parsedValue = Number(value);
   return Number.isFinite(parsedValue) ? parsedValue : null;
+}
+
+function readPositiveFiniteNumber(value) {
+  const parsedValue = readFiniteNumber(value);
+  return parsedValue !== null && parsedValue > 0 ? parsedValue : null;
 }
 
 function readProbabilityDenominator(value) {
@@ -774,7 +785,7 @@ function selectBestExpectationCandidate(
     .map((candidate) => ({
       ...candidate,
       payoutRate: readFiniteNumber(candidate?.payoutRate),
-      rbDenominator: readFiniteNumber(candidate?.rbDenominator),
+      rbDenominator: readPositiveFiniteNumber(candidate?.rbDenominator),
     }))
     .filter((candidate) => candidate.payoutRate !== null || candidate.rbDenominator !== null);
 
