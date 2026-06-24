@@ -262,6 +262,13 @@ function isMegaBeamAsakuraStore(storeName) {
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
+function isNakagawaKingStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["那珂川キング本店", "那珂川キング", "キング本店", "キング本店那珂川"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function isBeamHikariStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["ビームヒカリ店", "ビームヒカリ", "BEAM HIKARI", "BEAMHIKARI", "ＢＥＡＭヒカリ店"].some(
@@ -2153,6 +2160,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "wonderland-sue-neo-aim",
         "須恵ネオアイム_連敗返済据え周辺ロジック_v1",
         "wonderland-sue-neo-free-a",
+      ),
+      buildLogicVariant(
+        "nakagawa-king-neo-aim",
+        "那珂川キング本店 ネオアイム 冷え戻しローテスコア",
+        "nakagawa-king-neo-free-b",
       ),
       buildLogicVariant(
         "sengawa-uno-neo-aim",
@@ -4520,6 +4532,211 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["wonderlandSueNeoHistoryReady", "wonderlandSueNeoBbBiased"],
         },
         ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "nakagawa-king-neo-watch-no-go",
+        "見送り",
+        "2〜7日空き、最近軽すぎ、直近7高内容2回以上、低稼働、60点未満、70点未満かつ強化1個以下、履歴7日未満は原則見送り",
+        {
+          anyOf: [
+            { requiredFlags: ["nakagawaKingNeoHistoryShort"] },
+            { requiredFlags: ["nakagawaKingNeoHistoryReady", "nakagawaKingNeoIntervalDanger"] },
+            { requiredFlags: ["nakagawaKingNeoHistoryReady", "nakagawaKingNeoTooLightRecent"] },
+            { requiredFlags: ["nakagawaKingNeoHistoryReady", "nakagawaKingNeoRecentTreatment"] },
+            { requiredFlags: ["nakagawaKingNeoHistoryReady", "nakagawaKingNeoLowGames"] },
+            { maxScore: 59, requiredFlags: ["nakagawaKingNeoHistoryReady"] },
+            { maxScore: 69, maxBoost: 1, requiredFlags: ["nakagawaKingNeoHistoryReady"] },
+          ],
+        },
+        ["nakagawa-king-neo-aim"],
+      ),
+      buildCondition(
+        "nakagawa-king-neo-best270",
+        "最本命270",
+        "8日 / 9台 / 46,108G / BB1/254.7 / RB1/263.5 / 合算1/129.5 / 平均差枚符号+0.444 / 機械割算出不可 / 勝率66.7% / 平均56 48.9% / 56>=50% 44.4% / 件数少なめ",
+        {
+          minScore: 75,
+          maxDanger: 0,
+          requiredFlags: [
+            "nakagawaKingNeoHistoryReady",
+            "nakagawaKingNeoColdCombined7",
+            "nakagawaKingNeoGames7Trusted2500",
+          ],
+        },
+        ["nakagawa-king-neo-aim"],
+      ),
+      buildCondition(
+        "nakagawa-king-neo-free-b",
+        "自由B 14日負け周辺薄い",
+        "23日 / 39台 / 131,049G / BB1/243.6 / RB1/289.3 / 合算1/132.2 / 平均差枚符号+0.026 / 機械割算出不可 / 勝率46.2% / 平均56 37.4% / 56>=50% 25.6% / 点数より優先可",
+        {
+          maxDanger: 0,
+          requiredFlags: [
+            "nakagawaKingNeoHistoryReady",
+            "nakagawaKingNeoColdCombined7",
+            "nakagawaKingNeoLoss14Many",
+            "nakagawaKingNeoNearbyThin",
+          ],
+        },
+        ["nakagawa-king-neo-aim"],
+      ),
+      buildCondition(
+        "nakagawa-king-neo-strong280",
+        "強280",
+        "9日 / 11台 / 51,598G / BB1/254.2 / RB1/275.9 / 合算1/132.3 / 平均差枚符号+0.364 / 機械割算出不可 / 勝率63.6% / 平均56 42.9% / 56>=50% 36.4% / 件数注意",
+        {
+          minScore: 75,
+          maxDanger: 0,
+          requiredFlags: [
+            "nakagawaKingNeoHistoryReady",
+            "nakagawaKingNeoInterval8to14",
+            "nakagawaKingNeoGames7Trusted2500",
+          ],
+        },
+        ["nakagawa-king-neo-aim"],
+      ),
+      buildCondition(
+        "nakagawa-king-neo-main290",
+        "本命290",
+        "23日 / 39台 / 131,049G / BB1/243.6 / RB1/289.3 / 合算1/132.2 / 平均差枚符号+0.026 / 機械割算出不可 / 勝率46.2% / 平均56 37.4% / 56>=50% 25.6%",
+        {
+          maxDanger: 0,
+          requiredFlags: [
+            "nakagawaKingNeoHistoryReady",
+            "nakagawaKingNeoColdCombined7",
+            "nakagawaKingNeoLoss14Many",
+            "nakagawaKingNeoNearbyThin",
+          ],
+        },
+        ["nakagawa-king-neo-aim"],
+      ),
+      buildCondition(
+        "nakagawa-king-neo-weak300",
+        "弱め本命300",
+        "23日 / 35台 / 150,631G / BB1/262.0 / RB1/292.5 / 合算1/138.2 / 平均差枚符号+0.114 / 機械割算出不可 / 勝率48.6% / 平均56 37.6% / 56>=50% 22.9%",
+        {
+          minScore: 70,
+          maxDanger: 0,
+          requiredFlags: [
+            "nakagawaKingNeoHistoryReady",
+            "nakagawaKingNeoColdCombined5",
+            "nakagawaKingNeoGames7Trusted2500",
+          ],
+        },
+        ["nakagawa-king-neo-aim"],
+      ),
+      buildCondition(
+        "nakagawa-king-neo-wide310",
+        "広め310",
+        "40日 / 110台 / 444,850G / BB1/273.2 / RB1/308.5 / 合算1/144.9 / 平均差枚符号-0.091 / 機械割算出不可 / 勝率42.7% / 平均56 32.9% / 56>=50% 20.0%",
+        {
+          maxDanger: 1,
+          requiredFlags: [
+            "nakagawaKingNeoHistoryReady",
+            "nakagawaKingNeoInterval8to14",
+            "nakagawaKingNeoColdCombined5",
+            "nakagawaKingNeoGames7Trusted2500",
+          ],
+        },
+        ["nakagawa-king-neo-aim"],
+      ),
+      buildCondition(
+        "nakagawa-king-neo-free-a",
+        "自由A 8〜14冷え稼働",
+        "40日 / 110台 / RB1/308.5 / 合算1/144.9 / 平均差枚符号-0.091 / 機械割算出不可 / 平均56 32.9% / 56>=50% 20.0% / 広く拾う条件",
+        {
+          maxDanger: 1,
+          requiredFlags: [
+            "nakagawaKingNeoHistoryReady",
+            "nakagawaKingNeoInterval8to14",
+            "nakagawaKingNeoColdCombined5",
+            "nakagawaKingNeoGames7Trusted2500",
+          ],
+        },
+        ["nakagawa-king-neo-aim"],
+      ),
+      buildCondition(
+        "nakagawa-king-neo-free-c",
+        "自由C 22日以上空き冷え周辺薄い",
+        "6日 / 11台 / RB1/276.6 / 合算1/130.0 / 平均差枚符号+0.091 / 機械割算出不可 / 平均56 39.7% / 56>=50% 27.3% / 件数少なめ",
+        {
+          maxDanger: 0,
+          requiredFlags: [
+            "nakagawaKingNeoHistoryReady",
+            "nakagawaKingNeoInterval22Plus",
+            "nakagawaKingNeoColdCombined7",
+            "nakagawaKingNeoNearbyThin",
+          ],
+        },
+        ["nakagawa-king-neo-aim"],
+      ),
+      buildCondition(
+        "nakagawa-king-neo-free-d",
+        "自由D 合成7冷え180周辺薄い",
+        "17日 / 26台 / RB1/303.7 / 合算1/135.9 / 平均差枚符号-0.231 / 機械割算出不可 / 平均56 34.3% / 56>=50% 23.1% / 本命不在日の補助",
+        {
+          maxDanger: 1,
+          requiredFlags: [
+            "nakagawaKingNeoHistoryReady",
+            "nakagawaKingNeoColdCombined7Strong180",
+            "nakagawaKingNeoNearbyThin",
+          ],
+        },
+        ["nakagawa-king-neo-aim"],
+      ),
+      buildCondition(
+        "nakagawa-king-neo-watch-interval",
+        "2〜7日空き危険",
+        "937台 / RB1/393.9 / 合算1/159.9 / p56 50%以上5.2% / 原則見送り",
+        {
+          requiredFlags: ["nakagawaKingNeoHistoryReady", "nakagawaKingNeoIntervalDanger"],
+        },
+        ["nakagawa-king-neo-aim"],
+      ),
+      buildCondition(
+        "nakagawa-king-neo-watch-too-light",
+        "最近軽すぎ危険",
+        "906台 / RB1/399.5 / 合算1/160.6 / p56 50%以上4.7% / 処遇済み寄り",
+        {
+          requiredFlags: ["nakagawaKingNeoHistoryReady", "nakagawaKingNeoTooLightRecent"],
+        },
+        ["nakagawa-king-neo-aim"],
+      ),
+      buildCondition(
+        "nakagawa-king-neo-watch-treatment",
+        "直近7高内容2回以上危険",
+        "235台 / RB1/395.7 / 合算1/159.9 / p56 50%以上5.5% / 処遇完了寄り",
+        {
+          requiredFlags: ["nakagawaKingNeoHistoryReady", "nakagawaKingNeoRecentTreatment"],
+        },
+        ["nakagawa-king-neo-aim"],
+      ),
+      buildCondition(
+        "nakagawa-king-neo-watch-nearby-dense",
+        "近隣高内容濃い危険",
+        "859台 / RB1/385.1 / 合算1/157.5 / p56 50%以上5.6% / 後追い危険",
+        {
+          requiredFlags: ["nakagawaKingNeoHistoryReady", "nakagawaKingNeoNearbyDense"],
+        },
+        ["nakagawa-king-neo-aim"],
+      ),
+      buildCondition(
+        "nakagawa-king-neo-watch-low-games",
+        "低稼働",
+        "直近3日平均G数1,500未満、または直近7日平均G数2,000未満は冷え履歴の信頼度不足",
+        {
+          requiredFlags: ["nakagawaKingNeoHistoryReady", "nakagawaKingNeoLowGames"],
+        },
+        ["nakagawa-king-neo-aim"],
+      ),
+      buildCondition(
+        "nakagawa-king-neo-watch-output-only",
+        "出玉だけ危険",
+        "前日プラス符号、合算良、RB弱のBB寄り見え方は減点・見送り候補",
+        {
+          requiredFlags: ["nakagawaKingNeoHistoryReady", "nakagawaKingNeoOutputOnly"],
+        },
+        ["nakagawa-king-neo-aim"],
       ),
       buildCondition(
         "sengawa-uno-wide-rb310",
@@ -7796,6 +8013,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "mj-airport-neo-aim");
   } else if (isMegaBeamAsakuraStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "mega-beam-asakura-neo-aim");
+  } else if (isNakagawaKingStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "nakagawa-king-neo-aim");
   } else if (isMillionTobuNerimaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "million-tobu-nerima-neo-aim");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "funky") {
@@ -8382,6 +8601,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const streak = readNumber(metrics.streak);
   const winningStreak = readNumber(metrics.winningStreak);
   const historyLosingStreak = readNumber(metrics.historyLosingStreak);
+  const nonPositiveStreak = readNumber(metrics.nonPositiveStreak);
   const recentTwoNetTotal = readNumber(metrics.recentTwoNetTotal);
   const recentThreeNetTotal = readNumber(metrics.recentThreeNetTotal);
   const recentFiveNetTotal = readNumber(metrics.recentFiveNetTotal);
@@ -8405,6 +8625,9 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentFourteenLossDays = readNumber(metrics.recentFourteenLossDays);
   const recentFourteenWinDays = readNumber(metrics.recentFourteenWinDays);
   const recentSevenLossDays = readNumber(metrics.recentSevenLossDays);
+  const recentSevenWinDays = readNumber(metrics.recentSevenWinDays);
+  const recentSevenNonPositiveDays = readNumber(metrics.recentSevenNonPositiveDays);
+  const recentFourteenNonPositiveDays = readNumber(metrics.recentFourteenNonPositiveDays);
   const recentSevenHighSettingCandidateCount = readNumber(metrics.recentSevenHighSettingCandidateCount);
   const recentFiveMinus2000StayDays = readNumber(metrics.recentFiveMinus2000StayDays);
   const recentSevenMinus1500StayDays = readNumber(metrics.recentSevenMinus1500StayDays);
@@ -8496,6 +8719,12 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   );
   const recentSevenMachineSettingFivePlusProbabilityAverage = readNullableNumber(
     metrics.recentSevenMachineSettingFivePlusProbabilityAverage,
+  );
+  const recentTenMachineSettingFivePlusProbabilityAverage = readNullableNumber(
+    metrics.recentTenMachineSettingFivePlusProbabilityAverage,
+  );
+  const recentTwentyOneMachineSettingFivePlusProbabilityAverage = readNullableNumber(
+    metrics.recentTwentyOneMachineSettingFivePlusProbabilityAverage,
   );
   const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
   const machineLowContentStreak = readNumber(metrics.machineLowContentStreak);
@@ -9966,6 +10195,152 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         wonderlandSueNeoBbBiasedNoSupport,
         treatmentDone: wonderlandSueNeoTreatmentDone || wonderlandSueNeoShortTreatment,
         lowConfidence: wonderlandSueNeoHistoryShort || wonderlandSueNeoLowActivity,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === "nakagawa-king-neo-aim") {
+      const nakagawaKingNeoHistoryReady = historyRowCount >= 7;
+      const nakagawaKingNeoHistoryShort = historyRowCount < 7;
+      const nakagawaKingNeoInterval1 = daysSinceMachineHighContent === 1;
+      const nakagawaKingNeoInterval8to14 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 8 &&
+        daysSinceMachineHighContent <= 14;
+      const nakagawaKingNeoInterval15to21 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 15 &&
+        daysSinceMachineHighContent <= 21;
+      const nakagawaKingNeoInterval22Plus =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 22;
+      const nakagawaKingNeoIntervalDanger =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 2 &&
+        daysSinceMachineHighContent <= 7;
+      const nakagawaKingNeoPrevious56 =
+        previousGames >= 3000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5;
+      const nakagawaKingNeoPrevious70 =
+        previousGames >= 3000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.7;
+      const nakagawaKingNeoPreviousUnfinished = nakagawaKingNeoPrevious56 && previousDifference <= 0;
+      const nakagawaKingNeoPreviousBonusReal =
+        previousGames >= 3000 && features.previousRbDenominator <= 300 && features.previousCombinedDenominator <= 145;
+      const nakagawaKingNeoNoHigh7 = recentSevenMachineHighContentCount === 0;
+      const nakagawaKingNeoRecentTreatment = recentSevenMachineHighContentCount >= 2;
+      const nakagawaKingNeoTreatment14 = recentFourteenMachineHighContentCount >= 3;
+      const nakagawaKingNeoP56TenGood =
+        Number.isFinite(recentTenMachineSettingFivePlusProbabilityAverage) &&
+        recentTenMachineSettingFivePlusProbabilityAverage >= 0.3;
+      const nakagawaKingNeoP56TwentyOneGood =
+        Number.isFinite(recentTwentyOneMachineSettingFivePlusProbabilityAverage) &&
+        recentTwentyOneMachineSettingFivePlusProbabilityAverage >= 0.25 &&
+        nakagawaKingNeoNoHigh7;
+      const nakagawaKingNeoShortVisibleDanger =
+        Number.isFinite(recentThreeMachineSettingFivePlusProbabilityAverage) &&
+        recentThreeMachineSettingFivePlusProbabilityAverage >= 0.35 &&
+        nakagawaKingNeoIntervalDanger;
+      const nakagawaKingNeoColdRb7 = features.recentSevenRbDenominator >= 450;
+      const nakagawaKingNeoColdRb5 = features.recentFiveRbDenominator >= 450;
+      const nakagawaKingNeoColdCombined7 = features.recentSevenCombinedDenominator >= 170;
+      const nakagawaKingNeoColdCombined5 = features.recentFiveCombinedDenominator >= 170;
+      const nakagawaKingNeoColdCombined7Strong180 = features.recentSevenCombinedDenominator >= 180;
+      const nakagawaKingNeoLoss7Many = recentSevenNonPositiveDays >= 5;
+      const nakagawaKingNeoLoss14Many = recentFourteenNonPositiveDays >= 10;
+      const nakagawaKingNeoLosingTwoToFour = nonPositiveStreak >= 2 && nonPositiveStreak <= 4;
+      const nakagawaKingNeoLosingFive = nonPositiveStreak >= 5;
+      const nakagawaKingNeoTooLightRecent =
+        (features.recentSevenRbDenominator <= 330 || features.recentSevenCombinedDenominator <= 150) &&
+        !nakagawaKingNeoInterval1;
+      const nakagawaKingNeoGames3Trusted = recentThreeGamesTotal / 3 >= 3000;
+      const nakagawaKingNeoGames7Trusted = recentSevenGamesTotal / 7 >= 3000;
+      const nakagawaKingNeoGames7Trusted2500 = recentSevenGamesTotal / 7 >= 2500;
+      const nakagawaKingNeoLowGames = recentThreeGamesTotal / 3 < 1500 || recentSevenGamesTotal / 7 < 2000;
+      const nakagawaKingNeoNearbyThin = adjacentMachineHighContentCount7Near2 <= 1;
+      const nakagawaKingNeoNearbyDense = adjacentMachineHighContentCount7Near2 >= 3;
+      const nakagawaKingNeoOutputOnly =
+        previousDifference > 0 &&
+        features.previousCombinedDenominator <= 150 &&
+        features.previousRbDenominator > 380 &&
+        previousGames >= 2500;
+      const nakagawaKingNeoVisibleTooMuch =
+        recentSevenWinDays >= 5 && features.recentSevenCombinedDenominator <= 160;
+      const boostFlags = [
+        nakagawaKingNeoPrevious56,
+        nakagawaKingNeoPrevious70,
+        nakagawaKingNeoPreviousUnfinished,
+        nakagawaKingNeoPreviousBonusReal,
+        nakagawaKingNeoInterval8to14,
+        nakagawaKingNeoInterval15to21,
+        nakagawaKingNeoInterval22Plus,
+        nakagawaKingNeoNoHigh7,
+        nakagawaKingNeoP56TenGood,
+        nakagawaKingNeoP56TwentyOneGood,
+        nakagawaKingNeoColdRb7,
+        nakagawaKingNeoColdCombined7,
+        nakagawaKingNeoLoss7Many,
+        nakagawaKingNeoLoss14Many,
+        nakagawaKingNeoGames3Trusted || nakagawaKingNeoGames7Trusted2500,
+        nakagawaKingNeoNearbyThin,
+      ];
+      const dangerFlags = [
+        nakagawaKingNeoIntervalDanger,
+        nakagawaKingNeoRecentTreatment,
+        nakagawaKingNeoTreatment14,
+        nakagawaKingNeoShortVisibleDanger,
+        nakagawaKingNeoTooLightRecent,
+        nakagawaKingNeoLosingFive,
+        nakagawaKingNeoLowGames,
+        nakagawaKingNeoNearbyDense,
+        nakagawaKingNeoOutputOnly,
+        nakagawaKingNeoVisibleTooMuch,
+      ];
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability,
+        recentTenMachineSettingFivePlusProbabilityAverage,
+        recentTwentyOneMachineSettingFivePlusProbabilityAverage,
+        nakagawaKingNeoHistoryReady,
+        nakagawaKingNeoHistoryShort,
+        nakagawaKingNeoInterval1,
+        nakagawaKingNeoInterval8to14,
+        nakagawaKingNeoInterval15to21,
+        nakagawaKingNeoInterval22Plus,
+        nakagawaKingNeoIntervalDanger,
+        nakagawaKingNeoPrevious56,
+        nakagawaKingNeoPrevious70,
+        nakagawaKingNeoPreviousUnfinished,
+        nakagawaKingNeoPreviousBonusReal,
+        nakagawaKingNeoNoHigh7,
+        nakagawaKingNeoRecentTreatment,
+        nakagawaKingNeoTreatment14,
+        nakagawaKingNeoP56TenGood,
+        nakagawaKingNeoP56TwentyOneGood,
+        nakagawaKingNeoShortVisibleDanger,
+        nakagawaKingNeoColdRb7,
+        nakagawaKingNeoColdRb5,
+        nakagawaKingNeoColdCombined7,
+        nakagawaKingNeoColdCombined5,
+        nakagawaKingNeoColdCombined7Strong180,
+        nakagawaKingNeoLoss7Many,
+        nakagawaKingNeoLoss14Many,
+        nakagawaKingNeoLosingTwoToFour,
+        nakagawaKingNeoLosingFive,
+        nakagawaKingNeoTooLightRecent,
+        nakagawaKingNeoGames3Trusted,
+        nakagawaKingNeoGames7Trusted,
+        nakagawaKingNeoGames7Trusted2500,
+        nakagawaKingNeoLowGames,
+        nakagawaKingNeoNearbyThin,
+        nakagawaKingNeoNearbyDense,
+        nakagawaKingNeoOutputOnly,
+        nakagawaKingNeoVisibleTooMuch,
+        treatmentDone: nakagawaKingNeoRecentTreatment || nakagawaKingNeoTreatment14 || nakagawaKingNeoTooLightRecent,
+        lowConfidence: nakagawaKingNeoHistoryShort || nakagawaKingNeoLowGames,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -13567,6 +13942,7 @@ function calculateMachineScore(definition, metrics, features) {
   const lossAbsTotal = readNumber(metrics.lossAbsTotal);
   const streak = readNumber(metrics.streak);
   const historyLosingStreak = readNumber(metrics.historyLosingStreak);
+  const nonPositiveStreak = readNumber(metrics.nonPositiveStreak);
   const winningStreak = readNumber(metrics.winningStreak);
   const historyNetTotal = readNumber(metrics.historyNetTotal);
   const historyPositiveDays = readNumber(metrics.historyPositiveDays);
@@ -13587,6 +13963,9 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFourteenLossDays = readNumber(metrics.recentFourteenLossDays);
   const recentFourteenWinDays = readNumber(metrics.recentFourteenWinDays);
   const recentSevenLossDays = readNumber(metrics.recentSevenLossDays);
+  const recentSevenWinDays = readNumber(metrics.recentSevenWinDays);
+  const recentSevenNonPositiveDays = readNumber(metrics.recentSevenNonPositiveDays);
+  const recentFourteenNonPositiveDays = readNumber(metrics.recentFourteenNonPositiveDays);
   const recentFiveHighSettingCandidateCount = readNumber(metrics.recentFiveHighSettingCandidateCount);
   const recentSevenHighSettingCandidateCount = readNumber(metrics.recentSevenHighSettingCandidateCount);
   const recentThreeHighSettingEstimateCount = readNumber(metrics.recentThreeHighSettingEstimateCount);
@@ -13660,6 +14039,12 @@ function calculateMachineScore(definition, metrics, features) {
   );
   const recentSevenMachineSettingFivePlusProbabilityAverage = readNullableNumber(
     metrics.recentSevenMachineSettingFivePlusProbabilityAverage,
+  );
+  const recentTenMachineSettingFivePlusProbabilityAverage = readNullableNumber(
+    metrics.recentTenMachineSettingFivePlusProbabilityAverage,
+  );
+  const recentTwentyOneMachineSettingFivePlusProbabilityAverage = readNullableNumber(
+    metrics.recentTwentyOneMachineSettingFivePlusProbabilityAverage,
   );
   const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
   const machineGoodContentStreak = readNumber(metrics.machineGoodContentStreak);
@@ -15456,6 +15841,104 @@ function calculateMachineScore(definition, metrics, features) {
       if (historyRowCount < 21) {
         score = Math.min(score, 40);
       }
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === "nakagawa-king-neo-aim") {
+      let score = 20;
+      const previous56 =
+        previousGames >= 3000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5;
+      const previous70 =
+        previousGames >= 3000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.7;
+
+      score += previous56 ? 18 : 0;
+      score += previous70 ? 4 : 0;
+      score += previous56 && previousDifference <= 0 ? 3 : 0;
+      score += previousGames >= 3000 && previousRbDenominator <= 300 && previousCombinedDenominator <= 145 ? 5 : 0;
+
+      if (daysSinceMachineHighContent === 1) {
+        score += 5;
+      } else if (
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 8 &&
+        daysSinceMachineHighContent <= 14
+      ) {
+        score += 16;
+      } else if (
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 15 &&
+        daysSinceMachineHighContent <= 21
+      ) {
+        score += 10;
+      } else if (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 22) {
+        score += 5;
+      } else if (
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 2 &&
+        daysSinceMachineHighContent <= 7
+      ) {
+        score -= 7;
+      }
+
+      score += recentSevenMachineHighContentCount === 0 ? 5 : 0;
+      score -= recentSevenMachineHighContentCount >= 2 ? 8 : 0;
+      score -= recentFourteenMachineHighContentCount >= 3 ? 5 : 0;
+      score +=
+        Number.isFinite(recentTenMachineSettingFivePlusProbabilityAverage) &&
+        recentTenMachineSettingFivePlusProbabilityAverage >= 0.3
+          ? 5
+          : 0;
+      score +=
+        Number.isFinite(recentTwentyOneMachineSettingFivePlusProbabilityAverage) &&
+        recentTwentyOneMachineSettingFivePlusProbabilityAverage >= 0.25 &&
+        recentSevenMachineHighContentCount === 0
+          ? 4
+          : 0;
+      score -=
+        Number.isFinite(recentThreeMachineSettingFivePlusProbabilityAverage) &&
+        recentThreeMachineSettingFivePlusProbabilityAverage >= 0.35 &&
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 2 &&
+        daysSinceMachineHighContent <= 7
+          ? 5
+          : 0;
+
+      score += features.recentSevenRbDenominator >= 450 ? 7 : 0;
+      score += features.recentFiveRbDenominator >= 450 ? 5 : 0;
+      score += features.recentSevenCombinedDenominator >= 170 ? 5 : 0;
+      score += recentSevenNonPositiveDays >= 5 ? 5 : 0;
+      score += nonPositiveStreak >= 2 && nonPositiveStreak <= 4 ? 4 : 0;
+      score -= nonPositiveStreak >= 5 ? 3 : 0;
+
+      const previousHighWasYesterday = daysSinceMachineHighContent === 1;
+      score -= features.recentSevenRbDenominator <= 330 && !previousHighWasYesterday ? 4 : 0;
+      score -= features.recentSevenCombinedDenominator <= 150 && !previousHighWasYesterday ? 5 : 0;
+
+      score += recentThreeGamesTotal / 3 >= 3000 ? 5 : 0;
+      score += recentSevenGamesTotal / 7 >= 3000 ? 4 : 0;
+      score += previousGames >= 3000 ? 3 : 0;
+      score -= recentThreeGamesTotal / 3 < 1500 ? 6 : 0;
+      score -= recentSevenGamesTotal / 7 < 2000 ? 4 : 0;
+
+      score += adjacentMachineHighContentCount3Near2 === 0 ? 4 : 0;
+      score += adjacentMachineHighContentCount7Near2 <= 1 ? 3 : 0;
+      score -= adjacentMachineHighContentCount3Near2 >= 2 ? 4 : 0;
+      score -= adjacentMachineHighContentCount7Near2 >= 3 ? 4 : 0;
+
+      score -=
+        previousDifference > 0 &&
+        previousCombinedDenominator <= 150 &&
+        previousRbDenominator > 380 &&
+        previousGames >= 2500
+          ? 6
+          : 0;
+      score -= recentSevenWinDays >= 5 && features.recentSevenCombinedDenominator <= 160 ? 5 : 0;
+      score -= historyRowCount < 7 ? 15 : 0;
 
       return Math.round(clamp(score, 0, 100));
     }
