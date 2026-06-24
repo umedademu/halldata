@@ -269,6 +269,13 @@ function isNakagawaKingStore(storeName) {
   );
 }
 
+function isKing2Store(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["キング2", "キング２", "キング2店", "キング２店"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function isBeamHikariStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["ビームヒカリ店", "ビームヒカリ", "BEAM HIKARI", "BEAMHIKARI", "ＢＥＡＭヒカリ店"].some(
@@ -2165,6 +2172,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "nakagawa-king-neo-aim",
         "那珂川キング本店 ネオアイム 冷え戻しローテスコア",
         "nakagawa-king-neo-free-b",
+      ),
+      buildLogicVariant(
+        "king2-neo-aim",
+        "キング2_ネオアイムEX_沈み返済100点",
+        "king2-neo-rb290",
       ),
       buildLogicVariant(
         "sengawa-uno-neo-aim",
@@ -4737,6 +4749,126 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["nakagawaKingNeoHistoryReady", "nakagawaKingNeoOutputOnly"],
         },
         ["nakagawa-king-neo-aim"],
+      ),
+      buildCondition(
+        "king2-neo-rb270",
+        "RB270最本命/自由A+3角",
+        "対象10日 / 13台 / 28,062G / BB1/255.1 / RB1/246.2 / 合算1/125.3 / 平均+370.7枚 / 105.72% / 勝率61.5% / 平均56 46.2% / 56>=70 15.4% / 56>=50 30.8%",
+        {
+          requiredFlags: ["king2NeoHistoryReady", "king2NeoRb270"],
+        },
+        ["king2-neo-aim"],
+      ),
+      buildCondition(
+        "king2-neo-rb280",
+        "RB280強/自由A",
+        "対象11日 / 14台 / 29,446G / BB1/253.8 / RB1/253.8 / 合算1/126.9 / 平均+346.5枚 / 105.49% / 勝率64.3% / 平均56 44.1% / 56>=70 14.3% / 56>=50 28.6%",
+        {
+          requiredFlags: ["king2NeoHistoryReady", "king2NeoRb280"],
+        },
+        ["king2-neo-aim"],
+      ),
+      buildCondition(
+        "king2-neo-rb290",
+        "RB290本命",
+        "対象13日 / 17台 / 35,877G / BB1/263.8 / RB1/269.8 / 合算1/133.4 / 平均+220.7枚 / 103.49% / 勝率52.9% / 平均56 40.4% / 56>=70 11.8% / 56>=50 23.5%",
+        {
+          requiredFlags: ["king2NeoHistoryReady", "king2NeoRb290"],
+        },
+        ["king2-neo-aim"],
+      ),
+      buildCondition(
+        "king2-neo-rb300",
+        "RB300弱本命",
+        "対象13日 / 19台 / 37,507G / BB1/271.8 / RB1/277.8 / 合算1/137.4 / 平均+130.2枚 / 102.20% / 勝率47.4% / 平均56 38.3% / 56>=70 10.5% / 56>=50 21.1%",
+        {
+          minScore: 80,
+          requiredFlags: ["king2NeoHistoryReady", "king2NeoRb310"],
+        },
+        ["king2-neo-aim"],
+      ),
+      buildCondition(
+        "king2-neo-rb310",
+        "RB310広め",
+        "対象13日 / 21台 / 42,918G / BB1/261.7 / RB1/298.0 / 合算1/139.3 / 平均+159.7枚 / 102.60% / 勝率52.4% / 平均56 35.8% / 56>=70 9.5% / 56>=50 19.0%",
+        {
+          requiredFlags: ["king2NeoHistoryReady", "king2NeoRb310"],
+        },
+        ["king2-neo-aim"],
+      ),
+      buildCondition(
+        "king2-neo-free-b",
+        "自由B_件数補完",
+        "対象16日 / 22台 / RB1/273.9 / 合算1/134.8 / 平均+182.2枚 / 103.11% / 平均56 39.1% / 56>=50 18.2% / 本命条件が出ない日の代替候補",
+        {
+          requiredFlags: ["king2NeoHistoryReady", "king2NeoFreeB"],
+        },
+        ["king2-neo-aim"],
+      ),
+      buildCondition(
+        "king2-neo-watch-no-go",
+        "見送り",
+        "履歴不足、高スコア長期沈みなし、BB偏り勝ち、処遇完了重複、長期沈みも短期沈みもない台、低稼働は見送り寄り",
+        {
+          anyOf: [
+            { requiredFlags: ["king2NeoHistoryShort"] },
+            { minScore: 80, requiredFlags: ["king2NeoLongSinkMissing"] },
+            { requiredFlags: ["king2NeoPreviousBbBiasedWin"] },
+            { requiredFlags: ["king2NeoTreatmentDone7", "king2NeoTreatmentDone14"] },
+            { requiredFlags: ["king2NeoNoLongShortSink"] },
+            { requiredFlags: ["king2NeoLowActivity"] },
+          ],
+        },
+        ["king2-neo-aim"],
+      ),
+      buildCondition(
+        "king2-neo-watch-high-score-danger",
+        "高スコア危険",
+        "80点以上でも28日角度が-100より浅い台はRBと設定5・6推定率が弱く、ネオアイムの56狙いでは見送り寄り",
+        {
+          minScore: 80,
+          requiredFlags: ["king2NeoLongSinkMissing"],
+        },
+        ["king2-neo-aim"],
+      ),
+      buildCondition(
+        "king2-neo-watch-treatment",
+        "処遇完了注意",
+        "7日差枚+1,200枚以上または14日差枚+1,800枚以上は、直近で返した後として減点",
+        {
+          anyOf: [
+            { requiredFlags: ["king2NeoTreatmentDone7"] },
+            { requiredFlags: ["king2NeoTreatmentDone14"] },
+          ],
+        },
+        ["king2-neo-aim"],
+      ),
+      buildCondition(
+        "king2-neo-watch-bb-biased",
+        "BB偏り勝ち注意",
+        "前日差枚+500枚以上、RB1/400超、G1500以上はBBだけで出た危険条件",
+        {
+          requiredFlags: ["king2NeoPreviousBbBiasedWin"],
+        },
+        ["king2-neo-aim"],
+      ),
+      buildCondition(
+        "king2-neo-watch-low-activity",
+        "低稼働",
+        "直近3日G数2,500未満、または直近7日G数6,000未満は沈み履歴の信頼度不足",
+        {
+          requiredFlags: ["king2NeoLowActivity"],
+        },
+        ["king2-neo-aim"],
+      ),
+      buildCondition(
+        "king2-neo-watch-history-short",
+        "履歴不足",
+        "同一台番の履歴7営業日未満は低信頼として採用条件から外す",
+        {
+          requiredFlags: ["king2NeoHistoryShort"],
+        },
+        ["king2-neo-aim"],
       ),
       buildCondition(
         "sengawa-uno-wide-rb310",
@@ -8015,6 +8147,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "mega-beam-asakura-neo-aim");
   } else if (isNakagawaKingStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "nakagawa-king-neo-aim");
+  } else if (isKing2Store(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "king2-neo-aim");
   } else if (isMillionTobuNerimaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "million-tobu-nerima-neo-aim");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "funky") {
@@ -10341,6 +10475,108 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         nakagawaKingNeoVisibleTooMuch,
         treatmentDone: nakagawaKingNeoRecentTreatment || nakagawaKingNeoTreatment14 || nakagawaKingNeoTooLightRecent,
         lowConfidence: nakagawaKingNeoHistoryShort || nakagawaKingNeoLowGames,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === "king2-neo-aim") {
+      const king2NeoHistoryReady = historyRowCount >= 7;
+      const king2NeoHistoryShort = historyRowCount < 7;
+      const king2NeoHistory28Ready = historyRowCount >= 21;
+      const king2NeoHistory14Ready = historyRowCount >= 10;
+      const king2NeoAngle28 = netPerThousandGames(recentTwentyEightNetTotal, recentTwentyEightGamesTotal);
+      const king2NeoLongSink = king2NeoHistory28Ready && king2NeoAngle28 <= -100;
+      const king2NeoLongSinkMissing = king2NeoHistory28Ready && king2NeoAngle28 > -100;
+      const king2NeoShortSink = king2NeoHistoryReady && features.recentSevenAngle <= -120;
+      const king2NeoStrongShortSink = king2NeoHistoryReady && features.recentSevenAngle <= -150;
+      const king2NeoThreeSink = features.recentThreeAngle <= -80;
+      const king2NeoThreeStrongSink = features.recentThreeAngle <= -100;
+      const king2NeoPreviousLoss = previousDifference < 0;
+      const king2NeoUnpaid14 = king2NeoHistory14Ready && recentFourteenNetTotal <= -1000 && recentFourteenGamesTotal >= 12000;
+      const king2NeoGoodRbUnfinished =
+        previousGames >= 2500 &&
+        features.previousRbDenominator <= 300 &&
+        features.previousCombinedDenominator <= 145 &&
+        previousDifference <= 500;
+      const king2NeoGoodRbOutput =
+        previousGames >= 2500 &&
+        features.previousRbDenominator <= 300 &&
+        features.previousCombinedDenominator <= 145 &&
+        previousDifference > 500;
+      const king2NeoTreatmentDone7 = recentSevenNetTotal >= 1200 && recentSevenGamesTotal >= 7000;
+      const king2NeoTreatmentDone14 = recentFourteenNetTotal >= 1800 && recentFourteenGamesTotal >= 12000;
+      const king2NeoPreviousBbBiasedWin =
+        previousDifference >= 500 && features.previousRbDenominator > 400 && previousGames >= 1500;
+      const king2NeoPreviousBigOutput = previousDifference >= 1200 && previousGames >= 2500;
+      const king2NeoLowActivity = recentThreeGamesTotal < 2500 || recentSevenGamesTotal < 6000;
+      const king2NeoNoHigh7 = recentSevenMachineHighContentCount === 0;
+      const king2NeoNoHigh14 = recentFourteenMachineHighContentCount === 0;
+      const king2NeoHighRest8to21 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 8 &&
+        daysSinceMachineHighContent <= 21;
+      const king2NeoRb310 = king2NeoLongSink && king2NeoShortSink;
+      const king2NeoRb290 = king2NeoRb310 && king2NeoPreviousLoss;
+      const king2NeoRb280 = king2NeoLongSink && king2NeoStrongShortSink && king2NeoPreviousLoss;
+      const king2NeoRb270 = king2NeoRb280 && king2NeoThreeSink;
+      const king2NeoFreeB =
+        king2NeoLongSink && king2NeoThreeStrongSink && features.recentSevenCombinedDenominator >= 160;
+      const king2NeoNoLongShortSink = king2NeoHistoryReady && !king2NeoLongSink && !king2NeoShortSink;
+      const boostFlags = [
+        king2NeoLongSink,
+        king2NeoShortSink,
+        king2NeoStrongShortSink,
+        king2NeoThreeSink,
+        king2NeoPreviousLoss,
+        king2NeoUnpaid14,
+        king2NeoGoodRbUnfinished,
+        king2NeoNoHigh7,
+        king2NeoNoHigh14,
+        king2NeoHighRest8to21,
+      ];
+      const dangerFlags = [
+        king2NeoTreatmentDone7,
+        king2NeoTreatmentDone14,
+        king2NeoPreviousBbBiasedWin,
+        king2NeoPreviousBigOutput,
+        king2NeoLowActivity,
+        king2NeoGoodRbOutput,
+      ];
+
+      return {
+        ...features,
+        king2NeoHistoryReady,
+        king2NeoHistoryShort,
+        king2NeoHistory28Ready,
+        king2NeoHistory14Ready,
+        king2NeoAngle28,
+        king2NeoLongSink,
+        king2NeoLongSinkMissing,
+        king2NeoShortSink,
+        king2NeoStrongShortSink,
+        king2NeoThreeSink,
+        king2NeoThreeStrongSink,
+        king2NeoPreviousLoss,
+        king2NeoUnpaid14,
+        king2NeoGoodRbUnfinished,
+        king2NeoGoodRbOutput,
+        king2NeoTreatmentDone7,
+        king2NeoTreatmentDone14,
+        king2NeoPreviousBbBiasedWin,
+        king2NeoPreviousBigOutput,
+        king2NeoLowActivity,
+        king2NeoNoHigh7,
+        king2NeoNoHigh14,
+        king2NeoHighRest8to21,
+        king2NeoRb310,
+        king2NeoRb290,
+        king2NeoRb280,
+        king2NeoRb270,
+        king2NeoFreeB,
+        king2NeoNoLongShortSink,
+        treatmentDone: king2NeoTreatmentDone7 || king2NeoTreatmentDone14,
+        lowConfidence: king2NeoHistoryShort || king2NeoLowActivity,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -15939,6 +16175,93 @@ function calculateMachineScore(definition, metrics, features) {
           : 0;
       score -= recentSevenWinDays >= 5 && features.recentSevenCombinedDenominator <= 160 ? 5 : 0;
       score -= historyRowCount < 7 ? 15 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === "king2-neo-aim") {
+      let score = 25;
+      const recentTwentyEightAngle = netPerThousandGames(recentTwentyEightNetTotal, recentTwentyEightGamesTotal);
+      const king2LosingStreak = Math.max(historyLosingStreak, nonPositiveStreak);
+
+      if (historyRowCount >= 28) {
+        score += 2;
+      } else if (historyRowCount >= 7 && historyRowCount <= 13) {
+        score -= 4;
+      } else if (historyRowCount < 7) {
+        score -= 18;
+      }
+
+      if (historyRowCount >= 21) {
+        score += scoreAtMost(recentTwentyEightAngle, [
+          { maximum: -150, points: 18 },
+          { maximum: -100, points: 14 },
+          { maximum: -80, points: 8 },
+        ]);
+        score += scoreAtMost(recentTwentyEightNetTotal, [
+          { maximum: -4000, points: 5 },
+          { maximum: -2500, points: 3 },
+        ]);
+      }
+
+      if (historyRowCount >= 10) {
+        score += scoreAtMost(features.recentFourteenAngle, [
+          { maximum: -150, points: 9 },
+          { maximum: -100, points: 6 },
+          { maximum: -80, points: 3 },
+        ]);
+      }
+
+      if (historyRowCount >= 7) {
+        score += scoreAtMost(features.recentSevenAngle, [
+          { maximum: -150, points: 14 },
+          { maximum: -120, points: 11 },
+          { maximum: -80, points: 7 },
+        ]);
+        score += scoreAtMost(recentSevenNetTotal, [
+          { maximum: -2500, points: 5 },
+          { maximum: -1500, points: 3 },
+        ]);
+      }
+
+      if (historyRowCount >= 3) {
+        score += scoreAtMost(features.recentThreeAngle, [
+          { maximum: -120, points: 4 },
+          { maximum: -80, points: 2 },
+        ]);
+      }
+
+      score += scoreAtLeast(king2LosingStreak, [
+        { minimum: 3, points: 6 },
+        { minimum: 2, points: 4 },
+        { minimum: 1, points: 2 },
+      ]);
+      score += scoreAtMost(previousDifference, [
+        { maximum: -1000, points: 2 },
+        { maximum: -500, points: 1 },
+      ]);
+
+      score += scoreInRange(recentSevenGamesTotal, 8000, 18000, 3);
+      score += scoreInRange(recentFourteenGamesTotal, 16000, 36000, 3);
+      score += scoreInRange(recentThreeGamesTotal, 4500, 9000, 3);
+      score -= recentThreeGamesTotal < 2500 ? 12 : 0;
+      score -= recentSevenGamesTotal < 6000 ? 8 : 0;
+
+      score += historyRowCount >= 7 && recentSevenMachineHighContentCount === 0 ? 2 : 0;
+      score += historyRowCount >= 14 && recentFourteenMachineHighContentCount === 0 ? 2 : 0;
+      score += scoreInRange(daysSinceMachineHighContent, 8, 21, 2);
+      score -= recentFourteenMachineHighContentCount >= 2 ? 3 : 0;
+
+      const previousGoodRb =
+        previousGames >= 2500 && previousRbDenominator <= 300 && previousCombinedDenominator <= 145;
+      score += previousGoodRb && previousDifference <= 500 ? 6 : 0;
+      score -= previousGoodRb && previousDifference > 500 ? 5 : 0;
+      score -= previousDifference >= 500 && previousRbDenominator > 400 && previousGames >= 1500 ? 6 : 0;
+      score -= previousDifference >= 1200 && previousGames >= 2500 ? 6 : 0;
+
+      score -= recentSevenNetTotal >= 1200 && recentSevenGamesTotal >= 7000 ? 9 : 0;
+      score -= recentFourteenNetTotal >= 1800 && recentFourteenGamesTotal >= 12000 ? 6 : 0;
+      score += recentFourteenNetTotal <= -1000 && recentFourteenGamesTotal >= 12000 ? 4 : 0;
 
       return Math.round(clamp(score, 0, 100));
     }
