@@ -398,6 +398,18 @@ function isSuperHollywood1120Store(storeName) {
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
+function isCarol96TsubukuStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "キャロル96津福本店",
+    "キャロル96津福",
+    "キャロル９６津福本店",
+    "キャロル９６津福",
+    "CAROL96津福本店",
+    "ＣＡＲＯＬ９６津福本店",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
 function readDateDayNumber(dateText) {
   const normalized = normalizeText(dateText);
   const match = normalized.match(/^\d{4}-\d{2}-(\d{2})$/u) ?? normalized.match(/^\d{2}\/\d{2}\/(\d{2})$/u);
@@ -2149,6 +2161,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "super-hollywood-1120-neo-aim",
         "SH1120_NeoIm_近隣連動本物感継続ロジック_v1",
         "sh1120-neo-free-previous-strong-neighbor",
+      ),
+      buildLogicVariant(
+        "carol96-tsubuku-neo-aim",
+        "キャロル96津福本店_ネオアイムEX_56二極リバウンドロジック",
+        "carol96-neo-genuine-rb-link",
       ),
       buildLogicVariant(
         "slot-marumitsu-ohashi-neo-aim",
@@ -5347,6 +5364,150 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["super-hollywood-1120-neo-aim"],
       ),
       buildCondition(
+        "carol96-neo-genuine-rb-link",
+        "本物RB連動",
+        "対象14日 / 選択16台 / 総G87,816 / BB1/249.5 / RB1/261.4 / 合算1/127.6 / 平均+837枚 / 機械割105.1% / 勝率43.8% / 平均56 51.5% / 中央56 57.6% / 56>=70 43.8% / 56>=50 50.0% / 56<30 37.5% / 最重要条件",
+        {
+          requiredFlags: ["carol96NeoHistoryReady", "carol96NeoGenuineRbLink"],
+        },
+        ["carol96-tsubuku-neo-aim"],
+      ),
+      buildCondition(
+        "carol96-neo-rb-dry-rebound",
+        "RB枯れリバウンド",
+        "対象16日 / 選択20台 / RB1/267.5 / 合算1/134.6 / 平均+261枚 / 機械割102.0% / 平均56 42.6% / 中央56 34.0% / RB枯れからの戻し狙い",
+        {
+          requiredFlags: ["carol96NeoHistoryReady", "carol96NeoRbDryRebound"],
+        },
+        ["carol96-tsubuku-neo-aim"],
+      ),
+      buildCondition(
+        "carol96-neo-strong65",
+        "65+危険≤1",
+        "対象21日 / 選択25台 / 総G121,649 / BB1/267.4 / RB1/274.0 / 合算1/135.3 / 平均+359枚 / 機械割102.5% / 勝率56.0% / 平均56 44.6% / 中央56 39.9% / 56>=50 48.0% / 56<30 44.0%",
+        {
+          minScore: 65,
+          maxDanger: 1,
+          requiredFlags: ["carol96NeoHistoryReady"],
+        },
+        ["carol96-tsubuku-neo-aim"],
+      ),
+      buildCondition(
+        "carol96-neo-rank1-gap12",
+        "1位+次点差12",
+        "対象16日 / 選択16台 / RB1/285.7 / 合算1/137.1 / 平均+395枚 / 機械割102.6% / 平均56 42.2% / 中央56 41.8% / 単独上位の日だけ拾う補助",
+        {
+          rankMax: 1,
+          minNextGap: 12,
+          requiredFlags: ["carol96NeoHistoryReady"],
+        },
+        ["carol96-tsubuku-neo-aim"],
+      ),
+      buildCondition(
+        "carol96-neo-weak60",
+        "60+危険≤1",
+        "対象34日 / 選択44台 / 総G198,853 / BB1/260.6 / RB1/288.6 / 合算1/137.0 / 平均+364枚 / 機械割102.7% / 勝率56.8% / 平均56 39.0% / 中央56 27.4% / 56>=50 36.4% / 56<30 54.5%",
+        {
+          minScore: 60,
+          maxDanger: 1,
+          requiredFlags: ["carol96NeoHistoryReady"],
+        },
+        ["carol96-tsubuku-neo-aim"],
+      ),
+      buildCondition(
+        "carol96-neo-main62-boost8",
+        "62+強化8",
+        "対象28日 / 選択33台 / 総G161,590 / BB1/259.8 / RB1/285.0 / 合算1/135.9 / 平均+431枚 / 機械割102.9% / 勝率57.6% / 平均56 40.8% / 中央56 28.0% / 56>=50 39.4% / 56<30 51.5% / 強化条件数で絞る補助",
+        {
+          minScore: 62,
+          minBoost: 8,
+          maxDanger: 1,
+          requiredFlags: ["carol96NeoHistoryReady"],
+        },
+        ["carol96-tsubuku-neo-aim"],
+      ),
+      buildCondition(
+        "carol96-neo-deep-moderate",
+        "深沈み適度稼働",
+        "対象15日 / 選択21台 / RB1/298.1 / 合算1/130.0 / 平均+945枚 / 機械割106.6% / 平均56 37.6% / 中央56 26.2% / 深沈みでも稼働過多は避ける補助",
+        {
+          requiredFlags: ["carol96NeoHistoryReady", "carol96NeoDeepModerate"],
+        },
+        ["carol96-tsubuku-neo-aim"],
+      ),
+      buildCondition(
+        "carol96-neo-wide58",
+        "58+危険≤1",
+        "対象43日 / 選択66台 / 総G272,773 / BB1/264.1 / RB1/308.9 / 合算1/142.4 / 平均+202枚 / 機械割101.6% / 勝率43.9% / 平均56 33.3% / 中央56 22.0% / 56>=50 27.3% / 56<30 63.6% / 広めの参考線",
+        {
+          minScore: 58,
+          maxDanger: 1,
+          requiredFlags: ["carol96NeoHistoryReady"],
+        },
+        ["carol96-tsubuku-neo-aim"],
+      ),
+      buildCondition(
+        "carol96-neo-watch-history-short",
+        "見送り_履歴不足",
+        "同じ台番の履歴21営業日未満は採用条件対象外。14営業日未満は特に危険、7営業日未満は点数上限を強く制限",
+        {
+          requiredFlags: ["carol96NeoHistoryShort"],
+        },
+        ["carol96-tsubuku-neo-aim"],
+      ),
+      buildCondition(
+        "carol96-neo-watch-under50",
+        "見送り_50点未満",
+        "点数50未満は根拠不足として見送り",
+        {
+          maxScore: 49,
+          requiredFlags: ["carol96NeoHistoryReady"],
+        },
+        ["carol96-tsubuku-neo-aim"],
+      ),
+      buildCondition(
+        "carol96-neo-watch-no-bonus-root",
+        "見送り_ボーナス根拠弱い",
+        "50〜57点で前日56級、3日RB、RB枯れリバウンドの根拠が無い台は見送り",
+        {
+          minScore: 50,
+          maxScore: 57,
+          requiredFlags: ["carol96NeoHistoryReady", "carol96NeoNoBonusRoot"],
+        },
+        ["carol96-tsubuku-neo-aim"],
+      ),
+      buildCondition(
+        "carol96-neo-watch-danger2",
+        "見送り_危険2個以上",
+        "60点以上でも処遇済み、見せ場過多、履歴不足、長期放置、近隣過熱の危険が2個以上なら原則見送り",
+        {
+          minScore: 60,
+          minDanger: 2,
+          requiredFlags: ["carol96NeoHistoryReady"],
+        },
+        ["carol96-tsubuku-neo-aim"],
+      ),
+      buildCondition(
+        "carol96-neo-watch-show-over",
+        "見送り_見せ場過多",
+        "直近7日で高内容または見せ場が2回以上ある台は追いすぎ注意",
+        {
+          requiredFlags: ["carol96NeoHistoryReady", "carol96NeoShowOver"],
+        },
+        ["carol96-tsubuku-neo-aim"],
+      ),
+      buildCondition(
+        "carol96-neo-watch-rank1-weak-gap",
+        "見送り_1位でも差不足",
+        "1位でも次点差12未満かつ自由条件が無い場合は、単独根拠が弱い候補として扱う",
+        {
+          rankMax: 1,
+          maxNextGap: 11,
+          requiredFlags: ["carol96NeoHistoryReady", "carol96NeoNoFreeMax"],
+        },
+        ["carol96-tsubuku-neo-aim"],
+      ),
+      buildCondition(
         "slot-marumitsu-ohashi-neo-free-a",
         "自由A バランス",
         "対象76日 / 選択105台 / RB1/306.2 / 合算1/142.6 / 平均+446枚 / 機械割102.48% / 平均56 35.2% / 中央56 30.2% / 56>=50 27.6% / RB<=300 41.9% / RB>400 18.1% / 段階条件より実戦優先",
@@ -7048,6 +7209,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "tamaya-honten-neo-aim");
   } else if (isSuperHollywood1120Store(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "super-hollywood-1120-neo-aim");
+  } else if (isCarol96TsubukuStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "carol96-tsubuku-neo-aim");
   } else if (isSlotMarumitsuOhashiStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "slot-marumitsu-ohashi-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
@@ -7624,6 +7787,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentFourteenNegativeStayDays = readNumber(metrics.recentFourteenNegativeStayDays);
   const recentSevenMinus1200StayDays = readNumber(metrics.recentSevenMinus1200StayDays);
   const recentSevenMinus3000StayDays = readNumber(metrics.recentSevenMinus3000StayDays);
+  const recentSevenMinus1500Games9000StayDays = readNumber(metrics.recentSevenMinus1500Games9000StayDays);
   const recentThreeMinus1000StayDays = readNumber(metrics.recentThreeMinus1000StayDays);
   const recentFiveMinus1000StayDays = readNumber(metrics.recentFiveMinus1000StayDays);
   const recentFiveMinus1500StayDays = readNumber(metrics.recentFiveMinus1500StayDays);
@@ -7635,6 +7799,8 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const adjacentHighSettingCandidateCount7 = readNumber(metrics.adjacentHighSettingCandidateCount7);
   const adjacentMachineHighContentCount3 = readNumber(metrics.adjacentMachineHighContentCount3);
   const adjacentMachineHighContentCount3Near2 = readNumber(metrics.adjacentMachineHighContentCount3Near2);
+  const adjacentMachineShowCount3Near2 = readNumber(metrics.adjacentMachineShowCount3Near2);
+  const adjacentMachineAverageDifference3Near2 = readNumber(metrics.adjacentMachineAverageDifference3Near2);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
   const adjacentMachineHighContentCount7Near2 = readNumber(metrics.adjacentMachineHighContentCount7Near2);
@@ -7662,6 +7828,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
   const recentFiveMachineHighContentCount = readNumber(metrics.recentFiveMachineHighContentCount);
   const recentSevenMachineHighContentCount = readNumber(metrics.recentSevenMachineHighContentCount);
+  const recentSevenMachineShowCount = readNumber(metrics.recentSevenMachineShowCount);
   const recentFourteenMachineHighContentCount = readNumber(metrics.recentFourteenMachineHighContentCount);
   const recentTwentyOneMachineHighContentCount = readNumber(metrics.recentTwentyOneMachineHighContentCount);
   const recentFourteenMachineStrongHighContentCount = readNumber(metrics.recentFourteenMachineStrongHighContentCount);
@@ -8171,6 +8338,113 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         sh1120NeoBbBiasedDone,
         treatmentDone: sh1120NeoBbBiasedDone,
         lowConfidence: sh1120NeoHistoryShort,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount,
+      };
+    }
+
+    if (activeLogicKey === "carol96-tsubuku-neo-aim") {
+      const carol96NeoHistoryReady = historyRowCount >= 21;
+      const carol96NeoHistoryShort = historyRowCount < 21;
+      const carol96NeoHistoryVeryShort = historyRowCount < 7;
+      const carol96NeoAngle7 = recentSevenGamesTotal > 0 ? recentSevenNetTotal / recentSevenGamesTotal : 0;
+      const carol96NeoPreviousP56Strong =
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5;
+      const carol96NeoPreviousP56VeryStrong =
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.7;
+      const carol96NeoRb3VeryGood = features.recentThreeRbDenominator <= 260;
+      const carol96NeoRb3Good = features.recentThreeRbDenominator <= 300;
+      const carol96NeoRbDryBase =
+        features.recentThreeRbDenominator >= 700 &&
+        features.recentThreeCombinedDenominator >= 180;
+      const carol96NeoRbDryRebound =
+        carol96NeoRbDryBase &&
+        recentSevenMinus1500Games9000StayDays >= 2 &&
+        adjacentMachineShowCount3Near2 <= 2;
+      const carol96NeoPreviousHighUnfinished =
+        previousGames >= 3500 &&
+        carol96NeoPreviousP56Strong &&
+        previousDifference < 800;
+      const carol96NeoGenuineRbLink =
+        carol96NeoPreviousP56VeryStrong &&
+        carol96NeoRb3VeryGood &&
+        recentSevenMachineShowCount <= 1 &&
+        recentSevenMachineHighContentCount <= 1;
+      const carol96NeoDeepModerate =
+        recentFourteenNetTotal <= -3000 &&
+        recentFourteenGamesTotal >= 25000 &&
+        recentFourteenGamesTotal <= 35000 &&
+        recentSevenMinus1500Games9000StayDays >= 2 &&
+        adjacentMachineShowCount3Near2 <= 2;
+      const carol96NeoTreatmentDone =
+        recentSevenNetTotal >= 3000 ||
+        recentFourteenNetTotal >= 6000 ||
+        (previousDifference >= 1500 && recentFourteenNetTotal > -1500);
+      const carol96NeoShowOver =
+        recentSevenMachineHighContentCount >= 2 || recentSevenMachineShowCount >= 2;
+      const carol96NeoHistoryGamesShort = recentSevenGamesTotal < 7000 || historyRowCount < 14;
+      const carol96NeoLongNeglect = streak >= 7 && recentFourteenGamesTotal < 25000;
+      const carol96NeoNeighborOverheat = adjacentMachineShowCount3Near2 >= 4;
+      const carol96NeoBonusRoot =
+        carol96NeoPreviousP56Strong ||
+        carol96NeoRb3Good ||
+        (carol96NeoRbDryBase && recentSevenMinus1500Games9000StayDays >= 2);
+      const carol96NeoNoBonusRoot = !carol96NeoBonusRoot;
+      const boostFlags = [
+        recentFiveNetTotal <= -2500,
+        recentFourteenNetTotal <= -1500 && recentFourteenGamesTotal >= 25000,
+        recentSevenMinus1500Games9000StayDays >= 2,
+        carol96NeoAngle7 <= -0.08,
+        streak >= 3,
+        carol96NeoPreviousP56Strong,
+        carol96NeoRb3VeryGood,
+        carol96NeoRbDryRebound,
+        recentSevenMachineHighContentCount <= 1,
+        recentSevenMachineShowCount <= 1,
+        adjacentMachineShowCount3Near2 <= 2,
+        recentSevenGamesTotal >= 12000 && recentFourteenGamesTotal >= 25000,
+      ];
+      const dangerFlags = [
+        carol96NeoTreatmentDone,
+        carol96NeoShowOver,
+        carol96NeoHistoryGamesShort,
+        carol96NeoLongNeglect,
+        carol96NeoNeighborOverheat,
+      ];
+      const dangerCount = dangerFlags.filter(Boolean).length;
+      const carol96NeoNoFreeMax =
+        !carol96NeoGenuineRbLink &&
+        !carol96NeoRbDryRebound &&
+        !carol96NeoDeepModerate;
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability,
+        carol96NeoHistoryReady,
+        carol96NeoHistoryShort,
+        carol96NeoHistoryVeryShort,
+        carol96NeoAngle7,
+        carol96NeoPreviousP56Strong,
+        carol96NeoPreviousP56VeryStrong,
+        carol96NeoRb3VeryGood,
+        carol96NeoRb3Good,
+        carol96NeoRbDryBase,
+        carol96NeoRbDryRebound,
+        carol96NeoPreviousHighUnfinished,
+        carol96NeoGenuineRbLink,
+        carol96NeoDeepModerate,
+        carol96NeoTreatmentDone,
+        carol96NeoShowOver,
+        carol96NeoHistoryGamesShort,
+        carol96NeoLongNeglect,
+        carol96NeoNeighborOverheat,
+        carol96NeoBonusRoot,
+        carol96NeoNoBonusRoot,
+        carol96NeoNoFreeMax,
+        treatmentDone: carol96NeoTreatmentDone,
+        lowConfidence: carol96NeoHistoryShort || carol96NeoHistoryGamesShort,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount,
       };
@@ -12406,6 +12680,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFiveMinus3000StayDays = readNumber(metrics.recentFiveMinus3000StayDays);
   const recentFiveMinus3500StayDays = readNumber(metrics.recentFiveMinus3500StayDays);
   const recentSevenMinus1500StayDays = readNumber(metrics.recentSevenMinus1500StayDays);
+  const recentSevenMinus1500Games9000StayDays = readNumber(metrics.recentSevenMinus1500Games9000StayDays);
   const recentThirtyMinus2700StayDays = readNumber(metrics.recentThirtyMinus2700StayDays);
   const recentFiveMinus500StayDays = readNumber(metrics.recentFiveMinus500StayDays);
   const recentTenMinus3000StayDays = readNumber(metrics.recentTenMinus3000StayDays);
@@ -12429,6 +12704,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
   const recentFiveMachineHighContentCount = readNumber(metrics.recentFiveMachineHighContentCount);
   const recentSevenMachineHighContentCount = readNumber(metrics.recentSevenMachineHighContentCount);
+  const recentSevenMachineShowCount = readNumber(metrics.recentSevenMachineShowCount);
   const recentTenMachineHighContentCount = readNumber(metrics.recentTenMachineHighContentCount);
   const recentFourteenMachineHighContentCount = readNumber(metrics.recentFourteenMachineHighContentCount);
   const recentTwentyOneMachineHighContentCount = readNumber(metrics.recentTwentyOneMachineHighContentCount);
@@ -12465,6 +12741,8 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFiveBigWin1000Count = readNumber(metrics.recentFiveBigWin1000Count);
   const adjacentMachineHighContentCount3 = readNumber(metrics.adjacentMachineHighContentCount3);
   const adjacentMachineHighContentCount3Near2 = readNumber(metrics.adjacentMachineHighContentCount3Near2);
+  const adjacentMachineShowCount3Near2 = readNumber(metrics.adjacentMachineShowCount3Near2);
+  const adjacentMachineAverageDifference3Near2 = readNumber(metrics.adjacentMachineAverageDifference3Near2);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
   const adjacentMachineHighContentCount7Near2 = readNumber(metrics.adjacentMachineHighContentCount7Near2);
@@ -13137,6 +13415,144 @@ function calculateMachineScore(definition, metrics, features) {
         dangerPenalty;
 
       if (historyRowCount < 7) {
+        score = Math.min(score, 70);
+      }
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === "carol96-tsubuku-neo-aim") {
+      const carol96NeoAngle7 = recentSevenGamesTotal > 0 ? recentSevenNetTotal / recentSevenGamesTotal : 0;
+      const carol96NeoPreviousP56 = Number.isFinite(previousMachineSettingFivePlusProbability)
+        ? previousMachineSettingFivePlusProbability
+        : null;
+      const carol96NeoRbDryBase =
+        features.recentThreeRbDenominator >= 700 &&
+        features.recentThreeCombinedDenominator >= 180;
+      const carol96NeoRbDryRebound =
+        carol96NeoRbDryBase &&
+        recentSevenMinus1500Games9000StayDays >= 2 &&
+        adjacentMachineShowCount3Near2 <= 2;
+      const carol96NeoPreviousHighUnfinished =
+        previousGames >= 3500 &&
+        Number.isFinite(carol96NeoPreviousP56) &&
+        carol96NeoPreviousP56 >= 0.5 &&
+        previousDifference < 800;
+      const carol96NeoBonusRoot =
+        (Number.isFinite(carol96NeoPreviousP56) && carol96NeoPreviousP56 >= 0.5) ||
+        features.recentThreeRbDenominator <= 300 ||
+        (carol96NeoRbDryBase && recentSevenMinus1500Games9000StayDays >= 2);
+
+      let historyTrustScore = 0;
+      historyTrustScore += recentSevenGamesTotal >= 18000 ? 8 : recentSevenGamesTotal >= 12000 ? 6 : recentSevenGamesTotal >= 7000 ? 3 : -6;
+      historyTrustScore +=
+        recentFourteenGamesTotal >= 25000 && recentFourteenGamesTotal <= 55000
+          ? 5
+          : recentFourteenGamesTotal > 55000
+            ? 3
+            : recentFourteenGamesTotal < 18000
+              ? -4
+              : 0;
+      historyTrustScore += previousGames >= 2500 ? 2 : 0;
+      historyTrustScore = clamp(historyTrustScore, 0, 15);
+
+      let sinkScore = 0;
+      if (recentFourteenNetTotal <= -3000 && recentFourteenGamesTotal >= 25000 && recentFourteenGamesTotal <= 35000) {
+        sinkScore += 8;
+      } else if (recentFourteenNetTotal <= -3000 && recentFourteenGamesTotal >= 25000) {
+        sinkScore += 6;
+      } else if (recentFourteenNetTotal <= -1500 && recentFourteenGamesTotal >= 25000) {
+        sinkScore += 4;
+      }
+      sinkScore += recentFiveNetTotal <= -2500 ? 6 : 0;
+      sinkScore += recentSevenNetTotal <= -2500 ? 4 : recentSevenNetTotal <= -1500 ? 2 : 0;
+      sinkScore += recentSevenMinus1500Games9000StayDays >= 4 ? 5 : recentSevenMinus1500Games9000StayDays >= 2 ? 3 : 0;
+      sinkScore += carol96NeoAngle7 <= -0.12 ? 3 : carol96NeoAngle7 <= -0.08 ? 2 : 0;
+      sinkScore += streak >= 3 && streak <= 6 ? 3 : streak >= 7 ? -3 : 0;
+      sinkScore = clamp(sinkScore, 0, 20);
+
+      let bonusScore = 0;
+      bonusScore += scoreAtLeast(carol96NeoPreviousP56, [
+        { minimum: 0.7, points: 14 },
+        { minimum: 0.5, points: 9 },
+        { minimum: 0.3, points: 3 },
+      ]);
+      bonusScore += scoreAtMost(features.recentThreeRbDenominator, [
+        { maximum: 260, points: 14 },
+        { maximum: 300, points: 8 },
+        { maximum: 340, points: 3 },
+      ]);
+      bonusScore += carol96NeoRbDryBase
+        ? recentSevenMinus1500Games9000StayDays >= 2
+          ? 14
+          : 5
+        : 0;
+      bonusScore += features.recentThreeCombinedDenominator >= 220 ? 5 : features.recentThreeCombinedDenominator >= 180 ? 2 : 0;
+      bonusScore += carol96NeoPreviousHighUnfinished ? 5 : 0;
+      bonusScore +=
+        Number.isFinite(carol96NeoPreviousP56) &&
+        carol96NeoPreviousP56 >= 0.7 &&
+        features.recentThreeRbDenominator <= 260
+          ? 5
+          : 0;
+      bonusScore += carol96NeoRbDryRebound ? 3 : 0;
+      bonusScore = Math.min(bonusScore, 35);
+
+      let untreatedScore = 0;
+      untreatedScore +=
+        recentSevenMachineHighContentCount === 0
+          ? 6
+          : recentSevenMachineHighContentCount === 1
+            ? 2
+            : recentSevenMachineHighContentCount >= 2
+              ? -8
+              : 0;
+      untreatedScore +=
+        recentSevenMachineShowCount === 0
+          ? 7
+          : recentSevenMachineShowCount === 1
+            ? 2
+            : recentSevenMachineShowCount >= 2
+              ? -6
+              : 0;
+      untreatedScore += Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent >= 2 && daysSinceMachineHighContent <= 10
+          ? 4
+          : daysSinceMachineHighContent >= 21
+            ? -2
+            : 0
+        : 2;
+      untreatedScore = clamp(untreatedScore, 0, 20);
+
+      let neighborScore = 0;
+      neighborScore +=
+        adjacentMachineShowCount3Near2 === 0
+          ? 5
+          : adjacentMachineShowCount3Near2 <= 2
+            ? 3
+            : adjacentMachineShowCount3Near2 >= 4
+              ? -5
+              : 0;
+      neighborScore += adjacentMachineAverageDifference3Near2 < 0 ? 2 : 0;
+      neighborScore = clamp(neighborScore, 0, 10);
+
+      let dangerPenalty = 0;
+      dangerPenalty += recentSevenNetTotal >= 3000 || recentFourteenNetTotal >= 6000 ? 8 : 0;
+      dangerPenalty += previousDifference >= 1500 && recentFourteenNetTotal > -1500 ? 6 : 0;
+      dangerPenalty += recentSevenMachineHighContentCount >= 2 || recentSevenMachineShowCount >= 2 ? 6 : 0;
+      dangerPenalty += recentSevenGamesTotal < 7000 ? 8 : 0;
+      dangerPenalty += streak >= 7 && recentFourteenGamesTotal < 25000 ? 5 : 0;
+      dangerPenalty += recentThreeNetTotal >= 2500 ? 4 : 0;
+
+      let score = historyTrustScore + sinkScore + bonusScore + untreatedScore + neighborScore - dangerPenalty;
+      if (!carol96NeoBonusRoot) {
+        score = Math.min(score, 58);
+      }
+      if (historyRowCount < 7) {
+        score = Math.min(score, 40);
+      } else if (historyRowCount < 14) {
+        score = Math.min(score, 55);
+      } else if (historyRowCount < 21) {
         score = Math.min(score, 70);
       }
 

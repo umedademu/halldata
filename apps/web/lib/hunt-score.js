@@ -209,6 +209,10 @@ const SUPER_HOLLYWOOD_1120_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const CAROL96_TSUBUKU_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const HAKATA_123_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -967,6 +971,23 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "super-hollywood-1120-neo-aim",
       "ネオアイムジャグラーＥＸ": "super-hollywood-1120-neo-aim",
+    },
+  },
+  {
+    key: "carol96-tsubuku",
+    storeNames: [
+      "キャロル96津福本店",
+      "キャロル96津福",
+      "キャロル９６津福本店",
+      "キャロル９６津福",
+      "CAROL96津福本店",
+      "ＣＡＲＯＬ９６津福本店",
+    ],
+    targetMachines: CAROL96_TSUBUKU_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "carol96-tsubuku-neo-aim",
+      "ネオアイムジャグラーＥＸ": "carol96-tsubuku-neo-aim",
     },
   },
   {
@@ -2077,6 +2098,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
+    if (contentRule === "carol96-tsubuku-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     if (contentRule === "slot-marumitsu-ohashi-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -2407,6 +2435,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       }
       return games >= 2500 && rbDenominator <= 350 && combinedDenominator <= 155;
     }
+    if (contentRule === "carol96-tsubuku-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     return games >= 5000 && rbDenominator <= 315 && combinedDenominator <= 145;
   }
   if (normalizedMachineName === normalizeText("スターハナハナ")) {
@@ -2472,6 +2507,14 @@ function isMachineLowContentWindowRow(row, machineName, config = null) {
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "super-hollywood-1120-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    return Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability < 0.3;
+  }
+
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "carol96-tsubuku-neo-aim"
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     return Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability < 0.3;
@@ -2599,6 +2642,15 @@ function isMachineWeakContentWindowRow(row, machineName, config = null) {
       );
     }
     if (readMachineContentRule(config, machineName) === "super-hollywood-1120-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        games >= 3000 &&
+        ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability < 0.3) ||
+          rbDenominator > 400 ||
+          combinedDenominator > 170)
+      );
+    }
+    if (readMachineContentRule(config, machineName) === "carol96-tsubuku-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       return (
         games >= 3000 &&
@@ -2870,6 +2922,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "carol96-tsubuku-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 4000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 4000 && rbDenominator <= 270 && combinedDenominator <= 135;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "tamaya-ohashi-neo-aim"
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -2903,12 +2965,35 @@ function countDifferenceAtLeastRows(rows, threshold) {
   return rows.filter((row) => row.differenceValue >= threshold).length;
 }
 
+function isMachineShowWindowRow(row, machineName, config = null) {
+  const normalizedMachineName = normalizeHuntScoreMachineName(row?.row?.machine_name, config);
+  const differenceValue = readNumber(row?.differenceValue) ?? 0;
+  return differenceValue >= 1000 || isMachineHighContentWindowRow(row, machineName ?? normalizedMachineName, config);
+}
+
+function countMachineShowRows(rows, machineName, config = null) {
+  return (Array.isArray(rows) ? rows : []).filter((row) => isMachineShowWindowRow(row, machineName, config)).length;
+}
+
 function countConsecutiveRollingNetThresholdDays(rows, windowSize, threshold) {
   if (!Array.isArray(rows) || rows.length < windowSize || windowSize <= 0) return 0;
   let count = 0;
   for (let endIndex = rows.length - 1; endIndex >= windowSize - 1; endIndex -= 1) {
     const windowRows = rows.slice(endIndex - windowSize + 1, endIndex + 1);
     if (sumDifferenceValues(windowRows) > threshold) {
+      break;
+    }
+    count += 1;
+  }
+  return count;
+}
+
+function countConsecutiveRollingNetAndGamesThresholdDays(rows, windowSize, threshold, minimumGames) {
+  if (!Array.isArray(rows) || rows.length < windowSize || windowSize <= 0) return 0;
+  let count = 0;
+  for (let endIndex = rows.length - 1; endIndex >= windowSize - 1; endIndex -= 1) {
+    const windowRows = rows.slice(endIndex - windowSize + 1, endIndex + 1);
+    if (sumDifferenceValues(windowRows) > threshold || sumWindowField(windowRows, "games") < minimumGames) {
       break;
     }
     count += 1;
@@ -7697,6 +7782,64 @@ function countAdjacentMachineDifferenceAtLeastRows(
   return count;
 }
 
+function countAdjacentMachineShowRows(
+  businessDates,
+  dateIndex,
+  row,
+  rowsByDate,
+  config,
+  windowDays,
+  machineName,
+  distance = 2,
+) {
+  if (!(rowsByDate instanceof Map)) {
+    return 0;
+  }
+
+  const normalizedWindowDays = Math.max(1, Number(windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
+  const startIndex = Math.max(0, dateIndex - (normalizedWindowDays - 1));
+  const windowDates = businessDates.slice(startIndex, dateIndex + 1);
+  let count = 0;
+
+  for (const date of windowDates) {
+    for (const dateRow of listAdjacentSameMachineRowsByOrder(rowsByDate.get(date) ?? [], row, config, machineName, distance)) {
+      const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
+      const differenceValue = readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
+      if (isMachineShowWindowRow({ row: dateRow, differenceValue }, machineName, config)) {
+        count += 1;
+      }
+    }
+  }
+
+  return count;
+}
+
+function countAdjacentMachineRows(
+  businessDates,
+  dateIndex,
+  row,
+  rowsByDate,
+  config,
+  windowDays,
+  machineName,
+  distance = 2,
+) {
+  if (!(rowsByDate instanceof Map)) {
+    return 0;
+  }
+
+  const normalizedWindowDays = Math.max(1, Number(windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
+  const startIndex = Math.max(0, dateIndex - (normalizedWindowDays - 1));
+  const windowDates = businessDates.slice(startIndex, dateIndex + 1);
+  let count = 0;
+
+  for (const date of windowDates) {
+    count += listAdjacentSameMachineRowsByOrder(rowsByDate.get(date) ?? [], row, config, machineName, distance).length;
+  }
+
+  return count;
+}
+
 function sumAdjacentMachineDifferenceRows(
   businessDates,
   dateIndex,
@@ -7898,6 +8041,12 @@ function calculateWindowMetrics(
   const recentSevenMinus1200StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -1200);
   const recentSevenMinus2000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -2000);
   const recentSevenMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -3000);
+  const recentSevenMinus1500Games9000StayDays = countConsecutiveRollingNetAndGamesThresholdDays(
+    historyWindowRows,
+    7,
+    -1500,
+    9000,
+  );
   const recentThreeMinus1000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 3, -1000);
   const recentThreeMinus1700StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 3, -1700);
   const recentFiveMinus1000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -1000);
@@ -8323,6 +8472,7 @@ function calculateWindowMetrics(
   const recentSevenMachineGoodContentCount = historyWindowRows
     .slice(-7)
     .filter(isHistoryMachineGoodContentWindowRow).length;
+  const recentSevenMachineShowCount = countMachineShowRows(historyWindowRows.slice(-7), currentMachineName, config);
   const recentThreeMachineLowContentCount = recentThreeRows.filter((windowRow) =>
     isMachineLowContentWindowRow(windowRow, currentMachineName, config),
   ).length;
@@ -8464,6 +8614,16 @@ function calculateWindowMetrics(
     1000,
     2,
   );
+  const adjacentMachineShowCount3Near2 = countAdjacentMachineShowRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    3,
+    currentMachineName,
+    2,
+  );
   const adjacentMachineNetTotal7 = sumAdjacentMachineDifferenceRows(
     businessDates,
     dateIndex,
@@ -8540,6 +8700,28 @@ function calculateWindowMetrics(
     currentMachineName,
     1,
   );
+  const adjacentMachineNetTotal3Distance2 = sumAdjacentMachineDifferenceRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    3,
+    currentMachineName,
+    2,
+  );
+  const adjacentMachineRowCount3Near2 = countAdjacentMachineRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    3,
+    currentMachineName,
+    2,
+  );
+  const adjacentMachineAverageDifference3Near2 =
+    adjacentMachineRowCount3Near2 > 0 ? adjacentMachineNetTotal3Distance2 / adjacentMachineRowCount3Near2 : 0;
   const todayDifference = readHuntScoreDifferenceValue(row, config.differenceMode, currentMachineName);
   const previousGames = readNumber(row?.games_count) ?? 0;
   const previousRbCount = readNumber(row?.rb_count) ?? 0;
@@ -8586,6 +8768,7 @@ function calculateWindowMetrics(
     recentSevenMinus1200StayDays,
     recentSevenMinus2000StayDays,
     recentSevenMinus3000StayDays,
+    recentSevenMinus1500Games9000StayDays,
     recentThreeMinus1000StayDays,
     recentThreeMinus1700StayDays,
     recentFiveMinus1000StayDays,
@@ -8683,6 +8866,7 @@ function calculateWindowMetrics(
     recentThreeMachineGoodContentCount,
     recentFiveMachineHighContentCount,
     recentSevenMachineHighContentCount,
+    recentSevenMachineShowCount,
     recentTenMachineHighContentCount,
     recentFourteenMachineHighContentCount,
     recentTwentyOneMachineHighContentCount,
@@ -8690,6 +8874,8 @@ function calculateWindowMetrics(
     recentTwentyEightRbLightCount,
     adjacentMachineHighContentCount3,
     adjacentMachineHighContentCount3Near2,
+    adjacentMachineShowCount3Near2,
+    adjacentMachineAverageDifference3Near2,
     recentSevenMachineGoodContentCount,
     recentThreeMachineLowContentCount,
     recentFiveMachineLowContentCount,
