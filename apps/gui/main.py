@@ -144,6 +144,7 @@ SITE7_MACHINE_SOURCE_GROUP_HELP = {
     FETCH_SOURCE_BOTH: "登録店舗の取得元が両方の店舗に使います。",
     FETCH_SOURCE_SITE7: "登録店舗の取得元がサイセの店舗に使います。",
 }
+SITE7_NEO_IM_MACHINE_NAME = "ネオアイムジャグラーEX"
 T = TypeVar("T")
 
 
@@ -1225,13 +1226,20 @@ class MinRepoApp:
         )
         self.site7_fetch_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
 
-        self.site7_cancel_button = ttk.Button(site7_row, text="中止", command=self.cancel_site7_fetch)
-        self.site7_cancel_button.grid(row=0, column=2, sticky="w", padx=(8, 0))
+        self.site7_neo_im_fetch_button = ttk.Button(
+            site7_row,
+            text="ネオアイムのみ取得",
+            command=self.fetch_site7_neo_im_data,
+        )
+        self.site7_neo_im_fetch_button.grid(row=0, column=2, sticky="w", padx=(8, 0))
 
-        ttk.Label(site7_row, textvariable=self.site7_status_var).grid(row=0, column=3, sticky="w", padx=(12, 0))
+        self.site7_cancel_button = ttk.Button(site7_row, text="中止", command=self.cancel_site7_fetch)
+        self.site7_cancel_button.grid(row=0, column=3, sticky="w", padx=(8, 0))
+
+        ttk.Label(site7_row, textvariable=self.site7_status_var).grid(row=0, column=4, sticky="w", padx=(12, 0))
 
         site7_schedule_row = ttk.Frame(site7_row)
-        site7_schedule_row.grid(row=1, column=0, columnspan=4, sticky="w", pady=(8, 0))
+        site7_schedule_row.grid(row=1, column=0, columnspan=5, sticky="w", pady=(8, 0))
         self.site7_schedule_enabled_checkbutton = ttk.Checkbutton(
             site7_schedule_row,
             text="定期取得ON",
@@ -3346,6 +3354,59 @@ class MinRepoApp:
             operation_kind="site7_fetch",
         )
 
+    def fetch_site7_neo_im_data(self) -> None:
+        if self._site7_start_blocked():
+            return
+
+        try:
+            recent_days = parse_recent_days(self.target_date_var.get())
+            retry_delay_seconds = self._retry_delay_seconds_input()
+            fetch_parallel_options = self._minrepo_fetch_parallel_options()
+            web_publish_options = self._web_publish_options_input()
+        except ScraperError as exc:
+            self._show_error(exc)
+            return
+
+        recent_days = clamp_site7_recent_days(recent_days)
+
+        if not self.site7_scraper.has_saved_login_state():
+            if messagebox.askyesno(
+                "サイトセブン",
+                "サイトセブンのログイン情報がまだありません。\n先にログイン画面を開きますか？",
+            ):
+                self.site7_login()
+            return
+
+        try:
+            target_stores = self._selected_site7_registered_stores()
+        except ScraperError as exc:
+            self._show_error(exc)
+            return
+        if not target_stores:
+            messagebox.showwarning("入力不足", "登録店舗タブで取得元にサイセを含む店舗を1つ以上用意してください。")
+            return
+
+        self._begin_fetch_run(
+            progress_message="サイトセブンへ接続中...",
+            status_message="サイトセブン取得中...",
+            summary_message=f"{len(target_stores)}店舗のネオアイムをサイトセブンから取得中",
+            progress_kind=PROGRESS_KIND_SITE7,
+        )
+        browser_visible = self._site7_browser_visible()
+        self._start_worker(
+            self._worker_fetch_site7,
+            target_stores,
+            recent_days,
+            retry_delay_seconds,
+            browser_visible,
+            fetch_parallel_options,
+            web_publish_options,
+            {SITE7_NEO_IM_MACHINE_NAME},
+            False,
+            True,
+            operation_kind="site7_fetch",
+        )
+
     def fetch_registered_store_site7_data(self, registered_store: RegisteredStore) -> None:
         if self._site7_start_blocked():
             return
@@ -3392,6 +3453,55 @@ class MinRepoApp:
             operation_kind="site7_fetch",
         )
 
+    def fetch_registered_store_site7_neo_im_data(self, registered_store: RegisteredStore) -> None:
+        if self._site7_start_blocked():
+            return
+
+        try:
+            recent_days = parse_recent_days(self.target_date_var.get())
+            retry_delay_seconds = self._retry_delay_seconds_input()
+            fetch_parallel_options = self._minrepo_fetch_parallel_options()
+            web_publish_options = self._web_publish_options_input()
+            target_store = self._site7_registered_store_for_single_fetch(
+                registered_store,
+                require_site7_source=True,
+            )
+        except ScraperError as exc:
+            self._show_error(exc)
+            return
+
+        recent_days = clamp_site7_recent_days(recent_days)
+
+        if not self.site7_scraper.has_saved_login_state():
+            if messagebox.askyesno(
+                "サイトセブン",
+                "サイトセブンのログイン情報がまだありません。\n先にログイン画面を開きますか？",
+            ):
+                self.site7_login()
+            return
+
+        display_name = self._registered_store_display_name(target_store)
+        self._begin_fetch_run(
+            progress_message="サイトセブンへ接続中...",
+            status_message="サイトセブン取得中...",
+            summary_message=f"{display_name} のネオアイムをサイトセブンから取得中",
+            progress_kind=PROGRESS_KIND_SITE7,
+        )
+        browser_visible = self._site7_browser_visible()
+        self._start_worker(
+            self._worker_fetch_site7,
+            [target_store],
+            recent_days,
+            retry_delay_seconds,
+            browser_visible,
+            fetch_parallel_options,
+            web_publish_options,
+            {SITE7_NEO_IM_MACHINE_NAME},
+            False,
+            True,
+            operation_kind="site7_fetch",
+        )
+
     def _worker_fetch_site7(
         self,
         target_stores: list[RegisteredStore],
@@ -3400,6 +3510,9 @@ class MinRepoApp:
         browser_visible: bool,
         fetch_parallel_options: MinRepoFetchParallelOptions,
         web_publish_options: WebPublishOptions,
+        enabled_machine_names: set[str] | None = None,
+        minrepo_prefetch_enabled: bool = True,
+        force_site7_difference: bool = False,
     ) -> None:
         try:
             fetch_many_result = self._run_site7_fetch_many(
@@ -3409,6 +3522,9 @@ class MinRepoApp:
                 browser_visible=browser_visible,
                 fetch_parallel_options=fetch_parallel_options,
                 web_publish_options=web_publish_options,
+                enabled_machine_names=enabled_machine_names,
+                minrepo_prefetch_enabled=minrepo_prefetch_enabled,
+                force_site7_difference=force_site7_difference,
             )
             if fetch_many_result.cancelled and not fetch_many_result.results:
                 self.result_queue.put(("fetch_cancelled", None))
@@ -3429,6 +3545,9 @@ class MinRepoApp:
         web_publish_options: WebPublishOptions | None = None,
         site7_updated_at_by_store_url: dict[str, datetime] | None = None,
         now: datetime | None = None,
+        enabled_machine_names: set[str] | None = None,
+        minrepo_prefetch_enabled: bool = True,
+        force_site7_difference: bool = False,
     ) -> FetchManyResult:
         fetch_parallel_options = fetch_parallel_options or MINREPO_FETCH_PARALLEL_OPTIONS[MINREPO_FETCH_MODE_NORMAL]
         web_publish_options = web_publish_options or WebPublishOptions(mode=WEB_PUBLISH_MODE_DAYS)
@@ -3446,22 +3565,23 @@ class MinRepoApp:
 
             try:
                 normalized_store_url = normalize_store_url(registered_store.url)
-                minrepo_prefetch_result, site7_should_be_skipped = self._try_minrepo_before_site7_fetch(
-                    registered_store=registered_store,
-                    recent_days=recent_days,
-                    store_index=store_index,
-                    total_stores=total_stores,
-                    retry_delay_seconds=retry_delay_seconds,
-                    fetch_parallel_options=fetch_parallel_options,
-                    web_publish_options=web_publish_options,
-                    site7_updated_at=site7_updated_at_by_store_url.get(normalized_store_url),
-                    now=now,
-                )
-                if minrepo_prefetch_result is not None:
-                    self._refresh_web_data_for_store_result(minrepo_prefetch_result)
-                    if site7_should_be_skipped:
-                        results.append(minrepo_prefetch_result)
-                        continue
+                if minrepo_prefetch_enabled:
+                    minrepo_prefetch_result, site7_should_be_skipped = self._try_minrepo_before_site7_fetch(
+                        registered_store=registered_store,
+                        recent_days=recent_days,
+                        store_index=store_index,
+                        total_stores=total_stores,
+                        retry_delay_seconds=retry_delay_seconds,
+                        fetch_parallel_options=fetch_parallel_options,
+                        web_publish_options=web_publish_options,
+                        site7_updated_at=site7_updated_at_by_store_url.get(normalized_store_url),
+                        now=now,
+                    )
+                    if minrepo_prefetch_result is not None:
+                        self._refresh_web_data_for_store_result(minrepo_prefetch_result)
+                        if site7_should_be_skipped:
+                            results.append(minrepo_prefetch_result)
+                            continue
 
                 store_result = self._fetch_single_site7_store(
                     registered_store=registered_store,
@@ -3470,6 +3590,8 @@ class MinRepoApp:
                     total_stores=total_stores,
                     retry_delay_seconds=retry_delay_seconds,
                     browser_visible=browser_visible,
+                    enabled_machine_names=enabled_machine_names,
+                    force_site7_difference=force_site7_difference,
                 )
                 self._refresh_web_data_for_store_result(store_result)
                 results.append(store_result)
@@ -3577,10 +3699,15 @@ class MinRepoApp:
         total_stores: int,
         retry_delay_seconds: int,
         browser_visible: bool,
+        enabled_machine_names: set[str] | None = None,
+        force_site7_difference: bool = False,
     ) -> StoreFetchResult:
         self._raise_if_fetch_cancelled()
         target_store = registered_store.to_site7_target_store()
-        site7_difference_enabled = bool(registered_store.site7_enabled and registered_store.site7_difference_enabled)
+        site7_difference_enabled = bool(
+            force_site7_difference
+            or (registered_store.site7_enabled and registered_store.site7_difference_enabled)
+        )
         store_label = f"{store_index}/{total_stores} {registered_store.name}"
 
         def queue_progress(progress: FetchProgress) -> None:
@@ -3714,14 +3841,16 @@ class MinRepoApp:
                     "include_graph_differences": site7_difference_enabled,
                     "defer_graph_differences": site7_difference_enabled,
                 }
-                enabled_machine_names = self._site7_enabled_machine_names_for_fetch(registered_store)
-                if enabled_machine_names == set():
+                fetch_enabled_machine_names = enabled_machine_names
+                if fetch_enabled_machine_names is None:
+                    fetch_enabled_machine_names = self._site7_enabled_machine_names_for_fetch(registered_store)
+                if fetch_enabled_machine_names == set():
                     source_group = site7_machine_source_group(registered_store.fetch_source)
                     raise ScraperError(
                         f"{SITE7_MACHINE_SOURCE_GROUP_TITLES[source_group]}の取得機種が未選択です。"
                     )
-                if enabled_machine_names is not None:
-                    fetch_kwargs["enabled_machine_names"] = enabled_machine_names
+                if fetch_enabled_machine_names is not None:
+                    fetch_kwargs["enabled_machine_names"] = fetch_enabled_machine_names
                 return self.site7_scraper.fetch_target_machine_history(**fetch_kwargs)
             except Site7FetchCancelled as exc:
                 raise FetchCancelled from exc
@@ -5523,6 +5652,10 @@ class MinRepoApp:
             label="この店舗だけをサイトセブン取得",
             command=lambda store=registered_store: self.fetch_registered_store_site7_data(store),
         )
+        menu.add_command(
+            label="この店舗のネオアイムを取得",
+            command=lambda store=registered_store: self.fetch_registered_store_site7_neo_im_data(store),
+        )
         try:
             menu.tk_popup(event.x_root, event.y_root)
         finally:
@@ -5973,7 +6106,15 @@ class MinRepoApp:
         )
         return target_stores, store_run_urls
 
-    def _site7_registered_store_for_single_fetch(self, registered_store: RegisteredStore) -> RegisteredStore:
+    def _site7_registered_store_for_single_fetch(
+        self,
+        registered_store: RegisteredStore,
+        *,
+        require_site7_source: bool = False,
+    ) -> RegisteredStore:
+        if require_site7_source and not registered_store.uses_site7():
+            display_name = self._registered_store_display_name(registered_store)
+            raise ScraperError(f"{display_name} の取得元にサイセを含めてください。")
         if self._registered_store_is_known_site7_unavailable(registered_store):
             display_name = self._registered_store_display_name(registered_store)
             raise ScraperError(
@@ -6474,6 +6615,7 @@ class MinRepoApp:
         self.notify_fetch_complete_button.configure(state="normal")
         self.site7_login_button.configure(state="disabled" if site7_busy or general_busy else "normal")
         self.site7_fetch_button.configure(state="disabled" if site7_busy or general_busy else "normal")
+        self.site7_neo_im_fetch_button.configure(state="disabled" if site7_busy or general_busy else "normal")
         can_cancel_site7_fetch = (
             site7_busy
             and not self.site7_cancel_event.is_set()

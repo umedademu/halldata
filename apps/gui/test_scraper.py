@@ -41,6 +41,7 @@ from main import (
     FETCH_SOURCE_SITE7,
     SITE7_BROWSER_MODE_HIDDEN,
     SITE7_BROWSER_MODE_VISIBLE,
+    SITE7_NEO_IM_MACHINE_NAME,
     MINREPO_FETCH_MODE_STRONG,
     FetchCancelled,
     MinRepoApp,
@@ -4655,6 +4656,103 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(len(persistence_service.saved_results), 1)
         self.assertEqual(store_result.save_summary.web_data_record_count, 1)
 
+    def test_fetch_single_site7_store_can_force_neo_im_graph_fetch(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.result_queue = queue.Queue()
+
+        raw_result = MachineHistoryResult(
+            store_name="サイトセブン店",
+            store_url="https://example.com/site7-hall",
+            start_date="2026-04-25",
+            end_date="2026-04-25",
+            date_pages=[StoreDatePage(target_date="2026-04-25", date_url="https://example.com/site7-hall#ata0")],
+            datasets=[
+                MachineDataset(
+                    store_name="サイトセブン店",
+                    store_url="https://example.com/site7-hall",
+                    target_date="2026-04-25",
+                    date_url="https://example.com/site7-hall#ata0",
+                    machine_name=SITE7_NEO_IM_MACHINE_NAME,
+                    machine_url="https://example.com/site7-machine",
+                    columns=["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"],
+                    rows=[["821", "100", "1000", "-", "5", "2", "1/143", "1/200", "1/500"]],
+                )
+            ],
+        )
+
+        class FakeSite7Scraper:
+            def fetch_target_machine_history(
+                self,
+                *,
+                recent_days: int,
+                browser_visible: bool,
+                progress_callback: object,
+                target_store: object,
+                cancel_requested: object,
+                machine_base_result_callback: object,
+                machine_result_callback: object,
+                machine_result_filter_callback: object,
+                machine_protected_slots_callback: object,
+                include_graph_differences: bool,
+                defer_graph_differences: bool,
+                enabled_machine_names: set[str] | None = None,
+            ) -> MachineHistoryResult:
+                self.enabled_machine_names = enabled_machine_names
+                self.include_graph_differences = include_graph_differences
+                self.defer_graph_differences = defer_graph_differences
+                return machine_result_filter_callback(raw_result)
+
+        class FakePersistenceService:
+            def __init__(self) -> None:
+                self.require_source_difference_values: list[bool] = []
+
+            def resolve_preferred_store_by_name(self, store_name: str) -> None:
+                return None
+
+            def find_saved_machine_slots(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+                slot_numbers: list[str],
+                require_source_difference: bool = True,
+                site7_updated_at: str | datetime | None = None,
+            ) -> SavedMachineSlotsSummary:
+                self.require_source_difference_values.append(require_source_difference)
+                return SavedMachineSlotsSummary()
+
+            def save_history_result(self, history_result: MachineHistoryResult) -> PersistenceSummary:
+                return PersistenceSummary(web_data_saved=True, web_data_record_count=len(history_result.datasets))
+
+        site7_scraper = FakeSite7Scraper()
+        persistence_service = FakePersistenceService()
+        app.site7_scraper = site7_scraper
+        app.persistence_service = persistence_service
+
+        store_result = app._fetch_single_site7_store(
+            registered_store=RegisteredStore(
+                name="Aパーク春日店",
+                url="https://example.com/minrepo-store",
+                fetch_source=FETCH_SOURCE_BOTH,
+                site7_difference_enabled=False,
+            ),
+            recent_days=1,
+            store_index=1,
+            total_stores=1,
+            retry_delay_seconds=0,
+            browser_visible=True,
+            enabled_machine_names={SITE7_NEO_IM_MACHINE_NAME},
+            force_site7_difference=True,
+        )
+
+        self.assertEqual(site7_scraper.enabled_machine_names, {SITE7_NEO_IM_MACHINE_NAME})
+        self.assertTrue(site7_scraper.include_graph_differences)
+        self.assertTrue(site7_scraper.defer_graph_differences)
+        self.assertEqual(persistence_service.require_source_difference_values, [True])
+        self.assertEqual(store_result.save_summary.web_data_record_count, 1)
+
     def test_fetch_single_site7_store_uses_full_day_index_before_slot_checks(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.fetch_cancel_event = threading.Event()
@@ -4876,6 +4974,51 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(fetch_many_result.results, [site7_result])
         app._fetch_single_store.assert_called_once()
         app._fetch_single_site7_store.assert_called_once()
+
+    def test_run_site7_fetch_many_can_skip_minrepo_prefetch_for_neo_im_only(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.result_queue = queue.Queue()
+        app._refresh_web_data_for_store_result = mock.Mock()
+        app._fetch_single_store = mock.Mock()
+        site7_result = StoreFetchResult(
+            history_result=MachineHistoryResult(
+                store_name="Aパーク春日店",
+                store_url="https://example.com/store",
+                start_date="2026-06-05",
+                end_date="2026-06-05",
+                date_pages=[StoreDatePage(target_date="2026-06-05", date_url="https://m.site777.jp/db/D2300.do")],
+                datasets=[],
+            ),
+            save_summary=None,
+            saved_full_day_summary=SavedFullDayDatesSummary(),
+        )
+        app._fetch_single_site7_store = mock.Mock(return_value=site7_result)
+
+        fetch_many_result = app._run_site7_fetch_many(
+            target_stores=[
+                RegisteredStore(
+                    name="Aパーク春日店",
+                    url="https://example.com/store",
+                    fetch_source=FETCH_SOURCE_BOTH,
+                )
+            ],
+            recent_days=1,
+            retry_delay_seconds=0,
+            browser_visible=False,
+            enabled_machine_names={SITE7_NEO_IM_MACHINE_NAME},
+            minrepo_prefetch_enabled=False,
+            force_site7_difference=True,
+            site7_updated_at_by_store_url={normalize_store_url("https://example.com/store"): datetime(2026, 6, 5, 23, 8)},
+            now=datetime(2026, 6, 6, 1, 5, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(fetch_many_result.results, [site7_result])
+        app._fetch_single_store.assert_not_called()
+        app._fetch_single_site7_store.assert_called_once()
+        fetch_call_kwargs = app._fetch_single_site7_store.call_args.kwargs
+        self.assertEqual(fetch_call_kwargs["enabled_machine_names"], {SITE7_NEO_IM_MACHINE_NAME})
+        self.assertTrue(fetch_call_kwargs["force_site7_difference"])
 
     def test_site7_registered_stores_from_skips_unlisted_store(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
