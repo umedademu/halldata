@@ -272,6 +272,13 @@ function isPlazaHontenIIStore(storeName) {
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
+function isPlaza3Store(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["プラザ3", "プラザ３", "プラザ3店", "プラザ３店", "PLAZA3", "ＰＬＡＺＡ３"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function readDateDayNumber(dateText) {
   const normalized = normalizeText(dateText);
   const match = normalized.match(/^\d{4}-\d{2}-(\d{2})$/u) ?? normalized.match(/^\d{2}\/\d{2}\/(\d{2})$/u);
@@ -1983,6 +1990,21 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "plaza-honten-ii-neo-aim",
         "プラザ本店II_ネオアイムジャグラーEX_低露出RB弱返済ロジック_v1",
         "plaza-honten-ii-neo-free-low-exposure-rb-weak",
+      ),
+      buildLogicVariant(
+        "plaza3-neo-aim",
+        "プラザ3_ネオアイムEX_全日_凹み弱ボナ返済_v1",
+        "plaza3-neo-weak83",
+      ),
+      buildLogicVariant(
+        "plaza3-neo-aim-normal",
+        "プラザ3_ネオアイムEX_通常日_弱ボナ返し強化_v1",
+        "plaza3-neo-normal90",
+      ),
+      buildLogicVariant(
+        "plaza3-neo-aim-event",
+        "プラザ3_ネオアイムEX_特定日_間隔補助_v1",
+        "plaza3-neo-event-rank1-gap5",
       ),
     ],
     profile: "juggler",
@@ -4468,6 +4490,164 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["plaza-honten-ii-neo-aim"],
       ),
       buildCondition(
+        "plaza3-neo-free-deep-bonus-seven",
+        "凹み弱ボナ＋7日沈み",
+        "対象37日 / 選択40台 / RB1/281.6 / 合算1/134.9 / 平均+783枚 / 機械割103.84% / 平均56 45.5% / 中央56 44.6% / 56>=50% 45.0% / RB>400 15.0% / 点数より優先する強条件",
+        {
+          requiredFlags: ["plaza3NeoHistoryReady", "plaza3NeoFreeDeepBonusSeven"],
+        },
+        ["plaza3-neo-aim", "plaza3-neo-aim-normal", "plaza3-neo-aim-event"],
+      ),
+      buildCondition(
+        "plaza3-neo-free-super-deep-bonus",
+        "超深凹み弱ボナ",
+        "対象61日 / 選択70台 / RB1/285.0 / 合算1/134.2 / 平均+925枚 / 機械割104.63% / 平均56 43.9% / 中央56 40.1% / 56>=50% 41.4% / RB>400 20.0% / 点数より優先する本命条件",
+        {
+          requiredFlags: ["plaza3NeoHistoryReady", "plaza3NeoFreeSuperDeepBonus"],
+        },
+        ["plaza3-neo-aim", "plaza3-neo-aim-normal", "plaza3-neo-aim-event"],
+      ),
+      buildCondition(
+        "plaza3-neo-free-prev-deep-bonus230",
+        "前日深凹み＋弱ボナ230",
+        "対象104日 / 選択161台 / RB1/301.3 / 合算1/138.0 / 平均+753枚 / 機械割103.89% / 平均56 37.2% / 中央56 28.3% / 56>=50% 32.9% / RB>400 28.0% / 本命寄りの自由条件",
+        {
+          requiredFlags: ["plaza3NeoHistoryReady", "plaza3NeoFreeDeepBonus230"],
+        },
+        ["plaza3-neo-aim", "plaza3-neo-aim-normal", "plaza3-neo-aim-event"],
+      ),
+      buildCondition(
+        "plaza3-neo-free-prev-deep-bonus200",
+        "前日大凹み＋弱ボナ",
+        "対象136日 / 選択305台 / RB1/307.0 / 合算1/140.5 / 平均+583枚 / 機械割103.07% / 平均56 35.0% / 中央56 24.9% / 56>=50% 29.2% / RB>400 30.8% / 点数不要の広め自由条件",
+        {
+          requiredFlags: ["plaza3NeoHistoryReady", "plaza3NeoFreeDeepBonus200"],
+        },
+        ["plaza3-neo-aim", "plaza3-neo-aim-normal", "plaza3-neo-aim-event"],
+      ),
+      buildCondition(
+        "plaza3-neo-best88",
+        "最本命88点",
+        "対象13日 / 選択13台 / 総G94,485 / BB1/264.7 / RB1/254.7 / 合算1/129.8 / 平均+1,024枚 / 機械割104.69% / 勝率61.5% / 平均56 60.0% / 中央56 60.2% / 56>=50% 76.9% / 56>=70% 38.5% / 56<30% 15.4% / RB<=300 84.6% / RB>400 7.7% / 件数13台のため過信禁止",
+        {
+          minScore: 88,
+          requiredFlags: ["plaza3NeoHistoryReady"],
+        },
+        ["plaza3-neo-aim"],
+      ),
+      buildCondition(
+        "plaza3-neo-strong85",
+        "強85点",
+        "対象34日 / 選択37台 / 総G249,393 / BB1/265.6 / RB1/275.0 / 合算1/135.1 / 平均+767枚 / 機械割103.79% / 勝率67.6% / 平均56 48.2% / 中央56 47.0% / 56>=50% 48.6% / 56>=70% 29.7% / 56<30% 35.1% / RB<=300 62.2% / RB>400 16.2%",
+        {
+          minScore: 85,
+          requiredFlags: ["plaza3NeoHistoryReady"],
+        },
+        ["plaza3-neo-aim"],
+      ),
+      buildCondition(
+        "plaza3-neo-main84-prev-sink",
+        "本命84＋前日凹み",
+        "対象29日 / 選択39台 / 総G256,061 / BB1/255.0 / RB1/284.5 / 合算1/134.5 / 平均+906枚 / 機械割104.60% / 勝率66.7% / 平均56 43.9% / 中央56 39.1% / 56>=50% 43.6% / 56>=70% 25.6% / 56<30% 46.2% / RB<=300 48.7% / RB>400 15.4%",
+        {
+          minScore: 84,
+          requiredFlags: ["plaza3NeoHistoryReady", "plaza3NeoPreviousDeep1800"],
+        },
+        ["plaza3-neo-aim"],
+      ),
+      buildCondition(
+        "plaza3-neo-weak83",
+        "弱本命83点",
+        "対象51日 / 選択64台 / 総G400,029 / BB1/263.7 / RB1/297.9 / 合算1/139.9 / 平均+531枚 / 機械割102.83% / 勝率56.2% / 平均56 37.9% / 中央56 26.8% / 56>=50% 35.9% / 56>=70% 18.8% / 56<30% 53.1% / RB<=300 43.8% / RB>400 21.9% / 候補が少ない日の本命",
+        {
+          minScore: 83,
+          requiredFlags: ["plaza3NeoHistoryReady"],
+        },
+        ["plaza3-neo-aim"],
+      ),
+      buildCondition(
+        "plaza3-neo-wide80",
+        "広め80点",
+        "対象84日 / 選択122台 / 総G762,491 / BB1/259.7 / RB1/307.8 / 合算1/140.9 / 平均+526枚 / 機械割102.81% / 勝率55.7% / 平均56 35.3% / 中央56 24.7% / 56>=50% 31.1% / 56>=70% 18.0% / 56<30% 54.9% / RB<=300 41.8% / RB>400 29.5% / 広め候補",
+        {
+          minScore: 80,
+          requiredFlags: ["plaza3NeoHistoryReady"],
+        },
+        ["plaza3-neo-aim"],
+      ),
+      buildCondition(
+        "plaza3-neo-normal90",
+        "通常日90点以上",
+        "対象21日 / 選択24台 / RB1/268.9 / 合算1/130.2 / 平均+1,095枚 / 機械割105.43% / 平均56 50.5% / 中央56 48.7% / 56>=50% 50.0% / RB>400 12.5% / 通常日の最強帯",
+        {
+          minScore: 90,
+          requiredFlags: ["plaza3NeoHistoryReady"],
+        },
+        ["plaza3-neo-aim-normal"],
+      ),
+      buildCondition(
+        "plaza3-neo-event-rank1-gap5",
+        "特定日1位＋次点差5",
+        "対象26日 / 選択26台 / RB1/315.8 / 合算1/138.3 / 平均+953枚 / 機械割104.32% / 平均56 34.9% / 56>=50% 34.6% / RB>400 34.6% / 出玉は強いが補助扱い",
+        {
+          rankMax: 1,
+          minNextGap: 5,
+          requiredFlags: ["plaza3NeoHistoryReady"],
+        },
+        ["plaza3-neo-aim-event"],
+      ),
+      buildCondition(
+        "plaza3-neo-watch-history-short",
+        "見送り_履歴不足",
+        "台番履歴14営業日未満は低信頼",
+        {
+          requiredFlags: ["plaza3NeoHistoryShort"],
+        },
+        ["plaza3-neo-aim", "plaza3-neo-aim-normal", "plaza3-neo-aim-event"],
+      ),
+      buildCondition(
+        "plaza3-neo-watch-score-low-no-free",
+        "見送り_80点未満自由なし",
+        "全日共通80点未満で自由度MAX条件も非該当",
+        {
+          maxScore: 79,
+          requiredFlags: ["plaza3NeoHistoryReady", "plaza3NeoNoFreeCondition"],
+        },
+        ["plaza3-neo-aim"],
+      ),
+      buildCondition(
+        "plaza3-neo-watch-no-core",
+        "見送り_中核強化なし",
+        "80点以上でも前日大凹み・弱ボナ・7日沈みのいずれもない台",
+        {
+          minScore: 80,
+          requiredFlags: ["plaza3NeoHistoryReady", "plaza3NeoNoCoreBoost"],
+        },
+        ["plaza3-neo-aim"],
+      ),
+      buildCondition(
+        "plaza3-neo-watch-danger2",
+        "見送り_危険2個以上",
+        "85点未満で危険条件が2個以上",
+        {
+          maxScore: 84,
+          minDanger: 2,
+          requiredFlags: ["plaza3NeoHistoryReady"],
+        },
+        ["plaza3-neo-aim", "plaza3-neo-aim-normal", "plaza3-neo-aim-event"],
+      ),
+      buildCondition(
+        "plaza3-neo-watch-event-only",
+        "見送り_特定日補助だけ強い",
+        "特定日専用スコアだけ高く、中核強化が薄い台",
+        {
+          minScore: 90,
+          maxBoost: 1,
+          requiredFlags: ["plaza3NeoHistoryReady"],
+        },
+        ["plaza3-neo-aim-event"],
+      ),
+      buildCondition(
         "beam-hikari-main",
         "70点以上",
         "388件 / 103.33% / RB1/287.6 / p56 32.7%",
@@ -6000,6 +6180,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "plaza-honten-neo-aim");
   } else if (isPlazaHontenIIStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "plaza-honten-ii-neo-aim");
+  } else if (isPlaza3Store(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "plaza3-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
@@ -6738,6 +6920,121 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (
+      activeLogicKey === "plaza3-neo-aim" ||
+      activeLogicKey === "plaza3-neo-aim-normal" ||
+      activeLogicKey === "plaza3-neo-aim-event"
+    ) {
+      const plaza3NeoEffectiveDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : historyRowCount >= 21
+          ? historyRowCount
+          : null;
+      const plaza3NeoHistoryReady = historyRowCount >= 14;
+      const plaza3NeoHistoryShort = historyRowCount < 14;
+      const plaza3NeoPreviousDeep1800 = previousDifference <= -1800;
+      const plaza3NeoPreviousDeep2000 = previousDifference <= -2000;
+      const plaza3NeoPreviousCombined200 = features.previousCombinedDenominator >= 200;
+      const plaza3NeoPreviousCombined230 = features.previousCombinedDenominator >= 230;
+      const plaza3NeoPreviousCombined250 = features.previousCombinedDenominator >= 250;
+      const plaza3NeoSevenDeep4500 = recentSevenNetTotal <= -4500;
+      const plaza3NeoPreviousP56Unpaid =
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5 &&
+        previousDifference < 1200;
+      const plaza3NeoHighTrustGames =
+        previousGames >= 5000 || (recentSevenGamesTotal >= 30000 && recentSevenGamesTotal <= 40000);
+      const plaza3NeoFreeDeepBonus200 = plaza3NeoPreviousDeep1800 && plaza3NeoPreviousCombined200;
+      const plaza3NeoFreeDeepBonus230 = plaza3NeoPreviousDeep1800 && plaza3NeoPreviousCombined230;
+      const plaza3NeoFreeDeepBonusSeven =
+        plaza3NeoPreviousDeep1800 && plaza3NeoPreviousCombined230 && plaza3NeoSevenDeep4500;
+      const plaza3NeoFreeSuperDeepBonus =
+        plaza3NeoPreviousDeep2000 && plaza3NeoPreviousCombined250;
+      const plaza3NeoAnyFreeCondition =
+        plaza3NeoFreeDeepBonus200 ||
+        plaza3NeoFreeDeepBonus230 ||
+        plaza3NeoFreeDeepBonusSeven ||
+        plaza3NeoFreeSuperDeepBonus;
+      const plaza3NeoNoFreeCondition = !plaza3NeoAnyFreeCondition;
+      const plaza3NeoCoreBoost =
+        plaza3NeoPreviousDeep1800 || plaza3NeoPreviousCombined200 || plaza3NeoSevenDeep4500;
+      const plaza3NeoNoCoreBoost = !plaza3NeoCoreBoost;
+      const plaza3NeoPreviousPlus2500 = previousDifference >= 2500;
+      const plaza3NeoPreviousPlus4000 = previousDifference >= 4000;
+      const plaza3NeoSevenPlus4800 = recentSevenNetTotal >= 4800;
+      const plaza3NeoFourteenPlus7000 = recentFourteenNetTotal >= 7000;
+      const plaza3NeoSevenGamesOver44200 = recentSevenGamesTotal > 44200;
+      const plaza3NeoFourteenGamesOver85400 = recentFourteenGamesTotal > 85400;
+      const plaza3NeoSevenHighCount4 = recentSevenMachineHighContentCount >= 4;
+      const plaza3NeoFourteenHighCount5 = recentFourteenMachineHighContentCount >= 5;
+      const plaza3NeoPreviousGamesUnder1000 = previousGames < 1000;
+      const plaza3NeoLongNeglect21 =
+        Number.isFinite(plaza3NeoEffectiveDaysSinceHigh) && plaza3NeoEffectiveDaysSinceHigh >= 21;
+      const boostFlags = [
+        plaza3NeoPreviousDeep1800,
+        plaza3NeoPreviousCombined200,
+        plaza3NeoPreviousCombined230,
+        plaza3NeoSevenDeep4500,
+        plaza3NeoPreviousP56Unpaid,
+        plaza3NeoHighTrustGames,
+      ];
+      const dangerFlags = [
+        plaza3NeoPreviousPlus2500,
+        plaza3NeoPreviousPlus4000,
+        plaza3NeoSevenPlus4800,
+        plaza3NeoFourteenPlus7000,
+        plaza3NeoSevenGamesOver44200,
+        plaza3NeoFourteenGamesOver85400,
+        plaza3NeoSevenHighCount4,
+        plaza3NeoFourteenHighCount5,
+        plaza3NeoPreviousGamesUnder1000,
+        plaza3NeoLongNeglect21,
+      ];
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability,
+        plaza3NeoEffectiveDaysSinceHigh,
+        plaza3NeoHistoryReady,
+        plaza3NeoHistoryShort,
+        plaza3NeoPreviousDeep1800,
+        plaza3NeoPreviousDeep2000,
+        plaza3NeoPreviousCombined200,
+        plaza3NeoPreviousCombined230,
+        plaza3NeoPreviousCombined250,
+        plaza3NeoSevenDeep4500,
+        plaza3NeoPreviousP56Unpaid,
+        plaza3NeoHighTrustGames,
+        plaza3NeoFreeDeepBonus200,
+        plaza3NeoFreeDeepBonus230,
+        plaza3NeoFreeDeepBonusSeven,
+        plaza3NeoFreeSuperDeepBonus,
+        plaza3NeoAnyFreeCondition,
+        plaza3NeoNoFreeCondition,
+        plaza3NeoCoreBoost,
+        plaza3NeoNoCoreBoost,
+        plaza3NeoPreviousPlus2500,
+        plaza3NeoPreviousPlus4000,
+        plaza3NeoSevenPlus4800,
+        plaza3NeoFourteenPlus7000,
+        plaza3NeoSevenGamesOver44200,
+        plaza3NeoFourteenGamesOver85400,
+        plaza3NeoSevenHighCount4,
+        plaza3NeoFourteenHighCount5,
+        plaza3NeoPreviousGamesUnder1000,
+        plaza3NeoLongNeglect21,
+        treatmentDone:
+          plaza3NeoPreviousPlus2500 ||
+          plaza3NeoSevenPlus4800 ||
+          plaza3NeoFourteenPlus7000 ||
+          plaza3NeoSevenHighCount4 ||
+          plaza3NeoFourteenHighCount5,
+        lowConfidence: plaza3NeoHistoryShort || plaza3NeoPreviousGamesUnder1000,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "plaza-honten-neo-aim") {
       const plazaHontenNeoHistoryReady = historyRowCount >= 21;
       const plazaHontenNeoAdoptionReady = historyRowCount >= 14;
@@ -11151,6 +11448,144 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (
+      activeLogicKey === "plaza3-neo-aim" ||
+      activeLogicKey === "plaza3-neo-aim-normal" ||
+      activeLogicKey === "plaza3-neo-aim-event"
+    ) {
+      const plaza3NeoEffectiveDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : historyRowCount >= 21
+          ? historyRowCount
+          : null;
+
+      const calculatePlaza3CommonScore = () => {
+        let score = 20;
+
+        let sinkScore = 0;
+        sinkScore += scoreAtMost(previousDifference, [
+          { maximum: -1800, points: 14 },
+          { maximum: -1200, points: 10 },
+          { maximum: -600, points: 6 },
+          { maximum: -1, points: 3 },
+        ]);
+        sinkScore += scoreAtMost(recentThreeNetTotal, [
+          { maximum: -3000, points: 10 },
+          { maximum: -2000, points: 7 },
+          { maximum: -1000, points: 4 },
+        ]);
+        sinkScore += scoreAtMost(recentSevenNetTotal, [
+          { maximum: -4500, points: 12 },
+          { maximum: -3000, points: 9 },
+          { maximum: -1500, points: 5 },
+        ]);
+        sinkScore += scoreAtMost(recentFourteenNetTotal, [
+          { maximum: -7000, points: 6 },
+          { maximum: -5000, points: 5 },
+          { maximum: -3000, points: 3 },
+        ]);
+        score += Math.min(sinkScore, 36);
+
+        let weakBonusScore = 0;
+        weakBonusScore += scoreAtLeast(previousCombinedDenominator, [
+          { minimum: 230, points: 12 },
+          { minimum: 200, points: 8 },
+          { minimum: 180, points: 5 },
+          { minimum: 160, points: 2 },
+        ]);
+        weakBonusScore += previousRbDenominator >= 500 && previousGames >= 2500 ? 4 : 0;
+        score += Math.min(weakBonusScore, 22);
+
+        let genuineScore = 0;
+        genuineScore += scoreAtLeast(previousMachineSettingFivePlusProbability, [
+          { minimum: 0.7, points: 7 },
+          { minimum: 0.5, points: 5 },
+          { minimum: 0.3, points: 3 },
+        ]);
+        genuineScore +=
+          Number.isFinite(previousMachineSettingFivePlusProbability) &&
+          previousMachineSettingFivePlusProbability >= 0.5 &&
+          previousDifference < 1200
+            ? 4
+            : 0;
+        genuineScore +=
+          Number.isFinite(previousMachineSettingFivePlusProbability) &&
+          previousMachineSettingFivePlusProbability >= 0.5 &&
+          previousDifference < 0
+            ? 3
+            : 0;
+        score += Math.min(genuineScore, 14);
+
+        let activityScore = 0;
+        if (streak >= 8) {
+          activityScore += 2;
+        } else if (streak >= 5) {
+          activityScore += 5;
+        } else if (streak >= 2) {
+          activityScore += 7;
+        } else if (streak === 1) {
+          activityScore += 4;
+        }
+        activityScore += previousGames >= 5000 ? 3 : 0;
+        activityScore += recentSevenGamesTotal >= 30000 && recentSevenGamesTotal <= 40000 ? 4 : 0;
+        score += Math.min(activityScore, 14);
+
+        let intervalScore = 0;
+        if (Number.isFinite(plaza3NeoEffectiveDaysSinceHigh)) {
+          if (plaza3NeoEffectiveDaysSinceHigh >= 21) {
+            intervalScore -= 3;
+          } else if (plaza3NeoEffectiveDaysSinceHigh >= 10) {
+            intervalScore += 2;
+          } else if (plaza3NeoEffectiveDaysSinceHigh >= 2) {
+            intervalScore += 4;
+          }
+        }
+        intervalScore += recentSevenMachineHighContentCount >= 1 && recentSevenMachineHighContentCount <= 2 ? 2 : 0;
+        intervalScore += adjacentMachineHighContentCount7Near2 >= 2 && adjacentMachineHighContentCount7Near2 <= 3 ? 2 : 0;
+        score += clamp(intervalScore, -8, 10);
+
+        let penalty = 0;
+        penalty += previousDifference >= 4000 ? 10 : previousDifference >= 2500 ? 5 : 0;
+        penalty += recentSevenNetTotal >= 4800 ? 7 : 0;
+        penalty += recentFourteenNetTotal >= 7000 ? 5 : 0;
+        penalty += recentSevenGamesTotal > 44200 ? 7 : 0;
+        penalty += recentFourteenGamesTotal > 85400 ? 5 : 0;
+        penalty += recentSevenMachineHighContentCount >= 4 ? 7 : 0;
+        penalty += recentFourteenMachineHighContentCount >= 5 ? 4 : 0;
+        penalty += previousGames < 1000 ? 6 : 0;
+        penalty +=
+          Number.isFinite(plaza3NeoEffectiveDaysSinceHigh) && plaza3NeoEffectiveDaysSinceHigh >= 21 ? 4 : 0;
+
+        return clamp(score - penalty, 0, 100);
+      };
+
+      let score = calculatePlaza3CommonScore();
+
+      if (activeLogicKey === "plaza3-neo-aim-normal") {
+        score += previousCombinedDenominator >= 200 && previousGames >= 2500 ? 4 : 0;
+        score -= Number.isFinite(plaza3NeoEffectiveDaysSinceHigh) && plaza3NeoEffectiveDaysSinceHigh >= 21 ? 5 : 0;
+        score -= recentSevenGamesTotal > 44200 ? 3 : 0;
+      } else if (activeLogicKey === "plaza3-neo-aim-event") {
+        score +=
+          Number.isFinite(plaza3NeoEffectiveDaysSinceHigh) &&
+          plaza3NeoEffectiveDaysSinceHigh >= 14 &&
+          plaza3NeoEffectiveDaysSinceHigh <= 35 &&
+          recentSevenGamesTotal <= 42000
+            ? 6
+            : 0;
+        score +=
+          Number.isFinite(plaza3NeoEffectiveDaysSinceHigh) &&
+          plaza3NeoEffectiveDaysSinceHigh >= 21 &&
+          recentSevenGamesTotal <= 42000
+            ? 4
+            : 0;
+        score += previousDifference <= -1350 ? 3 : 0;
+        score += previousCombinedDenominator >= 230 && previousGames >= 3000 ? 2 : 0;
+      }
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (activeLogicKey === "plaza-honten-neo-aim") {
       let score = 35;
 
@@ -18083,6 +18518,27 @@ function buildAmuseAsakusaDateSetting(definition, isEventDate) {
   };
 }
 
+function buildPlaza3DateSetting(definition, isEventDate) {
+  if (definition?.machineKey !== "neo-aim") {
+    return null;
+  }
+  const logicKey = isEventDate ? "plaza3-neo-aim-event" : "plaza3-neo-aim-normal";
+  const logic = findLogicDefinition(definition, logicKey);
+  if (!logic) {
+    return null;
+  }
+  const condition =
+    listConditionDefinitions(definition, logic.key).find(
+      (candidate) => candidate.keySuffix === logic.defaultConditionSuffix,
+    ) ??
+    listConditionDefinitions(definition, logic.key)[0] ??
+    null;
+  return {
+    logicKey: logic.key,
+    conditionKey: condition ? buildConditionKey(definition, condition) : "",
+  };
+}
+
 function resolveRankingDateSpecificSetting(definition, setting, options = {}) {
   if (
     !options?.dateSpecificRanking ||
@@ -18225,6 +18681,20 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   if (isAmuseAsakusaStore(options?.storeName) && definition?.machineKey === "neo-aim") {
     const isEventDate = readTargetEventFlag(row) === true;
     const setting = buildAmuseAsakusaDateSetting(definition, isEventDate);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    if (!evaluation) {
+      return null;
+    }
+
+    return {
+      ...evaluation,
+      displayLabel: isEventDate ? "特定日" : "通常日",
+    };
+  }
+
+  if (isPlaza3Store(options?.storeName) && definition?.machineKey === "neo-aim") {
+    const isEventDate = readTargetEventFlag(row) === true;
+    const setting = buildPlaza3DateSetting(definition, isEventDate);
     const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
     if (!evaluation) {
       return null;
