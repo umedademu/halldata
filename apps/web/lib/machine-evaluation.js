@@ -342,6 +342,13 @@ function isWonderlandMinamigaokaStore(storeName) {
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
+function isWonderlandSueStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["ワンダーランド須恵店", "ワンダーランド須恵"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function isSengawaUnoStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["仙川UNO", "仙川UNO店", "仙川ＵＮＯ", "仙川ＵＮＯ店"].some(
@@ -2141,6 +2148,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "wonderland-minamigaoka-neo-aim",
         "WL南ヶ丘_ネオアイムEX_返済未完了スコア_v1",
         "wonderland-minamigaoka-neo-strong-rb280",
+      ),
+      buildLogicVariant(
+        "wonderland-sue-neo-aim",
+        "須恵ネオアイム_連敗返済据え周辺ロジック_v1",
+        "wonderland-sue-neo-free-a",
       ),
       buildLogicVariant(
         "sengawa-uno-neo-aim",
@@ -4336,6 +4348,178 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["wonderlandMinamigaokaNeoHistoryShort"],
         },
         ["wonderland-minamigaoka-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-watch-no-go",
+        "見送り",
+        "危険条件2個以上、連勝2以上、長期放置、履歴不足、75点未満かつ強化1個以下、前日BB寄り一撃で支えなしは見送り",
+        {
+          anyOf: [
+            { minDanger: 2, requiredFlags: ["wonderlandSueNeoHistoryReady"] },
+            { requiredFlags: ["wonderlandSueNeoHistoryReady", "wonderlandSueNeoWinningDanger"] },
+            { requiredFlags: ["wonderlandSueNeoHistoryReady", "wonderlandSueNeoLongNeglect"] },
+            { requiredFlags: ["wonderlandSueNeoHistoryShort"] },
+            { maxScore: 74, maxBoost: 1, requiredFlags: ["wonderlandSueNeoHistoryReady"] },
+            { requiredFlags: ["wonderlandSueNeoHistoryReady", "wonderlandSueNeoBbBiasedNoSupport"] },
+          ],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-free-a",
+        "自由A_5連敗上位3",
+        "対象日数53日 / 選択66台 / RB1/259.9 / 合算1/131.8 / 平均+639枚 / 機械割103.21% / 平均56 53.8% / 中央56 59.0% / 56>=50% 59.1% / 56<30% 27.3% / 点数閾値より優先",
+        {
+          rankMax: 3,
+          requiredFlags: ["wonderlandSueNeoHistoryReady", "wonderlandSueNeoLosingFive"],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-free-b",
+        "自由B_4連敗1位",
+        "対象日数60日 / 選択60台 / RB1/260.5 / 合算1/132.0 / 平均+620枚 / 機械割103.21% / 平均56 53.2% / 中央56 53.5% / 56>=50% 55.0% / 56<30% 28.3% / 最優先級",
+        {
+          rankMax: 1,
+          requiredFlags: ["wonderlandSueNeoHistoryReady", "wonderlandSueNeoLosingFour"],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-free-d",
+        "自由D_3連敗周辺2_70点",
+        "対象日数36日 / 選択55台 / RB1/263.6 / 合算1/131.7 / 平均+709枚 / 機械割103.64% / 平均56 51.9% / 中央56 54.7% / 56>=50% 52.7% / 56<30% 29.1% / 自由Cの強化版",
+        {
+          minScore: 70,
+          requiredFlags: [
+            "wonderlandSueNeoHistoryReady",
+            "wonderlandSueNeoLosingThree",
+            "wonderlandSueNeoNeighborSpread",
+          ],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-free-c",
+        "自由C_3連敗周辺2",
+        "対象日数59日 / 選択102台 / RB1/275.7 / 合算1/136.0 / 平均+482枚 / 機械割102.59% / 平均56 45.9% / 中央56 41.6% / 56>=50% 44.1% / 56<30% 37.3% / スコア最高点でなくても拾う波及条件",
+        {
+          requiredFlags: [
+            "wonderlandSueNeoHistoryReady",
+            "wonderlandSueNeoLosingThree",
+            "wonderlandSueNeoNeighborSpread",
+          ],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-best270",
+        "最本命270",
+        "対象日数53日 / 選択66台 / 総G438,369 / BB1/267.5 / RB1/259.9 / 合算1/131.8 / 平均+639枚 / 機械割103.21% / 勝率56.1% / 平均56 53.8% / 中央56 59.0% / 56>=50% 59.1% / 56<30% 27.3%",
+        {
+          rankMax: 3,
+          requiredFlags: ["wonderlandSueNeoHistoryReady", "wonderlandSueNeoLosingFive"],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-strong280",
+        "強280",
+        "対象日数65日 / 選択65台 / 総G413,476 / BB1/266.4 / RB1/273.5 / 合算1/134.9 / 平均+534枚 / 機械割102.80% / 勝率56.9% / 平均56 46.1% / 中央56 44.7% / 56>=50% 41.5% / 56<30% 35.4%",
+        {
+          rankMax: 1,
+          minNextGap: 4,
+          requiredFlags: ["wonderlandSueNeoHistoryReady"],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-main290",
+        "本命290",
+        "対象日数109日 / 選択109台 / 総G676,422 / BB1/267.7 / RB1/283.6 / 合算1/137.7 / 平均+437枚 / 機械割102.35% / 勝率53.2% / 平均56 42.7% / 中央56 38.1% / 56>=50% 39.4% / 56<30% 42.2%",
+        {
+          rankMax: 1,
+          requiredFlags: ["wonderlandSueNeoHistoryReady"],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-weak300",
+        "弱本命300",
+        "対象日数74日 / 選択210台 / 総G1,273,449 / BB1/265.6 / RB1/294.8 / 合算1/139.7 / 平均+395枚 / 機械割102.17% / 勝率55.7% / 平均56 38.9% / 中央56 33.5% / 56>=50% 35.7% / 56<30% 48.1%",
+        {
+          minScore: 75,
+          maxDanger: 0,
+          requiredFlags: ["wonderlandSueNeoHistoryReady"],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-wide310",
+        "広め310",
+        "対象日数106日 / 選択623台 / 総G3,602,649 / BB1/266.3 / RB1/307.3 / 合算1/142.7 / 平均+292枚 / 機械割101.68% / 勝率51.0% / 平均56 34.7% / 中央56 26.4% / 56>=50% 29.1% / 56<30% 53.8%",
+        {
+          minScore: 65,
+          minBoost: 2,
+          maxDanger: 1,
+          requiredFlags: ["wonderlandSueNeoHistoryReady"],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-free-e",
+        "自由E_不発据え危険0",
+        "対象日数86日 / 選択179台 / RB1/302.3 / 合算1/141.8 / 平均+341枚 / 機械割101.94% / 平均56 36.1% / 中央56 27.4% / 56>=50% 31.8% / 56<30% 53.6% / 補助条件",
+        {
+          maxDanger: 0,
+          requiredFlags: ["wonderlandSueNeoHistoryReady", "wonderlandSueNeoPreviousUnfinished"],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-watch-winning",
+        "見送り_連勝危険",
+        "連勝2以上はRB1/371.6、機械割99.51%、設定5・6推定率50%以上8.2%で原則見送り",
+        {
+          requiredFlags: ["wonderlandSueNeoHistoryReady", "wonderlandSueNeoWinningDanger"],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-watch-long-neglect",
+        "見送り_長期放置",
+        "前回高内容から8営業日以上かつ連敗1以下はRB1/362.8、機械割99.36%、56>=50%9.9%",
+        {
+          requiredFlags: ["wonderlandSueNeoHistoryReady", "wonderlandSueNeoLongNeglect"],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-watch-low-games",
+        "見送り_低稼働",
+        "前日G数1,500未満、または直近7日G数26,000未満は履歴信頼度不足",
+        {
+          requiredFlags: ["wonderlandSueNeoHistoryReady", "wonderlandSueNeoLowActivity"],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-watch-treatment",
+        "見送り_処遇完了",
+        "直近7日または14日で十分に戻っている台は高スコアでも信頼度を落とす",
+        {
+          requiredFlags: ["wonderlandSueNeoHistoryReady", "wonderlandSueNeoTreatmentDone"],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-watch-bb-biased",
+        "見送り_BB寄り一撃",
+        "前日差枚は強いがRBが弱い台は減点・見送り候補",
+        {
+          requiredFlags: ["wonderlandSueNeoHistoryReady", "wonderlandSueNeoBbBiased"],
+        },
+        ["wonderland-sue-neo-aim"],
       ),
       buildCondition(
         "sengawa-uno-wide-rb310",
@@ -7640,6 +7824,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "yasuda-hibarigaoka-neo-aim");
   } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-neo-aim");
+  } else if (isWonderlandSueStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "wonderland-sue-neo-aim");
   } else if (isSengawaUnoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "sengawa-uno-neo-aim");
   } else if (isPlazaTenjinStore(storeName) && definition.machineKey === "neo-aim") {
@@ -9681,6 +9867,107 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
         previousMachineSettingFivePlusProbability,
+      };
+    }
+
+    if (activeLogicKey === "wonderland-sue-neo-aim") {
+      const wonderlandSueNeoHistoryReady = historyRowCount >= 21;
+      const wonderlandSueNeoHistoryShort = historyRowCount < 21;
+      const wonderlandSueNeoLosingThree = streak >= 3;
+      const wonderlandSueNeoLosingFour = streak >= 4;
+      const wonderlandSueNeoLosingFive = streak >= 5;
+      const wonderlandSueNeoPreviousDeep = previousDifference <= -1000;
+      const wonderlandSueNeoPreviousGenuine =
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5;
+      const wonderlandSueNeoPreviousStrongGenuine =
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.7;
+      const wonderlandSueNeoPreviousUnfinished =
+        wonderlandSueNeoPreviousGenuine && previousDifference < 1200;
+      const wonderlandSueNeoNeighborSpread = previousAdjacentMachineHighContentCountNear2 >= 2;
+      const wonderlandSueNeoUnpaid =
+        recentTwentyOneNetTotal <= -1000 && recentTwentyOneGamesTotal >= 70000;
+      const wonderlandSueNeoDeepUnpaid =
+        recentTwentyOneNetTotal <= -3000 && recentTwentyOneGamesTotal >= 70000;
+      const wonderlandSueNeoGamesTrust = previousGames >= 3500 && recentSevenGamesTotal >= 39000;
+      const wonderlandSueNeoWinningDanger = winningStreak >= 2;
+      const wonderlandSueNeoStrongWinningDanger = winningStreak >= 3;
+      const wonderlandSueNeoTreatmentDone =
+        recentFourteenNetTotal >= 3500 ||
+        (recentSevenNetTotal >= 3000 && features.recentSevenCombinedDenominator <= 140);
+      const wonderlandSueNeoShortTreatment =
+        recentSevenNetTotal >= 2500 ||
+        (previousDifference >= 1800 &&
+          Number.isFinite(previousMachineSettingFivePlusProbability) &&
+          previousMachineSettingFivePlusProbability >= 0.4);
+      const wonderlandSueNeoBbBiased =
+        previousGames >= 3000 && previousDifference >= 1200 && features.previousRbDenominator >= 360;
+      const wonderlandSueNeoLowActivity = previousGames < 1500 || recentSevenGamesTotal < 26000;
+      const wonderlandSueNeoNoPreviousHigh =
+        !Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 21;
+      const wonderlandSueNeoLongNeglect =
+        streak <= 1 &&
+        (wonderlandSueNeoNoPreviousHigh ||
+          (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 8));
+      const wonderlandSueNeoOverused =
+        recentTwentyOneMachineHighContentCount >= 7 && recentTwentyOneNetTotal >= 2000;
+      const wonderlandSueNeoOutputOnly =
+        previousDifference >= 1800 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability < 0.35;
+      const wonderlandSueNeoBbBiasedNoSupport =
+        wonderlandSueNeoBbBiased && !wonderlandSueNeoNeighborSpread && !wonderlandSueNeoLosingThree;
+      const dangerFlags = [
+        wonderlandSueNeoWinningDanger,
+        wonderlandSueNeoTreatmentDone,
+        wonderlandSueNeoBbBiased,
+        wonderlandSueNeoLowActivity,
+        wonderlandSueNeoLongNeglect,
+      ];
+      const boostFlags = [
+        wonderlandSueNeoLosingThree,
+        wonderlandSueNeoLosingFour,
+        wonderlandSueNeoPreviousDeep,
+        wonderlandSueNeoPreviousGenuine,
+        wonderlandSueNeoPreviousUnfinished,
+        wonderlandSueNeoNeighborSpread,
+        wonderlandSueNeoUnpaid,
+        wonderlandSueNeoDeepUnpaid,
+        wonderlandSueNeoGamesTrust,
+      ];
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability,
+        wonderlandSueNeoHistoryReady,
+        wonderlandSueNeoHistoryShort,
+        wonderlandSueNeoLosingThree,
+        wonderlandSueNeoLosingFour,
+        wonderlandSueNeoLosingFive,
+        wonderlandSueNeoPreviousDeep,
+        wonderlandSueNeoPreviousGenuine,
+        wonderlandSueNeoPreviousStrongGenuine,
+        wonderlandSueNeoPreviousUnfinished,
+        wonderlandSueNeoNeighborSpread,
+        wonderlandSueNeoUnpaid,
+        wonderlandSueNeoDeepUnpaid,
+        wonderlandSueNeoGamesTrust,
+        wonderlandSueNeoWinningDanger,
+        wonderlandSueNeoStrongWinningDanger,
+        wonderlandSueNeoTreatmentDone,
+        wonderlandSueNeoShortTreatment,
+        wonderlandSueNeoBbBiased,
+        wonderlandSueNeoLowActivity,
+        wonderlandSueNeoNoPreviousHigh,
+        wonderlandSueNeoLongNeglect,
+        wonderlandSueNeoOverused,
+        wonderlandSueNeoOutputOnly,
+        wonderlandSueNeoBbBiasedNoSupport,
+        treatmentDone: wonderlandSueNeoTreatmentDone || wonderlandSueNeoShortTreatment,
+        lowConfidence: wonderlandSueNeoHistoryShort || wonderlandSueNeoLowActivity,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
       };
     }
 
@@ -15067,6 +15354,110 @@ function calculateMachineScore(definition, metrics, features) {
       score -= streak >= 7 ? 4 : 0;
 
       return Math.round(clamp(score, 0, scoreCap));
+    }
+
+    if (activeLogicKey === "wonderland-sue-neo-aim") {
+      let score = 35;
+
+      score += scoreAtLeast(streak, [
+        { minimum: 5, points: 20 },
+        { minimum: 4, points: 16 },
+        { minimum: 3, points: 12 },
+        { minimum: 2, points: 6 },
+      ]);
+
+      score += scoreAtMost(previousDifference, [
+        { maximum: -1200, points: 12 },
+        { maximum: -800, points: 8 },
+        { maximum: -400, points: 4 },
+      ]);
+
+      if (Number.isFinite(previousMachineSettingFivePlusProbability)) {
+        score += scoreAtLeast(previousMachineSettingFivePlusProbability, [
+          { minimum: 0.7, points: 12 },
+          { minimum: 0.5, points: 9 },
+          { minimum: 0.35, points: 5 },
+        ]);
+      }
+
+      const previousGenuine =
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5;
+      const previousStrongOutput =
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.4;
+
+      score += previousGames >= 4000 && previousGenuine && previousDifference < 1200 ? 7 : 0;
+      score -= previousGames >= 4000 && previousGenuine && previousDifference >= 1800 ? 4 : 0;
+      score += previousGames >= 3000 && features.previousCombinedDenominator >= 190 ? 5 : 0;
+      score += previousGames >= 3000 && features.previousRbDenominator >= 450 ? 4 : 0;
+
+      score += scoreAtMost(recentTwentyOneNetTotal, [
+        { maximum: -3000, points: 7 },
+        { maximum: -1500, points: 4 },
+      ]);
+      score += scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -3000, points: 5 },
+        { maximum: -1800, points: 3 },
+      ]);
+
+      if (recentTwentyOneGamesTotal >= 70000) {
+        score += recentTwentyOneNetTotal <= -3000 ? 6 : recentTwentyOneNetTotal <= -1000 ? 3 : 0;
+      }
+
+      score += previousGames >= 3500 ? 3 : 0;
+      score += recentSevenGamesTotal >= 39000 ? 3 : 0;
+      score -= previousGames < 1500 ? 8 : 0;
+      score -= recentSevenGamesTotal < 26000 ? 6 : 0;
+
+      score +=
+        previousAdjacentMachineHighContentCountNear2 >= 3
+          ? 10
+          : previousAdjacentMachineHighContentCountNear2 >= 2
+            ? 8
+            : previousAdjacentMachineHighContentCountNear2 >= 1
+              ? 3
+              : 0;
+
+      score -= scoreAtLeast(winningStreak, [
+        { minimum: 4, points: 15 },
+        { minimum: 3, points: 12 },
+        { minimum: 2, points: 8 },
+      ]);
+
+      const treatmentDone =
+        recentFourteenNetTotal >= 3500 ||
+        (recentSevenNetTotal >= 3000 && features.recentSevenCombinedDenominator <= 140);
+      const shortTreatment =
+        recentSevenNetTotal >= 2500 ||
+        (previousDifference >= 1800 && previousStrongOutput);
+      score -= treatmentDone ? 8 : 0;
+      score -= shortTreatment ? 4 : 0;
+      score -=
+        previousGames >= 3000 &&
+        previousDifference >= 1200 &&
+        features.previousRbDenominator >= 360
+          ? 10
+          : 0;
+      score -=
+        streak <= 1 &&
+        ((!Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 21) ||
+          (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 8))
+          ? 5
+          : 0;
+      score -= recentTwentyOneMachineHighContentCount >= 7 && recentTwentyOneNetTotal >= 2000 ? 4 : 0;
+      score -=
+        previousDifference >= 1800 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability < 0.35
+          ? 6
+          : 0;
+
+      if (historyRowCount < 21) {
+        score = Math.min(score, 40);
+      }
+
+      return Math.round(clamp(score, 0, 100));
     }
 
     if (activeLogicKey === "sengawa-uno-neo-aim") {
