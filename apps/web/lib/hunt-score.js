@@ -1007,6 +1007,10 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["スロットまるみつ大橋店", "スロットまるみつ大橋", "まるみつ大橋店", "まるみつ大橋"],
     targetMachines: SLOT_MARUMITSU_OHASHI_TARGET_MACHINES,
     defaultLogicKey: "slot-marumitsu-ohashi-a",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "slot-marumitsu-ohashi-neo-aim",
+      "ネオアイムジャグラーＥＸ": "slot-marumitsu-ohashi-neo-aim",
+    },
   },
   {
     key: "wonderland-minamigaoka",
@@ -2025,6 +2029,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
+    if (contentRule === "slot-marumitsu-ohashi-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3500 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3500 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
   }
   if (
@@ -2401,6 +2412,7 @@ function isMachineLowContentWindowRow(row, machineName, config = null) {
       "plaza-honten-ii-neo-aim",
       "plaza-honten-neo-aim",
       "plaza3-neo-aim",
+      "slot-marumitsu-ohashi-neo-aim",
     ].includes(
       readMachineContentRule(config, machineName),
     )
@@ -2492,6 +2504,15 @@ function isMachineWeakContentWindowRow(row, machineName, config = null) {
       );
     }
     if (readMachineContentRule(config, machineName) === "plaza3-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        games >= 2500 &&
+        ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability < 0.3) ||
+          rbDenominator > 400 ||
+          combinedDenominator > 170)
+      );
+    }
+    if (readMachineContentRule(config, machineName) === "slot-marumitsu-ohashi-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       return (
         games >= 2500 &&
@@ -2713,6 +2734,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 4000 && settingFivePlusProbability >= 0.7;
     }
     return games >= 4000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "slot-marumitsu-ohashi-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 5000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 5000 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
     (normalizedMachineName === normalizeText("ファンキージャグラー２ＫＴ") ||

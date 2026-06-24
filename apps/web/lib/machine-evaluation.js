@@ -279,6 +279,13 @@ function isPlaza3Store(storeName) {
   );
 }
 
+function isSlotMarumitsuOhashiStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["スロットまるみつ大橋店", "スロットまるみつ大橋", "まるみつ大橋店", "まるみつ大橋"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function readDateDayNumber(dateText) {
   const normalized = normalizeText(dateText);
   const match = normalized.match(/^\d{4}-\d{2}-(\d{2})$/u) ?? normalized.match(/^\d{2}\/\d{2}\/(\d{2})$/u);
@@ -2005,6 +2012,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "plaza3-neo-aim-event",
         "プラザ3_ネオアイムEX_特定日_間隔補助_v1",
         "plaza3-neo-event-rank1-gap5",
+      ),
+      buildLogicVariant(
+        "slot-marumitsu-ohashi-neo-aim",
+        "まるみつ大橋店_ネオアイム_沈み返済連敗ロジック_v1",
+        "slot-marumitsu-ohashi-neo-free-a",
       ),
     ],
     profile: "juggler",
@@ -4648,6 +4660,167 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["plaza3-neo-aim-event"],
       ),
       buildCondition(
+        "slot-marumitsu-ohashi-neo-free-a",
+        "自由A バランス",
+        "対象76日 / 選択105台 / RB1/306.2 / 合算1/142.6 / 平均+446枚 / 機械割102.48% / 平均56 35.2% / 中央56 30.2% / 56>=50 27.6% / RB<=300 41.9% / RB>400 18.1% / 段階条件より実戦優先",
+        {
+          rankMax: 2,
+          requiredFlags: ["slotMarumitsuOhashiNeoHistoryReady", "slotMarumitsuOhashiNeoFreeA"],
+        },
+        ["slot-marumitsu-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "slot-marumitsu-ohashi-neo-free-b",
+        "自由B 単独本命",
+        "対象49日 / 選択49台 / RB1/305.9 / 合算1/140.9 / 平均+553枚 / 機械割103.11% / 平均56 35.7% / 中央56 31.9% / 56>=50 28.6% / RB<=300 44.9% / RB>400 16.3% / 1台だけ座る日向き",
+        {
+          rankMax: 1,
+          minNextGap: 8,
+          requiredFlags: ["slotMarumitsuOhashiNeoHistoryReady", "slotMarumitsuOhashiNeoFreeB"],
+        },
+        ["slot-marumitsu-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "slot-marumitsu-ohashi-neo-free-c",
+        "自由C 危険0本命",
+        "対象42日 / 選択42台 / RB1/307.0 / 合算1/141.1 / 平均+575枚 / 機械割103.18% / 平均56 35.6% / 中央56 31.0% / 56>=50 31.0% / RB<=300 42.9% / RB>400 16.7% / 危険除外版",
+        {
+          rankMax: 1,
+          minNextGap: 8,
+          maxDanger: 0,
+          requiredFlags: ["slotMarumitsuOhashiNeoHistoryReady", "slotMarumitsuOhashiNeoFreeC"],
+        },
+        ["slot-marumitsu-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "slot-marumitsu-ohashi-neo-free-d",
+        "自由D RB最軽量",
+        "対象6日 / 選択6台 / RB1/268.9 / 合算1/138.3 / 平均+435枚 / 機械割102.26% / 平均56 50.4% / 中央56 55.9% / 56>=50 50.0% / RB<=300 66.7% / RB>400 16.7% / 6件のみの参考最上位",
+        {
+          maxDanger: 0,
+          requiredFlags: ["slotMarumitsuOhashiNeoHistoryReady", "slotMarumitsuOhashiNeoFreeD"],
+        },
+        ["slot-marumitsu-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "slot-marumitsu-ohashi-neo-wide310",
+        "広め310",
+        "対象82日 / 選択116台 / 総G690,548 / BB1/270.5 / RB1/308.7 / 合算1/144.2 / 平均+337枚 / 機械割101.88% / 勝率53.4% / 平均56 34.1% / 中央56 26.9% / 56>=50 25.9% / 56<30 51.7% / RB<=300 39.7% / RB>400 18.1% / 広く拾う下限",
+        {
+          rankMax: 2,
+          requiredFlags: [
+            "slotMarumitsuOhashiNeoHistoryReady",
+            "slotMarumitsuOhashiNeoLosing2",
+            "slotMarumitsuOhashiNeoRecentThreeDeep1500",
+          ],
+        },
+        ["slot-marumitsu-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "slot-marumitsu-ohashi-neo-weak300",
+        "弱本命300",
+        "対象34日 / 選択39台 / 総G224,954 / BB1/266.5 / RB1/297.6 / 合算1/140.6 / 平均+470枚 / 機械割102.72% / 勝率59.0% / 平均56 37.5% / 中央56 32.4% / 56>=50 30.8% / 56<30 46.2% / RB<=300 43.6% / RB>400 17.9% / 本命入口",
+        {
+          minScore: 65,
+          requiredFlags: [
+            "slotMarumitsuOhashiNeoHistoryReady",
+            "slotMarumitsuOhashiNeoStrongLosing",
+            "slotMarumitsuOhashiNeoRecentThreeDeep2000",
+          ],
+        },
+        ["slot-marumitsu-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "slot-marumitsu-ohashi-neo-main290",
+        "本命290",
+        "対象17日 / 選択18台 / 総G105,977 / BB1/281.1 / RB1/284.9 / 合算1/141.5 / 平均+276枚 / 機械割101.56% / 勝率50.0% / 平均56 42.2% / 中央56 37.7% / 56>=50 33.3% / 56<30 38.9% / RB<=300 55.6% / RB>400 22.2% / 件数少なめ",
+        {
+          requiredFlags: [
+            "slotMarumitsuOhashiNeoHistoryReady",
+            "slotMarumitsuOhashiNeoStrongLosing",
+            "slotMarumitsuOhashiNeoNearbyLeftBehind",
+          ],
+        },
+        ["slot-marumitsu-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "slot-marumitsu-ohashi-neo-strong280",
+        "強280",
+        "対象12日 / 選択13台 / 総G82,058 / BB1/274.4 / RB1/277.2 / 合算1/137.9 / 平均+521枚 / 機械割102.75% / 勝率61.5% / 平均56 46.3% / 中央56 38.2% / 56>=50 38.5% / 56<30 30.8% / RB<=300 61.5% / RB>400 15.4% / 件数13件なので過信禁止",
+        {
+          maxDanger: 0,
+          requiredFlags: [
+            "slotMarumitsuOhashiNeoHistoryReady",
+            "slotMarumitsuOhashiNeoStrongLosing",
+            "slotMarumitsuOhashiNeoNearbyLeftBehind",
+          ],
+        },
+        ["slot-marumitsu-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "slot-marumitsu-ohashi-neo-best270-reference",
+        "最本命270参考",
+        "対象6日 / 選択6台 / 総G38,446 / BB1/284.8 / RB1/268.9 / 合算1/138.3 / 平均+435枚 / 機械割102.26% / 勝率66.7% / 平均56 50.4% / 中央56 55.9% / 56>=50 50.0% / 56<30 33.3% / RB<=300 66.7% / RB>400 16.7% / 小サンプル注意",
+        {
+          maxDanger: 0,
+          requiredFlags: [
+            "slotMarumitsuOhashiNeoHistoryReady",
+            "slotMarumitsuOhashiNeoStrongLosing",
+            "slotMarumitsuOhashiNeoNearbyLeftBehind",
+            "slotMarumitsuOhashiNeoDeepSink",
+          ],
+        },
+        ["slot-marumitsu-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "slot-marumitsu-ohashi-neo-watch-history-short",
+        "見送り_履歴不足",
+        "21営業日履歴未満は参考表示のみ",
+        {
+          requiredFlags: ["slotMarumitsuOhashiNeoHistoryShort"],
+        },
+        ["slot-marumitsu-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "slot-marumitsu-ohashi-neo-watch-treatment-done",
+        "見送り_処遇完了",
+        "対象74日 / 選択124台 / RB1/404.0 / 合算1/164.7 / 平均-222枚 / 機械割98.28% / 平均56 16.5% / 56>=50 4.0%",
+        {
+          requiredFlags: ["slotMarumitsuOhashiNeoTreatmentDone"],
+        },
+        ["slot-marumitsu-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "slot-marumitsu-ohashi-neo-watch-previous-high",
+        "見送り_前日高内容",
+        "対象77日 / 選択111台 / RB1/415.3 / 合算1/166.6 / 平均-241枚 / 機械割98.19% / 平均56 15.1% / 56>=50 5.4%",
+        {
+          requiredFlags: ["slotMarumitsuOhashiNeoPreviousHighContent"],
+        },
+        ["slot-marumitsu-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "slot-marumitsu-ohashi-neo-watch-danger2",
+        "見送り_危険2個以上",
+        "危険条件2個以上は見送り寄り",
+        {
+          minDanger: 2,
+          requiredFlags: ["slotMarumitsuOhashiNeoHistoryReady"],
+        },
+        ["slot-marumitsu-ohashi-neo-aim"],
+      ),
+      buildCondition(
+        "slot-marumitsu-ohashi-neo-watch-score-low-weak-boost",
+        "見送り_70点未満強化1以下",
+        "70点未満かつ強化条件1個以下は見送り寄り",
+        {
+          maxScore: 69,
+          maxBoost: 1,
+          requiredFlags: ["slotMarumitsuOhashiNeoHistoryReady"],
+        },
+        ["slot-marumitsu-ohashi-neo-aim"],
+      ),
+      buildCondition(
         "beam-hikari-main",
         "70点以上",
         "388件 / 103.33% / RB1/287.6 / p56 32.7%",
@@ -6182,6 +6355,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "plaza-honten-ii-neo-aim");
   } else if (isPlaza3Store(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "plaza3-neo-aim");
+  } else if (isSlotMarumitsuOhashiStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "slot-marumitsu-ohashi-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
@@ -6920,6 +7095,107 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "slot-marumitsu-ohashi-neo-aim") {
+      const slotMarumitsuOhashiNeoEffectiveDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : historyRowCount >= 21
+          ? historyRowCount
+          : null;
+      const slotMarumitsuOhashiNeoHistoryReady = historyRowCount >= 21;
+      const slotMarumitsuOhashiNeoHistoryShort = historyRowCount < 21;
+      const slotMarumitsuOhashiNeoLosing2 = streak >= 2;
+      const slotMarumitsuOhashiNeoStrongLosing = streak >= 4;
+      const slotMarumitsuOhashiNeoRecentThreeDeep1500 = recentThreeNetTotal <= -1500;
+      const slotMarumitsuOhashiNeoRecentThreeDeep2000 = recentThreeNetTotal <= -2000;
+      const slotMarumitsuOhashiNeoDeepSink = recentFourteenNetTotal <= -3000;
+      const slotMarumitsuOhashiNeoSteepSink =
+        recentSevenGamesTotal > 0 && recentSevenNetTotal / recentSevenGamesTotal <= -0.07;
+      const slotMarumitsuOhashiNeoUnpaid = recentTwentyOneNetTotal <= -2500;
+      const slotMarumitsuOhashiNeoPreviousStrongMistreatment =
+        previousDifference <= -900 && previousGames >= 3000;
+      const slotMarumitsuOhashiNeoNearbyLeftBehind =
+        (previousAdjacentMachineHighContentCount > 0 ||
+          previousAdjacentMachineNetTotal >= 2000 ||
+          previousAdjacentMachineNetTotalNear2 >= 2000) &&
+        (recentThreeNetTotal <= -600 || recentSevenNetTotal <= -1500);
+      const slotMarumitsuOhashiNeoTrustedGames =
+        (previousGames >= 3000 && previousGames <= 6500) || recentSevenGamesTotal >= 20000;
+      const slotMarumitsuOhashiNeoTreatmentDone =
+        previousDifference >= 2500 ||
+        (recentSevenNetTotal >= 4500 && features.recentSevenCombinedDenominator <= 145);
+      const slotMarumitsuOhashiNeoPreviousHighContent =
+        previousGames >= 3500 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5;
+      const slotMarumitsuOhashiNeoPreviousBbOutput =
+        previousDifference > 0 &&
+        (features.previousRbDenominator >= 400 || features.previousCombinedDenominator >= 170);
+      const slotMarumitsuOhashiNeoLongNeglect =
+        Number.isFinite(slotMarumitsuOhashiNeoEffectiveDaysSinceHigh) &&
+        slotMarumitsuOhashiNeoEffectiveDaysSinceHigh >= 20;
+      const slotMarumitsuOhashiNeoLowActivity = previousGames < 1500 && recentThreeGamesTotal < 8000;
+      const slotMarumitsuOhashiNeoRecentReturnTooMuch = recentFourteenNetTotal >= 3000;
+      const slotMarumitsuOhashiNeoFreeA =
+        slotMarumitsuOhashiNeoLosing2 && recentThreeNetTotal <= -2000;
+      const slotMarumitsuOhashiNeoFreeB = streak >= 3;
+      const boostFlags = [
+        slotMarumitsuOhashiNeoDeepSink,
+        slotMarumitsuOhashiNeoSteepSink,
+        slotMarumitsuOhashiNeoUnpaid,
+        slotMarumitsuOhashiNeoStrongLosing,
+        slotMarumitsuOhashiNeoPreviousStrongMistreatment,
+        slotMarumitsuOhashiNeoNearbyLeftBehind,
+        slotMarumitsuOhashiNeoTrustedGames,
+      ];
+      const dangerFlags = [
+        slotMarumitsuOhashiNeoTreatmentDone,
+        slotMarumitsuOhashiNeoPreviousHighContent,
+        slotMarumitsuOhashiNeoPreviousBbOutput,
+        slotMarumitsuOhashiNeoLongNeglect,
+        slotMarumitsuOhashiNeoLowActivity,
+        slotMarumitsuOhashiNeoRecentReturnTooMuch,
+      ];
+      const dangerCount = dangerFlags.filter(Boolean).length;
+      const slotMarumitsuOhashiNeoFreeC = slotMarumitsuOhashiNeoFreeB && dangerCount === 0;
+      const slotMarumitsuOhashiNeoFreeD =
+        slotMarumitsuOhashiNeoStrongLosing &&
+        slotMarumitsuOhashiNeoNearbyLeftBehind &&
+        slotMarumitsuOhashiNeoDeepSink &&
+        dangerCount === 0;
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability,
+        slotMarumitsuOhashiNeoEffectiveDaysSinceHigh,
+        slotMarumitsuOhashiNeoHistoryReady,
+        slotMarumitsuOhashiNeoHistoryShort,
+        slotMarumitsuOhashiNeoLosing2,
+        slotMarumitsuOhashiNeoStrongLosing,
+        slotMarumitsuOhashiNeoRecentThreeDeep1500,
+        slotMarumitsuOhashiNeoRecentThreeDeep2000,
+        slotMarumitsuOhashiNeoDeepSink,
+        slotMarumitsuOhashiNeoSteepSink,
+        slotMarumitsuOhashiNeoUnpaid,
+        slotMarumitsuOhashiNeoPreviousStrongMistreatment,
+        slotMarumitsuOhashiNeoNearbyLeftBehind,
+        slotMarumitsuOhashiNeoTrustedGames,
+        slotMarumitsuOhashiNeoTreatmentDone,
+        slotMarumitsuOhashiNeoPreviousHighContent,
+        slotMarumitsuOhashiNeoPreviousBbOutput,
+        slotMarumitsuOhashiNeoLongNeglect,
+        slotMarumitsuOhashiNeoLowActivity,
+        slotMarumitsuOhashiNeoRecentReturnTooMuch,
+        slotMarumitsuOhashiNeoFreeA,
+        slotMarumitsuOhashiNeoFreeB,
+        slotMarumitsuOhashiNeoFreeC,
+        slotMarumitsuOhashiNeoFreeD,
+        treatmentDone: slotMarumitsuOhashiNeoTreatmentDone,
+        lowConfidence: slotMarumitsuOhashiNeoHistoryShort || slotMarumitsuOhashiNeoLowActivity,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount,
+      };
+    }
+
     if (
       activeLogicKey === "plaza3-neo-aim" ||
       activeLogicKey === "plaza3-neo-aim-normal" ||
@@ -11448,6 +11724,95 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "slot-marumitsu-ohashi-neo-aim") {
+      const slotMarumitsuOhashiNeoEffectiveDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : historyRowCount >= 21
+          ? historyRowCount
+          : null;
+      const slotMarumitsuOhashiNeoTreatmentDone =
+        previousDifference >= 2500 ||
+        (recentSevenNetTotal >= 4500 && features.recentSevenCombinedDenominator <= 145);
+      const slotMarumitsuOhashiNeoPreviousHighContent =
+        previousGames >= 3500 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5;
+
+      let score = 0;
+      score += scoreAtLeast(streak, [
+        { minimum: 5, points: 18 },
+        { minimum: 4, points: 15 },
+        { minimum: 3, points: 11 },
+        { minimum: 2, points: 5 },
+      ]);
+      score += scoreAtMost(recentThreeNetTotal, [
+        { maximum: -2500, points: 15 },
+        { maximum: -1500, points: 12 },
+        { maximum: -600, points: 5 },
+      ]);
+      score += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -3000, points: 12 },
+        { maximum: -2500, points: 10 },
+        { maximum: -1500, points: 6 },
+      ]);
+      score += scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -4000, points: 12 },
+        { maximum: -3000, points: 10 },
+        { maximum: -2000, points: 6 },
+      ]);
+      score += scoreAtMost(recentTwentyOneNetTotal, [
+        { maximum: -5000, points: 8 },
+        { maximum: -2500, points: 6 },
+        { maximum: -1000, points: 3 },
+      ]);
+      score += scoreAtMost(previousDifference, [
+        { maximum: -1200, points: 14 },
+        { maximum: -900, points: 12 },
+        { maximum: -450, points: 7 },
+      ]);
+      score += scoreAtLeast(previousCombinedDenominator, [
+        { minimum: 205, points: 8 },
+        { minimum: 177, points: 4 },
+      ]);
+      score += previousRbDenominator >= 400 && previousGames >= 2500 ? 3 : 0;
+      score +=
+        previousGames >= 3000 &&
+        previousDifference <= -800 &&
+        (previousRbDenominator >= 330 || previousCombinedDenominator >= 170)
+          ? 8
+          : 0;
+      score += previousGames >= 3000 && previousGames <= 6500 ? 4 : 0;
+      score +=
+        previousAdjacentMachineHighContentCount > 0 ||
+        previousAdjacentMachineNetTotal >= 2000 ||
+        previousAdjacentMachineNetTotalNear2 >= 2000
+          ? 6
+          : 0;
+      score += recentSevenGamesTotal > 0 && recentSevenNetTotal / recentSevenGamesTotal <= -0.07 ? 5 : 0;
+      score +=
+        Number.isFinite(slotMarumitsuOhashiNeoEffectiveDaysSinceHigh) &&
+        slotMarumitsuOhashiNeoEffectiveDaysSinceHigh >= 5 &&
+        slotMarumitsuOhashiNeoEffectiveDaysSinceHigh <= 18
+          ? 2
+          : 0;
+
+      score -= previousDifference >= 2500 ? 24 : previousDifference >= 900 ? 12 : 0;
+      score -= previousCombinedDenominator <= 140 ? 12 : 0;
+      score -= slotMarumitsuOhashiNeoPreviousHighContent ? 20 : 0;
+      score -= slotMarumitsuOhashiNeoTreatmentDone ? 14 : 0;
+      score -= recentFourteenNetTotal >= 3000 ? 14 : recentFourteenNetTotal >= 800 ? 6 : 0;
+      score -= recentSevenNetTotal >= 2500 ? 10 : recentSevenNetTotal >= 1000 ? 5 : 0;
+      score -=
+        Number.isFinite(slotMarumitsuOhashiNeoEffectiveDaysSinceHigh) &&
+        slotMarumitsuOhashiNeoEffectiveDaysSinceHigh >= 20
+          ? 5
+          : 0;
+      score -= previousGames < 1500 && recentThreeGamesTotal < 8000 ? 8 : 0;
+      score -= recentFourteenMachineHighContentCount >= 3 && recentFourteenNetTotal > 0 ? 6 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (
       activeLogicKey === "plaza3-neo-aim" ||
       activeLogicKey === "plaza3-neo-aim-normal" ||
