@@ -205,6 +205,10 @@ const TAMAYA_HONTEN_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const SUPER_HOLLYWOOD_1120_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const HAKATA_123_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
@@ -945,6 +949,24 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "tamaya-honten-neo-aim",
       "ネオアイムジャグラーＥＸ": "tamaya-honten-neo-aim",
+    },
+  },
+  {
+    key: "super-hollywood-1120",
+    storeNames: [
+      "スーパーハリウッド1120",
+      "スーパーハリウッド1120店",
+      "スーパーハリウッド１１２０",
+      "スーパーハリウッド１１２０店",
+      "SUPER HOLLYWOOD1120",
+      "SUPERHOLLYWOOD1120",
+      "ＳＵＰＥＲＨＯＬＬＹＷＯＯＤ１１２０",
+    ],
+    targetMachines: SUPER_HOLLYWOOD_1120_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "super-hollywood-1120-neo-aim",
+      "ネオアイムジャグラーＥＸ": "super-hollywood-1120-neo-aim",
     },
   },
   {
@@ -2048,6 +2070,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
+    if (contentRule === "super-hollywood-1120-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     if (contentRule === "slot-marumitsu-ohashi-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -2371,6 +2400,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 350 && combinedDenominator <= 160;
     }
+    if (contentRule === "super-hollywood-1120-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 2500 && settingFivePlusProbability >= 0.3;
+      }
+      return games >= 2500 && rbDenominator <= 350 && combinedDenominator <= 155;
+    }
     return games >= 5000 && rbDenominator <= 315 && combinedDenominator <= 145;
   }
   if (normalizedMachineName === normalizeText("スターハナハナ")) {
@@ -2432,6 +2468,14 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
 function isMachineLowContentWindowRow(row, machineName, config = null) {
   const normalizedMachineName = normalizeText(machineName);
   const games = readWindowField(row, "games");
+
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "super-hollywood-1120-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    return Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability < 0.3;
+  }
 
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
@@ -2549,6 +2593,15 @@ function isMachineWeakContentWindowRow(row, machineName, config = null) {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       return (
         games >= 2500 &&
+        ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability < 0.3) ||
+          rbDenominator > 400 ||
+          combinedDenominator > 170)
+      );
+    }
+    if (readMachineContentRule(config, machineName) === "super-hollywood-1120-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        games >= 3000 &&
         ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability < 0.3) ||
           rbDenominator > 400 ||
           combinedDenominator > 170)
@@ -8246,6 +8299,9 @@ function calculateWindowMetrics(
   const recentThreeMachineHighContentCount = recentThreeRows.filter((windowRow) =>
     isMachineHighContentWindowRow(windowRow, currentMachineName, config),
   ).length;
+  const recentThreeMachineGoodContentCount = recentThreeRows.filter((windowRow) =>
+    isMachineGoodContentWindowRow(windowRow, currentMachineName, config),
+  ).length;
   const recentFiveMachineHighContentCount = recentFiveRows.filter((windowRow) =>
     isMachineHighContentWindowRow(windowRow, currentMachineName, config),
   ).length;
@@ -8306,6 +8362,15 @@ function calculateWindowMetrics(
     for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
       const historyWindowRow = historyWindowRows.at(-offset);
       if (isHistoryMachineHighContentWindowRow(historyWindowRow)) {
+        return offset;
+      }
+    }
+    return null;
+  })();
+  const daysSinceMachineGoodContent = (() => {
+    for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
+      const historyWindowRow = historyWindowRows.at(-offset);
+      if (isHistoryMachineGoodContentWindowRow(historyWindowRow)) {
         return offset;
       }
     }
@@ -8603,6 +8668,10 @@ function calculateWindowMetrics(
       metricWindowRows,
       isHistoryMachineGoodContentWindowRow,
     ),
+    machineLowContentStreak: calculateCurrentMachineContentStreak(
+      metricWindowRows,
+      isHistoryMachineLowContentWindowRow,
+    ),
     machineWeakContentStreak: calculateCurrentMachineContentStreak(
       metricWindowRows,
       isHistoryMachineWeakContentWindowRow,
@@ -8611,6 +8680,7 @@ function calculateWindowMetrics(
     recentThreeHighSettingEstimateCount,
     recentThreeSettingFiveCount,
     recentThreeMachineHighContentCount,
+    recentThreeMachineGoodContentCount,
     recentFiveMachineHighContentCount,
     recentSevenMachineHighContentCount,
     recentTenMachineHighContentCount,
@@ -8638,6 +8708,7 @@ function calculateWindowMetrics(
     recentThreeMachineSettingFivePlusProbabilityAverage,
     recentFiveBigWin1000Count,
     daysSinceMachineHighContent,
+    daysSinceMachineGoodContent,
     daysSinceMachineStrongHighContent,
     daysSinceMachineBigWin1000,
     daysSinceMachineBigWin1500,

@@ -385,6 +385,19 @@ function isTamayaHontenStore(storeName) {
   );
 }
 
+function isSuperHollywood1120Store(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "スーパーハリウッド1120",
+    "スーパーハリウッド1120店",
+    "スーパーハリウッド１１２０",
+    "スーパーハリウッド１１２０店",
+    "SUPER HOLLYWOOD1120",
+    "SUPERHOLLYWOOD1120",
+    "ＳＵＰＥＲＨＯＬＬＹＷＯＯＤ１１２０",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
 function readDateDayNumber(dateText) {
   const normalized = normalizeText(dateText);
   const match = normalized.match(/^\d{4}-\d{2}-(\d{2})$/u) ?? normalized.match(/^\d{2}\/\d{2}\/(\d{2})$/u);
@@ -2131,6 +2144,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "tamaya-honten-neo-aim-event",
         "玉屋本店_ネオアイムEX_特定日_前日低GREG枯れ最本命ロジック_v1",
         "tamaya-honten-neo-event-best280",
+      ),
+      buildLogicVariant(
+        "super-hollywood-1120-neo-aim",
+        "SH1120_NeoIm_近隣連動本物感継続ロジック_v1",
+        "sh1120-neo-free-previous-strong-neighbor",
       ),
       buildLogicVariant(
         "slot-marumitsu-ohashi-neo-aim",
@@ -5169,6 +5187,166 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["tamaya-honten-neo-aim-event"],
       ),
       buildCondition(
+        "sh1120-neo-free-previous-strong-neighbor",
+        "自由_前日強台＋隣反応",
+        "対象10日 / 選択20台 / RB1/263.5 / 合算1/128.8 / 平均+626枚 / 機械割105.1% / 平均56 47.8% / 中央56 45.1% / 56>=50 40.0% / 56<30 20.0% / 最本命候補",
+        {
+          requiredFlags: ["sh1120NeoHistoryReady", "sh1120NeoFreePreviousStrongNeighbor"],
+        },
+        ["super-hollywood-1120-neo-aim"],
+      ),
+      buildCondition(
+        "sh1120-neo-free-cluster-main",
+        "自由_島連動本命",
+        "対象11日 / 選択32台 / RB1/284.3 / 合算1/132.8 / 平均+689枚 / 機械割104.6% / 平均56 43.9% / 中央56 42.7% / 56>=50 31.2% / 56<30 25.0% / 実戦主力",
+        {
+          requiredFlags: ["sh1120NeoHistoryReady", "sh1120NeoFreeClusterMain"],
+        },
+        ["super-hollywood-1120-neo-aim"],
+      ),
+      buildCondition(
+        "sh1120-neo-strong280",
+        "強条件1/280",
+        "対象7日 / 選択20台 / 総G100,237 / BB1/246.9 / RB1/278.4 / 合算1/130.9 / 平均+775枚 / 機械割105.2% / 勝率65.0% / 平均56 46.2% / 中央56 43.7% / 56>=50 35.0% / 56<30 25.0%",
+        {
+          requiredFlags: ["sh1120NeoHistoryReady", "sh1120NeoClusterMain", "sh1120NeoHighGamesTrust"],
+        },
+        ["super-hollywood-1120-neo-aim"],
+      ),
+      buildCondition(
+        "sh1120-neo-best270",
+        "最本命1/270",
+        "対象10日 / 選択20台 / 総G81,940 / BB1/252.1 / RB1/263.5 / 合算1/128.8 / 平均+626枚 / 機械割105.1% / 勝率55.0% / 平均56 47.8% / 中央56 45.1% / 56>=50 40.0% / 56<30 20.0% / 20台のみで過信注意",
+        {
+          requiredFlags: ["sh1120NeoHistoryReady", "sh1120NeoFreePreviousStrongNeighbor"],
+        },
+        ["super-hollywood-1120-neo-aim"],
+      ),
+      buildCondition(
+        "sh1120-neo-main290",
+        "本命1/290",
+        "対象11日 / 選択33台 / 総G161,706 / BB1/251.1 / RB1/285.7 / 合算1/133.6 / 平均+632枚 / 機械割104.3% / 勝率63.6% / 平均56 43.1% / 中央56 42.3% / 56>=50 30.3% / 56<30 27.3%",
+        {
+          requiredFlags: ["sh1120NeoHistoryReady", "sh1120NeoClusterMain"],
+        },
+        ["super-hollywood-1120-neo-aim"],
+      ),
+      buildCondition(
+        "sh1120-neo-weak300",
+        "弱め本命1/300",
+        "対象29日 / 選択54台 / 総G221,498 / BB1/256.1 / RB1/298.9 / 合算1/137.9 / 平均+390枚 / 機械割103.2% / 勝率50.0% / 平均56 36.9% / 中央56 30.6% / 56>=50 29.6% / 56<30 48.1% / 前日本物感の補助条件",
+        {
+          requiredFlags: ["sh1120NeoHistoryReady", "sh1120NeoWeakMain300"],
+        },
+        ["super-hollywood-1120-neo-aim"],
+      ),
+      buildCondition(
+        "sh1120-neo-wide310",
+        "広め1/310",
+        "対象26日 / 選択88台 / 総G400,355 / BB1/265.5 / RB1/305.6 / 合算1/142.1 / 平均+241枚 / 機械割101.8% / 勝率52.3% / 平均56 35.5% / 中央56 37.2% / 56>=50 20.5% / 56<30 43.2%",
+        {
+          requiredFlags: ["sh1120NeoHistoryReady", "sh1120NeoWide310"],
+        },
+        ["super-hollywood-1120-neo-aim"],
+      ),
+      buildCondition(
+        "sh1120-neo-score90",
+        "90点以上",
+        "対象37日 / 選択190台 / RB1/322.7 / 合算1/144.9 / 平均+192枚 / 機械割101.5% / 平均56 30.9% / 56>=50 20.5% / 56<30 56.3% / 候補抽出用",
+        {
+          minScore: 90,
+          requiredFlags: ["sh1120NeoHistoryReady"],
+        },
+        ["super-hollywood-1120-neo-aim"],
+      ),
+      buildCondition(
+        "sh1120-neo-top3",
+        "上位3",
+        "対象37日 / 選択111台 / RB1/329.5 / 合算1/144.4 / 平均+258枚 / 機械割102.0% / 平均56 29.8% / 56>=50 18.9% / 56<30 56.8% / 補助候補",
+        {
+          rankMax: 3,
+          requiredFlags: ["sh1120NeoHistoryReady"],
+        },
+        ["super-hollywood-1120-neo-aim"],
+      ),
+      buildCondition(
+        "sh1120-neo-free-super-combined-neighbor",
+        "自由_前日超合算＋隣反応",
+        "対象12日 / 選択22台 / RB1/266.6 / 合算1/133.7 / 平均+342枚 / 機械割102.9% / 平均56 46.1% / 中央56 41.9% / 56>=50 45.5% / 56<30 27.3% / 点数補強の強条件",
+        {
+          minScore: 90,
+          requiredFlags: ["sh1120NeoHistoryReady", "sh1120NeoFreePreviousSuperCombinedNeighbor"],
+        },
+        ["super-hollywood-1120-neo-aim"],
+      ),
+      buildCondition(
+        "sh1120-neo-free-three-good-neighbor",
+        "自由_3日連続本物感＋隣",
+        "対象14日 / 選択23台 / RB1/279.9 / 合算1/135.0 / 平均+475枚 / 機械割103.3% / 平均56 43.4% / 中央56 42.4% / 勝率69.6% / 点数が低い日でも拾う補助本命",
+        {
+          requiredFlags: ["sh1120NeoHistoryReady", "sh1120NeoFreeThreeGoodNeighbor"],
+        },
+        ["super-hollywood-1120-neo-aim"],
+      ),
+      buildCondition(
+        "sh1120-neo-gap8-support",
+        "補助_次点差8以上",
+        "対象4日 / 選択4台 / RB1/243.0 / 合算1/130.5 / 平均+416枚 / 機械割102.6% / 勝率75.0% / 平均56 50.2% / 56>=50 50.0% / 件数少の強い補助サイン",
+        {
+          minNextGap: 8,
+          requiredFlags: ["sh1120NeoHistoryReady"],
+        },
+        ["super-hollywood-1120-neo-aim"],
+      ),
+      buildCondition(
+        "sh1120-neo-watch-history-short",
+        "見送り_履歴不足",
+        "履歴7営業日未満は採用条件対象外。点数は最大70点に制限",
+        {
+          requiredFlags: ["sh1120NeoHistoryShort"],
+        },
+        ["super-hollywood-1120-neo-aim"],
+      ),
+      buildCondition(
+        "sh1120-neo-watch-danger2",
+        "見送り_危険2個以上",
+        "危険条件が2個以上ある台は原則見送り",
+        {
+          minDanger: 2,
+          requiredFlags: ["sh1120NeoHistoryReady"],
+        },
+        ["super-hollywood-1120-neo-aim"],
+      ),
+      buildCondition(
+        "sh1120-neo-watch-weak-boost",
+        "見送り_強化1以下",
+        "70点以上でも強化条件が1個以下なら点数だけ高い危険台として扱う",
+        {
+          minScore: 70,
+          maxBoost: 1,
+          requiredFlags: ["sh1120NeoHistoryReady"],
+        },
+        ["super-hollywood-1120-neo-aim"],
+      ),
+      buildCondition(
+        "sh1120-neo-watch-deep-sink",
+        "見送り_深沈み放置",
+        "対象37日 / 選択297台 / RB1/347.1 / 合算1/152.7 / 平均-41枚 / 機械割99.7% / 平均56 25.2% / 56>=50 10.1% / 56<30 69.7% / へこみ狙いは主軸にしない",
+        {
+          requiredFlags: ["sh1120NeoHistoryReady", "sh1120NeoDeepSinkNeglect"],
+        },
+        ["super-hollywood-1120-neo-aim"],
+      ),
+      buildCondition(
+        "sh1120-neo-watch-long-blank",
+        "見送り_長期空白",
+        "対象30日 / 選択302台 / RB1/340.2 / 合算1/151.3 / 平均-19枚 / 機械割99.9% / 平均56 26.3% / 56>=50 10.3% / 56<30 67.2% / ローテ待ちではなく放置リスク",
+        {
+          requiredFlags: ["sh1120NeoHistoryReady", "sh1120NeoLongBlank"],
+        },
+        ["super-hollywood-1120-neo-aim"],
+      ),
+      buildCondition(
         "slot-marumitsu-ohashi-neo-free-a",
         "自由A バランス",
         "対象76日 / 選択105台 / RB1/306.2 / 合算1/142.6 / 平均+446枚 / 機械割102.48% / 平均56 35.2% / 中央56 30.2% / 56>=50 27.6% / RB<=300 41.9% / RB>400 18.1% / 段階条件より実戦優先",
@@ -6868,6 +7046,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "tamaya-ohashi-neo-aim");
   } else if (isTamayaHontenStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "tamaya-honten-neo-aim");
+  } else if (isSuperHollywood1120Store(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "super-hollywood-1120-neo-aim");
   } else if (isSlotMarumitsuOhashiStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "slot-marumitsu-ohashi-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
@@ -7486,6 +7666,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentTwentyOneMachineHighContentCount = readNumber(metrics.recentTwentyOneMachineHighContentCount);
   const recentFourteenMachineStrongHighContentCount = readNumber(metrics.recentFourteenMachineStrongHighContentCount);
   const recentThirtyMachineHighContentCount = readNumber(metrics.recentThirtyMachineHighContentCount);
+  const recentThreeMachineGoodContentCount = readNumber(metrics.recentThreeMachineGoodContentCount);
   const recentSevenMachineGoodContentCount = readNumber(metrics.recentSevenMachineGoodContentCount);
   const recentThreeMachineLowContentCount = readNumber(metrics.recentThreeMachineLowContentCount);
   const recentFiveMachineLowContentCount = readNumber(metrics.recentFiveMachineLowContentCount);
@@ -7495,6 +7676,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentFourteenMachineGoodContentCount = readNumber(metrics.recentFourteenMachineGoodContentCount);
   const recentTwentyOneMachineGoodContentCount = readNumber(metrics.recentTwentyOneMachineGoodContentCount);
   const daysSinceMachineHighContent = readNullableNumber(metrics.daysSinceMachineHighContent);
+  const daysSinceMachineGoodContent = readNullableNumber(metrics.daysSinceMachineGoodContent);
   const daysSinceMachineStrongHighContent = readNullableNumber(metrics.daysSinceMachineStrongHighContent);
   const daysSinceMachineBigWin1000 = readNullableNumber(metrics.daysSinceMachineBigWin1000);
   const daysSinceMachineBigWin1500 = readNullableNumber(metrics.daysSinceMachineBigWin1500);
@@ -7511,6 +7693,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
     metrics.recentThreeMachineSettingFivePlusProbabilityAverage,
   );
   const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
+  const machineLowContentStreak = readNumber(metrics.machineLowContentStreak);
   const machineWeakContentStreak = readNumber(metrics.machineWeakContentStreak);
   const recentFiveBigWin1200Count = readNumber(metrics.recentFiveBigWin1200Count);
   const recentFiveBigWin1000Count = readNumber(metrics.recentFiveBigWin1000Count);
@@ -7899,6 +8082,95 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         tamayaHontenNeoNormalDanger,
         treatmentDone: tamayaHontenNeoTreatmentDone,
         lowConfidence: tamayaHontenNeoHistoryShort || tamayaHontenNeoLowTrust,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount,
+      };
+    }
+
+    if (activeLogicKey === "super-hollywood-1120-neo-aim") {
+      const sh1120NeoHistoryReady = historyRowCount >= 7;
+      const sh1120NeoHistoryShort = historyRowCount < 7;
+      const sh1120NeoPreviousP56Strong =
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5;
+      const sh1120NeoPreviousRbGood = features.previousRbDenominator <= 300;
+      const sh1120NeoPreviousCombinedStrong = features.previousCombinedDenominator <= 130;
+      const sh1120NeoRecentThreeGoodMultiple = recentThreeMachineGoodContentCount >= 2;
+      const sh1120NeoRecentThreeCombinedGood = features.recentThreeCombinedDenominator <= 140;
+      const sh1120NeoHighGamesTrust = previousGames >= 5500 || recentThreeGamesTotal >= 15000;
+      const sh1120NeoNearbyHighContent = previousAdjacentMachineHighContentCountNear2 >= 2;
+      const sh1120NeoRecentNetAngle = recentThreeNetTotal >= 1500;
+      const sh1120NeoClusterMain =
+        previousAdjacentMachineHighContentCountNear2 >= 2 &&
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent <= 2;
+      const sh1120NeoFreePreviousStrongNeighbor =
+        sh1120NeoPreviousP56Strong &&
+        previousDifference >= 1000 &&
+        previousAdjacentMachineHighContentCount >= 1;
+      const sh1120NeoFreePreviousSuperCombinedNeighbor =
+        features.previousCombinedDenominator <= 120 && previousAdjacentMachineHighContentCount >= 1;
+      const sh1120NeoFreeThreeGoodNeighbor =
+        recentThreeMachineGoodContentCount >= 3 && previousAdjacentMachineHighContentCount >= 1;
+      const sh1120NeoWeakMain300 =
+        sh1120NeoPreviousP56Strong && features.previousCombinedDenominator <= 120 && sh1120NeoHighGamesTrust;
+      const sh1120NeoLowContentContinuous = machineLowContentStreak >= 3;
+      const sh1120NeoLongBlank =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 14;
+      const sh1120NeoDeepSinkNeglect = recentFiveNetTotal <= -2500 || streak >= 5;
+      const sh1120NeoLowGamesRisk = previousGames < 2000 || recentThreeGamesTotal < 9000;
+      const sh1120NeoBbBiasedDone =
+        (recentFiveNetTotal >= 3000 && features.recentFiveRbDenominator > 360) ||
+        (previousDifference >= 2500 &&
+          Number.isFinite(previousMachineSettingFivePlusProbability) &&
+          previousMachineSettingFivePlusProbability < 0.35);
+      const dangerFlags = [
+        sh1120NeoLowContentContinuous,
+        sh1120NeoLongBlank,
+        sh1120NeoDeepSinkNeglect,
+        sh1120NeoLowGamesRisk,
+        sh1120NeoBbBiasedDone,
+      ];
+      const dangerCount = dangerFlags.filter(Boolean).length;
+      const sh1120NeoFreeClusterMain = sh1120NeoClusterMain && !sh1120NeoDeepSinkNeglect;
+      const sh1120NeoWide310 = previousAdjacentMachineHighContentCountNear2 >= 2 && dangerCount <= 1;
+      const boostFlags = [
+        sh1120NeoPreviousP56Strong,
+        sh1120NeoPreviousRbGood,
+        sh1120NeoPreviousCombinedStrong,
+        sh1120NeoRecentThreeGoodMultiple,
+        sh1120NeoRecentThreeCombinedGood,
+        sh1120NeoHighGamesTrust,
+        sh1120NeoNearbyHighContent,
+        sh1120NeoRecentNetAngle,
+      ];
+
+      return {
+        ...features,
+        sh1120NeoHistoryReady,
+        sh1120NeoHistoryShort,
+        sh1120NeoPreviousP56Strong,
+        sh1120NeoPreviousRbGood,
+        sh1120NeoPreviousCombinedStrong,
+        sh1120NeoRecentThreeGoodMultiple,
+        sh1120NeoRecentThreeCombinedGood,
+        sh1120NeoHighGamesTrust,
+        sh1120NeoNearbyHighContent,
+        sh1120NeoRecentNetAngle,
+        sh1120NeoClusterMain,
+        sh1120NeoFreeClusterMain,
+        sh1120NeoFreePreviousStrongNeighbor,
+        sh1120NeoFreePreviousSuperCombinedNeighbor,
+        sh1120NeoFreeThreeGoodNeighbor,
+        sh1120NeoWeakMain300,
+        sh1120NeoWide310,
+        sh1120NeoLowContentContinuous,
+        sh1120NeoLongBlank,
+        sh1120NeoDeepSinkNeglect,
+        sh1120NeoLowGamesRisk,
+        sh1120NeoBbBiasedDone,
+        treatmentDone: sh1120NeoBbBiasedDone,
+        lowConfidence: sh1120NeoHistoryShort,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount,
       };
@@ -12162,6 +12434,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentTwentyOneMachineHighContentCount = readNumber(metrics.recentTwentyOneMachineHighContentCount);
   const recentThirtyMachineHighContentCount = readNumber(metrics.recentThirtyMachineHighContentCount);
   const recentFourteenMachineStrongHighContentCount = readNumber(metrics.recentFourteenMachineStrongHighContentCount);
+  const recentThreeMachineGoodContentCount = readNumber(metrics.recentThreeMachineGoodContentCount);
   const recentSevenMachineGoodContentCount = readNumber(metrics.recentSevenMachineGoodContentCount);
   const recentSevenMachineWeakContentCount = readNumber(metrics.recentSevenMachineWeakContentCount);
   const recentThreeMachineLowContentCount = readNumber(metrics.recentThreeMachineLowContentCount);
@@ -12170,6 +12443,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFiveMachineWeakContentCount = readNumber(metrics.recentFiveMachineWeakContentCount);
   const recentTwentyOneMachineGoodContentCount = readNumber(metrics.recentTwentyOneMachineGoodContentCount);
   const daysSinceMachineHighContent = readNullableNumber(metrics.daysSinceMachineHighContent);
+  const daysSinceMachineGoodContent = readNullableNumber(metrics.daysSinceMachineGoodContent);
   const daysSinceMachineStrongHighContent = readNullableNumber(metrics.daysSinceMachineStrongHighContent);
   const daysSinceMachineBigWin1000 = readNullableNumber(metrics.daysSinceMachineBigWin1000);
   const daysSinceMachineBigWin1500 = readNullableNumber(metrics.daysSinceMachineBigWin1500);
@@ -12185,6 +12459,7 @@ function calculateMachineScore(definition, metrics, features) {
   );
   const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
   const machineGoodContentStreak = readNumber(metrics.machineGoodContentStreak);
+  const machineLowContentStreak = readNumber(metrics.machineLowContentStreak);
   const machineWeakContentStreak = readNumber(metrics.machineWeakContentStreak);
   const recentFiveBigWin1200Count = readNumber(metrics.recentFiveBigWin1200Count);
   const recentFiveBigWin1000Count = readNumber(metrics.recentFiveBigWin1000Count);
@@ -12727,6 +13002,141 @@ function calculateMachineScore(definition, metrics, features) {
       if (historyRowCount < 5) {
         score = Math.min(score, 35);
       } else if (historyRowCount < 7) {
+        score = Math.min(score, 70);
+      }
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === "super-hollywood-1120-neo-aim") {
+      let ownRealnessScore = 0;
+      ownRealnessScore += scoreAtLeast(previousMachineSettingFivePlusProbability, [
+        { minimum: 0.7, points: 22 },
+        { minimum: 0.5, points: 18 },
+        { minimum: 0.35, points: 12 },
+        { minimum: 0.25, points: 6 },
+      ]);
+      ownRealnessScore += scoreAtMost(previousRbDenominator, [
+        { maximum: 250, points: 8 },
+        { maximum: 270, points: 6 },
+        { maximum: 300, points: 3 },
+      ]);
+      ownRealnessScore += scoreAtMost(previousCombinedDenominator, [
+        { maximum: 120, points: 7 },
+        { maximum: 130, points: 5 },
+        { maximum: 140, points: 2 },
+      ]);
+      ownRealnessScore += scoreAtLeast(recentThreeMachineGoodContentCount, [
+        { minimum: 3, points: 10 },
+        { minimum: 2, points: 7 },
+        { minimum: 1, points: 3 },
+      ]);
+      ownRealnessScore += scoreAtMost(features.recentThreeCombinedDenominator, [
+        { maximum: 134, points: 8 },
+        { maximum: 140, points: 5 },
+        { maximum: 149, points: 2 },
+      ]);
+      ownRealnessScore += scoreAtMost(features.recentFiveRbDenominator, [
+        { maximum: 300, points: 5 },
+        { maximum: 320, points: 3 },
+        { maximum: 350, points: 1 },
+      ]);
+      ownRealnessScore = Math.min(ownRealnessScore, 42);
+
+      let gamesTrustScore = 0;
+      gamesTrustScore += scoreAtLeast(previousGames, [
+        { minimum: 6500, points: 8 },
+        { minimum: 5500, points: 6 },
+        { minimum: 4000, points: 3 },
+      ]);
+      gamesTrustScore += scoreAtLeast(recentThreeGamesTotal, [
+        { minimum: 16000, points: 7 },
+        { minimum: 13000, points: 5 },
+        { minimum: 10000, points: 2 },
+      ]);
+      gamesTrustScore = Math.min(gamesTrustScore, 15);
+
+      let outputAngleScore = 0;
+      outputAngleScore += scoreAtLeast(recentThreeNetTotal, [
+        { minimum: 2500, points: 6 },
+        { minimum: 1200, points: 4 },
+        { minimum: 0, points: 1 },
+      ]);
+      outputAngleScore += scoreAtLeast(recentFiveNetTotal, [
+        { minimum: 3000, points: 4 },
+        { minimum: 1500, points: 2 },
+      ]);
+      outputAngleScore = Math.min(outputAngleScore, 10);
+
+      let continuationIntervalScore = 0;
+      continuationIntervalScore += scoreAtMost(daysSinceMachineHighContent, [
+        { maximum: 1, points: 8 },
+        { maximum: 2, points: 6 },
+        { maximum: 3, points: 3 },
+      ]);
+      continuationIntervalScore += scoreAtMost(daysSinceMachineGoodContent, [
+        { maximum: 1, points: 3 },
+        { maximum: 2, points: 1 },
+      ]);
+      continuationIntervalScore = Math.min(continuationIntervalScore, 10);
+
+      let neighborLinkScore = 0;
+      neighborLinkScore += scoreAtLeast(previousAdjacentMachineHighContentCountNear2, [
+        { minimum: 2, points: 8 },
+      ]);
+      neighborLinkScore += scoreAtLeast(previousAdjacentMachineHighContentCount, [
+        { minimum: 1, points: 4 },
+      ]);
+      neighborLinkScore += scoreAtLeast(previousAdjacentMachineNetTotalNear2, [
+        { minimum: 3000, points: 3 },
+        { minimum: 1000, points: 1 },
+      ]);
+      neighborLinkScore = Math.min(neighborLinkScore, 10);
+
+      let dangerPenalty = 0;
+      dangerPenalty += scoreAtLeast(machineLowContentStreak, [
+        { minimum: 6, points: 12 },
+        { minimum: 3, points: 8 },
+        { minimum: 1, points: 3 },
+      ]);
+      dangerPenalty += scoreAtLeast(streak, [
+        { minimum: 5, points: 8 },
+        { minimum: 3, points: 4 },
+      ]);
+      dangerPenalty += scoreAtMost(recentTenNetTotal, [{ maximum: -4000, points: 8 }]);
+      dangerPenalty += scoreAtMost(recentFiveNetTotal, [{ maximum: -2500, points: 6 }]);
+      dangerPenalty += scoreAtMost(recentThreeNetTotal, [{ maximum: -2000, points: 4 }]);
+      dangerPenalty += scoreAtLeast(daysSinceMachineHighContent, [
+        { minimum: 20, points: 8 },
+        { minimum: 14, points: 4 },
+      ]);
+      dangerPenalty += scoreAtMost(recentThreeGamesTotal, [
+        { maximum: 9000, points: 6 },
+        { maximum: 11000, points: 3 },
+      ]);
+      dangerPenalty += scoreAtMost(previousGames, [
+        { maximum: 1500, points: 4 },
+        { maximum: 2500, points: 2 },
+      ]);
+      dangerPenalty += recentFiveNetTotal >= 3000 && features.recentFiveRbDenominator > 360 ? 6 : 0;
+      dangerPenalty +=
+        previousDifference >= 2500 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability < 0.35
+          ? 6
+          : 0;
+      dangerPenalty = Math.min(dangerPenalty, 30);
+
+      let score =
+        35 +
+        ownRealnessScore +
+        gamesTrustScore +
+        outputAngleScore +
+        continuationIntervalScore +
+        neighborLinkScore -
+        dangerPenalty;
+
+      if (historyRowCount < 7) {
         score = Math.min(score, 70);
       }
 
