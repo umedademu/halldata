@@ -251,6 +251,20 @@ function isPlazaTenjinStore(storeName) {
   );
 }
 
+function isPlazaHontenIIStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "プラザ本店II",
+    "プラザ本店II店",
+    "プラザ本店Ⅱ",
+    "プラザ本店Ⅱ店",
+    "プラザ本店2",
+    "プラザ本店2店",
+    "PLAZA本店II",
+    "ＰＬＡＺＡ本店Ⅱ",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
 function readDateDayNumber(dateText) {
   const normalized = normalizeText(dateText);
   const match = normalized.match(/^\d{4}-\d{2}-(\d{2})$/u) ?? normalized.match(/^\d{2}\/\d{2}\/(\d{2})$/u);
@@ -1952,6 +1966,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "plaza-tenjin-neo-aim",
         "プラザ天神_ネオアイムEX_返済未完ボーナス不足ロジック",
         "plaza-tenjin-neo-free-b",
+      ),
+      buildLogicVariant(
+        "plaza-honten-ii-neo-aim",
+        "プラザ本店II_ネオアイムジャグラーEX_低露出RB弱返済ロジック_v1",
+        "plaza-honten-ii-neo-free-low-exposure-rb-weak",
       ),
     ],
     profile: "juggler",
@@ -4126,6 +4145,214 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["plaza-tenjin-neo-aim"],
       ),
       buildCondition(
+        "plaza-honten-ii-neo-wide310",
+        "310広め",
+        "対象45日 / 68台 / 総G239,286 / BB1/263.8 / RB1/298.0 / 合算1/139.9 / 平均+184.7枚 / 機械割101.75% / 勝率36.8% / 平均56 35.0% / 中央56 27.4% / 56>=50% 23.5% / 56<30% 60.3% / 4以下>=70% 60.3% / RB1/300以下33.8% / RB1/400超44.1%",
+        {
+          requiredFlags: [
+            "plazaHontenIINeoHistoryReady",
+            "plazaHontenIINeoPreviousLowExposure",
+            "plazaHontenIINeoLongRbWeak",
+          ],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-honten-ii-neo-weak300",
+        "300弱本命",
+        "対象42日 / 64台 / 総G225,780 / BB1/264.1 / RB1/297.9 / 合算1/140.0 / 平均+181.2枚 / 機械割101.71% / 勝率37.5% / 平均56 35.1% / 中央56 27.5% / 56>=50% 23.4% / 56<30% 59.4% / 4以下>=70% 59.4% / RB1/300以下34.4% / RB1/400超43.8%",
+        {
+          maxDanger: 1,
+          requiredFlags: [
+            "plazaHontenIINeoHistoryReady",
+            "plazaHontenIINeoPreviousLowExposure",
+            "plazaHontenIINeoLongRbWeak",
+          ],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-honten-ii-neo-main290",
+        "290本命",
+        "対象28日 / 35台 / 総G130,189 / BB1/259.9 / RB1/283.0 / 合算1/135.5 / 平均+279.6枚 / 機械割102.51% / 勝率40.0% / 平均56 38.4% / 中央56 27.7% / 56>=50% 31.4% / 56<30% 57.1% / 4以下>=70% 57.1% / RB1/300以下42.9% / RB1/400超45.7%",
+        {
+          maxDanger: 0,
+          requiredFlags: [
+            "plazaHontenIINeoHistoryReady",
+            "plazaHontenIINeoPreviousLowExposure",
+            "plazaHontenIINeoLongRbWeak",
+          ],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-honten-ii-neo-strong280",
+        "280強",
+        "対象20日 / 25台 / 総G84,807 / BB1/247.3 / RB1/275.3 / 合算1/130.3 / 平均+427.9枚 / 機械割104.20% / 勝率40.0% / 平均56 39.7% / 中央56 27.2% / 56>=50% 36.0% / 56<30% 60.0% / 4以下>=70% 60.0% / RB1/300以下40.0% / RB1/400超52.0% / 荒い強条件",
+        {
+          maxDanger: 0,
+          requiredFlags: [
+            "plazaHontenIINeoHistoryReady",
+            "plazaHontenIINeoPreviousVeryLowExposure",
+            "plazaHontenIINeoLongRbWeak",
+          ],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-honten-ii-neo-free-low-exposure-rb-weak",
+        "自由最優先_低露出RB弱",
+        "対象45日 / 68台 / RB1/298.0 / 合算1/139.9 / 平均+184.7枚 / 機械割101.75% / 平均56 35.0% / 56>=50% 23.5%",
+        {
+          requiredFlags: [
+            "plazaHontenIINeoHistoryReady",
+            "plazaHontenIINeoPreviousLowExposure",
+            "plazaHontenIINeoLongRbWeak",
+          ],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-honten-ii-neo-free-low-exposure-interval65",
+        "自由本命_低露出間隔2-7_65点",
+        "対象34日 / 44台 / RB1/301.3 / 合算1/137.3 / 平均+307.9枚 / 機械割103.30% / 勝率47.7% / 平均56 35.2% / 56>=50% 25.0%",
+        {
+          minScore: 65,
+          requiredFlags: [
+            "plazaHontenIINeoHistoryReady",
+            "plazaHontenIINeoPreviousLowExposure",
+            "plazaHontenIINeoIntervalTwoToSeven",
+          ],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-honten-ii-neo-free-long-rb-combined-top2",
+        "自由本命_長期RB合算弱_危険0_上位2",
+        "対象26日 / 27台 / RB1/294.6 / 合算1/140.8 / 平均+121.7枚 / 機械割101.00% / 平均56 35.8% / 中央56 31.4% / 56>=50% 29.6% / 56<30% 44.4%",
+        {
+          rankMax: 2,
+          maxDanger: 0,
+          requiredFlags: [
+            "plazaHontenIINeoHistoryReady",
+            "plazaHontenIINeoLongRbWeak",
+            "plazaHontenIINeoLongCombinedWeak",
+          ],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-honten-ii-neo-free-sink7-21",
+        "自由レア本命_沈み7_21",
+        "対象24日 / 24台 / RB1/292.0 / 合算1/142.4 / 平均+99.3枚 / 機械割100.98% / 勝率50.0% / 平均56 36.2% / 56>=50% 33.3%",
+        {
+          requiredFlags: [
+            "plazaHontenIINeoHistoryReady",
+            "plazaHontenIINeoSevenSinkStay7",
+            "plazaHontenIINeoTwentyOneSinkStay7",
+          ],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-honten-ii-neo-score65-boost2",
+        "65点以上＋強化2",
+        "65点以上、強化条件2個以上。参考値は208台 / RB1/318.7 / 合算1/144.2 / 平均+155.3枚 / 機械割101.45%",
+        {
+          minScore: 65,
+          minBoost: 2,
+          requiredFlags: ["plazaHontenIINeoHistoryReady"],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-honten-ii-neo-rank1-gap15",
+        "1位＋次点差15",
+        "64台 / RB1/317.5 / 合算1/145.4 / 平均+104.0枚。単独では本命より補助",
+        {
+          rankMax: 1,
+          minNextGap: 15,
+          requiredFlags: ["plazaHontenIINeoHistoryReady"],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-honten-ii-neo-watch-history-short",
+        "見送り_履歴7日未満",
+        "台番履歴7営業日未満",
+        {
+          requiredFlags: ["plazaHontenIINeoHistoryVeryShort"],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-honten-ii-neo-watch-no-boost",
+        "見送り_強化0",
+        "65点以上だが強化条件0個",
+        {
+          minScore: 65,
+          maxBoost: 0,
+          requiredFlags: ["plazaHontenIINeoHistoryReady"],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-honten-ii-neo-watch-danger3",
+        "見送り_危険3個以上",
+        "65点以上だが危険条件3個以上",
+        {
+          minScore: 65,
+          minDanger: 3,
+          requiredFlags: ["plazaHontenIINeoHistoryReady"],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-honten-ii-neo-watch-previous-high",
+        "見送り_前日高内容",
+        "対象105日 / 172台 / RB1/372.9 / 合算1/156.0 / 平均-61.8枚 / 機械割99.42% / 56>=50% 4.7%",
+        {
+          requiredFlags: ["plazaHontenIINeoHistoryReady", "plazaHontenIINeoPreviousHighContent"],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-honten-ii-neo-watch-short-crash",
+        "見送り_短期急落",
+        "対象122日 / 205台 / RB1/356.3 / 合算1/154.7 / 平均-61.8枚 / 機械割99.45% / 56>=50% 9.3%",
+        {
+          requiredFlags: ["plazaHontenIINeoHistoryReady", "plazaHontenIINeoShortCrash"],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-honten-ii-neo-watch-nearby-previous-high",
+        "見送り_近隣前日高内容",
+        "対象106日 / 465台 / RB1/374.5 / 合算1/155.5 / 平均-35.8枚 / 機械割99.65% / 56>=50% 8.2%",
+        {
+          requiredFlags: ["plazaHontenIINeoHistoryReady", "plazaHontenIINeoNearbyPreviousHigh"],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-honten-ii-neo-watch-short-crash-only",
+        "見送り_短期急落のみ",
+        "短期急落があり、長期RB弱がない台",
+        {
+          requiredFlags: ["plazaHontenIINeoHistoryReady", "plazaHontenIINeoShortCrashOnly"],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
+        "plaza-honten-ii-neo-watch-previous-high-high-games",
+        "見送り_前日高内容＋高稼働",
+        "前日高内容と前日高稼働が重なる台",
+        {
+          requiredFlags: ["plazaHontenIINeoHistoryReady", "plazaHontenIINeoPreviousHighAndHighUsage"],
+        },
+        ["plaza-honten-ii-neo-aim"],
+      ),
+      buildCondition(
         "beam-hikari-main",
         "70点以上",
         "388件 / 103.33% / RB1/287.6 / p56 32.7%",
@@ -5654,6 +5881,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "sengawa-uno-neo-aim");
   } else if (isPlazaTenjinStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "plaza-tenjin-neo-aim");
+  } else if (isPlazaHontenIIStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "plaza-honten-ii-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
@@ -6388,6 +6617,100 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "plaza-honten-ii-neo-aim") {
+      const plazaHontenIINeoHistoryReady = historyRowCount >= 21;
+      const plazaHontenIINeoHistoryShort = historyRowCount < 21;
+      const plazaHontenIINeoHistoryVeryShort = historyRowCount < 7;
+      const plazaHontenIINeoPreviousLowExposure = previousGames < 1500;
+      const plazaHontenIINeoPreviousVeryLowExposure = previousGames < 1000;
+      const plazaHontenIINeoLongRbWeak = features.recentTwentyOneRbDenominator >= 380;
+      const plazaHontenIINeoLongCombinedWeak = features.recentTwentyOneCombinedDenominator >= 160;
+      const plazaHontenIINeoSevenSinkStay7 = recentSevenMinus1200StayDays >= 7;
+      const plazaHontenIINeoTwentyOneSinkStay7 = recentTwentyOneMinus4000StayDays >= 7;
+      const plazaHontenIINeoSinkStay =
+        plazaHontenIINeoSevenSinkStay7 || plazaHontenIINeoTwentyOneSinkStay7;
+      const plazaHontenIINeoUnpaid =
+        recentTwentyOneNetTotal <= -2500 || recentFourteenNetTotal <= -2000;
+      const plazaHontenIINeoIntervalTwoToSeven =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 2 &&
+        daysSinceMachineHighContent <= 7;
+      const plazaHontenIINeoPreviousHighContent =
+        previousGames >= 3000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5;
+      const plazaHontenIINeoPreviousBonusStrong =
+        previousGames >= 3000 &&
+        (features.previousRbDenominator <= 315 || features.previousCombinedDenominator <= 140);
+      const plazaHontenIINeoPreviousHighUsage = previousGames >= 5000;
+      const plazaHontenIINeoShortCrash =
+        recentTwoNetTotal <= -2000 || recentThreeNetTotal <= -2500 || features.recentThreeAngle <= -300;
+      const plazaHontenIINeoNearbyPreviousHigh = previousAdjacentMachineHighContentCount > 0;
+      const plazaHontenIINeoNearbyPreviousHighMulti = previousAdjacentMachineHighContentCount >= 2;
+      const plazaHontenIINeoTreatmentDone = recentSevenNetTotal >= 2500;
+      const plazaHontenIINeoLowSevenGames = recentSevenGamesTotal < 5000;
+      const boostFlags = [
+        plazaHontenIINeoSinkStay,
+        plazaHontenIINeoUnpaid,
+        plazaHontenIINeoPreviousLowExposure,
+        plazaHontenIINeoLongRbWeak,
+        plazaHontenIINeoIntervalTwoToSeven,
+      ];
+      const boostCount = boostFlags.filter(Boolean).length;
+      const plazaHontenIINeoShortCrashOnly =
+        plazaHontenIINeoShortCrash && !plazaHontenIINeoLongRbWeak;
+      const plazaHontenIINeoNearbyOnly =
+        plazaHontenIINeoNearbyPreviousHigh && boostCount === 0;
+      const plazaHontenIINeoPreviousHighAndHighUsage =
+        plazaHontenIINeoPreviousHighContent && plazaHontenIINeoPreviousHighUsage;
+      const dangerFlags = [
+        plazaHontenIINeoPreviousHighContent,
+        plazaHontenIINeoPreviousBonusStrong,
+        plazaHontenIINeoPreviousHighUsage,
+        plazaHontenIINeoShortCrash,
+        plazaHontenIINeoNearbyPreviousHigh,
+        plazaHontenIINeoTreatmentDone,
+        plazaHontenIINeoLowSevenGames,
+      ];
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability,
+        recentSevenMinus1200StayDays,
+        recentTwentyOneMinus4000StayDays,
+        plazaHontenIINeoHistoryReady,
+        plazaHontenIINeoHistoryShort,
+        plazaHontenIINeoHistoryVeryShort,
+        plazaHontenIINeoPreviousLowExposure,
+        plazaHontenIINeoPreviousVeryLowExposure,
+        plazaHontenIINeoLongRbWeak,
+        plazaHontenIINeoLongCombinedWeak,
+        plazaHontenIINeoSevenSinkStay7,
+        plazaHontenIINeoTwentyOneSinkStay7,
+        plazaHontenIINeoSinkStay,
+        plazaHontenIINeoUnpaid,
+        plazaHontenIINeoIntervalTwoToSeven,
+        plazaHontenIINeoPreviousHighContent,
+        plazaHontenIINeoPreviousBonusStrong,
+        plazaHontenIINeoPreviousHighUsage,
+        plazaHontenIINeoShortCrash,
+        plazaHontenIINeoNearbyPreviousHigh,
+        plazaHontenIINeoNearbyPreviousHighMulti,
+        plazaHontenIINeoTreatmentDone,
+        plazaHontenIINeoLowSevenGames,
+        plazaHontenIINeoShortCrashOnly,
+        plazaHontenIINeoNearbyOnly,
+        plazaHontenIINeoPreviousHighAndHighUsage,
+        treatmentDone:
+          plazaHontenIINeoPreviousHighContent ||
+          plazaHontenIINeoPreviousBonusStrong ||
+          plazaHontenIINeoTreatmentDone,
+        lowConfidence: plazaHontenIINeoHistoryVeryShort || plazaHontenIINeoLowSevenGames,
+        boostCount,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "plaza-tenjin-neo-aim") {
       const recentTwoRbTotal = readNumber(metrics.recentTwoRbTotal);
       const recentTwoBonusTotal = readNumber(metrics.recentTwoBonusTotal);
@@ -10202,6 +10525,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentThreeHighSettingEstimateCount = readNumber(metrics.recentThreeHighSettingEstimateCount);
   const recentThreeStrictHighContentDays = readNumber(metrics.recentThreeStrictHighContentDays);
   const recentSevenStrictHighContentDays = readNumber(metrics.recentSevenStrictHighContentDays);
+  const recentSevenMinus1200StayDays = readNumber(metrics.recentSevenMinus1200StayDays);
   const recentSevenMinus2000StayDays = readNumber(metrics.recentSevenMinus2000StayDays);
   const recentThreeMinus1000StayDays = readNumber(metrics.recentThreeMinus1000StayDays);
   const recentThreeMinus1700StayDays = readNumber(metrics.recentThreeMinus1700StayDays);
@@ -10227,6 +10551,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentTwentyOneMinus1500StayDays = readNumber(metrics.recentTwentyOneMinus1500StayDays);
   const recentTwentyOneMinus2000StayDays = readNumber(metrics.recentTwentyOneMinus2000StayDays);
   const recentTwentyOneMinus3000StayDays = readNumber(metrics.recentTwentyOneMinus3000StayDays);
+  const recentTwentyOneMinus4000StayDays = readNumber(metrics.recentTwentyOneMinus4000StayDays);
   const recentTwentyOneMinus5000StayDays = readNumber(metrics.recentTwentyOneMinus5000StayDays);
   const recentTwentyOneMinus11333StayDays = readNumber(metrics.recentTwentyOneMinus11333StayDays);
   const recentFiveAngleMinus80StayDays = readNumber(metrics.recentFiveAngleMinus80StayDays);
@@ -10609,6 +10934,80 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === "plaza-honten-ii-neo-aim") {
+      let score = 35;
+      const scoreCap = historyRowCount < 7 ? 45 : historyRowCount < 14 ? 75 : historyRowCount < 21 ? 85 : 100;
+      const previousFivePlus =
+        previousGames >= 3000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5;
+
+      if (previousGames < 1000) {
+        score += 12;
+      } else if (previousGames < 1500) {
+        score += 10;
+      } else if (previousGames < 2500) {
+        score += 5;
+      }
+
+      if (previousGames >= 1000 && previousDifference <= -500) {
+        score += 5;
+      } else if (previousGames >= 1000 && previousDifference < 0) {
+        score += 3;
+      }
+
+      score += scoreAtLeast(recentSevenMinus1200StayDays, [
+        { minimum: 10, points: 14 },
+        { minimum: 7, points: 11 },
+        { minimum: 4, points: 7 },
+        { minimum: 2, points: 4 },
+      ]);
+      score += scoreAtLeast(recentTwentyOneMinus4000StayDays, [
+        { minimum: 10, points: 13 },
+        { minimum: 7, points: 10 },
+        { minimum: 3, points: 5 },
+      ]);
+      score += scoreAtMost(recentTwentyOneNetTotal, [
+        { maximum: -4000, points: 9 },
+        { maximum: -2000, points: 5 },
+      ]);
+      score += scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -2500, points: 6 },
+        { maximum: -1500, points: 3 },
+      ]);
+      score += scoreAtLeast(features.recentTwentyOneRbDenominator, [
+        { minimum: 400, points: 8 },
+        { minimum: 380, points: 6 },
+      ]);
+      score += features.recentTwentyOneCombinedDenominator >= 160 ? 5 : 0;
+      score += features.recentFourteenCombinedDenominator >= 160 ? 3 : 0;
+      score += scoreInRange(daysSinceMachineHighContent, 2, 5, 5);
+      score += scoreInRange(daysSinceMachineHighContent, 6, 14, 3);
+      score += Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 15 ? 1 : 0;
+      score += recentThreeGamesTotal >= 3000 && recentThreeGamesTotal <= 12000 ? 3 : 0;
+      score += recentSevenGamesTotal >= 8000 ? 2 : 0;
+
+      score -= previousFivePlus ? 22 : 0;
+      score -= previousFivePlus && previousDifference >= 1000 ? 8 : 0;
+      score -=
+        previousGames >= 3000 && previousRbDenominator <= 315
+          ? 10
+          : previousGames >= 3000 && previousRbDenominator <= 350
+            ? 5
+            : 0;
+      score -= previousGames >= 3000 && previousCombinedDenominator <= 140 ? 7 : 0;
+      score -= previousGames >= 7000 ? 12 : previousGames >= 5000 ? 8 : previousGames >= 4000 ? 5 : 0;
+      score -= recentTwoNetTotal <= -2000 ? 8 : 0;
+      score -= recentThreeNetTotal <= -2500 ? 8 : recentThreeNetTotal <= -2000 ? 5 : 0;
+      score -= features.recentThreeAngle <= -300 ? 5 : 0;
+      score -= previousAdjacentMachineHighContentCount > 0 ? 6 : 0;
+      score -= previousAdjacentMachineHighContentCount >= 2 ? 4 : 0;
+      score -= recentSevenNetTotal >= 3000 ? 8 : recentSevenNetTotal >= 2000 ? 5 : 0;
+      score -= recentSevenGamesTotal >= 35000 ? 5 : 0;
+
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
     if (activeLogicKey === "plaza-tenjin-neo-aim") {
       let score = 30;
       const scoreCap = historyRowCount < 7 ? 50 : historyRowCount < 14 ? 70 : historyRowCount < 21 ? 85 : 100;

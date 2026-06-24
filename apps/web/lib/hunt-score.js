@@ -1054,6 +1054,26 @@ const HUNT_SCORE_STORE_CONFIGS = [
     },
   },
   {
+    key: "plaza-honten-ii",
+    storeNames: [
+      "プラザ本店II",
+      "プラザ本店II店",
+      "プラザ本店Ⅱ",
+      "プラザ本店Ⅱ店",
+      "プラザ本店2",
+      "プラザ本店2店",
+      "PLAZA本店II",
+      "ＰＬＡＺＡ本店Ⅱ",
+    ],
+    targetMachines: APARK_KASUGA_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    resetHistoryDates: ["2025-12-16", "2026-01-07", "2026-04-17"],
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "plaza-honten-ii-neo-aim",
+      "ネオアイムジャグラーＥＸ": "plaza-honten-ii-neo-aim",
+    },
+  },
+  {
     key: "plaza3",
     storeNames: ["プラザ3"],
     targetMachines: APARK_KASUGA_TARGET_MACHINES,
@@ -1970,6 +1990,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
+    if (contentRule === "plaza-honten-ii-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     return games >= 6000 && rbDenominator <= 280 && combinedDenominator <= 140;
   }
   if (
@@ -2343,6 +2370,7 @@ function isMachineLowContentWindowRow(row, machineName, config = null) {
       "wonderland-minamigaoka-neo-aim",
       "sengawa-uno-neo-aim",
       "plaza-tenjin-neo-aim",
+      "plaza-honten-ii-neo-aim",
     ].includes(
       readMachineContentRule(config, machineName),
     )
@@ -2407,6 +2435,15 @@ function isMachineWeakContentWindowRow(row, machineName, config = null) {
       );
     }
     if (readMachineContentRule(config, machineName) === "plaza-tenjin-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        games >= 2500 &&
+        ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability < 0.3) ||
+          rbDenominator > 400 ||
+          combinedDenominator > 170)
+      );
+    }
+    if (readMachineContentRule(config, machineName) === "plaza-honten-ii-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       return (
         games >= 2500 &&
@@ -2592,6 +2629,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "plaza-tenjin-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "plaza-honten-ii-neo-aim"
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     if (Number.isFinite(settingFivePlusProbability)) {
@@ -7616,6 +7663,7 @@ function calculateWindowMetrics(
   const recentFiftySixNetTotal = sumDifferenceValues(recentFiftySixRows);
   const shortSevenSinkStayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -500);
   const shortThreeSinkStayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 3, -300);
+  const recentSevenMinus1200StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -1200);
   const recentSevenMinus2000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -2000);
   const recentSevenMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -3000);
   const recentThreeMinus1000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 3, -1000);
@@ -7641,6 +7689,7 @@ function calculateWindowMetrics(
   const recentTwentyOneMinus1500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -1500);
   const recentTwentyOneMinus2000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -2000);
   const recentTwentyOneMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -3000);
+  const recentTwentyOneMinus4000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -4000);
   const recentTwentyOneMinus5000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -5000);
   const recentTwentyOneMinus11333StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -11333);
   const recentFiveAngleMinus80StayDays = countConsecutiveRollingAngleThresholdDays(historyWindowRows, 5, -80);
@@ -8289,6 +8338,7 @@ function calculateWindowMetrics(
     recentFiftySixNetTotal,
     shortSevenSinkStayDays,
     shortThreeSinkStayDays,
+    recentSevenMinus1200StayDays,
     recentSevenMinus2000StayDays,
     recentSevenMinus3000StayDays,
     recentThreeMinus1000StayDays,
@@ -8313,6 +8363,7 @@ function calculateWindowMetrics(
     recentTwentyOneMinus1500StayDays,
     recentTwentyOneMinus2000StayDays,
     recentTwentyOneMinus3000StayDays,
+    recentTwentyOneMinus4000StayDays,
     recentTwentyOneMinus5000StayDays,
     recentTwentyOneMinus11333StayDays,
     recentFiveAngleMinus80StayDays,
