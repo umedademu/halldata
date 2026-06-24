@@ -1529,6 +1529,44 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(widget.configure_count, 2)
         self.assertEqual(widget.state, "disabled")
 
+    def test_configure_named_widget_state_ignores_missing_lazy_widget(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+
+        app._configure_named_widget_state("register_store_button", "normal")
+
+    def test_register_tab_is_built_only_when_needed(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.register_tab = object()
+        app._register_tab_built = False
+        app._build_register_tab = mock.Mock()
+        app._refresh_registered_store_table = mock.Mock()
+        app._update_button_states = mock.Mock()
+
+        app._ensure_register_tab_built()
+        app._ensure_register_tab_built()
+
+        app._build_register_tab.assert_called_once_with(app.register_tab)
+        app._refresh_registered_store_table.assert_called_once_with()
+        app._update_button_states.assert_called_once_with()
+
+    def test_site7_machine_settings_tab_is_built_only_when_needed(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.site7_machine_tab = object()
+        app._site7_machine_settings_tab_built = False
+        app._build_site7_machine_settings_tab = mock.Mock()
+        app._update_button_states = mock.Mock()
+
+        app._ensure_site7_machine_settings_tab_built()
+        app._ensure_site7_machine_settings_tab_built()
+
+        app._build_site7_machine_settings_tab.assert_called_once_with(app.site7_machine_tab)
+        app._update_button_states.assert_called_once_with()
+
+    def test_refresh_registered_store_table_ignores_unbuilt_lazy_tab(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+
+        app._refresh_registered_store_table()
+
     def test_registered_store_table_click_allows_edit_while_fetching(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.is_busy = True

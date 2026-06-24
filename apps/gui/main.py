@@ -74,6 +74,7 @@ DEFAULT_MINREPO_DAY_PROGRESS_STEPS = 40
 FETCH_PROGRESS_GLOBAL_SCALE = 1000
 FETCH_PROGRESS_QUEUE_MIN_INTERVAL_SECONDS = 0.2
 FETCH_PROGRESS_BAR_ANIMATION_INTERVAL_MS = 100
+GUI_LIGHTWEIGHT_THEME = "clam"
 MINREPO_FETCH_MODE_NORMAL = "通常"
 MINREPO_FETCH_MODE_FAST = "高速"
 MINREPO_FETCH_MODE_STRONG = "強並列"
@@ -1084,23 +1085,26 @@ class MinRepoApp:
         container.columnconfigure(0, weight=1)
         container.rowconfigure(0, weight=1)
 
-        notebook = ttk.Notebook(container)
-        notebook.grid(row=0, column=0, sticky="nsew")
+        self.notebook = ttk.Notebook(container)
+        self.notebook.grid(row=0, column=0, sticky="nsew")
 
-        self.fetch_tab = ttk.Frame(notebook, padding=12)
+        self.fetch_tab = ttk.Frame(self.notebook, padding=12)
         self.fetch_tab.columnconfigure(0, weight=1)
         self.fetch_tab.rowconfigure(2, weight=0)
-        notebook.add(self.fetch_tab, text="データ取得")
+        self.notebook.add(self.fetch_tab, text="データ取得")
 
-        register_tab = ttk.Frame(notebook, padding=12)
-        register_tab.columnconfigure(0, weight=1)
-        register_tab.rowconfigure(1, weight=1)
-        notebook.add(register_tab, text="登録店舗")
+        self.register_tab = ttk.Frame(self.notebook, padding=12)
+        self.register_tab.columnconfigure(0, weight=1)
+        self.register_tab.rowconfigure(1, weight=1)
+        self.notebook.add(self.register_tab, text="登録店舗")
 
-        site7_machine_tab = ttk.Frame(notebook, padding=12)
-        site7_machine_tab.columnconfigure(0, weight=1)
-        site7_machine_tab.rowconfigure(2, weight=1)
-        notebook.add(site7_machine_tab, text="サイトセブン取得機種")
+        self.site7_machine_tab = ttk.Frame(self.notebook, padding=12)
+        self.site7_machine_tab.columnconfigure(0, weight=1)
+        self.site7_machine_tab.rowconfigure(2, weight=1)
+        self.notebook.add(self.site7_machine_tab, text="サイトセブン取得機種")
+        self._register_tab_built = False
+        self._site7_machine_settings_tab_built = False
+        self.notebook.bind("<<NotebookTabChanged>>", self._on_notebook_tab_changed)
 
         self.fetch_form = ttk.LabelFrame(self.fetch_tab, text="取得条件", padding=12)
         self.fetch_form.grid(row=0, column=0, sticky="ew")
@@ -1345,8 +1349,28 @@ class MinRepoApp:
             pady=(8, 0),
         )
 
-        self._build_register_tab(register_tab)
-        self._build_site7_machine_settings_tab(site7_machine_tab)
+    def _on_notebook_tab_changed(self, _: tk.Event[tk.Misc] | None = None) -> None:
+        selected_tab = self.notebook.select()
+        if selected_tab == str(self.register_tab):
+            self._ensure_register_tab_built()
+            return
+        if selected_tab == str(self.site7_machine_tab):
+            self._ensure_site7_machine_settings_tab_built()
+
+    def _ensure_register_tab_built(self) -> None:
+        if getattr(self, "_register_tab_built", False):
+            return
+        self._build_register_tab(self.register_tab)
+        self._register_tab_built = True
+        self._refresh_registered_store_table()
+        self._update_button_states()
+
+    def _ensure_site7_machine_settings_tab_built(self) -> None:
+        if getattr(self, "_site7_machine_settings_tab_built", False):
+            return
+        self._build_site7_machine_settings_tab(self.site7_machine_tab)
+        self._site7_machine_settings_tab_built = True
+        self._update_button_states()
 
     def _prompt_site7_login_on_startup_if_needed(self) -> None:
         if self.site7_scraper.has_saved_login_state():
@@ -5613,6 +5637,9 @@ class MinRepoApp:
         return normalize_text(self.registered_store_filter_var.get())
 
     def _refresh_registered_store_table(self, preserve_selection: bool = False) -> None:
+        if not hasattr(self, "registered_store_tree"):
+            return
+
         selected_item_ids = set(self.registered_store_tree.selection()) if preserve_selection else set()
         self.registered_store_tree.delete(*self.registered_store_tree.get_children())
         filter_keyword = self._registered_store_filter_keyword()
@@ -6777,6 +6804,12 @@ class MinRepoApp:
             pass
         widget.configure(state=state)
 
+    def _configure_named_widget_state(self, widget_name: str, state: str) -> None:
+        widget = getattr(self, widget_name, None)
+        if widget is None:
+            return
+        self._configure_widget_state(widget, state)
+
     def _update_button_states(self) -> None:
         registered_store_selection = (
             self.registered_store_tree.selection()
@@ -6845,35 +6878,29 @@ class MinRepoApp:
         if hasattr(self, "site7_machine_action_buttons"):
             for button in self.site7_machine_action_buttons:
                 self._configure_widget_state(button, "normal")
-        self._configure_widget_state(self.register_store_button, "disabled" if general_busy else "normal")
-        self._configure_widget_state(self.register_store_url_entry, "normal")
-        if hasattr(self, "register_store_frequency_selector"):
-            self._configure_widget_state(self.register_store_frequency_selector, "readonly")
-        if hasattr(self, "register_store_source_selector"):
-            self._configure_widget_state(self.register_store_source_selector, "readonly")
-        if hasattr(self, "register_store_order_entry"):
-            self._configure_widget_state(self.register_store_order_entry, "normal")
-        if hasattr(self, "register_store_site7_difference_checkbutton"):
-            self._configure_widget_state(self.register_store_site7_difference_checkbutton, "normal")
-        self._configure_widget_state(self.register_store_prefecture_entry, "normal")
-        self._configure_widget_state(self.register_store_area_entry, "normal")
-        self._configure_widget_state(self.register_store_site7_store_name_entry, "normal")
-        self._configure_widget_state(self.register_store_site7_hall_id_entry, "normal")
-        self._configure_widget_state(self.register_store_site7_address_entry, "normal")
-        self._configure_widget_state(
-            self.update_registered_store_button,
+        self._configure_named_widget_state("register_store_button", "disabled" if general_busy else "normal")
+        self._configure_named_widget_state("register_store_url_entry", "normal")
+        self._configure_named_widget_state("register_store_frequency_selector", "readonly")
+        self._configure_named_widget_state("register_store_source_selector", "readonly")
+        self._configure_named_widget_state("register_store_order_entry", "normal")
+        self._configure_named_widget_state("register_store_site7_difference_checkbutton", "normal")
+        self._configure_named_widget_state("register_store_prefecture_entry", "normal")
+        self._configure_named_widget_state("register_store_area_entry", "normal")
+        self._configure_named_widget_state("register_store_site7_store_name_entry", "normal")
+        self._configure_named_widget_state("register_store_site7_hall_id_entry", "normal")
+        self._configure_named_widget_state("register_store_site7_address_entry", "normal")
+        self._configure_named_widget_state(
+            "update_registered_store_button",
             "disabled" if general_busy or not has_single_registered_store_row_selection else "normal",
         )
-        self._configure_widget_state(self.clear_register_store_form_button, "normal")
-        if hasattr(self, "registered_store_filter_entry"):
-            self._configure_widget_state(self.registered_store_filter_entry, "normal")
-        if hasattr(self, "clear_registered_store_filter_button"):
-            self._configure_widget_state(self.clear_registered_store_filter_button, "normal")
-        self._configure_widget_state(self.select_all_stores_button, "normal")
-        self._configure_widget_state(self.clear_store_selection_button, "normal")
-        self._configure_widget_state(self.refresh_registered_stores_button, "disabled" if general_busy else "normal")
-        self._configure_widget_state(
-            self.delete_registered_stores_button,
+        self._configure_named_widget_state("clear_register_store_form_button", "normal")
+        self._configure_named_widget_state("registered_store_filter_entry", "normal")
+        self._configure_named_widget_state("clear_registered_store_filter_button", "normal")
+        self._configure_named_widget_state("select_all_stores_button", "normal")
+        self._configure_named_widget_state("clear_store_selection_button", "normal")
+        self._configure_named_widget_state("refresh_registered_stores_button", "disabled" if general_busy else "normal")
+        self._configure_named_widget_state(
+            "delete_registered_stores_button",
             "disabled" if general_busy or not has_registered_store_row_selection else "normal",
         )
 
@@ -6888,8 +6915,8 @@ class MinRepoApp:
 def main() -> None:
     root = tk.Tk()
     style = ttk.Style()
-    if "vista" in style.theme_names():
-        style.theme_use("vista")
+    if GUI_LIGHTWEIGHT_THEME in style.theme_names():
+        style.theme_use(GUI_LIGHTWEIGHT_THEME)
     MinRepoApp(root)
     root.mainloop()
 
