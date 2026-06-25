@@ -2964,6 +2964,39 @@ a {
   box-shadow: inset 3px 0 0 rgba(126, 74, 35, 0.76);
 }
 
+.crossStoreFallbackNotice {
+  margin: -0.25rem 0 0.35rem;
+  color: #6b421d;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.directoryTable.huntRankingTable tbody tr.huntRankingFallbackDateRow td,
+.directoryTable.huntRankingTable tbody tr.huntRankingFallbackDateRow th,
+.directoryTable.huntRankingTable tbody tr.huntRankingFallbackDateRow:nth-child(odd) td,
+.directoryTable.huntRankingTable tbody tr.huntRankingFallbackDateRow:nth-child(odd) th,
+.directoryTable.huntRankingTable tbody tr.huntRankingFallbackDateRow .directoryNameCell,
+.directoryTable.huntRankingTable tbody tr.huntRankingFallbackDateRow:nth-child(odd) .directoryNameCell,
+.directoryTable.huntRankingTable tbody tr.huntRankingFallbackDateRow .directoryNameCell.site7MachineCell,
+.directoryTable.huntRankingTable tbody tr.huntRankingFallbackDateRow:nth-child(odd) .directoryNameCell.site7MachineCell {
+  background: #ead7c2;
+  color: #4f2f16;
+}
+
+.directoryTable.huntRankingTable tbody tr.huntRankingFallbackDateRow .crossStoreHuntStoreCell,
+.directoryTable.huntRankingTable tbody tr.huntRankingFallbackDateRow:nth-child(odd) .crossStoreHuntStoreCell,
+.directoryTable.huntRankingTable tbody tr.huntRankingFallbackDateRow:hover .crossStoreHuntStoreCell {
+  box-shadow: inset 3px 0 0 rgba(111, 70, 31, 0.55);
+}
+
+.directoryTable.huntRankingTable tbody tr.huntRankingFallbackDateRow:hover td,
+.directoryTable.huntRankingTable tbody tr.huntRankingFallbackDateRow:hover th,
+.directoryTable.huntRankingTable tbody tr.huntRankingFallbackDateRow:hover .directoryNameCell,
+.directoryTable.huntRankingTable tbody tr.huntRankingFallbackDateRow:hover .directoryNameCell.site7MachineCell {
+  background: #dfc19d;
+  color: #41240f;
+}
+
 .combinedMachineGroupRow .directoryNameCell {
   font-weight: 900;
 }

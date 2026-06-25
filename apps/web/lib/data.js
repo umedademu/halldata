@@ -3350,6 +3350,27 @@ export const getHuntScoreInitialPageDetail = cache(async function getHuntScoreIn
   return null;
 });
 
+function selectHuntScoreRankingDate(rankingDates, requestedDate = "", options = {}) {
+  const safeRequestedDate = normalizeDateInput(requestedDate);
+  const safeRankingDates = [
+    ...new Set(
+      (Array.isArray(rankingDates) ? rankingDates : [])
+        .map((date) => normalizeDateInput(date))
+        .filter(Boolean),
+    ),
+  ].sort((left, right) => right.localeCompare(left));
+
+  if (safeRequestedDate && safeRankingDates.includes(safeRequestedDate)) {
+    return safeRequestedDate;
+  }
+
+  if (options?.fallbackToPreviousDate === true && safeRequestedDate) {
+    return safeRankingDates.find((date) => date < safeRequestedDate) ?? null;
+  }
+
+  return safeRankingDates[0] ?? null;
+}
+
 export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankingDetail(
   storeId,
   requestedDate = "",
@@ -3399,8 +3420,11 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     hasSite7Data: snapshotUsesSite7Data(snapshot),
   }));
   const rankingDates = snapshotDetail.rankingDates ?? rankingDateOptions.map((option) => option.date);
-  const selectedDate =
-    snapshotDetail.selectedDate ?? (rankingDates.includes(requestedDate) ? requestedDate : rankingDates[0] ?? null);
+  const selectedDate = snapshotDetail.selectedDate ?? selectHuntScoreRankingDate(
+    rankingDates,
+    requestedDate,
+    { fallbackToPreviousDate: machineOptions?.fallbackToPreviousDate === true },
+  );
   const snapshot = snapshots.find((entry) => entry.baseDate === selectedDate) ?? null;
   const subSnapshot =
     snapshotDetail.subHuntScoreLogic && Array.isArray(snapshotDetail.subSnapshots)
@@ -3532,9 +3556,11 @@ async function getHuntScoreSnapshotsForStore(
         : { targetRows: [], storeRows: [] };
     const rankingDateOptions = listHuntScoreRankingDateOptions(targetRows, storeRows);
     const rankingDates = rankingDateOptions.map((option) => option.date);
-    const selectedDate = rankingDates.includes(requestedDate)
-      ? requestedDate
-      : rankingDates[0] ?? null;
+    const selectedDate = selectHuntScoreRankingDate(
+      rankingDates,
+      requestedDate,
+      { fallbackToPreviousDate: machineOptions?.fallbackToPreviousDate === true },
+    );
     const snapshotOptions = targetDateOnly
       ? {
           targetDate: selectedDate,

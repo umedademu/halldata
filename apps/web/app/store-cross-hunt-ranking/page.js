@@ -209,12 +209,21 @@ function buildRowKey(storeId, row) {
 }
 
 function decorateRowsWithStore(detail) {
+  const predictionDate = String(detail?.selectedDate ?? "").trim();
+  const requestedPredictionDate = String(detail?.requestedDate ?? "").trim();
+  const usesFallbackPredictionDate = Boolean(
+    predictionDate && requestedPredictionDate && predictionDate !== requestedPredictionDate,
+  );
+
   return (Array.isArray(detail?.rows) ? detail.rows : []).map((row) => ({
     ...row,
     storeId: detail.store.id,
     storeName: detail.store.storeName,
     storeLocalRank: row.rank,
     storeLocalMachineRank: row.machineRank ?? row.rank,
+    predictionDate,
+    requestedPredictionDate,
+    usesFallbackPredictionDate,
     rowKey: buildRowKey(detail.store.id, row),
   }));
 }
@@ -316,6 +325,7 @@ async function readCrossStoreRankingDetail({
         machineNames: selectedMachineNames,
         machineTouched: true,
         expectedRbOnly: true,
+        fallbackToPreviousDate: true,
       }),
     );
     return { detail, failed: false };
@@ -325,12 +335,17 @@ async function readCrossStoreRankingDetail({
   }
 }
 
-function isSelectedDateRankingDetail(detail, selectedDate) {
+function isUsableCrossStoreRankingDetail(detail, selectedDate) {
+  const requestedDate = String(selectedDate ?? "").trim();
+  const detailSelectedDate = String(detail?.selectedDate ?? "").trim();
+
   return Boolean(
     detail &&
-      detail.selectedDate === selectedDate &&
+      requestedDate &&
+      detailSelectedDate &&
+      detailSelectedDate <= requestedDate &&
       Array.isArray(detail.rankingDates) &&
-      detail.rankingDates.includes(selectedDate),
+      detail.rankingDates.includes(detailSelectedDate),
   );
 }
 
@@ -380,7 +395,7 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
   const selectedMachineNames = machineOptions
     .filter((machine) => machine.checked)
     .map((machine) => machine.name);
-  const selectedDate = requestedDate || readLatestInitialDate(initialDetails);
+  const selectedDate = String(requestedDate || readLatestInitialDate(initialDetails)).trim();
   const resultEntries =
     resultRequested && selectedDate
       ? await Promise.all(
@@ -399,13 +414,17 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
       : [];
   const resultDetails = resultEntries
     .map((entry) => entry.detail)
-    .filter((detail) => isSelectedDateRankingDetail(detail, selectedDate));
+    .filter((detail) => isUsableCrossStoreRankingDetail(detail, selectedDate));
   const unreadableStoreCount = resultEntries.filter((entry) => entry.failed).length;
   const noSelectedDateStoreCount = resultRequested
     ? Math.max(selectedStores.length - resultDetails.length - unreadableStoreCount, 0)
     : 0;
   const skippedStoreCount = unreadableStoreCount + noSelectedDateStoreCount;
+  const fallbackDateStoreCount = resultDetails.filter(
+    (detail) => String(detail?.selectedDate ?? "").trim() !== selectedDate,
+  ).length;
   const rankingRows = resultDetails.flatMap(decorateRowsWithStore);
+  const fallbackDateRowCount = rankingRows.filter((row) => row.usesFallbackPredictionDate).length;
   const rankingGroups = buildCrossStoreRankingGroups(
     rankingRows,
     selectedMachineNames,
@@ -662,11 +681,22 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
                   <strong className="metaValue">{formatNumber(skippedStoreCount)}店</strong>
                 </article>
               ) : null}
+              {fallbackDateStoreCount > 0 ? (
+                <article className="summaryCard">
+                  <p className="metaLabel">代替日表示</p>
+                  <strong className="metaValue">{formatNumber(fallbackDateStoreCount)}店</strong>
+                </article>
+              ) : null}
               <article className="summaryCard">
                 <p className="metaLabel">対象機種</p>
                 <strong className="metaValue">{formatNumber(selectedMachineNames.length)}機種</strong>
               </article>
             </section>
+            {fallbackDateRowCount > 0 ? (
+              <p className="crossStoreFallbackNotice">
+                茶色背景の行は、指定日のデータがないため直前の保存日を基準に表示しています。基準日は行にマウスを合わせると確認できます。
+              </p>
+            ) : null}
             <HuntRankingTable
               storeId=""
               storeName=""
@@ -691,7 +721,7 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
             <h2>表示できる台がありません</h2>
             <p>期待RBが表示できる候補がありません。対象店舗、日付、機種を見直してください。</p>
             {noSelectedDateStoreCount > 0 ? (
-              <p>指定日の保存データがない店舗は、横断結果から除外しています。</p>
+              <p>指定日以前の保存データがない店舗は、横断結果から除外しています。</p>
             ) : null}
             {unreadableStoreCount > 0 ? (
               <p>読み込めなかった店舗は、横断結果から除外しています。</p>

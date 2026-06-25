@@ -219,9 +219,9 @@ function truncateStoreNameForDisplay(storeName) {
   return `${chars.slice(0, STORE_NAME_DISPLAY_CHAR_LIMIT).join("")}…`;
 }
 
-function StoreNameLinkOrText({ storeId, storeName }) {
+function StoreNameLinkOrText({ storeId, storeName, title: titleOverride = "" }) {
   const label = truncateStoreNameForDisplay(storeName) || "-";
-  const title = String(storeName ?? "").trim() || undefined;
+  const title = String(titleOverride ?? "").trim() || String(storeName ?? "").trim() || undefined;
 
   return storeId ? (
     <Link
@@ -290,6 +290,21 @@ function buildRankingRowSite7Title(row) {
   return combineTitleParts(
     buildSite7RecordTitle("狙い度の日", row?.currentRecord),
     buildSite7RecordTitle("実績の日", row?.nextRecord),
+  );
+}
+
+function buildFallbackPredictionDateTitle(row) {
+  const requestedDate = String(row?.requestedPredictionDate ?? "").trim();
+  const predictionDate = String(row?.predictionDate ?? "").trim();
+
+  if (!requestedDate || !predictionDate || requestedDate === predictionDate) {
+    return "";
+  }
+
+  return combineTitleParts(
+    `${formatMonthDay(predictionDate)}基準`,
+    `指定日 ${formatMonthDay(requestedDate)} のデータがないため、直前の保存日を基準に表示しています。`,
+    "店休日または未取得の可能性があります。",
   );
 }
 
@@ -1854,14 +1869,17 @@ function OverallRankingTable({
               const machineSite7FetchedAt = row.predictionMachineSite7FetchedAt ?? null;
               const machineFullName = String(row.machineName ?? "").trim();
               const machineShortName = getHuntMachineShortName(machineFullName);
+              const fallbackPredictionDateTitle = buildFallbackPredictionDateTitle(row);
               const rowSite7Title = buildRankingRowSite7Title(row);
+              const rowTitle = combineTitleParts(fallbackPredictionDateTitle, rowSite7Title);
               const machineTitle = machineHasSite7Data
                 ? site7BadgeTitle(
                     machineSite7FetchedAt,
                     `${machineFullName}\nこの機種にSセブン暫定データが含まれます`,
                   )
                 : machineFullName;
-              const machineCellTitle = combineTitleParts(machineTitle, rowSite7Title);
+              const machineCellTitle = combineTitleParts(machineTitle, rowTitle);
+              const storeCellTitle = combineTitleParts(rowStoreName, fallbackPredictionDateTitle);
               const slotExpectedPayoutClassName = getMachineEvaluationExpectationCellClassName(
                 rowStoreId,
                 rowStoreName,
@@ -1871,7 +1889,8 @@ function OverallRankingTable({
               return (
                 <tr
                   key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${title}-${row.rank}`}
-                  title={rowSite7Title || undefined}
+                  className={fallbackPredictionDateTitle ? "huntRankingFallbackDateRow" : undefined}
+                  title={rowTitle || undefined}
                 >
                   {showCommonColumn ? (
                     <HuntScoreCell
@@ -1880,7 +1899,7 @@ function OverallRankingTable({
                       row={row}
                       highlightCondition={highlightCondition}
                       bookmarkMatchByRowKey={bookmarkMatchByRowKey}
-                      extraTitle={rowSite7Title}
+                      extraTitle={rowTitle}
                       sortable
                       huntScoreLogicLabel={huntScoreLogicLabel}
                     />
@@ -1891,7 +1910,7 @@ function OverallRankingTable({
                       storeName={rowStoreName}
                       row={row}
                       evaluation={row.machineEvaluation}
-                      extraTitle={rowSite7Title}
+                      extraTitle={rowTitle}
                     />
                   ) : null}
                   {showDaySpecificMachineEvaluationColumn ? (
@@ -1900,14 +1919,14 @@ function OverallRankingTable({
                       storeName={rowStoreName}
                       row={row}
                       evaluation={row.machineEvaluationDaySpecific}
-                      extraTitle={rowSite7Title}
+                      extraTitle={rowTitle}
                       includeStoredTopBacktests={false}
                     />
                   ) : null}
                   {showConditionColumn ? (
                     <MachineEvaluationConditionCell
                       row={row}
-                      extraTitle={rowSite7Title}
+                      extraTitle={rowTitle}
                     />
                   ) : null}
                   {showExpectedPayoutColumn ? (
@@ -1915,7 +1934,7 @@ function OverallRankingTable({
                       storeId={rowStoreId}
                       storeName={rowStoreName}
                       row={row}
-                      extraTitle={rowSite7Title}
+                      extraTitle={rowTitle}
                     />
                   ) : null}
                   {showExpectedRbColumn ? (
@@ -1923,7 +1942,7 @@ function OverallRankingTable({
                       storeId={rowStoreId}
                       storeName={rowStoreName}
                       row={row}
-                      extraTitle={rowSite7Title}
+                      extraTitle={rowTitle}
                     />
                   ) : null}
                   {showNextGapColumn ? (
@@ -1932,7 +1951,7 @@ function OverallRankingTable({
                         readNextGapForRankScope(row, normalizeNextGapScope(nextGapScope)),
                         "",
                       )}
-                      title={rowSite7Title || undefined}
+                      title={rowTitle || undefined}
                     >
                       {formatNextGapForScope(row, nextGapScope)}
                     </td>
@@ -1941,9 +1960,13 @@ function OverallRankingTable({
                     <th
                       className="directoryNameCell crossStoreHuntStoreCell"
                       data-sort-value={rowStoreName}
-                      title={rowStoreName || undefined}
+                      title={storeCellTitle || undefined}
                     >
-                      <StoreNameLinkOrText storeId={rowStoreId} storeName={rowStoreName} />
+                      <StoreNameLinkOrText
+                        storeId={rowStoreId}
+                        storeName={rowStoreName}
+                        title={storeCellTitle}
+                      />
                     </th>
                   ) : null}
                   {showMachineNameColumn ? (
@@ -1978,7 +2001,7 @@ function OverallRankingTable({
                   <td
                     className={slotExpectedPayoutClassName || undefined}
                     data-sort-value={row.slotNumber}
-                    title={rowSite7Title || undefined}
+                    title={rowTitle || undefined}
                   >
                     {row.slotNumber}
                   </td>
@@ -1991,7 +2014,7 @@ function OverallRankingTable({
                           settingEstimateCellClassName,
                         ) || undefined
                       }
-                      title={rowSite7Title || undefined}
+                      title={rowTitle || undefined}
                     >
                       {column.render(row)}
                     </td>
@@ -2245,7 +2268,10 @@ function MachineRankingGroupTable({
               );
               const rowStoreId = readRowStoreId(row, storeId);
               const rowStoreName = readRowStoreName(row, storeName);
+              const fallbackPredictionDateTitle = buildFallbackPredictionDateTitle(row);
               const rowSite7Title = buildRankingRowSite7Title(row);
+              const rowTitle = combineTitleParts(fallbackPredictionDateTitle, rowSite7Title);
+              const storeCellTitle = combineTitleParts(rowStoreName, fallbackPredictionDateTitle);
               const slotExpectedPayoutClassName = getMachineEvaluationExpectationCellClassName(
                 rowStoreId,
                 rowStoreName,
@@ -2255,7 +2281,8 @@ function MachineRankingGroupTable({
               return (
                 <tr
                   key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${row.rank}`}
-                  title={rowSite7Title || undefined}
+                  className={fallbackPredictionDateTitle ? "huntRankingFallbackDateRow" : undefined}
+                  title={rowTitle || undefined}
                 >
                   {showCommonColumn ? (
                     <HuntScoreCell
@@ -2264,7 +2291,7 @@ function MachineRankingGroupTable({
                       row={row}
                       highlightCondition={highlightCondition}
                       bookmarkMatchByRowKey={bookmarkMatchByRowKey}
-                      extraTitle={rowSite7Title}
+                      extraTitle={rowTitle}
                       sortable
                       huntScoreLogicLabel={huntScoreLogicLabel}
                     />
@@ -2275,7 +2302,7 @@ function MachineRankingGroupTable({
                       storeName={rowStoreName}
                       row={row}
                       evaluation={row.machineEvaluation}
-                      extraTitle={rowSite7Title}
+                      extraTitle={rowTitle}
                     />
                   ) : null}
                   {showDaySpecificMachineEvaluationColumn ? (
@@ -2284,14 +2311,14 @@ function MachineRankingGroupTable({
                       storeName={rowStoreName}
                       row={row}
                       evaluation={row.machineEvaluationDaySpecific}
-                      extraTitle={rowSite7Title}
+                      extraTitle={rowTitle}
                       includeStoredTopBacktests={false}
                     />
                   ) : null}
                   {showConditionColumn ? (
                     <MachineEvaluationConditionCell
                       row={row}
-                      extraTitle={rowSite7Title}
+                      extraTitle={rowTitle}
                     />
                   ) : null}
                   {showExpectedPayoutColumn ? (
@@ -2299,7 +2326,7 @@ function MachineRankingGroupTable({
                       storeId={rowStoreId}
                       storeName={rowStoreName}
                       row={row}
-                      extraTitle={rowSite7Title}
+                      extraTitle={rowTitle}
                     />
                   ) : null}
                   {showExpectedRbColumn ? (
@@ -2307,11 +2334,11 @@ function MachineRankingGroupTable({
                       storeId={rowStoreId}
                       storeName={rowStoreName}
                       row={row}
-                      extraTitle={rowSite7Title}
+                      extraTitle={rowTitle}
                     />
                   ) : null}
                   {showNextGapColumn ? (
-                    <td title={rowSite7Title || undefined}>
+                    <td title={rowTitle || undefined}>
                       {formatNextGapForScope(row, nextGapScope)}
                     </td>
                   ) : null}
@@ -2319,14 +2346,18 @@ function MachineRankingGroupTable({
                     <th
                       className="directoryNameCell crossStoreHuntStoreCell"
                       data-sort-value={rowStoreName}
-                      title={rowStoreName || undefined}
+                      title={storeCellTitle || undefined}
                     >
-                      <StoreNameLinkOrText storeId={rowStoreId} storeName={rowStoreName} />
+                      <StoreNameLinkOrText
+                        storeId={rowStoreId}
+                        storeName={rowStoreName}
+                        title={storeCellTitle}
+                      />
                     </th>
                   ) : null}
                   <td
                     className={slotExpectedPayoutClassName || undefined}
-                    title={rowSite7Title || undefined}
+                    title={rowTitle || undefined}
                   >
                     {row.slotNumber}
                   </td>
@@ -2339,7 +2370,7 @@ function MachineRankingGroupTable({
                           settingEstimateCellClassName,
                         ) || undefined
                       }
-                      title={rowSite7Title || undefined}
+                      title={rowTitle || undefined}
                     >
                       {column.render(row)}
                     </td>
