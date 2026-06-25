@@ -346,6 +346,36 @@ export function calculateEstimatedCoinHoldDifferenceValue(row, machineName = "")
   });
 }
 
+function calculateBonusDifferenceValue(row, machineName = "") {
+  const targetMachineName = String(
+    machineName || row?.machine_name || row?.machineName || "",
+  ).trim();
+  const rule = findMachineDifferenceRule(targetMachineName);
+  const gamesCount = readDifferenceNumber(row?.games_count);
+  const investmentCoins = readDifferenceNumber(rule?.investment_coins);
+  const coinHold = readDifferenceNumber(rule?.games_per_investment);
+  const bonusValues = calculateBonusPayoutAndCount(rule, row);
+
+  if (
+    !rule ||
+    gamesCount === null ||
+    investmentCoins === null ||
+    coinHold === null ||
+    bonusValues === null
+  ) {
+    return null;
+  }
+
+  return calculateCoinHoldDifferenceValue({
+    rule,
+    gamesCount,
+    investmentCoins,
+    coinHold,
+    totalBonusPayout: bonusValues.totalPayout,
+    totalBonusCount: bonusValues.totalCount,
+  });
+}
+
 function readSite7GraphDifferenceValue(row) {
   const differenceSource = String(
     row?.site7_difference_source ?? row?.site7DifferenceSource ?? "",
@@ -356,8 +386,11 @@ function readSite7GraphDifferenceValue(row) {
   return readDifferenceNumber(row?.difference_value);
 }
 
-function readBonusDifferenceValue(row) {
-  return readDifferenceNumber(row?.bonus_difference_value);
+function readBonusDifferenceValue(row, machineName = "") {
+  return (
+    readDifferenceNumber(row?.bonus_difference_value) ??
+    calculateBonusDifferenceValue(row, machineName)
+  );
 }
 
 export function selectDifferenceValue(row, differenceMode = DEFAULT_DIFFERENCE_MODE, machineName = "") {
@@ -375,14 +408,14 @@ export function selectDifferenceValue(row, differenceMode = DEFAULT_DIFFERENCE_M
   }
 
   if (normalizedDifferenceMode === "bonus") {
-    const bonusDifferenceValue = readBonusDifferenceValue(row);
+    const bonusDifferenceValue = readBonusDifferenceValue(row, machineName);
     if (bonusDifferenceValue !== null) {
       return bonusDifferenceValue;
     }
   }
 
   if (normalizedDifferenceMode === "estimated") {
-    const bonusDifferenceValue = readBonusDifferenceValue(row);
+    const bonusDifferenceValue = readBonusDifferenceValue(row, machineName);
     if (bonusDifferenceValue !== null) {
       return bonusDifferenceValue;
     }
@@ -394,7 +427,7 @@ export function selectDifferenceValue(row, differenceMode = DEFAULT_DIFFERENCE_M
   }
 
   return normalizedDifferenceMode === "minrepo"
-    ? readBonusDifferenceValue(row)
+    ? readBonusDifferenceValue(row, machineName)
     : null;
 }
 
