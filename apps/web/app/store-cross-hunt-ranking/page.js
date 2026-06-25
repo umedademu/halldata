@@ -446,10 +446,6 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
                   {[
                     { label: "全てのチェックをON", action: "check" },
                     { label: "全てのチェックをOFF", action: "clear" },
-                    { label: "福岡の店舗を全てON", action: "check", prefecture: "福岡" },
-                    { label: "福岡の店舗を全てOFF", action: "clear", prefecture: "福岡" },
-                    { label: "東京の店舗を全てON", action: "check", prefecture: "東京" },
-                    { label: "東京の店舗を全てOFF", action: "clear", prefecture: "東京" },
                   ].map((button) => (
                     <button
                       key={`${button.prefecture ?? "all"}-${button.action}`}
@@ -468,6 +464,24 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
                       <p className="machineFilterGroupLabel">
                         {group.label}（{formatNumber(group.storeCount)}店）
                       </p>
+                      {group.prefectureName ? (
+                        <div className="machineGroupToggleRow">
+                          {[
+                            { label: `${group.label}を全てON`, action: "check" },
+                            { label: `${group.label}を全てOFF`, action: "clear" },
+                          ].map((button) => (
+                            <button
+                              key={`${group.key}-${button.action}`}
+                              type="button"
+                              className="storeReserveButton storeReserveButtonSecondary storeSelectionButton"
+                              data-cross-store-select-action={button.action}
+                              data-cross-store-select-prefecture={group.prefectureName}
+                            >
+                              {button.label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
                       <div className="metricToggleRow">
                         {group.stores.map((store) => {
                           const checked = requestedStoreIds.includes(store.id);
