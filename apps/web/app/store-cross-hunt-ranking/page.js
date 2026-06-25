@@ -694,7 +694,7 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
             </section>
             {fallbackDateRowCount > 0 ? (
               <p className="crossStoreFallbackNotice">
-                茶色背景の行は、指定日のデータがないため直前の保存日を基準に表示しています。基準日は行にマウスを合わせると確認できます。
+                茶色背景の店舗名は、指定日のデータがないため直前の保存日を基準に表示しています。基準日は行にマウスを合わせると確認できます。
               </p>
             ) : null}
             <HuntRankingTable
