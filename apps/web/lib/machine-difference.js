@@ -356,6 +356,10 @@ function readSite7GraphDifferenceValue(row) {
   return readDifferenceNumber(row?.difference_value);
 }
 
+function readBonusDifferenceValue(row) {
+  return readDifferenceNumber(row?.bonus_difference_value);
+}
+
 export function selectDifferenceValue(row, differenceMode = DEFAULT_DIFFERENCE_MODE, machineName = "") {
   const normalizedDifferenceMode = normalizeDifferenceMode(differenceMode);
   const site7GraphDifferenceValue = readSite7GraphDifferenceValue(row);
@@ -371,20 +375,27 @@ export function selectDifferenceValue(row, differenceMode = DEFAULT_DIFFERENCE_M
   }
 
   if (normalizedDifferenceMode === "bonus") {
-    const bonusDifferenceValue = readDifferenceNumber(row?.bonus_difference_value);
+    const bonusDifferenceValue = readBonusDifferenceValue(row);
     if (bonusDifferenceValue !== null) {
       return bonusDifferenceValue;
     }
   }
 
   if (normalizedDifferenceMode === "estimated") {
-    const bonusDifferenceValue = readDifferenceNumber(row?.bonus_difference_value);
+    const bonusDifferenceValue = readBonusDifferenceValue(row);
     if (bonusDifferenceValue !== null) {
       return bonusDifferenceValue;
     }
   }
 
-  return readDifferenceNumber(row?.difference_value);
+  const minrepoDifferenceValue = readDifferenceNumber(row?.difference_value);
+  if (minrepoDifferenceValue !== null) {
+    return minrepoDifferenceValue;
+  }
+
+  return normalizedDifferenceMode === "minrepo"
+    ? readBonusDifferenceValue(row)
+    : null;
 }
 
 export function withCanonicalMachineName(row) {
