@@ -74,7 +74,6 @@ DEFAULT_MINREPO_DAY_PROGRESS_STEPS = 40
 FETCH_PROGRESS_GLOBAL_SCALE = 1000
 FETCH_PROGRESS_QUEUE_MIN_INTERVAL_SECONDS = 0.2
 FETCH_PROGRESS_BAR_ANIMATION_INTERVAL_MS = 100
-GUI_LIGHTWEIGHT_THEME = "clam"
 MINREPO_FETCH_MODE_NORMAL = "通常"
 MINREPO_FETCH_MODE_FAST = "高速"
 MINREPO_FETCH_MODE_STRONG = "強並列"
@@ -7025,9 +7024,6 @@ class MinRepoApp:
 
 def main() -> None:
     root = tk.Tk()
-    style = ttk.Style()
-    if GUI_LIGHTWEIGHT_THEME in style.theme_names():
-        style.theme_use(GUI_LIGHTWEIGHT_THEME)
     MinRepoApp(root)
     root.mainloop()
 
