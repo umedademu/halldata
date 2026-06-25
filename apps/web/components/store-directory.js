@@ -14,6 +14,16 @@ import {
   buildStoreLocationGroups,
   readStoreLocationGroupKey,
 } from "../lib/store-location-groups";
+import {
+  calculateRegionDistanceKm,
+  readRegionPoint,
+} from "../lib/store-region-distance";
+
+const REGION_ORDER_MODE_STORAGE_KEY = "halldata-store-region-order-mode";
+const HOME_REGION_STORAGE_KEY = "halldata-home-region-key";
+const REGION_ORDER_NORMAL = "normal";
+const REGION_ORDER_NEAR_HOME = "near-home";
+const REGION_KEY_SEPARATOR = "||";
 
 function normalizeText(value) {
   return String(value ?? "").trim().toLocaleLowerCase("ja");
@@ -22,6 +32,50 @@ function normalizeText(value) {
 function normalizeGroupName(value, fallback) {
   const text = String(value ?? "").trim();
   return text || fallback;
+}
+
+function buildRegionKey(prefectureName, areaName) {
+  return [
+    normalizeGroupName(prefectureName, "都道府県未設定"),
+    normalizeGroupName(areaName, "地域未設定"),
+  ].join(REGION_KEY_SEPARATOR);
+}
+
+function parseRegionKey(regionKey) {
+  const [prefectureName = "", areaName = ""] = String(regionKey ?? "").split(REGION_KEY_SEPARATOR);
+  return { prefectureName, areaName };
+}
+
+function formatRegionLabel(prefectureName, areaName) {
+  return [prefectureName, areaName].filter(Boolean).join(" / ") || "地域未設定";
+}
+
+function readStoredText(key, fallbackValue = "") {
+  if (typeof window === "undefined") {
+    return fallbackValue;
+  }
+
+  try {
+    return String(window.localStorage.getItem(key) ?? fallbackValue);
+  } catch {
+    return fallbackValue;
+  }
+}
+
+function saveStoredText(key, value) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    if (value) {
+      window.localStorage.setItem(key, value);
+    } else {
+      window.localStorage.removeItem(key);
+    }
+  } catch {
+    // 端末保存が使えない環境では、画面上の選択だけを使います。
+  }
 }
 
 function reorderStoreIds(storeIds, sourceStoreId, targetStoreId) {
@@ -43,38 +97,109 @@ function reorderStoreIds(storeIds, sourceStoreId, targetStoreId) {
   return nextStoreIds;
 }
 
-function buildStoreGroups(stores) {
-  const prefectureGroups = new Map();
+function compareRegionNames(left, right) {
+  const prefectureComparison = left.prefectureName.localeCompare(right.prefectureName, "ja");
+  if (prefectureComparison !== 0) {
+    return prefectureComparison;
+  }
+  return left.areaName.localeCompare(right.areaName, "ja");
+}
+
+function buildStoreRegions(stores) {
+  const regionMap = new Map();
 
   for (const store of stores) {
     const prefectureName = normalizeGroupName(store.prefectureName, "都道府県未設定");
     const areaName = normalizeGroupName(store.areaName, "地域未設定");
-    if (!prefectureGroups.has(prefectureName)) {
-      prefectureGroups.set(prefectureName, new Map());
+    const regionKey = buildRegionKey(prefectureName, areaName);
+    if (!regionMap.has(regionKey)) {
+      regionMap.set(regionKey, {
+        key: regionKey,
+        prefectureName,
+        areaName,
+        label: formatRegionLabel(prefectureName, areaName),
+        point: readRegionPoint(prefectureName, areaName),
+        stores: [],
+      });
     }
-    const areaGroups = prefectureGroups.get(prefectureName);
-    if (!areaGroups.has(areaName)) {
-      areaGroups.set(areaName, []);
+    regionMap.get(regionKey).stores.push(store);
+  }
+
+  return [...regionMap.values()]
+    .map((region) => ({
+      ...region,
+      stores: [...region.stores].sort((left, right) =>
+        left.storeName.localeCompare(right.storeName, "ja"),
+      ),
+    }))
+    .sort(compareRegionNames);
+}
+
+function buildStoreGroups(stores) {
+  const prefectureGroups = new Map();
+
+  for (const region of buildStoreRegions(stores)) {
+    if (!prefectureGroups.has(region.prefectureName)) {
+      prefectureGroups.set(region.prefectureName, []);
     }
-    areaGroups.get(areaName).push(store);
+    prefectureGroups.get(region.prefectureName).push(region);
   }
 
   return [...prefectureGroups.entries()]
     .sort(([left], [right]) => left.localeCompare(right, "ja"))
-    .map(([prefectureName, areaGroups]) => {
-      const areas = [...areaGroups.entries()]
-        .sort(([left], [right]) => left.localeCompare(right, "ja"))
-        .map(([areaName, areaStores]) => ({
-          areaName,
-          stores: [...areaStores].sort((left, right) => left.storeName.localeCompare(right.storeName, "ja")),
-        }));
+    .map(([prefectureName, areas]) => ({
+      prefectureName,
+      areas,
+      storeCount: areas.reduce((count, area) => count + area.stores.length, 0),
+    }));
+}
 
-      return {
-        prefectureName,
-        areas,
-        storeCount: areas.reduce((count, area) => count + area.stores.length, 0),
-      };
+function buildNearbyStoreRegions(stores, homeRegionKey) {
+  const homeRegion = parseRegionKey(homeRegionKey);
+  const homePoint = readRegionPoint(homeRegion.prefectureName, homeRegion.areaName);
+
+  return buildStoreRegions(stores)
+    .map((region) => ({
+      ...region,
+      distanceKm: calculateRegionDistanceKm(homePoint, region.point),
+    }))
+    .sort((left, right) => {
+      const leftDistance = typeof left.distanceKm === "number" ? left.distanceKm : Number.POSITIVE_INFINITY;
+      const rightDistance =
+        typeof right.distanceKm === "number" ? right.distanceKm : Number.POSITIVE_INFINITY;
+      if (leftDistance !== rightDistance) {
+        return leftDistance - rightDistance;
+      }
+      return compareRegionNames(left, right);
     });
+}
+
+function buildHomeRegionOptions(stores) {
+  return buildStoreRegions(stores).map((region) => ({
+    key: region.key,
+    label: region.label,
+  }));
+}
+
+function formatDistance(distanceKm) {
+  if (typeof distanceKm !== "number" || !Number.isFinite(distanceKm)) {
+    return "";
+  }
+  if (distanceKm < 10) {
+    return `約${distanceKm.toFixed(1)}km`;
+  }
+  return `約${Math.round(distanceKm).toLocaleString("ja-JP")}km`;
+}
+
+function RegionSummaryTitle({ label, distanceKm = null }) {
+  return (
+    <span className="storeRegionTitle">
+      <span>{label}</span>
+      {formatDistance(distanceKm) ? (
+        <span className="storeRegionDistance">{formatDistance(distanceKm)}</span>
+      ) : null}
+    </span>
+  );
 }
 
 function StoreListItem({ store, isFavorite, onToggle, compact = false, reorderable = false }) {
@@ -104,6 +229,8 @@ function StoreListItem({ store, isFavorite, onToggle, compact = false, reorderab
 
 export function StoreDirectory({ completeStores, pendingStores }) {
   const [query, setQuery] = useState("");
+  const [regionOrderMode, setRegionOrderMode] = useState(REGION_ORDER_NORMAL);
+  const [homeRegionKey, setHomeRegionKey] = useState("");
   const [myHallStoreIds, setMyHallStoreIds] = useState([]);
   const [draggedMyHallStoreId, setDraggedMyHallStoreId] = useState("");
   const [dragOverMyHallStoreId, setDragOverMyHallStoreId] = useState("");
@@ -147,6 +274,12 @@ export function StoreDirectory({ completeStores, pendingStores }) {
     [filteredStores, myHallStoreIdSet],
   );
   const storeGroups = useMemo(() => buildStoreGroups(otherFilteredStores), [otherFilteredStores]);
+  const nearbyStoreRegions = useMemo(
+    () => buildNearbyStoreRegions(otherFilteredStores, homeRegionKey),
+    [homeRegionKey, otherFilteredStores],
+  );
+  const homeRegionOptions = useMemo(() => buildHomeRegionOptions(completeStores), [completeStores]);
+  const isNearbyRegionOrder = regionOrderMode === REGION_ORDER_NEAR_HOME && Boolean(homeRegionKey);
   const shouldOpenMatchedRegions = Boolean(normalizedQuery);
   const directoryTitle = myHallStores.length > 0 ? "その他の店舗" : "保存済み店舗";
   const emptyListText =
@@ -161,15 +294,44 @@ export function StoreDirectory({ completeStores, pendingStores }) {
       setMyHallStoreIds(readSavedMyHallStoreIds());
     };
 
+    const syncRegionOrder = () => {
+      const savedRegionOrderMode = readStoredText(
+        REGION_ORDER_MODE_STORAGE_KEY,
+        REGION_ORDER_NORMAL,
+      );
+      setRegionOrderMode(
+        savedRegionOrderMode === REGION_ORDER_NEAR_HOME
+          ? REGION_ORDER_NEAR_HOME
+          : REGION_ORDER_NORMAL,
+      );
+      setHomeRegionKey(readStoredText(HOME_REGION_STORAGE_KEY, ""));
+    };
+
     syncMyHallStoreIds();
+    syncRegionOrder();
     window.addEventListener(MY_HALL_CHANGE_EVENT, syncMyHallStoreIds);
     window.addEventListener("storage", syncMyHallStoreIds);
+    window.addEventListener("storage", syncRegionOrder);
 
     return () => {
       window.removeEventListener(MY_HALL_CHANGE_EVENT, syncMyHallStoreIds);
       window.removeEventListener("storage", syncMyHallStoreIds);
+      window.removeEventListener("storage", syncRegionOrder);
     };
   }, []);
+
+  const handleRegionOrderModeChange = (event) => {
+    const nextMode =
+      event.target.value === REGION_ORDER_NEAR_HOME ? REGION_ORDER_NEAR_HOME : REGION_ORDER_NORMAL;
+    setRegionOrderMode(nextMode);
+    saveStoredText(REGION_ORDER_MODE_STORAGE_KEY, nextMode);
+  };
+
+  const handleHomeRegionChange = (event) => {
+    const nextHomeRegionKey = event.target.value;
+    setHomeRegionKey(nextHomeRegionKey);
+    saveStoredText(HOME_REGION_STORAGE_KEY, nextHomeRegionKey);
+  };
 
   const handleToggleMyHall = (store) => {
     const storeId = normalizeStoreId(store.id);
@@ -354,6 +516,34 @@ export function StoreDirectory({ completeStores, pendingStores }) {
               </button>
             ) : null}
           </div>
+          <div className="storeRegionControlRow">
+            <label className="storeRegionControlField">
+              <span>地域の並び</span>
+              <select
+                className="storeRegionControlSelect"
+                value={regionOrderMode}
+                onChange={handleRegionOrderModeChange}
+              >
+                <option value={REGION_ORDER_NORMAL}>通常の地域順</option>
+                <option value={REGION_ORDER_NEAR_HOME}>自宅地域から近い順</option>
+              </select>
+            </label>
+            <label className="storeRegionControlField">
+              <span>自宅地域（端末保存）</span>
+              <select
+                className="storeRegionControlSelect"
+                value={homeRegionKey}
+                onChange={handleHomeRegionChange}
+              >
+                <option value="">未選択</option>
+                {homeRegionOptions.map((option) => (
+                  <option key={option.key} value={option.key}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           {favoriteFilteredStores.length > 0 ? (
             <div className="storeFavoriteMatches">
               <div className="storeSubsectionHeader">
@@ -385,6 +575,32 @@ export function StoreDirectory({ completeStores, pendingStores }) {
           ) : null}
           {otherFilteredStores.length === 0 ? (
             <div className="emptyListPanel">{emptyListText}</div>
+          ) : isNearbyRegionOrder ? (
+            <div className="storeRegionList storeNearbyRegionList">
+              {nearbyStoreRegions.map((region) => (
+                <details
+                  className="storeRegionGroup"
+                  key={region.key}
+                  open={shouldOpenMatchedRegions || undefined}
+                >
+                  <summary className="storeRegionSummary">
+                    <RegionSummaryTitle label={region.label} distanceKm={region.distanceKm} />
+                    <span>{region.stores.length}店舗</span>
+                  </summary>
+                  <ul className="storeLinkList storeRegionStoreList">
+                    {region.stores.map((store) => (
+                      <li key={store.id}>
+                        <StoreListItem
+                          store={store}
+                          isFavorite={myHallStoreIdSet.has(normalizeStoreId(store.id))}
+                          onToggle={handleToggleMyHall}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ))}
+            </div>
           ) : (
             <div className="storeGroupList">
               {storeGroups.map((prefecture) => (
@@ -401,7 +617,7 @@ export function StoreDirectory({ completeStores, pendingStores }) {
                         open={shouldOpenMatchedRegions || undefined}
                       >
                         <summary className="storeRegionSummary">
-                          <span>{area.areaName}</span>
+                          <RegionSummaryTitle label={area.areaName} />
                           <span>{area.stores.length}店舗</span>
                         </summary>
                         <ul className="storeLinkList storeRegionStoreList">
