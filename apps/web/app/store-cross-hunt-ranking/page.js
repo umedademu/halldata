@@ -376,25 +376,48 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
           <div className="filterConditionBox rankingConditionBoxWide">
             <p className="filterConditionBoxTitle">対象店舗</p>
             {favoriteStores.length > 0 ? (
-              <div className="metricToggleRow">
-                {favoriteStores.map((store) => {
-                  const checked = requestedStoreIds.includes(store.id);
-                  return (
-                    <label
-                      key={store.id}
-                      className={`metricToggleChip ${checked ? "metricToggleChipActive" : ""}`}
+              <div className="crossStoreSelectionStack">
+                <div className="storeSelectionToolbar">
+                  {[
+                    { label: "全てのチェックをON", action: "check" },
+                    { label: "全てのチェックをOFF", action: "clear" },
+                    { label: "福岡の店舗を全てON", action: "check", prefecture: "福岡" },
+                    { label: "福岡の店舗を全てOFF", action: "clear", prefecture: "福岡" },
+                    { label: "東京の店舗を全てON", action: "check", prefecture: "東京" },
+                    { label: "東京の店舗を全てOFF", action: "clear", prefecture: "東京" },
+                  ].map((button) => (
+                    <button
+                      key={`${button.prefecture ?? "all"}-${button.action}`}
+                      type="button"
+                      className="storeReserveButton storeReserveButtonSecondary storeSelectionButton"
+                      data-cross-store-select-action={button.action}
+                      data-cross-store-select-prefecture={button.prefecture ?? ""}
                     >
-                      <input
-                        type="checkbox"
-                        name="store"
-                        value={store.id}
-                        defaultChecked={checked}
-                        data-cross-store-option="1"
-                      />
-                      <span>{store.storeName}</span>
-                    </label>
-                  );
-                })}
+                      {button.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="metricToggleRow">
+                  {favoriteStores.map((store) => {
+                    const checked = requestedStoreIds.includes(store.id);
+                    return (
+                      <label
+                        key={store.id}
+                        className={`metricToggleChip ${checked ? "metricToggleChipActive" : ""}`}
+                      >
+                        <input
+                          type="checkbox"
+                          name="store"
+                          value={store.id}
+                          defaultChecked={checked}
+                          data-cross-store-option="1"
+                          data-store-prefecture={store.prefectureName ?? ""}
+                        />
+                        <span>{store.storeName}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             ) : (
               <p className="filterPanelStatus">

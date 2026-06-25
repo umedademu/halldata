@@ -1767,6 +1767,23 @@ a {
   font-size: 0.9rem;
 }
 
+.crossStoreSelectionStack {
+  display: grid;
+  gap: 10px;
+}
+
+.storeSelectionToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.storeSelectionButton {
+  min-height: 2.35rem;
+  padding: 7px 11px;
+  font-size: 0.86rem;
+}
+
 .machineFilterSlotAction {
   display: inline-flex;
   align-items: end;
@@ -2888,6 +2905,27 @@ a {
   max-width: 11rem;
 }
 
+.huntRankingTable .crossStoreHuntStoreHeader,
+.huntRankingTable .crossStoreHuntStoreCell {
+  position: static;
+  min-width: 9.2rem;
+  width: 9.2rem;
+  max-width: 9.2rem;
+  overflow: hidden;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.crossStoreHuntStoreLink,
+.crossStoreHuntStoreLabel {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
 .directoryTable tbody .directoryNameCell {
   z-index: 2;
   background: #ffffff;
@@ -3420,6 +3458,13 @@ a {
   .huntRankingTable .directoryNameCell {
     min-width: 8rem;
     max-width: 10rem;
+  }
+
+  .huntRankingTable .crossStoreHuntStoreHeader,
+  .huntRankingTable .crossStoreHuntStoreCell {
+    min-width: 8.2rem;
+    width: 8.2rem;
+    max-width: 8.2rem;
   }
 
   .dayFilterRow {

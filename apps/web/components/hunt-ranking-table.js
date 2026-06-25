@@ -98,6 +98,7 @@ const DEFAULT_HIGHLIGHT_RANK_MAX = 3;
 const DEFAULT_HIGHLIGHT_SCORE_MIN = 70;
 const MACHINE_EVALUATION_HIGHLIGHT_METRIC_PAYOUT = "payout";
 const MACHINE_EVALUATION_HIGHLIGHT_METRIC_RB = "rb";
+const STORE_NAME_DISPLAY_CHAR_LIMIT = 12;
 
 function formatEstimatedGrapeDenominator(value) {
   const denominator = Number(value);
@@ -205,6 +206,32 @@ function formatRankingDateFlowLabel(predictionDate, actualDate) {
   const scoreDateLabel = predictionDate ? `${formatMonthDay(predictionDate)}狙い度` : "狙い度";
   const actualDateLabel = actualDate ? `${formatMonthDay(actualDate)}実績` : "実績なし";
   return `${scoreDateLabel} → ${actualDateLabel}`;
+}
+
+function truncateStoreNameForDisplay(storeName) {
+  const text = String(storeName ?? "").trim();
+  const chars = Array.from(text);
+  if (chars.length <= STORE_NAME_DISPLAY_CHAR_LIMIT) {
+    return text;
+  }
+  return `${chars.slice(0, STORE_NAME_DISPLAY_CHAR_LIMIT).join("")}…`;
+}
+
+function StoreNameLinkOrText({ storeId, storeName }) {
+  const label = truncateStoreNameForDisplay(storeName) || "-";
+  const title = String(storeName ?? "").trim() || undefined;
+
+  return storeId ? (
+    <Link
+      href={`/stores/${storeId}`}
+      className="directoryPrimaryLink crossStoreHuntStoreLink"
+      title={title}
+    >
+      {label}
+    </Link>
+  ) : (
+    <span className="crossStoreHuntStoreLabel" title={title}>{label}</span>
+  );
 }
 
 function latestSite7FetchedAtFromRows(rows) {
@@ -1662,7 +1689,7 @@ function OverallRankingTable({
                   columnIndex={storeColumnIndex}
                   type="text"
                   initialDirection="asc"
-                  className="directoryNameHeader"
+                  className="directoryNameHeader crossStoreHuntStoreHeader"
                 >
                   店舗名
                 </HeaderCell>
@@ -1789,13 +1816,7 @@ function OverallRankingTable({
                       data-sort-value={rowStoreName}
                       title={rowStoreName || undefined}
                     >
-                      {rowStoreId ? (
-                        <Link href={`/stores/${rowStoreId}`} className="directoryPrimaryLink">
-                          {rowStoreName || "-"}
-                        </Link>
-                      ) : (
-                        rowStoreName || "-"
-                      )}
+                      <StoreNameLinkOrText storeId={rowStoreId} storeName={rowStoreName} />
                     </th>
                   ) : null}
                   {showMachineNameColumn ? (
@@ -1959,6 +1980,7 @@ function MachineRankingGroupTable({
     columnIndex,
     type = "number",
     initialDirection = "desc",
+    className = "",
     title: headerTitle = undefined,
   }) => {
     const activeDirection = sortState?.columnIndex === columnIndex ? sortState.direction : null;
@@ -1968,6 +1990,7 @@ function MachineRankingGroupTable({
         columnIndex={columnIndex}
         type={type}
         initialDirection={initialDirection}
+        className={className}
         activeDirection={activeDirection}
         onSort={() => handleSort(columnIndex, type, initialDirection)}
         title={headerTitle}
@@ -2069,6 +2092,7 @@ function MachineRankingGroupTable({
                   columnIndex={storeColumnIndex}
                   type="text"
                   initialDirection="asc"
+                  className="directoryNameHeader crossStoreHuntStoreHeader"
                 >
                   店舗名
                 </HeaderCell>
@@ -2170,13 +2194,7 @@ function MachineRankingGroupTable({
                       data-sort-value={rowStoreName}
                       title={rowStoreName || undefined}
                     >
-                      {rowStoreId ? (
-                        <Link href={`/stores/${rowStoreId}`} className="directoryPrimaryLink">
-                          {rowStoreName || "-"}
-                        </Link>
-                      ) : (
-                        rowStoreName || "-"
-                      )}
+                      <StoreNameLinkOrText storeId={rowStoreId} storeName={rowStoreName} />
                     </th>
                   ) : null}
                   <td
