@@ -954,6 +954,8 @@ class MinRepoApp:
         self.startup_store_warning: str | None = None
         self.registered_stores: list[RegisteredStore] = self._load_registered_stores_on_startup()
         self.selected_store_urls: set[str] = self._load_saved_selected_store_urls(self.registered_stores)
+        self.registered_store_sort_column: str | None = None
+        self.registered_store_sort_descending = False
         self.is_busy = False
         self.active_operation_kind = ""
         self.minrepo_cancel_event = threading.Event()
@@ -2771,7 +2773,11 @@ class MinRepoApp:
         self.registered_store_tree.grid(row=2, column=0, sticky="nsew")
 
         for column in REGISTERED_STORE_COLUMNS:
-            self.registered_store_tree.heading(column, text=column)
+            self.registered_store_tree.heading(
+                column,
+                text=self._registered_store_heading_text(column),
+                command=lambda current_column=column: self._sort_registered_store_table_by(current_column),
+            )
             if column in {"頻度", "取得元", "S差枚", "取得順"}:
                 self.registered_store_tree.column(column, width=80, minwidth=80, anchor="center")
                 continue
@@ -5752,9 +5758,12 @@ class MinRepoApp:
 
         selected_item_ids = set(self.registered_store_tree.selection()) if preserve_selection else set()
         self.registered_store_tree.delete(*self.registered_store_tree.get_children())
+        self._refresh_registered_store_headings()
         filter_keyword = self._registered_store_filter_keyword()
         visible_count = 0
-        for index, registered_store in enumerate(self.registered_stores):
+        rows = list(enumerate(self.registered_stores))
+        rows = self._sorted_registered_store_rows(rows)
+        for index, registered_store in rows:
             display_name = self._registered_store_display_name(registered_store)
             if filter_keyword and filter_keyword not in normalize_text(display_name):
                 continue
@@ -5788,6 +5797,65 @@ class MinRepoApp:
             else:
                 self.registered_store_filter_status_var.set(f"{total_count} 店舗を表示")
         self._update_button_states()
+
+    def _registered_store_heading_text(self, column: str) -> str:
+        if column != self.registered_store_sort_column:
+            return column
+        return f"{column} {'↓' if self.registered_store_sort_descending else '↑'}"
+
+    def _refresh_registered_store_headings(self) -> None:
+        for column in REGISTERED_STORE_COLUMNS:
+            self.registered_store_tree.heading(
+                column,
+                text=self._registered_store_heading_text(column),
+                command=lambda current_column=column: self._sort_registered_store_table_by(current_column),
+            )
+
+    def _sort_registered_store_table_by(self, column: str) -> None:
+        if column == self.registered_store_sort_column:
+            self.registered_store_sort_descending = not self.registered_store_sort_descending
+        else:
+            self.registered_store_sort_column = column
+            self.registered_store_sort_descending = False
+        self._refresh_registered_store_table(preserve_selection=True)
+
+    def _sorted_registered_store_rows(
+        self,
+        rows: list[tuple[int, RegisteredStore]],
+    ) -> list[tuple[int, RegisteredStore]]:
+        sort_column = self.registered_store_sort_column
+        if sort_column not in REGISTERED_STORE_COLUMNS:
+            return rows
+        return self._sort_records(
+            rows,
+            lambda row: self._registered_store_sort_value(row[1], sort_column),
+            self.registered_store_sort_descending,
+        )
+
+    def _registered_store_sort_value(self, registered_store: RegisteredStore, column: str) -> object:
+        if column == "頻度":
+            return self._registered_store_frequency_text(registered_store)
+        if column == "取得元":
+            return self._registered_store_source_text(registered_store)
+        if column == "S差枚":
+            return self._registered_store_site7_difference_text(registered_store)
+        if column == "取得順":
+            return self._registered_store_order_text(registered_store)
+        if column == "店舗名":
+            return self._registered_store_display_name(registered_store)
+        if column == "URL":
+            return registered_store.url
+        if column == "都道府県":
+            return registered_store.site7_prefecture
+        if column == "地域":
+            return registered_store.site7_area
+        if column == "SS店舗名":
+            return registered_store.resolved_site7_store_name()
+        if column == "SS ID":
+            return registered_store.site7_hall_id
+        if column == "SS住所":
+            return registered_store.site7_address
+        return ""
 
     def _replace_registered_stores(
         self,
