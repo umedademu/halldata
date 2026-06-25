@@ -34,7 +34,7 @@ from data_persistence import (
     SavedFullDayDatesSummary,
     normalize_store_url,
 )
-from daidata_online_scraper import DaidataOnlineScraper, daidata_store_is_beam_hikari
+from daidata_online_scraper import DaidataOnlineMachineEntry, DaidataOnlineScraper, daidata_store_is_beam_hikari
 from minrepo_scraper import (
     FetchProgress,
     MachineDataset,
@@ -3773,6 +3773,102 @@ class MinRepoApp:
         if fetch_enabled_machine_names == set():
             fetch_enabled_machine_names = None
 
+        saved_lookup_store_cache: tuple[str, str] | None = None
+        minrepo_saved_dates_cache: dict[tuple[str, str], set[str]] = {}
+        warning_summary = SavedFullDayDatesSummary()
+
+        def saved_lookup_store() -> tuple[str, str]:
+            nonlocal saved_lookup_store_cache
+            if saved_lookup_store_cache is not None:
+                return saved_lookup_store_cache
+
+            lookup_store_name = registered_store.name
+            lookup_store_url = registered_store.url
+            preferred_store = self.persistence_service.resolve_preferred_store_by_name(lookup_store_name)
+            if preferred_store is not None:
+                preferred_store_name = str(preferred_store.get("store_name", "")).strip()
+                preferred_store_url = str(preferred_store.get("store_url", "")).strip()
+                if preferred_store_name and preferred_store_url:
+                    lookup_store_name = preferred_store_name
+                    lookup_store_url = preferred_store_url
+
+            saved_lookup_store_cache = (lookup_store_name, lookup_store_url)
+            return saved_lookup_store_cache
+
+        def minrepo_saved_full_day_dates(target_dates: list[str]) -> set[str]:
+            nonlocal warning_summary
+            normalized_dates = [
+                target_date
+                for target_date in target_dates
+                if re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(target_date or ""))
+            ]
+            if not normalized_dates:
+                return set()
+
+            start_date = min(normalized_dates)
+            end_date = max(normalized_dates)
+            cache_key = (start_date, end_date)
+            cached_dates = minrepo_saved_dates_cache.get(cache_key)
+            if cached_dates is not None:
+                return cached_dates
+
+            lookup_store_name, lookup_store_url = saved_lookup_store()
+            saved_full_day_summary = self.persistence_service.find_saved_full_day_dates(
+                store_name=lookup_store_name,
+                store_url=lookup_store_url,
+                start_date=start_date,
+                end_date=end_date,
+            )
+            warning_summary.messages.extend(saved_full_day_summary.messages)
+            saved_dates = set(saved_full_day_summary.saved_dates)
+            minrepo_saved_dates_cache[cache_key] = saved_dates
+            return saved_dates
+
+        def find_protected_slots_before_fetch(
+            machine_entry: DaidataOnlineMachineEntry,
+            target_dates: list[str],
+            slot_numbers: list[str],
+            daidata_updated_at: str | None = None,
+        ) -> set[tuple[str, str]]:
+            nonlocal warning_summary
+            self._raise_if_fetch_cancelled()
+            if not target_dates or not slot_numbers:
+                return set()
+
+            target_date_set = set(target_dates)
+            minrepo_saved_dates = minrepo_saved_full_day_dates(target_dates).intersection(target_date_set)
+            protected_slots = {
+                (target_date, slot_number)
+                for target_date in minrepo_saved_dates
+                for slot_number in slot_numbers
+            }
+            remaining_dates = [
+                target_date
+                for target_date in target_dates
+                if target_date not in minrepo_saved_dates
+            ]
+            if not remaining_dates:
+                return protected_slots
+
+            lookup_store_name, lookup_store_url = saved_lookup_store()
+            saved_slots_summary = self.persistence_service.find_saved_machine_slots(
+                store_name=lookup_store_name,
+                store_url=lookup_store_url,
+                start_date=min(remaining_dates),
+                end_date=max(remaining_dates),
+                slot_numbers=slot_numbers,
+                require_source_difference=False,
+                site7_updated_at=daidata_updated_at,
+            )
+            warning_summary.messages.extend(saved_slots_summary.messages)
+            remaining_date_set = set(remaining_dates)
+            protected_slots.update(
+                (target_date, slot_number)
+                for target_date, slot_number in saved_slots_summary.protected_slots
+                if target_date in remaining_date_set
+            )
+            return protected_slots
+
         def run_daidata_fetch() -> MachineHistoryResult:
             return self.daidata_online_scraper.fetch_beam_hikari_juggler_history(
                 recent_days=recent_days,
@@ -3785,6 +3881,7 @@ class MinRepoApp:
                     )
                 ),
                 enabled_machine_names=fetch_enabled_machine_names,
+                machine_protected_slots_callback=find_protected_slots_before_fetch,
                 cancel_requested=self._cancel_requested,
             )
 
@@ -3808,10 +3905,13 @@ class MinRepoApp:
             store_name=registered_store.name,
             store_url=registered_store.url,
         )
-        history_result, warning_summary = self._prepare_site7_history_result_for_save(
+        prefetch_warning_summary = warning_summary
+        history_result, post_filter_warning_summary = self._prepare_site7_history_result_for_save(
             history_result,
             require_source_difference=False,
         )
+        prefetch_warning_summary.messages.extend(post_filter_warning_summary.messages)
+        warning_summary = prefetch_warning_summary
         self._raise_if_fetch_cancelled()
         save_summary: PersistenceSummary | None = None
         pending_save_futures: list[Future[PersistenceSummary]] = []

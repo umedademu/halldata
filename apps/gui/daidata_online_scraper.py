@@ -18,6 +18,7 @@ from site7_scraper import (
     SITE7_MOBILE_VIEWPORT,
     build_site7_transition_wait_milliseconds,
     format_site7_ratio_text,
+    site7_dataset_updated_at,
     set_site7_dataset_updated_at,
 )
 
@@ -179,6 +180,14 @@ def _business_date_from_updated_at(updated_at: datetime | None, hist_num: int) -
     return (base_time.date() - timedelta(days=hist_num)).isoformat()
 
 
+def _date_text_minus_days(date_text: str, days: int) -> str:
+    try:
+        base_date = datetime.strptime(str(date_text), "%Y-%m-%d").date()
+    except ValueError:
+        return ""
+    return (base_date - timedelta(days=days)).isoformat()
+
+
 def _parse_date_label(text: str, updated_at: datetime | None, hist_num: int) -> str | None:
     label = unicodedata.normalize("NFKC", str(text or "")).strip()
     match = DAIDATA_FULL_DATE_PATTERN.search(label)
@@ -219,6 +228,17 @@ def _with_hist_num(url: str, hist_num: int) -> str:
     query = [(key, value) for key, value in parse_qsl(parts.query, keep_blank_values=True) if key != "hist_num"]
     query.append(("hist_num", str(hist_num)))
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+
+def _daidata_day_is_fully_protected(
+    target_date: str,
+    slot_numbers: list[str],
+    protected_slots: set[tuple[str, str]],
+) -> bool:
+    return bool(target_date and slot_numbers) and all(
+        (target_date, slot_number) in protected_slots
+        for slot_number in slot_numbers
+    )
 
 
 def _find_unit_table(soup: BeautifulSoup) -> Tag | None:
@@ -333,6 +353,10 @@ class DaidataOnlineScraper:
         browser_visible: bool = False,
         progress_callback: Callable[[FetchProgress], None] | None = None,
         enabled_machine_names: set[str] | None = None,
+        machine_protected_slots_callback: Callable[
+            [DaidataOnlineMachineEntry, list[str], list[str], str | None],
+            set[tuple[str, str]],
+        ] | None = None,
         cancel_requested: Callable[[], bool] | None = None,
     ) -> MachineHistoryResult:
         target_days = max(1, min(int(recent_days), 8))
@@ -387,6 +411,7 @@ class DaidataOnlineScraper:
                         recent_days=target_days,
                         browser_visible=browser_visible,
                         progress_callback=progress_callback,
+                        machine_protected_slots_callback=machine_protected_slots_callback,
                         cancel_requested=cancel_requested,
                     )
                 )
@@ -444,31 +469,84 @@ class DaidataOnlineScraper:
         recent_days: int,
         browser_visible: bool,
         progress_callback: Callable[[FetchProgress], None] | None,
-        cancel_requested: Callable[[], bool] | None,
+        machine_protected_slots_callback: Callable[
+            [DaidataOnlineMachineEntry, list[str], list[str], str | None],
+            set[tuple[str, str]],
+        ] | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
     ) -> MachineHistoryResult:
         datasets: list[MachineDataset] = []
         date_pages: list[StoreDatePage] = []
         skipped_targets: list[tuple[str, str]] = []
+        skipped_dates: list[str] = []
+
+        first_target_url = _with_hist_num(machine_entry.url, 0)
+        self._goto_daidata_page(
+            page,
+            first_target_url,
+            browser_visible=browser_visible,
+            progress_callback=progress_callback,
+            cancel_requested=cancel_requested,
+        )
+        first_html = page.content()
+        first_dataset = build_daidata_machine_dataset(
+            first_html,
+            store_name=DAIDATA_BEAM_HIKARI_STORE_NAME,
+            store_url=DAIDATA_BEAM_HIKARI_URL,
+            machine_name=machine_entry.machine_name,
+            machine_url=machine_entry.url,
+            hist_num=0,
+        )
+        target_dates = [
+            _date_text_minus_days(first_dataset.target_date, hist_num)
+            for hist_num in range(recent_days)
+        ]
+        first_day_slot_numbers = self._dataset_slot_numbers(first_dataset)
+        protected_slots: set[tuple[str, str]] = set()
+        if machine_protected_slots_callback is not None and first_day_slot_numbers:
+            protected_slots = set(
+                machine_protected_slots_callback(
+                    machine_entry,
+                    target_dates,
+                    first_day_slot_numbers,
+                    site7_dataset_updated_at(first_dataset) or None,
+                )
+            )
 
         for hist_num in range(recent_days):
             _raise_if_cancel_requested(cancel_requested)
+            target_date = target_dates[hist_num] if hist_num < len(target_dates) else ""
             target_url = _with_hist_num(machine_entry.url, hist_num)
-            self._goto_daidata_page(
-                page,
-                target_url,
-                browser_visible=browser_visible,
-                progress_callback=progress_callback,
-                cancel_requested=cancel_requested,
-            )
-            html = page.content()
-            dataset = build_daidata_machine_dataset(
-                html,
-                store_name=DAIDATA_BEAM_HIKARI_STORE_NAME,
-                store_url=DAIDATA_BEAM_HIKARI_URL,
-                machine_name=machine_entry.machine_name,
-                machine_url=machine_entry.url,
-                hist_num=hist_num,
-            )
+            if _daidata_day_is_fully_protected(target_date, first_day_slot_numbers, protected_slots):
+                skipped_targets.append((target_date, machine_entry.machine_name))
+                if target_date not in skipped_dates:
+                    skipped_dates.append(target_date)
+                continue
+
+            if hist_num == 0:
+                dataset = first_dataset
+            else:
+                self._goto_daidata_page(
+                    page,
+                    target_url,
+                    browser_visible=browser_visible,
+                    progress_callback=progress_callback,
+                    cancel_requested=cancel_requested,
+                )
+                html = page.content()
+                dataset = build_daidata_machine_dataset(
+                    html,
+                    store_name=DAIDATA_BEAM_HIKARI_STORE_NAME,
+                    store_url=DAIDATA_BEAM_HIKARI_URL,
+                    machine_name=machine_entry.machine_name,
+                    machine_url=machine_entry.url,
+                    hist_num=hist_num,
+                )
+            if _daidata_day_is_fully_protected(dataset.target_date, first_day_slot_numbers, protected_slots):
+                skipped_targets.append((dataset.target_date, machine_entry.machine_name))
+                if dataset.target_date not in skipped_dates:
+                    skipped_dates.append(dataset.target_date)
+                continue
             if dataset.rows:
                 datasets.append(dataset)
                 date_pages.append(StoreDatePage(target_date=dataset.target_date, date_url=dataset.date_url))
@@ -486,6 +564,7 @@ class DaidataOnlineScraper:
             date_pages=date_pages,
             datasets=datasets,
             skipped_targets=skipped_targets,
+            skipped_dates=skipped_dates,
         )
 
     def _merge_machine_history_results(self, machine_results: list[MachineHistoryResult]) -> MachineHistoryResult:
@@ -503,7 +582,7 @@ class DaidataOnlineScraper:
 
         date_pages = sorted(date_pages_by_date.values(), key=lambda date_page: date_page.target_date)
         datasets.sort(key=lambda dataset: (dataset.target_date, dataset.machine_name.casefold()))
-        if not datasets:
+        if not datasets and not skipped_dates:
             raise ScraperError("台データオンラインでビームヒカリの台データが見つかりませんでした。")
 
         candidate_dates = [date_page.target_date for date_page in date_pages] or [target_date for target_date, _ in skipped_targets]
@@ -517,6 +596,23 @@ class DaidataOnlineScraper:
             skipped_targets=skipped_targets,
             skipped_dates=skipped_dates,
         )
+
+    def _dataset_slot_numbers(self, dataset: MachineDataset) -> list[str]:
+        try:
+            slot_index = next(
+                index
+                for index, column_name in enumerate(dataset.columns)
+                if normalize_text(column_name) == normalize_text("台番")
+            )
+        except StopIteration:
+            return []
+
+        slot_numbers = [
+            str(row[slot_index]).strip()
+            for row in dataset.rows
+            if slot_index < len(row) and str(row[slot_index]).strip()
+        ]
+        return sorted(set(slot_numbers), key=lambda value: int(value) if value.isdigit() else value)
 
     def _launch_mobile_browser_context(self, browser_visible: bool) -> tuple[object, object]:
         playwright = sync_playwright().start()

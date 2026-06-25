@@ -5191,6 +5191,127 @@ class MinRepoScraperTests(unittest.TestCase):
             ],
         )
 
+    def test_fetch_single_daidata_online_store_uses_full_day_index_before_slot_checks(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.result_queue = queue.Queue()
+        app._queue_fetch_progress = mock.Mock()
+        callback_results: list[set[tuple[str, str]]] = []
+
+        class FakeDaidataOnlineScraper:
+            def fetch_beam_hikari_juggler_history(
+                self,
+                *,
+                recent_days: int,
+                browser_visible: bool,
+                progress_callback: object,
+                enabled_machine_names: set[str] | None,
+                machine_protected_slots_callback: object,
+                cancel_requested: object,
+            ) -> MachineHistoryResult:
+                protected_slots = machine_protected_slots_callback(
+                    DaidataOnlineMachineEntry(
+                        machine_name=SITE7_NEO_IM_MACHINE_NAME,
+                        raw_machine_name=SITE7_NEO_IM_MACHINE_NAME,
+                        url=f"{DAIDATA_BEAM_HIKARI_URL}/unit_list?model=neo",
+                    ),
+                    ["2026-06-03", "2026-06-02", "2026-06-01"],
+                    ["821", "822"],
+                    "2026-06-03T16:00:00+09:00",
+                )
+                callback_results.append(protected_slots)
+                return MachineHistoryResult(
+                    store_name="ビームヒカリ",
+                    store_url=DAIDATA_BEAM_HIKARI_URL,
+                    start_date="2026-06-01",
+                    end_date="2026-06-03",
+                    date_pages=[],
+                    datasets=[],
+                    skipped_targets=[
+                        ("2026-06-01", SITE7_NEO_IM_MACHINE_NAME),
+                        ("2026-06-02", SITE7_NEO_IM_MACHINE_NAME),
+                    ],
+                    skipped_dates=["2026-06-01", "2026-06-02"],
+                )
+
+        class FakePersistenceService:
+            def __init__(self) -> None:
+                self.full_day_calls: list[tuple[str, str, str, str]] = []
+                self.slot_calls: list[tuple[str, str, tuple[str, ...], bool, str | datetime | None]] = []
+                self.saved = False
+
+            def resolve_preferred_store_by_name(self, store_name: str) -> None:
+                return None
+
+            def find_saved_full_day_dates(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+            ) -> SavedFullDayDatesSummary:
+                self.full_day_calls.append((store_name, store_url, start_date, end_date))
+                return SavedFullDayDatesSummary(saved_dates={"2026-06-01"})
+
+            def find_saved_machine_slots(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+                slot_numbers: list[str],
+                require_source_difference: bool = True,
+                site7_updated_at: str | datetime | None = None,
+            ) -> SavedMachineSlotsSummary:
+                if not slot_numbers:
+                    return SavedMachineSlotsSummary()
+                self.slot_calls.append(
+                    (start_date, end_date, tuple(slot_numbers), require_source_difference, site7_updated_at)
+                )
+                return SavedMachineSlotsSummary(protected_slots={("2026-06-02", "821")})
+
+            def save_history_result(self, history_result: MachineHistoryResult) -> PersistenceSummary:
+                self.saved = True
+                return PersistenceSummary(web_data_saved=True)
+
+        persistence_service = FakePersistenceService()
+        app.daidata_online_scraper = FakeDaidataOnlineScraper()
+        app.persistence_service = persistence_service
+
+        result = app._fetch_single_daidata_online_store(
+            registered_store=RegisteredStore(
+                name="ビームヒカリ",
+                url=DAIDATA_BEAM_HIKARI_URL,
+                site7_enabled=True,
+                site7_difference_enabled=False,
+            ),
+            recent_days=3,
+            store_index=1,
+            total_stores=1,
+            retry_delay_seconds=0,
+            browser_visible=False,
+            enabled_machine_names={SITE7_NEO_IM_MACHINE_NAME},
+        )
+
+        self.assertEqual(
+            callback_results[0],
+            {
+                ("2026-06-01", "821"),
+                ("2026-06-01", "822"),
+                ("2026-06-02", "821"),
+            },
+        )
+        self.assertEqual(
+            persistence_service.full_day_calls,
+            [("ビームヒカリ", DAIDATA_BEAM_HIKARI_URL, "2026-06-01", "2026-06-03")],
+        )
+        self.assertEqual(
+            persistence_service.slot_calls,
+            [("2026-06-02", "2026-06-03", ("821", "822"), False, "2026-06-03T16:00:00+09:00")],
+        )
+        self.assertFalse(persistence_service.saved)
+        self.assertEqual(result.history_result.datasets, [])
+
     def test_run_site7_fetch_many_skips_site7_when_minrepo_covers_previous_business_day(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.fetch_cancel_event = threading.Event()
@@ -5769,6 +5890,84 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(len(result.datasets), 2)
         self.assertEqual(events.count("wait"), 2)
         self.assertLess(events.index("goto:https://daidata.goraggio.com/100619/unit_list?model=neo&hist_num=0"), events.index("wait"))
+
+    def test_daidata_machine_history_skips_protected_dates_before_opening_pages(self) -> None:
+        class FakeDaidataHistoryPage:
+            def __init__(self) -> None:
+                self.url = ""
+                self.goto_calls: list[str] = []
+
+            def goto(self, url: str, wait_until: str = "", timeout: int = 0) -> None:
+                self.url = url
+                self.goto_calls.append(url)
+
+            def content(self) -> str:
+                return """
+                <html>
+                  <body>
+                    <p>データ更新 2026.06.25 16:00</p>
+                    <select name="hist_num">
+                      <option value="0" selected>2026/06/25</option>
+                    </select>
+                    <table>
+                      <tr>
+                        <th>台番号</th>
+                        <th>累計スタート</th>
+                        <th>BB回数</th>
+                        <th>RB回数</th>
+                      </tr>
+                      <tr>
+                        <td>821</td>
+                        <td>1,234</td>
+                        <td>4</td>
+                        <td>3</td>
+                      </tr>
+                    </table>
+                  </body>
+                </html>
+                """
+
+            def wait_for_timeout(self, milliseconds: int) -> None:
+                return None
+
+        def protected_slots_callback(
+            machine_entry: DaidataOnlineMachineEntry,
+            target_dates: list[str],
+            slot_numbers: list[str],
+            daidata_updated_at: str | None,
+        ) -> set[tuple[str, str]]:
+            return {
+                (target_date, slot_number)
+                for target_date in target_dates
+                for slot_number in slot_numbers
+            }
+
+        scraper = DaidataOnlineScraper()
+        scraper._wait_for_accept_terms_if_needed = mock.Mock(return_value=False)
+        scraper._wait_between_transitions = mock.Mock()
+        page = FakeDaidataHistoryPage()
+
+        result = scraper._fetch_machine_history_result(
+            page=page,
+            machine_entry=DaidataOnlineMachineEntry(
+                machine_name=SITE7_NEO_IM_MACHINE_NAME,
+                raw_machine_name=SITE7_NEO_IM_MACHINE_NAME,
+                url=f"{DAIDATA_BEAM_HIKARI_URL}/unit_list?model=neo",
+            ),
+            recent_days=2,
+            browser_visible=False,
+            progress_callback=None,
+            machine_protected_slots_callback=protected_slots_callback,
+            cancel_requested=None,
+        )
+
+        self.assertEqual(page.goto_calls, [f"{DAIDATA_BEAM_HIKARI_URL}/unit_list?model=neo&hist_num=0"])
+        self.assertEqual(result.datasets, [])
+        self.assertEqual(result.skipped_dates, ["2026-06-25", "2026-06-24"])
+        self.assertEqual(
+            result.skipped_targets,
+            [("2026-06-25", SITE7_NEO_IM_MACHINE_NAME), ("2026-06-24", SITE7_NEO_IM_MACHINE_NAME)],
+        )
 
     def test_site7_build_machine_daily_records_skips_blank_rows(self) -> None:
         history_result = MachineHistoryResult(
