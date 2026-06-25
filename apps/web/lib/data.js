@@ -1023,7 +1023,7 @@ function buildHuntScoreRankingDetailMemoryCacheKey({
   machineOptions,
 } = {}) {
   return hashJson({
-    version: 3,
+    version: 4,
     storeId: String(storeId ?? "").trim(),
     requestedDate: String(requestedDate ?? "").trim(),
     requestedLimit: normalizeRankingLimit(requestedLimit),

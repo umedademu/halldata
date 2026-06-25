@@ -509,27 +509,6 @@ a {
   font-weight: 950;
 }
 
-.directoryTable tbody td.conditionCountMatchedCell,
-.directoryTable tbody tr:nth-child(odd) td.conditionCountMatchedCell,
-.directoryTable tbody tr:hover td.conditionCountMatchedCell,
-.directoryTable tbody tr.settingEstimateLevel0 td.conditionCountMatchedCell,
-.directoryTable tbody tr.settingEstimateLevel0:nth-child(odd) td.conditionCountMatchedCell,
-.directoryTable tbody tr.settingEstimateLevel0:hover td.conditionCountMatchedCell,
-.directoryTable tbody tr.settingEstimateLevel1 td.conditionCountMatchedCell,
-.directoryTable tbody tr.settingEstimateLevel1:nth-child(odd) td.conditionCountMatchedCell,
-.directoryTable tbody tr.settingEstimateLevel1:hover td.conditionCountMatchedCell,
-.directoryTable tbody tr.settingEstimateLevel2 td.conditionCountMatchedCell,
-.directoryTable tbody tr.settingEstimateLevel2:nth-child(odd) td.conditionCountMatchedCell,
-.directoryTable tbody tr.settingEstimateLevel2:hover td.conditionCountMatchedCell,
-.directoryTable tbody tr.settingEstimateLevel3 td.conditionCountMatchedCell,
-.directoryTable tbody tr.settingEstimateLevel3:nth-child(odd) td.conditionCountMatchedCell,
-.directoryTable tbody tr.settingEstimateLevel3:hover td.conditionCountMatchedCell {
-  background: #ecfdf5;
-  color: #166534;
-  font-weight: 950;
-  box-shadow: inset 0 0 0 1px rgba(22, 101, 52, 0.18);
-}
-
 .directoryTable tbody td.machineEvaluationMatchedCell,
 .directoryTable tbody tr:nth-child(odd) td.machineEvaluationMatchedCell,
 .directoryTable tbody tr:hover td.machineEvaluationMatchedCell,

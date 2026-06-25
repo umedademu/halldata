@@ -6,6 +6,8 @@ import {
 
 const EXPECTATION_METRIC_PAYOUT = "payout";
 const EXPECTATION_METRIC_RB = "rb";
+const MIN_DISPLAY_EXPECTED_PAYOUT_RATE = 102;
+const MAX_DISPLAY_EXPECTED_RB_DENOMINATOR = 310;
 
 const A_PARK_KASUGA_COMMON_HUNT_SCORE_TOP_EXPECTATION_MACHINE_NAMES = new Set([
   "SアイムジャグラーＥＸ",
@@ -35,6 +37,16 @@ function readFiniteNumber(value) {
 function readPositiveFiniteNumber(value) {
   const parsedValue = readFiniteNumber(value);
   return parsedValue !== null && parsedValue > 0 ? parsedValue : null;
+}
+
+function isDisplayableExpectedPayoutRate(value) {
+  const rate = readFiniteNumber(value);
+  return rate !== null && rate >= MIN_DISPLAY_EXPECTED_PAYOUT_RATE;
+}
+
+function isDisplayableExpectedRbDenominator(value) {
+  const denominator = readPositiveFiniteNumber(value);
+  return denominator !== null && denominator <= MAX_DISPLAY_EXPECTED_RB_DENOMINATOR;
 }
 
 function readProbabilityDenominator(value) {
@@ -137,6 +149,24 @@ function buildMatchedConditionEntriesForEvaluation(evaluation, fallbackLabel = "
   }));
 }
 
+function isWatchExpectationCandidate(candidate) {
+  const key = String(candidate?.conditionKey ?? candidate?.key ?? "").toLowerCase();
+  const label = String(candidate?.label ?? candidate?.conditionName ?? "");
+  return key.includes("-watch-") || label.includes("見送り");
+}
+
+function isDisplayableExpectationCandidate(
+  candidate,
+  metric = EXPECTATION_METRIC_PAYOUT,
+) {
+  if (!candidate || isWatchExpectationCandidate(candidate)) {
+    return false;
+  }
+  return metric === EXPECTATION_METRIC_RB
+    ? isDisplayableExpectedRbDenominator(candidate.rbDenominator)
+    : isDisplayableExpectedPayoutRate(candidate.payoutRate);
+}
+
 function selectBestExpectationCandidate(candidates, metric = EXPECTATION_METRIC_PAYOUT) {
   const normalizedCandidates = candidates
     .filter(Boolean)
@@ -145,16 +175,13 @@ function selectBestExpectationCandidate(candidates, metric = EXPECTATION_METRIC_
       payoutRate: readFiniteNumber(candidate?.payoutRate),
       rbDenominator: readPositiveFiniteNumber(candidate?.rbDenominator),
     }))
-    .filter((candidate) => candidate.payoutRate !== null || candidate.rbDenominator !== null);
+    .filter((candidate) => isDisplayableExpectationCandidate(candidate, metric));
 
   if (metric === EXPECTATION_METRIC_RB) {
-    const validRbCandidates = normalizedCandidates.filter(
-      (candidate) => candidate.rbDenominator !== null,
-    );
-    if (validRbCandidates.length === 0) {
+    if (normalizedCandidates.length === 0) {
       return null;
     }
-    return validRbCandidates.sort((left, right) => {
+    return normalizedCandidates.sort((left, right) => {
       if (left.rbDenominator !== right.rbDenominator) {
         return left.rbDenominator - right.rbDenominator;
       }
@@ -171,14 +198,11 @@ function selectBestExpectationCandidate(candidates, metric = EXPECTATION_METRIC_
     })[0];
   }
 
-  const validPayoutCandidates = normalizedCandidates.filter(
-    (candidate) => candidate.payoutRate !== null,
-  );
-  if (validPayoutCandidates.length === 0) {
+  if (normalizedCandidates.length === 0) {
     return null;
   }
 
-  return validPayoutCandidates.sort((left, right) => {
+  return normalizedCandidates.sort((left, right) => {
     if (right.payoutRate !== left.payoutRate) {
       return right.payoutRate - left.payoutRate;
     }
@@ -198,6 +222,7 @@ function selectBestExpectationCandidate(candidates, metric = EXPECTATION_METRIC_
 function readBestMatchedConditionExpectationCandidate(evaluation, metric = EXPECTATION_METRIC_PAYOUT) {
   return selectBestExpectationCandidate(
     buildMatchedConditionEntriesForEvaluation(evaluation).map((condition) => ({
+      conditionKey: condition?.conditionKey,
       label: condition?.conditionName,
       payoutRate: condition?.backtestPayoutRate,
       rbDenominator: condition?.backtestRbDenominator,
@@ -278,7 +303,9 @@ export function readExpectedRbDenominatorForHuntRankingRow(storeId, storeName, r
     row,
     getExpectedRbMetric(row?.machineName),
   );
-  return readPositiveFiniteNumber(detail?.rbDenominator);
+  return isDisplayableExpectedRbDenominator(detail?.rbDenominator)
+    ? readPositiveFiniteNumber(detail?.rbDenominator)
+    : null;
 }
 
 export function hasExpectedRbForHuntRankingRow(storeId, storeName, row) {

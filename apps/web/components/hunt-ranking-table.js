@@ -99,6 +99,8 @@ const DEFAULT_HIGHLIGHT_SCORE_MIN = 70;
 const MACHINE_EVALUATION_HIGHLIGHT_METRIC_PAYOUT = "payout";
 const MACHINE_EVALUATION_HIGHLIGHT_METRIC_RB = "rb";
 const STORE_NAME_DISPLAY_CHAR_LIMIT = 12;
+const MIN_DISPLAY_EXPECTED_PAYOUT_RATE = 102;
+const MAX_DISPLAY_EXPECTED_RB_DENOMINATOR = 310;
 
 function formatEstimatedGrapeDenominator(value) {
   const denominator = Number(value);
@@ -518,6 +520,22 @@ function getMachineEvaluationPayoutClass(payoutRate) {
   return "";
 }
 
+function isDisplayableExpectedPayoutRate(value) {
+  const rate = readFiniteNumber(value);
+  return rate !== null && rate >= MIN_DISPLAY_EXPECTED_PAYOUT_RATE;
+}
+
+function isDisplayableExpectedRbDenominator(value) {
+  const denominator = readPositiveFiniteNumber(value);
+  return denominator !== null && denominator <= MAX_DISPLAY_EXPECTED_RB_DENOMINATOR;
+}
+
+function readDisplayableExpectedRbDenominator(detail) {
+  return isDisplayableExpectedRbDenominator(detail?.rbDenominator)
+    ? readPositiveFiniteNumber(detail?.rbDenominator)
+    : null;
+}
+
 function getMachineEvaluationRbClass(rbDenominator) {
   const denominator = Number(rbDenominator);
   if (!Number.isFinite(denominator) || denominator <= 0) {
@@ -737,6 +755,24 @@ function isSameExpectationCandidate(left, right) {
   );
 }
 
+function isWatchExpectationCandidate(candidate) {
+  const key = String(candidate?.conditionKey ?? candidate?.key ?? "").toLowerCase();
+  const label = String(candidate?.label ?? candidate?.conditionName ?? "");
+  return key.includes("-watch-") || label.includes("見送り");
+}
+
+function isDisplayableExpectationCandidate(
+  candidate,
+  metric = MACHINE_EVALUATION_HIGHLIGHT_METRIC_PAYOUT,
+) {
+  if (!candidate || isWatchExpectationCandidate(candidate)) {
+    return false;
+  }
+  return metric === MACHINE_EVALUATION_HIGHLIGHT_METRIC_RB
+    ? isDisplayableExpectedRbDenominator(candidate.rbDenominator)
+    : isDisplayableExpectedPayoutRate(candidate.payoutRate);
+}
+
 function buildMatchedConditionTitleParts(row, highlightedDetail = null) {
   const matchedConditions = readMatchedConditionEntries(row);
   if (matchedConditions.length === 0) {
@@ -751,6 +787,7 @@ function buildMatchedConditionTitleParts(row, highlightedDetail = null) {
       const backtestLabel = condition.backtestLabel ? ` / ${condition.backtestLabel}` : "";
       const isHighlighted = isSameExpectationCandidate(
         {
+          conditionKey: condition.conditionKey,
           label: condition.conditionName,
           payoutRate: condition.backtestPayoutRate,
           rbDenominator: condition.backtestRbDenominator,
@@ -816,16 +853,13 @@ function selectBestExpectationCandidate(
       payoutRate: readFiniteNumber(candidate?.payoutRate),
       rbDenominator: readPositiveFiniteNumber(candidate?.rbDenominator),
     }))
-    .filter((candidate) => candidate.payoutRate !== null || candidate.rbDenominator !== null);
+    .filter((candidate) => isDisplayableExpectationCandidate(candidate, metric));
 
   if (metric === MACHINE_EVALUATION_HIGHLIGHT_METRIC_RB) {
-    const validRbCandidates = normalizedCandidates.filter(
-      (candidate) => candidate.rbDenominator !== null,
-    );
-    if (validRbCandidates.length === 0) {
+    if (normalizedCandidates.length === 0) {
       return null;
     }
-    return validRbCandidates.sort((left, right) => {
+    return normalizedCandidates.sort((left, right) => {
       if (left.rbDenominator !== right.rbDenominator) {
         return left.rbDenominator - right.rbDenominator;
       }
@@ -842,12 +876,11 @@ function selectBestExpectationCandidate(
     })[0];
   }
 
-  const validPayoutCandidates = normalizedCandidates.filter((candidate) => candidate.payoutRate !== null);
-  if (validPayoutCandidates.length === 0) {
+  if (normalizedCandidates.length === 0) {
     return null;
   }
 
-  return validPayoutCandidates.sort((left, right) => {
+  return normalizedCandidates.sort((left, right) => {
     if (right.payoutRate !== left.payoutRate) {
       return right.payoutRate - left.payoutRate;
     }
@@ -870,6 +903,7 @@ function readBestMatchedConditionExpectationCandidateFromEntries(
 ) {
   return selectBestExpectationCandidate(
     (Array.isArray(matchedConditions) ? matchedConditions : []).map((condition) => ({
+      conditionKey: condition?.conditionKey,
       label: condition?.conditionName,
       payoutRate: condition?.backtestPayoutRate,
       rbDenominator: condition?.backtestRbDenominator,
@@ -990,12 +1024,16 @@ function buildMachineEvaluationExpectationTitle(detail, metric = "") {
 
   return combineTitleParts(
     detail.label ? `採用目安: ${detail.label}` : "",
-    `${metric === MACHINE_EVALUATION_HIGHLIGHT_METRIC_PAYOUT ? "★" : ""}期待割: ${
-      formatExpectedPayoutRate(detail.payoutRate)
-    }`,
-    `${metric === MACHINE_EVALUATION_HIGHLIGHT_METRIC_RB ? "★" : ""}期待RB: ${
-      formatExpectedRbDenominator(detail.rbDenominator)
-    }`,
+    isDisplayableExpectedPayoutRate(detail.payoutRate)
+      ? `${metric === MACHINE_EVALUATION_HIGHLIGHT_METRIC_PAYOUT ? "★" : ""}期待割: ${
+          formatExpectedPayoutRate(detail.payoutRate)
+        }`
+      : "",
+    isDisplayableExpectedRbDenominator(detail.rbDenominator)
+      ? `${metric === MACHINE_EVALUATION_HIGHLIGHT_METRIC_RB ? "★" : ""}期待RB: ${
+          formatExpectedRbDenominator(detail.rbDenominator)
+        }`
+      : "",
   );
 }
 
@@ -1110,7 +1148,7 @@ function MachineEvaluationConditionCell({ row, extraTitle = "" }) {
   );
   const className = [
     "conditionCountCell",
-    expectationClassName || (matchedConditionCount > 0 ? "conditionCountMatchedCell" : ""),
+    expectationClassName,
   ].filter(Boolean).join(" ");
   const matchedConditionTitleParts = buildMatchedConditionTitleParts(row, expectationDetail);
   const expectationTitle = buildMachineEvaluationExpectationTitle(expectationDetail, highlightMetric);
@@ -1161,10 +1199,12 @@ function MachineEvaluationExpectedRbCell({ storeId, storeName, row, extraTitle =
     ? MACHINE_EVALUATION_HIGHLIGHT_METRIC_RB
     : MACHINE_EVALUATION_HIGHLIGHT_METRIC_PAYOUT;
   const expectationDetail = readMachineEvaluationExpectationDetail(storeId, storeName, row, metric);
-  const className = getMachineEvaluationExpectedRbClassName(expectationDetail, row?.machineName);
+  const rbDenominator = readDisplayableExpectedRbDenominator(expectationDetail);
+  const rbExpectationDetail = rbDenominator === null ? null : expectationDetail;
+  const className = getMachineEvaluationExpectedRbClassName(rbExpectationDetail, row?.machineName);
   const title = combineTitleParts(
     buildMachineEvaluationExpectationTitle(
-      expectationDetail,
+      rbExpectationDetail,
       isNeoAim ? MACHINE_EVALUATION_HIGHLIGHT_METRIC_RB : "",
     ),
     extraTitle,
@@ -1173,9 +1213,9 @@ function MachineEvaluationExpectedRbCell({ storeId, storeName, row, extraTitle =
     <td
       className={className || undefined}
       title={title || undefined}
-      data-sort-value={expectationDetail?.rbDenominator ?? ""}
+      data-sort-value={rbDenominator ?? ""}
     >
-      {formatExpectedRbDenominator(expectationDetail?.rbDenominator)}
+      {formatExpectedRbDenominator(rbDenominator)}
     </td>
   );
 }
@@ -1353,15 +1393,15 @@ function readSortableTableValue(
     const expectedRbMetric = isNeoAimMachineName(row?.machineName)
       ? MACHINE_EVALUATION_HIGHLIGHT_METRIC_RB
       : MACHINE_EVALUATION_HIGHLIGHT_METRIC_PAYOUT;
+    const expectationDetail = readMachineEvaluationExpectationDetail(
+      storeId,
+      storeName,
+      row,
+      expectedRbMetric,
+    );
     return {
       missing: false,
-      value:
-        readMachineEvaluationExpectationDetail(
-          storeId,
-          storeName,
-          row,
-          expectedRbMetric,
-        )?.rbDenominator ?? null,
+      value: readDisplayableExpectedRbDenominator(expectationDetail),
       type: "number",
     };
   }
