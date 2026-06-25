@@ -14,7 +14,7 @@ from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 import requests
 
-from daidata_online_scraper import daidata_store_is_beam_hikari
+from daidata_online_scraper import daidata_store_uses_daidata_online
 from machine_difference import (
     calculate_machine_difference_value,
     canonical_machine_name,
@@ -3739,10 +3739,10 @@ class HistoryPersistenceService:
             seen_store_urls.add(store_url)
             site7_enabled = _coerce_bool(store.get("site7_enabled", site7_defaults["site7_enabled"]))
             raw_site7_store_name = str(store.get("site7_store_name", "")).strip()
-            is_daidata_online_store = daidata_store_is_beam_hikari(
+            is_daidata_online_store = daidata_store_uses_daidata_online(
                 store_name,
                 store_url,
-            ) or daidata_store_is_beam_hikari(
+            ) or daidata_store_uses_daidata_online(
                 raw_site7_store_name,
                 store_url,
             )

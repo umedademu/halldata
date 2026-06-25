@@ -34,6 +34,9 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 DAIDATA_BEAM_HIKARI_STORE_NAME = "ビームヒカリ"
 DAIDATA_BEAM_HIKARI_STORE_ID = "100619"
 DAIDATA_BEAM_HIKARI_URL = f"https://daidata.goraggio.com/{DAIDATA_BEAM_HIKARI_STORE_ID}"
+DAIDATA_WONDERLAND_SUE_STORE_NAME = "ワンダーランド須恵店"
+DAIDATA_WONDERLAND_SUE_STORE_ID = "101221"
+DAIDATA_WONDERLAND_SUE_URL = f"https://daidata.goraggio.com/{DAIDATA_WONDERLAND_SUE_STORE_ID}"
 DAIDATA_BROWSER_STATE_DIR_NAME = "daidata_online_browser"
 DAIDATA_JST = timezone(timedelta(hours=9))
 DAIDATA_COLUMNS = ["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"]
@@ -53,16 +56,58 @@ class DaidataOnlineMachineEntry:
     machine_count: int = 0
 
 
-def daidata_store_is_beam_hikari(store_name: str, store_url: str = "") -> bool:
-    name_key = unicodedata.normalize("NFKC", str(store_name or "")).casefold()
-    compact_name = normalize_text(name_key)
-    if "ビームヒカリ" in compact_name:
-        return True
-    if compact_name in {"beamhikari", "beambyhikari"}:
-        return True
+@dataclass(frozen=True)
+class DaidataOnlineStoreConfig:
+    store_name: str
+    store_id: str
+    name_keys: tuple[str, ...]
+    aliases: tuple[str, ...] = ()
 
+    @property
+    def url(self) -> str:
+        return f"https://daidata.goraggio.com/{self.store_id}"
+
+
+DAIDATA_ONLINE_STORE_CONFIGS = (
+    DaidataOnlineStoreConfig(
+        store_name=DAIDATA_BEAM_HIKARI_STORE_NAME,
+        store_id=DAIDATA_BEAM_HIKARI_STORE_ID,
+        name_keys=("ビームヒカリ",),
+        aliases=("beamhikari", "beambyhikari"),
+    ),
+    DaidataOnlineStoreConfig(
+        store_name=DAIDATA_WONDERLAND_SUE_STORE_NAME,
+        store_id=DAIDATA_WONDERLAND_SUE_STORE_ID,
+        name_keys=("ワンダーランド須恵", "ワンダーランド須惠"),
+        aliases=("wonderlandsue",),
+    ),
+)
+
+
+def _daidata_store_name_key(value: str) -> str:
+    return normalize_text(unicodedata.normalize("NFKC", str(value or "")).casefold())
+
+
+def daidata_store_config_for(store_name: str, store_url: str = "") -> DaidataOnlineStoreConfig | None:
+    compact_name = _daidata_store_name_key(store_name)
     decoded_url = unquote(str(store_url or "")).casefold()
-    return "daidata.goraggio.com" in decoded_url and f"/{DAIDATA_BEAM_HIKARI_STORE_ID}" in decoded_url
+    for config in DAIDATA_ONLINE_STORE_CONFIGS:
+        if any(_daidata_store_name_key(name_key) in compact_name for name_key in config.name_keys):
+            return config
+        if compact_name in config.aliases:
+            return config
+        if "daidata.goraggio.com" in decoded_url and f"/{config.store_id}" in decoded_url:
+            return config
+    return None
+
+
+def daidata_store_uses_daidata_online(store_name: str, store_url: str = "") -> bool:
+    return daidata_store_config_for(store_name, store_url) is not None
+
+
+def daidata_store_is_beam_hikari(store_name: str, store_url: str = "") -> bool:
+    config = daidata_store_config_for(store_name, store_url)
+    return config is not None and config.store_id == DAIDATA_BEAM_HIKARI_STORE_ID
 
 
 def build_daidata_transition_wait_milliseconds(
@@ -359,10 +404,34 @@ class DaidataOnlineScraper:
         ] | None = None,
         cancel_requested: Callable[[], bool] | None = None,
     ) -> MachineHistoryResult:
+        return self.fetch_store_juggler_history(
+            store_config=DAIDATA_ONLINE_STORE_CONFIGS[0],
+            recent_days=recent_days,
+            browser_visible=browser_visible,
+            progress_callback=progress_callback,
+            enabled_machine_names=enabled_machine_names,
+            machine_protected_slots_callback=machine_protected_slots_callback,
+            cancel_requested=cancel_requested,
+        )
+
+    def fetch_store_juggler_history(
+        self,
+        *,
+        store_config: DaidataOnlineStoreConfig,
+        recent_days: int,
+        browser_visible: bool = False,
+        progress_callback: Callable[[FetchProgress], None] | None = None,
+        enabled_machine_names: set[str] | None = None,
+        machine_protected_slots_callback: Callable[
+            [DaidataOnlineMachineEntry, list[str], list[str], str | None],
+            set[tuple[str, str]],
+        ] | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> MachineHistoryResult:
         target_days = max(1, min(int(recent_days), 8))
         self._require_playwright()
         _raise_if_cancel_requested(cancel_requested)
-        self._notify_progress(progress_callback, 0, 1, "ビームヒカリの台データオンラインへ接続しています")
+        self._notify_progress(progress_callback, 0, 1, f"{store_config.store_name}の台データオンラインへ接続しています")
 
         playwright = None
         context = None
@@ -372,13 +441,13 @@ class DaidataOnlineScraper:
             page = self._prepare_page(context)
             self._goto_daidata_page(
                 page,
-                DAIDATA_BEAM_HIKARI_URL,
+                store_config.url,
                 browser_visible=browser_visible,
                 progress_callback=progress_callback,
                 cancel_requested=cancel_requested,
             )
             _raise_if_cancel_requested(cancel_requested)
-            list_url = urljoin(f"{DAIDATA_BEAM_HIKARI_URL}/", "list?mode=psModelNameSearch&ps=S")
+            list_url = urljoin(f"{store_config.url}/", "list?mode=psModelNameSearch&ps=S")
             self._goto_daidata_page(
                 page,
                 list_url,
@@ -393,7 +462,7 @@ class DaidataOnlineScraper:
                 enabled_machine_names=enabled_machine_names,
             )
             if not machine_entries:
-                raise ScraperError("台データオンラインでビームヒカリのジャグラー系機種が見つかりませんでした。")
+                raise ScraperError(f"台データオンラインで{store_config.store_name}のジャグラー系機種が見つかりませんでした。")
 
             total_steps = len(machine_entries) + 1
             for machine_index, machine_entry in enumerate(machine_entries, start=1):
@@ -402,10 +471,11 @@ class DaidataOnlineScraper:
                     progress_callback,
                     machine_index,
                     total_steps,
-                    f"ビームヒカリ / {machine_entry.machine_name} の台データオンラインを読んでいます",
+                    f"{store_config.store_name} / {machine_entry.machine_name} の台データオンラインを読んでいます",
                 )
                 machine_results.append(
                     self._fetch_machine_history_result(
+                        store_config=store_config,
                         page=page,
                         machine_entry=machine_entry,
                         recent_days=target_days,
@@ -420,7 +490,7 @@ class DaidataOnlineScraper:
         finally:
             self._release_browser_context(playwright, context, browser_visible=browser_visible)
 
-        return self._merge_machine_history_results(machine_results)
+        return self._merge_machine_history_results(store_config, machine_results)
 
     def extract_juggler_machine_links(
         self,
@@ -464,6 +534,7 @@ class DaidataOnlineScraper:
     def _fetch_machine_history_result(
         self,
         *,
+        store_config: DaidataOnlineStoreConfig = DAIDATA_ONLINE_STORE_CONFIGS[0],
         page: object,
         machine_entry: DaidataOnlineMachineEntry,
         recent_days: int,
@@ -491,8 +562,8 @@ class DaidataOnlineScraper:
         first_html = page.content()
         first_dataset = build_daidata_machine_dataset(
             first_html,
-            store_name=DAIDATA_BEAM_HIKARI_STORE_NAME,
-            store_url=DAIDATA_BEAM_HIKARI_URL,
+            store_name=store_config.store_name,
+            store_url=store_config.url,
             machine_name=machine_entry.machine_name,
             machine_url=machine_entry.url,
             hist_num=0,
@@ -536,8 +607,8 @@ class DaidataOnlineScraper:
                 html = page.content()
                 dataset = build_daidata_machine_dataset(
                     html,
-                    store_name=DAIDATA_BEAM_HIKARI_STORE_NAME,
-                    store_url=DAIDATA_BEAM_HIKARI_URL,
+                    store_name=store_config.store_name,
+                    store_url=store_config.url,
                     machine_name=machine_entry.machine_name,
                     machine_url=machine_entry.url,
                     hist_num=hist_num,
@@ -557,8 +628,8 @@ class DaidataOnlineScraper:
         start_date = min(candidate_dates) if candidate_dates else ""
         end_date = max(candidate_dates) if candidate_dates else ""
         return MachineHistoryResult(
-            store_name=DAIDATA_BEAM_HIKARI_STORE_NAME,
-            store_url=DAIDATA_BEAM_HIKARI_URL,
+            store_name=store_config.store_name,
+            store_url=store_config.url,
             start_date=start_date,
             end_date=end_date,
             date_pages=date_pages,
@@ -567,7 +638,11 @@ class DaidataOnlineScraper:
             skipped_dates=skipped_dates,
         )
 
-    def _merge_machine_history_results(self, machine_results: list[MachineHistoryResult]) -> MachineHistoryResult:
+    def _merge_machine_history_results(
+        self,
+        store_config: DaidataOnlineStoreConfig,
+        machine_results: list[MachineHistoryResult],
+    ) -> MachineHistoryResult:
         datasets: list[MachineDataset] = []
         date_pages_by_date: dict[str, StoreDatePage] = {}
         skipped_targets: list[tuple[str, str]] = []
@@ -583,12 +658,12 @@ class DaidataOnlineScraper:
         date_pages = sorted(date_pages_by_date.values(), key=lambda date_page: date_page.target_date)
         datasets.sort(key=lambda dataset: (dataset.target_date, dataset.machine_name.casefold()))
         if not datasets and not skipped_dates:
-            raise ScraperError("台データオンラインでビームヒカリの台データが見つかりませんでした。")
+            raise ScraperError(f"台データオンラインで{store_config.store_name}の台データが見つかりませんでした。")
 
         candidate_dates = [date_page.target_date for date_page in date_pages] or [target_date for target_date, _ in skipped_targets]
         return MachineHistoryResult(
-            store_name=DAIDATA_BEAM_HIKARI_STORE_NAME,
-            store_url=DAIDATA_BEAM_HIKARI_URL,
+            store_name=store_config.store_name,
+            store_url=store_config.url,
             start_date=min(candidate_dates) if candidate_dates else "",
             end_date=max(candidate_dates) if candidate_dates else "",
             date_pages=date_pages,

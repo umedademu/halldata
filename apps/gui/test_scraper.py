@@ -33,11 +33,14 @@ from data_persistence import (
 )
 from daidata_online_scraper import (
     DAIDATA_BEAM_HIKARI_URL,
+    DAIDATA_WONDERLAND_SUE_URL,
     DaidataOnlineMachineEntry,
     DaidataOnlineScraper,
     build_daidata_machine_dataset,
     build_daidata_transition_wait_milliseconds,
+    daidata_store_config_for,
     daidata_store_is_beam_hikari,
+    daidata_store_uses_daidata_online,
 )
 from main import (
     DEFAULT_MINREPO_FETCH_MODE,
@@ -5199,9 +5202,10 @@ class MinRepoScraperTests(unittest.TestCase):
         callback_results: list[set[tuple[str, str]]] = []
 
         class FakeDaidataOnlineScraper:
-            def fetch_beam_hikari_juggler_history(
+            def fetch_store_juggler_history(
                 self,
                 *,
+                store_config: object,
                 recent_days: int,
                 browser_visible: bool,
                 progress_callback: object,
@@ -5209,6 +5213,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 machine_protected_slots_callback: object,
                 cancel_requested: object,
             ) -> MachineHistoryResult:
+                self.store_config = store_config
                 protected_slots = machine_protected_slots_callback(
                     DaidataOnlineMachineEntry(
                         machine_name=SITE7_NEO_IM_MACHINE_NAME,
@@ -5305,6 +5310,7 @@ class MinRepoScraperTests(unittest.TestCase):
             persistence_service.full_day_calls,
             [("ビームヒカリ", DAIDATA_BEAM_HIKARI_URL, "2026-06-01", "2026-06-03")],
         )
+        self.assertEqual(app.daidata_online_scraper.store_config.url, DAIDATA_BEAM_HIKARI_URL)
         self.assertEqual(
             persistence_service.slot_calls,
             [("2026-06-02", "2026-06-03", ("821", "822"), False, "2026-06-03T16:00:00+09:00")],
@@ -5468,6 +5474,12 @@ class MinRepoScraperTests(unittest.TestCase):
             site7_enabled=True,
             site7_area="大野城市",
         )
+        sue_store = RegisteredStore(
+            name="ワンダーランド須恵店",
+            url=DAIDATA_WONDERLAND_SUE_URL,
+            site7_enabled=True,
+            site7_area="糟屋郡",
+        )
         hinode_store = RegisteredStore(
             name="HINODE大野城店",
             url="https://example.com/hinode",
@@ -5475,7 +5487,10 @@ class MinRepoScraperTests(unittest.TestCase):
             site7_area="大野城市",
         )
 
-        self.assertEqual(app._site7_registered_stores_from([beam_store, hinode_store]), [hinode_store, beam_store])
+        self.assertEqual(
+            app._site7_registered_stores_from([beam_store, sue_store, hinode_store]),
+            [hinode_store, beam_store, sue_store],
+        )
 
     def test_site7_registered_stores_from_keeps_only_beam_hikari_daidata_online_store(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -5485,8 +5500,14 @@ class MinRepoScraperTests(unittest.TestCase):
             site7_enabled=True,
             site7_area="大野城市",
         )
+        sue_store = RegisteredStore(
+            name="ワンダーランド須恵店",
+            url=DAIDATA_WONDERLAND_SUE_URL,
+            site7_enabled=True,
+            site7_area="糟屋郡",
+        )
 
-        self.assertEqual(app._site7_registered_stores_from([beam_store]), [beam_store])
+        self.assertEqual(app._site7_registered_stores_from([beam_store, sue_store]), [beam_store, sue_store])
 
     def test_site7_parse_machine_history_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
@@ -5691,6 +5712,12 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         self.assertTrue(daidata_store_is_beam_hikari("ビームヒカリ", ""))
+        self.assertTrue(daidata_store_uses_daidata_online("ワンダーランド須恵店", ""))
+        self.assertTrue(daidata_store_uses_daidata_online("", DAIDATA_WONDERLAND_SUE_URL))
+        self.assertFalse(daidata_store_is_beam_hikari("ワンダーランド須恵店", DAIDATA_WONDERLAND_SUE_URL))
+        sue_config = daidata_store_config_for("ワンダーランド須恵店", "")
+        self.assertIsNotNone(sue_config)
+        self.assertEqual(sue_config.url, DAIDATA_WONDERLAND_SUE_URL)
         self.assertEqual([entry.machine_name for entry in entries], [SITE7_NEO_IM_MACHINE_NAME])
 
     def test_daidata_accept_terms_page_is_clicked_automatically(self) -> None:
@@ -5890,6 +5917,68 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(len(result.datasets), 2)
         self.assertEqual(events.count("wait"), 2)
         self.assertLess(events.index("goto:https://daidata.goraggio.com/100619/unit_list?model=neo&hist_num=0"), events.index("wait"))
+
+    def test_daidata_machine_history_uses_store_config(self) -> None:
+        class FakeDaidataHistoryPage:
+            def __init__(self) -> None:
+                self.url = ""
+
+            def goto(self, url: str, wait_until: str = "", timeout: int = 0) -> None:
+                self.url = url
+
+            def content(self) -> str:
+                return """
+                <html>
+                  <body>
+                    <p>データ更新 2026.06.25 16:00</p>
+                    <select name="hist_num">
+                      <option value="0" selected>2026/06/25</option>
+                    </select>
+                    <table>
+                      <tr>
+                        <th>台番号</th>
+                        <th>累計スタート</th>
+                        <th>BB回数</th>
+                        <th>RB回数</th>
+                      </tr>
+                      <tr>
+                        <td>821</td>
+                        <td>1,234</td>
+                        <td>4</td>
+                        <td>3</td>
+                      </tr>
+                    </table>
+                  </body>
+                </html>
+                """
+
+            def wait_for_timeout(self, milliseconds: int) -> None:
+                return None
+
+        sue_config = daidata_store_config_for("ワンダーランド須恵店", "")
+        self.assertIsNotNone(sue_config)
+        scraper = DaidataOnlineScraper()
+        scraper._wait_for_accept_terms_if_needed = mock.Mock(return_value=False)
+        scraper._wait_between_transitions = mock.Mock()
+
+        result = scraper._fetch_machine_history_result(
+            store_config=sue_config,
+            page=FakeDaidataHistoryPage(),
+            machine_entry=DaidataOnlineMachineEntry(
+                machine_name=SITE7_NEO_IM_MACHINE_NAME,
+                raw_machine_name=SITE7_NEO_IM_MACHINE_NAME,
+                url=f"{DAIDATA_WONDERLAND_SUE_URL}/unit_list?model=neo",
+            ),
+            recent_days=1,
+            browser_visible=False,
+            progress_callback=None,
+            cancel_requested=None,
+        )
+
+        self.assertEqual(result.store_name, "ワンダーランド須恵店")
+        self.assertEqual(result.store_url, DAIDATA_WONDERLAND_SUE_URL)
+        self.assertEqual(result.datasets[0].store_name, "ワンダーランド須恵店")
+        self.assertEqual(result.datasets[0].store_url, DAIDATA_WONDERLAND_SUE_URL)
 
     def test_daidata_machine_history_skips_protected_dates_before_opening_pages(self) -> None:
         class FakeDaidataHistoryPage:
@@ -7944,6 +8033,36 @@ class MinRepoScraperTests(unittest.TestCase):
                         "site7_prefecture": "福岡県",
                         "site7_area": "大野城市",
                         "site7_store_name": "ビームヒカリ",
+                        "site7_hall_id": "",
+                        "site7_address": "",
+                    }
+                ],
+            )
+
+    def test_normalize_registered_stores_keeps_wonderland_sue_daidata_online_source(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+
+            self.assertEqual(
+                service._normalize_registered_stores(  # type: ignore[attr-defined]
+                    [
+                        {
+                            "store_name": "ワンダーランド須恵店",
+                            "store_url": DAIDATA_WONDERLAND_SUE_URL,
+                            "site7_enabled": True,
+                            "site7_area": "糟屋郡",
+                        }
+                    ]
+                ),
+                [
+                    {
+                        "store_name": "ワンダーランド須恵店",
+                        "store_url": f"{DAIDATA_WONDERLAND_SUE_URL}/",
+                        "site7_enabled": True,
+                        "site7_difference_enabled": False,
+                        "site7_prefecture": "福岡県",
+                        "site7_area": "糟屋郡",
+                        "site7_store_name": "ワンダーランド須恵店",
                         "site7_hall_id": "",
                         "site7_address": "",
                     }

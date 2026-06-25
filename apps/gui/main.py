@@ -34,7 +34,11 @@ from data_persistence import (
     SavedFullDayDatesSummary,
     normalize_store_url,
 )
-from daidata_online_scraper import DaidataOnlineMachineEntry, DaidataOnlineScraper, daidata_store_is_beam_hikari
+from daidata_online_scraper import (
+    DaidataOnlineMachineEntry,
+    DaidataOnlineScraper,
+    daidata_store_config_for,
+)
 from minrepo_scraper import (
     FetchProgress,
     MachineDataset,
@@ -434,7 +438,7 @@ def store_uses_site7(fetch_source: str) -> bool:
 
 
 def registered_store_uses_daidata_online(registered_store: "RegisteredStore") -> bool:
-    return daidata_store_is_beam_hikari(registered_store.name, registered_store.url)
+    return daidata_store_config_for(registered_store.name, registered_store.url) is not None
 
 
 def normalize_site7_schedule_hours(value: object) -> tuple[int, ...]:
@@ -3763,6 +3767,9 @@ class MinRepoApp:
     ) -> StoreFetchResult:
         self._raise_if_fetch_cancelled()
         store_label = f"{store_index}/{total_stores} {registered_store.name}"
+        daidata_store_config = daidata_store_config_for(registered_store.name, registered_store.url)
+        if daidata_store_config is None:
+            raise ScraperError(f"{registered_store.name} は台データオンライン取得の対象店舗ではありません。")
 
         def queue_progress(progress: FetchProgress) -> None:
             self._queue_fetch_progress(progress, store_index=store_index, total_stores=total_stores)
@@ -3870,7 +3877,8 @@ class MinRepoApp:
             return protected_slots
 
         def run_daidata_fetch() -> MachineHistoryResult:
-            return self.daidata_online_scraper.fetch_beam_hikari_juggler_history(
+            return self.daidata_online_scraper.fetch_store_juggler_history(
+                store_config=daidata_store_config,
                 recent_days=recent_days,
                 browser_visible=browser_visible,
                 progress_callback=lambda progress: queue_progress(
