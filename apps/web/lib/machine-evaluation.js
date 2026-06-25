@@ -651,7 +651,14 @@ function readBacktestPayoutRate(backtestLabel) {
 
 function readBacktestRbDenominator(backtestLabel) {
   const normalizedLabel = String(backtestLabel ?? "").normalize("NFKC");
-  const match = normalizedLabel.match(/RB(?:率)?\s*(?:1\s*\/)?\s*(\d+(?:\.\d+)?)/iu);
+  const ratioMatch = normalizedLabel.match(/RB(?:率)?\s*1\s*\/\s*(\d+(?:\.\d+)?)/iu);
+  if (ratioMatch) {
+    const value = Number(ratioMatch[1]);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  const shorthandMatch = normalizedLabel.match(/RB(?:率)?\s*(\d{3}(?:\.\d+)?)/iu);
+  const match = shorthandMatch;
   if (!match) {
     return null;
   }
