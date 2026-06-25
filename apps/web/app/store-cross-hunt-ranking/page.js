@@ -290,6 +290,7 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
           buildStoreRequestOptions(storeSettings, {
             differenceMode,
             settingEstimateMode,
+            skipBacktestDetail: true,
           }),
           storeSettings?.huntScoreLogicKey ?? "",
         );
@@ -321,6 +322,7 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
                 buildStoreRequestOptions(storeSettings, {
                   machineNames: selectedMachineNames,
                   machineTouched: true,
+                  expectedRbOnly: true,
                 }),
               );
             }),
@@ -350,7 +352,7 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">店舗横断狙い度ランキング</h1>
           <p className="leadText">
-            マイホール内のジャグラー系だけを、店舗をまたいで機種ごとに確認します。
+            マイホール内のジャグラー系から、期待RB付き候補だけを店舗横断で確認します。
           </p>
           <div className="heroLinks simpleHeroLinks">
             <Link href="/" className="externalLink">
@@ -562,7 +564,7 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
         ) : (
           <section className="statusPanel">
             <h2>表示できる台がありません</h2>
-            <p>対象店舗、日付、機種を見直してください。</p>
+            <p>期待RBが表示できる候補がありません。対象店舗、日付、機種を見直してください。</p>
           </section>
         )
       ) : (

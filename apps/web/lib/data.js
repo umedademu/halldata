@@ -33,6 +33,7 @@ import {
   listHuntScoreTargetMachineNamesForStoreMachines,
 } from "./hunt-score";
 import { isHuntJugglerMachine } from "./hunt-machine-display";
+import { hasExpectedRbForHuntRankingRow } from "./hunt-ranking-expectations";
 import {
   buildStoreMachineEvaluationSettings,
   decorateSnapshotsWithMachineEvaluation,
@@ -82,6 +83,7 @@ const CROSS_STORE_BACKTEST_WINDOW_BUFFER_DAYS = 35;
 const CROSS_STORE_BACKTEST_NEXT_RESULT_BUFFER_DAYS = 7;
 const HUNT_SCORE_ACTIVE_MACHINE_WINDOW_DAYS = 7;
 const MACHINE_DETAIL_HUNT_SCORE_LOOKBACK_DAYS = 90;
+const HUNT_SCORE_RANKING_DETAIL_MEMORY_CACHE_TTL_MS = 5 * 60 * 1000;
 const DEFAULT_CROSS_STORE_MACHINE_NAMES = [
   "SアイムジャグラーＥＸ",
   "ネオアイムジャグラーEX",
@@ -230,6 +232,13 @@ function getStoreMachineSummariesCache() {
     globalThis.__halldataStoreMachineSummariesCache = new Map();
   }
   return globalThis.__halldataStoreMachineSummariesCache;
+}
+
+function getHuntScoreRankingDetailMemoryCache() {
+  if (!globalThis.__halldataHuntScoreRankingDetailMemoryCache) {
+    globalThis.__halldataHuntScoreRankingDetailMemoryCache = new Map();
+  }
+  return globalThis.__halldataHuntScoreRankingDetailMemoryCache;
 }
 
 function normalizeMachineNameForGrouping(value) {
@@ -1002,6 +1011,58 @@ function readOptionalNonNegativeInteger(value) {
   }
   const number = Number(text);
   return Number.isInteger(number) && number >= 0 ? number : null;
+}
+
+function buildHuntScoreRankingDetailMemoryCacheKey({
+  storeId,
+  requestedDate,
+  requestedLimit,
+  huntScoreLogicKey,
+  differenceMode,
+  settingEstimateMode,
+  machineOptions,
+} = {}) {
+  return hashJson({
+    version: 3,
+    storeId: String(storeId ?? "").trim(),
+    requestedDate: String(requestedDate ?? "").trim(),
+    requestedLimit: normalizeRankingLimit(requestedLimit),
+    huntScoreLogicKey: String(huntScoreLogicKey ?? "").trim(),
+    differenceMode: normalizeDifferenceMode(differenceMode),
+    settingEstimateMode: normalizeSettingEstimateMode(settingEstimateMode),
+    machineOptions: {
+      machineNames: splitOptionValues(machineOptions?.machineNames),
+      machineTouched: normalizeMachineSelectionTouched(machineOptions?.machineTouched),
+      huntScoreLogicKeys: normalizeHuntScoreCacheLogicKeys(machineOptions?.huntScoreLogicKeys),
+      subHuntScoreLogicKey: String(machineOptions?.subHuntScoreLogicKey ?? "").trim(),
+      combineAimJuggler: normalizeEnabledOption(machineOptions?.combineAimJuggler, false),
+      combineHanabi: normalizeEnabledOption(machineOptions?.combineHanabi, false),
+      expectedRbOnly: machineOptions?.expectedRbOnly === true,
+      targetDateOnly: machineOptions?.targetDateOnly === true,
+      machineEvaluationSettings: machineOptions?.machineEvaluationSettings ?? {},
+    },
+  });
+}
+
+function readHuntScoreRankingDetailMemoryCache(cacheKey) {
+  const cache = getHuntScoreRankingDetailMemoryCache();
+  const cachedEntry = cache.get(cacheKey);
+  if (!cachedEntry) {
+    return undefined;
+  }
+  if (cachedEntry.expiresAt <= Date.now()) {
+    cache.delete(cacheKey);
+    return undefined;
+  }
+  return cachedEntry.value;
+}
+
+function writeHuntScoreRankingDetailMemoryCache(cacheKey, value) {
+  const cache = getHuntScoreRankingDetailMemoryCache();
+  cache.set(cacheKey, {
+    value,
+    expiresAt: Date.now() + HUNT_SCORE_RANKING_DETAIL_MEMORY_CACHE_TTL_MS,
+  });
 }
 
 function normalizeDateInput(value) {
@@ -2534,13 +2595,15 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
     rankingGroups: [],
     totalCount: 0,
     hasActualResults: false,
-    backtest: buildInitialBacktestDetail(
-      store,
-      backtestOptions,
-      huntScoreLogic.key,
-      storeMachineNames,
-      machineSlotCounts,
-    ),
+    backtest: backtestOptions?.skipBacktestDetail
+      ? null
+      : buildInitialBacktestDetail(
+          store,
+          backtestOptions,
+          huntScoreLogic.key,
+          storeMachineNames,
+          machineSlotCounts,
+        ),
   };
 }
 
@@ -3296,6 +3359,20 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
   settingEstimateMode = undefined,
   machineOptions = {},
 ) {
+  const memoryCacheKey = buildHuntScoreRankingDetailMemoryCacheKey({
+    storeId,
+    requestedDate,
+    requestedLimit,
+    huntScoreLogicKey,
+    differenceMode,
+    settingEstimateMode,
+    machineOptions,
+  });
+  const cachedDetail = readHuntScoreRankingDetailMemoryCache(memoryCacheKey);
+  if (cachedDetail !== undefined) {
+    return cachedDetail;
+  }
+
   const snapshotDetail = await getHuntScoreSnapshotsForStore(
     storeId,
     huntScoreLogicKey,
@@ -3341,16 +3418,19 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     snapshotRows,
     rankingMachineNames,
   );
+  const filteredRankingGroups = machineOptions?.expectedRbOnly
+    ? filterRankingGroupsByExpectedRb(fullRankingGroups, store.id, store.store_name)
+    : fullRankingGroups;
   const rankingLimit = normalizeRankingLimit(requestedLimit);
-  const totalCount = fullRankingGroups.reduce(
+  const totalCount = filteredRankingGroups.reduce(
     (maxCount, group) => Math.max(maxCount, group.totalCount),
     0,
   );
   const displayLimit = totalCount > 0 ? Math.min(rankingLimit, totalCount) : rankingLimit;
-  const rankingGroups = limitRankingGroups(fullRankingGroups, displayLimit);
+  const rankingGroups = limitRankingGroups(filteredRankingGroups, displayLimit);
   const rankingRows = rankingGroups.flatMap((group) => group.rows);
 
-  return {
+  const detail = {
     dataSource: snapshotDetail.dataSource ?? "json",
     huntScoreLogic: snapshotDetail.huntScoreLogic,
     huntScoreLogicKeys: snapshotDetail.huntScoreLogics?.map((logic) => logic.key) ?? [snapshotDetail.huntScoreLogic.key],
@@ -3380,6 +3460,8 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     totalCount,
     hasActualResults: rankingRows.some((row) => row.nextRecord),
   };
+  writeHuntScoreRankingDetailMemoryCache(memoryCacheKey, detail);
+  return detail;
 });
 
 async function getHuntScoreSnapshotsForStore(
@@ -3432,7 +3514,7 @@ async function getHuntScoreSnapshotsForStore(
       machineEvaluationHistoryWindowDays,
     };
     const sourceDateRange = targetDateOnly
-      ? null
+      ? buildTargetDateOnlySourceDateRange(staticStore, sourceMachineNames, sourceDateRangeOptions)
       : buildCrossStoreSourceDateRange(staticStore, sourceMachineNames, sourceDateRangeOptions);
     const targetDateRange = targetDateOnly
       ? null
@@ -3647,6 +3729,21 @@ function buildSelectedMachineRankingGroups(rows, selectedMachineNames) {
       totalCount: rowsByMachineName.get(machineName)?.length ?? 0,
       rows: rowsByMachineName.get(machineName) ?? [],
     }))
+    .filter((group) => group.totalCount > 0);
+}
+
+function filterRankingGroupsByExpectedRb(rankingGroups, storeId, storeName) {
+  return rankingGroups
+    .map((group) => {
+      const rows = (Array.isArray(group.rows) ? group.rows : []).filter((row) =>
+        hasExpectedRbForHuntRankingRow(storeId, storeName, row),
+      );
+      return {
+        ...group,
+        totalCount: rows.length,
+        rows,
+      };
+    })
     .filter((group) => group.totalCount > 0);
 }
 
@@ -4091,6 +4188,26 @@ function readStaticStoreLatestDateForMachines(staticStore, machineNames) {
     normalizeDateInput(staticStore?.summary?.latestDate) ??
     null
   );
+}
+
+function buildTargetDateOnlySourceDateRange(staticStore, sourceMachineNames, options = {}) {
+  const targetDate =
+    normalizeDateInput(options?.requestedDate) ??
+    readStaticStoreLatestDateForMachines(staticStore, sourceMachineNames);
+  if (!targetDate) {
+    return null;
+  }
+
+  const requestedHistoryWindowDays = Number(options?.machineEvaluationHistoryWindowDays);
+  const sourceBufferDays = Math.max(
+    CROSS_STORE_BACKTEST_WINDOW_BUFFER_DAYS,
+    Number.isFinite(requestedHistoryWindowDays) ? requestedHistoryWindowDays : 0,
+  );
+
+  return {
+    startDate: shiftDateInput(targetDate, -sourceBufferDays),
+    endDate: shiftDateInput(targetDate, CROSS_STORE_BACKTEST_NEXT_RESULT_BUFFER_DAYS),
+  };
 }
 
 function buildCrossStoreSourceDateRange(staticStore, sourceMachineNames, backtestOptions) {
