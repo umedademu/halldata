@@ -32,6 +32,7 @@ import {
   SETTING_ESTIMATE_MODE_OPTIONS,
   normalizeSettingEstimateMode,
 } from "../../lib/setting-estimates";
+import { buildStoreLocationGroups } from "../../lib/store-location-groups";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -349,6 +350,7 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
   const favoriteStoreIds =
     requestedFavoriteStoreIds.length > 0 ? requestedFavoriteStoreIds : requestedStoreIds;
   const favoriteStores = favoriteStoreIds.map((storeId) => storeById.get(storeId)).filter(Boolean);
+  const favoriteStoreGroups = buildStoreLocationGroups(favoriteStores);
   const selectedStores = requestedStoreIds.map((storeId) => storeById.get(storeId)).filter(Boolean);
   const cookieStore = await cookies();
   const storeSettingsById = buildStoreRuntimeSettings(cookieStore, selectedStores);
@@ -460,26 +462,37 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
                     </button>
                   ))}
                 </div>
-                <div className="metricToggleRow">
-                  {favoriteStores.map((store) => {
-                    const checked = requestedStoreIds.includes(store.id);
-                    return (
-                      <label
-                        key={store.id}
-                        className={`metricToggleChip ${checked ? "metricToggleChipActive" : ""}`}
-                      >
-                        <input
-                          type="checkbox"
-                          name="store"
-                          value={store.id}
-                          defaultChecked={checked}
-                          data-cross-store-option="1"
-                          data-store-prefecture={store.prefectureName ?? ""}
-                        />
-                        <span>{store.storeName}</span>
-                      </label>
-                    );
-                  })}
+                <div className="machineFilterGroups">
+                  {favoriteStoreGroups.map((group) => (
+                    <div key={group.key} className="machineFilterGroup">
+                      <p className="machineFilterGroupLabel">
+                        {group.label}（{formatNumber(group.storeCount)}店）
+                      </p>
+                      <div className="metricToggleRow">
+                        {group.stores.map((store) => {
+                          const checked = requestedStoreIds.includes(store.id);
+                          return (
+                            <label
+                              key={store.id}
+                              className={`metricToggleChip ${
+                                checked ? "metricToggleChipActive" : ""
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                name="store"
+                                value={store.id}
+                                defaultChecked={checked}
+                                data-cross-store-option="1"
+                                data-store-prefecture={store.prefectureName ?? ""}
+                              />
+                              <span>{store.storeName}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ) : (

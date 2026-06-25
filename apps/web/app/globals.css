@@ -1143,6 +1143,17 @@ a {
   list-style: none;
 }
 
+.myHallGroupList,
+.storeFavoriteMatchGroupList {
+  display: grid;
+  gap: 14px;
+}
+
+.myHallGroup {
+  display: grid;
+  gap: 8px;
+}
+
 .myHallItem {
   border: 1px solid var(--line);
   border-radius: 8px;

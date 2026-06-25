@@ -10,6 +10,10 @@ import {
   readSavedMyHallStoreIds,
   saveMyHallStoreIds,
 } from "./store-favorite-button";
+import {
+  buildStoreLocationGroups,
+  readStoreLocationGroupKey,
+} from "../lib/store-location-groups";
 
 function normalizeText(value) {
   return String(value ?? "").trim().toLocaleLowerCase("ja");
@@ -114,6 +118,10 @@ export function StoreDirectory({ completeStores, pendingStores }) {
     () => myHallStoreIds.map((storeId) => storeById.get(storeId)).filter(Boolean),
     [myHallStoreIds, storeById],
   );
+  const myHallStoreGroups = useMemo(
+    () => buildStoreLocationGroups(myHallStores),
+    [myHallStores],
+  );
   const filteredStores = useMemo(() => {
     if (!normalizedQuery) {
       return completeStores;
@@ -129,6 +137,10 @@ export function StoreDirectory({ completeStores, pendingStores }) {
         ? filteredStores.filter((store) => myHallStoreIdSet.has(normalizeStoreId(store.id)))
         : [],
     [filteredStores, myHallStoreIdSet, normalizedQuery],
+  );
+  const favoriteFilteredStoreGroups = useMemo(
+    () => buildStoreLocationGroups(favoriteFilteredStores),
+    [favoriteFilteredStores],
   );
   const otherFilteredStores = useMemo(
     () => filteredStores.filter((store) => !myHallStoreIdSet.has(normalizeStoreId(store.id))),
@@ -182,6 +194,12 @@ export function StoreDirectory({ completeStores, pendingStores }) {
 
   const moveMyHallStoreId = (sourceStoreId, targetStoreId) => {
     if (!sourceStoreId || !targetStoreId) {
+      return;
+    }
+
+    const sourceStore = storeById.get(normalizeStoreId(sourceStoreId));
+    const targetStore = storeById.get(normalizeStoreId(targetStoreId));
+    if (readStoreLocationGroupKey(sourceStore) !== readStoreLocationGroupKey(targetStore)) {
       return;
     }
 
@@ -249,44 +267,56 @@ export function StoreDirectory({ completeStores, pendingStores }) {
             <span className="myHallCount">{myHallStores.length}店舗</span>
           </div>
           {myHallStores.length > 0 ? (
-            <ul className="myHallList">
-              {myHallStores.map((store) => {
-                const storeId = normalizeStoreId(store.id);
-                const isReorderable = myHallStores.length > 1;
-                const itemClassName = [
-                  "myHallItem",
-                  isReorderable ? "myHallItemReorderable" : "",
-                  draggedMyHallStoreId === storeId ? "myHallItemDragging" : "",
-                  dragOverMyHallStoreId === storeId && draggedMyHallStoreId !== storeId
-                    ? "myHallItemDragOver"
-                    : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ");
+            <div className="myHallGroupList">
+              {myHallStoreGroups.map((group) => (
+                <section className="myHallGroup" key={group.key}>
+                  <div className="storeSubsectionHeader">
+                    <p className="storeSubsectionTitle">{group.label}</p>
+                    <span>{group.storeCount}店舗</span>
+                  </div>
+                  <ul className="myHallList">
+                    {group.stores.map((store) => {
+                      const storeId = normalizeStoreId(store.id);
+                      const isReorderable = group.stores.length > 1;
+                      const itemClassName = [
+                        "myHallItem",
+                        isReorderable ? "myHallItemReorderable" : "",
+                        draggedMyHallStoreId === storeId ? "myHallItemDragging" : "",
+                        dragOverMyHallStoreId === storeId && draggedMyHallStoreId !== storeId
+                          ? "myHallItemDragOver"
+                          : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ");
 
-                return (
-                  <li
-                    key={store.id}
-                    className={itemClassName}
-                    data-my-hall-store-id={storeId}
-                    onPointerDown={
-                      isReorderable ? (event) => handleMyHallPointerDown(event, store) : undefined
-                    }
-                    onPointerMove={isReorderable ? handleMyHallPointerMove : undefined}
-                    onPointerUp={isReorderable ? handleMyHallPointerEnd : undefined}
-                    onPointerCancel={isReorderable ? handleMyHallPointerEnd : undefined}
-                  >
-                    <StoreListItem
-                      store={store}
-                      isFavorite={myHallStoreIdSet.has(normalizeStoreId(store.id))}
-                      onToggle={handleToggleMyHall}
-                      compact
-                      reorderable={isReorderable}
-                    />
-                  </li>
-                );
-              })}
-            </ul>
+                      return (
+                        <li
+                          key={store.id}
+                          className={itemClassName}
+                          data-my-hall-store-id={storeId}
+                          onPointerDown={
+                            isReorderable
+                              ? (event) => handleMyHallPointerDown(event, store)
+                              : undefined
+                          }
+                          onPointerMove={isReorderable ? handleMyHallPointerMove : undefined}
+                          onPointerUp={isReorderable ? handleMyHallPointerEnd : undefined}
+                          onPointerCancel={isReorderable ? handleMyHallPointerEnd : undefined}
+                        >
+                          <StoreListItem
+                            store={store}
+                            isFavorite={myHallStoreIdSet.has(normalizeStoreId(store.id))}
+                            onToggle={handleToggleMyHall}
+                            compact
+                            reorderable={isReorderable}
+                          />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))}
+            </div>
           ) : (
             <p className="myHallEmpty">店舗一覧の星を押すと、ここに店舗を固定できます。</p>
           )}
@@ -330,17 +360,27 @@ export function StoreDirectory({ completeStores, pendingStores }) {
                 <p className="storeSubsectionTitle">マイホールの一致店舗</p>
                 <span>{favoriteFilteredStores.length}店舗</span>
               </div>
-              <ul className="storeLinkList">
-                {favoriteFilteredStores.map((store) => (
-                  <li key={store.id}>
-                    <StoreListItem
-                      store={store}
-                      isFavorite={myHallStoreIdSet.has(normalizeStoreId(store.id))}
-                      onToggle={handleToggleMyHall}
-                    />
-                  </li>
+              <div className="storeFavoriteMatchGroupList">
+                {favoriteFilteredStoreGroups.map((group) => (
+                  <section className="myHallGroup" key={group.key}>
+                    <div className="storeSubsectionHeader">
+                      <p className="storeSubsectionTitle">{group.label}</p>
+                      <span>{group.storeCount}店舗</span>
+                    </div>
+                    <ul className="storeLinkList">
+                      {group.stores.map((store) => (
+                        <li key={store.id}>
+                          <StoreListItem
+                            store={store}
+                            isFavorite={myHallStoreIdSet.has(normalizeStoreId(store.id))}
+                            onToggle={handleToggleMyHall}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
                 ))}
-              </ul>
+              </div>
             </div>
           ) : null}
           {otherFilteredStores.length === 0 ? (
