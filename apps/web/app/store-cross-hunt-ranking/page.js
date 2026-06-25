@@ -256,6 +256,77 @@ function buildStoreRequestOptions(storeSettings, options = {}) {
   };
 }
 
+function logCrossStoreReadFailure(step, store, selectedDate, error) {
+  console.warn("Failed to read cross-store hunt ranking detail.", {
+    step,
+    storeId: store?.id,
+    storeName: store?.storeName,
+    selectedDate,
+    message: error instanceof Error ? error.message : String(error ?? ""),
+  });
+}
+
+async function readCrossStoreInitialDetail({
+  store,
+  storeSettings,
+  differenceMode,
+  settingEstimateMode,
+}) {
+  try {
+    return await getHuntScoreInitialPageDetail(
+      store.id,
+      buildStoreRequestOptions(storeSettings, {
+        differenceMode,
+        settingEstimateMode,
+        skipBacktestDetail: true,
+      }),
+      storeSettings?.huntScoreLogicKey ?? "",
+    );
+  } catch (error) {
+    logCrossStoreReadFailure("initial", store, "", error);
+    return null;
+  }
+}
+
+async function readCrossStoreRankingDetail({
+  store,
+  selectedDate,
+  requestedLimit,
+  storeSettings,
+  differenceMode,
+  settingEstimateMode,
+  selectedMachineNames,
+}) {
+  try {
+    const detail = await getHuntScoreRankingDetail(
+      store.id,
+      selectedDate,
+      requestedLimit,
+      storeSettings?.huntScoreLogicKey ?? "",
+      differenceMode,
+      settingEstimateMode,
+      buildStoreRequestOptions(storeSettings, {
+        machineNames: selectedMachineNames,
+        machineTouched: true,
+        expectedRbOnly: true,
+      }),
+    );
+    return { detail, failed: false };
+  } catch (error) {
+    logCrossStoreReadFailure("ranking", store, selectedDate, error);
+    return { detail: null, failed: true };
+  }
+}
+
+function isSelectedDateRankingDetail(detail, selectedDate) {
+  return Boolean(
+    detail &&
+      detail.selectedDate === selectedDate &&
+      Array.isArray(detail.rankingDates) &&
+      detail.rankingDates.includes(selectedDate),
+  );
+}
+
 export default async function StoreCrossHuntRankingPage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const resultRequested = readSingleSearchParam(resolvedSearchParams?.show) === "1";
@@ -283,18 +354,14 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
   const storeSettingsById = buildStoreRuntimeSettings(cookieStore, selectedStores);
   const initialDetails = (
     await Promise.all(
-      selectedStores.map((store) => {
-        const storeSettings = storeSettingsById.get(store.id);
-        return getHuntScoreInitialPageDetail(
-          store.id,
-          buildStoreRequestOptions(storeSettings, {
-            differenceMode,
-            settingEstimateMode,
-            skipBacktestDetail: true,
-          }),
-          storeSettings?.huntScoreLogicKey ?? "",
-        );
-      }),
+      selectedStores.map((store) =>
+        readCrossStoreInitialDetail({
+          store,
+          storeSettings: storeSettingsById.get(store.id),
+          differenceMode,
+          settingEstimateMode,
+        }),
+      ),
     )
   ).filter(Boolean);
   const machineOptions = buildJugglerMachineOptions(
@@ -306,34 +373,30 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
     .filter((machine) => machine.checked)
     .map((machine) => machine.name);
   const selectedDate = requestedDate || readLatestInitialDate(initialDetails);
-  const resultDetails =
+  const resultEntries =
     resultRequested && selectedDate
-      ? (
-          await Promise.all(
-            selectedStores.map((store) => {
-              const storeSettings = storeSettingsById.get(store.id);
-              return getHuntScoreRankingDetail(
-                store.id,
-                selectedDate,
-                requestedLimit,
-                storeSettings?.huntScoreLogicKey ?? "",
-                differenceMode,
-                settingEstimateMode,
-                buildStoreRequestOptions(storeSettings, {
-                  machineNames: selectedMachineNames,
-                  machineTouched: true,
-                  expectedRbOnly: true,
-                }),
-              );
+      ? await Promise.all(
+          selectedStores.map((store) =>
+            readCrossStoreRankingDetail({
+              store,
+              selectedDate,
+              requestedLimit,
+              storeSettings: storeSettingsById.get(store.id),
+              differenceMode,
+              settingEstimateMode,
+              selectedMachineNames,
             }),
-          )
-        ).filter(
-          (detail) =>
-            detail &&
-            detail.selectedDate === selectedDate &&
-            detail.rankingDates.includes(selectedDate),
+          ),
         )
       : [];
+  const resultDetails = resultEntries
+    .map((entry) => entry.detail)
+    .filter((detail) => isSelectedDateRankingDetail(detail, selectedDate));
+  const unreadableStoreCount = resultEntries.filter((entry) => entry.failed).length;
+  const noSelectedDateStoreCount = resultRequested
+    ? Math.max(selectedStores.length - resultDetails.length - unreadableStoreCount, 0)
+    : 0;
+  const skippedStoreCount = unreadableStoreCount + noSelectedDateStoreCount;
   const rankingRows = resultDetails.flatMap(decorateRowsWithStore);
   const rankingGroups = buildCrossStoreRankingGroups(
     rankingRows,
@@ -560,6 +623,12 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
                 <p className="metaLabel">集計店舗</p>
                 <strong className="metaValue">{formatNumber(resultDetails.length)}店</strong>
               </article>
+              {skippedStoreCount > 0 ? (
+                <article className="summaryCard">
+                  <p className="metaLabel">対象外店舗</p>
+                  <strong className="metaValue">{formatNumber(skippedStoreCount)}店</strong>
+                </article>
+              ) : null}
               <article className="summaryCard">
                 <p className="metaLabel">対象機種</p>
                 <strong className="metaValue">{formatNumber(selectedMachineNames.length)}機種</strong>
@@ -588,6 +657,12 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
           <section className="statusPanel">
             <h2>表示できる台がありません</h2>
             <p>期待RBが表示できる候補がありません。対象店舗、日付、機種を見直してください。</p>
+            {noSelectedDateStoreCount > 0 ? (
+              <p>指定日の保存データがない店舗は、横断結果から除外しています。</p>
+            ) : null}
+            {unreadableStoreCount > 0 ? (
+              <p>読み込めなかった店舗は、横断結果から除外しています。</p>
+            ) : null}
           </section>
         )
       ) : (
