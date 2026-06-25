@@ -40,7 +40,7 @@ DAIDATA_UPDATED_AT_PATTERN = re.compile(
 )
 DAIDATA_FULL_DATE_PATTERN = re.compile(r"(\d{4})[./年-](\d{1,2})[./月-](\d{1,2})")
 DAIDATA_SHORT_DATE_PATTERN = re.compile(r"(\d{1,2})[./月](\d{1,2})")
-DAIDATA_ACCEPT_WAIT_SECONDS = 300
+DAIDATA_ACCEPT_AUTO_WAIT_SECONDS = 20
 
 
 @dataclass(frozen=True)
@@ -112,8 +112,11 @@ def _value_has_data(value: str) -> bool:
 
 
 def _page_requires_accept_terms(html: str, current_url: str = "") -> bool:
+    parts = urlsplit(str(current_url or ""))
+    if parts.netloc != "daidata.goraggio.com" or not parts.path.rstrip("/").endswith("/accept"):
+        return False
     text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
-    return "利用規約に同意する" in text and "/accept" in str(current_url)
+    return "利用規約に同意する" in text
 
 
 def _clean_cell_text(value: str) -> str:
@@ -553,26 +556,53 @@ class DaidataOnlineScraper:
         html = page.content()
         if not _page_requires_accept_terms(html, str(page.url)):
             return False
-        if not browser_visible:
-            raise ScraperError(
-                "台データオンラインの利用規約画面が表示されています。"
-                "ブラウザ表示モードで取得を実行し、画面で同意してから再実行してください。"
-            )
 
         self._notify_progress(
             progress_callback,
             0,
             1,
-            "台データオンラインの利用規約画面で同意されるのを待っています",
+            "台データオンラインの利用規約画面で自動同意しています",
         )
-        deadline = datetime.now(DAIDATA_JST) + timedelta(seconds=DAIDATA_ACCEPT_WAIT_SECONDS)
+        self._click_accept_terms_button(page)
+
+        deadline = datetime.now(DAIDATA_JST) + timedelta(seconds=DAIDATA_ACCEPT_AUTO_WAIT_SECONDS)
         while datetime.now(DAIDATA_JST) < deadline:
             _raise_if_cancel_requested(cancel_requested)
-            page.wait_for_timeout(1000)
             html = page.content()
             if not _page_requires_accept_terms(html, str(page.url)):
                 return True
-        raise ScraperError("台データオンラインの利用規約画面で同意を確認できませんでした。")
+            page.wait_for_timeout(500)
+        raise ScraperError("台データオンラインの利用規約画面で自動同意を確認できませんでした。")
+
+    def _click_accept_terms_button(self, page: object) -> None:
+        button_locator = self._find_accept_terms_button(page)
+        if button_locator is None:
+            raise ScraperError("台データオンラインの利用規約画面で同意ボタンが見つかりませんでした。")
+
+        try:
+            button_locator.click(timeout=5_000)
+            try:
+                page.wait_for_load_state("domcontentloaded", timeout=60_000)
+            except Exception:  # noqa: BLE001
+                pass
+            page.wait_for_timeout(500)
+        except Exception as exc:  # noqa: BLE001
+            raise ScraperError("台データオンラインの利用規約画面で同意ボタンを押せませんでした。") from exc
+
+    def _find_accept_terms_button(self, page: object) -> object | None:
+        locator_builders = (
+            lambda: page.locator("button").filter(has_text="利用規約に同意する").first,
+            lambda: page.locator("input[type='submit'][value='利用規約に同意する']").first,
+            lambda: page.locator("input[type='button'][value='利用規約に同意する']").first,
+        )
+        for build_locator in locator_builders:
+            try:
+                locator = build_locator()
+                if locator.count() > 0 and locator.is_visible():
+                    return locator
+            except Exception:  # noqa: BLE001
+                continue
+        return None
 
     def _release_browser_context(self, playwright: object, context: object, *, browser_visible: bool) -> None:
         if context is not None:

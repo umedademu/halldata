@@ -5565,6 +5565,80 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertTrue(daidata_store_is_beam_hikari("ビームヒカリ", ""))
         self.assertEqual([entry.machine_name for entry in entries], [SITE7_NEO_IM_MACHINE_NAME])
 
+    def test_daidata_accept_terms_page_is_clicked_automatically(self) -> None:
+        class FakeDaidataAcceptButton:
+            def __init__(self, page: "FakeDaidataAcceptPage", count: int) -> None:
+                self.page = page
+                self._count = count
+                self.click_count = 0
+
+            @property
+            def first(self) -> "FakeDaidataAcceptButton":
+                return self
+
+            def filter(self, has_text: str = "") -> "FakeDaidataAcceptButton":
+                return self
+
+            def count(self) -> int:
+                return self._count
+
+            def is_visible(self) -> bool:
+                return self._count > 0
+
+            def click(self, timeout: int = 0) -> None:
+                self.click_count += 1
+                self.page.accepted = True
+                self.page.url = DAIDATA_BEAM_HIKARI_URL
+
+        class FakeDaidataAcceptPage:
+            def __init__(self) -> None:
+                self.accepted = False
+                self.url = f"{DAIDATA_BEAM_HIKARI_URL}/accept"
+                self.button = FakeDaidataAcceptButton(self, 1)
+                self.empty_button = FakeDaidataAcceptButton(self, 0)
+                self.wait_calls: list[int] = []
+                self.load_state_calls: list[tuple[str, int]] = []
+
+            def content(self) -> str:
+                if self.accepted:
+                    return "<html><body><a href=\"list\">機種一覧</a></body></html>"
+                return """
+                <html>
+                  <body>
+                    <p>台データオンライン会員規約</p>
+                    <button>同意しない</button>
+                    <button>利用規約に同意する</button>
+                  </body>
+                </html>
+                """
+
+            def locator(self, selector: str) -> FakeDaidataAcceptButton:
+                if selector == "button":
+                    return self.button
+                return self.empty_button
+
+            def wait_for_load_state(self, state: str, timeout: int = 0) -> None:
+                self.load_state_calls.append((state, timeout))
+
+            def wait_for_timeout(self, milliseconds: int) -> None:
+                self.wait_calls.append(milliseconds)
+
+        page = FakeDaidataAcceptPage()
+        progress_messages: list[str] = []
+
+        clicked = DaidataOnlineScraper()._wait_for_accept_terms_if_needed(
+            page,
+            browser_visible=False,
+            progress_callback=lambda progress: progress_messages.append(progress.message),
+            cancel_requested=None,
+        )
+
+        self.assertTrue(clicked)
+        self.assertTrue(page.accepted)
+        self.assertEqual(page.button.click_count, 1)
+        self.assertEqual(page.load_state_calls, [("domcontentloaded", 60_000)])
+        self.assertIn("自動同意", progress_messages[0])
+
     def test_site7_build_machine_daily_records_skips_blank_rows(self) -> None:
         history_result = MachineHistoryResult(
             store_name="Ａパーク春日店",
