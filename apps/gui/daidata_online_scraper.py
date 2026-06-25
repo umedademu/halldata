@@ -16,6 +16,7 @@ from site7_scraper import (
     SITE7_DATE_BOUNDARY_HOUR,
     SITE7_MOBILE_USER_AGENT,
     SITE7_MOBILE_VIEWPORT,
+    build_site7_transition_wait_milliseconds,
     format_site7_ratio_text,
     set_site7_dataset_updated_at,
 )
@@ -40,7 +41,7 @@ DAIDATA_UPDATED_AT_PATTERN = re.compile(
 )
 DAIDATA_FULL_DATE_PATTERN = re.compile(r"(\d{4})[./年-](\d{1,2})[./月-](\d{1,2})")
 DAIDATA_SHORT_DATE_PATTERN = re.compile(r"(\d{1,2})[./月](\d{1,2})")
-DAIDATA_ACCEPT_AUTO_WAIT_SECONDS = 20
+DAIDATA_ACCEPT_AUTO_WAIT_SECONDS = 60
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,12 @@ def daidata_store_is_beam_hikari(store_name: str, store_url: str = "") -> bool:
 
     decoded_url = unquote(str(store_url or "")).casefold()
     return "daidata.goraggio.com" in decoded_url and f"/{DAIDATA_BEAM_HIKARI_STORE_ID}" in decoded_url
+
+
+def build_daidata_transition_wait_milliseconds(
+    random_seconds_fn: Callable[[float, float], float] | None = None,
+) -> int:
+    return build_site7_transition_wait_milliseconds(random_seconds_fn)
 
 
 def _raise_if_cancel_requested(cancel_requested: Callable[[], bool] | None) -> None:
@@ -339,29 +346,22 @@ class DaidataOnlineScraper:
         try:
             playwright, context = self._launch_mobile_browser_context(browser_visible=browser_visible)
             page = self._prepare_page(context)
-            page.goto(DAIDATA_BEAM_HIKARI_URL, wait_until="domcontentloaded", timeout=60_000)
-            self._wait_for_accept_terms_if_needed(
+            self._goto_daidata_page(
                 page,
+                DAIDATA_BEAM_HIKARI_URL,
                 browser_visible=browser_visible,
                 progress_callback=progress_callback,
                 cancel_requested=cancel_requested,
             )
             _raise_if_cancel_requested(cancel_requested)
             list_url = urljoin(f"{DAIDATA_BEAM_HIKARI_URL}/", "list?mode=psModelNameSearch&ps=S")
-            page.goto(list_url, wait_until="domcontentloaded", timeout=60_000)
-            if self._wait_for_accept_terms_if_needed(
+            self._goto_daidata_page(
                 page,
+                list_url,
                 browser_visible=browser_visible,
                 progress_callback=progress_callback,
                 cancel_requested=cancel_requested,
-            ):
-                page.goto(list_url, wait_until="domcontentloaded", timeout=60_000)
-                self._wait_for_accept_terms_if_needed(
-                    page,
-                    browser_visible=browser_visible,
-                    progress_callback=progress_callback,
-                    cancel_requested=cancel_requested,
-                )
+            )
             machine_list_html = page.content()
             machine_entries = self.extract_juggler_machine_links(
                 machine_list_html,
@@ -453,20 +453,13 @@ class DaidataOnlineScraper:
         for hist_num in range(recent_days):
             _raise_if_cancel_requested(cancel_requested)
             target_url = _with_hist_num(machine_entry.url, hist_num)
-            page.goto(target_url, wait_until="domcontentloaded", timeout=60_000)
-            if self._wait_for_accept_terms_if_needed(
+            self._goto_daidata_page(
                 page,
+                target_url,
                 browser_visible=browser_visible,
                 progress_callback=progress_callback,
                 cancel_requested=cancel_requested,
-            ):
-                page.goto(target_url, wait_until="domcontentloaded", timeout=60_000)
-                self._wait_for_accept_terms_if_needed(
-                    page,
-                    browser_visible=browser_visible,
-                    progress_callback=progress_callback,
-                    cancel_requested=cancel_requested,
-                )
+            )
             html = page.content()
             dataset = build_daidata_machine_dataset(
                 html,
@@ -545,6 +538,33 @@ class DaidataOnlineScraper:
             pages = []
         return pages[-1] if pages else context.new_page()
 
+    def _goto_daidata_page(
+        self,
+        page: object,
+        target_url: str,
+        *,
+        browser_visible: bool,
+        progress_callback: Callable[[FetchProgress], None] | None,
+        cancel_requested: Callable[[], bool] | None,
+    ) -> None:
+        page.goto(target_url, wait_until="domcontentloaded", timeout=60_000)
+        accepted_terms = self._wait_for_accept_terms_if_needed(
+            page,
+            browser_visible=browser_visible,
+            progress_callback=progress_callback,
+            cancel_requested=cancel_requested,
+        )
+        if accepted_terms:
+            _raise_if_cancel_requested(cancel_requested)
+            page.goto(target_url, wait_until="domcontentloaded", timeout=60_000)
+            self._wait_for_accept_terms_if_needed(
+                page,
+                browser_visible=browser_visible,
+                progress_callback=progress_callback,
+                cancel_requested=cancel_requested,
+            )
+        self._wait_between_transitions(page, cancel_requested=cancel_requested)
+
     def _wait_for_accept_terms_if_needed(
         self,
         page: object,
@@ -572,7 +592,7 @@ class DaidataOnlineScraper:
             if not _page_requires_accept_terms(html, str(page.url)):
                 return True
             page.wait_for_timeout(500)
-        raise ScraperError("台データオンラインの利用規約画面で自動同意を確認できませんでした。")
+        return True
 
     def _click_accept_terms_button(self, page: object) -> None:
         button_locator = self._find_accept_terms_button(page)
@@ -588,6 +608,15 @@ class DaidataOnlineScraper:
             page.wait_for_timeout(500)
         except Exception as exc:  # noqa: BLE001
             raise ScraperError("台データオンラインの利用規約画面で同意ボタンを押せませんでした。") from exc
+
+    def _wait_between_transitions(self, page: object, cancel_requested: Callable[[], bool] | None = None) -> None:
+        remaining_milliseconds = build_daidata_transition_wait_milliseconds()
+        while remaining_milliseconds > 0:
+            _raise_if_cancel_requested(cancel_requested)
+            wait_milliseconds = min(100, remaining_milliseconds)
+            page.wait_for_timeout(wait_milliseconds)
+            remaining_milliseconds -= wait_milliseconds
+        _raise_if_cancel_requested(cancel_requested)
 
     def _find_accept_terms_button(self, page: object) -> object | None:
         locator_builders = (

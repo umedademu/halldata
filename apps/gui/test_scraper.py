@@ -33,8 +33,10 @@ from data_persistence import (
 )
 from daidata_online_scraper import (
     DAIDATA_BEAM_HIKARI_URL,
+    DaidataOnlineMachineEntry,
     DaidataOnlineScraper,
     build_daidata_machine_dataset,
+    build_daidata_transition_wait_milliseconds,
     daidata_store_is_beam_hikari,
 )
 from main import (
@@ -988,6 +990,11 @@ class MinRepoScraperTests(unittest.TestCase):
     def test_site7_transition_wait_milliseconds_clamps_min_and_max(self) -> None:
         self.assertEqual(build_site7_transition_wait_milliseconds(lambda start, end: 1.0), 2000)
         self.assertEqual(build_site7_transition_wait_milliseconds(lambda start, end: 9.0), 4000)
+
+    def test_daidata_transition_wait_milliseconds_uses_site7_range(self) -> None:
+        self.assertEqual(build_daidata_transition_wait_milliseconds(lambda start, end: 2.5), 2500)
+        self.assertEqual(build_daidata_transition_wait_milliseconds(lambda start, end: 1.0), 2000)
+        self.assertEqual(build_daidata_transition_wait_milliseconds(lambda start, end: 9.0), 4000)
 
     def test_site7_debug_log_writes_to_local_data(self) -> None:
         with TemporaryDirectory() as temp_dir:
@@ -5638,6 +5645,130 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(page.button.click_count, 1)
         self.assertEqual(page.load_state_calls, [("domcontentloaded", 60_000)])
         self.assertIn("自動同意", progress_messages[0])
+
+    def test_daidata_accept_terms_wait_timeout_does_not_fail_fetch(self) -> None:
+        class FakeDaidataAcceptButton:
+            def __init__(self, page: "FakeDaidataAcceptPage") -> None:
+                self.page = page
+                self.click_count = 0
+
+            @property
+            def first(self) -> "FakeDaidataAcceptButton":
+                return self
+
+            def filter(self, has_text: str = "") -> "FakeDaidataAcceptButton":
+                return self
+
+            def count(self) -> int:
+                return 1
+
+            def is_visible(self) -> bool:
+                return True
+
+            def click(self, timeout: int = 0) -> None:
+                self.click_count += 1
+                self.page.accepted = True
+
+        class FakeDaidataAcceptPage:
+            def __init__(self) -> None:
+                self.accepted = False
+                self.url = f"{DAIDATA_BEAM_HIKARI_URL}/accept"
+                self.button = FakeDaidataAcceptButton(self)
+
+            def content(self) -> str:
+                return """
+                <html>
+                  <body>
+                    <p>台データオンライン会員規約</p>
+                    <button>利用規約に同意する</button>
+                  </body>
+                </html>
+                """
+
+            def locator(self, selector: str) -> FakeDaidataAcceptButton:
+                return self.button
+
+            def wait_for_load_state(self, state: str, timeout: int = 0) -> None:
+                return None
+
+            def wait_for_timeout(self, milliseconds: int) -> None:
+                return None
+
+        page = FakeDaidataAcceptPage()
+
+        with mock.patch("daidata_online_scraper.DAIDATA_ACCEPT_AUTO_WAIT_SECONDS", 0):
+            clicked = DaidataOnlineScraper()._wait_for_accept_terms_if_needed(
+                page,
+                browser_visible=False,
+                progress_callback=None,
+                cancel_requested=None,
+            )
+
+        self.assertTrue(clicked)
+        self.assertTrue(page.accepted)
+        self.assertEqual(page.button.click_count, 1)
+
+    def test_daidata_machine_history_waits_after_each_page_move(self) -> None:
+        events: list[str] = []
+
+        class FakeDaidataHistoryPage:
+            def __init__(self) -> None:
+                self.url = ""
+
+            def goto(self, url: str, wait_until: str = "", timeout: int = 0) -> None:
+                self.url = url
+                events.append(f"goto:{url}")
+
+            def content(self) -> str:
+                hist_num = "1" if "hist_num=1" in self.url else "0"
+                return f"""
+                <html>
+                  <body>
+                    <p>データ更新 2026.06.25 12:00</p>
+                    <select name="hist_num">
+                      <option value="{hist_num}" selected>2026/06/{25 - int(hist_num):02d}</option>
+                    </select>
+                    <table>
+                      <tr>
+                        <th>台番号</th>
+                        <th>累計スタート</th>
+                        <th>BB回数</th>
+                        <th>RB回数</th>
+                      </tr>
+                      <tr>
+                        <td>821</td>
+                        <td>1,234</td>
+                        <td>4</td>
+                        <td>3</td>
+                      </tr>
+                    </table>
+                  </body>
+                </html>
+                """
+
+            def wait_for_timeout(self, milliseconds: int) -> None:
+                events.append(f"timeout:{milliseconds}")
+
+        scraper = DaidataOnlineScraper()
+        scraper._wait_for_accept_terms_if_needed = mock.Mock(return_value=False)
+        scraper._wait_between_transitions = mock.Mock(side_effect=lambda page, cancel_requested=None: events.append("wait"))
+
+        result = scraper._fetch_machine_history_result(
+            page=FakeDaidataHistoryPage(),
+            machine_entry=DaidataOnlineMachineEntry(
+                machine_name=SITE7_NEO_IM_MACHINE_NAME,
+                raw_machine_name=SITE7_NEO_IM_MACHINE_NAME,
+                url=f"{DAIDATA_BEAM_HIKARI_URL}/unit_list?model=neo",
+            ),
+            recent_days=2,
+            browser_visible=False,
+            progress_callback=None,
+            cancel_requested=None,
+        )
+
+        self.assertEqual(len(result.datasets), 2)
+        self.assertEqual(events.count("wait"), 2)
+        self.assertLess(events.index("goto:https://daidata.goraggio.com/100619/unit_list?model=neo&hist_num=0"), events.index("wait"))
 
     def test_site7_build_machine_daily_records_skips_blank_rows(self) -> None:
         history_result = MachineHistoryResult(
