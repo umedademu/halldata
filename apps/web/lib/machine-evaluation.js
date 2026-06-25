@@ -4641,7 +4641,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "wonderland-sue-neo-watch-no-go",
         "見送り",
-        "危険条件2個以上、連勝2以上、長期放置、履歴不足、75点未満かつ強化1個以下、前日BB寄り一撃で支えなしは見送り",
+        "危険条件2個以上、連勝2以上、長期放置、履歴不足、75点未満かつ強化1個以下、前日BB寄り大勝ちで支えなしは見送り",
         {
           anyOf: [
             { minDanger: 2, requiredFlags: ["wonderlandSueNeoHistoryReady"] },
@@ -4651,6 +4651,56 @@ const MACHINE_EVALUATION_DEFINITIONS = [
             { maxScore: 74, maxBoost: 1, requiredFlags: ["wonderlandSueNeoHistoryReady"] },
             { requiredFlags: ["wonderlandSueNeoHistoryReady", "wonderlandSueNeoBbBiasedNoSupport"] },
           ],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-free-rb310-danger0",
+        "自由A2_連敗RB310危険0",
+        "55日 / 65台 / RB1/266 / 合算1/131 / 平均+823枚 / 機械割104.24% / 平均56 51.1% / 中央56 53.2% / 56>=50% 55.4% / 4〜6連敗＋直近3日RB1/310以下＋危険0",
+        {
+          maxDanger: 0,
+          requiredFlags: [
+            "wonderlandSueNeoHistoryReady",
+            "wonderlandSueNeoLosingFourToSix",
+            "wonderlandSueNeoRecentThreeRb310",
+          ],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-free-deep3-prev-rb300-danger0",
+        "自由B2_3日沈み前日RB危険0",
+        "79日 / 100台 / RB1/267 / 合算1/132 / 平均+768枚 / 機械割103.83% / 平均56 50.9% / 中央56 53.9% / 56>=50% 52.0% / 3日-2500枚以下＋前日RB1/300以下＋危険0",
+        {
+          maxDanger: 0,
+          requiredFlags: [
+            "wonderlandSueNeoHistoryReady",
+            "wonderlandSueNeoRecentThreeDeep2500",
+            "wonderlandSueNeoPreviousRb300Trusted",
+          ],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-free-deep3-prev-rb300",
+        "自由C2_3日超沈み前日RB",
+        "57日 / 63台 / RB1/271 / 合算1/133 / 平均+744枚 / 機械割103.79% / 平均56 49.7% / 中央56 53.3% / 56>=50% 50.8% / 3日-3000枚以下＋前日RB1/300以下",
+        {
+          requiredFlags: [
+            "wonderlandSueNeoHistoryReady",
+            "wonderlandSueNeoRecentThreeDeep3000",
+            "wonderlandSueNeoPreviousRb300Trusted",
+          ],
+        },
+        ["wonderland-sue-neo-aim"],
+      ),
+      buildCondition(
+        "wonderland-sue-neo-free-five-sink-rb310",
+        "自由D2_5日沈み5日RB",
+        "90日 / 138台 / RB1/277 / 合算1/135 / 平均+633枚 / 機械割103.22% / 平均56 46.1% / 56>=50% 44.9% / 本命不在時の代替",
+        {
+          requiredFlags: ["wonderlandSueNeoHistoryReady", "wonderlandSueNeoFiveSinkRb310"],
         },
         ["wonderland-sue-neo-aim"],
       ),
@@ -9155,6 +9205,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const previousDifference = readNumber(metrics.todayDifference);
   const previousGames = readNumber(metrics.previousGames);
   const previousRbCount = readNumber(metrics.previousRbCount);
+  const previousBbCount = readNumber(metrics.previousBbCount);
   const streak = readNumber(metrics.streak);
   const winningStreak = readNumber(metrics.winningStreak);
   const historyLosingStreak = readNumber(metrics.historyLosingStreak);
@@ -10662,7 +10713,9 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       const wonderlandSueNeoLosingThree = streak >= 3;
       const wonderlandSueNeoLosingFour = streak >= 4;
       const wonderlandSueNeoLosingFive = streak >= 5;
+      const wonderlandSueNeoLosingFourToSix = streak >= 4 && streak <= 6;
       const wonderlandSueNeoPreviousDeep = previousDifference <= -1000;
+      const previousBbDenominator = rateDenominator(previousGames, previousBbCount);
       const wonderlandSueNeoPreviousGenuine =
         Number.isFinite(previousMachineSettingFivePlusProbability) &&
         previousMachineSettingFivePlusProbability >= 0.5;
@@ -10671,7 +10724,23 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         previousMachineSettingFivePlusProbability >= 0.7;
       const wonderlandSueNeoPreviousUnfinished =
         wonderlandSueNeoPreviousGenuine && previousDifference < 1200;
+      const wonderlandSueNeoPreviousRb300Trusted =
+        previousGames >= 3000 && features.previousRbDenominator <= 300;
       const wonderlandSueNeoNeighborSpread = previousAdjacentMachineHighContentCountNear2 >= 2;
+      const wonderlandSueNeoRecentThreeDeep2500 = recentThreeNetTotal <= -2500;
+      const wonderlandSueNeoRecentThreeDeep3000 = recentThreeNetTotal <= -3000;
+      const wonderlandSueNeoRecentThreeRb310 =
+        recentThreeGamesTotal >= 9000 && features.recentThreeRbDenominator <= 310;
+      const wonderlandSueNeoRecentThreeRb270 =
+        recentThreeGamesTotal >= 9000 && features.recentThreeRbDenominator <= 270;
+      const wonderlandSueNeoLosingRb310 =
+        wonderlandSueNeoLosingFourToSix && wonderlandSueNeoRecentThreeRb310;
+      const wonderlandSueNeoDeepPreviousRb300 =
+        wonderlandSueNeoRecentThreeDeep2500 && wonderlandSueNeoPreviousRb300Trusted;
+      const wonderlandSueNeoFiveSinkRb310 =
+        recentFiveNetTotal <= -2500 &&
+        recentFiveGamesTotal >= 12000 &&
+        features.recentFiveRbDenominator <= 310;
       const wonderlandSueNeoUnpaid =
         recentTwentyOneNetTotal <= -1000 && recentTwentyOneGamesTotal >= 70000;
       const wonderlandSueNeoDeepUnpaid =
@@ -10687,8 +10756,14 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         (previousDifference >= 1800 &&
           Number.isFinite(previousMachineSettingFivePlusProbability) &&
           previousMachineSettingFivePlusProbability >= 0.4);
+      const wonderlandSueNeoBbBiasedBigWin =
+        previousGames >= 3000 &&
+        previousDifference >= 1000 &&
+        previousBbDenominator <= 260 &&
+        features.previousRbDenominator > 350;
       const wonderlandSueNeoBbBiased =
-        previousGames >= 3000 && previousDifference >= 1200 && features.previousRbDenominator >= 360;
+        (previousGames >= 3000 && previousDifference >= 1200 && features.previousRbDenominator >= 360) ||
+        wonderlandSueNeoBbBiasedBigWin;
       const wonderlandSueNeoLowActivity = previousGames < 1500 || recentSevenGamesTotal < 26000;
       const wonderlandSueNeoNoPreviousHigh =
         !Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 21;
@@ -10714,10 +10789,15 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       const boostFlags = [
         wonderlandSueNeoLosingThree,
         wonderlandSueNeoLosingFour,
+        wonderlandSueNeoLosingRb310,
+        wonderlandSueNeoDeepPreviousRb300,
         wonderlandSueNeoPreviousDeep,
         wonderlandSueNeoPreviousGenuine,
         wonderlandSueNeoPreviousUnfinished,
         wonderlandSueNeoNeighborSpread,
+        wonderlandSueNeoRecentThreeDeep2500,
+        wonderlandSueNeoRecentThreeRb310,
+        wonderlandSueNeoFiveSinkRb310,
         wonderlandSueNeoUnpaid,
         wonderlandSueNeoDeepUnpaid,
         wonderlandSueNeoGamesTrust,
@@ -10731,11 +10811,21 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         wonderlandSueNeoLosingThree,
         wonderlandSueNeoLosingFour,
         wonderlandSueNeoLosingFive,
+        wonderlandSueNeoLosingFourToSix,
         wonderlandSueNeoPreviousDeep,
+        previousBbDenominator,
         wonderlandSueNeoPreviousGenuine,
         wonderlandSueNeoPreviousStrongGenuine,
         wonderlandSueNeoPreviousUnfinished,
+        wonderlandSueNeoPreviousRb300Trusted,
         wonderlandSueNeoNeighborSpread,
+        wonderlandSueNeoRecentThreeDeep2500,
+        wonderlandSueNeoRecentThreeDeep3000,
+        wonderlandSueNeoRecentThreeRb310,
+        wonderlandSueNeoRecentThreeRb270,
+        wonderlandSueNeoLosingRb310,
+        wonderlandSueNeoDeepPreviousRb300,
+        wonderlandSueNeoFiveSinkRb310,
         wonderlandSueNeoUnpaid,
         wonderlandSueNeoDeepUnpaid,
         wonderlandSueNeoGamesTrust,
@@ -10744,6 +10834,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         wonderlandSueNeoTreatmentDone,
         wonderlandSueNeoShortTreatment,
         wonderlandSueNeoBbBiased,
+        wonderlandSueNeoBbBiasedBigWin,
         wonderlandSueNeoLowActivity,
         wonderlandSueNeoNoPreviousHigh,
         wonderlandSueNeoLongNeglect,
@@ -16682,6 +16773,34 @@ function calculateMachineScore(definition, metrics, features) {
       score -= previousGames >= 4000 && previousGenuine && previousDifference >= 1800 ? 4 : 0;
       score += previousGames >= 3000 && features.previousCombinedDenominator >= 190 ? 5 : 0;
       score += previousGames >= 3000 && features.previousRbDenominator >= 450 ? 4 : 0;
+      score += scoreAtMost(recentThreeNetTotal, [
+        { maximum: -3000, points: 10 },
+        { maximum: -2500, points: 7 },
+        { maximum: -1500, points: 4 },
+      ]);
+      score += features.recentThreeRbDenominator <= 270 && recentThreeGamesTotal >= 9000 ? 9 : 0;
+      score +=
+        features.recentThreeRbDenominator <= 310 && recentThreeGamesTotal >= 9000
+          ? 6
+          : 0;
+      score +=
+        streak >= 4 && streak <= 6 && features.recentThreeRbDenominator <= 310
+          ? 12
+          : 0;
+      score +=
+        recentThreeNetTotal <= -2500 && previousGames >= 3000 && features.previousRbDenominator <= 300
+          ? 12
+          : 0;
+      score +=
+        recentThreeNetTotal <= -3000 && previousGames >= 3000 && features.previousRbDenominator <= 300
+          ? 4
+          : 0;
+      score +=
+        recentFiveNetTotal <= -2500 &&
+        recentFiveGamesTotal >= 12000 &&
+        features.recentFiveRbDenominator <= 310
+          ? 8
+          : 0;
 
       score += scoreAtMost(recentTwentyOneNetTotal, [
         { maximum: -3000, points: 7 },
