@@ -773,8 +773,85 @@ function isDisplayableExpectationCandidate(
     : isDisplayableExpectedPayoutRate(candidate.payoutRate);
 }
 
+function buildMatchedConditionExpectationCandidate(condition) {
+  return {
+    conditionKey: condition?.conditionKey,
+    label: condition?.conditionName,
+    payoutRate: condition?.backtestPayoutRate,
+    rbDenominator: condition?.backtestRbDenominator,
+  };
+}
+
+function compareNullableExpectationNumber(left, right, direction, reader = readFiniteNumber) {
+  const leftNumber = reader(left);
+  const rightNumber = reader(right);
+  if (leftNumber !== null && rightNumber !== null && leftNumber !== rightNumber) {
+    return direction === "ascending"
+      ? leftNumber - rightNumber
+      : rightNumber - leftNumber;
+  }
+  if (leftNumber !== null && rightNumber === null) {
+    return -1;
+  }
+  if (leftNumber === null && rightNumber !== null) {
+    return 1;
+  }
+  return 0;
+}
+
+function compareMatchedConditionsByExpectation(leftCondition, rightCondition, metric) {
+  const left = buildMatchedConditionExpectationCandidate(leftCondition);
+  const right = buildMatchedConditionExpectationCandidate(rightCondition);
+  const leftDisplayable = isDisplayableExpectationCandidate(left, metric);
+  const rightDisplayable = isDisplayableExpectationCandidate(right, metric);
+  if (leftDisplayable !== rightDisplayable) {
+    return leftDisplayable ? -1 : 1;
+  }
+
+  const leftWatch = isWatchExpectationCandidate(left);
+  const rightWatch = isWatchExpectationCandidate(right);
+  if (leftWatch !== rightWatch) {
+    return leftWatch ? 1 : -1;
+  }
+
+  const primaryCompare = metric === MACHINE_EVALUATION_HIGHLIGHT_METRIC_RB
+    ? compareNullableExpectationNumber(
+        left.rbDenominator,
+        right.rbDenominator,
+        "ascending",
+        readPositiveFiniteNumber,
+      )
+    : compareNullableExpectationNumber(left.payoutRate, right.payoutRate, "descending");
+  if (primaryCompare !== 0) {
+    return primaryCompare;
+  }
+
+  const secondaryCompare = metric === MACHINE_EVALUATION_HIGHLIGHT_METRIC_RB
+    ? compareNullableExpectationNumber(left.payoutRate, right.payoutRate, "descending")
+    : compareNullableExpectationNumber(
+        left.rbDenominator,
+        right.rbDenominator,
+        "ascending",
+        readPositiveFiniteNumber,
+      );
+  return secondaryCompare;
+}
+
+function sortMatchedConditionsForTitle(matchedConditions, metric) {
+  return matchedConditions
+    .map((condition, index) => ({ condition, index }))
+    .sort((left, right) =>
+      compareMatchedConditionsByExpectation(left.condition, right.condition, metric) ||
+      left.index - right.index)
+    .map(({ condition }) => condition);
+}
+
 function buildMatchedConditionTitleParts(row, highlightedDetail = null) {
-  const matchedConditions = readMatchedConditionEntries(row);
+  const metric = getMachineEvaluationHighlightMetric(row?.machineName);
+  const matchedConditions = sortMatchedConditionsForTitle(
+    readMatchedConditionEntries(row),
+    metric,
+  );
   if (matchedConditions.length === 0) {
     return [];
   }
@@ -786,12 +863,7 @@ function buildMatchedConditionTitleParts(row, highlightedDetail = null) {
       const selectedLabel = condition.isSelected ? " / 選択中" : "";
       const backtestLabel = condition.backtestLabel ? ` / ${condition.backtestLabel}` : "";
       const isHighlighted = isSameExpectationCandidate(
-        {
-          conditionKey: condition.conditionKey,
-          label: condition.conditionName,
-          payoutRate: condition.backtestPayoutRate,
-          rbDenominator: condition.backtestRbDenominator,
-        },
+        buildMatchedConditionExpectationCandidate(condition),
         highlightedDetail,
       );
       const marker = isHighlighted ? "★" : "";
@@ -902,12 +974,8 @@ function readBestMatchedConditionExpectationCandidateFromEntries(
   metric = MACHINE_EVALUATION_HIGHLIGHT_METRIC_PAYOUT,
 ) {
   return selectBestExpectationCandidate(
-    (Array.isArray(matchedConditions) ? matchedConditions : []).map((condition) => ({
-      conditionKey: condition?.conditionKey,
-      label: condition?.conditionName,
-      payoutRate: condition?.backtestPayoutRate,
-      rbDenominator: condition?.backtestRbDenominator,
-    })),
+    (Array.isArray(matchedConditions) ? matchedConditions : [])
+      .map(buildMatchedConditionExpectationCandidate),
     metric,
   );
 }
