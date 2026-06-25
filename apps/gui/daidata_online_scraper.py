@@ -37,6 +37,9 @@ DAIDATA_BEAM_HIKARI_URL = f"https://daidata.goraggio.com/{DAIDATA_BEAM_HIKARI_ST
 DAIDATA_WONDERLAND_SUE_STORE_NAME = "ワンダーランド須恵店"
 DAIDATA_WONDERLAND_SUE_STORE_ID = "101221"
 DAIDATA_WONDERLAND_SUE_URL = f"https://daidata.goraggio.com/{DAIDATA_WONDERLAND_SUE_STORE_ID}"
+DAIDATA_WONDERLAND_MINAMIGAOKA_STORE_NAME = "ワンダーランド南ヶ丘店"
+DAIDATA_WONDERLAND_MINAMIGAOKA_STORE_ID = "101220"
+DAIDATA_WONDERLAND_MINAMIGAOKA_URL = f"https://daidata.goraggio.com/{DAIDATA_WONDERLAND_MINAMIGAOKA_STORE_ID}"
 DAIDATA_BROWSER_STATE_DIR_NAME = "daidata_online_browser"
 DAIDATA_JST = timezone(timedelta(hours=9))
 DAIDATA_COLUMNS = ["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"]
@@ -80,6 +83,12 @@ DAIDATA_ONLINE_STORE_CONFIGS = (
         store_id=DAIDATA_WONDERLAND_SUE_STORE_ID,
         name_keys=("ワンダーランド須恵", "ワンダーランド須惠"),
         aliases=("wonderlandsue",),
+    ),
+    DaidataOnlineStoreConfig(
+        store_name=DAIDATA_WONDERLAND_MINAMIGAOKA_STORE_NAME,
+        store_id=DAIDATA_WONDERLAND_MINAMIGAOKA_STORE_ID,
+        name_keys=("ワンダーランド南ヶ丘", "ワンダーランド南ケ丘", "ワンダーランド南が丘"),
+        aliases=("wonderlandminamigaoka",),
     ),
 )
 

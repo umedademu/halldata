@@ -33,6 +33,7 @@ from data_persistence import (
 )
 from daidata_online_scraper import (
     DAIDATA_BEAM_HIKARI_URL,
+    DAIDATA_WONDERLAND_MINAMIGAOKA_URL,
     DAIDATA_WONDERLAND_SUE_URL,
     DaidataOnlineMachineEntry,
     DaidataOnlineScraper,
@@ -5480,6 +5481,12 @@ class MinRepoScraperTests(unittest.TestCase):
             site7_enabled=True,
             site7_area="糟屋郡",
         )
+        minamigaoka_store = RegisteredStore(
+            name="ワンダーランド南ヶ丘店",
+            url=DAIDATA_WONDERLAND_MINAMIGAOKA_URL,
+            site7_enabled=True,
+            site7_area="大野城市",
+        )
         hinode_store = RegisteredStore(
             name="HINODE大野城店",
             url="https://example.com/hinode",
@@ -5488,8 +5495,8 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         self.assertEqual(
-            app._site7_registered_stores_from([beam_store, sue_store, hinode_store]),
-            [hinode_store, beam_store, sue_store],
+            app._site7_registered_stores_from([beam_store, sue_store, minamigaoka_store, hinode_store]),
+            [hinode_store, beam_store, minamigaoka_store, sue_store],
         )
 
     def test_site7_registered_stores_from_keeps_only_beam_hikari_daidata_online_store(self) -> None:
@@ -5506,8 +5513,17 @@ class MinRepoScraperTests(unittest.TestCase):
             site7_enabled=True,
             site7_area="糟屋郡",
         )
+        minamigaoka_store = RegisteredStore(
+            name="ワンダーランド南ヶ丘店",
+            url=DAIDATA_WONDERLAND_MINAMIGAOKA_URL,
+            site7_enabled=True,
+            site7_area="大野城市",
+        )
 
-        self.assertEqual(app._site7_registered_stores_from([beam_store, sue_store]), [beam_store, sue_store])
+        self.assertEqual(
+            app._site7_registered_stores_from([beam_store, sue_store, minamigaoka_store]),
+            [beam_store, minamigaoka_store, sue_store],
+        )
 
     def test_site7_parse_machine_history_from_saved_html(self) -> None:
         scraper = Site7Scraper(root_dir=ROOT_DIR)
@@ -5718,6 +5734,11 @@ class MinRepoScraperTests(unittest.TestCase):
         sue_config = daidata_store_config_for("ワンダーランド須恵店", "")
         self.assertIsNotNone(sue_config)
         self.assertEqual(sue_config.url, DAIDATA_WONDERLAND_SUE_URL)
+        self.assertTrue(daidata_store_uses_daidata_online("ワンダーランド南ヶ丘店", ""))
+        self.assertTrue(daidata_store_uses_daidata_online("", DAIDATA_WONDERLAND_MINAMIGAOKA_URL))
+        minamigaoka_config = daidata_store_config_for("ワンダーランド南ヶ丘店", "")
+        self.assertIsNotNone(minamigaoka_config)
+        self.assertEqual(minamigaoka_config.url, DAIDATA_WONDERLAND_MINAMIGAOKA_URL)
         self.assertEqual([entry.machine_name for entry in entries], [SITE7_NEO_IM_MACHINE_NAME])
 
     def test_daidata_accept_terms_page_is_clicked_automatically(self) -> None:
@@ -8063,6 +8084,36 @@ class MinRepoScraperTests(unittest.TestCase):
                         "site7_prefecture": "福岡県",
                         "site7_area": "糟屋郡",
                         "site7_store_name": "ワンダーランド須恵店",
+                        "site7_hall_id": "",
+                        "site7_address": "",
+                    }
+                ],
+            )
+
+    def test_normalize_registered_stores_keeps_wonderland_minamigaoka_daidata_online_source(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+
+            self.assertEqual(
+                service._normalize_registered_stores(  # type: ignore[attr-defined]
+                    [
+                        {
+                            "store_name": "ワンダーランド南ヶ丘店",
+                            "store_url": DAIDATA_WONDERLAND_MINAMIGAOKA_URL,
+                            "site7_enabled": True,
+                            "site7_area": "大野城市",
+                        }
+                    ]
+                ),
+                [
+                    {
+                        "store_name": "ワンダーランド南ヶ丘店",
+                        "store_url": f"{DAIDATA_WONDERLAND_MINAMIGAOKA_URL}/",
+                        "site7_enabled": True,
+                        "site7_difference_enabled": False,
+                        "site7_prefecture": "福岡県",
+                        "site7_area": "大野城市",
+                        "site7_store_name": "ワンダーランド南ヶ丘店",
                         "site7_hall_id": "",
                         "site7_address": "",
                     }
