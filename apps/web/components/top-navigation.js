@@ -10,6 +10,11 @@ const NAV_ITEMS = [
     label: "店舗横断バックテスト",
     match: (pathname) => pathname.startsWith("/store-cross-backtest"),
   },
+  {
+    href: "/store-cross-hunt-ranking",
+    label: "店舗横断狙い度",
+    match: (pathname) => pathname.startsWith("/store-cross-hunt-ranking"),
+  },
   { href: "/updates", label: "更新情報", match: (pathname) => pathname.startsWith("/updates") },
 ];
 

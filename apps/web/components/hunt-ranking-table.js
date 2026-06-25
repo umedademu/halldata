@@ -66,6 +66,7 @@ const FIXED_COLUMN_KEYS = {
   expectedPayout: "expected_payout",
   expectedRb: "expected_rb",
   nextGap: "next_gap",
+  storeName: "store_name",
   machineName: "machine_name",
 };
 const DEFAULT_VISIBLE_FIXED_COLUMN_KEYS = [
@@ -84,9 +85,10 @@ const SORT_COLUMN_INDEX = {
   expectedPayout: 4,
   expectedRb: 5,
   nextGap: 6,
-  machineName: 7,
-  slot: 8,
-  resultStart: 9,
+  storeName: 7,
+  machineName: 8,
+  slot: 9,
+  resultStart: 10,
 };
 const SETTING_ESTIMATE_RESULT_HIGHLIGHT_START_KEY = "games_count";
 const DEFAULT_RANK_SCOPE = "selected";
@@ -1269,6 +1271,7 @@ function readSortableTableValue(
     hasMachineEvaluationColumn = false,
     hasDaySpecificMachineEvaluationColumn = false,
     visibleColumns = [],
+    includeStoreColumn = false,
     includeMachineColumn = true,
     storeId = "",
     storeName = "",
@@ -1344,6 +1347,10 @@ function readSortableTableValue(
       ),
       type: "number",
     };
+  }
+
+  if (includeStoreColumn && columnIndex === SORT_COLUMN_INDEX.storeName) {
+    return { missing: false, value: String(row.storeName ?? ""), type: "text" };
   }
 
   if (includeMachineColumn && columnIndex === SORT_COLUMN_INDEX.machineName) {
@@ -1456,6 +1463,7 @@ function OverallRankingTable({
   bookmarkMatchByRowKey = null,
   sortable = false,
   tableId = "",
+  showStoreColumn = false,
   showMachineEvaluation = false,
   huntScoreLogicLabel = "",
 }) {
@@ -1481,6 +1489,8 @@ function OverallRankingTable({
   const showExpectedRbColumn =
     hasMachineEvaluationColumn && visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.expectedRb);
   const showNextGapColumn = visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.nextGap);
+  const showStoreNameColumn =
+    showStoreColumn && visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.storeName);
   const showMachineNameColumn = visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.machineName);
   const [sortState, setSortState] = useState(() =>
     sortable
@@ -1508,6 +1518,7 @@ function OverallRankingTable({
             hasMachineEvaluationColumn,
             hasDaySpecificMachineEvaluationColumn,
             visibleColumns,
+            includeStoreColumn: showStoreColumn,
             includeMachineColumn: true,
             storeId,
             storeName,
@@ -1520,6 +1531,7 @@ function OverallRankingTable({
     hasMachineEvaluationColumn,
     nextGapScope,
     rows,
+    showStoreColumn,
     sortState,
     sortable,
     storeId,
@@ -1581,6 +1593,7 @@ function OverallRankingTable({
   const expectedPayoutColumnIndex = SORT_COLUMN_INDEX.expectedPayout;
   const expectedRbColumnIndex = SORT_COLUMN_INDEX.expectedRb;
   const nextGapColumnIndex = SORT_COLUMN_INDEX.nextGap;
+  const storeColumnIndex = SORT_COLUMN_INDEX.storeName;
   const machineColumnIndex = SORT_COLUMN_INDEX.machineName;
   const slotColumnIndex = SORT_COLUMN_INDEX.slot;
   const resultColumnStartIndex = SORT_COLUMN_INDEX.resultStart;
@@ -1644,6 +1657,16 @@ function OverallRankingTable({
               {showNextGapColumn ? (
                 <HeaderCell columnIndex={nextGapColumnIndex}>次点差</HeaderCell>
               ) : null}
+              {showStoreNameColumn ? (
+                <HeaderCell
+                  columnIndex={storeColumnIndex}
+                  type="text"
+                  initialDirection="asc"
+                  className="directoryNameHeader"
+                >
+                  店舗名
+                </HeaderCell>
+              ) : null}
               {showMachineNameColumn ? (
                 <HeaderCell
                   columnIndex={machineColumnIndex}
@@ -1671,6 +1694,8 @@ function OverallRankingTable({
               const settingEstimateCellClassName = getSettingEstimateHighlightClass(
                 row.nextSettingEstimate?.average,
               );
+              const rowStoreId = String(row.storeId ?? storeId ?? "").trim();
+              const rowStoreName = String(row.storeName ?? storeName ?? "").trim();
               const machineHasSite7Data = Boolean(row.predictionMachineHasSite7Data);
               const machineSite7FetchedAt = row.predictionMachineSite7FetchedAt ?? null;
               const machineFullName = String(row.machineName ?? "").trim();
@@ -1684,8 +1709,8 @@ function OverallRankingTable({
                 : machineFullName;
               const machineCellTitle = combineTitleParts(machineTitle, rowSite7Title);
               const slotExpectedPayoutClassName = getMachineEvaluationExpectationCellClassName(
-                storeId,
-                storeName,
+                rowStoreId,
+                rowStoreName,
                 row,
               );
 
@@ -1696,8 +1721,8 @@ function OverallRankingTable({
                 >
                   {showCommonColumn ? (
                     <HuntScoreCell
-                      storeId={storeId}
-                      storeName={storeName}
+                      storeId={rowStoreId}
+                      storeName={rowStoreName}
                       row={row}
                       highlightCondition={highlightCondition}
                       bookmarkMatchByRowKey={bookmarkMatchByRowKey}
@@ -1708,8 +1733,8 @@ function OverallRankingTable({
                   ) : null}
                   {showMachineEvaluationColumn ? (
                     <MachineEvaluationCell
-                      storeId={storeId}
-                      storeName={storeName}
+                      storeId={rowStoreId}
+                      storeName={rowStoreName}
                       row={row}
                       evaluation={row.machineEvaluation}
                       extraTitle={rowSite7Title}
@@ -1717,8 +1742,8 @@ function OverallRankingTable({
                   ) : null}
                   {showDaySpecificMachineEvaluationColumn ? (
                     <MachineEvaluationCell
-                      storeId={storeId}
-                      storeName={storeName}
+                      storeId={rowStoreId}
+                      storeName={rowStoreName}
                       row={row}
                       evaluation={row.machineEvaluationDaySpecific}
                       extraTitle={rowSite7Title}
@@ -1733,16 +1758,16 @@ function OverallRankingTable({
                   ) : null}
                   {showExpectedPayoutColumn ? (
                     <MachineEvaluationExpectedPayoutCell
-                      storeId={storeId}
-                      storeName={storeName}
+                      storeId={rowStoreId}
+                      storeName={rowStoreName}
                       row={row}
                       extraTitle={rowSite7Title}
                     />
                   ) : null}
                   {showExpectedRbColumn ? (
                     <MachineEvaluationExpectedRbCell
-                      storeId={storeId}
-                      storeName={storeName}
+                      storeId={rowStoreId}
+                      storeName={rowStoreName}
                       row={row}
                       extraTitle={rowSite7Title}
                     />
@@ -1758,6 +1783,21 @@ function OverallRankingTable({
                       {formatNextGapForScope(row, nextGapScope)}
                     </td>
                   ) : null}
+                  {showStoreNameColumn ? (
+                    <th
+                      className="directoryNameCell crossStoreHuntStoreCell"
+                      data-sort-value={rowStoreName}
+                      title={rowStoreName || undefined}
+                    >
+                      {rowStoreId ? (
+                        <Link href={`/stores/${rowStoreId}`} className="directoryPrimaryLink">
+                          {rowStoreName || "-"}
+                        </Link>
+                      ) : (
+                        rowStoreName || "-"
+                      )}
+                    </th>
+                  ) : null}
                   {showMachineNameColumn ? (
                     <th
                       className={[
@@ -1768,12 +1808,16 @@ function OverallRankingTable({
                       data-sort-value={row.machineName}
                     >
                       <span className="directoryNameContent">
-                        <Link
-                          href={`/stores/${storeId}/machines/${encodeURIComponent(row.machineName)}`}
-                          className="directoryPrimaryLink"
-                        >
-                          {machineShortName}
-                        </Link>
+                        {rowStoreId ? (
+                          <Link
+                            href={`/stores/${rowStoreId}/machines/${encodeURIComponent(row.machineName)}`}
+                            className="directoryPrimaryLink"
+                          >
+                            {machineShortName}
+                          </Link>
+                        ) : (
+                          <span>{machineShortName}</span>
+                        )}
                         {machineHasSite7Data ? (
                           <Site7RankingBadge
                             fetchedAt={machineSite7FetchedAt}
@@ -2146,13 +2190,31 @@ export function HuntRankingTable({
   enableConditionHighlight = true,
   initialDifferenceMode = DEFAULT_DIFFERENCE_MODE,
   showMachineTopCandidates = false,
+  showStoreColumn = false,
   showMachineEvaluation = false,
   showGrapeColumn = false,
+  showMachineGroupTables = true,
+  dateFlowLabelOverride = "",
   huntScoreLogicLabel = "",
 }) {
+  const defaultVisibleFixedColumnKeys = useMemo(
+    () =>
+      showStoreColumn
+        ? [
+            FIXED_COLUMN_KEYS.common,
+            FIXED_COLUMN_KEYS.storeName,
+            FIXED_COLUMN_KEYS.machineEvaluation,
+            FIXED_COLUMN_KEYS.condition,
+            FIXED_COLUMN_KEYS.expectedPayout,
+            FIXED_COLUMN_KEYS.expectedRb,
+            FIXED_COLUMN_KEYS.machineName,
+          ]
+        : DEFAULT_VISIBLE_FIXED_COLUMN_KEYS,
+    [showStoreColumn],
+  );
   const [visibleResultKeys, setVisibleResultKeys] = useState(DEFAULT_VISIBLE_RESULT_KEYS);
   const [visibleFixedColumnKeys, setVisibleFixedColumnKeys] = useState(
-    DEFAULT_VISIBLE_FIXED_COLUMN_KEYS,
+    defaultVisibleFixedColumnKeys,
   );
   const [differenceMode, setDifferenceMode] = useState(() =>
     normalizeDifferenceMode(initialDifferenceMode),
@@ -2163,6 +2225,18 @@ export function HuntRankingTable({
   useEffect(() => {
     setDifferenceMode(normalizeDifferenceMode(initialDifferenceMode));
   }, [initialDifferenceMode]);
+
+  useEffect(() => {
+    setVisibleFixedColumnKeys((currentKeys) => {
+      const currentKeySet = new Set(currentKeys);
+      if (showStoreColumn) {
+        currentKeySet.add(FIXED_COLUMN_KEYS.storeName);
+      } else {
+        currentKeySet.delete(FIXED_COLUMN_KEYS.storeName);
+      }
+      return Object.values(FIXED_COLUMN_KEYS).filter((key) => currentKeySet.has(key));
+    });
+  }, [showStoreColumn]);
 
   useEffect(() => {
     if (!showGrapeColumn) {
@@ -2243,16 +2317,24 @@ export function HuntRankingTable({
         key: FIXED_COLUMN_KEYS.nextGap,
         label: "次点差",
       },
+      ...(showStoreColumn
+        ? [
+            {
+              key: FIXED_COLUMN_KEYS.storeName,
+              label: "店舗名",
+            },
+          ]
+        : []),
       {
         key: FIXED_COLUMN_KEYS.machineName,
         label: "機種名",
       },
     ],
-    [scoreColumnLabel, showMachineEvaluation],
+    [scoreColumnLabel, showMachineEvaluation, showStoreColumn],
   );
   const dateFlowLabel = useMemo(
-    () => formatRankingDateFlowLabel(predictionDate, actualDate),
-    [actualDate, predictionDate],
+    () => dateFlowLabelOverride || formatRankingDateFlowLabel(predictionDate, actualDate),
+    [actualDate, dateFlowLabelOverride, predictionDate],
   );
   const nextGapScope = normalizeNextGapScope(highlightOptions.nextGapScope ?? DEFAULT_NEXT_GAP_SCOPE);
   const highlightCondition = useMemo(
@@ -2546,6 +2628,7 @@ export function HuntRankingTable({
             bookmarkMatchByRowKey={bookmarkMatchByRowKey}
             sortable
             tableId="machine-top-candidates-ranking"
+            showStoreColumn={showStoreColumn}
             showMachineEvaluation={showMachineEvaluation}
             huntScoreLogicLabel={huntScoreLogicLabel}
           />
@@ -2571,6 +2654,7 @@ export function HuntRankingTable({
           highlightCondition={tableHighlightCondition}
           bookmarkMatchByRowKey={bookmarkMatchByRowKey}
           sortable
+          showStoreColumn={showStoreColumn}
           showMachineEvaluation={showMachineEvaluation}
           huntScoreLogicLabel={huntScoreLogicLabel}
         />
@@ -2581,23 +2665,25 @@ export function HuntRankingTable({
         </section>
       )}
 
-      {displayGroupsWithGap.map((group) => (
-        <MachineRankingGroupTable
-          key={group.machineName}
-          group={group}
-          storeId={storeId}
-          storeName={storeName}
-          visibleColumns={visibleColumns}
-          visibleFixedColumnKeys={visibleFixedColumnKeys}
-          scoreColumnLabel={scoreColumnLabel}
-          dateFlowLabel={dateFlowLabel}
-          nextGapScope={nextGapScope}
-          highlightCondition={tableHighlightCondition}
-          bookmarkMatchByRowKey={bookmarkMatchByRowKey}
-          showMachineEvaluation={showMachineEvaluation}
-          huntScoreLogicLabel={huntScoreLogicLabel}
-        />
-      ))}
+      {showMachineGroupTables
+        ? displayGroupsWithGap.map((group) => (
+            <MachineRankingGroupTable
+              key={group.machineName}
+              group={group}
+              storeId={storeId}
+              storeName={storeName}
+              visibleColumns={visibleColumns}
+              visibleFixedColumnKeys={visibleFixedColumnKeys}
+              scoreColumnLabel={scoreColumnLabel}
+              dateFlowLabel={dateFlowLabel}
+              nextGapScope={nextGapScope}
+              highlightCondition={tableHighlightCondition}
+              bookmarkMatchByRowKey={bookmarkMatchByRowKey}
+              showMachineEvaluation={showMachineEvaluation}
+              huntScoreLogicLabel={huntScoreLogicLabel}
+            />
+          ))
+        : null}
     </>
   );
 }
