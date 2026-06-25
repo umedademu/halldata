@@ -424,7 +424,6 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
     (detail) => String(detail?.selectedDate ?? "").trim() !== selectedDate,
   ).length;
   const rankingRows = resultDetails.flatMap(decorateRowsWithStore);
-  const fallbackDateRowCount = rankingRows.filter((row) => row.usesFallbackPredictionDate).length;
   const rankingGroups = buildCrossStoreRankingGroups(
     rankingRows,
     selectedMachineNames,
@@ -692,11 +691,6 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
                 <strong className="metaValue">{formatNumber(selectedMachineNames.length)}機種</strong>
               </article>
             </section>
-            {fallbackDateRowCount > 0 ? (
-              <p className="crossStoreFallbackNotice">
-                茶色背景の店舗名は、指定日のデータがないため直前の保存日を基準に表示しています。基準日は行にマウスを合わせると確認できます。
-              </p>
-            ) : null}
             <HuntRankingTable
               storeId=""
               storeName=""
