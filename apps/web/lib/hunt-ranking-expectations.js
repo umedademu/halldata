@@ -76,7 +76,13 @@ function getExpectedRbMetric(machineName) {
 }
 
 function isMachineTopRankRow(row) {
-  const rankValue = readFiniteNumber(row?.machineRank ?? row?.bookmarkRank ?? row?.rank);
+  const rankValue = readFiniteNumber(
+    row?.storeLocalMachineRank ??
+      row?.machineRank ??
+      row?.bookmarkRank ??
+      row?.storeLocalRank ??
+      row?.rank,
+  );
   return rankValue === 1;
 }
 

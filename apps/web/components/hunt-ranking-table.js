@@ -236,6 +236,14 @@ function StoreNameLinkOrText({ storeId, storeName }) {
   );
 }
 
+function readRowStoreId(row, fallbackStoreId = "") {
+  return String(row?.storeId ?? fallbackStoreId ?? "").trim();
+}
+
+function readRowStoreName(row, fallbackStoreName = "") {
+  return String(row?.storeName ?? fallbackStoreName ?? "").trim();
+}
+
 function latestSite7FetchedAtFromRows(rows) {
   return (Array.isArray(rows) ? rows : [])
     .map((row) => String(row?.predictionMachineSite7FetchedAt ?? "").trim())
@@ -581,7 +589,14 @@ function buildMachineEvaluationClassName(highlightClass) {
 }
 
 function isMachineTopRankRow(row) {
-  return readRankingSortNumber(row?.machineRank ?? row?.bookmarkRank ?? row?.rank, null) === 1;
+  return readRankingSortNumber(
+    row?.storeLocalMachineRank ??
+      row?.machineRank ??
+      row?.bookmarkRank ??
+      row?.storeLocalRank ??
+      row?.rank,
+    null,
+  ) === 1;
 }
 
 function readCommonHuntScoreMachineTopBacktestResult(storeId, storeName, row) {
@@ -1444,12 +1459,14 @@ function readSortableTableValue(
   }
 
   if (hasMachineEvaluationColumn && columnIndex === SORT_COLUMN_INDEX.expectedPayout) {
+    const rowStoreId = readRowStoreId(row, storeId);
+    const rowStoreName = readRowStoreName(row, storeName);
     return {
       missing: false,
       value:
         readMachineEvaluationExpectationDetail(
-          storeId,
-          storeName,
+          rowStoreId,
+          rowStoreName,
           row,
           MACHINE_EVALUATION_HIGHLIGHT_METRIC_PAYOUT,
         )?.payoutRate ?? null,
@@ -1461,9 +1478,11 @@ function readSortableTableValue(
     const expectedRbMetric = isNeoAimMachineName(row?.machineName)
       ? MACHINE_EVALUATION_HIGHLIGHT_METRIC_RB
       : MACHINE_EVALUATION_HIGHLIGHT_METRIC_PAYOUT;
+    const rowStoreId = readRowStoreId(row, storeId);
+    const rowStoreName = readRowStoreName(row, storeName);
     const expectationDetail = readMachineEvaluationExpectationDetail(
-      storeId,
-      storeName,
+      rowStoreId,
+      rowStoreName,
       row,
       expectedRbMetric,
     );
@@ -1829,8 +1848,8 @@ function OverallRankingTable({
               const settingEstimateCellClassName = getSettingEstimateHighlightClass(
                 row.nextSettingEstimate?.average,
               );
-              const rowStoreId = String(row.storeId ?? storeId ?? "").trim();
-              const rowStoreName = String(row.storeName ?? storeName ?? "").trim();
+              const rowStoreId = readRowStoreId(row, storeId);
+              const rowStoreName = readRowStoreName(row, storeName);
               const machineHasSite7Data = Boolean(row.predictionMachineHasSite7Data);
               const machineSite7FetchedAt = row.predictionMachineSite7FetchedAt ?? null;
               const machineFullName = String(row.machineName ?? "").trim();
@@ -2224,8 +2243,8 @@ function MachineRankingGroupTable({
               const settingEstimateCellClassName = getSettingEstimateHighlightClass(
                 row.nextSettingEstimate?.average,
               );
-              const rowStoreId = String(row.storeId ?? storeId ?? "").trim();
-              const rowStoreName = String(row.storeName ?? storeName ?? "").trim();
+              const rowStoreId = readRowStoreId(row, storeId);
+              const rowStoreName = readRowStoreName(row, storeName);
               const rowSite7Title = buildRankingRowSite7Title(row);
               const slotExpectedPayoutClassName = getMachineEvaluationExpectationCellClassName(
                 rowStoreId,

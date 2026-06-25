@@ -181,8 +181,12 @@ function buildCrossStoreRankingGroups(rows, selectedMachineNames, limit) {
     .map((group) => {
       const rankedRows = [...group.rows].sort(compareRankingRows).map((row, index) => ({
         ...row,
+        storeLocalRank: row.storeLocalRank ?? row.rank,
+        storeLocalMachineRank: row.storeLocalMachineRank ?? row.machineRank ?? row.rank,
+        crossStoreMachineRank: index + 1,
+        overallRank: index + 1,
+        selectedRank: index + 1,
         rank: index + 1,
-        machineRank: index + 1,
       }));
       return {
         ...group,
@@ -209,6 +213,8 @@ function decorateRowsWithStore(detail) {
     ...row,
     storeId: detail.store.id,
     storeName: detail.store.storeName,
+    storeLocalRank: row.rank,
+    storeLocalMachineRank: row.machineRank ?? row.rank,
     rowKey: buildRowKey(detail.store.id, row),
   }));
 }
