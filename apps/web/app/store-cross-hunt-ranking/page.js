@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 
 import { CrossStoreHuntRankingFormStateSync } from "../../components/cross-store-hunt-ranking-form-state-sync";
 import {
@@ -6,7 +7,6 @@ import {
   MachineFilterCategoryButton,
 } from "../../components/hunt-machine-filter-tools";
 import { HuntRankingTable } from "../../components/hunt-ranking-table";
-import { HuntScoreLogicMultiSelect } from "../../components/hunt-score-logic-selector";
 import { NativeGetForm } from "../../components/native-get-form";
 import { ResultUrlTools } from "../../components/result-url-tools";
 import {
@@ -19,7 +19,14 @@ import {
   getHuntMachineShortName,
   isHuntJugglerMachine,
 } from "../../lib/hunt-machine-display";
-import { listHuntScoreLogicOptions } from "../../lib/hunt-score";
+import {
+  decodeHuntScoreLogicCookieValue,
+  getHuntScoreLogicCookieName,
+} from "../../lib/hunt-score-logic-selection";
+import {
+  decodeMachineEvaluationSettingsCookieValue,
+  getMachineEvaluationCookieName,
+} from "../../lib/machine-evaluation";
 import { normalizeDifferenceMode } from "../../lib/machine-difference";
 import {
   SETTING_ESTIMATE_MODE_OPTIONS,
@@ -65,18 +72,6 @@ function normalizeLimit(value) {
     return DEFAULT_LIMIT;
   }
   return Math.min(parsedValue, MAX_LIMIT);
-}
-
-function normalizeLogicKeys(values, options) {
-  const requestedKeySet = new Set(
-    (Array.isArray(values) ? values : [values])
-      .map((value) => String(value ?? "").trim())
-      .filter(Boolean),
-  );
-  const selectedKeys = options
-    .filter((option) => requestedKeySet.has(option.key))
-    .map((option) => option.key);
-  return selectedKeys.length > 0 ? selectedKeys : options.slice(0, 1).map((option) => option.key);
 }
 
 function SettingEstimateModeOptions({ value }) {
@@ -228,6 +223,39 @@ function readLatestInitialDate(details) {
     .sort((left, right) => right.localeCompare(left))[0] ?? "";
 }
 
+function readStoreHuntScoreLogicKey(cookieStore, storeId) {
+  return decodeHuntScoreLogicCookieValue(
+    cookieStore.get(getHuntScoreLogicCookieName(storeId))?.value ?? "",
+  );
+}
+
+function readStoreMachineEvaluationSettings(cookieStore, storeId) {
+  return decodeMachineEvaluationSettingsCookieValue(
+    cookieStore.get(getMachineEvaluationCookieName(storeId))?.value ?? "",
+  );
+}
+
+function buildStoreRuntimeSettings(cookieStore, stores) {
+  return new Map(
+    stores.map((store) => [
+      store.id,
+      {
+        huntScoreLogicKey: readStoreHuntScoreLogicKey(cookieStore, store.id),
+        machineEvaluationSettings: readStoreMachineEvaluationSettings(cookieStore, store.id),
+      },
+    ]),
+  );
+}
+
+function buildStoreRequestOptions(storeSettings, options = {}) {
+  const huntScoreLogicKey = String(storeSettings?.huntScoreLogicKey ?? "").trim();
+  return {
+    ...options,
+    machineEvaluationSettings: storeSettings?.machineEvaluationSettings ?? {},
+    ...(huntScoreLogicKey ? { huntScoreLogicKeys: [huntScoreLogicKey] } : {}),
+  };
+}
+
 export default async function StoreCrossHuntRankingPage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const resultRequested = readSingleSearchParam(resolvedSearchParams?.show) === "1";
@@ -245,30 +273,27 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
   const settingEstimateMode = normalizeSettingEstimateMode(
     readSingleSearchParam(resolvedSearchParams?.settingEstimateMode),
   );
-  const logicOptions = listHuntScoreLogicOptions();
-  const huntScoreLogicKeys = normalizeLogicKeys(
-    readMultiSearchParam(resolvedSearchParams?.logicKey),
-    logicOptions,
-  );
   const stores = (await getStoreList()).filter((store) => !store.isPendingRegistration);
   const storeById = buildStoreById(stores);
   const favoriteStoreIds =
     requestedFavoriteStoreIds.length > 0 ? requestedFavoriteStoreIds : requestedStoreIds;
   const favoriteStores = favoriteStoreIds.map((storeId) => storeById.get(storeId)).filter(Boolean);
   const selectedStores = requestedStoreIds.map((storeId) => storeById.get(storeId)).filter(Boolean);
+  const cookieStore = await cookies();
+  const storeSettingsById = buildStoreRuntimeSettings(cookieStore, selectedStores);
   const initialDetails = (
     await Promise.all(
-      selectedStores.map((store) =>
-        getHuntScoreInitialPageDetail(
+      selectedStores.map((store) => {
+        const storeSettings = storeSettingsById.get(store.id);
+        return getHuntScoreInitialPageDetail(
           store.id,
-          {
+          buildStoreRequestOptions(storeSettings, {
             differenceMode,
             settingEstimateMode,
-            huntScoreLogicKeys,
-          },
-          huntScoreLogicKeys[0] ?? "",
-        ),
-      ),
+          }),
+          storeSettings?.huntScoreLogicKey ?? "",
+        );
+      }),
     )
   ).filter(Boolean);
   const machineOptions = buildJugglerMachineOptions(
@@ -284,21 +309,21 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
     resultRequested && selectedDate
       ? (
           await Promise.all(
-            selectedStores.map((store) =>
-              getHuntScoreRankingDetail(
+            selectedStores.map((store) => {
+              const storeSettings = storeSettingsById.get(store.id);
+              return getHuntScoreRankingDetail(
                 store.id,
                 selectedDate,
                 requestedLimit,
-                huntScoreLogicKeys[0] ?? "",
+                storeSettings?.huntScoreLogicKey ?? "",
                 differenceMode,
                 settingEstimateMode,
-                {
+                buildStoreRequestOptions(storeSettings, {
                   machineNames: selectedMachineNames,
                   machineTouched: true,
-                  huntScoreLogicKeys,
-                },
-              ),
-            ),
+                }),
+              );
+            }),
           )
         ).filter(
           (detail) =>
@@ -313,10 +338,7 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
     selectedMachineNames,
     requestedLimit,
   );
-  const huntScoreLogicLabel = logicOptions
-    .filter((option) => huntScoreLogicKeys.includes(option.key))
-    .map((option) => option.name)
-    .join(" + ");
+  const huntScoreLogicLabel = "各店舗の設定ロジック";
   const dateFlowLabel = selectedDate
     ? `${formatMonthDay(selectedDate)}狙い度 → 各店舗の翌営業日実績`
     : "狙い度 → 各店舗の翌営業日実績";
@@ -429,15 +451,6 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
                 </label>
               ))}
             </div>
-          </div>
-
-          <div className="filterConditionBox rankingConditionBoxWide">
-            <HuntScoreLogicMultiSelect
-              selectedLogicKeys={huntScoreLogicKeys}
-              options={logicOptions}
-              name="logicKey"
-              label="使用するロジック"
-            />
           </div>
 
           <div className="filterConditionBox rankingConditionBox">
