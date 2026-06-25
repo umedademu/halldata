@@ -6845,6 +6845,83 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertFalse(summary.has_errors)
             self.assertEqual(saved_dates_summary.saved_dates, set())
 
+    def test_save_history_result_keeps_full_day_index_when_site7_supplements_minrepo(self) -> None:
+        store_name = "テスト店"
+        store_url = "https://min-repo.com/tag/test-store/"
+        target_date = "2026-04-22"
+        site7_history_result = MachineHistoryResult(
+            store_name=store_name,
+            store_url=store_url,
+            start_date=target_date,
+            end_date=target_date,
+            date_pages=[
+                StoreDatePage(
+                    target_date=target_date,
+                    date_url="https://min-repo.com/tag/test-store/2026-04-22/",
+                )
+            ],
+            datasets=[
+                MachineDataset(
+                    store_name=store_name,
+                    store_url=store_url,
+                    target_date=target_date,
+                    date_url="https://min-repo.com/tag/test-store/2026-04-22/",
+                    machine_name="新ハナビ",
+                    machine_url="https://example.com/site7/machine",
+                    columns=["台番", "差枚", "G数", "BB", "RB", "出率"],
+                    rows=[["672", "120", "3000", "10", "8", ""]],
+                )
+            ],
+        )
+
+        with TemporaryDirectory() as temp_dir:
+            service, storage = make_r2_service(Path(temp_dir))
+            seed_r2_store(
+                storage,
+                store_name=store_name,
+                store_url=store_url,
+                records=[
+                    {
+                        "target_date": target_date,
+                        "slot_number": "1001",
+                        "machine_name": "ネオアイムジャグラーEX",
+                        "data_source": DATA_SOURCE_MINREPO,
+                        "difference_value": 240,
+                        "games_count": 3200,
+                        "payout_rate": 103.1,
+                        "bb_count": 12,
+                        "rb_count": 9,
+                    }
+                ],
+            )
+            storage.write_json(
+                service._r2_full_day_index_key(store_name, store_url),  # type: ignore[attr-defined]
+                {
+                    "version": 1,
+                    "store": {"store_name": store_name, "store_url": store_url},
+                    "full_day_dates": {
+                        target_date: {
+                            "saved_at": "2026-04-22T12:00:00+09:00",
+                            "machine_count": 1,
+                            "record_count": 1,
+                            "snapshot_key": "minrepo-full-day.json",
+                            "data_source": DATA_SOURCE_MINREPO,
+                        }
+                    },
+                },
+            )
+
+            summary = service.save_history_result(site7_history_result)
+            saved_dates_summary = service.find_saved_full_day_dates(
+                store_name=store_name,
+                store_url=store_url,
+                start_date=target_date,
+                end_date=target_date,
+            )
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(saved_dates_summary.saved_dates, {target_date})
+
     def test_mark_full_day_saved_can_run_after_partial_saves(self) -> None:
         scraper = FixtureScraper()
         context = scraper.prepare_machine_history_context(

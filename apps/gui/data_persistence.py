@@ -1844,12 +1844,19 @@ class HistoryPersistenceService:
         if not indexed_dates:
             return []
 
-        _, current_site7_dates = self._full_day_current_saved_state_by_date(
+        current_counts_by_date, current_site7_dates = self._full_day_current_saved_state_by_date(
             store_name=store_name,
             store_url=store_url,
             target_dates=indexed_dates,
         )
-        removed_dates = sorted(indexed_dates.intersection(current_site7_dates))
+        removed_dates = [
+            target_date
+            for target_date in sorted(indexed_dates.intersection(current_site7_dates))
+            if self._full_day_index_entry_should_clear_for_site7(
+                full_day_dates.get(target_date),
+                current_counts_by_date.get(target_date, {"machine_count": 0, "record_count": 0}),
+            )
+        ]
         if not removed_dates:
             return []
 
@@ -1857,6 +1864,30 @@ class HistoryPersistenceService:
             full_day_dates.pop(target_date, None)
         self.r2_storage.write_json(index_key, index_payload)
         return removed_dates
+
+    def _full_day_index_entry_should_clear_for_site7(
+        self,
+        entry: Any,
+        current_minrepo_counts: dict[str, int],
+    ) -> bool:
+        if not isinstance(entry, dict):
+            return True
+
+        data_source = str(entry.get("data_source", "")).strip()
+        if data_source and data_source != DATA_SOURCE_MINREPO:
+            return True
+        if entry.get("has_site7_records") is True:
+            return True
+
+        indexed_record_count = self._coerce_saved_full_day_record_count(entry.get("record_count"))
+        if indexed_record_count is not None and current_minrepo_counts.get("record_count", 0) < indexed_record_count:
+            return True
+
+        indexed_machine_count = self._coerce_saved_full_day_machine_count(entry.get("machine_count"))
+        if indexed_machine_count is not None and current_minrepo_counts.get("machine_count", 0) < indexed_machine_count:
+            return True
+
+        return False
 
     def resolve_preferred_store_by_name(self, store_name: str) -> dict[str, str] | None:
         store_name_key = normalize_store_name_key(store_name)
