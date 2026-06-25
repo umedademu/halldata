@@ -350,7 +350,7 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">店舗横断狙い度ランキング</h1>
           <p className="leadText">
-            マイホール内のジャグラー系だけを、店舗をまたいで狙い度順に確認します。
+            マイホール内のジャグラー系だけを、店舗をまたいで機種ごとに確認します。
           </p>
           <div className="heroLinks simpleHeroLinks">
             <Link href="/" className="externalLink">
@@ -553,7 +553,8 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
               showStoreColumn
               showMachineEvaluation={rankingRows.some((row) => row.machineEvaluation)}
               showGrapeColumn
-              showMachineGroupTables={false}
+              showOverallRanking={false}
+              showMachineGroupTables
               dateFlowLabelOverride={dateFlowLabel}
               huntScoreLogicLabel={huntScoreLogicLabel}
             />
