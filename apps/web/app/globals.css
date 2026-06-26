@@ -2744,6 +2744,42 @@ a {
   color: #334155;
 }
 
+.directoryTable tbody tr.huntRankingExpandedDetailRow td {
+  padding: 0;
+}
+
+.huntRankingExpandedDetail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  padding: 14px 16px;
+  text-align: left;
+}
+
+.huntRankingExpandedDetailBlock {
+  min-width: 0;
+}
+
+.huntRankingExpandedDetailLabel {
+  margin: 0 0 6px;
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.huntRankingExpandedDetailList {
+  margin: 0;
+  padding-left: 1.05rem;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.huntRankingExpandedDetailList li {
+  overflow-wrap: anywhere;
+}
+
 .directoryTable tbody tr.backtestTotalRow td,
 .directoryTable tbody tr.backtestTotalRow th,
 .directoryTable tbody tr.backtestTotalRow:nth-child(odd) td,

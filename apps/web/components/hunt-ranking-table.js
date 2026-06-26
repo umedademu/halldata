@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 
+import { ExpandableTableRowsController } from "./expandable-table-rows-controller";
 import { SortableTableHeader } from "./sortable-table-header";
 import {
   formatAverageGames,
@@ -265,6 +266,41 @@ function site7BadgeTitle(fetchedAt, fallbackTitle) {
 
 function combineTitleParts(...parts) {
   return parts.map((part) => String(part ?? "").trim()).filter(Boolean).join("\n");
+}
+
+function hashStringForDomId(value) {
+  let hash = 0;
+  const text = String(value ?? "");
+
+  for (let index = 0; index < text.length; index += 1) {
+    hash = (hash * 31 + text.charCodeAt(index)) >>> 0;
+  }
+
+  return hash.toString(36);
+}
+
+function splitDetailLines(value) {
+  return String(value ?? "")
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function uniqueDetailLines(lines) {
+  const seen = new Set();
+  return (Array.isArray(lines) ? lines : []).filter((line) => {
+    const text = String(line ?? "").trim();
+    if (!text || seen.has(text)) {
+      return false;
+    }
+    seen.add(text);
+    return true;
+  });
+}
+
+function buildDetailSection(label, lines) {
+  const detailLines = uniqueDetailLines(lines);
+  return detailLines.length > 0 ? { label, lines: detailLines } : null;
 }
 
 function isSite7Record(record) {
@@ -1172,7 +1208,7 @@ function readDaySpecificMachineEvaluationColumnLabel(rows) {
   return String(evaluation?.displayLabel ?? "").trim() || "日別";
 }
 
-function MachineEvaluationCell({
+function buildMachineEvaluationTitleDetail({
   storeId,
   storeName,
   row,
@@ -1181,7 +1217,12 @@ function MachineEvaluationCell({
   includeStoredTopBacktests = true,
 }) {
   if (!evaluation) {
-    return <td title={extraTitle || undefined} data-sort-value="">-</td>;
+    return {
+      title: extraTitle,
+      titleParts: splitDetailLines(extraTitle),
+      expectationDetail: null,
+      highlightMetric: getMachineEvaluationHighlightMetric(row?.machineName),
+    };
   }
 
   const topBacktestResult = includeStoredTopBacktests
@@ -1220,6 +1261,40 @@ function MachineEvaluationCell({
     Number.isFinite(evaluation.rank) ? `機種別順位: ${evaluation.rank}` : "",
     Number.isFinite(evaluation.nextGap) ? `次点差: ${formatDecimal(evaluation.nextGap)}` : "",
   ].filter(Boolean);
+  const title = combineTitleParts(titleParts.join("\n"), extraTitle);
+
+  return {
+    title,
+    titleParts: splitDetailLines(title),
+    expectationDetail,
+    highlightMetric,
+  };
+}
+
+function MachineEvaluationCell({
+  storeId,
+  storeName,
+  row,
+  evaluation,
+  extraTitle = "",
+  includeStoredTopBacktests = true,
+}) {
+  if (!evaluation) {
+    return <td title={extraTitle || undefined} data-sort-value="">-</td>;
+  }
+
+  const {
+    title,
+    expectationDetail,
+    highlightMetric,
+  } = buildMachineEvaluationTitleDetail({
+    storeId,
+    storeName,
+    row,
+    evaluation,
+    extraTitle,
+    includeStoredTopBacktests,
+  });
   const cellClassNames = getMachineEvaluationExpectationClassName(
     expectationDetail,
     highlightMetric,
@@ -1228,7 +1303,7 @@ function MachineEvaluationCell({
   return (
     <td
       className={cellClassNames || undefined}
-      title={combineTitleParts(titleParts.join("\n"), extraTitle) || undefined}
+      title={title || undefined}
       data-sort-value={readRankingSortNumber(evaluation.score, "")}
     >
       <span className="machineEvaluationCellValue">{formatNumber(evaluation.score)}</span>
@@ -1265,6 +1340,17 @@ function MachineEvaluationConditionCell({ row, extraTitle = "" }) {
   );
 }
 
+function buildMachineEvaluationConditionTitle(row, extraTitle = "") {
+  const highlightMetric = getMachineEvaluationHighlightMetric(row?.machineName);
+  const expectationDetail = readMatchedConditionExpectationDetail(row, highlightMetric);
+  const matchedConditionTitleParts = buildMatchedConditionTitleParts(row, expectationDetail);
+  const expectationTitle = buildMachineEvaluationExpectationTitle(expectationDetail, highlightMetric);
+  const title = matchedConditionTitleParts.length > 0
+    ? combineTitleParts(expectationTitle, matchedConditionTitleParts.join("\n"))
+    : "一致した採用条件はありません";
+  return combineTitleParts(title, extraTitle);
+}
+
 function MachineEvaluationExpectedPayoutCell({ storeId, storeName, row, extraTitle = "" }) {
   const expectationDetail = readMachineEvaluationExpectationDetail(
     storeId,
@@ -1288,6 +1374,22 @@ function MachineEvaluationExpectedPayoutCell({ storeId, storeName, row, extraTit
     >
       {formatExpectedPayoutRate(expectationDetail?.payoutRate)}
     </td>
+  );
+}
+
+function buildMachineEvaluationExpectedPayoutTitle(storeId, storeName, row, extraTitle = "") {
+  const expectationDetail = readMachineEvaluationExpectationDetail(
+    storeId,
+    storeName,
+    row,
+    MACHINE_EVALUATION_HIGHLIGHT_METRIC_PAYOUT,
+  );
+  return combineTitleParts(
+    buildMachineEvaluationExpectationTitle(
+      expectationDetail,
+      MACHINE_EVALUATION_HIGHLIGHT_METRIC_PAYOUT,
+    ),
+    extraTitle,
   );
 }
 
@@ -1315,6 +1417,23 @@ function MachineEvaluationExpectedRbCell({ storeId, storeName, row, extraTitle =
     >
       {formatExpectedRbDenominator(rbDenominator)}
     </td>
+  );
+}
+
+function buildMachineEvaluationExpectedRbTitle(storeId, storeName, row, extraTitle = "") {
+  const isNeoAim = isNeoAimMachineName(row?.machineName);
+  const metric = isNeoAim
+    ? MACHINE_EVALUATION_HIGHLIGHT_METRIC_RB
+    : MACHINE_EVALUATION_HIGHLIGHT_METRIC_PAYOUT;
+  const expectationDetail = readMachineEvaluationExpectationDetail(storeId, storeName, row, metric);
+  const rbDenominator = readDisplayableExpectedRbDenominator(expectationDetail);
+  const rbExpectationDetail = rbDenominator === null ? null : expectationDetail;
+  return combineTitleParts(
+    buildMachineEvaluationExpectationTitle(
+      rbExpectationDetail,
+      isNeoAim ? MACHINE_EVALUATION_HIGHLIGHT_METRIC_RB : "",
+    ),
+    extraTitle,
   );
 }
 
@@ -1593,10 +1712,7 @@ function HuntScoreCell({
 }) {
   const backtestResult = readCommonHuntScoreMachineTopBacktestResult(storeId, storeName, row);
   const backtestPayoutClass = getMachineEvaluationPayoutClass(backtestResult?.payoutRate);
-  const backtestTitle = buildCommonHuntScoreBacktestTitleParts(
-    backtestResult,
-    huntScoreLogicLabel,
-  ).join("\n");
+  const backtestTitle = buildCommonHuntScoreBacktestTitle(storeId, storeName, row, huntScoreLogicLabel);
   const className = [
     getRankingConditionHighlightClass(row, highlightCondition, bookmarkMatchByRowKey),
     backtestPayoutClass ? "huntScoreBacktestMatchedCell" : "",
@@ -1614,6 +1730,126 @@ function HuntScoreCell({
     >
       <span className="huntScoreBacktestCellValue">{formatNumber(row.huntScore)}</span>
     </td>
+  );
+}
+
+function buildCommonHuntScoreBacktestTitle(storeId, storeName, row, huntScoreLogicLabel = "") {
+  return buildCommonHuntScoreBacktestTitleParts(
+    readCommonHuntScoreMachineTopBacktestResult(storeId, storeName, row),
+    huntScoreLogicLabel,
+  ).join("\n");
+}
+
+function buildHuntRankingDetailSections({
+  storeId,
+  storeName,
+  row,
+  rowTitle = "",
+  machineTitle = "",
+  storeCellTitle = "",
+  huntScoreLogicLabel = "",
+}) {
+  const rowStoreId = readRowStoreId(row, storeId);
+  const rowStoreName = readRowStoreName(row, storeName);
+  const commonLines = [
+    `点数: ${formatNumber(row.huntScore)}`,
+    ...splitDetailLines(buildCommonHuntScoreBacktestTitle(
+      rowStoreId,
+      rowStoreName,
+      row,
+      huntScoreLogicLabel,
+    )),
+  ];
+  const machineEvaluationDetail = buildMachineEvaluationTitleDetail({
+    storeId: rowStoreId,
+    storeName: rowStoreName,
+    row,
+    evaluation: row.machineEvaluation,
+    includeStoredTopBacktests: true,
+  });
+  const daySpecificDetail = buildMachineEvaluationTitleDetail({
+    storeId: rowStoreId,
+    storeName: rowStoreName,
+    row,
+    evaluation: row.machineEvaluationDaySpecific,
+    includeStoredTopBacktests: false,
+  });
+  const matchedConditionCount = readMatchedConditionCount(row);
+  const sections = [
+    buildDetailSection("共通", commonLines),
+    row.machineEvaluation
+      ? buildDetailSection("機種別", [
+          `点数: ${formatNumber(row.machineEvaluation.score)}`,
+          ...machineEvaluationDetail.titleParts,
+        ])
+      : null,
+    row.machineEvaluationDaySpecific
+      ? buildDetailSection(
+          String(row.machineEvaluationDaySpecific.displayLabel ?? "").trim() || "日別",
+          [
+            `点数: ${formatNumber(row.machineEvaluationDaySpecific.score)}`,
+            ...daySpecificDetail.titleParts,
+          ],
+        )
+      : null,
+    row.machineEvaluation || row.machineEvaluationDaySpecific
+      ? buildDetailSection("条件", [
+          `一致数: ${formatNumber(matchedConditionCount)}`,
+          ...splitDetailLines(buildMachineEvaluationConditionTitle(row)),
+        ])
+      : null,
+    row.machineEvaluation || row.machineEvaluationDaySpecific
+      ? buildDetailSection("期待割", splitDetailLines(
+          buildMachineEvaluationExpectedPayoutTitle(rowStoreId, rowStoreName, row),
+        ))
+      : null,
+    row.machineEvaluation || row.machineEvaluationDaySpecific
+      ? buildDetailSection("期待RB", splitDetailLines(
+          buildMachineEvaluationExpectedRbTitle(rowStoreId, rowStoreName, row),
+        ))
+      : null,
+    buildDetailSection("行情報", [
+      storeCellTitle,
+      machineTitle,
+      `台番: ${row.slotNumber}`,
+      ...splitDetailLines(rowTitle),
+    ]),
+  ].filter(Boolean);
+
+  return sections;
+}
+
+function HuntRankingExpandIndicator() {
+  return <span className="backtestExpandIndicator" aria-hidden="true">＋</span>;
+}
+
+function HuntRankingDetailRow({ parentKey, colSpan, sections }) {
+  if (!parentKey || !Array.isArray(sections) || sections.length === 0) {
+    return null;
+  }
+
+  return (
+    <tr
+      className="backtestNonmatchingRow huntRankingExpandedDetailRow"
+      data-expand-detail-row="1"
+      data-expand-parent-key={parentKey}
+      hidden
+    >
+      <td colSpan={colSpan}>
+        <div className="huntRankingExpandedDetail">
+          {sections.map((section) => (
+            <div key={section.label} className="huntRankingExpandedDetailBlock">
+              <p className="huntRankingExpandedDetailLabel">{section.label}</p>
+              <ul className="huntRankingExpandedDetailList">
+                {section.lines.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -1707,7 +1943,20 @@ function OverallRankingTable({
     storeName,
     visibleColumns,
   ]);
-  const tableProps = tableId ? { id: tableId } : {};
+  const resolvedTableId = tableId || `hunt-ranking-${hashStringForDomId(`${sectionLabel}:${title}`)}`;
+  const tableProps = { id: resolvedTableId };
+  const detailColumnCount = [
+    showCommonColumn,
+    showMachineEvaluationColumn,
+    showDaySpecificMachineEvaluationColumn,
+    showConditionColumn,
+    showExpectedPayoutColumn,
+    showExpectedRbColumn,
+    showNextGapColumn,
+    showStoreNameColumn,
+    showMachineNameColumn,
+    true,
+  ].filter(Boolean).length + visibleColumns.length;
   const handleSort = (columnIndex, type, initialDirection) => {
     if (!sortable) {
       return;
@@ -1779,6 +2028,7 @@ function OverallRankingTable({
         </div>
       </div>
       <div className="tableScroller directoryScroller">
+        <ExpandableTableRowsController tableId={resolvedTableId} />
         <table className="directoryTable huntCompactTable huntRankingTable" {...tableProps}>
           <thead>
             <tr>
@@ -1885,12 +2135,30 @@ function OverallRankingTable({
                 rowStoreName,
                 row,
               );
+              const detailRowKey = `${resolvedTableId}:${buildRankGapRowKey(row)}:${row.rank ?? ""}`;
+              const detailSections = buildHuntRankingDetailSections({
+                storeId: rowStoreId,
+                storeName: rowStoreName,
+                row,
+                rowTitle,
+                machineTitle,
+                storeCellTitle,
+                huntScoreLogicLabel,
+              });
+              const rowClassName = [
+                fallbackPredictionDateTitle ? "huntRankingFallbackDateRow" : "",
+              ].filter(Boolean).join(" ");
+              const showExpandIndicatorInStore =
+                !showMachineNameColumn && showStoreNameColumn;
+              const showExpandIndicatorInSlot =
+                !showMachineNameColumn && !showStoreNameColumn;
 
               return (
+                <Fragment key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${title}-${row.rank}`}>
                 <tr
-                  key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${title}-${row.rank}`}
-                  className={fallbackPredictionDateTitle ? "huntRankingFallbackDateRow" : undefined}
+                  className={rowClassName || undefined}
                   title={rowTitle || undefined}
+                  data-expand-row-key={detailRowKey}
                 >
                   {showCommonColumn ? (
                     <HuntScoreCell
@@ -1962,6 +2230,7 @@ function OverallRankingTable({
                       data-sort-value={rowStoreName}
                       title={storeCellTitle || undefined}
                     >
+                      {showExpandIndicatorInStore ? <HuntRankingExpandIndicator /> : null}
                       <StoreNameLinkOrText
                         storeId={rowStoreId}
                         storeName={rowStoreName}
@@ -1979,6 +2248,7 @@ function OverallRankingTable({
                       data-sort-value={row.machineName}
                     >
                       <span className="directoryNameContent">
+                        <HuntRankingExpandIndicator />
                         {rowStoreId ? (
                           <Link
                             href={`/stores/${rowStoreId}/machines/${encodeURIComponent(row.machineName)}`}
@@ -2003,6 +2273,7 @@ function OverallRankingTable({
                     data-sort-value={row.slotNumber}
                     title={rowTitle || undefined}
                   >
+                    {showExpandIndicatorInSlot ? <HuntRankingExpandIndicator /> : null}
                     {row.slotNumber}
                   </td>
                   {visibleColumns.map((column) => (
@@ -2020,6 +2291,12 @@ function OverallRankingTable({
                     </td>
                   ))}
                 </tr>
+                <HuntRankingDetailRow
+                  parentKey={detailRowKey}
+                  colSpan={detailColumnCount}
+                  sections={detailSections}
+                />
+                </Fragment>
               );
             })}
           </tbody>
@@ -2159,6 +2436,18 @@ function MachineRankingGroupTable({
   const storeColumnIndex = SORT_COLUMN_INDEX.storeName;
   const slotColumnIndex = SORT_COLUMN_INDEX.slot;
   const resultColumnStartIndex = SORT_COLUMN_INDEX.resultStart;
+  const resolvedTableId = `hunt-ranking-group-${hashStringForDomId(`${storeId}:${group.machineName}`)}`;
+  const detailColumnCount = [
+    showCommonColumn,
+    showMachineEvaluationColumn,
+    showDaySpecificMachineEvaluationColumn,
+    showConditionColumn,
+    showExpectedPayoutColumn,
+    showExpectedRbColumn,
+    showNextGapColumn,
+    showStoreNameColumn,
+    true,
+  ].filter(Boolean).length + visibleColumns.length;
 
   return (
     <section className="tablePanel directoryPanel">
@@ -2190,7 +2479,8 @@ function MachineRankingGroupTable({
         </div>
       </div>
       <div className="tableScroller directoryScroller">
-        <table className="directoryTable huntCompactTable huntRankingTable">
+        <ExpandableTableRowsController tableId={resolvedTableId} />
+        <table id={resolvedTableId} className="directoryTable huntCompactTable huntRankingTable">
           <thead>
             <tr>
               {showCommonColumn ? (
@@ -2277,12 +2567,28 @@ function MachineRankingGroupTable({
                 rowStoreName,
                 row,
               );
+              const machineTitle = combineTitleParts(group.machineName, rowTitle);
+              const detailRowKey = `${resolvedTableId}:${buildRankGapRowKey(row)}:${row.rank ?? ""}`;
+              const detailSections = buildHuntRankingDetailSections({
+                storeId: rowStoreId,
+                storeName: rowStoreName,
+                row,
+                rowTitle,
+                machineTitle,
+                storeCellTitle,
+                huntScoreLogicLabel,
+              });
+              const rowClassName = [
+                fallbackPredictionDateTitle ? "huntRankingFallbackDateRow" : "",
+              ].filter(Boolean).join(" ");
+              const showExpandIndicatorInSlot = !showStoreNameColumn;
 
               return (
+                <Fragment key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${row.rank}`}>
                 <tr
-                  key={`${row.rowKey ?? row.machineName}-${row.slotNumber}-${row.rank}`}
-                  className={fallbackPredictionDateTitle ? "huntRankingFallbackDateRow" : undefined}
+                  className={rowClassName || undefined}
                   title={rowTitle || undefined}
+                  data-expand-row-key={detailRowKey}
                 >
                   {showCommonColumn ? (
                     <HuntScoreCell
@@ -2348,6 +2654,7 @@ function MachineRankingGroupTable({
                       data-sort-value={rowStoreName}
                       title={storeCellTitle || undefined}
                     >
+                      <HuntRankingExpandIndicator />
                       <StoreNameLinkOrText
                         storeId={rowStoreId}
                         storeName={rowStoreName}
@@ -2359,6 +2666,7 @@ function MachineRankingGroupTable({
                     className={slotExpectedPayoutClassName || undefined}
                     title={rowTitle || undefined}
                   >
+                    {showExpandIndicatorInSlot ? <HuntRankingExpandIndicator /> : null}
                     {row.slotNumber}
                   </td>
                   {visibleColumns.map((column) => (
@@ -2376,6 +2684,12 @@ function MachineRankingGroupTable({
                     </td>
                   ))}
                 </tr>
+                <HuntRankingDetailRow
+                  parentKey={detailRowKey}
+                  colSpan={detailColumnCount}
+                  sections={detailSections}
+                />
+                </Fragment>
               );
             })}
           </tbody>
