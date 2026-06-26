@@ -1154,6 +1154,13 @@ a {
   gap: 8px;
 }
 
+.myHallControlRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+}
+
 .myHallItem {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1249,6 +1256,10 @@ a {
   font-weight: 800;
 }
 
+.storeRegionAddField {
+  flex-basis: 20rem;
+}
+
 .storeRegionControlSelect {
   width: 100%;
   min-height: 2.7rem;
@@ -1259,6 +1270,70 @@ a {
   color: var(--text);
   font-family: var(--font-body);
   font-size: 1rem;
+  font-weight: 800;
+}
+
+.homeAddressAddButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.homeAddressList {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 2.5rem;
+  padding: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.78);
+}
+
+.homeAddressListLabel {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.homeAddressChip {
+  display: inline-flex;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.homeAddressChipActive {
+  border-color: rgba(37, 99, 165, 0.34);
+  background: rgba(37, 99, 165, 0.08);
+}
+
+.homeAddressChip button {
+  min-height: 2rem;
+  padding: 6px 9px;
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.homeAddressChip button:hover {
+  background: rgba(37, 99, 165, 0.08);
+}
+
+.homeAddressRemoveButton {
+  border-left: 1px solid rgba(15, 23, 42, 0.12) !important;
+  color: var(--muted) !important;
+}
+
+.homeAddressEmpty {
+  color: var(--muted);
+  font-size: 0.86rem;
   font-weight: 800;
 }
 
@@ -1290,6 +1365,18 @@ a {
   font-size: 0.92rem;
   font-weight: 900;
   line-height: 1.5;
+}
+
+.storeSubsectionTitle .storeRegionTitle,
+.storeSubsectionTitle .storeRegionTitle span {
+  color: #805300;
+  font-size: 0.92rem;
+  white-space: normal;
+}
+
+.storeSubsectionTitle .storeRegionDistance {
+  color: var(--muted);
+  font-size: 0.76rem;
 }
 
 .storeSubsectionHeader span {

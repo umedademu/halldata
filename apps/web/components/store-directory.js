@@ -16,13 +16,18 @@ import {
 } from "../lib/store-location-groups";
 import {
   calculateRegionDistanceKm,
+  listKnownRegionOptions,
   readRegionPoint,
 } from "../lib/store-region-distance";
 
 const REGION_ORDER_MODE_STORAGE_KEY = "halldata-store-region-order-mode";
 const HOME_REGION_STORAGE_KEY = "halldata-home-region-key";
+const HOME_ADDRESS_REGIONS_STORAGE_KEY = "halldata-home-address-region-keys";
+const MY_HALL_ORDER_MODE_STORAGE_KEY = "halldata-my-hall-order-mode";
 const REGION_ORDER_NORMAL = "normal";
 const REGION_ORDER_NEAR_HOME = "near-home";
+const MY_HALL_ORDER_SAVED = "saved";
+const MY_HALL_ORDER_NEAR_HOME = "near-home";
 const REGION_KEY_SEPARATOR = "||";
 
 function normalizeText(value) {
@@ -73,6 +78,46 @@ function saveStoredText(key, value) {
     } else {
       window.localStorage.removeItem(key);
     }
+  } catch {
+    // 端末保存が使えない環境では、画面上の選択だけを使います。
+  }
+}
+
+function normalizeRegionKey(value) {
+  const regionKey = String(value ?? "").trim();
+  if (!regionKey.includes(REGION_KEY_SEPARATOR)) {
+    return "";
+  }
+  return regionKey;
+}
+
+function normalizeRegionKeys(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+  return [...new Set(values.map(normalizeRegionKey).filter(Boolean))];
+}
+
+function readStoredRegionKeys(key) {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    return normalizeRegionKeys(JSON.parse(window.localStorage.getItem(key) || "[]"));
+  } catch {
+    window.localStorage.removeItem(key);
+    return [];
+  }
+}
+
+function saveStoredRegionKeys(key, regionKeys) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify(normalizeRegionKeys(regionKeys)));
   } catch {
     // 端末保存が使えない環境では、画面上の選択だけを使います。
   }
@@ -175,10 +220,43 @@ function buildNearbyStoreRegions(stores, homeRegionKey) {
 }
 
 function buildHomeRegionOptions(stores) {
-  return buildStoreRegions(stores).map((region) => ({
-    key: region.key,
-    label: region.label,
-  }));
+  const optionMap = new Map();
+
+  for (const option of listKnownRegionOptions()) {
+    const prefectureName = normalizeGroupName(option.prefectureName, "");
+    const areaName = normalizeGroupName(option.areaName, "");
+    const key = buildRegionKey(prefectureName, areaName);
+    optionMap.set(key, {
+      key,
+      prefectureName,
+      areaName,
+      label: formatRegionLabel(prefectureName, areaName),
+    });
+  }
+
+  for (const region of buildStoreRegions(stores)) {
+    optionMap.set(region.key, {
+      key: region.key,
+      prefectureName: region.prefectureName,
+      areaName: region.areaName,
+      label: region.label,
+    });
+  }
+
+  return [...optionMap.values()].sort(compareRegionNames);
+}
+
+function buildRegionOptionMap(options) {
+  return new Map(options.map((option) => [option.key, option]));
+}
+
+function readRegionOptionLabel(regionKey, optionMap) {
+  const option = optionMap.get(regionKey);
+  if (option) {
+    return option.label;
+  }
+  const region = parseRegionKey(regionKey);
+  return formatRegionLabel(region.prefectureName, region.areaName);
 }
 
 function formatDistance(distanceKm) {
@@ -231,6 +309,9 @@ export function StoreDirectory({ completeStores, pendingStores }) {
   const [query, setQuery] = useState("");
   const [regionOrderMode, setRegionOrderMode] = useState(REGION_ORDER_NORMAL);
   const [homeRegionKey, setHomeRegionKey] = useState("");
+  const [homeAddressRegionKeys, setHomeAddressRegionKeys] = useState([]);
+  const [homeAddressDraftKey, setHomeAddressDraftKey] = useState("");
+  const [myHallOrderMode, setMyHallOrderMode] = useState(MY_HALL_ORDER_SAVED);
   const [myHallStoreIds, setMyHallStoreIds] = useState([]);
   const [draggedMyHallStoreId, setDraggedMyHallStoreId] = useState("");
   const [dragOverMyHallStoreId, setDragOverMyHallStoreId] = useState("");
@@ -248,6 +329,10 @@ export function StoreDirectory({ completeStores, pendingStores }) {
   const myHallStoreGroups = useMemo(
     () => buildStoreLocationGroups(myHallStores),
     [myHallStores],
+  );
+  const myHallNearbyRegions = useMemo(
+    () => buildNearbyStoreRegions(myHallStores, homeRegionKey),
+    [homeRegionKey, myHallStores],
   );
   const filteredStores = useMemo(() => {
     if (!normalizedQuery) {
@@ -279,7 +364,20 @@ export function StoreDirectory({ completeStores, pendingStores }) {
     [homeRegionKey, otherFilteredStores],
   );
   const homeRegionOptions = useMemo(() => buildHomeRegionOptions(completeStores), [completeStores]);
+  const homeRegionOptionMap = useMemo(
+    () => buildRegionOptionMap(homeRegionOptions),
+    [homeRegionOptions],
+  );
+  const homeAddressOptions = useMemo(
+    () =>
+      homeAddressRegionKeys.map((regionKey) => ({
+        key: regionKey,
+        label: readRegionOptionLabel(regionKey, homeRegionOptionMap),
+      })),
+    [homeAddressRegionKeys, homeRegionOptionMap],
+  );
   const isNearbyRegionOrder = regionOrderMode === REGION_ORDER_NEAR_HOME && Boolean(homeRegionKey);
+  const isMyHallNearbyOrder = myHallOrderMode === MY_HALL_ORDER_NEAR_HOME && Boolean(homeRegionKey);
   const shouldOpenMatchedRegions = Boolean(normalizedQuery);
   const directoryTitle = myHallStores.length > 0 ? "その他の店舗" : "保存済み店舗";
   const emptyListText =
@@ -299,12 +397,28 @@ export function StoreDirectory({ completeStores, pendingStores }) {
         REGION_ORDER_MODE_STORAGE_KEY,
         REGION_ORDER_NORMAL,
       );
+      const savedMyHallOrderMode = readStoredText(
+        MY_HALL_ORDER_MODE_STORAGE_KEY,
+        MY_HALL_ORDER_SAVED,
+      );
+      const savedHomeRegionKey = normalizeRegionKey(readStoredText(HOME_REGION_STORAGE_KEY, ""));
+      const savedAddressRegionKeys = normalizeRegionKeys([
+        ...readStoredRegionKeys(HOME_ADDRESS_REGIONS_STORAGE_KEY),
+        savedHomeRegionKey,
+      ]);
       setRegionOrderMode(
         savedRegionOrderMode === REGION_ORDER_NEAR_HOME
           ? REGION_ORDER_NEAR_HOME
           : REGION_ORDER_NORMAL,
       );
-      setHomeRegionKey(readStoredText(HOME_REGION_STORAGE_KEY, ""));
+      setMyHallOrderMode(
+        savedMyHallOrderMode === MY_HALL_ORDER_NEAR_HOME
+          ? MY_HALL_ORDER_NEAR_HOME
+          : MY_HALL_ORDER_SAVED,
+      );
+      setHomeRegionKey(savedHomeRegionKey);
+      setHomeAddressRegionKeys(savedAddressRegionKeys);
+      saveStoredRegionKeys(HOME_ADDRESS_REGIONS_STORAGE_KEY, savedAddressRegionKeys);
     };
 
     syncMyHallStoreIds();
@@ -320,6 +434,17 @@ export function StoreDirectory({ completeStores, pendingStores }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (homeAddressDraftKey || homeRegionOptions.length === 0) {
+      return;
+    }
+
+    const dazaifuRegionKey = buildRegionKey("福岡県", "太宰府市");
+    setHomeAddressDraftKey(
+      homeRegionOptionMap.has(dazaifuRegionKey) ? dazaifuRegionKey : homeRegionOptions[0].key,
+    );
+  }, [homeAddressDraftKey, homeRegionOptionMap, homeRegionOptions]);
+
   const handleRegionOrderModeChange = (event) => {
     const nextMode =
       event.target.value === REGION_ORDER_NEAR_HOME ? REGION_ORDER_NEAR_HOME : REGION_ORDER_NORMAL;
@@ -327,10 +452,62 @@ export function StoreDirectory({ completeStores, pendingStores }) {
     saveStoredText(REGION_ORDER_MODE_STORAGE_KEY, nextMode);
   };
 
-  const handleHomeRegionChange = (event) => {
-    const nextHomeRegionKey = event.target.value;
+  const handleMyHallOrderModeChange = (event) => {
+    const nextMode =
+      event.target.value === MY_HALL_ORDER_NEAR_HOME ? MY_HALL_ORDER_NEAR_HOME : MY_HALL_ORDER_SAVED;
+    setMyHallOrderMode(nextMode);
+    saveStoredText(MY_HALL_ORDER_MODE_STORAGE_KEY, nextMode);
+  };
+
+  const setActiveHomeRegion = (regionKey) => {
+    const nextHomeRegionKey = normalizeRegionKey(regionKey);
     setHomeRegionKey(nextHomeRegionKey);
     saveStoredText(HOME_REGION_STORAGE_KEY, nextHomeRegionKey);
+  };
+
+  const handleHomeRegionChange = (event) => {
+    setActiveHomeRegion(event.target.value);
+  };
+
+  const handleHomeAddressDraftChange = (event) => {
+    setHomeAddressDraftKey(normalizeRegionKey(event.target.value));
+  };
+
+  const handleAddHomeAddress = () => {
+    if (!homeAddressDraftKey) {
+      return;
+    }
+
+    const nextAddressRegionKeys = normalizeRegionKeys([
+      ...homeAddressRegionKeys,
+      homeAddressDraftKey,
+    ]);
+    setHomeAddressRegionKeys(nextAddressRegionKeys);
+    saveStoredRegionKeys(HOME_ADDRESS_REGIONS_STORAGE_KEY, nextAddressRegionKeys);
+
+    if (!homeRegionKey) {
+      setHomeRegionKey(homeAddressDraftKey);
+      saveStoredText(HOME_REGION_STORAGE_KEY, homeAddressDraftKey);
+    }
+  };
+
+  const handleRemoveHomeAddress = (regionKey) => {
+    const normalizedRegionKey = normalizeRegionKey(regionKey);
+    if (!normalizedRegionKey) {
+      return;
+    }
+
+    const nextAddressRegionKeys = homeAddressRegionKeys.filter(
+      (homeAddressRegionKey) => homeAddressRegionKey !== normalizedRegionKey,
+    );
+    setHomeAddressRegionKeys(nextAddressRegionKeys);
+    saveStoredRegionKeys(HOME_ADDRESS_REGIONS_STORAGE_KEY, nextAddressRegionKeys);
+
+    if (homeRegionKey === normalizedRegionKey) {
+      const nextHomeRegionKey = nextAddressRegionKeys[0] || "";
+      setHomeRegionKey(nextHomeRegionKey);
+      saveStoredText(HOME_REGION_STORAGE_KEY, nextHomeRegionKey);
+    }
   };
 
   const handleToggleMyHall = (store) => {
@@ -429,56 +606,114 @@ export function StoreDirectory({ completeStores, pendingStores }) {
             <span className="myHallCount">{myHallStores.length}店舗</span>
           </div>
           {myHallStores.length > 0 ? (
-            <div className="myHallGroupList">
-              {myHallStoreGroups.map((group) => (
-                <section className="myHallGroup" key={group.key}>
-                  <div className="storeSubsectionHeader">
-                    <p className="storeSubsectionTitle">{group.label}</p>
-                    <span>{group.storeCount}店舗</span>
-                  </div>
-                  <ul className="myHallList">
-                    {group.stores.map((store) => {
-                      const storeId = normalizeStoreId(store.id);
-                      const isReorderable = group.stores.length > 1;
-                      const itemClassName = [
-                        "myHallItem",
-                        isReorderable ? "myHallItemReorderable" : "",
-                        draggedMyHallStoreId === storeId ? "myHallItemDragging" : "",
-                        dragOverMyHallStoreId === storeId && draggedMyHallStoreId !== storeId
-                          ? "myHallItemDragOver"
-                          : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ");
+            <>
+              <div className="myHallControlRow">
+                <label className="storeRegionControlField">
+                  <span>マイホールの並び</span>
+                  <select
+                    className="storeRegionControlSelect"
+                    value={myHallOrderMode}
+                    onChange={handleMyHallOrderModeChange}
+                  >
+                    <option value={MY_HALL_ORDER_SAVED}>保存順</option>
+                    <option value={MY_HALL_ORDER_NEAR_HOME}>選択住所から近い順</option>
+                  </select>
+                </label>
+                <label className="storeRegionControlField">
+                  <span>使用する住所</span>
+                  <select
+                    className="storeRegionControlSelect"
+                    value={homeRegionKey}
+                    onChange={handleHomeRegionChange}
+                    disabled={homeAddressOptions.length === 0}
+                  >
+                    <option value="">未選択</option>
+                    {homeAddressOptions.map((option) => (
+                      <option key={option.key} value={option.key}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {isMyHallNearbyOrder ? (
+                <div className="myHallGroupList">
+                  {myHallNearbyRegions.map((region) => (
+                    <section className="myHallGroup" key={region.key}>
+                      <div className="storeSubsectionHeader">
+                        <p className="storeSubsectionTitle">
+                          <RegionSummaryTitle label={region.label} distanceKm={region.distanceKm} />
+                        </p>
+                        <span>{region.stores.length}店舗</span>
+                      </div>
+                      <ul className="myHallList">
+                        {region.stores.map((store) => (
+                          <li key={store.id} className="myHallItem">
+                            <StoreListItem
+                              store={store}
+                              isFavorite={myHallStoreIdSet.has(normalizeStoreId(store.id))}
+                              onToggle={handleToggleMyHall}
+                              compact
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ))}
+                </div>
+              ) : (
+                <div className="myHallGroupList">
+                  {myHallStoreGroups.map((group) => (
+                    <section className="myHallGroup" key={group.key}>
+                      <div className="storeSubsectionHeader">
+                        <p className="storeSubsectionTitle">{group.label}</p>
+                        <span>{group.storeCount}店舗</span>
+                      </div>
+                      <ul className="myHallList">
+                        {group.stores.map((store) => {
+                          const storeId = normalizeStoreId(store.id);
+                          const isReorderable = group.stores.length > 1;
+                          const itemClassName = [
+                            "myHallItem",
+                            isReorderable ? "myHallItemReorderable" : "",
+                            draggedMyHallStoreId === storeId ? "myHallItemDragging" : "",
+                            dragOverMyHallStoreId === storeId && draggedMyHallStoreId !== storeId
+                              ? "myHallItemDragOver"
+                              : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ");
 
-                      return (
-                        <li
-                          key={store.id}
-                          className={itemClassName}
-                          data-my-hall-store-id={storeId}
-                          onPointerDown={
-                            isReorderable
-                              ? (event) => handleMyHallPointerDown(event, store)
-                              : undefined
-                          }
-                          onPointerMove={isReorderable ? handleMyHallPointerMove : undefined}
-                          onPointerUp={isReorderable ? handleMyHallPointerEnd : undefined}
-                          onPointerCancel={isReorderable ? handleMyHallPointerEnd : undefined}
-                        >
-                          <StoreListItem
-                            store={store}
-                            isFavorite={myHallStoreIdSet.has(normalizeStoreId(store.id))}
-                            onToggle={handleToggleMyHall}
-                            compact
-                            reorderable={isReorderable}
-                          />
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </section>
-              ))}
-            </div>
+                          return (
+                            <li
+                              key={store.id}
+                              className={itemClassName}
+                              data-my-hall-store-id={storeId}
+                              onPointerDown={
+                                isReorderable
+                                  ? (event) => handleMyHallPointerDown(event, store)
+                                  : undefined
+                              }
+                              onPointerMove={isReorderable ? handleMyHallPointerMove : undefined}
+                              onPointerUp={isReorderable ? handleMyHallPointerEnd : undefined}
+                              onPointerCancel={isReorderable ? handleMyHallPointerEnd : undefined}
+                            >
+                              <StoreListItem
+                                store={store}
+                                isFavorite={myHallStoreIdSet.has(normalizeStoreId(store.id))}
+                                onToggle={handleToggleMyHall}
+                                compact
+                                reorderable={isReorderable}
+                              />
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </>
           ) : (
             <p className="myHallEmpty">店舗一覧の星を押すと、ここに店舗を固定できます。</p>
           )}
@@ -529,13 +764,28 @@ export function StoreDirectory({ completeStores, pendingStores }) {
               </select>
             </label>
             <label className="storeRegionControlField">
-              <span>自宅地域（端末保存）</span>
+              <span>選択中の住所</span>
               <select
                 className="storeRegionControlSelect"
                 value={homeRegionKey}
                 onChange={handleHomeRegionChange}
+                disabled={homeAddressOptions.length === 0}
               >
                 <option value="">未選択</option>
+                {homeAddressOptions.map((option) => (
+                  <option key={option.key} value={option.key}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="storeRegionControlField storeRegionAddField">
+              <span>追加する住所</span>
+              <select
+                className="storeRegionControlSelect"
+                value={homeAddressDraftKey}
+                onChange={handleHomeAddressDraftChange}
+              >
                 {homeRegionOptions.map((option) => (
                   <option key={option.key} value={option.key}>
                     {option.label}
@@ -543,6 +793,44 @@ export function StoreDirectory({ completeStores, pendingStores }) {
                 ))}
               </select>
             </label>
+            <button
+              className="storeSearchClear homeAddressAddButton"
+              type="button"
+              onClick={handleAddHomeAddress}
+              disabled={!homeAddressDraftKey || homeAddressRegionKeys.includes(homeAddressDraftKey)}
+            >
+              追加
+            </button>
+          </div>
+          <div className="homeAddressList">
+            <span className="homeAddressListLabel">登録住所</span>
+            {homeAddressOptions.length > 0 ? (
+              homeAddressOptions.map((option) => (
+                <span
+                  className={[
+                    "homeAddressChip",
+                    option.key === homeRegionKey ? "homeAddressChipActive" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  key={option.key}
+                >
+                  <button type="button" onClick={() => setActiveHomeRegion(option.key)}>
+                    {option.label}
+                  </button>
+                  <button
+                    className="homeAddressRemoveButton"
+                    type="button"
+                    onClick={() => handleRemoveHomeAddress(option.key)}
+                    aria-label={`${option.label}を削除`}
+                  >
+                    削除
+                  </button>
+                </span>
+              ))
+            ) : (
+              <span className="homeAddressEmpty">住所を追加してください。</span>
+            )}
           </div>
           {favoriteFilteredStores.length > 0 ? (
             <div className="storeFavoriteMatches">

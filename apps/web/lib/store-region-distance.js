@@ -25,7 +25,7 @@ const REGION_POINT_DEFINITIONS = [
   { prefectureName: "福岡", areaName: "南ヶ丘", latitude: 33.5128, longitude: 130.4648 },
   { prefectureName: "福岡", areaName: "筑紫野市", latitude: 33.4964, longitude: 130.5156 },
   { prefectureName: "福岡", areaName: "筑紫野", latitude: 33.4964, longitude: 130.5156 },
-  { prefectureName: "福岡", areaName: "太宰府市", latitude: 33.5128, longitude: 130.5239 },
+  { prefectureName: "福岡県", areaName: "太宰府市", latitude: 33.5128, longitude: 130.5239 },
   { prefectureName: "福岡", areaName: "那珂川市", latitude: 33.4992, longitude: 130.422 },
   { prefectureName: "福岡", areaName: "那珂川", latitude: 33.4992, longitude: 130.422 },
   { prefectureName: "福岡", areaName: "糟屋郡", latitude: 33.6108, longitude: 130.4808 },
@@ -172,6 +172,13 @@ const PREFECTURE_POINTS = PREFECTURE_POINT_DEFINITIONS.map((definition) => ({
   ...definition,
   normalizedPrefectureName: normalizeRegionPrefecture(definition.prefectureName),
 }));
+
+export function listKnownRegionOptions() {
+  return REGION_POINTS.map((definition) => ({
+    prefectureName: definition.prefectureName,
+    areaName: definition.areaName,
+  }));
+}
 
 function pointFromDefinition(definition) {
   if (!definition) {
