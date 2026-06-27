@@ -108,6 +108,11 @@ const ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_NAME =
   "123+N東雲店_ネオアイムジャグラーEX_全日共通_深沈み返済ロジック";
 const ONE_TWO_THREE_N_SHINONOME_NEO_AIM_DEFAULT_CONDITION =
   "123n-shinonome-neo-free-b-angle-deep";
+const RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY = "rakuen-ameyoko-neo-aim";
+const RAKUEN_AMEYOKO_NEO_AIM_LOGIC_NAME =
+  "楽園アメ横店 ネオアイムジャグラーEX 14日返済未完了ロジック v1";
+const RAKUEN_AMEYOKO_NEO_AIM_DEFAULT_CONDITION =
+  "rakuen-ameyoko-neo-rank1-score75-gap8";
 const CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY = "concert-hall-kitasenju-neo-aim";
 const CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_NAME =
   "コンサートホール北千住_ネオアイムEX_56狙い全日共通ロジック";
@@ -646,6 +651,20 @@ function isOneTwoThreeNShinonomeStore(storeName) {
     "１２３＋Ｎ東雲",
     "123＋N東雲店",
     "123＋N東雲",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
+function isRakuenAmeyokoStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "楽園アメ横店",
+    "楽園アメ横",
+    "楽園アメヤ横丁店",
+    "楽園アメヤ横丁",
+    "RAKUENアメ横店",
+    "RAKUENアメ横",
+    "らくえんアメ横店",
+    "らくえんアメ横",
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
@@ -2759,6 +2778,198 @@ function buildOneTwoThreeNShinonomeNeoAimConditions() {
   ];
 }
 
+function buildRakuenAmeyokoNeoAimConditions() {
+  return [
+    buildCondition(
+      "rakuen-ameyoko-neo-score75",
+      "75点以上",
+      "79日 / 148台 / 総G671,957 / BB1/254.6 / RB1/309.8 / 合算1/139.8 / 平均+429枚 / 103.15% / 平均56 32.7% / 中央56 23.9% / 56>=50 22.3% / 56<30 61.5%",
+      {
+        minScore: 75,
+        requiredFlags: ["rakuenAmeyokoNeoHistory7Ready"],
+      },
+      [RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      RAKUEN_AMEYOKO_NEO_AIM_DEFAULT_CONDITION,
+      "1位75+差8",
+      "41日 / 41台 / 総G172,893 / BB1/248.8 / RB1/297.1 / 合算1/135.4 / 平均+529枚 / 104.18% / 平均56 34.4% / 中央56 24.5% / 56>=50 22.0% / 56<30 58.5%",
+      {
+        rankMax: 1,
+        minScore: 75,
+        minNextGap: 8,
+        requiredFlags: ["rakuenAmeyokoNeoHistory7Ready"],
+      },
+      [RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "rakuen-ameyoko-neo-rank1-gap8-nohigh14",
+      "差8+高内容14日0",
+      "15日 / 15台 / 総G59,171 / BB1/233.9 / RB1/285.9 / 合算1/128.6 / 平均+763枚 / 106.44% / 平均56 36.1% / 中央56 25.1% / 56>=50 20.0% / 56<30 60.0%",
+      {
+        rankMax: 1,
+        minNextGap: 8,
+        requiredFlags: ["rakuenAmeyokoNeoHistory14Ready", "rakuenAmeyokoNeoNoHigh14"],
+      },
+      [RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "rakuen-ameyoko-neo-rank1-gap10-prev-misfire",
+      "差10+前日不発",
+      "9日 / 9台 / 総G46,094 / BB1/274.4 / RB1/251.9 / 合算1/131.2 / 平均+501枚 / 103.21% / 平均56 48.4% / 中央56 45.7% / 56>=50 44.4% / 56<30 33.3%",
+      {
+        rankMax: 1,
+        minNextGap: 10,
+        requiredFlags: ["rakuenAmeyokoNeoHistory7Ready", "rakuenAmeyokoNeoPreviousHighMisfire"],
+      },
+      [RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "rakuen-ameyoko-neo-rank1-gap12-prev-misfire",
+      "差12+前日不発",
+      "8日 / 8台 / 総G39,401 / BB1/278.2 / RB1/247.8 / 合算1/131.0 / 平均+545枚 / 103.72% / 平均56 48.7% / 中央56 43.3% / 56>=50 50.0%",
+      {
+        rankMax: 1,
+        minNextGap: 12,
+        requiredFlags: ["rakuenAmeyokoNeoHistory7Ready", "rakuenAmeyokoNeoPreviousHighMisfire"],
+      },
+      [RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "rakuen-ameyoko-neo-free-repay14",
+      "自由広め_14日返済未完",
+      "114日 / 253台 / 総G1,066,249 / BB1/261.0 / RB1/311.5 / 合算1/142.0 / 平均+269枚 / 102.13% / 平均56 31.8% / 中央56 23.4% / 56>=50 20.2% / 56<30 64.4%",
+      {
+        requiredFlags: [
+          "rakuenAmeyokoNeoHistory14Ready",
+          "rakuenAmeyokoNeoRepay14Band",
+          "rakuenAmeyokoNeoNeighborPrevBigWinClear",
+        ],
+      },
+      [RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "rakuen-ameyoko-neo-free-score70-nohigh14",
+      "自由本命_70点+14日高内容0",
+      "42日 / 59台 / RB1/305.2 / 合算1/137.9 / 平均+527枚 / 103.45% / 平均56 34.0% / 中央56 24.5%",
+      {
+        minScore: 70,
+        requiredFlags: [
+          "rakuenAmeyokoNeoHistory14Ready",
+          "rakuenAmeyokoNeoNoHigh14",
+          "rakuenAmeyokoNeoFourteenNegative",
+        ],
+      },
+      [RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "rakuen-ameyoko-neo-free-rank1-gap8-nohigh14",
+      "自由強_差8+14日高内容0",
+      "15日 / 15台 / 総G59,171 / BB1/233.9 / RB1/285.9 / 合算1/128.6 / 平均+763枚 / 106.44% / 14日高内容0回を強く見る参考条件",
+      {
+        rankMax: 1,
+        minNextGap: 8,
+        requiredFlags: ["rakuenAmeyokoNeoHistory14Ready", "rakuenAmeyokoNeoNoHigh14"],
+      },
+      [RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "rakuen-ameyoko-neo-free-content-no-pay",
+      "自由不発据え",
+      "15日 / 15台 / RB1/285.7 / 合算1/133.7 / 平均+585枚 / 104.25% / 平均56 37.7% / 中央56 24.3% / 56>=50 26.7%",
+      {
+        rankMax: 2,
+        requiredFlags: [
+          "rakuenAmeyokoNeoHistory14Ready",
+          "rakuenAmeyokoNeoAngle14NoPayBand",
+          "rakuenAmeyokoNeoPreviousContentNoPay",
+        ],
+      },
+      [RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "rakuen-ameyoko-neo-free-best-reference",
+      "自由最本命_差10+前日不発",
+      "9日 / 9台 / 総G46,094 / BB1/274.4 / RB1/251.9 / 合算1/131.2 / 平均+501枚 / 103.21% / 前日高内容不発を最重視",
+      {
+        rankMax: 1,
+        minNextGap: 10,
+        requiredFlags: ["rakuenAmeyokoNeoHistory7Ready", "rakuenAmeyokoNeoPreviousHighMisfire"],
+      },
+      [RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "rakuen-ameyoko-neo-watch-neighbor-high2",
+      "見送り_前日隣2台高内容",
+      "前日隣2台以上が高内容だった後は、自台より周辺処遇済みを警戒",
+      {
+        requiredFlags: ["rakuenAmeyokoNeoNeighborPrevHigh2"],
+      },
+      [RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "rakuen-ameyoko-neo-watch-high14-5",
+      "見送り_14日高内容5回以上",
+      "直近14日で高内容が多すぎる台は返済未完の優先度を下げる",
+      {
+        requiredFlags: ["rakuenAmeyokoNeoHigh14TooMany"],
+      },
+      [RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "rakuen-ameyoko-neo-watch-history-short",
+      "見送り_履歴7日未満",
+      "同一台番履歴7営業日未満は低信頼として採用対象から外す",
+      {
+        requiredFlags: ["rakuenAmeyokoNeoHistoryShort"],
+      },
+      [RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "rakuen-ameyoko-neo-watch-danger2",
+      "見送り_危険2以上",
+      "周辺処遇済み、14日使いすぎ、低G、前日出玉済みなどが2個以上なら見送り",
+      {
+        minDanger: 2,
+        requiredFlags: ["rakuenAmeyokoNeoHistory7Ready"],
+      },
+      [RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "rakuen-ameyoko-neo-watch-score-under60",
+      "見送り_60点未満",
+      "60点未満は14日返済未完や前日不発の芯が弱い",
+      {
+        maxScore: 59.999,
+      },
+      [RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "rakuen-ameyoko-neo-watch-score-under75-no-boost",
+      "見送り_75点未満強化なし",
+      "75点未満かつ強化条件0個の台は候補外",
+      {
+        maxScore: 74.999,
+        maxBoost: 0,
+        requiredFlags: ["rakuenAmeyokoNeoHistory7Ready"],
+      },
+      [RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "rakuen-ameyoko-neo-watch-rank1-small-gap-score-under75",
+      "注意_1位でも差5未満75点未満",
+      "順位1位でも次点差5点未満かつ75点未満なら押し切らない",
+      {
+        rankMax: 1,
+        maxNextGap: 4.999,
+        maxScore: 74.999,
+        requiredFlags: ["rakuenAmeyokoNeoHistory7Ready"],
+      },
+      [RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY],
+    ),
+  ];
+}
+
 function listDefinitionLogics(definition) {
   if (!definition) {
     return [];
@@ -4331,6 +4542,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ONE_TWO_THREE_N_SHINONOME_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
+        RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY,
+        RAKUEN_AMEYOKO_NEO_AIM_LOGIC_NAME,
+        RAKUEN_AMEYOKO_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY,
         CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_NAME,
         CONCERT_HALL_KITASENJU_NEO_AIM_DEFAULT_CONDITION,
@@ -4560,6 +4776,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ...buildBellCityShinozakiNeoAimConditions(),
       ...buildBellCityTheCityShinozakiNeoAimConditions(),
       ...buildOneTwoThreeNShinonomeNeoAimConditions(),
+      ...buildRakuenAmeyokoNeoAimConditions(),
       buildCondition(
         "main",
         "1位＋70点以上＋3日沈み2日以上",
@@ -14783,6 +15000,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY);
   } else if (isOneTwoThreeNShinonomeStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY);
+  } else if (isRakuenAmeyokoStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY);
   } else if (isConcertHallKitasenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY);
   } else if (isKyudenAnnexStore(storeName) && definition.machineKey === "neo-aim") {
@@ -15902,6 +16121,112 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY) {
+      const rakuenAmeyokoNeoHistory14Ready = historyRowCount >= 14;
+      const rakuenAmeyokoNeoHistory7Ready = historyRowCount >= 7;
+      const rakuenAmeyokoNeoHistoryShort = historyRowCount < 7;
+      const rakuenAmeyokoNeoPreviousP56 = Number.isFinite(previousMachineSettingFivePlusProbability)
+        ? previousMachineSettingFivePlusProbability
+        : null;
+      const rakuenAmeyokoNeoPreviousHighMisfire =
+        previousGames >= 3000 &&
+        ((Number.isFinite(rakuenAmeyokoNeoPreviousP56) && rakuenAmeyokoNeoPreviousP56 >= 0.5) ||
+          previousMachineHighContent) &&
+        previousDifference < 1000;
+      const rakuenAmeyokoNeoPreviousContentNoPay =
+        previousGames >= 3000 &&
+        features.previousRbDenominator <= 300 &&
+        features.previousCombinedDenominator <= 145 &&
+        previousDifference < 1000;
+      const rakuenAmeyokoNeoPreviousGoodBonus =
+        previousGames >= 3000 &&
+        features.previousRbDenominator <= 300 &&
+        features.previousCombinedDenominator <= 145;
+      const rakuenAmeyokoNeoPreviousRb250 =
+        previousGames >= 3000 && features.previousRbDenominator <= 250;
+      const rakuenAmeyokoNeoPreviousDeepLoss = previousDifference <= -2000;
+      const rakuenAmeyokoNeoPreviousHighGamesLoss = previousGames >= 5000 && previousDifference < 0;
+      const rakuenAmeyokoNeoFourteenNegative = recentFourteenNetTotal < 0;
+      const rakuenAmeyokoNeoRepay14Band =
+        recentFourteenGamesTotal > 0 &&
+        recentFourteenNetTotal >= -5000 &&
+        recentFourteenNetTotal <= -1000 &&
+        features.recentFourteenAngle >= -250 &&
+        features.recentFourteenAngle <= -50;
+      const rakuenAmeyokoNeoAngle14NoPayBand =
+        recentFourteenGamesTotal > 0 &&
+        features.recentFourteenAngle >= -80 &&
+        features.recentFourteenAngle <= -20;
+      const rakuenAmeyokoNeoNoHigh14 =
+        rakuenAmeyokoNeoHistory14Ready && recentFourteenMachineHighContentCount === 0;
+      const rakuenAmeyokoNeoHighInterval14Plus =
+        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 14) ||
+        rakuenAmeyokoNeoNoHigh14;
+      const rakuenAmeyokoNeoTreatmentDone14 =
+        recentFourteenNetTotal > 5000 && recentFourteenMachineHighContentCount >= 2;
+      const rakuenAmeyokoNeoNeighborPrevHigh2 = previousAdjacentMachineHighContentCount >= 2;
+      const rakuenAmeyokoNeoNeighborPrevBigWin = previousAdjacentMachineBigWin1500Count > 0;
+      const rakuenAmeyokoNeoNeighborPrevBigWinClear = !rakuenAmeyokoNeoNeighborPrevBigWin;
+      const rakuenAmeyokoNeoPreviousOutputDone = previousDifference >= 2000 && recentFourteenNetTotal > 0;
+      const rakuenAmeyokoNeoHigh7TooMany = recentSevenMachineHighContentCount >= 3;
+      const rakuenAmeyokoNeoLowGames7 = recentSevenGamesTotal < 15000;
+      const rakuenAmeyokoNeoHigh14TooMany = recentFourteenMachineHighContentCount >= 5;
+
+      const boostFlags = [
+        rakuenAmeyokoNeoRepay14Band,
+        rakuenAmeyokoNeoNoHigh14,
+        rakuenAmeyokoNeoPreviousHighMisfire,
+        rakuenAmeyokoNeoPreviousContentNoPay,
+        rakuenAmeyokoNeoPreviousGoodBonus,
+        rakuenAmeyokoNeoPreviousRb250,
+        rakuenAmeyokoNeoPreviousDeepLoss,
+        rakuenAmeyokoNeoPreviousHighGamesLoss,
+        rakuenAmeyokoNeoHighInterval14Plus,
+      ];
+      const dangerFlags = [
+        rakuenAmeyokoNeoHistoryShort,
+        rakuenAmeyokoNeoNeighborPrevHigh2,
+        rakuenAmeyokoNeoNeighborPrevBigWin,
+        rakuenAmeyokoNeoHigh14TooMany,
+        rakuenAmeyokoNeoTreatmentDone14,
+        rakuenAmeyokoNeoLowGames7,
+        rakuenAmeyokoNeoPreviousOutputDone,
+      ];
+      const boostCount = boostFlags.filter(Boolean).length;
+      const dangerCount = dangerFlags.filter(Boolean).length;
+
+      return {
+        ...features,
+        rakuenAmeyokoNeoHistory14Ready,
+        rakuenAmeyokoNeoHistory7Ready,
+        rakuenAmeyokoNeoHistoryShort,
+        rakuenAmeyokoNeoPreviousHighMisfire,
+        rakuenAmeyokoNeoPreviousContentNoPay,
+        rakuenAmeyokoNeoPreviousGoodBonus,
+        rakuenAmeyokoNeoPreviousRb250,
+        rakuenAmeyokoNeoPreviousDeepLoss,
+        rakuenAmeyokoNeoPreviousHighGamesLoss,
+        rakuenAmeyokoNeoFourteenNegative,
+        rakuenAmeyokoNeoRepay14Band,
+        rakuenAmeyokoNeoAngle14NoPayBand,
+        rakuenAmeyokoNeoNoHigh14,
+        rakuenAmeyokoNeoHighInterval14Plus,
+        rakuenAmeyokoNeoTreatmentDone14,
+        rakuenAmeyokoNeoNeighborPrevHigh2,
+        rakuenAmeyokoNeoNeighborPrevBigWin,
+        rakuenAmeyokoNeoNeighborPrevBigWinClear,
+        rakuenAmeyokoNeoPreviousOutputDone,
+        rakuenAmeyokoNeoHigh7TooMany,
+        rakuenAmeyokoNeoLowGames7,
+        rakuenAmeyokoNeoHigh14TooMany,
+        rakuenAmeyokoNeoNoBoost: boostCount === 0,
+        treatmentDone: rakuenAmeyokoNeoTreatmentDone14 || rakuenAmeyokoNeoPreviousOutputDone,
+        lowConfidence: rakuenAmeyokoNeoHistoryShort,
+        boostCount,
+        dangerCount,
+      };
+    }
+
     if (activeLogicKey === ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY) {
       const shinonomeNeoHistory21Ready = historyRowCount >= 21;
       const shinonomeNeoHistoryShort = historyRowCount < 21;
@@ -27466,6 +27791,104 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY) {
+      let score = 40;
+
+      if (historyRowCount >= 14) {
+        score += 4;
+      } else if (historyRowCount >= 7) {
+        score += 0;
+      } else if (historyRowCount >= 3) {
+        score -= 22;
+      } else {
+        score -= 32;
+      }
+
+      if (recentFourteenGamesTotal > 0) {
+        if (features.recentFourteenAngle <= -250) {
+          score += 6;
+        } else if (features.recentFourteenAngle <= -180) {
+          score += 9;
+        } else if (features.recentFourteenAngle <= -80) {
+          score += 18;
+        } else if (features.recentFourteenAngle <= -50) {
+          score += 15;
+        } else if (features.recentFourteenAngle <= -20) {
+          score -= 3;
+        } else if (features.recentFourteenAngle > 100) {
+          score -= 8;
+        } else if (features.recentFourteenAngle > 50) {
+          score -= 4;
+        }
+      }
+
+      if (recentFourteenNetTotal <= -9000) {
+        score += 12;
+      } else if (recentFourteenNetTotal <= -7000) {
+        score += 16;
+      } else if (recentFourteenNetTotal <= -5000) {
+        score += 12;
+      } else if (recentFourteenNetTotal <= -3000) {
+        score += 14;
+      } else if (recentFourteenNetTotal <= -1000) {
+        score += 5;
+      } else if (recentFourteenNetTotal > 10000) {
+        score -= 10;
+      } else if (recentFourteenNetTotal > 5000) {
+        score -= 5;
+      }
+
+      if (historyRowCount >= 14 && recentFourteenMachineHighContentCount === 0) {
+        score += 12;
+      }
+      if (Number.isFinite(daysSinceMachineHighContent)) {
+        if (daysSinceMachineHighContent >= 14) {
+          score += 7;
+        } else if (daysSinceMachineHighContent === 1) {
+          score += 6;
+        } else if (daysSinceMachineHighContent === 2) {
+          score += 2;
+        } else if (daysSinceMachineHighContent >= 3 && daysSinceMachineHighContent <= 8) {
+          score -= 4;
+        }
+      }
+
+      const rakuenAmeyokoNeoPreviousP56 = Number.isFinite(previousMachineSettingFivePlusProbability)
+        ? previousMachineSettingFivePlusProbability
+        : null;
+      const rakuenAmeyokoNeoPreviousHighMisfire =
+        previousGames >= 3000 &&
+        ((Number.isFinite(rakuenAmeyokoNeoPreviousP56) && rakuenAmeyokoNeoPreviousP56 >= 0.5) ||
+          previousMachineHighContent) &&
+        previousDifference < 1000;
+      const rakuenAmeyokoNeoPreviousContentNoPay =
+        previousGames >= 3000 &&
+        previousRbDenominator <= 300 &&
+        previousCombinedDenominator <= 145 &&
+        previousDifference < 1000;
+      const rakuenAmeyokoNeoPreviousGoodBonus =
+        previousGames >= 3000 &&
+        previousRbDenominator <= 300 &&
+        previousCombinedDenominator <= 145;
+
+      score += rakuenAmeyokoNeoPreviousContentNoPay ? 10 : 0;
+      score += rakuenAmeyokoNeoPreviousHighMisfire ? 6 : 0;
+      score += rakuenAmeyokoNeoPreviousGoodBonus ? 5 : 0;
+      score += previousGames >= 3000 && previousRbDenominator <= 250 ? 3 : 0;
+      score += previousDifference <= -2000 ? 7 : 0;
+      score += previousGames >= 5000 && previousDifference < 0 ? 3 : 0;
+
+      score -= recentFourteenNetTotal > 5000 && recentFourteenMachineHighContentCount >= 2 ? 6 : 0;
+      score -= previousAdjacentMachineHighContentCount >= 2 ? 10 : 0;
+      score -= previousAdjacentMachineBigWin1500Count > 0 ? 4 : 0;
+      score -= previousDifference >= 2000 && recentFourteenNetTotal > 0 ? 4 : 0;
+      score -= recentSevenMachineHighContentCount >= 3 ? 4 : 0;
+      score -= recentSevenGamesTotal < 15000 ? 4 : 0;
+      score -= historyRowCount < 7 ? 10 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (activeLogicKey === ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY) {
       let score = 38;
 
