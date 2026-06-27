@@ -108,6 +108,10 @@ const NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY = "new-grand-hokima-neo-aim";
 const NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_NAME =
   "ニューグランド保木間店_ネオアイム_弱内容沈み返済ロジック_v1";
 const NEW_GRAND_HOKIMA_NEO_AIM_DEFAULT_CONDITION = "new-grand-hokima-neo-free-strong-rb";
+const NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY = "new-crown-ayase-neo-aim";
+const NEW_CROWN_AYASE_NEO_AIM_LOGIC_NAME =
+  "ニュークラウン綾瀬店_ネオアイムEX_全日共通_v1";
+const NEW_CROWN_AYASE_NEO_AIM_DEFAULT_CONDITION = "new-crown-ayase-neo-free-best";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -581,6 +585,13 @@ function isJaranYazaikeStore(storeName) {
 function isNewGrandHokimaStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["ニューグランド保木間店", "ニューグランド保木間", "NEW GRAND保木間店", "NEW GRAND保木間"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
+function isNewCrownAyaseStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["ニュークラウン綾瀬店", "ニュークラウン綾瀬", "NEW CROWN綾瀬店", "NEW CROWN綾瀬"].some(
     (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
   );
 }
@@ -3737,6 +3748,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         NEW_GRAND_HOKIMA_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
+        NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY,
+        NEW_CROWN_AYASE_NEO_AIM_LOGIC_NAME,
+        NEW_CROWN_AYASE_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         "messe-minamisenju-neo-aim",
         "メッセ南千住_ネオアイムEX_全日共通_未返済沈み滞在ロジック_v1",
         "messe-minamisenju-free-14rb",
@@ -6735,6 +6751,161 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["newGrandHokimaNeoHistoryReady"],
         },
         [NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        NEW_CROWN_AYASE_NEO_AIM_DEFAULT_CONDITION,
+        "自由最本命_中凹み不発7G",
+        "20日・23台 / RB1/286.61 / 合算1/143.82 / 平均+2.61枚 / 100.03% / 勝率43.48% / 平均56率39.01% / 56率50%以上26.09% / 点数より優先",
+        {
+          requiredFlags: ["newCrownAyaseNeoHistoryReady", "newCrownAyaseNeoFreeBest"],
+        },
+        [NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-crown-ayase-neo-free-long-sink-loss",
+        "自由強_長期沈み連敗",
+        "26日・30台 / RB1/312.02 / 合算1/143.36 / 平均+155.67枚 / 101.22% / 平均56率33.35% / 56率50%以上26.67% / 第2本命",
+        {
+          requiredFlags: ["newCrownAyaseNeoHistoryReady", "newCrownAyaseNeoFreeLongSinkLoss"],
+        },
+        [NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-crown-ayase-neo-free-reference-low-prev-g-neighbor",
+        "自由参考_低前日G近隣",
+        "14日・17台 / RB1/297.48 / 合算1/138.37 / 平均+231.76枚 / 102.21% / 平均56率36.43% / 理屈弱めで件数少",
+        {
+          requiredFlags: ["newCrownAyaseNeoHistoryReady", "newCrownAyaseNeoFreeReferenceLowPrevGNeighbor"],
+        },
+        [NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-crown-ayase-neo-rb270-reference",
+        "RB270_高稼働RB参考",
+        "10日・10台 / RB1/264.73 / 合算1/142.71 / 平均-124枚 / 98.87% / 勝率40.00% / 平均56率44.37% / 56率50%以上40.00% / 件数少・参考",
+        {
+          requiredFlags: ["newCrownAyaseNeoHistoryReady", "newCrownAyaseNeoRb270Reference"],
+        },
+        [NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-crown-ayase-neo-rb280",
+        "RB280_中凹み不発14G",
+        "14日・15台 / RB1/278.71 / 合算1/144.46 / 平均-52.67枚 / 99.49% / 勝率40.00% / 平均56率39.94% / 56率50%以上26.67% / 件数注意",
+        {
+          requiredFlags: ["newCrownAyaseNeoHistoryReady", "newCrownAyaseNeoRb280"],
+        },
+        [NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-crown-ayase-neo-rb290",
+        "RB290_中凹み不発7G",
+        "20日・23台 / RB1/286.61 / 合算1/143.82 / 平均+2.61枚 / 100.03% / 勝率43.48% / 平均56率39.01% / 56率50%以上26.09% / 実戦本命",
+        {
+          requiredFlags: ["newCrownAyaseNeoHistoryReady", "newCrownAyaseNeoRb290"],
+        },
+        [NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-crown-ayase-neo-rb300",
+        "RB300_中凹み不発",
+        "23日・26台 / RB1/295.27 / 合算1/146.91 / 平均-66.15枚 / 99.36% / 勝率42.31% / 平均56率36.79% / 56率50%以上23.08% / 弱め本命",
+        {
+          requiredFlags: ["newCrownAyaseNeoHistoryReady", "newCrownAyaseNeoRb300"],
+        },
+        [NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-crown-ayase-neo-rb310",
+        "RB310_不発×沈み",
+        "23日・26台 / RB1/309.67 / 合算1/151.93 / 平均-222.31枚 / 97.84% / 勝率34.62% / 平均56率32.00% / 56率50%以上15.38% / 広め",
+        {
+          requiredFlags: ["newCrownAyaseNeoHistoryReady", "newCrownAyaseNeoRb310"],
+        },
+        [NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-crown-ayase-neo-score80-gap10-safe",
+        "80点＋1位次点差10＋危険1以下",
+        "1位+次点差10以上: 34日・34台 / RB1/367.62 / 合算1/155.11 / 平均-41.47枚 / 99.53% / 平均56率26.00% / 56率50%以上11.76%",
+        {
+          minScore: 80,
+          rankMax: 1,
+          minNextGap: 10,
+          maxDanger: 1,
+          requiredFlags: ["newCrownAyaseNeoHistoryReady"],
+        },
+        [NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-crown-ayase-neo-rank1-gap15",
+        "1位＋次点差15",
+        "20日・20台 / RB1/357.76 / 合算1/149.15 / 平均+103枚 / 101.21% / 平均56率26.97% / 56率50%以上10.00% / 単独採用はしない",
+        {
+          rankMax: 1,
+          minNextGap: 15,
+          requiredFlags: ["newCrownAyaseNeoHistoryReady"],
+        },
+        [NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-crown-ayase-neo-rank1-gap8",
+        "1位＋次点差8",
+        "次点差8以上は信頼度アップ。ただし単独採用条件ではない",
+        {
+          rankMax: 1,
+          minNextGap: 8,
+          requiredFlags: ["newCrownAyaseNeoHistoryReady"],
+        },
+        [NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-crown-ayase-neo-watch-danger2",
+        "見送り_危険2以上",
+        "80点以上でも危険条件が2個以上なら見送り寄り",
+        {
+          minScore: 80,
+          minDanger: 2,
+          requiredFlags: ["newCrownAyaseNeoHistoryReady"],
+        },
+        [NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-crown-ayase-neo-watch-history-short",
+        "見送り_履歴7日未満",
+        "履歴7日未満は原則見送り。点数は最大60点に制限する",
+        {
+          requiredFlags: ["newCrownAyaseNeoHistoryShort"],
+        },
+        [NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-crown-ayase-neo-watch-under80-no-free",
+        "見送り_80点未満自由なし",
+        "80点未満で自由度MAX条件がなければ原則見送り",
+        {
+          maxScore: 79.999,
+          requiredFlags: ["newCrownAyaseNeoHistoryReady", "newCrownAyaseNeoNoFreeMax"],
+        },
+        [NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-crown-ayase-neo-watch-long-neglect",
+        "見送り_長期放置",
+        "連敗10以上、前回高内容なし、または前回高内容から29日以上は放置リスクを優先",
+        {
+          requiredFlags: ["newCrownAyaseNeoHistoryReady", "newCrownAyaseNeoLongNeglect"],
+        },
+        [NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-crown-ayase-neo-watch-treated",
+        "見送り_処遇完了",
+        "14日プラス、7日プラス、前日出過ぎ、前日高内容プラスは高得点でも注意",
+        {
+          requiredFlags: ["newCrownAyaseNeoHistoryReady", "newCrownAyaseNeoTreatmentDone"],
+        },
+        [NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "messe-minamisenju-free-14rb",
@@ -12157,6 +12328,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY);
   } else if (isNewGrandHokimaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY);
+  } else if (isNewCrownAyaseStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY);
   } else if (isMesseMinamisenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "messe-minamisenju-neo-aim");
   } else if (isMesseOkudoStore(storeName) && definition.machineKey === "neo-aim") {
@@ -12813,6 +12986,8 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const previousAdjacentMachineGoodContentCount = readNumber(metrics.previousAdjacentMachineGoodContentCount);
   const previousAdjacentMachineBigWin1000Count = readNumber(metrics.previousAdjacentMachineBigWin1000Count);
   const previousAdjacentMachineNetTotal = readNumber(metrics.previousAdjacentMachineNetTotal);
+  const previousAdjacentMachineRowCount = readNumber(metrics.previousAdjacentMachineRowCount);
+  const previousAdjacentMachineAverageDifference = readNumber(metrics.previousAdjacentMachineAverageDifference);
   const previousAdjacentMachineNetTotalNear2 = readNumber(metrics.previousAdjacentMachineNetTotalNear2);
   const previousOtherMachineHighContentCount = readNumber(metrics.previousOtherMachineHighContentCount);
   const sameMachinePreviousNetTotal = readNumber(metrics.sameMachinePreviousNetTotal);
@@ -17697,6 +17872,192 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       };
     }
 
+    if (activeLogicKey === NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY) {
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      const hasPreviousP56 = Number.isFinite(previousP56);
+      const newCrownAyaseNeoHistoryReady = historyRowCount >= 7;
+      const newCrownAyaseNeoHistoryShort = historyRowCount < 7;
+      const newCrownAyaseNeoPreviousContentMiss =
+        previousGames >= 2750 && hasPreviousP56 && previousP56 >= 0.222 && previousDifference <= 0;
+      const newCrownAyaseNeoPreviousContentStrong =
+        previousGames >= 2750 && hasPreviousP56 && previousP56 >= 0.294 && previousDifference <= 0;
+      const newCrownAyaseNeoPreviousRbContent =
+        previousGames >= 2750 && features.previousRbDenominator <= 323 && previousDifference <= 0;
+      const newCrownAyaseNeoPreviousMiddleSink =
+        previousGames >= 2750 && previousDifference > -680 && previousDifference <= -380;
+      const newCrownAyaseNeoPreviousCoreMiddleMiss =
+        newCrownAyaseNeoPreviousContentMiss && previousDifference > -680 && previousDifference <= -380;
+      const newCrownAyaseNeoPreviousDeepSink =
+        previousGames >= 2750 && previousDifference <= -680;
+      const newCrownAyaseNeoFiveSinkDeep = recentFiveNetTotal <= -2130;
+      const newCrownAyaseNeoFiveSinkLight = recentFiveNetTotal <= -1200;
+      const newCrownAyaseNeoSevenSinkDeep = recentSevenNetTotal <= -2590;
+      const newCrownAyaseNeoSevenSinkLight = recentSevenNetTotal <= -1540;
+      const newCrownAyaseNeoFourteenSinkDeep = recentFourteenNetTotal <= -4272;
+      const newCrownAyaseNeoFourteenSinkLight = recentFourteenNetTotal <= -2500;
+      const newCrownAyaseNeoTwentyOneSinkDeep = recentTwentyOneNetTotal <= -5370;
+      const newCrownAyaseNeoTwentyOneSinkLight = recentTwentyOneNetTotal <= -3340;
+      const newCrownAyaseNeoSevenAngleDeep =
+        recentSevenGamesTotal > 0 && features.recentSevenAngle <= -157;
+      const newCrownAyaseNeoSevenAngleLight =
+        recentSevenGamesTotal > 0 && features.recentSevenAngle <= -87;
+      const newCrownAyaseNeoReturnUnfinished =
+        recentFourteenMachineHighContentCount >= 1 && recentFourteenNetTotal <= -1050;
+      const newCrownAyaseNeoLongReturnUnfinished =
+        recentFourteenMachineHighContentCount >= 1 && recentTwentyOneNetTotal <= -3340;
+      const newCrownAyaseNeoGames7Strong = recentSevenGamesTotal >= 23400;
+      const newCrownAyaseNeoGames7Middle = recentSevenGamesTotal >= 19400;
+      const newCrownAyaseNeoGames7Minimum = recentSevenGamesTotal >= 16400;
+      const newCrownAyaseNeoGames14Strong = recentFourteenGamesTotal >= 44600;
+      const newCrownAyaseNeoGames14Middle = recentFourteenGamesTotal >= 38100;
+      const newCrownAyaseNeoGames14Minimum = recentFourteenGamesTotal >= 33800;
+      const newCrownAyaseNeoRb14Good = features.recentFourteenRbDenominator <= 366;
+      const newCrownAyaseNeoRb14Acceptable = features.recentFourteenRbDenominator <= 400;
+      const newCrownAyaseNeoLossPeak = streak >= 4 && streak <= 6;
+      const newCrownAyaseNeoLossFirst = streak === 1;
+      const newCrownAyaseNeoLossLong = streak >= 7 && streak <= 9;
+      const newCrownAyaseNeoIntervalGood =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 5 &&
+        daysSinceMachineHighContent <= 9;
+      const newCrownAyaseNeoIntervalAcceptable =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 10 &&
+        daysSinceMachineHighContent <= 17;
+      const newCrownAyaseNeoNoHighHistory = !Number.isFinite(daysSinceMachineHighContent);
+      const newCrownAyaseNeoLongHighGap =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent > 28;
+      const newCrownAyaseNeoNeighborModerate =
+        previousAdjacentMachineRowCount > 0 &&
+        previousAdjacentMachineAverageDifference > -85 &&
+        previousAdjacentMachineAverageDifference <= 270;
+      const newCrownAyaseNeoNeighborTooHigh =
+        previousAdjacentMachineRowCount > 0 && previousAdjacentMachineAverageDifference > 270;
+      const newCrownAyaseNeoLowActivityHistory = recentFourteenGamesTotal < 28600;
+      const newCrownAyaseNeoTreatment14 = recentFourteenNetTotal > 804;
+      const newCrownAyaseNeoTreatment7 = recentSevenNetTotal > 842;
+      const newCrownAyaseNeoPreviousTooHigh = previousDifference > 1000;
+      const newCrownAyaseNeoPreviousPlus = previousDifference > 370;
+      const newCrownAyaseNeoPreviousHighPlus = previousMachineHighContent && previousDifference > 0;
+      const newCrownAyaseNeoLongLossNeglect = streak >= 10;
+      const newCrownAyaseNeoBonusWeak =
+        (features.recentFourteenRbDenominator > 450 && recentFourteenGamesTotal >= 28600) ||
+        (features.previousRbDenominator > 487 && previousGames >= 2750);
+      const newCrownAyaseNeoLongNeglect =
+        newCrownAyaseNeoLongLossNeglect || newCrownAyaseNeoNoHighHistory || newCrownAyaseNeoLongHighGap;
+      const newCrownAyaseNeoTreatmentDone =
+        newCrownAyaseNeoTreatment14 ||
+        newCrownAyaseNeoTreatment7 ||
+        newCrownAyaseNeoPreviousTooHigh ||
+        newCrownAyaseNeoPreviousHighPlus;
+      const newCrownAyaseNeoRb310 =
+        newCrownAyaseNeoPreviousContentMiss &&
+        newCrownAyaseNeoFiveSinkDeep &&
+        newCrownAyaseNeoGames7Minimum;
+      const newCrownAyaseNeoRb300 = newCrownAyaseNeoPreviousCoreMiddleMiss;
+      const newCrownAyaseNeoRb290 =
+        newCrownAyaseNeoPreviousCoreMiddleMiss && newCrownAyaseNeoGames7Minimum;
+      const newCrownAyaseNeoRb280 =
+        newCrownAyaseNeoPreviousCoreMiddleMiss &&
+        recentSevenGamesTotal >= 16000 &&
+        recentFourteenGamesTotal >= 40000;
+      const newCrownAyaseNeoRb270Reference =
+        newCrownAyaseNeoPreviousCoreMiddleMiss &&
+        recentSevenGamesTotal >= 22000 &&
+        recentFourteenGamesTotal >= 40000 &&
+        features.previousRbDenominator <= 323;
+      const newCrownAyaseNeoFreeBest = newCrownAyaseNeoRb290;
+      const newCrownAyaseNeoFreeLongSinkLoss =
+        newCrownAyaseNeoTwentyOneSinkDeep && newCrownAyaseNeoGames7Minimum && streak >= 6;
+      const newCrownAyaseNeoFreeReferenceLowPrevGNeighbor =
+        recentSevenGamesTotal >= 19400 &&
+        previousGames < 906 &&
+        newCrownAyaseNeoNeighborModerate;
+      const newCrownAyaseNeoNoFreeMax =
+        !newCrownAyaseNeoFreeBest && !newCrownAyaseNeoFreeLongSinkLoss;
+      const boostFlags = [
+        newCrownAyaseNeoPreviousContentMiss,
+        newCrownAyaseNeoPreviousCoreMiddleMiss,
+        newCrownAyaseNeoFiveSinkDeep,
+        newCrownAyaseNeoFreeLongSinkLoss,
+        newCrownAyaseNeoReturnUnfinished,
+        newCrownAyaseNeoIntervalGood,
+      ];
+      const dangerFlags = [
+        newCrownAyaseNeoLowActivityHistory,
+        newCrownAyaseNeoTreatmentDone,
+        newCrownAyaseNeoLongNeglect,
+        newCrownAyaseNeoBonusWeak,
+        newCrownAyaseNeoNeighborTooHigh,
+      ];
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability: previousP56,
+        previousAdjacentMachineAverageDifference,
+        newCrownAyaseNeoHistoryReady,
+        newCrownAyaseNeoHistoryShort,
+        newCrownAyaseNeoPreviousContentMiss,
+        newCrownAyaseNeoPreviousContentStrong,
+        newCrownAyaseNeoPreviousRbContent,
+        newCrownAyaseNeoPreviousMiddleSink,
+        newCrownAyaseNeoPreviousCoreMiddleMiss,
+        newCrownAyaseNeoPreviousDeepSink,
+        newCrownAyaseNeoFiveSinkDeep,
+        newCrownAyaseNeoFiveSinkLight,
+        newCrownAyaseNeoSevenSinkDeep,
+        newCrownAyaseNeoSevenSinkLight,
+        newCrownAyaseNeoFourteenSinkDeep,
+        newCrownAyaseNeoFourteenSinkLight,
+        newCrownAyaseNeoTwentyOneSinkDeep,
+        newCrownAyaseNeoTwentyOneSinkLight,
+        newCrownAyaseNeoSevenAngleDeep,
+        newCrownAyaseNeoSevenAngleLight,
+        newCrownAyaseNeoReturnUnfinished,
+        newCrownAyaseNeoLongReturnUnfinished,
+        newCrownAyaseNeoGames7Strong,
+        newCrownAyaseNeoGames7Middle,
+        newCrownAyaseNeoGames7Minimum,
+        newCrownAyaseNeoGames14Strong,
+        newCrownAyaseNeoGames14Middle,
+        newCrownAyaseNeoGames14Minimum,
+        newCrownAyaseNeoRb14Good,
+        newCrownAyaseNeoRb14Acceptable,
+        newCrownAyaseNeoLossPeak,
+        newCrownAyaseNeoLossFirst,
+        newCrownAyaseNeoLossLong,
+        newCrownAyaseNeoIntervalGood,
+        newCrownAyaseNeoIntervalAcceptable,
+        newCrownAyaseNeoNoHighHistory,
+        newCrownAyaseNeoLongHighGap,
+        newCrownAyaseNeoNeighborModerate,
+        newCrownAyaseNeoNeighborTooHigh,
+        newCrownAyaseNeoLowActivityHistory,
+        newCrownAyaseNeoTreatment14,
+        newCrownAyaseNeoTreatment7,
+        newCrownAyaseNeoPreviousTooHigh,
+        newCrownAyaseNeoPreviousPlus,
+        newCrownAyaseNeoPreviousHighPlus,
+        newCrownAyaseNeoLongLossNeglect,
+        newCrownAyaseNeoBonusWeak,
+        newCrownAyaseNeoLongNeglect,
+        newCrownAyaseNeoTreatmentDone,
+        newCrownAyaseNeoRb310,
+        newCrownAyaseNeoRb300,
+        newCrownAyaseNeoRb290,
+        newCrownAyaseNeoRb280,
+        newCrownAyaseNeoRb270Reference,
+        newCrownAyaseNeoFreeBest,
+        newCrownAyaseNeoFreeLongSinkLoss,
+        newCrownAyaseNeoFreeReferenceLowPrevGNeighbor,
+        newCrownAyaseNeoNoFreeMax,
+        treatmentDone: newCrownAyaseNeoTreatmentDone,
+        lowConfidence: newCrownAyaseNeoHistoryShort || newCrownAyaseNeoLowActivityHistory,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY) {
       const previousP56 = previousMachineSettingFivePlusProbability;
       const jaranYazaikeNeoHistoryReady = historyRowCount >= 14;
@@ -21638,6 +21999,8 @@ function calculateMachineScore(definition, metrics, features) {
   const previousAdjacentMachineWeakContentCount = readNumber(metrics.previousAdjacentMachineWeakContentCount);
   const previousAdjacentMachineBigWin1000Count = readNumber(metrics.previousAdjacentMachineBigWin1000Count);
   const previousAdjacentMachineNetTotal = readNumber(metrics.previousAdjacentMachineNetTotal);
+  const previousAdjacentMachineRowCount = readNumber(metrics.previousAdjacentMachineRowCount);
+  const previousAdjacentMachineAverageDifference = readNumber(metrics.previousAdjacentMachineAverageDifference);
   const previousAdjacentMachineNetTotalNear2 = readNumber(metrics.previousAdjacentMachineNetTotalNear2);
   const previousOtherMachineHighContentCount = readNumber(metrics.previousOtherMachineHighContentCount);
   const sameMachinePreviousNetTotal = readNumber(metrics.sameMachinePreviousNetTotal);
@@ -26243,6 +26606,81 @@ function calculateMachineScore(definition, metrics, features) {
       score -= historyRowCount < 7 ? 15 : 0;
 
       return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY) {
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      const hasPreviousP56 = Number.isFinite(previousP56);
+      let score = 40;
+
+      if (previousGames >= 2750 && hasPreviousP56 && previousP56 >= 0.222 && previousDifference <= 0) {
+        score += 18;
+      }
+      if (previousGames >= 2750 && hasPreviousP56 && previousP56 >= 0.294 && previousDifference <= 0) {
+        score += 4;
+      }
+      if (previousGames >= 2750 && features.previousRbDenominator <= 323 && previousDifference <= 0) {
+        score += 6;
+      }
+      if (previousGames >= 2750 && previousDifference > -680 && previousDifference <= -380) {
+        score += 8;
+      }
+      if (previousGames >= 2750 && previousDifference <= -680) {
+        score += 3;
+      }
+
+      score += recentFiveNetTotal <= -2130 ? 10 : recentFiveNetTotal <= -1200 ? 5 : 0;
+      score += recentSevenNetTotal <= -2590 ? 6 : recentSevenNetTotal <= -1540 ? 3 : 0;
+      score += recentFourteenNetTotal <= -4272 ? 8 : recentFourteenNetTotal <= -2500 ? 4 : 0;
+      score += recentTwentyOneNetTotal <= -5370 ? 4 : recentTwentyOneNetTotal <= -3340 ? 2 : 0;
+      if (recentSevenGamesTotal > 0) {
+        score += features.recentSevenAngle <= -157 ? 5 : features.recentSevenAngle <= -87 ? 3 : 0;
+      }
+      score += recentFourteenMachineHighContentCount >= 1 && recentFourteenNetTotal <= -1050 ? 6 : 0;
+      score += recentFourteenMachineHighContentCount >= 1 && recentTwentyOneNetTotal <= -3340 ? 3 : 0;
+
+      score += recentSevenGamesTotal >= 23400 ? 8 : recentSevenGamesTotal >= 19400 ? 6 : recentSevenGamesTotal >= 16400 ? 4 : 0;
+      score +=
+        recentFourteenGamesTotal >= 44600
+          ? 4
+          : recentFourteenGamesTotal >= 38100
+            ? 3
+            : recentFourteenGamesTotal >= 33800
+              ? 2
+              : 0;
+      score += features.recentFourteenRbDenominator <= 366 ? 5 : features.recentFourteenRbDenominator <= 400 ? 3 : 0;
+      score += streak >= 4 && streak <= 6 ? 8 : streak === 1 ? 4 : streak >= 7 && streak <= 9 ? 5 : 0;
+      score +=
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 5 &&
+        daysSinceMachineHighContent <= 9
+          ? 6
+          : Number.isFinite(daysSinceMachineHighContent) &&
+              daysSinceMachineHighContent >= 10 &&
+              daysSinceMachineHighContent <= 17
+            ? 3
+            : 0;
+      score +=
+        previousAdjacentMachineRowCount > 0 &&
+        previousAdjacentMachineAverageDifference > -85 &&
+        previousAdjacentMachineAverageDifference <= 270
+          ? 4
+          : 0;
+
+      score -= recentFourteenGamesTotal < 28600 ? 8 : 0;
+      score -= recentFourteenNetTotal > 804 ? 8 : 0;
+      score -= recentSevenNetTotal > 842 ? 5 : 0;
+      score -= previousDifference > 1000 ? 8 : previousDifference > 370 ? 4 : 0;
+      score -= previousMachineHighContent && previousDifference > 0 ? 5 : 0;
+      score -= streak >= 10 ? 7 : 0;
+      score -= features.recentFourteenRbDenominator > 450 && recentFourteenGamesTotal >= 28600 ? 4 : 0;
+      score -= features.previousRbDenominator > 487 && previousGames >= 2750 ? 3 : 0;
+      score -= previousAdjacentMachineRowCount > 0 && previousAdjacentMachineAverageDifference > 270 ? 4 : 0;
+      score -= Number.isFinite(daysSinceMachineHighContent) ? 0 : 3;
+      score -= Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent > 28 ? 4 : 0;
+
+      const scoreCap = historyRowCount < 7 ? 60 : 100;
+      return Math.round(clamp(score, 0, scoreCap));
     }
 
     if (activeLogicKey === KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY) {
