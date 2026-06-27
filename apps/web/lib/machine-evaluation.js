@@ -59,6 +59,10 @@ const KICONA_HIRAI_AIM_COMBINED_LOGIC_NAME =
   "キコーナ平井店_アイムジャグラーEX統合_全日共通ロジック";
 const KICONA_HIRAI_AIM_COMBINED_DEFAULT_CONDITION =
   "kicona-hirai-free-rb-missing-eight-loss";
+const PRIME_HIRAI_NEO_AIM_LOGIC_KEY = "prime-hirai-neo-aim";
+const PRIME_HIRAI_NEO_AIM_LOGIC_NAME =
+  "プライム平井_ネオアイムEX_返済未完ローテ狙い度";
+const PRIME_HIRAI_NEO_AIM_DEFAULT_CONDITION = "prime-hirai-neo-rb300";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -362,6 +366,13 @@ function isFortuneOhanajayaStore(storeName) {
 function isKiconaHiraiStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["キコーナ平井店", "キコーナ平井", "KICONA平井店", "KICONA平井"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
+function isPrimeHiraiStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["プライム平井店", "プライム平井", "PRIME平井店", "PRIME平井"].some(
     (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
   );
 }
@@ -989,6 +1000,215 @@ function buildKiconaHiraiAimCombinedConditions() {
         requiredFlags: ["kiconaHiraiAimHistoryShort"],
       },
       [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+  ];
+}
+
+function buildPrimeHiraiNeoAimConditions() {
+  return [
+    buildCondition(
+      "prime-hirai-neo-free-d-rb400-sink-boost5",
+      "自由D_RB400沈み強化5 / 最本命270",
+      "19日 / 20台 / 総G101,700 / BB1/243.9 / RB1/252.4 / 合算1/124.0 / 平均+1,007枚 / 106.60% / 勝率65.0% / 平均56 53.3% / 件数少",
+      {
+        requiredFlags: ["primeHiraiNeoHistoryReady", "primeHiraiNeoRb400SinkBoost5"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-free-c-rb400-boost4",
+      "自由C_RB400強化4 / 強280",
+      "30日 / 43台 / 総G180,139 / BB1/245.4 / RB1/276.3 / 合算1/130.0 / 平均+623枚 / 104.96% / 勝率55.8% / 平均56 41.8%",
+      {
+        requiredFlags: ["primeHiraiNeoHistoryReady", "primeHiraiNeoRb400Boost4"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-free-a-no-high-middle-games",
+      "自由A_14日56なし中量G",
+      "43日 / 57台 / 総G228,116 / BB1/260.4 / RB1/294.7 / 合算1/138.3 / 平均+267枚 / 102.23% / 勝率50.9% / 平均56 36.7%",
+      {
+        requiredFlags: ["primeHiraiNeoHistoryReady", "primeHiraiNeoNoHigh14MiddleGames"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-free-b-weak-bonus-safe",
+      "自由B_弱合算RB重い危険0",
+      "58日 / 80台 / 総G323,312 / BB1/263.7 / RB1/295.0 / 合算1/140.6 / 平均+181枚 / 101.49% / 勝率51.2% / 平均56 36.1%",
+      {
+        maxDanger: 0,
+        minBoost: 5,
+        requiredFlags: ["primeHiraiNeoHistoryReady", "primeHiraiNeoWeakCombRbCore"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-rb310",
+      "広め310_1位65点以上",
+      "87日 / 87台 / 総G379,001 / BB1/260.1 / RB1/309.6 / 合算1/141.4 / 平均+233枚 / 101.79% / 勝率44.8% / 平均56 33.2%",
+      {
+        rankMax: 1,
+        minScore: 65,
+        requiredFlags: ["primeHiraiNeoHistoryReady"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      PRIME_HIRAI_NEO_AIM_DEFAULT_CONDITION,
+      "弱本命300_1位75点以上",
+      "54日 / 54台 / 総G240,514 / BB1/265.2 / RB1/296.6 / 合算1/140.0 / 平均+216枚 / 101.61% / 勝率46.3% / 平均56 36.5%",
+      {
+        rankMax: 1,
+        minScore: 75,
+        requiredFlags: ["primeHiraiNeoHistoryReady"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-rb290",
+      "本命290_14日56なし中量G強化5",
+      "32日 / 44台 / 総G182,785 / BB1/257.1 / RB1/288.8 / 合算1/136.0 / 平均+356枚 / 102.85% / 勝率52.3% / 平均56 38.1%",
+      {
+        minBoost: 5,
+        requiredFlags: ["primeHiraiNeoHistoryReady", "primeHiraiNeoNoHigh14MiddleGames"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-rb280",
+      "強280_RB400強化4",
+      "30日 / 43台 / 総G180,139 / BB1/245.4 / RB1/276.3 / 合算1/130.0 / 平均+623枚 / 104.96% / 勝率55.8% / 平均56 41.8%",
+      {
+        minBoost: 4,
+        requiredFlags: ["primeHiraiNeoHistoryReady", "primeHiraiNeoRb14Weak400"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-rb270",
+      "最本命270_RB400沈み強化5",
+      "19日 / 20台 / 総G101,700 / BB1/243.9 / RB1/252.4 / 合算1/124.0 / 平均+1,007枚 / 106.60% / 勝率65.0% / 平均56 53.3% / 件数少",
+      {
+        requiredFlags: ["primeHiraiNeoHistoryReady", "primeHiraiNeoRb400SinkBoost5"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-score90",
+      "90点以上",
+      "61日 / 82台 / 総G349,719 / BB1/257.7 / RB1/298.7 / 合算1/138.3 / 平均+312枚 / 102.44% / 勝率50.0% / 平均56 36.0%",
+      {
+        minScore: 90,
+        requiredFlags: ["primeHiraiNeoHistoryReady"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-score70",
+      "70点以上",
+      "85日 / 163台 / 総G656,437 / BB1/262.9 / RB1/308.9 / 合算1/142.0 / 平均+200枚 / 101.66% / 勝率47.9% / 平均56 33.2%",
+      {
+        minScore: 70,
+        requiredFlags: ["primeHiraiNeoHistoryReady"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-bad14-rank1-score80",
+      "14悪＋1位＋80点",
+      "63日 / 63台 / 総G281,038 / BB1/261.2 / RB1/283.3 / 合算1/135.9 / 平均+369枚 / 102.76% / 勝率52.4% / 平均56 40.3%",
+      {
+        rankMax: 1,
+        minScore: 80,
+        requiredFlags: ["primeHiraiNeoHistoryReady", "primeHiraiNeoBad14"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-superbad14",
+      "14日超悪RB超悪合成",
+      "21日 / 24台 / 総G110,085 / BB1/257.8 / RB1/262.1 / 合算1/130.0 / 平均+533枚 / 103.87% / 勝率54.2% / 平均56 47.2% / 件数少",
+      {
+        requiredFlags: ["primeHiraiNeoHistoryReady", "primeHiraiNeoSuperBad14"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-superbad14-score95",
+      "95点＋14日超悪",
+      "19日 / 21台 / RB1/257.9 / 合算1/128.1 / 平均+692枚 / 104.72% / 勝率57.1% / 平均56 50.0% / 件数少",
+      {
+        minScore: 95,
+        requiredFlags: ["primeHiraiNeoHistoryReady", "primeHiraiNeoSuperBad14"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-watch-danger2",
+      "見送り_危険2以上",
+      "危険条件が2個以上なら高点でも本命から外す",
+      {
+        minDanger: 2,
+        requiredFlags: ["primeHiraiNeoHistoryReady"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-watch-previous-high",
+      "見送り_前日高内容",
+      "前日p56 50%以上はRB1/350.9付近で弱い",
+      {
+        requiredFlags: ["primeHiraiNeoHistoryReady", "primeHiraiNeoPreviousHighContent"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-watch-treated",
+      "見送り_処遇完了",
+      "直近3日または5日で大きく返済済み、前日+1500枚以上、14日大幅プラスは見送り寄り",
+      {
+        requiredFlags: ["primeHiraiNeoHistoryReady", "primeHiraiNeoTreatmentDone"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-watch-high-too-many",
+      "見送り_14日高内容多すぎ",
+      "14日内p56 50%以上が3回以上は処遇済み寄り",
+      {
+        requiredFlags: ["primeHiraiNeoHistoryReady", "primeHiraiNeoHighTooMany14"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-watch-visible",
+      "見送り_高稼働で見えた後",
+      "前日6000G以上、7日35000G以上、14日64200G以上は見られすぎを警戒",
+      {
+        requiredFlags: ["primeHiraiNeoHistoryReady", "primeHiraiNeoHighGamesVisible"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-watch-boost-short",
+      "注意_強化3未満",
+      "強化条件が3個未満なら点数だけでは信用しにくい",
+      {
+        maxBoost: 2,
+        requiredFlags: ["primeHiraiNeoHistoryReady"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "prime-hirai-neo-watch-history-short",
+      "見送り_履歴不足",
+      "履歴14営業日未満は低信頼扱い",
+      {
+        requiredFlags: ["primeHiraiNeoHistoryShort"],
+      },
+      [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
     ),
   ];
 }
@@ -2422,6 +2642,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         KICONA_HIRAI_AIM_COMBINED_LOGIC_NAME,
         KICONA_HIRAI_AIM_COMBINED_DEFAULT_CONDITION,
       ),
+      buildLogicVariant(
+        PRIME_HIRAI_NEO_AIM_LOGIC_KEY,
+        PRIME_HIRAI_NEO_AIM_LOGIC_NAME,
+        PRIME_HIRAI_NEO_AIM_DEFAULT_CONDITION,
+      ),
       buildLogicVariant("apark-yakatabaru-neo-aim", "ネオアイム屋形原式", "apark-yakatabaru-main"),
       buildLogicVariant("mj-kurume-neo-aim", "ネオアイムMJ久留米式", "mj-kurume-main"),
       buildLogicVariant(
@@ -2653,6 +2878,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     defaultConditionSuffix: "main",
     conditions: [
       ...buildKiconaHiraiAimCombinedConditions(),
+      ...buildPrimeHiraiNeoAimConditions(),
       buildCondition(
         "main",
         "1位＋70点以上＋3日沈み2日以上",
@@ -9867,6 +10093,8 @@ function getDefaultSetting(definition, storeName) {
     (definition.machineKey === "aim" || definition.machineKey === "neo-aim")
   ) {
     defaultLogic = findLogicDefinition(definition, KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY);
+  } else if (isPrimeHiraiStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, PRIME_HIRAI_NEO_AIM_LOGIC_KEY);
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "aim") {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-aim");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "gogo") {
@@ -10879,6 +11107,179 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === PRIME_HIRAI_NEO_AIM_LOGIC_KEY) {
+      const primeHiraiNeoHistoryReady = historyRowCount >= 14;
+      const primeHiraiNeoHistoryShort = historyRowCount < 14;
+      const primeHiraiNeoHistoryVeryShort = historyRowCount < 7;
+      const primeHiraiNeoPreviousP56 = Number.isFinite(previousMachineSettingFivePlusProbability)
+        ? previousMachineSettingFivePlusProbability
+        : null;
+      const primeHiraiNeoPreviousPayout =
+        previousGames > 0 ? 100 + (previousDifference / previousGames / 3) * 100 : null;
+      const primeHiraiNeoNoHigh14 = recentFourteenMachineHighContentCount === 0;
+      const primeHiraiNeoHighOne14 = recentFourteenMachineHighContentCount === 1;
+      const primeHiraiNeoHighTooMany14 = recentFourteenMachineHighContentCount >= 3;
+      const primeHiraiNeoHighTooMany7 = recentSevenMachineHighContentCount >= 2;
+      const primeHiraiNeoDaysSinceHigh14Plus =
+        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 14) ||
+        (!Number.isFinite(daysSinceMachineHighContent) && primeHiraiNeoHistoryReady && primeHiraiNeoNoHigh14);
+      const primeHiraiNeoDaysSinceHigh21Plus =
+        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 21) ||
+        (!Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 21 && recentTwentyOneMachineHighContentCount === 0);
+      const primeHiraiNeoRb14Weak360 = features.recentFourteenRbDenominator >= 360;
+      const primeHiraiNeoRb14Weak400 = features.recentFourteenRbDenominator >= 400;
+      const primeHiraiNeoComb14Weak150 = features.recentFourteenCombinedDenominator >= 150;
+      const primeHiraiNeoComb14Weak155 = features.recentFourteenCombinedDenominator >= 155;
+      const primeHiraiNeoComb14Weak160 = features.recentFourteenCombinedDenominator >= 160;
+      const primeHiraiNeoBad14 =
+        features.recentFourteenRbDenominator >= 376 && features.recentFourteenCombinedDenominator >= 159;
+      const primeHiraiNeoSuperBad14 =
+        features.recentFourteenRbDenominator >= 396 && features.recentFourteenCombinedDenominator >= 164;
+      const primeHiraiNeoLowG21BadCombined =
+        recentTwentyOneGamesTotal > 0 &&
+        recentTwentyOneGamesTotal <= 71100 &&
+        features.recentTwentyOneCombinedDenominator >= 155;
+      const primeHiraiNeoLongSinkBadCombined =
+        recentTwentyOneGamesTotal > 0 &&
+        features.recentTwentyOneAngle <= -63 &&
+        features.recentTwentyOneCombinedDenominator >= 155;
+      const primeHiraiNeoNoHigh14MiddleGames =
+        primeHiraiNeoNoHigh14 &&
+        previousGames <= 3000 &&
+        recentSevenGamesTotal >= 15000 &&
+        recentSevenGamesTotal <= 25000;
+      const primeHiraiNeoDeepSink =
+        recentTwentyOneNetTotal <= -8000 ||
+        recentFourteenNetTotal <= -5000 ||
+        (recentFourteenNetTotal <= -3500 && features.recentFourteenAngle <= -50);
+      const primeHiraiNeoSink =
+        recentFourteenNetTotal <= -2500 ||
+        recentSevenNetTotal <= -2500 ||
+        features.recentFourteenAngle <= -50;
+      const primeHiraiNeoPreviousLowGamesLoss = previousGames <= 3000 && previousDifference < 0;
+      const primeHiraiNeoPreviousWeakBonus =
+        features.previousCombinedDenominator >= 180 || features.previousRbDenominator >= 500;
+      const primeHiraiNeoPreviousBadCombinedLowPayout =
+        features.previousCombinedDenominator >= 198 &&
+        Number.isFinite(primeHiraiNeoPreviousPayout) &&
+        primeHiraiNeoPreviousPayout <= 92;
+      const primeHiraiNeoNeighborSupport = previousAdjacentMachineHighContentCountNear2 >= 2;
+      const primeHiraiNeoNeighborCold = previousAdjacentMachineNetTotal <= -1500;
+      const primeHiraiNeoGamesSuitable =
+        recentSevenGamesTotal >= 15000 && recentSevenGamesTotal <= 30000 && previousGames <= 5000;
+      const primeHiraiNeoPreviousHighContent =
+        previousMachineHighContent ||
+        (Number.isFinite(primeHiraiNeoPreviousP56) && primeHiraiNeoPreviousP56 >= 0.5);
+      const primeHiraiNeoPreviousStrongHighContent =
+        previousMachineStrongHighContent ||
+        (Number.isFinite(primeHiraiNeoPreviousP56) && primeHiraiNeoPreviousP56 >= 0.7);
+      const primeHiraiNeoPreviousHighFail =
+        Number.isFinite(primeHiraiNeoPreviousP56) &&
+        primeHiraiNeoPreviousP56 >= 0.5 &&
+        previousGames >= 2000 &&
+        previousDifference < 500;
+      const primeHiraiNeoPreviousWeakOutput =
+        Number.isFinite(primeHiraiNeoPreviousP56) &&
+        primeHiraiNeoPreviousP56 < 0.3 &&
+        previousGames >= 2000 &&
+        previousDifference >= 1000;
+      const primeHiraiNeoTreatmentDone =
+        recentThreeNetTotal >= 3000 ||
+        recentFiveNetTotal >= 3000 ||
+        previousDifference >= 1500 ||
+        recentFourteenNetTotal >= 10000;
+      const primeHiraiNeoHighGamesVisible =
+        previousGames >= 6000 || recentSevenGamesTotal >= 35000 || recentFourteenGamesTotal >= 64200;
+      const primeHiraiNeoAlreadyGood =
+        features.recentFourteenCombinedDenominator <= 140 || features.previousRbDenominator <= 250;
+      const primeHiraiNeoLongNeglect =
+        streak >= 6 && recentSevenGamesTotal < 20000;
+      const primeHiraiNeoRecentReturned =
+        recentTenNetTotal >= 5390 || recentFourteenNetTotal >= 5020;
+
+      const boostFlags = [
+        primeHiraiNeoNoHigh14,
+        primeHiraiNeoDaysSinceHigh14Plus,
+        primeHiraiNeoDeepSink,
+        primeHiraiNeoSink,
+        primeHiraiNeoComb14Weak160 || primeHiraiNeoRb14Weak360,
+        primeHiraiNeoPreviousWeakBonus,
+        primeHiraiNeoNeighborSupport,
+        primeHiraiNeoGamesSuitable,
+        primeHiraiNeoBad14,
+        primeHiraiNeoLowG21BadCombined,
+        primeHiraiNeoLongSinkBadCombined,
+      ];
+      const dangerFlags = [
+        primeHiraiNeoPreviousHighContent,
+        primeHiraiNeoHighTooMany7,
+        primeHiraiNeoTreatmentDone,
+        primeHiraiNeoHighGamesVisible,
+        primeHiraiNeoAlreadyGood,
+        primeHiraiNeoLongNeglect,
+        primeHiraiNeoHighTooMany14,
+        primeHiraiNeoPreviousHighFail,
+        primeHiraiNeoPreviousWeakOutput,
+        primeHiraiNeoRecentReturned,
+      ];
+      const boostCount = boostFlags.filter(Boolean).length;
+      const dangerCount = dangerFlags.filter(Boolean).length;
+      const primeHiraiNeoWeakCombRbCore =
+        primeHiraiNeoComb14Weak160 && primeHiraiNeoRb14Weak360;
+      const primeHiraiNeoRb400Boost4 = primeHiraiNeoRb14Weak400 && boostCount >= 4;
+      const primeHiraiNeoRb400SinkBoost5 =
+        primeHiraiNeoRb14Weak400 && recentFourteenNetTotal <= -2500 && boostCount >= 5;
+
+      return {
+        ...features,
+        primeHiraiNeoHistoryReady,
+        primeHiraiNeoHistoryShort,
+        primeHiraiNeoHistoryVeryShort,
+        primeHiraiNeoPreviousP56,
+        primeHiraiNeoPreviousPayout,
+        primeHiraiNeoNoHigh14,
+        primeHiraiNeoHighOne14,
+        primeHiraiNeoHighTooMany14,
+        primeHiraiNeoHighTooMany7,
+        primeHiraiNeoDaysSinceHigh14Plus,
+        primeHiraiNeoDaysSinceHigh21Plus,
+        primeHiraiNeoRb14Weak360,
+        primeHiraiNeoRb14Weak400,
+        primeHiraiNeoComb14Weak150,
+        primeHiraiNeoComb14Weak155,
+        primeHiraiNeoComb14Weak160,
+        primeHiraiNeoBad14,
+        primeHiraiNeoSuperBad14,
+        primeHiraiNeoLowG21BadCombined,
+        primeHiraiNeoLongSinkBadCombined,
+        primeHiraiNeoNoHigh14MiddleGames,
+        primeHiraiNeoDeepSink,
+        primeHiraiNeoSink,
+        primeHiraiNeoPreviousLowGamesLoss,
+        primeHiraiNeoPreviousWeakBonus,
+        primeHiraiNeoPreviousBadCombinedLowPayout,
+        primeHiraiNeoNeighborSupport,
+        primeHiraiNeoNeighborCold,
+        primeHiraiNeoGamesSuitable,
+        primeHiraiNeoPreviousHighContent,
+        primeHiraiNeoPreviousStrongHighContent,
+        primeHiraiNeoPreviousHighFail,
+        primeHiraiNeoPreviousWeakOutput,
+        primeHiraiNeoTreatmentDone,
+        primeHiraiNeoHighGamesVisible,
+        primeHiraiNeoAlreadyGood,
+        primeHiraiNeoLongNeglect,
+        primeHiraiNeoRecentReturned,
+        primeHiraiNeoWeakCombRbCore,
+        primeHiraiNeoRb400Boost4,
+        primeHiraiNeoRb400SinkBoost5,
+        treatmentDone: primeHiraiNeoTreatmentDone,
+        lowConfidence: primeHiraiNeoHistoryShort,
+        boostCount,
+        dangerCount,
+      };
+    }
+
     if (activeLogicKey === "tamaya-ohashi-neo-aim") {
       const tamayaRecentFiveBonusTotal = readNumber(metrics.recentFiveBonusTotal);
       const tamayaRecentFiveRbTotal = readNumber(metrics.recentFiveRbTotal);
@@ -17606,6 +18007,150 @@ function calculateMachineScore(definition, metrics, features) {
 
     const historyCap = historyRowCount >= 7 ? 100 : 45;
     const score = 28 + fourteenScore + sevenScore + rbScore + gamesScore + rotationScore + unpaidScore - penalty;
+    return Math.round(clamp(score, 0, historyCap));
+  }
+
+  if (activeLogicKey === PRIME_HIRAI_NEO_AIM_LOGIC_KEY) {
+    const recentTenRbTotal = readNumber(metrics.recentTenRbTotal);
+    const recentTenBonusTotal = readNumber(metrics.recentTenBonusTotal);
+    const recentTenRbDenominator = rateDenominator(recentTenGamesTotal, recentTenRbTotal);
+    const recentTenCombinedDenominator = rateDenominator(recentTenGamesTotal, recentTenBonusTotal);
+    const previousP56 = Number.isFinite(previousMachineSettingFivePlusProbability)
+      ? previousMachineSettingFivePlusProbability
+      : null;
+    const previousPayout = previousGames > 0 ? 100 + (previousDifference / previousGames / 3) * 100 : null;
+
+    let waitingScore = 0;
+    waitingScore +=
+      recentFourteenMachineHighContentCount === 0
+        ? 14
+        : recentFourteenMachineHighContentCount === 1
+          ? 7
+          : recentFourteenMachineHighContentCount >= 4
+            ? -6
+            : 0;
+    if (Number.isFinite(daysSinceMachineHighContent)) {
+      waitingScore +=
+        daysSinceMachineHighContent >= 21
+          ? 8
+          : daysSinceMachineHighContent >= 14
+            ? 5
+            : daysSinceMachineHighContent >= 10
+              ? 3
+              : 0;
+    } else if (historyRowCount >= 14 && recentFourteenMachineHighContentCount === 0) {
+      waitingScore += 5;
+    }
+    waitingScore = clamp(waitingScore, -10, 22);
+
+    let sinkScore = 0;
+    sinkScore +=
+      recentTwentyOneNetTotal <= -8000
+        ? 12
+        : recentFourteenNetTotal <= -5000
+          ? 10
+          : recentFourteenNetTotal <= -3500
+            ? 8
+            : recentFourteenNetTotal <= -2500
+              ? 5
+              : recentSevenNetTotal <= -2500
+                ? 4
+                : recentThreeNetTotal <= -2000
+                  ? 3
+                  : 0;
+    sinkScore += features.recentFourteenAngle <= -100 ? 6 : features.recentFourteenAngle <= -50 ? 4 : 0;
+    sinkScore += streak >= 6 ? -4 : streak >= 3 ? 3 : 0;
+    sinkScore +=
+      recentTwentyOneGamesTotal > 0 &&
+      features.recentTwentyOneAngle <= -63 &&
+      features.recentTwentyOneCombinedDenominator >= 155
+        ? 4
+        : 0;
+    sinkScore = clamp(sinkScore, -10, 22);
+
+    let bonusScore = 0;
+    bonusScore += scoreAtLeast(features.recentFourteenCombinedDenominator, [
+      { minimum: 160, points: 12 },
+      { minimum: 155, points: 8 },
+      { minimum: 150, points: 4 },
+    ]);
+    bonusScore += scoreAtLeast(features.recentFourteenRbDenominator, [
+      { minimum: 400, points: 6 },
+      { minimum: 360, points: 4 },
+    ]);
+    bonusScore += scoreAtLeast(features.previousCombinedDenominator, [
+      { minimum: 200, points: 3 },
+      { minimum: 180, points: 2 },
+    ]);
+    bonusScore += features.previousRbDenominator >= 500 ? 2 : 0;
+    bonusScore += recentTenRbDenominator >= 378 && recentTenCombinedDenominator >= 159 ? 4 : 0;
+    bonusScore = clamp(bonusScore, 0, 20);
+
+    let recentScore = 0;
+    recentScore += previousGames <= 1000 ? 4 : previousGames <= 3000 ? 3 : 0;
+    recentScore +=
+      recentSevenGamesTotal >= 15000 && recentSevenGamesTotal <= 25000
+        ? 4
+        : recentSevenGamesTotal < 15000
+          ? 2
+          : recentSevenGamesTotal >= 35000
+            ? -6
+            : 0;
+    recentScore +=
+      previousDifference <= -2000
+        ? 5
+        : previousDifference <= -1000
+          ? 3
+          : previousDifference >= 1000 && previousDifference <= 1500
+            ? 2
+            : 0;
+    recentScore +=
+      previousGames < 1500 && previousDifference < 0
+        ? 2
+        : Number.isFinite(previousPayout) && features.previousCombinedDenominator >= 198 && previousPayout <= 92
+          ? 2
+          : 0;
+    recentScore = clamp(recentScore, -8, 12);
+
+    let neighborScore = 0;
+    neighborScore += previousAdjacentMachineHighContentCountNear2 >= 2 ? 5 : 0;
+    neighborScore += previousAdjacentMachineNetTotal <= -1500 ? 3 : 0;
+    neighborScore = clamp(neighborScore, 0, 6);
+
+    let penalty = 0;
+    penalty += Number.isFinite(previousP56) && previousP56 >= 0.7
+      ? 10
+      : Number.isFinite(previousP56) && previousP56 >= 0.5
+        ? 8
+        : 0;
+    penalty += recentThreeNetTotal >= 3000 ? 12 : 0;
+    penalty += recentFiveNetTotal >= 3000 ? 8 : 0;
+    penalty += recentFourteenNetTotal >= 10000 ? 10 : 0;
+    penalty += previousGames >= 6000 ? 8 : 0;
+    penalty += previousDifference >= 2000 ? 10 : previousDifference >= 1500 ? 6 : 0;
+    penalty += features.recentFourteenCombinedDenominator <= 140 ? 7 : 0;
+    penalty += recentSevenMachineHighContentCount >= 2 ? 5 : 0;
+    penalty += winningStreak >= 2 ? 4 : 0;
+    penalty += features.previousRbDenominator <= 250 ? 5 : 0;
+    penalty += recentFourteenMachineHighContentCount >= 3 ? 8 : 0;
+    penalty += recentFourteenGamesTotal >= 64200 ? 8 : 0;
+    penalty += recentTenNetTotal >= 5390 ? 10 : 0;
+    penalty += recentFourteenNetTotal >= 5020 ? 8 : 0;
+    penalty += recentTwentyOneGamesTotal >= 88700 ? 6 : 0;
+    penalty +=
+      Number.isFinite(previousP56) && previousP56 >= 0.5 && previousGames >= 2000 && previousDifference < 500
+        ? 6
+        : 0;
+    penalty +=
+      Number.isFinite(previousP56) && previousP56 < 0.3 && previousGames >= 2000 && previousDifference >= 1000
+        ? 6
+        : 0;
+    penalty += previousGames >= 5000 && previousDifference < 0 ? 4 : 0;
+    penalty += recentFiveGamesTotal >= 24300 ? 4 : 0;
+    penalty = Math.min(penalty, 30);
+
+    const historyCap = historyRowCount >= 14 ? 100 : historyRowCount >= 7 ? 55 : 45;
+    const score = 25 + waitingScore + sinkScore + bonusScore + recentScore + neighborScore - penalty;
     return Math.round(clamp(score, 0, historyCap));
   }
 
