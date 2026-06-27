@@ -115,6 +115,7 @@ MY_HALL_PROFILE_ID_BY_LABEL = {
 MY_HALL_PROFILE_LABEL_BY_ID = dict(MY_HALL_PROFILE_OPTIONS)
 SITE7_BROWSER_MODE_VISIBLE = "visible"
 SITE7_BROWSER_MODE_HIDDEN = "hidden"
+DEFAULT_SITE7_SKIP_JUGGLER_DIFFERENCE = False
 FETCH_ORDER_REGION_MODE_AS_IS = "現状のまま"
 FETCH_ORDER_REGION_MODE_FUKUOKA = "福岡の店舗を優先"
 FETCH_ORDER_REGION_MODE_TOKYO = "東京の店舗を優先"
@@ -447,6 +448,11 @@ def site7_machine_source_group(fetch_source: object) -> str:
     if normalized_source == FETCH_SOURCE_SITE7:
         return FETCH_SOURCE_SITE7
     return FETCH_SOURCE_BOTH
+
+
+def site7_machine_is_juggler(machine_name: object) -> bool:
+    machine_text = normalize_text(canonical_machine_name(str(machine_name or ""), site7_only=True))
+    return "ジャグラー" in machine_text
 
 
 def normalize_fetch_order(value: object) -> int | None:
@@ -1003,6 +1009,7 @@ class MinRepoApp:
         self.web_publish_interval_days = self._load_saved_web_publish_interval_days()
         self.fetch_order_region_mode = self._load_saved_fetch_order_region_mode()
         self.site7_browser_mode: str = self._load_saved_site7_browser_mode()
+        self.site7_skip_juggler_difference = self._load_saved_site7_skip_juggler_difference()
         self.site7_target_machine_names = tuple(list_site7_target_machine_names())
         self.site7_enabled_machine_names_by_source = self._load_saved_site7_enabled_machine_names_by_source()
         self.site7_schedule_enabled = self._load_saved_site7_schedule_enabled()
@@ -1072,6 +1079,7 @@ class MinRepoApp:
         self.registered_store_filter_var = tk.StringVar()
         self.registered_store_filter_status_var = tk.StringVar()
         self.site7_browser_mode_var = tk.StringVar(value=self.site7_browser_mode)
+        self.site7_skip_juggler_difference_var = tk.BooleanVar(value=self.site7_skip_juggler_difference)
         self.site7_machine_enabled_vars_by_source = {
             source_group: {
                 machine_name: tk.BooleanVar(
@@ -1370,6 +1378,13 @@ class MinRepoApp:
         )
         self.site7_browser_hidden_radio.grid(row=0, column=2, sticky="w", padx=(8, 0))
         ttk.Label(mode_row, text="初期値は表示").grid(row=0, column=3, sticky="w", padx=(12, 0))
+        self.site7_skip_juggler_difference_checkbutton = ttk.Checkbutton(
+            mode_row,
+            text="ジャグ系機種は差枚を取得しない",
+            variable=self.site7_skip_juggler_difference_var,
+            command=self._on_site7_skip_juggler_difference_changed,
+        )
+        self.site7_skip_juggler_difference_checkbutton.grid(row=0, column=4, sticky="w", padx=(16, 0))
 
         self.fetch_info = ttk.Frame(self.fetch_tab, padding=(0, 12, 0, 12))
         self.fetch_info.grid(row=1, column=0, sticky="ew")
@@ -1561,6 +1576,18 @@ class MinRepoApp:
         browser_mode = normalize_site7_browser_mode(self.site7_browser_mode_var.get())
         self.site7_browser_mode = browser_mode
         return browser_mode == SITE7_BROWSER_MODE_VISIBLE
+
+    def _on_site7_skip_juggler_difference_changed(self) -> None:
+        self.site7_skip_juggler_difference = self._site7_skip_juggler_difference_enabled()
+        try:
+            self._save_site7_skip_juggler_difference(self.site7_skip_juggler_difference)
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showwarning("設定保存", f"サイトセブン差枚設定の保存に失敗しました。\n{exc}")
+
+    def _site7_skip_juggler_difference_enabled(self) -> bool:
+        if hasattr(self, "site7_skip_juggler_difference_var"):
+            self.site7_skip_juggler_difference = bool(self.site7_skip_juggler_difference_var.get())
+        return bool(getattr(self, "site7_skip_juggler_difference", DEFAULT_SITE7_SKIP_JUGGLER_DIFFERENCE))
 
     def _schedule_status_text(self) -> str:
         if self.scheduled_fetch_hour is None:
@@ -1884,6 +1911,19 @@ class MinRepoApp:
     def _save_site7_browser_mode(self, browser_mode: str) -> None:
         self._save_gui_settings(site7_browser_mode=normalize_site7_browser_mode(browser_mode))
 
+    def _load_saved_site7_skip_juggler_difference(self) -> bool:
+        try:
+            payload = self._load_gui_settings()
+        except Exception:  # noqa: BLE001
+            return DEFAULT_SITE7_SKIP_JUGGLER_DIFFERENCE
+        return normalize_schedule_enabled(
+            payload.get("site7_skip_juggler_difference", DEFAULT_SITE7_SKIP_JUGGLER_DIFFERENCE),
+            DEFAULT_SITE7_SKIP_JUGGLER_DIFFERENCE,
+        )
+
+    def _save_site7_skip_juggler_difference(self, enabled: bool) -> None:
+        self._save_gui_settings(site7_skip_juggler_difference=bool(enabled))
+
     def _load_saved_site7_enabled_machine_names_by_source(self) -> dict[str, set[str]]:
         try:
             payload = self._load_gui_settings()
@@ -1964,6 +2004,64 @@ class MinRepoApp:
         if enabled_machine_names == set(self.site7_target_machine_names):
             return None
         return enabled_machine_names
+
+    def _site7_machine_requires_source_difference(
+        self,
+        machine_name: object,
+        *,
+        site7_difference_enabled: bool,
+        skip_juggler_graph_differences: bool,
+    ) -> bool:
+        if not site7_difference_enabled:
+            return False
+        return not (skip_juggler_graph_differences and site7_machine_is_juggler(machine_name))
+
+    def _site7_history_result_requires_source_difference(
+        self,
+        history_result: MachineHistoryResult,
+        *,
+        site7_difference_enabled: bool,
+        skip_juggler_graph_differences: bool,
+    ) -> bool:
+        machine_names = {
+            dataset.machine_name
+            for dataset in history_result.datasets
+            if str(dataset.machine_name or "").strip()
+        }
+        if not machine_names:
+            return bool(site7_difference_enabled)
+        return any(
+            self._site7_machine_requires_source_difference(
+                machine_name,
+                site7_difference_enabled=site7_difference_enabled,
+                skip_juggler_graph_differences=skip_juggler_graph_differences,
+            )
+            for machine_name in machine_names
+        )
+
+    def _site7_graph_difference_machine_names_for_fetch(
+        self,
+        enabled_machine_names: set[str] | None,
+        *,
+        skip_juggler_graph_differences: bool,
+    ) -> set[str] | None:
+        if not skip_juggler_graph_differences:
+            return None
+        if enabled_machine_names is None:
+            machine_names = set(
+                getattr(
+                    self,
+                    "site7_target_machine_names",
+                    tuple(list_site7_target_machine_names()),
+                )
+            )
+        else:
+            machine_names = set(enabled_machine_names)
+        return {
+            machine_name
+            for machine_name in machine_names
+            if not site7_machine_is_juggler(machine_name)
+        }
 
     def _site7_fetch_requires_login(self, target_stores: list[RegisteredStore]) -> bool:
         return any(not registered_store_uses_daidata_online(registered_store) for registered_store in target_stores)
@@ -2478,6 +2576,7 @@ class MinRepoApp:
         self.site7_schedule_status_var.set("サイトセブン定期実行中")
         self.site7_cancel_event.clear()
         browser_visible = self._site7_browser_visible()
+        skip_juggler_graph_differences = self._site7_skip_juggler_difference_enabled()
         self._start_worker(
             self._worker_scheduled_site7_fetch,
             recent_days,
@@ -2490,6 +2589,7 @@ class MinRepoApp:
             run_date or current_jst_date_text(started_at),
             target_store_urls,
             waiting_started_at,
+            skip_juggler_graph_differences,
             operation_kind="scheduled_site7_fetch",
         )
 
@@ -3095,6 +3195,7 @@ class MinRepoApp:
         run_date: str,
         target_store_urls: set[str] | None = None,
         waiting_started_at: datetime | None = None,
+        skip_juggler_graph_differences: bool = DEFAULT_SITE7_SKIP_JUGGLER_DIFFERENCE,
     ) -> None:
         try:
             registered_stores = self._load_latest_registered_stores()
@@ -3149,6 +3250,7 @@ class MinRepoApp:
                 web_publish_options=web_publish_options,
                 site7_updated_at_by_store_url=site7_updated_at_by_store_url,
                 now=checked_at,
+                skip_juggler_graph_differences=skip_juggler_graph_differences,
             )
             if fetch_many_result.cancelled and not fetch_many_result.results:
                 self.result_queue.put(("fetch_cancelled", None))
@@ -3503,6 +3605,7 @@ class MinRepoApp:
             progress_kind=PROGRESS_KIND_SITE7,
         )
         browser_visible = self._site7_browser_visible()
+        skip_juggler_graph_differences = self._site7_skip_juggler_difference_enabled()
         self._start_worker(
             self._worker_fetch_site7,
             target_stores,
@@ -3511,6 +3614,10 @@ class MinRepoApp:
             browser_visible,
             fetch_parallel_options,
             web_publish_options,
+            None,
+            True,
+            False,
+            skip_juggler_graph_differences,
             operation_kind="site7_fetch",
         )
 
@@ -3552,6 +3659,7 @@ class MinRepoApp:
             progress_kind=PROGRESS_KIND_SITE7,
         )
         browser_visible = self._site7_browser_visible()
+        skip_juggler_graph_differences = self._site7_skip_juggler_difference_enabled()
         self._start_worker(
             self._worker_fetch_site7,
             target_stores,
@@ -3563,6 +3671,7 @@ class MinRepoApp:
             {SITE7_NEO_IM_MACHINE_NAME},
             False,
             False,
+            skip_juggler_graph_differences,
             operation_kind="site7_fetch",
         )
 
@@ -3601,6 +3710,7 @@ class MinRepoApp:
             progress_kind=PROGRESS_KIND_SITE7,
         )
         browser_visible = self._site7_browser_visible()
+        skip_juggler_graph_differences = self._site7_skip_juggler_difference_enabled()
         self._start_worker(
             self._worker_fetch_site7,
             [target_store],
@@ -3609,6 +3719,10 @@ class MinRepoApp:
             browser_visible,
             fetch_parallel_options,
             web_publish_options,
+            None,
+            True,
+            False,
+            skip_juggler_graph_differences,
             operation_kind="site7_fetch",
         )
 
@@ -3647,6 +3761,7 @@ class MinRepoApp:
             progress_kind=PROGRESS_KIND_SITE7,
         )
         browser_visible = self._site7_browser_visible()
+        skip_juggler_graph_differences = self._site7_skip_juggler_difference_enabled()
         self._start_worker(
             self._worker_fetch_site7,
             [target_store],
@@ -3658,6 +3773,7 @@ class MinRepoApp:
             {SITE7_NEO_IM_MACHINE_NAME},
             False,
             False,
+            skip_juggler_graph_differences,
             operation_kind="site7_fetch",
         )
 
@@ -3672,6 +3788,7 @@ class MinRepoApp:
         enabled_machine_names: set[str] | None = None,
         minrepo_prefetch_enabled: bool = True,
         force_site7_difference: bool = False,
+        skip_juggler_graph_differences: bool = DEFAULT_SITE7_SKIP_JUGGLER_DIFFERENCE,
     ) -> None:
         try:
             fetch_many_result = self._run_site7_fetch_many(
@@ -3684,6 +3801,7 @@ class MinRepoApp:
                 enabled_machine_names=enabled_machine_names,
                 minrepo_prefetch_enabled=minrepo_prefetch_enabled,
                 force_site7_difference=force_site7_difference,
+                skip_juggler_graph_differences=skip_juggler_graph_differences,
             )
             if fetch_many_result.cancelled and not fetch_many_result.results:
                 self.result_queue.put(("fetch_cancelled", None))
@@ -3707,6 +3825,7 @@ class MinRepoApp:
         enabled_machine_names: set[str] | None = None,
         minrepo_prefetch_enabled: bool = True,
         force_site7_difference: bool = False,
+        skip_juggler_graph_differences: bool = DEFAULT_SITE7_SKIP_JUGGLER_DIFFERENCE,
     ) -> FetchManyResult:
         fetch_parallel_options = fetch_parallel_options or MINREPO_FETCH_PARALLEL_OPTIONS[MINREPO_FETCH_MODE_NORMAL]
         web_publish_options = web_publish_options or WebPublishOptions(mode=WEB_PUBLISH_MODE_DAYS)
@@ -3757,6 +3876,7 @@ class MinRepoApp:
                         browser_visible=browser_visible,
                         enabled_machine_names=enabled_machine_names,
                         force_site7_difference=force_site7_difference,
+                        skip_juggler_graph_differences=skip_juggler_graph_differences,
                         async_save_executor=save_executor,
                     )
                     self._refresh_web_data_for_store_result(store_result)
@@ -4109,6 +4229,7 @@ class MinRepoApp:
         browser_visible: bool,
         enabled_machine_names: set[str] | None = None,
         force_site7_difference: bool = False,
+        skip_juggler_graph_differences: bool = DEFAULT_SITE7_SKIP_JUGGLER_DIFFERENCE,
         async_save_executor: ThreadPoolExecutor | None = None,
     ) -> StoreFetchResult:
         self._raise_if_fetch_cancelled()
@@ -4218,7 +4339,11 @@ class MinRepoApp:
             )
             partial_result, partial_warning_summary = self._prepare_site7_history_result_for_save(
                 partial_result,
-                require_source_difference=site7_difference_enabled,
+                require_source_difference=self._site7_history_result_requires_source_difference(
+                    partial_result,
+                    site7_difference_enabled=site7_difference_enabled,
+                    skip_juggler_graph_differences=skip_juggler_graph_differences,
+                ),
             )
             warning_summary.messages.extend(partial_warning_summary.messages)
             return partial_result
@@ -4258,7 +4383,11 @@ class MinRepoApp:
                 start_date=min(remaining_dates),
                 end_date=max(remaining_dates),
                 slot_numbers=slot_numbers,
-                require_source_difference=site7_difference_enabled,
+                require_source_difference=self._site7_machine_requires_source_difference(
+                    machine_entry.machine_name,
+                    site7_difference_enabled=site7_difference_enabled,
+                    skip_juggler_graph_differences=skip_juggler_graph_differences,
+                ),
                 site7_updated_at=site7_updated_at,
             )
             warning_summary.messages.extend(saved_slots_summary.messages)
@@ -4303,6 +4432,12 @@ class MinRepoApp:
                     )
                 if fetch_enabled_machine_names is not None:
                     fetch_kwargs["enabled_machine_names"] = fetch_enabled_machine_names
+                graph_difference_machine_names = self._site7_graph_difference_machine_names_for_fetch(
+                    fetch_enabled_machine_names,
+                    skip_juggler_graph_differences=skip_juggler_graph_differences,
+                )
+                if graph_difference_machine_names is not None:
+                    fetch_kwargs["graph_difference_machine_names"] = graph_difference_machine_names
                 return self.site7_scraper.fetch_target_machine_history(**fetch_kwargs)
             except Site7FetchCancelled as exc:
                 raise FetchCancelled from exc
@@ -7432,6 +7567,8 @@ class MinRepoApp:
         self._configure_widget_state(self.clear_site7_schedule_button, "normal")
         self._configure_widget_state(self.site7_browser_visible_radio, "normal")
         self._configure_widget_state(self.site7_browser_hidden_radio, "normal")
+        if hasattr(self, "site7_skip_juggler_difference_checkbutton"):
+            self._configure_widget_state(self.site7_skip_juggler_difference_checkbutton, "normal")
         if hasattr(self, "site7_machine_checkbuttons"):
             for checkbutton in self.site7_machine_checkbuttons.values():
                 self._configure_widget_state(checkbutton, "normal")

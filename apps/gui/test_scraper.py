@@ -80,6 +80,7 @@ from main import (
     rewrite_history_result_store,
     scheduled_fetch_due_date,
     scheduled_supplemental_store_limit,
+    site7_machine_is_juggler,
     site7_schedule_due_hour,
     site7_update_satisfies_scheduled_hour,
     strip_site7_history_result_source_differences,
@@ -1296,11 +1297,13 @@ class MinRepoScraperTests(unittest.TestCase):
             app._save_site7_browser_mode(SITE7_BROWSER_MODE_HIDDEN)
             app._save_site7_schedule_hours((0, 1, 12, 21))
             app._save_fetch_order_region_mode(FETCH_ORDER_REGION_MODE_TOKYO)
+            app._save_site7_skip_juggler_difference(True)
 
             self.assertEqual(app._load_saved_schedule_hour(), 5)
             self.assertEqual(app._load_saved_site7_browser_mode(), SITE7_BROWSER_MODE_HIDDEN)
             self.assertEqual(app._load_saved_site7_schedule_hours(), (0, 1, 12, 21))
             self.assertEqual(app._load_saved_fetch_order_region_mode(), FETCH_ORDER_REGION_MODE_TOKYO)
+            self.assertTrue(app._load_saved_site7_skip_juggler_difference())
 
             app.site7_schedule_last_run_dates_by_hour = {0: "2026-04-28", 1: "2026-04-28", 24: "2026-04-28"}
             app._save_site7_schedule_run_dates()
@@ -1311,6 +1314,7 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(app._load_saved_site7_schedule_hours(), ())
             self.assertEqual(app._load_saved_site7_schedule_run_dates(), {0: "2026-04-28", 1: "2026-04-28"})
             self.assertEqual(app._load_saved_fetch_order_region_mode(), FETCH_ORDER_REGION_MODE_TOKYO)
+            self.assertTrue(app._load_saved_site7_skip_juggler_difference())
 
     def test_window_close_can_choose_exit(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -1526,6 +1530,7 @@ class MinRepoScraperTests(unittest.TestCase):
             "clear_site7_schedule_button",
             "site7_browser_visible_radio",
             "site7_browser_hidden_radio",
+            "site7_skip_juggler_difference_checkbutton",
             "register_store_button",
             "register_store_url_entry",
             "register_store_frequency_selector",
@@ -1585,6 +1590,7 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(app.clear_site7_schedule_button.state, "normal")
         self.assertEqual(app.site7_browser_visible_radio.state, "normal")
         self.assertEqual(app.site7_browser_hidden_radio.state, "normal")
+        self.assertEqual(app.site7_skip_juggler_difference_checkbutton.state, "normal")
         self.assertEqual(app.site7_machine_checkbuttons["machine"].state, "normal")
         self.assertEqual(app.select_all_site7_machines_button.state, "normal")
         self.assertEqual(app.clear_site7_machines_button.state, "normal")
@@ -5063,6 +5069,132 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(persistence_service.require_source_difference_values, [False, False])
         self.assertEqual(len(persistence_service.saved_results), 1)
         self.assertEqual(store_result.save_summary.web_data_record_count, 1)
+
+    def test_fetch_single_site7_store_skips_juggler_graph_when_setting_is_on(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.result_queue = queue.Queue()
+        app.site7_target_machine_names = (SITE7_NEO_IM_MACHINE_NAME, "スマスロ ハナビ")
+
+        raw_result = MachineHistoryResult(
+            store_name="サイトセブン店",
+            store_url="https://example.com/site7-hall",
+            start_date="2026-04-25",
+            end_date="2026-04-25",
+            date_pages=[StoreDatePage(target_date="2026-04-25", date_url="https://example.com/site7-hall#ata0")],
+            datasets=[
+                MachineDataset(
+                    store_name="サイトセブン店",
+                    store_url="https://example.com/site7-hall",
+                    target_date="2026-04-25",
+                    date_url="https://example.com/site7-hall#ata0",
+                    machine_name=SITE7_NEO_IM_MACHINE_NAME,
+                    machine_url="https://example.com/site7-machine",
+                    columns=["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"],
+                    rows=[["821", "-", "1000", "-", "5", "2", "1/143", "1/200", "1/500"]],
+                )
+            ],
+        )
+
+        class FakeSite7Scraper:
+            def fetch_target_machine_history(
+                self,
+                *,
+                recent_days: int,
+                browser_visible: bool,
+                progress_callback: object,
+                target_store: object,
+                cancel_requested: object,
+                machine_base_result_callback: object,
+                machine_result_callback: object,
+                machine_result_filter_callback: object,
+                machine_protected_slots_callback: object,
+                include_graph_differences: bool,
+                defer_graph_differences: bool,
+                enabled_machine_names: set[str] | None = None,
+                graph_difference_machine_names: set[str] | None = None,
+            ) -> MachineHistoryResult:
+                self.include_graph_differences = include_graph_differences
+                self.defer_graph_differences = defer_graph_differences
+                self.enabled_machine_names = enabled_machine_names
+                self.graph_difference_machine_names = graph_difference_machine_names
+                machine_protected_slots_callback(
+                    Site7MachineEntry(display_name=SITE7_NEO_IM_MACHINE_NAME, machine_name=SITE7_NEO_IM_MACHINE_NAME),
+                    ["2026-04-25"],
+                    ["821"],
+                    "2026-04-25T23:20:00+09:00",
+                )
+                machine_protected_slots_callback(
+                    Site7MachineEntry(display_name="スマスロ ハナビ", machine_name="スマスロ ハナビ"),
+                    ["2026-04-25"],
+                    ["901"],
+                    "2026-04-25T23:20:00+09:00",
+                )
+                return machine_result_filter_callback(raw_result)
+
+        class FakePersistenceService:
+            def __init__(self) -> None:
+                self.require_source_difference_values: list[bool] = []
+
+            def resolve_preferred_store_by_name(self, store_name: str) -> None:
+                return None
+
+            def find_saved_full_day_dates(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+            ) -> SavedFullDayDatesSummary:
+                return SavedFullDayDatesSummary()
+
+            def find_saved_machine_slots(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+                slot_numbers: list[str],
+                require_source_difference: bool = True,
+                site7_updated_at: str | datetime | None = None,
+            ) -> SavedMachineSlotsSummary:
+                self.require_source_difference_values.append(require_source_difference)
+                return SavedMachineSlotsSummary()
+
+            def save_history_result(self, history_result: MachineHistoryResult) -> PersistenceSummary:
+                return PersistenceSummary(web_data_saved=True, web_data_record_count=len(history_result.datasets))
+
+        site7_scraper = FakeSite7Scraper()
+        persistence_service = FakePersistenceService()
+        app.site7_scraper = site7_scraper
+        app.persistence_service = persistence_service
+
+        store_result = app._fetch_single_site7_store(
+            registered_store=RegisteredStore(
+                name="Aパーク春日店",
+                url="https://example.com/minrepo-store",
+                fetch_source=FETCH_SOURCE_BOTH,
+                site7_difference_enabled=True,
+            ),
+            recent_days=1,
+            store_index=1,
+            total_stores=1,
+            retry_delay_seconds=0,
+            browser_visible=True,
+            enabled_machine_names={SITE7_NEO_IM_MACHINE_NAME, "スマスロ ハナビ"},
+            skip_juggler_graph_differences=True,
+        )
+
+        self.assertTrue(site7_scraper.include_graph_differences)
+        self.assertTrue(site7_scraper.defer_graph_differences)
+        self.assertEqual(site7_scraper.enabled_machine_names, {SITE7_NEO_IM_MACHINE_NAME, "スマスロ ハナビ"})
+        self.assertEqual(site7_scraper.graph_difference_machine_names, {"スマスロ ハナビ"})
+        self.assertEqual(persistence_service.require_source_difference_values, [False, True, False])
+        self.assertEqual(store_result.save_summary.web_data_record_count, 1)
+
+    def test_site7_juggler_machine_detection(self) -> None:
+        self.assertTrue(site7_machine_is_juggler(SITE7_NEO_IM_MACHINE_NAME))
+        self.assertFalse(site7_machine_is_juggler("スマスロ ハナビ"))
 
     def test_fetch_single_site7_store_can_force_neo_im_graph_fetch(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)

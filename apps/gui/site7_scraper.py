@@ -1090,6 +1090,7 @@ class Site7Scraper:
         include_graph_differences: bool = False,
         defer_graph_differences: bool = False,
         enabled_machine_names: set[str] | None = None,
+        graph_difference_machine_names: set[str] | None = None,
     ) -> MachineHistoryResult:
         return self._fetch_mobile_target_machine_history(
             recent_days=recent_days,
@@ -1104,6 +1105,7 @@ class Site7Scraper:
             include_graph_differences=include_graph_differences,
             defer_graph_differences=defer_graph_differences,
             enabled_machine_names=enabled_machine_names,
+            graph_difference_machine_names=graph_difference_machine_names,
         )
 
     def fetch_mobile_hall_updated_datetime(
@@ -1148,6 +1150,7 @@ class Site7Scraper:
         include_graph_differences: bool = False,
         defer_graph_differences: bool = False,
         enabled_machine_names: set[str] | None = None,
+        graph_difference_machine_names: set[str] | None = None,
     ) -> MachineHistoryResult:
         resolved_target_store = enrich_site7_target_store(target_store or SITE7_DEFAULT_TARGET_STORE)
         target_days = clamp_site7_recent_days(recent_days)
@@ -1196,6 +1199,9 @@ class Site7Scraper:
                 store=store_name,
                 machine_count=len(target_machine_items),
                 machines=[machine_entry.machine_name for machine_entry, _ in target_machine_items],
+            )
+            graph_difference_machine_name_keys = self._mobile_graph_difference_machine_name_keys(
+                graph_difference_machine_names
             )
 
             for machine_index, (machine_entry, machine_link) in enumerate(target_machine_items, start=1):
@@ -1270,9 +1276,16 @@ class Site7Scraper:
                     )
                 if machine_base_result_callback is not None:
                     machine_base_result_callback(machine_result)
-                if include_graph_differences and defer_graph_differences:
+                machine_graph_difference_enabled = (
+                    include_graph_differences
+                    and self._mobile_machine_graph_difference_enabled(
+                        machine_entry.machine_name,
+                        graph_difference_machine_name_keys,
+                    )
+                )
+                if machine_graph_difference_enabled and defer_graph_differences:
                     deferred_graph_targets.append((machine_result, machine_link, machine_entry.machine_name))
-                elif include_graph_differences and machine_result.datasets:
+                elif machine_graph_difference_enabled and machine_result.datasets:
                     self._apply_mobile_graph_differences_to_machine_result(
                         page=page,
                         context=context,
@@ -1282,10 +1295,12 @@ class Site7Scraper:
                         cancel_requested=cancel_requested,
                     )
                 machine_results.append(machine_result)
-                if machine_result_callback is not None and not (include_graph_differences and defer_graph_differences):
+                if machine_result_callback is not None and not (
+                    machine_graph_difference_enabled and defer_graph_differences
+                ):
                     machine_result_callback(machine_result)
 
-            if include_graph_differences and defer_graph_differences and not store_closed_dates:
+            if deferred_graph_targets and not store_closed_dates:
                 graph_total_steps = max(total_steps, len(target_machine_items) + 2)
                 for graph_index, (machine_result, machine_link, machine_name) in enumerate(deferred_graph_targets, start=1):
                     _raise_if_site7_cancel_requested(cancel_requested)
@@ -3196,6 +3211,28 @@ class Site7Scraper:
             for machine_entry, machine_link in machine_links
             if canonical_machine_name(machine_entry.machine_name, site7_only=True).casefold() in enabled_name_keys
         ]
+
+    def _mobile_graph_difference_machine_name_keys(
+        self,
+        graph_difference_machine_names: set[str] | None,
+    ) -> set[str] | None:
+        if graph_difference_machine_names is None:
+            return None
+        return {
+            canonical_machine_name(machine_name, site7_only=True).casefold()
+            for machine_name in graph_difference_machine_names
+            if str(machine_name or "").strip()
+        }
+
+    def _mobile_machine_graph_difference_enabled(
+        self,
+        machine_name: str,
+        graph_difference_machine_name_keys: set[str] | None,
+    ) -> bool:
+        if graph_difference_machine_name_keys is None:
+            return True
+        machine_key = canonical_machine_name(machine_name, site7_only=True).casefold()
+        return machine_key in graph_difference_machine_name_keys
 
     def extract_mobile_machine_bonus_list_link(self, html: str, fallback_url: str = "") -> str:
         soup = BeautifulSoup(html, "html.parser")
