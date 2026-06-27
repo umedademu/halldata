@@ -65,6 +65,10 @@ SITE7_SAVED_TIMEZONE = timezone(timedelta(hours=9))
 SITE7_COMPLETE_FETCH_HOUR = 23
 R2_SNAPSHOT_PREFIX = "snapshots"
 R2_FULL_DAY_INDEX_FILE_NAME = "full-day-index.json"
+MY_HALL_PROFILE_LABELS = {
+    "a": "Aさん",
+    "b": "Bさん",
+}
 FULL_DAY_INCOMPLETE_RECORD_RATIO = 0.8
 FULL_DAY_INCOMPLETE_MACHINE_RATIO = 0.8
 FULL_DAY_INCOMPLETE_MIN_REFERENCE_RECORD_COUNT = 20
@@ -171,6 +175,11 @@ def normalize_store_name_key(value: str) -> str:
 def normalize_machine_name_key(value: str) -> str:
     canonical_name = canonical_machine_name(str(value)).strip()
     return normalize_text(canonical_name)
+
+
+def normalize_my_hall_profile_id(value: Any) -> str:
+    profile_id = str(value or "").strip().casefold()
+    return profile_id if profile_id in MY_HALL_PROFILE_LABELS else ""
 
 
 def normalize_saved_target_machine_name_keys(machine_names: list[str]) -> set[str]:
@@ -1073,6 +1082,70 @@ class HistoryPersistenceService:
             fallback_stores,
             excluded_store_urls=excluded_store_urls,
         )
+
+    def load_shared_my_hall_store_ids(self, profile_id: str) -> list[str]:
+        normalized_profile_id = normalize_my_hall_profile_id(profile_id)
+        if not normalized_profile_id or not self.r2_storage.is_configured:
+            return []
+
+        payload = self.r2_storage.read_json(f"my-hall/{normalized_profile_id}.json")
+        if not isinstance(payload, dict):
+            return []
+
+        store_ids = payload.get("storeIds")
+        if not isinstance(store_ids, list):
+            return []
+
+        normalized_store_ids: list[str] = []
+        seen_store_ids: set[str] = set()
+        for store_id in store_ids:
+            normalized_store_id = str(store_id or "").strip()
+            if not normalized_store_id or normalized_store_id in seen_store_ids:
+                continue
+            seen_store_ids.add(normalized_store_id)
+            normalized_store_ids.append(normalized_store_id)
+        return normalized_store_ids
+
+    def load_shared_my_hall_store_urls(self, profile_id: str) -> tuple[list[str], list[str]]:
+        store_ids = self.load_shared_my_hall_store_ids(profile_id)
+        if not store_ids:
+            return [], []
+
+        payload = self.r2_storage.read_json("index.json")
+        if not isinstance(payload, dict):
+            return [], store_ids
+
+        store_urls_by_id: dict[str, str] = {}
+        for store in payload.get("stores", []):
+            if not isinstance(store, dict):
+                continue
+            store_url = normalize_store_url(str(store.get("storeUrl", "")).strip())
+            if not store_url:
+                continue
+            for store_id in [
+                str(store.get("id", "")).strip(),
+                *[
+                    str(legacy_id or "").strip()
+                    for legacy_id in store.get("legacyIds", [])
+                    if str(legacy_id or "").strip()
+                ],
+            ]:
+                if store_id:
+                    store_urls_by_id[store_id] = store_url
+
+        store_urls: list[str] = []
+        missing_store_ids: list[str] = []
+        seen_store_urls: set[str] = set()
+        for store_id in store_ids:
+            store_url = store_urls_by_id.get(store_id)
+            if not store_url:
+                missing_store_ids.append(store_id)
+                continue
+            if store_url in seen_store_urls:
+                continue
+            seen_store_urls.add(store_url)
+            store_urls.append(store_url)
+        return store_urls, missing_store_ids
 
     def save_registered_stores(self, stores: list[dict[str, Any]]) -> RegisteredStoresPersistenceSummary:
         normalized_stores = self._normalize_registered_stores(stores)

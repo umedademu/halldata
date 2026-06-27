@@ -123,23 +123,32 @@ export function CrossStoreHuntRankingFormStateSync({ formId }) {
   useEffect(() => {
     if (searchParams.has("store") || searchParams.has("show")) {
       saveSelectedStoreIds(searchParams.getAll("store"));
-      return;
+      return undefined;
     }
 
-    const myHallStoreIds = readSavedMyHallStoreIds();
-    if (myHallStoreIds.length === 0) {
-      return;
-    }
+    const syncSearchFromMyHall = () => {
+      const myHallStoreIds = readSavedMyHallStoreIds();
+      if (myHallStoreIds.length === 0) {
+        return;
+      }
 
-    const savedStoreIds = readSavedSelectedStoreIds();
-    const selectedStoreIds =
-      savedStoreIds === null
-        ? myHallStoreIds
-        : myHallStoreIds.filter((storeId) => savedStoreIds.includes(storeId));
-    const searchText = buildSearchWithStores(searchParams, myHallStoreIds, selectedStoreIds);
-    if (searchText !== searchParams.toString()) {
-      router.replace(searchText ? `${pathname}?${searchText}` : pathname, { scroll: false });
-    }
+      const savedStoreIds = readSavedSelectedStoreIds();
+      const selectedStoreIds =
+        savedStoreIds === null
+          ? myHallStoreIds
+          : myHallStoreIds.filter((storeId) => savedStoreIds.includes(storeId));
+      const searchText = buildSearchWithStores(searchParams, myHallStoreIds, selectedStoreIds);
+      if (searchText !== searchParams.toString()) {
+        router.replace(searchText ? `${pathname}?${searchText}` : pathname, { scroll: false });
+      }
+    };
+
+    syncSearchFromMyHall();
+    window.addEventListener(MY_HALL_CHANGE_EVENT, syncSearchFromMyHall);
+
+    return () => {
+      window.removeEventListener(MY_HALL_CHANGE_EVENT, syncSearchFromMyHall);
+    };
   }, [pathname, router, searchParams]);
 
   useEffect(() => {

@@ -29,9 +29,11 @@ except ImportError:  # pragma: no cover
 
 from data_persistence import (
     HistoryPersistenceService,
+    MY_HALL_PROFILE_LABELS,
     PersistenceSummary,
     RegisteredStoresPersistenceSummary,
     SavedFullDayDatesSummary,
+    normalize_my_hall_profile_id,
     normalize_store_url,
 )
 from daidata_online_scraper import (
@@ -105,6 +107,12 @@ SITE7_MINREPO_FALLBACK_HOUR = 10
 SITE7_SCHEDULE_RECHECK_INTERVAL_MINUTES = 10
 SITE7_SCHEDULE_RECHECK_LIMIT_MINUTES = 60
 GUI_SETTINGS_FILE_NAME = "gui_settings.json"
+MY_HALL_PROFILE_OPTIONS = tuple(MY_HALL_PROFILE_LABELS.items())
+MY_HALL_PROFILE_ID_BY_LABEL = {
+    label: profile_id
+    for profile_id, label in MY_HALL_PROFILE_OPTIONS
+}
+MY_HALL_PROFILE_LABEL_BY_ID = dict(MY_HALL_PROFILE_OPTIONS)
 SITE7_BROWSER_MODE_VISIBLE = "visible"
 SITE7_BROWSER_MODE_HIDDEN = "hidden"
 JST = timezone(timedelta(hours=9))
@@ -1042,6 +1050,7 @@ class MinRepoApp:
         self.register_store_site7_hall_id_var = tk.StringVar()
         self.register_store_site7_address_var = tk.StringVar()
         self.register_store_status_var = tk.StringVar(value="未登録")
+        self.my_hall_profile_var = tk.StringVar(value=self._load_saved_my_hall_profile_label())
         self.registered_store_filter_var = tk.StringVar()
         self.registered_store_filter_status_var = tk.StringVar()
         self.site7_browser_mode_var = tk.StringVar(value=self.site7_browser_mode)
@@ -1670,6 +1679,23 @@ class MinRepoApp:
             json.dumps(payload, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
+
+    def _load_saved_my_hall_profile_id(self) -> str:
+        try:
+            payload = self._load_gui_settings()
+        except Exception:  # noqa: BLE001
+            return "a"
+        return normalize_my_hall_profile_id(payload.get("my_hall_profile_id")) or "a"
+
+    def _load_saved_my_hall_profile_label(self) -> str:
+        return MY_HALL_PROFILE_LABEL_BY_ID.get(self._load_saved_my_hall_profile_id(), "Aさん")
+
+    def _selected_my_hall_profile_id(self) -> str:
+        selected_label = self.my_hall_profile_var.get().strip()
+        return MY_HALL_PROFILE_ID_BY_LABEL.get(selected_label, "a")
+
+    def _save_my_hall_profile_id(self, profile_id: str) -> None:
+        self._save_gui_settings(my_hall_profile_id=normalize_my_hall_profile_id(profile_id) or "a")
 
     def _load_saved_minrepo_schedule_enabled(self) -> bool:
         try:
@@ -2750,6 +2776,21 @@ class MinRepoApp:
             command=self.delete_registered_stores,
         )
         self.delete_registered_stores_button.grid(row=0, column=3, sticky="w", padx=(8, 0))
+        ttk.Label(target_action_row, text="Webマイホール").grid(row=0, column=4, sticky="w", padx=(16, 0))
+        self.my_hall_profile_selector = ttk.Combobox(
+            target_action_row,
+            textvariable=self.my_hall_profile_var,
+            values=[label for _, label in MY_HALL_PROFILE_OPTIONS],
+            state="readonly",
+            width=8,
+        )
+        self.my_hall_profile_selector.grid(row=0, column=5, sticky="w", padx=(6, 0))
+        self.apply_my_hall_stores_button = ttk.Button(
+            target_action_row,
+            text="毎日に反映",
+            command=self.apply_shared_my_hall_to_registered_stores,
+        )
+        self.apply_my_hall_stores_button.grid(row=0, column=6, sticky="w", padx=(8, 0))
 
         filter_row = ttk.Frame(table_frame)
         filter_row.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 8))
@@ -6351,6 +6392,58 @@ class MinRepoApp:
                 self.register_store_status_var.set(f"頻度の保存に失敗しました: {exc}")
         self._reset_fetch_display_for_store_change()
 
+    def apply_shared_my_hall_to_registered_stores(self) -> None:
+        profile_id = self._selected_my_hall_profile_id()
+        profile_label = MY_HALL_PROFILE_LABEL_BY_ID.get(profile_id, "Aさん")
+        try:
+            self._save_my_hall_profile_id(profile_id)
+            my_hall_store_urls, missing_store_ids = self.persistence_service.load_shared_my_hall_store_urls(profile_id)
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showerror("Webマイホール", f"{profile_label}のWebマイホールを読めませんでした。\n{exc}")
+            return
+
+        if not my_hall_store_urls:
+            messagebox.showwarning("Webマイホール", f"{profile_label}のWebマイホールに店舗がありません。")
+            return
+
+        my_hall_store_url_set = set(my_hall_store_urls)
+        registered_store_url_set = {
+            normalize_store_url(registered_store.url)
+            for registered_store in self.registered_stores
+        }
+        if not (my_hall_store_url_set & registered_store_url_set):
+            messagebox.showwarning(
+                "Webマイホール",
+                f"{profile_label}のWebマイホールに一致する登録店舗がありません。最新に更新してから再実行してください。",
+            )
+            return
+
+        matched_count = 0
+        for registered_store in self.registered_stores:
+            if normalize_store_url(registered_store.url) in my_hall_store_url_set:
+                registered_store.fetch_frequency = FETCH_FREQUENCY_DAILY
+                matched_count += 1
+            else:
+                registered_store.fetch_frequency = FETCH_FREQUENCY_LOW
+
+        self.selected_store_urls = self._load_saved_selected_store_urls(self.registered_stores)
+        self._refresh_registered_store_table()
+        try:
+            self._save_selected_store_urls()
+            save_summary = self._persist_registered_stores()
+            if save_summary.has_errors:
+                messagebox.showwarning("登録店舗", "\n\n".join(save_summary.messages))
+        except Exception as exc:  # noqa: BLE001
+            if hasattr(self, "register_store_status_var"):
+                self.register_store_status_var.set(f"頻度の保存に失敗しました: {exc}")
+            return
+
+        status = f"{profile_label}のWebマイホール {matched_count} 店舗を毎日にしました"
+        if missing_store_ids:
+            status += f"（未照合 {len(missing_store_ids)} 件）"
+        self.register_store_status_var.set(status)
+        self._reset_fetch_display_for_store_change()
+
     def _resolve_store_region_input(
         self,
         *,
@@ -7271,6 +7364,8 @@ class MinRepoApp:
         self._configure_named_widget_state("select_all_stores_button", "normal")
         self._configure_named_widget_state("clear_store_selection_button", "normal")
         self._configure_named_widget_state("refresh_registered_stores_button", "disabled" if general_busy else "normal")
+        self._configure_named_widget_state("my_hall_profile_selector", "readonly")
+        self._configure_named_widget_state("apply_my_hall_stores_button", "disabled" if general_busy else "normal")
         self._configure_named_widget_state(
             "delete_registered_stores_button",
             "disabled" if general_busy or not has_registered_store_row_selection else "normal",

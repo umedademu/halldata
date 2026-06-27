@@ -40,6 +40,12 @@ import {
   normalizeMachineEvaluationBacktestMode,
 } from "./machine-evaluation";
 import {
+  MY_HALL_CLOUD_DATA_VERSION,
+  buildMyHallCloudDataPath,
+  normalizeMyHallProfileId,
+  normalizeMyHallStoreIds,
+} from "./my-hall";
+import {
   canonicalMachineName,
   normalizeDifferenceMode,
   listEquivalentMachineNames,
@@ -705,7 +711,7 @@ function buildR2SigningKey(secretAccessKey, dateStamp, region, service) {
   return hmacSha256(serviceKey, "aws4_request");
 }
 
-async function writeJsonToR2(relativePath, payload) {
+async function writeJsonToR2(relativePath, payload, options = {}) {
   const [
     endpoint,
     bucketName,
@@ -725,6 +731,7 @@ async function writeJsonToR2(relativePath, payload) {
   const endpointUrl = endpoint.replace(/\/+$/u, "");
   const url = new URL(`${bucketName}/${normalizedPath}`, `${endpointUrl}/`);
   const body = JSON.stringify(payload);
+  const cacheControl = String(options.cacheControl ?? "").trim() || "public, max-age=31536000, immutable";
   const payloadHash = createHash("sha256").update(body, "utf8").digest("hex");
   const now = new Date();
   const amzDate = formatAmzDate(now);
@@ -762,7 +769,7 @@ async function writeJsonToR2(relativePath, payload) {
     method: "PUT",
     headers: {
       authorization: `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
-      "cache-control": "public, max-age=31536000, immutable",
+      "cache-control": cacheControl,
       "content-type": "application/json; charset=utf-8",
       "x-amz-content-sha256": payloadHash,
       "x-amz-date": amzDate,
@@ -781,6 +788,58 @@ async function readStaticWebDataIndex() {
   return {
     stores: payload.stores.filter((store) => store && typeof store === "object"),
   };
+}
+
+function normalizeMyHallUpdatedAt(value) {
+  const text = String(value ?? "").trim();
+  return Number.isFinite(Date.parse(text)) ? text : new Date().toISOString();
+}
+
+export async function getCloudMyHallProfile(profileId) {
+  const normalizedProfileId = normalizeMyHallProfileId(profileId);
+  const dataPath = buildMyHallCloudDataPath(normalizedProfileId);
+  if (!dataPath) {
+    return null;
+  }
+
+  const payload = await readStaticWebDataPayload(dataPath);
+  if (!payload || typeof payload !== "object") {
+    return {
+      version: MY_HALL_CLOUD_DATA_VERSION,
+      profileId: normalizedProfileId,
+      storeIds: [],
+      updatedAt: "",
+    };
+  }
+
+  return {
+    version: MY_HALL_CLOUD_DATA_VERSION,
+    profileId: normalizedProfileId,
+    storeIds: normalizeMyHallStoreIds(payload.storeIds),
+    updatedAt: String(payload.updatedAt ?? "").trim(),
+  };
+}
+
+export async function updateCloudMyHallProfile(profileId, storeIds, updatedAt) {
+  const normalizedProfileId = normalizeMyHallProfileId(profileId);
+  const dataPath = buildMyHallCloudDataPath(normalizedProfileId);
+  if (!dataPath) {
+    throw new Error("利用者を選んでください。");
+  }
+
+  const payload = {
+    version: MY_HALL_CLOUD_DATA_VERSION,
+    profileId: normalizedProfileId,
+    storeIds: normalizeMyHallStoreIds(storeIds),
+    updatedAt: normalizeMyHallUpdatedAt(updatedAt),
+  };
+  const saved = await writeJsonToR2(dataPath, payload, {
+    cacheControl: "no-store",
+  });
+  if (!saved) {
+    throw new Error("マイホールの保存先が設定されていません。");
+  }
+  return payload;
 }
 
 function staticStoreMatchesId(storeEntry, storeId) {

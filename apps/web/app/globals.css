@@ -63,6 +63,8 @@ a {
 
 .topNavigation {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
@@ -71,6 +73,12 @@ a {
   border-radius: var(--radius-md);
   background: #ffffff;
   box-shadow: var(--shadow);
+}
+
+.topNavLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .topNavButton {
@@ -92,6 +100,29 @@ a {
   border-color: rgba(37, 99, 165, 0.28);
   background: rgba(37, 99, 165, 0.08);
   color: var(--accent-strong);
+}
+
+.myHallProfileSelector {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.6rem;
+  gap: 8px;
+  padding: 5px 8px 5px 12px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.myHallProfileSelector select {
+  min-height: 2rem;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--text);
+  font: inherit;
 }
 
 .pageStack {
@@ -3603,8 +3634,17 @@ a {
     grid-template-columns: 1fr;
   }
 
+  .topNavLinks {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
   .topNavButton {
     justify-content: flex-start;
+  }
+
+  .myHallProfileSelector {
+    justify-content: space-between;
   }
 
   .myHallList {
