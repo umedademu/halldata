@@ -113,6 +113,10 @@ const RAKUEN_AMEYOKO_NEO_AIM_LOGIC_NAME =
   "楽園アメ横店 ネオアイムジャグラーEX 14日返済未完了ロジック v1";
 const RAKUEN_AMEYOKO_NEO_AIM_DEFAULT_CONDITION =
   "rakuen-ameyoko-neo-rank1-score75-gap8";
+const MINOWA_UNO_NEO_AIM_LOGIC_KEY = "minowa-uno-neo-aim";
+const MINOWA_UNO_NEO_AIM_LOGIC_NAME =
+  "三ノ輪UNO_ネオアイムジャグラーEX_全日共通V1";
+const MINOWA_UNO_NEO_AIM_DEFAULT_CONDITION = "minowa-uno-neo-free-a";
 const CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY = "concert-hall-kitasenju-neo-aim";
 const CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_NAME =
   "コンサートホール北千住_ネオアイムEX_56狙い全日共通ロジック";
@@ -591,6 +595,20 @@ function isSengawaUnoStore(storeName) {
   return ["仙川UNO", "仙川UNO店", "仙川ＵＮＯ", "仙川ＵＮＯ店"].some(
     (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
   );
+}
+
+function isMinowaUnoStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "三ノ輪UNO",
+    "三ノ輪UNO店",
+    "三ノ輪ＵＮＯ",
+    "三ノ輪ＵＮＯ店",
+    "三ノ輪ウノ",
+    "三ノ輪ウノ店",
+    "MINOWA UNO",
+    "Minowa UNO",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
 function isBoomTenjinStore(storeName) {
@@ -2970,6 +2988,161 @@ function buildRakuenAmeyokoNeoAimConditions() {
   ];
 }
 
+function buildMinowaUnoNeoAimConditions() {
+  return [
+    buildCondition(
+      "minowa-uno-neo-wide-rb310",
+      "広めRB310型",
+      "対象57日 / 77台 / 総G307,132 / BB1/265.7 / RB1/309.6 / 合算1/143.0 / 平均+162.7枚 / 機械割101.36% / 勝率46.8% / 平均56 31.9% / 中央56 23.8% / 56>=50 20.8% / 56<30 68.8%",
+      {
+        minScore: 45,
+        requiredFlags: ["minowaUnoNeoHistory14Ready", "minowaUnoNeoPreviousRb450"],
+      },
+      [MINOWA_UNO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "minowa-uno-neo-weak-rb300",
+      "弱本命RB300型",
+      "対象39日 / 44台 / 総G160,181 / BB1/286.0 / RB1/299.4 / 合算1/146.3 / 平均-91.6枚 / 機械割99.16% / 勝率38.6% / 平均56 33.5% / 中央56 23.8% / 56>=50 22.7% / 56<30 65.9%",
+      {
+        minScore: 50,
+        requiredFlags: ["minowaUnoNeoHistory14Ready", "minowaUnoNeoPreviousRb450"],
+      },
+      [MINOWA_UNO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "minowa-uno-neo-main-rb290",
+      "本命RB290型",
+      "対象33日 / 34台 / 総G149,187 / BB1/266.4 / RB1/294.3 / 合算1/139.8 / 平均+328.5枚 / 機械割102.50% / 勝率55.9% / 平均56 36.4% / 中央56 24.8% / 56>=50 29.4% / 56<30 58.8%",
+      {
+        requiredFlags: ["minowaUnoNeoHistory14Ready", "minowaUnoNeoMainRb290"],
+      },
+      [MINOWA_UNO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "minowa-uno-neo-strong-rb280",
+      "強RB280型",
+      "対象22日 / 23台 / 総G94,743 / BB1/252.6 / RB1/288.0 / 合算1/134.6 / 平均+577.4枚 / 機械割104.67% / 勝率60.9% / 平均56 38.9% / 中央56 27.6% / 56>=50 34.8% / 56<30 52.2%",
+      {
+        requiredFlags: ["minowaUnoNeoHistory14Ready", "minowaUnoNeoStrongRb280"],
+      },
+      [MINOWA_UNO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "minowa-uno-neo-best-rb270",
+      "最本命RB270級",
+      "対象16日 / 17台 / 総G79,932 / BB1/274.7 / RB1/271.9 / 合算1/136.6 / 平均+301.8枚 / 機械割102.14% / 勝率41.2% / 平均56 40.8% / 中央56 32.5% / 56>=50 35.3% / 56<30 47.1%",
+      {
+        minScore: 30,
+        maxDanger: 0,
+        requiredFlags: ["minowaUnoNeoHistory14Ready", "minowaUnoNeoWinningRemain"],
+      },
+      [MINOWA_UNO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      MINOWA_UNO_NEO_AIM_DEFAULT_CONDITION,
+      "自由A_前日見えず深沈み本物",
+      "対象22日 / 23台 / RB1/288.0 / 合算1/134.6 / 平均+577.4枚 / 機械割104.67% / 平均56 38.9% / 中央56 27.6% / 56>=50 34.8% / 56<30 52.2%",
+      {
+        requiredFlags: ["minowaUnoNeoHistory14Ready", "minowaUnoNeoStrongRb280"],
+      },
+      [MINOWA_UNO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "minowa-uno-neo-free-b",
+      "自由B_深沈み5日合算本物",
+      "対象18日 / 18台 / RB1/280.8 / 合算1/139.9 / 平均+220.0枚 / 機械割101.64% / 平均56 39.6% / 中央56 28.3% / 56>=50 33.3% / 56<30 55.6%",
+      {
+        requiredFlags: ["minowaUnoNeoHistory14Ready", "minowaUnoNeoFreeB"],
+      },
+      [MINOWA_UNO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "minowa-uno-neo-free-c",
+      "自由C_勝ち残し再投入",
+      "対象16日 / 17台 / RB1/271.9 / 合算1/136.6 / 平均+301.8枚 / 機械割102.14% / 平均56 40.8% / 中央56 32.5% / 56>=50 35.3% / 56<30 47.1%",
+      {
+        minScore: 30,
+        maxDanger: 0,
+        requiredFlags: ["minowaUnoNeoHistory14Ready", "minowaUnoNeoWinningRemain"],
+      },
+      [MINOWA_UNO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "minowa-uno-neo-free-d",
+      "自由D_1位次点差＋前日RB悪",
+      "対象15日 / 15台 / RB1/285.3 / 合算1/135.3 / 平均+456.7枚 / 機械割102.90% / 平均56 39.5% / 中央56 27.2% / 56>=50 33.3% / 56<30 53.3%",
+      {
+        rankMax: 1,
+        minNextGap: 6,
+        requiredFlags: ["minowaUnoNeoHistory14Ready", "minowaUnoNeoPrevious3000", "minowaUnoNeoPreviousRb430"],
+      },
+      [MINOWA_UNO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "minowa-uno-neo-free-e",
+      "自由E_高スコア急沈みRB悪",
+      "対象16日 / 16台 / RB1/273.9 / 合算1/143.8 / 平均-168.1枚 / 機械割98.53% / 平均56 41.3% / 中央56 31.0% / 56>=50 37.5% / 56<30 50.0%",
+      {
+        minScore: 55,
+        requiredFlags: [
+          "minowaUnoNeoHistory14Ready",
+          "minowaUnoNeoFourteenSharpAngle",
+          "minowaUnoNeoPreviousRb450",
+        ],
+      },
+      [MINOWA_UNO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "minowa-uno-neo-watch-free-f",
+      "見送り_高点でも本命根拠なし",
+      "対象59日 / 78台 / RB1/357.3 / 合算1/156.8 / 平均-136.4枚 / 機械割98.88% / 平均56 23.9% / 中央56 19.0% / 56>=50 11.5% / 56<30 71.8%",
+      {
+        minScore: 45,
+        requiredFlags: ["minowaUnoNeoHistory14Ready", "minowaUnoNeoNoMainReason"],
+      },
+      [MINOWA_UNO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "minowa-uno-neo-watch-history-short",
+      "見送り_履歴14日未満",
+      "履歴14日未満は低信頼。点数も30点減点して原則見送り",
+      {
+        requiredFlags: ["minowaUnoNeoHistoryShort"],
+      },
+      [MINOWA_UNO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "minowa-uno-neo-watch-danger2",
+      "見送り_危険2個以上",
+      "処遇完了、長期放置、低稼働、見せ切り、前日弱すぎが2個以上なら原則見送り",
+      {
+        minDanger: 2,
+        requiredFlags: ["minowaUnoNeoHistory14Ready"],
+      },
+      [MINOWA_UNO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "minowa-uno-neo-watch-treatment",
+      "見送り_処遇完了",
+      "直近7日+1900枚以上、または直近14日+2350枚以上は処遇完了を警戒",
+      {
+        requiredFlags: ["minowaUnoNeoTreatmentDone"],
+      },
+      [MINOWA_UNO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "minowa-uno-neo-watch-long-neglect",
+      "見送り_長期放置",
+      "前回p56 50%以上から22営業日以上はローテ待ちより放置寄りで見る",
+      {
+        requiredFlags: ["minowaUnoNeoLongNeglect"],
+      },
+      [MINOWA_UNO_NEO_AIM_LOGIC_KEY],
+    ),
+  ];
+}
+
 function listDefinitionLogics(definition) {
   if (!definition) {
     return [];
@@ -4547,6 +4720,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         RAKUEN_AMEYOKO_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
+        MINOWA_UNO_NEO_AIM_LOGIC_KEY,
+        MINOWA_UNO_NEO_AIM_LOGIC_NAME,
+        MINOWA_UNO_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY,
         CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_NAME,
         CONCERT_HALL_KITASENJU_NEO_AIM_DEFAULT_CONDITION,
@@ -4777,6 +4955,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ...buildBellCityTheCityShinozakiNeoAimConditions(),
       ...buildOneTwoThreeNShinonomeNeoAimConditions(),
       ...buildRakuenAmeyokoNeoAimConditions(),
+      ...buildMinowaUnoNeoAimConditions(),
       buildCondition(
         "main",
         "1位＋70点以上＋3日沈み2日以上",
@@ -15048,6 +15227,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "wonderland-sue-neo-aim");
   } else if (isSengawaUnoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "sengawa-uno-neo-aim");
+  } else if (isMinowaUnoStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, MINOWA_UNO_NEO_AIM_LOGIC_KEY);
   } else if (isPlazaTenjinStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "plaza-tenjin-neo-aim");
   } else if (isPlazaHontenStore(storeName) && definition.machineKey === "neo-aim") {
@@ -16222,6 +16403,134 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         rakuenAmeyokoNeoNoBoost: boostCount === 0,
         treatmentDone: rakuenAmeyokoNeoTreatmentDone14 || rakuenAmeyokoNeoPreviousOutputDone,
         lowConfidence: rakuenAmeyokoNeoHistoryShort,
+        boostCount,
+        dangerCount,
+      };
+    }
+
+    if (activeLogicKey === MINOWA_UNO_NEO_AIM_LOGIC_KEY) {
+      const minowaUnoNeoHistory14Ready = historyRowCount >= 14;
+      const minowaUnoNeoHistoryShort = historyRowCount < 14;
+      const minowaUnoNeoPrevious3000 = previousGames >= 3000;
+      const minowaUnoNeoPreviousRb450 = previousGames > 0 && features.previousRbDenominator >= 450;
+      const minowaUnoNeoPreviousRb430 = previousGames > 0 && features.previousRbDenominator >= 430;
+      const minowaUnoNeoDeepSink =
+        recentSevenGamesTotal >= 15000 &&
+        (recentSevenNetTotal <= -2500 || recentFourteenNetTotal <= -5000);
+      const minowaUnoNeoSevenSharpAngle =
+        recentSevenGamesTotal > 0 && features.recentSevenAngle <= -100;
+      const minowaUnoNeoFourteenSharpAngle =
+        recentFourteenGamesTotal > 0 && features.recentFourteenAngle <= -150;
+      const minowaUnoNeoSharpAngle =
+        minowaUnoNeoSevenSharpAngle || minowaUnoNeoFourteenSharpAngle;
+      const minowaUnoNeoHighInterval8To21 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 8 &&
+        daysSinceMachineHighContent <= 21;
+      const minowaUnoNeoHighInterval12To21 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 12 &&
+        daysSinceMachineHighContent <= 21;
+      const minowaUnoNeoRepayUnfinished =
+        recentFourteenNetTotal <= -3330 && minowaUnoNeoHighInterval8To21;
+      const minowaUnoNeoFiveP56Good =
+        Number.isFinite(recentFiveMachineSettingFivePlusProbabilityAverage) &&
+        recentFiveMachineSettingFivePlusProbabilityAverage >= 0.285;
+      const minowaUnoNeoSevenP56Semi =
+        Number.isFinite(recentSevenMachineSettingFivePlusProbabilityAverage) &&
+        recentSevenMachineSettingFivePlusProbabilityAverage >= 0.236 &&
+        recentSevenMachineSettingFivePlusProbabilityAverage < 0.285;
+      const minowaUnoNeoFiveCombined154 =
+        recentFiveGamesTotal > 0 && features.recentFiveCombinedDenominator <= 154;
+      const minowaUnoNeoFiveBonusGenuine =
+        recentFiveGamesTotal > 0 &&
+        features.recentFiveRbDenominator <= 330 &&
+        features.recentFiveCombinedDenominator <= 154;
+      const minowaUnoNeoGenuine =
+        minowaUnoNeoFiveP56Good || minowaUnoNeoFiveBonusGenuine;
+      const minowaUnoNeoNeighborShow = adjacentMachineHighContentCount3Near2 >= 3;
+      const minowaUnoNeoNeighborPreviousHigh = previousAdjacentMachineHighContentCountNear2 > 0;
+      const minowaUnoNeoGamesTrust =
+        recentFourteenGamesTotal >= 41000 && recentFourteenGamesTotal <= 59000;
+      const minowaUnoNeoTreatmentDone =
+        recentSevenNetTotal >= 1900 || recentFourteenNetTotal >= 2350;
+      const minowaUnoNeoLongNeglect =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 22;
+      const minowaUnoNeoLowGames = recentSevenGamesTotal < 15000;
+      const minowaUnoNeoOverShown = recentFourteenGamesTotal > 59000;
+      const minowaUnoNeoPreviousTooWeak =
+        previousGames >= 3000 &&
+        features.previousRbDenominator > 450 &&
+        features.previousCombinedDenominator > 180;
+      const minowaUnoNeoWinningRemain = winningStreak >= 2;
+      const minowaUnoNeoMainRb290 = minowaUnoNeoFiveCombined154 && minowaUnoNeoDeepSink;
+      const minowaUnoNeoStrongRb280 =
+        minowaUnoNeoPrevious3000 && minowaUnoNeoFiveCombined154 && minowaUnoNeoDeepSink;
+      const minowaUnoNeoFreeB = recentSevenNetTotal <= -2500 && minowaUnoNeoFiveCombined154;
+
+      const dangerFlags = [
+        minowaUnoNeoTreatmentDone,
+        minowaUnoNeoLongNeglect,
+        minowaUnoNeoLowGames,
+        minowaUnoNeoOverShown,
+        minowaUnoNeoPreviousTooWeak,
+      ];
+      const dangerCount = dangerFlags.filter(Boolean).length;
+      const minowaUnoNeoNoMainReason =
+        !minowaUnoNeoPreviousRb450 &&
+        !minowaUnoNeoMainRb290 &&
+        !(minowaUnoNeoWinningRemain && dangerCount === 0);
+      const boostFlags = [
+        minowaUnoNeoDeepSink,
+        minowaUnoNeoSharpAngle,
+        minowaUnoNeoRepayUnfinished,
+        minowaUnoNeoGenuine,
+        minowaUnoNeoNeighborShow,
+        minowaUnoNeoPreviousRb450,
+        minowaUnoNeoPreviousRb430,
+        minowaUnoNeoFiveP56Good,
+        minowaUnoNeoSevenP56Semi,
+        minowaUnoNeoHighInterval12To21,
+        minowaUnoNeoWinningRemain,
+        minowaUnoNeoNeighborPreviousHigh,
+        minowaUnoNeoGamesTrust,
+      ];
+      const boostCount = boostFlags.filter(Boolean).length;
+
+      return {
+        ...features,
+        minowaUnoNeoHistory14Ready,
+        minowaUnoNeoHistoryShort,
+        minowaUnoNeoPrevious3000,
+        minowaUnoNeoPreviousRb450,
+        minowaUnoNeoPreviousRb430,
+        minowaUnoNeoDeepSink,
+        minowaUnoNeoSevenSharpAngle,
+        minowaUnoNeoFourteenSharpAngle,
+        minowaUnoNeoSharpAngle,
+        minowaUnoNeoHighInterval8To21,
+        minowaUnoNeoHighInterval12To21,
+        minowaUnoNeoRepayUnfinished,
+        minowaUnoNeoFiveP56Good,
+        minowaUnoNeoSevenP56Semi,
+        minowaUnoNeoFiveCombined154,
+        minowaUnoNeoFiveBonusGenuine,
+        minowaUnoNeoGenuine,
+        minowaUnoNeoNeighborShow,
+        minowaUnoNeoNeighborPreviousHigh,
+        minowaUnoNeoGamesTrust,
+        minowaUnoNeoTreatmentDone,
+        minowaUnoNeoLongNeglect,
+        minowaUnoNeoLowGames,
+        minowaUnoNeoOverShown,
+        minowaUnoNeoPreviousTooWeak,
+        minowaUnoNeoWinningRemain,
+        minowaUnoNeoMainRb290,
+        minowaUnoNeoStrongRb280,
+        minowaUnoNeoFreeB,
+        minowaUnoNeoNoMainReason,
+        treatmentDone: minowaUnoNeoTreatmentDone,
+        lowConfidence: minowaUnoNeoHistoryShort || minowaUnoNeoLowGames,
         boostCount,
         dangerCount,
       };
@@ -27885,6 +28194,52 @@ function calculateMachineScore(definition, metrics, features) {
       score -= recentSevenMachineHighContentCount >= 3 ? 4 : 0;
       score -= recentSevenGamesTotal < 15000 ? 4 : 0;
       score -= historyRowCount < 7 ? 10 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === MINOWA_UNO_NEO_AIM_LOGIC_KEY) {
+      let score = 0;
+
+      if (recentFourteenNetTotal <= -6000) {
+        score += 18;
+      } else if (recentFourteenNetTotal <= -3330) {
+        score += 12;
+      }
+
+      if (recentSevenNetTotal <= -2500) {
+        score += 12;
+      } else if (recentSevenNetTotal <= -1000) {
+        score += 7;
+      }
+
+      score += recentSevenGamesTotal > 0 && features.recentSevenAngle <= -100 ? 8 : 0;
+      score += recentFourteenGamesTotal > 0 && features.recentFourteenAngle <= -150 ? 7 : 0;
+      score += previousGames > 0 && previousCombinedDenominator >= 330 ? 8 : 0;
+      score += previousGames > 0 && previousRbDenominator >= 430 ? 5 : 0;
+
+      score +=
+        Number.isFinite(recentFiveMachineSettingFivePlusProbabilityAverage) &&
+        recentFiveMachineSettingFivePlusProbabilityAverage >= 0.285
+          ? 8
+          : 0;
+      score +=
+        Number.isFinite(recentSevenMachineSettingFivePlusProbabilityAverage) &&
+        recentSevenMachineSettingFivePlusProbabilityAverage >= 0.236 &&
+        recentSevenMachineSettingFivePlusProbabilityAverage < 0.285
+          ? 5
+          : 0;
+      score += scoreInRange(daysSinceMachineHighContent, 12, 21, 7);
+      score += winningStreak >= 2 ? 5 : 0;
+      score += adjacentMachineHighContentCount3Near2 >= 3 ? 8 : 0;
+      score += previousAdjacentMachineHighContentCountNear2 > 0 ? 4 : 0;
+      score += recentFourteenGamesTotal >= 41000 && recentFourteenGamesTotal <= 59000 ? 4 : 0;
+
+      score -= recentSevenNetTotal >= 1900 ? 12 : 0;
+      score -= recentFourteenNetTotal >= 2350 ? 14 : 0;
+      score -= Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 22 ? 8 : 0;
+      score -= recentFourteenGamesTotal > 59000 ? 6 : 0;
+      score -= historyRowCount < 14 ? 30 : 0;
 
       return Math.round(clamp(score, 0, 100));
     }
