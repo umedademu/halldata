@@ -319,6 +319,10 @@ const CONCERT_HALL_KITASENJU_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const KYUDEN_ANNEX_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const KINTOKI_KAMATA_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
@@ -934,6 +938,22 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "concert-hall-kitasenju-neo-aim",
       "ネオアイムジャグラーＥＸ": "concert-hall-kitasenju-neo-aim",
+    },
+  },
+  {
+    key: "kyuden-annex",
+    storeNames: [
+      "キューデン・アネックス",
+      "キューデン・アネックス店",
+      "キューデンアネックス",
+      "キューデンアネックス店",
+      "KYUDEN ANNEX",
+    ],
+    targetMachines: KYUDEN_ANNEX_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "kyuden-annex-neo-aim",
+      "ネオアイムジャグラーＥＸ": "kyuden-annex-neo-aim",
     },
   },
   {
@@ -2221,6 +2241,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
+    if (contentRule === "kyuden-annex-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     if (contentRule === "kintoki-kamata-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -2690,6 +2717,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     }
     if (contentRule === "concert-hall-kitasenju-neo-aim") {
       return games >= 3000 && rbDenominator <= 310 && combinedDenominator <= 145;
+    }
+    if (contentRule === "kyuden-annex-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.35;
+      }
+      return games >= 3000 && rbDenominator <= 350 && combinedDenominator <= 160;
     }
     if (contentRule === "kintoki-kamata-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -3292,6 +3326,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "concert-hall-kitasenju-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "kyuden-annex-neo-aim"
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     if (Number.isFinite(settingFivePlusProbability)) {
@@ -9313,8 +9357,10 @@ function calculateWindowMetrics(
   const recentSevenBigShowDays = countBigShowRows(recentSevenRows);
   const recentThreeStrictHighContentDays = countStrictHighContentRows(recentThreeRows);
   const recentSevenStrictHighContentDays = countStrictHighContentRows(recentSevenRows);
+  const recentThreeBigWin1200Count = countDifferenceAtLeastRows(recentThreeRows, 1200);
   const recentFiveBigWin1000Count = countDifferenceAtLeastRows(recentFiveRows, 1000);
   const recentFiveBigWin1200Count = countDifferenceAtLeastRows(recentFiveRows, 1200);
+  const recentSevenBigWin2500Count = countDifferenceAtLeastRows(recentSevenRows, 2500);
   const recentThreeRawDifferenceTotal = sumRawDifferenceValues(recentThreeRows);
   const recentFiveRawDifferenceTotal = sumRawDifferenceValues(recentFiveRows);
   const recentThreeRawDifferenceCount = countRawDifferenceValueRows(recentThreeRows);
@@ -9485,6 +9531,7 @@ function calculateWindowMetrics(
     recentSevenMachineSettingFivePlusProbabilityAverage,
     recentTenMachineSettingFivePlusProbabilityAverage,
     recentTwentyOneMachineSettingFivePlusProbabilityAverage,
+    recentThreeBigWin1200Count,
     recentFiveBigWin1000Count,
     daysSinceMachineHighContent,
     daysSinceMachineGoodContent,
@@ -9522,6 +9569,7 @@ function calculateWindowMetrics(
     recentTwoSettingAverage,
     recentFiveSettingAverage,
     windowSettingAverage,
+    recentSevenBigWin2500Count,
     historyRowCount,
     targetRangeHistoryRowCount,
     historySettingSampleCount,

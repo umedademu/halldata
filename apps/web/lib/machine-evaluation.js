@@ -97,6 +97,9 @@ const CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_NAME =
   "コンサートホール北千住_ネオアイムEX_56狙い全日共通ロジック";
 const CONCERT_HALL_KITASENJU_NEO_AIM_DEFAULT_CONDITION =
   "concert-hall-kitasenju-neo-weak70-boost2-safe";
+const KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY = "kyuden-annex-neo-aim";
+const KYUDEN_ANNEX_NEO_AIM_LOGIC_NAME = "キューデンアネックス_ネオアイムEX_全日共通_v1";
+const KYUDEN_ANNEX_NEO_AIM_DEFAULT_CONDITION = "kyuden-annex-neo-strong280";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -547,6 +550,17 @@ function isConcertHallKitasenjuStore(storeName) {
   return ["コンサートホール北千住", "コンサートホール北千住店", "コンサートホール北千住駅前店"].some(
     (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
   );
+}
+
+function isKyudenAnnexStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "キューデン・アネックス",
+    "キューデン・アネックス店",
+    "キューデンアネックス",
+    "キューデンアネックス店",
+    "KYUDEN ANNEX",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
 function isPlazaTenjinStore(storeName) {
@@ -3686,6 +3700,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         CONCERT_HALL_KITASENJU_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
+        KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY,
+        KYUDEN_ANNEX_NEO_AIM_LOGIC_NAME,
+        KYUDEN_ANNEX_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         "messe-minamisenju-neo-aim",
         "メッセ南千住_ネオアイムEX_全日共通_未返済沈み滞在ロジック_v1",
         "messe-minamisenju-free-14rb",
@@ -6279,6 +6298,164 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["concertHallKitasenjuNeoHistoryReady", "concertHallKitasenjuNeoLongNeglect"],
         },
         [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "kyuden-annex-neo-free-strong270",
+        "自由最強270_少数注意",
+        "12台 / RB1/264.0 / 合算1/137.1 / 平均+144.9枚 / 101.25% / 平均56 45.2% / 56>=50 50.0% / 点数より優先可・少数注意",
+        {
+          requiredFlags: ["kyudenAnnexNeoHistoryReady", "kyudenAnnexNeoFreeStrong270"],
+        },
+        [KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "kyuden-annex-neo-best270-small",
+        "最本命270小_少数注意",
+        "8台 / RB1/259.9 / 合算1/138.7 / 平均+10.4枚 / 100.07% / 平均56 50.5% / 56>=50 50.0% / 1位差10＋7日沈み本物",
+        {
+          rankMax: 1,
+          minNextGap: 10,
+          requiredFlags: ["kyudenAnnexNeoHistoryReady", "kyudenAnnexNeoSevenSinkReal"],
+        },
+        [KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        KYUDEN_ANNEX_NEO_AIM_DEFAULT_CONDITION,
+        "強条件280",
+        "41台 / RB1/276.3 / 合算1/141.5 / 平均-3.5枚 / 99.97% / 勝率46.3% / 平均56 40.6% / 日内1位＋次点差7",
+        {
+          rankMax: 1,
+          minNextGap: 7,
+          requiredFlags: ["kyudenAnnexNeoHistoryReady"],
+        },
+        [KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "kyuden-annex-neo-main290",
+        "本命290",
+        "60台 / RB1/289.2 / 合算1/144.8 / 平均-63.5枚 / 99.43% / 平均56 37.2% / 日内1位＋次点差5",
+        {
+          rankMax: 1,
+          minNextGap: 5,
+          requiredFlags: ["kyudenAnnexNeoHistoryReady"],
+        },
+        [KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "kyuden-annex-neo-weak300",
+        "弱本命300",
+        "87台 / RB1/299.6 / 合算1/144.2 / 平均+39.5枚 / 100.36% / 平均56 35.1% / 日内1位＋次点差2",
+        {
+          rankMax: 1,
+          minNextGap: 2,
+          requiredFlags: ["kyudenAnnexNeoHistoryReady"],
+        },
+        [KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "kyuden-annex-neo-wide310",
+        "広め310",
+        "118台 / RB1/304.0 / 合算1/142.9 / 平均+134.2枚 / 101.23% / 勝率50.0% / 平均56 34.4% / 日内1位",
+        {
+          rankMax: 1,
+          requiredFlags: ["kyudenAnnexNeoHistoryReady"],
+        },
+        [KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "kyuden-annex-neo-seven-sink-real",
+        "7日沈み本物",
+        "39台 / RB1/300.0 / 合算1/145.0 / 平均-10.7枚 / 99.91% / 平均56 35.4% / スコア核",
+        {
+          requiredFlags: ["kyudenAnnexNeoHistoryReady", "kyudenAnnexNeoSevenSinkReal"],
+        },
+        [KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "kyuden-annex-neo-fourteen-real-unprocessed",
+        "14日本物未処遇",
+        "37台 / RB1/289.8 / 合算1/143.5 / 平均+43.1枚 / 100.40% / 勝率54.1% / 平均56 37.8% / 点数補完",
+        {
+          requiredFlags: ["kyudenAnnexNeoHistoryReady", "kyudenAnnexNeoFourteenRealUnprocessed"],
+        },
+        [KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "kyuden-annex-neo-diff-recovery",
+        "差枚回収型",
+        "20台 / RB1/302.6 / 合算1/133.9 / 平均+510.2枚 / 104.95% / 勝率55.0% / BB寄り注意",
+        {
+          requiredFlags: ["kyudenAnnexNeoHistoryReady", "kyudenAnnexNeoDiffRecovery"],
+        },
+        [KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "kyuden-annex-neo-previous-high-continuation",
+        "前日高内容継続",
+        "36台 / RB1/294.9 / 合算1/145.4 / 平均56 35.8% / 据え置き・再投入候補",
+        {
+          requiredFlags: ["kyudenAnnexNeoHistoryReady", "kyudenAnnexNeoPreviousHighContinuation"],
+        },
+        [KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "kyuden-annex-neo-watch-danger2",
+        "見送り_危険2以上",
+        "危険条件2個以上は深沈み放置、出玉だけ処遇、直近内容弱さを重く見る",
+        {
+          minDanger: 2,
+          requiredFlags: ["kyudenAnnexNeoHistoryReady"],
+        },
+        [KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "kyuden-annex-neo-watch-score55-no-core",
+        "見送り_55点未満コアなし",
+        "55点未満かつコア条件なしは原則見送り",
+        {
+          maxScore: 54.999,
+          requiredFlags: ["kyudenAnnexNeoHistoryReady", "kyudenAnnexNeoNoCore"],
+        },
+        [KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "kyuden-annex-neo-watch-rank1-gap2-boost0",
+        "見送り_1位差2未満強化なし",
+        "日内1位でも次点差2点未満かつ強化0なら優先度を下げる",
+        {
+          rankMax: 1,
+          maxNextGap: 1.999,
+          maxBoost: 0,
+          requiredFlags: ["kyudenAnnexNeoHistoryReady"],
+        },
+        [KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "kyuden-annex-neo-watch-deep-sink-neglected",
+        "見送り_深沈み放置",
+        "14日差枚-5000枚未満かつ14日REGが重い台は凹み狙いに見えて危険",
+        {
+          requiredFlags: ["kyudenAnnexNeoHistoryReady", "kyudenAnnexNeoDeepSinkNeglected"],
+        },
+        [KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "kyuden-annex-neo-watch-history-short",
+        "見送り_履歴7日未満",
+        "履歴7日未満は採用条件対象外。点数が必要な場合も最大40点に制限",
+        {
+          requiredFlags: ["kyudenAnnexNeoHistoryShort"],
+        },
+        [KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "kyuden-annex-neo-watch-low-games7",
+        "見送り_7日G不足",
+        "直近7日G数7000未満は履歴信頼度が低い",
+        {
+          requiredFlags: ["kyudenAnnexNeoHistoryReady", "kyudenAnnexNeoLowGames7"],
+        },
+        [KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "messe-minamisenju-free-14rb",
@@ -11695,6 +11872,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY);
   } else if (isConcertHallKitasenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY);
+  } else if (isKyudenAnnexStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY);
   } else if (isMesseMinamisenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "messe-minamisenju-neo-aim");
   } else if (isMesseOkudoStore(storeName) && definition.machineKey === "neo-aim") {
@@ -12400,8 +12579,10 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const machineHighContentStreak = readNumber(metrics.machineHighContentStreak);
   const machineLowContentStreak = readNumber(metrics.machineLowContentStreak);
   const machineWeakContentStreak = readNumber(metrics.machineWeakContentStreak);
+  const recentThreeBigWin1200Count = readNumber(metrics.recentThreeBigWin1200Count);
   const recentFiveBigWin1200Count = readNumber(metrics.recentFiveBigWin1200Count);
   const recentFiveBigWin1000Count = readNumber(metrics.recentFiveBigWin1000Count);
+  const recentSevenBigWin2500Count = readNumber(metrics.recentSevenBigWin2500Count);
   const previousAdjacentMachineWeakContentCount = readNumber(metrics.previousAdjacentMachineWeakContentCount);
   const recentThreeRawDifferenceTotal = readNumber(metrics.recentThreeRawDifferenceTotal);
   const recentFiveRawDifferenceTotal = readNumber(metrics.recentFiveRawDifferenceTotal);
@@ -17101,6 +17282,194 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
           espaceShinkoiwaNorthNeoHistoryShort ||
           espaceShinkoiwaNorthNeoLowGamesUnknown ||
           recentSevenGamesTotal < 18000,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY) {
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      const kyudenAnnexNeoHistoryReady = historyRowCount >= 7;
+      const kyudenAnnexNeoHistoryShort = historyRowCount < 7;
+      const kyudenAnnexNeoHistory14Ready = historyRowCount >= 14;
+      const kyudenAnnexNeoPreviousHighContinuation =
+        previousGames >= 6000 &&
+        Number.isFinite(previousP56) &&
+        previousP56 >= 0.5 &&
+        previousDifference <= 1500;
+      const kyudenAnnexNeoCoreB =
+        previousGames >= 3000 &&
+        Number.isFinite(previousP56) &&
+        previousP56 >= 0.5 &&
+        previousDifference <= 500;
+      const kyudenAnnexNeoCoreC =
+        previousGames >= 2000 &&
+        features.previousRbDenominator <= 300 &&
+        features.previousCombinedDenominator <= 150 &&
+        previousDifference <= 0;
+      const kyudenAnnexNeoCoreD =
+        previousGames >= 3000 && Number.isFinite(previousP56) && previousP56 >= 0.5;
+      const kyudenAnnexNeoSevenSinkReal =
+        recentSevenNetTotal <= -1500 &&
+        features.recentSevenRbDenominator <= 300 &&
+        recentSevenGamesTotal >= 10000;
+      const kyudenAnnexNeoCoreF =
+        recentSevenNetTotal <= -1000 &&
+        features.recentSevenRbDenominator <= 300 &&
+        recentSevenGamesTotal >= 7000;
+      const kyudenAnnexNeoCoreG =
+        recentFiveNetTotal <= -1000 &&
+        features.recentFiveRbDenominator <= 300 &&
+        recentFiveGamesTotal >= 7000;
+      const kyudenAnnexNeoCoreH =
+        recentSevenNetTotal <= -1500 &&
+        features.recentSevenRbDenominator <= 330 &&
+        recentSevenGamesTotal >= 7000;
+      const kyudenAnnexNeoCoreI =
+        recentFourteenNetTotal >= -3000 &&
+        recentFourteenNetTotal <= -500 &&
+        recentFourteenGamesTotal >= 18000;
+      const kyudenAnnexNeoCorePoints = Math.max(
+        kyudenAnnexNeoPreviousHighContinuation ? 24 : 0,
+        kyudenAnnexNeoCoreB ? 20 : 0,
+        kyudenAnnexNeoCoreC ? 18 : 0,
+        kyudenAnnexNeoCoreD ? 10 : 0,
+        kyudenAnnexNeoSevenSinkReal ? 24 : 0,
+        kyudenAnnexNeoCoreF ? 20 : 0,
+        kyudenAnnexNeoCoreG ? 18 : 0,
+        kyudenAnnexNeoCoreH ? 12 : 0,
+        kyudenAnnexNeoCoreI ? 8 : 0,
+      );
+      const kyudenAnnexNeoCoreAny = kyudenAnnexNeoCorePoints > 0;
+      const kyudenAnnexNeoCorePreviousOnly =
+        (kyudenAnnexNeoPreviousHighContinuation || kyudenAnnexNeoCoreB || kyudenAnnexNeoCoreC || kyudenAnnexNeoCoreD) &&
+        !kyudenAnnexNeoSevenSinkReal &&
+        !kyudenAnnexNeoCoreF &&
+        !kyudenAnnexNeoCoreG &&
+        !kyudenAnnexNeoCoreH &&
+        !kyudenAnnexNeoCoreI;
+      const kyudenAnnexNeoRb7VeryReal =
+        features.recentSevenRbDenominator <= 280 &&
+        features.recentSevenCombinedDenominator <= 150 &&
+        recentSevenGamesTotal >= 10000;
+      const kyudenAnnexNeoRb7Real =
+        features.recentSevenRbDenominator <= 300 &&
+        features.recentSevenCombinedDenominator <= 150 &&
+        recentSevenGamesTotal >= 10000;
+      const kyudenAnnexNeoFourteenRealUnprocessed =
+        features.recentFourteenRbDenominator <= 300 &&
+        features.recentFourteenCombinedDenominator <= 150 &&
+        recentFourteenNetTotal <= 0 &&
+        recentFourteenGamesTotal >= 20000;
+      const kyudenAnnexNeoFourteenReturnUnfinished =
+        recentFourteenNetTotal <= -1000 &&
+        recentThreeBigWin1200Count === 0 &&
+        recentFourteenGamesTotal >= 18000;
+      const kyudenAnnexNeoTwentyOneReturnUnfinished =
+        recentTwentyOneNetTotal <= -1500 &&
+        recentSevenBigWin2500Count === 0 &&
+        recentTwentyOneGamesTotal >= 25000;
+      const kyudenAnnexNeoLoss3 = streak >= 3 && recentThreeGamesTotal >= 3000;
+      const kyudenAnnexNeoGames7Strong = recentSevenGamesTotal >= 20000;
+      const kyudenAnnexNeoGames7Middle = recentSevenGamesTotal >= 14000;
+      const kyudenAnnexNeoGames7Minimum = recentSevenGamesTotal >= 9000;
+      const kyudenAnnexNeoPreviousGames3000 = previousGames >= 3000;
+      const kyudenAnnexNeoNeighborPreviousShow =
+        recentSevenNetTotal < 0 &&
+        (previousAdjacentMachineHighContentCount > 0 || previousAdjacentMachineBigWin1000Count > 0);
+      const kyudenAnnexNeoFreeStrong270 =
+        previousGames >= 6000 &&
+        Number.isFinite(previousP56) &&
+        previousP56 >= 0.5 &&
+        previousDifference <= 1000 &&
+        recentSevenNetTotal <= -500;
+      const kyudenAnnexNeoDiffRecovery =
+        recentSevenNetTotal <= -2500 &&
+        features.recentSevenRbDenominator <= 310 &&
+        recentSevenGamesTotal >= 20000;
+      const kyudenAnnexNeoLowGames7 = recentSevenGamesTotal < 7000;
+      const kyudenAnnexNeoLongNeglect =
+        ((Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 21) ||
+          (!Number.isFinite(daysSinceMachineHighContent) &&
+            historyRowCount >= 21 &&
+            recentTwentyOneMachineHighContentCount === 0)) &&
+        recentTwentyOneMachineHighContentCount === 0 &&
+        recentTwentyOneNetTotal < -5000;
+      const kyudenAnnexNeoOutputOnlyDone =
+        previousDifference >= 2000 && (!Number.isFinite(previousP56) || previousP56 < 0.5);
+      const kyudenAnnexNeoRecent3OutputNoHigh =
+        recentThreeNetTotal >= 2500 && recentThreeMachineHighContentCount === 0;
+      const kyudenAnnexNeoDeepSinkNeglected =
+        recentFourteenNetTotal < -5000 && features.recentFourteenRbDenominator > 350;
+      const kyudenAnnexNeoWeakRecent7 =
+        features.recentSevenRbDenominator > 400 &&
+        features.recentSevenCombinedDenominator > 160 &&
+        recentSevenGamesTotal >= 10000;
+      const kyudenAnnexNeoLosing6Weak21 =
+        streak >= 6 && recentTwentyOneNetTotal < -4000 && features.recentTwentyOneRbDenominator > 350;
+      const kyudenAnnexNeoNoCore = !kyudenAnnexNeoCoreAny;
+      const kyudenAnnexNeoPreviousOnlyNoUnprocessed =
+        kyudenAnnexNeoCorePreviousOnly && recentSevenNetTotal > -1000 && recentFourteenNetTotal > -1000;
+      const boostFlags = [
+        kyudenAnnexNeoPreviousHighContinuation,
+        kyudenAnnexNeoSevenSinkReal,
+        kyudenAnnexNeoFourteenRealUnprocessed,
+        kyudenAnnexNeoFourteenReturnUnfinished,
+        kyudenAnnexNeoFreeStrong270,
+        kyudenAnnexNeoDiffRecovery,
+      ];
+      const dangerFlags = [
+        kyudenAnnexNeoLowGames7,
+        kyudenAnnexNeoLongNeglect,
+        kyudenAnnexNeoOutputOnlyDone,
+        kyudenAnnexNeoRecent3OutputNoHigh,
+        kyudenAnnexNeoDeepSinkNeglected,
+        kyudenAnnexNeoWeakRecent7,
+        kyudenAnnexNeoLosing6Weak21,
+        kyudenAnnexNeoHistoryShort,
+      ];
+
+      return {
+        ...features,
+        kyudenAnnexNeoHistoryReady,
+        kyudenAnnexNeoHistoryShort,
+        kyudenAnnexNeoHistory14Ready,
+        kyudenAnnexNeoPreviousHighContinuation,
+        kyudenAnnexNeoCoreB,
+        kyudenAnnexNeoCoreC,
+        kyudenAnnexNeoCoreD,
+        kyudenAnnexNeoSevenSinkReal,
+        kyudenAnnexNeoCoreF,
+        kyudenAnnexNeoCoreG,
+        kyudenAnnexNeoCoreH,
+        kyudenAnnexNeoCoreI,
+        kyudenAnnexNeoCorePoints,
+        kyudenAnnexNeoCoreAny,
+        kyudenAnnexNeoCorePreviousOnly,
+        kyudenAnnexNeoRb7VeryReal,
+        kyudenAnnexNeoRb7Real,
+        kyudenAnnexNeoFourteenRealUnprocessed,
+        kyudenAnnexNeoFourteenReturnUnfinished,
+        kyudenAnnexNeoTwentyOneReturnUnfinished,
+        kyudenAnnexNeoLoss3,
+        kyudenAnnexNeoGames7Strong,
+        kyudenAnnexNeoGames7Middle,
+        kyudenAnnexNeoGames7Minimum,
+        kyudenAnnexNeoPreviousGames3000,
+        kyudenAnnexNeoNeighborPreviousShow,
+        kyudenAnnexNeoFreeStrong270,
+        kyudenAnnexNeoDiffRecovery,
+        kyudenAnnexNeoLowGames7,
+        kyudenAnnexNeoLongNeglect,
+        kyudenAnnexNeoOutputOnlyDone,
+        kyudenAnnexNeoRecent3OutputNoHigh,
+        kyudenAnnexNeoDeepSinkNeglected,
+        kyudenAnnexNeoWeakRecent7,
+        kyudenAnnexNeoLosing6Weak21,
+        kyudenAnnexNeoNoCore,
+        kyudenAnnexNeoPreviousOnlyNoUnprocessed,
+        treatmentDone: kyudenAnnexNeoOutputOnlyDone || kyudenAnnexNeoRecent3OutputNoHigh,
+        lowConfidence: kyudenAnnexNeoHistoryShort || kyudenAnnexNeoLowGames7,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -25217,6 +25586,73 @@ function calculateMachineScore(definition, metrics, features) {
         gamesScore +
         neighborScore -
         penalty;
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
+    if (activeLogicKey === KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY) {
+      let scoreCap = 100;
+      if (historyRowCount < 7) {
+        scoreCap = 40;
+      } else if (historyRowCount < 14) {
+        scoreCap = 70;
+      }
+
+      let assistScore = 0;
+      assistScore += features.kyudenAnnexNeoRb7VeryReal ? 8 : 0;
+      assistScore += features.kyudenAnnexNeoRb7Real ? 6 : 0;
+      assistScore += features.kyudenAnnexNeoFourteenRealUnprocessed ? 4 : 0;
+      assistScore += features.kyudenAnnexNeoFourteenReturnUnfinished ? 7 : 0;
+      assistScore += features.kyudenAnnexNeoTwentyOneReturnUnfinished ? 5 : 0;
+      assistScore += features.kyudenAnnexNeoLoss3 ? 2 : 0;
+      assistScore += features.kyudenAnnexNeoGames7Strong
+        ? 5
+        : features.kyudenAnnexNeoGames7Middle
+          ? 3
+          : features.kyudenAnnexNeoGames7Minimum
+            ? 1
+            : 0;
+      assistScore += features.kyudenAnnexNeoPreviousGames3000 ? 1 : 0;
+      assistScore += features.kyudenAnnexNeoNeighborPreviousShow ? 2 : 0;
+      assistScore = Math.min(assistScore, 20);
+
+      let penalty = 0;
+      if (features.kyudenAnnexNeoLowGames7) {
+        penalty += 7;
+        scoreCap = Math.min(scoreCap, 62);
+      }
+      if (features.kyudenAnnexNeoLongNeglect) {
+        penalty += 5;
+        scoreCap = Math.min(scoreCap, 68);
+      }
+      if (features.kyudenAnnexNeoOutputOnlyDone) {
+        penalty += 6;
+        scoreCap = Math.min(scoreCap, 66);
+      }
+      if (features.kyudenAnnexNeoRecent3OutputNoHigh) {
+        penalty += 6;
+        scoreCap = Math.min(scoreCap, 68);
+      }
+      if (features.kyudenAnnexNeoDeepSinkNeglected) {
+        penalty += 8;
+        scoreCap = Math.min(scoreCap, 62);
+      }
+      if (features.kyudenAnnexNeoWeakRecent7) {
+        penalty += 6;
+        scoreCap = Math.min(scoreCap, 64);
+      }
+      if (features.kyudenAnnexNeoLosing6Weak21) {
+        penalty += 5;
+        scoreCap = Math.min(scoreCap, 62);
+      }
+      if (features.kyudenAnnexNeoNoCore) {
+        scoreCap = Math.min(scoreCap, 58);
+      }
+      if (features.kyudenAnnexNeoPreviousOnlyNoUnprocessed) {
+        scoreCap = Math.min(scoreCap, 78);
+      }
+
+      const baseScore = historyRowCount >= 7 ? 34 : 20;
+      const score = baseScore + readNumber(features.kyudenAnnexNeoCorePoints) + assistScore - penalty;
       return Math.round(clamp(score, 0, scoreCap));
     }
 
