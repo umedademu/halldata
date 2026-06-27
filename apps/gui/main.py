@@ -115,6 +115,15 @@ MY_HALL_PROFILE_ID_BY_LABEL = {
 MY_HALL_PROFILE_LABEL_BY_ID = dict(MY_HALL_PROFILE_OPTIONS)
 SITE7_BROWSER_MODE_VISIBLE = "visible"
 SITE7_BROWSER_MODE_HIDDEN = "hidden"
+FETCH_ORDER_REGION_MODE_AS_IS = "現状のまま"
+FETCH_ORDER_REGION_MODE_FUKUOKA = "福岡の店舗を優先"
+FETCH_ORDER_REGION_MODE_TOKYO = "東京の店舗を優先"
+FETCH_ORDER_REGION_MODE_OPTIONS = (
+    FETCH_ORDER_REGION_MODE_AS_IS,
+    FETCH_ORDER_REGION_MODE_FUKUOKA,
+    FETCH_ORDER_REGION_MODE_TOKYO,
+)
+DEFAULT_FETCH_ORDER_REGION_MODE = FETCH_ORDER_REGION_MODE_FUKUOKA
 JST = timezone(timedelta(hours=9))
 REGISTERED_STORE_COLUMNS = (
     "頻度",
@@ -250,6 +259,13 @@ def normalize_site7_browser_mode(value: object) -> str:
     if text == SITE7_BROWSER_MODE_HIDDEN:
         return SITE7_BROWSER_MODE_HIDDEN
     return SITE7_BROWSER_MODE_VISIBLE
+
+
+def normalize_fetch_order_region_mode(value: object) -> str:
+    text = str(value).strip()
+    if text in FETCH_ORDER_REGION_MODE_OPTIONS:
+        return text
+    return DEFAULT_FETCH_ORDER_REGION_MODE
 
 
 def normalize_schedule_enabled(value: object, default: bool = True) -> bool:
@@ -985,6 +1001,7 @@ class MinRepoApp:
         self.schedule_supplemental_store_last_run_dates = self._load_saved_schedule_supplemental_store_last_run_dates()
         self.web_publish_mode = self._load_saved_web_publish_mode()
         self.web_publish_interval_days = self._load_saved_web_publish_interval_days()
+        self.fetch_order_region_mode = self._load_saved_fetch_order_region_mode()
         self.site7_browser_mode: str = self._load_saved_site7_browser_mode()
         self.site7_target_machine_names = tuple(list_site7_target_machine_names())
         self.site7_enabled_machine_names_by_source = self._load_saved_site7_enabled_machine_names_by_source()
@@ -1031,6 +1048,7 @@ class MinRepoApp:
         self.minrepo_fetch_mode_var = tk.StringVar(value=DEFAULT_MINREPO_FETCH_MODE)
         self.web_publish_mode_var = tk.StringVar(value=self.web_publish_mode)
         self.web_publish_interval_days_var = tk.StringVar(value=str(self.web_publish_interval_days))
+        self.fetch_order_region_mode_var = tk.StringVar(value=self.fetch_order_region_mode)
         self.status_var = tk.StringVar(value="待機中")
         self.summary_var = tk.StringVar(value="未取得")
         self.fetch_progress_value_var = tk.DoubleVar(value=0.0)
@@ -1158,9 +1176,27 @@ class MinRepoApp:
         self.minrepo_fetch_mode_selector.grid(row=2, column=1, sticky="w", pady=4)
         ttk.Label(self.fetch_form, text="通常 / 高速 / 強並列").grid(row=2, column=1, sticky="w", padx=(84, 0), pady=4)
 
-        ttk.Label(self.fetch_form, text="Web反映").grid(row=3, column=0, sticky="w", padx=(0, 8), pady=4)
+        ttk.Label(self.fetch_form, text="店舗取得順").grid(row=3, column=0, sticky="w", padx=(0, 8), pady=4)
+        self.fetch_order_region_selector = ttk.Combobox(
+            self.fetch_form,
+            textvariable=self.fetch_order_region_mode_var,
+            values=FETCH_ORDER_REGION_MODE_OPTIONS,
+            state="readonly",
+            width=18,
+        )
+        self.fetch_order_region_selector.grid(row=3, column=1, sticky="w", pady=4)
+        self.fetch_order_region_selector.bind("<<ComboboxSelected>>", self._on_fetch_order_region_mode_changed)
+        ttk.Label(self.fetch_form, text="取得順の数字が最優先").grid(
+            row=3,
+            column=1,
+            sticky="w",
+            padx=(164, 0),
+            pady=4,
+        )
+
+        ttk.Label(self.fetch_form, text="Web反映").grid(row=4, column=0, sticky="w", padx=(0, 8), pady=4)
         web_publish_row = ttk.Frame(self.fetch_form)
-        web_publish_row.grid(row=3, column=1, sticky="w", pady=4)
+        web_publish_row.grid(row=4, column=1, sticky="w", pady=4)
         self.web_publish_days_radio = ttk.Radiobutton(
             web_publish_row,
             text="日数ごと",
@@ -1186,7 +1222,7 @@ class MinRepoApp:
         self.web_publish_store_radio.grid(row=0, column=3, sticky="w", padx=(16, 0))
 
         button_row = ttk.Frame(self.fetch_form)
-        button_row.grid(row=4, column=1, sticky="w", pady=(8, 0))
+        button_row.grid(row=5, column=1, sticky="w", pady=(8, 0))
 
         self.fetch_button = ttk.Button(button_row, text="取得", command=self.fetch_data)
         self.fetch_button.grid(row=0, column=0, sticky="w")
@@ -1202,7 +1238,7 @@ class MinRepoApp:
         self.notify_fetch_complete_button.grid(row=0, column=2, sticky="w", padx=(12, 0))
 
         schedule_row = ttk.Frame(self.fetch_form)
-        schedule_row.grid(row=5, column=1, sticky="w", pady=(8, 0))
+        schedule_row.grid(row=6, column=1, sticky="w", pady=(8, 0))
         self.minrepo_schedule_enabled_checkbutton = ttk.Checkbutton(
             schedule_row,
             text="みんレポ定期ON",
@@ -1221,7 +1257,7 @@ class MinRepoApp:
         ttk.Label(schedule_row, textvariable=self.schedule_status_var).grid(row=0, column=6, sticky="w", padx=(12, 0))
 
         all_store_schedule_row = ttk.Frame(self.fetch_form)
-        all_store_schedule_row.grid(row=6, column=1, sticky="w", pady=(8, 0))
+        all_store_schedule_row.grid(row=7, column=1, sticky="w", pady=(8, 0))
         ttk.Label(all_store_schedule_row, text="低頻度").grid(row=0, column=0, sticky="w")
         self.schedule_all_stores_interval_days_entry = ttk.Entry(
             all_store_schedule_row,
@@ -1244,7 +1280,7 @@ class MinRepoApp:
         )
 
         site7_row = ttk.LabelFrame(self.fetch_form, text="サイトセブン", padding=12)
-        site7_row.grid(row=7, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        site7_row.grid(row=8, column=0, columnspan=2, sticky="ew", pady=(12, 0))
         site7_row.columnconfigure(0, weight=1)
 
         self.site7_login_button = ttk.Button(
@@ -1798,6 +1834,30 @@ class MinRepoApp:
             web_publish_mode=normalize_web_publish_mode(options.mode),
             web_publish_interval_days=options.interval_days,
         )
+
+    def _load_saved_fetch_order_region_mode(self) -> str:
+        try:
+            payload = self._load_gui_settings()
+        except Exception:  # noqa: BLE001
+            return DEFAULT_FETCH_ORDER_REGION_MODE
+        return normalize_fetch_order_region_mode(
+            payload.get("fetch_order_region_mode", DEFAULT_FETCH_ORDER_REGION_MODE)
+        )
+
+    def _save_fetch_order_region_mode(self, fetch_order_region_mode: str) -> None:
+        self._save_gui_settings(
+            fetch_order_region_mode=normalize_fetch_order_region_mode(fetch_order_region_mode)
+        )
+
+    def _on_fetch_order_region_mode_changed(self, *_: object) -> None:
+        self.fetch_order_region_mode = normalize_fetch_order_region_mode(
+            self.fetch_order_region_mode_var.get()
+        )
+        self.fetch_order_region_mode_var.set(self.fetch_order_region_mode)
+        try:
+            self._save_fetch_order_region_mode(self.fetch_order_region_mode)
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showwarning("設定保存", f"店舗取得順設定の保存に失敗しました。\n{exc}")
 
     def _on_web_publish_mode_changed(self) -> None:
         self.web_publish_mode = normalize_web_publish_mode(self.web_publish_mode_var.get())
@@ -4906,11 +4966,42 @@ class MinRepoApp:
     def _registered_store_fetch_ordered(self, target_stores: list[RegisteredStore]) -> list[RegisteredStore]:
         return sorted(target_stores, key=self._registered_store_fetch_order_key)
 
-    def _registered_store_fetch_order_key(self, registered_store: RegisteredStore) -> tuple[int, int, str, str]:
+    def _registered_store_fetch_order_key(self, registered_store: RegisteredStore) -> tuple[int, int, int, str, str]:
         fetch_order = normalize_fetch_order(registered_store.fetch_order)
+        region_priority = self._registered_store_region_order_priority(registered_store)
         if fetch_order is not None:
-            return (0, fetch_order, normalize_text(registered_store.name), normalize_store_url(registered_store.url))
-        return (1, 0, normalize_text(registered_store.name), normalize_store_url(registered_store.url))
+            return (
+                0,
+                fetch_order,
+                region_priority,
+                normalize_text(registered_store.name),
+                normalize_store_url(registered_store.url),
+            )
+        return (
+            1,
+            0,
+            region_priority,
+            normalize_text(registered_store.name),
+            normalize_store_url(registered_store.url),
+        )
+
+    def _registered_store_region_order_priority(self, registered_store: RegisteredStore) -> int:
+        fetch_order_region_mode = normalize_fetch_order_region_mode(
+            getattr(self, "fetch_order_region_mode", DEFAULT_FETCH_ORDER_REGION_MODE)
+        )
+        if fetch_order_region_mode == FETCH_ORDER_REGION_MODE_AS_IS:
+            return 0
+
+        region_text = normalize_text(
+            " ".join(
+                [
+                    registered_store.site7_prefecture,
+                    registered_store.site7_address,
+                ]
+            )
+        )
+        preferred_region_text = "福岡" if fetch_order_region_mode == FETCH_ORDER_REGION_MODE_FUKUOKA else "東京"
+        return 0 if preferred_region_text in region_text else 1
 
     def _minrepo_priority_watch_registered_stores(
         self,
@@ -5020,7 +5111,7 @@ class MinRepoApp:
         supplemental_limit = scheduled_supplemental_store_limit(len(supplemental_candidates), interval_days)
         run_dates = supplemental_store_last_run_dates or {}
 
-        def supplemental_sort_key(registered_store: RegisteredStore) -> tuple[str, int, int, str, str]:
+        def supplemental_sort_key(registered_store: RegisteredStore) -> tuple[str, int, int, int, str, str]:
             store_url = normalize_store_url(registered_store.url)
             last_run_date = run_dates.get(store_url, "")
             fetch_order = normalize_fetch_order(registered_store.fetch_order)
@@ -5028,6 +5119,7 @@ class MinRepoApp:
                 last_run_date,
                 0 if fetch_order is not None else 1,
                 fetch_order or 0,
+                self._registered_store_region_order_priority(registered_store),
                 normalize_text(registered_store.name),
                 store_url,
             )
@@ -6739,13 +6831,14 @@ class MinRepoApp:
         )
         low_frequency_limit = scheduled_supplemental_store_limit(len(low_frequency_candidates), interval_days)
 
-        def low_frequency_sort_key(registered_store: RegisteredStore) -> tuple[str, int, int, str, str]:
+        def low_frequency_sort_key(registered_store: RegisteredStore) -> tuple[str, int, int, int, str, str]:
             store_url = normalize_store_url(registered_store.url)
             fetch_order = normalize_fetch_order(registered_store.fetch_order)
             return (
                 store_last_run_dates.get(store_url, ""),
                 0 if fetch_order is not None else 1,
                 fetch_order or 0,
+                self._registered_store_region_order_priority(registered_store),
                 normalize_text(registered_store.name),
                 store_url,
             )
@@ -7297,6 +7390,8 @@ class MinRepoApp:
         self._configure_widget_state(self.retry_delay_entry, "normal")
         if hasattr(self, "minrepo_fetch_mode_selector"):
             self._configure_widget_state(self.minrepo_fetch_mode_selector, "readonly")
+        if hasattr(self, "fetch_order_region_selector"):
+            self._configure_widget_state(self.fetch_order_region_selector, "readonly")
         web_publish_days_selected = normalize_web_publish_mode(self.web_publish_mode_var.get()) == WEB_PUBLISH_MODE_DAYS
         self._configure_widget_state(self.web_publish_days_radio, "normal")
         self._configure_widget_state(self.web_publish_store_radio, "normal")

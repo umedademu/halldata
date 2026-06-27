@@ -45,6 +45,9 @@ from daidata_online_scraper import (
 )
 from main import (
     DEFAULT_MINREPO_FETCH_MODE,
+    FETCH_ORDER_REGION_MODE_AS_IS,
+    FETCH_ORDER_REGION_MODE_FUKUOKA,
+    FETCH_ORDER_REGION_MODE_TOKYO,
     FETCH_FREQUENCY_DAILY,
     FETCH_FREQUENCY_LOW,
     FETCH_FREQUENCY_STOP,
@@ -69,6 +72,7 @@ from main import (
     minrepo_fallback_date_texts_for_site7,
     minrepo_priority_watch_is_active,
     minrepo_priority_watch_target_date,
+    normalize_fetch_order_region_mode,
     normalize_site7_browser_mode,
     normalize_site7_enabled_machine_names,
     parse_recent_days,
@@ -576,6 +580,77 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         self.assertEqual(target_stores, [first_store, later_store])
+
+    def test_registered_store_fetch_order_prefers_fukuoka_inside_fetch_order(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_order_region_mode = FETCH_ORDER_REGION_MODE_FUKUOKA
+        tokyo_order_1 = RegisteredStore(
+            name="東京1番",
+            url="https://example.com/tokyo-1/",
+            fetch_order=1,
+            site7_prefecture="東京都",
+        )
+        fukuoka_order_2 = RegisteredStore(
+            name="福岡2番",
+            url="https://example.com/fukuoka-2/",
+            fetch_order=2,
+            site7_prefecture="福岡県",
+        )
+        fukuoka_order_1 = RegisteredStore(
+            name="福岡1番",
+            url="https://example.com/fukuoka-1/",
+            fetch_order=1,
+            site7_prefecture="福岡県",
+        )
+        tokyo_no_order = RegisteredStore(
+            name="東京空欄",
+            url="https://example.com/tokyo-blank/",
+            site7_prefecture="東京都",
+        )
+        fukuoka_no_order = RegisteredStore(
+            name="福岡空欄",
+            url="https://example.com/fukuoka-blank/",
+            site7_prefecture="福岡県",
+        )
+
+        target_stores = app._registered_store_fetch_ordered(
+            [tokyo_no_order, fukuoka_order_2, tokyo_order_1, fukuoka_no_order, fukuoka_order_1]
+        )
+
+        self.assertEqual(
+            target_stores,
+            [fukuoka_order_1, tokyo_order_1, fukuoka_order_2, fukuoka_no_order, tokyo_no_order],
+        )
+
+    def test_registered_store_fetch_order_prefers_tokyo_inside_fetch_order(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_order_region_mode = FETCH_ORDER_REGION_MODE_TOKYO
+        fukuoka_store = RegisteredStore(
+            name="福岡店",
+            url="https://example.com/fukuoka/",
+            fetch_order=1,
+            site7_prefecture="福岡県",
+        )
+        tokyo_store = RegisteredStore(
+            name="東京店",
+            url="https://example.com/tokyo/",
+            fetch_order=1,
+            site7_prefecture="東京都",
+        )
+
+        target_stores = app._registered_store_fetch_ordered([fukuoka_store, tokyo_store])
+
+        self.assertEqual(target_stores, [tokyo_store, fukuoka_store])
+
+    def test_normalize_fetch_order_region_mode_defaults_to_fukuoka(self) -> None:
+        self.assertEqual(
+            normalize_fetch_order_region_mode(""),
+            FETCH_ORDER_REGION_MODE_FUKUOKA,
+        )
+        self.assertEqual(
+            normalize_fetch_order_region_mode(FETCH_ORDER_REGION_MODE_AS_IS),
+            FETCH_ORDER_REGION_MODE_AS_IS,
+        )
 
     def test_run_minrepo_priority_watch_if_due_starts_in_active_window(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -1220,10 +1295,12 @@ class MinRepoScraperTests(unittest.TestCase):
             app._save_schedule_hour(5)
             app._save_site7_browser_mode(SITE7_BROWSER_MODE_HIDDEN)
             app._save_site7_schedule_hours((0, 1, 12, 21))
+            app._save_fetch_order_region_mode(FETCH_ORDER_REGION_MODE_TOKYO)
 
             self.assertEqual(app._load_saved_schedule_hour(), 5)
             self.assertEqual(app._load_saved_site7_browser_mode(), SITE7_BROWSER_MODE_HIDDEN)
             self.assertEqual(app._load_saved_site7_schedule_hours(), (0, 1, 12, 21))
+            self.assertEqual(app._load_saved_fetch_order_region_mode(), FETCH_ORDER_REGION_MODE_TOKYO)
 
             app.site7_schedule_last_run_dates_by_hour = {0: "2026-04-28", 1: "2026-04-28", 24: "2026-04-28"}
             app._save_site7_schedule_run_dates()
@@ -1233,6 +1310,7 @@ class MinRepoScraperTests(unittest.TestCase):
             self.assertEqual(app._load_saved_site7_browser_mode(), SITE7_BROWSER_MODE_HIDDEN)
             self.assertEqual(app._load_saved_site7_schedule_hours(), ())
             self.assertEqual(app._load_saved_site7_schedule_run_dates(), {0: "2026-04-28", 1: "2026-04-28"})
+            self.assertEqual(app._load_saved_fetch_order_region_mode(), FETCH_ORDER_REGION_MODE_TOKYO)
 
     def test_window_close_can_choose_exit(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
