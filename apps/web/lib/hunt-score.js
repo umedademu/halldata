@@ -174,6 +174,13 @@ const APARK_KASUGA_TARGET_MACHINES = [
   ...OTHER_TARGET_MACHINES,
 ];
 
+const PARLOR_ASAHI_TARGET_MACHINES = [
+  {
+    name: "SアイムジャグラーＥＸ",
+    aliases: ["SアイムジャグラーEX", "アイムジャグラーEX", "アイムジャグラーＥＸ"],
+  },
+];
+
 const MEGA_BEAM_ASAKURA_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
@@ -842,6 +849,18 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["Aパーク春日店"],
     targetMachines: APARK_KASUGA_TARGET_MACHINES,
     defaultLogicKey: "apark",
+  },
+  {
+    key: "parlor-asahi",
+    storeNames: ["パーラーアサヒ", "パーラーアサヒ店", "PARLOR ASAHI", "PARLORASAHI", "Parlor Asahi"],
+    targetMachines: PARLOR_ASAHI_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "SアイムジャグラーＥＸ": "parlor-asahi-aim",
+      "SアイムジャグラーEX": "parlor-asahi-aim",
+      "アイムジャグラーEX": "parlor-asahi-aim",
+      "アイムジャグラーＥＸ": "parlor-asahi-aim",
+    },
   },
   {
     key: "million-tobu-nerima",
@@ -2832,9 +2851,20 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
   }
   if (
     normalizedMachineName === normalizeText("SアイムジャグラーＥＸ") ||
-    normalizedMachineName === normalizeText("SアイムジャグラーEX")
+    normalizedMachineName === normalizeText("SアイムジャグラーEX") ||
+    normalizedMachineName === normalizeText("アイムジャグラーEX") ||
+    normalizedMachineName === normalizeText("アイムジャグラーＥＸ")
   ) {
-    if (readMachineContentRule(config, machineName) === "mj-arena-kurume-aim") {
+    const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "parlor-asahi-aim") {
+      const rbCount = readWindowField(row, "rbCount");
+      return (
+        (games >= 3000 && rbCount > 0 && rbDenominator <= 300 && combinedDenominator <= 145) ||
+        (games >= 4000 && rbCount > 0 && rbDenominator <= 270) ||
+        (games >= 4000 && combinedDenominator <= 130 && rbDenominator <= 350)
+      );
+    }
+    if (contentRule === "mj-arena-kurume-aim") {
       return games >= 2000 && rbDenominator <= 300 && combinedDenominator <= 155;
     }
     return games >= 4000 && rbDenominator <= 270 && combinedDenominator <= 130;
@@ -3720,6 +3750,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     }
     if (readMachineContentRule(config, machineName) === "mj-arena-kurume-girls") {
       return games >= 2000 && combinedDenominator <= 132 && rbDenominator <= 278;
+    }
+  }
+  if (
+    normalizedMachineName === normalizeText("SアイムジャグラーＥＸ") ||
+    normalizedMachineName === normalizeText("SアイムジャグラーEX") ||
+    normalizedMachineName === normalizeText("アイムジャグラーEX") ||
+    normalizedMachineName === normalizeText("アイムジャグラーＥＸ")
+  ) {
+    if (readMachineContentRule(config, machineName) === "parlor-asahi-aim") {
+      return games >= 4000 && rbDenominator <= 270 && combinedDenominator <= 135;
     }
   }
   if (

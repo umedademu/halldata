@@ -59,6 +59,9 @@ const KICONA_HIRAI_AIM_COMBINED_LOGIC_NAME =
   "キコーナ平井店_アイムジャグラーEX統合_全日共通ロジック";
 const KICONA_HIRAI_AIM_COMBINED_DEFAULT_CONDITION =
   "kicona-hirai-free-rb-missing-eight-loss";
+const PARLOR_ASAHI_AIM_LOGIC_KEY = "parlor-asahi-aim";
+const PARLOR_ASAHI_AIM_LOGIC_NAME = "パーラーアサヒ_Sアイム_返済未完了スコア";
+const PARLOR_ASAHI_AIM_DEFAULT_CONDITION = "parlor-asahi-aim-free-a-rank1";
 const PRIME_HIRAI_NEO_AIM_LOGIC_KEY = "prime-hirai-neo-aim";
 const PRIME_HIRAI_NEO_AIM_LOGIC_NAME =
   "プライム平井_ネオアイムEX_返済未完ローテ狙い度";
@@ -471,6 +474,13 @@ function isFortuneOhanajayaStore(storeName) {
 function isKiconaHiraiStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["キコーナ平井店", "キコーナ平井", "KICONA平井店", "KICONA平井"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
+function isParlorAsahiStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["パーラーアサヒ", "パーラーアサヒ店", "PARLOR ASAHI", "PARLORASAHI", "Parlor Asahi"].some(
     (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
   );
 }
@@ -1307,6 +1317,195 @@ function buildKiconaHiraiAimCombinedConditions() {
         requiredFlags: ["kiconaHiraiAimHistoryShort"],
       },
       [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+  ];
+}
+
+function buildParlorAsahiAimConditions() {
+  return [
+    buildCondition(
+      PARLOR_ASAHI_AIM_DEFAULT_CONDITION,
+      "自由A 各日1位",
+      "45日 / 45台 / 総G242,801 / RB1/282.0 / 合算1/131.7 / 平均+892.0枚 / 105.51% / 勝率60.0% / 高内容42.2% / 最優先",
+      {
+        rankMax: 1,
+        requiredFlags: ["parlorAsahiAimHistoryReady", "parlorAsahiAimFreeA"],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "parlor-asahi-aim-free-c",
+      "自由C 角度+間隔+弱合成",
+      "44日 / 48台 / 総G252,374 / RB1/285.2 / 合算1/132.5 / 平均+852.8枚 / 105.41% / 勝率58.3% / 高内容39.6%",
+      {
+        requiredFlags: ["parlorAsahiAimHistoryReady", "parlorAsahiAimFreeC"],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "parlor-asahi-aim-free-d",
+      "自由D 凹み+RB弱履歴",
+      "36日 / 40台 / 総G229,478 / RB1/289.7 / 合算1/133.3 / 平均+923.2枚 / 105.36% / 勝率65.0% / 高内容45.0%",
+      {
+        requiredFlags: ["parlorAsahiAimHistoryReady", "parlorAsahiAimFreeD"],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "parlor-asahi-aim-rank1-gap5-safe",
+      "強 1位+差5危険0",
+      "79日 / 79台 / 総G410,523 / BB1/254.7 / RB1/292.4 / 合算1/136.1 / 平均+674.3枚 / 104.33% / 勝率51.9% / 高内容39.2%",
+      {
+        rankMax: 1,
+        minNextGap: 5,
+        maxDanger: 0,
+        requiredFlags: ["parlorAsahiAimHistoryReady"],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "parlor-asahi-aim-main80-boost2-safe",
+      "本命 80+強化2危険0",
+      "82日 / 147台 / 総G711,446 / BB1/260.4 / RB1/296.1 / 合算1/138.5 / 平均+450.4枚 / 103.10% / 勝率48.3% / 高内容38.1%",
+      {
+        minScore: 80,
+        minBoost: 2,
+        maxDanger: 0,
+        requiredFlags: ["parlorAsahiAimHistoryReady"],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "parlor-asahi-aim-weak75-boost2-safe",
+      "弱本命 75+強化2危険0",
+      "91日 / 192台 / 総G909,521 / BB1/261.7 / RB1/301.3 / 合算1/140.1 / 平均+403.3枚 / 102.84% / 勝率48.4% / 高内容34.9%",
+      {
+        minScore: 75,
+        minBoost: 2,
+        maxDanger: 0,
+        requiredFlags: ["parlorAsahiAimHistoryReady"],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "parlor-asahi-aim-wide70-boost2-safe",
+      "広め 70+強化2危険0",
+      "95日 / 232台 / 総G1,068,457 / BB1/262.9 / RB1/304.6 / 合算1/141.1 / 平均+357.3枚 / 102.59% / 勝率48.7% / 高内容31.9%",
+      {
+        minScore: 70,
+        minBoost: 2,
+        maxDanger: 0,
+        requiredFlags: ["parlorAsahiAimHistoryReady"],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "parlor-asahi-aim-rank1-gap20",
+      "最本命候補 1位+差20",
+      "14日 / 14台 / 総G74,737 / BB1/253.3 / RB1/277.8 / 合算1/132.5 / 平均+830.7枚 / 105.19% / 勝率50.0% / 高内容42.9% / 少数参考",
+      {
+        rankMax: 1,
+        minNextGap: 20,
+        requiredFlags: ["parlorAsahiAimHistoryReady"],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "parlor-asahi-aim-free-b",
+      "自由B 凹み返済+間隔",
+      "50日 / 58台 / 総G311,990 / RB1/289.4 / 合算1/133.9 / 平均+822.1枚 / 105.09% / 勝率58.6% / 高内容43.1%",
+      {
+        requiredFlags: ["parlorAsahiAimHistoryReady", "parlorAsahiAimFreeB"],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "parlor-asahi-aim-free-a",
+      "自由A 角度返済+間隔",
+      "45日 / 50台 / 総G265,843 / RB1/284.6 / 合算1/132.6 / 平均+839.5枚 / 105.26% / 勝率58.0% / 高内容40.0%",
+      {
+        requiredFlags: ["parlorAsahiAimHistoryReady", "parlorAsahiAimFreeA"],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "parlor-asahi-aim-compromise-c7-weak",
+      "妥協 7日合成弱いだけ",
+      "98日 / 253台 / 総G1,151,035 / RB1/305.8 / 合算1/141.2 / 平均+366.3枚 / 102.68% / 勝率47.8% / 高内容29.6%",
+      {
+        requiredFlags: ["parlorAsahiAimHistoryReady", "parlorAsahiAimCombined7Weak"],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "parlor-asahi-aim-watch-danger2",
+      "見送り_危険2以上",
+      "危険条件が複数重なる台は、点数が高くても本命外",
+      {
+        minDanger: 2,
+        requiredFlags: ["parlorAsahiAimHistoryReady"],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "parlor-asahi-aim-watch-prev-paid-good",
+      "見送り_前日高内容出玉済み",
+      "前日高内容+1500枚以上かつ7日合算1/140以下は処遇完了寄り",
+      {
+        requiredFlags: [
+          "parlorAsahiAimHistoryReady",
+          "parlorAsahiAimDangerPreviousHighPaid",
+          "parlorAsahiAimDangerCombined7Visible",
+        ],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "parlor-asahi-aim-watch-d7-plus",
+      "見送り_7日差枚プラス過多",
+      "7日差枚+5000枚超は返済済みとして警戒",
+      {
+        requiredFlags: ["parlorAsahiAimHistoryReady", "parlorAsahiAimDangerSevenPlus"],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "parlor-asahi-aim-watch-d14-plus",
+      "見送り_14日差枚プラス過多",
+      "14日差枚+10000枚超は本命から外す",
+      {
+        requiredFlags: ["parlorAsahiAimHistoryReady", "parlorAsahiAimDangerFourteenPlus"],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "parlor-asahi-aim-watch-score-under80-low-boost",
+      "注意_80点未満強化1以下",
+      "80点未満で強化条件が0〜1個なら優先度を下げる",
+      {
+        maxScore: 79,
+        maxBoost: 1,
+        requiredFlags: ["parlorAsahiAimHistoryReady"],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "parlor-asahi-aim-watch-history-short-low-games",
+      "見送り_履歴不足低G",
+      "21日履歴未満かつ7日G15000未満は低信頼",
+      {
+        requiredFlags: ["parlorAsahiAimHistoryShortLowGames"],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "parlor-asahi-aim-watch-history-short",
+      "見送り_履歴7日未満",
+      "履歴7営業日未満は採用条件対象外",
+      {
+        requiredFlags: ["parlorAsahiAimHistoryShort"],
+      },
+      [PARLOR_ASAHI_AIM_LOGIC_KEY],
     ),
   ];
 }
@@ -2381,6 +2580,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildLogicVariant("apark-aim", "Sアイム春日式", "main"),
       buildLogicVariant("mj-kurume-aim", "SアイムMJ久留米式", "mj-kurume-main"),
       buildLogicVariant(
+        PARLOR_ASAHI_AIM_LOGIC_KEY,
+        PARLOR_ASAHI_AIM_LOGIC_NAME,
+        PARLOR_ASAHI_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY,
         KICONA_HIRAI_AIM_COMBINED_LOGIC_NAME,
         KICONA_HIRAI_AIM_COMBINED_DEFAULT_CONDITION,
@@ -2433,6 +2637,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         },
         ["mj-kurume-aim"],
       ),
+      ...buildParlorAsahiAimConditions(),
       ...buildKiconaHiraiAimCombinedConditions(),
     ],
   },
@@ -14295,6 +14500,8 @@ function getDefaultSetting(definition, storeName) {
     (definition.machineKey === "aim" || definition.machineKey === "neo-aim")
   ) {
     defaultLogic = findLogicDefinition(definition, KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY);
+  } else if (isParlorAsahiStore(storeName) && definition.machineKey === "aim") {
+    defaultLogic = findLogicDefinition(definition, PARLOR_ASAHI_AIM_LOGIC_KEY);
   } else if (isPrimeHiraiStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, PRIME_HIRAI_NEO_AIM_LOGIC_KEY);
   } else if (isPalazzoKasaiStore(storeName) && definition.machineKey === "neo-aim") {
@@ -15286,6 +15493,105 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "aim") {
+    if (activeLogicKey === PARLOR_ASAHI_AIM_LOGIC_KEY) {
+      const parlorAsahiAimHistoryReady = historyRowCount >= 7;
+      const parlorAsahiAimHistoryShort = historyRowCount < 7;
+      const parlorAsahiAimHistory21Ready = historyRowCount >= 21;
+      const parlorAsahiAimLowConfidence = historyRowCount < 21;
+      const parlorAsahiAimHighInterval = Number.isFinite(daysSinceMachineHighContent)
+        ? Math.max(0, daysSinceMachineHighContent - 1)
+        : null;
+      const parlorAsahiAimInterval4To14 =
+        Number.isFinite(parlorAsahiAimHighInterval) &&
+        parlorAsahiAimHighInterval >= 4 &&
+        parlorAsahiAimHighInterval <= 14;
+      const parlorAsahiAimSevenAngleRefund =
+        recentSevenGamesTotal > 0 &&
+        features.recentSevenAngle >= -150 &&
+        features.recentSevenAngle <= -75;
+      const parlorAsahiAimFreeA = parlorAsahiAimSevenAngleRefund && parlorAsahiAimInterval4To14;
+      const parlorAsahiAimFreeB = recentSevenNetTotal <= -2000 && parlorAsahiAimInterval4To14;
+      const parlorAsahiAimCombined7Weak = features.recentSevenCombinedDenominator > 155;
+      const parlorAsahiAimFreeC = parlorAsahiAimFreeA && parlorAsahiAimCombined7Weak;
+      const parlorAsahiAimFreeD =
+        recentSevenNetTotal <= -2000 && features.recentSevenRbDenominator > 360;
+
+      const parlorAsahiAimBoostSinkAngle =
+        recentSevenNetTotal <= -2000 && recentSevenGamesTotal > 0 && features.recentSevenAngle <= -75;
+      const parlorAsahiAimBoostFourteenSink =
+        recentFourteenNetTotal >= -7000 && recentFourteenNetTotal <= -3000;
+      const parlorAsahiAimBoostLoss = streak >= 2 && streak <= 6;
+      const parlorAsahiAimBoostBonusWeak =
+        parlorAsahiAimCombined7Weak ||
+        features.recentFourteenCombinedDenominator > 155 ||
+        features.recentSevenRbDenominator > 360;
+      const parlorAsahiAimBoostPreviousHighUnpaid = previousMachineHighContent && previousDifference < 500;
+
+      const parlorAsahiAimDangerPreviousHighPaid =
+        previousMachineHighContent && previousDifference >= 1500;
+      const parlorAsahiAimDangerPreviousStrongHighPaid =
+        previousMachineStrongHighContent && previousDifference >= 2000;
+      const parlorAsahiAimDangerSevenPlus = recentSevenNetTotal > 5000;
+      const parlorAsahiAimDangerFourteenPlus = recentFourteenNetTotal > 10000;
+      const parlorAsahiAimDangerCombined7Visible = features.recentSevenCombinedDenominator <= 140;
+      const parlorAsahiAimDangerRecentHighReturn =
+        recentSevenMachineHighContentCount >= 2 && recentSevenNetTotal > 2500;
+      const parlorAsahiAimDangerLowGames =
+        recentSevenGamesTotal < 15000 || recentFourteenGamesTotal < 40000;
+      const parlorAsahiAimHistoryShortLowGames =
+        historyRowCount < 21 && recentSevenGamesTotal < 15000;
+
+      const boostFlags = [
+        parlorAsahiAimBoostSinkAngle,
+        parlorAsahiAimBoostFourteenSink,
+        parlorAsahiAimBoostLoss,
+        parlorAsahiAimBoostBonusWeak,
+        parlorAsahiAimInterval4To14,
+        parlorAsahiAimBoostPreviousHighUnpaid,
+      ];
+      const dangerFlags = [
+        parlorAsahiAimDangerPreviousHighPaid,
+        parlorAsahiAimDangerPreviousStrongHighPaid,
+        parlorAsahiAimDangerSevenPlus,
+        parlorAsahiAimDangerFourteenPlus,
+        parlorAsahiAimDangerCombined7Visible,
+        parlorAsahiAimDangerRecentHighReturn,
+        parlorAsahiAimDangerLowGames,
+      ];
+
+      return {
+        ...features,
+        parlorAsahiAimHistoryReady,
+        parlorAsahiAimHistoryShort,
+        parlorAsahiAimHistory21Ready,
+        parlorAsahiAimLowConfidence,
+        parlorAsahiAimHighInterval,
+        parlorAsahiAimInterval4To14,
+        parlorAsahiAimSevenAngleRefund,
+        parlorAsahiAimFreeA,
+        parlorAsahiAimFreeB,
+        parlorAsahiAimFreeC,
+        parlorAsahiAimFreeD,
+        parlorAsahiAimCombined7Weak,
+        parlorAsahiAimBoostSinkAngle,
+        parlorAsahiAimBoostFourteenSink,
+        parlorAsahiAimBoostLoss,
+        parlorAsahiAimBoostBonusWeak,
+        parlorAsahiAimBoostPreviousHighUnpaid,
+        parlorAsahiAimDangerPreviousHighPaid,
+        parlorAsahiAimDangerPreviousStrongHighPaid,
+        parlorAsahiAimDangerSevenPlus,
+        parlorAsahiAimDangerFourteenPlus,
+        parlorAsahiAimDangerCombined7Visible,
+        parlorAsahiAimDangerRecentHighReturn,
+        parlorAsahiAimDangerLowGames,
+        parlorAsahiAimHistoryShortLowGames,
+        lowConfidence: parlorAsahiAimLowConfidence,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "mj-kurume-aim") {
       const kurumeAimHistoryReady = targetRangeHistoryRowCount >= 14;
       const kurumeAimDeepSink = recentTenNetTotal <= -3000 || recentSevenNetTotal <= -2500;
@@ -26498,6 +26804,165 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "aim") {
+    if (activeLogicKey === PARLOR_ASAHI_AIM_LOGIC_KEY) {
+      const parlorAsahiAimHighInterval = Number.isFinite(daysSinceMachineHighContent)
+        ? Math.max(0, daysSinceMachineHighContent - 1)
+        : null;
+
+      let sinkScore = 0;
+      if (recentSevenNetTotal <= -5000) {
+        sinkScore += 10;
+      } else if (recentSevenNetTotal <= -3500) {
+        sinkScore += 14;
+      } else if (recentSevenNetTotal <= -2000) {
+        sinkScore += 15;
+      } else if (recentSevenNetTotal <= -1000) {
+        sinkScore += 8;
+      } else if (recentSevenNetTotal <= 0) {
+        sinkScore += 3;
+      }
+      if (recentFourteenNetTotal >= -7000 && recentFourteenNetTotal <= -5000) {
+        sinkScore += 5;
+      } else if (recentFourteenNetTotal > -5000 && recentFourteenNetTotal <= -3000) {
+        sinkScore += 8;
+      } else if (recentFourteenNetTotal > -3000 && recentFourteenNetTotal <= -1500) {
+        sinkScore += 3;
+      }
+      if (recentTwentyOneNetTotal >= -9000 && recentTwentyOneNetTotal <= -6000) {
+        sinkScore += 7;
+      } else if (recentTwentyOneNetTotal > -6000 && recentTwentyOneNetTotal <= -3000) {
+        sinkScore += 4;
+      } else if (recentTwentyOneNetTotal > -3000 && recentTwentyOneNetTotal <= -1000) {
+        sinkScore += 2;
+      }
+      if (recentSevenGamesTotal > 0) {
+        if (features.recentSevenAngle >= -250 && features.recentSevenAngle < -150) {
+          sinkScore += 5;
+        } else if (features.recentSevenAngle >= -150 && features.recentSevenAngle <= -75) {
+          sinkScore += 8;
+        } else if (features.recentSevenAngle > -75 && features.recentSevenAngle <= 0) {
+          sinkScore += 3;
+        }
+      }
+      sinkScore += streak >= 7 ? 4 : streak >= 4 ? 8 : streak >= 2 ? 7 : streak === 1 ? 2 : 0;
+      sinkScore = Math.min(sinkScore, 30);
+
+      let intervalScore = 0;
+      if (Number.isFinite(parlorAsahiAimHighInterval)) {
+        if (parlorAsahiAimHighInterval === 0) {
+          intervalScore -= 2;
+        } else if (parlorAsahiAimHighInterval === 1) {
+          intervalScore -= 3;
+        } else if (parlorAsahiAimHighInterval <= 3) {
+          intervalScore += 3;
+        } else if (parlorAsahiAimHighInterval <= 7) {
+          intervalScore += 6;
+        } else if (parlorAsahiAimHighInterval <= 14) {
+          intervalScore += 8;
+        } else if (parlorAsahiAimHighInterval <= 21) {
+          intervalScore += 5;
+        } else {
+          intervalScore += 3;
+        }
+      }
+      intervalScore +=
+        recentSevenMachineHighContentCount === 0
+          ? 5
+          : recentSevenMachineHighContentCount === 1
+            ? 2
+            : recentSevenMachineHighContentCount >= 3
+              ? -2
+              : 0;
+      intervalScore +=
+        recentFourteenMachineHighContentCount === 0
+          ? 3
+          : recentFourteenMachineHighContentCount === 1
+            ? 2
+            : recentFourteenMachineHighContentCount >= 4
+              ? -2
+              : 0;
+      intervalScore = clamp(intervalScore, -5, 15);
+
+      let appearanceScore = 0;
+      if (features.recentSevenCombinedDenominator > 155) {
+        appearanceScore += 8;
+      } else if (features.recentSevenCombinedDenominator >= 150) {
+        appearanceScore += 4;
+      } else if (features.recentSevenCombinedDenominator <= 140) {
+        appearanceScore -= 5;
+      }
+      if (features.recentFourteenCombinedDenominator > 155) {
+        appearanceScore += 5;
+      } else if (features.recentFourteenCombinedDenominator >= 150) {
+        appearanceScore += 2;
+      } else if (features.recentFourteenCombinedDenominator <= 140) {
+        appearanceScore -= 2;
+      }
+      if (features.recentSevenRbDenominator > 360) {
+        appearanceScore += 5;
+      } else if (features.recentSevenRbDenominator >= 330) {
+        appearanceScore += 2;
+      } else if (features.recentSevenRbDenominator <= 300) {
+        appearanceScore -= 5;
+      }
+      if (features.recentFourteenRbDenominator > 360) {
+        appearanceScore += 2;
+      } else if (features.recentFourteenRbDenominator <= 300) {
+        appearanceScore -= 3;
+      }
+      appearanceScore = clamp(appearanceScore, -7, 15);
+
+      let previousScore = 0;
+      previousScore += previousMachineHighContent && previousDifference < 0 ? 8 : 0;
+      previousScore += previousMachineHighContent && previousDifference >= 0 && previousDifference < 500 ? 6 : 0;
+      previousScore += previousMachineStrongHighContent && previousDifference < 1000 ? 3 : 0;
+      if (previousDifference <= -2000) {
+        previousScore += 2;
+      } else if (previousDifference <= -1000) {
+        previousScore += 3;
+      } else if (previousDifference < 0) {
+        previousScore += 2;
+      } else if (previousDifference >= 2000) {
+        previousScore -= 5;
+      } else if (previousDifference >= 500) {
+        previousScore -= 2;
+      }
+      previousScore = clamp(previousScore, -5, 10);
+
+      let gamesScore = 0;
+      if (recentSevenGamesTotal < 15000) {
+        gamesScore -= 4;
+      } else if (recentSevenGamesTotal <= 25000) {
+        gamesScore += 4;
+      } else if (recentSevenGamesTotal <= 35000) {
+        gamesScore += 3;
+      } else if (recentSevenGamesTotal > 40000) {
+        gamesScore -= 3;
+      }
+      if (recentFourteenGamesTotal < 40000) {
+        gamesScore -= 3;
+      } else if (recentFourteenGamesTotal <= 60000) {
+        gamesScore += 3;
+      } else if (recentFourteenGamesTotal > 70000) {
+        gamesScore -= 1;
+      }
+      gamesScore = clamp(gamesScore, -6, 8);
+
+      let penalty = 0;
+      penalty += previousMachineHighContent && previousDifference >= 1500 ? 10 : 0;
+      penalty += previousMachineStrongHighContent && previousDifference >= 2000 ? 8 : 0;
+      penalty += recentSevenNetTotal > 5000 ? 8 : 0;
+      penalty += recentFourteenNetTotal > 10000 ? 8 : 0;
+      penalty += recentSevenNetTotal > 2500 && recentSevenMachineHighContentCount >= 2 ? 5 : 0;
+      penalty += recentFourteenNetTotal > 6000 && recentFourteenMachineHighContentCount >= 3 ? 4 : 0;
+      penalty += features.recentSevenCombinedDenominator <= 140 ? 4 : 0;
+      penalty += recentSevenGamesTotal < 15000 || recentFourteenGamesTotal < 40000 ? 4 : 0;
+
+      const historyCap = historyRowCount >= 21 ? 100 : historyRowCount >= 7 ? 79 : 39;
+      const score = 35 + sinkScore + intervalScore + appearanceScore + previousScore + gamesScore - penalty;
+      return Math.round(clamp(score, 0, historyCap));
+    }
+
     if (activeLogicKey === "mj-kurume-aim") {
       let sinkScore = 0;
       sinkScore += scoreAtMost(recentTenNetTotal, [
