@@ -346,6 +346,13 @@ function isMesseOkudoStore(storeName) {
   );
 }
 
+function isFortuneOhanajayaStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["フォーチュンお花茶屋店", "フォーチュンお花茶屋"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function isKintokiKamataStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["金時蒲田東口店", "金時蒲田東口"].some(
@@ -2231,6 +2238,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "messe-okudo-neo-aim",
         "メッセ奥戸店_ネオアイムEX_全日共通_継続高内容ロジック_v1",
         "messe-okudo-free-main-14-high-rb300",
+      ),
+      buildLogicVariant(
+        "fortune-ohanajaya-neo-aim",
+        "フォーチュンお花茶屋店_ネオアイムEX_全日共通_沈み返済優先ロジック_v1",
+        "fortune-ohanajaya-free-b-four-loss90-gap25",
       ),
       buildLogicVariant(
         "kintoki-kamata-neo-aim",
@@ -4777,6 +4789,215 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["messeOkudoNeoHistoryShort"],
         },
         ["messe-okudo-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-free-b-four-loss90-gap25",
+        "自由B_4連敗90点ギャップ",
+        "8日 / 8台 / 総G35,014 / RB1/244.9 / 合算良好 / 4連敗以上＋90点以上＋1位次点差25 / 件数注意",
+        {
+          rankMax: 1,
+          minScore: 90,
+          minNextGap: 25,
+          requiredFlags: ["fortuneOhanajayaNeoHistoryReady", "fortuneOhanajayaNeoLosing4"],
+        },
+        ["fortune-ohanajaya-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-free-a-four-loss-angle-gap25",
+        "自由A_4連敗角度ギャップ",
+        "8日 / 8台 / RB1/251.5 / 4連敗以上＋5日沈み角度＋1位次点差25 / 件数注意",
+        {
+          rankMax: 1,
+          minNextGap: 25,
+          requiredFlags: [
+            "fortuneOhanajayaNeoHistoryReady",
+            "fortuneOhanajayaNeoLosing4",
+            "fortuneOhanajayaNeoFiveAngleStrong",
+          ],
+        },
+        ["fortune-ohanajaya-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-rb270-gap35-score90",
+        "最本命270_1位差35＋90点",
+        "10日 / 10台 / RB1/261.1 / 1位＋90点以上＋次点差35＋危険0 / 小サンプル参考",
+        {
+          rankMax: 1,
+          minScore: 90,
+          minNextGap: 35,
+          maxDanger: 0,
+          requiredFlags: ["fortuneOhanajayaNeoHistoryReady"],
+        },
+        ["fortune-ohanajaya-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-free-repay-unpaid",
+        "自由MAX_返済未完",
+        "RB1/265.7 / 1位＋次点差25＋14日返済未完＋強化あり / 件数注意",
+        {
+          rankMax: 1,
+          minNextGap: 25,
+          minBoost: 1,
+          requiredFlags: ["fortuneOhanajayaNeoHistoryReady", "fortuneOhanajayaNeoFourteenUnpaid"],
+        },
+        ["fortune-ohanajaya-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-rb280-gap30-score90",
+        "強280_1位差30＋90点",
+        "RB1/271.2 / 1位＋90点以上＋次点差30",
+        {
+          rankMax: 1,
+          minScore: 90,
+          minNextGap: 30,
+          requiredFlags: ["fortuneOhanajayaNeoHistoryReady"],
+        },
+        ["fortune-ohanajaya-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-rb280-four-loss-gap25",
+        "強280_4連敗差25",
+        "RB1/275.7 / 1位＋4連敗以上＋次点差25",
+        {
+          rankMax: 1,
+          minNextGap: 25,
+          requiredFlags: ["fortuneOhanajayaNeoHistoryReady", "fortuneOhanajayaNeoLosing4"],
+        },
+        ["fortune-ohanajaya-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-rb290-gap25-score90",
+        "本命290_1位差25＋90点",
+        "RB1/285.0 / 1位＋90点以上＋次点差25",
+        {
+          rankMax: 1,
+          minScore: 90,
+          minNextGap: 25,
+          requiredFlags: ["fortuneOhanajayaNeoHistoryReady"],
+        },
+        ["fortune-ohanajaya-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-rb290-angle-gap25",
+        "本命290_3日角度差25",
+        "RB1/285.1 / 1位＋3日沈み角度-160以下＋次点差25",
+        {
+          rankMax: 1,
+          minNextGap: 25,
+          requiredFlags: [
+            "fortuneOhanajayaNeoHistoryReady",
+            "fortuneOhanajayaNeoThreeAngleStrong",
+          ],
+        },
+        ["fortune-ohanajaya-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-rb300-gap25",
+        "弱め300_1位差25",
+        "RB1/294.3 / 1位＋次点差25",
+        {
+          rankMax: 1,
+          minNextGap: 25,
+          requiredFlags: ["fortuneOhanajayaNeoHistoryReady"],
+        },
+        ["fortune-ohanajaya-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-rb300-sink",
+        "弱め300_沈み角度",
+        "RB1/299.0 / 65点以上＋次点差8＋3日沈み角度-160以下",
+        {
+          minScore: 65,
+          minNextGap: 8,
+          requiredFlags: [
+            "fortuneOhanajayaNeoHistoryReady",
+            "fortuneOhanajayaNeoThreeAngleStrong",
+          ],
+        },
+        ["fortune-ohanajaya-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-rb310-gap20",
+        "広め310_1位差20",
+        "RB1/309.9 / 1位＋次点差20",
+        {
+          rankMax: 1,
+          minNextGap: 20,
+          requiredFlags: ["fortuneOhanajayaNeoHistoryReady"],
+        },
+        ["fortune-ohanajaya-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-rb310-score65-boost",
+        "広め310_65点強化あり",
+        "RB1/308.4 / 65点以上＋次点差8＋強化あり",
+        {
+          minScore: 65,
+          minNextGap: 8,
+          minBoost: 1,
+          requiredFlags: ["fortuneOhanajayaNeoHistoryReady"],
+        },
+        ["fortune-ohanajaya-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-watch-danger2",
+        "見送り_危険2以上",
+        "前日高内容の出玉済み、直近プラス返済済み、過剰稼働、直近高内容過多が2個以上なら見送り寄り",
+        {
+          minDanger: 2,
+          requiredFlags: ["fortuneOhanajayaNeoHistoryReady"],
+        },
+        ["fortune-ohanajaya-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-watch-treatment-done",
+        "見送り_処遇完了",
+        "前日+1500枚以上、直近3日+2000枚以上、5日+3000枚以上、7日+3000枚以上は返済済みとして慎重",
+        {
+          requiredFlags: ["fortuneOhanajayaNeoHistoryReady", "fortuneOhanajayaNeoTreatmentDone"],
+        },
+        ["fortune-ohanajaya-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-watch-previous-high",
+        "見送り_前日高内容出玉済み",
+        "前日が高内容かつ+800枚以上、または前日RB・合算が強すぎる時は据え狙いを弱める",
+        {
+          requiredFlags: [
+            "fortuneOhanajayaNeoHistoryReady",
+            "fortuneOhanajayaNeoPreviousHighDanger",
+          ],
+        },
+        ["fortune-ohanajaya-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-watch-over-visible",
+        "見送り_見られすぎ",
+        "直近3日Gが多すぎる、または7日内高内容が2回以上ある時は沈み返しの妙味を下げる",
+        {
+          requiredFlags: ["fortuneOhanajayaNeoHistoryReady", "fortuneOhanajayaNeoOverVisible"],
+        },
+        ["fortune-ohanajaya-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-watch-low-gap",
+        "慎重_1位次点差小",
+        "1位でも次点差10未満は弱い。広め条件でも差20以上を基本にする",
+        {
+          rankMax: 1,
+          maxNextGap: 9.999,
+          requiredFlags: ["fortuneOhanajayaNeoHistoryReady"],
+        },
+        ["fortune-ohanajaya-neo-aim"],
+      ),
+      buildCondition(
+        "fortune-ohanajaya-watch-history-short",
+        "見送り_履歴不足",
+        "履歴14営業日未満は採用条件対象外。7日未満は上限50、14日未満は上限60",
+        {
+          requiredFlags: ["fortuneOhanajayaNeoHistoryShort"],
+        },
+        ["fortune-ohanajaya-neo-aim"],
       ),
       buildCondition(
         "kintoki-kamata-free-a",
@@ -9407,6 +9628,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "messe-minamisenju-neo-aim");
   } else if (isMesseOkudoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "messe-okudo-neo-aim");
+  } else if (isFortuneOhanajayaStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "fortune-ohanajaya-neo-aim");
   } else if (isKintokiKamataStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "kintoki-kamata-neo-aim");
   } else if (isIidabashiPresasStore(storeName) && definition.machineKey === "neo-aim") {
@@ -12944,6 +13167,189 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         messeOkudoNeoLongNeglectLosing4,
         treatmentDone: messeOkudoNeoHigh14TooMany || messeOkudoNeoOverworked,
         lowConfidence: messeOkudoNeoHistoryShort || messeOkudoNeoHistoryVeryShort || messeOkudoNeoGames3Low,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === "fortune-ohanajaya-neo-aim") {
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      const previousRbDenominator = features.previousRbDenominator;
+      const previousCombinedDenominator = features.previousCombinedDenominator;
+      const fortuneOhanajayaNeoHistoryReady = historyRowCount >= 14;
+      const fortuneOhanajayaNeoHistoryShort = historyRowCount < 14;
+      const fortuneOhanajayaNeoHistoryVeryShort = historyRowCount < 7;
+      const fortuneOhanajayaNeoLosing3 = streak >= 3;
+      const fortuneOhanajayaNeoLosing4 = streak >= 4;
+      const fortuneOhanajayaNeoLosing5Plus = streak >= 5;
+      const fortuneOhanajayaNeoFourLossLowMidGames =
+        fortuneOhanajayaNeoLosing4 && recentThreeGamesTotal <= 9000;
+      const fortuneOhanajayaNeoThreeAngleStrong =
+        recentThreeGamesTotal >= 3000 && features.recentThreeAngle <= -160;
+      const fortuneOhanajayaNeoThreeAngleVeryStrong =
+        recentThreeGamesTotal >= 3000 && features.recentThreeAngle <= -200;
+      const fortuneOhanajayaNeoFiveAngleStrong =
+        recentFiveGamesTotal >= 5000 && features.recentFiveAngle <= -100;
+      const fortuneOhanajayaNeoFiveAngleVeryStrong =
+        recentFiveGamesTotal >= 5000 && features.recentFiveAngle <= -200;
+      const fortuneOhanajayaNeoThreeSink = recentThreeNetTotal <= -500;
+      const fortuneOhanajayaNeoThreeDeepSink = recentThreeNetTotal <= -1200;
+      const fortuneOhanajayaNeoSevenSink = recentSevenNetTotal <= -2000;
+      const fortuneOhanajayaNeoSevenDeepSink = recentSevenNetTotal <= -2500;
+      const fortuneOhanajayaNeoFourteenUnpaid = recentFourteenNetTotal <= -2000;
+      const fortuneOhanajayaNeoTwentyOneUnpaid = recentTwentyOneNetTotal <= 0;
+      const fortuneOhanajayaNeoRepayUnpaid =
+        fortuneOhanajayaNeoFourteenUnpaid ||
+        (recentSevenNetTotal < 0 && recentSevenMachineHighContentCount === 0) ||
+        (fortuneOhanajayaNeoTwentyOneUnpaid && previousDifference < 1000);
+      const fortuneOhanajayaNeoLowVisibilitySink =
+        recentThreeGamesTotal <= 5000 && fortuneOhanajayaNeoThreeSink;
+      const fortuneOhanajayaNeoMiddleSinkUnpaid =
+        recentThreeGamesTotal <= 9000 &&
+        fortuneOhanajayaNeoThreeSink &&
+        fortuneOhanajayaNeoFourteenUnpaid;
+      const fortuneOhanajayaNeoBonusHidden =
+        recentThreeGamesTotal >= 1500 &&
+        (features.recentThreeCombinedDenominator > 180 || features.recentThreeRbDenominator > 600);
+      const fortuneOhanajayaNeoPreviousHighSignal =
+        previousMachineHighContent ||
+        (previousGames >= 1500 && Number.isFinite(previousP56) && previousP56 >= 0.5) ||
+        (previousGames >= 3000 &&
+          Number.isFinite(previousP56) &&
+          previousP56 >= 0.4 &&
+          previousRbDenominator <= 310 &&
+          previousCombinedDenominator <= 145);
+      const fortuneOhanajayaNeoPreviousGoodSignal =
+        fortuneOhanajayaNeoPreviousHighSignal ||
+        previousMachineGoodContent ||
+        (previousGames >= 1500 && previousRbDenominator <= 310 && previousCombinedDenominator <= 145);
+      const fortuneOhanajayaNeoPreviousHighFail =
+        fortuneOhanajayaNeoPreviousHighSignal && previousDifference <= 500;
+      const fortuneOhanajayaNeoPreviousGoodFail =
+        fortuneOhanajayaNeoPreviousGoodSignal && previousDifference <= 0;
+      const fortuneOhanajayaNeoPreviousWeak =
+        previousGames >= 1000 &&
+        (previousDifference <= -500 ||
+          previousCombinedDenominator >= 200 ||
+          previousRbDenominator >= 600);
+      const fortuneOhanajayaNeoPreviousBigWin = previousDifference >= 1500;
+      const fortuneOhanajayaNeoPreviousHighDanger =
+        fortuneOhanajayaNeoPreviousHighSignal && previousDifference >= 800;
+      const fortuneOhanajayaNeoPreviousStrongBonus =
+        previousGames >= 2000 && (previousRbDenominator <= 300 || previousCombinedDenominator <= 130);
+      const fortuneOhanajayaNeoRecentPlusDone =
+        recentThreeNetTotal >= 2000 ||
+        recentFiveNetTotal >= 3000 ||
+        recentSevenNetTotal >= 3000 ||
+        recentFourteenNetTotal >= 3000;
+      const fortuneOhanajayaNeoTreatmentDone =
+        fortuneOhanajayaNeoPreviousBigWin ||
+        fortuneOhanajayaNeoRecentPlusDone ||
+        (Number.isFinite(daysSinceMachineBigWin1000) && daysSinceMachineBigWin1000 <= 1);
+      const fortuneOhanajayaNeoNoRecentHighUnpaid =
+        recentSevenMachineHighContentCount === 0 && recentSevenNetTotal < 0;
+      const fortuneOhanajayaNeoIntervalHigh7 =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 7;
+      const fortuneOhanajayaNeoIntervalHigh14 =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 14;
+      const fortuneOhanajayaNeoIntervalHigh30 =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 30;
+      const fortuneOhanajayaNeoActiveSink =
+        (recentSevenGamesTotal >= 11000 && fortuneOhanajayaNeoSevenSink) ||
+        (recentFiveGamesTotal >= 9000 && recentFiveNetTotal < 0);
+      const fortuneOhanajayaNeoRecentHighTooMany =
+        recentSevenMachineHighContentCount >= 2 || recentFourteenMachineHighContentCount >= 3;
+      const fortuneOhanajayaNeoOverVisible =
+        recentThreeGamesTotal >= 13000 ||
+        recentSevenGamesTotal >= 45000 ||
+        fortuneOhanajayaNeoRecentHighTooMany;
+      const fortuneOhanajayaNeoLongNeglect =
+        ((Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 30) ||
+          (!Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 30)) &&
+        !fortuneOhanajayaNeoSevenDeepSink &&
+        !fortuneOhanajayaNeoFourteenUnpaid;
+      const fortuneOhanajayaNeoLowGames = recentSevenGamesTotal < 5000;
+      const boostFlags = [
+        fortuneOhanajayaNeoLosing3,
+        fortuneOhanajayaNeoLosing4,
+        fortuneOhanajayaNeoFourLossLowMidGames,
+        fortuneOhanajayaNeoThreeAngleStrong,
+        fortuneOhanajayaNeoThreeAngleVeryStrong,
+        fortuneOhanajayaNeoFiveAngleStrong,
+        fortuneOhanajayaNeoFiveAngleVeryStrong,
+        fortuneOhanajayaNeoThreeDeepSink,
+        fortuneOhanajayaNeoSevenDeepSink,
+        fortuneOhanajayaNeoFourteenUnpaid,
+        fortuneOhanajayaNeoRepayUnpaid,
+        fortuneOhanajayaNeoLowVisibilitySink,
+        fortuneOhanajayaNeoMiddleSinkUnpaid,
+        fortuneOhanajayaNeoBonusHidden,
+        fortuneOhanajayaNeoPreviousHighFail,
+        fortuneOhanajayaNeoPreviousGoodFail,
+        fortuneOhanajayaNeoPreviousWeak,
+        fortuneOhanajayaNeoNoRecentHighUnpaid,
+        fortuneOhanajayaNeoIntervalHigh14,
+        fortuneOhanajayaNeoActiveSink,
+      ];
+      const dangerFlags = [
+        fortuneOhanajayaNeoTreatmentDone,
+        fortuneOhanajayaNeoPreviousHighDanger,
+        fortuneOhanajayaNeoPreviousStrongBonus,
+        fortuneOhanajayaNeoRecentPlusDone,
+        fortuneOhanajayaNeoOverVisible,
+        fortuneOhanajayaNeoRecentHighTooMany,
+        fortuneOhanajayaNeoLongNeglect,
+        winningStreak >= 2,
+        fortuneOhanajayaNeoLowGames,
+        fortuneOhanajayaNeoHistoryVeryShort,
+      ];
+
+      return {
+        ...features,
+        daysSinceMachineBigWin1000,
+        previousMachineSettingFivePlusProbability,
+        fortuneOhanajayaNeoHistoryReady,
+        fortuneOhanajayaNeoHistoryShort,
+        fortuneOhanajayaNeoHistoryVeryShort,
+        fortuneOhanajayaNeoLosing3,
+        fortuneOhanajayaNeoLosing4,
+        fortuneOhanajayaNeoLosing5Plus,
+        fortuneOhanajayaNeoFourLossLowMidGames,
+        fortuneOhanajayaNeoThreeAngleStrong,
+        fortuneOhanajayaNeoThreeAngleVeryStrong,
+        fortuneOhanajayaNeoFiveAngleStrong,
+        fortuneOhanajayaNeoFiveAngleVeryStrong,
+        fortuneOhanajayaNeoThreeSink,
+        fortuneOhanajayaNeoThreeDeepSink,
+        fortuneOhanajayaNeoSevenSink,
+        fortuneOhanajayaNeoSevenDeepSink,
+        fortuneOhanajayaNeoFourteenUnpaid,
+        fortuneOhanajayaNeoTwentyOneUnpaid,
+        fortuneOhanajayaNeoRepayUnpaid,
+        fortuneOhanajayaNeoLowVisibilitySink,
+        fortuneOhanajayaNeoMiddleSinkUnpaid,
+        fortuneOhanajayaNeoBonusHidden,
+        fortuneOhanajayaNeoPreviousHighSignal,
+        fortuneOhanajayaNeoPreviousGoodSignal,
+        fortuneOhanajayaNeoPreviousHighFail,
+        fortuneOhanajayaNeoPreviousGoodFail,
+        fortuneOhanajayaNeoPreviousWeak,
+        fortuneOhanajayaNeoPreviousBigWin,
+        fortuneOhanajayaNeoPreviousHighDanger,
+        fortuneOhanajayaNeoPreviousStrongBonus,
+        fortuneOhanajayaNeoRecentPlusDone,
+        fortuneOhanajayaNeoTreatmentDone,
+        fortuneOhanajayaNeoNoRecentHighUnpaid,
+        fortuneOhanajayaNeoIntervalHigh7,
+        fortuneOhanajayaNeoIntervalHigh14,
+        fortuneOhanajayaNeoIntervalHigh30,
+        fortuneOhanajayaNeoActiveSink,
+        fortuneOhanajayaNeoRecentHighTooMany,
+        fortuneOhanajayaNeoOverVisible,
+        fortuneOhanajayaNeoLongNeglect,
+        fortuneOhanajayaNeoLowGames,
+        treatmentDone: fortuneOhanajayaNeoTreatmentDone,
+        lowConfidence: fortuneOhanajayaNeoHistoryShort || fortuneOhanajayaNeoLowGames,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -19704,6 +20110,141 @@ function calculateMachineScore(definition, metrics, features) {
           ? 8
           : 0;
       score += recentTwentyOneNetTotal <= -3000 && !features.messeOkudoNeoLongNeglect ? 3 : 0;
+
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
+    if (activeLogicKey === "fortune-ohanajaya-neo-aim") {
+      let scoreCap = 100;
+      if (historyRowCount < 7) {
+        scoreCap = 50;
+      } else if (historyRowCount < 14) {
+        scoreCap = 60;
+      }
+
+      let score = 50;
+
+      if (streak >= 4) {
+        score += 30;
+      } else if (streak === 3) {
+        score += 22;
+      } else if (streak === 2) {
+        score += 14;
+      } else if (streak === 1) {
+        score += 6;
+      } else {
+        score -= 5;
+      }
+      score -= streak >= 6 ? 6 : 0;
+
+      if (recentSevenNetTotal <= -3000) {
+        score += 18;
+      } else if (recentSevenNetTotal <= -2500) {
+        score += 14;
+      } else if (recentSevenNetTotal <= -2000) {
+        score += 10;
+      } else if (recentSevenNetTotal <= -1500) {
+        score += 6;
+      } else if (recentSevenNetTotal < 0) {
+        score += 3;
+      }
+
+      if (recentFiveGamesTotal >= 5000 && features.recentFiveAngle <= -200) {
+        score += 12;
+      } else if (recentFiveGamesTotal >= 5000 && features.recentFiveAngle <= -100) {
+        score += 8;
+      } else if (recentFiveNetTotal <= -1500 && recentFiveGamesTotal >= 9000) {
+        score += 6;
+      } else if (recentFiveNetTotal < 0) {
+        score += 3;
+      }
+
+      if (recentSevenGamesTotal >= 11000 && recentSevenNetTotal <= -2000) {
+        score += 8;
+      } else if (recentFiveGamesTotal >= 9000 && recentFiveNetTotal < 0) {
+        score += 5;
+      } else if (recentThreeGamesTotal >= 6000) {
+        score += 2;
+      }
+
+      if (recentSevenMachineHighContentCount === 0 && recentSevenNetTotal < 0) {
+        score += 8;
+      } else if (recentSevenMachineHighContentCount === 0) {
+        score += 4;
+      }
+
+      if (previousDifference <= -1000 && previousGames >= 1000) {
+        score += 8;
+      } else if (previousDifference <= -500 && previousGames >= 1000) {
+        score += 5;
+      }
+      score += previousGames >= 1000 && previousCombinedDenominator >= 200 ? 3 : 0;
+      score += previousGames >= 1000 && previousRbDenominator >= 600 ? 2 : 0;
+
+      if (features.fortuneOhanajayaNeoPreviousHighFail) {
+        score += 10;
+      } else if (features.fortuneOhanajayaNeoPreviousGoodFail) {
+        score += 4;
+      }
+
+      if (Number.isFinite(daysSinceMachineHighContent)) {
+        if (daysSinceMachineHighContent >= 30) {
+          score += 6;
+        } else if (daysSinceMachineHighContent >= 14) {
+          score += 4;
+        } else if (daysSinceMachineHighContent >= 7) {
+          score += 2;
+        }
+      }
+
+      if (recentThreeGamesTotal <= 3000) {
+        score += 10;
+      } else if (recentThreeGamesTotal <= 5000) {
+        score += 12;
+      } else if (recentThreeGamesTotal <= 9000) {
+        score += 6;
+      } else if (recentThreeGamesTotal >= 13000) {
+        score -= 10;
+      } else if (recentThreeGamesTotal >= 11000) {
+        score -= 6;
+      }
+
+      if (features.recentThreeCombinedDenominator > 220) {
+        score += 14;
+      } else if (features.recentThreeCombinedDenominator > 200) {
+        score += 12;
+      } else if (features.recentThreeCombinedDenominator > 180) {
+        score += 9;
+      } else if (features.recentThreeCombinedDenominator > 165) {
+        score += 5;
+      } else if (features.recentThreeCombinedDenominator <= 140) {
+        score -= 4;
+      }
+
+      if (features.recentThreeRbDenominator > 800) {
+        score += 6;
+      } else if (features.recentThreeRbDenominator > 700) {
+        score += 5;
+      } else if (features.recentThreeRbDenominator > 600) {
+        score += 3;
+      } else if (features.recentThreeRbDenominator <= 315) {
+        score -= 2;
+      }
+
+      score -= previousDifference >= 1500 ? 24 : 0;
+      score -= recentThreeNetTotal >= 2000 ? 18 : recentThreeNetTotal >= 1000 ? 6 : 0;
+      score -= recentFiveNetTotal >= 3000 ? 14 : 0;
+      score -= recentSevenNetTotal >= 3000 ? 12 : 0;
+      score -= recentFourteenNetTotal >= 3000 ? 5 : 0;
+      score -= features.fortuneOhanajayaNeoPreviousHighDanger ? 18 : 0;
+      score -= previousGames >= 2000 && previousRbDenominator <= 300 ? 10 : 0;
+      score -= previousGames >= 2000 && previousCombinedDenominator <= 130 ? 8 : 0;
+      score -= winningStreak >= 2 ? 6 : 0;
+      score -= recentSevenMachineHighContentCount >= 2 ? 6 : recentSevenMachineHighContentCount >= 1 ? 3 : 0;
+      score -= recentSevenGamesTotal < 5000 ? 6 : 0;
+      score -= historyRowCount < 14 ? 4 : 0;
+      score -= historyRowCount < 7 ? 10 : 0;
+      score -= features.fortuneOhanajayaNeoLongNeglect ? 5 : 0;
 
       return Math.round(clamp(score, 0, scoreCap));
     }
