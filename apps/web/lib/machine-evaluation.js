@@ -82,6 +82,12 @@ const BELLCITY_SHINOZAKI_NEO_AIM_LOGIC_NAME =
   "ベルシティ篠崎南口1_ネオアイム_返済未完沈み戻しロジック_v1";
 const BELLCITY_SHINOZAKI_NEO_AIM_DEFAULT_CONDITION =
   "bellcity-shinozaki-neo-free-main";
+const BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY =
+  "bellcity-thecity-shinozaki-neo-aim";
+const BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_NAME =
+  "ベルシティ篠崎_ネオアイム_前日凹み返済未完ロジック_v1";
+const BELLCITY_THECITY_SHINOZAKI_NEO_AIM_DEFAULT_CONDITION =
+  "bellcity-thecity-shinozaki-neo-rank1";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -418,6 +424,20 @@ function isBellCityShinozakiStore(storeName) {
     "ベルシティ篠崎南口",
     "BELLCITYTHECITY篠崎南口1",
     "BellCityTheCity篠崎南口1",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
+function isBellCityTheCityShinozakiStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "ベルシティザシティ篠崎店",
+    "ベルシティザシティ篠崎",
+    "ベルシティ篠崎店",
+    "ベルシティ篠崎",
+    "ベルシティザシティしのざき店",
+    "ベルシティザシティしのざき",
+    "BELLCITYTHECITY篠崎店",
+    "BellCityTheCity篠崎店",
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
@@ -1755,6 +1775,327 @@ function buildBellCityShinozakiNeoAimConditions() {
         requiredFlags: ["bellcityShinozakiNeoHistoryShort"],
       },
       [BELLCITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+  ];
+}
+
+function buildBellCityTheCityShinozakiNeoAimConditions() {
+  return [
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-score90",
+      "最本命_90点以上",
+      "19台 / RB1/252.0 / 合算1/127.1 / 平均+515枚 / 103.8% / 平均56 49.6% / 56>=50% 42.1% / 件数少",
+      {
+        minScore: 90,
+        requiredFlags: ["bellcityTheCityShinozakiNeoHistoryReady"],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-free-best",
+      "自由最本命_前日凹み14RB320高2",
+      "19日 / 24台 / RB1/259.7 / 合算1/128.6 / 平均+782枚 / 105.18% / 平均56 50.5% / 56>=50% 54.2%",
+      {
+        requiredFlags: [
+          "bellcityTheCityShinozakiNeoHistoryReady",
+          "bellcityTheCityShinozakiNeoPreviousDeepSink1000",
+          "bellcityTheCityShinozakiNeoRb14Strong320",
+          "bellcityTheCityShinozakiNeoSevenHigh2",
+        ],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-rb300-prev-sink",
+      "強条件_7日RB300前日凹み",
+      "25日 / 31台 / RB1/273.0 / 合算1/134.7 / 平均+417枚 / 102.83% / 平均56 44.7% / 56>=50% 41.9%",
+      {
+        requiredFlags: [
+          "bellcityTheCityShinozakiNeoHistoryReady",
+          "bellcityTheCityShinozakiNeoPreviousDeepSink1000",
+          "bellcityTheCityShinozakiNeoRb7Strong300",
+        ],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-rank1-gap8",
+      "強条件_1位次点差8",
+      "36台 / RB1/276.5 / 合算1/134.0 / 平均+379.2枚 / 103.0% / 平均56 41.2% / 56>=50% 33.3%",
+      {
+        rankMax: 1,
+        minNextGap: 8,
+        requiredFlags: ["bellcityTheCityShinozakiNeoHistoryReady"],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-deep-short-rb270",
+      "自由本命_深沈み短期RB270",
+      "38日 / 43台 / RB1/268.6 / 合算1/133.5 / 平均+290枚 / 102.84% / 平均56 41.1% / 56>=50% 37.2%",
+      {
+        requiredFlags: [
+          "bellcityTheCityShinozakiNeoHistoryReady",
+          "bellcityTheCityShinozakiNeoDeepSinkShortRb270",
+        ],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-five-rb250-boost2-safe",
+      "自由強条件_5日RB250強化2危険0",
+      "33日 / 35台 / RB1/270.5 / 合算1/133.3 / 平均+269.4枚 / 102.8% / 平均56 41.4% / 56>=50% 34.3%",
+      {
+        minBoost: 2,
+        maxDanger: 0,
+        requiredFlags: [
+          "bellcityTheCityShinozakiNeoHistoryReady",
+          "bellcityTheCityShinozakiNeoRb5Strong250",
+        ],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-score100-rank1-gap3",
+      "最本命参考_100点1位差3",
+      "33台 / RB1/267.3 / 合算1/132.2 / 平均+477枚 / 103.48% / 平均56 44.4% / 件数少",
+      {
+        rankMax: 1,
+        minScore: 100,
+        maxScore: 100,
+        minNextGap: 3,
+        requiredFlags: ["bellcityTheCityShinozakiNeoHistoryReady"],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-loss3-score100-rank1",
+      "自由本命_3連敗100点1位",
+      "63台 / RB1/271.2 / 合算1/132.2 / 平均+451枚 / 103.64% / 平均56 43.1%",
+      {
+        rankMax: 1,
+        minScore: 100,
+        maxScore: 100,
+        requiredFlags: [
+          "bellcityTheCityShinozakiNeoHistoryReady",
+          "bellcityTheCityShinozakiNeoLoss3",
+        ],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-loss4-rank1-gap5",
+      "自由最強_4連敗1位差5",
+      "27台 / RB1/258.0 / 合算1/129.0 / 平均+563枚 / 104.71% / 平均56 46.6% / 件数少",
+      {
+        rankMax: 1,
+        minNextGap: 5,
+        requiredFlags: [
+          "bellcityTheCityShinozakiNeoHistoryReady",
+          "bellcityTheCityShinozakiNeoLoss4",
+        ],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-repay-genuine",
+      "本命_返済未完本物感",
+      "40日 / 62台 / RB1/282.0 / 合算1/137.3 / 平均+296枚 / 102.37% / 平均56 39.1% / 56>=50% 30.6%",
+      {
+        requiredFlags: [
+          "bellcityTheCityShinozakiNeoHistoryReady",
+          "bellcityTheCityShinozakiNeoRepayGenuine",
+        ],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-rank1-gap6",
+      "本命_1位次点差6",
+      "49台 / RB1/286.8 / 合算1/137.6 / 平均+260.7枚 / 102.2% / 平均56 37.4% / 56>=50% 26.5%",
+      {
+        rankMax: 1,
+        minNextGap: 6,
+        requiredFlags: ["bellcityTheCityShinozakiNeoHistoryReady"],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-high-fail",
+      "本命補助_前日高内容不発",
+      "36日 / 57台 / RB1/290.5 / 合算1/137.2 / 平均+276枚 / 102.40% / 平均56 36.2% / 56>=50% 22.8%",
+      {
+        requiredFlags: [
+          "bellcityTheCityShinozakiNeoHistoryReady",
+          "bellcityTheCityShinozakiNeoPreviousHighFail",
+        ],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-rank1-gap4",
+      "弱本命_1位次点差4",
+      "71台 / RB1/293.7 / 合算1/139.6 / 平均+199.9枚 / 101.8% / 平均56 35.6% / 56>=50% 23.9%",
+      {
+        rankMax: 1,
+        minNextGap: 4,
+        requiredFlags: ["bellcityTheCityShinozakiNeoHistoryReady"],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-score90-rank3",
+      "弱本命_90点上位3",
+      "105日 / 247台 / RB1/295.4 / 合算1/137.5 / 平均+335枚 / 102.87% / 平均56 36.5%",
+      {
+        rankMax: 3,
+        minScore: 90,
+        requiredFlags: ["bellcityTheCityShinozakiNeoHistoryReady"],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      BELLCITY_THECITY_SHINOZAKI_NEO_AIM_DEFAULT_CONDITION,
+      "広め_機種別1位",
+      "117台 / RB1/299.2〜306.5 / 合算1/139.5〜141.7 / 平均+178〜263枚 / 毎日1台の候補",
+      {
+        rankMax: 1,
+        requiredFlags: ["bellcityTheCityShinozakiNeoHistoryReady"],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-score80",
+      "広め_80点以上",
+      "111日 / 507台 / RB1/306.5 / 合算1/142.0 / 平均+163枚 / 101.62% / 平均56 33.6%",
+      {
+        minScore: 80,
+        requiredFlags: ["bellcityTheCityShinozakiNeoHistoryReady"],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-score85",
+      "補助_85点以上",
+      "112日 / 453台 / RB1/306.0 / 合算1/140.8 / 平均+218枚 / 102.07% / 平均56 33.5%",
+      {
+        minScore: 85,
+        requiredFlags: ["bellcityTheCityShinozakiNeoHistoryReady"],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-previous-deep",
+      "補助_前日深凹み",
+      "104日 / 401台 / RB1/303.5 / 合算1/141.4 / 平均+182.9枚 / 101.7% / 平均56 34.1%",
+      {
+        requiredFlags: [
+          "bellcityTheCityShinozakiNeoHistoryReady",
+          "bellcityTheCityShinozakiNeoPreviousDeepSink800",
+        ],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-five-sink-rb21",
+      "代替_5日凹み21日RB300",
+      "28日 / 30台 / RB1/284.4 / 合算1/132.3 / 平均+568枚 / 105.04% / 平均56 39.4%",
+      {
+        requiredFlags: [
+          "bellcityTheCityShinozakiNeoHistoryReady",
+          "bellcityTheCityShinozakiNeoFiveSinkRb21",
+        ],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-watch-treatment",
+      "見送り_処遇完了",
+      "1051台 / RB1/358.4 / 合算1/153.9 / 平均-37.4枚 / 99.5% / 高点でも下げる",
+      {
+        requiredFlags: [
+          "bellcityTheCityShinozakiNeoHistoryReady",
+          "bellcityTheCityShinozakiNeoTreatmentDone",
+        ],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-watch-prev-output",
+      "見送り_前日出すぎ",
+      "前日+1000枚以上はRB1/388.5付近で弱い。設定5・6級の比率も低い",
+      {
+        requiredFlags: [
+          "bellcityTheCityShinozakiNeoHistoryReady",
+          "bellcityTheCityShinozakiNeoPreviousOutput1000",
+        ],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-watch-good-combined",
+      "見送り_前日良合成見えすぎ",
+      "前日合成1/130以下で見えた台はRB1/384.8付近で弱い",
+      {
+        requiredFlags: [
+          "bellcityTheCityShinozakiNeoHistoryReady",
+          "bellcityTheCityShinozakiNeoPreviousCombinedVisible",
+        ],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-watch-high-games",
+      "見送り_高稼働見えすぎ",
+      "7日高稼働3万G以上＋前日良合成はRB1/374.9付近で弱い",
+      {
+        requiredFlags: [
+          "bellcityTheCityShinozakiNeoHistoryReady",
+          "bellcityTheCityShinozakiNeoHighGamesVisible",
+        ],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-watch-low-boost",
+      "見送り_70点以上強化1以下",
+      "70点以上でも強化0〜1個はRB1/330.8付近で本命には弱い",
+      {
+        minScore: 70,
+        maxBoost: 1,
+        requiredFlags: ["bellcityTheCityShinozakiNeoHistoryReady"],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-watch-rank1-low-gap",
+      "注意_1位次点差1以下",
+      "1位でも次点差0〜1点はRB1/320.9付近で優先度を下げる",
+      {
+        rankMax: 1,
+        maxNextGap: 1,
+        requiredFlags: ["bellcityTheCityShinozakiNeoHistoryReady"],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-watch-danger2",
+      "見送り_危険2以上",
+      "処遇完了、見えすぎ、長期放置、低履歴などが重なる台は本命外",
+      {
+        minDanger: 2,
+        requiredFlags: ["bellcityTheCityShinozakiNeoHistoryReady"],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "bellcity-thecity-shinozaki-neo-watch-history-short",
+      "見送り_履歴不足",
+      "履歴14営業日未満は低信頼扱い。7日未満は最大55点、7〜13日は最大65点",
+      {
+        requiredFlags: ["bellcityTheCityShinozakiNeoHistoryShort"],
+      },
+      [BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY],
     ),
   ];
 }
@@ -3213,6 +3554,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         BELLCITY_SHINOZAKI_NEO_AIM_LOGIC_NAME,
         BELLCITY_SHINOZAKI_NEO_AIM_DEFAULT_CONDITION,
       ),
+      buildLogicVariant(
+        BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY,
+        BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_NAME,
+        BELLCITY_THECITY_SHINOZAKI_NEO_AIM_DEFAULT_CONDITION,
+      ),
       buildLogicVariant("apark-yakatabaru-neo-aim", "ネオアイム屋形原式", "apark-yakatabaru-main"),
       buildLogicVariant("mj-kurume-neo-aim", "ネオアイムMJ久留米式", "mj-kurume-main"),
       buildLogicVariant(
@@ -3447,6 +3793,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ...buildPrimeHiraiNeoAimConditions(),
       ...buildPalazzoKasaiNeoAimConditions(),
       ...buildBellCityShinozakiNeoAimConditions(),
+      ...buildBellCityTheCityShinozakiNeoAimConditions(),
       buildCondition(
         "main",
         "1位＋70点以上＋3日沈み2日以上",
@@ -10667,6 +11014,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, PALAZZO_KASAI_NEO_AIM_LOGIC_KEY);
   } else if (isBellCityShinozakiStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, BELLCITY_SHINOZAKI_NEO_AIM_LOGIC_KEY);
+  } else if (isBellCityTheCityShinozakiStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY);
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "aim") {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-aim");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "gogo") {
@@ -11924,6 +12273,289 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         bellcityShinozakiNeoHighActivityMain,
         treatmentDone: bellcityShinozakiNeoTreatmentDone,
         lowConfidence: bellcityShinozakiNeoLowGames,
+        boostCount,
+        dangerCount,
+      };
+    }
+
+    if (activeLogicKey === BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY) {
+      const bellcityTheCityShinozakiNeoRecentFiveRbTotal = readNumber(metrics.recentFiveRbTotal);
+      const bellcityTheCityShinozakiNeoRecentFiveBonusTotal = readNumber(metrics.recentFiveBonusTotal);
+      const bellcityTheCityShinozakiNeoRecentFiveBbTotal = readNumber(
+        metrics.recentFiveBbTotal,
+        Math.max(
+          0,
+          bellcityTheCityShinozakiNeoRecentFiveBonusTotal -
+            bellcityTheCityShinozakiNeoRecentFiveRbTotal,
+        ),
+      );
+      const bellcityTheCityShinozakiNeoRecentSevenRbTotal = readNumber(metrics.recentSevenRbTotal);
+      const bellcityTheCityShinozakiNeoRecentSevenBonusTotal = readNumber(metrics.recentSevenBonusTotal);
+      const bellcityTheCityShinozakiNeoRecentSevenBbTotal = readNumber(
+        metrics.recentSevenBbTotal,
+        Math.max(
+          0,
+          bellcityTheCityShinozakiNeoRecentSevenBonusTotal -
+            bellcityTheCityShinozakiNeoRecentSevenRbTotal,
+        ),
+      );
+      const bellcityTheCityShinozakiNeoRecentTenBonusTotal = readNumber(metrics.recentTenBonusTotal);
+      const bellcityTheCityShinozakiNeoRecentTenCombinedDenominator = rateDenominator(
+        recentTenGamesTotal,
+        bellcityTheCityShinozakiNeoRecentTenBonusTotal,
+      );
+      const bellcityTheCityShinozakiNeoP56FiveAggregate =
+        calculateNeoAimSettingFivePlusProbabilityFromTotals(
+          recentFiveGamesTotal,
+          bellcityTheCityShinozakiNeoRecentFiveBbTotal,
+          bellcityTheCityShinozakiNeoRecentFiveRbTotal,
+        );
+      const bellcityTheCityShinozakiNeoP56SevenAggregate =
+        calculateNeoAimSettingFivePlusProbabilityFromTotals(
+          recentSevenGamesTotal,
+          bellcityTheCityShinozakiNeoRecentSevenBbTotal,
+          bellcityTheCityShinozakiNeoRecentSevenRbTotal,
+        );
+      const bellcityTheCityShinozakiNeoP56FiveAverage = readNullableNumber(
+        metrics.recentFiveMachineSettingFivePlusProbabilityAverage,
+      );
+      const bellcityTheCityShinozakiNeoP56Five = Number.isFinite(
+        bellcityTheCityShinozakiNeoP56FiveAggregate,
+      )
+        ? bellcityTheCityShinozakiNeoP56FiveAggregate
+        : Number.isFinite(bellcityTheCityShinozakiNeoP56FiveAverage)
+          ? bellcityTheCityShinozakiNeoP56FiveAverage
+          : recentSevenMachineSettingFivePlusProbabilityAverage;
+      const bellcityTheCityShinozakiNeoP56Seven = Number.isFinite(
+        bellcityTheCityShinozakiNeoP56SevenAggregate,
+      )
+        ? bellcityTheCityShinozakiNeoP56SevenAggregate
+        : recentSevenMachineSettingFivePlusProbabilityAverage;
+      const bellcityTheCityShinozakiNeoPreviousP56 = Number.isFinite(
+        previousMachineSettingFivePlusProbability,
+      )
+        ? previousMachineSettingFivePlusProbability
+        : null;
+      const bellcityTheCityShinozakiNeoHistoryReady = historyRowCount >= 14;
+      const bellcityTheCityShinozakiNeoHistoryShort = historyRowCount < 14;
+      const bellcityTheCityShinozakiNeoHistoryVeryShort = historyRowCount < 7;
+      const bellcityTheCityShinozakiNeoPreviousHigh =
+        previousMachineHighContent ||
+        (Number.isFinite(bellcityTheCityShinozakiNeoPreviousP56) &&
+          bellcityTheCityShinozakiNeoPreviousP56 >= 0.5 &&
+          previousGames >= 2000) ||
+        (previousGames >= 3000 &&
+          features.previousRbDenominator <= 300 &&
+          features.previousCombinedDenominator <= 140);
+      const bellcityTheCityShinozakiNeoPreviousStrongHigh =
+        previousMachineStrongHighContent ||
+        (Number.isFinite(bellcityTheCityShinozakiNeoPreviousP56) &&
+          bellcityTheCityShinozakiNeoPreviousP56 >= 0.7 &&
+          previousGames >= 2500) ||
+        (previousGames >= 3500 &&
+          features.previousRbDenominator <= 285 &&
+          features.previousCombinedDenominator <= 135);
+      const bellcityTheCityShinozakiNeoPreviousGoodBonus =
+        previousGames >= 3000 &&
+        features.previousRbDenominator <= 300 &&
+        features.previousCombinedDenominator <= 140;
+      const bellcityTheCityShinozakiNeoPreviousHighFail =
+        bellcityTheCityShinozakiNeoPreviousHigh && previousDifference <= 0;
+      const bellcityTheCityShinozakiNeoPreviousGoodBonusFail =
+        bellcityTheCityShinozakiNeoPreviousGoodBonus && previousDifference <= 0;
+      const bellcityTheCityShinozakiNeoPreviousDeepSink500 = previousDifference <= -500;
+      const bellcityTheCityShinozakiNeoPreviousDeepSink800 = previousDifference <= -800;
+      const bellcityTheCityShinozakiNeoPreviousDeepSink1000 = previousDifference <= -1000;
+      const bellcityTheCityShinozakiNeoPreviousDeepSink1500 = previousDifference <= -1500;
+      const bellcityTheCityShinozakiNeoRb5Strong250 =
+        recentFiveGamesTotal >= 7000 && features.recentFiveRbDenominator <= 250;
+      const bellcityTheCityShinozakiNeoRb7Strong300 =
+        recentSevenGamesTotal >= 8000 && features.recentSevenRbDenominator <= 300;
+      const bellcityTheCityShinozakiNeoRb7Strong320 =
+        recentSevenGamesTotal >= 8000 && features.recentSevenRbDenominator <= 320;
+      const bellcityTheCityShinozakiNeoRb14Strong320 =
+        recentFourteenGamesTotal >= 15000 && features.recentFourteenRbDenominator <= 320;
+      const bellcityTheCityShinozakiNeoRb21Strong300 =
+        recentTwentyOneGamesTotal >= 20000 && features.recentTwentyOneRbDenominator <= 300;
+      const bellcityTheCityShinozakiNeoSevenHigh1 = recentSevenMachineHighContentCount >= 1;
+      const bellcityTheCityShinozakiNeoSevenHigh2 = recentSevenMachineHighContentCount >= 2;
+      const bellcityTheCityShinozakiNeoTwentyOneHigh3 =
+        recentTwentyOneMachineHighContentCount >= 3;
+      const bellcityTheCityShinozakiNeoRepay14 =
+        recentFourteenGamesTotal >= 12000 && recentFourteenNetTotal <= -2000;
+      const bellcityTheCityShinozakiNeoRepay21 =
+        recentTwentyOneGamesTotal >= 20000 && recentTwentyOneNetTotal <= -2000;
+      const bellcityTheCityShinozakiNeoRepayGenuine =
+        bellcityTheCityShinozakiNeoPreviousDeepSink1000 &&
+        (bellcityTheCityShinozakiNeoRb7Strong320 || bellcityTheCityShinozakiNeoSevenHigh2);
+      const bellcityTheCityShinozakiNeoDeepSinkShortRb270 =
+        recentSevenNetTotal <= -1500 &&
+        recentThreeGamesTotal >= 3000 &&
+        recentSevenGamesTotal >= 8000 &&
+        features.recentThreeRbDenominator <= 270;
+      const bellcityTheCityShinozakiNeoFiveSinkRb21 =
+        recentFiveNetTotal <= -1500 && bellcityTheCityShinozakiNeoRb21Strong300;
+      const bellcityTheCityShinozakiNeoDeepUnpaid =
+        bellcityTheCityShinozakiNeoPreviousDeepSink800 &&
+        recentFourteenNetTotal <= 0 &&
+        recentFourteenGamesTotal >= 18000;
+      const bellcityTheCityShinozakiNeoFiveP56Strong =
+        Number.isFinite(bellcityTheCityShinozakiNeoP56Five) &&
+        bellcityTheCityShinozakiNeoP56Five >= 0.7 &&
+        recentFiveNetTotal <= 1000;
+      const bellcityTheCityShinozakiNeoSevenP56Genuine =
+        Number.isFinite(bellcityTheCityShinozakiNeoP56Seven) &&
+        bellcityTheCityShinozakiNeoP56Seven >= 0.35 &&
+        recentSevenNetTotal <= 0 &&
+        recentSevenGamesTotal >= 14000;
+      const bellcityTheCityShinozakiNeoLoss2 = streak >= 2;
+      const bellcityTheCityShinozakiNeoLoss3 = streak >= 3;
+      const bellcityTheCityShinozakiNeoLoss4 = streak >= 4;
+      const bellcityTheCityShinozakiNeoLoss6 = streak >= 6;
+      const bellcityTheCityShinozakiNeoGames7Trust =
+        recentSevenGamesTotal >= 10000 && recentSevenGamesTotal <= 28000;
+      const bellcityTheCityShinozakiNeoGames14Trust =
+        recentFourteenGamesTotal >= 15000 && recentFourteenGamesTotal <= 42000;
+      const bellcityTheCityShinozakiNeoInterval5To14 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 5 &&
+        daysSinceMachineHighContent <= 14;
+      const bellcityTheCityShinozakiNeoLongNeglect =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 14 &&
+        previousDifference >= 0;
+      const bellcityTheCityShinozakiNeoPreviousOutput500 = previousDifference >= 500;
+      const bellcityTheCityShinozakiNeoPreviousOutput1000 = previousDifference >= 1000;
+      const bellcityTheCityShinozakiNeoPreviousCombinedVisible =
+        previousGames >= 2000 && features.previousCombinedDenominator <= 130;
+      const bellcityTheCityShinozakiNeoPreviousCombined140Output =
+        previousGames >= 2000 &&
+        features.previousCombinedDenominator <= 140 &&
+        previousDifference >= 500;
+      const bellcityTheCityShinozakiNeoHighGamesVisible =
+        recentSevenGamesTotal >= 30000 &&
+        (previousGames >= 4000 || features.previousCombinedDenominator <= 160);
+      const bellcityTheCityShinozakiNeoTenCombinedVisible =
+        recentTenGamesTotal >= 18000 &&
+        bellcityTheCityShinozakiNeoRecentTenCombinedDenominator <= 140 &&
+        features.previousCombinedDenominator <= 140;
+      const bellcityTheCityShinozakiNeoTreatmentDone =
+        recentFiveNetTotal >= 2000 ||
+        recentSevenNetTotal >= 3000 ||
+        recentFourteenNetTotal >= 3000 ||
+        bellcityTheCityShinozakiNeoPreviousOutput1000 ||
+        (bellcityTheCityShinozakiNeoPreviousHigh && previousDifference >= 1200) ||
+        (bellcityTheCityShinozakiNeoPreviousCombinedVisible && previousDifference >= 0);
+      const bellcityTheCityShinozakiNeoLowHistory =
+        bellcityTheCityShinozakiNeoHistoryShort ||
+        recentSevenGamesTotal < 3000 ||
+        recentFourteenGamesTotal < 12000;
+      const bellcityTheCityShinozakiNeoRecentWeakVisible =
+        recentSevenGamesTotal >= 12000 &&
+        recentSevenNetTotal >= 0 &&
+        (features.recentSevenRbDenominator >= 500 || features.recentSevenCombinedDenominator >= 180);
+      const bellcityTheCityShinozakiNeoNeighborSignal =
+        previousAdjacentMachineHighContentCountNear2 >= 1 ||
+        previousAdjacentMachineNetTotalNear2 >= 2000 ||
+        adjacentMachineNetTotal7Near2 >= 3000;
+
+      const boostFlags = [
+        bellcityTheCityShinozakiNeoPreviousDeepSink500,
+        bellcityTheCityShinozakiNeoPreviousDeepSink800,
+        bellcityTheCityShinozakiNeoPreviousDeepSink1000,
+        bellcityTheCityShinozakiNeoPreviousDeepSink1500,
+        recentThreeNetTotal <= -1500,
+        recentFiveNetTotal <= -2000,
+        bellcityTheCityShinozakiNeoRepay14,
+        bellcityTheCityShinozakiNeoRepay21,
+        bellcityTheCityShinozakiNeoDeepUnpaid,
+        bellcityTheCityShinozakiNeoRb5Strong250,
+        bellcityTheCityShinozakiNeoRb7Strong320,
+        bellcityTheCityShinozakiNeoRb14Strong320,
+        bellcityTheCityShinozakiNeoPreviousHighFail,
+        bellcityTheCityShinozakiNeoPreviousGoodBonusFail,
+        bellcityTheCityShinozakiNeoSevenHigh2,
+        bellcityTheCityShinozakiNeoFiveP56Strong,
+        bellcityTheCityShinozakiNeoSevenP56Genuine,
+        bellcityTheCityShinozakiNeoDeepSinkShortRb270,
+        bellcityTheCityShinozakiNeoFiveSinkRb21,
+        bellcityTheCityShinozakiNeoLoss3,
+        bellcityTheCityShinozakiNeoLoss4,
+        bellcityTheCityShinozakiNeoGames7Trust,
+        bellcityTheCityShinozakiNeoGames14Trust,
+        bellcityTheCityShinozakiNeoInterval5To14,
+        bellcityTheCityShinozakiNeoNeighborSignal,
+      ];
+      const dangerFlags = [
+        bellcityTheCityShinozakiNeoTreatmentDone,
+        bellcityTheCityShinozakiNeoPreviousOutput500,
+        bellcityTheCityShinozakiNeoPreviousOutput1000,
+        bellcityTheCityShinozakiNeoPreviousCombinedVisible,
+        bellcityTheCityShinozakiNeoPreviousCombined140Output,
+        bellcityTheCityShinozakiNeoHighGamesVisible,
+        bellcityTheCityShinozakiNeoTenCombinedVisible,
+        bellcityTheCityShinozakiNeoPreviousStrongHigh && previousDifference >= 0,
+        bellcityTheCityShinozakiNeoLongNeglect,
+        bellcityTheCityShinozakiNeoLowHistory,
+        bellcityTheCityShinozakiNeoRecentWeakVisible,
+        bellcityTheCityShinozakiNeoHistoryVeryShort,
+      ];
+      const boostCount = boostFlags.filter(Boolean).length;
+      const dangerCount = dangerFlags.filter(Boolean).length;
+
+      return {
+        ...features,
+        bellcityTheCityShinozakiNeoHistoryReady,
+        bellcityTheCityShinozakiNeoHistoryShort,
+        bellcityTheCityShinozakiNeoHistoryVeryShort,
+        bellcityTheCityShinozakiNeoPreviousP56,
+        bellcityTheCityShinozakiNeoP56Five,
+        bellcityTheCityShinozakiNeoP56Seven,
+        bellcityTheCityShinozakiNeoPreviousHigh,
+        bellcityTheCityShinozakiNeoPreviousStrongHigh,
+        bellcityTheCityShinozakiNeoPreviousGoodBonus,
+        bellcityTheCityShinozakiNeoPreviousHighFail,
+        bellcityTheCityShinozakiNeoPreviousGoodBonusFail,
+        bellcityTheCityShinozakiNeoPreviousDeepSink500,
+        bellcityTheCityShinozakiNeoPreviousDeepSink800,
+        bellcityTheCityShinozakiNeoPreviousDeepSink1000,
+        bellcityTheCityShinozakiNeoPreviousDeepSink1500,
+        bellcityTheCityShinozakiNeoRb5Strong250,
+        bellcityTheCityShinozakiNeoRb7Strong300,
+        bellcityTheCityShinozakiNeoRb7Strong320,
+        bellcityTheCityShinozakiNeoRb14Strong320,
+        bellcityTheCityShinozakiNeoRb21Strong300,
+        bellcityTheCityShinozakiNeoSevenHigh1,
+        bellcityTheCityShinozakiNeoSevenHigh2,
+        bellcityTheCityShinozakiNeoTwentyOneHigh3,
+        bellcityTheCityShinozakiNeoRepay14,
+        bellcityTheCityShinozakiNeoRepay21,
+        bellcityTheCityShinozakiNeoRepayGenuine,
+        bellcityTheCityShinozakiNeoDeepSinkShortRb270,
+        bellcityTheCityShinozakiNeoFiveSinkRb21,
+        bellcityTheCityShinozakiNeoDeepUnpaid,
+        bellcityTheCityShinozakiNeoFiveP56Strong,
+        bellcityTheCityShinozakiNeoSevenP56Genuine,
+        bellcityTheCityShinozakiNeoLoss2,
+        bellcityTheCityShinozakiNeoLoss3,
+        bellcityTheCityShinozakiNeoLoss4,
+        bellcityTheCityShinozakiNeoLoss6,
+        bellcityTheCityShinozakiNeoGames7Trust,
+        bellcityTheCityShinozakiNeoGames14Trust,
+        bellcityTheCityShinozakiNeoInterval5To14,
+        bellcityTheCityShinozakiNeoLongNeglect,
+        bellcityTheCityShinozakiNeoPreviousOutput500,
+        bellcityTheCityShinozakiNeoPreviousOutput1000,
+        bellcityTheCityShinozakiNeoPreviousCombinedVisible,
+        bellcityTheCityShinozakiNeoPreviousCombined140Output,
+        bellcityTheCityShinozakiNeoHighGamesVisible,
+        bellcityTheCityShinozakiNeoTenCombinedVisible,
+        bellcityTheCityShinozakiNeoTreatmentDone,
+        bellcityTheCityShinozakiNeoLowHistory,
+        bellcityTheCityShinozakiNeoRecentWeakVisible,
+        bellcityTheCityShinozakiNeoNeighborSignal,
+        treatmentDone: bellcityTheCityShinozakiNeoTreatmentDone,
+        lowConfidence: bellcityTheCityShinozakiNeoLowHistory,
         boostCount,
         dangerCount,
       };
@@ -19232,6 +19864,157 @@ function calculateMachineScore(definition, metrics, features) {
       contextScore +
       p56TempScore +
       compoundScore -
+      penalty;
+    return Math.round(clamp(score, 0, historyCap));
+  }
+
+  if (activeLogicKey === BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY) {
+    const previousHigh = Boolean(features.bellcityTheCityShinozakiNeoPreviousHigh);
+    const previousStrongHigh = Boolean(features.bellcityTheCityShinozakiNeoPreviousStrongHigh);
+    const previousHighFail = Boolean(features.bellcityTheCityShinozakiNeoPreviousHighFail);
+    const previousGoodBonusFail = Boolean(features.bellcityTheCityShinozakiNeoPreviousGoodBonusFail);
+    const repayGenuine = Boolean(features.bellcityTheCityShinozakiNeoRepayGenuine);
+    const rb5Strong250 = Boolean(features.bellcityTheCityShinozakiNeoRb5Strong250);
+    const rb7Strong300 = Boolean(features.bellcityTheCityShinozakiNeoRb7Strong300);
+    const rb7Strong320 = Boolean(features.bellcityTheCityShinozakiNeoRb7Strong320);
+    const rb14Strong320 = Boolean(features.bellcityTheCityShinozakiNeoRb14Strong320);
+    const rb21Strong300 = Boolean(features.bellcityTheCityShinozakiNeoRb21Strong300);
+    const sevenHigh1 = Boolean(features.bellcityTheCityShinozakiNeoSevenHigh1);
+    const sevenHigh2 = Boolean(features.bellcityTheCityShinozakiNeoSevenHigh2);
+    const twentyOneHigh3 = Boolean(features.bellcityTheCityShinozakiNeoTwentyOneHigh3);
+    const fiveP56Strong = Boolean(features.bellcityTheCityShinozakiNeoFiveP56Strong);
+    const sevenP56Genuine = Boolean(features.bellcityTheCityShinozakiNeoSevenP56Genuine);
+    const deepSinkShortRb270 = Boolean(features.bellcityTheCityShinozakiNeoDeepSinkShortRb270);
+    const fiveSinkRb21 = Boolean(features.bellcityTheCityShinozakiNeoFiveSinkRb21);
+    const deepUnpaid = Boolean(features.bellcityTheCityShinozakiNeoDeepUnpaid);
+    const treatmentDone = Boolean(features.bellcityTheCityShinozakiNeoTreatmentDone);
+    const previousOutput500 = Boolean(features.bellcityTheCityShinozakiNeoPreviousOutput500);
+    const previousOutput1000 = Boolean(features.bellcityTheCityShinozakiNeoPreviousOutput1000);
+    const previousCombinedVisible = Boolean(features.bellcityTheCityShinozakiNeoPreviousCombinedVisible);
+    const previousCombined140Output = Boolean(features.bellcityTheCityShinozakiNeoPreviousCombined140Output);
+    const highGamesVisible = Boolean(features.bellcityTheCityShinozakiNeoHighGamesVisible);
+    const tenCombinedVisible = Boolean(features.bellcityTheCityShinozakiNeoTenCombinedVisible);
+    const longNeglect = Boolean(features.bellcityTheCityShinozakiNeoLongNeglect);
+    const lowHistory = Boolean(features.bellcityTheCityShinozakiNeoLowHistory);
+    const recentWeakVisible = Boolean(features.bellcityTheCityShinozakiNeoRecentWeakVisible);
+    const interval5To14 = Boolean(features.bellcityTheCityShinozakiNeoInterval5To14);
+    const neighborSignal = Boolean(features.bellcityTheCityShinozakiNeoNeighborSignal);
+
+    let previousSinkScore = scoreAtMost(previousDifference, [
+      { maximum: -2000, points: 18 },
+      { maximum: -1500, points: 15 },
+      { maximum: -1000, points: 11 },
+      { maximum: -800, points: 8 },
+      { maximum: -500, points: 4 },
+      { maximum: -1, points: 2 },
+    ]);
+    previousSinkScore += previousHighFail ? 4 : 0;
+    previousSinkScore += previousGoodBonusFail ? 3 : 0;
+    previousSinkScore = Math.min(previousSinkScore, 22);
+
+    let multiSinkScore = 0;
+    multiSinkScore += recentTwoGamesTotal >= 3000
+      ? scoreAtMost(recentTwoNetTotal, [
+          { maximum: -2500, points: 7 },
+          { maximum: -1500, points: 5 },
+          { maximum: -800, points: 2 },
+        ])
+      : 0;
+    multiSinkScore += recentThreeGamesTotal >= 5000
+      ? scoreAtMost(recentThreeNetTotal, [
+          { maximum: -3000, points: 7 },
+          { maximum: -2000, points: 5 },
+          { maximum: -1200, points: 2 },
+        ])
+      : 0;
+    multiSinkScore += recentFiveGamesTotal >= 7000
+      ? scoreAtMost(recentFiveNetTotal, [
+          { maximum: -3500, points: 5 },
+          { maximum: -2500, points: 4 },
+          { maximum: -1500, points: 2 },
+        ])
+      : 0;
+    multiSinkScore +=
+      recentFourteenGamesTotal >= 15000 && recentFourteenNetTotal <= -2500
+        ? 4
+        : recentFourteenGamesTotal >= 15000 && recentFourteenNetTotal <= -1000
+          ? 2
+          : 0;
+    multiSinkScore +=
+      recentTwentyOneGamesTotal >= 25000 && recentTwentyOneNetTotal <= -4000
+        ? 3
+        : recentTwentyOneGamesTotal >= 20000 && recentTwentyOneNetTotal <= -2000
+          ? 2
+          : 0;
+    multiSinkScore = Math.min(multiSinkScore, 16);
+
+    let contentScore = 0;
+    contentScore += rb5Strong250 ? 6 : 0;
+    contentScore += rb7Strong300 ? 9 : rb7Strong320 ? 6 : 0;
+    contentScore += rb14Strong320 ? 6 : 0;
+    contentScore += rb21Strong300 ? 4 : 0;
+    contentScore += sevenHigh2 ? 7 : sevenHigh1 ? 3 : 0;
+    contentScore += twentyOneHigh3 ? 4 : 0;
+    contentScore += fiveP56Strong ? 5 : 0;
+    contentScore += sevenP56Genuine ? 4 : 0;
+    contentScore += previousHighFail ? 6 : 0;
+    contentScore += previousGoodBonusFail ? 4 : 0;
+    contentScore = Math.min(contentScore, 26);
+
+    let repayScore = 0;
+    repayScore += repayGenuine ? 8 : 0;
+    repayScore += deepUnpaid ? 6 : 0;
+    repayScore += fiveSinkRb21 ? 5 : 0;
+    repayScore += deepSinkShortRb270 ? 5 : 0;
+    repayScore += recentFourteenGamesTotal >= 12000 && recentFourteenNetTotal <= -2000 ? 5 : 0;
+    repayScore += recentTwentyOneGamesTotal >= 20000 && recentTwentyOneNetTotal <= -2000 ? 4 : 0;
+    repayScore += streak >= 6 ? 5 : streak >= 4 ? 4 : streak >= 3 ? 3 : 0;
+    repayScore += recentSevenGamesTotal >= 10000 && recentSevenGamesTotal <= 28000 ? 3 : 0;
+    repayScore += recentFourteenGamesTotal >= 15000 && recentFourteenGamesTotal <= 42000 ? 2 : 0;
+    repayScore += interval5To14 ? 4 : 0;
+    repayScore = Math.min(repayScore, 18);
+
+    let neighborScore = 0;
+    neighborScore += neighborSignal ? 3 : 0;
+    neighborScore += previousAdjacentMachineHighContentCountNear2 >= 1 ? 2 : 0;
+    neighborScore += previousAdjacentMachineNetTotalNear2 >= 4000 ? 2 : 0;
+    neighborScore = Math.min(neighborScore, 5);
+
+    let penalty = 0;
+    penalty += previousOutput1000
+      ? scoreAtLeast(previousDifference, [
+          { minimum: 2500, points: 22 },
+          { minimum: 2000, points: 20 },
+          { minimum: 1500, points: 18 },
+          { minimum: 1000, points: 14 },
+        ])
+      : previousOutput500
+        ? 8
+        : 0;
+    penalty += treatmentDone ? 10 : 0;
+    penalty += previousStrongHigh && previousDifference >= 0 ? 10 : previousHigh && previousDifference >= 0 ? 6 : 0;
+    penalty += previousCombinedVisible ? 8 : 0;
+    penalty += previousCombined140Output ? 8 : 0;
+    penalty += highGamesVisible ? 7 : 0;
+    penalty += tenCombinedVisible ? 7 : 0;
+    penalty += longNeglect ? 5 : 0;
+    penalty += recentWeakVisible ? 5 : 0;
+    penalty += lowHistory ? 8 : 0;
+    penalty = Math.min(penalty, 34);
+
+    const historyCap =
+      historyRowCount >= 14
+        ? 100
+        : historyRowCount >= 7
+          ? 65
+          : 55;
+    const score =
+      40 +
+      previousSinkScore +
+      multiSinkScore +
+      contentScore +
+      repayScore +
+      neighborScore -
       penalty;
     return Math.round(clamp(score, 0, historyCap));
   }
