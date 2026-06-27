@@ -381,6 +381,13 @@ function isMesseOkudoStore(storeName) {
   );
 }
 
+function isMesseNishikasaiStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["メッセ西葛西店", "メッセ西葛西", "メッセ西葛西駅前店", "メッセ西葛西駅前"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function isFortuneOhanajayaStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["フォーチュンお花茶屋店", "フォーチュンお花茶屋"].some(
@@ -3656,6 +3663,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "messe-okudo-free-main-14-high-rb300",
       ),
       buildLogicVariant(
+        "messe-nishikasai-neo-aim",
+        "メッセ西葛西_ネオアイムジャグラーEX_全日共通_返済ローテ狙い度_v1",
+        "messe-nishikasai-rank1-combined135-rb290",
+      ),
+      buildLogicVariant(
         "fortune-ohanajaya-neo-aim",
         "フォーチュンお花茶屋店_ネオアイムEX_全日共通_沈み返済優先ロジック_v1",
         "fortune-ohanajaya-free-b-four-loss90-gap25",
@@ -6210,6 +6222,227 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["messeOkudoNeoHistoryShort"],
         },
         ["messe-okudo-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-rank1-combined135-rb290",
+        "最本命_1位合成135RB290",
+        "49日 / 49台 / 総G213,529 / RB1/293.7 / 合算1/141.8 / 平均+184.9枚 / 101.41% / 平均p56 37.4% / 中央p56 31.5% / p56>=50 26.5%",
+        {
+          rankMax: 1,
+          requiredFlags: [
+            "messeNishikasaiNeoHistoryReady",
+            "messeNishikasaiNeoRecentThreeCombined135",
+            "messeNishikasaiNeoRecentFiveRb290",
+          ],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-free-a-rotation-bonus",
+        "自由A_2-4前合前RB",
+        "25日 / 30台 / 総G147,946 / RB1/292.4 / 合算1/135.0 / 平均+625.5枚 / 104.23% / 平均p56 39.22% / 件数注意",
+        {
+          requiredFlags: ["messeNishikasaiNeoHistoryReady", "messeNishikasaiNeoFreeARotationBonus"],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-rank1-rb290-combined140",
+        "強条件_1位RB290合成140",
+        "50日 / 50台 / 総G220,965 / RB1/297.4 / 合算1/141.1 / 平均+265.8枚 / 102.00% / 平均p56 36.7%",
+        {
+          rankMax: 1,
+          requiredFlags: [
+            "messeNishikasaiNeoHistoryReady",
+            "messeNishikasaiNeoRecentFiveRb290",
+            "messeNishikasaiNeoRecentSevenCombined140",
+          ],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-rank1-rb290-combined145",
+        "弱め本命_1位RB290合成145",
+        "59日 / 59台 / 総G257,164 / RB1/296.6 / 合算1/142.0 / 平均+186.3枚 / 101.42% / 平均p56 36.7%",
+        {
+          rankMax: 1,
+          requiredFlags: [
+            "messeNishikasaiNeoHistoryReady",
+            "messeNishikasaiNeoRecentFiveRb290",
+            "messeNishikasaiNeoRecentSevenCombined145",
+          ],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-rank1-combined140-rb290",
+        "本命_1位合成140RB290",
+        "60日 / 60台 / 総G263,248 / RB1/299.5 / 合算1/143.1 / 平均+143.7枚 / 101.09% / 平均p56 35.8%",
+        {
+          rankMax: 1,
+          requiredFlags: [
+            "messeNishikasaiNeoHistoryReady",
+            "messeNishikasaiNeoRecentThreeCombined140",
+            "messeNishikasaiNeoRecentFiveRb290",
+          ],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-rank1-gap3",
+        "弱め本命_1位次点差3",
+        "91日 / 91台 / 総G412,891 / RB1/300.9 / 合算1/142.1 / 平均+228.8枚 / 101.68% / 平均p56 35.84%",
+        {
+          rankMax: 1,
+          minNextGap: 3,
+          requiredFlags: ["messeNishikasaiNeoHistoryReady"],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-score95",
+        "本命_95点以上",
+        "33日 / 36台 / 総G153,966 / RB1/299.5 / 合算1/141.5 / 平均+258.5枚 / 102.01% / 平均p56 36.11%",
+        {
+          minScore: 95,
+          requiredFlags: ["messeNishikasaiNeoHistoryReady"],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-score85",
+        "広め310_85点以上",
+        "71日 / 111台 / 総G482,800 / RB1/309.3 / 合算1/141.9 / 平均+282.1枚 / 102.16% / 平均p56 33.99%",
+        {
+          minScore: 85,
+          requiredFlags: ["messeNishikasaiNeoHistoryReady"],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-rank1-score80-safe",
+        "広め_1位80点危険0",
+        "85日 / 85台 / RB1/306.3 / 合算1/142.1 / 平均+269.6枚 / 101.91% / 平均p56 34.75%",
+        {
+          rankMax: 1,
+          minScore: 80,
+          maxDanger: 0,
+          requiredFlags: ["messeNishikasaiNeoHistoryReady"],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-rank1",
+        "広め候補_日別1位",
+        "116日 / 116台 / RB1/304.7 / 合算1/143.4 / 平均+174.3枚 / 101.28% / 平均p56 34.74% / 単独過信注意",
+        {
+          rankMax: 1,
+          requiredFlags: ["messeNishikasaiNeoHistoryReady"],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-free-b-14sink-prev-combined",
+        "自由B_14沈み前合連勝",
+        "29日 / 34台 / RB1/293.8 / 合算1/139.8 / 平均+261.1枚 / 101.97% / 平均p56 37.40% / 件数注意",
+        {
+          requiredFlags: ["messeNishikasaiNeoHistoryReady", "messeNishikasaiNeoFreeB14SinkPrevCombined"],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-free-c-seven-sink-cycle",
+        "自由C_7沈み中期連敗",
+        "46日 / 57台 / RB1/302.9 / 合算1/141.0 / 平均+207.9枚 / 101.51% / 平均p56 35.13%",
+        {
+          requiredFlags: ["messeNishikasaiNeoHistoryReady", "messeNishikasaiNeoFreeCSevenSinkCycle"],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-free-d-five-three-near-show",
+        "自由D_5-3沈み近見",
+        "54日 / 76台 / RB1/307.5 / 合算1/140.4 / 平均+364.5枚 / 102.70% / 平均p56 34.99%",
+        {
+          requiredFlags: ["messeNishikasaiNeoHistoryReady", "messeNishikasaiNeoFreeDFiveThreeNearShow"],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-free-repay-proper-games",
+        "補助_返済未完適正G",
+        "83日 / 149台 / RB1/316.7 / 合算1/146.0 / 平均+80.8枚 / 100.63% / 平均p56 31.3%",
+        {
+          maxDanger: 0,
+          requiredFlags: ["messeNishikasaiNeoHistoryReady", "messeNishikasaiNeoRepayProperGames"],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-free-genuine-continuation",
+        "補助_直近本物据え継続",
+        "72日 / 107台 / RB1/315.7 / 合算1/142.5 / 平均+293.4枚 / 102.17% / 平均p56 32.3%",
+        {
+          requiredFlags: ["messeNishikasaiNeoHistoryReady", "messeNishikasaiNeoGenuineContinuation"],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-watch-danger2",
+        "見送り_危険2以上",
+        "危険条件2個以上は高スコアでも見送り寄り。処遇過多、低稼働、長期放置、前日高内容大出しを重く見る",
+        {
+          minDanger: 2,
+          requiredFlags: ["messeNishikasaiNeoHistoryReady"],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-watch-score80-no-boost",
+        "見送り_80点強化0",
+        "80点以上でも強化0個なら本命扱いしない",
+        {
+          minScore: 80,
+          maxBoost: 0,
+          requiredFlags: ["messeNishikasaiNeoHistoryReady"],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-watch-low-games",
+        "見送り_低稼働",
+        "直近7日18,000G未満は凹みも内容も信頼しにくい",
+        {
+          requiredFlags: ["messeNishikasaiNeoHistoryReady", "messeNishikasaiNeoLowGames"],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-watch-high-too-many",
+        "見送り_処遇過多",
+        "直近7日高内容3回以上、または14日高内容4回以上は処遇完了寄り",
+        {
+          requiredFlags: ["messeNishikasaiNeoHistoryReady", "messeNishikasaiNeoHighTooMany"],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-watch-long-neglect",
+        "見送り_長期放置",
+        "前回高内容から21営業日以上は放置台の混入に注意",
+        {
+          requiredFlags: ["messeNishikasaiNeoHistoryReady", "messeNishikasaiNeoLongNeglect"],
+        },
+        ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-nishikasai-watch-history-short",
+        "見送り_履歴不足",
+        "履歴7営業日未満は低信頼。2026-03-30の構成変更後も新履歴として扱う",
+        {
+          requiredFlags: ["messeNishikasaiNeoHistoryShort"],
+        },
+        ["messe-nishikasai-neo-aim"],
       ),
       buildCondition(
         "fortune-ohanajaya-free-b-four-loss90-gap25",
@@ -11062,6 +11295,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "messe-minamisenju-neo-aim");
   } else if (isMesseOkudoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "messe-okudo-neo-aim");
+  } else if (isMesseNishikasaiStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "messe-nishikasai-neo-aim");
   } else if (isFortuneOhanajayaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "fortune-ohanajaya-neo-aim");
   } else if (isKintokiKamataStore(storeName) && definition.machineKey === "neo-aim") {
@@ -15699,6 +15934,276 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         messeOkudoNeoLongNeglectLosing4,
         treatmentDone: messeOkudoNeoHigh14TooMany || messeOkudoNeoOverworked,
         lowConfidence: messeOkudoNeoHistoryShort || messeOkudoNeoHistoryVeryShort || messeOkudoNeoGames3Low,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === "messe-nishikasai-neo-aim") {
+      const recentTenBonusTotal = readNumber(metrics.recentTenBonusTotal);
+      const recentTenCombinedDenominator = rateDenominator(recentTenGamesTotal, recentTenBonusTotal);
+      const recentFiveP56Average = readNullableNumber(
+        metrics.recentFiveMachineSettingFivePlusProbabilityAverage,
+      );
+      const recentFourteenP56Average = readNullableNumber(
+        metrics.recentFourteenMachineSettingFivePlusProbabilityAverage,
+      );
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      const messeNishikasaiNeoHistoryReady = historyRowCount >= 7;
+      const messeNishikasaiNeoHistoryShort = historyRowCount < 7;
+      const messeNishikasaiNeoHistoryVeryShort = historyRowCount < 5;
+      const messeNishikasaiNeoRecentThreeCombined135 =
+        recentThreeGamesTotal >= 6000 && features.recentThreeCombinedDenominator <= 135;
+      const messeNishikasaiNeoRecentThreeCombined140 =
+        recentThreeGamesTotal >= 6000 && features.recentThreeCombinedDenominator <= 140;
+      const messeNishikasaiNeoRecentThreeCombined150 =
+        recentThreeGamesTotal >= 6000 && features.recentThreeCombinedDenominator <= 150;
+      const messeNishikasaiNeoRecentFiveRb290 =
+        recentFiveGamesTotal >= 8000 && features.recentFiveRbDenominator <= 290;
+      const messeNishikasaiNeoRecentFiveRb350 =
+        recentFiveGamesTotal >= 8000 && features.recentFiveRbDenominator <= 350;
+      const messeNishikasaiNeoRecentFiveRb420 =
+        recentFiveGamesTotal >= 8000 && features.recentFiveRbDenominator <= 420;
+      const messeNishikasaiNeoRecentSevenCombined140 =
+        recentSevenGamesTotal >= 12000 && features.recentSevenCombinedDenominator <= 140;
+      const messeNishikasaiNeoRecentSevenCombined145 =
+        recentSevenGamesTotal >= 12000 && features.recentSevenCombinedDenominator <= 145;
+      const messeNishikasaiNeoRecentSevenCombined150 =
+        recentSevenGamesTotal >= 12000 && features.recentSevenCombinedDenominator <= 150;
+      const messeNishikasaiNeoFiveThreeModerateSink =
+        recentFiveNetTotal >= -2000 &&
+        recentFiveNetTotal <= -700 &&
+        recentThreeNetTotal >= -1500 &&
+        recentThreeNetTotal <= -500;
+      const messeNishikasaiNeoSevenModerateSink =
+        recentSevenNetTotal >= -2300 && recentSevenNetTotal <= -800;
+      const messeNishikasaiNeoSevenDeepSink = recentSevenNetTotal <= -2500;
+      const messeNishikasaiNeoFourteenSink1800 = recentFourteenNetTotal <= -1800;
+      const messeNishikasaiNeoFourteenSink3000 = recentFourteenNetTotal <= -3000;
+      const messeNishikasaiNeoFourteenSink4000 = recentFourteenNetTotal <= -4000;
+      const messeNishikasaiNeoTwentyOneSink3000 = recentTwentyOneNetTotal <= -3000;
+      const messeNishikasaiNeoTwentyOneSink4500 = recentTwentyOneNetTotal <= -4500;
+      const messeNishikasaiNeoLosing2 = streak === 2;
+      const messeNishikasaiNeoLosing3 = streak >= 3;
+      const messeNishikasaiNeoLosing5 = streak >= 5;
+      const messeNishikasaiNeoInterval2To4 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 2 &&
+        daysSinceMachineHighContent <= 4;
+      const messeNishikasaiNeoInterval5To6 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 5 &&
+        daysSinceMachineHighContent <= 6;
+      const messeNishikasaiNeoInterval7To12 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 7 &&
+        daysSinceMachineHighContent <= 12;
+      const messeNishikasaiNeoLongNeglect =
+        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 21) ||
+        (!Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 21);
+      const messeNishikasaiNeoStrongInterval1 =
+        daysSinceMachineStrongHighContent === 1 || previousMachineStrongHighContent;
+      const messeNishikasaiNeoHigh7Two = recentSevenMachineHighContentCount === 2;
+      const messeNishikasaiNeoHigh7TooMany = recentSevenMachineHighContentCount >= 3;
+      const messeNishikasaiNeoHigh14Three = recentFourteenMachineHighContentCount === 3;
+      const messeNishikasaiNeoHigh14Low = historyRowCount >= 14 && recentFourteenMachineHighContentCount <= 1;
+      const messeNishikasaiNeoHigh14TooMany = recentFourteenMachineHighContentCount >= 4;
+      const messeNishikasaiNeoHighTooMany =
+        messeNishikasaiNeoHigh7TooMany || messeNishikasaiNeoHigh14TooMany;
+      const messeNishikasaiNeoPreviousCombined135To150 =
+        previousGames >= 1500 &&
+        features.previousCombinedDenominator >= 135 &&
+        features.previousCombinedDenominator <= 150;
+      const messeNishikasaiNeoPreviousRb390To500 =
+        previousGames >= 1500 &&
+        features.previousRbDenominator >= 390 &&
+        features.previousRbDenominator <= 500;
+      const messeNishikasaiNeoPreviousSmallOutput = previousDifference >= 0 && previousDifference <= 800;
+      const messeNishikasaiNeoPreviousHigh50 =
+        previousMachineHighContent ||
+        (previousGames >= 3000 && Number.isFinite(previousP56) && previousP56 >= 0.5);
+      const messeNishikasaiNeoPreviousHighUnpaid =
+        messeNishikasaiNeoPreviousHigh50 && previousDifference < 800;
+      const messeNishikasaiNeoPreviousHighDone =
+        messeNishikasaiNeoPreviousHigh50 && previousDifference >= 1800;
+      const messeNishikasaiNeoPreviousBbOnlyBig =
+        previousGames >= 1500 &&
+        features.previousCombinedDenominator <= 130 &&
+        previousDifference >= 1000;
+      const messeNishikasaiNeoGames7Trusted =
+        recentSevenGamesTotal >= 23000 && recentSevenGamesTotal <= 33000;
+      const messeNishikasaiNeoGames7High = recentSevenGamesTotal > 33000;
+      const messeNishikasaiNeoGames14Trusted =
+        recentFourteenGamesTotal >= 46000 && recentFourteenGamesTotal <= 63000;
+      const messeNishikasaiNeoLowGames = recentSevenGamesTotal < 18000;
+      const messeNishikasaiNeoLowGames3 = recentThreeGamesTotal < 6000;
+      const messeNishikasaiNeoNearHigh2 = previousAdjacentMachineHighContentCount >= 2;
+      const messeNishikasaiNeoNearHigh1 = previousAdjacentMachineHighContentCount >= 1;
+      const messeNishikasaiNeoNearStrongZero = previousAdjacentMachineStrongHighContentCount === 0;
+      const messeNishikasaiNeoNearShow2 =
+        previousAdjacentMachineBigWin1000Count >= 2 ||
+        previousAdjacentMachineGoodContentCount >= 2 ||
+        previousAdjacentMachineNetTotal >= 2500 ||
+        adjacentMachineShowCount3Near2 >= 2;
+      const messeNishikasaiNeoRepayProperGames =
+        messeNishikasaiNeoTwentyOneSink4500 &&
+        recentSevenGamesTotal >= 28000 &&
+        messeNishikasaiNeoGames14Trusted;
+      const messeNishikasaiNeoGenuineContinuation =
+        messeNishikasaiNeoRecentThreeCombined135 &&
+        messeNishikasaiNeoRecentFiveRb290 &&
+        (messeNishikasaiNeoStrongInterval1 || messeNishikasaiNeoHigh7Two) &&
+        !messeNishikasaiNeoLowGames;
+      const messeNishikasaiNeoFreeARotationBonus =
+        messeNishikasaiNeoInterval2To4 &&
+        messeNishikasaiNeoPreviousCombined135To150 &&
+        messeNishikasaiNeoPreviousRb390To500 &&
+        recentThreeNetTotal < 1800;
+      const messeNishikasaiNeoFreeB14SinkPrevCombined =
+        messeNishikasaiNeoFourteenSink3000 &&
+        messeNishikasaiNeoPreviousCombined135To150 &&
+        winningStreak >= 2 &&
+        !messeNishikasaiNeoHigh7TooMany &&
+        recentFourteenNetTotal < 4500;
+      const messeNishikasaiNeoFreeCSevenSinkCycle =
+        messeNishikasaiNeoSevenModerateSink &&
+        messeNishikasaiNeoInterval7To12 &&
+        messeNishikasaiNeoGames7Trusted &&
+        messeNishikasaiNeoLosing3;
+      const messeNishikasaiNeoFreeDFiveThreeNearShow =
+        messeNishikasaiNeoFiveThreeModerateSink && messeNishikasaiNeoNearShow2;
+      const messeNishikasaiNeoFreeEHighTwoPrevCombined =
+        messeNishikasaiNeoHigh7Two &&
+        messeNishikasaiNeoPreviousCombined135To150 &&
+        messeNishikasaiNeoGames14Trusted;
+      const messeNishikasaiNeoWeakBonus =
+        (recentThreeGamesTotal >= 6000 && features.recentThreeCombinedDenominator >= 170) ||
+        (recentSevenGamesTotal >= 12000 && features.recentSevenCombinedDenominator >= 165) ||
+        (recentFiveGamesTotal >= 8000 && features.recentFiveRbDenominator >= 480);
+      const messeNishikasaiNeoTreatmentDone =
+        recentThreeNetTotal >= 1800 ||
+        recentFourteenNetTotal >= 4500 ||
+        recentTwentyOneNetTotal >= 7000 ||
+        messeNishikasaiNeoPreviousHighDone ||
+        messeNishikasaiNeoPreviousBbOnlyBig ||
+        (recentFiveNetTotal >= 3000 &&
+          Number.isFinite(recentFiveP56Average) &&
+          recentFiveP56Average < 0.25) ||
+        (recentFourteenNetTotal >= 7000 &&
+          Number.isFinite(recentFourteenP56Average) &&
+          recentFourteenP56Average < 0.25);
+      const messeNishikasaiNeoLongLowP56 =
+        messeNishikasaiNeoLongNeglect &&
+        Number.isFinite(recentTwentyOneMachineSettingFivePlusProbabilityAverage) &&
+        recentTwentyOneMachineSettingFivePlusProbabilityAverage < 0.22;
+      const boostFlags = [
+        messeNishikasaiNeoFiveThreeModerateSink,
+        messeNishikasaiNeoSevenModerateSink,
+        messeNishikasaiNeoFourteenSink3000,
+        messeNishikasaiNeoTwentyOneSink3000,
+        messeNishikasaiNeoInterval2To4,
+        messeNishikasaiNeoInterval7To12,
+        messeNishikasaiNeoHigh7Two,
+        messeNishikasaiNeoHigh14Three,
+        messeNishikasaiNeoPreviousCombined135To150,
+        messeNishikasaiNeoPreviousRb390To500,
+        messeNishikasaiNeoPreviousSmallOutput,
+        messeNishikasaiNeoPreviousHighUnpaid,
+        messeNishikasaiNeoGames7Trusted || messeNishikasaiNeoGames7High,
+        messeNishikasaiNeoGames14Trusted,
+        messeNishikasaiNeoNearShow2,
+        messeNishikasaiNeoNearHigh2,
+        messeNishikasaiNeoRepayProperGames,
+        messeNishikasaiNeoGenuineContinuation,
+        messeNishikasaiNeoFreeARotationBonus,
+        messeNishikasaiNeoFreeB14SinkPrevCombined,
+        messeNishikasaiNeoFreeCSevenSinkCycle,
+        messeNishikasaiNeoFreeDFiveThreeNearShow,
+      ];
+      const dangerFlags = [
+        messeNishikasaiNeoHistoryShort,
+        messeNishikasaiNeoLowGames,
+        messeNishikasaiNeoLowGames3,
+        messeNishikasaiNeoSevenDeepSink,
+        messeNishikasaiNeoHighTooMany,
+        messeNishikasaiNeoLongNeglect,
+        messeNishikasaiNeoTreatmentDone,
+        messeNishikasaiNeoWeakBonus,
+        messeNishikasaiNeoPreviousHighDone,
+        messeNishikasaiNeoLongLowP56,
+      ];
+
+      return {
+        ...features,
+        recentTenCombinedDenominator,
+        recentFiveP56Average,
+        recentFourteenP56Average,
+        previousMachineSettingFivePlusProbability,
+        messeNishikasaiNeoHistoryReady,
+        messeNishikasaiNeoHistoryShort,
+        messeNishikasaiNeoHistoryVeryShort,
+        messeNishikasaiNeoRecentThreeCombined135,
+        messeNishikasaiNeoRecentThreeCombined140,
+        messeNishikasaiNeoRecentThreeCombined150,
+        messeNishikasaiNeoRecentFiveRb290,
+        messeNishikasaiNeoRecentFiveRb350,
+        messeNishikasaiNeoRecentFiveRb420,
+        messeNishikasaiNeoRecentSevenCombined140,
+        messeNishikasaiNeoRecentSevenCombined145,
+        messeNishikasaiNeoRecentSevenCombined150,
+        messeNishikasaiNeoFiveThreeModerateSink,
+        messeNishikasaiNeoSevenModerateSink,
+        messeNishikasaiNeoSevenDeepSink,
+        messeNishikasaiNeoFourteenSink1800,
+        messeNishikasaiNeoFourteenSink3000,
+        messeNishikasaiNeoFourteenSink4000,
+        messeNishikasaiNeoTwentyOneSink3000,
+        messeNishikasaiNeoTwentyOneSink4500,
+        messeNishikasaiNeoLosing2,
+        messeNishikasaiNeoLosing3,
+        messeNishikasaiNeoLosing5,
+        messeNishikasaiNeoInterval2To4,
+        messeNishikasaiNeoInterval5To6,
+        messeNishikasaiNeoInterval7To12,
+        messeNishikasaiNeoLongNeglect,
+        messeNishikasaiNeoStrongInterval1,
+        messeNishikasaiNeoHigh7Two,
+        messeNishikasaiNeoHigh7TooMany,
+        messeNishikasaiNeoHigh14Three,
+        messeNishikasaiNeoHigh14Low,
+        messeNishikasaiNeoHigh14TooMany,
+        messeNishikasaiNeoHighTooMany,
+        messeNishikasaiNeoPreviousCombined135To150,
+        messeNishikasaiNeoPreviousRb390To500,
+        messeNishikasaiNeoPreviousSmallOutput,
+        messeNishikasaiNeoPreviousHigh50,
+        messeNishikasaiNeoPreviousHighUnpaid,
+        messeNishikasaiNeoPreviousHighDone,
+        messeNishikasaiNeoPreviousBbOnlyBig,
+        messeNishikasaiNeoGames7Trusted,
+        messeNishikasaiNeoGames7High,
+        messeNishikasaiNeoGames14Trusted,
+        messeNishikasaiNeoLowGames,
+        messeNishikasaiNeoLowGames3,
+        messeNishikasaiNeoNearHigh2,
+        messeNishikasaiNeoNearHigh1,
+        messeNishikasaiNeoNearStrongZero,
+        messeNishikasaiNeoNearShow2,
+        messeNishikasaiNeoRepayProperGames,
+        messeNishikasaiNeoGenuineContinuation,
+        messeNishikasaiNeoFreeARotationBonus,
+        messeNishikasaiNeoFreeB14SinkPrevCombined,
+        messeNishikasaiNeoFreeCSevenSinkCycle,
+        messeNishikasaiNeoFreeDFiveThreeNearShow,
+        messeNishikasaiNeoFreeEHighTwoPrevCombined,
+        messeNishikasaiNeoWeakBonus,
+        messeNishikasaiNeoTreatmentDone,
+        messeNishikasaiNeoLongLowP56,
+        treatmentDone: messeNishikasaiNeoTreatmentDone || messeNishikasaiNeoHighTooMany,
+        lowConfidence:
+          messeNishikasaiNeoHistoryShort ||
+          messeNishikasaiNeoLowGames ||
+          messeNishikasaiNeoLowGames3,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -23483,6 +23988,100 @@ function calculateMachineScore(definition, metrics, features) {
           ? 8
           : 0;
       score += recentTwentyOneNetTotal <= -3000 && !features.messeOkudoNeoLongNeglect ? 3 : 0;
+
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
+    if (activeLogicKey === "messe-nishikasai-neo-aim") {
+      let scoreCap = 100;
+      if (historyRowCount < 5) {
+        scoreCap = 40;
+      } else if (historyRowCount < 7) {
+        scoreCap = 55;
+      }
+
+      let score = 32;
+
+      if (recentFourteenNetTotal <= -4000) {
+        score += 10;
+      } else if (recentFourteenNetTotal <= -3000) {
+        score += 8;
+      } else if (recentFourteenNetTotal <= -1800) {
+        score += 4;
+      }
+      score += features.messeNishikasaiNeoFiveThreeModerateSink ? 10 : 0;
+      score += features.messeNishikasaiNeoSevenModerateSink ? 6 : 0;
+      score -= features.messeNishikasaiNeoSevenDeepSink ? 4 : 0;
+
+      score += streak === 2 ? 3 : 0;
+      score += streak >= 3 && features.messeNishikasaiNeoSevenModerateSink ? 6 : 0;
+
+      score += features.messeNishikasaiNeoInterval2To4 ? 10 : 0;
+      score += features.messeNishikasaiNeoInterval7To12 ? 5 : 0;
+      score -= features.messeNishikasaiNeoInterval5To6 ? 4 : 0;
+      score -= features.messeNishikasaiNeoLongNeglect ? 8 : 0;
+
+      score += features.messeNishikasaiNeoHigh7Two ? 10 : 0;
+      score += features.messeNishikasaiNeoHigh14Three ? 6 : 0;
+      score += features.messeNishikasaiNeoHigh14Low ? 3 : 0;
+      score -= features.messeNishikasaiNeoHigh7TooMany ? 12 : 0;
+      score -= features.messeNishikasaiNeoHigh14TooMany ? 8 : 0;
+
+      score += features.messeNishikasaiNeoPreviousCombined135To150 ? 8 : 0;
+      score += features.messeNishikasaiNeoPreviousRb390To500 ? 5 : 0;
+      score += features.messeNishikasaiNeoPreviousSmallOutput ? 4 : 0;
+      score += features.messeNishikasaiNeoPreviousHighUnpaid ? 3 : 0;
+      score -= features.messeNishikasaiNeoPreviousHighDone ? 8 : 0;
+
+      score += features.messeNishikasaiNeoGames7Trusted || features.messeNishikasaiNeoGames7High ? 5 : 0;
+      score += features.messeNishikasaiNeoGames14Trusted ? 4 : 0;
+      score -= features.messeNishikasaiNeoLowGames ? 8 : 0;
+
+      score += features.messeNishikasaiNeoNearHigh2 ? 4 : 0;
+      score += features.messeNishikasaiNeoNearShow2 ? 5 : 0;
+      score += features.messeNishikasaiNeoFreeDFiveThreeNearShow ? 12 : 0;
+
+      score +=
+        features.messeNishikasaiNeoInterval2To4 &&
+        features.messeNishikasaiNeoPreviousCombined135To150 &&
+        features.messeNishikasaiNeoGames7High
+          ? 10
+          : 0;
+      score += features.messeNishikasaiNeoFreeEHighTwoPrevCombined ? 12 : 0;
+      score += features.messeNishikasaiNeoFreeCSevenSinkCycle ? 12 : 0;
+      score += features.messeNishikasaiNeoFreeARotationBonus ? 10 : 0;
+      score += features.messeNishikasaiNeoFreeB14SinkPrevCombined ? 8 : 0;
+
+      score -= recentThreeNetTotal >= 1800 ? 10 : 0;
+      score -= recentFourteenNetTotal >= 4500 ? 14 : 0;
+      score -= recentTwentyOneNetTotal >= 7000 ? 10 : 0;
+      score -= features.messeNishikasaiNeoPreviousBbOnlyBig ? 5 : 0;
+      score -= features.messeNishikasaiNeoWeakBonus ? 8 : 0;
+
+      score += features.messeNishikasaiNeoRecentThreeCombined135
+        ? 8
+        : features.messeNishikasaiNeoRecentThreeCombined140
+          ? 5
+          : features.messeNishikasaiNeoRecentThreeCombined150
+            ? 2
+            : 0;
+      score += features.messeNishikasaiNeoRecentFiveRb290
+        ? 8
+        : features.messeNishikasaiNeoRecentFiveRb350
+          ? 4
+          : features.messeNishikasaiNeoRecentFiveRb420
+            ? 1
+            : 0;
+      score += features.messeNishikasaiNeoRecentSevenCombined140
+        ? 5
+        : features.messeNishikasaiNeoRecentSevenCombined145
+          ? 3
+          : features.messeNishikasaiNeoRecentSevenCombined150
+            ? 1
+            : 0;
+
+      score += historyRowCount >= 14 ? 4 : 0;
+      score -= historyRowCount < 7 ? 15 : 0;
 
       return Math.round(clamp(score, 0, scoreCap));
     }
