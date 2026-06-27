@@ -121,6 +121,18 @@ const TOYO_HALL_NEO_AIM_LOGIC_KEY = "toyo-hall-neo-aim";
 const TOYO_HALL_NEO_AIM_LOGIC_NAME =
   "TOYO HALL ネオアイムジャグラーEX 全日共通V1";
 const TOYO_HALL_NEO_AIM_DEFAULT_CONDITION = "toyo-hall-neo-free-sharp-sink-angle";
+const GRAND_SHIP_NEO_AIM_LOGIC_KEY = "grandship-neo-aim";
+const GRAND_SHIP_NEO_AIM_NORMAL_LOGIC_KEY = "grandship-neo-aim-normal";
+const GRAND_SHIP_NEO_AIM_EVENT_LOGIC_KEY = "grandship-neo-aim-event";
+const GRAND_SHIP_NEO_AIM_LOGIC_NAME =
+  "グランドシップ_ネオアイムEX_全日共通_沈み返済型_v1";
+const GRAND_SHIP_NEO_AIM_NORMAL_LOGIC_NAME =
+  "グランドシップ_ネオアイムEX_通常日_慎重見送り型_v1";
+const GRAND_SHIP_NEO_AIM_EVENT_LOGIC_NAME =
+  "グランドシップ_ネオアイムEX_イベント日_沈み強返済型_v1";
+const GRAND_SHIP_NEO_AIM_DEFAULT_CONDITION = "grandship-neo-score85";
+const GRAND_SHIP_NEO_AIM_NORMAL_DEFAULT_CONDITION = "grandship-neo-normal-compromise";
+const GRAND_SHIP_NEO_AIM_EVENT_DEFAULT_CONDITION = "grandship-neo-event-sink-best";
 const CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY = "concert-hall-kitasenju-neo-aim";
 const CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_NAME =
   "コンサートホール北千住_ネオアイムEX_56狙い全日共通ロジック";
@@ -628,6 +640,19 @@ function isToyoHallStore(storeName) {
     "トーヨーホール店",
     "東洋ホール",
     "東洋ホール店",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
+function isGrandShipStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "グランドシップ",
+    "グランドシップ店",
+    "GRAND SHIP",
+    "GRANDSHIP",
+    "Grand Ship",
+    "GrandShip",
+    "グランド シップ",
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
@@ -3359,6 +3384,247 @@ function buildToyoHallNeoAimConditions() {
   ];
 }
 
+function buildGrandShipNeoAimConditions() {
+  const grandShipLogicKeys = [
+    GRAND_SHIP_NEO_AIM_LOGIC_KEY,
+    GRAND_SHIP_NEO_AIM_NORMAL_LOGIC_KEY,
+    GRAND_SHIP_NEO_AIM_EVENT_LOGIC_KEY,
+  ];
+
+  return [
+    buildCondition(
+      GRAND_SHIP_NEO_AIM_DEFAULT_CONDITION,
+      "85点以上",
+      "対象167日 / 選択271台 / 総G1,180,033 / BB1/264.2 / RB1/308.7 / 合算1/142.4 / 平均+226枚 / 機械割101.73% / 勝率49.4% / 平均56 33.3% / 中央56 26.6% / 56>=50 21.0% / 56<30 54.6%",
+      {
+        minScore: 85,
+        requiredFlags: ["grandShipNeoHistory21Ready"],
+      },
+      [GRAND_SHIP_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "grandship-neo-rank1-gap12",
+      "1位＋次点差12",
+      "対象90日 / 選択90台 / 総G410,086 / BB1/264.9 / RB1/303.1 / 合算1/141.4 / 平均+251枚 / 機械割101.84% / 勝率45.6% / 平均56 34.4% / 中央56 26.2% / 56>=50 22.2% / 56<30 56.7%",
+      {
+        rankMax: 1,
+        minNextGap: 12,
+        requiredFlags: ["grandShipNeoHistory21Ready"],
+      },
+      [GRAND_SHIP_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "grandship-neo-loss4-nohigh21-rank3",
+      "4連敗＋21日高なし＋3位内",
+      "対象27日 / 選択29台 / 総G134,010 / BB1/259.7 / RB1/286.3 / 合算1/136.2 / 平均+505枚 / 機械割103.65% / 勝率55.2% / 平均56 37.6% / 中央56 27.1% / 56>=50 24.1% / 56<30 51.7%",
+      {
+        rankMax: 3,
+        requiredFlags: ["grandShipNeoHistory21Ready", "grandShipNeoLoss4", "grandShipNeoNoHigh21"],
+      },
+      [GRAND_SHIP_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "grandship-neo-score90-rank1-gap12-nohigh21",
+      "90点＋1位＋差12＋21日高なし",
+      "対象14日 / 選択14台 / 総G71,790 / BB1/255.5 / RB1/265.9 / 合算1/130.3 / 平均+731枚 / 機械割104.75% / 勝率57.1% / 平均56 47.0% / 中央56 46.4% / 56>=50 42.9% / 件数少注意",
+      {
+        rankMax: 1,
+        minScore: 90,
+        minNextGap: 12,
+        requiredFlags: ["grandShipNeoHistory21Ready", "grandShipNeoNoHigh21"],
+      },
+      [GRAND_SHIP_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "grandship-neo-score90-gap12-nohigh21-rbweak",
+      "90点＋差12＋21日高なし＋7日RB弱",
+      "対象12日 / 選択12台 / 総G67,811 / BB1/251.2 / RB1/261.8 / 合算1/128.2 / 平均+939枚 / 機械割105.54% / 勝率66.7% / 平均56 50.5% / 中央56 52.5% / 56>=50 50.0% / 件数少注意",
+      {
+        rankMax: 1,
+        minScore: 90,
+        minNextGap: 12,
+        requiredFlags: [
+          "grandShipNeoHistory21Ready",
+          "grandShipNeoNoHigh21",
+          "grandShipNeoRb7Weak350",
+        ],
+      },
+      [GRAND_SHIP_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "grandship-neo-free-wide-sink-main",
+      "沈み広め本命",
+      "対象143日 / 選択237台 / RB1/300.0 / 合算1/142.6 / 平均+172枚 / 機械割101.31% / 平均56 34.6% / 全日共通の自由探索条件",
+      {
+        requiredFlags: [
+          "grandShipNeoHistory21Ready",
+          "grandShipNeoLoss4",
+          "grandShipNeoRb7Weak350",
+          "grandShipNeoNeighborNoHigh",
+        ],
+      },
+      [GRAND_SHIP_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "grandship-neo-free-unrepaid-strong",
+      "返済未完強",
+      "対象27日 / 選択29台 / RB1/286.3 / 合算1/136.2 / 平均+505枚 / 機械割103.65% / 平均56 37.6% / 条件出現時は本命",
+      {
+        rankMax: 3,
+        requiredFlags: ["grandShipNeoHistory21Ready", "grandShipNeoLoss4", "grandShipNeoNoHigh21"],
+      },
+      [GRAND_SHIP_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      GRAND_SHIP_NEO_AIM_NORMAL_DEFAULT_CONDITION,
+      "通常日妥協",
+      "対象108日 / 選択245台 / 総G798,453 / BB1/277.0 / RB1/316.6 / 合算1/147.8 / 平均+4枚 / 機械割100.04% / 勝率39.6% / 平均56 31.3% / 通常日は本命ではなく妥協条件",
+      {
+        requiredFlags: ["grandShipNeoHistory21Ready", "grandShipNeoLoss4"],
+      },
+      [GRAND_SHIP_NEO_AIM_NORMAL_LOGIC_KEY],
+    ),
+    buildCondition(
+      "grandship-neo-normal-score85-watch",
+      "通常85点以上_弱め",
+      "対象107日 / 選択212台 / RB1/322.1 / 合算1/146.3 / 平均+67枚 / 機械割100.70% / 通常日はこれだけで本命にしない",
+      {
+        minScore: 85,
+        requiredFlags: ["grandShipNeoHistory21Ready"],
+      },
+      [GRAND_SHIP_NEO_AIM_NORMAL_LOGIC_KEY],
+    ),
+    buildCondition(
+      "grandship-neo-event-score80",
+      "EV80点以上",
+      "対象112日 / 選択358台 / 総G1,953,169 / BB1/263.5 / RB1/304.4 / 合算1/141.2 / 平均+329枚 / 機械割102.01% / 勝率53.6% / 平均56 34.6% / 中央56 25.3% / 56>=50 26.0%",
+      {
+        minScore: 80,
+        requiredFlags: ["grandShipNeoHistory21Ready"],
+      },
+      [GRAND_SHIP_NEO_AIM_EVENT_LOGIC_KEY],
+    ),
+    buildCondition(
+      "grandship-neo-event-score95",
+      "EV95点以上",
+      "対象84日 / 選択158台 / 総G903,073 / BB1/265.7 / RB1/294.5 / 合算1/139.7 / 平均+359枚 / 機械割102.10% / 勝率56.3% / 平均56 37.9% / 中央56 32.6% / 56>=50 27.8%",
+      {
+        minScore: 95,
+        requiredFlags: ["grandShipNeoHistory21Ready"],
+      },
+      [GRAND_SHIP_NEO_AIM_EVENT_LOGIC_KEY],
+    ),
+    buildCondition(
+      "grandship-neo-event-rank1-gap12",
+      "EV1位＋差12",
+      "対象43日 / 選択43台 / 総G249,034 / BB1/257.5 / RB1/289.9 / 合算1/136.4 / 平均+577枚 / 機械割103.32% / 勝率65.1% / 平均56 40.3% / 中央56 35.1% / 56>=50 32.6%",
+      {
+        rankMax: 1,
+        minNextGap: 12,
+        requiredFlags: ["grandShipNeoHistory21Ready"],
+      },
+      [GRAND_SHIP_NEO_AIM_EVENT_LOGIC_KEY],
+    ),
+    buildCondition(
+      GRAND_SHIP_NEO_AIM_EVENT_DEFAULT_CONDITION,
+      "EV沈み超本命",
+      "対象12日 / 選択13台 / 総G80,010 / BB1/256.4 / RB1/256.4 / 合算1/128.2 / 平均+1,003枚 / 機械割105.43% / 勝率76.9% / 平均56 51.7% / 中央56 50.2% / 56>=50 53.8% / 件数少注意",
+      {
+        requiredFlags: [
+          "grandShipNeoHistory21Ready",
+          "grandShipNeoLoss4",
+          "grandShipNeoRb7Weak350",
+          "grandShipNeoNoHigh21",
+        ],
+      },
+      [GRAND_SHIP_NEO_AIM_EVENT_LOGIC_KEY],
+    ),
+    buildCondition(
+      "grandship-neo-event-super-best",
+      "EV超最本命",
+      "対象10日 / 選択11台 / 総G69,958 / BB1/252.6 / RB1/249.8 / 合算1/125.6 / 平均+1,196枚 / 機械割106.27% / 勝率81.8% / 平均56 55.4% / 中央56 55.4% / 56>=50 54.5% / 過剰最適化注意",
+      {
+        minScore: 95,
+        requiredFlags: [
+          "grandShipNeoHistory21Ready",
+          "grandShipNeoLoss4",
+          "grandShipNeoRb7Weak350",
+          "grandShipNeoNoHigh21",
+        ],
+      },
+      [GRAND_SHIP_NEO_AIM_EVENT_LOGIC_KEY],
+    ),
+    buildCondition(
+      "grandship-neo-event-visible-worse",
+      "EV見え方悪化",
+      "対象29日 / 選択40台 / RB1/286.2 / 合算1/138.8 / 平均+302枚 / 機械割101.63% / 平均56 42.3% / イベント日の高スコアかつ直近ボーナス弱",
+      {
+        minScore: 75,
+        requiredFlags: ["grandShipNeoHistory21Ready", "grandShipNeoCombined7Weak180"],
+      },
+      [GRAND_SHIP_NEO_AIM_EVENT_LOGIC_KEY],
+    ),
+    buildCondition(
+      "grandship-neo-watch-history-short",
+      "見送り_履歴21日未満",
+      "履歴21営業日未満は採用条件から外す。7営業日未満は採用不可",
+      {
+        requiredFlags: ["grandShipNeoHistoryShort"],
+      },
+      grandShipLogicKeys,
+    ),
+    buildCondition(
+      "grandship-neo-watch-prev-big-win",
+      "見送り_前日大勝危険",
+      "対象172日 / 選択339台 / RB1/388.8 / 合算1/161.2 / 平均-143枚 / 機械割98.18% / 平均56 22.9% / 高スコアでも避ける",
+      {
+        requiredFlags: ["grandShipNeoPrevBigWinDanger"],
+      },
+      grandShipLogicKeys,
+    ),
+    buildCondition(
+      "grandship-neo-watch-bb-only",
+      "見送り_BB寄り出玉危険",
+      "対象143日 / 選択207台 / RB1/382.8 / 合算1/156.3 / 平均-30枚 / 機械割99.65% / 平均56 22.8% / 出玉だけの処遇完了",
+      {
+        requiredFlags: ["grandShipNeoBbOnlyOutputDanger"],
+      },
+      grandShipLogicKeys,
+    ),
+    buildCondition(
+      "grandship-neo-watch-danger2",
+      "見送り_危険2個以上",
+      "前日大勝、BB寄り出玉、直近見せ場済み、近隣処遇済み、低信頼が重なる台は本命外",
+      {
+        minDanger: 2,
+        requiredFlags: ["grandShipNeoHistory21Ready"],
+      },
+      grandShipLogicKeys,
+    ),
+    buildCondition(
+      "grandship-neo-normal-watch-weak",
+      "通常日見送り_強化不足",
+      "通常日で4連敗未満、かつ7日RB弱や21日高内容なしがない台は見送り寄り",
+      {
+        requiredFlags: ["grandShipNeoNormalWeak"],
+      },
+      [GRAND_SHIP_NEO_AIM_NORMAL_LOGIC_KEY],
+    ),
+    buildCondition(
+      "grandship-neo-watch-gap-noise",
+      "見送り_次点差過大ノイズ",
+      "1位次点差20点以上だけを理由にした採用は悪化しやすい",
+      {
+        rankMax: 1,
+        minNextGap: 20,
+        maxBoost: 1,
+        requiredFlags: ["grandShipNeoHistory21Ready"],
+      },
+      grandShipLogicKeys,
+    ),
+  ];
+}
+
 function listDefinitionLogics(definition) {
   if (!definition) {
     return [];
@@ -4946,6 +5212,21 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         TOYO_HALL_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
+        GRAND_SHIP_NEO_AIM_LOGIC_KEY,
+        GRAND_SHIP_NEO_AIM_LOGIC_NAME,
+        GRAND_SHIP_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
+        GRAND_SHIP_NEO_AIM_NORMAL_LOGIC_KEY,
+        GRAND_SHIP_NEO_AIM_NORMAL_LOGIC_NAME,
+        GRAND_SHIP_NEO_AIM_NORMAL_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
+        GRAND_SHIP_NEO_AIM_EVENT_LOGIC_KEY,
+        GRAND_SHIP_NEO_AIM_EVENT_LOGIC_NAME,
+        GRAND_SHIP_NEO_AIM_EVENT_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY,
         CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_NAME,
         CONCERT_HALL_KITASENJU_NEO_AIM_DEFAULT_CONDITION,
@@ -5178,6 +5459,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ...buildRakuenAmeyokoNeoAimConditions(),
       ...buildMinowaUnoNeoAimConditions(),
       ...buildToyoHallNeoAimConditions(),
+      ...buildGrandShipNeoAimConditions(),
       buildCondition(
         "main",
         "1位＋70点以上＋3日沈み2日以上",
@@ -15453,6 +15735,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, MINOWA_UNO_NEO_AIM_LOGIC_KEY);
   } else if (isToyoHallStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, TOYO_HALL_NEO_AIM_LOGIC_KEY);
+  } else if (isGrandShipStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, GRAND_SHIP_NEO_AIM_LOGIC_KEY);
   } else if (isPlazaTenjinStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "plaza-tenjin-neo-aim");
   } else if (isPlazaHontenStore(storeName) && definition.machineKey === "neo-aim") {
@@ -16893,6 +17177,182 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         toyoHallNeoNoHigh21NoSharp,
         treatmentDone: toyoHallNeoTreatment10 || toyoHallNeoTreatment5 || toyoHallNeoPrevStrongBigOut,
         lowConfidence: toyoHallNeoHistoryShort || toyoHallNeoLowG14,
+        boostCount,
+        dangerCount,
+      };
+    }
+
+    if (
+      activeLogicKey === GRAND_SHIP_NEO_AIM_LOGIC_KEY ||
+      activeLogicKey === GRAND_SHIP_NEO_AIM_NORMAL_LOGIC_KEY ||
+      activeLogicKey === GRAND_SHIP_NEO_AIM_EVENT_LOGIC_KEY
+    ) {
+      const grandShipNeoHistory21Ready = historyRowCount >= 21;
+      const grandShipNeoHistoryShort = historyRowCount < 21;
+      const grandShipNeoHistoryVeryShort = historyRowCount < 7;
+      const grandShipNeoHistoryFiveShort = historyRowCount < 5;
+      const grandShipNeoPreviousP56 = Number.isFinite(previousMachineSettingFivePlusProbability)
+        ? previousMachineSettingFivePlusProbability
+        : null;
+      const grandShipNeoLoss3 = streak >= 3;
+      const grandShipNeoLoss4 = streak >= 4;
+      const grandShipNeoLoss5 = streak >= 5;
+      const grandShipNeoLoss6 = streak >= 6;
+      const grandShipNeoLoss7 = streak >= 7;
+      const grandShipNeoSink7_500 = recentSevenNetTotal <= -500;
+      const grandShipNeoSink7_1500 = recentSevenNetTotal <= -1500;
+      const grandShipNeoSink7_2500 = recentSevenNetTotal <= -2500;
+      const grandShipNeoSink7_4000 = recentSevenNetTotal <= -4000;
+      const grandShipNeoSink14_2500 = recentFourteenNetTotal <= -2500;
+      const grandShipNeoSink14_4000 = recentFourteenNetTotal <= -4000;
+      const grandShipNeoSink14_6000 = recentFourteenNetTotal <= -6000;
+      const grandShipNeoAngle7Weak = recentSevenGamesTotal > 0 && features.recentSevenAngle <= -350;
+      const grandShipNeoAngle7Strong = recentSevenGamesTotal > 0 && features.recentSevenAngle <= -550;
+      const grandShipNeoCombined7Weak150 =
+        recentSevenGamesTotal > 0 && features.recentSevenCombinedDenominator >= 150;
+      const grandShipNeoCombined7Weak160 =
+        recentSevenGamesTotal > 0 && features.recentSevenCombinedDenominator >= 160;
+      const grandShipNeoCombined7Weak180 =
+        recentSevenGamesTotal > 0 && features.recentSevenCombinedDenominator >= 180;
+      const grandShipNeoRb7Weak350 =
+        recentSevenGamesTotal > 0 && features.recentSevenRbDenominator >= 350;
+      const grandShipNeoRb7Weak400 =
+        recentSevenGamesTotal > 0 && features.recentSevenRbDenominator >= 400;
+      const grandShipNeoRb7Weak450 =
+        recentSevenGamesTotal > 0 && features.recentSevenRbDenominator >= 450;
+      const grandShipNeoG3Average1500 = recentThreeGamesTotal >= 4500;
+      const grandShipNeoG3Average2000 = recentThreeGamesTotal >= 6000;
+      const grandShipNeoG7Trusted = recentSevenGamesTotal >= 12000;
+      const grandShipNeoG7Low = recentSevenGamesTotal < 5000;
+      const grandShipNeoNoHigh21 = grandShipNeoHistory21Ready && recentTwentyOneMachineHighContentCount <= 0;
+      const grandShipNeoNoHigh14 = historyRowCount >= 14 && recentFourteenMachineHighContentCount <= 0;
+      const grandShipNeoDaysSinceHigh14 =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 14;
+      const grandShipNeoDaysSinceHigh21 =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 21;
+      const grandShipNeoDaysSinceHigh28 =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 28;
+      const grandShipNeoPrevUnderpaid30 =
+        Number.isFinite(grandShipNeoPreviousP56) &&
+        grandShipNeoPreviousP56 >= 0.3 &&
+        previousGames >= 3000 &&
+        previousDifference <= 0;
+      const grandShipNeoPrevUnderpaid50 =
+        Number.isFinite(grandShipNeoPreviousP56) &&
+        grandShipNeoPreviousP56 >= 0.5 &&
+        previousGames >= 3000 &&
+        previousDifference <= 500;
+      const grandShipNeoPrevBigLoss =
+        previousGames >= 2000 && previousDifference <= -1500;
+      const grandShipNeoNeighborSink = previousAdjacentMachineNetTotal <= -1500;
+      const grandShipNeoNeighborNoHigh = previousAdjacentMachineHighContentCount === 0;
+      const grandShipNeoNeighborPreviousHigh = previousAdjacentMachineHighContentCount >= 1;
+      const grandShipNeoPrevHighContentOutput =
+        previousMachineHighContent && previousDifference >= 500;
+      const grandShipNeoPrevBigWinDanger = previousDifference >= 1500;
+      const grandShipNeoBbOnlyOutputDanger =
+        previousDifference >= 1000 &&
+        previousGames >= 2500 &&
+        Number.isFinite(grandShipNeoPreviousP56) &&
+        grandShipNeoPreviousP56 < 0.3;
+      const grandShipNeoRecentShowDone2 = recentFourteenGoldShowDays >= 2;
+      const grandShipNeoRecentShowDone3 = recentFourteenGoldShowDays >= 3;
+      const grandShipNeoRecentShow7 = recentSevenGoldShowDays >= 1;
+      const grandShipNeoPlus7_1500 = recentSevenNetTotal >= 1500;
+      const grandShipNeoPlus7_3000 = recentSevenNetTotal >= 3000;
+      const grandShipNeoPlus14_3000 = recentFourteenNetTotal >= 3000;
+      const grandShipNeoPlus14_5000 = recentFourteenNetTotal >= 5000;
+      const grandShipNeoLowTrust = grandShipNeoG7Low || grandShipNeoHistoryFiveShort;
+      const grandShipNeoNormalWeak =
+        activeLogicKey === GRAND_SHIP_NEO_AIM_NORMAL_LOGIC_KEY &&
+        !grandShipNeoLoss4 &&
+        !grandShipNeoRb7Weak350 &&
+        !grandShipNeoNoHigh21;
+
+      const boostFlags = [
+        grandShipNeoLoss4,
+        grandShipNeoSink7_2500,
+        grandShipNeoSink7_4000,
+        grandShipNeoRb7Weak350,
+        grandShipNeoCombined7Weak160,
+        grandShipNeoCombined7Weak180,
+        grandShipNeoNoHigh21,
+        grandShipNeoPrevUnderpaid30,
+        grandShipNeoNeighborNoHigh,
+        grandShipNeoNeighborSink,
+      ];
+      const dangerFlags = [
+        grandShipNeoPrevBigWinDanger,
+        grandShipNeoBbOnlyOutputDanger,
+        grandShipNeoPrevHighContentOutput,
+        grandShipNeoRecentShowDone2,
+        grandShipNeoNeighborPreviousHigh,
+        grandShipNeoLowTrust,
+        grandShipNeoHistoryShort,
+      ];
+      const boostCount = boostFlags.filter(Boolean).length;
+      const dangerCount = dangerFlags.filter(Boolean).length;
+
+      return {
+        ...features,
+        grandShipNeoHistory21Ready,
+        grandShipNeoHistoryShort,
+        grandShipNeoHistoryVeryShort,
+        grandShipNeoHistoryFiveShort,
+        grandShipNeoPreviousP56,
+        grandShipNeoLoss3,
+        grandShipNeoLoss4,
+        grandShipNeoLoss5,
+        grandShipNeoLoss6,
+        grandShipNeoLoss7,
+        grandShipNeoSink7_500,
+        grandShipNeoSink7_1500,
+        grandShipNeoSink7_2500,
+        grandShipNeoSink7_4000,
+        grandShipNeoSink14_2500,
+        grandShipNeoSink14_4000,
+        grandShipNeoSink14_6000,
+        grandShipNeoAngle7Weak,
+        grandShipNeoAngle7Strong,
+        grandShipNeoCombined7Weak150,
+        grandShipNeoCombined7Weak160,
+        grandShipNeoCombined7Weak180,
+        grandShipNeoRb7Weak350,
+        grandShipNeoRb7Weak400,
+        grandShipNeoRb7Weak450,
+        grandShipNeoG3Average1500,
+        grandShipNeoG3Average2000,
+        grandShipNeoG7Trusted,
+        grandShipNeoG7Low,
+        grandShipNeoNoHigh21,
+        grandShipNeoNoHigh14,
+        grandShipNeoDaysSinceHigh14,
+        grandShipNeoDaysSinceHigh21,
+        grandShipNeoDaysSinceHigh28,
+        grandShipNeoPrevUnderpaid30,
+        grandShipNeoPrevUnderpaid50,
+        grandShipNeoPrevBigLoss,
+        grandShipNeoNeighborSink,
+        grandShipNeoNeighborNoHigh,
+        grandShipNeoNeighborPreviousHigh,
+        grandShipNeoPrevHighContentOutput,
+        grandShipNeoPrevBigWinDanger,
+        grandShipNeoBbOnlyOutputDanger,
+        grandShipNeoRecentShowDone2,
+        grandShipNeoRecentShowDone3,
+        grandShipNeoRecentShow7,
+        grandShipNeoPlus7_1500,
+        grandShipNeoPlus7_3000,
+        grandShipNeoPlus14_3000,
+        grandShipNeoPlus14_5000,
+        grandShipNeoLowTrust,
+        grandShipNeoNormalWeak,
+        treatmentDone:
+          grandShipNeoPrevBigWinDanger ||
+          grandShipNeoBbOnlyOutputDanger ||
+          grandShipNeoRecentShowDone2 ||
+          grandShipNeoPlus14_3000,
+        lowConfidence: grandShipNeoHistoryShort || grandShipNeoLowTrust,
         boostCount,
         dangerCount,
       };
@@ -28679,6 +29139,181 @@ function calculateMachineScore(definition, metrics, features) {
       return Math.round(clamp(score, 0, 100));
     }
 
+    if (
+      activeLogicKey === GRAND_SHIP_NEO_AIM_LOGIC_KEY ||
+      activeLogicKey === GRAND_SHIP_NEO_AIM_NORMAL_LOGIC_KEY ||
+      activeLogicKey === GRAND_SHIP_NEO_AIM_EVENT_LOGIC_KEY
+    ) {
+      const grandShipNeoPreviousP56 = Number.isFinite(previousMachineSettingFivePlusProbability)
+        ? previousMachineSettingFivePlusProbability
+        : null;
+      const grandShipNeoNoHigh21 = historyRowCount >= 21 && recentTwentyOneMachineHighContentCount <= 0;
+      const grandShipNeoNoHigh14 = historyRowCount >= 14 && recentFourteenMachineHighContentCount <= 0;
+      const grandShipNeoNeighborNoHigh = previousAdjacentMachineHighContentCount === 0;
+      const grandShipNeoNeighborPreviousHigh = previousAdjacentMachineHighContentCount >= 1;
+      const grandShipNeoRecentSevenRb = features.recentSevenRbDenominator;
+      const grandShipNeoRecentSevenCombined = features.recentSevenCombinedDenominator;
+      const grandShipNeoRecentFourteenCombined = features.recentFourteenCombinedDenominator;
+
+      let sinkScore = 0;
+      sinkScore += scoreAtLeast(streak, [
+        { minimum: 7, points: 24 },
+        { minimum: 6, points: 22 },
+        { minimum: 5, points: 20 },
+        { minimum: 4, points: 17 },
+        { minimum: 3, points: 11 },
+      ]);
+      sinkScore += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -4000, points: 10 },
+        { maximum: -2500, points: 8 },
+        { maximum: -1500, points: 5 },
+        { maximum: -500, points: 2 },
+      ]);
+      sinkScore += scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -6000, points: 6 },
+        { maximum: -4000, points: 5 },
+        { maximum: -2500, points: 3 },
+      ]);
+      sinkScore += scoreAtMost(features.recentSevenAngle, [
+        { maximum: -550, points: 4 },
+        { maximum: -350, points: 2 },
+      ]);
+      sinkScore = Math.min(sinkScore, 34);
+
+      let weakBonusScore = 0;
+      weakBonusScore +=
+        recentSevenGamesTotal > 0
+          ? scoreAtLeast(grandShipNeoRecentSevenCombined, [
+              { minimum: 180, points: 8 },
+              { minimum: 160, points: 5 },
+              { minimum: 150, points: 2 },
+            ])
+          : 0;
+      weakBonusScore +=
+        recentSevenGamesTotal > 0
+          ? scoreAtLeast(grandShipNeoRecentSevenRb, [
+              { minimum: 450, points: 5 },
+              { minimum: 350, points: 3 },
+            ])
+          : 0;
+      weakBonusScore += recentThreeGamesTotal >= 6000 ? 4 : recentThreeGamesTotal >= 4500 ? 3 : 0;
+      weakBonusScore += recentSevenGamesTotal >= 12000 ? 2 : 0;
+      weakBonusScore = Math.min(weakBonusScore, 18);
+
+      let rotationScore = 0;
+      rotationScore += grandShipNeoNoHigh21 ? 7 : 0;
+      if (Number.isFinite(daysSinceMachineHighContent)) {
+        rotationScore +=
+          daysSinceMachineHighContent >= 28
+            ? 5
+            : daysSinceMachineHighContent >= 21
+              ? 3
+              : daysSinceMachineHighContent >= 14
+                ? 1
+                : 0;
+      }
+      rotationScore += grandShipNeoNoHigh14 ? 2 : 0;
+      rotationScore = Math.min(rotationScore, 13);
+
+      let previousUnderpaidScore = 0;
+      previousUnderpaidScore +=
+        Number.isFinite(grandShipNeoPreviousP56) &&
+        grandShipNeoPreviousP56 >= 0.3 &&
+        previousGames >= 3000 &&
+        previousDifference <= 0
+          ? 5
+          : 0;
+      previousUnderpaidScore +=
+        Number.isFinite(grandShipNeoPreviousP56) &&
+        grandShipNeoPreviousP56 >= 0.5 &&
+        previousGames >= 3000 &&
+        previousDifference <= 500
+          ? 4
+          : 0;
+      previousUnderpaidScore += previousGames >= 2000 && previousDifference <= -1500 ? 4 : 0;
+      previousUnderpaidScore = Math.min(previousUnderpaidScore, 9);
+
+      let neighborScore = 0;
+      neighborScore += previousAdjacentMachineNetTotal <= -1500 ? 3 : 0;
+      neighborScore += grandShipNeoNeighborNoHigh ? 2 : 0;
+      neighborScore = Math.min(neighborScore, 5);
+
+      const grandShipNeoPreviousHighOutput = previousMachineHighContent && previousDifference >= 500;
+      const grandShipNeoBbOnlyOutputDanger =
+        previousDifference >= 1000 &&
+        previousGames >= 2500 &&
+        Number.isFinite(grandShipNeoPreviousP56) &&
+        grandShipNeoPreviousP56 < 0.3;
+      let dangerScore = 0;
+      dangerScore += previousDifference >= 1500 ? 14 : 0;
+      dangerScore += grandShipNeoBbOnlyOutputDanger ? 10 : 0;
+      dangerScore += grandShipNeoPreviousHighOutput ? 6 : 0;
+      dangerScore += recentFourteenGoldShowDays >= 3 ? 12 : recentFourteenGoldShowDays >= 2 ? 8 : 0;
+      dangerScore += recentSevenGoldShowDays >= 1 ? 4 : 0;
+      dangerScore += recentSevenNetTotal >= 3000 ? 8 : recentSevenNetTotal >= 1500 ? 4 : 0;
+      dangerScore += recentFourteenNetTotal >= 5000 ? 8 : recentFourteenNetTotal >= 3000 ? 5 : 0;
+      dangerScore += grandShipNeoNeighborPreviousHigh ? 3 : 0;
+      dangerScore += recentSevenGamesTotal < 5000 || historyRowCount < 5 ? 6 : 0;
+      dangerScore += historyRowCount < 21 ? 15 : 0;
+      dangerScore = Math.min(dangerScore, 35);
+
+      let score =
+        40 +
+        sinkScore +
+        weakBonusScore +
+        rotationScore +
+        previousUnderpaidScore +
+        neighborScore -
+        dangerScore;
+
+      if (activeLogicKey === GRAND_SHIP_NEO_AIM_NORMAL_LOGIC_KEY) {
+        let adjustmentScore = 0;
+        adjustmentScore += streak >= 6 ? 8 : streak >= 4 ? 4 : 0;
+        adjustmentScore +=
+          recentSevenGamesTotal > 0
+            ? scoreAtLeast(grandShipNeoRecentSevenRb, [
+                { minimum: 450, points: 6 },
+                { minimum: 400, points: 4 },
+                { minimum: 350, points: 2 },
+              ])
+            : 0;
+        adjustmentScore +=
+          recentFourteenGamesTotal > 0 && grandShipNeoRecentFourteenCombined >= 170 ? 6 : 0;
+        adjustmentScore += grandShipNeoNoHigh21 ? 4 : 0;
+        adjustmentScore -= previousDifference >= 1500 ? 6 : 0;
+        adjustmentScore -= grandShipNeoNeighborPreviousHigh ? 4 : 0;
+        adjustmentScore -= recentFourteenGoldShowDays >= 2 ? 6 : 0;
+        score += adjustmentScore;
+      } else if (activeLogicKey === GRAND_SHIP_NEO_AIM_EVENT_LOGIC_KEY) {
+        let adjustmentScore = 0;
+        adjustmentScore +=
+          recentSevenGamesTotal > 0
+            ? scoreAtLeast(grandShipNeoRecentSevenCombined, [
+                { minimum: 180, points: 12 },
+                { minimum: 160, points: 5 },
+              ])
+            : 0;
+        adjustmentScore += scoreAtMost(recentSevenNetTotal, [
+          { maximum: -4000, points: 8 },
+          { maximum: -2500, points: 4 },
+        ]);
+        adjustmentScore +=
+          recentSevenGamesTotal > 0
+            ? scoreAtLeast(grandShipNeoRecentSevenRb, [
+                { minimum: 450, points: 6 },
+                { minimum: 350, points: 4 },
+              ])
+            : 0;
+        adjustmentScore += streak >= 7 ? 8 : streak >= 6 ? 5 : streak >= 4 ? 2 : 0;
+        adjustmentScore += grandShipNeoNoHigh21 ? 6 : 0;
+        adjustmentScore -= grandShipNeoNeighborPreviousHigh ? 3 : 0;
+        adjustmentScore -= previousDifference >= 1500 ? 4 : 0;
+        score += adjustmentScore;
+      }
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (activeLogicKey === ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY) {
       let score = 38;
 
@@ -39448,6 +40083,29 @@ function buildExArenaTokyoDateSetting(definition, isEventDate) {
   };
 }
 
+function buildGrandShipDateSetting(definition, isEventDate) {
+  if (definition?.machineKey !== "neo-aim") {
+    return null;
+  }
+  const logicKey = isEventDate
+    ? GRAND_SHIP_NEO_AIM_EVENT_LOGIC_KEY
+    : GRAND_SHIP_NEO_AIM_NORMAL_LOGIC_KEY;
+  const logic = findLogicDefinition(definition, logicKey);
+  if (!logic) {
+    return null;
+  }
+  const condition =
+    listConditionDefinitions(definition, logic.key).find(
+      (candidate) => candidate.keySuffix === logic.defaultConditionSuffix,
+    ) ??
+    listConditionDefinitions(definition, logic.key)[0] ??
+    null;
+  return {
+    logicKey: logic.key,
+    conditionKey: condition ? buildConditionKey(definition, condition) : "",
+  };
+}
+
 function resolveRankingDateSpecificSetting(definition, setting, options = {}) {
   if (
     !options?.dateSpecificRanking ||
@@ -39676,6 +40334,20 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
     const targetDate = readRankingTargetDate(options?.snapshot);
     const isEventDate = isExArenaTokyoEventDate(targetDate, row, options);
     const setting = buildExArenaTokyoDateSetting(definition, isEventDate);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    if (!evaluation) {
+      return null;
+    }
+
+    return {
+      ...evaluation,
+      displayLabel: isEventDate ? "特定日" : "通常日",
+    };
+  }
+
+  if (isGrandShipStore(options?.storeName) && definition?.machineKey === "neo-aim") {
+    const isEventDate = readTargetEventFlag(row) === true;
+    const setting = buildGrandShipDateSetting(definition, isEventDate);
     const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
     if (!evaluation) {
       return null;
