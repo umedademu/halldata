@@ -117,6 +117,10 @@ const PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_NAME =
   "ピーアーク竹ノ塚スタジオ_ネオアイムジャグラーEX_56再投入返済ロジック";
 const PARK_TAKENOTSUKA_STUDIO_NEO_AIM_DEFAULT_CONDITION =
   "park-takenotsuka-studio-neo-free-c";
+const PARK_KITASENJU_NEO_AIM_LOGIC_KEY = "park-kitasenju-neo-aim";
+const PARK_KITASENJU_NEO_AIM_LOGIC_NAME =
+  "ピーアーク北千住 ネオアイムジャグラーEX 全日共通 狙い度 v1";
+const PARK_KITASENJU_NEO_AIM_DEFAULT_CONDITION = "park-kitasenju-neo-best270";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -610,6 +614,17 @@ function isParkTakenotsukaStudioStore(storeName) {
     "ピーアーク竹の塚スタジオ店",
     "P-ARK竹ノ塚スタジオ",
     "P ARK竹ノ塚スタジオ",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
+function isParkKitasenjuStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "ピーアーク北千住",
+    "ピーアーク北千住店",
+    "P-ARK北千住",
+    "PARK北千住",
+    "P ARK北千住",
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
@@ -3773,6 +3788,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY,
         PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_NAME,
         PARK_TAKENOTSUKA_STUDIO_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
+        PARK_KITASENJU_NEO_AIM_LOGIC_KEY,
+        PARK_KITASENJU_NEO_AIM_LOGIC_NAME,
+        PARK_KITASENJU_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
         "messe-minamisenju-neo-aim",
@@ -7094,6 +7114,229 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["parkTakenotsukaStudioNeoHistoryReady", "parkTakenotsukaStudioNeoLongSinkDeep"],
         },
         [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        PARK_KITASENJU_NEO_AIM_DEFAULT_CONDITION,
+        "最本命270",
+        "10日・10台 / 総G56337 / BB199 / RB232 / BB1/283.1 / RB1/242.8 / 合算1/130.7 / 平均+458.9枚 / 102.72% / 勝率50.0% / 平均56率59.5% / 中央56率65.9% / 56率50%以上60.0% / 件数注意",
+        {
+          rankMax: 1,
+          requiredFlags: [
+            "parkKitasenjuNeoHistory21Ready",
+            "parkKitasenjuNeoPreviousDeepSink",
+            "parkKitasenjuNeoPreviousCombinedWeak180",
+            "parkKitasenjuNeoHigh21TwoOrLess",
+          ],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-free-s",
+        "自由S_最強",
+        "10日・10台 / RB1/242.8 / 合算1/130.7 / 平均+458.9枚 / 102.72% / 平均56率59.5% / 中央56率65.9% / 点数より優先",
+        {
+          rankMax: 1,
+          requiredFlags: [
+            "parkKitasenjuNeoHistory21Ready",
+            "parkKitasenjuNeoPreviousDeepSink",
+            "parkKitasenjuNeoPreviousCombinedWeak180",
+            "parkKitasenjuNeoHigh21TwoOrLess",
+          ],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-strong280",
+        "強280",
+        "16日・16台 / 総G86732 / BB324 / RB330 / BB1/267.7 / RB1/262.8 / 合算1/132.6 / 平均+521.7枚 / 103.21% / 勝率56.2% / 平均56率48.9% / 56率50%以上43.8%",
+        {
+          requiredFlags: [
+            "parkKitasenjuNeoHistory21Ready",
+            "parkKitasenjuNeoPreviousDeepSink",
+            "parkKitasenjuNeoPreviousCombinedWeak180",
+            "parkKitasenjuNeoHigh21TwoOrLess",
+          ],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-main290",
+        "本命290",
+        "20日・22台 / 総G116346 / BB443 / RB404 / BB1/262.6 / RB1/288.0 / 合算1/137.4 / 平均+463.5枚 / 102.92% / 勝率54.5% / 平均56率40.0% / 56率50%以上31.8% / 実戦主軸",
+        {
+          requiredFlags: [
+            "parkKitasenjuNeoHistory21Ready",
+            "parkKitasenjuNeoPreviousDeepSink",
+            "parkKitasenjuNeoHigh21TwoOrLess",
+          ],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-weak300",
+        "弱本命300",
+        "22日・22台 / 総G108861 / BB421 / RB365 / BB1/258.6 / RB1/298.2 / 合算1/138.5 / 平均+341.0枚 / 102.30% / 勝率50.0% / 平均56率36.8% / 1位が抜けている日用",
+        {
+          rankMax: 1,
+          minNextGap: 15,
+          requiredFlags: ["parkKitasenjuNeoHistory21Ready", "parkKitasenjuNeoHigh21TwoOrLess"],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-wide310",
+        "広め310",
+        "19日・21台 / 総G105294 / BB392 / RB347 / BB1/268.6 / RB1/303.4 / 合算1/142.5 / 平均+244.1枚 / 101.62% / 勝率52.4% / 平均56率34.2% / 後半弱く単独過信不可",
+        {
+          minScore: 95,
+          requiredFlags: ["parkKitasenjuNeoHistory21Ready"],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-score70-danger0",
+        "70点以上＋危険0",
+        "70点以上かつ危険条件なしの補助採用",
+        {
+          minScore: 70,
+          maxDanger: 0,
+          requiredFlags: ["parkKitasenjuNeoHistory21Ready"],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-rank1-gap15",
+        "1位＋次点差15",
+        "1位と2位の点差15以上 / 毎日1位より改善する補助条件",
+        {
+          rankMax: 1,
+          minNextGap: 15,
+          requiredFlags: ["parkKitasenjuNeoHistory21Ready"],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-free-a",
+        "自由A_前日RB極弱",
+        "44日・62台 / RB1/321.6 / 合算1/148.8 / 平均-10.5枚 / 99.93% / 平均56率29.7% / 広め補助",
+        {
+          requiredFlags: ["parkKitasenjuNeoHistory21Ready", "parkKitasenjuNeoFreeA"],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-free-b",
+        "自由B_前日大凹み",
+        "38日・45台 / RB1/330.9 / 合算1/146.6 / 平均+192.7枚 / 101.23% / 平均56率28.0% / 妥協条件",
+        {
+          requiredFlags: ["parkKitasenjuNeoHistory21Ready", "parkKitasenjuNeoFreeB"],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-free-c",
+        "自由C_2日深沈み",
+        "21日・26台 / RB1/334.9 / 合算1/144.7 / 平均+310.1枚 / 102.05% / 平均56率27.7% / 前後半ともプラス",
+        {
+          requiredFlags: ["parkKitasenjuNeoHistory21Ready", "parkKitasenjuNeoFreeC"],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-free-d",
+        "自由D_前日大凹み+周辺",
+        "22日・23台 / RB1/326.5 / 合算1/145.8 / 平均+168.1枚 / 101.05% / 勝率60.9% / 平均56率29.1% / 補助",
+        {
+          maxDanger: 1,
+          requiredFlags: ["parkKitasenjuNeoHistory21Ready", "parkKitasenjuNeoFreeD"],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-free-e",
+        "自由E_2〜3連敗",
+        "81日・137台 / RB1/351.3 / 合算1/149.0 / 平均+151.6枚 / 101.05% / 平均56率24.0% / 打てる日を増やす妥協条件",
+        {
+          maxDanger: 1,
+          requiredFlags: ["parkKitasenjuNeoHistory21Ready", "parkKitasenjuNeoFreeE"],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-watch-score-under65",
+        "見送り_65点未満",
+        "狙い度65点未満は母集団との差が弱い",
+        {
+          maxScore: 64.999,
+          requiredFlags: ["parkKitasenjuNeoHistory21Ready"],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-watch-weak-root",
+        "見送り_75点未満強化不足",
+        "75点未満かつ強化条件2個未満は根拠が薄い",
+        {
+          maxScore: 74.999,
+          maxBoost: 1,
+          requiredFlags: ["parkKitasenjuNeoHistory21Ready"],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-watch-danger2",
+        "見送り_危険2個以上",
+        "危険条件2個以上は過去成績が崩れやすい",
+        {
+          minDanger: 2,
+          requiredFlags: ["parkKitasenjuNeoHistory21Ready"],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-watch-treatment-done",
+        "見送り_処遇完了濃厚",
+        "前日+1500枚以上かつ3日差枚+1000枚以上は処遇完了濃厚",
+        {
+          requiredFlags: ["parkKitasenjuNeoHistory21Ready", "parkKitasenjuNeoTreatmentDoneStrong"],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-watch-previous-strong",
+        "見送り_前日強内容据え狙い",
+        "前日3000G以上かつRB1/250以下または合算1/120以下はRB1/374.5、機械割97.39%で弱い",
+        {
+          requiredFlags: ["parkKitasenjuNeoHistory21Ready", "parkKitasenjuNeoPreviousStrongBonus"],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-watch-previous-output1500",
+        "見送り_前日+1500",
+        "前日+1500枚以上はRB1/377.0、機械割96.70%で弱い",
+        {
+          requiredFlags: ["parkKitasenjuNeoHistory21Ready", "parkKitasenjuNeoPreviousOutput1500"],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-watch-history7",
+        "見送り_履歴7日未満",
+        "履歴7日未満は低信頼",
+        {
+          requiredFlags: ["parkKitasenjuNeoHistoryUnder7"],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitasenju-neo-watch-history21",
+        "見送り_履歴21日未満",
+        "履歴21日未満はローテと21日内56回数が不完全で最大80点扱い",
+        {
+          requiredFlags: ["parkKitasenjuNeoHistoryUnder21"],
+        },
+        [PARK_KITASENJU_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "messe-minamisenju-free-14rb",
@@ -12520,6 +12763,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY);
   } else if (isParkTakenotsukaStudioStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY);
+  } else if (isParkKitasenjuStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, PARK_KITASENJU_NEO_AIM_LOGIC_KEY);
   } else if (isMesseMinamisenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "messe-minamisenju-neo-aim");
   } else if (isMesseOkudoStore(storeName) && definition.machineKey === "neo-aim") {
@@ -18374,6 +18619,182 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         parkTakenotsukaStudioNeoFreeB,
         treatmentDone: parkTakenotsukaStudioNeoTreatmentDone14 || parkTakenotsukaStudioNeoBbOnlyOutput,
         lowConfidence: parkTakenotsukaStudioNeoHistoryShort || parkTakenotsukaStudioNeoLowGames7,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === PARK_KITASENJU_NEO_AIM_LOGIC_KEY) {
+      const parkKitasenjuNeoHistory21Ready = historyRowCount >= 21;
+      const parkKitasenjuNeoHistoryUnder7 = historyRowCount < 7;
+      const parkKitasenjuNeoHistoryUnder14 = historyRowCount < 14;
+      const parkKitasenjuNeoHistoryUnder21 = historyRowCount < 21;
+      const parkKitasenjuNeoPreviousDeepSink =
+        previousDifference <= -1500 && previousGames >= 1800;
+      const parkKitasenjuNeoPreviousSink1000 =
+        previousDifference <= -1000 && previousGames >= 1500;
+      const parkKitasenjuNeoPreviousSink500 =
+        previousDifference <= -500 && previousGames >= 1000;
+      const parkKitasenjuNeoTwoDayDeepSink =
+        recentTwoNetTotal <= -2500 && recentTwoGamesTotal >= 3500;
+      const parkKitasenjuNeoTwoDaySink =
+        recentTwoNetTotal <= -1500 && recentTwoGamesTotal >= 3000;
+      const parkKitasenjuNeoTwoDayLightSink =
+        recentTwoNetTotal <= -1000 && recentTwoGamesTotal >= 2500;
+      const parkKitasenjuNeoFiveUnpaid =
+        recentFiveNetTotal >= -4500 && recentFiveNetTotal <= -2000 && recentFiveGamesTotal >= 11000;
+      const parkKitasenjuNeoFiveTooDeep =
+        recentFiveNetTotal <= -4500 && recentFiveGamesTotal >= 12000;
+      const parkKitasenjuNeoFourteenUnpaid =
+        recentFourteenNetTotal <= -1500 && recentFourteenGamesTotal >= 28000;
+      const parkKitasenjuNeoTwentyOneUnpaid =
+        recentTwentyOneNetTotal <= -3000 && recentTwentyOneGamesTotal >= 42000;
+      const parkKitasenjuNeoPreviousGamesGood =
+        previousGames >= 2500 && previousGames <= 6000;
+      const parkKitasenjuNeoPreviousGamesValid =
+        previousGames >= 1200 && previousGames <= 2499;
+      const parkKitasenjuNeoPreviousLowGames = previousGames < 800;
+      const parkKitasenjuNeoPreviousHighGames = previousGames >= 6500;
+      const parkKitasenjuNeoRecentThreeGamesTrust = recentThreeGamesTotal >= 9000;
+      const parkKitasenjuNeoRecentThreeLowGames = recentThreeGamesTotal < 3500;
+      const parkKitasenjuNeoPreviousRbVeryWeak =
+        previousGames >= 3000 && features.previousRbDenominator > 500;
+      const parkKitasenjuNeoPreviousRbWeak =
+        previousGames >= 3000 && features.previousRbDenominator > 400;
+      const parkKitasenjuNeoPreviousCombinedWeak180 =
+        previousGames >= 3000 && features.previousCombinedDenominator > 180;
+      const parkKitasenjuNeoPreviousCombinedWeak160 =
+        previousGames >= 3000 && features.previousCombinedDenominator > 160;
+      const parkKitasenjuNeoIntervalOpen =
+        !Number.isFinite(daysSinceMachineHighContent) || daysSinceMachineHighContent >= 21;
+      const parkKitasenjuNeoInterval14 =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 14;
+      const parkKitasenjuNeoRecentHighTooClose =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent <= 2;
+      const parkKitasenjuNeoHigh21Zero = recentTwentyOneMachineHighContentCount === 0;
+      const parkKitasenjuNeoHigh21TwoOrLess = recentTwentyOneMachineHighContentCount <= 2;
+      const parkKitasenjuNeoHigh21Four = recentTwentyOneMachineHighContentCount === 4;
+      const parkKitasenjuNeoHigh21Many = recentTwentyOneMachineHighContentCount >= 5;
+      const parkKitasenjuNeoLossTwoToThree = streak === 2 || streak === 3;
+      const parkKitasenjuNeoLossOne = streak === 1;
+      const parkKitasenjuNeoLongLoss = streak >= 5;
+      const parkKitasenjuNeoNeighborLeftBehind =
+        previousDifference < 0 && previousAdjacentMachineNetTotal > 1000;
+      const parkKitasenjuNeoNeighborPreviousHigh =
+        previousDifference < 0 && previousAdjacentMachineHighContentCount >= 1;
+      const parkKitasenjuNeoPreviousOutput2000 = previousDifference >= 2000;
+      const parkKitasenjuNeoPreviousOutput1500 = previousDifference >= 1500;
+      const parkKitasenjuNeoPreviousOutput1000 = previousDifference >= 1000;
+      const parkKitasenjuNeoRecentThreeTreatment = recentThreeNetTotal >= 1000;
+      const parkKitasenjuNeoRecentTenTreatment = recentTenNetTotal >= 3000;
+      const parkKitasenjuNeoPreviousRbStrong =
+        previousGames >= 3000 && features.previousRbDenominator <= 250;
+      const parkKitasenjuNeoPreviousCombinedStrong =
+        previousGames >= 3000 && features.previousCombinedDenominator <= 120;
+      const parkKitasenjuNeoPreviousStrongBonus =
+        parkKitasenjuNeoPreviousRbStrong || parkKitasenjuNeoPreviousCombinedStrong;
+      const parkKitasenjuNeoPreviousHigh70 = previousMachineStrongHighContent;
+      const parkKitasenjuNeoSevenDeepNeglect = recentSevenNetTotal <= -5000;
+      const parkKitasenjuNeoFiveSinkStayTooLong = recentFiveMinus1000StayDays >= 5;
+      const parkKitasenjuNeoTreatmentDoneStrong =
+        parkKitasenjuNeoPreviousOutput1500 && parkKitasenjuNeoRecentThreeTreatment;
+      const parkKitasenjuNeoFreeA =
+        parkKitasenjuNeoPreviousRbVeryWeak &&
+        previousDifference < 0 &&
+        recentThreeNetTotal < 1000 &&
+        previousGames < 6500;
+      const parkKitasenjuNeoFreeB =
+        parkKitasenjuNeoPreviousDeepSink &&
+        recentThreeNetTotal < 1000 &&
+        previousGames < 6500;
+      const parkKitasenjuNeoFreeC =
+        parkKitasenjuNeoTwoDayDeepSink &&
+        recentThreeNetTotal < 1000 &&
+        previousGames < 6500;
+      const parkKitasenjuNeoFreeD =
+        parkKitasenjuNeoPreviousSink1000 && parkKitasenjuNeoNeighborLeftBehind;
+      const parkKitasenjuNeoFreeE =
+        parkKitasenjuNeoLossTwoToThree && recentThreeNetTotal < 1000;
+      const boostFlags = [
+        parkKitasenjuNeoPreviousDeepSink,
+        parkKitasenjuNeoTwoDayDeepSink,
+        parkKitasenjuNeoPreviousRbVeryWeak,
+        parkKitasenjuNeoPreviousCombinedWeak180,
+        parkKitasenjuNeoNeighborLeftBehind,
+        parkKitasenjuNeoLossTwoToThree,
+        parkKitasenjuNeoIntervalOpen,
+      ];
+      const dangerFlags = [
+        parkKitasenjuNeoPreviousOutput1500,
+        parkKitasenjuNeoRecentThreeTreatment,
+        parkKitasenjuNeoPreviousHighGames,
+        parkKitasenjuNeoPreviousRbStrong,
+        parkKitasenjuNeoPreviousCombinedStrong,
+        parkKitasenjuNeoHigh21Many,
+        parkKitasenjuNeoSevenDeepNeglect,
+        parkKitasenjuNeoPreviousLowGames || parkKitasenjuNeoRecentThreeLowGames,
+      ];
+
+      return {
+        ...features,
+        parkKitasenjuNeoHistory21Ready,
+        parkKitasenjuNeoHistoryUnder7,
+        parkKitasenjuNeoHistoryUnder14,
+        parkKitasenjuNeoHistoryUnder21,
+        parkKitasenjuNeoPreviousDeepSink,
+        parkKitasenjuNeoPreviousSink1000,
+        parkKitasenjuNeoPreviousSink500,
+        parkKitasenjuNeoTwoDayDeepSink,
+        parkKitasenjuNeoTwoDaySink,
+        parkKitasenjuNeoTwoDayLightSink,
+        parkKitasenjuNeoFiveUnpaid,
+        parkKitasenjuNeoFiveTooDeep,
+        parkKitasenjuNeoFourteenUnpaid,
+        parkKitasenjuNeoTwentyOneUnpaid,
+        parkKitasenjuNeoPreviousGamesGood,
+        parkKitasenjuNeoPreviousGamesValid,
+        parkKitasenjuNeoPreviousLowGames,
+        parkKitasenjuNeoPreviousHighGames,
+        parkKitasenjuNeoRecentThreeGamesTrust,
+        parkKitasenjuNeoRecentThreeLowGames,
+        parkKitasenjuNeoPreviousRbVeryWeak,
+        parkKitasenjuNeoPreviousRbWeak,
+        parkKitasenjuNeoPreviousCombinedWeak180,
+        parkKitasenjuNeoPreviousCombinedWeak160,
+        parkKitasenjuNeoIntervalOpen,
+        parkKitasenjuNeoInterval14,
+        parkKitasenjuNeoRecentHighTooClose,
+        parkKitasenjuNeoHigh21Zero,
+        parkKitasenjuNeoHigh21TwoOrLess,
+        parkKitasenjuNeoHigh21Four,
+        parkKitasenjuNeoHigh21Many,
+        parkKitasenjuNeoLossTwoToThree,
+        parkKitasenjuNeoLossOne,
+        parkKitasenjuNeoLongLoss,
+        parkKitasenjuNeoNeighborLeftBehind,
+        parkKitasenjuNeoNeighborPreviousHigh,
+        parkKitasenjuNeoPreviousOutput2000,
+        parkKitasenjuNeoPreviousOutput1500,
+        parkKitasenjuNeoPreviousOutput1000,
+        parkKitasenjuNeoRecentThreeTreatment,
+        parkKitasenjuNeoRecentTenTreatment,
+        parkKitasenjuNeoPreviousRbStrong,
+        parkKitasenjuNeoPreviousCombinedStrong,
+        parkKitasenjuNeoPreviousStrongBonus,
+        parkKitasenjuNeoPreviousHigh70,
+        parkKitasenjuNeoSevenDeepNeglect,
+        parkKitasenjuNeoFiveSinkStayTooLong,
+        parkKitasenjuNeoTreatmentDoneStrong,
+        parkKitasenjuNeoFreeA,
+        parkKitasenjuNeoFreeB,
+        parkKitasenjuNeoFreeC,
+        parkKitasenjuNeoFreeD,
+        parkKitasenjuNeoFreeE,
+        treatmentDone:
+          parkKitasenjuNeoTreatmentDoneStrong ||
+          parkKitasenjuNeoPreviousStrongBonus ||
+          parkKitasenjuNeoPreviousOutput1500,
+        lowConfidence: parkKitasenjuNeoHistoryUnder21 || parkKitasenjuNeoRecentThreeLowGames,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -27082,6 +27503,85 @@ function calculateMachineScore(definition, metrics, features) {
       score -= recentFourteenNetTotal >= 5000 ? 6 : recentFourteenNetTotal >= 2500 ? 2 : 0;
 
       const scoreCap = historyRowCount < 7 ? 70 : 100;
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
+    if (activeLogicKey === PARK_KITASENJU_NEO_AIM_LOGIC_KEY) {
+      let score = 38;
+
+      if (previousDifference <= -1500 && previousGames >= 1800) {
+        score += 16;
+      } else if (previousDifference <= -1000 && previousGames >= 1500) {
+        score += 10;
+      } else if (previousDifference <= -500 && previousGames >= 1000) {
+        score += 5;
+      }
+
+      if (recentTwoNetTotal <= -2500 && recentTwoGamesTotal >= 3500) {
+        score += 12;
+      } else if (recentTwoNetTotal <= -1500 && recentTwoGamesTotal >= 3000) {
+        score += 7;
+      } else if (recentTwoNetTotal <= -1000 && recentTwoGamesTotal >= 2500) {
+        score += 4;
+      }
+
+      if (recentFiveNetTotal <= -4500 && recentFiveGamesTotal >= 12000) {
+        score += 2;
+      } else if (recentFiveNetTotal <= -2000 && recentFiveGamesTotal >= 11000) {
+        score += 7;
+      }
+
+      score += recentFourteenNetTotal <= -1500 && recentFourteenGamesTotal >= 28000 ? 4 : 0;
+      score += recentTwentyOneNetTotal <= -3000 && recentTwentyOneGamesTotal >= 42000 ? 3 : 0;
+      score += previousGames >= 2500 && previousGames <= 6000 ? 6 : 0;
+      score += previousGames >= 1200 && previousGames <= 2499 ? 2 : 0;
+      score -= previousGames < 800 ? 8 : 0;
+      score -= previousGames >= 6500 ? 6 : 0;
+      score += recentThreeGamesTotal >= 9000 ? 4 : 0;
+      score -= recentThreeGamesTotal < 3500 ? 6 : 0;
+
+      if (previousGames >= 3000 && features.previousRbDenominator > 500) {
+        score += 10;
+      } else if (previousGames >= 3000 && features.previousRbDenominator > 400) {
+        score += 6;
+      }
+
+      if (previousGames >= 3000 && features.previousCombinedDenominator > 180) {
+        score += 7;
+      } else if (previousGames >= 3000 && features.previousCombinedDenominator > 160) {
+        score += 4;
+      }
+
+      if (!Number.isFinite(daysSinceMachineHighContent) || daysSinceMachineHighContent >= 21) {
+        score += 5;
+      } else if (daysSinceMachineHighContent >= 14) {
+        score += 3;
+      }
+      score -= Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent <= 2 ? 5 : 0;
+      score += recentTwentyOneMachineHighContentCount === 0 ? 4 : 0;
+      score -= recentTwentyOneMachineHighContentCount >= 5 ? 8 : recentTwentyOneMachineHighContentCount === 4 ? 3 : 0;
+      score += streak === 2 || streak === 3 ? 7 : streak === 1 ? 3 : 0;
+      score -= streak >= 5 ? 6 : 0;
+      score += previousDifference < 0 && previousAdjacentMachineNetTotal > 1000 ? 6 : 0;
+      score += previousDifference < 0 && previousAdjacentMachineHighContentCount >= 1 ? 4 : 0;
+
+      if (previousDifference >= 2000) {
+        score -= 16;
+      } else if (previousDifference >= 1500) {
+        score -= 10;
+      } else if (previousDifference >= 1000) {
+        score -= 6;
+      }
+
+      score -= recentThreeNetTotal >= 1000 ? 7 : 0;
+      score -= recentTenNetTotal >= 3000 ? 5 : 0;
+      score -= previousGames >= 3000 && features.previousRbDenominator <= 250 ? 8 : 0;
+      score -= previousGames >= 3000 && features.previousCombinedDenominator <= 120 ? 8 : 0;
+      score -= previousMachineStrongHighContent ? 5 : 0;
+      score -= recentSevenNetTotal <= -5000 ? 5 : 0;
+      score -= recentFiveMinus1000StayDays >= 5 ? 4 : 0;
+
+      const scoreCap = historyRowCount < 7 ? 65 : historyRowCount < 21 ? 80 : 100;
       return Math.round(clamp(score, 0, scoreCap));
     }
 

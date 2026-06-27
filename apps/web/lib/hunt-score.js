@@ -339,6 +339,10 @@ const PARK_TAKENOTSUKA_STUDIO_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const PARK_KITASENJU_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const KINTOKI_KAMATA_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
@@ -1038,6 +1042,22 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "park-takenotsuka-studio-neo-aim",
       "ネオアイムジャグラーＥＸ": "park-takenotsuka-studio-neo-aim",
+    },
+  },
+  {
+    key: "park-kitasenju",
+    storeNames: [
+      "ピーアーク北千住",
+      "ピーアーク北千住店",
+      "P-ARK北千住",
+      "PARK北千住",
+      "P ARK北千住",
+    ],
+    targetMachines: PARK_KITASENJU_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "park-kitasenju-neo-aim",
+      "ネオアイムジャグラーＥＸ": "park-kitasenju-neo-aim",
     },
   },
   {
@@ -2446,6 +2466,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
+    if (contentRule === "park-kitasenju-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 140;
+    }
     if (contentRule === "kintoki-kamata-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -2951,6 +2978,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 350 && combinedDenominator <= 160;
     }
+    if (contentRule === "park-kitasenju-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.35;
+      }
+      return games >= 3000 && rbDenominator <= 350 && combinedDenominator <= 160;
+    }
     if (contentRule === "kintoki-kamata-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -3149,6 +3183,7 @@ function isMachineLowContentWindowRow(row, machineName, config = null) {
       "slot-marumitsu-ohashi-neo-aim",
       "tamaya-ohashi-neo-aim",
       "park-takenotsuka-studio-neo-aim",
+      "park-kitasenju-neo-aim",
     ].includes(
       readMachineContentRule(config, machineName),
     )
@@ -3603,6 +3638,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "park-takenotsuka-studio-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "park-kitasenju-neo-aim"
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     if (Number.isFinite(settingFivePlusProbability)) {
