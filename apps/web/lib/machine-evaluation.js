@@ -54,6 +54,12 @@ export const MACHINE_EVALUATION_RANKING_MODE_OPTIONS = [
   },
 ];
 
+const KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY = "kicona-hirai-aim-combined";
+const KICONA_HIRAI_AIM_COMBINED_LOGIC_NAME =
+  "キコーナ平井店_アイムジャグラーEX統合_全日共通ロジック";
+const KICONA_HIRAI_AIM_COMBINED_DEFAULT_CONDITION =
+  "kicona-hirai-free-rb-missing-eight-loss";
+
 function normalizeText(value) {
   return String(value ?? "").trim();
 }
@@ -349,6 +355,13 @@ function isMesseOkudoStore(storeName) {
 function isFortuneOhanajayaStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["フォーチュンお花茶屋店", "フォーチュンお花茶屋"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
+function isKiconaHiraiStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["キコーナ平井店", "キコーナ平井", "KICONA平井店", "KICONA平井"].some(
     (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
   );
 }
@@ -725,6 +738,261 @@ function buildLogicVariant(logicKey, logicName, defaultConditionSuffix = "main")
   };
 }
 
+function buildKiconaHiraiAimCombinedConditions() {
+  return [
+    buildCondition(
+      KICONA_HIRAI_AIM_COMBINED_DEFAULT_CONDITION,
+      "RB欠損8連敗",
+      "24日 / 27台 / RB1/307 / 合算1/136 / 平均+357枚 / 104.33% / 勝率55.6% / 最優先",
+      {
+        requiredFlags: ["kiconaHiraiAimHistoryReady", "kiconaHiraiAimRbMissing8Loss"],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-free-14-steep-unprocessed",
+      "14急沈み未処遇",
+      "41日 / 66台 / RB1/317 / 合算1/138 / 平均+258枚 / 104.03% / 勝率40.9%",
+      {
+        requiredFlags: [
+          "kiconaHiraiAimHistoryReady",
+          "kiconaHiraiAimFourteenSteepSink",
+          "kiconaHiraiAimUnprocessed14",
+        ],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-free-14-steep-no-show",
+      "14急沈み見せ場なし",
+      "43日 / 69台 / RB1/323 / 合算1/141 / 平均+219枚 / 103.44%",
+      {
+        requiredFlags: [
+          "kiconaHiraiAimHistoryReady",
+          "kiconaHiraiAimFourteenSteepSink",
+          "kiconaHiraiAimNoShow7",
+        ],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-free-7-14-steep",
+      "7日14日急沈み",
+      "42日 / 58台 / RB1/326 / 合算1/142 / 平均+199枚 / 103.26%",
+      {
+        requiredFlags: [
+          "kiconaHiraiAimHistoryReady",
+          "kiconaHiraiAimSevenSteepSink",
+          "kiconaHiraiAimFourteenSteepSink",
+        ],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-rb-light-core",
+      "RB最軽",
+      "20日 / 20台 / 総G52,340 / BB1/261.7 / RB1/294.0 / 合算1/138.5 / 平均+183.3枚 / 102.33% / 勝率45.0%",
+      {
+        requiredFlags: ["kiconaHiraiAimHistoryReady", "kiconaHiraiAimRbLightCore"],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-main-unpaid14-28",
+      "未返14-28",
+      "34日 / 40台 / RB1/309.3 / 103.65%",
+      {
+        minScore: 95,
+        requiredFlags: [
+          "kiconaHiraiAimHistoryReady",
+          "kiconaHiraiAimFourteenToTwentySeven",
+          "kiconaHiraiAimG14Trusted",
+          "kiconaHiraiAimSinceHighUnpaid3000",
+        ],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-main-seven-steep",
+      "7日急沈み",
+      "29日 / 31台 / RB1/301.5 / 103.85%",
+      {
+        minScore: 95,
+        requiredFlags: [
+          "kiconaHiraiAimHistoryReady",
+          "kiconaHiraiAimSevenAngleMinus200",
+          "kiconaHiraiAimFourteenToTwentySeven",
+          "kiconaHiraiAimG14Trusted",
+        ],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-main-four-loss",
+      "4連14-28",
+      "24日 / 27台 / RB1/307.4 / 103.62%",
+      {
+        minScore: 95,
+        requiredFlags: [
+          "kiconaHiraiAimHistoryReady",
+          "kiconaHiraiAimLoss4",
+          "kiconaHiraiAimFourteenToTwentySeven",
+          "kiconaHiraiAimG14Trusted",
+        ],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-main-six-loss",
+      "6連14-28",
+      "21日 / 23台 / RB1/301.1 / 103.99%",
+      {
+        minScore: 95,
+        requiredFlags: [
+          "kiconaHiraiAimHistoryReady",
+          "kiconaHiraiAimLoss6",
+          "kiconaHiraiAimFourteenToTwentySeven",
+          "kiconaHiraiAimG14Trusted",
+        ],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-score90",
+      "90点以上",
+      "34日 / 43台 / RB1/339 / 合算1/145 / 平均+236枚 / 104.27%",
+      {
+        minScore: 90,
+        requiredFlags: ["kiconaHiraiAimHistoryReady"],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-score85",
+      "85点以上",
+      "42日 / 52台 / RB1/352 / 合算1/148 / 平均+187枚 / 103.54%",
+      {
+        minScore: 85,
+        requiredFlags: ["kiconaHiraiAimHistoryReady"],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-score80",
+      "80点以上",
+      "62日 / 78台 / RB1/350 / 合算1/148 / 平均+122枚 / 102.22%",
+      {
+        minScore: 80,
+        requiredFlags: ["kiconaHiraiAimHistoryReady"],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-wide-unpaid-middle",
+      "広め_未返済ミドル",
+      "73日 / 82台 / RB1/329.9 / 合算1/141.8 / 平均+205枚 / 103.27%",
+      {
+        requiredFlags: ["kiconaHiraiAimHistoryReady", "kiconaHiraiAimWideUnpaidMiddle"],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-strong-unpaid-rbweak",
+      "強_深沈みRB不遇",
+      "20日 / 21台 / RB1/276.3 / 合算1/132 / 107.71%",
+      {
+        requiredFlags: ["kiconaHiraiAimHistoryReady", "kiconaHiraiAimDeepUnpaidRbWeak"],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-ref-105",
+      "参考_105機械割",
+      "17日 / 19台 / RB1/338 / 平均+456枚 / 106.16% / 参考",
+      {
+        requiredFlags: [
+          "kiconaHiraiAimHistoryReady",
+          "kiconaHiraiAimFourteenSteepSink",
+          "kiconaHiraiAimSevenDeepSink3000",
+        ],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-ref-rb290",
+      "参考_RB290少数",
+      "9日 / 10台 / RB1/280.9 / 参考",
+      {
+        minScore: 98,
+        requiredFlags: [
+          "kiconaHiraiAimHistoryReady",
+          "kiconaHiraiAimSevenAngleMinus200",
+          "kiconaHiraiAimDaysSinceHigh21To27",
+          "kiconaHiraiAimG14Trusted",
+        ],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-watch-danger2",
+      "見送り_危険2以上",
+      "前日高内容、処遇済み、見せ場過多、低信頼が複数重なる台は見送り寄り",
+      {
+        minDanger: 2,
+        requiredFlags: ["kiconaHiraiAimHistoryReady"],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-watch-prev-high",
+      "見送り_前日高内容",
+      "前日高内容または強内容後は戻しより反動を優先して警戒",
+      {
+        requiredFlags: ["kiconaHiraiAimHistoryReady", "kiconaHiraiAimPreviousHighContent"],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-watch-treated",
+      "見送り_処遇済み",
+      "直近で返済済み、または出玉だけ先に見えている台は採用を下げる",
+      {
+        requiredFlags: ["kiconaHiraiAimHistoryReady", "kiconaHiraiAimTreatmentDone"],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-watch-low-trust",
+      "見送り_低信頼",
+      "直近G数不足、または過剰稼働でサンプルの質が落ちる台",
+      {
+        requiredFlags: ["kiconaHiraiAimLowTrust"],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-watch-score-only",
+      "注意_スコアだけ",
+      "80点以上でも強い個別根拠が薄い場合は優先順位を下げる",
+      {
+        minScore: 80,
+        maxBoost: 1,
+        requiredFlags: ["kiconaHiraiAimHistoryReady"],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+    buildCondition(
+      "kicona-hirai-watch-history-short",
+      "見送り_履歴不足",
+      "履歴7営業日未満は採用条件対象外",
+      {
+        requiredFlags: ["kiconaHiraiAimHistoryShort"],
+      },
+      [KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY],
+    ),
+  ];
+}
+
 function listDefinitionLogics(definition) {
   if (!definition) {
     return [];
@@ -756,12 +1024,17 @@ function listConditionDefinitions(definition, logicKey = "") {
 const MACHINE_EVALUATION_DEFINITIONS = [
   {
     machineKey: "aim",
-    machineNames: ["SアイムジャグラーＥＸ", "SアイムジャグラーEX"],
+    machineNames: ["SアイムジャグラーＥＸ", "SアイムジャグラーEX", "アイムジャグラーEX", "アイムジャグラーＥＸ"],
     logicKey: "apark-aim",
     logicName: "Sアイム春日式",
     logics: [
       buildLogicVariant("apark-aim", "Sアイム春日式", "main"),
       buildLogicVariant("mj-kurume-aim", "SアイムMJ久留米式", "mj-kurume-main"),
+      buildLogicVariant(
+        KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY,
+        KICONA_HIRAI_AIM_COMBINED_LOGIC_NAME,
+        KICONA_HIRAI_AIM_COMBINED_DEFAULT_CONDITION,
+      ),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
@@ -810,6 +1083,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         },
         ["mj-kurume-aim"],
       ),
+      ...buildKiconaHiraiAimCombinedConditions(),
     ],
   },
   {
@@ -2143,6 +2417,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logicName: "ネオアイム春日式",
     logics: [
       buildLogicVariant("apark-neo-aim", "ネオアイム春日式", "main"),
+      buildLogicVariant(
+        KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY,
+        KICONA_HIRAI_AIM_COMBINED_LOGIC_NAME,
+        KICONA_HIRAI_AIM_COMBINED_DEFAULT_CONDITION,
+      ),
       buildLogicVariant("apark-yakatabaru-neo-aim", "ネオアイム屋形原式", "apark-yakatabaru-main"),
       buildLogicVariant("mj-kurume-neo-aim", "ネオアイムMJ久留米式", "mj-kurume-main"),
       buildLogicVariant(
@@ -2373,6 +2652,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     profile: "juggler",
     defaultConditionSuffix: "main",
     conditions: [
+      ...buildKiconaHiraiAimCombinedConditions(),
       buildCondition(
         "main",
         "1位＋70点以上＋3日沈み2日以上",
@@ -9582,7 +9862,12 @@ function getDefaultSetting(definition, storeName) {
   }
 
   let defaultLogic = null;
-  if (isMjArenaKurumeStore(storeName) && definition.machineKey === "aim") {
+  if (
+    isKiconaHiraiStore(storeName) &&
+    (definition.machineKey === "aim" || definition.machineKey === "neo-aim")
+  ) {
+    defaultLogic = findLogicDefinition(definition, KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY);
+  } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "aim") {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-aim");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "gogo") {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-gogo");
@@ -10334,6 +10619,179 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentFiveRawDifferenceCount = readNumber(metrics.recentFiveRawDifferenceCount);
   const previousRawDifferenceValue = readNullableNumber(metrics.previousRawDifferenceValue);
   const rawDifferenceLosingStreak = readNumber(metrics.rawDifferenceLosingStreak);
+
+  if (activeLogicKey === KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY) {
+    const kiconaHiraiAimHistoryReady = historyRowCount >= 7;
+    const kiconaHiraiAimHistoryShort = historyRowCount < 7;
+    const kiconaHiraiAimHistory14Ready = historyRowCount >= 14;
+    const kiconaHiraiAimDaysSinceHigh14Plus =
+      (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 14) ||
+      (!Number.isFinite(daysSinceMachineHighContent) &&
+        kiconaHiraiAimHistory14Ready &&
+        recentFourteenMachineHighContentCount === 0);
+    const kiconaHiraiAimFourteenToTwentySeven =
+      Number.isFinite(daysSinceMachineHighContent) &&
+      daysSinceMachineHighContent >= 14 &&
+      daysSinceMachineHighContent <= 27;
+    const kiconaHiraiAimDaysSinceHigh21To27 =
+      Number.isFinite(daysSinceMachineHighContent) &&
+      daysSinceMachineHighContent >= 21 &&
+      daysSinceMachineHighContent <= 27;
+    const kiconaHiraiAimG14Trusted =
+      recentFourteenGamesTotal >= 7000 && recentFourteenGamesTotal <= 25000;
+    const kiconaHiraiAimFourteenSteepSink =
+      recentFourteenGamesTotal >= 6000 && features.recentFourteenAngle <= -250;
+    const kiconaHiraiAimSevenSteepSink =
+      recentSevenGamesTotal >= 3000 && features.recentSevenAngle <= -250;
+    const kiconaHiraiAimSevenAngleMinus200 =
+      recentSevenGamesTotal >= 3000 && features.recentSevenAngle <= -200;
+    const kiconaHiraiAimSevenDeepSink3000 = recentSevenNetTotal <= -3000;
+    const kiconaHiraiAimNoHigh7 = recentSevenMachineHighContentCount === 0;
+    const kiconaHiraiAimNoHigh14 = recentFourteenMachineHighContentCount === 0;
+    const kiconaHiraiAimNoShow7 =
+      recentSevenMachineShowCount === 0 && recentFiveBigWin1000Count === 0 && recentSevenGoldShowDays === 0;
+    const kiconaHiraiAimUnprocessed14 =
+      kiconaHiraiAimDaysSinceHigh14Plus && kiconaHiraiAimNoHigh7;
+    const kiconaHiraiAimSinceHighUnpaid3000 =
+      kiconaHiraiAimFourteenToTwentySeven &&
+      (recentFourteenNetTotal <= -3000 ||
+        recentTwentyOneNetTotal <= -3000 ||
+        recentTwentyEightNetTotal <= -3000);
+    const kiconaHiraiAimRb5Missing =
+      recentFiveGamesTotal >= 1500 && features.recentFiveRbDenominator >= 500;
+    const kiconaHiraiAimRb5Extreme =
+      recentFiveGamesTotal >= 1500 && features.recentFiveRbDenominator >= 800;
+    const kiconaHiraiAimRb7Missing =
+      recentSevenGamesTotal >= 2000 && features.recentSevenRbDenominator >= 500;
+    const kiconaHiraiAimRbMissing =
+      kiconaHiraiAimRb5Missing || kiconaHiraiAimRb7Missing;
+    const kiconaHiraiAimRbMissing8Loss =
+      kiconaHiraiAimRb7Missing && streak >= 8;
+    const kiconaHiraiAimLoss4 = streak >= 4;
+    const kiconaHiraiAimLoss6 = streak >= 6;
+    const kiconaHiraiAimLoss8 = streak >= 8;
+    const kiconaHiraiAimG7Middle =
+      recentSevenGamesTotal >= 4000 && recentSevenGamesTotal <= 8000;
+    const kiconaHiraiAimG7UnpaidMiddle =
+      recentSevenGamesTotal >= 5000 && recentSevenGamesTotal <= 9000;
+    const kiconaHiraiAimG7DeepUnpaidMiddle =
+      recentSevenGamesTotal >= 6000 && recentSevenGamesTotal <= 9000;
+    const kiconaHiraiAimWideUnpaidMiddle =
+      recentTwentyOneNetTotal <= -4000 && kiconaHiraiAimG7UnpaidMiddle;
+    const kiconaHiraiAimDeepUnpaidMiddle =
+      recentTwentyOneNetTotal <= -5000 && kiconaHiraiAimG7DeepUnpaidMiddle;
+    const kiconaHiraiAimDeepUnpaidRbWeak =
+      kiconaHiraiAimDeepUnpaidMiddle && features.recentFourteenRbDenominator >= 400;
+    const kiconaHiraiAimRbLightCore =
+      recentTwentyOneNetTotal >= -7000 &&
+      recentTwentyOneNetTotal <= -3000 &&
+      kiconaHiraiAimFourteenToTwentySeven &&
+      recentSevenGamesTotal >= 5000 &&
+      recentSevenGamesTotal <= 8000 &&
+      kiconaHiraiAimG14Trusted;
+    const kiconaHiraiAimPreviousHighContent =
+      previousMachineHighContent ||
+      (previousGames >= 3000 &&
+        features.previousRbDenominator <= 310 &&
+        features.previousCombinedDenominator <= 145) ||
+      (previousGames >= 4500 && features.previousRbDenominator <= 285);
+    const kiconaHiraiAimPreviousStrongContent =
+      previousMachineStrongHighContent ||
+      (previousGames >= 4000 &&
+        features.previousRbDenominator <= 290 &&
+        features.previousCombinedDenominator <= 140) ||
+      (previousGames >= 4500 && features.previousRbDenominator <= 285);
+    const kiconaHiraiAimPreviousOutputOnly =
+      previousDifference >= 1000 && (features.previousRbDenominator > 380 || previousRbCount <= 0);
+    const kiconaHiraiAimNearNoHigh = previousAdjacentMachineHighContentCount === 0;
+    const kiconaHiraiAimPreviousAdjacentNoGood =
+      previousAdjacentMachineGoodContentCount === 0 && previousAdjacentMachineHighContentCount === 0;
+    const kiconaHiraiAimTreatmentDone =
+      previousDifference >= 1500 ||
+      recentThreeNetTotal >= 1500 ||
+      recentSevenNetTotal >= 2500 ||
+      recentTwentyOneNetTotal >= 3000;
+    const kiconaHiraiAimVisiblePlus =
+      recentSevenNetTotal >= 1000 || recentFourteenNetTotal >= 1500 || recentSevenMachineShowCount >= 1;
+    const kiconaHiraiAimTooLowGames =
+      recentSevenGamesTotal < 3000 || recentFiveGamesTotal < 1500;
+    const kiconaHiraiAimOverVisible =
+      recentSevenGamesTotal >= 15000 || recentFourteenGamesTotal >= 30000;
+    const kiconaHiraiAimLowTrust =
+      kiconaHiraiAimHistoryShort || kiconaHiraiAimTooLowGames || kiconaHiraiAimOverVisible;
+    const boostFlags = [
+      kiconaHiraiAimFourteenSteepSink,
+      kiconaHiraiAimSevenSteepSink,
+      kiconaHiraiAimRbMissing,
+      kiconaHiraiAimRbMissing8Loss,
+      kiconaHiraiAimG7Middle,
+      kiconaHiraiAimDaysSinceHigh14Plus,
+      kiconaHiraiAimNoHigh7,
+      kiconaHiraiAimLoss4,
+      kiconaHiraiAimWideUnpaidMiddle,
+      kiconaHiraiAimDeepUnpaidRbWeak,
+      kiconaHiraiAimNearNoHigh,
+      kiconaHiraiAimRbLightCore,
+    ];
+    const dangerFlags = [
+      kiconaHiraiAimPreviousStrongContent,
+      kiconaHiraiAimPreviousHighContent,
+      kiconaHiraiAimTreatmentDone,
+      kiconaHiraiAimVisiblePlus,
+      kiconaHiraiAimPreviousOutputOnly,
+      kiconaHiraiAimLowTrust,
+      kiconaHiraiAimOverVisible,
+    ];
+
+    return {
+      ...features,
+      kiconaHiraiAimHistoryReady,
+      kiconaHiraiAimHistoryShort,
+      kiconaHiraiAimHistory14Ready,
+      kiconaHiraiAimDaysSinceHigh14Plus,
+      kiconaHiraiAimFourteenToTwentySeven,
+      kiconaHiraiAimDaysSinceHigh21To27,
+      kiconaHiraiAimG14Trusted,
+      kiconaHiraiAimFourteenSteepSink,
+      kiconaHiraiAimSevenSteepSink,
+      kiconaHiraiAimSevenAngleMinus200,
+      kiconaHiraiAimSevenDeepSink3000,
+      kiconaHiraiAimNoHigh7,
+      kiconaHiraiAimNoHigh14,
+      kiconaHiraiAimNoShow7,
+      kiconaHiraiAimUnprocessed14,
+      kiconaHiraiAimSinceHighUnpaid3000,
+      kiconaHiraiAimRb5Missing,
+      kiconaHiraiAimRb5Extreme,
+      kiconaHiraiAimRb7Missing,
+      kiconaHiraiAimRbMissing,
+      kiconaHiraiAimRbMissing8Loss,
+      kiconaHiraiAimLoss4,
+      kiconaHiraiAimLoss6,
+      kiconaHiraiAimLoss8,
+      kiconaHiraiAimG7Middle,
+      kiconaHiraiAimG7UnpaidMiddle,
+      kiconaHiraiAimG7DeepUnpaidMiddle,
+      kiconaHiraiAimWideUnpaidMiddle,
+      kiconaHiraiAimDeepUnpaidMiddle,
+      kiconaHiraiAimDeepUnpaidRbWeak,
+      kiconaHiraiAimRbLightCore,
+      kiconaHiraiAimPreviousHighContent,
+      kiconaHiraiAimPreviousStrongContent,
+      kiconaHiraiAimPreviousOutputOnly,
+      kiconaHiraiAimNearNoHigh,
+      kiconaHiraiAimPreviousAdjacentNoGood,
+      kiconaHiraiAimTreatmentDone,
+      kiconaHiraiAimVisiblePlus,
+      kiconaHiraiAimTooLowGames,
+      kiconaHiraiAimOverVisible,
+      kiconaHiraiAimLowTrust,
+      treatmentDone: kiconaHiraiAimTreatmentDone,
+      lowConfidence: kiconaHiraiAimLowTrust,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
 
   if (machineKey === "aim") {
     if (activeLogicKey === "mj-kurume-aim") {
@@ -17012,6 +17470,144 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFiveRawDifferenceCount = readNumber(metrics.recentFiveRawDifferenceCount);
   const previousRawDifferenceValue = readNullableNumber(metrics.previousRawDifferenceValue);
   const rawDifferenceLosingStreak = readNumber(metrics.rawDifferenceLosingStreak);
+
+  if (activeLogicKey === KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY) {
+    const recentFiveRbTotal = readNumber(metrics.recentFiveRbTotal);
+    const kiconaPreviousHighContent =
+      previousMachineHighContent ||
+      (previousGames >= 3000 &&
+        features.previousRbDenominator <= 310 &&
+        features.previousCombinedDenominator <= 145) ||
+      (previousGames >= 4500 && features.previousRbDenominator <= 285);
+    const kiconaPreviousStrongContent =
+      previousMachineStrongHighContent ||
+      (previousGames >= 4000 &&
+        features.previousRbDenominator <= 290 &&
+        features.previousCombinedDenominator <= 140) ||
+      (previousGames >= 4500 && features.previousRbDenominator <= 285);
+    const kiconaPreviousOutputOnly =
+      previousDifference >= 1000 && (features.previousRbDenominator > 380 || previousRbCount <= 0);
+
+    let fourteenScore = 0;
+    if (recentFourteenGamesTotal >= 6000) {
+      fourteenScore += scoreAtMost(features.recentFourteenAngle, [
+        { maximum: -250, points: 24 },
+        { maximum: -200, points: 18 },
+        { maximum: -150, points: 12 },
+        { maximum: -100, points: 6 },
+      ]);
+    }
+    fourteenScore += scoreAtMost(recentFourteenNetTotal, [
+      { maximum: -5000, points: 6 },
+      { maximum: -3000, points: 4 },
+      { maximum: -1500, points: 2 },
+    ]);
+    fourteenScore = Math.min(fourteenScore, 30);
+
+    let sevenScore = 0;
+    if (recentSevenGamesTotal >= 3000) {
+      sevenScore += scoreAtMost(features.recentSevenAngle, [
+        { maximum: -300, points: 20 },
+        { maximum: -250, points: 16 },
+        { maximum: -200, points: 12 },
+        { maximum: -150, points: 8 },
+        { maximum: -100, points: 4 },
+      ]);
+    }
+    sevenScore += scoreAtMost(recentSevenNetTotal, [
+      { maximum: -3000, points: 4 },
+      { maximum: -2000, points: 3 },
+      { maximum: -1000, points: 1 },
+    ]);
+    sevenScore = Math.min(sevenScore, 24);
+
+    let rbScore = 0;
+    if (recentFiveGamesTotal >= 1500) {
+      rbScore +=
+        recentFiveRbTotal === 0
+          ? 16
+          : scoreAtLeast(features.recentFiveRbDenominator, [
+              { minimum: 800, points: 18 },
+              { minimum: 600, points: 13 },
+              { minimum: 500, points: 8 },
+              { minimum: 450, points: 5 },
+            ]);
+      rbScore += scoreAtLeast(features.recentFiveCombinedDenominator, [
+        { minimum: 200, points: 5 },
+        { minimum: 180, points: 3 },
+      ]);
+    }
+    if (recentSevenGamesTotal >= 2000) {
+      rbScore += scoreAtLeast(features.recentSevenRbDenominator, [
+        { minimum: 600, points: 10 },
+        { minimum: 500, points: 7 },
+        { minimum: 450, points: 4 },
+      ]);
+    }
+    rbScore = Math.min(rbScore, 24);
+
+    let gamesScore = 0;
+    gamesScore +=
+      recentSevenGamesTotal >= 4000 && recentSevenGamesTotal <= 8000
+        ? 8
+        : recentSevenGamesTotal >= 8001 && recentSevenGamesTotal <= 10000
+          ? 4
+          : recentSevenGamesTotal >= 3000 && recentSevenGamesTotal <= 3999
+            ? 3
+            : 0;
+    gamesScore +=
+      recentFiveGamesTotal >= 1500 && recentFiveGamesTotal <= 3000
+        ? 5
+        : recentFiveGamesTotal >= 3001 && recentFiveGamesTotal <= 4500
+          ? 2
+          : 0;
+    gamesScore = Math.min(gamesScore, 12);
+
+    let rotationScore = 0;
+    if (Number.isFinite(daysSinceMachineHighContent)) {
+      rotationScore += daysSinceMachineHighContent >= 14 ? 8 : daysSinceMachineHighContent >= 7 ? 5 : 0;
+    } else if (historyRowCount >= 14 && recentFourteenMachineHighContentCount === 0) {
+      rotationScore += 8;
+    }
+    rotationScore += recentSevenMachineHighContentCount === 0 ? 4 : 0;
+    rotationScore += recentSevenMachineShowCount === 0 && recentFiveBigWin1000Count === 0 ? 4 : 0;
+    rotationScore += scoreAtLeast(streak, [
+      { minimum: 8, points: 10 },
+      { minimum: 6, points: 7 },
+      { minimum: 4, points: 4 },
+      { minimum: 2, points: 2 },
+    ]);
+    rotationScore = Math.min(rotationScore, 16);
+
+    let unpaidScore = 0;
+    unpaidScore +=
+      recentTwentyOneNetTotal <= -5000 && recentSevenGamesTotal >= 6000 && recentSevenGamesTotal <= 9000
+        ? 8
+        : recentTwentyOneNetTotal <= -4000 && recentSevenGamesTotal >= 5000 && recentSevenGamesTotal <= 9000
+          ? 6
+          : 0;
+    unpaidScore += recentSevenNetTotal <= -2500 ? 4 : 0;
+    unpaidScore += features.recentFourteenRbDenominator >= 400 ? 4 : 0;
+    unpaidScore += previousAdjacentMachineHighContentCount === 0 ? 2 : 0;
+    unpaidScore = Math.min(unpaidScore, 14);
+
+    let penalty = 0;
+    penalty += kiconaPreviousStrongContent ? 12 : kiconaPreviousHighContent ? 10 : 0;
+    penalty += recentSevenNetTotal >= 2000 ? 12 : recentSevenNetTotal >= 1000 ? 7 : 0;
+    penalty += recentFourteenNetTotal >= 3000 ? 10 : recentFourteenNetTotal >= 1500 ? 5 : 0;
+    penalty += recentSevenMachineShowCount >= 2 ? 8 : recentSevenMachineShowCount >= 1 ? 4 : 0;
+    penalty += kiconaPreviousOutputOnly ? 8 : 0;
+    penalty += previousDifference >= 1500 ? 5 : 0;
+    penalty += recentSevenGamesTotal < 3000 ? 12 : 0;
+    penalty += recentFiveGamesTotal < 1500 ? 8 : 0;
+    penalty += recentSevenGamesTotal >= 15000 ? 6 : 0;
+    penalty += recentFourteenGamesTotal >= 30000 ? 6 : 0;
+    penalty = Math.min(penalty, 35);
+
+    const historyCap = historyRowCount >= 7 ? 100 : 45;
+    const score = 28 + fourteenScore + sevenScore + rbScore + gamesScore + rotationScore + unpaidScore - penalty;
+    return Math.round(clamp(score, 0, historyCap));
+  }
 
   if (machineKey === "ultra-miracle" && activeLogicKey === "beam-hikari-ultra") {
     if (historyRowCount < 21) {
