@@ -125,6 +125,10 @@ const PARK_KITASENJU_SSS_NEO_AIM_LOGIC_KEY = "park-kitasenju-sss-neo-aim";
 const PARK_KITASENJU_SSS_NEO_AIM_LOGIC_NAME =
   "ピーアーク北千住SSS ネオアイム 全日共通 返済未処遇ロジック";
 const PARK_KITASENJU_SSS_NEO_AIM_DEFAULT_CONDITION = "park-kitasenju-sss-neo-f1";
+const PARK_KITAYASE_NEO_AIM_LOGIC_KEY = "park-kitayase-neo-aim";
+const PARK_KITAYASE_NEO_AIM_LOGIC_NAME =
+  "ピーアーク北綾瀬駅前_ネオアイムジャグラーEX_全日共通100点ロジック_v1";
+const PARK_KITAYASE_NEO_AIM_DEFAULT_CONDITION = "park-kitayase-neo-free-a";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -642,6 +646,17 @@ function isParkKitasenjuSssStore(storeName) {
     "P-ARK北千住SSS",
     "PARK北千住SSS",
     "P ARK北千住SSS",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
+function isParkKitayaseStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "ピーアーク北綾瀬駅前",
+    "ピーアーク北綾瀬駅前店",
+    "P-ARK北綾瀬駅前",
+    "PARK北綾瀬駅前",
+    "P ARK北綾瀬駅前",
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
@@ -3815,6 +3830,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         PARK_KITASENJU_SSS_NEO_AIM_LOGIC_KEY,
         PARK_KITASENJU_SSS_NEO_AIM_LOGIC_NAME,
         PARK_KITASENJU_SSS_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
+        PARK_KITAYASE_NEO_AIM_LOGIC_KEY,
+        PARK_KITAYASE_NEO_AIM_LOGIC_NAME,
+        PARK_KITAYASE_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
         "messe-minamisenju-neo-aim",
@@ -7586,6 +7606,170 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["parkKitasenjuSssNeoHistoryShort"],
         },
         [PARK_KITASENJU_SSS_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        PARK_KITAYASE_NEO_AIM_DEFAULT_CONDITION,
+        "自由A_7日高内容2回＋角度+150",
+        "8日・10台 / 総G67689 / RB1/264.4 / 合算1/132.2 / 平均+730枚 / 103.59% / 勝率70.0% / 平均56率54.7% / 56率50%以上60.0% / 56率30%未満10.0% / 最優先",
+        {
+          requiredFlags: ["parkKitayaseNeoHistoryReady", "parkKitayaseNeoFreeA"],
+        },
+        [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitayase-neo-rb270",
+        "RB270_7日高内容2回＋7日角度+150",
+        "8日・10台 / 総G67689 / BB1/264.4 / RB1/264.4 / 合算1/132.2 / 平均+730枚 / 103.59% / 勝率70.0% / 平均56率54.7% / 中央56率62.0% / 56率50%以上60.0% / 件数注意",
+        {
+          requiredFlags: ["parkKitayaseNeoHistoryReady", "parkKitayaseNeoRb270"],
+        },
+        [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitayase-neo-rb280",
+        "RB280_内側2-4＋7日高内容2回＋7日合算140",
+        "12日・14台 / 総G67579 / BB1/259.9 / RB1/280.4 / 合算1/134.9 / 平均+505枚 / 103.49% / 勝率50.0% / 平均56率41.7% / 中央56率32.6%",
+        {
+          requiredFlags: ["parkKitayaseNeoHistoryReady", "parkKitayaseNeoRb280"],
+        },
+        [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitayase-neo-rb290",
+        "RB290_1位次点15＋7日高内容2回",
+        "14日・14台 / 総G74799 / BB1/256.2 / RB1/285.5 / 合算1/135.0 / 平均+595枚 / 103.71% / 勝率64.3% / 平均56率41.6% / 本命",
+        {
+          rankMax: 1,
+          minNextGap: 15,
+          requiredFlags: ["parkKitayaseNeoHistoryReady", "parkKitayaseNeoSevenHighTwo"],
+        },
+        [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitayase-neo-rb300",
+        "RB300_90点＋7日合算140",
+        "12日・14台 / 総G77428 / BB1/267.9 / RB1/293.3 / 合算1/140.0 / 平均+330枚 / 101.99% / 勝率57.1% / 平均56率39.7% / 弱め本命",
+        {
+          minScore: 90,
+          requiredFlags: ["parkKitayaseNeoHistoryReady", "parkKitayaseNeoSevenCombined140"],
+        },
+        [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitayase-neo-rb310",
+        "RB310_90点危険0",
+        "14日・15台 / 総G76356 / BB1/275.7 / RB1/309.1 / 合算1/145.7 / 平均+79枚 / 100.52% / 勝率53.3% / 平均56率34.7% / 広め",
+        {
+          minScore: 90,
+          maxDanger: 0,
+          requiredFlags: ["parkKitayaseNeoHistoryReady"],
+        },
+        [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitayase-neo-free-b",
+        "自由B_80点＋内側2-4＋7日高内容2回",
+        "14日・14台 / RB1/280.6 / 合算1/135.7 / 平均+469枚 / 103.12% / 平均56率42.7% / 自由Aがない日の候補",
+        {
+          minScore: 80,
+          requiredFlags: ["parkKitayaseNeoHistoryReady", "parkKitayaseNeoFreeB"],
+        },
+        [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitayase-neo-free-c",
+        "自由C_上位3＋内側2-4＋直近2日15000G",
+        "8日・10台 / RB1/284.3 / 合算1/135.1 / 平均+658枚 / 103.68% / 平均56率44.5% / 稼働信頼型",
+        {
+          rankMax: 3,
+          requiredFlags: ["parkKitayaseNeoHistoryReady", "parkKitayaseNeoFreeC"],
+        },
+        [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitayase-neo-free-d",
+        "自由D_90点＋7日合算140",
+        "12日・14台 / RB1/293.3 / 合算1/140.0 / 平均+330枚 / 101.99% / 補助本命",
+        {
+          minScore: 90,
+          requiredFlags: ["parkKitayaseNeoHistoryReady", "parkKitayaseNeoFreeD"],
+        },
+        [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitayase-neo-watch-score-under75",
+        "見送り_75点未満",
+        "75点未満は単独採用しない",
+        {
+          maxScore: 74.999,
+          requiredFlags: ["parkKitayaseNeoHistoryReady"],
+        },
+        [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitayase-neo-watch-danger2",
+        "見送り_危険2個以上",
+        "危険条件が2個以上なら高得点でも見送り寄り",
+        {
+          minDanger: 2,
+          requiredFlags: ["parkKitayaseNeoHistoryReady"],
+        },
+        [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitayase-neo-watch-loss5",
+        "見送り_5連敗以上",
+        "38日・43台 / RB1/394.0 / 合算1/156.8 / 平均+5枚 / 100.03% / 56率50%以上4.7%",
+        {
+          requiredFlags: ["parkKitayaseNeoHistoryReady", "parkKitayaseNeoLossFive"],
+        },
+        [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitayase-neo-watch-no-high14",
+        "見送り_14日以上高内容なし",
+        "67日・115台 / RB1/377.2 / 合算1/156.8 / 平均-85枚 / 99.44% / 長期ローテ狙い否定",
+        {
+          requiredFlags: ["parkKitayaseNeoHistoryReady", "parkKitayaseNeoNoHigh14"],
+        },
+        [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitayase-neo-watch-rb10-450",
+        "見送り_10日RB450以上",
+        "直近10日RB1/450以上は返し狙いより放置寄り",
+        {
+          requiredFlags: ["parkKitayaseNeoHistoryReady", "parkKitayaseNeoTenRb450"],
+        },
+        [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitayase-neo-watch-left-edge",
+        "見送り_左端",
+        "最小台番側の左端はRB1/401.2、56率50%以上3.6%で弱い",
+        {
+          requiredFlags: ["parkKitayaseNeoHistoryReady", "parkKitayaseNeoLeftEdge"],
+        },
+        [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitayase-neo-watch-sink-only",
+        "見送り_凹みだけ高得点",
+        "7日高内容2回がなく、差枚の凹みだけで点数が上がった台は見送り寄り",
+        {
+          minScore: 75,
+          requiredFlags: ["parkKitayaseNeoHistoryReady", "parkKitayaseNeoSinkOnlyNoCluster"],
+        },
+        [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-kitayase-neo-watch-history7",
+        "見送り_履歴7日未満",
+        "履歴7日未満は採用条件対象外で最大45点",
+        {
+          requiredFlags: ["parkKitayaseNeoHistoryShort"],
+        },
+        [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "messe-minamisenju-free-14rb",
@@ -13014,6 +13198,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY);
   } else if (isParkKitasenjuSssStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, PARK_KITASENJU_SSS_NEO_AIM_LOGIC_KEY);
+  } else if (isParkKitayaseStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, PARK_KITAYASE_NEO_AIM_LOGIC_KEY);
   } else if (isParkKitasenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, PARK_KITASENJU_NEO_AIM_LOGIC_KEY);
   } else if (isMesseMinamisenjuStore(storeName) && definition.machineKey === "neo-aim") {
@@ -13610,6 +13796,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentFourteenGamesTotal = readNumber(metrics.recentFourteenGamesTotal);
   const recentTwentyOneGamesTotal = readNumber(metrics.recentTwentyOneGamesTotal);
   const recentTwentyEightGamesTotal = readNumber(metrics.recentTwentyEightGamesTotal);
+  const recentTenRbTotal = readNumber(metrics.recentTenRbTotal);
   const recentFourteenGoldShowDays = readNumber(metrics.recentFourteenGoldShowDays);
   const recentSevenGoldShowDays = readNumber(metrics.recentSevenGoldShowDays, readNumber(metrics.recentSevenBigShowDays));
   const recentFourteenLossDays = readNumber(metrics.recentFourteenLossDays);
@@ -13619,6 +13806,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentSevenWinDays = readNumber(metrics.recentSevenWinDays);
   const recentSevenNonPositiveDays = readNumber(metrics.recentSevenNonPositiveDays);
   const recentFourteenNonPositiveDays = readNumber(metrics.recentFourteenNonPositiveDays);
+  const recentThreeLowGames1500Count = readNumber(metrics.recentThreeLowGames1500Count);
   const recentSevenHighSettingCandidateCount = readNumber(metrics.recentSevenHighSettingCandidateCount);
   const recentFiveMinus2000StayDays = readNumber(metrics.recentFiveMinus2000StayDays);
   const recentSevenMinus1500StayDays = readNumber(metrics.recentSevenMinus1500StayDays);
@@ -13678,6 +13866,9 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const previousAdjacentMachineAverageDifference = readNumber(metrics.previousAdjacentMachineAverageDifference);
   const previousAdjacentMachineNetTotalNear2 = readNumber(metrics.previousAdjacentMachineNetTotalNear2);
   const previousOtherMachineHighContentCount = readNumber(metrics.previousOtherMachineHighContentCount);
+  const sameMachineOrderCount = readNumber(metrics.sameMachineOrderCount);
+  const sameMachinePositionFromLeft = readNullableNumber(metrics.sameMachinePositionFromLeft);
+  const sameMachinePositionFromRight = readNullableNumber(metrics.sameMachinePositionFromRight);
   const sameMachinePreviousNetTotal = readNumber(metrics.sameMachinePreviousNetTotal);
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
   const recentFiveMachineHighContentCount = readNumber(metrics.recentFiveMachineHighContentCount);
@@ -19194,6 +19385,166 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       };
     }
 
+    if (activeLogicKey === PARK_KITAYASE_NEO_AIM_LOGIC_KEY) {
+      const recentTenRbDenominator = rateDenominator(recentTenGamesTotal, recentTenRbTotal);
+      const noHighDays = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : historyRowCount;
+      const parkKitayaseNeoHistoryReady = historyRowCount >= 7;
+      const parkKitayaseNeoHistoryShort = historyRowCount < 7;
+      const parkKitayaseNeoLeftEdge = sameMachinePositionFromLeft === 1;
+      const parkKitayaseNeoRightEdge = sameMachinePositionFromRight === 1;
+      const parkKitayaseNeoOtherEdge = !parkKitayaseNeoLeftEdge && parkKitayaseNeoRightEdge;
+      const parkKitayaseNeoInner2To4 =
+        sameMachinePositionFromLeft >= 2 && sameMachinePositionFromLeft <= 4;
+      const parkKitayaseNeoNonLeftInner = !parkKitayaseNeoLeftEdge && parkKitayaseNeoInner2To4;
+      const parkKitayaseNeoPreviousHigh = previousMachineHighContent;
+      const parkKitayaseNeoPreviousStrong = previousMachineStrongHighContent;
+      const parkKitayaseNeoPreviousHighOutput =
+        parkKitayaseNeoPreviousHigh && previousDifference >= 1000;
+      const parkKitayaseNeoPreviousHighUnpaid =
+        parkKitayaseNeoPreviousHigh && previousDifference <= 0;
+      const parkKitayaseNeoPreviousWeakP56 =
+        previousGames >= 3000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability <= 0.1;
+      const parkKitayaseNeoPreviousRb280 = previousGames >= 3000 && features.previousRbDenominator <= 280;
+      const parkKitayaseNeoPreviousRb300 = previousGames >= 3000 && features.previousRbDenominator <= 300;
+      const parkKitayaseNeoPreviousRb500 = previousGames >= 3000 && features.previousRbDenominator >= 500;
+      const parkKitayaseNeoSevenHighOne = recentSevenMachineHighContentCount === 1;
+      const parkKitayaseNeoSevenHighTwo = recentSevenMachineHighContentCount === 2;
+      const parkKitayaseNeoSevenHighThreePlus = recentSevenMachineHighContentCount >= 3;
+      const parkKitayaseNeoSevenAngle150 = features.recentSevenAngle >= 150;
+      const parkKitayaseNeoSevenAngle100 = features.recentSevenAngle >= 100;
+      const parkKitayaseNeoFourteenHighFive = recentFourteenMachineHighContentCount === 5;
+      const parkKitayaseNeoFourteenHighThreeToFour =
+        recentFourteenMachineHighContentCount >= 3 && recentFourteenMachineHighContentCount <= 4;
+      const parkKitayaseNeoFourteenHighSixPlus = recentFourteenMachineHighContentCount >= 6;
+      const parkKitayaseNeoSevenCombined140 = features.recentSevenCombinedDenominator <= 140;
+      const parkKitayaseNeoSevenCombined150 = features.recentSevenCombinedDenominator <= 150;
+      const parkKitayaseNeoSevenRb320 = features.recentSevenRbDenominator <= 320;
+      const parkKitayaseNeoSevenRb350 = features.recentSevenRbDenominator <= 350;
+      const parkKitayaseNeoSevenRb450 = features.recentSevenRbDenominator >= 450;
+      const parkKitayaseNeoSevenRb400 = features.recentSevenRbDenominator >= 400;
+      const parkKitayaseNeoTenRb450 = recentTenRbDenominator >= 450;
+      const parkKitayaseNeoFourteenRb400 = features.recentFourteenRbDenominator >= 400;
+      const parkKitayaseNeoGames2Trust = recentTwoGamesTotal >= 15000;
+      const parkKitayaseNeoGames3Trust = recentThreeGamesTotal >= 20000;
+      const parkKitayaseNeoGames7Trust = recentSevenGamesTotal >= 25000;
+      const parkKitayaseNeoGames7Low = recentSevenGamesTotal < 12000;
+      const parkKitayaseNeoRecent3LowGamesTwo = recentThreeLowGames1500Count >= 2;
+      const parkKitayaseNeoFiveAngleMinus200 = features.recentFiveAngle <= -200;
+      const parkKitayaseNeoFiveAngleMinus150 = features.recentFiveAngle <= -150;
+      const parkKitayaseNeoSevenNetMinus4000 = recentSevenNetTotal <= -4000;
+      const parkKitayaseNeoLossFive = streak >= 5;
+      const parkKitayaseNeoLossThree = streak >= 3;
+      const parkKitayaseNeoNoHigh21 = noHighDays >= 21;
+      const parkKitayaseNeoNoHigh14 = noHighDays >= 14;
+      const parkKitayaseNeoNoHigh10 = noHighDays >= 10;
+      const parkKitayaseNeoRecent2Output3000 = recentTwoNetTotal >= 3000;
+      const parkKitayaseNeoRecent3Output4000 = recentThreeNetTotal >= 4000;
+      const parkKitayaseNeoFreeA =
+        parkKitayaseNeoSevenHighTwo && parkKitayaseNeoSevenAngle150;
+      const parkKitayaseNeoFreeB =
+        parkKitayaseNeoHistoryReady &&
+        parkKitayaseNeoInner2To4 &&
+        parkKitayaseNeoSevenHighTwo;
+      const parkKitayaseNeoFreeC =
+        parkKitayaseNeoInner2To4 && parkKitayaseNeoGames2Trust;
+      const parkKitayaseNeoFreeD = parkKitayaseNeoSevenCombined140;
+      const parkKitayaseNeoRb270 = parkKitayaseNeoFreeA;
+      const parkKitayaseNeoRb280 =
+        parkKitayaseNeoInner2To4 &&
+        parkKitayaseNeoSevenHighTwo &&
+        parkKitayaseNeoSevenCombined140;
+      const parkKitayaseNeoSinkOnlyNoCluster =
+        recentSevenMachineHighContentCount < 2 &&
+        (parkKitayaseNeoFiveAngleMinus150 || parkKitayaseNeoSevenNetMinus4000) &&
+        !parkKitayaseNeoPreviousHigh &&
+        !parkKitayaseNeoSevenCombined150 &&
+        !parkKitayaseNeoSevenRb350;
+      const boostFlags = [
+        parkKitayaseNeoSevenHighTwo,
+        parkKitayaseNeoFreeA,
+        parkKitayaseNeoSevenCombined140,
+        parkKitayaseNeoSevenRb320,
+        parkKitayaseNeoNonLeftInner,
+        parkKitayaseNeoGames2Trust || parkKitayaseNeoGames3Trust,
+        parkKitayaseNeoPreviousHigh && parkKitayaseNeoPreviousRb300,
+      ];
+      const dangerFlags = [
+        parkKitayaseNeoLeftEdge,
+        parkKitayaseNeoLossFive,
+        parkKitayaseNeoNoHigh14,
+        parkKitayaseNeoTenRb450,
+        parkKitayaseNeoPreviousRb500,
+        parkKitayaseNeoRecent2Output3000,
+        parkKitayaseNeoGames7Low,
+        parkKitayaseNeoRecent3LowGamesTwo,
+      ];
+
+      return {
+        ...features,
+        parkKitayaseNeoHistoryReady,
+        parkKitayaseNeoHistoryShort,
+        parkKitayaseNeoLeftEdge,
+        parkKitayaseNeoRightEdge,
+        parkKitayaseNeoOtherEdge,
+        parkKitayaseNeoInner2To4,
+        parkKitayaseNeoNonLeftInner,
+        parkKitayaseNeoPreviousHigh,
+        parkKitayaseNeoPreviousStrong,
+        parkKitayaseNeoPreviousHighOutput,
+        parkKitayaseNeoPreviousHighUnpaid,
+        parkKitayaseNeoPreviousWeakP56,
+        parkKitayaseNeoPreviousRb280,
+        parkKitayaseNeoPreviousRb300,
+        parkKitayaseNeoPreviousRb500,
+        parkKitayaseNeoSevenHighOne,
+        parkKitayaseNeoSevenHighTwo,
+        parkKitayaseNeoSevenHighThreePlus,
+        parkKitayaseNeoSevenAngle150,
+        parkKitayaseNeoSevenAngle100,
+        parkKitayaseNeoFourteenHighFive,
+        parkKitayaseNeoFourteenHighThreeToFour,
+        parkKitayaseNeoFourteenHighSixPlus,
+        parkKitayaseNeoSevenCombined140,
+        parkKitayaseNeoSevenCombined150,
+        parkKitayaseNeoSevenRb320,
+        parkKitayaseNeoSevenRb350,
+        parkKitayaseNeoSevenRb450,
+        parkKitayaseNeoSevenRb400,
+        parkKitayaseNeoTenRb450,
+        parkKitayaseNeoFourteenRb400,
+        parkKitayaseNeoGames2Trust,
+        parkKitayaseNeoGames3Trust,
+        parkKitayaseNeoGames7Trust,
+        parkKitayaseNeoGames7Low,
+        parkKitayaseNeoRecent3LowGamesTwo,
+        parkKitayaseNeoFiveAngleMinus200,
+        parkKitayaseNeoFiveAngleMinus150,
+        parkKitayaseNeoSevenNetMinus4000,
+        parkKitayaseNeoLossFive,
+        parkKitayaseNeoLossThree,
+        parkKitayaseNeoNoHigh21,
+        parkKitayaseNeoNoHigh14,
+        parkKitayaseNeoNoHigh10,
+        parkKitayaseNeoRecent2Output3000,
+        parkKitayaseNeoRecent3Output4000,
+        parkKitayaseNeoFreeA,
+        parkKitayaseNeoFreeB,
+        parkKitayaseNeoFreeC,
+        parkKitayaseNeoFreeD,
+        parkKitayaseNeoRb270,
+        parkKitayaseNeoRb280,
+        parkKitayaseNeoSinkOnlyNoCluster,
+        treatmentDone: parkKitayaseNeoRecent2Output3000 || parkKitayaseNeoRecent3Output4000,
+        lowConfidence: parkKitayaseNeoHistoryShort || parkKitayaseNeoGames7Low,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY) {
       const previousP56 = previousMachineSettingFivePlusProbability;
       const jaranYazaikeNeoHistoryReady = historyRowCount >= 14;
@@ -23006,6 +23357,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentTwentyEightGamesTotal = readNumber(metrics.recentTwentyEightGamesTotal);
   const recentFiftySixGamesTotal = readNumber(metrics.recentFiftySixGamesTotal);
   const recentTwoBonusTotal = readNumber(metrics.recentTwoBonusTotal);
+  const recentTenRbTotal = readNumber(metrics.recentTenRbTotal);
   const recentFourteenGoldShowDays = readNumber(metrics.recentFourteenGoldShowDays);
   const recentSevenGoldShowDays = readNumber(metrics.recentSevenGoldShowDays, readNumber(metrics.recentSevenBigShowDays));
   const recentFourteenLossDays = readNumber(metrics.recentFourteenLossDays);
@@ -23015,6 +23367,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentSevenWinDays = readNumber(metrics.recentSevenWinDays);
   const recentSevenNonPositiveDays = readNumber(metrics.recentSevenNonPositiveDays);
   const recentFourteenNonPositiveDays = readNumber(metrics.recentFourteenNonPositiveDays);
+  const recentThreeLowGames1500Count = readNumber(metrics.recentThreeLowGames1500Count);
   const recentFiveHighSettingCandidateCount = readNumber(metrics.recentFiveHighSettingCandidateCount);
   const recentSevenHighSettingCandidateCount = readNumber(metrics.recentSevenHighSettingCandidateCount);
   const recentThreeHighSettingEstimateCount = readNumber(metrics.recentThreeHighSettingEstimateCount);
@@ -23140,6 +23493,8 @@ function calculateMachineScore(definition, metrics, features) {
   const previousAdjacentMachineAverageDifference = readNumber(metrics.previousAdjacentMachineAverageDifference);
   const previousAdjacentMachineNetTotalNear2 = readNumber(metrics.previousAdjacentMachineNetTotalNear2);
   const previousOtherMachineHighContentCount = readNumber(metrics.previousOtherMachineHighContentCount);
+  const sameMachinePositionFromLeft = readNullableNumber(metrics.sameMachinePositionFromLeft);
+  const sameMachinePositionFromRight = readNullableNumber(metrics.sameMachinePositionFromRight);
   const sameMachinePreviousNetTotal = readNumber(metrics.sameMachinePreviousNetTotal);
   const previousCombinedDenominator = features.previousCombinedDenominator;
   const previousRbDenominator = features.previousRbDenominator;
@@ -28090,6 +28445,99 @@ function calculateMachineScore(definition, metrics, features) {
           : 0;
 
       return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === PARK_KITAYASE_NEO_AIM_LOGIC_KEY) {
+      const recentTenRbDenominator = rateDenominator(recentTenGamesTotal, recentTenRbTotal);
+      const noHighDays = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : historyRowCount;
+      const previousP56 = Number.isFinite(previousMachineSettingFivePlusProbability)
+        ? previousMachineSettingFivePlusProbability
+        : 0;
+      let score = 35;
+
+      if (sameMachinePositionFromLeft === 1) {
+        score -= 10;
+      } else if (sameMachinePositionFromRight === 1) {
+        score -= 5;
+      } else if (sameMachinePositionFromLeft === 2) {
+        score += 6;
+      } else if (sameMachinePositionFromLeft === 3 || sameMachinePositionFromLeft === 4) {
+        score += 3;
+      }
+
+      if (previousGames >= 3000 && previousP56 >= 0.5) {
+        score += 15;
+        score += previousDifference <= 0 ? 3 : 0;
+        score += previousDifference >= 1000 ? 4 : 0;
+      }
+      score += previousGames >= 3000 && previousP56 >= 0.7 ? 4 : 0;
+      score -= previousGames >= 3000 && previousP56 <= 0.1 ? 4 : 0;
+      score += previousGames >= 3000 && features.previousRbDenominator <= 280
+        ? 4
+        : previousGames >= 3000 && features.previousRbDenominator <= 300
+          ? 3
+          : 0;
+      score -= previousGames >= 3000 && features.previousRbDenominator >= 500 ? 5 : 0;
+
+      if (recentSevenMachineHighContentCount === 2) {
+        score += 12;
+      } else if (recentSevenMachineHighContentCount === 1) {
+        score += 6;
+      } else if (recentSevenMachineHighContentCount >= 3) {
+        score += 4;
+      }
+      score += features.recentSevenAngle >= 150 ? 10 : features.recentSevenAngle >= 100 ? 5 : 0;
+
+      if (recentFourteenMachineHighContentCount === 5) {
+        score += 8;
+      } else if (recentFourteenMachineHighContentCount >= 3 && recentFourteenMachineHighContentCount <= 4) {
+        score += 5;
+      } else if (recentFourteenMachineHighContentCount >= 6) {
+        score += 2;
+      }
+
+      score += features.recentSevenCombinedDenominator <= 140
+        ? 8
+        : features.recentSevenCombinedDenominator <= 150
+          ? 4
+          : 0;
+      score += features.recentSevenRbDenominator <= 320
+        ? 5
+        : features.recentSevenRbDenominator <= 350
+          ? 2
+          : 0;
+      score -= features.recentSevenRbDenominator >= 450
+        ? 8
+        : features.recentSevenRbDenominator >= 400
+          ? 5
+          : 0;
+      score -= recentTenRbDenominator >= 450 ? 10 : 0;
+
+      score += recentTwoGamesTotal >= 15000 ? 6 : 0;
+      score += recentThreeGamesTotal >= 20000 ? 4 : 0;
+      score += recentSevenGamesTotal >= 25000 ? 2 : 0;
+      score -= recentSevenGamesTotal < 12000 ? 5 : 0;
+      score -= recentThreeLowGames1500Count >= 2 ? 4 : 0;
+
+      score += features.recentFiveAngle <= -200 ? 5 : features.recentFiveAngle <= -150 ? 3 : 0;
+      score += recentSevenNetTotal <= -4000 ? 2 : 0;
+
+      score -= streak >= 5 ? 12 : streak >= 3 ? 5 : 0;
+      if (noHighDays >= 21) {
+        score -= 15;
+      } else if (noHighDays >= 14) {
+        score -= 10;
+      } else if (noHighDays >= 10) {
+        score -= 5;
+      }
+      score -= recentTwoNetTotal >= 3000 ? 8 : 0;
+      score -= recentThreeNetTotal >= 4000 ? 5 : 0;
+      score -= features.recentFourteenRbDenominator >= 400 ? 5 : 0;
+
+      const scoreCap = historyRowCount < 7 ? 45 : 100;
+      return Math.round(clamp(score, 0, scoreCap));
     }
 
     if (activeLogicKey === KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY) {
