@@ -103,6 +103,11 @@ const GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY = "gaia-hikifune-neo-aim";
 const GAIA_HIKIFUNE_NEO_AIM_LOGIC_NAME =
   "ガイア曳舟_ネオアイムEX_未処遇再投入スコア_v1";
 const GAIA_HIKIFUNE_NEO_AIM_DEFAULT_CONDITION = "gaia-hikifune-neo-wide-rb310";
+const ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY = "123n-shinonome-neo-aim";
+const ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_NAME =
+  "123+N東雲店_ネオアイムジャグラーEX_全日共通_深沈み返済ロジック";
+const ONE_TWO_THREE_N_SHINONOME_NEO_AIM_DEFAULT_CONDITION =
+  "123n-shinonome-neo-free-b-angle-deep";
 const CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY = "concert-hall-kitasenju-neo-aim";
 const CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_NAME =
   "コンサートホール北千住_ネオアイムEX_56狙い全日共通ロジック";
@@ -628,6 +633,20 @@ function isGaiaHikifuneStore(storeName) {
   return ["ガイア曳舟", "ガイア曳舟店", "GAIA曳舟", "GAIA曳舟店", "ＧＡＩＡ曳舟", "ＧＡＩＡ曳舟店"].some(
     (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
   );
+}
+
+function isOneTwoThreeNShinonomeStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "123+N東雲店",
+    "123+N東雲",
+    "123N東雲店",
+    "123N東雲",
+    "１２３＋Ｎ東雲店",
+    "１２３＋Ｎ東雲",
+    "123＋N東雲店",
+    "123＋N東雲",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
 function isConcertHallKitasenjuStore(storeName) {
@@ -2542,6 +2561,204 @@ function buildBellCityTheCityShinozakiNeoAimConditions() {
   ];
 }
 
+function buildOneTwoThreeNShinonomeNeoAimConditions() {
+  return [
+    buildCondition(
+      ONE_TWO_THREE_N_SHINONOME_NEO_AIM_DEFAULT_CONDITION,
+      "自由B_差枚角度最深",
+      "17日 / 17台 / 総G59,207 / BB1/250.9 / RB1/276.7 / 合算1/131.6 / 平均+497.7枚 / 104.76% / 勝率64.7% / 平均56 41.1% / 中央56 33.1% / 56>=50 35.3%",
+      {
+        rankMax: 1,
+        minScore: 85,
+        minNextGap: 10,
+        requiredFlags: [
+          "shinonomeNeoHistory21Ready",
+          "shinonomeNeoFiveDeepSink",
+          "shinonomeNeoStreakUpTo5",
+        ],
+      },
+      [ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "123n-shinonome-neo-free-deepest-loss45",
+      "自由_最深沈み4_5連",
+      "14日 / 15台 / 総G48,881 / BB1/262.8 / RB1/267.1 / 合算1/132.5 / 平均+347.8枚 / 103.56% / 勝率53.3% / 平均56 43.1% / 中央56 41.6% / 56>=50 33.3%",
+      {
+        minScore: 85,
+        requiredFlags: [
+          "shinonomeNeoHistory21Ready",
+          "shinonomeNeoFiveDeepestSink",
+          "shinonomeNeoLossPeak",
+          "shinonomeNeoStrongestAngle",
+        ],
+      },
+      [ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "123n-shinonome-neo-free-a-repay",
+      "自由A_深沈み返済",
+      "16日 / 17台 / 総G63,261 / BB1/261.4 / RB1/277.5 / 合算1/134.6 / 平均+367.7枚 / 103.29% / 勝率52.9% / 平均56 41.6% / 中央56 41.6% / 56>=50 35.3%",
+      {
+        minScore: 90,
+        requiredFlags: [
+          "shinonomeNeoHistory21Ready",
+          "shinonomeNeoFiveDeepestSink",
+          "shinonomeNeoLossPeak",
+          "shinonomeNeoRepayUnfinished21",
+        ],
+      },
+      [ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "123n-shinonome-neo-free-genuine-mix",
+      "自由_本物感ミックス",
+      "22日 / 26台 / 総G78,543 / BB1/269.9 / RB1/289.8 / 合算1/139.8 / 平均+221.2枚 / 102.44% / 勝率42.3% / 平均56 36.1% / 中央56 28.7%",
+      {
+        requiredFlags: [
+          "shinonomeNeoHistory21Ready",
+          "shinonomeNeoAuthenticity7",
+          "shinonomeNeoAuthenticity3",
+          "shinonomeNeoPreviousBigOutClear",
+        ],
+      },
+      [ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "123n-shinonome-neo-wide-rank1-gap10",
+      "広め_1位次点差10",
+      "27日 / 27台 / 総G79,785 / BB1/250.9 / RB1/304.5 / 合算1/137.6 / 平均+323.0枚 / 103.64% / 勝率55.6% / 平均56 34.1% / 中央56 30.2% / 56>=50 22.2%",
+      {
+        rankMax: 1,
+        minNextGap: 10,
+        requiredFlags: ["shinonomeNeoHistory21Ready"],
+      },
+      [ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "123n-shinonome-neo-weak-genuine-rb",
+      "弱め本命_本物感RB補強",
+      "22日 / 29台 / 総G82,566 / BB1/271.6 / RB1/297.0 / 合算1/141.9 / 平均+155.4枚 / 101.82% / 勝率44.8% / 平均56 34.4% / 中央56 30.9%",
+      {
+        requiredFlags: [
+          "shinonomeNeoHistory21Ready",
+          "shinonomeNeoAuthenticity7",
+          "shinonomeNeoRbBoost260",
+        ],
+      },
+      [ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "123n-shinonome-neo-strong-deep-repay",
+      "強条件_深沈み返済",
+      "深沈み、返済未完了、危険少なめを重ねる実戦用の強条件",
+      {
+        minScore: 90,
+        maxDanger: 1,
+        requiredFlags: [
+          "shinonomeNeoHistory21Ready",
+          "shinonomeNeoFiveDeepSink",
+          "shinonomeNeoRepayUnfinished21",
+        ],
+      },
+      [ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "123n-shinonome-neo-best-deepest-loss45",
+      "最本命_最深沈み4_5連",
+      "最深沈み、4〜5連敗、強い沈み角度が重なる台を最上位で見る",
+      {
+        rankMax: 1,
+        minScore: 85,
+        minNextGap: 8,
+        requiredFlags: [
+          "shinonomeNeoHistory21Ready",
+          "shinonomeNeoFiveDeepestSink",
+          "shinonomeNeoLossPeak",
+        ],
+      },
+      [ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "123n-shinonome-neo-free-d-wide",
+      "自由D_広め妥協",
+      "38日 / 38台 / RB1/318.3 / 合算1/145.4 / 平均+79.6枚 / 101.03%",
+      {
+        rankMax: 1,
+        minNextGap: 8,
+        requiredFlags: ["shinonomeNeoHistory21Ready"],
+      },
+      [ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "123n-shinonome-neo-watch-danger2",
+      "見送り_危険2以上",
+      "前日大きく出た、返済済み、長期放置、低稼働、RB弱さが重なる台は本命外",
+      {
+        minDanger: 2,
+        requiredFlags: ["shinonomeNeoHistory21Ready"],
+      },
+      [ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "123n-shinonome-neo-watch-prev-output-done",
+      "見送り_前日大出し処遇済み",
+      "前日+1500枚以上かつ14日でも返済済みは処遇完了として警戒",
+      {
+        requiredFlags: [
+          "shinonomeNeoHistory21Ready",
+          "shinonomeNeoPreviousBigOut",
+          "shinonomeNeoTreatmentDone14",
+        ],
+      },
+      [ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "123n-shinonome-neo-watch-long-low",
+      "見送り_長期放置低稼働",
+      "7連敗以上かつ直近7日3000G未満は放置台として警戒",
+      {
+        requiredFlags: [
+          "shinonomeNeoHistory21Ready",
+          "shinonomeNeoLongNeglect",
+          "shinonomeNeoLowActivity",
+        ],
+      },
+      [ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "123n-shinonome-neo-watch-rank1-small-gap",
+      "注意_1位次点差5未満強化なし",
+      "1位でも次点差5点未満かつ強化なしは単独感が弱い",
+      {
+        rankMax: 1,
+        maxNextGap: 4.999,
+        maxBoost: 0,
+        requiredFlags: ["shinonomeNeoHistory21Ready"],
+      },
+      [ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "123n-shinonome-neo-watch-no-core-score-under90",
+      "見送り_芯なし90未満",
+      "90点未満で本物感も21日返済未完もない台は優先度を下げる",
+      {
+        maxScore: 89.999,
+        requiredFlags: ["shinonomeNeoHistory21Ready", "shinonomeNeoNoCore"],
+      },
+      [ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "123n-shinonome-neo-watch-history-short",
+      "見送り_履歴21日未満",
+      "同一台番の過去21営業日が溜まるまでは低信頼として扱う",
+      {
+        requiredFlags: ["shinonomeNeoHistoryShort"],
+      },
+      [ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY],
+    ),
+  ];
+}
+
 function listDefinitionLogics(definition) {
   if (!definition) {
     return [];
@@ -4109,6 +4326,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         GAIA_HIKIFUNE_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
+        ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY,
+        ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_NAME,
+        ONE_TWO_THREE_N_SHINONOME_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY,
         CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_NAME,
         CONCERT_HALL_KITASENJU_NEO_AIM_DEFAULT_CONDITION,
@@ -4337,6 +4559,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ...buildPalazzoKasaiNeoAimConditions(),
       ...buildBellCityShinozakiNeoAimConditions(),
       ...buildBellCityTheCityShinozakiNeoAimConditions(),
+      ...buildOneTwoThreeNShinonomeNeoAimConditions(),
       buildCondition(
         "main",
         "1位＋70点以上＋3日沈み2日以上",
@@ -14558,6 +14781,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, MARUHON_NEO_AIM_LOGIC_KEY);
   } else if (isGaiaHikifuneStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY);
+  } else if (isOneTwoThreeNShinonomeStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY);
   } else if (isConcertHallKitasenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY);
   } else if (isKyudenAnnexStore(storeName) && definition.machineKey === "neo-aim") {
@@ -15677,6 +15902,139 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY) {
+      const shinonomeNeoHistory21Ready = historyRowCount >= 21;
+      const shinonomeNeoHistoryShort = historyRowCount < 21;
+      const shinonomeNeoFiveDeepSink = recentFiveNetTotal <= -2000;
+      const shinonomeNeoFiveDeepestSink = recentFiveNetTotal <= -2500;
+      const shinonomeNeoLossPeak = streak >= 4 && streak <= 5;
+      const shinonomeNeoStreakUpTo5 = streak <= 5;
+      const shinonomeNeoRepayUnfinished21 =
+        recentTwentyOneGamesTotal >= 12000 && recentTwentyOneNetTotal <= -800;
+      const shinonomeNeoRepayUnfinished14 =
+        recentFourteenGamesTotal >= 8000 && recentFourteenNetTotal <= -500;
+      const shinonomeNeoStrongAngle = recentSevenGamesTotal >= 4000 && features.recentSevenAngle <= -120;
+      const shinonomeNeoStrongestAngle = recentSevenGamesTotal >= 4000 && features.recentSevenAngle <= -150;
+      const shinonomeNeoAuthenticity7 =
+        recentSevenGamesTotal >= 5000 && features.recentSevenCombinedDenominator <= 130;
+      const shinonomeNeoAuthenticity3 =
+        recentThreeGamesTotal >= 3000 && features.recentThreeCombinedDenominator <= 125;
+      const shinonomeNeoAuthenticity = shinonomeNeoAuthenticity7 || shinonomeNeoAuthenticity3;
+      const shinonomeNeoRbBoost = recentThreeGamesTotal >= 3000 && features.recentThreeRbDenominator <= 280;
+      const shinonomeNeoRbBoost260 = recentThreeGamesTotal >= 3000 && features.recentThreeRbDenominator <= 260;
+      const shinonomeNeoPreviousBigOut = previousGames >= 2000 && previousDifference >= 1500;
+      const shinonomeNeoPreviousBigOutClear = !shinonomeNeoPreviousBigOut;
+      const shinonomeNeoTreatmentDone14 =
+        recentFourteenGamesTotal >= 7000 && recentFourteenNetTotal >= 1500;
+      const shinonomeNeoTreatmentDone7 =
+        recentSevenGamesTotal >= 4000 && recentSevenNetTotal >= 1000;
+      const shinonomeNeoLongNeglect = streak >= 7;
+      const shinonomeNeoLowActivity = recentSevenGamesTotal < 3000;
+      const shinonomeNeoRbTooWeak =
+        recentSevenGamesTotal >= 3000 && features.recentSevenRbDenominator > 400;
+      const shinonomeNeoPreviousGenuineFail =
+        previousGames >= 2000 &&
+        features.previousRbDenominator <= 310 &&
+        features.previousCombinedDenominator <= 145 &&
+        previousDifference <= 0;
+      const shinonomeNeoNearbyShowLeftBehind =
+        (previousAdjacentMachineHighContentCount > 0 ||
+          previousAdjacentMachineGoodContentCount > 0 ||
+          previousAdjacentMachineBigWin1000Count > 0) &&
+        recentSevenNetTotal <= -500;
+      const shinonomeNeoSinkStayDays = readNumber(
+        metrics.recentSevenMinus1000StayDays,
+        recentSevenMinus1200StayDays,
+      );
+      const shinonomeNeoSinkStay2 = shinonomeNeoSinkStayDays >= 2;
+      const shinonomeNeoSinkStay3 = shinonomeNeoSinkStayDays >= 3;
+      const shinonomeNeoNoHighInHistory =
+        !Number.isFinite(daysSinceMachineHighContent) && shinonomeNeoHistory21Ready;
+      const shinonomeNeoHighInterval40Plus =
+        shinonomeNeoNoHighInHistory ||
+        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 40);
+      const shinonomeNeoHighInterval21To39 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 21 &&
+        daysSinceMachineHighContent <= 39;
+      const shinonomeNeoHighInterval15To20 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 15 &&
+        daysSinceMachineHighContent <= 20;
+      const shinonomeNeoHighIntervalShort =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 2 &&
+        daysSinceMachineHighContent <= 3;
+      const shinonomeNeoNoCore = !shinonomeNeoAuthenticity && !shinonomeNeoRepayUnfinished21;
+
+      const boostFlags = [
+        shinonomeNeoFiveDeepSink,
+        shinonomeNeoFiveDeepestSink,
+        shinonomeNeoLossPeak,
+        shinonomeNeoRepayUnfinished21,
+        shinonomeNeoRepayUnfinished14,
+        shinonomeNeoStrongAngle,
+        shinonomeNeoAuthenticity,
+        shinonomeNeoRbBoost,
+        shinonomeNeoPreviousGenuineFail,
+        shinonomeNeoNearbyShowLeftBehind,
+        shinonomeNeoSinkStay2,
+        shinonomeNeoHighInterval21To39,
+        shinonomeNeoHighInterval40Plus,
+      ];
+      const dangerFlags = [
+        shinonomeNeoPreviousBigOut,
+        shinonomeNeoTreatmentDone14,
+        shinonomeNeoTreatmentDone7,
+        shinonomeNeoLongNeglect,
+        shinonomeNeoLowActivity,
+        shinonomeNeoRbTooWeak,
+        shinonomeNeoHighIntervalShort,
+      ];
+      const boostCount = boostFlags.filter(Boolean).length;
+      const dangerCount = dangerFlags.filter(Boolean).length;
+
+      return {
+        ...features,
+        shinonomeNeoHistory21Ready,
+        shinonomeNeoHistoryShort,
+        shinonomeNeoFiveDeepSink,
+        shinonomeNeoFiveDeepestSink,
+        shinonomeNeoLossPeak,
+        shinonomeNeoStreakUpTo5,
+        shinonomeNeoRepayUnfinished21,
+        shinonomeNeoRepayUnfinished14,
+        shinonomeNeoStrongAngle,
+        shinonomeNeoStrongestAngle,
+        shinonomeNeoAuthenticity7,
+        shinonomeNeoAuthenticity3,
+        shinonomeNeoAuthenticity,
+        shinonomeNeoRbBoost,
+        shinonomeNeoRbBoost260,
+        shinonomeNeoPreviousBigOut,
+        shinonomeNeoPreviousBigOutClear,
+        shinonomeNeoTreatmentDone14,
+        shinonomeNeoTreatmentDone7,
+        shinonomeNeoLongNeglect,
+        shinonomeNeoLowActivity,
+        shinonomeNeoRbTooWeak,
+        shinonomeNeoPreviousGenuineFail,
+        shinonomeNeoNearbyShowLeftBehind,
+        shinonomeNeoSinkStay2,
+        shinonomeNeoSinkStay3,
+        shinonomeNeoNoHighInHistory,
+        shinonomeNeoHighInterval40Plus,
+        shinonomeNeoHighInterval21To39,
+        shinonomeNeoHighInterval15To20,
+        shinonomeNeoHighIntervalShort,
+        shinonomeNeoNoCore,
+        treatmentDone: shinonomeNeoTreatmentDone14 || shinonomeNeoTreatmentDone7 || shinonomeNeoPreviousBigOut,
+        lowConfidence: shinonomeNeoHistoryShort || shinonomeNeoLowActivity,
+        boostCount,
+        dangerCount,
+      };
+    }
+
     if (activeLogicKey === BELLCITY_SHINOZAKI_NEO_AIM_LOGIC_KEY) {
       const bellcityShinozakiNeoHistoryReady = historyRowCount >= 14;
       const bellcityShinozakiNeoHistoryShort = historyRowCount < 14;
@@ -27108,6 +27466,136 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (activeLogicKey === ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY) {
+      let score = 38;
+
+      if (recentFiveNetTotal <= -2500) {
+        score += 20;
+      } else if (recentFiveNetTotal <= -2000) {
+        score += 17;
+      } else if (recentFiveNetTotal <= -1500) {
+        score += 14;
+      } else if (recentFiveNetTotal <= -1000) {
+        score += 10;
+      } else if (recentFiveNetTotal <= -500) {
+        score += 6;
+      } else if (recentFiveNetTotal <= 500) {
+        score += 2;
+      } else if (recentFiveNetTotal >= 3000) {
+        score -= 14;
+      } else if (recentFiveNetTotal >= 1500) {
+        score -= 8;
+      }
+
+      if (recentSevenGamesTotal >= 4000 && features.recentSevenAngle <= -120) {
+        score += 10;
+      } else if (recentSevenGamesTotal >= 4000 && features.recentSevenAngle <= -80) {
+        score += 7;
+      } else if (recentSevenGamesTotal >= 3000 && features.recentSevenAngle <= -50) {
+        score += 4;
+      }
+      score -= recentSevenGamesTotal < 3000 ? 8 : 0;
+      score -= recentFourteenGamesTotal < 6000 ? 4 : 0;
+
+      if (streak === 5) {
+        score += 12;
+      } else if (streak === 4) {
+        score += 10;
+      } else if (streak === 3) {
+        score += 6;
+      } else if (streak === 2) {
+        score += 3;
+      } else if (streak === 6) {
+        score += 2;
+      } else if (streak >= 7) {
+        score -= 8;
+      }
+
+      if (
+        !Number.isFinite(daysSinceMachineHighContent) &&
+        historyRowCount >= 21
+      ) {
+        score += 11;
+      } else if (Number.isFinite(daysSinceMachineHighContent)) {
+        if (daysSinceMachineHighContent >= 40) {
+          score += 11;
+        } else if (daysSinceMachineHighContent >= 21) {
+          score += 8;
+        } else if (daysSinceMachineHighContent >= 15) {
+          score += 4;
+        } else if (daysSinceMachineHighContent >= 2 && daysSinceMachineHighContent <= 3) {
+          score -= 3;
+        }
+      }
+
+      score += recentTwentyOneGamesTotal >= 12000 && recentTwentyOneNetTotal <= -800 ? 10 : 0;
+      score += recentFourteenGamesTotal >= 8000 && recentFourteenNetTotal <= -500 ? 7 : 0;
+      score += recentFourteenGamesTotal >= 8000 && recentFourteenNetTotal <= -1500 ? 5 : 0;
+
+      const shinonomeNeoSinkStayDays = readNumber(
+        metrics.recentSevenMinus1000StayDays,
+        recentSevenMinus1200StayDays,
+      );
+      if (shinonomeNeoSinkStayDays >= 3) {
+        score += 6;
+      } else if (shinonomeNeoSinkStayDays >= 2) {
+        score += 4;
+      }
+
+      if (recentSevenGamesTotal >= 5000 && features.recentSevenCombinedDenominator <= 130) {
+        score += 9;
+      } else if (recentSevenGamesTotal >= 5000 && features.recentSevenCombinedDenominator <= 140) {
+        score += 5;
+      }
+      score += recentThreeGamesTotal >= 3000 && features.recentThreeCombinedDenominator <= 125 ? 6 : 0;
+      score += recentThreeGamesTotal >= 3000 && features.recentThreeRbDenominator <= 280 ? 4 : 0;
+
+      score +=
+        previousGames >= 2000 &&
+        previousRbDenominator <= 310 &&
+        previousCombinedDenominator <= 145 &&
+        previousDifference <= 0
+          ? 5
+          : 0;
+      score +=
+        (previousAdjacentMachineHighContentCount > 0 ||
+          previousAdjacentMachineGoodContentCount > 0 ||
+          previousAdjacentMachineBigWin1000Count > 0) &&
+        recentSevenNetTotal <= -500
+          ? 4
+          : 0;
+
+      score -= recentFourteenGamesTotal >= 7000 && recentFourteenNetTotal >= 1500 ? 14 : 0;
+      score -= recentSevenGamesTotal >= 4000 && recentSevenNetTotal >= 1000 ? 10 : 0;
+      score -= previousGames >= 2000 && previousDifference >= 1500 ? 12 : 0;
+
+      const dangerCount = [
+        previousGames >= 2000 && previousDifference >= 1500,
+        recentFourteenGamesTotal >= 7000 && recentFourteenNetTotal >= 1500,
+        recentSevenGamesTotal >= 4000 && recentSevenNetTotal >= 1000,
+        streak >= 7,
+        recentSevenGamesTotal < 3000,
+        recentSevenGamesTotal >= 3000 && features.recentSevenRbDenominator > 400,
+        Number.isFinite(daysSinceMachineHighContent) &&
+          daysSinceMachineHighContent >= 2 &&
+          daysSinceMachineHighContent <= 3,
+      ].filter(Boolean).length;
+
+      let scoreCap = 100;
+      if (dangerCount >= 3) {
+        scoreCap = Math.min(scoreCap, 55);
+      } else if (dangerCount >= 2) {
+        scoreCap = Math.min(scoreCap, 62);
+      }
+      if (historyRowCount < 7) {
+        scoreCap = Math.min(scoreCap, 45);
+      } else if (historyRowCount < 21) {
+        scoreCap = Math.min(scoreCap, 62);
+      }
+
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
     if (activeLogicKey === "tamaya-ohashi-neo-aim") {
       const p56Hist5 = Number.isFinite(features.tamayaOhashiNeoP56Hist5)
         ? features.tamayaOhashiNeoP56Hist5
