@@ -112,6 +112,11 @@ const NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY = "new-crown-ayase-neo-aim";
 const NEW_CROWN_AYASE_NEO_AIM_LOGIC_NAME =
   "ニュークラウン綾瀬店_ネオアイムEX_全日共通_v1";
 const NEW_CROWN_AYASE_NEO_AIM_DEFAULT_CONDITION = "new-crown-ayase-neo-free-best";
+const PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY = "park-takenotsuka-studio-neo-aim";
+const PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_NAME =
+  "ピーアーク竹ノ塚スタジオ_ネオアイムジャグラーEX_56再投入返済ロジック";
+const PARK_TAKENOTSUKA_STUDIO_NEO_AIM_DEFAULT_CONDITION =
+  "park-takenotsuka-studio-neo-free-c";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -594,6 +599,18 @@ function isNewCrownAyaseStore(storeName) {
   return ["ニュークラウン綾瀬店", "ニュークラウン綾瀬", "NEW CROWN綾瀬店", "NEW CROWN綾瀬"].some(
     (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
   );
+}
+
+function isParkTakenotsukaStudioStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "ピーアーク竹ノ塚スタジオ",
+    "ピーアーク竹の塚スタジオ",
+    "ピーアーク竹ノ塚スタジオ店",
+    "ピーアーク竹の塚スタジオ店",
+    "P-ARK竹ノ塚スタジオ",
+    "P ARK竹ノ塚スタジオ",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
 function isPlazaTenjinStore(storeName) {
@@ -3753,6 +3770,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         NEW_CROWN_AYASE_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
+        PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY,
+        PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_NAME,
+        PARK_TAKENOTSUKA_STUDIO_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         "messe-minamisenju-neo-aim",
         "メッセ南千住_ネオアイムEX_全日共通_未返済沈み滞在ロジック_v1",
         "messe-minamisenju-free-14rb",
@@ -6906,6 +6928,172 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["newCrownAyaseNeoHistoryReady", "newCrownAyaseNeoTreatmentDone"],
         },
         [NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        PARK_TAKENOTSUKA_STUDIO_NEO_AIM_DEFAULT_CONDITION,
+        "自由C_最本命濃縮",
+        "10日・12台 / RB1/262.9 / 合算1/134.6 / 平均+376.2枚 / 102.3% / 勝率66.7% / 平均56率48.3% / 56率50%以上50.0% / 件数少の最優先",
+        {
+          minScore: 88,
+          requiredFlags: ["parkTakenotsukaStudioNeoHistoryReady", "parkTakenotsukaStudioNeoRealnessCombined5"],
+        },
+        [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-takenotsuka-studio-neo-free-d",
+        "自由D_上位2台再投入",
+        "12日・13台 / RB1/264.6 / 合算1/136.0 / 平均+293.5枚 / 101.7% / 平均56率48.1% / 中央56率50.4% / 上位2台限定",
+        {
+          minScore: 88,
+          rankMax: 2,
+          requiredFlags: ["parkTakenotsukaStudioNeoHistoryReady", "parkTakenotsukaStudioNeoRecentFiveHighContentTwo"],
+        },
+        [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-takenotsuka-studio-neo-free-a",
+        "自由A_再投入本命",
+        "18日・27台 / RB1/299.7 / 合算1/142.4 / 平均+100.3枚 / 101.3% / 平均56率36.5% / 高稼働かつ前日56級かつ直近5日56級2回以上",
+        {
+          requiredFlags: ["parkTakenotsukaStudioNeoHistoryReady", "parkTakenotsukaStudioNeoFreeA"],
+        },
+        [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-takenotsuka-studio-neo-free-b",
+        "自由B_高稼働本物感",
+        "19日・29台 / RB1/291.6 / 合算1/142.4 / 平均+115.7枚 / 100.8% / 平均56率38.1% / 高稼働かつ前日56級かつ5日合算150以内",
+        {
+          requiredFlags: ["parkTakenotsukaStudioNeoHistoryReady", "parkTakenotsukaStudioNeoFreeB"],
+        },
+        [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-takenotsuka-studio-neo-rb270",
+        "最本命RB270_少数注意",
+        "10日・12台 / RB1/262.9 / 合算1/134.6 / 平均+376.2枚 / 102.3% / 勝率66.7% / 平均56率48.3% / 56率50%以上50.0%",
+        {
+          minScore: 88,
+          requiredFlags: ["parkTakenotsukaStudioNeoHistoryReady", "parkTakenotsukaStudioNeoRealnessCombined5"],
+        },
+        [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-takenotsuka-studio-neo-rb280",
+        "強条件RB280",
+        "13日・14台 / RB1/278.5 / 合算1/142.1 / 平均+13.1枚 / 100.1% / 勝率57.1% / 平均56率41.0% / 56率50%以上42.9%",
+        {
+          minScore: 89,
+          requiredFlags: ["parkTakenotsukaStudioNeoHistoryReady"],
+        },
+        [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-takenotsuka-studio-neo-rb290",
+        "本命RB290",
+        "15日・23台 / RB1/283.8 / 合算1/139.9 / 平均+213.5枚 / 101.4% / 勝率60.9% / 平均56率41.4% / 56率50%以上39.1%",
+        {
+          minScore: 85,
+          requiredFlags: ["parkTakenotsukaStudioNeoHistoryReady", "parkTakenotsukaStudioNeoRealnessCombined5"],
+        },
+        [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-takenotsuka-studio-neo-rb300",
+        "弱本命RB300",
+        "17日・28台 / RB1/299.5 / 合算1/142.5 / 平均+194.5枚 / 101.3% / 勝率64.3% / 平均56率36.7% / 56率50%以上35.7%",
+        {
+          minScore: 85,
+          requiredFlags: ["parkTakenotsukaStudioNeoHistoryReady", "parkTakenotsukaStudioNeoRecentFiveGames20000"],
+        },
+        [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-takenotsuka-studio-neo-rb310",
+        "広めRB310",
+        "25日・41台 / 総G179202 / BB666 / RB584 / BB1/269.1 / RB1/306.9 / 合算1/143.4 / 平均+173.5枚 / 101.3% / 勝率53.7% / 平均56率34.1%",
+        {
+          minScore: 82,
+          requiredFlags: ["parkTakenotsukaStudioNeoHistoryReady"],
+        },
+        [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-takenotsuka-studio-neo-watch-under70",
+        "見送り_70点未満",
+        "70点未満は原則見送り",
+        {
+          maxScore: 69.999,
+          requiredFlags: ["parkTakenotsukaStudioNeoHistoryReady"],
+        },
+        [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-takenotsuka-studio-neo-watch-danger2",
+        "見送り_高得点危険2以上",
+        "80点以上でも危険条件が2個以上なら見送り",
+        {
+          minScore: 80,
+          minDanger: 2,
+          requiredFlags: ["parkTakenotsukaStudioNeoHistoryReady"],
+        },
+        [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-takenotsuka-studio-neo-watch-history-short",
+        "見送り_履歴7日未満",
+        "履歴7日未満は低信頼として最大70点に制限",
+        {
+          requiredFlags: ["parkTakenotsukaStudioNeoHistoryShort"],
+        },
+        [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-takenotsuka-studio-neo-watch-no-high-low-g",
+        "見送り_30日56級なし低稼働",
+        "30日56級なし、かつ直近5日15000G未満は放置リスクを優先",
+        {
+          requiredFlags: ["parkTakenotsukaStudioNeoHistoryReady", "parkTakenotsukaStudioNeoNoHighThirtyLowGames"],
+        },
+        [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-takenotsuka-studio-neo-watch-bb-only",
+        "見送り_BB寄せだけ",
+        "前日プラスがBB寄せで、本物感がない場合は見送り",
+        {
+          requiredFlags: ["parkTakenotsukaStudioNeoHistoryReady", "parkTakenotsukaStudioNeoBbOnlyNoRealness"],
+        },
+        [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-takenotsuka-studio-neo-watch-rank1-under82",
+        "見送り_1位でも82点未満",
+        "1位だけでは弱く、82点未満なら見送り",
+        {
+          rankMax: 1,
+          maxScore: 81.999,
+          requiredFlags: ["parkTakenotsukaStudioNeoHistoryReady"],
+        },
+        [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-takenotsuka-studio-neo-watch-treated",
+        "見送り_処遇完了",
+        "直近14日+5000枚以上は処遇完了として注意",
+        {
+          requiredFlags: ["parkTakenotsukaStudioNeoHistoryReady", "parkTakenotsukaStudioNeoTreatmentDone14"],
+        },
+        [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "park-takenotsuka-studio-neo-watch-long-sink",
+        "見送り_沈みすぎ放置",
+        "7日-2000枚滞在10日以上は沈みすぎ放置として注意",
+        {
+          requiredFlags: ["parkTakenotsukaStudioNeoHistoryReady", "parkTakenotsukaStudioNeoLongSinkDeep"],
+        },
+        [PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "messe-minamisenju-free-14rb",
@@ -12330,6 +12518,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY);
   } else if (isNewCrownAyaseStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY);
+  } else if (isParkTakenotsukaStudioStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY);
   } else if (isMesseMinamisenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "messe-minamisenju-neo-aim");
   } else if (isMesseOkudoStore(storeName) && definition.machineKey === "neo-aim") {
@@ -12936,6 +13126,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentSevenHighSettingCandidateCount = readNumber(metrics.recentSevenHighSettingCandidateCount);
   const recentFiveMinus2000StayDays = readNumber(metrics.recentFiveMinus2000StayDays);
   const recentSevenMinus1500StayDays = readNumber(metrics.recentSevenMinus1500StayDays);
+  const recentSevenMinus2000StayDays = readNumber(metrics.recentSevenMinus2000StayDays);
   const recentTenMinus3000StayDays = readNumber(metrics.recentTenMinus3000StayDays);
   const recentTenMinus2500StayDays = readNumber(metrics.recentTenMinus2500StayDays);
   const recentThirtyMinus2700StayDays = readNumber(metrics.recentThirtyMinus2700StayDays);
@@ -18053,6 +18244,136 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         newCrownAyaseNeoNoFreeMax,
         treatmentDone: newCrownAyaseNeoTreatmentDone,
         lowConfidence: newCrownAyaseNeoHistoryShort || newCrownAyaseNeoLowActivityHistory,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY) {
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      const parkTakenotsukaStudioNeoHistoryReady = historyRowCount >= 7;
+      const parkTakenotsukaStudioNeoHistoryShort = historyRowCount < 7;
+      const parkTakenotsukaStudioNeoRecentFiveGames20000 = recentFiveGamesTotal >= 20000;
+      const parkTakenotsukaStudioNeoRecentFiveGames25000 = recentFiveGamesTotal >= 25000;
+      const parkTakenotsukaStudioNeoRecentThreeGames15000 = recentThreeGamesTotal >= 15000;
+      const parkTakenotsukaStudioNeoLowGames7 = recentSevenGamesTotal <= 15000;
+      const parkTakenotsukaStudioNeoLowGames5 = recentFiveGamesTotal < 15000;
+      const parkTakenotsukaStudioNeoPrevious56 = previousMachineHighContent;
+      const parkTakenotsukaStudioNeoPrevious56Under800 =
+        parkTakenotsukaStudioNeoPrevious56 && previousDifference < 800;
+      const parkTakenotsukaStudioNeoPrevious56Over1500 =
+        parkTakenotsukaStudioNeoPrevious56 && previousDifference >= 1500;
+      const parkTakenotsukaStudioNeoRecentFiveHighContentTwo =
+        recentFiveMachineHighContentCount >= 2;
+      const parkTakenotsukaStudioNeoRecentFiveHighContentOne =
+        recentFiveMachineHighContentCount === 1;
+      const parkTakenotsukaStudioNeoInterval28 =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 28;
+      const parkTakenotsukaStudioNeoInterval14To27 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 14 &&
+        daysSinceMachineHighContent <= 27;
+      const parkTakenotsukaStudioNeoSink5Deep = recentFiveNetTotal <= -4000;
+      const parkTakenotsukaStudioNeoSink5Middle = recentFiveNetTotal <= -2500;
+      const parkTakenotsukaStudioNeoSink5Light = recentFiveNetTotal <= -1000;
+      const parkTakenotsukaStudioNeoSink7Deep = recentSevenNetTotal <= -5000;
+      const parkTakenotsukaStudioNeoSink7Middle = recentSevenNetTotal <= -3500;
+      const parkTakenotsukaStudioNeoPreviousSink1500 = previousDifference <= -1500;
+      const parkTakenotsukaStudioNeoPreviousSink800 = previousDifference <= -800;
+      const parkTakenotsukaStudioNeoLossPeak = streak >= 4 && streak <= 6;
+      const parkTakenotsukaStudioNeoLongLoss = streak >= 8;
+      const parkTakenotsukaStudioNeoLongSinkDeep = recentSevenMinus2000StayDays >= 10;
+      const parkTakenotsukaStudioNeoLongSink = recentSevenMinus1500StayDays >= 7;
+      const parkTakenotsukaStudioNeoRealnessRb5 = features.recentFiveRbDenominator <= 350;
+      const parkTakenotsukaStudioNeoRealnessStrongRb5 = features.recentFiveRbDenominator <= 300;
+      const parkTakenotsukaStudioNeoRealnessCombined5 =
+        features.recentFiveCombinedDenominator <= 150;
+      const parkTakenotsukaStudioNeoRealnessStrongCombined5 =
+        features.recentFiveCombinedDenominator <= 140;
+      const parkTakenotsukaStudioNeoRealness =
+        parkTakenotsukaStudioNeoRealnessCombined5 || parkTakenotsukaStudioNeoRealnessRb5;
+      const parkTakenotsukaStudioNeoNoHighThirty =
+        historyRowCount >= 30 && recentThirtyMachineHighContentCount === 0;
+      const parkTakenotsukaStudioNeoNoHighThirtyLowGames =
+        parkTakenotsukaStudioNeoNoHighThirty && parkTakenotsukaStudioNeoLowGames5;
+      const parkTakenotsukaStudioNeoBbOnlyOutput =
+        previousDifference >= 1000 &&
+        ((Number.isFinite(previousP56) && previousP56 < 0.3) ||
+          features.previousRbDenominator > 400);
+      const parkTakenotsukaStudioNeoBbOnlyNoRealness =
+        parkTakenotsukaStudioNeoBbOnlyOutput && !parkTakenotsukaStudioNeoRealness;
+      const parkTakenotsukaStudioNeoTreatmentDone14 = recentFourteenNetTotal >= 5000;
+      const parkTakenotsukaStudioNeoTreatmentLight14 = recentFourteenNetTotal >= 2500;
+      const parkTakenotsukaStudioNeoShortRepayCandidate =
+        parkTakenotsukaStudioNeoSink5Deep || parkTakenotsukaStudioNeoSink7Deep;
+      const parkTakenotsukaStudioNeoFreeA =
+        parkTakenotsukaStudioNeoRecentFiveGames20000 &&
+        parkTakenotsukaStudioNeoPrevious56 &&
+        parkTakenotsukaStudioNeoRecentFiveHighContentTwo;
+      const parkTakenotsukaStudioNeoFreeB =
+        parkTakenotsukaStudioNeoRecentFiveGames25000 &&
+        parkTakenotsukaStudioNeoPrevious56 &&
+        parkTakenotsukaStudioNeoRealnessCombined5;
+      const boostFlags = [
+        parkTakenotsukaStudioNeoRealness,
+        parkTakenotsukaStudioNeoPrevious56,
+        parkTakenotsukaStudioNeoRecentFiveHighContentTwo,
+        parkTakenotsukaStudioNeoRecentFiveGames20000,
+        parkTakenotsukaStudioNeoShortRepayCandidate,
+        parkTakenotsukaStudioNeoInterval28,
+      ];
+      const dangerFlags = [
+        parkTakenotsukaStudioNeoNoHighThirty,
+        parkTakenotsukaStudioNeoLongSinkDeep,
+        parkTakenotsukaStudioNeoBbOnlyOutput,
+        parkTakenotsukaStudioNeoTreatmentDone14,
+        parkTakenotsukaStudioNeoLowGames7,
+      ];
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability: previousP56,
+        parkTakenotsukaStudioNeoHistoryReady,
+        parkTakenotsukaStudioNeoHistoryShort,
+        parkTakenotsukaStudioNeoRecentFiveGames20000,
+        parkTakenotsukaStudioNeoRecentFiveGames25000,
+        parkTakenotsukaStudioNeoRecentThreeGames15000,
+        parkTakenotsukaStudioNeoLowGames7,
+        parkTakenotsukaStudioNeoLowGames5,
+        parkTakenotsukaStudioNeoPrevious56,
+        parkTakenotsukaStudioNeoPrevious56Under800,
+        parkTakenotsukaStudioNeoPrevious56Over1500,
+        parkTakenotsukaStudioNeoRecentFiveHighContentTwo,
+        parkTakenotsukaStudioNeoRecentFiveHighContentOne,
+        parkTakenotsukaStudioNeoInterval28,
+        parkTakenotsukaStudioNeoInterval14To27,
+        parkTakenotsukaStudioNeoSink5Deep,
+        parkTakenotsukaStudioNeoSink5Middle,
+        parkTakenotsukaStudioNeoSink5Light,
+        parkTakenotsukaStudioNeoSink7Deep,
+        parkTakenotsukaStudioNeoSink7Middle,
+        parkTakenotsukaStudioNeoPreviousSink1500,
+        parkTakenotsukaStudioNeoPreviousSink800,
+        parkTakenotsukaStudioNeoLossPeak,
+        parkTakenotsukaStudioNeoLongLoss,
+        parkTakenotsukaStudioNeoLongSinkDeep,
+        parkTakenotsukaStudioNeoLongSink,
+        parkTakenotsukaStudioNeoRealnessRb5,
+        parkTakenotsukaStudioNeoRealnessStrongRb5,
+        parkTakenotsukaStudioNeoRealnessCombined5,
+        parkTakenotsukaStudioNeoRealnessStrongCombined5,
+        parkTakenotsukaStudioNeoRealness,
+        parkTakenotsukaStudioNeoNoHighThirty,
+        parkTakenotsukaStudioNeoNoHighThirtyLowGames,
+        parkTakenotsukaStudioNeoBbOnlyOutput,
+        parkTakenotsukaStudioNeoBbOnlyNoRealness,
+        parkTakenotsukaStudioNeoTreatmentDone14,
+        parkTakenotsukaStudioNeoTreatmentLight14,
+        parkTakenotsukaStudioNeoShortRepayCandidate,
+        parkTakenotsukaStudioNeoFreeA,
+        parkTakenotsukaStudioNeoFreeB,
+        treatmentDone: parkTakenotsukaStudioNeoTreatmentDone14 || parkTakenotsukaStudioNeoBbOnlyOutput,
+        lowConfidence: parkTakenotsukaStudioNeoHistoryShort || parkTakenotsukaStudioNeoLowGames7,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -26680,6 +27001,87 @@ function calculateMachineScore(definition, metrics, features) {
       score -= Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent > 28 ? 4 : 0;
 
       const scoreCap = historyRowCount < 7 ? 60 : 100;
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
+    if (activeLogicKey === PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY) {
+      const hasHighHistory = Number.isFinite(daysSinceMachineHighContent);
+      let score = 35;
+
+      if (recentFiveGamesTotal >= 25000) {
+        score += 14;
+      } else if (recentFiveGamesTotal >= 20000) {
+        score += 10;
+      } else if (recentFiveGamesTotal >= 15000) {
+        score += 6;
+      } else if (recentFiveGamesTotal < 10000) {
+        score -= 6;
+      }
+
+      if (recentThreeGamesTotal >= 15000) {
+        score += 6;
+      } else if (recentThreeGamesTotal >= 12000) {
+        score += 3;
+      }
+
+      score -= recentSevenGamesTotal <= 15000 ? 5 : 0;
+      score += previousMachineHighContent ? 14 : 0;
+      score += previousMachineHighContent && previousDifference < 800 ? 5 : 0;
+      score -= previousMachineHighContent && previousDifference >= 1500 ? 3 : 0;
+      score += recentFiveMachineHighContentCount >= 2 ? 12 : recentFiveMachineHighContentCount === 1 ? 5 : 0;
+
+      if (hasHighHistory && daysSinceMachineHighContent >= 28) {
+        score += 11;
+      } else if (hasHighHistory && daysSinceMachineHighContent >= 14 && daysSinceMachineHighContent <= 27) {
+        score += 4;
+      }
+
+      score += scoreAtMost(recentFiveNetTotal, [
+        { maximum: -4000, points: 14 },
+        { maximum: -2500, points: 8 },
+        { maximum: -1000, points: 4 },
+      ]);
+      score += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -5000, points: 8 },
+        { maximum: -3500, points: 4 },
+      ]);
+      score += previousDifference <= -1500 ? 5 : previousDifference <= -800 ? 2 : 0;
+      score += streak >= 4 && streak <= 6 ? 4 : 0;
+      score -= streak >= 8 ? 8 : 0;
+
+      if (recentSevenMinus2000StayDays >= 10) {
+        score -= 8;
+      } else if (recentSevenMinus1500StayDays >= 7) {
+        score -= 3;
+      }
+
+      if (features.recentFiveRbDenominator <= 300) {
+        score += 7;
+      } else if (features.recentFiveRbDenominator <= 350) {
+        score += 4;
+      } else if (features.recentFiveRbDenominator > 500) {
+        score -= 4;
+      }
+
+      if (features.recentFiveCombinedDenominator <= 140) {
+        score += 5;
+      } else if (features.recentFiveCombinedDenominator <= 150) {
+        score += 2;
+      } else if (features.recentFiveCombinedDenominator > 200) {
+        score -= 3;
+      }
+
+      score -= historyRowCount >= 30 && recentThirtyMachineHighContentCount === 0 ? 7 : 0;
+      score -=
+        previousDifference >= 1000 &&
+        ((Number.isFinite(previousMachineSettingFivePlusProbability) &&
+          previousMachineSettingFivePlusProbability < 0.3) ||
+          features.previousRbDenominator > 400)
+          ? 6
+          : 0;
+      score -= recentFourteenNetTotal >= 5000 ? 6 : recentFourteenNetTotal >= 2500 ? 2 : 0;
+
+      const scoreCap = historyRowCount < 7 ? 70 : 100;
       return Math.round(clamp(score, 0, scoreCap));
     }
 
