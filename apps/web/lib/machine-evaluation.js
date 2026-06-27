@@ -129,6 +129,10 @@ const PARK_KITAYASE_NEO_AIM_LOGIC_KEY = "park-kitayase-neo-aim";
 const PARK_KITAYASE_NEO_AIM_LOGIC_NAME =
   "ピーアーク北綾瀬駅前_ネオアイムジャグラーEX_全日共通100点ロジック_v1";
 const PARK_KITAYASE_NEO_AIM_DEFAULT_CONDITION = "park-kitayase-neo-free-a";
+const MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY = "mitoya-kinshicho-neo-aim";
+const MITOYA_KINSHICHO_NEO_AIM_LOGIC_NAME =
+  "みとや錦糸町北口店_ネオアイムジャグラーEX_全日共通_返済未完本物履歴ロジック_v1";
+const MITOYA_KINSHICHO_NEO_AIM_DEFAULT_CONDITION = "mitoya-kinshicho-neo-free-a";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -657,6 +661,16 @@ function isParkKitayaseStore(storeName) {
     "P-ARK北綾瀬駅前",
     "PARK北綾瀬駅前",
     "P ARK北綾瀬駅前",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
+function isMitoyaKinshichoStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "みとや錦糸町北口店",
+    "みとや錦糸町北口",
+    "MITOYA錦糸町北口店",
+    "MITOYA錦糸町北口",
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
@@ -3835,6 +3849,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         PARK_KITAYASE_NEO_AIM_LOGIC_KEY,
         PARK_KITAYASE_NEO_AIM_LOGIC_NAME,
         PARK_KITAYASE_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
+        MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY,
+        MITOYA_KINSHICHO_NEO_AIM_LOGIC_NAME,
+        MITOYA_KINSHICHO_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
         "messe-minamisenju-neo-aim",
@@ -7770,6 +7789,175 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["parkKitayaseNeoHistoryShort"],
         },
         [PARK_KITAYASE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-neo-score85",
+        "85点以上",
+        "101日・355台 / 総G1799559 / BB1/273 / RB1/310 / 合算1/145 / 平均+86.6枚 / 100.57% / 勝率48.7% / 平均56率33.0% / 中央56率26.2% / 56率70%以上11.0% / 56率50%以上23.4% / 56率30%未満57.5% / 広め",
+        {
+          minScore: 85,
+          requiredFlags: ["mitoyaKinshichoNeoHistoryReady"],
+        },
+        [MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-neo-prev-sink-rest",
+        "前日凹み＋再投入間隔",
+        "48日・73台 / 総G402660 / BB1/269 / RB1/299 / 合算1/142 / 平均+281.0枚 / 101.70% / 勝率54.8% / 平均56率37.0% / 中央56率33.1% / 56率70%以上16.4% / 56率50%以上27.4% / 56率30%未満47.9% / 弱め本命",
+        {
+          requiredFlags: [
+            "mitoyaKinshichoNeoHistoryReady",
+            "mitoyaKinshichoNeoPrevSink1500",
+            "mitoyaKinshichoNeoHighRest7To20",
+          ],
+        },
+        [MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-neo-score85-top3-deep",
+        "85点＋上位3＋深沈み",
+        "46日・62台 / 総G353633 / BB1/273 / RB1/287 / 合算1/140 / 平均+235.1枚 / 101.37% / 勝率56.5% / 平均56率40.3% / 中央56率35.8% / 56率70%以上14.5% / 56率50%以上30.6% / 56率30%未満40.3% / 本命",
+        {
+          minScore: 85,
+          rankMax: 3,
+          requiredFlags: [
+            "mitoyaKinshichoNeoHistoryReady",
+            "mitoyaKinshichoNeoPrevSink1500",
+            "mitoyaKinshichoNeoThreeSink1500",
+          ],
+        },
+        [MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-neo-three-sink-combo21",
+        "3日沈み＋21日合算良好",
+        "25日・29台 / 総G160864 / BB1/264 / RB1/279 / 合算1/136 / 平均+500.5枚 / 103.01% / 勝率51.7% / 平均56率44.0% / 中央56率52.2% / 56率70%以上24.1% / 56率50%以上55.2% / 56率30%未満37.9% / 強条件・小件数注意",
+        {
+          requiredFlags: [
+            "mitoyaKinshichoNeoHistoryReady",
+            "mitoyaKinshichoNeoThreeSink1500",
+            "mitoyaKinshichoNeoTwentyOneCombined145",
+            "mitoyaKinshichoNeoHighRest7To20",
+          ],
+        },
+        [MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-neo-real-history-loss",
+        "本物履歴＋連敗",
+        "19日・21台 / 総G113844 / BB1/260 / RB1/269 / 合算1/132 / 平均+644.1枚 / 103.96% / 勝率61.9% / 平均56率48.5% / 中央56率48.4% / 56率70%以上28.6% / 56率50%以上47.6% / 56率30%未満28.6% / 最本命・小件数注意",
+        {
+          requiredFlags: ["mitoyaKinshichoNeoHistoryReady", "mitoyaKinshichoNeoRealHistoryLoss"],
+        },
+        [MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        MITOYA_KINSHICHO_NEO_AIM_DEFAULT_CONDITION,
+        "自由A_沈み本物履歴再投入",
+        "20日・24台 / 総G126452 / BB1/262 / RB1/265 / 合算1/132 / 平均+632.8枚 / 104.00% / 勝率54.2% / 平均56率47.4% / 中央56率45.9% / 56率70%以上29.2% / 56率50%以上50.0% / 56率30%未満33.3% / 最優先・小件数注意",
+        {
+          requiredFlags: ["mitoyaKinshichoNeoHistoryReady", "mitoyaKinshichoNeoFreeA"],
+        },
+        [MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-neo-free-b",
+        "自由B_本物履歴連敗",
+        "19日・21台 / 総G113844 / BB1/260 / RB1/269 / 合算1/132 / 平均+644.1枚 / 103.96% / 勝率61.9% / 平均56率48.5% / 中央56率48.4% / 56率70%以上28.6% / 56率50%以上47.6% / 56率30%未満28.6% / 最優先・小件数注意",
+        {
+          requiredFlags: ["mitoyaKinshichoNeoHistoryReady", "mitoyaKinshichoNeoFreeB"],
+        },
+        [MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-neo-free-c",
+        "自由C_実戦広め本命",
+        "70日・131台 / 総G728257 / BB1/271 / RB1/302 / 合算1/143 / 平均+203.2枚 / 101.22% / 勝率51.1% / 平均56率35.9% / 中央56率29.6% / 56率70%以上12.2% / 56率50%以上26.7% / 56率30%未満50.4% / 実戦向き",
+        {
+          minScore: 75,
+          requiredFlags: [
+            "mitoyaKinshichoNeoHistoryReady",
+            "mitoyaKinshichoNeoPrevSink1500",
+            "mitoyaKinshichoNeoTwoSink1000",
+          ],
+        },
+        [MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-neo-free-d",
+        "自由D_上位2再投入",
+        "81日・121台 / 総G633809 / BB1/276 / RB1/305 / 合算1/145 / 平均+84.9枚 / 100.54% / 勝率49.6% / 平均56率34.7% / 中央56率29.5% / 56率70%以上12.4% / 56率50%以上27.3% / 56率30%未満52.1% / 補助",
+        {
+          rankMax: 2,
+          requiredFlags: ["mitoyaKinshichoNeoHistoryReady", "mitoyaKinshichoNeoHighRest7To20"],
+        },
+        [MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-neo-watch-history21",
+        "見送り_履歴21日未満",
+        "21営業日未満は低信頼で採用条件から外す",
+        {
+          requiredFlags: ["mitoyaKinshichoNeoHistoryShort"],
+        },
+        [MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-neo-watch-danger2",
+        "見送り_危険2個以上",
+        "危険条件が2個以上なら高得点でも見送り寄り",
+        {
+          minDanger: 2,
+          requiredFlags: ["mitoyaKinshichoNeoHistoryReady"],
+        },
+        [MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-neo-watch-prev-plus2000",
+        "見送り_前日+2000枚以上",
+        "88日・190台 / RB1/345 / 合算1/152 / 平均-27.6枚 / 99.78% / 平均56率26.1% / 処遇完了寄り",
+        {
+          requiredFlags: ["mitoyaKinshichoNeoHistoryReady", "mitoyaKinshichoNeoPreviousPlus2000"],
+        },
+        [MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-neo-watch-seven-plus2500",
+        "見送り_7日+2500枚以上",
+        "103日・725台 / RB1/335 / 合算1/150 / 平均-35.5枚 / 99.71% / 平均56率27.8% / 直近処遇完了寄り",
+        {
+          requiredFlags: ["mitoyaKinshichoNeoHistoryReady", "mitoyaKinshichoNeoSevenPlus2500"],
+        },
+        [MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-neo-watch-gap8",
+        "見送り_1位次点差8以上",
+        "19日・19台 / RB1/350 / 合算1/155 / 平均-256.0枚 / 98.30% / 平均56率23.0% / 1台突出は罠寄り",
+        {
+          rankMax: 1,
+          minNextGap: 8,
+          requiredFlags: ["mitoyaKinshichoNeoHistoryReady"],
+        },
+        [MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-neo-watch-low-games14",
+        "見送り_14日G数30000未満",
+        "直近14日G数30000未満は低信頼",
+        {
+          requiredFlags: ["mitoyaKinshichoNeoHistoryReady", "mitoyaKinshichoNeoLowGames14"],
+        },
+        [MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-neo-watch-loss7-no-real",
+        "見送り_7連敗以上本物履歴なし",
+        "長期連敗だけの上げ狙いは不安定",
+        {
+          requiredFlags: ["mitoyaKinshichoNeoHistoryReady", "mitoyaKinshichoNeoLoss7NoRealHistory"],
+        },
+        [MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "messe-minamisenju-free-14rb",
@@ -13200,6 +13388,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, PARK_KITASENJU_SSS_NEO_AIM_LOGIC_KEY);
   } else if (isParkKitayaseStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, PARK_KITAYASE_NEO_AIM_LOGIC_KEY);
+  } else if (isMitoyaKinshichoStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY);
   } else if (isParkKitasenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, PARK_KITASENJU_NEO_AIM_LOGIC_KEY);
   } else if (isMesseMinamisenjuStore(storeName) && definition.machineKey === "neo-aim") {
@@ -13796,6 +13986,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentFourteenGamesTotal = readNumber(metrics.recentFourteenGamesTotal);
   const recentTwentyOneGamesTotal = readNumber(metrics.recentTwentyOneGamesTotal);
   const recentTwentyEightGamesTotal = readNumber(metrics.recentTwentyEightGamesTotal);
+  const recentTwoRbTotal = readNumber(metrics.recentTwoRbTotal);
   const recentTenRbTotal = readNumber(metrics.recentTenRbTotal);
   const recentFourteenGoldShowDays = readNumber(metrics.recentFourteenGoldShowDays);
   const recentSevenGoldShowDays = readNumber(metrics.recentSevenGoldShowDays, readNumber(metrics.recentSevenBigShowDays));
@@ -19545,6 +19736,179 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       };
     }
 
+    if (activeLogicKey === MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY) {
+      const recentTwoRbDenominator = rateDenominator(recentTwoGamesTotal, recentTwoRbTotal);
+      const mitoyaKinshichoNeoHistoryReady = historyRowCount >= 21;
+      const mitoyaKinshichoNeoHistoryShort = historyRowCount < 21;
+      const mitoyaKinshichoNeoPrevSink1500 = previousDifference <= -1500;
+      const mitoyaKinshichoNeoPrevSink1000 = previousDifference <= -1000;
+      const mitoyaKinshichoNeoPrevSink500 = previousDifference <= -500;
+      const mitoyaKinshichoNeoTwoSink1500 = recentTwoNetTotal <= -1500;
+      const mitoyaKinshichoNeoTwoSink1000 = recentTwoNetTotal <= -1000;
+      const mitoyaKinshichoNeoThreeSink2500 = recentThreeNetTotal <= -2500;
+      const mitoyaKinshichoNeoThreeSink1500 = recentThreeNetTotal <= -1500;
+      const mitoyaKinshichoNeoSevenSink4000 = recentSevenNetTotal <= -4000;
+      const mitoyaKinshichoNeoSevenSink2500 = recentSevenNetTotal <= -2500;
+      const mitoyaKinshichoNeoSevenSink2000 = recentSevenNetTotal <= -2000;
+      const mitoyaKinshichoNeoFourteenSink5000 = recentFourteenNetTotal <= -5000;
+      const mitoyaKinshichoNeoFourteenSink3000 = recentFourteenNetTotal <= -3000;
+      const mitoyaKinshichoNeoTwoRb600 = recentTwoRbDenominator >= 600;
+      const mitoyaKinshichoNeoTwoRb450 = recentTwoRbDenominator >= 450;
+      const mitoyaKinshichoNeoThreeRb500 = features.recentThreeRbDenominator >= 500;
+      const mitoyaKinshichoNeoThreeCombined200 = features.recentThreeCombinedDenominator >= 200;
+      const mitoyaKinshichoNeoSevenCombined160 = features.recentSevenCombinedDenominator >= 160;
+      const mitoyaKinshichoNeoLossOne = streak === 1;
+      const mitoyaKinshichoNeoLossTwoToThree = streak >= 2 && streak <= 3;
+      const mitoyaKinshichoNeoLossFourToSix = streak >= 4 && streak <= 6;
+      const mitoyaKinshichoNeoLossSeven = streak >= 7;
+      const mitoyaKinshichoNeoHighRest7To10 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 7 &&
+        daysSinceMachineHighContent <= 10;
+      const mitoyaKinshichoNeoHighRest11To13 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 11 &&
+        daysSinceMachineHighContent <= 13;
+      const mitoyaKinshichoNeoHighRest14To20 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 14 &&
+        daysSinceMachineHighContent <= 20;
+      const mitoyaKinshichoNeoHighRest7To20 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 7 &&
+        daysSinceMachineHighContent <= 20;
+      const mitoyaKinshichoNeoHighRest21Plus =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 21;
+      const mitoyaKinshichoNeoNoHigh14 =
+        mitoyaKinshichoNeoHistoryReady && recentFourteenMachineHighContentCount === 0;
+      const mitoyaKinshichoNeoTwentyOneCombined145 =
+        features.recentTwentyOneCombinedDenominator <= 145;
+      const mitoyaKinshichoNeoTwentyOneCombined140 =
+        features.recentTwentyOneCombinedDenominator <= 140;
+      const mitoyaKinshichoNeoFourteenCombined140 =
+        features.recentFourteenCombinedDenominator <= 140;
+      const mitoyaKinshichoNeoFourteenRb300 = features.recentFourteenRbDenominator <= 300;
+      const mitoyaKinshichoNeoTwentyOneRb300 = features.recentTwentyOneRbDenominator <= 300;
+      const mitoyaKinshichoNeoTwentyOneHighSix = recentTwentyOneMachineHighContentCount >= 6;
+      const mitoyaKinshichoNeoRealHistory =
+        mitoyaKinshichoNeoTwentyOneCombined145 || mitoyaKinshichoNeoFourteenRb300;
+      const mitoyaKinshichoNeoRealHistoryLoss =
+        mitoyaKinshichoNeoTwentyOneCombined140 &&
+        mitoyaKinshichoNeoFourteenRb300 &&
+        streak >= 2;
+      const mitoyaKinshichoNeoAdjacentNet3000 =
+        adjacentMachineNetTotal3 >= 3000 && recentSevenNetTotal <= 0;
+      const mitoyaKinshichoNeoAdjacentHigh2 =
+        adjacentMachineHighContentCount3 >= 2 && recentSevenNetTotal <= 0;
+      const mitoyaKinshichoNeoPreviousPlus2000 = previousDifference >= 2000;
+      const mitoyaKinshichoNeoPreviousPlus1500 = previousDifference >= 1500;
+      const mitoyaKinshichoNeoPreviousHighPlus1500 =
+        previousMachineHighContent && previousDifference >= 1500;
+      const mitoyaKinshichoNeoSevenPlus4000 = recentSevenNetTotal >= 4000;
+      const mitoyaKinshichoNeoSevenPlus2500 = recentSevenNetTotal >= 2500;
+      const mitoyaKinshichoNeoFourteenPlus3500 = recentFourteenNetTotal >= 3500;
+      const mitoyaKinshichoNeoTwentyOnePlus5000 = recentTwentyOneNetTotal >= 5000;
+      const mitoyaKinshichoNeoLowGames14 = recentFourteenGamesTotal < 30000;
+      const mitoyaKinshichoNeoTwentyOneCombined160 =
+        features.recentTwentyOneCombinedDenominator >= 160;
+      const mitoyaKinshichoNeoTwentyOneRb400 = features.recentTwentyOneRbDenominator >= 400;
+      const mitoyaKinshichoNeoTreatmentDone =
+        mitoyaKinshichoNeoPreviousPlus2000 || mitoyaKinshichoNeoSevenPlus2500;
+      const mitoyaKinshichoNeoLongStaleWeak =
+        mitoyaKinshichoNeoHighRest21Plus && !mitoyaKinshichoNeoRealHistory;
+      const mitoyaKinshichoNeoLoss7NoRealHistory =
+        mitoyaKinshichoNeoLossSeven && !mitoyaKinshichoNeoRealHistory;
+      const mitoyaKinshichoNeoFreeA =
+        mitoyaKinshichoNeoSevenSink2000 &&
+        mitoyaKinshichoNeoTwentyOneCombined145 &&
+        mitoyaKinshichoNeoHighRest7To20;
+      const mitoyaKinshichoNeoFreeB = mitoyaKinshichoNeoRealHistoryLoss;
+      const mitoyaKinshichoNeoFreeC =
+        mitoyaKinshichoNeoPrevSink1500 && mitoyaKinshichoNeoTwoSink1000;
+      const mitoyaKinshichoNeoFreeD = mitoyaKinshichoNeoHighRest7To20;
+      const boostFlags = [
+        mitoyaKinshichoNeoPrevSink1500,
+        mitoyaKinshichoNeoTwoSink1000,
+        mitoyaKinshichoNeoSevenSink2000,
+        mitoyaKinshichoNeoHighRest7To20,
+        mitoyaKinshichoNeoRealHistory,
+        mitoyaKinshichoNeoLossTwoToThree,
+        mitoyaKinshichoNeoAdjacentNet3000 || mitoyaKinshichoNeoAdjacentHigh2,
+      ];
+      const dangerFlags = [
+        mitoyaKinshichoNeoPreviousPlus1500,
+        mitoyaKinshichoNeoSevenPlus2500,
+        mitoyaKinshichoNeoLossSeven,
+        mitoyaKinshichoNeoLowGames14,
+        mitoyaKinshichoNeoLongStaleWeak,
+        mitoyaKinshichoNeoTwentyOneCombined160 || mitoyaKinshichoNeoTwentyOneRb400,
+      ];
+
+      return {
+        ...features,
+        mitoyaKinshichoNeoHistoryReady,
+        mitoyaKinshichoNeoHistoryShort,
+        mitoyaKinshichoNeoPrevSink1500,
+        mitoyaKinshichoNeoPrevSink1000,
+        mitoyaKinshichoNeoPrevSink500,
+        mitoyaKinshichoNeoTwoSink1500,
+        mitoyaKinshichoNeoTwoSink1000,
+        mitoyaKinshichoNeoThreeSink2500,
+        mitoyaKinshichoNeoThreeSink1500,
+        mitoyaKinshichoNeoSevenSink4000,
+        mitoyaKinshichoNeoSevenSink2500,
+        mitoyaKinshichoNeoSevenSink2000,
+        mitoyaKinshichoNeoFourteenSink5000,
+        mitoyaKinshichoNeoFourteenSink3000,
+        mitoyaKinshichoNeoTwoRb600,
+        mitoyaKinshichoNeoTwoRb450,
+        mitoyaKinshichoNeoThreeRb500,
+        mitoyaKinshichoNeoThreeCombined200,
+        mitoyaKinshichoNeoSevenCombined160,
+        mitoyaKinshichoNeoLossOne,
+        mitoyaKinshichoNeoLossTwoToThree,
+        mitoyaKinshichoNeoLossFourToSix,
+        mitoyaKinshichoNeoLossSeven,
+        mitoyaKinshichoNeoHighRest7To10,
+        mitoyaKinshichoNeoHighRest11To13,
+        mitoyaKinshichoNeoHighRest14To20,
+        mitoyaKinshichoNeoHighRest7To20,
+        mitoyaKinshichoNeoHighRest21Plus,
+        mitoyaKinshichoNeoNoHigh14,
+        mitoyaKinshichoNeoTwentyOneCombined145,
+        mitoyaKinshichoNeoTwentyOneCombined140,
+        mitoyaKinshichoNeoFourteenCombined140,
+        mitoyaKinshichoNeoFourteenRb300,
+        mitoyaKinshichoNeoTwentyOneRb300,
+        mitoyaKinshichoNeoTwentyOneHighSix,
+        mitoyaKinshichoNeoRealHistory,
+        mitoyaKinshichoNeoRealHistoryLoss,
+        mitoyaKinshichoNeoAdjacentNet3000,
+        mitoyaKinshichoNeoAdjacentHigh2,
+        mitoyaKinshichoNeoPreviousPlus2000,
+        mitoyaKinshichoNeoPreviousPlus1500,
+        mitoyaKinshichoNeoPreviousHighPlus1500,
+        mitoyaKinshichoNeoSevenPlus4000,
+        mitoyaKinshichoNeoSevenPlus2500,
+        mitoyaKinshichoNeoFourteenPlus3500,
+        mitoyaKinshichoNeoTwentyOnePlus5000,
+        mitoyaKinshichoNeoLowGames14,
+        mitoyaKinshichoNeoTwentyOneCombined160,
+        mitoyaKinshichoNeoTwentyOneRb400,
+        mitoyaKinshichoNeoTreatmentDone,
+        mitoyaKinshichoNeoLongStaleWeak,
+        mitoyaKinshichoNeoLoss7NoRealHistory,
+        mitoyaKinshichoNeoFreeA,
+        mitoyaKinshichoNeoFreeB,
+        mitoyaKinshichoNeoFreeC,
+        mitoyaKinshichoNeoFreeD,
+        treatmentDone: mitoyaKinshichoNeoTreatmentDone,
+        lowConfidence: mitoyaKinshichoNeoHistoryShort || mitoyaKinshichoNeoLowGames14,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY) {
       const previousP56 = previousMachineSettingFivePlusProbability;
       const jaranYazaikeNeoHistoryReady = historyRowCount >= 14;
@@ -23357,6 +23721,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentTwentyEightGamesTotal = readNumber(metrics.recentTwentyEightGamesTotal);
   const recentFiftySixGamesTotal = readNumber(metrics.recentFiftySixGamesTotal);
   const recentTwoBonusTotal = readNumber(metrics.recentTwoBonusTotal);
+  const recentTwoRbTotal = readNumber(metrics.recentTwoRbTotal);
   const recentTenRbTotal = readNumber(metrics.recentTenRbTotal);
   const recentFourteenGoldShowDays = readNumber(metrics.recentFourteenGoldShowDays);
   const recentSevenGoldShowDays = readNumber(metrics.recentSevenGoldShowDays, readNumber(metrics.recentSevenBigShowDays));
@@ -28538,6 +28903,89 @@ function calculateMachineScore(definition, metrics, features) {
 
       const scoreCap = historyRowCount < 7 ? 45 : 100;
       return Math.round(clamp(score, 0, scoreCap));
+    }
+
+    if (activeLogicKey === MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY) {
+      const recentTwoRbDenominator = rateDenominator(recentTwoGamesTotal, recentTwoRbTotal);
+      let score = 50;
+
+      let sinkScore = 0;
+      sinkScore += previousDifference <= -1500
+        ? 18
+        : previousDifference <= -1000
+          ? 12
+          : previousDifference <= -500
+            ? 6
+            : 0;
+      sinkScore += recentTwoNetTotal <= -1500 ? 8 : recentTwoNetTotal <= -1000 ? 5 : 0;
+      sinkScore += recentThreeNetTotal <= -2500 ? 8 : recentThreeNetTotal <= -1500 ? 5 : 0;
+      sinkScore += recentSevenNetTotal <= -4000 ? 7 : recentSevenNetTotal <= -2500 ? 4 : 0;
+      sinkScore += recentFourteenNetTotal <= -5000 ? 5 : recentFourteenNetTotal <= -3000 ? 3 : 0;
+      score += Math.min(32, sinkScore);
+
+      let bonusMissingScore = 0;
+      bonusMissingScore += recentTwoRbDenominator >= 600 ? 10 : recentTwoRbDenominator >= 450 ? 5 : 0;
+      bonusMissingScore += features.recentThreeRbDenominator >= 500 ? 7 : 0;
+      bonusMissingScore += features.recentThreeCombinedDenominator >= 200 ? 6 : 0;
+      bonusMissingScore += features.recentSevenCombinedDenominator >= 160 ? 3 : 0;
+      score += Math.min(18, bonusMissingScore);
+
+      let rotationScore = 0;
+      if (streak >= 2 && streak <= 3) {
+        rotationScore += 10;
+      } else if (streak === 1) {
+        rotationScore += 2;
+      } else if (streak >= 4 && streak <= 6) {
+        rotationScore += 2;
+      } else if (streak >= 7) {
+        rotationScore -= 5;
+      }
+      if (Number.isFinite(daysSinceMachineHighContent)) {
+        if (daysSinceMachineHighContent >= 7 && daysSinceMachineHighContent <= 10) {
+          rotationScore += 6;
+        } else if (daysSinceMachineHighContent >= 14 && daysSinceMachineHighContent <= 20) {
+          rotationScore += 4;
+        } else if (daysSinceMachineHighContent >= 11 && daysSinceMachineHighContent <= 13) {
+          rotationScore -= 3;
+        } else if (daysSinceMachineHighContent >= 21) {
+          rotationScore -= 4;
+        }
+      }
+      rotationScore += historyRowCount >= 14 && recentFourteenMachineHighContentCount === 0 ? 3 : 0;
+      score += clamp(rotationScore, -10, 18);
+
+      let realHistoryScore = 0;
+      realHistoryScore += features.recentTwentyOneCombinedDenominator <= 140
+        ? 8
+        : features.recentFourteenCombinedDenominator <= 140
+          ? 4
+          : 0;
+      realHistoryScore += features.recentFourteenRbDenominator <= 300
+        ? 6
+        : features.recentTwentyOneRbDenominator <= 300
+          ? 4
+          : 0;
+      realHistoryScore += recentTwentyOneMachineHighContentCount >= 6 ? 4 : 0;
+      score += Math.min(16, realHistoryScore);
+
+      let adjacentScore = 0;
+      adjacentScore += adjacentMachineNetTotal3 >= 3000 && recentSevenNetTotal <= 0 ? 4 : 0;
+      adjacentScore += adjacentMachineHighContentCount3 >= 2 && recentSevenNetTotal <= 0 ? 2 : 0;
+      score += Math.min(6, adjacentScore);
+
+      let penaltyScore = 0;
+      penaltyScore += previousDifference >= 2000 ? 12 : previousDifference >= 1500 ? 8 : 0;
+      penaltyScore += previousMachineHighContent && previousDifference >= 1500 ? 4 : 0;
+      penaltyScore += recentSevenNetTotal >= 4000 ? 8 : recentSevenNetTotal >= 2500 ? 6 : 0;
+      penaltyScore += recentFourteenNetTotal >= 3500 ? 6 : 0;
+      penaltyScore += recentTwentyOneNetTotal >= 5000 ? 5 : 0;
+      penaltyScore += recentFourteenGamesTotal < 30000 ? 4 : 0;
+      penaltyScore += features.recentTwentyOneCombinedDenominator >= 160 ? 4 : 0;
+      penaltyScore += features.recentTwentyOneRbDenominator >= 400 ? 5 : 0;
+      penaltyScore += streak >= 7 ? 4 : 0;
+      score -= Math.min(24, penaltyScore);
+
+      return Math.round(clamp(score, 0, 100));
     }
 
     if (activeLogicKey === KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY) {
