@@ -63,6 +63,20 @@ const PRIME_HIRAI_NEO_AIM_LOGIC_KEY = "prime-hirai-neo-aim";
 const PRIME_HIRAI_NEO_AIM_LOGIC_NAME =
   "プライム平井_ネオアイムEX_返済未完ローテ狙い度";
 const PRIME_HIRAI_NEO_AIM_DEFAULT_CONDITION = "prime-hirai-neo-rb300";
+const PALAZZO_KASAI_NEO_AIM_LOGIC_KEY = "palazzo-kasai-neo-aim";
+const PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_KEY = "palazzo-kasai-neo-aim-normal";
+const PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_KEY = "palazzo-kasai-neo-aim-event";
+const PALAZZO_KASAI_NEO_AIM_LOGIC_NAME =
+  "パラッツォ葛西店_ネオアイムEX_全日共通_沈み角度横展開スコア";
+const PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_NAME =
+  "パラッツォ葛西店_ネオアイムEX_通常日_近隣横展開スコア";
+const PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_NAME =
+  "パラッツォ葛西店_ネオアイムEX_特定日_沈み角度本命スコア";
+const PALAZZO_KASAI_NEO_AIM_DEFAULT_CONDITION = "palazzo-kasai-neo-strong280";
+const PALAZZO_KASAI_NEO_AIM_NORMAL_DEFAULT_CONDITION =
+  "palazzo-kasai-neo-normal-side-sink";
+const PALAZZO_KASAI_NEO_AIM_EVENT_DEFAULT_CONDITION =
+  "palazzo-kasai-neo-event-best270";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -375,6 +389,17 @@ function isPrimeHiraiStore(storeName) {
   return ["プライム平井店", "プライム平井", "PRIME平井店", "PRIME平井"].some(
     (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
   );
+}
+
+function isPalazzoKasaiStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "パラッツォ葛西店",
+    "パラッツォ葛西",
+    "PALAZZO葛西店",
+    "PALAZZO葛西",
+    "ＰＡＬＡＺＺＯ葛西店",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
 function isKintokiKamataStore(storeName) {
@@ -1209,6 +1234,294 @@ function buildPrimeHiraiNeoAimConditions() {
         requiredFlags: ["primeHiraiNeoHistoryShort"],
       },
       [PRIME_HIRAI_NEO_AIM_LOGIC_KEY],
+    ),
+  ];
+}
+
+function buildPalazzoKasaiNeoAimConditions() {
+  return [
+    buildCondition(
+      "palazzo-kasai-neo-free-c-270-reference",
+      "自由C_急角度MAX参考 / 最本命270参考",
+      "8日 / 8台 / RB1/268.0 / 合算1/127.4 / 平均+1272枚 / 106.27% / 平均56 54.1% / 中央56 69.4% / 56>=50% 62.5% / 件数少注意",
+      {
+        rankMax: 1,
+        requiredFlags: ["palazzoKasaiNeoHistoryReady", "palazzoKasaiNeoFreeC"],
+      },
+      [PALAZZO_KASAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-strong280",
+      "強280_深5高稼働3合弱1位",
+      "17日 / 17台 / RB1/279.5 / 合算1/133.7 / 平均+842枚 / 103.95% / 勝率70.6% / 平均56 50.1% / 中央56 62.2% / 56>=50% 58.8%",
+      {
+        rankMax: 1,
+        requiredFlags: ["palazzoKasaiNeoHistoryReady", "palazzoKasaiNeoFreeB"],
+      },
+      [PALAZZO_KASAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-free-b-strong280",
+      "自由B_深5高稼働3合弱1位",
+      "17日 / 17台 / RB1/279.5 / 合算1/133.7 / 平均+842枚 / 103.95% / 平均56 50.1% / 100点ロジック単体より優先",
+      {
+        rankMax: 1,
+        requiredFlags: ["palazzoKasaiNeoHistoryReady", "palazzoKasaiNeoFreeB"],
+      },
+      [PALAZZO_KASAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-main290",
+      "本命290_深5合弱4連敗1位",
+      "20日 / 20台 / RB1/289.8 / 合算1/138.6 / 平均+503枚 / 102.39% / 勝率60.0% / 平均56 43.1% / 中央56 44.3% / 56>=50% 45.0%",
+      {
+        rankMax: 1,
+        requiredFlags: ["palazzoKasaiNeoHistoryReady", "palazzoKasaiNeoMain290"],
+      },
+      [PALAZZO_KASAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-free-a-deep5-comb-loss",
+      "自由A_深5＋3合弱＋4連敗",
+      "21日 / 26台 / RB1/297.7 / 合算1/139.4 / 平均+528枚 / 102.50% / 平均56 40.0% / 56>=50% 38.5%",
+      {
+        requiredFlags: ["palazzoKasaiNeoHistoryReady", "palazzoKasaiNeoMain290"],
+      },
+      [PALAZZO_KASAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-weak300",
+      "弱本命300_1位80点強化3危険0",
+      "26日 / 26台 / RB1/299.8 / 合算1/140.7 / 平均+442枚 / 102.08% / 勝率57.7% / 平均56 39.3% / 中央56 37.6% / 56>=50% 42.3%",
+      {
+        rankMax: 1,
+        minScore: 80,
+        minBoost: 3,
+        maxDanger: 0,
+        requiredFlags: ["palazzoKasaiNeoHistoryReady"],
+      },
+      [PALAZZO_KASAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-rb310-deep2-bad3",
+      "RB310広め_85点＋2日深沈み＋3日悪合成",
+      "42日 / 51台 / RB1/309.4 / 合算1/141.7 / 平均+429枚 / 102.20% / 勝率62.7% / 平均56 33.9% / 中央56 24.3%",
+      {
+        minScore: 85,
+        requiredFlags: [
+          "palazzoKasaiNeoHistoryReady",
+          "palazzoKasaiNeoRecentTwoDeep2500",
+          "palazzoKasaiNeoCombined3Weak180",
+        ],
+      },
+      [PALAZZO_KASAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-wide310",
+      "広め310_1位80点以上",
+      "42日 / 42台 / RB1/308.0 / 合算1/142.0 / 平均+422枚 / 102.01% / 勝率59.5% / 平均56 35.8% / 中央56 36.1% / 56>=50% 33.3%",
+      {
+        rankMax: 1,
+        minScore: 80,
+        requiredFlags: ["palazzoKasaiNeoHistoryReady"],
+      },
+      [PALAZZO_KASAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-score95",
+      "RB300補助_95点以上",
+      "20日 / 26台 / RB1/297.7 / 合算1/145.5 / 平均+1枚 / 100.01% / 平均56 37.9% / p56重視",
+      {
+        minScore: 95,
+        requiredFlags: ["palazzoKasaiNeoHistoryReady"],
+      },
+      [PALAZZO_KASAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-rank1-gap30",
+      "補助_1位＋次点差30",
+      "17日 / 17台 / RB1/317.9 / 合算1/142.7 / 平均+479枚 / 102.24% / 平均56 34.2% / 自由条件より下位",
+      {
+        rankMax: 1,
+        minNextGap: 30,
+        requiredFlags: ["palazzoKasaiNeoHistoryReady"],
+      },
+      [PALAZZO_KASAI_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-normal-side-sink",
+      "通常横展開＋前日凹み",
+      "22日 / 23台 / RB1/295.63 / 合算1/141.44 / 平均+264.78枚 / 101.51% / 平均56 39.26% / 件数少",
+      {
+        rankMax: 2,
+        requiredFlags: [
+          "palazzoKasaiNeoHistoryReady",
+          "palazzoKasaiNeoSideSpread",
+          "palazzoKasaiNeoPreviousSink650",
+        ],
+      },
+      [PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-normal-side",
+      "通常上位2＋近隣強",
+      "25日 / 27台 / RB1/301.27 / 合算1/141.30 / 平均+332.15枚 / 101.90% / 平均56 37.63% / 通常日の主軸",
+      {
+        rankMax: 2,
+        requiredFlags: ["palazzoKasaiNeoHistoryReady", "palazzoKasaiNeoSideSpread"],
+      },
+      [PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-normal-rotation",
+      "通常日補助_強高22〜28＋5日角度",
+      "23日 / 25台 / RB1/304.5 / 合算1/141.4 / 平均+339枚 / 102.03% / 平均56 35.1% / 中央56 29.9%",
+      {
+        requiredFlags: ["palazzoKasaiNeoHistoryReady", "palazzoKasaiNeoNormalRotationSink"],
+      },
+      [PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-normal-rank1-gap5",
+      "通常1位＋差5",
+      "61日 / 61台 / RB1/326.62 / 合算1/146.06 / 平均+232.77枚 / 101.29% / 平均56 28.97%",
+      {
+        rankMax: 1,
+        minNextGap: 5,
+        requiredFlags: ["palazzoKasaiNeoHistoryReady"],
+      },
+      [PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-event-best270",
+      "特定最本命_1位90点＋7日角度",
+      "13日 / 13台 / RB1/269.13 / 合算1/136.77 / 平均+421.23枚 / 101.82% / 平均56 53.22% / 中央56 62.29% / 件数少注意",
+      {
+        rankMax: 1,
+        minScore: 90,
+        requiredFlags: ["palazzoKasaiNeoHistoryReady", "palazzoKasaiNeoSevenAngleStrong"],
+      },
+      [PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-event-rank1-90",
+      "特定1位90+",
+      "14日 / 14台 / RB1/275.80 / 合算1/137.72 / 平均+429.21枚 / 101.86% / 平均56 49.85% / 56>=50% 50.00%",
+      {
+        rankMax: 1,
+        minScore: 90,
+        requiredFlags: ["palazzoKasaiNeoHistoryReady"],
+      },
+      [PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-event-angle",
+      "特定角度本命",
+      "18日 / 18台 / RB1/279.45 / 合算1/139.04 / 平均+361.06枚 / 101.54% / 平均56 47.14% / 中央56 45.51%",
+      {
+        rankMax: 1,
+        requiredFlags: ["palazzoKasaiNeoHistoryReady", "palazzoKasaiNeoSevenAngleStrong"],
+      },
+      [PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-event-deep-bad",
+      "特定日専用本命_5日深沈み＋3日悪合成",
+      "12日 / 20台 / RB1/284.2 / 合算1/139.2 / 平均+414枚 / 101.74% / 平均56 46.5% / 中央56 51.6%",
+      {
+        requiredFlags: [
+          "palazzoKasaiNeoHistoryReady",
+          "palazzoKasaiNeoFiveDeep4000",
+          "palazzoKasaiNeoCombined3Weak180",
+        ],
+      },
+      [PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-event-top3-deep",
+      "特定RB280_上位3深沈み",
+      "13日 / 20台 / RB1/279.9 / 合算1/139.5 / 平均+326枚 / 101.35% / 平均56 48.8% / 中央56 55.9%",
+      {
+        rankMax: 3,
+        requiredFlags: [
+          "palazzoKasaiNeoHistoryReady",
+          "palazzoKasaiNeoFiveDeep4000",
+          "palazzoKasaiNeoCombined3Weak170",
+        ],
+      },
+      [PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-event-score80",
+      "特定80+",
+      "22日 / 63台 / RB1/311.17 / 合算1/143.14 / 平均+384.05枚 / 101.68% / 平均56 33.43%",
+      {
+        minScore: 80,
+        requiredFlags: ["palazzoKasaiNeoHistoryReady"],
+      },
+      [PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-watch-previous-high",
+      "見送り_前日高内容",
+      "92日 / 274台 / RB1/367.1 / 合算1/156.0 / 平均-107枚 / 99.36% / 平均56 19.7% / 据え置き追いは危険",
+      {
+        requiredFlags: ["palazzoKasaiNeoHistoryReady", "palazzoKasaiNeoPreviousHigh"],
+      },
+      [
+        PALAZZO_KASAI_NEO_AIM_LOGIC_KEY,
+        PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_KEY,
+        PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_KEY,
+      ],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-watch-output",
+      "見送り_2日出過ぎ",
+      "36日 / 48台 / RB1/389.9 / 合算1/156.9 / 平均-20枚 / 99.87% / 平均56 17.5% / 処遇完了",
+      {
+        requiredFlags: ["palazzoKasaiNeoHistoryReady", "palazzoKasaiNeoTwoDayOutput4000"],
+      },
+      [
+        PALAZZO_KASAI_NEO_AIM_LOGIC_KEY,
+        PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_KEY,
+        PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_KEY,
+      ],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-watch-normal-long-loss",
+      "見送り_通常日7連敗",
+      "29日 / 32台 / RB1/379.4 / 合算1/164.7 / 平均-476枚 / 96.99% / 平均56 18.8%",
+      {
+        requiredFlags: ["palazzoKasaiNeoHistoryReady", "palazzoKasaiNeoNormalLongLoss"],
+      },
+      [PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_KEY],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-watch-danger2",
+      "見送り_危険2以上",
+      "前日高内容、処遇完了、出過ぎ、長期放置などが重なる台は本命外",
+      {
+        minDanger: 2,
+        requiredFlags: ["palazzoKasaiNeoHistoryReady"],
+      },
+      [
+        PALAZZO_KASAI_NEO_AIM_LOGIC_KEY,
+        PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_KEY,
+        PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_KEY,
+      ],
+    ),
+    buildCondition(
+      "palazzo-kasai-neo-watch-history-short",
+      "見送り_履歴不足",
+      "履歴21営業日未満は返済判断の信頼度を下げる",
+      {
+        requiredFlags: ["palazzoKasaiNeoHistoryShort"],
+      },
+      [
+        PALAZZO_KASAI_NEO_AIM_LOGIC_KEY,
+        PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_KEY,
+        PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_KEY,
+      ],
     ),
   ];
 }
@@ -2647,6 +2960,21 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         PRIME_HIRAI_NEO_AIM_LOGIC_NAME,
         PRIME_HIRAI_NEO_AIM_DEFAULT_CONDITION,
       ),
+      buildLogicVariant(
+        PALAZZO_KASAI_NEO_AIM_LOGIC_KEY,
+        PALAZZO_KASAI_NEO_AIM_LOGIC_NAME,
+        PALAZZO_KASAI_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
+        PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_KEY,
+        PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_NAME,
+        PALAZZO_KASAI_NEO_AIM_NORMAL_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
+        PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_KEY,
+        PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_NAME,
+        PALAZZO_KASAI_NEO_AIM_EVENT_DEFAULT_CONDITION,
+      ),
       buildLogicVariant("apark-yakatabaru-neo-aim", "ネオアイム屋形原式", "apark-yakatabaru-main"),
       buildLogicVariant("mj-kurume-neo-aim", "ネオアイムMJ久留米式", "mj-kurume-main"),
       buildLogicVariant(
@@ -2879,6 +3207,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     conditions: [
       ...buildKiconaHiraiAimCombinedConditions(),
       ...buildPrimeHiraiNeoAimConditions(),
+      ...buildPalazzoKasaiNeoAimConditions(),
       buildCondition(
         "main",
         "1位＋70点以上＋3日沈み2日以上",
@@ -10095,6 +10424,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY);
   } else if (isPrimeHiraiStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, PRIME_HIRAI_NEO_AIM_LOGIC_KEY);
+  } else if (isPalazzoKasaiStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, PALAZZO_KASAI_NEO_AIM_LOGIC_KEY);
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "aim") {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-aim");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "gogo") {
@@ -11107,6 +11438,225 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   }
 
   if (machineKey === "neo-aim") {
+    if (
+      activeLogicKey === PALAZZO_KASAI_NEO_AIM_LOGIC_KEY ||
+      activeLogicKey === PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_KEY ||
+      activeLogicKey === PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_KEY
+    ) {
+      const palazzoKasaiNeoHistoryReady = historyRowCount >= 21;
+      const palazzoKasaiNeoHistoryShort = historyRowCount < 21;
+      const palazzoKasaiNeoHistoryVeryShort = historyRowCount < 7;
+      const palazzoKasaiNeoPreviousP56 = Number.isFinite(previousMachineSettingFivePlusProbability)
+        ? previousMachineSettingFivePlusProbability
+        : null;
+      const palazzoKasaiNeoPreviousHigh =
+        previousMachineHighContent ||
+        (Number.isFinite(palazzoKasaiNeoPreviousP56) &&
+          palazzoKasaiNeoPreviousP56 >= 0.5 &&
+          previousGames >= 3000);
+      const palazzoKasaiNeoPreviousStrongHigh =
+        previousMachineStrongHighContent ||
+        (Number.isFinite(palazzoKasaiNeoPreviousP56) &&
+          palazzoKasaiNeoPreviousP56 >= 0.7 &&
+          previousGames >= 3000);
+      const palazzoKasaiNeoPreviousGenuine =
+        previousGames >= 3000 &&
+        features.previousRbDenominator <= 300 &&
+        features.previousCombinedDenominator <= 140;
+      const palazzoKasaiNeoPreviousHighOutput =
+        palazzoKasaiNeoPreviousHigh && previousDifference >= 1500;
+      const palazzoKasaiNeoBbOnlyOutput =
+        previousDifference >= 1000 &&
+        previousGames >= 3000 &&
+        features.previousRbDenominator > 350 &&
+        features.previousCombinedDenominator <= 145;
+      const palazzoKasaiNeoPreviousSink650 = previousDifference <= -650;
+      const palazzoKasaiNeoPreviousSink1200 = previousDifference <= -1200;
+      const palazzoKasaiNeoPreviousLowMiss =
+        Number.isFinite(palazzoKasaiNeoPreviousP56) &&
+        palazzoKasaiNeoPreviousP56 < 0.3 &&
+        previousDifference <= -1000;
+      const palazzoKasaiNeoRecentTwoDeep2500 = recentTwoNetTotal <= -2500;
+      const palazzoKasaiNeoRecentTwoOutput3000 = recentTwoNetTotal >= 3000;
+      const palazzoKasaiNeoTwoDayOutput4000 = recentTwoNetTotal >= 4000;
+      const palazzoKasaiNeoThreeDeep3000 = recentThreeNetTotal <= -3000;
+      const palazzoKasaiNeoThreeDeep4000 = recentThreeNetTotal <= -4000;
+      const palazzoKasaiNeoFiveDeep4000 = recentFiveNetTotal <= -4000;
+      const palazzoKasaiNeoFiveDeep5000 = recentFiveNetTotal <= -5000;
+      const palazzoKasaiNeoFiveDeep7000 = recentFiveNetTotal <= -7000;
+      const palazzoKasaiNeoTwentyOneDeep9000 = recentTwentyOneNetTotal <= -9000;
+      const palazzoKasaiNeoThreeAngleStrong = features.recentThreeAngle <= -200;
+      const palazzoKasaiNeoThreeAngleMax = features.recentThreeAngle <= -250;
+      const palazzoKasaiNeoFiveAngleStrong = features.recentFiveAngle <= -100;
+      const palazzoKasaiNeoFiveAngleMax = features.recentFiveAngle <= -200;
+      const palazzoKasaiNeoSevenAngleStrong = features.recentSevenAngle <= -90;
+      const palazzoKasaiNeoTenAngleStrong =
+        netPerThousandGames(recentTenNetTotal, recentTenGamesTotal) <= -100;
+      const palazzoKasaiNeoCombined3Weak170 =
+        recentThreeGamesTotal > 0 && features.recentThreeCombinedDenominator >= 170;
+      const palazzoKasaiNeoCombined3Weak180 =
+        recentThreeGamesTotal > 0 && features.recentThreeCombinedDenominator >= 180;
+      const palazzoKasaiNeoCombined5Weak180 =
+        recentFiveGamesTotal > 0 && features.recentFiveCombinedDenominator >= 180;
+      const palazzoKasaiNeoRb7Weak450 =
+        recentSevenGamesTotal > 0 && features.recentSevenRbDenominator >= 450;
+      const palazzoKasaiNeoHighG7 = recentSevenGamesTotal >= 35000;
+      const palazzoKasaiNeoTrustG7 =
+        recentSevenGamesTotal >= 24000 && recentSevenGamesTotal <= 37800;
+      const palazzoKasaiNeoOverVisible =
+        (recentSevenGamesTotal >= 40000 && recentSevenGamesTotal <= 45000) ||
+        recentFiveNetTotal >= 5000 ||
+        recentTwentyOneNetTotal >= 9000;
+      const palazzoKasaiNeoSideSpread =
+        previousAdjacentMachineHighContentCountNear2 >= 1 ||
+        (previousAdjacentMachineNetTotalNear2 >= 800 &&
+          previousDifference <= 0 &&
+          previousGames >= 2500);
+      const palazzoKasaiNeoNeighborLeftBehind =
+        recentSevenNetTotal < 0 &&
+        (adjacentMachineHighContentCount7Near2 >= 2 || adjacentMachineHighContentCount14Near2 >= 3);
+      const palazzoKasaiNeoRotation22To28 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 22 &&
+        daysSinceMachineHighContent <= 28;
+      const palazzoKasaiNeoStrongRotation22To28 =
+        Number.isFinite(daysSinceMachineStrongHighContent) &&
+        daysSinceMachineStrongHighContent >= 22 &&
+        daysSinceMachineStrongHighContent <= 28;
+      const palazzoKasaiNeoNormalRotationSink =
+        palazzoKasaiNeoStrongRotation22To28 && palazzoKasaiNeoFiveAngleStrong;
+      const palazzoKasaiNeoLoss2 = streak >= 2;
+      const palazzoKasaiNeoLoss3 = streak >= 3;
+      const palazzoKasaiNeoLoss4 = streak >= 4;
+      const palazzoKasaiNeoNormalLongLoss = streak >= 7;
+      const palazzoKasaiNeoLowGames =
+        recentThreeGamesTotal < 9000 || (recentFiveGamesTotal > 0 && recentFiveGamesTotal < 15000);
+      const palazzoKasaiNeoLongNeglect =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 13 &&
+        recentTwentyOneNetTotal >= 0;
+      const palazzoKasaiNeoRecentTooHigh =
+        recentSevenMachineHighContentCount >= 2 && recentSevenNetTotal >= 2000;
+      const palazzoKasaiNeoFreeB =
+        palazzoKasaiNeoFiveDeep5000 &&
+        palazzoKasaiNeoHighG7 &&
+        palazzoKasaiNeoCombined3Weak180;
+      const palazzoKasaiNeoFreeC =
+        palazzoKasaiNeoFreeB &&
+        palazzoKasaiNeoThreeAngleStrong &&
+        palazzoKasaiNeoCombined5Weak180;
+      const palazzoKasaiNeoMain290 =
+        palazzoKasaiNeoFiveDeep5000 &&
+        palazzoKasaiNeoCombined3Weak180 &&
+        palazzoKasaiNeoLoss4;
+      const palazzoKasaiNeoDeepSink =
+        palazzoKasaiNeoFiveDeep5000 ||
+        palazzoKasaiNeoThreeDeep3000 ||
+        palazzoKasaiNeoTwentyOneDeep9000;
+      const palazzoKasaiNeoEventDeepBest =
+        palazzoKasaiNeoFiveDeep4000 && palazzoKasaiNeoCombined3Weak180;
+
+      const boostFlags = [
+        palazzoKasaiNeoFiveDeep4000,
+        palazzoKasaiNeoFiveDeep5000,
+        palazzoKasaiNeoThreeDeep3000,
+        palazzoKasaiNeoRecentTwoDeep2500,
+        palazzoKasaiNeoCombined3Weak180,
+        palazzoKasaiNeoCombined5Weak180,
+        palazzoKasaiNeoRb7Weak450,
+        palazzoKasaiNeoThreeAngleStrong,
+        palazzoKasaiNeoFiveAngleStrong,
+        palazzoKasaiNeoSevenAngleStrong,
+        palazzoKasaiNeoHighG7,
+        palazzoKasaiNeoTrustG7,
+        palazzoKasaiNeoSideSpread,
+        palazzoKasaiNeoRotation22To28,
+        palazzoKasaiNeoStrongRotation22To28,
+        palazzoKasaiNeoLoss4,
+        palazzoKasaiNeoPreviousLowMiss,
+        palazzoKasaiNeoNeighborLeftBehind,
+      ];
+      const dangerFlags = [
+        palazzoKasaiNeoPreviousHigh,
+        palazzoKasaiNeoPreviousStrongHigh,
+        palazzoKasaiNeoPreviousGenuine,
+        palazzoKasaiNeoPreviousHighOutput,
+        palazzoKasaiNeoBbOnlyOutput,
+        palazzoKasaiNeoRecentTwoOutput3000,
+        palazzoKasaiNeoTwoDayOutput4000,
+        palazzoKasaiNeoOverVisible,
+        palazzoKasaiNeoRecentTooHigh,
+        palazzoKasaiNeoLongNeglect,
+        palazzoKasaiNeoNormalLongLoss,
+        palazzoKasaiNeoLowGames,
+        palazzoKasaiNeoHistoryShort,
+      ];
+      const boostCount = boostFlags.filter(Boolean).length;
+      const dangerCount = dangerFlags.filter(Boolean).length;
+
+      return {
+        ...features,
+        palazzoKasaiNeoHistoryReady,
+        palazzoKasaiNeoHistoryShort,
+        palazzoKasaiNeoHistoryVeryShort,
+        palazzoKasaiNeoPreviousP56,
+        palazzoKasaiNeoPreviousHigh,
+        palazzoKasaiNeoPreviousStrongHigh,
+        palazzoKasaiNeoPreviousGenuine,
+        palazzoKasaiNeoPreviousHighOutput,
+        palazzoKasaiNeoBbOnlyOutput,
+        palazzoKasaiNeoPreviousSink650,
+        palazzoKasaiNeoPreviousSink1200,
+        palazzoKasaiNeoPreviousLowMiss,
+        palazzoKasaiNeoRecentTwoDeep2500,
+        palazzoKasaiNeoRecentTwoOutput3000,
+        palazzoKasaiNeoTwoDayOutput4000,
+        palazzoKasaiNeoThreeDeep3000,
+        palazzoKasaiNeoThreeDeep4000,
+        palazzoKasaiNeoFiveDeep4000,
+        palazzoKasaiNeoFiveDeep5000,
+        palazzoKasaiNeoFiveDeep7000,
+        palazzoKasaiNeoTwentyOneDeep9000,
+        palazzoKasaiNeoThreeAngleStrong,
+        palazzoKasaiNeoThreeAngleMax,
+        palazzoKasaiNeoFiveAngleStrong,
+        palazzoKasaiNeoFiveAngleMax,
+        palazzoKasaiNeoSevenAngleStrong,
+        palazzoKasaiNeoTenAngleStrong,
+        palazzoKasaiNeoCombined3Weak170,
+        palazzoKasaiNeoCombined3Weak180,
+        palazzoKasaiNeoCombined5Weak180,
+        palazzoKasaiNeoRb7Weak450,
+        palazzoKasaiNeoHighG7,
+        palazzoKasaiNeoTrustG7,
+        palazzoKasaiNeoOverVisible,
+        palazzoKasaiNeoSideSpread,
+        palazzoKasaiNeoNeighborLeftBehind,
+        palazzoKasaiNeoRotation22To28,
+        palazzoKasaiNeoStrongRotation22To28,
+        palazzoKasaiNeoNormalRotationSink,
+        palazzoKasaiNeoLoss2,
+        palazzoKasaiNeoLoss3,
+        palazzoKasaiNeoLoss4,
+        palazzoKasaiNeoNormalLongLoss,
+        palazzoKasaiNeoLowGames,
+        palazzoKasaiNeoLongNeglect,
+        palazzoKasaiNeoRecentTooHigh,
+        palazzoKasaiNeoFreeB,
+        palazzoKasaiNeoFreeC,
+        palazzoKasaiNeoMain290,
+        palazzoKasaiNeoDeepSink,
+        palazzoKasaiNeoEventDeepBest,
+        treatmentDone:
+          palazzoKasaiNeoPreviousHighOutput ||
+          palazzoKasaiNeoTwoDayOutput4000 ||
+          palazzoKasaiNeoOverVisible,
+        lowConfidence: palazzoKasaiNeoHistoryShort || palazzoKasaiNeoLowGames,
+        boostCount,
+        dangerCount,
+      };
+    }
+
     if (activeLogicKey === PRIME_HIRAI_NEO_AIM_LOGIC_KEY) {
       const primeHiraiNeoHistoryReady = historyRowCount >= 14;
       const primeHiraiNeoHistoryShort = historyRowCount < 14;
@@ -18007,6 +18557,229 @@ function calculateMachineScore(definition, metrics, features) {
 
     const historyCap = historyRowCount >= 7 ? 100 : 45;
     const score = 28 + fourteenScore + sevenScore + rbScore + gamesScore + rotationScore + unpaidScore - penalty;
+    return Math.round(clamp(score, 0, historyCap));
+  }
+
+  if (
+    activeLogicKey === PALAZZO_KASAI_NEO_AIM_LOGIC_KEY ||
+    activeLogicKey === PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_KEY ||
+    activeLogicKey === PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_KEY
+  ) {
+    const recentThreeCombinedDenominator =
+      recentThreeGamesTotal > 0 ? features.recentThreeCombinedDenominator : 0;
+    const recentFiveCombinedDenominator =
+      recentFiveGamesTotal > 0 ? features.recentFiveCombinedDenominator : 0;
+    const recentSevenRbDenominator =
+      recentSevenGamesTotal > 0 ? features.recentSevenRbDenominator : 0;
+    const recentTenAngle = netPerThousandGames(recentTenNetTotal, recentTenGamesTotal);
+    const previousP56 = Number.isFinite(previousMachineSettingFivePlusProbability)
+      ? previousMachineSettingFivePlusProbability
+      : null;
+    const previousHigh =
+      previousMachineHighContent ||
+      (Number.isFinite(previousP56) && previousP56 >= 0.5 && previousGames >= 3000);
+    const previousStrongHigh =
+      previousMachineStrongHighContent ||
+      (Number.isFinite(previousP56) && previousP56 >= 0.7 && previousGames >= 3000);
+    const previousGenuine =
+      previousGames >= 3000 &&
+      features.previousRbDenominator <= 300 &&
+      features.previousCombinedDenominator <= 140;
+    const previousHighOutput = previousHigh && previousDifference >= 1500;
+    const previousBbOnlyOutput =
+      previousDifference >= 1000 &&
+      previousGames >= 3000 &&
+      features.previousRbDenominator > 350 &&
+      features.previousCombinedDenominator <= 145;
+    const daysSinceHigh = daysSinceMachineHighContent;
+    const daysSinceStrongHigh = daysSinceMachineStrongHighContent;
+
+    let shortSinkScore = 0;
+    shortSinkScore += scoreAtMost(recentFiveNetTotal, [
+      { maximum: -7000, points: 12 },
+      { maximum: -5000, points: 10 },
+      { maximum: -4000, points: 7 },
+      { maximum: -2500, points: 3 },
+    ]);
+    shortSinkScore += scoreAtMost(recentThreeNetTotal, [
+      { maximum: -4000, points: 10 },
+      { maximum: -3000, points: 7 },
+      { maximum: -2000, points: 3 },
+    ]);
+    shortSinkScore += scoreAtMost(recentTwentyOneNetTotal, [
+      { maximum: -12000, points: 6 },
+      { maximum: -9000, points: 5 },
+      { maximum: -6000, points: 2 },
+    ]);
+    shortSinkScore += scoreAtMost(recentTenNetTotal, [
+      { maximum: -10000, points: 5 },
+      { maximum: -7000, points: 3 },
+    ]);
+    shortSinkScore += scoreAtMost(features.recentThreeAngle, [
+      { maximum: -250, points: 8 },
+      { maximum: -200, points: 6 },
+      { maximum: -150, points: 3 },
+    ]);
+    shortSinkScore += scoreAtMost(features.recentFiveAngle, [
+      { maximum: -200, points: 6 },
+      { maximum: -150, points: 3 },
+    ]);
+    shortSinkScore = Math.min(shortSinkScore, 34);
+
+    let bonusReboundScore = 0;
+    bonusReboundScore += scoreAtLeast(recentThreeCombinedDenominator, [
+      { minimum: 180, points: 8 },
+      { minimum: 170, points: 5 },
+      { minimum: 160, points: 2 },
+    ]);
+    bonusReboundScore += recentFiveCombinedDenominator >= 180 ? 4 : 0;
+    bonusReboundScore += scoreAtLeast(recentSevenRbDenominator, [
+      { minimum: 450, points: 6 },
+      { minimum: 400, points: 4 },
+      { minimum: 350, points: 2 },
+    ]);
+    bonusReboundScore += features.recentThreeRbDenominator >= 500 && recentThreeGamesTotal > 0 ? 3 : 0;
+    bonusReboundScore +=
+      recentSevenMachineHighContentCount >= 3 &&
+      recentSevenGamesTotal >= 20000 &&
+      features.recentSevenCombinedDenominator <= 145
+        ? 4
+        : 0;
+    bonusReboundScore = Math.min(bonusReboundScore, 16);
+
+    let rotationScore = 0;
+    if (Number.isFinite(daysSinceHigh)) {
+      rotationScore +=
+        daysSinceHigh >= 22 && daysSinceHigh <= 28
+          ? 12
+          : daysSinceHigh >= 6 && daysSinceHigh <= 7
+            ? 6
+            : daysSinceHigh >= 3 && daysSinceHigh <= 5
+              ? 3
+              : daysSinceHigh >= 15 && daysSinceHigh <= 21
+                ? 2
+                : daysSinceHigh > 40
+                  ? -5
+                  : daysSinceHigh > 28
+                    ? -4
+                    : 0;
+    }
+    if (Number.isFinite(daysSinceStrongHigh)) {
+      rotationScore +=
+        daysSinceStrongHigh >= 22 && daysSinceStrongHigh <= 28
+          ? 7
+          : daysSinceStrongHigh >= 2 && daysSinceStrongHigh <= 3
+            ? 4
+            : daysSinceStrongHigh >= 4 && daysSinceStrongHigh <= 7
+              ? 2
+              : 0;
+    }
+    rotationScore = clamp(rotationScore, -8, 18);
+
+    let reliabilityScore = 0;
+    reliabilityScore += scoreAtLeast(recentThreeGamesTotal, [
+      { minimum: 18000, points: 5 },
+      { minimum: 14000, points: 3 },
+      { minimum: 10000, points: 1 },
+    ]);
+    reliabilityScore += scoreAtLeast(recentSevenGamesTotal, [
+      { minimum: 45000, points: 5 },
+      { minimum: 35000, points: 3 },
+      { minimum: 25000, points: 1 },
+    ]);
+    reliabilityScore += previousGames <= 2000 ? 4 : 0;
+    reliabilityScore += recentTwoGamesTotal <= 6000 ? 3 : 0;
+    reliabilityScore = Math.min(reliabilityScore, 10);
+
+    let neighborScore = 0;
+    neighborScore += recentSevenNetTotal < 0 && adjacentMachineHighContentCount7Near2 >= 2 ? 3 : 0;
+    neighborScore += recentSevenNetTotal < 0 && adjacentMachineHighContentCount14Near2 >= 3 ? 3 : 0;
+    neighborScore += previousAdjacentMachineHighContentCountNear2 >= 1 ? 4 : 0;
+    neighborScore +=
+      previousAdjacentMachineNetTotalNear2 >= 800 && previousDifference <= 0 && previousGames >= 2500 ? 3 : 0;
+    neighborScore = Math.min(neighborScore, 8);
+
+    let compoundScore = 0;
+    compoundScore += recentFiveNetTotal <= -5000 && recentThreeCombinedDenominator >= 180 ? 18 : 0;
+    compoundScore += recentFiveNetTotal <= -5000 && features.recentThreeAngle <= -200 ? 12 : 0;
+    compoundScore += recentThreeNetTotal <= -3000 && recentFiveNetTotal <= -5000 ? 10 : 0;
+    compoundScore +=
+      recentFiveNetTotal <= -5000 && recentThreeCombinedDenominator >= 180 && streak >= 3 ? 8 : 0;
+    compoundScore +=
+      recentFiveNetTotal <= -5000 && recentThreeCombinedDenominator >= 180 && streak >= 4 ? 6 : 0;
+    compoundScore += recentSevenGamesTotal >= 35000 && recentFiveCombinedDenominator >= 180 ? 10 : 0;
+    compoundScore += Number.isFinite(previousP56) && previousP56 < 0.3 && previousDifference <= -1000 ? 4 : 0;
+    compoundScore += streak >= 7 ? -3 : streak >= 4 ? 8 : streak >= 3 ? 5 : streak >= 2 ? 3 : 0;
+    compoundScore += previousAdjacentMachineHighContentCountNear2 >= 1 && recentThreeNetTotal <= -2000 ? 3 : 0;
+    compoundScore = clamp(compoundScore, -6, 38);
+
+    let penalty = 0;
+    penalty += previousHigh ? 12 : 0;
+    penalty += previousStrongHigh ? 4 : 0;
+    penalty += previousGenuine ? 4 : 0;
+    penalty += previousHighOutput ? 8 : 0;
+    penalty += previousBbOnlyOutput ? 4 : 0;
+    penalty += scoreAtLeast(recentFiveNetTotal, [
+      { minimum: 7000, points: 16 },
+      { minimum: 5000, points: 12 },
+      { minimum: 3000, points: 8 },
+    ]);
+    penalty += scoreAtLeast(recentTwentyOneNetTotal, [
+      { minimum: 12000, points: 12 },
+      { minimum: 9000, points: 9 },
+      { minimum: 6000, points: 5 },
+    ]);
+    penalty += recentSevenMachineHighContentCount >= 2 && recentSevenNetTotal >= 2000 ? 8 : 0;
+    penalty += recentTwoNetTotal >= 4000 ? 10 : recentTwoNetTotal >= 3000 ? 7 : recentTwoNetTotal >= 2000 ? 4 : 0;
+    penalty +=
+      Number.isFinite(daysSinceHigh) && daysSinceHigh >= 13 && recentTwentyOneNetTotal >= 0 ? 6 : 0;
+    penalty += recentThreeGamesTotal < 9000 || (recentFiveGamesTotal > 0 && recentFiveGamesTotal < 15000) ? 4 : 0;
+    penalty = Math.min(penalty, 42);
+
+    let score =
+      30 +
+      shortSinkScore +
+      bonusReboundScore +
+      rotationScore +
+      reliabilityScore +
+      neighborScore +
+      compoundScore -
+      penalty;
+
+    if (activeLogicKey === PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_KEY) {
+      score +=
+        Number.isFinite(daysSinceStrongHigh) && daysSinceStrongHigh >= 22 && daysSinceStrongHigh <= 28 ? 8 : 0;
+      score += Number.isFinite(daysSinceHigh) && daysSinceHigh >= 22 && daysSinceHigh <= 28 ? 5 : 0;
+      score += recentThreeNetTotal <= -4000 && recentTwoNetTotal <= -2500 ? 7 : 0;
+      score += features.recentFiveAngle <= -100 ? 5 : 0;
+      score += recentThreeCombinedDenominator >= 180 && recentThreeNetTotal <= -3000 ? 4 : 0;
+      score += previousAdjacentMachineHighContentCountNear2 >= 1 ? 5 : 0;
+      score += features.previousCombinedDenominator >= 173 && previousGames > 0 ? 4 : 0;
+      score -= previousDifference >= 380 ? 3 : 0;
+      score -= streak >= 7 ? 8 : 0;
+      score -= previousHigh ? 4 : 0;
+      score -= recentTwoNetTotal >= 3000 ? 5 : 0;
+    } else if (activeLogicKey === PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_KEY) {
+      score += recentFiveNetTotal <= -4000 ? 9 : 0;
+      score += features.recentFiveAngle <= -100 ? 8 : 0;
+      score += recentTenAngle <= -100 ? 9 : 0;
+      score += recentThreeCombinedDenominator >= 180 ? 8 : 0;
+      score += recentThreeCombinedDenominator >= 170 && recentThreeNetTotal <= -3000 ? 6 : 0;
+      score += features.boostCount >= 2 ? 4 : 0;
+      score += previousAdjacentMachineHighContentCountNear2 >= 1 ? 1 : 0;
+      score -= previousHigh && recentFiveNetTotal > -4000 ? 4 : 0;
+      score -= recentTwoNetTotal >= 4000 ? 6 : 0;
+      score -= previousBbOnlyOutput ? 5 : 0;
+    }
+
+    const historyCap =
+      historyRowCount >= 21
+        ? 100
+        : historyRowCount >= 14
+          ? 80
+          : historyRowCount >= 7
+            ? 65
+            : 45;
     return Math.round(clamp(score, 0, historyCap));
   }
 
@@ -27630,6 +28403,29 @@ function buildTamayaHontenDateSetting(definition, isEventDate) {
   };
 }
 
+function buildPalazzoKasaiDateSetting(definition, isEventDate) {
+  if (definition?.machineKey !== "neo-aim") {
+    return null;
+  }
+  const logicKey = isEventDate
+    ? PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_KEY
+    : PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_KEY;
+  const logic = findLogicDefinition(definition, logicKey);
+  if (!logic) {
+    return null;
+  }
+  const condition =
+    listConditionDefinitions(definition, logic.key).find(
+      (candidate) => candidate.keySuffix === logic.defaultConditionSuffix,
+    ) ??
+    listConditionDefinitions(definition, logic.key)[0] ??
+    null;
+  return {
+    logicKey: logic.key,
+    conditionKey: condition ? buildConditionKey(definition, condition) : "",
+  };
+}
+
 function resolveRankingDateSpecificSetting(definition, setting, options = {}) {
   if (
     !options?.dateSpecificRanking ||
@@ -27829,6 +28625,20 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   if (isTamayaHontenStore(options?.storeName) && definition?.machineKey === "neo-aim") {
     const isEventDate = readTargetEventFlag(row) === true;
     const setting = buildTamayaHontenDateSetting(definition, isEventDate);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    if (!evaluation) {
+      return null;
+    }
+
+    return {
+      ...evaluation,
+      displayLabel: isEventDate ? "特定日" : "通常日",
+    };
+  }
+
+  if (isPalazzoKasaiStore(options?.storeName) && definition?.machineKey === "neo-aim") {
+    const isEventDate = readTargetEventFlag(row) === true;
+    const setting = buildPalazzoKasaiDateSetting(definition, isEventDate);
     const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
     if (!evaluation) {
       return null;
