@@ -104,6 +104,10 @@ const JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY = "jaran-yazaike-neo-aim";
 const JARAN_YAZAIKE_NEO_AIM_LOGIC_NAME =
   "ジャラン谷在家店 ネオアイム 返済未完連敗ロジック v1";
 const JARAN_YAZAIKE_NEO_AIM_DEFAULT_CONDITION = "jaran-yazaike-neo-strong280";
+const NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY = "new-grand-hokima-neo-aim";
+const NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_NAME =
+  "ニューグランド保木間店_ネオアイム_弱内容沈み返済ロジック_v1";
+const NEW_GRAND_HOKIMA_NEO_AIM_DEFAULT_CONDITION = "new-grand-hokima-neo-free-strong-rb";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -570,6 +574,13 @@ function isKyudenAnnexStore(storeName) {
 function isJaranYazaikeStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["ジャラン谷在家店", "ジャラン谷在家", "JARAN谷在家店", "JARAN谷在家", "ＪＡＲＡＮ谷在家店"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
+function isNewGrandHokimaStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["ニューグランド保木間店", "ニューグランド保木間", "NEW GRAND保木間店", "NEW GRAND保木間"].some(
     (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
   );
 }
@@ -3721,6 +3732,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         JARAN_YAZAIKE_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
+        NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY,
+        NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_NAME,
+        NEW_GRAND_HOKIMA_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         "messe-minamisenju-neo-aim",
         "メッセ南千住_ネオアイムEX_全日共通_未返済沈み滞在ロジック_v1",
         "messe-minamisenju-free-14rb",
@@ -6585,6 +6601,140 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["jaranYazaikeNeoHistoryShort"],
         },
         [JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        NEW_GRAND_HOKIMA_NEO_AIM_DEFAULT_CONDITION,
+        "自由最強RB",
+        "9日・10台 / RB1/287.3 / 合算1/132.5 / 平均+643枚 / 104.19% / 勝率80.0% / 平均p56 42.7% / p56>=50 40.0% / 点数より優先",
+        {
+          requiredFlags: ["newGrandHokimaNeoHistoryReady", "newGrandHokimaNeoFreeStrongRb"],
+        },
+        [NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-grand-hokima-neo-free-balance",
+        "自由バランス",
+        "15日・17台 / RB1/294.9 / 合算1/137.3 / 平均+332枚 / 102.76% / 勝率58.8% / 平均p56 37.7% / p56>=50 23.5%",
+        {
+          requiredFlags: ["newGrandHokimaNeoHistoryReady", "newGrandHokimaNeoFreeBalance"],
+        },
+        [NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-grand-hokima-neo-free-wide",
+        "自由広め",
+        "34日・42台 / RB1/307.2 / 合算1/139.4 / 平均+298枚 / 102.46% / 勝率66.7% / 平均p56 35.0% / p56>=50 23.8%",
+        {
+          requiredFlags: ["newGrandHokimaNeoHistoryReady", "newGrandHokimaNeoWideRb310"],
+        },
+        [NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-grand-hokima-neo-main-rb290",
+        "本命RB290",
+        "9日・10台 / RB1/287.3 / 合算1/132.5 / 平均+643枚 / 104.19% / 勝率80.0% / 平均p56 42.7% / p56>=50 40.0% / 件数少なめ",
+        {
+          requiredFlags: ["newGrandHokimaNeoHistoryReady", "newGrandHokimaNeoMainRb290"],
+        },
+        [NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-grand-hokima-neo-weak-rb300",
+        "弱め本命RB300",
+        "15日・16台 / RB1/298.3 / 合算1/134.1 / 平均+567枚 / 104.21% / 勝率75.0% / 平均p56 37.8% / p56>=50 25.0%",
+        {
+          requiredFlags: ["newGrandHokimaNeoHistoryReady", "newGrandHokimaNeoWeakRb300"],
+        },
+        [NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-grand-hokima-neo-wide-rb310",
+        "広めRB310",
+        "34日・42台 / RB1/307.2 / 合算1/139.4 / 平均+298枚 / 102.46% / 勝率66.7% / 平均p56 35.0% / p56>=50 23.8%",
+        {
+          requiredFlags: ["newGrandHokimaNeoHistoryReady", "newGrandHokimaNeoWideRb310"],
+        },
+        [NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-grand-hokima-neo-score90-danger0",
+        "90点以上＋危険0",
+        "46日・62台 / RB1/317.5 / 合算1/143.4 / 平均+189枚 / 101.63% / 勝率51.6% / 平均p56 32.6%",
+        {
+          minScore: 90,
+          maxDanger: 0,
+          requiredFlags: ["newGrandHokimaNeoHistoryReady"],
+        },
+        [NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-grand-hokima-neo-score85-danger0",
+        "85点以上＋危険0",
+        "50日・72台 / RB1/322.8 / 合算1/144.9 / 平均+166枚 / 101.47% / 勝率52.8% / 平均p56 31.5%",
+        {
+          minScore: 85,
+          maxDanger: 0,
+          requiredFlags: ["newGrandHokimaNeoHistoryReady"],
+        },
+        [NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-grand-hokima-neo-watch-danger2",
+        "見送り_危険2以上",
+        "85点以上でも危険条件が2個以上なら見送り推奨",
+        {
+          minScore: 85,
+          minDanger: 2,
+          requiredFlags: ["newGrandHokimaNeoHistoryReady"],
+        },
+        [NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-grand-hokima-neo-watch-history-none",
+        "見送り_履歴3日未満",
+        "有効履歴3日未満は点数なし扱い",
+        {
+          requiredFlags: ["newGrandHokimaNeoHistoryUnscored"],
+        },
+        [NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-grand-hokima-neo-watch-history-short",
+        "見送り_履歴3〜6日",
+        "有効履歴3〜6日は履歴不足として15点減点",
+        {
+          requiredFlags: ["newGrandHokimaNeoHistoryShort"],
+        },
+        [NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-grand-hokima-neo-watch-previous-high-output",
+        "見送り_前日高内容大出し",
+        "前日p56五割以上かつ前日+1000枚以上かつ3000G以上は据え置き罠として注意",
+        {
+          requiredFlags: ["newGrandHokimaNeoHistoryReady", "newGrandHokimaNeoPreviousHighOutput"],
+        },
+        [NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-grand-hokima-neo-watch-overused",
+        "見送り_直近使われすぎ",
+        "直近7日高内容2回以上は使い切り後の可能性を重く見る",
+        {
+          requiredFlags: ["newGrandHokimaNeoHistoryReady", "newGrandHokimaNeoOverused7"],
+        },
+        [NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "new-grand-hokima-neo-watch-rank1-under80",
+        "見送り_1位でも80点未満",
+        "ランキング1位だけでは弱く、80点未満なら見送り寄り",
+        {
+          rankMax: 1,
+          maxScore: 79.999,
+          requiredFlags: ["newGrandHokimaNeoHistoryReady"],
+        },
+        [NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "messe-minamisenju-free-14rb",
@@ -12005,6 +12155,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY);
   } else if (isJaranYazaikeStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY);
+  } else if (isNewGrandHokimaStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY);
   } else if (isMesseMinamisenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "messe-minamisenju-neo-aim");
   } else if (isMesseOkudoStore(storeName) && definition.machineKey === "neo-aim") {
@@ -12699,6 +12851,9 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentThreeMachineSettingFivePlusProbabilityAverage = readNullableNumber(
     metrics.recentThreeMachineSettingFivePlusProbabilityAverage,
   );
+  const recentFiveMachineSettingFivePlusProbabilityAverage = readNullableNumber(
+    metrics.recentFiveMachineSettingFivePlusProbabilityAverage,
+  );
   const recentSevenMachineSettingFivePlusProbabilityAverage = readNullableNumber(
     metrics.recentSevenMachineSettingFivePlusProbabilityAverage,
   );
@@ -12712,6 +12867,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const machineLowContentStreak = readNumber(metrics.machineLowContentStreak);
   const machineWeakContentStreak = readNumber(metrics.machineWeakContentStreak);
   const recentThreeBigWin1200Count = readNumber(metrics.recentThreeBigWin1200Count);
+  const recentFiveMaxWin = readNumber(metrics.recentFiveMaxWin);
   const recentFiveBigWin1200Count = readNumber(metrics.recentFiveBigWin1200Count);
   const recentFiveBigWin1000Count = readNumber(metrics.recentFiveBigWin1000Count);
   const recentSevenBigWin2500Count = readNumber(metrics.recentSevenBigWin2500Count);
@@ -17419,6 +17575,128 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       };
     }
 
+    if (activeLogicKey === NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY) {
+      const p56FiveAverage = recentFiveMachineSettingFivePlusProbabilityAverage;
+      const hasP56FiveAverage = Number.isFinite(p56FiveAverage);
+      const newGrandHokimaNeoHistoryReady = historyRowCount >= 7;
+      const newGrandHokimaNeoHistoryUnscored = historyRowCount < 3;
+      const newGrandHokimaNeoHistoryShort = historyRowCount >= 3 && historyRowCount < 7;
+      const newGrandHokimaNeoP56Weak15 = hasP56FiveAverage && p56FiveAverage <= 0.15;
+      const newGrandHokimaNeoP56Weak20 = hasP56FiveAverage && p56FiveAverage <= 0.2;
+      const newGrandHokimaNeoP56Weak25 = hasP56FiveAverage && p56FiveAverage <= 0.25;
+      const newGrandHokimaNeoP56Strong38 = hasP56FiveAverage && p56FiveAverage >= 0.38;
+      const newGrandHokimaNeoThreeSink1000 = recentThreeNetTotal <= -1000;
+      const newGrandHokimaNeoThreeSink1500 = recentThreeNetTotal <= -1500;
+      const newGrandHokimaNeoThreeSink2000 = recentThreeNetTotal <= -2000;
+      const newGrandHokimaNeoThreeSink2500 = recentThreeNetTotal <= -2500;
+      const newGrandHokimaNeoFiveSink1500 = recentFiveNetTotal <= -1500;
+      const newGrandHokimaNeoFiveSink2500 = recentFiveNetTotal <= -2500;
+      const newGrandHokimaNeoFourteenSink4000 = recentFourteenNetTotal <= -4000;
+      const newGrandHokimaNeoFourteenSink5000 = recentFourteenNetTotal <= -5000;
+      const newGrandHokimaNeoLossFourPlus = streak >= 4;
+      const newGrandHokimaNeoLossFourToSix = streak >= 4 && streak <= 6;
+      const newGrandHokimaNeoRb5Weak450 = features.recentFiveRbDenominator > 450;
+      const newGrandHokimaNeoRb5Weak400 = features.recentFiveRbDenominator > 400;
+      const newGrandHokimaNeoCombined5Weak180 = features.recentFiveCombinedDenominator > 180;
+      const newGrandHokimaNeoCombined5Weak170 = features.recentFiveCombinedDenominator > 170;
+      const newGrandHokimaNeoLowGames =
+        recentThreeGamesTotal < 4000 || recentFiveGamesTotal < 8000;
+      const newGrandHokimaNeoGoodGames =
+        recentThreeGamesTotal >= 8000 && recentFiveGamesTotal >= 12000;
+      const newGrandHokimaNeoPreviousBigOutput = previousDifference >= 1500;
+      const newGrandHokimaNeoFiveDayTreatmentDone = recentFiveMaxWin >= 2500;
+      const newGrandHokimaNeoOverused7 = recentSevenMachineHighContentCount >= 2;
+      const newGrandHokimaNeoOverused14 = recentFourteenMachineHighContentCount >= 3;
+      const newGrandHokimaNeoPreviousHighOutput =
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5 &&
+        previousDifference >= 1000 &&
+        previousGames >= 3000;
+      const newGrandHokimaNeoLongNeglect =
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 31;
+      const newGrandHokimaNeoWideRb310 =
+        newGrandHokimaNeoP56Weak15 && newGrandHokimaNeoThreeSink1000;
+      const newGrandHokimaNeoWeakRb300 =
+        newGrandHokimaNeoP56Weak15 &&
+        newGrandHokimaNeoThreeSink1500 &&
+        newGrandHokimaNeoLossFourPlus;
+      const newGrandHokimaNeoMainRb290 =
+        newGrandHokimaNeoP56Weak15 &&
+        newGrandHokimaNeoThreeSink2000 &&
+        newGrandHokimaNeoLossFourPlus;
+      const newGrandHokimaNeoFreeStrongRb = newGrandHokimaNeoMainRb290;
+      const newGrandHokimaNeoFreeBalance =
+        newGrandHokimaNeoThreeSink2000 &&
+        newGrandHokimaNeoLossFourPlus &&
+        newGrandHokimaNeoRb5Weak450;
+      const boostFlags = [
+        newGrandHokimaNeoP56Weak15,
+        newGrandHokimaNeoThreeSink1000,
+        newGrandHokimaNeoThreeSink2000,
+        newGrandHokimaNeoLossFourPlus,
+        newGrandHokimaNeoFourteenSink4000,
+        newGrandHokimaNeoRb5Weak450,
+      ];
+      const dangerFlags = [
+        newGrandHokimaNeoPreviousBigOutput,
+        newGrandHokimaNeoFiveDayTreatmentDone,
+        newGrandHokimaNeoOverused7,
+        newGrandHokimaNeoPreviousHighOutput,
+        newGrandHokimaNeoLongNeglect,
+        newGrandHokimaNeoP56Strong38,
+        newGrandHokimaNeoLowGames,
+      ];
+
+      return {
+        ...features,
+        newGrandHokimaNeoHistoryReady,
+        newGrandHokimaNeoHistoryUnscored,
+        newGrandHokimaNeoHistoryShort,
+        newGrandHokimaNeoP56Weak15,
+        newGrandHokimaNeoP56Weak20,
+        newGrandHokimaNeoP56Weak25,
+        newGrandHokimaNeoP56Strong38,
+        newGrandHokimaNeoThreeSink1000,
+        newGrandHokimaNeoThreeSink1500,
+        newGrandHokimaNeoThreeSink2000,
+        newGrandHokimaNeoThreeSink2500,
+        newGrandHokimaNeoFiveSink1500,
+        newGrandHokimaNeoFiveSink2500,
+        newGrandHokimaNeoFourteenSink4000,
+        newGrandHokimaNeoFourteenSink5000,
+        newGrandHokimaNeoLossFourPlus,
+        newGrandHokimaNeoLossFourToSix,
+        newGrandHokimaNeoRb5Weak450,
+        newGrandHokimaNeoRb5Weak400,
+        newGrandHokimaNeoCombined5Weak180,
+        newGrandHokimaNeoCombined5Weak170,
+        newGrandHokimaNeoLowGames,
+        newGrandHokimaNeoGoodGames,
+        newGrandHokimaNeoPreviousBigOutput,
+        newGrandHokimaNeoFiveDayTreatmentDone,
+        newGrandHokimaNeoOverused7,
+        newGrandHokimaNeoOverused14,
+        newGrandHokimaNeoPreviousHighOutput,
+        newGrandHokimaNeoLongNeglect,
+        newGrandHokimaNeoWideRb310,
+        newGrandHokimaNeoWeakRb300,
+        newGrandHokimaNeoMainRb290,
+        newGrandHokimaNeoFreeStrongRb,
+        newGrandHokimaNeoFreeBalance,
+        recentFiveMachineSettingFivePlusProbabilityAverage: p56FiveAverage,
+        treatmentDone:
+          newGrandHokimaNeoPreviousBigOutput ||
+          newGrandHokimaNeoFiveDayTreatmentDone ||
+          newGrandHokimaNeoPreviousHighOutput,
+        lowConfidence:
+          newGrandHokimaNeoHistoryUnscored ||
+          newGrandHokimaNeoHistoryShort ||
+          newGrandHokimaNeoLowGames,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY) {
       const previousP56 = previousMachineSettingFivePlusProbability;
       const jaranYazaikeNeoHistoryReady = historyRowCount >= 14;
@@ -21313,6 +21591,9 @@ function calculateMachineScore(definition, metrics, features) {
   const recentThreeMachineSettingFivePlusProbabilityAverage = readNullableNumber(
     metrics.recentThreeMachineSettingFivePlusProbabilityAverage,
   );
+  const recentFiveMachineSettingFivePlusProbabilityAverage = readNullableNumber(
+    metrics.recentFiveMachineSettingFivePlusProbabilityAverage,
+  );
   const recentSevenMachineSettingFivePlusProbabilityAverage = readNullableNumber(
     metrics.recentSevenMachineSettingFivePlusProbabilityAverage,
   );
@@ -21326,6 +21607,7 @@ function calculateMachineScore(definition, metrics, features) {
   const machineGoodContentStreak = readNumber(metrics.machineGoodContentStreak);
   const machineLowContentStreak = readNumber(metrics.machineLowContentStreak);
   const machineWeakContentStreak = readNumber(metrics.machineWeakContentStreak);
+  const recentFiveMaxWin = readNumber(metrics.recentFiveMaxWin);
   const recentFiveBigWin1200Count = readNumber(metrics.recentFiveBigWin1200Count);
   const recentFiveBigWin1000Count = readNumber(metrics.recentFiveBigWin1000Count);
   const adjacentMachineHighContentCount3 = readNumber(metrics.adjacentMachineHighContentCount3);
@@ -25893,6 +26175,72 @@ function calculateMachineScore(definition, metrics, features) {
       score -= adjacentMachineNetTotal7Near2 > 3000 ? 3 : 0;
       score += adjacentMachineHighContentCount7Near2 === 0 ? 2 : 0;
       score -= historyRowCount < 14 ? 20 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY) {
+      if (historyRowCount < 3) {
+        return null;
+      }
+
+      const p56FiveAverage = recentFiveMachineSettingFivePlusProbabilityAverage;
+      const p56FiveWeak15 = Number.isFinite(p56FiveAverage) && p56FiveAverage <= 0.15;
+      let score = 30;
+
+      score += Number.isFinite(p56FiveAverage)
+        ? p56FiveAverage <= 0.15
+          ? 14
+          : p56FiveAverage <= 0.2
+            ? 10
+            : p56FiveAverage <= 0.25
+              ? 5
+              : 0
+        : 0;
+      score += scoreAtMost(recentThreeNetTotal, [
+        { maximum: -2500, points: 16 },
+        { maximum: -2000, points: 14 },
+        { maximum: -1500, points: 10 },
+        { maximum: -1000, points: 6 },
+        { maximum: -500, points: 3 },
+      ]);
+      score += scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -5000, points: 10 },
+        { maximum: -4000, points: 8 },
+        { maximum: -3000, points: 4 },
+      ]);
+      score += recentFiveNetTotal <= -2500 ? 5 : recentFiveNetTotal <= -1500 ? 3 : 0;
+      score += streak >= 7 ? 10 : streak >= 4 ? 12 : streak === 3 ? 6 : streak === 2 ? 3 : 0;
+      score += features.recentFiveRbDenominator > 450 ? 8 : features.recentFiveRbDenominator > 400 ? 5 : 0;
+      score +=
+        features.recentFiveCombinedDenominator > 180
+          ? 4
+          : features.recentFiveCombinedDenominator > 170
+            ? 2
+            : 0;
+      score += p56FiveWeak15 && recentThreeNetTotal <= -1000 ? 18 : 0;
+      score += p56FiveWeak15 && recentThreeNetTotal <= -1500 && streak >= 3 ? 8 : 0;
+      score += p56FiveWeak15 && recentThreeNetTotal <= -2000 && streak >= 4 ? 10 : 0;
+      score += recentThreeNetTotal <= -2000 && streak >= 4 && features.recentFiveRbDenominator > 400 ? 16 : 0;
+      score += streak >= 4 && recentFourteenNetTotal <= -4000 ? 12 : 0;
+      score += recentThreeGamesTotal >= 8000 && recentFiveGamesTotal >= 12000 ? 3 : 0;
+
+      score -= recentThreeGamesTotal < 4000 ? 5 : 0;
+      score -= recentFiveGamesTotal < 8000 ? 4 : 0;
+      score -= previousDifference >= 2000 ? 8 : previousDifference >= 1500 ? 5 : 0;
+      score -= recentFiveMaxWin >= 3000 ? 8 : recentFiveMaxWin >= 2500 ? 6 : recentFiveMaxWin >= 2000 ? 3 : 0;
+      score -= recentSevenMachineHighContentCount >= 2 ? 8 : 0;
+      score -= recentFourteenMachineHighContentCount >= 3 ? 4 : 0;
+      score -=
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5 &&
+        previousDifference >= 1000 &&
+        previousGames >= 3000
+          ? 8
+          : 0;
+      score -= Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 31 ? 3 : 0;
+      score -= Number.isFinite(p56FiveAverage) && p56FiveAverage >= 0.38 ? 3 : 0;
+      score -= historyRowCount < 7 ? 15 : 0;
 
       return Math.round(clamp(score, 0, 100));
     }

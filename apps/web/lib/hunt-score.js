@@ -327,6 +327,10 @@ const JARAN_YAZAIKE_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const NEW_GRAND_HOKIMA_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const KINTOKI_KAMATA_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
@@ -968,6 +972,23 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "jaran-yazaike-neo-aim",
       "ネオアイムジャグラーＥＸ": "jaran-yazaike-neo-aim",
+    },
+  },
+  {
+    key: "new-grand-hokima",
+    storeNames: ["ニューグランド保木間店", "ニューグランド保木間", "NEW GRAND保木間店", "NEW GRAND保木間"],
+    targetMachines: NEW_GRAND_HOKIMA_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    excludedRows: [
+      {
+        targetDate: "2026-02-08",
+        slotNumber: "355",
+        machineName: "ネオアイムジャグラーEX",
+      },
+    ],
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "new-grand-hokima-neo-aim",
+      "ネオアイムジャグラーＥＸ": "new-grand-hokima-neo-aim",
     },
   },
   {
@@ -1666,6 +1687,39 @@ function buildCandidateKey(row, config) {
   ].join("\u0000");
 }
 
+function isExcludedHuntScoreRow(row, config = {}) {
+  const excludedRows = Array.isArray(config?.excludedRows) ? config.excludedRows : [];
+  if (excludedRows.length === 0) {
+    return false;
+  }
+
+  const rowDate = String(row?.target_date ?? "").trim();
+  const rowSlotNumber = String(row?.slot_number ?? "").trim();
+  const rowMachineName = normalizeHuntScoreMachineName(row?.machine_name, config);
+  return excludedRows.some((rule) => {
+    const ruleDate = String(rule?.targetDate ?? rule?.date ?? "").trim();
+    const ruleSlotNumber = String(rule?.slotNumber ?? rule?.slot ?? "").trim();
+    const ruleMachineName = String(rule?.machineName ?? "").trim();
+    if (ruleDate && rowDate !== ruleDate) {
+      return false;
+    }
+    if (ruleSlotNumber && rowSlotNumber !== ruleSlotNumber) {
+      return false;
+    }
+    if (ruleMachineName && normalizeText(ruleMachineName) !== normalizeText(rowMachineName)) {
+      return false;
+    }
+    return Boolean(ruleDate || ruleSlotNumber || ruleMachineName);
+  });
+}
+
+function filterExcludedHuntScoreRows(rows, config = {}) {
+  if (!Array.isArray(rows) || !Array.isArray(config?.excludedRows) || config.excludedRows.length === 0) {
+    return Array.isArray(rows) ? rows : [];
+  }
+  return rows.filter((row) => !isExcludedHuntScoreRow(row, config));
+}
+
 function getSettingDefinition(settingDefinitionCache, machineName) {
   const cacheKey = normalizeText(machineName);
   let definition = settingDefinitionCache.get(cacheKey);
@@ -2269,6 +2323,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
+    if (contentRule === "new-grand-hokima-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     if (contentRule === "kintoki-kamata-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -2752,6 +2813,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
         return games >= 2500 && settingFivePlusProbability >= 0.35;
       }
       return games >= 2500 && rbDenominator <= 350 && combinedDenominator <= 160;
+    }
+    if (contentRule === "new-grand-hokima-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 3000 && settingFivePlusProbability >= 0.35;
+      }
+      return games >= 3000 && rbDenominator <= 350 && combinedDenominator <= 160;
     }
     if (contentRule === "kintoki-kamata-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -3380,6 +3448,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 2500 && settingFivePlusProbability >= 0.7;
     }
     return games >= 2500 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "new-grand-hokima-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
@@ -8725,6 +8803,7 @@ function calculateWindowMetrics(
   const recentSevenNonPositiveDays = recentSevenRows.filter((windowRow) => windowRow.differenceValue <= 0).length;
   const recentFourteenNonPositiveDays = recentFourteenRows.filter((windowRow) => windowRow.differenceValue <= 0).length;
   const recentFourPositiveCount = recentFourRows.filter((windowRow) => windowRow.differenceValue > 0).length;
+  const recentFiveMaxWin = Math.max(0, ...recentFiveRows.map((windowRow) => windowRow.differenceValue));
   const recentTwoGamesTotal = recentTwoRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentThreeGamesTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentFiveGamesTotal = recentFiveRows.reduce((total, windowRow) => total + windowRow.games, 0);
@@ -8976,6 +9055,8 @@ function calculateWindowMetrics(
   });
   const recentThreeMachineSettingFivePlusProbabilityAverage =
     calculateNeoAimSettingFivePlusProbabilityAverage(recentThreeRows);
+  const recentFiveMachineSettingFivePlusProbabilityAverage =
+    calculateNeoAimSettingFivePlusProbabilityAverage(recentFiveRows);
   const recentSevenMachineSettingFivePlusProbabilityAverage =
     calculateNeoAimSettingFivePlusProbabilityAverage(recentSevenRows);
   const recentTenMachineSettingFivePlusProbabilityAverage =
@@ -9475,6 +9556,7 @@ function calculateWindowMetrics(
     recentSevenNonPositiveDays,
     recentFourteenNonPositiveDays,
     recentFourPositiveCount,
+    recentFiveMaxWin,
     compensationRate: lossAbsTotal === 0 ? 999 : winAbsTotal / lossAbsTotal,
     maxWin,
     todayDifference,
@@ -9568,6 +9650,7 @@ function calculateWindowMetrics(
     previousMachineStrongHighContent,
     previousMachineSettingFivePlusProbability,
     recentThreeMachineSettingFivePlusProbabilityAverage,
+    recentFiveMachineSettingFivePlusProbabilityAverage,
     recentSevenMachineSettingFivePlusProbabilityAverage,
     recentTenMachineSettingFivePlusProbabilityAverage,
     recentTwentyOneMachineSettingFivePlusProbabilityAverage,
@@ -10033,14 +10116,16 @@ export function buildHuntScoreSnapshots(
     options?.settingEstimateMode,
     { historyWindowDays: options?.machineEvaluationHistoryWindowDays },
   );
+  const effectiveTargetRows = filterExcludedHuntScoreRows(targetRows, config);
+  const effectiveAllStoreRows = filterExcludedHuntScoreRows(allStoreRows, config);
 
-  const businessDates = buildBusinessDates(allStoreRows, targetRows);
+  const businessDates = buildBusinessDates(effectiveAllStoreRows, effectiveTargetRows);
   if (businessDates.length === 0) {
     return [];
   }
 
   const businessDateSet = new Set(businessDates);
-  const { rowsByCandidateKey, rowsByDate } = buildSourceMaps(targetRows, businessDateSet, config);
+  const { rowsByCandidateKey, rowsByDate } = buildSourceMaps(effectiveTargetRows, businessDateSet, config);
   const settingDefinitionCache = new Map();
   const targetDate = String(options?.targetDate ?? "").trim();
   const targetDateRange = options?.targetDateRange ?? null;
