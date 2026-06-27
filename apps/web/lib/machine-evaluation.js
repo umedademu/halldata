@@ -410,6 +410,13 @@ function isJaranMizumotoStore(storeName) {
   );
 }
 
+function isMaruhanKameariStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["マルハン亀有店", "マルハン亀有"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function isPlazaTenjinStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["プラザ天神", "プラザ天神店", "PLAZA天神", "ＰＬＡＺＡ天神"].some(
@@ -2202,6 +2209,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "espace-shinkoiwa-north-neo-aim",
         "エスパス1300新小岩北口駅前店_ネオアイムEX_全日共通_本物継続返済ロジック_v1",
         "espace-shinkoiwa-north-neo-main66",
+      ),
+      buildLogicVariant(
+        "maruhan-kameari-neo-aim",
+        "亀有ネオアイム_全日共通_返済未完×極端履歴スコア_v1",
+        "maruhan-kameari-neo-main-rb290",
       ),
       buildLogicVariant(
         "messe-minamisenju-neo-aim",
@@ -4226,6 +4238,190 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["espaceShinkoiwaNorthNeoHistoryShort"],
         },
         ["espace-shinkoiwa-north-neo-aim"],
+      ),
+      buildCondition(
+        "maruhan-kameari-neo-wide-rb310",
+        "広めRB310_日別1位",
+        "120日 / 120台 / RB1/309.4 / 合算1/141.2 / 平均+445枚 / 102.52% / 平均56 33.9%",
+        {
+          rankMax: 1,
+          requiredFlags: ["maruhanKameariNeoHistoryReady"],
+        },
+        ["maruhan-kameari-neo-aim"],
+      ),
+      buildCondition(
+        "maruhan-kameari-neo-weak-rb300",
+        "弱め本命RB300_1位70点危険0",
+        "日別1位＋70点以上＋危険0 / RB1/299.6 / 合算1/139.8 / 平均+509枚 / 103.79%",
+        {
+          rankMax: 1,
+          minScore: 70,
+          maxDanger: 0,
+          requiredFlags: ["maruhanKameariNeoHistoryReady"],
+        },
+        ["maruhan-kameari-neo-aim"],
+      ),
+      buildCondition(
+        "maruhan-kameari-neo-main-rb290",
+        "本命RB290_75点危険0強化3",
+        "75点以上＋危険0＋強化3以上 / RB1/287.2 / 合算1/137.8 / 平均+560枚 / 104.39%",
+        {
+          minScore: 75,
+          minBoost: 3,
+          maxDanger: 0,
+          requiredFlags: ["maruhanKameariNeoHistoryReady"],
+        },
+        ["maruhan-kameari-neo-aim"],
+      ),
+      buildCondition(
+        "maruhan-kameari-neo-strong-rb280",
+        "強RB280_直近3日極端履歴",
+        "直近3日±4000枚＋75点以上＋危険0＋強化3以上 / RB1/279.1 / 合算1/135.9 / 平均+633枚 / 105.52%",
+        {
+          minScore: 75,
+          minBoost: 3,
+          maxDanger: 0,
+          requiredFlags: ["maruhanKameariNeoHistoryReady", "maruhanKameariNeoThreeExtreme"],
+        },
+        ["maruhan-kameari-neo-aim"],
+      ),
+      buildCondition(
+        "maruhan-kameari-neo-best-rb270",
+        "最本命RB270参考_強化4",
+        "75点以上＋危険0＋強化4以上 / RB1/260.0 / 合算1/132.0 / 件数5件の参考条件",
+        {
+          minScore: 75,
+          minBoost: 4,
+          maxDanger: 0,
+          requiredFlags: ["maruhanKameariNeoHistoryReady"],
+        },
+        ["maruhan-kameari-neo-aim"],
+      ),
+      buildCondition(
+        "maruhan-kameari-neo-free-top2",
+        "自由本命_上位2＋75点",
+        "上位2＋75点以上＋危険0＋強化3以上 / RB1/283.4 / 合算1/136.7",
+        {
+          rankMax: 2,
+          minScore: 75,
+          minBoost: 3,
+          maxDanger: 0,
+          requiredFlags: ["maruhanKameariNeoHistoryReady"],
+        },
+        ["maruhan-kameari-neo-aim"],
+      ),
+      buildCondition(
+        "maruhan-kameari-neo-free-rank1-score80",
+        "自由本命_1位80点",
+        "日別1位＋80点以上＋危険0＋強化3以上 / RB1/282.5 / 合算1/136台",
+        {
+          rankMax: 1,
+          minScore: 80,
+          minBoost: 3,
+          maxDanger: 0,
+          requiredFlags: ["maruhanKameariNeoHistoryReady"],
+        },
+        ["maruhan-kameari-neo-aim"],
+      ),
+      buildCondition(
+        "maruhan-kameari-neo-deep-repay",
+        "深沈み返済_14日-7000＋10日急沈み",
+        "14日-7000枚以下＋10日角度-120以下＋危険0 / RB1/302.1 / 沈み返済未完の補助条件",
+        {
+          maxDanger: 0,
+          requiredFlags: [
+            "maruhanKameariNeoHistoryReady",
+            "maruhanKameariNeoFourteenDeep7000",
+            "maruhanKameariNeoTenSteepSink",
+          ],
+        },
+        ["maruhan-kameari-neo-aim"],
+      ),
+      buildCondition(
+        "maruhan-kameari-neo-f3-deep",
+        "F3本命_3日5日深沈み",
+        "3日-4000枚以下＋5日-4000枚以下＋非プラス4連続以上 / RB1/285 / 29台 / 再現性高め",
+        {
+          requiredFlags: ["maruhanKameariNeoHistoryReady", "maruhanKameariNeoF3Core"],
+        },
+        ["maruhan-kameari-neo-aim"],
+      ),
+      buildCondition(
+        "maruhan-kameari-neo-f4-strong",
+        "F4強条件_短期沈み＋14日深沈み",
+        "2日-1500枚以下＋7日-4000枚以下＋14日深沈み代替 / RB1/285 / 26台",
+        {
+          requiredFlags: ["maruhanKameariNeoHistoryReady", "maruhanKameariNeoF4Core"],
+        },
+        ["maruhan-kameari-neo-aim"],
+      ),
+      buildCondition(
+        "maruhan-kameari-neo-f5-best",
+        "F5最本命参考_深沈み重複",
+        "2日-2000枚以下＋10日-5000枚以下＋7日-4000枚以下＋14日-6000枚以下 / RB1/260 / 13台 / 件数注意",
+        {
+          requiredFlags: ["maruhanKameariNeoHistoryReady", "maruhanKameariNeoF5Core"],
+        },
+        ["maruhan-kameari-neo-aim"],
+      ),
+      buildCondition(
+        "maruhan-kameari-neo-long-rb-momentum",
+        "長期RB本物感＋勢い",
+        "RB1/276.1 / 60点以上＋21日RB1/310以内＋勢い条件 / 長期RBの本物感を優先",
+        {
+          minScore: 60,
+          requiredFlags: [
+            "maruhanKameariNeoHistoryReady",
+            "maruhanKameariNeoLongRb310",
+            "maruhanKameariNeoMomentum",
+          ],
+        },
+        ["maruhan-kameari-neo-aim"],
+      ),
+      buildCondition(
+        "maruhan-kameari-neo-top5-long-rb-momentum",
+        "最本命補助_上位5＋長期RB＋勢い",
+        "RB1/267.6 / 上位5＋21日RB1/310以内＋勢い＋危険0 / 19台 / 件数注意",
+        {
+          rankMax: 5,
+          maxDanger: 0,
+          requiredFlags: [
+            "maruhanKameariNeoHistoryReady",
+            "maruhanKameariNeoLongRb310",
+            "maruhanKameariNeoMomentum",
+          ],
+        },
+        ["maruhan-kameari-neo-aim"],
+      ),
+      buildCondition(
+        "maruhan-kameari-neo-watch-danger2",
+        "見送り_危険2以上",
+        "危険条件2個以上は高得点でも見送り寄り。返済済み、低稼働、出過ぎ、高内容直後を重く見る",
+        {
+          minDanger: 2,
+          requiredFlags: ["maruhanKameariNeoHistoryReady"],
+        },
+        ["maruhan-kameari-neo-aim"],
+      ),
+      buildCondition(
+        "maruhan-kameari-neo-watch-risk-score",
+        "見送り_点数あり危険残り",
+        "60点以上でも危険1個以上は採用条件を落として確認",
+        {
+          minScore: 60,
+          minDanger: 1,
+          requiredFlags: ["maruhanKameariNeoHistoryReady"],
+        },
+        ["maruhan-kameari-neo-aim"],
+      ),
+      buildCondition(
+        "maruhan-kameari-neo-watch-history-short",
+        "見送り_履歴不足",
+        "履歴21営業日未満は採用条件対象外。7日未満は上限45、14日未満は上限60、21日未満は上限72",
+        {
+          requiredFlags: ["maruhanKameariNeoHistoryShort"],
+        },
+        ["maruhan-kameari-neo-aim"],
       ),
       buildCondition(
         "messe-minamisenju-free-14rb",
@@ -9003,6 +9199,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "espace-ueno-neo-aim");
   } else if (isEspaceShinkoiwaNorthStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "espace-shinkoiwa-north-neo-aim");
+  } else if (isMaruhanKameariStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "maruhan-kameari-neo-aim");
   } else if (isMesseMinamisenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "messe-minamisenju-neo-aim");
   } else if (isKintokiKamataStore(storeName) && definition.machineKey === "neo-aim") {
@@ -12640,6 +12838,207 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
           espaceShinkoiwaNorthNeoHistoryShort ||
           espaceShinkoiwaNorthNeoLowGamesUnknown ||
           recentSevenGamesTotal < 18000,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === "maruhan-kameari-neo-aim") {
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      const recentTenRbTotal = readNumber(metrics.recentTenRbTotal);
+      const recentTenBonusTotal = readNumber(metrics.recentTenBonusTotal);
+      const recentTenRbDenominator = rateDenominator(recentTenGamesTotal, recentTenRbTotal);
+      const recentTenCombinedDenominator = rateDenominator(recentTenGamesTotal, recentTenBonusTotal);
+      const recentTenAngle = netPerThousandGames(recentTenNetTotal, recentTenGamesTotal);
+      const maruhanKameariNeoHistoryReady = historyRowCount >= 21;
+      const maruhanKameariNeoHistoryShort = historyRowCount < 21;
+      const maruhanKameariNeoHistoryVeryShort = historyRowCount < 7;
+      const maruhanKameariNeoFourteenDeep7000 = recentFourteenNetTotal <= -7000;
+      const maruhanKameariNeoFourteenDeep6000 = recentFourteenNetTotal <= -6000;
+      const maruhanKameariNeoFourteenSink4000 = recentFourteenNetTotal <= -4000;
+      const maruhanKameariNeoTenSteepSink = recentTenGamesTotal >= 30000 && recentTenAngle <= -120;
+      const maruhanKameariNeoSevenSteepSink =
+        recentSevenGamesTotal >= 21000 && features.recentSevenAngle <= -120;
+      const maruhanKameariNeoThreePlusExtreme = recentThreeNetTotal >= 4000;
+      const maruhanKameariNeoThreeMinusExtreme = recentThreeNetTotal <= -4000;
+      const maruhanKameariNeoThreeExtreme =
+        maruhanKameariNeoThreePlusExtreme || maruhanKameariNeoThreeMinusExtreme;
+      const maruhanKameariNeoShortDeepSink =
+        recentTwoNetTotal <= -3000 || recentThreeNetTotal <= -4000 || recentFiveNetTotal <= -4000;
+      const maruhanKameariNeoLongRb310 =
+        recentTwentyOneGamesTotal >= 30000 && features.recentTwentyOneRbDenominator <= 310;
+      const maruhanKameariNeoLongRb330 =
+        recentTwentyOneGamesTotal >= 30000 && features.recentTwentyOneRbDenominator <= 330;
+      const maruhanKameariNeoHigh21Many = recentTwentyOneMachineHighContentCount >= 5;
+      const maruhanKameariNeoHigh7Many = recentSevenMachineHighContentCount >= 3;
+      const maruhanKameariNeoHigh7TooMany = recentSevenMachineHighContentCount >= 4;
+      const maruhanKameariNeoGames7Strong = recentSevenGamesTotal >= 38500;
+      const maruhanKameariNeoGames10Strong = recentTenGamesTotal >= 60000;
+      const maruhanKameariNeoInterval4To6 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 4 &&
+        daysSinceMachineHighContent <= 6;
+      const maruhanKameariNeoInterval4To10 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 4 &&
+        daysSinceMachineHighContent <= 10;
+      const maruhanKameariNeoStrongInterval8To14 =
+        Number.isFinite(daysSinceMachineStrongHighContent) &&
+        daysSinceMachineStrongHighContent >= 8 &&
+        daysSinceMachineStrongHighContent <= 14;
+      const maruhanKameariNeoRb5Weak480 =
+        recentFiveGamesTotal >= 10000 && features.recentFiveRbDenominator >= 480;
+      const maruhanKameariNeoCombined5Weak180 =
+        recentFiveGamesTotal >= 10000 && features.recentFiveCombinedDenominator >= 180;
+      const maruhanKameariNeoCombined3Strong130 =
+        recentThreeGamesTotal >= 7000 && features.recentThreeCombinedDenominator <= 130;
+      const maruhanKameariNeoRb5Strong =
+        recentFiveGamesTotal >= 15000 && features.recentFiveRbDenominator <= 300;
+      const maruhanKameariNeoCombined5Strong =
+        recentFiveGamesTotal >= 15000 && features.recentFiveCombinedDenominator <= 145;
+      const maruhanKameariNeoMomentum =
+        recentFiveNetTotal >= 4000 ||
+        recentThreeNetTotal >= 4000 ||
+        winningStreak >= 3 ||
+        maruhanKameariNeoCombined3Strong130;
+      const maruhanKameariNeoF1Wide =
+        recentSevenMachineShowCount >= 2 &&
+        maruhanKameariNeoInterval4To10 &&
+        previousAdjacentMachineHighContentCount >= 1;
+      const maruhanKameariNeoF3Core =
+        recentThreeNetTotal <= -4000 && recentFiveNetTotal <= -4000 && nonPositiveStreak >= 4;
+      const maruhanKameariNeoF4Core =
+        recentTwoNetTotal <= -1500 && recentSevenNetTotal <= -4000 && recentFourteenNetTotal <= -4500;
+      const maruhanKameariNeoF5Core =
+        recentTwoNetTotal <= -2000 &&
+        recentTenNetTotal <= -5000 &&
+        recentSevenNetTotal <= -4000 &&
+        recentFourteenNetTotal <= -6000;
+      const maruhanKameariNeoLowGames7 = historyRowCount >= 7 && recentSevenGamesTotal < 24500;
+      const maruhanKameariNeoNoHighHistory =
+        historyRowCount >= 21 && recentTwentyOneMachineHighContentCount === 0 && !Number.isFinite(daysSinceMachineHighContent);
+      const maruhanKameariNeoFourteenPlusDone = recentFourteenNetTotal >= 4000;
+      const maruhanKameariNeoThreePlusDone = recentThreeNetTotal >= 2500;
+      const maruhanKameariNeoThreeToFourLossRisk = streak >= 3 && streak <= 4;
+      const maruhanKameariNeoFivePlusLossWeak = streak >= 5 && recentFiveGamesTotal < 15000;
+      const maruhanKameariNeoFiveWinOverdone = winningStreak >= 5;
+      const maruhanKameariNeoTwentyOneGamesRisk =
+        recentTwentyOneGamesTotal >= 52500 && recentTwentyOneGamesTotal <= 73499;
+      const maruhanKameariNeoPreviousHighFail = previousMachineHighContent && previousDifference <= 500;
+      const maruhanKameariNeoPreviousHighBigDone = previousMachineHighContent && previousDifference >= 1800;
+      const maruhanKameariNeoFiveHugePlus = recentFiveNetTotal >= 7000;
+      const maruhanKameariNeoFourteenHugePlus = recentFourteenNetTotal >= 12000;
+      const maruhanKameariNeoTwentyOneDeepAbandon = recentTwentyOneNetTotal <= -8000;
+      const maruhanKameariNeoPreviousOutputWeak =
+        previousDifference >= 1000 && Number.isFinite(previousP56) && previousP56 < 0.3;
+      const maruhanKameariNeoBonusWeakNoSink =
+        features.recentFiveRbDenominator >= 600 &&
+        features.recentFiveCombinedDenominator >= 190 &&
+        recentSevenNetTotal > -3000;
+      const boostFlags = [
+        maruhanKameariNeoFourteenDeep7000,
+        maruhanKameariNeoFourteenSink4000,
+        maruhanKameariNeoTenSteepSink,
+        maruhanKameariNeoSevenSteepSink,
+        maruhanKameariNeoThreeExtreme,
+        maruhanKameariNeoShortDeepSink,
+        maruhanKameariNeoLongRb310,
+        maruhanKameariNeoLongRb330,
+        maruhanKameariNeoHigh21Many,
+        maruhanKameariNeoHigh7Many,
+        maruhanKameariNeoGames7Strong,
+        maruhanKameariNeoGames10Strong,
+        maruhanKameariNeoInterval4To6,
+        maruhanKameariNeoStrongInterval8To14,
+        maruhanKameariNeoRb5Weak480,
+        maruhanKameariNeoCombined5Weak180,
+        maruhanKameariNeoMomentum,
+        maruhanKameariNeoF1Wide,
+        maruhanKameariNeoF3Core,
+        maruhanKameariNeoF4Core,
+        maruhanKameariNeoF5Core,
+      ];
+      const dangerFlags = [
+        maruhanKameariNeoLowGames7,
+        maruhanKameariNeoNoHighHistory,
+        maruhanKameariNeoFourteenPlusDone,
+        maruhanKameariNeoThreePlusDone,
+        maruhanKameariNeoThreeToFourLossRisk,
+        maruhanKameariNeoFivePlusLossWeak,
+        maruhanKameariNeoFiveWinOverdone,
+        maruhanKameariNeoTwentyOneGamesRisk,
+        maruhanKameariNeoPreviousHighFail,
+        maruhanKameariNeoPreviousHighBigDone,
+        maruhanKameariNeoHigh7TooMany,
+        maruhanKameariNeoFiveHugePlus,
+        maruhanKameariNeoFourteenHugePlus,
+        maruhanKameariNeoTwentyOneDeepAbandon,
+        maruhanKameariNeoPreviousOutputWeak,
+        maruhanKameariNeoBonusWeakNoSink,
+      ];
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability,
+        recentTenRbDenominator,
+        recentTenCombinedDenominator,
+        recentTenAngle,
+        maruhanKameariNeoHistoryReady,
+        maruhanKameariNeoHistoryShort,
+        maruhanKameariNeoHistoryVeryShort,
+        maruhanKameariNeoFourteenDeep7000,
+        maruhanKameariNeoFourteenDeep6000,
+        maruhanKameariNeoFourteenSink4000,
+        maruhanKameariNeoTenSteepSink,
+        maruhanKameariNeoSevenSteepSink,
+        maruhanKameariNeoThreePlusExtreme,
+        maruhanKameariNeoThreeMinusExtreme,
+        maruhanKameariNeoThreeExtreme,
+        maruhanKameariNeoShortDeepSink,
+        maruhanKameariNeoLongRb310,
+        maruhanKameariNeoLongRb330,
+        maruhanKameariNeoHigh21Many,
+        maruhanKameariNeoHigh7Many,
+        maruhanKameariNeoHigh7TooMany,
+        maruhanKameariNeoGames7Strong,
+        maruhanKameariNeoGames10Strong,
+        maruhanKameariNeoInterval4To6,
+        maruhanKameariNeoInterval4To10,
+        maruhanKameariNeoStrongInterval8To14,
+        maruhanKameariNeoRb5Weak480,
+        maruhanKameariNeoCombined5Weak180,
+        maruhanKameariNeoCombined3Strong130,
+        maruhanKameariNeoRb5Strong,
+        maruhanKameariNeoCombined5Strong,
+        maruhanKameariNeoMomentum,
+        maruhanKameariNeoF1Wide,
+        maruhanKameariNeoF3Core,
+        maruhanKameariNeoF4Core,
+        maruhanKameariNeoF5Core,
+        maruhanKameariNeoLowGames7,
+        maruhanKameariNeoNoHighHistory,
+        maruhanKameariNeoFourteenPlusDone,
+        maruhanKameariNeoThreePlusDone,
+        maruhanKameariNeoThreeToFourLossRisk,
+        maruhanKameariNeoFivePlusLossWeak,
+        maruhanKameariNeoFiveWinOverdone,
+        maruhanKameariNeoTwentyOneGamesRisk,
+        maruhanKameariNeoPreviousHighFail,
+        maruhanKameariNeoPreviousHighBigDone,
+        maruhanKameariNeoFiveHugePlus,
+        maruhanKameariNeoFourteenHugePlus,
+        maruhanKameariNeoTwentyOneDeepAbandon,
+        maruhanKameariNeoPreviousOutputWeak,
+        maruhanKameariNeoBonusWeakNoSink,
+        treatmentDone:
+          maruhanKameariNeoFourteenPlusDone ||
+          maruhanKameariNeoThreePlusDone ||
+          maruhanKameariNeoPreviousHighBigDone,
+        lowConfidence:
+          maruhanKameariNeoHistoryShort ||
+          maruhanKameariNeoHistoryVeryShort ||
+          maruhanKameariNeoLowGames7 ||
+          maruhanKameariNeoNoHighHistory,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -19032,6 +19431,151 @@ function calculateMachineScore(definition, metrics, features) {
         gamesScore +
         neighborScore -
         penalty;
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
+    if (activeLogicKey === "maruhan-kameari-neo-aim") {
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      const recentTenRbTotal = readNumber(metrics.recentTenRbTotal);
+      const recentTenBonusTotal = readNumber(metrics.recentTenBonusTotal);
+      const recentTenRbDenominator = rateDenominator(recentTenGamesTotal, recentTenRbTotal);
+      const recentTenCombinedDenominator = rateDenominator(recentTenGamesTotal, recentTenBonusTotal);
+      const recentTenAngle = netPerThousandGames(recentTenNetTotal, recentTenGamesTotal);
+      let scoreCap = 100;
+      if (historyRowCount < 7) {
+        scoreCap = 45;
+      } else if (historyRowCount < 14) {
+        scoreCap = 60;
+      } else if (historyRowCount < 21) {
+        scoreCap = 72;
+      }
+
+      let repayScore = 0;
+      repayScore += scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -7000, points: 16 },
+        { maximum: -6000, points: 14 },
+        { maximum: -4500, points: 12 },
+        { maximum: -3000, points: 9 },
+        { maximum: -1500, points: 6 },
+        { maximum: 500, points: 3 },
+      ]);
+      repayScore += scoreAtMost(recentTenAngle, [
+        { maximum: -150, points: 10 },
+        { maximum: -120, points: 8 },
+        { maximum: -90, points: 5 },
+      ]);
+      repayScore += scoreAtMost(features.recentSevenAngle, [
+        { maximum: -150, points: 8 },
+        { maximum: -120, points: 6 },
+        { maximum: -90, points: 3 },
+      ]);
+      repayScore += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -5000, points: 8 },
+        { maximum: -4000, points: 6 },
+        { maximum: -2500, points: 4 },
+      ]);
+      repayScore += scoreAtMost(recentThreeNetTotal, [
+        { maximum: -4000, points: 8 },
+        { maximum: -3000, points: 6 },
+        { maximum: -2000, points: 4 },
+      ]);
+      repayScore += scoreAtMost(recentTwoNetTotal, [
+        { maximum: -3000, points: 5 },
+        { maximum: -2000, points: 3 },
+      ]);
+      repayScore += nonPositiveStreak >= 6 ? 8 : nonPositiveStreak >= 4 ? 5 : nonPositiveStreak >= 3 ? 3 : 0;
+      repayScore = clamp(repayScore, 0, 36);
+
+      let bonusScore = 0;
+      bonusScore += scoreAtMost(features.recentTwentyOneRbDenominator, [
+        { maximum: 310, points: 8 },
+        { maximum: 330, points: 4 },
+      ]);
+      bonusScore += scoreAtLeast(features.recentFiveRbDenominator, [
+        { minimum: 480, points: 6 },
+        { minimum: 400, points: 3 },
+      ]);
+      bonusScore += scoreAtLeast(features.recentFiveCombinedDenominator, [
+        { minimum: 180, points: 6 },
+        { minimum: 170, points: 3 },
+      ]);
+      bonusScore += scoreAtMost(features.recentThreeCombinedDenominator, [
+        { maximum: 130, points: 4 },
+        { maximum: 140, points: 2 },
+      ]);
+      bonusScore += scoreAtMost(features.recentFiveRbDenominator, [
+        { maximum: 300, points: 5 },
+        { maximum: 320, points: 3 },
+      ]);
+      bonusScore += scoreAtMost(features.recentFiveCombinedDenominator, [
+        { maximum: 145, points: 4 },
+        { maximum: 150, points: 2 },
+      ]);
+      bonusScore += scoreAtMost(recentTenRbDenominator, [
+        { maximum: 320, points: 3 },
+        { maximum: 340, points: 1 },
+      ]);
+      bonusScore += recentTenCombinedDenominator <= 145 ? 2 : 0;
+      bonusScore = clamp(bonusScore, 0, 22);
+
+      let rotationScore = 0;
+      rotationScore += recentTwentyOneMachineHighContentCount >= 5 ? 10 : recentTwentyOneMachineHighContentCount >= 4 ? 6 : 0;
+      rotationScore += recentSevenMachineHighContentCount >= 3 ? 7 : recentFiveMachineHighContentCount >= 2 ? 4 : 0;
+      rotationScore += recentTenMachineHighContentCount === 0 ? -6 : recentTenMachineHighContentCount <= 1 ? 2 : 0;
+      rotationScore +=
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 4 && daysSinceMachineHighContent <= 6
+          ? 5
+          : Number.isFinite(daysSinceMachineHighContent) &&
+              daysSinceMachineHighContent >= 7 &&
+              daysSinceMachineHighContent <= 10
+            ? 3
+            : 0;
+      rotationScore +=
+        Number.isFinite(daysSinceMachineStrongHighContent) &&
+        daysSinceMachineStrongHighContent >= 8 &&
+        daysSinceMachineStrongHighContent <= 14
+          ? 4
+          : 0;
+      rotationScore += previousMachineHighContent && previousDifference <= 500 ? 2 : 0;
+      rotationScore = clamp(rotationScore, -6, 18);
+
+      let momentumScore = 0;
+      momentumScore += recentThreeNetTotal >= 4000 ? 14 : recentFiveNetTotal >= 4000 ? 7 : 0;
+      momentumScore += winningStreak >= 3 && winningStreak <= 4 ? 3 : 0;
+      momentumScore += features.recentThreeCombinedDenominator <= 130 ? 3 : 0;
+      momentumScore = clamp(momentumScore, 0, 16);
+
+      let gamesScore = 0;
+      gamesScore += recentTenGamesTotal >= 65000 ? 12 : recentTenGamesTotal >= 60000 ? 8 : recentTenGamesTotal >= 55000 ? 4 : 0;
+      gamesScore += recentSevenGamesTotal >= 38500 ? 6 : recentSevenGamesTotal >= 35000 ? 4 : recentSevenGamesTotal >= 28000 ? 2 : 0;
+      gamesScore += recentThreeGamesTotal >= 15000 ? 3 : 0;
+      gamesScore = clamp(gamesScore, 0, 12);
+
+      let neighborScore = 0;
+      neighborScore += previousAdjacentMachineHighContentCount >= 2 ? 5 : previousAdjacentMachineHighContentCount >= 1 ? 3 : 0;
+      neighborScore += adjacentMachineHighContentCount3Near2 >= 3 ? 4 : adjacentMachineHighContentCount3Near2 >= 2 ? 2 : 0;
+      neighborScore = clamp(neighborScore, 0, 7);
+
+      let penalty = 0;
+      penalty += features.maruhanKameariNeoLowGames7 ? 8 : 0;
+      penalty += features.maruhanKameariNeoNoHighHistory ? 8 : 0;
+      penalty += recentFourteenNetTotal >= 12000 ? 10 : recentFourteenNetTotal >= 5000 ? 8 : recentFourteenNetTotal >= 3000 ? 5 : 0;
+      penalty += recentSevenNetTotal >= 3000 ? 8 : 0;
+      penalty += recentThreeNetTotal >= 2500 && recentThreeNetTotal < 4000 ? 6 : 0;
+      penalty += previousMachineHighContent && previousDifference >= 1800 ? 8 : 0;
+      penalty += previousMachineHighContent && previousDifference <= 500 ? 5 : 0;
+      penalty += recentSevenMachineHighContentCount >= 4 ? 10 : 0;
+      penalty += winningStreak >= 5 ? 8 : 0;
+      penalty += recentFiveNetTotal >= 7000 ? 8 : 0;
+      penalty += recentTwentyOneNetTotal <= -8000 ? 6 : 0;
+      penalty += recentTwentyOneGamesTotal >= 52500 && recentTwentyOneGamesTotal <= 73499 ? 5 : 0;
+      penalty += streak >= 3 && streak <= 4 ? 5 : 0;
+      penalty += streak >= 5 && recentFiveGamesTotal < 15000 ? 5 : 0;
+      penalty += previousDifference >= 1000 && Number.isFinite(previousP56) && previousP56 < 0.3 ? 5 : 0;
+      penalty += features.recentFiveRbDenominator >= 600 && features.recentFiveCombinedDenominator >= 190 && recentSevenNetTotal > -3000 ? 6 : 0;
+      penalty = clamp(penalty, 0, 42);
+
+      const score = 35 + repayScore + bonusScore + rotationScore + momentumScore + gamesScore + neighborScore - penalty;
       return Math.round(clamp(score, 0, scoreCap));
     }
 
