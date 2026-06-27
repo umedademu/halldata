@@ -92,6 +92,10 @@ const MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY = "maruhan-koiwa-neo-aim";
 const MARUHAN_KOIWA_NEO_AIM_LOGIC_NAME =
   "マルハン小岩ネオアイム_全日共通_深沈み返済56狙い_v1";
 const MARUHAN_KOIWA_NEO_AIM_DEFAULT_CONDITION = "maruhan-koiwa-neo-weak300";
+const MARUHON_NEO_AIM_LOGIC_KEY = "maruhon-neo-aim";
+const MARUHON_NEO_AIM_LOGIC_NAME =
+  "マルホン_ネオアイム_返済未完沈み狙い100点ロジック_v1";
+const MARUHON_NEO_AIM_DEFAULT_CONDITION = "maruhon-neo-best-combo-a";
 const CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY = "concert-hall-kitasenju-neo-aim";
 const CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_NAME =
   "コンサートホール北千住_ネオアイムEX_56狙い全日共通ロジック";
@@ -594,6 +598,13 @@ function isMaruhanKameariStore(storeName) {
 function isMaruhanKoiwaStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["マルハン小岩店", "マルハン小岩"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
+function isMaruhonStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["マルホン", "マルホン店", "MARUHON", "MARUHON店", "Maruhon"].some(
     (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
   );
 }
@@ -3872,6 +3883,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         MARUHAN_KOIWA_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
+        MARUHON_NEO_AIM_LOGIC_KEY,
+        MARUHON_NEO_AIM_LOGIC_NAME,
+        MARUHON_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY,
         CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_NAME,
         CONCERT_HALL_KITASENJU_NEO_AIM_DEFAULT_CONDITION,
@@ -6352,6 +6368,162 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoLongNeglect"],
         },
         [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        MARUHON_NEO_AIM_DEFAULT_CONDITION,
+        "最本命 強コンボA＋80点",
+        "対象26日・29台 / 総G112784 / BB1/260.5 / RB1/259.3 / 合算1/129.9 / 平均+483枚 / 104.14% / 勝率72.4% / 平均56 47.4% / 中央56 47.2% / 56>=50 41.4% / 56<30 31.0% / RB<=300 62.1% / 合成<=130 41.4%",
+        {
+          minScore: 80,
+          requiredFlags: ["maruhonNeoHistoryReady", "maruhonNeoStrongComboA"],
+        },
+        [MARUHON_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhon-neo-score90-danger0",
+        "強 90点＋危険0",
+        "対象33日・37台 / 総G131757 / BB1/260.4 / RB1/275.6 / 合算1/133.9 / 平均+374枚 / 103.50% / 勝率59.5% / 平均56 41.2% / 中央56 35.7% / 56>=50 35.1% / 56<30 43.2% / RB<=300 48.6% / 合成<=130 35.1%",
+        {
+          minScore: 90,
+          maxDanger: 0,
+          requiredFlags: ["maruhonNeoHistoryReady"],
+        },
+        [MARUHON_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhon-neo-score85-danger0",
+        "本命 85点＋危険0",
+        "対象45日・56台 / 総G198336 / BB1/262.3 / RB1/287.0 / 合算1/137.1 / 平均+299枚 / 102.82% / 勝率55.4% / 平均56 38.2% / 中央56 29.1% / 56>=50 28.6% / 56<30 51.8% / RB<=300 42.9% / 合成<=130 30.4%",
+        {
+          minScore: 85,
+          maxDanger: 0,
+          requiredFlags: ["maruhonNeoHistoryReady"],
+        },
+        [MARUHON_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhon-neo-score80-danger0",
+        "弱め本命 80点＋危険0",
+        "対象54日・75台 / 総G238373 / BB1/265.4 / RB1/296.5 / 合算1/140.1 / 平均+199枚 / 102.09% / 勝率48.0% / 平均56 35.4% / 中央56 28.6% / 56>=50 22.7% / 56<30 56.0% / RB<=300 34.7% / 合成<=130 24.0%",
+        {
+          minScore: 80,
+          maxDanger: 0,
+          requiredFlags: ["maruhonNeoHistoryReady"],
+        },
+        [MARUHON_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhon-neo-score80-wide",
+        "広め 80点以上",
+        "対象58日・84台 / 総G261200 / BB1/264.9 / RB1/302.0 / 合算1/141.1 / 平均+181枚 / 101.94% / 勝率47.6% / 平均56 34.2% / 中央56 27.1% / 56>=50 20.2% / 56<30 58.3% / RB<=300 33.3% / 合成<=130 22.6%",
+        {
+          minScore: 80,
+          requiredFlags: ["maruhonNeoHistoryReady"],
+        },
+        [MARUHON_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhon-neo-free-short-loss",
+        "短期沈み3-6連敗",
+        "対象22日・25台 / RB1/271.6 / 合算1/136.0 / 平均+255枚 / 102.35% / 勝率64.0% / 平均56 42.1% / 56>=50 36.0% / 点数より優先可",
+        {
+          requiredFlags: ["maruhonNeoHistoryReady", "maruhonNeoShortSinkLoss3To6"],
+        },
+        [MARUHON_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhon-neo-free-short-interval",
+        "短期沈み＋空き8-14日",
+        "対象22日・25台 / RB1/284.3 / 合算1/134.9 / 平均+352枚 / 103.48% / 勝率60.0% / 平均56 40.2% / 56>=50 40.0% / DSHが効く本命型",
+        {
+          requiredFlags: ["maruhonNeoHistoryReady", "maruhonNeoShortSinkInterval8To14"],
+        },
+        [MARUHON_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhon-neo-free-hidden-combo",
+        "合算隠れ沈み",
+        "対象23日・28台 / RB1/287.7 / 合算1/135.4 / 平均+390枚 / 103.61% / 勝率57.1% / 平均56 39.6% / 56>=50 35.7%",
+        {
+          requiredFlags: ["maruhonNeoHistoryReady", "maruhonNeoHiddenComboSink"],
+        },
+        [MARUHON_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhon-neo-free-rb-real-unpaid",
+        "RB本物沈み未完",
+        "対象36日・45台 / RB1/295.8 / 合算1/137.4 / 平均+344枚 / 103.57% / 勝率53.3% / 平均56 36.2% / 56>=50 22.2% / RBは付いているが差枚返済未完",
+        {
+          requiredFlags: ["maruhonNeoHistoryReady", "maruhonNeoRbRealSinkUnpaid"],
+        },
+        [MARUHON_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhon-neo-free-wide-unpaid-b",
+        "広め返済未完B",
+        "対象79日・181台 / RB1/325.0 / 合算1/143.7 / 平均+186枚 / 102.20% / 勝率45.9% / 平均56 31.0% / 56>=50 16.6% / 本命不在時の妥協条件",
+        {
+          requiredFlags: ["maruhonNeoHistoryReady", "maruhonNeoWideUnpaidB"],
+        },
+        [MARUHON_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhon-neo-watch-danger-score60",
+        "見送り_60点以上でも危険あり",
+        "60点以上でも危険条件ありはRB1/380.6、56>=50 4.2%まで落ちるため警戒",
+        {
+          minScore: 60,
+          minDanger: 1,
+          requiredFlags: ["maruhonNeoHistoryReady"],
+        },
+        [MARUHON_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhon-neo-watch-score80-no-boost",
+        "見送り_80点未満で強化なし",
+        "80点未満かつ強化条件なしはネオアイムで座る理由が弱い",
+        {
+          maxScore: 79.999,
+          maxBoost: 0,
+          requiredFlags: ["maruhonNeoHistoryReady"],
+        },
+        [MARUHON_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhon-neo-watch-prev-high-output",
+        "見送り_前日高内容＋出玉",
+        "前日高内容かつ前日+500枚以上は処遇完了寄り",
+        {
+          requiredFlags: ["maruhonNeoHistoryReady", "maruhonNeoPreviousHighOutput"],
+        },
+        [MARUHON_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhon-neo-watch-high-games-no-unpaid",
+        "見送り_7日高稼働で沈み未完なし",
+        "G7 22000G以上かつ沈み未完なしは見えすぎ台として警戒",
+        {
+          requiredFlags: ["maruhonNeoHistoryReady", "maruhonNeoHighGamesNoUnpaid"],
+        },
+        [MARUHON_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhon-neo-watch-loss7",
+        "見送り_7連敗以上",
+        "7連敗以上は放置台化しやすいため本命外",
+        {
+          requiredFlags: ["maruhonNeoHistoryReady", "maruhonNeoLoss7Plus"],
+        },
+        [MARUHON_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhon-neo-watch-history-short",
+        "見送り_履歴7日未満",
+        "履歴7営業日未満は低信頼として採用対象外",
+        {
+          requiredFlags: ["maruhonNeoHistoryShort"],
+        },
+        [MARUHON_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "concert-hall-kitasenju-neo-best-rank1-85-gap12",
@@ -13991,6 +14163,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "maruhan-kameari-neo-aim");
   } else if (isMaruhanKoiwaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY);
+  } else if (isMaruhonStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, MARUHON_NEO_AIM_LOGIC_KEY);
   } else if (isConcertHallKitasenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY);
   } else if (isKyudenAnnexStore(storeName) && definition.machineKey === "neo-aim") {
@@ -21552,6 +21726,104 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         maruhanKoiwaNeoTreatmentDone,
         treatmentDone: maruhanKoiwaNeoTreatmentDone,
         lowConfidence: maruhanKoiwaNeoHistoryShort || maruhanKoiwaNeoLowGames7 || maruhanKoiwaNeoPreviousLowGames,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === MARUHON_NEO_AIM_LOGIC_KEY) {
+      const dsh = Number.isFinite(daysSinceMachineHighContent)
+        ? Math.max(0, daysSinceMachineHighContent - 1)
+        : null;
+      const rb7 = features.recentSevenRbDenominator;
+      const c7 = features.recentSevenCombinedDenominator;
+      const c3 = features.recentThreeCombinedDenominator;
+      const maruhonNeoHistoryReady = historyRowCount >= 7;
+      const maruhonNeoHistoryShort = historyRowCount < 7;
+      const maruhonNeoG7Low = recentSevenGamesTotal < 6000;
+      const maruhonNeoG7Middle = recentSevenGamesTotal >= 6000 && recentSevenGamesTotal <= 15000;
+      const maruhonNeoG7High = recentSevenGamesTotal >= 22000;
+      const maruhonNeoG7VeryHigh = recentSevenGamesTotal >= 25000;
+      const maruhonNeoD21D14LongSink = recentTwentyOneNetTotal <= -2500 && recentFourteenNetTotal <= -1000;
+      const maruhonNeoShortDeepSink = recentSevenGamesTotal <= 15000 && recentSevenNetTotal <= -2500;
+      const maruhonNeoLoss3To6 = streak >= 3 && streak <= 6;
+      const maruhonNeoLoss7Plus = streak >= 7;
+      const maruhonNeoDsh8To14 = Number.isFinite(dsh) && dsh >= 8 && dsh <= 14;
+      const maruhonNeoDsh8To30 = Number.isFinite(dsh) && dsh >= 8 && dsh <= 30;
+      const maruhonNeoBonusHidden = rb7 >= 500 || c7 >= 180;
+      const maruhonNeoRbRealSink = rb7 <= 320 && maruhonNeoD21D14LongSink;
+      const maruhonNeoPreviousHigh = previousMachineHighContent;
+      const maruhonNeoPreviousPlus500 = previousDifference >= 500;
+      const maruhonNeoPreviousPlus1000 = previousDifference >= 1000;
+      const maruhonNeoPreviousPlus1500 = previousDifference >= 1500;
+      const maruhonNeoD7Plus1500 = recentSevenNetTotal >= 1500;
+      const maruhonNeoUnpaidWide = recentSevenGamesTotal <= 15000 && recentTwentyOneNetTotal <= -1000 && recentFourteenNetTotal <= -500;
+      const maruhonNeoTreatmentDone =
+        maruhonNeoPreviousPlus1000 ||
+        maruhonNeoD7Plus1500 ||
+        recentFourteenNetTotal >= 2000 ||
+        recentTwentyOneNetTotal >= 2000;
+      const maruhonNeoPreviousHighOutput = maruhonNeoPreviousHigh && maruhonNeoPreviousPlus500;
+      const maruhonNeoHighGamesNoUnpaid = maruhonNeoG7High && !maruhonNeoUnpaidWide;
+      const maruhonNeoStrongComboA =
+        maruhonNeoShortDeepSink && (maruhonNeoLoss3To6 || maruhonNeoDsh8To14);
+      const maruhonNeoShortSinkLoss3To6 = maruhonNeoShortDeepSink && maruhonNeoLoss3To6;
+      const maruhonNeoShortSinkInterval8To14 = maruhonNeoShortDeepSink && maruhonNeoDsh8To14;
+      const maruhonNeoHiddenComboSink =
+        c7 >= 180 && c3 >= 200 && recentFourteenNetTotal <= -1500 && recentSevenGamesTotal <= 15000;
+      const maruhonNeoRbRealSinkUnpaid =
+        recentTwentyOneNetTotal <= -2500 && recentFourteenNetTotal <= -2000 && rb7 <= 320;
+      const maruhonNeoWideUnpaidB = maruhonNeoUnpaidWide;
+      const boostFlags = [
+        maruhonNeoD21D14LongSink,
+        maruhonNeoShortDeepSink,
+        maruhonNeoLoss3To6,
+        maruhonNeoDsh8To30,
+        maruhonNeoBonusHidden,
+        maruhonNeoRbRealSink,
+      ];
+      const dangerFlags = [
+        maruhonNeoPreviousHigh,
+        maruhonNeoPreviousPlus1000,
+        maruhonNeoD7Plus1500,
+        maruhonNeoG7High,
+        maruhonNeoLoss7Plus,
+        maruhonNeoG7Low,
+        maruhonNeoTreatmentDone,
+      ];
+
+      return {
+        ...features,
+        maruhonNeoHistoryReady,
+        maruhonNeoHistoryShort,
+        maruhonNeoG7Low,
+        maruhonNeoG7Middle,
+        maruhonNeoG7High,
+        maruhonNeoG7VeryHigh,
+        maruhonNeoD21D14LongSink,
+        maruhonNeoShortDeepSink,
+        maruhonNeoLoss3To6,
+        maruhonNeoLoss7Plus,
+        maruhonNeoDsh8To14,
+        maruhonNeoDsh8To30,
+        maruhonNeoBonusHidden,
+        maruhonNeoRbRealSink,
+        maruhonNeoPreviousHigh,
+        maruhonNeoPreviousPlus500,
+        maruhonNeoPreviousPlus1000,
+        maruhonNeoPreviousPlus1500,
+        maruhonNeoD7Plus1500,
+        maruhonNeoTreatmentDone,
+        maruhonNeoPreviousHighOutput,
+        maruhonNeoHighGamesNoUnpaid,
+        maruhonNeoStrongComboA,
+        maruhonNeoShortSinkLoss3To6,
+        maruhonNeoShortSinkInterval8To14,
+        maruhonNeoHiddenComboSink,
+        maruhonNeoRbRealSinkUnpaid,
+        maruhonNeoWideUnpaidB,
+        treatmentDone: maruhonNeoTreatmentDone,
+        lowConfidence: maruhonNeoHistoryShort || maruhonNeoG7Low,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -30538,6 +30810,114 @@ function calculateMachineScore(definition, metrics, features) {
       }
 
       return Math.round(clamp(score, 0, scoreCap));
+    }
+
+    if (activeLogicKey === MARUHON_NEO_AIM_LOGIC_KEY) {
+      const dsh = Number.isFinite(daysSinceMachineHighContent)
+        ? Math.max(0, daysSinceMachineHighContent - 1)
+        : null;
+      const rb7 = features.recentSevenRbDenominator;
+      const rb5 = features.recentFiveRbDenominator;
+      const c7 = features.recentSevenCombinedDenominator;
+      const c3 = features.recentThreeCombinedDenominator;
+      const angle7 = recentSevenGamesTotal > 0 ? (recentSevenNetTotal / recentSevenGamesTotal) * 1000 : 0;
+      const longSink = recentTwentyOneNetTotal <= -2500 && recentFourteenNetTotal <= -1000;
+      const unpaid = recentFourteenNetTotal <= -1500 || recentTwentyOneNetTotal <= -2500;
+
+      let score = 0;
+      score += recentSevenGamesTotal >= 6000 && recentSevenGamesTotal <= 15000
+        ? 15
+        : recentSevenGamesTotal >= 15001 && recentSevenGamesTotal <= 18000
+          ? 10
+          : recentSevenGamesTotal >= 18001 && recentSevenGamesTotal <= 22000
+            ? 5
+            : recentSevenGamesTotal < 6000
+              ? 4
+              : 0;
+
+      score += recentTwentyOneNetTotal <= -3500
+        ? 18
+        : recentTwentyOneNetTotal <= -2500
+          ? 14
+          : recentTwentyOneNetTotal <= -1500
+            ? 9
+            : recentTwentyOneNetTotal <= -500
+              ? 5
+              : 0;
+      score -= recentTwentyOneNetTotal >= 2000 ? 8 : recentTwentyOneNetTotal >= 1000 ? 4 : 0;
+
+      score += recentFourteenNetTotal <= -2500
+        ? 10
+        : recentFourteenNetTotal <= -1500
+          ? 8
+          : recentFourteenNetTotal <= -500
+            ? 5
+            : 0;
+      score -= recentFourteenNetTotal >= 2000 ? 7 : recentFourteenNetTotal >= 1000 ? 4 : 0;
+
+      score += recentSevenNetTotal <= -2500
+        ? 8
+        : recentSevenNetTotal <= -1500
+          ? 6
+          : recentSevenNetTotal <= -500
+            ? 3
+            : 0;
+      score -= recentSevenNetTotal >= 1500 ? 6 : recentSevenNetTotal >= 800 ? 3 : 0;
+
+      score += angle7 <= -160 && recentSevenGamesTotal <= 15000
+        ? 8
+        : angle7 <= -100 && recentSevenGamesTotal <= 18000
+          ? 5
+          : angle7 <= -50
+            ? 2
+            : 0;
+      score -= angle7 >= 80 ? 4 : 0;
+
+      score += streak >= 7 ? -12 : streak >= 3 ? 12 : streak >= 1 ? 5 : 0;
+
+      score += !Number.isFinite(dsh)
+        ? -2
+        : dsh === 0
+          ? -9
+          : dsh >= 1 && dsh <= 3
+            ? -4
+            : dsh >= 4 && dsh <= 7
+              ? 2
+              : dsh >= 8 && dsh <= 14
+                ? 10
+                : dsh >= 15 && dsh <= 30
+                  ? 12
+                  : 0;
+
+      score += rb7 >= 550 ? 8 : rb7 >= 500 ? 6 : rb7 >= 450 ? 3 : 0;
+      score -= rb7 <= 280 ? 4 : 0;
+      score += rb7 <= 320 && unpaid ? 4 : rb7 <= 320 ? -2 : 0;
+      score += c7 >= 200 ? 6 : c7 >= 180 ? 5 : 0;
+      score -= c7 <= 140 && !unpaid ? 5 : 0;
+      score += c3 >= 200 ? 3 : 0;
+      score += rb5 >= 550 ? 4 : 0;
+
+      score += previousAdjacentMachineHighContentCount > 0 || previousAdjacentMachineHighContentCountNear2 > 0 ? 3 : 0;
+      score += previousAdjacentMachineNetTotal >= 1000 || previousAdjacentMachineNetTotalNear2 >= 1000 ? 2 : 0;
+
+      score +=
+        recentSevenGamesTotal <= 15000 &&
+        recentSevenNetTotal <= -2500 &&
+        ((streak >= 3 && streak <= 6) || (Number.isFinite(dsh) && dsh >= 8 && dsh <= 14))
+          ? 10
+          : 0;
+      score += recentSevenGamesTotal <= 15000 && recentTwentyOneNetTotal <= -1000 && recentFourteenNetTotal <= -500
+        ? 8
+        : 0;
+      score += longSink ? 5 : 0;
+      score += c7 >= 180 && c3 >= 200 && recentFourteenNetTotal <= -1500 ? 6 : 0;
+
+      score -= previousMachineHighContent ? 8 : 0;
+      score -= previousDifference >= 1500 ? 10 : previousDifference >= 1000 ? 6 : previousDifference >= 500 ? 2 : 0;
+      score -= recentSevenGamesTotal >= 25000 ? 10 : recentSevenGamesTotal >= 22000 ? 6 : 0;
+      score -= recentSevenNetTotal <= -4000 && recentSevenGamesTotal >= 18000 ? 6 : 0;
+
+      return Math.round(clamp(score, 0, 100));
     }
 
     if (activeLogicKey === "maruhan-kameari-neo-aim") {

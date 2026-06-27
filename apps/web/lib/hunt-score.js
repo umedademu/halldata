@@ -315,6 +315,10 @@ const MARUHAN_KOIWA_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const MARUHON_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const CONCERT_HALL_KITASENJU_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
@@ -972,6 +976,23 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "maruhan-koiwa-neo-aim",
       "ネオアイムジャグラーＥＸ": "maruhan-koiwa-neo-aim",
+    },
+  },
+  {
+    key: "maruhon",
+    storeNames: ["マルホン", "マルホン店", "MARUHON", "MARUHON店", "Maruhon"],
+    targetMachines: MARUHON_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    excludedRows: [
+      {
+        targetDate: "2026-06-09",
+        slotNumber: "635",
+        machineName: "ネオアイムジャグラーEX",
+      },
+    ],
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "maruhon-neo-aim",
+      "ネオアイムジャグラーＥＸ": "maruhon-neo-aim",
     },
   },
   {
@@ -2549,6 +2570,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
+    if (contentRule === "maruhon-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 2500 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     if (contentRule === "concert-hall-kitasenju-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -3113,6 +3141,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 350 && combinedDenominator <= 160;
     }
+    if (contentRule === "maruhon-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 2500 && settingFivePlusProbability >= 0.35;
+      }
+      return games >= 2500 && rbDenominator <= 350 && combinedDenominator <= 160;
+    }
     if (contentRule === "concert-hall-kitasenju-neo-aim") {
       return games >= 3000 && rbDenominator <= 310 && combinedDenominator <= 145;
     }
@@ -3405,6 +3440,7 @@ function isMachineLowContentWindowRow(row, machineName, config = null) {
       "plaza3-neo-aim",
       "slot-marumitsu-ohashi-neo-aim",
       "tamaya-ohashi-neo-aim",
+      "maruhon-neo-aim",
       "park-takenotsuka-studio-neo-aim",
       "park-kitasenju-neo-aim",
       "park-kitasenju-sss-neo-aim",
@@ -3817,6 +3853,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 3000 && settingFivePlusProbability >= 0.7;
     }
     return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "maruhon-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 2500 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 2500 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
