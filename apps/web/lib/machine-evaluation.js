@@ -100,6 +100,10 @@ const CONCERT_HALL_KITASENJU_NEO_AIM_DEFAULT_CONDITION =
 const KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY = "kyuden-annex-neo-aim";
 const KYUDEN_ANNEX_NEO_AIM_LOGIC_NAME = "キューデンアネックス_ネオアイムEX_全日共通_v1";
 const KYUDEN_ANNEX_NEO_AIM_DEFAULT_CONDITION = "kyuden-annex-neo-strong280";
+const JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY = "jaran-yazaike-neo-aim";
+const JARAN_YAZAIKE_NEO_AIM_LOGIC_NAME =
+  "ジャラン谷在家店 ネオアイム 返済未完連敗ロジック v1";
+const JARAN_YAZAIKE_NEO_AIM_DEFAULT_CONDITION = "jaran-yazaike-neo-strong280";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -561,6 +565,13 @@ function isKyudenAnnexStore(storeName) {
     "キューデンアネックス店",
     "KYUDEN ANNEX",
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
+function isJaranYazaikeStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["ジャラン谷在家店", "ジャラン谷在家", "JARAN谷在家店", "JARAN谷在家", "ＪＡＲＡＮ谷在家店"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
 }
 
 function isPlazaTenjinStore(storeName) {
@@ -3705,6 +3716,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         KYUDEN_ANNEX_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
+        JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY,
+        JARAN_YAZAIKE_NEO_AIM_LOGIC_NAME,
+        JARAN_YAZAIKE_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         "messe-minamisenju-neo-aim",
         "メッセ南千住_ネオアイムEX_全日共通_未返済沈み滞在ロジック_v1",
         "messe-minamisenju-free-14rb",
@@ -6456,6 +6472,119 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["kyudenAnnexNeoHistoryReady", "kyudenAnnexNeoLowGames7"],
         },
         [KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "jaran-yazaike-neo-free-max-best",
+        "自由MAX最優先/最本命270_件数注意",
+        "8台 / RB1/256.2 / 合算1/121.4 / 平均+1152枚 / 107.73% / 勝率50.0% / 平均56 51.6% / 56>=50 62.5%",
+        {
+          requiredFlags: ["jaranYazaikeNeoHistoryReady", "jaranYazaikeNeoBest270"],
+        },
+        [JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        JARAN_YAZAIKE_NEO_AIM_DEFAULT_CONDITION,
+        "強条件280",
+        "12台 / RB1/277.0 / 合算1/129.1 / 平均+770枚 / 105.37% / 勝率41.7% / 平均56 43.4% / 56>=50 41.7%",
+        {
+          requiredFlags: ["jaranYazaikeNeoHistoryReady", "jaranYazaikeNeoStrong280"],
+        },
+        [JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "jaran-yazaike-neo-main290",
+        "本命290",
+        "14台 / RB1/282.9 / 合算1/131.8 / 平均+615枚 / 104.53% / 勝率35.7% / 平均56 40.7% / 56>=50 35.7%",
+        {
+          requiredFlags: ["jaranYazaikeNeoHistoryReady", "jaranYazaikeNeoMain290"],
+        },
+        [JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "jaran-yazaike-neo-weak300",
+        "弱め本命300",
+        "15台 / RB1/299.9 / 合算1/133.0 / 平均+723枚 / 105.13% / 勝率53.3% / 平均56 36.3% / 56>=50 26.7%",
+        {
+          requiredFlags: ["jaranYazaikeNeoHistoryReady", "jaranYazaikeNeoWeak300"],
+        },
+        [JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "jaran-yazaike-neo-wide310",
+        "広め310",
+        "18台 / RB1/306.1 / 合算1/134.9 / 平均+443枚 / 103.76% / 勝率44.4% / 平均56 34.6% / 56>=50 33.3%",
+        {
+          requiredFlags: ["jaranYazaikeNeoHistoryReady", "jaranYazaikeNeoWide310"],
+        },
+        [JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "jaran-yazaike-neo-rank1-gap10",
+        "補助_1位＋次点差10",
+        "54台 / RB1/356.0 / 合算1/148.3 / 平均+168枚 / 101.37% / 平均56 24.1% / 主条件ではなく補助",
+        {
+          rankMax: 1,
+          minNextGap: 10,
+          requiredFlags: ["jaranYazaikeNeoHistoryReady"],
+        },
+        [JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "jaran-yazaike-neo-watch-danger2",
+        "見送り_危険2以上",
+        "履歴不足、14日プラス、前日高内容、前日強出玉、G数不足など危険が2個以上なら優先度を下げる",
+        {
+          minDanger: 2,
+          requiredFlags: ["jaranYazaikeNeoHistoryReady"],
+        },
+        [JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "jaran-yazaike-neo-watch-score80-boost1",
+        "見送り_80点未満かつ強化1以下",
+        "点数80未満で強化材料が2個未満なら見送り寄り",
+        {
+          maxScore: 79.999,
+          maxBoost: 1,
+          requiredFlags: ["jaranYazaikeNeoHistoryReady"],
+        },
+        [JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "jaran-yazaike-neo-watch-d14-plus",
+        "見送り_14日プラス",
+        "14日差枚がプラスの台は返済未完の主旨から外れる",
+        {
+          requiredFlags: ["jaranYazaikeNeoHistoryReady", "jaranYazaikeNeoD14Plus"],
+        },
+        [JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "jaran-yazaike-neo-watch-previous-high",
+        "見送り_前日高内容",
+        "前日推定56が五割以上は処遇済みとして注意",
+        {
+          requiredFlags: ["jaranYazaikeNeoHistoryReady", "jaranYazaikeNeoPreviousHighP56"],
+        },
+        [JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "jaran-yazaike-neo-watch-previous-output-content",
+        "見送り_前日大出し内容あり",
+        "前日+1000枚以上かつ推定56が三割以上は出玉と内容の処遇完了として注意",
+        {
+          requiredFlags: ["jaranYazaikeNeoHistoryReady", "jaranYazaikeNeoPreviousOutputContent"],
+        },
+        [JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "jaran-yazaike-neo-watch-history-short",
+        "見送り_履歴14日未満",
+        "履歴14日未満は採用条件対象外。点数も大きく減点する",
+        {
+          requiredFlags: ["jaranYazaikeNeoHistoryShort"],
+        },
+        [JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "messe-minamisenju-free-14rb",
@@ -11874,6 +12003,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY);
   } else if (isKyudenAnnexStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY);
+  } else if (isJaranYazaikeStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY);
   } else if (isMesseMinamisenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "messe-minamisenju-neo-aim");
   } else if (isMesseOkudoStore(storeName) && definition.machineKey === "neo-aim") {
@@ -12471,6 +12602,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
   const recentFourteenGoldShowDays = readNumber(metrics.recentFourteenGoldShowDays);
   const recentSevenGoldShowDays = readNumber(metrics.recentSevenGoldShowDays, readNumber(metrics.recentSevenBigShowDays));
   const recentFourteenLossDays = readNumber(metrics.recentFourteenLossDays);
+  const recentFiveWinDays = readNumber(metrics.recentFiveWinDays);
   const recentFourteenWinDays = readNumber(metrics.recentFourteenWinDays);
   const recentSevenLossDays = readNumber(metrics.recentSevenLossDays);
   const recentSevenWinDays = readNumber(metrics.recentSevenWinDays);
@@ -17287,6 +17419,117 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       };
     }
 
+    if (activeLogicKey === JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY) {
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      const jaranYazaikeNeoHistoryReady = historyRowCount >= 14;
+      const jaranYazaikeNeoHistoryShort = historyRowCount < 14;
+      const jaranYazaikeNeoD3Sink2500 = recentThreeNetTotal <= -2500;
+      const jaranYazaikeNeoD5Sink2500 = recentFiveNetTotal <= -2500;
+      const jaranYazaikeNeoD7Sink2500 = recentSevenNetTotal <= -2500;
+      const jaranYazaikeNeoD14Sink2500 = recentFourteenNetTotal <= -2500;
+      const jaranYazaikeNeoD14Plus = recentFourteenNetTotal > 0;
+      const jaranYazaikeNeoD7Plus2000 = recentSevenNetTotal > 2000;
+      const jaranYazaikeNeoWins5Zero = recentFiveWinDays === 0;
+      const jaranYazaikeNeoWins5OneOrLess = recentFiveWinDays <= 1;
+      const jaranYazaikeNeoWins14TwoOrLess = recentFourteenWinDays <= 2;
+      const jaranYazaikeNeoG3Under8000 = recentThreeGamesTotal <= 8000;
+      const jaranYazaikeNeoG5Under15000 = recentFiveGamesTotal <= 15000;
+      const jaranYazaikeNeoG5Middle = recentFiveGamesTotal >= 8000 && recentFiveGamesTotal <= 15000;
+      const jaranYazaikeNeoG5VeryLow = recentFiveGamesTotal < 6000;
+      const jaranYazaikeNeoG7Under20000 = recentSevenGamesTotal <= 20000;
+      const jaranYazaikeNeoG7Middle = recentSevenGamesTotal >= 10000 && recentSevenGamesTotal <= 20000;
+      const jaranYazaikeNeoG14Trust = recentFourteenGamesTotal >= 25000;
+      const jaranYazaikeNeoG14Low = recentFourteenGamesTotal < 25000;
+      const jaranYazaikeNeoPreviousSink500 = previousDifference <= -500;
+      const jaranYazaikeNeoPreviousHighP56 = Number.isFinite(previousP56) && previousP56 >= 0.5;
+      const jaranYazaikeNeoPreviousP56ThirtyOutput =
+        Number.isFinite(previousP56) && previousP56 >= 0.3 && previousDifference >= 500;
+      const jaranYazaikeNeoPreviousOutputContent =
+        Number.isFinite(previousP56) && previousP56 >= 0.3 && previousDifference >= 1000;
+      const jaranYazaikeNeoHigh14PlusDone =
+        recentFourteenMachineHighContentCount >= 2 && recentFourteenNetTotal > 0;
+      const jaranYazaikeNeoNeighborSink = adjacentMachineNetTotal7Near2 <= -1000;
+      const jaranYazaikeNeoNeighborAhead = adjacentMachineNetTotal7Near2 > 3000;
+      const jaranYazaikeNeoNeighborNoHigh7 = adjacentMachineHighContentCount7Near2 === 0;
+      const jaranYazaikeNeoWide310 =
+        jaranYazaikeNeoD5Sink2500 &&
+        jaranYazaikeNeoG3Under8000 &&
+        jaranYazaikeNeoG5Under15000 &&
+        jaranYazaikeNeoPreviousSink500;
+      const jaranYazaikeNeoWeak300 =
+        streak >= 5 &&
+        jaranYazaikeNeoD7Sink2500 &&
+        jaranYazaikeNeoG5Under15000 &&
+        jaranYazaikeNeoPreviousSink500;
+      const jaranYazaikeNeoMain290 =
+        streak >= 4 &&
+        jaranYazaikeNeoD14Sink2500 &&
+        jaranYazaikeNeoG7Under20000 &&
+        jaranYazaikeNeoPreviousSink500;
+      const jaranYazaikeNeoStrong280 = jaranYazaikeNeoMain290 && jaranYazaikeNeoG5Under15000;
+      const jaranYazaikeNeoBest270 = jaranYazaikeNeoStrong280 && jaranYazaikeNeoD5Sink2500;
+      const boostFlags = [
+        streak >= 5,
+        jaranYazaikeNeoD5Sink2500,
+        jaranYazaikeNeoD14Sink2500,
+        jaranYazaikeNeoPreviousSink500,
+        jaranYazaikeNeoG5Middle,
+        jaranYazaikeNeoNeighborSink,
+      ];
+      const dangerFlags = [
+        jaranYazaikeNeoHistoryShort,
+        jaranYazaikeNeoG14Low,
+        previousDifference >= 1500,
+        jaranYazaikeNeoPreviousHighP56,
+        jaranYazaikeNeoD14Plus,
+        jaranYazaikeNeoD7Plus2000,
+        jaranYazaikeNeoG5VeryLow,
+      ];
+
+      return {
+        ...features,
+        jaranYazaikeNeoHistoryReady,
+        jaranYazaikeNeoHistoryShort,
+        jaranYazaikeNeoD3Sink2500,
+        jaranYazaikeNeoD5Sink2500,
+        jaranYazaikeNeoD7Sink2500,
+        jaranYazaikeNeoD14Sink2500,
+        jaranYazaikeNeoD14Plus,
+        jaranYazaikeNeoD7Plus2000,
+        jaranYazaikeNeoWins5Zero,
+        jaranYazaikeNeoWins5OneOrLess,
+        jaranYazaikeNeoWins14TwoOrLess,
+        jaranYazaikeNeoG3Under8000,
+        jaranYazaikeNeoG5Under15000,
+        jaranYazaikeNeoG5Middle,
+        jaranYazaikeNeoG5VeryLow,
+        jaranYazaikeNeoG7Under20000,
+        jaranYazaikeNeoG7Middle,
+        jaranYazaikeNeoG14Trust,
+        jaranYazaikeNeoG14Low,
+        jaranYazaikeNeoPreviousSink500,
+        jaranYazaikeNeoPreviousHighP56,
+        jaranYazaikeNeoPreviousP56ThirtyOutput,
+        jaranYazaikeNeoPreviousOutputContent,
+        jaranYazaikeNeoHigh14PlusDone,
+        jaranYazaikeNeoNeighborSink,
+        jaranYazaikeNeoNeighborAhead,
+        jaranYazaikeNeoNeighborNoHigh7,
+        jaranYazaikeNeoWide310,
+        jaranYazaikeNeoWeak300,
+        jaranYazaikeNeoMain290,
+        jaranYazaikeNeoStrong280,
+        jaranYazaikeNeoBest270,
+        treatmentDone:
+          jaranYazaikeNeoD14Plus ||
+          jaranYazaikeNeoPreviousHighP56 ||
+          jaranYazaikeNeoPreviousOutputContent,
+        lowConfidence: jaranYazaikeNeoHistoryShort || jaranYazaikeNeoG14Low,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY) {
       const previousP56 = previousMachineSettingFivePlusProbability;
       const kyudenAnnexNeoHistoryReady = historyRowCount >= 7;
@@ -20991,6 +21234,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFourteenGoldShowDays = readNumber(metrics.recentFourteenGoldShowDays);
   const recentSevenGoldShowDays = readNumber(metrics.recentSevenGoldShowDays, readNumber(metrics.recentSevenBigShowDays));
   const recentFourteenLossDays = readNumber(metrics.recentFourteenLossDays);
+  const recentFiveWinDays = readNumber(metrics.recentFiveWinDays);
   const recentFourteenWinDays = readNumber(metrics.recentFourteenWinDays);
   const recentSevenLossDays = readNumber(metrics.recentSevenLossDays);
   const recentSevenWinDays = readNumber(metrics.recentSevenWinDays);
@@ -25587,6 +25831,70 @@ function calculateMachineScore(definition, metrics, features) {
         neighborScore -
         penalty;
       return Math.round(clamp(score, 0, scoreCap));
+    }
+
+    if (activeLogicKey === JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY) {
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      let score = 20;
+
+      score += streak >= 6 ? 22 : streak === 5 ? 20 : streak === 4 ? 15 : streak === 3 ? 10 : streak === 2 ? 5 : 0;
+      score += recentFiveWinDays === 0 ? 12 : recentFiveWinDays <= 1 ? 6 : 0;
+      score += recentFourteenWinDays <= 2 ? 5 : 0;
+      score += scoreAtMost(recentThreeNetTotal, [
+        { maximum: -2500, points: 11 },
+        { maximum: -1500, points: 8 },
+        { maximum: -1000, points: 5 },
+      ]);
+      score += scoreAtMost(recentFiveNetTotal, [
+        { maximum: -3000, points: 14 },
+        { maximum: -2500, points: 12 },
+        { maximum: -2000, points: 9 },
+        { maximum: -1000, points: 5 },
+      ]);
+      score += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -4000, points: 10 },
+        { maximum: -2500, points: 7 },
+        { maximum: -1000, points: 4 },
+      ]);
+      score += scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -5000, points: 10 },
+        { maximum: -2500, points: 7 },
+        { maximum: 0, points: 3 },
+      ]);
+      score -= recentFourteenNetTotal > 0 ? 8 : 0;
+      score -= recentFourteenNetTotal > 5000 ? 10 : 0;
+      score +=
+        previousDifference <= -1000
+          ? 8
+          : previousDifference <= -500
+            ? 6
+            : previousDifference <= 0
+              ? 2
+              : 0;
+      score -= previousDifference >= 2000 ? 12 : previousDifference >= 1000 ? 8 : 0;
+      score +=
+        recentFiveGamesTotal >= 8000 && recentFiveGamesTotal <= 15000
+          ? 6
+          : recentFiveGamesTotal <= 15000
+            ? 3
+            : 0;
+      score -= recentFiveGamesTotal >= 22000 ? 4 : 0;
+      score +=
+        recentSevenGamesTotal >= 10000 && recentSevenGamesTotal <= 20000
+          ? 5
+          : recentSevenGamesTotal <= 20000
+            ? 2
+            : 0;
+      score += recentFourteenGamesTotal >= 25000 ? 4 : -5;
+      score -= Number.isFinite(previousP56) && previousP56 >= 0.5 ? 10 : 0;
+      score -= Number.isFinite(previousP56) && previousP56 >= 0.3 && previousDifference >= 500 ? 6 : 0;
+      score -= recentFourteenMachineHighContentCount >= 2 && recentFourteenNetTotal > 0 ? 8 : 0;
+      score += adjacentMachineNetTotal7Near2 <= -1000 ? 3 : 0;
+      score -= adjacentMachineNetTotal7Near2 > 3000 ? 3 : 0;
+      score += adjacentMachineHighContentCount7Near2 === 0 ? 2 : 0;
+      score -= historyRowCount < 14 ? 20 : 0;
+
+      return Math.round(clamp(score, 0, 100));
     }
 
     if (activeLogicKey === KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY) {

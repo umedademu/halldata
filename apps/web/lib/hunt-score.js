@@ -323,6 +323,10 @@ const KYUDEN_ANNEX_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const JARAN_YAZAIKE_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const KINTOKI_KAMATA_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
@@ -954,6 +958,16 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "kyuden-annex-neo-aim",
       "ネオアイムジャグラーＥＸ": "kyuden-annex-neo-aim",
+    },
+  },
+  {
+    key: "jaran-yazaike",
+    storeNames: ["ジャラン谷在家店", "ジャラン谷在家", "JARAN谷在家店", "JARAN谷在家", "ＪＡＲＡＮ谷在家店"],
+    targetMachines: JARAN_YAZAIKE_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "jaran-yazaike-neo-aim",
+      "ネオアイムジャグラーＥＸ": "jaran-yazaike-neo-aim",
     },
   },
   {
@@ -2248,6 +2262,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
+    if (contentRule === "jaran-yazaike-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 2500 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     if (contentRule === "kintoki-kamata-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -2724,6 +2745,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
         return games >= 3000 && settingFivePlusProbability >= 0.35;
       }
       return games >= 3000 && rbDenominator <= 350 && combinedDenominator <= 160;
+    }
+    if (contentRule === "jaran-yazaike-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 2500 && settingFivePlusProbability >= 0.35;
+      }
+      return games >= 2500 && rbDenominator <= 350 && combinedDenominator <= 160;
     }
     if (contentRule === "kintoki-kamata-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -3342,6 +3370,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 3000 && settingFivePlusProbability >= 0.7;
     }
     return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "jaran-yazaike-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 2500 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 2500 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
@@ -8681,6 +8719,7 @@ function calculateWindowMetrics(
   const recentFourLossDays = recentFourRows.filter((windowRow) => windowRow.differenceValue < 0).length;
   const recentSevenLossDays = recentSevenRows.filter((windowRow) => windowRow.differenceValue < 0).length;
   const recentFourteenLossDays = recentFourteenRows.filter((windowRow) => windowRow.differenceValue < 0).length;
+  const recentFiveWinDays = recentFiveRows.filter((windowRow) => windowRow.differenceValue > 0).length;
   const recentSevenWinDays = recentSevenRows.filter((windowRow) => windowRow.differenceValue > 0).length;
   const recentFourteenWinDays = recentFourteenRows.filter((windowRow) => windowRow.differenceValue > 0).length;
   const recentSevenNonPositiveDays = recentSevenRows.filter((windowRow) => windowRow.differenceValue <= 0).length;
@@ -9430,6 +9469,7 @@ function calculateWindowMetrics(
     recentFourLossDays,
     recentSevenLossDays,
     recentFourteenLossDays,
+    recentFiveWinDays,
     recentSevenWinDays,
     recentFourteenWinDays,
     recentSevenNonPositiveDays,
