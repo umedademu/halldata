@@ -137,6 +137,10 @@ const MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY = "mitoya-kinshicho-south-neo-aim
 const MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_NAME =
   "みとや錦糸町南口店_ネオアイム_長期沈み返済スコア";
 const MITOYA_KINSHICHO_SOUTH_NEO_AIM_DEFAULT_CONDITION = "mitoya-kinshicho-south-neo-score75";
+const MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY = "mitoya-jackpot-kinshicho-neo-aim";
+const MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_NAME =
+  "mitoya_kinshicho_neoaim_return_pressure_v1";
+const MITOYA_JACKPOT_KINSHICHO_NEO_AIM_DEFAULT_CONDITION = "mitoya-jackpot-kinshicho-neo-free-a";
 const EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY = "ex-arena-tokyo-neo-aim";
 const EX_ARENA_TOKYO_NEO_AIM_LOGIC_NAME =
   "エクスアリーナ東京_ネオアイムジャグラーEX_全日共通_本物感周辺連動スコア";
@@ -697,6 +701,20 @@ function isMitoyaKinshichoSouthStore(storeName) {
     "みとや錦糸町南口",
     "MITOYA錦糸町南口店",
     "MITOYA錦糸町南口",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
+function isMitoyaJackpotKinshichoStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "みとやジャックポット錦糸町店",
+    "みとやジャックポット錦糸町",
+    "MITOYAジャックポット錦糸町店",
+    "MITOYAジャックポット錦糸町",
+    "みとやJACKPOT錦糸町店",
+    "みとやJACKPOT錦糸町",
+    "ジャックポット錦糸町店",
+    "ジャックポット錦糸町",
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
@@ -3907,6 +3925,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY,
         MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_NAME,
         MITOYA_KINSHICHO_SOUTH_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
+        MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY,
+        MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_NAME,
+        MITOYA_JACKPOT_KINSHICHO_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
         EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY,
@@ -8200,6 +8223,166 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady", "mitoyaKinshichoSouthNeoFiveOutput3000"],
         },
         [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-jackpot-kinshicho-neo-wide310",
+        "広め310",
+        "37台 / RB1/308.9 / 合算1/139.4 / 平均+259.2枚 / 103.35% / 平均56率33.1% / 56率50%以上16.2%",
+        {
+          rankMax: 1,
+          minScore: 65,
+          minNextGap: 8,
+          requiredFlags: [
+            "mitoyaJackpotKinshichoNeoHistoryReady",
+            "mitoyaJackpotKinshichoNeoFourteenSink3500",
+          ],
+        },
+        [MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-jackpot-kinshicho-neo-weak300",
+        "弱本命300",
+        "24台 / RB1/294.9 / 合算1/135.6 / 平均+369.2枚 / 104.07% / 平均56率35.6%",
+        {
+          rankMax: 1,
+          minScore: 65,
+          minNextGap: 8,
+          requiredFlags: [
+            "mitoyaJackpotKinshichoNeoHistoryReady",
+            "mitoyaJackpotKinshichoNeoFourteenSink4500",
+          ],
+        },
+        [MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-jackpot-kinshicho-neo-main290",
+        "本命290",
+        "21台 / RB1/288.8 / 合算1/133.3 / 平均+459.0枚 / 104.64% / 平均56率37.6%",
+        {
+          rankMax: 1,
+          minScore: 65,
+          minBoost: 2,
+          minNextGap: 8,
+          requiredFlags: [
+            "mitoyaJackpotKinshichoNeoHistoryReady",
+            "mitoyaJackpotKinshichoNeoFourteenSink4500",
+          ],
+        },
+        [MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-jackpot-kinshicho-neo-strong280",
+        "強280",
+        "17台 / RB1/279.5 / 合算1/133.9 / 平均+302.9枚 / 104.12%",
+        {
+          rankMax: 1,
+          minScore: 65,
+          minNextGap: 8,
+          requiredFlags: [
+            "mitoyaJackpotKinshichoNeoHistoryReady",
+            "mitoyaJackpotKinshichoNeoStrong280",
+          ],
+        },
+        [MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        MITOYA_JACKPOT_KINSHICHO_NEO_AIM_DEFAULT_CONDITION,
+        "自由A_最優先 / 最本命270",
+        "11台 / RB1/263.2 / 合算1/124.3 / 平均+572.7枚 / 107.19%",
+        {
+          rankMax: 1,
+          minBoost: 3,
+          maxDanger: 0,
+          requiredFlags: ["mitoyaJackpotKinshichoNeoHistoryReady"],
+        },
+        [MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-jackpot-kinshicho-neo-free-b",
+        "自由B_間隔悪化",
+        "21台 / RB1/310.8 / 合算1/132.1 / 平均+505.7枚 / 106.82%",
+        {
+          requiredFlags: ["mitoyaJackpotKinshichoNeoHistoryReady", "mitoyaJackpotKinshichoNeoFreeB"],
+        },
+        [MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-jackpot-kinshicho-neo-free-c",
+        "自由C_未返済",
+        "14日・15台 / RB1/308.9 / 合算1/136.5 / 平均+408.0枚 / 104.82%",
+        {
+          requiredFlags: ["mitoyaJackpotKinshichoNeoHistoryReady", "mitoyaJackpotKinshichoNeoFreeC"],
+        },
+        [MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-jackpot-kinshicho-neo-free-d",
+        "自由D_大凹連敗",
+        "18台 / RB1/303.4 / 合算1/140.0 / 平均+230.6枚 / 102.83%",
+        {
+          requiredFlags: ["mitoyaJackpotKinshichoNeoHistoryReady", "mitoyaJackpotKinshichoNeoFreeD"],
+        },
+        [MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-jackpot-kinshicho-neo-watch-history14",
+        "見送り_履歴14日未満",
+        "履歴14営業日未満は点数表示のみで採用対象外",
+        {
+          requiredFlags: ["mitoyaJackpotKinshichoNeoHistoryShort"],
+        },
+        [MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-jackpot-kinshicho-neo-watch-history7",
+        "見送り_履歴7日未満",
+        "履歴7営業日未満は0点扱い",
+        {
+          requiredFlags: ["mitoyaJackpotKinshichoNeoHistoryVeryShort"],
+        },
+        [MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-jackpot-kinshicho-neo-watch-danger2",
+        "見送り_危険2個以上",
+        "危険条件が2個以上なら高得点でも採用を下げる",
+        {
+          minDanger: 2,
+          requiredFlags: ["mitoyaJackpotKinshichoNeoHistoryReady"],
+        },
+        [MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-jackpot-kinshicho-neo-watch-score70-no-boost",
+        "見送り_70点以上でも強化0",
+        "70点以上でも強化条件が0個なら点数だけの候補として警戒",
+        {
+          minScore: 70,
+          maxBoost: 0,
+          requiredFlags: ["mitoyaJackpotKinshichoNeoHistoryReady"],
+        },
+        [MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-jackpot-kinshicho-neo-watch-treatment-repaid",
+        "見送り_前日処遇＋返済済み",
+        "前日処遇と返済済みが重なる台は本命外",
+        {
+          requiredFlags: [
+            "mitoyaJackpotKinshichoNeoHistoryReady",
+            "mitoyaJackpotKinshichoNeoTreatmentAndRepayment",
+          ],
+        },
+        [MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-jackpot-kinshicho-neo-watch-high3",
+        "見送り_14日高内容3回以上",
+        "14日内の高内容が3回以上なら処遇済み寄り",
+        {
+          requiredFlags: ["mitoyaJackpotKinshichoNeoHistoryReady", "mitoyaJackpotKinshichoNeoHighTooMany14"],
+        },
+        [MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "ex-arena-tokyo-neo-all-wide310",
@@ -13828,6 +14011,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY);
   } else if (isMitoyaKinshichoSouthStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY);
+  } else if (isMitoyaJackpotKinshichoStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY);
   } else if (isExArenaTokyoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY);
   } else if (isParkKitasenjuStore(storeName) && definition.machineKey === "neo-aim") {
@@ -20344,6 +20529,140 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         mitoyaKinshichoNeoFreeD,
         treatmentDone: mitoyaKinshichoNeoTreatmentDone,
         lowConfidence: mitoyaKinshichoNeoHistoryShort || mitoyaKinshichoNeoLowGames14,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY) {
+      const l14AverageP56 = readNullableNumber(metrics.recentFourteenMachineSettingFivePlusProbabilityAverage);
+      const daysSinceMachineRb300 = readNullableNumber(metrics.daysSinceMachineRb300);
+      const sinceShowDiff = readNumber(metrics.machineNetTotalSinceBigWin1000);
+      const recentFiveBadMinus800Count = readNumber(metrics.recentFiveBadMinus800Count);
+      const recentFourteenCombinedLe140Count = readNumber(metrics.recentFourteenCombinedLe140Count);
+      const recentTwentyOneMinDifference = readNumber(metrics.recentTwentyOneMinDifference);
+      const recentTwentyOneMaxDifference = readNumber(metrics.recentTwentyOneMaxDifference);
+      const adjacentMachineBigWin1000Count14 = readNumber(metrics.adjacentMachineBigWin1000Count14);
+      const adjacentMachineRbDenominator7 = readNumber(metrics.adjacentMachineRbDenominator7, 9999);
+      const adjacentMachineCombinedDenominator7 = readNumber(metrics.adjacentMachineCombinedDenominator7, 9999);
+      const mitoyaJackpotKinshichoNeoHistoryReady = historyRowCount >= 14;
+      const mitoyaJackpotKinshichoNeoHistoryShort = historyRowCount < 14;
+      const mitoyaJackpotKinshichoNeoHistoryVeryShort = historyRowCount < 7;
+      const mitoyaJackpotKinshichoNeoFourteenSink3500 = recentFourteenNetTotal <= -3500;
+      const mitoyaJackpotKinshichoNeoFourteenSink4500 = recentFourteenNetTotal <= -4500;
+      const mitoyaJackpotKinshichoNeoFourteenGames28000 = recentFourteenGamesTotal >= 28000;
+      const mitoyaJackpotKinshichoNeoTenCombo175 = features.recentTenCombinedDenominator >= 175;
+      const mitoyaJackpotKinshichoNeoTenCombo180 = features.recentTenCombinedDenominator >= 180;
+      const mitoyaJackpotKinshichoNeoAverageP56Low21 =
+        Number.isFinite(l14AverageP56) && l14AverageP56 <= 0.21;
+      const mitoyaJackpotKinshichoNeoDaysSinceRb300Long =
+        Number.isFinite(daysSinceMachineRb300) && daysSinceMachineRb300 >= 19;
+      const mitoyaJackpotKinshichoNeoNoWins5 = recentFiveWinDays === 0;
+      const mitoyaJackpotKinshichoNeoBadCount5Two = recentFiveBadMinus800Count >= 2;
+      const mitoyaJackpotKinshichoNeoLoss4 = streak >= 4;
+      const mitoyaJackpotKinshichoNeoHighRest15To21 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 15 &&
+        daysSinceMachineHighContent <= 21;
+      const mitoyaJackpotKinshichoNeoHighRest8To14 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 8 &&
+        daysSinceMachineHighContent <= 14;
+      const mitoyaJackpotKinshichoNeoComboLe140FourNoHigh =
+        recentFourteenCombinedLe140Count >= 4 && recentFourteenMachineHighContentCount < 3;
+      const mitoyaJackpotKinshichoNeoComboLe140ThreeNoHigh =
+        recentFourteenCombinedLe140Count >= 3 && recentFourteenMachineHighContentCount < 3;
+      const mitoyaJackpotKinshichoNeoPrevBigShow = previousDifference >= 1000;
+      const mitoyaJackpotKinshichoNeoPrevFiredHigh = previousMachineHighContent;
+      const mitoyaJackpotKinshichoNeoPreviousTreatment =
+        mitoyaJackpotKinshichoNeoPrevBigShow || mitoyaJackpotKinshichoNeoPrevFiredHigh;
+      const mitoyaJackpotKinshichoNeoRepaymentDone =
+        recentFourteenNetTotal > 1500 || sinceShowDiff > 0;
+      const mitoyaJackpotKinshichoNeoHighTooMany14 = recentFourteenMachineHighContentCount >= 3;
+      const mitoyaJackpotKinshichoNeoLowGames14 = recentFourteenGamesTotal < 12000;
+      const mitoyaJackpotKinshichoNeoMidWeakCombo =
+        features.recentTenCombinedDenominator > 150 &&
+        features.recentTenCombinedDenominator <= 165 &&
+        recentFourteenNetTotal > -3500;
+      const mitoyaJackpotKinshichoNeoDeepSinkComboWeak =
+        mitoyaJackpotKinshichoNeoFourteenSink4500 && mitoyaJackpotKinshichoNeoTenCombo175;
+      const mitoyaJackpotKinshichoNeoHighIntervalComboWeak =
+        mitoyaJackpotKinshichoNeoHighRest15To21 && mitoyaJackpotKinshichoNeoTenCombo175;
+      const mitoyaJackpotKinshichoNeoTwentyOneBigDipLoss4 =
+        recentTwentyOneMinDifference <= -1700 && mitoyaJackpotKinshichoNeoLoss4;
+      const mitoyaJackpotKinshichoNeoUnpaid = sinceShowDiff <= -4500;
+      const mitoyaJackpotKinshichoNeoRecentTouched = mitoyaJackpotKinshichoNeoComboLe140FourNoHigh;
+      const mitoyaJackpotKinshichoNeoNeighborNoShow = adjacentMachineBigWin1000Count14 === 0;
+      const mitoyaJackpotKinshichoNeoStrong280 =
+        mitoyaJackpotKinshichoNeoFourteenSink3500 && mitoyaJackpotKinshichoNeoFourteenGames28000;
+      const mitoyaJackpotKinshichoNeoFreeB =
+        mitoyaJackpotKinshichoNeoTenCombo180 && mitoyaJackpotKinshichoNeoHighRest15To21;
+      const mitoyaJackpotKinshichoNeoFreeC =
+        mitoyaJackpotKinshichoNeoFourteenSink4500 &&
+        mitoyaJackpotKinshichoNeoAverageP56Low21 &&
+        sinceShowDiff <= -4500;
+      const mitoyaJackpotKinshichoNeoFreeD = mitoyaJackpotKinshichoNeoTwentyOneBigDipLoss4;
+      const mitoyaJackpotKinshichoNeoTreatmentAndRepayment =
+        mitoyaJackpotKinshichoNeoPreviousTreatment && mitoyaJackpotKinshichoNeoRepaymentDone;
+      const boostFlags = [
+        mitoyaJackpotKinshichoNeoDeepSinkComboWeak,
+        mitoyaJackpotKinshichoNeoHighIntervalComboWeak,
+        mitoyaJackpotKinshichoNeoTwentyOneBigDipLoss4,
+        mitoyaJackpotKinshichoNeoUnpaid,
+        mitoyaJackpotKinshichoNeoRecentTouched,
+        mitoyaJackpotKinshichoNeoNeighborNoShow,
+      ];
+      const dangerFlags = [
+        mitoyaJackpotKinshichoNeoPreviousTreatment,
+        mitoyaJackpotKinshichoNeoRepaymentDone,
+        mitoyaJackpotKinshichoNeoHighTooMany14,
+        mitoyaJackpotKinshichoNeoLowGames14,
+        mitoyaJackpotKinshichoNeoMidWeakCombo,
+      ];
+
+      return {
+        ...features,
+        mitoyaJackpotKinshichoNeoHistoryReady,
+        mitoyaJackpotKinshichoNeoHistoryShort,
+        mitoyaJackpotKinshichoNeoHistoryVeryShort,
+        mitoyaJackpotKinshichoNeoFourteenSink3500,
+        mitoyaJackpotKinshichoNeoFourteenSink4500,
+        mitoyaJackpotKinshichoNeoFourteenGames28000,
+        mitoyaJackpotKinshichoNeoTenCombo175,
+        mitoyaJackpotKinshichoNeoTenCombo180,
+        mitoyaJackpotKinshichoNeoAverageP56Low21,
+        mitoyaJackpotKinshichoNeoDaysSinceRb300Long,
+        mitoyaJackpotKinshichoNeoNoWins5,
+        mitoyaJackpotKinshichoNeoBadCount5Two,
+        mitoyaJackpotKinshichoNeoLoss4,
+        mitoyaJackpotKinshichoNeoHighRest15To21,
+        mitoyaJackpotKinshichoNeoHighRest8To14,
+        mitoyaJackpotKinshichoNeoComboLe140FourNoHigh,
+        mitoyaJackpotKinshichoNeoComboLe140ThreeNoHigh,
+        mitoyaJackpotKinshichoNeoPrevBigShow,
+        mitoyaJackpotKinshichoNeoPrevFiredHigh,
+        mitoyaJackpotKinshichoNeoPreviousTreatment,
+        mitoyaJackpotKinshichoNeoRepaymentDone,
+        mitoyaJackpotKinshichoNeoHighTooMany14,
+        mitoyaJackpotKinshichoNeoLowGames14,
+        mitoyaJackpotKinshichoNeoMidWeakCombo,
+        mitoyaJackpotKinshichoNeoDeepSinkComboWeak,
+        mitoyaJackpotKinshichoNeoHighIntervalComboWeak,
+        mitoyaJackpotKinshichoNeoTwentyOneBigDipLoss4,
+        mitoyaJackpotKinshichoNeoUnpaid,
+        mitoyaJackpotKinshichoNeoRecentTouched,
+        mitoyaJackpotKinshichoNeoNeighborNoShow,
+        mitoyaJackpotKinshichoNeoStrong280,
+        mitoyaJackpotKinshichoNeoFreeB,
+        mitoyaJackpotKinshichoNeoFreeC,
+        mitoyaJackpotKinshichoNeoFreeD,
+        mitoyaJackpotKinshichoNeoTreatmentAndRepayment,
+        mitoyaJackpotKinshichoNeoAdjacentWeakRb: adjacentMachineRbDenominator7 >= 480,
+        mitoyaJackpotKinshichoNeoAdjacentWeakCombo: adjacentMachineCombinedDenominator7 >= 180,
+        mitoyaJackpotKinshichoNeoTwentyOneMax2500NoPrevBig:
+          recentTwentyOneMaxDifference >= 2500 && !mitoyaJackpotKinshichoNeoPrevBigShow,
+        treatmentDone: mitoyaJackpotKinshichoNeoPreviousTreatment || mitoyaJackpotKinshichoNeoRepaymentDone,
+        lowConfidence: mitoyaJackpotKinshichoNeoHistoryShort || mitoyaJackpotKinshichoNeoLowGames14,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -29716,6 +30035,126 @@ function calculateMachineScore(definition, metrics, features) {
       penaltyScore += features.recentTwentyOneRbDenominator >= 400 ? 5 : 0;
       penaltyScore += streak >= 7 ? 4 : 0;
       score -= Math.min(24, penaltyScore);
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY) {
+      if (historyRowCount < 7) {
+        return 0;
+      }
+
+      const l14AverageP56 = readNullableNumber(metrics.recentFourteenMachineSettingFivePlusProbabilityAverage);
+      const daysSinceMachineRb300Value = readNullableNumber(metrics.daysSinceMachineRb300);
+      const daysSinceRb300 = Number.isFinite(daysSinceMachineRb300Value)
+        ? daysSinceMachineRb300Value
+        : historyRowCount;
+      const daysSinceShow1000 = Number.isFinite(daysSinceMachineBigWin1000)
+        ? daysSinceMachineBigWin1000
+        : historyRowCount;
+      const sinceShowDiff = readNumber(metrics.machineNetTotalSinceBigWin1000);
+      const recentFiveBadMinus800Count = readNumber(metrics.recentFiveBadMinus800Count);
+      const recentFourteenCombinedLe140Count = readNumber(metrics.recentFourteenCombinedLe140Count);
+      const recentTwentyOneMinDifference = readNumber(metrics.recentTwentyOneMinDifference);
+      const recentTwentyOneMaxDifference = readNumber(metrics.recentTwentyOneMaxDifference);
+      const adjacentMachineBigWin1000Count14 = readNumber(metrics.adjacentMachineBigWin1000Count14);
+      const adjacentMachineRbDenominator7 = readNumber(metrics.adjacentMachineRbDenominator7, 9999);
+      const adjacentMachineCombinedDenominator7 = readNumber(metrics.adjacentMachineCombinedDenominator7, 9999);
+      const previousBigShow = previousDifference >= 1000;
+      const previousFiredHigh = previousMachineHighContent;
+
+      let sinkPoints = 0;
+      sinkPoints += recentFourteenNetTotal <= -4500
+        ? 18
+        : recentFourteenNetTotal <= -3500
+          ? 14
+          : recentFourteenNetTotal <= -2500
+            ? 10
+            : recentFourteenNetTotal <= -1500
+              ? 6
+              : 0;
+      sinkPoints += recentSevenNetTotal <= -2200
+        ? 8
+        : recentSevenNetTotal <= -1800
+          ? 6
+          : recentSevenNetTotal <= -1200
+            ? 4
+            : 0;
+      sinkPoints += recentFiveBadMinus800Count >= 2 ? 7 : recentFiveBadMinus800Count === 1 ? 3 : 0;
+      sinkPoints += streak >= 4 ? 5 : streak === 3 ? 3 : 0;
+
+      let bonusWeakPoints = 0;
+      bonusWeakPoints += features.recentTenCombinedDenominator >= 180
+        ? 13
+        : features.recentTenCombinedDenominator >= 175
+          ? 10
+          : features.recentTenCombinedDenominator >= 165
+            ? 4
+            : 0;
+      bonusWeakPoints += Number.isFinite(l14AverageP56)
+        ? l14AverageP56 <= 0.21
+          ? 7
+          : l14AverageP56 <= 0.23
+            ? 4
+            : 0
+        : 0;
+      bonusWeakPoints += daysSinceRb300 >= 19 ? 4 : 0;
+      bonusWeakPoints += recentFiveWinDays === 0 ? 3 : 0;
+
+      let unpaidPoints = 0;
+      unpaidPoints += sinceShowDiff <= -4500 ? 9 : sinceShowDiff <= -3000 ? 6 : sinceShowDiff <= -2000 ? 3 : 0;
+      unpaidPoints += daysSinceShow1000 >= 24 ? 6 : daysSinceShow1000 >= 14 ? 3 : 0;
+      unpaidPoints += recentTwentyOneMinDifference <= -1700 ? 6 : recentTwentyOneMinDifference <= -1200 ? 3 : 0;
+
+      let rotationPoints = 0;
+      rotationPoints += Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 15 && daysSinceMachineHighContent <= 21
+        ? 8
+        : Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 8 && daysSinceMachineHighContent <= 14
+          ? 3
+          : 0;
+      rotationPoints += recentFourteenCombinedLe140Count >= 4 && recentFourteenMachineHighContentCount < 3
+        ? 7
+        : recentFourteenCombinedLe140Count >= 3 && recentFourteenMachineHighContentCount < 3
+          ? 4
+          : 0;
+      rotationPoints += recentTwentyOneMaxDifference >= 2500 && !previousBigShow ? 3 : 0;
+
+      let neighborPoints = 0;
+      neighborPoints += adjacentMachineBigWin1000Count14 === 0 ? 4 : 0;
+      neighborPoints += adjacentMachineRbDenominator7 >= 480 ? 3 : 0;
+      neighborPoints += adjacentMachineCombinedDenominator7 >= 180 ? 2 : 0;
+
+      let reliabilityPoints = 0;
+      reliabilityPoints += recentFourteenGamesTotal >= 28000 ? 5 : recentFourteenGamesTotal >= 18000 ? 3 : 0;
+      reliabilityPoints += recentFiveGamesTotal >= 6000 ? 3 : 0;
+
+      let dangerDeductions = 0;
+      dangerDeductions += previousBigShow ? 8 : 0;
+      dangerDeductions += previousFiredHigh ? 8 : 0;
+      dangerDeductions += recentFourteenMachineHighContentCount >= 3 ? 10 : 0;
+      dangerDeductions += recentFourteenNetTotal > 1500
+        ? 9
+        : recentFourteenNetTotal > -1500 && recentFourteenNetTotal <= 0
+          ? 4
+          : 0;
+      dangerDeductions +=
+        features.recentTenCombinedDenominator > 150 &&
+        features.recentTenCombinedDenominator <= 165 &&
+        recentFourteenNetTotal > -3500
+          ? 5
+          : 0;
+      dangerDeductions += sinceShowDiff > 0 ? 8 : 0;
+      dangerDeductions += recentFourteenGamesTotal < 12000 ? 8 : 0;
+      dangerDeductions += previousGames < 300 && recentFiveGamesTotal < 3000 ? 5 : 0;
+
+      const score =
+        Math.min(sinkPoints, 34) +
+        Math.min(bonusWeakPoints, 24) +
+        Math.min(unpaidPoints, 19) +
+        Math.min(rotationPoints, 15) +
+        Math.min(neighborPoints, 8) +
+        Math.min(reliabilityPoints, 8) -
+        dangerDeductions;
 
       return Math.round(clamp(score, 0, 100));
     }

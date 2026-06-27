@@ -359,6 +359,10 @@ const MITOYA_KINSHICHO_SOUTH_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const MITOYA_JACKPOT_KINSHICHO_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const EX_ARENA_TOKYO_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
@@ -1143,6 +1147,25 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "mitoya-kinshicho-south-neo-aim",
       "ネオアイムジャグラーＥＸ": "mitoya-kinshicho-south-neo-aim",
+    },
+  },
+  {
+    key: "mitoya-jackpot-kinshicho",
+    storeNames: [
+      "みとやジャックポット錦糸町店",
+      "みとやジャックポット錦糸町",
+      "MITOYAジャックポット錦糸町店",
+      "MITOYAジャックポット錦糸町",
+      "みとやJACKPOT錦糸町店",
+      "みとやJACKPOT錦糸町",
+      "ジャックポット錦糸町店",
+      "ジャックポット錦糸町",
+    ],
+    targetMachines: MITOYA_JACKPOT_KINSHICHO_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "mitoya-jackpot-kinshicho-neo-aim",
+      "ネオアイムジャグラーＥＸ": "mitoya-jackpot-kinshicho-neo-aim",
     },
   },
   {
@@ -2603,6 +2626,16 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 140;
     }
+    if (contentRule === "mitoya-jackpot-kinshicho-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return (
+          (games >= 1800 && settingFivePlusProbability >= 0.5) ||
+          (games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 145)
+        );
+      }
+      return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     if (contentRule === "ex-arena-tokyo-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -3161,6 +3194,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
         (games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 140)
       );
     }
+    if (contentRule === "mitoya-jackpot-kinshicho-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        (Number.isFinite(settingFivePlusProbability) && games >= 1800 && settingFivePlusProbability >= 0.35) ||
+        (games >= 2500 && rbDenominator <= 330 && combinedDenominator <= 155)
+      );
+    }
     if (contentRule === "ex-arena-tokyo-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       return (
@@ -3371,6 +3411,7 @@ function isMachineLowContentWindowRow(row, machineName, config = null) {
       "park-kitayase-neo-aim",
       "mitoya-kinshicho-neo-aim",
       "mitoya-kinshicho-south-neo-aim",
+      "mitoya-jackpot-kinshicho-neo-aim",
       "ex-arena-tokyo-neo-aim",
     ].includes(
       readMachineContentRule(config, machineName),
@@ -3886,6 +3927,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 3000 && settingFivePlusProbability >= 0.7;
     }
     return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "mitoya-jackpot-kinshicho-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 2500 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 2500 && rbDenominator <= 270 && combinedDenominator <= 135;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
@@ -9035,6 +9086,35 @@ function sumAdjacentMachineDifferenceRows(
   return total;
 }
 
+function sumAdjacentMachineWindowFieldRows(
+  businessDates,
+  dateIndex,
+  row,
+  rowsByDate,
+  config,
+  windowDays,
+  machineName,
+  fieldName,
+  distance = 2,
+) {
+  if (!(rowsByDate instanceof Map)) {
+    return 0;
+  }
+
+  const normalizedWindowDays = Math.max(1, Number(windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
+  const startIndex = Math.max(0, dateIndex - (normalizedWindowDays - 1));
+  const windowDates = businessDates.slice(startIndex, dateIndex + 1);
+  let total = 0;
+
+  for (const date of windowDates) {
+    for (const dateRow of listAdjacentSameMachineRowsByOrder(rowsByDate.get(date) ?? [], row, config, machineName, distance)) {
+      total += readWindowField({ row: dateRow }, fieldName);
+    }
+  }
+
+  return total;
+}
+
 function calculateWindowMetrics(
   businessDates,
   dateIndex,
@@ -9511,6 +9591,8 @@ function calculateWindowMetrics(
     calculateNeoAimSettingFivePlusProbabilityAverage(recentSevenRows);
   const recentTenMachineSettingFivePlusProbabilityAverage =
     calculateNeoAimSettingFivePlusProbabilityAverage(recentTenRows);
+  const recentFourteenMachineSettingFivePlusProbabilityAverage =
+    calculateNeoAimSettingFivePlusProbabilityAverage(recentFourteenRows);
   const recentTwentyOneMachineSettingFivePlusProbabilityAverage =
     calculateNeoAimSettingFivePlusProbabilityAverage(recentTwentyOneRows);
   const currentDateRows = rowsByDate.get(businessDates[dateIndex]) ?? [];
@@ -9752,6 +9834,17 @@ function calculateWindowMetrics(
   })();
   const daysSinceMachineBigWin1000 = findRecentDifferenceAtLeastDays(historyWindowRows, 1000);
   const daysSinceMachineBigWin1500 = findRecentDifferenceAtLeastDays(historyWindowRows, 1500);
+  const daysSinceMachineRb300 = (() => {
+    for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
+      const historyWindowRow = historyWindowRows.at(-offset);
+      const games = readWindowField(historyWindowRow, "games");
+      const rbDenominator = calculateRbDenominatorFromWindowRow(historyWindowRow);
+      if (games >= 1000 && rbDenominator <= 300) {
+        return offset;
+      }
+    }
+    return null;
+  })();
   const adjacentMachineHighContentCount7 = countAdjacentMachineHighContentRows(
     businessDates,
     dateIndex,
@@ -9839,6 +9932,58 @@ function calculateWindowMetrics(
     1000,
     2,
   );
+  const adjacentMachineBigWin1000Count14 = countAdjacentMachineDifferenceAtLeastRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    14,
+    currentMachineName,
+    1000,
+    1,
+  );
+  const adjacentMachineGamesTotal7 = sumAdjacentMachineWindowFieldRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    7,
+    currentMachineName,
+    "games",
+    1,
+  );
+  const adjacentMachineBbTotal7 = sumAdjacentMachineWindowFieldRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    7,
+    currentMachineName,
+    "bbCount",
+    1,
+  );
+  const adjacentMachineRbTotal7 = sumAdjacentMachineWindowFieldRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    7,
+    currentMachineName,
+    "rbCount",
+    1,
+  );
+  const adjacentMachineRbDenominator7 =
+    adjacentMachineGamesTotal7 > 0 && adjacentMachineRbTotal7 > 0
+      ? adjacentMachineGamesTotal7 / adjacentMachineRbTotal7
+      : 9999;
+  const adjacentMachineCombinedDenominator7 =
+    adjacentMachineGamesTotal7 > 0 && adjacentMachineBbTotal7 + adjacentMachineRbTotal7 > 0
+      ? adjacentMachineGamesTotal7 / (adjacentMachineBbTotal7 + adjacentMachineRbTotal7)
+      : 9999;
   const adjacentMachineShowCount3Near2 = countAdjacentMachineShowRows(
     businessDates,
     dateIndex,
@@ -9958,7 +10103,33 @@ function calculateWindowMetrics(
   const recentThreeBigWin1200Count = countDifferenceAtLeastRows(recentThreeRows, 1200);
   const recentFiveBigWin1000Count = countDifferenceAtLeastRows(recentFiveRows, 1000);
   const recentFiveBigWin1200Count = countDifferenceAtLeastRows(recentFiveRows, 1200);
+  const recentFiveBadMinus800Count = recentFiveRows.filter(
+    (windowRow) => readNumber(windowRow?.differenceValue) <= -800,
+  ).length;
   const recentSevenBigWin2500Count = countDifferenceAtLeastRows(recentSevenRows, 2500);
+  const recentFourteenCombinedLe140Count = recentFourteenRows.filter(
+    (windowRow) => calculateCombinedDenominatorFromWindowRow(windowRow) <= 140,
+  ).length;
+  const recentTwentyOneMinDifference =
+    recentTwentyOneRows.length > 0
+      ? Math.min(...recentTwentyOneRows.map((windowRow) => readNumber(windowRow?.differenceValue)))
+      : 0;
+  const recentTwentyOneMaxDifference =
+    recentTwentyOneRows.length > 0
+      ? Math.max(...recentTwentyOneRows.map((windowRow) => readNumber(windowRow?.differenceValue)))
+      : 0;
+  const machineNetTotalSinceBigWin1000 = (() => {
+    let lastBigWinIndex = -1;
+    for (let index = historyWindowRows.length - 1; index >= 0; index -= 1) {
+      if (readNumber(historyWindowRows[index]?.differenceValue) >= 1000) {
+        lastBigWinIndex = index;
+        break;
+      }
+    }
+    return historyWindowRows
+      .slice(lastBigWinIndex + 1)
+      .reduce((total, windowRow) => total + readNumber(windowRow?.differenceValue), 0);
+  })();
   const recentThreeRawDifferenceTotal = sumRawDifferenceValues(recentThreeRows);
   const recentFiveRawDifferenceTotal = sumRawDifferenceValues(recentFiveRows);
   const recentThreeRawDifferenceCount = countRawDifferenceValueRows(recentThreeRows);
@@ -10036,6 +10207,11 @@ function calculateWindowMetrics(
     recentFourPositiveCount,
     recentThreeLowGames1500Count,
     recentFiveMaxWin,
+    recentFiveBadMinus800Count,
+    recentFourteenCombinedLe140Count,
+    recentTwentyOneMinDifference,
+    recentTwentyOneMaxDifference,
+    machineNetTotalSinceBigWin1000,
     compensationRate: lossAbsTotal === 0 ? 999 : winAbsTotal / lossAbsTotal,
     maxWin,
     todayDifference,
@@ -10132,6 +10308,7 @@ function calculateWindowMetrics(
     recentFiveMachineSettingFivePlusProbabilityAverage,
     recentSevenMachineSettingFivePlusProbabilityAverage,
     recentTenMachineSettingFivePlusProbabilityAverage,
+    recentFourteenMachineSettingFivePlusProbabilityAverage,
     recentTwentyOneMachineSettingFivePlusProbabilityAverage,
     recentThreeBigWin1200Count,
     recentFiveBigWin1000Count,
@@ -10140,6 +10317,7 @@ function calculateWindowMetrics(
     daysSinceMachineStrongHighContent,
     daysSinceMachineBigWin1000,
     daysSinceMachineBigWin1500,
+    daysSinceMachineRb300,
     gamesTotal,
     averageGames: metricWindowRows.length > 0 ? gamesTotal / metricWindowRows.length : 0,
     recentTwoGamesTotal,
@@ -10212,6 +10390,9 @@ function calculateWindowMetrics(
     adjacentMachineHighContentCount14Near2,
     otherSameMachineHighContentCount7,
     adjacentMachineBigWin1000Count7Near2,
+    adjacentMachineBigWin1000Count14,
+    adjacentMachineRbDenominator7,
+    adjacentMachineCombinedDenominator7,
     adjacentMachineNetTotal3,
     adjacentMachineNetTotal3Near2,
     adjacentMachineNetTotal5,
