@@ -319,6 +319,10 @@ const MARUHON_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const GAIA_HIKIFUNE_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const CONCERT_HALL_KITASENJU_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
@@ -993,6 +997,16 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "maruhon-neo-aim",
       "ネオアイムジャグラーＥＸ": "maruhon-neo-aim",
+    },
+  },
+  {
+    key: "gaia-hikifune",
+    storeNames: ["ガイア曳舟", "ガイア曳舟店", "GAIA曳舟", "GAIA曳舟店", "ＧＡＩＡ曳舟", "ＧＡＩＡ曳舟店"],
+    targetMachines: GAIA_HIKIFUNE_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "gaia-hikifune-neo-aim",
+      "ネオアイムジャグラーＥＸ": "gaia-hikifune-neo-aim",
     },
   },
   {
@@ -2577,6 +2591,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
+    if (contentRule === "gaia-hikifune-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 2000 && settingFivePlusProbability >= 0.5;
+      }
+      return games >= 2000 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
     if (contentRule === "concert-hall-kitasenju-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -3148,6 +3169,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       }
       return games >= 2500 && rbDenominator <= 350 && combinedDenominator <= 160;
     }
+    if (contentRule === "gaia-hikifune-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return games >= 2000 && settingFivePlusProbability >= 0.3;
+      }
+      return games >= 2000 && rbDenominator <= 350 && combinedDenominator <= 160;
+    }
     if (contentRule === "concert-hall-kitasenju-neo-aim") {
       return games >= 3000 && rbDenominator <= 310 && combinedDenominator <= 145;
     }
@@ -3441,6 +3469,7 @@ function isMachineLowContentWindowRow(row, machineName, config = null) {
       "slot-marumitsu-ohashi-neo-aim",
       "tamaya-ohashi-neo-aim",
       "maruhon-neo-aim",
+      "gaia-hikifune-neo-aim",
       "park-takenotsuka-studio-neo-aim",
       "park-kitasenju-neo-aim",
       "park-kitasenju-sss-neo-aim",
@@ -3863,6 +3892,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 2500 && settingFivePlusProbability >= 0.7;
     }
     return games >= 2500 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "gaia-hikifune-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return games >= 2000 && settingFivePlusProbability >= 0.7;
+    }
+    return games >= 2000 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
@@ -9380,6 +9419,7 @@ function calculateWindowMetrics(
   const recentFourPositiveCount = recentFourRows.filter((windowRow) => windowRow.differenceValue > 0).length;
   const recentFiveMaxWin = Math.max(0, ...recentFiveRows.map((windowRow) => windowRow.differenceValue));
   const recentThreeLowGames1500Count = recentThreeRows.filter((windowRow) => windowRow.games < 1500).length;
+  const recentSevenLowGames500Count = recentSevenRows.filter((windowRow) => readWindowField(windowRow, "games") < 500).length;
   const recentTwoGamesTotal = recentTwoRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentThreeGamesTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentFiveGamesTotal = recentFiveRows.reduce((total, windowRow) => total + windowRow.games, 0);
@@ -10184,6 +10224,12 @@ function calculateWindowMetrics(
   const rawDifferenceLosingStreak = calculateCurrentRawDifferenceLosingStreak(historyWindowRows);
   const recentSevenGoldShowDays = countDifferenceAtLeastRows(recentSevenRows, 1500);
   const recentFourteenGoldShowDays = countDifferenceAtLeastRows(recentFourteenRows, 1341);
+  const recentSevenBigShow1500Games2000Count = recentSevenRows.filter(
+    (windowRow) => readWindowField(windowRow, "games") >= 2000 && readNumber(windowRow?.differenceValue) >= 1500,
+  ).length;
+  const recentThreeShow1000Games1500Count = recentThreeRows.filter(
+    (windowRow) => readWindowField(windowRow, "games") >= 1500 && readNumber(windowRow?.differenceValue) >= 1000,
+  ).length;
   const previousBigShow = previousGames >= 5000 && todayDifference >= 1000;
 
   return {
@@ -10252,6 +10298,7 @@ function calculateWindowMetrics(
     recentFourteenNonPositiveDays,
     recentFourPositiveCount,
     recentThreeLowGames1500Count,
+    recentSevenLowGames500Count,
     recentFiveMaxWin,
     recentFiveBadMinus800Count,
     recentFourteenCombinedLe140Count,
@@ -10464,6 +10511,8 @@ function calculateWindowMetrics(
     recentSevenStrictHighContentDays,
     recentSevenGoldShowDays,
     recentFourteenGoldShowDays,
+    recentSevenBigShow1500Games2000Count,
+    recentThreeShow1000Games1500Count,
     previousBigShow,
     bbTotal,
     rbTotal,
