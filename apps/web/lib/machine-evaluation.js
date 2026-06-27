@@ -182,6 +182,11 @@ const MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY = "mitoya-jackpot-kinshicho-neo
 const MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_NAME =
   "mitoya_kinshicho_neoaim_return_pressure_v1";
 const MITOYA_JACKPOT_KINSHICHO_NEO_AIM_DEFAULT_CONDITION = "mitoya-jackpot-kinshicho-neo-free-a";
+const MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY = "mitoya-asakusa-senzoku-neo-aim";
+const MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_NAME =
+  "みとや浅草千束店_ネオアイムジャグラーEX_共通V1";
+const MITOYA_ASAKUSA_SENZOKU_NEO_AIM_DEFAULT_CONDITION =
+  "mitoya-asakusa-senzoku-neo-free-five-sink-high-few";
 const EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY = "ex-arena-tokyo-neo-aim";
 const EX_ARENA_TOKYO_NEO_AIM_LOGIC_NAME =
   "エクスアリーナ東京_ネオアイムジャグラーEX_全日共通_本物感周辺連動スコア";
@@ -848,6 +853,20 @@ function isMitoyaJackpotKinshichoStore(storeName) {
     "みとやJACKPOT錦糸町",
     "ジャックポット錦糸町店",
     "ジャックポット錦糸町",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
+function isMitoyaAsakusaSenzokuStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "みとや浅草千束店",
+    "みとや浅草千束",
+    "MITOYA浅草千束店",
+    "MITOYA浅草千束",
+    "ＭＩＴＯＹＡ浅草千束店",
+    "ＭＩＴＯＹＡ浅草千束",
+    "みとや千束店",
+    "みとや千束",
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
@@ -3625,6 +3644,211 @@ function buildGrandShipNeoAimConditions() {
   ];
 }
 
+function buildMitoyaAsakusaSenzokuNeoAimConditions() {
+  return [
+    buildCondition(
+      MITOYA_ASAKUSA_SENZOKU_NEO_AIM_DEFAULT_CONDITION,
+      "自由MAX_5日沈み高内容少",
+      "対象33日 / 選択38台 / 総G97,325 / BB1/236 / RB1/270 / 合算1/126 / 平均+563枚 / 機械割107.3% / 勝率52.6% / 平均56 41.6% / 中央56 30.8% / 56>=50 28.9% / 5日高稼働沈み＋14日高内容少",
+      {
+        requiredFlags: [
+          "mitoyaAsakusaSenzokuNeoHistoryReady",
+          "mitoyaAsakusaSenzokuNeoFiveHighGamesSink",
+          "mitoyaAsakusaSenzokuNeoFourteenHighFew",
+        ],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mitoya-asakusa-senzoku-neo-free-five-sink-rb",
+      "自由MAX_5日沈みRB本物感",
+      "対象18日 / 選択21台 / 総G52,152 / BB1/234 / RB1/256 / 合算1/122 / 平均+597枚 / 機械割108.0% / 勝率52.4% / 平均56 44.4% / 56>=50 38.1% / 少数参考",
+      {
+        requiredFlags: [
+          "mitoyaAsakusaSenzokuNeoHistoryReady",
+          "mitoyaAsakusaSenzokuNeoFiveHighGamesSink",
+          "mitoyaAsakusaSenzokuNeoRecentTenRb360",
+        ],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mitoya-asakusa-senzoku-neo-free-g3-rb-nohigh7",
+      "自由MAX_G3高稼働RB本物",
+      "対象21日 / 選択25台 / 総G69,699 / BB1/223 / RB1/267 / 合算1/121 / 平均+766枚 / 機械割109.2% / 勝率56.0% / 平均56 42.3% / 56>=50 28.0% / 高7日0回",
+      {
+        requiredFlags: [
+          "mitoyaAsakusaSenzokuNeoHistoryReady",
+          "mitoyaAsakusaSenzokuNeoThreeHighGames7000",
+          "mitoyaAsakusaSenzokuNeoRecentTenRb360",
+          "mitoyaAsakusaSenzokuNeoNoHigh7",
+        ],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mitoya-asakusa-senzoku-neo-score75-danger0",
+      "最本命75危険0",
+      "対象33日 / 選択40台 / 総G76,874 / BB1/262 / RB1/267 / 合算1/132 / 平均+206枚 / 機械割103.6% / 勝率32.5% / 平均56 40.2% / 56>=50 27.5% / 期待RB270級",
+      {
+        minScore: 75,
+        maxDanger: 0,
+        requiredFlags: ["mitoyaAsakusaSenzokuNeoHistoryReady"],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mitoya-asakusa-senzoku-neo-score72-danger0",
+      "強72危険0",
+      "対象41日 / 選択53台 / 総G100,037 / BB1/255 / RB1/279 / 合算1/133 / 平均+211枚 / 機械割103.7% / 勝率35.8% / 平均56 38.0% / 56>=50 24.5% / 期待RB280級",
+      {
+        minScore: 72,
+        maxDanger: 0,
+        requiredFlags: ["mitoyaAsakusaSenzokuNeoHistoryReady"],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mitoya-asakusa-senzoku-neo-score68-danger0",
+      "本命68危険0",
+      "対象47日 / 選択73台 / 総G133,954 / BB1/260 / RB1/290 / 合算1/137 / 平均+148枚 / 機械割102.7% / 勝率32.9% / 平均56 36.1% / 56>=50 19.2% / 期待RB290級",
+      {
+        minScore: 68,
+        maxDanger: 0,
+        requiredFlags: ["mitoyaAsakusaSenzokuNeoHistoryReady"],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mitoya-asakusa-senzoku-neo-score60-danger0",
+      "弱本命60危険0",
+      "対象63日 / 選択125台 / 総G251,435 / BB1/264 / RB1/299 / 合算1/140 / 平均+121枚 / 機械割102.0% / 勝率34.4% / 平均56 34.9% / 期待RB300級",
+      {
+        minScore: 60,
+        maxDanger: 0,
+        requiredFlags: ["mitoyaAsakusaSenzokuNeoHistoryReady"],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mitoya-asakusa-senzoku-neo-score55-danger0",
+      "広め55危険0",
+      "対象75日 / 選択164台 / 総G303,629 / BB1/264 / RB1/309 / 合算1/142 / 平均+91枚 / 機械割101.6% / 勝率32.9% / 平均56 33.4% / 期待RB310級",
+      {
+        minScore: 55,
+        maxDanger: 0,
+        requiredFlags: ["mitoyaAsakusaSenzokuNeoHistoryReady"],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mitoya-asakusa-senzoku-neo-rank1-gap6-danger0",
+      "1位＋次点差6＋危険0",
+      "対象59日 / 選択59台 / RB1/293 / 合算1/131 / 平均+371枚 / 機械割105.9% / 次点差は補助だが単独感の確認に使う",
+      {
+        rankMax: 1,
+        minNextGap: 6,
+        maxDanger: 0,
+        requiredFlags: ["mitoyaAsakusaSenzokuNeoHistoryReady"],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mitoya-asakusa-senzoku-neo-rank1-gap12-danger0",
+      "1位＋次点差12＋危険0",
+      "対象29日 / 選択29台 / RB1/286 / 合算1/131 / 平均+308枚 / 機械割105.3% / 件数少の補助最本命",
+      {
+        rankMax: 1,
+        minNextGap: 12,
+        maxDanger: 0,
+        requiredFlags: ["mitoyaAsakusaSenzokuNeoHistoryReady"],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mitoya-asakusa-senzoku-neo-boost4-danger0",
+      "危険0＋強化4",
+      "対象20日 / 選択22台 / 総G48,310 / BB1/227.9 / RB1/271.4 / 合算1/123.9 / 平均+532枚 / 機械割108.07% / 点数同等なら優先",
+      {
+        minBoost: 4,
+        maxDanger: 0,
+        requiredFlags: ["mitoyaAsakusaSenzokuNeoHistoryReady"],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mitoya-asakusa-senzoku-neo-wide-g5-minus-no-treatment",
+      "G5高稼働＋差7マイナス",
+      "対象55日 / 選択83台 / 総G188,666 / BB1/241 / RB1/298 / 合算1/133 / 平均+367枚 / 機械割105.4% / 広め本命",
+      {
+        requiredFlags: [
+          "mitoyaAsakusaSenzokuNeoHistoryReady",
+          "mitoyaAsakusaSenzokuNeoWideG5MinusNoTreatment",
+        ],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mitoya-asakusa-senzoku-neo-watch-high-score-danger",
+      "見送り_高得点危険あり",
+      "75点以上＋危険ありはRB1/276・合算1/120・平均+683枚でも56率30%未満が68.4%でBB寄り危険。高得点でも警告を優先",
+      {
+        minScore: 70,
+        minDanger: 1,
+        requiredFlags: ["mitoyaAsakusaSenzokuNeoHistoryReady"],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mitoya-asakusa-senzoku-neo-watch-danger2",
+      "見送り_危険2個以上",
+      "危険条件2個以上は見送り推奨",
+      {
+        minDanger: 2,
+        requiredFlags: ["mitoyaAsakusaSenzokuNeoHistoryReady"],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mitoya-asakusa-senzoku-neo-watch-low-games",
+      "見送り_低G履歴",
+      "直近5日G数2,000未満はRB1/444.3、機械割97.83%で原則見送り",
+      {
+        requiredFlags: ["mitoyaAsakusaSenzokuNeoLowGames"],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mitoya-asakusa-senzoku-neo-watch-prev-plus1000",
+      "見送り_前日+1000枚以上",
+      "前日+1,000枚以上はRB1/375、56率30%未満71.6%で処遇完了寄り",
+      {
+        requiredFlags: ["mitoyaAsakusaSenzokuNeoPreviousPlus1000"],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mitoya-asakusa-senzoku-neo-watch-score55",
+      "見送り_55点未満",
+      "55点未満は自由度MAX条件がない限り原則見送り",
+      {
+        maxScore: 54.999,
+        requiredFlags: ["mitoyaAsakusaSenzokuNeoHistoryReady"],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mitoya-asakusa-senzoku-neo-watch-history7",
+      "見送り_履歴7日未満",
+      "履歴7営業日未満は採用条件対象外で最大40点扱い",
+      {
+        requiredFlags: ["mitoyaAsakusaSenzokuNeoHistoryShort"],
+      },
+      [MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY],
+    ),
+  ];
+}
+
 function listDefinitionLogics(definition) {
   if (!definition) {
     return [];
@@ -5287,6 +5511,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         MITOYA_JACKPOT_KINSHICHO_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
+        MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY,
+        MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_NAME,
+        MITOYA_ASAKUSA_SENZOKU_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY,
         EX_ARENA_TOKYO_NEO_AIM_LOGIC_NAME,
         EX_ARENA_TOKYO_NEO_AIM_DEFAULT_CONDITION,
@@ -5460,6 +5689,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ...buildMinowaUnoNeoAimConditions(),
       ...buildToyoHallNeoAimConditions(),
       ...buildGrandShipNeoAimConditions(),
+      ...buildMitoyaAsakusaSenzokuNeoAimConditions(),
       buildCondition(
         "main",
         "1位＋70点以上＋3日沈み2日以上",
@@ -15707,6 +15937,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY);
   } else if (isMitoyaJackpotKinshichoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY);
+  } else if (isMitoyaAsakusaSenzokuStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY);
   } else if (isExArenaTokyoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY);
   } else if (isParkKitasenjuStore(storeName) && definition.machineKey === "neo-aim") {
@@ -22839,6 +23071,127 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         parkKitayaseNeoSinkOnlyNoCluster,
         treatmentDone: parkKitayaseNeoRecent2Output3000 || parkKitayaseNeoRecent3Output4000,
         lowConfidence: parkKitayaseNeoHistoryShort || parkKitayaseNeoGames7Low,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY) {
+      const recentTenBonusTotal = readNumber(metrics.recentTenBonusTotal);
+      const recentTenRbDenominator = rateDenominator(recentTenGamesTotal, recentTenRbTotal);
+      const recentTenCombinedDenominator = rateDenominator(recentTenGamesTotal, recentTenBonusTotal);
+      const recentSevenMinus1000StayDays = readNumber(metrics.recentSevenMinus1000StayDays);
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      const mitoyaAsakusaSenzokuNeoHistoryReady = historyRowCount >= 7;
+      const mitoyaAsakusaSenzokuNeoHistoryShort = historyRowCount < 7;
+      const mitoyaAsakusaSenzokuNeoFiveHighGamesSink =
+        recentFiveGamesTotal >= 10000 && recentFiveNetTotal <= -1000;
+      const mitoyaAsakusaSenzokuNeoFiveHighGames = recentFiveGamesTotal >= 10000;
+      const mitoyaAsakusaSenzokuNeoThreeHighGames7000 = recentThreeGamesTotal >= 7000;
+      const mitoyaAsakusaSenzokuNeoMiddleUnpaid =
+        recentTenNetTotal <= -2500 || recentFourteenNetTotal <= -3000;
+      const mitoyaAsakusaSenzokuNeoSinkStay =
+        recentSevenMinus1000StayDays >= 5 || recentSevenMinus1500StayDays >= 4;
+      const mitoyaAsakusaSenzokuNeoRecentTenRb360 =
+        recentTenGamesTotal >= 10000 && recentTenRbDenominator <= 360;
+      const mitoyaAsakusaSenzokuNeoRecentTenRb300 =
+        recentTenGamesTotal >= 10000 && recentTenRbDenominator <= 300;
+      const mitoyaAsakusaSenzokuNeoRecentRbReal =
+        mitoyaAsakusaSenzokuNeoRecentTenRb360 ||
+        (recentSevenGamesTotal >= 7000 && features.recentSevenRbDenominator <= 330);
+      const mitoyaAsakusaSenzokuNeoCombinedSupport =
+        (recentFiveGamesTotal >= 5000 && features.recentFiveCombinedDenominator <= 150) ||
+        (recentThreeGamesTotal >= 3000 && features.recentThreeCombinedDenominator <= 150);
+      const mitoyaAsakusaSenzokuNeoNoBigTreatment =
+        Number.isFinite(daysSinceMachineBigWin1500) &&
+        daysSinceMachineBigWin1500 >= 5 &&
+        recentSevenNetTotal < 0;
+      const mitoyaAsakusaSenzokuNeoFourteenHighFew =
+        historyRowCount >= 14 && recentFourteenMachineHighContentCount <= 1;
+      const mitoyaAsakusaSenzokuNeoNoHigh7 = recentSevenMachineHighContentCount === 0;
+      const mitoyaAsakusaSenzokuNeoPreviousHighMisfire =
+        Number.isFinite(previousP56) && previousP56 >= 0.5 && previousDifference <= 0;
+      const mitoyaAsakusaSenzokuNeoNeighborRemain =
+        previousAdjacentMachineHighContentCount === 0 && previousAdjacentMachineNetTotal <= -1000;
+      const mitoyaAsakusaSenzokuNeoWideG5MinusNoTreatment =
+        recentFiveGamesTotal >= 10000 &&
+        recentSevenNetTotal < 0 &&
+        Number.isFinite(daysSinceMachineBigWin1500) &&
+        daysSinceMachineBigWin1500 >= 5;
+      const mitoyaAsakusaSenzokuNeoPreviousPlus600 = previousDifference >= 600;
+      const mitoyaAsakusaSenzokuNeoPreviousPlus1000 = previousDifference >= 1000;
+      const mitoyaAsakusaSenzokuNeoPreviousPlus1500 = previousDifference >= 1500;
+      const mitoyaAsakusaSenzokuNeoRecentPlusTreatment =
+        recentSevenNetTotal >= 1500 || recentFourteenNetTotal >= 3000;
+      const mitoyaAsakusaSenzokuNeoWinningStreak = winningStreak >= 2;
+      const mitoyaAsakusaSenzokuNeoLowGames =
+        recentSevenGamesTotal <= 5000 || recentFiveGamesTotal <= 2500;
+      const mitoyaAsakusaSenzokuNeoBonusWeak =
+        (recentSevenGamesTotal > 0 && features.recentSevenRbDenominator >= 450) ||
+        (recentSevenGamesTotal > 0 && features.recentSevenCombinedDenominator >= 180);
+      const mitoyaAsakusaSenzokuNeoLongHighRest =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 21 &&
+        historyRowCount >= 21;
+      const mitoyaAsakusaSenzokuNeoLoss7 = streak >= 7;
+      const mitoyaAsakusaSenzokuNeoPreviousP56Low =
+        Number.isFinite(previousP56) && previousP56 <= 0.1;
+      const boostFlags = [
+        mitoyaAsakusaSenzokuNeoFiveHighGamesSink,
+        mitoyaAsakusaSenzokuNeoMiddleUnpaid,
+        mitoyaAsakusaSenzokuNeoSinkStay,
+        mitoyaAsakusaSenzokuNeoRecentRbReal,
+        mitoyaAsakusaSenzokuNeoCombinedSupport,
+        mitoyaAsakusaSenzokuNeoNoBigTreatment,
+        mitoyaAsakusaSenzokuNeoFourteenHighFew,
+        mitoyaAsakusaSenzokuNeoPreviousHighMisfire,
+        mitoyaAsakusaSenzokuNeoNeighborRemain,
+      ];
+      const dangerFlags = [
+        mitoyaAsakusaSenzokuNeoPreviousPlus1000,
+        mitoyaAsakusaSenzokuNeoRecentPlusTreatment,
+        mitoyaAsakusaSenzokuNeoWinningStreak,
+        mitoyaAsakusaSenzokuNeoLowGames,
+        mitoyaAsakusaSenzokuNeoBonusWeak,
+        mitoyaAsakusaSenzokuNeoLongHighRest,
+        mitoyaAsakusaSenzokuNeoLoss7,
+        mitoyaAsakusaSenzokuNeoPreviousP56Low,
+      ];
+
+      return {
+        ...features,
+        mitoyaAsakusaSenzokuNeoHistoryReady,
+        mitoyaAsakusaSenzokuNeoHistoryShort,
+        mitoyaAsakusaSenzokuNeoFiveHighGamesSink,
+        mitoyaAsakusaSenzokuNeoFiveHighGames,
+        mitoyaAsakusaSenzokuNeoThreeHighGames7000,
+        mitoyaAsakusaSenzokuNeoMiddleUnpaid,
+        mitoyaAsakusaSenzokuNeoSinkStay,
+        mitoyaAsakusaSenzokuNeoRecentTenRb360,
+        mitoyaAsakusaSenzokuNeoRecentTenRb300,
+        mitoyaAsakusaSenzokuNeoRecentRbReal,
+        mitoyaAsakusaSenzokuNeoCombinedSupport,
+        mitoyaAsakusaSenzokuNeoNoBigTreatment,
+        mitoyaAsakusaSenzokuNeoFourteenHighFew,
+        mitoyaAsakusaSenzokuNeoNoHigh7,
+        mitoyaAsakusaSenzokuNeoPreviousHighMisfire,
+        mitoyaAsakusaSenzokuNeoNeighborRemain,
+        mitoyaAsakusaSenzokuNeoWideG5MinusNoTreatment,
+        mitoyaAsakusaSenzokuNeoPreviousPlus600,
+        mitoyaAsakusaSenzokuNeoPreviousPlus1000,
+        mitoyaAsakusaSenzokuNeoPreviousPlus1500,
+        mitoyaAsakusaSenzokuNeoRecentPlusTreatment,
+        mitoyaAsakusaSenzokuNeoWinningStreak,
+        mitoyaAsakusaSenzokuNeoLowGames,
+        mitoyaAsakusaSenzokuNeoBonusWeak,
+        mitoyaAsakusaSenzokuNeoLongHighRest,
+        mitoyaAsakusaSenzokuNeoLoss7,
+        mitoyaAsakusaSenzokuNeoPreviousP56Low,
+        treatmentDone:
+          mitoyaAsakusaSenzokuNeoPreviousPlus1000 ||
+          mitoyaAsakusaSenzokuNeoRecentPlusTreatment,
+        lowConfidence:
+          mitoyaAsakusaSenzokuNeoHistoryShort || mitoyaAsakusaSenzokuNeoLowGames,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -33327,6 +33680,86 @@ function calculateMachineScore(definition, metrics, features) {
       score -= features.recentFourteenRbDenominator >= 400 ? 5 : 0;
 
       const scoreCap = historyRowCount < 7 ? 45 : 100;
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
+    if (activeLogicKey === MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY) {
+      const recentTwoRbDenominator = rateDenominator(recentTwoGamesTotal, recentTwoRbTotal);
+      const recentTenRbDenominator = rateDenominator(recentTenGamesTotal, recentTenRbTotal);
+      const recentSevenMinus1000StayDays = readNumber(metrics.recentSevenMinus1000StayDays);
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      const scoreCap = historyRowCount < 7 ? 40 : 100;
+      let score = historyRowCount >= 7 ? 20 : 0;
+
+      let gamesScore = 0;
+      gamesScore += recentThreeGamesTotal >= 7000 ? 6 : recentThreeGamesTotal >= 5000 ? 4 : 0;
+      gamesScore += recentFiveGamesTotal >= 10000 ? 8 : recentFiveGamesTotal >= 7000 ? 5 : 0;
+      gamesScore += recentSevenGamesTotal >= 15000 ? 4 : recentSevenGamesTotal >= 10000 ? 2 : 0;
+      gamesScore -= recentSevenGamesTotal <= 5000 ? 8 : 0;
+      gamesScore -= recentFiveGamesTotal <= 2500 ? 5 : 0;
+      score += clamp(gamesScore, -10, 18);
+
+      let sinkScore = 0;
+      sinkScore += recentFiveNetTotal <= -1000 ? 10 : 0;
+      sinkScore += recentTenNetTotal <= -2500 ? 7 : 0;
+      sinkScore += recentTenNetTotal <= -3000 ? 3 : 0;
+      sinkScore += recentFourteenNetTotal <= -3000 ? 7 : 0;
+      sinkScore += recentFourteenNetTotal <= -4000 ? 3 : 0;
+      sinkScore += recentTwentyOneNetTotal <= -3000 ? 3 : 0;
+      sinkScore += recentSevenMinus1000StayDays >= 5 ? 5 : 0;
+      sinkScore += recentSevenMinus1000StayDays >= 7 ? 3 : 0;
+      sinkScore += recentSevenMinus1500StayDays >= 4 ? 4 : 0;
+      sinkScore += streak >= 2 && streak <= 4 ? 3 : 0;
+      sinkScore -= streak >= 7 ? 5 : 0;
+      score += clamp(sinkScore, -5, 30);
+
+      let bonusScore = 0;
+      bonusScore += recentTenGamesTotal >= 10000 && recentTenRbDenominator <= 360 ? 5 : 0;
+      bonusScore += recentTenGamesTotal >= 10000 && recentTenRbDenominator <= 300 ? 5 : 0;
+      bonusScore += recentSevenGamesTotal >= 7000 && features.recentSevenRbDenominator <= 330 ? 5 : 0;
+      bonusScore += recentFiveGamesTotal >= 5000 && features.recentFiveRbDenominator <= 330 ? 4 : 0;
+      bonusScore += recentTwoGamesTotal >= 3000 && recentTwoRbDenominator <= 270 ? 4 : 0;
+      bonusScore += recentFiveGamesTotal >= 5000 && features.recentFiveCombinedDenominator <= 150 ? 3 : 0;
+      bonusScore += recentThreeGamesTotal >= 3000 && features.recentThreeCombinedDenominator <= 150 ? 2 : 0;
+      bonusScore -= recentSevenGamesTotal > 0 && features.recentSevenRbDenominator >= 450 ? 6 : 0;
+      bonusScore -= recentSevenGamesTotal > 0 && features.recentSevenCombinedDenominator >= 180 ? 4 : 0;
+      score += clamp(bonusScore, -10, 20);
+
+      let rotationScore = 0;
+      rotationScore += historyRowCount >= 14 && recentFourteenMachineHighContentCount <= 1 ? 5 : 0;
+      rotationScore += recentSevenMachineHighContentCount === 0 ? 3 : 0;
+      rotationScore +=
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 4 &&
+        daysSinceMachineHighContent <= 13
+          ? 5
+          : 0;
+      rotationScore -=
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 21 &&
+        historyRowCount >= 21
+          ? 4
+          : 0;
+      rotationScore += Number.isFinite(daysSinceMachineBigWin1000) && daysSinceMachineBigWin1000 >= 3 ? 4 : 0;
+      rotationScore += Number.isFinite(daysSinceMachineBigWin1500) && daysSinceMachineBigWin1500 >= 5 ? 2 : 0;
+      rotationScore += Number.isFinite(previousP56) && previousP56 >= 0.5 && previousDifference <= 0 ? 7 : 0;
+      rotationScore += previousDifference <= 500 ? 2 : 0;
+      rotationScore -= previousDifference >= 1000 ? 8 : 0;
+      rotationScore -= previousDifference >= 1500 ? 4 : 0;
+      rotationScore -= Number.isFinite(previousP56) && previousP56 <= 0.1 ? 5 : 0;
+      score += clamp(rotationScore, -12, 20);
+
+      let neighborScore = 0;
+      neighborScore += previousAdjacentMachineHighContentCount === 0 ? 2 : 0;
+      neighborScore += previousAdjacentMachineNetTotal <= -1000 ? 2 : 0;
+      neighborScore -= previousAdjacentMachineNetTotal >= 1000 ? 3 : 0;
+      score += clamp(neighborScore, -5, 5);
+
+      score -= recentSevenNetTotal >= 1500 ? 5 : 0;
+      score -= recentFourteenNetTotal >= 3000 ? 7 : 0;
+      score -= winningStreak >= 2 ? 5 : 0;
+      score -= winningStreak >= 3 ? 3 : 0;
+
       return Math.round(clamp(score, 0, scoreCap));
     }
 
