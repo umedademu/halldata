@@ -133,6 +133,10 @@ const MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY = "mitoya-kinshicho-neo-aim";
 const MITOYA_KINSHICHO_NEO_AIM_LOGIC_NAME =
   "みとや錦糸町北口店_ネオアイムジャグラーEX_全日共通_返済未完本物履歴ロジック_v1";
 const MITOYA_KINSHICHO_NEO_AIM_DEFAULT_CONDITION = "mitoya-kinshicho-neo-free-a";
+const MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY = "mitoya-kinshicho-south-neo-aim";
+const MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_NAME =
+  "みとや錦糸町南口店_ネオアイム_長期沈み返済スコア";
+const MITOYA_KINSHICHO_SOUTH_NEO_AIM_DEFAULT_CONDITION = "mitoya-kinshicho-south-neo-score75";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -671,6 +675,16 @@ function isMitoyaKinshichoStore(storeName) {
     "みとや錦糸町北口",
     "MITOYA錦糸町北口店",
     "MITOYA錦糸町北口",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
+function isMitoyaKinshichoSouthStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "みとや錦糸町南口店",
+    "みとや錦糸町南口",
+    "MITOYA錦糸町南口店",
+    "MITOYA錦糸町南口",
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
@@ -3854,6 +3868,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY,
         MITOYA_KINSHICHO_NEO_AIM_LOGIC_NAME,
         MITOYA_KINSHICHO_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
+        MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY,
+        MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_NAME,
+        MITOYA_KINSHICHO_SOUTH_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
         "messe-minamisenju-neo-aim",
@@ -7958,6 +7977,180 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["mitoyaKinshichoNeoHistoryReady", "mitoyaKinshichoNeoLoss7NoRealHistory"],
         },
         [MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-south-neo-score65",
+        "広め 65点以上",
+        "42日・47台 / 総G125106 / BB1/237.8 / RB1/304.4 / 合算1/133.5 / 平均+453.4枚 / 105.68% / 勝率55.3% / 平均56率33.9% / 中央56率26.2% / 56率50%以上21.3% / 56率30%未満59.6% / RB300以下27.7% / 広め",
+        {
+          minScore: 65,
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-south-neo-rank1-gap10",
+        "弱本命 1位+次点差10+",
+        "37日・37台 / 総G104537 / BB1/243.7 / RB1/298.7 / 合算1/134.2 / 平均+434.1枚 / 105.12% / 勝率56.8% / 平均56率34.6% / 中央56率26.0% / 56率50%以上21.6% / 56率30%未満59.5% / 採用ライン",
+        {
+          rankMax: 1,
+          minNextGap: 10,
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-south-neo-rank1-gap15",
+        "本命 1位+次点差15+",
+        "26日・26台 / 総G82773 / BB1/246.3 / RB1/285.4 / 合算1/132.2 / 平均+493.8枚 / 105.17% / 勝率65.4% / 平均56率37.6% / 中央56率28.0% / 56率50%以上26.9% / 56率30%未満50.0% / 本命",
+        {
+          rankMax: 1,
+          minNextGap: 15,
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-south-neo-score70",
+        "強 70点以上",
+        "25日・25台 / 総G81882 / BB1/245.9 / RB1/272.0 / 合算1/129.2 / 平均+566.8枚 / 105.77% / 勝率60.0% / 平均56率41.5% / 中央56率31.0% / 56率50%以上36.0% / 56率30%未満44.0% / 強",
+        {
+          minScore: 70,
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        MITOYA_KINSHICHO_SOUTH_NEO_AIM_DEFAULT_CONDITION,
+        "最本命 75点以上",
+        "19日・19台 / 総G72693 / BB1/242.3 / RB1/266.3 / 合算1/126.9 / 平均+758.4枚 / 106.61% / 勝率63.2% / 平均56率44.9% / 中央56率42.9% / 56率50%以上42.1% / 56率30%未満36.8% / 最優先",
+        {
+          minScore: 75,
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-south-neo-score75-danger0",
+        "超最本命参考 75点+危険0",
+        "7日・7台 / 総G29422 / BB1/251.5 / RB1/253.6 / 合算1/126.3 / 平均+780.0枚 / 106.19% / 勝率71.4% / 平均56率48.4% / 中央56率58.4% / 56率50%以上57.1% / 小件数参考",
+        {
+          minScore: 75,
+          maxDanger: 0,
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-south-neo-free-deep-loss",
+        "深沈み6連敗",
+        "16日・16台 / 総G58607 / BB1/228.9 / RB1/296.0 / 合算1/129.1 / 平均+805.6枚 / 107.33% / 勝率68.8% / 平均56率37.9% / 中央56率30.1% / 56率50%以上31.3% / 自由度MAX本命",
+        {
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady", "mitoyaKinshichoSouthNeoDeepSinkLoss"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-south-neo-free-14sink-loss",
+        "14日沈み6連敗",
+        "18日・18台 / 総G64167 / BB1/230.0 / RB1/301.3 / 合算1/130.4 / 平均+742.8枚 / 106.95% / 勝率66.7% / 平均56率36.3% / 中央56率25.7% / 56率50%以上27.8% / 自由度MAX本命",
+        {
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady", "mitoyaKinshichoSouthNeoLongSinkLoss"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-south-neo-free-long-rb-sink",
+        "長期弱RB+沈み",
+        "19日・20台 / 総G54688 / BB1/264.2 / RB1/300.5 / 合算1/140.6 / 平均+173.0枚 / 102.11% / 勝率40.0% / 平均56率34.9% / 56率50%以上30.0% / 代替候補",
+        {
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady", "mitoyaKinshichoSouthNeoLongWeakRbSink"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-south-neo-free-high-games",
+        "高稼働残り",
+        "7日・14台 / 総G39863 / BB1/262.3 / RB1/276.8 / 合算1/134.7 / 平均+394.3枚 / 104.62% / 勝率57.1% / 平均56率36.8% / 補助候補",
+        {
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady", "mitoyaKinshichoSouthNeoHighGamesRemain"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-south-neo-watch-history21",
+        "見送り_履歴21日未満",
+        "21営業日未満は最大49点で低信頼",
+        {
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryShort"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-south-neo-watch-history7",
+        "見送り_履歴7日未満",
+        "履歴7営業日未満は0点扱い",
+        {
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryVeryShort"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-south-neo-watch-score65",
+        "見送り_65点未満",
+        "65点未満は自由度MAX条件がない限り見送り寄り",
+        {
+          maxScore: 64.999,
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-south-neo-watch-rank1-gap5",
+        "見送り_1位次点差5未満",
+        "1位でも次点差5点未満は単独感が弱い",
+        {
+          rankMax: 1,
+          maxNextGap: 4.999,
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-south-neo-watch-prev-drop",
+        "見送り_前日急落",
+        "30日・41台 / RB1/448.4 / 合算1/173.4 / 平均-241.2枚 / 96.15% / 56率50%以上2.4% / 前日凹み単体は禁止",
+        {
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady", "mitoyaKinshichoSouthNeoPreviousDrop"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-south-neo-watch-danger2",
+        "見送り_危険2個以上深沈みなし",
+        "危険条件2個以上かつ深沈み6連敗なしは見送り寄り",
+        {
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady", "mitoyaKinshichoSouthNeoDanger2WithoutDeepSink"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-south-neo-watch-treatment",
+        "見送り_処遇過多",
+        "52日・72台 / RB1/419.5 / 合算1/176.6 / 平均-272.5枚 / 95.00% / 56率50%以上1.4% / 見せ場後は避ける",
+        {
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady", "mitoyaKinshichoSouthNeoTreatmentTooMany"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "mitoya-kinshicho-south-neo-watch-output5",
+        "見送り_5日+3000枚以上",
+        "5日差枚+3000枚以上は出し切り寄り",
+        {
+          requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady", "mitoyaKinshichoSouthNeoFiveOutput3000"],
+        },
+        [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "messe-minamisenju-free-14rb",
@@ -13390,6 +13583,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, PARK_KITAYASE_NEO_AIM_LOGIC_KEY);
   } else if (isMitoyaKinshichoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY);
+  } else if (isMitoyaKinshichoSouthStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY);
   } else if (isParkKitasenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, PARK_KITASENJU_NEO_AIM_LOGIC_KEY);
   } else if (isMesseMinamisenjuStore(storeName) && definition.machineKey === "neo-aim") {
@@ -19906,6 +20101,123 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         lowConfidence: mitoyaKinshichoNeoHistoryShort || mitoyaKinshichoNeoLowGames14,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY) {
+      const mitoyaKinshichoSouthNeoHistoryReady = historyRowCount >= 21;
+      const mitoyaKinshichoSouthNeoHistoryShort = historyRowCount < 21;
+      const mitoyaKinshichoSouthNeoHistoryVeryShort = historyRowCount < 7;
+      const mitoyaKinshichoSouthNeoTwentyOneSink4000 = recentTwentyOneNetTotal <= -4000;
+      const mitoyaKinshichoSouthNeoTwentyOneSink5000 = recentTwentyOneNetTotal <= -5000;
+      const mitoyaKinshichoSouthNeoFourteenAngle150 = features.recentFourteenAngle <= -150;
+      const mitoyaKinshichoSouthNeoFourteenAngle200 = features.recentFourteenAngle <= -200;
+      const mitoyaKinshichoSouthNeoGood21Zero =
+        mitoyaKinshichoSouthNeoHistoryReady && recentTwentyOneMachineGoodContentCount === 0;
+      const mitoyaKinshichoSouthNeoHigh14Zero =
+        historyRowCount >= 14 && recentFourteenMachineHighContentCount === 0;
+      const mitoyaKinshichoSouthNeoDeepSinkLoss =
+        mitoyaKinshichoSouthNeoFourteenAngle200 && streak >= 6;
+      const mitoyaKinshichoSouthNeoLongSinkLoss =
+        recentFourteenNetTotal <= -4000 && streak >= 6;
+      const mitoyaKinshichoSouthNeoLongWeakRbSink =
+        mitoyaKinshichoSouthNeoFourteenAngle150 && features.recentSevenRbDenominator >= 600;
+      const mitoyaKinshichoSouthNeoSevenGames20000 = recentSevenGamesTotal >= 20000;
+      const mitoyaKinshichoSouthNeoThreeGames9000 = recentThreeGamesTotal >= 9000;
+      const mitoyaKinshichoSouthNeoPreviousGames6000 = previousGames >= 6000;
+      const mitoyaKinshichoSouthNeoFourteenGames30000 = recentFourteenGamesTotal >= 30000;
+      const mitoyaKinshichoSouthNeoLoss4To5 = streak >= 4 && streak <= 5;
+      const mitoyaKinshichoSouthNeoLoss6 = streak >= 6;
+      const mitoyaKinshichoSouthNeoOutputRemain =
+        previousDifference >= 1500 || recentTwoNetTotal >= 2000;
+      const previousP56 = Number.isFinite(previousMachineSettingFivePlusProbability)
+        ? previousMachineSettingFivePlusProbability
+        : null;
+      const mitoyaKinshichoSouthNeoPreviousRealContent =
+        previousGames >= 2500 &&
+        ((features.previousRbDenominator <= 300 && features.previousCombinedDenominator <= 145) ||
+          (Number.isFinite(previousP56) && previousP56 >= 0.5));
+      const mitoyaKinshichoSouthNeoPreviousRealFail =
+        mitoyaKinshichoSouthNeoPreviousRealContent && previousDifference <= 500;
+      const mitoyaKinshichoSouthNeoNeighborPreviousSink =
+        previousAdjacentMachineNetTotal <= -1000;
+      const mitoyaKinshichoSouthNeoFourteenRb500 = features.recentFourteenRbDenominator >= 500;
+      const mitoyaKinshichoSouthNeoTwentyOneCombined180 =
+        features.recentTwentyOneCombinedDenominator >= 180;
+      const mitoyaKinshichoSouthNeoSevenRb600 = features.recentSevenRbDenominator >= 600;
+      const mitoyaKinshichoSouthNeoHighGamesRemain =
+        mitoyaKinshichoSouthNeoPreviousGames6000 && mitoyaKinshichoSouthNeoSevenGames20000;
+      const mitoyaKinshichoSouthNeoPreviousDrop = previousDifference <= -1000;
+      const mitoyaKinshichoSouthNeoShortDrop = features.recentFiveAngle <= -300;
+      const mitoyaKinshichoSouthNeoShortBonusDead =
+        features.recentThreeRbDenominator >= 700 || features.recentThreeCombinedDenominator >= 220;
+      const mitoyaKinshichoSouthNeoTreatmentTooMany =
+        recentFourteenMachineGoodContentCount >= 3 ||
+        recentFourteenMachineHighContentCount >= 2 ||
+        recentTwentyOneMachineHighContentCount >= 2;
+      const mitoyaKinshichoSouthNeoFiveOutput3000 = recentFiveNetTotal >= 3000;
+      const mitoyaKinshichoSouthNeoLowGames =
+        recentSevenGamesTotal < 7000 && recentFourteenGamesTotal < 15000;
+      const boostFlags = [
+        mitoyaKinshichoSouthNeoDeepSinkLoss,
+        mitoyaKinshichoSouthNeoLongSinkLoss,
+        mitoyaKinshichoSouthNeoHighGamesRemain,
+        mitoyaKinshichoSouthNeoLongWeakRbSink,
+        mitoyaKinshichoSouthNeoGood21Zero,
+        mitoyaKinshichoSouthNeoPreviousRealFail,
+        mitoyaKinshichoSouthNeoNeighborPreviousSink,
+      ];
+      const dangerFlags = [
+        mitoyaKinshichoSouthNeoPreviousDrop,
+        mitoyaKinshichoSouthNeoShortDrop,
+        mitoyaKinshichoSouthNeoShortBonusDead,
+        mitoyaKinshichoSouthNeoTreatmentTooMany,
+        mitoyaKinshichoSouthNeoFiveOutput3000,
+        mitoyaKinshichoSouthNeoLowGames,
+      ];
+      const dangerCount = dangerFlags.filter(Boolean).length;
+      const mitoyaKinshichoSouthNeoDanger2WithoutDeepSink =
+        dangerCount >= 2 && !mitoyaKinshichoSouthNeoDeepSinkLoss;
+
+      return {
+        ...features,
+        mitoyaKinshichoSouthNeoHistoryReady,
+        mitoyaKinshichoSouthNeoHistoryShort,
+        mitoyaKinshichoSouthNeoHistoryVeryShort,
+        mitoyaKinshichoSouthNeoTwentyOneSink4000,
+        mitoyaKinshichoSouthNeoTwentyOneSink5000,
+        mitoyaKinshichoSouthNeoFourteenAngle150,
+        mitoyaKinshichoSouthNeoFourteenAngle200,
+        mitoyaKinshichoSouthNeoGood21Zero,
+        mitoyaKinshichoSouthNeoHigh14Zero,
+        mitoyaKinshichoSouthNeoDeepSinkLoss,
+        mitoyaKinshichoSouthNeoLongSinkLoss,
+        mitoyaKinshichoSouthNeoLongWeakRbSink,
+        mitoyaKinshichoSouthNeoSevenGames20000,
+        mitoyaKinshichoSouthNeoThreeGames9000,
+        mitoyaKinshichoSouthNeoPreviousGames6000,
+        mitoyaKinshichoSouthNeoFourteenGames30000,
+        mitoyaKinshichoSouthNeoLoss4To5,
+        mitoyaKinshichoSouthNeoLoss6,
+        mitoyaKinshichoSouthNeoOutputRemain,
+        mitoyaKinshichoSouthNeoPreviousRealContent,
+        mitoyaKinshichoSouthNeoPreviousRealFail,
+        mitoyaKinshichoSouthNeoNeighborPreviousSink,
+        mitoyaKinshichoSouthNeoFourteenRb500,
+        mitoyaKinshichoSouthNeoTwentyOneCombined180,
+        mitoyaKinshichoSouthNeoSevenRb600,
+        mitoyaKinshichoSouthNeoHighGamesRemain,
+        mitoyaKinshichoSouthNeoPreviousDrop,
+        mitoyaKinshichoSouthNeoShortDrop,
+        mitoyaKinshichoSouthNeoShortBonusDead,
+        mitoyaKinshichoSouthNeoTreatmentTooMany,
+        mitoyaKinshichoSouthNeoFiveOutput3000,
+        mitoyaKinshichoSouthNeoLowGames,
+        mitoyaKinshichoSouthNeoDanger2WithoutDeepSink,
+        treatmentDone: mitoyaKinshichoSouthNeoTreatmentTooMany || mitoyaKinshichoSouthNeoFiveOutput3000,
+        lowConfidence: mitoyaKinshichoSouthNeoHistoryShort || mitoyaKinshichoSouthNeoLowGames,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount,
       };
     }
 
@@ -28986,6 +29298,59 @@ function calculateMachineScore(definition, metrics, features) {
       score -= Math.min(24, penaltyScore);
 
       return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY) {
+      if (historyRowCount < 7) {
+        return 0;
+      }
+
+      let score = historyRowCount >= 21 ? 35 : 0;
+      score += recentTwentyOneNetTotal <= -4000 ? 8 : 0;
+      score += recentTwentyOneNetTotal <= -5000 ? 4 : 0;
+      score += features.recentFourteenAngle <= -150 ? 8 : 0;
+      score += features.recentFourteenAngle <= -200 ? 4 : 0;
+      score += historyRowCount >= 21 && recentTwentyOneMachineGoodContentCount === 0 ? 7 : 0;
+      score += historyRowCount >= 14 && recentFourteenMachineHighContentCount === 0 ? 4 : 0;
+      score += features.recentFourteenAngle <= -200 && streak >= 6 ? 10 : 0;
+      score += recentFourteenNetTotal <= -4000 && streak >= 6 ? 5 : 0;
+      score += features.recentFourteenAngle <= -150 && features.recentSevenRbDenominator >= 600 ? 5 : 0;
+
+      score += recentSevenGamesTotal >= 20000 ? 7 : 0;
+      score += recentThreeGamesTotal >= 9000 ? 5 : 0;
+      score += previousGames >= 6000 ? 6 : 0;
+      score += recentFourteenGamesTotal >= 30000 ? 3 : 0;
+
+      score += streak >= 6 ? 8 : streak >= 4 ? 4 : 0;
+      score += previousDifference >= 1500 || recentTwoNetTotal >= 2000 ? 6 : 0;
+      const previousP56 = Number.isFinite(previousMachineSettingFivePlusProbability)
+        ? previousMachineSettingFivePlusProbability
+        : null;
+      const previousRealContent =
+        previousGames >= 2500 &&
+        ((features.previousRbDenominator <= 300 && features.previousCombinedDenominator <= 145) ||
+          (Number.isFinite(previousP56) && previousP56 >= 0.5));
+      score += previousRealContent && previousDifference <= 500 ? 5 : 0;
+      score += previousAdjacentMachineNetTotal <= -1000 ? 3 : 0;
+
+      score += features.recentFourteenRbDenominator >= 500 ? 7 : 0;
+      score += features.recentTwentyOneCombinedDenominator >= 180 ? 6 : 0;
+      score += features.recentSevenRbDenominator >= 600 ? 3 : 0;
+
+      score -= previousDifference <= -1000 ? 12 : 0;
+      score -= features.recentFiveAngle <= -300 ? 8 : 0;
+      score -= features.recentThreeRbDenominator >= 700 || features.recentThreeCombinedDenominator >= 220 ? 7 : 0;
+      score -=
+        recentFourteenMachineGoodContentCount >= 3 ||
+        recentFourteenMachineHighContentCount >= 2 ||
+        recentTwentyOneMachineHighContentCount >= 2
+          ? 12
+          : 0;
+      score -= recentFiveNetTotal >= 3000 ? 8 : 0;
+      score -= recentSevenGamesTotal < 7000 && recentFourteenGamesTotal < 15000 ? 8 : 0;
+
+      const scoreCap = historyRowCount < 21 ? 49 : 100;
+      return Math.round(clamp(score, 0, scoreCap));
     }
 
     if (activeLogicKey === KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY) {
