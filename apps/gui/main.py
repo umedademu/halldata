@@ -355,6 +355,11 @@ def filter_history_result_dates(
         for skipped_date in history_result.skipped_dates
         if skipped_date in target_dates
     ]
+    store_day_statuses = [
+        status
+        for status in history_result.store_day_statuses
+        if status.target_date in target_dates
+    ]
     start_date = date_pages[0].target_date if date_pages else history_result.start_date
     end_date = date_pages[-1].target_date if date_pages else history_result.end_date
     return MachineHistoryResult(
@@ -366,6 +371,7 @@ def filter_history_result_dates(
         datasets=datasets,
         skipped_targets=skipped_targets,
         skipped_dates=skipped_dates,
+        store_day_statuses=store_day_statuses,
     )
 
 
@@ -3782,6 +3788,7 @@ class MinRepoApp:
 
         saved_lookup_store_cache: tuple[str, str] | None = None
         minrepo_saved_dates_cache: dict[tuple[str, str], set[str]] = {}
+        store_closed_dates_cache: dict[tuple[str, str], set[str]] = {}
         warning_summary = SavedFullDayDatesSummary()
 
         def saved_lookup_store() -> tuple[str, str]:
@@ -3831,6 +3838,39 @@ class MinRepoApp:
             minrepo_saved_dates_cache[cache_key] = saved_dates
             return saved_dates
 
+        def saved_store_closed_dates(target_dates: list[str]) -> set[str]:
+            normalized_dates = [
+                target_date
+                for target_date in target_dates
+                if re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(target_date or ""))
+            ]
+            if not normalized_dates:
+                return set()
+
+            start_date = min(normalized_dates)
+            end_date = max(normalized_dates)
+            cache_key = (start_date, end_date)
+            cached_dates = store_closed_dates_cache.get(cache_key)
+            if cached_dates is not None:
+                return cached_dates
+
+            lookup_store_name, lookup_store_url = saved_lookup_store()
+            find_closed_dates = getattr(self.persistence_service, "find_store_closed_dates", None)
+            closed_dates = (
+                set(
+                    find_closed_dates(
+                        store_name=lookup_store_name,
+                        store_url=lookup_store_url,
+                        start_date=start_date,
+                        end_date=end_date,
+                    )
+                )
+                if callable(find_closed_dates)
+                else set()
+            )
+            store_closed_dates_cache[cache_key] = closed_dates
+            return closed_dates
+
         def find_protected_slots_before_fetch(
             machine_entry: DaidataOnlineMachineEntry,
             target_dates: list[str],
@@ -3844,15 +3884,17 @@ class MinRepoApp:
 
             target_date_set = set(target_dates)
             minrepo_saved_dates = minrepo_saved_full_day_dates(target_dates).intersection(target_date_set)
+            store_closed_dates = saved_store_closed_dates(target_dates).intersection(target_date_set)
+            fully_protected_dates = minrepo_saved_dates | store_closed_dates
             protected_slots = {
                 (target_date, slot_number)
-                for target_date in minrepo_saved_dates
+                for target_date in fully_protected_dates
                 for slot_number in slot_numbers
             }
             remaining_dates = [
                 target_date
                 for target_date in target_dates
-                if target_date not in minrepo_saved_dates
+                if target_date not in fully_protected_dates
             ]
             if not remaining_dates:
                 return protected_slots
@@ -3923,7 +3965,7 @@ class MinRepoApp:
         self._raise_if_fetch_cancelled()
         save_summary: PersistenceSummary | None = None
         pending_save_futures: list[Future[PersistenceSummary]] = []
-        if history_result.datasets:
+        if history_result.datasets or history_result.store_day_statuses:
             queue_progress(
                 FetchProgress(
                     current_step=3,
@@ -3938,7 +3980,11 @@ class MinRepoApp:
 
             def run_save() -> PersistenceSummary:
                 return self._run_with_persistence_lock(
-                    lambda: self.persistence_service.save_history_result(history_result)
+                    lambda: (
+                        self.persistence_service.save_history_result(history_result)
+                        if history_result.datasets
+                        else self.persistence_service.save_store_day_statuses(history_result)
+                    )
                 )
 
             if async_save_executor is not None:
@@ -3989,6 +4035,7 @@ class MinRepoApp:
 
         saved_lookup_store_cache: tuple[str, str] | None = None
         minrepo_saved_dates_cache: dict[tuple[str, str], set[str]] = {}
+        store_closed_dates_cache: dict[tuple[str, str], set[str]] = {}
 
         def saved_lookup_store() -> tuple[str, str]:
             nonlocal saved_lookup_store_cache
@@ -4032,6 +4079,34 @@ class MinRepoApp:
             minrepo_saved_dates_cache[cache_key] = saved_dates
             return saved_dates
 
+        def saved_store_closed_dates(target_dates: list[str]) -> set[str]:
+            if not target_dates:
+                return set()
+
+            start_date = min(target_dates)
+            end_date = max(target_dates)
+            cache_key = (start_date, end_date)
+            cached_dates = store_closed_dates_cache.get(cache_key)
+            if cached_dates is not None:
+                return cached_dates
+
+            lookup_store_name, lookup_store_url = saved_lookup_store()
+            find_closed_dates = getattr(self.persistence_service, "find_store_closed_dates", None)
+            closed_dates = (
+                set(
+                    find_closed_dates(
+                        store_name=lookup_store_name,
+                        store_url=lookup_store_url,
+                        start_date=start_date,
+                        end_date=end_date,
+                    )
+                )
+                if callable(find_closed_dates)
+                else set()
+            )
+            store_closed_dates_cache[cache_key] = closed_dates
+            return closed_dates
+
         def filter_machine_result_for_fetch(machine_result: MachineHistoryResult) -> MachineHistoryResult:
             nonlocal warning_summary
             self._raise_if_fetch_cancelled()
@@ -4060,15 +4135,17 @@ class MinRepoApp:
 
             target_date_set = set(target_dates)
             minrepo_saved_dates = minrepo_saved_full_day_dates(target_dates).intersection(target_date_set)
+            store_closed_dates = saved_store_closed_dates(target_dates).intersection(target_date_set)
+            fully_protected_dates = minrepo_saved_dates | store_closed_dates
             protected_slots = {
                 (target_date, slot_number)
-                for target_date in minrepo_saved_dates
+                for target_date in fully_protected_dates
                 for slot_number in slot_numbers
             }
             remaining_dates = [
                 target_date
                 for target_date in target_dates
-                if target_date not in minrepo_saved_dates
+                if target_date not in fully_protected_dates
             ]
             if not remaining_dates:
                 return protected_slots
@@ -4152,7 +4229,7 @@ class MinRepoApp:
         self._raise_if_fetch_cancelled()
         save_summary: PersistenceSummary | None = None
         pending_save_futures: list[Future[PersistenceSummary]] = []
-        if history_result.datasets and save_summary is None:
+        if (history_result.datasets or history_result.store_day_statuses) and save_summary is None:
             queue_progress(
                 FetchProgress(
                     current_step=3,
@@ -4167,7 +4244,11 @@ class MinRepoApp:
 
             def run_save() -> PersistenceSummary:
                 return self._run_with_persistence_lock(
-                    lambda: self.persistence_service.save_history_result(history_result)
+                    lambda: (
+                        self.persistence_service.save_history_result(history_result)
+                        if history_result.datasets
+                        else self.persistence_service.save_store_day_statuses(history_result)
+                    )
                 )
 
             if async_save_executor is not None:
@@ -4848,6 +4929,11 @@ class MinRepoApp:
         if target_date in store_result.saved_full_day_summary.saved_dates:
             return True
         if target_date in store_result.history_result.skipped_dates:
+            return True
+        if any(
+            status.target_date == target_date and str(status.status).strip().casefold() == "closed"
+            for status in store_result.history_result.store_day_statuses
+        ):
             return True
         if any(date_page.target_date == target_date for date_page in store_result.history_result.date_pages):
             save_summary = store_result.save_summary

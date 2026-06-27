@@ -85,6 +85,18 @@ class StoreDatePage:
 
 
 @dataclass
+class StoreDayStatus:
+    target_date: str
+    status: str
+    source: str = ""
+    reason: str = ""
+    checked_at: str = ""
+    source_updated_at: str = ""
+    observed_slot_count: int | None = None
+    observed_no_play_slot_count: int | None = None
+
+
+@dataclass
 class StoreEventSettings:
     day_tails: List[int] = field(default_factory=list)
     month_days: List[int] = field(default_factory=list)
@@ -114,6 +126,7 @@ class MachineHistoryResult:
     datasets: List[MachineDataset]
     skipped_targets: List[tuple[str, str]] = field(default_factory=list)
     skipped_dates: List[str] = field(default_factory=list)
+    store_day_statuses: List[StoreDayStatus] = field(default_factory=list)
 
 
 @dataclass

@@ -84,6 +84,7 @@ const CROSS_STORE_BACKTEST_NEXT_RESULT_BUFFER_DAYS = 7;
 const HUNT_SCORE_ACTIVE_MACHINE_WINDOW_DAYS = 7;
 const MACHINE_DETAIL_HUNT_SCORE_LOOKBACK_DAYS = 90;
 const HUNT_SCORE_RANKING_DETAIL_MEMORY_CACHE_TTL_MS = 5 * 60 * 1000;
+const STORE_DAY_STATUS_CLOSED = "closed";
 const DEFAULT_CROSS_STORE_MACHINE_NAMES = [
   "SアイムジャグラーＥＸ",
   "ネオアイムジャグラーEX",
@@ -858,14 +859,95 @@ function buildStaticEventFields(source, fallbackSource = null) {
   };
 }
 
+function normalizeStoreDayStatuses(source) {
+  const rawStatuses = Array.isArray(source)
+    ? source
+    : Array.isArray(source?.storeDayStatuses)
+      ? source.storeDayStatuses
+      : Array.isArray(source?.store_day_statuses)
+        ? source.store_day_statuses
+        : [];
+  const statusesByDate = new Map();
+
+  for (const status of rawStatuses) {
+    if (!status || typeof status !== "object") {
+      continue;
+    }
+    const targetDate = normalizeDateInput(status.targetDate ?? status.target_date);
+    const statusText = String(status.status ?? "").trim();
+    if (!targetDate || !statusText) {
+      continue;
+    }
+    const payload = {
+      targetDate,
+      status: statusText,
+    };
+    for (const [sourceKey, outputKey] of [
+      ["source", "source"],
+      ["reason", "reason"],
+      ["checkedAt", "checkedAt"],
+      ["checked_at", "checkedAt"],
+      ["sourceUpdatedAt", "sourceUpdatedAt"],
+      ["source_updated_at", "sourceUpdatedAt"],
+    ]) {
+      const value = String(status[sourceKey] ?? "").trim();
+      if (value) {
+        payload[outputKey] = value;
+      }
+    }
+    for (const [sourceKey, outputKey] of [
+      ["observedSlotCount", "observedSlotCount"],
+      ["observed_slot_count", "observedSlotCount"],
+      ["observedNoPlaySlotCount", "observedNoPlaySlotCount"],
+      ["observed_no_play_slot_count", "observedNoPlaySlotCount"],
+    ]) {
+      const value = readNumber(status[sourceKey]);
+      if (Number.isInteger(value) && value >= 0) {
+        payload[outputKey] = value;
+      }
+    }
+    statusesByDate.set(targetDate, payload);
+  }
+
+  return [...statusesByDate.values()].sort((left, right) =>
+    String(right.targetDate).localeCompare(String(left.targetDate), "ja"),
+  );
+}
+
+function storeDayStatusIsClosed(status) {
+  return String(status?.status ?? "").trim().toLowerCase() === STORE_DAY_STATUS_CLOSED;
+}
+
+function readStaticStoreDayStatuses(staticStore) {
+  return normalizeStoreDayStatuses(staticStore);
+}
+
+function findStaticStoreDayStatus(staticStore, targetDate) {
+  const normalizedTargetDate = normalizeDateInput(targetDate);
+  if (!normalizedTargetDate) {
+    return null;
+  }
+  return readStaticStoreDayStatuses(staticStore)
+    .find((status) => status.targetDate === normalizedTargetDate) ?? null;
+}
+
 function mergeStaticStoreEntryIdentity(payload, storeEntry) {
   if (!payload || typeof payload !== "object") {
     return payload;
   }
   const store = payload.store && typeof payload.store === "object" ? payload.store : {};
   const entry = readStaticStoreEntryIdentity(storeEntry);
+  const payloadStatuses = normalizeStoreDayStatuses(payload);
+  const entryStatuses = normalizeStoreDayStatuses(storeEntry);
+  const storeDayStatuses = payloadStatuses.length > 0 ? payloadStatuses : entryStatuses;
+  const closedDateCount = storeDayStatuses.filter(storeDayStatusIsClosed).length;
   return {
     ...payload,
+    summary: {
+      ...(payload.summary && typeof payload.summary === "object" ? payload.summary : {}),
+      closedDateCount,
+    },
+    storeDayStatuses,
     store: {
       ...store,
       id: String(store.id ?? "").trim() || entry.id,
@@ -897,7 +979,9 @@ async function readStaticStoreByEntry(storeEntry) {
         machineCount: 0,
         latestDate: null,
         recordCount: 0,
+        closedDateCount: normalizeStoreDayStatuses(storeEntry).filter(storeDayStatusIsClosed).length,
       },
+      storeDayStatuses: normalizeStoreDayStatuses(storeEntry),
       machines: [],
     };
   }
@@ -2239,6 +2323,8 @@ async function readStaticMachineRecords(staticStore, machineNames, dateRange = n
 
 function buildStaticStoreDetail(staticStore) {
   const store = readStaticStoreIdentity(staticStore);
+  const storeDayStatuses = readStaticStoreDayStatuses(staticStore);
+  const closedDateCount = storeDayStatuses.filter(storeDayStatusIsClosed).length;
   const machines = (Array.isArray(staticStore?.machines) ? staticStore.machines : [])
     .map((machine) => ({
       machineName: String(machine.machineName ?? "").trim(),
@@ -2278,7 +2364,9 @@ function buildStaticStoreDetail(staticStore) {
       areaName: store.areaName,
       machineCount: machines.length,
       latestDate,
+      closedDateCount,
     },
+    storeDayStatuses,
     machines: sortStoreMachineEntries(withCombinedMachineEntries(machines)),
   };
 }
@@ -3266,6 +3354,7 @@ async function buildStaticMachineDetail(
     slotNumbers: machineDetail.slotNumbers,
     slotLabels: machineDetail.slotLabels,
     dateRows: machineDetail.dateRows,
+    storeDayStatuses: readStaticStoreDayStatuses(staticStore),
     summary: machineDetail.summary,
     isCombinedMachineGroup: Boolean(combinedChildMachines),
     childMachineNames: combinedChildMachines?.map((machine) => machine.machineName) ?? [],
@@ -3473,6 +3562,7 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     rankingDates,
     selectedDate,
     requestedDate,
+    requestedDateStatus: snapshotDetail.requestedDateStatus ?? null,
     limit: rankingLimit,
     predictionDate: snapshot?.baseDate ?? null,
     nextBusinessDate: snapshot?.nextBusinessDate ?? null,
@@ -3666,6 +3756,7 @@ async function getHuntScoreSnapshotsForStore(
       rankingDateOptions,
       rankingDates,
       selectedDate,
+      requestedDateStatus: findStaticStoreDayStatus(staticStore, requestedDate),
       machineSlotCounts: buildStaticStoreMachineSlotCounts(staticStore),
       machineEvaluationSettings,
       store: {

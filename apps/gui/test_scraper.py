@@ -95,6 +95,7 @@ from minrepo_scraper import (
     MinRepoScraper,
     ScraperError,
     StoreDatePage,
+    StoreDayStatus,
     StoreEventSettings,
     normalize_text,
     parse_date_range_input,
@@ -3564,6 +3565,12 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(result.start_date, closed_date)
         self.assertEqual(result.end_date, closed_date)
         self.assertEqual(result.skipped_dates, [closed_date])
+        self.assertEqual(len(result.store_day_statuses), 1)
+        self.assertEqual(result.store_day_statuses[0].target_date, closed_date)
+        self.assertEqual(result.store_day_statuses[0].status, "closed")
+        self.assertEqual(result.store_day_statuses[0].source, "site7")
+        self.assertEqual(result.store_day_statuses[0].observed_slot_count, 4)
+        self.assertEqual(result.store_day_statuses[0].observed_no_play_slot_count, 4)
         self.assertEqual(
             set(result.skipped_targets),
             {(closed_date, machine_entry.machine_name) for machine_entry, _ in target_items},
@@ -5076,6 +5083,66 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(persistence_service.require_source_difference_values, [True])
         self.assertEqual(store_result.save_summary.web_data_record_count, 1)
 
+    def test_fetch_single_site7_store_saves_store_day_status_without_datasets(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.result_queue = queue.Queue()
+        target_date = "2026-06-08"
+        history_result = MachineHistoryResult(
+            store_name="Aパーク春日店",
+            store_url="https://example.com/store",
+            start_date=target_date,
+            end_date=target_date,
+            date_pages=[],
+            datasets=[],
+            skipped_dates=[target_date],
+            store_day_statuses=[
+                StoreDayStatus(
+                    target_date=target_date,
+                    status="closed",
+                    source="site7",
+                )
+            ],
+        )
+
+        class FakeSite7Scraper:
+            def fetch_target_machine_history(self, **_: object) -> MachineHistoryResult:
+                return history_result
+
+        class FakePersistenceService:
+            def __init__(self) -> None:
+                self.saved_status_results: list[MachineHistoryResult] = []
+
+            def resolve_preferred_store_by_name(self, store_name: str) -> None:
+                return None
+
+            def save_store_day_statuses(self, result: MachineHistoryResult) -> PersistenceSummary:
+                self.saved_status_results.append(result)
+                return PersistenceSummary(web_data_saved=True, web_data_record_count=0)
+
+        persistence_service = FakePersistenceService()
+        app.site7_scraper = FakeSite7Scraper()
+        app.persistence_service = persistence_service
+
+        store_result = app._fetch_single_site7_store(
+            registered_store=RegisteredStore(
+                name="Aパーク春日店",
+                url="https://example.com/store",
+                fetch_source=FETCH_SOURCE_SITE7,
+                site7_enabled=True,
+            ),
+            recent_days=1,
+            store_index=1,
+            total_stores=1,
+            retry_delay_seconds=0,
+            browser_visible=True,
+            enabled_machine_names={SITE7_NEO_IM_MACHINE_NAME},
+        )
+
+        self.assertEqual(persistence_service.saved_status_results, [store_result.history_result])
+        self.assertIsNotNone(store_result.save_summary)
+        self.assertFalse(store_result.save_summary.has_errors)
+
     def test_fetch_single_site7_store_uses_full_day_index_before_slot_checks(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.fetch_cancel_event = threading.Event()
@@ -5125,6 +5192,7 @@ class MinRepoScraperTests(unittest.TestCase):
         class FakePersistenceService:
             def __init__(self) -> None:
                 self.full_day_calls: list[tuple[str, str, str, str]] = []
+                self.closed_day_calls: list[tuple[str, str, str, str]] = []
                 self.slot_calls: list[tuple[str, str, tuple[str, ...], str | datetime | None]] = []
 
             def resolve_preferred_store_by_name(self, store_name: str) -> None:
@@ -5139,6 +5207,16 @@ class MinRepoScraperTests(unittest.TestCase):
             ) -> SavedFullDayDatesSummary:
                 self.full_day_calls.append((store_name, store_url, start_date, end_date))
                 return SavedFullDayDatesSummary(saved_dates={"2026-06-01"})
+
+            def find_store_closed_dates(
+                self,
+                store_name: str,
+                store_url: str,
+                start_date: str,
+                end_date: str,
+            ) -> set[str]:
+                self.closed_day_calls.append((store_name, store_url, start_date, end_date))
+                return {"2026-06-02"}
 
             def find_saved_machine_slots(
                 self,
@@ -5180,18 +5258,24 @@ class MinRepoScraperTests(unittest.TestCase):
                 ("2026-06-01", "821"),
                 ("2026-06-01", "822"),
                 ("2026-06-02", "821"),
+                ("2026-06-02", "822"),
+                ("2026-06-03", "821"),
             },
         )
-        self.assertEqual(callback_results[1], {("2026-06-01", "831"), ("2026-06-02", "831")})
+        self.assertEqual(callback_results[1], {("2026-06-01", "831"), ("2026-06-02", "831"), ("2026-06-03", "831")})
         self.assertEqual(
             persistence_service.full_day_calls,
             [("Aパーク春日店", "https://example.com/store", "2026-06-01", "2026-06-03")],
         )
         self.assertEqual(
+            persistence_service.closed_day_calls,
+            [("Aパーク春日店", "https://example.com/store", "2026-06-01", "2026-06-03")],
+        )
+        self.assertEqual(
             persistence_service.slot_calls,
             [
-                ("2026-06-02", "2026-06-03", ("821", "822"), "2026-06-03T23:20:00+09:00"),
-                ("2026-06-02", "2026-06-03", ("831",), "2026-06-03T23:20:00+09:00"),
+                ("2026-06-03", "2026-06-03", ("821", "822"), "2026-06-03T23:20:00+09:00"),
+                ("2026-06-03", "2026-06-03", ("831",), "2026-06-03T23:20:00+09:00"),
             ],
         )
 
@@ -6616,6 +6700,33 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(payload["summary"]["recordCount"], 1)
         self.assertEqual([record["target_date"] for record in machine_records], ["2026-05-12"])
 
+    def test_web_export_store_payload_keeps_closed_store_day_status_without_records(self) -> None:
+        store_source = StoreSource(
+            store_name="Aパーク春日店",
+            store_url="https://min-repo.com/tag/a-%E3%83%91%E3%83%BC%E3%82%AF%E6%98%A5%E6%97%A5%E5%BA%97/",
+        )
+
+        payload = build_store_payload(
+            store_source,
+            [],
+            store_day_statuses=[
+                {
+                    "target_date": "2026-06-08",
+                    "status": "closed",
+                    "source": "site7",
+                    "checked_at": "2026-06-08T11:15:00+09:00",
+                    "observed_slot_count": 4,
+                    "observed_no_play_slot_count": 4,
+                }
+            ],
+        )
+
+        self.assertEqual(payload["summary"]["recordCount"], 0)
+        self.assertEqual(payload["summary"]["closedDateCount"], 1)
+        self.assertEqual(payload["storeDayStatuses"][0]["targetDate"], "2026-06-08")
+        self.assertEqual(payload["storeDayStatuses"][0]["status"], "closed")
+        self.assertEqual(payload["storeDayStatuses"][0]["observedSlotCount"], 4)
+
     def test_web_export_store_payload_adds_grape_values_for_incoming_minrepo_records(self) -> None:
         store_source = StoreSource(
             store_name="Aパーク春日店",
@@ -7227,6 +7338,58 @@ class MinRepoScraperTests(unittest.TestCase):
 
             self.assertFalse(summary.has_errors)
             self.assertEqual(saved_dates_summary.saved_dates, {"2026-04-07"})
+
+    def test_save_store_day_statuses_marks_closed_day_index(self) -> None:
+        store_name = "Aパーク春日店"
+        store_url = "https://min-repo.com/tag/a-%E3%83%91%E3%83%BC%E3%82%AF%E6%98%A5%E6%97%A5%E5%BA%97/"
+        target_date = "2026-06-08"
+        history_result = MachineHistoryResult(
+            store_name=store_name,
+            store_url=store_url,
+            start_date=target_date,
+            end_date=target_date,
+            date_pages=[],
+            datasets=[],
+            store_day_statuses=[
+                StoreDayStatus(
+                    target_date=target_date,
+                    status="closed",
+                    source="site7",
+                    reason="stale_1am_no_play",
+                    checked_at="2026-06-08T11:15:00+09:00",
+                    source_updated_at="2026-06-08T01:00:00+09:00",
+                    observed_slot_count=4,
+                    observed_no_play_slot_count=4,
+                )
+            ],
+        )
+
+        with TemporaryDirectory() as temp_dir:
+            service, storage = make_r2_service(Path(temp_dir))
+
+            summary = service.save_store_day_statuses(history_result)
+            store_id = service._r2_store_id(store_name, store_url)  # type: ignore[attr-defined]
+            store_payload = storage.read_json(f"stores/{store_id}.json")
+            index_payload = storage.read_json(
+                service._r2_full_day_index_key(store_name, store_url),  # type: ignore[attr-defined]
+            )
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(store_payload["summary"]["closedDateCount"], 1)
+            self.assertEqual(store_payload["storeDayStatuses"][0]["targetDate"], target_date)
+            self.assertEqual(
+                index_payload["store_day_statuses"][target_date]["status"],
+                "closed",
+            )
+            self.assertEqual(
+                service.find_store_closed_dates(
+                    store_name=store_name,
+                    store_url=store_url,
+                    start_date=target_date,
+                    end_date=target_date,
+                ),
+                {target_date},
+            )
 
     def test_save_history_result_clears_full_day_index_when_site7_remains(self) -> None:
         store_name = "テスト店"

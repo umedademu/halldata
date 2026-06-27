@@ -20,7 +20,7 @@ from machine_difference import (
     canonical_machine_name,
     list_equivalent_machine_names,
 )
-from minrepo_scraper import MachineHistoryResult, normalize_text
+from minrepo_scraper import MachineHistoryResult, StoreDayStatus, normalize_text
 from r2_storage import R2JsonStorage, R2StorageError
 from site7_scraper import (
     DEFAULT_SITE7_PREFECTURE_NAME,
@@ -60,6 +60,7 @@ STORE_COLUMNS = {"機種", "機種名"}
 WINDOWS_FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]+')
 DATA_SOURCE_MINREPO = "minrepo"
 DATA_SOURCE_SITE7 = "site7"
+STORE_DAY_STATUS_CLOSED = "closed"
 SITE7_SAVED_TIMEZONE = timezone(timedelta(hours=9))
 SITE7_COMPLETE_FETCH_HOUR = 23
 R2_SNAPSHOT_PREFIX = "snapshots"
@@ -229,6 +230,62 @@ def _record_has_site7_source(row: dict[str, Any]) -> bool:
     if _record_has_site7_data_source(row):
         return True
     return bool(str(row.get("site7_fetched_at", "")).strip())
+
+
+def _store_day_status_to_payload(status: StoreDayStatus | dict[str, Any]) -> dict[str, Any] | None:
+    source = status if isinstance(status, dict) else status.__dict__
+    target_date = str(source.get("target_date") or source.get("targetDate") or "").strip()
+    status_text = str(source.get("status", "")).strip()
+    if not target_date or not status_text:
+        return None
+
+    payload: dict[str, Any] = {
+        "target_date": target_date,
+        "status": status_text,
+    }
+    for key, camel_key in (
+        ("source", "source"),
+        ("reason", "reason"),
+        ("checked_at", "checkedAt"),
+        ("source_updated_at", "sourceUpdatedAt"),
+    ):
+        value = str(source.get(key) or source.get(camel_key) or "").strip()
+        if value:
+            payload[key] = value
+    for key, camel_key in (
+        ("observed_slot_count", "observedSlotCount"),
+        ("observed_no_play_slot_count", "observedNoPlaySlotCount"),
+    ):
+        value = source.get(key)
+        if value is None:
+            value = source.get(camel_key)
+        if isinstance(value, int) and value >= 0:
+            payload[key] = value
+    return payload
+
+
+def _normalize_store_day_status_payloads(statuses: list[StoreDayStatus] | list[dict[str, Any]]) -> list[dict[str, Any]]:
+    statuses_by_date: dict[str, dict[str, Any]] = {}
+    for status in statuses:
+        payload = _store_day_status_to_payload(status)
+        if payload is None:
+            continue
+        statuses_by_date[payload["target_date"]] = payload
+    return [
+        statuses_by_date[target_date]
+        for target_date in sorted(statuses_by_date)
+    ]
+
+
+def _merge_store_day_status_payloads(
+    existing_statuses: list[dict[str, Any]],
+    incoming_statuses: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    return _normalize_store_day_status_payloads([*existing_statuses, *incoming_statuses])
+
+
+def _store_day_status_is_closed(status: dict[str, Any]) -> bool:
+    return str(status.get("status", "")).strip().casefold() == STORE_DAY_STATUS_CLOSED
 
 
 def _parse_site7_saved_datetime(value: Any) -> datetime | None:
@@ -677,6 +734,8 @@ class HistoryPersistenceService:
         try:
             snapshot_key = self._save_r2_snapshot(snapshot)
             entry = self._save_r2_web_data(snapshot)
+            if self._snapshot_store_day_statuses(snapshot):
+                self._mark_store_day_statuses_r2(snapshot, snapshot_key)
             if full_day:
                 if self._snapshot_is_minrepo_only(snapshot):
                     self._mark_full_day_saved_r2(
@@ -766,6 +825,46 @@ class HistoryPersistenceService:
             summary.messages.append(f"R2の全機種取得済み記録に失敗しました。\n{exc}")
 
         return summary
+
+    def save_store_day_statuses(self, history_result: MachineHistoryResult) -> PersistenceSummary:
+        snapshot = self._build_local_snapshot(history_result)
+        summary = PersistenceSummary()
+        if not self._snapshot_store_day_statuses(snapshot):
+            return summary
+
+        try:
+            snapshot_key = self._save_r2_snapshot(snapshot)
+            entry = self._save_r2_web_data_store_day_statuses(snapshot)
+            self._mark_store_day_statuses_r2(snapshot, snapshot_key)
+            summary.web_data_saved = True
+            summary.web_data_file_path = self._format_r2_path(str(entry.get("dataFile", "")))
+            summary.web_data_record_count = int(entry.get("recordCount") or 0)
+        except Exception as exc:  # noqa: BLE001
+            summary.messages.append(f"R2の店舗日付状態保存に失敗しました。\n{exc}")
+
+        return summary
+
+    def find_store_closed_dates(
+        self,
+        store_name: str,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+    ) -> set[str]:
+        try:
+            entries = self._find_store_day_status_entries_r2(
+                store_name=store_name,
+                store_url=store_url,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        except Exception:  # noqa: BLE001
+            return set()
+        return {
+            target_date
+            for target_date, entry in entries.items()
+            if _store_day_status_is_closed(entry)
+        }
 
     def find_saved_full_day_dates(
         self,
@@ -1086,6 +1185,7 @@ class HistoryPersistenceService:
                 key=normalize_text,
             ),
             "records": records,
+            "store_day_statuses": _normalize_store_day_status_payloads(history_result.store_day_statuses),
         }
 
     def _r2_store_source_from_snapshot(self, snapshot: dict[str, Any]) -> StoreSource:
@@ -1183,10 +1283,17 @@ class HistoryPersistenceService:
             for record in snapshot.get("records", [])
             if isinstance(record, dict) and _saved_record_should_be_kept(record)
         ]
+        incoming_statuses = self._snapshot_store_day_statuses(snapshot)
+        existing_statuses = self._load_r2_store_day_statuses(
+            store_name=store_source.store_name,
+            store_url=store_source.store_url,
+        )
+        merged_statuses = _merge_store_day_status_payloads(existing_statuses, incoming_statuses)
         if incoming_records and self._records_are_minrepo_only(incoming_records):
             return self._save_r2_web_data_minrepo_incremental(
                 store_source=store_source,
                 incoming_records=incoming_records,
+                store_day_statuses=merged_statuses,
             )
 
         existing_records = self._load_r2_store_records(
@@ -1194,7 +1301,35 @@ class HistoryPersistenceService:
             store_url=store_source.store_url,
         )
         records = self._merge_r2_records(existing_records, incoming_records)
-        store_payload = build_store_payload(store_source, records)
+        store_payload = build_store_payload(store_source, records, store_day_statuses=merged_statuses)
+        entries = export_store_payloads(
+            self.root_dir / "apps" / "web" / "public" / "halldata-static",
+            [store_payload],
+            r2_storage=self.r2_storage,
+            allow_missing_r2_index=False,
+        )
+        return entries[0] if entries else {}
+
+    def _save_r2_web_data_store_day_statuses(self, snapshot: dict[str, Any]) -> dict[str, Any]:
+        store_source = self._r2_store_source_from_snapshot(snapshot)
+        incoming_statuses = self._snapshot_store_day_statuses(snapshot)
+        if not incoming_statuses:
+            store_id = self._r2_store_id(store_source.store_name, store_source.store_url)
+            return self._find_r2_store_entry(
+                store_name=store_source.store_name,
+                store_url=store_source.store_url,
+            ) or {"dataFile": self._r2_store_key(store_id), "recordCount": 0}
+
+        existing_statuses = self._load_r2_store_day_statuses(
+            store_name=store_source.store_name,
+            store_url=store_source.store_url,
+        )
+        merged_statuses = _merge_store_day_status_payloads(existing_statuses, incoming_statuses)
+        existing_records = self._load_r2_store_records(
+            store_name=store_source.store_name,
+            store_url=store_source.store_url,
+        )
+        store_payload = build_store_payload(store_source, existing_records, store_day_statuses=merged_statuses)
         entries = export_store_payloads(
             self.root_dir / "apps" / "web" / "public" / "halldata-static",
             [store_payload],
@@ -1224,13 +1359,18 @@ class HistoryPersistenceService:
         *,
         store_source: StoreSource,
         incoming_records: list[dict[str, Any]],
+        store_day_statuses: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         existing_store_payload = self._load_r2_store_payload(
             store_name=store_source.store_name,
             store_url=store_source.store_url,
         )
         if existing_store_payload is None:
-            store_payload = build_store_payload(store_source, incoming_records)
+            store_payload = build_store_payload(
+                store_source,
+                incoming_records,
+                store_day_statuses=store_day_statuses,
+            )
             entries = export_store_payloads(
                 self.root_dir / "apps" / "web" / "public" / "halldata-static",
                 [store_payload],
@@ -1321,6 +1461,9 @@ class HistoryPersistenceService:
             store_source=store_source,
             machine_summaries=list(updated_machine_summaries_by_key.values()),
             record_count=max(0, existing_total_record_count - replaced_record_count + added_record_count),
+            store_day_statuses=store_day_statuses
+            if store_day_statuses is not None
+            else self._read_store_day_statuses_from_store_payload(existing_store_payload),
         )
         store_id = self._r2_store_id(store_source.store_name, store_source.store_url)
         data_file = self._r2_store_key(store_id)
@@ -1523,9 +1666,11 @@ class HistoryPersistenceService:
         store_source: StoreSource,
         machine_summaries: list[dict[str, Any]],
         record_count: int,
+        store_day_statuses: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
         store_id = self._r2_store_id(store_source.store_name, store_source.store_url)
+        normalized_store_day_statuses = _normalize_store_day_status_payloads(store_day_statuses or [])
         normalized_machine_summaries = [
             dict(machine)
             for machine in machine_summaries
@@ -1543,6 +1688,7 @@ class HistoryPersistenceService:
             (str(machine.get("latestDate") or "") for machine in normalized_machine_summaries),
             default=None,
         )
+        closed_date_count = sum(1 for status in normalized_store_day_statuses if _store_day_status_is_closed(status))
         return {
             "version": WEB_DATA_VERSION,
             "generatedAt": generated_at,
@@ -1563,7 +1709,9 @@ class HistoryPersistenceService:
                 "machineCount": len(normalized_machine_summaries),
                 "latestDate": latest_date,
                 "recordCount": record_count,
+                "closedDateCount": closed_date_count,
             },
+            "storeDayStatuses": normalized_store_day_statuses,
             "machines": normalized_machine_summaries,
         }
 
@@ -1575,6 +1723,128 @@ class HistoryPersistenceService:
             return int(summary.get("recordCount") or 0)
         except (TypeError, ValueError):
             return 0
+
+    def _read_store_day_statuses_from_store_payload(self, store_payload: dict[str, Any]) -> list[dict[str, Any]]:
+        statuses = store_payload.get("storeDayStatuses", store_payload.get("store_day_statuses", []))
+        return _normalize_store_day_status_payloads(statuses if isinstance(statuses, list) else [])
+
+    def _snapshot_store_day_statuses(self, snapshot: dict[str, Any]) -> list[dict[str, Any]]:
+        statuses = snapshot.get("store_day_statuses", [])
+        return _normalize_store_day_status_payloads(statuses if isinstance(statuses, list) else [])
+
+    def _load_r2_store_day_statuses(self, *, store_name: str, store_url: str) -> list[dict[str, Any]]:
+        statuses_by_date: dict[str, dict[str, Any]] = {}
+
+        store_payload = self._load_r2_store_payload(store_name=store_name, store_url=store_url)
+        if isinstance(store_payload, dict):
+            for status in self._read_store_day_statuses_from_store_payload(store_payload):
+                statuses_by_date[status["target_date"]] = status
+
+        index_key = self._r2_full_day_index_key(store_name, store_url)
+        index_payload = self.r2_storage.read_json(index_key)
+        if isinstance(index_payload, dict):
+            raw_statuses = index_payload.get("store_day_statuses", {})
+            if isinstance(raw_statuses, dict):
+                for target_date, entry in raw_statuses.items():
+                    if not isinstance(entry, dict):
+                        continue
+                    payload = _store_day_status_to_payload({
+                        **entry,
+                        "target_date": target_date,
+                    })
+                    if payload is not None:
+                        statuses_by_date[payload["target_date"]] = payload
+
+        return [
+            statuses_by_date[target_date]
+            for target_date in sorted(statuses_by_date)
+        ]
+
+    def _mark_store_day_statuses_r2(self, snapshot: dict[str, Any], snapshot_key: str) -> None:
+        store = snapshot.get("store", {})
+        if not isinstance(store, dict):
+            return
+
+        store_name = str(store.get("store_name", "")).strip()
+        store_url = normalize_store_url(str(store.get("store_url", "")))
+        if not store_name and not store_url:
+            return
+
+        statuses = self._snapshot_store_day_statuses(snapshot)
+        if not statuses:
+            return
+
+        index_key = self._r2_full_day_index_key(store_name, store_url)
+        index_payload = self.r2_storage.read_json(index_key) or {
+            "version": 1,
+            "store": {},
+            "full_day_dates": {},
+            "store_day_statuses": {},
+        }
+        if not isinstance(index_payload, dict):
+            index_payload = {
+                "version": 1,
+                "store": {},
+                "full_day_dates": {},
+                "store_day_statuses": {},
+            }
+        index_payload.setdefault("version", 1)
+        index_payload.setdefault("full_day_dates", {})
+
+        index_store = index_payload.get("store", {})
+        if not isinstance(index_store, dict):
+            index_store = {}
+        index_store["store_name"] = store_name
+        index_store["store_url"] = store_url
+        event_day_tails = _normalize_event_values(store.get("event_day_tails", []), 0, 9)
+        event_month_days = _normalize_event_values(store.get("event_month_days", []), 1, 31)
+        event_zoro = _coerce_bool(store.get("event_zoro", False))
+        event_weekdays = _normalize_event_values(store.get("event_weekdays", []), 0, 6)
+        event_source_text = str(store.get("event_source_text", "")).strip()
+        if event_day_tails:
+            index_store["event_day_tails"] = event_day_tails
+        if event_month_days:
+            index_store["event_month_days"] = event_month_days
+        if event_zoro:
+            index_store["event_zoro"] = True
+        if event_weekdays:
+            index_store["event_weekdays"] = event_weekdays
+        if event_source_text:
+            index_store["event_source_text"] = event_source_text
+        index_payload["store"] = index_store
+
+        status_entries = index_payload.setdefault("store_day_statuses", {})
+        if not isinstance(status_entries, dict):
+            status_entries = {}
+            index_payload["store_day_statuses"] = status_entries
+
+        now_text = datetime.now().astimezone().isoformat(timespec="seconds")
+        for status in statuses:
+            target_date = str(status.get("target_date", "")).strip()
+            if not target_date:
+                continue
+            status_entries[target_date] = {
+                **status,
+                "saved_at": now_text,
+                "snapshot_key": snapshot_key,
+            }
+
+        self.r2_storage.write_json(index_key, index_payload)
+
+    def _find_store_day_status_entries_r2(
+        self,
+        store_name: str,
+        store_url: str,
+        start_date: str,
+        end_date: str,
+    ) -> dict[str, dict[str, Any]]:
+        entries: dict[str, dict[str, Any]] = {}
+        for status in self._load_r2_store_day_statuses(store_name=store_name, store_url=store_url):
+            target_date = str(status.get("target_date", "")).strip()
+            if not target_date or target_date < start_date or target_date > end_date:
+                continue
+            entries[target_date] = status
+        return entries
 
     def _merge_r2_records(
         self,
@@ -2445,14 +2715,15 @@ class HistoryPersistenceService:
 
     def _load_full_day_index(self, index_path: Path) -> dict[str, Any]:
         if not index_path.exists():
-            return {"version": 1, "store": {}, "full_day_dates": {}}
+            return {"version": 1, "store": {}, "full_day_dates": {}, "store_day_statuses": {}}
 
         payload = json.loads(index_path.read_text(encoding="utf-8"))
         if not isinstance(payload, dict):
-            return {"version": 1, "store": {}, "full_day_dates": {}}
+            return {"version": 1, "store": {}, "full_day_dates": {}, "store_day_statuses": {}}
         payload.setdefault("version", 1)
         payload.setdefault("store", {})
         payload.setdefault("full_day_dates", {})
+        payload.setdefault("store_day_statuses", {})
         return payload
 
     def _registered_stores_path(self) -> Path:

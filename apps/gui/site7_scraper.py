@@ -21,7 +21,14 @@ from machine_difference import (
     list_site7_target_machine_keywords,
     machine_is_site7_target,
 )
-from minrepo_scraper import FetchProgress, MachineDataset, MachineHistoryResult, ScraperError, StoreDatePage
+from minrepo_scraper import (
+    FetchProgress,
+    MachineDataset,
+    MachineHistoryResult,
+    ScraperError,
+    StoreDatePage,
+    StoreDayStatus,
+)
 
 try:
     from playwright.sync_api import Error as PlaywrightError
@@ -62,6 +69,7 @@ SITE7_DIFFERENCE_SOURCE_GRAPH = "graph"
 SITE7_GRAPH_DIFFERENCE_SLOT_ATTR = "_site7_graph_difference_slots"
 SITE7_DATA_UPDATED_AT_ATTR = "_site7_data_updated_at"
 SITE7_NO_PLAY_DAY_STATS_ATTR = "_site7_no_play_day_stats"
+SITE7_STORE_DAY_STATUS_CLOSED = "closed"
 SITE7_BROWSER_STATE_DIR_NAME = "site7_browser"
 SITE7_DATE_BOUNDARY_HOUR = 4
 SITE7_STORE_CLOSED_CHECK_HOUR = 11
@@ -895,6 +903,30 @@ class Site7Scraper:
 
         return updated_at_jst.strftime("%Y-%m-%d"), stats, current_datetime
 
+    def _build_store_closed_day_status(
+        self,
+        target_date: str,
+        stats: Site7NoPlayDayStats,
+        checked_at: datetime,
+        *,
+        reason: str,
+    ) -> StoreDayStatus:
+        source_updated_at = (
+            format_site7_updated_datetime(stats.updated_at)
+            if stats.updated_at is not None
+            else ""
+        )
+        return StoreDayStatus(
+            target_date=target_date,
+            status=SITE7_STORE_DAY_STATUS_CLOSED,
+            source="site7",
+            reason=reason,
+            checked_at=format_site7_updated_datetime(checked_at),
+            source_updated_at=source_updated_at,
+            observed_slot_count=stats.slot_count,
+            observed_no_play_slot_count=stats.no_play_slot_count,
+        )
+
     def has_saved_login_state(self) -> bool:
         return self.browser_state_dir.exists() and any(self.browser_state_dir.iterdir())
 
@@ -1134,6 +1166,7 @@ class Site7Scraper:
         machine_results: list[MachineHistoryResult] = []
         deferred_graph_targets: list[tuple[MachineHistoryResult, str, str]] = []
         store_closed_dates: set[str] = set()
+        store_closed_statuses: dict[str, StoreDayStatus] = {}
         saw_no_play_day_stats = False
         try:
             playwright, context = self._launch_mobile_browser_context(browser_visible=browser_visible)
@@ -1202,6 +1235,12 @@ class Site7Scraper:
                 if detected_store_closed is not None:
                     detected_closed_date, no_play_stats, checked_at = detected_store_closed
                     store_closed_dates.add(detected_closed_date)
+                    store_closed_statuses[detected_closed_date] = self._build_store_closed_day_status(
+                        detected_closed_date,
+                        no_play_stats,
+                        checked_at,
+                        reason="first_machine_stale_1am_no_play",
+                    )
                     self._write_debug_log(
                         "store_closed_day_detected",
                         target_date=detected_closed_date,
@@ -1273,6 +1312,7 @@ class Site7Scraper:
                     machine_results=machine_results,
                     target_machine_items=target_machine_items,
                     closed_dates=store_closed_dates,
+                    closed_statuses=store_closed_statuses,
                     store_name=store_name,
                     store_url=hall_page_url,
                 )
@@ -1316,6 +1356,7 @@ class Site7Scraper:
         machine_results: list[MachineHistoryResult],
         target_machine_items: list[tuple[Site7MachineEntry, str]],
         closed_dates: set[str],
+        closed_statuses: dict[str, StoreDayStatus],
         store_name: str,
         store_url: str,
     ) -> None:
@@ -1346,6 +1387,11 @@ class Site7Scraper:
                 datasets=[],
                 skipped_targets=skipped_targets,
                 skipped_dates=sorted(closed_date_set),
+                store_day_statuses=[
+                    closed_statuses[target_date]
+                    for target_date in sorted(closed_date_set)
+                    if target_date in closed_statuses
+                ],
             )
         )
 
@@ -1409,6 +1455,14 @@ class Site7Scraper:
                 end_date=detected_closed_date,
                 date_pages=[],
                 datasets=[],
+                store_day_statuses=[
+                    self._build_store_closed_day_status(
+                        detected_closed_date,
+                        no_play_stats,
+                        checked_at,
+                        reason="stale_1am_no_play",
+                    )
+                ],
             )
             set_site7_result_no_play_day_stats(result, {detected_closed_date: first_day_no_play_stats})
             return result
@@ -3824,10 +3878,15 @@ class Site7Scraper:
         date_pages_by_date: dict[str, StoreDatePage] = {}
         skipped_targets: list[tuple[str, str]] = []
         skipped_dates: list[str] = []
+        store_day_statuses_by_date: dict[str, StoreDayStatus] = {}
 
         for machine_result in machine_results:
             datasets.extend(machine_result.datasets)
             skipped_targets.extend(machine_result.skipped_targets)
+            for status in machine_result.store_day_statuses:
+                target_date = str(status.target_date).strip()
+                if target_date:
+                    store_day_statuses_by_date[target_date] = status
             for skipped_date in machine_result.skipped_dates:
                 if skipped_date not in skipped_dates:
                     skipped_dates.append(skipped_date)
@@ -3854,6 +3913,10 @@ class Site7Scraper:
                 datasets=[],
                 skipped_targets=skipped_targets,
                 skipped_dates=skipped_dates,
+                store_day_statuses=[
+                    store_day_statuses_by_date[target_date]
+                    for target_date in sorted(store_day_statuses_by_date)
+                ],
             )
         return MachineHistoryResult(
             store_name=fallback_store_name,
@@ -3864,6 +3927,10 @@ class Site7Scraper:
             datasets=datasets,
             skipped_targets=skipped_targets,
             skipped_dates=skipped_dates,
+            store_day_statuses=[
+                store_day_statuses_by_date[target_date]
+                for target_date in sorted(store_day_statuses_by_date)
+            ],
         )
 
     def _wait_for_login_success(self, context: object, timeout_seconds: int) -> bool:

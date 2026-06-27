@@ -120,6 +120,7 @@ const DEFAULT_HUNT_NEXT_GAP_REQUIRED = false;
 const HUNT_SCORE_HIGHLIGHT_STORAGE_PREFIX = "machine-hunt-score-highlight:v2:";
 const MACHINE_COMPARISON_STORAGE_PREFIX = "machine-comparison-options:";
 const COMPARISON_SCORE_EPSILON = 0.000000001;
+const STORE_DAY_STATUS_CLOSED = "closed";
 const settingEstimateCache = new WeakMap();
 
 function isIsoDateText(value) {
@@ -152,6 +153,73 @@ function shiftDateText(value, offsetDays) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function maxDateText(...values) {
+  return values.filter(isIsoDateText).sort((left, right) => right.localeCompare(left))[0] ?? "";
+}
+
+function minDateText(...values) {
+  return values.filter(isIsoDateText).sort((left, right) => left.localeCompare(right))[0] ?? "";
+}
+
+function normalizeStoreDayStatuses(statuses) {
+  const statusesByDate = new Map();
+  for (const status of Array.isArray(statuses) ? statuses : []) {
+    if (!status || typeof status !== "object") {
+      continue;
+    }
+    const targetDate = String(status.targetDate ?? status.target_date ?? "").trim();
+    const statusText = String(status.status ?? "").trim();
+    if (!isIsoDateText(targetDate) || !statusText) {
+      continue;
+    }
+    statusesByDate.set(targetDate, {
+      ...status,
+      targetDate,
+      status: statusText,
+    });
+  }
+  return [...statusesByDate.values()].sort((left, right) =>
+    String(right.targetDate).localeCompare(String(left.targetDate), "ja"),
+  );
+}
+
+function storeDayStatusIsClosed(status) {
+  return String(status?.status ?? "").trim().toLowerCase() === STORE_DAY_STATUS_CLOSED;
+}
+
+function buildDisplayDateRows(dateRows, storeDayStatuses, dateRange) {
+  const rowsByDate = new Map();
+  for (const row of Array.isArray(dateRows) ? dateRows : []) {
+    const rowDate = String(row?.date ?? "").trim();
+    if (rowDate) {
+      rowsByDate.set(rowDate, row);
+    }
+  }
+
+  for (const status of Array.isArray(storeDayStatuses) ? storeDayStatuses : []) {
+    const targetDate = String(status?.targetDate ?? "").trim();
+    if (
+      !isIsoDateText(targetDate) ||
+      !storeDayStatusIsClosed(status) ||
+      rowsByDate.has(targetDate) ||
+      (dateRange?.startDate && targetDate < dateRange.startDate) ||
+      (dateRange?.endDate && targetDate > dateRange.endDate)
+    ) {
+      continue;
+    }
+    rowsByDate.set(targetDate, {
+      date: targetDate,
+      recordsBySlot: {},
+      isStoreClosed: true,
+      storeDayStatus: status,
+    });
+  }
+
+  return [...rowsByDate.values()].sort((left, right) =>
+    String(right.date ?? "").localeCompare(String(left.date ?? ""), "ja"),
+  );
 }
 
 function clampDateText(value, minDate, maxDate, fallbackDate) {
@@ -1887,6 +1955,24 @@ const MatrixRow = memo(function MatrixRow({
   getCompositeSettingEstimate,
   huntScoreHighlightKeySet = new Set(),
 }) {
+  if (row.isStoreClosed) {
+    const colSpan = Math.max(1, slotNumbers.length * visibleMetrics.length);
+    return (
+      <tr className="storeClosedMatrixRow">
+        <th className="dateCell storeClosedDateCell" title="店休日">
+          <span className="dateCellStack">
+            <span>{formatShortDate(row.date)}</span>
+            <span className="dateCellSubLabel">店休日</span>
+          </span>
+        </th>
+        <td className="weekdayCell storeClosedWeekdayCell">{formatWeekday(row.date)}</td>
+        <td className="storeClosedMatrixCell" colSpan={colSpan}>
+          店休日
+        </td>
+      </tr>
+    );
+  }
+
   const dateCellClassName = ["dateCell", row.hasSite7Data ? "site7DateCell" : ""]
     .filter(Boolean)
     .join(" ");
@@ -2426,6 +2512,7 @@ export function MachineComparison({
   slotNumbers,
   slotLabels = {},
   dateRows,
+  storeDayStatuses = [],
   initialEventFilters,
   initialEventFiltersFromSearchParams = false,
   huntScoreHighlight,
@@ -2447,8 +2534,20 @@ export function MachineComparison({
       `${storeId}:${verificationMode ? "verification" : "machine-detail"}:${normalizeMachineNameText(machineName)}`,
     [machineName, storeId, verificationMode],
   );
-  const latestAvailableDate = dateRows[0]?.date ?? "";
-  const oldestAvailableDate = dateRows.at(-1)?.date ?? latestAvailableDate;
+  const normalizedStoreDayStatuses = useMemo(
+    () => normalizeStoreDayStatuses(storeDayStatuses),
+    [storeDayStatuses],
+  );
+  const closedStoreDayStatuses = useMemo(
+    () => normalizedStoreDayStatuses.filter(storeDayStatusIsClosed),
+    [normalizedStoreDayStatuses],
+  );
+  const latestDataDate = dateRows[0]?.date ?? "";
+  const oldestDataDate = dateRows.at(-1)?.date ?? latestDataDate;
+  const latestClosedDate = closedStoreDayStatuses[0]?.targetDate ?? "";
+  const oldestClosedDate = closedStoreDayStatuses.at(-1)?.targetDate ?? latestClosedDate;
+  const latestAvailableDate = maxDateText(latestDataDate, latestClosedDate);
+  const oldestAvailableDate = minDateText(oldestDataDate, oldestClosedDate) || latestAvailableDate;
   const initialRangeStartDate = latestAvailableDate
     ? clampDateText(
         shiftDateText(latestAvailableDate, -(DEFAULT_COMPARISON_RECENT_DAYS - 1)),
@@ -3055,6 +3154,14 @@ export function MachineComparison({
   );
 
   const visibleRows = periodFilteredRows;
+  const displayRows = useMemo(
+    () => buildDisplayDateRows(visibleRows, closedStoreDayStatuses, activeDateRange),
+    [activeDateRange, closedStoreDayStatuses, visibleRows],
+  );
+  const closedDisplayDateCount = useMemo(
+    () => displayRows.filter((row) => row.isStoreClosed).length,
+    [displayRows],
+  );
 
   const specialDateSet = useMemo(() => {
     if (!eventFilters.isActive) {
@@ -3538,6 +3645,7 @@ export function MachineComparison({
             {hasPendingPeriodChanges ? "未反映の変更があります / " : ""}
             {buildDisplayedPeriodLabel(activeDateRange.startDate, activeDateRange.endDate)} /{" "}
             {periodFilteredRows.length}日分
+            {closedDisplayDateCount > 0 ? ` / 店休日${closedDisplayDateCount}日` : ""}
           </p>
         </div>
       </section>
@@ -3820,7 +3928,7 @@ export function MachineComparison({
           machineName={machineName}
           slotNumbers={slotNumbers}
           slotLabels={slotLabels}
-          dateRows={visibleRows}
+          dateRows={displayRows}
           visibleMetrics={visibleMetrics}
           highlightedDateSet={highlightedDateSet}
           settingEstimateDefinition={settingEstimateDefinition}

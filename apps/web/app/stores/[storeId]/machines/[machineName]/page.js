@@ -243,6 +243,7 @@ export default async function MachineDetailPage({ params, searchParams }) {
         slotNumbers={detail.slotNumbers}
         slotLabels={detail.slotLabels}
         dateRows={detail.dateRows}
+        storeDayStatuses={detail.storeDayStatuses}
         initialEventFilters={initialEventFilters}
         initialEventFiltersFromSearchParams={hasEventFilterSearchParams}
         huntScoreHighlight={detail.huntScoreHighlight}

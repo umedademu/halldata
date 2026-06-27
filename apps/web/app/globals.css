@@ -3350,6 +3350,34 @@ a {
   color: #5a3218;
 }
 
+.matrixTable tbody tr.storeClosedMatrixRow .dateCell,
+.matrixTable tbody tr.storeClosedMatrixRow:nth-child(odd) .dateCell,
+.matrixTable tbody tr.storeClosedMatrixRow .weekdayCell,
+.matrixTable tbody tr.storeClosedMatrixRow:nth-child(odd) .weekdayCell,
+.matrixTable tbody tr.storeClosedMatrixRow td,
+.matrixTable tbody tr.storeClosedMatrixRow:nth-child(odd) td {
+  background: #f2f4f7;
+  color: #4b5563;
+}
+
+.storeClosedDateCell {
+  border-right-color: #d5dae2;
+}
+
+.dateCellSubLabel {
+  color: #667085;
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.storeClosedMatrixCell {
+  font-size: var(--matrix-cell-font-size, 0.82rem);
+  font-weight: 900;
+  letter-spacing: 0;
+  text-align: center;
+}
+
 .valuePositive {
   color: var(--positive);
   font-weight: 800;

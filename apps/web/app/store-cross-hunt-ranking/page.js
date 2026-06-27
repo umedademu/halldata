@@ -42,6 +42,7 @@ export const metadata = {
 const FORM_ID = "cross-store-hunt-ranking-form";
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 300;
+const STORE_DAY_STATUS_CLOSED = "closed";
 
 function readSingleSearchParam(value) {
   if (Array.isArray(value)) {
@@ -73,6 +74,10 @@ function normalizeLimit(value) {
     return DEFAULT_LIMIT;
   }
   return Math.min(parsedValue, MAX_LIMIT);
+}
+
+function storeDayStatusIsClosed(status) {
+  return String(status?.status ?? "").trim().toLowerCase() === STORE_DAY_STATUS_CLOSED;
 }
 
 function SettingEstimateModeOptions({ value }) {
@@ -423,6 +428,9 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
   const fallbackDateStoreCount = resultDetails.filter(
     (detail) => String(detail?.selectedDate ?? "").trim() !== selectedDate,
   ).length;
+  const closedDateStoreCount = resultDetails.filter((detail) =>
+    storeDayStatusIsClosed(detail?.requestedDateStatus),
+  ).length;
   const rankingRows = resultDetails.flatMap(decorateRowsWithStore);
   const rankingGroups = buildCrossStoreRankingGroups(
     rankingRows,
@@ -684,6 +692,12 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
                 <article className="summaryCard">
                   <p className="metaLabel">代替日表示</p>
                   <strong className="metaValue">{formatNumber(fallbackDateStoreCount)}店</strong>
+                </article>
+              ) : null}
+              {closedDateStoreCount > 0 ? (
+                <article className="summaryCard">
+                  <p className="metaLabel">店休日店舗</p>
+                  <strong className="metaValue">{formatNumber(closedDateStoreCount)}店</strong>
                 </article>
               ) : null}
               <article className="summaryCard">

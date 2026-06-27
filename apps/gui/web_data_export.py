@@ -34,6 +34,7 @@ DEFAULT_STORES_CSV = ROOT_DIR / "stores_rows.csv"
 DEFAULT_RESULTS_CSV = ROOT_DIR / "machine_daily_results_rows.csv"
 WEB_DATA_VERSION = 1
 DATA_SOURCE_SITE7 = "site7"
+STORE_DAY_STATUS_CLOSED = "closed"
 SITE7_DIFFERENCE_SOURCE_GRAPH = "graph"
 SETTING_ESTIMATE_STATUS_CONFIRMED = "confirmed"
 SETTING_ESTIMATE_STATUS_PROVISIONAL = "provisional"
@@ -339,6 +340,51 @@ def build_store_event_payload(store_source: StoreSource) -> dict[str, Any]:
     }
 
 
+def normalize_store_day_status_payloads(statuses: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    statuses_by_date: dict[str, dict[str, Any]] = {}
+    for status in statuses if isinstance(statuses, list) else []:
+        if not isinstance(status, dict):
+            continue
+        target_date = read_text(status.get("target_date") or status.get("targetDate"))
+        status_text = read_text(status.get("status"))
+        if not target_date or not status_text:
+            continue
+        payload: dict[str, Any] = {
+            "targetDate": target_date,
+            "status": status_text,
+        }
+        for source_key, output_key in (
+            ("source", "source"),
+            ("reason", "reason"),
+            ("checked_at", "checkedAt"),
+            ("checkedAt", "checkedAt"),
+            ("source_updated_at", "sourceUpdatedAt"),
+            ("sourceUpdatedAt", "sourceUpdatedAt"),
+        ):
+            value = read_text(status.get(source_key))
+            if value:
+                payload[output_key] = value
+        for source_key, output_key in (
+            ("observed_slot_count", "observedSlotCount"),
+            ("observedSlotCount", "observedSlotCount"),
+            ("observed_no_play_slot_count", "observedNoPlaySlotCount"),
+            ("observedNoPlaySlotCount", "observedNoPlaySlotCount"),
+        ):
+            value = read_number(status.get(source_key))
+            if isinstance(value, int) and value >= 0:
+                payload[output_key] = value
+        statuses_by_date[target_date] = payload
+
+    return [
+        statuses_by_date[target_date]
+        for target_date in sorted(statuses_by_date.keys(), reverse=True)
+    ]
+
+
+def store_day_status_is_closed(status: dict[str, Any]) -> bool:
+    return read_text(status.get("status")).casefold() == STORE_DAY_STATUS_CLOSED
+
+
 def average(values: list[float | int | None]) -> float | None:
     numeric_values = [float(value) for value in values if isinstance(value, (int, float))]
     if not numeric_values:
@@ -488,9 +534,14 @@ def load_existing_payload(
     return payload if isinstance(payload, dict) else None
 
 
-def build_store_payload(store_source: StoreSource, records: list[dict[str, Any]]) -> dict[str, Any]:
+def build_store_payload(
+    store_source: StoreSource,
+    records: list[dict[str, Any]],
+    store_day_statuses: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
     store_id = build_store_id(store_source.store_name, store_source.store_url)
+    normalized_store_day_statuses = normalize_store_day_status_payloads(store_day_statuses)
     export_records = prepare_export_records(records)
     sorted_records = sorted(
         export_records,
@@ -530,6 +581,7 @@ def build_store_payload(store_source: StoreSource, records: list[dict[str, Any]]
         }
 
     latest_date = max((str(record.get("target_date", "")) for record in sorted_records), default=None)
+    closed_date_count = sum(1 for status in normalized_store_day_statuses if store_day_status_is_closed(status))
     return {
         "version": WEB_DATA_VERSION,
         "generatedAt": generated_at,
@@ -547,7 +599,9 @@ def build_store_payload(store_source: StoreSource, records: list[dict[str, Any]]
             "machineCount": len(machines),
             "latestDate": latest_date,
             "recordCount": len(sorted_records),
+            "closedDateCount": closed_date_count,
         },
+        "storeDayStatuses": normalized_store_day_statuses,
         "machines": machines,
     }
 
@@ -621,6 +675,7 @@ def build_index_store_entry(store_payload: dict[str, Any], data_file: str) -> di
         "machineCount": summary.get("machineCount", 0),
         "latestDate": summary.get("latestDate"),
         "recordCount": summary.get("recordCount", 0),
+        "closedDateCount": summary.get("closedDateCount", 0),
         "dataFile": data_file,
     }
 
@@ -665,6 +720,7 @@ def build_registered_store_index_entry(
         "machineCount": int(existing_entry.get("machineCount") or 0),
         "latestDate": existing_entry.get("latestDate"),
         "recordCount": int(existing_entry.get("recordCount") or 0),
+        "closedDateCount": int(existing_entry.get("closedDateCount") or 0),
         "dataFile": data_file or str(existing_entry.get("dataFile") or "").strip(),
     }
 

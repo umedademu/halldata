@@ -54,6 +54,7 @@ const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオア
 const HANABI_GROUP_NAME = "ハナビ";
 const HANABI_MACHINE_NAMES = ["新ハナビ", "スマスロ ハナビ"];
 const HUNT_RANKING_FORM_ID = "hunt-ranking-condition-form";
+const STORE_DAY_STATUS_CLOSED = "closed";
 
 async function readStoredHuntScoreLogicKey(storeId) {
   const cookieStore = await cookies();
@@ -192,6 +193,10 @@ function normalizeCombineHanabi(values, machineNames = [], machineTouched = fals
 function readRankingSortNumber(value, fallbackValue = Number.MAX_SAFE_INTEGER) {
   const parsedValue = Number(value);
   return Number.isFinite(parsedValue) ? parsedValue : fallbackValue;
+}
+
+function storeDayStatusIsClosed(status) {
+  return String(status?.status ?? "").trim().toLowerCase() === STORE_DAY_STATUS_CLOSED;
 }
 
 function compareRankingRows(left, right) {
@@ -404,7 +409,9 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
 
   const fallbackNotice =
     resultRequested && detail.requestedDate && detail.requestedDate !== detail.selectedDate
-      ? "指定した日付は見つからなかったため、最新の集計日を表示しています。"
+      ? storeDayStatusIsClosed(detail.requestedDateStatus)
+        ? "指定した日付は店休日のため、最新の集計日を表示しています。"
+        : "指定した日付は見つからなかったため、最新の集計日を表示しています。"
       : "";
   const availableMachineNames =
     Array.isArray(detail.availableMachineNames) && detail.availableMachineNames.length > 0
