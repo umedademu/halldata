@@ -88,6 +88,10 @@ const BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_NAME =
   "ベルシティ篠崎_ネオアイム_前日凹み返済未完ロジック_v1";
 const BELLCITY_THECITY_SHINOZAKI_NEO_AIM_DEFAULT_CONDITION =
   "bellcity-thecity-shinozaki-neo-rank1";
+const MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY = "maruhan-koiwa-neo-aim";
+const MARUHAN_KOIWA_NEO_AIM_LOGIC_NAME =
+  "マルハン小岩ネオアイム_全日共通_深沈み返済56狙い_v1";
+const MARUHAN_KOIWA_NEO_AIM_DEFAULT_CONDITION = "maruhan-koiwa-neo-weak300";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -522,6 +526,13 @@ function isJaranMizumotoStore(storeName) {
 function isMaruhanKameariStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["マルハン亀有店", "マルハン亀有"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
+function isMaruhanKoiwaStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["マルハン小岩店", "マルハン小岩"].some(
     (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
   );
 }
@@ -3653,6 +3664,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "maruhan-kameari-neo-main-rb290",
       ),
       buildLogicVariant(
+        MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY,
+        MARUHAN_KOIWA_NEO_AIM_LOGIC_NAME,
+        MARUHAN_KOIWA_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         "messe-minamisenju-neo-aim",
         "メッセ南千住_ネオアイムEX_全日共通_未返済沈み滞在ロジック_v1",
         "messe-minamisenju-free-14rb",
@@ -5879,6 +5895,185 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["maruhanKameariNeoHistoryShort"],
         },
         ["maruhan-kameari-neo-aim"],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-best270",
+        "最本命270_極沈みRB5超弱",
+        "10台 / 総G59,123 / RB1/269.97 / 合算1/134.98 / 平均+530枚 / 102.99% / 平均56 51.18% / 中央56 53.76% / 件数注意",
+        {
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoBest270"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-strong280",
+        "強280_極沈み低56",
+        "15台 / RB1/278.77 / 合算1/137台 / 平均56 45%前後 / 14日角度-125以下＋RB5弱＋5日56低め",
+        {
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoStrong280"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-main290",
+        "本命290_弱本命RB5弱",
+        "22台 / RB1/287.94 / 弱本命300にRB5弱を追加 / 件数と質のバランス重視",
+        {
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoMain290"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-weak300",
+        "弱本命300_沈み前日凹み間隔",
+        "28台 / RB1/291.07 / 平均+489枚 / 平均56 39.78% / 14日沈み＋前日-1000枚以上＋前回56から8〜28営業日",
+        {
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoWeak300"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-wide310",
+        "広め310_深沈みRB5弱",
+        "62台 / RB1/306.63 / 14日角度-100以下＋7日未返済＋RB5 1/380以上",
+        {
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoWide310"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-neighbor-return",
+        "自由_隣見せ返し",
+        "RB1/277.3 / 合算1/135.2 / 平均+576枚 / 危険0＋近隣前日高内容＋前日RB弱残り",
+        {
+          maxDanger: 0,
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoNeighborReturn"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-top2-21sink",
+        "自由_2位内21沈み",
+        "RB1/294.6 / 2位以内＋強化4以上＋21日-4000枚以下",
+        {
+          rankMax: 2,
+          minBoost: 4,
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoTwentyOneDeep4000"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-score95-neighbor",
+        "自由_95点強化4隣見せ",
+        "RB1/296.1 / 95点以上＋強化4以上＋近隣前日高内容",
+        {
+          minScore: 95,
+          minBoost: 4,
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoNeighborHighAny"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-score90-angle-unshown",
+        "自由_90点急沈み未処遇",
+        "RB1/285.6 / 90点以上＋強化4以上＋7日急沈み＋14日大きな見せ場なし",
+        {
+          minScore: 90,
+          minBoost: 4,
+          requiredFlags: [
+            "maruhanKoiwaNeoHistoryReady",
+            "maruhanKoiwaNeoSevenAngle100",
+            "maruhanKoiwaNeoNoHugeShow14",
+          ],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-rank1-gap10",
+        "補助_1位次点差10",
+        "1位＋次点差10点以上 / 主条件外でも日別の抜けを補助確認",
+        {
+          rankMax: 1,
+          minNextGap: 10,
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-score75-safe",
+        "補助_75点危険0",
+        "75点以上＋危険0 / 主条件外の拾い上げ用",
+        {
+          minScore: 75,
+          maxDanger: 0,
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-watch-danger2",
+        "見送り_危険2以上",
+        "危険条件2個以上は見送り寄り。前日出玉済み、直近返済済み、直近高内容直後、低稼働、長期放置を重く見る",
+        {
+          minDanger: 2,
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-watch-score75",
+        "見送り_75点未満",
+        "75点未満は主条件が弱く、採用優先度を落とす",
+        {
+          maxScore: 74.999,
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-watch-angle-shallow",
+        "見送り_14日沈み浅い",
+        "14日角度が-75枚/1000Gより浅い台は点数上限74",
+        {
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoAngleShallow"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-watch-rb5-not-weak",
+        "見送り_RB5弱なし",
+        "RB5が1/360より軽い台は深沈み返済としての根拠が薄い",
+        {
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoRb5NotWeak"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-watch-history-short",
+        "見送り_履歴不足",
+        "履歴7営業日未満は採用条件対象外。7日未満は上限45、14日未満は上限70、21日未満は上限84",
+        {
+          requiredFlags: ["maruhanKoiwaNeoHistoryShort"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-watch-output-done",
+        "見送り_処遇完了",
+        "前日+1500枚以上、7日+4000枚以上、14日+6000枚以上、前日高内容で出玉済みは返済完了扱い",
+        {
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoTreatmentDone"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-watch-long-neglect",
+        "見送り_長期放置",
+        "前回56級から29営業日以上、または21日以上56級なしは長期放置として優先度を落とす",
+        {
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoLongNeglect"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "messe-minamisenju-free-14rb",
@@ -11291,6 +11486,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "espace-shinkoiwa-north-neo-aim");
   } else if (isMaruhanKameariStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "maruhan-kameari-neo-aim");
+  } else if (isMaruhanKoiwaStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY);
   } else if (isMesseMinamisenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "messe-minamisenju-neo-aim");
   } else if (isMesseOkudoStore(storeName) && definition.machineKey === "neo-aim") {
@@ -16695,6 +16892,173 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
           espaceShinkoiwaNorthNeoHistoryShort ||
           espaceShinkoiwaNorthNeoLowGamesUnknown ||
           recentSevenGamesTotal < 18000,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY) {
+      const p56FiveAverageRaw = readNullableNumber(metrics.recentFiveMachineSettingFivePlusProbabilityAverage);
+      const p56FiveAverage = Number.isFinite(p56FiveAverageRaw)
+        ? p56FiveAverageRaw
+        : recentSevenMachineSettingFivePlusProbabilityAverage;
+      const angle14 = features.recentFourteenAngle;
+      const angle7 = features.recentSevenAngle;
+      const rb5 = features.recentFiveRbDenominator;
+      const intervalKnown = Number.isFinite(daysSinceMachineHighContent);
+      const maruhanKoiwaNeoHistoryReady = historyRowCount >= 7;
+      const maruhanKoiwaNeoHistoryShort = historyRowCount < 7;
+      const maruhanKoiwaNeoHistory21Ready = historyRowCount >= 21;
+      const maruhanKoiwaNeoInterval2To7 =
+        intervalKnown && daysSinceMachineHighContent >= 2 && daysSinceMachineHighContent <= 7;
+      const maruhanKoiwaNeoInterval8To28 =
+        intervalKnown && daysSinceMachineHighContent >= 8 && daysSinceMachineHighContent <= 28;
+      const maruhanKoiwaNeoInterval2To28 =
+        intervalKnown && daysSinceMachineHighContent >= 2 && daysSinceMachineHighContent <= 28;
+      const maruhanKoiwaNeoInterval0To1 = intervalKnown && daysSinceMachineHighContent <= 1;
+      const maruhanKoiwaNeoLongNeglect =
+        (intervalKnown && daysSinceMachineHighContent >= 29) ||
+        (!intervalKnown && maruhanKoiwaNeoHistory21Ready && recentTwentyOneMachineHighContentCount === 0);
+      const maruhanKoiwaNeoAngle14Deep125 = recentFourteenGamesTotal > 0 && angle14 <= -125;
+      const maruhanKoiwaNeoAngle14Deep100 = recentFourteenGamesTotal > 0 && angle14 <= -100;
+      const maruhanKoiwaNeoAngle14Deep90 = recentFourteenGamesTotal > 0 && angle14 <= -90;
+      const maruhanKoiwaNeoAngle14Deep75 = recentFourteenGamesTotal > 0 && angle14 <= -75;
+      const maruhanKoiwaNeoAngle14Deep50 = recentFourteenGamesTotal > 0 && angle14 <= -50;
+      const maruhanKoiwaNeoAngleShallow = !maruhanKoiwaNeoAngle14Deep75;
+      const maruhanKoiwaNeoSevenAngle100 = recentSevenGamesTotal > 0 && angle7 <= -100;
+      const maruhanKoiwaNeoRb5Weak400 = recentFiveGamesTotal >= 3000 && rb5 >= 400;
+      const maruhanKoiwaNeoRb5Weak380 = recentFiveGamesTotal >= 3000 && rb5 >= 380;
+      const maruhanKoiwaNeoRb5Weak360 = recentFiveGamesTotal >= 3000 && rb5 >= 360;
+      const maruhanKoiwaNeoRb5NotWeak = recentFiveGamesTotal >= 3000 && rb5 < 360;
+      const maruhanKoiwaNeoP56Avg5Low = Number.isFinite(p56FiveAverage) && p56FiveAverage <= 0.2;
+      const maruhanKoiwaNeoDiff7Unpaid = recentSevenNetTotal <= 0;
+      const maruhanKoiwaNeoDiff21Unpaid = recentTwentyOneNetTotal <= 0;
+      const maruhanKoiwaNeoDiff14Deep4000 = recentFourteenNetTotal <= -4000;
+      const maruhanKoiwaNeoTwentyOneDeep4000 = recentTwentyOneNetTotal <= -4000;
+      const maruhanKoiwaNeoPreviousDeep1500 = previousDifference <= -1500 && previousGames >= 4000;
+      const maruhanKoiwaNeoPreviousDeep1000 = previousDifference <= -1000 && previousGames >= 3000;
+      const maruhanKoiwaNeoPreviousOutputDone = previousDifference >= 1500;
+      const maruhanKoiwaNeoPreviousLowGames = previousGames > 0 && previousGames < 1000;
+      const maruhanKoiwaNeoSevenOutputDone = recentSevenNetTotal >= 4000;
+      const maruhanKoiwaNeoFourteenOutputDone = recentFourteenNetTotal >= 6000;
+      const maruhanKoiwaNeoLowGames7 = maruhanKoiwaNeoHistoryReady && recentSevenGamesTotal < 12000;
+      const maruhanKoiwaNeoGames7Trust = recentSevenGamesTotal >= 22000;
+      const maruhanKoiwaNeoGames14Trust = recentFourteenGamesTotal >= 45000;
+      const maruhanKoiwaNeoNoHugeShow14 =
+        recentFourteenNetTotal < 6000 && recentFourteenGoldShowDays === 0 && recentFiveBigWin1200Count === 0;
+      const maruhanKoiwaNeoNeighborHighAny =
+        previousAdjacentMachineHighContentCountNear2 >= 1 ||
+        previousAdjacentMachineHighContentCount >= 1 ||
+        previousAdjacentMachineStrongHighContentCount >= 1;
+      const maruhanKoiwaNeoNeighborHighStrong =
+        previousAdjacentMachineHighContentCountNear2 >= 2 ||
+        previousAdjacentMachineHighContentCount >= 2 ||
+        previousAdjacentMachineStrongHighContentCount >= 1;
+      const maruhanKoiwaNeoNeighborHighZero =
+        previousAdjacentMachineHighContentCountNear2 === 0 &&
+        previousAdjacentMachineHighContentCount === 0 &&
+        previousAdjacentMachineStrongHighContentCount === 0;
+      const maruhanKoiwaNeoNeighborReturn =
+        maruhanKoiwaNeoNeighborHighAny &&
+        previousGames >= 1500 &&
+        features.previousRbDenominator >= 400 &&
+        features.previousRbDenominator <= 700;
+      const maruhanKoiwaNeoWide310 =
+        maruhanKoiwaNeoAngle14Deep100 && maruhanKoiwaNeoDiff7Unpaid && maruhanKoiwaNeoRb5Weak380;
+      const maruhanKoiwaNeoWeak300 =
+        maruhanKoiwaNeoAngle14Deep90 && maruhanKoiwaNeoPreviousDeep1000 && maruhanKoiwaNeoInterval8To28;
+      const maruhanKoiwaNeoMain290 = maruhanKoiwaNeoWeak300 && maruhanKoiwaNeoRb5Weak360;
+      const maruhanKoiwaNeoStrong280 =
+        maruhanKoiwaNeoAngle14Deep125 &&
+        maruhanKoiwaNeoRb5Weak360 &&
+        maruhanKoiwaNeoP56Avg5Low &&
+        maruhanKoiwaNeoInterval2To28;
+      const maruhanKoiwaNeoBest270 =
+        maruhanKoiwaNeoAngle14Deep125 && maruhanKoiwaNeoRb5Weak400 && maruhanKoiwaNeoInterval2To28;
+      const maruhanKoiwaNeoTreatmentDone =
+        maruhanKoiwaNeoPreviousOutputDone ||
+        maruhanKoiwaNeoSevenOutputDone ||
+        maruhanKoiwaNeoFourteenOutputDone ||
+        (previousMachineHighContent && previousDifference >= 1500);
+      const boostFlags = [
+        maruhanKoiwaNeoAngle14Deep125,
+        maruhanKoiwaNeoAngle14Deep100,
+        maruhanKoiwaNeoRb5Weak400,
+        maruhanKoiwaNeoRb5Weak380,
+        maruhanKoiwaNeoP56Avg5Low,
+        maruhanKoiwaNeoDiff7Unpaid,
+        maruhanKoiwaNeoDiff21Unpaid,
+        maruhanKoiwaNeoDiff14Deep4000,
+        maruhanKoiwaNeoPreviousDeep1500,
+        maruhanKoiwaNeoPreviousDeep1000,
+        maruhanKoiwaNeoInterval8To28,
+        maruhanKoiwaNeoGames7Trust || maruhanKoiwaNeoGames14Trust,
+        maruhanKoiwaNeoNeighborHighZero && maruhanKoiwaNeoAngle14Deep75,
+        maruhanKoiwaNeoTwentyOneDeep4000,
+        maruhanKoiwaNeoNeighborHighAny,
+      ];
+      const dangerFlags = [
+        maruhanKoiwaNeoPreviousOutputDone,
+        maruhanKoiwaNeoSevenOutputDone,
+        maruhanKoiwaNeoFourteenOutputDone,
+        maruhanKoiwaNeoInterval0To1,
+        maruhanKoiwaNeoLongNeglect,
+        maruhanKoiwaNeoLowGames7,
+        maruhanKoiwaNeoPreviousLowGames,
+        streak >= 5,
+        previousMachineHighContent && previousDifference >= 1500,
+      ];
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability,
+        recentFiveMachineSettingFivePlusProbabilityAverage: p56FiveAverage,
+        maruhanKoiwaNeoHistoryReady,
+        maruhanKoiwaNeoHistoryShort,
+        maruhanKoiwaNeoHistory21Ready,
+        maruhanKoiwaNeoInterval2To7,
+        maruhanKoiwaNeoInterval8To28,
+        maruhanKoiwaNeoInterval2To28,
+        maruhanKoiwaNeoInterval0To1,
+        maruhanKoiwaNeoLongNeglect,
+        maruhanKoiwaNeoAngle14Deep125,
+        maruhanKoiwaNeoAngle14Deep100,
+        maruhanKoiwaNeoAngle14Deep90,
+        maruhanKoiwaNeoAngle14Deep75,
+        maruhanKoiwaNeoAngle14Deep50,
+        maruhanKoiwaNeoAngleShallow,
+        maruhanKoiwaNeoSevenAngle100,
+        maruhanKoiwaNeoRb5Weak400,
+        maruhanKoiwaNeoRb5Weak380,
+        maruhanKoiwaNeoRb5Weak360,
+        maruhanKoiwaNeoRb5NotWeak,
+        maruhanKoiwaNeoP56Avg5Low,
+        maruhanKoiwaNeoDiff7Unpaid,
+        maruhanKoiwaNeoDiff21Unpaid,
+        maruhanKoiwaNeoDiff14Deep4000,
+        maruhanKoiwaNeoTwentyOneDeep4000,
+        maruhanKoiwaNeoPreviousDeep1500,
+        maruhanKoiwaNeoPreviousDeep1000,
+        maruhanKoiwaNeoPreviousOutputDone,
+        maruhanKoiwaNeoPreviousLowGames,
+        maruhanKoiwaNeoSevenOutputDone,
+        maruhanKoiwaNeoFourteenOutputDone,
+        maruhanKoiwaNeoLowGames7,
+        maruhanKoiwaNeoGames7Trust,
+        maruhanKoiwaNeoGames14Trust,
+        maruhanKoiwaNeoNoHugeShow14,
+        maruhanKoiwaNeoNeighborHighAny,
+        maruhanKoiwaNeoNeighborHighStrong,
+        maruhanKoiwaNeoNeighborHighZero,
+        maruhanKoiwaNeoNeighborReturn,
+        maruhanKoiwaNeoWide310,
+        maruhanKoiwaNeoWeak300,
+        maruhanKoiwaNeoMain290,
+        maruhanKoiwaNeoStrong280,
+        maruhanKoiwaNeoBest270,
+        maruhanKoiwaNeoTreatmentDone,
+        treatmentDone: maruhanKoiwaNeoTreatmentDone,
+        lowConfidence: maruhanKoiwaNeoHistoryShort || maruhanKoiwaNeoLowGames7 || maruhanKoiwaNeoPreviousLowGames,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -24511,6 +24875,78 @@ function calculateMachineScore(definition, metrics, features) {
         gamesScore +
         neighborScore -
         penalty;
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
+    if (activeLogicKey === MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY) {
+      if (historyRowCount < 3) {
+        return 15;
+      }
+
+      let scoreCap = 100;
+      if (historyRowCount < 7) {
+        scoreCap = 45;
+      } else if (historyRowCount < 14) {
+        scoreCap = 70;
+      } else if (historyRowCount < 21) {
+        scoreCap = 84;
+      }
+
+      let score = 30;
+      score += features.maruhanKoiwaNeoAngle14Deep125
+        ? 26
+        : features.maruhanKoiwaNeoAngle14Deep100
+          ? 22
+          : features.maruhanKoiwaNeoAngle14Deep90
+            ? 18
+            : features.maruhanKoiwaNeoAngle14Deep75
+              ? 14
+              : features.maruhanKoiwaNeoAngle14Deep50
+                ? 6
+                : 0;
+
+      if (features.maruhanKoiwaNeoAngle14Deep100 && features.maruhanKoiwaNeoRb5Weak400) {
+        score += 18;
+      } else if (features.maruhanKoiwaNeoAngle14Deep100 && features.maruhanKoiwaNeoRb5Weak380) {
+        score += 15;
+      } else if (features.maruhanKoiwaNeoAngle14Deep75 && features.maruhanKoiwaNeoRb5Weak360) {
+        score += 8;
+      }
+
+      score += features.maruhanKoiwaNeoAngle14Deep75 && features.maruhanKoiwaNeoP56Avg5Low ? 8 : 0;
+      score += features.maruhanKoiwaNeoDiff7Unpaid ? 5 : 0;
+      score += features.maruhanKoiwaNeoDiff21Unpaid ? 5 : 0;
+      score += features.maruhanKoiwaNeoDiff14Deep4000 ? 4 : 0;
+      score += features.maruhanKoiwaNeoPreviousDeep1500 ? 11 : features.maruhanKoiwaNeoPreviousDeep1000 ? 7 : 0;
+      score += features.maruhanKoiwaNeoInterval8To28 ? 12 : features.maruhanKoiwaNeoInterval2To7 ? 6 : 0;
+      score += features.maruhanKoiwaNeoGames7Trust ? 7 : 0;
+      score += features.maruhanKoiwaNeoGames14Trust ? 4 : 0;
+      score += features.maruhanKoiwaNeoNeighborHighZero && features.maruhanKoiwaNeoAngle14Deep75 ? 3 : 0;
+      score += features.maruhanKoiwaNeoTwentyOneDeep4000 ? 4 : 0;
+      score += features.maruhanKoiwaNeoNeighborReturn ? 5 : 0;
+      score += features.maruhanKoiwaNeoNeighborHighAny ? 3 : 0;
+
+      score -= features.maruhanKoiwaNeoPreviousOutputDone ? 10 : 0;
+      score -= features.maruhanKoiwaNeoSevenOutputDone ? 10 : 0;
+      score -= features.maruhanKoiwaNeoFourteenOutputDone ? 12 : 0;
+      score -= features.maruhanKoiwaNeoInterval0To1 ? 10 : 0;
+      score -= features.maruhanKoiwaNeoLongNeglect ? 8 : 0;
+      score -= features.maruhanKoiwaNeoLowGames7 ? 10 : 0;
+      score -= features.maruhanKoiwaNeoPreviousLowGames ? 5 : 0;
+      score -= streak >= 5 ? 5 : 0;
+      score -= previousMachineHighContent && previousDifference >= 1500 ? 8 : 0;
+      score -= features.recentFiveRbDenominator >= 700 && recentFiveGamesTotal < 9000 ? 4 : 0;
+
+      if (features.maruhanKoiwaNeoAngleShallow) {
+        scoreCap = Math.min(scoreCap, 74);
+      }
+      if (!features.maruhanKoiwaNeoAngle14Deep100 || features.maruhanKoiwaNeoRb5NotWeak) {
+        scoreCap = Math.min(scoreCap, 84);
+      }
+      if (features.dangerCount > 0) {
+        scoreCap = Math.min(scoreCap, 79);
+      }
+
       return Math.round(clamp(score, 0, scoreCap));
     }
 
