@@ -117,6 +117,10 @@ const MINOWA_UNO_NEO_AIM_LOGIC_KEY = "minowa-uno-neo-aim";
 const MINOWA_UNO_NEO_AIM_LOGIC_NAME =
   "三ノ輪UNO_ネオアイムジャグラーEX_全日共通V1";
 const MINOWA_UNO_NEO_AIM_DEFAULT_CONDITION = "minowa-uno-neo-free-a";
+const TOYO_HALL_NEO_AIM_LOGIC_KEY = "toyo-hall-neo-aim";
+const TOYO_HALL_NEO_AIM_LOGIC_NAME =
+  "TOYO HALL ネオアイムジャグラーEX 全日共通V1";
+const TOYO_HALL_NEO_AIM_DEFAULT_CONDITION = "toyo-hall-neo-free-sharp-sink-angle";
 const CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY = "concert-hall-kitasenju-neo-aim";
 const CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_NAME =
   "コンサートホール北千住_ネオアイムEX_56狙い全日共通ロジック";
@@ -608,6 +612,22 @@ function isMinowaUnoStore(storeName) {
     "三ノ輪ウノ店",
     "MINOWA UNO",
     "Minowa UNO",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
+function isToyoHallStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "TOYO HALL",
+    "TOYOHALL",
+    "TOYO HALL店",
+    "TOYOHALL店",
+    "ＴＯＹＯ ＨＡＬＬ",
+    "ＴＯＹＯＨＡＬＬ",
+    "トーヨーホール",
+    "トーヨーホール店",
+    "東洋ホール",
+    "東洋ホール店",
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
@@ -3143,6 +3163,202 @@ function buildMinowaUnoNeoAimConditions() {
   ];
 }
 
+function buildToyoHallNeoAimConditions() {
+  return [
+    buildCondition(
+      TOYO_HALL_NEO_AIM_DEFAULT_CONDITION,
+      "急沈み角度MAX",
+      "対象10日 / 10台 / 総G52,246 / BB1/276.4 / RB1/243.0 / 合算1/129.3 / 平均+573.7枚 / 機械割103.66% / 勝率60.0% / 平均p56 55.3% / 中央p56 62.1% / p56>=50 60.0% / p56<30 40.0%",
+      {
+        requiredFlags: ["toyoHallNeoHistory14Ready", "toyoHallNeoFreeSharpSinkAngle"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-score50-rb310",
+      "広めRB1/310",
+      "対象74日 / 109台 / 総G352,530 / BB1/271.2 / RB1/310.3 / 合算1/144.7 / 平均+140.6枚 / 機械割101.45% / 勝率40.4% / 平均p56 32.8% / 中央p56 27.7% / p56>=50 21.1% / p56<30 58.7%",
+      {
+        minScore: 50,
+        requiredFlags: ["toyoHallNeoHistory14Ready"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-score51-rb300",
+      "弱め本命RB1/300",
+      "対象68日 / 95台 / 総G321,359 / BB1/273.7 / RB1/299.5 / 合算1/143.0 / 平均+152.5枚 / 機械割101.50% / 勝率41.1% / 平均p56 34.9% / 中央p56 27.9% / p56>=50 24.2% / p56<30 53.7%",
+      {
+        minScore: 51,
+        requiredFlags: ["toyoHallNeoHistory14Ready"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-score53-rb290",
+      "本命RB1/290",
+      "対象55日 / 70台 / 総G250,152 / BB1/276.1 / RB1/290.2 / 合算1/141.5 / 平均+168.3枚 / 機械割101.57% / 勝率40.0% / 平均p56 37.0% / 中央p56 28.4% / p56>=50 28.6% / p56<30 51.4%",
+      {
+        minScore: 53,
+        requiredFlags: ["toyoHallNeoHistory14Ready"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-score58-rb280",
+      "強条件RB1/280",
+      "対象38日 / 47台 / 総G188,050 / BB1/272.9 / RB1/272.9 / 合算1/136.5 / 平均+312.0枚 / 機械割102.60% / 勝率48.9% / 平均p56 42.0% / 中央p56 36.1% / p56>=50 36.2% / p56<30 44.7%",
+      {
+        minScore: 58,
+        requiredFlags: ["toyoHallNeoHistory14Ready"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-score60-rb270",
+      "最本命RB1/270",
+      "対象27日 / 33台 / 総G141,546 / BB1/275.9 / RB1/268.6 / 合算1/136.1 / 平均+294.4枚 / 機械割102.29% / 勝率51.5% / 平均p56 43.6% / 中央p56 36.1% / p56>=50 39.4% / p56<30 45.5%",
+      {
+        minScore: 60,
+        requiredFlags: ["toyoHallNeoHistory14Ready"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-rank3-score60-boost2",
+      "上位3＋60点＋強化2",
+      "対象25日 / 30台 / 総G128,723 / RB1/266.5 / 合算1/135.5 / 平均+300.9枚 / 機械割102.34% / 勝率50.0% / 平均p56 44.3% / 中央p56 37.7%",
+      {
+        rankMax: 3,
+        minScore: 60,
+        minBoost: 2,
+        requiredFlags: ["toyoHallNeoHistory14Ready"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-score60-danger0",
+      "60点以上＋危険0",
+      "対象21日 / 23台 / 総G101,455 / RB1/278.0 / 合算1/138.4 / 平均+279.0枚 / 機械割102.11% / 勝率56.5% / 平均p56 41.4% / 中央p56 36.1%",
+      {
+        minScore: 60,
+        maxDanger: 0,
+        requiredFlags: ["toyoHallNeoHistory14Ready"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-free-sudden-boost2",
+      "急沈み＋強化2",
+      "対象18日 / 18台 / 総G75,204 / BB1/291.5 / RB1/253.2 / 合算1/135.5 / 平均+209.0枚 / 機械割101.67% / 平均p56 46.6% / 中央p56 31.9% / p56>=50 38.9%",
+      {
+        minBoost: 2,
+        requiredFlags: ["toyoHallNeoHistory14Ready", "toyoHallNeoR3Deep"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-free-boost2-danger0",
+      "強化2＋危険0",
+      "対象35日 / 41台 / 総G157,325 / BB1/273.6 / RB1/281.9 / 合算1/138.9 / 平均+245.4枚 / 機械割102.13% / 平均p56 39.8% / 中央p56 31.9% / p56>=50 31.7%",
+      {
+        minBoost: 2,
+        maxDanger: 0,
+        requiredFlags: ["toyoHallNeoHistory14Ready"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-free-hi70-after2",
+      "強内容2日後",
+      "対象32日 / 35台 / 総G125,876 / BB1/266.7 / RB1/299.0 / 合算1/141.0 / 平均+224.3枚 / 機械割102.08% / 平均p56 36.5% / 中央p56 33.6%",
+      {
+        requiredFlags: ["toyoHallNeoHistory14Ready", "toyoHallNeoHi70After2"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-free-hi50-2to4-safe-boost2",
+      "2-4日後＋危険0＋強化2",
+      "対象28日 / 33台 / 総G126,730 / BB1/266.2 / RB1/285.4 / 合算1/137.8 / 平均+336.2枚 / 機械割102.92% / 平均p56 39.1% / 中央p56 33.6%",
+      {
+        minBoost: 2,
+        maxDanger: 0,
+        requiredFlags: ["toyoHallNeoHistory14Ready", "toyoHallNeoHi50After2To4"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-free-prev-high-games-loss",
+      "前日高稼働負け＋強化2",
+      "対象17日 / 17台 / 総G73,187 / BB1/258.6 / RB1/282.6 / 合算1/135.0 / 平均+495.1枚 / 機械割103.83% / 平均p56 41.4% / 中央p56 31.5%",
+      {
+        minBoost: 2,
+        requiredFlags: ["toyoHallNeoHistory14Ready", "toyoHallNeoPreviousHighGamesLoss"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-rank1-gap10",
+      "補助_1位次点差10以上",
+      "1位次点差10以上はRB1/298.1、平均p56 34.2%まで改善するが、差枚は弱いため補助扱い",
+      {
+        rankMax: 1,
+        minNextGap: 10,
+        requiredFlags: ["toyoHallNeoHistory14Ready"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-watch-history-short",
+      "見送り_履歴14日未満",
+      "履歴14日未満は低信頼として採用条件から外す",
+      {
+        requiredFlags: ["toyoHallNeoHistoryShort"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-watch-danger2",
+      "見送り_危険2個以上",
+      "70点以上でも危険2個以上は実測RB1/402.7で見送り",
+      {
+        minDanger: 2,
+        requiredFlags: ["toyoHallNeoHistory14Ready"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-watch-under50-no-free",
+      "見送り_50点未満自由条件なし",
+      "50点未満かつ自由度MAX条件なしはRB・p56の底上げが弱い",
+      {
+        maxScore: 49.999,
+        requiredFlags: ["toyoHallNeoHistory14Ready", "toyoHallNeoNoFreeMax"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-watch-no-high21-no-sharp",
+      "見送り_21日高内容なし急沈みなし",
+      "21日高内容なし、かつ直近3日急沈みなしは放置台寄り",
+      {
+        requiredFlags: ["toyoHallNeoHistory14Ready", "toyoHallNeoNoHigh21NoSharp"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "toyo-hall-neo-watch-treatment10",
+      "見送り_10日処遇完了",
+      "直近10日+3500枚以上は処遇完了を警戒",
+      {
+        requiredFlags: ["toyoHallNeoTreatment10"],
+      },
+      [TOYO_HALL_NEO_AIM_LOGIC_KEY],
+    ),
+  ];
+}
+
 function listDefinitionLogics(definition) {
   if (!definition) {
     return [];
@@ -4725,6 +4941,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         MINOWA_UNO_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
+        TOYO_HALL_NEO_AIM_LOGIC_KEY,
+        TOYO_HALL_NEO_AIM_LOGIC_NAME,
+        TOYO_HALL_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY,
         CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_NAME,
         CONCERT_HALL_KITASENJU_NEO_AIM_DEFAULT_CONDITION,
@@ -4956,6 +5177,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ...buildOneTwoThreeNShinonomeNeoAimConditions(),
       ...buildRakuenAmeyokoNeoAimConditions(),
       ...buildMinowaUnoNeoAimConditions(),
+      ...buildToyoHallNeoAimConditions(),
       buildCondition(
         "main",
         "1位＋70点以上＋3日沈み2日以上",
@@ -15229,6 +15451,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "sengawa-uno-neo-aim");
   } else if (isMinowaUnoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, MINOWA_UNO_NEO_AIM_LOGIC_KEY);
+  } else if (isToyoHallStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, TOYO_HALL_NEO_AIM_LOGIC_KEY);
   } else if (isPlazaTenjinStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "plaza-tenjin-neo-aim");
   } else if (isPlazaHontenStore(storeName) && definition.machineKey === "neo-aim") {
@@ -16531,6 +16755,144 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         minowaUnoNeoNoMainReason,
         treatmentDone: minowaUnoNeoTreatmentDone,
         lowConfidence: minowaUnoNeoHistoryShort || minowaUnoNeoLowGames,
+        boostCount,
+        dangerCount,
+      };
+    }
+
+    if (activeLogicKey === TOYO_HALL_NEO_AIM_LOGIC_KEY) {
+      const toyoHallNeoHistory14Ready = historyRowCount >= 14;
+      const toyoHallNeoHistoryShort = historyRowCount < 14;
+      const toyoHallNeoHi70After2 = daysSinceMachineStrongHighContent === 2;
+      const toyoHallNeoHi50After1 = daysSinceMachineHighContent === 1;
+      const toyoHallNeoHi50After2 = daysSinceMachineHighContent === 2;
+      const toyoHallNeoHi50After3To4 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 3 &&
+        daysSinceMachineHighContent <= 4;
+      const toyoHallNeoHi50After2To4 = toyoHallNeoHi50After2 || toyoHallNeoHi50After3To4;
+      const toyoHallNeoHi50Gap5To10 =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 5 &&
+        daysSinceMachineHighContent <= 10;
+      const toyoHallNeoHi50NoOrLong =
+        !Number.isFinite(daysSinceMachineHighContent) || daysSinceMachineHighContent > 21;
+      const toyoHallNeoR3Deep = recentThreeNetTotal <= -2000;
+      const toyoHallNeoR2Deep = recentTwoNetTotal <= -1500 && !toyoHallNeoR3Deep;
+      const toyoHallNeoPreviousDeepLoss = previousDifference <= -1000 && recentTwoNetTotal > -1500;
+      const toyoHallNeoR7SharpAngle = recentSevenGamesTotal > 0 && features.recentSevenAngle <= -200;
+      const toyoHallNeoR10DeepSink = recentTenNetTotal <= -4000;
+      const toyoHallNeoR14LongSinkNoR3 = recentFourteenNetTotal <= -2500 && !toyoHallNeoR3Deep;
+      const toyoHallNeoHighG5 = recentFiveGamesTotal >= 20000;
+      const toyoHallNeoHighG7 = recentSevenGamesTotal >= 30000 && !toyoHallNeoHighG5;
+      const toyoHallNeoHighG3 = recentThreeGamesTotal >= 15000 && !toyoHallNeoHighG5;
+      const toyoHallNeoPreviousHighGamesLoss = previousGames >= 5000 && previousDifference < 0;
+      const toyoHallNeoLowG14 = recentFourteenGamesTotal < 15000;
+      const toyoHallNeoHigh7Many = recentSevenMachineHighContentCount >= 3;
+      const toyoHallNeoHigh5Some = recentFiveMachineHighContentCount >= 1 && !toyoHallNeoHigh7Many;
+      const toyoHallNeoHigh21None = recentTwentyOneMachineHighContentCount <= 0;
+      const toyoHallNeoPreviousP56 = Number.isFinite(previousMachineSettingFivePlusProbability)
+        ? previousMachineSettingFivePlusProbability
+        : null;
+      const toyoHallNeoPrevHighMisfire =
+        Number.isFinite(toyoHallNeoPreviousP56) &&
+        toyoHallNeoPreviousP56 >= 0.5 &&
+        previousDifference < 0;
+      const toyoHallNeoPrevHighPositive =
+        Number.isFinite(toyoHallNeoPreviousP56) &&
+        toyoHallNeoPreviousP56 >= 0.5 &&
+        previousDifference >= 0;
+      const toyoHallNeoPrevStrongBigOut =
+        Number.isFinite(toyoHallNeoPreviousP56) &&
+        toyoHallNeoPreviousP56 >= 0.6 &&
+        previousDifference >= 1000;
+      const toyoHallNeoTreatment10 = recentTenNetTotal >= 3500;
+      const toyoHallNeoTreatment5 = recentFiveNetTotal >= 2500 && features.recentFiveAngle >= 100;
+      const toyoHallNeoLosingStreak5 = streak >= 5;
+      const toyoHallNeoPrevNeighborHi70 = previousAdjacentMachineStrongHighContentCount >= 1;
+      const toyoHallNeoPrevNeighborHi50 =
+        previousAdjacentMachineHighContentCount >= 1 && !toyoHallNeoPrevNeighborHi70;
+
+      const boostFlags = [
+        toyoHallNeoHi70After2,
+        toyoHallNeoHi50After2,
+        toyoHallNeoR3Deep,
+        toyoHallNeoR7SharpAngle,
+        toyoHallNeoHighG5,
+        toyoHallNeoHigh7Many,
+        toyoHallNeoPrevHighMisfire,
+        toyoHallNeoPrevNeighborHi70,
+        toyoHallNeoPreviousHighGamesLoss,
+      ];
+      const dangerFlags = [
+        toyoHallNeoHi50After1,
+        toyoHallNeoTreatment10,
+        toyoHallNeoTreatment5,
+        toyoHallNeoR14LongSinkNoR3,
+        toyoHallNeoHigh21None,
+        toyoHallNeoLosingStreak5,
+        toyoHallNeoLowG14,
+        toyoHallNeoPrevStrongBigOut,
+      ];
+      const boostCount = boostFlags.filter(Boolean).length;
+      const dangerCount = dangerFlags.filter(Boolean).length;
+      const toyoHallNeoFreeSharpSinkAngle = toyoHallNeoR3Deep && toyoHallNeoR7SharpAngle;
+      const toyoHallNeoFreeSuddenBoost2 = toyoHallNeoR3Deep && boostCount >= 2;
+      const toyoHallNeoFreeBoost2Danger0 = boostCount >= 2 && dangerCount === 0;
+      const toyoHallNeoFreeHi50TwoToFourSafeBoost2 =
+        toyoHallNeoHi50After2To4 && dangerCount === 0 && boostCount >= 2;
+      const toyoHallNeoFreePrevHighGamesLossBoost2 =
+        toyoHallNeoPreviousHighGamesLoss && boostCount >= 2;
+      const toyoHallNeoNoFreeMax =
+        !toyoHallNeoFreeSharpSinkAngle &&
+        !toyoHallNeoFreeSuddenBoost2 &&
+        !toyoHallNeoFreeBoost2Danger0 &&
+        !toyoHallNeoFreeHi50TwoToFourSafeBoost2 &&
+        !toyoHallNeoFreePrevHighGamesLossBoost2;
+      const toyoHallNeoNoHigh21NoSharp = toyoHallNeoHigh21None && !toyoHallNeoR3Deep;
+
+      return {
+        ...features,
+        toyoHallNeoHistory14Ready,
+        toyoHallNeoHistoryShort,
+        toyoHallNeoHi70After2,
+        toyoHallNeoHi50After1,
+        toyoHallNeoHi50After2,
+        toyoHallNeoHi50After3To4,
+        toyoHallNeoHi50After2To4,
+        toyoHallNeoHi50Gap5To10,
+        toyoHallNeoHi50NoOrLong,
+        toyoHallNeoR3Deep,
+        toyoHallNeoR2Deep,
+        toyoHallNeoPreviousDeepLoss,
+        toyoHallNeoR7SharpAngle,
+        toyoHallNeoR10DeepSink,
+        toyoHallNeoR14LongSinkNoR3,
+        toyoHallNeoHighG5,
+        toyoHallNeoHighG7,
+        toyoHallNeoHighG3,
+        toyoHallNeoPreviousHighGamesLoss,
+        toyoHallNeoLowG14,
+        toyoHallNeoHigh7Many,
+        toyoHallNeoHigh5Some,
+        toyoHallNeoHigh21None,
+        toyoHallNeoPrevHighMisfire,
+        toyoHallNeoPrevHighPositive,
+        toyoHallNeoPrevStrongBigOut,
+        toyoHallNeoTreatment10,
+        toyoHallNeoTreatment5,
+        toyoHallNeoLosingStreak5,
+        toyoHallNeoPrevNeighborHi70,
+        toyoHallNeoPrevNeighborHi50,
+        toyoHallNeoFreeSharpSinkAngle,
+        toyoHallNeoFreeSuddenBoost2,
+        toyoHallNeoFreeBoost2Danger0,
+        toyoHallNeoFreeHi50TwoToFourSafeBoost2,
+        toyoHallNeoFreePrevHighGamesLossBoost2,
+        toyoHallNeoNoFreeMax,
+        toyoHallNeoNoHigh21NoSharp,
+        treatmentDone: toyoHallNeoTreatment10 || toyoHallNeoTreatment5 || toyoHallNeoPrevStrongBigOut,
+        lowConfidence: toyoHallNeoHistoryShort || toyoHallNeoLowG14,
         boostCount,
         dangerCount,
       };
@@ -28240,6 +28602,79 @@ function calculateMachineScore(definition, metrics, features) {
       score -= Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 22 ? 8 : 0;
       score -= recentFourteenGamesTotal > 59000 ? 6 : 0;
       score -= historyRowCount < 14 ? 30 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === TOYO_HALL_NEO_AIM_LOGIC_KEY) {
+      let score = 35;
+      const toyoHallNeoPreviousP56 = Number.isFinite(previousMachineSettingFivePlusProbability)
+        ? previousMachineSettingFivePlusProbability
+        : null;
+      const toyoHallNeoHi70After2 = daysSinceMachineStrongHighContent === 2;
+      const toyoHallNeoHi50After2 = daysSinceMachineHighContent === 2;
+      const toyoHallNeoR3Deep = recentThreeNetTotal <= -2000;
+      const toyoHallNeoR2Deep = recentTwoNetTotal <= -1500 && !toyoHallNeoR3Deep;
+      const toyoHallNeoHighG5 = recentFiveGamesTotal >= 20000;
+
+      score += toyoHallNeoHi70After2 ? 18 : 0;
+      score += toyoHallNeoHi50After2 && !toyoHallNeoHi70After2 ? 10 : 0;
+      score +=
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 3 &&
+        daysSinceMachineHighContent <= 4
+          ? 6
+          : 0;
+      score -= daysSinceMachineHighContent === 1 ? 7 : 0;
+      score -=
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 5 &&
+        daysSinceMachineHighContent <= 10
+          ? 6
+          : 0;
+      score -= !Number.isFinite(daysSinceMachineHighContent) || daysSinceMachineHighContent > 21 ? 7 : 0;
+
+      score += toyoHallNeoR3Deep ? 16 : 0;
+      score += toyoHallNeoR2Deep ? 8 : 0;
+      score += previousDifference <= -1000 && !toyoHallNeoR2Deep ? 6 : 0;
+      score += recentSevenGamesTotal > 0 && features.recentSevenAngle <= -200 ? 7 : 0;
+      score += recentTenNetTotal <= -4000 ? 6 : 0;
+      score -= recentFourteenNetTotal <= -2500 && !toyoHallNeoR3Deep ? 5 : 0;
+
+      score += toyoHallNeoHighG5 ? 11 : 0;
+      score += recentSevenGamesTotal >= 30000 && !toyoHallNeoHighG5 ? 7 : 0;
+      score += recentThreeGamesTotal >= 15000 && !toyoHallNeoHighG5 ? 6 : 0;
+      score += previousGames >= 5000 && previousDifference < 0 ? 5 : 0;
+      score -= recentFourteenGamesTotal < 15000 ? 5 : 0;
+
+      score += recentSevenMachineHighContentCount >= 3 ? 7 : 0;
+      score += recentFiveMachineHighContentCount >= 1 && recentSevenMachineHighContentCount < 3 ? 5 : 0;
+      score -= recentTwentyOneMachineHighContentCount <= 0 ? 6 : 0;
+
+      score +=
+        Number.isFinite(toyoHallNeoPreviousP56) &&
+        toyoHallNeoPreviousP56 >= 0.5 &&
+        previousDifference < 0
+          ? 5
+          : 0;
+      score -=
+        Number.isFinite(toyoHallNeoPreviousP56) &&
+        toyoHallNeoPreviousP56 >= 0.5 &&
+        previousDifference >= 0
+          ? 6
+          : 0;
+      score -=
+        Number.isFinite(toyoHallNeoPreviousP56) &&
+        toyoHallNeoPreviousP56 >= 0.6 &&
+        previousDifference >= 1000
+          ? 5
+          : 0;
+
+      score -= recentTenNetTotal >= 3500 ? 10 : 0;
+      score -= recentFiveNetTotal >= 2500 && features.recentFiveAngle >= 100 ? 6 : 0;
+      score -= streak >= 5 ? 5 : 0;
+      score += previousAdjacentMachineStrongHighContentCount >= 1 ? 5 : 0;
+      score += previousAdjacentMachineHighContentCount >= 1 && previousAdjacentMachineStrongHighContentCount < 1 ? 3 : 0;
 
       return Math.round(clamp(score, 0, 100));
     }
