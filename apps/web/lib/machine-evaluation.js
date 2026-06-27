@@ -392,6 +392,13 @@ function isBoomTenjinStore(storeName) {
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
+function isJaranMizumotoStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["ジャラン水元店", "ジャラン水元", "JARAN水元店", "ＪＡＲＡＮ水元店"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
 function isPlazaTenjinStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["プラザ天神", "プラザ天神店", "PLAZA天神", "ＰＬＡＺＡ天神"].some(
@@ -2301,6 +2308,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "carol96-neo-genuine-rb-link",
       ),
       buildLogicVariant(
+        "jaran-mizumoto-neo-aim",
+        "ジャラン水元店_ネオアイムEX_全日共通_不発沈み返し_v1",
+        "jaran-mizumoto-neo-score80",
+      ),
+      buildLogicVariant(
         "slot-marumitsu-ohashi-neo-aim",
         "まるみつ大橋店_ネオアイム_沈み返済連敗ロジック_v1",
         "slot-marumitsu-ohashi-neo-free-a",
@@ -2715,6 +2727,172 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["boomTenjinNeoHistoryShort"],
         },
         ["boom-tenjin-neo-aim", "boom-tenjin-neo-aim-normal", "boom-tenjin-neo-aim-event"],
+      ),
+      buildCondition(
+        "jaran-mizumoto-neo-score60",
+        "60点以上",
+        "117日 / 298台 / RB1/307 / 合算1/144 / 平均+164枚 / 101.32% / 平均56 33.4% / 中央56 25.7% / 56>=50 22.8% / 56<30 57.0%",
+        {
+          minScore: 60,
+          requiredFlags: ["jaranMizumotoNeoHistoryReady"],
+        },
+        ["jaran-mizumoto-neo-aim"],
+      ),
+      buildCondition(
+        "jaran-mizumoto-neo-top2-65-safe",
+        "上位2＋65点＋危険1以下",
+        "109日 / 172台 / RB1/299 / 合算1/142 / 平均+220枚 / 101.66% / 平均56 35.5% / 56>=50 27.3%",
+        {
+          rankMax: 2,
+          minScore: 65,
+          maxDanger: 1,
+          requiredFlags: ["jaranMizumotoNeoHistoryReady"],
+        },
+        ["jaran-mizumoto-neo-aim"],
+      ),
+      buildCondition(
+        "jaran-mizumoto-neo-score80",
+        "80点以上",
+        "43日 / 58台 / RB1/287 / 合算1/138 / 平均+318枚 / 102.55% / 平均56 42.1% / 56>=50 34.5%",
+        {
+          minScore: 80,
+          requiredFlags: ["jaranMizumotoNeoHistoryReady"],
+        },
+        ["jaran-mizumoto-neo-aim"],
+      ),
+      buildCondition(
+        "jaran-mizumoto-neo-prev-miss70",
+        "直前不発＋70点",
+        "31日 / 37台 / RB1/280 / 合算1/136 / 平均+361枚 / 102.84% / 平均56 44.2%",
+        {
+          minScore: 70,
+          requiredFlags: ["jaranMizumotoNeoHistoryReady", "jaranMizumotoNeoPreviousMiss"],
+        },
+        ["jaran-mizumoto-neo-aim"],
+      ),
+      buildCondition(
+        "jaran-mizumoto-neo-three-high75-p56",
+        "3日内2高内容＋75点＋平均56強",
+        "12日 / 13台 / RB1/259 / 合算1/132 / 平均+522枚 / 103.91% / 平均56 55.0% / 件数注意",
+        {
+          minScore: 75,
+          requiredFlags: [
+            "jaranMizumotoNeoHistoryReady",
+            "jaranMizumotoNeoHighCount3",
+            "jaranMizumotoNeoP56ThreeStrong",
+          ],
+        },
+        ["jaran-mizumoto-neo-aim"],
+      ),
+      buildCondition(
+        "jaran-mizumoto-neo-true-miss",
+        "直前真不発据え",
+        "18日 / 21台 / RB1/276 / 合算1/135 / 平均+402枚 / 102.97% / 平均56 47.8%",
+        {
+          requiredFlags: ["jaranMizumotoNeoHistoryReady", "jaranMizumotoNeoPreviousTrueMiss"],
+        },
+        ["jaran-mizumoto-neo-aim"],
+      ),
+      buildCondition(
+        "jaran-mizumoto-neo-score80-true-miss",
+        "80点＋真不発",
+        "9日 / 10台 / RB1/261 / 合算1/130 / 平均+611枚 / 104.22% / 平均56 58.0% / 件数注意",
+        {
+          minScore: 80,
+          requiredFlags: ["jaranMizumotoNeoHistoryReady", "jaranMizumotoNeoPreviousTrueMiss"],
+        },
+        ["jaran-mizumoto-neo-aim"],
+      ),
+      buildCondition(
+        "jaran-mizumoto-neo-double-sink-safe",
+        "二重沈み＋危険0",
+        "34日 / 39台 / RB1/300 / 合算1/143 / 平均+237枚 / 101.83% / 平均56 36.8%",
+        {
+          maxDanger: 0,
+          requiredFlags: [
+            "jaranMizumotoNeoHistoryReady",
+            "jaranMizumotoNeoFiveSinkDeep",
+            "jaranMizumotoNeoSevenDoubleSink",
+          ],
+        },
+        ["jaran-mizumoto-neo-aim"],
+      ),
+      buildCondition(
+        "jaran-mizumoto-neo-rank1-high3",
+        "1位＋3日内2高内容",
+        "17日 / 17台 / RB1/265 / 合算1/133 / 平均+487枚 / 103.47% / 平均56 51.3% / 件数注意",
+        {
+          rankMax: 1,
+          requiredFlags: ["jaranMizumotoNeoHistoryReady", "jaranMizumotoNeoHighCount3"],
+        },
+        ["jaran-mizumoto-neo-aim"],
+      ),
+      buildCondition(
+        "jaran-mizumoto-neo-rank1-gap10",
+        "1位＋次点差10",
+        "45日 / 45台 / RB1/293 / 合算1/140 / 平均+285枚 / 102.12% / 平均56 39.7%",
+        {
+          rankMax: 1,
+          minNextGap: 10,
+          requiredFlags: ["jaranMizumotoNeoHistoryReady"],
+        },
+        ["jaran-mizumoto-neo-aim"],
+      ),
+      buildCondition(
+        "jaran-mizumoto-neo-seven-angle",
+        "沈み角度",
+        "71日 / 111台 / RB1/293.7 / 合算1/139.4 / 平均+304枚 / 102.48% / 平均56 36.3%",
+        {
+          requiredFlags: ["jaranMizumotoNeoHistoryReady", "jaranMizumotoNeoSevenAngleBalanced"],
+        },
+        ["jaran-mizumoto-neo-aim"],
+      ),
+      buildCondition(
+        "jaran-mizumoto-neo-losing-angle",
+        "連敗沈み角度",
+        "19日 / 21台 / RB1/267.3 / 合算1/133.8 / 平均+510枚 / 103.64% / 平均56 52.6% / 件数注意",
+        {
+          requiredFlags: [
+            "jaranMizumotoNeoHistoryReady",
+            "jaranMizumotoNeoSevenAngleBalanced",
+            "jaranMizumotoNeoLosing5To8",
+          ],
+        },
+        ["jaran-mizumoto-neo-aim"],
+      ),
+      buildCondition(
+        "jaran-mizumoto-neo-unfinished-safe",
+        "不発据え＋未処遇",
+        "26日 / 30台 / RB1/271.0 / 合算1/136.4 / 平均+329枚 / 102.32% / 平均56 45.8%",
+        {
+          maxDanger: 1,
+          requiredFlags: [
+            "jaranMizumotoNeoHistoryReady",
+            "jaranMizumotoNeoPreviousMiss",
+            "jaranMizumotoNeoRecentThreeNotTreated",
+            "jaranMizumotoNeoFiveSinkWeak",
+          ],
+        },
+        ["jaran-mizumoto-neo-aim"],
+      ),
+      buildCondition(
+        "jaran-mizumoto-neo-watch-danger2",
+        "見送り_危険2以上",
+        "277台 / RB1/397 / 合算1/162 / 平均-167枚 / 98.32% / 平均56 20.3%",
+        {
+          minDanger: 2,
+          requiredFlags: ["jaranMizumotoNeoHistoryReady"],
+        },
+        ["jaran-mizumoto-neo-aim"],
+      ),
+      buildCondition(
+        "jaran-mizumoto-neo-watch-history-short",
+        "見送り_履歴不足",
+        "履歴14営業日未満は点数上限60。採用条件は低信頼扱い",
+        {
+          requiredFlags: ["jaranMizumotoNeoHistoryShort"],
+        },
+        ["jaran-mizumoto-neo-aim"],
       ),
       buildCondition(
         "apark-yakatabaru-main",
@@ -8631,6 +8809,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "million-tobu-nerima-neo-aim");
   } else if (isBoomTenjinStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "boom-tenjin-neo-aim");
+  } else if (isJaranMizumotoStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, "jaran-mizumoto-neo-aim");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "funky") {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-funky");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "my") {
@@ -10113,6 +10293,138 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         lowConfidence: carol96NeoHistoryShort || carol96NeoHistoryGamesShort,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount,
+      };
+    }
+
+    if (activeLogicKey === "jaran-mizumoto-neo-aim") {
+      const jaranMizumotoNeoHistoryReady = historyRowCount >= 14;
+      const jaranMizumotoNeoHistoryShort = historyRowCount < 14;
+      const jaranMizumotoNeoPreviousHigh =
+        previousGames >= 3000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.5;
+      const jaranMizumotoNeoPreviousStrongHigh =
+        previousGames >= 3500 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability >= 0.7;
+      const jaranMizumotoNeoPreviousMiss =
+        jaranMizumotoNeoPreviousHigh && previousDifference < 500;
+      const jaranMizumotoNeoPreviousTrueMiss =
+        jaranMizumotoNeoPreviousStrongHigh && previousDifference < 500;
+      const jaranMizumotoNeoPreviousMinusMiss =
+        jaranMizumotoNeoPreviousHigh && previousDifference < 0;
+      const jaranMizumotoNeoHighCount3 = recentThreeMachineHighContentCount >= 2;
+      const jaranMizumotoNeoHighCount5 = recentFiveMachineHighContentCount >= 2;
+      const jaranMizumotoNeoP56ThreeStrong =
+        Number.isFinite(recentThreeMachineSettingFivePlusProbabilityAverage) &&
+        recentThreeMachineSettingFivePlusProbabilityAverage >= 0.5;
+      const jaranMizumotoNeoFiveSinkWeak = recentFiveNetTotal <= -1000;
+      const jaranMizumotoNeoFiveSinkDeep = recentFiveNetTotal <= -2500;
+      const jaranMizumotoNeoFiveSinkVeryDeep = recentFiveNetTotal <= -3000;
+      const jaranMizumotoNeoSevenSink = recentSevenNetTotal <= -2000;
+      const jaranMizumotoNeoSevenDoubleSink = recentSevenNetTotal <= -3000;
+      const jaranMizumotoNeoSevenAngleStrong =
+        recentSevenGamesTotal >= 18000 && features.recentSevenAngle <= -120;
+      const jaranMizumotoNeoSevenAngleBalanced =
+        recentSevenNetTotal <= -2500 &&
+        features.recentSevenAngle <= -120 &&
+        recentSevenGamesTotal >= 18000 &&
+        recentSevenGamesTotal <= 26000;
+      const jaranMizumotoNeoLosing3 = streak >= 3;
+      const jaranMizumotoNeoLosing5 = streak >= 5;
+      const jaranMizumotoNeoLosing5To8 = streak >= 5 && streak <= 8;
+      const jaranMizumotoNeoPreviousTreatment =
+        jaranMizumotoNeoPreviousHigh && previousDifference >= 1500;
+      const jaranMizumotoNeoRecentThreeNotTreated = recentThreeNetTotal < 1800;
+      const jaranMizumotoNeoFiveTreatment = recentFiveNetTotal >= 2000;
+      const jaranMizumotoNeoSevenTreatment = recentSevenNetTotal >= 2000;
+      const jaranMizumotoNeoFourteenTreatment = recentFourteenNetTotal >= 3000;
+      const jaranMizumotoNeoThirtyTreatment = recentThirtyNetTotal >= 5000;
+      const jaranMizumotoNeoPreviousLowContent =
+        previousGames >= 3000 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability < 0.1;
+      const jaranMizumotoNeoLowTrustGames = recentFourteenGamesTotal < 35000;
+      const jaranMizumotoNeoRecentOvergood =
+        recentFiveGamesTotal >= 15000 &&
+        features.recentFiveRbDenominator <= 320 &&
+        features.recentFiveCombinedDenominator <= 145 &&
+        recentFiveNetTotal >= 0;
+      const jaranMizumotoNeoLowGames = recentFiveGamesTotal < 9000 || recentSevenGamesTotal < 12000;
+      const jaranMizumotoNeoTreatmentDone =
+        jaranMizumotoNeoPreviousTreatment ||
+        jaranMizumotoNeoFiveTreatment ||
+        jaranMizumotoNeoSevenTreatment ||
+        jaranMizumotoNeoFourteenTreatment ||
+        jaranMizumotoNeoThirtyTreatment;
+      const boostFlags = [
+        jaranMizumotoNeoPreviousMiss,
+        jaranMizumotoNeoPreviousTrueMiss,
+        jaranMizumotoNeoPreviousMinusMiss,
+        jaranMizumotoNeoHighCount3,
+        jaranMizumotoNeoHighCount5,
+        jaranMizumotoNeoP56ThreeStrong,
+        jaranMizumotoNeoFiveSinkDeep,
+        jaranMizumotoNeoFiveSinkVeryDeep,
+        jaranMizumotoNeoSevenSink,
+        jaranMizumotoNeoSevenDoubleSink,
+        jaranMizumotoNeoSevenAngleStrong,
+        jaranMizumotoNeoSevenAngleBalanced,
+        jaranMizumotoNeoLosing3,
+        jaranMizumotoNeoLosing5,
+        jaranMizumotoNeoLosing5To8,
+      ];
+      const dangerFlags = [
+        jaranMizumotoNeoPreviousTreatment,
+        jaranMizumotoNeoFiveTreatment,
+        jaranMizumotoNeoSevenTreatment,
+        jaranMizumotoNeoFourteenTreatment,
+        jaranMizumotoNeoThirtyTreatment,
+        jaranMizumotoNeoPreviousLowContent,
+        jaranMizumotoNeoLowTrustGames,
+        jaranMizumotoNeoRecentOvergood,
+        jaranMizumotoNeoLowGames,
+      ];
+
+      return {
+        ...features,
+        previousMachineSettingFivePlusProbability,
+        recentThreeMachineSettingFivePlusProbabilityAverage,
+        jaranMizumotoNeoHistoryReady,
+        jaranMizumotoNeoHistoryShort,
+        jaranMizumotoNeoPreviousHigh,
+        jaranMizumotoNeoPreviousStrongHigh,
+        jaranMizumotoNeoPreviousMiss,
+        jaranMizumotoNeoPreviousTrueMiss,
+        jaranMizumotoNeoPreviousMinusMiss,
+        jaranMizumotoNeoHighCount3,
+        jaranMizumotoNeoHighCount5,
+        jaranMizumotoNeoP56ThreeStrong,
+        jaranMizumotoNeoFiveSinkWeak,
+        jaranMizumotoNeoFiveSinkDeep,
+        jaranMizumotoNeoFiveSinkVeryDeep,
+        jaranMizumotoNeoSevenSink,
+        jaranMizumotoNeoSevenDoubleSink,
+        jaranMizumotoNeoSevenAngleStrong,
+        jaranMizumotoNeoSevenAngleBalanced,
+        jaranMizumotoNeoLosing3,
+        jaranMizumotoNeoLosing5,
+        jaranMizumotoNeoLosing5To8,
+        jaranMizumotoNeoPreviousTreatment,
+        jaranMizumotoNeoRecentThreeNotTreated,
+        jaranMizumotoNeoFiveTreatment,
+        jaranMizumotoNeoSevenTreatment,
+        jaranMizumotoNeoFourteenTreatment,
+        jaranMizumotoNeoThirtyTreatment,
+        jaranMizumotoNeoPreviousLowContent,
+        jaranMizumotoNeoLowTrustGames,
+        jaranMizumotoNeoRecentOvergood,
+        jaranMizumotoNeoLowGames,
+        jaranMizumotoNeoTreatmentDone,
+        treatmentDone: jaranMizumotoNeoTreatmentDone,
+        lowConfidence: jaranMizumotoNeoHistoryShort || jaranMizumotoNeoLowGames,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
       };
     }
 
@@ -16130,6 +16442,102 @@ function calculateMachineScore(definition, metrics, features) {
       }
 
       return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === "jaran-mizumoto-neo-aim") {
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      const previousHigh =
+        previousGames >= 3000 &&
+        Number.isFinite(previousP56) &&
+        previousP56 >= 0.5;
+      const previousStrongHigh =
+        previousGames >= 3500 &&
+        Number.isFinite(previousP56) &&
+        previousP56 >= 0.7;
+      const previousMiss = previousHigh && previousDifference < 500;
+      const previousTrueMiss = previousStrongHigh && previousDifference < 500;
+      const previousMinusMiss = previousHigh && previousDifference < 0;
+      const historyScoreCap = historyRowCount < 14 ? 60 : 100;
+
+      let score = 40;
+
+      score += previousMiss ? 22 : 0;
+      score += previousTrueMiss ? 7 : 0;
+      score += previousMinusMiss ? 5 : 0;
+      score += !previousMiss && recentThreeMachineHighContentCount >= 1 && recentThreeNetTotal <= 500 ? 8 : 0;
+      score += recentFiveMachineHighContentCount >= 2 && recentFiveNetTotal <= 1000 ? 6 : 0;
+
+      score += scoreAtMost(recentFiveNetTotal, [
+        { maximum: -3000, points: 17 },
+        { maximum: -2500, points: 14 },
+        { maximum: -2000, points: 11 },
+        { maximum: -1000, points: 6 },
+      ]);
+      score += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -4000, points: 8 },
+        { maximum: -3000, points: 6 },
+        { maximum: -2000, points: 4 },
+      ]);
+      score += scoreAtMost(recentFourteenNetTotal, [
+        { maximum: -6000, points: 6 },
+        { maximum: -4000, points: 3 },
+      ]);
+      score +=
+        recentSevenGamesTotal >= 18000 &&
+        recentSevenGamesTotal <= 26000 &&
+        features.recentSevenAngle <= -120
+          ? 8
+          : 0;
+      score +=
+        recentSevenGamesTotal >= 18000 &&
+        recentSevenGamesTotal <= 24000 &&
+        features.recentSevenAngle <= -120 &&
+        streak >= 5 &&
+        streak <= 8
+          ? 5
+          : 0;
+
+      score += streak >= 7 ? 8 : streak >= 5 ? 5 : streak >= 3 ? 3 : 0;
+      score += recentThreeMachineHighContentCount >= 2 ? 10 : recentFiveMachineHighContentCount >= 2 ? 6 : 0;
+      score +=
+        Number.isFinite(recentThreeMachineSettingFivePlusProbabilityAverage) &&
+        recentThreeMachineSettingFivePlusProbabilityAverage >= 0.5
+          ? 5
+          : 0;
+      score += recentFiveGamesTotal >= 14000 && recentFourteenGamesTotal >= 40000 ? 4 : 0;
+      score -= recentFiveGamesTotal < 9000 ? 5 : 0;
+
+      score -= previousHigh && previousDifference >= 1500 ? 14 : 0;
+      score -= scoreAtLeast(recentFiveNetTotal, [
+        { minimum: 3000, points: 18 },
+        { minimum: 2000, points: 14 },
+        { minimum: 1000, points: 8 },
+      ]);
+      score -= scoreAtLeast(recentSevenNetTotal, [
+        { minimum: 3000, points: 12 },
+        { minimum: 2000, points: 8 },
+      ]);
+      score -= scoreAtLeast(recentFourteenNetTotal, [
+        { minimum: 5000, points: 10 },
+        { minimum: 3000, points: 5 },
+      ]);
+      score -= recentThirtyNetTotal >= 5000 ? 10 : 0;
+      score -=
+        previousGames >= 3000 &&
+        Number.isFinite(previousP56) &&
+        previousP56 < 0.1
+          ? 5
+          : 0;
+      score -=
+        recentFiveGamesTotal >= 15000 &&
+        features.recentFiveRbDenominator <= 320 &&
+        features.recentFiveCombinedDenominator <= 145 &&
+        recentFiveNetTotal >= 0
+          ? 6
+          : 0;
+      score -= features.dangerCount >= 2 ? 10 : 0;
+
+      return Math.round(clamp(score, 0, historyScoreCap));
     }
 
     if (activeLogicKey === "slot-marumitsu-ohashi-neo-aim") {
