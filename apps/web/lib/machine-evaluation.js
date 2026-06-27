@@ -137,6 +137,18 @@ const MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY = "mitoya-kinshicho-south-neo-aim
 const MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_NAME =
   "みとや錦糸町南口店_ネオアイム_長期沈み返済スコア";
 const MITOYA_KINSHICHO_SOUTH_NEO_AIM_DEFAULT_CONDITION = "mitoya-kinshicho-south-neo-score75";
+const EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY = "ex-arena-tokyo-neo-aim";
+const EX_ARENA_TOKYO_NEO_AIM_LOGIC_NAME =
+  "エクスアリーナ東京_ネオアイムジャグラーEX_全日共通_本物感周辺連動スコア";
+const EX_ARENA_TOKYO_NEO_AIM_DEFAULT_CONDITION = "ex-arena-tokyo-neo-all-rb290";
+const EX_ARENA_TOKYO_NEO_AIM_NORMAL_LOGIC_KEY = "ex-arena-tokyo-neo-aim-normal";
+const EX_ARENA_TOKYO_NEO_AIM_NORMAL_LOGIC_NAME =
+  "エクスアリーナ東京_ネオアイムジャグラーEX_通常日_高稼働本物感周辺連動ロジック";
+const EX_ARENA_TOKYO_NEO_AIM_NORMAL_DEFAULT_CONDITION = "ex-arena-tokyo-neo-normal-rb290";
+const EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_KEY = "ex-arena-tokyo-neo-aim-event";
+const EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_NAME =
+  "エクスアリーナ東京_ネオアイムジャグラーEX_特定日_RB周辺密度ロジック";
+const EX_ARENA_TOKYO_NEO_AIM_EVENT_DEFAULT_CONDITION = "ex-arena-tokyo-neo-event-rb290";
 
 function normalizeText(value) {
   return String(value ?? "").trim();
@@ -688,6 +700,20 @@ function isMitoyaKinshichoSouthStore(storeName) {
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
+function isExArenaTokyoStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "エクスアリーナ東京",
+    "エクスアリーナ東京店",
+    "EXアリーナ東京",
+    "EXアリーナ東京店",
+    "EXARENA東京",
+    "EXARENA東京店",
+    "EX-ARENA東京",
+    "EX-ARENA東京店",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
 function isPlazaTenjinStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["プラザ天神", "プラザ天神店", "PLAZA天神", "ＰＬＡＺＡ天神"].some(
@@ -922,6 +948,14 @@ function isIidabashiPresasEventDate(dateText, row, options = {}) {
 }
 
 function isBoomTenjinEventDate(dateText, row, options = {}) {
+  const rowFlag = readTargetEventFlag(row);
+  if (rowFlag !== null) {
+    return rowFlag;
+  }
+  return matchesMachineEvaluationEventFilters(dateText, options?.eventFilters);
+}
+
+function isExArenaTokyoEventDate(dateText, row, options = {}) {
   const rowFlag = readTargetEventFlag(row);
   if (rowFlag !== null) {
     return rowFlag;
@@ -3873,6 +3907,21 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY,
         MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_NAME,
         MITOYA_KINSHICHO_SOUTH_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
+        EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY,
+        EX_ARENA_TOKYO_NEO_AIM_LOGIC_NAME,
+        EX_ARENA_TOKYO_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
+        EX_ARENA_TOKYO_NEO_AIM_NORMAL_LOGIC_KEY,
+        EX_ARENA_TOKYO_NEO_AIM_NORMAL_LOGIC_NAME,
+        EX_ARENA_TOKYO_NEO_AIM_NORMAL_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
+        EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_KEY,
+        EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_NAME,
+        EX_ARENA_TOKYO_NEO_AIM_EVENT_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
         "messe-minamisenju-neo-aim",
@@ -8151,6 +8200,200 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["mitoyaKinshichoSouthNeoHistoryReady", "mitoyaKinshichoSouthNeoFiveOutput3000"],
         },
         [MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "ex-arena-tokyo-neo-all-wide310",
+        "全日 広め310",
+        "89台 / RB1/305.6 / 合算1/139.7 / 平均+531.5枚 / 本命不在日の候補",
+        {
+          requiredFlags: ["exArenaTokyoNeoHistoryReady", "exArenaTokyoNeoAllWide310"],
+        },
+        [EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "ex-arena-tokyo-neo-all-rb300",
+        "全日 弱本命300",
+        "79台 / RB1/292.5 / 合算1/139.5 / 平均+364.1枚 / 全日共通の主力",
+        {
+          requiredFlags: ["exArenaTokyoNeoHistoryReady", "exArenaTokyoNeoAllRb300"],
+        },
+        [EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        EX_ARENA_TOKYO_NEO_AIM_DEFAULT_CONDITION,
+        "自由A_全日最強RB / 全日 本命290",
+        "66台 / RB1/287.1 / 合算1/137.7 / 平均+453.3枚 / 全日共通の強候補",
+        {
+          requiredFlags: ["exArenaTokyoNeoHistoryReady", "exArenaTokyoNeoAllRb290"],
+        },
+        [EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "ex-arena-tokyo-neo-all-rb280-reference",
+        "全日 強280参考",
+        "19台 / RB1/255.2 / 合算1/133.6 / 平均56率53.0% / 件数小",
+        {
+          maxDanger: 0,
+          requiredFlags: ["exArenaTokyoNeoHistoryReady", "exArenaTokyoNeoAllRb290"],
+        },
+        [EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "ex-arena-tokyo-neo-all-rb270-reference",
+        "全日 最本命270参考",
+        "9台 / RB1/260.4 / 合算1/134.9 / 件数極小の参考条件",
+        {
+          maxDanger: 0,
+          requiredFlags: ["exArenaTokyoNeoHistoryReady", "exArenaTokyoNeoAllRb270"],
+        },
+        [EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "ex-arena-tokyo-neo-normal-wide310",
+        "通常 広め310",
+        "285台 / RB1/309.9 / 合算1/142.9 / 平均+292.7枚 / 通常日の広め",
+        {
+          requiredFlags: ["exArenaTokyoNeoHistoryReady", "exArenaTokyoNeoNormalWide310"],
+        },
+        [EX_ARENA_TOKYO_NEO_AIM_NORMAL_LOGIC_KEY],
+      ),
+      buildCondition(
+        "ex-arena-tokyo-neo-normal-rb300",
+        "通常 弱本命300",
+        "71台 / RB1/290.4 / 合算1/138.6 / 平均+395.7枚 / 通常日の主力",
+        {
+          requiredFlags: ["exArenaTokyoNeoHistoryReady", "exArenaTokyoNeoNormalRb300"],
+        },
+        [EX_ARENA_TOKYO_NEO_AIM_NORMAL_LOGIC_KEY],
+      ),
+      buildCondition(
+        EX_ARENA_TOKYO_NEO_AIM_NORMAL_DEFAULT_CONDITION,
+        "自由B_通常日最優先 / 通常 本命290",
+        "58台 / RB1/284.1 / 合算1/136.4 / 平均+504.4枚 / 通常日の最優先",
+        {
+          requiredFlags: ["exArenaTokyoNeoHistoryReady", "exArenaTokyoNeoNormalRb290"],
+        },
+        [EX_ARENA_TOKYO_NEO_AIM_NORMAL_LOGIC_KEY],
+      ),
+      buildCondition(
+        "ex-arena-tokyo-neo-normal-rb280-reference",
+        "通常 強280参考",
+        "18台 / RB1/252.0 / 合算1/132.8 / 平均56率55.5% / 件数小",
+        {
+          maxDanger: 0,
+          requiredFlags: ["exArenaTokyoNeoHistoryReady", "exArenaTokyoNeoNormalRb290"],
+        },
+        [EX_ARENA_TOKYO_NEO_AIM_NORMAL_LOGIC_KEY],
+      ),
+      buildCondition(
+        "ex-arena-tokyo-neo-event-wide310",
+        "自由D_特定日出玉型 / 特定 広め310",
+        "44台 / RB1/308.6 / 合算1/136.0 / 平均+1023.4枚 / 特定日の広め",
+        {
+          requiredFlags: ["exArenaTokyoNeoHistoryReady", "exArenaTokyoNeoEventWide310"],
+        },
+        [EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_KEY],
+      ),
+      buildCondition(
+        "ex-arena-tokyo-neo-event-rb300",
+        "特定 弱本命300",
+        "RB1/293.8 / 点数75以上＋前日RB250以下＋3日合算132以下",
+        {
+          minScore: 75,
+          requiredFlags: ["exArenaTokyoNeoHistoryReady", "exArenaTokyoNeoEventRb300"],
+        },
+        [EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_KEY],
+      ),
+      buildCondition(
+        EX_ARENA_TOKYO_NEO_AIM_EVENT_DEFAULT_CONDITION,
+        "自由C_特定日本命RB / 特定 本命290",
+        "RB1/289.7 / 合算1/138.6 / 平均+572.5枚 / 特定日の本命",
+        {
+          requiredFlags: ["exArenaTokyoNeoHistoryReady", "exArenaTokyoNeoEventRb290"],
+        },
+        [EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_KEY],
+      ),
+      buildCondition(
+        "ex-arena-tokyo-neo-event-rb280-reference",
+        "特定 強280参考",
+        "RB1/279.1 / 特定日本命290＋3日RB280以下 / 件数小",
+        {
+          requiredFlags: ["exArenaTokyoNeoHistoryReady", "exArenaTokyoNeoEventRb280"],
+        },
+        [EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_KEY],
+      ),
+      buildCondition(
+        "ex-arena-tokyo-neo-event-rb270-reference",
+        "特定 最本命270参考",
+        "4台 / RB1/225.3 / 件数極小の参考条件",
+        {
+          requiredFlags: ["exArenaTokyoNeoHistoryReady", "exArenaTokyoNeoEventRb270"],
+        },
+        [EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_KEY],
+      ),
+      buildCondition(
+        "ex-arena-tokyo-neo-watch-history7",
+        "見送り_履歴7日未満",
+        "過去7有効営業日未満は採用条件とランキング検証から除外",
+        {
+          requiredFlags: ["exArenaTokyoNeoHistoryShort"],
+        },
+        [
+          EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY,
+          EX_ARENA_TOKYO_NEO_AIM_NORMAL_LOGIC_KEY,
+          EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_KEY,
+        ],
+      ),
+      buildCondition(
+        "ex-arena-tokyo-neo-watch-danger2",
+        "見送り_危険2個以上",
+        "危険条件が2個以上なら高得点でも見送り寄り",
+        {
+          minDanger: 2,
+          requiredFlags: ["exArenaTokyoNeoHistoryReady"],
+        },
+        [
+          EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY,
+          EX_ARENA_TOKYO_NEO_AIM_NORMAL_LOGIC_KEY,
+          EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_KEY,
+        ],
+      ),
+      buildCondition(
+        "ex-arena-tokyo-neo-watch-score-boost1",
+        "見送り_点数上位でも強化1個以下",
+        "日別1位だけでは弱く、強化条件が1個以下なら採用しない",
+        {
+          minScore: 75,
+          maxBoost: 1,
+          requiredFlags: ["exArenaTokyoNeoHistoryReady"],
+        },
+        [
+          EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY,
+          EX_ARENA_TOKYO_NEO_AIM_NORMAL_LOGIC_KEY,
+          EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_KEY,
+        ],
+      ),
+      buildCondition(
+        "ex-arena-tokyo-neo-watch-event-normal-pattern",
+        "見送り_特定日に通常日型のみ",
+        "特定日で通常日型だけを使うと実測RB1/335.3まで落ちる",
+        {
+          requiredFlags: ["exArenaTokyoNeoHistoryReady", "exArenaTokyoNeoSpecialDateNormalPattern"],
+        },
+        [EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_KEY],
+      ),
+      buildCondition(
+        "ex-arena-tokyo-neo-watch-deep-sink-high-games-only",
+        "見送り_深沈み＋高稼働のみ",
+        "7日差枚-1500枚以下＋7日G35000以上だけでは実測RB1/330.7で弱い",
+        {
+          requiredFlags: ["exArenaTokyoNeoHistoryReady", "exArenaTokyoNeoDeepSinkHighGamesOnly"],
+        },
+        [
+          EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY,
+          EX_ARENA_TOKYO_NEO_AIM_NORMAL_LOGIC_KEY,
+          EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_KEY,
+        ],
       ),
       buildCondition(
         "messe-minamisenju-free-14rb",
@@ -13585,6 +13828,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY);
   } else if (isMitoyaKinshichoSouthStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY);
+  } else if (isExArenaTokyoStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY);
   } else if (isParkKitasenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, PARK_KITASENJU_NEO_AIM_LOGIC_KEY);
   } else if (isMesseMinamisenjuStore(storeName) && definition.machineKey === "neo-aim") {
@@ -20216,6 +20461,181 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         mitoyaKinshichoSouthNeoDanger2WithoutDeepSink,
         treatmentDone: mitoyaKinshichoSouthNeoTreatmentTooMany || mitoyaKinshichoSouthNeoFiveOutput3000,
         lowConfidence: mitoyaKinshichoSouthNeoHistoryShort || mitoyaKinshichoSouthNeoLowGames,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount,
+      };
+    }
+
+    if (
+      activeLogicKey === EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY ||
+      activeLogicKey === EX_ARENA_TOKYO_NEO_AIM_NORMAL_LOGIC_KEY ||
+      activeLogicKey === EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_KEY
+    ) {
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      const exArenaTokyoNeoHistoryReady = historyRowCount >= 7;
+      const exArenaTokyoNeoHistoryShort = historyRowCount < 7;
+      const exArenaTokyoNeoPreviousP56Thirty =
+        Number.isFinite(previousP56) && previousP56 >= 0.3;
+      const exArenaTokyoNeoPreviousP56Fifty =
+        Number.isFinite(previousP56) && previousP56 >= 0.5;
+      const exArenaTokyoNeoPreviousP56Seventy =
+        Number.isFinite(previousP56) && previousP56 >= 0.7;
+      const exArenaTokyoNeoPreviousRb250 = features.previousRbDenominator <= 250;
+      const exArenaTokyoNeoPreviousRb300 = features.previousRbDenominator <= 300;
+      const exArenaTokyoNeoPreviousCombined120 = features.previousCombinedDenominator <= 120;
+      const exArenaTokyoNeoPreviousCombined130 = features.previousCombinedDenominator <= 130;
+      const exArenaTokyoNeoPreviousCombined140 = features.previousCombinedDenominator <= 140;
+      const exArenaTokyoNeoRecentThreeCombined132 = features.recentThreeCombinedDenominator <= 132;
+      const exArenaTokyoNeoRecentThreeCombined137 = features.recentThreeCombinedDenominator <= 137;
+      const exArenaTokyoNeoRecentThreeRb280 = features.recentThreeRbDenominator <= 280;
+      const exArenaTokyoNeoPreviousReal =
+        (previousGames >= 3000 &&
+          (exArenaTokyoNeoPreviousP56Fifty ||
+            exArenaTokyoNeoPreviousRb300 ||
+            exArenaTokyoNeoPreviousCombined130)) ||
+        exArenaTokyoNeoRecentThreeCombined137;
+      const exArenaTokyoNeoPreviousFailedHigh =
+        previousGames >= 4500 && exArenaTokyoNeoPreviousP56Fifty && previousDifference < 800;
+      const exArenaTokyoNeoPreviousTreatedHigh =
+        previousGames >= 4500 && exArenaTokyoNeoPreviousP56Fifty && previousDifference >= 1200;
+      const exArenaTokyoNeoNeighborPreviousHigh = previousAdjacentMachineHighContentCount >= 1;
+      const exArenaTokyoNeoNear4PreviousHigh1 = previousAdjacentMachineHighContentCountNear2 >= 1;
+      const exArenaTokyoNeoNear4PreviousHigh2 = previousAdjacentMachineHighContentCountNear2 >= 2;
+      const exArenaTokyoNeoNear4PreviousHigh3 = previousAdjacentMachineHighContentCountNear2 >= 3;
+      const exArenaTokyoNeoNear4High7Dense7 = adjacentMachineHighContentCount7Near2 >= 7;
+      const exArenaTokyoNeoNear4High7Dense8 = adjacentMachineHighContentCount7Near2 >= 8;
+      const exArenaTokyoNeoHighActivity =
+        previousGames >= 7500 || recentThreeGamesTotal >= 19000;
+      const exArenaTokyoNeoRepayRemain =
+        recentFourteenNetTotal <= -6000 ||
+        (recentFourteenNetTotal >= -2000 && recentFourteenNetTotal <= -500) ||
+        (recentSevenNetTotal >= -2500 &&
+          recentSevenNetTotal <= -500 &&
+          recentSevenGamesTotal >= 25000);
+      const exArenaTokyoNeoAllWide310 =
+        recentThreeGamesTotal >= 19000 &&
+        exArenaTokyoNeoRecentThreeCombined132 &&
+        exArenaTokyoNeoNear4High7Dense7;
+      const exArenaTokyoNeoAllRb300 =
+        previousGames >= 7500 &&
+        exArenaTokyoNeoPreviousCombined120 &&
+        exArenaTokyoNeoNear4PreviousHigh2;
+      const exArenaTokyoNeoAllRb290 =
+        previousGames >= 8000 &&
+        exArenaTokyoNeoPreviousCombined120 &&
+        exArenaTokyoNeoNear4PreviousHigh2;
+      const exArenaTokyoNeoAllRb270 =
+        previousGames >= 8500 &&
+        exArenaTokyoNeoPreviousCombined120 &&
+        exArenaTokyoNeoNear4PreviousHigh2;
+      const exArenaTokyoNeoNormalWide310 =
+        previousGames >= 7500 && exArenaTokyoNeoPreviousReal && exArenaTokyoNeoNeighborPreviousHigh;
+      const exArenaTokyoNeoNormalRb300 = exArenaTokyoNeoAllRb300;
+      const exArenaTokyoNeoNormalRb290 = exArenaTokyoNeoAllRb290;
+      const exArenaTokyoNeoNoOverWon =
+        recentSevenNetTotal < 1500 && recentFourteenNetTotal < 1000;
+      const exArenaTokyoNeoEventWide310 =
+        exArenaTokyoNeoPreviousCombined140 &&
+        recentFourteenNetTotal >= -2000 &&
+        recentFourteenNetTotal <= -500 &&
+        exArenaTokyoNeoNoOverWon;
+      const exArenaTokyoNeoEventRb300 =
+        exArenaTokyoNeoPreviousRb250 && exArenaTokyoNeoRecentThreeCombined132;
+      const exArenaTokyoNeoEventRb290 =
+        exArenaTokyoNeoPreviousRb250 &&
+        exArenaTokyoNeoNear4High7Dense7 &&
+        recentSevenNetTotal > -2500;
+      const exArenaTokyoNeoEventRb280 =
+        exArenaTokyoNeoEventRb290 && exArenaTokyoNeoRecentThreeRb280;
+      const exArenaTokyoNeoEventRb270 =
+        exArenaTokyoNeoEventRb290 &&
+        exArenaTokyoNeoRecentThreeCombined132 &&
+        recentThreeGamesTotal >= 21000;
+      const exArenaTokyoNeoSpecialDateNormalPattern = exArenaTokyoNeoNormalWide310;
+      const exArenaTokyoNeoDeepSinkHighGamesOnly =
+        recentSevenNetTotal <= -1500 && recentSevenGamesTotal >= 35000;
+      const exArenaTokyoNeoLowActivityDanger =
+        previousGames < 4000 || recentThreeGamesTotal < 9000;
+      const exArenaTokyoNeoWeakBonusDanger =
+        features.previousRbDenominator > 500 || features.previousCombinedDenominator > 180;
+      const exArenaTokyoNeoMiddleTreatmentDanger =
+        (recentSevenNetTotal >= 1500 && recentSevenNetTotal <= 3000) ||
+        (recentFourteenNetTotal >= 1000 && recentFourteenNetTotal <= 6000);
+      const exArenaTokyoNeoLossNeglectDanger =
+        streak === 2 || (streak >= 3 && streak <= 5 && !exArenaTokyoNeoPreviousReal);
+      const exArenaTokyoNeoEventMismatchDanger =
+        activeLogicKey === EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_KEY &&
+        exArenaTokyoNeoSpecialDateNormalPattern &&
+        !exArenaTokyoNeoEventRb290 &&
+        !exArenaTokyoNeoEventWide310;
+      const boostFlags = [
+        exArenaTokyoNeoPreviousReal,
+        exArenaTokyoNeoNeighborPreviousHigh || exArenaTokyoNeoNear4PreviousHigh2,
+        exArenaTokyoNeoRepayRemain,
+        exArenaTokyoNeoHighActivity,
+        exArenaTokyoNeoEventRb290,
+        previousMachineHighContent ||
+          exArenaTokyoNeoPreviousFailedHigh ||
+          exArenaTokyoNeoPreviousTreatedHigh,
+      ];
+      const dangerFlags = [
+        exArenaTokyoNeoLowActivityDanger,
+        exArenaTokyoNeoWeakBonusDanger,
+        exArenaTokyoNeoMiddleTreatmentDanger,
+        exArenaTokyoNeoLossNeglectDanger,
+        exArenaTokyoNeoEventMismatchDanger,
+        exArenaTokyoNeoDeepSinkHighGamesOnly && !exArenaTokyoNeoPreviousReal,
+      ];
+      const dangerCount = dangerFlags.filter(Boolean).length;
+
+      return {
+        ...features,
+        exArenaTokyoNeoHistoryReady,
+        exArenaTokyoNeoHistoryShort,
+        exArenaTokyoNeoPreviousP56Thirty,
+        exArenaTokyoNeoPreviousP56Fifty,
+        exArenaTokyoNeoPreviousP56Seventy,
+        exArenaTokyoNeoPreviousRb250,
+        exArenaTokyoNeoPreviousRb300,
+        exArenaTokyoNeoPreviousCombined120,
+        exArenaTokyoNeoPreviousCombined130,
+        exArenaTokyoNeoPreviousCombined140,
+        exArenaTokyoNeoRecentThreeCombined132,
+        exArenaTokyoNeoRecentThreeCombined137,
+        exArenaTokyoNeoRecentThreeRb280,
+        exArenaTokyoNeoPreviousReal,
+        exArenaTokyoNeoPreviousFailedHigh,
+        exArenaTokyoNeoPreviousTreatedHigh,
+        exArenaTokyoNeoNeighborPreviousHigh,
+        exArenaTokyoNeoNear4PreviousHigh1,
+        exArenaTokyoNeoNear4PreviousHigh2,
+        exArenaTokyoNeoNear4PreviousHigh3,
+        exArenaTokyoNeoNear4High7Dense7,
+        exArenaTokyoNeoNear4High7Dense8,
+        exArenaTokyoNeoHighActivity,
+        exArenaTokyoNeoRepayRemain,
+        exArenaTokyoNeoAllWide310,
+        exArenaTokyoNeoAllRb300,
+        exArenaTokyoNeoAllRb290,
+        exArenaTokyoNeoAllRb270,
+        exArenaTokyoNeoNormalWide310,
+        exArenaTokyoNeoNormalRb300,
+        exArenaTokyoNeoNormalRb290,
+        exArenaTokyoNeoNoOverWon,
+        exArenaTokyoNeoEventWide310,
+        exArenaTokyoNeoEventRb300,
+        exArenaTokyoNeoEventRb290,
+        exArenaTokyoNeoEventRb280,
+        exArenaTokyoNeoEventRb270,
+        exArenaTokyoNeoSpecialDateNormalPattern,
+        exArenaTokyoNeoDeepSinkHighGamesOnly,
+        exArenaTokyoNeoLowActivityDanger,
+        exArenaTokyoNeoWeakBonusDanger,
+        exArenaTokyoNeoMiddleTreatmentDanger,
+        exArenaTokyoNeoLossNeglectDanger,
+        exArenaTokyoNeoEventMismatchDanger,
+        treatmentDone: exArenaTokyoNeoPreviousTreatedHigh || exArenaTokyoNeoMiddleTreatmentDanger,
+        lowConfidence: exArenaTokyoNeoHistoryShort || exArenaTokyoNeoLowActivityDanger,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount,
       };
@@ -29353,6 +29773,155 @@ function calculateMachineScore(definition, metrics, features) {
       return Math.round(clamp(score, 0, scoreCap));
     }
 
+    if (
+      activeLogicKey === EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY ||
+      activeLogicKey === EX_ARENA_TOKYO_NEO_AIM_NORMAL_LOGIC_KEY ||
+      activeLogicKey === EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_KEY
+    ) {
+      const previousP56 = Number.isFinite(previousMachineSettingFivePlusProbability)
+        ? previousMachineSettingFivePlusProbability
+        : null;
+      const previousFailedHigh =
+        previousGames >= 4500 &&
+        Number.isFinite(previousP56) &&
+        previousP56 >= 0.5 &&
+        previousDifference < 800;
+      const previousTreatedHigh =
+        previousGames >= 4500 &&
+        Number.isFinite(previousP56) &&
+        previousP56 >= 0.5 &&
+        previousDifference >= 1200;
+      let score = 40;
+
+      score += previousGames >= 8500
+        ? 14
+        : previousGames >= 7500
+          ? 11
+          : previousGames >= 6500
+            ? 8
+            : previousGames >= 5000
+              ? 5
+              : 0;
+      score += recentThreeGamesTotal >= 21000
+        ? 6
+        : recentThreeGamesTotal >= 19000
+          ? 4
+          : recentThreeGamesTotal >= 16000
+            ? 2
+            : 0;
+      score += recentSevenGamesTotal >= 42000 ? 3 : recentSevenGamesTotal >= 35000 ? 1 : 0;
+
+      score += Number.isFinite(previousP56)
+        ? previousP56 >= 0.7
+          ? 11
+          : previousP56 >= 0.5
+            ? 8
+            : previousP56 >= 0.3
+              ? 4
+              : 0
+        : 0;
+      score += features.previousRbDenominator <= 280
+        ? 8
+        : features.previousRbDenominator <= 300
+          ? 6
+          : features.previousRbDenominator <= 330
+            ? 3
+            : 0;
+      score += features.previousCombinedDenominator <= 120
+        ? 8
+        : features.previousCombinedDenominator <= 130
+          ? 5
+          : features.previousCombinedDenominator <= 140
+            ? 3
+            : 0;
+      score += features.recentThreeCombinedDenominator <= 132
+        ? 6
+        : features.recentThreeCombinedDenominator <= 137
+          ? 4
+          : features.recentThreeCombinedDenominator <= 145
+            ? 2
+            : 0;
+      score += features.recentThreeRbDenominator <= 280
+        ? 5
+        : features.recentThreeRbDenominator <= 300
+          ? 3
+          : features.recentThreeRbDenominator <= 330
+            ? 1
+            : 0;
+      score += recentThreeMachineHighContentCount >= 2
+        ? 4
+        : recentThreeMachineHighContentCount >= 1
+          ? 2
+          : 0;
+
+      score += previousMachineHighContent ? 4 : 0;
+      score += previousFailedHigh ? 5 : 0;
+      score += previousTreatedHigh ? 3 : 0;
+      score += previousAdjacentMachineHighContentCount >= 1 ? 5 : 0;
+      score += previousAdjacentMachineHighContentCountNear2 >= 3
+        ? 5
+        : previousAdjacentMachineHighContentCountNear2 >= 2
+          ? 3
+          : previousAdjacentMachineHighContentCountNear2 >= 1
+            ? 1
+            : 0;
+      score += adjacentMachineHighContentCount7Near2 >= 8
+        ? 3
+        : adjacentMachineHighContentCount7Near2 >= 7
+          ? 2
+          : 0;
+
+      if (recentFourteenNetTotal <= -6000) {
+        score += 7;
+      } else if (recentFourteenNetTotal >= -4000 && recentFourteenNetTotal <= -2000) {
+        score += 3;
+      } else if (recentFourteenNetTotal > -2000 && recentFourteenNetTotal <= -500) {
+        score += 5;
+      }
+      if (recentSevenNetTotal >= -4000 && recentSevenNetTotal <= -2500) {
+        score += 2;
+      } else if (recentSevenNetTotal > -2500 && recentSevenNetTotal <= -500) {
+        score += 3;
+      }
+      score += features.recentFiveAngle <= -80 ? 2 : features.recentFiveAngle <= -50 ? 1 : 0;
+
+      if (Number.isFinite(daysSinceMachineHighContent)) {
+        score += daysSinceMachineHighContent === 1
+          ? 2
+          : daysSinceMachineHighContent >= 3 && daysSinceMachineHighContent <= 7
+            ? 1
+            : daysSinceMachineHighContent >= 21
+              ? 1
+              : 0;
+      }
+
+      score -= previousGames < 2500
+        ? 6
+        : previousGames < 4000
+          ? 4
+          : previousGames < 5000
+            ? 2
+            : 0;
+      score -= recentThreeGamesTotal < 9000 ? 6 : recentThreeGamesTotal < 12000 ? 3 : 0;
+      score -= features.previousRbDenominator > 500
+        ? 5
+        : features.previousRbDenominator > 400
+          ? 3
+          : 0;
+      score -= features.previousCombinedDenominator > 180
+        ? 5
+        : features.previousCombinedDenominator > 160
+          ? 2
+          : 0;
+      score -= streak === 2 ? 2 : streak >= 3 && streak <= 5 ? 1 : 0;
+      score -= recentSevenNetTotal >= 1500 && recentSevenNetTotal <= 3000 ? 3 : 0;
+      score -= recentFourteenNetTotal >= 1000 && recentFourteenNetTotal <= 6000 ? 2 : 0;
+      score -= winningStreak >= 3 ? 2 : 0;
+
+      const scoreCap = historyRowCount < 7 ? 45 : 100;
+      return Math.round(clamp(score, 0, scoreCap));
+    }
+
     if (activeLogicKey === KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY) {
       let scoreCap = 100;
       if (historyRowCount < 7) {
@@ -35502,6 +36071,29 @@ function buildPalazzoKasaiDateSetting(definition, isEventDate) {
   };
 }
 
+function buildExArenaTokyoDateSetting(definition, isEventDate) {
+  if (definition?.machineKey !== "neo-aim") {
+    return null;
+  }
+  const logicKey = isEventDate
+    ? EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_KEY
+    : EX_ARENA_TOKYO_NEO_AIM_NORMAL_LOGIC_KEY;
+  const logic = findLogicDefinition(definition, logicKey);
+  if (!logic) {
+    return null;
+  }
+  const condition =
+    listConditionDefinitions(definition, logic.key).find(
+      (candidate) => candidate.keySuffix === logic.defaultConditionSuffix,
+    ) ??
+    listConditionDefinitions(definition, logic.key)[0] ??
+    null;
+  return {
+    logicKey: logic.key,
+    conditionKey: condition ? buildConditionKey(definition, condition) : "",
+  };
+}
+
 function resolveRankingDateSpecificSetting(definition, setting, options = {}) {
   if (
     !options?.dateSpecificRanking ||
@@ -35715,6 +36307,21 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   if (isPalazzoKasaiStore(options?.storeName) && definition?.machineKey === "neo-aim") {
     const isEventDate = readTargetEventFlag(row) === true;
     const setting = buildPalazzoKasaiDateSetting(definition, isEventDate);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    if (!evaluation) {
+      return null;
+    }
+
+    return {
+      ...evaluation,
+      displayLabel: isEventDate ? "特定日" : "通常日",
+    };
+  }
+
+  if (isExArenaTokyoStore(options?.storeName) && definition?.machineKey === "neo-aim") {
+    const targetDate = readRankingTargetDate(options?.snapshot);
+    const isEventDate = isExArenaTokyoEventDate(targetDate, row, options);
+    const setting = buildExArenaTokyoDateSetting(definition, isEventDate);
     const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
     if (!evaluation) {
       return null;
