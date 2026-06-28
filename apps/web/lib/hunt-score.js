@@ -2813,10 +2813,7 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     }
     if (contentRule === "concert-hall-kitasenju-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
-      if (Number.isFinite(settingFivePlusProbability)) {
-        return games >= 3000 && settingFivePlusProbability >= 0.5;
-      }
-      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
+      return Number.isFinite(settingFivePlusProbability) && games >= 2500 && settingFivePlusProbability >= 0.5;
     }
     if (contentRule === "kyuden-annex-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -3487,7 +3484,8 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       );
     }
     if (contentRule === "concert-hall-kitasenju-neo-aim") {
-      return games >= 3000 && rbDenominator <= 310 && combinedDenominator <= 145;
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return Number.isFinite(settingFivePlusProbability) && games >= 2000 && settingFivePlusProbability >= 0.3;
     }
     if (contentRule === "kyuden-annex-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -4327,10 +4325,7 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     readMachineContentRule(config, machineName) === "concert-hall-kitasenju-neo-aim"
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
-    if (Number.isFinite(settingFivePlusProbability)) {
-      return games >= 3000 && settingFivePlusProbability >= 0.7;
-    }
-    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+    return Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability >= 0.7;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
@@ -4692,7 +4687,8 @@ function isMachineStrongBonusWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
     readMachineContentRule(config, machineName) === "concert-hall-kitasenju-neo-aim"
   ) {
-    return games >= 4000 && rbDenominator <= 280 && combinedDenominator <= 135;
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    return Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability >= 0.7;
   }
 
   return isMachineStrongHighContentWindowRow(row, machineName, config);
@@ -10700,6 +10696,14 @@ function calculateWindowMetrics(
   const recentFourteenCombinedLe140Count = recentFourteenRows.filter(
     (windowRow) => calculateCombinedDenominatorFromWindowRow(windowRow) <= 140,
   ).length;
+  const recentSevenMinDifference =
+    recentSevenRows.length > 0
+      ? Math.min(...recentSevenRows.map((windowRow) => readNumber(windowRow?.differenceValue)))
+      : 0;
+  const recentFourteenMaxDifference =
+    recentFourteenRows.length > 0
+      ? Math.max(...recentFourteenRows.map((windowRow) => readNumber(windowRow?.differenceValue)))
+      : 0;
   const recentTwentyOneMinDifference =
     recentTwentyOneRows.length > 0
       ? Math.min(...recentTwentyOneRows.map((windowRow) => readNumber(windowRow?.differenceValue)))
@@ -10811,6 +10815,8 @@ function calculateWindowMetrics(
     toyoHallNeoHistoryRowCountFromCsvStart,
     recentFiveBadMinus800Count,
     recentFourteenCombinedLe140Count,
+    recentSevenMinDifference,
+    recentFourteenMaxDifference,
     recentTwentyOneMinDifference,
     recentTwentyOneMaxDifference,
     machineNetTotalSinceBigWin1000,

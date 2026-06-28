@@ -158,10 +158,9 @@ const GRAND_SHIP_NEO_AIM_LOGIC_KEY = "grandship-neo-aim";
 const GRAND_SHIP_NEO_AIM_LOGIC_NAME = "NEO_GS_全日共通_100点ロジック";
 const GRAND_SHIP_NEO_AIM_DEFAULT_CONDITION = "grandship-neo-strong-nohigh28-semihigh3-7";
 const CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY = "concert-hall-kitasenju-neo-aim";
-const CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_NAME =
-  "コンサートホール北千住_ネオアイムEX_56狙い全日共通ロジック";
+const CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_NAME = "北千住NEO_全日共通_v1";
 const CONCERT_HALL_KITASENJU_NEO_AIM_DEFAULT_CONDITION =
-  "concert-hall-kitasenju-neo-weak70-boost2-safe";
+  "concert-hall-kitasenju-neo-main85";
 const KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY = "kyuden-annex-neo-aim";
 const KYUDEN_ANNEX_NEO_AIM_LOGIC_NAME = "キューデンアネックス_ネオアイムEX_全日共通_v1";
 const KYUDEN_ANNEX_NEO_AIM_DEFAULT_CONDITION = "kyuden-annex-neo-strong280";
@@ -285,7 +284,6 @@ const REMOVED_TOKYO_UNVERIFIED_NEO_AIM_LOGIC_KEYS = new Set([
   MARUHON_NEO_AIM_LOGIC_KEY,
   ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY,
   RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY,
-  CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY,
   KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY,
   JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY,
   NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY,
@@ -7910,45 +7908,29 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
-        "concert-hall-kitasenju-neo-best-rank1-85-gap12",
-        "最本命1位85次差12",
-        "15台 / RB1/263.0 / 合算1/124.8 / 平均+1263枚 / 107.19% / 勝率80.0% / 平均56 51.5% / 56>=50 53.3%",
+        "concert-hall-kitasenju-neo-wide82",
+        "北千住NEO_広め82",
+        "37台 / 34日 / G185774 / BB712 / RB610 / BB1/260.9 / RB1/304.5 / 合算1/140.5 / 平均+372.1枚 / 102.5% / 勝率40.5% / 平均56 35.3% / 56>=50 27.0%",
         {
-          rankMax: 1,
-          minScore: 85,
-          minNextGap: 12,
+          minScore: 82,
+          requiredFlags: ["concertHallKitasenjuNeoHistoryReady"],
+        },
+        [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "concert-hall-kitasenju-neo-weak84",
+        "北千住NEO_弱本84",
+        "32台 / 30日 / G165071 / BB647 / RB566 / BB1/255.1 / RB1/291.6 / 合算1/136.1 / 平均+564.4枚 / 103.6% / 勝率46.9% / 平均56 38.6% / 56>=50 31.2%",
+        {
+          minScore: 84,
           requiredFlags: ["concertHallKitasenjuNeoHistoryReady"],
         },
         [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         CONCERT_HALL_KITASENJU_NEO_AIM_DEFAULT_CONDITION,
-        "弱本命70強2危0",
-        "66台 / RB1/293.8 / 合算1/137.4 / 平均+441枚 / 102.83% / 勝率53.0% / 平均56 39.4% / 実戦主軸",
-        {
-          minScore: 70,
-          minBoost: 2,
-          maxDanger: 0,
-          requiredFlags: ["concertHallKitasenjuNeoHistoryReady"],
-        },
-        [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "concert-hall-kitasenju-neo-free-c-neighbor-show-low-games",
-        "自由C_近隣見せ場+低G取り残し",
-        "34台 / RB1/299.9 / 合算1/140.0 / 平均+339枚 / 102.37% / 勝率58.8% / 平均56 37.1% / 点数より優先可",
-        {
-          requiredFlags: [
-            "concertHallKitasenjuNeoHistoryReady",
-            "concertHallKitasenjuNeoFreeCNeighborShowLowGames",
-          ],
-        },
-        [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "concert-hall-kitasenju-neo-main85",
-        "本命85",
-        "26台 / RB1/286.1 / 合算1/132.9 / 平均+828枚 / 104.66% / 勝率69.2% / 平均56 43.6% / 件数注意",
+        "北千住NEO_本命85",
+        "31台 / 29日 / G159652 / BB625 / RB553 / BB1/255.4 / RB1/288.7 / 合算1/135.5 / 平均+591.0枚 / 103.8% / 勝率48.4% / 平均56 39.6% / 56>=50 32.3%",
         {
           minScore: 85,
           requiredFlags: ["concertHallKitasenjuNeoHistoryReady"],
@@ -7956,144 +7938,37 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
-        "concert-hall-kitasenju-neo-strong88",
-        "強88",
-        "20台 / RB1/279.2 / 合算1/132.4 / 平均+782枚 / 104.39% / 勝率65.0% / 平均56 45.8% / 件数少",
+        "concert-hall-kitasenju-neo-strong85-b6-d1",
+        "北千住NEO_強85_B6_D1",
+        "25台 / 23日 / G137971 / BB551 / RB491 / BB1/250.4 / RB1/281.0 / 合算1/132.4 / 平均+745.6枚 / 104.5% / 勝率52.0% / 平均56 43.5% / 56>=50 40.0%",
         {
-          minScore: 88,
+          minScore: 85,
+          minBoost: 6,
+          maxDanger: 1,
           requiredFlags: ["concertHallKitasenjuNeoHistoryReady"],
         },
         [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
-        "concert-hall-kitasenju-neo-free-e-rb7-450",
-        "自由E_7日REG不足450",
-        "15台 / RB1/293.7 / 合算1/134.9 / 平均+533枚 / 103.93% / 平均56 38.0% / 件数注意",
-        {
-          requiredFlags: ["concertHallKitasenjuNeoHistoryReady", "concertHallKitasenjuNeoRb7VeryShortage450"],
-        },
-        [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "concert-hall-kitasenju-neo-wide70",
-        "広め70",
-        "126台 / RB1/309.5 / 合算1/141.9 / 平均+273枚 / 101.80% / 勝率48.4% / 平均56 33.8%",
-        {
-          minScore: 70,
-          requiredFlags: ["concertHallKitasenjuNeoHistoryReady"],
-        },
-        [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "concert-hall-kitasenju-neo-free-b-neighbor-thin-high-g7",
-        "自由B_近隣薄+自台高G7",
-        "47台 / RB1/304.7 / 合算1/140.3 / 平均+428枚 / 102.90% / 平均56 33.3% / 本命候補",
+        "concert-hall-kitasenju-neo-best-21-output-rb-weak",
+        "北千住NEO_最本命_21出RB弱",
+        "20台 / 17日 / G108890 / BB404 / RB404 / BB1/269.5 / RB1/269.5 / 合算1/134.8 / 平均+448.2枚 / 102.7% / 勝率60.0% / 平均56 48.0% / 56>=50 50.0%",
         {
           requiredFlags: [
             "concertHallKitasenjuNeoHistoryReady",
-            "concertHallKitasenjuNeoFreeBNeighborThinHighG7",
+            "concertHallKitasenjuNeoBest21OutputRbWeak",
           ],
-        },
-        [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "concert-hall-kitasenju-neo-free-a-neighbor-sink-prev-rb619",
-        "自由A_近隣沈み+前日RB極悪",
-        "23台 / RB1/279.7 / 合算1/134.2 / 平均+513枚 / 103.50% / 特定日偏り注意",
-        {
-          requiredFlags: [
-            "concertHallKitasenjuNeoHistoryReady",
-            "concertHallKitasenjuNeoFreeANeighborSinkPrevRb619",
-          ],
-        },
-        [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "concert-hall-kitasenju-neo-watch-score70",
-        "見送り_70点未満",
-        "70点未満は期待RBが全体平均から十分改善しないため見送り寄り",
-        {
-          maxScore: 69.999,
-          requiredFlags: ["concertHallKitasenjuNeoHistoryReady"],
-        },
-        [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "concert-hall-kitasenju-neo-watch-rank1-gap7",
-        "見送り_1位次差8未満",
-        "日別1位でも次点差8点未満は独走性が弱い",
-        {
-          rankMax: 1,
-          maxNextGap: 7.999,
-          requiredFlags: ["concertHallKitasenjuNeoHistoryReady"],
         },
         [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "concert-hall-kitasenju-neo-watch-danger2",
-        "見送り_危険2以上",
-        "危険条件2個以上は処遇完了、長期放置、BB寄り出玉の可能性を重く見る",
+        "北千住NEO_見送り_Danger2",
+        "9台 / 9日 / G38547 / BB132 / RB109 / BB1/292.0 / RB1/353.6 / 合算1/159.9 / 平均-323.9枚 / 97.5% / 勝率44.4% / 平均56 23.2% / 56>=50 11.1%",
         {
+          minScore: 60,
           minDanger: 2,
           requiredFlags: ["concertHallKitasenjuNeoHistoryReady"],
-        },
-        [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "concert-hall-kitasenju-neo-watch-boost0",
-        "見送り_強化0",
-        "強化条件0個は点数があっても根拠が薄い",
-        {
-          maxBoost: 0,
-          requiredFlags: ["concertHallKitasenjuNeoHistoryReady"],
-        },
-        [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "concert-hall-kitasenju-neo-watch-history-short",
-        "見送り_履歴14日未満",
-        "履歴14日未満は採用条件対象外。最新日除外後の履歴が揃ってから見る",
-        {
-          requiredFlags: ["concertHallKitasenjuNeoHistoryShort"],
-        },
-        [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "concert-hall-kitasenju-neo-watch-low-games3",
-        "見送り_直近3日G不足",
-        "直近3日Gが7000未満は履歴信頼度が落ちる",
-        {
-          requiredFlags: ["concertHallKitasenjuNeoHistoryReady", "concertHallKitasenjuNeoLowGames3"],
-        },
-        [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "concert-hall-kitasenju-neo-watch-previous-bb-output",
-        "見送り_BB寄り処遇完了",
-        "前日+1500枚以上かつREGが重い台は出玉だけの処遇完了として注意",
-        {
-          requiredFlags: [
-            "concertHallKitasenjuNeoHistoryReady",
-            "concertHallKitasenjuNeoPreviousBigOutputWeakRb",
-          ],
-        },
-        [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "concert-hall-kitasenju-neo-watch-strong-bonus7",
-        "見送り_強内容やりすぎ",
-        "直近7日strongBonusが2回以上は見せすぎ後として注意",
-        {
-          requiredFlags: ["concertHallKitasenjuNeoHistoryReady", "concertHallKitasenjuNeoStrongBonus7Many"],
-        },
-        [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "concert-hall-kitasenju-neo-watch-long-neglect",
-        "見送り_長期放置",
-        "前回high50から21日以上、または21日以上high50なしは放置台化を疑う",
-        {
-          requiredFlags: ["concertHallKitasenjuNeoHistoryReady", "concertHallKitasenjuNeoLongNeglect"],
         },
         [CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY],
       ),
@@ -14632,7 +14507,6 @@ function isRemovedTokyoUnverifiedNeoAimStore(storeName) {
     isMaruhonStore,
     isOneTwoThreeNShinonomeStore,
     isRakuenAmeyokoStore,
-    isConcertHallKitasenjuStore,
     isKyudenAnnexStore,
     isJaranYazaikeStore,
     isNewGrandHokimaStore,
@@ -22444,131 +22318,132 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
     }
 
     if (activeLogicKey === CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY) {
-      const concertHallKitasenjuNeoHistoryReady = historyRowCount >= 14;
-      const concertHallKitasenjuNeoHistoryShort = historyRowCount < 14;
-      const concertHallKitasenjuNeoShortSink2 = recentTwoNetTotal <= -1272;
-      const concertHallKitasenjuNeoShortSink2Previous =
-        concertHallKitasenjuNeoShortSink2 && previousDifference <= -483;
-      const concertHallKitasenjuNeoSink3 = recentThreeNetTotal <= -3000;
-      const concertHallKitasenjuNeoSink5 = recentFiveNetTotal <= -2500;
-      const concertHallKitasenjuNeoRb7Shortage400 =
-        recentSevenGamesTotal >= 3000 && features.recentSevenRbDenominator > 400;
-      const concertHallKitasenjuNeoRb7VeryShortage450 =
-        recentSevenGamesTotal >= 3000 && features.recentSevenRbDenominator > 450;
-      const concertHallKitasenjuNeoRb5Shortage500 =
-        recentFiveGamesTotal >= 3000 && features.recentFiveRbDenominator > 500;
-      const concertHallKitasenjuNeoNeighbor7Sink1780 = adjacentMachineNetTotal7Near2 <= -1780;
-      const concertHallKitasenjuNeoFreeANeighborSinkPrevRb619 =
-        concertHallKitasenjuNeoNeighbor7Sink1780 &&
-        previousGames > 0 &&
-        features.previousRbDenominator > 619;
-      const concertHallKitasenjuNeoNeighborPreviousSink1291 = previousAdjacentMachineNetTotal <= -1291;
-      const concertHallKitasenjuNeoFreeBNeighborThinHighG7 =
-        adjacentMachineGoodContentCount7Near2 <= 1 && recentSevenGamesTotal > 36951;
-      const concertHallKitasenjuNeoFreeCNeighborShowLowGames =
-        adjacentMachineGoodContentCount7Near2 > 1 &&
-        recentThreeGamesTotal <= 14060 &&
-        adjacentMachineNetTotal3Near2 > 2925;
-      const concertHallKitasenjuNeoLowGames3 = recentThreeGamesTotal < 7000;
-      const concertHallKitasenjuNeoLowGames3Candidate = recentThreeGamesTotal <= 11264;
-      const concertHallKitasenjuNeoPreviousLowGames = previousGames > 0 && previousGames <= 2991;
-      const concertHallKitasenjuNeoPreviousHighGamesSink =
-        previousGames >= 5000 && previousDifference < 0;
-      const concertHallKitasenjuNeoPreviousModerateSink =
-        previousDifference > -758 && previousDifference <= -224;
-      const concertHallKitasenjuNeoPreviousStrongRbContinuation =
-        previousDifference >= 1500 && features.previousRbDenominator <= 310;
-      const concertHallKitasenjuNeoPreviousHigh50Output =
-        previousMachineHighContent && previousDifference >= 1500;
-      const concertHallKitasenjuNeoRecent5Output = recentFiveNetTotal >= 4000;
-      const concertHallKitasenjuNeoRecent14Output = recentFourteenNetTotal >= 5000;
-      const concertHallKitasenjuNeoLosing6 = streak >= 6;
-      const concertHallKitasenjuNeoLosing3 = streak === 3;
-      const concertHallKitasenjuNeoInterval6To8 =
-        Number.isFinite(daysSinceMachineHighContent) &&
-        daysSinceMachineHighContent >= 6 &&
-        daysSinceMachineHighContent <= 8;
-      const concertHallKitasenjuNeoInterval13To20 =
-        Number.isFinite(daysSinceMachineHighContent) &&
-        daysSinceMachineHighContent >= 13 &&
-        daysSinceMachineHighContent <= 20;
-      const concertHallKitasenjuNeoInterval2To3 =
-        Number.isFinite(daysSinceMachineHighContent) &&
-        daysSinceMachineHighContent >= 2 &&
-        daysSinceMachineHighContent <= 3;
-      const concertHallKitasenjuNeoInterval9To12 =
-        Number.isFinite(daysSinceMachineHighContent) &&
-        daysSinceMachineHighContent >= 9 &&
-        daysSinceMachineHighContent <= 12;
-      const concertHallKitasenjuNeoLongNeglect =
-        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 21) ||
-        (!Number.isFinite(daysSinceMachineHighContent) &&
-          historyRowCount >= 21 &&
-          recentTwentyOneMachineHighContentCount === 0);
-      const concertHallKitasenjuNeoStrongBonus7Many = recentSevenMachineStrongBonusCount >= 2;
-      const concertHallKitasenjuNeoPreviousBigOutputWeakRb =
-        previousDifference >= 1500 && features.previousRbDenominator > 330;
-      const concertHallKitasenjuNeoGoodBonus14Crowded =
-        recentFourteenMachineGoodContentCount >= 4 && recentFourteenMachineGoodContentCount <= 5;
+      const concertHallKitasenjuNeoHistoryReady = historyRowCount >= 21;
+      const concertHallKitasenjuNeoHistoryShort = historyRowCount < 21;
+      const concertHallKitasenjuNeoBb7 = readNumber(metrics.recentSevenBbTotal);
+      const concertHallKitasenjuNeoRb7 = readNumber(metrics.recentSevenRbTotal);
+      const concertHallKitasenjuNeoBb14 = readNumber(metrics.recentFourteenBbTotal);
+      const concertHallKitasenjuNeoRb14 = readNumber(metrics.recentFourteenRbTotal);
+      const concertHallKitasenjuNeoBonus7 = concertHallKitasenjuNeoBb7 + concertHallKitasenjuNeoRb7;
+      const concertHallKitasenjuNeoBonus14 = concertHallKitasenjuNeoBb14 + concertHallKitasenjuNeoRb14;
+      const concertHallKitasenjuNeoRbRate7 =
+        concertHallKitasenjuNeoRb7 > 0 ? recentSevenGamesTotal / concertHallKitasenjuNeoRb7 : null;
+      const concertHallKitasenjuNeoCombined7 =
+        concertHallKitasenjuNeoBonus7 > 0 ? recentSevenGamesTotal / concertHallKitasenjuNeoBonus7 : null;
+      const concertHallKitasenjuNeoCombined14 =
+        concertHallKitasenjuNeoBonus14 > 0 ? recentFourteenGamesTotal / concertHallKitasenjuNeoBonus14 : null;
+      const concertHallKitasenjuNeoMinDiff7 = readNumber(metrics.recentSevenMinDifference);
+      const concertHallKitasenjuNeoMaxDiff14 = readNumber(metrics.recentFourteenMaxDifference);
+      const concertHallKitasenjuNeoDaysSinceSemi30 = Number.isFinite(daysSinceMachineGoodContent)
+        ? daysSinceMachineGoodContent
+        : historyRowCount + 1;
+      const concertHallKitasenjuNeoDaysSinceHigh50 = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : historyRowCount + 1;
+      const concertHallKitasenjuNeoLossStreak = historyLosingStreak;
+      const concertHallKitasenjuNeoPrevP56 = previousMachineSettingFivePlusProbability;
+
+      const concertHallKitasenjuNeoSemi30Past7 = concertHallKitasenjuNeoDaysSinceSemi30 >= 7;
+      const concertHallKitasenjuNeoSemi30Past14 = concertHallKitasenjuNeoDaysSinceSemi30 >= 14;
+      const concertHallKitasenjuNeoG7Le28000 = recentSevenGamesTotal <= 28000;
+      const concertHallKitasenjuNeoG7Le24000 = recentSevenGamesTotal <= 24000;
+      const concertHallKitasenjuNeoRb7Weak400 =
+        Number.isFinite(concertHallKitasenjuNeoRbRate7) && concertHallKitasenjuNeoRbRate7 >= 400;
+      const concertHallKitasenjuNeoRb7Weak350 =
+        Number.isFinite(concertHallKitasenjuNeoRbRate7) && concertHallKitasenjuNeoRbRate7 >= 350;
+      const concertHallKitasenjuNeoCombined7Weak170 =
+        Number.isFinite(concertHallKitasenjuNeoCombined7) && concertHallKitasenjuNeoCombined7 >= 170;
+      const concertHallKitasenjuNeoCombined7Weak160 =
+        Number.isFinite(concertHallKitasenjuNeoCombined7) && concertHallKitasenjuNeoCombined7 >= 160;
+      const concertHallKitasenjuNeoDiff21Strong5000 = recentTwentyOneNetTotal >= 5000;
+      const concertHallKitasenjuNeoDiff21Good3000 = recentTwentyOneNetTotal >= 3000;
+      const concertHallKitasenjuNeoDiff21NonNegative = recentTwentyOneNetTotal >= 0;
+      const concertHallKitasenjuNeoLoss4 = concertHallKitasenjuNeoLossStreak >= 4;
+      const concertHallKitasenjuNeoLoss3 = concertHallKitasenjuNeoLossStreak >= 3;
+      const concertHallKitasenjuNeoLoss2 = concertHallKitasenjuNeoLossStreak === 2;
+      const concertHallKitasenjuNeoMinDiff7Deep2000 = concertHallKitasenjuNeoMinDiff7 <= -2000;
+      const concertHallKitasenjuNeoMinDiff7Medium1500 = concertHallKitasenjuNeoMinDiff7 <= -1500;
+      const concertHallKitasenjuNeoHigh50Past10 = concertHallKitasenjuNeoDaysSinceHigh50 >= 10;
+      const concertHallKitasenjuNeoMaxDiff14Show1500 = concertHallKitasenjuNeoMaxDiff14 >= 1500;
+      const concertHallKitasenjuNeoHigh7Many = recentSevenMachineHighContentCount >= 2;
+      const concertHallKitasenjuNeoHigh14Many = recentFourteenMachineHighContentCount >= 3;
+      const concertHallKitasenjuNeoRb7AlreadyGood =
+        Number.isFinite(concertHallKitasenjuNeoRbRate7) && concertHallKitasenjuNeoRbRate7 <= 320;
+      const concertHallKitasenjuNeoCombined14Weak160 =
+        Number.isFinite(concertHallKitasenjuNeoCombined14) && concertHallKitasenjuNeoCombined14 >= 160;
+      const concertHallKitasenjuNeoSemi30Recent2 = concertHallKitasenjuNeoDaysSinceSemi30 <= 2;
+      const concertHallKitasenjuNeoPreviousStrongOutput =
+        Number.isFinite(concertHallKitasenjuNeoPrevP56) &&
+        concertHallKitasenjuNeoPrevP56 >= 0.7 &&
+        previousDifference >= 1500;
+      const concertHallKitasenjuNeoPreviousOutputP56Weak =
+        Number.isFinite(concertHallKitasenjuNeoPrevP56) &&
+        previousDifference >= 1500 &&
+        concertHallKitasenjuNeoPrevP56 < 0.3;
+      const concertHallKitasenjuNeoBest21OutputRbWeak =
+        concertHallKitasenjuNeoDiff21Strong5000 && concertHallKitasenjuNeoRb7Weak350;
       const boostFlags = [
-        concertHallKitasenjuNeoRb7Shortage400,
-        concertHallKitasenjuNeoRb7VeryShortage450,
-        concertHallKitasenjuNeoNeighbor7Sink1780,
-        concertHallKitasenjuNeoFreeBNeighborThinHighG7,
-        concertHallKitasenjuNeoFreeCNeighborShowLowGames,
-        concertHallKitasenjuNeoShortSink2,
-        concertHallKitasenjuNeoPreviousHighGamesSink,
-        concertHallKitasenjuNeoPreviousStrongRbContinuation,
+        concertHallKitasenjuNeoSemi30Past7,
+        concertHallKitasenjuNeoG7Le28000,
+        concertHallKitasenjuNeoRb7Weak350,
+        concertHallKitasenjuNeoCombined7Weak160,
+        concertHallKitasenjuNeoDiff21Good3000,
+        concertHallKitasenjuNeoLoss3,
+        concertHallKitasenjuNeoMinDiff7Medium1500,
+        concertHallKitasenjuNeoHigh50Past10,
+        concertHallKitasenjuNeoMaxDiff14Show1500,
       ];
       const dangerFlags = [
-        concertHallKitasenjuNeoStrongBonus7Many,
-        concertHallKitasenjuNeoPreviousBigOutputWeakRb,
-        concertHallKitasenjuNeoInterval2To3,
-        concertHallKitasenjuNeoInterval9To12,
-        concertHallKitasenjuNeoLongNeglect,
-        concertHallKitasenjuNeoGoodBonus14Crowded,
-        concertHallKitasenjuNeoHistoryShort,
-        concertHallKitasenjuNeoLowGames3,
+        concertHallKitasenjuNeoHigh7Many,
+        concertHallKitasenjuNeoHigh14Many,
+        concertHallKitasenjuNeoRb7AlreadyGood,
+        concertHallKitasenjuNeoCombined14Weak160,
+        concertHallKitasenjuNeoSemi30Recent2,
+        concertHallKitasenjuNeoPreviousStrongOutput,
+        concertHallKitasenjuNeoPreviousOutputP56Weak,
       ];
 
       return {
         ...features,
         concertHallKitasenjuNeoHistoryReady,
         concertHallKitasenjuNeoHistoryShort,
-        concertHallKitasenjuNeoShortSink2,
-        concertHallKitasenjuNeoShortSink2Previous,
-        concertHallKitasenjuNeoSink3,
-        concertHallKitasenjuNeoSink5,
-        concertHallKitasenjuNeoRb7Shortage400,
-        concertHallKitasenjuNeoRb7VeryShortage450,
-        concertHallKitasenjuNeoRb5Shortage500,
-        concertHallKitasenjuNeoNeighbor7Sink1780,
-        concertHallKitasenjuNeoFreeANeighborSinkPrevRb619,
-        concertHallKitasenjuNeoNeighborPreviousSink1291,
-        concertHallKitasenjuNeoFreeBNeighborThinHighG7,
-        concertHallKitasenjuNeoFreeCNeighborShowLowGames,
-        concertHallKitasenjuNeoLowGames3,
-        concertHallKitasenjuNeoLowGames3Candidate,
-        concertHallKitasenjuNeoPreviousLowGames,
-        concertHallKitasenjuNeoPreviousHighGamesSink,
-        concertHallKitasenjuNeoPreviousModerateSink,
-        concertHallKitasenjuNeoPreviousStrongRbContinuation,
-        concertHallKitasenjuNeoPreviousHigh50Output,
-        concertHallKitasenjuNeoRecent5Output,
-        concertHallKitasenjuNeoRecent14Output,
-        concertHallKitasenjuNeoLosing6,
-        concertHallKitasenjuNeoLosing3,
-        concertHallKitasenjuNeoInterval6To8,
-        concertHallKitasenjuNeoInterval13To20,
-        concertHallKitasenjuNeoInterval2To3,
-        concertHallKitasenjuNeoInterval9To12,
-        concertHallKitasenjuNeoLongNeglect,
-        concertHallKitasenjuNeoStrongBonus7Many,
-        concertHallKitasenjuNeoPreviousBigOutputWeakRb,
-        concertHallKitasenjuNeoGoodBonus14Crowded,
+        concertHallKitasenjuNeoRbRate7,
+        concertHallKitasenjuNeoCombined7,
+        concertHallKitasenjuNeoCombined14,
+        concertHallKitasenjuNeoMinDiff7,
+        concertHallKitasenjuNeoMaxDiff14,
+        concertHallKitasenjuNeoDaysSinceSemi30,
+        concertHallKitasenjuNeoDaysSinceHigh50,
+        concertHallKitasenjuNeoLossStreak,
+        concertHallKitasenjuNeoSemi30Past7,
+        concertHallKitasenjuNeoSemi30Past14,
+        concertHallKitasenjuNeoG7Le28000,
+        concertHallKitasenjuNeoG7Le24000,
+        concertHallKitasenjuNeoRb7Weak400,
+        concertHallKitasenjuNeoRb7Weak350,
+        concertHallKitasenjuNeoCombined7Weak170,
+        concertHallKitasenjuNeoCombined7Weak160,
+        concertHallKitasenjuNeoDiff21Strong5000,
+        concertHallKitasenjuNeoDiff21Good3000,
+        concertHallKitasenjuNeoDiff21NonNegative,
+        concertHallKitasenjuNeoLoss4,
+        concertHallKitasenjuNeoLoss3,
+        concertHallKitasenjuNeoLoss2,
+        concertHallKitasenjuNeoMinDiff7Deep2000,
+        concertHallKitasenjuNeoMinDiff7Medium1500,
+        concertHallKitasenjuNeoHigh50Past10,
+        concertHallKitasenjuNeoMaxDiff14Show1500,
+        concertHallKitasenjuNeoHigh7Many,
+        concertHallKitasenjuNeoHigh14Many,
+        concertHallKitasenjuNeoRb7AlreadyGood,
+        concertHallKitasenjuNeoCombined14Weak160,
+        concertHallKitasenjuNeoSemi30Recent2,
+        concertHallKitasenjuNeoPreviousStrongOutput,
+        concertHallKitasenjuNeoPreviousOutputP56Weak,
+        concertHallKitasenjuNeoBest21OutputRbWeak,
         treatmentDone:
-          concertHallKitasenjuNeoPreviousBigOutputWeakRb || concertHallKitasenjuNeoStrongBonus7Many,
-        lowConfidence: concertHallKitasenjuNeoHistoryShort || concertHallKitasenjuNeoLowGames3,
+          concertHallKitasenjuNeoPreviousStrongOutput || concertHallKitasenjuNeoPreviousOutputP56Weak,
+        lowConfidence: concertHallKitasenjuNeoHistoryShort,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -32133,39 +32008,49 @@ function calculateMachineScore(definition, metrics, features) {
     if (activeLogicKey === CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY) {
       let score = 40;
 
-      score += features.concertHallKitasenjuNeoShortSink2 ? 12 : 0;
-      score += features.concertHallKitasenjuNeoShortSink2Previous ? 5 : 0;
-      score += features.concertHallKitasenjuNeoSink3 ? 6 : 0;
-      score += features.concertHallKitasenjuNeoSink5 ? 4 : 0;
-      score += features.concertHallKitasenjuNeoRb7Shortage400 ? 8 : 0;
-      score += features.concertHallKitasenjuNeoRb7VeryShortage450 ? 7 : 0;
-      score += features.concertHallKitasenjuNeoRb5Shortage500 ? 5 : 0;
-      score += features.concertHallKitasenjuNeoNeighbor7Sink1780 ? 9 : 0;
-      score += features.concertHallKitasenjuNeoFreeANeighborSinkPrevRb619 ? 8 : 0;
-      score += features.concertHallKitasenjuNeoNeighborPreviousSink1291 ? 5 : 0;
-      score += features.concertHallKitasenjuNeoFreeBNeighborThinHighG7 ? 8 : 0;
-      score += features.concertHallKitasenjuNeoFreeCNeighborShowLowGames ? 10 : 0;
-      score += features.concertHallKitasenjuNeoLowGames3Candidate ? 6 : 0;
-      score += features.concertHallKitasenjuNeoPreviousLowGames ? 5 : 0;
-      score += features.concertHallKitasenjuNeoPreviousHighGamesSink ? 6 : 0;
-      score += features.concertHallKitasenjuNeoPreviousModerateSink ? 6 : 0;
-      score += features.concertHallKitasenjuNeoPreviousStrongRbContinuation ? 7 : 0;
-      score += features.concertHallKitasenjuNeoPreviousHigh50Output ? 4 : 0;
-      score += features.concertHallKitasenjuNeoRecent5Output ? 5 : 0;
-      score += features.concertHallKitasenjuNeoRecent14Output ? 5 : 0;
-      score += features.concertHallKitasenjuNeoLosing6 ? 8 : 0;
-      score += features.concertHallKitasenjuNeoLosing3 ? 5 : 0;
-      score += features.concertHallKitasenjuNeoInterval6To8 ? 5 : 0;
-      score += features.concertHallKitasenjuNeoInterval13To20 ? 4 : 0;
+      score += features.concertHallKitasenjuNeoSemi30Past7 ? 14 : 0;
+      score += features.concertHallKitasenjuNeoSemi30Past14 ? 4 : 0;
+      score += features.concertHallKitasenjuNeoG7Le28000 ? 10 : 0;
+      score += features.concertHallKitasenjuNeoG7Le24000 ? 4 : 0;
+      score += features.concertHallKitasenjuNeoRb7Weak400
+        ? 12
+        : features.concertHallKitasenjuNeoRb7Weak350
+          ? 6
+          : 0;
+      score += features.concertHallKitasenjuNeoCombined7Weak170
+        ? 8
+        : features.concertHallKitasenjuNeoCombined7Weak160
+          ? 4
+          : 0;
+      score += features.concertHallKitasenjuNeoDiff21Strong5000
+        ? 10
+        : features.concertHallKitasenjuNeoDiff21Good3000
+          ? 6
+          : features.concertHallKitasenjuNeoDiff21NonNegative
+            ? 3
+            : 0;
+      score += features.concertHallKitasenjuNeoLoss4
+        ? 8
+        : features.concertHallKitasenjuNeoLoss3
+          ? 6
+          : features.concertHallKitasenjuNeoLoss2
+            ? 3
+            : 0;
+      score += features.concertHallKitasenjuNeoMinDiff7Deep2000
+        ? 7
+        : features.concertHallKitasenjuNeoMinDiff7Medium1500
+          ? 5
+          : 0;
+      score += features.concertHallKitasenjuNeoHigh50Past10 ? 5 : 0;
+      score += features.concertHallKitasenjuNeoMaxDiff14Show1500 ? 3 : 0;
 
-      score -= features.concertHallKitasenjuNeoStrongBonus7Many ? 12 : 0;
-      score -= features.concertHallKitasenjuNeoPreviousBigOutputWeakRb ? 8 : 0;
-      score -= features.concertHallKitasenjuNeoInterval2To3 ? 4 : 0;
-      score -= features.concertHallKitasenjuNeoInterval9To12 ? 5 : 0;
-      score -= features.concertHallKitasenjuNeoLongNeglect ? 7 : 0;
-      score -= features.concertHallKitasenjuNeoGoodBonus14Crowded ? 5 : 0;
-      score -= features.concertHallKitasenjuNeoHistoryShort ? 15 : 0;
-      score -= features.concertHallKitasenjuNeoLowGames3 ? 8 : 0;
+      score -= features.concertHallKitasenjuNeoHigh7Many ? 10 : 0;
+      score -= features.concertHallKitasenjuNeoHigh14Many ? 6 : 0;
+      score -= features.concertHallKitasenjuNeoRb7AlreadyGood ? 8 : 0;
+      score -= features.concertHallKitasenjuNeoCombined14Weak160 ? 5 : 0;
+      score -= features.concertHallKitasenjuNeoSemi30Recent2 ? 6 : 0;
+      score -= features.concertHallKitasenjuNeoPreviousStrongOutput ? 8 : 0;
+      score -= features.concertHallKitasenjuNeoPreviousOutputP56Weak ? 4 : 0;
 
       return Math.round(clamp(score, 0, 100));
     }
