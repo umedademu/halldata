@@ -200,6 +200,54 @@ const EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_NAME =
   "エクスアリーナ東京_ネオアイムジャグラーEX_特定日_RB周辺密度ロジック";
 const EX_ARENA_TOKYO_NEO_AIM_EVENT_DEFAULT_CONDITION = "ex-arena-tokyo-neo-event-rb290";
 
+const REMOVED_TOKYO_UNVERIFIED_NEO_AIM_LOGIC_KEYS = new Set([
+  KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY,
+  PRIME_HIRAI_NEO_AIM_LOGIC_KEY,
+  PALAZZO_KASAI_NEO_AIM_LOGIC_KEY,
+  PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_KEY,
+  PALAZZO_KASAI_NEO_AIM_EVENT_LOGIC_KEY,
+  BELLCITY_SHINOZAKI_NEO_AIM_LOGIC_KEY,
+  BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY,
+  "million-tobu-nerima-neo-aim",
+  "jaran-mizumoto-neo-aim",
+  "espace-ueno-neo-aim",
+  "espace-shinkoiwa-north-neo-aim",
+  MARUHON_NEO_AIM_LOGIC_KEY,
+  GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY,
+  ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY,
+  RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY,
+  CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY,
+  KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY,
+  JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY,
+  NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY,
+  NEW_CROWN_AYASE_NEO_AIM_LOGIC_KEY,
+  PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY,
+  PARK_KITASENJU_NEO_AIM_LOGIC_KEY,
+  PARK_KITASENJU_SSS_NEO_AIM_LOGIC_KEY,
+  PARK_KITAYASE_NEO_AIM_LOGIC_KEY,
+  MITOYA_KINSHICHO_NEO_AIM_LOGIC_KEY,
+  MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY,
+  MITOYA_JACKPOT_KINSHICHO_NEO_AIM_LOGIC_KEY,
+  MITOYA_ASAKUSA_SENZOKU_NEO_AIM_LOGIC_KEY,
+  EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY,
+  EX_ARENA_TOKYO_NEO_AIM_NORMAL_LOGIC_KEY,
+  EX_ARENA_TOKYO_NEO_AIM_EVENT_LOGIC_KEY,
+  "messe-minamisenju-neo-aim",
+  "messe-nishikasai-neo-aim",
+  "fortune-ohanajaya-neo-aim",
+  "kintoki-kamata-neo-aim",
+  "iidabashi-presas-neo-aim",
+  "iidabashi-presas-neo-aim-normal",
+  "iidabashi-presas-neo-aim-event",
+  "yasuda-hibarigaoka-neo-aim",
+  "sengawa-uno-neo-aim",
+  MINOWA_UNO_NEO_AIM_LOGIC_KEY,
+  TOYO_HALL_NEO_AIM_LOGIC_KEY,
+  GRAND_SHIP_NEO_AIM_LOGIC_KEY,
+  GRAND_SHIP_NEO_AIM_NORMAL_LOGIC_KEY,
+  GRAND_SHIP_NEO_AIM_EVENT_LOGIC_KEY,
+]);
+
 function normalizeText(value) {
   return String(value ?? "").trim();
 }
@@ -3861,10 +3909,16 @@ function listDefinitionLogics(definition) {
   if (!definition) {
     return [];
   }
+  const filterRemovedLogics = (logics) =>
+    logics.filter(
+      (logic) => !REMOVED_TOKYO_UNVERIFIED_NEO_AIM_LOGIC_KEYS.has(normalizeText(logic?.key)),
+    );
   if (Array.isArray(definition.logics) && definition.logics.length > 0) {
-    return definition.logics;
+    return filterRemovedLogics(definition.logics);
   }
-  return [buildLogicVariant(definition.logicKey, definition.logicName, definition.defaultConditionSuffix)];
+  return filterRemovedLogics([
+    buildLogicVariant(definition.logicKey, definition.logicName, definition.defaultConditionSuffix),
+  ]);
 }
 
 function findLogicDefinition(definition, logicKey) {
@@ -3877,6 +3931,9 @@ function findLogicDefinition(definition, logicKey) {
 
 function listConditionDefinitions(definition, logicKey = "") {
   const normalizedLogicKey = normalizeText(logicKey);
+  if (REMOVED_TOKYO_UNVERIFIED_NEO_AIM_LOGIC_KEYS.has(normalizedLogicKey)) {
+    return [];
+  }
   return (Array.isArray(definition?.conditions) ? definition.conditions : []).filter((condition) => {
     if (!Array.isArray(condition.logicKeys) || condition.logicKeys.length === 0) {
       return true;
@@ -15837,6 +15894,48 @@ function buildMachineNameDefinitionEntries() {
 
 const DEFINITION_BY_MACHINE_NAME = new Map(buildMachineNameDefinitionEntries());
 
+function isRemovedTokyoUnverifiedNeoAimStore(storeName) {
+  return [
+    isKiconaHiraiStore,
+    isPrimeHiraiStore,
+    isPalazzoKasaiStore,
+    isBellCityShinozakiStore,
+    isBellCityTheCityShinozakiStore,
+    isMillionTobuNerimaStore,
+    isJaranMizumotoStore,
+    isEspaceUenoStore,
+    isEspaceShinkoiwaNorthStore,
+    isMaruhonStore,
+    isGaiaHikifuneStore,
+    isOneTwoThreeNShinonomeStore,
+    isRakuenAmeyokoStore,
+    isConcertHallKitasenjuStore,
+    isKyudenAnnexStore,
+    isJaranYazaikeStore,
+    isNewGrandHokimaStore,
+    isNewCrownAyaseStore,
+    isParkTakenotsukaStudioStore,
+    isParkKitasenjuStore,
+    isParkKitasenjuSssStore,
+    isParkKitayaseStore,
+    isMitoyaKinshichoStore,
+    isMitoyaKinshichoSouthStore,
+    isMitoyaJackpotKinshichoStore,
+    isMitoyaAsakusaSenzokuStore,
+    isExArenaTokyoStore,
+    isMesseMinamisenjuStore,
+    isMesseNishikasaiStore,
+    isFortuneOhanajayaStore,
+    isKintokiKamataStore,
+    isIidabashiPresasStore,
+    isYasudaHibarigaokaStore,
+    isSengawaUnoStore,
+    isMinowaUnoStore,
+    isToyoHallStore,
+    isGrandShipStore,
+  ].some((matcher) => matcher(storeName));
+}
+
 function findMachineDefinition(machineName) {
   return DEFINITION_BY_MACHINE_NAME.get(normalizeMachineNameText(machineName)) ?? null;
 }
@@ -16199,6 +16298,8 @@ export function buildStoreMachineEvaluationSettings(storeName, machineNames = []
   return safeMachineNames.map((machineName) => {
     const definition = findMachineDefinition(machineName);
     const machineKey = definition?.machineKey ?? `custom:${normalizeMachineNameText(machineName)}`;
+    const removedTokyoUnverifiedNeoAim =
+      definition?.machineKey === "neo-aim" && isRemovedTokyoUnverifiedNeoAimStore(storeName);
     const defaultSetting = getDefaultSetting(definition, storeName);
     const rawOverride = definition ? cookieMachines[definition.machineKey] : null;
     const overrideSetting = rawOverride
@@ -16215,6 +16316,21 @@ export function buildStoreMachineEvaluationSettings(storeName, machineNames = []
       ? overrideNormalizedSetting
       : defaultNormalizedSetting;
     const condition = findConditionDefinition(definition, currentSetting.conditionKey, currentSetting.logicKey);
+    if (removedTokyoUnverifiedNeoAim) {
+      return {
+        machineKey,
+        machineName,
+        hasDefinition: Boolean(definition),
+        logicKey: "",
+        conditionKey: "",
+        defaultLogicKey: "",
+        defaultConditionKey: "",
+        logicOptions: buildLogicOptions(null),
+        conditionOptions: buildConditionOptions(null, ""),
+        selectedConditionLabel: "",
+        selectedBacktestLabel: "",
+      };
+    }
 
     return {
       machineKey,
