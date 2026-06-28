@@ -174,6 +174,10 @@ const APARK_KASUGA_TARGET_MACHINES = [
   ...OTHER_TARGET_MACHINES,
 ];
 
+const FORTUNE_OHANAJAYA_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const PARLOR_ASAHI_TARGET_MACHINES = [
   {
     name: "SアイムジャグラーＥＸ",
@@ -1325,6 +1329,16 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "ex-arena-tokyo-neo-aim",
       "ネオアイムジャグラーＥＸ": "ex-arena-tokyo-neo-aim",
+    },
+  },
+  {
+    key: "fortune-ohanajaya",
+    storeNames: ["フォーチュンお花茶屋店", "フォーチュンお花茶屋"],
+    targetMachines: FORTUNE_OHANAJAYA_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "fortune-ohanajaya-neo-aim",
+      "ネオアイムジャグラーＥＸ": "fortune-ohanajaya-neo-aim",
     },
   },
   {
@@ -2906,6 +2920,16 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 140;
     }
+    if (contentRule === "fortune-ohanajaya-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return (
+          (games >= 3000 && settingFivePlusProbability >= 0.5) ||
+          (games >= 4000 && rbDenominator <= 280 && combinedDenominator <= 140)
+        );
+      }
+      return games >= 4000 && rbDenominator <= 280 && combinedDenominator <= 140;
+    }
     if (contentRule === "kintoki-kamata-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -3562,6 +3586,16 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
         ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability >= 0.3) ||
           (rbDenominator <= 330 && combinedDenominator <= 150))
       );
+    }
+    if (contentRule === "fortune-ohanajaya-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return (
+          (games >= 2000 && settingFivePlusProbability >= 0.3) ||
+          (games >= 3000 && rbDenominator <= 315 && combinedDenominator <= 145)
+        );
+      }
+      return games >= 3000 && rbDenominator <= 315 && combinedDenominator <= 145;
     }
     if (contentRule === "kintoki-kamata-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -4437,6 +4471,19 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 5000 && settingFivePlusProbability >= 0.7;
     }
     return games >= 5000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "fortune-ohanajaya-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return (
+        (games >= 4000 && settingFivePlusProbability >= 0.7) ||
+        (games >= 5500 && rbDenominator <= 240 && combinedDenominator <= 135)
+      );
+    }
+    return games >= 5500 && rbDenominator <= 240 && combinedDenominator <= 135;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
@@ -9845,6 +9892,7 @@ function calculateWindowMetrics(
   const recentTwentyOneMinus11333StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 21, -11333);
   const recentFiveAngleMinus80StayDays = countConsecutiveRollingAngleThresholdDays(historyWindowRows, 5, -80);
   const recentThreeLossDays = recentThreeRows.filter((windowRow) => windowRow.differenceValue < 0).length;
+  const recentThreeWinDays = recentThreeRows.filter((windowRow) => windowRow.differenceValue > 0).length;
   const recentFourLossDays = recentFourRows.filter((windowRow) => windowRow.differenceValue < 0).length;
   const recentSevenLossDays = recentSevenRows.filter((windowRow) => windowRow.differenceValue < 0).length;
   const recentFourteenLossDays = recentFourteenRows.filter((windowRow) => windowRow.differenceValue < 0).length;
@@ -10738,6 +10786,7 @@ function calculateWindowMetrics(
     recentTwentyOneMinus11333StayDays,
     recentFiveAngleMinus80StayDays,
     recentThreeLossDays,
+    recentThreeWinDays,
     recentFourLossDays,
     recentSevenLossDays,
     recentFourteenLossDays,
