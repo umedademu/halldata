@@ -2899,11 +2899,12 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
         return (
-          (games >= 5000 && settingFivePlusProbability >= 0.5) ||
-          (games >= 3000 && rbDenominator <= 285 && combinedDenominator <= 140)
+          games >= 3000 &&
+          (settingFivePlusProbability >= 0.5 ||
+            (rbDenominator <= 300 && combinedDenominator <= 140))
         );
       }
-      return games >= 3000 && rbDenominator <= 285 && combinedDenominator <= 140;
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 140;
     }
     if (contentRule === "kintoki-kamata-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -3557,8 +3558,9 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     if (contentRule === "ex-arena-tokyo-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       return (
-        (Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability >= 0.35) ||
-        (games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145)
+        games >= 2500 &&
+        ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability >= 0.3) ||
+          (rbDenominator <= 330 && combinedDenominator <= 150))
       );
     }
     if (contentRule === "kintoki-kamata-neo-aim") {
@@ -4432,9 +4434,9 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     if (Number.isFinite(settingFivePlusProbability)) {
-      return games >= 5500 && settingFivePlusProbability >= 0.7 && combinedDenominator <= 135;
+      return games >= 5000 && settingFivePlusProbability >= 0.7;
     }
-    return games >= 5500 && rbDenominator <= 270 && combinedDenominator <= 135;
+    return games >= 5000 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
@@ -10327,6 +10329,9 @@ function calculateWindowMetrics(
   const recentTwentyOneMachineStrongHighContentCount = historyWindowRows
     .slice(-21)
     .filter(isHistoryMachineStrongHighContentWindowRow).length;
+  const recentTwentyEightMachineStrongHighContentCount = historyWindowRows
+    .slice(-28)
+    .filter(isHistoryMachineStrongHighContentWindowRow).length;
   const previousMachineHighContent = isMachineHighContentWindowRow(metricWindowRows.at(-1), currentMachineName, config);
   const previousMachineGoodContent = isMachineGoodContentWindowRow(metricWindowRows.at(-1), currentMachineName, config);
   const previousMachineWeakContent = isMachineWeakContentWindowRow(metricWindowRows.at(-1), currentMachineName, config);
@@ -10842,6 +10847,7 @@ function calculateWindowMetrics(
     recentSevenMachineStrongBonusCount,
     recentFourteenMachineStrongHighContentCount,
     recentTwentyOneMachineStrongHighContentCount,
+    recentTwentyEightMachineStrongHighContentCount,
     previousMachineHighContent,
     previousMachineGoodContent,
     previousMachineWeakContent,
