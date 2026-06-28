@@ -22,6 +22,7 @@ import {
   buildCombinedHuntScoreSnapshots,
   buildHuntScoreSnapshots,
   canonicalHuntScoreTargetMachineName,
+  findHuntScoreStoreConfig,
   getHuntScoreLogicDetail,
   getHuntScoreLogicDetails,
   isHuntScoreTargetStore,
@@ -2964,6 +2965,41 @@ function normalizeHuntScoreCacheLogicKeys(logicKeys) {
   ].sort();
 }
 
+function normalizeHuntScoreCacheHistoryResetConfig(storeName) {
+  const storeConfig = findHuntScoreStoreConfig(storeName);
+  const resetHistoryGapDays = Number(storeConfig?.resetHistoryGapDays);
+  return {
+    resetHistoryGapDays:
+      Number.isFinite(resetHistoryGapDays) && resetHistoryGapDays > 0 ? resetHistoryGapDays : null,
+    resetHistoryDates: (Array.isArray(storeConfig?.resetHistoryDates) ? storeConfig.resetHistoryDates : [])
+      .map((dateText) => String(dateText ?? "").trim())
+      .filter(Boolean)
+      .sort(),
+    slotHistoryStartDates: (Array.isArray(storeConfig?.slotHistoryStartDates)
+      ? storeConfig.slotHistoryStartDates
+      : []
+    )
+      .map((rule) => ({
+        machineName: String(rule?.machineName ?? "").trim(),
+        slotNumbers: (Array.isArray(rule?.slotNumbers) ? rule.slotNumbers : [])
+          .map((slotNumber) => String(slotNumber ?? "").trim())
+          .filter(Boolean)
+          .sort((left, right) => left.localeCompare(right, "ja", { numeric: true })),
+        slotNumberMin: Number.isFinite(Number(rule?.slotNumberMin)) ? Number(rule.slotNumberMin) : null,
+        slotNumberMax: Number.isFinite(Number(rule?.slotNumberMax)) ? Number(rule.slotNumberMax) : null,
+        startDate: String(rule?.startDate ?? "").trim(),
+      }))
+      .filter((rule) => rule.startDate && (rule.slotNumbers.length > 0 || rule.slotNumberMin !== null))
+      .sort((left, right) =>
+        [
+          left.machineName.localeCompare(right.machineName, "ja"),
+          left.startDate.localeCompare(right.startDate, "ja"),
+          (left.slotNumbers[0] ?? "").localeCompare(right.slotNumbers[0] ?? "", "ja", { numeric: true }),
+        ].find((comparison) => comparison !== 0) ?? 0,
+      ),
+  };
+}
+
 function buildHuntScoreCacheSignature(
   staticStore,
   {
@@ -2990,6 +3026,7 @@ function buildHuntScoreCacheSignature(
     },
     sourceMachineNames: normalizeHuntScoreCacheMachineNames(sourceMachineNames, store.storeName),
     logicKeys: normalizeHuntScoreCacheLogicKeys(logicKeys),
+    historyReset: normalizeHuntScoreCacheHistoryResetConfig(store.storeName),
     differenceMode: normalizeDifferenceMode(differenceMode),
     settingEstimateMode: normalizeSettingEstimateMode(settingEstimateMode),
     machineEvaluationHistoryWindowDays:

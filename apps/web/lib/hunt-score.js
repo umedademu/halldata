@@ -1020,6 +1020,13 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["マルハン小岩店", "マルハン小岩"],
     targetMachines: MARUHAN_KOIWA_TARGET_MACHINES,
     defaultLogicKey: "apark",
+    slotHistoryStartDates: [
+      {
+        machineName: "ネオアイムジャグラーEX",
+        slotNumbers: ["131", "132"],
+        startDate: "2026-04-06",
+      },
+    ],
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "maruhan-koiwa-neo-aim",
       "ネオアイムジャグラーＥＸ": "maruhan-koiwa-neo-aim",

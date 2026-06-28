@@ -24321,6 +24321,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       const maruhanKoiwaNeoTwentyOneDeep4000 = recentTwentyOneNetTotal <= -4000;
       const maruhanKoiwaNeoPreviousDeep1500 = previousDifference <= -1500 && previousGames >= 4000;
       const maruhanKoiwaNeoPreviousDeep1000 = previousDifference <= -1000 && previousGames >= 3000;
+      const maruhanKoiwaNeoPreviousDiff1000 = previousDifference <= -1000;
       const maruhanKoiwaNeoPreviousOutputDone = previousDifference >= 1500;
       const maruhanKoiwaNeoPreviousLowGames = previousGames > 0 && previousGames < 1000;
       const maruhanKoiwaNeoSevenOutputDone = recentSevenNetTotal >= 4000;
@@ -24350,7 +24351,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
       const maruhanKoiwaNeoWide310 =
         maruhanKoiwaNeoAngle14Deep100 && maruhanKoiwaNeoDiff7Unpaid && maruhanKoiwaNeoRb5Weak380;
       const maruhanKoiwaNeoWeak300 =
-        maruhanKoiwaNeoAngle14Deep90 && maruhanKoiwaNeoPreviousDeep1000 && maruhanKoiwaNeoInterval8To28;
+        maruhanKoiwaNeoAngle14Deep90 && maruhanKoiwaNeoPreviousDiff1000 && maruhanKoiwaNeoInterval8To28;
       const maruhanKoiwaNeoMain290 = maruhanKoiwaNeoWeak300 && maruhanKoiwaNeoRb5Weak360;
       const maruhanKoiwaNeoStrong280 =
         maruhanKoiwaNeoAngle14Deep125 &&
@@ -24423,6 +24424,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         maruhanKoiwaNeoTwentyOneDeep4000,
         maruhanKoiwaNeoPreviousDeep1500,
         maruhanKoiwaNeoPreviousDeep1000,
+        maruhanKoiwaNeoPreviousDiff1000,
         maruhanKoiwaNeoPreviousOutputDone,
         maruhanKoiwaNeoPreviousLowGames,
         maruhanKoiwaNeoSevenOutputDone,
