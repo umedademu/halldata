@@ -280,12 +280,31 @@ function RegionSummaryTitle({ label, distanceKm = null }) {
   );
 }
 
-function StoreListItem({ store, isFavorite, onToggle, compact = false, reorderable = false }) {
+function formatNearbyStoreMeta(region) {
+  return [region.label, formatDistance(region.distanceKm)].filter(Boolean).join(" ・ ");
+}
+
+function StoreListItem({
+  store,
+  isFavorite,
+  onToggle,
+  compact = false,
+  reorderable = false,
+  metaText = "",
+}) {
   const className = [
     "storeLinkItem",
     compact ? "storeLinkItemCompact" : "",
     reorderable ? "storeLinkItemDraggable" : "",
     isFavorite ? "storeLinkItemFavorite" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const normalizedMetaText = String(metaText ?? "").trim();
+  const linkClassName = [
+    "plainStoreLink",
+    "storeRowLink",
+    normalizedMetaText ? "storeRowLinkWithMeta" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -298,8 +317,15 @@ function StoreListItem({ store, isFavorite, onToggle, compact = false, reorderab
         </span>
       ) : null}
       <StoreFavoriteButton store={store} isFavorite={isFavorite} onToggle={onToggle} />
-      <Link href={`/stores/${store.id}`} className="plainStoreLink storeRowLink" draggable={false}>
-        {store.storeName}
+      <Link href={`/stores/${store.id}`} className={linkClassName} draggable={false}>
+        {normalizedMetaText ? (
+          <>
+            <span className="storeRowName">{store.storeName}</span>
+            <span className="storeRowMeta">{normalizedMetaText}</span>
+          </>
+        ) : (
+          store.storeName
+        )}
       </Link>
     </div>
   );
@@ -333,6 +359,16 @@ export function StoreDirectory({ completeStores, pendingStores }) {
   const myHallNearbyRegions = useMemo(
     () => buildNearbyStoreRegions(myHallStores, homeRegionKey),
     [homeRegionKey, myHallStores],
+  );
+  const myHallNearbyStoreItems = useMemo(
+    () =>
+      myHallNearbyRegions.flatMap((region) =>
+        region.stores.map((store) => ({
+          store,
+          metaText: formatNearbyStoreMeta(region),
+        })),
+      ),
+    [myHallNearbyRegions],
   );
   const filteredStores = useMemo(() => {
     if (!normalizedQuery) {
@@ -637,30 +673,19 @@ export function StoreDirectory({ completeStores, pendingStores }) {
                 </label>
               </div>
               {isMyHallNearbyOrder ? (
-                <div className="myHallGroupList">
-                  {myHallNearbyRegions.map((region) => (
-                    <section className="myHallGroup" key={region.key}>
-                      <div className="storeSubsectionHeader">
-                        <p className="storeSubsectionTitle">
-                          <RegionSummaryTitle label={region.label} distanceKm={region.distanceKm} />
-                        </p>
-                        <span>{region.stores.length}店舗</span>
-                      </div>
-                      <ul className="myHallList">
-                        {region.stores.map((store) => (
-                          <li key={store.id} className="myHallItem">
-                            <StoreListItem
-                              store={store}
-                              isFavorite={myHallStoreIdSet.has(normalizeStoreId(store.id))}
-                              onToggle={handleToggleMyHall}
-                              compact
-                            />
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
+                <ul className="myHallList myHallNearbyList">
+                  {myHallNearbyStoreItems.map(({ store, metaText }) => (
+                    <li key={store.id} className="myHallItem">
+                      <StoreListItem
+                        store={store}
+                        isFavorite={myHallStoreIdSet.has(normalizeStoreId(store.id))}
+                        onToggle={handleToggleMyHall}
+                        compact
+                        metaText={metaText}
+                      />
+                    </li>
                   ))}
-                </div>
+                </ul>
               ) : (
                 <div className="myHallGroupList">
                   {myHallStoreGroups.map((group) => (
