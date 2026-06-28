@@ -2759,9 +2759,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     if (contentRule === "gaia-hikifune-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
-        return games >= 2000 && settingFivePlusProbability >= 0.5;
+        return games >= 2500 && settingFivePlusProbability >= 0.5;
       }
-      return games >= 2000 && rbDenominator <= 300 && combinedDenominator <= 145;
+      return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
     if (contentRule === "123n-shinonome-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -3392,9 +3392,9 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     if (contentRule === "gaia-hikifune-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
-        return games >= 2000 && settingFivePlusProbability >= 0.3;
+        return games >= 2500 && settingFivePlusProbability >= 0.3;
       }
-      return games >= 2000 && rbDenominator <= 350 && combinedDenominator <= 160;
+      return games >= 2500 && rbDenominator <= 350 && combinedDenominator <= 160;
     }
     if (contentRule === "123n-shinonome-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -4242,9 +4242,9 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     if (Number.isFinite(settingFivePlusProbability)) {
-      return games >= 2000 && settingFivePlusProbability >= 0.7;
+      return games >= 3000 && settingFivePlusProbability >= 0.7;
     }
-    return games >= 2000 && rbDenominator <= 270 && combinedDenominator <= 130;
+    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&

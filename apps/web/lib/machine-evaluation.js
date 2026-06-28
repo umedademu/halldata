@@ -101,7 +101,7 @@ const MARUHON_NEO_AIM_LOGIC_NAME =
 const MARUHON_NEO_AIM_DEFAULT_CONDITION = "maruhon-neo-best-combo-a";
 const GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY = "gaia-hikifune-neo-aim";
 const GAIA_HIKIFUNE_NEO_AIM_LOGIC_NAME =
-  "ガイア曳舟_ネオアイムEX_未処遇再投入スコア_v1";
+  "ガイア曳舟_ネオアイムジャグラーEX_全日共通_リトライ返済未完ロジック_v1";
 const GAIA_HIKIFUNE_NEO_AIM_DEFAULT_CONDITION = "gaia-hikifune-neo-wide-rb310";
 const ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY = "123n-shinonome-neo-aim";
 const ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_NAME =
@@ -213,7 +213,6 @@ const REMOVED_TOKYO_UNVERIFIED_NEO_AIM_LOGIC_KEYS = new Set([
   "espace-ueno-neo-aim",
   "espace-shinkoiwa-north-neo-aim",
   MARUHON_NEO_AIM_LOGIC_KEY,
-  GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY,
   ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY,
   RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY,
   CONCERT_HALL_KITASENJU_NEO_AIM_LOGIC_KEY,
@@ -4106,7 +4105,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         {
           rankMax: 1,
           minScore: 75,
-          minNextGap: 12,
+          minNextGap: 11,
           requiredFlags: ["beamHikariGogoMainHistoryReady"],
         },
         ["beam-hikari-gogo"],
@@ -4141,7 +4140,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "102件 / 102.49% / RB1/284.7",
         {
           rankMax: 1,
-          minNextGap: 20,
+          minNextGap: 30,
           requiredFlags: ["beamHikariGogoMainHistoryReady"],
         },
         ["beam-hikari-gogo"],
@@ -4349,7 +4348,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "36件 / 103.86% / RB1/291.2",
         {
           rankMax: 1,
-          minNextGap: 12,
+          minNextGap: 20,
           requiredFlags: ["kurumeGirlsHistoryReady"],
         },
         ["mj-kurume-girls"],
@@ -5308,7 +5307,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         {
           rankMax: 1,
           minScore: 65,
-          minNextGap: 12,
+          minNextGap: 20,
           requiredFlags: ["weakBonus"],
         },
       ),
@@ -8157,135 +8156,126 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         [MARUHON_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
-        "gaia-hikifune-neo-best-rb270",
-        "最本命RB270_件数少",
-        "対象6日・6台 / 総G17719 / BB1/249.6 / RB1/256.8 / 合算1/126.6 / 平均+521.7枚 / 105.89% / 勝率66.7% / 平均56 40.6% / 中央56 31.9% / 56>=50 16.7% / 56<30 50.0% / RB<=300 50.0% / RB>400 33.3% / 1位＋次点差20＋95点以上",
+        GAIA_HIKIFUNE_NEO_AIM_DEFAULT_CONDITION,
+        "広めRB310",
+        "対象16日・19台 / 総G51807 / BB204 / RB176 / BB1/254.0 / RB1/294.4 / 合算1/136.3 / 平均+292枚 / 103.56% / 勝率42.1% / 平均56 34.9% / 中央56 32.8% / 直近高内容3日内＋7日REG枯れ350以上＋14日返済未完",
         {
-          minScore: 95,
-          rankMax: 1,
-          minNextGap: 20,
-          requiredFlags: ["gaiaHikifuneNeoHistoryReady"],
-        },
-        [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "gaia-hikifune-neo-strong-rb280",
-        "強RB280_件数少",
-        "対象8日・8台 / 総G20946 / BB1/258.6 / RB1/272.0 / 合算1/132.6 / 平均+291.2枚 / 103.71% / 勝率50.0% / 平均56 36.5% / 中央56 26.3% / 56>=50 12.5% / 56<30 50.0% / RB<=300 37.5% / RB>400 37.5% / 1位＋次点差20＋90点以上",
-        {
-          minScore: 90,
-          rankMax: 1,
-          minNextGap: 20,
-          requiredFlags: ["gaiaHikifuneNeoHistoryReady"],
-        },
-        [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "gaia-hikifune-neo-main-rb290",
-        "本命RB290_1位次点差20",
-        "対象10日・10台 / 総G30260 / BB1/258.6 / RB1/285.5 / 合算1/135.7 / 平均+254.0枚 / 102.80% / 勝率50.0% / 平均56 35.2% / 中央56 26.3% / 56>=50 10.0% / 56<30 50.0% / RB<=300 40.0% / RB>400 30.0% / 日内1位＋次点差20点以上",
-        {
-          rankMax: 1,
-          minNextGap: 20,
-          requiredFlags: ["gaiaHikifuneNeoHistoryReady"],
+          requiredFlags: ["gaiaHikifuneNeoHistoryReady", "gaiaHikifuneNeoWideRb310"],
         },
         [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "gaia-hikifune-neo-weak-rb300",
         "弱本命RB300",
-        "対象24日・28台 / 総G57494 / BB1/248.9 / RB1/299.4 / 合算1/135.9 / 平均+184.3枚 / 102.99% / 勝率42.9% / 平均56 33.8% / 中央56 27.6% / 56>=50 14.3% / 56<30 53.6% / RB<=300 32.1% / RB>400 50.0% / 85点以上＋強化3＋危険0",
+        "対象15日・16台 / 総G47868 / BB193 / RB165 / BB1/248.0 / RB1/290.1 / 合算1/133.7 / 平均+384枚 / 104.28% / 勝率43.8% / 平均56 36.1% / 実戦主軸",
         {
-          minScore: 85,
-          minBoost: 3,
-          maxDanger: 0,
+          minScore: 75,
+          requiredFlags: ["gaiaHikifuneNeoHistoryReady", "gaiaHikifuneNeoWideRb310"],
+        },
+        [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "gaia-hikifune-neo-main-rb290",
+        "本命RB290_少数注意",
+        "対象10日・10台 / 総G28597 / BB100 / RB100 / BB1/286.0 / RB1/286.0 / 合算1/143.0 / 平均+61枚 / 100.71% / 勝率40.0% / 平均56 34.9% / 14日REG枯れ400以上＋14日返済未完",
+        {
+          requiredFlags: ["gaiaHikifuneNeoHistoryReady", "gaiaHikifuneNeoMainRb290"],
+        },
+        [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "gaia-hikifune-neo-strong-rb280",
+        "強RB280_少数注意",
+        "対象8日・8台 / 総G23907 / BB88 / RB89 / BB1/271.7 / RB1/268.6 / 合算1/135.1 / 平均+234枚 / 102.61% / 勝率50.0% / 平均56 39.9% / 21日REG枯れ400以上＋7日REG枯れ350以上",
+        {
+          requiredFlags: ["gaiaHikifuneNeoHistoryReady", "gaiaHikifuneNeoStrongRb280"],
+        },
+        [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "gaia-hikifune-neo-reference-rb270",
+        "参考_最本命RB270",
+        "対象4日・4台 / 総G16218 / BB66 / RB63 / BB1/245.7 / RB1/257.4 / 合算1/125.7 / 平均+812枚 / 106.68% / 勝率75.0% / 4件のみのため通常採用にはしない",
+        {
+          minScore: 80,
+          requiredFlags: ["gaiaHikifuneNeoHistoryReady", "gaiaHikifuneNeoStrongRb280"],
+        },
+        [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "gaia-hikifune-neo-free-main",
+        "自由本命",
+        "対象15日・16台 / 総G47868 / RB1/290.1 / 合算1/133.7 / 平均+384枚 / 104.28% / 平均56 36.1% / 弱本命RB300と同条件で点数単体より優先",
+        {
+          minScore: 75,
+          requiredFlags: ["gaiaHikifuneNeoHistoryReady", "gaiaHikifuneNeoWideRb310"],
+        },
+        [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "gaia-hikifune-neo-free-strong",
+        "自由強",
+        "対象8日・8台 / 総G23907 / RB1/268.6 / 合算1/135.1 / 平均+234枚 / 102.61% / 平均56 39.9% / 強RB280と同条件で少数注意",
+        {
+          requiredFlags: ["gaiaHikifuneNeoHistoryReady", "gaiaHikifuneNeoStrongRb280"],
+        },
+        [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "gaia-hikifune-neo-reference-purple",
+        "参考_自由紫",
+        "対象4日・4台 / RB1/257.4 / 合算1/125.7 / 平均+812枚 / 106.68% / 件数不足のため参考表示",
+        {
+          minScore: 80,
+          requiredFlags: ["gaiaHikifuneNeoHistoryReady", "gaiaHikifuneNeoStrongRb280"],
+        },
+        [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "gaia-hikifune-neo-rank1-gap8-reference",
+        "参考_1位次点差8+",
+        "対象43日・43台 / 総G72773 / BB293 / RB206 / BB1/248.4 / RB1/353.3 / 合算1/145.8 / 平均+147枚 / 102.89% / 単独ではRB不足、段階条件との重なり確認用",
+        {
+          rankMax: 1,
+          minNextGap: 8,
           requiredFlags: ["gaiaHikifuneNeoHistoryReady"],
         },
         [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
-        GAIA_HIKIFUNE_NEO_AIM_DEFAULT_CONDITION,
-        "広めRB310",
-        "対象24日・35台 / 総G80709 / BB1/262.9 / RB1/308.0 / 合算1/141.8 / 平均+91.1枚 / 101.32% / 勝率45.7% / 平均56 33.0% / 中央56 28.8% / 56>=50 17.1% / 56<30 54.3% / RB<=300 37.1% / RB>400 40.0% / 90点以上＋強化2＋危険1以下",
+        "gaia-hikifune-neo-watch-free-skip",
+        "見送り_自由見送り",
+        "score80以上でもboostCount4未満は対象31日・47台 / RB1/445.3 / 合算1/164.5 / 平均-64枚 / 98.62%のため見送り優先",
         {
-          minScore: 90,
-          minBoost: 2,
-          maxDanger: 1,
+          minScore: 80,
+          maxBoost: 3,
           requiredFlags: ["gaiaHikifuneNeoHistoryReady"],
-        },
-        [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "gaia-hikifune-neo-free-c",
-        "自由C_直近56凹み据え見せ場なし",
-        "対象18日・20台 / 総G59954 / BB1/240.8 / RB1/310.6 / 合算1/135.6 / 平均+420.5枚 / 104.68% / 勝率60.0% / 平均56 32.9% / 中央56 25.4% / 56>=50 15.0% / 56<30 55.0% / RB<=300 35.0% / RB>400 40.0% / 56級3日以内＋前日-500枚以下＋7日大見せ場なし",
-        {
-          requiredFlags: ["gaiaHikifuneNeoHistoryReady", "gaiaHikifuneNeoFreeCRecentHighLossNoBigShow"],
-        },
-        [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "gaia-hikifune-neo-free-d",
-        "自由D_前日高稼働負け",
-        "対象25日・33台 / 総G106426 / BB1/259.6 / RB1/325.5 / 合算1/144.4 / 平均+126.7枚 / 101.31% / 勝率51.5% / 平均56 30.1% / 中央56 23.9% / 56>=50 15.2% / RB<=300 36.4% / 前日4000G以上＋前日差枚0枚以下",
-        {
-          requiredFlags: ["gaiaHikifuneNeoHistoryReady", "gaiaHikifuneNeoFreeDPreviousHighGamesLoss"],
-        },
-        [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "gaia-hikifune-neo-free-e",
-        "自由E_高稼働14日56なし",
-        "対象22日・27台 / 総G69017 / BB1/249.2 / RB1/324.0 / 合算1/140.9 / 平均+203.3枚 / 102.65% / 勝率44.4% / 平均56 31.3% / 中央56 30.3% / 56>=50 11.1% / RB<=300 29.6% / 5日15000G以上＋14日56級0回",
-        {
-          requiredFlags: ["gaiaHikifuneNeoHistoryReady", "gaiaHikifuneNeoFreeEHighGamesNoHigh14"],
-        },
-        [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "gaia-hikifune-neo-free-a",
-        "自由A_長期空白前日稼働",
-        "対象51日・85台 / 総G156859 / BB1/268.6 / RB1/335.2 / 合算1/149.1 / 平均+3.2枚 / 100.06% / 勝率37.6% / 平均56 30.2% / 中央56 27.3% / 56>=50 11.8% / RB<=300 27.1% / 56級空白50日以上＋前日1000G以上",
-        {
-          requiredFlags: ["gaiaHikifuneNeoHistoryReady", "gaiaHikifuneNeoFreeALongBlankPreviousGames"],
         },
         [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "gaia-hikifune-neo-watch-history-short",
-        "見送り_履歴14日未満",
-        "同一台の過去14日履歴がない台は履歴不足として採用対象外",
+        "見送り_履歴21日未満",
+        "同一台の過去21日履歴がない台はバックテスト対象外",
         {
           requiredFlags: ["gaiaHikifuneNeoHistoryShort"],
         },
         [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
-        "gaia-hikifune-neo-watch-score-under75",
-        "見送り_score75未満",
-        "75点未満は原則見送り。順位だけでは座らない",
+        "gaia-hikifune-neo-watch-score80-no-high3",
+        "見送り_80点以上でも直近高内容なし",
+        "score80以上でもhigh56cnt3が0ならRB1/388.2で本命条件に届かない",
         {
-          maxScore: 74.999,
-          requiredFlags: ["gaiaHikifuneNeoHistoryReady"],
-        },
-        [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "gaia-hikifune-neo-watch-score75-84-boost1",
-        "見送り_score75-84強化1以下",
-        "75〜84点で強化条件1個以下は見送り寄り",
-        {
-          minScore: 75,
-          maxScore: 84.999,
-          maxBoost: 1,
-          requiredFlags: ["gaiaHikifuneNeoHistoryReady"],
+          minScore: 80,
+          requiredFlags: ["gaiaHikifuneNeoHistoryReady", "gaiaHikifuneNeoNoRecentHigh3"],
         },
         [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "gaia-hikifune-neo-watch-score80-danger2",
         "見送り_80点以上でも危険2個以上",
-        "80点以上でも処遇完了、内容処遇済み、低稼働危険が2個以上なら見送り",
+        "危険条件が2個以上なら処遇済み・低信頼・放置疑いが重なるため見送り",
         {
           minScore: 80,
           minDanger: 2,
@@ -8294,32 +8284,22 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
-        "gaia-hikifune-neo-watch-treatment-boost0",
-        "見送り_14日出過ぎ強化なし",
-        "直近14日+2000枚以上かつ強化条件なしは処遇完了として見送り",
-        {
-          maxBoost: 0,
-          requiredFlags: ["gaiaHikifuneNeoHistoryReady", "gaiaHikifuneNeoTreatmentDone14Plus"],
-        },
-        [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "gaia-hikifune-neo-watch-low-games-boost0",
-        "見送り_5日低稼働強化なし",
-        "5日3000G未満で他の強化なしはデータ信頼不足",
-        {
-          maxBoost: 0,
-          requiredFlags: ["gaiaHikifuneNeoHistoryReady", "gaiaHikifuneNeoLowGames5"],
-        },
-        [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
         "gaia-hikifune-neo-watch-rank1-small-gap",
-        "慎重_1位次点差20未満",
-        "日内1位でも次点差20未満は単独感が弱く、自由条件との重なりを確認",
+        "見送り_1位次点差8未満",
+        "rank1でもtopGap8未満はRB1/411.6で弱く、単独感不足として見送り",
         {
           rankMax: 1,
-          maxNextGap: 19.999,
+          maxNextGap: 7.999,
+          requiredFlags: ["gaiaHikifuneNeoHistoryReady"],
+        },
+        [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "gaia-hikifune-neo-watch-danger2",
+        "見送り_危険2個以上",
+        "処遇済み・低信頼・長期放置などの危険条件が2個以上なら採用しない",
+        {
+          minDanger: 2,
           requiredFlags: ["gaiaHikifuneNeoHistoryReady"],
         },
         [GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY],
@@ -15906,7 +15886,6 @@ function isRemovedTokyoUnverifiedNeoAimStore(storeName) {
     isEspaceUenoStore,
     isEspaceShinkoiwaNorthStore,
     isMaruhonStore,
-    isGaiaHikifuneStore,
     isOneTwoThreeNShinonomeStore,
     isRakuenAmeyokoStore,
     isConcertHallKitasenjuStore,
@@ -24645,111 +24624,117 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
     }
 
     if (activeLogicKey === GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY) {
-      const effectiveDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+      const gaiaHikifuneNeoRecentSevenRbTotal = readNumber(metrics.recentSevenRbTotal);
+      const gaiaHikifuneNeoRecentFourteenRbTotal = readNumber(metrics.recentFourteenRbTotal);
+      const gaiaHikifuneNeoRecentTwentyOneRbTotal = readNumber(metrics.recentTwentyOneRbTotal);
+      const gaiaHikifuneNeoHistoryReady = historyRowCount >= 21;
+      const gaiaHikifuneNeoHistoryShort = historyRowCount < 21;
+      const gaiaHikifuneNeoRbRate7 =
+        gaiaHikifuneNeoRecentSevenRbTotal > 0 ? features.recentSevenRbDenominator : null;
+      const gaiaHikifuneNeoRbRate14 =
+        gaiaHikifuneNeoRecentFourteenRbTotal > 0 ? features.recentFourteenRbDenominator : null;
+      const gaiaHikifuneNeoRbRate21 =
+        gaiaHikifuneNeoRecentTwentyOneRbTotal > 0 ? features.recentTwentyOneRbDenominator : null;
+      const gaiaHikifuneNeoDaysSince56 = Number.isFinite(daysSinceMachineHighContent)
         ? daysSinceMachineHighContent
-        : historyRowCount;
-      const gaiaHikifuneNeoHistoryReady = historyRowCount >= 14;
-      const gaiaHikifuneNeoHistoryShort = historyRowCount < 14;
-      const gaiaHikifuneNeoHighBlank50 =
-        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 50) ||
-        (!Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 50);
-      const gaiaHikifuneNeoHighBlank35 =
-        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 35) ||
-        (!Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 35);
-      const gaiaHikifuneNeoHighBlank21 =
-        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 21) ||
-        (!Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 21);
-      const gaiaHikifuneNeoRecentHigh3 =
-        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent <= 3;
-      const gaiaHikifuneNeoRecentHigh7 =
-        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent <= 7;
-      const gaiaHikifuneNeoGoodWithin7 =
-        Number.isFinite(daysSinceMachineGoodContent) && daysSinceMachineGoodContent <= 7;
-      const gaiaHikifuneNeoNoBigShow7 = recentSevenBigShow1500Games2000Count === 0;
-      const gaiaHikifuneNeoNoHigh14 = recentFourteenMachineHighContentCount === 0;
-      const gaiaHikifuneNeoLongBlankGood7 = gaiaHikifuneNeoHighBlank50 && gaiaHikifuneNeoGoodWithin7;
-      const gaiaHikifuneNeoFreeALongBlankPreviousGames =
-        gaiaHikifuneNeoHighBlank50 && previousGames >= 1000;
-      const gaiaHikifuneNeoLossOrSink =
-        streak >= 4 || recentThreeNetTotal <= -1500;
-      const gaiaHikifuneNeoGamesTrust = recentFiveGamesTotal >= 10000;
-      const gaiaHikifuneNeoGamesTrustStrong =
-        recentFiveGamesTotal >= 15000 && gaiaHikifuneNeoNoHigh14;
-      const gaiaHikifuneNeoRbWeak = features.recentFourteenRbDenominator >= 400;
-      const gaiaHikifuneNeoRbVeryWeak = features.recentFourteenRbDenominator >= 450;
-      const gaiaHikifuneNeoFreeCRecentHighLossNoBigShow =
-        gaiaHikifuneNeoRecentHigh3 &&
-        previousDifference <= -500 &&
-        gaiaHikifuneNeoNoBigShow7;
-      const gaiaHikifuneNeoFreeDPreviousHighGamesLoss =
-        previousGames >= 4000 && previousDifference <= 0;
-      const gaiaHikifuneNeoFreeEHighGamesNoHigh14 =
-        recentFiveGamesTotal >= 15000 && gaiaHikifuneNeoNoHigh14;
-      const gaiaHikifuneNeoPreviousHighUnhit =
-        previousMachineHighContent && previousDifference <= 500;
-      const gaiaHikifuneNeoPreviousGoodUnhit =
-        previousMachineGoodContent && previousDifference <= 500;
+        : 999;
+      const gaiaHikifuneNeoHigh56Cnt3 = recentThreeMachineHighContentCount;
+      const gaiaHikifuneNeoHigh56Cnt5 = recentFiveMachineHighContentCount;
+      const gaiaHikifuneNeoHigh56Cnt21 = recentTwentyOneMachineHighContentCount;
+      const gaiaHikifuneNeoNoRecentHigh3 = gaiaHikifuneNeoHigh56Cnt3 === 0;
+      const gaiaHikifuneNeoRb7AtLeast350 =
+        Number.isFinite(gaiaHikifuneNeoRbRate7) && gaiaHikifuneNeoRbRate7 >= 350;
+      const gaiaHikifuneNeoRb14AtLeast400 =
+        Number.isFinite(gaiaHikifuneNeoRbRate14) && gaiaHikifuneNeoRbRate14 >= 400;
+      const gaiaHikifuneNeoRb21AtLeast400 =
+        Number.isFinite(gaiaHikifuneNeoRbRate21) && gaiaHikifuneNeoRbRate21 >= 400;
+      const gaiaHikifuneNeoWideRb310 =
+        gaiaHikifuneNeoHigh56Cnt3 >= 1 &&
+        gaiaHikifuneNeoRb7AtLeast350 &&
+        recentFourteenNetTotal <= -1000;
+      const gaiaHikifuneNeoWeakRb300 =
+        gaiaHikifuneNeoWideRb310;
+      const gaiaHikifuneNeoMainRb290 =
+        gaiaHikifuneNeoHigh56Cnt3 >= 1 &&
+        gaiaHikifuneNeoRb14AtLeast400 &&
+        recentFourteenNetTotal <= -1000;
+      const gaiaHikifuneNeoStrongRb280 =
+        gaiaHikifuneNeoHigh56Cnt3 >= 1 &&
+        gaiaHikifuneNeoRb21AtLeast400 &&
+        gaiaHikifuneNeoRb7AtLeast350;
+      const gaiaHikifuneNeoReferenceRb270 = gaiaHikifuneNeoStrongRb280;
+      const gaiaHikifuneNeoShortSinkBoost =
+        streak >= 3 || recentThreeNetTotal <= -1500;
+      const gaiaHikifuneNeoAngle3Boost =
+        features.recentThreeAngle <= -150 && recentThreeGamesTotal >= 1000;
+      const gaiaHikifuneNeoGames14Trust = recentFourteenGamesTotal >= 7000;
+      const gaiaHikifuneNeoDiff14Unpaid = recentFourteenNetTotal <= -1500;
+      const gaiaHikifuneNeoLowTrust =
+        gaiaHikifuneNeoHistoryShort || recentFourteenGamesTotal < 3000;
       const gaiaHikifuneNeoTreatmentDone =
+        recentSevenNetTotal >= 1500 ||
         recentFourteenNetTotal >= 2000 ||
-        recentSevenNetTotal >= 2000 ||
-        previousDifference >= 1500;
-      const gaiaHikifuneNeoTreatmentDone14Plus = recentFourteenNetTotal >= 2000;
-      const gaiaHikifuneNeoContentDone =
-        features.recentFourteenRbDenominator <= 300 ||
-        features.recentFourteenCombinedDenominator <= 140;
-      const gaiaHikifuneNeoLowGames7 = recentSevenLowGames500Count >= 4;
-      const gaiaHikifuneNeoLowGames5 = recentFiveGamesTotal < 3000;
-      const gaiaHikifuneNeoLowGamesRisk = gaiaHikifuneNeoLowGames7 || gaiaHikifuneNeoLowGames5;
+        recentFiveMaxWin >= 2500;
+      const gaiaHikifuneNeoRb7TooStrongDone =
+        Number.isFinite(gaiaHikifuneNeoRbRate7) &&
+        gaiaHikifuneNeoRbRate7 <= 280 &&
+        recentSevenNetTotal > 0;
+      const gaiaHikifuneNeoLongNeglectLowGames =
+        gaiaHikifuneNeoDaysSince56 >= 80 && recentTwentyOneGamesTotal < 8000;
+      const gaiaHikifuneNeoPreviousHighBigDone =
+        previousMachineHighContent && previousDifference > 1500;
       const boostFlags = [
-        gaiaHikifuneNeoHighBlank50,
-        gaiaHikifuneNeoFreeCRecentHighLossNoBigShow,
-        gaiaHikifuneNeoLossOrSink,
-        gaiaHikifuneNeoGamesTrust,
-        gaiaHikifuneNeoRbWeak,
+        gaiaHikifuneNeoHigh56Cnt3 >= 1,
+        gaiaHikifuneNeoRb14AtLeast400,
+        gaiaHikifuneNeoShortSinkBoost,
+        gaiaHikifuneNeoAngle3Boost,
+        gaiaHikifuneNeoGames14Trust,
+        gaiaHikifuneNeoDiff14Unpaid,
       ];
       const dangerFlags = [
+        gaiaHikifuneNeoLowTrust,
         gaiaHikifuneNeoTreatmentDone,
-        gaiaHikifuneNeoContentDone,
-        gaiaHikifuneNeoLowGamesRisk,
+        gaiaHikifuneNeoRb7TooStrongDone,
+        gaiaHikifuneNeoLongNeglectLowGames,
+        gaiaHikifuneNeoPreviousHighBigDone,
       ];
       const gaiaHikifuneNeoBoostCount = boostFlags.filter(Boolean).length;
+      const gaiaHikifuneNeoDangerCount = dangerFlags.filter(Boolean).length;
 
       return {
         ...features,
         gaiaHikifuneNeoHistoryReady,
         gaiaHikifuneNeoHistoryShort,
-        gaiaHikifuneNeoEffectiveDaysSinceHigh: effectiveDaysSinceHigh,
-        gaiaHikifuneNeoHighBlank50,
-        gaiaHikifuneNeoHighBlank35,
-        gaiaHikifuneNeoHighBlank21,
-        gaiaHikifuneNeoRecentHigh3,
-        gaiaHikifuneNeoRecentHigh7,
-        gaiaHikifuneNeoGoodWithin7,
-        gaiaHikifuneNeoNoBigShow7,
-        gaiaHikifuneNeoNoHigh14,
-        gaiaHikifuneNeoLongBlankGood7,
-        gaiaHikifuneNeoFreeALongBlankPreviousGames,
-        gaiaHikifuneNeoLossOrSink,
-        gaiaHikifuneNeoGamesTrust,
-        gaiaHikifuneNeoGamesTrustStrong,
-        gaiaHikifuneNeoRbWeak,
-        gaiaHikifuneNeoRbVeryWeak,
-        gaiaHikifuneNeoFreeCRecentHighLossNoBigShow,
-        gaiaHikifuneNeoFreeDPreviousHighGamesLoss,
-        gaiaHikifuneNeoFreeEHighGamesNoHigh14,
-        gaiaHikifuneNeoPreviousHighUnhit,
-        gaiaHikifuneNeoPreviousGoodUnhit,
+        gaiaHikifuneNeoRbRate7,
+        gaiaHikifuneNeoRbRate14,
+        gaiaHikifuneNeoRbRate21,
+        gaiaHikifuneNeoDaysSince56,
+        gaiaHikifuneNeoHigh56Cnt3,
+        gaiaHikifuneNeoHigh56Cnt5,
+        gaiaHikifuneNeoHigh56Cnt21,
+        gaiaHikifuneNeoNoRecentHigh3,
+        gaiaHikifuneNeoRb7AtLeast350,
+        gaiaHikifuneNeoRb14AtLeast400,
+        gaiaHikifuneNeoRb21AtLeast400,
+        gaiaHikifuneNeoWideRb310,
+        gaiaHikifuneNeoWeakRb300,
+        gaiaHikifuneNeoMainRb290,
+        gaiaHikifuneNeoStrongRb280,
+        gaiaHikifuneNeoReferenceRb270,
+        gaiaHikifuneNeoShortSinkBoost,
+        gaiaHikifuneNeoAngle3Boost,
+        gaiaHikifuneNeoGames14Trust,
+        gaiaHikifuneNeoDiff14Unpaid,
+        gaiaHikifuneNeoLowTrust,
         gaiaHikifuneNeoTreatmentDone,
-        gaiaHikifuneNeoTreatmentDone14Plus,
-        gaiaHikifuneNeoContentDone,
-        gaiaHikifuneNeoLowGames7,
-        gaiaHikifuneNeoLowGames5,
-        gaiaHikifuneNeoLowGamesRisk,
+        gaiaHikifuneNeoRb7TooStrongDone,
+        gaiaHikifuneNeoLongNeglectLowGames,
+        gaiaHikifuneNeoPreviousHighBigDone,
         gaiaHikifuneNeoBoostCount,
         treatmentDone: gaiaHikifuneNeoTreatmentDone,
-        lowConfidence: gaiaHikifuneNeoHistoryShort || gaiaHikifuneNeoLowGamesRisk,
+        lowConfidence: gaiaHikifuneNeoLowTrust,
         boostCount: gaiaHikifuneNeoBoostCount,
-        dangerCount: dangerFlags.filter(Boolean).length,
+        dangerCount: gaiaHikifuneNeoDangerCount,
       };
     }
 
@@ -27956,7 +27941,10 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFiftySixGamesTotal = readNumber(metrics.recentFiftySixGamesTotal);
   const recentTwoBonusTotal = readNumber(metrics.recentTwoBonusTotal);
   const recentTwoRbTotal = readNumber(metrics.recentTwoRbTotal);
+  const recentSevenRbTotal = readNumber(metrics.recentSevenRbTotal);
+  const recentFourteenRbTotal = readNumber(metrics.recentFourteenRbTotal);
   const recentTenRbTotal = readNumber(metrics.recentTenRbTotal);
+  const recentTwentyOneRbTotal = readNumber(metrics.recentTwentyOneRbTotal);
   const recentFourteenGoldShowDays = readNumber(metrics.recentFourteenGoldShowDays);
   const recentSevenGoldShowDays = readNumber(metrics.recentSevenGoldShowDays, readNumber(metrics.recentSevenBigShowDays));
   const recentFourteenLossDays = readNumber(metrics.recentFourteenLossDays);
@@ -34534,69 +34522,76 @@ function calculateMachineScore(definition, metrics, features) {
     }
 
     if (activeLogicKey === GAIA_HIKIFUNE_NEO_AIM_LOGIC_KEY) {
-      if (historyRowCount < 14) {
+      if (historyRowCount < 21) {
         return null;
       }
 
+      const rbRate7 = recentSevenRbTotal > 0 ? features.recentSevenRbDenominator : null;
+      const rbRate14 = recentFourteenRbTotal > 0 ? features.recentFourteenRbDenominator : null;
+      const rbRate21 = recentTwentyOneRbTotal > 0 ? features.recentTwentyOneRbDenominator : null;
+      const daysSince56 = Number.isFinite(daysSinceMachineHighContent) ? daysSinceMachineHighContent : 999;
       let score = 50;
 
-      score += features.gaiaHikifuneNeoHighBlank50
-        ? 17
-        : features.gaiaHikifuneNeoHighBlank35
-          ? 11
-          : features.gaiaHikifuneNeoHighBlank21
-            ? 6
-            : 0;
-      score += features.gaiaHikifuneNeoRecentHigh3
+      score -= historyRowCount < 21 ? 25 : 0;
+      score -= recentFourteenGamesTotal < 3000 ? 8 : 0;
+      score += recentFourteenGamesTotal >= 10000 ? 5 : recentFourteenGamesTotal >= 7000 ? 3 : 0;
+      score += recentThreeMachineHighContentCount >= 1
         ? 10
-        : features.gaiaHikifuneNeoRecentHigh7
+        : recentFiveMachineHighContentCount >= 1
           ? 5
           : 0;
-      score += features.gaiaHikifuneNeoLongBlankGood7 ? 8 : 0;
-      score += features.gaiaHikifuneNeoFreeALongBlankPreviousGames ? 6 : 0;
+      score += previousMachineHighContent && previousDifference <= 500 ? 6 : 0;
+      score -= previousMachineHighContent && previousDifference > 1500 ? 7 : 0;
 
-      score += streak >= 6 ? 10 : streak >= 4 ? 8 : streak >= 3 ? 5 : 0;
-      score += recentThreeNetTotal <= -1500 ? 7 : recentThreeNetTotal <= -1000 ? 4 : 0;
-      score += recentFourteenNetTotal <= -3000
-        ? 7
-        : recentFourteenNetTotal <= -2000
+      score += Number.isFinite(rbRate14)
+        ? rbRate14 >= 500
+          ? 12
+          : rbRate14 >= 450
+            ? 9
+            : rbRate14 >= 400
+              ? 6
+              : 0
+        : 0;
+      score += Number.isFinite(rbRate21) ? (rbRate21 >= 450 ? 5 : rbRate21 >= 400 ? 3 : 0) : 0;
+      score += Number.isFinite(rbRate7)
+        ? rbRate7 >= 500
           ? 5
-          : recentFourteenNetTotal <= -1000
+          : rbRate7 >= 450
+            ? 4
+            : rbRate7 >= 400
+              ? 2
+              : 0
+        : 0;
+      score -= Number.isFinite(rbRate7) && rbRate7 <= 280 && recentSevenNetTotal > 0 ? 6 : 0;
+
+      score += recentThreeNetTotal <= -2000
+        ? 9
+        : recentThreeNetTotal <= -1500
+          ? 6
+          : recentThreeNetTotal <= -1000
+            ? 3
+            : 0;
+      score += features.recentThreeAngle <= -250 && recentThreeGamesTotal >= 1000
+        ? 6
+        : features.recentThreeAngle <= -150 && recentThreeGamesTotal >= 1000
+          ? 3
+          : 0;
+      score += features.recentSevenAngle <= -150 && recentSevenGamesTotal >= 2000 ? 3 : 0;
+
+      score += streak >= 5 ? 8 : streak === 4 ? 6 : streak === 3 ? 4 : 0;
+      score += recentFourteenNetTotal <= -3000 ? 5 : recentFourteenNetTotal <= -1500 ? 3 : 0;
+      score += daysSince56 >= 1 && daysSince56 <= 3
+        ? 4
+        : daysSince56 >= 15 && daysSince56 <= 28
+          ? 3
+          : daysSince56 >= 29 && daysSince56 <= 56
             ? 2
             : 0;
 
-      score += recentFiveGamesTotal >= 15000 && recentFourteenMachineHighContentCount === 0
-        ? 9
-        : recentFiveGamesTotal >= 15000
-          ? 6
-          : recentFiveGamesTotal >= 10000
-            ? 3
-            : 0;
-      score += previousGames >= 4000 && previousDifference <= 0 ? 8 : 0;
-
-      score += features.recentFourteenRbDenominator >= 450
-        ? 5
-        : features.recentFourteenRbDenominator >= 400
-          ? 3
-          : 0;
-      score += features.recentFourteenCombinedDenominator >= 200 ? 3 : 0;
-
-      score += previousMachineHighContent && previousDifference <= 500
-        ? 12
-        : previousMachineGoodContent && previousDifference <= 500
-          ? 8
-          : 0;
-      score += features.gaiaHikifuneNeoRecentHigh3 && recentSevenBigShow1500Games2000Count === 0 ? 7 : 0;
-
-      score -= recentFourteenNetTotal >= 3000 ? 22 : recentFourteenNetTotal >= 2000 ? 13 : recentFourteenNetTotal >= 1000 ? 6 : 0;
-      score -= recentSevenNetTotal >= 3000 ? 16 : recentSevenNetTotal >= 2000 ? 9 : 0;
-      score -= previousDifference >= 1500 ? 12 : previousDifference >= 1000 ? 7 : 0;
-      score -= features.recentFourteenCombinedDenominator <= 140 ? 11 : 0;
-      score -= features.recentFourteenRbDenominator <= 300 ? 8 : 0;
-      score -= recentSevenBigShow1500Games2000Count >= 1 ? 7 : 0;
-      score -= recentThreeShow1000Games1500Count >= 1 ? 4 : 0;
-      score -= recentSevenLowGames500Count >= 4 ? 6 : 0;
-      score -= recentFiveGamesTotal < 3000 ? 5 : 0;
+      score -= recentSevenNetTotal >= 2500 ? 8 : recentSevenNetTotal >= 1500 ? 5 : 0;
+      score -= recentFourteenNetTotal >= 3500 ? 8 : recentFourteenNetTotal >= 2000 ? 5 : 0;
+      score -= recentFiveMaxWin >= 2500 ? 5 : 0;
+      score -= daysSince56 >= 80 && recentTwentyOneGamesTotal < 8000 ? 6 : 0;
 
       return Math.round(clamp(score, 0, 100));
     }
