@@ -3712,9 +3712,24 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     snapshotRows,
     rankingMachineNames,
   );
-  const filteredRankingGroups = machineOptions?.expectedRbOnly
+  const expectedRbOnlyRequested = machineOptions?.expectedRbOnly === true;
+  const expectedRbFilteredRankingGroups = expectedRbOnlyRequested
     ? filterRankingGroupsByExpectedRb(fullRankingGroups, store.id, store.store_name)
-    : fullRankingGroups;
+    : null;
+  const fullRankingTotalCount = fullRankingGroups.reduce(
+    (maxCount, group) => Math.max(maxCount, group.totalCount),
+    0,
+  );
+  const expectedRbFilteredTotalCount = (expectedRbFilteredRankingGroups ?? []).reduce(
+    (maxCount, group) => Math.max(maxCount, group.totalCount),
+    0,
+  );
+  const expectedRbOnlyFallback =
+    expectedRbOnlyRequested && fullRankingTotalCount > 0 && expectedRbFilteredTotalCount === 0;
+  const filteredRankingGroups =
+    expectedRbOnlyRequested && !expectedRbOnlyFallback
+      ? expectedRbFilteredRankingGroups
+      : fullRankingGroups;
   const rankingLimit = normalizeRankingLimit(requestedLimit);
   const totalCount = filteredRankingGroups.reduce(
     (maxCount, group) => Math.max(maxCount, group.totalCount),
@@ -3749,6 +3764,9 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     nextBusinessDate: snapshot?.nextBusinessDate ?? null,
     machineSlotCounts: snapshotDetail.machineSlotCounts ?? {},
     machineEvaluationSettings: snapshotDetail.machineEvaluationSettings ?? [],
+    expectedRbOnlyRequested,
+    expectedRbOnlyApplied: expectedRbOnlyRequested && expectedRbFilteredTotalCount > 0,
+    expectedRbOnlyFallback,
     predictionHasSite7Data: snapshotUsesSite7Data(snapshot),
     rows: rankingRows,
     rankingGroups,

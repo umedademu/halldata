@@ -560,6 +560,9 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
   const fallbackDateStoreCount = resultDetails.filter(
     (detail) => String(detail?.selectedDate ?? "").trim() !== selectedDate,
   ).length;
+  const expectedRbFallbackStoreCount = resultDetails.filter(
+    (detail) => detail?.expectedRbOnlyFallback,
+  ).length;
   const closedDateStoreCount = resultDetails.filter((detail) =>
     storeDayStatusIsClosed(detail?.requestedDateStatus),
   ).length;
@@ -584,7 +587,7 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">店舗横断狙い度ランキング</h1>
           <p className="leadText">
-            マイホール内のジャグラー系から、期待RB付き候補だけを店舗横断で確認します。
+            マイホール内のジャグラー系から、期待RB付き候補を優先して店舗横断で確認します。
           </p>
           <div className="heroLinks simpleHeroLinks">
             <Link href="/" className="externalLink">
@@ -865,6 +868,12 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
                   <strong className="metaValue">{formatNumber(closedDateStoreCount)}店</strong>
                 </article>
               ) : null}
+              {expectedRbFallbackStoreCount > 0 ? (
+                <article className="summaryCard">
+                  <p className="metaLabel">通常候補表示</p>
+                  <strong className="metaValue">{formatNumber(expectedRbFallbackStoreCount)}店</strong>
+                </article>
+              ) : null}
               <article className="summaryCard">
                 <p className="metaLabel">対象機種</p>
                 <strong className="metaValue">{formatNumber(selectedMachineNames.length)}機種</strong>
@@ -892,7 +901,7 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
         ) : (
           <section className="statusPanel">
             <h2>表示できる台がありません</h2>
-            <p>期待RBが表示できる候補がありません。対象店舗、日付、機種を見直してください。</p>
+            <p>表示できる候補がありません。対象店舗、日付、機種を見直してください。</p>
             {noSelectedDateStoreCount > 0 ? (
               <p>指定日以前の保存データがない店舗は、横断結果から除外しています。</p>
             ) : null}
