@@ -1959,16 +1959,13 @@ const MatrixRow = memo(function MatrixRow({
     const colSpan = Math.max(1, slotNumbers.length * visibleMetrics.length);
     return (
       <tr className="storeClosedMatrixRow">
-        <th className="dateCell storeClosedDateCell" title="店休日">
+        <th className="dateCell storeClosedDateCell">
           <span className="dateCellStack">
             <span>{formatShortDate(row.date)}</span>
-            <span className="dateCellSubLabel">店休日</span>
           </span>
         </th>
         <td className="weekdayCell storeClosedWeekdayCell">{formatWeekday(row.date)}</td>
-        <td className="storeClosedMatrixCell" colSpan={colSpan}>
-          店休日
-        </td>
+        <td className="storeClosedMatrixCell" colSpan={colSpan} />
       </tr>
     );
   }

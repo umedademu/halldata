@@ -3396,13 +3396,6 @@ a {
   border-right-color: #d5dae2;
 }
 
-.dateCellSubLabel {
-  color: #667085;
-  font-size: 0.66rem;
-  font-weight: 800;
-  line-height: 1;
-}
-
 .storeClosedMatrixCell {
   font-size: var(--matrix-cell-font-size, 0.82rem);
   font-weight: 900;
