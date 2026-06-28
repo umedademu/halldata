@@ -65,10 +65,7 @@ SITE7_SAVED_TIMEZONE = timezone(timedelta(hours=9))
 SITE7_COMPLETE_FETCH_HOUR = 23
 R2_SNAPSHOT_PREFIX = "snapshots"
 R2_FULL_DAY_INDEX_FILE_NAME = "full-day-index.json"
-MY_HALL_PROFILE_LABELS = {
-    "a": "Aさん",
-    "b": "Bさん",
-}
+MY_HALL_INDEX_FILE_NAME = "my-hall/index.json"
 FULL_DAY_INCOMPLETE_RECORD_RATIO = 0.8
 FULL_DAY_INCOMPLETE_MACHINE_RATIO = 0.8
 FULL_DAY_INCOMPLETE_MIN_REFERENCE_RECORD_COUNT = 20
@@ -175,11 +172,6 @@ def normalize_store_name_key(value: str) -> str:
 def normalize_machine_name_key(value: str) -> str:
     canonical_name = canonical_machine_name(str(value)).strip()
     return normalize_text(canonical_name)
-
-
-def normalize_my_hall_profile_id(value: Any) -> str:
-    profile_id = str(value or "").strip().casefold()
-    return profile_id if profile_id in MY_HALL_PROFILE_LABELS else ""
 
 
 def normalize_saved_target_machine_name_keys(machine_names: list[str]) -> set[str]:
@@ -1083,18 +1075,20 @@ class HistoryPersistenceService:
             excluded_store_urls=excluded_store_urls,
         )
 
-    def load_shared_my_hall_store_ids(self, profile_id: str) -> list[str]:
-        normalized_profile_id = normalize_my_hall_profile_id(profile_id)
-        if not normalized_profile_id or not self.r2_storage.is_configured:
+    def load_shared_my_hall_store_ids(self) -> list[str]:
+        if not self.r2_storage.is_configured:
             return []
 
-        payload = self.r2_storage.read_json(f"my-hall/{normalized_profile_id}.json")
+        payload = self.r2_storage.read_json(MY_HALL_INDEX_FILE_NAME)
         if not isinstance(payload, dict):
             return []
 
         store_ids = payload.get("storeIds")
         if not isinstance(store_ids, list):
-            return []
+            store_ids = []
+            for client in payload.get("clients", []):
+                if isinstance(client, dict) and isinstance(client.get("storeIds"), list):
+                    store_ids.extend(client["storeIds"])
 
         normalized_store_ids: list[str] = []
         seen_store_ids: set[str] = set()
@@ -1106,8 +1100,8 @@ class HistoryPersistenceService:
             normalized_store_ids.append(normalized_store_id)
         return normalized_store_ids
 
-    def load_shared_my_hall_store_urls(self, profile_id: str) -> tuple[list[str], list[str]]:
-        store_ids = self.load_shared_my_hall_store_ids(profile_id)
+    def load_shared_my_hall_store_urls(self) -> tuple[list[str], list[str]]:
+        store_ids = self.load_shared_my_hall_store_ids()
         if not store_ids:
             return [], []
 

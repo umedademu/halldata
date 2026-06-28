@@ -3,127 +3,17 @@
 import { useEffect, useState } from "react";
 
 import {
-  MY_HALL_PROFILES,
-  normalizeMyHallProfileId,
+  normalizeMyHallClientId,
   normalizeMyHallStoreIds,
 } from "../lib/my-hall";
 
 export const MY_HALL_STORAGE_KEY = "halldata-my-hall-store-ids";
 export const MY_HALL_UPDATED_AT_STORAGE_KEY = "halldata-my-hall-updated-at";
-export const MY_HALL_PROFILE_STORAGE_KEY = "halldata-my-hall-profile-id";
+export const MY_HALL_CLOUD_CLIENT_ID_STORAGE_KEY = "halldata-my-hall-cloud-client-id";
 export const MY_HALL_CHANGE_EVENT = "halldata-my-hall-change";
-export const MY_HALL_PROFILE_CHANGE_EVENT = "halldata-my-hall-profile-change";
 
 export function normalizeStoreId(value) {
   return String(value ?? "").trim();
-}
-
-function profileStorageKey(profileId, baseKey) {
-  const normalizedProfileId = normalizeMyHallProfileId(profileId);
-  return normalizedProfileId ? `${baseKey}:${normalizedProfileId}` : baseKey;
-}
-
-function hasStoredValue(key) {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  try {
-    return window.localStorage.getItem(key) !== null;
-  } catch {
-    return false;
-  }
-}
-
-function readStoreIdsFromKey(key) {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  try {
-    const parsedValue = JSON.parse(window.localStorage.getItem(key) || "[]");
-    return normalizeMyHallStoreIds(parsedValue);
-  } catch {
-    window.localStorage.removeItem(key);
-    return [];
-  }
-}
-
-function readStoredText(key) {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  try {
-    return String(window.localStorage.getItem(key) ?? "");
-  } catch {
-    return "";
-  }
-}
-
-function saveStoredText(key, value) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    if (value) {
-      window.localStorage.setItem(key, value);
-    } else {
-      window.localStorage.removeItem(key);
-    }
-  } catch {
-    // 端末保存が使えない場合は、表示中の状態だけで扱います。
-  }
-}
-
-function readActiveMyHallStorageContext() {
-  const profileId = readSavedMyHallProfileId();
-  const profileStoreIdsKey = profileStorageKey(profileId, MY_HALL_STORAGE_KEY);
-  const profileUpdatedAtKey = profileStorageKey(profileId, MY_HALL_UPDATED_AT_STORAGE_KEY);
-  const shouldUseLegacyValue =
-    Boolean(profileId) &&
-    !hasStoredValue(profileStoreIdsKey) &&
-    !hasStoredValue(profileUpdatedAtKey) &&
-    hasStoredValue(MY_HALL_STORAGE_KEY);
-
-  return {
-    profileId,
-    storeIdsKey: shouldUseLegacyValue ? MY_HALL_STORAGE_KEY : profileStoreIdsKey,
-    updatedAtKey: shouldUseLegacyValue ? MY_HALL_UPDATED_AT_STORAGE_KEY : profileUpdatedAtKey,
-    usesLegacyValue: shouldUseLegacyValue,
-  };
-}
-
-function readSavedMyHallUpdatedAt() {
-  const context = readActiveMyHallStorageContext();
-  return readStoredText(context.updatedAtKey);
-}
-
-function writeLocalMyHallStoreIds(storeIds, updatedAt) {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  const profileId = readSavedMyHallProfileId();
-  const storeIdsKey = profileStorageKey(profileId, MY_HALL_STORAGE_KEY);
-  const updatedAtKey = profileStorageKey(profileId, MY_HALL_UPDATED_AT_STORAGE_KEY);
-  const normalizedStoreIds = normalizeMyHallStoreIds(storeIds);
-  const normalizedUpdatedAt = String(updatedAt ?? "").trim() || new Date().toISOString();
-
-  try {
-    window.localStorage.setItem(storeIdsKey, JSON.stringify(normalizedStoreIds));
-    window.localStorage.setItem(updatedAtKey, normalizedUpdatedAt);
-    if (profileId) {
-      window.localStorage.removeItem(MY_HALL_STORAGE_KEY);
-      window.localStorage.removeItem(MY_HALL_UPDATED_AT_STORAGE_KEY);
-    }
-    window.dispatchEvent(new CustomEvent(MY_HALL_CHANGE_EVENT));
-  } catch {
-    // 端末保存が使えない場合は、画面上の更新だけを続けます。
-  }
-
-  return normalizedStoreIds;
 }
 
 export function readSavedMyHallStoreIds() {
@@ -131,42 +21,17 @@ export function readSavedMyHallStoreIds() {
     return [];
   }
 
-  return readStoreIdsFromKey(readActiveMyHallStorageContext().storeIdsKey);
+  try {
+    const parsedValue = JSON.parse(window.localStorage.getItem(MY_HALL_STORAGE_KEY) || "[]");
+    return normalizeMyHallStoreIds(parsedValue);
+  } catch {
+    window.localStorage.removeItem(MY_HALL_STORAGE_KEY);
+    return [];
+  }
 }
 
-function readCloudMyHallApiPath(profileId) {
-  const normalizedProfileId = normalizeMyHallProfileId(profileId);
-  return normalizedProfileId ? `/api/my-hall/${encodeURIComponent(normalizedProfileId)}` : "";
-}
-
-async function readCloudMyHallStoreIds(profileId) {
-  const path = readCloudMyHallApiPath(profileId);
-  if (!path) {
-    return { storeIds: [], updatedAt: "" };
-  }
-
-  const response = await fetch(path, { cache: "no-store" });
-  if (response.status === 404) {
-    return { storeIds: [], updatedAt: "" };
-  }
-  if (!response.ok) {
-    throw new Error("マイホールを読めませんでした。");
-  }
-
-  const payload = await response.json();
-  return {
-    storeIds: normalizeMyHallStoreIds(payload?.storeIds),
-    updatedAt: String(payload?.updatedAt ?? "").trim(),
-  };
-}
-
-async function writeCloudMyHallStoreIds(profileId, storeIds, updatedAt) {
-  const path = readCloudMyHallApiPath(profileId);
-  if (!path) {
-    return null;
-  }
-
-  const response = await fetch(path, {
+async function writeCloudMyHallStoreIds(storeIds, updatedAt) {
+  const response = await fetch("/api/my-hall", {
     method: "PATCH",
     headers: {
       "content-type": "application/json",
@@ -174,6 +39,7 @@ async function writeCloudMyHallStoreIds(profileId, storeIds, updatedAt) {
     body: JSON.stringify({
       storeIds: normalizeMyHallStoreIds(storeIds),
       updatedAt,
+      clientId: readOrCreateMyHallCloudClientId(),
     }),
   });
   if (!response.ok) {
@@ -184,16 +50,9 @@ async function writeCloudMyHallStoreIds(profileId, storeIds, updatedAt) {
 
 let pendingCloudSave = null;
 let pendingCloudSaveTimer = null;
-let cloudSyncPromise = null;
 
-function queueMyHallCloudSave(profileId, storeIds, updatedAt) {
-  const normalizedProfileId = normalizeMyHallProfileId(profileId);
-  if (!normalizedProfileId) {
-    return;
-  }
-
+function queueMyHallCloudSave(storeIds, updatedAt) {
   pendingCloudSave = {
-    profileId: normalizedProfileId,
     storeIds: normalizeMyHallStoreIds(storeIds),
     updatedAt,
   };
@@ -206,81 +65,38 @@ function queueMyHallCloudSave(profileId, storeIds, updatedAt) {
     const payload = pendingCloudSave;
     pendingCloudSave = null;
     pendingCloudSaveTimer = null;
-    writeCloudMyHallStoreIds(payload.profileId, payload.storeIds, payload.updatedAt).catch((error) => {
+    writeCloudMyHallStoreIds(payload.storeIds, payload.updatedAt).catch((error) => {
       console.warn(error);
     });
   }, 400);
 }
 
-function parseDateTime(value) {
-  const timestamp = Date.parse(String(value ?? ""));
-  return Number.isFinite(timestamp) ? timestamp : 0;
+function createMyHallCloudClientId() {
+  const rawId =
+    typeof window.crypto?.randomUUID === "function"
+      ? window.crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  return normalizeMyHallClientId(`client-${rawId}`);
 }
 
-function storeIdsAreSame(left, right) {
-  const leftStoreIds = normalizeMyHallStoreIds(left);
-  const rightStoreIds = normalizeMyHallStoreIds(right);
-  return (
-    leftStoreIds.length === rightStoreIds.length &&
-    leftStoreIds.every((storeId, index) => storeId === rightStoreIds[index])
-  );
-}
-
-export async function syncMyHallStoreIdsWithCloud() {
-  if (cloudSyncPromise) {
-    return cloudSyncPromise;
+function readOrCreateMyHallCloudClientId() {
+  if (typeof window === "undefined") {
+    return "";
   }
 
-  cloudSyncPromise = (async () => {
-    const profileId = readSavedMyHallProfileId();
-    if (!profileId) {
-      return { profileId: "", storeIds: readSavedMyHallStoreIds(), updatedAt: "" };
-    }
-
-    const localStoreIds = readSavedMyHallStoreIds();
-    const localUpdatedAt = readSavedMyHallUpdatedAt();
-    const cloudPayload = await readCloudMyHallStoreIds(profileId);
-    const cloudStoreIds = cloudPayload.storeIds;
-    const cloudUpdatedAt = cloudPayload.updatedAt;
-    const localTime = parseDateTime(localUpdatedAt);
-    const cloudTime = parseDateTime(cloudUpdatedAt);
-    const hasOldLocalFavorites = localStoreIds.length > 0 && localTime === 0;
-
-    if (hasOldLocalFavorites) {
-      const mergedStoreIds = normalizeMyHallStoreIds([...localStoreIds, ...cloudStoreIds]);
-      const updatedAt = new Date().toISOString();
-      writeLocalMyHallStoreIds(mergedStoreIds, updatedAt);
-      await writeCloudMyHallStoreIds(profileId, mergedStoreIds, updatedAt);
-      return { profileId, storeIds: mergedStoreIds, updatedAt };
-    }
-
-    if (cloudTime > localTime) {
-      writeLocalMyHallStoreIds(cloudStoreIds, cloudUpdatedAt || new Date().toISOString());
-      return { profileId, storeIds: cloudStoreIds, updatedAt: cloudUpdatedAt };
-    }
-
-    if (localStoreIds.length > 0 && (localTime > cloudTime || cloudTime === 0)) {
-      const updatedAt = localUpdatedAt || new Date().toISOString();
-      await writeCloudMyHallStoreIds(profileId, localStoreIds, updatedAt);
-      writeLocalMyHallStoreIds(localStoreIds, updatedAt);
-      return { profileId, storeIds: localStoreIds, updatedAt };
-    }
-
-    if (localTime === cloudTime && localTime > 0 && !storeIdsAreSame(localStoreIds, cloudStoreIds)) {
-      const mergedStoreIds = normalizeMyHallStoreIds([...localStoreIds, ...cloudStoreIds]);
-      const updatedAt = new Date().toISOString();
-      writeLocalMyHallStoreIds(mergedStoreIds, updatedAt);
-      await writeCloudMyHallStoreIds(profileId, mergedStoreIds, updatedAt);
-      return { profileId, storeIds: mergedStoreIds, updatedAt };
-    }
-
-    return { profileId, storeIds: localStoreIds, updatedAt: localUpdatedAt };
-  })();
-
   try {
-    return await cloudSyncPromise;
-  } finally {
-    cloudSyncPromise = null;
+    const savedClientId = normalizeMyHallClientId(
+      window.localStorage.getItem(MY_HALL_CLOUD_CLIENT_ID_STORAGE_KEY),
+    );
+    if (savedClientId) {
+      return savedClientId;
+    }
+
+    const nextClientId = createMyHallCloudClientId();
+    window.localStorage.setItem(MY_HALL_CLOUD_CLIENT_ID_STORAGE_KEY, nextClientId);
+    return nextClientId;
+  } catch {
+    return createMyHallCloudClientId();
   }
 }
 
@@ -289,29 +105,36 @@ export function saveMyHallStoreIds(storeIds, options = {}) {
     return;
   }
 
-  const context = readActiveMyHallStorageContext();
   const updatedAt = String(options.updatedAt ?? "").trim() || new Date().toISOString();
-  const normalizedStoreIds = writeLocalMyHallStoreIds(storeIds, updatedAt);
-  if (options.syncCloud !== false) {
-    queueMyHallCloudSave(context.profileId, normalizedStoreIds, updatedAt);
-  }
-}
-
-export function readSavedMyHallProfileId() {
-  return normalizeMyHallProfileId(readStoredText(MY_HALL_PROFILE_STORAGE_KEY));
-}
-
-export function saveMyHallProfileId(profileId) {
-  const normalizedProfileId = normalizeMyHallProfileId(profileId);
-  saveStoredText(MY_HALL_PROFILE_STORAGE_KEY, normalizedProfileId);
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent(MY_HALL_PROFILE_CHANGE_EVENT));
+  const normalizedStoreIds = normalizeMyHallStoreIds(storeIds);
+  try {
+    window.localStorage.setItem(MY_HALL_STORAGE_KEY, JSON.stringify(normalizedStoreIds));
+    window.localStorage.setItem(MY_HALL_UPDATED_AT_STORAGE_KEY, updatedAt);
     window.dispatchEvent(new CustomEvent(MY_HALL_CHANGE_EVENT));
+  } catch {
+    // 端末保存が使えない場合は、画面上の更新だけを続けます。
+  }
+  if (options.syncCloud !== false) {
+    queueMyHallCloudSave(normalizedStoreIds, updatedAt);
   }
 }
 
-export function listMyHallProfiles() {
-  return MY_HALL_PROFILES;
+export function syncSavedMyHallStoreIdsToCloud() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (
+    window.localStorage.getItem(MY_HALL_STORAGE_KEY) === null &&
+    window.localStorage.getItem(MY_HALL_UPDATED_AT_STORAGE_KEY) === null
+  ) {
+    return;
+  }
+
+  queueMyHallCloudSave(
+    readSavedMyHallStoreIds(),
+    window.localStorage.getItem(MY_HALL_UPDATED_AT_STORAGE_KEY) || new Date().toISOString(),
+  );
 }
 
 export function StoreFavoriteButton({

@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { MyHallProfileSelector } from "./my-hall-profile-selector";
-
 const NAV_ITEMS = [
   { href: "/", label: "店舗選択", match: (pathname) => pathname === "/" || pathname.startsWith("/stores/") },
   {
@@ -25,23 +23,20 @@ export function TopNavigation() {
 
   return (
     <nav className="topNavigation" aria-label="主要画面">
-      <div className="topNavLinks">
-        {NAV_ITEMS.map((item) => {
-          const isActive = item.match(pathname);
+      {NAV_ITEMS.map((item) => {
+        const isActive = item.match(pathname);
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`topNavButton ${isActive ? "topNavButtonActive" : ""}`}
-              aria-current={isActive ? "page" : undefined}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </div>
-      <MyHallProfileSelector />
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`topNavButton ${isActive ? "topNavButtonActive" : ""}`}
+            aria-current={isActive ? "page" : undefined}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

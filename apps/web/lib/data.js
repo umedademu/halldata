@@ -41,8 +41,9 @@ import {
 } from "./machine-evaluation";
 import {
   MY_HALL_CLOUD_DATA_VERSION,
-  buildMyHallCloudDataPath,
-  normalizeMyHallProfileId,
+  MY_HALL_CLOUD_INDEX_PATH,
+  buildMyHallClientDataPath,
+  normalizeMyHallClientId,
   normalizeMyHallStoreIds,
 } from "./my-hall";
 import {
@@ -795,51 +796,82 @@ function normalizeMyHallUpdatedAt(value) {
   return Number.isFinite(Date.parse(text)) ? text : new Date().toISOString();
 }
 
-export async function getCloudMyHallProfile(profileId) {
-  const normalizedProfileId = normalizeMyHallProfileId(profileId);
-  const dataPath = buildMyHallCloudDataPath(normalizedProfileId);
-  if (!dataPath) {
+function normalizeMyHallCloudClient(value) {
+  if (!value || typeof value !== "object") {
     return null;
   }
 
-  const payload = await readStaticWebDataPayload(dataPath);
-  if (!payload || typeof payload !== "object") {
-    return {
-      version: MY_HALL_CLOUD_DATA_VERSION,
-      profileId: normalizedProfileId,
-      storeIds: [],
-      updatedAt: "",
-    };
+  const clientId = normalizeMyHallClientId(value.clientId);
+  if (!clientId) {
+    return null;
   }
-
   return {
-    version: MY_HALL_CLOUD_DATA_VERSION,
-    profileId: normalizedProfileId,
-    storeIds: normalizeMyHallStoreIds(payload.storeIds),
-    updatedAt: String(payload.updatedAt ?? "").trim(),
+    clientId,
+    storeIds: normalizeMyHallStoreIds(value.storeIds),
+    updatedAt: String(value.updatedAt ?? "").trim(),
   };
 }
 
-export async function updateCloudMyHallProfile(profileId, storeIds, updatedAt) {
-  const normalizedProfileId = normalizeMyHallProfileId(profileId);
-  const dataPath = buildMyHallCloudDataPath(normalizedProfileId);
-  if (!dataPath) {
-    throw new Error("利用者を選んでください。");
+function buildMyHallCloudIndex(clients) {
+  const normalizedClients = (Array.isArray(clients) ? clients : [])
+    .map(normalizeMyHallCloudClient)
+    .filter(Boolean)
+    .sort((left, right) => left.clientId.localeCompare(right.clientId, "ja"));
+  const storeIds = normalizeMyHallStoreIds(
+    normalizedClients.flatMap((client) => client.storeIds),
+  );
+
+  return {
+    version: MY_HALL_CLOUD_DATA_VERSION,
+    updatedAt: new Date().toISOString(),
+    storeIds,
+    clients: normalizedClients,
+  };
+}
+
+export async function getCloudMyHallIndex() {
+  const payload = await readStaticWebDataPayload(MY_HALL_CLOUD_INDEX_PATH);
+  if (!payload || typeof payload !== "object") {
+    return buildMyHallCloudIndex([]);
+  }
+  const clients = Array.isArray(payload.clients) ? payload.clients : [];
+  return buildMyHallCloudIndex(clients);
+}
+
+export async function updateCloudMyHallClient(clientId, storeIds, updatedAt) {
+  const normalizedClientId = normalizeMyHallClientId(clientId);
+  const clientDataPath = buildMyHallClientDataPath(normalizedClientId);
+  if (!normalizedClientId || !clientDataPath) {
+    throw new Error("ブラウザー識別子を作成できませんでした。");
   }
 
-  const payload = {
+  const clientPayload = {
     version: MY_HALL_CLOUD_DATA_VERSION,
-    profileId: normalizedProfileId,
+    clientId: normalizedClientId,
     storeIds: normalizeMyHallStoreIds(storeIds),
     updatedAt: normalizeMyHallUpdatedAt(updatedAt),
   };
-  const saved = await writeJsonToR2(dataPath, payload, {
+  const currentIndex = await getCloudMyHallIndex();
+  const clientsById = new Map(
+    currentIndex.clients.map((client) => [client.clientId, client]),
+  );
+  clientsById.set(normalizedClientId, {
+    clientId: normalizedClientId,
+    storeIds: clientPayload.storeIds,
+    updatedAt: clientPayload.updatedAt,
+  });
+  const nextIndex = buildMyHallCloudIndex([...clientsById.values()]);
+
+  const savedClient = await writeJsonToR2(clientDataPath, clientPayload, {
     cacheControl: "no-store",
   });
-  if (!saved) {
+  const savedIndex = await writeJsonToR2(MY_HALL_CLOUD_INDEX_PATH, nextIndex, {
+    cacheControl: "no-store",
+  });
+  if (!savedClient || !savedIndex) {
     throw new Error("マイホールの保存先が設定されていません。");
   }
-  return payload;
+  return nextIndex;
 }
 
 function staticStoreMatchesId(storeEntry, storeId) {
