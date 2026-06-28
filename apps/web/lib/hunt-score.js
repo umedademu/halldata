@@ -2220,6 +2220,23 @@ function calculateCurrentLosingStreak(windowRows) {
   return streak;
 }
 
+function calculateCurrentLosingStreakWithMinimumGames(windowRows, minimumGames) {
+  let streak = 0;
+
+  for (let index = windowRows.length - 1; index >= 0; index -= 1) {
+    const games = readWindowField(windowRows[index], "games");
+    if (games < minimumGames) {
+      continue;
+    }
+    if (windowRows[index].differenceValue >= 0) {
+      break;
+    }
+    streak += 1;
+  }
+
+  return streak;
+}
+
 function calculateCurrentNonPositiveStreak(windowRows) {
   let streak = 0;
 
@@ -2869,9 +2886,14 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     if (contentRule === "mitoya-asakusa-senzoku-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
-        return games >= 2000 && settingFivePlusProbability >= 0.5;
+        return (
+          games >= 2500 &&
+          settingFivePlusProbability >= 0.5 &&
+          rbDenominator <= 300 &&
+          combinedDenominator <= 140
+        );
       }
-      return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 140;
+      return false;
     }
     if (contentRule === "ex-arena-tokyo-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -3530,11 +3552,7 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       );
     }
     if (contentRule === "mitoya-asakusa-senzoku-neo-aim") {
-      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
-      return (
-        (Number.isFinite(settingFivePlusProbability) && games >= 2500 && settingFivePlusProbability >= 0.35) ||
-        (games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 140)
-      );
+      return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
     if (contentRule === "ex-arena-tokyo-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -9841,6 +9859,8 @@ function calculateWindowMetrics(
       ? historyWindowRows.filter((windowRow) => String(windowRow?.row?.target_date ?? "") >= "2026-02-06").length
       : historyWindowRows.length;
   const recentThreeLowGames1500Count = recentThreeRows.filter((windowRow) => windowRow.games < 1500).length;
+  const recentThreeLowGames500Count = recentThreeRows.filter((windowRow) => windowRow.games < 500).length;
+  const recentThreeWorkGames2000Count = recentThreeRows.filter((windowRow) => windowRow.games >= 2000).length;
   const recentSevenLowGames500Count = recentSevenRows.filter((windowRow) => readWindowField(windowRow, "games") < 500).length;
   const recentTwoGamesTotal = recentTwoRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentThreeGamesTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.games, 0);
@@ -10723,6 +10743,8 @@ function calculateWindowMetrics(
     recentFourteenNonPositiveDays,
     recentFourPositiveCount,
     recentThreeLowGames1500Count,
+    recentThreeLowGames500Count,
+    recentThreeWorkGames2000Count,
     recentSevenLowGames500Count,
     recentFiveMaxWin,
     toyoHallNeoHistoryRowCountFromCsvStart,
@@ -10773,6 +10795,7 @@ function calculateWindowMetrics(
     highSettingEstimateStreak: calculateCurrentHighSettingEstimateStreak(metricWindowRows),
     highSettingCandidateStreak: calculateCurrentHighSettingCandidateStreak(metricWindowRows),
     historyLosingStreak: calculateCurrentLosingStreak(historyWindowRows),
+    lossStreakGames200: calculateCurrentLosingStreakWithMinimumGames(historyWindowRows, 200),
     nonPositiveStreak: calculateCurrentNonPositiveStreak(historyWindowRows),
     machineHighContentStreak: calculateCurrentMachineContentStreak(
       metricWindowRows,
