@@ -9900,6 +9900,12 @@ function calculateWindowMetrics(
       ? historyWindowRows.filter((windowRow) => String(windowRow?.row?.target_date ?? "") >= "2026-02-06").length
       : historyWindowRows.length;
   const recentThreeLowGames1500Count = recentThreeRows.filter((windowRow) => windowRow.games < 1500).length;
+  const recentTenLowGames1500Count = recentTenRows.filter(
+    (windowRow) => readWindowField(windowRow, "games") < 1500,
+  ).length;
+  const recentTwentyOneLowGames1500Count = recentTwentyOneRows.filter(
+    (windowRow) => readWindowField(windowRow, "games") < 1500,
+  ).length;
   const recentThreeLowGames500Count = recentThreeRows.filter((windowRow) => windowRow.games < 500).length;
   const recentThreeWorkGames2000Count = recentThreeRows.filter((windowRow) => windowRow.games >= 2000).length;
   const recentSevenLowGames500Count = recentSevenRows.filter((windowRow) => readWindowField(windowRow, "games") < 500).length;
@@ -10689,6 +10695,14 @@ function calculateWindowMetrics(
   const recentThreeBigWin1200Count = countDifferenceAtLeastRows(recentThreeRows, 1200);
   const recentFiveBigWin1000Count = countDifferenceAtLeastRows(recentFiveRows, 1000);
   const recentFiveBigWin1200Count = countDifferenceAtLeastRows(recentFiveRows, 1200);
+  const recentTenBigLoss1000Count = recentTenRows.filter(
+    (windowRow) => readNumber(windowRow?.differenceValue) <= -1000,
+  ).length;
+  const recentTwentyOneBigLoss1000Count = recentTwentyOneRows.filter(
+    (windowRow) => readNumber(windowRow?.differenceValue) <= -1000,
+  ).length;
+  const recentTenBigWin1000Count = countDifferenceAtLeastRows(recentTenRows, 1000);
+  const recentTwentyOneBigWin1000Count = countDifferenceAtLeastRows(recentTwentyOneRows, 1000);
   const recentFiveBadMinus800Count = recentFiveRows.filter(
     (windowRow) => readNumber(windowRow?.differenceValue) <= -800,
   ).length;
@@ -10808,6 +10822,8 @@ function calculateWindowMetrics(
     recentFourteenNonPositiveDays,
     recentFourPositiveCount,
     recentThreeLowGames1500Count,
+    recentTenLowGames1500Count,
+    recentTwentyOneLowGames1500Count,
     recentThreeLowGames500Count,
     recentThreeWorkGames2000Count,
     recentSevenLowGames500Count,
@@ -10923,6 +10939,10 @@ function calculateWindowMetrics(
     recentTwentyOneMachineSettingFivePlusProbabilityAverage,
     recentThreeBigWin1200Count,
     recentFiveBigWin1000Count,
+    recentTenBigLoss1000Count,
+    recentTwentyOneBigLoss1000Count,
+    recentTenBigWin1000Count,
+    recentTwentyOneBigWin1000Count,
     daysSinceMachineHighContent,
     daysSinceMachineGoodContent,
     daysSinceMachineStrongHighContent,
