@@ -11,6 +11,7 @@ import { NativeGetForm } from "../../components/native-get-form";
 import { ResultUrlTools } from "../../components/result-url-tools";
 import {
   getHuntScoreInitialPageDetail,
+  getHuntScoreMachineEvaluationStoreSummaries,
   getHuntScoreRankingDetail,
   getStoreList,
 } from "../../lib/data";
@@ -43,6 +44,18 @@ const FORM_ID = "cross-store-hunt-ranking-form";
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 300;
 const STORE_DAY_STATUS_CLOSED = "closed";
+const STORE_SELECTION_SOURCE_FAVORITES = "favorites";
+const STORE_SELECTION_SOURCE_CONFIGURED = "configured";
+const STORE_SELECTION_SOURCE_OPTIONS = [
+  {
+    value: STORE_SELECTION_SOURCE_FAVORITES,
+    label: "お気に入り店舗",
+  },
+  {
+    value: STORE_SELECTION_SOURCE_CONFIGURED,
+    label: "機種別設定店舗",
+  },
+];
 
 function readSingleSearchParam(value) {
   if (Array.isArray(value)) {
@@ -66,6 +79,12 @@ function normalizeStoreIds(values) {
         .filter(Boolean),
     ),
   ];
+}
+
+function normalizeStoreSelectionSource(value) {
+  return String(value ?? "").trim() === STORE_SELECTION_SOURCE_CONFIGURED
+    ? STORE_SELECTION_SOURCE_CONFIGURED
+    : STORE_SELECTION_SOURCE_FAVORITES;
 }
 
 function normalizeLimit(value) {
@@ -107,6 +126,75 @@ function SettingEstimateModeOptions({ value }) {
 function readSlotCount(detail, machineName) {
   const slotCount = Number(detail?.machineSlotCounts?.[machineName]);
   return Number.isFinite(slotCount) && slotCount > 0 ? slotCount : 0;
+}
+
+function readConfiguredMachineEvaluationMachineNames(detail) {
+  return [
+    ...new Set(
+      (Array.isArray(detail?.machineEvaluationSettings)
+        ? detail.machineEvaluationSettings
+        : [])
+        .filter((setting) =>
+          Boolean(
+            setting?.logicKey &&
+              setting?.conditionKey &&
+              isHuntJugglerMachine(setting?.machineName),
+          ),
+        )
+        .map((setting) => String(setting.machineName ?? "").trim())
+        .filter(Boolean),
+    ),
+  ].sort((left, right) =>
+    getHuntMachineShortName(left).localeCompare(getHuntMachineShortName(right), "ja"),
+  );
+}
+
+function buildInitialDetailByStoreId(details) {
+  return new Map(
+    (Array.isArray(details) ? details : [])
+      .filter((detail) => detail?.store?.id)
+      .map((detail) => [String(detail.store.id), detail]),
+  );
+}
+
+function buildConfiguredStoreCandidates(stores, initialDetails) {
+  const detailByStoreId = buildInitialDetailByStoreId(initialDetails);
+
+  return (Array.isArray(stores) ? stores : [])
+    .map((store) => {
+      const configuredMachineNames = readConfiguredMachineEvaluationMachineNames(
+        detailByStoreId.get(store.id),
+      );
+      return configuredMachineNames.length > 0
+        ? {
+            ...store,
+            configuredMachineNames,
+          }
+        : null;
+    })
+    .filter(Boolean);
+}
+
+function buildStoreOptionTitle(store, storeSource) {
+  if (storeSource !== STORE_SELECTION_SOURCE_CONFIGURED) {
+    return store.storeName;
+  }
+  const machineNames = Array.isArray(store.configuredMachineNames)
+    ? store.configuredMachineNames
+    : [];
+  return machineNames.length > 0
+    ? `${store.storeName}：${machineNames.map(getHuntMachineShortName).join("、")}`
+    : store.storeName;
+}
+
+function buildStoreOptionLabel(store, storeSource) {
+  if (storeSource !== STORE_SELECTION_SOURCE_CONFIGURED) {
+    return store.storeName;
+  }
+  const machineCount = Array.isArray(store.configuredMachineNames)
+    ? store.configuredMachineNames.length
+    : 0;
+  return `${store.storeName}（${formatNumber(machineCount)}機種）`;
 }
 
 function buildJugglerMachineOptions(details, requestedMachineNames, machineTouched) {
@@ -309,6 +397,26 @@ async function readCrossStoreInitialDetail({
   }
 }
 
+async function readCrossStoreInitialDetails({
+  stores,
+  storeSettingsById,
+  differenceMode,
+  settingEstimateMode,
+}) {
+  return (
+    await Promise.all(
+      stores.map((store) =>
+        readCrossStoreInitialDetail({
+          store,
+          storeSettings: storeSettingsById.get(store.id),
+          differenceMode,
+          settingEstimateMode,
+        }),
+      ),
+    )
+  ).filter(Boolean);
+}
+
 async function readCrossStoreRankingDetail({
   store,
   selectedDate,
@@ -357,6 +465,9 @@ function isUsableCrossStoreRankingDetail(detail, selectedDate) {
 export default async function StoreCrossHuntRankingPage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const resultRequested = readSingleSearchParam(resolvedSearchParams?.show) === "1";
+  const storeSelectionSource = normalizeStoreSelectionSource(
+    readSingleSearchParam(resolvedSearchParams?.storeSource),
+  );
   const requestedFavoriteStoreIds = normalizeStoreIds(
     readMultiSearchParam(resolvedSearchParams?.favoriteStore),
   );
@@ -373,25 +484,46 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
   );
   const stores = (await getStoreList()).filter((store) => !store.isPendingRegistration);
   const storeById = buildStoreById(stores);
+  const cookieStore = await cookies();
   const favoriteStoreIds =
     requestedFavoriteStoreIds.length > 0 ? requestedFavoriteStoreIds : requestedStoreIds;
   const favoriteStores = favoriteStoreIds.map((storeId) => storeById.get(storeId)).filter(Boolean);
-  const favoriteStoreGroups = buildStoreLocationGroups(favoriteStores);
-  const selectedStores = requestedStoreIds.map((storeId) => storeById.get(storeId)).filter(Boolean);
-  const cookieStore = await cookies();
+  const configuredInitialDetails =
+    storeSelectionSource === STORE_SELECTION_SOURCE_CONFIGURED
+      ? await getHuntScoreMachineEvaluationStoreSummaries()
+      : [];
+  const configuredInitialDetailByStoreId = buildInitialDetailByStoreId(configuredInitialDetails);
+  const configuredStores =
+    storeSelectionSource === STORE_SELECTION_SOURCE_CONFIGURED
+      ? buildConfiguredStoreCandidates(stores, configuredInitialDetails)
+      : [];
+  const selectableStores =
+    storeSelectionSource === STORE_SELECTION_SOURCE_CONFIGURED
+      ? configuredStores
+      : favoriteStores;
+  const selectableStoreById = buildStoreById(selectableStores);
+  const selectedStoreIds =
+    requestedStoreIds.length > 0 || resultRequested
+      ? requestedStoreIds
+      : storeSelectionSource === STORE_SELECTION_SOURCE_CONFIGURED
+        ? selectableStores.map((store) => store.id)
+        : requestedStoreIds;
+  const selectedStores = selectedStoreIds
+    .map((storeId) => selectableStoreById.get(storeId))
+    .filter(Boolean);
+  const storeSelectionGroups = buildStoreLocationGroups(selectableStores);
   const storeSettingsById = buildStoreRuntimeSettings(cookieStore, selectedStores);
-  const initialDetails = (
-    await Promise.all(
-      selectedStores.map((store) =>
-        readCrossStoreInitialDetail({
-          store,
-          storeSettings: storeSettingsById.get(store.id),
+  const initialDetails =
+    storeSelectionSource === STORE_SELECTION_SOURCE_CONFIGURED
+      ? selectedStores
+          .map((store) => configuredInitialDetailByStoreId.get(store.id))
+          .filter(Boolean)
+      : await readCrossStoreInitialDetails({
+          stores: selectedStores,
+          storeSettingsById,
           differenceMode,
           settingEstimateMode,
-        }),
-      ),
-    )
-  ).filter(Boolean);
+        });
   const machineOptions = buildJugglerMachineOptions(
     initialDetails,
     requestedMachineNames,
@@ -441,6 +573,9 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
   const dateFlowLabel = selectedDate
     ? `${formatMonthDay(selectedDate)}狙い度 → 各店舗の翌営業日実績`
     : "狙い度 → 各店舗の翌営業日実績";
+  const storeSelectionSourceLabel =
+    STORE_SELECTION_SOURCE_OPTIONS.find((option) => option.value === storeSelectionSource)?.label ??
+    STORE_SELECTION_SOURCE_OPTIONS[0].label;
 
   return (
     <main className="pageStack">
@@ -466,13 +601,33 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
         <NativeGetForm action="/store-cross-hunt-ranking" id={FORM_ID} className="backtestForm">
           <input type="hidden" name="show" value="1" />
           <input type="hidden" name="machineTouched" value="1" />
-          {favoriteStores.map((store) => (
-            <input key={store.id} type="hidden" name="favoriteStore" value={store.id} />
-          ))}
+          <input type="hidden" name="storeSource" value={storeSelectionSource} />
+          {storeSelectionSource === STORE_SELECTION_SOURCE_FAVORITES
+            ? favoriteStores.map((store) => (
+                <input key={store.id} type="hidden" name="favoriteStore" value={store.id} />
+              ))
+            : null}
+
+          <div className="filterConditionBox rankingConditionBoxWide">
+            <p className="filterConditionBoxTitle">店舗選択モード</p>
+            <div className="metricToggleRow">
+              {STORE_SELECTION_SOURCE_OPTIONS.map((option) => (
+                <Link
+                  key={option.value}
+                  href={`/store-cross-hunt-ranking?storeSource=${option.value}`}
+                  className={`metricToggleChip ${
+                    storeSelectionSource === option.value ? "metricToggleChipActive" : ""
+                  }`}
+                >
+                  <span>{option.label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
 
           <div className="filterConditionBox rankingConditionBoxWide">
             <p className="filterConditionBoxTitle">対象店舗</p>
-            {favoriteStores.length > 0 ? (
+            {selectableStores.length > 0 ? (
               <div className="crossStoreSelectionStack">
                 <div className="storeSelectionToolbar">
                   {[
@@ -491,7 +646,7 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
                   ))}
                 </div>
                 <div className="machineFilterGroups">
-                  {favoriteStoreGroups.map((group) => (
+                  {storeSelectionGroups.map((group) => (
                     <div key={group.key} className="machineFilterGroup">
                       <p className="machineFilterGroupLabel">
                         {group.label}（{formatNumber(group.storeCount)}店）
@@ -516,13 +671,14 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
                       ) : null}
                       <div className="metricToggleRow">
                         {group.stores.map((store) => {
-                          const checked = requestedStoreIds.includes(store.id);
+                          const checked = selectedStoreIds.includes(store.id);
                           return (
                             <label
                               key={store.id}
                               className={`metricToggleChip ${
                                 checked ? "metricToggleChipActive" : ""
                               }`}
+                              title={buildStoreOptionTitle(store, storeSelectionSource)}
                             >
                               <input
                                 type="checkbox"
@@ -532,7 +688,7 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
                                 data-cross-store-option="1"
                                 data-store-prefecture={store.prefectureName ?? ""}
                               />
-                              <span>{store.storeName}</span>
+                              <span>{buildStoreOptionLabel(store, storeSelectionSource)}</span>
                             </label>
                           );
                         })}
@@ -543,7 +699,9 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
               </div>
             ) : (
               <p className="filterPanelStatus">
-                マイホールを登録すると、ここに対象店舗が表示されます。
+                {storeSelectionSource === STORE_SELECTION_SOURCE_CONFIGURED
+                  ? "機種別ロジックと採用条件があるジャグラー系店舗がありません。"
+                  : "マイホールを登録すると、ここに対象店舗が表示されます。"}
               </p>
             )}
           </div>
@@ -640,8 +798,11 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
                             data-machine-slot-count={machine.slotCount}
                           />
                           <span>
-                            {machine.shortName}（{formatNumber(machine.storeCount)}店/
-                            {formatNumber(machine.slotCount)}台）
+                            {machine.shortName}（{formatNumber(machine.storeCount)}店
+                            {machine.slotCount > 0
+                              ? `/${formatNumber(machine.slotCount)}台`
+                              : ""}
+                            ）
                           </span>
                         </label>
                       ))}
@@ -677,6 +838,10 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
               <article className="summaryCard">
                 <p className="metaLabel">対象店舗</p>
                 <strong className="metaValue">{formatNumber(selectedStores.length)}店</strong>
+              </article>
+              <article className="summaryCard">
+                <p className="metaLabel">店舗選択</p>
+                <strong className="metaValue">{storeSelectionSourceLabel}</strong>
               </article>
               <article className="summaryCard">
                 <p className="metaLabel">集計店舗</p>

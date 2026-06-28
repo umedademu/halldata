@@ -2010,6 +2010,59 @@ export const getStoreIdentity = cache(async function getStoreIdentity(storeId) {
   return null;
 });
 
+export const getHuntScoreMachineEvaluationStoreSummaries = cache(
+  async function getHuntScoreMachineEvaluationStoreSummaries() {
+    const staticIndex = await readStaticWebDataIndex();
+    return (Array.isArray(staticIndex?.stores) ? staticIndex.stores : [])
+      .map((storeEntry) => {
+        const store = readStaticStoreEntryIdentity(storeEntry);
+        if (!isHuntScoreTargetStore(store.storeName)) {
+          return null;
+        }
+        const latestDate = normalizeDateInput(storeEntry?.latestDate);
+        if (!latestDate) {
+          return null;
+        }
+
+        const machineNames = listHuntScoreTargetMachineNamesForStoreMachines(
+          store.storeName,
+          DEFAULT_CROSS_STORE_MACHINE_NAMES,
+        );
+        const machineEvaluationSettings = buildStoreMachineEvaluationSettings(
+          store.storeName,
+          machineNames,
+          {},
+        );
+        const configuredMachineNames = machineEvaluationSettings
+          .filter((setting) => setting?.logicKey && setting?.conditionKey)
+          .map((setting) => String(setting.machineName ?? "").trim())
+          .filter(Boolean);
+        if (configuredMachineNames.length === 0) {
+          return null;
+        }
+
+        return {
+          dataSource: "json",
+          resultRequested: false,
+          store: {
+            id: store.id,
+            storeName: store.storeName,
+            storeUrl: store.storeUrl,
+          },
+          availableMachineNames: configuredMachineNames,
+          selectedDate: latestDate,
+          requestedDate: "",
+          machineSlotCounts: {},
+          machineEvaluationSettings,
+          rows: [],
+          rankingGroups: [],
+          totalCount: 0,
+        };
+      })
+      .filter(Boolean);
+  },
+);
+
 function readStaticStoreIdentity(staticStore) {
   const store = staticStore?.store && typeof staticStore.store === "object" ? staticStore.store : {};
   return {

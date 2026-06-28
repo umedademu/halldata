@@ -9,6 +9,21 @@ import {
 } from "./store-favorite-button";
 
 const SELECTED_STORE_STORAGE_KEY = "cross-store-hunt-ranking-selected-store-ids";
+const CONFIGURED_STORE_STORAGE_KEY =
+  "cross-store-hunt-ranking-configured-selected-store-ids";
+const STORE_SOURCE_CONFIGURED = "configured";
+
+function normalizeStoreSource(value) {
+  return String(value ?? "").trim() === STORE_SOURCE_CONFIGURED
+    ? STORE_SOURCE_CONFIGURED
+    : "favorites";
+}
+
+function getSelectedStoreStorageKey(storeSource) {
+  return normalizeStoreSource(storeSource) === STORE_SOURCE_CONFIGURED
+    ? CONFIGURED_STORE_STORAGE_KEY
+    : SELECTED_STORE_STORAGE_KEY;
+}
 
 function normalizeStoreId(value) {
   return String(value ?? "").trim();
@@ -69,10 +84,18 @@ function readSelectedStoreIdsFromForm(form) {
   );
 }
 
-function saveSelectedStoreIds(storeIds) {
+function readStoreSourceFromForm(form) {
+  if (!form) {
+    return "favorites";
+  }
+  const input = form.querySelector('input[name="storeSource"]');
+  return normalizeStoreSource(input?.value);
+}
+
+function saveSelectedStoreIds(storeIds, storeSource = "favorites") {
   try {
     window.localStorage.setItem(
-      SELECTED_STORE_STORAGE_KEY,
+      getSelectedStoreStorageKey(storeSource),
       JSON.stringify({
         version: 1,
         storeIds: normalizeStoreIds(storeIds),
@@ -83,9 +106,9 @@ function saveSelectedStoreIds(storeIds) {
   }
 }
 
-function readSavedSelectedStoreIds() {
+function readSavedSelectedStoreIds(storeSource = "favorites") {
   try {
-    const rawValue = window.localStorage.getItem(SELECTED_STORE_STORAGE_KEY);
+    const rawValue = window.localStorage.getItem(getSelectedStoreStorageKey(storeSource));
     if (!rawValue) {
       return null;
     }
@@ -112,7 +135,7 @@ function updateStoreInputs(form, { checked, prefecture = "" }) {
   }
 
   syncStoreClassNames(form);
-  saveSelectedStoreIds(readSelectedStoreIdsFromForm(form));
+  saveSelectedStoreIds(readSelectedStoreIdsFromForm(form), readStoreSourceFromForm(form));
 }
 
 export function CrossStoreHuntRankingFormStateSync({ formId }) {
@@ -121,8 +144,13 @@ export function CrossStoreHuntRankingFormStateSync({ formId }) {
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    const storeSource = normalizeStoreSource(searchParams.get("storeSource"));
     if (searchParams.has("store") || searchParams.has("show")) {
-      saveSelectedStoreIds(searchParams.getAll("store"));
+      saveSelectedStoreIds(searchParams.getAll("store"), storeSource);
+      return undefined;
+    }
+
+    if (storeSource === STORE_SOURCE_CONFIGURED) {
       return undefined;
     }
 
@@ -132,7 +160,7 @@ export function CrossStoreHuntRankingFormStateSync({ formId }) {
         return;
       }
 
-      const savedStoreIds = readSavedSelectedStoreIds();
+      const savedStoreIds = readSavedSelectedStoreIds(storeSource);
       const selectedStoreIds =
         savedStoreIds === null
           ? myHallStoreIds
@@ -163,7 +191,7 @@ export function CrossStoreHuntRankingFormStateSync({ formId }) {
 
     const sync = () => {
       syncStoreClassNames(form);
-      saveSelectedStoreIds(readSelectedStoreIdsFromForm(form));
+      saveSelectedStoreIds(readSelectedStoreIdsFromForm(form), readStoreSourceFromForm(form));
     };
     const syncOnly = () => syncStoreClassNames(form);
     const handleClick = (event) => {
