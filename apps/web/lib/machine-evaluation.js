@@ -1133,6 +1133,14 @@ function isExArenaTokyoEventDate(dateText, row, options = {}) {
   return matchesMachineEvaluationEventFilters(dateText, options?.eventFilters);
 }
 
+function isAmuseAsakusaEventDate(dateText, row, options = {}) {
+  const rowFlag = readTargetEventFlag(row);
+  if (rowFlag !== null) {
+    return rowFlag;
+  }
+  return matchesMachineEvaluationEventFilters(dateText, options?.eventFilters);
+}
+
 function isAmuseAsakusaStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["アミューズ浅草店", "アミューズ浅草", "AMUSE浅草店", "AMUSE浅草", "ＡＭＵＳＥ浅草店", "ＡＭＵＳＥ浅草"].some(
@@ -14517,7 +14525,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "amuse-asakusa-wide-rb310",
         "広めRB310",
-        "201日 / 892台 / 101.32% / RB1/301.4 / 合算1/142.1 / 平均56 35.1% / 中央56 27.2%",
+        "209日 / 1127台 / 101.36% / RB1/303.2 / 合算1/142.2 / 現行1年集計",
         {
           minScore: 75,
           requiredFlags: ["amuseAsakusaNeoHistoryReady"],
@@ -14527,7 +14535,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "amuse-asakusa-rank2-rb300",
         "弱本命RB300",
-        "207日 / 414台 / 101.70% / RB1/298.7 / 合算1/140.8 / 平均56 35.9% / 中央56 26.7%",
+        "213日 / 476台 / 101.53% / RB1/300.5 / 合算1/141.5 / 現行1年集計",
         {
           rankMax: 2,
           requiredFlags: ["amuseAsakusaNeoHistoryReady"],
@@ -14536,97 +14544,121 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "amuse-asakusa-daily-rank1-rb290",
-        "本命RB290",
-        "207日 / 207台 / 102.60% / RB1/287.5 / 合算1/137.3 / 平均56 39.9% / 中央56 31.0%",
+        "日別1位RB292",
+        "通常+特定284台 / 約102.12% / RB1/291.5 / 通常176台RB1/295.0 / 特定108台RB1/287.3",
         {
           rankMax: 1,
-          requiredFlags: ["amuseAsakusaNeoHistoryReady"],
+          requiredFlags: ["amuseAsakusaNeoHistoryReady", "amuseAsakusaNeoDateSpecificDay"],
         },
         ["amuse-asakusa-neo-aim-normal", "amuse-asakusa-neo-aim-event"],
       ),
       buildCondition(
         "amuse-asakusa-event-rank1",
-        "強RB280",
-        "59日 / 59台 / 102.41% / RB1/277.7 / 合算1/136.5 / 平均56 46.8% / 中央56 46.7%",
+        "特定1位RB287",
+        "61日 / 108台 / 101.55% / RB1/287.3 / 合算1/140.0 / 現行1年集計",
         {
           rankMax: 1,
-          requiredFlags: ["amuseAsakusaNeoHistoryReady"],
+          requiredFlags: ["amuseAsakusaNeoHistoryReady", "amuseAsakusaNeoEventDay"],
         },
         ["amuse-asakusa-neo-aim-event"],
       ),
       buildCondition(
         "amuse-asakusa-event-rank1-gap2",
-        "最本命RB270",
-        "36日 / 36台 / 103.70% / RB1/266.4 / 合算1/132.3 / 平均56 52.9% / 中央56 58.4%",
+        "最本命RB250",
+        "21日 / 25台 / 105.03% / RB1/249.8 / 合算1/127.5 / 特定1位+次点差2+21日低G14合成悪",
         {
           rankMax: 1,
           minNextGap: 2,
-          requiredFlags: ["amuseAsakusaNeoHistoryReady"],
+          requiredFlags: [
+            "amuseAsakusaNeoHistoryReady",
+            "amuseAsakusaNeoEventDay",
+            "amuseAsakusaNeoEventLowGames14CombinedWeak",
+          ],
         },
         ["amuse-asakusa-neo-aim-event"],
       ),
       buildCondition(
         "amuse-asakusa-normal-rank1",
-        "通常日補助",
-        "148日 / 148台 / 102.70% / RB1/293.3 / 合算1/137.8 / 平均56 37.2% / 中央56 27.7%",
+        "通常1位RB295",
+        "152日 / 176台 / 102.58% / RB1/295.0 / 合算1/138.2 / 現行1年集計",
         {
           rankMax: 1,
-          requiredFlags: ["amuseAsakusaNeoHistoryReady"],
+          requiredFlags: ["amuseAsakusaNeoHistoryReady", "amuseAsakusaNeoNormalDay"],
         },
         ["amuse-asakusa-neo-aim-normal"],
       ),
       buildCondition(
         "amuse-asakusa-event-lowg-14combined",
         "特定21低G＋14合成悪",
-        "31日 / 42台 / 103.57% / RB1/260.3 / 合算1/131.3 / 平均56 55.4% / 中央56 61.7%",
+        "33日 / 44台 / 103.64% / RB1/259.3 / 合算1/131.0 / 現行1年集計",
         {
-          requiredFlags: ["amuseAsakusaNeoEventLowGames14CombinedWeak"],
+          requiredFlags: [
+            "amuseAsakusaNeoHistoryReady",
+            "amuseAsakusaNeoEventDay",
+            "amuseAsakusaNeoEventLowGames14CombinedWeak",
+          ],
         },
         ["amuse-asakusa-neo-aim-event"],
       ),
       buildCondition(
         "amuse-asakusa-event-14sink-lowg",
         "特定14沈み＋21低G",
-        "32日 / 48台 / 103.90% / RB1/261.8 / 合算1/131.3 / 平均56 54.9% / 中央56 61.7%",
+        "34日 / 52台 / 104.16% / RB1/261.0 / 合算1/130.6 / 現行1年集計",
         {
-          requiredFlags: ["amuseAsakusaNeoEvent14Sink21LowGames"],
+          requiredFlags: [
+            "amuseAsakusaNeoHistoryReady",
+            "amuseAsakusaNeoEventDay",
+            "amuseAsakusaNeoEvent14Sink21LowGames",
+          ],
         },
         ["amuse-asakusa-neo-aim-event"],
       ),
       buildCondition(
         "amuse-asakusa-event-5sink-lowg",
         "特定5深沈み＋21低G",
-        "36日 / 72台 / 102.80% / RB1/272.7 / 合算1/135.5 / 平均56 48.8% / 中央56 52.0%",
+        "38日 / 77台 / 103.02% / RB1/272.4 / 合算1/134.9 / 現行1年集計",
         {
-          requiredFlags: ["amuseAsakusaNeoEvent5Deep21LowGames"],
+          requiredFlags: [
+            "amuseAsakusaNeoHistoryReady",
+            "amuseAsakusaNeoEventDay",
+            "amuseAsakusaNeoEvent5Deep21LowGames",
+          ],
         },
         ["amuse-asakusa-neo-aim-event"],
       ),
       buildCondition(
         "amuse-asakusa-event-prev56-miss",
         "特定前日56不発＋危険0",
-        "38日 / 52台 / 103.31% / RB1/275.6 / 合算1/134.2 / 平均56 46.9% / 中央56 46.3%",
+        "40日 / 57台 / 102.93% / RB1/278.7 / 合算1/135.6 / 現行1年集計",
         {
           maxDanger: 0,
-          requiredFlags: ["amuseAsakusaNeoPreviousMiss"],
+          requiredFlags: [
+            "amuseAsakusaNeoHistoryReady",
+            "amuseAsakusaNeoEventDay",
+            "amuseAsakusaNeoPreviousMiss",
+          ],
         },
         ["amuse-asakusa-neo-aim-event"],
       ),
       buildCondition(
         "amuse-asakusa-all-lowg-long-bonus",
         "全日低G＋長期ボナ悪",
-        "46日 / 59台 / 102.91% / RB1/270.9 / 合算1/134.3 / 平均56 43.1% / 中央56 31.9%",
+        "99日 / 145台 / 102.19% / RB1/280.2 / 合算1/137.4 / 現行1年集計",
         {
-          requiredFlags: ["amuseAsakusaNeoLowGamesLongBonusWeak"],
+          requiredFlags: ["amuseAsakusaNeoHistoryReady", "amuseAsakusaNeoLowGamesLongBonusWeak"],
         },
         ["amuse-asakusa-neo-aim", "amuse-asakusa-neo-aim-normal", "amuse-asakusa-neo-aim-event"],
       ),
       buildCondition(
         "amuse-asakusa-watch-normal-treatment",
         "通常処遇完了",
-        "144日 / 932台 / 100.78% / RB1/326.2 / 合算1/146.6 / 平均56 29.2%",
+        "148日 / 957台 / 100.79% / RB1/326.9 / 合算1/146.7 / 現行1年集計",
         {
-          requiredFlags: ["amuseAsakusaNeoTreatmentDone"],
+          requiredFlags: [
+            "amuseAsakusaNeoHistoryReady",
+            "amuseAsakusaNeoNormalDay",
+            "amuseAsakusaNeoTreatmentDone",
+          ],
         },
         ["amuse-asakusa-neo-aim-normal"],
       ),
@@ -14636,6 +14668,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "危険条件2個以上は見送り寄り",
         {
           minDanger: 2,
+          requiredFlags: ["amuseAsakusaNeoHistoryReady"],
         },
         ["amuse-asakusa-neo-aim", "amuse-asakusa-neo-aim-normal", "amuse-asakusa-neo-aim-event"],
       ),
@@ -25032,6 +25065,14 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
     ) {
       const amuseAsakusaNeoHistoryReady = historyRowCount >= 21;
       const amuseAsakusaNeoHistoryShort = historyRowCount < 21;
+      const amuseAsakusaNeoEventDay = metrics.machineEvaluationTargetIsEvent === true;
+      const amuseAsakusaNeoNormalDay = metrics.machineEvaluationTargetIsEvent === false;
+      const amuseAsakusaNeoDateSpecificDay =
+        activeLogicKey === "amuse-asakusa-neo-aim-event"
+          ? amuseAsakusaNeoEventDay
+          : activeLogicKey === "amuse-asakusa-neo-aim-normal"
+            ? amuseAsakusaNeoNormalDay
+            : true;
       const recentTwentyOneCombinedDenominator = rateDenominator(
         recentTwentyOneGamesTotal,
         readNumber(metrics.recentTwentyOneBonusTotal),
@@ -25085,6 +25126,9 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         recentTwentyOneCombinedDenominator,
         amuseAsakusaNeoHistoryReady,
         amuseAsakusaNeoHistoryShort,
+        amuseAsakusaNeoEventDay,
+        amuseAsakusaNeoNormalDay,
+        amuseAsakusaNeoDateSpecificDay,
         amuseAsakusaNeoDeepSink,
         amuseAsakusaNeoUnpaid,
         amuseAsakusaNeoBonusWeak,
@@ -40543,7 +40587,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
   return resolveRankingDateSpecificSetting(definition, setting, options);
 }
 
-function buildEvaluationForRowWithSetting(row, definition, setting) {
+function buildEvaluationForRowWithSetting(row, definition, setting, options = {}) {
   if (!definition || !setting?.logicKey) {
     return null;
   }
@@ -40558,7 +40602,15 @@ function buildEvaluationForRowWithSetting(row, definition, setting) {
     activeLogicKey: logic.key,
     activeLogicName: logic.name,
   };
-  const metrics = row?.machineEvaluationMetrics ?? {};
+  const baseMetrics = row?.machineEvaluationMetrics ?? {};
+  let metrics = baseMetrics;
+  if (isAmuseAsakusaStore(options?.storeName) && definition.machineKey === "neo-aim") {
+    const targetDate = readRankingTargetDate(options?.snapshot);
+    metrics = {
+      ...baseMetrics,
+      machineEvaluationTargetIsEvent: isAmuseAsakusaEventDate(targetDate, row, options),
+    };
+  }
   const features = buildMachineSpecificFeatureState(runtimeDefinition, metrics, buildFeatureState(metrics));
   const condition = findConditionDefinition(definition, setting.conditionKey, logic.key);
   const score = calculateMachineScore(runtimeDefinition, metrics, features);
@@ -40586,7 +40638,7 @@ function buildEvaluationForRow(row, settingByMachineKey, options = {}) {
   const definition = findMachineDefinition(row?.machineName);
   const rawSetting = definition ? settingByMachineKey.get(definition.machineKey) : null;
   const setting = definition ? resolveRankingBaseSetting(definition, rawSetting, options) : null;
-  return buildEvaluationForRowWithSetting(row, definition, setting);
+  return buildEvaluationForRowWithSetting(row, definition, setting, options);
 }
 
 function buildDaySpecificEvaluationForRow(row, options = {}) {
@@ -40599,7 +40651,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
     const targetDate = readRankingTargetDate(options?.snapshot);
     const isEventDate = isIidabashiPresasEventDate(targetDate, row, options);
     const setting = buildIidabashiPresasDateSetting(definition, isEventDate);
-    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
     if (!evaluation) {
       return null;
     }
@@ -40614,7 +40666,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
     const targetDate = readRankingTargetDate(options?.snapshot);
     const isEventDate = isBoomTenjinEventDate(targetDate, row, options);
     const setting = buildBoomTenjinDateSetting(definition, isEventDate);
-    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
     if (!evaluation) {
       return null;
     }
@@ -40626,9 +40678,10 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   }
 
   if (isAmuseAsakusaStore(options?.storeName) && definition?.machineKey === "neo-aim") {
-    const isEventDate = readTargetEventFlag(row) === true;
+    const targetDate = readRankingTargetDate(options?.snapshot);
+    const isEventDate = isAmuseAsakusaEventDate(targetDate, row, options);
     const setting = buildAmuseAsakusaDateSetting(definition, isEventDate);
-    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
     if (!evaluation) {
       return null;
     }
@@ -40642,7 +40695,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   if (isMjArenaAirportStore(options?.storeName) && definition?.machineKey === "neo-aim") {
     const isEventDate = readTargetEventFlag(row) === true;
     const setting = buildMjArenaAirportDateSetting(definition, isEventDate);
-    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
     if (!evaluation) {
       return null;
     }
@@ -40656,7 +40709,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   if (isPlaza3Store(options?.storeName) && definition?.machineKey === "neo-aim") {
     const isEventDate = readTargetEventFlag(row) === true;
     const setting = buildPlaza3DateSetting(definition, isEventDate);
-    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
     if (!evaluation) {
       return null;
     }
@@ -40670,7 +40723,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   if (isTamayaHontenStore(options?.storeName) && definition?.machineKey === "neo-aim") {
     const isEventDate = readTargetEventFlag(row) === true;
     const setting = buildTamayaHontenDateSetting(definition, isEventDate);
-    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
     if (!evaluation) {
       return null;
     }
@@ -40684,7 +40737,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   if (isPalazzoKasaiStore(options?.storeName) && definition?.machineKey === "neo-aim") {
     const isEventDate = readTargetEventFlag(row) === true;
     const setting = buildPalazzoKasaiDateSetting(definition, isEventDate);
-    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
     if (!evaluation) {
       return null;
     }
@@ -40699,7 +40752,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
     const targetDate = readRankingTargetDate(options?.snapshot);
     const isEventDate = isExArenaTokyoEventDate(targetDate, row, options);
     const setting = buildExArenaTokyoDateSetting(definition, isEventDate);
-    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
     if (!evaluation) {
       return null;
     }
@@ -40713,7 +40766,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   if (isGrandShipStore(options?.storeName) && definition?.machineKey === "neo-aim") {
     const isEventDate = readTargetEventFlag(row) === true;
     const setting = buildGrandShipDateSetting(definition, isEventDate);
-    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+    const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
     if (!evaluation) {
       return null;
     }
@@ -40744,7 +40797,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
 
   const targetDate = readRankingTargetDate(options?.snapshot);
   const setting = buildBeamHikariDateSetting(definition, targetDate);
-  const evaluation = buildEvaluationForRowWithSetting(row, definition, setting);
+  const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
   if (!evaluation) {
     return null;
   }
