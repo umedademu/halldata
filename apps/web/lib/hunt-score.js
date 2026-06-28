@@ -2831,9 +2831,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     if (contentRule === "park-kitasenju-sss-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
-        return games >= 3000 && settingFivePlusProbability >= 0.5;
+        return games >= 3500 && settingFivePlusProbability >= 0.5;
       }
-      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 140;
+      return false;
     }
     if (contentRule === "park-kitayase-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -3489,9 +3489,9 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     if (contentRule === "park-kitasenju-sss-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
-        return games >= 3000 && settingFivePlusProbability >= 0.35;
+        return games >= 3000 && settingFivePlusProbability >= 0.3;
       }
-      return games >= 3000 && rbDenominator <= 350 && combinedDenominator <= 160;
+      return false;
     }
     if (contentRule === "park-kitayase-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -3782,8 +3782,14 @@ function isMachineWeakContentWindowRow(row, machineName, config = null) {
 
   if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
     if (readMachineContentRule(config, machineName) === "park-kitasenju-sss-neo-aim") {
-      const rbCount = readWindowField(row, "rbCount");
-      return games >= 2000 && (rbCount <= 0 || rbDenominator > 400);
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        games >= 2500 &&
+        Number.isFinite(settingFivePlusProbability) &&
+        settingFivePlusProbability < 0.1 &&
+        combinedDenominator >= 155 &&
+        rbDenominator > 400
+      );
     }
     if (readMachineContentRule(config, machineName) === "million-tobu-nerima-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -4343,9 +4349,14 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     if (Number.isFinite(settingFivePlusProbability)) {
-      return games >= 3000 && settingFivePlusProbability >= 0.7;
+      return (
+        games >= 5000 &&
+        settingFivePlusProbability >= 0.7 &&
+        rbDenominator <= 280 &&
+        combinedDenominator <= 135
+      );
     }
-    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+    return false;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
