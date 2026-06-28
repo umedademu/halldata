@@ -644,17 +644,49 @@ export function StoreDirectory({ completeStores, pendingStores }) {
           {myHallStores.length > 0 ? (
             <>
               <div className="myHallControlRow">
-                <label className="storeRegionControlField">
-                  <span>マイホールの並び</span>
-                  <select
-                    className="storeRegionControlSelect"
-                    value={myHallOrderMode}
-                    onChange={handleMyHallOrderModeChange}
-                  >
-                    <option value={MY_HALL_ORDER_SAVED}>保存順</option>
-                    <option value={MY_HALL_ORDER_NEAR_HOME}>選択住所から近い順</option>
-                  </select>
-                </label>
+                <fieldset className="myHallOrderField">
+                  <legend>マイホールの並び</legend>
+                  <div className="myHallOrderOptions">
+                    <label
+                      className={[
+                        "myHallOrderOption",
+                        myHallOrderMode === MY_HALL_ORDER_SAVED ? "myHallOrderOptionActive" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      <input
+                        className="myHallOrderRadio"
+                        type="radio"
+                        name="myHallOrderMode"
+                        value={MY_HALL_ORDER_SAVED}
+                        checked={myHallOrderMode === MY_HALL_ORDER_SAVED}
+                        onChange={handleMyHallOrderModeChange}
+                      />
+                      <span>保存順</span>
+                    </label>
+                    <label
+                      className={[
+                        "myHallOrderOption",
+                        myHallOrderMode === MY_HALL_ORDER_NEAR_HOME
+                          ? "myHallOrderOptionActive"
+                          : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      <input
+                        className="myHallOrderRadio"
+                        type="radio"
+                        name="myHallOrderMode"
+                        value={MY_HALL_ORDER_NEAR_HOME}
+                        checked={myHallOrderMode === MY_HALL_ORDER_NEAR_HOME}
+                        onChange={handleMyHallOrderModeChange}
+                      />
+                      <span>近い順</span>
+                    </label>
+                  </div>
+                </fieldset>
                 <label className="storeRegionControlField">
                   <span>使用する住所</span>
                   <select
