@@ -2822,10 +2822,11 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     }
     if (contentRule === "maruhon-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
-      if (Number.isFinite(settingFivePlusProbability)) {
-        return games >= 2500 && settingFivePlusProbability >= 0.5;
-      }
-      return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 145;
+      const rbCount = readWindowField(row, "rbCount");
+      return (
+        (games >= 3000 && rbCount > 0 && rbDenominator <= 300 && combinedDenominator <= 145) ||
+        (Number.isFinite(settingFivePlusProbability) && games >= 4500 && settingFivePlusProbability >= 0.5)
+      );
     }
     if (contentRule === "gaia-hikifune-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -3461,10 +3462,11 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     }
     if (contentRule === "maruhon-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
-      if (Number.isFinite(settingFivePlusProbability)) {
-        return games >= 2500 && settingFivePlusProbability >= 0.35;
-      }
-      return games >= 2500 && rbDenominator <= 350 && combinedDenominator <= 160;
+      const rbCount = readWindowField(row, "rbCount");
+      return (
+        (games >= 2500 && rbCount > 0 && rbDenominator <= 330 && combinedDenominator <= 155) ||
+        (Number.isFinite(settingFivePlusProbability) && games >= 3500 && settingFivePlusProbability >= 0.3)
+      );
     }
     if (contentRule === "gaia-hikifune-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -4324,10 +4326,15 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     readMachineContentRule(config, machineName) === "maruhon-neo-aim"
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
-    if (Number.isFinite(settingFivePlusProbability)) {
-      return games >= 2500 && settingFivePlusProbability >= 0.7;
-    }
-    return games >= 2500 && rbDenominator <= 270 && combinedDenominator <= 130;
+    const rbCount = readWindowField(row, "rbCount");
+    return (
+      games >= 4000 &&
+      rbCount > 0 &&
+      rbDenominator <= 270 &&
+      combinedDenominator <= 135 &&
+      Number.isFinite(settingFivePlusProbability) &&
+      settingFivePlusProbability >= 0.7
+    );
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
@@ -9865,6 +9872,7 @@ function calculateWindowMetrics(
   const recentTwentyOneRows = historyWindowRows.slice(-21);
   const recentTwentyEightRows = historyWindowRows.slice(-28);
   const recentThirtyRows = historyWindowRows.slice(-30);
+  const recentThirtyFiveRows = historyWindowRows.slice(-35);
   const recentFortyTwoRows = historyWindowRows.slice(-42);
   const recentFiftySixRows = historyWindowRows.slice(-56);
   const recentTwoNetTotal = sumDifferenceValues(recentTwoRows);
@@ -10392,6 +10400,9 @@ function calculateWindowMetrics(
   const recentThirtyMachineHighContentCount = historyWindowRows
     .slice(-30)
     .filter(isHistoryMachineHighContentWindowRow).length;
+  const recentThirtyFiveMachineHighContentCount = recentThirtyFiveRows.filter(
+    isHistoryMachineHighContentWindowRow,
+  ).length;
   const recentSevenMachineGoodContentCount = historyWindowRows
     .slice(-7)
     .filter(isHistoryMachineGoodContentWindowRow).length;
@@ -10432,6 +10443,9 @@ function calculateWindowMetrics(
   const recentTwentyEightMachineStrongHighContentCount = historyWindowRows
     .slice(-28)
     .filter(isHistoryMachineStrongHighContentWindowRow).length;
+  const recentFortyTwoMachineStrongHighContentCount = recentFortyTwoRows.filter(
+    isHistoryMachineStrongHighContentWindowRow,
+  ).length;
   const previousMachineHighContent = isMachineHighContentWindowRow(metricWindowRows.at(-1), currentMachineName, config);
   const previousMachineGoodContent = isMachineGoodContentWindowRow(metricWindowRows.at(-1), currentMachineName, config);
   const previousMachineWeakContent = isMachineWeakContentWindowRow(metricWindowRows.at(-1), currentMachineName, config);
@@ -10964,6 +10978,7 @@ function calculateWindowMetrics(
     recentFourteenMachineHighContentCount,
     recentTwentyOneMachineHighContentCount,
     recentThirtyMachineHighContentCount,
+    recentThirtyFiveMachineHighContentCount,
     recentTwentyEightRbLightCount,
     adjacentMachineHighContentCount3,
     adjacentMachineHighContentCount3Near2,
@@ -10982,6 +10997,7 @@ function calculateWindowMetrics(
     recentFourteenMachineStrongHighContentCount,
     recentTwentyOneMachineStrongHighContentCount,
     recentTwentyEightMachineStrongHighContentCount,
+    recentFortyTwoMachineStrongHighContentCount,
     previousMachineHighContent,
     previousMachineGoodContent,
     previousMachineWeakContent,
