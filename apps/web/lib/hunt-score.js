@@ -2888,12 +2888,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     if (contentRule === "mitoya-jackpot-kinshicho-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
-        return (
-          (games >= 1800 && settingFivePlusProbability >= 0.5) ||
-          (games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 145)
-        );
+        return games >= 2000 && settingFivePlusProbability >= 0.5;
       }
-      return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 145;
+      return games >= 2000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
     if (contentRule === "mitoya-asakusa-senzoku-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -3557,11 +3554,7 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       );
     }
     if (contentRule === "mitoya-jackpot-kinshicho-neo-aim") {
-      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
-      return (
-        (Number.isFinite(settingFivePlusProbability) && games >= 1800 && settingFivePlusProbability >= 0.35) ||
-        (games >= 2500 && rbDenominator <= 330 && combinedDenominator <= 155)
-      );
+      return games >= 1500 && rbDenominator <= 300;
     }
     if (contentRule === "mitoya-asakusa-senzoku-neo-aim") {
       return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 145;
@@ -9901,6 +9894,7 @@ function calculateWindowMetrics(
   const recentSevenLowGames500Count = recentSevenRows.filter((windowRow) => readWindowField(windowRow, "games") < 500).length;
   const recentTwoGamesTotal = recentTwoRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentThreeGamesTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.games, 0);
+  const recentFourGamesTotal = sumWindowField(recentFourRows, "games");
   const recentFiveGamesTotal = recentFiveRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentSevenGamesTotal = sumWindowField(recentSevenRows, "games");
   const recentTenGamesTotal = sumWindowField(recentTenRows, "games");
@@ -9922,6 +9916,7 @@ function calculateWindowMetrics(
     (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
     0,
   );
+  const recentFourBonusTotal = sumWindowField(recentFourRows, "bbCount") + sumWindowField(recentFourRows, "rbCount");
   const recentTenBonusTotal = recentTenRows.reduce(
     (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
     0,
@@ -9932,12 +9927,14 @@ function calculateWindowMetrics(
   );
   const recentTwoRbTotal = recentTwoRows.reduce((total, windowRow) => total + windowRow.rbCount, 0);
   const recentThreeRbTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.rbCount, 0);
+  const recentFourRbTotal = sumWindowField(recentFourRows, "rbCount");
   const recentFiveRbTotal = recentFiveRows.reduce((total, windowRow) => total + windowRow.rbCount, 0);
   const recentSevenRbTotal = sumWindowField(recentSevenRows, "rbCount");
   const recentTenRbTotal = sumWindowField(recentTenRows, "rbCount");
   const recentFourteenRbTotal = sumWindowField(recentFourteenRows, "rbCount");
   const recentTwentyOneRbTotal = sumWindowField(recentTwentyOneRows, "rbCount");
   const recentSevenBbTotal = sumWindowField(recentSevenRows, "bbCount");
+  const recentFourBbTotal = sumWindowField(recentFourRows, "bbCount");
   const recentTenBbTotal = sumWindowField(recentTenRows, "bbCount");
   const recentFourteenBbTotal = sumWindowField(recentFourteenRows, "bbCount");
   const recentTwoSettingAverage = calculateSettingAverageFromWindowRows(recentTwoRows);
@@ -10685,6 +10682,9 @@ function calculateWindowMetrics(
   const recentThreeBigWin1200Count = countDifferenceAtLeastRows(recentThreeRows, 1200);
   const recentFiveBigWin1000Count = countDifferenceAtLeastRows(recentFiveRows, 1000);
   const recentFiveBigWin1200Count = countDifferenceAtLeastRows(recentFiveRows, 1200);
+  const recentFiveBigLoss1000Count = recentFiveRows.filter(
+    (windowRow) => readNumber(windowRow?.differenceValue) <= -1000,
+  ).length;
   const recentTenBigLoss1000Count = recentTenRows.filter(
     (windowRow) => readNumber(windowRow?.differenceValue) <= -1000,
   ).length;
@@ -10704,6 +10704,10 @@ function calculateWindowMetrics(
     recentSevenRows.length > 0
       ? Math.min(...recentSevenRows.map((windowRow) => readNumber(windowRow?.differenceValue)))
       : 0;
+  const recentTwoMaxDifference =
+    recentTwoRows.length > 0
+      ? Math.max(...recentTwoRows.map((windowRow) => readNumber(windowRow?.differenceValue)))
+      : 0;
   const recentFourteenMaxDifference =
     recentFourteenRows.length > 0
       ? Math.max(...recentFourteenRows.map((windowRow) => readNumber(windowRow?.differenceValue)))
@@ -10711,6 +10715,10 @@ function calculateWindowMetrics(
   const recentTwentyOneMinDifference =
     recentTwentyOneRows.length > 0
       ? Math.min(...recentTwentyOneRows.map((windowRow) => readNumber(windowRow?.differenceValue)))
+      : 0;
+  const recentTwentyEightMinDifference =
+    recentTwentyEightRows.length > 0
+      ? Math.min(...recentTwentyEightRows.map((windowRow) => readNumber(windowRow?.differenceValue)))
       : 0;
   const recentTwentyOneMaxDifference =
     recentTwentyOneRows.length > 0
@@ -10822,8 +10830,10 @@ function calculateWindowMetrics(
     recentFiveBadMinus800Count,
     recentFourteenCombinedLe140Count,
     recentSevenMinDifference,
+    recentTwoMaxDifference,
     recentFourteenMaxDifference,
     recentTwentyOneMinDifference,
+    recentTwentyEightMinDifference,
     recentTwentyOneMaxDifference,
     machineNetTotalSinceBigWin1000,
     compensationRate: lossAbsTotal === 0 ? 999 : winAbsTotal / lossAbsTotal,
@@ -10929,6 +10939,7 @@ function calculateWindowMetrics(
     recentTwentyOneMachineSettingFivePlusProbabilityAverage,
     recentThreeBigWin1200Count,
     recentFiveBigWin1000Count,
+    recentFiveBigLoss1000Count,
     recentTenBigLoss1000Count,
     recentTwentyOneBigLoss1000Count,
     recentTenBigWin1000Count,
@@ -10943,6 +10954,7 @@ function calculateWindowMetrics(
     averageGames: metricWindowRows.length > 0 ? gamesTotal / metricWindowRows.length : 0,
     recentTwoGamesTotal,
     recentThreeGamesTotal,
+    recentFourGamesTotal,
     recentFiveGamesTotal,
     recentSevenGamesTotal,
     recentTenGamesTotal,
@@ -10954,17 +10966,20 @@ function calculateWindowMetrics(
     recentFiftySixGamesTotal,
     recentTwoBonusTotal,
     recentThreeBonusTotal,
+    recentFourBonusTotal,
     recentFiveBonusTotal,
     recentTenBonusTotal,
     recentTwentyOneBonusTotal,
     recentTwoRbTotal,
     recentThreeRbTotal,
+    recentFourRbTotal,
     recentFiveRbTotal,
     recentSevenRbTotal,
     recentTenRbTotal,
     recentFourteenRbTotal,
     recentTwentyOneRbTotal,
     recentSevenBbTotal,
+    recentFourBbTotal,
     recentTenBbTotal,
     recentFourteenBbTotal,
     recentTwoSettingAverage,
