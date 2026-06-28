@@ -7787,7 +7787,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "maruhan-koiwa-neo-best270",
         "最本命270_極沈みRB5超弱",
-        "10台 / 総G59,123 / RB1/269.97 / 合算1/134.98 / 平均+530枚 / 102.99% / 平均56 51.18% / 中央56 53.76% / 件数注意",
+        "対象10日・10台 / 総G59,123 / BB1/269.97 / RB1/269.97 / 合算1/134.98 / 平均+530枚 / 102.99% / 勝率60.00% / 平均56 51.18% / 中央56 53.76% / 件数注意",
         {
           requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoBest270"],
         },
@@ -7796,7 +7796,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "maruhan-koiwa-neo-strong280",
         "強280_極沈み低56",
-        "15台 / RB1/278.77 / 合算1/137台 / 平均56 45%前後 / 14日角度-125以下＋RB5弱＋5日56低め",
+        "対象15日・15台 / 総G90,601 / BB1/284.91 / RB1/278.77 / 合算1/140.90 / 平均+200枚 / 101.10% / 勝率46.67% / 平均56 46.01%",
         {
           requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoStrong280"],
         },
@@ -7805,7 +7805,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "maruhan-koiwa-neo-main290",
         "本命290_弱本命RB5弱",
-        "22台 / RB1/287.94 / 弱本命300にRB5弱を追加 / 件数と質のバランス重視",
+        "対象21日・22台 / 総G120,936 / BB1/274.23 / RB1/287.94 / 合算1/140.46 / 平均+336.36枚 / 102.04% / 勝率50.00% / 平均56 40.95%",
         {
           requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoMain290"],
         },
@@ -7814,7 +7814,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "maruhan-koiwa-neo-weak300",
         "弱本命300_沈み前日凹み間隔",
-        "28台 / RB1/291.07 / 平均+489枚 / 平均56 39.78% / 14日沈み＋前日-1000枚以上＋前回56から8〜28営業日",
+        "対象26日・28台 / 総G152,228 / BB1/265.67 / RB1/291.07 / 合算1/138.89 / 平均+489.29枚 / 103.00% / 勝率53.57% / 平均56 39.78%",
         {
           requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoWeak300"],
         },
@@ -7823,77 +7823,57 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "maruhan-koiwa-neo-wide310",
         "広め310_深沈みRB5弱",
-        "62台 / RB1/306.63 / 14日角度-100以下＋7日未返済＋RB5 1/380以上",
+        "対象48日・62台 / 総G329,622 / BB1/272.41 / RB1/306.63 / 合算1/144.25 / 平均+190.32枚 / 101.19% / 勝率43.55% / 平均56 34.65%",
         {
           requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoWide310"],
         },
         [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
-        "maruhan-koiwa-neo-neighbor-return",
-        "自由_隣見せ返し",
-        "RB1/277.3 / 合算1/135.2 / 平均+576枚 / 危険0＋近隣前日高内容＋前日RB弱残り",
+        "maruhan-koiwa-neo-free-a-wide310",
+        "自由A_深沈みRB5弱",
+        "対象48日・62台 / RB1/306.63 / 合算1/144.25 / 平均+190.32枚 / 101.19% / 平均56 34.65% / 広め候補",
         {
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoWide310"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-free-b-weak300",
+        "自由B_前日大凹み返済",
+        "対象26日・28台 / RB1/291.07 / 合算1/138.89 / 平均+489.29枚 / 103.00% / 平均56 39.78% / 実戦優先",
+        {
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoWeak300"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-free-c-best270",
+        "自由C_極沈みピンポイント",
+        "対象10日・10台 / RB1/269.97 / 合算1/134.98 / 平均+530枚 / 102.99% / 平均56 51.18% / 点数より優先可",
+        {
+          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoBest270"],
+        },
+        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "maruhan-koiwa-neo-free-e-score75-safe",
+        "自由E_75点危険0",
+        "対象96日・217台 / 総G1,119,210 / BB1/266.54 / RB1/341.53 / 合算1/149.71 / 平均+130.88枚 / 100.85% / 平均56 26.17% / 広すぎる候補",
+        {
+          minScore: 75,
           maxDanger: 0,
-          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoNeighborReturn"],
-        },
-        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "maruhan-koiwa-neo-top2-21sink",
-        "自由_2位内21沈み",
-        "RB1/294.6 / 2位以内＋強化4以上＋21日-4000枚以下",
-        {
-          rankMax: 2,
-          minBoost: 4,
-          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoTwentyOneDeep4000"],
-        },
-        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "maruhan-koiwa-neo-score95-neighbor",
-        "自由_95点強化4隣見せ",
-        "RB1/296.1 / 95点以上＋強化4以上＋近隣前日高内容",
-        {
-          minScore: 95,
-          minBoost: 4,
-          requiredFlags: ["maruhanKoiwaNeoHistoryReady", "maruhanKoiwaNeoNeighborHighAny"],
-        },
-        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "maruhan-koiwa-neo-score90-angle-unshown",
-        "自由_90点急沈み未処遇",
-        "RB1/285.6 / 90点以上＋強化4以上＋7日急沈み＋14日大きな見せ場なし",
-        {
-          minScore: 90,
-          minBoost: 4,
-          requiredFlags: [
-            "maruhanKoiwaNeoHistoryReady",
-            "maruhanKoiwaNeoSevenAngle100",
-            "maruhanKoiwaNeoNoHugeShow14",
-          ],
-        },
-        [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
-      ),
-      buildCondition(
-        "maruhan-koiwa-neo-rank1-gap10",
-        "補助_1位次点差10",
-        "1位＋次点差10点以上 / 主条件外でも日別の抜けを補助確認",
-        {
-          rankMax: 1,
-          minNextGap: 10,
           requiredFlags: ["maruhanKoiwaNeoHistoryReady"],
         },
         [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
-        "maruhan-koiwa-neo-score75-safe",
-        "補助_75点危険0",
-        "75点以上＋危険0 / 主条件外の拾い上げ用",
+        "maruhan-koiwa-neo-watch-score75-danger",
+        "見送り_75点危険あり",
+        "75点以上でも危険条件が残る台は56狙いでは優先しない。回答値とWeb実測に1台差があるため警告表示のみ",
         {
           minScore: 75,
-          maxDanger: 0,
+          minDanger: 1,
           requiredFlags: ["maruhanKoiwaNeoHistoryReady"],
         },
         [MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY],
@@ -7939,7 +7919,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "maruhan-koiwa-neo-watch-history-short",
         "見送り_履歴不足",
-        "履歴7営業日未満は採用条件対象外。7日未満は上限45、14日未満は上限70、21日未満は上限84",
+        "履歴7営業日未満は採用条件対象外。点数は最大45点まで",
         {
           requiredFlags: ["maruhanKoiwaNeoHistoryShort"],
         },
@@ -34274,10 +34254,6 @@ function calculateMachineScore(definition, metrics, features) {
       let scoreCap = 100;
       if (historyRowCount < 7) {
         scoreCap = 45;
-      } else if (historyRowCount < 14) {
-        scoreCap = 70;
-      } else if (historyRowCount < 21) {
-        scoreCap = 84;
       }
 
       let score = 30;
@@ -34310,9 +34286,6 @@ function calculateMachineScore(definition, metrics, features) {
       score += features.maruhanKoiwaNeoGames7Trust ? 7 : 0;
       score += features.maruhanKoiwaNeoGames14Trust ? 4 : 0;
       score += features.maruhanKoiwaNeoNeighborHighZero && features.maruhanKoiwaNeoAngle14Deep75 ? 3 : 0;
-      score += features.maruhanKoiwaNeoTwentyOneDeep4000 ? 4 : 0;
-      score += features.maruhanKoiwaNeoNeighborReturn ? 5 : 0;
-      score += features.maruhanKoiwaNeoNeighborHighAny ? 3 : 0;
 
       score -= features.maruhanKoiwaNeoPreviousOutputDone ? 10 : 0;
       score -= features.maruhanKoiwaNeoSevenOutputDone ? 10 : 0;
@@ -34322,8 +34295,6 @@ function calculateMachineScore(definition, metrics, features) {
       score -= features.maruhanKoiwaNeoLowGames7 ? 10 : 0;
       score -= features.maruhanKoiwaNeoPreviousLowGames ? 5 : 0;
       score -= streak >= 5 ? 5 : 0;
-      score -= previousMachineHighContent && previousDifference >= 1500 ? 8 : 0;
-      score -= features.recentFiveRbDenominator >= 700 && recentFiveGamesTotal < 9000 ? 4 : 0;
 
       if (features.maruhanKoiwaNeoAngleShallow) {
         scoreCap = Math.min(scoreCap, 74);
