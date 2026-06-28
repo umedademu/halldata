@@ -2886,36 +2886,24 @@ class MinRepoApp:
 
         target_action_row = ttk.Frame(table_frame)
         target_action_row.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
-        self.select_all_stores_button = ttk.Button(
-            target_action_row,
-            text="全て毎日にする",
-            command=self._select_all_registered_stores,
-        )
-        self.select_all_stores_button.grid(row=0, column=0, sticky="w")
-        self.clear_store_selection_button = ttk.Button(
-            target_action_row,
-            text="全て低頻度にする",
-            command=self._clear_registered_store_selection,
-        )
-        self.clear_store_selection_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
         self.refresh_registered_stores_button = ttk.Button(
             target_action_row,
             text="最新に更新",
             command=self.refresh_registered_stores,
         )
-        self.refresh_registered_stores_button.grid(row=0, column=2, sticky="w", padx=(8, 0))
+        self.refresh_registered_stores_button.grid(row=0, column=0, sticky="w")
         self.delete_registered_stores_button = ttk.Button(
             target_action_row,
             text="選択した店舗を削除",
             command=self.delete_registered_stores,
         )
-        self.delete_registered_stores_button.grid(row=0, column=3, sticky="w", padx=(8, 0))
+        self.delete_registered_stores_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
         self.apply_my_hall_stores_button = ttk.Button(
             target_action_row,
             text="Webマイホールを毎日に反映",
             command=self.apply_shared_my_hall_to_registered_stores,
         )
-        self.apply_my_hall_stores_button.grid(row=0, column=4, sticky="w", padx=(8, 0))
+        self.apply_my_hall_stores_button.grid(row=0, column=2, sticky="w", padx=(8, 0))
 
         filter_row = ttk.Frame(table_frame)
         filter_row.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 8))
@@ -6554,36 +6542,6 @@ class MinRepoApp:
         editor.bind("<FocusOut>", lambda _: finish(True))
         editor.bind("<Escape>", lambda _: finish(False))
 
-    def _select_all_registered_stores(self) -> None:
-        for registered_store in self.registered_stores:
-            registered_store.fetch_frequency = FETCH_FREQUENCY_DAILY
-        self.selected_store_urls = self._load_saved_selected_store_urls(self.registered_stores)
-        self._refresh_registered_store_table()
-        try:
-            self._save_selected_store_urls()
-            save_summary = self._persist_registered_stores()
-            if save_summary.has_errors:
-                messagebox.showwarning("登録店舗", "\n\n".join(save_summary.messages))
-        except Exception as exc:  # noqa: BLE001
-            if hasattr(self, "register_store_status_var"):
-                self.register_store_status_var.set(f"頻度の保存に失敗しました: {exc}")
-        self._reset_fetch_display_for_store_change()
-
-    def _clear_registered_store_selection(self) -> None:
-        for registered_store in self.registered_stores:
-            registered_store.fetch_frequency = FETCH_FREQUENCY_LOW
-        self.selected_store_urls = self._load_saved_selected_store_urls(self.registered_stores)
-        self._refresh_registered_store_table()
-        try:
-            self._save_selected_store_urls()
-            save_summary = self._persist_registered_stores()
-            if save_summary.has_errors:
-                messagebox.showwarning("登録店舗", "\n\n".join(save_summary.messages))
-        except Exception as exc:  # noqa: BLE001
-            if hasattr(self, "register_store_status_var"):
-                self.register_store_status_var.set(f"頻度の保存に失敗しました: {exc}")
-        self._reset_fetch_display_for_store_change()
-
     def apply_shared_my_hall_to_registered_stores(self) -> None:
         try:
             my_hall_store_urls, missing_store_ids = self.persistence_service.load_shared_my_hall_store_urls()
@@ -7555,8 +7513,6 @@ class MinRepoApp:
         self._configure_named_widget_state("clear_register_store_form_button", "normal")
         self._configure_named_widget_state("registered_store_filter_entry", "normal")
         self._configure_named_widget_state("clear_registered_store_filter_button", "normal")
-        self._configure_named_widget_state("select_all_stores_button", "normal")
-        self._configure_named_widget_state("clear_store_selection_button", "normal")
         self._configure_named_widget_state("refresh_registered_stores_button", "disabled" if general_busy else "normal")
         self._configure_named_widget_state("apply_my_hall_stores_button", "disabled" if general_busy else "normal")
         self._configure_named_widget_state(

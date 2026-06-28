@@ -1547,8 +1547,6 @@ class MinRepoScraperTests(unittest.TestCase):
             "clear_register_store_form_button",
             "registered_store_filter_entry",
             "clear_registered_store_filter_button",
-            "select_all_stores_button",
-            "clear_store_selection_button",
             "refresh_registered_stores_button",
             "delete_registered_stores_button",
             "select_all_site7_machines_button",
@@ -1609,8 +1607,6 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(app.clear_register_store_form_button.state, "normal")
         self.assertEqual(app.registered_store_filter_entry.state, "normal")
         self.assertEqual(app.clear_registered_store_filter_button.state, "normal")
-        self.assertEqual(app.select_all_stores_button.state, "normal")
-        self.assertEqual(app.clear_store_selection_button.state, "normal")
         self.assertEqual(app.refresh_registered_stores_button.state, "normal")
         self.assertEqual(app.delete_registered_stores_button.state, "normal")
 
