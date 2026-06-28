@@ -285,7 +285,6 @@ const REMOVED_TOKYO_UNVERIFIED_NEO_AIM_LOGIC_KEYS = new Set([
   BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_KEY,
   "million-tobu-nerima-neo-aim",
   "jaran-mizumoto-neo-aim",
-  "espace-ueno-neo-aim",
   ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY,
   RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY,
   JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY,
@@ -4978,8 +4977,8 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildLogicVariant(
         "espace-ueno-neo-aim",
-        "エスパス上野本館ネオアイム低中稼働RB残り式",
-        "espace-ueno-wide310",
+        "エスパス日拓上野本館_ネオアイムジャグラーEX_全日共通_56周期残り火ロジック_v1",
+        "espace-ueno-free-max-28rb-loss-cycle",
       ),
       buildLogicVariant(
         "espace-shinkoiwa-north-neo-aim",
@@ -6840,145 +6839,93 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["chikushino-neo-aim"],
       ),
       buildCondition(
-        "espace-ueno-best270",
-        "最本命270/自由A",
-        "20台 / 103.03% / RB1/240.2 / 合成1/130.6 / 平均56 54.8%",
+        "espace-ueno-wide-history56-danger0",
+        "広め_履歴56危険0",
+        "88日 / 144台 / 101.89% / RB1/297.6 / 合成1/141.5 / 平均56 35.4%",
         {
-          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoFreeABestRb"],
+          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoP56Hist28Gte005"],
+          maxDanger: 0,
         },
         ["espace-ueno-neo-aim"],
       ),
       buildCondition(
-        "espace-ueno-strong280",
-        "強280/自由B",
-        "35台 / 102.33% / RB1/266.3 / 合成1/135.8 / 平均56 46.2%",
+        "espace-ueno-weak-rank1-gap10",
+        "弱め本命_単独首位差10",
+        "93日 / 93台 / 101.59% / RB1/294.2 / 合成1/141.2 / 平均56 36.5%",
         {
-          minScore: 85,
-          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoFreeBBalanced"],
-        },
-        ["espace-ueno-neo-aim"],
-      ),
-      buildCondition(
-        "espace-ueno-main290",
-        "本命290",
-        "41台 / 101.86% / RB1/270.1 / 合成1/137.3 / 平均56 44.0%",
-        {
-          minScore: 85,
-          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoLowMidGames3", "espaceUenoNeoRb21Strong"],
-        },
-        ["espace-ueno-neo-aim"],
-      ),
-      buildCondition(
-        "espace-ueno-weak300",
-        "弱本命300",
-        "122台 / 102.01% / RB1/296.7 / 合成1/140.8 / 平均56 36.0%",
-        {
-          minScore: 90,
+          rankMax: 1,
+          minNextGap: 10,
           requiredFlags: ["espaceUenoNeoHistoryReady"],
         },
         ["espace-ueno-neo-aim"],
       ),
       buildCondition(
-        "espace-ueno-wide310",
-        "広め310",
-        "667台 / 101.94% / RB1/307.9 / 合成1/142.7 / 平均56 33.2%",
+        "espace-ueno-main-28high-cycle3-8",
+        "本命_28高内容濃度周期3_8",
+        "24日 / 31台 / 102.24% / RB1/266.4 / 合成1/135.7 / 平均56 47.5%",
         {
-          minScore: 80,
-          requiredFlags: ["espaceUenoNeoHistoryReady"],
+          requiredFlags: [
+            "espaceUenoNeoHistoryReady",
+            "espaceUenoNeoP56Hist28Gte010",
+            "espaceUenoNeoGames28Le120000",
+            "espaceUenoNeoDaysSinceHigh56_3To8",
+          ],
         },
         ["espace-ueno-neo-aim"],
       ),
       buildCondition(
-        "espace-ueno-free-c-wide",
-        "自由C 広め代替",
-        "1641台 / 101.58% / RB1/316.1 / 合成1/144.7 / 平均56 31.2%",
+        "espace-ueno-strong-combined-fire-loss",
+        "強_合算残り火連敗",
+        "27日 / 31台 / 104.04% / RB1/261.8 / 合成1/130.8 / 平均56 48.9%",
         {
-          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoGames3Under10000"],
+          requiredFlags: [
+            "espaceUenoNeoHistoryReady",
+            "espaceUenoNeoCombined14Le140",
+            "espaceUenoNeoHigh56Count14Le3",
+            "espaceUenoNeoLossStreakGte2",
+            "espaceUenoNeoDaysSinceHigh56_5To14",
+          ],
         },
         ["espace-ueno-neo-aim"],
       ),
       buildCondition(
-        "espace-ueno-free-d-compromise",
-        "自由D 妥協",
-        "599台 / 101.89% / RB1/311.6 / 合成1/143.3 / 平均56 32.5%",
+        "espace-ueno-best-28high-cycle3-8-cumrb",
+        "最本命_28高内容周期3_8累積RB",
+        "25日 / 31台 / 101.89% / RB1/256.3 / 合成1/134.9 / 平均56 50.0%",
         {
-          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoCompromise"],
+          requiredFlags: [
+            "espaceUenoNeoHistoryReady",
+            "espaceUenoNeoP56Hist28Gte005",
+            "espaceUenoNeoGames28Le120000",
+            "espaceUenoNeoDaysSinceHigh56_3To8",
+            "espaceUenoNeoCumRbLe320",
+          ],
         },
         ["espace-ueno-neo-aim"],
       ),
       buildCondition(
-        "espace-ueno-watch-history-short",
-        "見送り：履歴不足",
-        "履歴7営業日未満 / 点数上限45",
+        "espace-ueno-free-max-28rb-loss-cycle",
+        "自由MAX_28RB連敗周期",
+        "30日 / 34台 / 102.27% / RB1/258.7 / 合成1/134.7 / 平均56 47.4%",
         {
-          requiredFlags: ["espaceUenoNeoHistoryShort"],
+          requiredFlags: [
+            "espaceUenoNeoHistoryReady",
+            "espaceUenoNeoRb28Le300",
+            "espaceUenoNeoCombined14Le150",
+            "espaceUenoNeoLossStreakGte2",
+            "espaceUenoNeoDaysSinceHigh56_5To14",
+          ],
         },
         ["espace-ueno-neo-aim"],
       ),
       buildCondition(
-        "espace-ueno-watch-over-visible",
-        "見送り：高稼働見え切り",
-        "G3 15000以上",
+        "espace-ueno-watch-rank1-small-gap-low-boost",
+        "見送り_1位僅差ブースト不足",
+        "39日 / 39台 / 101.12% / RB1/328.7 / 合成1/147.9 / 平均56 29.3%",
         {
-          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoGames3TooHigh"],
-        },
-        ["espace-ueno-neo-aim"],
-      ),
-      buildCondition(
-        "espace-ueno-watch-deep-sink",
-        "見送り：深沈み",
-        "diff7 -5000以下",
-        {
-          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoDiff7TooDeep"],
-        },
-        ["espace-ueno-neo-aim"],
-      ),
-      buildCondition(
-        "espace-ueno-watch-previous-big",
-        "見送り：前日大出し",
-        "前日+2000枚以上",
-        {
-          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoPreviousBigWin"],
-        },
-        ["espace-ueno-neo-aim"],
-      ),
-      buildCondition(
-        "espace-ueno-watch-previous-high",
-        "見送り：前日高内容",
-        "前日高内容",
-        {
-          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoPreviousHigh"],
-        },
-        ["espace-ueno-neo-aim"],
-      ),
-      buildCondition(
-        "espace-ueno-watch-overworked",
-        "見送り：G3高稼働＋G5過多",
-        "G3 15000以上かつG5 25000以上",
-        {
-          requiredFlags: ["espaceUenoNeoHistoryReady", "espaceUenoNeoHighVisibleAndOverworked"],
-        },
-        ["espace-ueno-neo-aim"],
-      ),
-      buildCondition(
-        "espace-ueno-watch-thin80",
-        "見送り：80未満強化薄",
-        "80点未満かつ強化1個以下",
-        {
-          maxScore: 79.999,
-          maxBoost: 1,
-          requiredFlags: ["espaceUenoNeoHistoryReady"],
-        },
-        ["espace-ueno-neo-aim"],
-      ),
-      buildCondition(
-        "espace-ueno-watch-high-risk",
-        "見送り：高点数危険",
-        "90点以上でも強化0個＋危険2個以上",
-        {
-          minScore: 90,
-          maxBoost: 0,
-          minDanger: 2,
+          rankMax: 1,
+          maxNextGap: 2.999,
+          maxBoost: 3,
           requiredFlags: ["espaceUenoNeoHistoryReady"],
         },
         ["espace-ueno-neo-aim"],
@@ -13908,7 +13855,6 @@ function isRemovedTokyoUnverifiedNeoAimStore(storeName) {
     isBellCityTheCityShinozakiStore,
     isMillionTobuNerimaStore,
     isJaranMizumotoStore,
-    isEspaceUenoStore,
     isOneTwoThreeNShinonomeStore,
     isRakuenAmeyokoStore,
     isJaranYazaikeStore,
@@ -19596,98 +19542,136 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
     }
 
     if (activeLogicKey === "espace-ueno-neo-aim") {
-      const recentTwentyOneRbTotal = readNumber(metrics.recentTwentyOneRbTotal);
-      const recentTwentyOneRbDenominator = rateDenominator(recentTwentyOneGamesTotal, recentTwentyOneRbTotal);
-      const espaceUenoNeoHistoryReady = historyRowCount >= 7;
-      const espaceUenoNeoHistoryShort = historyRowCount < 7;
-      const espaceUenoNeoLowMidGames3 = recentThreeGamesTotal >= 3000 && recentThreeGamesTotal <= 12000;
-      const espaceUenoNeoGames3TooHigh = recentThreeGamesTotal >= 15000;
-      const espaceUenoNeoGames3Under10000 = recentThreeGamesTotal < 10000;
-      const espaceUenoNeoGames5TooHigh = recentFiveGamesTotal >= 25000;
-      const espaceUenoNeoGames5Compromise = recentFiveGamesTotal >= 10000 && recentFiveGamesTotal <= 18000;
-      const espaceUenoNeoGames14Middle = recentFourteenGamesTotal >= 40000 && recentFourteenGamesTotal <= 70000;
-      const espaceUenoNeoDiff5Shallow = recentFiveNetTotal >= -1500 && recentFiveNetTotal <= 500;
-      const espaceUenoNeoDiff7TooDeep = recentSevenNetTotal <= -5000;
-      const espaceUenoNeoRb21Strong =
-        recentTwentyOneGamesTotal >= 30000 && recentTwentyOneRbDenominator <= 290;
-      const espaceUenoNeoRb14Strong =
-        recentFourteenGamesTotal >= 20000 && features.recentFourteenRbDenominator <= 290;
-      const espaceUenoNeoRb14Best =
-        recentFourteenGamesTotal >= 20000 && features.recentFourteenRbDenominator <= 270;
-      const espaceUenoNeoIntervalGood =
-        Number.isFinite(daysSinceMachineHighContent) &&
-        ((daysSinceMachineHighContent >= 5 && daysSinceMachineHighContent <= 7) ||
-          daysSinceMachineHighContent >= 14);
-      const espaceUenoNeoPreviousBigWin = previousDifference >= 2000;
-      const espaceUenoNeoPreviousHigh = previousMachineHighContent;
-      const espaceUenoNeoPreviousHighPlus = previousMachineHighContent && previousDifference > 1500;
-      const espaceUenoNeoSameMachinePreviousHighCount =
-        previousOtherMachineHighContentCount + (previousMachineHighContent ? 1 : 0);
-      const espaceUenoNeoSameMachinePreviousHighMany = espaceUenoNeoSameMachinePreviousHighCount >= 8;
-      const espaceUenoNeoDangerZero =
-        !espaceUenoNeoPreviousBigWin &&
-        !previousMachineHighContent &&
-        !espaceUenoNeoGames3TooHigh &&
-        !espaceUenoNeoDiff7TooDeep;
-      const espaceUenoNeoLowGames = recentThreeGamesTotal < 3000 || recentFiveGamesTotal < 10000;
-      const espaceUenoNeoHighVisibleAndOverworked = espaceUenoNeoGames3TooHigh && espaceUenoNeoGames5TooHigh;
-      const espaceUenoNeoFreeABestRb =
-        espaceUenoNeoLowMidGames3 && espaceUenoNeoGames14Middle && espaceUenoNeoRb14Best;
-      const espaceUenoNeoFreeBBalanced =
-        espaceUenoNeoLowMidGames3 && espaceUenoNeoGames14Middle && espaceUenoNeoRb21Strong;
-      const espaceUenoNeoCompromise = espaceUenoNeoGames5Compromise && espaceUenoNeoDiff5Shallow;
+      const recentTwentyEightBbTotal = readNumber(metrics.recentTwentyEightBbTotal);
+      const recentTwentyEightRbTotal = readNumber(metrics.recentTwentyEightRbTotal);
+      const historyGamesTotal = readNumber(metrics.historyGamesTotal);
+      const historyBbTotal = readNumber(metrics.historyBbTotal);
+      const historyRbTotal = readNumber(metrics.historyRbTotal);
+      const espaceUenoNeoHistoryReady = historyRowCount >= 21;
+      const espaceUenoNeoHistoryShort = historyRowCount < 21;
+      const espaceUenoNeoP56Hist28 = calculateNeoAimSettingFivePlusProbabilityFromTotals(
+        recentTwentyEightGamesTotal,
+        recentTwentyEightBbTotal,
+        recentTwentyEightRbTotal,
+      );
+      const espaceUenoNeoP56Hist28Value = Number.isFinite(espaceUenoNeoP56Hist28)
+        ? espaceUenoNeoP56Hist28
+        : 0;
+      const espaceUenoNeoRbRate28 = rateDenominator(recentTwentyEightGamesTotal, recentTwentyEightRbTotal);
+      const espaceUenoNeoCombinedRate28 = rateDenominator(
+        recentTwentyEightGamesTotal,
+        recentTwentyEightBbTotal + recentTwentyEightRbTotal,
+      );
+      const espaceUenoNeoCombinedRate14 = features.recentFourteenCombinedDenominator;
+      const espaceUenoNeoCumRbRate = rateDenominator(historyGamesTotal, historyRbTotal);
+      const espaceUenoNeoCumCombinedRate = rateDenominator(historyGamesTotal, historyBbTotal + historyRbTotal);
+      const espaceUenoNeoDaysSinceHigh56 = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : null;
+      const espaceUenoNeoP56Hist28Gte002 = espaceUenoNeoP56Hist28Value >= 0.02;
+      const espaceUenoNeoP56Hist28Gte005 = espaceUenoNeoP56Hist28Value >= 0.05;
+      const espaceUenoNeoP56Hist28Gte010 = espaceUenoNeoP56Hist28Value >= 0.1;
+      const espaceUenoNeoP56Hist28Gte035 = espaceUenoNeoP56Hist28Value >= 0.35;
+      const espaceUenoNeoP56Hist28Gte070 = espaceUenoNeoP56Hist28Value >= 0.7;
+      const espaceUenoNeoRb28Le340 = espaceUenoNeoRbRate28 <= 340;
+      const espaceUenoNeoRb28Le300 = espaceUenoNeoRbRate28 <= 300;
+      const espaceUenoNeoCombined28Le150 = espaceUenoNeoCombinedRate28 <= 150;
+      const espaceUenoNeoCombined28Le145 = espaceUenoNeoCombinedRate28 <= 145;
+      const espaceUenoNeoCombined14Le150 = espaceUenoNeoCombinedRate14 <= 150;
+      const espaceUenoNeoCombined14Le140 = espaceUenoNeoCombinedRate14 <= 140;
+      const espaceUenoNeoCumRbLe320 = espaceUenoNeoCumRbRate <= 320;
+      const espaceUenoNeoCumRbGt360 = espaceUenoNeoCumRbRate > 360;
+      const espaceUenoNeoCumCombinedLe150 = espaceUenoNeoCumCombinedRate <= 150;
+      const espaceUenoNeoCumCombinedLe145 = espaceUenoNeoCumCombinedRate <= 145;
+      const espaceUenoNeoCumCombinedGt155 = espaceUenoNeoCumCombinedRate > 155;
+      const espaceUenoNeoDaysSinceHigh56_3To8 =
+        Number.isFinite(espaceUenoNeoDaysSinceHigh56) &&
+        espaceUenoNeoDaysSinceHigh56 >= 3 &&
+        espaceUenoNeoDaysSinceHigh56 <= 8;
+      const espaceUenoNeoDaysSinceHigh56_5To14 =
+        Number.isFinite(espaceUenoNeoDaysSinceHigh56) &&
+        espaceUenoNeoDaysSinceHigh56 >= 5 &&
+        espaceUenoNeoDaysSinceHigh56 <= 14;
+      const espaceUenoNeoDaysSinceHigh56_9To21 =
+        Number.isFinite(espaceUenoNeoDaysSinceHigh56) &&
+        espaceUenoNeoDaysSinceHigh56 >= 9 &&
+        espaceUenoNeoDaysSinceHigh56 <= 21;
+      const espaceUenoNeoLossStreakGte2 = streak >= 2;
+      const espaceUenoNeoLossStreakGte4 = streak >= 4;
+      const espaceUenoNeoGames7Le30000 = recentSevenGamesTotal <= 30000;
+      const espaceUenoNeoGames7Gt35000 = recentSevenGamesTotal > 35000;
+      const espaceUenoNeoGames14Le70000 = recentFourteenGamesTotal <= 70000;
+      const espaceUenoNeoGames14Gt75000 = recentFourteenGamesTotal > 75000;
+      const espaceUenoNeoGames28Le120000 = recentTwentyEightGamesTotal <= 120000;
+      const espaceUenoNeoDiff28Gte6000 = recentTwentyEightNetTotal >= 6000;
+      const espaceUenoNeoDiff28Gte10000 = recentTwentyEightNetTotal >= 10000;
+      const espaceUenoNeoDiff28WeakSink =
+        recentTwentyEightNetTotal <= -6000 && espaceUenoNeoP56Hist28Value < 0.05;
+      const espaceUenoNeoHigh56Count14Le3 = recentFourteenMachineHighContentCount <= 3;
+      const espaceUenoNeoHigh56Count14Gte5 = recentFourteenMachineHighContentCount >= 5;
       const boostFlags = [
-        espaceUenoNeoLowMidGames3,
-        espaceUenoNeoDiff5Shallow,
-        espaceUenoNeoRb21Strong,
-        espaceUenoNeoRb14Strong,
-        espaceUenoNeoIntervalGood,
-        espaceUenoNeoDangerZero,
+        espaceUenoNeoP56Hist28Gte005,
+        espaceUenoNeoRb28Le300,
+        espaceUenoNeoCombined14Le140,
+        espaceUenoNeoDaysSinceHigh56_3To8,
+        espaceUenoNeoLossStreakGte2,
+        espaceUenoNeoGames7Le30000,
+        espaceUenoNeoCumCombinedLe145,
       ];
       const dangerFlags = [
-        espaceUenoNeoGames3TooHigh,
-        espaceUenoNeoDiff7TooDeep,
-        espaceUenoNeoPreviousBigWin,
-        previousMachineHighContent,
+        espaceUenoNeoGames7Gt35000,
+        espaceUenoNeoCumRbGt360,
+        espaceUenoNeoCumCombinedGt155,
+        espaceUenoNeoDiff28WeakSink,
+        espaceUenoNeoHigh56Count14Gte5,
         espaceUenoNeoHistoryShort,
-        espaceUenoNeoLowGames,
       ];
 
       return {
         ...features,
         previousMachineSettingFivePlusProbability,
-        recentTwentyOneRbDenominator,
+        espaceUenoNeoP56Hist28,
+        espaceUenoNeoRbRate28,
+        espaceUenoNeoCombinedRate28,
+        espaceUenoNeoCombinedRate14,
+        espaceUenoNeoCumRbRate,
+        espaceUenoNeoCumCombinedRate,
+        espaceUenoNeoDaysSinceHigh56,
         espaceUenoNeoHistoryReady,
         espaceUenoNeoHistoryShort,
-        espaceUenoNeoLowMidGames3,
-        espaceUenoNeoGames3TooHigh,
-        espaceUenoNeoGames3Under10000,
-        espaceUenoNeoGames5TooHigh,
-        espaceUenoNeoGames5Compromise,
-        espaceUenoNeoGames14Middle,
-        espaceUenoNeoDiff5Shallow,
-        espaceUenoNeoDiff7TooDeep,
-        espaceUenoNeoRb21Strong,
-        espaceUenoNeoRb14Strong,
-        espaceUenoNeoRb14Best,
-        espaceUenoNeoIntervalGood,
-        espaceUenoNeoPreviousBigWin,
-        espaceUenoNeoPreviousHigh,
-        espaceUenoNeoPreviousHighPlus,
-        espaceUenoNeoSameMachinePreviousHighCount,
-        espaceUenoNeoSameMachinePreviousHighMany,
-        espaceUenoNeoDangerZero,
-        espaceUenoNeoLowGames,
-        espaceUenoNeoHighVisibleAndOverworked,
-        espaceUenoNeoFreeABestRb,
-        espaceUenoNeoFreeBBalanced,
-        espaceUenoNeoCompromise,
-        treatmentDone: espaceUenoNeoPreviousBigWin || espaceUenoNeoPreviousHighPlus,
-        lowConfidence:
-          espaceUenoNeoHistoryShort ||
-          historyRowCount < 14 ||
-          recentFourteenGamesTotal < 30000 ||
-          espaceUenoNeoLowGames,
+        espaceUenoNeoP56Hist28Gte002,
+        espaceUenoNeoP56Hist28Gte005,
+        espaceUenoNeoP56Hist28Gte010,
+        espaceUenoNeoP56Hist28Gte035,
+        espaceUenoNeoP56Hist28Gte070,
+        espaceUenoNeoRb28Le340,
+        espaceUenoNeoRb28Le300,
+        espaceUenoNeoCombined28Le150,
+        espaceUenoNeoCombined28Le145,
+        espaceUenoNeoCombined14Le150,
+        espaceUenoNeoCombined14Le140,
+        espaceUenoNeoCumRbLe320,
+        espaceUenoNeoCumRbGt360,
+        espaceUenoNeoCumCombinedLe150,
+        espaceUenoNeoCumCombinedLe145,
+        espaceUenoNeoCumCombinedGt155,
+        espaceUenoNeoDaysSinceHigh56_3To8,
+        espaceUenoNeoDaysSinceHigh56_5To14,
+        espaceUenoNeoDaysSinceHigh56_9To21,
+        espaceUenoNeoLossStreakGte2,
+        espaceUenoNeoLossStreakGte4,
+        espaceUenoNeoGames7Le30000,
+        espaceUenoNeoGames7Gt35000,
+        espaceUenoNeoGames14Le70000,
+        espaceUenoNeoGames14Gt75000,
+        espaceUenoNeoGames28Le120000,
+        espaceUenoNeoDiff28Gte6000,
+        espaceUenoNeoDiff28Gte10000,
+        espaceUenoNeoDiff28WeakSink,
+        espaceUenoNeoHigh56Count14Le3,
+        espaceUenoNeoHigh56Count14Gte5,
+        treatmentDone: false,
+        lowConfidence: espaceUenoNeoHistoryShort,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -29726,155 +29710,48 @@ function calculateMachineScore(definition, metrics, features) {
     }
 
     if (activeLogicKey === "espace-ueno-neo-aim") {
-      const recentTwentyOneRbTotal = readNumber(metrics.recentTwentyOneRbTotal);
-      const recentTwentyOneRbDenominator = rateDenominator(recentTwentyOneGamesTotal, recentTwentyOneRbTotal);
-      let score = 35;
-      let scoreCap = 100;
+      const p56Hist28 = readNumber(features.espaceUenoNeoP56Hist28);
+      const rbRate28 = readNumber(features.espaceUenoNeoRbRate28, 9999);
+      const combinedRate28 = readNumber(features.espaceUenoNeoCombinedRate28, 9999);
+      const combinedRate14 = readNumber(features.espaceUenoNeoCombinedRate14, 9999);
+      const cumRbRate = readNumber(features.espaceUenoNeoCumRbRate, 9999);
+      const cumCombinedRate = readNumber(features.espaceUenoNeoCumCombinedRate, 9999);
+      const daysSinceHigh56 = readNullableNumber(features.espaceUenoNeoDaysSinceHigh56);
+      let score = 40;
 
-      if (historyRowCount < 7) {
-        scoreCap = 45;
+      score += p56Hist28 >= 0.02 ? 6 : 0;
+      score += p56Hist28 >= 0.05 ? 6 : 0;
+      score += p56Hist28 >= 0.35 ? 5 : 0;
+      score += p56Hist28 >= 0.7 ? 3 : 0;
+      score += rbRate28 <= 340 ? 5 : 0;
+      score += rbRate28 <= 300 ? 8 : 0;
+      score += combinedRate28 <= 150 ? 4 : 0;
+      score += combinedRate28 <= 145 ? 4 : 0;
+      score += cumCombinedRate <= 150 ? 3 : 0;
+      score += cumCombinedRate <= 145 ? 5 : 0;
+      score += combinedRate14 <= 140 ? 8 : 0;
+      score += recentTwentyEightNetTotal >= 6000 ? 5 : 0;
+      score += recentTwentyEightNetTotal >= 10000 ? 3 : 0;
+      score += Number.isFinite(daysSinceHigh56) && daysSinceHigh56 >= 3 && daysSinceHigh56 <= 8 ? 6 : 0;
+      score += Number.isFinite(daysSinceHigh56) && daysSinceHigh56 >= 9 && daysSinceHigh56 <= 21 ? 3 : 0;
+      score += streak >= 2 ? 5 : 0;
+      score += streak >= 4 ? 3 : 0;
+      score += recentSevenGamesTotal <= 30000 ? 4 : 0;
+      score += recentFourteenGamesTotal <= 70000 ? 2 : 0;
+
+      score -= historyRowCount < 21 ? 25 : 0;
+      score -= recentSevenGamesTotal > 35000 ? 8 : 0;
+      score -= recentFourteenGamesTotal > 75000 ? 5 : 0;
+      score -= cumRbRate > 360 ? 8 : 0;
+      score -= cumCombinedRate > 155 ? 8 : 0;
+      score -= recentTwentyEightNetTotal <= -6000 && p56Hist28 < 0.05 ? 8 : 0;
+      score -= recentFourteenMachineHighContentCount >= 5 ? 5 : 0;
+
+      score = clamp(score, 0, 100);
+      if (historyRowCount < 21) {
+        score = Math.min(score, 45);
       }
-
-      if (recentThreeGamesTotal < 3000) {
-        score += 3;
-      } else if (recentThreeGamesTotal <= 6999) {
-        score += 10;
-      } else if (recentThreeGamesTotal <= 11999) {
-        score += 12;
-      } else if (recentThreeGamesTotal <= 14999) {
-        score += 6;
-      } else if (recentThreeGamesTotal <= 17999) {
-        score -= 4;
-      } else {
-        score -= 8;
-      }
-
-      if (recentFiveGamesTotal < 10000) {
-        score += 2;
-      } else if (recentFiveGamesTotal <= 14999) {
-        score += 10;
-      } else if (recentFiveGamesTotal <= 19999) {
-        score += 7;
-      } else if (recentFiveGamesTotal <= 24999) {
-        score += 3;
-      } else if (recentFiveGamesTotal <= 29999) {
-        score -= 5;
-      } else {
-        score -= 9;
-      }
-
-      if (recentFourteenGamesTotal >= 40000 && recentFourteenGamesTotal <= 59999) {
-        score += 5;
-      } else if (recentFourteenGamesTotal >= 60000 && recentFourteenGamesTotal <= 69999) {
-        score += 2;
-      } else if (recentFourteenGamesTotal >= 80000) {
-        score -= 6;
-      }
-
-      if (recentFiveNetTotal >= -1500 && recentFiveNetTotal <= 500) {
-        score += 10;
-      } else if (
-        (recentFiveNetTotal >= -2500 && recentFiveNetTotal <= -1501) ||
-        (recentFiveNetTotal >= 501 && recentFiveNetTotal <= 1500)
-      ) {
-        score += 5;
-      } else if (recentFiveNetTotal <= -4000) {
-        score -= 6;
-      } else if (recentFiveNetTotal >= 2500) {
-        score -= 5;
-      }
-
-      if (recentSevenNetTotal >= -2500 && recentSevenNetTotal <= 0) {
-        score += 7;
-      } else if (recentSevenNetTotal >= 1 && recentSevenNetTotal <= 1500) {
-        score += 3;
-      } else if (recentSevenNetTotal <= -5000) {
-        score -= 8;
-      } else if (recentSevenNetTotal >= 4000) {
-        score -= 3;
-      }
-
-      if (recentTwentyOneNetTotal >= 8000) {
-        score += 3;
-      } else if (recentTwentyOneNetTotal >= -7000 && recentTwentyOneNetTotal <= -5000) {
-        score += 2;
-      } else if (recentTwentyOneNetTotal <= -10000) {
-        score -= 4;
-      }
-
-      if (recentTwentyOneGamesTotal >= 30000) {
-        if (recentTwentyOneRbDenominator <= 270) {
-          score += 13;
-        } else if (recentTwentyOneRbDenominator <= 290) {
-          score += 11;
-        } else if (recentTwentyOneRbDenominator <= 300) {
-          score += 8;
-        } else if (recentTwentyOneRbDenominator <= 315) {
-          score += 5;
-        } else if (recentTwentyOneRbDenominator >= 400) {
-          score -= 3;
-        }
-      }
-
-      if (recentFourteenGamesTotal >= 20000) {
-        if (features.recentFourteenRbDenominator <= 270) {
-          score += 10;
-        } else if (features.recentFourteenRbDenominator <= 290) {
-          score += 8;
-        } else if (features.recentFourteenRbDenominator <= 315) {
-          score += 4;
-        } else if (features.recentFourteenRbDenominator >= 400) {
-          score -= 2;
-        }
-      }
-
-      if (recentFiveGamesTotal >= 10000) {
-        if (features.recentFiveCombinedDenominator <= 130) {
-          score += 3;
-        } else if (features.recentFiveCombinedDenominator >= 180) {
-          score += 2;
-        }
-      }
-
-      if (Number.isFinite(daysSinceMachineHighContent)) {
-        if (daysSinceMachineHighContent >= 5 && daysSinceMachineHighContent <= 7) {
-          score += 8;
-        } else if (daysSinceMachineHighContent >= 14) {
-          score += 6;
-        } else if (daysSinceMachineHighContent >= 3 && daysSinceMachineHighContent <= 4) {
-          score += 3;
-        } else if (daysSinceMachineHighContent >= 1 && daysSinceMachineHighContent <= 2) {
-          score -= 5;
-        }
-      }
-
-      if (recentFourteenMachineHighContentCount === 0) {
-        score += 5;
-      } else if (recentFourteenMachineHighContentCount === 1) {
-        score += 2;
-      } else if (recentFourteenMachineHighContentCount >= 4) {
-        score -= 2;
-      }
-
-      if (streak >= 3 && streak <= 6) {
-        score += 5;
-      } else if (streak >= 7) {
-        score += 1;
-      }
-
-      if (previousDifference >= 1500 && previousDifference <= 1999) {
-        score -= 4;
-      } else if (previousDifference >= 2000) {
-        score -= 8;
-      }
-      score -= previousMachineHighContent ? 5 : 0;
-      score -= previousMachineGoodContent && previousDifference > 1500 ? 5 : 0;
-      score -= previousAdjacentMachineHighContentCount >= 2 ? 4 : 0;
-      score -= previousOtherMachineHighContentCount + (previousMachineHighContent ? 1 : 0) >= 8 ? 3 : 0;
-      score -= historyRowCount < 14 ? 4 : 0;
-      score -= recentFourteenGamesTotal < 30000 ? 4 : 0;
-
-      return Math.round(clamp(score, 0, scoreCap));
+      return Math.round(score);
     }
 
     if (activeLogicKey === "espace-shinkoiwa-north-neo-aim") {
@@ -37475,6 +37352,7 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
     const useOrdinalRank =
       updatedEvaluation.logicKey === PARK_KITASENJU_SSS_NEO_AIM_LOGIC_KEY ||
       updatedEvaluation.logicKey === PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY ||
+      updatedEvaluation.logicKey === "espace-ueno-neo-aim" ||
       updatedEvaluation.logicKey === "messe-nishikasai-neo-aim";
     const rankedEvaluation = useOrdinalRank
       ? {

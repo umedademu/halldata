@@ -996,6 +996,23 @@ const HUNT_SCORE_STORE_CONFIGS = [
     ],
     targetMachines: ESPACE_UENO_TARGET_MACHINES,
     defaultLogicKey: "apark",
+    slotHistoryStartDates: [
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["2022", "2023"], startDate: "2025-12-08" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["2024", "2025"], startDate: "2025-11-17" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["2026", "2027"], startDate: "2025-11-10" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["2050", "2060"], startDate: "2025-10-06" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["2051", "2052", "2053"], startDate: "2025-09-29" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["2054", "2055"], startDate: "2025-09-22" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["2056", "2057"], startDate: "2025-09-16" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["2058", "2059", "2177"], startDate: "2025-09-01" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["2061"], startDate: "2025-10-14" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["2062", "2063", "2064"], startDate: "2025-10-20" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["2065"], startDate: "2025-10-27" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["2066"], startDate: "2025-11-04" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["2067"], startDate: "2025-11-25" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["2068"], startDate: "2025-12-01" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["2069", "2070"], startDate: "2025-12-08" },
+    ],
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "espace-ueno-neo-aim",
       "ネオアイムジャグラーＥＸ": "espace-ueno-neo-aim",
@@ -2787,9 +2804,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     if (contentRule === "espace-ueno-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
-        return games >= 3000 && settingFivePlusProbability >= 0.5;
+        return games >= 4000 && settingFivePlusProbability >= 0.5;
       }
-      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 150;
+      return games >= 4000 && rbDenominator <= 300 && combinedDenominator <= 150;
     }
     if (contentRule === "espace-shinkoiwa-north-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -9974,6 +9991,7 @@ function calculateWindowMetrics(
   const recentThirtyGamesTotal = sumWindowField(recentThirtyRows, "games");
   const recentFortyTwoGamesTotal = sumWindowField(recentFortyTwoRows, "games");
   const recentFiftySixGamesTotal = sumWindowField(recentFiftySixRows, "games");
+  const historyGamesTotal = sumWindowField(historyWindowRows, "games");
   const recentThreeBonusTotal = recentThreeRows.reduce(
     (total, windowRow) => total + windowRow.bbCount + windowRow.rbCount,
     0,
@@ -10003,10 +10021,14 @@ function calculateWindowMetrics(
   const recentTenRbTotal = sumWindowField(recentTenRows, "rbCount");
   const recentFourteenRbTotal = sumWindowField(recentFourteenRows, "rbCount");
   const recentTwentyOneRbTotal = sumWindowField(recentTwentyOneRows, "rbCount");
+  const recentTwentyEightRbTotal = sumWindowField(recentTwentyEightRows, "rbCount");
   const recentSevenBbTotal = sumWindowField(recentSevenRows, "bbCount");
   const recentFourBbTotal = sumWindowField(recentFourRows, "bbCount");
   const recentTenBbTotal = sumWindowField(recentTenRows, "bbCount");
   const recentFourteenBbTotal = sumWindowField(recentFourteenRows, "bbCount");
+  const recentTwentyEightBbTotal = sumWindowField(recentTwentyEightRows, "bbCount");
+  const historyBbTotal = sumWindowField(historyWindowRows, "bbCount");
+  const historyRbTotal = sumWindowField(historyWindowRows, "rbCount");
   const recentTwoSettingAverage = calculateSettingAverageFromWindowRows(recentTwoRows);
   const recentFiveSettingAverage = calculateSettingAverageFromWindowRows(recentFiveRows);
   const windowSettingAverage = calculateSettingAverageFromWindowRows(metricWindowRows);
@@ -11042,6 +11064,7 @@ function calculateWindowMetrics(
     recentThirtyGamesTotal,
     recentFortyTwoGamesTotal,
     recentFiftySixGamesTotal,
+    historyGamesTotal,
     recentTwoBonusTotal,
     recentThreeBonusTotal,
     recentFourBonusTotal,
@@ -11056,10 +11079,14 @@ function calculateWindowMetrics(
     recentTenRbTotal,
     recentFourteenRbTotal,
     recentTwentyOneRbTotal,
+    recentTwentyEightRbTotal,
     recentSevenBbTotal,
     recentFourBbTotal,
     recentTenBbTotal,
     recentFourteenBbTotal,
+    recentTwentyEightBbTotal,
+    historyBbTotal,
+    historyRbTotal,
     recentTwoSettingAverage,
     recentFiveSettingAverage,
     windowSettingAverage,
