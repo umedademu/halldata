@@ -2826,7 +2826,7 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       if (Number.isFinite(settingFivePlusProbability)) {
         return games >= 3000 && settingFivePlusProbability >= 0.5;
       }
-      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 140;
+      return games >= 5000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
     if (contentRule === "park-kitasenju-sss-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -3481,9 +3481,9 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     if (contentRule === "park-kitasenju-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
-        return games >= 3000 && settingFivePlusProbability >= 0.35;
+        return games >= 2500 && settingFivePlusProbability >= 0.3;
       }
-      return games >= 3000 && rbDenominator <= 350 && combinedDenominator <= 160;
+      return games >= 4000 && rbDenominator <= 330 && combinedDenominator <= 150;
     }
     if (contentRule === "park-kitasenju-sss-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -4081,9 +4081,9 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     if (Number.isFinite(settingFivePlusProbability)) {
-      return games >= 3000 && settingFivePlusProbability >= 0.7;
+      return games >= 3500 && settingFivePlusProbability >= 0.7;
     }
-    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+    return games >= 5000 && rbDenominator <= 270 && combinedDenominator <= 135;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
