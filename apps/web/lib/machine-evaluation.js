@@ -285,7 +285,6 @@ const REMOVED_TOKYO_UNVERIFIED_NEO_AIM_LOGIC_KEYS = new Set([
   "million-tobu-nerima-neo-aim",
   "jaran-mizumoto-neo-aim",
   "espace-ueno-neo-aim",
-  "espace-shinkoiwa-north-neo-aim",
   MARUHON_NEO_AIM_LOGIC_KEY,
   ONE_TWO_THREE_N_SHINONOME_NEO_AIM_LOGIC_KEY,
   RAKUEN_AMEYOKO_NEO_AIM_LOGIC_KEY,
@@ -4985,8 +4984,8 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildLogicVariant(
         "espace-shinkoiwa-north-neo-aim",
-        "エスパス1300新小岩北口駅前店_ネオアイムEX_全日共通_本物継続返済ロジック_v1",
-        "espace-shinkoiwa-north-neo-main66",
+        "エスパス1300新小岩北口駅前店_ネオアイムEX_全日共通_v1",
+        "espace-shinkoiwa-north-neo-strong-sink-rb",
       ),
       buildLogicVariant(
         "maruhan-kameari-neo-aim",
@@ -6986,158 +6985,83 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["espace-ueno-neo-aim"],
       ),
       buildCondition(
-        "espace-shinkoiwa-north-neo-free-a-best",
-        "自由A_最本命継続型",
-        "22日 / 28台 / RB1/265.6 / 合算1/133.4 / 平均+526枚 / 103.06% / 平均56 49.7% / 56>=50 42.9% / RB1/400超10.7% / 件数注意",
+        "espace-shinkoiwa-north-neo-wide-score80-boost4",
+        "広め_スコア80強化4",
+        "90日 / 121台 / RB1/301.2 / 合算1/141.6 / 平均+312.0枚 / 102.08% / 勝率47.1% / 平均56 36.0%",
         {
-          requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady", "espaceShinkoiwaNorthNeoFreeABest"],
-        },
-        ["espace-shinkoiwa-north-neo-aim"],
-      ),
-      buildCondition(
-        "espace-shinkoiwa-north-neo-free-b-angle",
-        "自由B_据え鋭角型",
-        "31日 / 38台 / RB1/274.8 / 合算1/133.4 / 平均+650枚 / 104.07% / 平均56 45.4% / RB1/400超15.8% / 件数注意",
-        {
-          requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady", "espaceShinkoiwaNorthNeoFreeBAngle"],
-        },
-        ["espace-shinkoiwa-north-neo-aim"],
-      ),
-      buildCondition(
-        "espace-shinkoiwa-north-neo-free-c-repeat",
-        "自由C_連続高内容型",
-        "27日 / 35台 / RB1/281.1 / 合算1/134.2 / 平均+697枚 / 103.99% / 平均56 44.6% / 件数注意",
-        {
-          requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady", "espaceShinkoiwaNorthNeoFreeCRepeat"],
-        },
-        ["espace-shinkoiwa-north-neo-aim"],
-      ),
-      buildCondition(
-        "espace-shinkoiwa-north-neo-free-d-real",
-        "自由D_中期本物型",
-        "60日 / 83台 / RB1/298.4 / 合算1/138.8 / 平均+543枚 / 103.27% / 平均56 37.6%",
-        {
-          requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady", "espaceShinkoiwaNorthNeoFreeDReal"],
-        },
-        ["espace-shinkoiwa-north-neo-aim"],
-      ),
-      buildCondition(
-        "espace-shinkoiwa-north-neo-free-e-loss-stay",
-        "自由E_返済負け滞在型",
-        "37日 / 52台 / RB1/288.2 / 合算1/136.6 / 平均+526枚 / 103.31% / 平均56 40.0%",
-        {
-          requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady", "espaceShinkoiwaNorthNeoFreeELossStay"],
-        },
-        ["espace-shinkoiwa-north-neo-aim"],
-      ),
-      buildCondition(
-        "espace-shinkoiwa-north-neo-free-seven-steep-sink",
-        "自由_7日急沈み",
-        "66日 / 122台 / RB1/304.2 / 合算1/140.8 / 平均+388枚 / 102.3% / 平均56 35.6% / 中央56 31.3%",
-        {
-          requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady", "espaceShinkoiwaNorthNeoSevenSteepSink"],
-        },
-        ["espace-shinkoiwa-north-neo-aim"],
-      ),
-      buildCondition(
-        "espace-shinkoiwa-north-neo-free-seven-up-real",
-        "自由_7日上昇＋前日本物",
-        "63日 / 98台 / RB1/300.3 / 合算1/139.8 / 平均+374枚 / 102.6% / 平均56 36.8%",
-        {
-          requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady", "espaceShinkoiwaNorthNeoSevenUpPreviousReal"],
-        },
-        ["espace-shinkoiwa-north-neo-aim"],
-      ),
-      buildCondition(
-        "espace-shinkoiwa-north-neo-strong73",
-        "強73点以上",
-        "29日 / 34台 / RB1/279.9 / 合算1/135.8 / 平均+555枚 / 103.44% / 勝率61.8% / 平均56 43.6%",
-        {
-          minScore: 73,
+          minScore: 80,
+          minBoost: 4,
           requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady"],
         },
         ["espace-shinkoiwa-north-neo-aim"],
       ),
       buildCondition(
-        "espace-shinkoiwa-north-neo-main66",
-        "本命66点以上",
-        "58日 / 86台 / RB1/288.5 / 合算1/138.4 / 平均+408枚 / 102.53% / 平均56 41.0% / RB1/300以下51.2%",
-        {
-          minScore: 66,
-          requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady"],
-        },
-        ["espace-shinkoiwa-north-neo-aim"],
-      ),
-      buildCondition(
-        "espace-shinkoiwa-north-neo-weak64-boost",
-        "弱本命64点＋強化2種",
-        "65日 / 106台 / RB1/300.0 / 合算1/140.1 / 平均+409枚 / 102.52% / 平均56 37.4%",
-        {
-          minScore: 64,
-          minBoost: 2,
-          maxDanger: 1,
-          requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady"],
-        },
-        ["espace-shinkoiwa-north-neo-aim"],
-      ),
-      buildCondition(
-        "espace-shinkoiwa-north-neo-wide61",
-        "広め61点以上",
-        "71日 / 136台 / RB1/309.4 / 合算1/142.0 / 平均+363枚 / 102.31% / 平均56 34.1%",
-        {
-          minScore: 61,
-          maxDanger: 1,
-          requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady"],
-        },
-        ["espace-shinkoiwa-north-neo-aim"],
-      ),
-      buildCondition(
-        "espace-shinkoiwa-north-neo-rank1-gap10",
-        "1位＋次点差10",
-        "日別1位＋次点差10以上 / RB1/297.0 / 合算1/139.2 / 平均+473枚 / 102.87% / 平均56 37.1%",
+        "espace-shinkoiwa-north-neo-weak-rank1-score85-gap5",
+        "弱め本命_1位85差5",
+        "91日 / 93台 / RB1/298.4 / 合算1/143.4 / 平均+166.6枚 / 101.13% / 勝率44.1% / 平均56 36.5%",
         {
           rankMax: 1,
-          minNextGap: 10,
+          minScore: 85,
+          minNextGap: 5,
           requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady"],
         },
         ["espace-shinkoiwa-north-neo-aim"],
       ),
       buildCondition(
-        "espace-shinkoiwa-north-neo-rank1-gap12",
-        "1位＋次点差12参考",
-        "日別1位＋次点差12以上 / RB1/287.4 / 合算1/136.3 / 平均+640枚 / 103.60% / 平均56 41.2% / 件数注意",
+        "espace-shinkoiwa-north-neo-main-rank1-score90-gap5",
+        "本命_1位90差5",
+        "56日 / 57台 / RB1/286.3 / 合算1/142.3 / 平均+149.3枚 / 100.99% / 勝率43.9% / 平均56 40.3%",
         {
           rankMax: 1,
-          minNextGap: 12,
+          minScore: 90,
+          minNextGap: 5,
           requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady"],
         },
         ["espace-shinkoiwa-north-neo-aim"],
       ),
       buildCondition(
-        "espace-shinkoiwa-north-neo-watch-danger2",
-        "見送り_危険2以上",
-        "危険条件2個以上は高得点でも見送り寄り。出玉だけ、弱ボーナス、低G、長期放置を重く見る",
+        "espace-shinkoiwa-north-neo-strong-sink-rb",
+        "強_急沈みRB残り",
+        "28日 / 34台 / RB1/279.2 / 合算1/139.3 / 平均+242.7枚 / 101.34% / 勝率58.8% / 平均56 44.3%",
         {
-          minDanger: 2,
-          requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady"],
+          requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady", "espaceShinkoiwaNorthNeoSharpSinkRbRemain"],
         },
         ["espace-shinkoiwa-north-neo-aim"],
       ),
       buildCondition(
-        "espace-shinkoiwa-north-neo-watch-low-score",
-        "見送り_64点未満強化薄",
-        "64点未満かつ強化1個以下は優先度低め",
+        "espace-shinkoiwa-north-neo-reference-sink-rb-prev-high",
+        "最本命候補_急沈みRB残り前回高内容",
+        "7日 / 7台 / RB1/269.8 / 合算1/136.0 / 平均+559.1枚 / 102.73% / 勝率71.4% / 平均56 47.5% / 件数不足の参考表示",
         {
-          maxScore: 63.999,
-          maxBoost: 1,
-          requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady"],
+          requiredFlags: [
+            "espaceShinkoiwaNorthNeoHistoryReady",
+            "espaceShinkoiwaNorthNeoSharpSinkRbRemainPreviousHigh",
+          ],
+        },
+        ["espace-shinkoiwa-north-neo-aim"],
+      ),
+      buildCondition(
+        "espace-shinkoiwa-north-neo-free-hot-strong-continue",
+        "自由MAX_ホット強内容続行",
+        "30日 / 35台 / RB1/285.4 / 合算1/137.5 / 平均+429.8枚 / 103.18% / 勝率45.7% / 平均56 40.0%",
+        {
+          requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady", "espaceShinkoiwaNorthNeoHotStrongContinue"],
+        },
+        ["espace-shinkoiwa-north-neo-aim"],
+      ),
+      buildCondition(
+        "espace-shinkoiwa-north-neo-watch-high14-too-many",
+        "見送り_14日高内容過多",
+        "26日 / 29台 / RB1/360.9 / 合算1/161.3 / 平均-343.2枚 / 97.46% / 勝率31.0% / 平均56 21.5%",
+        {
+          requiredFlags: ["espaceShinkoiwaNorthNeoHistoryReady", "espaceShinkoiwaNorthNeoHigh14TooMany"],
         },
         ["espace-shinkoiwa-north-neo-aim"],
       ),
       buildCondition(
         "espace-shinkoiwa-north-neo-watch-history-short",
         "見送り_履歴不足",
-        "履歴21営業日未満は採用条件対象外。7日未満は上限45、14日未満は上限55、21日未満は上限60",
+        "履歴21営業日未満は採用条件、順位、次点差の母集団から除外",
         {
           requiredFlags: ["espaceShinkoiwaNorthNeoHistoryShort"],
         },
@@ -14163,7 +14087,6 @@ function isRemovedTokyoUnverifiedNeoAimStore(storeName) {
     isMillionTobuNerimaStore,
     isJaranMizumotoStore,
     isEspaceUenoStore,
-    isEspaceShinkoiwaNorthStore,
     isMaruhonStore,
     isOneTwoThreeNShinonomeStore,
     isRakuenAmeyokoStore,
@@ -19949,212 +19872,96 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
     }
 
     if (activeLogicKey === "espace-shinkoiwa-north-neo-aim") {
-      const previousP56 = previousMachineSettingFivePlusProbability;
-      const recentTwoBonusTotal = readNumber(metrics.recentTwoBonusTotal);
-      const recentTwoCombinedDenominator = rateDenominator(recentTwoGamesTotal, recentTwoBonusTotal);
       const espaceShinkoiwaNorthNeoHistoryReady = historyRowCount >= 21;
       const espaceShinkoiwaNorthNeoHistoryShort = historyRowCount < 21;
-      const espaceShinkoiwaNorthNeoHistoryVeryShort = historyRowCount < 7;
-      const espaceShinkoiwaNorthNeoPreviousReal =
-        previousGames >= 3000 && Number.isFinite(previousP56) && previousP56 >= 0.5;
-      const espaceShinkoiwaNorthNeoPreviousStrongReal =
-        previousGames >= 4000 && Number.isFinite(previousP56) && previousP56 >= 0.7;
-      const espaceShinkoiwaNorthNeoPreviousVeryStrongReal =
-        previousGames >= 4000 && Number.isFinite(previousP56) && previousP56 >= 0.8;
-      const espaceShinkoiwaNorthNeoPreviousRb250 =
-        previousGames >= 2000 && features.previousRbDenominator <= 250;
-      const espaceShinkoiwaNorthNeoPreviousRb280 =
-        previousGames >= 2000 && features.previousRbDenominator <= 280;
-      const espaceShinkoiwaNorthNeoPreviousCombined130 =
-        previousGames >= 2000 && features.previousCombinedDenominator <= 130;
-      const espaceShinkoiwaNorthNeoRb5Strong =
-        recentFiveGamesTotal >= 15000 && features.recentFiveRbDenominator <= 280;
-      const espaceShinkoiwaNorthNeoRb5Good =
-        recentFiveGamesTotal >= 15000 && features.recentFiveRbDenominator <= 300;
-      const espaceShinkoiwaNorthNeoRb7Strong =
-        recentSevenGamesTotal >= 20000 && features.recentSevenRbDenominator <= 280;
-      const espaceShinkoiwaNorthNeoRb7Good =
-        recentSevenGamesTotal >= 20000 && features.recentSevenRbDenominator <= 300;
-      const espaceShinkoiwaNorthNeoCombined2VeryStrong =
-        recentTwoGamesTotal >= 4000 && recentTwoCombinedDenominator <= 120;
-      const espaceShinkoiwaNorthNeoCombined5Strong =
-        recentFiveGamesTotal >= 15000 && features.recentFiveCombinedDenominator <= 130;
-      const espaceShinkoiwaNorthNeoCombined5Good =
-        recentFiveGamesTotal >= 15000 && features.recentFiveCombinedDenominator <= 140;
-      const espaceShinkoiwaNorthNeoCombined7Best =
-        recentSevenGamesTotal >= 20000 && features.recentSevenCombinedDenominator <= 138;
-      const espaceShinkoiwaNorthNeoCombined7Strong =
-        recentSevenGamesTotal >= 20000 && features.recentSevenCombinedDenominator <= 140;
-      const espaceShinkoiwaNorthNeoCombined7Good =
-        recentSevenGamesTotal >= 20000 && features.recentSevenCombinedDenominator <= 150;
-      const espaceShinkoiwaNorthNeoHigh5Multiple = recentFiveMachineHighContentCount >= 2;
-      const espaceShinkoiwaNorthNeoHigh7Many = recentSevenMachineHighContentCount >= 3;
-      const espaceShinkoiwaNorthNeoHigh7VeryMany = recentSevenMachineHighContentCount >= 4;
-      const espaceShinkoiwaNorthNeoSevenSteepSink =
-        recentSevenGamesTotal >= 18000 && features.recentSevenAngle <= -150;
-      const espaceShinkoiwaNorthNeoSevenDeepSink =
-        recentSevenGamesTotal >= 18000 && recentSevenNetTotal <= -4500;
-      const espaceShinkoiwaNorthNeoSevenSink =
-        recentSevenGamesTotal >= 18000 && recentSevenNetTotal <= -3000;
-      const espaceShinkoiwaNorthNeoSevenUp =
-        recentSevenGamesTotal >= 18000 && features.recentSevenAngle >= 150;
-      const espaceShinkoiwaNorthNeoSevenUpPreviousReal =
-        espaceShinkoiwaNorthNeoSevenUp && espaceShinkoiwaNorthNeoPreviousReal;
-      const espaceShinkoiwaNorthNeoThreeUpStrong =
-        recentThreeGamesTotal >= 9000 && features.recentThreeAngle >= 190;
-      const espaceShinkoiwaNorthNeoTwoUpVeryStrong =
-        recentTwoGamesTotal >= 4000 && features.recentTwoAngle >= 220;
-      const espaceShinkoiwaNorthNeoFourteenLossStay = recentFourteenLossDays >= 9;
-      const espaceShinkoiwaNorthNeoFourteenLowWin = recentFourteenWinDays > 0 && recentFourteenWinDays <= 5;
-      const espaceShinkoiwaNorthNeoUnpaid =
-        (Number.isFinite(previousP56) && previousP56 >= 0.6 && previousDifference < 1500) ||
-        (espaceShinkoiwaNorthNeoRb5Good && recentSevenNetTotal <= 0) ||
-        (previousDifference > 0 && recentSevenNetTotal <= 0) ||
-        (espaceShinkoiwaNorthNeoPreviousRb280 && previousDifference < 0);
-      const espaceShinkoiwaNorthNeoGames7Trust =
-        recentSevenGamesTotal >= 33300 && recentSevenGamesTotal <= 40500;
-      const espaceShinkoiwaNorthNeoGames5Trust =
-        recentFiveGamesTotal >= 18000 && recentFiveGamesTotal <= 28000;
-      const espaceShinkoiwaNorthNeoNeighborGood = previousAdjacentMachineHighContentCount >= 1;
-      const espaceShinkoiwaNorthNeoNeighborStrong = previousAdjacentMachineHighContentCount >= 2;
-      const espaceShinkoiwaNorthNeoFreeABest =
-        espaceShinkoiwaNorthNeoPreviousStrongReal &&
-        espaceShinkoiwaNorthNeoHigh5Multiple &&
-        espaceShinkoiwaNorthNeoCombined2VeryStrong &&
-        espaceShinkoiwaNorthNeoCombined7Strong;
-      const espaceShinkoiwaNorthNeoFreeBAngle =
-        espaceShinkoiwaNorthNeoPreviousStrongReal &&
-        espaceShinkoiwaNorthNeoTwoUpVeryStrong &&
-        espaceShinkoiwaNorthNeoRb7Good &&
-        espaceShinkoiwaNorthNeoCombined7Strong;
-      const espaceShinkoiwaNorthNeoFreeCRepeat =
-        espaceShinkoiwaNorthNeoPreviousStrongReal &&
-        recentThreeMachineHighContentCount >= 2 &&
-        espaceShinkoiwaNorthNeoCombined7Strong;
-      const espaceShinkoiwaNorthNeoFreeDReal =
-        espaceShinkoiwaNorthNeoPreviousRb250 &&
-        espaceShinkoiwaNorthNeoRb5Strong &&
-        espaceShinkoiwaNorthNeoCombined7Strong;
-      const espaceShinkoiwaNorthNeoFreeELossStay =
-        espaceShinkoiwaNorthNeoPreviousRb250 &&
-        espaceShinkoiwaNorthNeoPreviousCombined130 &&
-        espaceShinkoiwaNorthNeoFourteenLossStay;
-      const espaceShinkoiwaNorthNeoFreeFWide =
-        espaceShinkoiwaNorthNeoPreviousRb250 &&
-        previousGames >= 2000 &&
-        features.previousCombinedDenominator <= 140 &&
-        espaceShinkoiwaNorthNeoRb7Good;
-      const espaceShinkoiwaNorthNeoRealnessCore =
-        espaceShinkoiwaNorthNeoPreviousStrongReal ||
-        espaceShinkoiwaNorthNeoPreviousRb250 ||
-        espaceShinkoiwaNorthNeoRb5Strong ||
-        espaceShinkoiwaNorthNeoCombined7Best;
-      const espaceShinkoiwaNorthNeoOutputOnlyDone =
-        previousDifference >= 2500 && (!Number.isFinite(previousP56) || previousP56 < 0.3);
-      const espaceShinkoiwaNorthNeoSevenOutputWeak =
-        recentSevenNetTotal >= 5000 && features.recentFiveRbDenominator > 330;
-      const espaceShinkoiwaNorthNeoBonusTooWeak =
-        features.recentFiveRbDenominator >= 450 &&
-        features.recentFiveCombinedDenominator >= 170 &&
-        recentSevenNetTotal > -3000;
-      const espaceShinkoiwaNorthNeoLowGamesUnknown = previousGames < 1000 && recentFiveGamesTotal < 12000;
-      const espaceShinkoiwaNorthNeoLosingWeak = streak >= 5 && recentFiveGamesTotal < 15000;
-      const espaceShinkoiwaNorthNeoLongNeglect =
-        Number.isFinite(daysSinceMachineHighContent) &&
-        daysSinceMachineHighContent >= 14 &&
-        features.recentSevenRbDenominator > 350;
-      const espaceShinkoiwaNorthNeoOverworked = recentSevenGamesTotal >= 40500;
-      const espaceShinkoiwaNorthNeoPreviousBigLoss =
-        previousDifference <= -1500 &&
-        !espaceShinkoiwaNorthNeoSevenSteepSink &&
-        (!Number.isFinite(previousP56) || previousP56 < 0.5);
-      const espaceShinkoiwaNorthNeoLongSinkLeft =
-        recentTwentyOneNetTotal <= -4500 && !espaceShinkoiwaNorthNeoSevenSteepSink;
-      const boostFlags = [
-        espaceShinkoiwaNorthNeoRealnessCore,
-        espaceShinkoiwaNorthNeoPreviousReal,
-        espaceShinkoiwaNorthNeoHigh5Multiple,
-        espaceShinkoiwaNorthNeoHigh7Many,
-        espaceShinkoiwaNorthNeoSevenSteepSink,
-        espaceShinkoiwaNorthNeoSevenUpPreviousReal,
-        espaceShinkoiwaNorthNeoUnpaid,
-        espaceShinkoiwaNorthNeoGames7Trust,
-        espaceShinkoiwaNorthNeoNeighborStrong,
-      ];
-      const dangerFlags = [
-        espaceShinkoiwaNorthNeoOutputOnlyDone,
-        espaceShinkoiwaNorthNeoSevenOutputWeak,
-        espaceShinkoiwaNorthNeoBonusTooWeak,
-        espaceShinkoiwaNorthNeoLowGamesUnknown,
-        espaceShinkoiwaNorthNeoLosingWeak,
-        espaceShinkoiwaNorthNeoLongNeglect,
-        espaceShinkoiwaNorthNeoOverworked,
-        espaceShinkoiwaNorthNeoPreviousBigLoss,
-        espaceShinkoiwaNorthNeoLongSinkLeft,
-      ];
+      const rbRate7 = features.recentSevenRbDenominator;
+      const combined14 = features.recentFourteenCombinedDenominator;
+      const angle7 = features.recentSevenAngle;
+      const avgG7 = recentSevenGamesTotal / 7;
+      const daysSince56 = Number.isFinite(daysSinceMachineHighContent) ? daysSinceMachineHighContent : 999;
+      const espaceShinkoiwaNorthNeoPreviousHigh = previousMachineHighContent;
+      const espaceShinkoiwaNorthNeoPreviousStrongHigh = previousMachineStrongHighContent;
+      const espaceShinkoiwaNorthNeoPreviousHighNoPay =
+        espaceShinkoiwaNorthNeoPreviousHigh && previousDifference <= 500;
+      const espaceShinkoiwaNorthNeoPreviousBigWin = previousDifference >= 1800;
+      const espaceShinkoiwaNorthNeoSharpSinkRbRemain = angle7 <= -150 && rbRate7 <= 330;
+      const espaceShinkoiwaNorthNeoSharpSinkRbRemainPreviousHigh =
+        espaceShinkoiwaNorthNeoSharpSinkRbRemain && espaceShinkoiwaNorthNeoPreviousHigh;
+      const espaceShinkoiwaNorthNeoHotStrongContinue =
+        recentThreeNetTotal >= 5000 && rbRate7 <= 300 && espaceShinkoiwaNorthNeoPreviousStrongHigh;
+
+      let boostCount = 0;
+      if (espaceShinkoiwaNorthNeoSharpSinkRbRemain) {
+        boostCount += 2;
+      } else if (angle7 <= -150) {
+        boostCount += 1;
+      }
+      if (rbRate7 <= 300) {
+        boostCount += 1;
+      }
+      if (combined14 <= 150) {
+        boostCount += 1;
+      }
+      if (espaceShinkoiwaNorthNeoHotStrongContinue) {
+        boostCount += 2;
+      } else if (recentThreeNetTotal >= 5000 && rbRate7 <= 300) {
+        boostCount += 1;
+      }
+      if (
+        recentSevenNetTotal >= 7000 &&
+        recentFourteenNetTotal >= 7000 &&
+        recentFourteenMachineStrongHighContentCount <= 0
+      ) {
+        boostCount += 2;
+      }
+      if (recentSevenGamesTotal >= 30000) {
+        boostCount += 1;
+      }
+      if (espaceShinkoiwaNorthNeoPreviousHighNoPay) {
+        boostCount += 1;
+      }
+
+      let dangerCount = 0;
+      if (rbRate7 >= 500) {
+        dangerCount += 1;
+      }
+      if (recentSevenGamesTotal < 17500) {
+        dangerCount += 1;
+      }
+      if (recentFourteenMachineStrongHighContentCount >= 3) {
+        dangerCount += 1;
+      }
+      if (recentFourteenMachineHighContentCount >= 5) {
+        dangerCount += 1;
+      }
+      if (espaceShinkoiwaNorthNeoPreviousBigWin && recentThreeNetTotal >= 5000 && rbRate7 > 330) {
+        dangerCount += 1;
+      }
+      if (avgG7 < 2500) {
+        dangerCount += 1;
+      }
+
+      const espaceShinkoiwaNorthNeoHigh14TooMany =
+        recentFourteenMachineHighContentCount >= 7 && boostCount < 4;
 
       return {
         ...features,
         previousMachineSettingFivePlusProbability,
         espaceShinkoiwaNorthNeoHistoryReady,
         espaceShinkoiwaNorthNeoHistoryShort,
-        espaceShinkoiwaNorthNeoHistoryVeryShort,
-        espaceShinkoiwaNorthNeoPreviousReal,
-        espaceShinkoiwaNorthNeoPreviousStrongReal,
-        espaceShinkoiwaNorthNeoPreviousVeryStrongReal,
-        espaceShinkoiwaNorthNeoPreviousRb250,
-        espaceShinkoiwaNorthNeoPreviousRb280,
-        espaceShinkoiwaNorthNeoPreviousCombined130,
-        espaceShinkoiwaNorthNeoRb5Strong,
-        espaceShinkoiwaNorthNeoRb5Good,
-        espaceShinkoiwaNorthNeoRb7Strong,
-        espaceShinkoiwaNorthNeoRb7Good,
-        espaceShinkoiwaNorthNeoCombined2VeryStrong,
-        espaceShinkoiwaNorthNeoCombined5Strong,
-        espaceShinkoiwaNorthNeoCombined5Good,
-        espaceShinkoiwaNorthNeoCombined7Best,
-        espaceShinkoiwaNorthNeoCombined7Strong,
-        espaceShinkoiwaNorthNeoCombined7Good,
-        espaceShinkoiwaNorthNeoHigh5Multiple,
-        espaceShinkoiwaNorthNeoHigh7Many,
-        espaceShinkoiwaNorthNeoHigh7VeryMany,
-        espaceShinkoiwaNorthNeoSevenSteepSink,
-        espaceShinkoiwaNorthNeoSevenDeepSink,
-        espaceShinkoiwaNorthNeoSevenSink,
-        espaceShinkoiwaNorthNeoSevenUp,
-        espaceShinkoiwaNorthNeoSevenUpPreviousReal,
-        espaceShinkoiwaNorthNeoThreeUpStrong,
-        espaceShinkoiwaNorthNeoTwoUpVeryStrong,
-        espaceShinkoiwaNorthNeoFourteenLossStay,
-        espaceShinkoiwaNorthNeoFourteenLowWin,
-        espaceShinkoiwaNorthNeoUnpaid,
-        espaceShinkoiwaNorthNeoGames7Trust,
-        espaceShinkoiwaNorthNeoGames5Trust,
-        espaceShinkoiwaNorthNeoNeighborGood,
-        espaceShinkoiwaNorthNeoNeighborStrong,
-        espaceShinkoiwaNorthNeoFreeABest,
-        espaceShinkoiwaNorthNeoFreeBAngle,
-        espaceShinkoiwaNorthNeoFreeCRepeat,
-        espaceShinkoiwaNorthNeoFreeDReal,
-        espaceShinkoiwaNorthNeoFreeELossStay,
-        espaceShinkoiwaNorthNeoFreeFWide,
-        espaceShinkoiwaNorthNeoRealnessCore,
-        espaceShinkoiwaNorthNeoOutputOnlyDone,
-        espaceShinkoiwaNorthNeoSevenOutputWeak,
-        espaceShinkoiwaNorthNeoBonusTooWeak,
-        espaceShinkoiwaNorthNeoLowGamesUnknown,
-        espaceShinkoiwaNorthNeoLosingWeak,
-        espaceShinkoiwaNorthNeoLongNeglect,
-        espaceShinkoiwaNorthNeoOverworked,
-        espaceShinkoiwaNorthNeoPreviousBigLoss,
-        espaceShinkoiwaNorthNeoLongSinkLeft,
-        treatmentDone: espaceShinkoiwaNorthNeoOutputOnlyDone || espaceShinkoiwaNorthNeoSevenOutputWeak,
-        lowConfidence:
-          espaceShinkoiwaNorthNeoHistoryShort ||
-          espaceShinkoiwaNorthNeoLowGamesUnknown ||
-          recentSevenGamesTotal < 18000,
-        boostCount: boostFlags.filter(Boolean).length,
-        dangerCount: dangerFlags.filter(Boolean).length,
+        espaceShinkoiwaNorthNeoPreviousHigh,
+        espaceShinkoiwaNorthNeoPreviousStrongHigh,
+        espaceShinkoiwaNorthNeoPreviousHighNoPay,
+        espaceShinkoiwaNorthNeoPreviousBigWin,
+        espaceShinkoiwaNorthNeoSharpSinkRbRemain,
+        espaceShinkoiwaNorthNeoSharpSinkRbRemainPreviousHigh,
+        espaceShinkoiwaNorthNeoHotStrongContinue,
+        espaceShinkoiwaNorthNeoHigh14TooMany,
+        espaceShinkoiwaNorthNeoDaysSince56: daysSince56,
+        treatmentDone: espaceShinkoiwaNorthNeoHigh14TooMany,
+        lowConfidence: espaceShinkoiwaNorthNeoHistoryShort || recentSevenGamesTotal < 17500,
+        boostCount,
+        dangerCount,
       };
     }
 
@@ -30309,144 +30116,92 @@ function calculateMachineScore(definition, metrics, features) {
     }
 
     if (activeLogicKey === "espace-shinkoiwa-north-neo-aim") {
-      const previousP56 = previousMachineSettingFivePlusProbability;
-      let scoreCap = 100;
-      if (historyRowCount < 7) {
-        scoreCap = 45;
-      } else if (historyRowCount < 14) {
-        scoreCap = 55;
-      } else if (historyRowCount < 21) {
-        scoreCap = 60;
+      if (historyRowCount < 21) {
+        return null;
       }
 
-      let bonusScore = 0;
-      bonusScore += Number.isFinite(previousP56)
-        ? previousP56 >= 0.7
-          ? 14
-          : previousP56 >= 0.6
-            ? 12
-            : previousRbDenominator <= 250
-              ? 10
-              : previousRbDenominator <= 280
-                ? 7
-                : previousRbDenominator <= 300
-                  ? 4
-                  : 0
-        : previousRbDenominator <= 250
-          ? 10
-          : previousRbDenominator <= 280
-            ? 7
-            : previousRbDenominator <= 300
-              ? 4
-              : 0;
-      bonusScore += scoreAtMost(features.recentFiveRbDenominator, [
-        { maximum: 280, points: 8 },
-        { maximum: 300, points: 5 },
-      ]);
-      bonusScore += scoreAtMost(features.recentSevenRbDenominator, [
-        { maximum: 280, points: 6 },
-        { maximum: 300, points: 4 },
-      ]);
-      bonusScore += scoreAtMost(features.recentFiveCombinedDenominator, [
-        { maximum: 130, points: 5 },
-        { maximum: 140, points: 3 },
-      ]);
-      bonusScore += scoreAtMost(features.recentSevenCombinedDenominator, [
-        { maximum: 140, points: 4 },
-        { maximum: 150, points: 2 },
-      ]);
-      bonusScore = clamp(bonusScore, 0, 32);
+      const rbRate7 = features.recentSevenRbDenominator;
+      const combined14 = features.recentFourteenCombinedDenominator;
+      const angle7 = features.recentSevenAngle;
+      const avgG7 = recentSevenGamesTotal / 7;
+      const daysSince56 = Number.isFinite(daysSinceMachineHighContent) ? daysSinceMachineHighContent : 999;
+      const previousHighNoPay = previousMachineHighContent && previousDifference <= 500;
+      const previousBigWin = previousDifference >= 1800;
+      let score = 45;
 
-      let continuationScore = 0;
-      const previousStrongReal =
-        previousGames >= 4000 && Number.isFinite(previousP56) && previousP56 >= 0.7;
-      continuationScore += previousStrongReal ? 8 : 0;
-      continuationScore += previousMachineHighContent && recentThreeMachineHighContentCount >= 2 ? 5 : 0;
-      continuationScore += recentFiveMachineHighContentCount >= 2 ? 4 : 0;
-      continuationScore += recentSevenMachineHighContentCount >= 4 ? 4 : 0;
-      continuationScore += recentSevenMachineHighContentCount >= 3 ? 3 : 0;
-      continuationScore = clamp(continuationScore, 0, 16);
+      if (angle7 <= -150 && rbRate7 <= 330) {
+        score += 25;
+      } else if (angle7 <= -150) {
+        score += 11;
+      } else if (angle7 <= -100) {
+        score += 7;
+      }
 
-      let riseScore = 0;
-      riseScore += recentTwoGamesTotal >= 4000 && features.recentTwoAngle >= 220 ? 7 : 0;
-      riseScore += recentThreeGamesTotal >= 9000 && features.recentThreeAngle >= 190 ? 5 : 0;
-      riseScore += recentSevenGamesTotal >= 18000 && features.recentSevenAngle >= 140 ? 5 : 0;
-      riseScore += scoreAtLeast(recentSevenNetTotal, [
-        { minimum: 5000, points: 4 },
-        { minimum: 3000, points: 2 },
-      ]);
-      riseScore = clamp(riseScore, 0, 16);
+      if (rbRate7 <= 300) {
+        score += 10;
+      } else if (rbRate7 <= 330) {
+        score += 6;
+      } else if (rbRate7 >= 500) {
+        score -= 8;
+      }
 
-      let sinkScore = 0;
-      sinkScore += scoreAtMost(recentSevenNetTotal, [
-        { maximum: -4000, points: 9 },
-        { maximum: -3000, points: 7 },
-      ]);
-      sinkScore += recentFourteenLossDays >= 9 ? 6 : 0;
-      sinkScore += recentFourteenWinDays > 0 && recentFourteenWinDays <= 5 ? 4 : 0;
-      sinkScore += scoreAtMost(features.recentSevenAngle, [
-        { maximum: -150, points: 8 },
-        { maximum: -120, points: 6 },
-        { maximum: -90, points: 4 },
-      ]);
-      sinkScore += recentFourteenNetTotal <= -5000 ? 3 : 0;
-      sinkScore = clamp(sinkScore, 0, 18);
+      if (combined14 <= 150) {
+        score += 8;
+      } else if (combined14 <= 160) {
+        score += 4;
+      }
 
-      let unpaidScore = 0;
-      unpaidScore += Number.isFinite(previousP56) && previousP56 >= 0.6 && previousDifference < 1500 ? 5 : 0;
-      unpaidScore += features.recentFiveRbDenominator <= 300 && recentSevenNetTotal <= 0 ? 4 : 0;
-      unpaidScore += previousDifference > 0 && recentSevenNetTotal <= 0 ? 3 : 0;
-      unpaidScore += previousRbDenominator <= 280 && previousDifference < 0 ? 3 : 0;
-      unpaidScore = clamp(unpaidScore, 0, 10);
+      if (recentThreeNetTotal >= 5000 && rbRate7 <= 300 && previousMachineStrongHighContent) {
+        score += 22;
+      } else if (recentThreeNetTotal >= 5000 && rbRate7 <= 300) {
+        score += 15;
+      } else if (recentThreeNetTotal >= 3000) {
+        score += 6;
+      }
 
-      let gamesScore = 0;
-      gamesScore += previousGames >= 6500 ? 4 : previousGames >= 5000 ? 3 : previousGames >= 3000 ? 1 : 0;
-      gamesScore += recentFiveGamesTotal >= 25000 ? 3 : recentFiveGamesTotal >= 18000 ? 2 : 0;
-      gamesScore += recentSevenGamesTotal >= 35000 ? 2 : 0;
-      gamesScore += recentSevenGamesTotal >= 33300 && recentSevenGamesTotal <= 40500 ? 3 : 0;
-      gamesScore = clamp(gamesScore, 0, 9);
+      if (
+        recentSevenNetTotal >= 7000 &&
+        recentFourteenNetTotal >= 7000 &&
+        recentFourteenMachineStrongHighContentCount <= 0
+      ) {
+        score += 16;
+      } else if (recentSevenNetTotal >= 7000) {
+        score += 7;
+      }
 
-      let neighborScore = 0;
-      neighborScore += previousAdjacentMachineHighContentCount >= 2 ? 3 : previousAdjacentMachineHighContentCount >= 1 ? 1 : 0;
-      neighborScore += previousAdjacentMachineHighContentCountNear2 >= 2 ? 2 : 0;
-      neighborScore = clamp(neighborScore, 0, 5);
+      if (recentSevenGamesTotal >= 30000) {
+        score += 5;
+      } else if (recentSevenGamesTotal < 17500) {
+        score -= 10;
+      }
 
-      let penalty = 0;
-      penalty += previousDifference >= 2500 && (!Number.isFinite(previousP56) || previousP56 < 0.3) ? 8 : 0;
-      penalty += recentSevenNetTotal >= 5000 && features.recentFiveRbDenominator > 330 ? 8 : 0;
-      penalty +=
-        features.recentFiveRbDenominator >= 450 &&
-        features.recentFiveCombinedDenominator >= 170 &&
-        recentSevenNetTotal > -3000
-          ? 8
-          : 0;
-      penalty += previousGames < 1000 && recentFiveGamesTotal < 12000 ? 6 : 0;
-      penalty += streak >= 5 && recentFiveGamesTotal < 15000 ? 5 : 0;
-      penalty +=
-        Number.isFinite(daysSinceMachineHighContent) &&
-        daysSinceMachineHighContent >= 14 &&
-        features.recentSevenRbDenominator > 350
-          ? 5
-          : 0;
-      penalty += recentSevenGamesTotal >= 40500 ? 6 : 0;
-      penalty +=
-        previousDifference <= -1500 &&
-        features.recentSevenAngle > -150 &&
-        (!Number.isFinite(previousP56) || previousP56 < 0.5)
-          ? 5
-          : 0;
-      penalty += recentTwentyOneNetTotal <= -4500 && features.recentSevenAngle > -150 ? 5 : 0;
+      if (daysSince56 <= 7) {
+        score += 6;
+      } else if (daysSince56 >= 42) {
+        score -= 5;
+      }
 
-      const score =
-        bonusScore +
-        continuationScore +
-        riseScore +
-        sinkScore +
-        unpaidScore +
-        gamesScore +
-        neighborScore -
-        penalty;
-      return Math.round(clamp(score, 0, scoreCap));
+      if (previousHighNoPay) {
+        score += 5;
+      }
+
+      if (recentFourteenMachineStrongHighContentCount >= 3) {
+        score -= 14;
+      }
+
+      if (recentFourteenMachineHighContentCount >= 5) {
+        score -= 8;
+      }
+
+      if (previousBigWin && recentThreeNetTotal >= 5000 && rbRate7 > 330) {
+        score -= 10;
+      }
+
+      if (avgG7 < 2500) {
+        score -= 10;
+      }
+
+      return Math.round(clamp(score, 0, 100));
     }
 
     if (activeLogicKey === JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY) {
