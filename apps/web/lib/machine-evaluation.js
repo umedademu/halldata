@@ -5545,8 +5545,8 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildLogicVariant(
         "messe-okudo-neo-aim",
-        "メッセ奥戸店_ネオアイムEX_全日共通_継続高内容ロジック_v1",
-        "messe-okudo-free-main-14-high-rb300",
+        "メッセ奥戸店_ネオアイムEX_全日共通_返済未完＋非過熱本物ロジック_v2",
+        "messe-okudo-unpaid-21-deep-rank1",
       ),
       buildLogicVariant(
         "messe-nishikasai-neo-aim",
@@ -10667,22 +10667,18 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "messe-okudo-free-main-14-high-rb300",
-        "自由本命_1位14高3前日RB300",
-        "30日 / 30台 / 総G155,915 / RB1/274.5 / 合算1/134.1 / 平均+510.8枚 / 103.3% / 勝率73.3% / 平均56 46.2% / 中央56 49.1% / 56>=50 46.7% / 56<30 36.7%",
+        "準本命RB315_非過熱本物1位",
+        "107日 / 108台 / 総G422,158 / BB1/274.0 / RB1/315.0 / 合算1/146.5 / 平均+62.8枚 / 100.54% / 現行1年集計",
         {
           rankMax: 1,
-          requiredFlags: [
-            "messeOkudoNeoHistoryReady",
-            "messeOkudoNeoHigh14Exactly3",
-            "messeOkudoNeoPreviousRb300",
-          ],
+          requiredFlags: ["messeOkudoNeoHistoryReady", "messeOkudoNeoNonHotGenuine"],
         },
         ["messe-okudo-neo-aim"],
       ),
       buildCondition(
         "messe-okudo-reference-7high3-14high3-10combined",
-        "参考_7高3＋14高3＋10合算140",
-        "10日 / 10台 / RB1/265.4 / 合算1/127.4 / 平均+942.0枚 / 106.1% / 平均56 51.5% / 中央56 53.1% / 件数少",
+        "旧参考_7高3＋14高3＋10合算140",
+        "現行1年集計では該当なし。旧分析の少数条件のため、通常採用からは外す",
         {
           requiredFlags: [
             "messeOkudoNeoHistoryReady",
@@ -10695,8 +10691,8 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "messe-okudo-best-gap4-14-high3",
-        "最本命270参考_1位差4＋14高3",
-        "15日 / 15台 / 総G80,440 / BB1/270.8 / RB1/268.1 / 合算1/134.7 / 平均+371.1枚 / 102.3% / 平均56 48.5% / 中央56 49.2% / 件数注意",
+        "旧参考_1位差4＋14高3は現行弱い",
+        "23日 / 23台 / 総G115,407 / BB1/276.1 / RB1/326.0 / 合算1/149.5 / 平均-0.6枚 / 100.00% / 現行1年集計",
         {
           rankMax: 1,
           minNextGap: 4,
@@ -10706,8 +10702,8 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "messe-okudo-free-c-short-cycle",
-        "自由C_短サイクル未完",
-        "20日 / 20台 / RB1/278.7 / 合算1/134.6 / 平均+353枚 / 102.59% / 平均56 42.7% / 中央56 40.2% / 件数注意",
+        "少数参考_自由C短サイクル未完",
+        "3日 / 3台 / 総G12,125 / BB1/247.4 / RB1/346.4 / 合算1/144.3 / 平均+453.0枚 / 103.74% / 現行1年集計 / 少数注意",
         {
           requiredFlags: ["messeOkudoNeoHistoryReady", "messeOkudoNeoFreeCShortCycle"],
         },
@@ -10715,8 +10711,8 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "messe-okudo-strong-rb280-14-high3",
-        "強280_1位14高3",
-        "35日 / 35台 / 総G168,654 / BB1/266.0 / RB1/278.3 / 合算1/136.0 / 平均+368.2枚 / 102.5% / 勝率62.9% / 平均56 43.6% / 中央56 41.6%",
+        "参考RB325_14高3単独",
+        "27日 / 27台 / 総G135,898 / BB1/267.5 / RB1/325.1 / 合算1/146.8 / 平均+151.6枚 / 101.00% / 現行1年集計 / RBは弱め",
         {
           rankMax: 1,
           requiredFlags: ["messeOkudoNeoHistoryReady", "messeOkudoNeoHigh14Exactly3"],
@@ -10725,8 +10721,8 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "messe-okudo-strong-rb280-shallow5",
-        "強280_85点＋5日浅戻り",
-        "22日 / 22台 / 総G110,102 / BB433/RB395 / RB1/278.7 / 合算1/133.0 / 平均+618枚 / 104.12% / 平均56 44.7% / 中央56 44.2% / 件数注意",
+        "少数参考RB243_1位85点＋5日浅戻り",
+        "3日 / 3台 / 総G11,439 / BB1/254.2 / RB1/243.4 / 合算1/124.3 / 平均+664.3枚 / 105.81% / 現行1年集計 / 少数注意",
         {
           rankMax: 1,
           minScore: 85,
@@ -10736,8 +10732,8 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "messe-okudo-unpaid-21-deep-rank1",
-        "補助_21日深未返済1位",
-        "26台 / RB1/287.0 / 合算1/136.6 / 平均+455.8枚 / 102.96% / 平均56 41.8% / 返済未完補助",
+        "本命RB304_21日深未返済1位",
+        "41日 / 41台 / 総G184,484 / BB1/272.1 / RB1/304.4 / 合算1/143.7 / 平均+133.6枚 / 100.99% / 現行1年集計",
         {
           rankMax: 1,
           requiredFlags: ["messeOkudoNeoHistoryReady", "messeOkudoNeoTwentyOneUnpaidDeep"],
@@ -10746,31 +10742,30 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "messe-okudo-main-rb290-gap8",
-        "本命290_1位差8",
-        "30日 / 30台 / 総G144,570 / BB1/282.4 / RB1/287.4 / 合算1/142.4 / 平均+52.6枚 / 100.4% / 平均56 40.5% / 中央56 36.2%",
+        "参考RB326_1位次点差15",
+        "63日 / 64台 / 総G248,492 / BB1/274.6 / RB1/326.5 / 合算1/149.2 / 平均+74.4枚 / 100.64% / 現行1年集計",
         {
           rankMax: 1,
-          minNextGap: 8,
+          minNextGap: 15,
           requiredFlags: ["messeOkudoNeoHistoryReady"],
         },
         ["messe-okudo-neo-aim"],
       ),
       buildCondition(
         "messe-okudo-main-rb290-score85-cycle",
-        "本命290_85点差5短サイクル",
-        "43日 / 43台 / 総G208,033 / BB822/RB729 / RB1/285.4 / 合算1/134.1 / 平均+617枚 / 104.25% / 平均56 41.8% / 中央56 41.4%",
+        "参考RB313_1位80点",
+        "122日 / 125台 / 総G535,558 / BB1/272.4 / RB1/313.4 / 合算1/145.7 / 平均+98.8枚 / 100.77% / 現行1年集計",
         {
           rankMax: 1,
-          minScore: 85,
-          minNextGap: 5,
-          requiredFlags: ["messeOkudoNeoHistoryReady", "messeOkudoNeoHigh14TwoToThree"],
+          minScore: 80,
+          requiredFlags: ["messeOkudoNeoHistoryReady"],
         },
         ["messe-okudo-neo-aim"],
       ),
       buildCondition(
         "messe-okudo-unpaid-21-rank1",
-        "補助_21日未返済1位",
-        "29台 / RB1/287.6 / 合算1/136.7 / 平均+443.3枚 / 102.98% / 平均56 41.3% / 返済未完補助",
+        "準本命RB306_21日未返済1位",
+        "51日 / 51台 / 総G215,409 / BB1/275.8 / RB1/306.0 / 合算1/145.1 / 平均+62.1枚 / 100.49% / 現行1年集計",
         {
           rankMax: 1,
           requiredFlags: ["messeOkudoNeoHistoryReady", "messeOkudoNeoTwentyOneUnpaid"],
@@ -10779,8 +10774,8 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "messe-okudo-free-d-show-continuation",
-        "自由D_見せ場継続",
-        "20日 / 21台 / RB1/287.1 / 合算1/132.9 / 平均+773枚 / 105.22% / 平均56 42.6% / 中央56 45.1% / 件数注意",
+        "参考_自由D見せ場継続",
+        "19日 / 23台 / 総G114,052 / BB1/272.9 / RB1/317.7 / 合算1/146.8 / 平均+144.3枚 / 100.97% / 現行1年集計 / 件数注意",
         {
           requiredFlags: ["messeOkudoNeoHistoryReady", "messeOkudoNeoFreeDShowContinuation"],
         },
@@ -10788,19 +10783,18 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "messe-okudo-weak-rb300-gap4",
-        "弱本命300_1位差4",
-        "60日 / 60台 / 総G277,008 / BB1/280.1 / RB1/298.8 / 合算1/144.6 / 平均+49.7枚 / 100.4% / 平均56 36.7% / 中央56 33.5%",
+        "準本命RB319_ほどよい据え",
+        "98日 / 99台 / 総G400,812 / BB1/268.5 / RB1/318.9 / 合算1/145.7 / 平均+151.3枚 / 101.25% / 現行1年集計",
         {
           rankMax: 1,
-          minNextGap: 4,
-          requiredFlags: ["messeOkudoNeoHistoryReady"],
+          requiredFlags: ["messeOkudoNeoHistoryReady", "messeOkudoNeoModerateContinuation"],
         },
         ["messe-okudo-neo-aim"],
       ),
       buildCondition(
         "messe-okudo-wide-rb310-rank1",
-        "広め310_1位",
-        "118日 / 118台 / 総G519,901 / BB1/274.5 / RB1/306.2 / 合算1/144.7 / 平均+93.7枚 / 100.7% / 平均56 34.7% / 中央56 29.0%",
+        "広めRB321_1位",
+        "263日 / 278台 / 総G1,122,421 / BB1/272.4 / RB1/320.6 / 合算1/147.3 / 平均+60.8枚 / 100.50% / 現行1年集計",
         {
           rankMax: 1,
           requiredFlags: ["messeOkudoNeoHistoryReady"],
@@ -10809,11 +10803,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "messe-okudo-wide-rb310-score75",
-        "広め310_1位75点",
-        "109日 / 109台 / 総G488,071 / BB1844/RB1581 / RB1/308.7 / 合算1/142.5 / 平均+223枚 / 101.66% / 平均56 34.0% / 中央56 30.6%",
+        "広めRB319_1位60点",
+        "250日 / 263台 / 総G1,072,003 / BB1/272.5 / RB1/319.1 / 合算1/147.0 / 平均+68.1枚 / 100.56% / 現行1年集計",
         {
           rankMax: 1,
-          minScore: 75,
+          minScore: 60,
           requiredFlags: ["messeOkudoNeoHistoryReady"],
         },
         ["messe-okudo-neo-aim"],
@@ -10821,7 +10815,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "messe-okudo-watch-danger2",
         "見送り_危険2以上",
-        "危険条件2個以上は高得点でも見送り寄り。長期放置、4連敗以上、前日RB弱、内容過多を重く見る",
+        "263日 / 1532台 / 総G6,179,764 / BB1/271.1 / RB1/345.1 / 合算1/151.8 / 平均-26.8枚 / 99.78% / 現行1年集計 / 高得点でも見送り寄り",
         {
           minDanger: 2,
           requiredFlags: ["messeOkudoNeoHistoryReady"],
@@ -10831,7 +10825,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "messe-okudo-watch-long-neglect-losing4",
         "見送り_長期放置＋4連敗",
-        "51台 / RB1/361.6 / 合算1/158.5 / 平均-188.3枚 / 98.4% / 平均56 24.3% / 原則見送り",
+        "181日 / 289台 / 総G1,142,210 / BB1/275.3 / RB1/337.9 / 合算1/151.7 / 平均-58.7枚 / 99.51% / 現行1年集計 / 原則見送り",
         {
           requiredFlags: ["messeOkudoNeoHistoryReady", "messeOkudoNeoLongNeglectLosing4"],
         },
@@ -10840,7 +10834,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "messe-okudo-watch-low-p56",
         "見送り_3日56薄い",
-        "279台 / RB1/349.1 / 合算1/153.7 / 平均-83枚 / 99.35% / 強化なしなら見送り",
+        "211日 / 520台 / 総G2,123,421 / BB1/273.0 / RB1/354.5 / 合算1/154.2 / 平均-81.6枚 / 99.33% / 現行1年集計 / 強化なしなら見送り",
         {
           requiredFlags: ["messeOkudoNeoHistoryReady", "messeOkudoNeoRecentThreeP56Low"],
         },
@@ -10849,7 +10843,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildCondition(
         "messe-okudo-watch-history-short",
         "見送り_履歴不足",
-        "履歴14営業日未満は採用条件対象外。7日未満は上限55、14日未満は上限60",
+        "101日 / 234台 / 総G859,901 / BB1/280.3 / RB1/337.7 / 合算1/153.2 / 平均-149.2枚 / 98.65% / 現行1年集計 / 履歴14営業日未満は採用対象外",
         {
           requiredFlags: ["messeOkudoNeoHistoryShort"],
         },
@@ -21329,6 +21323,14 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         previousAdjacentMachineNetTotalNear2 >= 2000 && messeOkudoNeoInterval2To6;
       const messeOkudoNeoTwentyOneUnpaid = recentTwentyOneNetTotal <= -3000;
       const messeOkudoNeoTwentyOneUnpaidDeep = recentTwentyOneNetTotal <= -4000;
+      const messeOkudoNeoSevenNonHot = recentSevenNetTotal <= 2000;
+      const messeOkudoNeoSevenRb330 = recentSevenGamesTotal >= 12000 && features.recentSevenRbDenominator <= 330;
+      const messeOkudoNeoNonHotGenuine = messeOkudoNeoSevenNonHot && messeOkudoNeoSevenRb330;
+      const messeOkudoNeoModerateContinuation =
+        messeOkudoNeoPreviousHigh50 &&
+        previousDifference >= 1000 &&
+        previousDifference <= 2999 &&
+        messeOkudoNeoSevenRb330;
       const messeOkudoNeoFreeCShortCycle =
         messeOkudoNeoHigh14TwoToThree &&
         messeOkudoNeoFiveShallowReturned &&
@@ -21360,6 +21362,10 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         messeOkudoNeoTenCombined140,
         messeOkudoNeoRecentTenP56Strong,
         messeOkudoNeoTwentyOneUnpaid,
+        messeOkudoNeoSevenNonHot,
+        messeOkudoNeoSevenRb330,
+        messeOkudoNeoNonHotGenuine,
+        messeOkudoNeoModerateContinuation,
         messeOkudoNeoFreeCShortCycle,
         messeOkudoNeoFreeDShowContinuation,
       ];
@@ -21434,6 +21440,10 @@ function buildMachineSpecificFeatureState(definition, metrics, features) {
         messeOkudoNeoNeighborShowTailwind,
         messeOkudoNeoTwentyOneUnpaid,
         messeOkudoNeoTwentyOneUnpaidDeep,
+        messeOkudoNeoSevenNonHot,
+        messeOkudoNeoSevenRb330,
+        messeOkudoNeoNonHotGenuine,
+        messeOkudoNeoModerateContinuation,
         messeOkudoNeoFreeCShortCycle,
         messeOkudoNeoFreeDShowContinuation,
         messeOkudoNeoLongNeglectLosing4,
@@ -32472,8 +32482,6 @@ function calculateMachineScore(definition, metrics, features) {
 
     if (activeLogicKey === "messe-okudo-neo-aim") {
       const previousP56 = previousMachineSettingFivePlusProbability;
-      const recentTenBonusTotal = readNumber(metrics.recentTenBonusTotal);
-      const recentTenCombinedDenominator = rateDenominator(recentTenGamesTotal, recentTenBonusTotal);
       let scoreCap = 100;
       if (historyRowCount < 7) {
         scoreCap = 55;
@@ -32481,144 +32489,93 @@ function calculateMachineScore(definition, metrics, features) {
         scoreCap = 60;
       }
 
-      let score = 50;
-
-      if (recentFiveMachineHighContentCount === 2) {
-        score += 16;
-      } else if (recentFiveMachineHighContentCount >= 3) {
-        score += 12;
-      } else if (recentFiveMachineHighContentCount === 1) {
-        score += 6;
-      } else if (historyRowCount >= 5) {
-        score -= 6;
-      }
-
-      if (recentSevenMachineHighContentCount >= 3) {
-        score += 8;
-      } else if (recentSevenMachineHighContentCount === 2) {
-        score += 6;
-      } else if (historyRowCount >= 7 && recentSevenMachineHighContentCount === 0) {
-        score -= 2;
-      }
-
-      if (recentFourteenMachineHighContentCount === 3) {
-        score += 8;
-      } else if (recentFourteenMachineHighContentCount >= 4) {
-        score += 6;
-      } else if (recentFourteenMachineHighContentCount === 2) {
-        score += 4;
-      } else if (historyRowCount >= 14 && recentFourteenMachineHighContentCount === 0) {
-        score -= 8;
-      }
-
-      if (previousDifference >= 2000) {
-        score += 12;
-      } else if (previousDifference >= 1500) {
-        score += 10;
-      } else if (previousDifference >= 1000) {
-        score += 7;
-      } else if (previousDifference > 0) {
-        score += 3;
-      } else if (previousDifference <= -1500) {
-        score -= 4;
-      } else if (previousDifference <= -500) {
-        score -= 2;
-      }
+      let score = historyRowCount >= 7 ? 28 : Math.min(40, 20 + 3 * historyRowCount);
 
       const previousHigh50 =
-        previousGames >= 2500 && Number.isFinite(previousP56) && previousP56 >= 0.5;
-      if (previousHigh50) {
-        if (previousDifference >= 1500) {
-          score += 12;
-        } else if (previousDifference >= 500) {
-          score += 6;
-        } else if (previousDifference >= 0) {
-          score += 4;
-        } else {
-          score += 2;
-        }
-      }
-      score += previousGames >= 3000 && Number.isFinite(previousP56) && previousP56 >= 0.5 ? 10 : 0;
-      score += previousGames >= 3000 && Number.isFinite(previousP56) && previousP56 >= 0.7 ? 8 : 0;
-      score += previousGames >= 2500 && previousRbDenominator <= 300 ? 4 : 0;
-      score += previousGames >= 2500 && previousCombinedDenominator <= 140 ? 4 : 0;
-      score -= previousGames >= 2500 && previousRbDenominator > 400 ? 6 : 0;
-      score -= previousGames >= 2500 && previousCombinedDenominator > 170 ? 4 : 0;
-
-      score +=
-        Number.isFinite(recentTenMachineSettingFivePlusProbabilityAverage) &&
-        recentTenMachineSettingFivePlusProbabilityAverage >= 0.5
-          ? 6
-          : 0;
-      score += recentTenGamesTotal >= 20000 && recentTenCombinedDenominator <= 140 ? 5 : 0;
-      score += recentFiveGamesTotal >= 12000 && features.recentFiveRbDenominator <= 300 ? 3 : 0;
-      score -= recentSevenGamesTotal >= 12000 && features.recentSevenRbDenominator > 400 ? 5 : 0;
-      score -=
-        Number.isFinite(recentSevenMachineSettingFivePlusProbabilityAverage) &&
-        recentSevenMachineSettingFivePlusProbabilityAverage < 0.2
-          ? 4
-          : 0;
-
-      score += recentThreeGamesTotal >= 3000 && recentThreeGamesTotal <= 7000 ? 5 : 0;
-      score -= recentThreeGamesTotal < 3000 ? 3 : 0;
-      score += recentThreeGamesTotal >= 20000 ? 3 : 0;
-      score += recentTenGamesTotal > 0 && recentTenGamesTotal <= 30000 ? 4 : 0;
-      score -= recentTenGamesTotal >= 45000 ? 3 : 0;
-      score -= recentSevenGamesTotal > 45000 ? 8 : 0;
-
-      score += streak >= 2 && streak <= 3 ? 3 : 0;
-      score -= streak >= 4 ? 10 : 0;
-      score += winningStreak >= 2 ? 4 : 0;
-
-      if (daysSinceMachineHighContent === 1) {
-        score += 6;
-      } else if (
-        Number.isFinite(daysSinceMachineHighContent) &&
-        daysSinceMachineHighContent >= 2 &&
-        daysSinceMachineHighContent <= 3
-      ) {
-        score += 3;
-      } else if (
-        Number.isFinite(daysSinceMachineHighContent) &&
-        daysSinceMachineHighContent >= 4 &&
-        daysSinceMachineHighContent <= 7
-      ) {
-        score += 1;
-      } else if (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 15) {
-        score -= 5;
-      } else if (!Number.isFinite(daysSinceMachineHighContent) && historyRowCount >= 14) {
-        score -= 5;
-      }
-
-      score += recentFiveNetTotal >= 500 && recentFiveNetTotal <= 1500 ? 7 : 0;
-      score += recentSevenNetTotal >= -1000 && recentSevenNetTotal <= 1000 ? 4 : 0;
-      score +=
-        machineWeakContentStreak >= 1 && machineWeakContentStreak <= 3 && previousRbDenominator > 350
-          ? 5
-          : 0;
-      score -= machineWeakContentStreak >= 4 ? 6 : 0;
-      score += adjacentMachineNetTotal3Near2 <= -2000 ? 2 : 0;
-      score += previousAdjacentMachineHighContentCount >= 1 ? 1 : 0;
-      score += previousAdjacentMachineNetTotalNear2 >= 2000 && features.messeOkudoNeoInterval2To6 ? 4 : 0;
-
-      score -=
-        Number.isFinite(recentThreeMachineSettingFivePlusProbabilityAverage) &&
-        recentThreeMachineSettingFivePlusProbabilityAverage <= 0.15
-          ? 8
-          : 0;
-      score -= recentFourteenMachineHighContentCount >= 5 ? 13 : 0;
-      score -=
-        historyRowCount >= 14 && recentFourteenMachineHighContentCount === 0
-          ? 8
-          : 0;
-      score -=
+        previousGames >= 3000 &&
+        ((Number.isFinite(previousP56) && previousP56 >= 0.5) ||
+          (previousRbDenominator <= 300 && previousCombinedDenominator <= 140));
+      const previousSemiHigh =
         previousGames >= 2500 &&
-        Number.isFinite(previousP56) &&
-        previousP56 < 0.3 &&
-        previousRbDenominator > 400
-          ? 8
+        ((Number.isFinite(previousP56) && previousP56 >= 0.3) ||
+          previousRbDenominator <= 310 ||
+          previousCombinedDenominator <= 135);
+
+      if (recentSevenGamesTotal >= 35000) {
+        score += 10;
+      } else if (recentSevenGamesTotal >= 28000) {
+        score += 8;
+      } else if (recentSevenGamesTotal >= 22000) {
+        score += 5;
+      } else if (recentSevenGamesTotal >= 12000 && recentSevenGamesTotal < 16000) {
+        score -= 6;
+      } else if (recentSevenGamesTotal < 12000) {
+        score -= 12;
+      }
+      score += recentFourteenGamesTotal >= 60000 ? 4 : 0;
+
+      if (previousHigh50) {
+        score += 16;
+      } else if (previousSemiHigh) {
+        score += 8;
+      }
+      score += previousHigh50 && previousDifference >= 1000 && previousDifference <= 2999 ? 10 : 0;
+      score += previousHigh50 && previousDifference >= 3000 ? 2 : 0;
+      score += previousHigh50 && previousDifference < 0 ? 6 : 0;
+
+      if (
+        Number.isFinite(recentSevenMachineSettingFivePlusProbabilityAverage) &&
+        recentSevenMachineSettingFivePlusProbabilityAverage >= 0.5
+      ) {
+        score += 12;
+      } else if (
+        Number.isFinite(recentSevenMachineSettingFivePlusProbabilityAverage) &&
+        recentSevenMachineSettingFivePlusProbabilityAverage >= 0.35
+      ) {
+        score += 8;
+      } else if (
+        Number.isFinite(recentSevenMachineSettingFivePlusProbabilityAverage) &&
+        recentSevenMachineSettingFivePlusProbabilityAverage >= 0.25
+      ) {
+        score += 4;
+      }
+
+      if (recentSevenGamesTotal >= 18000 && features.recentSevenCombinedDenominator <= 135) {
+        score += 10;
+      } else if (recentSevenGamesTotal >= 18000 && features.recentSevenCombinedDenominator <= 140) {
+        score += 6;
+      }
+      if (recentFiveGamesTotal >= 12000 && features.recentFiveRbDenominator <= 300) {
+        score += 8;
+      } else if (recentFiveGamesTotal >= 12000 && features.recentFiveRbDenominator <= 330) {
+        score += 4;
+      }
+
+      if (recentSevenNetTotal <= -4000 && recentSevenGamesTotal >= 28000) {
+        score += 12;
+      } else if (recentSevenNetTotal <= -2500 && recentSevenGamesTotal >= 24000) {
+        score += 8;
+      } else if (recentSevenNetTotal <= -1000 && recentSevenGamesTotal >= 20000) {
+        score += 4;
+      }
+      score += recentTwentyOneNetTotal <= -8000 && recentTwentyOneGamesTotal >= 55000 ? 6 : 0;
+      score += recentFourteenNetTotal <= -6000 && recentFourteenGamesTotal >= 40000 ? 4 : 0;
+
+      score += streak >= 2 && streak <= 4 && recentSevenGamesTotal >= 20000 ? 4 : 0;
+      score -= streak >= 6 ? 6 : 0;
+      score += previousAdjacentMachineHighContentCount > 0 && recentSevenNetTotal < 0 ? 3 : 0;
+
+      score -= !previousHigh50 && previousDifference <= -1000 && previousDifference >= -1999 ? 6 : 0;
+      score -= !previousHigh50 && previousDifference >= 3000 ? 10 : 0;
+      score -=
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 36 &&
+        recentSevenGamesTotal < 20000
+          ? 10
           : 0;
-      score += recentTwentyOneNetTotal <= -3000 && !features.messeOkudoNeoLongNeglect ? 3 : 0;
+      score -= recentSevenGamesTotal < 10000 ? 10 : 0;
+      score -=
+        recentTwentyOneNetTotal >= 8000 && recentFourteenMachineHighContentCount >= 2 ? 8 : 0;
 
       return Math.round(clamp(score, 0, scoreCap));
     }
