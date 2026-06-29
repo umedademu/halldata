@@ -51,6 +51,7 @@ import {
   canonicalMachineName,
   normalizeDifferenceMode,
   listEquivalentMachineNames,
+  selectDifferenceValue,
   withCanonicalMachineName,
 } from "./machine-difference";
 import { normalizeSettingEstimateMode } from "./setting-estimates";
@@ -92,6 +93,8 @@ const CROSS_STORE_BACKTEST_NEXT_RESULT_BUFFER_DAYS = 7;
 const HUNT_SCORE_ACTIVE_MACHINE_WINDOW_DAYS = 7;
 const MACHINE_DETAIL_HUNT_SCORE_LOOKBACK_DAYS = 90;
 const HUNT_SCORE_RANKING_DETAIL_MEMORY_CACHE_TTL_MS = 5 * 60 * 1000;
+const MINREPO_PLACEHOLDER_DIFFERENCE_ABS_MAX = 1;
+const MINREPO_PLACEHOLDER_DIFFERENCE_MIN_RECORDS = 4;
 const STORE_DAY_STATUS_CLOSED = "closed";
 const DEFAULT_CROSS_STORE_MACHINE_NAMES = [
   "SアイムジャグラーＥＸ",
@@ -1389,6 +1392,104 @@ function detailRecordHasMeaningfulResult(record) {
   );
 }
 
+function detailRecordHasMeaningfulNonDifferenceResult(record) {
+  return ["bonus_difference_value", "games_count", "bb_count", "rb_count"].some((key) =>
+    Number.isFinite(readNumber(record?.[key])),
+  );
+}
+
+function hasSite7DifferenceSource(record) {
+  return String(record?.site7_difference_source ?? record?.site7DifferenceSource ?? "")
+    .trim()
+    .toLowerCase() === "graph";
+}
+
+function isMinrepoDifferenceRecord(record) {
+  return !isSite7Record(record) && !hasSite7DifferenceSource(record);
+}
+
+function isPlaceholderDifferenceValue(value) {
+  return (
+    Number.isFinite(value) &&
+    Number.isInteger(value) &&
+    Math.abs(value) <= MINREPO_PLACEHOLDER_DIFFERENCE_ABS_MAX
+  );
+}
+
+function buildMinrepoPlaceholderJugglerMachineSet(rows) {
+  const statsByMachineName = new Map();
+
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const machineName = canonicalMachineName(row?.machine_name);
+    if (!machineName || !isHuntJugglerMachine(machineName) || !isMinrepoDifferenceRecord(row)) {
+      continue;
+    }
+
+    const differenceValue = readNumber(row?.difference_value);
+    if (!Number.isFinite(differenceValue)) {
+      continue;
+    }
+
+    const stats = statsByMachineName.get(machineName) ?? {
+      finiteCount: 0,
+      placeholderCount: 0,
+      meaningfulCount: 0,
+    };
+    stats.finiteCount += 1;
+    if (isPlaceholderDifferenceValue(differenceValue)) {
+      stats.placeholderCount += 1;
+    }
+    if (detailRecordHasMeaningfulNonDifferenceResult(row)) {
+      stats.meaningfulCount += 1;
+    }
+    statsByMachineName.set(machineName, stats);
+  }
+
+  const machineNames = new Set();
+  for (const [machineName, stats] of statsByMachineName.entries()) {
+    if (
+      stats.finiteCount >= MINREPO_PLACEHOLDER_DIFFERENCE_MIN_RECORDS &&
+      stats.finiteCount === stats.placeholderCount &&
+      stats.meaningfulCount > 0
+    ) {
+      machineNames.add(machineName);
+    }
+  }
+
+  return machineNames;
+}
+
+function clearDifferenceDerivedJugglerFields(row) {
+  return {
+    ...row,
+    difference_value: null,
+    estimated_grape_count: null,
+    estimated_grape_denominator: null,
+    estimated_grape_probability: null,
+    estimated_grape_status: null,
+    estimated_grape_source: null,
+    estimated_grape_version: null,
+    setting_estimate_grape_average: null,
+    setting_estimate_grape_status: null,
+    setting_estimate_grape_source: null,
+    setting_estimate_grape_version: null,
+  };
+}
+
+function applyMinrepoPlaceholderJugglerFallback(rows) {
+  const targetMachineNames = buildMinrepoPlaceholderJugglerMachineSet(rows);
+  if (targetMachineNames.size === 0) {
+    return rows;
+  }
+
+  return rows.map((row) => {
+    const machineName = canonicalMachineName(row?.machine_name);
+    return targetMachineNames.has(machineName) && isMinrepoDifferenceRecord(row)
+      ? clearDifferenceDerivedJugglerFields(row)
+      : row;
+  });
+}
+
 function buildRawRowsFromMachineDailyDetailRows(rows) {
   const expandedRows = [];
 
@@ -1437,7 +1538,7 @@ function buildRawRowsFromMachineDailyDetailRows(rows) {
     }
   }
 
-  return expandedRows;
+  return applyMinrepoPlaceholderJugglerFallback(expandedRows);
 }
 
 function dailyDetailRowHasMeaningfulResult(row) {
@@ -1526,7 +1627,9 @@ async function fetchHuntScoreSourceRows(resultsTable, machineDailyDetailsTable, 
   ]);
 
   return {
-    targetRows: fetchedTargetRows.map(withCanonicalMachineName),
+    targetRows: applyMinrepoPlaceholderJugglerFallback(
+      fetchedTargetRows.map(withCanonicalMachineName),
+    ),
     storeRows: fetchedStoreRows,
   };
 }
@@ -1685,6 +1788,10 @@ function compareSlotNumbers(left, right) {
   return String(left).localeCompare(String(right), "ja");
 }
 
+function readDefaultDifferenceValue(row, machineName = "") {
+  return readNumber(selectDifferenceValue(row, "minrepo", machineName || row?.machine_name));
+}
+
 function buildMachineLatestSummaries(rows) {
   const buckets = new Map();
   let latestDate = null;
@@ -1721,7 +1828,9 @@ function buildMachineLatestSummaries(rows) {
         machineName: bucket.machineName,
         slotCount: bucket.slots.size,
         latestDate: bucket.latestDate,
-        latestAverageDifference: average(latestRows.map((row) => row.difference_value)),
+        latestAverageDifference: average(
+          latestRows.map((row) => readDefaultDifferenceValue(row, bucket.machineName)),
+        ),
         latestAverageGames: average(latestRows.map((row) => row.games_count)),
         latestAveragePayout: average(latestRows.map((row) => row.payout_rate)),
       };
@@ -1872,9 +1981,10 @@ function buildMachineDetailFromDailyRows(rows) {
       slotNumbersSet.add(slotNumber);
       recordCount += 1;
 
-      if (typeof record.difference_value === "number" && Number.isFinite(record.difference_value)) {
-        allDifferenceValues.push(record.difference_value);
-        dailyDifferenceValues.push(record.difference_value);
+      const defaultDifferenceValue = readDefaultDifferenceValue(record, machineName);
+      if (Number.isFinite(defaultDifferenceValue)) {
+        allDifferenceValues.push(defaultDifferenceValue);
+        dailyDifferenceValues.push(defaultDifferenceValue);
       }
       if (typeof record.games_count === "number" && Number.isFinite(record.games_count)) {
         allGamesValues.push(record.games_count);
@@ -1955,11 +2065,12 @@ function buildMachineDetail(rows) {
     }
     recordsByDate.get(row.target_date)[slotKey] = row;
 
-    if (typeof row.difference_value === "number" && Number.isFinite(row.difference_value)) {
+    const defaultDifferenceValue = readDefaultDifferenceValue(row, row.machine_name);
+    if (Number.isFinite(defaultDifferenceValue)) {
       if (!dailyDifferences.has(row.target_date)) {
         dailyDifferences.set(row.target_date, []);
       }
-      dailyDifferences.get(row.target_date).push(row.difference_value);
+      dailyDifferences.get(row.target_date).push(defaultDifferenceValue);
     }
   }
 
@@ -1991,7 +2102,9 @@ function buildMachineDetail(rows) {
       recordCount: rows.length,
       startDate: dates.at(-1) ?? null,
       endDate: dates[0] ?? null,
-      averageDifference: average(rows.map((row) => row.difference_value)),
+      averageDifference: average(
+        rows.map((row) => readDefaultDifferenceValue(row, row.machine_name)),
+      ),
       averageGames: average(rows.map((row) => row.games_count)),
       averagePayout: average(rows.map((row) => row.payout_rate)),
       bestDay: bestWorstCandidates[0] ?? null,
@@ -2310,8 +2423,7 @@ function rawRecordIsInDateRange(record, dateRange) {
 }
 
 function readStaticStoreRecords(staticStore, dateRange = null) {
-  return (Array.isArray(staticStore?.records) ? staticStore.records : [])
-    .filter((record) => rawRecordIsInDateRange(record, dateRange))
+  const normalizedRows = (Array.isArray(staticStore?.records) ? staticStore.records : [])
     .map((record) => ({
       store_id: record.store_id ?? staticStore?.store?.id ?? null,
       machine_name: String(record.machine_name ?? "").trim(),
@@ -2351,6 +2463,9 @@ function readStaticStoreRecords(staticStore, dateRange = null) {
     }))
     .filter((record) => record.machine_name && record.target_date && record.slot_number)
     .map(withCanonicalMachineName);
+
+  return applyMinrepoPlaceholderJugglerFallback(normalizedRows)
+    .filter((record) => rawRecordIsInDateRange(record, dateRange));
 }
 
 function isSite7Record(record) {
@@ -2470,12 +2585,18 @@ function buildStaticStoreDetail(staticStore) {
   const store = readStaticStoreIdentity(staticStore);
   const storeDayStatuses = readStaticStoreDayStatuses(staticStore);
   const closedDateCount = storeDayStatuses.filter(storeDayStatusIsClosed).length;
+  const latestSummariesByCanonicalName = new Map(
+    buildMachineLatestSummaries(readStaticStoreRecords(staticStore)).machines
+      .map((machine) => [canonicalMachineName(machine.machineName), machine]),
+  );
   const machines = (Array.isArray(staticStore?.machines) ? staticStore.machines : [])
     .map((machine) => ({
       machineName: String(machine.machineName ?? "").trim(),
       slotCount: Number(machine.slotCount ?? 0),
       latestDate: machine.latestDate ? String(machine.latestDate) : null,
-      latestAverageDifference: readNumber(machine.latestAverageDifference),
+      latestAverageDifference:
+        latestSummariesByCanonicalName.get(canonicalMachineName(machine.machineName))
+          ?.latestAverageDifference ?? readNumber(machine.latestAverageDifference),
       latestAverageGames: readNumber(machine.latestAverageGames),
       latestAveragePayout: readNumber(machine.latestAveragePayout),
       dataFile: String(machine.dataFile ?? "").trim() || null,
