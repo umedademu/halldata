@@ -13485,6 +13485,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "wonderland-minamigaoka-my-free-angle-prev-rb",
       ),
       buildLogicVariant(
+        "gogo-tenjin-my",
+        "GOGOアリーナ天神_マイジャグラーV_全日共通_100点ロジック",
+        "gogo-tenjin-my-free-short-rotation",
+      ),
+      buildLogicVariant(
         "boom-tenjin-my",
         "BOOM天神本店_マイジャグラーV_内容継続スコア",
         "boom-tenjin-my-event-purple-b",
@@ -14002,6 +14007,64 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["wonderland-minamigaoka-my"],
       ),
       buildCondition(
+        "gogo-tenjin-my-free-short-rotation",
+        "自由MAX_短期急沈みローテ",
+        "42日 / 42台 / 総G287,891 / BB1,231 / RB1,038 / RB1/277.4 / 合算1/126.9 / 平均+1578.3枚 / 107.68% / 勝率64.3% / 最優先・件数注意",
+        {
+          requiredFlags: ["gogoTenjinMyHistoryReady", "gogoTenjinMyFreeShortRotation"],
+        },
+        ["gogo-tenjin-my"],
+      ),
+      buildCondition(
+        "gogo-tenjin-my-free-deep-strong-history",
+        "自由MAX_深沈み強高履歴",
+        "56日 / 66台 / 総G435,134 / BB1,753 / RB1,592 / RB1/273.3 / 合算1/130.1 / 平均+1067.1枚 / 105.39% / 勝率54.5%",
+        {
+          requiredFlags: ["gogoTenjinMyHistoryReady", "gogoTenjinMyFreeDeepStrongHistory"],
+        },
+        ["gogo-tenjin-my"],
+      ),
+      buildCondition(
+        "gogo-tenjin-my-score90-rank1",
+        "90点以上かつ1位",
+        "84日 / 86台 / 総G527,200 / BB2,103 / RB1,772 / RB1/297.5 / 合算1/136.1 / 平均+745.5枚 / 104.05% / 勝率52.3%",
+        {
+          rankMax: 1,
+          minScore: 90,
+          requiredFlags: ["gogoTenjinMyHistoryReady"],
+        },
+        ["gogo-tenjin-my"],
+      ),
+      buildCondition(
+        "gogo-tenjin-my-watch-prev-strong-treated",
+        "見送り_前日強高処遇済み",
+        "4日 / 4台 / 総G11,794 / BB38 / RB32 / RB1/368.6 / 合算1/168.5 / 平均-427.0枚 / 95.17% / 勝率25.0%",
+        {
+          minScore: 60,
+          requiredFlags: ["gogoTenjinMyHistoryReady", "gogoTenjinMyWatchPrevStrongTreated"],
+        },
+        ["gogo-tenjin-my"],
+      ),
+      buildCondition(
+        "gogo-tenjin-my-score90-reference",
+        "90点以上_緑参考",
+        "84日 / 97台 / 総G598,402 / BB2,394 / RB2,000 / RB1/299.2 / 合算1/136.2 / 平均+746.2枚 / 104.03% / 勝率51.5% / 参考表示",
+        {
+          minScore: 90,
+          requiredFlags: ["gogoTenjinMyHistoryReady"],
+        },
+        ["gogo-tenjin-my"],
+      ),
+      buildCondition(
+        "gogo-tenjin-my-diff14-plus6000-warning",
+        "14日大幅プラス警告",
+        "317日 / 1,270台 / 総G5,641,951 / BB20,932 / RB14,941 / RB1/377.6 / 合算1/157.3 / 平均-176.1枚 / 98.68% / 勝率34.3% / 危険警告",
+        {
+          requiredFlags: ["gogoTenjinMyHistoryReady", "gogoTenjinMyDiff14Plus6000Warning"],
+        },
+        ["gogo-tenjin-my"],
+      ),
+      buildCondition(
         "boom-tenjin-my-event-purple-a",
         "イベント紫A",
         "18日 / 28台 / 総G194,552 / BB780 / RB719 / RB1/270.6 / 合算1/129.8 / 平均+1113.6枚 / 105.34% / 勝率67.9% / 平均4以上62.2% / 平均5以上44.1%",
@@ -14358,6 +14421,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "amuse-asakusa-neo-aim");
   } else if (isGogoArenaTenjinStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "gogo-tenjin-neo-aim");
+  } else if (isGogoArenaTenjinStore(storeName) && definition.machineKey === "my") {
+    defaultLogic = findLogicDefinition(definition, "gogo-tenjin-my");
   } else if (isHinodeOnojoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "hinode-onojo-neo-aim");
   } else if (isSuperDstationChikushinoStore(storeName) && definition.machineKey === "neo-aim") {
@@ -15102,6 +15167,10 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   const adjacentMachineShowCount3Near2 = readNumber(metrics.adjacentMachineShowCount3Near2);
   const adjacentMachineAverageDifference3Near2 = readNumber(metrics.adjacentMachineAverageDifference3Near2);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
+  const adjacentMachineHighContentCount7Near1 = readNumber(metrics.adjacentMachineHighContentCount7Near1);
+  const adjacentMachineStrongHighContentCount7Near1 = readNumber(
+    metrics.adjacentMachineStrongHighContentCount7Near1,
+  );
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
   const adjacentMachineHighContentCount7Near2 = readNumber(metrics.adjacentMachineHighContentCount7Near2);
   const adjacentMachineGoodContentCount7Near2 = readNumber(metrics.adjacentMachineGoodContentCount7Near2);
@@ -24641,6 +24710,62 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   }
 
   if (machineKey === "my") {
+    if (activeLogicKey === "gogo-tenjin-my") {
+      const gogoTenjinMyHistoryReady = historyRowCount >= 21;
+      const gogoTenjinMyFreeShortRotation =
+        gogoTenjinMyHistoryReady &&
+        recentTwentyOneNetTotal <= -4000 &&
+        recentSevenGamesTotal > 0 &&
+        features.recentSevenAngle <= -160 &&
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 3 &&
+        daysSinceMachineHighContent <= 12;
+      const gogoTenjinMyFreeDeepStrongHistory =
+        gogoTenjinMyHistoryReady &&
+        recentTwentyOneNetTotal <= -4000 &&
+        recentSevenGamesTotal > 0 &&
+        features.recentSevenAngle <= -120 &&
+        recentTwentyOneMachineStrongHighContentCount >= 2;
+      const gogoTenjinMyWatchPrevStrongTreated =
+        gogoTenjinMyHistoryReady &&
+        previousMachineStrongHighContent &&
+        previousDifference >= 1500 &&
+        previousGames >= 4500;
+      const gogoTenjinMyDiff14Plus6000Warning =
+        gogoTenjinMyHistoryReady && recentFourteenNetTotal >= 6000;
+      const boostFlags = [
+        gogoTenjinMyFreeShortRotation,
+        gogoTenjinMyFreeDeepStrongHistory,
+        recentSevenNetTotal <= -3500 && recentSevenGamesTotal >= 18000,
+        recentFourteenNetTotal <= -5000 && recentFourteenGamesTotal >= 35000,
+        recentSevenGamesTotal > 0 && features.recentSevenAngle <= -160,
+        previousMachineHighContent && previousDifference <= 800 && previousGames >= 4500,
+        adjacentMachineHighContentCount7Near1 >= 2 && recentSevenNetTotal <= 0 && recentSevenGamesTotal >= 9000,
+      ];
+      const dangerFlags = [
+        gogoTenjinMyWatchPrevStrongTreated,
+        gogoTenjinMyDiff14Plus6000Warning,
+        recentSevenMachineHighContentCount >= 2,
+        recentFourteenMachineStrongHighContentCount >= 2,
+        recentThreeNetTotal >= 2500 || recentSevenNetTotal >= 4000,
+        recentSevenGamesTotal < 7000,
+        adjacentMachineStrongHighContentCount7Near1 >= 3 && recentSevenNetTotal >= 1000,
+      ];
+
+      return {
+        ...features,
+        gogoTenjinMyHistoryReady,
+        gogoTenjinMyFreeShortRotation,
+        gogoTenjinMyFreeDeepStrongHistory,
+        gogoTenjinMyWatchPrevStrongTreated,
+        gogoTenjinMyDiff14Plus6000Warning,
+        treatmentDone: gogoTenjinMyWatchPrevStrongTreated || gogoTenjinMyDiff14Plus6000Warning,
+        lowConfidence: !gogoTenjinMyHistoryReady || recentSevenGamesTotal < 7000 || recentFourteenGamesTotal < 15000,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "boom-tenjin-my") {
       const targetEventFlag = readTargetEventFlag(row);
       const boomTenjinMyEvent = targetEventFlag === true;
@@ -26089,7 +26214,11 @@ function calculateMachineScore(definition, metrics, features) {
   const recentTwentyEightGamesTotal = readNumber(metrics.recentTwentyEightGamesTotal);
   const recentFiftySixGamesTotal = readNumber(metrics.recentFiftySixGamesTotal);
   const recentTwoBonusTotal = readNumber(metrics.recentTwoBonusTotal);
+  const recentThreeBonusTotal = readNumber(metrics.recentThreeBonusTotal);
+  const recentFiveBonusTotal = readNumber(metrics.recentFiveBonusTotal);
   const recentTwoRbTotal = readNumber(metrics.recentTwoRbTotal);
+  const recentThreeRbTotal = readNumber(metrics.recentThreeRbTotal);
+  const recentFiveRbTotal = readNumber(metrics.recentFiveRbTotal);
   const recentSevenRbTotal = readNumber(metrics.recentSevenRbTotal);
   const recentFourteenRbTotal = readNumber(metrics.recentFourteenRbTotal);
   const recentTenRbTotal = readNumber(metrics.recentTenRbTotal);
@@ -26228,6 +26357,10 @@ function calculateMachineScore(definition, metrics, features) {
   const adjacentMachineShowCount3Near2 = readNumber(metrics.adjacentMachineShowCount3Near2);
   const adjacentMachineAverageDifference3Near2 = readNumber(metrics.adjacentMachineAverageDifference3Near2);
   const adjacentMachineHighContentCount7 = readNumber(metrics.adjacentMachineHighContentCount7);
+  const adjacentMachineHighContentCount7Near1 = readNumber(metrics.adjacentMachineHighContentCount7Near1);
+  const adjacentMachineStrongHighContentCount7Near1 = readNumber(
+    metrics.adjacentMachineStrongHighContentCount7Near1,
+  );
   const adjacentMachineHighContentCount14 = readNumber(metrics.adjacentMachineHighContentCount14);
   const adjacentMachineHighContentCount7Near2 = readNumber(metrics.adjacentMachineHighContentCount7Near2);
   const adjacentMachineGoodContentCount7Near2 = readNumber(metrics.adjacentMachineGoodContentCount7Near2);
@@ -33239,6 +33372,96 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "my") {
+    if (activeLogicKey === "gogo-tenjin-my") {
+      let score = 40;
+
+      if (recentSevenNetTotal <= -3500 && recentSevenGamesTotal >= 18000) {
+        score += 16;
+      } else if (recentSevenNetTotal <= -2000 && recentSevenGamesTotal >= 14000) {
+        score += 12;
+      } else if (recentSevenNetTotal <= -1000 && recentSevenGamesTotal >= 10000) {
+        score += 7;
+      }
+
+      if (recentFourteenNetTotal <= -5000 && recentFourteenGamesTotal >= 35000) {
+        score += 13;
+      } else if (recentFourteenNetTotal <= -3000 && recentFourteenGamesTotal >= 28000) {
+        score += 9;
+      } else if (recentFourteenNetTotal <= -1500 && recentFourteenGamesTotal >= 22000) {
+        score += 5;
+      }
+
+      if (features.recentSevenAngle <= -160 && recentSevenGamesTotal >= 14000) {
+        score += 8;
+      } else if (features.recentSevenAngle <= -100 && recentSevenGamesTotal >= 10000) {
+        score += 5;
+      }
+      score += features.recentFourteenAngle <= -110 && recentFourteenGamesTotal >= 25000 ? 5 : 0;
+
+      if (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 3 && daysSinceMachineHighContent <= 12) {
+        score += 8;
+      } else if (
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 13 &&
+        daysSinceMachineHighContent <= 28
+      ) {
+        score += 5;
+      } else if (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 45) {
+        score -= 8;
+      }
+
+      score += recentSevenMachineHighContentCount === 0 && recentFourteenMachineHighContentCount >= 1 ? 5 : 0;
+      score -= recentSevenMachineHighContentCount >= 2 ? 8 : 0;
+      score -= recentFourteenMachineStrongHighContentCount >= 2 ? 5 : 0;
+      score += previousMachineHighContent && previousDifference <= 800 && previousGames >= 4500 ? 7 : 0;
+      score -= previousMachineStrongHighContent && previousDifference >= 1500 ? 10 : 0;
+      score -= recentThreeNetTotal >= 2500 || recentSevenNetTotal >= 4000 ? 10 : 0;
+      score -= recentFourteenNetTotal >= 6000 ? 12 : 0;
+
+      if (recentSevenGamesTotal < 7000) {
+        score -= 10;
+      } else if (recentSevenGamesTotal < 10000) {
+        score -= 5;
+      }
+      score -= recentFourteenGamesTotal < 15000 ? 8 : 0;
+      score -= historyLosingStreak >= 5 && recentSevenGamesTotal < 10000 ? 6 : 0;
+
+      const recentThreeRbDenominator = rateDenominator(recentThreeGamesTotal, recentThreeRbTotal);
+      const recentFiveRbDenominator = rateDenominator(recentFiveGamesTotal, recentFiveRbTotal);
+      const recentThreeCombinedDenominator = rateDenominator(recentThreeGamesTotal, recentThreeBonusTotal);
+      const recentFiveCombinedDenominator = rateDenominator(recentFiveGamesTotal, recentFiveBonusTotal);
+      const gogoTenjinMyRb3Real =
+        recentThreeRbDenominator <= 310 &&
+        recentThreeCombinedDenominator <= 145 &&
+        recentThreeNetTotal <= 1000 &&
+        recentThreeGamesTotal >= 8000;
+      const gogoTenjinMyRb5Real =
+        recentFiveRbDenominator <= 320 &&
+        recentFiveCombinedDenominator <= 150 &&
+        recentFiveNetTotal <= 1500 &&
+        recentFiveGamesTotal >= 12000;
+      if (gogoTenjinMyRb3Real) {
+        score += 8;
+      } else if (gogoTenjinMyRb5Real) {
+        score += 5;
+      }
+
+      score +=
+        adjacentMachineHighContentCount7Near1 >= 2 && recentSevenNetTotal <= 0 && recentSevenGamesTotal >= 9000
+          ? 4
+          : 0;
+      score -= adjacentMachineStrongHighContentCount7Near1 >= 3 && recentSevenNetTotal >= 1000 ? 4 : 0;
+
+      score = Math.round(clamp(score, 0, 100));
+      if (historyRowCount < 7) {
+        return 30;
+      }
+      if (historyRowCount < 21) {
+        return Math.min(score, 60);
+      }
+      return score;
+    }
+
     if (activeLogicKey === "boom-tenjin-my") {
       let score = 35;
 

@@ -952,6 +952,11 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["GOGOアリーナ天神", "ＧＯＧＯアリーナ天神"],
     targetMachines: GOGO_ARENA_TENJIN_TARGET_MACHINES,
     defaultLogicKey: "gogo",
+    machineHighContentRules: {
+      "マイジャグラーV": "gogo-tenjin-my",
+      "マイジャグラーⅤ": "gogo-tenjin-my",
+      "マイジャグラー": "gogo-tenjin-my",
+    },
   },
   {
     key: "tamaya-zasshonokuma",
@@ -3037,6 +3042,46 @@ function isBoomTenjinMyStrongHighContentWindowRow(row) {
   );
 }
 
+function isGogoTenjinMySemiHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMyJugglerSettingProbabilities(row);
+  const p4plus = probabilities?.p4plus;
+  return (
+    games >= 4000 &&
+    ((Number.isFinite(p4plus) && p4plus >= 0.4) ||
+      (rbDenominator <= 330 && combinedDenominator <= 155))
+  );
+}
+
+function isGogoTenjinMyHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMyJugglerSettingProbabilities(row);
+  const p4plus = probabilities?.p4plus;
+  return (
+    games >= 4500 &&
+    ((Number.isFinite(p4plus) && p4plus >= 0.55) ||
+      (rbDenominator <= 300 && combinedDenominator <= 145))
+  );
+}
+
+function isGogoTenjinMyStrongHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMyJugglerSettingProbabilities(row);
+  const p4plus = probabilities?.p4plus;
+  const p5plus = probabilities?.p5plus;
+  return (
+    games >= 5000 &&
+    ((Number.isFinite(p4plus) && p4plus >= 0.7 && Number.isFinite(p5plus) && p5plus >= 0.25) ||
+      (rbDenominator <= 280 && combinedDenominator <= 135))
+  );
+}
+
 function isMachineHighContentWindowRow(row, machineName, config = null) {
   const normalizedMachineName = normalizeText(machineName);
   const games = readWindowField(row, "games");
@@ -3538,6 +3583,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     const contentRule = readMachineContentRule(config, machineName);
     if (contentRule === "boom-tenjin-my") {
       return isBoomTenjinMyHighContentWindowRow(row);
+    }
+    if (contentRule === "gogo-tenjin-my") {
+      return isGogoTenjinMyHighContentWindowRow(row);
     }
     if (contentRule === "wonderland-minamigaoka-my") {
       return isWonderlandMinamigaokaMyHighContentWindowRow(row);
@@ -4186,6 +4234,14 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     }
     const rbCount = readWindowField(row, "rbCount");
     return games >= 3500 && rbCount >= 15 && rbDenominator <= 323 && combinedDenominator <= 140;
+  }
+  if (
+    (normalizedMachineName === normalizeText("マイジャグラーV") ||
+      normalizedMachineName === normalizeText("マイジャグラーⅤ") ||
+      normalizedMachineName === normalizeText("マイジャグラー")) &&
+    readMachineContentRule(config, machineName) === "gogo-tenjin-my"
+  ) {
+    return isGogoTenjinMySemiHighContentWindowRow(row);
   }
   if (
     (normalizedMachineName === normalizeText("マイジャグラーV") ||
@@ -5237,6 +5293,14 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 2500 && settingFivePlusProbability >= 0.7;
     }
     return games >= 2500 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    (normalizedMachineName === normalizeText("マイジャグラーV") ||
+      normalizedMachineName === normalizeText("マイジャグラーⅤ") ||
+      normalizedMachineName === normalizeText("マイジャグラー")) &&
+    readMachineContentRule(config, machineName) === "gogo-tenjin-my"
+  ) {
+    return isGogoTenjinMyStrongHighContentWindowRow(row);
   }
   if (
     (normalizedMachineName === normalizeText("マイジャグラーV") ||
@@ -10098,6 +10162,38 @@ function countAdjacentMachineHighContentRows(
   return count;
 }
 
+function countAdjacentMachineStrongHighContentRows(
+  businessDates,
+  dateIndex,
+  row,
+  rowsByDate,
+  config,
+  windowDays,
+  machineName,
+  distance = 2,
+) {
+  if (!(rowsByDate instanceof Map)) {
+    return 0;
+  }
+
+  const normalizedWindowDays = Math.max(1, Number(windowDays) || DEFAULT_HUNT_SCORE_WINDOW_DAYS);
+  const startIndex = Math.max(0, dateIndex - (normalizedWindowDays - 1));
+  const windowDates = businessDates.slice(startIndex, dateIndex + 1);
+  let count = 0;
+
+  for (const date of windowDates) {
+    for (const dateRow of listAdjacentSameMachineRowsByOrder(rowsByDate.get(date) ?? [], row, config, machineName, distance)) {
+      const rowMachineName = normalizeHuntScoreMachineName(dateRow?.machine_name, config);
+      const differenceValue = readHuntScoreDifferenceValue(dateRow, config.differenceMode, rowMachineName);
+      if (isMachineStrongHighContentWindowRow({ row: dateRow, differenceValue }, machineName, config)) {
+        count += 1;
+      }
+    }
+  }
+
+  return count;
+}
+
 function countAdjacentMachineGoodContentRows(
   businessDates,
   dateIndex,
@@ -11157,6 +11253,26 @@ function calculateWindowMetrics(
     windowDays,
     currentMachineName,
   );
+  const adjacentMachineHighContentCount7Near1 = countAdjacentMachineHighContentRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    windowDays,
+    currentMachineName,
+    1,
+  );
+  const adjacentMachineStrongHighContentCount7Near1 = countAdjacentMachineStrongHighContentRows(
+    businessDates,
+    dateIndex,
+    row,
+    rowsByDate,
+    config,
+    windowDays,
+    currentMachineName,
+    1,
+  );
   const adjacentMachineHighContentCount3 = countAdjacentMachineHighContentRows(
     businessDates,
     dateIndex,
@@ -11765,6 +11881,8 @@ function calculateWindowMetrics(
     sameMachinePositionFromRight,
     sameMachinePreviousNetTotal,
     adjacentMachineHighContentCount7,
+    adjacentMachineHighContentCount7Near1,
+    adjacentMachineStrongHighContentCount7Near1,
     adjacentMachineHighContentCount14,
     adjacentMachineHighContentCount7Near2,
     adjacentMachineGoodContentCount7Near2,
