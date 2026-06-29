@@ -887,12 +887,6 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["パーラーアサヒ", "パーラーアサヒ店", "PARLOR ASAHI", "PARLORASAHI", "Parlor Asahi"],
     targetMachines: PARLOR_ASAHI_TARGET_MACHINES,
     defaultLogicKey: "apark",
-    machineHighContentRules: {
-      "SアイムジャグラーＥＸ": "parlor-asahi-aim",
-      "SアイムジャグラーEX": "parlor-asahi-aim",
-      "アイムジャグラーEX": "parlor-asahi-aim",
-      "アイムジャグラーＥＸ": "parlor-asahi-aim",
-    },
   },
   {
     key: "million-tobu-nerima",

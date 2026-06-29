@@ -277,6 +277,7 @@ const KINTOKI_KAMATA_NEO_AIM_EVENT_FREE_MAX_EXCLUDED_KEYS = new Set([
 
 const REMOVED_TOKYO_UNVERIFIED_NEO_AIM_LOGIC_KEYS = new Set([
   KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY,
+  PARLOR_ASAHI_AIM_LOGIC_KEY,
   PRIME_HIRAI_NEO_AIM_LOGIC_KEY,
   PALAZZO_KASAI_NEO_AIM_LOGIC_KEY,
   PALAZZO_KASAI_NEO_AIM_NORMAL_LOGIC_KEY,
@@ -295,6 +296,7 @@ const REMOVED_TOKYO_UNVERIFIED_NEO_AIM_LOGIC_KEYS = new Set([
   "ex-arena-tokyo-neo-aim-normal",
   "ex-arena-tokyo-neo-aim-event",
   "messe-minamisenju-neo-aim",
+  "messe-okudo-neo-aim",
   "yasuda-hibarigaoka-neo-aim",
   "sengawa-uno-neo-aim",
 ]);
@@ -13726,6 +13728,7 @@ function isRemovedTokyoUnverifiedNeoAimStore(storeName) {
     isMitoyaKinshichoStore,
     isMitoyaKinshichoSouthStore,
     isMesseMinamisenjuStore,
+    isMesseOkudoStore,
     isYasudaHibarigaokaStore,
     isSengawaUnoStore,
   ].some((matcher) => matcher(storeName));
@@ -13766,8 +13769,6 @@ function getDefaultSetting(definition, storeName) {
     (definition.machineKey === "aim" || definition.machineKey === "neo-aim")
   ) {
     defaultLogic = findLogicDefinition(definition, KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY);
-  } else if (isParlorAsahiStore(storeName) && definition.machineKey === "aim") {
-    defaultLogic = findLogicDefinition(definition, PARLOR_ASAHI_AIM_LOGIC_KEY);
   } else if (isPrimeHiraiStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, PRIME_HIRAI_NEO_AIM_LOGIC_KEY);
   } else if (isPalazzoKasaiStore(storeName) && definition.machineKey === "neo-aim") {
@@ -13858,8 +13859,6 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, PARK_KITASENJU_NEO_AIM_LOGIC_KEY);
   } else if (isMesseMinamisenjuStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "messe-minamisenju-neo-aim");
-  } else if (isMesseOkudoStore(storeName) && definition.machineKey === "neo-aim") {
-    defaultLogic = findLogicDefinition(definition, "messe-okudo-neo-aim");
   } else if (isMesseNishikasaiStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "messe-nishikasai-neo-aim");
   } else if (isFortuneOhanajayaStore(storeName) && definition.machineKey === "neo-aim") {
