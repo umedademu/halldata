@@ -13714,6 +13714,14 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logicName: "沖ドキBLACK春日式",
     profile: "okidoki",
     defaultConditionSuffix: "main",
+    logics: [
+      buildLogicVariant("apark-okidoki-black", "沖ドキBLACK春日式", "main"),
+      buildLogicVariant(
+        "beam-hikari-okidoki-black",
+        "ビームヒカリ_沖ドキBLACK_単発凹み返しロジック_v1",
+        "beam-hikari-free-max-unpaid-continuation",
+      ),
+    ],
     conditions: [
       buildCondition(
         "main",
@@ -13723,6 +13731,61 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           minScore: 80,
           maxDanger: 2,
         },
+        ["apark-okidoki-black"],
+      ),
+      buildCondition(
+        "beam-hikari-wide-steep-neutral",
+        "広め_急沈み中立",
+        "42日 / 44台 / 総G155,944 / BB1/213.6 / RB1/391.8 / 合算1/138.2 / 平均+472.0枚 / 104.44% / 勝率50.0%",
+        {
+          requiredFlags: ["beamHikariOkidokiBlackHistoryReady", "beamHikariOkidokiBlackWideSteepNeutral"],
+        },
+        ["beam-hikari-okidoki-black"],
+      ),
+      buildCondition(
+        "beam-hikari-single-deep-sink",
+        "本命_単発深凹み返し",
+        "46日 / 50台 / 総G188,251 / BB1/214.7 / RB1/399.7 / 合算1/139.7 / 平均+526.6枚 / 104.66% / 勝率52.0%",
+        {
+          requiredFlags: ["beamHikariOkidokiBlackHistoryReady", "beamHikariOkidokiBlackSingleDeepSink"],
+        },
+        ["beam-hikari-okidoki-black"],
+      ),
+      buildCondition(
+        "beam-hikari-neighbor-deep-sink",
+        "強_周辺同時凹み",
+        "22日 / 33台 / 総G126,022 / BB1/216.9 / RB1/360.1 / 合算1/135.4 / 平均+598.8枚 / 105.23% / 勝率54.5%",
+        {
+          requiredFlags: ["beamHikariOkidokiBlackHistoryReady", "beamHikariOkidokiBlackNeighborDeepSink"],
+        },
+        ["beam-hikari-okidoki-black"],
+      ),
+      buildCondition(
+        "beam-hikari-low-usage-return",
+        "最本命_低稼働返し",
+        "28日 / 31台 / 総G102,925 / BB1/211.3 / RB1/346.5 / 合算1/131.3 / 平均+667.0枚 / 106.70% / 勝率61.3%",
+        {
+          requiredFlags: ["beamHikariOkidokiBlackHistoryReady", "beamHikariOkidokiBlackLowUsageReturn"],
+        },
+        ["beam-hikari-okidoki-black"],
+      ),
+      buildCondition(
+        "beam-hikari-loss-streak-return",
+        "最本命_連敗返し",
+        "23日 / 24台 / 総G91,312 / BB1/202.9 / RB1/386.9 / 合算1/133.1 / 平均+875.2枚 / 107.67% / 勝率66.7%",
+        {
+          requiredFlags: ["beamHikariOkidokiBlackHistoryReady", "beamHikariOkidokiBlackLossStreakReturn"],
+        },
+        ["beam-hikari-okidoki-black"],
+      ),
+      buildCondition(
+        "beam-hikari-free-max-unpaid-continuation",
+        "自由MAX_返済未完継続",
+        "26日 / 29台 / 総G86,989 / BB1/216.4 / RB1/328.3 / 合算1/130.4 / 平均+540.1枚 / 106.00% / 勝率44.8%",
+        {
+          requiredFlags: ["beamHikariOkidokiBlackHistoryReady", "beamHikariOkidokiBlackUnpaidContinuation"],
+        },
+        ["beam-hikari-okidoki-black"],
       ),
     ],
   },
@@ -13985,6 +14048,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "okidoki-gorgeous30") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-okidoki-gorgeous30");
+  } else if (isBeamHikariStore(storeName) && definition.machineKey === "okidoki-black") {
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-okidoki-black");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-funky");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "gogo") {
@@ -23596,6 +23661,69 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
       monkeyRealContentBoost,
       treatmentDone,
       lowConfidence,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
+
+  if (machineKey === "okidoki-black" && activeLogicKey === "beam-hikari-okidoki-black") {
+    const beamHikariOkidokiBlackHistoryReady = historyRowCount >= 21;
+    const beamHikariOkidokiBlackDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+      ? Math.max(0, daysSinceMachineHighContent - 1)
+      : 999;
+    const beamHikariOkidokiBlackBad14 = readNumber(metrics.recentFourteenBigLoss1000Games1000Count);
+    const beamHikariOkidokiBlackSingleDeepSink = previousDifference <= -3000 && recentSevenNetTotal >= -3000;
+    const beamHikariOkidokiBlackWideSteepNeutral =
+      features.recentSevenAngle <= -300 && features.recentFourteenAngle >= -100;
+    const beamHikariOkidokiBlackNeighborDeepSink =
+      previousDifference <= -3000 && previousAdjacentMachineNetTotal <= -3000;
+    const beamHikariOkidokiBlackLowUsageReturn = recentThreeGamesTotal <= 3000 && recentSevenWinDays <= 3;
+    const beamHikariOkidokiBlackLossStreakReturn =
+      previousDifference <= -2000 && historyLosingStreak >= 6;
+    const beamHikariOkidokiBlackUnpaidContinuation =
+      recentSevenMachineHighContentCount >= 4 && recentFourteenNetTotal <= 0;
+    const beamHikariOkidokiBlackBad14AtLeast8 = beamHikariOkidokiBlackBad14 >= 8;
+    const beamHikariOkidokiBlackLongBlank = beamHikariOkidokiBlackDaysSinceHigh >= 10;
+    const beamHikariOkidokiBlackNoHigh14 = recentFourteenMachineHighContentCount === 0;
+    const beamHikariOkidokiBlackDangerMiddleBad =
+      beamHikariOkidokiBlackBad14 === 6 || beamHikariOkidokiBlackBad14 === 7;
+    const beamHikariOkidokiBlackDangerDeepContinuation =
+      previousDifference <= -3000 && recentSevenNetTotal < -8000;
+    const boostFlags = [
+      beamHikariOkidokiBlackSingleDeepSink,
+      beamHikariOkidokiBlackWideSteepNeutral,
+      beamHikariOkidokiBlackUnpaidContinuation,
+      beamHikariOkidokiBlackBad14AtLeast8,
+      beamHikariOkidokiBlackLossStreakReturn,
+      beamHikariOkidokiBlackLowUsageReturn,
+      beamHikariOkidokiBlackNeighborDeepSink,
+    ];
+    const dangerFlags = [
+      recentFourteenMachineStrongHighContentCount >= 4,
+      beamHikariOkidokiBlackLongBlank,
+      beamHikariOkidokiBlackNoHigh14,
+      beamHikariOkidokiBlackDangerMiddleBad,
+      beamHikariOkidokiBlackDangerDeepContinuation,
+    ];
+
+    return {
+      ...features,
+      beamHikariOkidokiBlackHistoryReady,
+      beamHikariOkidokiBlackDaysSinceHigh,
+      beamHikariOkidokiBlackBad14,
+      beamHikariOkidokiBlackSingleDeepSink,
+      beamHikariOkidokiBlackWideSteepNeutral,
+      beamHikariOkidokiBlackNeighborDeepSink,
+      beamHikariOkidokiBlackLowUsageReturn,
+      beamHikariOkidokiBlackLossStreakReturn,
+      beamHikariOkidokiBlackUnpaidContinuation,
+      beamHikariOkidokiBlackBad14AtLeast8,
+      beamHikariOkidokiBlackLongBlank,
+      beamHikariOkidokiBlackNoHigh14,
+      beamHikariOkidokiBlackDangerMiddleBad,
+      beamHikariOkidokiBlackDangerDeepContinuation,
+      treatmentDone: dangerFlags.some(Boolean),
+      lowConfidence: !beamHikariOkidokiBlackHistoryReady,
       boostCount: boostFlags.filter(Boolean).length,
       dangerCount: dangerFlags.filter(Boolean).length,
     };
@@ -34269,6 +34397,52 @@ function calculateMachineScore(definition, metrics, features) {
     return Math.round(clamp(score, 0, 100));
   }
 
+  if (machineKey === "okidoki-black" && activeLogicKey === "beam-hikari-okidoki-black") {
+    if (historyRowCount < 21) {
+      return 0;
+    }
+
+    const beamHikariOkidokiBlackDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+      ? Math.max(0, daysSinceMachineHighContent - 1)
+      : 999;
+    const beamHikariOkidokiBlackBad14 = readNumber(metrics.recentFourteenBigLoss1000Games1000Count);
+
+    let score = 40;
+    if (previousDifference <= -3000) {
+      score += 20;
+    } else if (previousDifference <= -2000) {
+      score += 14;
+    } else if (previousDifference <= -1000) {
+      score += 7;
+    }
+    score -= previousDifference >= 2500 ? 6 : 0;
+    score += previousDifference <= -3000 && recentSevenNetTotal >= -3000 ? 18 : 0;
+    score -= previousDifference <= -3000 && recentSevenNetTotal < -8000 ? 8 : 0;
+    if (features.recentSevenAngle <= -300) {
+      score += 11;
+    } else if (features.recentSevenAngle <= -200) {
+      score += 6;
+    }
+    score -= features.recentSevenAngle >= 300 ? 5 : 0;
+    score += features.recentSevenAngle <= -300 && features.recentFourteenAngle >= -100 ? 13 : 0;
+    score -= features.recentSevenAngle <= -300 && features.recentFourteenAngle <= -300 ? 6 : 0;
+    score += recentSevenMachineHighContentCount >= 4 ? 12 : recentSevenMachineHighContentCount === 3 ? 5 : 0;
+    score += recentSevenMachineHighContentCount >= 4 && recentFourteenNetTotal <= 0 ? 13 : 0;
+    score += beamHikariOkidokiBlackBad14 >= 8 ? 10 : 0;
+    score -= beamHikariOkidokiBlackBad14 === 6 || beamHikariOkidokiBlackBad14 === 7 ? 8 : 0;
+    score += historyLosingStreak >= 6 ? 9 : historyLosingStreak === 5 ? 5 : 0;
+    score += historyLosingStreak >= 6 && previousDifference <= -2000 ? 14 : 0;
+    score += recentThreeGamesTotal <= 3000 ? 9 : 0;
+    score += recentThreeGamesTotal <= 3000 && recentSevenWinDays <= 3 ? 10 : 0;
+    score += previousAdjacentMachineNetTotal <= -3000 ? 5 : 0;
+    score += previousDifference <= -3000 && previousAdjacentMachineNetTotal <= -3000 ? 8 : 0;
+    score -= recentFourteenMachineStrongHighContentCount >= 4 ? 12 : 0;
+    score -= beamHikariOkidokiBlackDaysSinceHigh >= 10 ? 9 : 0;
+    score -= recentFourteenMachineHighContentCount === 0 ? 7 : 0;
+
+    return Math.round(clamp(score, 0, 100));
+  }
+
   if (machineKey === "okidoki-gorgeous30") {
     if (activeLogicKey !== "beam-hikari-okidoki-gorgeous30" || historyRowCount < 21) {
       return 0;
@@ -37222,6 +37396,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       "hokuto-base",
       "smart-hanabi",
       "okidoki-gorgeous30",
+      "okidoki-black",
     ].includes(definition?.machineKey)
   ) {
     const baseLogicKeyByMachineKey = {
@@ -37237,6 +37412,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       "hokuto-base": "beam-hikari-hokuto-base",
       "smart-hanabi": "beam-hikari-smart-hanabi",
       "okidoki-gorgeous30": "beam-hikari-okidoki-gorgeous30",
+      "okidoki-black": "beam-hikari-okidoki-black",
     };
     const logic = findLogicDefinition(definition, baseLogicKeyByMachineKey[definition.machineKey]);
     const condition =

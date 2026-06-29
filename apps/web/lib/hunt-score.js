@@ -1633,6 +1633,9 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "スマスロ北斗の拳": "beam-hikari-hokuto-base-content",
       "スマスロ ハナビ": "beam-hikari-smart-hanabi-content",
       "スマスロハナビ": "beam-hikari-smart-hanabi-content",
+      "沖ドキ！BLACK": "beam-hikari-okidoki-black-content",
+      "沖ドキ!BLACK": "beam-hikari-okidoki-black-content",
+      "沖ドキ！ＢＬＡＣＫ": "beam-hikari-okidoki-black-content",
     },
   },
   {
@@ -3547,6 +3550,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     return games >= 2000 && (differenceValue >= 2000 || (differenceValue >= 500 && combinedDenominator <= 145));
   }
   if (isOkidokiBlackMachineName(machineName)) {
+    if (readMachineContentRule(config, machineName) === "beam-hikari-okidoki-black-content") {
+      return games >= 1000 && differenceValue >= 1000;
+    }
     return games >= 4181 && combinedDenominator <= 142.4 && (rbDenominator <= 367.8 || differenceValue >= 1032);
   }
   if (isHououMachineName(machineName)) {
@@ -5045,6 +5051,9 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     return games >= 3000 && differenceValue >= 3000 && combinedDenominator <= 140;
   }
   if (isOkidokiBlackMachineName(machineName)) {
+    if (readMachineContentRule(config, machineName) === "beam-hikari-okidoki-black-content") {
+      return games >= 1000 && differenceValue >= 2000;
+    }
     return games >= 4698 && combinedDenominator <= 129.6 && (rbDenominator <= 334.6 || differenceValue >= 1297);
   }
   if (isHououMachineName(machineName)) {
@@ -11098,6 +11107,9 @@ function calculateWindowMetrics(
   const recentTenBigLoss1000Count = recentTenRows.filter(
     (windowRow) => readNumber(windowRow?.differenceValue) <= -1000,
   ).length;
+  const recentFourteenBigLoss1000Games1000Count = recentFourteenRows.filter(
+    (windowRow) => readWindowField(windowRow, "games") >= 1000 && readNumber(windowRow?.differenceValue) <= -1000,
+  ).length;
   const recentTwentyOneBigLoss1000Count = recentTwentyOneRows.filter(
     (windowRow) => readNumber(windowRow?.differenceValue) <= -1000,
   ).length;
@@ -11356,6 +11368,7 @@ function calculateWindowMetrics(
     recentFiveBigWin1000Count,
     recentFiveBigLoss1000Count,
     recentTenBigLoss1000Count,
+    recentFourteenBigLoss1000Games1000Count,
     recentTwentyOneBigLoss1000Count,
     recentTenBigWin1000Count,
     recentTwentyOneBigWin1000Count,
