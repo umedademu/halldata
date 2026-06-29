@@ -332,6 +332,10 @@ const MESSE_NISHIKASAI_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const MESSE_TAKENOTSUKA_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const MARUHAN_KOIWA_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
@@ -1089,6 +1093,17 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "messe-nishikasai-neo-aim",
       "ネオアイムジャグラーＥＸ": "messe-nishikasai-neo-aim",
+    },
+  },
+  {
+    key: "messe-takenotsuka",
+    storeNames: ["メッセ竹の塚", "メッセ竹の塚店", "メッセ竹ノ塚", "メッセ竹ノ塚店"],
+    targetMachines: MESSE_TAKENOTSUKA_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    resetHistoryDates: ["2026-01-05", "2026-03-25", "2026-04-13"],
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "messe-takenotsuka-neo-aim",
+      "ネオアイムジャグラーＥＸ": "messe-takenotsuka-neo-aim",
     },
   },
   {
@@ -3234,6 +3249,10 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
         (games >= 5000 && rbCount >= 18 && combinedDenominator <= 140)
       );
     }
+    if (contentRule === "messe-takenotsuka-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability >= 0.5;
+    }
     if (contentRule === "maruhan-koiwa-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -3950,6 +3969,9 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     if (contentRule === "messe-nishikasai-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       return Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability >= 0.3;
+    }
+    if (contentRule === "messe-takenotsuka-neo-aim") {
+      return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
     if (contentRule === "maruhan-koiwa-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -4894,6 +4916,13 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     return Number.isFinite(settingFivePlusProbability) && games >= 4000 && settingFivePlusProbability >= 0.7;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "messe-takenotsuka-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    return Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability >= 0.7;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&

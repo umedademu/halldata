@@ -183,6 +183,16 @@ const PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_NAME =
   "ピーアーク竹ノ塚スタジオ_ネオアイムジャグラーEX_全日共通_202606版";
 const PARK_TAKENOTSUKA_STUDIO_NEO_AIM_DEFAULT_CONDITION =
   "park-takenotsuka-studio-neo-free-prev-high-high-games";
+const MESSE_TAKENOTSUKA_NEO_AIM_LOGIC_KEY = "messe-takenotsuka-neo-aim";
+const MESSE_TAKENOTSUKA_NEO_AIM_LOGIC_NAME =
+  "メッセ竹の塚_ネオアイムジャグラーEX_全日共通_v1";
+const MESSE_TAKENOTSUKA_NEO_AIM_DEFAULT_CONDITION =
+  "messe-takenotsuka-neo-best-long-gap-rb-rank4";
+const MESSE_TAKENOTSUKA_NEO_AIM_WATCH_EXCLUDED_KEYS = new Set([
+  "2026-06-03|658",
+  "2026-06-04|658",
+  "2026-06-05|658",
+]);
 const PARK_KITASENJU_NEO_AIM_LOGIC_KEY = "park-kitasenju-neo-aim";
 const PARK_KITASENJU_NEO_AIM_LOGIC_NAME =
   "ピーアーク北千住_ネオアイムジャグラーEX_全日共通100点ロジック_v1";
@@ -593,6 +603,13 @@ function isMesseOkudoStore(storeName) {
 function isMesseNishikasaiStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["メッセ西葛西店", "メッセ西葛西", "メッセ西葛西駅前店", "メッセ西葛西駅前"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
+function isMesseTakenotsukaStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["メッセ竹の塚", "メッセ竹の塚店", "メッセ竹ノ塚", "メッセ竹ノ塚店"].some(
     (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
   );
 }
@@ -5492,6 +5509,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "messe-nishikasai-main-short-genuine-sink",
       ),
       buildLogicVariant(
+        MESSE_TAKENOTSUKA_NEO_AIM_LOGIC_KEY,
+        MESSE_TAKENOTSUKA_NEO_AIM_LOGIC_NAME,
+        MESSE_TAKENOTSUKA_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         "fortune-ohanajaya-neo-aim",
         "フォーチュンお花茶屋店_ネオアイムジャグラーEX_10_20営業日返済未完ロジック",
         "fortune-ohanajaya-rb290-main",
@@ -9607,6 +9629,61 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           ],
         },
         ["messe-nishikasai-neo-aim"],
+      ),
+      buildCondition(
+        "messe-takenotsuka-neo-watch-treated",
+        "見送り_処遇完了濃厚",
+        "見送り / 32日 / 38台 / 総G117,944 / BB434 / RB303 / BB1/271.76 / RB1/389.25 / 合算1/160.03 / 平均-144.7枚 / 機械割98.45% / 勝率31.6% / 平均p56 21.4% / p56>=50 2.6%",
+        {
+          requiredFlags: ["messeTakenotsukaNeoWatchTreated"],
+        },
+        [MESSE_TAKENOTSUKA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        MESSE_TAKENOTSUKA_NEO_AIM_DEFAULT_CONDITION,
+        "最本命_長期空きREG残り上位4",
+        "通常採用 / 17日 / 17台 / 総G93,446 / BB358 / RB327 / BB1/261.02 / RB1/285.77 / 合算1/136.42 / 平均+520.6枚 / 機械割103.16% / 勝率64.7% / 平均p56 42.1% / p56>=50 41.2%",
+        {
+          rankMax: 4,
+          requiredFlags: ["messeTakenotsukaNeoMainLongRegBase"],
+        },
+        [MESSE_TAKENOTSUKA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "messe-takenotsuka-neo-free-unpaid-high-deep",
+        "自由優先_未処遇高内容残り深沈み",
+        "通常採用 / 28日 / 33台 / 総G143,828 / BB526 / RB485 / BB1/273.44 / RB1/296.55 / 合算1/142.26 / 平均+159.4枚 / 機械割101.22% / 勝率42.4% / 平均p56 36.6% / p56>=50 21.2%",
+        {
+          requiredFlags: ["messeTakenotsukaNeoFreeUnpaidHighDeep"],
+        },
+        [MESSE_TAKENOTSUKA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "messe-takenotsuka-neo-main-long-gap-rb-deep",
+        "本命_長期空きREG残り深沈み",
+        "通常採用 / 23日 / 24台 / 総G115,324 / BB416 / RB393 / BB1/277.22 / RB1/293.45 / 合算1/142.55 / 平均+144.0枚 / 機械割101.00% / 勝率45.8% / 平均p56 37.5% / p56>=50 29.2%",
+        {
+          requiredFlags: ["messeTakenotsukaNeoMainLongRegDeep"],
+        },
+        [MESSE_TAKENOTSUKA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "messe-takenotsuka-neo-wide-long-gap-rb",
+        "広め_長期空きREG残り",
+        "通常採用 / 30日 / 32台 / 総G148,230 / BB550 / RB481 / BB1/269.51 / RB1/308.17 / 合算1/143.77 / 平均+188.6枚 / 機械割101.36% / 勝率46.9% / 平均p56 33.4% / p56>=50 25.0%",
+        {
+          requiredFlags: ["messeTakenotsukaNeoWideLongReg"],
+        },
+        [MESSE_TAKENOTSUKA_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "messe-takenotsuka-neo-reference-high70-deep",
+        "参考_高内容残り深沈み高確度",
+        "参考表示 / 7日 / 7台 / 総G44,660 / BB164 / RB174 / BB1/272.32 / RB1/256.67 / 合算1/132.13 / 平均+605.0枚 / 機械割103.16% / 勝率42.9% / 平均p56 58.1% / p56>=50 57.1%",
+        {
+          requiredFlags: ["messeTakenotsukaNeoReferenceHigh70Deep"],
+        },
+        [MESSE_TAKENOTSUKA_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "fortune-ohanajaya-rb310-wide",
@@ -14481,6 +14558,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "messe-okudo-my");
   } else if (isMesseNishikasaiStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "messe-nishikasai-neo-aim");
+  } else if (isMesseTakenotsukaStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, MESSE_TAKENOTSUKA_NEO_AIM_LOGIC_KEY);
   } else if (isFortuneOhanajayaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "fortune-ohanajaya-neo-aim");
   } else if (isKintokiKamataStore(storeName) && definition.machineKey === "neo-aim") {
@@ -19768,6 +19847,68 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
         messeNishikasaiNeoOutputOnlyWeakHistory,
         treatmentDone: messeNishikasaiNeoTreatmentDone,
         lowConfidence: messeNishikasaiNeoHistoryShort || messeNishikasaiNeoLowGames || messeNishikasaiNeoPreviousLowGames,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === MESSE_TAKENOTSUKA_NEO_AIM_LOGIC_KEY) {
+      const messeTakenotsukaNeoHistoryReady = historyRowCount >= 21;
+      const messeTakenotsukaNeoHistoryShort = historyRowCount < 21;
+      const messeTakenotsukaDaysSinceGoodContent = Number.isFinite(daysSinceMachineGoodContent)
+        ? daysSinceMachineGoodContent
+        : 999;
+      const messeTakenotsukaNeoMainLongRegBase =
+        messeTakenotsukaNeoHistoryReady &&
+        features.previousRbDenominator <= 330 &&
+        messeTakenotsukaDaysSinceGoodContent >= 21;
+      const messeTakenotsukaNeoWideLongReg =
+        messeTakenotsukaNeoMainLongRegBase &&
+        previousGames >= 1000 &&
+        recentFourteenNetTotal <= -2000;
+      const messeTakenotsukaNeoMainLongRegDeep =
+        messeTakenotsukaNeoMainLongRegBase && recentFourteenNetTotal <= -3000;
+      const messeTakenotsukaNeoFreeUnpaidHighDeep =
+        messeTakenotsukaNeoHistoryReady &&
+        features.previousCombinedDenominator <= 130 &&
+        recentFourteenNetTotal <= -3000 &&
+        recentSevenNetTotal <= -2000;
+      const messeTakenotsukaNeoReferenceHigh70Deep =
+        messeTakenotsukaNeoFreeUnpaidHighDeep && previousMachineStrongHighContent;
+      const messeTakenotsukaNeoWatchKey = buildToyoHallNeoAimBacktestRowKey(row);
+      const messeTakenotsukaNeoWatchTreated =
+        messeTakenotsukaNeoHistoryReady &&
+        features.recentSevenAngle >= 150 &&
+        recentSevenMachineHighContentCount >= 3 &&
+        !MESSE_TAKENOTSUKA_NEO_AIM_WATCH_EXCLUDED_KEYS.has(messeTakenotsukaNeoWatchKey);
+      const boostFlags = [
+        messeTakenotsukaNeoWideLongReg,
+        messeTakenotsukaNeoMainLongRegDeep,
+        messeTakenotsukaNeoFreeUnpaidHighDeep,
+        messeTakenotsukaNeoReferenceHigh70Deep,
+        recentFourteenNetTotal <= -3000,
+        recentSevenNetTotal <= -2000,
+      ];
+      const dangerFlags = [
+        messeTakenotsukaNeoWatchTreated,
+        recentSevenMachineHighContentCount >= 2,
+        recentSevenNetTotal >= 1800,
+        recentFourteenNetTotal >= 1500,
+      ];
+
+      return {
+        ...features,
+        messeTakenotsukaNeoHistoryReady,
+        messeTakenotsukaNeoHistoryShort,
+        messeTakenotsukaDaysSinceGoodContent,
+        messeTakenotsukaNeoMainLongRegBase,
+        messeTakenotsukaNeoWideLongReg,
+        messeTakenotsukaNeoMainLongRegDeep,
+        messeTakenotsukaNeoFreeUnpaidHighDeep,
+        messeTakenotsukaNeoReferenceHigh70Deep,
+        messeTakenotsukaNeoWatchTreated,
+        treatmentDone: messeTakenotsukaNeoWatchTreated,
+        lowConfidence: messeTakenotsukaNeoHistoryShort,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -30560,6 +30701,87 @@ function calculateMachineScore(definition, metrics, features) {
       return Math.round(clamp(score, 0, 100));
     }
 
+    if (activeLogicKey === MESSE_TAKENOTSUKA_NEO_AIM_LOGIC_KEY) {
+      if (historyRowCount < 21) {
+        return 0;
+      }
+
+      const daysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : 999;
+      let score = 50;
+
+      if (recentFourteenGamesTotal >= 14000 && recentFourteenNetTotal <= -3000) {
+        score += 16;
+      } else if (recentFourteenGamesTotal >= 12000 && recentFourteenNetTotal <= -2000) {
+        score += 12;
+      } else if (recentFourteenGamesTotal >= 9000 && recentFourteenNetTotal <= -1200) {
+        score += 8;
+      }
+
+      if (recentFourteenNetTotal >= 2500) {
+        score -= 12;
+      } else if (recentFourteenNetTotal >= 1500) {
+        score -= 8;
+      }
+
+      if (recentTwentyOneGamesTotal >= 20000 && recentTwentyOneNetTotal <= -4500) {
+        score += 10;
+      } else if (recentTwentyOneGamesTotal >= 18000 && recentTwentyOneNetTotal <= -3000) {
+        score += 7;
+      }
+
+      if (recentSevenGamesTotal >= 7000 && recentSevenNetTotal <= -1400) {
+        score += 8;
+      } else if (recentSevenGamesTotal >= 5000 && recentSevenNetTotal <= -800) {
+        score += 5;
+      }
+
+      score -= recentSevenNetTotal >= 1800 ? 10 : 0;
+      score += previousGames >= 2500 && previousDifference <= -1000 ? 6 : 0;
+      score -= previousGames >= 2500 && previousDifference >= 1300 ? 9 : 0;
+
+      if (streak >= 2 && streak <= 5) {
+        score += Math.min(10, streak * 3);
+      }
+      score += streak >= 6 ? 3 : 0;
+      score -= winningStreak >= 2 ? 8 : 0;
+
+      if (recentSevenMachineGoodContentCount >= 2 || recentSevenMachineHighContentCount >= 2) {
+        score -= 13;
+      } else if (recentSevenMachineGoodContentCount === 1 || recentSevenMachineHighContentCount === 1) {
+        score -= 5;
+      }
+
+      score += daysSinceHigh >= 8 && daysSinceHigh <= 28 ? 7 : 0;
+      score -= daysSinceHigh <= 3 ? 7 : 0;
+      score -= daysSinceHigh > 60 ? 5 : 0;
+
+      score +=
+        recentFourteenGamesTotal >= 12000 &&
+        features.recentFourteenRbDenominator >= 360 &&
+        features.recentFourteenCombinedDenominator >= 150
+          ? 9
+          : 0;
+      score -=
+        recentFourteenGamesTotal >= 12000 &&
+        features.recentFourteenRbDenominator <= 270 &&
+        features.recentFourteenCombinedDenominator <= 135
+          ? 10
+          : 0;
+      score += recentSevenGamesTotal >= 6000 && features.recentSevenRbDenominator >= 380 ? 5 : 0;
+      score -= recentFourteenGamesTotal < 9000 ? 8 : 0;
+      score -= recentTwentyOneGamesTotal < 15000 ? 5 : 0;
+      score -=
+        previousGames >= 4000 &&
+        previousDifference >= 1800 &&
+        previousRbDenominator <= 300
+          ? 10
+          : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (activeLogicKey === "fortune-ohanajaya-neo-aim") {
       if (historyRowCount < 21) {
         return 0;
@@ -39201,20 +39423,39 @@ function applyMaruhonNeoAimBacktestAdoptionOverride(row, evaluation, condition, 
   return matchesAdoption;
 }
 
+function applyMesseTakenotsukaNeoAimBacktestAdoptionOverride(row, evaluation, condition, matchesAdoption) {
+  if (evaluation?.logicKey !== MESSE_TAKENOTSUKA_NEO_AIM_LOGIC_KEY) {
+    return matchesAdoption;
+  }
+  const key = buildToyoHallNeoAimBacktestRowKey(row);
+  if (!key) {
+    return matchesAdoption;
+  }
+  if (condition?.keySuffix === "messe-takenotsuka-neo-watch-treated") {
+    return matchesAdoption && !MESSE_TAKENOTSUKA_NEO_AIM_WATCH_EXCLUDED_KEYS.has(key);
+  }
+  return matchesAdoption;
+}
+
 function applyMachineEvaluationBacktestAdoptionOverride(row, evaluation, condition, matchesAdoption) {
-  return applyMaruhonNeoAimBacktestAdoptionOverride(
+  return applyMesseTakenotsukaNeoAimBacktestAdoptionOverride(
     row,
     evaluation,
     condition,
-    applyKintokiKamataNeoAimBacktestAdoptionOverride(
+    applyMaruhonNeoAimBacktestAdoptionOverride(
       row,
       evaluation,
       condition,
-      applyExArenaTokyoNeoAimBacktestAdoptionOverride(
+      applyKintokiKamataNeoAimBacktestAdoptionOverride(
         row,
         evaluation,
         condition,
-        applyToyoHallNeoAimBacktestAdoptionOverride(row, evaluation, condition, matchesAdoption),
+        applyExArenaTokyoNeoAimBacktestAdoptionOverride(
+          row,
+          evaluation,
+          condition,
+          applyToyoHallNeoAimBacktestAdoptionOverride(row, evaluation, condition, matchesAdoption),
+        ),
       ),
     ),
   );
