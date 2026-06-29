@@ -295,7 +295,6 @@ const REMOVED_TOKYO_UNVERIFIED_NEO_AIM_LOGIC_KEYS = new Set([
   MITOYA_KINSHICHO_SOUTH_NEO_AIM_LOGIC_KEY,
   "ex-arena-tokyo-neo-aim-normal",
   "ex-arena-tokyo-neo-aim-event",
-  "messe-minamisenju-neo-aim",
   "sengawa-uno-neo-aim",
 ]);
 
@@ -5479,8 +5478,8 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildLogicVariant(
         "messe-minamisenju-neo-aim",
-        "メッセ南千住_ネオアイムEX_全日共通_未返済沈み滞在ロジック_v1",
-        "messe-minamisenju-free-14rb",
+        "メッセ南千住店_ネオアイムジャグラーEX_REG枯れ高内容空きロジック_v1",
+        "messe-minamisenju-free-reg-dry-2to5",
       ),
       buildLogicVariant(
         "messe-okudo-neo-aim",
@@ -9436,155 +9435,66 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         [EX_ARENA_TOKYO_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
-        "messe-minamisenju-free-14rb",
-        "浅沈み前日凹み＋14RB低迷",
-        "35台 / 102.31% / RB1/297.9 / 合成1/139.0 / 平均56 36.2%",
+        "messe-minamisenju-wide-rb310-two-day-sink-high-gap",
+        "広めRB310_2日沈み高内容空き",
+        "通常採用 / 40日 / 46台 / 総G204,152 / BB788 / RB672 / BB1/259.1 / RB1/303.8 / 合算1/139.8 / 平均+288.4枚 / 機械割102.17% / 勝率56.5% / 平均p56 35.9%",
         {
-          requiredFlags: ["messeNeoHistoryReady", "messeNeoFree14Rb"],
+          requiredFlags: ["messeNeoHistoryReady", "messeNeoWideRb310TwoDaySinkHighGap"],
         },
         ["messe-minamisenju-neo-aim"],
       ),
       buildCondition(
-        "messe-minamisenju-free-5combined",
-        "浅沈み前日凹み＋5日合算低迷",
-        "82台 / 101.89% / RB1/301.0 / 合成1/140.4 / 平均56 35.9%",
+        "messe-minamisenju-weak-main-rb300-seven-combined-dry-near-high",
+        "弱め本命RB300_7日合算枯れ高内容近接",
+        "通常採用 / 46日 / 52台 / 総G196,569 / BB745 / RB656 / BB1/263.9 / RB1/299.6 / 合算1/140.3 / 平均+198.5枚 / 機械割101.75% / 勝率42.3% / 平均p56 36.0%",
         {
-          requiredFlags: ["messeNeoHistoryReady", "messeNeoFree5Combined"],
+          requiredFlags: ["messeNeoHistoryReady", "messeNeoWeakMainRb300SevenCombinedDryNearHigh"],
         },
         ["messe-minamisenju-neo-aim"],
       ),
       buildCondition(
-        "messe-minamisenju-bb-tailwind-gap14",
-        "BB寄せ前日＋14日空き",
-        "16台 / 100.30% / RB1/263.5 / 合成1/137.8 / 平均56 42.3%",
+        "messe-minamisenju-main-rb290-two-combined-dry-long-gap",
+        "本命RB290_2日合算枯れ長期空き",
+        "通常採用 / 21日 / 22台 / 総G97,379 / BB379 / RB341 / BB1/256.9 / RB1/285.6 / 合算1/135.2 / 平均+414.8枚 / 機械割103.12% / 勝率59.1% / 平均p56 41.4%",
         {
-          maxDanger: 0,
-          requiredFlags: ["messeNeoHistoryReady", "messeNeoBbTailwindGap14"],
+          requiredFlags: ["messeNeoHistoryReady", "messeNeoMainRb290TwoCombinedDryLongGap"],
         },
         ["messe-minamisenju-neo-aim"],
       ),
       buildCondition(
-        "messe-minamisenju-score85-rank1-gap4",
-        "85点＋1位＋次点差4",
-        "63台 / 100.42% / RB1/298.5 / 合成1/143.4 / 平均56 36.3%",
+        "messe-minamisenju-strong-rb280-high-after-three-day-fail",
+        "強RB280_高内容後3日不発",
+        "通常採用 / 20日 / 21台 / 総G101,452 / BB384 / RB361 / BB1/264.2 / RB1/281.0 / 合算1/136.2 / 平均+437.0枚 / 機械割103.02% / 勝率57.1% / 平均p56 43.2%",
         {
-          minScore: 85,
-          rankMax: 1,
-          minNextGap: 4,
-          requiredFlags: ["messeNeoHistoryReady"],
+          requiredFlags: ["messeNeoHistoryReady", "messeNeoStrongRb280HighAfterThreeDayFail"],
         },
         ["messe-minamisenju-neo-aim"],
       ),
       buildCondition(
-        "messe-minamisenju-rank1-gap8",
-        "1位＋次点差8",
-        "41台 / 100.56% / RB1/303.3 / 合成1/143.8 / 平均56 34.9%",
+        "messe-minamisenju-best-rb270-reg-long-dry-no-semi-reference",
+        "最本命RB270_REG長期枯れ準高なし",
+        "参考表示 / 12日 / 12台 / 総G43,190 / BB169 / RB160 / BB1/255.6 / RB1/269.9 / 合算1/131.3 / 平均+477.0枚 / 機械割104.42% / 勝率66.7% / 平均p56 45.0% / 件数不足で参考",
         {
-          rankMax: 1,
-          minNextGap: 8,
-          requiredFlags: ["messeNeoHistoryReady"],
+          requiredFlags: ["messeNeoHistoryReady", "messeNeoBestRb270RegLongDryNoSemi"],
         },
         ["messe-minamisenju-neo-aim"],
       ),
       buildCondition(
-        "messe-minamisenju-rank1-gap2",
-        "1位＋次点差2",
-        "101台 / 99.98% / RB1/309.0 / 合成1/146.1 / 平均56 33.5%",
+        "messe-minamisenju-free-reg-dry-2to5",
+        "自由MAX_REG枯れ2to5日",
+        "通常採用 / 31日 / 37台 / 総G148,066 / BB571 / RB502 / BB1/259.3 / RB1/295.0 / 合算1/138.0 / 平均+357.8枚 / 機械割102.98% / 勝率51.4% / 平均p56 37.1%",
         {
-          rankMax: 1,
-          minNextGap: 2,
-          requiredFlags: ["messeNeoHistoryReady"],
+          requiredFlags: ["messeNeoHistoryReady", "messeNeoFreeMaxRegDry2To5"],
         },
         ["messe-minamisenju-neo-aim"],
       ),
       buildCondition(
-        "messe-minamisenju-score90-boost3-show",
-        "90点＋強化3＋見せ場",
-        "19台 / 103.64% / RB1/280.8 / 合成1/134.9 / 平均56 41.5%",
+        "messe-minamisenju-watch-high-score-five-day-returned",
+        "見送り_高スコア5日戻し済み",
+        "見送り / 29日 / 32台 / 総G103,843 / BB360 / RB281 / BB1/288.5 / RB1/369.5 / 合算1/162.0 / 平均-239.2枚 / 機械割97.54% / 勝率31.2% / 平均p56 23.2%",
         {
-          minScore: 90,
-          minBoost: 3,
-          requiredFlags: ["messeNeoHistoryReady", "messeNeoRecentShow"],
-        },
-        ["messe-minamisenju-neo-aim"],
-      ),
-      buildCondition(
-        "messe-minamisenju-score90-sink7-show",
-        "90点＋沈み7＋見せ場",
-        "12台 / 103.61% / RB1/263.4 / 合成1/132.0 / 平均56 50.7%",
-        {
-          minScore: 90,
-          requiredFlags: ["messeNeoHistoryReady", "messeNeoSinkStay7", "messeNeoRecentShow"],
-        },
-        ["messe-minamisenju-neo-aim"],
-      ),
-      buildCondition(
-        "messe-minamisenju-score85-boost3-sink7-show",
-        "85点＋強化3＋沈み7＋見せ場",
-        "12台 / 105.04% / RB1/262.3 / 合成1/129.7 / 平均56 51.9%",
-        {
-          minScore: 85,
-          minBoost: 3,
-          requiredFlags: ["messeNeoHistoryReady", "messeNeoSinkStay7", "messeNeoRecentShow"],
-        },
-        ["messe-minamisenju-neo-aim"],
-      ),
-      buildCondition(
-        "messe-minamisenju-score70-boost2-danger1",
-        "70点＋強化2＋危険1以下",
-        "524台 / 100.50% / RB1/319.3 / 合成1/146.6 / 平均56 31.4%",
-        {
-          minScore: 70,
-          minBoost: 2,
-          maxDanger: 1,
-          requiredFlags: ["messeNeoHistoryReady"],
-        },
-        ["messe-minamisenju-neo-aim"],
-      ),
-      buildCondition(
-        "messe-minamisenju-watch-history-short",
-        "見送り：履歴不足",
-        "履歴5日未満 / 点数上限60",
-        {
-          requiredFlags: ["messeNeoHistoryShort"],
-        },
-        ["messe-minamisenju-neo-aim"],
-      ),
-      buildCondition(
-        "messe-minamisenju-watch-high-score-weak",
-        "高スコア強化不足",
-        "245台 / 100.14% / RB1/335.3 / 合成1/149.9 / 平均56 28.4%",
-        {
-          minScore: 70,
-          maxBoost: 1,
-          requiredFlags: ["messeNeoHistoryReady"],
-        },
-        ["messe-minamisenju-neo-aim"],
-      ),
-      buildCondition(
-        "messe-minamisenju-watch-deep5",
-        "深凹みだけ",
-        "290台 / 100.24% / RB1/342.3 / 合成1/150.1 / 平均56 26.9%",
-        {
-          requiredFlags: ["messeNeoHistoryReady", "messeNeoDeepFiveOnly"],
-        },
-        ["messe-minamisenju-neo-aim"],
-      ),
-      buildCondition(
-        "messe-minamisenju-watch-losing4",
-        "4連敗以上",
-        "297台 / 100.23% / RB1/334.8 / 合成1/149.4 / 平均56 28.1%",
-        {
-          requiredFlags: ["messeNeoHistoryReady", "messeNeoLosing4"],
-        },
-        ["messe-minamisenju-neo-aim"],
-      ),
-      buildCondition(
-        "messe-minamisenju-watch-low-games",
-        "低稼働",
-        "直近5日9000G未満",
-        {
-          requiredFlags: ["messeNeoHistoryReady", "messeNeoLowGames"],
+          minScore: 75,
+          requiredFlags: ["messeNeoHistoryReady", "messeNeoWatchHighScoreFiveDayReturned"],
         },
         ["messe-minamisenju-neo-aim"],
       ),
@@ -14212,7 +14122,6 @@ function isRemovedTokyoUnverifiedNeoAimStore(storeName) {
     isParkKitayaseStore,
     isMitoyaKinshichoStore,
     isMitoyaKinshichoSouthStore,
-    isMesseMinamisenjuStore,
     isSengawaUnoStore,
   ].some((matcher) => matcher(storeName));
 }
@@ -19349,95 +19258,95 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
     }
 
     if (activeLogicKey === "messe-minamisenju-neo-aim") {
-      const messeNeoHistoryReady = historyRowCount >= 5;
-      const messeNeoHistoryShort = historyRowCount < 5;
-      const previousPayoutRate = previousGames > 0 ? 100 + (previousDifference / previousGames / 3) * 100 : 100;
-      const messeNeoShallowSink = recentFiveNetTotal >= -2500 && recentFiveNetTotal < 0;
-      const messeNeoSinkStay7 = recentFiveMinus1000StayDays >= 7;
-      const messeNeoSinkStay8 = recentFiveMinus1000StayDays >= 8;
-      const messeNeoRb14Weak = features.recentFourteenRbDenominator >= 350;
-      const messeNeoCombined14Weak = features.recentFourteenCombinedDenominator >= 155;
-      const messeNeoCombined5Weak = features.recentFiveCombinedDenominator >= 155;
-      const messeNeoPreviousSink = previousDifference <= -1000;
-      const messeNeoPreviousHighFail = previousMachineHighContent && previousDifference < 800;
-      const messeNeoPreviousHighAfter = previousMachineHighContent;
-      const messeNeoBbTailwind =
-        previousDifference >= 1000 &&
-        Number.isFinite(previousMachineSettingFivePlusProbability) &&
-        previousMachineSettingFivePlusProbability < 0.3;
-      const messeNeoInterval14 =
-        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 14;
-      const messeNeoInterval16 =
-        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 16;
-      const messeNeoRecentShow = recentFiveBigWin1000Count >= 1;
-      const messeNeoNoRecentShow = recentFiveBigWin1000Count === 0;
-      const messeNeoLowGames = recentFiveGamesTotal < 9000;
-      const messeNeoLosing4 = streak >= 4;
-      const messeNeoDeepFiveOnly = recentFiveNetTotal <= -3500 && recentFiveMinus1000StayDays < 4;
-      const messeNeoBonusWeak =
-        features.recentFourteenRbDenominator >= 330 ||
-        messeNeoCombined14Weak ||
-        features.recentFiveRbDenominator >= 350 ||
-        messeNeoCombined5Weak;
-      const messeNeoUnrepaid =
-        recentFourteenNetTotal <= 0 ||
-        messeNeoInterval14 ||
-        recentFiveMachineHighContentCount === 0;
-      const messeNeoTreatmentDone =
-        recentFiveNetTotal >= 4000 && !messeNeoBonusWeak && !messeNeoUnrepaid;
-      const messeNeoTooManyShows = recentFiveBigWin1000Count >= 2;
-      const messeNeoFree5Combined = messeNeoShallowSink && messeNeoPreviousSink && messeNeoCombined5Weak;
-      const messeNeoFree14Rb = messeNeoShallowSink && messeNeoPreviousSink && messeNeoRb14Weak;
-      const baseDangerFlags = [
-        messeNeoLowGames,
-        messeNeoLosing4,
-        messeNeoDeepFiveOnly,
-        messeNeoTreatmentDone,
-        messeNeoTooManyShows,
-      ];
-      const messeNeoBbTailwindGap14 = messeNeoBbTailwind && messeNeoInterval14 && baseDangerFlags.filter(Boolean).length === 0;
+      const messeNeoHistoryReady = historyRowCount >= 21;
+      const messeNeoHistoryShort = historyRowCount < 21;
+      const messeNeoDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : 999;
+      const messeNeoRecentTwoCombinedDenominator = rateDenominator(
+        recentTwoGamesTotal,
+        readNumber(metrics.recentTwoBonusTotal),
+      );
+      const messeNeoRecentTwoRbDenominator = rateDenominator(recentTwoGamesTotal, recentTwoRbTotal);
+      const messeNeoRecentFiveRollingSevenMinus1500 =
+        readNumber(metrics.recentFiveRollingSevenMinus1500Count);
+      const messeNeoHighContent3Sink2500 =
+        recentThreeMachineHighContentCount >= 1 && recentThreeNetTotal <= -2500;
+      const messeNeoDaysSinceHigh21 = messeNeoDaysSinceHigh >= 21;
+      const messeNeoCombined2Dry180 = messeNeoRecentTwoCombinedDenominator >= 180;
+      const messeNeoCombined7Dry180 = features.recentSevenCombinedDenominator >= 180;
+      const messeNeoRegDry2To5 =
+        messeNeoRecentTwoRbDenominator >= 800 && features.recentFiveRbDenominator >= 450;
+      const messeNeoSinkStay7M5_1500 = messeNeoRecentFiveRollingSevenMinus1500 >= 3;
+      const messeNeoLongSink21 = recentTwentyOneNetTotal <= -5000 && recentTwentyOneGamesTotal >= 20000;
+      const messeNeoWatchHighScoreFiveDayReturned = recentFiveNetTotal >= 1000;
+      const messeNeoWatchThreeDayReturned = recentThreeNetTotal >= 2500;
+      const messeNeoWatchSevenDayReturned = recentSevenNetTotal >= 3500;
+      const messeNeoWatchHighContent7Returned =
+        recentSevenMachineHighContentCount >= 2 && recentSevenNetTotal >= 0;
+      const messeNeoWatchVisibleGoodReturned =
+        features.recentSevenRbDenominator <= 280 &&
+        features.recentSevenCombinedDenominator <= 140 &&
+        recentSevenNetTotal >= 0;
+      const messeNeoLowSevenGames = recentSevenGamesTotal < 6000;
+      const messeNeoWideRb310TwoDaySinkHighGap =
+        recentTwoNetTotal <= -1500 && messeNeoDaysSinceHigh >= 21;
+      const messeNeoWeakMainRb300SevenCombinedDryNearHigh =
+        features.recentSevenCombinedDenominator >= 180 && recentTenMachineHighContentCount >= 1;
+      const messeNeoMainRb290TwoCombinedDryLongGap =
+        messeNeoRecentTwoCombinedDenominator >= 180 && messeNeoDaysSinceHigh >= 28;
+      const messeNeoStrongRb280HighAfterThreeDayFail = messeNeoHighContent3Sink2500;
+      const messeNeoBestRb270RegLongDryNoSemi =
+        features.recentTwentyOneRbDenominator >= 380 && recentFourteenMachineGoodContentCount <= 0;
+      const messeNeoFreeMaxRegDry2To5 = messeNeoRegDry2To5;
       const boostFlags = [
-        messeNeoSinkStay7,
-        messeNeoRb14Weak,
-        messeNeoCombined14Weak,
-        messeNeoPreviousSink && messeNeoShallowSink,
-        messeNeoPreviousHighAfter || messeNeoBbTailwind,
-        messeNeoInterval14,
+        messeNeoHighContent3Sink2500,
+        messeNeoDaysSinceHigh21,
+        messeNeoCombined2Dry180,
+        messeNeoCombined7Dry180,
+        messeNeoRegDry2To5,
+        messeNeoSinkStay7M5_1500,
+        messeNeoLongSink21,
       ];
-      const dangerFlags = baseDangerFlags;
+      const dangerFlags = [
+        messeNeoWatchHighScoreFiveDayReturned,
+        messeNeoWatchThreeDayReturned,
+        messeNeoWatchSevenDayReturned,
+        messeNeoWatchHighContent7Returned,
+        messeNeoWatchVisibleGoodReturned,
+        messeNeoHistoryShort,
+        messeNeoLowSevenGames,
+      ];
 
       return {
         ...features,
-        previousMachineSettingFivePlusProbability,
-        previousPayoutRate,
         messeNeoHistoryReady,
         messeNeoHistoryShort,
-        messeNeoShallowSink,
-        messeNeoSinkStay7,
-        messeNeoSinkStay8,
-        messeNeoRb14Weak,
-        messeNeoCombined14Weak,
-        messeNeoCombined5Weak,
-        messeNeoPreviousSink,
-        messeNeoPreviousHighFail,
-        messeNeoPreviousHighAfter,
-        messeNeoBbTailwind,
-        messeNeoInterval14,
-        messeNeoInterval16,
-        messeNeoRecentShow,
-        messeNeoNoRecentShow,
-        messeNeoLowGames,
-        messeNeoLosing4,
-        messeNeoDeepFiveOnly,
-        messeNeoBonusWeak,
-        messeNeoUnrepaid,
-        messeNeoTreatmentDone,
-        messeNeoTooManyShows,
-        messeNeoFree5Combined,
-        messeNeoFree14Rb,
-        messeNeoBbTailwindGap14,
-        treatmentDone: messeNeoTreatmentDone,
-        lowConfidence: messeNeoHistoryShort || messeNeoLowGames,
+        messeNeoDaysSinceHigh,
+        messeNeoRecentTwoCombinedDenominator,
+        messeNeoRecentTwoRbDenominator,
+        messeNeoRecentFiveRollingSevenMinus1500,
+        messeNeoHighContent3Sink2500,
+        messeNeoDaysSinceHigh21,
+        messeNeoCombined2Dry180,
+        messeNeoCombined7Dry180,
+        messeNeoRegDry2To5,
+        messeNeoSinkStay7M5_1500,
+        messeNeoLongSink21,
+        messeNeoWatchHighScoreFiveDayReturned,
+        messeNeoWatchThreeDayReturned,
+        messeNeoWatchSevenDayReturned,
+        messeNeoWatchHighContent7Returned,
+        messeNeoWatchVisibleGoodReturned,
+        messeNeoLowSevenGames,
+        messeNeoWideRb310TwoDaySinkHighGap,
+        messeNeoWeakMainRb300SevenCombinedDryNearHigh,
+        messeNeoMainRb290TwoCombinedDryLongGap,
+        messeNeoStrongRb280HighAfterThreeDayFail,
+        messeNeoBestRb270RegLongDryNoSemi,
+        messeNeoFreeMaxRegDry2To5,
+        treatmentDone: messeNeoWatchHighScoreFiveDayReturned,
+        lowConfidence: messeNeoHistoryShort,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -30081,101 +29990,52 @@ function calculateMachineScore(definition, metrics, features) {
     }
 
     if (activeLogicKey === "messe-minamisenju-neo-aim") {
-      const previousPayoutRate = previousGames > 0 ? 100 + (previousDifference / previousGames / 3) * 100 : 100;
-      const previousBbTailwind =
-        previousDifference >= 1000 &&
-        Number.isFinite(previousMachineSettingFivePlusProbability) &&
-        previousMachineSettingFivePlusProbability < 0.3;
-      const bonusWeak =
-        features.recentFourteenRbDenominator >= 330 ||
-        features.recentFourteenCombinedDenominator >= 155 ||
-        features.recentFiveRbDenominator >= 350 ||
-        features.recentFiveCombinedDenominator >= 155;
-      const unrepaid =
-        recentFourteenNetTotal <= 0 ||
-        (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 14) ||
-        recentFiveMachineHighContentCount === 0;
-
-      let sinkScore = 0;
-      if (recentFiveMinus1000StayDays >= 8) {
-        sinkScore += 14;
-      } else if (recentFiveMinus1000StayDays >= 7) {
-        sinkScore += 10;
-      } else if (recentFiveMinus1500StayDays >= 6) {
-        sinkScore += 8;
-      }
-      sinkScore += recentTenNetTotal <= -5000 ? 5 : 0;
-      sinkScore += recentFiveNetTotal >= -2500 && recentFiveNetTotal < 0 ? 4 : 0;
-      sinkScore += recentFourteenNetTotal <= 0 ? 3 : 0;
-      sinkScore = Math.min(sinkScore, 24);
-
-      let bonusScore = 0;
-      if (features.recentFourteenRbDenominator >= 350) {
-        bonusScore += 9;
-      } else if (features.recentFourteenRbDenominator >= 330) {
-        bonusScore += 5;
-      }
-      if (features.recentFourteenCombinedDenominator >= 160) {
-        bonusScore += 7;
-      } else if (features.recentFourteenCombinedDenominator >= 155) {
-        bonusScore += 5;
-      }
-      bonusScore += features.recentFiveRbDenominator >= 350 ? 4 : 0;
-      bonusScore += features.recentFiveCombinedDenominator >= 155 ? 3 : 0;
-      bonusScore = Math.min(bonusScore, 18);
-
-      let previousScore = 0;
-      previousScore += previousDifference <= -1000 ? 8 : 0;
-      previousScore += previousPayoutRate <= 86 ? 5 : 0;
-      if (previousPayoutRate >= 108) {
-        previousScore += 7;
-      } else if (previousPayoutRate >= 106) {
-        previousScore += 5;
-      }
-      if (previousMachineHighContent) {
-        previousScore += previousDifference < 800 ? 5 : 3;
-      }
-      previousScore += previousBbTailwind ? 5 : 0;
-      previousScore = Math.min(previousScore, 18);
-
-      let intervalScore = 0;
-      if (Number.isFinite(daysSinceMachineHighContent)) {
-        if (daysSinceMachineHighContent >= 16) {
-          intervalScore += 7;
-        } else if (daysSinceMachineHighContent >= 14) {
-          intervalScore += 5;
-        } else if (daysSinceMachineHighContent >= 11) {
-          intervalScore += 3;
+      const daysSinceHigh = Number.isFinite(daysSinceMachineHighContent) ? daysSinceMachineHighContent : 999;
+      const recentTwoRbDenominator = rateDenominator(recentTwoGamesTotal, recentTwoRbTotal);
+      const recentFiveRollingSevenMinus1500Count = readNumber(
+        metrics.recentFiveRollingSevenMinus1500Count,
+      );
+      let score = 50;
+      const add = (condition, points) => {
+        if (condition) {
+          score += points;
         }
-      }
-      intervalScore += recentFiveMachineHighContentCount === 0 ? 4 : 0;
-      intervalScore += recentFiveBigWin1000Count === 0 ? 2 : 0;
-      intervalScore = Math.min(intervalScore, 13);
+      };
 
-      let gameTrustScore = 0;
-      if (recentFiveGamesTotal >= 12000) {
-        gameTrustScore += 4;
-      } else if (recentFiveGamesTotal >= 10000) {
-        gameTrustScore += 2;
-      }
-      gameTrustScore += historyRowCount >= 14 ? 3 : 0;
-      gameTrustScore = Math.min(gameTrustScore, 7);
+      add(historyRowCount >= 35, 3);
+      add(historyRowCount >= 56, 3);
+      add(recentThreeMachineHighContentCount >= 1 && recentThreeNetTotal <= -1500, 18);
+      add(recentThreeMachineHighContentCount >= 1 && recentThreeNetTotal <= -2500, 8);
+      add(previousMachineGoodContent && previousDifference < 800, 6);
+      add(daysSinceHigh >= 14, 4);
+      add(daysSinceHigh >= 21, 7);
+      add(daysSinceHigh >= 28, 5);
+      add(daysSinceHigh >= 56, -4);
+      add(recentSevenNetTotal <= -2000 && recentSevenGamesTotal >= 8000, 8);
+      add(recentFourteenNetTotal <= -5000 && recentFourteenGamesTotal >= 15000, 7);
+      add(recentTwentyOneNetTotal <= -5000 && recentTwentyOneGamesTotal >= 20000, 6);
+      add(features.recentSevenAngle <= -100 && recentSevenGamesTotal >= 8000, 5);
+      add(recentFiveRollingSevenMinus1500Count >= 3, 5);
+      add(features.recentFiveRbDenominator >= 450 && recentFiveGamesTotal >= 5000, 8);
+      add(features.recentFiveRbDenominator >= 500 && recentFiveGamesTotal >= 5000, 4);
+      add(features.recentSevenCombinedDenominator >= 170 && recentSevenGamesTotal >= 8000, 7);
+      add(recentTwoRbDenominator >= 600 && recentTwoGamesTotal >= 1500, 5);
+      add(recentThreeGamesTotal >= 8000, 4);
+      add(recentSevenGamesTotal >= 15000, 3);
+      add(previousDifference >= 1800, -8);
+      add(recentThreeNetTotal >= 2500, -10);
+      add(recentSevenNetTotal >= 3500, -10);
+      add(recentSevenMachineHighContentCount >= 2 && recentSevenNetTotal >= 0, -8);
+      add(
+        features.recentSevenRbDenominator <= 280 &&
+          features.recentSevenCombinedDenominator <= 140 &&
+          recentSevenNetTotal >= 0,
+        -8,
+      );
+      add(recentSevenGamesTotal < 6000, -8);
+      add(historyRowCount < 28, -5);
 
-      let penalty = 0;
-      penalty += recentFiveGamesTotal < 9000 ? 8 : 0;
-      penalty += streak >= 4 ? 6 : 0;
-      penalty += recentFiveNetTotal <= -3500 && recentFiveMinus1000StayDays < 4 ? 8 : 0;
-      penalty += recentFiveNetTotal >= 4000 && !bonusWeak && !unrepaid ? 9 : 0;
-      penalty += recentFiveBigWin1000Count >= 2 ? 5 : 0;
-      penalty +=
-        Number.isFinite(daysSinceMachineHighContent) &&
-        daysSinceMachineHighContent <= 5 &&
-        recentFiveNetTotal >= 2000
-          ? 5
-          : 0;
-
-      const score = 40 + sinkScore + bonusScore + previousScore + intervalScore + gameTrustScore - penalty;
-      return Math.round(clamp(score, 0, historyRowCount < 5 ? 60 : 100));
+      return Math.round(clamp(score, 0, 100));
     }
 
     if (activeLogicKey === "messe-okudo-neo-aim") {

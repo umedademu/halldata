@@ -1043,7 +1043,6 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["メッセ南千住店", "メッセ南千住"],
     targetMachines: MESSE_MINAMISENJU_TARGET_MACHINES,
     defaultLogicKey: "apark",
-    resetHistoryDates: ["2026-06-01"],
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "messe-minamisenju-neo-aim",
       "ネオアイムジャグラーＥＸ": "messe-minamisenju-neo-aim",
@@ -3076,9 +3075,14 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     if (contentRule === "messe-minamisenju-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
-        return games >= 2500 && settingFivePlusProbability >= 0.5;
+        return (
+          games >= 3000 &&
+          settingFivePlusProbability >= 0.5 &&
+          rbDenominator <= 330 &&
+          combinedDenominator <= 150
+        );
       }
-      return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 150;
+      return games >= 3000 && rbDenominator <= 330 && combinedDenominator <= 150;
     }
     if (contentRule === "messe-okudo-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -3783,9 +3787,14 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     if (contentRule === "messe-minamisenju-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
-        return games >= 2500 && settingFivePlusProbability >= 0.35;
+        return (
+          games >= 2500 &&
+          settingFivePlusProbability >= 0.3 &&
+          rbDenominator <= 360 &&
+          combinedDenominator <= 155
+        );
       }
-      return games >= 2500 && rbDenominator <= 330 && combinedDenominator <= 150;
+      return games >= 2500 && rbDenominator <= 360 && combinedDenominator <= 155;
     }
     if (contentRule === "messe-okudo-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -4691,9 +4700,14 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     if (Number.isFinite(settingFivePlusProbability)) {
-      return games >= 3000 && settingFivePlusProbability >= 0.7;
+      return (
+        games >= 4000 &&
+        settingFivePlusProbability >= 0.7 &&
+        rbDenominator <= 300 &&
+        combinedDenominator <= 145
+      );
     }
-    return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+    return games >= 4000 && rbDenominator <= 300 && combinedDenominator <= 145;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
@@ -5236,6 +5250,22 @@ function countConsecutiveRollingNetThresholdDays(rows, windowSize, threshold) {
       break;
     }
     count += 1;
+  }
+  return count;
+}
+
+function countRecentRollingNetThresholdDays(rows, windowSize, threshold, recentDays) {
+  if (!Array.isArray(rows) || rows.length < windowSize || windowSize <= 0 || recentDays <= 0) return 0;
+  let count = 0;
+  for (let offset = 0; offset < Math.min(recentDays, rows.length); offset += 1) {
+    const endIndex = rows.length - offset;
+    if (endIndex < windowSize) {
+      break;
+    }
+    const windowRows = rows.slice(endIndex - windowSize, endIndex);
+    if (sumDifferenceValues(windowRows) <= threshold) {
+      count += 1;
+    }
   }
   return count;
 }
@@ -10380,6 +10410,7 @@ function calculateWindowMetrics(
   const recentFiveMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -3000);
   const recentFiveMinus3500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -3500);
   const recentSevenMinus1500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -1500);
+  const recentFiveRollingSevenMinus1500Count = countRecentRollingNetThresholdDays(historyWindowRows, 7, -1500, 5);
   const recentThirtyMinus2700StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 30, -2700);
   const recentFiveMinus500StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 5, -500);
   const recentTenMinus3000StayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 10, -3000);
@@ -11347,6 +11378,7 @@ function calculateWindowMetrics(
     recentFiveMinus3000StayDays,
     recentFiveMinus3500StayDays,
     recentSevenMinus1500StayDays,
+    recentFiveRollingSevenMinus1500Count,
     recentFiveMinus500StayDays,
     recentTenMinus3000StayDays,
     recentTenMinus2500StayDays,
