@@ -4847,6 +4847,84 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     ],
   },
   {
+    machineKey: "million-god",
+    machineNames: [
+      "スマスロ ミリオンゴッド",
+      "スマスロ ミリオンゴッド-神々の軌跡-",
+      "スマスロミリオンゴッド",
+      "スマスロミリオンゴッド-神々の軌跡-",
+    ],
+    logicKey: "beam-hikari-million-god",
+    logicName: "ビームヒカリ_スマスロミリオンゴッド_全日共通_前日大凹みスコア型",
+    logics: [
+      buildLogicVariant(
+        "beam-hikari-million-god",
+        "ビームヒカリ_スマスロミリオンゴッド_全日共通_前日大凹みスコア型",
+        "beam-hikari-free-max-prev-deep60-danger1",
+      ),
+    ],
+    profile: "smart",
+    defaultConditionSuffix: "beam-hikari-free-max-prev-deep60-danger1",
+    conditions: [
+      buildCondition(
+        "beam-hikari-top3-score60-danger0",
+        "通常_上位3_60危険0",
+        "35日 / 62台 / 総G390,549 / BB178 / RB0 / BB1/2194 / RBなし / 合算1/2194 / 平均+982.9枚 / 105.20% / 勝率50.0%",
+        {
+          rankMax: 3,
+          minScore: 60,
+          maxDanger: 0,
+          requiredFlags: ["beamHikariMillionGodHistoryReady"],
+        },
+        ["beam-hikari-million-god"],
+      ),
+      buildCondition(
+        "beam-hikari-rank1-score60",
+        "通常_1位60",
+        "39日 / 54台 / 総G348,156 / BB180 / RB0 / BB1/1934 / RBなし / 合算1/1934 / 平均+1,057.2枚 / 105.47% / 勝率50.0%",
+        {
+          rankMax: 1,
+          minScore: 60,
+          requiredFlags: ["beamHikariMillionGodHistoryReady"],
+        },
+        ["beam-hikari-million-god"],
+      ),
+      buildCondition(
+        "beam-hikari-rank1-score65-gap6",
+        "通常_1位65_次点6",
+        "19日 / 24台 / 総G147,456 / BB110 / RB0 / BB1/1341 / RBなし / 合算1/1341 / 平均+1,178.0枚 / 106.39% / 勝率45.8%",
+        {
+          rankMax: 1,
+          minScore: 65,
+          minNextGap: 6,
+          requiredFlags: ["beamHikariMillionGodHistoryReady"],
+        },
+        ["beam-hikari-million-god"],
+      ),
+      buildCondition(
+        "beam-hikari-free-max-prev-deep60-danger1",
+        "自由MAX_前日大凹み60危険1以下",
+        "26日 / 35台 / 総G218,405 / BB126 / RB0 / BB1/1733 / RBなし / 合算1/1733 / 平均+2,216.8枚 / 111.84% / 勝率57.1%",
+        {
+          minScore: 60,
+          maxDanger: 1,
+          requiredFlags: ["beamHikariMillionGodHistoryReady", "beamHikariMillionGodPreviousDeepLoss"],
+        },
+        ["beam-hikari-million-god"],
+      ),
+      buildCondition(
+        "beam-hikari-watch-danger2",
+        "見送り_危険2以上",
+        "38日 / 75台 / 総G495,123 / BB228 / RB0 / BB1/2172 / RBなし / 合算1/2172 / 平均-1,331.6枚 / 93.28% / 勝率29.3%",
+        {
+          minDanger: 2,
+          requiredFlags: ["beamHikariMillionGodHistoryReady"],
+        },
+        ["beam-hikari-million-god"],
+      ),
+    ],
+  },
+  {
     machineKey: "dragon-hana",
     machineNames: [
       "ドラゴンハナハナ～閃光～",
@@ -14050,6 +14128,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-okidoki-gorgeous30");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "okidoki-black") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-okidoki-black");
+  } else if (isBeamHikariStore(storeName) && definition.machineKey === "million-god") {
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-million-god");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-funky");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "gogo") {
@@ -23661,6 +23741,58 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
       monkeyRealContentBoost,
       treatmentDone,
       lowConfidence,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
+
+  if (machineKey === "million-god" && activeLogicKey === "beam-hikari-million-god") {
+    const beamHikariMillionGodHistoryReady = historyRowCount >= 21;
+    const beamHikariMillionGodPreviousDeepLoss = previousDifference <= -3000;
+    const beamHikariMillionGodWinCount14Low = recentFourteenWinDays <= 2;
+    const beamHikariMillionGodWinCount14Middle = recentFourteenWinDays <= 4;
+    const beamHikariMillionGodHighContentCount14Low = recentFourteenMachineHighContentCount <= 1;
+    const beamHikariMillionGodDiff21Middle =
+      recentTwentyOneNetTotal >= -6000 && recentTwentyOneNetTotal <= 20000;
+    const beamHikariMillionGodG7NotOverused = recentSevenGamesTotal <= 40000;
+    const beamHikariMillionGodPreviousLowGames = previousGames <= 3000;
+    const beamHikariMillionGodWinStreakDanger = winningStreak >= 2;
+    const beamHikariMillionGodG5OverusedDanger = recentFiveGamesTotal >= 40000;
+    const beamHikariMillionGodLoseStreakDanger = historyLosingStreak >= 6;
+    const beamHikariMillionGodDiff21TooDeepDanger = recentTwentyOneNetTotal <= -20000;
+    const beamHikariMillionGodDiff3PositiveDanger = recentThreeNetTotal >= 4000;
+    const boostFlags = [
+      beamHikariMillionGodWinCount14Low,
+      beamHikariMillionGodHighContentCount14Low,
+      beamHikariMillionGodDiff21Middle,
+      beamHikariMillionGodG7NotOverused,
+      beamHikariMillionGodPreviousDeepLoss,
+    ];
+    const dangerFlags = [
+      beamHikariMillionGodWinStreakDanger,
+      beamHikariMillionGodG5OverusedDanger,
+      beamHikariMillionGodLoseStreakDanger,
+      beamHikariMillionGodDiff21TooDeepDanger,
+      beamHikariMillionGodDiff3PositiveDanger,
+    ];
+
+    return {
+      ...features,
+      beamHikariMillionGodHistoryReady,
+      beamHikariMillionGodPreviousDeepLoss,
+      beamHikariMillionGodWinCount14Low,
+      beamHikariMillionGodWinCount14Middle,
+      beamHikariMillionGodHighContentCount14Low,
+      beamHikariMillionGodDiff21Middle,
+      beamHikariMillionGodG7NotOverused,
+      beamHikariMillionGodPreviousLowGames,
+      beamHikariMillionGodWinStreakDanger,
+      beamHikariMillionGodG5OverusedDanger,
+      beamHikariMillionGodLoseStreakDanger,
+      beamHikariMillionGodDiff21TooDeepDanger,
+      beamHikariMillionGodDiff3PositiveDanger,
+      treatmentDone: dangerFlags.some(Boolean),
+      lowConfidence: !beamHikariMillionGodHistoryReady,
       boostCount: boostFlags.filter(Boolean).length,
       dangerCount: dangerFlags.filter(Boolean).length,
     };
@@ -34397,6 +34529,30 @@ function calculateMachineScore(definition, metrics, features) {
     return Math.round(clamp(score, 0, 100));
   }
 
+  if (machineKey === "million-god" && activeLogicKey === "beam-hikari-million-god") {
+    if (historyRowCount < 21) {
+      return 0;
+    }
+
+    let score = 45;
+    score += recentFourteenWinDays <= 2 ? 25 : recentFourteenWinDays <= 4 ? 12 : 0;
+    score += recentFourteenMachineHighContentCount <= 1 ? 13 : 0;
+    score +=
+      recentTwentyOneNetTotal >= -6000 && recentTwentyOneNetTotal <= 20000
+        ? 16
+        : recentTwentyOneNetTotal < -12000
+          ? -12
+          : 0;
+    score += recentSevenGamesTotal <= 40000 ? 12 : 0;
+    score += previousDifference <= -3000 ? 7 : 0;
+    score += previousGames <= 3000 ? 5 : 0;
+    score -= winningStreak >= 2 ? 18 : 0;
+    score -= recentFiveGamesTotal >= 40000 ? 18 : 0;
+    score -= historyLosingStreak >= 6 ? 8 : 0;
+
+    return Math.round(clamp(score, 0, 100));
+  }
+
   if (machineKey === "okidoki-black" && activeLogicKey === "beam-hikari-okidoki-black") {
     if (historyRowCount < 21) {
       return 0;
@@ -37397,6 +37553,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       "smart-hanabi",
       "okidoki-gorgeous30",
       "okidoki-black",
+      "million-god",
     ].includes(definition?.machineKey)
   ) {
     const baseLogicKeyByMachineKey = {
@@ -37413,6 +37570,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       "smart-hanabi": "beam-hikari-smart-hanabi",
       "okidoki-gorgeous30": "beam-hikari-okidoki-gorgeous30",
       "okidoki-black": "beam-hikari-okidoki-black",
+      "million-god": "beam-hikari-million-god",
     };
     const logic = findLogicDefinition(definition, baseLogicKeyByMachineKey[definition.machineKey]);
     const condition =

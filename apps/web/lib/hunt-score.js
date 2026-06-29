@@ -1633,6 +1633,10 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "スマスロ北斗の拳": "beam-hikari-hokuto-base-content",
       "スマスロ ハナビ": "beam-hikari-smart-hanabi-content",
       "スマスロハナビ": "beam-hikari-smart-hanabi-content",
+      "スマスロ ミリオンゴッド": "beam-hikari-million-god-content",
+      "スマスロミリオンゴッド": "beam-hikari-million-god-content",
+      "スマスロ ミリオンゴッド-神々の軌跡-": "beam-hikari-million-god-content",
+      "スマスロミリオンゴッド-神々の軌跡-": "beam-hikari-million-god-content",
       "沖ドキ！BLACK": "beam-hikari-okidoki-black-content",
       "沖ドキ!BLACK": "beam-hikari-okidoki-black-content",
       "沖ドキ！ＢＬＡＣＫ": "beam-hikari-okidoki-black-content",
@@ -3498,6 +3502,16 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     return games >= 3502 && combinedDenominator <= 434 && differenceValue >= -819;
   }
   if (
+    normalizedMachineName === normalizeText("スマスロ ミリオンゴッド") ||
+    normalizedMachineName === normalizeText("スマスロ ミリオンゴッド-神々の軌跡-") ||
+    normalizedMachineName === normalizeText("スマスロミリオンゴッド") ||
+    normalizedMachineName === normalizeText("スマスロミリオンゴッド-神々の軌跡-")
+  ) {
+    if (readMachineContentRule(config, machineName) === "beam-hikari-million-god-content") {
+      return games >= 5000 && differenceValue >= 1500;
+    }
+  }
+  if (
     normalizedMachineName === normalizeText("Lスマスロ北斗の拳") ||
     normalizedMachineName === normalizeText("L スマスロ北斗の拳") ||
     normalizedMachineName === normalizeText("スマスロ北斗の拳")
@@ -4022,6 +4036,15 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     if (readMachineContentRule(config, machineName) === "beam-hikari-ultra-miracle-content") {
       return games >= 3000 && combinedDenominator <= 134 && rbDenominator <= 300;
     }
+  }
+  if (
+    (normalizedMachineName === normalizeText("スマスロ ミリオンゴッド") ||
+      normalizedMachineName === normalizeText("スマスロ ミリオンゴッド-神々の軌跡-") ||
+      normalizedMachineName === normalizeText("スマスロミリオンゴッド") ||
+      normalizedMachineName === normalizeText("スマスロミリオンゴッド-神々の軌跡-")) &&
+    readMachineContentRule(config, machineName) === "beam-hikari-million-god-content"
+  ) {
+    return games >= 4500 && differenceValue >= 500;
   }
   if (
     normalizedMachineName === normalizeText("ハッピージャグラーＶＩＩＩ") ||
@@ -5035,6 +5058,15 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     readMachineContentRule(config, machineName) === "beam-hikari-smart-hanabi-content"
   ) {
     return games >= 4500 && rbDenominator <= 300 && combinedDenominator <= 145;
+  }
+  if (
+    (normalizedMachineName === normalizeText("スマスロ ミリオンゴッド") ||
+      normalizedMachineName === normalizeText("スマスロ ミリオンゴッド-神々の軌跡-") ||
+      normalizedMachineName === normalizeText("スマスロミリオンゴッド") ||
+      normalizedMachineName === normalizeText("スマスロミリオンゴッド-神々の軌跡-")) &&
+    readMachineContentRule(config, machineName) === "beam-hikari-million-god-content"
+  ) {
+    return games >= 6000 && differenceValue >= 3000;
   }
   if (
     (normalizedMachineName === normalizeText("ファンキージャグラー２ＫＴ") ||
