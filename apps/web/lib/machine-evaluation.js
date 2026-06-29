@@ -193,6 +193,9 @@ const MESSE_TAKENOTSUKA_NEO_AIM_WATCH_EXCLUDED_KEYS = new Set([
   "2026-06-04|658",
   "2026-06-05|658",
 ]);
+const MESSE_OUGI_NEO_AIM_LOGIC_KEY = "messe-ougi-neo-aim";
+const MESSE_OUGI_NEO_AIM_LOGIC_NAME = "メッセ扇店_ネオアイムEX_全日共通100点";
+const MESSE_OUGI_NEO_AIM_DEFAULT_CONDITION = "messe-ougi-neo-free-rb-repay";
 const PARK_KITASENJU_NEO_AIM_LOGIC_KEY = "park-kitasenju-neo-aim";
 const PARK_KITASENJU_NEO_AIM_LOGIC_NAME =
   "ピーアーク北千住_ネオアイムジャグラーEX_全日共通100点ロジック_v1";
@@ -610,6 +613,13 @@ function isMesseNishikasaiStore(storeName) {
 function isMesseTakenotsukaStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["メッセ竹の塚", "メッセ竹の塚店", "メッセ竹ノ塚", "メッセ竹ノ塚店"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
+function isMesseOugiStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["メッセ扇店", "メッセ扇"].some(
     (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
   );
 }
@@ -5514,6 +5524,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         MESSE_TAKENOTSUKA_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
+        MESSE_OUGI_NEO_AIM_LOGIC_KEY,
+        MESSE_OUGI_NEO_AIM_LOGIC_NAME,
+        MESSE_OUGI_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         "fortune-ohanajaya-neo-aim",
         "フォーチュンお花茶屋店_ネオアイムジャグラーEX_10_20営業日返済未完ロジック",
         "fortune-ohanajaya-rb290-main",
@@ -9567,6 +9582,61 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["messeOkudoNeoHistoryReady", "messeOkudoNeoWatchPrevBigSink"],
         },
         ["messe-okudo-neo-aim"],
+      ),
+      buildCondition(
+        "messe-ougi-neo-free-rb-repay",
+        "自由本命RB1/297_REG返済未完",
+        "通常採用 / 55日 / 64台 / 総G273,809 / BB1,024 / RB922 / BB1/267.4 / RB1/297.0 / 合算1/140.7 / 平均+238.3枚 / 機械割101.86% / 勝率50.0% / 平均56 37.1% / 中央56 32.8% / 56>=70 10.9% / 56>=50 29.7% / 56<30 48.4% / 点数より優先する最優先本命",
+        {
+          requiredFlags: ["messeOugiNeoHistoryReady", "messeOugiNeoFreeRbRepay"],
+        },
+        [MESSE_OUGI_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "messe-ougi-neo-weak-prev-games",
+        "弱め本命RB1/297_前日G保証",
+        "通常採用 / 36日 / 42台 / 総G132,830 / BB492 / RB447 / BB1/270.0 / RB1/297.2 / 合算1/141.5 / 平均+142.3枚 / 機械割101.50% / 勝率40.5% / 平均56 35.5% / 中央56 31.1% / 56>=70 9.5% / 56>=50 21.4% / 56<30 47.6% / 本命補助",
+        {
+          requiredFlags: ["messeOugiNeoHistoryReady", "messeOugiNeoWeakPrevGames"],
+        },
+        [MESSE_OUGI_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "messe-ougi-neo-wide-continuous-high",
+        "広めRB1/305_連続高内容",
+        "通常採用 / 58日 / 78台 / 総G235,994 / BB875 / RB774 / BB1/269.7 / RB1/304.9 / 合算1/143.1 / 平均+107.3枚 / 機械割101.18% / 勝率41.0% / 平均56 34.0% / 中央56 28.5% / 56>=70 6.4% / 56>=50 20.5% / 56<30 52.6% / 広め入口",
+        {
+          requiredFlags: ["messeOugiNeoHistoryReady", "messeOugiNeoWideContinuousHigh"],
+        },
+        [MESSE_OUGI_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "messe-ougi-neo-reference-low-p56",
+        "参考RB1/274_低P56戻し",
+        "参考表示 / 17日 / 19台 / 総G75,894 / BB306 / RB277 / BB1/248.0 / RB1/274.0 / 合算1/130.2 / 平均+536.9枚 / 機械割104.48% / 勝率68.4% / 平均56 44.8% / 中央56 44.6% / 56>=70 10.5% / 56>=50 47.4% / 56<30 36.8% / 件数不足のため参考",
+        {
+          requiredFlags: ["messeOugiNeoHistoryReady", "messeOugiNeoReferenceLowP56"],
+        },
+        [MESSE_OUGI_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "messe-ougi-neo-reference-prev-high-sink",
+        "参考RB1/292_凹み直前高内容",
+        "参考表示 / 21日 / 21台 / 総G69,739 / BB248 / RB239 / BB1/281.2 / RB1/291.8 / 合算1/143.2 / 平均+58.3枚 / 機械割100.59% / 勝率38.1% / 平均56 36.3% / 中央56 27.3% / 56>=70 14.3% / 56>=50 23.8% / 56<30 61.9% / 後半弱化で参考",
+        {
+          requiredFlags: ["messeOugiNeoHistoryReady", "messeOugiNeoReferencePrevHighSink"],
+        },
+        [MESSE_OUGI_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "messe-ougi-neo-watch-treated-loss",
+        "見送り_高スコア処遇済み連敗",
+        "見送り / 23日 / 24台 / 総G94,468 / BB316 / RB279 / BB1/298.9 / RB1/338.6 / 合算1/158.8 / 平均-387.9枚 / 機械割96.72% / 勝率33.3% / 平均56 26.4% / 中央56 24.4% / 56>=70 0.0% / 56>=50 8.3% / 56<30 58.3% / 高スコアでも除外",
+        {
+          minScore: 80,
+          requiredFlags: ["messeOugiNeoHistoryReady", "messeOugiNeoWatchTreatedLoss"],
+        },
+        [MESSE_OUGI_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "messe-nishikasai-wide-double-boost80",
@@ -14560,6 +14630,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "messe-nishikasai-neo-aim");
   } else if (isMesseTakenotsukaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, MESSE_TAKENOTSUKA_NEO_AIM_LOGIC_KEY);
+  } else if (isMesseOugiStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, MESSE_OUGI_NEO_AIM_LOGIC_KEY);
   } else if (isFortuneOhanajayaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "fortune-ohanajaya-neo-aim");
   } else if (isKintokiKamataStore(storeName) && definition.machineKey === "neo-aim") {
@@ -15173,6 +15245,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   const winningStreak = readNumber(metrics.winningStreak);
   const historyLosingStreak = readNumber(metrics.historyLosingStreak);
   const lossStreakGames200 = readNumber(metrics.lossStreakGames200, historyLosingStreak);
+  const lossStreakGames300Stop = readNumber(metrics.lossStreakGames300Stop, historyLosingStreak);
   const nonPositiveStreak = readNumber(metrics.nonPositiveStreak);
   const recentTwoNetTotal = readNumber(metrics.recentTwoNetTotal);
   const recentThreeNetTotal = readNumber(metrics.recentThreeNetTotal);
@@ -19719,6 +19792,77 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
         messeOkudoNeoLowP56History,
         treatmentDone: false,
         lowConfidence: messeOkudoNeoHistoryShort,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === MESSE_OUGI_NEO_AIM_LOGIC_KEY) {
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      const messeOugiNeoHistoryReady = historyRowCount >= 14;
+      const messeOugiNeoHistoryShort = historyRowCount < 14;
+      const messeOugiNeoWideContinuousHigh =
+        messeOugiNeoHistoryReady &&
+        recentFourteenGamesTotal <= 45000 &&
+        recentSevenMachineHighContentCount >= 3;
+      const messeOugiNeoWeakPrevGames =
+        messeOugiNeoWideContinuousHigh && previousGames >= 3000;
+      const messeOugiNeoFreeRbRepay =
+        messeOugiNeoHistoryReady &&
+        previousGames >= 3000 &&
+        features.recentFourteenRbDenominator >= 360 &&
+        previousDifference >= 0 &&
+        previousDifference <= 720 &&
+        Number.isFinite(previousP56) &&
+        previousP56 >= 0.288 &&
+        previousP56 <= 0.421;
+      const messeOugiNeoReferenceLowP56 =
+        messeOugiNeoHistoryReady &&
+        recentFourteenGamesTotal <= 45000 &&
+        features.recentFourteenCombinedDenominator >= 151.8 &&
+        recentSevenMachineHighContentCount >= 2 &&
+        Number.isFinite(previousP56) &&
+        previousP56 <= 0.131;
+      const messeOugiNeoReferencePrevHighSink =
+        messeOugiNeoHistoryReady &&
+        recentFourteenGamesTotal <= 45000 &&
+        recentFourteenNetTotal <= -2500 &&
+        previousMachineHighContent &&
+        recentSevenMachineGoodContentCount >= 3;
+      const messeOugiNeoWatchTreatedLoss =
+        messeOugiNeoHistoryReady &&
+        recentFourteenMachineHighContentCount >= 3 &&
+        recentSevenMachineHighContentCount < 3 &&
+        lossStreakGames300Stop >= 2;
+      const boostFlags = [
+        messeOugiNeoFreeRbRepay,
+        messeOugiNeoWeakPrevGames,
+        messeOugiNeoWideContinuousHigh,
+        messeOugiNeoReferenceLowP56,
+        messeOugiNeoReferencePrevHighSink,
+      ];
+      const dangerFlags = [
+        messeOugiNeoWatchTreatedLoss,
+        recentFourteenGamesTotal >= 58000,
+        previousDifference <= -700,
+        previousDifference >= 1500,
+        recentSevenNetTotal >= 2200 && recentSevenGamesTotal >= 30000,
+      ];
+
+      return {
+        ...features,
+        messeOugiNeoHistoryReady,
+        messeOugiNeoHistoryShort,
+        messeOugiNeoWideContinuousHigh,
+        messeOugiNeoWeakPrevGames,
+        messeOugiNeoFreeRbRepay,
+        messeOugiNeoReferenceLowP56,
+        messeOugiNeoReferencePrevHighSink,
+        messeOugiNeoWatchTreatedLoss,
+        messeOugiNeoLossStreak: lossStreakGames300Stop,
+        previousMachineSettingFivePlusProbability,
+        treatmentDone: messeOugiNeoWatchTreatedLoss,
+        lowConfidence: messeOugiNeoHistoryShort,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -26335,6 +26479,7 @@ function calculateMachineScore(definition, metrics, features) {
   const streak = readNumber(metrics.streak);
   const historyLosingStreak = readNumber(metrics.historyLosingStreak);
   const lossStreakGames200 = readNumber(metrics.lossStreakGames200, historyLosingStreak);
+  const lossStreakGames300Stop = readNumber(metrics.lossStreakGames300Stop, historyLosingStreak);
   const nonPositiveStreak = readNumber(metrics.nonPositiveStreak);
   const winningStreak = readNumber(metrics.winningStreak);
   const historyNetTotal = readNumber(metrics.historyNetTotal);
@@ -30659,6 +30804,64 @@ function calculateMachineScore(definition, metrics, features) {
       score -= recentFourteenNetTotal <= -3000 ? 4 : 0;
       score -= previousGames < 1000 ? 3 : 0;
       score -= p56avg14 < 0.2 && recentSevenMachineHighContentCount === 0 ? 4 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === MESSE_OUGI_NEO_AIM_LOGIC_KEY) {
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      const recentFourteenRbDenominator = Number.isFinite(features.recentFourteenRbDenominator)
+        ? features.recentFourteenRbDenominator
+        : Number.POSITIVE_INFINITY;
+      const recentFourteenCombinedDenominator = Number.isFinite(features.recentFourteenCombinedDenominator)
+        ? features.recentFourteenCombinedDenominator
+        : Number.POSITIVE_INFINITY;
+      const recentFourteenAngle = Number.isFinite(features.recentFourteenAngle)
+        ? features.recentFourteenAngle
+        : 0;
+      const lossStreak = lossStreakGames300Stop;
+      let score = 40;
+      const add = (condition, points) => {
+        if (condition) {
+          score += points;
+        }
+      };
+
+      add(historyRowCount >= 14, 5);
+      add(historyRowCount < 14, -20);
+      add(historyRowCount >= 21, 3);
+      add(historyRowCount >= 14 && recentFourteenGamesTotal <= 45000, 12);
+      add(historyRowCount >= 14 && recentFourteenGamesTotal >= 58000, -5);
+      add(recentFourteenRbDenominator >= 360, 15);
+      add(recentFourteenRbDenominator >= 342 && recentFourteenRbDenominator < 360, 8);
+      add(recentFourteenCombinedDenominator >= 157, 8);
+      add(recentFourteenCombinedDenominator >= 151.8 && recentFourteenCombinedDenominator < 157, 5);
+      add(recentFourteenRbDenominator <= 313, -5);
+      add(recentFourteenCombinedDenominator <= 143, -4);
+      add(recentSevenMachineHighContentCount >= 3, 24);
+      add(recentSevenMachineHighContentCount === 2, 10);
+      add(recentFourteenMachineHighContentCount >= 3 && recentSevenMachineHighContentCount < 3, -6);
+      add(previousGames >= 3000, 8);
+      add(previousGames < 1000, -5);
+      add(previousDifference >= 0 && previousDifference <= 720, 6);
+      add(previousDifference <= -700, -5);
+      add(previousDifference >= 1500, -7);
+      add(Number.isFinite(previousP56) && previousP56 >= 0.288 && previousP56 <= 0.421, 10);
+      add(
+        Number.isFinite(previousP56) &&
+          previousP56 <= 0.131 &&
+          recentSevenMachineHighContentCount >= 2 &&
+          recentFourteenCombinedDenominator >= 151.8,
+        6,
+      );
+      add(recentFourteenNetTotal <= -2500, 7);
+      add(recentFourteenNetTotal <= -700 && recentFourteenNetTotal > -2500, 3);
+      add(recentTwentyOneNetTotal <= -3000, 5);
+      add(recentFourteenAngle <= -58, 6);
+      add(lossStreak <= 1, 5);
+      add(lossStreak >= 3, -7);
+      add(recentSevenNetTotal >= 2200 && recentSevenGamesTotal >= 30000, -10);
+      add(previousMachineStrongHighContent && previousDifference >= 1000, -7);
 
       return Math.round(clamp(score, 0, 100));
     }
@@ -39268,7 +39471,8 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
       updatedEvaluation.logicKey === PARK_KITASENJU_SSS_NEO_AIM_LOGIC_KEY ||
       updatedEvaluation.logicKey === PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY ||
       updatedEvaluation.logicKey === "espace-ueno-neo-aim" ||
-      updatedEvaluation.logicKey === "messe-nishikasai-neo-aim";
+      updatedEvaluation.logicKey === "messe-nishikasai-neo-aim" ||
+      updatedEvaluation.logicKey === MESSE_OUGI_NEO_AIM_LOGIC_KEY;
     const rankedEvaluation = useOrdinalRank
       ? {
           ...updatedEvaluation,

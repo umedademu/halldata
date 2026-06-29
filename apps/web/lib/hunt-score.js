@@ -336,6 +336,10 @@ const MESSE_TAKENOTSUKA_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const MESSE_OUGI_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const MARUHAN_KOIWA_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
@@ -1104,6 +1108,16 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "messe-takenotsuka-neo-aim",
       "ネオアイムジャグラーＥＸ": "messe-takenotsuka-neo-aim",
+    },
+  },
+  {
+    key: "messe-ougi",
+    storeNames: ["メッセ扇店", "メッセ扇"],
+    targetMachines: MESSE_OUGI_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "messe-ougi-neo-aim",
+      "ネオアイムジャグラーＥＸ": "messe-ougi-neo-aim",
     },
   },
   {
@@ -3253,6 +3267,10 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       return Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability >= 0.5;
     }
+    if (contentRule === "messe-ougi-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability >= 0.5;
+    }
     if (contentRule === "maruhan-koiwa-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -3972,6 +3990,10 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     }
     if (contentRule === "messe-takenotsuka-neo-aim") {
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 145;
+    }
+    if (contentRule === "messe-ougi-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return Number.isFinite(settingFivePlusProbability) && games >= 2500 && settingFivePlusProbability >= 0.3;
     }
     if (contentRule === "maruhan-koiwa-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -4923,6 +4945,13 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
     return Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability >= 0.7;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "messe-ougi-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    return Number.isFinite(settingFivePlusProbability) && games >= 4000 && settingFivePlusProbability >= 0.7;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
@@ -11755,6 +11784,7 @@ function calculateWindowMetrics(
     highSettingCandidateStreak: calculateCurrentHighSettingCandidateStreak(metricWindowRows),
     historyLosingStreak: calculateCurrentLosingStreak(historyWindowRows),
     lossStreakGames200: calculateCurrentLosingStreakWithMinimumGames(historyWindowRows, 200),
+    lossStreakGames300Stop: calculateCurrentLosingStreakStoppingOnLowGames(historyWindowRows, 300),
     lossStreakGames500Stop: calculateCurrentLosingStreakStoppingOnLowGames(historyWindowRows, 500),
     nonPositiveStreak: calculateCurrentNonPositiveStreak(historyWindowRows),
     machineHighContentStreak: calculateCurrentMachineContentStreak(
