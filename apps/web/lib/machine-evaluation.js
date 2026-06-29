@@ -13484,6 +13484,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "ワンダーランド南ヶ丘店_マイジャグラーV_急沈み前日RB良ロジック_v1",
         "wonderland-minamigaoka-my-free-angle-prev-rb",
       ),
+      buildLogicVariant(
+        "boom-tenjin-my",
+        "BOOM天神本店_マイジャグラーV_内容継続スコア",
+        "boom-tenjin-my-event-purple-b",
+      ),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
@@ -13996,6 +14001,97 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         },
         ["wonderland-minamigaoka-my"],
       ),
+      buildCondition(
+        "boom-tenjin-my-event-purple-a",
+        "イベント紫A",
+        "18日 / 28台 / 総G194,552 / BB780 / RB719 / RB1/270.6 / 合算1/129.8 / 平均+1113.6枚 / 105.34% / 勝率67.9% / 平均4以上62.2% / 平均5以上44.1%",
+        {
+          requiredFlags: ["boomTenjinMyEventPurpleA"],
+        },
+        ["boom-tenjin-my"],
+      ),
+      buildCondition(
+        "boom-tenjin-my-event-purple-b",
+        "イベント紫B",
+        "15日 / 22台 / 総G165,097 / BB655 / RB614 / RB1/268.9 / 合算1/130.1 / 平均+1153.4枚 / 105.12% / 勝率68.2% / 平均4以上61.9% / 平均5以上43.5% / 自由度MAX最優先",
+        {
+          requiredFlags: ["boomTenjinMyEventPurpleB"],
+        },
+        ["boom-tenjin-my"],
+      ),
+      buildCondition(
+        "boom-tenjin-my-event-score80",
+        "参考_イベント80点以上",
+        "64日 / 647台 / 総G4,118,862 / BB16,223 / RB13,964 / RB1/295.0 / 合算1/136.4 / 平均+726.6枚 / 103.80% / 勝率57.7%",
+        {
+          minScore: 80,
+          requiredFlags: ["boomTenjinMyHistoryReady", "boomTenjinMyEvent"],
+        },
+        ["boom-tenjin-my"],
+      ),
+      buildCondition(
+        "boom-tenjin-my-rank1",
+        "参考_全日1位",
+        "319日 / 319台 / 総G1,305,621 / BB5,006 / RB4,033 / RB1/323.7 / 合算1/144.4 / 平均+216.6枚 / 101.76% / 勝率44.2%",
+        {
+          rankMax: 1,
+          requiredFlags: ["boomTenjinMyHistoryReady"],
+        },
+        ["boom-tenjin-my"],
+      ),
+      buildCondition(
+        "boom-tenjin-my-score80",
+        "参考_全日80点以上",
+        "314日 / 3568台 / 総G12,567,716 / BB47,611 / RB37,887 / RB1/331.7 / 合算1/147.0 / 平均+110.8枚 / 101.05% / 勝率40.1%",
+        {
+          minScore: 80,
+          requiredFlags: ["boomTenjinMyHistoryReady"],
+        },
+        ["boom-tenjin-my"],
+      ),
+      buildCondition(
+        "boom-tenjin-my-normal-rank1",
+        "参考_通常日1位",
+        "252日 / 252台 / 総G912,564 / BB3,459 / RB2,773 / RB1/329.1 / 合算1/146.4 / 平均+117.8枚 / 101.08% / 勝率40.5%",
+        {
+          rankMax: 1,
+          requiredFlags: ["boomTenjinMyHistoryReady", "boomTenjinMyNormal"],
+        },
+        ["boom-tenjin-my"],
+      ),
+      buildCondition(
+        "boom-tenjin-my-event-rank10",
+        "参考_イベント上位10台",
+        "67日 / 670台 / 総G3,659,071 / BB14,243 / RB11,786 / RB1/310.5 / 合算1/140.6 / 平均+445.5枚 / 102.72% / 勝率50.1%",
+        {
+          rankMax: 10,
+          requiredFlags: ["boomTenjinMyHistoryReady", "boomTenjinMyEvent"],
+        },
+        ["boom-tenjin-my"],
+      ),
+      buildCondition(
+        "boom-tenjin-my-event-score60",
+        "参考_イベント60点以上",
+        "67日 / 1211台 / 総G7,227,330 / BB28,336 / RB24,142 / RB1/299.4 / 合算1/137.7 / 平均+606.9枚 / 103.39% / 勝率54.4%",
+        {
+          minScore: 60,
+          requiredFlags: ["boomTenjinMyHistoryReady", "boomTenjinMyEvent"],
+        },
+        ["boom-tenjin-my"],
+      ),
+      buildCondition(
+        "boom-tenjin-my-event-prev-p4-75",
+        "参考_イベント前日4以上75",
+        "42日 / 91台 / 総G581,043 / BB2,332 / RB1,988 / RB1/292.3 / 合算1/134.5 / 平均+862.5枚 / 104.50% / 勝率61.5%",
+        {
+          requiredFlags: [
+            "boomTenjinMyHistoryReady",
+            "boomTenjinMyEvent",
+            "boomTenjinMyPreviousP4Plus75",
+          ],
+        },
+        ["boom-tenjin-my"],
+      ),
     ],
   },
   {
@@ -14248,6 +14344,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "million-tobu-nerima-neo-aim");
   } else if (isBoomTenjinStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "boom-tenjin-neo-aim");
+  } else if (isBoomTenjinStore(storeName) && definition.machineKey === "my") {
+    defaultLogic = findLogicDefinition(definition, "boom-tenjin-my");
   } else if (isJaranMizumotoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "jaran-mizumoto-neo-aim");
   } else if (isMjArenaKurumeStore(storeName) && definition.machineKey === "funky") {
@@ -24543,6 +24641,73 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   }
 
   if (machineKey === "my") {
+    if (activeLogicKey === "boom-tenjin-my") {
+      const targetEventFlag = readTargetEventFlag(row);
+      const boomTenjinMyEvent = targetEventFlag === true;
+      const boomTenjinMyNormal = targetEventFlag === false;
+      const boomTenjinMyHistoryReady = historyRowCount >= 21;
+      const boomTenjinMyPreviousP4Plus75 =
+        Number.isFinite(previousMachineSettingFourPlusProbability) &&
+        previousMachineSettingFourPlusProbability >= 0.75;
+      const boomTenjinMyPreviousContentStrong =
+        boomTenjinMyPreviousP4Plus75 && previousGames >= 2500;
+      const boomTenjinMyRecentContentStrong =
+        recentFourteenMachineHighContentCount >= 3 && recentSevenMachineHighContentCount >= 1;
+      const boomTenjinMyRecentActivityStrong = recentSevenGamesTotal >= 22000;
+      const boomTenjinMyEventMainBase =
+        boomTenjinMyEvent && boomTenjinMyPreviousContentStrong && boomTenjinMyRecentActivityStrong;
+      const dangerFlags = [
+        historyRowCount < 21,
+        historyRowCount >= 21 && recentFourteenMachineHighContentCount === 0,
+        historyRowCount >= 14 && features.recentFourteenRbDenominator > 402,
+        historyRowCount >= 14 && features.recentFourteenCombinedDenominator > 163,
+        historyRowCount >= 14 && recentFourteenGamesTotal < 32380,
+        Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent > 37,
+      ];
+      const boostFlags = [
+        boomTenjinMyRecentContentStrong,
+        boomTenjinMyPreviousContentStrong,
+        boomTenjinMyRecentActivityStrong,
+        boomTenjinMyEventMainBase,
+        boomTenjinMyEvent &&
+          boomTenjinMyHistoryReady &&
+          boomTenjinMyPreviousP4Plus75 &&
+          recentSevenGamesTotal >= 22000 &&
+          previousGames >= 5500,
+        boomTenjinMyEvent &&
+          boomTenjinMyHistoryReady &&
+          boomTenjinMyPreviousP4Plus75 &&
+          recentSevenGamesTotal >= 30000,
+      ];
+
+      return {
+        ...features,
+        boomTenjinMyEvent,
+        boomTenjinMyNormal,
+        boomTenjinMyHistoryReady,
+        boomTenjinMyPreviousP4Plus75,
+        boomTenjinMyPreviousContentStrong,
+        boomTenjinMyRecentContentStrong,
+        boomTenjinMyRecentActivityStrong,
+        boomTenjinMyEventMainBase,
+        boomTenjinMyEventPurpleA:
+          boomTenjinMyEvent &&
+          boomTenjinMyHistoryReady &&
+          boomTenjinMyPreviousP4Plus75 &&
+          recentSevenGamesTotal >= 22000 &&
+          previousGames >= 5500,
+        boomTenjinMyEventPurpleB:
+          boomTenjinMyEvent &&
+          boomTenjinMyHistoryReady &&
+          boomTenjinMyPreviousP4Plus75 &&
+          recentSevenGamesTotal >= 30000,
+        treatmentDone: dangerFlags.filter(Boolean).length >= 2,
+        lowConfidence: !boomTenjinMyHistoryReady,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "chikushino-my") {
       const chikushinoMyHistoryReady = historyRowCount >= 21;
       const rawDaysSinceHigh = metrics.daysSinceMachineHighContent;
@@ -33074,6 +33239,84 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "my") {
+    if (activeLogicKey === "boom-tenjin-my") {
+      let score = 35;
+
+      score += historyRowCount >= 21 ? 10 : historyRowCount >= 14 ? 3 : -15;
+      score +=
+        recentFourteenMachineHighContentCount >= 5 ? 18 :
+        recentFourteenMachineHighContentCount >= 3 ? 14 :
+        recentFourteenMachineHighContentCount >= 2 ? 8 :
+        recentFourteenMachineHighContentCount === 1 ? 2 :
+        -6;
+      score +=
+        recentSevenMachineHighContentCount >= 3 ? 12 :
+        recentSevenMachineHighContentCount === 2 ? 8 :
+        recentSevenMachineHighContentCount === 1 ? 3 :
+        -4;
+      score +=
+        recentThreeMachineHighContentCount >= 2 ? 8 :
+        recentThreeMachineHighContentCount === 1 ? 3 :
+        0;
+      score +=
+        recentSevenMachineStrongHighContentCount >= 2 ? 10 :
+        recentSevenMachineStrongHighContentCount === 1 ? 6 :
+        0;
+
+      score +=
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 1 &&
+        daysSinceMachineHighContent <= 3
+          ? 5
+          : 0;
+      score +=
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 4 &&
+        daysSinceMachineHighContent <= 6
+          ? 9
+          : 0;
+      score +=
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 7 &&
+        daysSinceMachineHighContent <= 10
+          ? 4
+          : 0;
+      score -= Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent > 20 ? 10 : 0;
+
+      score +=
+        features.recentFourteenRbDenominator <= 320 &&
+        features.recentFourteenCombinedDenominator <= 145 &&
+        recentFourteenGamesTotal >= 35000
+          ? 10
+          : 0;
+      score +=
+        features.recentSevenRbDenominator <= 315 &&
+        features.recentSevenCombinedDenominator <= 142 &&
+        recentSevenGamesTotal >= 18000
+          ? 7
+          : 0;
+      score +=
+        Number.isFinite(previousMachineSettingFourPlusProbability) &&
+        previousMachineSettingFourPlusProbability >= 0.55 &&
+        previousGames >= 2500
+          ? 5
+          : 0;
+
+      score += recentFourteenGamesTotal >= 52000 ? 6 : recentFourteenGamesTotal >= 44000 ? 4 : 0;
+      score += recentSevenGamesTotal >= 27000 ? 4 : recentSevenGamesTotal >= 22000 ? 2 : 0;
+      score += recentTwentyOneNetTotal >= 3800 ? 6 : recentTwentyOneNetTotal >= 800 ? 3 : 0;
+      score += recentFourteenNetTotal >= 3000 ? 5 : recentFourteenNetTotal >= 700 ? 2 : 0;
+
+      score -= historyRowCount < 21 ? 20 : 0;
+      score -= recentFourteenMachineHighContentCount === 0 && historyRowCount >= 21 ? 12 : 0;
+      score -= features.recentFourteenRbDenominator > 402 && historyRowCount >= 14 ? 8 : 0;
+      score -= features.recentFourteenCombinedDenominator > 163 && historyRowCount >= 14 ? 6 : 0;
+      score -= recentFourteenGamesTotal < 32380 && historyRowCount >= 14 ? 5 : 0;
+      score -= Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent > 37 ? 6 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (activeLogicKey === "chikushino-my") {
       const rawDaysSinceHigh = metrics.daysSinceMachineHighContent;
       const chikushinoMyDaysSinceHigh =

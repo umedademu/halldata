@@ -1600,6 +1600,9 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "boom-tenjin-neo-aim",
       "ネオアイムジャグラーＥＸ": "boom-tenjin-neo-aim",
+      "マイジャグラーV": "boom-tenjin-my",
+      "マイジャグラーⅤ": "boom-tenjin-my",
+      "マイジャグラー": "boom-tenjin-my",
     },
   },
   {
@@ -2995,6 +2998,45 @@ function isWonderlandMinamigaokaMyStrongHighContentWindowRow(row) {
   );
 }
 
+function isBoomTenjinMySemiHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMyJugglerSettingProbabilities(row);
+  const p4plus = probabilities?.p4plus;
+  return (
+    games >= 3000 &&
+    ((Number.isFinite(p4plus) && p4plus >= 0.45) ||
+      (rbDenominator <= 320 && combinedDenominator <= 145))
+  );
+}
+
+function isBoomTenjinMyHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMyJugglerSettingProbabilities(row);
+  const p4plus = probabilities?.p4plus;
+  return (
+    games >= 4500 &&
+    ((Number.isFinite(p4plus) && p4plus >= 0.6) ||
+      (rbDenominator <= 300 && combinedDenominator <= 140))
+  );
+}
+
+function isBoomTenjinMyStrongHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMyJugglerSettingProbabilities(row);
+  const p5plus = probabilities?.p5plus;
+  return (
+    games >= 5500 &&
+    ((Number.isFinite(p5plus) && p5plus >= 0.45) ||
+      (rbDenominator <= 270 && combinedDenominator <= 130))
+  );
+}
+
 function isMachineHighContentWindowRow(row, machineName, config = null) {
   const normalizedMachineName = normalizeText(machineName);
   const games = readWindowField(row, "games");
@@ -3494,6 +3536,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("マイジャグラー")
   ) {
     const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "boom-tenjin-my") {
+      return isBoomTenjinMyHighContentWindowRow(row);
+    }
     if (contentRule === "wonderland-minamigaoka-my") {
       return isWonderlandMinamigaokaMyHighContentWindowRow(row);
     }
@@ -4141,6 +4186,14 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     }
     const rbCount = readWindowField(row, "rbCount");
     return games >= 3500 && rbCount >= 15 && rbDenominator <= 323 && combinedDenominator <= 140;
+  }
+  if (
+    (normalizedMachineName === normalizeText("マイジャグラーV") ||
+      normalizedMachineName === normalizeText("マイジャグラーⅤ") ||
+      normalizedMachineName === normalizeText("マイジャグラー")) &&
+    readMachineContentRule(config, machineName) === "boom-tenjin-my"
+  ) {
+    return isBoomTenjinMySemiHighContentWindowRow(row);
   }
   if (
     (normalizedMachineName === normalizeText("マイジャグラーV") ||
@@ -5184,6 +5237,14 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 2500 && settingFivePlusProbability >= 0.7;
     }
     return games >= 2500 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    (normalizedMachineName === normalizeText("マイジャグラーV") ||
+      normalizedMachineName === normalizeText("マイジャグラーⅤ") ||
+      normalizedMachineName === normalizeText("マイジャグラー")) &&
+    readMachineContentRule(config, machineName) === "boom-tenjin-my"
+  ) {
+    return isBoomTenjinMyStrongHighContentWindowRow(row);
   }
   if (
     (normalizedMachineName === normalizeText("マイジャグラーV") ||
