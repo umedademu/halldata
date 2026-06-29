@@ -13479,6 +13479,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "メッセ奥戸店_マイジャグラーV_深沈み返済ロジック_v1",
         "messe-okudo-my-red-angle",
       ),
+      buildLogicVariant(
+        "wonderland-minamigaoka-my",
+        "ワンダーランド南ヶ丘店_マイジャグラーV_急沈み前日RB良ロジック_v1",
+        "wonderland-minamigaoka-my-free-angle-prev-rb",
+      ),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
@@ -13937,6 +13942,60 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         },
         ["messe-okudo-my"],
       ),
+      buildCondition(
+        "wonderland-minamigaoka-my-wide-320-sink-high-games",
+        "広め1/320級_凹み高稼働",
+        "318台 / 193日 / 102.46% / RB1/317.01 / 平均+420.29枚",
+        {
+          requiredFlags: ["wonderlandMinamigaokaMyWideSinkHighGames"],
+        },
+        ["wonderland-minamigaoka-my"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-my-main-real-return",
+        "本命1/310級_本物感戻し",
+        "150台 / 122日 / 103.24% / RB1/308.29 / 平均+559.78枚",
+        {
+          requiredFlags: ["wonderlandMinamigaokaMyMainRealReturn"],
+        },
+        ["wonderland-minamigaoka-my"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-my-strong-real-return",
+        "強1/300級_本物感戻し強",
+        "101台 / 87日 / 102.96% / RB1/299.69 / 平均+516.97枚",
+        {
+          requiredFlags: ["wonderlandMinamigaokaMyStrongRealReturn"],
+        },
+        ["wonderland-minamigaoka-my"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-my-free-angle-prev-rb",
+        "自由度MAX優先_急沈み前日RB良",
+        "110台 / 90日 / 103.84% / RB1/301.69 / 平均+669.65枚",
+        {
+          requiredFlags: ["wonderlandMinamigaokaMyFreeAnglePrevRb"],
+        },
+        ["wonderland-minamigaoka-my"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-my-reference-unpaid-deep",
+        "参考1/290級_不発据え深沈み",
+        "48台 / 46日 / 101.63% / RB1/284.01 / 平均+291.67枚",
+        {
+          requiredFlags: ["wonderlandMinamigaokaMyReferenceUnpaidDeep"],
+        },
+        ["wonderland-minamigaoka-my"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-my-watch-treatment-done",
+        "危険_処遇完了型",
+        "1400台 / 304日 / 99.04% / RB1/379.40 / 平均-112.15枚 / 通常採用にはしない",
+        {
+          requiredFlags: ["wonderlandMinamigaokaMyTreatmentDonePattern"],
+        },
+        ["wonderland-minamigaoka-my"],
+      ),
     ],
   },
   {
@@ -14269,6 +14328,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "yasuda-hibarigaoka-neo-aim");
   } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-neo-aim");
+  } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "my") {
+    defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-my");
   } else if (isWonderlandSueStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "wonderland-sue-neo-aim");
   } else if (isSengawaUnoStore(storeName) && definition.machineKey === "neo-aim") {
@@ -15018,6 +15079,9 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   const previousMachineStrongHighContent = Boolean(metrics.previousMachineStrongHighContent);
   const previousMachineSettingFivePlusProbability = readNullableNumber(
     metrics.previousMachineSettingFivePlusProbability,
+  );
+  const previousMachineSettingFourPlusProbability = readNullableNumber(
+    metrics.previousMachineSettingFourPlusProbability,
   );
   const recentThreeMachineSettingFivePlusProbabilityAverage = readNullableNumber(
     metrics.recentThreeMachineSettingFivePlusProbabilityAverage,
@@ -24634,6 +24698,96 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
       };
     }
 
+    if (activeLogicKey === "wonderland-minamigaoka-my") {
+      const wonderlandMinamigaokaMyHistoryReady = historyRowCount >= 21;
+      const wonderlandMinamigaokaMyDaysSinceHigh = daysSinceMachineHighContent;
+      const wonderlandMinamigaokaMyHighInterval =
+        Number.isFinite(wonderlandMinamigaokaMyDaysSinceHigh) &&
+        wonderlandMinamigaokaMyDaysSinceHigh >= 8 &&
+        wonderlandMinamigaokaMyDaysSinceHigh <= 30;
+      const wonderlandMinamigaokaMyHighIntervalShort =
+        Number.isFinite(wonderlandMinamigaokaMyDaysSinceHigh) &&
+        wonderlandMinamigaokaMyDaysSinceHigh >= 5 &&
+        wonderlandMinamigaokaMyDaysSinceHigh <= 7;
+      const wonderlandMinamigaokaMyNoPriorHigh =
+        !Number.isFinite(wonderlandMinamigaokaMyDaysSinceHigh) && historyRowCount >= 28;
+      const wonderlandMinamigaokaMyPrevRbGood =
+        features.previousRbDenominator <= 300 && previousGames >= 4500;
+      const wonderlandMinamigaokaMyPrevReal =
+        features.previousRbDenominator <= 300 &&
+        features.previousCombinedDenominator <= 145 &&
+        previousGames >= 4500 &&
+        previousDifference <= 1500;
+      const boostFlags = [
+        recentSevenNetTotal <= -2000,
+        features.recentSevenAngle <= -65,
+        features.recentSevenCombinedDenominator >= 158,
+        wonderlandMinamigaokaMyHighInterval || wonderlandMinamigaokaMyNoPriorHigh,
+        recentSevenMachineGoodContentCount <= 1,
+        historyLosingStreak >= 2,
+        wonderlandMinamigaokaMyPrevReal,
+      ];
+      const dangerFlags = [
+        recentSevenNetTotal >= 2500,
+        recentFourteenNetTotal >= 3500,
+        features.recentSevenAngle >= 80,
+        features.recentSevenCombinedDenominator <= 144,
+        recentSevenMachineHighContentCount >= 3,
+        recentSevenMachineGoodContentCount >= 4,
+        winningStreak >= 2,
+        previousDifference >= 1800 &&
+          Number.isFinite(previousMachineSettingFourPlusProbability) &&
+          previousMachineSettingFourPlusProbability >= 0.55,
+        recentSevenGamesTotal < 15000,
+      ];
+      const boostCount = boostFlags.filter(Boolean).length;
+      const dangerCount = dangerFlags.filter(Boolean).length;
+      const wonderlandMinamigaokaMyTreatmentDonePattern =
+        wonderlandMinamigaokaMyHistoryReady &&
+        recentSevenNetTotal >= 2500 &&
+        features.recentSevenCombinedDenominator <= 144;
+
+      return {
+        ...features,
+        wonderlandMinamigaokaMyHistoryReady,
+        wonderlandMinamigaokaMyDaysSinceHigh,
+        wonderlandMinamigaokaMyHighInterval,
+        wonderlandMinamigaokaMyHighIntervalShort,
+        wonderlandMinamigaokaMyNoPriorHigh,
+        wonderlandMinamigaokaMyPrevRbGood,
+        wonderlandMinamigaokaMyPrevReal,
+        wonderlandMinamigaokaMyWideSinkHighGames:
+          wonderlandMinamigaokaMyHistoryReady &&
+          recentSevenNetTotal <= -2000 &&
+          previousGames >= 6500,
+        wonderlandMinamigaokaMyMainRealReturn:
+          wonderlandMinamigaokaMyHistoryReady &&
+          boostCount >= 3 &&
+          recentFourteenNetTotal <= -1500 &&
+          wonderlandMinamigaokaMyPrevRbGood,
+        wonderlandMinamigaokaMyStrongRealReturn:
+          wonderlandMinamigaokaMyHistoryReady &&
+          boostCount >= 4 &&
+          recentFourteenNetTotal <= -1500 &&
+          wonderlandMinamigaokaMyPrevRbGood,
+        wonderlandMinamigaokaMyFreeAnglePrevRb:
+          wonderlandMinamigaokaMyHistoryReady &&
+          features.recentSevenAngle <= -80 &&
+          recentTwentyOneNetTotal <= -1000 &&
+          wonderlandMinamigaokaMyPrevRbGood,
+        wonderlandMinamigaokaMyReferenceUnpaidDeep:
+          wonderlandMinamigaokaMyHistoryReady &&
+          features.recentSevenAngle <= -80 &&
+          recentFourteenNetTotal <= -1500 &&
+          wonderlandMinamigaokaMyPrevReal,
+        wonderlandMinamigaokaMyTreatmentDonePattern,
+        treatmentDone: wonderlandMinamigaokaMyTreatmentDonePattern || dangerCount >= 3,
+        lowConfidence: !wonderlandMinamigaokaMyHistoryReady,
+        boostCount,
+        dangerCount,
+      };
+    }
+
     if (
       activeLogicKey === "beam-hikari-my" ||
       activeLogicKey === "beam-hikari-my-normal" ||
@@ -25872,6 +26026,9 @@ function calculateMachineScore(definition, metrics, features) {
   const previousMachineStrongHighContent = Boolean(metrics.previousMachineStrongHighContent);
   const previousMachineSettingFivePlusProbability = readNullableNumber(
     metrics.previousMachineSettingFivePlusProbability,
+  );
+  const previousMachineSettingFourPlusProbability = readNullableNumber(
+    metrics.previousMachineSettingFourPlusProbability,
   );
   const recentThreeMachineSettingFivePlusProbabilityAverage = readNullableNumber(
     metrics.recentThreeMachineSettingFivePlusProbabilityAverage,
@@ -33115,6 +33272,63 @@ function calculateMachineScore(definition, metrics, features) {
       score -= recentFourteenNetTotal >= 3000 && recentFourteenMachineHighContentCount >= 4 ? 8 : 0;
       score -= recentTwentyOneNetTotal >= 8000 && recentTwentyOneMachineStrongHighContentCount >= 3 ? 6 : 0;
       score -= previousGames < 1000 ? 6 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === "wonderland-minamigaoka-my") {
+      const wonderlandMinamigaokaMyDaysSinceHigh = daysSinceMachineHighContent;
+      let score = 50;
+
+      score += recentSevenNetTotal <= -2000 ? 14 : 0;
+      score += recentSevenNetTotal <= -5000 ? 6 : 0;
+      score += recentFourteenNetTotal <= -2200 ? 8 : 0;
+      score += recentTwentyOneNetTotal <= -2400 ? 5 : 0;
+      score += features.recentSevenAngle <= -65 ? 8 : 0;
+      score += features.recentFourteenAngle <= -35 ? 5 : 0;
+      score += features.recentSevenCombinedDenominator >= 158 ? 9 : 0;
+      score += features.recentFourteenCombinedDenominator >= 154 ? 6 : 0;
+      score +=
+        Number.isFinite(wonderlandMinamigaokaMyDaysSinceHigh) &&
+        wonderlandMinamigaokaMyDaysSinceHigh >= 8 &&
+        wonderlandMinamigaokaMyDaysSinceHigh <= 30
+          ? 8
+          : 0;
+      score +=
+        Number.isFinite(wonderlandMinamigaokaMyDaysSinceHigh) &&
+        wonderlandMinamigaokaMyDaysSinceHigh >= 5 &&
+        wonderlandMinamigaokaMyDaysSinceHigh <= 7
+          ? 4
+          : 0;
+      score += !Number.isFinite(wonderlandMinamigaokaMyDaysSinceHigh) && historyRowCount >= 28 ? 4 : 0;
+      score += recentFourteenMachineHighContentCount <= 2 ? 4 : 0;
+      score += recentSevenMachineGoodContentCount <= 1 ? 5 : 0;
+      score += historyLosingStreak >= 2 ? 6 : 0;
+      score += historyLosingStreak >= 4 ? 4 : 0;
+      score += previousGames >= 6500 ? 4 : 0;
+      score += recentSevenGamesTotal >= 30000 ? 3 : 0;
+      score +=
+        features.previousRbDenominator <= 300 &&
+        features.previousCombinedDenominator <= 145 &&
+        previousGames >= 4500 &&
+        previousDifference <= 1500
+          ? 5
+          : 0;
+      score -= historyRowCount < 21 ? 30 : 0;
+      score -= recentSevenNetTotal >= 2500 ? 12 : 0;
+      score -= recentFourteenNetTotal >= 3500 ? 8 : 0;
+      score -= features.recentSevenAngle >= 80 ? 8 : 0;
+      score -= features.recentSevenCombinedDenominator <= 144 ? 7 : 0;
+      score -= recentSevenMachineHighContentCount >= 3 ? 7 : 0;
+      score -= recentSevenMachineGoodContentCount >= 4 ? 6 : 0;
+      score -= winningStreak >= 2 ? 5 : 0;
+      score -=
+        previousDifference >= 1800 &&
+        Number.isFinite(previousMachineSettingFourPlusProbability) &&
+        previousMachineSettingFourPlusProbability >= 0.55
+          ? 8
+          : 0;
+      score -= recentSevenGamesTotal < 15000 ? 8 : 0;
 
       return Math.round(clamp(score, 0, 100));
     }

@@ -1788,9 +1788,14 @@ const HUNT_SCORE_STORE_CONFIGS = [
     ],
     targetMachines: WONDERLAND_MINAMIGAOKA_TARGET_MACHINES,
     defaultLogicKey: "wonderland-minamigaoka-b",
+    resetHistoryGapDays: 14,
+    resetHistoryGapExcludedMachines: ["ネオアイムジャグラーEX", "ネオアイムジャグラーＥＸ"],
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "wonderland-minamigaoka-neo-aim",
       "ネオアイムジャグラーＥＸ": "wonderland-minamigaoka-neo-aim",
+      "マイジャグラーV": "wonderland-minamigaoka-my",
+      "マイジャグラーⅤ": "wonderland-minamigaoka-my",
+      "マイジャグラー": "wonderland-minamigaoka-my",
     },
   },
   {
@@ -2949,6 +2954,47 @@ function isChikushinoMyStrongHighContentWindowRow(row) {
   );
 }
 
+function isWonderlandMinamigaokaMySemiHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMyJugglerSettingProbabilities(row);
+  const p4plus = probabilities?.p4plus;
+  return (
+    games >= 3500 &&
+    ((Number.isFinite(p4plus) && p4plus >= 0.35) ||
+      (rbDenominator <= 330 && combinedDenominator <= 150))
+  );
+}
+
+function isWonderlandMinamigaokaMyHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMyJugglerSettingProbabilities(row);
+  const p4plus = probabilities?.p4plus;
+  const p5plus = probabilities?.p5plus;
+  return (
+    games >= 4500 &&
+    ((Number.isFinite(p4plus) && p4plus >= 0.55) ||
+      (rbDenominator <= 300 && combinedDenominator <= 140) ||
+      (Number.isFinite(p5plus) && p5plus >= 0.25 && combinedDenominator <= 145))
+  );
+}
+
+function isWonderlandMinamigaokaMyStrongHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMyJugglerSettingProbabilities(row);
+  const p5plus = probabilities?.p5plus;
+  return (
+    games >= 5000 &&
+    ((Number.isFinite(p5plus) && p5plus >= 0.45) ||
+      (rbDenominator <= 260 && combinedDenominator <= 130))
+  );
+}
+
 function isMachineHighContentWindowRow(row, machineName, config = null) {
   const normalizedMachineName = normalizeText(machineName);
   const games = readWindowField(row, "games");
@@ -3448,6 +3494,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("マイジャグラー")
   ) {
     const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "wonderland-minamigaoka-my") {
+      return isWonderlandMinamigaokaMyHighContentWindowRow(row);
+    }
     if (contentRule === "chikushino-my") {
       return isChikushinoMyHighContentWindowRow(row);
     }
@@ -4092,6 +4141,14 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     }
     const rbCount = readWindowField(row, "rbCount");
     return games >= 3500 && rbCount >= 15 && rbDenominator <= 323 && combinedDenominator <= 140;
+  }
+  if (
+    (normalizedMachineName === normalizeText("マイジャグラーV") ||
+      normalizedMachineName === normalizeText("マイジャグラーⅤ") ||
+      normalizedMachineName === normalizeText("マイジャグラー")) &&
+    readMachineContentRule(config, machineName) === "wonderland-minamigaoka-my"
+  ) {
+    return isWonderlandMinamigaokaMySemiHighContentWindowRow(row);
   }
   if (
     (normalizedMachineName === normalizeText("マイジャグラーV") ||
@@ -5127,6 +5184,14 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 2500 && settingFivePlusProbability >= 0.7;
     }
     return games >= 2500 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    (normalizedMachineName === normalizeText("マイジャグラーV") ||
+      normalizedMachineName === normalizeText("マイジャグラーⅤ") ||
+      normalizedMachineName === normalizeText("マイジャグラー")) &&
+    readMachineContentRule(config, machineName) === "wonderland-minamigaoka-my"
+  ) {
+    return isWonderlandMinamigaokaMyStrongHighContentWindowRow(row);
   }
   if (
     (normalizedMachineName === normalizeText("マイジャグラーV") ||
@@ -10715,6 +10780,17 @@ function calculateWindowMetrics(
     config,
     windowDays,
   );
+  const currentMachineNameNormalized = normalizeText(currentMachineName);
+  const previousMachineMyJugglerProbabilities =
+    currentMachineNameNormalized === normalizeText("マイジャグラーV") ||
+    currentMachineNameNormalized === normalizeText("マイジャグラーⅤ") ||
+    currentMachineNameNormalized === normalizeText("マイジャグラー")
+      ? calculateMyJugglerSettingProbabilities({
+          row,
+          differenceValue: readHuntScoreDifferenceValue(row, config.differenceMode, currentMachineName),
+        })
+      : null;
+  const previousMachineSettingFourPlusProbability = previousMachineMyJugglerProbabilities?.p4plus ?? null;
   const previousMachineSettingFivePlusProbability = calculateNeoAimSettingFivePlusProbability({
     row,
     differenceValue: readHuntScoreDifferenceValue(row, config.differenceMode, currentMachineName),
@@ -11529,6 +11605,7 @@ function calculateWindowMetrics(
     previousMachineGoodContent,
     previousMachineWeakContent,
     previousMachineStrongHighContent,
+    previousMachineSettingFourPlusProbability,
     previousMachineSettingFivePlusProbability,
     recentThreeMachineSettingFivePlusProbabilityAverage,
     recentFiveMachineSettingFivePlusProbabilityAverage,
