@@ -1,4 +1,18 @@
 const REGION_POINT_DEFINITIONS = [
+  {
+    prefectureName: "自宅",
+    areaName: "住所1",
+    optionLabel: "住所1（太宰府市朱雀）",
+    latitude: 33.505066,
+    longitude: 130.519638,
+  },
+  {
+    prefectureName: "自宅",
+    areaName: "住所2",
+    optionLabel: "住所2（葛飾区青戸）",
+    latitude: 35.752541,
+    longitude: 139.854187,
+  },
   { prefectureName: "福岡", areaName: "福岡市", latitude: 33.5902, longitude: 130.4017 },
   { prefectureName: "福岡", areaName: "福岡市中央区", latitude: 33.5892, longitude: 130.3928 },
   { prefectureName: "福岡", areaName: "天神", latitude: 33.5905, longitude: 130.3988 },
@@ -177,6 +191,7 @@ export function listKnownRegionOptions() {
   return REGION_POINTS.map((definition) => ({
     prefectureName: definition.prefectureName,
     areaName: definition.areaName,
+    label: definition.optionLabel ?? "",
   }));
 }
 

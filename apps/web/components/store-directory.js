@@ -46,6 +46,11 @@ function buildRegionKey(prefectureName, areaName) {
   ].join(REGION_KEY_SEPARATOR);
 }
 
+const PRESET_HOME_REGION_KEYS = [
+  buildRegionKey("自宅", "住所1"),
+  buildRegionKey("自宅", "住所2"),
+];
+
 function parseRegionKey(regionKey) {
   const [prefectureName = "", areaName = ""] = String(regionKey ?? "").split(REGION_KEY_SEPARATOR);
   return { prefectureName, areaName };
@@ -230,7 +235,7 @@ function buildHomeRegionOptions(stores) {
       key,
       prefectureName,
       areaName,
-      label: formatRegionLabel(prefectureName, areaName),
+      label: normalizeGroupName(option.label, formatRegionLabel(prefectureName, areaName)),
     });
   }
 
@@ -400,6 +405,10 @@ export function StoreDirectory({ completeStores, pendingStores }) {
     [homeRegionKey, otherFilteredStores],
   );
   const homeRegionOptions = useMemo(() => buildHomeRegionOptions(completeStores), [completeStores]);
+  const addableHomeRegionOptions = useMemo(
+    () => homeRegionOptions.filter((option) => !homeAddressRegionKeys.includes(option.key)),
+    [homeAddressRegionKeys, homeRegionOptions],
+  );
   const homeRegionOptionMap = useMemo(
     () => buildRegionOptionMap(homeRegionOptions),
     [homeRegionOptions],
@@ -438,9 +447,11 @@ export function StoreDirectory({ completeStores, pendingStores }) {
         MY_HALL_ORDER_SAVED,
       );
       const savedHomeRegionKey = normalizeRegionKey(readStoredText(HOME_REGION_STORAGE_KEY, ""));
+      const nextHomeRegionKey = savedHomeRegionKey || PRESET_HOME_REGION_KEYS[0];
       const savedAddressRegionKeys = normalizeRegionKeys([
+        ...PRESET_HOME_REGION_KEYS,
         ...readStoredRegionKeys(HOME_ADDRESS_REGIONS_STORAGE_KEY),
-        savedHomeRegionKey,
+        nextHomeRegionKey,
       ]);
       setRegionOrderMode(
         savedRegionOrderMode === REGION_ORDER_NEAR_HOME
@@ -452,8 +463,9 @@ export function StoreDirectory({ completeStores, pendingStores }) {
           ? MY_HALL_ORDER_NEAR_HOME
           : MY_HALL_ORDER_SAVED,
       );
-      setHomeRegionKey(savedHomeRegionKey);
+      setHomeRegionKey(nextHomeRegionKey);
       setHomeAddressRegionKeys(savedAddressRegionKeys);
+      saveStoredText(HOME_REGION_STORAGE_KEY, nextHomeRegionKey);
       saveStoredRegionKeys(HOME_ADDRESS_REGIONS_STORAGE_KEY, savedAddressRegionKeys);
     };
 
@@ -471,15 +483,15 @@ export function StoreDirectory({ completeStores, pendingStores }) {
   }, []);
 
   useEffect(() => {
-    if (homeAddressDraftKey || homeRegionOptions.length === 0) {
+    if (
+      homeAddressDraftKey &&
+      addableHomeRegionOptions.some((option) => option.key === homeAddressDraftKey)
+    ) {
       return;
     }
 
-    const dazaifuRegionKey = buildRegionKey("福岡県", "太宰府市");
-    setHomeAddressDraftKey(
-      homeRegionOptionMap.has(dazaifuRegionKey) ? dazaifuRegionKey : homeRegionOptions[0].key,
-    );
-  }, [homeAddressDraftKey, homeRegionOptionMap, homeRegionOptions]);
+    setHomeAddressDraftKey(addableHomeRegionOptions[0]?.key ?? "");
+  }, [addableHomeRegionOptions, homeAddressDraftKey]);
 
   const handleRegionOrderModeChange = (event) => {
     const nextMode =
@@ -530,6 +542,9 @@ export function StoreDirectory({ completeStores, pendingStores }) {
   const handleRemoveHomeAddress = (regionKey) => {
     const normalizedRegionKey = normalizeRegionKey(regionKey);
     if (!normalizedRegionKey) {
+      return;
+    }
+    if (PRESET_HOME_REGION_KEYS.includes(normalizedRegionKey)) {
       return;
     }
 
@@ -817,7 +832,7 @@ export function StoreDirectory({ completeStores, pendingStores }) {
                 onChange={handleRegionOrderModeChange}
               >
                 <option value={REGION_ORDER_NORMAL}>通常の地域順</option>
-                <option value={REGION_ORDER_NEAR_HOME}>自宅地域から近い順</option>
+                <option value={REGION_ORDER_NEAR_HOME}>選択住所から近い順</option>
               </select>
             </label>
             <label className="storeRegionControlField">
@@ -842,12 +857,17 @@ export function StoreDirectory({ completeStores, pendingStores }) {
                 className="storeRegionControlSelect"
                 value={homeAddressDraftKey}
                 onChange={handleHomeAddressDraftChange}
+                disabled={addableHomeRegionOptions.length === 0}
               >
-                {homeRegionOptions.map((option) => (
-                  <option key={option.key} value={option.key}>
-                    {option.label}
-                  </option>
-                ))}
+                {addableHomeRegionOptions.length > 0 ? (
+                  addableHomeRegionOptions.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">追加できる住所はありません</option>
+                )}
               </select>
             </label>
             <button
@@ -875,14 +895,16 @@ export function StoreDirectory({ completeStores, pendingStores }) {
                   <button type="button" onClick={() => setActiveHomeRegion(option.key)}>
                     {option.label}
                   </button>
-                  <button
-                    className="homeAddressRemoveButton"
-                    type="button"
-                    onClick={() => handleRemoveHomeAddress(option.key)}
-                    aria-label={`${option.label}を削除`}
-                  >
-                    削除
-                  </button>
+                  {PRESET_HOME_REGION_KEYS.includes(option.key) ? null : (
+                    <button
+                      className="homeAddressRemoveButton"
+                      type="button"
+                      onClick={() => handleRemoveHomeAddress(option.key)}
+                      aria-label={`${option.label}を削除`}
+                    >
+                      削除
+                    </button>
+                  )}
                 </span>
               ))
             ) : (
