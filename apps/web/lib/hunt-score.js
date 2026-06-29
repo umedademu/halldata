@@ -322,6 +322,10 @@ const MESSE_MINAMISENJU_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const MESSE_OKUDO_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const MESSE_NISHIKASAI_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
@@ -1037,6 +1041,31 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "messe-minamisenju-neo-aim",
       "ネオアイムジャグラーＥＸ": "messe-minamisenju-neo-aim",
+    },
+  },
+  {
+    key: "messe-okudo",
+    storeNames: ["メッセ奥戸店", "メッセ奥戸"],
+    targetMachines: MESSE_OKUDO_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    slotHistoryStartDates: [
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["350", "351"], startDate: "2025-09-16" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["352", "353"], startDate: "2025-09-22" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["354"], startDate: "2025-09-29" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["355"], startDate: "2025-10-06" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["356"], startDate: "2025-10-14" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["357", "358"], startDate: "2025-10-20" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["359"], startDate: "2025-11-10" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["360"], startDate: "2025-11-17" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["361"], startDate: "2025-11-25" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["362"], startDate: "2025-12-01" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["363"], startDate: "2025-12-08" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["364", "365"], startDate: "2025-12-15" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["366", "367"], startDate: "2025-12-22" },
+    ],
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "messe-okudo-neo-aim",
+      "ネオアイムジャグラーＥＸ": "messe-okudo-neo-aim",
     },
   },
   {
@@ -2819,6 +2848,15 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 150;
     }
+    if (contentRule === "messe-okudo-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        Number.isFinite(settingFivePlusProbability) &&
+        games >= 3000 &&
+        settingFivePlusProbability >= 0.5 &&
+        (rbDenominator <= 310 || combinedDenominator <= 138)
+      );
+    }
     if (contentRule === "messe-nishikasai-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       const rbCount = readWindowField(row, "rbCount");
@@ -3464,6 +3502,15 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
         return games >= 2500 && settingFivePlusProbability >= 0.35;
       }
       return games >= 2500 && rbDenominator <= 330 && combinedDenominator <= 150;
+    }
+    if (contentRule === "messe-okudo-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        Number.isFinite(settingFivePlusProbability) &&
+        games >= 2500 &&
+        settingFivePlusProbability >= 0.3 &&
+        (rbDenominator <= 350 || combinedDenominator <= 145)
+      );
     }
     if (contentRule === "messe-nishikasai-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -4325,6 +4372,19 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 3000 && settingFivePlusProbability >= 0.7;
     }
     return games >= 3000 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "messe-okudo-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    return (
+      Number.isFinite(settingFivePlusProbability) &&
+      games >= 4000 &&
+      settingFivePlusProbability >= 0.7 &&
+      rbDenominator <= 300 &&
+      combinedDenominator <= 140
+    );
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
