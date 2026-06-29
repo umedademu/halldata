@@ -13045,6 +13045,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildLogicVariant("beam-hikari-my", "マイジャグビームヒカリ式", "beam-hikari-main"),
       buildLogicVariant("beam-hikari-my-normal", "マイジャグビームヒカリ通常日式", "beam-hikari-normal-core"),
       buildLogicVariant("beam-hikari-my-event", "マイジャグビームヒカリイベント日式", "beam-hikari-event-rank1"),
+      buildLogicVariant(
+        "messe-okudo-my",
+        "メッセ奥戸店_マイジャグラーV_深沈み返済ロジック_v1",
+        "messe-okudo-my-red-angle",
+      ),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
@@ -13377,6 +13382,62 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         },
         ["beam-hikari-my-event"],
       ),
+      buildCondition(
+        "messe-okudo-my-blue-deep70",
+        "青_深沈み70",
+        "49台 / 46日 / 102.59% / RB1/311.8 / 平均+459.8枚",
+        {
+          minScore: 70,
+          requiredFlags: ["messeOkudoMyDeep70"],
+        },
+        ["messe-okudo-my"],
+      ),
+      buildCondition(
+        "messe-okudo-my-yellow-unpaid",
+        "黄_深沈み返済未完",
+        "41台 / 39日 / 103.64% / RB1/302.8 / 平均+647.6枚",
+        {
+          requiredFlags: ["messeOkudoMyYellowUnpaid"],
+        },
+        ["messe-okudo-my"],
+      ),
+      buildCondition(
+        "messe-okudo-my-green-boost6",
+        "緑_深沈み強化6",
+        "21台 / 21日 / 106.03% / RB1/297.7 / 平均+1199.9枚",
+        {
+          requiredFlags: ["messeOkudoMyGreenBoost6"],
+        },
+        ["messe-okudo-my"],
+      ),
+      buildCondition(
+        "messe-okudo-my-red-angle",
+        "赤_4連敗急角度",
+        "23台 / 22日 / 104.64% / RB1/288.7 / 平均+901.0枚",
+        {
+          requiredFlags: ["messeOkudoMyRedAngle"],
+        },
+        ["messe-okudo-my"],
+      ),
+      buildCondition(
+        "messe-okudo-my-purple-reference",
+        "紫参考_深沈み急角度RB弱",
+        "15台 / 104.18% / RB1/275.8 / 平均+832.5枚",
+        {
+          requiredFlags: ["messeOkudoMyPurpleReference"],
+        },
+        ["messe-okudo-my"],
+      ),
+      buildCondition(
+        "messe-okudo-my-watch-high-score-danger",
+        "見送り_高スコア危険",
+        "67台 / 58日 / 98.95% / RB1/373.4 / 平均-140.3枚",
+        {
+          minScore: 70,
+          requiredFlags: ["messeOkudoMyWatchHighScoreDanger"],
+        },
+        ["messe-okudo-my"],
+      ),
     ],
   },
   {
@@ -13631,6 +13692,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "messe-minamisenju-neo-aim");
   } else if (isMesseOkudoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "messe-okudo-neo-aim");
+  } else if (isMesseOkudoStore(storeName) && definition.machineKey === "my") {
+    defaultLogic = findLogicDefinition(definition, "messe-okudo-my");
   } else if (isMesseNishikasaiStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "messe-nishikasai-neo-aim");
   } else if (isFortuneOhanajayaStore(storeName) && definition.machineKey === "neo-aim") {
@@ -14342,6 +14405,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   const recentSevenMachineShowCount = readNumber(metrics.recentSevenMachineShowCount);
   const recentFourteenMachineHighContentCount = readNumber(metrics.recentFourteenMachineHighContentCount);
   const recentTwentyOneMachineHighContentCount = readNumber(metrics.recentTwentyOneMachineHighContentCount);
+  const recentTwentyEightMachineHighContentCount = readNumber(metrics.recentTwentyEightMachineHighContentCount);
   const recentSevenMachineStrongBonusCount = readNumber(metrics.recentSevenMachineStrongBonusCount);
   const recentFourteenMachineStrongHighContentCount = readNumber(metrics.recentFourteenMachineStrongHighContentCount);
   const recentTwentyOneMachineStrongHighContentCount = readNumber(metrics.recentTwentyOneMachineStrongHighContentCount);
@@ -23435,6 +23499,101 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   }
 
   if (machineKey === "my") {
+    if (activeLogicKey === "messe-okudo-my") {
+      const messeOkudoMyHistoryReady = historyRowCount >= 21;
+      const messeOkudoMyLossStreak = historyLosingStreak;
+      const messeOkudoMyRawDaysSinceHigh = metrics.daysSinceMachineHighContent;
+      const messeOkudoMyRawDaysSinceStrongHigh = metrics.daysSinceMachineStrongHighContent;
+      const messeOkudoMyDaysSinceHigh =
+        messeOkudoMyRawDaysSinceHigh === null ||
+        messeOkudoMyRawDaysSinceHigh === undefined ||
+        messeOkudoMyRawDaysSinceHigh === ""
+          ? messeOkudoMyHistoryReady
+            ? 999
+            : null
+          : Math.max(0, readNumber(messeOkudoMyRawDaysSinceHigh) - 1);
+      const messeOkudoMyDaysSinceStrongHigh =
+        messeOkudoMyRawDaysSinceStrongHigh === null ||
+        messeOkudoMyRawDaysSinceStrongHigh === undefined ||
+        messeOkudoMyRawDaysSinceStrongHigh === ""
+          ? messeOkudoMyHistoryReady
+            ? 999
+            : null
+          : Math.max(0, readNumber(messeOkudoMyRawDaysSinceStrongHigh) - 1);
+      const messeOkudoMyDeep21 = recentTwentyOneNetTotal <= -8000 && recentTwentyOneGamesTotal >= 70000;
+      const messeOkudoMyHighInterval =
+        Number.isFinite(messeOkudoMyDaysSinceHigh) &&
+        messeOkudoMyDaysSinceHigh >= 2 &&
+        messeOkudoMyDaysSinceHigh <= 20;
+      const messeOkudoMyStrongInterval =
+        Number.isFinite(messeOkudoMyDaysSinceStrongHigh) &&
+        messeOkudoMyDaysSinceStrongHigh >= 2 &&
+        messeOkudoMyDaysSinceStrongHigh <= 10;
+      const messeOkudoMyAngle7Strong = features.recentSevenAngle <= -120 && recentSevenGamesTotal >= 20000;
+      const boostFlags = [
+        messeOkudoMyLossStreak >= 4,
+        messeOkudoMyDeep21,
+        messeOkudoMyAngle7Strong,
+        messeOkudoMyHighInterval,
+        messeOkudoMyStrongInterval,
+        recentTwentyEightMachineStrongHighContentCount >= 1 &&
+          recentTwentyEightMachineStrongHighContentCount <= 4,
+        recentTwentyEightMachineHighContentCount >= 4 && recentTwentyEightMachineHighContentCount <= 10,
+        previousGames >= 3000,
+      ];
+      const dangerFlags = [
+        previousGames < 2000,
+        Number.isFinite(messeOkudoMyDaysSinceHigh) && messeOkudoMyDaysSinceHigh >= 35,
+        recentTwentyEightMachineHighContentCount > 10,
+        recentTwentyEightMachineStrongHighContentCount > 4,
+        previousDifference >= 2000 && features.previousCombinedDenominator <= 140,
+        recentFourteenNetTotal >= 3000 && recentFourteenMachineHighContentCount >= 4,
+        features.recentSevenRbDenominator > 450 && recentSevenGamesTotal >= 25000,
+      ];
+      const boostCount = boostFlags.filter(Boolean).length;
+      const dangerCount = dangerFlags.filter(Boolean).length;
+      const messeOkudoMyDangerZero = dangerCount === 0;
+      const messeOkudoMyHistoryAndSafe = messeOkudoMyHistoryReady && messeOkudoMyDangerZero;
+      const messeOkudoMyDeepSafe = messeOkudoMyHistoryAndSafe && messeOkudoMyDeep21;
+
+      return {
+        ...features,
+        messeOkudoMyHistoryReady,
+        messeOkudoMyLossStreak,
+        messeOkudoMyDaysSinceHigh,
+        messeOkudoMyDaysSinceStrongHigh,
+        messeOkudoMyDeep21,
+        messeOkudoMyHighInterval,
+        messeOkudoMyStrongInterval,
+        messeOkudoMyDangerZero,
+        messeOkudoMyDeep70: messeOkudoMyDeepSafe,
+        messeOkudoMyYellowUnpaid: messeOkudoMyDeepSafe && messeOkudoMyHighInterval,
+        messeOkudoMyGreenBoost6: messeOkudoMyDeepSafe && boostCount >= 6,
+        messeOkudoMyRedAngle:
+          messeOkudoMyHistoryAndSafe &&
+          messeOkudoMyLossStreak >= 4 &&
+          messeOkudoMyAngle7Strong &&
+          messeOkudoMyStrongInterval &&
+          previousGames >= 3000,
+        messeOkudoMyPurpleReference:
+          messeOkudoMyDeepSafe &&
+          recentSevenNetTotal <= -2500 &&
+          recentSevenGamesTotal >= 25000 &&
+          recentTwentyEightMachineHighContentCount >= 4 &&
+          recentTwentyEightMachineHighContentCount <= 10 &&
+          features.previousRbDenominator >= 350,
+        messeOkudoMyWatchHighScoreDanger:
+          messeOkudoMyHistoryReady &&
+          (recentTwentyEightMachineHighContentCount > 10 ||
+            previousGames < 2000 ||
+            (Number.isFinite(messeOkudoMyDaysSinceHigh) && messeOkudoMyDaysSinceHigh >= 35)),
+        treatmentDone: dangerCount > 0,
+        lowConfidence: historyRowCount < 21 || previousGames < 2000,
+        boostCount,
+        dangerCount,
+      };
+    }
+
     if (
       activeLogicKey === "beam-hikari-my" ||
       activeLogicKey === "beam-hikari-my-normal" ||
@@ -24639,6 +24798,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentTenMachineHighContentCount = readNumber(metrics.recentTenMachineHighContentCount);
   const recentFourteenMachineHighContentCount = readNumber(metrics.recentFourteenMachineHighContentCount);
   const recentTwentyOneMachineHighContentCount = readNumber(metrics.recentTwentyOneMachineHighContentCount);
+  const recentTwentyEightMachineHighContentCount = readNumber(metrics.recentTwentyEightMachineHighContentCount);
   const recentThirtyMachineHighContentCount = readNumber(metrics.recentThirtyMachineHighContentCount);
   const recentThirtyFiveMachineHighContentCount = readNumber(metrics.recentThirtyFiveMachineHighContentCount);
   const recentSevenMachineStrongBonusCount = readNumber(metrics.recentSevenMachineStrongBonusCount);
@@ -31763,6 +31923,133 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "my") {
+    if (activeLogicKey === "messe-okudo-my") {
+      const messeOkudoMyHistoryReady = historyRowCount >= 21;
+      const messeOkudoMyLossStreak = historyLosingStreak;
+      const messeOkudoMyRawDaysSinceHigh = metrics.daysSinceMachineHighContent;
+      const messeOkudoMyRawDaysSinceStrongHigh = metrics.daysSinceMachineStrongHighContent;
+      const messeOkudoMyDaysSinceHigh =
+        messeOkudoMyRawDaysSinceHigh === null ||
+        messeOkudoMyRawDaysSinceHigh === undefined ||
+        messeOkudoMyRawDaysSinceHigh === ""
+          ? messeOkudoMyHistoryReady
+            ? 999
+            : null
+          : Math.max(0, readNumber(messeOkudoMyRawDaysSinceHigh) - 1);
+      const messeOkudoMyDaysSinceStrongHigh =
+        messeOkudoMyRawDaysSinceStrongHigh === null ||
+        messeOkudoMyRawDaysSinceStrongHigh === undefined ||
+        messeOkudoMyRawDaysSinceStrongHigh === ""
+          ? messeOkudoMyHistoryReady
+            ? 999
+            : null
+          : Math.max(0, readNumber(messeOkudoMyRawDaysSinceStrongHigh) - 1);
+
+      let score = 40;
+      score += historyRowCount >= 56 ? 3 : 0;
+      score += previousGames >= 3000 ? 4 : 0;
+      score -= previousGames < 2000 ? 4 : 0;
+      score += recentSevenGamesTotal >= 30000 ? 3 : 0;
+      score -= recentSevenGamesTotal < 20000 ? 6 : 0;
+      score += recentFourteenGamesTotal >= 60000 ? 3 : 0;
+      score -= recentFourteenGamesTotal < 40000 ? 5 : 0;
+
+      if (messeOkudoMyLossStreak >= 5) {
+        score += 16;
+      } else if (messeOkudoMyLossStreak >= 4) {
+        score += 13;
+      } else if (messeOkudoMyLossStreak >= 3) {
+        score += 9;
+      } else if (messeOkudoMyLossStreak === 2) {
+        score += 3;
+      }
+
+      if (recentTwentyOneNetTotal <= -8000 && recentTwentyOneGamesTotal >= 70000) {
+        score += 18;
+      } else if (recentTwentyOneNetTotal <= -5000 && recentTwentyOneGamesTotal >= 65000) {
+        score += 10;
+      } else if (recentTwentyOneNetTotal <= -3000 && recentTwentyOneGamesTotal >= 60000) {
+        score += 5;
+      }
+
+      if (recentFourteenNetTotal <= -4000 && recentFourteenGamesTotal >= 50000) {
+        score += 8;
+      } else if (recentFourteenNetTotal <= -2500 && recentFourteenGamesTotal >= 50000) {
+        score += 4;
+      }
+
+      if (recentSevenNetTotal <= -2500 && recentSevenGamesTotal >= 25000) {
+        score += 7;
+      } else if (recentSevenNetTotal <= -1500 && recentSevenGamesTotal >= 25000) {
+        score += 3;
+      }
+
+      if (features.recentSevenAngle <= -120 && recentSevenGamesTotal >= 20000) {
+        score += 10;
+      } else if (features.recentSevenAngle <= -80 && recentSevenGamesTotal >= 20000) {
+        score += 5;
+      }
+      if (features.recentFourteenAngle <= -60 && recentFourteenGamesTotal >= 50000) {
+        score += 6;
+      } else if (features.recentFourteenAngle <= -30 && recentFourteenGamesTotal >= 50000) {
+        score += 3;
+      }
+
+      if (Number.isFinite(messeOkudoMyDaysSinceHigh)) {
+        if (messeOkudoMyDaysSinceHigh >= 2 && messeOkudoMyDaysSinceHigh <= 5) {
+          score += 8;
+        } else if (messeOkudoMyDaysSinceHigh >= 10 && messeOkudoMyDaysSinceHigh <= 20) {
+          score += 7;
+        } else if (messeOkudoMyDaysSinceHigh >= 6 && messeOkudoMyDaysSinceHigh <= 9) {
+          score += 4;
+        } else if (messeOkudoMyDaysSinceHigh === 0) {
+          score -= 5;
+        } else if (messeOkudoMyDaysSinceHigh === 1) {
+          score -= 3;
+        } else if (messeOkudoMyDaysSinceHigh >= 35) {
+          score -= 8;
+        }
+      }
+
+      if (Number.isFinite(messeOkudoMyDaysSinceStrongHigh)) {
+        if (messeOkudoMyDaysSinceStrongHigh >= 2 && messeOkudoMyDaysSinceStrongHigh <= 10) {
+          score += 5;
+        } else if (messeOkudoMyDaysSinceStrongHigh === 0) {
+          score -= 3;
+        } else if (messeOkudoMyDaysSinceStrongHigh >= 40) {
+          score -= 4;
+        }
+      }
+
+      if (
+        recentTwentyEightMachineStrongHighContentCount >= 1 &&
+        recentTwentyEightMachineStrongHighContentCount <= 4
+      ) {
+        score += 6;
+      } else if (recentTwentyEightMachineStrongHighContentCount === 0) {
+        score -= 3;
+      } else if (recentTwentyEightMachineStrongHighContentCount > 4) {
+        score -= 5;
+      }
+
+      if (recentTwentyEightMachineHighContentCount >= 4 && recentTwentyEightMachineHighContentCount <= 10) {
+        score += 4;
+      } else if (recentTwentyEightMachineHighContentCount > 10) {
+        score -= 8;
+      } else if (recentTwentyEightMachineHighContentCount <= 2) {
+        score -= 2;
+      }
+
+      score += features.previousRbDenominator >= 350 ? 3 : 0;
+      score += features.previousCombinedDenominator >= 170 ? 2 : 0;
+      score -= previousDifference >= 2000 && features.previousCombinedDenominator <= 140 ? 8 : 0;
+      score -= recentFourteenNetTotal >= 3000 && recentFourteenMachineHighContentCount >= 4 ? 8 : 0;
+      score -= recentTwentyOneNetTotal >= 8000 && recentTwentyOneMachineStrongHighContentCount >= 3 ? 6 : 0;
+      score -= previousGames < 1000 ? 6 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (
       activeLogicKey === "beam-hikari-my" ||
       activeLogicKey === "beam-hikari-my-normal" ||

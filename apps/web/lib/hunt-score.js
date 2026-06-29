@@ -324,6 +324,7 @@ const MESSE_MINAMISENJU_TARGET_MACHINES = [
 
 const MESSE_OKUDO_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
 ];
 
 const MESSE_NISHIKASAI_TARGET_MACHINES = [
@@ -1066,6 +1067,8 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "messe-okudo-neo-aim",
       "ネオアイムジャグラーＥＸ": "messe-okudo-neo-aim",
+      "マイジャグラーV": "messe-okudo-my",
+      "マイジャグラーⅤ": "messe-okudo-my",
     },
   },
   {
@@ -2616,6 +2619,15 @@ const NEO_AIM_BONUS_SETTING_RATES = [
   { setting: 6, bb: 1 / 255.0, rb: 1 / 255.0 },
 ];
 const NEO_AIM_SETTING_FIVE_PLUS_PROBABILITY_CACHE = new WeakMap();
+const MY_JUGGLER_BONUS_SETTING_RATES = [
+  { setting: 1, bb: 1 / 273.1, rb: 1 / 409.6 },
+  { setting: 2, bb: 1 / 270.8, rb: 1 / 385.5 },
+  { setting: 3, bb: 1 / 266.4, rb: 1 / 336.1 },
+  { setting: 4, bb: 1 / 254.0, rb: 1 / 290.0 },
+  { setting: 5, bb: 1 / 240.1, rb: 1 / 268.6 },
+  { setting: 6, bb: 1 / 229.1, rb: 1 / 229.1 },
+];
+const MY_JUGGLER_SETTING_PROBABILITY_CACHE = new WeakMap();
 
 function calculateLogBinomialProbabilityForHuntScore(successCount, totalCount, probability) {
   if (
@@ -2716,6 +2728,97 @@ function calculateNeoAimSettingFivePlusProbabilityAverage(rows) {
     return null;
   }
   return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
+function calculateMyJugglerSettingProbabilities(row) {
+  const cacheKey = row?.row && typeof row.row === "object" ? row.row : row;
+  if (cacheKey && typeof cacheKey === "object" && MY_JUGGLER_SETTING_PROBABILITY_CACHE.has(cacheKey)) {
+    return MY_JUGGLER_SETTING_PROBABILITY_CACHE.get(cacheKey);
+  }
+  const games = Math.round(readWindowField(row, "games"));
+  const bbCount = Math.round(readWindowField(row, "bbCount"));
+  const rbCount = Math.round(readWindowField(row, "rbCount"));
+
+  const cacheAndReturn = (value) => {
+    if (cacheKey && typeof cacheKey === "object") {
+      MY_JUGGLER_SETTING_PROBABILITY_CACHE.set(cacheKey, value);
+    }
+    return value;
+  };
+
+  if (
+    !Number.isInteger(games) ||
+    !Number.isInteger(bbCount) ||
+    !Number.isInteger(rbCount) ||
+    games < 0 ||
+    bbCount < 0 ||
+    rbCount < 0 ||
+    bbCount > games ||
+    rbCount > games
+  ) {
+    return cacheAndReturn(null);
+  }
+  if (games === 0) {
+    return cacheAndReturn({ p4plus: 3 / MY_JUGGLER_BONUS_SETTING_RATES.length, p5plus: 2 / MY_JUGGLER_BONUS_SETTING_RATES.length });
+  }
+
+  const logRows = MY_JUGGLER_BONUS_SETTING_RATES.map((rate) => ({
+    setting: rate.setting,
+    logValue:
+      calculateLogBinomialProbabilityForHuntScore(bbCount, games, rate.bb) +
+      calculateLogBinomialProbabilityForHuntScore(rbCount, games, rate.rb),
+  }));
+  const maxLogValue = Math.max(...logRows.map((rowValue) => rowValue.logValue));
+  if (!Number.isFinite(maxLogValue)) {
+    return cacheAndReturn(null);
+  }
+
+  const weightedRows = logRows.map((rowValue) => ({
+    ...rowValue,
+    weight: Math.exp(rowValue.logValue - maxLogValue),
+  }));
+  const totalWeight = weightedRows.reduce((total, rowValue) => total + rowValue.weight, 0);
+  if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
+    return cacheAndReturn(null);
+  }
+
+  return cacheAndReturn({
+    p4plus:
+      weightedRows
+        .filter((rowValue) => rowValue.setting >= 4)
+        .reduce((total, rowValue) => total + rowValue.weight, 0) / totalWeight,
+    p5plus:
+      weightedRows
+        .filter((rowValue) => rowValue.setting >= 5)
+        .reduce((total, rowValue) => total + rowValue.weight, 0) / totalWeight,
+  });
+}
+
+function isMesseOkudoMyHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMyJugglerSettingProbabilities(row);
+  const p4plus = probabilities?.p4plus;
+  return (
+    (games >= 5000 && rbDenominator <= 310 && combinedDenominator <= 145 && Number.isFinite(p4plus) && p4plus >= 0.45) ||
+    (games >= 4500 && rbDenominator <= 280 && combinedDenominator <= 150 && Number.isFinite(p4plus) && p4plus >= 0.5)
+  );
+}
+
+function isMesseOkudoMyStrongHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMyJugglerSettingProbabilities(row);
+  const p5plus = probabilities?.p5plus;
+  return (
+    games >= 5000 &&
+    rbDenominator <= 280 &&
+    combinedDenominator <= 135 &&
+    Number.isFinite(p5plus) &&
+    p5plus >= 0.25
+  );
 }
 
 function isMachineHighContentWindowRow(row, machineName, config = null) {
@@ -3212,6 +3315,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("マイジャグラー")
   ) {
     const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "messe-okudo-my") {
+      return isMesseOkudoMyHighContentWindowRow(row);
+    }
     if (contentRule === "apark-yakatabaru-my") {
       return (
         games >= 5000 &&
@@ -4791,6 +4897,14 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 2500 && settingFivePlusProbability >= 0.7;
     }
     return games >= 2500 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    (normalizedMachineName === normalizeText("マイジャグラーV") ||
+      normalizedMachineName === normalizeText("マイジャグラーⅤ") ||
+      normalizedMachineName === normalizeText("マイジャグラー")) &&
+    readMachineContentRule(config, machineName) === "messe-okudo-my"
+  ) {
+    return isMesseOkudoMyStrongHighContentWindowRow(row);
   }
   if (
     (normalizedMachineName === normalizeText("ファンキージャグラー２ＫＴ") ||
@@ -10493,6 +10607,9 @@ function calculateWindowMetrics(
   const recentTwentyOneMachineHighContentCount = historyWindowRows
     .slice(-21)
     .filter(isHistoryMachineHighContentWindowRow).length;
+  const recentTwentyEightMachineHighContentCount = recentTwentyEightRows.filter(
+    isHistoryMachineHighContentWindowRow,
+  ).length;
   const recentThirtyMachineHighContentCount = historyWindowRows
     .slice(-30)
     .filter(isHistoryMachineHighContentWindowRow).length;
@@ -11074,6 +11191,7 @@ function calculateWindowMetrics(
     recentTenMachineHighContentCount,
     recentFourteenMachineHighContentCount,
     recentTwentyOneMachineHighContentCount,
+    recentTwentyEightMachineHighContentCount,
     recentThirtyMachineHighContentCount,
     recentThirtyFiveMachineHighContentCount,
     recentTwentyEightRbLightCount,
