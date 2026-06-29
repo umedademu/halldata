@@ -1,3 +1,5 @@
+import { STORE_ADDRESS_POINT_DEFINITIONS } from "./store-address-points";
+
 const REGION_POINT_DEFINITIONS = [
   {
     prefectureName: "自宅",
@@ -173,6 +175,14 @@ export function normalizeRegionArea(value) {
   return normalizeLocationText(value);
 }
 
+function buildStoreAddressPointKey(storeName, prefectureName, areaName) {
+  return [
+    normalizeLocationText(storeName),
+    normalizeRegionPrefecture(prefectureName),
+    normalizeRegionArea(areaName),
+  ].join("||");
+}
+
 function normalizePointDefinition(definition) {
   return {
     ...definition,
@@ -186,6 +196,26 @@ const PREFECTURE_POINTS = PREFECTURE_POINT_DEFINITIONS.map((definition) => ({
   ...definition,
   normalizedPrefectureName: normalizeRegionPrefecture(definition.prefectureName),
 }));
+const STORE_ADDRESS_POINTS = new Map(
+  STORE_ADDRESS_POINT_DEFINITIONS.map((definition) => [
+    buildStoreAddressPointKey(definition.storeName, definition.prefectureName, definition.areaName),
+    definition,
+  ]),
+);
+const STORE_ADDRESS_POINT_NAME_COUNTS = STORE_ADDRESS_POINT_DEFINITIONS.reduce(
+  (counts, definition) => {
+    const storeName = normalizeLocationText(definition.storeName);
+    counts.set(storeName, (counts.get(storeName) ?? 0) + 1);
+    return counts;
+  },
+  new Map(),
+);
+const UNIQUE_STORE_ADDRESS_POINTS_BY_NAME = new Map(
+  STORE_ADDRESS_POINT_DEFINITIONS.filter(
+    (definition) =>
+      STORE_ADDRESS_POINT_NAME_COUNTS.get(normalizeLocationText(definition.storeName)) === 1,
+  ).map((definition) => [normalizeLocationText(definition.storeName), definition]),
+);
 
 export function listKnownRegionOptions() {
   return REGION_POINTS.map((definition) => ({
@@ -197,6 +227,9 @@ export function listKnownRegionOptions() {
 
 function pointFromDefinition(definition) {
   if (!definition) {
+    return null;
+  }
+  if (!Number.isFinite(definition.latitude) || !Number.isFinite(definition.longitude)) {
     return null;
   }
   return {
@@ -255,6 +288,24 @@ export function readRegionPoint(prefectureName, areaName) {
     findAreaPoint(normalizedPrefectureName, normalizedAreaName) ??
     findPrefecturePoint(normalizedPrefectureName)
   );
+}
+
+export function readStorePoint(store) {
+  const storePoint = pointFromDefinition(
+    STORE_ADDRESS_POINTS.get(
+      buildStoreAddressPointKey(store?.storeName, store?.prefectureName, store?.areaName),
+    ),
+  );
+  if (storePoint) {
+    return storePoint;
+  }
+  const uniqueStorePoint = pointFromDefinition(
+    UNIQUE_STORE_ADDRESS_POINTS_BY_NAME.get(normalizeLocationText(store?.storeName)),
+  );
+  if (uniqueStorePoint) {
+    return uniqueStorePoint;
+  }
+  return readRegionPoint(store?.prefectureName, store?.areaName);
 }
 
 function toRadians(value) {

@@ -18,6 +18,7 @@ import {
   calculateRegionDistanceKm,
   listKnownRegionOptions,
   readRegionPoint,
+  readStorePoint,
 } from "../lib/store-region-distance";
 
 const REGION_ORDER_MODE_STORAGE_KEY = "halldata-store-region-order-mode";
@@ -172,7 +173,10 @@ function buildStoreRegions(stores) {
         stores: [],
       });
     }
-    regionMap.get(regionKey).stores.push(store);
+    regionMap.get(regionKey).stores.push({
+      ...store,
+      point: readStorePoint(store),
+    });
   }
 
   return [...regionMap.values()]
@@ -209,10 +213,34 @@ function buildNearbyStoreRegions(stores, homeRegionKey) {
   const homePoint = readRegionPoint(homeRegion.prefectureName, homeRegion.areaName);
 
   return buildStoreRegions(stores)
-    .map((region) => ({
-      ...region,
-      distanceKm: calculateRegionDistanceKm(homePoint, region.point),
-    }))
+    .map((region) => {
+      const nearbyStores = region.stores
+        .map((store) => ({
+          ...store,
+          distanceKm: calculateRegionDistanceKm(homePoint, store.point ?? region.point),
+        }))
+        .sort((left, right) => {
+          const leftDistance =
+            typeof left.distanceKm === "number" ? left.distanceKm : Number.POSITIVE_INFINITY;
+          const rightDistance =
+            typeof right.distanceKm === "number" ? right.distanceKm : Number.POSITIVE_INFINITY;
+          if (leftDistance !== rightDistance) {
+            return leftDistance - rightDistance;
+          }
+          return left.storeName.localeCompare(right.storeName, "ja");
+        });
+      const nearestDistance = nearbyStores.find(
+        (store) => typeof store.distanceKm === "number",
+      )?.distanceKm;
+      return {
+        ...region,
+        stores: nearbyStores,
+        distanceKm:
+          typeof nearestDistance === "number"
+            ? nearestDistance
+            : calculateRegionDistanceKm(homePoint, region.point),
+      };
+    })
     .sort((left, right) => {
       const leftDistance = typeof left.distanceKm === "number" ? left.distanceKm : Number.POSITIVE_INFINITY;
       const rightDistance =
@@ -285,8 +313,10 @@ function RegionSummaryTitle({ label, distanceKm = null }) {
   );
 }
 
-function formatNearbyStoreMeta(region) {
-  return [region.label, formatDistance(region.distanceKm)].filter(Boolean).join(" ・ ");
+function formatNearbyStoreMeta(region, store) {
+  return [region.label, formatDistance(store?.distanceKm ?? region.distanceKm)]
+    .filter(Boolean)
+    .join(" ・ ");
 }
 
 function StoreListItem({
@@ -370,7 +400,7 @@ export function StoreDirectory({ completeStores, pendingStores }) {
       myHallNearbyRegions.flatMap((region) =>
         region.stores.map((store) => ({
           store,
-          metaText: formatNearbyStoreMeta(region),
+          metaText: formatNearbyStoreMeta(region, store),
         })),
       ),
     [myHallNearbyRegions],
@@ -961,6 +991,7 @@ export function StoreDirectory({ completeStores, pendingStores }) {
                           store={store}
                           isFavorite={myHallStoreIdSet.has(normalizeStoreId(store.id))}
                           onToggle={handleToggleMyHall}
+                          metaText={formatDistance(store.distanceKm)}
                         />
                       </li>
                     ))}
