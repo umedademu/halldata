@@ -2524,6 +2524,13 @@ function isOkidokiGoldMachineName(machineName) {
   );
 }
 
+function isOkidokiGorgeous30MachineName(machineName) {
+  const normalizedMachineName = normalizeText(machineName);
+  return ["沖ドキ!ゴージャス 30Φ", "沖ドキ！ゴージャス 30Φ"].some(
+    (candidateName) => normalizedMachineName === normalizeText(candidateName),
+  );
+}
+
 function isHououMachineName(machineName) {
   const normalizedMachineName = normalizeText(machineName);
   return [
@@ -3536,6 +3543,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
   if (isOkidokiGoldMachineName(machineName)) {
     return games >= 4053 && combinedDenominator <= 152.4 && rbDenominator <= 566.8;
   }
+  if (isOkidokiGorgeous30MachineName(machineName)) {
+    return games >= 2000 && (differenceValue >= 2000 || (differenceValue >= 500 && combinedDenominator <= 145));
+  }
   if (isOkidokiBlackMachineName(machineName)) {
     return games >= 4181 && combinedDenominator <= 142.4 && (rbDenominator <= 367.8 || differenceValue >= 1032);
   }
@@ -4017,6 +4027,9 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     if (readMachineContentRule(config, machineName) === "beam-hikari-happy-content") {
       return games >= 3500 && combinedDenominator <= 145 && rbDenominator <= 310;
     }
+  }
+  if (isOkidokiGorgeous30MachineName(machineName)) {
+    return games >= 1500 && differenceValue >= 1000;
   }
 
   return isMachineHighContentWindowRow(row, machineName, config);
@@ -5027,6 +5040,9 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   }
   if (isOkidokiGoldMachineName(machineName)) {
     return games >= 4299 && combinedDenominator <= 140.8 && rbDenominator <= 465.7;
+  }
+  if (isOkidokiGorgeous30MachineName(machineName)) {
+    return games >= 3000 && differenceValue >= 3000 && combinedDenominator <= 140;
   }
   if (isOkidokiBlackMachineName(machineName)) {
     return games >= 4698 && combinedDenominator <= 129.6 && (rbDenominator <= 334.6 || differenceValue >= 1297);

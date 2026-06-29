@@ -4143,6 +4143,84 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     ],
   },
   {
+    machineKey: "okidoki-gorgeous30",
+    machineNames: ["沖ドキ!ゴージャス 30Φ", "沖ドキ！ゴージャス 30Φ"],
+    logicKey: "beam-hikari-okidoki-gorgeous30",
+    logicName: "ビームヒカリ_沖ドキゴージャス30_全日共通_v1",
+    profile: "okidoki",
+    defaultConditionSuffix: "beam-hikari-free-max-or",
+    conditions: [
+      buildCondition(
+        "beam-hikari-score70-reference",
+        "参考：70点以上",
+        "参考表示 / 238日 / 385台 / 総G1,377,935 / BB6031 / RB3658 / BB1/228.5 / RB1/376.7 / 合算1/142.2 / 平均+254.8枚 / 機械割102.37% / 勝率48.1%",
+        {
+          minScore: 70,
+          requiredFlags: ["beamHikariOkidokiGorgeous30HistoryReady"],
+        },
+        ["beam-hikari-okidoki-gorgeous30"],
+      ),
+      buildCondition(
+        "beam-hikari-score75-reference",
+        "参考：75点以上",
+        "参考表示 / 179日 / 249台 / 総G854,800 / BB3829 / RB2303 / BB1/223.2 / RB1/371.2 / 合算1/139.4 / 平均+373.6枚 / 機械割103.63% / 勝率47.4%",
+        {
+          minScore: 75,
+          requiredFlags: ["beamHikariOkidokiGorgeous30HistoryReady"],
+        },
+        ["beam-hikari-okidoki-gorgeous30"],
+      ),
+      buildCondition(
+        "beam-hikari-score81-reference",
+        "参考：81点以上",
+        "参考表示 / 126日 / 146台 / 総G502,836 / BB2284 / RB1323 / BB1/220.2 / RB1/380.1 / 合算1/139.4 / 平均+424.0枚 / 機械割104.10% / 勝率51.4%",
+        {
+          minScore: 81,
+          requiredFlags: ["beamHikariOkidokiGorgeous30HistoryReady"],
+        },
+        ["beam-hikari-okidoki-gorgeous30"],
+      ),
+      buildCondition(
+        "beam-hikari-score85",
+        "85点以上",
+        "84日 / 92台 / 総G329,110 / BB1530 / RB882 / BB1/215.1 / RB1/373.1 / 合算1/136.4 / 平均+584.1枚 / 機械割105.44% / 勝率52.2%",
+        {
+          minScore: 85,
+          requiredFlags: ["beamHikariOkidokiGorgeous30HistoryReady"],
+        },
+        ["beam-hikari-okidoki-gorgeous30"],
+      ),
+      buildCondition(
+        "beam-hikari-score90",
+        "90点以上",
+        "45日 / 46台 / 総G179,076 / BB856 / RB509 / BB1/209.2 / RB1/351.8 / 合算1/131.2 / 平均+765.6枚 / 機械割106.56% / 勝率45.7%",
+        {
+          minScore: 90,
+          requiredFlags: ["beamHikariOkidokiGorgeous30HistoryReady"],
+        },
+        ["beam-hikari-okidoki-gorgeous30"],
+      ),
+      buildCondition(
+        "beam-hikari-free-max-or",
+        "自由MAX本命OR",
+        "143日 / 204台 / 総G632,497 / BB3130 / RB1784 / BB1/202.1 / RB1/354.5 / 合算1/128.7 / 平均+825.1枚 / 機械割108.87% / 勝率56.4%",
+        {
+          requiredFlags: ["beamHikariOkidokiGorgeous30HistoryReady", "beamHikariOkidokiGorgeous30FreeMaxOr"],
+        },
+        ["beam-hikari-okidoki-gorgeous30"],
+      ),
+      buildCondition(
+        "beam-hikari-treatment-watch",
+        "見送り：処遇完了",
+        "見送り / 44日 / 49台 / 総G137,430 / BB525 / RB347 / BB1/261.8 / RB1/396.1 / 合算1/157.6 / 平均-369.9枚 / 機械割95.60% / 勝率30.6%",
+        {
+          requiredFlags: ["beamHikariOkidokiGorgeous30HistoryReady", "beamHikariOkidokiGorgeous30TreatmentWatch"],
+        },
+        ["beam-hikari-okidoki-gorgeous30"],
+      ),
+    ],
+  },
+  {
     machineKey: "monkey",
     machineNames: ["スマスロモンキーターンV", "スマスロ モンキーターンV", "スマスロモンキーターンⅤ"],
     logicKey: "apark-monkey",
@@ -13905,6 +13983,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "slot-marumitsu-ohashi-neo-aim");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-neo-aim");
+  } else if (isBeamHikariStore(storeName) && definition.machineKey === "okidoki-gorgeous30") {
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-okidoki-gorgeous30");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-funky");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "gogo") {
@@ -23516,6 +23596,76 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
       monkeyRealContentBoost,
       treatmentDone,
       lowConfidence,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
+
+  if (machineKey === "okidoki-gorgeous30") {
+    const beamHikariOkidokiGorgeous30HistoryReady = historyRowCount >= 21;
+    const beamHikariOkidokiGorgeous30DaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+      ? Math.max(0, daysSinceMachineHighContent - 1)
+      : 999;
+    const beamHikariOkidokiGorgeous30FreeA =
+      recentThreeGamesTotal >= 17000 && features.recentThreeCombinedDenominator <= 140;
+    const beamHikariOkidokiGorgeous30FreeB =
+      recentThreeNetTotal <= -3000 && recentFourteenGamesTotal >= 45000 && winningStreak >= 1;
+    const beamHikariOkidokiGorgeous30FreeC =
+      recentTwoNetTotal <= -4000 &&
+      features.recentFourteenCombinedDenominator <= 160 &&
+      recentFourteenMachineHighContentCount <= 2;
+    const beamHikariOkidokiGorgeous30FreeD =
+      recentTwentyEightNetTotal <= -20000 &&
+      recentThreeGamesTotal >= 9000 &&
+      features.recentSevenCombinedDenominator >= 200;
+    const beamHikariOkidokiGorgeous30FreeE =
+      previousDifference <= -1000 && historyLosingStreak >= 4 && recentTwentyOneMachineHighContentCount <= 2;
+    const beamHikariOkidokiGorgeous30FreeF =
+      previousGames >= 4500 &&
+      features.recentFourteenAngle <= -150 &&
+      features.recentThreeCombinedDenominator <= 150;
+    const beamHikariOkidokiGorgeous30FreeMaxOr =
+      beamHikariOkidokiGorgeous30FreeA ||
+      beamHikariOkidokiGorgeous30FreeB ||
+      beamHikariOkidokiGorgeous30FreeC ||
+      beamHikariOkidokiGorgeous30FreeD ||
+      beamHikariOkidokiGorgeous30FreeE ||
+      beamHikariOkidokiGorgeous30FreeF;
+    const beamHikariOkidokiGorgeous30TreatmentWatch = recentThreeNetTotal >= 6000 && winningStreak >= 2;
+    const dangerFlags = [
+      recentThreeGamesTotal < 4000,
+      recentThreeNetTotal >= 6000,
+      recentSevenNetTotal >= 10000,
+      winningStreak >= 3 && recentThreeNetTotal > 2000,
+      recentSevenMachineHighContentCount >= 4 && recentThreeNetTotal > 0,
+    ];
+    const boostFlags = [
+      beamHikariOkidokiGorgeous30FreeA,
+      beamHikariOkidokiGorgeous30FreeB,
+      beamHikariOkidokiGorgeous30FreeC,
+      beamHikariOkidokiGorgeous30FreeD,
+      beamHikariOkidokiGorgeous30FreeE,
+      beamHikariOkidokiGorgeous30FreeF,
+      recentThreeNetTotal <= -3000,
+      recentFourteenNetTotal <= -8000,
+      recentThreeGamesTotal >= 9000,
+      features.recentThreeCombinedDenominator <= 160,
+    ];
+
+    return {
+      ...features,
+      beamHikariOkidokiGorgeous30HistoryReady,
+      beamHikariOkidokiGorgeous30DaysSinceHigh,
+      beamHikariOkidokiGorgeous30FreeA,
+      beamHikariOkidokiGorgeous30FreeB,
+      beamHikariOkidokiGorgeous30FreeC,
+      beamHikariOkidokiGorgeous30FreeD,
+      beamHikariOkidokiGorgeous30FreeE,
+      beamHikariOkidokiGorgeous30FreeF,
+      beamHikariOkidokiGorgeous30FreeMaxOr,
+      beamHikariOkidokiGorgeous30TreatmentWatch,
+      treatmentDone: beamHikariOkidokiGorgeous30TreatmentWatch,
+      lowConfidence: !beamHikariOkidokiGorgeous30HistoryReady,
       boostCount: boostFlags.filter(Boolean).length,
       dangerCount: dangerFlags.filter(Boolean).length,
     };
@@ -34119,6 +34269,86 @@ function calculateMachineScore(definition, metrics, features) {
     return Math.round(clamp(score, 0, 100));
   }
 
+  if (machineKey === "okidoki-gorgeous30") {
+    if (activeLogicKey !== "beam-hikari-okidoki-gorgeous30" || historyRowCount < 21) {
+      return 0;
+    }
+
+    const beamHikariOkidokiGorgeous30DaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+      ? Math.max(0, daysSinceMachineHighContent - 1)
+      : 999;
+    const beamHikariOkidokiGorgeous30FreeA =
+      recentThreeGamesTotal >= 17000 && features.recentThreeCombinedDenominator <= 140;
+    const beamHikariOkidokiGorgeous30FreeB =
+      recentThreeNetTotal <= -3000 && recentFourteenGamesTotal >= 45000 && winningStreak >= 1;
+    const beamHikariOkidokiGorgeous30FreeC =
+      recentTwoNetTotal <= -4000 &&
+      features.recentFourteenCombinedDenominator <= 160 &&
+      recentFourteenMachineHighContentCount <= 2;
+    const beamHikariOkidokiGorgeous30FreeD =
+      recentTwentyEightNetTotal <= -20000 &&
+      recentThreeGamesTotal >= 9000 &&
+      features.recentSevenCombinedDenominator >= 200;
+    const beamHikariOkidokiGorgeous30FreeE =
+      previousDifference <= -1000 && historyLosingStreak >= 4 && recentTwentyOneMachineHighContentCount <= 2;
+    const beamHikariOkidokiGorgeous30FreeF =
+      previousGames >= 4500 &&
+      features.recentFourteenAngle <= -150 &&
+      features.recentThreeCombinedDenominator <= 150;
+
+    let score = 40;
+    score += scoreAtMost(recentThreeNetTotal, [
+      { maximum: -7000, points: 12 },
+      { maximum: -5000, points: 9 },
+      { maximum: -3000, points: 6 },
+    ]);
+    score += scoreAtMost(recentFourteenNetTotal, [
+      { maximum: -16000, points: 8 },
+      { maximum: -12000, points: 5 },
+      { maximum: -8000, points: 3 },
+    ]);
+    score += scoreAtMost(recentTwentyEightNetTotal, [
+      { maximum: -20000, points: 7 },
+      { maximum: -16000, points: 4 },
+    ]);
+    score += scoreAtLeast(recentThreeGamesTotal, [
+      { minimum: 17000, points: 9 },
+      { minimum: 13000, points: 6 },
+      { minimum: 9000, points: 3 },
+    ]);
+    score += scoreAtLeast(recentFourteenGamesTotal, [
+      { minimum: 60000, points: 7 },
+      { minimum: 45000, points: 4 },
+    ]);
+    score += scoreAtMost(features.recentThreeCombinedDenominator, [
+      { maximum: 140, points: 8 },
+      { maximum: 150, points: 6 },
+      { maximum: 160, points: 3 },
+    ]);
+    score += scoreAtMost(features.recentFourteenAngle, [
+      { maximum: -250, points: 6 },
+      { maximum: -150, points: 4 },
+    ]);
+    score += winningStreak >= 1 && recentThreeNetTotal <= -3000 ? 5 : 0;
+    score += historyLosingStreak >= 4 ? 5 : historyLosingStreak >= 2 ? 2 : 0;
+    score += recentFourteenMachineHighContentCount >= 4 ? 4 : recentFourteenMachineHighContentCount === 3 ? 3 : 0;
+    score += recentTwentyOneMachineHighContentCount <= 2 && recentThreeNetTotal < 0 ? 2 : 0;
+    score += beamHikariOkidokiGorgeous30DaysSinceHigh >= 10 && recentTwentyEightNetTotal <= -16000 ? 3 : 0;
+    score += beamHikariOkidokiGorgeous30FreeA ? 14 : 0;
+    score += beamHikariOkidokiGorgeous30FreeB ? 13 : 0;
+    score += beamHikariOkidokiGorgeous30FreeC ? 10 : 0;
+    score += beamHikariOkidokiGorgeous30FreeD ? 10 : 0;
+    score += beamHikariOkidokiGorgeous30FreeE ? 9 : 0;
+    score += beamHikariOkidokiGorgeous30FreeF ? 13 : 0;
+    score -= recentThreeGamesTotal < 4000 ? 12 : recentThreeGamesTotal < 7000 ? 5 : 0;
+    score -= recentThreeNetTotal >= 6000 ? 15 : recentThreeNetTotal >= 3000 ? 8 : 0;
+    score -= recentSevenNetTotal >= 10000 ? 10 : recentSevenNetTotal >= 6000 ? 5 : 0;
+    score -= winningStreak >= 3 && recentThreeNetTotal > 2000 ? 8 : 0;
+    score -= recentSevenMachineHighContentCount >= 4 && recentThreeNetTotal > 0 ? 6 : 0;
+
+    return Math.round(clamp(score, 0, 100));
+  }
+
   if (machineKey === "okidoki-duo") {
     if (readNumber(metrics.historyRowCount) < 14) {
       return 0;
@@ -36991,6 +37221,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       "hokuto-tensei",
       "hokuto-base",
       "smart-hanabi",
+      "okidoki-gorgeous30",
     ].includes(definition?.machineKey)
   ) {
     const baseLogicKeyByMachineKey = {
@@ -37005,6 +37236,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       "hokuto-tensei": "beam-hikari-hokuto-tensei",
       "hokuto-base": "beam-hikari-hokuto-base",
       "smart-hanabi": "beam-hikari-smart-hanabi",
+      "okidoki-gorgeous30": "beam-hikari-okidoki-gorgeous30",
     };
     const logic = findLogicDefinition(definition, baseLogicKeyByMachineKey[definition.machineKey]);
     const condition =
