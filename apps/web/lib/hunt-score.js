@@ -1631,6 +1631,8 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "Lスマスロ北斗の拳": "beam-hikari-hokuto-base-content",
       "L スマスロ北斗の拳": "beam-hikari-hokuto-base-content",
       "スマスロ北斗の拳": "beam-hikari-hokuto-base-content",
+      "スマスロ ハナビ": "beam-hikari-smart-hanabi-content",
+      "スマスロハナビ": "beam-hikari-smart-hanabi-content",
     },
   },
   {
@@ -2318,6 +2320,20 @@ function calculateCurrentLosingStreakWithMinimumGames(windowRows, minimumGames) 
       continue;
     }
     if (windowRows[index].differenceValue >= 0) {
+      break;
+    }
+    streak += 1;
+  }
+
+  return streak;
+}
+
+function calculateCurrentLosingStreakStoppingOnLowGames(windowRows, minimumGames) {
+  let streak = 0;
+
+  for (let index = windowRows.length - 1; index >= 0; index -= 1) {
+    const games = readWindowField(windowRows[index], "games");
+    if (games < minimumGames || windowRows[index].differenceValue >= 0) {
       break;
     }
     streak += 1;
@@ -3497,6 +3513,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("スマスロ ハナビ") ||
     normalizedMachineName === normalizeText("スマスロハナビ")
   ) {
+    if (readMachineContentRule(config, machineName) === "beam-hikari-smart-hanabi-content") {
+      return games >= 3000 && rbDenominator <= 330 && combinedDenominator <= 155;
+    }
     return games >= 4000 && combinedDenominator <= 155 && rbDenominator <= 330;
   }
   if (
@@ -3971,6 +3990,17 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     readMachineContentRule(config, machineName) === "chikushino-my"
   ) {
     return isChikushinoMyGoodContentWindowRow(row);
+  }
+  if (
+    (normalizedMachineName === normalizeText("スマスロ ハナビ") ||
+      normalizedMachineName === normalizeText("スマスロハナビ")) &&
+    readMachineContentRule(config, machineName) === "beam-hikari-smart-hanabi-content"
+  ) {
+    return (
+      games >= 2500 &&
+      ((rbDenominator <= 380 && combinedDenominator <= 175) ||
+        (combinedDenominator <= 155 && differenceValue >= 0))
+    );
   }
   if (normalizedMachineName === normalizeText("ウルトラミラクルジャグラー")) {
     if (readMachineContentRule(config, machineName) === "beam-hikari-ultra-miracle-content") {
@@ -4979,6 +5009,13 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     readMachineContentRule(config, machineName) === "messe-okudo-my"
   ) {
     return isMesseOkudoMyStrongHighContentWindowRow(row);
+  }
+  if (
+    (normalizedMachineName === normalizeText("スマスロ ハナビ") ||
+      normalizedMachineName === normalizeText("スマスロハナビ")) &&
+    readMachineContentRule(config, machineName) === "beam-hikari-smart-hanabi-content"
+  ) {
+    return games >= 4500 && rbDenominator <= 300 && combinedDenominator <= 145;
   }
   if (
     (normalizedMachineName === normalizeText("ファンキージャグラー２ＫＴ") ||
@@ -11237,6 +11274,7 @@ function calculateWindowMetrics(
     highSettingCandidateStreak: calculateCurrentHighSettingCandidateStreak(metricWindowRows),
     historyLosingStreak: calculateCurrentLosingStreak(historyWindowRows),
     lossStreakGames200: calculateCurrentLosingStreakWithMinimumGames(historyWindowRows, 200),
+    lossStreakGames500Stop: calculateCurrentLosingStreakStoppingOnLowGames(historyWindowRows, 500),
     nonPositiveStreak: calculateCurrentNonPositiveStreak(historyWindowRows),
     machineHighContentStreak: calculateCurrentMachineContentStreak(
       metricWindowRows,

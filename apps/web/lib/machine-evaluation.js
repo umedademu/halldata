@@ -3985,6 +3985,14 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     machineNames: ["スマスロ ハナビ", "スマスロハナビ"],
     logicKey: "apark-smart-hanabi",
     logicName: "スマスロハナビ春日式",
+    logics: [
+      buildLogicVariant("apark-smart-hanabi", "スマスロハナビ春日式", "main"),
+      buildLogicVariant(
+        "beam-hikari-smart-hanabi",
+        "ビームヒカリ_スマスロハナビ_沈み戻し連敗型_v1",
+        "beam-hikari-strong85-loss3",
+      ),
+    ],
     profile: "hanabi",
     defaultConditionSuffix: "main",
     conditions: [
@@ -3997,6 +4005,90 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           minNextGap: 10,
           maxDanger: 0,
         },
+        ["apark-smart-hanabi"],
+      ),
+      buildCondition(
+        "beam-hikari-wide80",
+        "広め：80点以上",
+        "通常採用 / 52日 / 62台 / 総G207,249 / BB715 / RB614 / BB1/289.9 / RB1/337.5 / 合算1/155.9 / 平均+215.6枚 / 機械割102.15% / 勝率48.4%",
+        {
+          minScore: 80,
+          requiredFlags: ["beamHikariSmartHanabiHistoryReady"],
+        },
+        ["beam-hikari-smart-hanabi"],
+      ),
+      buildCondition(
+        "beam-hikari-weak80-loss2",
+        "弱め本命：80点以上＋2連敗以上",
+        "通常採用 / 34日 / 41台 / 総G136,646 / BB485 / RB415 / BB1/281.7 / RB1/329.3 / 合算1/151.8 / 平均+332.8枚 / 機械割103.33% / 勝率48.8%",
+        {
+          minScore: 80,
+          requiredFlags: ["beamHikariSmartHanabiHistoryReady", "beamHikariSmartHanabiLossStreak2"],
+        },
+        ["beam-hikari-smart-hanabi"],
+      ),
+      buildCondition(
+        "beam-hikari-main80-loss3",
+        "本命：80点以上＋3連敗以上",
+        "通常採用 / 26日 / 31台 / 総G103,085 / BB370 / RB315 / BB1/278.6 / RB1/327.3 / 合算1/150.5 / 平均+377.3枚 / 機械割103.78% / 勝率48.4%",
+        {
+          minScore: 80,
+          requiredFlags: ["beamHikariSmartHanabiHistoryReady", "beamHikariSmartHanabiLossStreak3"],
+        },
+        ["beam-hikari-smart-hanabi"],
+      ),
+      buildCondition(
+        "beam-hikari-strong85-loss3",
+        "強条件：85点以上＋3連敗以上",
+        "通常採用 / 23日 / 27台 / 総G87,375 / BB321 / RB265 / BB1/272.2 / RB1/329.7 / 合算1/149.1 / 平均+453.1枚 / 機械割104.67% / 勝率51.9%",
+        {
+          minScore: 85,
+          requiredFlags: ["beamHikariSmartHanabiHistoryReady", "beamHikariSmartHanabiLossStreak3"],
+        },
+        ["beam-hikari-smart-hanabi"],
+      ),
+      buildCondition(
+        "beam-hikari-reference90-loss3",
+        "参考：90点以上＋3連敗以上",
+        "参考表示 / 19日 / 22台 / 総G68,813 / BB254 / RB208 / BB1/270.9 / RB1/330.8 / 合算1/148.9 / 平均+488.9枚 / 機械割105.21% / 勝率54.5%",
+        {
+          minScore: 90,
+          requiredFlags: ["beamHikariSmartHanabiHistoryReady", "beamHikariSmartHanabiLossStreak3"],
+        },
+        ["beam-hikari-smart-hanabi"],
+      ),
+      buildCondition(
+        "beam-hikari-reference-deep-high-games",
+        "参考自由MAX：深沈み高稼働",
+        "参考表示 / 23日 / 25台 / 総G120,385 / BB436 / RB363 / BB1/276.1 / RB1/331.6 / 合算1/150.7 / 平均+606.9枚 / 機械割104.20% / 勝率68.0%",
+        {
+          requiredFlags: [
+            "beamHikariSmartHanabiHistoryReady",
+            "beamHikariSmartHanabiDeepHighGames",
+          ],
+        },
+        ["beam-hikari-smart-hanabi"],
+      ),
+      buildCondition(
+        "beam-hikari-reference-combined-loss3",
+        "参考自由MAX：合算悪化＋3連敗",
+        "参考表示 / 27日 / 32台 / 総G89,754 / BB332 / RB263 / BB1/270.3 / RB1/341.3 / 合算1/150.8 / 平均+376.4枚 / 機械割104.47% / 勝率50.0%",
+        {
+          requiredFlags: [
+            "beamHikariSmartHanabiHistoryReady",
+            "beamHikariSmartHanabiCombinedLoss3",
+          ],
+        },
+        ["beam-hikari-smart-hanabi"],
+      ),
+      buildCondition(
+        "beam-hikari-watch-strong-after3",
+        "見送り：強高内容直後3営業日以内",
+        "見送り / 33日 / 42台 / 総G109,857 / BB337 / RB272 / BB1/326.0 / RB1/403.9 / 合算1/180.4 / 平均-311.1枚 / 機械割96.03% / 勝率28.6%",
+        {
+          requiredFlags: ["beamHikariSmartHanabiHistoryReady", "beamHikariSmartHanabiWatchStrongAfter3"],
+        },
+        ["beam-hikari-smart-hanabi"],
       ),
     ],
   },
@@ -13831,6 +13923,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-hokuto-tensei");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "hokuto-base") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-hokuto-base");
+  } else if (isBeamHikariStore(storeName) && definition.machineKey === "smart-hanabi") {
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-smart-hanabi");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "apark-yakatabaru-neo-aim");
   } else if (isAparkYakatabaruStore(storeName) && definition.machineKey === "my") {
@@ -23522,6 +23616,67 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   }
 
   if (machineKey === "smart-hanabi") {
+    if (activeLogicKey === "beam-hikari-smart-hanabi") {
+      const beamHikariSmartHanabiHistoryReady = historyRowCount >= 21;
+      const beamHikariSmartHanabiLossStreak = readNumber(metrics.lossStreakGames500Stop);
+      const beamHikariSmartHanabiDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : beamHikariSmartHanabiHistoryReady
+          ? 999
+          : null;
+      const beamHikariSmartHanabiDaysSinceStrong = Number.isFinite(daysSinceMachineStrongHighContent)
+        ? daysSinceMachineStrongHighContent
+        : beamHikariSmartHanabiHistoryReady
+          ? 999
+          : null;
+      const beamHikariSmartHanabiAdjacentHighCount7 = adjacentMachineHighContentCount7Near2;
+      const beamHikariSmartHanabiLowGCount7 = recentSevenLowGames1000Count;
+      const beamHikariSmartHanabiDeepHighGames =
+        recentSevenNetTotal <= -2500 &&
+        features.recentSevenCombinedDenominator >= 180 &&
+        recentFourteenGamesTotal >= 40000;
+      const beamHikariSmartHanabiCombinedLoss3 =
+        features.recentSevenCombinedDenominator >= 185 && beamHikariSmartHanabiLossStreak >= 3;
+      const beamHikariSmartHanabiWatchStrongAfter3 =
+        Number.isFinite(beamHikariSmartHanabiDaysSinceStrong) &&
+        beamHikariSmartHanabiDaysSinceStrong <= 3;
+      const boostFlags = [
+        features.recentSevenAngle <= -150,
+        recentSevenNetTotal <= -2000,
+        features.recentSevenCombinedDenominator >= 180,
+        recentSevenGamesTotal >= 20000,
+        beamHikariSmartHanabiLossStreak >= 2,
+        beamHikariSmartHanabiAdjacentHighCount7 >= 2,
+      ];
+      const dangerFlags = [
+        beamHikariSmartHanabiDaysSinceHigh === 1,
+        Number.isFinite(beamHikariSmartHanabiDaysSinceStrong) &&
+          beamHikariSmartHanabiDaysSinceStrong <= 3,
+        recentSevenNetTotal >= 2000,
+        features.recentSevenCombinedDenominator <= 150,
+        beamHikariSmartHanabiLowGCount7 >= 4,
+      ];
+
+      return {
+        ...features,
+        beamHikariSmartHanabiHistoryReady,
+        beamHikariSmartHanabiLossStreak,
+        beamHikariSmartHanabiLossStreak2: beamHikariSmartHanabiLossStreak >= 2,
+        beamHikariSmartHanabiLossStreak3: beamHikariSmartHanabiLossStreak >= 3,
+        beamHikariSmartHanabiDaysSinceHigh,
+        beamHikariSmartHanabiDaysSinceStrong,
+        beamHikariSmartHanabiAdjacentHighCount7,
+        beamHikariSmartHanabiLowGCount7,
+        beamHikariSmartHanabiDeepHighGames,
+        beamHikariSmartHanabiCombinedLoss3,
+        beamHikariSmartHanabiWatchStrongAfter3,
+        treatmentDone: dangerFlags.filter(Boolean).length > 0,
+        lowConfidence: !beamHikariSmartHanabiHistoryReady,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     const dangerFlags = [
       recentSevenMachineHighContentCount >= 4 ||
         recentFourteenMachineHighContentCount >= 4 ||
@@ -33866,6 +34021,62 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "smart-hanabi") {
+    if (activeLogicKey === "beam-hikari-smart-hanabi") {
+      if (historyRowCount < 21) {
+        return 0;
+      }
+
+      const beamHikariSmartHanabiLossStreak = readNumber(metrics.lossStreakGames500Stop);
+      const beamHikariSmartHanabiDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : 999;
+      const beamHikariSmartHanabiDaysSinceStrong = Number.isFinite(daysSinceMachineStrongHighContent)
+        ? daysSinceMachineStrongHighContent
+        : 999;
+      const beamHikariSmartHanabiAdjacentHighCount7 = adjacentMachineHighContentCount7Near2;
+
+      let score = 40;
+      score += scoreAtMost(features.recentSevenAngle, [
+        { maximum: -200, points: 20 },
+        { maximum: -150, points: 16 },
+        { maximum: -100, points: 10 },
+        { maximum: -50, points: 4 },
+      ]);
+      score += scoreAtMost(recentSevenNetTotal, [
+        { maximum: -3000, points: 12 },
+        { maximum: -2000, points: 9 },
+        { maximum: -1000, points: 5 },
+      ]);
+      score += scoreAtLeast(features.recentSevenCombinedDenominator, [
+        { minimum: 190, points: 16 },
+        { minimum: 180, points: 10 },
+        { minimum: 165, points: 5 },
+      ]);
+      score += scoreAtLeast(recentSevenGamesTotal, [
+        { minimum: 25000, points: 8 },
+        { minimum: 20000, points: 5 },
+      ]);
+      score += beamHikariSmartHanabiLossStreak >= 4 ? 8 : beamHikariSmartHanabiLossStreak >= 2 ? 4 : 0;
+      score += beamHikariSmartHanabiAdjacentHighCount7 >= 3 ? 8 : beamHikariSmartHanabiAdjacentHighCount7 >= 2 ? 4 : 0;
+      score +=
+        beamHikariSmartHanabiDaysSinceHigh === 3
+          ? 6
+          : [4, 5, 8, 10, 11, 12, 14, 15].includes(beamHikariSmartHanabiDaysSinceHigh)
+            ? 3
+            : 0;
+      score +=
+        beamHikariSmartHanabiDaysSinceStrong >= 7 && beamHikariSmartHanabiDaysSinceStrong <= 16
+          ? 4
+          : 0;
+      score -= beamHikariSmartHanabiDaysSinceHigh === 1 ? 14 : 0;
+      score -= beamHikariSmartHanabiDaysSinceStrong <= 3 ? 18 : 0;
+      score -= recentSevenNetTotal >= 2000 ? 12 : recentSevenNetTotal >= 1000 ? 6 : 0;
+      score -= features.recentSevenCombinedDenominator <= 150 ? 8 : 0;
+      score -= recentSevenLowGames1000Count >= 4 ? 6 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     let score = 40;
     if (previousGames >= 2000 && previousCombinedDenominator <= 146 && previousRbDenominator <= 333) {
       score += 18;
@@ -36779,6 +36990,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       "monkey",
       "hokuto-tensei",
       "hokuto-base",
+      "smart-hanabi",
     ].includes(definition?.machineKey)
   ) {
     const baseLogicKeyByMachineKey = {
@@ -36792,6 +37004,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       monkey: "beam-hikari-monkey",
       "hokuto-tensei": "beam-hikari-hokuto-tensei",
       "hokuto-base": "beam-hikari-hokuto-base",
+      "smart-hanabi": "beam-hikari-smart-hanabi",
     };
     const logic = findLogicDefinition(definition, baseLogicKeyByMachineKey[definition.machineKey]);
     const condition =
