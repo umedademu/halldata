@@ -5013,6 +5013,92 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     ],
   },
   {
+    machineKey: "valvrave2",
+    machineNames: ["Lパチスロ革命機ヴァルヴレイヴ2", "Lパチスロ革命機ヴァルヴレイヴ２"],
+    logicKey: "beam-hikari-valvrave2",
+    logicName: "ビームヒカリ_Lパチスロ革命機ヴァルヴレイヴ2_全日共通_狙い度",
+    logics: [
+      buildLogicVariant(
+        "beam-hikari-valvrave2",
+        "ビームヒカリ_Lパチスロ革命機ヴァルヴレイヴ2_全日共通_狙い度",
+        "beam-hikari-valvrave2-hot-reuse500",
+      ),
+    ],
+    profile: "smart",
+    defaultConditionSuffix: "beam-hikari-valvrave2-hot-reuse500",
+    conditions: [
+      buildCondition(
+        "beam-hikari-valvrave2-hot-reuse500",
+        "HOT再投入500",
+        "35日 / 57台 / 総G105,323 / BB1,081 / RB94 / BB1/97.4 / RB1/1120.5 / 合算1/89.6 / 平均+673.3枚 / 112.15% / 勝率36.8%",
+        {
+          requiredFlags: ["beamHikariValvrave2History21Ready", "beamHikariValvrave2HotReuse500"],
+        },
+        ["beam-hikari-valvrave2"],
+      ),
+      buildCondition(
+        "beam-hikari-valvrave2-rank1-gap8",
+        "1位＋次点差8以上",
+        "61日 / 69台 / 総G230,396 / BB1,971 / RB165 / BB1/116.9 / RB1/1396.3 / 合算1/107.9 / 平均+455.7枚 / 104.55% / 勝率40.6%",
+        {
+          rankMax: 1,
+          minNextGap: 8,
+          requiredFlags: ["beamHikariValvrave2History21Ready"],
+        },
+        ["beam-hikari-valvrave2"],
+      ),
+      buildCondition(
+        "beam-hikari-valvrave2-score85",
+        "85点以上",
+        "35日 / 57台 / 総G285,445 / BB2,287 / RB228 / BB1/124.8 / RB1/1252.0 / 合算1/113.5 / 平均+302.1枚 / 102.01% / 勝率40.4%",
+        {
+          minScore: 85,
+          requiredFlags: ["beamHikariValvrave2History21Ready"],
+        },
+        ["beam-hikari-valvrave2"],
+      ),
+      buildCondition(
+        "beam-hikari-valvrave2-boost4",
+        "ブースト4以上",
+        "29日 / 44台 / 総G211,004 / BB1,673 / RB161 / BB1/126.1 / RB1/1310.6 / 合算1/115.1 / 平均+313.0枚 / 102.18% / 勝率36.4%",
+        {
+          minBoost: 4,
+          requiredFlags: ["beamHikariValvrave2History21Ready"],
+        },
+        ["beam-hikari-valvrave2"],
+      ),
+      buildCondition(
+        "beam-hikari-valvrave2-score80-reference",
+        "参考表示_80点以上",
+        "58日 / 122台 / 総G483,676 / BB3,785 / RB393 / BB1/127.8 / RB1/1230.7 / 合算1/115.8 / 平均+75.8枚 / 100.64% / 勝率33.6%",
+        {
+          minScore: 80,
+          requiredFlags: ["beamHikariValvrave2History21Ready"],
+        },
+        ["beam-hikari-valvrave2"],
+      ),
+      buildCondition(
+        "beam-hikari-valvrave2-hot-reuse700-reference",
+        "参考表示_HOT再投入700",
+        "27日 / 44台 / 総G75,776 / BB841 / RB67 / BB1/90.1 / RB1/1131.0 / 合算1/83.5 / 平均+863.5枚 / 116.71% / 勝率36.4%",
+        {
+          requiredFlags: ["beamHikariValvrave2History21Ready", "beamHikariValvrave2HotReuse700"],
+        },
+        ["beam-hikari-valvrave2"],
+      ),
+      buildCondition(
+        "beam-hikari-valvrave2-watch-treatment-done",
+        "処遇完了直後見送り",
+        "14日 / 15台 / 総G64,498 / BB384 / RB48 / BB1/168.0 / RB1/1343.7 / 合算1/149.3 / 平均-1,225.9枚 / 90.50% / 勝率13.3%",
+        {
+          minScore: 65,
+          requiredFlags: ["beamHikariValvrave2History21Ready", "beamHikariValvrave2TreatmentDoneImmediately"],
+        },
+        ["beam-hikari-valvrave2"],
+      ),
+    ],
+  },
+  {
     machineKey: "kabaneri-kaimon",
     machineNames: [
       "スマスロ 甲鉄城のカバネリ 海門決戦",
@@ -14312,6 +14398,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-million-god");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "tokyo-ghoul") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-tokyo-ghoul");
+  } else if (isBeamHikariStore(storeName) && definition.machineKey === "valvrave2") {
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-valvrave2");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "kabaneri-kaimon") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-kabaneri-kaimon");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
@@ -14912,6 +15000,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   const recentThreeWorkGames2000Count = readNumber(metrics.recentThreeWorkGames2000Count);
   const recentSevenLowGames500Count = readNumber(metrics.recentSevenLowGames500Count);
   const recentSevenLowGames1000Count = readNumber(metrics.recentSevenLowGames1000Count);
+  const recentSevenZeroGamesCount = readNumber(metrics.recentSevenZeroGamesCount);
   const recentSevenHighSettingCandidateCount = readNumber(metrics.recentSevenHighSettingCandidateCount);
   const recentFiveMinus2000StayDays = readNumber(metrics.recentFiveMinus2000StayDays);
   const recentSevenMinus1500StayDays = readNumber(metrics.recentSevenMinus1500StayDays);
@@ -24040,6 +24129,57 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
     };
   }
 
+  if (machineKey === "valvrave2" && activeLogicKey === "beam-hikari-valvrave2") {
+    const beamHikariValvrave2History14Ready = historyRowCount >= 14;
+    const beamHikariValvrave2History21Ready = historyRowCount >= 21;
+    const beamHikariValvrave2DaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+      ? daysSinceMachineHighContent
+      : 999;
+    const beamHikariValvrave2HotReuse500 =
+      features.recentThreeAngle >= 500 &&
+      recentFiveNetTotal >= 2000 &&
+      beamHikariValvrave2DaysSinceHigh >= 10;
+    const beamHikariValvrave2HotReuse700 =
+      features.recentThreeAngle >= 700 &&
+      recentFiveNetTotal >= 2000 &&
+      beamHikariValvrave2DaysSinceHigh >= 10;
+    const beamHikariValvrave2TreatmentDoneImmediately =
+      recentSevenNetTotal >= 12000 && beamHikariValvrave2DaysSinceHigh <= 3;
+    const beamHikariValvrave2LowActivity =
+      recentSevenZeroGamesCount >= 3 || recentSevenGamesTotal < 5000;
+    const boostFlags = [
+      beamHikariValvrave2HotReuse700,
+      previousGames >= 5000,
+      recentThreeGamesTotal >= 12000,
+      beamHikariValvrave2DaysSinceHigh >= 10 && beamHikariValvrave2DaysSinceHigh <= 28,
+      recentThreeMachineHighContentCount >= 2 || recentSevenMachineGoodContentCount >= 2,
+      recentThreeNetTotal <= -7000 && recentThreeGamesTotal >= 5000,
+      historyLosingStreak >= 3,
+    ];
+    const dangerFlags = [
+      !beamHikariValvrave2History21Ready,
+      beamHikariValvrave2LowActivity,
+      beamHikariValvrave2TreatmentDoneImmediately,
+      beamHikariValvrave2DaysSinceHigh >= 57,
+      previousGames < 500 && recentThreeGamesTotal < 3000,
+    ];
+
+    return {
+      ...features,
+      beamHikariValvrave2History14Ready,
+      beamHikariValvrave2History21Ready,
+      beamHikariValvrave2DaysSinceHigh,
+      beamHikariValvrave2HotReuse500,
+      beamHikariValvrave2HotReuse700,
+      beamHikariValvrave2TreatmentDoneImmediately,
+      beamHikariValvrave2LowActivity,
+      treatmentDone: beamHikariValvrave2TreatmentDoneImmediately,
+      lowConfidence: !beamHikariValvrave2History21Ready,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
+
   if (machineKey === "kabaneri-kaimon" && activeLogicKey === "beam-hikari-kabaneri-kaimon") {
     const beamHikariKabaneriHistory7Ready = historyRowCount >= 7;
     const beamHikariKabaneriHistory14Ready = historyRowCount >= 14;
@@ -25743,6 +25883,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentThreeWorkGames2000Count = readNumber(metrics.recentThreeWorkGames2000Count);
   const recentSevenLowGames500Count = readNumber(metrics.recentSevenLowGames500Count);
   const recentSevenLowGames1000Count = readNumber(metrics.recentSevenLowGames1000Count);
+  const recentSevenZeroGamesCount = readNumber(metrics.recentSevenZeroGamesCount);
   const recentFiveHighSettingCandidateCount = readNumber(metrics.recentFiveHighSettingCandidateCount);
   const recentSevenHighSettingCandidateCount = readNumber(metrics.recentSevenHighSettingCandidateCount);
   const recentThreeHighSettingEstimateCount = readNumber(metrics.recentThreeHighSettingEstimateCount);
@@ -34885,6 +35026,58 @@ function calculateMachineScore(definition, metrics, features) {
     return Math.round(clamp(score, 0, 100));
   }
 
+  if (machineKey === "valvrave2" && activeLogicKey === "beam-hikari-valvrave2") {
+    if (historyRowCount < 14) {
+      return 0;
+    }
+
+    const beamHikariValvrave2DaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+      ? daysSinceMachineHighContent
+      : 999;
+    let score = 45;
+
+    if (
+      features.recentThreeAngle >= 700 &&
+      recentFiveNetTotal >= 2000 &&
+      beamHikariValvrave2DaysSinceHigh >= 10
+    ) {
+      score += 22;
+    } else if (
+      features.recentThreeAngle >= 500 &&
+      recentFiveNetTotal >= 2000 &&
+      beamHikariValvrave2DaysSinceHigh >= 8
+    ) {
+      score += 16;
+    } else if (features.recentFiveAngle >= 500 && beamHikariValvrave2DaysSinceHigh >= 8) {
+      score += 10;
+    }
+    score += recentThreeMachineHighContentCount >= 2 ? 8 : 0;
+    score += recentThreeMachineHighContentCount < 2 && recentSevenMachineGoodContentCount >= 2 ? 5 : 0;
+    score += previousGames >= 5000 ? 14 : previousGames >= 3000 ? 8 : 0;
+    score += recentThreeGamesTotal >= 12000 ? 8 : recentThreeGamesTotal >= 8000 ? 4 : 0;
+    score += recentSevenGamesTotal >= 20000 ? 5 : 0;
+    if (beamHikariValvrave2DaysSinceHigh >= 10 && beamHikariValvrave2DaysSinceHigh <= 28) {
+      score += 8;
+    } else if (beamHikariValvrave2DaysSinceHigh >= 6 && beamHikariValvrave2DaysSinceHigh <= 35) {
+      score += 4;
+    }
+    score += recentThreeNetTotal <= -7000 && recentThreeGamesTotal >= 5000 ? 8 : 0;
+    score += recentThreeNetTotal <= -5000 && recentThreeNetTotal > -7000 && recentThreeGamesTotal >= 5000 ? 5 : 0;
+    score += recentFiveNetTotal <= -12000 && recentFiveGamesTotal >= 8000 ? 5 : 0;
+    score += features.recentThreeAngle <= -700 && recentThreeGamesTotal >= 5000 ? 4 : 0;
+    score += historyLosingStreak >= 3 ? 4 : 0;
+    score -= recentSevenZeroGamesCount >= 3 || recentSevenGamesTotal < 5000 ? 10 : 0;
+    if (recentSevenNetTotal >= 12000 && beamHikariValvrave2DaysSinceHigh <= 3) {
+      score -= 12;
+    } else if (recentThreeNetTotal >= 10000 && beamHikariValvrave2DaysSinceHigh <= 2) {
+      score -= 8;
+    }
+    score -= beamHikariValvrave2DaysSinceHigh >= 57 ? 6 : 0;
+    score -= historyRowCount < 21 ? 5 : 0;
+
+    return Math.round(clamp(score, 0, 100));
+  }
+
   if (machineKey === "kabaneri-kaimon" && activeLogicKey === "beam-hikari-kabaneri-kaimon") {
     const beamHikariKabaneriDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
       ? daysSinceMachineHighContent
@@ -37932,6 +38125,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       "okidoki-black",
       "million-god",
       "tokyo-ghoul",
+      "valvrave2",
       "kabaneri-kaimon",
     ].includes(definition?.machineKey)
   ) {
@@ -37951,6 +38145,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       "okidoki-black": "beam-hikari-okidoki-black",
       "million-god": "beam-hikari-million-god",
       "tokyo-ghoul": "beam-hikari-tokyo-ghoul",
+      "valvrave2": "beam-hikari-valvrave2",
       "kabaneri-kaimon": "beam-hikari-kabaneri-kaimon",
     };
     const logic = findLogicDefinition(definition, baseLogicKeyByMachineKey[definition.machineKey]);

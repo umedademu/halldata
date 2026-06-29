@@ -1640,6 +1640,8 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "L東京喰種": "beam-hikari-tokyo-ghoul-content",
       "L 東京喰種": "beam-hikari-tokyo-ghoul-content",
       "東京喰種": "beam-hikari-tokyo-ghoul-content",
+      "Lパチスロ革命機ヴァルヴレイヴ2": "beam-hikari-valvrave2-content",
+      "Lパチスロ革命機ヴァルヴレイヴ２": "beam-hikari-valvrave2-content",
       "スマスロ 甲鉄城のカバネリ 海門決戦": "beam-hikari-kabaneri-kaimon-content",
       "スマスロ甲鉄城のカバネリ海門決戦": "beam-hikari-kabaneri-kaimon-content",
       "沖ドキ！BLACK": "beam-hikari-okidoki-black-content",
@@ -1661,6 +1663,16 @@ const HUNT_SCORE_STORE_CONFIGS = [
         machineName: "L東京喰種",
         slotNumbers: ["575", "576", "577", "578", "580", "581", "582", "583", "585", "586"],
         startDate: "2026-04-21",
+      },
+      {
+        machineName: "Lパチスロ革命機ヴァルヴレイヴ2",
+        slotNumbers: ["551", "552", "553", "555", "556", "557", "558", "560", "561"],
+        startDate: "2025-11-06",
+      },
+      {
+        machineName: "Lパチスロ革命機ヴァルヴレイヴ2",
+        slotNumbers: ["610", "611", "612", "613", "615", "616", "617", "618", "620", "621"],
+        startDate: "2026-01-06",
       },
       {
         machineName: "スマスロ 甲鉄城のカバネリ 海門決戦",
@@ -3554,6 +3566,14 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     }
   }
   if (
+    normalizedMachineName === normalizeText("Lパチスロ革命機ヴァルヴレイヴ2") ||
+    normalizedMachineName === normalizeText("Lパチスロ革命機ヴァルヴレイヴ２")
+  ) {
+    if (readMachineContentRule(config, machineName) === "beam-hikari-valvrave2-content") {
+      return games >= 3500 && differenceValue >= 3000;
+    }
+  }
+  if (
     normalizedMachineName === normalizeText("スマスロ 甲鉄城のカバネリ 海門決戦") ||
     normalizedMachineName === normalizeText("スマスロ甲鉄城のカバネリ海門決戦")
   ) {
@@ -4096,6 +4116,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     readMachineContentRule(config, machineName) === "beam-hikari-million-god-content"
   ) {
     return games >= 4500 && differenceValue >= 500;
+  }
+  if (
+    (normalizedMachineName === normalizeText("Lパチスロ革命機ヴァルヴレイヴ2") ||
+      normalizedMachineName === normalizeText("Lパチスロ革命機ヴァルヴレイヴ２")) &&
+    readMachineContentRule(config, machineName) === "beam-hikari-valvrave2-content"
+  ) {
+    return games >= 2500 && differenceValue >= 1500;
   }
   if (
     normalizedMachineName === normalizeText("ハッピージャグラーＶＩＩＩ") ||
@@ -5126,6 +5153,13 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     readMachineContentRule(config, machineName) === "beam-hikari-tokyo-ghoul-content"
   ) {
     return games >= 4500 && differenceValue >= 3000;
+  }
+  if (
+    (normalizedMachineName === normalizeText("Lパチスロ革命機ヴァルヴレイヴ2") ||
+      normalizedMachineName === normalizeText("Lパチスロ革命機ヴァルヴレイヴ２")) &&
+    readMachineContentRule(config, machineName) === "beam-hikari-valvrave2-content"
+  ) {
+    return games >= 4500 && differenceValue >= 5000;
   }
   if (
     (normalizedMachineName === normalizeText("スマスロ 甲鉄城のカバネリ 海門決戦") ||
@@ -10396,6 +10430,7 @@ function calculateWindowMetrics(
   const recentThreeWorkGames2000Count = recentThreeRows.filter((windowRow) => windowRow.games >= 2000).length;
   const recentSevenLowGames500Count = recentSevenRows.filter((windowRow) => readWindowField(windowRow, "games") < 500).length;
   const recentSevenLowGames1000Count = recentSevenRows.filter((windowRow) => readWindowField(windowRow, "games") < 1000).length;
+  const recentSevenZeroGamesCount = recentSevenRows.filter((windowRow) => readWindowField(windowRow, "games") === 0).length;
   const recentTwoGamesTotal = recentTwoRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentThreeGamesTotal = recentThreeRows.reduce((total, windowRow) => total + windowRow.games, 0);
   const recentFourGamesTotal = sumWindowField(recentFourRows, "games");
@@ -11351,6 +11386,7 @@ function calculateWindowMetrics(
     recentThreeWorkGames2000Count,
     recentSevenLowGames500Count,
     recentSevenLowGames1000Count,
+    recentSevenZeroGamesCount,
     recentFiveMaxWin,
     toyoHallNeoHistoryRowCountFromCsvStart,
     recentFiveBadMinus800Count,
