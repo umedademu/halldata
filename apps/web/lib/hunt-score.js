@@ -2854,10 +2854,10 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     }
     if (contentRule === "123n-shinonome-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
-      if (Number.isFinite(settingFivePlusProbability)) {
-        return games >= 2000 && settingFivePlusProbability >= 0.5;
-      }
-      return games >= 2000 && rbDenominator <= 300 && combinedDenominator <= 140;
+      return (
+        (Number.isFinite(settingFivePlusProbability) && games >= 2500 && settingFivePlusProbability >= 0.3) ||
+        (games >= 3000 && rbDenominator <= 310 && combinedDenominator <= 145)
+      );
     }
     if (contentRule === "rakuen-ameyoko-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -3496,13 +3496,10 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     }
     if (contentRule === "123n-shinonome-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
-      if (Number.isFinite(settingFivePlusProbability)) {
-        return (
-          (games >= 2000 && settingFivePlusProbability >= 0.35) ||
-          (games >= 2000 && rbDenominator <= 300 && combinedDenominator <= 140)
-        );
-      }
-      return games >= 2000 && rbDenominator <= 300 && combinedDenominator <= 140;
+      return (
+        (Number.isFinite(settingFivePlusProbability) && games >= 2500 && settingFivePlusProbability >= 0.3) ||
+        (games >= 3000 && rbDenominator <= 310 && combinedDenominator <= 145)
+      );
     }
     if (contentRule === "rakuen-ameyoko-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -4371,10 +4368,10 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     readMachineContentRule(config, machineName) === "123n-shinonome-neo-aim"
   ) {
     const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
-    if (Number.isFinite(settingFivePlusProbability)) {
-      return games >= 2000 && settingFivePlusProbability >= 0.7;
-    }
-    return games >= 2000 && rbDenominator <= 270 && combinedDenominator <= 130;
+    return (
+      (Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability >= 0.5) ||
+      (games >= 3500 && rbDenominator <= 270 && combinedDenominator <= 135)
+    );
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
