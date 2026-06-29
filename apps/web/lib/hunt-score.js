@@ -980,6 +980,9 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "hinode-onojo-neo-aim",
       "ネオアイムジャグラーＥＸ": "hinode-onojo-neo-aim",
+      "マイジャグラーV": "hinode-onojo-my",
+      "マイジャグラーⅤ": "hinode-onojo-my",
+      "マイジャグラー": "hinode-onojo-my",
     },
   },
   {
@@ -3111,6 +3114,45 @@ function isGogoTenjinMyStrongHighContentWindowRow(row) {
   );
 }
 
+function isHinodeOnojoMySemiHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMyJugglerSettingProbabilities(row);
+  const p4plus = probabilities?.p4plus;
+  return (
+    games >= 3500 &&
+    ((Number.isFinite(p4plus) && p4plus >= 0.4 && rbDenominator <= 360 && combinedDenominator <= 150) ||
+      (rbDenominator <= 320 && combinedDenominator <= 145))
+  );
+}
+
+function isHinodeOnojoMyHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMyJugglerSettingProbabilities(row);
+  const p4plus = probabilities?.p4plus;
+  return (
+    games >= 4500 &&
+    ((Number.isFinite(p4plus) && p4plus >= 0.5 && rbDenominator <= 335 && combinedDenominator <= 145) ||
+      (rbDenominator <= 300 && combinedDenominator <= 140))
+  );
+}
+
+function isHinodeOnojoMyStrongHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMyJugglerSettingProbabilities(row);
+  const p5plus = probabilities?.p5plus;
+  return (
+    games >= 5000 &&
+    ((Number.isFinite(p5plus) && p5plus >= 0.4 && rbDenominator <= 295 && combinedDenominator <= 135) ||
+      (rbDenominator <= 270 && combinedDenominator <= 130))
+  );
+}
+
 function isMachineHighContentWindowRow(row, machineName, config = null) {
   const normalizedMachineName = normalizeText(machineName);
   const games = readWindowField(row, "games");
@@ -3632,6 +3674,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     }
     if (contentRule === "messe-okudo-my") {
       return isMesseOkudoMyHighContentWindowRow(row);
+    }
+    if (contentRule === "hinode-onojo-my") {
+      return isHinodeOnojoMyHighContentWindowRow(row);
     }
     if (contentRule === "apark-yakatabaru-my") {
       return (
@@ -4278,6 +4323,14 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     }
     const rbCount = readWindowField(row, "rbCount");
     return games >= 3500 && rbCount >= 15 && rbDenominator <= 323 && combinedDenominator <= 140;
+  }
+  if (
+    (normalizedMachineName === normalizeText("マイジャグラーV") ||
+      normalizedMachineName === normalizeText("マイジャグラーⅤ") ||
+      normalizedMachineName === normalizeText("マイジャグラー")) &&
+    readMachineContentRule(config, machineName) === "hinode-onojo-my"
+  ) {
+    return isHinodeOnojoMySemiHighContentWindowRow(row);
   }
   if (
     (normalizedMachineName === normalizeText("マイジャグラーV") ||
@@ -5351,6 +5404,14 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 2500 && settingFivePlusProbability >= 0.7;
     }
     return games >= 2500 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    (normalizedMachineName === normalizeText("マイジャグラーV") ||
+      normalizedMachineName === normalizeText("マイジャグラーⅤ") ||
+      normalizedMachineName === normalizeText("マイジャグラー")) &&
+    readMachineContentRule(config, machineName) === "hinode-onojo-my"
+  ) {
+    return isHinodeOnojoMyStrongHighContentWindowRow(row);
   }
   if (
     (normalizedMachineName === normalizeText("マイジャグラーV") ||

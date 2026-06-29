@@ -13641,6 +13641,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "BOOM天神本店_マイジャグラーV_内容継続スコア",
         "boom-tenjin-my-event-purple-b",
       ),
+      buildLogicVariant(
+        "hinode-onojo-my",
+        "MYV_HINODE大野城_全日共通_沈み返しスコア",
+        "hinode-onojo-my-main-loss-angle",
+      ),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
@@ -14302,6 +14307,87 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         },
         ["boom-tenjin-my"],
       ),
+      buildCondition(
+        "hinode-onojo-my-main-loss-angle",
+        "MYV_通常採用_90点以上_4to8連敗_14日角度-60",
+        "142日 / 173台 / 総G1,147,600 / BB4,465 / RB3,852 / BB1/257.02 / RB1/297.92 / 合算1/137.98 / 平均+534.72枚 / 102.69% / 勝率65.90%",
+        {
+          minScore: 90,
+          requiredFlags: ["hinodeOnojoMyHistoryReady", "hinodeOnojoMyLossAngle"],
+        },
+        ["hinode-onojo-my"],
+      ),
+      buildCondition(
+        "hinode-onojo-my-event-rank1",
+        "MYV_通常採用_特定日1位",
+        "72日 / 77台 / 総G498,254 / BB1,928 / RB1,656 / BB1/258.43 / RB1/300.88 / 合算1/139.02 / 平均+496.10枚 / 102.56% / 勝率59.74%",
+        {
+          rankMax: 1,
+          requiredFlags: ["hinodeOnojoMyHistoryReady", "hinodeOnojoMyEvent"],
+        },
+        ["hinode-onojo-my"],
+      ),
+      buildCondition(
+        "hinode-onojo-my-event-best-rank1-gap6-boost5",
+        "MYV_通常採用_特定日最強_1位次点6強化5",
+        "21日 / 21台 / 総G147,514 / BB618 / RB547 / BB1/238.70 / RB1/269.68 / 合算1/126.62 / 平均+1247.05枚 / 105.92% / 勝率80.95% / 少件数注意",
+        {
+          rankMax: 1,
+          minNextGap: 6,
+          minBoost: 5,
+          requiredFlags: ["hinodeOnojoMyHistoryReady", "hinodeOnojoMyEvent"],
+        },
+        ["hinode-onojo-my"],
+      ),
+      buildCondition(
+        "hinode-onojo-my-watch-normal-score60-two-win",
+        "MYV_見送り_通常日60点以上2連勝",
+        "34日 / 38台 / 総G208,805 / BB755 / RB597 / BB1/276.56 / RB1/349.76 / 合算1/154.44 / 平均-201.24枚 / 98.78% / 勝率34.21% / 見送り",
+        {
+          minScore: 60,
+          requiredFlags: ["hinodeOnojoMyHistoryReady", "hinodeOnojoMyNormal", "hinodeOnojoMyTwoWin"],
+        },
+        ["hinode-onojo-my"],
+      ),
+      buildCondition(
+        "hinode-onojo-my-score75-blue",
+        "MYV_参考_75点以上_青",
+        "311日 / 812台 / 総G5,184,616 / BB19,727 / RB16,307 / BB1/262.82 / RB1/317.94 / 合算1/143.88 / 平均+274.07枚 / 101.43% / 勝率54.56% / 参考表示",
+        {
+          minScore: 75,
+          requiredFlags: ["hinodeOnojoMyHistoryReady"],
+        },
+        ["hinode-onojo-my"],
+      ),
+      buildCondition(
+        "hinode-onojo-my-score85-yellow",
+        "MYV_参考_85点以上_黄",
+        "217日 / 343台 / 総G2,240,458 / BB8,513 / RB7,251 / BB1/263.18 / RB1/308.99 / 合算1/142.12 / 平均+332.58枚 / 101.70% / 勝率58.60% / 参考表示",
+        {
+          minScore: 85,
+          requiredFlags: ["hinodeOnojoMyHistoryReady"],
+        },
+        ["hinode-onojo-my"],
+      ),
+      buildCondition(
+        "hinode-onojo-my-score90-green",
+        "MYV_参考_90点以上_緑",
+        "168日 / 219台 / 総G1,449,780 / BB5,605 / RB4,820 / BB1/258.66 / RB1/300.78 / 合算1/139.07 / 平均+484.01枚 / 102.44% / 勝率65.30% / 参考表示",
+        {
+          minScore: 90,
+          requiredFlags: ["hinodeOnojoMyHistoryReady"],
+        },
+        ["hinode-onojo-my"],
+      ),
+      buildCondition(
+        "hinode-onojo-my-free-loss-angle",
+        "MYV_参考_自由MAX_4to8連敗_14日角度-60",
+        "165日 / 217台 / 総G1,436,258 / BB5,531 / RB4,811 / BB1/259.67 / RB1/298.54 / 合算1/138.88 / 平均+473.36枚 / 102.38% / 勝率62.67% / 参考表示",
+        {
+          requiredFlags: ["hinodeOnojoMyHistoryReady", "hinodeOnojoMyLossAngle"],
+        },
+        ["hinode-onojo-my"],
+      ),
     ],
   },
   {
@@ -14572,6 +14658,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "gogo-tenjin-my");
   } else if (isHinodeOnojoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "hinode-onojo-neo-aim");
+  } else if (isHinodeOnojoStore(storeName) && definition.machineKey === "my") {
+    defaultLogic = findLogicDefinition(definition, "hinode-onojo-my");
   } else if (isSuperDstationChikushinoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "chikushino-neo-aim");
   } else if (isSuperDstationChikushinoStore(storeName) && definition.machineKey === "my") {
@@ -25118,6 +25206,91 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
       };
     }
 
+    if (activeLogicKey === "hinode-onojo-my") {
+      const targetEventFlag = readTargetEventFlag(row);
+      const hinodeOnojoMyEvent = targetEventFlag === true;
+      const hinodeOnojoMyNormal = targetEventFlag === false;
+      const hinodeOnojoMyHistoryReady = historyRowCount >= 21;
+      const hinodeOnojoMyLossStreak = historyLosingStreak;
+      const hinodeOnojoMyTwoWin = winningStreak >= 2;
+      const hinodeOnojoMyRealButUnpaidPrev =
+        previousGames >= 4500 &&
+        features.previousRbDenominator <= 330 &&
+        features.previousCombinedDenominator <= 145 &&
+        previousDifference <= 800;
+      const hinodeOnojoMyPrevHighUnpaid = previousMachineHighContent && previousDifference <= 1000;
+      const hinodeOnojoMyPaidDone3 =
+        recentThreeNetTotal >= 2500 || (previousDifference >= 1800 && previousGames >= 4000);
+      const hinodeOnojoMyRecentStrongDanger =
+        recentSevenMachineStrongHighContentCount >= 1 && recentSevenNetTotal >= 1200;
+      const hinodeOnojoMyLowReliability7 = historyRowCount >= 7 && recentSevenGamesTotal < 16000;
+      const hinodeOnojoMyTooLongNoHigh =
+        historyRowCount >= 28 &&
+        (!Number.isFinite(daysSinceMachineHighContent) || daysSinceMachineHighContent >= 35);
+      const hinodeOnojoMyVeryLowPrevG = previousGames < 1500;
+      const hinodeOnojoMySink14 = historyRowCount >= 14 && recentFourteenNetTotal <= -2500 && recentFourteenGamesTotal >= 45000;
+      const hinodeOnojoMyDeepSink21 =
+        historyRowCount >= 21 && recentTwentyOneNetTotal <= -4000 && recentTwentyOneGamesTotal >= 70000;
+      const hinodeOnojoMyAngleSink14 =
+        historyRowCount >= 14 && features.recentFourteenAngle <= -55 && recentFourteenGamesTotal >= 45000;
+      const hinodeOnojoMyWeakBonus14 =
+        historyRowCount >= 14 &&
+        features.recentFourteenRbDenominator >= 350 &&
+        features.recentFourteenCombinedDenominator >= 150 &&
+        recentFourteenGamesTotal >= 50000;
+      const hinodeOnojoMyRecentHighNotTooRecent =
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 4 &&
+        daysSinceMachineHighContent <= 20;
+      const hinodeOnojoMyLossAngle =
+        hinodeOnojoMyLossStreak >= 4 &&
+        hinodeOnojoMyLossStreak <= 8 &&
+        recentFourteenGamesTotal >= 45000 &&
+        features.recentFourteenAngle <= -60;
+      const boostFlags = [
+        hinodeOnojoMySink14,
+        hinodeOnojoMyDeepSink21,
+        hinodeOnojoMyAngleSink14,
+        hinodeOnojoMyWeakBonus14,
+        hinodeOnojoMyRealButUnpaidPrev,
+        hinodeOnojoMyPrevHighUnpaid,
+        hinodeOnojoMyRecentHighNotTooRecent,
+      ];
+      const dangerFlags = [
+        hinodeOnojoMyPaidDone3,
+        hinodeOnojoMyRecentStrongDanger,
+        hinodeOnojoMyLowReliability7,
+        hinodeOnojoMyTooLongNoHigh,
+        hinodeOnojoMyVeryLowPrevG,
+      ];
+
+      return {
+        ...features,
+        hinodeOnojoMyEvent,
+        hinodeOnojoMyNormal,
+        hinodeOnojoMyHistoryReady,
+        hinodeOnojoMyLossStreak,
+        hinodeOnojoMyTwoWin,
+        hinodeOnojoMyRealButUnpaidPrev,
+        hinodeOnojoMyPrevHighUnpaid,
+        hinodeOnojoMyPaidDone3,
+        hinodeOnojoMyRecentStrongDanger,
+        hinodeOnojoMyLowReliability7,
+        hinodeOnojoMyTooLongNoHigh,
+        hinodeOnojoMyVeryLowPrevG,
+        hinodeOnojoMySink14,
+        hinodeOnojoMyDeepSink21,
+        hinodeOnojoMyAngleSink14,
+        hinodeOnojoMyWeakBonus14,
+        hinodeOnojoMyRecentHighNotTooRecent,
+        hinodeOnojoMyLossAngle,
+        treatmentDone: hinodeOnojoMyPaidDone3 || hinodeOnojoMyRecentStrongDanger,
+        lowConfidence: !hinodeOnojoMyHistoryReady || hinodeOnojoMyLowReliability7 || hinodeOnojoMyVeryLowPrevG,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "chikushino-my") {
       const chikushinoMyHistoryReady = historyRowCount >= 21;
       const rawDaysSinceHigh = metrics.daysSinceMachineHighContent;
@@ -33965,6 +34138,97 @@ function calculateMachineScore(definition, metrics, features) {
       return Math.round(clamp(score, 0, 100));
     }
 
+    if (activeLogicKey === "hinode-onojo-my") {
+      let score = 25;
+
+      if (historyRowCount >= 21) {
+        score += 10;
+      } else if (historyRowCount >= 14) {
+        score += 5;
+      } else if (historyRowCount < 7) {
+        score -= 10;
+      }
+
+      if (recentFourteenGamesTotal >= 65000) {
+        score += 6;
+      } else if (recentFourteenGamesTotal >= 45000) {
+        score += 5;
+      } else if (recentFourteenGamesTotal < 30000) {
+        score -= 8;
+      }
+
+      if (historyLosingStreak >= 4 && historyLosingStreak <= 8) {
+        score += 18;
+      } else if (historyLosingStreak >= 3 && historyLosingStreak <= 5) {
+        score += 10;
+      } else if (historyLosingStreak >= 2 && historyLosingStreak <= 4) {
+        score += 5;
+      } else if (historyLosingStreak >= 9) {
+        score -= 4;
+      } else if (winningStreak >= 2) {
+        score -= 5;
+      }
+
+      if (features.recentFourteenAngle <= -90) {
+        score += 20;
+      } else if (features.recentFourteenAngle <= -60) {
+        score += 15;
+      } else if (features.recentFourteenAngle <= -45) {
+        score += 10;
+      } else if (features.recentFourteenAngle <= -30) {
+        score += 5;
+      } else if (features.recentFourteenAngle >= 0) {
+        score -= 6;
+      }
+
+      if (recentFourteenNetTotal <= -6000) {
+        score += 10;
+      } else if (recentFourteenNetTotal <= -4000) {
+        score += 7;
+      } else if (recentFourteenNetTotal <= -2500) {
+        score += 4;
+      } else if (recentFourteenNetTotal >= 2500) {
+        score -= 8;
+      }
+
+      score += recentTwentyOneNetTotal <= -7000 ? 5 : 0;
+
+      if (features.recentFourteenCombinedDenominator >= 165) {
+        score += 5;
+      } else if (features.recentFourteenCombinedDenominator >= 155) {
+        score += 3;
+      } else if (features.recentFourteenCombinedDenominator <= 140) {
+        score -= 3;
+      }
+
+      if (Number.isFinite(daysSinceMachineHighContent) && daysSinceMachineHighContent >= 5 && daysSinceMachineHighContent <= 20) {
+        score += 6;
+      } else if (
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 21 &&
+        daysSinceMachineHighContent <= 34
+      ) {
+        score += 3;
+      } else if (
+        Number.isFinite(daysSinceMachineHighContent) &&
+        daysSinceMachineHighContent >= 1 &&
+        daysSinceMachineHighContent <= 2
+      ) {
+        score -= 6;
+      } else if (features.hinodeOnojoMyTooLongNoHigh) {
+        score -= 4;
+      }
+
+      score += features.hinodeOnojoMyRealButUnpaidPrev ? 6 : 0;
+      score += features.hinodeOnojoMyPrevHighUnpaid ? 5 : 0;
+      score -= features.hinodeOnojoMyRecentStrongDanger ? 8 : 0;
+      score -= features.hinodeOnojoMyPaidDone3 ? 8 : 0;
+      score -= features.hinodeOnojoMyLowReliability7 ? 8 : 0;
+      score -= features.hinodeOnojoMyVeryLowPrevG ? 6 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (activeLogicKey === "chikushino-my") {
       const rawDaysSinceHigh = metrics.daysSinceMachineHighContent;
       const chikushinoMyDaysSinceHigh =
@@ -39440,10 +39704,27 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
           break;
         }
       }
+      let denseRank = index + 1;
+      if (score !== null) {
+        let distinctHigherCount = 0;
+        let previousDistinctScore = null;
+        for (let previousIndex = 0; previousIndex < firstSameScoreIndex; previousIndex += 1) {
+          const candidateScore = readNullableNumber(sortedRows[previousIndex]?.[evaluationKey]?.score);
+          if (candidateScore === null) {
+            continue;
+          }
+          if (previousDistinctScore === null || Math.abs(candidateScore - previousDistinctScore) > 0.000000001) {
+            distinctHigherCount += 1;
+            previousDistinctScore = candidateScore;
+          }
+        }
+        denseRank = distinctHigherCount + 1;
+      }
       const ordinalNextScore = readNullableNumber(sortedRows[index + 1]?.[evaluationKey]?.score);
       contextByRowKey.set(normalizeText(row?.rowKey), {
         rank: score !== null ? firstSameScoreIndex + 1 : index + 1,
         nextGap: score !== null && nextScore !== null ? score - nextScore : null,
+        denseRank,
         ordinalRank: index + 1,
         ordinalNextGap: score !== null && ordinalNextScore !== null ? score - ordinalNextScore : 0,
       });
@@ -39473,6 +39754,7 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
       updatedEvaluation.logicKey === "espace-ueno-neo-aim" ||
       updatedEvaluation.logicKey === "messe-nishikasai-neo-aim" ||
       updatedEvaluation.logicKey === MESSE_OUGI_NEO_AIM_LOGIC_KEY;
+    const useDenseRank = updatedEvaluation.logicKey === "hinode-onojo-my";
     const rankedEvaluation = useOrdinalRank
       ? {
           ...updatedEvaluation,
@@ -39484,6 +39766,11 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
                 : 0
               : context.ordinalNextGap ?? updatedEvaluation.nextGap,
         }
+      : useDenseRank
+        ? {
+            ...updatedEvaluation,
+            rank: context.denseRank ?? updatedEvaluation.rank,
+          }
       : updatedEvaluation;
     const matchedConditions = buildMatchedConditionSummaries(
       definition,
