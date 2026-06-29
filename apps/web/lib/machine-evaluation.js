@@ -13046,6 +13046,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildLogicVariant("beam-hikari-my-normal", "マイジャグビームヒカリ通常日式", "beam-hikari-normal-core"),
       buildLogicVariant("beam-hikari-my-event", "マイジャグビームヒカリイベント日式", "beam-hikari-event-rank1"),
       buildLogicVariant(
+        "chikushino-my",
+        "スーパーDステーション39筑紫野店_マイジャグラーV_全日共通狙い度ロジック_v1",
+        "chikushino-my-purple-angle-low-exposure",
+      ),
+      buildLogicVariant(
         "messe-okudo-my",
         "メッセ奥戸店_マイジャグラーV_深沈み返済ロジック_v1",
         "messe-okudo-my-red-angle",
@@ -13383,6 +13388,76 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         ["beam-hikari-my-event"],
       ),
       buildCondition(
+        "chikushino-my-purple-angle-low-exposure",
+        "紫急角度低露出_最優先",
+        "32台 / 20日 / 103.92% / RB1/277.82 / 平均+676.47枚",
+        {
+          requiredFlags: ["chikushinoMyPurpleAngleLowExposure"],
+        },
+        ["chikushino-my"],
+      ),
+      buildCondition(
+        "chikushino-my-red-angle",
+        "赤急角度_危険0",
+        "37台 / 22日 / 103.74% / RB1/287.03 / 平均+621.00枚",
+        {
+          requiredFlags: ["chikushinoMyRedAngle"],
+        },
+        ["chikushino-my"],
+      ),
+      buildCondition(
+        "chikushino-my-green-rank1-safe",
+        "緑1位_危険0",
+        "34台 / 28日 / 104.57% / RB1/292.45 / 平均+748.47枚",
+        {
+          rankMax: 1,
+          maxDanger: 0,
+          requiredFlags: ["chikushinoMyHistoryReady"],
+        },
+        ["chikushino-my"],
+      ),
+      buildCondition(
+        "chikushino-my-yellow-score94-safe",
+        "黄本命_94点危険0",
+        "37台 / 20日 / 104.86% / RB1/304.40 / 平均+761.11枚",
+        {
+          minScore: 94,
+          maxDanger: 0,
+          requiredFlags: ["chikushinoMyHistoryReady"],
+        },
+        ["chikushino-my"],
+      ),
+      buildCondition(
+        "chikushino-my-blue-score80-safe",
+        "青入口_80点危険0",
+        "114台 / 28日 / 102.69% / RB1/318.42 / 平均+399.30枚",
+        {
+          minScore: 80,
+          maxDanger: 0,
+          requiredFlags: ["chikushinoMyHistoryReady"],
+        },
+        ["chikushino-my"],
+      ),
+      buildCondition(
+        "chikushino-my-reference-prev-big-real",
+        "参考_前日大出し本物据え",
+        "14台 / 13日 / 103.06% / RB1/269.86 / 平均+544.00枚",
+        {
+          requiredFlags: ["chikushinoMyReferencePrevBigReal"],
+        },
+        ["chikushino-my"],
+      ),
+      buildCondition(
+        "chikushino-my-watch-danger3",
+        "見送り_危険3以上",
+        "103台 / 31日 / 97.51% / RB1/403.32 / 平均-401.55枚",
+        {
+          minDanger: 3,
+          requiredFlags: ["chikushinoMyHistoryReady"],
+        },
+        ["chikushino-my"],
+      ),
+      buildCondition(
         "messe-okudo-my-blue-deep70",
         "青_深沈み70",
         "49台 / 46日 / 102.59% / RB1/311.8 / 平均+459.8枚",
@@ -13644,6 +13719,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "hinode-onojo-neo-aim");
   } else if (isSuperDstationChikushinoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "chikushino-neo-aim");
+  } else if (isSuperDstationChikushinoStore(storeName) && definition.machineKey === "my") {
+    defaultLogic = findLogicDefinition(definition, "chikushino-my");
   } else if (isEspaceUenoStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "espace-ueno-neo-aim");
   } else if (isEspaceShinkoiwaNorthStore(storeName) && definition.machineKey === "neo-aim") {
@@ -23499,6 +23576,66 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   }
 
   if (machineKey === "my") {
+    if (activeLogicKey === "chikushino-my") {
+      const chikushinoMyHistoryReady = historyRowCount >= 21;
+      const rawDaysSinceHigh = metrics.daysSinceMachineHighContent;
+      const chikushinoMyDaysSinceHigh =
+        rawDaysSinceHigh === null || rawDaysSinceHigh === undefined || rawDaysSinceHigh === ""
+          ? null
+          : readNumber(rawDaysSinceHigh);
+      const chikushinoMyNearHighCount14Sum = adjacentMachineHighContentCount14Near2;
+      const dangerFlags = [
+        recentTwentyOneNetTotal <= -8000,
+        recentTwentyOneGamesTotal >= 110000,
+        recentFourteenGamesTotal >= 70000,
+        recentSevenGamesTotal >= 40000,
+        recentFourteenNetTotal <= -6000,
+        features.recentSevenRbDenominator <= 300,
+        chikushinoMyNearHighCount14Sum <= 2,
+      ];
+      const boostFlags = [
+        recentSevenGamesTotal <= 30000,
+        features.recentSevenAngle <= -120,
+        previousDifference >= 1500,
+        previousGames >= 7000,
+        previousGames <= 3000,
+        features.previousRbDenominator <= 300,
+        features.previousCombinedDenominator <= 130,
+        Number.isFinite(chikushinoMyDaysSinceHigh) && chikushinoMyDaysSinceHigh <= 1,
+        recentFourteenMachineHighContentCount >= 4,
+        features.recentFourteenRbDenominator <= 330,
+      ];
+      const boostCount = boostFlags.filter(Boolean).length;
+      const dangerCount = dangerFlags.filter(Boolean).length;
+      const chikushinoMyDangerZero = dangerCount === 0;
+
+      return {
+        ...features,
+        chikushinoMyHistoryReady,
+        chikushinoMyDaysSinceHigh,
+        chikushinoMyNearHighCount14Sum,
+        chikushinoMyDangerZero,
+        chikushinoMyPurpleAngleLowExposure:
+          chikushinoMyHistoryReady &&
+          features.recentSevenAngle <= -150 &&
+          recentSevenGamesTotal <= 30000 &&
+          chikushinoMyDangerZero,
+        chikushinoMyRedAngle:
+          chikushinoMyHistoryReady &&
+          features.recentSevenAngle <= -150 &&
+          chikushinoMyDangerZero,
+        chikushinoMyReferencePrevBigReal:
+          chikushinoMyHistoryReady &&
+          previousDifference >= 2000 &&
+          features.previousRbDenominator <= 250 &&
+          chikushinoMyDangerZero,
+        treatmentDone: dangerCount >= 3,
+        lowConfidence: !chikushinoMyHistoryReady,
+        boostCount,
+        dangerCount,
+      };
+    }
+
     if (activeLogicKey === "messe-okudo-my") {
       const messeOkudoMyHistoryReady = historyRowCount >= 21;
       const messeOkudoMyLossStreak = historyLosingStreak;
@@ -31923,6 +32060,81 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "my") {
+    if (activeLogicKey === "chikushino-my") {
+      const rawDaysSinceHigh = metrics.daysSinceMachineHighContent;
+      const chikushinoMyDaysSinceHigh =
+        rawDaysSinceHigh === null || rawDaysSinceHigh === undefined || rawDaysSinceHigh === ""
+          ? null
+          : readNumber(rawDaysSinceHigh);
+      const chikushinoMyNearHighCount14Sum = adjacentMachineHighContentCount14Near2;
+      let score = 50;
+
+      if (recentSevenGamesTotal <= 25000) {
+        score += 13;
+      } else if (recentSevenGamesTotal <= 30000) {
+        score += 8;
+      } else if (recentSevenGamesTotal <= 35000) {
+        score += 3;
+      }
+
+      if (features.recentSevenAngle <= -150) {
+        score += 16;
+      } else if (features.recentSevenAngle <= -120) {
+        score += 10;
+      } else if (features.recentSevenAngle <= -90) {
+        score += 5;
+      }
+
+      if (previousDifference >= 2000) {
+        score += 14;
+      } else if (previousDifference >= 1500) {
+        score += 10;
+      } else if (previousDifference >= 1000) {
+        score += 6;
+      } else if (previousDifference >= 500) {
+        score += 3;
+      }
+      score += previousDifference <= -1500 ? -6 : 0;
+
+      if (previousGames >= 8000) {
+        score += 9;
+      } else if (previousGames >= 7000) {
+        score += 6;
+      } else if (previousGames <= 3000) {
+        score += 7;
+      }
+
+      if (features.previousRbDenominator <= 250) {
+        score += 10;
+      } else if (features.previousRbDenominator <= 300) {
+        score += 5;
+      }
+      score += features.previousCombinedDenominator <= 130 ? 6 : 0;
+
+      if (chikushinoMyDaysSinceHigh === null) {
+        score -= 6;
+      } else if (chikushinoMyDaysSinceHigh <= 1) {
+        score += 7;
+      } else if (chikushinoMyDaysSinceHigh <= 2) {
+        score += 2;
+      } else if (chikushinoMyDaysSinceHigh >= 10) {
+        score -= 4;
+      }
+
+      score += recentFourteenMachineHighContentCount >= 4 ? 5 : 0;
+      score += features.recentFourteenRbDenominator <= 330 ? 4 : 0;
+      score -= features.recentSevenRbDenominator <= 300 ? 7 : 0;
+      score -= recentTwentyOneNetTotal <= -8000 ? 12 : 0;
+      score -= recentTwentyOneGamesTotal >= 110000 ? 12 : 0;
+      score -= recentFourteenGamesTotal >= 70000 ? 8 : 0;
+      score -= recentSevenGamesTotal >= 40000 ? 8 : 0;
+      score -= recentFourteenNetTotal <= -6000 ? 6 : 0;
+      score -= chikushinoMyNearHighCount14Sum <= 2 ? 4 : 0;
+      score -= historyRowCount < 21 ? 20 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (activeLogicKey === "messe-okudo-my") {
       const messeOkudoMyHistoryReady = historyRowCount >= 21;
       const messeOkudoMyLossStreak = historyLosingStreak;

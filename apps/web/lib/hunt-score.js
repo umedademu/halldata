@@ -308,6 +308,7 @@ const HINODE_ONOJO_TARGET_MACHINES = [
 
 const SUPER_DSTATION_CHIKUSHINO_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
 ];
 
 const ESPACE_UENO_TARGET_MACHINES = [
@@ -980,9 +981,13 @@ const HUNT_SCORE_STORE_CONFIGS = [
     targetMachines: SUPER_DSTATION_CHIKUSHINO_TARGET_MACHINES,
     defaultLogicKey: "apark",
     resetHistoryGapDays: 7,
+    resetHistoryGapExcludedMachines: ["マイジャグラーV", "マイジャグラーⅤ", "マイジャグラー"],
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "chikushino-neo-aim",
       "ネオアイムジャグラーＥＸ": "chikushino-neo-aim",
+      "マイジャグラーV": "chikushino-my",
+      "マイジャグラーⅤ": "chikushino-my",
+      "マイジャグラー": "chikushino-my",
     },
   },
   {
@@ -2186,9 +2191,16 @@ function filterWindowRowsAfterSlotHistoryStartDates(windowRows, slotHistoryStart
 }
 
 function filterWindowRowsForHistoryReset(windowRows, config = {}) {
+  const firstMachineName = normalizeHuntScoreMachineName(windowRows?.[0]?.row?.machine_name, config);
+  const resetHistoryGapExcludedMachines = Array.isArray(config?.resetHistoryGapExcludedMachines)
+    ? config.resetHistoryGapExcludedMachines
+    : [];
+  const skipLargeGapReset = resetHistoryGapExcludedMachines.some(
+    (machineName) => normalizeText(machineName) === normalizeText(firstMachineName),
+  );
   return filterWindowRowsAfterSlotHistoryStartDates(
     filterWindowRowsAfterResetHistoryDates(
-      filterWindowRowsAfterLargeDateGap(windowRows, config?.resetHistoryGapDays),
+      filterWindowRowsAfterLargeDateGap(windowRows, skipLargeGapReset ? null : config?.resetHistoryGapDays),
       config?.resetHistoryDates,
     ),
     config?.slotHistoryStartDates,
@@ -2821,6 +2833,49 @@ function isMesseOkudoMyStrongHighContentWindowRow(row) {
   );
 }
 
+function isChikushinoMyGoodContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMyJugglerSettingProbabilities(row);
+  const p4plus = probabilities?.p4plus;
+  return (
+    games >= 4000 &&
+    ((Number.isFinite(p4plus) && p4plus >= 0.4) ||
+      (rbDenominator <= 320 && combinedDenominator <= 145) ||
+      (rbDenominator <= 300 && combinedDenominator <= 155))
+  );
+}
+
+function isChikushinoMyHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const differenceValue = readNumber(row?.differenceValue) ?? 0;
+  const probabilities = calculateMyJugglerSettingProbabilities(row);
+  const p4plus = probabilities?.p4plus;
+  return (
+    games >= 5000 &&
+    ((Number.isFinite(p4plus) && p4plus >= 0.55) ||
+      (rbDenominator <= 300 && combinedDenominator <= 140) ||
+      (rbDenominator <= 280 && combinedDenominator <= 150 && differenceValue >= 0))
+  );
+}
+
+function isChikushinoMyStrongHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const differenceValue = readNumber(row?.differenceValue) ?? 0;
+  const probabilities = calculateMyJugglerSettingProbabilities(row);
+  const p5plus = probabilities?.p5plus;
+  return (
+    games >= 6000 &&
+    ((Number.isFinite(p5plus) && p5plus >= 0.55) ||
+      (rbDenominator <= 270 && combinedDenominator <= 130 && differenceValue >= 0))
+  );
+}
+
 function isMachineHighContentWindowRow(row, machineName, config = null) {
   const normalizedMachineName = normalizeText(machineName);
   const games = readWindowField(row, "games");
@@ -3315,6 +3370,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("マイジャグラー")
   ) {
     const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "chikushino-my") {
+      return isChikushinoMyHighContentWindowRow(row);
+    }
     if (contentRule === "messe-okudo-my") {
       return isMesseOkudoMyHighContentWindowRow(row);
     }
@@ -3905,6 +3963,14 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     }
     const rbCount = readWindowField(row, "rbCount");
     return games >= 3500 && rbCount >= 15 && rbDenominator <= 323 && combinedDenominator <= 140;
+  }
+  if (
+    (normalizedMachineName === normalizeText("マイジャグラーV") ||
+      normalizedMachineName === normalizeText("マイジャグラーⅤ") ||
+      normalizedMachineName === normalizeText("マイジャグラー")) &&
+    readMachineContentRule(config, machineName) === "chikushino-my"
+  ) {
+    return isChikushinoMyGoodContentWindowRow(row);
   }
   if (normalizedMachineName === normalizeText("ウルトラミラクルジャグラー")) {
     if (readMachineContentRule(config, machineName) === "beam-hikari-ultra-miracle-content") {
@@ -4897,6 +4963,14 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 2500 && settingFivePlusProbability >= 0.7;
     }
     return games >= 2500 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    (normalizedMachineName === normalizeText("マイジャグラーV") ||
+      normalizedMachineName === normalizeText("マイジャグラーⅤ") ||
+      normalizedMachineName === normalizeText("マイジャグラー")) &&
+    readMachineContentRule(config, machineName) === "chikushino-my"
+  ) {
+    return isChikushinoMyStrongHighContentWindowRow(row);
   }
   if (
     (normalizedMachineName === normalizeText("マイジャグラーV") ||
