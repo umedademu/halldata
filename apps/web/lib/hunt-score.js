@@ -1640,6 +1640,8 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "L東京喰種": "beam-hikari-tokyo-ghoul-content",
       "L 東京喰種": "beam-hikari-tokyo-ghoul-content",
       "東京喰種": "beam-hikari-tokyo-ghoul-content",
+      "スマスロ 甲鉄城のカバネリ 海門決戦": "beam-hikari-kabaneri-kaimon-content",
+      "スマスロ甲鉄城のカバネリ海門決戦": "beam-hikari-kabaneri-kaimon-content",
       "沖ドキ！BLACK": "beam-hikari-okidoki-black-content",
       "沖ドキ!BLACK": "beam-hikari-okidoki-black-content",
       "沖ドキ！ＢＬＡＣＫ": "beam-hikari-okidoki-black-content",
@@ -1659,6 +1661,16 @@ const HUNT_SCORE_STORE_CONFIGS = [
         machineName: "L東京喰種",
         slotNumbers: ["575", "576", "577", "578", "580", "581", "582", "583", "585", "586"],
         startDate: "2026-04-21",
+      },
+      {
+        machineName: "スマスロ 甲鉄城のカバネリ 海門決戦",
+        slotNumbers: ["562", "563", "565", "566", "567", "568", "570", "571", "572", "573"],
+        startDate: "2026-03-03",
+      },
+      {
+        machineName: "スマスロ 甲鉄城のカバネリ 海門決戦",
+        slotNumbers: ["682", "683", "687", "688", "700", "701", "702", "703", "707", "708", "710", "711", "712", "713"],
+        startDate: "2026-06-09",
       },
     ],
   },
@@ -3542,6 +3554,15 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     }
   }
   if (
+    normalizedMachineName === normalizeText("スマスロ 甲鉄城のカバネリ 海門決戦") ||
+    normalizedMachineName === normalizeText("スマスロ甲鉄城のカバネリ海門決戦")
+  ) {
+    if (readMachineContentRule(config, machineName) === "beam-hikari-kabaneri-kaimon-content") {
+      const payoutRate = games > 0 ? 100 + (differenceValue / games / 3) * 100 : 0;
+      return games >= 3000 && (differenceValue >= 1500 || rbDenominator <= 260 || payoutRate >= 106);
+    }
+  }
+  if (
     normalizedMachineName === normalizeText("Lスマスロ北斗の拳") ||
     normalizedMachineName === normalizeText("L スマスロ北斗の拳") ||
     normalizedMachineName === normalizeText("スマスロ北斗の拳")
@@ -5105,6 +5126,14 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     readMachineContentRule(config, machineName) === "beam-hikari-tokyo-ghoul-content"
   ) {
     return games >= 4500 && differenceValue >= 3000;
+  }
+  if (
+    (normalizedMachineName === normalizeText("スマスロ 甲鉄城のカバネリ 海門決戦") ||
+      normalizedMachineName === normalizeText("スマスロ甲鉄城のカバネリ海門決戦")) &&
+    readMachineContentRule(config, machineName) === "beam-hikari-kabaneri-kaimon-content"
+  ) {
+    const payoutRate = games > 0 ? 100 + (differenceValue / games / 3) * 100 : 0;
+    return games >= 3500 && (differenceValue >= 3000 || rbDenominator <= 230 || payoutRate >= 110);
   }
   if (
     (normalizedMachineName === normalizeText("ファンキージャグラー２ＫＴ") ||
@@ -10850,6 +10879,9 @@ function calculateWindowMetrics(
   const recentThreeMachineStrongHighContentCount = recentThreeRows.filter((windowRow) =>
     isMachineStrongHighContentWindowRow(windowRow, currentMachineName, config),
   ).length;
+  const recentSevenMachineStrongHighContentCount = historyWindowRows
+    .slice(-7)
+    .filter(isHistoryMachineStrongHighContentWindowRow).length;
   const recentSevenMachineStrongBonusCount = historyWindowRows
     .slice(-7)
     .filter(isHistoryMachineStrongBonusWindowRow).length;
@@ -11419,6 +11451,7 @@ function calculateWindowMetrics(
     recentFourteenMachineGoodContentCount,
     recentTwentyOneMachineGoodContentCount,
     recentThreeMachineStrongHighContentCount,
+    recentSevenMachineStrongHighContentCount,
     recentSevenMachineStrongBonusCount,
     recentFourteenMachineStrongHighContentCount,
     recentTwentyOneMachineStrongHighContentCount,

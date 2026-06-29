@@ -5013,6 +5013,98 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     ],
   },
   {
+    machineKey: "kabaneri-kaimon",
+    machineNames: [
+      "スマスロ 甲鉄城のカバネリ 海門決戦",
+      "スマスロ甲鉄城のカバネリ海門決戦",
+    ],
+    logicKey: "beam-hikari-kabaneri-kaimon",
+    logicName: "ビームヒカリ_スマスロ甲鉄城のカバネリ海門決戦_v1",
+    logics: [
+      buildLogicVariant(
+        "beam-hikari-kabaneri-kaimon",
+        "ビームヒカリ_スマスロ甲鉄城のカバネリ海門決戦_v1",
+        "beam-hikari-kabaneri-free-max-interval-danger0",
+      ),
+    ],
+    profile: "smart",
+    defaultConditionSuffix: "beam-hikari-kabaneri-free-max-interval-danger0",
+    conditions: [
+      buildCondition(
+        "beam-hikari-kabaneri-free-max-interval-danger0",
+        "自由MAX_間隔4-13_G7過熱なし_危険0",
+        "47日 / 87台 / 総G383,109 / BB0 / RB1,221 / RB1/313.8 / 合算1/313.8 / 平均+1,212.2枚 / 109.18% / 勝率51.7%",
+        {
+          requiredFlags: ["beamHikariKabaneriFreeMaxIntervalDanger0"],
+        },
+        ["beam-hikari-kabaneri-kaimon"],
+      ),
+      buildCondition(
+        "beam-hikari-kabaneri-score75-danger0",
+        "75点以上＋危険0",
+        "64日 / 135台 / 総G587,351 / BB0 / RB1,868 / RB1/314.4 / 合算1/314.4 / 平均+896.6枚 / 106.87% / 勝率46.7%",
+        {
+          minScore: 75,
+          maxDanger: 0,
+          requiredFlags: ["beamHikariKabaneriHistory7Ready"],
+        },
+        ["beam-hikari-kabaneri-kaimon"],
+      ),
+      buildCondition(
+        "beam-hikari-kabaneri-score70-danger0",
+        "70点以上＋危険0",
+        "67日 / 166台 / 総G729,387 / BB0 / RB2,335 / RB1/312.4 / 合算1/312.4 / 平均+785.2枚 / 105.96% / 勝率47.6%",
+        {
+          minScore: 70,
+          maxDanger: 0,
+          requiredFlags: ["beamHikariKabaneriHistory7Ready"],
+        },
+        ["beam-hikari-kabaneri-kaimon"],
+      ),
+      buildCondition(
+        "beam-hikari-kabaneri-score65-reference",
+        "参考表示_65点以上",
+        "87日 / 260台 / 総G1,174,501 / BB0 / RB3,749 / RB1/313.3 / 合算1/313.3 / 平均+386.2枚 / 102.85% / 勝率44.6%",
+        {
+          minScore: 65,
+          requiredFlags: ["beamHikariKabaneriHistory7Ready"],
+        },
+        ["beam-hikari-kabaneri-kaimon"],
+      ),
+      buildCondition(
+        "beam-hikari-kabaneri-score70-reference",
+        "参考表示_70点以上",
+        "82日 / 225台 / 総G1,014,319 / BB0 / RB3,263 / RB1/310.9 / 合算1/310.9 / 平均+490.3枚 / 103.63% / 勝率45.8%",
+        {
+          minScore: 70,
+          requiredFlags: ["beamHikariKabaneriHistory7Ready"],
+        },
+        ["beam-hikari-kabaneri-kaimon"],
+      ),
+      buildCondition(
+        "beam-hikari-kabaneri-score75-reference",
+        "参考表示_75点以上",
+        "75日 / 172台 / 総G759,259 / BB0 / RB2,430 / RB1/312.5 / 合算1/312.5 / 平均+550.0枚 / 104.15% / 勝率44.2%",
+        {
+          minScore: 75,
+          requiredFlags: ["beamHikariKabaneriHistory7Ready"],
+        },
+        ["beam-hikari-kabaneri-kaimon"],
+      ),
+      buildCondition(
+        "beam-hikari-kabaneri-watch-score75-danger",
+        "見送り_75点以上危険あり",
+        "34日 / 37台 / 総G171,908 / BB0 / RB562 / RB1/305.9 / 合算1/305.9 / 平均-714.6枚 / 94.87% / 勝率35.1%",
+        {
+          minScore: 75,
+          minDanger: 1,
+          requiredFlags: ["beamHikariKabaneriHistory7Ready"],
+        },
+        ["beam-hikari-kabaneri-kaimon"],
+      ),
+    ],
+  },
+  {
     machineKey: "dragon-hana",
     machineNames: [
       "ドラゴンハナハナ～閃光～",
@@ -14220,6 +14312,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-million-god");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "tokyo-ghoul") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-tokyo-ghoul");
+  } else if (isBeamHikariStore(storeName) && definition.machineKey === "kabaneri-kaimon") {
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-kabaneri-kaimon");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-funky");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "gogo") {
@@ -14893,6 +14987,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   const recentTwentyOneMachineHighContentCount = readNumber(metrics.recentTwentyOneMachineHighContentCount);
   const recentTwentyEightMachineHighContentCount = readNumber(metrics.recentTwentyEightMachineHighContentCount);
   const recentSevenMachineStrongBonusCount = readNumber(metrics.recentSevenMachineStrongBonusCount);
+  const recentSevenMachineStrongHighContentCount = readNumber(metrics.recentSevenMachineStrongHighContentCount);
   const recentFourteenMachineStrongHighContentCount = readNumber(metrics.recentFourteenMachineStrongHighContentCount);
   const recentTwentyOneMachineStrongHighContentCount = readNumber(metrics.recentTwentyOneMachineStrongHighContentCount);
   const recentTwentyEightMachineStrongHighContentCount = readNumber(
@@ -23945,6 +24040,53 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
     };
   }
 
+  if (machineKey === "kabaneri-kaimon" && activeLogicKey === "beam-hikari-kabaneri-kaimon") {
+    const beamHikariKabaneriHistory7Ready = historyRowCount >= 7;
+    const beamHikariKabaneriHistory14Ready = historyRowCount >= 14;
+    const beamHikariKabaneriDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+      ? daysSinceMachineHighContent
+      : null;
+    const beamHikariKabaneriRbRate7 =
+      recentSevenGamesTotal > 0 && recentSevenRbTotal > 0 ? recentSevenGamesTotal / recentSevenRbTotal : null;
+    const boostFlags = [
+      Number.isFinite(beamHikariKabaneriDaysSinceHigh) &&
+        beamHikariKabaneriDaysSinceHigh >= 5 &&
+        beamHikariKabaneriDaysSinceHigh <= 9,
+      recentThreeMachineHighContentCount === 0,
+      recentFourteenNetTotal >= -4500 && recentFourteenNetTotal <= 5500,
+      recentSevenGamesTotal < 27000,
+      historyLosingStreak >= 5 && historyLosingStreak <= 6,
+    ];
+    const dangerFlags = [
+      historyRowCount < 7,
+      previousDifference >= 3000,
+      recentFourteenNetTotal < -12000,
+      recentFourteenNetTotal > 9000,
+      recentSevenMachineStrongHighContentCount >= 3,
+      recentFourteenGamesTotal >= 82000,
+    ];
+    const beamHikariKabaneriFreeMaxIntervalDanger0 =
+      beamHikariKabaneriHistory14Ready &&
+      Number.isFinite(beamHikariKabaneriDaysSinceHigh) &&
+      beamHikariKabaneriDaysSinceHigh >= 4 &&
+      beamHikariKabaneriDaysSinceHigh <= 13 &&
+      recentSevenGamesTotal < 36000 &&
+      dangerFlags.filter(Boolean).length === 0;
+
+    return {
+      ...features,
+      beamHikariKabaneriHistory7Ready,
+      beamHikariKabaneriHistory14Ready,
+      beamHikariKabaneriDaysSinceHigh,
+      beamHikariKabaneriRbRate7,
+      beamHikariKabaneriFreeMaxIntervalDanger0,
+      treatmentDone: dangerFlags.some(Boolean),
+      lowConfidence: !beamHikariKabaneriHistory7Ready,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
+
   if (machineKey === "okidoki-black" && activeLogicKey === "beam-hikari-okidoki-black") {
     const beamHikariOkidokiBlackHistoryReady = historyRowCount >= 21;
     const beamHikariOkidokiBlackDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
@@ -25651,6 +25793,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentThirtyMachineHighContentCount = readNumber(metrics.recentThirtyMachineHighContentCount);
   const recentThirtyFiveMachineHighContentCount = readNumber(metrics.recentThirtyFiveMachineHighContentCount);
   const recentSevenMachineStrongBonusCount = readNumber(metrics.recentSevenMachineStrongBonusCount);
+  const recentSevenMachineStrongHighContentCount = readNumber(metrics.recentSevenMachineStrongHighContentCount);
   const recentFourteenMachineStrongHighContentCount = readNumber(metrics.recentFourteenMachineStrongHighContentCount);
   const recentTwentyOneMachineStrongHighContentCount = readNumber(metrics.recentTwentyOneMachineStrongHighContentCount);
   const recentTwentyEightMachineStrongHighContentCount = readNumber(
@@ -34742,6 +34885,51 @@ function calculateMachineScore(definition, metrics, features) {
     return Math.round(clamp(score, 0, 100));
   }
 
+  if (machineKey === "kabaneri-kaimon" && activeLogicKey === "beam-hikari-kabaneri-kaimon") {
+    const beamHikariKabaneriDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+      ? daysSinceMachineHighContent
+      : null;
+    const beamHikariKabaneriRbRate7 =
+      recentSevenGamesTotal > 0 && recentSevenRbTotal > 0 ? recentSevenGamesTotal / recentSevenRbTotal : null;
+
+    let score = 40;
+    score += historyRowCount >= 21 ? 8 : historyRowCount >= 14 ? 5 : 0;
+    score -= historyRowCount < 7 ? 25 : 0;
+    if (Number.isFinite(beamHikariKabaneriDaysSinceHigh)) {
+      score += beamHikariKabaneriDaysSinceHigh >= 5 && beamHikariKabaneriDaysSinceHigh <= 9 ? 22 : 0;
+      score += beamHikariKabaneriDaysSinceHigh === 4 ? 16 : 0;
+      score += beamHikariKabaneriDaysSinceHigh >= 10 && beamHikariKabaneriDaysSinceHigh <= 13 ? 4 : 0;
+      score -= beamHikariKabaneriDaysSinceHigh >= 2 && beamHikariKabaneriDaysSinceHigh <= 3 ? 12 : 0;
+      score -= beamHikariKabaneriDaysSinceHigh === 1 ? 5 : 0;
+      score -= beamHikariKabaneriDaysSinceHigh >= 14 ? 2 : 0;
+    }
+    score += recentThreeMachineHighContentCount === 0 ? 10 : 0;
+    score += recentSevenMachineStrongHighContentCount <= 1 ? 7 : 0;
+    score -= recentSevenMachineStrongHighContentCount >= 3 ? 12 : 0;
+    score += recentFourteenNetTotal >= -4500 && recentFourteenNetTotal <= 5500 ? 10 : 0;
+    score -= recentFourteenNetTotal < -12000 ? 15 : 0;
+    score -= recentFourteenNetTotal > 9000 ? 12 : 0;
+    score += recentSevenNetTotal >= -2500 && recentSevenNetTotal <= 3500 ? 6 : 0;
+    score -= recentSevenNetTotal < -9000 ? 8 : 0;
+    score -= recentSevenNetTotal > 8000 ? 8 : 0;
+    score += previousDifference >= -1200 && previousDifference <= 1600 ? 6 : 0;
+    score -= previousDifference <= -3500 ? 7 : 0;
+    score -= previousDifference >= 3000 ? 12 : 0;
+    score += historyLosingStreak >= 5 && historyLosingStreak <= 6 ? 9 : 0;
+    score += historyLosingStreak >= 7 ? 4 : 0;
+    score -= historyLosingStreak === 1 ? 4 : 0;
+    score += recentSevenGamesTotal < 27000 ? 7 : 0;
+    score -= recentSevenGamesTotal >= 36000 ? 8 : 0;
+    score -= recentFourteenGamesTotal >= 72000 ? 7 : 0;
+    if (Number.isFinite(beamHikariKabaneriRbRate7)) {
+      score += beamHikariKabaneriRbRate7 >= 292 && beamHikariKabaneriRbRate7 <= 304 ? 5 : 0;
+      score -= beamHikariKabaneriRbRate7 < 285 ? 4 : 0;
+      score -= beamHikariKabaneriRbRate7 > 330 ? 3 : 0;
+    }
+
+    return Math.round(clamp(score, 0, 100));
+  }
+
   if (machineKey === "okidoki-black" && activeLogicKey === "beam-hikari-okidoki-black") {
     if (historyRowCount < 21) {
       return 0;
@@ -37744,6 +37932,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       "okidoki-black",
       "million-god",
       "tokyo-ghoul",
+      "kabaneri-kaimon",
     ].includes(definition?.machineKey)
   ) {
     const baseLogicKeyByMachineKey = {
@@ -37762,6 +37951,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       "okidoki-black": "beam-hikari-okidoki-black",
       "million-god": "beam-hikari-million-god",
       "tokyo-ghoul": "beam-hikari-tokyo-ghoul",
+      "kabaneri-kaimon": "beam-hikari-kabaneri-kaimon",
     };
     const logic = findLogicDefinition(definition, baseLogicKeyByMachineKey[definition.machineKey]);
     const condition =
