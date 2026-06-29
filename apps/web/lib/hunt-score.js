@@ -1637,10 +1637,30 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "スマスロミリオンゴッド": "beam-hikari-million-god-content",
       "スマスロ ミリオンゴッド-神々の軌跡-": "beam-hikari-million-god-content",
       "スマスロミリオンゴッド-神々の軌跡-": "beam-hikari-million-god-content",
+      "L東京喰種": "beam-hikari-tokyo-ghoul-content",
+      "L 東京喰種": "beam-hikari-tokyo-ghoul-content",
+      "東京喰種": "beam-hikari-tokyo-ghoul-content",
       "沖ドキ！BLACK": "beam-hikari-okidoki-black-content",
       "沖ドキ!BLACK": "beam-hikari-okidoki-black-content",
       "沖ドキ！ＢＬＡＣＫ": "beam-hikari-okidoki-black-content",
     },
+    slotHistoryStartDates: [
+      {
+        machineName: "L東京喰種",
+        slotNumbers: ["670", "671", "672", "673", "675"],
+        startDate: "2025-06-29",
+      },
+      {
+        machineName: "L東京喰種",
+        slotNumbers: ["707", "708", "710", "711", "712", "713"],
+        startDate: "2025-12-09",
+      },
+      {
+        machineName: "L東京喰種",
+        slotNumbers: ["575", "576", "577", "578", "580", "581", "582", "583", "585", "586"],
+        startDate: "2026-04-21",
+      },
+    ],
   },
   {
     key: "mj-arena-ijiri",
@@ -3512,6 +3532,16 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     }
   }
   if (
+    normalizedMachineName === normalizeText("L東京喰種") ||
+    normalizedMachineName === normalizeText("L 東京喰種") ||
+    normalizedMachineName === normalizeText("東京喰種")
+  ) {
+    if (readMachineContentRule(config, machineName) === "beam-hikari-tokyo-ghoul-content") {
+      const payoutRate = games > 0 ? 100 + (differenceValue / games / 3) * 100 : 0;
+      return (games >= 3500 && (differenceValue >= 1500 || payoutRate >= 108)) || (games >= 5000 && differenceValue >= 500);
+    }
+  }
+  if (
     normalizedMachineName === normalizeText("Lスマスロ北斗の拳") ||
     normalizedMachineName === normalizeText("L スマスロ北斗の拳") ||
     normalizedMachineName === normalizeText("スマスロ北斗の拳")
@@ -5067,6 +5097,14 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     readMachineContentRule(config, machineName) === "beam-hikari-million-god-content"
   ) {
     return games >= 6000 && differenceValue >= 3000;
+  }
+  if (
+    (normalizedMachineName === normalizeText("L東京喰種") ||
+      normalizedMachineName === normalizeText("L 東京喰種") ||
+      normalizedMachineName === normalizeText("東京喰種")) &&
+    readMachineContentRule(config, machineName) === "beam-hikari-tokyo-ghoul-content"
+  ) {
+    return games >= 4500 && differenceValue >= 3000;
   }
   if (
     (normalizedMachineName === normalizeText("ファンキージャグラー２ＫＴ") ||
@@ -11151,6 +11189,7 @@ function calculateWindowMetrics(
     (windowRow) => readNumber(windowRow?.differenceValue) <= -800,
   ).length;
   const recentSevenBigWin2500Count = countDifferenceAtLeastRows(recentSevenRows, 2500);
+  const recentSevenBigWin3000Count = countDifferenceAtLeastRows(recentSevenRows, 3000);
   const recentFourteenCombinedLe140Count = recentFourteenRows.filter(
     (windowRow) => calculateCombinedDenominatorFromWindowRow(windowRow) <= 140,
   ).length;
@@ -11451,6 +11490,7 @@ function calculateWindowMetrics(
     recentFiveSettingAverage,
     windowSettingAverage,
     recentSevenBigWin2500Count,
+    recentSevenBigWin3000Count,
     historyRowCount,
     targetRangeHistoryRowCount,
     historySettingSampleCount,

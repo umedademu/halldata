@@ -4925,6 +4925,94 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     ],
   },
   {
+    machineKey: "tokyo-ghoul",
+    machineNames: ["L東京喰種", "L 東京喰種", "東京喰種"],
+    logicKey: "beam-hikari-tokyo-ghoul",
+    logicName: "ビームヒカリ_L東京喰種_全日共通_深沈み連敗停止100点ロジック",
+    logics: [
+      buildLogicVariant(
+        "beam-hikari-tokyo-ghoul",
+        "ビームヒカリ_L東京喰種_全日共通_深沈み連敗停止100点ロジック",
+        "beam-hikari-tg-best106-deep-angle-stop",
+      ),
+    ],
+    profile: "smart",
+    defaultConditionSuffix: "beam-hikari-tg-best106-deep-angle-stop",
+    conditions: [
+      buildCondition(
+        "beam-hikari-tg-wide102-lowg-light-high-stop",
+        "TG広め102_低G薄高内容連敗停止",
+        "59日 / 73台 / 総G260,123 / BB0 / RB769 / RB1/338.3 / 合算1/338.3 / 平均+221.2枚 / 102.07% / 勝率43.8%",
+        {
+          requiredFlags: ["beamHikariTokyoGhoulHistoryReady", "beamHikariTokyoGhoulWideLowGamesLightHighStop"],
+        },
+        ["beam-hikari-tokyo-ghoul"],
+      ),
+      buildCondition(
+        "beam-hikari-tg-weak103-steep-danger0",
+        "TG弱本命103_急角度沈み危険0",
+        "49日 / 53台 / 総G234,465 / BB0 / RB679 / RB1/345.3 / 合算1/345.3 / 平均+397.6枚 / 103.00% / 勝率43.4%",
+        {
+          maxDanger: 0,
+          requiredFlags: ["beamHikariTokyoGhoulHistoryReady", "beamHikariTokyoGhoulSteepSink", "beamHikariTokyoGhoulLossStopped"],
+        },
+        ["beam-hikari-tokyo-ghoul"],
+      ),
+      buildCondition(
+        "beam-hikari-tg-main104-diff7-danger0",
+        "TG本命104_7日沈み危険0",
+        "49日 / 53台 / 総G235,386 / BB0 / RB679 / RB1/346.7 / 合算1/346.7 / 平均+494.4枚 / 103.71% / 勝率45.3%",
+        {
+          maxDanger: 0,
+          requiredFlags: ["beamHikariTokyoGhoulHistoryReady", "beamHikariTokyoGhoulDeepDiff7", "beamHikariTokyoGhoulLossStopped"],
+        },
+        ["beam-hikari-tokyo-ghoul"],
+      ),
+      buildCondition(
+        "beam-hikari-tg-strong105-boost5-danger0",
+        "TG強105_強化5危険0",
+        "42日 / 43台 / 総G185,031 / BB0 / RB510 / RB1/362.8 / 合算1/362.8 / 平均+634.0枚 / 104.91% / 勝率46.5%",
+        {
+          minScore: 70,
+          minBoost: 5,
+          maxDanger: 0,
+          requiredFlags: ["beamHikariTokyoGhoulHistoryReady"],
+        },
+        ["beam-hikari-tokyo-ghoul"],
+      ),
+      buildCondition(
+        "beam-hikari-tg-best106-deep-angle-stop",
+        "TG最本命106plus_深角度連敗停止",
+        "62日 / 69台 / 総G307,976 / BB0 / RB889 / RB1/346.4 / 合算1/346.4 / 平均+969.2枚 / 107.24% / 勝率49.3%",
+        {
+          maxDanger: 1,
+          requiredFlags: ["beamHikariTokyoGhoulHistoryReady", "beamHikariTokyoGhoulDeepAngle", "beamHikariTokyoGhoulLossStopped"],
+        },
+        ["beam-hikari-tokyo-ghoul"],
+      ),
+      buildCondition(
+        "beam-hikari-tg-reference-deep-lowg-rbweak",
+        "TG自由MAX参考_深沈み低G弱初当り",
+        "24日 / 24台 / 総G99,524 / BB0 / RB260 / RB1/382.8 / 合算1/382.8 / 平均+1,891.2枚 / 115.20% / 勝率50.0%",
+        {
+          requiredFlags: ["beamHikariTokyoGhoulHistoryReady", "beamHikariTokyoGhoulReferenceDeepLowGamesRbWeak"],
+        },
+        ["beam-hikari-tokyo-ghoul"],
+      ),
+      buildCondition(
+        "beam-hikari-tg-watch-score70-danger2",
+        "TG見送り_高スコア危険2以上",
+        "33日 / 34台 / 総G159,615 / BB0 / RB453 / RB1/352.4 / 合算1/352.4 / 平均-1,019.1枚 / 92.76% / 勝率20.6%",
+        {
+          minScore: 70,
+          minDanger: 2,
+          requiredFlags: ["beamHikariTokyoGhoulHistoryReady"],
+        },
+        ["beam-hikari-tokyo-ghoul"],
+      ),
+    ],
+  },
+  {
     machineKey: "dragon-hana",
     machineNames: [
       "ドラゴンハナハナ～閃光～",
@@ -14130,6 +14218,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-okidoki-black");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "million-god") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-million-god");
+  } else if (isBeamHikariStore(storeName) && definition.machineKey === "tokyo-ghoul") {
+    defaultLogic = findLogicDefinition(definition, "beam-hikari-tokyo-ghoul");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "funky") {
     defaultLogic = findLogicDefinition(definition, "beam-hikari-funky");
   } else if (isBeamHikariStore(storeName) && definition.machineKey === "gogo") {
@@ -14861,6 +14951,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   const recentFiveMaxWin = readNumber(metrics.recentFiveMaxWin);
   const recentFiveBigWin1200Count = readNumber(metrics.recentFiveBigWin1200Count);
   const recentFiveBigWin1000Count = readNumber(metrics.recentFiveBigWin1000Count);
+  const recentSevenBigWin3000Count = readNumber(metrics.recentSevenBigWin3000Count);
   const recentTenBigLoss1000Count = readNumber(metrics.recentTenBigLoss1000Count);
   const recentTwentyOneBigLoss1000Count = readNumber(metrics.recentTwentyOneBigLoss1000Count);
   const recentTenBigWin1000Count = readNumber(metrics.recentTenBigWin1000Count);
@@ -23798,6 +23889,62 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
     };
   }
 
+  if (machineKey === "tokyo-ghoul" && activeLogicKey === "beam-hikari-tokyo-ghoul") {
+    const beamHikariTokyoGhoulHistoryReady = historyRowCount >= 14;
+    const beamHikariTokyoGhoulDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+      ? daysSinceMachineHighContent
+      : 999;
+    const beamHikariTokyoGhoulRbRate14 =
+      recentFourteenGamesTotal > 0 && recentFourteenRbTotal > 0
+        ? recentFourteenGamesTotal / recentFourteenRbTotal
+        : null;
+    const beamHikariTokyoGhoulLossStopped = historyLosingStreak === 0;
+    const beamHikariTokyoGhoulSteepSink = features.recentSevenAngle <= -180;
+    const beamHikariTokyoGhoulDeepAngle = features.recentSevenAngle <= -250;
+    const beamHikariTokyoGhoulDeepDiff7 = recentSevenNetTotal <= -5000;
+    const beamHikariTokyoGhoulWideLowGamesLightHighStop =
+      recentSevenGamesTotal <= 27000 && recentSevenMachineHighContentCount <= 1 && beamHikariTokyoGhoulLossStopped;
+    const beamHikariTokyoGhoulReferenceDeepLowGamesRbWeak =
+      recentSevenNetTotal <= -5000 &&
+      recentSevenGamesTotal <= 24000 &&
+      Number.isFinite(beamHikariTokyoGhoulRbRate14) &&
+      beamHikariTokyoGhoulRbRate14 >= 340;
+    const boostFlags = [
+      features.recentSevenAngle <= -250,
+      recentSevenNetTotal <= -5000,
+      recentSevenGamesTotal <= 24000,
+      recentSevenMachineHighContentCount === 0,
+      beamHikariTokyoGhoulDaysSinceHigh >= 8,
+      Number.isFinite(beamHikariTokyoGhoulRbRate14) && beamHikariTokyoGhoulRbRate14 >= 340,
+      beamHikariTokyoGhoulLossStopped && recentSevenNetTotal <= -5000,
+    ];
+    const dangerFlags = [
+      recentSevenBigWin3000Count >= 1,
+      recentSevenMachineHighContentCount >= 2,
+      recentSevenNetTotal >= 3000,
+      recentSevenGamesTotal >= 40000,
+      historyLosingStreak >= 4,
+      historyRowCount < 14,
+    ];
+
+    return {
+      ...features,
+      beamHikariTokyoGhoulHistoryReady,
+      beamHikariTokyoGhoulDaysSinceHigh,
+      beamHikariTokyoGhoulRbRate14,
+      beamHikariTokyoGhoulLossStopped,
+      beamHikariTokyoGhoulSteepSink,
+      beamHikariTokyoGhoulDeepAngle,
+      beamHikariTokyoGhoulDeepDiff7,
+      beamHikariTokyoGhoulWideLowGamesLightHighStop,
+      beamHikariTokyoGhoulReferenceDeepLowGamesRbWeak,
+      treatmentDone: dangerFlags.some(Boolean),
+      lowConfidence: !beamHikariTokyoGhoulHistoryReady,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
+
   if (machineKey === "okidoki-black" && activeLogicKey === "beam-hikari-okidoki-black") {
     const beamHikariOkidokiBlackHistoryReady = historyRowCount >= 21;
     const beamHikariOkidokiBlackDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
@@ -25558,6 +25705,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFiveMaxWin = readNumber(metrics.recentFiveMaxWin);
   const recentFiveBigWin1200Count = readNumber(metrics.recentFiveBigWin1200Count);
   const recentFiveBigWin1000Count = readNumber(metrics.recentFiveBigWin1000Count);
+  const recentSevenBigWin3000Count = readNumber(metrics.recentSevenBigWin3000Count);
   const recentTenBigLoss1000Count = readNumber(metrics.recentTenBigLoss1000Count);
   const recentTenBigWin1000Count = readNumber(metrics.recentTenBigWin1000Count);
   const adjacentMachineHighContentCount3 = readNumber(metrics.adjacentMachineHighContentCount3);
@@ -34553,6 +34701,47 @@ function calculateMachineScore(definition, metrics, features) {
     return Math.round(clamp(score, 0, 100));
   }
 
+  if (machineKey === "tokyo-ghoul" && activeLogicKey === "beam-hikari-tokyo-ghoul") {
+    const beamHikariTokyoGhoulDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+      ? daysSinceMachineHighContent
+      : 999;
+    const beamHikariTokyoGhoulRbRate14 =
+      recentFourteenGamesTotal > 0 && recentFourteenRbTotal > 0
+        ? recentFourteenGamesTotal / recentFourteenRbTotal
+        : null;
+    const recentSevenAngle = recentSevenGamesTotal > 0 ? features.recentSevenAngle : null;
+
+    let score = 0;
+    score += historyRowCount >= 21 ? 35 : historyRowCount >= 14 ? 30 : historyRowCount >= 7 ? 20 : 10;
+    score +=
+      Number.isFinite(recentSevenAngle) && recentSevenAngle <= -250
+        ? 20
+        : Number.isFinite(recentSevenAngle) && recentSevenAngle <= -180
+          ? 15
+          : Number.isFinite(recentSevenAngle) && recentSevenAngle <= -100
+            ? 8
+            : Number.isFinite(recentSevenAngle) && recentSevenAngle <= 0
+              ? 3
+              : 0;
+    score += recentSevenNetTotal <= -7000 ? 12 : recentSevenNetTotal <= -5000 ? 9 : recentSevenNetTotal <= -3000 ? 5 : 0;
+    score += recentSevenGamesTotal <= 24000 ? 12 : recentSevenGamesTotal <= 27000 ? 8 : recentSevenGamesTotal <= 30000 ? 4 : 0;
+    score += recentFourteenGamesTotal <= 55000 ? 8 : recentFourteenGamesTotal <= 65000 ? 4 : 0;
+    score += recentSevenMachineHighContentCount === 0 ? 10 : recentSevenMachineHighContentCount <= 1 ? 4 : 0;
+    score += beamHikariTokyoGhoulDaysSinceHigh >= 8 ? 8 : beamHikariTokyoGhoulDaysSinceHigh >= 5 ? 4 : 0;
+    score += previousGames <= 2000 ? 8 : previousGames <= 3000 ? 4 : 0;
+    score += previousRbCount <= 6 ? 6 : previousRbCount <= 8 ? 3 : 0;
+    score += Number.isFinite(beamHikariTokyoGhoulRbRate14) && beamHikariTokyoGhoulRbRate14 >= 340 ? 5 : 0;
+    score += historyLosingStreak === 0 && recentSevenNetTotal <= -5000 ? 10 : 0;
+    score -= recentSevenBigWin3000Count >= 1 ? 10 : 0;
+    score -= recentSevenMachineHighContentCount >= 2 ? 8 : 0;
+    score -= recentSevenNetTotal >= 3000 ? 10 : 0;
+    score -= recentSevenGamesTotal >= 40000 ? 4 : 0;
+    score -= historyLosingStreak >= 4 ? 6 : 0;
+    score -= historyRowCount < 14 ? 20 : 0;
+
+    return Math.round(clamp(score, 0, 100));
+  }
+
   if (machineKey === "okidoki-black" && activeLogicKey === "beam-hikari-okidoki-black") {
     if (historyRowCount < 21) {
       return 0;
@@ -37554,6 +37743,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       "okidoki-gorgeous30",
       "okidoki-black",
       "million-god",
+      "tokyo-ghoul",
     ].includes(definition?.machineKey)
   ) {
     const baseLogicKeyByMachineKey = {
@@ -37571,6 +37761,7 @@ function resolveRankingBaseSetting(definition, setting, options = {}) {
       "okidoki-gorgeous30": "beam-hikari-okidoki-gorgeous30",
       "okidoki-black": "beam-hikari-okidoki-black",
       "million-god": "beam-hikari-million-god",
+      "tokyo-ghoul": "beam-hikari-tokyo-ghoul",
     };
     const logic = findLogicDefinition(definition, baseLogicKeyByMachineKey[definition.machineKey]);
     const condition =
