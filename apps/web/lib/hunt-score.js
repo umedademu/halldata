@@ -376,6 +376,10 @@ const JARAN_YAZAIKE_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const JARAN_ASAKUSA_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const NEW_GRAND_HOKIMA_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
@@ -1257,6 +1261,44 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "jaran-yazaike-neo-aim",
       "ネオアイムジャグラーＥＸ": "jaran-yazaike-neo-aim",
+    },
+  },
+  {
+    key: "jaran-asakusa",
+    storeNames: ["ジャラン浅草店", "ジャラン浅草", "JARAN浅草店", "JARAN浅草", "ＪＡＲＡＮ浅草店"],
+    targetMachines: JARAN_ASAKUSA_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    excludedRows: [
+      ...[
+        "2026-05-19",
+        "2026-05-20",
+        "2026-05-21",
+        "2026-05-22",
+        "2026-05-23",
+        "2026-05-24",
+        "2026-05-25",
+        "2026-05-26",
+        "2026-05-27",
+        "2026-05-28",
+        "2026-05-29",
+        "2026-05-30",
+        "2026-05-31",
+      ].map((targetDate) => ({
+        targetDate,
+        slotNumber: "298",
+        machineName: "ネオアイムジャグラーEX",
+      })),
+    ],
+    slotHistoryResetDates: [
+      {
+        slotNumbers: ["298"],
+        resetDate: "2026-06-01",
+        machineName: "ネオアイムジャグラーEX",
+      },
+    ],
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "jaran-asakusa-neo-aim",
+      "ネオアイムジャグラーＥＸ": "jaran-asakusa-neo-aim",
     },
   },
   {
@@ -2365,6 +2407,42 @@ function filterWindowRowsAfterSlotHistoryStartDates(windowRows, slotHistoryStart
   });
 }
 
+function filterWindowRowsAfterSlotHistoryResetDates(windowRows, slotHistoryResetDates, config = {}) {
+  if (
+    !Array.isArray(windowRows) ||
+    !Array.isArray(slotHistoryResetDates) ||
+    slotHistoryResetDates.length === 0
+  ) {
+    return windowRows;
+  }
+
+  const matchingResetTimes = slotHistoryResetDates
+    .filter((rule) => matchesSlotHistoryStartDateRule(windowRows, rule, config))
+    .map((rule) => Date.parse(String(rule?.resetDate ?? "").trim()))
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
+  if (matchingResetTimes.length === 0) {
+    return windowRows;
+  }
+
+  const latestResetTime = matchingResetTimes.at(-1);
+  const windowStartTime = readWindowRowDateTime(windowRows[0]);
+  const windowEndTime = readWindowRowDateTime(windowRows.at(-1));
+  if (
+    !Number.isFinite(windowStartTime) ||
+    !Number.isFinite(windowEndTime) ||
+    latestResetTime <= windowStartTime ||
+    latestResetTime > windowEndTime
+  ) {
+    return windowRows;
+  }
+
+  return windowRows.filter((windowRow) => {
+    const currentTime = readWindowRowDateTime(windowRow);
+    return Number.isFinite(currentTime) && currentTime >= latestResetTime;
+  });
+}
+
 function filterWindowRowsForHistoryReset(windowRows, config = {}) {
   const firstMachineName = normalizeHuntScoreMachineName(windowRows?.[0]?.row?.machine_name, config);
   const resetHistoryGapExcludedMachines = Array.isArray(config?.resetHistoryGapExcludedMachines)
@@ -2374,9 +2452,13 @@ function filterWindowRowsForHistoryReset(windowRows, config = {}) {
     (machineName) => normalizeText(machineName) === normalizeText(firstMachineName),
   );
   return filterWindowRowsAfterSlotHistoryStartDates(
-    filterWindowRowsAfterResetHistoryDates(
-      filterWindowRowsAfterLargeDateGap(windowRows, skipLargeGapReset ? null : config?.resetHistoryGapDays),
-      config?.resetHistoryDates,
+    filterWindowRowsAfterSlotHistoryResetDates(
+      filterWindowRowsAfterResetHistoryDates(
+        filterWindowRowsAfterLargeDateGap(windowRows, skipLargeGapReset ? null : config?.resetHistoryGapDays),
+        config?.resetHistoryDates,
+      ),
+      config?.slotHistoryResetDates,
+      config,
     ),
     config?.slotHistoryStartDates,
     config,
@@ -3458,6 +3540,18 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       }
       return games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 145;
     }
+    if (contentRule === "jaran-asakusa-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return (
+          games >= 3500 &&
+          settingFivePlusProbability >= 0.5 &&
+          combinedDenominator <= 145 &&
+          rbDenominator <= 330
+        );
+      }
+      return games >= 3500 && combinedDenominator <= 145 && rbDenominator <= 330;
+    }
     if (contentRule === "new-grand-hokima-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -4216,6 +4310,18 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
         return games >= 2500 && settingFivePlusProbability >= 0.35;
       }
       return games >= 2500 && rbDenominator <= 350 && combinedDenominator <= 160;
+    }
+    if (contentRule === "jaran-asakusa-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      if (Number.isFinite(settingFivePlusProbability)) {
+        return (
+          games >= 3000 &&
+          settingFivePlusProbability >= 0.3 &&
+          combinedDenominator <= 150 &&
+          rbDenominator <= 360
+        );
+      }
+      return games >= 3000 && combinedDenominator <= 150 && rbDenominator <= 360;
     }
     if (contentRule === "new-grand-hokima-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -5193,6 +5299,21 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 2500 && settingFivePlusProbability >= 0.7;
     }
     return games >= 2500 && rbDenominator <= 270 && combinedDenominator <= 130;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "jaran-asakusa-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    if (Number.isFinite(settingFivePlusProbability)) {
+      return (
+        games >= 4000 &&
+        settingFivePlusProbability >= 0.7 &&
+        combinedDenominator <= 135 &&
+        rbDenominator <= 300
+      );
+    }
+    return games >= 4000 && rbDenominator <= 300 && combinedDenominator <= 135;
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
@@ -11778,6 +11899,10 @@ function calculateWindowMetrics(
     recentSevenRows.length > 0
       ? Math.min(...recentSevenRows.map((windowRow) => readNumber(windowRow?.differenceValue)))
       : 0;
+  const recentSevenMaxDifference =
+    recentSevenRows.length > 0
+      ? Math.max(...recentSevenRows.map((windowRow) => readNumber(windowRow?.differenceValue)))
+      : 0;
   const recentTwoMaxDifference =
     recentTwoRows.length > 0
       ? Math.max(...recentTwoRows.map((windowRow) => readNumber(windowRow?.differenceValue)))
@@ -11908,6 +12033,7 @@ function calculateWindowMetrics(
     recentFiveBadMinus800Count,
     recentFourteenCombinedLe140Count,
     recentSevenMinDifference,
+    recentSevenMaxDifference,
     recentTwoMaxDifference,
     recentFourteenMaxDifference,
     recentTwentyOneMinDifference,

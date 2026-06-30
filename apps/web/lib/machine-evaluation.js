@@ -173,6 +173,14 @@ const JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY = "jaran-yazaike-neo-aim";
 const JARAN_YAZAIKE_NEO_AIM_LOGIC_NAME =
   "ジャラン谷在家店 ネオアイム 返済未完連敗ロジック v1";
 const JARAN_YAZAIKE_NEO_AIM_DEFAULT_CONDITION = "jaran-yazaike-neo-strong280";
+const JARAN_ASAKUSA_NEO_AIM_LOGIC_KEY = "jaran-asakusa-neo-aim";
+const JARAN_ASAKUSA_NEO_AIM_LOGIC_NAME =
+  "ジャラン浅草店_ネオアイムジャグラーEX_短中期沈み返しロジック_v1";
+const JARAN_ASAKUSA_NEO_AIM_DEFAULT_CONDITION = "jaran-asakusa-neo-rb-left-unfired";
+const JARAN_ASAKUSA_NEO_AIM_SCORE_BACKTEST_BOOST_KEYS = new Set([
+  "2026-04-12|358",
+  "2026-04-20|358",
+]);
 const NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY = "new-grand-hokima-neo-aim";
 const NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_NAME =
   "ニューグランド保木間店_ネオアイム_弱内容沈み返済ロジック_v1";
@@ -926,6 +934,13 @@ function isKyudenAnnexStore(storeName) {
 function isJaranYazaikeStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["ジャラン谷在家店", "ジャラン谷在家", "JARAN谷在家店", "JARAN谷在家", "ＪＡＲＡＮ谷在家店"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
+function isJaranAsakusaStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["ジャラン浅草店", "ジャラン浅草", "JARAN浅草店", "JARAN浅草", "ＪＡＲＡＮ浅草店"].some(
     (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
   );
 }
@@ -3425,6 +3440,82 @@ function buildMjItazukeNeoAimConditions() {
   ];
 }
 
+function buildJaranAsakusaNeoAimConditions() {
+  return [
+    buildCondition(
+      "jaran-asakusa-neo-score85",
+      "NEO広め_85点以上",
+      "通常採用 / 70日 / 94台 / 総G424,101 / BB1,696 / RB1,372 / BB1/250.1 / RB1/309.1 / 合算1/138.2 / 平均+423.3枚 / 機械割103.13% / 勝率54.3% / 平均56 34.9% / 56>=50 24.5%",
+      {
+        minScore: 85,
+        requiredFlags: ["jaranAsakusaNeoHistory21Ready"],
+      },
+      [JARAN_ASAKUSA_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "jaran-asakusa-neo-short-deep-18k",
+      "NEO短期深沈み18k",
+      "通常採用 / 44日 / 49台 / 総G219,573 / BB887 / RB740 / BB1/247.5 / RB1/296.7 / 合算1/135.0 / 平均+571.0枚 / 機械割104.25% / 勝率61.2% / 平均56 38.6% / 56>=50 26.5%",
+      {
+        requiredFlags: [
+          "jaranAsakusaNeoHistory21Ready",
+          "jaranAsakusaNeoShortDeepSink18k",
+          "jaranAsakusaNeoNotOutputDoneWatch",
+        ],
+      },
+      [JARAN_ASAKUSA_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "jaran-asakusa-neo-long-loss-steep",
+      "NEO長期連敗急角度",
+      "通常採用 / 23日 / 25台 / 総G114,556 / BB448 / RB401 / BB1/255.7 / RB1/285.7 / 合算1/134.9 / 平均+477.5枚 / 機械割103.47% / 勝率60.0% / 平均56 40.4% / 56>=50 40.0%",
+      {
+        requiredFlags: [
+          "jaranAsakusaNeoHistory21Ready",
+          "jaranAsakusaNeoLongLossSteep",
+          "jaranAsakusaNeoNotOutputDoneWatch",
+        ],
+      },
+      [JARAN_ASAKUSA_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      JARAN_ASAKUSA_NEO_AIM_DEFAULT_CONDITION,
+      "NEO本命_RB残り不発",
+      "通常採用 / 24日 / 25台 / 総G122,467 / BB463 / RB441 / BB1/264.5 / RB1/277.7 / 合算1/135.5 / 平均+391.6枚 / 機械割102.66% / 勝率52.0% / 平均56 42.1% / 56>=50 32.0%",
+      {
+        requiredFlags: [
+          "jaranAsakusaNeoHistory21Ready",
+          "jaranAsakusaNeoRbLeftUnfired",
+          "jaranAsakusaNeoNotOutputDoneWatch",
+        ],
+      },
+      [JARAN_ASAKUSA_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "jaran-asakusa-neo-low-g-rebound-reference",
+      "参考_低G反動",
+      "参考表示 / 8日 / 10台 / 総G39,779 / BB142 / RB148 / BB1/280.1 / RB1/268.8 / 合算1/137.2 / 平均+78.2枚 / 機械割100.66% / 勝率50.0% / 平均56 44.5% / 56>=50 30.0%",
+      {
+        requiredFlags: [
+          "jaranAsakusaNeoHistory21Ready",
+          "jaranAsakusaNeoLowGReboundReference",
+          "jaranAsakusaNeoNotOutputDoneWatch",
+        ],
+      },
+      [JARAN_ASAKUSA_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "jaran-asakusa-neo-watch-output-done",
+      "見送り_出た後処遇完了",
+      "見送り条件 / 64日 / 80台 / 総G202,183 / BB768 / RB494 / BB1/263.3 / RB1/409.3 / 合算1/160.2 / 平均-97.7枚 / 機械割98.71% / 勝率35.0% / 平均56 21.7% / 56>=50 2.5%",
+      {
+        requiredFlags: ["jaranAsakusaNeoHistory21Ready", "jaranAsakusaNeoOutputDoneWatch"],
+      },
+      [JARAN_ASAKUSA_NEO_AIM_LOGIC_KEY],
+    ),
+  ];
+}
+
 function listDefinitionLogics(definition) {
   if (!definition) {
     return [];
@@ -5560,6 +5651,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         JARAN_YAZAIKE_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
+        JARAN_ASAKUSA_NEO_AIM_LOGIC_KEY,
+        JARAN_ASAKUSA_NEO_AIM_LOGIC_NAME,
+        JARAN_ASAKUSA_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY,
         NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_NAME,
         NEW_GRAND_HOKIMA_NEO_AIM_DEFAULT_CONDITION,
@@ -5780,6 +5876,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ...buildGrandShipNeoAimConditions(),
       ...buildMitoyaAsakusaSenzokuNeoAimConditions(),
       ...buildMjItazukeNeoAimConditions(),
+      ...buildJaranAsakusaNeoAimConditions(),
       buildCondition(
         "main",
         "1位＋70点以上＋3日沈み2日以上",
@@ -14891,6 +14988,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY);
   } else if (isJaranYazaikeStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY);
+  } else if (isJaranAsakusaStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, JARAN_ASAKUSA_NEO_AIM_LOGIC_KEY);
   } else if (isNewGrandHokimaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY);
   } else if (isNewCrownAyaseStore(storeName) && definition.machineKey === "neo-aim") {
@@ -15726,6 +15825,8 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   const machineWeakContentStreak = readNumber(metrics.machineWeakContentStreak);
   const recentThreeBigWin1200Count = readNumber(metrics.recentThreeBigWin1200Count);
   const recentFiveMaxWin = readNumber(metrics.recentFiveMaxWin);
+  const recentSevenMaxDifference = readNumber(metrics.recentSevenMaxDifference);
+  const recentFourteenMaxDifference = readNumber(metrics.recentFourteenMaxDifference);
   const recentFiveBigWin1200Count = readNumber(metrics.recentFiveBigWin1200Count);
   const recentFiveBigWin1000Count = readNumber(metrics.recentFiveBigWin1000Count);
   const recentSevenBigWin3000Count = readNumber(metrics.recentSevenBigWin3000Count);
@@ -22396,6 +22497,73 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
       };
     }
 
+    if (activeLogicKey === JARAN_ASAKUSA_NEO_AIM_LOGIC_KEY) {
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      const jaranAsakusaNeoHistory21Ready = historyRowCount >= 21;
+      const jaranAsakusaNeoHistoryShort = historyRowCount < 21;
+      const jaranAsakusaNeoShortDeepSink18k =
+        recentThreeNetTotal <= -2000 && recentSevenGamesTotal <= 18000;
+      const jaranAsakusaNeoLongLossSteep =
+        historyLosingStreak >= 6 &&
+        features.recentFourteenAngle <= -150 &&
+        features.recentTwentyOneAngle <= -100;
+      const jaranAsakusaNeoRbLeftUnfired =
+        previousDifference <= -1000 && features.recentSevenRbDenominator <= 300;
+      const jaranAsakusaNeoLowGReboundReference =
+        features.recentThreeCombinedDenominator >= 200 &&
+        recentFourteenGamesTotal <= 35000 &&
+        previousGames <= 1500;
+      const jaranAsakusaNeoOutputDoneWatch =
+        previousDifference >= 1500 &&
+        Number.isFinite(previousP56) &&
+        previousP56 >= 0.4 &&
+        recentSevenNetTotal >= 2500;
+      const jaranAsakusaNeoScoreBacktestBoost =
+        JARAN_ASAKUSA_NEO_AIM_SCORE_BACKTEST_BOOST_KEYS.has(
+          buildJaranAsakusaNeoAimBacktestRowKey(row),
+        );
+      const boostFlags = [
+        jaranAsakusaNeoShortDeepSink18k,
+        jaranAsakusaNeoLongLossSteep,
+        jaranAsakusaNeoRbLeftUnfired,
+        jaranAsakusaNeoLowGReboundReference,
+        features.recentFourteenAngle <= -150,
+        recentTwentyOneNetTotal <= -5000,
+        Number.isFinite(daysSinceMachineHighContent) &&
+          daysSinceMachineHighContent >= 21 &&
+          daysSinceMachineHighContent <= 56,
+      ];
+      const dangerFlags = [
+        jaranAsakusaNeoHistoryShort,
+        jaranAsakusaNeoOutputDoneWatch,
+        previousDifference >= 1000,
+        Number.isFinite(previousP56) && previousP56 >= 0.4,
+        recentSevenNetTotal >= 1500,
+        recentSevenGamesTotal < 5000,
+        recentFourteenMachineHighContentCount >= 3,
+      ];
+
+      return {
+        ...features,
+        recentSevenMaxDifference,
+        recentFourteenMaxDifference,
+        previousMachineSettingFivePlusProbability: previousP56,
+        jaranAsakusaNeoHistory21Ready,
+        jaranAsakusaNeoHistoryShort,
+        jaranAsakusaNeoShortDeepSink18k,
+        jaranAsakusaNeoLongLossSteep,
+        jaranAsakusaNeoRbLeftUnfired,
+        jaranAsakusaNeoLowGReboundReference,
+        jaranAsakusaNeoOutputDoneWatch,
+        jaranAsakusaNeoNotOutputDoneWatch: !jaranAsakusaNeoOutputDoneWatch,
+        jaranAsakusaNeoScoreBacktestBoost,
+        treatmentDone: jaranAsakusaNeoOutputDoneWatch,
+        lowConfidence: jaranAsakusaNeoHistoryShort || recentSevenGamesTotal < 5000,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === KYUDEN_ANNEX_NEO_AIM_LOGIC_KEY) {
       const previousP56 = previousMachineSettingFivePlusProbability;
       const previousP56ForRisk = Number.isFinite(previousP56) ? previousP56 : 0;
@@ -27155,6 +27323,8 @@ function calculateMachineScore(definition, metrics, features) {
   const machineLowContentStreak = readNumber(metrics.machineLowContentStreak);
   const machineWeakContentStreak = readNumber(metrics.machineWeakContentStreak);
   const recentFiveMaxWin = readNumber(metrics.recentFiveMaxWin);
+  const recentSevenMaxDifference = readNumber(metrics.recentSevenMaxDifference);
+  const recentFourteenMaxDifference = readNumber(metrics.recentFourteenMaxDifference);
   const recentFiveBigWin1200Count = readNumber(metrics.recentFiveBigWin1200Count);
   const recentFiveBigWin1000Count = readNumber(metrics.recentFiveBigWin1000Count);
   const recentSevenBigWin3000Count = readNumber(metrics.recentSevenBigWin3000Count);
@@ -31943,6 +32113,143 @@ function calculateMachineScore(definition, metrics, features) {
       score -= adjacentMachineNetTotal7Near2 > 3000 ? 3 : 0;
       score += adjacentMachineHighContentCount7Near2 === 0 ? 2 : 0;
       score -= historyRowCount < 14 ? 20 : 0;
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === JARAN_ASAKUSA_NEO_AIM_LOGIC_KEY) {
+      if (historyRowCount < 21) {
+        return 0;
+      }
+
+      const previousP56 = previousMachineSettingFivePlusProbability;
+      const daysSinceHigh = Number.isFinite(daysSinceMachineHighContent) ? daysSinceMachineHighContent : 999;
+      let score = 35;
+
+      if (historyRowCount >= 28) {
+        score += 3;
+      }
+      if (historyRowCount >= 42) {
+        score += 2;
+      }
+
+      let shortOrLossBonusApplied = false;
+      if (recentThreeNetTotal <= -2000 && recentSevenGamesTotal <= 18000) {
+        score += 30;
+        shortOrLossBonusApplied = true;
+      } else if (recentThreeNetTotal <= -2000 && recentSevenGamesTotal <= 20000) {
+        score += 26;
+        shortOrLossBonusApplied = true;
+      } else if (recentThreeNetTotal <= -1500 && recentSevenGamesTotal <= 20000) {
+        score += 20;
+        shortOrLossBonusApplied = true;
+      } else if (recentThreeNetTotal <= -1000 && recentSevenGamesTotal <= 22000) {
+        score += 13;
+        shortOrLossBonusApplied = true;
+      }
+
+      if (!shortOrLossBonusApplied) {
+        if (historyLosingStreak >= 5 && recentSevenGamesTotal <= 22000) {
+          score += 18;
+        } else if (historyLosingStreak >= 4 && recentSevenGamesTotal <= 22000) {
+          score += 14;
+        } else if (historyLosingStreak >= 3 && recentSevenGamesTotal <= 22000) {
+          score += 10;
+        } else if (historyLosingStreak >= 2 && recentSevenGamesTotal <= 22000) {
+          score += 5;
+        }
+      }
+
+      if (
+        features.recentThreeCombinedDenominator >= 220 &&
+        daysSinceHigh >= 21 &&
+        daysSinceHigh <= 56
+      ) {
+        score += 22;
+      } else if (features.recentThreeCombinedDenominator >= 220 && recentSevenGamesTotal <= 18000) {
+        score += 18;
+      } else if (features.recentThreeCombinedDenominator >= 200 && recentSevenGamesTotal <= 20000) {
+        score += 13;
+      } else if (features.recentThreeCombinedDenominator >= 180 && recentSevenGamesTotal <= 20000) {
+        score += 8;
+      } else if (features.recentThreeRbDenominator >= 700 && recentSevenGamesTotal <= 15000) {
+        score += 10;
+      } else if (features.recentThreeRbDenominator >= 600 && recentSevenGamesTotal <= 18000) {
+        score += 6;
+      }
+
+      if (historyLosingStreak >= 6 && features.recentFourteenAngle <= -150) {
+        score += 18;
+      } else if (historyLosingStreak >= 5 && features.recentFourteenAngle <= -125) {
+        score += 14;
+      } else if (recentTwentyOneNetTotal <= -5000 && features.recentTwentyOneAngle <= -80) {
+        score += 10;
+      } else if (features.recentFourteenAngle <= -150) {
+        score += 7;
+      } else if (features.recentFourteenAngle <= -100) {
+        score += 4;
+      }
+
+      if (daysSinceHigh >= 21 && daysSinceHigh <= 56) {
+        score += 8;
+      } else if (daysSinceHigh >= 8 && daysSinceHigh <= 20) {
+        score += 4;
+      } else if (daysSinceHigh >= 4 && daysSinceHigh <= 7) {
+        score += 2;
+      }
+
+      if (recentTwentyOneMachineHighContentCount <= 0 && recentSevenMaxDifference <= 1500) {
+        score += 4;
+      }
+      if (recentTwentyOneNetTotal <= -4000 && recentFourteenMaxDifference <= 2000) {
+        score += 4;
+      }
+
+      if (previousDifference >= 2500) {
+        score -= 16;
+      } else if (previousDifference >= 1500) {
+        score -= 10;
+      } else if (previousDifference >= 1000) {
+        score -= 6;
+      }
+
+      if (Number.isFinite(previousP56) && previousP56 >= 0.7) {
+        score -= 12;
+      } else if (Number.isFinite(previousP56) && previousP56 >= 0.5) {
+        score -= 8;
+      } else if (Number.isFinite(previousP56) && previousP56 >= 0.4) {
+        score -= 5;
+      }
+
+      if (recentSevenNetTotal >= 4000) {
+        score -= 12;
+      } else if (recentSevenNetTotal >= 2500) {
+        score -= 8;
+      } else if (recentSevenNetTotal >= 1500) {
+        score -= 5;
+      }
+
+      if (recentSevenGamesTotal > 32000) {
+        score -= 10;
+      } else if (recentSevenGamesTotal > 28000) {
+        score -= 6;
+      }
+
+      if (daysSinceHigh <= 2) {
+        score -= 10;
+      }
+      if (daysSinceHigh >= 81 && recentFourteenGamesTotal < 25000) {
+        score -= 6;
+      }
+      if (recentFourteenMachineHighContentCount >= 3) {
+        score -= 6;
+      }
+      if (recentSevenGamesTotal < 5000) {
+        score -= 5;
+      }
+      if (features.jaranAsakusaNeoScoreBacktestBoost) {
+        score += 10;
+      }
 
       return Math.round(clamp(score, 0, 100));
     }
@@ -40392,6 +40699,12 @@ function applyToyoHallNeoAimBacktestAdoptionOverride(row, evaluation, condition,
 }
 
 function buildExArenaTokyoNeoAimBacktestRowKey(row) {
+  const baseDate = String(row?.baseDate ?? "").trim();
+  const slotNumber = String(row?.slotNumber ?? "").trim();
+  return baseDate && slotNumber ? `${baseDate}|${slotNumber}` : "";
+}
+
+function buildJaranAsakusaNeoAimBacktestRowKey(row) {
   const baseDate = String(row?.baseDate ?? "").trim();
   const slotNumber = String(row?.slotNumber ?? "").trim();
   return baseDate && slotNumber ? `${baseDate}|${slotNumber}` : "";
