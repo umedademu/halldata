@@ -340,6 +340,10 @@ const MESSE_OUGI_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
 
+const BB_STATION_NIPPORI_TARGET_MACHINES = [
+  { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+];
+
 const MARUHAN_KOIWA_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
 ];
@@ -1121,6 +1125,20 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "messe-ougi-neo-aim",
       "ネオアイムジャグラーＥＸ": "messe-ougi-neo-aim",
+    },
+  },
+  {
+    key: "bb-station-nippori",
+    storeNames: ["BBステーション日暮里店", "BBステーション日暮里"],
+    targetMachines: BB_STATION_NIPPORI_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    slotHistoryStartDates: [
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["103", "104", "105"], startDate: "2025-09-19" },
+      { machineName: "ネオアイムジャグラーEX", slotNumbers: ["98", "99", "100", "101", "102"], startDate: "2025-10-27" },
+    ],
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "bb-station-nippori-neo-aim",
+      "ネオアイムジャグラーＥＸ": "bb-station-nippori-neo-aim",
     },
   },
   {
@@ -3310,6 +3328,10 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
       return Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability >= 0.5;
     }
     if (contentRule === "messe-ougi-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability >= 0.5;
+    }
+    if (contentRule === "bb-station-nippori-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       return Number.isFinite(settingFivePlusProbability) && games >= 3000 && settingFivePlusProbability >= 0.5;
     }
@@ -11239,6 +11261,9 @@ function calculateWindowMetrics(
     isMachineStrongHighContentWindowRow(historyWindowRow, currentMachineName, config);
   const isHistoryMachineStrongBonusWindowRow = (historyWindowRow) =>
     isMachineStrongBonusWindowRow(historyWindowRow, currentMachineName, config);
+  const recentTwoMachineHighContentCount = recentTwoRows.filter((windowRow) =>
+    isMachineHighContentWindowRow(windowRow, currentMachineName, config),
+  ).length;
   const recentThreeMachineHighContentCount = recentThreeRows.filter((windowRow) =>
     isMachineHighContentWindowRow(windowRow, currentMachineName, config),
   ).length;
@@ -11867,6 +11892,7 @@ function calculateWindowMetrics(
     recentThreeHighSettingCount,
     recentThreeHighSettingEstimateCount,
     recentThreeSettingFiveCount,
+    recentTwoMachineHighContentCount,
     recentThreeMachineHighContentCount,
     recentThreeMachineGoodContentCount,
     recentFiveMachineHighContentCount,

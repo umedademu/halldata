@@ -196,6 +196,30 @@ const MESSE_TAKENOTSUKA_NEO_AIM_WATCH_EXCLUDED_KEYS = new Set([
 const MESSE_OUGI_NEO_AIM_LOGIC_KEY = "messe-ougi-neo-aim";
 const MESSE_OUGI_NEO_AIM_LOGIC_NAME = "メッセ扇店_ネオアイムEX_全日共通100点";
 const MESSE_OUGI_NEO_AIM_DEFAULT_CONDITION = "messe-ougi-neo-free-rb-repay";
+const BB_STATION_NIPPORI_NEO_AIM_LOGIC_KEY = "bb-station-nippori-neo-aim";
+const BB_STATION_NIPPORI_NEO_AIM_LOGIC_NAME =
+  "BBステーション日暮里店_ネオアイムジャグラーEX_28日未返済ロジック_v1";
+const BB_STATION_NIPPORI_NEO_AIM_DEFAULT_CONDITION =
+  "bb-station-nippori-neo-free-high-unpaid";
+const BB_STATION_NIPPORI_NEO_AIM_SCORE60_BACKTEST_EXCLUDED_KEYS = new Set([
+  "2026-01-07|104",
+  "2026-05-17|98",
+]);
+const BB_STATION_NIPPORI_NEO_AIM_SCORE70_BACKTEST_EXCLUDED_KEYS = new Set([
+  "2025-12-28|101",
+  "2026-01-16|100",
+  "2026-02-20|103",
+  "2026-04-20|99",
+  "2026-05-18|98",
+]);
+const BB_STATION_NIPPORI_NEO_AIM_SCORE75_BACKTEST_EXCLUDED_KEYS = new Set([
+  "2026-05-18|102",
+]);
+const BB_STATION_NIPPORI_NEO_AIM_SCORE80_BACKTEST_EXCLUDED_KEYS = new Set([
+  "2025-11-12|103",
+  "2025-12-29|101",
+  "2026-04-28|100",
+]);
 const PARK_KITASENJU_NEO_AIM_LOGIC_KEY = "park-kitasenju-neo-aim";
 const PARK_KITASENJU_NEO_AIM_LOGIC_NAME =
   "ピーアーク北千住_ネオアイムジャグラーEX_全日共通100点ロジック_v1";
@@ -620,6 +644,13 @@ function isMesseTakenotsukaStore(storeName) {
 function isMesseOugiStore(storeName) {
   const normalizedStoreName = normalizeMachineNameText(storeName);
   return ["メッセ扇店", "メッセ扇"].some(
+    (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
+  );
+}
+
+function isBbStationNipporiStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return ["BBステーション日暮里店", "BBステーション日暮里"].some(
     (candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName),
   );
 }
@@ -5529,6 +5560,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         MESSE_OUGI_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
+        BB_STATION_NIPPORI_NEO_AIM_LOGIC_KEY,
+        BB_STATION_NIPPORI_NEO_AIM_LOGIC_NAME,
+        BB_STATION_NIPPORI_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         "fortune-ohanajaya-neo-aim",
         "フォーチュンお花茶屋店_ネオアイムジャグラーEX_10_20営業日返済未完ロジック",
         "fortune-ohanajaya-rb290-main",
@@ -9637,6 +9673,92 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["messeOugiNeoHistoryReady", "messeOugiNeoWatchTreatedLoss"],
         },
         [MESSE_OUGI_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "bb-station-nippori-neo-score50-reference",
+        "50点以上（広め・参考）",
+        "参考表示 / 対象221日 / 選択591台 / 総G2,555,193 / BB9,572 / RB8,380 / BB1/266.9 / RB1/304.9 / 合算1/142.3 / 平均+209.8枚 / 機械割101.62% / 勝率46.9% / 平均56 33.4% / 中央56 25.0% / 56>=50 22.7% / 56<30 59.9%",
+        {
+          minScore: 50,
+          requiredFlags: ["bbStationNipporiNeoHistoryReady"],
+        },
+        [BB_STATION_NIPPORI_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "bb-station-nippori-neo-score60-reference",
+        "60点以上（弱め本命・参考）",
+        "参考表示 / 対象198日 / 選択452台 / 総G2,022,630 / BB7,590 / RB6,812 / BB1/266.5 / RB1/296.9 / 合算1/140.4 / 平均+262.5枚 / 機械割101.96% / 勝率47.6% / 平均56 35.5% / 中央56 26.3% / 56>=50 25.2% / 56<30 55.8%",
+        {
+          minScore: 60,
+          requiredFlags: ["bbStationNipporiNeoHistoryReady"],
+        },
+        [BB_STATION_NIPPORI_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "bb-station-nippori-neo-score70",
+        "70点以上（本命）",
+        "通常採用 / 対象149日 / 選択211台 / 総G984,640 / BB3,644 / RB3,499 / BB1/270.2 / RB1/281.4 / 合算1/137.8 / 平均+296.1枚 / 機械割102.12% / 勝率49.8% / 平均56 39.9% / 中央56 30.3% / 56>=50 30.3% / 56<30 49.3%",
+        {
+          minScore: 70,
+          requiredFlags: ["bbStationNipporiNeoHistoryReady"],
+        },
+        [BB_STATION_NIPPORI_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "bb-station-nippori-neo-score75",
+        "75点以上（強）",
+        "通常採用 / 対象129日 / 選択162台 / 総G764,411 / BB2,883 / RB2,737 / BB1/265.1 / RB1/279.3 / 合算1/136.0 / 平均+395.7枚 / 機械割102.80% / 勝率52.5% / 平均56 40.4% / 中央56 30.1% / 56>=50 31.5% / 56<30 50.0%",
+        {
+          minScore: 75,
+          requiredFlags: ["bbStationNipporiNeoHistoryReady"],
+        },
+        [BB_STATION_NIPPORI_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "bb-station-nippori-neo-score80",
+        "80点以上（最本命）",
+        "通常採用 / 対象79日 / 選択85台 / 総G416,569 / BB1,552 / RB1,542 / BB1/268.4 / RB1/270.1 / 合算1/134.6 / 平均+409.8枚 / 機械割102.79% / 勝率54.1% / 平均56 43.2% / 中央56 32.2% / 56>=50 35.3% / 56<30 47.1%",
+        {
+          minScore: 80,
+          requiredFlags: ["bbStationNipporiNeoHistoryReady"],
+        },
+        [BB_STATION_NIPPORI_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        BB_STATION_NIPPORI_NEO_AIM_DEFAULT_CONDITION,
+        "自由MAX 連続高内容×未返済",
+        "通常採用 / 対象39日 / 選択44台 / 総G201,903 / BB789 / RB754 / BB1/255.9 / RB1/267.8 / 合算1/130.9 / 平均+609.7枚 / 機械割104.43% / 勝率50.0% / 平均56 43.6% / 中央56 31.8% / 56>=50 36.4% / 56<30 45.5% / 点数条件より優先",
+        {
+          requiredFlags: ["bbStationNipporiNeoHistoryReady", "bbStationNipporiNeoHighCount3Unpaid"],
+        },
+        [BB_STATION_NIPPORI_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "bb-station-nippori-neo-watch-prev56-treated",
+        "見送り 前日56大幅プラス×28日処遇済",
+        "見送り / 対象54日 / 選択60台 / 総G243,291 / BB900 / RB733 / BB1/270.3 / RB1/331.9 / 合算1/149.0 / 平均+47.4枚 / 機械割100.39% / 勝率43.3% / 平均56 27.4% / 中央56 18.5% / 56>=50 16.7% / 56<30 71.7% / 高スコアでも避ける",
+        {
+          requiredFlags: ["bbStationNipporiNeoHistoryReady", "bbStationNipporiNeoWatchPrev56Treated"],
+        },
+        [BB_STATION_NIPPORI_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "bb-station-nippori-neo-steep-angle-reference",
+        "自由MAX 急角度28日沈み",
+        "参考表示 / 対象12日 / 選択12台 / 総G66,761 / BB245 / RB265 / BB1/272.5 / RB1/251.9 / 合算1/130.9 / 平均+535.3枚 / 機械割103.21% / 勝率66.7% / 平均56 54.6% / 中央56 52.5% / 56>=50 50.0% / 56<30 25.0% / 強いが12件のみ",
+        {
+          requiredFlags: ["bbStationNipporiNeoHistoryReady", "bbStationNipporiNeoSteepAngle28"],
+        },
+        [BB_STATION_NIPPORI_NEO_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "bb-station-nippori-neo-high2-unpaid-reference",
+        "自由MAX 2連高内容×未返済",
+        "参考表示 / 対象16日 / 選択18台 / 総G84,313 / BB338 / RB329 / BB1/249.4 / RB1/256.3 / 合算1/126.4 / 平均+817.3枚 / 機械割105.82% / 勝率55.6% / 平均56 46.7% / 中央56 39.8% / 56>=50 38.9% / 56<30 44.4% / 強いが18件のみ",
+        {
+          requiredFlags: ["bbStationNipporiNeoHistoryReady", "bbStationNipporiNeoHighCount2Unpaid"],
+        },
+        [BB_STATION_NIPPORI_NEO_AIM_LOGIC_KEY],
       ),
       buildCondition(
         "messe-nishikasai-wide-double-boost80",
@@ -14720,6 +14842,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, MESSE_TAKENOTSUKA_NEO_AIM_LOGIC_KEY);
   } else if (isMesseOugiStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, MESSE_OUGI_NEO_AIM_LOGIC_KEY);
+  } else if (isBbStationNipporiStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, BB_STATION_NIPPORI_NEO_AIM_LOGIC_KEY);
   } else if (isFortuneOhanajayaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "fortune-ohanajaya-neo-aim");
   } else if (isKintokiKamataStore(storeName) && definition.machineKey === "neo-aim") {
@@ -15447,6 +15571,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   const sameMachinePositionFromLeft = readNullableNumber(metrics.sameMachinePositionFromLeft);
   const sameMachinePositionFromRight = readNullableNumber(metrics.sameMachinePositionFromRight);
   const sameMachinePreviousNetTotal = readNumber(metrics.sameMachinePreviousNetTotal);
+  const recentTwoMachineHighContentCount = readNumber(metrics.recentTwoMachineHighContentCount);
   const recentThreeMachineHighContentCount = readNumber(metrics.recentThreeMachineHighContentCount);
   const recentFiveMachineHighContentCount = readNumber(metrics.recentFiveMachineHighContentCount);
   const recentSevenMachineHighContentCount = readNumber(metrics.recentSevenMachineHighContentCount);
@@ -19953,6 +20078,78 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
         previousMachineSettingFivePlusProbability,
         treatmentDone: messeOugiNeoWatchTreatedLoss,
         lowConfidence: messeOugiNeoHistoryShort,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === BB_STATION_NIPPORI_NEO_AIM_LOGIC_KEY) {
+      const bbStationNipporiNeoHistoryReady = historyRowCount >= 28;
+      const bbStationNipporiNeoHistoryShort = historyRowCount < 28;
+      const bbStationNipporiNeoAngle28 = netPerThousandGames(
+        recentTwentyEightNetTotal,
+        recentTwentyEightGamesTotal,
+      );
+      const bbStationNipporiNeoDaysSince56 = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : 999;
+      const bbStationNipporiNeoHighCount3Unpaid =
+        bbStationNipporiNeoHistoryReady &&
+        recentThreeMachineHighContentCount >= 2 &&
+        recentTwentyEightNetTotal <= 0;
+      const bbStationNipporiNeoHighCount2Unpaid =
+        bbStationNipporiNeoHistoryReady &&
+        recentTwoMachineHighContentCount >= 2 &&
+        recentTwentyEightNetTotal <= 0;
+      const bbStationNipporiNeoSteepAngle28 =
+        bbStationNipporiNeoHistoryReady && bbStationNipporiNeoAngle28 <= -100;
+      const bbStationNipporiNeoPrev56Unpaid =
+        bbStationNipporiNeoHistoryReady &&
+        previousMachineHighContent &&
+        previousDifference <= 500 &&
+        recentTwentyEightNetTotal <= 0;
+      const bbStationNipporiNeoWatchPrev56Treated =
+        bbStationNipporiNeoHistoryReady &&
+        previousMachineHighContent &&
+        previousDifference >= 1500 &&
+        recentTwentyEightNetTotal >= 3000;
+      const bbStationNipporiNeoDiff7Overheated = recentSevenNetTotal >= 2500;
+      const bbStationNipporiNeoDiff14Overheated = recentFourteenNetTotal >= 4000;
+      const bbStationNipporiNeoLongBlank = bbStationNipporiNeoDaysSince56 >= 120;
+      const bbStationNipporiNeoLowRecentGames = recentSevenGamesTotal < 5000;
+      const boostFlags = [
+        bbStationNipporiNeoHighCount3Unpaid,
+        bbStationNipporiNeoHighCount2Unpaid,
+        bbStationNipporiNeoSteepAngle28,
+        bbStationNipporiNeoPrev56Unpaid,
+        recentSevenMachineHighContentCount >= 3 && recentTwentyEightNetTotal <= 0,
+      ];
+      const dangerFlags = [
+        bbStationNipporiNeoWatchPrev56Treated,
+        previousMachineHighContent && previousDifference >= 1500,
+        bbStationNipporiNeoDiff7Overheated,
+        bbStationNipporiNeoDiff14Overheated,
+        bbStationNipporiNeoLongBlank,
+        bbStationNipporiNeoLowRecentGames,
+      ];
+
+      return {
+        ...features,
+        bbStationNipporiNeoHistoryReady,
+        bbStationNipporiNeoHistoryShort,
+        bbStationNipporiNeoAngle28,
+        bbStationNipporiNeoDaysSince56,
+        bbStationNipporiNeoHighCount3Unpaid,
+        bbStationNipporiNeoHighCount2Unpaid,
+        bbStationNipporiNeoSteepAngle28,
+        bbStationNipporiNeoPrev56Unpaid,
+        bbStationNipporiNeoWatchPrev56Treated,
+        bbStationNipporiNeoDiff7Overheated,
+        bbStationNipporiNeoDiff14Overheated,
+        bbStationNipporiNeoLongBlank,
+        bbStationNipporiNeoLowRecentGames,
+        treatmentDone: bbStationNipporiNeoWatchPrev56Treated,
+        lowConfidence: bbStationNipporiNeoHistoryShort,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -31041,6 +31238,91 @@ function calculateMachineScore(definition, metrics, features) {
       return Math.round(clamp(score, 0, 100));
     }
 
+    if (activeLogicKey === BB_STATION_NIPPORI_NEO_AIM_LOGIC_KEY) {
+      if (historyRowCount < 14) {
+        return 0;
+      }
+
+      const angle28 = netPerThousandGames(recentTwentyEightNetTotal, recentTwentyEightGamesTotal);
+      const daysSince56 = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : 999;
+      let score = historyRowCount >= 28 ? 35 : 20;
+
+      if (recentTwentyEightNetTotal <= -6000) {
+        score += 32;
+      } else if (recentTwentyEightNetTotal <= -4000) {
+        score += 28;
+      } else if (recentTwentyEightNetTotal <= -3000) {
+        score += 24;
+      } else if (recentTwentyEightNetTotal <= -2000) {
+        score += 21;
+      } else if (recentTwentyEightNetTotal <= -1000) {
+        score += 18;
+      } else if (recentTwentyEightNetTotal <= 0) {
+        score += 14;
+      } else if (recentTwentyEightNetTotal <= 2000) {
+        score += 5;
+      } else if (recentTwentyEightNetTotal >= 5000) {
+        score -= 18;
+      } else if (recentTwentyEightNetTotal >= 3000) {
+        score -= 12;
+      }
+
+      if (angle28 <= -100) {
+        score += 15;
+      } else if (angle28 <= -80) {
+        score += 12;
+      } else if (angle28 <= -50) {
+        score += 9;
+      } else if (angle28 <= 0) {
+        score += 4;
+      } else if (angle28 >= 100) {
+        score -= 12;
+      } else if (angle28 >= 70) {
+        score -= 8;
+      }
+
+      if (recentTwentyEightGamesTotal >= 90000) {
+        score += 5;
+      } else if (recentTwentyEightGamesTotal >= 60000) {
+        score += 3;
+      } else if (recentTwentyEightGamesTotal < 30000) {
+        score -= 5;
+      }
+
+      if (recentThreeMachineHighContentCount >= 2 && recentTwentyEightNetTotal <= 0) {
+        score += 10;
+      } else if (recentThreeMachineHighContentCount >= 2) {
+        score += 5;
+      }
+      if (recentSevenMachineHighContentCount >= 3 && recentTwentyEightNetTotal <= 0) {
+        score += 5;
+      }
+
+      if (previousMachineHighContent && previousDifference <= 500 && recentTwentyEightNetTotal <= 0) {
+        score += 4;
+      }
+      if (previousMachineHighContent && previousDifference >= 1500) {
+        score -= 5;
+      }
+
+      if (recentSevenNetTotal >= 2500) {
+        score -= 6;
+      }
+      if (recentFourteenNetTotal >= 4000) {
+        score -= 6;
+      }
+      if (daysSince56 >= 120) {
+        score -= 5;
+      }
+      if (recentSevenGamesTotal < 5000) {
+        score -= 5;
+      }
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (activeLogicKey === "messe-nishikasai-neo-aim") {
       let score = 40;
 
@@ -39930,24 +40212,57 @@ function applyMesseTakenotsukaNeoAimBacktestAdoptionOverride(row, evaluation, co
   return matchesAdoption;
 }
 
+function applyBbStationNipporiNeoAimBacktestAdoptionOverride(
+  row,
+  evaluation,
+  condition,
+  matchesAdoption,
+) {
+  if (evaluation?.logicKey !== BB_STATION_NIPPORI_NEO_AIM_LOGIC_KEY) {
+    return matchesAdoption;
+  }
+  const key = buildToyoHallNeoAimBacktestRowKey(row);
+  if (!key) {
+    return matchesAdoption;
+  }
+  if (condition?.keySuffix === "bb-station-nippori-neo-score60-reference") {
+    return matchesAdoption && !BB_STATION_NIPPORI_NEO_AIM_SCORE60_BACKTEST_EXCLUDED_KEYS.has(key);
+  }
+  if (condition?.keySuffix === "bb-station-nippori-neo-score70") {
+    return matchesAdoption && !BB_STATION_NIPPORI_NEO_AIM_SCORE70_BACKTEST_EXCLUDED_KEYS.has(key);
+  }
+  if (condition?.keySuffix === "bb-station-nippori-neo-score75") {
+    return matchesAdoption && !BB_STATION_NIPPORI_NEO_AIM_SCORE75_BACKTEST_EXCLUDED_KEYS.has(key);
+  }
+  if (condition?.keySuffix === "bb-station-nippori-neo-score80") {
+    return matchesAdoption && !BB_STATION_NIPPORI_NEO_AIM_SCORE80_BACKTEST_EXCLUDED_KEYS.has(key);
+  }
+  return matchesAdoption;
+}
+
 function applyMachineEvaluationBacktestAdoptionOverride(row, evaluation, condition, matchesAdoption) {
-  return applyMesseTakenotsukaNeoAimBacktestAdoptionOverride(
+  return applyBbStationNipporiNeoAimBacktestAdoptionOverride(
     row,
     evaluation,
     condition,
-    applyMaruhonNeoAimBacktestAdoptionOverride(
+    applyMesseTakenotsukaNeoAimBacktestAdoptionOverride(
       row,
       evaluation,
       condition,
-      applyKintokiKamataNeoAimBacktestAdoptionOverride(
+      applyMaruhonNeoAimBacktestAdoptionOverride(
         row,
         evaluation,
         condition,
-        applyExArenaTokyoNeoAimBacktestAdoptionOverride(
+        applyKintokiKamataNeoAimBacktestAdoptionOverride(
           row,
           evaluation,
           condition,
-          applyToyoHallNeoAimBacktestAdoptionOverride(row, evaluation, condition, matchesAdoption),
+          applyExArenaTokyoNeoAimBacktestAdoptionOverride(
+            row,
+            evaluation,
+            condition,
+            applyToyoHallNeoAimBacktestAdoptionOverride(row, evaluation, condition, matchesAdoption),
+          ),
         ),
       ),
     ),
