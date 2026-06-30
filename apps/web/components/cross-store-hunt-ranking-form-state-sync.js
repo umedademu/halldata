@@ -11,6 +11,9 @@ import {
 const SELECTED_STORE_STORAGE_KEY = "cross-store-hunt-ranking-selected-store-ids";
 const CONFIGURED_STORE_STORAGE_KEY =
   "cross-store-hunt-ranking-configured-selected-store-ids";
+const SELECTED_MACHINE_STORAGE_KEY = "cross-store-hunt-ranking-selected-machine-names";
+const CONFIGURED_MACHINE_STORAGE_KEY =
+  "cross-store-hunt-ranking-configured-selected-machine-names";
 const STORE_SOURCE_CONFIGURED = "configured";
 
 function normalizeStoreSource(value) {
@@ -25,7 +28,17 @@ function getSelectedStoreStorageKey(storeSource) {
     : SELECTED_STORE_STORAGE_KEY;
 }
 
+function getSelectedMachineStorageKey(storeSource) {
+  return normalizeStoreSource(storeSource) === STORE_SOURCE_CONFIGURED
+    ? CONFIGURED_MACHINE_STORAGE_KEY
+    : SELECTED_MACHINE_STORAGE_KEY;
+}
+
 function normalizeStoreId(value) {
+  return String(value ?? "").trim();
+}
+
+function normalizeMachineName(value) {
   return String(value ?? "").trim();
 }
 
@@ -34,6 +47,16 @@ function normalizeStoreIds(values) {
     ...new Set(
       (Array.isArray(values) ? values : [values])
         .map(normalizeStoreId)
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function normalizeMachineNames(values) {
+  return [
+    ...new Set(
+      (Array.isArray(values) ? values : [values])
+        .map(normalizeMachineName)
         .filter(Boolean),
     ),
   ];
@@ -61,12 +84,35 @@ function buildSearchWithStores(searchParams, favoriteStoreIds, selectedStoreIds)
   return nextSearchParams.toString();
 }
 
+function buildSearchWithMachines(searchParams, selectedMachineNames) {
+  const nextSearchParams = new URLSearchParams(searchParams.toString());
+  nextSearchParams.delete("machine");
+  nextSearchParams.set("machineTouched", "1");
+
+  for (const machineName of normalizeMachineNames(selectedMachineNames)) {
+    nextSearchParams.append("machine", machineName);
+  }
+
+  return nextSearchParams.toString();
+}
+
 function syncStoreClassNames(form) {
   if (!form) {
     return;
   }
 
   for (const input of form.querySelectorAll('input[data-cross-store-option="1"]')) {
+    const chip = input.closest(".metricToggleChip");
+    chip?.classList.toggle("metricToggleChipActive", input.checked);
+  }
+}
+
+function syncMachineClassNames(form) {
+  if (!form) {
+    return;
+  }
+
+  for (const input of form.querySelectorAll('input[data-machine-filter-option="1"]')) {
     const chip = input.closest(".metricToggleChip");
     chip?.classList.toggle("metricToggleChipActive", input.checked);
   }
@@ -79,6 +125,18 @@ function readSelectedStoreIdsFromForm(form) {
 
   return normalizeStoreIds(
     [...form.querySelectorAll('input[data-cross-store-option="1"]')]
+      .filter((input) => input.checked)
+      .map((input) => input.value),
+  );
+}
+
+function readSelectedMachineNamesFromForm(form) {
+  if (!form) {
+    return [];
+  }
+
+  return normalizeMachineNames(
+    [...form.querySelectorAll('input[data-machine-filter-option="1"]')]
       .filter((input) => input.checked)
       .map((input) => input.value),
   );
@@ -106,6 +164,20 @@ function saveSelectedStoreIds(storeIds, storeSource = "favorites") {
   }
 }
 
+function saveSelectedMachineNames(machineNames, storeSource = "favorites") {
+  try {
+    window.localStorage.setItem(
+      getSelectedMachineStorageKey(storeSource),
+      JSON.stringify({
+        version: 1,
+        machineNames: normalizeMachineNames(machineNames),
+      }),
+    );
+  } catch {
+    // 保存できない環境では、その場の選択だけを有効にします。
+  }
+}
+
 function readSavedSelectedStoreIds(storeSource = "favorites") {
   try {
     const rawValue = window.localStorage.getItem(getSelectedStoreStorageKey(storeSource));
@@ -115,6 +187,20 @@ function readSavedSelectedStoreIds(storeSource = "favorites") {
 
     const parsedValue = JSON.parse(rawValue);
     return normalizeStoreIds(parsedValue?.storeIds);
+  } catch {
+    return null;
+  }
+}
+
+function readSavedSelectedMachineNames(storeSource = "favorites") {
+  try {
+    const rawValue = window.localStorage.getItem(getSelectedMachineStorageKey(storeSource));
+    if (!rawValue) {
+      return null;
+    }
+
+    const parsedValue = JSON.parse(rawValue);
+    return normalizeMachineNames(parsedValue?.machineNames);
   } catch {
     return null;
   }
@@ -180,6 +266,36 @@ export function CrossStoreHuntRankingFormStateSync({ formId }) {
   }, [pathname, router, searchParams]);
 
   useEffect(() => {
+    const storeSource = normalizeStoreSource(searchParams.get("storeSource"));
+    const hasMachineSelectionParams =
+      searchParams.has("machine") || searchParams.get("machineTouched") === "1";
+
+    if (hasMachineSelectionParams) {
+      saveSelectedMachineNames(searchParams.getAll("machine"), storeSource);
+      return;
+    }
+
+    if (
+      storeSource !== STORE_SOURCE_CONFIGURED &&
+      !searchParams.has("store") &&
+      !searchParams.has("show") &&
+      readSavedMyHallStoreIds().length > 0
+    ) {
+      return;
+    }
+
+    const savedMachineNames = readSavedSelectedMachineNames(storeSource);
+    if (savedMachineNames === null) {
+      return;
+    }
+
+    const searchText = buildSearchWithMachines(searchParams, savedMachineNames);
+    if (searchText !== searchParams.toString()) {
+      router.replace(searchText ? `${pathname}?${searchText}` : pathname, { scroll: false });
+    }
+  }, [pathname, router, searchParams]);
+
+  useEffect(() => {
     if (!formId) {
       return undefined;
     }
@@ -191,9 +307,17 @@ export function CrossStoreHuntRankingFormStateSync({ formId }) {
 
     const sync = () => {
       syncStoreClassNames(form);
+      syncMachineClassNames(form);
       saveSelectedStoreIds(readSelectedStoreIdsFromForm(form), readStoreSourceFromForm(form));
+      saveSelectedMachineNames(
+        readSelectedMachineNamesFromForm(form),
+        readStoreSourceFromForm(form),
+      );
     };
-    const syncOnly = () => syncStoreClassNames(form);
+    const syncOnly = () => {
+      syncStoreClassNames(form);
+      syncMachineClassNames(form);
+    };
     const handleClick = (event) => {
       const target = event.target instanceof Element ? event.target : null;
       const button = target?.closest("[data-cross-store-select-action]");
