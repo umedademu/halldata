@@ -1871,6 +1871,66 @@ const HUNT_SCORE_STORE_CONFIGS = [
     storeNames: ["MJアリーナ板付店"],
     targetMachines: APARK_KASUGA_TARGET_MACHINES,
     defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "mj-itazuke-neo-aim",
+      "ネオアイムジャグラーＥＸ": "mj-itazuke-neo-aim",
+    },
+    slotHistoryStartDates: [
+      {
+        machineName: "ネオアイムジャグラーEX",
+        slotNumbers: [
+          "337",
+          "338",
+          "339",
+          "340",
+          "341",
+          "342",
+          "343",
+          "344",
+          "345",
+          "346",
+          "347",
+          "348",
+          "349",
+          "350",
+          "351",
+          "352",
+          "353",
+          "354",
+          "355",
+          "356",
+          "357",
+        ],
+        startDate: "2025-06-29",
+      },
+      {
+        machineName: "ネオアイムジャグラーEX",
+        slotNumbers: [
+          "316",
+          "317",
+          "318",
+          "319",
+          "320",
+          "321",
+          "322",
+          "323",
+          "324",
+          "325",
+          "326",
+          "327",
+          "328",
+          "329",
+          "330",
+          "331",
+          "332",
+          "333",
+          "334",
+          "335",
+          "336",
+        ],
+        startDate: "2025-10-12",
+      },
+    ],
   },
   {
     key: "mzas-ozasa",
@@ -3238,6 +3298,13 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
         (games >= 2500 && rbDenominator <= 340 && combinedDenominator <= 150)
       );
     }
+    if (contentRule === "mj-itazuke-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        (games >= 3000 && Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability >= 0.5) ||
+        (games >= 5000 && rbDenominator <= 280 && combinedDenominator <= 145)
+      );
+    }
     if (contentRule === "mega-beam-asakura-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -3969,6 +4036,13 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       return (
         (games >= 3500 && rbDenominator <= 300 && combinedDenominator <= 145) ||
         (games >= 2500 && rbDenominator <= 340 && combinedDenominator <= 150)
+      );
+    }
+    if (contentRule === "mj-itazuke-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        (games >= 2500 && Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability >= 0.3) ||
+        (games >= 4000 && rbDenominator <= 320 && combinedDenominator <= 150)
       );
     }
     if (contentRule === "mega-beam-asakura-neo-aim") {
@@ -4897,6 +4971,16 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
       return games >= 3500 && settingFivePlusProbability >= 0.5;
     }
     return games >= 3500 && rbDenominator <= 300 && combinedDenominator <= 145;
+  }
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
+    readMachineContentRule(config, machineName) === "mj-itazuke-neo-aim"
+  ) {
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+    return (
+      (games >= 4000 && Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability >= 0.7) ||
+      (games >= 5500 && rbDenominator <= 260 && combinedDenominator <= 135)
+    );
   }
   if (
     normalizedMachineName === normalizeText("ネオアイムジャグラーEX") &&
@@ -10752,6 +10836,7 @@ function calculateWindowMetrics(
   const recentTwentyOneNetTotal = sumDifferenceValues(recentTwentyOneRows);
   const recentTwentyEightNetTotal = sumDifferenceValues(recentTwentyEightRows);
   const recentThirtyNetTotal = sumDifferenceValues(recentThirtyRows);
+  const recentThirtyFiveNetTotal = sumDifferenceValues(recentThirtyFiveRows);
   const recentFortyTwoNetTotal = sumDifferenceValues(recentFortyTwoRows);
   const recentFiftySixNetTotal = sumDifferenceValues(recentFiftySixRows);
   const shortSevenSinkStayDays = countConsecutiveRollingNetThresholdDays(historyWindowRows, 7, -500);
@@ -10835,6 +10920,7 @@ function calculateWindowMetrics(
   const recentTwentyOneGamesTotal = sumWindowField(recentTwentyOneRows, "games");
   const recentTwentyEightGamesTotal = sumWindowField(recentTwentyEightRows, "games");
   const recentThirtyGamesTotal = sumWindowField(recentThirtyRows, "games");
+  const recentThirtyFiveGamesTotal = sumWindowField(recentThirtyFiveRows, "games");
   const recentFortyTwoGamesTotal = sumWindowField(recentFortyTwoRows, "games");
   const recentFiftySixGamesTotal = sumWindowField(recentFiftySixRows, "games");
   const historyGamesTotal = sumWindowField(historyWindowRows, "games");
@@ -11759,6 +11845,7 @@ function calculateWindowMetrics(
     recentFourteenNetTotal,
     recentTwentyOneNetTotal,
     recentTwentyEightNetTotal,
+    recentThirtyFiveNetTotal,
     recentFortyTwoNetTotal,
     recentFiftySixNetTotal,
     shortSevenSinkStayDays,
@@ -11962,6 +12049,7 @@ function calculateWindowMetrics(
     recentTwentyOneGamesTotal,
     recentTwentyEightGamesTotal,
     recentThirtyGamesTotal,
+    recentThirtyFiveGamesTotal,
     recentFortyTwoGamesTotal,
     recentFiftySixGamesTotal,
     historyGamesTotal,

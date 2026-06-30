@@ -91,6 +91,9 @@ const BELLCITY_THECITY_SHINOZAKI_NEO_AIM_LOGIC_NAME =
   "ベルシティ篠崎_ネオアイム_前日凹み返済未完ロジック_v1";
 const BELLCITY_THECITY_SHINOZAKI_NEO_AIM_DEFAULT_CONDITION =
   "bellcity-thecity-shinozaki-neo-rank1";
+const MJ_ITAZUKE_NEO_AIM_LOGIC_KEY = "mj-itazuke-neo-aim";
+const MJ_ITAZUKE_NEO_AIM_LOGIC_NAME = "MJ板付_ネオアイム_EX_沈み角度56狙い_v1";
+const MJ_ITAZUKE_NEO_AIM_DEFAULT_CONDITION = "mj-itazuke-neo-strong90-angle28";
 const MARUHAN_KOIWA_NEO_AIM_LOGIC_KEY = "maruhan-koiwa-neo-aim";
 const MARUHAN_KOIWA_NEO_AIM_LOGIC_NAME =
   "マルハン小岩ネオアイム_全日共通_深沈み返済56狙い_v1";
@@ -530,6 +533,16 @@ function isMjArenaAirportStore(storeName) {
     "MJアリーナ空港",
     "ＭＪアリーナ空港店",
     "ＭＪアリーナ空港",
+  ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
+}
+
+function isMjArenaItazukeStore(storeName) {
+  const normalizedStoreName = normalizeMachineNameText(storeName);
+  return [
+    "MJアリーナ板付店",
+    "MJアリーナ板付",
+    "ＭＪアリーナ板付店",
+    "ＭＪアリーナ板付",
   ].some((candidateName) => normalizedStoreName === normalizeMachineNameText(candidateName));
 }
 
@@ -3350,6 +3363,68 @@ function buildMitoyaAsakusaSenzokuNeoAimConditions() {
   ];
 }
 
+function buildMjItazukeNeoAimConditions() {
+  return [
+    buildCondition(
+      "mj-itazuke-neo-score85",
+      "NEO広め_85点以上",
+      "通常採用 / 126日 / 184台 / 総G628,487 / BB2,417 / RB2,064 / BB1/260.03 / RB1/304.50 / 合算1/140.26 / 平均+229.86枚 / 機械割102.24% / 勝率42.93% / 平均56 33.93% / 中央56 26.96% / 56>=70 8.15% / 56>=50 17.39% / 56<30 55.43% / 4以下>=70 55.43% / RB1/300以下36.96% / RB1/400超32.07% / 合算1/130以下22.28% / 合算1/140以下32.61%",
+      {
+        minScore: 85,
+        requiredFlags: ["mjItazukeNeoHistory21Ready"],
+      },
+      [MJ_ITAZUKE_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mj-itazuke-neo-score87",
+      "NEO弱本命_87点以上",
+      "通常採用 / 112日 / 147台 / 総G498,134 / BB1,918 / RB1,664 / BB1/259.72 / RB1/299.36 / 合算1/139.07 / 平均+252.24枚 / 機械割102.48% / 勝率41.50% / 平均56 34.72% / 中央56 28.30% / 56>=70 8.16% / 56>=50 17.01% / 56<30 52.38% / 4以下>=70 52.38% / RB1/300以下39.46% / RB1/400超31.97% / 合算1/130以下23.13% / 合算1/140以下34.69%",
+      {
+        minScore: 87,
+        requiredFlags: ["mjItazukeNeoHistory21Ready"],
+      },
+      [MJ_ITAZUKE_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mj-itazuke-neo-score90",
+      "NEO本命_90点以上",
+      "通常採用 / 86日 / 106台 / 総G381,967 / BB1,494 / RB1,323 / BB1/255.67 / RB1/288.71 / 合算1/135.59 / 平均+357.16枚 / 機械割103.30% / 勝率47.17% / 平均56 37.70% / 中央56 32.80% / 56>=70 10.38% / 56>=50 22.64% / 56<30 46.23% / 4以下>=70 46.23% / RB1/300以下46.23% / RB1/400超29.25% / 合算1/130以下28.30% / 合算1/140以下42.45%",
+      {
+        minScore: 90,
+        requiredFlags: ["mjItazukeNeoHistory21Ready"],
+      },
+      [MJ_ITAZUKE_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      MJ_ITAZUKE_NEO_AIM_DEFAULT_CONDITION,
+      "NEO強_90点以上_28日急沈み",
+      "通常採用 / 38日 / 44台 / 総G185,684 / BB756 / RB667 / BB1/245.61 / RB1/278.39 / 合算1/130.49 / 平均+635.09枚 / 機械割105.02% / 勝率61.36% / 平均56 42.03% / 中央56 31.08% / 56>=70 15.91% / 56>=50 34.09% / 56<30 50.00% / 4以下>=70 50.00% / RB1/300以下47.73% / RB1/400超29.55% / 合算1/130以下38.64% / 合算1/140以下54.55%",
+      {
+        minScore: 90,
+        requiredFlags: [
+          "mjItazukeNeoHistory28Ready",
+          "mjItazukeNeoG28Ready",
+          "mjItazukeNeoAngle28Minus100",
+        ],
+      },
+      [MJ_ITAZUKE_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "mj-itazuke-neo-best-angle28-reference",
+      "NEO最本命_28日超急沈み",
+      "参考表示 / 18日 / 19台 / 総G71,958 / BB285 / RB270 / BB1/252.48 / RB1/266.51 / 合算1/129.65 / 平均+501.32枚 / 機械割104.41% / 勝率42.11% / 平均56 43.06% / 中央56 29.69% / 56>=70 15.79% / 56>=50 31.58% / 56<30 52.63% / 4以下>=70 52.63% / RB1/300以下47.37% / RB1/400超31.58% / 合算1/130以下36.84% / 合算1/140以下42.11%",
+      {
+        requiredFlags: [
+          "mjItazukeNeoHistory28Ready",
+          "mjItazukeNeoG28Ready",
+          "mjItazukeNeoAngle28Minus120",
+        ],
+      },
+      [MJ_ITAZUKE_NEO_AIM_LOGIC_KEY],
+    ),
+  ];
+}
+
 function listDefinitionLogics(definition) {
   if (!definition) {
     return [];
@@ -5356,6 +5431,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "mj-airport-neo-event-best",
       ),
       buildLogicVariant(
+        MJ_ITAZUKE_NEO_AIM_LOGIC_KEY,
+        MJ_ITAZUKE_NEO_AIM_LOGIC_NAME,
+        MJ_ITAZUKE_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         "mega-beam-asakura-neo-aim",
         "メガビーム朝倉999_ネオアイムジャグラーEX_全日共通56継続スコア_v1",
         "mega-beam-asakura-neo-wide55",
@@ -5699,6 +5779,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ...buildToyoHallNeoAimConditions(),
       ...buildGrandShipNeoAimConditions(),
       ...buildMitoyaAsakusaSenzokuNeoAimConditions(),
+      ...buildMjItazukeNeoAimConditions(),
       buildCondition(
         "main",
         "1位＋70点以上＋3日沈み2日以上",
@@ -14750,6 +14831,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "mj-kurume-neo-aim");
   } else if (isMjArenaAirportStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "mj-airport-neo-aim");
+  } else if (isMjArenaItazukeStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, MJ_ITAZUKE_NEO_AIM_LOGIC_KEY);
   } else if (isMegaBeamAsakuraStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "mega-beam-asakura-neo-aim");
   } else if (isNakagawaKingStore(storeName) && definition.machineKey === "neo-aim") {
@@ -15468,6 +15551,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   const recentTwentyOneNetTotal = readNumber(metrics.recentTwentyOneNetTotal);
   const recentTwentyEightNetTotal = readNumber(metrics.recentTwentyEightNetTotal);
   const recentThirtyNetTotal = readNumber(metrics.recentThirtyNetTotal);
+  const recentThirtyFiveNetTotal = readNumber(metrics.recentThirtyFiveNetTotal);
   const recentFiftySixNetTotal = readNumber(metrics.recentFiftySixNetTotal);
   const recentTwoGamesTotal = readNumber(metrics.recentTwoGamesTotal);
   const recentThreeGamesTotal = readNumber(metrics.recentThreeGamesTotal);
@@ -15477,6 +15561,8 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   const recentFourteenGamesTotal = readNumber(metrics.recentFourteenGamesTotal);
   const recentTwentyOneGamesTotal = readNumber(metrics.recentTwentyOneGamesTotal);
   const recentTwentyEightGamesTotal = readNumber(metrics.recentTwentyEightGamesTotal);
+  const recentThirtyFiveGamesTotal = readNumber(metrics.recentThirtyFiveGamesTotal);
+  const recentFiftySixGamesTotal = readNumber(metrics.recentFiftySixGamesTotal);
   const recentTwoRbTotal = readNumber(metrics.recentTwoRbTotal);
   const recentTenRbTotal = readNumber(metrics.recentTenRbTotal);
   const recentSevenRbTotal = readNumber(metrics.recentSevenRbTotal);
@@ -17783,6 +17869,68 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
         lowConfidence: mjAirportNeoHistoryShort || mjAirportNeoDangerLowG,
         boostCount: strengthCount,
         dangerCount,
+      };
+    }
+
+    if (activeLogicKey === MJ_ITAZUKE_NEO_AIM_LOGIC_KEY) {
+      const mjItazukeNeoAngle14 = netPerThousandGames(recentFourteenNetTotal, recentFourteenGamesTotal);
+      const mjItazukeNeoAngle28 = netPerThousandGames(recentTwentyEightNetTotal, recentTwentyEightGamesTotal);
+      const mjItazukeNeoAngle35 = netPerThousandGames(recentThirtyFiveNetTotal, recentThirtyFiveGamesTotal);
+      const mjItazukeNeoAngle56 = netPerThousandGames(recentFiftySixNetTotal, recentFiftySixGamesTotal);
+      const mjItazukeNeoDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : 999;
+      const mjItazukeNeoHistory21Ready = historyRowCount >= 21;
+      const mjItazukeNeoHistory28Ready = historyRowCount >= 28;
+      const mjItazukeNeoHistory35Ready = historyRowCount >= 35;
+      const mjItazukeNeoHistory56Ready = historyRowCount >= 56;
+      const mjItazukeNeoG28Ready = recentTwentyEightGamesTotal >= 14000;
+      const mjItazukeNeoAngle28Minus100 =
+        mjItazukeNeoHistory28Ready && mjItazukeNeoG28Ready && mjItazukeNeoAngle28 <= -100;
+      const mjItazukeNeoAngle28Minus120 =
+        mjItazukeNeoHistory28Ready && mjItazukeNeoG28Ready && mjItazukeNeoAngle28 <= -120;
+      const mjItazukeNeoWeakBonus14 =
+        recentFourteenGamesTotal >= 10000 &&
+        features.recentFourteenRbDenominator >= 420 &&
+        features.recentFourteenCombinedDenominator >= 160;
+      const boostFlags = [
+        mjItazukeNeoHistory56Ready &&
+          recentFiftySixGamesTotal >= 28000 &&
+          mjItazukeNeoAngle56 <= -50,
+        mjItazukeNeoHistory35Ready &&
+          recentThirtyFiveGamesTotal >= 17500 &&
+          mjItazukeNeoAngle35 <= -80,
+        mjItazukeNeoAngle28Minus100,
+        recentFourteenGamesTotal >= 6500 && recentFourteenNetTotal <= -3000,
+        historyLosingStreak >= 4,
+      ];
+      const dangerFlags = [
+        recentFourteenGamesTotal < 5000,
+        recentSevenNetTotal >= 2500,
+        recentFourteenNetTotal >= 4000,
+        winningStreak >= 3 && recentSevenNetTotal >= 1000,
+        recentTwentyEightGamesTotal < 10000 && mjItazukeNeoDaysSinceHigh >= 56,
+      ];
+
+      return {
+        ...features,
+        mjItazukeNeoAngle14,
+        mjItazukeNeoAngle28,
+        mjItazukeNeoAngle35,
+        mjItazukeNeoAngle56,
+        mjItazukeNeoDaysSinceHigh,
+        mjItazukeNeoHistory21Ready,
+        mjItazukeNeoHistory28Ready,
+        mjItazukeNeoHistory35Ready,
+        mjItazukeNeoHistory56Ready,
+        mjItazukeNeoG28Ready,
+        mjItazukeNeoAngle28Minus100,
+        mjItazukeNeoAngle28Minus120,
+        mjItazukeNeoWeakBonus14,
+        treatmentDone: recentSevenNetTotal >= 2200 || recentFourteenNetTotal >= 2500,
+        lowConfidence: !mjItazukeNeoHistory21Ready || recentFourteenGamesTotal < 5000,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
       };
     }
 
@@ -26845,6 +26993,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentTwentyOneNetTotal = readNumber(metrics.recentTwentyOneNetTotal);
   const recentTwentyEightNetTotal = readNumber(metrics.recentTwentyEightNetTotal);
   const recentThirtyNetTotal = readNumber(metrics.recentThirtyNetTotal);
+  const recentThirtyFiveNetTotal = readNumber(metrics.recentThirtyFiveNetTotal);
   const recentFortyTwoNetTotal = readNumber(metrics.recentFortyTwoNetTotal);
   const recentFiftySixNetTotal = readNumber(metrics.recentFiftySixNetTotal);
   const lossAbsTotal = readNumber(metrics.lossAbsTotal);
@@ -26870,6 +27019,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFourteenGamesTotal = readNumber(metrics.recentFourteenGamesTotal);
   const recentTwentyOneGamesTotal = readNumber(metrics.recentTwentyOneGamesTotal);
   const recentTwentyEightGamesTotal = readNumber(metrics.recentTwentyEightGamesTotal);
+  const recentThirtyFiveGamesTotal = readNumber(metrics.recentThirtyFiveGamesTotal);
   const recentFiftySixGamesTotal = readNumber(metrics.recentFiftySixGamesTotal);
   const recentTwoBonusTotal = readNumber(metrics.recentTwoBonusTotal);
   const recentThreeBonusTotal = readNumber(metrics.recentThreeBonusTotal);
@@ -29065,6 +29215,106 @@ function calculateMachineScore(definition, metrics, features) {
       } else if (historyRowCount < 14) {
         score = Math.min(score, 50);
       }
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
+    if (activeLogicKey === MJ_ITAZUKE_NEO_AIM_LOGIC_KEY) {
+      if (historyRowCount < 21) {
+        return 0;
+      }
+
+      const mjItazukeNeoAngle14 = netPerThousandGames(recentFourteenNetTotal, recentFourteenGamesTotal);
+      const mjItazukeNeoAngle28 = netPerThousandGames(recentTwentyEightNetTotal, recentTwentyEightGamesTotal);
+      const mjItazukeNeoAngle35 = netPerThousandGames(recentThirtyFiveNetTotal, recentThirtyFiveGamesTotal);
+      const mjItazukeNeoAngle56 = netPerThousandGames(recentFiftySixNetTotal, recentFiftySixGamesTotal);
+      const mjItazukeNeoDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : 999;
+      let score = 50;
+
+      if (historyRowCount >= 56 && recentFiftySixGamesTotal >= 28000 && mjItazukeNeoAngle56 <= -50) {
+        score += 6;
+      }
+
+      if (historyRowCount >= 35 && recentThirtyFiveGamesTotal >= 17500 && mjItazukeNeoAngle35 <= -80) {
+        score += 9;
+      }
+
+      if (historyRowCount >= 28 && recentTwentyEightGamesTotal >= 14000) {
+        score += scoreAtMost(mjItazukeNeoAngle28, [
+          { maximum: -120, points: 18 },
+          { maximum: -100, points: 15 },
+          { maximum: -80, points: 10 },
+          { maximum: -50, points: 6 },
+        ]);
+
+        score += scoreAtMost(recentTwentyEightNetTotal, [
+          { maximum: -8000, points: 8 },
+          { maximum: -5000, points: 6 },
+          { maximum: -3000, points: 4 },
+        ]);
+      }
+
+      if (recentFourteenGamesTotal >= 6500) {
+        score += scoreAtMost(recentFourteenNetTotal, [
+          { maximum: -4500, points: 8 },
+          { maximum: -3000, points: 6 },
+          { maximum: -1800, points: 3 },
+        ]);
+      }
+
+      if (recentFourteenGamesTotal >= 6000) {
+        score += scoreAtMost(mjItazukeNeoAngle14, [
+          { maximum: -180, points: 6 },
+          { maximum: -120, points: 4 },
+          { maximum: -80, points: 2 },
+        ]);
+      }
+
+      if (
+        recentFourteenGamesTotal >= 10000 &&
+        features.recentFourteenRbDenominator >= 420 &&
+        features.recentFourteenCombinedDenominator >= 160
+      ) {
+        score += 4;
+      } else if (recentFourteenGamesTotal >= 10000 && features.recentFourteenRbDenominator >= 360) {
+        score += 2;
+      }
+
+      score += scoreAtLeast(historyLosingStreak, [
+        { minimum: 6, points: 7 },
+        { minimum: 4, points: 5 },
+        { minimum: 2, points: 3 },
+      ]);
+
+      score += scoreAtLeast(recentTwentyEightGamesTotal, [
+        { minimum: 22000, points: 4 },
+        { minimum: 17000, points: 2 },
+      ]);
+
+      score -= recentFourteenGamesTotal < 5000 ? 8 : 0;
+      score += mjItazukeNeoDaysSinceHigh >= 21 && recentTwentyOneGamesTotal >= 10000 ? 3 : 0;
+      score -= recentSevenMachineHighContentCount >= 2 ? 4 : 0;
+
+      score -= scoreAtLeast(recentSevenNetTotal, [
+        { minimum: 3500, points: 10 },
+        { minimum: 2200, points: 6 },
+      ]);
+
+      score -= scoreAtLeast(recentFourteenNetTotal, [
+        { minimum: 4500, points: 8 },
+        { minimum: 2500, points: 5 },
+      ]);
+
+      score -=
+        previousDifference >= 1800 &&
+        Number.isFinite(previousMachineSettingFivePlusProbability) &&
+        previousMachineSettingFivePlusProbability < 0.3
+          ? 5
+          : 0;
+      score -= winningStreak >= 3 ? 4 : 0;
+      score -= recentTwentyEightGamesTotal < 10000 && mjItazukeNeoDaysSinceHigh >= 56 ? 10 : 0;
 
       return Math.round(clamp(score, 0, 100));
     }
