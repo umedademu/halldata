@@ -342,6 +342,7 @@ const MESSE_OUGI_TARGET_MACHINES = [
 
 const BB_STATION_NIPPORI_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
+  { name: "SアイムジャグラーＥＸ", aliases: ["SアイムジャグラーEX", "アイムジャグラーＥＸ", "アイムジャグラーEX"] },
 ];
 
 const MARUHAN_KOIWA_TARGET_MACHINES = [
@@ -1153,6 +1154,10 @@ const HUNT_SCORE_STORE_CONFIGS = [
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "bb-station-nippori-neo-aim",
       "ネオアイムジャグラーＥＸ": "bb-station-nippori-neo-aim",
+      "SアイムジャグラーＥＸ": "bb-station-nippori-s-aim-neo-equivalent",
+      "SアイムジャグラーEX": "bb-station-nippori-s-aim-neo-equivalent",
+      "アイムジャグラーＥＸ": "bb-station-nippori-s-aim-neo-equivalent",
+      "アイムジャグラーEX": "bb-station-nippori-s-aim-neo-equivalent",
     },
   },
   {
@@ -3329,9 +3334,21 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
   const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
   const rbDenominator = calculateRbDenominatorFromWindowRow(row);
   const differenceValue = readNumber(row?.differenceValue) ?? 0;
+  const contentRule = readMachineContentRule(config, machineName);
 
-  if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
-    const contentRule = readMachineContentRule(config, machineName);
+  if (
+    normalizedMachineName === normalizeText("ネオアイムジャグラーEX") ||
+    contentRule === "bb-station-nippori-s-aim-neo-equivalent"
+  ) {
+    if (contentRule === "bb-station-nippori-s-aim-neo-equivalent") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        (games >= 2500 &&
+          Number.isFinite(settingFivePlusProbability) &&
+          settingFivePlusProbability >= 0.5) ||
+        (games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 140)
+      );
+    }
     if (contentRule === "million-tobu-nerima-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {

@@ -623,7 +623,12 @@ function isNeoAimMachineName(machineName) {
     .normalize("NFKC")
     .replace(/\s+/gu, "")
     .toLowerCase();
-  return normalizedName.includes("ネオアイムジャグラーex") || normalizedName.includes("ネオアイム");
+  return (
+    normalizedName.includes("ネオアイムジャグラーex") ||
+    normalizedName.includes("ネオアイム") ||
+    normalizedName.includes("sアイムジャグラーex") ||
+    normalizedName.includes("sアイム")
+  );
 }
 
 function getMachineEvaluationHighlightMetric(machineName) {

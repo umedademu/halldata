@@ -215,6 +215,11 @@ const BB_STATION_NIPPORI_NEO_AIM_LOGIC_NAME =
   "BBステーション日暮里店_ネオアイムジャグラーEX_28日未返済ロジック_v1";
 const BB_STATION_NIPPORI_NEO_AIM_DEFAULT_CONDITION =
   "bb-station-nippori-neo-free-high-unpaid";
+const BB_STATION_NIPPORI_S_AIM_LOGIC_KEY = "bb-station-nippori-s-aim-neo-equivalent";
+const BB_STATION_NIPPORI_S_AIM_LOGIC_NAME =
+  "BBステーション日暮里店_SアイムEX_ネオ同等p56重視_全日共通";
+const BB_STATION_NIPPORI_S_AIM_DEFAULT_CONDITION =
+  "bb-station-nippori-s-aim-best270-free-max";
 const BB_STATION_NIPPORI_NEO_AIM_SCORE60_BACKTEST_EXCLUDED_KEYS = new Set([
   "2026-01-07|104",
   "2026-05-17|98",
@@ -3678,6 +3683,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         KICONA_HIRAI_AIM_COMBINED_LOGIC_NAME,
         KICONA_HIRAI_AIM_COMBINED_DEFAULT_CONDITION,
       ),
+      buildLogicVariant(
+        BB_STATION_NIPPORI_S_AIM_LOGIC_KEY,
+        BB_STATION_NIPPORI_S_AIM_LOGIC_NAME,
+        BB_STATION_NIPPORI_S_AIM_DEFAULT_CONDITION,
+      ),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
@@ -3728,6 +3738,78 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       ...buildParlorAsahiAimConditions(),
       ...buildKiconaHiraiAimCombinedConditions(),
+      buildCondition(
+        "bb-station-nippori-s-aim-wide-rb310",
+        "A_広めRB310",
+        "通常採用 / 対象83日 / 選択94台 / 総G457,958 / BB1,767 / RB1,730 / BB1/259.2 / RB1/264.7 / 合算1/131.0 / 平均+606.2枚 / 機械割104.15% / 勝率57.4% / 平均p56 47.1% / 中央p56 43.6% / p56>=50 46.8% / p56<30 36.2% / RB>1/400 24.5%",
+        {
+          requiredFlags: ["bbStationNipporiSAimHistoryReady", "bbStationNipporiSAimWideRb310"],
+        },
+        [BB_STATION_NIPPORI_S_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "bb-station-nippori-s-aim-weak-rb300",
+        "B_弱め本命RB300",
+        "通常採用 / 対象78日 / 選択89台 / 総G441,420 / BB1,711 / RB1,680 / BB1/258.0 / RB1/262.8 / 合算1/130.2 / 平均+652.6枚 / 機械割104.39% / 勝率59.6% / 平均p56 47.9% / 中央p56 43.8% / p56>=50 48.3% / p56<30 34.8% / RB>1/400 22.5%",
+        {
+          requiredFlags: ["bbStationNipporiSAimHistoryReady", "bbStationNipporiSAimWeakRb300"],
+        },
+        [BB_STATION_NIPPORI_S_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "bb-station-nippori-s-aim-main-rb290",
+        "C_本命RB290",
+        "通常採用 / 対象48日 / 選択51台 / 総G269,280 / BB1,084 / RB1,033 / BB1/248.4 / RB1/260.7 / 合算1/127.2 / 平均+909.2枚 / 機械割105.74% / 勝率66.7% / 平均p56 50.1% / 中央p56 53.7% / p56>=50 52.9% / p56<30 33.3% / RB>1/400 23.5%",
+        {
+          requiredFlags: ["bbStationNipporiSAimHistoryReady", "bbStationNipporiSAimMainRb290"],
+        },
+        [BB_STATION_NIPPORI_S_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "bb-station-nippori-s-aim-strong-rb280",
+        "D_強RB280",
+        "通常採用 / 対象43日 / 選択45台 / 総G236,731 / BB957 / RB919 / BB1/247.4 / RB1/257.6 / 合算1/126.2 / 平均+950.6枚 / 機械割106.02% / 勝率66.7% / 平均p56 51.1% / 中央p56 53.7% / p56>=50 53.3% / p56<30 33.3% / RB>1/400 22.2%",
+        {
+          requiredFlags: ["bbStationNipporiSAimHistoryReady", "bbStationNipporiSAimStrongRb280"],
+        },
+        [BB_STATION_NIPPORI_S_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        BB_STATION_NIPPORI_S_AIM_DEFAULT_CONDITION,
+        "E_最本命RB270自由MAX",
+        "通常採用 / 対象25日 / 選択25台 / 総G151,854 / BB617 / RB606 / BB1/246.1 / RB1/250.6 / 合算1/124.2 / 平均+1,190.6枚 / 機械割106.53% / 勝率76.0% / 平均p56 55.6% / 中央p56 60.7% / p56>=50 60.0% / p56<30 28.0% / RB>1/400 12.0% / 点数ロジックより優先",
+        {
+          requiredFlags: ["bbStationNipporiSAimHistoryReady", "bbStationNipporiSAimBest270FreeMax"],
+        },
+        [BB_STATION_NIPPORI_S_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "bb-station-nippori-s-aim-reference-14-sink-entry",
+        "参考_14日凹み入口",
+        "参考表示 / 選択584台 / 総G2,378,065 / BB9,070 / RB7,694 / RB1/309.1 / 合算1/141.9 / 平均+248.6枚 / 機械割102.03% / 入口条件として表示のみ",
+        {
+          requiredFlags: ["bbStationNipporiSAimHistoryReady", "bbStationNipporiSAimReference14SinkEntry"],
+        },
+        [BB_STATION_NIPPORI_S_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "bb-station-nippori-s-aim-reference-21-deep-sink-entry",
+        "参考_21日深沈み入口",
+        "参考表示 / 選択336台 / 総G1,415,493 / BB5,360 / RB4,730 / RB1/299.3 / 合算1/140.3 / 平均+269.9枚 / 機械割102.14% / 入口条件として表示のみ",
+        {
+          requiredFlags: ["bbStationNipporiSAimHistoryReady", "bbStationNipporiSAimReference21DeepSinkEntry"],
+        },
+        [BB_STATION_NIPPORI_S_AIM_LOGIC_KEY],
+      ),
+      buildCondition(
+        "bb-station-nippori-s-aim-reference-28-deep-sink-high5",
+        "参考_28日深沈み高5以内",
+        "参考表示 / 選択122台 / 総G573,026 / BB2,208 / RB2,133 / RB1/268.6 / 合算1/132.0 / 平均+553.0枚 / 機械割103.92% / 通常採用は3日以内へ絞る",
+        {
+          requiredFlags: ["bbStationNipporiSAimHistoryReady", "bbStationNipporiSAimReference28DeepSinkHigh5"],
+        },
+        [BB_STATION_NIPPORI_S_AIM_LOGIC_KEY],
+      ),
     ],
   },
   {
@@ -15138,6 +15220,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, MESSE_TAKENOTSUKA_NEO_AIM_LOGIC_KEY);
   } else if (isMesseOugiStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, MESSE_OUGI_NEO_AIM_LOGIC_KEY);
+  } else if (isBbStationNipporiStore(storeName) && definition.machineKey === "aim") {
+    defaultLogic = findLogicDefinition(definition, BB_STATION_NIPPORI_S_AIM_LOGIC_KEY);
   } else if (isBbStationNipporiStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, BB_STATION_NIPPORI_NEO_AIM_LOGIC_KEY);
   } else if (isFortuneOhanajayaStore(storeName) && definition.machineKey === "neo-aim") {
@@ -15956,6 +16040,96 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   const recentFiveRawDifferenceCount = readNumber(metrics.recentFiveRawDifferenceCount);
   const previousRawDifferenceValue = readNullableNumber(metrics.previousRawDifferenceValue);
   const rawDifferenceLosingStreak = readNumber(metrics.rawDifferenceLosingStreak);
+
+  if (activeLogicKey === BB_STATION_NIPPORI_S_AIM_LOGIC_KEY) {
+    const bbStationNipporiSAimHistoryReady = historyRowCount >= 21;
+    const bbStationNipporiSAimHistoryShort = historyRowCount < 21;
+    const bbStationNipporiSAimDaysSinceHighContent = Number.isFinite(daysSinceMachineHighContent)
+      ? daysSinceMachineHighContent
+      : 999;
+    const bbStationNipporiSAimWideRb310 =
+      bbStationNipporiSAimHistoryReady &&
+      recentTwentyEightGamesTotal >= 12000 &&
+      recentTwentyEightNetTotal <= -4000 &&
+      bbStationNipporiSAimDaysSinceHighContent <= 3;
+    const bbStationNipporiSAimWeakRb300 =
+      bbStationNipporiSAimWideRb310 && recentSevenLowGames1000Count <= 2;
+    const bbStationNipporiSAimMainRb290 =
+      bbStationNipporiSAimWideRb310 &&
+      recentFourteenGamesTotal >= 6000 &&
+      recentFourteenNetTotal <= -1500;
+    const bbStationNipporiSAimStrongRb280 =
+      bbStationNipporiSAimWideRb310 &&
+      recentFourteenGamesTotal >= 6000 &&
+      recentFourteenNetTotal <= -2000;
+    const bbStationNipporiSAimBest270FreeMax =
+      bbStationNipporiSAimWideRb310 && previousGames >= 2000 && previousDifference <= -500;
+    const bbStationNipporiSAimReference14SinkEntry =
+      bbStationNipporiSAimHistoryReady &&
+      recentFourteenGamesTotal >= 6000 &&
+      recentFourteenNetTotal <= -2000;
+    const bbStationNipporiSAimReference21DeepSinkEntry =
+      bbStationNipporiSAimHistoryReady &&
+      recentTwentyOneGamesTotal >= 9000 &&
+      recentTwentyOneNetTotal <= -3000;
+    const bbStationNipporiSAimReference28DeepSinkHigh5 =
+      bbStationNipporiSAimHistoryReady &&
+      recentTwentyEightGamesTotal >= 12000 &&
+      recentTwentyEightNetTotal <= -4000 &&
+      bbStationNipporiSAimDaysSinceHighContent <= 5;
+    const bbStationNipporiSAimDiff7Overheated = recentSevenNetTotal >= 3000;
+    const bbStationNipporiSAimDiff14Overheated = recentFourteenNetTotal >= 5000;
+    const bbStationNipporiSAimRecentBonusTreated =
+      recentSevenGamesTotal >= 7000 &&
+      features.recentSevenRbDenominator <= 280 &&
+      features.recentSevenCombinedDenominator <= 135 &&
+      recentSevenNetTotal >= 1500;
+    const bbStationNipporiSAimLongBlank =
+      bbStationNipporiSAimDaysSinceHighContent >= 14 && recentFourteenMachineHighContentCount === 0;
+    const boostFlags = [
+      bbStationNipporiSAimWideRb310,
+      bbStationNipporiSAimWeakRb300,
+      bbStationNipporiSAimMainRb290,
+      bbStationNipporiSAimStrongRb280,
+      bbStationNipporiSAimBest270FreeMax,
+      bbStationNipporiSAimReference21DeepSinkEntry,
+    ];
+    const dangerFlags = [
+      bbStationNipporiSAimDiff7Overheated,
+      bbStationNipporiSAimDiff14Overheated,
+      bbStationNipporiSAimRecentBonusTreated,
+      bbStationNipporiSAimLongBlank,
+      historyLosingStreak >= 6,
+      recentSevenGamesTotal < 5000,
+    ];
+
+    return {
+      ...features,
+      bbStationNipporiSAimHistoryReady,
+      bbStationNipporiSAimHistoryShort,
+      bbStationNipporiSAimDaysSinceHighContent,
+      bbStationNipporiSAimWideRb310,
+      bbStationNipporiSAimWeakRb300,
+      bbStationNipporiSAimMainRb290,
+      bbStationNipporiSAimStrongRb280,
+      bbStationNipporiSAimBest270FreeMax,
+      bbStationNipporiSAimReference14SinkEntry,
+      bbStationNipporiSAimReference21DeepSinkEntry,
+      bbStationNipporiSAimReference28DeepSinkHigh5,
+      bbStationNipporiSAimDiff7Overheated,
+      bbStationNipporiSAimDiff14Overheated,
+      bbStationNipporiSAimRecentBonusTreated,
+      bbStationNipporiSAimLongBlank,
+      previousMachineSettingFivePlusProbability,
+      treatmentDone:
+        bbStationNipporiSAimDiff7Overheated ||
+        bbStationNipporiSAimDiff14Overheated ||
+        bbStationNipporiSAimRecentBonusTreated,
+      lowConfidence: bbStationNipporiSAimHistoryShort,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
 
   if (activeLogicKey === KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY) {
     const kiconaHiraiAimHistoryReady = historyRowCount >= 7;
@@ -27557,6 +27731,67 @@ function calculateMachineScore(definition, metrics, features) {
   const recentFiveRawDifferenceCount = readNumber(metrics.recentFiveRawDifferenceCount);
   const previousRawDifferenceValue = readNullableNumber(metrics.previousRawDifferenceValue);
   const rawDifferenceLosingStreak = readNumber(metrics.rawDifferenceLosingStreak);
+
+  if (activeLogicKey === BB_STATION_NIPPORI_S_AIM_LOGIC_KEY) {
+    if (historyRowCount < 21) {
+      return 35;
+    }
+
+    const daysSinceHighContent = Number.isFinite(daysSinceMachineHighContent)
+      ? daysSinceMachineHighContent
+      : 999;
+    const previousP56 = previousMachineSettingFivePlusProbability;
+    let score = 40;
+
+    if (recentTwentyEightGamesTotal >= 12000 && recentTwentyEightNetTotal <= -4000) {
+      score += 20;
+    } else if (recentTwentyOneGamesTotal >= 9000 && recentTwentyOneNetTotal <= -3000) {
+      score += 16;
+    } else if (recentFourteenGamesTotal >= 6000 && recentFourteenNetTotal <= -2000) {
+      score += 12;
+    } else if (recentSevenGamesTotal >= 3000 && recentSevenNetTotal <= -1000) {
+      score += 6;
+    }
+
+    if (recentTwentyOneGamesTotal >= 9000 && features.recentTwentyOneAngle <= -80) {
+      score += 10;
+    } else if (recentFourteenGamesTotal >= 6000 && features.recentFourteenAngle <= -80) {
+      score += 8;
+    } else if (recentTwentyOneGamesTotal >= 9000 && features.recentTwentyOneAngle <= -60) {
+      score += 6;
+    }
+
+    if (daysSinceHighContent <= 3) {
+      score += 14;
+    } else if (daysSinceHighContent >= 4 && daysSinceHighContent <= 7) {
+      score += 8;
+    }
+
+    if (Number.isFinite(previousP56) && previousP56 >= 0.5 && previousDifference <= 0) {
+      score += 10;
+    } else if (Number.isFinite(previousP56) && previousP56 >= 0.5 && previousDifference <= 1000) {
+      score += 6;
+    } else if (Number.isFinite(previousP56) && previousP56 >= 0.3 && previousDifference <= 0) {
+      score += 4;
+    }
+
+    score += recentSevenGamesTotal >= 10000 && recentSevenLowGames1000Count <= 2 ? 5 : 0;
+    score += historyLosingStreak >= 2 && historyLosingStreak <= 4 ? 4 : 0;
+    score -= recentSevenGamesTotal < 5000 ? 8 : 0;
+    score -= historyLosingStreak >= 6 ? 6 : 0;
+    score -= recentSevenNetTotal >= 3000 ? 10 : 0;
+    score -= recentFourteenNetTotal >= 5000 ? 12 : 0;
+    score -=
+      recentSevenGamesTotal >= 7000 &&
+      features.recentSevenRbDenominator <= 280 &&
+      features.recentSevenCombinedDenominator <= 135 &&
+      recentSevenNetTotal >= 1500
+        ? 8
+        : 0;
+    score -= daysSinceHighContent >= 14 && recentFourteenMachineHighContentCount === 0 ? 6 : 0;
+
+    return Math.round(clamp(score, 0, 100));
+  }
 
   if (activeLogicKey === KICONA_HIRAI_AIM_COMBINED_LOGIC_KEY) {
     const recentFiveRbTotal = readNumber(metrics.recentFiveRbTotal);
