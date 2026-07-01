@@ -905,6 +905,16 @@ const HUNT_SCORE_STORE_CONFIGS = [
     defaultLogicKey: "apark",
   },
   {
+    key: "jumbo",
+    storeNames: ["ジャンボ"],
+    targetMachines: APARK_KASUGA_TARGET_MACHINES,
+    defaultLogicKey: "apark",
+    machineHighContentRules: {
+      "ネオアイムジャグラーEX": "jumbo-neo-aim",
+      "ネオアイムジャグラーＥＸ": "jumbo-neo-aim",
+    },
+  },
+  {
     key: "parlor-asahi",
     storeNames: ["パーラーアサヒ", "パーラーアサヒ店", "PARLOR ASAHI", "PARLORASAHI", "Parlor Asahi"],
     targetMachines: PARLOR_ASAHI_TARGET_MACHINES,
@@ -3639,6 +3649,14 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
         );
       }
       return games >= 3000 && rbDenominator <= 300 && combinedDenominator <= 140;
+    }
+    if (contentRule === "jumbo-neo-aim") {
+      const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
+      return (
+        games >= 3000 &&
+        ((Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability >= 0.5) ||
+          (rbDenominator <= 300 && combinedDenominator <= 140))
+      );
     }
     if (contentRule === "fortune-ohanajaya-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
@@ -11468,6 +11486,14 @@ function calculateWindowMetrics(
     isMachineStrongHighContentWindowRow(historyWindowRow, currentMachineName, config);
   const isHistoryMachineStrongBonusWindowRow = (historyWindowRow) =>
     isMachineStrongBonusWindowRow(historyWindowRow, currentMachineName, config);
+  const isHistoryMachineSettingFivePlusHigh50WindowRow = (historyWindowRow) => {
+    if (normalizeText(currentMachineName) !== normalizeText("ネオアイムジャグラーEX")) {
+      return false;
+    }
+    const games = readWindowField(historyWindowRow, "games");
+    const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(historyWindowRow);
+    return games >= 3000 && Number.isFinite(settingFivePlusProbability) && settingFivePlusProbability >= 0.5;
+  };
   const recentTwoMachineHighContentCount = recentTwoRows.filter((windowRow) =>
     isMachineHighContentWindowRow(windowRow, currentMachineName, config),
   ).length;
@@ -11492,6 +11518,9 @@ function calculateWindowMetrics(
   const recentTwentyOneMachineHighContentCount = historyWindowRows
     .slice(-21)
     .filter(isHistoryMachineHighContentWindowRow).length;
+  const recentTwentyOneMachineSettingFivePlusHigh50Count = historyWindowRows
+    .slice(-21)
+    .filter(isHistoryMachineSettingFivePlusHigh50WindowRow).length;
   const recentTwentyEightMachineHighContentCount = recentTwentyEightRows.filter(
     isHistoryMachineHighContentWindowRow,
   ).length;
@@ -11559,6 +11588,15 @@ function calculateWindowMetrics(
     for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
       const historyWindowRow = historyWindowRows.at(-offset);
       if (isHistoryMachineHighContentWindowRow(historyWindowRow)) {
+        return offset;
+      }
+    }
+    return null;
+  })();
+  const daysSinceMachineSettingFivePlusHigh50 = (() => {
+    for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
+      const historyWindowRow = historyWindowRows.at(-offset);
+      if (isHistoryMachineSettingFivePlusHigh50WindowRow(historyWindowRow)) {
         return offset;
       }
     }
@@ -12114,6 +12152,7 @@ function calculateWindowMetrics(
     recentTenMachineHighContentCount,
     recentFourteenMachineHighContentCount,
     recentTwentyOneMachineHighContentCount,
+    recentTwentyOneMachineSettingFivePlusHigh50Count,
     recentTwentyEightMachineHighContentCount,
     recentThirtyMachineHighContentCount,
     recentThirtyFiveMachineHighContentCount,
@@ -12158,6 +12197,7 @@ function calculateWindowMetrics(
     recentTenBigWin1000Count,
     recentTwentyOneBigWin1000Count,
     daysSinceMachineHighContent,
+    daysSinceMachineSettingFivePlusHigh50,
     daysSinceMachineGoodContent,
     daysSinceMachineStrongHighContent,
     daysSinceMachineBigWin1000,

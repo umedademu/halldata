@@ -181,6 +181,9 @@ const JARAN_ASAKUSA_NEO_AIM_SCORE_BACKTEST_BOOST_KEYS = new Set([
   "2026-04-12|358",
   "2026-04-20|358",
 ]);
+const JUMBO_NEO_AIM_LOGIC_KEY = "jumbo-neo-aim";
+const JUMBO_NEO_AIM_LOGIC_NAME = "ジャンボ_ネオアイムジャグラーEX_全日共通_v1";
+const JUMBO_NEO_AIM_DEFAULT_CONDITION = "jumbo-neo-main85-rank1";
 const NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY = "new-grand-hokima-neo-aim";
 const NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_NAME =
   "ニューグランド保木間店_ネオアイム_弱内容沈み返済ロジック_v1";
@@ -498,6 +501,10 @@ function calculateNeoAimSettingFivePlusProbabilityFromTotals(games, bbCount, rbC
 
 function isAparkKasugaStore(storeName) {
   return normalizeMachineNameText(storeName) === normalizeMachineNameText("Aパーク春日店");
+}
+
+function isJumboStore(storeName) {
+  return normalizeMachineNameText(storeName) === normalizeMachineNameText("ジャンボ");
 }
 
 function isMillionTobuNerimaStore(storeName) {
@@ -3516,6 +3523,105 @@ function buildJaranAsakusaNeoAimConditions() {
   ];
 }
 
+function buildJumboNeoAimConditions() {
+  return [
+    buildCondition(
+      "jumbo-neo-wide-rank1",
+      "広め_1位",
+      "通常採用 / 89日 / 93台 / 総G179,613 / BB651 / RB606 / BB1/275.9 / RB1/296.4 / 合算1/142.9 / 平均+54.9枚 / 機械割100.95% / 勝率40.9% / 平均p56 35.1% / 中央p56 31.3% / p56>=70 4.3% / p56>=50 19.4% / p56<30 44.1%",
+      {
+        rankMax: 1,
+        requiredFlags: ["jumboNeoHistory21Ready"],
+      },
+      [JUMBO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "jumbo-neo-weak80-rank1",
+      "弱め本命_80点以上1位",
+      "通常採用 / 73日 / 74台 / 総G140,165 / BB505 / RB476 / BB1/277.6 / RB1/294.5 / 合算1/142.9 / 平均+48.5枚 / 機械割100.85% / 勝率40.5% / 平均p56 35.5% / 中央p56 31.4% / p56>=70 4.1% / p56>=50 20.3% / p56<30 41.9%",
+      {
+        minScore: 80,
+        rankMax: 1,
+        requiredFlags: ["jumboNeoHistory21Ready"],
+      },
+      [JUMBO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      JUMBO_NEO_AIM_DEFAULT_CONDITION,
+      "本命_85点以上1位",
+      "通常採用 / 57日 / 58台 / 総G109,732 / BB397 / RB385 / BB1/276.4 / RB1/285.0 / 合算1/140.3 / 平均+76.6枚 / 機械割101.35% / 勝率39.7% / 平均p56 36.6% / 中央p56 31.4% / p56>=70 5.2% / p56>=50 20.7% / p56<30 41.4%",
+      {
+        minScore: 85,
+        rankMax: 1,
+        requiredFlags: ["jumboNeoHistory21Ready"],
+      },
+      [JUMBO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "jumbo-neo-strong90-rank1",
+      "強_90点以上1位",
+      "通常採用 / 43日 / 44台 / 総G82,767 / BB291 / RB298 / BB1/284.4 / RB1/277.7 / 合算1/140.5 / 平均+44.5枚 / 機械割100.79% / 勝率43.2% / 平均p56 37.5% / 中央p56 31.6% / p56>=70 6.8% / p56>=50 22.7% / p56<30 40.9%",
+      {
+        minScore: 90,
+        rankMax: 1,
+        requiredFlags: ["jumboNeoHistory21Ready"],
+      },
+      [JUMBO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "jumbo-neo-best95-rank1",
+      "最本命_95点以上1位",
+      "通常採用 / 27日 / 28台 / 総G56,773 / BB215 / RB212 / BB1/264.1 / RB1/267.8 / 合算1/133.0 / 平均+213.7枚 / 機械割103.51% / 勝率53.6% / 平均p56 40.3% / 中央p56 34.1% / p56>=70 7.1% / p56>=50 28.6% / p56<30 35.7%",
+      {
+        minScore: 95,
+        rankMax: 1,
+        requiredFlags: ["jumboNeoHistory21Ready"],
+      },
+      [JUMBO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "jumbo-neo-reference-score100-rank1",
+      "参考_MAX_100点1位",
+      "参考表示 / 15日 / 16台 / 総G32,605 / BB126 / RB133 / BB1/258.8 / RB1/245.2 / 合算1/125.9 / 平均+321.6枚 / 機械割105.26% / 勝率56.2% / 平均p56 45.5% / 中央p56 41.2% / p56>=70 6.2% / p56>=50 43.8% / p56<30 25.0% / 件数不足のため通常採用ではなく参考",
+      {
+        minScore: 100,
+        rankMax: 1,
+        requiredFlags: ["jumboNeoHistory21Ready"],
+      },
+      [JUMBO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "jumbo-neo-free-max-comb21-interval",
+      "自由MAX_21日合成悪化×間隔",
+      "参考表示 / 12日 / 13台 / 総G29,417 / BB124 / RB116 / BB1/237.2 / RB1/253.6 / 合算1/122.6 / 平均+525.9枚 / 機械割107.75% / 勝率69.2% / 平均p56 44.7% / 件数不足のため通常採用ではなく参考",
+      {
+        requiredFlags: ["jumboNeoHistory21Ready", "jumboNeoFreeMaxCombInterval"],
+      },
+      [JUMBO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "jumbo-neo-free-max-rb14-interval-sink",
+      "自由MAX_REG枯れ×22-35日×短期沈み",
+      "参考表示 / 14日 / 14台 / 総G24,855 / BB84 / RB107 / BB1/295.9 / RB1/232.3 / 合算1/130.1 / 平均+101.4枚 / 機械割101.90% / 勝率50.0% / 平均p56 46.9% / 件数不足のため通常採用ではなく参考",
+      {
+        requiredFlags: ["jumboNeoHistory21Ready", "jumboNeoFreeMaxRegIntervalSink"],
+      },
+      [JUMBO_NEO_AIM_LOGIC_KEY],
+    ),
+    buildCondition(
+      "jumbo-neo-watch-danger-high-score",
+      "見送り_危険あり高スコア",
+      "見送り条件 / 13日 / 14台 / 総G25,593 / BB87 / RB74 / BB1/294.2 / RB1/345.9 / 合算1/159.0 / 平均-137.9枚 / 機械割97.49% / 勝率50.0% / 平均p56 28.6% / 中央p56 26.0% / p56>=70 0.0% / p56>=50 0.0% / p56<30 64.3%",
+      {
+        minScore: 70,
+        minDanger: 1,
+        requiredFlags: ["jumboNeoHistory21Ready"],
+      },
+      [JUMBO_NEO_AIM_LOGIC_KEY],
+    ),
+  ];
+}
+
 function listDefinitionLogics(definition) {
   if (!definition) {
     return [];
@@ -5656,6 +5762,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         JARAN_ASAKUSA_NEO_AIM_DEFAULT_CONDITION,
       ),
       buildLogicVariant(
+        JUMBO_NEO_AIM_LOGIC_KEY,
+        JUMBO_NEO_AIM_LOGIC_NAME,
+        JUMBO_NEO_AIM_DEFAULT_CONDITION,
+      ),
+      buildLogicVariant(
         NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY,
         NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_NAME,
         NEW_GRAND_HOKIMA_NEO_AIM_DEFAULT_CONDITION,
@@ -5877,6 +5988,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ...buildMitoyaAsakusaSenzokuNeoAimConditions(),
       ...buildMjItazukeNeoAimConditions(),
       ...buildJaranAsakusaNeoAimConditions(),
+      ...buildJumboNeoAimConditions(),
       buildCondition(
         "main",
         "1位＋70点以上＋3日沈み2日以上",
@@ -14990,6 +15102,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, JARAN_YAZAIKE_NEO_AIM_LOGIC_KEY);
   } else if (isJaranAsakusaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, JARAN_ASAKUSA_NEO_AIM_LOGIC_KEY);
+  } else if (isJumboStore(storeName) && definition.machineKey === "neo-aim") {
+    defaultLogic = findLogicDefinition(definition, JUMBO_NEO_AIM_LOGIC_KEY);
   } else if (isNewGrandHokimaStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY);
   } else if (isNewCrownAyaseStore(storeName) && definition.machineKey === "neo-aim") {
@@ -22559,6 +22673,70 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
         jaranAsakusaNeoScoreBacktestBoost,
         treatmentDone: jaranAsakusaNeoOutputDoneWatch,
         lowConfidence: jaranAsakusaNeoHistoryShort || recentSevenGamesTotal < 5000,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
+    if (activeLogicKey === JUMBO_NEO_AIM_LOGIC_KEY) {
+      const jumboNeoHistory21Ready = historyRowCount >= 21;
+      const jumboNeoHistoryShort = historyRowCount < 21;
+      const jumboNeoDaysSinceHigh50Raw = metrics.daysSinceMachineSettingFivePlusHigh50;
+      const jumboNeoDaysSinceHigh50 =
+        jumboNeoDaysSinceHigh50Raw === null ||
+        jumboNeoDaysSinceHigh50Raw === undefined ||
+        jumboNeoDaysSinceHigh50Raw === ""
+          ? 999
+          : readNumber(jumboNeoDaysSinceHigh50Raw, 999);
+      const jumboNeoDaysSinceContentRaw = metrics.daysSinceMachineHighContent;
+      const jumboNeoDaysSinceContent =
+        jumboNeoDaysSinceContentRaw === null ||
+        jumboNeoDaysSinceContentRaw === undefined ||
+        jumboNeoDaysSinceContentRaw === ""
+          ? 999
+          : readNumber(jumboNeoDaysSinceContentRaw, 999);
+      const jumboNeoContentCnt14 = recentFourteenMachineHighContentCount;
+      const jumboNeoHigh50Cnt21 = readNumber(
+        metrics.recentTwentyOneMachineSettingFivePlusHigh50Count,
+      );
+      const jumboNeoFreeMaxCombInterval =
+        features.recentTwentyOneCombinedDenominator >= 180 &&
+        jumboNeoDaysSinceHigh50 >= 7 &&
+        jumboNeoDaysSinceHigh50 <= 28;
+      const jumboNeoFreeMaxRegIntervalSink =
+        features.recentFourteenRbDenominator >= 400 &&
+        jumboNeoDaysSinceHigh50 >= 22 &&
+        jumboNeoDaysSinceHigh50 <= 35 &&
+        recentFiveNetTotal <= -500;
+      const boostFlags = [
+        features.recentFourteenRbDenominator >= 400,
+        features.recentTwentyOneCombinedDenominator >= 180,
+        recentFourteenNetTotal <= -3000,
+        jumboNeoDaysSinceHigh50 >= 22 && jumboNeoDaysSinceHigh50 <= 35,
+        jumboNeoContentCnt14 === 0,
+        recentFourteenGamesTotal >= 20000,
+      ];
+      const dangerFlags = [
+        recentSevenNetTotal >= 2500,
+        recentFourteenNetTotal >= 3000,
+        jumboNeoDaysSinceHigh50 <= 3,
+        jumboNeoContentCnt14 >= 2,
+        recentSevenGamesTotal < 3000,
+        previousDifference >= 2500 && recentTwentyOneNetTotal > -3000,
+      ];
+
+      return {
+        ...features,
+        jumboNeoHistory21Ready,
+        jumboNeoHistoryShort,
+        jumboNeoDaysSinceHigh50,
+        jumboNeoDaysSinceContent,
+        jumboNeoContentCnt14,
+        jumboNeoHigh50Cnt21,
+        jumboNeoFreeMaxCombInterval,
+        jumboNeoFreeMaxRegIntervalSink,
+        treatmentDone: dangerFlags.some(Boolean),
+        lowConfidence: jumboNeoHistoryShort,
         boostCount: boostFlags.filter(Boolean).length,
         dangerCount: dangerFlags.filter(Boolean).length,
       };
@@ -32254,6 +32432,101 @@ function calculateMachineScore(definition, metrics, features) {
       return Math.round(clamp(score, 0, 100));
     }
 
+    if (activeLogicKey === JUMBO_NEO_AIM_LOGIC_KEY) {
+      if (historyRowCount < 21) {
+        return 0;
+      }
+
+      const daysSinceHigh50Raw = metrics.daysSinceMachineSettingFivePlusHigh50;
+      const daysSinceHigh50 =
+        daysSinceHigh50Raw === null || daysSinceHigh50Raw === undefined || daysSinceHigh50Raw === ""
+          ? 999
+          : readNumber(daysSinceHigh50Raw, 999);
+      const daysSinceContentRaw = metrics.daysSinceMachineHighContent;
+      const daysSinceContent =
+        daysSinceContentRaw === null ||
+        daysSinceContentRaw === undefined ||
+        daysSinceContentRaw === ""
+          ? 999
+          : readNumber(daysSinceContentRaw, 999);
+      const contentCnt14 = recentFourteenMachineHighContentCount;
+      const high50Cnt21 = readNumber(metrics.recentTwentyOneMachineSettingFivePlusHigh50Count);
+      let score = 40;
+      const add = (condition, points) => {
+        if (condition) {
+          score += points;
+        }
+      };
+
+      add(features.recentFourteenRbDenominator >= 500, 18);
+      add(features.recentFourteenRbDenominator >= 450 && features.recentFourteenRbDenominator < 500, 16);
+      add(features.recentFourteenRbDenominator >= 400 && features.recentFourteenRbDenominator < 450, 13);
+      add(features.recentFourteenRbDenominator >= 350 && features.recentFourteenRbDenominator < 400, 7);
+      add(features.recentFourteenCombinedDenominator >= 180, 8);
+      add(
+        features.recentFourteenCombinedDenominator >= 160 &&
+          features.recentFourteenCombinedDenominator < 180,
+        5,
+      );
+      add(
+        features.recentFourteenCombinedDenominator >= 150 &&
+          features.recentFourteenCombinedDenominator < 160,
+        3,
+      );
+      add(features.recentTwentyOneCombinedDenominator >= 180, 10);
+      add(
+        features.recentTwentyOneCombinedDenominator >= 170 &&
+          features.recentTwentyOneCombinedDenominator < 180,
+        7,
+      );
+      add(
+        features.recentTwentyOneCombinedDenominator >= 160 &&
+          features.recentTwentyOneCombinedDenominator < 170,
+        4,
+      );
+      add(recentFourteenNetTotal <= -4000, 12);
+      add(recentFourteenNetTotal <= -3000 && recentFourteenNetTotal > -4000, 10);
+      add(recentFourteenNetTotal <= -1500 && recentFourteenNetTotal > -3000, 5);
+      add(recentTwentyOneNetTotal <= -6000, 8);
+      add(recentTwentyOneNetTotal <= -3000 && recentTwentyOneNetTotal > -6000, 5);
+      add(recentTwentyOneNetTotal <= -1000 && recentTwentyOneNetTotal > -3000, 2);
+      add(daysSinceHigh50 >= 22 && daysSinceHigh50 <= 35, 10);
+      add(
+        daysSinceHigh50 >= 14 &&
+          daysSinceHigh50 <= 42 &&
+          !(daysSinceHigh50 >= 22 && daysSinceHigh50 <= 35),
+        6,
+      );
+      add(daysSinceHigh50 >= 43, 3);
+      add(daysSinceHigh50 <= 3, -6);
+      add(daysSinceContent >= 22 && daysSinceContent <= 35, 7);
+      add(
+        daysSinceContent >= 14 &&
+          daysSinceContent <= 42 &&
+          !(daysSinceContent >= 22 && daysSinceContent <= 35),
+        4,
+      );
+      add(contentCnt14 === 0, 5);
+      add(contentCnt14 >= 3, -7);
+      add(contentCnt14 >= 2 && contentCnt14 < 3, -4);
+      add(high50Cnt21 === 0, 3);
+      add(high50Cnt21 >= 2, -4);
+      add(recentFourteenGamesTotal >= 30000, 5);
+      add(recentFourteenGamesTotal >= 20000 && recentFourteenGamesTotal < 30000, 4);
+      add(recentFourteenGamesTotal >= 15000 && recentFourteenGamesTotal < 20000, 2);
+      add(recentFourteenGamesTotal < 7000, -5);
+      add(recentSevenGamesTotal < 3000, -4);
+      add(historyLosingStreak >= 3 && historyLosingStreak <= 5, 3);
+      add(historyLosingStreak >= 6, -2);
+      add(recentSevenNetTotal >= 4000, -12);
+      add(recentSevenNetTotal >= 2500 && recentSevenNetTotal < 4000, -8);
+      add(recentFourteenNetTotal >= 5000, -12);
+      add(recentFourteenNetTotal >= 3000 && recentFourteenNetTotal < 5000, -7);
+      add(previousDifference >= 2500 && recentTwentyOneNetTotal > -3000, -7);
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (activeLogicKey === NEW_GRAND_HOKIMA_NEO_AIM_LOGIC_KEY) {
       if (historyRowCount < 3) {
         return null;
@@ -40595,7 +40868,9 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
       updatedEvaluation.logicKey === "espace-ueno-neo-aim" ||
       updatedEvaluation.logicKey === "messe-nishikasai-neo-aim" ||
       updatedEvaluation.logicKey === MESSE_OUGI_NEO_AIM_LOGIC_KEY;
-    const useDenseRank = updatedEvaluation.logicKey === "hinode-onojo-my";
+    const useDenseRank =
+      updatedEvaluation.logicKey === "hinode-onojo-my" ||
+      updatedEvaluation.logicKey === JUMBO_NEO_AIM_LOGIC_KEY;
     const rankedEvaluation = useOrdinalRank
       ? {
           ...updatedEvaluation,
