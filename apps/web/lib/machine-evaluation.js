@@ -5659,6 +5659,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logicName: "ビームヒカリ_スマスロ甲鉄城のカバネリ海門決戦_v1",
     logics: [
       buildLogicVariant(
+        "wonderland-minamigaoka-kabaneri-kaimon",
+        "ワンダーランド南ヶ丘店_スマスロ甲鉄城のカバネリ海門決戦_全日共通_沈み返済ロジック_v1",
+        "wonderland-minamigaoka-kabaneri-score80",
+      ),
+      buildLogicVariant(
         "beam-hikari-kabaneri-kaimon",
         "ビームヒカリ_スマスロ甲鉄城のカバネリ海門決戦_v1",
         "beam-hikari-kabaneri-free-max-interval-danger0",
@@ -5667,6 +5672,91 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     profile: "smart",
     defaultConditionSuffix: "beam-hikari-kabaneri-free-max-interval-danger0",
     conditions: [
+      buildCondition(
+        "wonderland-minamigaoka-kabaneri-score80",
+        "80点以上",
+        "通常採用 / 75日 / 131台 / 総G478,051 / BB0 / RB1,614 / RB1/296.2 / 合算1/296.2 / 平均+721.9枚 / 機械割106.59% / 勝率48.85%",
+        {
+          minScore: 80,
+          requiredFlags: ["wonderlandMinamigaokaKabaneriHistoryReady"],
+        },
+        ["wonderland-minamigaoka-kabaneri-kaimon"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-kabaneri-deep21",
+        "21日深沈み",
+        "通常採用 / 64日 / 107台 / 総G365,464 / BB0 / RB1,209 / RB1/302.3 / 合算1/302.3 / 平均+697.1枚 / 機械割106.80% / 勝率43.93%",
+        {
+          requiredFlags: [
+            "wonderlandMinamigaokaKabaneriHistoryReady",
+            "wonderlandMinamigaokaKabaneriDeep21",
+          ],
+        },
+        ["wonderland-minamigaoka-kabaneri-kaimon"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-kabaneri-prev-loss-up",
+        "前日大敗上げ",
+        "通常採用 / 22日 / 27台 / 総G101,240 / BB0 / RB329 / RB1/307.7 / 合算1/307.7 / 平均+986.9枚 / 機械割108.77% / 勝率59.26%",
+        {
+          maxDanger: 1,
+          requiredFlags: [
+            "wonderlandMinamigaokaKabaneriHistoryReady",
+            "wonderlandMinamigaokaKabaneriPreviousDeepLoss",
+          ],
+        },
+        ["wonderland-minamigaoka-kabaneri-kaimon"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-kabaneri-watch-danger2",
+        "危険2個以上",
+        "見送り / 68日 / 93台 / 総G303,346 / BB0 / RB1,019 / RB1/297.7 / 合算1/297.7 / 平均-322.5枚 / 機械割96.70% / 勝率32.26%",
+        {
+          minDanger: 2,
+          requiredFlags: ["wonderlandMinamigaokaKabaneriHistoryReady"],
+        },
+        ["wonderland-minamigaoka-kabaneri-kaimon"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-kabaneri-score55-reference",
+        "55点以上",
+        "参考表示 / 96日 / 404台 / 総G1,382,820 / BB0 / RB4,717 / RB1/293.2 / 合算1/293.2 / 平均+346.3枚 / 機械割103.37% / 勝率43.32%",
+        {
+          minScore: 55,
+          requiredFlags: ["wonderlandMinamigaokaKabaneriHistoryReady"],
+        },
+        ["wonderland-minamigaoka-kabaneri-kaimon"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-kabaneri-score60-reference",
+        "60点以上",
+        "参考表示 / 93日 / 327台 / 総G1,106,430 / BB0 / RB3,744 / RB1/295.5 / 合算1/295.5 / 平均+409.9枚 / 機械割104.04% / 勝率44.65%",
+        {
+          minScore: 60,
+          requiredFlags: ["wonderlandMinamigaokaKabaneriHistoryReady"],
+        },
+        ["wonderland-minamigaoka-kabaneri-kaimon"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-kabaneri-score70-reference",
+        "70点以上",
+        "参考表示 / 87日 / 226台 / 総G787,446 / BB0 / RB2,693 / RB1/292.4 / 合算1/292.4 / 平均+468.9枚 / 機械割104.49% / 勝率45.13%",
+        {
+          minScore: 70,
+          requiredFlags: ["wonderlandMinamigaokaKabaneriHistoryReady"],
+        },
+        ["wonderland-minamigaoka-kabaneri-kaimon"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-kabaneri-score75-reference",
+        "75点以上",
+        "参考表示 / 81日 / 180台 / 総G639,045 / BB0 / RB2,182 / RB1/292.9 / 合算1/292.9 / 平均+537.5枚 / 機械割105.05% / 勝率46.11%",
+        {
+          minScore: 75,
+          requiredFlags: ["wonderlandMinamigaokaKabaneriHistoryReady"],
+        },
+        ["wonderland-minamigaoka-kabaneri-kaimon"],
+      ),
       buildCondition(
         "beam-hikari-kabaneri-free-max-interval-danger0",
         "自由MAX_間隔4-13_G7過熱なし_危険0",
@@ -15380,6 +15470,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-hokuto-tensei");
   } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "monkey") {
     defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-monkey");
+  } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "kabaneri-kaimon") {
+    defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-kabaneri-kaimon");
   } else if (isWonderlandSueStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "wonderland-sue-neo-aim");
   } else if (isSengawaUnoStore(storeName) && definition.machineKey === "neo-aim") {
@@ -25887,6 +25979,64 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
       lowConfidence: !beamHikariValvrave2History21Ready,
       boostCount: boostFlags.filter(Boolean).length,
       dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
+
+  if (machineKey === "kabaneri-kaimon" && activeLogicKey === "wonderland-minamigaoka-kabaneri-kaimon") {
+    const wonderlandMinamigaokaKabaneriHistoryReady = historyRowCount >= 21;
+    const wonderlandMinamigaokaKabaneriHistoryShort = historyRowCount < 21;
+    const wonderlandMinamigaokaKabaneriDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+      ? daysSinceMachineHighContent
+      : 999;
+    const wonderlandMinamigaokaKabaneriDeep21 = recentTwentyOneNetTotal <= -8000;
+    const wonderlandMinamigaokaKabaneriShortSink7 = recentSevenNetTotal <= -3000;
+    const wonderlandMinamigaokaKabaneriPreviousDeepLoss = previousDifference <= -3000;
+    const wonderlandMinamigaokaKabaneriSharpAngle3 = features.recentThreeAngle <= -500;
+    const wonderlandMinamigaokaKabaneriNoHigh7 = recentSevenMachineHighContentCount <= 0;
+    const wonderlandMinamigaokaKabaneriHighGap7 =
+      wonderlandMinamigaokaKabaneriDaysSinceHigh >= 7;
+    const wonderlandMinamigaokaKabaneriTreatmentDone21 =
+      recentTwentyOneNetTotal >= 8000 && recentSevenMachineHighContentCount >= 2;
+    const wonderlandMinamigaokaKabaneriHot7 =
+      recentSevenNetTotal >= 5000 && recentSevenMachineHighContentCount >= 1;
+    const wonderlandMinamigaokaKabaneriLowGames7 = recentSevenGamesTotal < 1500;
+    const wonderlandMinamigaokaKabaneriLowGames21 = recentTwentyOneGamesTotal < 6000;
+    const boostFlags = [
+      wonderlandMinamigaokaKabaneriDeep21,
+      wonderlandMinamigaokaKabaneriShortSink7,
+      wonderlandMinamigaokaKabaneriPreviousDeepLoss,
+      wonderlandMinamigaokaKabaneriSharpAngle3,
+      wonderlandMinamigaokaKabaneriNoHigh7,
+      wonderlandMinamigaokaKabaneriHighGap7,
+      previousDifference >= 4000,
+    ];
+    const dangerFlags = [
+      wonderlandMinamigaokaKabaneriTreatmentDone21,
+      wonderlandMinamigaokaKabaneriHot7,
+      wonderlandMinamigaokaKabaneriLowGames7,
+      wonderlandMinamigaokaKabaneriLowGames21,
+    ];
+    const dangerCount = dangerFlags.filter(Boolean).length;
+
+    return {
+      ...features,
+      wonderlandMinamigaokaKabaneriHistoryReady,
+      wonderlandMinamigaokaKabaneriHistoryShort,
+      wonderlandMinamigaokaKabaneriDaysSinceHigh,
+      wonderlandMinamigaokaKabaneriDeep21,
+      wonderlandMinamigaokaKabaneriShortSink7,
+      wonderlandMinamigaokaKabaneriPreviousDeepLoss,
+      wonderlandMinamigaokaKabaneriSharpAngle3,
+      wonderlandMinamigaokaKabaneriNoHigh7,
+      wonderlandMinamigaokaKabaneriHighGap7,
+      wonderlandMinamigaokaKabaneriTreatmentDone21,
+      wonderlandMinamigaokaKabaneriHot7,
+      wonderlandMinamigaokaKabaneriLowGames7,
+      wonderlandMinamigaokaKabaneriLowGames21,
+      treatmentDone: dangerCount >= 2,
+      lowConfidence: wonderlandMinamigaokaKabaneriHistoryShort,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount,
     };
   }
 
@@ -37982,6 +38132,84 @@ function calculateMachineScore(definition, metrics, features) {
     }
     score -= beamHikariValvrave2DaysSinceHigh >= 57 ? 6 : 0;
     score -= historyRowCount < 21 ? 5 : 0;
+
+    return Math.round(clamp(score, 0, 100));
+  }
+
+  if (machineKey === "kabaneri-kaimon" && activeLogicKey === "wonderland-minamigaoka-kabaneri-kaimon") {
+    const daysSinceHigh = Number.isFinite(features.wonderlandMinamigaokaKabaneriDaysSinceHigh)
+      ? features.wonderlandMinamigaokaKabaneriDaysSinceHigh
+      : 999;
+    let score = 40;
+
+    if (recentTwentyOneNetTotal <= -10000) {
+      score += 25;
+    } else if (recentTwentyOneNetTotal <= -8000) {
+      score += 22;
+    } else if (recentTwentyOneNetTotal <= -6000) {
+      score += 18;
+    } else if (recentTwentyOneNetTotal <= -4000) {
+      score += 12;
+    } else if (recentTwentyOneNetTotal <= -2000) {
+      score += 6;
+    }
+
+    if (recentSevenNetTotal <= -6000) {
+      score += 15;
+    } else if (recentSevenNetTotal <= -4000) {
+      score += 12;
+    } else if (recentSevenNetTotal <= -3000) {
+      score += 8;
+    } else if (recentSevenNetTotal <= -2000) {
+      score += 5;
+    }
+
+    if (previousDifference <= -3000) {
+      score += 15;
+    } else if (previousDifference <= -2000) {
+      score += 10;
+    } else if (previousDifference <= -1000) {
+      score += 5;
+    }
+
+    if (features.recentThreeAngle <= -500) {
+      score += 10;
+    } else if (features.recentThreeAngle <= -300) {
+      score += 5;
+    }
+
+    if (features.recentSevenAngle <= -200) {
+      score += 8;
+    } else if (features.recentSevenAngle <= -120) {
+      score += 4;
+    }
+
+    if (recentSevenMachineHighContentCount <= 0) {
+      score += 8;
+    }
+
+    if (daysSinceHigh >= 7) {
+      score += 8;
+    } else if (daysSinceHigh >= 5) {
+      score += 4;
+    }
+
+    if (previousDifference >= 4000) {
+      score += 4;
+    }
+
+    if (recentTwentyOneNetTotal >= 8000 && recentSevenMachineHighContentCount >= 2) {
+      score -= 12;
+    }
+    if (recentSevenNetTotal >= 5000 && recentSevenMachineHighContentCount >= 1) {
+      score -= 10;
+    }
+    if (recentSevenGamesTotal < 1500) {
+      score -= 10;
+    }
+    if (recentTwentyOneGamesTotal < 6000) {
+      score -= 8;
+    }
 
     return Math.round(clamp(score, 0, 100));
   }

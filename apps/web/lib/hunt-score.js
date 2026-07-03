@@ -294,6 +294,7 @@ const WONDERLAND_MINAMIGAOKA_TARGET_MACHINES = [
     aliases: ["スマスロ北斗の拳 転生の章2", "スマスロ北斗の拳転生の章", "スマスロ北斗の拳転生の章2"],
   },
   { name: "スマスロモンキーターンV", aliases: ["スマスロ モンキーターンV", "スマスロモンキーターンⅤ"] },
+  { name: "スマスロ 甲鉄城のカバネリ 海門決戦", aliases: ["スマスロ甲鉄城のカバネリ海門決戦"] },
 ];
 
 const WONDERLAND_SUE_TARGET_MACHINES = [
@@ -1919,6 +1920,8 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "スマスロモンキーターンV",
       "スマスロ モンキーターンV",
       "スマスロモンキーターンⅤ",
+      "スマスロ 甲鉄城のカバネリ 海門決戦",
+      "スマスロ甲鉄城のカバネリ海門決戦",
     ],
     slotHistoryStartDates: [
       {
@@ -1945,6 +1948,8 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "スマスロモンキーターンV": "wonderland-minamigaoka-monkey",
       "スマスロ モンキーターンV": "wonderland-minamigaoka-monkey",
       "スマスロモンキーターンⅤ": "wonderland-minamigaoka-monkey",
+      "スマスロ 甲鉄城のカバネリ 海門決戦": "wonderland-minamigaoka-kabaneri-kaimon",
+      "スマスロ甲鉄城のカバネリ海門決戦": "wonderland-minamigaoka-kabaneri-kaimon",
     },
   },
   {
@@ -4061,6 +4066,10 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("スマスロ 甲鉄城のカバネリ 海門決戦") ||
     normalizedMachineName === normalizeText("スマスロ甲鉄城のカバネリ海門決戦")
   ) {
+    if (readMachineContentRule(config, machineName) === "wonderland-minamigaoka-kabaneri-kaimon") {
+      const payoutRate = games > 0 ? 100 + (differenceValue / games / 3) * 100 : 0;
+      return games >= 3000 && (differenceValue >= 1500 || payoutRate >= 106);
+    }
     if (readMachineContentRule(config, machineName) === "beam-hikari-kabaneri-kaimon-content") {
       const payoutRate = games > 0 ? 100 + (differenceValue / games / 3) * 100 : 0;
       return games >= 3000 && (differenceValue >= 1500 || rbDenominator <= 260 || payoutRate >= 106);
@@ -4156,6 +4165,15 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     if (contentRule === "wonderland-minamigaoka-monkey") {
       const payoutRate = games > 0 ? 100 + (differenceValue / games / 3) * 100 : 0;
       return (games >= 3000 && differenceValue >= 1000) || (games >= 4000 && payoutRate >= 102);
+    }
+  }
+  if (
+    normalizedMachineName === normalizeText("スマスロ 甲鉄城のカバネリ 海門決戦") ||
+    normalizedMachineName === normalizeText("スマスロ甲鉄城のカバネリ海門決戦")
+  ) {
+    if (contentRule === "wonderland-minamigaoka-kabaneri-kaimon") {
+      const payoutRate = games > 0 ? 100 + (differenceValue / games / 3) * 100 : 0;
+      return games >= 2500 && (differenceValue >= 500 || payoutRate >= 102);
     }
   }
 
@@ -4813,6 +4831,17 @@ function isMachineWeakContentWindowRow(row, machineName, config = null) {
   const games = readWindowField(row, "games");
   const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
   const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const differenceValue = readNumber(row?.differenceValue) ?? 0;
+  const contentRule = readMachineContentRule(config, machineName);
+
+  if (
+    normalizedMachineName === normalizeText("スマスロ 甲鉄城のカバネリ 海門決戦") ||
+    normalizedMachineName === normalizeText("スマスロ甲鉄城のカバネリ海門決戦")
+  ) {
+    if (contentRule === "wonderland-minamigaoka-kabaneri-kaimon") {
+      return games >= 2500 && differenceValue <= -1500;
+    }
+  }
 
   if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
     if (readMachineContentRule(config, machineName) === "park-kitasenju-sss-neo-aim") {
@@ -5825,6 +5854,14 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   ) {
     const payoutRate = games > 0 ? 100 + (differenceValue / games / 3) * 100 : 0;
     return games >= 3500 && (differenceValue >= 3000 || rbDenominator <= 230 || payoutRate >= 110);
+  }
+  if (
+    (normalizedMachineName === normalizeText("スマスロ 甲鉄城のカバネリ 海門決戦") ||
+      normalizedMachineName === normalizeText("スマスロ甲鉄城のカバネリ海門決戦")) &&
+    readMachineContentRule(config, machineName) === "wonderland-minamigaoka-kabaneri-kaimon"
+  ) {
+    const payoutRate = games > 0 ? 100 + (differenceValue / games / 3) * 100 : 0;
+    return games >= 3500 && differenceValue >= 2500 && payoutRate >= 108;
   }
   if (
     (normalizedMachineName === normalizeText("ファンキージャグラー２ＫＴ") ||
