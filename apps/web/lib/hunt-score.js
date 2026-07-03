@@ -287,6 +287,7 @@ const SLOT_MARUMITSU_OHASHI_TARGET_MACHINES = [
 ];
 
 const WONDERLAND_MINAMIGAOKA_TARGET_MACHINES = [
+  { name: "ゴーゴージャグラー３", aliases: ["ゴーゴージャグラー3", "ゴーゴージャグラー"] },
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
   {
@@ -1942,6 +1943,9 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "ハッピージャグラーＶ",
       "ハッピージャグラーV",
       "ハッピージャグラー",
+      "ゴーゴージャグラー３",
+      "ゴーゴージャグラー3",
+      "ゴーゴージャグラー",
       "ファンキージャグラー２ＫＴ",
       "ファンキージャグラー２",
       "ファンキージャグラー2",
@@ -1976,6 +1980,16 @@ const HUNT_SCORE_STORE_CONFIGS = [
         startDate: "2026-02-04",
       },
       {
+        machineName: "ゴーゴージャグラー３",
+        slotNumbers: ["1227"],
+        startDate: "2025-11-06",
+      },
+      {
+        machineName: "ゴーゴージャグラー３",
+        slotNumbers: ["1210", "1211", "1212", "1213", "1214", "1215", "1216", "1217", "1218", "1219"],
+        startDate: "2026-02-04",
+      },
+      {
         machineName: "ファンキージャグラー２ＫＴ",
         slotNumbers: ["1401", "1402", "1403"],
         startDate: "2026-02-04",
@@ -2005,6 +2019,9 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "ハッピージャグラーＶ": "wonderland-minamigaoka-happy",
       "ハッピージャグラーV": "wonderland-minamigaoka-happy",
       "ハッピージャグラー": "wonderland-minamigaoka-happy",
+      "ゴーゴージャグラー３": "wonderland-minamigaoka-gogo",
+      "ゴーゴージャグラー3": "wonderland-minamigaoka-gogo",
+      "ゴーゴージャグラー": "wonderland-minamigaoka-gogo",
       "ファンキージャグラー２ＫＴ": "wonderland-minamigaoka-funky",
       "ファンキージャグラー２": "wonderland-minamigaoka-funky",
       "ファンキージャグラー2": "wonderland-minamigaoka-funky",
@@ -3022,6 +3039,15 @@ const NEO_AIM_BONUS_SETTING_RATES = [
   { setting: 6, bb: 1 / 255.0, rb: 1 / 255.0 },
 ];
 const NEO_AIM_SETTING_FIVE_PLUS_PROBABILITY_CACHE = new WeakMap();
+const GO_GO_JUGGLER_BONUS_SETTING_RATES = [
+  { setting: 1, bb: 1 / 259.0, rb: 1 / 354.2 },
+  { setting: 2, bb: 1 / 258.0, rb: 1 / 332.7 },
+  { setting: 3, bb: 1 / 257.0, rb: 1 / 306.2 },
+  { setting: 4, bb: 1 / 254.0, rb: 1 / 268.6 },
+  { setting: 5, bb: 1 / 247.3, rb: 1 / 247.3 },
+  { setting: 6, bb: 1 / 234.9, rb: 1 / 234.9 },
+];
+const GO_GO_JUGGLER_SETTING_PROBABILITY_CACHE = new WeakMap();
 const MY_JUGGLER_BONUS_SETTING_RATES = [
   { setting: 1, bb: 1 / 273.1, rb: 1 / 409.6 },
   { setting: 2, bb: 1 / 270.8, rb: 1 / 385.5 },
@@ -3176,6 +3202,73 @@ function calculateNeoAimSettingFivePlusProbabilityAverage(rows) {
     return null;
   }
   return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
+function calculateGoGoJugglerSettingProbabilities(row) {
+  const cacheKey = row?.row && typeof row.row === "object" ? row.row : row;
+  if (cacheKey && typeof cacheKey === "object" && GO_GO_JUGGLER_SETTING_PROBABILITY_CACHE.has(cacheKey)) {
+    return GO_GO_JUGGLER_SETTING_PROBABILITY_CACHE.get(cacheKey);
+  }
+  const games = Math.round(readWindowField(row, "games"));
+  const bbCount = Math.round(readWindowField(row, "bbCount"));
+  const rbCount = Math.round(readWindowField(row, "rbCount"));
+
+  const cacheAndReturn = (value) => {
+    if (cacheKey && typeof cacheKey === "object") {
+      GO_GO_JUGGLER_SETTING_PROBABILITY_CACHE.set(cacheKey, value);
+    }
+    return value;
+  };
+
+  if (
+    !Number.isInteger(games) ||
+    !Number.isInteger(bbCount) ||
+    !Number.isInteger(rbCount) ||
+    games < 0 ||
+    bbCount < 0 ||
+    rbCount < 0 ||
+    bbCount > games ||
+    rbCount > games
+  ) {
+    return cacheAndReturn(null);
+  }
+  if (games === 0) {
+    return cacheAndReturn({
+      p56: 2 / GO_GO_JUGGLER_BONUS_SETTING_RATES.length,
+      p4lower: 4 / GO_GO_JUGGLER_BONUS_SETTING_RATES.length,
+    });
+  }
+
+  const logRows = GO_GO_JUGGLER_BONUS_SETTING_RATES.map((rate) => ({
+    setting: rate.setting,
+    logValue:
+      calculateLogBinomialProbabilityForHuntScore(bbCount, games, rate.bb) +
+      calculateLogBinomialProbabilityForHuntScore(rbCount, games, rate.rb),
+  }));
+  const maxLogValue = Math.max(...logRows.map((rowValue) => rowValue.logValue));
+  if (!Number.isFinite(maxLogValue)) {
+    return cacheAndReturn(null);
+  }
+
+  const weightedRows = logRows.map((rowValue) => ({
+    ...rowValue,
+    weight: Math.exp(rowValue.logValue - maxLogValue),
+  }));
+  const totalWeight = weightedRows.reduce((total, rowValue) => total + rowValue.weight, 0);
+  if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
+    return cacheAndReturn(null);
+  }
+
+  return cacheAndReturn({
+    p56:
+      weightedRows
+        .filter((rowValue) => rowValue.setting >= 5)
+        .reduce((total, rowValue) => total + rowValue.weight, 0) / totalWeight,
+    p4lower:
+      weightedRows
+        .filter((rowValue) => rowValue.setting <= 4)
+        .reduce((total, rowValue) => total + rowValue.weight, 0) / totalWeight,
+  });
 }
 
 function calculateMyJugglerSettingProbabilities(row) {
@@ -3580,6 +3673,48 @@ function calculateFunkyJugglerSettingProbabilities(row) {
         .filter((rowValue) => rowValue.setting <= 4)
         .reduce((total, rowValue) => total + rowValue.weight, 0) / totalWeight,
   });
+}
+
+function isWonderlandMinamigaokaGogoGoodContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  return games >= 2500 && rbDenominator <= 300;
+}
+
+function isWonderlandMinamigaokaGogoGoodCombinedWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  return games >= 2500 && combinedDenominator <= 135;
+}
+
+function isWonderlandMinamigaokaGogoHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateGoGoJugglerSettingProbabilities(row);
+  const p56 = probabilities?.p56;
+  return (
+    games >= 3000 &&
+    rbDenominator <= 300 &&
+    combinedDenominator <= 135 &&
+    Number.isFinite(p56) &&
+    p56 >= 0.45
+  );
+}
+
+function isWonderlandMinamigaokaGogoStrongHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateGoGoJugglerSettingProbabilities(row);
+  const p56 = probabilities?.p56;
+  return (
+    games >= 4000 &&
+    rbDenominator <= 260 &&
+    combinedDenominator <= 125 &&
+    Number.isFinite(p56) &&
+    p56 >= 0.65
+  );
 }
 
 function isWonderlandMinamigaokaMisterGoodContentWindowRow(row) {
@@ -4496,6 +4631,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ゴーゴージャグラー")
   ) {
     const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "wonderland-minamigaoka-gogo") {
+      return isWonderlandMinamigaokaGogoHighContentWindowRow(row);
+    }
     if (contentRule === "beam-hikari-gogo-content") {
       return games >= 3500 && combinedDenominator <= 135 && rbDenominator <= 280 && differenceValue >= -1000;
     }
@@ -5259,6 +5397,14 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     }
     const rbCount = readWindowField(row, "rbCount");
     return games >= 3500 && rbCount >= 15 && rbDenominator <= 323 && combinedDenominator <= 140;
+  }
+  if (
+    (normalizedMachineName === normalizeText("ゴーゴージャグラー３") ||
+      normalizedMachineName === normalizeText("ゴーゴージャグラー3") ||
+      normalizedMachineName === normalizeText("ゴーゴージャグラー")) &&
+    contentRule === "wonderland-minamigaoka-gogo"
+  ) {
+    return isWonderlandMinamigaokaGogoGoodContentWindowRow(row);
   }
   if (
     (normalizedMachineName === normalizeText("マイジャグラーV") ||
@@ -6538,6 +6684,14 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   ) {
     const payoutRate = games > 0 ? 100 + (differenceValue / games / 3) * 100 : 0;
     return games >= 3500 && differenceValue >= 2500 && payoutRate >= 108;
+  }
+  if (
+    (normalizedMachineName === normalizeText("ゴーゴージャグラー３") ||
+      normalizedMachineName === normalizeText("ゴーゴージャグラー3") ||
+      normalizedMachineName === normalizeText("ゴーゴージャグラー")) &&
+    contentRule === "wonderland-minamigaoka-gogo"
+  ) {
+    return isWonderlandMinamigaokaGogoStrongHighContentWindowRow(row);
   }
   if (
     (normalizedMachineName === normalizeText("ファンキージャグラー２ＫＴ") ||
@@ -12117,6 +12271,12 @@ function calculateWindowMetrics(
     windowDays,
   );
   const currentMachineNameNormalized = normalizeText(currentMachineName);
+  const currentMachineIsGoGoJuggler =
+    currentMachineNameNormalized === normalizeText("ゴーゴージャグラー３") ||
+    currentMachineNameNormalized === normalizeText("ゴーゴージャグラー3") ||
+    currentMachineNameNormalized === normalizeText("ゴーゴージャグラー");
+  const currentMachineUsesWonderlandMinamigaokaGogoRule =
+    readMachineContentRule(config, currentMachineName) === "wonderland-minamigaoka-gogo";
   const currentMachineIsFunkyJuggler =
     currentMachineNameNormalized === normalizeText("ファンキージャグラー２ＫＴ") ||
     currentMachineNameNormalized === normalizeText("ファンキージャグラー２") ||
@@ -12138,6 +12298,12 @@ function calculateWindowMetrics(
           differenceValue: readHuntScoreDifferenceValue(row, config.differenceMode, currentMachineName),
         })
       : null;
+  const previousMachineGoGoJugglerProbabilities = currentMachineIsGoGoJuggler
+    ? calculateGoGoJugglerSettingProbabilities({
+        row,
+        differenceValue: readHuntScoreDifferenceValue(row, config.differenceMode, currentMachineName),
+      })
+    : null;
   const previousMachineFunkyJugglerProbabilities = currentMachineIsFunkyJuggler
     ? calculateFunkyJugglerSettingProbabilities({
         row,
@@ -12145,6 +12311,9 @@ function calculateWindowMetrics(
       })
     : null;
   const calculateCurrentMachineSettingFivePlusProbability = (targetRow) => {
+    if (currentMachineIsGoGoJuggler) {
+      return calculateGoGoJugglerSettingProbabilities(targetRow)?.p56 ?? null;
+    }
     if (currentMachineIsFunkyJuggler) {
       return calculateFunkyJugglerSettingProbabilities(targetRow)?.p56 ?? null;
     }
@@ -12162,7 +12331,7 @@ function calculateWindowMetrics(
   const previousMachineSettingFourPlusProbability =
     previousMachineMyJugglerProbabilities?.p4plus ?? previousMachineMisterJugglerProbabilities?.p4plus ?? null;
   const previousMachineSettingFivePlusProbability =
-    previousMachineFunkyJugglerProbabilities?.p56 ?? previousMachineMisterJugglerProbabilities?.p5plus ?? calculateNeoAimSettingFivePlusProbability({
+    previousMachineGoGoJugglerProbabilities?.p56 ?? previousMachineFunkyJugglerProbabilities?.p56 ?? previousMachineMisterJugglerProbabilities?.p5plus ?? calculateNeoAimSettingFivePlusProbability({
     row,
     differenceValue: readHuntScoreDifferenceValue(row, config.differenceMode, currentMachineName),
   });
@@ -12462,6 +12631,20 @@ function calculateWindowMetrics(
     }
     return null;
   })();
+  const daysSinceWonderlandMinamigaokaGogoGoodCombined = currentMachineUsesWonderlandMinamigaokaGogoRule
+    ? (() => {
+        for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
+          const historyWindowRow = historyWindowRows.at(-offset);
+          if (isWonderlandMinamigaokaGogoGoodCombinedWindowRow(historyWindowRow)) {
+            return offset;
+          }
+        }
+        return null;
+      })()
+    : null;
+  const recentFiveWonderlandMinamigaokaGogoGoodCombinedCount = currentMachineUsesWonderlandMinamigaokaGogoRule
+    ? historyWindowRows.slice(-5).filter(isWonderlandMinamigaokaGogoGoodCombinedWindowRow).length
+    : 0;
   const daysSinceMachineStrongHighContent = (() => {
     for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
       const historyWindowRow = historyWindowRows.at(-offset);
@@ -13027,6 +13210,7 @@ function calculateWindowMetrics(
     recentSevenMachineWeakContentCount,
     recentFourteenMachineGoodContentCount,
     recentTwentyOneMachineGoodContentCount,
+    recentFiveWonderlandMinamigaokaGogoGoodCombinedCount,
     recentThreeMachineStrongHighContentCount,
     recentSevenMachineStrongHighContentCount,
     recentSevenMachineStrongBonusCount,
@@ -13057,6 +13241,7 @@ function calculateWindowMetrics(
     daysSinceMachineHighContent,
     daysSinceMachineSettingFivePlusHigh50,
     daysSinceMachineGoodContent,
+    daysSinceWonderlandMinamigaokaGogoGoodCombined,
     daysSinceMachineStrongHighContent,
     daysSinceMachineBigWin1000,
     daysSinceMachineBigWin1500,

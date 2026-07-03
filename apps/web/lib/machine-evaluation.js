@@ -151,6 +151,11 @@ const WONDERLAND_MINAMIGAOKA_FUNKY_LOGIC_NAME =
   "ファンキージャグラー2KT_南ヶ丘_全日共通_v1";
 const WONDERLAND_MINAMIGAOKA_FUNKY_DEFAULT_CONDITION =
   "wonderland-minamigaoka-funky-green";
+const WONDERLAND_MINAMIGAOKA_GOGO_LOGIC_KEY = "wonderland-minamigaoka-gogo";
+const WONDERLAND_MINAMIGAOKA_GOGO_LOGIC_NAME =
+  "ワンダーランド南ヶ丘店_ゴーゴージャグラー3_全日共通100点ロジック_v1";
+const WONDERLAND_MINAMIGAOKA_GOGO_DEFAULT_CONDITION =
+  "wonderland-minamigaoka-gogo-free-triple-deep";
 const TOYO_HALL_NEO_AIM_BACKTEST_WATCH_EXTRA_KEYS = new Set([
   "2026-02-27|301",
   "2026-02-27|302",
@@ -3845,10 +3850,80 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildLogicVariant("beam-hikari-gogo", "ゴージャグビームヒカリ式", "beam-hikari-main"),
       buildLogicVariant("beam-hikari-gogo-normal", "ゴージャグビームヒカリ通常日式", "beam-hikari-normal-main"),
       buildLogicVariant("beam-hikari-gogo-event", "ゴージャグビームヒカリイベント日式", "beam-hikari-event-main"),
+      buildLogicVariant(
+        WONDERLAND_MINAMIGAOKA_GOGO_LOGIC_KEY,
+        WONDERLAND_MINAMIGAOKA_GOGO_LOGIC_NAME,
+        WONDERLAND_MINAMIGAOKA_GOGO_DEFAULT_CONDITION,
+      ),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
     conditions: [
+      buildCondition(
+        "wonderland-minamigaoka-gogo-yellow",
+        "黄_長期沈みREG空白",
+        "67台 / 102.63% / RB1/281.03",
+        {
+          requiredFlags: ["wonderlandMinamigaokaGogoYellow"],
+        },
+        [WONDERLAND_MINAMIGAOKA_GOGO_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-gogo-green",
+        "緑_REG切れ見せ場不足",
+        "56台 / 103.25% / RB1/272.84",
+        {
+          requiredFlags: ["wonderlandMinamigaokaGogoGreen"],
+        },
+        [WONDERLAND_MINAMIGAOKA_GOGO_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-gogo-red",
+        "赤_前日REG切れ7日角度",
+        "38台 / 104.89% / RB1/267.05",
+        {
+          requiredFlags: ["wonderlandMinamigaokaGogoRed"],
+        },
+        [WONDERLAND_MINAMIGAOKA_GOGO_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-gogo-purple",
+        "紫_前日REG切れ5日急沈み",
+        "25台 / 106.66% / RB1/256.13",
+        {
+          requiredFlags: ["wonderlandMinamigaokaGogoPurple"],
+        },
+        [WONDERLAND_MINAMIGAOKA_GOGO_LOGIC_KEY],
+      ),
+      buildCondition(
+        WONDERLAND_MINAMIGAOKA_GOGO_DEFAULT_CONDITION,
+        "自由MAX_三重深沈み",
+        "21台 / 107.44% / RB1/248.38",
+        {
+          requiredFlags: ["wonderlandMinamigaokaGogoFreeTripleDeep"],
+        },
+        [WONDERLAND_MINAMIGAOKA_GOGO_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-gogo-score70-safe-reference",
+        "参考_70点以上危険0",
+        "220台 / 102.06% / RB1/297.27",
+        {
+          minScore: 70,
+          maxDanger: 0,
+          requiredFlags: ["wonderlandMinamigaokaGogoReferenceHistoryReady"],
+        },
+        [WONDERLAND_MINAMIGAOKA_GOGO_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-gogo-watch-win-streak4",
+        "見送り_4連勝以上",
+        "29台 / 98.92% / RB1/362.10",
+        {
+          requiredFlags: ["wonderlandMinamigaokaGogoWatchWinStreak4"],
+        },
+        [WONDERLAND_MINAMIGAOKA_GOGO_LOGIC_KEY],
+      ),
       buildCondition(
         "main",
         "1位＋3連敗以上＋前回高内容4〜14日＋3日角度強",
@@ -15851,6 +15926,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, WONDERLAND_MINAMIGAOKA_HAPPY_LOGIC_KEY);
   } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "funky") {
     defaultLogic = findLogicDefinition(definition, WONDERLAND_MINAMIGAOKA_FUNKY_LOGIC_KEY);
+  } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "gogo") {
+    defaultLogic = findLogicDefinition(definition, WONDERLAND_MINAMIGAOKA_GOGO_LOGIC_KEY);
   } else if (isWonderlandSueStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "wonderland-sue-neo-aim");
   } else if (isSengawaUnoStore(storeName) && definition.machineKey === "neo-aim") {
@@ -25437,6 +25514,100 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   }
 
   if (machineKey === "gogo") {
+    if (activeLogicKey === WONDERLAND_MINAMIGAOKA_GOGO_LOGIC_KEY) {
+      const wonderlandMinamigaokaGogoHistoryReady = historyRowCount >= 21;
+      const wonderlandMinamigaokaGogoPreviousRbRate =
+        previousRbCount > 0 ? features.previousRbDenominator : null;
+      const wonderlandMinamigaokaGogoDaysSinceGoodRb =
+        metrics.daysSinceMachineGoodContent === null ||
+        metrics.daysSinceMachineGoodContent === undefined ||
+        metrics.daysSinceMachineGoodContent === ""
+          ? null
+          : readNullableNumber(metrics.daysSinceMachineGoodContent);
+      const wonderlandMinamigaokaGogoDaysSinceGoodCombined =
+        metrics.daysSinceWonderlandMinamigaokaGogoGoodCombined === null ||
+        metrics.daysSinceWonderlandMinamigaokaGogoGoodCombined === undefined ||
+        metrics.daysSinceWonderlandMinamigaokaGogoGoodCombined === ""
+          ? null
+          : readNullableNumber(metrics.daysSinceWonderlandMinamigaokaGogoGoodCombined);
+      const wonderlandMinamigaokaGogoGoodCombinedCount5 = readNumber(
+        metrics.recentFiveWonderlandMinamigaokaGogoGoodCombinedCount,
+      );
+      const wonderlandMinamigaokaGogoGoodRbCount21 = recentTwentyOneMachineGoodContentCount;
+      const wonderlandMinamigaokaGogoHighCount3 = recentThreeMachineHighContentCount;
+      const wonderlandMinamigaokaGogoReferenceBaseDate = String(
+        row?.baseDate ?? row?.currentRecord?.target_date ?? "",
+      ).trim();
+      const wonderlandMinamigaokaGogoReferenceHistoryReady =
+        wonderlandMinamigaokaGogoHistoryReady &&
+        (!wonderlandMinamigaokaGogoReferenceBaseDate ||
+          wonderlandMinamigaokaGogoReferenceBaseDate >= "2025-07-30");
+      const wonderlandMinamigaokaGogoYellow =
+        wonderlandMinamigaokaGogoHistoryReady &&
+        recentTwentyOneNetTotal <= -2000 &&
+        Number.isFinite(wonderlandMinamigaokaGogoDaysSinceGoodRb) &&
+        wonderlandMinamigaokaGogoDaysSinceGoodRb >= 10;
+      const wonderlandMinamigaokaGogoGreen =
+        wonderlandMinamigaokaGogoHistoryReady &&
+        Number.isFinite(wonderlandMinamigaokaGogoPreviousRbRate) &&
+        wonderlandMinamigaokaGogoPreviousRbRate >= 600 &&
+        recentSevenMaxDifference <= 500;
+      const wonderlandMinamigaokaGogoRed =
+        wonderlandMinamigaokaGogoHistoryReady &&
+        Number.isFinite(wonderlandMinamigaokaGogoPreviousRbRate) &&
+        wonderlandMinamigaokaGogoPreviousRbRate >= 800 &&
+        features.recentSevenAngle <= -100;
+      const wonderlandMinamigaokaGogoPurple =
+        wonderlandMinamigaokaGogoHistoryReady &&
+        Number.isFinite(wonderlandMinamigaokaGogoPreviousRbRate) &&
+        wonderlandMinamigaokaGogoPreviousRbRate >= 800 &&
+        features.recentFiveAngle <= -180;
+      const wonderlandMinamigaokaGogoFreeTripleDeep =
+        wonderlandMinamigaokaGogoPurple && recentThreeMaxDifference <= 200;
+      const wonderlandMinamigaokaGogoWatchWinStreak4 =
+        wonderlandMinamigaokaGogoHistoryReady && winningStreak >= 4;
+      const boostFlags = [
+        wonderlandMinamigaokaGogoYellow,
+        wonderlandMinamigaokaGogoGreen,
+        wonderlandMinamigaokaGogoRed,
+        wonderlandMinamigaokaGogoPurple,
+        wonderlandMinamigaokaGogoFreeTripleDeep,
+        wonderlandMinamigaokaGogoHighCount3 >= 2,
+        Number.isFinite(wonderlandMinamigaokaGogoDaysSinceGoodCombined) &&
+          wonderlandMinamigaokaGogoDaysSinceGoodCombined >= 10,
+      ];
+      const dangerFlags = [
+        recentFiveNetTotal >= 2000,
+        winningStreak >= 3,
+        wonderlandMinamigaokaGogoGoodCombinedCount5 >= 3,
+        features.recentSevenCombinedDenominator <= 130,
+        features.recentTwentyOneRbDenominator <= 280,
+        previousDifference >= 2500,
+      ];
+
+      return {
+        ...features,
+        wonderlandMinamigaokaGogoHistoryReady,
+        wonderlandMinamigaokaGogoReferenceHistoryReady,
+        wonderlandMinamigaokaGogoPreviousRbRate,
+        wonderlandMinamigaokaGogoDaysSinceGoodRb,
+        wonderlandMinamigaokaGogoDaysSinceGoodCombined,
+        wonderlandMinamigaokaGogoGoodCombinedCount5,
+        wonderlandMinamigaokaGogoGoodRbCount21,
+        wonderlandMinamigaokaGogoHighCount3,
+        wonderlandMinamigaokaGogoYellow,
+        wonderlandMinamigaokaGogoGreen,
+        wonderlandMinamigaokaGogoRed,
+        wonderlandMinamigaokaGogoPurple,
+        wonderlandMinamigaokaGogoFreeTripleDeep,
+        wonderlandMinamigaokaGogoWatchWinStreak4,
+        treatmentDone: recentFiveNetTotal >= 2000 || winningStreak >= 3,
+        lowConfidence: previousGames < 1000 || recentSevenGamesTotal < 5000,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (
       activeLogicKey === "beam-hikari-gogo" ||
       activeLogicKey === "beam-hikari-gogo-normal" ||
@@ -28961,7 +29132,11 @@ function calculateMachineScore(definition, metrics, features) {
   const machineWeakContentStreak = readNumber(metrics.machineWeakContentStreak);
   const recentFiveMaxWin = readNumber(metrics.recentFiveMaxWin);
   const recentSevenMaxDifference = readNumber(metrics.recentSevenMaxDifference);
+  const recentThreeMaxDifference = readNumber(metrics.recentThreeMaxDifference);
   const recentFourteenMaxDifference = readNumber(metrics.recentFourteenMaxDifference);
+  const recentFiveWonderlandMinamigaokaGogoGoodCombinedCount = readNumber(
+    metrics.recentFiveWonderlandMinamigaokaGogoGoodCombinedCount,
+  );
   const recentFiveBigWin1200Count = readNumber(metrics.recentFiveBigWin1200Count);
   const recentFiveBigWin1000Count = readNumber(metrics.recentFiveBigWin1000Count);
   const recentSevenBigWin3000Count = readNumber(metrics.recentSevenBigWin3000Count);
@@ -36289,6 +36464,96 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "gogo") {
+    if (activeLogicKey === WONDERLAND_MINAMIGAOKA_GOGO_LOGIC_KEY) {
+      if (historyRowCount < 21) {
+        return 0;
+      }
+
+      const previousRbRate = previousRbCount > 0 ? features.previousRbDenominator : null;
+      const daysSinceGoodRb =
+        metrics.daysSinceMachineGoodContent === null ||
+        metrics.daysSinceMachineGoodContent === undefined ||
+        metrics.daysSinceMachineGoodContent === ""
+          ? null
+          : readNullableNumber(metrics.daysSinceMachineGoodContent);
+      const daysSinceGoodCombined =
+        metrics.daysSinceWonderlandMinamigaokaGogoGoodCombined === null ||
+        metrics.daysSinceWonderlandMinamigaokaGogoGoodCombined === undefined ||
+        metrics.daysSinceWonderlandMinamigaokaGogoGoodCombined === ""
+          ? null
+          : readNullableNumber(metrics.daysSinceWonderlandMinamigaokaGogoGoodCombined);
+      const recentTwentyEightAngle = netPerThousandGames(
+        recentTwentyEightNetTotal,
+        recentTwentyEightGamesTotal,
+      );
+
+      let rbColdPoints = 0;
+      if (Number.isFinite(previousRbRate) && previousRbRate >= 800) {
+        rbColdPoints += 12;
+      } else if (Number.isFinite(previousRbRate) && previousRbRate >= 600) {
+        rbColdPoints += 8;
+      } else if (Number.isFinite(previousRbRate) && previousRbRate >= 450) {
+        rbColdPoints += 4;
+      }
+      if (Number.isFinite(previousRbRate) && previousRbRate <= 260) {
+        rbColdPoints -= 4;
+      }
+
+      let sinkPoints = 0;
+      sinkPoints += scoreAtMost(features.recentFiveAngle, [
+        { maximum: -180, points: 14 },
+        { maximum: -120, points: 8 },
+        { maximum: -80, points: 4 },
+      ]);
+      sinkPoints += scoreAtMost(features.recentSevenAngle, [
+        { maximum: -100, points: 8 },
+        { maximum: -60, points: 4 },
+      ]);
+      sinkPoints += recentTwentyEightAngle <= -60 ? 6 : 0;
+      sinkPoints += recentTwentyOneNetTotal <= -2000 ? 6 : 0;
+      sinkPoints += recentTwentyEightNetTotal <= -6000 ? 6 : 0;
+      sinkPoints = Math.min(sinkPoints, 28);
+
+      let untreatedPoints = 0;
+      if (recentSevenMaxDifference <= 200) {
+        untreatedPoints += 10;
+      } else if (recentSevenMaxDifference <= 500) {
+        untreatedPoints += 8;
+      }
+      untreatedPoints += recentThreeMaxDifference <= 200 ? 5 : 0;
+      untreatedPoints += Number.isFinite(daysSinceGoodCombined) && daysSinceGoodCombined >= 10 ? 7 : 0;
+      untreatedPoints += Number.isFinite(daysSinceGoodRb) && daysSinceGoodRb >= 10 ? 6 : 0;
+      untreatedPoints += recentTwentyOneMachineGoodContentCount <= 2 ? 6 : 0;
+      untreatedPoints +=
+        recentTwentyOneRbTotal > 0 && features.recentTwentyOneRbDenominator >= 360 ? 4 : 0;
+      untreatedPoints = Math.min(untreatedPoints, 24);
+
+      let carryPoints = 0;
+      carryPoints += recentThreeMachineHighContentCount >= 2 ? 8 : 0;
+      carryPoints += previousMachineHighContent && previousDifference < 1000 ? 4 : 0;
+      carryPoints = Math.min(carryPoints, 10);
+
+      let reliabilityPoints = 0;
+      reliabilityPoints += recentSevenGamesTotal >= 12000 ? 3 : 0;
+      reliabilityPoints -= recentSevenGamesTotal < 5000 ? 4 : 0;
+      reliabilityPoints -= previousGames < 1000 ? 3 : 0;
+
+      let riskPoints = 0;
+      riskPoints += recentFiveNetTotal >= 3000 ? 18 : recentFiveNetTotal >= 2000 ? 10 : 0;
+      riskPoints += winningStreak >= 4 ? 18 : winningStreak >= 3 ? 10 : 0;
+      riskPoints += recentFiveWonderlandMinamigaokaGogoGoodCombinedCount >= 3 ? 16 : 0;
+      riskPoints += features.recentSevenCombinedDenominator <= 130 ? 14 : 0;
+      riskPoints +=
+        recentTwentyOneRbTotal > 0 && features.recentTwentyOneRbDenominator <= 280 ? 10 : 0;
+      riskPoints += previousDifference >= 2500 ? 6 : 0;
+
+      return Math.round(clamp(
+        30 + rbColdPoints + sinkPoints + untreatedPoints + carryPoints + reliabilityPoints - riskPoints,
+        0,
+        100,
+      ));
+    }
+
     if (
       activeLogicKey === "beam-hikari-gogo" ||
       activeLogicKey === "beam-hikari-gogo-normal" ||
@@ -42991,6 +43256,12 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
     if (
       row[evaluationKey]?.logicKey === WONDERLAND_MINAMIGAOKA_FUNKY_LOGIC_KEY &&
       !row[evaluationKey]?.features?.wonderlandMinamigaokaFunkyHistoryReady
+    ) {
+      continue;
+    }
+    if (
+      row[evaluationKey]?.logicKey === WONDERLAND_MINAMIGAOKA_GOGO_LOGIC_KEY &&
+      !row[evaluationKey]?.features?.wonderlandMinamigaokaGogoHistoryReady
     ) {
       continue;
     }
