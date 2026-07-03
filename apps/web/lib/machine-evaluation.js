@@ -14150,6 +14150,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logicKey: "apark-yakatabaru-ultra-miracle",
     logicName: "ウルトラ屋形原式",
     logics: [
+      buildLogicVariant(
+        "wonderland-minamigaoka-ultra-miracle",
+        "ワンダーランド南ヶ丘店_ウルトラミラクルジャグラー_全日共通_沈み返済スコア_v1",
+        "wonderland-minamigaoka-ultra-purple-rank1-score65-gap5-boost2",
+      ),
       buildLogicVariant("beam-hikari-ultra", "ウルトラビームヒカリ式", "beam-hikari-main"),
       buildLogicVariant("beam-hikari-ultra-normal", "ウルトラビームヒカリ通常日式", "beam-hikari-normal-main"),
       buildLogicVariant("beam-hikari-ultra-event", "ウルトラビームヒカリイベント日式", "beam-hikari-event-main"),
@@ -14158,6 +14163,88 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     profile: "juggler",
     defaultConditionSuffix: "apark-yakatabaru-main",
     conditions: [
+      buildCondition(
+        "wonderland-minamigaoka-ultra-blue-score60",
+        "UJ青_広め60",
+        "23日 / 33台 / 114901G / BB460 / RB354 / BB1/249.8 / RB1/324.6 / 合算1/141.2 / 平均+286.2枚 / 102.74% / 勝率42.4%",
+        {
+          minScore: 60,
+          requiredFlags: ["wonderlandMinamigaokaUltraHistoryReady"],
+        },
+        ["wonderland-minamigaoka-ultra-miracle"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-ultra-yellow-rank1-gap5",
+        "UJ黄_1位次点5",
+        "26日 / 27台 / 109244G / BB432 / RB350 / BB1/252.9 / RB1/312.1 / 合算1/139.7 / 平均+359.8枚 / 102.96% / 勝率51.9%",
+        {
+          rankMax: 1,
+          minNextGap: 5,
+          requiredFlags: ["wonderlandMinamigaokaUltraHistoryReady"],
+        },
+        ["wonderland-minamigaoka-ultra-miracle"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-ultra-green-rank1-score60",
+        "UJ緑_1位60",
+        "23日 / 24台 / 99125G / BB401 / RB322 / BB1/247.2 / RB1/307.8 / 合算1/137.1 / 平均+428.8枚 / 103.46% / 勝率50.0%",
+        {
+          rankMax: 1,
+          minScore: 60,
+          requiredFlags: ["wonderlandMinamigaokaUltraHistoryReady"],
+        },
+        ["wonderland-minamigaoka-ultra-miracle"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-ultra-red-rank1-score65-gap8",
+        "UJ赤_1位65次点8",
+        "10日 / 11台 / 49716G / BB206 / RB169 / BB1/241.3 / RB1/294.2 / 合算1/132.6 / 平均+660.2枚 / 104.87% / 勝率63.6%",
+        {
+          rankMax: 1,
+          minScore: 65,
+          minNextGap: 8,
+          requiredFlags: ["wonderlandMinamigaokaUltraHistoryReady"],
+        },
+        ["wonderland-minamigaoka-ultra-miracle"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-ultra-purple-rank1-score65-gap5-boost2",
+        "UJ紫_1位65次点5強化2",
+        "11日 / 12台 / 53052G / BB215 / RB190 / BB1/246.8 / RB1/279.2 / 合算1/131.0 / 平均+620.8枚 / 104.68% / 勝率58.3%",
+        {
+          rankMax: 1,
+          minScore: 65,
+          minNextGap: 5,
+          minBoost: 2,
+          requiredFlags: ["wonderlandMinamigaokaUltraHistoryReady"],
+        },
+        ["wonderland-minamigaoka-ultra-miracle"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-ultra-free-deep7-games",
+        "自由MAX_7日深沈み高稼働",
+        "8日 / 9台 / 27150G / BB105 / RB97 / BB1/258.6 / RB1/279.9 / 合算1/134.4 / 平均+337.0枚 / 103.72% / 勝率33.3%",
+        {
+          maxDanger: 0,
+          requiredFlags: [
+            "wonderlandMinamigaokaUltraHistoryReady",
+            "wonderlandMinamigaokaUltraFreeDeep7Games",
+          ],
+        },
+        ["wonderland-minamigaoka-ultra-miracle"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-ultra-watch-treatment",
+        "見送り_処遇完了",
+        "24日 / 31台 / 76588G / BB288 / RB186 / BB1/265.9 / RB1/411.8 / 合算1/161.6 / 平均-83.3枚 / 98.88% / 勝率32.3%",
+        {
+          requiredFlags: [
+            "wonderlandMinamigaokaUltraHistoryReady",
+            "wonderlandMinamigaokaUltraTreatmentDone",
+          ],
+        },
+        ["wonderland-minamigaoka-ultra-miracle"],
+      ),
       buildCondition(
         "beam-hikari-main",
         "1位＋70点以上＋強化2＋危険1以下",
@@ -15472,6 +15559,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-monkey");
   } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "kabaneri-kaimon") {
     defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-kabaneri-kaimon");
+  } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "ultra-miracle") {
+    defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-ultra-miracle");
   } else if (isWonderlandSueStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "wonderland-sue-neo-aim");
   } else if (isSengawaUnoStore(storeName) && definition.machineKey === "neo-aim") {
@@ -27804,6 +27893,88 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
 
   if (
     machineKey === "ultra-miracle" &&
+    activeLogicKey === "wonderland-minamigaoka-ultra-miracle"
+  ) {
+    const wonderlandMinamigaokaUltraHistoryReady = historyRowCount >= 14;
+    const wonderlandMinamigaokaUltraHistoryShort = historyRowCount < 14;
+    const wonderlandMinamigaokaUltraDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+      ? Math.max(0, daysSinceMachineHighContent - 1)
+      : historyRowCount + 1;
+    const wonderlandMinamigaokaUltraDeepSink =
+      wonderlandMinamigaokaUltraHistoryReady &&
+      recentFourteenNetTotal <= -1800 &&
+      recentFourteenGamesTotal >= 9000;
+    const wonderlandMinamigaokaUltraSinkAngle =
+      wonderlandMinamigaokaUltraHistoryReady &&
+      features.recentFourteenAngle <= -90 &&
+      recentFourteenGamesTotal >= 9000;
+    const wonderlandMinamigaokaUltraHighInterval =
+      wonderlandMinamigaokaUltraHistoryReady &&
+      wonderlandMinamigaokaUltraDaysSinceHigh >= 4 &&
+      wonderlandMinamigaokaUltraDaysSinceHigh <= 20;
+    const wonderlandMinamigaokaUltraRealUnfinished =
+      wonderlandMinamigaokaUltraHistoryReady &&
+      previousGames >= 2500 &&
+      features.previousRbDenominator <= 330 &&
+      features.previousCombinedDenominator <= 145 &&
+      previousDifference <= 800;
+    const wonderlandMinamigaokaUltraWatched =
+      wonderlandMinamigaokaUltraHistoryReady && recentSevenGamesTotal >= 12000;
+    const wonderlandMinamigaokaUltraTreatmentDone =
+      wonderlandMinamigaokaUltraHistoryReady &&
+      (previousDifference >= 1800 || recentThreeNetTotal >= 1800 || recentSevenNetTotal >= 2500);
+    const wonderlandMinamigaokaUltraLowInfo =
+      wonderlandMinamigaokaUltraHistoryShort || recentSevenGamesTotal < 4500 || previousGames < 600;
+    const wonderlandMinamigaokaUltraRecentHighReturned =
+      wonderlandMinamigaokaUltraHistoryReady &&
+      recentThreeMachineHighContentCount >= 1 &&
+      recentThreeNetTotal >= 800;
+    const wonderlandMinamigaokaUltraLongNeglectLowGames =
+      wonderlandMinamigaokaUltraHistoryReady &&
+      wonderlandMinamigaokaUltraDaysSinceHigh >= 22 &&
+      recentFourteenGamesTotal < 9000;
+    const wonderlandMinamigaokaUltraFreeDeep7Games =
+      wonderlandMinamigaokaUltraHistoryReady &&
+      recentSevenNetTotal <= -1500 &&
+      recentSevenGamesTotal >= 12000;
+    const boostFlags = [
+      wonderlandMinamigaokaUltraDeepSink,
+      wonderlandMinamigaokaUltraSinkAngle,
+      wonderlandMinamigaokaUltraHighInterval,
+      wonderlandMinamigaokaUltraRealUnfinished,
+      wonderlandMinamigaokaUltraWatched,
+    ];
+    const dangerFlags = [
+      wonderlandMinamigaokaUltraTreatmentDone,
+      wonderlandMinamigaokaUltraLowInfo,
+      wonderlandMinamigaokaUltraRecentHighReturned,
+      wonderlandMinamigaokaUltraLongNeglectLowGames,
+    ];
+
+    return {
+      ...features,
+      wonderlandMinamigaokaUltraHistoryReady,
+      wonderlandMinamigaokaUltraHistoryShort,
+      wonderlandMinamigaokaUltraDaysSinceHigh,
+      wonderlandMinamigaokaUltraDeepSink,
+      wonderlandMinamigaokaUltraSinkAngle,
+      wonderlandMinamigaokaUltraHighInterval,
+      wonderlandMinamigaokaUltraRealUnfinished,
+      wonderlandMinamigaokaUltraWatched,
+      wonderlandMinamigaokaUltraTreatmentDone,
+      wonderlandMinamigaokaUltraLowInfo,
+      wonderlandMinamigaokaUltraRecentHighReturned,
+      wonderlandMinamigaokaUltraLongNeglectLowGames,
+      wonderlandMinamigaokaUltraFreeDeep7Games,
+      treatmentDone: wonderlandMinamigaokaUltraTreatmentDone,
+      lowConfidence: wonderlandMinamigaokaUltraLowInfo,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
+
+  if (
+    machineKey === "ultra-miracle" &&
     (activeLogicKey === "beam-hikari-ultra" ||
       activeLogicKey === "beam-hikari-ultra-normal" ||
       activeLogicKey === "beam-hikari-ultra-event")
@@ -29112,6 +29283,109 @@ function calculateMachineScore(definition, metrics, features) {
     const historyCap = historyRowCount >= 14 ? 100 : historyRowCount >= 7 ? 55 : 45;
     const score = 25 + waitingScore + sinkScore + bonusScore + recentScore + neighborScore - penalty;
     return Math.round(clamp(score, 0, historyCap));
+  }
+
+  if (machineKey === "ultra-miracle" && activeLogicKey === "wonderland-minamigaoka-ultra-miracle") {
+    if (historyRowCount < 14) {
+      return 30;
+    }
+
+    const daysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+      ? Math.max(0, daysSinceMachineHighContent - 1)
+      : historyRowCount + 1;
+    let score = 40;
+
+    if (recentFourteenNetTotal <= -3000) {
+      score += 16;
+    } else if (recentFourteenNetTotal <= -1800) {
+      score += 11;
+    } else if (recentFourteenNetTotal <= -800) {
+      score += 6;
+    } else if (recentFourteenNetTotal >= 1800) {
+      score -= 10;
+    }
+
+    if (recentSevenNetTotal <= -1500) {
+      score += 12;
+    } else if (recentSevenNetTotal <= -800) {
+      score += 7;
+    } else if (recentSevenNetTotal >= 1500) {
+      score -= 10;
+    }
+
+    if (recentFourteenGamesTotal >= 9000) {
+      if (features.recentFourteenAngle <= -180) {
+        score += 8;
+      } else if (features.recentFourteenAngle <= -90) {
+        score += 4;
+      }
+    } else {
+      score -= 4;
+    }
+
+    if (daysSinceHigh >= 4 && daysSinceHigh <= 14) {
+      score += 10;
+    } else if (daysSinceHigh >= 15 && daysSinceHigh <= 28) {
+      score += 5;
+    } else if (daysSinceHigh <= 2) {
+      score -= 8;
+    }
+
+    if (recentSevenMachineHighContentCount === 0) {
+      score += 6;
+    }
+    if (recentFourteenMachineHighContentCount === 0) {
+      score += 4;
+    }
+    if (recentFourteenMachineStrongHighContentCount === 0) {
+      score += 3;
+    }
+    if (recentThreeMachineHighContentCount >= 1) {
+      score -= 6;
+    }
+
+    if (
+      previousGames >= 2500 &&
+      previousRbDenominator <= 330 &&
+      previousCombinedDenominator <= 145 &&
+      previousDifference <= 800
+    ) {
+      score += 8;
+    } else if (
+      previousGames >= 2500 &&
+      previousRbDenominator <= 360 &&
+      previousCombinedDenominator <= 150 &&
+      previousDifference <= 0
+    ) {
+      score += 4;
+    }
+
+    if (previousDifference >= 1800) {
+      score -= 14;
+    }
+    if (recentThreeNetTotal >= 1800) {
+      score -= 10;
+    }
+    if (recentSevenNetTotal >= 2500) {
+      score -= 10;
+    }
+    if (previousGames < 600) {
+      score -= 4;
+    }
+
+    if (recentSevenGamesTotal >= 12000) {
+      score += 5;
+    } else if (recentSevenGamesTotal < 4500) {
+      score -= 8;
+    }
+
+    if (historyLosingStreak >= 2 && historyLosingStreak <= 4) {
+      score += 4;
+    } else if (historyLosingStreak >= 6) {
+      score -= 6;
+    }
+
+    return Math.round(clamp(score, 0, 100));
   }
 
   if (machineKey === "ultra-miracle" && activeLogicKey === "beam-hikari-ultra") {
@@ -41782,6 +42056,12 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
     ) {
       continue;
     }
+    if (
+      row[evaluationKey]?.logicKey === "wonderland-minamigaoka-ultra-miracle" &&
+      !row[evaluationKey]?.features?.wonderlandMinamigaokaUltraHistoryReady
+    ) {
+      continue;
+    }
     const machineName = normalizeText(row.machineName);
     if (!rowsByMachineName.has(machineName)) {
       rowsByMachineName.set(machineName, []);
@@ -41878,7 +42158,7 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
     const useDenseRank =
       updatedEvaluation.logicKey === "hinode-onojo-my" ||
       updatedEvaluation.logicKey === JUMBO_NEO_AIM_LOGIC_KEY;
-    const rankedEvaluation = useOrdinalRank
+    let rankedEvaluation = useOrdinalRank
       ? {
           ...updatedEvaluation,
           rank: context.ordinalRank ?? updatedEvaluation.rank,
@@ -41895,6 +42175,15 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
             rank: context.denseRank ?? updatedEvaluation.rank,
           }
       : updatedEvaluation;
+    if (
+      rankedEvaluation.logicKey === "wonderland-minamigaoka-ultra-miracle" &&
+      rankedEvaluation.rank !== 1
+    ) {
+      rankedEvaluation = {
+        ...rankedEvaluation,
+        nextGap: 0,
+      };
+    }
     const matchedConditions = buildMatchedConditionSummaries(
       definition,
       rankedEvaluation.logicKey,

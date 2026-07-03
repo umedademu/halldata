@@ -295,6 +295,7 @@ const WONDERLAND_MINAMIGAOKA_TARGET_MACHINES = [
   },
   { name: "スマスロモンキーターンV", aliases: ["スマスロ モンキーターンV", "スマスロモンキーターンⅤ"] },
   { name: "スマスロ 甲鉄城のカバネリ 海門決戦", aliases: ["スマスロ甲鉄城のカバネリ海門決戦"] },
+  { name: "ウルトラミラクルジャグラー", aliases: [] },
 ];
 
 const WONDERLAND_SUE_TARGET_MACHINES = [
@@ -1922,6 +1923,7 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "スマスロモンキーターンⅤ",
       "スマスロ 甲鉄城のカバネリ 海門決戦",
       "スマスロ甲鉄城のカバネリ海門決戦",
+      "ウルトラミラクルジャグラー",
     ],
     slotHistoryStartDates: [
       {
@@ -1950,6 +1952,7 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "スマスロモンキーターンⅤ": "wonderland-minamigaoka-monkey",
       "スマスロ 甲鉄城のカバネリ 海門決戦": "wonderland-minamigaoka-kabaneri-kaimon",
       "スマスロ甲鉄城のカバネリ海門決戦": "wonderland-minamigaoka-kabaneri-kaimon",
+      "ウルトラミラクルジャグラー": "wonderland-minamigaoka-ultra-miracle",
     },
   },
   {
@@ -2972,6 +2975,15 @@ const MY_JUGGLER_BONUS_SETTING_RATES = [
   { setting: 6, bb: 1 / 229.1, rb: 1 / 229.1 },
 ];
 const MY_JUGGLER_SETTING_PROBABILITY_CACHE = new WeakMap();
+const ULTRA_MIRACLE_BONUS_SETTING_RATES = [
+  { setting: 1, bb: 1 / 267.5, rb: 1 / 425.6 },
+  { setting: 2, bb: 1 / 261.1, rb: 1 / 402.1 },
+  { setting: 3, bb: 1 / 256.0, rb: 1 / 350.5 },
+  { setting: 4, bb: 1 / 242.7, rb: 1 / 322.8 },
+  { setting: 5, bb: 1 / 233.2, rb: 1 / 297.9 },
+  { setting: 6, bb: 1 / 216.3, rb: 1 / 277.7 },
+];
+const ULTRA_MIRACLE_SETTING_PROBABILITY_CACHE = new WeakMap();
 
 function calculateLogBinomialProbabilityForHuntScore(successCount, totalCount, probability) {
   if (
@@ -3134,6 +3146,73 @@ function calculateMyJugglerSettingProbabilities(row) {
     p5plus:
       weightedRows
         .filter((rowValue) => rowValue.setting >= 5)
+        .reduce((total, rowValue) => total + rowValue.weight, 0) / totalWeight,
+  });
+}
+
+function calculateUltraMiracleSettingProbabilities(row) {
+  const cacheKey = row?.row && typeof row.row === "object" ? row.row : row;
+  if (cacheKey && typeof cacheKey === "object" && ULTRA_MIRACLE_SETTING_PROBABILITY_CACHE.has(cacheKey)) {
+    return ULTRA_MIRACLE_SETTING_PROBABILITY_CACHE.get(cacheKey);
+  }
+  const games = Math.round(readWindowField(row, "games"));
+  const bbCount = Math.round(readWindowField(row, "bbCount"));
+  const rbCount = Math.round(readWindowField(row, "rbCount"));
+
+  const cacheAndReturn = (value) => {
+    if (cacheKey && typeof cacheKey === "object") {
+      ULTRA_MIRACLE_SETTING_PROBABILITY_CACHE.set(cacheKey, value);
+    }
+    return value;
+  };
+
+  if (
+    !Number.isInteger(games) ||
+    !Number.isInteger(bbCount) ||
+    !Number.isInteger(rbCount) ||
+    games < 0 ||
+    bbCount < 0 ||
+    rbCount < 0 ||
+    bbCount > games ||
+    rbCount > games
+  ) {
+    return cacheAndReturn(null);
+  }
+  if (games === 0) {
+    return cacheAndReturn({
+      p56: 2 / ULTRA_MIRACLE_BONUS_SETTING_RATES.length,
+      p4down: 4 / ULTRA_MIRACLE_BONUS_SETTING_RATES.length,
+    });
+  }
+
+  const logRows = ULTRA_MIRACLE_BONUS_SETTING_RATES.map((rate) => ({
+    setting: rate.setting,
+    logValue:
+      calculateLogBinomialProbabilityForHuntScore(bbCount, games, rate.bb) +
+      calculateLogBinomialProbabilityForHuntScore(rbCount, games, rate.rb),
+  }));
+  const maxLogValue = Math.max(...logRows.map((rowValue) => rowValue.logValue));
+  if (!Number.isFinite(maxLogValue)) {
+    return cacheAndReturn(null);
+  }
+
+  const weightedRows = logRows.map((rowValue) => ({
+    ...rowValue,
+    weight: Math.exp(rowValue.logValue - maxLogValue),
+  }));
+  const totalWeight = weightedRows.reduce((total, rowValue) => total + rowValue.weight, 0);
+  if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
+    return cacheAndReturn(null);
+  }
+
+  return cacheAndReturn({
+    p56:
+      weightedRows
+        .filter((rowValue) => rowValue.setting >= 5)
+        .reduce((total, rowValue) => total + rowValue.weight, 0) / totalWeight,
+    p4down:
+      weightedRows
+        .filter((rowValue) => rowValue.setting <= 4)
         .reduce((total, rowValue) => total + rowValue.weight, 0) / totalWeight,
   });
 }
@@ -4006,7 +4085,16 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     return games >= 5000 && combinedDenominator <= 145 && rbDenominator <= 315;
   }
   if (normalizedMachineName === normalizeText("ウルトラミラクルジャグラー")) {
-    if (readMachineContentRule(config, machineName) === "apark-yakatabaru-ultra-miracle") {
+    if (contentRule === "wonderland-minamigaoka-ultra-miracle") {
+      const probabilities = calculateUltraMiracleSettingProbabilities(row);
+      const p56 = probabilities?.p56;
+      return (
+        games >= 2500 &&
+        ((Number.isFinite(p56) && p56 >= 0.5) ||
+          (rbDenominator <= 330 && combinedDenominator <= 135))
+      );
+    }
+    if (contentRule === "apark-yakatabaru-ultra-miracle") {
       return games >= 3000 && combinedDenominator <= 134 && rbDenominator <= 300;
     }
     return games >= 5000 && combinedDenominator <= 145 && rbDenominator <= 315;
@@ -4689,7 +4777,16 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     );
   }
   if (normalizedMachineName === normalizeText("ウルトラミラクルジャグラー")) {
-    if (readMachineContentRule(config, machineName) === "beam-hikari-ultra-miracle-content") {
+    if (contentRule === "wonderland-minamigaoka-ultra-miracle") {
+      const probabilities = calculateUltraMiracleSettingProbabilities(row);
+      const p56 = probabilities?.p56;
+      return (
+        games >= 2000 &&
+        ((Number.isFinite(p56) && p56 >= 0.3) ||
+          (rbDenominator <= 330 && combinedDenominator <= 140))
+      );
+    }
+    if (contentRule === "beam-hikari-ultra-miracle-content") {
       return games >= 3000 && combinedDenominator <= 134 && rbDenominator <= 300;
     }
   }
@@ -5113,6 +5210,17 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   }
   if (normalizedMachineName === normalizeText("ニューキングハナハナ")) {
     return games >= 6000 && combinedDenominator <= 155 && rbDenominator <= 420;
+  }
+  if (normalizedMachineName === normalizeText("ウルトラミラクルジャグラー")) {
+    if (contentRule === "wonderland-minamigaoka-ultra-miracle") {
+      const probabilities = calculateUltraMiracleSettingProbabilities(row);
+      const p56 = probabilities?.p56;
+      return (
+        games >= 4000 &&
+        ((Number.isFinite(p56) && p56 >= 0.7) ||
+          (rbDenominator <= 290 && combinedDenominator <= 130))
+      );
+    }
   }
   if (normalizedMachineName === normalizeText("ミスタージャグラー")) {
     const rbCount = readWindowField(row, "rbCount");
