@@ -296,6 +296,7 @@ const WONDERLAND_MINAMIGAOKA_TARGET_MACHINES = [
   { name: "スマスロモンキーターンV", aliases: ["スマスロ モンキーターンV", "スマスロモンキーターンⅤ"] },
   { name: "スマスロ 甲鉄城のカバネリ 海門決戦", aliases: ["スマスロ甲鉄城のカバネリ海門決戦"] },
   { name: "ウルトラミラクルジャグラー", aliases: [] },
+  { name: "ミスタージャグラー", aliases: [] },
 ];
 
 const WONDERLAND_SUE_TARGET_MACHINES = [
@@ -1924,6 +1925,7 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "スマスロ 甲鉄城のカバネリ 海門決戦",
       "スマスロ甲鉄城のカバネリ海門決戦",
       "ウルトラミラクルジャグラー",
+      "ミスタージャグラー",
     ],
     slotHistoryStartDates: [
       {
@@ -1953,6 +1955,7 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "スマスロ 甲鉄城のカバネリ 海門決戦": "wonderland-minamigaoka-kabaneri-kaimon",
       "スマスロ甲鉄城のカバネリ海門決戦": "wonderland-minamigaoka-kabaneri-kaimon",
       "ウルトラミラクルジャグラー": "wonderland-minamigaoka-ultra-miracle",
+      "ミスタージャグラー": "wonderland-minamigaoka-mister",
     },
   },
   {
@@ -2984,6 +2987,15 @@ const ULTRA_MIRACLE_BONUS_SETTING_RATES = [
   { setting: 6, bb: 1 / 216.3, rb: 1 / 277.7 },
 ];
 const ULTRA_MIRACLE_SETTING_PROBABILITY_CACHE = new WeakMap();
+const MISTER_JUGGLER_BONUS_SETTING_RATES = [
+  { setting: 1, bb: 1 / 268.6, rb: 1 / 374.5 },
+  { setting: 2, bb: 1 / 267.5, rb: 1 / 354.2 },
+  { setting: 3, bb: 1 / 260.1, rb: 1 / 331.0 },
+  { setting: 4, bb: 1 / 249.2, rb: 1 / 291.3 },
+  { setting: 5, bb: 1 / 240.9, rb: 1 / 257.0 },
+  { setting: 6, bb: 1 / 237.4, rb: 1 / 237.4 },
+];
+const MISTER_JUGGLER_SETTING_PROBABILITY_CACHE = new WeakMap();
 
 function calculateLogBinomialProbabilityForHuntScore(successCount, totalCount, probability) {
   if (
@@ -3215,6 +3227,117 @@ function calculateUltraMiracleSettingProbabilities(row) {
         .filter((rowValue) => rowValue.setting <= 4)
         .reduce((total, rowValue) => total + rowValue.weight, 0) / totalWeight,
   });
+}
+
+function calculateMisterJugglerSettingProbabilities(row) {
+  const cacheKey = row?.row && typeof row.row === "object" ? row.row : row;
+  if (cacheKey && typeof cacheKey === "object" && MISTER_JUGGLER_SETTING_PROBABILITY_CACHE.has(cacheKey)) {
+    return MISTER_JUGGLER_SETTING_PROBABILITY_CACHE.get(cacheKey);
+  }
+  const games = Math.round(readWindowField(row, "games"));
+  const bbCount = Math.round(readWindowField(row, "bbCount"));
+  const rbCount = Math.round(readWindowField(row, "rbCount"));
+
+  const cacheAndReturn = (value) => {
+    if (cacheKey && typeof cacheKey === "object") {
+      MISTER_JUGGLER_SETTING_PROBABILITY_CACHE.set(cacheKey, value);
+    }
+    return value;
+  };
+
+  if (
+    !Number.isInteger(games) ||
+    !Number.isInteger(bbCount) ||
+    !Number.isInteger(rbCount) ||
+    games < 0 ||
+    bbCount < 0 ||
+    rbCount < 0 ||
+    bbCount > games ||
+    rbCount > games
+  ) {
+    return cacheAndReturn(null);
+  }
+  if (games === 0) {
+    return cacheAndReturn({
+      p4plus: 3 / MISTER_JUGGLER_BONUS_SETTING_RATES.length,
+      p5plus: 2 / MISTER_JUGGLER_BONUS_SETTING_RATES.length,
+      p3minus: 3 / MISTER_JUGGLER_BONUS_SETTING_RATES.length,
+    });
+  }
+
+  const logRows = MISTER_JUGGLER_BONUS_SETTING_RATES.map((rate) => ({
+    setting: rate.setting,
+    logValue:
+      calculateLogBinomialProbabilityForHuntScore(bbCount, games, rate.bb) +
+      calculateLogBinomialProbabilityForHuntScore(rbCount, games, rate.rb),
+  }));
+  const maxLogValue = Math.max(...logRows.map((rowValue) => rowValue.logValue));
+  if (!Number.isFinite(maxLogValue)) {
+    return cacheAndReturn(null);
+  }
+
+  const weightedRows = logRows.map((rowValue) => ({
+    ...rowValue,
+    weight: Math.exp(rowValue.logValue - maxLogValue),
+  }));
+  const totalWeight = weightedRows.reduce((total, rowValue) => total + rowValue.weight, 0);
+  if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
+    return cacheAndReturn(null);
+  }
+
+  return cacheAndReturn({
+    p4plus:
+      weightedRows
+        .filter((rowValue) => rowValue.setting >= 4)
+        .reduce((total, rowValue) => total + rowValue.weight, 0) / totalWeight,
+    p5plus:
+      weightedRows
+        .filter((rowValue) => rowValue.setting >= 5)
+        .reduce((total, rowValue) => total + rowValue.weight, 0) / totalWeight,
+    p3minus:
+      weightedRows
+        .filter((rowValue) => rowValue.setting <= 3)
+        .reduce((total, rowValue) => total + rowValue.weight, 0) / totalWeight,
+  });
+}
+
+function isWonderlandMinamigaokaMisterGoodContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMisterJugglerSettingProbabilities(row);
+  const p4plus = probabilities?.p4plus;
+  return (
+    games >= 3000 &&
+    ((combinedDenominator <= 150 && rbDenominator <= 360) ||
+      (Number.isFinite(p4plus) && p4plus >= 0.35))
+  );
+}
+
+function isWonderlandMinamigaokaMisterHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMisterJugglerSettingProbabilities(row);
+  const p4plus = probabilities?.p4plus;
+  return (
+    games >= 3500 &&
+    ((combinedDenominator <= 140 && rbDenominator <= 320) ||
+      (Number.isFinite(p4plus) && p4plus >= 0.5))
+  );
+}
+
+function isWonderlandMinamigaokaMisterStrongHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateMisterJugglerSettingProbabilities(row);
+  const p5plus = probabilities?.p5plus;
+  return (
+    games >= 4000 &&
+    ((combinedDenominator <= 130 && rbDenominator <= 290) ||
+      (Number.isFinite(p5plus) && p5plus >= 0.5))
+  );
 }
 
 function isMesseOkudoMyHighContentWindowRow(row) {
@@ -4113,6 +4236,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     return games >= 4000 && rbCount >= 25 && rbDenominator <= 281 && combinedDenominator <= 128;
   }
   if (normalizedMachineName === normalizeText("ミスタージャグラー")) {
+    if (contentRule === "wonderland-minamigaoka-mister") {
+      return isWonderlandMinamigaokaMisterHighContentWindowRow(row);
+    }
     return games >= 5000 && rbDenominator <= 290 && combinedDenominator <= 135;
   }
   if (normalizedMachineName === normalizeText("スマスロモンキーターンV")) {
@@ -4790,6 +4916,11 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
       return games >= 3000 && combinedDenominator <= 134 && rbDenominator <= 300;
     }
   }
+  if (normalizedMachineName === normalizeText("ミスタージャグラー")) {
+    if (contentRule === "wonderland-minamigaoka-mister") {
+      return isWonderlandMinamigaokaMisterGoodContentWindowRow(row);
+    }
+  }
   if (
     (normalizedMachineName === normalizeText("スマスロ ミリオンゴッド") ||
       normalizedMachineName === normalizeText("スマスロ ミリオンゴッド-神々の軌跡-") ||
@@ -5223,6 +5354,9 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     }
   }
   if (normalizedMachineName === normalizeText("ミスタージャグラー")) {
+    if (contentRule === "wonderland-minamigaoka-mister") {
+      return isWonderlandMinamigaokaMisterStrongHighContentWindowRow(row);
+    }
     const rbCount = readWindowField(row, "rbCount");
     return rbCount >= 25 && rbDenominator <= 260 && combinedDenominator <= 140;
   }
@@ -11278,6 +11412,7 @@ function calculateWindowMetrics(
   const recentTwentyOneLowGames1500Count = recentTwentyOneRows.filter(
     (windowRow) => readWindowField(windowRow, "games") < 1500,
   ).length;
+  const recentFiveLowGames1000Count = recentFiveRows.filter((windowRow) => readWindowField(windowRow, "games") < 1000).length;
   const recentThreeLowGames500Count = recentThreeRows.filter((windowRow) => windowRow.games < 500).length;
   const recentThreeWorkGames2000Count = recentThreeRows.filter((windowRow) => windowRow.games >= 2000).length;
   const recentSevenLowGames500Count = recentSevenRows.filter((windowRow) => readWindowField(windowRow, "games") < 500).length;
@@ -11547,8 +11682,17 @@ function calculateWindowMetrics(
           differenceValue: readHuntScoreDifferenceValue(row, config.differenceMode, currentMachineName),
         })
       : null;
-  const previousMachineSettingFourPlusProbability = previousMachineMyJugglerProbabilities?.p4plus ?? null;
-  const previousMachineSettingFivePlusProbability = calculateNeoAimSettingFivePlusProbability({
+  const previousMachineMisterJugglerProbabilities =
+    currentMachineNameNormalized === normalizeText("ミスタージャグラー")
+      ? calculateMisterJugglerSettingProbabilities({
+          row,
+          differenceValue: readHuntScoreDifferenceValue(row, config.differenceMode, currentMachineName),
+        })
+      : null;
+  const previousMachineSettingFourPlusProbability =
+    previousMachineMyJugglerProbabilities?.p4plus ?? previousMachineMisterJugglerProbabilities?.p4plus ?? null;
+  const previousMachineSettingFivePlusProbability =
+    previousMachineMisterJugglerProbabilities?.p5plus ?? calculateNeoAimSettingFivePlusProbability({
     row,
     differenceValue: readHuntScoreDifferenceValue(row, config.differenceMode, currentMachineName),
   });
@@ -12295,6 +12439,7 @@ function calculateWindowMetrics(
     recentThreeLowGames1500Count,
     recentTenLowGames1500Count,
     recentTwentyOneLowGames1500Count,
+    recentFiveLowGames1000Count,
     recentThreeLowGames500Count,
     recentThreeWorkGames2000Count,
     recentSevenLowGames500Count,

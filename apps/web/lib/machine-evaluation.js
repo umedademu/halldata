@@ -132,6 +132,10 @@ const TOYO_HALL_NEO_AIM_BACKTEST_WIDE_EXCLUDED_KEYS = new Set([
 const WONDERLAND_MINAMIGAOKA_MONKEY_BEST_GAP_BACKTEST_EXCLUDED_KEYS = new Set([
   "2025-07-19|1516番台",
 ]);
+const WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY = "wonderland-minamigaoka-mister";
+const WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_NAME = "WL南ヶ丘_ミスタージャグラー_全日共通_v1";
+const WONDERLAND_MINAMIGAOKA_MISTER_DEFAULT_CONDITION =
+  "wonderland-minamigaoka-mister-best-score70";
 const TOYO_HALL_NEO_AIM_BACKTEST_WATCH_EXTRA_KEYS = new Set([
   "2026-02-27|301",
   "2026-02-27|302",
@@ -15206,6 +15210,14 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     machineNames: ["ミスタージャグラー"],
     logicKey: "apark-mister",
     logicName: "ミスター春日式",
+    logics: [
+      buildLogicVariant("apark-mister", "ミスター春日式", "main"),
+      buildLogicVariant(
+        WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY,
+        WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_NAME,
+        WONDERLAND_MINAMIGAOKA_MISTER_DEFAULT_CONDITION,
+      ),
+    ],
     profile: "juggler",
     defaultConditionSuffix: "main",
     conditions: [
@@ -15220,6 +15232,80 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           maxDanger: 1,
           requiredFlags: ["misterHistoryReady"],
         },
+        ["apark-mister"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-mister-wide-score58",
+        "広め 58点以上",
+        "通常採用 / 21日 / 33台 / 総G78,905 / BB307 / RB253 / BB1/257.0 / RB1/311.9 / 合算1/140.9 / 平均+211.6枚 / 機械割102.95% / 勝率45.5% / 平均4+46.8% / 中央4+45.2% / 平均5+30.7%",
+        {
+          minScore: 58,
+          requiredFlags: ["wonderlandMinamigaokaMisterHistoryReady"],
+        },
+        [WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-mister-weak-score60",
+        "弱め本命 60点以上",
+        "通常採用 / 21日 / 31台 / 総G68,185 / BB264 / RB230 / BB1/258.3 / RB1/296.5 / 合算1/138.0 / 平均+234.4枚 / 機械割103.55% / 勝率45.2% / 平均4+48.3% / 中央4+45.3% / 平均5+31.9%",
+        {
+          minScore: 60,
+          requiredFlags: ["wonderlandMinamigaokaMisterHistoryReady"],
+        },
+        [WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-mister-main-score63",
+        "本命 63点以上",
+        "通常採用 / 19日 / 27台 / 総G57,496 / BB220 / RB203 / BB1/261.3 / RB1/283.2 / 合算1/135.9 / 平均+245.9枚 / 機械割103.85% / 勝率44.4% / 平均4+49.8% / 中央4+45.3% / 平均5+33.3%",
+        {
+          minScore: 63,
+          requiredFlags: ["wonderlandMinamigaokaMisterHistoryReady"],
+        },
+        [WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-mister-strong-score65",
+        "強条件 65点以上",
+        "通常採用 / 17日 / 24台 / 総G55,539 / BB219 / RB199 / BB1/253.6 / RB1/279.1 / 合算1/132.9 / 平均+342.4枚 / 機械割104.93% / 勝率50.0% / 平均4+51.1% / 中央4+45.9% / 平均5+34.4%",
+        {
+          minScore: 65,
+          requiredFlags: ["wonderlandMinamigaokaMisterHistoryReady"],
+        },
+        [WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY],
+      ),
+      buildCondition(
+        WONDERLAND_MINAMIGAOKA_MISTER_DEFAULT_CONDITION,
+        "最本命 70点以上",
+        "通常採用 / 16日 / 20台 / 総G50,797 / BB202 / RB190 / BB1/251.5 / RB1/267.4 / 合算1/129.6 / 平均+425.3枚 / 機械割105.58% / 勝率55.0% / 平均4+54.0% / 中央4+50.7% / 平均5+37.0%",
+        {
+          minScore: 70,
+          requiredFlags: ["wonderlandMinamigaokaMisterHistoryReady"],
+        },
+        [WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-mister-watch-rank1-under58",
+        "1位でも58点未満見送り",
+        "見送り / 14日 / 14台 / 総G27,298 / BB78 / RB59 / BB1/350.0 / RB1/462.7 / 合算1/199.3 / 平均-539.1枚 / 機械割90.78% / 勝率14.3% / 平均4+31.9% / 中央4+36.5% / 平均5+17.7%",
+        {
+          rankMax: 1,
+          maxScore: 57.999,
+          requiredFlags: ["wonderlandMinamigaokaMisterHistoryReady"],
+        },
+        [WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-mister-reference-prev-high-low-g2",
+        "自由MAX 前日高内容＋低稼働2日",
+        "参考表示 / 8日 / 8台 / 総G30,628 / BB131 / RB134 / BB1/233.8 / RB1/228.6 / 合算1/115.6 / 平均+1,068.5枚 / 機械割109.30% / 勝率87.5% / 平均4+71.4% / 中央4+69.5% / 平均5+53.6%",
+        {
+          requiredFlags: [
+            "wonderlandMinamigaokaMisterHistoryReady",
+            "wonderlandMinamigaokaMisterFreePrevHighLowG2",
+          ],
+        },
+        [WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY],
       ),
     ],
   },
@@ -15561,6 +15647,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-kabaneri-kaimon");
   } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "ultra-miracle") {
     defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-ultra-miracle");
+  } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "mister") {
+    defaultLogic = findLogicDefinition(definition, WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY);
   } else if (isWonderlandSueStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "wonderland-sue-neo-aim");
   } else if (isSengawaUnoStore(storeName) && definition.machineKey === "neo-aim") {
@@ -16205,6 +16293,7 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   const recentTwentyOneLowGames1500Count = readNumber(metrics.recentTwentyOneLowGames1500Count);
   const recentThreeLowGames500Count = readNumber(metrics.recentThreeLowGames500Count);
   const recentThreeWorkGames2000Count = readNumber(metrics.recentThreeWorkGames2000Count);
+  const recentFiveLowGames1000Count = readNumber(metrics.recentFiveLowGames1000Count);
   const recentSevenLowGames500Count = readNumber(metrics.recentSevenLowGames500Count);
   const recentSevenLowGames1000Count = readNumber(metrics.recentSevenLowGames1000Count);
   const recentSevenZeroGamesCount = readNumber(metrics.recentSevenZeroGamesCount);
@@ -24937,6 +25026,77 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
     }
   }
 
+  if (machineKey === "mister" && activeLogicKey === WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY) {
+    const wonderlandMinamigaokaMisterHistoryReady = historyRowCount >= 14;
+    const wonderlandMinamigaokaMisterHistoryShort = historyRowCount < 14;
+    const rawWonderlandMinamigaokaMisterDaysSinceHighContent = metrics.daysSinceMachineHighContent;
+    const hasWonderlandMinamigaokaMisterHighContentHistory =
+      rawWonderlandMinamigaokaMisterDaysSinceHighContent !== null &&
+      rawWonderlandMinamigaokaMisterDaysSinceHighContent !== undefined &&
+      String(rawWonderlandMinamigaokaMisterDaysSinceHighContent).trim() !== "" &&
+      Number.isFinite(Number(rawWonderlandMinamigaokaMisterDaysSinceHighContent));
+    const wonderlandMinamigaokaMisterDaysSinceHighContent = hasWonderlandMinamigaokaMisterHighContentHistory
+      ? Math.max(0, Number(rawWonderlandMinamigaokaMisterDaysSinceHighContent) - 1)
+      : 999;
+    const wonderlandMinamigaokaMisterPrevP4Plus = previousMachineSettingFourPlusProbability;
+    const wonderlandMinamigaokaMisterPrevP5Plus = previousMachineSettingFivePlusProbability;
+    const wonderlandMinamigaokaMisterPrevP3Minus = Number.isFinite(wonderlandMinamigaokaMisterPrevP4Plus)
+      ? 1 - wonderlandMinamigaokaMisterPrevP4Plus
+      : null;
+    const wonderlandMinamigaokaMisterDiff2Positive = recentTwoNetTotal >= 0;
+    const wonderlandMinamigaokaMisterHighContentCount3 = recentThreeMachineHighContentCount;
+    const wonderlandMinamigaokaMisterLowGCount5 = recentFiveLowGames1000Count;
+    const wonderlandMinamigaokaMisterDeep14 =
+      recentFourteenNetTotal <= -1500 && recentFourteenGamesTotal >= 18000;
+    const wonderlandMinamigaokaMisterRbWeak7 =
+      features.recentSevenRbDenominator > 450 && features.recentSevenCombinedDenominator > 165;
+    const wonderlandMinamigaokaMisterLowGamesNoPrevHigh =
+      recentSevenGamesTotal < 7000 && !previousMachineHighContent;
+    const wonderlandMinamigaokaMisterFreePrevHighLowG2 =
+      wonderlandMinamigaokaMisterHistoryReady &&
+      previousMachineHighContent &&
+      wonderlandMinamigaokaMisterLowGCount5 >= 2;
+    const boostFlags = [
+      previousMachineHighContent,
+      Number.isFinite(wonderlandMinamigaokaMisterPrevP4Plus) &&
+        wonderlandMinamigaokaMisterPrevP4Plus >= 0.5,
+      wonderlandMinamigaokaMisterHighContentCount3 >= 1,
+      wonderlandMinamigaokaMisterLowGCount5 >= 2,
+      wonderlandMinamigaokaMisterDeep14,
+      previousDifference >= 0,
+    ];
+    const dangerFlags = [
+      previousGames < 600,
+      previousDifference >= 2500 || recentThreeNetTotal >= 3500,
+      wonderlandMinamigaokaMisterDaysSinceHighContent >= 21,
+      wonderlandMinamigaokaMisterRbWeak7,
+      wonderlandMinamigaokaMisterLowGamesNoPrevHigh,
+    ];
+
+    return {
+      ...features,
+      wonderlandMinamigaokaMisterHistoryReady,
+      wonderlandMinamigaokaMisterHistoryShort,
+      wonderlandMinamigaokaMisterDaysSinceHighContent,
+      wonderlandMinamigaokaMisterPrevHighContent: previousMachineHighContent,
+      wonderlandMinamigaokaMisterPrevSemiHighContent: previousMachineGoodContent,
+      wonderlandMinamigaokaMisterPrevStrongHighContent: previousMachineStrongHighContent,
+      wonderlandMinamigaokaMisterPrevP4Plus,
+      wonderlandMinamigaokaMisterPrevP5Plus,
+      wonderlandMinamigaokaMisterPrevP3Minus,
+      wonderlandMinamigaokaMisterDiff2Positive,
+      wonderlandMinamigaokaMisterHighContentCount3,
+      wonderlandMinamigaokaMisterLowGCount5,
+      wonderlandMinamigaokaMisterDeep14,
+      wonderlandMinamigaokaMisterRbWeak7,
+      wonderlandMinamigaokaMisterLowGamesNoPrevHigh,
+      wonderlandMinamigaokaMisterFreePrevHighLowG2,
+      lowConfidence: wonderlandMinamigaokaMisterHistoryShort,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
+
   if (machineKey === "mister") {
     const misterHistoryReady = historyRowCount >= 30;
     const misterTreatmentDone =
@@ -28217,6 +28377,7 @@ function calculateMachineScore(definition, metrics, features) {
   const recentTwentyOneLowGames1500Count = readNumber(metrics.recentTwentyOneLowGames1500Count);
   const recentThreeLowGames500Count = readNumber(metrics.recentThreeLowGames500Count);
   const recentThreeWorkGames2000Count = readNumber(metrics.recentThreeWorkGames2000Count);
+  const recentFiveLowGames1000Count = readNumber(metrics.recentFiveLowGames1000Count);
   const recentSevenLowGames500Count = readNumber(metrics.recentSevenLowGames500Count);
   const recentSevenLowGames1000Count = readNumber(metrics.recentSevenLowGames1000Count);
   const recentSevenZeroGamesCount = readNumber(metrics.recentSevenZeroGamesCount);
@@ -37749,6 +37910,51 @@ function calculateMachineScore(definition, metrics, features) {
     return Math.round(clamp(score, 0, 100));
   }
 
+  if (machineKey === "mister" && activeLogicKey === WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY) {
+    if (historyRowCount < 14) {
+      return 0;
+    }
+
+    const daysSinceHighContent = Number.isFinite(features.wonderlandMinamigaokaMisterDaysSinceHighContent)
+      ? features.wonderlandMinamigaokaMisterDaysSinceHighContent
+      : 999;
+    const prevHighContent = Boolean(features.wonderlandMinamigaokaMisterPrevHighContent);
+    const prevSemiHighContent = Boolean(features.wonderlandMinamigaokaMisterPrevSemiHighContent);
+    const prevStrongHighContent = Boolean(features.wonderlandMinamigaokaMisterPrevStrongHighContent);
+    const prevP4Plus = readNullableNumber(features.wonderlandMinamigaokaMisterPrevP4Plus);
+    const highContentCount3 = readNumber(
+      features.wonderlandMinamigaokaMisterHighContentCount3,
+      recentThreeMachineHighContentCount,
+    );
+    const lowGCount5 = readNumber(features.wonderlandMinamigaokaMisterLowGCount5, recentFiveLowGames1000Count);
+    const deep14 = Boolean(features.wonderlandMinamigaokaMisterDeep14);
+    const rbWeak7 = Boolean(features.wonderlandMinamigaokaMisterRbWeak7);
+    const lowGamesNoPrevHigh = Boolean(features.wonderlandMinamigaokaMisterLowGamesNoPrevHigh);
+    let score = 40;
+
+    score += prevHighContent ? 18 : 0;
+    score += prevSemiHighContent && !prevHighContent ? 8 : 0;
+    score += prevStrongHighContent ? 6 : 0;
+    score += Number.isFinite(prevP4Plus) && prevP4Plus >= 0.5 ? 8 : 0;
+    score += Number.isFinite(prevP4Plus) && prevP4Plus >= 0.4 && prevP4Plus < 0.5 ? 4 : 0;
+    score += previousDifference >= 0 ? 6 : 0;
+    score += previousDifference >= 800 ? 4 : 0;
+    score += recentTwoNetTotal >= 0 ? 4 : 0;
+    score += highContentCount3 >= 1 ? 5 : 0;
+    score += lowGCount5 >= 2 ? 7 : 0;
+    score += deep14 ? 4 : 0;
+    score += historyLosingStreak >= 2 && recentSevenNetTotal <= -1000 ? 3 : 0;
+    score += daysSinceHighContent >= 7 && daysSinceHighContent <= 18 ? 3 : 0;
+
+    score -= previousGames < 600 ? 8 : 0;
+    score -= previousDifference >= 2500 || recentThreeNetTotal >= 3500 ? 8 : 0;
+    score -= daysSinceHighContent >= 21 ? 8 : 0;
+    score -= rbWeak7 ? 6 : 0;
+    score -= lowGamesNoPrevHigh ? 5 : 0;
+
+    return Math.round(clamp(score, 0, 100));
+  }
+
   if (machineKey === "mister") {
     let shortSinkScore = 0;
     shortSinkScore += scoreAtMost(recentThreeNetTotal, [
@@ -42062,6 +42268,12 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
     ) {
       continue;
     }
+    if (
+      row[evaluationKey]?.logicKey === WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY &&
+      !row[evaluationKey]?.features?.wonderlandMinamigaokaMisterHistoryReady
+    ) {
+      continue;
+    }
     const machineName = normalizeText(row.machineName);
     if (!rowsByMachineName.has(machineName)) {
       rowsByMachineName.set(machineName, []);
@@ -42154,6 +42366,7 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
       updatedEvaluation.logicKey === "espace-ueno-neo-aim" ||
       updatedEvaluation.logicKey === "messe-nishikasai-neo-aim" ||
       updatedEvaluation.logicKey === MESSE_OUGI_NEO_AIM_LOGIC_KEY ||
+      updatedEvaluation.logicKey === WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY ||
       updatedEvaluation.logicKey === "wonderland-minamigaoka-hokuto-tensei";
     const useDenseRank =
       updatedEvaluation.logicKey === "hinode-onojo-my" ||
