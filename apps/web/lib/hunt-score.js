@@ -296,6 +296,10 @@ const WONDERLAND_MINAMIGAOKA_TARGET_MACHINES = [
   { name: "スマスロモンキーターンV", aliases: ["スマスロ モンキーターンV", "スマスロモンキーターンⅤ"] },
   { name: "スマスロ 甲鉄城のカバネリ 海門決戦", aliases: ["スマスロ甲鉄城のカバネリ海門決戦"] },
   { name: "ジャグラーガールズSS", aliases: ["ジャグラーガールズ"] },
+  {
+    name: "ハッピージャグラーＶＩＩＩ",
+    aliases: ["ハッピージャグラーVIII", "ハッピージャグラーＶ", "ハッピージャグラーV", "ハッピージャグラー"],
+  },
   { name: "ウルトラミラクルジャグラー", aliases: [] },
   { name: "ミスタージャグラー", aliases: [] },
 ];
@@ -1929,6 +1933,18 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "ミスタージャグラー",
       "ジャグラーガールズSS",
       "ジャグラーガールズ",
+      "ハッピージャグラーＶＩＩＩ",
+      "ハッピージャグラーVIII",
+      "ハッピージャグラーＶ",
+      "ハッピージャグラーV",
+      "ハッピージャグラー",
+    ],
+    slotHistoryResetDates: [
+      {
+        machineName: "ハッピージャグラーＶＩＩＩ",
+        slotNumbers: ["1215", "1216", "1217", "1218", "1219"],
+        resetDate: "2025-11-06",
+      },
     ],
     slotHistoryStartDates: [
       {
@@ -1944,6 +1960,11 @@ const HUNT_SCORE_STORE_CONFIGS = [
       {
         machineName: "ジャグラーガールズSS",
         slotNumbers: ["1427", "1428", "1429", "1430"],
+        startDate: "2026-02-04",
+      },
+      {
+        machineName: "ハッピージャグラーＶＩＩＩ",
+        slotNumbers: ["1422", "1423", "1424", "1425", "1426"],
         startDate: "2026-02-04",
       },
     ],
@@ -1966,6 +1987,11 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "ミスタージャグラー": "wonderland-minamigaoka-mister",
       "ジャグラーガールズSS": "wonderland-minamigaoka-girls",
       "ジャグラーガールズ": "wonderland-minamigaoka-girls",
+      "ハッピージャグラーＶＩＩＩ": "wonderland-minamigaoka-happy",
+      "ハッピージャグラーVIII": "wonderland-minamigaoka-happy",
+      "ハッピージャグラーＶ": "wonderland-minamigaoka-happy",
+      "ハッピージャグラーV": "wonderland-minamigaoka-happy",
+      "ハッピージャグラー": "wonderland-minamigaoka-happy",
     },
   },
   {
@@ -3015,6 +3041,15 @@ const JUGGLER_GIRLS_BONUS_SETTING_RATES = [
   { setting: 6, bb: 1 / 226.0, rb: 1 / 252.1 },
 ];
 const JUGGLER_GIRLS_SETTING_PROBABILITY_CACHE = new WeakMap();
+const HAPPY_JUGGLER_BONUS_SETTING_RATES = [
+  { setting: 1, bb: 1 / 273.1, rb: 1 / 397.2 },
+  { setting: 2, bb: 1 / 270.8, rb: 1 / 362.1 },
+  { setting: 3, bb: 1 / 263.2, rb: 1 / 332.7 },
+  { setting: 4, bb: 1 / 254.0, rb: 1 / 300.6 },
+  { setting: 5, bb: 1 / 239.2, rb: 1 / 273.1 },
+  { setting: 6, bb: 1 / 226.0, rb: 1 / 256.0 },
+];
+const HAPPY_JUGGLER_SETTING_PROBABILITY_CACHE = new WeakMap();
 
 function calculateLogBinomialProbabilityForHuntScore(successCount, totalCount, probability) {
   if (
@@ -3387,6 +3422,73 @@ function calculateJugglerGirlsSettingProbabilities(row) {
   });
 }
 
+function calculateHappyJugglerSettingProbabilities(row) {
+  const cacheKey = row?.row && typeof row.row === "object" ? row.row : row;
+  if (cacheKey && typeof cacheKey === "object" && HAPPY_JUGGLER_SETTING_PROBABILITY_CACHE.has(cacheKey)) {
+    return HAPPY_JUGGLER_SETTING_PROBABILITY_CACHE.get(cacheKey);
+  }
+  const games = Math.round(readWindowField(row, "games"));
+  const bbCount = Math.round(readWindowField(row, "bbCount"));
+  const rbCount = Math.round(readWindowField(row, "rbCount"));
+
+  const cacheAndReturn = (value) => {
+    if (cacheKey && typeof cacheKey === "object") {
+      HAPPY_JUGGLER_SETTING_PROBABILITY_CACHE.set(cacheKey, value);
+    }
+    return value;
+  };
+
+  if (
+    !Number.isInteger(games) ||
+    !Number.isInteger(bbCount) ||
+    !Number.isInteger(rbCount) ||
+    games < 0 ||
+    bbCount < 0 ||
+    rbCount < 0 ||
+    bbCount > games ||
+    rbCount > games
+  ) {
+    return cacheAndReturn(null);
+  }
+  if (games === 0) {
+    return cacheAndReturn({
+      p56: 2 / HAPPY_JUGGLER_BONUS_SETTING_RATES.length,
+      p4lower: 4 / HAPPY_JUGGLER_BONUS_SETTING_RATES.length,
+    });
+  }
+
+  const logRows = HAPPY_JUGGLER_BONUS_SETTING_RATES.map((rate) => ({
+    setting: rate.setting,
+    logValue:
+      calculateLogBinomialProbabilityForHuntScore(bbCount, games, rate.bb) +
+      calculateLogBinomialProbabilityForHuntScore(rbCount, games, rate.rb),
+  }));
+  const maxLogValue = Math.max(...logRows.map((rowValue) => rowValue.logValue));
+  if (!Number.isFinite(maxLogValue)) {
+    return cacheAndReturn(null);
+  }
+
+  const weightedRows = logRows.map((rowValue) => ({
+    ...rowValue,
+    weight: Math.exp(rowValue.logValue - maxLogValue),
+  }));
+  const totalWeight = weightedRows.reduce((total, rowValue) => total + rowValue.weight, 0);
+  if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
+    return cacheAndReturn(null);
+  }
+
+  return cacheAndReturn({
+    p56:
+      weightedRows
+        .filter((rowValue) => rowValue.setting >= 5)
+        .reduce((total, rowValue) => total + rowValue.weight, 0) / totalWeight,
+    p4lower:
+      weightedRows
+        .filter((rowValue) => rowValue.setting <= 4)
+        .reduce((total, rowValue) => total + rowValue.weight, 0) / totalWeight,
+  });
+}
+
 function isWonderlandMinamigaokaMisterGoodContentWindowRow(row) {
   const games = readWindowField(row, "games");
   const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
@@ -3462,6 +3564,45 @@ function isWonderlandMinamigaokaGirlsStrongHighContentWindowRow(row) {
     p56 >= 0.55 &&
     rbDenominator <= 270 &&
     combinedDenominator <= 125
+  );
+}
+
+function isWonderlandMinamigaokaHappyGoodContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateHappyJugglerSettingProbabilities(row);
+  const p56 = probabilities?.p56;
+  return (
+    games >= 2500 &&
+    ((Number.isFinite(p56) && p56 >= 0.3) ||
+      (rbDenominator <= 330 && combinedDenominator <= 150))
+  );
+}
+
+function isWonderlandMinamigaokaHappyHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateHappyJugglerSettingProbabilities(row);
+  const p56 = probabilities?.p56;
+  return (
+    games >= 3000 &&
+    ((Number.isFinite(p56) && p56 >= 0.5) ||
+      (rbDenominator <= 310 && combinedDenominator <= 145))
+  );
+}
+
+function isWonderlandMinamigaokaHappyStrongHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateHappyJugglerSettingProbabilities(row);
+  const p56 = probabilities?.p56;
+  return (
+    games >= 4000 &&
+    ((Number.isFinite(p56) && p56 >= 0.7) ||
+      (rbDenominator <= 270 && combinedDenominator <= 135))
   );
 }
 
@@ -4324,6 +4465,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ハッピージャグラーV") ||
     normalizedMachineName === normalizeText("ハッピージャグラー")
   ) {
+    if (readMachineContentRule(config, machineName) === "wonderland-minamigaoka-happy") {
+      return isWonderlandMinamigaokaHappyHighContentWindowRow(row);
+    }
     if (readMachineContentRule(config, machineName) === "beam-hikari-happy-content") {
       return games >= 3000 && combinedDenominator <= 135 && rbDenominator <= 290;
     }
@@ -5081,6 +5225,9 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ハッピージャグラーV") ||
     normalizedMachineName === normalizeText("ハッピージャグラー")
   ) {
+    if (readMachineContentRule(config, machineName) === "wonderland-minamigaoka-happy") {
+      return isWonderlandMinamigaokaHappyGoodContentWindowRow(row);
+    }
     if (readMachineContentRule(config, machineName) === "beam-hikari-happy-content") {
       return games >= 3500 && combinedDenominator <= 145 && rbDenominator <= 310;
     }
@@ -5509,6 +5656,17 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     }
     if (contentRule === "mj-arena-kurume-girls") {
       return games >= 2000 && combinedDenominator <= 132 && rbDenominator <= 278;
+    }
+  }
+  if (
+    normalizedMachineName === normalizeText("ハッピージャグラーＶＩＩＩ") ||
+    normalizedMachineName === normalizeText("ハッピージャグラーVIII") ||
+    normalizedMachineName === normalizeText("ハッピージャグラーＶ") ||
+    normalizedMachineName === normalizeText("ハッピージャグラーV") ||
+    normalizedMachineName === normalizeText("ハッピージャグラー")
+  ) {
+    if (contentRule === "wonderland-minamigaoka-happy") {
+      return isWonderlandMinamigaokaHappyStrongHighContentWindowRow(row);
     }
   }
   if (
@@ -11602,11 +11760,13 @@ function calculateWindowMetrics(
   const recentFourteenRbTotal = sumWindowField(recentFourteenRows, "rbCount");
   const recentTwentyOneRbTotal = sumWindowField(recentTwentyOneRows, "rbCount");
   const recentTwentyEightRbTotal = sumWindowField(recentTwentyEightRows, "rbCount");
+  const recentFortyTwoRbTotal = sumWindowField(recentFortyTwoRows, "rbCount");
   const recentSevenBbTotal = sumWindowField(recentSevenRows, "bbCount");
   const recentFourBbTotal = sumWindowField(recentFourRows, "bbCount");
   const recentTenBbTotal = sumWindowField(recentTenRows, "bbCount");
   const recentFourteenBbTotal = sumWindowField(recentFourteenRows, "bbCount");
   const recentTwentyEightBbTotal = sumWindowField(recentTwentyEightRows, "bbCount");
+  const recentFortyTwoBbTotal = sumWindowField(recentFortyTwoRows, "bbCount");
   const historyBbTotal = sumWindowField(historyWindowRows, "bbCount");
   const historyRbTotal = sumWindowField(historyWindowRows, "rbCount");
   const recentTwoSettingAverage = calculateSettingAverageFromWindowRows(recentTwoRows);
@@ -12040,6 +12200,9 @@ function calculateWindowMetrics(
     .slice(-21)
     .filter(isHistoryMachineSettingFivePlusHigh50WindowRow).length;
   const recentTwentyEightMachineHighContentCount = recentTwentyEightRows.filter(
+    isHistoryMachineHighContentWindowRow,
+  ).length;
+  const recentFortyTwoMachineHighContentCount = recentFortyTwoRows.filter(
     isHistoryMachineHighContentWindowRow,
   ).length;
   const recentThirtyMachineHighContentCount = historyWindowRows
@@ -12673,6 +12836,7 @@ function calculateWindowMetrics(
     recentTwentyOneMachineHighContentCount,
     recentTwentyOneMachineSettingFivePlusHigh50Count,
     recentTwentyEightMachineHighContentCount,
+    recentFortyTwoMachineHighContentCount,
     recentThirtyMachineHighContentCount,
     recentThirtyFiveMachineHighContentCount,
     recentTwentyEightRbLightCount,
@@ -12753,11 +12917,13 @@ function calculateWindowMetrics(
     recentFourteenRbTotal,
     recentTwentyOneRbTotal,
     recentTwentyEightRbTotal,
+    recentFortyTwoRbTotal,
     recentSevenBbTotal,
     recentFourBbTotal,
     recentTenBbTotal,
     recentFourteenBbTotal,
     recentTwentyEightBbTotal,
+    recentFortyTwoBbTotal,
     historyBbTotal,
     historyRbTotal,
     recentTwoSettingAverage,

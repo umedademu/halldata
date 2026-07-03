@@ -141,6 +141,11 @@ const WONDERLAND_MINAMIGAOKA_GIRLS_LOGIC_NAME =
   "ワンダーランド南ヶ丘店_ジャグラーガールズSS_全日共通_重合算返しロジック";
 const WONDERLAND_MINAMIGAOKA_GIRLS_DEFAULT_CONDITION =
   "wonderland-minamigaoka-girls-red";
+const WONDERLAND_MINAMIGAOKA_HAPPY_LOGIC_KEY = "wonderland-minamigaoka-happy";
+const WONDERLAND_MINAMIGAOKA_HAPPY_LOGIC_NAME =
+  "ワンダーランド南ヶ丘店_ハッピージャグラーVIII_全日共通100点ロジック";
+const WONDERLAND_MINAMIGAOKA_HAPPY_DEFAULT_CONDITION =
+  "wonderland-minamigaoka-happy-score-blue";
 const TOYO_HALL_NEO_AIM_BACKTEST_WATCH_EXTRA_KEYS = new Set([
   "2026-02-27|301",
   "2026-02-27|302",
@@ -13968,6 +13973,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logicKey: "apark-yakatabaru-happy",
     logicName: "ハッピー屋形原式",
     logics: [
+      buildLogicVariant(
+        WONDERLAND_MINAMIGAOKA_HAPPY_LOGIC_KEY,
+        WONDERLAND_MINAMIGAOKA_HAPPY_LOGIC_NAME,
+        WONDERLAND_MINAMIGAOKA_HAPPY_DEFAULT_CONDITION,
+      ),
       buildLogicVariant("apark-yakatabaru-happy", "ハッピー屋形原式", "apark-yakatabaru-main"),
       buildLogicVariant("beam-hikari-happy", "ハッピービームヒカリ式", "beam-hikari-main"),
       buildLogicVariant("beam-hikari-happy-normal", "ハッピービームヒカリ通常日式", "beam-hikari-normal-main"),
@@ -13976,6 +13986,73 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     profile: "juggler",
     defaultConditionSuffix: "apark-yakatabaru-main",
     conditions: [
+      buildCondition(
+        WONDERLAND_MINAMIGAOKA_HAPPY_DEFAULT_CONDITION,
+        "HJ_スコア単独_青",
+        "43日 / 43台 / 140946G / BB589 / RB462 / BB1/239.3 / RB1/305.1 / 合算1/134.1 / 平均+585.3枚 / 105.95% / 勝率48.8% / 平均p56 34.8%",
+        {
+          rankMax: 1,
+          minNextGap: 20,
+          requiredFlags: ["wonderlandMinamigaokaHappyHistoryReady"],
+        },
+        [WONDERLAND_MINAMIGAOKA_HAPPY_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-happy-repay-yellow",
+        "HJ_返済本命_黄",
+        "32日 / 33台 / 89094G / BB370 / RB298 / BB1/240.8 / RB1/299.0 / 合算1/133.4 / 平均+432.4枚 / 105.34% / 勝率39.4% / 平均p56 35.2%",
+        {
+          requiredFlags: ["wonderlandMinamigaokaHappyRepayYellow"],
+        },
+        [WONDERLAND_MINAMIGAOKA_HAPPY_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-happy-rb-dry-green",
+        "HJ_REG枯れ_緑",
+        "24日 / 25台 / 73444G / BB300 / RB247 / BB1/244.8 / RB1/297.3 / 合算1/134.3 / 平均+453.1枚 / 105.14% / 勝率52.0% / 平均p56 35.8%",
+        {
+          requiredFlags: ["wonderlandMinamigaokaHappyRbDryGreen"],
+        },
+        [WONDERLAND_MINAMIGAOKA_HAPPY_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-happy-rb-dry-red",
+        "HJ_REG枯れ強_赤",
+        "25日 / 26台 / 69719G / BB271 / RB242 / BB1/257.3 / RB1/288.1 / 合算1/135.9 / 平均+196.8枚 / 102.45% / 勝率34.6% / 平均p56 35.3%",
+        {
+          requiredFlags: ["wonderlandMinamigaokaHappyRbDryRed"],
+        },
+        [WONDERLAND_MINAMIGAOKA_HAPPY_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-happy-free-deep-repay",
+        "自由MAX_深沈み返済未完",
+        "22日 / 27台 / 74816G / BB326 / RB246 / BB1/229.5 / RB1/304.1 / 合算1/130.8 / 平均+544.2枚 / 106.55% / 勝率44.4% / 平均p56 36.4%",
+        {
+          requiredFlags: ["wonderlandMinamigaokaHappyFreeDeepRepay"],
+        },
+        [WONDERLAND_MINAMIGAOKA_HAPPY_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-happy-purple-reference",
+        "HJ_3日REG枯れ極端_紫参考",
+        "13日 / 13台 / 31569G / BB129 / RB126 / BB1/244.7 / RB1/250.5 / 合算1/123.8 / 平均+458.0枚 / 106.29% / 勝率38.5% / 平均p56 42.9% / 参考表示",
+        {
+          requiredFlags: ["wonderlandMinamigaokaHappyPurpleReference"],
+        },
+        [WONDERLAND_MINAMIGAOKA_HAPPY_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-happy-watch-rank1-danger2",
+        "見送り_1位危険2個以上",
+        "3日 / 3台 / 6120G / BB18 / RB8 / BB1/340.0 / RB1/765.0 / 合算1/235.4 / 平均-598.7枚 / 90.22% / 勝率0.0% / 平均p56 13.4% / 見送り",
+        {
+          rankMax: 1,
+          minDanger: 2,
+          requiredFlags: ["wonderlandMinamigaokaHappyHistoryReady"],
+        },
+        [WONDERLAND_MINAMIGAOKA_HAPPY_LOGIC_KEY],
+      ),
       buildCondition(
         "beam-hikari-main",
         "1位＋60点以上＋強化1個以上＋危険0",
@@ -15706,6 +15783,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY);
   } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "girls") {
     defaultLogic = findLogicDefinition(definition, WONDERLAND_MINAMIGAOKA_GIRLS_LOGIC_KEY);
+  } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "happy") {
+    defaultLogic = findLogicDefinition(definition, WONDERLAND_MINAMIGAOKA_HAPPY_LOGIC_KEY);
   } else if (isWonderlandSueStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "wonderland-sue-neo-aim");
   } else if (isSengawaUnoStore(storeName) && definition.machineKey === "neo-aim") {
@@ -27991,6 +28070,105 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
     };
   }
 
+  if (machineKey === "happy" && activeLogicKey === WONDERLAND_MINAMIGAOKA_HAPPY_LOGIC_KEY) {
+    const nextBusinessDate = normalizeText(row?.nextBusinessDate);
+    const slotNumber = Number(row?.slotNumber ?? row?.currentRecord?.slot_number ?? row?.slot_number);
+    const crossesHistoryResetBoundary =
+      (nextBusinessDate === "2025-11-06" && slotNumber >= 1215 && slotNumber <= 1219) ||
+      (nextBusinessDate === "2026-02-04" && slotNumber >= 1422 && slotNumber <= 1426);
+    const wonderlandMinamigaokaHappyHistoryReady =
+      historyRowCount >= 21 && !crossesHistoryResetBoundary;
+    const daysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+      ? daysSinceMachineHighContent
+      : 999;
+    const recentTwentyEightBbTotal = readNumber(metrics.recentTwentyEightBbTotal);
+    const recentTwentyEightRbTotal = readNumber(metrics.recentTwentyEightRbTotal);
+    const recentFortyTwoGamesTotal = readNumber(metrics.recentFortyTwoGamesTotal);
+    const recentFortyTwoBbTotal = readNumber(metrics.recentFortyTwoBbTotal);
+    const recentFortyTwoRbTotal = readNumber(metrics.recentFortyTwoRbTotal);
+    const recentFortyTwoMachineHighContentCount = readNumber(
+      metrics.recentFortyTwoMachineHighContentCount,
+    );
+    const combined28 = rateDenominator(
+      recentTwentyEightGamesTotal,
+      recentTwentyEightBbTotal + recentTwentyEightRbTotal,
+    );
+    const combined42 = rateDenominator(
+      recentFortyTwoGamesTotal,
+      recentFortyTwoBbTotal + recentFortyTwoRbTotal,
+    );
+    const rbRate42 = rateDenominator(recentFortyTwoGamesTotal, recentFortyTwoRbTotal);
+    const angle14 = features.recentFourteenAngle;
+    const prevCombined = features.previousCombinedDenominator;
+    const prevHighContent = previousMachineHighContent;
+    const wonderlandMinamigaokaHappyRepayYellow =
+      wonderlandMinamigaokaHappyHistoryReady &&
+      angle14 <= -100 &&
+      combined28 >= 160 &&
+      daysSinceHigh >= 4 &&
+      daysSinceHigh <= 14 &&
+      previousDifference <= 0;
+    const wonderlandMinamigaokaHappyRbDryGreen =
+      wonderlandMinamigaokaHappyHistoryReady &&
+      recentTwentyOneNetTotal <= -2000 &&
+      features.recentFiveRbDenominator >= 400 &&
+      rbRate42 >= 400;
+    const wonderlandMinamigaokaHappyRbDryRed =
+      wonderlandMinamigaokaHappyHistoryReady &&
+      features.recentFiveCombinedDenominator >= 160 &&
+      features.recentSevenRbDenominator >= 500 &&
+      combined42 >= 160;
+    const wonderlandMinamigaokaHappyFreeDeepRepay =
+      wonderlandMinamigaokaHappyHistoryReady &&
+      recentTwentyEightNetTotal <= -4000 &&
+      daysSinceHigh >= 4 &&
+      daysSinceHigh <= 14 &&
+      recentFortyTwoMachineHighContentCount <= 2;
+    const wonderlandMinamigaokaHappyPurpleReference =
+      wonderlandMinamigaokaHappyHistoryReady &&
+      features.recentThreeRbDenominator >= 600 &&
+      angle14 <= -100 &&
+      combined42 >= 160;
+    const boostFlags = [
+      angle14 <= -100,
+      recentTwentyEightNetTotal <= -4000,
+      combined28 >= 160,
+      features.recentSevenRbDenominator >= 500,
+      rbRate42 >= 400,
+      daysSinceHigh >= 4 && daysSinceHigh <= 14,
+      recentTwentyEightMachineHighContentCount <= 1,
+    ];
+    const dangerFlags = [
+      recentSevenNetTotal >= 1500,
+      features.recentSevenCombinedDenominator <= 145,
+      recentFourteenMachineHighContentCount >= 3,
+      previousDifference >= 1500 && prevCombined <= 145,
+      daysSinceHigh <= 3 && prevHighContent,
+      recentSevenGamesTotal < 5000,
+    ];
+
+    return {
+      ...features,
+      wonderlandMinamigaokaHappyHistoryReady,
+      wonderlandMinamigaokaHappyDaysSinceHigh: daysSinceHigh,
+      wonderlandMinamigaokaHappyCombined28: combined28,
+      wonderlandMinamigaokaHappyCombined42: combined42,
+      wonderlandMinamigaokaHappyRbRate42: rbRate42,
+      wonderlandMinamigaokaHappyHighContentCount42: recentFortyTwoMachineHighContentCount,
+      wonderlandMinamigaokaHappyCrossesHistoryResetBoundary: crossesHistoryResetBoundary,
+      wonderlandMinamigaokaHappyRepayYellow,
+      wonderlandMinamigaokaHappyRbDryGreen,
+      wonderlandMinamigaokaHappyRbDryRed,
+      wonderlandMinamigaokaHappyFreeDeepRepay,
+      wonderlandMinamigaokaHappyPurpleReference,
+      wonderlandMinamigaokaHappyPrevHighContent: prevHighContent,
+      treatmentDone: dangerFlags.some(Boolean),
+      lowConfidence: !wonderlandMinamigaokaHappyHistoryReady || recentSevenGamesTotal < 5000,
+      boostCount: boostFlags.filter(Boolean).length,
+      dangerCount: dangerFlags.filter(Boolean).length,
+    };
+  }
+
   if (
     machineKey === "happy" &&
     (activeLogicKey === "beam-hikari-happy" ||
@@ -40011,6 +40189,60 @@ function calculateMachineScore(definition, metrics, features) {
     return Math.round(clamp(restoredScore - 2, 0, 100));
   }
 
+  if (machineKey === "happy" && activeLogicKey === WONDERLAND_MINAMIGAOKA_HAPPY_LOGIC_KEY) {
+    if (!features.wonderlandMinamigaokaHappyHistoryReady) {
+      return 0;
+    }
+
+    const daysSinceHigh = features.wonderlandMinamigaokaHappyDaysSinceHigh;
+    const combined28 = features.wonderlandMinamigaokaHappyCombined28;
+    const combined42 = features.wonderlandMinamigaokaHappyCombined42;
+    const rbRate42 = features.wonderlandMinamigaokaHappyRbRate42;
+    let score = 40;
+
+    score +=
+      features.recentFourteenAngle <= -100 ? 16 :
+      features.recentFourteenAngle <= -60 ? 10 :
+      features.recentFourteenAngle <= -30 ? 5 :
+      0;
+    score +=
+      recentTwentyEightNetTotal <= -4000 ? 10 :
+      recentTwentyEightNetTotal <= -2500 ? 7 :
+      recentTwentyEightNetTotal <= -1000 ? 4 :
+      0;
+    score +=
+      combined28 >= 160 ? 10 :
+      features.recentFourteenCombinedDenominator >= 163 ? 7 :
+      features.recentFourteenCombinedDenominator >= 158 ? 4 :
+      0;
+    score +=
+      features.recentSevenRbDenominator >= 500 ? 8 :
+      features.recentSevenRbDenominator >= 400 ? 5 :
+      0;
+    score += rbRate42 >= 400 ? 6 : 0;
+    score +=
+      daysSinceHigh >= 4 && daysSinceHigh <= 14 ? 9 :
+      daysSinceHigh >= 15 && daysSinceHigh <= 28 ? 5 :
+      daysSinceHigh >= 29 && daysSinceHigh <= 60 ? 3 :
+      0;
+    score +=
+      recentTwentyEightMachineHighContentCount <= 1 ? 5 :
+      recentTwentyEightMachineHighContentCount <= 2 ? 2 :
+      0;
+    score += recentFourteenGamesTotal >= 15000 ? 4 : recentSevenGamesTotal >= 7000 ? 2 : 0;
+    score -= recentSevenNetTotal >= 1500 ? 12 : recentSevenNetTotal >= 500 ? 6 : 0;
+    score -=
+      features.recentSevenCombinedDenominator <= 145 ? 10 :
+      features.recentSevenCombinedDenominator <= 150 ? 5 :
+      0;
+    score -= recentFourteenMachineHighContentCount >= 3 ? 8 : 0;
+    score -= previousDifference >= 1500 && previousCombinedDenominator <= 145 ? 8 : 0;
+    score -= daysSinceHigh <= 3 && previousMachineHighContent ? 5 : 0;
+    score -= recentSevenGamesTotal < 5000 ? 4 : 0;
+
+    return Math.round(clamp(score, 0, 100));
+  }
+
   if (machineKey === "happy" && activeLogicKey === "beam-hikari-happy") {
     if (targetRangeHistoryRowCount < 21) {
       return 0;
@@ -42554,6 +42786,12 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
     ) {
       continue;
     }
+    if (
+      row[evaluationKey]?.logicKey === WONDERLAND_MINAMIGAOKA_HAPPY_LOGIC_KEY &&
+      !row[evaluationKey]?.features?.wonderlandMinamigaokaHappyHistoryReady
+    ) {
+      continue;
+    }
     const machineName = normalizeText(row.machineName);
     if (!rowsByMachineName.has(machineName)) {
       rowsByMachineName.set(machineName, []);
@@ -42648,6 +42886,7 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
       updatedEvaluation.logicKey === MESSE_OUGI_NEO_AIM_LOGIC_KEY ||
       updatedEvaluation.logicKey === WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY ||
       updatedEvaluation.logicKey === WONDERLAND_MINAMIGAOKA_GIRLS_LOGIC_KEY ||
+      updatedEvaluation.logicKey === WONDERLAND_MINAMIGAOKA_HAPPY_LOGIC_KEY ||
       updatedEvaluation.logicKey === "wonderland-minamigaoka-hokuto-tensei";
     const useDenseRank =
       updatedEvaluation.logicKey === "hinode-onojo-my" ||
