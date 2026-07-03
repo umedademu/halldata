@@ -4852,6 +4852,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logicName: "北斗転生春日式",
     logics: [
       buildLogicVariant("apark-hokuto-tensei", "北斗転生春日式", "main"),
+      buildLogicVariant(
+        "wonderland-minamigaoka-hokuto-tensei",
+        "ワンダーランド南ヶ丘店_スマスロ北斗転生2_全日共通100点ロジック",
+        "wonderland-minamigaoka-hokuto-main75-b4",
+      ),
       buildLogicVariant("beam-hikari-hokuto-tensei", "北斗転生ビームヒカリ全日式", "beam-hikari-main"),
       buildLogicVariant("beam-hikari-hokuto-tensei-normal", "北斗転生ビームヒカリ通常日式", "beam-hikari-normal-main"),
       buildLogicVariant("beam-hikari-hokuto-tensei-event", "北斗転生ビームヒカリイベント日式", "beam-hikari-event-main"),
@@ -4901,6 +4906,76 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["hokutoHistoryReady"],
         },
         ["apark-hokuto-tensei"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-hokuto-watch-boost-short",
+        "高スコア強化不足見送り",
+        "見送り / 対象42日 / 選択46台 / 総G195,862 / BB0 / RB418 / RB1/468.6 / 合算1/468.6 / 平均-567.4枚 / 機械割95.56% / 勝率30.4%",
+        {
+          minScore: 75,
+          maxBoost: 3,
+          requiredFlags: ["wonderlandMinamigaokaHokutoHistoryReady"],
+        },
+        ["wonderland-minamigaoka-hokuto-tensei"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-hokuto-best-rank1-80-b4",
+        "最本命R1+80+B4",
+        "通常採用 / 対象69日 / 選択69台 / 総G292,782 / BB0 / RB596 / RB1/491.2 / 合算1/491.2 / 平均+825.2枚 / 機械割106.48% / 勝率44.9%",
+        {
+          rankMax: 1,
+          minScore: 80,
+          minBoost: 4,
+          requiredFlags: ["wonderlandMinamigaokaHokutoHistoryReady"],
+        },
+        ["wonderland-minamigaoka-hokuto-tensei"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-hokuto-strong80-b4",
+        "強80+B4",
+        "通常採用 / 対象69日 / 選択112台 / 総G446,008 / BB0 / RB952 / RB1/468.5 / 合算1/468.5 / 平均+610.8枚 / 機械割105.11% / 勝率43.8%",
+        {
+          minScore: 80,
+          minBoost: 4,
+          requiredFlags: ["wonderlandMinamigaokaHokutoHistoryReady"],
+        },
+        ["wonderland-minamigaoka-hokuto-tensei"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-hokuto-main75-b4",
+        "本命75+B4",
+        "通常採用 / 対象79日 / 選択137台 / 総G558,169 / BB0 / RB1,190 / RB1/469.0 / 合算1/469.0 / 平均+581.6枚 / 機械割104.76% / 勝率43.1%",
+        {
+          minScore: 75,
+          minBoost: 4,
+          requiredFlags: ["wonderlandMinamigaokaHokutoHistoryReady"],
+        },
+        ["wonderland-minamigaoka-hokuto-tensei"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-hokuto-wide70-b4",
+        "広め70+B4",
+        "通常採用 / 対象87日 / 選択160台 / 総G682,386 / BB0 / RB1,448 / RB1/471.3 / 合算1/471.3 / 平均+507.0枚 / 機械割103.96% / 勝率43.1%",
+        {
+          minScore: 70,
+          minBoost: 4,
+          requiredFlags: ["wonderlandMinamigaokaHokutoHistoryReady"],
+        },
+        ["wonderland-minamigaoka-hokuto-tensei"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-hokuto-reference-deep-sink",
+        "自由MAX深沈み",
+        "参考表示 / 対象22日 / 選択28台 / 総G87,180 / BB0 / RB177 / RB1/492.5 / 合算1/492.5 / 平均+1,215.4枚 / 機械割113.01% / 勝率46.4%",
+        {
+          minScore: 80,
+          requiredFlags: [
+            "wonderlandMinamigaokaHokutoHistoryReady",
+            "wonderlandMinamigaokaHokutoG7Le25918",
+            "wonderlandMinamigaokaHokutoDiff7Deep6182",
+          ],
+        },
+        ["wonderland-minamigaoka-hokuto-tensei"],
       ),
       buildCondition(
         "beam-hikari-main",
@@ -15236,6 +15311,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-neo-aim");
   } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "my") {
     defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-my");
+  } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "hokuto-tensei") {
+    defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-hokuto-tensei");
   } else if (isWonderlandSueStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "wonderland-sue-neo-aim");
   } else if (isSengawaUnoStore(storeName) && definition.machineKey === "neo-aim") {
@@ -24913,6 +24990,106 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   }
 
   if (machineKey === "hokuto-tensei") {
+    if (activeLogicKey === "wonderland-minamigaoka-hokuto-tensei") {
+      const wonderlandMinamigaokaHokutoHistoryReady = historyRowCount >= 21;
+      const wonderlandMinamigaokaHokutoHistoryShort = historyRowCount < 21;
+      const wonderlandMinamigaokaHokutoDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+        ? daysSinceMachineHighContent
+        : 999;
+      const wonderlandMinamigaokaHokutoLossStreak = historyLosingStreak;
+      const wonderlandMinamigaokaHokutoNearHighCount7 = adjacentMachineHighContentCount7Near1;
+      const wonderlandMinamigaokaHokutoNearDiff14 = adjacentMachineNetTotal14Near2;
+      const wonderlandMinamigaokaHokutoG7Low = recentSevenGamesTotal <= 19380;
+      const wonderlandMinamigaokaHokutoG7MidLow =
+        recentSevenGamesTotal > 19380 && recentSevenGamesTotal <= 25918;
+      const wonderlandMinamigaokaHokutoG14Low = recentFourteenGamesTotal <= 47922;
+      const wonderlandMinamigaokaHokutoG14HighButOk = recentFourteenGamesTotal >= 76259;
+      const wonderlandMinamigaokaHokutoDeep3 = recentThreeNetTotal <= -5495;
+      const wonderlandMinamigaokaHokutoDeep7 =
+        recentThreeNetTotal > -5495 && recentSevenNetTotal <= -6182;
+      const wonderlandMinamigaokaHokutoMild7 =
+        recentThreeNetTotal > -5495 && recentSevenNetTotal > -6182 && recentSevenNetTotal <= -4350;
+      const wonderlandMinamigaokaHokutoDeep21 = recentTwentyOneNetTotal <= -11573;
+      const wonderlandMinamigaokaHokutoLoss4 = historyLosingStreak >= 4;
+      const wonderlandMinamigaokaHokutoLoss2 = historyLosingStreak >= 2 && historyLosingStreak < 4;
+      const wonderlandMinamigaokaHokutoRotGap =
+        wonderlandMinamigaokaHokutoDaysSinceHigh >= 6 && wonderlandMinamigaokaHokutoDaysSinceHigh <= 28;
+      const wonderlandMinamigaokaHokutoNearUntreated = adjacentMachineHighContentCount7Near1 <= 1;
+      const wonderlandMinamigaokaHokutoNearDeep14 = adjacentMachineNetTotal14Near2 <= -17093;
+      const wonderlandMinamigaokaHokutoG7High = recentSevenGamesTotal >= 35628;
+      const wonderlandMinamigaokaHokutoLongNoHigh = wonderlandMinamigaokaHokutoDaysSinceHigh >= 29;
+      const wonderlandMinamigaokaHokutoTooSoonHigh = wonderlandMinamigaokaHokutoDaysSinceHigh <= 2;
+      const wonderlandMinamigaokaHokutoPrevBig = previousDifference >= 3000;
+      const wonderlandMinamigaokaHokutoDone3 = recentThreeNetTotal >= 3925;
+      const wonderlandMinamigaokaHokutoDone14 = recentFourteenNetTotal >= 14680;
+      const wonderlandMinamigaokaHokutoTooLowG7 = recentSevenGamesTotal < 5000;
+      const boostFlags = [
+        wonderlandMinamigaokaHokutoG7Low,
+        wonderlandMinamigaokaHokutoG7MidLow,
+        wonderlandMinamigaokaHokutoG14Low,
+        wonderlandMinamigaokaHokutoG14HighButOk,
+        wonderlandMinamigaokaHokutoDeep3,
+        wonderlandMinamigaokaHokutoDeep7,
+        wonderlandMinamigaokaHokutoMild7,
+        wonderlandMinamigaokaHokutoDeep21,
+        wonderlandMinamigaokaHokutoLoss4,
+        wonderlandMinamigaokaHokutoLoss2,
+        wonderlandMinamigaokaHokutoRotGap,
+        wonderlandMinamigaokaHokutoNearUntreated,
+        wonderlandMinamigaokaHokutoNearDeep14,
+      ];
+      const dangerFlags = [
+        wonderlandMinamigaokaHokutoG7High,
+        wonderlandMinamigaokaHokutoLongNoHigh,
+        wonderlandMinamigaokaHokutoTooSoonHigh,
+        wonderlandMinamigaokaHokutoPrevBig,
+        wonderlandMinamigaokaHokutoDone3,
+        wonderlandMinamigaokaHokutoDone14,
+        wonderlandMinamigaokaHokutoTooLowG7,
+        wonderlandMinamigaokaHokutoHistoryShort,
+      ];
+
+      return {
+        ...features,
+        wonderlandMinamigaokaHokutoHistoryReady,
+        wonderlandMinamigaokaHokutoHistoryShort,
+        wonderlandMinamigaokaHokutoDaysSinceHigh,
+        wonderlandMinamigaokaHokutoLossStreak,
+        wonderlandMinamigaokaHokutoNearHighCount7,
+        wonderlandMinamigaokaHokutoNearDiff14,
+        wonderlandMinamigaokaHokutoG7Low,
+        wonderlandMinamigaokaHokutoG7MidLow,
+        wonderlandMinamigaokaHokutoG7Le25918: recentSevenGamesTotal <= 25918,
+        wonderlandMinamigaokaHokutoG14Low,
+        wonderlandMinamigaokaHokutoG14HighButOk,
+        wonderlandMinamigaokaHokutoDeep3,
+        wonderlandMinamigaokaHokutoDeep7,
+        wonderlandMinamigaokaHokutoMild7,
+        wonderlandMinamigaokaHokutoDiff7Deep6182: recentSevenNetTotal <= -6182,
+        wonderlandMinamigaokaHokutoDeep21,
+        wonderlandMinamigaokaHokutoLoss4,
+        wonderlandMinamigaokaHokutoLoss2,
+        wonderlandMinamigaokaHokutoRotGap,
+        wonderlandMinamigaokaHokutoNearUntreated,
+        wonderlandMinamigaokaHokutoNearDeep14,
+        wonderlandMinamigaokaHokutoG7High,
+        wonderlandMinamigaokaHokutoLongNoHigh,
+        wonderlandMinamigaokaHokutoTooSoonHigh,
+        wonderlandMinamigaokaHokutoPrevBig,
+        wonderlandMinamigaokaHokutoDone3,
+        wonderlandMinamigaokaHokutoDone14,
+        wonderlandMinamigaokaHokutoTooLowG7,
+        treatmentDone:
+          wonderlandMinamigaokaHokutoPrevBig ||
+          wonderlandMinamigaokaHokutoDone3 ||
+          wonderlandMinamigaokaHokutoDone14 ||
+          wonderlandMinamigaokaHokutoTooSoonHigh,
+        lowConfidence: wonderlandMinamigaokaHokutoHistoryShort || wonderlandMinamigaokaHokutoTooLowG7,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "beam-hikari-hokuto-tensei") {
       const beamHikariHokutoHistoryReady = targetRangeHistoryRowCount >= 21;
       const sevenSinkStayProxy =
@@ -39159,6 +39336,89 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "hokuto-tensei") {
+    if (activeLogicKey === "wonderland-minamigaoka-hokuto-tensei") {
+      const daysSinceHigh = Number.isFinite(features.wonderlandMinamigaokaHokutoDaysSinceHigh)
+        ? features.wonderlandMinamigaokaHokutoDaysSinceHigh
+        : Number.isFinite(daysSinceMachineHighContent)
+          ? daysSinceMachineHighContent
+          : 999;
+      const nearHighCount7 = Number.isFinite(features.wonderlandMinamigaokaHokutoNearHighCount7)
+        ? features.wonderlandMinamigaokaHokutoNearHighCount7
+        : adjacentMachineHighContentCount7Near1;
+      const nearDiff14 = Number.isFinite(features.wonderlandMinamigaokaHokutoNearDiff14)
+        ? features.wonderlandMinamigaokaHokutoNearDiff14
+        : adjacentMachineNetTotal14Near2;
+      let score = 40;
+
+      if (historyRowCount >= 21) {
+        score += 5;
+      }
+
+      if (recentSevenGamesTotal <= 19380) {
+        score += 18;
+      } else if (recentSevenGamesTotal <= 25918) {
+        score += 10;
+      } else if (recentSevenGamesTotal >= 35628) {
+        score -= 8;
+      }
+
+      if (recentFourteenGamesTotal <= 47922) {
+        score += 12;
+      } else if (recentFourteenGamesTotal >= 76259) {
+        score += 5;
+      }
+
+      if (recentThreeNetTotal <= -5495) {
+        score += 16;
+      } else if (recentSevenNetTotal <= -6182) {
+        score += 12;
+      } else if (recentSevenNetTotal <= -4350) {
+        score += 8;
+      }
+
+      if (recentTwentyOneNetTotal <= -11573) {
+        score += 8;
+      }
+
+      if (historyLosingStreak >= 4) {
+        score += 14;
+      } else if (historyLosingStreak >= 2) {
+        score += 6;
+      }
+
+      if (daysSinceHigh >= 6 && daysSinceHigh <= 28) {
+        score += 8;
+      }
+      if (daysSinceHigh >= 29) {
+        score -= 4;
+      }
+      if (daysSinceHigh <= 2) {
+        score -= 8;
+      }
+
+      if (nearHighCount7 <= 1) {
+        score += 7;
+      }
+      if (nearDiff14 <= -17093) {
+        score += 8;
+      }
+
+      if (previousDifference >= 3000) {
+        score -= 18;
+      }
+      if (recentThreeNetTotal >= 3925) {
+        score -= 12;
+      }
+      if (recentFourteenNetTotal >= 14680) {
+        score -= 8;
+      }
+      if (recentSevenGamesTotal < 5000) {
+        score -= 10;
+      }
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (activeLogicKey === "beam-hikari-hokuto-tensei") {
       if (targetRangeHistoryRowCount < 21) {
         return 0;
@@ -41102,7 +41362,8 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
       updatedEvaluation.logicKey === PARK_TAKENOTSUKA_STUDIO_NEO_AIM_LOGIC_KEY ||
       updatedEvaluation.logicKey === "espace-ueno-neo-aim" ||
       updatedEvaluation.logicKey === "messe-nishikasai-neo-aim" ||
-      updatedEvaluation.logicKey === MESSE_OUGI_NEO_AIM_LOGIC_KEY;
+      updatedEvaluation.logicKey === MESSE_OUGI_NEO_AIM_LOGIC_KEY ||
+      updatedEvaluation.logicKey === "wonderland-minamigaoka-hokuto-tensei";
     const useDenseRank =
       updatedEvaluation.logicKey === "hinode-onojo-my" ||
       updatedEvaluation.logicKey === JUMBO_NEO_AIM_LOGIC_KEY;

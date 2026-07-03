@@ -289,6 +289,10 @@ const SLOT_MARUMITSU_OHASHI_TARGET_MACHINES = [
 const WONDERLAND_MINAMIGAOKA_TARGET_MACHINES = [
   { name: "ネオアイムジャグラーEX", aliases: ["ネオアイムジャグラーＥＸ"] },
   { name: "マイジャグラーV", aliases: ["マイジャグラーⅤ", "マイジャグラー"] },
+  {
+    name: "スマスロ北斗の拳 転生の章",
+    aliases: ["スマスロ北斗の拳 転生の章2", "スマスロ北斗の拳転生の章", "スマスロ北斗の拳転生の章2"],
+  },
 ];
 
 const WONDERLAND_SUE_TARGET_MACHINES = [
@@ -1904,13 +1908,24 @@ const HUNT_SCORE_STORE_CONFIGS = [
     targetMachines: WONDERLAND_MINAMIGAOKA_TARGET_MACHINES,
     defaultLogicKey: "wonderland-minamigaoka-b",
     resetHistoryGapDays: 14,
-    resetHistoryGapExcludedMachines: ["ネオアイムジャグラーEX", "ネオアイムジャグラーＥＸ"],
+    resetHistoryGapExcludedMachines: [
+      "ネオアイムジャグラーEX",
+      "ネオアイムジャグラーＥＸ",
+      "スマスロ北斗の拳 転生の章",
+      "スマスロ北斗の拳 転生の章2",
+      "スマスロ北斗の拳転生の章",
+      "スマスロ北斗の拳転生の章2",
+    ],
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "wonderland-minamigaoka-neo-aim",
       "ネオアイムジャグラーＥＸ": "wonderland-minamigaoka-neo-aim",
       "マイジャグラーV": "wonderland-minamigaoka-my",
       "マイジャグラーⅤ": "wonderland-minamigaoka-my",
       "マイジャグラー": "wonderland-minamigaoka-my",
+      "スマスロ北斗の拳 転生の章": "wonderland-minamigaoka-hokuto-tensei",
+      "スマスロ北斗の拳 転生の章2": "wonderland-minamigaoka-hokuto-tensei",
+      "スマスロ北斗の拳転生の章": "wonderland-minamigaoka-hokuto-tensei",
+      "スマスロ北斗の拳転生の章2": "wonderland-minamigaoka-hokuto-tensei",
     },
   },
   {
@@ -4044,6 +4059,9 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("スマスロ北斗の拳転生の章") ||
     normalizedMachineName === normalizeText("スマスロ北斗の拳転生の章2")
   ) {
+    if (contentRule === "wonderland-minamigaoka-hokuto-tensei") {
+      return games >= 3000 && (differenceValue >= 1500 || rbDenominator <= 360);
+    }
     return (
       games >= 5000 &&
       ((combinedDenominator <= 425 && differenceValue >= -1500) ||
@@ -4099,9 +4117,20 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
   const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
   const rbDenominator = calculateRbDenominatorFromWindowRow(row);
   const differenceValue = readNumber(row?.differenceValue) ?? 0;
+  const contentRule = readMachineContentRule(config, machineName);
+
+  if (
+    normalizedMachineName === normalizeText("スマスロ北斗の拳 転生の章") ||
+    normalizedMachineName === normalizeText("スマスロ北斗の拳 転生の章2") ||
+    normalizedMachineName === normalizeText("スマスロ北斗の拳転生の章") ||
+    normalizedMachineName === normalizeText("スマスロ北斗の拳転生の章2")
+  ) {
+    if (contentRule === "wonderland-minamigaoka-hokuto-tensei") {
+      return games >= 2500 && (differenceValue >= 800 || rbDenominator <= 430);
+    }
+  }
 
   if (normalizedMachineName === normalizeText("ネオアイムジャグラーEX")) {
-    const contentRule = readMachineContentRule(config, machineName);
     if (contentRule === "million-tobu-nerima-neo-aim") {
       const settingFivePlusProbability = calculateNeoAimSettingFivePlusProbability(row);
       if (Number.isFinite(settingFivePlusProbability)) {
@@ -5016,6 +5045,7 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
   const rbDenominator = calculateRbDenominatorFromWindowRow(row);
   const differenceValue = readNumber(row?.differenceValue) ?? 0;
+  const contentRule = readMachineContentRule(config, machineName);
 
   if (normalizedMachineName === normalizeText("スマスロモンキーターンV")) {
     return games >= 4851 && combinedDenominator <= 422 && differenceValue >= -468;
@@ -5031,11 +5061,21 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ジャグラーガールズSS") ||
     normalizedMachineName === normalizeText("ジャグラーガールズ")
   ) {
-    if (readMachineContentRule(config, machineName) === "beam-hikari-girls-content") {
+    if (contentRule === "beam-hikari-girls-content") {
       return games >= 3000 && combinedDenominator <= 145 && rbDenominator <= 320;
     }
-    if (readMachineContentRule(config, machineName) === "mj-arena-kurume-girls") {
+    if (contentRule === "mj-arena-kurume-girls") {
       return games >= 2000 && combinedDenominator <= 132 && rbDenominator <= 278;
+    }
+  }
+  if (
+    normalizedMachineName === normalizeText("スマスロ北斗の拳 転生の章") ||
+    normalizedMachineName === normalizeText("スマスロ北斗の拳 転生の章2") ||
+    normalizedMachineName === normalizeText("スマスロ北斗の拳転生の章") ||
+    normalizedMachineName === normalizeText("スマスロ北斗の拳転生の章2")
+  ) {
+    if (contentRule === "wonderland-minamigaoka-hokuto-tensei") {
+      return games >= 4000 && (differenceValue >= 3000 || rbDenominator <= 320);
     }
   }
   if (
