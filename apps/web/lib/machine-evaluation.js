@@ -136,6 +136,11 @@ const WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY = "wonderland-minamigaoka-mister";
 const WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_NAME = "WL南ヶ丘_ミスタージャグラー_全日共通_v1";
 const WONDERLAND_MINAMIGAOKA_MISTER_DEFAULT_CONDITION =
   "wonderland-minamigaoka-mister-best-score70";
+const WONDERLAND_MINAMIGAOKA_GIRLS_LOGIC_KEY = "wonderland-minamigaoka-girls";
+const WONDERLAND_MINAMIGAOKA_GIRLS_LOGIC_NAME =
+  "ワンダーランド南ヶ丘店_ジャグラーガールズSS_全日共通_重合算返しロジック";
+const WONDERLAND_MINAMIGAOKA_GIRLS_DEFAULT_CONDITION =
+  "wonderland-minamigaoka-girls-red";
 const TOYO_HALL_NEO_AIM_BACKTEST_WATCH_EXTRA_KEYS = new Set([
   "2026-02-27|301",
   "2026-02-27|302",
@@ -4092,6 +4097,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       buildLogicVariant("beam-hikari-girls", "ガールズビームヒカリ式", "beam-hikari-main"),
       buildLogicVariant("beam-hikari-girls-normal", "ガールズビームヒカリ通常日式", "beam-hikari-normal-main"),
       buildLogicVariant("beam-hikari-girls-event", "ガールズビームヒカリイベント日式", "beam-hikari-event-main"),
+      buildLogicVariant(
+        WONDERLAND_MINAMIGAOKA_GIRLS_LOGIC_KEY,
+        WONDERLAND_MINAMIGAOKA_GIRLS_LOGIC_NAME,
+        WONDERLAND_MINAMIGAOKA_GIRLS_DEFAULT_CONDITION,
+      ),
     ],
     profile: "juggler",
     defaultConditionSuffix: "main",
@@ -4106,6 +4116,51 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           minNextGap: 30,
         },
         ["apark-girls"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-girls-blue",
+        "ガールズ青_7日重合算＋14日高内容1回以下",
+        "45日 / 45台 / 145123G / BB587 / RB488 / BB1/247.23 / RB1/297.38 / 合算1/135.00 / 平均+336.64枚 / 103.48% / 勝率60.00%",
+        {
+          requiredFlags: ["wonderlandMinamigaokaGirlsBlue"],
+        },
+        [WONDERLAND_MINAMIGAOKA_GIRLS_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-girls-yellow",
+        "ガールズ黄_青＋前日1000G以上",
+        "29日 / 29台 / 94746G / BB392 / RB336 / BB1/241.70 / RB1/281.98 / 合算1/130.15 / 平均+481.00枚 / 104.91% / 勝率58.62%",
+        {
+          requiredFlags: ["wonderlandMinamigaokaGirlsYellow"],
+        },
+        [WONDERLAND_MINAMIGAOKA_GIRLS_LOGIC_KEY],
+      ),
+      buildCondition(
+        WONDERLAND_MINAMIGAOKA_GIRLS_DEFAULT_CONDITION,
+        "ガールズ赤_青＋前日1000G＋7日REG重",
+        "17日 / 17台 / 56608G / BB253 / RB212 / BB1/223.75 / RB1/267.02 / 合算1/121.74 / 平均+811.94枚 / 108.13% / 勝率70.59%",
+        {
+          requiredFlags: ["wonderlandMinamigaokaGirlsRed"],
+        },
+        [WONDERLAND_MINAMIGAOKA_GIRLS_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-girls-green-reference",
+        "ガールズ緑_5日重合算＋14日REG重＋7日沈み角度",
+        "17日 / 17台 / 57046G / BB235 / RB208 / BB1/242.75 / RB1/274.26 / 合算1/128.77 / 平均+481.71枚 / 104.79% / 勝率64.71% / 参考表示",
+        {
+          requiredFlags: ["wonderlandMinamigaokaGirlsGreenReference"],
+        },
+        [WONDERLAND_MINAMIGAOKA_GIRLS_LOGIC_KEY],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-girls-free-reference",
+        "自由MAX_長期REG重＋7日角度沈み",
+        "16日 / 16台 / 53909G / BB224 / RB200 / BB1/240.67 / RB1/269.55 / 合算1/127.14 / 平均+549.00枚 / 105.43% / 勝率68.75% / 参考表示",
+        {
+          requiredFlags: ["wonderlandMinamigaokaGirlsFreeReference"],
+        },
+        [WONDERLAND_MINAMIGAOKA_GIRLS_LOGIC_KEY],
       ),
       buildCondition(
         "mj-kurume-main",
@@ -15649,6 +15704,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-ultra-miracle");
   } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "mister") {
     defaultLogic = findLogicDefinition(definition, WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY);
+  } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "girls") {
+    defaultLogic = findLogicDefinition(definition, WONDERLAND_MINAMIGAOKA_GIRLS_LOGIC_KEY);
   } else if (isWonderlandSueStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "wonderland-sue-neo-aim");
   } else if (isSengawaUnoStore(storeName) && definition.machineKey === "neo-aim") {
@@ -24791,6 +24848,98 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   }
 
   if (machineKey === "girls") {
+    if (activeLogicKey === WONDERLAND_MINAMIGAOKA_GIRLS_LOGIC_KEY) {
+      const wonderlandMinamigaokaGirlsHistoryReady = historyRowCount >= 35;
+      const wonderlandMinamigaokaGirlsScoreHistoryReady = historyRowCount >= 21;
+      const rawWonderlandMinamigaokaGirlsDaysSinceHighContent = metrics.daysSinceMachineHighContent;
+      const hasWonderlandMinamigaokaGirlsHighContentHistory =
+        rawWonderlandMinamigaokaGirlsDaysSinceHighContent !== null &&
+        rawWonderlandMinamigaokaGirlsDaysSinceHighContent !== undefined &&
+        String(rawWonderlandMinamigaokaGirlsDaysSinceHighContent).trim() !== "" &&
+        Number.isFinite(Number(rawWonderlandMinamigaokaGirlsDaysSinceHighContent));
+      const wonderlandMinamigaokaGirlsDaysSinceHighContent = hasWonderlandMinamigaokaGirlsHighContentHistory
+        ? Math.max(0, Number(rawWonderlandMinamigaokaGirlsDaysSinceHighContent) - 1)
+        : 999;
+      const recentTenRbDenominator = rateDenominator(recentTenGamesTotal, recentTenRbTotal);
+      const wonderlandMinamigaokaGirlsCombined7Weak180 =
+        features.recentSevenCombinedDenominator >= 180;
+      const wonderlandMinamigaokaGirlsCombined5Weak180 =
+        features.recentFiveCombinedDenominator >= 180;
+      const wonderlandMinamigaokaGirlsRbRate7Weak400 =
+        features.recentSevenRbDenominator >= 400;
+      const wonderlandMinamigaokaGirlsRbRate10Weak400 =
+        recentTenRbDenominator >= 400;
+      const wonderlandMinamigaokaGirlsRbRate14Weak400 =
+        features.recentFourteenRbDenominator >= 400;
+      const wonderlandMinamigaokaGirlsAngle7Sink150 =
+        features.recentSevenAngle <= -150;
+      const wonderlandMinamigaokaGirlsG14Ready18000 =
+        recentFourteenGamesTotal >= 18000;
+      const wonderlandMinamigaokaGirlsHighContentCount14Low =
+        recentFourteenMachineHighContentCount <= 1;
+      const wonderlandMinamigaokaGirlsSemiHighCount14 = recentFourteenMachineGoodContentCount;
+      const wonderlandMinamigaokaGirlsHighContentCount14 = recentFourteenMachineHighContentCount;
+      const wonderlandMinamigaokaGirlsPrevG1000 = previousGames >= 1000;
+      const wonderlandMinamigaokaGirlsBlue =
+        wonderlandMinamigaokaGirlsHistoryReady &&
+        wonderlandMinamigaokaGirlsCombined7Weak180 &&
+        wonderlandMinamigaokaGirlsHighContentCount14Low &&
+        wonderlandMinamigaokaGirlsG14Ready18000;
+      const wonderlandMinamigaokaGirlsYellow =
+        wonderlandMinamigaokaGirlsBlue && wonderlandMinamigaokaGirlsPrevG1000;
+      const wonderlandMinamigaokaGirlsRed =
+        wonderlandMinamigaokaGirlsYellow && wonderlandMinamigaokaGirlsRbRate7Weak400;
+      const wonderlandMinamigaokaGirlsGreenReference =
+        wonderlandMinamigaokaGirlsHistoryReady &&
+        wonderlandMinamigaokaGirlsCombined5Weak180 &&
+        wonderlandMinamigaokaGirlsRbRate14Weak400 &&
+        wonderlandMinamigaokaGirlsAngle7Sink150;
+      const wonderlandMinamigaokaGirlsFreeReference =
+        wonderlandMinamigaokaGirlsGreenReference && wonderlandMinamigaokaGirlsG14Ready18000;
+      const boostFlags = [
+        wonderlandMinamigaokaGirlsCombined7Weak180,
+        wonderlandMinamigaokaGirlsRbRate7Weak400,
+        wonderlandMinamigaokaGirlsG14Ready18000,
+        wonderlandMinamigaokaGirlsHighContentCount14Low,
+        wonderlandMinamigaokaGirlsAngle7Sink150,
+      ];
+      const dangerFlags = [
+        recentSevenNetTotal >= 2500,
+        recentFourteenNetTotal >= 3000,
+        features.recentSevenCombinedDenominator <= 130,
+        recentFourteenMachineGoodContentCount >= 4,
+        recentFourteenMachineHighContentCount >= 3,
+        recentFourteenGamesTotal < 12000,
+        !wonderlandMinamigaokaGirlsScoreHistoryReady,
+      ];
+
+      return {
+        ...features,
+        wonderlandMinamigaokaGirlsHistoryReady,
+        wonderlandMinamigaokaGirlsScoreHistoryReady,
+        wonderlandMinamigaokaGirlsDaysSinceHighContent,
+        wonderlandMinamigaokaGirlsCombined7Weak180,
+        wonderlandMinamigaokaGirlsCombined5Weak180,
+        wonderlandMinamigaokaGirlsRbRate7Weak400,
+        wonderlandMinamigaokaGirlsRbRate10Weak400,
+        wonderlandMinamigaokaGirlsRbRate14Weak400,
+        wonderlandMinamigaokaGirlsAngle7Sink150,
+        wonderlandMinamigaokaGirlsG14Ready18000,
+        wonderlandMinamigaokaGirlsHighContentCount14Low,
+        wonderlandMinamigaokaGirlsSemiHighCount14,
+        wonderlandMinamigaokaGirlsHighContentCount14,
+        wonderlandMinamigaokaGirlsPrevG1000,
+        wonderlandMinamigaokaGirlsBlue,
+        wonderlandMinamigaokaGirlsYellow,
+        wonderlandMinamigaokaGirlsRed,
+        wonderlandMinamigaokaGirlsGreenReference,
+        wonderlandMinamigaokaGirlsFreeReference,
+        lowConfidence: !wonderlandMinamigaokaGirlsScoreHistoryReady,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (
       activeLogicKey === "beam-hikari-girls" ||
       activeLogicKey === "beam-hikari-girls-normal" ||
@@ -37416,6 +37565,131 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "girls") {
+    if (activeLogicKey === WONDERLAND_MINAMIGAOKA_GIRLS_LOGIC_KEY) {
+      if (historyRowCount < 21) {
+        return 0;
+      }
+
+      const recentTenRbDenominator = rateDenominator(recentTenGamesTotal, recentTenRbTotal);
+      const daysSinceHighContent = Number.isFinite(features.wonderlandMinamigaokaGirlsDaysSinceHighContent)
+        ? features.wonderlandMinamigaokaGirlsDaysSinceHighContent
+        : 999;
+      const semiHighCount14 = readNumber(
+        features.wonderlandMinamigaokaGirlsSemiHighCount14,
+        recentFourteenMachineGoodContentCount,
+      );
+      const highContentCount14 = readNumber(
+        features.wonderlandMinamigaokaGirlsHighContentCount14,
+        recentFourteenMachineHighContentCount,
+      );
+
+      let reliabilityScore = 0;
+      reliabilityScore += historyRowCount >= 35 ? 4 : historyRowCount >= 21 ? 2 : -10;
+      reliabilityScore +=
+        recentFourteenGamesTotal >= 25000
+          ? 4
+          : recentFourteenGamesTotal >= 18000
+            ? 3
+            : recentFourteenGamesTotal >= 12000
+              ? 1
+              : -5;
+      reliabilityScore +=
+        recentFourteenGamesTotal >= 25000 && recentFourteenGamesTotal <= 35000 ? 2 : 0;
+      reliabilityScore = clamp(reliabilityScore, -15, 10);
+
+      let coldBonusScore = 0;
+      coldBonusScore +=
+        features.recentSevenCombinedDenominator >= 180
+          ? 16
+          : features.recentSevenCombinedDenominator >= 170
+            ? 9
+            : features.recentSevenCombinedDenominator >= 160
+              ? 4
+              : 0;
+      coldBonusScore +=
+        features.recentFiveCombinedDenominator >= 180
+          ? 6
+          : features.recentFiveCombinedDenominator >= 170
+            ? 3
+            : 0;
+      coldBonusScore +=
+        features.recentSevenRbDenominator >= 500
+          ? 8
+          : features.recentSevenRbDenominator >= 400
+            ? 5
+            : 0;
+      coldBonusScore +=
+        recentTenRbDenominator >= 450
+          ? 5
+          : recentTenRbDenominator >= 400
+            ? 3
+            : 0;
+      coldBonusScore += features.recentFourteenRbDenominator >= 400 ? 4 : 0;
+      coldBonusScore = Math.min(coldBonusScore, 30);
+
+      let sinkScore = 0;
+      sinkScore +=
+        recentTwentyEightNetTotal <= -8000
+          ? 8
+          : recentTwentyEightNetTotal <= -6000
+            ? 6
+            : recentTwentyEightNetTotal <= -4000
+              ? 3
+              : 0;
+      sinkScore +=
+        recentFourteenNetTotal <= -4000
+          ? 6
+          : recentFourteenNetTotal <= -1500
+            ? 4
+            : 0;
+      sinkScore +=
+        recentSevenNetTotal <= -2500
+          ? 4
+          : recentSevenNetTotal <= -1500
+            ? 2
+            : 0;
+      sinkScore +=
+        features.recentSevenAngle <= -200
+          ? 4
+          : features.recentSevenAngle <= -150
+            ? 3
+            : features.recentSevenAngle <= -100
+              ? 1
+              : 0;
+      sinkScore += features.recentThreeAngle <= -300 ? 2 : 0;
+      sinkScore = Math.min(sinkScore, 20);
+
+      let rotationScore = 0;
+      rotationScore += semiHighCount14 === 1 ? 8 : semiHighCount14 === 2 ? 2 : 0;
+      rotationScore += highContentCount14 <= 1 ? 4 : 0;
+      rotationScore += daysSinceHighContent >= 4 && daysSinceHighContent <= 14 ? 3 : 0;
+      rotationScore += previousDifference <= 0 ? 2 : 0;
+      rotationScore += historyLosingStreak >= 5 ? 3 : historyLosingStreak === 4 ? 1 : 0;
+      rotationScore = Math.min(rotationScore, 15);
+
+      let dangerPenalty = 0;
+      dangerPenalty +=
+        recentSevenNetTotal >= 2500 ? 14 : recentSevenNetTotal >= 1500 ? 7 : 0;
+      dangerPenalty +=
+        recentFourteenNetTotal >= 3000 ? 16 : recentFourteenNetTotal >= 1500 ? 7 : 0;
+      dangerPenalty +=
+        recentTwentyOneNetTotal >= 4000 ? 8 : recentTwentyOneNetTotal >= 2500 ? 4 : 0;
+      dangerPenalty += features.recentSevenCombinedDenominator <= 130 ? 7 : 0;
+      dangerPenalty += semiHighCount14 >= 4 ? 9 : semiHighCount14 === 3 ? 4 : 0;
+      dangerPenalty += highContentCount14 >= 3 ? 9 : highContentCount14 === 2 ? 4 : 0;
+      dangerPenalty += recentSevenGamesTotal < 7000 ? 6 : 0;
+      dangerPenalty += recentFourteenGamesTotal < 12000 ? 5 : 0;
+      dangerPenalty += historyRowCount < 21 ? 20 : 0;
+
+      return Math.round(
+        clamp(
+          30 + reliabilityScore + coldBonusScore + sinkScore + rotationScore - dangerPenalty,
+          0,
+          100,
+        ),
+      );
+    }
+
     if (
       activeLogicKey === "beam-hikari-girls" ||
       activeLogicKey === "beam-hikari-girls-normal" ||
@@ -42274,6 +42548,12 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
     ) {
       continue;
     }
+    if (
+      row[evaluationKey]?.logicKey === WONDERLAND_MINAMIGAOKA_GIRLS_LOGIC_KEY &&
+      !row[evaluationKey]?.features?.wonderlandMinamigaokaGirlsScoreHistoryReady
+    ) {
+      continue;
+    }
     const machineName = normalizeText(row.machineName);
     if (!rowsByMachineName.has(machineName)) {
       rowsByMachineName.set(machineName, []);
@@ -42367,6 +42647,7 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
       updatedEvaluation.logicKey === "messe-nishikasai-neo-aim" ||
       updatedEvaluation.logicKey === MESSE_OUGI_NEO_AIM_LOGIC_KEY ||
       updatedEvaluation.logicKey === WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY ||
+      updatedEvaluation.logicKey === WONDERLAND_MINAMIGAOKA_GIRLS_LOGIC_KEY ||
       updatedEvaluation.logicKey === "wonderland-minamigaoka-hokuto-tensei";
     const useDenseRank =
       updatedEvaluation.logicKey === "hinode-onojo-my" ||

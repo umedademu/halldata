@@ -295,6 +295,7 @@ const WONDERLAND_MINAMIGAOKA_TARGET_MACHINES = [
   },
   { name: "スマスロモンキーターンV", aliases: ["スマスロ モンキーターンV", "スマスロモンキーターンⅤ"] },
   { name: "スマスロ 甲鉄城のカバネリ 海門決戦", aliases: ["スマスロ甲鉄城のカバネリ海門決戦"] },
+  { name: "ジャグラーガールズSS", aliases: ["ジャグラーガールズ"] },
   { name: "ウルトラミラクルジャグラー", aliases: [] },
   { name: "ミスタージャグラー", aliases: [] },
 ];
@@ -1926,6 +1927,8 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "スマスロ甲鉄城のカバネリ海門決戦",
       "ウルトラミラクルジャグラー",
       "ミスタージャグラー",
+      "ジャグラーガールズSS",
+      "ジャグラーガールズ",
     ],
     slotHistoryStartDates: [
       {
@@ -1937,6 +1940,11 @@ const HUNT_SCORE_STORE_CONFIGS = [
         machineName: "スマスロモンキーターンV",
         slotNumbers: ["1511", "1512", "1513"],
         startDate: "2026-06-09",
+      },
+      {
+        machineName: "ジャグラーガールズSS",
+        slotNumbers: ["1427", "1428", "1429", "1430"],
+        startDate: "2026-02-04",
       },
     ],
     machineHighContentRules: {
@@ -1956,6 +1964,8 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "スマスロ甲鉄城のカバネリ海門決戦": "wonderland-minamigaoka-kabaneri-kaimon",
       "ウルトラミラクルジャグラー": "wonderland-minamigaoka-ultra-miracle",
       "ミスタージャグラー": "wonderland-minamigaoka-mister",
+      "ジャグラーガールズSS": "wonderland-minamigaoka-girls",
+      "ジャグラーガールズ": "wonderland-minamigaoka-girls",
     },
   },
   {
@@ -2996,6 +3006,15 @@ const MISTER_JUGGLER_BONUS_SETTING_RATES = [
   { setting: 6, bb: 1 / 237.4, rb: 1 / 237.4 },
 ];
 const MISTER_JUGGLER_SETTING_PROBABILITY_CACHE = new WeakMap();
+const JUGGLER_GIRLS_BONUS_SETTING_RATES = [
+  { setting: 1, bb: 1 / 273.1, rb: 1 / 381.0 },
+  { setting: 2, bb: 1 / 270.8, rb: 1 / 350.5 },
+  { setting: 3, bb: 1 / 260.1, rb: 1 / 316.6 },
+  { setting: 4, bb: 1 / 250.1, rb: 1 / 281.3 },
+  { setting: 5, bb: 1 / 243.6, rb: 1 / 270.8 },
+  { setting: 6, bb: 1 / 226.0, rb: 1 / 252.1 },
+];
+const JUGGLER_GIRLS_SETTING_PROBABILITY_CACHE = new WeakMap();
 
 function calculateLogBinomialProbabilityForHuntScore(successCount, totalCount, probability) {
   if (
@@ -3301,6 +3320,73 @@ function calculateMisterJugglerSettingProbabilities(row) {
   });
 }
 
+function calculateJugglerGirlsSettingProbabilities(row) {
+  const cacheKey = row?.row && typeof row.row === "object" ? row.row : row;
+  if (cacheKey && typeof cacheKey === "object" && JUGGLER_GIRLS_SETTING_PROBABILITY_CACHE.has(cacheKey)) {
+    return JUGGLER_GIRLS_SETTING_PROBABILITY_CACHE.get(cacheKey);
+  }
+  const games = Math.round(readWindowField(row, "games"));
+  const bbCount = Math.round(readWindowField(row, "bbCount"));
+  const rbCount = Math.round(readWindowField(row, "rbCount"));
+
+  const cacheAndReturn = (value) => {
+    if (cacheKey && typeof cacheKey === "object") {
+      JUGGLER_GIRLS_SETTING_PROBABILITY_CACHE.set(cacheKey, value);
+    }
+    return value;
+  };
+
+  if (
+    !Number.isInteger(games) ||
+    !Number.isInteger(bbCount) ||
+    !Number.isInteger(rbCount) ||
+    games < 0 ||
+    bbCount < 0 ||
+    rbCount < 0 ||
+    bbCount > games ||
+    rbCount > games
+  ) {
+    return cacheAndReturn(null);
+  }
+  if (games === 0) {
+    return cacheAndReturn({
+      p56: 2 / JUGGLER_GIRLS_BONUS_SETTING_RATES.length,
+      p4lower: 4 / JUGGLER_GIRLS_BONUS_SETTING_RATES.length,
+    });
+  }
+
+  const logRows = JUGGLER_GIRLS_BONUS_SETTING_RATES.map((rate) => ({
+    setting: rate.setting,
+    logValue:
+      calculateLogBinomialProbabilityForHuntScore(bbCount, games, rate.bb) +
+      calculateLogBinomialProbabilityForHuntScore(rbCount, games, rate.rb),
+  }));
+  const maxLogValue = Math.max(...logRows.map((rowValue) => rowValue.logValue));
+  if (!Number.isFinite(maxLogValue)) {
+    return cacheAndReturn(null);
+  }
+
+  const weightedRows = logRows.map((rowValue) => ({
+    ...rowValue,
+    weight: Math.exp(rowValue.logValue - maxLogValue),
+  }));
+  const totalWeight = weightedRows.reduce((total, rowValue) => total + rowValue.weight, 0);
+  if (!Number.isFinite(totalWeight) || totalWeight <= 0) {
+    return cacheAndReturn(null);
+  }
+
+  return cacheAndReturn({
+    p56:
+      weightedRows
+        .filter((rowValue) => rowValue.setting >= 5)
+        .reduce((total, rowValue) => total + rowValue.weight, 0) / totalWeight,
+    p4lower:
+      weightedRows
+        .filter((rowValue) => rowValue.setting <= 4)
+        .reduce((total, rowValue) => total + rowValue.weight, 0) / totalWeight,
+  });
+}
+
 function isWonderlandMinamigaokaMisterGoodContentWindowRow(row) {
   const games = readWindowField(row, "games");
   const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
@@ -3337,6 +3423,45 @@ function isWonderlandMinamigaokaMisterStrongHighContentWindowRow(row) {
     games >= 4000 &&
     ((combinedDenominator <= 130 && rbDenominator <= 290) ||
       (Number.isFinite(p5plus) && p5plus >= 0.5))
+  );
+}
+
+function isWonderlandMinamigaokaGirlsGoodContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateJugglerGirlsSettingProbabilities(row);
+  const p56 = probabilities?.p56;
+  return (
+    (games >= 2500 && Number.isFinite(p56) && p56 >= 0.3 && combinedDenominator <= 145) ||
+    (games >= 2000 && rbDenominator <= 330 && combinedDenominator <= 140)
+  );
+}
+
+function isWonderlandMinamigaokaGirlsHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateJugglerGirlsSettingProbabilities(row);
+  const p56 = probabilities?.p56;
+  return (
+    (games >= 3000 && Number.isFinite(p56) && p56 >= 0.4 && combinedDenominator <= 135) ||
+    (games >= 2500 && rbDenominator <= 300 && combinedDenominator <= 130)
+  );
+}
+
+function isWonderlandMinamigaokaGirlsStrongHighContentWindowRow(row) {
+  const games = readWindowField(row, "games");
+  const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+  const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+  const probabilities = calculateJugglerGirlsSettingProbabilities(row);
+  const p56 = probabilities?.p56;
+  return (
+    games >= 3000 &&
+    Number.isFinite(p56) &&
+    p56 >= 0.55 &&
+    rbDenominator <= 270 &&
+    combinedDenominator <= 125
   );
 }
 
@@ -4226,10 +4351,14 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     normalizedMachineName === normalizeText("ジャグラーガールズSS") ||
     normalizedMachineName === normalizeText("ジャグラーガールズ")
   ) {
-    if (readMachineContentRule(config, machineName) === "beam-hikari-girls-content") {
+    const contentRule = readMachineContentRule(config, machineName);
+    if (contentRule === "wonderland-minamigaoka-girls") {
+      return isWonderlandMinamigaokaGirlsHighContentWindowRow(row);
+    }
+    if (contentRule === "beam-hikari-girls-content") {
       return games >= 3500 && combinedDenominator <= 132 && rbDenominator <= 278;
     }
-    if (readMachineContentRule(config, machineName) === "mj-arena-kurume-girls") {
+    if (contentRule === "mj-arena-kurume-girls") {
       return games >= 1500 && combinedDenominator <= 130 && rbDenominator <= 315;
     }
     const rbCount = readWindowField(row, "rbCount");
@@ -4892,6 +5021,14 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
     return isChikushinoMyGoodContentWindowRow(row);
   }
   if (
+    normalizedMachineName === normalizeText("ジャグラーガールズSS") ||
+    normalizedMachineName === normalizeText("ジャグラーガールズ")
+  ) {
+    if (contentRule === "wonderland-minamigaoka-girls") {
+      return isWonderlandMinamigaokaGirlsGoodContentWindowRow(row);
+    }
+  }
+  if (
     (normalizedMachineName === normalizeText("スマスロ ハナビ") ||
       normalizedMachineName === normalizeText("スマスロハナビ")) &&
     readMachineContentRule(config, machineName) === "beam-hikari-smart-hanabi-content"
@@ -5366,6 +5503,9 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   ) {
     if (contentRule === "beam-hikari-girls-content") {
       return games >= 3000 && combinedDenominator <= 145 && rbDenominator <= 320;
+    }
+    if (contentRule === "wonderland-minamigaoka-girls") {
+      return isWonderlandMinamigaokaGirlsStrongHighContentWindowRow(row);
     }
     if (contentRule === "mj-arena-kurume-girls") {
       return games >= 2000 && combinedDenominator <= 132 && rbDenominator <= 278;
