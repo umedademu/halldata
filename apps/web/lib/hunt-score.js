@@ -293,6 +293,7 @@ const WONDERLAND_MINAMIGAOKA_TARGET_MACHINES = [
     name: "スマスロ北斗の拳 転生の章",
     aliases: ["スマスロ北斗の拳 転生の章2", "スマスロ北斗の拳転生の章", "スマスロ北斗の拳転生の章2"],
   },
+  { name: "スマスロモンキーターンV", aliases: ["スマスロ モンキーターンV", "スマスロモンキーターンⅤ"] },
 ];
 
 const WONDERLAND_SUE_TARGET_MACHINES = [
@@ -1915,6 +1916,21 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "スマスロ北斗の拳 転生の章2",
       "スマスロ北斗の拳転生の章",
       "スマスロ北斗の拳転生の章2",
+      "スマスロモンキーターンV",
+      "スマスロ モンキーターンV",
+      "スマスロモンキーターンⅤ",
+    ],
+    slotHistoryStartDates: [
+      {
+        machineName: "スマスロモンキーターンV",
+        slotNumbers: ["1514"],
+        startDate: "2026-03-03",
+      },
+      {
+        machineName: "スマスロモンキーターンV",
+        slotNumbers: ["1511", "1512", "1513"],
+        startDate: "2026-06-09",
+      },
     ],
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "wonderland-minamigaoka-neo-aim",
@@ -1926,6 +1942,9 @@ const HUNT_SCORE_STORE_CONFIGS = [
       "スマスロ北斗の拳 転生の章2": "wonderland-minamigaoka-hokuto-tensei",
       "スマスロ北斗の拳転生の章": "wonderland-minamigaoka-hokuto-tensei",
       "スマスロ北斗の拳転生の章2": "wonderland-minamigaoka-hokuto-tensei",
+      "スマスロモンキーターンV": "wonderland-minamigaoka-monkey",
+      "スマスロ モンキーターンV": "wonderland-minamigaoka-monkey",
+      "スマスロモンキーターンⅤ": "wonderland-minamigaoka-monkey",
     },
   },
   {
@@ -4004,6 +4023,10 @@ function isMachineHighContentWindowRow(row, machineName, config = null) {
     return games >= 5000 && rbDenominator <= 290 && combinedDenominator <= 135;
   }
   if (normalizedMachineName === normalizeText("スマスロモンキーターンV")) {
+    if (contentRule === "wonderland-minamigaoka-monkey") {
+      const payoutRate = games > 0 ? 100 + (differenceValue / games / 3) * 100 : 0;
+      return (games >= 5000 && differenceValue >= 1500) || (games >= 4000 && payoutRate >= 104);
+    }
     return games >= 3502 && combinedDenominator <= 434 && differenceValue >= -819;
   }
   if (
@@ -4127,6 +4150,12 @@ function isMachineGoodContentWindowRow(row, machineName, config = null) {
   ) {
     if (contentRule === "wonderland-minamigaoka-hokuto-tensei") {
       return games >= 2500 && (differenceValue >= 800 || rbDenominator <= 430);
+    }
+  }
+  if (normalizedMachineName === normalizeText("スマスロモンキーターンV")) {
+    if (contentRule === "wonderland-minamigaoka-monkey") {
+      const payoutRate = games > 0 ? 100 + (differenceValue / games / 3) * 100 : 0;
+      return (games >= 3000 && differenceValue >= 1000) || (games >= 4000 && payoutRate >= 102);
     }
   }
 
@@ -5048,6 +5077,9 @@ function isMachineStrongHighContentWindowRow(row, machineName, config = null) {
   const contentRule = readMachineContentRule(config, machineName);
 
   if (normalizedMachineName === normalizeText("スマスロモンキーターンV")) {
+    if (contentRule === "wonderland-minamigaoka-monkey") {
+      return games >= 5000 && differenceValue >= 2500;
+    }
     return games >= 4851 && combinedDenominator <= 422 && differenceValue >= -468;
   }
   if (normalizedMachineName === normalizeText("ニューキングハナハナ")) {

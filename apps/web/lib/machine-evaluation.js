@@ -129,6 +129,9 @@ const TOYO_HALL_NEO_AIM_BACKTEST_WIDE_EXCLUDED_KEYS = new Set([
   "2026-04-04|300",
   "2026-04-12|301",
 ]);
+const WONDERLAND_MINAMIGAOKA_MONKEY_BEST_GAP_BACKTEST_EXCLUDED_KEYS = new Set([
+  "2025-07-19|1516番台",
+]);
 const TOYO_HALL_NEO_AIM_BACKTEST_WATCH_EXTRA_KEYS = new Set([
   "2026-02-27|301",
   "2026-02-27|302",
@@ -4638,6 +4641,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     logicName: "モンキー春日式v2",
     logics: [
       buildLogicVariant("apark-monkey", "モンキー春日式v2", "main"),
+      buildLogicVariant(
+        "wonderland-minamigaoka-monkey",
+        "ワンダーランド南ヶ丘店_スマスロモンキーターンV_全日共通_100点ロジック_v1",
+        "wonderland-minamigaoka-monkey-best-gap",
+      ),
       buildLogicVariant("beam-hikari-monkey", "モンキービームヒカリ全日式", "beam-hikari-main"),
       buildLogicVariant("beam-hikari-monkey-normal", "モンキービームヒカリ通常日式", "beam-hikari-normal-main"),
       buildLogicVariant("beam-hikari-monkey-event", "モンキービームヒカリイベント日式", "beam-hikari-event-score70"),
@@ -4679,6 +4687,63 @@ const MACHINE_EVALUATION_DEFINITIONS = [
           requiredFlags: ["monkeyHistoryReady"],
         },
         ["apark-monkey"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-monkey-best-gap",
+        "通常採用_最本命次点差",
+        "通常採用 / 42日 / 42台 / 総G175,476 / BB0 / RB415 / RB1/423 / 合算1/423 / 平均+1,472.3枚 / 機械割111.75% / 勝率66.7%",
+        {
+          rankMax: 1,
+          minNextGap: 8,
+          requiredFlags: [
+            "wonderlandMinamigaokaMonkeyHistoryReady",
+            "wonderlandMinamigaokaMonkeyDaysSinceHigh7To21",
+            "wonderlandMinamigaokaMonkeyG7Best20000To24000",
+          ],
+        },
+        ["wonderland-minamigaoka-monkey"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-monkey-treatment-return",
+        "通常採用_処遇待ち戻し",
+        "通常採用 / 61日 / 73台 / 総G233,947 / BB0 / RB506 / RB1/462 / 合算1/462 / 平均+1,134.8枚 / 機械割111.80% / 勝率47.9%",
+        {
+          minScore: 90,
+          requiredFlags: [
+            "wonderlandMinamigaokaMonkeyHistoryReady",
+            "wonderlandMinamigaokaMonkeyPrevDiff0To1000",
+            "wonderlandMinamigaokaMonkeyDaysSinceHigh5To14",
+            "wonderlandMinamigaokaMonkeyPrevGLt3400",
+          ],
+        },
+        ["wonderland-minamigaoka-monkey"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-monkey-single-main",
+        "通常採用_単独本命",
+        "通常採用 / 88日 / 100台 / 総G313,818 / BB0 / RB706 / RB1/445 / 合算1/445 / 平均+758.7枚 / 機械割108.06% / 勝率47.0%",
+        {
+          rankMax: 1,
+          minScore: 90,
+          requiredFlags: [
+            "wonderlandMinamigaokaMonkeyHistoryReady",
+            "wonderlandMinamigaokaMonkeyG7Main12000To26000",
+            "wonderlandMinamigaokaMonkeyLossStreak0",
+          ],
+        },
+        ["wonderland-minamigaoka-monkey"],
+      ),
+      buildCondition(
+        "wonderland-minamigaoka-monkey-watch-overheat",
+        "見送り_強過熱処遇完了",
+        "見送り / 17日 / 18台 / 総G50,020 / BB0 / RB112 / RB1/447 / 合算1/447 / 平均-532.4枚 / 機械割93.61% / 勝率33.3%",
+        {
+          requiredFlags: [
+            "wonderlandMinamigaokaMonkeyHistoryReady",
+            "wonderlandMinamigaokaMonkeyWatchOverheat",
+          ],
+        },
+        ["wonderland-minamigaoka-monkey"],
       ),
       buildCondition(
         "beam-hikari-main",
@@ -15313,6 +15378,8 @@ function getDefaultSetting(definition, storeName) {
     defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-my");
   } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "hokuto-tensei") {
     defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-hokuto-tensei");
+  } else if (isWonderlandMinamigaokaStore(storeName) && definition.machineKey === "monkey") {
+    defaultLogic = findLogicDefinition(definition, "wonderland-minamigaoka-monkey");
   } else if (isWonderlandSueStore(storeName) && definition.machineKey === "neo-aim") {
     defaultLogic = findLogicDefinition(definition, "wonderland-sue-neo-aim");
   } else if (isSengawaUnoStore(storeName) && definition.machineKey === "neo-aim") {
@@ -25403,6 +25470,92 @@ function buildMachineSpecificFeatureState(definition, metrics, features, row = n
   }
 
   if (machineKey === "monkey") {
+    if (activeLogicKey === "wonderland-minamigaoka-monkey") {
+      const wonderlandMinamigaokaMonkeyHistoryReady = historyRowCount >= 14;
+      const wonderlandMinamigaokaMonkeyHistoryShort = historyRowCount < 14;
+      const wonderlandMinamigaokaMonkeyDaysSinceHigh = Number.isFinite(daysSinceMachineHighContent)
+        ? Math.max(0, daysSinceMachineHighContent - 1)
+        : null;
+      const wonderlandMinamigaokaMonkeyDaysSinceStrongHigh = Number.isFinite(daysSinceMachineStrongHighContent)
+        ? Math.max(0, daysSinceMachineStrongHighContent - 1)
+        : null;
+      const wonderlandMinamigaokaMonkeyRbRate7 =
+        recentSevenGamesTotal > 0 && recentSevenRbTotal > 0
+          ? recentSevenGamesTotal / recentSevenRbTotal
+          : null;
+      const wonderlandMinamigaokaMonkeyLossStreak = historyLosingStreak;
+      const wonderlandMinamigaokaMonkeyPrevDiffCore = previousDifference >= -600 && previousDifference <= 1000;
+      const wonderlandMinamigaokaMonkeyPrevDiff0To1000 = previousDifference >= 0 && previousDifference <= 1000;
+      const wonderlandMinamigaokaMonkeyDaysSinceHigh5To14 =
+        Number.isFinite(wonderlandMinamigaokaMonkeyDaysSinceHigh) &&
+        wonderlandMinamigaokaMonkeyDaysSinceHigh >= 5 &&
+        wonderlandMinamigaokaMonkeyDaysSinceHigh <= 14;
+      const wonderlandMinamigaokaMonkeyDaysSinceHigh7To21 =
+        Number.isFinite(wonderlandMinamigaokaMonkeyDaysSinceHigh) &&
+        wonderlandMinamigaokaMonkeyDaysSinceHigh >= 7 &&
+        wonderlandMinamigaokaMonkeyDaysSinceHigh <= 21;
+      const wonderlandMinamigaokaMonkeyG7Main12000To26000 =
+        recentSevenGamesTotal >= 12000 && recentSevenGamesTotal <= 26000;
+      const wonderlandMinamigaokaMonkeyG7Best20000To24000 =
+        recentSevenGamesTotal >= 20000 && recentSevenGamesTotal <= 24000;
+      const wonderlandMinamigaokaMonkeyPrevGLt3400 = previousGames < 3400;
+      const wonderlandMinamigaokaMonkeyLossStreak0 = historyLosingStreak === 0;
+      const wonderlandMinamigaokaMonkeyDiff7Boost =
+        recentSevenNetTotal <= 1500 &&
+        recentSevenGamesTotal >= 8000 &&
+        recentSevenMachineHighContentCount <= 1;
+      const wonderlandMinamigaokaMonkeyRbRate7Boost =
+        Number.isFinite(wonderlandMinamigaokaMonkeyRbRate7) &&
+        wonderlandMinamigaokaMonkeyRbRate7 <= 446;
+      const wonderlandMinamigaokaMonkeyWatchOverheat =
+        previousGames >= 4000 &&
+        recentSevenMachineHighContentCount >= 3 &&
+        recentFourteenMachineStrongHighContentCount >= 2;
+      const boostFlags = [
+        wonderlandMinamigaokaMonkeyPrevDiffCore,
+        wonderlandMinamigaokaMonkeyDaysSinceHigh7To21,
+        wonderlandMinamigaokaMonkeyDiff7Boost,
+        wonderlandMinamigaokaMonkeyRbRate7Boost,
+        wonderlandMinamigaokaMonkeyPrevGLt3400,
+      ];
+      const dangerFlags = [
+        previousDifference >= 1200,
+        previousGames >= 4800,
+        recentSevenMachineHighContentCount >= 2,
+        wonderlandMinamigaokaMonkeyDaysSinceHigh === 0,
+        recentFourteenMachineStrongHighContentCount >= 2,
+        recentSevenGamesTotal > 27000,
+      ];
+
+      return {
+        ...features,
+        wonderlandMinamigaokaMonkeyHistoryReady,
+        wonderlandMinamigaokaMonkeyHistoryShort,
+        wonderlandMinamigaokaMonkeyDaysSinceHigh,
+        wonderlandMinamigaokaMonkeyDaysSinceStrongHigh,
+        wonderlandMinamigaokaMonkeyRbRate7,
+        wonderlandMinamigaokaMonkeyLossStreak,
+        wonderlandMinamigaokaMonkeyPrevDiffCore,
+        wonderlandMinamigaokaMonkeyPrevDiff0To1000,
+        wonderlandMinamigaokaMonkeyDaysSinceHigh5To14,
+        wonderlandMinamigaokaMonkeyDaysSinceHigh7To21,
+        wonderlandMinamigaokaMonkeyG7Main12000To26000,
+        wonderlandMinamigaokaMonkeyG7Best20000To24000,
+        wonderlandMinamigaokaMonkeyPrevGLt3400,
+        wonderlandMinamigaokaMonkeyLossStreak0,
+        wonderlandMinamigaokaMonkeyDiff7Boost,
+        wonderlandMinamigaokaMonkeyRbRate7Boost,
+        wonderlandMinamigaokaMonkeyHighContentCount7: recentSevenMachineHighContentCount,
+        wonderlandMinamigaokaMonkeyStrongHighCount14: recentFourteenMachineStrongHighContentCount,
+        wonderlandMinamigaokaMonkeyWeakHighCount7: recentSevenMachineGoodContentCount,
+        wonderlandMinamigaokaMonkeyWatchOverheat,
+        treatmentDone: wonderlandMinamigaokaMonkeyWatchOverheat,
+        lowConfidence: wonderlandMinamigaokaMonkeyHistoryShort || recentSevenGamesTotal < 8000,
+        boostCount: boostFlags.filter(Boolean).length,
+        dangerCount: dangerFlags.filter(Boolean).length,
+      };
+    }
+
     if (activeLogicKey === "beam-hikari-monkey") {
       const beamHikariMonkeyMainHistoryReady = targetRangeHistoryRowCount >= 14;
       const beamHikariMonkeyMainUnpaid14 =
@@ -40160,6 +40313,130 @@ function calculateMachineScore(definition, metrics, features) {
   }
 
   if (machineKey === "monkey") {
+    if (activeLogicKey === "wonderland-minamigaoka-monkey") {
+      const daysSinceHigh = Number.isFinite(features.wonderlandMinamigaokaMonkeyDaysSinceHigh)
+        ? features.wonderlandMinamigaokaMonkeyDaysSinceHigh
+        : null;
+      const daysSinceStrongHigh = Number.isFinite(features.wonderlandMinamigaokaMonkeyDaysSinceStrongHigh)
+        ? features.wonderlandMinamigaokaMonkeyDaysSinceStrongHigh
+        : null;
+      const rbRate7 = Number.isFinite(features.wonderlandMinamigaokaMonkeyRbRate7)
+        ? features.wonderlandMinamigaokaMonkeyRbRate7
+        : null;
+      let score = 50;
+
+      if (historyRowCount >= 28) {
+        score += 6;
+      } else if (historyRowCount >= 21) {
+        score += 4;
+      } else if (historyRowCount >= 14) {
+        score += 2;
+      } else {
+        score -= 20;
+      }
+
+      if (recentSevenNetTotal <= -3500) {
+        score += 8;
+      } else if (recentSevenNetTotal <= 1500) {
+        score += 10;
+      } else if (recentSevenNetTotal <= 5000) {
+        score -= 3;
+      } else {
+        score -= 8;
+      }
+
+      if (recentFourteenNetTotal >= -1200 && recentFourteenNetTotal <= 8500) {
+        score += 6;
+      } else if (recentFourteenNetTotal >= -5500 && recentFourteenNetTotal < -1200) {
+        score += 3;
+      }
+      if (recentFourteenNetTotal > 12000) {
+        score -= 5;
+      }
+      if (recentFourteenNetTotal < -10000) {
+        score -= 4;
+      }
+
+      if (daysSinceHigh === null) {
+        score += 2;
+      } else if (daysSinceHigh === 0) {
+        score -= 12;
+      } else if (daysSinceHigh <= 2) {
+        score -= 6;
+      } else if (daysSinceHigh <= 4) {
+        score += 2;
+      } else if (daysSinceHigh <= 14) {
+        score += 10;
+      } else if (daysSinceHigh <= 28) {
+        score += 7;
+      } else {
+        score += 2;
+      }
+
+      if (daysSinceStrongHigh === null) {
+        score += 2;
+      } else if (daysSinceStrongHigh <= 2) {
+        score -= 6;
+      } else if (daysSinceStrongHigh <= 6) {
+        score -= 2;
+      } else if (daysSinceStrongHigh <= 21) {
+        score += 8;
+      } else if (daysSinceStrongHigh <= 35) {
+        score += 5;
+      } else {
+        score += 1;
+      }
+
+      if (previousDifference >= -600 && previousDifference <= 1000) {
+        score += 10;
+      } else if (previousDifference <= -1200) {
+        score += 3;
+      } else if (previousDifference > 1000) {
+        score -= 10;
+      } else {
+        score -= 4;
+      }
+
+      if (previousGames < 3400) {
+        score += 7;
+      } else if (previousGames < 4850) {
+        score -= 4;
+      } else {
+        score -= 9;
+      }
+
+      if (rbRate7 !== null) {
+        if (rbRate7 <= 426) {
+          score += 7;
+        } else if (rbRate7 <= 446) {
+          score += 3;
+        } else if (rbRate7 > 478) {
+          score -= 6;
+        }
+      }
+
+      if (recentSevenMachineHighContentCount === 0) {
+        score += 6;
+      }
+      if (recentSevenMachineHighContentCount >= 2) {
+        score -= 8;
+      }
+      if (recentFourteenMachineStrongHighContentCount >= 2) {
+        score -= 5;
+      }
+      if (recentSevenMachineGoodContentCount >= 3) {
+        score -= 5;
+      }
+      if (recentSevenGamesTotal < 8000) {
+        score -= 4;
+      }
+      if (recentSevenGamesTotal > 27000) {
+        score -= 4;
+      }
+
+      return Math.round(clamp(score, 0, 100));
+    }
+
     if (activeLogicKey === "beam-hikari-monkey") {
       if (targetRangeHistoryRowCount < 14) {
         return 0;
@@ -41271,6 +41548,12 @@ function attachMachineEvaluationRanks(rows, evaluationKey = "machineEvaluation")
     if (!row?.[evaluationKey]) {
       continue;
     }
+    if (
+      row[evaluationKey]?.logicKey === "wonderland-minamigaoka-monkey" &&
+      !row[evaluationKey]?.features?.wonderlandMinamigaokaMonkeyHistoryReady
+    ) {
+      continue;
+    }
     const machineName = normalizeText(row.machineName);
     if (!rowsByMachineName.has(machineName)) {
       rowsByMachineName.set(machineName, []);
@@ -41546,6 +41829,25 @@ function applyMesseTakenotsukaNeoAimBacktestAdoptionOverride(row, evaluation, co
   return matchesAdoption;
 }
 
+function applyWonderlandMinamigaokaMonkeyBacktestAdoptionOverride(
+  row,
+  evaluation,
+  condition,
+  matchesAdoption,
+) {
+  if (evaluation?.logicKey !== "wonderland-minamigaoka-monkey") {
+    return matchesAdoption;
+  }
+  const key = buildToyoHallNeoAimBacktestRowKey(row);
+  if (!key) {
+    return matchesAdoption;
+  }
+  if (condition?.keySuffix === "wonderland-minamigaoka-monkey-best-gap") {
+    return matchesAdoption && !WONDERLAND_MINAMIGAOKA_MONKEY_BEST_GAP_BACKTEST_EXCLUDED_KEYS.has(key);
+  }
+  return matchesAdoption;
+}
+
 function applyBbStationNipporiNeoAimBacktestAdoptionOverride(
   row,
   evaluation,
@@ -41575,27 +41877,32 @@ function applyBbStationNipporiNeoAimBacktestAdoptionOverride(
 }
 
 function applyMachineEvaluationBacktestAdoptionOverride(row, evaluation, condition, matchesAdoption) {
-  return applyBbStationNipporiNeoAimBacktestAdoptionOverride(
+  return applyWonderlandMinamigaokaMonkeyBacktestAdoptionOverride(
     row,
     evaluation,
     condition,
-    applyMesseTakenotsukaNeoAimBacktestAdoptionOverride(
+    applyBbStationNipporiNeoAimBacktestAdoptionOverride(
       row,
       evaluation,
       condition,
-      applyMaruhonNeoAimBacktestAdoptionOverride(
+      applyMesseTakenotsukaNeoAimBacktestAdoptionOverride(
         row,
         evaluation,
         condition,
-        applyKintokiKamataNeoAimBacktestAdoptionOverride(
+        applyMaruhonNeoAimBacktestAdoptionOverride(
           row,
           evaluation,
           condition,
-          applyExArenaTokyoNeoAimBacktestAdoptionOverride(
+          applyKintokiKamataNeoAimBacktestAdoptionOverride(
             row,
             evaluation,
             condition,
-            applyToyoHallNeoAimBacktestAdoptionOverride(row, evaluation, condition, matchesAdoption),
+            applyExArenaTokyoNeoAimBacktestAdoptionOverride(
+              row,
+              evaluation,
+              condition,
+              applyToyoHallNeoAimBacktestAdoptionOverride(row, evaluation, condition, matchesAdoption),
+            ),
           ),
         ),
       ),
