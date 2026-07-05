@@ -231,7 +231,7 @@ export function CrossStoreHuntRankingFormStateSync({ formId }) {
 
   useEffect(() => {
     const storeSource = normalizeStoreSource(searchParams.get("storeSource"));
-    if (searchParams.has("store") || searchParams.has("show")) {
+    if (searchParams.has("store")) {
       saveSelectedStoreIds(searchParams.getAll("store"), storeSource);
       return undefined;
     }
@@ -278,7 +278,6 @@ export function CrossStoreHuntRankingFormStateSync({ formId }) {
     if (
       storeSource !== STORE_SOURCE_CONFIGURED &&
       !searchParams.has("store") &&
-      !searchParams.has("show") &&
       readSavedMyHallStoreIds().length > 0
     ) {
       return;

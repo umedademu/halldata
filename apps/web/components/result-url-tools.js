@@ -9,7 +9,7 @@ export function ResultUrlTools({ active = false }) {
     }
 
     const currentUrl = new URL(window.location.href);
-    if (!currentUrl.searchParams.has("show")) {
+    if (!currentUrl.search) {
       return;
     }
 

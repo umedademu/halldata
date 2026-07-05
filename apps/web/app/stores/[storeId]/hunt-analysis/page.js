@@ -13,6 +13,7 @@ import {
   HuntScoreLogicSingleSelect,
 } from "../../../../components/hunt-score-logic-selector";
 import { NativeGetForm } from "../../../../components/native-get-form";
+import { ResultDisplayStateSync } from "../../../../components/result-display-state-sync";
 import { ResultUrlTools } from "../../../../components/result-url-tools";
 import { StoreFavoriteButton } from "../../../../components/store-favorite-button";
 import { StoreSwitcher } from "../../../../components/store-switcher";
@@ -44,6 +45,10 @@ import {
   selectionIncludesHanabiHuntMachineGroup,
 } from "../../../../lib/hunt-machine-display";
 import { normalizeDifferenceMode } from "../../../../lib/machine-difference";
+import {
+  getResultDisplayCookieName,
+  isResultDisplayCookieEnabled,
+} from "../../../../lib/result-display-state";
 import { SETTING_ESTIMATE_MODE_OPTIONS, normalizeSettingEstimateMode } from "../../../../lib/setting-estimates";
 
 export const dynamic = "force-dynamic";
@@ -56,18 +61,8 @@ const HANABI_MACHINE_NAMES = ["新ハナビ", "スマスロ ハナビ"];
 const HUNT_RANKING_FORM_ID = "hunt-ranking-condition-form";
 const STORE_DAY_STATUS_CLOSED = "closed";
 
-async function readStoredHuntScoreLogicKey(storeId) {
-  const cookieStore = await cookies();
-  return decodeHuntScoreLogicCookieValue(
-    cookieStore.get(getHuntScoreLogicCookieName(storeId))?.value ?? "",
-  );
-}
-
-async function readStoredMachineEvaluationSettings(storeId) {
-  const cookieStore = await cookies();
-  return decodeMachineEvaluationSettingsCookieValue(
-    cookieStore.get(getMachineEvaluationCookieName(storeId))?.value ?? "",
-  );
+function buildHuntRankingResultDisplayKey(storeId) {
+  return `hunt-ranking-${storeId}`;
 }
 
 function readSingleSearchParam(value) {
@@ -323,13 +318,21 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
   const storeId = resolvedParams.storeId;
+  const cookieStore = await cookies();
+  const resultDisplayKey = buildHuntRankingResultDisplayKey(storeId);
   const requestedDate = readSingleSearchParam(resolvedSearchParams?.date);
-  const resultRequested = readSingleSearchParam(resolvedSearchParams?.show) === "1";
+  const resultRequested = isResultDisplayCookieEnabled(
+    cookieStore.get(getResultDisplayCookieName(resultDisplayKey))?.value,
+  );
   const requestedLimit = parseRequestedLimit(readSingleSearchParam(resolvedSearchParams?.limit));
   const requestedMachineNames = readMultiSearchParam(resolvedSearchParams?.machine);
   const requestedRankingLogicKey = readSingleSearchParam(resolvedSearchParams?.huntScoreLogicKey);
-  const huntScoreLogicKey = await readStoredHuntScoreLogicKey(storeId);
-  const machineEvaluationSettings = await readStoredMachineEvaluationSettings(storeId);
+  const huntScoreLogicKey = decodeHuntScoreLogicCookieValue(
+    cookieStore.get(getHuntScoreLogicCookieName(storeId))?.value ?? "",
+  );
+  const machineEvaluationSettings = decodeMachineEvaluationSettingsCookieValue(
+    cookieStore.get(getMachineEvaluationCookieName(storeId))?.value ?? "",
+  );
   const machineEvaluationRankingMode = normalizeMachineEvaluationRankingMode(
     readSingleSearchParam(resolvedSearchParams?.machineEvaluationRankingMode),
   );
@@ -488,6 +491,11 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
         formId={HUNT_RANKING_FORM_ID}
         formStateKey={rankingFormStateKey}
       />
+      <ResultDisplayStateSync
+        formId={HUNT_RANKING_FORM_ID}
+        stateKey={resultDisplayKey}
+        active={resultRequested}
+      />
       <Breadcrumbs
         items={[
           { label: "店舗一覧", href: "/" },
@@ -547,7 +555,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               action={`/stores/${detail.store.id}/hunt-analysis`}
               className="storeReserveForm"
             >
-              <input type="hidden" name="show" value="1" />
               <input type="hidden" name="machineTouched" value="1" />
               <div className="filterConditionBox rankingConditionBox">
                 <p className="filterConditionBoxTitle">集計条件</p>

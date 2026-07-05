@@ -8,6 +8,7 @@ import {
 } from "../../components/hunt-machine-filter-tools";
 import { HuntRankingTable } from "../../components/hunt-ranking-table";
 import { NativeGetForm } from "../../components/native-get-form";
+import { ResultDisplayStateSync } from "../../components/result-display-state-sync";
 import { ResultUrlTools } from "../../components/result-url-tools";
 import {
   getHuntScoreInitialPageDetail,
@@ -33,6 +34,10 @@ import {
   SETTING_ESTIMATE_MODE_OPTIONS,
   normalizeSettingEstimateMode,
 } from "../../lib/setting-estimates";
+import {
+  getResultDisplayCookieName,
+  isResultDisplayCookieEnabled,
+} from "../../lib/result-display-state";
 import { buildStoreLocationGroups } from "../../lib/store-location-groups";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +49,7 @@ const FORM_ID = "cross-store-hunt-ranking-form";
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 300;
 const STORE_DAY_STATUS_CLOSED = "closed";
+const CROSS_STORE_HUNT_RANKING_RESULT_DISPLAY_KEY = "cross-store-hunt-ranking";
 const STORE_SELECTION_SOURCE_FAVORITES = "favorites";
 const STORE_SELECTION_SOURCE_CONFIGURED = "configured";
 const STORE_SELECTION_SOURCE_OPTIONS = [
@@ -464,7 +470,12 @@ function isUsableCrossStoreRankingDetail(detail, selectedDate) {
 
 export default async function StoreCrossHuntRankingPage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
-  const resultRequested = readSingleSearchParam(resolvedSearchParams?.show) === "1";
+  const cookieStore = await cookies();
+  const resultRequested = isResultDisplayCookieEnabled(
+    cookieStore.get(
+      getResultDisplayCookieName(CROSS_STORE_HUNT_RANKING_RESULT_DISPLAY_KEY),
+    )?.value,
+  );
   const storeSelectionSource = normalizeStoreSelectionSource(
     readSingleSearchParam(resolvedSearchParams?.storeSource),
   );
@@ -484,7 +495,6 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
   );
   const stores = (await getStoreList()).filter((store) => !store.isPendingRegistration);
   const storeById = buildStoreById(stores);
-  const cookieStore = await cookies();
   const favoriteStoreIds =
     requestedFavoriteStoreIds.length > 0 ? requestedFavoriteStoreIds : requestedStoreIds;
   const favoriteStores = favoriteStoreIds.map((storeId) => storeById.get(storeId)).filter(Boolean);
@@ -583,6 +593,11 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
   return (
     <main className="pageStack">
       <CrossStoreHuntRankingFormStateSync formId={FORM_ID} />
+      <ResultDisplayStateSync
+        formId={FORM_ID}
+        stateKey={CROSS_STORE_HUNT_RANKING_RESULT_DISPLAY_KEY}
+        active={resultRequested}
+      />
       <section className="heroPanel">
         <div className="heroCopy">
           <h1 className="pageTitle pageTitleCompact">店舗横断狙い度ランキング</h1>
@@ -602,7 +617,6 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
 
       <section className="filterPanel">
         <NativeGetForm action="/store-cross-hunt-ranking" id={FORM_ID} className="backtestForm">
-          <input type="hidden" name="show" value="1" />
           <input type="hidden" name="machineTouched" value="1" />
           <input type="hidden" name="storeSource" value={storeSelectionSource} />
           {storeSelectionSource === STORE_SELECTION_SOURCE_FAVORITES
