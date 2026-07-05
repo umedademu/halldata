@@ -28,6 +28,8 @@ const AMUSE_ASAKUSA_R30_WINDOW_DAYS = 30;
 const DEFAULT_HUNT_SCORE_LOGIC_KEY = "apark";
 const BEAM_HIKARI_STORE_COMMON_LOGIC_KEY = "beam-hikari-store-common-v1";
 const BEAM_HIKARI_STORE_COMMON_LOGIC_NAME = "ビームヒカリ式1.0";
+const BEAM_HIKARI_STORE_COMMON_SIMPLE_LOGIC_KEY = "beam-hikari-store-common-v1s";
+const BEAM_HIKARI_STORE_COMMON_SIMPLE_LOGIC_NAME = "ビームヒカリ1.0S";
 const APARK_KASUGA_KAI_RAW_MIN = -32;
 const APARK_KASUGA_KAI_RAW_MAX = 138;
 const APARK_KASUGA_SIX_DAY_SCALE = 6 / 7;
@@ -324,6 +326,29 @@ const BEAM_HIKARI_STORE_COMMON_BONUS_MACHINES = [
   "A-SLOT+異世界かるてっとBT",
   "A-SLOT+ 異世界かるてっとBT",
   "A-SLOT+異世界かるてっとＢＴ",
+];
+const BEAM_HIKARI_STORE_COMMON_SIMPLE_OKIDOKI_MACHINES = [
+  "沖ドキ！BLACK",
+  "沖ドキ!BLACK",
+  "沖ドキ!ゴージャス 30Φ",
+  "沖ドキ！ゴージャス 30Φ",
+  "沖ドキ!ゴージャス",
+  "沖ドキ！ゴージャス",
+];
+const BEAM_HIKARI_STORE_COMMON_SIMPLE_SMART_HANABI_MACHINES = [
+  "スマスロ ハナビ",
+  "スマスロハナビ",
+];
+const BEAM_HIKARI_STORE_COMMON_SIMPLE_HOKUTO_GOD_MACHINES = [
+  "Lスマスロ北斗の拳",
+  "L スマスロ北斗の拳",
+  "スマスロ北斗の拳",
+  "スマスロ北斗の拳 転生の章2",
+  "スマスロ北斗の拳 転生の章",
+  "スマスロ北斗の拳転生の章2",
+  "スマスロ ミリオンゴッド",
+  "スマスロミリオンゴッド",
+  "スマスロ ミリオンゴッド-神々の軌跡-",
 ];
 const MJ_ARENA_IJIRI_TARGET_MACHINES = APARK_KASUGA_TARGET_MACHINES;
 
@@ -886,6 +911,13 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     windowDays: 7,
     historyWindowDays: 90,
     scoreCalculator: calculateBeamHikariStoreCommonHuntScore,
+  },
+  {
+    key: BEAM_HIKARI_STORE_COMMON_SIMPLE_LOGIC_KEY,
+    name: BEAM_HIKARI_STORE_COMMON_SIMPLE_LOGIC_NAME,
+    windowDays: 2,
+    historyWindowDays: 90,
+    scoreCalculator: calculateBeamHikariStoreCommonSimpleHuntScore,
   },
   {
     key: "mj-arena-ijiri-a",
@@ -9768,6 +9800,303 @@ function calculateBeamHikariStoreCommonHuntScore(metrics) {
   return buildBeamHikariStoreCommonBaseEvaluation(metrics)?.score ?? 0;
 }
 
+function isBeamHikariStoreCommonSimpleEventDate(dateText) {
+  const day = readDateDay(dateText);
+  return [3, 6, 13, 16, 23, 26].includes(day);
+}
+
+function isBeamHikariStoreCommonNeoAimMachine(machineName) {
+  return matchesNormalizedMachineName(machineName, [
+    "ネオアイムジャグラーEX",
+    "ネオアイムジャグラーＥＸ",
+  ]);
+}
+
+function isBeamHikariStoreCommonSimpleOkidokiMachine(machineName) {
+  return matchesNormalizedMachineName(machineName, BEAM_HIKARI_STORE_COMMON_SIMPLE_OKIDOKI_MACHINES);
+}
+
+function isBeamHikariStoreCommonSimpleSmartHanabiMachine(machineName) {
+  return matchesNormalizedMachineName(
+    machineName,
+    BEAM_HIKARI_STORE_COMMON_SIMPLE_SMART_HANABI_MACHINES,
+  );
+}
+
+function isBeamHikariStoreCommonSimpleHokutoGodMachine(machineName) {
+  return matchesNormalizedMachineName(
+    machineName,
+    BEAM_HIKARI_STORE_COMMON_SIMPLE_HOKUTO_GOD_MACHINES,
+  );
+}
+
+function getBeamHikariStoreCommonSimpleMachineGroup(machineName, machineType = "") {
+  if (isBeamHikariStoreCommonNeoAimMachine(machineName)) {
+    return "NEO_AIM";
+  }
+  if (matchesNormalizedMachineName(machineName, BEAM_HIKARI_STORE_COMMON_JUGGLER_MACHINES)) {
+    return "JUGGLER";
+  }
+  if (isBeamHikariStoreCommonSimpleOkidokiMachine(machineName)) {
+    return "OKIDOKI";
+  }
+  if (isBeamHikariStoreCommonSimpleSmartHanabiMachine(machineName)) {
+    return "SMART_HANABI";
+  }
+  if (isBeamHikariStoreCommonSimpleHokutoGodMachine(machineName)) {
+    return "HOKUTO_GOD";
+  }
+  if (machineType === "BONUS") {
+    return "BONUS";
+  }
+  if (machineType === "AT_SMART") {
+    return "AT_SMART";
+  }
+  return "";
+}
+
+function isBeamHikariStoreCommonSimpleJugglerGroup(machineGroup) {
+  return machineGroup === "NEO_AIM" || machineGroup === "JUGGLER";
+}
+
+function isBeamHikariStoreCommonSimpleMetricEligible(metrics) {
+  return (
+    metrics?.beamHikariStoreCommonTargetMachine === true &&
+    readNumber(metrics?.windowRowCount) >= 2 &&
+    Number.isFinite(readNumber(metrics?.recentTwoBonusTotal))
+  );
+}
+
+function buildBeamHikariStoreCommonSimplePrev2BonusRankInfo(metrics, metricsList = []) {
+  if (!isBeamHikariStoreCommonSimpleMetricEligible(metrics)) {
+    return null;
+  }
+  const machineName = normalizeText(metrics?.machineName);
+  const currentBonus = readNumber(metrics?.recentTwoBonusTotal);
+  const machineMetrics = (Array.isArray(metricsList) ? metricsList : [])
+    .filter(
+      (candidateMetrics) =>
+        isBeamHikariStoreCommonSimpleMetricEligible(candidateMetrics) &&
+        normalizeText(candidateMetrics?.machineName) === machineName,
+    )
+    .map((candidateMetrics) => readNumber(candidateMetrics?.recentTwoBonusTotal))
+    .filter((value) => Number.isFinite(value))
+    .sort((left, right) => left - right);
+
+  if (!machineName || !Number.isFinite(currentBonus) || machineMetrics.length === 0) {
+    return null;
+  }
+
+  const distinctBonusTotals = [];
+  for (const bonusTotal of machineMetrics) {
+    if (!distinctBonusTotals.some((value) => Math.abs(value - bonusTotal) <= HUNT_SCORE_EPSILON)) {
+      distinctBonusTotals.push(bonusTotal);
+    }
+  }
+
+  const rank =
+    distinctBonusTotals.findIndex((bonusTotal) => Math.abs(bonusTotal - currentBonus) <= HUNT_SCORE_EPSILON) + 1;
+  const minimumBonus = distinctBonusTotals[0] ?? null;
+  const secondBonus = distinctBonusTotals[1] ?? null;
+  const minimumCount = Number.isFinite(minimumBonus)
+    ? machineMetrics.filter((bonusTotal) => Math.abs(bonusTotal - minimumBonus) <= HUNT_SCORE_EPSILON).length
+    : 0;
+
+  return {
+    rank: rank > 0 ? rank : null,
+    candidateCount: machineMetrics.length,
+    minimumBonus,
+    secondBonus,
+    minimumCount,
+    isMinimum: rank === 1,
+    isSoloMinimum: rank === 1 && minimumCount === 1,
+    minimumGap: rank === 1 && Number.isFinite(secondBonus) ? secondBonus - currentBonus : 0,
+  };
+}
+
+function readBeamHikariStoreCommonSimpleMetrics(metrics, rankContext = {}) {
+  const machineName = normalizeText(metrics?.machineName);
+  const machineType = metrics?.beamHikariStoreCommonMachineType ?? getBeamHikariStoreCommonMachineType(machineName);
+  const machineGroup = getBeamHikariStoreCommonSimpleMachineGroup(machineName, machineType);
+  const prev2BonusRankInfo = rankContext.prev2BonusRankInfo ?? null;
+  const prev2BonusRankInMachine = prev2BonusRankInfo?.rank ?? null;
+  const prev2Games = readNumber(metrics?.recentTwoGamesTotal) ?? 0;
+  const isJugglerGroup = isBeamHikariStoreCommonSimpleJugglerGroup(machineGroup);
+  const eventEnd3or6 = isBeamHikariStoreCommonSimpleEventDate(rankContext.nextBusinessDate);
+
+  return {
+    targetMachine: metrics?.beamHikariStoreCommonTargetMachine === true,
+    machineName,
+    machineType,
+    machineGroup,
+    isJugglerGroup,
+    eventEnd3or6,
+    historyDays: readNumber(metrics?.historyRowCount) ?? 0,
+    windowRowCount: readNumber(metrics?.windowRowCount) ?? 0,
+    prev2Bonus: readNumber(metrics?.recentTwoBonusTotal),
+    prev2BonusRankInMachine,
+    prev2BonusCandidateCount: prev2BonusRankInfo?.candidateCount ?? 0,
+    prev2BonusMinimumCount: prev2BonusRankInfo?.minimumCount ?? 0,
+    prev2BonusMinimumGap: prev2BonusRankInfo?.minimumGap ?? 0,
+    prev2BonusIsMinimum: prev2BonusRankInfo?.isMinimum === true,
+    prev2BonusIsSoloMinimum: prev2BonusRankInfo?.isSoloMinimum === true,
+    prev2Diff: readNumber(metrics?.recentTwoNetTotal) ?? 0,
+    prev2Games,
+    prev2RbTotal: readNumber(metrics?.recentTwoRbTotal) ?? 0,
+    enoughInfo: isJugglerGroup ? prev2Games >= 1000 : prev2Games >= 3000,
+    lowInfo: isJugglerGroup ? prev2Games < 1000 : prev2Games < 3000,
+    storeCommonRankInMachine: rankContext.rank ?? null,
+    storeCommonTopGapInMachine: rankContext.topGap ?? 0,
+  };
+}
+
+function calculateBeamHikariStoreCommonSimpleBoostCount(values) {
+  let boostCount = 0;
+
+  if (values.prev2BonusRankInMachine === 1) {
+    boostCount += 1;
+  }
+  if (values.prev2BonusIsSoloMinimum) {
+    boostCount += 1;
+  }
+  if (values.isJugglerGroup && values.prev2Diff < 0) {
+    boostCount += 1;
+  }
+  if ((values.machineGroup === "OKIDOKI" || values.machineGroup === "SMART_HANABI") && values.prev2Diff < 0) {
+    boostCount += 1;
+  }
+  if (!values.isJugglerGroup && values.eventEnd3or6) {
+    boostCount += 1;
+  }
+  if (values.enoughInfo) {
+    boostCount += 1;
+  }
+
+  return boostCount;
+}
+
+function calculateBeamHikariStoreCommonSimpleRiskDetail(values) {
+  const riskNames = [];
+
+  if (values.windowRowCount < 2) {
+    riskNames.push("history_short");
+  }
+  if (!values.isJugglerGroup && !values.eventEnd3or6) {
+    riskNames.push("non_event");
+  }
+  if (values.lowInfo) {
+    riskNames.push("low_info");
+  }
+  if (values.isJugglerGroup && values.prev2Diff >= 0) {
+    riskNames.push("juggler_positive_diff");
+  }
+  if (
+    (values.machineGroup === "OKIDOKI" || values.machineGroup === "SMART_HANABI") &&
+    values.prev2Diff >= 0
+  ) {
+    riskNames.push("no_negative_diff");
+  }
+  if (values.machineGroup === "HOKUTO_GOD" && values.prev2Diff < 0) {
+    riskNames.push("hokuto_god_negative_weak");
+  }
+
+  return {
+    riskCount: riskNames.length,
+    riskNames,
+  };
+}
+
+function calculateBeamHikariStoreCommonSimpleScore(values) {
+  if (!values.targetMachine || !Number.isFinite(values.prev2BonusRankInMachine)) {
+    return 0;
+  }
+
+  let score = 15;
+
+  if (values.prev2BonusRankInMachine === 1) {
+    score += 55;
+  } else if (values.prev2BonusRankInMachine === 2) {
+    score += 35;
+  } else if (values.prev2BonusRankInMachine === 3) {
+    score += 22;
+  } else if (values.prev2BonusRankInMachine === 4) {
+    score += 10;
+  }
+
+  if (values.prev2BonusIsSoloMinimum) {
+    score += 5;
+  }
+
+  if (values.isJugglerGroup) {
+    score += values.prev2Diff < 0 ? 22 : -18;
+    score += values.enoughInfo ? 5 : -8;
+    if (values.machineGroup === "NEO_AIM") {
+      score += 4;
+    }
+  } else {
+    score += values.eventEnd3or6 ? 12 : -35;
+    if (values.machineGroup === "OKIDOKI" || values.machineGroup === "SMART_HANABI") {
+      score += values.prev2Diff < 0 ? 12 : -2;
+    } else if (values.machineGroup === "HOKUTO_GOD") {
+      score += values.prev2Diff < 0 ? -8 : 4;
+    } else {
+      score += values.prev2Diff < 0 ? 2 : 4;
+    }
+    score += values.enoughInfo ? 3 : -5;
+  }
+
+  return Math.round(clamp(score, 0, 100));
+}
+
+function buildBeamHikariStoreCommonSimpleBaseEvaluation(metrics, rankContext = {}) {
+  const prev2BonusRankInfo =
+    rankContext.prev2BonusRankInfo ??
+    buildBeamHikariStoreCommonSimplePrev2BonusRankInfo(metrics, rankContext.metricsList);
+  const values = readBeamHikariStoreCommonSimpleMetrics(metrics, {
+    ...rankContext,
+    prev2BonusRankInfo,
+  });
+  if (values.targetMachine !== true) {
+    return null;
+  }
+
+  const storeCommonBoostCount = calculateBeamHikariStoreCommonSimpleBoostCount(values);
+  const { riskCount: storeCommonRiskCount, riskNames } =
+    calculateBeamHikariStoreCommonSimpleRiskDetail(values);
+  const score = calculateBeamHikariStoreCommonSimpleScore(values);
+
+  return {
+    logicKey: BEAM_HIKARI_STORE_COMMON_SIMPLE_LOGIC_KEY,
+    logicName: BEAM_HIKARI_STORE_COMMON_SIMPLE_LOGIC_NAME,
+    displayLabel: "共通",
+    score,
+    storeCommonScore: score,
+    storeCommonBoostCount,
+    storeCommonRiskCount,
+    riskNames,
+    storeCommonRankInMachine: values.storeCommonRankInMachine,
+    storeCommonTopGapInMachine: values.storeCommonTopGapInMachine,
+    features: {
+      ...values,
+      storeCommonScore: score,
+      storeCommonBoostCount,
+      storeCommonRiskCount,
+      riskNames,
+    },
+  };
+}
+
+function calculateBeamHikariStoreCommonSimpleHuntScore(metrics, context = {}) {
+  const prev2BonusRankInfo = buildBeamHikariStoreCommonSimplePrev2BonusRankInfo(
+    metrics,
+    context?.metricsList,
+  );
+  return buildBeamHikariStoreCommonSimpleBaseEvaluation(metrics, {
+    prev2BonusRankInfo,
+    nextBusinessDate: context?.nextBusinessDate,
+  })?.score ?? 0;
+}
+
 const BEAM_HIKARI_STORE_COMMON_CONDITIONS = [
   {
     key: "SC_FREE_MAIN_UNPAID_ANGLE_RHYTHM",
@@ -9872,6 +10201,99 @@ const BEAM_HIKARI_STORE_COMMON_CONDITIONS = [
   },
 ];
 
+const BEAM_HIKARI_STORE_COMMON_SIMPLE_CONDITIONS = [
+  {
+    key: "NEO_SIMPLE_LOW_BONUS_DIFF2",
+    name: "NEO_SIMPLE_LOW_BONUS_DIFF2",
+    category: "通常採用",
+    backtestLabel: "通常採用 / ネオアイム全日 / 256台 / 102.83% / RB1/293.7",
+    backtestPayoutRate: 102.83,
+    backtestRbDenominator: 293.7,
+    matcher: (features) =>
+      features.machineGroup === "NEO_AIM" &&
+      features.prev2BonusRankInMachine === 1 &&
+      features.prev2Diff < 0,
+  },
+  {
+    key: "JUGGLER_EVENT_SIMPLE_LOW_BONUS_DIFF2",
+    name: "JUGGLER_EVENT_SIMPLE_LOW_BONUS_DIFF2",
+    category: "通常採用",
+    backtestLabel: "通常採用 / 他ジャグラーイベント / 356台 / 102.55% / RB1/300.1",
+    backtestPayoutRate: 102.55,
+    backtestRbDenominator: 300.1,
+    matcher: (features) =>
+      features.machineGroup === "JUGGLER" &&
+      features.eventEnd3or6 === true &&
+      features.prev2BonusRankInMachine === 1 &&
+      features.prev2Diff < 0,
+  },
+  {
+    key: "JUGGLER_REF_SIMPLE_LOW_BONUS_DIFF2",
+    name: "JUGGLER_REF_SIMPLE_LOW_BONUS_DIFF2",
+    category: "参考",
+    backtestLabel: "参考 / ジャグラー全体全日 / 102.10% / RB1/304.0",
+    backtestPayoutRate: 102.1,
+    backtestRbDenominator: 304,
+    matcher: (features) =>
+      features.machineGroup === "JUGGLER" &&
+      features.eventEnd3or6 !== true &&
+      features.prev2BonusRankInMachine === 1 &&
+      features.prev2Diff < 0,
+  },
+  {
+    key: "EV_REF_PREV2_LOW_BONUS",
+    name: "EV_REF_PREV2_LOW_BONUS",
+    category: "参考",
+    backtestLabel: "参考 / 追加6機種イベント / 457台 / 100.95%",
+    backtestPayoutRate: 100.95,
+    backtestRbDenominator: null,
+    matcher: (features) =>
+      !features.isJugglerGroup &&
+      features.eventEnd3or6 === true &&
+      features.prev2BonusRankInMachine === 1 &&
+      !(features.machineGroup === "HOKUTO_GOD" && features.prev2Diff < 0),
+  },
+  {
+    key: "EV_WEAK_OKIDOKI_PREV2_LOW_BONUS_NEG",
+    name: "EV_WEAK_OKIDOKI_PREV2_LOW_BONUS_NEG",
+    category: "弱採用",
+    backtestLabel: "弱採用 / 沖ドキ2機種イベント / 109台 / 101.02%",
+    backtestPayoutRate: 101.02,
+    backtestRbDenominator: null,
+    matcher: (features) =>
+      features.machineGroup === "OKIDOKI" &&
+      features.eventEnd3or6 === true &&
+      features.prev2BonusRankInMachine === 1 &&
+      features.prev2Diff < 0,
+  },
+  {
+    key: "EV_REF_SMART_HANABI_PREV2_LOW_BONUS_NEG",
+    name: "EV_REF_SMART_HANABI_PREV2_LOW_BONUS_NEG",
+    category: "参考",
+    backtestLabel: "参考 / スマスロハナビイベント / 28台 / 101.33%",
+    backtestPayoutRate: 101.33,
+    backtestRbDenominator: null,
+    matcher: (features) =>
+      features.machineGroup === "SMART_HANABI" &&
+      features.eventEnd3or6 === true &&
+      features.prev2BonusRankInMachine === 1 &&
+      features.prev2Diff < 0,
+  },
+  {
+    key: "SKIP_HOKUTO_GOD_PREV2_LOW_BONUS_NEG",
+    name: "SKIP_HOKUTO_GOD_PREV2_LOW_BONUS_NEG",
+    category: "見送り",
+    backtestLabel: "見送り / 北斗・ゴッド系差枚マイナス込み / 229台 / 100.08%",
+    backtestPayoutRate: 100.08,
+    backtestRbDenominator: null,
+    matcher: (features) =>
+      features.machineGroup === "HOKUTO_GOD" &&
+      features.eventEnd3or6 === true &&
+      features.prev2BonusRankInMachine === 1 &&
+      features.prev2Diff < 0,
+  },
+];
+
 function buildBeamHikariStoreCommonEvaluation(metrics, rankContext = {}) {
   const evaluation = buildBeamHikariStoreCommonBaseEvaluation(metrics);
   if (!evaluation) {
@@ -9906,11 +10328,41 @@ function buildBeamHikariStoreCommonEvaluation(metrics, rankContext = {}) {
   };
 }
 
-function attachBeamHikariStoreCommonEvaluations(rows, config) {
-  if (config?.logicKey !== BEAM_HIKARI_STORE_COMMON_LOGIC_KEY || !Array.isArray(rows)) {
-    return rows;
+function buildBeamHikariStoreCommonSimpleEvaluation(metrics, rankContext = {}) {
+  const evaluation = buildBeamHikariStoreCommonSimpleBaseEvaluation(metrics, rankContext);
+  if (!evaluation) {
+    return null;
   }
 
+  const features = {
+    ...evaluation.features,
+    storeCommonRankInMachine: rankContext.rank ?? null,
+    storeCommonTopGapInMachine: rankContext.topGap ?? 0,
+  };
+  const matchedConditions = BEAM_HIKARI_STORE_COMMON_SIMPLE_CONDITIONS
+    .filter((condition) => condition.matcher(features))
+    .map((condition) => ({
+      conditionKey: `${BEAM_HIKARI_STORE_COMMON_SIMPLE_LOGIC_KEY}:${condition.key}`,
+      conditionName: condition.name,
+      category: condition.category,
+      backtestLabel: condition.backtestLabel,
+      backtestPayoutRate: condition.backtestPayoutRate,
+      backtestRbDenominator: condition.backtestRbDenominator,
+      isSelected: false,
+    }));
+
+  return {
+    ...evaluation,
+    storeCommonRankInMachine: features.storeCommonRankInMachine,
+    storeCommonTopGapInMachine: features.storeCommonTopGapInMachine,
+    features,
+    matchedConditions,
+    matchesAnyCondition: matchedConditions.length > 0,
+    matchesAdoption: matchedConditions.some((condition) => condition.category !== "見送り"),
+  };
+}
+
+function buildBeamHikariStoreCommonScoreRankContextByRowKey(rows, config) {
   const rowsByMachineName = new Map();
   for (const row of rows) {
     if (!isBeamHikariStoreCommonTargetMachine(row?.machineName, config)) {
@@ -9959,6 +10411,107 @@ function attachBeamHikariStoreCommonEvaluations(rows, config) {
     });
   }
 
+  return rankContextByRowKey;
+}
+
+function buildBeamHikariStoreCommonSimplePrev2RankContextByRowKey(rows, config) {
+  const rowsByMachineName = new Map();
+  for (const row of rows) {
+    const metrics = row?.machineEvaluationMetrics;
+    if (
+      !isBeamHikariStoreCommonTargetMachine(row?.machineName, config) ||
+      !isBeamHikariStoreCommonSimpleMetricEligible(metrics)
+    ) {
+      continue;
+    }
+    const machineName = normalizeText(row?.machineName);
+    if (!rowsByMachineName.has(machineName)) {
+      rowsByMachineName.set(machineName, []);
+    }
+    rowsByMachineName.get(machineName).push(row);
+  }
+
+  const rankContextByRowKey = new Map();
+  for (const machineRows of rowsByMachineName.values()) {
+    const sortedRows = [...machineRows].sort((left, right) => {
+      const leftBonus = readNumber(left?.machineEvaluationMetrics?.recentTwoBonusTotal) ?? 0;
+      const rightBonus = readNumber(right?.machineEvaluationMetrics?.recentTwoBonusTotal) ?? 0;
+      if (Math.abs(leftBonus - rightBonus) > HUNT_SCORE_EPSILON) {
+        return leftBonus - rightBonus;
+      }
+      return String(left.slotNumber).localeCompare(String(right.slotNumber), "ja", {
+        numeric: true,
+      });
+    });
+    const distinctBonusTotals = [];
+    for (const row of sortedRows) {
+      const bonusTotal = readNumber(row?.machineEvaluationMetrics?.recentTwoBonusTotal);
+      if (!distinctBonusTotals.some((value) => Math.abs(value - bonusTotal) <= HUNT_SCORE_EPSILON)) {
+        distinctBonusTotals.push(bonusTotal);
+      }
+    }
+    const minimumBonus = distinctBonusTotals[0] ?? null;
+    const secondBonus = distinctBonusTotals[1] ?? null;
+    const minimumCount = minimumBonus === null
+      ? 0
+      : sortedRows.filter((row) =>
+          Math.abs(readNumber(row?.machineEvaluationMetrics?.recentTwoBonusTotal) - minimumBonus) <=
+          HUNT_SCORE_EPSILON,
+        ).length;
+
+    sortedRows.forEach((row) => {
+      const bonusTotal = readNumber(row?.machineEvaluationMetrics?.recentTwoBonusTotal);
+      const rank = distinctBonusTotals.findIndex((value) => Math.abs(value - bonusTotal) <= HUNT_SCORE_EPSILON) + 1;
+      rankContextByRowKey.set(String(row?.rowKey ?? ""), {
+        rank,
+        candidateCount: sortedRows.length,
+        minimumBonus,
+        secondBonus,
+        minimumCount,
+        isMinimum: rank === 1,
+        isSoloMinimum: rank === 1 && minimumCount === 1,
+        minimumGap: rank === 1 && Number.isFinite(secondBonus) ? secondBonus - bonusTotal : 0,
+      });
+    });
+  }
+
+  return rankContextByRowKey;
+}
+
+function attachBeamHikariStoreCommonEvaluations(rows, config) {
+  if (!Array.isArray(rows)) {
+    return rows;
+  }
+
+  if (config?.logicKey === BEAM_HIKARI_STORE_COMMON_SIMPLE_LOGIC_KEY) {
+    const scoreRankContextByRowKey = buildBeamHikariStoreCommonScoreRankContextByRowKey(rows, config);
+    const prev2RankContextByRowKey = buildBeamHikariStoreCommonSimplePrev2RankContextByRowKey(rows, config);
+    return rows.map((row) => {
+      const rowKey = String(row?.rowKey ?? "");
+      const rankContext = scoreRankContextByRowKey.get(rowKey) ?? {};
+      const prev2BonusRankInfo = prev2RankContextByRowKey.get(rowKey) ?? null;
+      const storeCommonEvaluation = buildBeamHikariStoreCommonSimpleEvaluation(
+        row?.machineEvaluationMetrics,
+        {
+          ...rankContext,
+          prev2BonusRankInfo,
+          nextBusinessDate: row?.nextBusinessDate,
+        },
+      );
+      return storeCommonEvaluation
+        ? {
+            ...row,
+            storeCommonEvaluation,
+          }
+        : row;
+    });
+  }
+
+  if (config?.logicKey !== BEAM_HIKARI_STORE_COMMON_LOGIC_KEY) {
+    return rows;
+  }
+
+  const rankContextByRowKey = buildBeamHikariStoreCommonScoreRankContextByRowKey(rows, config);
   return rows.map((row) => {
     const rankContext = rankContextByRowKey.get(String(row?.rowKey ?? "")) ?? {};
     const storeCommonEvaluation = buildBeamHikariStoreCommonEvaluation(
