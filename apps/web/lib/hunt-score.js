@@ -287,6 +287,44 @@ const BEAM_HIKARI_STORE_COMMON_AT_SMART_MACHINES = [
   "スマスロモンキーターンⅤ",
   "スマスロ モンキーターンⅤ",
 ];
+const BEAM_HIKARI_STORE_COMMON_BONUS_MACHINES = [
+  "SアイムジャグラーＥＸ",
+  "SアイムジャグラーEX",
+  "アイムジャグラーＥＸ",
+  "アイムジャグラーEX",
+  "ミスタージャグラー",
+  "ウルトラミラクルジャグラー",
+  "ハナハナホウオウ",
+  "ハナハナホウオウ-30",
+  "ハナハナホウオウ‐30",
+  "ハナハナホウオウ～天翔～-30",
+  "ハナハナホウオウ～天翔～‐30",
+  "ドラゴンハナハナ～閃光～",
+  "ドラゴンハナハナ",
+  "ドラゴンハナハナ閃光",
+  "キングハナハナ",
+  "ニューキングハナハナ",
+  "スターハナハナ",
+  "新ハナビ",
+  "スマスロ ハナビ",
+  "スマスロハナビ",
+  "クレアの秘宝伝～はじまりの扉と太陽の石～ボーナストリガーver.",
+  "SHAKE BONUS TRIGGER",
+  "LB SHAKE BONUS TRIGGER",
+  "ニューパルサーSP4 with 太鼓の達人",
+  "ニューパルサーＳＰ４ with 太鼓の達人",
+  "スマスロニューパルサーBT",
+  "スマスロ ニューパルサーBT",
+  "A-SLOT+ ディスクアップ ULTRAREMIX",
+  "A-SLOT+ディスクアップ ULTRAREMIX",
+  "クランキークレスト",
+  "スマスロ サンダーV",
+  "スマスロサンダーV",
+  "LサンダーV",
+  "A-SLOT+異世界かるてっとBT",
+  "A-SLOT+ 異世界かるてっとBT",
+  "A-SLOT+異世界かるてっとＢＴ",
+];
 const MJ_ARENA_IJIRI_TARGET_MACHINES = APARK_KASUGA_TARGET_MACHINES;
 
 const MJ_ARENA_AIRPORT_TARGET_MACHINES = [
@@ -3077,29 +3115,76 @@ function matchesNormalizedMachineName(machineName, candidates) {
   return candidates.some((candidate) => normalizeText(candidate) === normalizedMachineName);
 }
 
-function getBeamHikariStoreCommonMachineType(machineName) {
+function isBeamHikariStoreCommonConfiguredTargetMachine(machineName, config = null) {
+  if (config?.key !== "beam-hikari") {
+    return false;
+  }
+  const normalizedMachineName = normalizeText(machineName);
+  if (!normalizedMachineName) {
+    return false;
+  }
+  if (config?.targetMachineNameLookup?.has(normalizedMachineName)) {
+    return true;
+  }
+  return (Array.isArray(config?.targetMachines) ? config.targetMachines : []).some((targetMachine) =>
+    listHuntScoreTargetMachineNameCandidates(targetMachine).some(
+      (candidateName) => normalizeText(candidateName) === normalizedMachineName,
+    ),
+  );
+}
+
+function isBeamHikariStoreCommonBonusMachineName(machineName) {
+  const normalizedMachineName = normalizeText(machineName);
+  if (!normalizedMachineName) {
+    return false;
+  }
+  if (matchesNormalizedMachineName(machineName, BEAM_HIKARI_STORE_COMMON_BONUS_MACHINES)) {
+    return true;
+  }
+  return [
+    "ジャグラー",
+    "アイム",
+    "ハナハナ",
+    "ハナビ",
+    "サンダー",
+    "クレア",
+    "SHAKE",
+    "ニューパルサー",
+    "ディスクアップ",
+    "クランキー",
+    "A-SLOT",
+  ].some((keyword) => normalizedMachineName.includes(normalizeText(keyword)));
+}
+
+function getBeamHikariStoreCommonMachineType(machineName, config = null) {
   if (matchesNormalizedMachineName(machineName, BEAM_HIKARI_STORE_COMMON_JUGGLER_MACHINES)) {
     return "JUGGLER";
   }
+  if (isBeamHikariStoreCommonBonusMachineName(machineName)) {
+    return "BONUS";
+  }
   if (matchesNormalizedMachineName(machineName, BEAM_HIKARI_STORE_COMMON_AT_SMART_MACHINES)) {
+    return "AT_SMART";
+  }
+  if (isBeamHikariStoreCommonConfiguredTargetMachine(machineName, config)) {
     return "AT_SMART";
   }
   return "";
 }
 
-function isBeamHikariStoreCommonTargetMachine(machineName) {
-  return Boolean(getBeamHikariStoreCommonMachineType(machineName));
+function isBeamHikariStoreCommonTargetMachine(machineName, config = null) {
+  return Boolean(getBeamHikariStoreCommonMachineType(machineName, config));
 }
 
 function calculateBeamHikariStoreCommonPayoutRate(games, differenceValue) {
   return games > 0 ? 100 + (differenceValue / games / 3) * 100 : null;
 }
 
-function isBeamHikariStoreCommonHighContentWindowRow(row, machineName) {
-  const machineType = getBeamHikariStoreCommonMachineType(machineName);
+function isBeamHikariStoreCommonHighContentWindowRow(row, machineName, config = null) {
+  const machineType = getBeamHikariStoreCommonMachineType(machineName, config);
   const games = readWindowField(row, "games");
   const differenceValue = readNumber(row?.differenceValue) ?? 0;
-  if (machineType === "JUGGLER") {
+  if (machineType === "JUGGLER" || machineType === "BONUS") {
     const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
     const rbDenominator = calculateRbDenominatorFromWindowRow(row);
     return (
@@ -3116,11 +3201,11 @@ function isBeamHikariStoreCommonHighContentWindowRow(row, machineName) {
   return false;
 }
 
-function isBeamHikariStoreCommonStrongHighContentWindowRow(row, machineName) {
-  const machineType = getBeamHikariStoreCommonMachineType(machineName);
+function isBeamHikariStoreCommonStrongHighContentWindowRow(row, machineName, config = null) {
+  const machineType = getBeamHikariStoreCommonMachineType(machineName, config);
   const games = readWindowField(row, "games");
   const differenceValue = readNumber(row?.differenceValue) ?? 0;
-  if (machineType === "JUGGLER") {
+  if (machineType === "JUGGLER" || machineType === "BONUS") {
     const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
     const rbDenominator = calculateRbDenominatorFromWindowRow(row);
     return (
@@ -9425,6 +9510,7 @@ function readBeamHikariStoreCommonMetrics(metrics) {
   );
 
   return {
+    targetMachine: metrics?.beamHikariStoreCommonTargetMachine === true,
     machineType: metrics?.beamHikariStoreCommonMachineType ?? "",
     historyDays,
     daysSinceHighContent,
@@ -9642,7 +9728,10 @@ function calculateBeamHikariStoreCommonScore(values) {
 }
 
 function buildBeamHikariStoreCommonBaseEvaluation(metrics) {
-  if (!isBeamHikariStoreCommonTargetMachine(metrics?.machineName)) {
+  if (
+    metrics?.beamHikariStoreCommonTargetMachine !== true &&
+    !isBeamHikariStoreCommonTargetMachine(metrics?.machineName)
+  ) {
     return null;
   }
 
@@ -9824,7 +9913,7 @@ function attachBeamHikariStoreCommonEvaluations(rows, config) {
 
   const rowsByMachineName = new Map();
   for (const row of rows) {
-    if (!isBeamHikariStoreCommonTargetMachine(row?.machineName)) {
+    if (!isBeamHikariStoreCommonTargetMachine(row?.machineName, config)) {
       continue;
     }
     const machineName = normalizeText(row?.machineName);
@@ -13622,9 +13711,9 @@ function calculateWindowMetrics(
   ).length;
   const previousBigShow = previousGames >= 5000 && todayDifference >= 1000;
   const isBeamHikariStoreCommonHighContentRow = (windowRow) =>
-    isBeamHikariStoreCommonHighContentWindowRow(windowRow, currentMachineName);
+    isBeamHikariStoreCommonHighContentWindowRow(windowRow, currentMachineName, config);
   const isBeamHikariStoreCommonStrongHighContentRow = (windowRow) =>
-    isBeamHikariStoreCommonStrongHighContentWindowRow(windowRow, currentMachineName);
+    isBeamHikariStoreCommonStrongHighContentWindowRow(windowRow, currentMachineName, config);
   const beamHikariStoreCommonHighContentCount3 =
     recentThreeRows.filter(isBeamHikariStoreCommonHighContentRow).length;
   const beamHikariStoreCommonHighContentCount7 =
@@ -13635,11 +13724,13 @@ function calculateWindowMetrics(
   const beamHikariStoreCommonPrevHighContent = isBeamHikariStoreCommonHighContentWindowRow(
     previousMetricWindowRow,
     currentMachineName,
+    config,
   );
   const beamHikariStoreCommonPrevStrongHighContent =
     isBeamHikariStoreCommonStrongHighContentWindowRow(
       previousMetricWindowRow,
       currentMachineName,
+      config,
     );
   const beamHikariStoreCommonDaysSinceHighContent = (() => {
     for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
@@ -13996,7 +14087,14 @@ function calculateWindowMetrics(
     recentSevenBigShow1500Games2000Count,
     recentThreeShow1000Games1500Count,
     previousBigShow,
-    beamHikariStoreCommonMachineType: getBeamHikariStoreCommonMachineType(currentMachineName),
+    beamHikariStoreCommonTargetMachine: isBeamHikariStoreCommonTargetMachine(
+      currentMachineName,
+      config,
+    ),
+    beamHikariStoreCommonMachineType: getBeamHikariStoreCommonMachineType(
+      currentMachineName,
+      config,
+    ),
     beamHikariStoreCommonHighContentCount3,
     beamHikariStoreCommonHighContentCount7,
     beamHikariStoreCommonStrongHighContentCount7,
