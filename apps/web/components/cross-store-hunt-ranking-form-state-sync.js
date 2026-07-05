@@ -224,7 +224,7 @@ function updateStoreInputs(form, { checked, prefecture = "" }) {
   saveSelectedStoreIds(readSelectedStoreIdsFromForm(form), readStoreSourceFromForm(form));
 }
 
-export function CrossStoreHuntRankingFormStateSync({ formId }) {
+export function CrossStoreHuntRankingFormStateSync({ formId, resultActive = false }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -233,6 +233,10 @@ export function CrossStoreHuntRankingFormStateSync({ formId }) {
     const storeSource = normalizeStoreSource(searchParams.get("storeSource"));
     if (searchParams.has("store")) {
       saveSelectedStoreIds(searchParams.getAll("store"), storeSource);
+      return undefined;
+    }
+
+    if (resultActive) {
       return undefined;
     }
 
@@ -263,7 +267,7 @@ export function CrossStoreHuntRankingFormStateSync({ formId }) {
     return () => {
       window.removeEventListener(MY_HALL_CHANGE_EVENT, syncSearchFromMyHall);
     };
-  }, [pathname, router, searchParams]);
+  }, [pathname, resultActive, router, searchParams]);
 
   useEffect(() => {
     const storeSource = normalizeStoreSource(searchParams.get("storeSource"));
@@ -272,6 +276,10 @@ export function CrossStoreHuntRankingFormStateSync({ formId }) {
 
     if (hasMachineSelectionParams) {
       saveSelectedMachineNames(searchParams.getAll("machine"), storeSource);
+      return;
+    }
+
+    if (resultActive) {
       return;
     }
 
@@ -292,7 +300,7 @@ export function CrossStoreHuntRankingFormStateSync({ formId }) {
     if (searchText !== searchParams.toString()) {
       router.replace(searchText ? `${pathname}?${searchText}` : pathname, { scroll: false });
     }
-  }, [pathname, router, searchParams]);
+  }, [pathname, resultActive, router, searchParams]);
 
   useEffect(() => {
     if (!formId) {

@@ -46,6 +46,8 @@ import {
 } from "../../../../lib/hunt-machine-display";
 import { normalizeDifferenceMode } from "../../../../lib/machine-difference";
 import {
+  buildSavedParamAccess,
+  readFormStateEntriesFromCookies,
   getResultDisplayCookieName,
   isResultDisplayCookieEnabled,
 } from "../../../../lib/result-display-state";
@@ -60,23 +62,19 @@ const HANABI_GROUP_NAME = "ハナビ";
 const HANABI_MACHINE_NAMES = ["新ハナビ", "スマスロ ハナビ"];
 const HUNT_RANKING_FORM_ID = "hunt-ranking-condition-form";
 const STORE_DAY_STATUS_CLOSED = "closed";
+const HUNT_RANKING_CONDITION_PARAM_KEYS = [
+  "machineTouched",
+  "date",
+  "limit",
+  "differenceMode",
+  "settingEstimateMode",
+  "machineEvaluationRankingMode",
+  "huntScoreLogicKey",
+  "machine",
+];
 
 function buildHuntRankingResultDisplayKey(storeId) {
   return `hunt-ranking-${storeId}`;
-}
-
-function readSingleSearchParam(value) {
-  if (Array.isArray(value)) {
-    return typeof value[0] === "string" ? value[0] : "";
-  }
-  return typeof value === "string" ? value : "";
-}
-
-function readMultiSearchParam(value) {
-  if (Array.isArray(value)) {
-    return value.filter((entry) => typeof entry === "string");
-  }
-  return typeof value === "string" ? [value] : [];
 }
 
 function parseRequestedLimit(value) {
@@ -320,13 +318,17 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const storeId = resolvedParams.storeId;
   const cookieStore = await cookies();
   const resultDisplayKey = buildHuntRankingResultDisplayKey(storeId);
-  const requestedDate = readSingleSearchParam(resolvedSearchParams?.date);
+  const savedParamAccess = buildSavedParamAccess(
+    readFormStateEntriesFromCookies(cookieStore, resultDisplayKey),
+    resolvedSearchParams,
+  );
+  const requestedDate = savedParamAccess.readSingle("date");
   const resultRequested = isResultDisplayCookieEnabled(
     cookieStore.get(getResultDisplayCookieName(resultDisplayKey))?.value,
   );
-  const requestedLimit = parseRequestedLimit(readSingleSearchParam(resolvedSearchParams?.limit));
-  const requestedMachineNames = readMultiSearchParam(resolvedSearchParams?.machine);
-  const requestedRankingLogicKey = readSingleSearchParam(resolvedSearchParams?.huntScoreLogicKey);
+  const requestedLimit = parseRequestedLimit(savedParamAccess.readSingle("limit"));
+  const requestedMachineNames = savedParamAccess.readMulti("machine");
+  const requestedRankingLogicKey = savedParamAccess.readSingle("huntScoreLogicKey");
   const huntScoreLogicKey = decodeHuntScoreLogicCookieValue(
     cookieStore.get(getHuntScoreLogicCookieName(storeId))?.value ?? "",
   );
@@ -334,22 +336,22 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     cookieStore.get(getMachineEvaluationCookieName(storeId))?.value ?? "",
   );
   const machineEvaluationRankingMode = normalizeMachineEvaluationRankingMode(
-    readSingleSearchParam(resolvedSearchParams?.machineEvaluationRankingMode),
+    savedParamAccess.readSingle("machineEvaluationRankingMode"),
   );
   const differenceMode = normalizeDifferenceMode(
-    readSingleSearchParam(resolvedSearchParams?.differenceMode),
+    savedParamAccess.readSingle("differenceMode"),
   );
   const settingEstimateMode = normalizeSettingEstimateMode(
-    readSingleSearchParam(resolvedSearchParams?.settingEstimateMode),
+    savedParamAccess.readSingle("settingEstimateMode"),
   );
-  const machineFilterTouched = readSingleSearchParam(resolvedSearchParams?.machineTouched) === "1";
+  const machineFilterTouched = savedParamAccess.readSingle("machineTouched") === "1";
   const requestedCombineAimJuggler = normalizeCombineAimJuggler(
-    readMultiSearchParam(resolvedSearchParams?.aimMachineGroup),
+    savedParamAccess.readMulti("aimMachineGroup"),
     requestedMachineNames,
     machineFilterTouched,
   );
   const requestedCombineHanabi = normalizeCombineHanabi(
-    readMultiSearchParam(resolvedSearchParams?.hanabiMachineGroup),
+    savedParamAccess.readMulti("hanabiMachineGroup"),
     requestedMachineNames,
     machineFilterTouched,
   );
@@ -490,10 +492,13 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
         storeId={detail.store.id}
         formId={HUNT_RANKING_FORM_ID}
         formStateKey={rankingFormStateKey}
+        resultActive={resultRequested}
       />
       <ResultDisplayStateSync
         formId={HUNT_RANKING_FORM_ID}
         stateKey={resultDisplayKey}
+        conditionStateKey={resultDisplayKey}
+        conditionParamKeys={HUNT_RANKING_CONDITION_PARAM_KEYS}
         active={resultRequested}
       />
       <Breadcrumbs

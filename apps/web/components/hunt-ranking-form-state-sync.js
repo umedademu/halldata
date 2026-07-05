@@ -208,7 +208,12 @@ function readSavedState(storeId) {
   }
 }
 
-export function HuntRankingFormStateSync({ storeId, formId, formStateKey = "" }) {
+export function HuntRankingFormStateSync({
+  storeId,
+  formId,
+  formStateKey = "",
+  resultActive = false,
+}) {
   const hasSeenManagedParamsRef = useRef(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -225,7 +230,7 @@ export function HuntRankingFormStateSync({ storeId, formId, formStateKey = "" })
       return;
     }
 
-    if (hasSeenManagedParamsRef.current) {
+    if (hasSeenManagedParamsRef.current || resultActive) {
       return;
     }
 
@@ -242,7 +247,7 @@ export function HuntRankingFormStateSync({ storeId, formId, formStateKey = "" })
 
     const form = formId ? document.getElementById(formId) : null;
     applyStateToForm(form, savedEntries);
-  }, [formId, formStateKey, pathname, router, searchParams, storeId]);
+  }, [formId, formStateKey, pathname, resultActive, router, searchParams, storeId]);
 
   useEffect(() => {
     if (!storeId || !formId) {

@@ -35,6 +35,8 @@ import {
   normalizeSettingEstimateMode,
 } from "../../lib/setting-estimates";
 import {
+  buildSavedParamAccess,
+  readFormStateEntriesFromCookies,
   getResultDisplayCookieName,
   isResultDisplayCookieEnabled,
 } from "../../lib/result-display-state";
@@ -50,6 +52,17 @@ const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 300;
 const STORE_DAY_STATUS_CLOSED = "closed";
 const CROSS_STORE_HUNT_RANKING_RESULT_DISPLAY_KEY = "cross-store-hunt-ranking";
+const CROSS_STORE_HUNT_RANKING_CONDITION_PARAM_KEYS = [
+  "machineTouched",
+  "storeSource",
+  "favoriteStore",
+  "store",
+  "date",
+  "limit",
+  "differenceMode",
+  "settingEstimateMode",
+  "machine",
+];
 const STORE_SELECTION_SOURCE_FAVORITES = "favorites";
 const STORE_SELECTION_SOURCE_CONFIGURED = "configured";
 const STORE_SELECTION_SOURCE_OPTIONS = [
@@ -62,20 +75,6 @@ const STORE_SELECTION_SOURCE_OPTIONS = [
     label: "機種別設定店舗",
   },
 ];
-
-function readSingleSearchParam(value) {
-  if (Array.isArray(value)) {
-    return typeof value[0] === "string" ? value[0] : "";
-  }
-  return typeof value === "string" ? value : "";
-}
-
-function readMultiSearchParam(value) {
-  if (Array.isArray(value)) {
-    return value.filter((entry) => typeof entry === "string");
-  }
-  return typeof value === "string" ? [value] : [];
-}
 
 function normalizeStoreIds(values) {
   return [
@@ -476,22 +475,26 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
       getResultDisplayCookieName(CROSS_STORE_HUNT_RANKING_RESULT_DISPLAY_KEY),
     )?.value,
   );
+  const savedParamAccess = buildSavedParamAccess(
+    readFormStateEntriesFromCookies(cookieStore, CROSS_STORE_HUNT_RANKING_RESULT_DISPLAY_KEY),
+    resolvedSearchParams,
+  );
   const storeSelectionSource = normalizeStoreSelectionSource(
-    readSingleSearchParam(resolvedSearchParams?.storeSource),
+    savedParamAccess.readSingle("storeSource"),
   );
   const requestedFavoriteStoreIds = normalizeStoreIds(
-    readMultiSearchParam(resolvedSearchParams?.favoriteStore),
+    savedParamAccess.readMulti("favoriteStore"),
   );
-  const requestedStoreIds = normalizeStoreIds(readMultiSearchParam(resolvedSearchParams?.store));
-  const requestedDate = readSingleSearchParam(resolvedSearchParams?.date);
-  const requestedLimit = normalizeLimit(readSingleSearchParam(resolvedSearchParams?.limit));
-  const requestedMachineNames = readMultiSearchParam(resolvedSearchParams?.machine);
-  const machineTouched = readSingleSearchParam(resolvedSearchParams?.machineTouched) === "1";
+  const requestedStoreIds = normalizeStoreIds(savedParamAccess.readMulti("store"));
+  const requestedDate = savedParamAccess.readSingle("date");
+  const requestedLimit = normalizeLimit(savedParamAccess.readSingle("limit"));
+  const requestedMachineNames = savedParamAccess.readMulti("machine");
+  const machineTouched = savedParamAccess.readSingle("machineTouched") === "1";
   const differenceMode = normalizeDifferenceMode(
-    readSingleSearchParam(resolvedSearchParams?.differenceMode),
+    savedParamAccess.readSingle("differenceMode"),
   );
   const settingEstimateMode = normalizeSettingEstimateMode(
-    readSingleSearchParam(resolvedSearchParams?.settingEstimateMode),
+    savedParamAccess.readSingle("settingEstimateMode"),
   );
   const stores = (await getStoreList()).filter((store) => !store.isPendingRegistration);
   const storeById = buildStoreById(stores);
@@ -592,10 +595,12 @@ export default async function StoreCrossHuntRankingPage({ searchParams }) {
 
   return (
     <main className="pageStack">
-      <CrossStoreHuntRankingFormStateSync formId={FORM_ID} />
+      <CrossStoreHuntRankingFormStateSync formId={FORM_ID} resultActive={resultRequested} />
       <ResultDisplayStateSync
         formId={FORM_ID}
         stateKey={CROSS_STORE_HUNT_RANKING_RESULT_DISPLAY_KEY}
+        conditionStateKey={CROSS_STORE_HUNT_RANKING_RESULT_DISPLAY_KEY}
+        conditionParamKeys={CROSS_STORE_HUNT_RANKING_CONDITION_PARAM_KEYS}
         active={resultRequested}
       />
       <section className="heroPanel">
