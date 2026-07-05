@@ -26,6 +26,8 @@ const TAMAYA_ZASSHONOKUMA_HISTORY_WINDOW_DAYS = 30;
 const MILLION_TOBU_NERIMA_R30_WINDOW_DAYS = 30;
 const AMUSE_ASAKUSA_R30_WINDOW_DAYS = 30;
 const DEFAULT_HUNT_SCORE_LOGIC_KEY = "apark";
+const BEAM_HIKARI_STORE_COMMON_LOGIC_KEY = "beam-hikari-store-common-v1";
+const BEAM_HIKARI_STORE_COMMON_LOGIC_NAME = "ビームヒカリ式1.0";
 const APARK_KASUGA_KAI_RAW_MIN = -32;
 const APARK_KASUGA_KAI_RAW_MAX = 138;
 const APARK_KASUGA_SIX_DAY_SCALE = 6 / 7;
@@ -252,6 +254,39 @@ const BOOM_TENJIN_TARGET_MACHINES = [
 ];
 
 const BEAM_HIKARI_TARGET_MACHINES = APARK_KASUGA_TARGET_MACHINES;
+const BEAM_HIKARI_STORE_COMMON_JUGGLER_MACHINES = [
+  "ファンキージャグラー２ＫＴ",
+  "ファンキージャグラー２",
+  "ファンキージャグラー2",
+  "ハッピージャグラーＶＩＩＩ",
+  "ハッピージャグラーVIII",
+  "ハッピージャグラーＶ",
+  "ハッピージャグラーV",
+  "ハッピージャグラー",
+  "ジャグラーガールズSS",
+  "ジャグラーガールズ",
+  "ゴーゴージャグラー３",
+  "ゴーゴージャグラー3",
+  "ゴーゴージャグラー",
+  "マイジャグラーV",
+  "マイジャグラーⅤ",
+  "マイジャグラー",
+  "ネオアイムジャグラーEX",
+  "ネオアイムジャグラーＥＸ",
+];
+const BEAM_HIKARI_STORE_COMMON_AT_SMART_MACHINES = [
+  "スマスロ 甲鉄城のカバネリ 海門決戦",
+  "スマスロ甲鉄城のカバネリ海門決戦",
+  "Lパチスロ革命機ヴァルヴレイヴ2",
+  "Lパチスロ革命機ヴァルヴレイヴ２",
+  "L東京喰種",
+  "L 東京喰種",
+  "東京喰種",
+  "スマスロモンキーターンV",
+  "スマスロ モンキーターンV",
+  "スマスロモンキーターンⅤ",
+  "スマスロ モンキーターンⅤ",
+];
 const MJ_ARENA_IJIRI_TARGET_MACHINES = APARK_KASUGA_TARGET_MACHINES;
 
 const MJ_ARENA_AIRPORT_TARGET_MACHINES = [
@@ -806,6 +841,13 @@ const HUNT_SCORE_LOGIC_DEFINITIONS = [
     windowDays: 7,
     historyWindowDays: 90,
     scoreCalculator: calculateBeamHikariBHuntScore,
+  },
+  {
+    key: BEAM_HIKARI_STORE_COMMON_LOGIC_KEY,
+    name: BEAM_HIKARI_STORE_COMMON_LOGIC_NAME,
+    windowDays: 7,
+    historyWindowDays: 90,
+    scoreCalculator: calculateBeamHikariStoreCommonHuntScore,
   },
   {
     key: "mj-arena-ijiri-a",
@@ -1739,7 +1781,7 @@ const HUNT_SCORE_STORE_CONFIGS = [
     key: "beam-hikari",
     storeNames: ["ビームヒカリ店", "ビームヒカリ", "BEAM HIKARI", "BEAMHIKARI", "ＢＥＡＭヒカリ店"],
     targetMachines: BEAM_HIKARI_TARGET_MACHINES,
-    defaultLogicKey: "beam-hikari-a",
+    defaultLogicKey: BEAM_HIKARI_STORE_COMMON_LOGIC_KEY,
     machineHighContentRules: {
       "ネオアイムジャグラーEX": "beam-hikari-neo-aim-content",
       "ネオアイムジャグラーＥＸ": "beam-hikari-neo-aim-content",
@@ -3028,6 +3070,71 @@ function readMachineContentRule(config, machineName) {
     }
   }
   return "";
+}
+
+function matchesNormalizedMachineName(machineName, candidates) {
+  const normalizedMachineName = normalizeText(machineName);
+  return candidates.some((candidate) => normalizeText(candidate) === normalizedMachineName);
+}
+
+function getBeamHikariStoreCommonMachineType(machineName) {
+  if (matchesNormalizedMachineName(machineName, BEAM_HIKARI_STORE_COMMON_JUGGLER_MACHINES)) {
+    return "JUGGLER";
+  }
+  if (matchesNormalizedMachineName(machineName, BEAM_HIKARI_STORE_COMMON_AT_SMART_MACHINES)) {
+    return "AT_SMART";
+  }
+  return "";
+}
+
+function isBeamHikariStoreCommonTargetMachine(machineName) {
+  return Boolean(getBeamHikariStoreCommonMachineType(machineName));
+}
+
+function calculateBeamHikariStoreCommonPayoutRate(games, differenceValue) {
+  return games > 0 ? 100 + (differenceValue / games / 3) * 100 : null;
+}
+
+function isBeamHikariStoreCommonHighContentWindowRow(row, machineName) {
+  const machineType = getBeamHikariStoreCommonMachineType(machineName);
+  const games = readWindowField(row, "games");
+  const differenceValue = readNumber(row?.differenceValue) ?? 0;
+  if (machineType === "JUGGLER") {
+    const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+    const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+    return (
+      games >= 3000 &&
+      combinedDenominator <= 145 &&
+      rbDenominator <= 320 &&
+      differenceValue >= -1500
+    );
+  }
+  if (machineType === "AT_SMART") {
+    const payoutRate = calculateBeamHikariStoreCommonPayoutRate(games, differenceValue);
+    return games >= 3000 && (differenceValue >= 1500 || (Number.isFinite(payoutRate) && payoutRate >= 106));
+  }
+  return false;
+}
+
+function isBeamHikariStoreCommonStrongHighContentWindowRow(row, machineName) {
+  const machineType = getBeamHikariStoreCommonMachineType(machineName);
+  const games = readWindowField(row, "games");
+  const differenceValue = readNumber(row?.differenceValue) ?? 0;
+  if (machineType === "JUGGLER") {
+    const combinedDenominator = calculateCombinedDenominatorFromWindowRow(row);
+    const rbDenominator = calculateRbDenominatorFromWindowRow(row);
+    return (
+      games >= 4500 &&
+      combinedDenominator <= 135 &&
+      rbDenominator <= 290 &&
+      differenceValue >= -1000
+    );
+  }
+  if (machineType === "AT_SMART") {
+    const payoutRate = calculateBeamHikariStoreCommonPayoutRate(games, differenceValue);
+    return games >= 3500 && (differenceValue >= 3000 || (Number.isFinite(payoutRate) && payoutRate >= 110));
+  }
+  return false;
 }
 
 const NEO_AIM_BONUS_SETTING_RATES = [
@@ -9290,6 +9397,494 @@ function calculateBeamHikariBHuntScore(metrics) {
   return clamp(score, 0, 100);
 }
 
+function readBeamHikariStoreCommonMetrics(metrics) {
+  const historyDays = readNumber(metrics?.historyRowCount);
+  const daysSinceHighContent = Number.isFinite(
+    metrics?.beamHikariStoreCommonDaysSinceHighContent,
+  )
+    ? metrics.beamHikariStoreCommonDaysSinceHighContent
+    : 999;
+  const daysSinceStrongHighContent = Number.isFinite(
+    metrics?.beamHikariStoreCommonDaysSinceStrongHighContent,
+  )
+    ? metrics.beamHikariStoreCommonDaysSinceStrongHighContent
+    : 999;
+  const diff7 = readNumber(metrics?.recentSevenNetTotal);
+  const diff14 = readNumber(metrics?.recentFourteenNetTotal);
+  const g7 = readNumber(metrics?.recentSevenGamesTotal);
+  const g14 = readNumber(metrics?.recentFourteenGamesTotal);
+  const angle7 = g7 > 0 ? (diff7 / g7) * 1000 : null;
+  const prevDiff = readNumber(metrics?.todayDifference);
+  const prevG = readNumber(metrics?.previousGames);
+  const prevHighContent = metrics?.beamHikariStoreCommonPrevHighContent === true;
+  const prevStrongHighContent = metrics?.beamHikariStoreCommonPrevStrongHighContent === true;
+  const highContentCount3 = readNumber(metrics?.beamHikariStoreCommonHighContentCount3);
+  const highContentCount7 = readNumber(metrics?.beamHikariStoreCommonHighContentCount7);
+  const strongHighContentCount7 = readNumber(
+    metrics?.beamHikariStoreCommonStrongHighContentCount7,
+  );
+
+  return {
+    machineType: metrics?.beamHikariStoreCommonMachineType ?? "",
+    historyDays,
+    daysSinceHighContent,
+    daysSinceStrongHighContent,
+    highContentCount3,
+    highContentCount7,
+    strongHighContentCount7,
+    prevHighContent,
+    prevStrongHighContent,
+    diff7,
+    diff14,
+    g7,
+    g14,
+    angle7,
+    lossStreak: readNumber(metrics?.historyLosingStreak),
+    zeroGCount7: readNumber(metrics?.recentSevenZeroGamesCount),
+    prevDiff,
+    prevG,
+    recentOvertreated:
+      prevHighContent ||
+      prevStrongHighContent ||
+      prevDiff >= 2500 ||
+      strongHighContentCount7 >= 2 ||
+      highContentCount7 >= 3,
+    lowInfoFlag: historyDays < 14 || g7 < 3000 || readNumber(metrics?.recentSevenZeroGamesCount) >= 3,
+  };
+}
+
+function calculateBeamHikariStoreCommonBoostCount(values) {
+  let boostCount = 0;
+
+  if (values.daysSinceHighContent >= 4 && values.daysSinceHighContent <= 14) {
+    boostCount += 1;
+  }
+  if (values.highContentCount3 === 0 && values.strongHighContentCount7 <= 1) {
+    boostCount += 1;
+  }
+  if (
+    (values.diff14 >= -9000 && values.diff14 <= -1500) ||
+    (values.diff7 >= -6000 && values.diff7 <= -800)
+  ) {
+    boostCount += 1;
+  }
+  if (values.angle7 !== null && values.angle7 >= -350 && values.angle7 <= -70) {
+    boostCount += 1;
+  }
+  if (values.lossStreak >= 2 && values.lossStreak <= 6) {
+    boostCount += 1;
+  }
+  if (values.g7 >= 8000 && values.g7 <= 32000) {
+    boostCount += 1;
+  }
+
+  return boostCount;
+}
+
+function calculateBeamHikariStoreCommonRiskDetail(values) {
+  const riskNames = [];
+
+  if (values.historyDays < 14) {
+    riskNames.push("history_short");
+  }
+  if (values.g7 < 3000 || values.zeroGCount7 >= 3) {
+    riskNames.push("low_info");
+  }
+  if (values.prevHighContent || values.prevStrongHighContent || values.prevDiff >= 2500) {
+    riskNames.push("prev_processed");
+  }
+  if (values.strongHighContentCount7 >= 2 || values.highContentCount7 >= 3) {
+    riskNames.push("recent_concentrated");
+  }
+  if (values.diff7 > 5000 || values.diff14 > 7000) {
+    riskNames.push("recent_overpaid");
+  }
+  if (values.diff14 < -16000 || (values.diff7 < -12000 && values.angle7 !== null && values.angle7 < -650)) {
+    riskNames.push("too_deep");
+  }
+  if (values.lossStreak >= 8) {
+    riskNames.push("too_many_losses");
+  }
+  if (values.g14 > 85000 || values.g7 > 52000) {
+    riskNames.push("too_much_activity");
+  }
+  if (values.daysSinceHighContent >= 60 && values.daysSinceHighContent < 999) {
+    riskNames.push("long_ignored");
+  }
+
+  return {
+    riskCount: riskNames.length,
+    riskNames,
+  };
+}
+
+function calculateBeamHikariStoreCommonScore(values) {
+  let score = 40;
+
+  if (values.historyDays >= 28) {
+    score += 8;
+  } else if (values.historyDays >= 21) {
+    score += 7;
+  } else if (values.historyDays >= 14) {
+    score += 4;
+  } else if (values.historyDays >= 7) {
+    score -= 10;
+  } else {
+    score -= 30;
+  }
+
+  if (values.daysSinceHighContent >= 4 && values.daysSinceHighContent <= 10) {
+    score += 18;
+  } else if (values.daysSinceHighContent >= 11 && values.daysSinceHighContent <= 21) {
+    score += 10;
+  } else if (values.daysSinceHighContent >= 22 && values.daysSinceHighContent <= 35) {
+    score += 3;
+  } else if (values.daysSinceHighContent === 999) {
+    score += 2;
+  } else if (values.daysSinceHighContent === 1) {
+    score -= 10;
+  } else if (values.daysSinceHighContent >= 2 && values.daysSinceHighContent <= 3) {
+    score -= 6;
+  } else if (values.daysSinceHighContent >= 60 && values.daysSinceHighContent <= 998) {
+    score -= 6;
+  }
+
+  if (values.highContentCount3 === 0) {
+    score += 8;
+  }
+  if (values.strongHighContentCount7 === 0) {
+    score += 5;
+  }
+  if (values.strongHighContentCount7 >= 2) {
+    score -= 12;
+  }
+  if (values.highContentCount7 >= 3) {
+    score -= 10;
+  }
+
+  if (values.diff14 >= -9000 && values.diff14 <= -1500) {
+    score += 12;
+  } else if (values.diff14 > -1500 && values.diff14 <= 2000) {
+    score += 6;
+  } else if (values.diff14 < -16000) {
+    score -= 10;
+  } else if (values.diff14 > 7000) {
+    score -= 12;
+  }
+
+  if (values.diff7 >= -6000 && values.diff7 <= -800) {
+    score += 10;
+  } else if (values.diff7 > -800 && values.diff7 <= 1000) {
+    score += 4;
+  } else if (values.diff7 < -12000) {
+    score -= 8;
+  } else if (values.diff7 > 5000) {
+    score -= 8;
+  }
+
+  if (values.angle7 !== null && values.angle7 >= -350 && values.angle7 <= -70) {
+    score += 8;
+  } else if (values.angle7 !== null && values.angle7 > -70 && values.angle7 < 0) {
+    score += 3;
+  } else if (values.angle7 !== null && values.angle7 < -650) {
+    score -= 5;
+  } else if (values.angle7 !== null && values.angle7 > 250) {
+    score -= 6;
+  }
+
+  if (values.lossStreak >= 2 && values.lossStreak <= 5) {
+    score += 10;
+  } else if (values.lossStreak >= 6 && values.lossStreak <= 7) {
+    score += 5;
+  } else if (values.lossStreak === 1) {
+    score += 2;
+  } else if (values.lossStreak === 0) {
+    score -= 4;
+  } else if (values.lossStreak >= 8) {
+    score -= 8;
+  }
+
+  if (values.g7 >= 8000 && values.g7 <= 32000) {
+    score += 8;
+  } else if (values.g7 >= 4000 && values.g7 < 8000) {
+    score += 3;
+  } else if (values.g7 < 3000) {
+    score -= 8;
+  } else if (values.g7 > 52000) {
+    score -= 7;
+  }
+
+  if (values.g14 >= 20000 && values.g14 <= 65000) {
+    score += 4;
+  } else if (values.g14 > 85000) {
+    score -= 5;
+  }
+
+  if (values.prevDiff >= -2500 && values.prevDiff <= -100) {
+    score += 5;
+  } else if (values.prevDiff <= -3500) {
+    score -= 3;
+  } else if (values.prevDiff >= 2500) {
+    score -= 10;
+  }
+
+  if (values.prevHighContent) {
+    score -= 8;
+  }
+  if (values.prevStrongHighContent) {
+    score -= 7;
+  }
+  if (values.zeroGCount7 >= 3) {
+    score -= 10;
+  }
+
+  return Math.round(clamp(score, 0, 100));
+}
+
+function buildBeamHikariStoreCommonBaseEvaluation(metrics) {
+  if (!isBeamHikariStoreCommonTargetMachine(metrics?.machineName)) {
+    return null;
+  }
+
+  const values = readBeamHikariStoreCommonMetrics(metrics);
+  const storeCommonBoostCount = calculateBeamHikariStoreCommonBoostCount(values);
+  const { riskCount: storeCommonRiskCount, riskNames } =
+    calculateBeamHikariStoreCommonRiskDetail(values);
+  const score = calculateBeamHikariStoreCommonScore(values);
+
+  return {
+    logicKey: BEAM_HIKARI_STORE_COMMON_LOGIC_KEY,
+    logicName: BEAM_HIKARI_STORE_COMMON_LOGIC_NAME,
+    displayLabel: "共通",
+    score,
+    storeCommonScore: score,
+    storeCommonBoostCount,
+    storeCommonRiskCount,
+    riskNames,
+    storeCommonRankInMachine: null,
+    storeCommonTopGapInMachine: 0,
+    features: {
+      ...values,
+      storeCommonScore: score,
+      storeCommonBoostCount,
+      storeCommonRiskCount,
+      riskNames,
+      storeCommonRankInMachine: null,
+      storeCommonTopGapInMachine: 0,
+    },
+  };
+}
+
+function calculateBeamHikariStoreCommonHuntScore(metrics) {
+  return buildBeamHikariStoreCommonBaseEvaluation(metrics)?.score ?? 0;
+}
+
+const BEAM_HIKARI_STORE_COMMON_CONDITIONS = [
+  {
+    key: "SC_FREE_MAIN_UNPAID_ANGLE_RHYTHM",
+    name: "SC_FREE_MAIN_UNPAID_ANGLE_RHYTHM",
+    category: "通常採用",
+    backtestLabel: "通常採用 / 2,095台 / 101.28% / RB1/335.6",
+    backtestPayoutRate: 101.28,
+    backtestRbDenominator: 335.6,
+    matcher: (features) =>
+      features.historyDays >= 14 &&
+      features.daysSinceHighContent >= 4 &&
+      features.daysSinceHighContent <= 14 &&
+      features.diff14 >= -9000 &&
+      features.diff14 <= -1500 &&
+      features.angle7 !== null &&
+      features.angle7 >= -350 &&
+      features.angle7 <= -70 &&
+      features.lossStreak >= 2 &&
+      features.lossStreak <= 6 &&
+      features.storeCommonRiskCount === 0,
+  },
+  {
+    key: "SC_STAGE_WEAK_BOOST6_RISK0",
+    name: "SC_STAGE_WEAK_BOOST6_RISK0",
+    category: "弱採用",
+    backtestLabel: "弱採用 / 2,967台 / 101.15% / RB1/335.9",
+    backtestPayoutRate: 101.15,
+    backtestRbDenominator: 335.9,
+    matcher: (features) =>
+      features.historyDays >= 14 &&
+      features.storeCommonBoostCount >= 6 &&
+      features.storeCommonRiskCount === 0,
+  },
+  {
+    key: "SC_FREE_ALT_MODERATE_SINK_RANK1",
+    name: "SC_FREE_ALT_MODERATE_SINK_RANK1",
+    category: "弱採用",
+    backtestLabel: "弱採用 / 4,874台 / 101.08% / RB1/337.7",
+    backtestPayoutRate: 101.08,
+    backtestRbDenominator: 337.7,
+    matcher: (features) =>
+      features.historyDays >= 14 &&
+      features.daysSinceHighContent >= 4 &&
+      features.daysSinceHighContent <= 14 &&
+      (
+        (features.diff14 >= -9000 && features.diff14 <= -1500) ||
+        (features.diff7 >= -6000 && features.diff7 <= -800)
+      ) &&
+      features.lossStreak >= 2 &&
+      features.lossStreak <= 6 &&
+      features.storeCommonRiskCount === 0 &&
+      features.storeCommonRankInMachine === 1,
+  },
+  {
+    key: "SC_STAGE_REF_80_RISK0",
+    name: "SC_STAGE_REF_80_RISK0",
+    category: "参考",
+    backtestLabel: "参考 / 19,289台 / 100.38% / RB1/351.6",
+    backtestPayoutRate: 100.38,
+    backtestRbDenominator: 351.6,
+    matcher: (features) =>
+      features.historyDays >= 14 &&
+      features.storeCommonScore >= 80 &&
+      features.storeCommonRiskCount === 0,
+  },
+  {
+    key: "SC_STAGE_WEAK_BOOST5_RISK0",
+    name: "SC_STAGE_WEAK_BOOST5_RISK0",
+    category: "弱採用",
+    backtestLabel: "弱採用 / 7,094台 / 100.72% / RB1/345.4",
+    backtestPayoutRate: 100.72,
+    backtestRbDenominator: 345.4,
+    matcher: (features) =>
+      features.historyDays >= 14 &&
+      features.storeCommonBoostCount >= 5 &&
+      features.storeCommonRiskCount === 0,
+  },
+  {
+    key: "SC_SKIP_SCORE75_RISK2",
+    name: "SC_SKIP_SCORE75_RISK2",
+    category: "見送り",
+    backtestLabel: "見送り / 85台 / 97.07% / RB1/372.5",
+    backtestPayoutRate: 97.07,
+    backtestRbDenominator: 372.5,
+    matcher: (features) =>
+      features.historyDays >= 14 &&
+      features.storeCommonScore >= 75 &&
+      features.storeCommonRiskCount >= 2,
+  },
+  {
+    key: "SC_SKIP_SCORE80_PREV_PROCESSED",
+    name: "SC_SKIP_SCORE80_PREV_PROCESSED",
+    category: "見送り",
+    backtestLabel: "見送り / 157台 / 97.90% / RB1/415.7",
+    backtestPayoutRate: 97.9,
+    backtestRbDenominator: 415.7,
+    matcher: (features) =>
+      features.historyDays >= 14 &&
+      features.storeCommonScore >= 80 &&
+      features.storeCommonRiskCount >= 1 &&
+      features.riskNames.includes("prev_processed"),
+  },
+];
+
+function buildBeamHikariStoreCommonEvaluation(metrics, rankContext = {}) {
+  const evaluation = buildBeamHikariStoreCommonBaseEvaluation(metrics);
+  if (!evaluation) {
+    return null;
+  }
+
+  const features = {
+    ...evaluation.features,
+    storeCommonRankInMachine: rankContext.rank ?? null,
+    storeCommonTopGapInMachine: rankContext.topGap ?? 0,
+  };
+  const matchedConditions = BEAM_HIKARI_STORE_COMMON_CONDITIONS
+    .filter((condition) => condition.matcher(features))
+    .map((condition) => ({
+      conditionKey: `${BEAM_HIKARI_STORE_COMMON_LOGIC_KEY}:${condition.key}`,
+      conditionName: condition.name,
+      category: condition.category,
+      backtestLabel: condition.backtestLabel,
+      backtestPayoutRate: condition.backtestPayoutRate,
+      backtestRbDenominator: condition.backtestRbDenominator,
+      isSelected: false,
+    }));
+
+  return {
+    ...evaluation,
+    storeCommonRankInMachine: features.storeCommonRankInMachine,
+    storeCommonTopGapInMachine: features.storeCommonTopGapInMachine,
+    features,
+    matchedConditions,
+    matchesAnyCondition: matchedConditions.length > 0,
+    matchesAdoption: matchedConditions.some((condition) => condition.category !== "見送り"),
+  };
+}
+
+function attachBeamHikariStoreCommonEvaluations(rows, config) {
+  if (config?.logicKey !== BEAM_HIKARI_STORE_COMMON_LOGIC_KEY || !Array.isArray(rows)) {
+    return rows;
+  }
+
+  const rowsByMachineName = new Map();
+  for (const row of rows) {
+    if (!isBeamHikariStoreCommonTargetMachine(row?.machineName)) {
+      continue;
+    }
+    const machineName = normalizeText(row?.machineName);
+    if (!rowsByMachineName.has(machineName)) {
+      rowsByMachineName.set(machineName, []);
+    }
+    rowsByMachineName.get(machineName).push(row);
+  }
+
+  const rankContextByRowKey = new Map();
+  for (const machineRows of rowsByMachineName.values()) {
+    const sortedRows = [...machineRows].sort((left, right) => {
+      if (Math.abs((right.huntScore ?? 0) - (left.huntScore ?? 0)) > HUNT_SCORE_EPSILON) {
+        return (right.huntScore ?? 0) - (left.huntScore ?? 0);
+      }
+      return String(left.slotNumber).localeCompare(String(right.slotNumber), "ja", {
+        numeric: true,
+      });
+    });
+    const distinctScores = [];
+    for (const row of sortedRows) {
+      const score = readNumber(row?.huntScore);
+      if (!distinctScores.some((value) => Math.abs(value - score) <= HUNT_SCORE_EPSILON)) {
+        distinctScores.push(score);
+      }
+    }
+    const topScore = distinctScores[0] ?? null;
+    const nextScore = distinctScores[1] ?? null;
+    const topScoreCount = topScore === null
+      ? 0
+      : sortedRows.filter((row) => Math.abs(readNumber(row?.huntScore) - topScore) <= HUNT_SCORE_EPSILON).length;
+
+    sortedRows.forEach((row) => {
+      const score = readNumber(row?.huntScore);
+      const rank = distinctScores.findIndex((value) => Math.abs(value - score) <= HUNT_SCORE_EPSILON) + 1;
+      rankContextByRowKey.set(String(row?.rowKey ?? ""), {
+        rank,
+        topGap:
+          rank === 1 && topScoreCount === 1 && topScore !== null && nextScore !== null
+            ? Math.max(0, topScore - nextScore)
+            : 0,
+      });
+    });
+  }
+
+  return rows.map((row) => {
+    const rankContext = rankContextByRowKey.get(String(row?.rowKey ?? "")) ?? {};
+    const storeCommonEvaluation = buildBeamHikariStoreCommonEvaluation(
+      row?.machineEvaluationMetrics,
+      rankContext,
+    );
+    return storeCommonEvaluation
+      ? {
+          ...row,
+          storeCommonEvaluation,
+        }
+      : row;
+  });
+}
+
 function isMjArenaIjiriTargetMachine(machineName) {
   return Boolean(normalizeText(machineName));
 }
@@ -13026,6 +13621,42 @@ function calculateWindowMetrics(
     (windowRow) => readWindowField(windowRow, "games") >= 1500 && readNumber(windowRow?.differenceValue) >= 1000,
   ).length;
   const previousBigShow = previousGames >= 5000 && todayDifference >= 1000;
+  const isBeamHikariStoreCommonHighContentRow = (windowRow) =>
+    isBeamHikariStoreCommonHighContentWindowRow(windowRow, currentMachineName);
+  const isBeamHikariStoreCommonStrongHighContentRow = (windowRow) =>
+    isBeamHikariStoreCommonStrongHighContentWindowRow(windowRow, currentMachineName);
+  const beamHikariStoreCommonHighContentCount3 =
+    recentThreeRows.filter(isBeamHikariStoreCommonHighContentRow).length;
+  const beamHikariStoreCommonHighContentCount7 =
+    recentSevenRows.filter(isBeamHikariStoreCommonHighContentRow).length;
+  const beamHikariStoreCommonStrongHighContentCount7 =
+    recentSevenRows.filter(isBeamHikariStoreCommonStrongHighContentRow).length;
+  const previousMetricWindowRow = metricWindowRows.at(-1);
+  const beamHikariStoreCommonPrevHighContent = isBeamHikariStoreCommonHighContentWindowRow(
+    previousMetricWindowRow,
+    currentMachineName,
+  );
+  const beamHikariStoreCommonPrevStrongHighContent =
+    isBeamHikariStoreCommonStrongHighContentWindowRow(
+      previousMetricWindowRow,
+      currentMachineName,
+    );
+  const beamHikariStoreCommonDaysSinceHighContent = (() => {
+    for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
+      if (isBeamHikariStoreCommonHighContentRow(historyWindowRows.at(-offset))) {
+        return offset;
+      }
+    }
+    return null;
+  })();
+  const beamHikariStoreCommonDaysSinceStrongHighContent = (() => {
+    for (let offset = 1; offset <= historyWindowRows.length; offset += 1) {
+      if (isBeamHikariStoreCommonStrongHighContentRow(historyWindowRows.at(-offset))) {
+        return offset;
+      }
+    }
+    return null;
+  })();
 
   return {
     machineName: currentMachineName,
@@ -13365,6 +13996,14 @@ function calculateWindowMetrics(
     recentSevenBigShow1500Games2000Count,
     recentThreeShow1000Games1500Count,
     previousBigShow,
+    beamHikariStoreCommonMachineType: getBeamHikariStoreCommonMachineType(currentMachineName),
+    beamHikariStoreCommonHighContentCount3,
+    beamHikariStoreCommonHighContentCount7,
+    beamHikariStoreCommonStrongHighContentCount7,
+    beamHikariStoreCommonPrevHighContent,
+    beamHikariStoreCommonPrevStrongHighContent,
+    beamHikariStoreCommonDaysSinceHighContent,
+    beamHikariStoreCommonDaysSinceStrongHighContent,
     bbTotal,
     rbTotal,
     amuseAsakusaRbSetting7,
@@ -13633,7 +14272,7 @@ function buildSnapshotRowsForDate(
   return {
     baseDate,
     nextBusinessDate,
-    rows,
+    rows: attachBeamHikariStoreCommonEvaluations(rows, config),
   };
 }
 
@@ -13871,10 +14510,16 @@ export function buildCombinedHuntScoreSnapshots(
             return null;
           }
 
+          const storeCommonEvaluation =
+            rowMaps
+              .map((rowMap) => rowMap.get(rowKey)?.storeCommonEvaluation ?? null)
+              .find(Boolean) ?? baseRow.storeCommonEvaluation ?? null;
+
           return {
             ...baseRow,
             huntScore: scoreParts.reduce((total, part) => total + part.huntScore, 0),
             huntScoreParts: scoreParts,
+            ...(storeCommonEvaluation ? { storeCommonEvaluation } : {}),
           };
         })
         .filter(Boolean);

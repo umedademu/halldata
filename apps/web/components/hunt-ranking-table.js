@@ -63,6 +63,7 @@ const ESTIMATED_GRAPE_RESULT_KEY = "estimated_grape_denominator";
 const FIXED_COLUMN_KEYS = {
   common: "common",
   machineEvaluation: "machine_evaluation",
+  commonCondition: "common_condition",
   condition: "condition",
   expectedPayout: "expected_payout",
   expectedRb: "expected_rb",
@@ -73,6 +74,7 @@ const FIXED_COLUMN_KEYS = {
 const DEFAULT_VISIBLE_FIXED_COLUMN_KEYS = [
   FIXED_COLUMN_KEYS.common,
   FIXED_COLUMN_KEYS.machineEvaluation,
+  FIXED_COLUMN_KEYS.commonCondition,
   FIXED_COLUMN_KEYS.condition,
   FIXED_COLUMN_KEYS.expectedPayout,
   FIXED_COLUMN_KEYS.expectedRb,
@@ -82,14 +84,15 @@ const SORT_COLUMN_INDEX = {
   common: 0,
   machineEvaluation: 1,
   daySpecificMachineEvaluation: 2,
-  condition: 3,
-  expectedPayout: 4,
-  expectedRb: 5,
-  nextGap: 6,
-  storeName: 7,
-  machineName: 8,
-  slot: 9,
-  resultStart: 10,
+  commonCondition: 3,
+  condition: 4,
+  expectedPayout: 5,
+  expectedRb: 6,
+  nextGap: 7,
+  storeName: 8,
+  machineName: 9,
+  slot: 10,
+  resultStart: 11,
 };
 const SETTING_ESTIMATE_RESULT_HIGHLIGHT_START_KEY = "games_count";
 const DEFAULT_RANK_SCOPE = "selected";
@@ -804,15 +807,34 @@ function buildMatchedConditionEntriesForEvaluation(evaluation, fallbackLabel = "
   }));
 }
 
-function readMatchedConditionEntries(row) {
+function readCommonMatchedConditionEntries(row) {
+  return buildMatchedConditionEntriesForEvaluation(row?.storeCommonEvaluation, "共通");
+}
+
+function readMachineMatchedConditionEntries(row) {
   return [
     ...buildMatchedConditionEntriesForEvaluation(row?.machineEvaluation, "機種別"),
     ...buildMatchedConditionEntriesForEvaluation(row?.machineEvaluationDaySpecific, "日別"),
   ];
 }
 
+function readMatchedConditionEntries(row) {
+  return [
+    ...readCommonMatchedConditionEntries(row),
+    ...readMachineMatchedConditionEntries(row),
+  ];
+}
+
 function readMatchedConditionCount(row) {
   return readMatchedConditionEntries(row).length;
+}
+
+function readCommonMatchedConditionCount(row) {
+  return readCommonMatchedConditionEntries(row).length;
+}
+
+function readMachineMatchedConditionCount(row) {
+  return readMachineMatchedConditionEntries(row).length;
 }
 
 function isSameExpectationCandidate(left, right) {
@@ -917,14 +939,15 @@ function sortMatchedConditionsForTitle(matchedConditions, metric) {
     .map(({ condition }) => condition);
 }
 
-function buildMatchedConditionTitleParts(row, highlightedDetail = null) {
-  const metric = getMachineEvaluationHighlightMetric(row?.machineName);
-  const matchedConditions = sortMatchedConditionsForTitle(
-    readMatchedConditionEntries(row),
-    metric,
-  );
+function buildMatchedConditionTitlePartsFromEntries(
+  matchedConditionEntries,
+  metric,
+  highlightedDetail = null,
+  emptyTitle = "一致した採用条件はありません",
+) {
+  const matchedConditions = sortMatchedConditionsForTitle(matchedConditionEntries, metric);
   if (matchedConditions.length === 0) {
-    return [];
+    return [emptyTitle].filter(Boolean);
   }
 
   return [
@@ -941,6 +964,17 @@ function buildMatchedConditionTitleParts(row, highlightedDetail = null) {
       return `・${marker}${evaluationLabel}${condition.conditionName}${backtestLabel}${selectedLabel}`;
     }),
   ];
+}
+
+function buildMatchedConditionTitleParts(row, highlightedDetail = null) {
+  const metric = getMachineEvaluationHighlightMetric(row?.machineName);
+  const titleParts = buildMatchedConditionTitlePartsFromEntries(
+    readMatchedConditionEntries(row),
+    metric,
+    highlightedDetail,
+    "",
+  );
+  return titleParts.filter(Boolean);
 }
 
 function readFiniteNumber(value) {
@@ -1316,10 +1350,30 @@ function MachineEvaluationCell({
   );
 }
 
-function MachineEvaluationConditionCell({ row, extraTitle = "" }) {
-  const matchedConditionCount = readMatchedConditionCount(row);
+function readMatchedConditionEntriesForScope(row, scope = "machine") {
+  return scope === "common"
+    ? readCommonMatchedConditionEntries(row)
+    : readMachineMatchedConditionEntries(row);
+}
+
+function readMatchedConditionCountForScope(row, scope = "machine") {
+  return readMatchedConditionEntriesForScope(row, scope).length;
+}
+
+function readMatchedConditionEmptyTitle(scope = "machine") {
+  return scope === "common"
+    ? "一致した共通条件はありません"
+    : "一致した機種条件はありません";
+}
+
+function MachineEvaluationConditionCell({ row, extraTitle = "", scope = "machine" }) {
+  const matchedConditionEntries = readMatchedConditionEntriesForScope(row, scope);
+  const matchedConditionCount = matchedConditionEntries.length;
   const highlightMetric = getMachineEvaluationHighlightMetric(row?.machineName);
-  const expectationDetail = readMatchedConditionExpectationDetail(row, highlightMetric);
+  const expectationDetail = readBestMatchedConditionExpectationCandidateFromEntries(
+    matchedConditionEntries,
+    highlightMetric,
+  );
   const expectationClassName = getMachineEvaluationExpectationClassName(
     expectationDetail,
     highlightMetric,
@@ -1328,11 +1382,16 @@ function MachineEvaluationConditionCell({ row, extraTitle = "" }) {
     "conditionCountCell",
     expectationClassName,
   ].filter(Boolean).join(" ");
-  const matchedConditionTitleParts = buildMatchedConditionTitleParts(row, expectationDetail);
+  const matchedConditionTitleParts = buildMatchedConditionTitlePartsFromEntries(
+    matchedConditionEntries,
+    highlightMetric,
+    expectationDetail,
+    "",
+  );
   const expectationTitle = buildMachineEvaluationExpectationTitle(expectationDetail, highlightMetric);
   const title = matchedConditionTitleParts.length > 0
     ? combineTitleParts(expectationTitle, matchedConditionTitleParts.join("\n"))
-    : "一致した採用条件はありません";
+    : readMatchedConditionEmptyTitle(scope);
 
   return (
     <td
@@ -1345,14 +1404,23 @@ function MachineEvaluationConditionCell({ row, extraTitle = "" }) {
   );
 }
 
-function buildMachineEvaluationConditionTitle(row, extraTitle = "") {
+function buildMachineEvaluationConditionTitle(row, extraTitle = "", scope = "machine") {
+  const matchedConditionEntries = readMatchedConditionEntriesForScope(row, scope);
   const highlightMetric = getMachineEvaluationHighlightMetric(row?.machineName);
-  const expectationDetail = readMatchedConditionExpectationDetail(row, highlightMetric);
-  const matchedConditionTitleParts = buildMatchedConditionTitleParts(row, expectationDetail);
+  const expectationDetail = readBestMatchedConditionExpectationCandidateFromEntries(
+    matchedConditionEntries,
+    highlightMetric,
+  );
+  const matchedConditionTitleParts = buildMatchedConditionTitlePartsFromEntries(
+    matchedConditionEntries,
+    highlightMetric,
+    expectationDetail,
+    "",
+  );
   const expectationTitle = buildMachineEvaluationExpectationTitle(expectationDetail, highlightMetric);
   const title = matchedConditionTitleParts.length > 0
     ? combineTitleParts(expectationTitle, matchedConditionTitleParts.join("\n"))
-    : "一致した採用条件はありません";
+    : readMatchedConditionEmptyTitle(scope);
   return combineTitleParts(title, extraTitle);
 }
 
@@ -1559,6 +1627,7 @@ function readSortableTableValue(
   {
     hasMachineEvaluationColumn = false,
     hasDaySpecificMachineEvaluationColumn = false,
+    hasStoreCommonEvaluationColumn = false,
     visibleColumns = [],
     includeStoreColumn = false,
     includeMachineColumn = true,
@@ -1589,10 +1658,18 @@ function readSortableTableValue(
     };
   }
 
+  if (hasStoreCommonEvaluationColumn && columnIndex === SORT_COLUMN_INDEX.commonCondition) {
+    return {
+      missing: false,
+      value: readCommonMatchedConditionCount(row),
+      type: "number",
+    };
+  }
+
   if (hasMachineEvaluationColumn && columnIndex === SORT_COLUMN_INDEX.condition) {
     return {
       missing: false,
-      value: readMatchedConditionCount(row),
+      value: readMachineMatchedConditionCount(row),
       type: "number",
     };
   }
@@ -1779,9 +1856,24 @@ function buildHuntRankingDetailSections({
     evaluation: row.machineEvaluationDaySpecific,
     includeStoredTopBacktests: false,
   });
-  const matchedConditionCount = readMatchedConditionCount(row);
+  const commonMatchedConditionCount = readCommonMatchedConditionCount(row);
+  const machineMatchedConditionCount = readMachineMatchedConditionCount(row);
+  const storeCommonFeatures = row.storeCommonEvaluation?.features ?? {};
   const sections = [
     buildDetailSection("共通", commonLines),
+    row.storeCommonEvaluation
+      ? buildDetailSection("共通条件", [
+          `一致数: ${formatNumber(commonMatchedConditionCount)}`,
+          `強化数: ${formatNumber(row.storeCommonEvaluation.storeCommonBoostCount)}`,
+          `危険数: ${formatNumber(row.storeCommonEvaluation.storeCommonRiskCount)}`,
+          `機種内順位: ${formatNumber(row.storeCommonEvaluation.storeCommonRankInMachine)}`,
+          `1位次点差: ${formatNumber(row.storeCommonEvaluation.storeCommonTopGapInMachine)}`,
+          ...splitDetailLines(buildMachineEvaluationConditionTitle(row, "", "common")),
+          Array.isArray(storeCommonFeatures.riskNames) && storeCommonFeatures.riskNames.length > 0
+            ? `危険内訳: ${storeCommonFeatures.riskNames.join(", ")}`
+            : "",
+        ])
+      : null,
     row.machineEvaluation
       ? buildDetailSection("機種別", [
           `点数: ${formatNumber(row.machineEvaluation.score)}`,
@@ -1798,9 +1890,9 @@ function buildHuntRankingDetailSections({
         )
       : null,
     row.machineEvaluation || row.machineEvaluationDaySpecific
-      ? buildDetailSection("条件", [
-          `一致数: ${formatNumber(matchedConditionCount)}`,
-          ...splitDetailLines(buildMachineEvaluationConditionTitle(row)),
+      ? buildDetailSection("機種条件", [
+          `一致数: ${formatNumber(machineMatchedConditionCount)}`,
+          ...splitDetailLines(buildMachineEvaluationConditionTitle(row, "", "machine")),
         ])
       : null,
     row.machineEvaluation || row.machineEvaluationDaySpecific
@@ -1881,6 +1973,7 @@ function OverallRankingTable({
     showMachineEvaluation && rows.some((row) => row?.machineEvaluation);
   const hasDaySpecificMachineEvaluationColumn =
     hasMachineEvaluationColumn && rows.some((row) => row?.machineEvaluationDaySpecific);
+  const hasStoreCommonEvaluationColumn = rows.some((row) => row?.storeCommonEvaluation);
   const daySpecificMachineEvaluationColumnLabel =
     readDaySpecificMachineEvaluationColumnLabel(rows);
   const visibleFixedColumnSet = useMemo(
@@ -1892,6 +1985,8 @@ function OverallRankingTable({
     hasMachineEvaluationColumn && visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.machineEvaluation);
   const showDaySpecificMachineEvaluationColumn =
     showMachineEvaluationColumn && hasDaySpecificMachineEvaluationColumn;
+  const showCommonConditionColumn =
+    hasStoreCommonEvaluationColumn && visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.commonCondition);
   const showConditionColumn =
     hasMachineEvaluationColumn && visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.condition);
   const showExpectedPayoutColumn =
@@ -1927,6 +2022,7 @@ function OverallRankingTable({
           {
             hasMachineEvaluationColumn,
             hasDaySpecificMachineEvaluationColumn,
+            hasStoreCommonEvaluationColumn,
             visibleColumns,
             includeStoreColumn: showStoreColumn,
             includeMachineColumn: true,
@@ -1939,6 +2035,7 @@ function OverallRankingTable({
   }, [
     hasDaySpecificMachineEvaluationColumn,
     hasMachineEvaluationColumn,
+    hasStoreCommonEvaluationColumn,
     nextGapScope,
     rows,
     showStoreColumn,
@@ -1954,6 +2051,7 @@ function OverallRankingTable({
     showCommonColumn,
     showMachineEvaluationColumn,
     showDaySpecificMachineEvaluationColumn,
+    showCommonConditionColumn,
     showConditionColumn,
     showExpectedPayoutColumn,
     showExpectedRbColumn,
@@ -2012,6 +2110,7 @@ function OverallRankingTable({
   const scoreColumnIndex = SORT_COLUMN_INDEX.common;
   const machineEvaluationColumnIndex = SORT_COLUMN_INDEX.machineEvaluation;
   const daySpecificMachineEvaluationColumnIndex = SORT_COLUMN_INDEX.daySpecificMachineEvaluation;
+  const commonConditionColumnIndex = SORT_COLUMN_INDEX.commonCondition;
   const conditionColumnIndex = SORT_COLUMN_INDEX.condition;
   const expectedPayoutColumnIndex = SORT_COLUMN_INDEX.expectedPayout;
   const expectedRbColumnIndex = SORT_COLUMN_INDEX.expectedRb;
@@ -2053,12 +2152,20 @@ function OverallRankingTable({
                   {daySpecificMachineEvaluationColumnLabel}
                 </HeaderCell>
               ) : null}
+              {showCommonConditionColumn ? (
+                <HeaderCell
+                  columnIndex={commonConditionColumnIndex}
+                  title="一致した店舗共通条件の件数"
+                >
+                  共通条件
+                </HeaderCell>
+              ) : null}
               {showConditionColumn ? (
                 <HeaderCell
                   columnIndex={conditionColumnIndex}
-                  title="一致した採用条件の件数"
+                  title="一致した機種条件の件数"
                 >
-                  条件
+                  機種条件
                 </HeaderCell>
               ) : null}
               {showExpectedPayoutColumn ? (
@@ -2196,9 +2303,17 @@ function OverallRankingTable({
                       includeStoredTopBacktests={false}
                     />
                   ) : null}
+                  {showCommonConditionColumn ? (
+                    <MachineEvaluationConditionCell
+                      row={row}
+                      scope="common"
+                      extraTitle={rowTitle}
+                    />
+                  ) : null}
                   {showConditionColumn ? (
                     <MachineEvaluationConditionCell
                       row={row}
+                      scope="machine"
                       extraTitle={rowTitle}
                     />
                   ) : null}
@@ -2333,6 +2448,7 @@ function MachineRankingGroupTable({
     showMachineEvaluation && group.rows.some((row) => row?.machineEvaluation);
   const hasDaySpecificMachineEvaluationColumn =
     hasMachineEvaluationColumn && group.rows.some((row) => row?.machineEvaluationDaySpecific);
+  const hasStoreCommonEvaluationColumn = group.rows.some((row) => row?.storeCommonEvaluation);
   const daySpecificMachineEvaluationColumnLabel =
     readDaySpecificMachineEvaluationColumnLabel(group.rows);
   const visibleFixedColumnSet = useMemo(
@@ -2344,6 +2460,8 @@ function MachineRankingGroupTable({
     hasMachineEvaluationColumn && visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.machineEvaluation);
   const showDaySpecificMachineEvaluationColumn =
     showMachineEvaluationColumn && hasDaySpecificMachineEvaluationColumn;
+  const showCommonConditionColumn =
+    hasStoreCommonEvaluationColumn && visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.commonCondition);
   const showConditionColumn =
     hasMachineEvaluationColumn && visibleFixedColumnSet.has(FIXED_COLUMN_KEYS.condition);
   const showExpectedPayoutColumn =
@@ -2371,6 +2489,7 @@ function MachineRankingGroupTable({
             {
               hasMachineEvaluationColumn,
               hasDaySpecificMachineEvaluationColumn,
+              hasStoreCommonEvaluationColumn,
               visibleColumns,
               includeStoreColumn: showStoreColumn,
               includeMachineColumn: false,
@@ -2384,6 +2503,7 @@ function MachineRankingGroupTable({
       group.rows,
       hasDaySpecificMachineEvaluationColumn,
       hasMachineEvaluationColumn,
+      hasStoreCommonEvaluationColumn,
       nextGapScope,
       showStoreColumn,
       sortState,
@@ -2435,6 +2555,7 @@ function MachineRankingGroupTable({
   const scoreColumnIndex = SORT_COLUMN_INDEX.common;
   const machineEvaluationColumnIndex = SORT_COLUMN_INDEX.machineEvaluation;
   const daySpecificMachineEvaluationColumnIndex = SORT_COLUMN_INDEX.daySpecificMachineEvaluation;
+  const commonConditionColumnIndex = SORT_COLUMN_INDEX.commonCondition;
   const conditionColumnIndex = SORT_COLUMN_INDEX.condition;
   const expectedPayoutColumnIndex = SORT_COLUMN_INDEX.expectedPayout;
   const expectedRbColumnIndex = SORT_COLUMN_INDEX.expectedRb;
@@ -2447,6 +2568,7 @@ function MachineRankingGroupTable({
     showCommonColumn,
     showMachineEvaluationColumn,
     showDaySpecificMachineEvaluationColumn,
+    showCommonConditionColumn,
     showConditionColumn,
     showExpectedPayoutColumn,
     showExpectedRbColumn,
@@ -2507,12 +2629,20 @@ function MachineRankingGroupTable({
                   {daySpecificMachineEvaluationColumnLabel}
                 </HeaderCell>
               ) : null}
+              {showCommonConditionColumn ? (
+                <HeaderCell
+                  columnIndex={commonConditionColumnIndex}
+                  title="一致した店舗共通条件の件数"
+                >
+                  共通条件
+                </HeaderCell>
+              ) : null}
               {showConditionColumn ? (
                 <HeaderCell
                   columnIndex={conditionColumnIndex}
-                  title="一致した採用条件の件数"
+                  title="一致した機種条件の件数"
                 >
-                  条件
+                  機種条件
                 </HeaderCell>
               ) : null}
               {showExpectedPayoutColumn ? (
@@ -2629,9 +2759,17 @@ function MachineRankingGroupTable({
                       includeStoredTopBacktests={false}
                     />
                   ) : null}
+                  {showCommonConditionColumn ? (
+                    <MachineEvaluationConditionCell
+                      row={row}
+                      scope="common"
+                      extraTitle={rowTitle}
+                    />
+                  ) : null}
                   {showConditionColumn ? (
                     <MachineEvaluationConditionCell
                       row={row}
+                      scope="machine"
                       extraTitle={rowTitle}
                     />
                   ) : null}
@@ -2736,6 +2874,7 @@ export function HuntRankingTable({
             FIXED_COLUMN_KEYS.common,
             FIXED_COLUMN_KEYS.storeName,
             FIXED_COLUMN_KEYS.machineEvaluation,
+            FIXED_COLUMN_KEYS.commonCondition,
             FIXED_COLUMN_KEYS.condition,
             FIXED_COLUMN_KEYS.expectedPayout,
             FIXED_COLUMN_KEYS.expectedRb,
@@ -2819,12 +2958,28 @@ export function HuntRankingTable({
     [resultColumns, visibleResultKeys],
   );
   const scoreColumnLabel = "共通";
+  const hasStoreCommonEvaluationColumn = useMemo(
+    () =>
+      rows.some((row) => row?.storeCommonEvaluation) ||
+      rankingGroups.some((group) =>
+        (Array.isArray(group?.rows) ? group.rows : []).some((row) => row?.storeCommonEvaluation),
+      ),
+    [rankingGroups, rows],
+  );
   const fixedColumnOptions = useMemo(
     () => [
       {
         key: FIXED_COLUMN_KEYS.common,
         label: scoreColumnLabel,
       },
+      ...(hasStoreCommonEvaluationColumn
+        ? [
+            {
+              key: FIXED_COLUMN_KEYS.commonCondition,
+              label: "共通条件",
+            },
+          ]
+        : []),
       ...(showMachineEvaluation
         ? [
             {
@@ -2833,7 +2988,7 @@ export function HuntRankingTable({
             },
             {
               key: FIXED_COLUMN_KEYS.condition,
-              label: "条件",
+              label: "機種条件",
             },
             {
               key: FIXED_COLUMN_KEYS.expectedPayout,
@@ -2862,7 +3017,7 @@ export function HuntRankingTable({
         label: "機種名",
       },
     ],
-    [scoreColumnLabel, showMachineEvaluation, showStoreColumn],
+    [hasStoreCommonEvaluationColumn, scoreColumnLabel, showMachineEvaluation, showStoreColumn],
   );
   const dateFlowLabel = useMemo(
     () => dateFlowLabelOverride || formatRankingDateFlowLabel(predictionDate, actualDate),
