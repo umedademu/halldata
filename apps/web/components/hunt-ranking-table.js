@@ -2324,6 +2324,7 @@ function MachineRankingGroupTable({
   bookmarkMatchByRowKey = null,
   showMachineEvaluation = false,
   showStoreColumn = false,
+  titleMode = "limited",
   huntScoreLogicLabel = "",
 }) {
   const groupHasSite7Data = group.rows.some((row) => row.predictionMachineHasSite7Data);
@@ -2477,7 +2478,9 @@ function MachineRankingGroupTable({
                   title="この機種にSセブン暫定データが含まれます"
                 />
               ) : null}
-              {` 上位${formatNumber(group.rows.length)}台`}
+              {titleMode === "all"
+                ? ` 全${formatNumber(group.rows.length)}台`
+                : ` 上位${formatNumber(group.rows.length)}台`}
             </span>
             <span className="tablePanelDateFlow">{dateFlowLabel}</span>
           </h2>
@@ -2722,6 +2725,7 @@ export function HuntRankingTable({
   showGrapeColumn = false,
   showOverallRanking = true,
   showMachineGroupTables = true,
+  machineGroupTitleMode = "limited",
   dateFlowLabelOverride = "",
   huntScoreLogicLabel = "",
 }) {
@@ -3211,6 +3215,7 @@ export function HuntRankingTable({
               bookmarkMatchByRowKey={bookmarkMatchByRowKey}
               showMachineEvaluation={showMachineEvaluation}
               showStoreColumn={showStoreColumn}
+              titleMode={machineGroupTitleMode}
               huntScoreLogicLabel={huntScoreLogicLabel}
             />
           ))

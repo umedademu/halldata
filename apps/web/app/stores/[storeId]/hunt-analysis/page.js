@@ -55,7 +55,7 @@ import { SETTING_ESTIMATE_MODE_OPTIONS, normalizeSettingEstimateMode } from "../
 
 export const dynamic = "force-dynamic";
 
-const DEFAULT_RANKING_LIMIT = 30;
+const HUNT_RANKING_ALL_MACHINE_LIMIT = 10000;
 const AIM_JUGGLER_GROUP_NAME = "アイムジャグラーEX";
 const AIM_JUGGLER_MACHINE_NAMES = ["SアイムジャグラーＥＸ", "ネオアイムジャグラーEX"];
 const HANABI_GROUP_NAME = "ハナビ";
@@ -65,7 +65,6 @@ const STORE_DAY_STATUS_CLOSED = "closed";
 const HUNT_RANKING_CONDITION_PARAM_KEYS = [
   "machineTouched",
   "date",
-  "limit",
   "differenceMode",
   "settingEstimateMode",
   "machineEvaluationRankingMode",
@@ -75,14 +74,6 @@ const HUNT_RANKING_CONDITION_PARAM_KEYS = [
 
 function buildHuntRankingResultDisplayKey(storeId) {
   return `hunt-ranking-${storeId}`;
-}
-
-function parseRequestedLimit(value) {
-  const parsedValue = Number(value);
-  if (!Number.isInteger(parsedValue) || parsedValue < 1) {
-    return DEFAULT_RANKING_LIMIT;
-  }
-  return parsedValue;
 }
 
 function formatRankingDateOption(date, nextBusinessDate) {
@@ -326,7 +317,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const resultRequested = isResultDisplayCookieEnabled(
     cookieStore.get(getResultDisplayCookieName(resultDisplayKey))?.value,
   );
-  const requestedLimit = parseRequestedLimit(savedParamAccess.readSingle("limit"));
   const requestedMachineNames = savedParamAccess.readMulti("machine");
   const requestedRankingLogicKey = savedParamAccess.readSingle("huntScoreLogicKey");
   const huntScoreLogicKey = decodeHuntScoreLogicCookieValue(
@@ -363,7 +353,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
       ? getHuntScoreRankingDetail(
           storeId,
           requestedDate,
-          requestedLimit,
+          HUNT_RANKING_ALL_MACHINE_LIMIT,
           huntScoreLogicKey,
           differenceMode,
           settingEstimateMode,
@@ -476,7 +466,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const visibleRows = visibleRankingGroups.flatMap((group) => group.rows);
   const rankingFormStateKey = JSON.stringify({
     date: detail.selectedDate ?? "",
-    limit: detail.limit,
     differenceMode: detail.differenceMode,
     settingEstimateMode: detail.settingEstimateMode,
     huntScoreLogicKeys: detail.huntScoreLogicKeys,
@@ -582,16 +571,6 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                         className="storeReserveInput"
                       />
                     )}
-                  </label>
-                  <label className="storeReserveField">
-                    <span>各機種何位まで表示</span>
-                    <input
-                      type="number"
-                      name="limit"
-                      min="1"
-                      defaultValue={detail.limit}
-                      className="storeReserveInput"
-                    />
                   </label>
                 </div>
               </div>
@@ -724,12 +703,13 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 storeName={detail.store.storeName}
                 rows={visibleRows}
                 rankingGroups={visibleRankingGroups}
-                overallLimit={detail.limit}
                 predictionDate={detail.predictionDate}
                 actualDate={detail.nextBusinessDate}
                 enableConditionHighlight={false}
                 initialDifferenceMode={detail.differenceMode}
                 showMachineTopCandidates={showMachineTopCandidates}
+                showOverallRanking={false}
+                machineGroupTitleMode="all"
                 showMachineEvaluation={shouldShowMachineEvaluationInRanking(machineEvaluationRankingMode)}
                 showGrapeColumn={showGrapeColumn}
                 huntScoreLogicLabel={huntScoreLogicLabel}

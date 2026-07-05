@@ -7,7 +7,6 @@ const STORAGE_KEY_PREFIX = "hunt-ranking-form-state:";
 const MANAGED_PARAM_KEYS = [
   "machineTouched",
   "date",
-  "limit",
   "differenceMode",
   "settingEstimateMode",
   "huntScoreLogicKey",
@@ -44,7 +43,6 @@ const MANAGED_PARAM_KEYS = [
 ];
 const MANAGED_PARAM_KEY_SET = new Set(MANAGED_PARAM_KEYS);
 const DEFAULTED_DIFFERENCE_PARAM_KEYS = new Set(["differenceMode"]);
-const OLD_DEFAULT_LIMIT = "20";
 
 function storageKeyForStore(storeId) {
   return `${STORAGE_KEY_PREFIX}${storeId}`;
@@ -191,18 +189,7 @@ function readSavedState(storeId) {
 
     const parsedValue = JSON.parse(rawValue);
     const entries = Array.isArray(parsedValue?.entries) ? parsedValue.entries : [];
-    const savedVersion = Number(parsedValue?.version);
-    const migratedEntries =
-      Number.isInteger(savedVersion) && savedVersion >= 2
-        ? entries
-        : entries.filter((entry) => {
-            if (!Array.isArray(entry)) {
-              return true;
-            }
-            const [key, value] = entry;
-            return !(key === "limit" && String(value ?? "") === OLD_DEFAULT_LIMIT);
-          });
-    return omitDefaultedEntries(migratedEntries);
+    return omitDefaultedEntries(entries);
   } catch {
     return [];
   }
