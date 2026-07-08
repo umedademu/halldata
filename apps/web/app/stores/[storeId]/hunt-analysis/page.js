@@ -30,10 +30,12 @@ import {
 } from "../../../../lib/hunt-score-logic-selection";
 import { listHuntScoreLogicOptions } from "../../../../lib/hunt-score";
 import {
+  MACHINE_EVALUATION_DAY_MODE_OPTIONS,
   MACHINE_EVALUATION_RANKING_MODE_OPTIONS,
   applyMachineEvaluationRankingMode,
   decodeMachineEvaluationSettingsCookieValue,
   getMachineEvaluationCookieName,
+  normalizeMachineEvaluationDayMode,
   normalizeMachineEvaluationRankingMode,
   shouldShowMachineEvaluationInRanking,
 } from "../../../../lib/machine-evaluation";
@@ -68,6 +70,7 @@ const HUNT_RANKING_CONDITION_PARAM_KEYS = [
   "differenceMode",
   "settingEstimateMode",
   "machineEvaluationRankingMode",
+  "machineEvaluationDayMode",
   "huntScoreLogicKey",
   "machine",
 ];
@@ -120,6 +123,30 @@ function MachineEvaluationRankingModeOptions({ value }) {
           <input
             type="radio"
             name="machineEvaluationRankingMode"
+            value={option.value}
+            defaultChecked={normalizedValue === option.value}
+          />
+          <span>{option.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function MachineEvaluationDayModeOptions({ value }) {
+  const normalizedValue = normalizeMachineEvaluationDayMode(value);
+  return (
+    <div className="metricToggleRow commonConditionModeOptions">
+      {MACHINE_EVALUATION_DAY_MODE_OPTIONS.map((option) => (
+        <label
+          key={option.value}
+          className={`metricToggleChip ${
+            normalizedValue === option.value ? "metricToggleChipActive" : ""
+          }`}
+        >
+          <input
+            type="radio"
+            name="machineEvaluationDayMode"
             value={option.value}
             defaultChecked={normalizedValue === option.value}
           />
@@ -328,6 +355,9 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const machineEvaluationRankingMode = normalizeMachineEvaluationRankingMode(
     savedParamAccess.readSingle("machineEvaluationRankingMode"),
   );
+  const machineEvaluationDayMode = normalizeMachineEvaluationDayMode(
+    savedParamAccess.readSingle("machineEvaluationDayMode"),
+  );
   const differenceMode = normalizeDifferenceMode(
     savedParamAccess.readSingle("differenceMode"),
   );
@@ -364,6 +394,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             combineAimJuggler: requestedCombineAimJuggler,
             combineHanabi: requestedCombineHanabi,
             machineEvaluationSettings,
+            machineEvaluationDayMode,
             requestedDate,
           },
         )
@@ -473,6 +504,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     combineAimJuggler,
     combineHanabi,
     machineEvaluationRankingMode,
+    machineEvaluationDayMode,
   });
 
   return (
@@ -631,6 +663,10 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
               <div className="filterConditionBox rankingConditionBoxWide">
                 <p className="filterConditionBoxTitle">機種別評価</p>
                 <MachineEvaluationRankingModeOptions value={machineEvaluationRankingMode} />
+              </div>
+              <div className="filterConditionBox rankingConditionBox">
+                <p className="filterConditionBoxTitle">日別評価</p>
+                <MachineEvaluationDayModeOptions value={machineEvaluationDayMode} />
               </div>
               <div className="filterConditionBox rankingConditionBoxWide">
                 <p className="filterConditionBoxTitle">表示機種</p>

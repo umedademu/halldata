@@ -12,6 +12,10 @@ export const MACHINE_EVALUATION_RANKING_MODE_PRIORITY = "priority";
 export const MACHINE_EVALUATION_RANKING_MODE_FILTER = "filter";
 export const MACHINE_EVALUATION_RANKING_MODE_SCORE = "score";
 
+export const MACHINE_EVALUATION_DAY_MODE_AUTO = "auto";
+export const MACHINE_EVALUATION_DAY_MODE_NORMAL = "normal";
+export const MACHINE_EVALUATION_DAY_MODE_EVENT = "event";
+
 export const MACHINE_EVALUATION_BACKTEST_MODE_OPTIONS = [
   {
     value: MACHINE_EVALUATION_BACKTEST_MODE_COMMON,
@@ -51,6 +55,21 @@ export const MACHINE_EVALUATION_RANKING_MODE_OPTIONS = [
   {
     value: MACHINE_EVALUATION_RANKING_MODE_NONE,
     label: "表示しない",
+  },
+];
+
+export const MACHINE_EVALUATION_DAY_MODE_OPTIONS = [
+  {
+    value: MACHINE_EVALUATION_DAY_MODE_AUTO,
+    label: "自動",
+  },
+  {
+    value: MACHINE_EVALUATION_DAY_MODE_NORMAL,
+    label: "通常日",
+  },
+  {
+    value: MACHINE_EVALUATION_DAY_MODE_EVENT,
+    label: "特定日",
   },
 ];
 
@@ -1249,6 +1268,17 @@ function isBeamHikariEventDate(dateText) {
   }
   const dayTail = dayNumber % 10;
   return dayTail === 3 || dayTail === 6;
+}
+
+function applyMachineEvaluationDayMode(isEventDate, options = {}) {
+  const mode = normalizeMachineEvaluationDayMode(options?.machineEvaluationDayMode);
+  if (mode === MACHINE_EVALUATION_DAY_MODE_EVENT) {
+    return true;
+  }
+  if (mode === MACHINE_EVALUATION_DAY_MODE_NORMAL) {
+    return false;
+  }
+  return Boolean(isEventDate);
 }
 
 function readDateWeekday(dateText) {
@@ -16104,6 +16134,13 @@ export function normalizeMachineEvaluationRankingMode(value) {
 
 export function shouldShowMachineEvaluationInRanking(value) {
   return normalizeMachineEvaluationRankingMode(value) !== MACHINE_EVALUATION_RANKING_MODE_NONE;
+}
+
+export function normalizeMachineEvaluationDayMode(value) {
+  const normalizedValue = normalizeText(value);
+  return MACHINE_EVALUATION_DAY_MODE_OPTIONS.some((option) => option.value === normalizedValue)
+    ? normalizedValue
+    : MACHINE_EVALUATION_DAY_MODE_AUTO;
 }
 
 function buildLogicOptions(definition) {
@@ -42666,8 +42703,8 @@ function matchesCondition(matcher, evaluation) {
   return true;
 }
 
-function buildBeamHikariDateSetting(definition, dateText) {
-  const isEventDate = isBeamHikariEventDate(dateText);
+function buildBeamHikariDateSetting(definition, dateText, options = {}) {
+  const isEventDate = applyMachineEvaluationDayMode(isBeamHikariEventDate(dateText), options);
   const logicKey =
     definition?.machineKey === "neo-aim"
       ? isEventDate
@@ -42904,7 +42941,7 @@ function resolveRankingDateSpecificSetting(definition, setting, options = {}) {
     return setting;
   }
   const targetDate = readRankingTargetDate(options?.snapshot);
-  return buildBeamHikariDateSetting(definition, targetDate) ?? setting;
+  return buildBeamHikariDateSetting(definition, targetDate, options) ?? setting;
 }
 
 function resolveRankingBaseSetting(definition, setting, options = {}) {
@@ -42991,7 +43028,10 @@ function buildEvaluationForRowWithSetting(row, definition, setting, options = {}
     const targetDate = readRankingTargetDate(options?.snapshot);
     metrics = {
       ...baseMetrics,
-      machineEvaluationTargetIsEvent: isAmuseAsakusaEventDate(targetDate, row, options),
+      machineEvaluationTargetIsEvent: applyMachineEvaluationDayMode(
+        isAmuseAsakusaEventDate(targetDate, row, options),
+        options,
+      ),
     };
   }
   const features = buildMachineSpecificFeatureState(runtimeDefinition, metrics, buildFeatureState(metrics), row);
@@ -43041,7 +43081,10 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   const definition = findMachineDefinition(row?.machineName);
   if (isIidabashiPresasStore(options?.storeName) && definition?.machineKey === "neo-aim") {
     const targetDate = readRankingTargetDate(options?.snapshot);
-    const isEventDate = isIidabashiPresasEventDate(targetDate, row, options);
+    const isEventDate = applyMachineEvaluationDayMode(
+      isIidabashiPresasEventDate(targetDate, row, options),
+      options,
+    );
     const setting = buildIidabashiPresasDateSetting(definition, isEventDate);
     const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
     if (!evaluation) {
@@ -43055,7 +43098,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   }
 
   if (isKintokiKamataStore(options?.storeName) && definition?.machineKey === "neo-aim") {
-    const isEventDate = readTargetEventFlag(row) === true;
+    const isEventDate = applyMachineEvaluationDayMode(readTargetEventFlag(row) === true, options);
     const setting = buildKintokiKamataDateSetting(definition, isEventDate);
     const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
     if (!evaluation) {
@@ -43070,7 +43113,10 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
 
   if (isBoomTenjinStore(options?.storeName) && definition?.machineKey === "neo-aim") {
     const targetDate = readRankingTargetDate(options?.snapshot);
-    const isEventDate = isBoomTenjinEventDate(targetDate, row, options);
+    const isEventDate = applyMachineEvaluationDayMode(
+      isBoomTenjinEventDate(targetDate, row, options),
+      options,
+    );
     const setting = buildBoomTenjinDateSetting(definition, isEventDate);
     const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
     if (!evaluation) {
@@ -43085,7 +43131,10 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
 
   if (isAmuseAsakusaStore(options?.storeName) && definition?.machineKey === "neo-aim") {
     const targetDate = readRankingTargetDate(options?.snapshot);
-    const isEventDate = isAmuseAsakusaEventDate(targetDate, row, options);
+    const isEventDate = applyMachineEvaluationDayMode(
+      isAmuseAsakusaEventDate(targetDate, row, options),
+      options,
+    );
     const setting = buildAmuseAsakusaDateSetting(definition, isEventDate);
     const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
     if (!evaluation) {
@@ -43099,7 +43148,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   }
 
   if (isMjArenaAirportStore(options?.storeName) && definition?.machineKey === "neo-aim") {
-    const isEventDate = readTargetEventFlag(row) === true;
+    const isEventDate = applyMachineEvaluationDayMode(readTargetEventFlag(row) === true, options);
     const setting = buildMjArenaAirportDateSetting(definition, isEventDate);
     const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
     if (!evaluation) {
@@ -43113,7 +43162,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   }
 
   if (isPlaza3Store(options?.storeName) && definition?.machineKey === "neo-aim") {
-    const isEventDate = readTargetEventFlag(row) === true;
+    const isEventDate = applyMachineEvaluationDayMode(readTargetEventFlag(row) === true, options);
     const setting = buildPlaza3DateSetting(definition, isEventDate);
     const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
     if (!evaluation) {
@@ -43127,7 +43176,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   }
 
   if (isTamayaHontenStore(options?.storeName) && definition?.machineKey === "neo-aim") {
-    const isEventDate = readTargetEventFlag(row) === true;
+    const isEventDate = applyMachineEvaluationDayMode(readTargetEventFlag(row) === true, options);
     const setting = buildTamayaHontenDateSetting(definition, isEventDate);
     const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
     if (!evaluation) {
@@ -43141,7 +43190,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   }
 
   if (isPalazzoKasaiStore(options?.storeName) && definition?.machineKey === "neo-aim") {
-    const isEventDate = readTargetEventFlag(row) === true;
+    const isEventDate = applyMachineEvaluationDayMode(readTargetEventFlag(row) === true, options);
     const setting = buildPalazzoKasaiDateSetting(definition, isEventDate);
     const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
     if (!evaluation) {
@@ -43173,7 +43222,8 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
   }
 
   const targetDate = readRankingTargetDate(options?.snapshot);
-  const setting = buildBeamHikariDateSetting(definition, targetDate);
+  const isEventDate = applyMachineEvaluationDayMode(isBeamHikariEventDate(targetDate), options);
+  const setting = buildBeamHikariDateSetting(definition, targetDate, options);
   const evaluation = buildEvaluationForRowWithSetting(row, definition, setting, options);
   if (!evaluation) {
     return null;
@@ -43181,7 +43231,7 @@ function buildDaySpecificEvaluationForRow(row, options = {}) {
 
   return {
     ...evaluation,
-    displayLabel: isBeamHikariEventDate(targetDate) ? "特定日" : "通常日",
+    displayLabel: isEventDate ? "特定日" : "通常日",
   };
 }
 

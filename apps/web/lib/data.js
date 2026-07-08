@@ -39,6 +39,7 @@ import {
   buildStoreMachineEvaluationSettings,
   decorateSnapshotsWithMachineEvaluation,
   normalizeMachineEvaluationBacktestMode,
+  normalizeMachineEvaluationDayMode,
 } from "./machine-evaluation";
 import {
   MY_HALL_CLOUD_DATA_VERSION,
@@ -1218,6 +1219,9 @@ function buildHuntScoreRankingDetailMemoryCacheKey({
       combineHanabi: normalizeEnabledOption(machineOptions?.combineHanabi, false),
       expectedRbOnly: machineOptions?.expectedRbOnly === true,
       targetDateOnly: machineOptions?.targetDateOnly === true,
+      machineEvaluationDayMode: normalizeMachineEvaluationDayMode(
+        machineOptions?.machineEvaluationDayMode,
+      ),
       machineEvaluationSettings: machineOptions?.machineEvaluationSettings ?? {},
     },
   });
@@ -4026,6 +4030,9 @@ async function getHuntScoreSnapshotsForStore(
       {
         storeName: staticIdentity.storeName,
         dateSpecificRanking: targetDateOnly,
+        machineEvaluationDayMode: normalizeMachineEvaluationDayMode(
+          machineOptions?.machineEvaluationDayMode,
+        ),
         eventFilters: staticIdentity.eventFilters,
       },
     );
