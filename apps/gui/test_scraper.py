@@ -8642,6 +8642,32 @@ class MinRepoScraperTests(unittest.TestCase):
                 ],
             )
 
+    def test_save_registered_stores_ignores_obsolete_carol_tsufuku_url(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            service = HistoryPersistenceService(root_dir=Path(temp_dir))
+
+            summary = service.save_registered_stores(
+                [
+                    {
+                        "store_name": "キャロル96津福本店",
+                        "store_url": "https://min-repo.com/tag/%E3%83%91%E3%83%BC%E3%83%A9%E3%83%BC%E3%82%AD%E3%83%A3%E3%83%AD%E3%83%AB%E6%B4%A5%E7%A6%8F%E6%9C%AC%E5%BA%97/",
+                    },
+                    {
+                        "store_name": "キャロル96津福本店",
+                        "store_url": "https://min-repo.com/tag/%E3%83%91%E3%83%BC%E3%83%A9%E3%83%BC%E3%82%AD%E3%83%A3%E3%83%AD%E3%83%AB96%E6%B4%A5%E7%A6%8F%E6%9C%AC%E5%BA%97/",
+                    },
+                ]
+            )
+            loaded_stores = service.load_registered_stores()
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(summary.local_store_count, 1)
+            self.assertEqual([store["store_name"] for store in loaded_stores], ["キャロル96津福本店"])
+            self.assertEqual(
+                loaded_stores[0]["store_url"],
+                "https://min-repo.com/tag/%E3%83%91%E3%83%BC%E3%83%A9%E3%83%BC%E3%82%AD%E3%83%A3%E3%83%AD%E3%83%AB%E6%B4%A5%E7%A6%8F%E6%9C%AC%E5%BA%97/",
+            )
+
     def test_delete_registered_stores_deduplicates_normalized_url(self) -> None:
         with TemporaryDirectory() as temp_dir:
             service = HistoryPersistenceService(root_dir=Path(temp_dir))

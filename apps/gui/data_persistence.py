@@ -164,6 +164,13 @@ def normalize_store_url(value: str) -> str:
     return urlunsplit((normalized_scheme, normalized_netloc, normalized_path, parts.query, ""))
 
 
+OBSOLETE_REGISTERED_STORE_URLS = {
+    normalize_store_url(
+        "https://min-repo.com/tag/%E3%83%91%E3%83%BC%E3%83%A9%E3%83%BC%E3%82%AD%E3%83%A3%E3%83%AD%E3%83%AB96%E6%B4%A5%E7%A6%8F%E6%9C%AC%E5%BA%97/"
+    ),
+}
+
+
 def normalize_store_name_key(value: str) -> str:
     normalized_value = unicodedata.normalize("NFKC", str(value))
     return normalize_text(normalized_value).casefold()
@@ -4069,6 +4076,8 @@ class HistoryPersistenceService:
             store_name = str(store.get("store_name", store.get("name", ""))).strip()
             store_url = normalize_store_url(str(store.get("store_url", store.get("url", ""))).strip())
             if not store_url:
+                continue
+            if store_url in OBSOLETE_REGISTERED_STORE_URLS:
                 continue
 
             site7_defaults = default_site7_store_settings(store_name)
