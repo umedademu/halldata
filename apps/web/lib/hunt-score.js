@@ -11,6 +11,7 @@ import {
 
 const HUNT_SCORE_EPSILON = 0.000000001;
 const DEFAULT_HUNT_SCORE_WINDOW_DAYS = 7;
+const MACHINE_EVALUATION_METRIC_WINDOW_DAYS = 7;
 const NET_LOSS_SCORE_TARGET_BY_WINDOW_DAYS = {
   3: 15000,
   5: 17500,
@@ -2427,6 +2428,17 @@ function buildRuntimeHuntScoreConfig(
     differenceMode: normalizeDifferenceMode(differenceMode),
     settingEstimateMode: normalizeSettingEstimateMode(settingEstimateMode),
     scoreCalculator: logicDefinition.scoreCalculator,
+  };
+}
+
+function buildMachineEvaluationMetricsConfig(config) {
+  const historyWindowDays = Number(config?.historyWindowDays);
+  return {
+    ...config,
+    windowDays: MACHINE_EVALUATION_METRIC_WINDOW_DAYS,
+    historyWindowDays: Number.isFinite(historyWindowDays)
+      ? Math.max(historyWindowDays, MACHINE_EVALUATION_METRIC_WINDOW_DAYS)
+      : MACHINE_EVALUATION_METRIC_WINDOW_DAYS,
   };
 }
 
@@ -14844,6 +14856,7 @@ function buildSnapshotRowsForDate(
     };
   }
 
+  const machineEvaluationConfig = buildMachineEvaluationMetricsConfig(config);
   const candidates = dateRows.map((row) => {
     const candidateKey = buildCandidateKey(row, config);
     const recordMapByDate = rowsByCandidateKey.get(candidateKey) ?? new Map();
@@ -14856,12 +14869,25 @@ function buildSnapshotRowsForDate(
       config,
       rowsByDate,
     );
+    const machineEvaluationMetrics =
+      machineEvaluationConfig.windowDays === config.windowDays
+        ? metrics
+        : calculateWindowMetrics(
+            businessDates,
+            dateIndex,
+            row,
+            recordMapByDate,
+            settingDefinitionCache,
+            machineEvaluationConfig,
+            rowsByDate,
+          ) ?? metrics;
 
     return {
       row,
       rowKey: buildRowKey(row, config),
       candidateKey,
       metrics,
+      machineEvaluationMetrics,
     };
   });
   const validCandidates = candidates.filter((candidate) => candidate.metrics);
@@ -14918,7 +14944,7 @@ function buildSnapshotRowsForDate(
           config.logicKey === "amuse-asakusa" && Number.isFinite(rawHuntScore)
             ? rawHuntScore
             : huntScore,
-        machineEvaluationMetrics: candidate.metrics,
+        machineEvaluationMetrics: candidate.machineEvaluationMetrics ?? candidate.metrics,
         currentRecord: candidate.row,
         nextRecord,
         nextSettingEstimate: nextSetting,
