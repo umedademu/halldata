@@ -156,6 +156,8 @@ const WONDERLAND_MINAMIGAOKA_GOGO_LOGIC_NAME =
   "ワンダーランド南ヶ丘店_ゴーゴージャグラー3_全日共通100点ロジック_v1";
 const WONDERLAND_MINAMIGAOKA_GOGO_DEFAULT_CONDITION =
   "wonderland-minamigaoka-gogo-free-triple-deep";
+const WONDERLAND_MINAMIGAOKA_SCORE_COMPRESSION_START = 80;
+const WONDERLAND_MINAMIGAOKA_SCORE_COMPRESSION_SPREAD = 35;
 const TOYO_HALL_NEO_AIM_BACKTEST_WATCH_EXTRA_KEYS = new Set([
   "2026-02-27|301",
   "2026-02-27|302",
@@ -401,6 +403,22 @@ function readNullableNumber(value) {
 
 function clamp(value, minValue, maxValue) {
   return Math.max(minValue, Math.min(maxValue, value));
+}
+
+function compressWonderlandMinamigaokaMachineScore(rawScore, scoreCap = 100) {
+  if (!Number.isFinite(rawScore)) {
+    return 0;
+  }
+  const normalizedCap = Number.isFinite(scoreCap) ? clamp(scoreCap, 0, 100) : 100;
+  if (rawScore <= WONDERLAND_MINAMIGAOKA_SCORE_COMPRESSION_START) {
+    return Math.round(clamp(rawScore, 0, normalizedCap));
+  }
+
+  const overScore = rawScore - WONDERLAND_MINAMIGAOKA_SCORE_COMPRESSION_START;
+  const compressedScore =
+    WONDERLAND_MINAMIGAOKA_SCORE_COMPRESSION_START +
+    20 * (1 - Math.exp(-overScore / WONDERLAND_MINAMIGAOKA_SCORE_COMPRESSION_SPREAD));
+  return Math.round(clamp(compressedScore, 0, normalizedCap));
 }
 
 function scale(value, minValue, maxValue, points) {
@@ -30194,7 +30212,7 @@ function calculateMachineScore(definition, metrics, features) {
       score -= 6;
     }
 
-    return Math.round(clamp(score, 0, 100));
+    return compressWonderlandMinamigaokaMachineScore(score);
   }
 
   if (machineKey === "ultra-miracle" && activeLogicKey === "beam-hikari-ultra") {
@@ -32566,7 +32584,7 @@ function calculateMachineScore(definition, metrics, features) {
       score -= recentSevenGamesTotal < 8000 ? 20 : 0;
       score -= streak >= 7 ? 4 : 0;
 
-      return Math.round(clamp(score, 0, scoreCap));
+      return compressWonderlandMinamigaokaMachineScore(score, scoreCap);
     }
 
     if (activeLogicKey === "wonderland-sue-neo-aim") {
@@ -36547,11 +36565,9 @@ function calculateMachineScore(definition, metrics, features) {
         recentTwentyOneRbTotal > 0 && features.recentTwentyOneRbDenominator <= 280 ? 10 : 0;
       riskPoints += previousDifference >= 2500 ? 6 : 0;
 
-      return Math.round(clamp(
-        30 + rbColdPoints + sinkPoints + untreatedPoints + carryPoints + reliabilityPoints - riskPoints,
-        0,
-        100,
-      ));
+      const rawScore =
+        30 + rbColdPoints + sinkPoints + untreatedPoints + carryPoints + reliabilityPoints - riskPoints;
+      return compressWonderlandMinamigaokaMachineScore(rawScore);
     }
 
     if (
@@ -37487,7 +37503,7 @@ function calculateMachineScore(definition, metrics, features) {
           : 0;
       score -= recentSevenGamesTotal < 15000 ? 8 : 0;
 
-      return Math.round(clamp(score, 0, 100));
+      return compressWonderlandMinamigaokaMachineScore(score);
     }
 
     if (
@@ -38270,13 +38286,8 @@ function calculateMachineScore(definition, metrics, features) {
       dangerPenalty += recentFourteenGamesTotal < 12000 ? 5 : 0;
       dangerPenalty += historyRowCount < 21 ? 20 : 0;
 
-      return Math.round(
-        clamp(
-          30 + reliabilityScore + coldBonusScore + sinkScore + rotationScore - dangerPenalty,
-          0,
-          100,
-        ),
-      );
+      const rawScore = 30 + reliabilityScore + coldBonusScore + sinkScore + rotationScore - dangerPenalty;
+      return compressWonderlandMinamigaokaMachineScore(rawScore);
     }
 
     if (
@@ -38815,7 +38826,7 @@ function calculateMachineScore(definition, metrics, features) {
     score -= rbWeak7 ? 6 : 0;
     score -= lowGamesNoPrevHigh ? 5 : 0;
 
-    return Math.round(clamp(score, 0, 100));
+    return compressWonderlandMinamigaokaMachineScore(score);
   }
 
   if (machineKey === "mister") {
@@ -39554,7 +39565,7 @@ function calculateMachineScore(definition, metrics, features) {
       score -= 8;
     }
 
-    return Math.round(clamp(score, 0, 100));
+    return compressWonderlandMinamigaokaMachineScore(score);
   }
 
   if (machineKey === "kabaneri-kaimon" && activeLogicKey === "beam-hikari-kabaneri-kaimon") {
@@ -39967,7 +39978,7 @@ function calculateMachineScore(definition, metrics, features) {
       score -= recentThreeWinDays >= 2 ? 5 : 0;
       score -= recentSevenGamesTotal < 10000 ? 5 : 0;
 
-      return Math.round(clamp(score, 0, 100));
+      return compressWonderlandMinamigaokaMachineScore(score);
     }
 
     if (
@@ -40701,7 +40712,7 @@ function calculateMachineScore(definition, metrics, features) {
     score -= daysSinceHigh <= 3 && previousMachineHighContent ? 5 : 0;
     score -= recentSevenGamesTotal < 5000 ? 4 : 0;
 
-    return Math.round(clamp(score, 0, 100));
+    return compressWonderlandMinamigaokaMachineScore(score);
   }
 
   if (machineKey === "happy" && activeLogicKey === "beam-hikari-happy") {
@@ -41244,7 +41255,7 @@ function calculateMachineScore(definition, metrics, features) {
         score -= 10;
       }
 
-      return Math.round(clamp(score, 0, 100));
+      return compressWonderlandMinamigaokaMachineScore(score);
     }
 
     if (activeLogicKey === "beam-hikari-hokuto-tensei") {
@@ -42109,7 +42120,7 @@ function calculateMachineScore(definition, metrics, features) {
         score -= 4;
       }
 
-      return Math.round(clamp(score, 0, 100));
+      return compressWonderlandMinamigaokaMachineScore(score);
     }
 
     if (activeLogicKey === "beam-hikari-monkey") {
