@@ -30,6 +30,8 @@ const BEAM_HIKARI_STORE_COMMON_LOGIC_KEY = "beam-hikari-store-common-v1";
 const BEAM_HIKARI_STORE_COMMON_LOGIC_NAME = "ビームヒカリ式1.0";
 const BEAM_HIKARI_STORE_COMMON_SIMPLE_LOGIC_KEY = "beam-hikari-store-common-v1s";
 const BEAM_HIKARI_STORE_COMMON_SIMPLE_LOGIC_NAME = "ビームヒカリ1.0S";
+const BEAM_HIKARI_STORE_COMMON_SCORE_COMPRESSION_START = 80;
+const BEAM_HIKARI_STORE_COMMON_SCORE_COMPRESSION_SPREAD = 35;
 const APARK_KASUGA_KAI_RAW_MIN = -32;
 const APARK_KASUGA_KAI_RAW_MAX = 138;
 const APARK_KASUGA_SIX_DAY_SCALE = 6 / 7;
@@ -9636,7 +9638,22 @@ function calculateBeamHikariStoreCommonRiskDetail(values) {
   };
 }
 
-function calculateBeamHikariStoreCommonScore(values) {
+function compressBeamHikariStoreCommonScore(rawScore) {
+  if (!Number.isFinite(rawScore)) {
+    return 0;
+  }
+  if (rawScore <= BEAM_HIKARI_STORE_COMMON_SCORE_COMPRESSION_START) {
+    return Math.round(clamp(rawScore, 0, 100));
+  }
+
+  const overScore = rawScore - BEAM_HIKARI_STORE_COMMON_SCORE_COMPRESSION_START;
+  const compressedScore =
+    BEAM_HIKARI_STORE_COMMON_SCORE_COMPRESSION_START +
+    20 * (1 - Math.exp(-overScore / BEAM_HIKARI_STORE_COMMON_SCORE_COMPRESSION_SPREAD));
+  return Math.round(clamp(compressedScore, 0, 100));
+}
+
+function calculateBeamHikariStoreCommonRawScore(values) {
   let score = 40;
 
   if (values.historyDays >= 28) {
@@ -9756,7 +9773,11 @@ function calculateBeamHikariStoreCommonScore(values) {
     score -= 10;
   }
 
-  return Math.round(clamp(score, 0, 100));
+  return score;
+}
+
+function calculateBeamHikariStoreCommonScore(values) {
+  return compressBeamHikariStoreCommonScore(calculateBeamHikariStoreCommonRawScore(values));
 }
 
 function buildBeamHikariStoreCommonBaseEvaluation(metrics) {
@@ -9771,7 +9792,8 @@ function buildBeamHikariStoreCommonBaseEvaluation(metrics) {
   const storeCommonBoostCount = calculateBeamHikariStoreCommonBoostCount(values);
   const { riskCount: storeCommonRiskCount, riskNames } =
     calculateBeamHikariStoreCommonRiskDetail(values);
-  const score = calculateBeamHikariStoreCommonScore(values);
+  const rawScore = calculateBeamHikariStoreCommonRawScore(values);
+  const score = compressBeamHikariStoreCommonScore(rawScore);
 
   return {
     logicKey: BEAM_HIKARI_STORE_COMMON_LOGIC_KEY,
@@ -9779,6 +9801,7 @@ function buildBeamHikariStoreCommonBaseEvaluation(metrics) {
     displayLabel: "共通",
     score,
     storeCommonScore: score,
+    storeCommonRawScore: rawScore,
     storeCommonBoostCount,
     storeCommonRiskCount,
     riskNames,
@@ -9787,6 +9810,7 @@ function buildBeamHikariStoreCommonBaseEvaluation(metrics) {
     features: {
       ...values,
       storeCommonScore: score,
+      storeCommonRawScore: rawScore,
       storeCommonBoostCount,
       storeCommonRiskCount,
       riskNames,
@@ -10006,7 +10030,7 @@ function calculateBeamHikariStoreCommonSimpleRiskDetail(values) {
   };
 }
 
-function calculateBeamHikariStoreCommonSimpleScore(values) {
+function calculateBeamHikariStoreCommonSimpleRawScore(values) {
   if (!values.targetMachine || !Number.isFinite(values.prev2BonusRankInMachine)) {
     return 0;
   }
@@ -10045,7 +10069,11 @@ function calculateBeamHikariStoreCommonSimpleScore(values) {
     score += values.enoughInfo ? 3 : -5;
   }
 
-  return Math.round(clamp(score, 0, 100));
+  return score;
+}
+
+function calculateBeamHikariStoreCommonSimpleScore(values) {
+  return compressBeamHikariStoreCommonScore(calculateBeamHikariStoreCommonSimpleRawScore(values));
 }
 
 function buildBeamHikariStoreCommonSimpleBaseEvaluation(metrics, rankContext = {}) {
@@ -10063,7 +10091,8 @@ function buildBeamHikariStoreCommonSimpleBaseEvaluation(metrics, rankContext = {
   const storeCommonBoostCount = calculateBeamHikariStoreCommonSimpleBoostCount(values);
   const { riskCount: storeCommonRiskCount, riskNames } =
     calculateBeamHikariStoreCommonSimpleRiskDetail(values);
-  const score = calculateBeamHikariStoreCommonSimpleScore(values);
+  const rawScore = calculateBeamHikariStoreCommonSimpleRawScore(values);
+  const score = compressBeamHikariStoreCommonScore(rawScore);
 
   return {
     logicKey: BEAM_HIKARI_STORE_COMMON_SIMPLE_LOGIC_KEY,
@@ -10071,6 +10100,7 @@ function buildBeamHikariStoreCommonSimpleBaseEvaluation(metrics, rankContext = {
     displayLabel: "共通",
     score,
     storeCommonScore: score,
+    storeCommonRawScore: rawScore,
     storeCommonBoostCount,
     storeCommonRiskCount,
     riskNames,
@@ -10079,6 +10109,7 @@ function buildBeamHikariStoreCommonSimpleBaseEvaluation(metrics, rankContext = {
     features: {
       ...values,
       storeCommonScore: score,
+      storeCommonRawScore: rawScore,
       storeCommonBoostCount,
       storeCommonRiskCount,
       riskNames,
