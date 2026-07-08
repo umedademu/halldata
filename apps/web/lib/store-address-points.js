@@ -2367,15 +2367,6 @@ export const STORE_ADDRESS_POINT_DEFINITIONS = [
     "longitude": 130.501648
   },
   {
-    "storeName": "キャロル96津福本店",
-    "prefectureName": "福岡県",
-    "areaName": "久留米市",
-    "address": "福岡県久留米市津福本町1441-1",
-    "matchedTitle": "福岡県久留米市津福本町１４４１番地",
-    "latitude": 33.297489,
-    "longitude": 130.501648
-  },
-  {
     "storeName": "ワンダーランド770東合川店",
     "prefectureName": "福岡県",
     "areaName": "久留米市",
