@@ -30,8 +30,7 @@ const BEAM_HIKARI_STORE_COMMON_LOGIC_KEY = "beam-hikari-store-common-v1";
 const BEAM_HIKARI_STORE_COMMON_LOGIC_NAME = "ビームヒカリ式1.0";
 const BEAM_HIKARI_STORE_COMMON_SIMPLE_LOGIC_KEY = "beam-hikari-store-common-v1s";
 const BEAM_HIKARI_STORE_COMMON_SIMPLE_LOGIC_NAME = "ビームヒカリ1.0S";
-const BEAM_HIKARI_STORE_COMMON_SCORE_COMPRESSION_START = 80;
-const BEAM_HIKARI_STORE_COMMON_SCORE_COMPRESSION_SPREAD = 35;
+const BEAM_HIKARI_STORE_COMMON_SCORE_LINEAR_RAW_MAX = 120;
 const APARK_KASUGA_KAI_RAW_MIN = -32;
 const APARK_KASUGA_KAI_RAW_MAX = 138;
 const APARK_KASUGA_SIX_DAY_SCALE = 6 / 7;
@@ -9642,14 +9641,7 @@ function compressBeamHikariStoreCommonScore(rawScore) {
   if (!Number.isFinite(rawScore)) {
     return 0;
   }
-  if (rawScore <= BEAM_HIKARI_STORE_COMMON_SCORE_COMPRESSION_START) {
-    return Math.round(clamp(rawScore, 0, 100));
-  }
-
-  const overScore = rawScore - BEAM_HIKARI_STORE_COMMON_SCORE_COMPRESSION_START;
-  const compressedScore =
-    BEAM_HIKARI_STORE_COMMON_SCORE_COMPRESSION_START +
-    20 * (1 - Math.exp(-overScore / BEAM_HIKARI_STORE_COMMON_SCORE_COMPRESSION_SPREAD));
+  const compressedScore = (rawScore / BEAM_HIKARI_STORE_COMMON_SCORE_LINEAR_RAW_MAX) * 100;
   return Math.round(clamp(compressedScore, 0, 100));
 }
 
@@ -10183,14 +10175,14 @@ const BEAM_HIKARI_STORE_COMMON_CONDITIONS = [
   },
   {
     key: "SC_STAGE_REF_80_RISK0",
-    name: "SC_STAGE_REF_80_RISK0",
+    name: "SC_STAGE_REF_旧80_RISK0",
     category: "参考",
     backtestLabel: "参考 / 19,289台 / 100.38% / RB1/351.6",
     backtestPayoutRate: 100.38,
     backtestRbDenominator: 351.6,
     matcher: (features) =>
       features.historyDays >= 14 &&
-      features.storeCommonScore >= 80 &&
+      features.storeCommonRawScore >= 80 &&
       features.storeCommonRiskCount === 0,
   },
   {
@@ -10207,26 +10199,26 @@ const BEAM_HIKARI_STORE_COMMON_CONDITIONS = [
   },
   {
     key: "SC_SKIP_SCORE75_RISK2",
-    name: "SC_SKIP_SCORE75_RISK2",
+    name: "SC_SKIP_旧75_RISK2",
     category: "見送り",
     backtestLabel: "見送り / 85台 / 97.07% / RB1/372.5",
     backtestPayoutRate: 97.07,
     backtestRbDenominator: 372.5,
     matcher: (features) =>
       features.historyDays >= 14 &&
-      features.storeCommonScore >= 75 &&
+      features.storeCommonRawScore >= 75 &&
       features.storeCommonRiskCount >= 2,
   },
   {
     key: "SC_SKIP_SCORE80_PREV_PROCESSED",
-    name: "SC_SKIP_SCORE80_PREV_PROCESSED",
+    name: "SC_SKIP_旧80_PREV_PROCESSED",
     category: "見送り",
     backtestLabel: "見送り / 157台 / 97.90% / RB1/415.7",
     backtestPayoutRate: 97.9,
     backtestRbDenominator: 415.7,
     matcher: (features) =>
       features.historyDays >= 14 &&
-      features.storeCommonScore >= 80 &&
+      features.storeCommonRawScore >= 80 &&
       features.storeCommonRiskCount >= 1 &&
       features.riskNames.includes("prev_processed"),
   },

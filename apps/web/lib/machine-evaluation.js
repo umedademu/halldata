@@ -156,8 +156,7 @@ const WONDERLAND_MINAMIGAOKA_GOGO_LOGIC_NAME =
   "ワンダーランド南ヶ丘店_ゴーゴージャグラー3_全日共通100点ロジック_v1";
 const WONDERLAND_MINAMIGAOKA_GOGO_DEFAULT_CONDITION =
   "wonderland-minamigaoka-gogo-free-triple-deep";
-const WONDERLAND_MINAMIGAOKA_SCORE_COMPRESSION_START = 80;
-const WONDERLAND_MINAMIGAOKA_SCORE_COMPRESSION_SPREAD = 35;
+const WONDERLAND_MINAMIGAOKA_SCORE_LINEAR_RAW_MAX = 120;
 const TOYO_HALL_NEO_AIM_BACKTEST_WATCH_EXTRA_KEYS = new Set([
   "2026-02-27|301",
   "2026-02-27|302",
@@ -407,18 +406,14 @@ function clamp(value, minValue, maxValue) {
 
 function compressWonderlandMinamigaokaMachineScore(rawScore, scoreCap = 100) {
   if (!Number.isFinite(rawScore)) {
-    return 0;
+    return { score: 0, rawScore: 0 };
   }
   const normalizedCap = Number.isFinite(scoreCap) ? clamp(scoreCap, 0, 100) : 100;
-  if (rawScore <= WONDERLAND_MINAMIGAOKA_SCORE_COMPRESSION_START) {
-    return Math.round(clamp(rawScore, 0, normalizedCap));
-  }
-
-  const overScore = rawScore - WONDERLAND_MINAMIGAOKA_SCORE_COMPRESSION_START;
-  const compressedScore =
-    WONDERLAND_MINAMIGAOKA_SCORE_COMPRESSION_START +
-    20 * (1 - Math.exp(-overScore / WONDERLAND_MINAMIGAOKA_SCORE_COMPRESSION_SPREAD));
-  return Math.round(clamp(compressedScore, 0, normalizedCap));
+  const compressedScore = (rawScore / WONDERLAND_MINAMIGAOKA_SCORE_LINEAR_RAW_MAX) * 100;
+  return {
+    score: Math.round(clamp(compressedScore, 0, normalizedCap)),
+    rawScore: Math.round(clamp(rawScore, 0, normalizedCap)),
+  };
 }
 
 function scale(value, minValue, maxValue, points) {
@@ -3924,10 +3919,10 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "wonderland-minamigaoka-gogo-score70-safe-reference",
-        "参考_70点以上危険0",
+        "参考_旧70点以上危険0",
         "220台 / 102.06% / RB1/297.27",
         {
-          minScore: 70,
+          minRawScore: 70,
           maxDanger: 0,
           requiredFlags: ["wonderlandMinamigaokaGogoReferenceHistoryReady"],
         },
@@ -4870,7 +4865,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "通常採用_処遇待ち戻し",
         "通常採用 / 61日 / 73台 / 総G233,947 / BB0 / RB506 / RB1/462 / 合算1/462 / 平均+1,134.8枚 / 機械割111.80% / 勝率47.9%",
         {
-          minScore: 90,
+          minRawScore: 90,
           requiredFlags: [
             "wonderlandMinamigaokaMonkeyHistoryReady",
             "wonderlandMinamigaokaMonkeyPrevDiff0To1000",
@@ -4886,7 +4881,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "通常採用 / 88日 / 100台 / 総G313,818 / BB0 / RB706 / RB1/445 / 合算1/445 / 平均+758.7枚 / 機械割108.06% / 勝率47.0%",
         {
           rankMax: 1,
-          minScore: 90,
+          minRawScore: 90,
           requiredFlags: [
             "wonderlandMinamigaokaMonkeyHistoryReady",
             "wonderlandMinamigaokaMonkeyG7Main12000To26000",
@@ -5136,10 +5131,10 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "wonderland-minamigaoka-hokuto-watch-boost-short",
-        "高スコア強化不足見送り",
+        "旧75点以上強化不足見送り",
         "見送り / 対象42日 / 選択46台 / 総G195,862 / BB0 / RB418 / RB1/468.6 / 合算1/468.6 / 平均-567.4枚 / 機械割95.56% / 勝率30.4%",
         {
-          minScore: 75,
+          minRawScore: 75,
           maxBoost: 3,
           requiredFlags: ["wonderlandMinamigaokaHokutoHistoryReady"],
         },
@@ -5147,11 +5142,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "wonderland-minamigaoka-hokuto-best-rank1-80-b4",
-        "最本命R1+80+B4",
+        "最本命R1+旧80+B4",
         "通常採用 / 対象69日 / 選択69台 / 総G292,782 / BB0 / RB596 / RB1/491.2 / 合算1/491.2 / 平均+825.2枚 / 機械割106.48% / 勝率44.9%",
         {
           rankMax: 1,
-          minScore: 80,
+          minRawScore: 80,
           minBoost: 4,
           requiredFlags: ["wonderlandMinamigaokaHokutoHistoryReady"],
         },
@@ -5159,10 +5154,10 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "wonderland-minamigaoka-hokuto-strong80-b4",
-        "強80+B4",
+        "強旧80+B4",
         "通常採用 / 対象69日 / 選択112台 / 総G446,008 / BB0 / RB952 / RB1/468.5 / 合算1/468.5 / 平均+610.8枚 / 機械割105.11% / 勝率43.8%",
         {
-          minScore: 80,
+          minRawScore: 80,
           minBoost: 4,
           requiredFlags: ["wonderlandMinamigaokaHokutoHistoryReady"],
         },
@@ -5170,10 +5165,10 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "wonderland-minamigaoka-hokuto-main75-b4",
-        "本命75+B4",
+        "本命旧75+B4",
         "通常採用 / 対象79日 / 選択137台 / 総G558,169 / BB0 / RB1,190 / RB1/469.0 / 合算1/469.0 / 平均+581.6枚 / 機械割104.76% / 勝率43.1%",
         {
-          minScore: 75,
+          minRawScore: 75,
           minBoost: 4,
           requiredFlags: ["wonderlandMinamigaokaHokutoHistoryReady"],
         },
@@ -5181,10 +5176,10 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "wonderland-minamigaoka-hokuto-wide70-b4",
-        "広め70+B4",
+        "広め旧70+B4",
         "通常採用 / 対象87日 / 選択160台 / 総G682,386 / BB0 / RB1,448 / RB1/471.3 / 合算1/471.3 / 平均+507.0枚 / 機械割103.96% / 勝率43.1%",
         {
-          minScore: 70,
+          minRawScore: 70,
           minBoost: 4,
           requiredFlags: ["wonderlandMinamigaokaHokutoHistoryReady"],
         },
@@ -5195,7 +5190,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "自由MAX深沈み",
         "参考表示 / 対象22日 / 選択28台 / 総G87,180 / BB0 / RB177 / RB1/492.5 / 合算1/492.5 / 平均+1,215.4枚 / 機械割113.01% / 勝率46.4%",
         {
-          minScore: 80,
+          minRawScore: 80,
           requiredFlags: [
             "wonderlandMinamigaokaHokutoHistoryReady",
             "wonderlandMinamigaokaHokutoG7Le25918",
@@ -5836,10 +5831,10 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     conditions: [
       buildCondition(
         "wonderland-minamigaoka-kabaneri-score80",
-        "80点以上",
+        "旧80点以上",
         "通常採用 / 75日 / 131台 / 総G478,051 / BB0 / RB1,614 / RB1/296.2 / 合算1/296.2 / 平均+721.9枚 / 機械割106.59% / 勝率48.85%",
         {
-          minScore: 80,
+          minRawScore: 80,
           requiredFlags: ["wonderlandMinamigaokaKabaneriHistoryReady"],
         },
         ["wonderland-minamigaoka-kabaneri-kaimon"],
@@ -5881,40 +5876,40 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "wonderland-minamigaoka-kabaneri-score55-reference",
-        "55点以上",
+        "旧55点以上",
         "参考表示 / 96日 / 404台 / 総G1,382,820 / BB0 / RB4,717 / RB1/293.2 / 合算1/293.2 / 平均+346.3枚 / 機械割103.37% / 勝率43.32%",
         {
-          minScore: 55,
+          minRawScore: 55,
           requiredFlags: ["wonderlandMinamigaokaKabaneriHistoryReady"],
         },
         ["wonderland-minamigaoka-kabaneri-kaimon"],
       ),
       buildCondition(
         "wonderland-minamigaoka-kabaneri-score60-reference",
-        "60点以上",
+        "旧60点以上",
         "参考表示 / 93日 / 327台 / 総G1,106,430 / BB0 / RB3,744 / RB1/295.5 / 合算1/295.5 / 平均+409.9枚 / 機械割104.04% / 勝率44.65%",
         {
-          minScore: 60,
+          minRawScore: 60,
           requiredFlags: ["wonderlandMinamigaokaKabaneriHistoryReady"],
         },
         ["wonderland-minamigaoka-kabaneri-kaimon"],
       ),
       buildCondition(
         "wonderland-minamigaoka-kabaneri-score70-reference",
-        "70点以上",
+        "旧70点以上",
         "参考表示 / 87日 / 226台 / 総G787,446 / BB0 / RB2,693 / RB1/292.4 / 合算1/292.4 / 平均+468.9枚 / 機械割104.49% / 勝率45.13%",
         {
-          minScore: 70,
+          minRawScore: 70,
           requiredFlags: ["wonderlandMinamigaokaKabaneriHistoryReady"],
         },
         ["wonderland-minamigaoka-kabaneri-kaimon"],
       ),
       buildCondition(
         "wonderland-minamigaoka-kabaneri-score75-reference",
-        "75点以上",
+        "旧75点以上",
         "参考表示 / 81日 / 180台 / 総G639,045 / BB0 / RB2,182 / RB1/292.9 / 合算1/292.9 / 平均+537.5枚 / 機械割105.05% / 勝率46.11%",
         {
-          minScore: 75,
+          minRawScore: 75,
           requiredFlags: ["wonderlandMinamigaokaKabaneriHistoryReady"],
         },
         ["wonderland-minamigaoka-kabaneri-kaimon"],
@@ -10920,7 +10915,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "最本命RB270_少数注意",
         "対象17日 / 19台 / 95,207G / BB1/242.3 / RB1/254.6 / 合算1/124.1 / 平均+1090枚 / 107.25% / 勝率68.4% / 平均56 51.9% / 中央56 58.4% / 56>=50% 57.9% / 56<30% 31.6% / RB1/300以下57.9% / RB1/400超10.5%",
         {
-          minScore: 95,
+          minRawScore: 95,
           minBoost: 3,
           requiredFlags: [
             "wonderlandMinamigaokaNeoHistoryReady",
@@ -10935,7 +10930,7 @@ const MACHINE_EVALUATION_DEFINITIONS = [
         "打てる日増",
         "対象123日 / 763台 / RB1/319.5 / 合算1/144.4 / 平均+198枚 / 101.87% / 平均56 31.0% / 中央56 24.6% / 56>=50% 18.5%",
         {
-          minScore: 80,
+          minRawScore: 80,
           minBoost: 2,
           maxDanger: 0,
           requiredFlags: ["wonderlandMinamigaokaNeoHistoryReady"],
@@ -14458,10 +14453,10 @@ const MACHINE_EVALUATION_DEFINITIONS = [
     conditions: [
       buildCondition(
         "wonderland-minamigaoka-ultra-blue-score60",
-        "UJ青_広め60",
+        "UJ青_広め旧60",
         "23日 / 33台 / 114901G / BB460 / RB354 / BB1/249.8 / RB1/324.6 / 合算1/141.2 / 平均+286.2枚 / 102.74% / 勝率42.4%",
         {
-          minScore: 60,
+          minRawScore: 60,
           requiredFlags: ["wonderlandMinamigaokaUltraHistoryReady"],
         },
         ["wonderland-minamigaoka-ultra-miracle"],
@@ -14479,22 +14474,22 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "wonderland-minamigaoka-ultra-green-rank1-score60",
-        "UJ緑_1位60",
+        "UJ緑_1位旧60",
         "23日 / 24台 / 99125G / BB401 / RB322 / BB1/247.2 / RB1/307.8 / 合算1/137.1 / 平均+428.8枚 / 103.46% / 勝率50.0%",
         {
           rankMax: 1,
-          minScore: 60,
+          minRawScore: 60,
           requiredFlags: ["wonderlandMinamigaokaUltraHistoryReady"],
         },
         ["wonderland-minamigaoka-ultra-miracle"],
       ),
       buildCondition(
         "wonderland-minamigaoka-ultra-red-rank1-score65-gap8",
-        "UJ赤_1位65次点8",
+        "UJ赤_1位旧65次点8",
         "10日 / 11台 / 49716G / BB206 / RB169 / BB1/241.3 / RB1/294.2 / 合算1/132.6 / 平均+660.2枚 / 104.87% / 勝率63.6%",
         {
           rankMax: 1,
-          minScore: 65,
+          minRawScore: 65,
           minNextGap: 8,
           requiredFlags: ["wonderlandMinamigaokaUltraHistoryReady"],
         },
@@ -14502,11 +14497,11 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "wonderland-minamigaoka-ultra-purple-rank1-score65-gap5-boost2",
-        "UJ紫_1位65次点5強化2",
+        "UJ紫_1位旧65次点5強化2",
         "11日 / 12台 / 53052G / BB215 / RB190 / BB1/246.8 / RB1/279.2 / 合算1/131.0 / 平均+620.8枚 / 104.68% / 勝率58.3%",
         {
           rankMax: 1,
-          minScore: 65,
+          minRawScore: 65,
           minNextGap: 5,
           minBoost: 2,
           requiredFlags: ["wonderlandMinamigaokaUltraHistoryReady"],
@@ -15525,61 +15520,61 @@ const MACHINE_EVALUATION_DEFINITIONS = [
       ),
       buildCondition(
         "wonderland-minamigaoka-mister-wide-score58",
-        "広め 58点以上",
+        "広め 旧58点以上",
         "通常採用 / 21日 / 33台 / 総G78,905 / BB307 / RB253 / BB1/257.0 / RB1/311.9 / 合算1/140.9 / 平均+211.6枚 / 機械割102.95% / 勝率45.5% / 平均4+46.8% / 中央4+45.2% / 平均5+30.7%",
         {
-          minScore: 58,
+          minRawScore: 58,
           requiredFlags: ["wonderlandMinamigaokaMisterHistoryReady"],
         },
         [WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY],
       ),
       buildCondition(
         "wonderland-minamigaoka-mister-weak-score60",
-        "弱め本命 60点以上",
+        "弱め本命 旧60点以上",
         "通常採用 / 21日 / 31台 / 総G68,185 / BB264 / RB230 / BB1/258.3 / RB1/296.5 / 合算1/138.0 / 平均+234.4枚 / 機械割103.55% / 勝率45.2% / 平均4+48.3% / 中央4+45.3% / 平均5+31.9%",
         {
-          minScore: 60,
+          minRawScore: 60,
           requiredFlags: ["wonderlandMinamigaokaMisterHistoryReady"],
         },
         [WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY],
       ),
       buildCondition(
         "wonderland-minamigaoka-mister-main-score63",
-        "本命 63点以上",
+        "本命 旧63点以上",
         "通常採用 / 19日 / 27台 / 総G57,496 / BB220 / RB203 / BB1/261.3 / RB1/283.2 / 合算1/135.9 / 平均+245.9枚 / 機械割103.85% / 勝率44.4% / 平均4+49.8% / 中央4+45.3% / 平均5+33.3%",
         {
-          minScore: 63,
+          minRawScore: 63,
           requiredFlags: ["wonderlandMinamigaokaMisterHistoryReady"],
         },
         [WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY],
       ),
       buildCondition(
         "wonderland-minamigaoka-mister-strong-score65",
-        "強条件 65点以上",
+        "強条件 旧65点以上",
         "通常採用 / 17日 / 24台 / 総G55,539 / BB219 / RB199 / BB1/253.6 / RB1/279.1 / 合算1/132.9 / 平均+342.4枚 / 機械割104.93% / 勝率50.0% / 平均4+51.1% / 中央4+45.9% / 平均5+34.4%",
         {
-          minScore: 65,
+          minRawScore: 65,
           requiredFlags: ["wonderlandMinamigaokaMisterHistoryReady"],
         },
         [WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY],
       ),
       buildCondition(
         WONDERLAND_MINAMIGAOKA_MISTER_DEFAULT_CONDITION,
-        "最本命 70点以上",
+        "最本命 旧70点以上",
         "通常採用 / 16日 / 20台 / 総G50,797 / BB202 / RB190 / BB1/251.5 / RB1/267.4 / 合算1/129.6 / 平均+425.3枚 / 機械割105.58% / 勝率55.0% / 平均4+54.0% / 中央4+50.7% / 平均5+37.0%",
         {
-          minScore: 70,
+          minRawScore: 70,
           requiredFlags: ["wonderlandMinamigaokaMisterHistoryReady"],
         },
         [WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY],
       ),
       buildCondition(
         "wonderland-minamigaoka-mister-watch-rank1-under58",
-        "1位でも58点未満見送り",
+        "1位でも旧58点未満見送り",
         "見送り / 14日 / 14台 / 総G27,298 / BB78 / RB59 / BB1/350.0 / RB1/462.7 / 合算1/199.3 / 平均-539.1枚 / 機械割90.78% / 勝率14.3% / 平均4+31.9% / 中央4+36.5% / 平均5+17.7%",
         {
           rankMax: 1,
-          maxScore: 57.999,
+          maxRawScore: 57.999,
           requiredFlags: ["wonderlandMinamigaokaMisterHistoryReady"],
         },
         [WONDERLAND_MINAMIGAOKA_MISTER_LOGIC_KEY],
@@ -42629,6 +42624,12 @@ function matchesCondition(matcher, evaluation) {
   if (Number.isFinite(matcher.maxScore) && evaluation.score > matcher.maxScore) {
     return false;
   }
+  if (Number.isFinite(matcher.minRawScore) && evaluation.rawScore < matcher.minRawScore) {
+    return false;
+  }
+  if (Number.isFinite(matcher.maxRawScore) && evaluation.rawScore > matcher.maxRawScore) {
+    return false;
+  }
   if (Number.isFinite(matcher.rankMax) && (!Number.isFinite(evaluation.rank) || evaluation.rank > matcher.rankMax)) {
     return false;
   }
@@ -42995,7 +42996,15 @@ function buildEvaluationForRowWithSetting(row, definition, setting, options = {}
   }
   const features = buildMachineSpecificFeatureState(runtimeDefinition, metrics, buildFeatureState(metrics), row);
   const condition = findConditionDefinition(definition, setting.conditionKey, logic.key);
-  const score = calculateMachineScore(runtimeDefinition, metrics, features);
+  const scoreResult = calculateMachineScore(runtimeDefinition, metrics, features);
+  const score =
+    scoreResult && typeof scoreResult === "object" && Number.isFinite(scoreResult.score)
+      ? scoreResult.score
+      : scoreResult;
+  const rawScore =
+    scoreResult && typeof scoreResult === "object" && Number.isFinite(scoreResult.rawScore)
+      ? scoreResult.rawScore
+      : score;
 
   return {
     machineKey: definition.machineKey,
@@ -43007,6 +43016,7 @@ function buildEvaluationForRowWithSetting(row, definition, setting, options = {}
     backtestPayoutRate: condition?.backtestPayoutRate ?? null,
     backtestRbDenominator: condition?.backtestRbDenominator ?? null,
     score,
+    rawScore,
     rank: null,
     nextGap: null,
     boostCount: features.boostCount,
