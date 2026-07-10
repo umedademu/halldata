@@ -593,7 +593,7 @@ class MinRepoScraper:
         machine_list: MachineListResult,
         machine_entry: MachineEntry,
     ) -> MachineDataset:
-        machine_html = self.fetch_html(machine_entry.url)
+        machine_html = self.fetch_html(machine_entry.url, referer=machine_list.date_url)
         machine_soup = BeautifulSoup(machine_html, "html.parser")
         columns, rows = self.extract_machine_table(machine_soup)
 
@@ -611,16 +611,17 @@ class MinRepoScraper:
             rows=rows,
         )
 
-    def fetch_html(self, url: str) -> str:
+    def fetch_html(self, url: str, referer: str | None = None) -> str:
         session = self._get_session()
         self._copy_base_session_cookies(session)
-        response = session.get(url, timeout=30)
+        request_headers = {"Referer": referer} if referer else None
+        response = session.get(url, headers=request_headers, timeout=30)
         self._copy_session_cookies_to_base(session)
         response.raise_for_status()
 
         if self._apply_inline_cookies(response.text):
             self._copy_base_session_cookies(session)
-            response = session.get(url, timeout=30)
+            response = session.get(url, headers=request_headers, timeout=30)
             self._copy_session_cookies_to_base(session)
             response.raise_for_status()
 
