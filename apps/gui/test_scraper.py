@@ -6291,6 +6291,167 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(result.datasets[0].store_name, "ワンダーランド須恵店")
         self.assertEqual(result.datasets[0].store_url, DAIDATA_WONDERLAND_SUE_URL)
 
+    def test_daidata_store_history_detects_store_closed_after_first_no_play_stale_1am_update(self) -> None:
+        class FakeDaidataStorePage:
+            def __init__(self) -> None:
+                self.url = ""
+                self.goto_calls: list[str] = []
+
+            def goto(self, url: str, wait_until: str = "", timeout: int = 0) -> None:
+                self.url = url
+                self.goto_calls.append(url)
+
+            def content(self) -> str:
+                if "psModelNameSearch" in self.url:
+                    return f"""
+                    <html>
+                      <body>
+                        <a href="{DAIDATA_BEAM_HIKARI_URL}/unit_list?model=neo">ネオアイムジャグラーEX 2台</a>
+                        <a href="{DAIDATA_BEAM_HIKARI_URL}/unit_list?model=my">マイジャグラーV 2台</a>
+                      </body>
+                    </html>
+                    """
+                if "unit_list" in self.url:
+                    return """
+                    <html>
+                      <body>
+                        <p>データ更新 2026.07.08 01:00</p>
+                        <select name="hist_num">
+                          <option value="0" selected>2026/07/08</option>
+                        </select>
+                        <table>
+                          <tr>
+                            <th>台番号</th>
+                            <th>累計スタート</th>
+                            <th>BB回数</th>
+                            <th>RB回数</th>
+                          </tr>
+                          <tr><td>821</td><td>0</td><td>0</td><td>0</td></tr>
+                          <tr><td>822</td><td>0</td><td>0</td><td>0</td></tr>
+                        </table>
+                      </body>
+                    </html>
+                    """
+                return "<html><body>store</body></html>"
+
+            def wait_for_timeout(self, milliseconds: int) -> None:
+                return None
+
+        class FakeDaidataStoreContext:
+            def __init__(self, page: FakeDaidataStorePage) -> None:
+                self.pages = [page]
+
+            def close(self) -> None:
+                return None
+
+        class FakeDaidataPlaywright:
+            def stop(self) -> None:
+                return None
+
+        page = FakeDaidataStorePage()
+        scraper = DaidataOnlineScraper(current_datetime_fn=lambda: datetime(2026, 7, 8, 11, 15))
+        scraper._require_playwright = mock.Mock()
+        scraper._launch_mobile_browser_context = mock.Mock(
+            return_value=(FakeDaidataPlaywright(), FakeDaidataStoreContext(page))
+        )
+        scraper._wait_between_transitions = mock.Mock()
+        store_config = daidata_store_config_for("ビームヒカリ", "")
+        self.assertIsNotNone(store_config)
+
+        result = scraper.fetch_store_juggler_history(
+            store_config=store_config,
+            recent_days=1,
+        )
+
+        self.assertEqual(result.datasets, [])
+        self.assertEqual(result.start_date, "2026-07-08")
+        self.assertEqual(result.end_date, "2026-07-08")
+        self.assertEqual(result.skipped_dates, ["2026-07-08"])
+        self.assertEqual(len(result.store_day_statuses), 1)
+        self.assertEqual(result.store_day_statuses[0].target_date, "2026-07-08")
+        self.assertEqual(result.store_day_statuses[0].status, "closed")
+        self.assertEqual(result.store_day_statuses[0].source, "daidata_online")
+        self.assertEqual(result.store_day_statuses[0].observed_slot_count, 2)
+        self.assertEqual(result.store_day_statuses[0].observed_no_play_slot_count, 2)
+        self.assertEqual(
+            set(result.skipped_targets),
+            {("2026-07-08", "ネオアイムジャグラーEX"), ("2026-07-08", "マイジャグラーV")},
+        )
+        self.assertFalse(any("model=my" in url for url in page.goto_calls))
+
+    def test_daidata_store_history_does_not_store_closed_skip_before_1115(self) -> None:
+        class FakeDaidataStorePage:
+            def __init__(self) -> None:
+                self.url = ""
+
+            def goto(self, url: str, wait_until: str = "", timeout: int = 0) -> None:
+                self.url = url
+
+            def content(self) -> str:
+                if "psModelNameSearch" in self.url:
+                    return f"""
+                    <html>
+                      <body>
+                        <a href="{DAIDATA_BEAM_HIKARI_URL}/unit_list?model=neo">ネオアイムジャグラーEX 2台</a>
+                        <a href="{DAIDATA_BEAM_HIKARI_URL}/unit_list?model=my">マイジャグラーV 2台</a>
+                      </body>
+                    </html>
+                    """
+                if "unit_list" in self.url:
+                    return """
+                    <html>
+                      <body>
+                        <p>データ更新 2026.07.08 01:00</p>
+                        <select name="hist_num">
+                          <option value="0" selected>2026/07/08</option>
+                        </select>
+                        <table>
+                          <tr>
+                            <th>台番号</th>
+                            <th>累計スタート</th>
+                            <th>BB回数</th>
+                            <th>RB回数</th>
+                          </tr>
+                          <tr><td>821</td><td>0</td><td>0</td><td>0</td></tr>
+                          <tr><td>822</td><td>0</td><td>0</td><td>0</td></tr>
+                        </table>
+                      </body>
+                    </html>
+                    """
+                return "<html><body>store</body></html>"
+
+            def wait_for_timeout(self, milliseconds: int) -> None:
+                return None
+
+        class FakeDaidataStoreContext:
+            def __init__(self, page: FakeDaidataStorePage) -> None:
+                self.pages = [page]
+
+            def close(self) -> None:
+                return None
+
+        class FakeDaidataPlaywright:
+            def stop(self) -> None:
+                return None
+
+        scraper = DaidataOnlineScraper(current_datetime_fn=lambda: datetime(2026, 7, 8, 11, 14))
+        scraper._require_playwright = mock.Mock()
+        scraper._launch_mobile_browser_context = mock.Mock(
+            return_value=(FakeDaidataPlaywright(), FakeDaidataStoreContext(FakeDaidataStorePage()))
+        )
+        scraper._wait_between_transitions = mock.Mock()
+        store_config = daidata_store_config_for("ビームヒカリ", "")
+        self.assertIsNotNone(store_config)
+
+        result = scraper.fetch_store_juggler_history(
+            store_config=store_config,
+            recent_days=1,
+        )
+
+        self.assertEqual(len(result.datasets), 2)
+        self.assertEqual(result.store_day_statuses, [])
+        self.assertEqual(result.skipped_dates, [])
+
     def test_daidata_machine_history_skips_protected_dates_before_opening_pages(self) -> None:
         class FakeDaidataHistoryPage:
             def __init__(self) -> None:

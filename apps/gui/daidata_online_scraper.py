@@ -11,15 +11,31 @@ from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit, un
 from bs4 import BeautifulSoup, Tag
 
 from machine_difference import canonical_machine_name, list_equivalent_machine_names
-from minrepo_scraper import FetchProgress, MachineDataset, MachineHistoryResult, ScraperError, StoreDatePage, normalize_text
+from minrepo_scraper import (
+    FetchProgress,
+    MachineDataset,
+    MachineHistoryResult,
+    ScraperError,
+    StoreDatePage,
+    StoreDayStatus,
+    normalize_text,
+)
 from site7_scraper import (
     SITE7_DATE_BOUNDARY_HOUR,
+    SITE7_STORE_CLOSED_CHECK_HOUR,
+    SITE7_STORE_CLOSED_CHECK_MINUTE,
+    SITE7_STORE_CLOSED_STALE_UPDATE_HOUR,
+    SITE7_STORE_DAY_STATUS_CLOSED,
     SITE7_MOBILE_USER_AGENT,
     SITE7_MOBILE_VIEWPORT,
+    Site7NoPlayDayStats,
     build_site7_transition_wait_milliseconds,
+    format_site7_updated_datetime,
     format_site7_ratio_text,
     site7_dataset_updated_at,
+    site7_result_no_play_day_stats,
     set_site7_dataset_updated_at,
+    set_site7_result_no_play_day_stats,
 )
 
 try:
@@ -295,6 +311,35 @@ def _daidata_day_is_fully_protected(
     )
 
 
+def _parse_daidata_updated_at(value: str) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    if text.endswith("Z"):
+        text = f"{text[:-1]}+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return parsed.replace(tzinfo=DAIDATA_JST)
+    return parsed.astimezone(DAIDATA_JST)
+
+
+def _parse_daidata_count(value: object) -> int | None:
+    text = str(value or "").strip().replace(",", "")
+    if text in {"", "-", "--"}:
+        return 0
+    match = re.search(r"-?\d+", text)
+    if match is None:
+        return None
+    return int(match.group(0))
+
+
+def _daidata_stat_value_is_empty_or_zero(value: object) -> bool:
+    return _parse_daidata_count(value) == 0
+
+
 def _find_unit_table(soup: BeautifulSoup) -> Tag | None:
     for table in soup.find_all("table"):
         header_rows = table.find_all("tr")
@@ -397,9 +442,24 @@ def build_daidata_machine_dataset(
 
 
 class DaidataOnlineScraper:
-    def __init__(self, root_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        root_dir: Path | None = None,
+        current_datetime_fn: Callable[[], datetime] | None = None,
+    ) -> None:
         self.root_dir = root_dir or ROOT_DIR
         self.browser_state_dir = self.root_dir / "local_data" / DAIDATA_BROWSER_STATE_DIR_NAME
+        self._current_datetime_fn = current_datetime_fn
+
+    def _current_daidata_datetime(self) -> datetime:
+        current_datetime = (
+            self._current_datetime_fn()
+            if self._current_datetime_fn is not None
+            else datetime.now(DAIDATA_JST)
+        )
+        if current_datetime.tzinfo is None or current_datetime.utcoffset() is None:
+            return current_datetime.replace(tzinfo=DAIDATA_JST)
+        return current_datetime.astimezone(DAIDATA_JST)
 
     def fetch_beam_hikari_juggler_history(
         self,
@@ -445,6 +505,9 @@ class DaidataOnlineScraper:
         playwright = None
         context = None
         machine_results: list[MachineHistoryResult] = []
+        machine_entries: list[DaidataOnlineMachineEntry] = []
+        store_closed_dates: set[str] = set()
+        store_closed_statuses: dict[str, StoreDayStatus] = {}
         try:
             playwright, context = self._launch_mobile_browser_context(browser_visible=browser_visible)
             page = self._prepare_page(context)
@@ -482,24 +545,176 @@ class DaidataOnlineScraper:
                     total_steps,
                     f"{store_config.store_name} / {machine_entry.machine_name} の台データオンラインを読んでいます",
                 )
-                machine_results.append(
-                    self._fetch_machine_history_result(
-                        store_config=store_config,
-                        page=page,
-                        machine_entry=machine_entry,
-                        recent_days=target_days,
-                        browser_visible=browser_visible,
-                        progress_callback=progress_callback,
-                        machine_protected_slots_callback=machine_protected_slots_callback,
-                        cancel_requested=cancel_requested,
-                    )
+                machine_result = self._fetch_machine_history_result(
+                    store_config=store_config,
+                    page=page,
+                    machine_entry=machine_entry,
+                    recent_days=target_days,
+                    browser_visible=browser_visible,
+                    progress_callback=progress_callback,
+                    machine_protected_slots_callback=machine_protected_slots_callback,
+                    cancel_requested=cancel_requested,
                 )
+                machine_results.append(machine_result)
+                detected_store_closed = (
+                    self._detect_store_closed_date_from_first_machine(machine_result)
+                    if machine_index == 1
+                    else None
+                )
+                if detected_store_closed is not None:
+                    detected_closed_date, no_play_stats, checked_at = detected_store_closed
+                    store_closed_dates.add(detected_closed_date)
+                    store_closed_statuses[detected_closed_date] = self._build_store_closed_day_status(
+                        detected_closed_date,
+                        no_play_stats,
+                        checked_at,
+                        reason="first_machine_stale_1am_no_play",
+                    )
+                    self._notify_progress(
+                        progress_callback,
+                        machine_index,
+                        total_steps,
+                        f"{store_config.store_name} / {detected_closed_date} は店休日扱いでスキップします",
+                    )
+                    break
         except PlaywrightError as exc:
             raise ScraperError(f"台データオンラインの取得に失敗しました。\n{exc}") from exc
         finally:
             self._release_browser_context(playwright, context, browser_visible=browser_visible)
 
+        self._apply_store_closed_date_skips(
+            machine_results=machine_results,
+            machine_entries=machine_entries,
+            closed_dates=store_closed_dates,
+            closed_statuses=store_closed_statuses,
+            store_config=store_config,
+        )
         return self._merge_machine_history_results(store_config, machine_results)
+
+    def _detect_store_closed_date_from_first_machine(
+        self,
+        history_result: MachineHistoryResult,
+    ) -> tuple[str, Site7NoPlayDayStats, datetime] | None:
+        current_datetime = self._current_daidata_datetime()
+        for stats in site7_result_no_play_day_stats(history_result).values():
+            detected_store_closed = self._detect_store_closed_date_from_no_play_stats(stats, current_datetime)
+            if detected_store_closed is not None:
+                return detected_store_closed
+        return None
+
+    def _detect_store_closed_date_from_no_play_stats(
+        self,
+        stats: Site7NoPlayDayStats,
+        current_datetime: datetime | None = None,
+    ) -> tuple[str, Site7NoPlayDayStats, datetime] | None:
+        updated_at = stats.updated_at
+        if updated_at is None or not stats.all_slots_no_play:
+            return None
+        updated_at_jst = (
+            updated_at.astimezone(DAIDATA_JST)
+            if updated_at.tzinfo is not None and updated_at.utcoffset() is not None
+            else updated_at.replace(tzinfo=DAIDATA_JST)
+        )
+        if updated_at_jst.hour != SITE7_STORE_CLOSED_STALE_UPDATE_HOUR:
+            return None
+
+        current_datetime = current_datetime or self._current_daidata_datetime()
+        check_datetime = updated_at_jst.replace(
+            hour=SITE7_STORE_CLOSED_CHECK_HOUR,
+            minute=SITE7_STORE_CLOSED_CHECK_MINUTE,
+            second=0,
+            microsecond=0,
+        )
+        if current_datetime < check_datetime:
+            return None
+
+        return updated_at_jst.strftime("%Y-%m-%d"), stats, current_datetime
+
+    def _build_store_closed_day_status(
+        self,
+        target_date: str,
+        stats: Site7NoPlayDayStats,
+        checked_at: datetime,
+        *,
+        reason: str,
+    ) -> StoreDayStatus:
+        return StoreDayStatus(
+            target_date=target_date,
+            status=SITE7_STORE_DAY_STATUS_CLOSED,
+            source="daidata_online",
+            reason=reason,
+            checked_at=format_site7_updated_datetime(checked_at),
+            source_updated_at=(
+                format_site7_updated_datetime(stats.updated_at)
+                if stats.updated_at is not None
+                else ""
+            ),
+            observed_slot_count=stats.slot_count,
+            observed_no_play_slot_count=stats.no_play_slot_count,
+        )
+
+    def _apply_store_closed_date_skips(
+        self,
+        *,
+        machine_results: list[MachineHistoryResult],
+        machine_entries: list[DaidataOnlineMachineEntry],
+        closed_dates: set[str],
+        closed_statuses: dict[str, StoreDayStatus],
+        store_config: DaidataOnlineStoreConfig,
+    ) -> None:
+        if not closed_dates:
+            return
+        closed_date_set = set(closed_dates)
+        for machine_result in machine_results:
+            machine_result.datasets = [
+                dataset
+                for dataset in machine_result.datasets
+                if not self._dataset_matches_store_closed_date(dataset, closed_date_set)
+            ]
+            machine_result.date_pages = [
+                date_page for date_page in machine_result.date_pages if date_page.target_date not in closed_date_set
+            ]
+
+        machine_names = [machine_entry.machine_name for machine_entry in machine_entries]
+        skipped_targets = [
+            (target_date, machine_name)
+            for target_date in sorted(closed_date_set)
+            for machine_name in machine_names
+        ]
+        machine_results.append(
+            MachineHistoryResult(
+                store_name=store_config.store_name,
+                store_url=store_config.url,
+                start_date=min(closed_date_set),
+                end_date=max(closed_date_set),
+                date_pages=[],
+                datasets=[],
+                skipped_targets=skipped_targets,
+                skipped_dates=sorted(closed_date_set),
+                store_day_statuses=[
+                    closed_statuses[target_date]
+                    for target_date in sorted(closed_date_set)
+                    if target_date in closed_statuses
+                ],
+            )
+        )
+
+    def _dataset_matches_store_closed_date(
+        self,
+        dataset: MachineDataset,
+        closed_dates: set[str],
+    ) -> bool:
+        if dataset.target_date in closed_dates:
+            return True
+        stats = self._build_daidata_no_play_day_stats(dataset)
+        if not stats.all_slots_no_play or stats.updated_at is None:
+            return False
+        updated_at = (
+            stats.updated_at.astimezone(DAIDATA_JST)
+            if stats.updated_at.tzinfo is not None and stats.updated_at.utcoffset() is not None
+            else stats.updated_at.replace(tzinfo=DAIDATA_JST)
+        )
+        return updated_at.strftime("%Y-%m-%d") in closed_dates
 
     def extract_juggler_machine_links(
         self,
@@ -636,7 +851,7 @@ class DaidataOnlineScraper:
         candidate_dates = [date_page.target_date for date_page in date_pages] or [target_date for target_date, _ in skipped_targets]
         start_date = min(candidate_dates) if candidate_dates else ""
         end_date = max(candidate_dates) if candidate_dates else ""
-        return MachineHistoryResult(
+        result = MachineHistoryResult(
             store_name=store_config.store_name,
             store_url=store_config.url,
             start_date=start_date,
@@ -646,6 +861,14 @@ class DaidataOnlineScraper:
             skipped_targets=skipped_targets,
             skipped_dates=skipped_dates,
         )
+        no_play_day_stats = {
+            dataset.target_date: stats
+            for dataset in datasets
+            if (stats := self._build_daidata_no_play_day_stats(dataset)).slot_count > 0
+        }
+        if no_play_day_stats:
+            set_site7_result_no_play_day_stats(result, no_play_day_stats)
+        return result
 
     def _merge_machine_history_results(
         self,
@@ -656,11 +879,13 @@ class DaidataOnlineScraper:
         date_pages_by_date: dict[str, StoreDatePage] = {}
         skipped_targets: list[tuple[str, str]] = []
         skipped_dates: list[str] = []
+        store_day_statuses: list[StoreDayStatus] = []
 
         for machine_result in machine_results:
             datasets.extend(machine_result.datasets)
             skipped_targets.extend(machine_result.skipped_targets)
             skipped_dates.extend(date for date in machine_result.skipped_dates if date not in skipped_dates)
+            store_day_statuses.extend(machine_result.store_day_statuses)
             for date_page in machine_result.date_pages:
                 date_pages_by_date.setdefault(date_page.target_date, date_page)
 
@@ -679,6 +904,7 @@ class DaidataOnlineScraper:
             datasets=datasets,
             skipped_targets=skipped_targets,
             skipped_dates=skipped_dates,
+            store_day_statuses=store_day_statuses,
         )
 
     def _dataset_slot_numbers(self, dataset: MachineDataset) -> list[str]:
@@ -697,6 +923,37 @@ class DaidataOnlineScraper:
             if slot_index < len(row) and str(row[slot_index]).strip()
         ]
         return sorted(set(slot_numbers), key=lambda value: int(value) if value.isdigit() else value)
+
+    def _build_daidata_no_play_day_stats(self, dataset: MachineDataset) -> Site7NoPlayDayStats:
+        no_play_slot_count = sum(
+            1
+            for row in dataset.rows
+            if self._daidata_machine_day_row_is_no_play(dataset, row)
+        )
+        return Site7NoPlayDayStats(
+            slot_count=len(dataset.rows),
+            no_play_slot_count=no_play_slot_count,
+            has_play_data=no_play_slot_count < len(dataset.rows),
+            updated_at=_parse_daidata_updated_at(site7_dataset_updated_at(dataset)),
+        )
+
+    def _daidata_machine_day_row_is_no_play(self, dataset: MachineDataset, row: list[str]) -> bool:
+        column_indexes: list[int] = []
+        for target_column in ("G数", "BB", "RB"):
+            try:
+                column_indexes.append(
+                    next(
+                        index
+                        for index, column_name in enumerate(dataset.columns)
+                        if normalize_text(column_name) == normalize_text(target_column)
+                    )
+                )
+            except StopIteration:
+                return False
+        return all(
+            index < len(row) and _daidata_stat_value_is_empty_or_zero(row[index])
+            for index in column_indexes
+        )
 
     def _launch_mobile_browser_context(self, browser_visible: bool) -> tuple[object, object]:
         playwright = sync_playwright().start()
