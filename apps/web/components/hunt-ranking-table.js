@@ -1292,9 +1292,32 @@ function buildMachineEvaluationTitleDetail({
     getMachineEvaluationHighlightMetric(row?.machineName),
   );
   const highlightMetric = getMachineEvaluationHighlightMetric(row?.machineName);
+  const finalSelection = evaluation?.finalSelection ?? null;
+  const finalSelectionTitleParts = finalSelection?.enabled
+    ? [
+        finalSelection.status ? `最終選定: ${finalSelection.status}` : "",
+        Number.isFinite(finalSelection.finalRank)
+          ? `最終順位: ${formatNumber(finalSelection.finalRank)}`
+          : "",
+        finalSelection.rbGateCandidate ? "RB条件: 該当" : "",
+        Number.isFinite(finalSelection.support)
+          ? `配置支持率: ${formatPercent(finalSelection.support * 100)}`
+          : "",
+        Number.isFinite(finalSelection.supportRatio)
+          ? `支持率1位÷2位: ${formatDecimal(finalSelection.supportRatio)}（基準${formatDecimal(finalSelection.supportRatioMinimum)}）`
+          : "",
+        Number.isFinite(finalSelection.placementSize)
+          ? `想定配置台数: ${formatNumber(finalSelection.placementSize)}`
+          : "",
+        Number.isFinite(finalSelection.commonRank)
+          ? `共通側順位: ${formatNumber(finalSelection.commonRank)}`
+          : "",
+      ].filter(Boolean)
+    : [];
   const titleParts = [
     buildMachineEvaluationExpectationTitle(expectationDetail, highlightMetric),
     evaluation.logicName ? `機種別ロジック: ${evaluation.logicName}` : "",
+    finalSelectionTitleParts.length > 0 ? finalSelectionTitleParts.join("\n") : "",
     combinedTopBacktestTitleParts.length > 0 ? combinedTopBacktestTitleParts.join("\n") : "",
     topBacktestTitleParts.length > 0 ? topBacktestTitleParts.join("\n") : "",
     Number.isFinite(evaluation.rank) ? `機種別順位: ${evaluation.rank}` : "",
