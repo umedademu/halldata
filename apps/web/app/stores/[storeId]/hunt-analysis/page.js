@@ -35,6 +35,7 @@ import {
   applyMachineEvaluationRankingMode,
   decodeMachineEvaluationSettingsCookieValue,
   getMachineEvaluationCookieName,
+  normalizeBeamHikariNeoSpatialSelectionEnabled,
   normalizeMachineEvaluationDayMode,
   normalizeMachineEvaluationRankingMode,
   shouldShowMachineEvaluationInRanking,
@@ -71,6 +72,7 @@ const HUNT_RANKING_CONDITION_PARAM_KEYS = [
   "settingEstimateMode",
   "machineEvaluationRankingMode",
   "machineEvaluationDayMode",
+  "beamHikariNeoSpatialSelection",
   "huntScoreLogicKey",
   "machine",
 ];
@@ -358,6 +360,10 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
   const machineEvaluationDayMode = normalizeMachineEvaluationDayMode(
     savedParamAccess.readSingle("machineEvaluationDayMode"),
   );
+  const beamHikariNeoSpatialSelectionEnabled =
+    normalizeBeamHikariNeoSpatialSelectionEnabled(
+      savedParamAccess.readSingle("beamHikariNeoSpatialSelection"),
+    );
   const differenceMode = normalizeDifferenceMode(
     savedParamAccess.readSingle("differenceMode"),
   );
@@ -395,6 +401,8 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             combineHanabi: requestedCombineHanabi,
             machineEvaluationSettings,
             machineEvaluationDayMode,
+            beamHikariNeoSpatialSelection:
+              beamHikariNeoSpatialSelectionEnabled,
             requestedDate,
           },
         )
@@ -405,6 +413,8 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             settingEstimateMode,
             huntScoreLogicKeys: requestedRankingLogicKey ? [requestedRankingLogicKey] : [],
             machineEvaluationSettings,
+            beamHikariNeoSpatialSelection:
+              beamHikariNeoSpatialSelectionEnabled,
           },
           huntScoreLogicKey,
         );
@@ -505,6 +515,7 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
     combineHanabi,
     machineEvaluationRankingMode,
     machineEvaluationDayMode,
+    beamHikariNeoSpatialSelectionEnabled,
   });
 
   return (
@@ -549,6 +560,11 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
             </p>
           ) : detail.huntScoreLogic ? (
             <p className="dataSourceLabel">適用中: {detail.huntScoreLogic.name}</p>
+          ) : null}
+          {detail.store.storeName === "ビームヒカリ" ? (
+            <p className="dataSourceLabel">
+              ネオアイム空間選定: {beamHikariNeoSpatialSelectionEnabled ? "使用" : "不使用"}
+            </p>
           ) : null}
           <div className="heroLinks simpleHeroLinks">
             <Link href={`/stores/${detail.store.id}`} className="externalLink">
@@ -664,6 +680,22 @@ export default async function HuntAnalysisPage({ params, searchParams }) {
                 <p className="filterConditionBoxTitle">機種別評価</p>
                 <MachineEvaluationRankingModeOptions value={machineEvaluationRankingMode} />
               </div>
+              {detail.store.storeName === "ビームヒカリ" ? (
+                <div className="filterConditionBox rankingConditionBox">
+                  <p className="filterConditionBoxTitle">ネオアイム空間選定</p>
+                  <div className="metricToggleRow commonConditionModeOptions">
+                    <label className="metricToggleChip">
+                      <input
+                        type="checkbox"
+                        name="beamHikariNeoSpatialSelection"
+                        value="on"
+                        defaultChecked={beamHikariNeoSpatialSelectionEnabled}
+                      />
+                      <span>使用する</span>
+                    </label>
+                  </div>
+                </div>
+              ) : null}
               <div className="filterConditionBox rankingConditionBox">
                 <p className="filterConditionBoxTitle">日別評価</p>
                 <MachineEvaluationDayModeOptions value={machineEvaluationDayMode} />

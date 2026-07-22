@@ -59,8 +59,8 @@ export const dynamic = "force-dynamic";
 const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, index) => index);
 const HUNT_BACKTEST_FORM_ID = "hunt-backtest-condition-form";
 const SETTING_DISTRIBUTION_OPTIONS = [
-  { value: "show", label: "表示" },
   { value: "hide", label: "非表示" },
+  { value: "show", label: "表示" },
 ];
 const WEEKDAY_OPTIONS = [
   { value: 1, label: "月曜" },
@@ -555,6 +555,9 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     huntScoreLogicKeys: readMultiSearchParam(resolvedSearchParams?.huntScoreLogicKey),
     logicConditionMode: readSingleSearchParam(resolvedSearchParams?.logicConditionMode),
     machineEvaluationMode: readSingleSearchParam(resolvedSearchParams?.machineEvaluationMode),
+    beamHikariNeoSpatialSelection: readSingleSearchParam(
+      resolvedSearchParams?.beamHikariNeoSpatialSelection,
+    ),
     machineEvaluationSettings,
     combineAimJuggler: readMultiSearchParam(resolvedSearchParams?.aimMachineGroup),
     combineHanabi: readMultiSearchParam(resolvedSearchParams?.hanabiMachineGroup),
@@ -719,6 +722,8 @@ export default async function HuntBacktestPage({ params, searchParams }) {
     huntScoreLogicKeys: detail.backtest.huntScoreLogicKeys,
     logicConditionMode: detail.backtest.logicConditionMode,
     machineEvaluationBacktestMode: detail.backtest.machineEvaluationBacktestMode,
+    beamHikariNeoSpatialSelectionEnabled:
+      detail.backtest.beamHikariNeoSpatialSelectionEnabled,
     combineAimJuggler: detail.backtest.combineAimJuggler,
     combineHanabi: detail.backtest.combineHanabi,
     dailySelectionMode: detail.backtest.dailySelectionMode,
@@ -828,6 +833,12 @@ export default async function HuntBacktestPage({ params, searchParams }) {
               </a>
             ) : null}
           </div>
+          {detail.store.storeName === "ビームヒカリ" ? (
+            <p className="dataSourceLabel">
+              ネオアイム空間選定:{" "}
+              {detail.backtest.beamHikariNeoSpatialSelectionEnabled ? "使用" : "不使用"}
+            </p>
+          ) : null}
           <HuntScoreLogicMultiSelect
             selectedLogicKeys={detail.backtest.huntScoreLogicKeys}
             options={huntScoreLogicOptions}
@@ -1033,6 +1044,24 @@ export default async function HuntBacktestPage({ params, searchParams }) {
                         value={detail.backtest.machineEvaluationBacktestMode}
                       />
                     </div>
+                    {detail.store.storeName === "ビームヒカリ" ? (
+                      <div className="commonConditionMode">
+                        <p className="commonConditionSubLabel">ネオアイム空間選定</p>
+                        <div className="metricToggleRow commonConditionModeOptions">
+                          <label className="metricToggleChip">
+                            <input
+                              type="checkbox"
+                              name="beamHikariNeoSpatialSelection"
+                              value="on"
+                              defaultChecked={
+                                detail.backtest.beamHikariNeoSpatialSelectionEnabled
+                              }
+                            />
+                            <span>使用する</span>
+                          </label>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 <fieldset

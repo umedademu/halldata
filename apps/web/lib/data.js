@@ -38,6 +38,7 @@ import { hasExpectedRbForHuntRankingRow } from "./hunt-ranking-expectations";
 import {
   buildStoreMachineEvaluationSettings,
   decorateSnapshotsWithMachineEvaluation,
+  normalizeBeamHikariNeoSpatialSelectionEnabled,
   normalizeMachineEvaluationBacktestMode,
   normalizeMachineEvaluationDayMode,
 } from "./machine-evaluation";
@@ -1219,6 +1220,10 @@ function buildHuntScoreRankingDetailMemoryCacheKey({
       combineHanabi: normalizeEnabledOption(machineOptions?.combineHanabi, false),
       expectedRbOnly: machineOptions?.expectedRbOnly === true,
       targetDateOnly: machineOptions?.targetDateOnly === true,
+      beamHikariNeoSpatialSelectionEnabled:
+        normalizeBeamHikariNeoSpatialSelectionEnabled(
+          machineOptions?.beamHikariNeoSpatialSelection,
+        ),
       machineEvaluationDayMode: normalizeMachineEvaluationDayMode(
         machineOptions?.machineEvaluationDayMode,
       ),
@@ -2667,6 +2672,10 @@ function buildInitialBacktestDetail(
   const machineEvaluationBacktestMode = normalizeMachineEvaluationBacktestMode(
     defaultedOptions?.machineEvaluationMode,
   );
+  const beamHikariNeoSpatialSelectionEnabled =
+    normalizeBeamHikariNeoSpatialSelectionEnabled(
+      defaultedOptions?.beamHikariNeoSpatialSelection,
+    );
   const machineEvaluationSettings = buildStoreMachineEvaluationSettings(
     storeName,
     machineNames,
@@ -2756,6 +2765,7 @@ function buildInitialBacktestDetail(
     usesCombinedHuntScoreLogic: huntScoreLogics.length > 1,
     logicConditionMode,
     machineEvaluationBacktestMode,
+    beamHikariNeoSpatialSelectionEnabled,
     hasMachineEvaluationSettings: machineEvaluationSettings.some((setting) =>
       Boolean(setting.logicKey && setting.conditionKey),
     ),
@@ -2902,6 +2912,10 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
   const differenceMode = normalizeDifferenceMode(backtestOptions?.differenceMode);
   const settingEstimateMode = normalizeSettingEstimateMode(backtestOptions?.settingEstimateMode);
   const settingDistribution = normalizeSettingDistribution(backtestOptions?.settingDistribution);
+  const beamHikariNeoSpatialSelectionEnabled =
+    normalizeBeamHikariNeoSpatialSelectionEnabled(
+      backtestOptions?.beamHikariNeoSpatialSelection,
+    );
   const machineNames = listHuntScoreTargetMachineNamesForStoreMachines(
     store.storeName,
     storeMachineNames,
@@ -2933,6 +2947,7 @@ function buildInitialHuntScoreDetail(staticStore, backtestOptions = {}, huntScor
     differenceMode,
     settingEstimateMode,
     settingDistribution,
+    beamHikariNeoSpatialSelectionEnabled,
     showSettingDistribution: shouldShowSettingDistribution(settingDistribution),
     store: {
       id: store.id,
@@ -3889,6 +3904,8 @@ export const getHuntScoreRankingDetail = cache(async function getHuntScoreRankin
     nextBusinessDate: snapshot?.nextBusinessDate ?? null,
     machineSlotCounts: snapshotDetail.machineSlotCounts ?? {},
     machineEvaluationSettings: snapshotDetail.machineEvaluationSettings ?? [],
+    beamHikariNeoSpatialSelectionEnabled:
+      snapshotDetail.beamHikariNeoSpatialSelectionEnabled === true,
     expectedRbOnlyRequested,
     expectedRbOnlyApplied: expectedRbOnlyRequested && expectedRbFilteredTotalCount > 0,
     expectedRbOnlyFallback,
@@ -3933,6 +3950,10 @@ async function getHuntScoreSnapshotsForStore(
       availableMachineNames,
       machineOptions?.machineEvaluationSettings,
     );
+    const beamHikariNeoSpatialSelectionEnabled =
+      normalizeBeamHikariNeoSpatialSelectionEnabled(
+        machineOptions?.beamHikariNeoSpatialSelection,
+      );
     const machineEvaluationHistoryWindowDays = hasConfiguredMachineEvaluationSettings(machineEvaluationSettings)
       ? MACHINE_EVALUATION_HISTORY_WINDOW_DAYS
       : undefined;
@@ -4033,6 +4054,7 @@ async function getHuntScoreSnapshotsForStore(
         machineEvaluationDayMode: normalizeMachineEvaluationDayMode(
           machineOptions?.machineEvaluationDayMode,
         ),
+        beamHikariNeoSpatialSelectionEnabled,
         eventFilters: staticIdentity.eventFilters,
       },
     );
@@ -4086,6 +4108,7 @@ async function getHuntScoreSnapshotsForStore(
       requestedDateStatus: findStaticStoreDayStatus(staticStore, requestedDate),
       machineSlotCounts: buildStaticStoreMachineSlotCounts(staticStore),
       machineEvaluationSettings,
+      beamHikariNeoSpatialSelectionEnabled,
       store: {
         id: staticIdentity.id,
         store_name: staticIdentity.storeName,

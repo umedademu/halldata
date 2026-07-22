@@ -46,9 +46,9 @@ function normalizeBookmarkName(value, fallback = "保存条件") {
 }
 
 function normalizeSettingDistribution(value) {
-  return normalizeText(value) === SETTING_DISTRIBUTION_HIDE
-    ? SETTING_DISTRIBUTION_HIDE
-    : SETTING_DISTRIBUTION_SHOW;
+  return normalizeText(value) === SETTING_DISTRIBUTION_SHOW
+    ? SETTING_DISTRIBUTION_SHOW
+    : SETTING_DISTRIBUTION_HIDE;
 }
 
 function formatMachineEvaluationBacktestModeLabel(value) {

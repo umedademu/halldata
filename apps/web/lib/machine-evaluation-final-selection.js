@@ -487,6 +487,10 @@ function decorateBeamHikariNeoRows(rows, evaluationKey, selection) {
 }
 
 export function applyBeamHikariNeoFinalSelection(snapshot, options = {}, evaluationKey = "machineEvaluation") {
+  if (options?.beamHikariNeoSpatialSelectionEnabled !== true) {
+    return snapshot;
+  }
+
   const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
   if (!isBeamHikariStore(options?.storeName) || rows.length === 0) {
     return snapshot;
@@ -535,4 +539,44 @@ export function applyMachineEvaluationFinalSelection(
     (currentSnapshot, handler) => handler(currentSnapshot, options, evaluationKey),
     snapshot,
   );
+}
+
+export function applyMachineEvaluationFinalSelectionRankingOrder(snapshot, options = {}) {
+  if (options?.beamHikariNeoSpatialSelectionEnabled !== true) {
+    return snapshot;
+  }
+
+  const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
+  const targetEntries = rows
+    .map((row, index) => ({
+      index,
+      row,
+      selection: row?.machineEvaluation?.finalSelection ?? null,
+    }))
+    .filter(
+      (entry) =>
+        entry.selection?.enabled === true &&
+        entry.selection?.selectorKey === BEAM_HIKARI_NEO_FINAL_SELECTOR_KEY,
+    );
+  if (targetEntries.length < 2) {
+    return snapshot;
+  }
+
+  const orderedRows = targetEntries
+    .map((entry) => entry.row)
+    .sort((left, right) => {
+      const rankDifference =
+        readFiniteNumber(left?.machineEvaluation?.finalSelection?.finalRank, Number.MAX_SAFE_INTEGER) -
+        readFiniteNumber(right?.machineEvaluation?.finalSelection?.finalRank, Number.MAX_SAFE_INTEGER);
+      return rankDifference || compareSlotNumbers(left, right);
+    });
+  const nextRows = [...rows];
+  targetEntries.forEach((entry, index) => {
+    nextRows[entry.index] = orderedRows[index];
+  });
+
+  return {
+    ...snapshot,
+    rows: nextRows,
+  };
 }

@@ -39,8 +39,8 @@ export const metadata = {
 const DAY_TAIL_OPTIONS = Array.from({ length: 10 }, (_, index) => index);
 const CROSS_STORE_BACKTEST_FORM_ID = "cross-store-backtest-condition-form";
 const SETTING_DISTRIBUTION_OPTIONS = [
-  { value: "show", label: "表示" },
   { value: "hide", label: "非表示" },
+  { value: "show", label: "表示" },
 ];
 const WEEKDAY_OPTIONS = [
   { value: 1, label: "月曜" },

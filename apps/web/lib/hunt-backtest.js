@@ -27,6 +27,7 @@ import {
   MACHINE_EVALUATION_BACKTEST_MODE_COMMON,
   MACHINE_EVALUATION_BACKTEST_MODE_MACHINE,
   MACHINE_EVALUATION_BACKTEST_MODE_OR,
+  normalizeBeamHikariNeoSpatialSelectionEnabled,
   normalizeMachineEvaluationBacktestMode,
 } from "./machine-evaluation";
 import {
@@ -36,6 +37,19 @@ import {
   readGrapeSettingEstimateObservation,
   SETTING_ESTIMATE_MODE_GRAPE,
 } from "./setting-estimates";
+import {
+  SETTING_DISTRIBUTION_HIDE,
+  SETTING_DISTRIBUTION_SHOW,
+  normalizeSettingDistribution,
+  shouldShowSettingDistribution,
+} from "./setting-distribution";
+
+export {
+  SETTING_DISTRIBUTION_HIDE,
+  SETTING_DISTRIBUTION_SHOW,
+  normalizeSettingDistribution,
+  shouldShowSettingDistribution,
+} from "./setting-distribution";
 
 const DEFAULT_RECENT_DAYS = 90;
 const DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP = "machineTopNextGap";
@@ -52,9 +66,6 @@ const BACKTEST_BREAKDOWN_DEFINITIONS = [
   { key: "dayTail", title: "翌営業日が末尾の日" },
   { key: "weekday", title: "翌営業日が指定曜日" },
 ];
-export const SETTING_DISTRIBUTION_SHOW = "show";
-export const SETTING_DISTRIBUTION_HIDE = "hide";
-
 export function calculateBacktestScoreFilterMax(logicConditionMode, logicCount = 1) {
   const normalizedLogicCount = Number.isInteger(logicCount) && logicCount > 0 ? logicCount : 1;
   return normalizeLogicConditionMode(logicConditionMode) === LOGIC_CONDITION_MODE_SUM
@@ -107,14 +118,6 @@ function readPositiveInteger(value) {
 function readNullableFiniteNumber(value) {
   const parsedValue = Number(value);
   return Number.isFinite(parsedValue) ? parsedValue : null;
-}
-
-export function normalizeSettingDistribution(value) {
-  return value === SETTING_DISTRIBUTION_HIDE ? SETTING_DISTRIBUTION_HIDE : SETTING_DISTRIBUTION_SHOW;
-}
-
-export function shouldShowSettingDistribution(value) {
-  return normalizeSettingDistribution(value) === SETTING_DISTRIBUTION_SHOW;
 }
 
 function normalizeMachineNameText(value) {
@@ -1763,6 +1766,10 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
   const settingDistribution = normalizeSettingDistribution(options.settingDistribution);
   const showSettingDistribution = shouldShowSettingDistribution(settingDistribution);
   const machineEvaluationBacktestMode = normalizeMachineEvaluationBacktestMode(options.machineEvaluationMode);
+  const beamHikariNeoSpatialSelectionEnabled =
+    normalizeBeamHikariNeoSpatialSelectionEnabled(
+      options.beamHikariNeoSpatialSelection,
+    );
   const showGrapeColumn = selectedMachineNames.some(isHuntJugglerMachine);
   const eventFilters = buildBacktestEventFilters(options);
   const huntScoreLogics = Array.isArray(options.huntScoreLogics) ? options.huntScoreLogics : [];
@@ -1869,6 +1876,7 @@ export function buildHuntScoreBacktestDetail(snapshots, options = {}) {
     usesCombinedHuntScoreLogic: huntScoreLogicKeys.length > 1,
     logicConditionMode,
     machineEvaluationBacktestMode,
+    beamHikariNeoSpatialSelectionEnabled,
     machineOptions: availableMachineNames.map((machineName) => ({
       name: machineName,
       checked: selectedMachineNameSet.has(machineName),

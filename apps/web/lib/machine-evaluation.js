@@ -1,4 +1,7 @@
-import { applyMachineEvaluationFinalSelection } from "./machine-evaluation-final-selection";
+import {
+  applyMachineEvaluationFinalSelection,
+  applyMachineEvaluationFinalSelectionRankingOrder,
+} from "./machine-evaluation-final-selection";
 
 const MACHINE_EVALUATION_COOKIE_PREFIX = "machine-evaluation-";
 const MACHINE_EVALUATION_COOKIE_VERSION = 1;
@@ -16146,6 +16149,14 @@ export function normalizeMachineEvaluationBacktestMode(value) {
   return MACHINE_EVALUATION_BACKTEST_MODE_OPTIONS.some((option) => option.value === normalizedValue)
     ? normalizedValue
     : MACHINE_EVALUATION_BACKTEST_MODE_COMMON;
+}
+
+export function normalizeBeamHikariNeoSpatialSelectionEnabled(value) {
+  if (value === true) {
+    return true;
+  }
+  const normalizedValue = normalizeText(value).toLowerCase();
+  return normalizedValue === "1" || normalizedValue === "true" || normalizedValue === "on";
 }
 
 export function normalizeMachineEvaluationRankingMode(value) {
@@ -43856,10 +43867,14 @@ export function decorateSnapshotsWithMachineEvaluation(snapshots, settingRows = 
       options,
       "machineEvaluation",
     );
-    return applyMachineEvaluationFinalSelection(
+    const snapshotWithDaySpecificFinalSelection = applyMachineEvaluationFinalSelection(
       snapshotWithFinalSelection,
       options,
       "machineEvaluationDaySpecific",
+    );
+    return applyMachineEvaluationFinalSelectionRankingOrder(
+      snapshotWithDaySpecificFinalSelection,
+      options,
     );
   });
 }

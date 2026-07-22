@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { applyBeamHikariNeoFinalSelection } from "../lib/machine-evaluation-final-selection.js";
+import {
+  applyBeamHikariNeoFinalSelection,
+  applyMachineEvaluationFinalSelectionRankingOrder,
+} from "../lib/machine-evaluation-final-selection.js";
 
 const LOGIC_KEY = "beam-hikari-neo-aim";
 
@@ -40,9 +43,27 @@ function applySelection(rows, nextBusinessDate = "2026-06-16") {
       nextBusinessDate,
       rows,
     },
-    { storeName: "ビームヒカリ" },
+    {
+      storeName: "ビームヒカリ",
+      beamHikariNeoSpatialSelectionEnabled: true,
+    },
   );
 }
+
+test("空間選定が未指定なら計算せず元のスナップショットを返す", () => {
+  const snapshot = {
+    baseDate: "2026-06-15",
+    nextBusinessDate: "2026-06-17",
+    rows: [buildRow("871", 1), buildRow("872", 2)],
+  };
+
+  const result = applyBeamHikariNeoFinalSelection(snapshot, {
+    storeName: "ビームヒカリ",
+  });
+
+  assert.equal(result, snapshot);
+  assert.equal(result.rows[0].machineEvaluation.finalSelection, undefined);
+});
 
 test("イベント日のRB条件は配置支持より優先される", () => {
   const rows = [
@@ -136,8 +157,43 @@ test("ビームヒカリ以外の店舗には適用しない", () => {
     nextBusinessDate: "2026-06-16",
     rows: [buildRow("871", 1)],
   };
-  const result = applyBeamHikariNeoFinalSelection(snapshot, { storeName: "別店舗" });
+  const result = applyBeamHikariNeoFinalSelection(snapshot, {
+    storeName: "別店舗",
+    beamHikariNeoSpatialSelectionEnabled: true,
+  });
 
   assert.equal(result, snapshot);
   assert.equal(result.rows[0].machineEvaluation.finalSelection, undefined);
+});
+
+test("空間選定が有効なら最終順位を機種内の並び順へ反映する", () => {
+  const otherMachineRow = {
+    rowKey: "別機種::1",
+    machineName: "別機種",
+    slotNumber: "1",
+  };
+  const first = buildRow("871", 1);
+  const second = buildRow("872", 2);
+  first.machineEvaluation.finalSelection = {
+    enabled: true,
+    selectorKey: "beam-hikari-neo-spatial-integrated-v1",
+    finalRank: 2,
+  };
+  second.machineEvaluation.finalSelection = {
+    enabled: true,
+    selectorKey: "beam-hikari-neo-spatial-integrated-v1",
+    finalRank: 1,
+  };
+  const snapshot = { rows: [first, otherMachineRow, second] };
+
+  const disabledResult = applyMachineEvaluationFinalSelectionRankingOrder(snapshot);
+  const enabledResult = applyMachineEvaluationFinalSelectionRankingOrder(snapshot, {
+    beamHikariNeoSpatialSelectionEnabled: true,
+  });
+
+  assert.equal(disabledResult, snapshot);
+  assert.deepEqual(
+    enabledResult.rows.map((row) => row.rowKey),
+    [second.rowKey, otherMachineRow.rowKey, first.rowKey],
+  );
 });

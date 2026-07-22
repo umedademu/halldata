@@ -12,6 +12,7 @@ const MANAGED_PARAM_KEYS = [
   "huntScoreLogicKey",
   "machineEvaluationRankingMode",
   "machineEvaluationDayMode",
+  "beamHikariNeoSpatialSelection",
   "machine",
   "rankMin",
   "rankMax",
