@@ -19,6 +19,10 @@ import {
   buildUpperGapFilter,
 } from "./hunt-bookmark";
 import {
+  buildHuntRankingDateLoadRange,
+  buildHuntRankingSnapshotDateRange,
+} from "./hunt-ranking-date-range";
+import {
   buildCombinedHuntScoreSnapshots,
   buildHuntScoreSnapshots,
   canonicalHuntScoreTargetMachineName,
@@ -3996,6 +4000,15 @@ async function getHuntScoreSnapshotsForStore(
       requestedDate,
       { fallbackToPreviousDate: machineOptions?.fallbackToPreviousDate === true },
     );
+    const snapshotSourceDateRange = targetDateOnly
+      ? buildTargetDateOnlySnapshotDateRange(selectedDate, sourceDateRangeOptions)
+      : null;
+    const snapshotTargetRows = targetDateOnly
+      ? filterRowsByDateRange(targetRows, snapshotSourceDateRange)
+      : targetRows;
+    const snapshotStoreRows = targetDateOnly
+      ? filterRowsByDateRange(storeRows, snapshotSourceDateRange)
+      : storeRows;
     const snapshotOptions = targetDateOnly
       ? {
           targetDate: selectedDate,
@@ -4037,8 +4050,8 @@ async function getHuntScoreSnapshotsForStore(
     }
     if (!baseSnapshots) {
       baseSnapshots = buildCombinedHuntScoreSnapshots(
-        targetRows,
-        storeRows,
+        snapshotTargetRows,
+        snapshotStoreRows,
         staticIdentity.storeName,
         huntScoreLogics.map((logic) => logic.key),
         normalizedDifferenceMode,
@@ -4064,8 +4077,8 @@ async function getHuntScoreSnapshotsForStore(
     );
     const subSnapshots = subHuntScoreLogic
       ? buildHuntScoreSnapshots(
-          targetRows,
-          storeRows,
+          snapshotTargetRows,
+          snapshotStoreRows,
           staticIdentity.storeName,
           subHuntScoreLogic.key,
           normalizedDifferenceMode,
@@ -4658,23 +4671,32 @@ function readStaticStoreLatestDateForMachines(staticStore, machineNames) {
 }
 
 function buildTargetDateOnlySourceDateRange(staticStore, sourceMachineNames, options = {}) {
-  const targetDate =
-    normalizeDateInput(options?.requestedDate) ??
-    readStaticStoreLatestDateForMachines(staticStore, sourceMachineNames);
-  if (!targetDate) {
-    return null;
-  }
-
   const requestedHistoryWindowDays = Number(options?.machineEvaluationHistoryWindowDays);
   const sourceBufferDays = Math.max(
     CROSS_STORE_BACKTEST_WINDOW_BUFFER_DAYS,
     Number.isFinite(requestedHistoryWindowDays) ? requestedHistoryWindowDays : 0,
   );
 
-  return {
-    startDate: shiftDateInput(targetDate, -sourceBufferDays),
-    endDate: shiftDateInput(targetDate, CROSS_STORE_BACKTEST_NEXT_RESULT_BUFFER_DAYS),
-  };
+  return buildHuntRankingDateLoadRange({
+    requestedDate: options?.requestedDate,
+    latestDate: readStaticStoreLatestDateForMachines(staticStore, sourceMachineNames),
+    historyWindowDays: sourceBufferDays,
+    nextResultBufferDays: CROSS_STORE_BACKTEST_NEXT_RESULT_BUFFER_DAYS,
+  });
+}
+
+function buildTargetDateOnlySnapshotDateRange(selectedDate, options = {}) {
+  const requestedHistoryWindowDays = Number(options?.machineEvaluationHistoryWindowDays);
+  const sourceBufferDays = Math.max(
+    CROSS_STORE_BACKTEST_WINDOW_BUFFER_DAYS,
+    Number.isFinite(requestedHistoryWindowDays) ? requestedHistoryWindowDays : 0,
+  );
+
+  return buildHuntRankingSnapshotDateRange({
+    selectedDate,
+    historyWindowDays: sourceBufferDays,
+    nextResultBufferDays: CROSS_STORE_BACKTEST_NEXT_RESULT_BUFFER_DAYS,
+  });
 }
 
 function buildCrossStoreSourceDateRange(staticStore, sourceMachineNames, backtestOptions) {
