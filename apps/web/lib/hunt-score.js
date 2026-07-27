@@ -2,12 +2,17 @@ import {
   calculateSettingEstimate,
   getSettingEstimateDefinition,
   normalizeSettingEstimateMode,
-} from "./setting-estimates";
+} from "./setting-estimates.js";
+import {
+  readEffectiveBbCount,
+  readEffectiveRbCount,
+  withEffectiveBonusCounts,
+} from "./bonus-counts.js";
 import {
   DEFAULT_DIFFERENCE_MODE,
   normalizeDifferenceMode,
   selectDifferenceValue,
-} from "./machine-difference";
+} from "./machine-difference.js";
 
 const HUNT_SCORE_EPSILON = 0.000000001;
 const DEFAULT_HUNT_SCORE_WINDOW_DAYS = 7;
@@ -2541,8 +2546,9 @@ function clamp(value, min, max) {
 }
 
 function hasMeaningfulResult(row) {
+  const effectiveRow = withEffectiveBonusCounts(row);
   return ["difference_value", "games_count", "bb_count", "rb_count"].some((key) =>
-    Number.isFinite(readNumber(row?.[key])),
+    Number.isFinite(readNumber(effectiveRow?.[key])),
   );
 }
 
@@ -2970,10 +2976,14 @@ function readWindowField(row, fieldName) {
   if (Number.isFinite(directValue)) {
     return directValue;
   }
+  if (fieldName === "bbCount") {
+    return readEffectiveBbCount(row?.row) ?? 0;
+  }
+  if (fieldName === "rbCount") {
+    return readEffectiveRbCount(row?.row) ?? 0;
+  }
   const rawFieldName =
     fieldName === "games" ? "games_count" :
-    fieldName === "bbCount" ? "bb_count" :
-    fieldName === "rbCount" ? "rb_count" :
     "";
   return rawFieldName ? (readNumber(row?.row?.[rawFieldName]) ?? 0) : 0;
 }
@@ -7437,7 +7447,7 @@ function calculateRbSettingEquivalentForRow(row, settingDefinitionCache, config)
   return calculateRbSettingEquivalentForTotals(
     machineName,
     readNumber(row?.games_count) ?? 0,
-    readNumber(row?.rb_count) ?? 0,
+    readEffectiveRbCount(row) ?? 0,
     settingDefinitionCache,
   );
 }
@@ -7448,7 +7458,7 @@ function isStandardHighSettingCandidateRow(row, settingDefinitionCache, config) 
   }
 
   const settingAverage = getSettingEstimateAverage(settingDefinitionCache, row, config).average;
-  const rbCount = readNumber(row?.rb_count) ?? 0;
+  const rbCount = readEffectiveRbCount(row) ?? 0;
   return Number.isFinite(settingAverage) && settingAverage >= 4.5 && rbCount >= 25;
 }
 
@@ -13099,8 +13109,8 @@ function calculateWindowMetrics(
   for (const windowRow of windowRows) {
     const differenceValue = windowRow.differenceValue;
     const games = readNumber(windowRow.row?.games_count) ?? 0;
-    const bbCount = readNumber(windowRow.row?.bb_count) ?? 0;
-    const rbCount = readNumber(windowRow.row?.rb_count) ?? 0;
+    const bbCount = readEffectiveBbCount(windowRow.row) ?? 0;
+    const rbCount = readEffectiveRbCount(windowRow.row) ?? 0;
     const settingAverage = getSettingEstimateAverage(settingDefinitionCache, windowRow.row, config).average;
     netTotal += differenceValue;
     gamesTotal += games;
@@ -13374,7 +13384,7 @@ function calculateWindowMetrics(
       return false;
     }
     const settingAverage = getSettingEstimateAverage(settingDefinitionCache, historyWindowRow.row, config).average;
-    const rbCount = readNumber(historyWindowRow.row?.rb_count) ?? 0;
+    const rbCount = readEffectiveRbCount(historyWindowRow.row) ?? 0;
     return Number.isFinite(settingAverage) && (settingAverage >= 5 || (settingAverage >= 4.5 && rbCount >= 25));
   };
   const isHistoryHighSettingCandidateWindowRow = (historyWindowRow) => {
@@ -13382,7 +13392,7 @@ function calculateWindowMetrics(
       return false;
     }
     const settingAverage = getSettingEstimateAverage(settingDefinitionCache, historyWindowRow.row, config).average;
-    const rbCount = readNumber(historyWindowRow.row?.rb_count) ?? 0;
+    const rbCount = readEffectiveRbCount(historyWindowRow.row) ?? 0;
     return Number.isFinite(settingAverage) && settingAverage >= 4.5 && rbCount >= 25;
   };
   const isHistorySettingFiveWindowRow = (historyWindowRow) => {
@@ -14208,8 +14218,8 @@ function calculateWindowMetrics(
     adjacentMachineRowCount3Near2 > 0 ? adjacentMachineNetTotal3Distance2 / adjacentMachineRowCount3Near2 : 0;
   const todayDifference = readHuntScoreDifferenceValue(row, config.differenceMode, currentMachineName);
   const previousGames = readNumber(row?.games_count) ?? 0;
-  const previousRbCount = readNumber(row?.rb_count) ?? 0;
-  const previousBonusTotal = (readNumber(row?.bb_count) ?? 0) + previousRbCount;
+  const previousRbCount = readEffectiveRbCount(row) ?? 0;
+  const previousBonusTotal = (readEffectiveBbCount(row) ?? 0) + previousRbCount;
   const recentThreeBigShowDays = countBigShowRows(recentThreeRows);
   const recentSevenBigShowDays = countBigShowRows(recentSevenRows);
   const recentThreeStrictHighContentDays = countStrictHighContentRows(recentThreeRows);
@@ -14433,7 +14443,7 @@ function calculateWindowMetrics(
     todayDifference,
     previousDifference: previousWindowRow?.differenceValue ?? 0,
     previousGames,
-    previousBbCount: readNumber(row?.bb_count) ?? 0,
+    previousBbCount: readEffectiveBbCount(row) ?? 0,
     previousRbCount,
     previousBonusTotal,
     todaySetting,
@@ -14788,7 +14798,7 @@ function buildMachineHighSettingCandidateRateMap(
 
       machineNames.add(machineName);
       const settingAverage = getSettingEstimateAverage(settingDefinitionCache, row, config).average;
-      const rbCount = readNumber(row?.rb_count) ?? 0;
+      const rbCount = readEffectiveRbCount(row) ?? 0;
       const isHighSettingCandidate = useAmuseAsakusaHNorm
         ? isAmuseAsakusaNormalizedHighSettingRow(row, settingDefinitionCache, config)
         : Number.isFinite(settingAverage) && settingAverage >= 4.5 && rbCount >= 25;
@@ -15053,11 +15063,15 @@ export function buildHuntScoreSnapshots(
   differenceMode = DEFAULT_DIFFERENCE_MODE,
   options = {},
 ) {
+  const normalizedTargetRows = (Array.isArray(targetRows) ? targetRows : [])
+    .map(withEffectiveBonusCounts);
+  const normalizedAllStoreRows = (Array.isArray(allStoreRows) ? allStoreRows : [])
+    .map(withEffectiveBonusCounts);
   const storeConfig = buildEffectiveHuntScoreStoreConfig(
     storeName,
-    (Array.isArray(targetRows) ? targetRows : []).map((row) => row?.machine_name),
+    normalizedTargetRows.map((row) => row?.machine_name),
   );
-  if (!storeConfig || !Array.isArray(targetRows) || targetRows.length === 0) {
+  if (!storeConfig || normalizedTargetRows.length === 0) {
     return [];
   }
   const config = buildRuntimeHuntScoreConfig(
@@ -15067,8 +15081,8 @@ export function buildHuntScoreSnapshots(
     options?.settingEstimateMode,
     { historyWindowDays: options?.machineEvaluationHistoryWindowDays },
   );
-  const effectiveTargetRows = filterExcludedHuntScoreRows(targetRows, config);
-  const effectiveAllStoreRows = filterExcludedHuntScoreRows(allStoreRows, config);
+  const effectiveTargetRows = filterExcludedHuntScoreRows(normalizedTargetRows, config);
+  const effectiveAllStoreRows = filterExcludedHuntScoreRows(normalizedAllStoreRows, config);
 
   const businessDates = buildBusinessDates(effectiveAllStoreRows, effectiveTargetRows);
   if (businessDates.length === 0) {

@@ -34,6 +34,8 @@ DEFAULT_STORES_CSV = ROOT_DIR / "stores_rows.csv"
 DEFAULT_RESULTS_CSV = ROOT_DIR / "machine_daily_results_rows.csv"
 WEB_DATA_VERSION = 1
 DATA_SOURCE_SITE7 = "site7"
+AT_SOURCE_DAIDATA_ONLINE = "daidata_online"
+AT_DISPLAY_SLOT_VALUES = {"bb", "rb", "ignore", "unknown"}
 STORE_DAY_STATUS_CLOSED = "closed"
 SITE7_DIFFERENCE_SOURCE_GRAPH = "graph"
 SETTING_ESTIMATE_STATUS_CONFIRMED = "confirmed"
@@ -126,7 +128,48 @@ def read_text(value: Any) -> str:
     return str(value or "").strip()
 
 
+def read_at_supplement(record: dict[str, Any]) -> dict[str, Any]:
+    raw_at_count = record.get("at_count")
+    if raw_at_count is None:
+        raw_at_count = record.get("atCount")
+    at_count = read_number(raw_at_count)
+    if not isinstance(at_count, int) or isinstance(at_count, bool) or at_count < 0:
+        return {}
+
+    at_source = read_text(
+        record.get("at_source")
+        or record.get("atSource")
+        or AT_SOURCE_DAIDATA_ONLINE
+    ).casefold()
+    if at_source != AT_SOURCE_DAIDATA_ONLINE:
+        return {}
+
+    at_display_slot = read_text(
+        record.get("at_display_slot")
+        or record.get("atDisplaySlot")
+        or "unknown"
+    ).casefold()
+    if at_display_slot not in AT_DISPLAY_SLOT_VALUES:
+        at_display_slot = "unknown"
+
+    supplement: dict[str, Any] = {
+        "at_count": at_count,
+        "at_display_slot": at_display_slot,
+        "at_source": AT_SOURCE_DAIDATA_ONLINE,
+    }
+    at_fetched_at = read_text(
+        record.get("at_fetched_at")
+        or record.get("atFetchedAt")
+    )
+    if at_fetched_at:
+        supplement["at_fetched_at"] = at_fetched_at
+    return supplement
+
+
 def site7_record_has_meaningful_data(record: dict[str, Any]) -> bool:
+    if read_at_supplement(record):
+        return True
+
     numeric_keys = (
         "difference_value",
         "bonus_difference_value",
@@ -424,6 +467,7 @@ def safe_record(
         "bb_ratio_text": read_text(raw_record.get("bb_ratio_text")) or None,
         "rb_ratio_text": read_text(raw_record.get("rb_ratio_text")) or None,
     }
+    record.update(read_at_supplement(raw_record))
     if record["bonus_difference_value"] is None:
         record["bonus_difference_value"] = calculate_machine_difference_value(machine_name, raw_record)
     data_source = read_text(raw_record.get("data_source"))

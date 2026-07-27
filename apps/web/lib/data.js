@@ -2,6 +2,7 @@ import { cache } from "react";
 
 import { createHash, createHmac } from "node:crypto";
 
+import { withEffectiveBonusCounts } from "./bonus-counts";
 import { createEventFilters } from "./event-filters";
 import {
   buildHuntScoreBacktestDetail,
@@ -81,7 +82,7 @@ const HUNT_BACKTEST_DEFAULT_EVENT_FILTERS = {
 const DEFAULT_HUNT_RANKING_LIMIT = 30;
 const DEFAULT_HUNT_BACKTEST_RECENT_DAYS = 90;
 const MACHINE_EVALUATION_HISTORY_WINDOW_DAYS = 60;
-const HUNT_SCORE_CACHE_VERSION = 9;
+const HUNT_SCORE_CACHE_VERSION = 10;
 const HUNT_SCORE_INITIAL_CACHE_DAYS = 14;
 const HUNT_SCORE_CACHE_PREFIX = `hunt-score-cache/v${HUNT_SCORE_CACHE_VERSION}`;
 const DEFAULT_HUNT_RANK_REQUIRED = true;
@@ -1400,14 +1401,16 @@ function normalizeInitialMachineSelection(machineNames, options = {}) {
 }
 
 function detailRecordHasMeaningfulResult(record) {
+  const effectiveRecord = withEffectiveBonusCounts(record);
   return ["difference_value", "bonus_difference_value", "games_count", "bb_count", "rb_count"].some((key) =>
-    Number.isFinite(readNumber(record?.[key])),
+    Number.isFinite(readNumber(effectiveRecord?.[key])),
   );
 }
 
 function detailRecordHasMeaningfulNonDifferenceResult(record) {
+  const effectiveRecord = withEffectiveBonusCounts(record);
   return ["bonus_difference_value", "games_count", "bb_count", "rb_count"].some((key) =>
-    Number.isFinite(readNumber(record?.[key])),
+    Number.isFinite(readNumber(effectiveRecord?.[key])),
   );
 }
 
@@ -1515,7 +1518,7 @@ function buildRawRowsFromMachineDailyDetailRows(rows) {
     }
 
     for (const [slotNumber, record] of Object.entries(recordsBySlot)) {
-      expandedRows.push({
+      expandedRows.push(withEffectiveBonusCounts({
         machine_name: machineName,
         target_date: targetDate,
         slot_number: String(slotNumber ?? "").trim(),
@@ -1546,8 +1549,12 @@ function buildRawRowsFromMachineDailyDetailRows(rows) {
         combined_ratio_text: record?.combined_ratio_text ?? null,
         bb_ratio_text: record?.bb_ratio_text ?? null,
         rb_ratio_text: record?.rb_ratio_text ?? null,
+        at_count: record?.at_count ?? null,
+        at_display_slot: record?.at_display_slot ?? null,
+        at_source: record?.at_source ?? null,
+        at_fetched_at: record?.at_fetched_at ?? null,
         site7_difference_source: String(record?.site7_difference_source ?? record?.site7DifferenceSource ?? "").trim() || null,
-      });
+      }));
     }
   }
 
@@ -1954,7 +1961,7 @@ function buildMachineDetailFromDailyRows(rows) {
 
     for (const slotNumber of Object.keys(sourceRecords).sort(compareSlotNumbers)) {
       const sourceRecord = sourceRecords[slotNumber] ?? {};
-      const record = withCanonicalMachineName({
+      const record = withCanonicalMachineName(withEffectiveBonusCounts({
         machine_name: machineName,
         target_date: date,
         slot_number: slotNumber,
@@ -1985,11 +1992,15 @@ function buildMachineDetailFromDailyRows(rows) {
         combined_ratio_text: sourceRecord.combined_ratio_text ?? null,
         bb_ratio_text: sourceRecord.bb_ratio_text ?? null,
         rb_ratio_text: sourceRecord.rb_ratio_text ?? null,
+        at_count: sourceRecord.at_count ?? null,
+        at_display_slot: sourceRecord.at_display_slot ?? null,
+        at_source: sourceRecord.at_source ?? null,
+        at_fetched_at: sourceRecord.at_fetched_at ?? null,
         data_source: String(sourceRecord.data_source ?? "").trim() || null,
         site7_difference_source:
           String(sourceRecord.site7_difference_source ?? sourceRecord.site7DifferenceSource ?? "").trim() || null,
         site7_fetched_at: readSite7FetchedAt(sourceRecord),
-      });
+      }));
       recordsBySlot[slotNumber] = record;
       slotNumbersSet.add(slotNumber);
       recordCount += 1;
@@ -2437,7 +2448,7 @@ function rawRecordIsInDateRange(record, dateRange) {
 
 function readStaticStoreRecords(staticStore, dateRange = null) {
   const normalizedRows = (Array.isArray(staticStore?.records) ? staticStore.records : [])
-    .map((record) => ({
+    .map((record) => withEffectiveBonusCounts({
       store_id: record.store_id ?? staticStore?.store?.id ?? null,
       machine_name: String(record.machine_name ?? "").trim(),
       target_date: String(record.target_date ?? "").trim(),
@@ -2469,6 +2480,10 @@ function readStaticStoreRecords(staticStore, dateRange = null) {
       combined_ratio_text: record.combined_ratio_text ?? null,
       bb_ratio_text: record.bb_ratio_text ?? null,
       rb_ratio_text: record.rb_ratio_text ?? null,
+      at_count: record.at_count ?? null,
+      at_display_slot: record.at_display_slot ?? null,
+      at_source: record.at_source ?? null,
+      at_fetched_at: record.at_fetched_at ?? null,
       data_source: String(record.data_source ?? "").trim() || null,
       site7_difference_source:
         String(record.site7_difference_source ?? record.site7DifferenceSource ?? "").trim() || null,

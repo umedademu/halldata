@@ -60,6 +60,15 @@ STORE_COLUMNS = {"機種", "機種名"}
 WINDOWS_FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]+')
 DATA_SOURCE_MINREPO = "minrepo"
 DATA_SOURCE_SITE7 = "site7"
+AT_SOURCE_DAIDATA_ONLINE = "daidata_online"
+AT_DISPLAY_SLOT_VALUES = {"bb", "rb", "ignore", "unknown"}
+AT_CONFIRMED_DISPLAY_SLOT_VALUES = {"bb", "rb", "ignore"}
+AT_SUPPLEMENT_FIELD_NAMES = (
+    "at_count",
+    "at_display_slot",
+    "at_source",
+    "at_fetched_at",
+)
 STORE_DAY_STATUS_CLOSED = "closed"
 SITE7_SAVED_TIMEZONE = timezone(timedelta(hours=9))
 SITE7_COMPLETE_FETCH_HOUR = 23
@@ -238,6 +247,191 @@ def _record_has_site7_source(row: dict[str, Any]) -> bool:
     if _record_has_site7_data_source(row):
         return True
     return bool(str(row.get("site7_fetched_at", "")).strip())
+
+
+def _record_merge_data_source(record: dict[str, Any]) -> str:
+    explicit_source = str(record.get("data_source", "")).strip().casefold()
+    if explicit_source in {DATA_SOURCE_MINREPO, DATA_SOURCE_SITE7}:
+        return explicit_source
+    return _infer_saved_result_data_source(record)
+
+
+def _normalize_at_supplement(record: dict[str, Any]) -> dict[str, Any]:
+    raw_at_count = record.get("at_count")
+    if raw_at_count is None:
+        raw_at_count = record.get("atCount")
+    at_count = _parse_int_value(str(raw_at_count)) if raw_at_count is not None else None
+    if at_count is None or at_count < 0:
+        return {}
+
+    at_source = str(
+        record.get("at_source")
+        or record.get("atSource")
+        or AT_SOURCE_DAIDATA_ONLINE
+    ).strip().casefold()
+    if at_source != AT_SOURCE_DAIDATA_ONLINE:
+        return {}
+
+    at_display_slot = str(
+        record.get("at_display_slot")
+        or record.get("atDisplaySlot")
+        or "unknown"
+    ).strip().casefold()
+    if at_display_slot not in AT_DISPLAY_SLOT_VALUES:
+        at_display_slot = "unknown"
+
+    supplement: dict[str, Any] = {
+        "at_count": at_count,
+        "at_display_slot": at_display_slot,
+        "at_source": AT_SOURCE_DAIDATA_ONLINE,
+    }
+    at_fetched_at = str(
+        record.get("at_fetched_at")
+        or record.get("atFetchedAt")
+        or ""
+    ).strip()
+    if at_fetched_at:
+        supplement["at_fetched_at"] = at_fetched_at
+    return supplement
+
+
+def _record_has_primary_machine_data(record: dict[str, Any]) -> bool:
+    numeric_field_names = (
+        "difference_value",
+        "bonus_difference_value",
+        "games_count",
+        "payout_rate",
+        "bb_count",
+        "rb_count",
+    )
+    if any(record.get(field_name) is not None for field_name in numeric_field_names):
+        return True
+    text_field_names = ("combined_ratio_text", "bb_ratio_text", "rb_ratio_text")
+    return any(
+        str(record.get(field_name) or "").strip() not in {"", "-", "--"}
+        for field_name in text_field_names
+    )
+
+
+def _choose_newer_at_supplement(
+    existing_at: dict[str, Any],
+    incoming_at: dict[str, Any],
+) -> dict[str, Any]:
+    if not existing_at:
+        return incoming_at
+    if not incoming_at:
+        return existing_at
+
+    existing_fetched_at = _parse_site7_saved_datetime(existing_at.get("at_fetched_at"))
+    incoming_fetched_at = _parse_site7_saved_datetime(incoming_at.get("at_fetched_at"))
+    if existing_fetched_at is not None and incoming_fetched_at is None:
+        return existing_at
+    if incoming_fetched_at is not None and existing_fetched_at is not None:
+        return incoming_at if incoming_fetched_at >= existing_fetched_at else existing_at
+    return incoming_at
+
+
+def _choose_at_supplement(
+    existing_record: dict[str, Any],
+    incoming_record: dict[str, Any],
+) -> dict[str, Any]:
+    existing_at = _normalize_at_supplement(existing_record)
+    incoming_at = _normalize_at_supplement(incoming_record)
+    selected_at = _choose_newer_at_supplement(existing_at, incoming_at)
+    if not selected_at:
+        return {}
+
+    latest_confirmed_at = _choose_newer_at_supplement(
+        existing_at
+        if existing_at.get("at_display_slot") in AT_CONFIRMED_DISPLAY_SLOT_VALUES
+        else {},
+        incoming_at
+        if incoming_at.get("at_display_slot") in AT_CONFIRMED_DISPLAY_SLOT_VALUES
+        else {},
+    )
+    if not latest_confirmed_at:
+        return selected_at
+
+    normalized_at = dict(selected_at)
+    normalized_at["at_display_slot"] = latest_confirmed_at["at_display_slot"]
+    return normalized_at
+
+
+def _merge_machine_daily_record_fields(
+    existing_record: dict[str, Any],
+    incoming_record: dict[str, Any],
+) -> dict[str, Any]:
+    existing_at = _normalize_at_supplement(existing_record)
+    incoming_at = _normalize_at_supplement(incoming_record)
+    existing_is_at_only = bool(existing_at) and not _record_has_primary_machine_data(existing_record)
+    incoming_is_at_only = bool(incoming_at) and not _record_has_primary_machine_data(incoming_record)
+
+    if incoming_is_at_only and not existing_is_at_only:
+        primary_record = existing_record
+    elif existing_is_at_only and not incoming_is_at_only:
+        primary_record = incoming_record
+    else:
+        existing_source = _record_merge_data_source(existing_record)
+        incoming_source = _record_merge_data_source(incoming_record)
+        primary_record = (
+            existing_record
+            if existing_source == DATA_SOURCE_MINREPO and incoming_source == DATA_SOURCE_SITE7
+            else incoming_record
+        )
+
+    merged_record = dict(primary_record)
+    for field_name in (
+        *AT_SUPPLEMENT_FIELD_NAMES,
+        "atCount",
+        "atDisplaySlot",
+        "atSource",
+        "atFetchedAt",
+    ):
+        merged_record.pop(field_name, None)
+    merged_record.update(_choose_at_supplement(existing_record, incoming_record))
+    return merged_record
+
+
+def _apply_latest_at_display_slot_rules(
+    records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    latest_rule_by_machine: dict[str, tuple[tuple[int, datetime, int], str]] = {}
+    for record_index, record in enumerate(records):
+        machine_key = normalize_machine_name_key(str(record.get("machine_name", "")).strip())
+        at_supplement = _normalize_at_supplement(record)
+        at_display_slot = str(at_supplement.get("at_display_slot", "")).strip()
+        if not machine_key or at_display_slot not in AT_CONFIRMED_DISPLAY_SLOT_VALUES:
+            continue
+
+        fetched_at = _parse_site7_saved_datetime(at_supplement.get("at_fetched_at"))
+        rule_rank = (
+            1 if fetched_at is not None else 0,
+            fetched_at or datetime.min,
+            record_index,
+        )
+        current_rule = latest_rule_by_machine.get(machine_key)
+        if current_rule is None or rule_rank >= current_rule[0]:
+            latest_rule_by_machine[machine_key] = (rule_rank, at_display_slot)
+
+    normalized_records: list[dict[str, Any]] = []
+    for record in records:
+        machine_key = normalize_machine_name_key(str(record.get("machine_name", "")).strip())
+        at_supplement = _normalize_at_supplement(record)
+        latest_rule = latest_rule_by_machine.get(machine_key)
+        if not at_supplement or latest_rule is None:
+            normalized_records.append(record)
+            continue
+
+        latest_display_slot = latest_rule[1]
+        if at_supplement.get("at_display_slot") == latest_display_slot:
+            normalized_records.append(record)
+            continue
+
+        updated_record = dict(record)
+        updated_record.pop("atDisplaySlot", None)
+        updated_record["at_display_slot"] = latest_display_slot
+        normalized_records.append(updated_record)
+    return normalized_records
 
 
 def _store_day_status_to_payload(status: StoreDayStatus | dict[str, Any]) -> dict[str, Any] | None:
@@ -431,6 +625,17 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
             combined_ratio_text = _parse_text_value(row_values.get("合成", ""))
             bb_ratio_text = _parse_text_value(row_values.get("BB率", ""))
             rb_ratio_text = _parse_text_value(row_values.get("RB率", ""))
+            at_supplement = _normalize_at_supplement(
+                {
+                    "at_count": row_values.get("AT"),
+                    "at_display_slot": row_values.get("AT表示枠"),
+                    "at_source": row_values.get("AT取得元"),
+                    "at_fetched_at": (
+                        row_values.get("AT取得日時")
+                        or site7_dataset_updated_at(dataset)
+                    ),
+                }
+            )
             site7_difference_source = ""
             if has_site7_graph_difference:
                 site7_difference_source = SITE7_DIFFERENCE_SOURCE_GRAPH
@@ -444,6 +649,7 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
                 combined_ratio_text=combined_ratio_text,
                 bb_ratio_text=bb_ratio_text,
                 rb_ratio_text=rb_ratio_text,
+                at_count=at_supplement.get("at_count"),
             ):
                 continue
 
@@ -462,6 +668,7 @@ def build_machine_daily_records(history_result: MachineHistoryResult) -> list[di
                 "bb_ratio_text": bb_ratio_text,
                 "rb_ratio_text": rb_ratio_text,
             }
+            record.update(at_supplement)
             if site7_difference_source:
                 record["site7_difference_source"] = site7_difference_source
             site7_updated_at = site7_dataset_updated_at(dataset)
@@ -483,6 +690,7 @@ def _site7_record_has_meaningful_data(
     combined_ratio_text: Any = None,
     bb_ratio_text: Any = None,
     rb_ratio_text: Any = None,
+    at_count: Any = None,
 ) -> bool:
     numeric_values = (
         difference_value,
@@ -491,6 +699,7 @@ def _site7_record_has_meaningful_data(
         payout_rate,
         bb_count,
         rb_count,
+        at_count,
     )
     if any(value is not None for value in numeric_values):
         return True
@@ -554,6 +763,7 @@ def _saved_record_should_be_kept(record: dict[str, Any]) -> bool:
         combined_ratio_text=record.get("combined_ratio_text"),
         bb_ratio_text=record.get("bb_ratio_text"),
         rb_ratio_text=record.get("rb_ratio_text"),
+        at_count=_normalize_at_supplement(record).get("at_count"),
     )
 
 
@@ -574,6 +784,14 @@ def _with_site7_fetched_at(record: dict[str, Any], fetched_at: str) -> dict[str,
 
 def build_supabase_result_payload(record: dict[str, Any], store_id: str, updated_at: str) -> dict[str, Any]:
     payload = dict(record)
+    for field_name in (
+        *AT_SUPPLEMENT_FIELD_NAMES,
+        "atCount",
+        "atDisplaySlot",
+        "atSource",
+        "atFetchedAt",
+    ):
+        payload.pop(field_name, None)
     payload["difference_value"] = _normalize_difference_value_for_supabase(payload.get("difference_value"))
     payload["bonus_difference_value"] = _normalize_difference_value_for_supabase(payload.get("bonus_difference_value"))
     payload["data_source"] = _normalize_data_source(payload.get("data_source"))
@@ -694,6 +912,7 @@ def build_store_machine_daily_detail_payloads(
         site7_fetched_at = str(record.get("site7_fetched_at") or record.get("site7FetchedAt") or "").strip()
         if data_source == DATA_SOURCE_SITE7 and site7_fetched_at:
             slot_payload["site7_fetched_at"] = site7_fetched_at
+        slot_payload.update(_normalize_at_supplement(record))
         bucket["records_by_slot"][slot_number] = slot_payload
         bucket["rows"].append(record)
 
@@ -1689,8 +1908,13 @@ class HistoryPersistenceService:
                     continue
                 key = self._record_replace_key(record)
                 if key is not None:
-                    records_by_key[key] = record
-        return list(records_by_key.values())
+                    current_record = records_by_key.get(key)
+                    records_by_key[key] = (
+                        _merge_machine_daily_record_fields(current_record, record)
+                        if current_record is not None
+                        else record
+                    )
+        return _apply_latest_at_display_slot_rules(list(records_by_key.values()))
 
     def _merge_minrepo_machine_records(
         self,
@@ -1701,12 +1925,22 @@ class HistoryPersistenceService:
         for record in existing_records:
             key = self._record_replace_key(record)
             if key is not None:
-                records_by_key[key] = record
+                current_record = records_by_key.get(key)
+                records_by_key[key] = (
+                    _merge_machine_daily_record_fields(current_record, record)
+                    if current_record is not None
+                    else record
+                )
         for record in incoming_records:
             key = self._record_replace_key(record)
             if key is not None:
-                records_by_key[key] = record
-        return list(records_by_key.values())
+                current_record = records_by_key.get(key)
+                records_by_key[key] = (
+                    _merge_machine_daily_record_fields(current_record, record)
+                    if current_record is not None
+                    else record
+                )
+        return _apply_latest_at_display_slot_rules(list(records_by_key.values()))
 
     def _build_single_machine_payload(
         self,
@@ -1931,7 +2165,12 @@ class HistoryPersistenceService:
                 continue
             key = self._record_replace_key(record)
             if key is not None:
-                records_by_key[key] = record
+                current_record = records_by_key.get(key)
+                records_by_key[key] = (
+                    _merge_machine_daily_record_fields(current_record, record)
+                    if current_record is not None
+                    else record
+                )
 
         for record in incoming_records:
             if not _saved_record_should_be_kept(record):
@@ -1940,10 +2179,12 @@ class HistoryPersistenceService:
             if key is None:
                 continue
             existing_record = records_by_key.get(key)
-            if existing_record is None or self._incoming_record_should_replace(existing_record, record):
+            if existing_record is None:
                 records_by_key[key] = record
+            else:
+                records_by_key[key] = _merge_machine_daily_record_fields(existing_record, record)
 
-        return list(records_by_key.values())
+        return _apply_latest_at_display_slot_rules(list(records_by_key.values()))
 
     def _record_replace_key(self, record: dict[str, Any]) -> tuple[str, str] | None:
         target_date = str(record.get("target_date", "")).strip()
@@ -2679,10 +2920,16 @@ class HistoryPersistenceService:
         return counts_by_date
 
     def _full_day_snapshot_site7_dates(self, snapshot: dict[str, Any]) -> set[str]:
+        records = snapshot.get("records", [])
+        if not isinstance(records, list):
+            return set()
         return {
             target_date
-            for target_date, source_counts in self._full_day_source_counts_by_date(snapshot).items()
-            if source_counts.get(DATA_SOURCE_SITE7, 0) > 0
+            for record in records
+            if isinstance(record, dict)
+            and _record_has_site7_source(record)
+            and _record_has_primary_machine_data(record)
+            and (target_date := str(record.get("target_date", "")).strip())
         }
 
     def _full_day_current_saved_state_by_date(
@@ -2710,7 +2957,8 @@ class HistoryPersistenceService:
             if target_date not in normalized_dates:
                 continue
             if _record_has_site7_source(record):
-                site7_dates.add(target_date)
+                if _record_has_primary_machine_data(record):
+                    site7_dates.add(target_date)
                 continue
 
             counts = counts_by_date.setdefault(target_date, {"machine_count": 0, "record_count": 0})

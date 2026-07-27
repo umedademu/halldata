@@ -1,4 +1,9 @@
-import { listHuntScoreTargetMachineNames } from "./hunt-score";
+import { listHuntScoreTargetMachineNames } from "./hunt-score.js";
+import {
+  readEffectiveBbCount,
+  readEffectiveRbCount,
+  withEffectiveBonusCounts,
+} from "./bonus-counts.js";
 import {
   buildBoundaryGapFilters,
   buildNextGapFilter,
@@ -14,14 +19,14 @@ import {
   readFiniteNumber,
   readNextGapForRankScope,
   readUpperGapForRankScope,
-} from "./hunt-bookmark";
+} from "./hunt-bookmark.js";
 import {
   DEFAULT_DIFFERENCE_MODE,
   canonicalMachineName,
   normalizeDifferenceMode as normalizeMachineDifferenceMode,
   selectDifferenceValue,
-} from "./machine-difference";
-import { isHuntJugglerMachine } from "./hunt-machine-display";
+} from "./machine-difference.js";
+import { isHuntJugglerMachine } from "./hunt-machine-display.js";
 import {
   MACHINE_EVALUATION_BACKTEST_MODE_AND,
   MACHINE_EVALUATION_BACKTEST_MODE_COMMON,
@@ -29,27 +34,27 @@ import {
   MACHINE_EVALUATION_BACKTEST_MODE_OR,
   normalizeBeamHikariNeoSpatialSelectionEnabled,
   normalizeMachineEvaluationBacktestMode,
-} from "./machine-evaluation";
+} from "./machine-evaluation.js";
 import {
   calculateSettingEstimate,
   getSettingEstimateDefinition,
   normalizeSettingEstimateMode,
   readGrapeSettingEstimateObservation,
   SETTING_ESTIMATE_MODE_GRAPE,
-} from "./setting-estimates";
+} from "./setting-estimates.js";
 import {
   SETTING_DISTRIBUTION_HIDE,
   SETTING_DISTRIBUTION_SHOW,
   normalizeSettingDistribution,
   shouldShowSettingDistribution,
-} from "./setting-distribution";
+} from "./setting-distribution.js";
 
 export {
   SETTING_DISTRIBUTION_HIDE,
   SETTING_DISTRIBUTION_SHOW,
   normalizeSettingDistribution,
   shouldShowSettingDistribution,
-} from "./setting-distribution";
+} from "./setting-distribution.js";
 
 const DEFAULT_RECENT_DAYS = 90;
 const DAILY_SELECTION_MODE_MACHINE_TOP_NEXT_GAP = "machineTopNextGap";
@@ -627,13 +632,18 @@ function formatProbability(gamesTotal, hitCount) {
 }
 
 function resolveActualMetrics(machineName, nextRecord, differenceMode) {
-  const gamesCount = readFiniteNumber(nextRecord?.games_count);
-  const bbCount = readFiniteNumber(nextRecord?.bb_count);
-  const rbCount = readFiniteNumber(nextRecord?.rb_count);
+  const effectiveNextRecord = withEffectiveBonusCounts(nextRecord);
+  const gamesCount = readFiniteNumber(effectiveNextRecord?.games_count);
+  const bbCount = readFiniteNumber(readEffectiveBbCount(effectiveNextRecord));
+  const rbCount = readFiniteNumber(readEffectiveRbCount(effectiveNextRecord));
   const standardInvestedCoins = gamesCount > 0 ? gamesCount * 3 : 0;
 
   if (differenceMode === "bonus" || differenceMode === "estimated") {
-    const storedBonusDifferenceValue = selectDifferenceValue(nextRecord, differenceMode, machineName);
+    const storedBonusDifferenceValue = selectDifferenceValue(
+      effectiveNextRecord,
+      differenceMode,
+      machineName,
+    );
     return {
       differenceValue: readFiniteNumber(storedBonusDifferenceValue),
       investedCoins: standardInvestedCoins,
@@ -644,7 +654,7 @@ function resolveActualMetrics(machineName, nextRecord, differenceMode) {
   }
 
   return {
-    differenceValue: readFiniteNumber(selectDifferenceValue(nextRecord, "minrepo")),
+    differenceValue: readFiniteNumber(selectDifferenceValue(effectiveNextRecord, "minrepo")),
     investedCoins: standardInvestedCoins,
     gamesCount,
     bbCount,
@@ -876,6 +886,7 @@ function addActualMetricsToSummary(
   showSettingDistribution,
   huntScoreValue = row?.huntScore,
 ) {
+  const effectiveNextRecord = withEffectiveBonusCounts(row.nextRecord);
   summary.actualRowCount += 1;
   if (actualMetrics.differenceValue > 0) {
     summary.winCount += 1;
@@ -894,11 +905,17 @@ function addActualMetricsToSummary(
     summary.upperGapTotal += upperGapValue;
     summary.upperGapSampleCount += 1;
   }
-  addAggregateSettingMetrics(summary, machineName, actualMetrics, row.nextRecord, settingEstimateMode);
+  addAggregateSettingMetrics(
+    summary,
+    machineName,
+    actualMetrics,
+    effectiveNextRecord,
+    settingEstimateMode,
+  );
   if (showSettingDistribution) {
-    addSettingEstimateRateMetrics(summary, machineName, row.nextRecord, settingEstimateMode);
+    addSettingEstimateRateMetrics(summary, machineName, effectiveNextRecord, settingEstimateMode);
   }
-  addGrapeMetrics(summary, machineName, row.nextRecord);
+  addGrapeMetrics(summary, machineName, effectiveNextRecord);
 }
 
 function buildSnapshotGapRows(

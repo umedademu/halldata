@@ -1,4 +1,9 @@
 import settingEstimatesPayload from "../config/setting_estimates.json" with { type: "json" };
+import {
+  readEffectiveBbCount,
+  readEffectiveBonusCounts,
+  readEffectiveRbCount,
+} from "./bonus-counts.js";
 
 export const SETTING_ESTIMATE_VALUE_VERSION = 8;
 export const SETTING_ESTIMATE_GRAPE_VALUE_VERSION = 7;
@@ -380,8 +385,8 @@ function calculateGrapeObservation(definition, record) {
   }
 
   const games = readNumber(record?.games_count);
-  const bbCount = readNumber(record?.bb_count);
-  const rbCount = readNumber(record?.rb_count);
+  const bbCount = readEffectiveBbCount(record);
+  const rbCount = readEffectiveRbCount(record);
   const differenceValue = readNumber(record?.difference_value);
   if (
     !Number.isInteger(games) ||
@@ -588,7 +593,8 @@ function calculateBonusSettingEstimate(definition, record, options = {}) {
     return null;
   }
 
-  const precomputedEstimate = options.usePrecomputed === false
+  const effectiveBonusCounts = readEffectiveBonusCounts(record);
+  const precomputedEstimate = options.usePrecomputed === false || effectiveBonusCounts.appliesAtCount
     ? null
     : readPrecomputedSettingEstimate(definition, record);
   if (precomputedEstimate) {
@@ -596,8 +602,8 @@ function calculateBonusSettingEstimate(definition, record, options = {}) {
   }
 
   const games = readNumber(record?.games_count);
-  const bbCount = readNumber(record?.bb_count);
-  const rbCount = readNumber(record?.rb_count);
+  const bbCount = effectiveBonusCounts.bbCount;
+  const rbCount = effectiveBonusCounts.rbCount;
 
   if (
     !Number.isInteger(games) ||
@@ -624,8 +630,8 @@ function calculateBonusSettingEstimate(definition, record, options = {}) {
 
 function calculateGrapeSettingEstimate(definition, record) {
   const games = readNumber(record?.games_count);
-  const bbCount = readNumber(record?.bb_count);
-  const rbCount = readNumber(record?.rb_count);
+  const bbCount = readEffectiveBbCount(record);
+  const rbCount = readEffectiveRbCount(record);
   const grapeObservation = readGrapeSettingEstimateObservation(definition, record);
 
   if (

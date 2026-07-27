@@ -1,14 +1,14 @@
 import {
   formatSettingEstimateModeLabel,
   normalizeSettingEstimateMode,
-} from "./setting-estimates";
+} from "./setting-estimates.js";
 import {
   MACHINE_EVALUATION_BACKTEST_MODE_AND,
   MACHINE_EVALUATION_BACKTEST_MODE_MACHINE,
   MACHINE_EVALUATION_BACKTEST_MODE_OR,
   MACHINE_EVALUATION_BACKTEST_MODE_OPTIONS,
   normalizeMachineEvaluationBacktestMode,
-} from "./machine-evaluation";
+} from "./machine-evaluation.js";
 
 const HUNT_BACKTEST_BOOKMARK_STORAGE_PREFIX = "hunt-backtest-bookmark:";
 const HUNT_BACKTEST_BOOKMARKS_STORAGE_PREFIX = "hunt-backtest-bookmarks:";

@@ -1,7 +1,7 @@
 import {
   applyMachineEvaluationFinalSelection,
   applyMachineEvaluationFinalSelectionRankingOrder,
-} from "./machine-evaluation-final-selection";
+} from "./machine-evaluation-final-selection.js";
 
 const MACHINE_EVALUATION_COOKIE_PREFIX = "machine-evaluation-";
 const MACHINE_EVALUATION_COOKIE_VERSION = 1;

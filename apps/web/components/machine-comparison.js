@@ -19,6 +19,7 @@ import {
   formatWeekday,
   valueToneClass,
 } from "../lib/format";
+import { withEffectiveBonusCounts } from "../lib/bonus-counts";
 import { createEventFilters, matchesEventFilters } from "../lib/event-filters";
 import {
   buildConditionRequirementOptions,
@@ -1597,7 +1598,7 @@ function buildCsvRows(slotNumbers, slotLabels, dateRows, metrics, specialDateSet
   const dataRows = dateRows.map((row) => {
     const cells = [row.date, formatWeekday(row.date), specialDateSet.has(row.date) ? "はい" : "いいえ"];
     for (const slotNumber of slotNumbers) {
-      const record = row.recordsBySlot[slotNumber] ?? null;
+      const record = withEffectiveBonusCounts(row.recordsBySlot[slotNumber] ?? null);
       for (const metric of metrics) {
         const value = record?.[metric.key];
         cells.push((metric.csvRender ?? metric.render)(value, record, { row, slotNumber }));
@@ -1992,7 +1993,7 @@ const MatrixRow = memo(function MatrixRow({
       </th>
       <td className="weekdayCell">{formatWeekday(row.date)}</td>
       {slotNumbers.flatMap((slotNumber, slotIndex) => {
-        const record = row.recordsBySlot[slotNumber] ?? null;
+        const record = withEffectiveBonusCounts(row.recordsBySlot[slotNumber] ?? null);
         const settingEstimate =
           settingEstimateDefinition && getCompositeSettingEstimate
             ? getCompositeSettingEstimate(record)
@@ -2218,19 +2219,24 @@ function VerificationMetricCell({
     return <td className={metric.columnClass || undefined}>-</td>;
   }
 
+  const effectiveRecord = withEffectiveBonusCounts(record);
   const settingEstimate =
     settingEstimateDefinition && getCompositeSettingEstimate
-      ? getCompositeSettingEstimate(record)
+      ? getCompositeSettingEstimate(effectiveRecord)
       : null;
   const settingHighlightClass = getSettingEstimateHighlightClass(settingEstimate);
   const settingTitle = formatCompositeSettingEstimateBreakdown(settingEstimate);
-  const value = record?.[metric.key];
+  const value = effectiveRecord?.[metric.key];
   const toneClass = metric.tone ? valueToneClass(metric.key, value) : "";
   const isHuntScoreMetric = metric.key === "hunt_score" || metric.key === "hunt_score_next_gap";
   const huntScoreHighlightClass =
     isHuntScoreMetric &&
     huntScoreHighlightKeySet.has(
-      buildHuntScoreHighlightKey(row.date, record?.machine_name, record?.slot_number ?? slotNumber),
+      buildHuntScoreHighlightKey(
+        row.date,
+        effectiveRecord?.machine_name,
+        effectiveRecord?.slot_number ?? slotNumber,
+      ),
     )
       ? "huntScoreHighlighted"
       : "";
@@ -2242,11 +2248,11 @@ function VerificationMetricCell({
   ]
     .filter(Boolean)
     .join(" ");
-  const title = settingTitle || (metric.title ? metric.title(value, record) : "");
+  const title = settingTitle || (metric.title ? metric.title(value, effectiveRecord) : "");
 
   return (
     <td className={className || undefined} title={title || undefined}>
-      {metric.render(value, record, { row, slotNumber })}
+      {metric.render(value, effectiveRecord, { row, slotNumber })}
     </td>
   );
 }

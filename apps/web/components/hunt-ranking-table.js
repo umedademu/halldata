@@ -16,6 +16,7 @@ import {
   formatSite7FetchedTime,
   formatSignedNumber,
 } from "../lib/format";
+import { withEffectiveBonusCounts } from "../lib/bonus-counts";
 import {
   HUNT_BACKTEST_BOOKMARK_EVENT,
   HUNT_BACKTEST_BOOKMARK_SELECTION_CUSTOM,
@@ -114,6 +115,10 @@ function formatEstimatedGrapeDenominator(value) {
   return denominator.toFixed(2);
 }
 
+function readEffectiveNextRecord(row) {
+  return withEffectiveBonusCounts(row?.nextRecord ?? null);
+}
+
 const RESULT_COLUMN_DEFINITIONS = [
   {
     key: "difference_value",
@@ -132,20 +137,20 @@ const RESULT_COLUMN_DEFINITIONS = [
   {
     key: "bb_count",
     label: "BB",
-    render: (row) => formatAverageGames(row.nextRecord?.bb_count),
-    sortValue: (row) => row.nextRecord?.bb_count,
+    render: (row) => formatAverageGames(readEffectiveNextRecord(row)?.bb_count),
+    sortValue: (row) => readEffectiveNextRecord(row)?.bb_count,
   },
   {
     key: "rb_count",
     label: "RB",
-    render: (row) => formatAverageGames(row.nextRecord?.rb_count),
-    sortValue: (row) => row.nextRecord?.rb_count,
+    render: (row) => formatAverageGames(readEffectiveNextRecord(row)?.rb_count),
+    sortValue: (row) => readEffectiveNextRecord(row)?.rb_count,
   },
   {
     key: "combined_ratio_text",
     label: "合成",
-    render: (row) => formatRatio(row.nextRecord?.combined_ratio_text),
-    sortValue: (row) => row.nextRecord?.combined_ratio_text,
+    render: (row) => formatRatio(readEffectiveNextRecord(row)?.combined_ratio_text),
+    sortValue: (row) => readEffectiveNextRecord(row)?.combined_ratio_text,
   },
   {
     key: ESTIMATED_GRAPE_RESULT_KEY,
@@ -168,14 +173,14 @@ const RESULT_COLUMN_DEFINITIONS = [
   {
     key: "bb_ratio_text",
     label: "BB率",
-    render: (row) => formatRatio(row.nextRecord?.bb_ratio_text),
-    sortValue: (row) => row.nextRecord?.bb_ratio_text,
+    render: (row) => formatRatio(readEffectiveNextRecord(row)?.bb_ratio_text),
+    sortValue: (row) => readEffectiveNextRecord(row)?.bb_ratio_text,
   },
   {
     key: "rb_ratio_text",
     label: "RB率",
-    render: (row) => formatRatio(row.nextRecord?.rb_ratio_text),
-    sortValue: (row) => row.nextRecord?.rb_ratio_text,
+    render: (row) => formatRatio(readEffectiveNextRecord(row)?.rb_ratio_text),
+    sortValue: (row) => readEffectiveNextRecord(row)?.rb_ratio_text,
   },
 ];
 

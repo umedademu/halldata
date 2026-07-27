@@ -37,6 +37,7 @@ from data_persistence import (
 from daidata_online_scraper import (
     DaidataOnlineMachineEntry,
     DaidataOnlineScraper,
+    DAIDATA_AT_MAX_RECENT_DAYS,
     daidata_store_config_for,
 )
 from minrepo_scraper import (
@@ -981,6 +982,7 @@ class MinRepoApp:
         )
         self.result_polling_active = False
         self.persistence_lock = threading.Lock()
+        self.daidata_online_lock = threading.Lock()
         self.current_results: list[MachineDataset] = []
         self.current_history_result: MachineHistoryResult | None = None
         self.startup_store_warning: str | None = None
@@ -3815,10 +3817,21 @@ class MinRepoApp:
                             now=now,
                         )
                         if minrepo_prefetch_result is not None:
-                            self._refresh_web_data_for_store_result(minrepo_prefetch_result)
                             if site7_should_be_skipped:
+                                if registered_store_uses_daidata_online(registered_store):
+                                    self._try_supplement_daidata_at_for_store_result(
+                                        store_result=minrepo_prefetch_result,
+                                        registered_store=registered_store,
+                                        recent_days=recent_days,
+                                        store_index=store_index,
+                                        total_stores=total_stores,
+                                        retry_delay_seconds=retry_delay_seconds,
+                                        browser_visible=browser_visible,
+                                    )
+                                self._refresh_web_data_for_store_result(minrepo_prefetch_result)
                                 results.append(minrepo_prefetch_result)
                                 continue
+                            self._refresh_web_data_for_store_result(minrepo_prefetch_result)
 
                     store_result = self._fetch_single_site7_store(
                         registered_store=registered_store,
@@ -4093,20 +4106,23 @@ class MinRepoApp:
             return protected_slots
 
         def run_daidata_fetch() -> MachineHistoryResult:
-            return self.daidata_online_scraper.fetch_store_juggler_history(
-                store_config=daidata_store_config,
-                recent_days=recent_days,
-                browser_visible=browser_visible,
-                progress_callback=lambda progress: queue_progress(
-                    FetchProgress(
-                        current_step=progress.current_step,
-                        total_steps=progress.total_steps,
-                        message=f"{store_label}: {progress.message}",
-                    )
-                ),
-                enabled_machine_names=fetch_enabled_machine_names,
-                machine_protected_slots_callback=find_protected_slots_before_fetch,
-                cancel_requested=self._cancel_requested,
+            return self._run_with_daidata_online_lock(
+                lambda: self.daidata_online_scraper.fetch_store_juggler_history(
+                    store_config=daidata_store_config,
+                    recent_days=recent_days,
+                    browser_visible=browser_visible,
+                    progress_callback=lambda progress: queue_progress(
+                        FetchProgress(
+                            current_step=progress.current_step,
+                            total_steps=progress.total_steps,
+                            message=f"{store_label}: {progress.message}",
+                        )
+                    ),
+                    enabled_machine_names=fetch_enabled_machine_names,
+                    include_twenty_yen_non_juggler_machines=True,
+                    machine_protected_slots_callback=find_protected_slots_before_fetch,
+                    cancel_requested=self._cancel_requested,
+                )
             )
 
         history_result = self._run_with_fetch_retries(
@@ -4165,12 +4181,127 @@ class MinRepoApp:
                 pending_save_futures.append(async_save_executor.submit(run_save))
             else:
                 save_summary = run_save()
-        return StoreFetchResult(
+        store_result = StoreFetchResult(
             history_result=history_result,
             save_summary=save_summary,
             saved_full_day_summary=warning_summary,
             pending_save_futures=pending_save_futures,
         )
+        self._try_supplement_daidata_at_for_store_result(
+            store_result=store_result,
+            registered_store=registered_store,
+            recent_days=recent_days,
+            store_index=store_index,
+            total_stores=total_stores,
+            retry_delay_seconds=retry_delay_seconds,
+            browser_visible=browser_visible,
+        )
+        return store_result
+
+    def _fetch_and_save_daidata_at_supplement(
+        self,
+        *,
+        registered_store: RegisteredStore,
+        recent_days: int,
+        store_index: int,
+        total_stores: int,
+        retry_delay_seconds: int,
+        browser_visible: bool,
+    ) -> PersistenceSummary | None:
+        self._raise_if_fetch_cancelled()
+        store_config = daidata_store_config_for(registered_store.name, registered_store.url)
+        if store_config is None:
+            return None
+
+        store_label = f"{store_index}/{total_stores} {registered_store.name}"
+
+        def queue_progress(progress: FetchProgress) -> None:
+            self._queue_fetch_progress(progress, store_index=store_index, total_stores=total_stores)
+
+        at_history_result = self._run_with_fetch_retries(
+            lambda: self._run_with_daidata_online_lock(
+                lambda: self.daidata_online_scraper.fetch_store_at_supplement_history(
+                    store_config=store_config,
+                    recent_days=recent_days,
+                    enabled_machine_names=None,
+                    browser_visible=browser_visible,
+                    progress_callback=lambda progress: queue_progress(
+                        FetchProgress(
+                            current_step=progress.current_step,
+                            total_steps=progress.total_steps,
+                            message=f"{store_label}: {progress.message}",
+                        )
+                    ),
+                    cancel_requested=self._cancel_requested,
+                )
+            ),
+            retry_delay_seconds=retry_delay_seconds,
+            retry_status_callback=lambda retry_number, max_retries, delay_seconds: queue_progress(
+                FetchProgress(
+                    current_step=0,
+                    total_steps=1,
+                    message=(
+                        f"{store_label}: AT回数の補完に失敗しました。"
+                        f"{delay_seconds}秒後に再試行します（{retry_number}/{max_retries}）"
+                    ),
+                )
+            ),
+        )
+        self._raise_if_fetch_cancelled()
+        at_history_result = rewrite_history_result_store(
+            at_history_result,
+            store_name=registered_store.name,
+            store_url=registered_store.url,
+        )
+        if not at_history_result.datasets:
+            return None
+
+        queue_progress(
+            FetchProgress(
+                current_step=1,
+                total_steps=1,
+                message=f"{store_label}: AT回数を保存しています",
+            )
+        )
+        return self._run_with_persistence_lock(
+            lambda: self.persistence_service.save_history_result(
+                at_history_result,
+                full_day=False,
+            )
+        )
+
+    def _try_supplement_daidata_at_for_store_result(
+        self,
+        *,
+        store_result: StoreFetchResult,
+        registered_store: RegisteredStore,
+        recent_days: int,
+        store_index: int,
+        total_stores: int,
+        retry_delay_seconds: int,
+        browser_visible: bool,
+    ) -> None:
+        try:
+            at_save_summary = self._fetch_and_save_daidata_at_supplement(
+                registered_store=registered_store,
+                recent_days=recent_days,
+                store_index=store_index,
+                total_stores=total_stores,
+                retry_delay_seconds=retry_delay_seconds,
+                browser_visible=browser_visible,
+            )
+        except FetchCancelled:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            at_save_summary = PersistenceSummary(
+                messages=[f"台データオンラインのAT回数補完に失敗しました。\n{exc}"]
+            )
+
+        if at_save_summary is not None:
+            store_result.save_summary = self._merge_persistence_summary(
+                store_result.save_summary,
+                at_save_summary,
+            )
 
     def _fetch_single_site7_store(
         self,
@@ -4508,6 +4639,8 @@ class MinRepoApp:
             self.fetch_cancel_event = self.minrepo_cancel_event
         if not hasattr(self, "persistence_lock"):
             self.persistence_lock = threading.Lock()
+        if not hasattr(self, "daidata_online_lock"):
+            self.daidata_online_lock = threading.Lock()
         if not hasattr(self, "_last_queued_fetch_progress_by_operation"):
             self._last_queued_fetch_progress_by_operation = {}
         if not hasattr(self, "_fetch_progress_bar_modes"):
@@ -4579,6 +4712,15 @@ class MinRepoApp:
         self._ensure_operation_tracking()
         with self.persistence_lock:
             return action()
+
+    def _run_with_daidata_online_lock(self, action: Callable[[], T]) -> T:
+        self._ensure_operation_tracking()
+        while not self.daidata_online_lock.acquire(timeout=0.1):
+            self._raise_if_fetch_cancelled()
+        try:
+            return action()
+        finally:
+            self.daidata_online_lock.release()
 
     def _pending_save_error_summary(self, exc: Exception) -> PersistenceSummary:
         return PersistenceSummary(messages=[f"R2保存の完了待ちに失敗しました。\n{exc}"])
@@ -4958,6 +5100,32 @@ class MinRepoApp:
             self._wait_for_pending_store_saves(results)
             if save_executor is not None:
                 save_executor.shutdown(wait=True)
+
+        if not cancelled and not self._cancel_requested():
+            results_by_store_url = {
+                normalize_store_url(store_result.history_result.store_url): store_result
+                for store_result in results
+            }
+            for store_index, registered_store in enumerate(target_stores, start=1):
+                if not registered_store_uses_daidata_online(registered_store):
+                    continue
+                store_result = results_by_store_url.get(normalize_store_url(registered_store.url))
+                if store_result is None:
+                    continue
+                try:
+                    self._try_supplement_daidata_at_for_store_result(
+                        store_result=store_result,
+                        registered_store=registered_store,
+                        recent_days=DAIDATA_AT_MAX_RECENT_DAYS,
+                        store_index=store_index,
+                        total_stores=total_stores,
+                        retry_delay_seconds=retry_delay_seconds,
+                        browser_visible=False,
+                    )
+                    self._refresh_web_data_for_store_result(store_result)
+                except FetchCancelled:
+                    cancelled = True
+                    break
 
         if self._cancel_requested():
             cancelled = True

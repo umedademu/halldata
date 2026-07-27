@@ -32,16 +32,29 @@ from data_persistence import (
     normalize_store_url,
 )
 from daidata_online_scraper import (
+    DAIDATA_AT_DECISION_IGNORE_THREE_COUNTERS,
+    DAIDATA_AT_DECISION_NO_AT,
+    DAIDATA_AT_DECISION_TO_BB,
+    DAIDATA_AT_DECISION_TO_RB,
+    DAIDATA_AT_DECISION_UNKNOWN,
     DAIDATA_BEAM_HIKARI_URL,
     DAIDATA_WONDERLAND_MINAMIGAOKA_URL,
     DAIDATA_WONDERLAND_SUE_URL,
+    DaidataAtCounterEvidence,
+    DaidataAtDetailObservation,
     DaidataOnlineMachineEntry,
     DaidataOnlineScraper,
+    build_daidata_at_rule_key,
+    build_daidata_at_supplement_history_result,
     build_daidata_machine_dataset,
     build_daidata_transition_wait_milliseconds,
+    classify_daidata_at_counter_usage,
+    daidata_at_counter_evidence_from_graph,
     daidata_store_config_for,
     daidata_store_is_beam_hikari,
     daidata_store_uses_daidata_online,
+    merge_daidata_at_counter_evidence,
+    parse_daidata_weekly_counter_graph,
 )
 from main import (
     DEFAULT_MINREPO_FETCH_MODE,
@@ -238,7 +251,7 @@ class FixtureScraper(MinRepoScraper):
         self.date_html = find_html("日付別ページ")
         self.machine_html = find_html("機種別データページ")
 
-    def fetch_html(self, url: str) -> str:
+    def fetch_html(self, url: str, referer: str | None = None) -> str:
         if "?kishu=" in url:
             return self.machine_html
         if "/tag/" in url:
@@ -251,7 +264,7 @@ class MappingScraper(MinRepoScraper):
         super().__init__()
         self.html_by_url = html_by_url
 
-    def fetch_html(self, url: str) -> str:
+    def fetch_html(self, url: str, referer: str | None = None) -> str:
         if url not in self.html_by_url:
             raise AssertionError(f"未定義のURLです: {url}")
         return self.html_by_url[url]
@@ -5501,10 +5514,12 @@ class MinRepoScraperTests(unittest.TestCase):
                 browser_visible: bool,
                 progress_callback: object,
                 enabled_machine_names: set[str] | None,
+                include_twenty_yen_non_juggler_machines: bool,
                 machine_protected_slots_callback: object,
                 cancel_requested: object,
             ) -> MachineHistoryResult:
                 self.store_config = store_config
+                self.include_twenty_yen_non_juggler_machines = include_twenty_yen_non_juggler_machines
                 protected_slots = machine_protected_slots_callback(
                     DaidataOnlineMachineEntry(
                         machine_name=SITE7_NEO_IM_MACHINE_NAME,
@@ -5528,6 +5543,16 @@ class MinRepoScraperTests(unittest.TestCase):
                         ("2026-06-02", SITE7_NEO_IM_MACHINE_NAME),
                     ],
                     skipped_dates=["2026-06-01", "2026-06-02"],
+                )
+
+            def fetch_store_at_supplement_history(self, **_: object) -> MachineHistoryResult:
+                return MachineHistoryResult(
+                    store_name="ビームヒカリ",
+                    store_url=DAIDATA_BEAM_HIKARI_URL,
+                    start_date="",
+                    end_date="",
+                    date_pages=[],
+                    datasets=[],
                 )
 
         class FakePersistenceService:
@@ -5602,12 +5627,129 @@ class MinRepoScraperTests(unittest.TestCase):
             [("ビームヒカリ", DAIDATA_BEAM_HIKARI_URL, "2026-06-01", "2026-06-03")],
         )
         self.assertEqual(app.daidata_online_scraper.store_config.url, DAIDATA_BEAM_HIKARI_URL)
+        self.assertTrue(app.daidata_online_scraper.include_twenty_yen_non_juggler_machines)
         self.assertEqual(
             persistence_service.slot_calls,
             [("2026-06-02", "2026-06-03", ("821", "822"), False, "2026-06-03T16:00:00+09:00")],
         )
         self.assertFalse(persistence_service.saved)
         self.assertEqual(result.history_result.datasets, [])
+
+    def test_fetch_and_save_daidata_at_supplement_uses_all_twenty_yen_non_juggler_machines(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.minrepo_cancel_event = app.fetch_cancel_event
+        app.site7_cancel_event = threading.Event()
+        app.active_operation_kind = "fetch"
+        app.result_queue = queue.Queue()
+        app._queue_fetch_progress = mock.Mock()
+        captured_fetch_arguments: dict[str, object] = {}
+        saved_results: list[tuple[MachineHistoryResult, bool]] = []
+
+        at_dataset = MachineDataset(
+            store_name="ビームヒカリ",
+            store_url=DAIDATA_BEAM_HIKARI_URL,
+            target_date="2026-07-27",
+            date_url=f"{DAIDATA_BEAM_HIKARI_URL}/detail?unit=537",
+            machine_name="スマスロ ミリオンゴッド",
+            machine_url=f"{DAIDATA_BEAM_HIKARI_URL}/unit_list?model=god&ballPrice=20.00&ps=S",
+            columns=["台番", "AT", "AT表示枠", "AT取得元", "AT取得日時"],
+            rows=[["537", "8", "rb", "daidata_online", "2026-07-27T23:40:00+09:00"]],
+        )
+
+        class FakeDaidataOnlineScraper:
+            def fetch_store_at_supplement_history(self, **kwargs: object) -> MachineHistoryResult:
+                captured_fetch_arguments.update(kwargs)
+                return MachineHistoryResult(
+                    store_name="ビームヒカリ",
+                    store_url=DAIDATA_BEAM_HIKARI_URL,
+                    start_date="2026-07-27",
+                    end_date="2026-07-27",
+                    date_pages=[],
+                    datasets=[at_dataset],
+                )
+
+        class FakePersistenceService:
+            def save_history_result(
+                self,
+                history_result: MachineHistoryResult,
+                full_day: bool = False,
+            ) -> PersistenceSummary:
+                saved_results.append((history_result, full_day))
+                return PersistenceSummary(web_data_saved=True, web_data_record_count=1)
+
+        app.daidata_online_scraper = FakeDaidataOnlineScraper()
+        app.persistence_service = FakePersistenceService()
+        registered_store = RegisteredStore(
+            name="ビームヒカリ",
+            url="https://min-repo.com/tag/ビームヒカリ/",
+        )
+
+        summary = app._fetch_and_save_daidata_at_supplement(
+            registered_store=registered_store,
+            recent_days=8,
+            store_index=1,
+            total_stores=1,
+            retry_delay_seconds=0,
+            browser_visible=False,
+        )
+
+        self.assertIsNotNone(summary)
+        self.assertIsNone(captured_fetch_arguments["enabled_machine_names"])
+        self.assertEqual(captured_fetch_arguments["recent_days"], 8)
+        self.assertEqual(len(saved_results), 1)
+        saved_result, full_day = saved_results[0]
+        self.assertFalse(full_day)
+        self.assertEqual(saved_result.store_name, registered_store.name)
+        self.assertEqual(saved_result.store_url, registered_store.url)
+        self.assertEqual(saved_result.datasets[0].columns, ["台番", "AT", "AT表示枠", "AT取得元", "AT取得日時"])
+
+    def test_run_fetch_many_supplements_at_after_minrepo_for_daidata_store(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        app.fetch_cancel_event = threading.Event()
+        app.minrepo_cancel_event = app.fetch_cancel_event
+        app.site7_cancel_event = threading.Event()
+        app.active_operation_kind = "fetch"
+        app.result_queue = queue.Queue()
+        app._worker_context = threading.local()
+        app._last_queued_fetch_progress_by_operation = {}
+        app._refresh_web_data_for_store_result = mock.Mock()
+        app._try_supplement_daidata_at_for_store_result = mock.Mock()
+
+        registered_store = RegisteredStore(
+            name="ビームヒカリ",
+            url="https://min-repo.com/tag/ビームヒカリ/",
+        )
+        store_result = StoreFetchResult(
+            history_result=MachineHistoryResult(
+                store_name=registered_store.name,
+                store_url=registered_store.url,
+                start_date="2026-07-27",
+                end_date="2026-07-27",
+                date_pages=[],
+                datasets=[],
+            ),
+            save_summary=PersistenceSummary(web_data_saved=True),
+            saved_full_day_summary=SavedFullDayDatesSummary(),
+        )
+        app._fetch_single_store = mock.Mock(return_value=store_result)
+
+        result = app._run_fetch_many(
+            target_stores=[registered_store],
+            target_date_input="2026-07-27",
+            retry_delay_seconds=0,
+        )
+
+        self.assertEqual(result.results, [store_result])
+        app._try_supplement_daidata_at_for_store_result.assert_called_once_with(
+            store_result=store_result,
+            registered_store=registered_store,
+            recent_days=8,
+            store_index=1,
+            total_stores=1,
+            retry_delay_seconds=0,
+            browser_visible=False,
+        )
 
     def test_run_site7_fetch_many_skips_site7_when_minrepo_covers_previous_business_day(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
@@ -5977,6 +6119,382 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(dataset.rows[0], ["821", "-", "1234", "-", "4", "3", "1/176.2", "1/308.5", "1/411.3"])
         self.assertEqual(site7_dataset_updated_at(dataset), "2026-06-25T00:07:00+09:00")
 
+    def test_daidata_weekly_counter_graph_parses_three_series_and_year_boundary(self) -> None:
+        html = r"""
+        <script>
+          const data = [
+            [["01\/02", 0], ["01\/01", 0], ["12\/31", 0]],
+            [["01\/02", 15], ["01\/01", 9], ["12\/31", 4]],
+            [["01\/02", 20], ["01\/01", 18], ["12\/31", 11]]
+          ];
+          const $graph = $('#weekly-jackpot-1');
+        </script>
+        """
+
+        graph = parse_daidata_weekly_counter_graph(
+            html,
+            reference_datetime=datetime(2026, 1, 2, 12, 0),
+        )
+
+        self.assertTrue(graph.graph_found)
+        self.assertTrue(graph.bb_series_present)
+        self.assertTrue(graph.rb_series_present)
+        self.assertTrue(graph.at_series_present)
+        self.assertFalse(graph.bb_positive)
+        self.assertTrue(graph.rb_positive)
+        self.assertTrue(graph.at_positive)
+        self.assertEqual(
+            [(row.target_date, row.bb_count, row.rb_count, row.at_count) for row in graph.rows],
+            [
+                ("2025-12-31", 0, 4, 11),
+                ("2026-01-01", 0, 9, 18),
+                ("2026-01-02", 0, 15, 20),
+            ],
+        )
+
+    def test_daidata_weekly_counter_graph_requires_weekly_jackpot_one(self) -> None:
+        html = r"""
+        <script>
+          const data = [[["07\/27", 1]], [["07\/27", 2]], [["07\/27", 3]]];
+          const $graph = $('#daily-jackpot');
+        </script>
+        """
+
+        graph = parse_daidata_weekly_counter_graph(
+            html,
+            reference_datetime=datetime(2026, 7, 27, 12, 0),
+        )
+
+        self.assertFalse(graph.graph_found)
+        self.assertEqual(
+            classify_daidata_at_counter_usage(daidata_at_counter_evidence_from_graph(graph)),
+            DAIDATA_AT_DECISION_UNKNOWN,
+        )
+
+    def test_daidata_at_counter_usage_uses_spare_counter_and_ignores_three_counters(self) -> None:
+        self.assertEqual(
+            classify_daidata_at_counter_usage(
+                DaidataAtCounterEvidence(
+                    graph_found=True,
+                    at_series_present=True,
+                    rb_positive=True,
+                    at_positive=True,
+                )
+            ),
+            DAIDATA_AT_DECISION_TO_BB,
+        )
+        self.assertEqual(
+            classify_daidata_at_counter_usage(
+                DaidataAtCounterEvidence(
+                    graph_found=True,
+                    at_series_present=True,
+                    bb_positive=True,
+                    at_positive=True,
+                )
+            ),
+            DAIDATA_AT_DECISION_TO_RB,
+        )
+        self.assertEqual(
+            classify_daidata_at_counter_usage(
+                DaidataAtCounterEvidence(
+                    graph_found=True,
+                    at_series_present=True,
+                    at_positive=True,
+                )
+            ),
+            DAIDATA_AT_DECISION_TO_BB,
+        )
+        self.assertEqual(
+            classify_daidata_at_counter_usage(
+                DaidataAtCounterEvidence(
+                    graph_found=True,
+                    at_series_present=True,
+                    bb_positive=True,
+                    rb_positive=True,
+                    at_positive=True,
+                )
+            ),
+            DAIDATA_AT_DECISION_IGNORE_THREE_COUNTERS,
+        )
+        self.assertEqual(
+            classify_daidata_at_counter_usage(
+                DaidataAtCounterEvidence(graph_found=True)
+            ),
+            DAIDATA_AT_DECISION_NO_AT,
+        )
+
+    def test_daidata_at_counter_evidence_accumulates_rare_counter_usage(self) -> None:
+        evidence = merge_daidata_at_counter_evidence(
+            [
+                DaidataAtCounterEvidence(
+                    graph_found=True,
+                    at_series_present=True,
+                    rb_positive=True,
+                    at_positive=True,
+                ),
+                DaidataAtCounterEvidence(
+                    graph_found=True,
+                    at_series_present=True,
+                    bb_positive=True,
+                ),
+            ]
+        )
+
+        self.assertTrue(evidence.bb_positive)
+        self.assertTrue(evidence.rb_positive)
+        self.assertTrue(evidence.at_positive)
+        self.assertEqual(
+            classify_daidata_at_counter_usage(evidence),
+            DAIDATA_AT_DECISION_IGNORE_THREE_COUNTERS,
+        )
+
+    def test_daidata_at_candidate_links_exclude_low_rate_and_juggler(self) -> None:
+        html = """
+        <a href="/100619/unit_list?model=kabaneri&ballPrice=20.00&ps=S">スマスロ 甲鉄城のカバネリ 海門決戦 20円スロット | 10台</a>
+        <a href="/100619/unit_list?model=god&ballPrice=21.70&ps=S">スマスロ ミリオンゴッド-神々の軌跡- 21.7円スロット | 9台</a>
+        <a href="/100619/unit_list?model=god-low&ballPrice=5.00&ps=S">スマスロ ミリオンゴッド-神々の軌跡- 5円スロット | 3台</a>
+        <a href="/100619/unit_list?model=neo&ballPrice=20.00&ps=S">ネオアイムジャグラーEX 20円スロット | 40台</a>
+        """
+
+        entries = DaidataOnlineScraper().extract_at_candidate_machine_links(
+            html,
+            DAIDATA_BEAM_HIKARI_URL,
+        )
+
+        self.assertEqual(
+            [entry.raw_machine_name for entry in entries],
+            [
+                "スマスロ 甲鉄城のカバネリ 海門決戦",
+                "スマスロ ミリオンゴッド-神々の軌跡-",
+            ],
+        )
+        self.assertEqual([entry.ball_price for entry in entries], [20.0, 21.7])
+        self.assertTrue(all(entry.rate_key == "20yen" for entry in entries))
+
+    def test_daidata_unit_detail_links_read_slot_number_links(self) -> None:
+        html = """
+        <table>
+          <tr><th>台番号</th><th>累計スタート</th><th>BB回数</th><th>RB回数</th></tr>
+          <tr><td><a href="/100619/detail?unit=638">638</a></td><td>1,000</td><td>0</td><td>4</td></tr>
+          <tr><td><a href="/100619/detail?unit=537">537</a></td><td>2,000</td><td>2</td><td>0</td></tr>
+        </table>
+        """
+
+        entries = DaidataOnlineScraper().extract_unit_detail_links(
+            html,
+            f"{DAIDATA_BEAM_HIKARI_URL}/unit_list?model=god&ballPrice=20.00&ps=S",
+        )
+
+        self.assertEqual([entry.slot_number for entry in entries], ["537", "638"])
+        self.assertEqual(
+            [entry.url for entry in entries],
+            [
+                f"{DAIDATA_BEAM_HIKARI_URL}/detail?unit=537",
+                f"{DAIDATA_BEAM_HIKARI_URL}/detail?unit=638",
+            ],
+        )
+
+    def test_daidata_at_rule_key_normalizes_equivalent_machine_name(self) -> None:
+        self.assertEqual(
+            build_daidata_at_rule_key("100619", " スマスロ　ミリオンゴッド "),
+            build_daidata_at_rule_key("100619", "スマスロ ミリオンゴッド"),
+        )
+
+    def test_daidata_at_counter_rules_are_remembered_per_store_machine_and_rate(self) -> None:
+        with TemporaryDirectory() as temporary_directory:
+            scraper = DaidataOnlineScraper(Path(temporary_directory))
+            rule_key = build_daidata_at_rule_key(
+                "100619",
+                "スマスロ ミリオンゴッド",
+                "20yen",
+            )
+            rules = {
+                rule_key: {
+                    "store_id": "100619",
+                    "machine_name": "スマスロ ミリオンゴッド",
+                    "machine_name_key": "スマスロミリオンゴッド",
+                    "rate_key": "20yen",
+                    "decision": DAIDATA_AT_DECISION_TO_RB,
+                    "graph_found": True,
+                    "at_series_present": True,
+                    "bb_positive": True,
+                    "rb_positive": False,
+                    "at_positive": True,
+                    "updated_at": "2026-07-27T23:40:00+09:00",
+                }
+            }
+
+            scraper._save_at_counter_rules(rules)
+            loaded_rules = DaidataOnlineScraper(Path(temporary_directory))._load_at_counter_rules()
+
+            self.assertEqual(loaded_rules, rules)
+            self.assertNotEqual(
+                rule_key,
+                build_daidata_at_rule_key(
+                    "101221",
+                    "スマスロ ミリオンゴッド",
+                    "20yen",
+                ),
+            )
+
+    def test_daidata_at_supplement_keeps_eight_latest_days_and_ignore_marker(self) -> None:
+        graph = parse_daidata_weekly_counter_graph(
+            r"""
+            <script>
+              const data = [
+                [["07\/27",1],["07\/26",1],["07\/25",1],["07\/24",1],["07\/23",1],["07\/22",1],["07\/21",1],["07\/20",1]],
+                [["07\/27",2],["07\/26",2],["07\/25",2],["07\/24",2],["07\/23",2],["07\/22",2],["07\/21",2],["07\/20",2]],
+                [["07\/27",8],["07\/26",7],["07\/25",6],["07\/24",5],["07\/23",4],["07\/22",3],["07\/21",2],["07\/20",1]]
+              ];
+              const $graph = $('#weekly-jackpot-1');
+            </script>
+            """,
+            reference_datetime=datetime(2026, 7, 27, 12, 0),
+        )
+
+        result = build_daidata_at_supplement_history_result(
+            store_name="ビームヒカリ",
+            store_url=DAIDATA_BEAM_HIKARI_URL,
+            machine_name="スマスロ ミリオンゴッド",
+            machine_url=f"{DAIDATA_BEAM_HIKARI_URL}/unit_list?model=god&ballPrice=20.00&ps=S",
+            observations=[
+                DaidataAtDetailObservation(
+                    slot_number="537",
+                    detail_url=f"{DAIDATA_BEAM_HIKARI_URL}/detail?unit=537",
+                    fetched_at="2026-07-27T12:34:56+09:00",
+                    graph=graph,
+                )
+            ],
+            decision=DAIDATA_AT_DECISION_IGNORE_THREE_COUNTERS,
+            recent_days=8,
+        )
+
+        self.assertEqual(result.start_date, "2026-07-20")
+        self.assertEqual(result.end_date, "2026-07-27")
+        self.assertEqual(len(result.datasets), 8)
+        self.assertEqual(
+            result.datasets[-1].columns,
+            ["台番", "AT", "AT表示枠", "AT取得元", "AT取得日時"],
+        )
+        self.assertEqual(
+            result.datasets[-1].rows,
+            [["537", "8", "ignore", "daidata_online", "2026-07-27T12:34:56+09:00"]],
+        )
+
+    def test_daidata_at_supplement_merge_allows_empty_result(self) -> None:
+        store_config = daidata_store_config_for("ビームヒカリ", "")
+        self.assertIsNotNone(store_config)
+
+        result = DaidataOnlineScraper()._merge_at_supplement_results(store_config, [])
+
+        self.assertEqual(result.store_name, "ビームヒカリ")
+        self.assertEqual(result.datasets, [])
+        self.assertEqual(result.date_pages, [])
+        self.assertEqual(result.start_date, "")
+        self.assertEqual(result.end_date, "")
+
+    def test_daidata_saved_ignore_rule_fetches_next_day_raw_at(self) -> None:
+        class FakeDaidataAtPage:
+            def __init__(self) -> None:
+                self.url = ""
+                self.goto_calls: list[str] = []
+
+            def goto(self, url: str, wait_until: str = "", timeout: int = 0) -> None:
+                self.url = url
+                self.goto_calls.append(url)
+
+            def content(self) -> str:
+                if "psModelNameSearch" in self.url:
+                    return """
+                    <a href="/100619/unit_list?model=kabaneri&ballPrice=20.00&ps=S">
+                      スマスロ 甲鉄城のカバネリ 海門決戦 20円スロット | 1台
+                    </a>
+                    """
+                if "unit_list" in self.url:
+                    return """
+                    <table>
+                      <tr><th>台番号</th><th>累計スタート</th><th>BB回数</th><th>RB回数</th></tr>
+                      <tr>
+                        <td><a href="/100619/detail?unit=638">638</a></td>
+                        <td>1,000</td><td>1</td><td>2</td>
+                      </tr>
+                    </table>
+                    """
+                if "/detail" in self.url:
+                    return r"""
+                    <p>データ更新 2026.07.28 12:00</p>
+                    <script>
+                      const data = [
+                        [["07\/28", 1]],
+                        [["07\/28", 2]],
+                        [["07\/28", 3]]
+                      ];
+                      const $graph = $('#weekly-jackpot-1');
+                    </script>
+                    """
+                return "<html><body>store</body></html>"
+
+            def wait_for_timeout(self, milliseconds: int) -> None:
+                return None
+
+        class FakeDaidataAtContext:
+            def __init__(self, page: FakeDaidataAtPage) -> None:
+                self.pages = [page]
+
+            def close(self) -> None:
+                return None
+
+        class FakeDaidataAtPlaywright:
+            def stop(self) -> None:
+                return None
+
+        store_config = daidata_store_config_for("ビームヒカリ", "")
+        self.assertIsNotNone(store_config)
+        machine_name = "スマスロ 甲鉄城のカバネリ 海門決戦"
+        rule_key = build_daidata_at_rule_key(store_config.store_id, machine_name)
+        with TemporaryDirectory() as temporary_dir:
+            page = FakeDaidataAtPage()
+            scraper = DaidataOnlineScraper(
+                root_dir=Path(temporary_dir),
+                current_datetime_fn=lambda: datetime(2026, 7, 28, 12, 34, 56),
+            )
+            scraper._save_at_counter_rules(
+                {
+                    rule_key: {
+                        "store_id": store_config.store_id,
+                        "machine_name": machine_name,
+                        "machine_name_key": rule_key.split("|")[1],
+                        "rate_key": "20yen",
+                        "decision": DAIDATA_AT_DECISION_IGNORE_THREE_COUNTERS,
+                        "graph_found": True,
+                        "at_series_present": True,
+                        "bb_positive": True,
+                        "rb_positive": True,
+                        "at_positive": True,
+                        "updated_at": "2026-07-27T12:00:00+09:00",
+                    }
+                }
+            )
+            scraper._require_playwright = mock.Mock()
+            scraper._launch_mobile_browser_context = mock.Mock(
+                return_value=(FakeDaidataAtPlaywright(), FakeDaidataAtContext(page))
+            )
+            scraper._wait_for_accept_terms_if_needed = mock.Mock(return_value=False)
+            scraper._wait_between_transitions = mock.Mock()
+
+            result = scraper.fetch_store_at_supplement_history(
+                store_config=store_config,
+                recent_days=8,
+            )
+
+        self.assertTrue(any("/detail?unit=638" in url for url in page.goto_calls))
+        self.assertEqual(len(result.datasets), 1)
+        self.assertEqual(result.datasets[0].target_date, "2026-07-28")
+        self.assertEqual(
+            result.datasets[0].rows,
+            [["638", "3", "ignore", "daidata_online", "2026-07-28T12:34:56+09:00"]],
+        )
+
     def test_daidata_build_machine_daily_records_is_site7_provisional_source(self) -> None:
         dataset = MachineDataset(
             store_name="ビームヒカリ",
@@ -6005,6 +6523,67 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(records[0]["games_count"], 1234)
         self.assertEqual(records[0]["site7_fetched_at"], "2026-06-25T00:07:00+09:00")
 
+    def test_daidata_build_machine_daily_records_keeps_at_only_row(self) -> None:
+        dataset = MachineDataset(
+            store_name="ビームヒカリ",
+            store_url=DAIDATA_BEAM_HIKARI_URL,
+            target_date="2026-07-27",
+            date_url=f"{DAIDATA_BEAM_HIKARI_URL}/unit_list?model=kabaneri&hist_num=0",
+            machine_name="スマスロ 甲鉄城のカバネリ 海門決戦",
+            machine_url=f"{DAIDATA_BEAM_HIKARI_URL}/unit_list?model=kabaneri",
+            columns=[
+                "台番",
+                "差枚",
+                "G数",
+                "出率",
+                "BB",
+                "RB",
+                "合成",
+                "BB率",
+                "RB率",
+                "AT",
+                "AT表示枠",
+                "AT取得元",
+                "AT取得日時",
+            ],
+            rows=[
+                [
+                    "537",
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                    "6",
+                    "bb",
+                    "daidata_online",
+                    "2026-07-27T12:34:56+09:00",
+                ]
+            ],
+        )
+        history_result = MachineHistoryResult(
+            store_name="ビームヒカリ",
+            store_url=DAIDATA_BEAM_HIKARI_URL,
+            start_date="2026-07-27",
+            end_date="2026-07-27",
+            date_pages=[StoreDatePage(target_date="2026-07-27", date_url=dataset.date_url)],
+            datasets=[dataset],
+        )
+
+        records = build_machine_daily_records(history_result)
+
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["data_source"], DATA_SOURCE_SITE7)
+        self.assertIsNone(records[0]["bb_count"])
+        self.assertIsNone(records[0]["rb_count"])
+        self.assertEqual(records[0]["at_count"], 6)
+        self.assertEqual(records[0]["at_display_slot"], "bb")
+        self.assertEqual(records[0]["at_source"], "daidata_online")
+        self.assertEqual(records[0]["at_fetched_at"], "2026-07-27T12:34:56+09:00")
+
     def test_daidata_store_and_machine_link_filters_beam_jugglers(self) -> None:
         html = """
         <a href="/100619/unit_list?model=neo&ballPrice=20.00&ps=S">ネオアイムジャグラーEX 20円スロット |</a>
@@ -6030,6 +6609,96 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertIsNotNone(minamigaoka_config)
         self.assertEqual(minamigaoka_config.url, DAIDATA_WONDERLAND_MINAMIGAOKA_URL)
         self.assertEqual([entry.machine_name for entry in entries], [SITE7_NEO_IM_MACHINE_NAME])
+
+    def test_daidata_store_history_optionally_includes_twenty_yen_non_jugglers(self) -> None:
+        class FakeDaidataMachineListPage:
+            url = DAIDATA_BEAM_HIKARI_URL
+
+            def content(self) -> str:
+                return """
+                <a href="/100619/unit_list?model=neo&ballPrice=20.00&ps=S">
+                  ネオアイムジャグラーEX 20円スロット | 2台
+                </a>
+                <a href="/100619/unit_list?model=kabaneri&ballPrice=20.00&ps=S">
+                  スマスロ 甲鉄城のカバネリ 海門決戦 20円スロット | 10台
+                </a>
+                <a href="/100619/unit_list?model=god-low&ballPrice=5.00&ps=S">
+                  スマスロ ミリオンゴッド-神々の軌跡- 5円スロット | 3台
+                </a>
+                """
+
+        class FakeDaidataContext:
+            pages = [FakeDaidataMachineListPage()]
+
+            def close(self) -> None:
+                return None
+
+        class FakeDaidataPlaywright:
+            def stop(self) -> None:
+                return None
+
+        def build_machine_result(
+            *,
+            store_config: object,
+            machine_entry: DaidataOnlineMachineEntry,
+            **_: object,
+        ) -> MachineHistoryResult:
+            dataset = MachineDataset(
+                store_name=store_config.store_name,
+                store_url=store_config.url,
+                target_date="2026-07-27",
+                date_url=machine_entry.url,
+                machine_name=machine_entry.machine_name,
+                machine_url=machine_entry.url,
+                columns=["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"],
+                rows=[["537", "-", "1000", "-", "0", "4", "-", "-", "-"]],
+            )
+            return MachineHistoryResult(
+                store_name=store_config.store_name,
+                store_url=store_config.url,
+                start_date="2026-07-27",
+                end_date="2026-07-27",
+                date_pages=[StoreDatePage(target_date="2026-07-27", date_url=machine_entry.url)],
+                datasets=[dataset],
+            )
+
+        store_config = daidata_store_config_for("ビームヒカリ", "")
+        self.assertIsNotNone(store_config)
+        for include_non_jugglers, expected_machine_names in (
+            (False, [SITE7_NEO_IM_MACHINE_NAME]),
+            (
+                True,
+                [
+                    SITE7_NEO_IM_MACHINE_NAME,
+                    "スマスロ 甲鉄城のカバネリ 海門決戦",
+                ],
+            ),
+        ):
+            with self.subTest(include_non_jugglers=include_non_jugglers):
+                scraper = DaidataOnlineScraper()
+                scraper._require_playwright = mock.Mock()
+                scraper._launch_mobile_browser_context = mock.Mock(
+                    return_value=(FakeDaidataPlaywright(), FakeDaidataContext())
+                )
+                scraper._goto_daidata_page = mock.Mock()
+                scraper._fetch_machine_history_result = mock.Mock(side_effect=build_machine_result)
+
+                result = scraper.fetch_store_juggler_history(
+                    store_config=store_config,
+                    recent_days=1,
+                    enabled_machine_names={SITE7_NEO_IM_MACHINE_NAME},
+                    include_twenty_yen_non_juggler_machines=include_non_jugglers,
+                )
+
+                fetched_machine_names = [
+                    call.kwargs["machine_entry"].machine_name
+                    for call in scraper._fetch_machine_history_result.call_args_list
+                ]
+                self.assertEqual(fetched_machine_names, expected_machine_names)
+                self.assertEqual(
+                    sorted(dataset.machine_name for dataset in result.datasets),
+                    sorted(expected_machine_names),
+                )
 
     def test_daidata_accept_terms_page_is_clicked_automatically(self) -> None:
         class FakeDaidataAcceptButton:
@@ -6623,6 +7292,316 @@ class MinRepoScraperTests(unittest.TestCase):
 
         self.assertEqual([record["target_date"] for record in merged_records], ["2026-05-12"])
 
+    def test_r2_merge_adds_at_only_daidata_fields_to_existing_minrepo_record(self) -> None:
+        service = HistoryPersistenceService(root_dir=ROOT_DIR, r2_storage=FakeR2JsonStorage())
+        minrepo_record = {
+            "target_date": "2026-07-27",
+            "slot_number": "537",
+            "machine_name": "スマスロ 甲鉄城のカバネリ 海門決戦",
+            "data_source": DATA_SOURCE_MINREPO,
+            "difference_value": 1234,
+            "games_count": 4567,
+            "payout_rate": 109.0,
+            "bb_count": 0,
+            "rb_count": 12,
+        }
+        at_only_record = {
+            "target_date": "2026-07-27",
+            "slot_number": "537",
+            "machine_name": "スマスロ 甲鉄城のカバネリ 海門決戦",
+            "data_source": DATA_SOURCE_SITE7,
+            "at_count": 6,
+            "at_display_slot": "bb",
+            "at_source": "daidata_online",
+            "at_fetched_at": "2026-07-27T12:34:56+09:00",
+        }
+
+        merged_records = service._merge_r2_records([minrepo_record], [at_only_record])
+
+        self.assertEqual(len(merged_records), 1)
+        merged_record = merged_records[0]
+        self.assertEqual(merged_record["data_source"], DATA_SOURCE_MINREPO)
+        self.assertEqual(merged_record["difference_value"], 1234)
+        self.assertEqual(merged_record["games_count"], 4567)
+        self.assertEqual(merged_record["bb_count"], 0)
+        self.assertEqual(merged_record["rb_count"], 12)
+        self.assertEqual(merged_record["at_count"], 6)
+        self.assertEqual(merged_record["at_display_slot"], "bb")
+        self.assertEqual(merged_record["at_source"], "daidata_online")
+        self.assertEqual(merged_record["at_fetched_at"], "2026-07-27T12:34:56+09:00")
+
+    def test_r2_merge_keeps_existing_at_when_minrepo_arrives_later(self) -> None:
+        service = HistoryPersistenceService(root_dir=ROOT_DIR, r2_storage=FakeR2JsonStorage())
+        at_only_record = {
+            "target_date": "2026-07-27",
+            "slot_number": "537",
+            "machine_name": "スマスロ 甲鉄城のカバネリ 海門決戦",
+            "data_source": DATA_SOURCE_SITE7,
+            "at_count": 6,
+            "at_display_slot": "bb",
+            "at_source": "daidata_online",
+            "at_fetched_at": "2026-07-27T12:34:56+09:00",
+        }
+        minrepo_record = {
+            "target_date": "2026-07-27",
+            "slot_number": "537",
+            "machine_name": "スマスロ 甲鉄城のカバネリ 海門決戦",
+            "data_source": DATA_SOURCE_MINREPO,
+            "difference_value": 2345,
+            "games_count": 5678,
+            "payout_rate": None,
+            "bb_count": 0,
+            "rb_count": 15,
+        }
+
+        merged_records = service._merge_r2_records([at_only_record], [minrepo_record])
+
+        self.assertEqual(len(merged_records), 1)
+        merged_record = merged_records[0]
+        self.assertEqual(merged_record["data_source"], DATA_SOURCE_MINREPO)
+        self.assertEqual(merged_record["difference_value"], 2345)
+        self.assertEqual(merged_record["games_count"], 5678)
+        self.assertEqual(merged_record["bb_count"], 0)
+        self.assertEqual(merged_record["rb_count"], 15)
+        self.assertEqual(merged_record["at_count"], 6)
+        self.assertEqual(merged_record["at_display_slot"], "bb")
+
+    def test_r2_merge_keeps_explicit_minrepo_primary_values_without_payout_rate(self) -> None:
+        service = HistoryPersistenceService(root_dir=ROOT_DIR, r2_storage=FakeR2JsonStorage())
+        minrepo_record = {
+            "target_date": "2026-07-27",
+            "slot_number": "537",
+            "machine_name": "スマスロ ミリオンゴッド",
+            "data_source": DATA_SOURCE_MINREPO,
+            "difference_value": 1800,
+            "games_count": 5000,
+            "payout_rate": None,
+            "bb_count": 4,
+            "rb_count": 0,
+        }
+        daidata_record = {
+            "target_date": "2026-07-27",
+            "slot_number": "537",
+            "machine_name": "スマスロ ミリオンゴッド",
+            "data_source": DATA_SOURCE_SITE7,
+            "difference_value": 900,
+            "games_count": 4800,
+            "payout_rate": None,
+            "bb_count": 3,
+            "rb_count": 0,
+            "at_count": 8,
+            "at_display_slot": "rb",
+            "at_source": "daidata_online",
+            "at_fetched_at": "2026-07-27T12:34:56+09:00",
+        }
+
+        merged_records = service._merge_r2_records([minrepo_record], [daidata_record])
+
+        self.assertEqual(merged_records[0]["data_source"], DATA_SOURCE_MINREPO)
+        self.assertEqual(merged_records[0]["difference_value"], 1800)
+        self.assertEqual(merged_records[0]["games_count"], 5000)
+        self.assertEqual(merged_records[0]["bb_count"], 4)
+        self.assertEqual(merged_records[0]["at_count"], 8)
+        self.assertEqual(merged_records[0]["at_display_slot"], "rb")
+
+    def test_r2_merge_applies_latest_ignore_rule_to_old_same_machine_at_rows(self) -> None:
+        service = HistoryPersistenceService(root_dir=ROOT_DIR, r2_storage=FakeR2JsonStorage())
+        machine_name = "スマスロ 甲鉄城のカバネリ 海門決戦"
+        old_record = {
+            "target_date": "2026-07-01",
+            "slot_number": "537",
+            "machine_name": machine_name,
+            "data_source": DATA_SOURCE_SITE7,
+            "at_count": 2,
+            "at_display_slot": "bb",
+            "at_source": "daidata_online",
+            "at_fetched_at": "2026-07-08T12:00:00+09:00",
+        }
+        other_machine_record = {
+            "target_date": "2026-07-01",
+            "slot_number": "800",
+            "machine_name": "スマスロ ミリオンゴッド",
+            "data_source": DATA_SOURCE_SITE7,
+            "at_count": 9,
+            "at_display_slot": "bb",
+            "at_source": "daidata_online",
+            "at_fetched_at": "2026-07-08T12:00:00+09:00",
+        }
+        latest_record = {
+            "target_date": "2026-07-27",
+            "slot_number": "537",
+            "machine_name": machine_name,
+            "data_source": DATA_SOURCE_SITE7,
+            "at_count": 6,
+            "at_display_slot": "ignore",
+            "at_source": "daidata_online",
+            "at_fetched_at": "2026-07-27T12:00:00+09:00",
+        }
+
+        merged_records = service._merge_r2_records(
+            [old_record, other_machine_record],
+            [latest_record],
+        )
+        records_by_machine_and_date = {
+            (record["machine_name"], record["target_date"]): record
+            for record in merged_records
+        }
+
+        updated_old_record = records_by_machine_and_date[(machine_name, "2026-07-01")]
+        self.assertEqual(updated_old_record["at_count"], 2)
+        self.assertEqual(updated_old_record["at_display_slot"], "ignore")
+        self.assertEqual(updated_old_record["at_fetched_at"], "2026-07-08T12:00:00+09:00")
+        self.assertEqual(
+            records_by_machine_and_date[("スマスロ ミリオンゴッド", "2026-07-01")][
+                "at_display_slot"
+            ],
+            "bb",
+        )
+
+    def test_minrepo_merge_keeps_latest_rb_rule_when_old_bb_backfill_arrives_later(self) -> None:
+        service = HistoryPersistenceService(root_dir=ROOT_DIR, r2_storage=FakeR2JsonStorage())
+        machine_name = "スマスロ ミリオンゴッド"
+        latest_record = {
+            "target_date": "2026-07-27",
+            "slot_number": "537",
+            "machine_name": machine_name,
+            "data_source": DATA_SOURCE_MINREPO,
+            "at_count": 8,
+            "at_display_slot": "rb",
+            "at_source": "daidata_online",
+            "at_fetched_at": "2026-07-27T12:00:00+09:00",
+        }
+        old_backfill_record = {
+            "target_date": "2026-06-01",
+            "slot_number": "537",
+            "machine_name": machine_name,
+            "data_source": DATA_SOURCE_MINREPO,
+            "at_count": 3,
+            "at_display_slot": "bb",
+            "at_source": "daidata_online",
+            "at_fetched_at": "2026-06-08T12:00:00+09:00",
+        }
+
+        merged_records = service._merge_minrepo_machine_records(
+            [latest_record],
+            [old_backfill_record],
+        )
+        records_by_date = {record["target_date"]: record for record in merged_records}
+
+        self.assertEqual(records_by_date["2026-06-01"]["at_count"], 3)
+        self.assertEqual(records_by_date["2026-06-01"]["at_display_slot"], "rb")
+        self.assertEqual(records_by_date["2026-07-27"]["at_count"], 8)
+        self.assertEqual(records_by_date["2026-07-27"]["at_display_slot"], "rb")
+
+    def test_r2_merge_does_not_replace_confirmed_at_rule_with_newer_unknown(self) -> None:
+        service = HistoryPersistenceService(root_dir=ROOT_DIR, r2_storage=FakeR2JsonStorage())
+        machine_name = "スマスロ 甲鉄城のカバネリ 海門決戦"
+        confirmed_record = {
+            "target_date": "2026-07-27",
+            "slot_number": "537",
+            "machine_name": machine_name,
+            "data_source": DATA_SOURCE_SITE7,
+            "at_count": 4,
+            "at_display_slot": "bb",
+            "at_source": "daidata_online",
+            "at_fetched_at": "2026-07-27T11:00:00+09:00",
+        }
+        unknown_record = {
+            "target_date": "2026-07-27",
+            "slot_number": "537",
+            "machine_name": machine_name,
+            "data_source": DATA_SOURCE_SITE7,
+            "at_count": 6,
+            "at_display_slot": "unknown",
+            "at_source": "daidata_online",
+            "at_fetched_at": "2026-07-27T12:00:00+09:00",
+        }
+
+        merged_records = service._merge_r2_records([confirmed_record], [unknown_record])
+
+        self.assertEqual(len(merged_records), 1)
+        self.assertEqual(merged_records[0]["at_count"], 6)
+        self.assertEqual(merged_records[0]["at_fetched_at"], "2026-07-27T12:00:00+09:00")
+        self.assertEqual(merged_records[0]["at_display_slot"], "bb")
+
+    def test_minrepo_incremental_merge_keeps_newest_at_supplement(self) -> None:
+        service = HistoryPersistenceService(root_dir=ROOT_DIR, r2_storage=FakeR2JsonStorage())
+        existing_record = {
+            "target_date": "2026-07-27",
+            "slot_number": "537",
+            "machine_name": "スマスロ 甲鉄城のカバネリ 海門決戦",
+            "data_source": DATA_SOURCE_MINREPO,
+            "difference_value": 1234,
+            "games_count": 4567,
+            "payout_rate": 109.0,
+            "bb_count": 0,
+            "rb_count": 12,
+            "at_count": 6,
+            "at_display_slot": "bb",
+            "at_source": "daidata_online",
+            "at_fetched_at": "2026-07-27T12:34:56+09:00",
+        }
+        incoming_record = {
+            "target_date": "2026-07-27",
+            "slot_number": "537",
+            "machine_name": "スマスロ 甲鉄城のカバネリ 海門決戦",
+            "data_source": DATA_SOURCE_MINREPO,
+            "difference_value": 2500,
+            "games_count": 6000,
+            "payout_rate": 113.8,
+            "bb_count": 0,
+            "rb_count": 16,
+        }
+
+        merged_records = service._merge_minrepo_machine_records([existing_record], [incoming_record])
+
+        self.assertEqual(len(merged_records), 1)
+        self.assertEqual(merged_records[0]["difference_value"], 2500)
+        self.assertEqual(merged_records[0]["rb_count"], 16)
+        self.assertEqual(merged_records[0]["at_count"], 6)
+        self.assertEqual(merged_records[0]["at_fetched_at"], "2026-07-27T12:34:56+09:00")
+
+    def test_r2_merge_rejects_older_at_update_and_accepts_newer_update(self) -> None:
+        service = HistoryPersistenceService(root_dir=ROOT_DIR, r2_storage=FakeR2JsonStorage())
+        existing_record = {
+            "target_date": "2026-07-27",
+            "slot_number": "537",
+            "machine_name": "スマスロ 甲鉄城のカバネリ 海門決戦",
+            "data_source": DATA_SOURCE_MINREPO,
+            "difference_value": 1234,
+            "games_count": 4567,
+            "payout_rate": 109.0,
+            "bb_count": 0,
+            "rb_count": 12,
+            "at_count": 6,
+            "at_display_slot": "bb",
+            "at_source": "daidata_online",
+            "at_fetched_at": "2026-07-27T12:34:56+09:00",
+        }
+
+        older_update = {
+            "target_date": "2026-07-27",
+            "slot_number": "537",
+            "machine_name": "スマスロ 甲鉄城のカバネリ 海門決戦",
+            "data_source": DATA_SOURCE_SITE7,
+            "at_count": 5,
+            "at_display_slot": "bb",
+            "at_source": "daidata_online",
+            "at_fetched_at": "2026-07-27T11:34:56+09:00",
+        }
+        newer_update = {
+            **older_update,
+            "at_count": 7,
+            "at_fetched_at": "2026-07-27T13:34:56+09:00",
+        }
+
+        after_older = service._merge_r2_records([existing_record], [older_update])
+        after_newer = service._merge_r2_records(after_older, [newer_update])
+
+        self.assertEqual(after_older[0]["at_count"], 6)
+        self.assertEqual(after_newer[0]["at_count"], 7)
+        self.assertEqual(after_newer[0]["at_fetched_at"], "2026-07-27T13:34:56+09:00")
+
     def test_web_export_skips_blank_site7_rows(self) -> None:
         record = safe_record(
             {
@@ -6643,6 +7622,91 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         self.assertIsNone(record)
+
+    def test_web_export_keeps_at_only_site7_row_and_normalizes_fields(self) -> None:
+        record = safe_record(
+            {
+                "target_date": "2026-07-27",
+                "slot_number": "537",
+                "machine_name": "スマスロ 甲鉄城のカバネリ 海門決戦",
+                "data_source": DATA_SOURCE_SITE7,
+                "at_count": "6",
+                "at_display_slot": "BB",
+                "at_source": "daidata_online",
+                "at_fetched_at": "2026-07-27T12:34:56+09:00",
+            }
+        )
+
+        self.assertIsNotNone(record)
+        self.assertEqual(record["at_count"], 6)
+        self.assertEqual(record["at_display_slot"], "bb")
+        self.assertEqual(record["at_source"], "daidata_online")
+        self.assertEqual(record["at_fetched_at"], "2026-07-27T12:34:56+09:00")
+
+    def test_web_export_distinguishes_zero_at_count_from_missing_at_count(self) -> None:
+        zero_record = safe_record(
+            {
+                "target_date": "2026-07-27",
+                "slot_number": "537",
+                "machine_name": "三系列利用機種",
+                "data_source": DATA_SOURCE_SITE7,
+                "at_count": 0,
+                "at_display_slot": "",
+                "at_source": "daidata_online",
+            }
+        )
+        missing_record = safe_record(
+            {
+                "target_date": "2026-07-27",
+                "slot_number": "538",
+                "machine_name": "三系列利用機種",
+                "data_source": DATA_SOURCE_MINREPO,
+                "difference_value": 100,
+                "games_count": 1000,
+                "payout_rate": 101.0,
+                "bb_count": 1,
+                "rb_count": 1,
+            }
+        )
+
+        self.assertIsNotNone(zero_record)
+        self.assertEqual(zero_record["at_count"], 0)
+        self.assertEqual(zero_record["at_display_slot"], "unknown")
+        self.assertIsNotNone(missing_record)
+        self.assertIsNone(missing_record.get("at_count"))
+
+    def test_build_store_payload_keeps_at_supplement_in_machine_file(self) -> None:
+        store_payload = build_store_payload(
+            StoreSource(store_name="ビームヒカリ", store_url=DAIDATA_BEAM_HIKARI_URL),
+            [
+                {
+                    "target_date": "2026-07-27",
+                    "slot_number": "537",
+                    "machine_name": "スマスロ 甲鉄城のカバネリ 海門決戦",
+                    "data_source": DATA_SOURCE_MINREPO,
+                    "difference_value": 1234,
+                    "games_count": 4567,
+                    "payout_rate": 109.0,
+                    "bb_count": 0,
+                    "rb_count": 12,
+                    "at_count": 6,
+                    "at_display_slot": "bb",
+                    "at_source": "daidata_online",
+                    "at_fetched_at": "2026-07-27T12:34:56+09:00",
+                }
+            ],
+        )
+
+        machine_files = store_payload["_machineRecordsByFile"]
+        machine_payload = next(iter(machine_files.values()))
+        exported_record = machine_payload["records"][0]
+        self.assertEqual(exported_record["data_source"], DATA_SOURCE_MINREPO)
+        self.assertEqual(exported_record["bb_count"], 0)
+        self.assertEqual(exported_record["rb_count"], 12)
+        self.assertEqual(exported_record["at_count"], 6)
+        self.assertEqual(exported_record["at_display_slot"], "bb")
+        self.assertEqual(exported_record["at_source"], "daidata_online")
+        self.assertEqual(exported_record["at_fetched_at"], "2026-07-27T12:34:56+09:00")
 
     def test_web_export_keeps_site7_fetched_at(self) -> None:
         record = safe_record(
@@ -7204,6 +8268,32 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(payload["data_source"], DATA_SOURCE_SITE7)
         self.assertEqual(payload["store_id"], "store-1")
 
+    def test_build_supabase_result_payload_omits_at_fields_for_existing_schema(self) -> None:
+        payload = build_supabase_result_payload(
+            {
+                "target_date": "2026-07-27",
+                "slot_number": "537",
+                "machine_name": "スマスロ 甲鉄城のカバネリ 海門決戦",
+                "data_source": DATA_SOURCE_MINREPO,
+                "difference_value": 1234,
+                "games_count": 4567,
+                "payout_rate": 109.0,
+                "bb_count": 0,
+                "rb_count": 12,
+                "at_count": 6,
+                "at_display_slot": "bb",
+                "at_source": "daidata_online",
+                "at_fetched_at": "2026-07-27T12:34:56+09:00",
+            },
+            store_id="store-1",
+            updated_at="2026-07-27T12:40:00+09:00",
+        )
+
+        self.assertNotIn("at_count", payload)
+        self.assertNotIn("at_display_slot", payload)
+        self.assertNotIn("at_source", payload)
+        self.assertNotIn("at_fetched_at", payload)
+
     def test_build_store_machine_summary_payloads_uses_latest_date_only(self) -> None:
         payloads = build_store_machine_summary_payloads(
             [
@@ -7327,6 +8417,34 @@ class MinRepoScraperTests(unittest.TestCase):
                 },
             },
         )
+
+    def test_build_store_machine_daily_detail_payloads_keeps_ignored_at_supplement(self) -> None:
+        payloads = build_store_machine_daily_detail_payloads(
+            [
+                {
+                    "target_date": "2026-07-27",
+                    "slot_number": "537",
+                    "machine_name": "三系列利用機種",
+                    "difference_value": 100,
+                    "games_count": 2000,
+                    "payout_rate": 101.0,
+                    "bb_count": 3,
+                    "rb_count": 2,
+                    "at_count": 8,
+                    "at_display_slot": "ignore",
+                    "at_source": "daidata_online",
+                    "at_fetched_at": "2026-07-27T12:34:56+09:00",
+                }
+            ],
+            store_id="store-1",
+            updated_at="2026-07-27T12:40:00+09:00",
+        )
+
+        slot_payload = payloads[0]["records_by_slot"]["537"]
+        self.assertEqual(slot_payload["at_count"], 8)
+        self.assertEqual(slot_payload["at_display_slot"], "ignore")
+        self.assertEqual(slot_payload["at_source"], "daidata_online")
+        self.assertEqual(slot_payload["at_fetched_at"], "2026-07-27T12:34:56+09:00")
 
     def test_save_to_supabase_is_disabled(self) -> None:
         with TemporaryDirectory() as temp_dir:
@@ -7814,6 +8932,102 @@ class MinRepoScraperTests(unittest.TestCase):
 
             self.assertFalse(summary.has_errors)
             self.assertEqual(saved_dates_summary.saved_dates, set())
+
+    def test_save_history_result_keeps_full_day_index_for_at_only_supplement(self) -> None:
+        store_name = "ビームヒカリ"
+        store_url = DAIDATA_BEAM_HIKARI_URL
+        target_date = "2026-07-27"
+        history_result = MachineHistoryResult(
+            store_name=store_name,
+            store_url=store_url,
+            start_date=target_date,
+            end_date=target_date,
+            date_pages=[
+                StoreDatePage(
+                    target_date=target_date,
+                    date_url=f"{store_url}/unit_list?model=kabaneri&hist_num=0",
+                )
+            ],
+            datasets=[
+                MachineDataset(
+                    store_name=store_name,
+                    store_url=store_url,
+                    target_date=target_date,
+                    date_url=f"{store_url}/unit_list?model=kabaneri&hist_num=0",
+                    machine_name="スマスロ 甲鉄城のカバネリ 海門決戦",
+                    machine_url=f"{store_url}/unit_list?model=kabaneri",
+                    columns=[
+                        "台番",
+                        "差枚",
+                        "G数",
+                        "出率",
+                        "BB",
+                        "RB",
+                        "合成",
+                        "BB率",
+                        "RB率",
+                        "AT",
+                        "AT表示枠",
+                        "AT取得元",
+                        "AT取得日時",
+                    ],
+                    rows=[
+                        [
+                            "537",
+                            "-",
+                            "-",
+                            "-",
+                            "-",
+                            "-",
+                            "-",
+                            "-",
+                            "-",
+                            "6",
+                            "bb",
+                            "daidata_online",
+                            "2026-07-27T12:34:56+09:00",
+                        ]
+                    ],
+                )
+            ],
+        )
+
+        with TemporaryDirectory() as temp_dir:
+            service, storage = make_r2_service(Path(temp_dir))
+            storage.write_json(
+                service._r2_full_day_index_key(store_name, store_url),  # type: ignore[attr-defined]
+                {
+                    "version": 1,
+                    "store": {"store_name": store_name, "store_url": store_url},
+                    "full_day_dates": {
+                        target_date: {
+                            "saved_at": "2026-07-27T12:00:00+09:00",
+                            "machine_count": 1,
+                            "record_count": 1,
+                            "snapshot_key": "minrepo-full-day.json",
+                            "data_source": DATA_SOURCE_MINREPO,
+                        }
+                    },
+                },
+            )
+
+            summary = service.save_history_result(history_result)
+            cleanup_summary = service.clear_full_day_saved_dates_with_site7(
+                store_name=store_name,
+                store_url=store_url,
+                start_date=target_date,
+                end_date=target_date,
+            )
+            saved_dates_summary = service.find_saved_full_day_dates(
+                store_name=store_name,
+                store_url=store_url,
+                start_date=target_date,
+                end_date=target_date,
+            )
+
+            self.assertFalse(summary.has_errors)
+            self.assertEqual(cleanup_summary.removed_date_count, 0)
+            self.assertEqual(saved_dates_summary.saved_dates, {target_date})
 
     def test_save_history_result_keeps_full_day_index_when_site7_supplements_minrepo(self) -> None:
         store_name = "テスト店"

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import json
 import re
 import unicodedata
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Iterable
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit, unquote
 
 from bs4 import BeautifulSoup, Tag
@@ -57,8 +58,34 @@ DAIDATA_WONDERLAND_MINAMIGAOKA_STORE_NAME = "ワンダーランド南ヶ丘店"
 DAIDATA_WONDERLAND_MINAMIGAOKA_STORE_ID = "101220"
 DAIDATA_WONDERLAND_MINAMIGAOKA_URL = f"https://daidata.goraggio.com/{DAIDATA_WONDERLAND_MINAMIGAOKA_STORE_ID}"
 DAIDATA_BROWSER_STATE_DIR_NAME = "daidata_online_browser"
+DAIDATA_AT_COUNTER_RULES_FILE_NAME = "daidata_online_at_counter_rules.json"
 DAIDATA_JST = timezone(timedelta(hours=9))
 DAIDATA_COLUMNS = ["台番", "差枚", "G数", "出率", "BB", "RB", "合成", "BB率", "RB率"]
+DAIDATA_AT_COLUMNS = ["台番", "AT", "AT表示枠", "AT取得元", "AT取得日時"]
+DAIDATA_AT_SOURCE = "daidata_online"
+DAIDATA_AT_RATE_KEY_20_YEN = "20yen"
+DAIDATA_AT_DECISION_TO_BB = "at_to_bb"
+DAIDATA_AT_DECISION_TO_RB = "at_to_rb"
+DAIDATA_AT_DECISION_IGNORE_THREE_COUNTERS = "ignore_three_counters"
+DAIDATA_AT_DECISION_NO_AT = "no_at"
+DAIDATA_AT_DECISION_UNKNOWN = "unknown"
+DAIDATA_AT_DECISIONS = frozenset(
+    {
+        DAIDATA_AT_DECISION_TO_BB,
+        DAIDATA_AT_DECISION_TO_RB,
+        DAIDATA_AT_DECISION_IGNORE_THREE_COUNTERS,
+        DAIDATA_AT_DECISION_NO_AT,
+        DAIDATA_AT_DECISION_UNKNOWN,
+    }
+)
+DAIDATA_AT_SKIP_DETAIL_DECISIONS = frozenset(
+    {
+        DAIDATA_AT_DECISION_NO_AT,
+    }
+)
+DAIDATA_AT_MAX_RECENT_DAYS = 8
+DAIDATA_AT_STANDARD_SLOT_PRICE_MIN = 15.0
+DAIDATA_AT_STANDARD_SLOT_PRICE_MAX = 25.0
 DAIDATA_UPDATED_AT_PATTERN = re.compile(
     r"(\d{4})[./年](\d{1,2})[./月](\d{1,2})日?\s*(\d{1,2}):(\d{2})"
 )
@@ -73,6 +100,51 @@ class DaidataOnlineMachineEntry:
     raw_machine_name: str
     url: str
     machine_count: int = 0
+    ball_price: float | None = None
+    rate_key: str = ""
+
+
+@dataclass(frozen=True)
+class DaidataOnlineUnitEntry:
+    slot_number: str
+    url: str
+
+
+@dataclass(frozen=True)
+class DaidataWeeklyCounterRow:
+    target_date: str
+    bb_count: int
+    rb_count: int
+    at_count: int
+
+
+@dataclass(frozen=True)
+class DaidataWeeklyCounterGraph:
+    graph_found: bool
+    bb_series_present: bool
+    rb_series_present: bool
+    at_series_present: bool
+    bb_positive: bool
+    rb_positive: bool
+    at_positive: bool
+    rows: tuple[DaidataWeeklyCounterRow, ...] = ()
+
+
+@dataclass(frozen=True)
+class DaidataAtCounterEvidence:
+    graph_found: bool = False
+    at_series_present: bool = False
+    bb_positive: bool = False
+    rb_positive: bool = False
+    at_positive: bool = False
+
+
+@dataclass(frozen=True)
+class DaidataAtDetailObservation:
+    slot_number: str
+    detail_url: str
+    fetched_at: str
+    graph: DaidataWeeklyCounterGraph
 
 
 @dataclass(frozen=True)
@@ -184,6 +256,111 @@ def _machine_is_juggler(raw_machine_name: str, machine_name: str) -> bool:
     return "ジャグラー" in search_text
 
 
+def normalize_daidata_at_machine_name(machine_name: str) -> str:
+    canonical_name = canonical_machine_name(unicodedata.normalize("NFKC", str(machine_name or "")))
+    return normalize_text(canonical_name).casefold()
+
+
+def build_daidata_at_rule_key(
+    store_id: str,
+    machine_name: str,
+    rate_key: str = DAIDATA_AT_RATE_KEY_20_YEN,
+) -> str:
+    return "|".join(
+        (
+            str(store_id or "").strip(),
+            normalize_daidata_at_machine_name(machine_name),
+            str(rate_key or "").strip(),
+        )
+    )
+
+
+def _parse_daidata_ball_price(machine_url: str, link_text: str = "") -> float | None:
+    query = dict(parse_qsl(urlsplit(str(machine_url or "")).query, keep_blank_values=True))
+    candidates = [query.get("ballPrice", "")]
+    normalized_link_text = unicodedata.normalize("NFKC", str(link_text or ""))
+    match = re.search(r"(\d+(?:\.\d+)?)\s*円\s*スロット", normalized_link_text)
+    if match is not None:
+        candidates.append(match.group(1))
+
+    for candidate in candidates:
+        text = unicodedata.normalize("NFKC", str(candidate or "")).replace(",", "").strip()
+        if not text:
+            continue
+        try:
+            return float(text)
+        except ValueError:
+            continue
+    return None
+
+
+def daidata_ball_price_is_twenty_yen_equivalent(ball_price: float | None) -> bool:
+    if ball_price is None:
+        return False
+    return DAIDATA_AT_STANDARD_SLOT_PRICE_MIN <= ball_price <= DAIDATA_AT_STANDARD_SLOT_PRICE_MAX
+
+
+def daidata_at_counter_evidence_from_graph(
+    graph: DaidataWeeklyCounterGraph,
+) -> DaidataAtCounterEvidence:
+    return DaidataAtCounterEvidence(
+        graph_found=graph.graph_found,
+        at_series_present=graph.at_series_present,
+        bb_positive=graph.bb_positive,
+        rb_positive=graph.rb_positive,
+        at_positive=graph.at_positive,
+    )
+
+
+def merge_daidata_at_counter_evidence(
+    evidences: Iterable[DaidataAtCounterEvidence],
+) -> DaidataAtCounterEvidence:
+    graph_found = False
+    at_series_present = False
+    bb_positive = False
+    rb_positive = False
+    at_positive = False
+    for evidence in evidences:
+        graph_found = graph_found or bool(evidence.graph_found)
+        at_series_present = at_series_present or bool(evidence.at_series_present)
+        bb_positive = bb_positive or bool(evidence.bb_positive)
+        rb_positive = rb_positive or bool(evidence.rb_positive)
+        at_positive = at_positive or bool(evidence.at_positive)
+    return DaidataAtCounterEvidence(
+        graph_found=graph_found,
+        at_series_present=at_series_present,
+        bb_positive=bb_positive,
+        rb_positive=rb_positive,
+        at_positive=at_positive,
+    )
+
+
+def classify_daidata_at_counter_usage(evidence: DaidataAtCounterEvidence) -> str:
+    if not evidence.graph_found:
+        return DAIDATA_AT_DECISION_UNKNOWN
+    if not evidence.at_series_present:
+        return DAIDATA_AT_DECISION_NO_AT
+    if not evidence.at_positive:
+        return DAIDATA_AT_DECISION_UNKNOWN
+    if evidence.bb_positive and evidence.rb_positive:
+        return DAIDATA_AT_DECISION_IGNORE_THREE_COUNTERS
+    if not evidence.bb_positive and evidence.rb_positive:
+        return DAIDATA_AT_DECISION_TO_BB
+    if evidence.bb_positive and not evidence.rb_positive:
+        return DAIDATA_AT_DECISION_TO_RB
+    return DAIDATA_AT_DECISION_TO_BB
+
+
+def daidata_at_display_slot(decision: str) -> str:
+    if decision == DAIDATA_AT_DECISION_TO_BB:
+        return "bb"
+    if decision == DAIDATA_AT_DECISION_TO_RB:
+        return "rb"
+    if decision == DAIDATA_AT_DECISION_IGNORE_THREE_COUNTERS:
+        return "ignore"
+    return "unknown"
+
+
 def _value_has_data(value: str) -> bool:
     text = str(value or "").strip()
     return bool(text and text not in {"-", "--"})
@@ -275,10 +452,131 @@ def _parse_date_label(text: str, updated_at: datetime | None, hist_num: int) -> 
         if updated_at is not None
         else datetime.now(DAIDATA_JST).date()
     )
-    candidate = base_date.replace(month=month, day=day)
+    try:
+        candidate = base_date.replace(month=month, day=day)
+    except ValueError:
+        return None
     if candidate > base_date + timedelta(days=31):
         candidate = candidate.replace(year=candidate.year - 1)
     return candidate.isoformat()
+
+
+def _extract_balanced_javascript_array(script_text: str, assignment_end: int) -> str:
+    array_start = script_text.find("[", assignment_end)
+    if array_start < 0:
+        return ""
+
+    depth = 0
+    quote = ""
+    escaped = False
+    for index in range(array_start, len(script_text)):
+        character = script_text[index]
+        if quote:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == quote:
+                quote = ""
+            continue
+        if character in {'"', "'"}:
+            quote = character
+            continue
+        if character == "[":
+            depth += 1
+        elif character == "]":
+            depth -= 1
+            if depth == 0:
+                return script_text[array_start : index + 1]
+    return ""
+
+
+def _parse_weekly_counter_series(
+    raw_series: object,
+    reference_datetime: datetime,
+) -> dict[str, int]:
+    if not isinstance(raw_series, list):
+        return {}
+    parsed: dict[str, int] = {}
+    for raw_point in raw_series:
+        if not isinstance(raw_point, (list, tuple)) or len(raw_point) < 2:
+            continue
+        target_date = _parse_date_label(str(raw_point[0]), reference_datetime, 0)
+        count = _parse_daidata_count(raw_point[1])
+        if target_date and count is not None and count >= 0:
+            parsed[target_date] = count
+    return parsed
+
+
+def parse_daidata_weekly_counter_graph(
+    html: str,
+    *,
+    reference_datetime: datetime | None = None,
+) -> DaidataWeeklyCounterGraph:
+    reference = reference_datetime or _parse_updated_datetime(html) or datetime.now(DAIDATA_JST)
+    if reference.tzinfo is None or reference.utcoffset() is None:
+        reference = reference.replace(tzinfo=DAIDATA_JST)
+    else:
+        reference = reference.astimezone(DAIDATA_JST)
+
+    soup = BeautifulSoup(html, "html.parser")
+    payload: list[object] | None = None
+    assignment_pattern = re.compile(r"\b(?:const|let|var)\s+data\s*=")
+    for script in soup.find_all("script"):
+        script_text = script.string if script.string is not None else script.get_text("\n", strip=False)
+        if "weekly-jackpot-1" not in script_text:
+            continue
+        for assignment_match in assignment_pattern.finditer(script_text):
+            raw_array = _extract_balanced_javascript_array(script_text, assignment_match.end())
+            if not raw_array:
+                continue
+            try:
+                candidate = json.loads(re.sub(r",\s*([\]}])", r"\1", raw_array))
+            except (json.JSONDecodeError, TypeError):
+                continue
+            if isinstance(candidate, list):
+                payload = candidate
+        if payload is not None:
+            break
+
+    if payload is None:
+        return DaidataWeeklyCounterGraph(
+            graph_found=False,
+            bb_series_present=False,
+            rb_series_present=False,
+            at_series_present=False,
+            bb_positive=False,
+            rb_positive=False,
+            at_positive=False,
+        )
+
+    bb_by_date = _parse_weekly_counter_series(payload[0], reference) if len(payload) >= 1 else {}
+    rb_by_date = _parse_weekly_counter_series(payload[1], reference) if len(payload) >= 2 else {}
+    at_by_date = _parse_weekly_counter_series(payload[2], reference) if len(payload) >= 3 else {}
+    target_dates = sorted(
+        set(at_by_date)
+        if at_by_date
+        else set(bb_by_date) | set(rb_by_date)
+    )
+    rows = tuple(
+        DaidataWeeklyCounterRow(
+            target_date=target_date,
+            bb_count=bb_by_date.get(target_date, 0),
+            rb_count=rb_by_date.get(target_date, 0),
+            at_count=at_by_date.get(target_date, 0),
+        )
+        for target_date in target_dates
+    )
+    return DaidataWeeklyCounterGraph(
+        graph_found=True,
+        bb_series_present=bool(bb_by_date),
+        rb_series_present=bool(rb_by_date),
+        at_series_present=bool(at_by_date),
+        bb_positive=any(value > 0 for value in bb_by_date.values()),
+        rb_positive=any(value > 0 for value in rb_by_date.values()),
+        at_positive=any(value > 0 for value in at_by_date.values()),
+        rows=rows,
+    )
 
 
 def _extract_selected_date(html: str, hist_num: int, updated_at: datetime | None) -> str:
@@ -441,6 +739,154 @@ def build_daidata_machine_dataset(
     return dataset
 
 
+def daidata_at_counter_evidence_from_rule(rule: object) -> DaidataAtCounterEvidence:
+    if not isinstance(rule, dict):
+        return DaidataAtCounterEvidence()
+    decision = str(rule.get("decision", "")).strip()
+    evidence = DaidataAtCounterEvidence(
+        graph_found=bool(rule.get("graph_found", False)),
+        at_series_present=bool(rule.get("at_series_present", False)),
+        bb_positive=bool(rule.get("bb_positive", False)),
+        rb_positive=bool(rule.get("rb_positive", False)),
+        at_positive=bool(rule.get("at_positive", False)),
+    )
+    if any(
+        (
+            evidence.graph_found,
+            evidence.at_series_present,
+            evidence.bb_positive,
+            evidence.rb_positive,
+            evidence.at_positive,
+        )
+    ):
+        return evidence
+    if decision == DAIDATA_AT_DECISION_NO_AT:
+        return DaidataAtCounterEvidence(graph_found=True)
+    if decision == DAIDATA_AT_DECISION_TO_BB:
+        return DaidataAtCounterEvidence(
+            graph_found=True,
+            at_series_present=True,
+            rb_positive=True,
+            at_positive=True,
+        )
+    if decision == DAIDATA_AT_DECISION_TO_RB:
+        return DaidataAtCounterEvidence(
+            graph_found=True,
+            at_series_present=True,
+            bb_positive=True,
+            at_positive=True,
+        )
+    if decision == DAIDATA_AT_DECISION_IGNORE_THREE_COUNTERS:
+        return DaidataAtCounterEvidence(
+            graph_found=True,
+            at_series_present=True,
+            bb_positive=True,
+            rb_positive=True,
+            at_positive=True,
+        )
+    return evidence
+
+
+def build_daidata_at_counter_rule(
+    *,
+    store_id: str,
+    machine_name: str,
+    rate_key: str,
+    evidence: DaidataAtCounterEvidence,
+    updated_at: str,
+) -> dict[str, object]:
+    return {
+        "store_id": str(store_id or "").strip(),
+        "machine_name": canonical_machine_name(machine_name),
+        "machine_name_key": normalize_daidata_at_machine_name(machine_name),
+        "rate_key": str(rate_key or "").strip(),
+        "decision": classify_daidata_at_counter_usage(evidence),
+        "graph_found": evidence.graph_found,
+        "at_series_present": evidence.at_series_present,
+        "bb_positive": evidence.bb_positive,
+        "rb_positive": evidence.rb_positive,
+        "at_positive": evidence.at_positive,
+        "updated_at": str(updated_at or "").strip(),
+    }
+
+
+def build_daidata_at_supplement_history_result(
+    *,
+    store_name: str,
+    store_url: str,
+    machine_name: str,
+    machine_url: str,
+    observations: Iterable[DaidataAtDetailObservation],
+    decision: str,
+    recent_days: int,
+) -> MachineHistoryResult:
+    target_days = max(1, min(int(recent_days), DAIDATA_AT_MAX_RECENT_DAYS))
+    display_slot = daidata_at_display_slot(decision)
+    observations_list = list(observations)
+    all_target_dates = sorted(
+        {
+            row.target_date
+            for observation in observations_list
+            if observation.graph.at_series_present
+            for row in observation.graph.rows
+        },
+        reverse=True,
+    )
+    selected_dates = set(all_target_dates[:target_days])
+    rows_by_date: dict[str, dict[str, list[str]]] = {}
+    detail_url_by_date: dict[str, str] = {}
+
+    for observation in observations_list:
+        if not observation.graph.at_series_present:
+            continue
+        for graph_row in observation.graph.rows:
+            if graph_row.target_date not in selected_dates:
+                continue
+            rows_by_slot = rows_by_date.setdefault(graph_row.target_date, {})
+            rows_by_slot[observation.slot_number] = [
+                observation.slot_number,
+                str(graph_row.at_count),
+                display_slot,
+                DAIDATA_AT_SOURCE,
+                observation.fetched_at,
+            ]
+            detail_url_by_date.setdefault(graph_row.target_date, observation.detail_url)
+
+    datasets: list[MachineDataset] = []
+    date_pages: list[StoreDatePage] = []
+    for target_date in sorted(rows_by_date):
+        rows_by_slot = rows_by_date[target_date]
+        rows = sorted(
+            rows_by_slot.values(),
+            key=lambda row: int(row[0]) if row[0].isdigit() else row[0],
+        )
+        if not rows:
+            continue
+        date_url = detail_url_by_date.get(target_date, machine_url)
+        datasets.append(
+            MachineDataset(
+                store_name=store_name,
+                store_url=store_url,
+                target_date=target_date,
+                date_url=date_url,
+                machine_name=machine_name,
+                machine_url=machine_url,
+                columns=list(DAIDATA_AT_COLUMNS),
+                rows=rows,
+            )
+        )
+        date_pages.append(StoreDatePage(target_date=target_date, date_url=date_url))
+
+    return MachineHistoryResult(
+        store_name=store_name,
+        store_url=store_url,
+        start_date=min(rows_by_date) if rows_by_date else "",
+        end_date=max(rows_by_date) if rows_by_date else "",
+        date_pages=date_pages,
+        datasets=datasets,
+    )
+
+
 class DaidataOnlineScraper:
     def __init__(
         self,
@@ -449,6 +895,7 @@ class DaidataOnlineScraper:
     ) -> None:
         self.root_dir = root_dir or ROOT_DIR
         self.browser_state_dir = self.root_dir / "local_data" / DAIDATA_BROWSER_STATE_DIR_NAME
+        self.at_counter_rules_path = self.root_dir / "local_data" / DAIDATA_AT_COUNTER_RULES_FILE_NAME
         self._current_datetime_fn = current_datetime_fn
 
     def _current_daidata_datetime(self) -> datetime:
@@ -461,12 +908,169 @@ class DaidataOnlineScraper:
             return current_datetime.replace(tzinfo=DAIDATA_JST)
         return current_datetime.astimezone(DAIDATA_JST)
 
+    def fetch_store_at_supplement_history(
+        self,
+        *,
+        store_config: DaidataOnlineStoreConfig,
+        recent_days: int,
+        enabled_machine_names: set[str] | None = None,
+        browser_visible: bool = False,
+        progress_callback: Callable[[FetchProgress], None] | None = None,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> MachineHistoryResult:
+        target_days = max(1, min(int(recent_days), DAIDATA_AT_MAX_RECENT_DAYS))
+        self._require_playwright()
+        _raise_if_cancel_requested(cancel_requested)
+        self._notify_progress(
+            progress_callback,
+            0,
+            1,
+            f"{store_config.store_name}のAT回数補完対象を確認しています",
+        )
+
+        playwright = None
+        context = None
+        machine_results: list[MachineHistoryResult] = []
+        rules = self._load_at_counter_rules()
+        try:
+            playwright, context = self._launch_mobile_browser_context(browser_visible=browser_visible)
+            page = self._prepare_page(context)
+            self._goto_daidata_page(
+                page,
+                store_config.url,
+                browser_visible=browser_visible,
+                progress_callback=progress_callback,
+                cancel_requested=cancel_requested,
+            )
+            list_url = urljoin(f"{store_config.url}/", "list?mode=psModelNameSearch&ps=S")
+            self._goto_daidata_page(
+                page,
+                list_url,
+                browser_visible=browser_visible,
+                progress_callback=progress_callback,
+                cancel_requested=cancel_requested,
+            )
+            machine_entries = self.extract_at_candidate_machine_links(
+                page.content(),
+                list_url,
+                enabled_machine_names=enabled_machine_names,
+            )
+
+            for machine_index, machine_entry in enumerate(machine_entries, start=1):
+                _raise_if_cancel_requested(cancel_requested)
+                rule_key = build_daidata_at_rule_key(
+                    store_config.store_id,
+                    machine_entry.machine_name,
+                    machine_entry.rate_key,
+                )
+                saved_rule = rules.get(rule_key, {})
+                saved_decision = (
+                    str(saved_rule.get("decision", "")).strip()
+                    if isinstance(saved_rule, dict)
+                    else ""
+                )
+                if saved_decision in DAIDATA_AT_SKIP_DETAIL_DECISIONS:
+                    self._notify_progress(
+                        progress_callback,
+                        machine_index,
+                        len(machine_entries),
+                        f"{store_config.store_name} / {machine_entry.machine_name} は保存済み判定によりAT詳細を省略します",
+                    )
+                    continue
+
+                self._notify_progress(
+                    progress_callback,
+                    machine_index,
+                    len(machine_entries),
+                    f"{store_config.store_name} / {machine_entry.machine_name} のAT回数を確認しています",
+                )
+                self._goto_daidata_page(
+                    page,
+                    _with_hist_num(machine_entry.url, 0),
+                    browser_visible=browser_visible,
+                    progress_callback=progress_callback,
+                    cancel_requested=cancel_requested,
+                )
+                unit_entries = self.extract_unit_detail_links(page.content(), machine_entry.url)
+                if not unit_entries:
+                    continue
+
+                observations: list[DaidataAtDetailObservation] = []
+                current_evidences: list[DaidataAtCounterEvidence] = []
+                for unit_entry in unit_entries:
+                    _raise_if_cancel_requested(cancel_requested)
+                    self._goto_daidata_page(
+                        page,
+                        unit_entry.url,
+                        browser_visible=browser_visible,
+                        progress_callback=progress_callback,
+                        cancel_requested=cancel_requested,
+                    )
+                    detail_html = page.content()
+                    fetched_at = format_site7_updated_datetime(self._current_daidata_datetime())
+                    graph = parse_daidata_weekly_counter_graph(
+                        detail_html,
+                        reference_datetime=_parse_updated_datetime(detail_html)
+                        or self._current_daidata_datetime(),
+                    )
+                    observations.append(
+                        DaidataAtDetailObservation(
+                            slot_number=unit_entry.slot_number,
+                            detail_url=unit_entry.url,
+                            fetched_at=fetched_at,
+                            graph=graph,
+                        )
+                    )
+                    current_evidences.append(daidata_at_counter_evidence_from_graph(graph))
+                    if (
+                        saved_decision not in DAIDATA_AT_DECISIONS
+                        and graph.graph_found
+                        and not graph.at_series_present
+                    ):
+                        break
+
+                evidence = merge_daidata_at_counter_evidence(
+                    [
+                        daidata_at_counter_evidence_from_rule(saved_rule),
+                        *current_evidences,
+                    ]
+                )
+                updated_at = format_site7_updated_datetime(self._current_daidata_datetime())
+                rule = build_daidata_at_counter_rule(
+                    store_id=store_config.store_id,
+                    machine_name=machine_entry.machine_name,
+                    rate_key=machine_entry.rate_key,
+                    evidence=evidence,
+                    updated_at=updated_at,
+                )
+                rules[rule_key] = rule
+                self._save_at_counter_rules(rules)
+
+                machine_result = build_daidata_at_supplement_history_result(
+                    store_name=store_config.store_name,
+                    store_url=store_config.url,
+                    machine_name=machine_entry.machine_name,
+                    machine_url=machine_entry.url,
+                    observations=observations,
+                    decision=str(rule["decision"]),
+                    recent_days=target_days,
+                )
+                if machine_result.datasets:
+                    machine_results.append(machine_result)
+        except PlaywrightError as exc:
+            raise ScraperError(f"台データオンラインのAT回数取得に失敗しました。\n{exc}") from exc
+        finally:
+            self._release_browser_context(playwright, context, browser_visible=browser_visible)
+
+        return self._merge_at_supplement_results(store_config, machine_results)
+
     def fetch_beam_hikari_juggler_history(
         self,
         recent_days: int,
         browser_visible: bool = False,
         progress_callback: Callable[[FetchProgress], None] | None = None,
         enabled_machine_names: set[str] | None = None,
+        include_twenty_yen_non_juggler_machines: bool = False,
         machine_protected_slots_callback: Callable[
             [DaidataOnlineMachineEntry, list[str], list[str], str | None],
             set[tuple[str, str]],
@@ -479,6 +1083,7 @@ class DaidataOnlineScraper:
             browser_visible=browser_visible,
             progress_callback=progress_callback,
             enabled_machine_names=enabled_machine_names,
+            include_twenty_yen_non_juggler_machines=include_twenty_yen_non_juggler_machines,
             machine_protected_slots_callback=machine_protected_slots_callback,
             cancel_requested=cancel_requested,
         )
@@ -491,6 +1096,7 @@ class DaidataOnlineScraper:
         browser_visible: bool = False,
         progress_callback: Callable[[FetchProgress], None] | None = None,
         enabled_machine_names: set[str] | None = None,
+        include_twenty_yen_non_juggler_machines: bool = False,
         machine_protected_slots_callback: Callable[
             [DaidataOnlineMachineEntry, list[str], list[str], str | None],
             set[tuple[str, str]],
@@ -533,8 +1139,30 @@ class DaidataOnlineScraper:
                 list_url,
                 enabled_machine_names=enabled_machine_names,
             )
+            if include_twenty_yen_non_juggler_machines:
+                seen_machine_keys = {
+                    normalize_daidata_at_machine_name(machine_entry.machine_name)
+                    for machine_entry in machine_entries
+                }
+                for machine_entry in self.extract_at_candidate_machine_links(
+                    machine_list_html,
+                    list_url,
+                    enabled_machine_names=None,
+                ):
+                    machine_key = normalize_daidata_at_machine_name(machine_entry.machine_name)
+                    if machine_key in seen_machine_keys:
+                        continue
+                    seen_machine_keys.add(machine_key)
+                    machine_entries.append(machine_entry)
             if not machine_entries:
-                raise ScraperError(f"台データオンラインで{store_config.store_name}のジャグラー系機種が見つかりませんでした。")
+                target_label = (
+                    "20円相当の対象機種"
+                    if include_twenty_yen_non_juggler_machines
+                    else "ジャグラー系機種"
+                )
+                raise ScraperError(
+                    f"台データオンラインで{store_config.store_name}の{target_label}が見つかりませんでした。"
+                )
 
             total_steps = len(machine_entries) + 1
             for machine_index, machine_entry in enumerate(machine_entries, start=1):
@@ -715,6 +1343,91 @@ class DaidataOnlineScraper:
             else stats.updated_at.replace(tzinfo=DAIDATA_JST)
         )
         return updated_at.strftime("%Y-%m-%d") in closed_dates
+
+    def extract_at_candidate_machine_links(
+        self,
+        html: str,
+        base_url: str,
+        *,
+        enabled_machine_names: set[str] | None = None,
+    ) -> list[DaidataOnlineMachineEntry]:
+        soup = BeautifulSoup(html, "html.parser")
+        enabled_keys = _enabled_machine_keys(enabled_machine_names)
+        entries: list[DaidataOnlineMachineEntry] = []
+        seen_rule_names: set[str] = set()
+
+        for link in soup.find_all("a", href=True):
+            href = str(link.get("href", "")).strip()
+            if "unit_list" not in href:
+                continue
+            raw_link_text = link.get_text(" ", strip=True)
+            raw_machine_name = _clean_machine_name(raw_link_text)
+            if not raw_machine_name:
+                continue
+            machine_name = canonical_machine_name(raw_machine_name)
+            if _machine_is_juggler(raw_machine_name, machine_name):
+                continue
+            if enabled_keys is not None and not (_machine_entry_keys(raw_machine_name, machine_name) & enabled_keys):
+                continue
+
+            machine_url = urljoin(base_url, href)
+            ball_price = _parse_daidata_ball_price(machine_url, raw_link_text)
+            if not daidata_ball_price_is_twenty_yen_equivalent(ball_price):
+                continue
+            normalized_machine_name = normalize_daidata_at_machine_name(machine_name)
+            if normalized_machine_name in seen_rule_names:
+                continue
+            seen_rule_names.add(normalized_machine_name)
+            entries.append(
+                DaidataOnlineMachineEntry(
+                    machine_name=machine_name,
+                    raw_machine_name=raw_machine_name,
+                    url=machine_url,
+                    machine_count=self._extract_machine_count(raw_link_text),
+                    ball_price=ball_price,
+                    rate_key=DAIDATA_AT_RATE_KEY_20_YEN,
+                )
+            )
+
+        return entries
+
+    def extract_unit_detail_links(
+        self,
+        html: str,
+        base_url: str,
+    ) -> list[DaidataOnlineUnitEntry]:
+        soup = BeautifulSoup(html, "html.parser")
+        table = _find_unit_table(soup)
+        search_root = table if table is not None else soup
+        entries: list[DaidataOnlineUnitEntry] = []
+        seen_slots: set[str] = set()
+        for link in search_root.find_all("a", href=True):
+            href = str(link.get("href", "")).strip()
+            href_parts = urlsplit(urljoin(base_url, href))
+            query = dict(parse_qsl(href_parts.query, keep_blank_values=True))
+            if not href_parts.path.rstrip("/").endswith("/detail") or not query.get("unit"):
+                continue
+            slot_number = _normalize_count_text(link.get_text(" ", strip=True))
+            if slot_number in {"", "-", "--"}:
+                continue
+            if slot_number in seen_slots:
+                continue
+            seen_slots.add(slot_number)
+            entries.append(
+                DaidataOnlineUnitEntry(
+                    slot_number=slot_number,
+                    url=urljoin(base_url, href),
+                )
+            )
+        return sorted(
+            entries,
+            key=lambda entry: (
+                0,
+                int(entry.slot_number),
+            )
+            if entry.slot_number.isdigit()
+            else (1, entry.slot_number),
+        )
 
     def extract_juggler_machine_links(
         self,
@@ -906,6 +1619,73 @@ class DaidataOnlineScraper:
             skipped_dates=skipped_dates,
             store_day_statuses=store_day_statuses,
         )
+
+    def _merge_at_supplement_results(
+        self,
+        store_config: DaidataOnlineStoreConfig,
+        machine_results: list[MachineHistoryResult],
+    ) -> MachineHistoryResult:
+        datasets = [
+            dataset
+            for machine_result in machine_results
+            for dataset in machine_result.datasets
+        ]
+        datasets.sort(key=lambda dataset: (dataset.target_date, dataset.machine_name.casefold()))
+        date_pages_by_date: dict[str, StoreDatePage] = {}
+        for machine_result in machine_results:
+            for date_page in machine_result.date_pages:
+                date_pages_by_date.setdefault(date_page.target_date, date_page)
+        date_pages = sorted(date_pages_by_date.values(), key=lambda date_page: date_page.target_date)
+        target_dates = [dataset.target_date for dataset in datasets if dataset.target_date]
+        return MachineHistoryResult(
+            store_name=store_config.store_name,
+            store_url=store_config.url,
+            start_date=min(target_dates) if target_dates else "",
+            end_date=max(target_dates) if target_dates else "",
+            date_pages=date_pages,
+            datasets=datasets,
+        )
+
+    def _load_at_counter_rules(self) -> dict[str, dict[str, object]]:
+        if not self.at_counter_rules_path.exists():
+            return {}
+        try:
+            payload = json.loads(self.at_counter_rules_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return {}
+        raw_rules = payload.get("rules", {}) if isinstance(payload, dict) else {}
+        if not isinstance(raw_rules, dict):
+            return {}
+        rules: dict[str, dict[str, object]] = {}
+        for raw_key, raw_rule in raw_rules.items():
+            if not isinstance(raw_rule, dict):
+                continue
+            decision = str(raw_rule.get("decision", "")).strip()
+            if decision not in DAIDATA_AT_DECISIONS:
+                continue
+            rules[str(raw_key)] = dict(raw_rule)
+        return rules
+
+    def _save_at_counter_rules(self, rules: dict[str, dict[str, object]]) -> None:
+        payload = {
+            "version": 1,
+            "rules": {
+                rule_key: rules[rule_key]
+                for rule_key in sorted(rules)
+            },
+        }
+        try:
+            self.at_counter_rules_path.parent.mkdir(parents=True, exist_ok=True)
+            temporary_path = self.at_counter_rules_path.with_suffix(
+                f"{self.at_counter_rules_path.suffix}.tmp"
+            )
+            temporary_path.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            temporary_path.replace(self.at_counter_rules_path)
+        except OSError as exc:
+            raise ScraperError("台データオンラインのAT回数判定を保存できませんでした。") from exc
 
     def _dataset_slot_numbers(self, dataset: MachineDataset) -> list[str]:
         try:
