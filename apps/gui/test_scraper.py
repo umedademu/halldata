@@ -3109,7 +3109,9 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertEqual(canonical_machine_name("ドラゴンハナハナ～閃光～‐30", site7_only=True), "ドラゴンハナハナ～閃光～")
         site7_a_park_kasuga_targets = {
             "スマスロ 北斗の拳 転生の章2": "スマスロ北斗の拳 転生の章2",
+            "L北斗 転生の章2": "スマスロ北斗の拳 転生の章2",
             "Lスマスロ　モンキーターンＶ": "スマスロモンキーターンV",
+            "LモンキーターンV": "スマスロモンキーターンV",
             "スマスロ 沖ドキ!DUO アンコール": "スマスロ 沖ドキ!DUO アンコール",
             "Lミリオンゴッド－神々の軌跡－": "スマスロ ミリオンゴッド",
             "L 東京喰種": "L東京喰種",
@@ -3117,6 +3119,7 @@ class MinRepoScraperTests(unittest.TestCase):
             "スマスロ 新鬼武者3": "スマスロ 新鬼武者3",
             "沖ドキ！ＢＬＡＣＫ": "沖ドキ！ＢＬＡＣＫ",
             "Lスマスロ北斗の拳": "Lスマスロ北斗の拳",
+            "Lスマスロ北斗": "Lスマスロ北斗の拳",
             "沖ドキ！ＧＯＬＤ-30": "沖ドキ！ＧＯＬＤ-30",
             "L機動戦士ガンダムユニコーン 覚醒DRIVE": "L機動戦士ガンダムユニコーン 覚醒DRIVE",
             "LバイオハザードRE：3": "スマスロ バイオハザードRE:3",
@@ -6317,6 +6320,33 @@ class MinRepoScraperTests(unittest.TestCase):
             [entry.machine_name for entry in filtered_entries],
             ["スマスロ ミリオンゴッド"],
         )
+
+    def test_daidata_at_candidate_links_accept_current_short_machine_names(self) -> None:
+        html = """
+        <a href="/100619/unit_list?model=hokuto&ballPrice=20.00&ps=S">Lｽﾏｽﾛ北斗 20円スロット | 12台</a>
+        <a href="/100619/unit_list?model=tensei2&ballPrice=20.00&ps=S">L北斗 転生の章2 20円スロット | 11台</a>
+        <a href="/100619/unit_list?model=monkey5&ballPrice=20.00&ps=S">LﾓﾝｷｰﾀｰﾝV 20円スロット | 10台</a>
+        """
+
+        entries = DaidataOnlineScraper().extract_at_candidate_machine_links(
+            html,
+            DAIDATA_BEAM_HIKARI_URL,
+            enabled_machine_names={
+                "Lスマスロ北斗の拳",
+                "スマスロ北斗の拳 転生の章2",
+                "スマスロモンキーターンV",
+            },
+        )
+
+        self.assertEqual(
+            [entry.machine_name for entry in entries],
+            [
+                "Lスマスロ北斗の拳",
+                "スマスロ北斗の拳 転生の章2",
+                "スマスロモンキーターンV",
+            ],
+        )
+        self.assertEqual([entry.machine_count for entry in entries], [12, 11, 10])
 
     def test_daidata_unit_detail_links_read_slot_number_links(self) -> None:
         html = """
