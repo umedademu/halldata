@@ -1147,7 +1147,7 @@ class DaidataOnlineScraper:
                 for machine_entry in self.extract_at_candidate_machine_links(
                     machine_list_html,
                     list_url,
-                    enabled_machine_names=None,
+                    enabled_machine_names=enabled_machine_names,
                 ):
                     machine_key = normalize_daidata_at_machine_name(machine_entry.machine_name)
                     if machine_key in seen_machine_keys:

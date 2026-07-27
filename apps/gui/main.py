@@ -1981,6 +1981,26 @@ class MinRepoApp:
             return None
         return enabled_machine_names
 
+    def _daidata_online_enabled_machine_names_for_fetch(
+        self,
+        registered_store: RegisteredStore,
+        enabled_machine_names: set[str] | None = None,
+    ) -> set[str] | None:
+        if enabled_machine_names is not None:
+            return set(enabled_machine_names)
+        site7_enabled_machine_names = self._site7_enabled_machine_names_for_fetch(registered_store)
+        if site7_enabled_machine_names is not None:
+            return set(site7_enabled_machine_names)
+        if not hasattr(self, "site7_target_machine_names"):
+            return None
+        source_group = site7_machine_source_group(registered_store.fetch_source)
+        return set(
+            getattr(self, "site7_enabled_machine_names_by_source", {}).get(
+                source_group,
+                set(self.site7_target_machine_names),
+            )
+        )
+
     def _site7_machine_requires_source_difference(
         self,
         machine_name: object,
@@ -3827,6 +3847,7 @@ class MinRepoApp:
                                         total_stores=total_stores,
                                         retry_delay_seconds=retry_delay_seconds,
                                         browser_visible=browser_visible,
+                                        enabled_machine_names=enabled_machine_names,
                                     )
                                 self._refresh_web_data_for_store_result(minrepo_prefetch_result)
                                 results.append(minrepo_prefetch_result)
@@ -3967,11 +3988,10 @@ class MinRepoApp:
         def queue_progress(progress: FetchProgress) -> None:
             self._queue_fetch_progress(progress, store_index=store_index, total_stores=total_stores)
 
-        fetch_enabled_machine_names = enabled_machine_names
-        if fetch_enabled_machine_names is None:
-            fetch_enabled_machine_names = self._site7_enabled_machine_names_for_fetch(registered_store)
-        if fetch_enabled_machine_names == set():
-            fetch_enabled_machine_names = None
+        fetch_enabled_machine_names = self._daidata_online_enabled_machine_names_for_fetch(
+            registered_store,
+            enabled_machine_names,
+        )
 
         saved_lookup_store_cache: tuple[str, str] | None = None
         minrepo_saved_dates_cache: dict[tuple[str, str], set[str]] = {}
@@ -4195,6 +4215,7 @@ class MinRepoApp:
             total_stores=total_stores,
             retry_delay_seconds=retry_delay_seconds,
             browser_visible=browser_visible,
+            enabled_machine_names=fetch_enabled_machine_names,
         )
         return store_result
 
@@ -4207,10 +4228,17 @@ class MinRepoApp:
         total_stores: int,
         retry_delay_seconds: int,
         browser_visible: bool,
+        enabled_machine_names: set[str] | None = None,
     ) -> PersistenceSummary | None:
         self._raise_if_fetch_cancelled()
         store_config = daidata_store_config_for(registered_store.name, registered_store.url)
         if store_config is None:
+            return None
+        fetch_enabled_machine_names = self._daidata_online_enabled_machine_names_for_fetch(
+            registered_store,
+            enabled_machine_names,
+        )
+        if fetch_enabled_machine_names == set():
             return None
 
         store_label = f"{store_index}/{total_stores} {registered_store.name}"
@@ -4223,7 +4251,7 @@ class MinRepoApp:
                 lambda: self.daidata_online_scraper.fetch_store_at_supplement_history(
                     store_config=store_config,
                     recent_days=recent_days,
-                    enabled_machine_names=None,
+                    enabled_machine_names=fetch_enabled_machine_names,
                     browser_visible=browser_visible,
                     progress_callback=lambda progress: queue_progress(
                         FetchProgress(
@@ -4280,6 +4308,7 @@ class MinRepoApp:
         total_stores: int,
         retry_delay_seconds: int,
         browser_visible: bool,
+        enabled_machine_names: set[str] | None = None,
     ) -> None:
         try:
             at_save_summary = self._fetch_and_save_daidata_at_supplement(
@@ -4289,6 +4318,7 @@ class MinRepoApp:
                 total_stores=total_stores,
                 retry_delay_seconds=retry_delay_seconds,
                 browser_visible=browser_visible,
+                enabled_machine_names=enabled_machine_names,
             )
         except FetchCancelled:
             raise

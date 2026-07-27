@@ -3169,6 +3169,32 @@ class MinRepoScraperTests(unittest.TestCase):
         app.site7_enabled_machine_names_by_source[FETCH_SOURCE_BOTH] = {"マイジャグラーV"}
         self.assertEqual(app._site7_enabled_machine_names_for_fetch(), {"マイジャグラーV"})
 
+    def test_daidata_online_enabled_machine_names_keeps_concrete_full_selection(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        target_machine_names = ("マイジャグラーV", "スマスロ 甲鉄城のカバネリ 海門決戦")
+        app.site7_target_machine_names = target_machine_names
+        app.site7_enabled_machine_names_by_source = {
+            FETCH_SOURCE_BOTH: set(target_machine_names),
+            FETCH_SOURCE_SITE7: set(target_machine_names),
+        }
+        registered_store = RegisteredStore(
+            name="ビームヒカリ",
+            url="https://min-repo.com/tag/ビームヒカリ/",
+            fetch_source=FETCH_SOURCE_BOTH,
+        )
+
+        self.assertEqual(
+            app._daidata_online_enabled_machine_names_for_fetch(registered_store),
+            set(target_machine_names),
+        )
+        self.assertEqual(
+            app._daidata_online_enabled_machine_names_for_fetch(
+                registered_store,
+                {"マイジャグラーV"},
+            ),
+            {"マイジャグラーV"},
+        )
+
     def test_site7_machine_select_all_and_clear_updates_saved_selection(self) -> None:
         class FakeBoolVar:
             def __init__(self, value: bool) -> None:
@@ -5519,6 +5545,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 cancel_requested: object,
             ) -> MachineHistoryResult:
                 self.store_config = store_config
+                self.enabled_machine_names = enabled_machine_names
                 self.include_twenty_yen_non_juggler_machines = include_twenty_yen_non_juggler_machines
                 protected_slots = machine_protected_slots_callback(
                     DaidataOnlineMachineEntry(
@@ -5545,7 +5572,8 @@ class MinRepoScraperTests(unittest.TestCase):
                     skipped_dates=["2026-06-01", "2026-06-02"],
                 )
 
-            def fetch_store_at_supplement_history(self, **_: object) -> MachineHistoryResult:
+            def fetch_store_at_supplement_history(self, **kwargs: object) -> MachineHistoryResult:
+                self.at_enabled_machine_names = kwargs.get("enabled_machine_names")
                 return MachineHistoryResult(
                     store_name="ビームヒカリ",
                     store_url=DAIDATA_BEAM_HIKARI_URL,
@@ -5627,6 +5655,8 @@ class MinRepoScraperTests(unittest.TestCase):
             [("ビームヒカリ", DAIDATA_BEAM_HIKARI_URL, "2026-06-01", "2026-06-03")],
         )
         self.assertEqual(app.daidata_online_scraper.store_config.url, DAIDATA_BEAM_HIKARI_URL)
+        self.assertEqual(app.daidata_online_scraper.enabled_machine_names, {SITE7_NEO_IM_MACHINE_NAME})
+        self.assertEqual(app.daidata_online_scraper.at_enabled_machine_names, {SITE7_NEO_IM_MACHINE_NAME})
         self.assertTrue(app.daidata_online_scraper.include_twenty_yen_non_juggler_machines)
         self.assertEqual(
             persistence_service.slot_calls,
@@ -5635,7 +5665,7 @@ class MinRepoScraperTests(unittest.TestCase):
         self.assertFalse(persistence_service.saved)
         self.assertEqual(result.history_result.datasets, [])
 
-    def test_fetch_and_save_daidata_at_supplement_uses_all_twenty_yen_non_juggler_machines(self) -> None:
+    def test_fetch_and_save_daidata_at_supplement_uses_enabled_machine_names(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)
         app.fetch_cancel_event = threading.Event()
         app.minrepo_cancel_event = app.fetch_cancel_event
@@ -5643,6 +5673,13 @@ class MinRepoScraperTests(unittest.TestCase):
         app.active_operation_kind = "fetch"
         app.result_queue = queue.Queue()
         app._queue_fetch_progress = mock.Mock()
+        app.site7_target_machine_names = (
+            "スマスロ ミリオンゴッド",
+            "スマスロ 甲鉄城のカバネリ 海門決戦",
+        )
+        app.site7_enabled_machine_names_by_source = {
+            FETCH_SOURCE_BOTH: {"スマスロ ミリオンゴッド"},
+        }
         captured_fetch_arguments: dict[str, object] = {}
         saved_results: list[tuple[MachineHistoryResult, bool]] = []
 
@@ -5684,6 +5721,7 @@ class MinRepoScraperTests(unittest.TestCase):
             name="ビームヒカリ",
             url="https://min-repo.com/tag/ビームヒカリ/",
         )
+        enabled_machine_names = {"スマスロ ミリオンゴッド"}
 
         summary = app._fetch_and_save_daidata_at_supplement(
             registered_store=registered_store,
@@ -5695,7 +5733,7 @@ class MinRepoScraperTests(unittest.TestCase):
         )
 
         self.assertIsNotNone(summary)
-        self.assertIsNone(captured_fetch_arguments["enabled_machine_names"])
+        self.assertEqual(captured_fetch_arguments["enabled_machine_names"], enabled_machine_names)
         self.assertEqual(captured_fetch_arguments["recent_days"], 8)
         self.assertEqual(len(saved_results), 1)
         saved_result, full_day = saved_results[0]
@@ -6270,6 +6308,15 @@ class MinRepoScraperTests(unittest.TestCase):
         )
         self.assertEqual([entry.ball_price for entry in entries], [20.0, 21.7])
         self.assertTrue(all(entry.rate_key == "20yen" for entry in entries))
+        filtered_entries = DaidataOnlineScraper().extract_at_candidate_machine_links(
+            html,
+            DAIDATA_BEAM_HIKARI_URL,
+            enabled_machine_names={"スマスロ ミリオンゴッド"},
+        )
+        self.assertEqual(
+            [entry.machine_name for entry in filtered_entries],
+            ["スマスロ ミリオンゴッド"],
+        )
 
     def test_daidata_unit_detail_links_read_slot_number_links(self) -> None:
         html = """
@@ -6664,17 +6711,24 @@ class MinRepoScraperTests(unittest.TestCase):
 
         store_config = daidata_store_config_for("ビームヒカリ", "")
         self.assertIsNotNone(store_config)
-        for include_non_jugglers, expected_machine_names in (
-            (False, [SITE7_NEO_IM_MACHINE_NAME]),
+        kabaneri_machine_name = "スマスロ 甲鉄城のカバネリ 海門決戦"
+        for include_non_jugglers, enabled_machine_names, expected_machine_names in (
+            (False, {SITE7_NEO_IM_MACHINE_NAME}, [SITE7_NEO_IM_MACHINE_NAME]),
+            (True, {SITE7_NEO_IM_MACHINE_NAME}, [SITE7_NEO_IM_MACHINE_NAME]),
             (
                 True,
+                {SITE7_NEO_IM_MACHINE_NAME, kabaneri_machine_name},
                 [
                     SITE7_NEO_IM_MACHINE_NAME,
-                    "スマスロ 甲鉄城のカバネリ 海門決戦",
+                    kabaneri_machine_name,
                 ],
             ),
+            (True, {kabaneri_machine_name}, [kabaneri_machine_name]),
         ):
-            with self.subTest(include_non_jugglers=include_non_jugglers):
+            with self.subTest(
+                include_non_jugglers=include_non_jugglers,
+                enabled_machine_names=enabled_machine_names,
+            ):
                 scraper = DaidataOnlineScraper()
                 scraper._require_playwright = mock.Mock()
                 scraper._launch_mobile_browser_context = mock.Mock(
@@ -6686,7 +6740,7 @@ class MinRepoScraperTests(unittest.TestCase):
                 result = scraper.fetch_store_juggler_history(
                     store_config=store_config,
                     recent_days=1,
-                    enabled_machine_names={SITE7_NEO_IM_MACHINE_NAME},
+                    enabled_machine_names=enabled_machine_names,
                     include_twenty_yen_non_juggler_machines=include_non_jugglers,
                 )
 
