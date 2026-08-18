@@ -93,6 +93,7 @@ from main import (
     rewrite_history_result_store,
     scheduled_fetch_due_date,
     scheduled_supplemental_store_limit,
+    site7_juggler_machine_names,
     site7_machine_is_juggler,
     site7_schedule_due_hour,
     site7_update_satisfies_scheduled_hour,
@@ -1829,6 +1830,46 @@ class MinRepoScraperTests(unittest.TestCase):
 
         app._start_worker.assert_called_once()
         self.assertEqual(app._start_worker.call_args.args[7], {SITE7_NEO_IM_MACHINE_NAME})
+        self.assertFalse(app._start_worker.call_args.args[9])
+
+    def test_fetch_registered_store_site7_juggler_data_only_selects_juggler_machines(self) -> None:
+        app = MinRepoApp.__new__(MinRepoApp)
+        target_store = RegisteredStore(
+            name="Aパーク春日店",
+            url="https://example.com/store",
+            fetch_source=FETCH_SOURCE_SITE7,
+        )
+        app.target_date_var = FakeTextVariable("90")
+        app.site7_target_machine_names = (
+            SITE7_NEO_IM_MACHINE_NAME,
+            "マイジャグラーV",
+            "スマスロ ハナビ",
+        )
+        app.site7_scraper = SimpleNamespace(has_saved_login_state=mock.Mock(return_value=True))
+        app._site7_start_blocked = mock.Mock(return_value=False)
+        app._retry_delay_seconds_input = mock.Mock(return_value=0)
+        app._minrepo_fetch_parallel_options = mock.Mock(
+            return_value=MinRepoFetchParallelOptions(date_workers=1, machine_workers=1)
+        )
+        app._web_publish_options_input = mock.Mock(return_value=object())
+        app._site7_registered_store_for_single_fetch = mock.Mock(return_value=target_store)
+        app._registered_store_display_name = mock.Mock(return_value=target_store.name)
+        app._begin_fetch_run = mock.Mock()
+        app._site7_browser_visible = mock.Mock(return_value=False)
+        app._start_worker = mock.Mock()
+
+        app.fetch_registered_store_site7_juggler_data(target_store)
+
+        app._site7_registered_store_for_single_fetch.assert_called_once_with(
+            target_store,
+            require_site7_source=True,
+        )
+        app._start_worker.assert_called_once()
+        self.assertEqual(
+            app._start_worker.call_args.args[7],
+            {SITE7_NEO_IM_MACHINE_NAME, "マイジャグラーV"},
+        )
+        self.assertFalse(app._start_worker.call_args.args[8])
         self.assertFalse(app._start_worker.call_args.args[9])
 
     def test_run_with_persistence_lock_serializes_actions(self) -> None:
@@ -5233,6 +5274,12 @@ class MinRepoScraperTests(unittest.TestCase):
     def test_site7_juggler_machine_detection(self) -> None:
         self.assertTrue(site7_machine_is_juggler(SITE7_NEO_IM_MACHINE_NAME))
         self.assertFalse(site7_machine_is_juggler("スマスロ ハナビ"))
+        self.assertEqual(
+            site7_juggler_machine_names(
+                (SITE7_NEO_IM_MACHINE_NAME, "マイジャグラーV", "スマスロ ハナビ")
+            ),
+            {SITE7_NEO_IM_MACHINE_NAME, "マイジャグラーV"},
+        )
 
     def test_fetch_single_site7_store_can_force_neo_im_graph_fetch(self) -> None:
         app = MinRepoApp.__new__(MinRepoApp)

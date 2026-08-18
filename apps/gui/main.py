@@ -11,7 +11,7 @@ import threading
 import time
 import tkinter as tk
 from tkinter import messagebox, ttk
-from typing import Callable, TypeVar
+from typing import Callable, Iterable, TypeVar
 from urllib.parse import urlparse
 
 try:
@@ -446,6 +446,14 @@ def site7_machine_source_group(fetch_source: object) -> str:
 def site7_machine_is_juggler(machine_name: object) -> bool:
     machine_text = normalize_text(canonical_machine_name(str(machine_name or ""), site7_only=True))
     return "ジャグラー" in machine_text
+
+
+def site7_juggler_machine_names(machine_names: Iterable[object]) -> set[str]:
+    return {
+        str(machine_name).strip()
+        for machine_name in machine_names
+        if str(machine_name).strip() and site7_machine_is_juggler(machine_name)
+    }
 
 
 def normalize_fetch_order(value: object) -> int | None:
@@ -3752,6 +3760,66 @@ class MinRepoApp:
             operation_kind="site7_fetch",
         )
 
+    def fetch_registered_store_site7_juggler_data(self, registered_store: RegisteredStore) -> None:
+        if self._site7_start_blocked():
+            return
+
+        try:
+            recent_days = parse_recent_days(self.target_date_var.get())
+            retry_delay_seconds = self._retry_delay_seconds_input()
+            fetch_parallel_options = self._minrepo_fetch_parallel_options()
+            web_publish_options = self._web_publish_options_input()
+            target_store = self._site7_registered_store_for_single_fetch(
+                registered_store,
+                require_site7_source=True,
+            )
+            juggler_machine_names = site7_juggler_machine_names(
+                getattr(
+                    self,
+                    "site7_target_machine_names",
+                    tuple(list_site7_target_machine_names()),
+                )
+            )
+            if not juggler_machine_names:
+                raise ScraperError("サイトセブンのジャグ系対象機種が登録されていません。")
+        except ScraperError as exc:
+            self._show_error(exc)
+            return
+
+        recent_days = clamp_site7_recent_days(recent_days)
+
+        if self._site7_fetch_requires_login([target_store]) and not self.site7_scraper.has_saved_login_state():
+            if messagebox.askyesno(
+                "サイトセブン",
+                "サイトセブンのログイン情報がまだありません。\n先にログイン画面を開きますか？",
+            ):
+                self.site7_login()
+            return
+
+        display_name = self._registered_store_display_name(target_store)
+        self._begin_fetch_run(
+            progress_message="サイトセブンへ接続中...",
+            status_message="サイトセブン取得中...",
+            summary_message=f"{display_name} のジャグ系をサイトセブンから取得中",
+            progress_kind=PROGRESS_KIND_SITE7,
+        )
+        browser_visible = self._site7_browser_visible()
+        skip_juggler_graph_differences = self._site7_skip_juggler_difference_enabled()
+        self._start_worker(
+            self._worker_fetch_site7,
+            [target_store],
+            recent_days,
+            retry_delay_seconds,
+            browser_visible,
+            fetch_parallel_options,
+            web_publish_options,
+            juggler_machine_names,
+            False,
+            False,
+            skip_juggler_graph_differences,
+            operation_kind="site7_fetch",
+        )
+
     def _worker_fetch_site7(
         self,
         target_stores: list[RegisteredStore],
@@ -6635,6 +6703,10 @@ class MinRepoApp:
         menu.add_command(
             label="この店舗のネオアイムを取得",
             command=lambda store=registered_store: self.fetch_registered_store_site7_neo_im_data(store),
+        )
+        menu.add_command(
+            label="この店舗のジャグ系を取得",
+            command=lambda store=registered_store: self.fetch_registered_store_site7_juggler_data(store),
         )
         try:
             menu.tk_popup(event.x_root, event.y_root)
